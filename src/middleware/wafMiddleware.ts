@@ -1,14 +1,9 @@
 import type { NextFunction, Request, Response } from "express";
+import { shouldBypassSecurityComponent } from "../security/securityPolicy";
 import logger from "../utils/logger";
 
 // ========== 缓存环境变量 ==========
 // WAF_ENABLED 开关由 app.ts 控制是否挂载，此处不再判断
-
-// 跳过 WAF 检查的路径
-const WAF_SKIP_PATHS = new Set(["/api/auth/login", "/api/auth/register"]);
-
-// 跳过 WAF 检查的路径前缀
-const WAF_SKIP_PREFIXES = ["/api/webhooks", "/api/data-collection"];
 
 // 预编译正则（模块加载时编译一次，不在请求中重复创建）
 const DANGEROUS_CHARS = /[<>{}`;\\]/;
@@ -136,10 +131,7 @@ export function wafMiddleware(req: Request, res: Response, next: NextFunction) {
   if (p.charCodeAt(0) !== 47 || p.charCodeAt(1) !== 97 || p.charCodeAt(4) !== 47) return next(); // 快速判断非 /api/
   if (!p.startsWith("/api/")) return next();
 
-  if (WAF_SKIP_PATHS.has(p)) return next();
-  for (let i = 0; i < WAF_SKIP_PREFIXES.length; i++) {
-    if (p.startsWith(WAF_SKIP_PREFIXES[i])) return next();
-  }
+  if (shouldBypassSecurityComponent("waf", p)) return next();
 
   // GET/HEAD/OPTIONS 通常无 body，只检查 query
   const method = req.method;

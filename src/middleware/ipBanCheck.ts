@@ -4,6 +4,7 @@ import rateLimit from "express-rate-limit";
 import { LRUCache } from "lru-cache";
 import { config } from "../config/config";
 import { IpBanModel } from "../models/ipBanModel";
+import { securityBypassPolicy } from "../security/securityPolicy";
 import logger from "../utils/logger";
 
 // 性能监控指标
@@ -113,10 +114,7 @@ const ipBanCheckLimiter = rateLimit({
 
 // 白名单路径 - 这些路径不进行IP封禁检查
 const WHITELIST_PATHS = [
-  "/health",
-  "/api/health",
-  "/status",
-  "/api/status",
+  ...securityBypassPolicy.ipBan.map((rule) => rule.value),
   // IP查询端点 - 允许客户端查询自己的IP
   "/ip",
   // 公告端点 - 允许公开访问

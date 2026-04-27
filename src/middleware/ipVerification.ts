@@ -1,22 +1,14 @@
 import type { NextFunction, Request, Response } from "express";
 import { config } from "../config/config";
+import { shouldBypassSecurityComponent } from "../security/securityPolicy";
 import IpVerificationService from "../services/ipVerificationService";
-
-const EXEMPT_ENFORCEMENT_PREFIXES = [
-  "/api/ip-verification",
-  "/api/turnstile",
-  "/api/human-check",
-  "/api/status",
-  "/api/frontend-config",
-  "/api/auth/linuxdo/",
-];
 
 function shouldSkipVerificationEnforcement(req: Request): boolean {
   if (!config.ipqs.enabled) return true;
   if (req.method === "OPTIONS") return true;
 
   const originalUrl = req.originalUrl || req.url || "";
-  if (EXEMPT_ENFORCEMENT_PREFIXES.some((prefix) => originalUrl.startsWith(prefix))) return true;
+  if (shouldBypassSecurityComponent("ipVerification", originalUrl)) return true;
 
   const browserLike =
     Boolean(req.headers.origin) || Boolean(req.headers["sec-fetch-mode"]) || Boolean(req.headers["x-fingerprint"]);

@@ -37,6 +37,7 @@ import authRoutes from "./authRoutes";
 import cdkRoutes from "./cdkRoutes";
 import commandRoutes from "./commandRoutes";
 import dataCollectionAdminRoutes from "./dataCollectionAdminRoutes";
+import dataCollectionRoutes from "./dataCollectionRoutes";
 import dataProcessRoutes from "./dataProcessRoutes";
 import debugConsoleRoutes from "./debugConsoleRoutes";
 import deeplxRoutes from "./deeplxRoutes";
@@ -69,9 +70,12 @@ import totpRoutes, { totpStatusHandler } from "./totpRoutes";
 import ttsRoutes from "./ttsRoutes";
 import turnstileRoutes from "./turnstileRoutes";
 import webhookEventRoutes from "./webhookEventRoutes";
+import webhookRoutes from "./webhookRoutes";
 import logger from "../utils/logger";
+import type { SecurityComponent } from "../security/securityPolicy";
 
 export type RouteMetaFlag = boolean | "mixed";
+export type RouteSecurityBypass = Partial<Record<SecurityComponent, RouteMetaFlag>>;
 
 export interface RouteModule {
   name: string;
@@ -81,6 +85,7 @@ export interface RouteModule {
   requiresAuth: RouteMetaFlag;
   rateLimited: RouteMetaFlag;
   isPublic: RouteMetaFlag;
+  securityBypass?: RouteSecurityBypass;
 }
 
 const antaRequestLogger: RequestHandler = (req: Request, _res: Response, next: NextFunction) => {
@@ -239,6 +244,42 @@ export const routeLimiterModules: RouteModule[] = [
   },
 ];
 
+export const preParserRouteModules: RouteModule[] = [
+  {
+    name: "webhook-routes",
+    path: "/api/webhooks",
+    router: webhookRoutes,
+    requiresAuth: false,
+    rateLimited: true,
+    isPublic: true,
+    securityBypass: {
+      waf: true,
+    },
+  },
+  {
+    name: "data-collection-routes",
+    path: "/api/data-collection",
+    router: dataCollectionRoutes,
+    requiresAuth: false,
+    rateLimited: true,
+    isPublic: true,
+    securityBypass: {
+      waf: true,
+    },
+  },
+  {
+    name: "root-data-collection-routes",
+    path: "/",
+    router: dataCollectionRoutes,
+    requiresAuth: false,
+    rateLimited: true,
+    isPublic: true,
+    securityBypass: {
+      waf: "mixed",
+    },
+  },
+];
+
 export const earlyRouteModules: RouteModule[] = [
   {
     name: "email-routes",
@@ -286,6 +327,9 @@ export const preTamperRouteModules: RouteModule[] = [
     requiresAuth: false,
     rateLimited: false,
     isPublic: true,
+    securityBypass: {
+      ipVerification: true,
+    },
   },
   {
     name: "ip-verification-middleware",
@@ -302,6 +346,10 @@ export const preTamperRouteModules: RouteModule[] = [
     requiresAuth: "mixed",
     rateLimited: true,
     isPublic: "mixed",
+    securityBypass: {
+      waf: "mixed",
+      ipVerification: "mixed",
+    },
   },
   {
     name: "totp-routes",
@@ -353,6 +401,10 @@ export const preTamperRouteModules: RouteModule[] = [
     requiresAuth: "mixed",
     rateLimited: true,
     isPublic: "mixed",
+    securityBypass: {
+      ipBan: true,
+      ipVerification: true,
+    },
   },
   {
     name: "turnstile-routes",
@@ -361,6 +413,9 @@ export const preTamperRouteModules: RouteModule[] = [
     requiresAuth: "mixed",
     rateLimited: true,
     isPublic: "mixed",
+    securityBypass: {
+      ipVerification: true,
+    },
   },
   {
     name: "policy-routes",
@@ -412,6 +467,9 @@ export const postTamperRouteModules: RouteModule[] = [
     requiresAuth: false,
     rateLimited: false,
     isPublic: true,
+    securityBypass: {
+      ipVerification: true,
+    },
   },
   {
     name: "debug-console-routes",

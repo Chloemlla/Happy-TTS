@@ -21,7 +21,6 @@ import {
   openCorsHeadersMiddleware,
   openCorsPreflightHandler,
 } from "./middleware/corsMiddleware";
-import { ipBanCheckWithRateLimit } from "./middleware/ipBanCheck";
 import { passkeyErrorHandler } from "./middleware/passkeyAutoFix";
 import { requestIdMiddleware } from "./middleware/requestId";
 // ========== 限流器（统一从 routeLimiters 导入） ==========
@@ -41,20 +40,17 @@ import {
   serverStatusLimiter,
   staticFileLimiter,
 } from "./middleware/routeLimiters";
-import { tamperProtectionMiddleware } from "./middleware/tamperProtection";
-import { wafMiddleware } from "./middleware/wafMiddleware";
-import dataCollectionRoutes from "./routes/dataCollectionRoutes";
 import {
   earlyRouteModules,
   postTamperRouteModules,
+  preParserRouteModules,
   preDocsRouteModules,
   preTamperRouteModules,
   registerRouteModules,
   routeLimiterModules,
 } from "./routes";
 import shortUrlRoutes from "./routes/shortUrlRoutes";
-import webhookRoutes from "./routes/webhookRoutes";
-import { AuditLogService } from "./services/auditLogService";
+import { registerSecurityPipeline } from "./security/securityPipeline";
 import { getIPInfo } from "./services/ip";
 import { isConnected as isMongoConnected } from "./services/mongoService";
 import { schedulerService } from "./services/schedulerService";
@@ -110,12 +106,7 @@ const _execAsync = promisify(exec);
 app.options("/s/*path", corsPreflightHandler);
 app.use("/s/*path", corsHeadersMiddleware);
 
-// Webhook 路由（需要原始 body，必须在 JSON parser 之前）
-app.use("/api/webhooks", webhookRoutes);
-
-// 数据收集路由（避免 body-parser 对非 JSON 请求抛错）
-app.use("/api/data-collection", dataCollectionRoutes);
-app.use("/", dataCollectionRoutes);
+registerRouteModules(app, preParserRouteModules);
 
 // ========== 全局中间件 ==========
 
@@ -136,15 +127,9 @@ app.get("/health", (_req: Request, res: Response) => {
   });
 });
 
-// 全局 IP 封禁检查
-app.use(ipBanCheckWithRateLimit);
-
-// 自动全局审计记录
-app.use(AuditLogService.globalAuditMiddleware());
-
-// WAF 安全校验（在 body parser 之后、路由之前，确保能检查 body）
+// 安全策略管线：IP Ban -> 审计 -> WAF
+registerSecurityPipeline(app, "postBodyParser");
 if (process.env.WAF_ENABLED !== "false") {
-  app.use(wafMiddleware);
   logger.info("[WAF] 已启用");
 } else {
   logger.info("[WAF] 已通过 WAF_ENABLED=false 禁用");
@@ -472,7 +457,7 @@ app.get("/api/frontend-config", (_req: Request, res: Response) => {
 
 // ========== 路由注册（续） ==========
 registerRouteModules(app, preTamperRouteModules);
-app.use(tamperProtectionMiddleware);
+registerSecurityPipeline(app, "prePostTamperRoutes");
 app.options("/api/debug-console/*path", corsPreflightHandler);
 app.use("/api/debug-console/*path", corsHeadersMiddleware);
 registerRouteModules(app, postTamperRouteModules);
