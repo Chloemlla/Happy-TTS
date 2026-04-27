@@ -17,6 +17,15 @@ const PNPM_COMMAND = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const COREPACK_COMMAND = process.platform === 'win32' ? 'corepack.cmd' : 'corepack';
 const CARGO_COMMAND = process.platform === 'win32' ? 'cargo.exe' : 'cargo';
 const IS_WINDOWS = process.platform === 'win32';
+const WINDOWS_POWERSHELL_COMMAND = IS_WINDOWS
+  ? path.join(
+    process.env.SystemRoot ?? 'C:\\Windows',
+    'System32',
+    'WindowsPowerShell',
+    'v1.0',
+    'powershell.exe'
+  )
+  : null;
 const CRATES_IO_API_ROOT = 'https://crates.io/api/v1/crates';
 const CRATES_IO_USER_AGENT = 'geograba-dependabot-alert-fixer';
 const DEPENDENCY_FIELDS = [
@@ -76,16 +85,22 @@ function printSection(index, total, title) {
   console.log(`\n[${index}/${total}] ${title}`);
 }
 
+function quoteWindowsShellArgument(argument) {
+  return /^[A-Za-z0-9_./:\\@%+=,~-]+$/.test(argument)
+    ? argument
+    : `'${argument.replace(/'/g, "''")}'`;
+}
+
+function quotePosixShellArgument(argument) {
+  return /^[A-Za-z0-9_./:@%+=,~-]+$/.test(argument)
+    ? argument
+    : `'${argument.replace(/'/g, `'\\''`)}'`;
+}
+
 function quoteShellArgument(argument) {
-  if (/^[A-Za-z0-9_./:@%+=,~-]+$/.test(argument)) {
-    return argument;
-  }
-
-  if (IS_WINDOWS) {
-    return `'${argument.replace(/'/g, "''")}'`;
-  }
-
-  return `'${argument.replace(/'/g, `'\\''`)}'`;
+  return IS_WINDOWS
+    ? quoteWindowsShellArgument(argument)
+    : quotePosixShellArgument(argument);
 }
 
 function formatShellCommand(cwd, command, args = []) {
@@ -102,6 +117,44 @@ function createSpawnError(commandLabel, cwd, error) {
     new Error(`Unable to execute ${commandLabel} in ${cwd}: ${error.message}`),
     { code: error.code }
   );
+}
+
+function executeCommand(cwd, command, commandArgs, commandLabel) {
+  return new Promise((resolve, reject) => {
+    const child = IS_WINDOWS
+      ? spawn(
+        WINDOWS_POWERSHELL_COMMAND,
+        ['-NoProfile', '-Command', [command, ...commandArgs].map(quoteWindowsShellArgument).join(' ')],
+        {
+          cwd,
+          stdio: 'inherit',
+          env: process.env,
+          windowsHide: true,
+        }
+      )
+      : spawn(command, commandArgs, {
+        cwd,
+        stdio: 'inherit',
+        env: process.env,
+      });
+
+    child.on('error', (error) => {
+      reject(createSpawnError(commandLabel, cwd, error));
+    });
+
+    child.on('exit', (code, signal) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+
+      reject(
+        new Error(
+          `${commandLabel} exited abnormally in ${cwd}: ${signal ? `signal ${signal}` : `code ${code}`}`
+        )
+      );
+    });
+  });
 }
 
 function collectDependencyNames(manifest) {
@@ -258,39 +311,11 @@ async function rewriteManifest(packageJsonPath, manifest) {
 }
 
 function createPnpmExecutor(target) {
-  const executePnpm = (command, commandArgs, commandLabel) =>
-    new Promise((resolve, reject) => {
-      const child = spawn(command, commandArgs, {
-        cwd: target.dir,
-        stdio: 'inherit',
-        env: process.env,
-        shell: IS_WINDOWS,
-        windowsHide: true,
-      });
-
-      child.on('error', (error) => {
-        reject(createSpawnError(commandLabel, target.dir, error));
-      });
-
-      child.on('exit', (code, signal) => {
-        if (code === 0) {
-          resolve();
-          return;
-        }
-
-        reject(
-          new Error(
-            `${commandLabel} exited abnormally for ${target.packageJsonLabel}: ${signal ? `signal ${signal}` : `code ${code}`}`
-          )
-        );
-      });
-    });
-
   return async (args) => {
     printAction(target.dir, 'pnpm', args);
 
     try {
-      await executePnpm(PNPM_COMMAND, args, 'pnpm');
+      await executeCommand(target.dir, PNPM_COMMAND, args, `pnpm for ${target.packageJsonLabel}`);
     } catch (error) {
       if (error?.code !== 'ENOENT') {
         throw error;
@@ -300,7 +325,12 @@ function createPnpmExecutor(target) {
       printAction(target.dir, 'corepack', ['pnpm', ...args]);
 
       try {
-        await executePnpm(COREPACK_COMMAND, ['pnpm', ...args], 'corepack pnpm');
+        await executeCommand(
+          target.dir,
+          COREPACK_COMMAND,
+          ['pnpm', ...args],
+          `corepack pnpm for ${target.packageJsonLabel}`
+        );
       } catch (corepackError) {
         if (corepackError?.code === 'ENOENT') {
           throw new Error(
@@ -691,7 +721,7 @@ async function runPnpmUpgrade(target, options = {}) {
   const runPnpmCommand = createPnpmExecutor(target);
 
   if (!options.repairOnly) {
-    await runPnpmCommand(['up', '--latest', ...target.dependencyNames]);
+    await runPnpmCommand(['up', '--latest', '--lockfile-only', ...target.dependencyNames]);
   }
 
   const nextManifest = await readManifest(target.packageJsonPath);
@@ -757,32 +787,12 @@ async function runRustUpgrade(target) {
   const args = ['update'];
   printAction(target.dir, 'cargo', args);
 
-  await new Promise((resolve, reject) => {
-    const child = spawn(CARGO_COMMAND, args, {
-      cwd: target.dir,
-      stdio: 'inherit',
-      env: process.env,
-      shell: IS_WINDOWS,
-      windowsHide: true,
-    });
-
-    child.on('error', (error) => {
-      reject(createSpawnError('cargo', target.dir, error));
-    });
-
-    child.on('exit', (code, signal) => {
-      if (code === 0) {
-        resolve();
-        return;
-      }
-
-      reject(
-        new Error(
-          `cargo exited abnormally for ${target.cargoManifestLabel}: ${signal ? `signal ${signal}` : `code ${code}`}`
-        )
-      );
-    });
-  });
+  await executeCommand(
+    target.dir,
+    CARGO_COMMAND,
+    args,
+    `cargo for ${target.cargoManifestLabel}`
+  );
 }
 
 async function verifyTarget(target) {
