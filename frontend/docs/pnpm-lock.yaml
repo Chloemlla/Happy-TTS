@@ -44,9 +44,6 @@ importers:
       css-select:
         specifier: ^7.0.0
         version: 7.0.0
-      docs:
-        specifier: 'file:'
-        version: file:(@algolia/client-search@5.51.0)(@types/react@19.2.14)(search-insights@2.17.3)(tslib@2.8.1)(typescript@6.0.3)(webpack@5.99.9)
       js-yaml:
         specifier: ^4.1.1
         version: 4.1.1
@@ -78,6 +75,9 @@ importers:
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
+      webpack:
+        specifier: 5.99.9
+        version: 5.99.9
 
 packages:
 
@@ -2495,10 +2495,6 @@ packages:
   dns-packet@5.6.1:
     resolution: {integrity: sha512-l4gcSouhcgIKRvyy99RNVOgxXiicE+2jZoNmaNmZ6JXiGajBOJAesk1OBlJuM5k2c+eudGdLxDqXuPCKIj6kpw==}
     engines: {node: '>=6'}
-
-  'docs@file:':
-    resolution: {directory: '', type: directory}
-    engines: {node: '>=18.0'}
 
   dom-converter@0.2.0:
     resolution: {integrity: sha512-gd3ypIPfOMr9h5jIKq8E3sHOTCjeirnl0WK5ZdS1AW0Odt0b1PaWaHdJ4Qk4klv+YB9aJBS7mESXjFoDQPu6DA==}
@@ -8564,45 +8560,6 @@ snapshots:
   dns-packet@5.6.1:
     dependencies:
       '@leichtgewicht/ip-codec': 2.0.5
-
-  docs@file:(@algolia/client-search@5.51.0)(@types/react@19.2.14)(search-insights@2.17.3)(tslib@2.8.1)(typescript@6.0.3)(webpack@5.99.9):
-    dependencies:
-      '@docusaurus/core': 3.10.0(@mdx-js/react@3.1.1(@types/react@19.2.14)(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@6.0.3)
-      '@docusaurus/preset-classic': 3.10.0(@algolia/client-search@5.51.0)(@mdx-js/react@3.1.1(@types/react@19.2.14)(react@19.2.5))(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(search-insights@2.17.3)(typescript@6.0.3)
-      '@fingerprintjs/fingerprintjs': 5.2.0
-      '@mdx-js/react': 3.1.1(@types/react@19.2.14)(react@19.2.5)
-      axios: 1.15.2
-      cheerio-select: 2.1.0
-      clsx: 2.1.1
-      crypto-js: 4.2.0
-      css-select: 7.0.0
-      js-yaml: 4.1.1
-      mitt: 3.0.1
-      prism-react-renderer: 2.4.1(react@19.2.5)
-      react: 19.2.5
-      react-dom: 19.2.5(react@19.2.5)
-      webpack-dev-server: 5.2.3(tslib@2.8.1)(webpack@5.99.9)
-    transitivePeerDependencies:
-      - '@algolia/client-search'
-      - '@docusaurus/faster'
-      - '@parcel/css'
-      - '@rspack/core'
-      - '@swc/core'
-      - '@swc/css'
-      - '@types/react'
-      - bufferutil
-      - csso
-      - debug
-      - esbuild
-      - lightningcss
-      - search-insights
-      - supports-color
-      - tslib
-      - typescript
-      - uglify-js
-      - utf-8-validate
-      - webpack
-      - webpack-cli
 
   dom-converter@0.2.0:
     dependencies:
