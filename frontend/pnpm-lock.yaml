@@ -192,8 +192,8 @@ importers:
         specifier: ^4.60.2
         version: 4.60.2
       swagger-ui-react:
-        specifier: ^5.32.4
-        version: 5.32.4(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+        specifier: ^5.32.5
+        version: 5.32.5(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       tailwind-merge:
         specifier: ^3.5.0
         version: 3.5.0
@@ -5065,8 +5065,8 @@ packages:
   swagger-client@3.37.3:
     resolution: {integrity: sha512-PZv5smQPnPwfP6mnkq96fOp/RNDKBqd8vfwE4UuwA229wsesj20yd7RadXx+9uLBC3c0H6cu/H+bnbMTWG6oUQ==}
 
-  swagger-ui-react@5.32.4:
-    resolution: {integrity: sha512-OsTqKCiDT/o8/oqZbt+p1djPkrOk3unKK/7+wGvP1+WY6pOzFoDLM4D39cNFtpIArtlg9uoK6MKIz3W00WX8qw==}
+  swagger-ui-react@5.32.5:
+    resolution: {integrity: sha512-u86Qx36C5FvmJFVGMF3s62dxR3l0EfUmlylJVqCJ4vL0tvfd38kNdCQan9app6Y+C25uqVAjGLYu2w87UMD35Q==}
     peerDependencies:
       react: ^19.2.5
       react-dom: ^19.2.5
@@ -11250,7 +11250,7 @@ snapshots:
     transitivePeerDependencies:
       - debug
 
-  swagger-ui-react@5.32.4(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5):
+  swagger-ui-react@5.32.5(@types/react@19.2.14)(react-dom@19.2.5(react@19.2.5))(react@19.2.5):
     dependencies:
       '@babel/runtime-corejs3': 7.29.2
       '@scarf/scarf': 1.4.0
