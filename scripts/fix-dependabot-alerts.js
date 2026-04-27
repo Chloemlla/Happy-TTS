@@ -34,6 +34,11 @@ const DEPENDENCY_FIELDS = [
   'peerDependencies',
   'optionalDependencies',
 ];
+const PINNED_DEPENDENCY_RANGES_BY_TARGET = {
+  'frontend/docs/package.json': {
+    webpack: '5.99.9',
+  },
+};
 
 const RUST_DEPENDENCY_FIELDS = [
   'dependencies',
@@ -309,6 +314,39 @@ async function rewriteManifest(packageJsonPath, manifest) {
     packageJsonPath,
     `${JSON.stringify(manifest, null, 2).replace(/\n/g, newline)}${newline}`
   );
+}
+
+function applyPinnedDependencyRanges(target, manifest) {
+  const pinnedRanges = PINNED_DEPENDENCY_RANGES_BY_TARGET[target.packageJsonLabel];
+
+  if (!pinnedRanges) {
+    return [];
+  }
+
+  const changes = [];
+
+  for (const field of DEPENDENCY_FIELDS) {
+    const dependencies = manifest[field];
+    if (!dependencies || typeof dependencies !== 'object') {
+      continue;
+    }
+
+    for (const [dependencyName, pinnedRange] of Object.entries(pinnedRanges)) {
+      if (!(dependencyName in dependencies) || dependencies[dependencyName] === pinnedRange) {
+        continue;
+      }
+
+      changes.push({
+        field,
+        name: dependencyName,
+        beforeRange: dependencies[dependencyName],
+        afterRange: pinnedRange,
+      });
+      dependencies[dependencyName] = pinnedRange;
+    }
+  }
+
+  return changes;
 }
 
 function createPnpmExecutor(target) {
@@ -726,10 +764,16 @@ async function runPnpmUpgrade(target, options = {}) {
   }
 
   const nextManifest = await readManifest(target.packageJsonPath);
+  const pinnedRangeChanges = applyPinnedDependencyRanges(target, nextManifest);
   const overrideChanges = normalizePnpmOverrides(nextManifest);
 
-  if (overrideChanges.length > 0) {
+  if (pinnedRangeChanges.length > 0 || overrideChanges.length > 0) {
     await rewriteManifest(target.packageJsonPath, nextManifest);
+    if (pinnedRangeChanges.length > 0) {
+      console.log(
+        `  - Reapplied ${pinnedRangeChanges.length} pinned dependency range${pinnedRangeChanges.length === 1 ? '' : 's'}.`
+      );
+    }
     console.log(
       `  - Normalized ${overrideChanges.length} overlapping pnpm override${overrideChanges.length === 1 ? '' : 's'} to $dependency references.`
     );
