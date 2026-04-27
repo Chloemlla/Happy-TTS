@@ -13,7 +13,6 @@ import swaggerJSDoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 import { config } from "./config/config";
 import { registerLogoutRoute } from "./controllers/authController";
-import { authenticateToken } from "./middleware/authenticateToken";
 // ========== CORS 中间件 ==========
 import {
   corsHeadersMiddleware,
@@ -23,95 +22,30 @@ import {
   openCorsPreflightHandler,
 } from "./middleware/corsMiddleware";
 import { ipBanCheckWithRateLimit } from "./middleware/ipBanCheck";
-import { ipVerificationMiddleware } from "./middleware/ipVerification";
-import { passkeyAutoFixMiddleware, passkeyErrorHandler } from "./middleware/passkeyAutoFix";
+import { passkeyErrorHandler } from "./middleware/passkeyAutoFix";
 import { requestIdMiddleware } from "./middleware/requestId";
 // ========== 限流器（统一从 routeLimiters 导入） ==========
 import {
-  adminLimiter,
-  antaLimiter,
   audioFileLimiter,
-  authLimiter,
-  cdkMountLimiter,
-  commandLimiter,
-  dataCollectionLimiter,
-  dataProcessLimiter,
-  deeplxLimiter,
   docsTimeoutLimiter,
   frontendLimiter,
-  githubBillingLimiter,
   globalDefaultLimiter,
-  historyLimiter,
   integrityLimiter,
-  ipfsLimiter,
   ipLocationLimiter,
   ipQueryLimiter,
   ipReportLimiter,
   lcCompatLimiter,
-  libreChatLimiter,
-  lifeLimiter,
-  mediaLimiter,
-  meEndpointLimiter,
-  miniapiLimiter,
-  modlistMountLimiter,
-  networkLimiter,
-  nexaiSecurityLimiter,
   notFoundLimiter,
   openapiLimiter,
-  passkeyLimiter,
   rootLimiter,
   serverStatusLimiter,
-  socialLimiter,
   staticFileLimiter,
-  statusLimiter,
-  tamperLimiter,
-  totpLimiter,
-  ttsLimiter,
 } from "./middleware/routeLimiters";
 import { tamperProtectionMiddleware } from "./middleware/tamperProtection";
 import { wafMiddleware } from "./middleware/wafMiddleware";
-import adminRoutes from "./routes/adminRoutes";
-import antaRoutes from "./routes/antaRoutes";
-import apiKeyRoutes from "./routes/apiKeyRoutes";
-import auditLogRoutes from "./routes/auditLogRoutes";
-import authRoutes from "./routes/authRoutes";
-import cdkRoutes from "./routes/cdkRoutes";
-import commandRoutes from "./routes/commandRoutes";
-import dataCollectionAdminRoutes from "./routes/dataCollectionAdminRoutes";
 import dataCollectionRoutes from "./routes/dataCollectionRoutes";
-import dataProcessRoutes from "./routes/dataProcessRoutes";
-import debugConsoleRoutes from "./routes/debugConsoleRoutes";
-import deeplxRoutes from "./routes/deeplxRoutes";
-import emailRoutes from "./routes/emailRoutes";
-import fbiWantedRoutes from "./routes/fbiWantedRoutes";
-import githubBillingRoutes from "./routes/githubBillingRoutes";
-import humanCheckRoutes from "./routes/humanCheckRoutes";
-import imageDataRoutes from "./routes/imageDataRoutes";
-import ipfsRoutes from "./routes/ipfsRoutes";
-import ipVerificationRoutes from "./routes/ipVerificationRoutes";
-import libreChatRoutes from "./routes/libreChatRoutes";
-import lifeRoutes from "./routes/lifeRoutes";
-import logRoutes from "./routes/logRoutes";
-import lotteryRoutes from "./routes/lotteryRoutes";
-import mediaRoutes from "./routes/mediaRoutes";
-import miniapiRoutes from "./routes/miniapiRoutes";
-import modlistRoutes from "./routes/modlistRoutes";
-import networkRoutes from "./routes/networkRoutes";
-import nexaiRoutes from "./routes/nexaiRoutes";
-import nexaiSecurityRoutes from "./routes/nexaiSecurityRoutes";
-import outemailRoutes from "./routes/outemailRoutes";
-import passkeyRoutes from "./routes/passkeyRoutes";
-import policyRoutes from "./routes/policyRoutes";
-import resourceRoutes from "./routes/resourceRoutes";
+import { apiRouteModules, earlyRouteModules, registerRouteModules, routeLimiterModules } from "./routes";
 import shortUrlRoutes from "./routes/shortUrlRoutes";
-import socialRoutes from "./routes/socialRoutes";
-import statusRouter from "./routes/status";
-import tamperRoutes from "./routes/tamperRoutes";
-import ticketRoutes from "./routes/ticketRoutes";
-import totpRoutes, { totpStatusHandler } from "./routes/totpRoutes";
-import ttsRoutes from "./routes/ttsRoutes";
-import turnstileRoutes from "./routes/turnstileRoutes";
-import webhookEventRoutes from "./routes/webhookEventRoutes";
 import webhookRoutes from "./routes/webhookRoutes";
 import { AuditLogService } from "./services/auditLogService";
 import { getIPInfo } from "./services/ip";
@@ -358,33 +292,11 @@ app.use(isLocalIp);
 
 // ========== 路由注册 + 限流绑定 ==========
 
-// 邮件路由（无需 token）
-app.use("/api/email", emailRoutes);
-app.use("/api/outemail", outemailRoutes);
+registerRouteModules(app, earlyRouteModules);
 
 // 限流绑定
-app.use("/api/auth", authLimiter);
-app.use("/api/auth/me", meEndpointLimiter);
-app.use("/api/tts/generate", ttsLimiter);
-app.use("/api/tts/history", historyLimiter);
-app.use("/api/totp", totpLimiter);
-app.use("/api/passkey", passkeyLimiter);
-app.use("/api/tamper", tamperLimiter);
-app.use("/api/command", commandLimiter);
-app.use("/api/libre-chat", libreChatLimiter);
-app.use("/api/data-collection", dataCollectionLimiter);
-app.use("/api/ipfs", ipfsLimiter);
-app.use("/api/network", networkLimiter);
-app.use("/api/data", dataProcessLimiter);
-app.use("/api/deeplx", deeplxLimiter);
-app.use("/api/media", mediaLimiter);
-app.use("/api/social", socialLimiter);
-app.use("/api/life", lifeLimiter);
-app.use("/api/status", statusLimiter);
-
-// 路由挂载
-app.use("/api/tts", ttsRoutes);
-app.use("/api/librechat", libreChatLimiter, libreChatRoutes);
+registerRouteModules(app, routeLimiterModules);
+registerRouteModules(app, apiRouteModules);
 
 // ========== Swagger OpenAPI 文档集成 ==========
 const swaggerOptions = {
@@ -469,22 +381,34 @@ try {
 const preferSwaggerUrl = !!process.env.OPENAPI_JSON_PATH || fs.existsSync("/app/openapi.json");
 
 app.get("/api-docs/favicon-32x32.png", (_req: Request, res: Response) => {
-  res.redirect(302, "https://picui.ogmua.cn/s1/2026/03/29/69c8f6226a17c.webp");
+  const faviconPath = path.resolve(process.cwd(), "favicon.ico");
+  if (fs.existsSync(faviconPath)) {
+    res.sendFile(faviconPath);
+    return;
+  }
+  res.status(204).end();
 });
 app.get("/api-docs/favicon-16x16.png", (_req: Request, res: Response) => {
-  res.redirect(302, "https://picui.ogmua.cn/s1/2026/03/29/69c8f6226a17c.webp");
+  const faviconPath = path.resolve(process.cwd(), "favicon.ico");
+  if (fs.existsSync(faviconPath)) {
+    res.sendFile(faviconPath);
+    return;
+  }
+  res.status(204).end();
 });
 
 const swaggerCustomCss = `
   .swagger-ui .topbar .link img,
   .swagger-ui .topbar .link svg { display: none !important; }
   .swagger-ui .topbar .link {
-    background-image: url('https://picui.ogmua.cn/s1/2026/03/29/69c8f6226a17c.webp');
-    background-repeat: no-repeat;
-    background-position: left center;
-    background-size: auto 40px;
+    background: linear-gradient(135deg, #0f172a, #1d4ed8);
+    border-radius: 8px;
     height: 50px;
-    padding-left: 150px;
+    padding-left: 16px;
+    padding-right: 16px;
+    color: #fff !important;
+    display: inline-flex;
+    align-items: center;
   }
 `;
 
@@ -540,71 +464,13 @@ app.get("/api/frontend-config", (_req: Request, res: Response) => {
 });
 
 // ========== 路由注册（续） ==========
-app.use("/api/ip-verification", ipVerificationRoutes);
-app.use("/api", ipVerificationMiddleware);
-app.use("/api/auth", authRoutes);
-app.use("/api/totp", totpRoutes);
-app.use("/api/totp/status", authenticateToken, totpStatusHandler as RequestHandler);
-app.use("/api/admin", adminLimiter, adminRoutes);
-app.use("/api/admin/audit-logs", adminLimiter, authenticateToken, auditLogRoutes);
-app.use("/api/apikeys", apiKeyRoutes);
-app.use("/api/status", statusRouter);
-app.use("/api/turnstile", turnstileRoutes);
-app.use("/api/policy", policyRoutes);
-app.use("/api/tamper", tamperRoutes);
-app.use("/api/tickets", ticketRoutes);
 app.use(tamperProtectionMiddleware);
-app.use("/api/command", commandRoutes);
-app.use("/api/libre-chat", libreChatRoutes);
-app.use("/api/human-check", humanCheckRoutes);
 app.options("/api/debug-console/*path", corsPreflightHandler);
 app.use("/api/debug-console/*path", corsHeadersMiddleware);
-app.use("/api/debug-console", debugConsoleRoutes);
-app.use("/api/data-collection", dataCollectionRoutes);
-app.use("/api/data-collection/admin", dataCollectionAdminRoutes);
-app.use("/api/ipfs", ipfsRoutes);
-app.use("/api/network", networkRoutes);
-app.use("/api/data", dataProcessRoutes);
-app.use("/api/deeplx", deeplxRoutes);
-app.use("/api/lottery", lotteryRoutes);
-app.use("/api/media", mediaRoutes);
-app.use("/api/social", socialRoutes);
-app.use("/api/life", lifeRoutes);
-app.use("/api", logRoutes);
-app.use("/api/passkey", passkeyAutoFixMiddleware);
-app.use("/api/passkey", passkeyRoutes);
-app.use("/api/email", emailRoutes);
-app.use("/api/miniapi", miniapiLimiter, miniapiRoutes);
-
-// 安踏防伪查询路由
-app.use(
-  "/api/anta",
-  antaLimiter,
-  (req: Request, _res: Response, next: NextFunction) => {
-    logger.info(`安踏防伪查询请求: ${req.method} ${req.url}`, {
-      ip: req.ip,
-      userAgent: req.get("User-Agent"),
-      productId: req.params?.productId || req.body?.productId || "unknown",
-    });
-    next();
-  },
-  antaRoutes,
-);
-
-app.use("/api/modlist", modlistMountLimiter, modlistRoutes);
-app.use("/api/image-data", imageDataRoutes);
-app.use("/api", resourceRoutes);
-app.use("/api/cdks", cdkMountLimiter, cdkRoutes);
-app.use("/api/webhook-events", authenticateToken, adminLimiter, webhookEventRoutes);
-app.use("/api/fbi-wanted", fbiWantedRoutes);
-app.use("/api/github-billing", githubBillingLimiter, githubBillingRoutes);
-
 // ========== NexAI 独立鉴权系统 ==========
-app.use("/api/nexai", nexaiRoutes);
 logger.info("[NexAI] 鉴权路由已挂载 /api/nexai");
 
 // ========== NexAI 安全系统 ==========
-app.use("/api/nexai", nexaiSecurityLimiter, nexaiSecurityRoutes);
 logger.info("[NexAI Security] 安全路由已挂载 /api/nexai/security");
 
 // 完整性检测兜底接口
@@ -623,7 +489,12 @@ app.get("/", rootLimiter, (_req, res) => {
 });
 
 app.get("/favicon.ico", (_req, res) => {
-  res.redirect(302, "https://picui.ogmua.cn/s1/2026/03/29/69c8f6226a17c.webp");
+  const faviconPath = path.resolve(process.cwd(), "favicon.ico");
+  if (fs.existsSync(faviconPath)) {
+    res.sendFile(faviconPath);
+    return;
+  }
+  res.status(204).end();
 });
 
 // 兼容旧路径

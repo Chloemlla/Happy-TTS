@@ -127,6 +127,7 @@ function obfuscateEmailsInDist() {
     const processFile = (filePath: string) => {
       const ext = path.extname(filePath).toLowerCase();
       if (ext !== ".html" && ext !== ".js") return;
+      if (path.basename(filePath) === "email-protection.js") return;
       let code = fs.readFileSync(filePath, "utf-8");
       const next = replaceEmails(code);
       if (next !== code) fs.writeFileSync(filePath, next, "utf-8");

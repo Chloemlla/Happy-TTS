@@ -1,59 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import ReactDOM from 'react-dom';
-import { motion, AnimatePresence, HTMLMotionProps } from 'framer-motion';
-import { useNotification } from './Notification';
-import getApiBaseUrl from '../api';
-import { useAuth } from '../hooks/useAuth';
-import CryptoJS from 'crypto-js';
-import {
-  FaList,
-  FaPlus,
-  FaEdit,
-  FaTrash,
-  FaSave,
-  FaDownload,
-  FaUpload,
-  FaCopy,
-  FaCheck,
-  FaTimes,
-  FaExclamationTriangle
-} from 'react-icons/fa';
+import React, { useEffect, useState } from "react";
+import ReactDOM from "react-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import { FaEdit, FaList, FaPlus, FaTrash } from "react-icons/fa";
+import CryptoJS from "crypto-js";
+import getApiBaseUrl from "../api";
+import { useAuth } from "../hooks/useAuth";
+import { useNotification } from "./Notification";
 
-// AES-256解密函数
-function decryptAES256(encryptedData: string, iv: string, key: string): string {
-  try {
-    console.log('   开始AES-256解密...');
-    console.log('   密钥长度:', key.length);
-    console.log('   加密数据长度:', encryptedData.length);
-    console.log('   IV长度:', iv.length);
-
-    const keyBytes = CryptoJS.SHA256(key);
-    const ivBytes = CryptoJS.enc.Hex.parse(iv);
-    const encryptedBytes = CryptoJS.enc.Hex.parse(encryptedData);
-
-    console.log('   密钥哈希完成，开始解密...');
-
-    const decrypted = CryptoJS.AES.decrypt(
-      { ciphertext: encryptedBytes },
-      keyBytes,
-      {
-        iv: ivBytes,
-        mode: CryptoJS.mode.CBC,
-        padding: CryptoJS.pad.Pkcs7
-      }
-    );
-
-    const result = decrypted.toString(CryptoJS.enc.Utf8);
-    console.log('   解密完成，结果长度:', result.length);
-
-    return result;
-  } catch (error) {
-    console.error('❌ AES-256解密失败:', error);
-    throw new Error('解密失败');
-  }
-}
-
-// Mod 类型扩展
 interface Mod {
   id: string;
   name: string;
@@ -61,193 +14,221 @@ interface Mod {
   md5?: string;
 }
 
-const fetchMods = async (withHash = false, withMd5 = false) => {
-  try {
-    let url = getApiBaseUrl() + '/api/modlist';
-    const params = [];
-    if (withHash) params.push('withHash=1');
-    if (withMd5) params.push('withMd5=1');
-    if (params.length) url += '?' + params.join('&');
+interface JsonResponse {
+  success?: boolean;
+  error?: string;
+  data?: string;
+  iv?: string;
+  mods?: Mod[];
+}
 
-    const token = localStorage.getItem('token');
-    const res = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-      },
-    });
-
-    if (!res.ok) {
-      console.error('API请求失败:', res.status, res.statusText);
-      return [];
-    }
-
-    const data = await res.json();
-
-    // 检查是否为加密数据
-    if (data.data && data.iv && typeof data.data === 'string' && typeof data.iv === 'string') {
-      try {
-        console.log('🔐 开始解密MOD列表数据...');
-        console.log('   加密数据长度:', data.data.length);
-        console.log('   IV:', data.iv);
-        console.log('   使用Token进行解密，Token长度:', token?.length || 0);
-
-        // 解密数据
-        const decryptedJson = decryptAES256(data.data, data.iv, token || '');
-        const decryptedData = JSON.parse(decryptedJson);
-
-        if (decryptedData.mods && Array.isArray(decryptedData.mods)) {
-          console.log('✅ 解密成功，获取到', decryptedData.mods.length, '个MOD');
-          return decryptedData.mods as Mod[];
-        } else {
-          console.error('❌ 解密数据格式错误，期望包含mods数组');
-          return [];
-        }
-      } catch (decryptError) {
-        console.error('❌ 解密失败:', decryptError);
-        return [];
-      }
-    } else {
-      // 兼容未加密格式（普通用户或未登录用户）
-      console.log('📝 使用未加密格式数据');
-      if (data.mods && Array.isArray(data.mods)) {
-        return data.mods as Mod[];
-      } else {
-        console.error('❌ 响应数据格式错误，期望包含mods数组');
-        return [];
-      }
-    }
-  } catch (error) {
-    console.error('获取MOD列表失败:', error);
-    return [];
-  }
-};
-
-const fetchModsJson = async (withHash = false, withMd5 = false) => {
-  try {
-    let url = getApiBaseUrl() + '/api/modlist/json';
-    const params = [];
-    if (withHash) params.push('withHash=1');
-    if (withMd5) params.push('withMd5=1');
-    if (params.length) url += '?' + params.join('&');
-
-    const token = localStorage.getItem('token');
-    const res = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-      },
-    });
-
-    if (!res.ok) {
-      console.error('API请求失败:', res.status, res.statusText);
-      return [];
-    }
-
-    const data = await res.json();
-
-    // 检查是否为加密数据
-    if (data.data && data.iv && typeof data.data === 'string' && typeof data.iv === 'string') {
-      try {
-        console.log('🔐 开始解密MOD JSON数据...');
-        console.log('   加密数据长度:', data.data.length);
-        console.log('   IV:', data.iv);
-        console.log('   使用Token进行解密，Token长度:', token?.length || 0);
-
-        // 解密数据
-        const decryptedJson = decryptAES256(data.data, data.iv, token || '');
-        const decryptedData = JSON.parse(decryptedJson);
-
-        console.log('✅ 解密成功，获取到MOD JSON数据');
-        return decryptedData;
-      } catch (decryptError) {
-        console.error('❌ 解密失败:', decryptError);
-        return [];
-      }
-    } else {
-      // 兼容未加密格式（普通用户或未登录用户）
-      console.log('📝 使用未加密格式JSON数据');
-      return data;
-    }
-  } catch (error) {
-    console.error('获取MOD JSON数据失败:', error);
-    return [];
-  }
-};
-
-const addMod = async (name: string, code: string, hash?: string, md5?: string) => {
-  const res = await fetch(getApiBaseUrl() + '/api/modlist', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, code, hash, md5 })
-  });
-  return await res.json();
-};
-
-const updateMod = async (id: string, name: string, code: string, hash?: string, md5?: string) => {
-  const res = await fetch(getApiBaseUrl() + `/api/modlist/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, code, hash, md5 })
-  });
-  return await res.json();
-};
-
-const deleteMod = async (id: string) => {
-  const res = await fetch(getApiBaseUrl() + `/api/modlist/${id}`, { method: 'DELETE' });
-  return await res.json();
-};
-
-const batchAddMods = async (mods: Mod[], code: string) => {
-  const res = await fetch(getApiBaseUrl() + '/api/modlist/batch-add', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mods, code })
-  });
-  return await res.json();
-};
-
-const batchDeleteMods = async (ids: string[], code: string) => {
-  const res = await fetch(getApiBaseUrl() + '/api/modlist/batch-delete', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ids, code })
-  });
-  return await res.json();
-};
-
-// 批量添加示例JSON
 const batchAddExample = `[
   { "name": "mod1", "hash": "abc123", "md5": "d41d8cd98f00b204e9800998ecf8427e" },
   { "name": "mod2", "hash": "def456" }
-]
-// id 可省略，系统自动生成
-`;
+]`;
+
+function getAuthHeaders() {
+  const token = localStorage.getItem("token");
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+function decryptAES256(encryptedData: string, iv: string, key: string): string {
+  const keyBytes = CryptoJS.SHA256(key);
+  const ivBytes = CryptoJS.enc.Hex.parse(iv);
+  const encryptedBytes = CryptoJS.enc.Hex.parse(encryptedData);
+
+  const decrypted = CryptoJS.AES.decrypt(
+    { ciphertext: encryptedBytes },
+    keyBytes,
+    {
+      iv: ivBytes,
+      mode: CryptoJS.mode.CBC,
+      padding: CryptoJS.pad.Pkcs7,
+    },
+  );
+
+  return decrypted.toString(CryptoJS.enc.Utf8);
+}
+
+async function fetchMods(withHash = false, withMd5 = false): Promise<Mod[]> {
+  const params = new URLSearchParams();
+  if (withHash) params.set("withHash", "1");
+  if (withMd5) params.set("withMd5", "1");
+
+  const url = `${getApiBaseUrl()}/api/modlist${params.size ? `?${params.toString()}` : ""}`;
+  const res = await fetch(url, { headers: getAuthHeaders() });
+  if (!res.ok) return [];
+
+  const data = (await res.json()) as JsonResponse;
+  if (typeof data.data === "string" && typeof data.iv === "string") {
+    const token = localStorage.getItem("token") || "";
+    if (!token) return [];
+
+    try {
+      const decryptedJson = decryptAES256(data.data, data.iv, token);
+      const decryptedData = JSON.parse(decryptedJson) as { mods?: Mod[] };
+      return Array.isArray(decryptedData.mods) ? decryptedData.mods : [];
+    } catch {
+      return [];
+    }
+  }
+
+  return Array.isArray(data.mods) ? data.mods : [];
+}
+
+async function fetchModsJson(withHash = false, withMd5 = false): Promise<unknown> {
+  const params = new URLSearchParams();
+  if (withHash) params.set("withHash", "1");
+  if (withMd5) params.set("withMd5", "1");
+
+  const url = `${getApiBaseUrl()}/api/modlist/json${params.size ? `?${params.toString()}` : ""}`;
+  const res = await fetch(url, { headers: getAuthHeaders() });
+  if (!res.ok) return [];
+  return await res.json();
+}
+
+async function addMod(name: string, code: string, hash?: string, md5?: string) {
+  const res = await fetch(`${getApiBaseUrl()}/api/modlist`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ name, code, hash, md5 }),
+  });
+  return await res.json();
+}
+
+async function updateMod(id: string, name: string, code: string, hash?: string, md5?: string) {
+  const res = await fetch(`${getApiBaseUrl()}/api/modlist/${id}`, {
+    method: "PUT",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ name, code, hash, md5 }),
+  });
+  return await res.json();
+}
+
+async function deleteMod(id: string, code: string) {
+  const res = await fetch(`${getApiBaseUrl()}/api/modlist/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ code }),
+  });
+  return await res.json();
+}
+
+async function batchAddMods(mods: Mod[], code: string) {
+  const res = await fetch(`${getApiBaseUrl()}/api/modlist/batch-add`, {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ mods, code }),
+  });
+  return await res.json();
+}
+
+function Modal({
+  open,
+  title,
+  children,
+  onClose,
+}: {
+  open: boolean;
+  title: string;
+  children: React.ReactNode;
+  onClose: () => void;
+}) {
+  if (typeof document === "undefined") return null;
+
+  return ReactDOM.createPortal(
+    <AnimatePresence>
+      {open ? (
+        <motion.div
+          className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 p-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+        >
+          <motion.div
+            className="w-full max-w-md rounded-2xl border border-gray-100 bg-white p-8 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 className="mb-6 text-xl font-bold text-gray-900">{title}</h3>
+            {children}
+          </motion.div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>,
+    document.body,
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChange,
+  placeholder,
+  type = "text",
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  type?: string;
+}) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-semibold text-gray-700">{label}</label>
+      <input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded-lg border-2 border-gray-200 px-3 py-2 transition-all focus:outline-none focus:ring-2 focus:ring-blue-400"
+      />
+    </div>
+  );
+}
 
 const ModListEditor: React.FC = () => {
   const { user } = useAuth();
+  const { setNotification } = useNotification();
+
   const [mods, setMods] = useState<Mod[]>([]);
-  const [showAdd, setShowAdd] = useState(false);
-  const [addName, setAddName] = useState('');
-  const [addCode, setAddCode] = useState('');
-  const [addHash, setAddHash] = useState('');
-  const [addMd5, setAddMd5] = useState('');
-  const [editId, setEditId] = useState<string | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editCode, setEditCode] = useState('');
-  const [editHash, setEditHash] = useState('');
-  const [editMd5, setEditMd5] = useState('');
   const [jsonMode, setJsonMode] = useState(false);
-  const [jsonValue, setJsonValue] = useState('');
   const [jsonEdit, setJsonEdit] = useState(false);
+  const [jsonValue, setJsonValue] = useState("");
+
+  const [showAdd, setShowAdd] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
   const [showExample, setShowExample] = useState(false);
   const [showBatchCode, setShowBatchCode] = useState(false);
-  const [batchCode, setBatchCode] = useState('');
-  const [pendingBatchAction, setPendingBatchAction] = useState<'add' | 'delete' | null>(null);
-  const [pendingBatchData, setPendingBatchData] = useState<any>(null);
-  const { setNotification } = useNotification();
-  const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [deleteCode, setDeleteCode] = useState('');
+
+  const [pendingBatchData, setPendingBatchData] = useState("");
+
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [code, setCode] = useState("");
+  const [hash, setHash] = useState("");
+  const [md5, setMd5] = useState("");
+  const [deleteCode, setDeleteCode] = useState("");
+  const [batchCode, setBatchCode] = useState("");
+
+  const notifyError = (message: string) => setNotification({ message, type: "error" });
+  const notifySuccess = (message: string) => setNotification({ message, type: "success" });
+  const notifyInfo = (message: string) => setNotification({ message, type: "info" });
+
+  const resetForm = () => {
+    setSelectedId(null);
+    setName("");
+    setCode("");
+    setHash("");
+    setMd5("");
+  };
 
   const loadMods = async () => {
     try {
@@ -255,118 +236,124 @@ const ModListEditor: React.FC = () => {
         const data = await fetchModsJson(true, true);
         setJsonValue(JSON.stringify(data, null, 2));
       } else {
-        const modsData = await fetchMods(true, true);
-        setMods(Array.isArray(modsData) ? modsData : []);
+        const data = await fetchMods(true, true);
+        setMods(data);
       }
-    } catch (error) {
-      console.error('加载MOD列表失败:', error);
+    } catch {
       setMods([]);
-      setJsonValue('[]');
+      setJsonValue("[]");
     }
   };
 
   useEffect(() => {
     loadMods();
-    // eslint-disable-next-line
   }, [jsonMode]);
 
   const handleAdd = async () => {
-    if (!addName || !addCode || !addHash) {
-      setNotification({ message: '请填写MOD名、修改码和Hash', type: 'error' });
+    if (!name.trim() || !code.trim() || !hash.trim()) {
+      notifyError("Please provide name, code, and hash.");
       return;
     }
-    const res = await addMod(addName, addCode, addHash, addMd5 || undefined);
+
+    const res = await addMod(name.trim(), code.trim(), hash.trim(), md5.trim() || undefined);
     if (res.success) {
-      setNotification({ message: '添加成功', type: 'success' });
+      notifySuccess("Mod added.");
       setShowAdd(false);
-      setAddName('');
-      setAddCode('');
-      setAddHash('');
-      setAddMd5('');
-      loadMods();
-    } else {
-      setNotification({ message: res.error || '添加失败', type: 'error' });
+      resetForm();
+      await loadMods();
+      return;
     }
+
+    notifyError(res.error || "Add failed.");
+  };
+
+  const openEdit = (mod: Mod) => {
+    setSelectedId(mod.id);
+    setName(mod.name);
+    setCode("");
+    setHash(mod.hash || "");
+    setMd5(mod.md5 || "");
+    setShowEdit(true);
   };
 
   const handleEdit = async () => {
-    if (!editId || !editName || !editCode || !editHash) {
-      setNotification({ message: '请填写完整', type: 'error' });
+    if (!selectedId || !name.trim() || !code.trim() || !hash.trim()) {
+      notifyError("Please fill all required fields.");
       return;
     }
-    const res = await updateMod(editId, editName, editCode, editHash, editMd5 || undefined);
+
+    const res = await updateMod(selectedId, name.trim(), code.trim(), hash.trim(), md5.trim() || undefined);
     if (res.success) {
-      setNotification({ message: '修改成功', type: 'success' });
-      setEditId(null);
-      setEditName('');
-      setEditCode('');
-      setEditHash('');
-      setEditMd5('');
-      loadMods();
-    } else {
-      setNotification({ message: res.error || '修改失败', type: 'error' });
+      notifySuccess("Mod updated.");
+      setShowEdit(false);
+      resetForm();
+      await loadMods();
+      return;
     }
+
+    notifyError(res.error || "Update failed.");
   };
 
-  const handleJsonSave = async () => {
-    setNotification({ message: '请通过UI方式修改，JSON仅供查看。', type: 'info' });
+  const handleDelete = async () => {
+    if (!selectedId || !deleteCode.trim()) {
+      notifyError("Please enter the modify code.");
+      return;
+    }
+
+    const res = await deleteMod(selectedId, deleteCode.trim());
+    if (res.success) {
+      notifySuccess("Mod deleted.");
+      setShowDelete(false);
+      setSelectedId(null);
+      setDeleteCode("");
+      await loadMods();
+      return;
+    }
+
+    notifyError(res.error || "Delete failed.");
   };
 
-  // 批量添加保存按钮点击
   const handleBatchAddClick = () => {
-    setPendingBatchAction('add');
     setPendingBatchData(jsonValue);
     setShowBatchCode(true);
   };
 
-  // 批量添加真正提交
   const handleBatchAddSubmit = async () => {
-    let mods: Mod[] = [];
+    let parsed: Mod[];
     try {
-      mods = JSON.parse(pendingBatchData);
-      if (!Array.isArray(mods)) throw new Error('格式错误');
+      const payload = JSON.parse(pendingBatchData) as unknown;
+      if (!Array.isArray(payload)) throw new Error("invalid");
+      parsed = payload as Mod[];
     } catch {
-      setNotification({ message: 'JSON格式错误', type: 'error' });
+      notifyError("Invalid JSON payload.");
       setShowBatchCode(false);
+      setBatchCode("");
       return;
     }
-    const res = await batchAddMods(mods, batchCode);
+
+    const res = await batchAddMods(parsed, batchCode.trim());
     if (res.success) {
-      setNotification({ message: '批量添加成功', type: 'success' });
+      notifySuccess("Batch add completed.");
       setShowBatchCode(false);
-      setBatchCode('');
+      setBatchCode("");
       setJsonEdit(false);
-      loadMods();
-    } else {
-      setNotification({ message: res.error || '批量添加失败', type: 'error' });
-      setShowBatchCode(false);
-      setBatchCode('');
+      await loadMods();
+      return;
     }
+
+    notifyError(res.error || "Batch add failed.");
+    setShowBatchCode(false);
+    setBatchCode("");
   };
 
-  if (!user || user.role !== 'admin') {
+  if (!user || user.role !== "admin") {
     return (
-      <motion.div
-        className="space-y-6"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <motion.div
-          className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6 border border-red-100"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <h2 className="text-2xl font-bold text-red-700 mb-3 flex items-center gap-2">
-            🔒
-            访问被拒绝
-          </h2>
-          <div className="text-gray-600 space-y-2">
-            <p>你不是管理员，禁止访问！请用管理员账号登录后再来。</p>
-            <div className="text-sm text-red-500 italic">
-              MOD列表管理仅限管理员使用
-            </div>
+      <motion.div className="space-y-6" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+        <motion.div className="rounded-xl border border-red-100 bg-gradient-to-r from-red-50 to-pink-50 p-6">
+          <h2 className="mb-3 text-2xl font-bold text-red-700">Access denied</h2>
+          <div className="space-y-2 text-gray-600">
+            <p>This page is available to admins only.</p>
+            <div className="text-sm italic text-red-500">Mod list management requires an admin account.</div>
           </div>
         </motion.div>
       </motion.div>
@@ -374,506 +361,296 @@ const ModListEditor: React.FC = () => {
   }
 
   return (
-    <motion.div
-      className="space-y-6"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
-    >
-      {/* 标题和说明 */}
-      <motion.div
-        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
-          🎮
-          MOD列表管理
-        </h2>
-        <div className="text-gray-600 space-y-2">
-          <p>管理系统MOD列表，支持添加、编辑、删除和批量操作。</p>
-          <div className="flex items-start gap-2 text-sm">
-            <div>
-              <p className="font-semibold text-blue-700">功能说明：</p>
-              <ul className="list-disc list-inside space-y-1 mt-1">
-                <li>添加和编辑MOD信息</li>
-                <li>支持Hash和MD5验证</li>
-                <li>批量添加和删除操作</li>
-                <li>JSON模式查看和编辑</li>
-                <li>数据加密传输保护</li>
-              </ul>
-            </div>
-          </div>
+    <motion.div className="space-y-6" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+      <motion.div className="rounded-xl border border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 p-6">
+        <h2 className="mb-3 text-2xl font-bold text-blue-700">Mod List Manager</h2>
+        <div className="space-y-2 text-gray-600">
+          <p>Manage mods, hashes, and MD5 values. Admin reads support the encrypted mod list response.</p>
+          <ul className="list-disc list-inside space-y-1 text-sm">
+            <li>Supports add, edit, and delete flows</li>
+            <li>Supports JSON-based batch add</li>
+            <li>JSON mode does not overwrite the full dataset</li>
+          </ul>
         </div>
       </motion.div>
 
-      {/* 主要功能区域 */}
-      <motion.div
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <FaList className="text-lg text-blue-500" />
-            MOD列表
+      <motion.div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-800">
+            <FaList className="text-blue-500" />
+            Mods
           </h3>
-          <div className="flex items-center gap-3">
-            <label className="flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={jsonMode}
-                onChange={(e) => setJsonMode(e.target.checked)}
-                className="mr-2 text-blue-500"
-              />
-              <span className="text-sm font-medium text-gray-700">JSON模式</span>
-            </label>
-          </div>
+          <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-gray-700">
+            <input type="checkbox" checked={jsonMode} onChange={(event) => setJsonMode(event.target.checked)} />
+            JSON mode
+          </label>
         </div>
 
         {!jsonMode ? (
           <div className="space-y-4">
             <div className="flex gap-3">
               <motion.button
-                onClick={() => setShowAdd(true)}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium flex items-center gap-2"
+                onClick={() => {
+                  resetForm();
+                  setShowAdd(true);
+                }}
+                className="flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 font-medium text-white transition hover:bg-blue-600"
                 whileTap={{ scale: 0.95 }}
               >
-                <FaPlus className="w-4 h-4" />
-                添加MOD
+                <FaPlus className="h-4 w-4" />
+                Add mod
               </motion.button>
               <motion.button
                 onClick={() => setShowExample(true)}
-                className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium"
+                className="rounded-lg bg-gray-500 px-4 py-2 font-medium text-white transition hover:bg-gray-600"
                 whileTap={{ scale: 0.95 }}
               >
-                批量添加示例
+                Batch example
               </motion.button>
             </div>
 
             <div className="space-y-2">
-              {(mods || []).map((mod, idx) => (
+              {mods.map((mod, idx) => (
                 <motion.div
                   key={mod.id}
-                  className="flex items-center justify-between p-3 border-2 border-gray-200 rounded-lg bg-gray-50"
+                  className="flex items-center justify-between rounded-lg border-2 border-gray-200 bg-gray-50 p-3"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: idx * 0.05 }}
-                  whileHover={{ backgroundColor: '#f0f9ff' }}
+                  transition={{ duration: 0.3, delay: idx * 0.04 }}
+                  whileHover={{ backgroundColor: "#f0f9ff" }}
                 >
-                  <span className="font-medium text-gray-800">{mod.name}</span>
+                  <div>
+                    <div className="font-medium text-gray-800">{mod.name}</div>
+                    <div className="mt-1 text-xs text-gray-500">
+                      {mod.hash ? `Hash: ${mod.hash}` : "Hash: none"}
+                      {mod.md5 ? ` | MD5: ${mod.md5}` : ""}
+                    </div>
+                  </div>
                   <div className="flex gap-2">
                     <motion.button
-                      onClick={() => { setEditId(mod.id); setEditName(mod.name); setEditCode(''); setEditHash(mod.hash || ''); setEditMd5(mod.md5 || ''); }}
-                      className="px-3 py-1 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600 transition font-medium"
+                      onClick={() => openEdit(mod)}
+                      className="rounded bg-yellow-500 px-3 py-1 text-sm font-medium text-white transition hover:bg-yellow-600"
                       whileTap={{ scale: 0.95 }}
                     >
-                      修改
+                      <span className="inline-flex items-center gap-1">
+                        <FaEdit className="h-3 w-3" />
+                        Edit
+                      </span>
                     </motion.button>
                     <motion.button
                       onClick={() => {
-                        setDeleteId(mod.id);
-                        setDeleteCode('');
+                        setSelectedId(mod.id);
+                        setDeleteCode("");
+                        setShowDelete(true);
                       }}
-                      className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition font-medium"
+                      className="rounded bg-red-500 px-3 py-1 text-sm font-medium text-white transition hover:bg-red-600"
                       whileTap={{ scale: 0.95 }}
                     >
-                      删除
+                      <span className="inline-flex items-center gap-1">
+                        <FaTrash className="h-3 w-3" />
+                        Delete
+                      </span>
                     </motion.button>
                   </div>
                 </motion.div>
               ))}
 
-              {mods.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <FaList className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                  暂无MOD数据
+              {mods.length === 0 ? (
+                <div className="py-8 text-center text-gray-500">
+                  <FaList className="mx-auto mb-4 h-12 w-12 text-gray-300" />
+                  No mods found.
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
         ) : (
           <div className="space-y-4">
             <textarea
               value={jsonValue}
-              onChange={e => setJsonValue(e.target.value)}
+              onChange={(event) => setJsonValue(event.target.value)}
               rows={12}
               readOnly={!jsonEdit}
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all font-mono text-sm"
-              style={{ minHeight: '180px' }}
+              className="min-h-[180px] w-full rounded-lg border-2 border-gray-200 px-3 py-2 font-mono text-sm transition-all focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
             <div className="flex gap-3">
               <motion.button
                 onClick={handleBatchAddClick}
                 disabled={!jsonEdit}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium disabled:opacity-50"
+                className="rounded-lg bg-blue-500 px-4 py-2 font-medium text-white transition hover:bg-blue-600 disabled:opacity-50"
                 whileTap={{ scale: 0.95 }}
               >
-                保存
+                Batch add
               </motion.button>
               <motion.button
-                onClick={() => setJsonEdit(e => !e)}
-                className={`px-4 py-2 rounded-lg transition font-medium ${jsonEdit
-                    ? 'bg-gray-500 text-white hover:bg-gray-600'
-                    : 'bg-blue-500 text-white hover:bg-blue-600'
-                  }`}
+                onClick={() => setJsonEdit((current) => !current)}
+                className={`rounded-lg px-4 py-2 font-medium text-white transition ${
+                  jsonEdit ? "bg-gray-500 hover:bg-gray-600" : "bg-blue-500 hover:bg-blue-600"
+                }`}
                 whileTap={{ scale: 0.95 }}
               >
-                {jsonEdit ? '取消编辑' : '编辑JSON'}
+                {jsonEdit ? "Cancel edit" : "Edit JSON"}
+              </motion.button>
+              <motion.button
+                onClick={() => notifyInfo("JSON mode is for batch add only and does not replace all existing mods.")}
+                className="rounded-lg bg-slate-500 px-4 py-2 font-medium text-white transition hover:bg-slate-600"
+                whileTap={{ scale: 0.95 }}
+              >
+                Notes
               </motion.button>
             </div>
           </div>
         )}
       </motion.div>
 
-      {/* 添加MOD弹窗 — Portal 到 body */}
-      {ReactDOM.createPortal(
-      <AnimatePresence>
-        {showAdd && (
-          <motion.div
-            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-[99999]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.1 }}
+      <Modal open={showAdd} title="Add mod" onClose={() => setShowAdd(false)}>
+        <div className="space-y-4">
+          <Field label="Name" value={name} onChange={setName} placeholder="Enter mod name" />
+          <Field label="Modify code" value={code} onChange={setCode} placeholder="Enter modify code" type="password" />
+          <Field label="Hash" value={hash} onChange={setHash} placeholder="Enter hash" />
+          <Field label="MD5" value={md5} onChange={setMd5} placeholder="Enter MD5 (optional)" />
+        </div>
+        <div className="mt-6 flex gap-3">
+          <motion.button
             onClick={() => setShowAdd(false)}
+            className="flex-1 rounded-lg bg-gray-500 px-4 py-2 font-medium text-white transition hover:bg-gray-600"
+            whileTap={{ scale: 0.95 }}
           >
-            <motion.div
-              className="bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-8 w-full max-w-md mx-4 relative z-[100000] border border-gray-100"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.1 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="text-xl font-bold text-gray-900 mb-6">添加MOD</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">MOD名</label>
-                  <input
-                    type="text"
-                    placeholder="请输入MOD名"
-                    value={addName}
-                    onChange={e => setAddName(e.target.value)}
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">修改码</label>
-                  <input
-                    type="password"
-                    placeholder="请输入修改码"
-                    value={addCode}
-                    onChange={e => setAddCode(e.target.value)}
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Hash (必填)</label>
-                  <input
-                    type="text"
-                    placeholder="请输入Hash"
-                    value={addHash}
-                    onChange={e => setAddHash(e.target.value)}
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">MD5 (可选)</label>
-                  <input
-                    type="text"
-                    placeholder="请输入MD5"
-                    value={addMd5}
-                    onChange={e => setAddMd5(e.target.value)}
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-3 mt-6">
-                <motion.button
-                  onClick={() => setShowAdd(false)}
-                  className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium"
-                  whileTap={{ scale: 0.95 }}
-                >
-                  取消
-                </motion.button>
-                <motion.button
-                  onClick={handleAdd}
-                  className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium"
-                  whileTap={{ scale: 0.95 }}
-                >
-                  确定
-                </motion.button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      , document.body)}
-
-      {/* 修改MOD弹窗 — Portal 到 body */}
-      {ReactDOM.createPortal(
-      <AnimatePresence>
-        {editId && (
-          <motion.div
-            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-[99999]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.1 }}
-            onClick={() => setEditId(null)}
+            Cancel
+          </motion.button>
+          <motion.button
+            onClick={handleAdd}
+            className="flex-1 rounded-lg bg-blue-500 px-4 py-2 font-medium text-white transition hover:bg-blue-600"
+            whileTap={{ scale: 0.95 }}
           >
-            <motion.div
-              className="bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-8 w-full max-w-md mx-4 relative z-[100000] border border-gray-100"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.1 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="text-xl font-bold text-gray-900 mb-6">修改MOD</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">新MOD名</label>
-                  <input
-                    type="text"
-                    placeholder="请输入新MOD名"
-                    value={editName}
-                    onChange={e => setEditName(e.target.value)}
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">修改码</label>
-                  <input
-                    type="password"
-                    placeholder="请输入修改码"
-                    value={editCode}
-                    onChange={e => setEditCode(e.target.value)}
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Hash (必填)</label>
-                  <input
-                    type="text"
-                    placeholder="请输入Hash"
-                    value={editHash}
-                    onChange={e => setEditHash(e.target.value)}
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">MD5 (可选)</label>
-                  <input
-                    type="text"
-                    placeholder="请输入MD5"
-                    value={editMd5}
-                    onChange={e => setEditMd5(e.target.value)}
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-3 mt-6">
-                <motion.button
-                  onClick={() => setEditId(null)}
-                  className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium"
-                  whileTap={{ scale: 0.95 }}
-                >
-                  取消
-                </motion.button>
-                <motion.button
-                  onClick={handleEdit}
-                  className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium"
-                  whileTap={{ scale: 0.95 }}
-                >
-                  确定
-                </motion.button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      , document.body)}
+            Save
+          </motion.button>
+        </div>
+      </Modal>
 
-      {/* 批量添加示例弹窗 — Portal 到 body */}
-      {ReactDOM.createPortal(
-      <AnimatePresence>
-        {showExample && (
-          <motion.div
-            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-[99999]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.1 }}
-            onClick={() => setShowExample(false)}
+      <Modal
+        open={showEdit}
+        title="Edit mod"
+        onClose={() => {
+          setShowEdit(false);
+          resetForm();
+        }}
+      >
+        <div className="space-y-4">
+          <Field label="Name" value={name} onChange={setName} placeholder="Enter mod name" />
+          <Field label="Modify code" value={code} onChange={setCode} placeholder="Enter modify code" type="password" />
+          <Field label="Hash" value={hash} onChange={setHash} placeholder="Enter hash" />
+          <Field label="MD5" value={md5} onChange={setMd5} placeholder="Enter MD5 (optional)" />
+        </div>
+        <div className="mt-6 flex gap-3">
+          <motion.button
+            onClick={() => {
+              setShowEdit(false);
+              resetForm();
+            }}
+            className="flex-1 rounded-lg bg-gray-500 px-4 py-2 font-medium text-white transition hover:bg-gray-600"
+            whileTap={{ scale: 0.95 }}
           >
-            <motion.div
-              className="bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-8 w-full max-w-2xl mx-4 relative z-[100000] border border-gray-100"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.1 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="text-xl font-bold text-gray-900 mb-6">批量添加示例</h3>
-              <div className="space-y-4">
-                <div className="font-medium text-gray-700">JSON格式：</div>
-                <pre className="bg-gray-50 p-4 rounded-lg border border-gray-200 text-sm font-mono overflow-x-auto">
-                  {batchAddExample}
-                </pre>
-                <div className="text-sm text-gray-600">
-                  说明：<span className="text-blue-500">id 可省略，系统自动生成。</span>
-                </div>
-              </div>
-              <div className="mt-6 text-right">
-                <motion.button
-                  onClick={() => setShowExample(false)}
-                  className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium"
-                  whileTap={{ scale: 0.95 }}
-                >
-                  确定
-                </motion.button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      , document.body)}
+            Cancel
+          </motion.button>
+          <motion.button
+            onClick={handleEdit}
+            className="flex-1 rounded-lg bg-blue-500 px-4 py-2 font-medium text-white transition hover:bg-blue-600"
+            whileTap={{ scale: 0.95 }}
+          >
+            Save
+          </motion.button>
+        </div>
+      </Modal>
 
-      {/* 批量操作修改码弹窗 — Portal 到 body */}
-      {ReactDOM.createPortal(
-      <AnimatePresence>
-        {showBatchCode && (
-          <motion.div
-            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-[99999]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.1 }}
+      <Modal
+        open={showDelete}
+        title="Delete mod"
+        onClose={() => {
+          setShowDelete(false);
+          setSelectedId(null);
+          setDeleteCode("");
+        }}
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600">Enter the modify code to confirm deletion.</p>
+          <Field
+            label="Modify code"
+            value={deleteCode}
+            onChange={setDeleteCode}
+            placeholder="Enter modify code"
+            type="password"
+          />
+        </div>
+        <div className="mt-6 flex gap-3">
+          <motion.button
+            onClick={() => {
+              setShowDelete(false);
+              setSelectedId(null);
+              setDeleteCode("");
+            }}
+            className="flex-1 rounded-lg bg-gray-500 px-4 py-2 font-medium text-white transition hover:bg-gray-600"
+            whileTap={{ scale: 0.95 }}
+          >
+            Cancel
+          </motion.button>
+          <motion.button
+            onClick={handleDelete}
+            className="flex-1 rounded-lg bg-red-500 px-4 py-2 font-medium text-white transition hover:bg-red-600"
+            whileTap={{ scale: 0.95 }}
+          >
+            Delete
+          </motion.button>
+        </div>
+      </Modal>
+
+      <Modal open={showBatchCode} title="Enter modify code" onClose={() => setShowBatchCode(false)}>
+        <div className="space-y-4">
+          <Field
+            label="Modify code"
+            value={batchCode}
+            onChange={setBatchCode}
+            placeholder="Enter modify code"
+            type="password"
+          />
+        </div>
+        <div className="mt-6 flex gap-3">
+          <motion.button
             onClick={() => setShowBatchCode(false)}
+            className="flex-1 rounded-lg bg-gray-500 px-4 py-2 font-medium text-white transition hover:bg-gray-600"
+            whileTap={{ scale: 0.95 }}
           >
-            <motion.div
-              className="bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-8 w-full max-w-md mx-4 relative z-[100000] border border-gray-100"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.1 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="text-xl font-bold text-gray-900 mb-6">请输入修改码</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">修改码</label>
-                  <input
-                    type="password"
-                    placeholder="请输入修改码"
-                    value={batchCode}
-                    onChange={e => setBatchCode(e.target.value)}
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-3 mt-6">
-                <motion.button
-                  onClick={() => setShowBatchCode(false)}
-                  className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium"
-                  whileTap={{ scale: 0.95 }}
-                >
-                  取消
-                </motion.button>
-                <motion.button
-                  onClick={handleBatchAddSubmit}
-                  className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium"
-                  whileTap={{ scale: 0.95 }}
-                >
-                  确定
-                </motion.button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      , document.body)}
+            Cancel
+          </motion.button>
+          <motion.button
+            onClick={handleBatchAddSubmit}
+            className="flex-1 rounded-lg bg-blue-500 px-4 py-2 font-medium text-white transition hover:bg-blue-600"
+            whileTap={{ scale: 0.95 }}
+          >
+            Run
+          </motion.button>
+        </div>
+      </Modal>
 
-      {/* 删除MOD弹窗 — Portal 到 body */}
-      {ReactDOM.createPortal(
-      <AnimatePresence>
-        {deleteId && (
-          <motion.div
-            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-[99999]"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.1 }}
-            onClick={() => setDeleteId(null)}
+      <Modal open={showExample} title="Batch add example" onClose={() => setShowExample(false)}>
+        <div className="space-y-4">
+          <div className="font-medium text-gray-700">JSON payload</div>
+          <pre className="overflow-x-auto rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm font-mono">
+            {batchAddExample}
+          </pre>
+          <div className="text-sm text-gray-600">`id` is optional and will be generated by the server.</div>
+        </div>
+        <div className="mt-6 text-right">
+          <motion.button
+            onClick={() => setShowExample(false)}
+            className="rounded-lg bg-blue-500 px-6 py-2 font-medium text-white transition hover:bg-blue-600"
+            whileTap={{ scale: 0.95 }}
           >
-            <motion.div
-              className="bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-8 w-full max-w-md mx-4 relative z-[100000] border border-gray-100"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.1 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className="text-xl font-bold text-gray-900 mb-6">删除MOD</h3>
-              <div className="space-y-4">
-                <p className="text-gray-600">请输入该MOD的修改码以确认删除：</p>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">修改码</label>
-                  <input
-                    type="password"
-                    placeholder="请输入修改码"
-                    value={deleteCode}
-                    onChange={e => setDeleteCode(e.target.value)}
-                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-3 mt-6">
-                <motion.button
-                  onClick={() => setDeleteId(null)}
-                  className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium"
-                  whileTap={{ scale: 0.95 }}
-                >
-                  取消
-                </motion.button>
-                <motion.button
-                  onClick={async () => {
-                    if (!deleteCode) {
-                      setNotification({ message: '请输入修改码', type: 'error' });
-                      return;
-                    }
-                    // 调用后端删除接口，带上修改码
-                    const res = await fetch(getApiBaseUrl() + `/api/modlist/${deleteId}`, {
-                      method: 'DELETE',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ code: deleteCode })
-                    }).then(r => r.json());
-                    if (res.success) {
-                      setNotification({ message: '删除成功', type: 'success' });
-                      setDeleteId(null);
-                      setDeleteCode('');
-                      loadMods();
-                    } else {
-                      setNotification({ message: res.error || '删除失败', type: 'error' });
-                    }
-                  }}
-                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium"
-                  whileTap={{ scale: 0.95 }}
-                >
-                  确定删除
-                </motion.button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      , document.body)}
+            Close
+          </motion.button>
+        </div>
+      </Modal>
     </motion.div>
   );
 };
 
-export default ModListEditor; 
+export default ModListEditor;
