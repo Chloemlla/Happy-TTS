@@ -18,7 +18,15 @@ type SvgDocument = {
 };
 
 function preprocessSvg(content: string): string {
-  return content.replace(COMMENT_RE, "").replace(CDATA_RE, "");
+  let current = content;
+  let previous: string;
+
+  do {
+    previous = current;
+    current = current.replace(COMMENT_RE, "").replace(CDATA_RE, "");
+  } while (current !== previous);
+
+  return current;
 }
 
 function loadSvgDocument(content: string): SvgDocument {
