@@ -204,7 +204,7 @@ function isUserLoggedIn(): boolean {
 // 获取客户端IP地址（增强版，支持多种响应格式）
 export const getClientIP = async (): Promise<string> => {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/ip`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/ip`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json'

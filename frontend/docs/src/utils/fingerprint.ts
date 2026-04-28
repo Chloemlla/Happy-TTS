@@ -250,7 +250,7 @@ export const getClientIP = async (): Promise<string> => {
   try {
     // 动态导入 getApiBaseUrl 以避免循环依赖
     const { getApiBaseUrl } = await import('./api');
-    const response = await fetch(`${getApiBaseUrl()}/ip`, {
+    const response = await fetch(`${getApiBaseUrl()}/api/ip`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'

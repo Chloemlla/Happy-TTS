@@ -455,7 +455,7 @@ export function registerApiRoutes(app: Express): void {
 
   app.get("/favicon.ico", sendFaviconIfExists);
 
-  app.get("/lc", lcCompatLimiter, (_req, res) => {
+  app.get("/api/lc", lcCompatLimiter, (_req, res) => {
     try {
       const { libreChatService } = require("../services/libreChatService");
       const record = libreChatService.getLatestRecord();
@@ -472,9 +472,11 @@ export function registerApiRoutes(app: Express): void {
     }
   });
 
-  app.get("/librechat-image", lcCompatLimiter, (_req, res) => res.redirect(302, "/api/libre-chat/librechat-image"));
+  app.get("/api/librechat-image", lcCompatLimiter, (_req, res) =>
+    res.redirect(302, "/api/libre-chat/librechat-image"),
+  );
 
-  app.get("/ip", ipQueryLimiter, async (req, res) => {
+  app.get("/api/ip", ipQueryLimiter, async (req, res) => {
     try {
       const ip = (req.headers["x-real-ip"] as string) || req.ip || "127.0.0.1";
       logger.info("收到IP信息查询请求", {
@@ -550,7 +552,7 @@ export function registerApiRoutes(app: Express): void {
     res.json({ success: true });
   });
 
-  app.get("/ip-location", ipLocationLimiter, async (req, res) => {
+  app.get("/api/ip-location", ipLocationLimiter, async (req, res) => {
     const providedIp = req.query.ip as string;
     const realTime = req.query["real-time"] !== undefined;
 
@@ -574,7 +576,7 @@ export function registerApiRoutes(app: Express): void {
       return res.json({
         ip,
         location: ipData[ip],
-        message: "本次内容为缓存结果。您可以请求 /ip?real-time 来获取实时结果。",
+        message: "本次内容为缓存结果。您可以请求 /api/ip-location?real-time 来获取实时结果。",
       });
     }
 
@@ -588,7 +590,7 @@ export function registerApiRoutes(app: Express): void {
   });
 
   const password = startupConfig.serverPassword;
-  app.post("/server_status", serverStatusLimiter, (req, res) => {
+  app.post("/api/server_status", serverStatusLimiter, (req, res) => {
     if (req.body.password === password) {
       const bootTime = process.uptime();
       const memoryUsage = process.memoryUsage();
@@ -618,9 +620,9 @@ export function registerApiRoutes(app: Express): void {
 }
 
 export function registerStaticRoutes(app: Express): void {
+  app.get("/api/openapi.json", openapiLimiter, sendApiDocsJson);
   app.get("/api/api-docs.json", openapiLimiter, sendApiDocsJson);
   app.get("/api-docs.json", openapiLimiter, sendApiDocsJson);
-  app.get("/openapi.json", openapiLimiter, sendApiDocsJson);
 
   let swaggerUiSpec: any = swaggerSpec;
   try {
@@ -645,7 +647,7 @@ export function registerStaticRoutes(app: Express): void {
     swaggerUi.serve,
     preferSwaggerUrl
       ? swaggerUi.setup(undefined, {
-          swaggerUrl: "/openapi.json",
+          swaggerUrl: "/api/openapi.json",
           customSiteTitle: "Happy API",
           customCss: swaggerCustomCss,
         })

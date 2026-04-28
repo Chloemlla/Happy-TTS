@@ -48,7 +48,7 @@ const Footer: React.FC = () => {
     const fetchIPInfo = async () => {
       try {
         setIpLoading(true);
-        const url = `${getApiBaseUrl()}/ip`;
+        const url = `${getApiBaseUrl()}/api/ip`;
         const response = await fetch(url, {
           headers: { 'Accept': 'application/json' }
         });
