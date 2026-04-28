@@ -97,6 +97,16 @@ const antaRequestLogger: RequestHandler = (req: Request, _res: Response, next: N
   next();
 };
 
+const API_ROUTE_PREFIX = "/api";
+
+function assertApiRouteModulePath(module: RouteModule): void {
+  if (!module.path.startsWith(API_ROUTE_PREFIX)) {
+    throw new Error(
+      `[routes] Route module "${module.name}" must be mounted under ${API_ROUTE_PREFIX}, received "${module.path}"`,
+    );
+  }
+}
+
 export const routeLimiterModules: RouteModule[] = [
   {
     name: "auth-limiter",
@@ -277,7 +287,7 @@ export const preParserRouteModules: RouteModule[] = [
   },
   {
     name: "root-data-collection-routes",
-    path: "/",
+    path: "/api",
     router: dataCollectionRoutes,
     requiresAuth: false,
     rateLimited: true,
@@ -675,6 +685,7 @@ export const postTamperRouteModules: RouteModule[] = [
 
 export function registerRouteModules(app: Express, modules: RouteModule[]): void {
   for (const module of modules) {
+    assertApiRouteModulePath(module);
     const middlewares = module.middlewares ?? [];
     app.use(module.path, ...middlewares, module.router);
   }
