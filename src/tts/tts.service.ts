@@ -5,6 +5,8 @@ import dotenv from "dotenv";
 import OpenAI from "openai";
 import { config } from "../config/config";
 import logger from "../utils/logger";
+import { ttsAudioAssetStore } from "./tts.asset";
+import { TtsGenerationError } from "./tts.errors";
 
 dotenv.config();
 
@@ -25,7 +27,27 @@ interface UserViolation {
   lastViolation: number;
 }
 
+interface CircuitState {
+  state: "CLOSED" | "OPEN" | "HALF_OPEN";
+  consecutiveFailures: number;
+  openedAt: number;
+  halfOpenSuccesses: number;
+}
+
+const OPENAI_TIMEOUT_MS = 45_000;
+const OPENAI_MAX_RETRIES = 2;
+const CIRCUIT_FAILURE_THRESHOLD = 5;
+const CIRCUIT_OPEN_MS = 60_000;
+const CIRCUIT_SUCCESS_THRESHOLD = 2;
+
 export class TtsService {
+  private static readonly circuit: CircuitState = {
+    state: "CLOSED",
+    consecutiveFailures: 0,
+    openedAt: 0,
+    halfOpenSuccesses: 0,
+  };
+
   private openai: OpenAI;
   private readonly outputDir: string;
   private readonly baseUrl: string;
@@ -36,6 +58,7 @@ export class TtsService {
   constructor() {
     this.openai = new OpenAI({
       apiKey: config.openaiApiKey,
+      ...(config.openaiBaseUrl ? { baseURL: config.openaiBaseUrl } : {}),
     });
     this.outputDir = config.audioDir;
     this.baseUrl = config.baseUrl;
@@ -96,7 +119,65 @@ export class TtsService {
     this.userViolations.set(userId, violation);
   }
 
-  public findExistingFile(contentHash: string, outputFormat: string): string | null {
+  private assertCircuitAllowsRequest() {
+    const circuit = TtsService.circuit;
+    if (circuit.state === "CLOSED") {
+      return;
+    }
+
+    if (circuit.state === "OPEN") {
+      if (Date.now() - circuit.openedAt >= CIRCUIT_OPEN_MS) {
+        circuit.state = "HALF_OPEN";
+        circuit.consecutiveFailures = 0;
+        circuit.halfOpenSuccesses = 0;
+        logger.warn("TTS OpenAI 熔断器进入 HALF_OPEN");
+        return;
+      }
+
+      throw new TtsGenerationError("语音服务暂时繁忙，请稍后重试", 503, "TTS_CIRCUIT_OPEN", true);
+    }
+  }
+
+  private recordCircuitSuccess() {
+    const circuit = TtsService.circuit;
+    if (circuit.state === "HALF_OPEN") {
+      circuit.halfOpenSuccesses += 1;
+      if (circuit.halfOpenSuccesses >= CIRCUIT_SUCCESS_THRESHOLD) {
+        circuit.state = "CLOSED";
+        circuit.consecutiveFailures = 0;
+        circuit.halfOpenSuccesses = 0;
+        logger.info("TTS OpenAI 熔断器已恢复 CLOSED");
+      }
+      return;
+    }
+
+    circuit.consecutiveFailures = 0;
+  }
+
+  private recordCircuitFailure() {
+    const circuit = TtsService.circuit;
+
+    if (circuit.state === "HALF_OPEN") {
+      circuit.state = "OPEN";
+      circuit.openedAt = Date.now();
+      circuit.consecutiveFailures = 0;
+      circuit.halfOpenSuccesses = 0;
+      logger.warn("TTS OpenAI 熔断器在 HALF_OPEN 期间失败，重新打开");
+      return;
+    }
+
+    circuit.consecutiveFailures += 1;
+    if (circuit.consecutiveFailures >= CIRCUIT_FAILURE_THRESHOLD) {
+      circuit.state = "OPEN";
+      circuit.openedAt = Date.now();
+      circuit.halfOpenSuccesses = 0;
+      logger.error("TTS OpenAI 熔断器已打开", {
+        consecutiveFailures: circuit.consecutiveFailures,
+      });
+    }
+  }
+
+  public async findExistingFile(contentHash: string, outputFormat: string): Promise<string | null> {
     const safeOutputFormat = this.resolveOutputFormat(outputFormat);
     const safeContentHash = /^[a-f0-9]{32}$/i.test(contentHash) ? contentHash : "";
 
@@ -107,24 +188,135 @@ export class TtsService {
     const fileName = `${safeContentHash}.${safeOutputFormat}`;
     const safeFileName = this.validateFileName(fileName);
     const filePath = path.join(this.outputDir, safeFileName);
-    return fs.existsSync(filePath) ? safeFileName : null;
+    if (fs.existsSync(filePath)) {
+      return safeFileName;
+    }
+
+    const restored = await ttsAudioAssetStore.restoreAudioAssetToDisk(safeFileName, this.outputDir);
+    return restored ? safeFileName : null;
+  }
+
+  private async createSpeechWithTimeout(request: TtsRequest, safeOutputFormat: OutputFormat) {
+    const operation = this.openai.audio.speech.create({
+      model: request.model || config.openaiModel,
+      voice: request.voice || config.openaiVoice,
+      input: request.text,
+      response_format: safeOutputFormat,
+      speed: request.speed || parseFloat(config.openaiSpeed),
+    });
+
+    let timeoutHandle: NodeJS.Timeout | null = null;
+    return await Promise.race([
+      operation,
+      new Promise<never>((_, reject) => {
+        timeoutHandle = setTimeout(
+          () => reject(new TtsGenerationError("语音生成超时，请稍后重试", 504, "TTS_UPSTREAM_TIMEOUT", true)),
+          OPENAI_TIMEOUT_MS,
+        );
+      }),
+    ]).finally(() => {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+    });
+  }
+
+  private isRetryableError(error: unknown) {
+    if (!(error instanceof Error)) {
+      return false;
+    }
+
+    if (error instanceof TtsGenerationError) {
+      return error.retryable;
+    }
+
+    const statusCode = Number((error as { status?: number; statusCode?: number }).status ?? 0);
+    const code = String((error as { code?: string }).code ?? "");
+
+    return (
+      statusCode === 408 ||
+      statusCode === 409 ||
+      statusCode === 429 ||
+      statusCode >= 500 ||
+      ["ETIMEDOUT", "ECONNRESET", "ECONNREFUSED", "ENOTFOUND", "EAI_AGAIN"].includes(code)
+    );
+  }
+
+  private mapOpenAiError(error: unknown): TtsGenerationError {
+    if (error instanceof TtsGenerationError) {
+      return error;
+    }
+
+    const statusCode = Number((error as { status?: number; statusCode?: number }).status ?? 0);
+    const code = String((error as { code?: string; type?: string }).code ?? (error as { type?: string }).type ?? "");
+
+    if (statusCode === 400) {
+      return new TtsGenerationError("语音生成参数无效，请调整后重试", 400, code || "TTS_BAD_REQUEST", false);
+    }
+
+    if (statusCode === 401 || statusCode === 403) {
+      return new TtsGenerationError("语音服务鉴权失败，请联系管理员检查配置", 502, code || "TTS_AUTH_FAILED", false);
+    }
+
+    if (statusCode === 429) {
+      return new TtsGenerationError("语音服务当前请求过多，请稍后重试", 503, code || "TTS_RATE_LIMITED", true);
+    }
+
+    if (statusCode >= 500) {
+      return new TtsGenerationError("语音服务暂时不可用，请稍后重试", 503, code || "TTS_UPSTREAM_5XX", true);
+    }
+
+    if (this.isRetryableError(error)) {
+      return new TtsGenerationError("语音服务连接异常，请稍后重试", 503, code || "TTS_UPSTREAM_RETRYABLE", true);
+    }
+
+    return new TtsGenerationError("生成语音失败", 500, code || "TTS_UNKNOWN_FAILURE", false);
+  }
+
+  private async requestSpeechWithRetry(request: TtsRequest, safeOutputFormat: OutputFormat) {
+    let lastError: TtsGenerationError | null = null;
+
+    for (let attempt = 1; attempt <= OPENAI_MAX_RETRIES + 1; attempt += 1) {
+      try {
+        return await this.createSpeechWithTimeout(request, safeOutputFormat);
+      } catch (error) {
+        const mappedError = this.mapOpenAiError(error);
+        lastError = mappedError;
+
+        logger.warn("OpenAI TTS 调用失败", {
+          attempt,
+          code: mappedError.code,
+          statusCode: mappedError.statusCode,
+          retryable: mappedError.retryable,
+          message: mappedError.message,
+        });
+
+        if (!mappedError.retryable || attempt > OPENAI_MAX_RETRIES) {
+          throw mappedError;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, attempt * 500));
+      }
+    }
+
+    throw lastError ?? new TtsGenerationError("生成语音失败");
   }
 
   public async generateSpeech(request: TtsRequest) {
     try {
-      const { text, model, voice, outputFormat, speed, userId, isAdmin } = request;
+      const { text, model, voice, outputFormat, userId, isAdmin } = request;
 
       if (!text) {
-        throw new Error("文本不能为空");
+        throw new TtsGenerationError("文本不能为空", 400, "TTS_EMPTY_TEXT", false);
       }
 
       if (userId && !isAdmin && this.checkUserViolation(userId)) {
-        throw new Error("由于重复提交相同内容，您的账号已被临时封禁24小时");
+        throw new TtsGenerationError("由于重复提交相同内容，您的账号已被临时封禁24小时", 429, "TTS_USER_BLOCKED", false);
       }
 
       const contentHash = this.generateContentHash(text, voice, model);
       const safeOutputFormat = this.resolveOutputFormat(outputFormat);
-      const existingFile = this.findExistingFile(contentHash, safeOutputFormat);
+      const existingFile = await this.findExistingFile(contentHash, safeOutputFormat);
 
       if (existingFile) {
         if (userId && !isAdmin) {
@@ -139,13 +331,8 @@ export class TtsService {
         };
       }
 
-      const response = await this.openai.audio.speech.create({
-        model: model || config.openaiModel,
-        voice: voice || config.openaiVoice,
-        input: text,
-        response_format: safeOutputFormat,
-        speed: speed || parseFloat(config.openaiSpeed),
-      });
+      this.assertCircuitAllowsRequest();
+      const response = await this.requestSpeechWithRetry(request, safeOutputFormat);
 
       const buffer = Buffer.from(await response.arrayBuffer());
       const fileName = `${contentHash}.${safeOutputFormat}`;
@@ -153,6 +340,13 @@ export class TtsService {
       const filePath = path.join(this.outputDir, safeFileName);
 
       await fs.promises.writeFile(filePath, buffer);
+      await ttsAudioAssetStore.persistAudioAsset({
+        contentHash,
+        fileName: safeFileName,
+        outputFormat: safeOutputFormat,
+        buffer,
+      });
+      this.recordCircuitSuccess();
 
       return {
         fileName: safeFileName,
@@ -161,8 +355,12 @@ export class TtsService {
         outputFormat: safeOutputFormat,
       };
     } catch (error) {
-      logger.error("生成语音失败:", error);
-      throw error;
+      const mappedError = this.mapOpenAiError(error);
+      if (mappedError.retryable || mappedError.statusCode >= 500) {
+        this.recordCircuitFailure();
+      }
+      logger.error("生成语音失败:", mappedError);
+      throw mappedError;
     }
   }
 }

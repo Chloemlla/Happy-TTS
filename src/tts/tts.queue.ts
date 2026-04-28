@@ -11,8 +11,11 @@ interface QueueCallbacks {
   buildNextAction: (type: string, label: string, message: string) => TtsNextAction;
 }
 
+const PROCESSING_LEASE_MS = 15 * 60 * 1000;
+
 export class TtsQueue {
   private readonly ttsService = new TtsService();
+  private readonly workerId = `tts-worker-${process.pid}-${Math.random().toString(36).slice(2, 8)}`;
   private processing = false;
 
   constructor(private readonly callbacks: QueueCallbacks) {}
@@ -30,8 +33,10 @@ export class TtsQueue {
 
     this.processing = true;
     try {
+      await ttsStorage.recoverStaleJobs(Date.now());
+
       while (true) {
-        const nextJob = ttsStorage.getNextQueuedJob();
+        const nextJob = await ttsStorage.claimNextQueuedJob(this.workerId, PROCESSING_LEASE_MS);
         if (!nextJob) {
           break;
         }
@@ -44,11 +49,6 @@ export class TtsQueue {
   }
 
   private async processJob(job: TtsJobRecord) {
-    await ttsStorage.updateJob(job.taskId, {
-      status: "processing",
-      message: "正在生成语音...",
-    });
-
     if (job.userId) {
       wsService.notifyTtsProgress(job.userId, {
         taskId: job.taskId,
