@@ -6,4 +6,4 @@ export {
   handleFingerprintHeader,
   markFingerprintHashProcessed,
 } from './api';
-export { default } from './api';
+export { getApiBaseUrl as default } from './api';
