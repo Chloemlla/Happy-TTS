@@ -8,6 +8,7 @@ import { schedulerService } from "../services/schedulerService";
 import { wsService } from "../services/wsService";
 import logger from "../utils/logger";
 import { UserStorage } from "../utils/userStorage";
+import { getMysqlConnection } from "../utils/userStorageProvider";
 
 // eslint-disable-next-line no-var
 var _EMAIL_ENABLED: boolean;
@@ -64,6 +65,7 @@ const initializeStorage = async () => {
   logger.info("[启动] 检查用户存储模式...");
   const storageMode = config.userStorageMode;
   logger.info(`[启动] 当前存储模式: ${storageMode}`);
+  const shouldFailFast = storageMode !== "file" && process.env.NODE_ENV === "production";
 
   if (storageMode === "mongo") {
     try {
@@ -74,10 +76,13 @@ const initializeStorage = async () => {
       if (initResult.initialized) {
         logger.info(`[启动] ${initResult.message}`);
       } else {
-        logger.error(`[启动] MongoDB 初始化失败: ${initResult.message}`);
+        throw new Error(initResult.message);
       }
     } catch (error) {
-      logger.warn("[启动] MongoDB 连接失败，建议切换到文件模式", {
+      if (shouldFailFast) {
+        throw error;
+      }
+      logger.warn("[启动] MongoDB 连接或初始化失败，未自动降级到文件存储", {
         error: error instanceof Error ? error.message : String(error),
       });
     }
@@ -86,7 +91,6 @@ const initializeStorage = async () => {
 
   if (storageMode === "mysql") {
     try {
-      const { getMysqlConnection } = require("../utils/userStorage");
       const conn = await getMysqlConnection();
       await conn.execute("SELECT 1");
       await conn.end();
@@ -95,10 +99,13 @@ const initializeStorage = async () => {
       if (initResult.initialized) {
         logger.info(`[启动] ${initResult.message}`);
       } else {
-        logger.error(`[启动] MySQL 初始化失败: ${initResult.message}`);
+        throw new Error(initResult.message);
       }
     } catch (error) {
-      logger.warn("[启动] MySQL 连接失败，建议切换到文件模式", {
+      if (shouldFailFast) {
+        throw error;
+      }
+      logger.warn("[启动] MySQL 连接或初始化失败，未自动降级到文件存储", {
         error: error instanceof Error ? error.message : String(error),
       });
     }
@@ -110,12 +117,13 @@ const initializeStorage = async () => {
     if (initResult.initialized) {
       logger.info(`[启动] ${initResult.message}`);
     } else {
-      logger.error(`[启动] 文件存储初始化失败: ${initResult.message}`);
+      throw new Error(initResult.message);
     }
   } catch (error) {
     logger.error("[启动] 文件存储初始化失败", {
       error: error instanceof Error ? error.message : String(error),
     });
+    throw error;
   }
 };
 

@@ -54,6 +54,7 @@ const envSchema = z
     GENERATION_CODE: z.string().optional().default("admin"),
     JWT_SECRET: optionalTrimmedString,
     USER_STORAGE_MODE: z.enum(["file", "mongo", "mysql"]).optional().default("file"),
+    USER_STORAGE_AUTO_SWITCH: stringToBoolean,
     MYSQL_HOST: z.string().optional().default("localhost"),
     MYSQL_PORT: z.coerce.number().int().min(1).max(65535).default(3306),
     MYSQL_USER: z.string().optional().default("root"),
@@ -157,6 +158,7 @@ export const startupConfig = Object.freeze({
   bcryptSaltRounds: 12,
   localIps: ["127.0.0.1", "localhost", "::1"],
   userStorageMode: parsedEnv.USER_STORAGE_MODE,
+  userStorageAutoSwitch: parsedEnv.USER_STORAGE_AUTO_SWITCH ?? false,
   openai: {
     apiKey: openaiApiKey,
     baseUrl: parsedEnv.OPENAI_BASE_URL,
@@ -250,6 +252,7 @@ export const config = {
     max: 3,
   },
   userStorageMode: startupConfig.userStorageMode,
+  userStorageAutoSwitch: startupConfig.userStorageAutoSwitch,
   turnstile: startupConfig.turnstile,
   mysql: startupConfig.mysql,
   redis: startupConfig.redis,
