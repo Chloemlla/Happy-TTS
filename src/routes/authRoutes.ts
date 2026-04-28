@@ -1,28 +1,13 @@
 import express from "express";
 import type { SignOptions } from "jsonwebtoken";
-import { config } from "../config/config";
 import { AuthController } from "../controllers/authController";
 import { LinuxDoAuthController } from "../controllers/linuxDoAuthController";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { validateAuthInput } from "../middleware/authValidation";
-import { createLimiter } from "../middleware/rateLimiter";
+import { loginLimiter, registerLimiter } from "../middleware/routeLimiters";
 import { logUserData } from "../middleware/userDataLogger";
 
 const router = express.Router();
-
-// 登录尝试限制
-const loginLimiter = createLimiter({
-  windowMs: config.loginRateLimit.windowMs,
-  max: config.loginRateLimit.max,
-  message: "登录尝试次数过多，请15分钟后再试",
-});
-
-// 注册限制
-const registerLimiter = createLimiter({
-  windowMs: config.registerRateLimit.windowMs,
-  max: config.registerRateLimit.max,
-  message: "注册尝试次数过多，请稍后再试",
-});
 
 // JWT 签名选项
 const _jwtSignOptions: SignOptions = {

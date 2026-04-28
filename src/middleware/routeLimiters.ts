@@ -5,78 +5,220 @@ import rateLimit, {
   type RateLimitRequestHandler,
   type Store,
 } from "express-rate-limit";
+import { createClient, type RedisClientType } from "redis";
+import { startupConfig } from "../config/config";
 import logger from "../utils/logger";
 
-// ============ 共享存储（所有限流器使用同一个 Map） ============
+type LimiterCategory =
+  | "auth"
+  | "login"
+  | "register"
+  | "tts"
+  | "tts-history"
+  | "admin"
+  | "verification"
+  | "command"
+  | "public-api"
+  | "status"
+  | "static"
+  | "global";
 
-/**
- * 单一共享内存存储，替代 35+ 个独立 MemoryStore 实例。
- * 每个限流器通过 prefix 区分 key，共享同一个 Map 和清理定时器。
- */
+type RateProfileName =
+  | "login"
+  | "register"
+  | "auth"
+  | "authRead"
+  | "ttsGenerate"
+  | "ttsHistory"
+  | "admin"
+  | "verification"
+  | "sensitive"
+  | "standard"
+  | "relaxed"
+  | "burst"
+  | "static"
+  | "global";
+
+interface RateProfile {
+  windowMs: number;
+  max: number;
+}
+
+interface LimiterOptions {
+  max?: number;
+  windowMs?: number;
+  message?: string;
+  name?: string;
+  category?: LimiterCategory;
+  profile?: RateProfileName;
+  skip?: (req: Request) => boolean;
+  handler?: (req: Request, res: Response, next: NextFunction) => void;
+}
+
+interface LimiterDefinition {
+  profile: RateProfileName;
+  category: LimiterCategory;
+  message: string;
+  skip?: (req: Request) => boolean;
+  handler?: (req: Request, res: Response, next: NextFunction) => void;
+}
+
+interface RateLimitMetricRecord {
+  limiter: string;
+  category: LimiterCategory;
+  ip: string;
+  route: string;
+}
+
+interface RateLimitMetricsSnapshot {
+  total429Hits: number;
+  byLimiter: Record<string, number>;
+  byCategory: Record<string, number>;
+  hotIps: Array<{ ip: string; hits: number }>;
+  hotRoutes: Array<{ route: string; hits: number }>;
+}
+
+const RATE_PROFILES: Record<RateProfileName, RateProfile> = {
+  login: { windowMs: 15 * 60_000, max: 10 },
+  register: { windowMs: 60 * 60_000, max: 5 },
+  auth: { windowMs: 60_000, max: 30 },
+  authRead: { windowMs: 5 * 60_000, max: 300 },
+  ttsGenerate: { windowMs: 60_000, max: 10 },
+  ttsHistory: { windowMs: 60_000, max: 20 },
+  admin: { windowMs: 60_000, max: 50 },
+  verification: { windowMs: 5 * 60_000, max: 20 },
+  sensitive: { windowMs: 60_000, max: 10 },
+  standard: { windowMs: 60_000, max: 30 },
+  relaxed: { windowMs: 60_000, max: 60 },
+  burst: { windowMs: 60_000, max: 100 },
+  static: { windowMs: 60_000, max: 150 },
+  global: { windowMs: 60_000, max: 100 },
+};
+
+const isLocalRequest = (req: Request): boolean => req.isLocalIp || false;
+
+const skipLocalAndStatusPoll = (req: Request): boolean => {
+  if (req.originalUrl?.startsWith("/api/command/status")) return true;
+  return isLocalRequest(req);
+};
+
+const skipLocalAndAuthSpecific = (req: Request): boolean => {
+  const url = req.originalUrl?.split("?")[0] || "";
+  if (url === "/api/auth/login" || url === "/api/auth/register" || url === "/api/auth/me") {
+    return true;
+  }
+  return isLocalRequest(req);
+};
+
+const skipPrivateIpReport = (req: Request): boolean => {
+  const ip = req.ip || req.socket?.remoteAddress || "";
+  const whitelist: (string | RegExp)[] = [
+    "127.0.0.1",
+    "::1",
+    "localhost",
+    /^10\./,
+    /^192\.168\./,
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
+  ];
+  return whitelist.some((rule) => (typeof rule === "string" ? ip === rule : rule.test(ip)));
+};
+
+class RateLimitMetricsRegistry {
+  private total429Hits = 0;
+  private readonly byLimiter = new Map<string, number>();
+  private readonly byCategory = new Map<string, number>();
+  private readonly byIp = new Map<string, number>();
+  private readonly byRoute = new Map<string, number>();
+
+  record(record: RateLimitMetricRecord): void {
+    this.total429Hits += 1;
+    this.bump(this.byLimiter, record.limiter);
+    this.bump(this.byCategory, record.category);
+    this.bump(this.byIp, record.ip);
+    this.bump(this.byRoute, record.route);
+  }
+
+  snapshot(limit = 10): RateLimitMetricsSnapshot {
+    return {
+      total429Hits: this.total429Hits,
+      byLimiter: Object.fromEntries(this.byLimiter),
+      byCategory: Object.fromEntries(this.byCategory),
+      hotIps: this.topEntries(this.byIp, limit).map(([ip, hits]) => ({ ip, hits })),
+      hotRoutes: this.topEntries(this.byRoute, limit).map(([route, hits]) => ({ route, hits })),
+    };
+  }
+
+  private bump(map: Map<string, number>, key: string): void {
+    map.set(key, (map.get(key) || 0) + 1);
+  }
+
+  private topEntries(map: Map<string, number>, limit: number): Array<[string, number]> {
+    return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit);
+  }
+}
+
+const rateLimitMetricsRegistry = new RateLimitMetricsRegistry();
+
+export function getRateLimitMetricsSnapshot(limit = 10): RateLimitMetricsSnapshot {
+  return rateLimitMetricsRegistry.snapshot(limit);
+}
+
 class SharedMemoryStore implements Store {
   private hits = new Map<string, { totalHits: number; resetTime: Date }>();
-  private readonly _prefix: string;
+  private readonly internalPrefix: string;
   private readonly windowMs: number;
 
-  // 所有实例共享同一个底层 Map 和清理器
   private static readonly globalMap = new Map<string, { totalHits: number; resetTime: Date }>();
   private static cleanupTimer: ReturnType<typeof setInterval> | null = null;
-  private static instanceCount = 0;
 
-  // Store 接口要求 prefix 为 public（可选）
   readonly prefix: string;
   readonly localKeys = true;
 
   constructor(prefix: string, windowMs: number) {
-    this._prefix = prefix;
+    this.internalPrefix = prefix;
     this.prefix = prefix;
     this.windowMs = windowMs;
     this.hits = SharedMemoryStore.globalMap;
 
-    SharedMemoryStore.instanceCount = (SharedMemoryStore.instanceCount ?? 0) + 1;
-    // 只启动一个全局清理定时器（每 60 秒清理过期条目）
     if (!SharedMemoryStore.cleanupTimer) {
       SharedMemoryStore.cleanupTimer = setInterval(() => {
         const now = Date.now();
-        for (const [key, val] of SharedMemoryStore.globalMap) {
-          if (val.resetTime.getTime() <= now) {
+        for (const [key, value] of SharedMemoryStore.globalMap.entries()) {
+          if (value.resetTime.getTime() <= now) {
             SharedMemoryStore.globalMap.delete(key);
           }
         }
       }, 60_000);
-      // 不阻止进程退出
+
       if (SharedMemoryStore.cleanupTimer.unref) {
         SharedMemoryStore.cleanupTimer.unref();
       }
     }
   }
 
-  private key(k: string): string {
-    return `${this._prefix}:${k}`;
+  private key(key: string): string {
+    return `${this.internalPrefix}:${key}`;
   }
 
-  init(_options: Options): void {
-    // no-op
-  }
+  init(_options: Options): void {}
 
   async increment(key: string): Promise<IncrementResponse> {
-    const k = this.key(key);
+    const cacheKey = this.key(key);
     const now = Date.now();
-    const entry = this.hits.get(k);
+    const entry = this.hits.get(cacheKey);
 
     if (entry && entry.resetTime.getTime() > now) {
-      entry.totalHits++;
+      entry.totalHits += 1;
       return { totalHits: entry.totalHits, resetTime: entry.resetTime };
     }
 
     const resetTime = new Date(now + this.windowMs);
-    this.hits.set(k, { totalHits: 1, resetTime });
+    this.hits.set(cacheKey, { totalHits: 1, resetTime });
     return { totalHits: 1, resetTime };
   }
 
   async decrement(key: string): Promise<void> {
-    const k = this.key(key);
-    const entry = this.hits.get(k);
+    const entry = this.hits.get(this.key(key));
     if (entry) {
       entry.totalHits = Math.max(0, entry.totalHits - 1);
     }
@@ -87,257 +229,473 @@ class SharedMemoryStore implements Store {
   }
 
   async resetAll(): Promise<void> {
-    // 只清除本 prefix 的 key
     for (const key of this.hits.keys()) {
-      if (key.startsWith(`${this._prefix}:`)) {
+      if (key.startsWith(`${this.internalPrefix}:`)) {
         this.hits.delete(key);
       }
     }
   }
 }
 
-// ============ 工厂函数 ============
+class RedisStoreFactory {
+  private static client: RedisClientType | null = null;
+  private static clientPromise: Promise<RedisClientType | null> | null = null;
+  private static warnedUnavailable = false;
 
-interface LimiterOptions {
-  /** 时间窗口（毫秒），默认 60_000（1 分钟） */
-  windowMs?: number;
-  /** 窗口内最大请求数 */
-  max: number;
-  /** 429 响应消息 */
-  message?: string;
-  /** 限流器名称（用于 store key 前缀和日志） */
-  name?: string;
-  /** 自定义 skip 逻辑（会与默认的 isLocalIp 合并） */
-  skip?: (req: Request) => boolean;
-  /** 自定义 handler（默认只返回 JSON） */
-  handler?: (req: Request, res: Response, next: NextFunction) => void;
+  static async getClient(): Promise<RedisClientType | null> {
+    if (!startupConfig.redis.url) return null;
+    if (RedisStoreFactory.client?.isOpen) return RedisStoreFactory.client;
+    if (RedisStoreFactory.clientPromise) return RedisStoreFactory.clientPromise;
+
+    RedisStoreFactory.clientPromise = (async () => {
+      try {
+        const client = createClient({ url: startupConfig.redis.url });
+        client.on("error", (error) => {
+          logger.error("[RateLimit][RedisStore] Redis error", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
+        await client.connect();
+        RedisStoreFactory.client = client;
+        logger.info("[RateLimit] Using Redis store for rate limiting");
+        return client;
+      } catch (error) {
+        if (!RedisStoreFactory.warnedUnavailable) {
+          logger.warn("[RateLimit] Redis store unavailable, falling back to SharedMemoryStore", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+          RedisStoreFactory.warnedUnavailable = true;
+        }
+        return null;
+      } finally {
+        RedisStoreFactory.clientPromise = null;
+      }
+    })();
+
+    return RedisStoreFactory.clientPromise;
+  }
+}
+
+class RedisBackedStore implements Store {
+  readonly prefix: string;
+  readonly localKeys = false;
+
+  private readonly internalPrefix: string;
+  private readonly windowMs: number;
+  private readonly fallbackStore: SharedMemoryStore;
+
+  constructor(prefix: string, windowMs: number) {
+    this.prefix = prefix;
+    this.internalPrefix = prefix;
+    this.windowMs = windowMs;
+    this.fallbackStore = new SharedMemoryStore(prefix, windowMs);
+  }
+
+  init(_options: Options): void {}
+
+  private key(key: string): string {
+    return `${this.internalPrefix}:${key}`;
+  }
+
+  async increment(key: string): Promise<IncrementResponse> {
+    const client = await RedisStoreFactory.getClient();
+    if (!client) {
+      return this.fallbackStore.increment(key);
+    }
+
+    const cacheKey = this.key(key);
+    const totalHits = await client.incr(cacheKey);
+    let ttl = await client.pTTL(cacheKey);
+
+    if (totalHits === 1 || ttl < 0) {
+      await client.pExpire(cacheKey, this.windowMs);
+      ttl = this.windowMs;
+    }
+
+    return {
+      totalHits,
+      resetTime: new Date(Date.now() + ttl),
+    };
+  }
+
+  async decrement(key: string): Promise<void> {
+    const client = await RedisStoreFactory.getClient();
+    if (!client) {
+      await this.fallbackStore.decrement(key);
+      return;
+    }
+
+    const cacheKey = this.key(key);
+    const remaining = await client.decr(cacheKey);
+    if (remaining <= 0) {
+      await client.del(cacheKey);
+    }
+  }
+
+  async resetKey(key: string): Promise<void> {
+    const client = await RedisStoreFactory.getClient();
+    if (!client) {
+      await this.fallbackStore.resetKey(key);
+      return;
+    }
+
+    await client.del(this.key(key));
+  }
+
+  async resetAll(): Promise<void> {
+    const client = await RedisStoreFactory.getClient();
+    if (!client) {
+      await this.fallbackStore.resetAll();
+      return;
+    }
+
+    for await (const cacheKey of client.scanIterator({ MATCH: `${this.internalPrefix}:*`, COUNT: 100 })) {
+      const keys = Array.isArray(cacheKey) ? cacheKey : [cacheKey];
+      if (keys.length > 0) {
+        await client.del(keys);
+      }
+    }
+  }
+}
+
+function createStore(prefix: string, windowMs: number): Store {
+  if (startupConfig.redis.url) {
+    return new RedisBackedStore(prefix, windowMs);
+  }
+  return new SharedMemoryStore(prefix, windowMs);
+}
+
+function getClientIp(req: Request): string {
+  return req.ip || req.socket?.remoteAddress || "unknown";
+}
+
+function getRouteHotspotKey(req: Request): string {
+  const path = req.originalUrl?.split("?")[0] || req.baseUrl || req.path || "unknown";
+  return `${req.method} ${path}`;
+}
+
+function buildDefaultHandler(name: string, category: LimiterCategory, message: string) {
+  return (req: Request, res: Response) => {
+    const ip = getClientIp(req);
+    const route = getRouteHotspotKey(req);
+
+    rateLimitMetricsRegistry.record({
+      limiter: name,
+      category,
+      ip,
+      route,
+    });
+
+    logger.warn(`[RateLimit] 429 ${name}`, {
+      category,
+      ip,
+      route,
+      metrics: getRateLimitMetricsSnapshot(5),
+    });
+
+    res.status(429).json({ error: message });
+  };
 }
 
 let limiterCounter = 0;
 
 export function createLimiter(opts: LimiterOptions): RateLimitRequestHandler {
-  const msg = opts.message || "请求过于频繁，请稍后再试";
-  const windowMs = opts.windowMs ?? 60_000;
-  const prefix = opts.name || `rl_${++limiterCounter}`;
+  const name = opts.name || `rl_${++limiterCounter}`;
+  const profile = RATE_PROFILES[opts.profile || "standard"];
+  const category = opts.category || "public-api";
+  const message = opts.message || "请求过于频繁，请稍后再试";
+  const windowMs = opts.windowMs ?? profile.windowMs;
+  const max = opts.max ?? profile.max;
 
   return rateLimit({
     windowMs,
-    max: opts.max,
-    message: { error: msg },
+    max,
+    message: { error: message },
     standardHeaders: true,
     legacyHeaders: false,
-    store: new SharedMemoryStore(prefix, windowMs),
+    store: createStore(name, windowMs),
     validate: { unsharedStore: false },
-    keyGenerator: (req: Request) => req.ip || req.socket?.remoteAddress || "unknown",
-    skip: opts.skip ?? ((req: Request): boolean => req.isLocalIp || false),
-    ...(opts.handler ? { handler: opts.handler } : {}),
+    keyGenerator: (req: Request) => getClientIp(req),
+    skip: opts.skip ?? ((req: Request): boolean => isLocalRequest(req)),
+    handler: opts.handler || buildDefaultHandler(name, category, message),
   });
 }
 
-// ============ 所有限流器实例（按路由分组） ============
-
-// --- 认证 ---
-export const authLimiter = createLimiter({ name: "auth", max: 30, message: "请求过于频繁，请稍后再试" });
-export const meEndpointLimiter = createLimiter({
-  name: "me",
-  windowMs: 5 * 60_000,
-  max: 300,
-  message: "请求过于频繁，请稍后再试",
-});
-
-// --- TTS ---
-export const ttsLimiter = createLimiter({ name: "tts", max: 10, message: "请求过于频繁，请稍后再试" });
-export const historyLimiter = createLimiter({ name: "history", max: 20, message: "请求过于频繁，请稍后再试" });
-
-// --- 管理 ---
-export const adminLimiter = createLimiter({ name: "admin", max: 50, message: "管理员操作过于频繁，请稍后再试" });
-
-// --- 前端静态 ---
-export const frontendLimiter = createLimiter({ name: "frontend", max: 150, message: "请求过于频繁，请稍后再试" });
-
-// --- 二次验证 ---
-export const totpLimiter = createLimiter({
-  name: "totp",
-  windowMs: 5 * 60_000,
-  max: 20,
-  message: "TOTP操作过于频繁，请稍后再试",
-});
-export const passkeyLimiter = createLimiter({
-  name: "passkey",
-  windowMs: 5 * 60_000,
-  max: 30,
-  message: "Passkey操作过于频繁，请稍后再试",
-});
-
-// --- 防篡改 ---
-export const tamperLimiter = createLimiter({ name: "tamper", max: 30, message: "防篡改验证请求过于频繁，请稍后再试" });
-
-// --- 命令执行 ---
-export const commandLimiter = createLimiter({
-  name: "command",
-  max: 10,
-  message: "命令执行请求过于频繁，请稍后再试",
-  skip: (req) => {
-    if (req.originalUrl?.startsWith("/api/command/status")) return true;
-    return req.isLocalIp || false;
+const LIMITER_DEFINITIONS = {
+  authLogin: {
+    profile: "login",
+    category: "login",
+    message: "登录请求过于频繁，请稍后再试",
   },
-  handler: (req, res) => {
-    logger.warn(`[限流][commandLimiter] 429: ${req.method} ${req.originalUrl} IP: ${req.ip}`);
-    res.status(429).json({ error: "命令执行请求过于频繁，请稍后再试" });
+  authRegister: {
+    profile: "register",
+    category: "register",
+    message: "注册请求过于频繁，请稍后再试",
   },
-});
-
-// --- LibreChat ---
-export const libreChatLimiter = createLimiter({
-  name: "librechat",
-  max: 60,
-  message: "LibreChat请求过于频繁，请稍后再试",
-});
-
-// --- 数据收集 ---
-export const dataCollectionLimiter = createLimiter({
-  name: "datacollection",
-  max: 30,
-  message: "数据收集请求过于频繁，请稍后再试",
-});
-
-// --- 日志 ---
-export const logsLimiter = createLimiter({ name: "logs", max: 20, message: "日志请求过于频繁，请稍后再试" });
-
-// --- IPFS ---
-export const ipfsLimiter = createLimiter({ name: "ipfs", max: 10, message: "上传请求过于频繁，请稍后再试" });
-
-// --- 网络检测 ---
-export const networkLimiter = createLimiter({ name: "network", max: 30, message: "网络检测请求过于频繁，请稍后再试" });
-
-// --- 数据处理 ---
-export const dataProcessLimiter = createLimiter({
-  name: "dataprocess",
-  max: 50,
-  message: "数据处理请求过于频繁，请稍后再试",
-});
-
-// --- 媒体 ---
-export const mediaLimiter = createLimiter({ name: "media", max: 20, message: "媒体解析请求过于频繁，请稍后再试" });
-
-// --- 社交 ---
-export const socialLimiter = createLimiter({ name: "social", max: 30, message: "社交媒体请求过于频繁，请稍后再试" });
-
-// --- 生活信息 ---
-export const lifeLimiter = createLimiter({ name: "life", max: 40, message: "生活信息请求过于频繁，请稍后再试" });
-
-// --- MiniAPI ---
-export const miniapiLimiter = createLimiter({ name: "miniapi", max: 30, message: "MiniAPI请求过于频繁，请稍后再试" });
-
-// --- 安踏防伪 ---
-export const antaLimiter = createLimiter({ name: "anta", max: 30, message: "安踏防伪查询请求过于频繁，请稍后再试" });
-
-// --- 状态 ---
-export const statusLimiter = createLimiter({ name: "status", max: 60, message: "状态检查请求过于频繁，请稍后再试" });
-
-// --- OpenAPI 文档 ---
-export const openapiLimiter = createLimiter({ name: "openapi", max: 10, message: "请求过于频繁，请稍后再试" });
-
-// --- 音频文件 ---
-export const audioFileLimiter = createLimiter({ name: "audio", max: 50, message: "音频文件请求过于频繁，请稍后再试" });
-
-// --- MOD 列表 ---
-export const modlistMountLimiter = createLimiter({
-  name: "modlist",
-  max: 60,
-  message: "MOD列表请求过于频繁，请稍后再试",
-});
-
-// --- CDK ---
-export const cdkMountLimiter = createLimiter({ name: "cdk", max: 60, message: "CDK 请求过于频繁，请稍后再试" });
-
-// --- GitHub Billing ---
-export const githubBillingLimiter = createLimiter({
-  name: "ghbilling",
-  max: 10,
-  message: "GitHub Billing请求过于频繁，请稍后再试",
-});
-
-// --- DeepLX 翻译 ---
-export const deeplxLimiter = createLimiter({
-  name: "deeplx",
-  windowMs: 60_000,
-  max: 20,
-  message: "翻译请求过于频繁，请稍后再试",
-});
-
-// --- 完整性检测 ---
-export const integrityLimiter = createLimiter({ name: "integrity", max: 10, message: "请求过于频繁，请稍后再试" });
-
-// --- NexAI 安全 ---
-export const nexaiSecurityLimiter = createLimiter({
-  name: "nexaisecurity",
-  max: 60,
-  message: "安全请求过于频繁，请稍后再试",
-});
-
-// --- 根路由 ---
-export const rootLimiter = createLimiter({ name: "root", max: 100, message: "访问过于频繁，请稍后再试" });
-
-// --- 兼容旧路径 ---
-export const lcCompatLimiter = createLimiter({ name: "lccompat", max: 30, message: "请求过于频繁，请稍后再试" });
-
-// --- IP 查询 ---
-export const ipQueryLimiter = createLimiter({ name: "ipquery", max: 30, message: "IP查询过于频繁，请稍后再试" });
-export const ipLocationLimiter = createLimiter({
-  name: "iplocation",
-  max: 20,
-  message: "IP位置查询过于频繁，请稍后再试",
-});
-export const ipReportLimiter = createLimiter({
-  name: "ipreport",
-  max: 25,
-  message: "IP上报过于频繁，请稍后再试",
-  skip: (req) => {
-    const ip = req.ip || req.socket?.remoteAddress || "";
-    const whitelist: (string | RegExp)[] = [
-      "127.0.0.1",
-      "::1",
-      "localhost",
-      /^10\./,
-      /^192\.168\./,
-      /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
-    ];
-    return whitelist.some((rule) => (typeof rule === "string" ? ip === rule : rule.test(ip)));
+  auth: {
+    profile: "auth",
+    category: "auth",
+    message: "请求过于频繁，请稍后再试",
+    skip: skipLocalAndAuthSpecific,
   },
-});
-
-// --- 服务器状态 ---
-export const serverStatusLimiter = createLimiter({
-  name: "serverstatus",
-  max: 10,
-  message: "状态查询过于频繁，请稍后再试",
-});
-
-// --- 静态文件 ---
-export const staticFileLimiter = createLimiter({
-  name: "static",
-  max: 200,
-  message: "静态文件请求过于频繁，请稍后再试",
-});
-
-// --- 文档超时上报 ---
-export const docsTimeoutLimiter = createLimiter({ name: "docstimeout", max: 5, message: "上报过于频繁，请稍后再试" });
-
-// --- 全局兜底 ---
-export const globalDefaultLimiter = createLimiter({
-  name: "global",
-  max: 100,
-  message: "请求过于频繁，请稍后再试",
-  skip: (req) => {
-    if (req.originalUrl?.startsWith("/api/command/status")) return true;
-    return req.isLocalIp || false;
+  me: {
+    profile: "authRead",
+    category: "auth",
+    message: "请求过于频繁，请稍后再试",
   },
-  handler: (req, res) => {
-    logger.warn(`[限流][globalDefaultLimiter] 429: ${req.method} ${req.originalUrl} IP: ${req.ip}`);
-    res.status(429).json({ error: "请求过于频繁，请稍后再试" });
+  ttsGenerate: {
+    profile: "ttsGenerate",
+    category: "tts",
+    message: "请求过于频繁，请稍后再试",
   },
-});
+  ttsHistory: {
+    profile: "ttsHistory",
+    category: "tts-history",
+    message: "请求过于频繁，请稍后再试",
+  },
+  admin: {
+    profile: "admin",
+    category: "admin",
+    message: "管理员操作过于频繁，请稍后再试",
+  },
+  frontend: {
+    profile: "static",
+    category: "static",
+    message: "请求过于频繁，请稍后再试",
+  },
+  totp: {
+    profile: "verification",
+    category: "verification",
+    message: "TOTP操作过于频繁，请稍后再试",
+  },
+  passkey: {
+    profile: "verification",
+    category: "verification",
+    max: 30,
+    message: "Passkey操作过于频繁，请稍后再试",
+  },
+  tamper: {
+    profile: "standard",
+    category: "public-api",
+    message: "防篡改验证请求过于频繁，请稍后再试",
+  },
+  command: {
+    profile: "sensitive",
+    category: "command",
+    message: "命令执行请求过于频繁，请稍后再试",
+    skip: skipLocalAndStatusPoll,
+  },
+  librechat: {
+    profile: "relaxed",
+    category: "public-api",
+    message: "LibreChat请求过于频繁，请稍后再试",
+  },
+  datacollection: {
+    profile: "standard",
+    category: "public-api",
+    message: "数据收集请求过于频繁，请稍后再试",
+  },
+  logs: {
+    profile: "verification",
+    category: "public-api",
+    message: "日志请求过于频繁，请稍后再试",
+  },
+  ipfs: {
+    profile: "sensitive",
+    category: "public-api",
+    message: "上传请求过于频繁，请稍后再试",
+  },
+  network: {
+    profile: "standard",
+    category: "public-api",
+    message: "网络检测请求过于频繁，请稍后再试",
+  },
+  dataprocess: {
+    profile: "admin",
+    category: "public-api",
+    message: "数据处理请求过于频繁，请稍后再试",
+  },
+  media: {
+    profile: "verification",
+    category: "public-api",
+    message: "媒体解析请求过于频繁，请稍后再试",
+  },
+  social: {
+    profile: "standard",
+    category: "public-api",
+    message: "社交媒体请求过于频繁，请稍后再试",
+  },
+  life: {
+    profile: "standard",
+    category: "public-api",
+    max: 40,
+    message: "生活信息请求过于频繁，请稍后再试",
+  },
+  miniapi: {
+    profile: "standard",
+    category: "public-api",
+    message: "MiniAPI请求过于频繁，请稍后再试",
+  },
+  anta: {
+    profile: "standard",
+    category: "public-api",
+    message: "安踏防伪查询请求过于频繁，请稍后再试",
+  },
+  status: {
+    profile: "relaxed",
+    category: "status",
+    message: "状态检查请求过于频繁，请稍后再试",
+  },
+  openapi: {
+    profile: "sensitive",
+    category: "public-api",
+    message: "请求过于频繁，请稍后再试",
+  },
+  audio: {
+    profile: "admin",
+    category: "static",
+    message: "音频文件请求过于频繁，请稍后再试",
+  },
+  modlist: {
+    profile: "relaxed",
+    category: "public-api",
+    message: "MOD列表请求过于频繁，请稍后再试",
+  },
+  cdk: {
+    profile: "relaxed",
+    category: "public-api",
+    message: "CDK 请求过于频繁，请稍后再试",
+  },
+  ghbilling: {
+    profile: "sensitive",
+    category: "public-api",
+    message: "GitHub Billing请求过于频繁，请稍后再试",
+  },
+  deeplx: {
+    profile: "verification",
+    category: "public-api",
+    message: "翻译请求过于频繁，请稍后再试",
+  },
+  integrity: {
+    profile: "sensitive",
+    category: "public-api",
+    message: "请求过于频繁，请稍后再试",
+  },
+  nexaisecurity: {
+    profile: "relaxed",
+    category: "public-api",
+    message: "安全请求过于频繁，请稍后再试",
+  },
+  root: {
+    profile: "burst",
+    category: "public-api",
+    message: "访问过于频繁，请稍后再试",
+  },
+  lccompat: {
+    profile: "standard",
+    category: "public-api",
+    message: "请求过于频繁，请稍后再试",
+  },
+  ipquery: {
+    profile: "standard",
+    category: "public-api",
+    message: "IP查询过于频繁，请稍后再试",
+  },
+  iplocation: {
+    profile: "verification",
+    category: "public-api",
+    message: "IP位置查询过于频繁，请稍后再试",
+  },
+  ipreport: {
+    profile: "standard",
+    category: "public-api",
+    max: 25,
+    message: "IP上报过于频繁，请稍后再试",
+    skip: skipPrivateIpReport,
+  },
+  serverstatus: {
+    profile: "sensitive",
+    category: "status",
+    message: "状态查询过于频繁，请稍后再试",
+  },
+  static: {
+    profile: "static",
+    category: "static",
+    max: 200,
+    message: "静态文件请求过于频繁，请稍后再试",
+  },
+  docstimeout: {
+    profile: "sensitive",
+    category: "public-api",
+    max: 5,
+    message: "上报过于频繁，请稍后再试",
+  },
+  global: {
+    profile: "global",
+    category: "global",
+    message: "请求过于频繁，请稍后再试",
+    skip: skipLocalAndStatusPoll,
+  },
+  notfound: {
+    profile: "admin",
+    category: "public-api",
+    message: "请求过于频繁，请稍后再试",
+  },
+} as const satisfies Record<string, LimiterDefinition & Partial<RateProfile>>;
 
-// --- 404 ---
-export const notFoundLimiter = createLimiter({ name: "notfound", max: 50, message: "请求过于频繁，请稍后再试" });
+function limiterFromDefinition(name: keyof typeof LIMITER_DEFINITIONS): RateLimitRequestHandler {
+  const definition = LIMITER_DEFINITIONS[name];
+  return createLimiter({
+    name,
+    profile: definition.profile,
+    category: definition.category,
+    message: definition.message,
+    windowMs: definition.windowMs,
+    max: definition.max,
+    skip: definition.skip,
+    handler: definition.handler,
+  });
+}
+
+export const loginLimiter = limiterFromDefinition("authLogin");
+export const registerLimiter = limiterFromDefinition("authRegister");
+export const authLimiter = limiterFromDefinition("auth");
+export const meEndpointLimiter = limiterFromDefinition("me");
+export const ttsLimiter = limiterFromDefinition("ttsGenerate");
+export const historyLimiter = limiterFromDefinition("ttsHistory");
+export const adminLimiter = limiterFromDefinition("admin");
+export const frontendLimiter = limiterFromDefinition("frontend");
+export const totpLimiter = limiterFromDefinition("totp");
+export const passkeyLimiter = limiterFromDefinition("passkey");
+export const tamperLimiter = limiterFromDefinition("tamper");
+export const commandLimiter = limiterFromDefinition("command");
+export const libreChatLimiter = limiterFromDefinition("librechat");
+export const dataCollectionLimiter = limiterFromDefinition("datacollection");
+export const logsLimiter = limiterFromDefinition("logs");
+export const ipfsLimiter = limiterFromDefinition("ipfs");
+export const networkLimiter = limiterFromDefinition("network");
+export const dataProcessLimiter = limiterFromDefinition("dataprocess");
+export const mediaLimiter = limiterFromDefinition("media");
+export const socialLimiter = limiterFromDefinition("social");
+export const lifeLimiter = limiterFromDefinition("life");
+export const miniapiLimiter = limiterFromDefinition("miniapi");
+export const antaLimiter = limiterFromDefinition("anta");
+export const statusLimiter = limiterFromDefinition("status");
+export const openapiLimiter = limiterFromDefinition("openapi");
+export const audioFileLimiter = limiterFromDefinition("audio");
+export const modlistMountLimiter = limiterFromDefinition("modlist");
+export const cdkMountLimiter = limiterFromDefinition("cdk");
+export const githubBillingLimiter = limiterFromDefinition("ghbilling");
+export const deeplxLimiter = limiterFromDefinition("deeplx");
+export const integrityLimiter = limiterFromDefinition("integrity");
+export const nexaiSecurityLimiter = limiterFromDefinition("nexaisecurity");
+export const rootLimiter = limiterFromDefinition("root");
+export const lcCompatLimiter = limiterFromDefinition("lccompat");
+export const ipQueryLimiter = limiterFromDefinition("ipquery");
+export const ipLocationLimiter = limiterFromDefinition("iplocation");
+export const ipReportLimiter = limiterFromDefinition("ipreport");
+export const serverStatusLimiter = limiterFromDefinition("serverstatus");
+export const staticFileLimiter = limiterFromDefinition("static");
+export const docsTimeoutLimiter = limiterFromDefinition("docstimeout");
+export const globalDefaultLimiter = limiterFromDefinition("global");
+export const notFoundLimiter = limiterFromDefinition("notfound");
