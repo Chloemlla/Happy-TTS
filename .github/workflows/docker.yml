@@ -253,7 +253,7 @@ jobs:
         github.actor == 'Chloemlla' ||
         github.actor == 'Chloemlla'
       ) &&
-      needs.publish-amd64.result == 'success'
+      needs['publish-amd64'].result == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

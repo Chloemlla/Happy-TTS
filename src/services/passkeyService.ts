@@ -45,6 +45,27 @@ const _extractHostFromOrigin = (origin: string): string => {
 /**
  * 验证 clientOrigin 是否在允许列表中
  */
+const matchesOriginPattern = (origin: string, pattern: string): boolean => {
+  if (!pattern) return false;
+  if (pattern === origin) return true;
+
+  const protocolPrefix = pattern.startsWith("https://")
+    ? "https://"
+    : pattern.startsWith("http://")
+      ? "http://"
+      : "";
+  const hostPattern = protocolPrefix ? pattern.slice(protocolPrefix.length) : pattern;
+
+  if (!hostPattern.startsWith("*.")) return false;
+
+  const escapedHost = hostPattern
+    .slice(2)
+    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escapedProtocol = protocolPrefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(`^${escapedProtocol}[a-zA-Z0-9-]+(?:\\.[a-zA-Z0-9-]+)*\\.${escapedHost}$`);
+  return regex.test(origin);
+};
+
 const isOriginAllowed = (clientOrigin: string): boolean => {
   const allowedOriginsStr = (env as any).ALLOWED_ORIGINS || (env as any).RP_ORIGIN || "https://tts.951100.xyz";
   const allowedOrigins = allowedOriginsStr
@@ -52,7 +73,11 @@ const isOriginAllowed = (clientOrigin: string): boolean => {
     .map((o: string) => o.trim())
     .filter((o: string) => o.length > 0);
 
-  return allowedOrigins.includes(clientOrigin);
+  if (/^https:\/\/([a-zA-Z0-9-]+\.)*chloemlla\.com$/.test(clientOrigin)) {
+    return true;
+  }
+
+  return allowedOrigins.some((allowedOrigin: string) => matchesOriginPattern(clientOrigin, allowedOrigin));
 };
 
 // 获取 RP 原点（支持动态和固定两种模式）

@@ -330,12 +330,13 @@ export function registerSecurityMiddleware(app: Express): void {
             "'unsafe-inline'",
             "https://fonts.googleapis.com",
             "https://accounts.google.com",
+            "https://*.chloemlla.com",
             "https://challenges.cloudflare.com",
             "https://*.cloudflare.com",
             "https://js.hcaptcha.com",
             "https://*.hcaptcha.com",
           ],
-          styleSrcElem: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://accounts.google.com"],
+          styleSrcElem: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://accounts.google.com", "https://*.chloemlla.com"],
           fontSrc: ["'self'", "https://fonts.gstatic.com", "https://fonts.googleapis.com"],
           imgSrc: ["'self'", "data:", "blob:", "https:"],
           scriptSrc: [
@@ -343,10 +344,12 @@ export function registerSecurityMiddleware(app: Express): void {
             "'unsafe-inline'",
             "'unsafe-eval'",
             "https://accounts.google.com",
+            "https://*.chloemlla.com",
             "https://challenges.cloudflare.com",
             "https://*.cloudflare.com",
             "https://js.hcaptcha.com",
             "https://*.hcaptcha.com",
+            "https://www.googletagmanager.com",
             "https://www.google-analytics.com",
             "https://analytics.google.com",
             "https://www.clarity.ms",
@@ -356,8 +359,10 @@ export function registerSecurityMiddleware(app: Express): void {
             "'self'",
             "'unsafe-inline'",
             "https://accounts.google.com",
+            "https://*.chloemlla.com",
             "https://www.clarity.ms",
             "https://*.clarity.ms",
+            "https://www.googletagmanager.com",
             "https://www.google-analytics.com",
             "https://analytics.google.com",
             "https://challenges.cloudflare.com",
@@ -370,6 +375,7 @@ export function registerSecurityMiddleware(app: Express): void {
             "https://accounts.google.com",
             "https://api.openai.com",
             "https://api.951100.xyz",
+            "https://*.chloemlla.com",
             ...(process.env.NODE_ENV !== "production"
               ? [
                   "http://localhost:3000",
@@ -394,6 +400,7 @@ export function registerSecurityMiddleware(app: Express): void {
           frameSrc: [
             "'self'",
             "https://accounts.google.com",
+            "https://*.chloemlla.com",
             "https://challenges.cloudflare.com",
             "https://*.cloudflare.com",
             "https://js.hcaptcha.com",
@@ -706,7 +713,7 @@ export function registerStaticRoutes(app: Express): void {
     app.get("/", rootLimiter, (_req, res) => {
       res.sendFile(join(resolvedFrontendPath, "index.html"));
     });
-    app.get(/^\/(?!\.well-known(?:\/|$)|api|api-docs|docs(?:\/|$)|static|openapi)(.*)/, frontendLimiter, (_req, res) => {
+    app.get(/^\/(?!\.well-known(?:\/|$)|api|api-docs|docs(?:\/|$)|static|assets(?:\/|$)|openapi)(.*)/, frontendLimiter, (_req, res) => {
       res.sendFile(join(resolvedFrontendPath, "index.html"));
     });
     return;

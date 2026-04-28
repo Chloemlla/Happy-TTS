@@ -51,11 +51,35 @@ const CORS_EXPOSED_HEADERS = [
   "Cache-Control",
 ];
 
+function matchesOriginPattern(origin: string, pattern: string): boolean {
+  if (!pattern) return false;
+  if (pattern === origin) return true;
+
+  const match = pattern.match(/^(\*|https?:\/\/\*\.)?([a-zA-Z0-9-]+\.[a-zA-Z0-9.-]+)$/);
+  if (!match) return false;
+
+  const protocolPrefix = pattern.startsWith("https://")
+    ? "https://"
+    : pattern.startsWith("http://")
+      ? "http://"
+      : "";
+  const hostPattern = protocolPrefix ? pattern.slice(protocolPrefix.length) : pattern;
+
+  if (!hostPattern.startsWith("*.")) return false;
+
+  const escapedHost = hostPattern
+    .slice(2)
+    .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(`^${protocolPrefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[a-zA-Z0-9-]+(?:\\.[a-zA-Z0-9-]+)*\\.${escapedHost}$`);
+  return regex.test(origin);
+}
+
 /** 判断 origin 是否在白名单内（含 *.951100.xyz 通配） */
 function isOriginAllowed(origin: string | undefined): boolean {
   if (!origin) return true; // 无 origin（curl/postman）放行
   if (/^https:\/\/([a-zA-Z0-9-]+\.)*hapxs\.com$/.test(origin)) return true;
-  return allowedOrigins.includes(origin);
+  if (/^https:\/\/([a-zA-Z0-9-]+\.)*chloemlla\.com$/.test(origin)) return true;
+  return allowedOrigins.some((allowedOrigin) => matchesOriginPattern(origin, allowedOrigin));
 }
 
 // ============ 全局 CORS 中间件（挂到 app.use） ============
