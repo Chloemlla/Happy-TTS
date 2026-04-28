@@ -89,6 +89,9 @@ importers:
       http-proxy-agent:
         specifier: ^9.0.0
         version: 9.0.0
+      is-docker:
+        specifier: ^4.0.0
+        version: 4.0.0
       jsdom:
         specifier: ^29.1.0
         version: 29.1.0(@noble/hashes@1.8.0)
@@ -2265,6 +2268,11 @@ packages:
   is-docker@2.2.1:
     resolution: {integrity: sha512-F+i2BKsFrH66iaUFc0woD8sLy8getkwTwtOBjvs56Cx4CgJDeKQeqfz8wAYiSb8JOprWhHH5p77PbmYCvvUuXQ==}
     engines: {node: '>=8'}
+    hasBin: true
+
+  is-docker@4.0.0:
+    resolution: {integrity: sha512-LHE+wROyG/Y/0ZnbktRCoTix2c1RhgWaZraMZ8o1Q7zCh0VSrICJQO5oqIIISrcSBtrXv0o233w1IYwsWCjTzA==}
+    engines: {node: '>=20'}
     hasBin: true
 
   is-extglob@2.1.1:
@@ -6030,6 +6038,8 @@ snapshots:
   is-decimal@2.0.1: {}
 
   is-docker@2.2.1: {}
+
+  is-docker@4.0.0: {}
 
   is-extglob@2.1.1: {}
 

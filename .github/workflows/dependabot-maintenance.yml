@@ -44,7 +44,6 @@ jobs:
 
       - name: Run fix script
         run: 
-          npm install is-docker
           node scripts/fix-dependabot-alerts.js
 
       - name: Commit and push

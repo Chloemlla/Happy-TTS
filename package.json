@@ -88,6 +88,7 @@
     "google-auth-library": "^10.6.2",
     "helmet": "^8.1.0",
     "http-proxy-agent": "^9.0.0",
+    "is-docker": "^4.0.0",
     "jsdom": "^29.1.0",
     "jsonwebtoken": "^9.0.3",
     "liquid-glass-react": "^1.1.1",
