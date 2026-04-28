@@ -7,8 +7,13 @@ import {
     isExemptPath,
 } from '../utils/ipVerification';
 
-// 获取API基础URL
+// 获取API基础URL：生产环境默认同源，开发环境保留后端直连能力
 const getApiBaseUrl = () => {
+    const configuredUrl = import.meta.env.VITE_API_URL?.trim();
+    if (configuredUrl) {
+        return configuredUrl;
+    }
+
     if (import.meta.env.DEV) {
         // 在开发环境下，根据当前访问的URL自动切换后端地址
         const currentHost = window.location.hostname;
@@ -22,8 +27,8 @@ const getApiBaseUrl = () => {
         // 默认本地开发地址
         return 'http://localhost:3000';
     }
-    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-    return 'https://api.951100.xyz';
+
+    return '';
 };
 
 const resolveRequestPathname = (config?: AxiosRequestConfig): string | null => {
