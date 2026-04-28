@@ -36,6 +36,7 @@ import {
   staticFileLimiter,
 } from "../middleware/routeLimiters";
 import {
+  assertRouteGovernance,
   earlyRouteModules,
   isExemptNonApiRoutePath,
   NON_API_ROUTE_EXEMPTION_PATHS,
@@ -429,6 +430,7 @@ export function registerSecurityMiddleware(app: Express): void {
 }
 
 export function registerApiRoutes(app: Express): void {
+  assertRouteGovernance();
   assertAssemblyNonApiRoutePath("/s");
   app.use("/s", shortUrlRoutes);
 

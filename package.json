@@ -40,6 +40,7 @@
     "test:concurrency": "jest concurrency.test.ts",
     "test:ci": "jest --ci --runInBand --coverage --reporters=default --reporters=jest-junit",
     "generate:openapi": "node scripts/generate-openapi.js",
+    "generate:route-audit": "ts-node --transpile-only scripts/generate-route-audit.ts",
     "migrate:tts-user-datas": "node scripts/migrations/migrate-tts-user-datas.js",
     "check:api-docs": "node scripts/check-api-docs.js",
     "check:openapi-json": "node scripts/check-openapi-json.js",

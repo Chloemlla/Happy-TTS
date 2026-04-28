@@ -1,0 +1,969 @@
+{
+  "generatedAt": "2026-04-28T17:30:09.279Z",
+  "totals": {
+    "routes": 65,
+    "violations": 0
+  },
+  "violations": [],
+  "records": [
+    {
+      "name": "auth-limiter",
+      "path": "/api/auth",
+      "phase": "route-limiters",
+      "kind": "limiter",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed"
+    },
+    {
+      "name": "auth-me-limiter",
+      "path": "/api/auth/me",
+      "phase": "route-limiters",
+      "kind": "limiter",
+      "requiresAuth": true,
+      "rateLimited": true,
+      "isPublic": false,
+      "rateLimitPolicy": {
+        "mode": "mount",
+        "limiters": [
+          "meEndpointLimiter"
+        ],
+        "note": "Dedicated limiter mount for the authenticated /auth/me endpoint"
+      }
+    },
+    {
+      "name": "tts-generate-limiter",
+      "path": "/api/tts/generate",
+      "phase": "route-limiters",
+      "kind": "limiter",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed"
+    },
+    {
+      "name": "tts-history-limiter",
+      "path": "/api/tts/history",
+      "phase": "route-limiters",
+      "kind": "limiter",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed"
+    },
+    {
+      "name": "tts-jobs-limiter",
+      "path": "/api/tts/jobs",
+      "phase": "route-limiters",
+      "kind": "limiter",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed"
+    },
+    {
+      "name": "totp-limiter",
+      "path": "/api/totp",
+      "phase": "route-limiters",
+      "kind": "limiter",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed"
+    },
+    {
+      "name": "passkey-limiter",
+      "path": "/api/passkey",
+      "phase": "route-limiters",
+      "kind": "limiter",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed"
+    },
+    {
+      "name": "tamper-limiter",
+      "path": "/api/tamper",
+      "phase": "route-limiters",
+      "kind": "limiter",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true
+    },
+    {
+      "name": "command-limiter",
+      "path": "/api/command",
+      "phase": "route-limiters",
+      "kind": "limiter",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed"
+    },
+    {
+      "name": "libre-chat-limiter",
+      "path": "/api/libre-chat",
+      "phase": "route-limiters",
+      "kind": "limiter",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed"
+    },
+    {
+      "name": "data-collection-limiter",
+      "path": "/api/data-collection",
+      "phase": "route-limiters",
+      "kind": "limiter",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true
+    },
+    {
+      "name": "ipfs-limiter",
+      "path": "/api/ipfs",
+      "phase": "route-limiters",
+      "kind": "limiter",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed"
+    },
+    {
+      "name": "network-limiter",
+      "path": "/api/network",
+      "phase": "route-limiters",
+      "kind": "limiter",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true
+    },
+    {
+      "name": "data-process-limiter",
+      "path": "/api/data",
+      "phase": "route-limiters",
+      "kind": "limiter",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true
+    },
+    {
+      "name": "deeplx-limiter",
+      "path": "/api/deeplx",
+      "phase": "route-limiters",
+      "kind": "limiter",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true
+    },
+    {
+      "name": "media-limiter",
+      "path": "/api/media",
+      "phase": "route-limiters",
+      "kind": "limiter",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true
+    },
+    {
+      "name": "social-limiter",
+      "path": "/api/social",
+      "phase": "route-limiters",
+      "kind": "limiter",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true
+    },
+    {
+      "name": "life-limiter",
+      "path": "/api/life",
+      "phase": "route-limiters",
+      "kind": "limiter",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true
+    },
+    {
+      "name": "status-limiter",
+      "path": "/api/status",
+      "phase": "route-limiters",
+      "kind": "limiter",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed"
+    },
+    {
+      "name": "webhook-routes",
+      "path": "/api/webhooks",
+      "phase": "pre-parser",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "rateLimitPolicy": {
+        "mode": "route",
+        "limiters": [
+          "webhookLimiter"
+        ],
+        "note": "Webhook routes apply a dedicated route-level limiter inside the router."
+      },
+      "securityBypass": {
+        "waf": {
+          "value": true,
+          "reason": "Webhook signature verification requires raw payload compatibility before WAF normalization."
+        }
+      }
+    },
+    {
+      "name": "data-collection-routes",
+      "path": "/api/data-collection",
+      "phase": "pre-parser",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "rateLimitPolicy": {
+        "mode": "route-module",
+        "limiters": [
+          "dataCollectionLimiter"
+        ],
+        "note": "Ingress is protected by the dedicated /api/data-collection limiter mount."
+      },
+      "securityBypass": {
+        "waf": {
+          "value": true,
+          "reason": "Telemetry ingestion accepts browser-originated payloads that the WAF would over-block."
+        }
+      }
+    },
+    {
+      "name": "root-data-collection-routes",
+      "path": "/api",
+      "phase": "pre-parser",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "rateLimitPolicy": {
+        "mode": "route-module",
+        "limiters": [
+          "dataCollectionLimiter"
+        ],
+        "note": "The root /api mount shares the same data-collection limiter coverage."
+      },
+      "securityBypass": {
+        "waf": {
+          "value": "mixed",
+          "reason": "Only the data-collection branch under /api should bypass WAF; sibling routes remain protected."
+        }
+      }
+    },
+    {
+      "name": "email-routes",
+      "path": "/api/email",
+      "phase": "early",
+      "kind": "route",
+      "requiresAuth": "mixed",
+      "rateLimited": "mixed",
+      "isPublic": "mixed"
+    },
+    {
+      "name": "outemail-routes",
+      "path": "/api/outemail",
+      "phase": "early",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "rateLimitPolicy": {
+        "mode": "route",
+        "limiters": [
+          "outEmailLimiter",
+          "statusQueryLimiter"
+        ],
+        "note": "Public outemail endpoints apply dedicated route-level limiters for send and status flows."
+      }
+    },
+    {
+      "name": "tts-routes",
+      "path": "/api/tts",
+      "phase": "pre-docs",
+      "kind": "route",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "rateLimitPolicy": {
+        "mode": "route-module",
+        "limiters": [
+          "tts-generate-limiter",
+          "tts-history-limiter",
+          "tts-jobs-limiter"
+        ],
+        "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
+      }
+    },
+    {
+      "name": "librechat-compat-routes",
+      "path": "/api/librechat",
+      "phase": "pre-docs",
+      "kind": "route",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "rateLimitPolicy": {
+        "mode": "mount",
+        "limiters": [
+          "libreChatLimiter"
+        ],
+        "note": "Inferred from mounted limiter middleware declared on the route module."
+      }
+    },
+    {
+      "name": "ip-verification-routes",
+      "path": "/api/ip-verification",
+      "phase": "pre-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": false,
+      "isPublic": true,
+      "securityBypass": {
+        "ipVerification": {
+          "value": true,
+          "reason": "This endpoint bootstraps IP verification and cannot be gated by itself."
+        }
+      }
+    },
+    {
+      "name": "ip-verification-middleware",
+      "path": "/api",
+      "phase": "pre-tamper",
+      "kind": "middleware",
+      "requiresAuth": false,
+      "rateLimited": false,
+      "isPublic": "mixed"
+    },
+    {
+      "name": "auth-routes",
+      "path": "/api/auth",
+      "phase": "pre-tamper",
+      "kind": "route",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "rateLimitPolicy": {
+        "mode": "route-module",
+        "limiters": [
+          "auth-limiter"
+        ],
+        "note": "Authentication endpoints are covered by the dedicated /api/auth limiter mount."
+      },
+      "securityBypass": {
+        "waf": {
+          "value": "mixed",
+          "reason": "Login and register payloads need selective compatibility exceptions, not a full-module bypass."
+        },
+        "ipVerification": {
+          "value": "mixed",
+          "reason": "Third-party callback and bootstrap branches must remain reachable before verification completes."
+        }
+      }
+    },
+    {
+      "name": "totp-routes",
+      "path": "/api/totp",
+      "phase": "pre-tamper",
+      "kind": "route",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "rateLimitPolicy": {
+        "mode": "route-module",
+        "limiters": [
+          "totp-limiter"
+        ],
+        "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
+      }
+    },
+    {
+      "name": "totp-status-route",
+      "path": "/api/totp/status",
+      "phase": "pre-tamper",
+      "kind": "route",
+      "requiresAuth": true,
+      "rateLimited": true,
+      "isPublic": false,
+      "authPolicy": {
+        "mode": "mount",
+        "handlers": [
+          "authenticateToken"
+        ],
+        "note": "The status endpoint is mounted with an explicit JWT guard."
+      },
+      "rateLimitPolicy": {
+        "mode": "route-module",
+        "limiters": [
+          "totpLimiter"
+        ],
+        "note": "Covered by the dedicated /api/totp limiter module."
+      }
+    },
+    {
+      "name": "admin-routes",
+      "path": "/api/admin",
+      "phase": "pre-tamper",
+      "kind": "route",
+      "requiresAuth": true,
+      "rateLimited": true,
+      "isPublic": false,
+      "authPolicy": {
+        "mode": "router",
+        "handlers": [
+          "authMiddleware",
+          "adminAuthMiddleware"
+        ],
+        "note": "Admin routes enforce authentication and role checks inside the router before handler dispatch."
+      },
+      "rateLimitPolicy": {
+        "mode": "mixed",
+        "limiters": [
+          "adminLimiter"
+        ],
+        "note": "Admin ingress is rate-limited both at mount and within the router for sensitive subflows."
+      }
+    },
+    {
+      "name": "admin-audit-log-routes",
+      "path": "/api/admin/audit-logs",
+      "phase": "pre-tamper",
+      "kind": "route",
+      "requiresAuth": true,
+      "rateLimited": true,
+      "isPublic": false,
+      "authPolicy": {
+        "mode": "mount",
+        "handlers": [
+          "authenticateToken"
+        ],
+        "note": "Audit log ingress is guarded at mount; downstream admin logic remains inside the route implementation."
+      },
+      "rateLimitPolicy": {
+        "mode": "mount",
+        "limiters": [
+          "adminLimiter"
+        ],
+        "note": "Audit log access reuses the stricter admin mount limiter."
+      }
+    },
+    {
+      "name": "api-key-routes",
+      "path": "/api/apikeys",
+      "phase": "pre-tamper",
+      "kind": "route",
+      "requiresAuth": true,
+      "rateLimited": false,
+      "isPublic": false,
+      "authPolicy": {
+        "mode": "router",
+        "handlers": [
+          "authMiddleware"
+        ],
+        "note": "API key management is fully protected by router-level JWT authentication."
+      }
+    },
+    {
+      "name": "status-routes",
+      "path": "/api/status",
+      "phase": "pre-tamper",
+      "kind": "route",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "rateLimitPolicy": {
+        "mode": "route-module",
+        "limiters": [
+          "status-limiter"
+        ],
+        "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
+      },
+      "securityBypass": {
+        "ipBan": {
+          "value": true,
+          "reason": "Status endpoints must remain available for health probes even when ban infrastructure is active."
+        },
+        "ipVerification": {
+          "value": true,
+          "reason": "Operational status must be reachable before user-facing verification bootstraps."
+        }
+      }
+    },
+    {
+      "name": "turnstile-routes",
+      "path": "/api/turnstile",
+      "phase": "pre-tamper",
+      "kind": "route",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "rateLimitPolicy": {
+        "mode": "route-module",
+        "limiters": [
+          "passkeyLimiter"
+        ],
+        "note": "Passkey endpoints are covered by the dedicated /api/passkey limiter mount."
+      },
+      "securityBypass": {
+        "ipVerification": {
+          "value": true,
+          "reason": "Turnstile bootstrap routes are intentionally public and must bypass IP verification."
+        }
+      }
+    },
+    {
+      "name": "policy-routes",
+      "path": "/api/policy",
+      "phase": "pre-tamper",
+      "kind": "route",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "rateLimitPolicy": {
+        "mode": "route",
+        "limiters": [
+          "policyRateLimit",
+          "adminRateLimit"
+        ],
+        "note": "Policy routes enforce separate public and admin rate-limiters at route level."
+      }
+    },
+    {
+      "name": "tamper-routes",
+      "path": "/api/tamper",
+      "phase": "pre-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "rateLimitPolicy": {
+        "mode": "route-module",
+        "limiters": [
+          "tamper-limiter"
+        ],
+        "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
+      }
+    },
+    {
+      "name": "ticket-routes",
+      "path": "/api/tickets",
+      "phase": "pre-tamper",
+      "kind": "route",
+      "requiresAuth": true,
+      "rateLimited": false,
+      "isPublic": false,
+      "authPolicy": {
+        "mode": "router",
+        "handlers": [
+          "authenticateToken"
+        ],
+        "note": "Ticket routes apply a router-wide JWT guard before all ticket handlers."
+      }
+    },
+    {
+      "name": "command-routes",
+      "path": "/api/command",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "rateLimitPolicy": {
+        "mode": "route-module",
+        "limiters": [
+          "command-limiter"
+        ],
+        "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
+      }
+    },
+    {
+      "name": "libre-chat-routes",
+      "path": "/api/libre-chat",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "rateLimitPolicy": {
+        "mode": "route-module",
+        "limiters": [
+          "libre-chat-limiter"
+        ],
+        "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
+      }
+    },
+    {
+      "name": "human-check-routes",
+      "path": "/api/human-check",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": false,
+      "isPublic": true,
+      "securityBypass": {
+        "ipVerification": {
+          "value": true,
+          "reason": "Human-check bootstrap must be callable before IP verification has established trust."
+        }
+      }
+    },
+    {
+      "name": "debug-console-routes",
+      "path": "/api/debug-console",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": "mixed",
+      "rateLimited": false,
+      "isPublic": "mixed"
+    },
+    {
+      "name": "data-collection-admin-routes",
+      "path": "/api/data-collection/admin",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": true,
+      "rateLimited": true,
+      "isPublic": false,
+      "authPolicy": {
+        "mode": "route",
+        "handlers": [
+          "authenticateToken",
+          "authenticateAdmin"
+        ],
+        "note": "Every admin route composes the guard tuple directly at route level."
+      },
+      "rateLimitPolicy": {
+        "mode": "route",
+        "limiters": [
+          "dataCollectionLimiter"
+        ],
+        "note": "The admin data-collection router rate-limits each route through its shared guard tuple."
+      }
+    },
+    {
+      "name": "ipfs-routes",
+      "path": "/api/ipfs",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "rateLimitPolicy": {
+        "mode": "route-module",
+        "limiters": [
+          "ipfs-limiter"
+        ],
+        "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
+      }
+    },
+    {
+      "name": "network-routes",
+      "path": "/api/network",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "rateLimitPolicy": {
+        "mode": "route-module",
+        "limiters": [
+          "network-limiter"
+        ],
+        "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
+      }
+    },
+    {
+      "name": "data-process-routes",
+      "path": "/api/data",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "rateLimitPolicy": {
+        "mode": "route-module",
+        "limiters": [
+          "data-process-limiter"
+        ],
+        "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
+      }
+    },
+    {
+      "name": "deeplx-routes",
+      "path": "/api/deeplx",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "rateLimitPolicy": {
+        "mode": "route-module",
+        "limiters": [
+          "deeplx-limiter"
+        ],
+        "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
+      }
+    },
+    {
+      "name": "lottery-routes",
+      "path": "/api/lottery",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": false,
+      "isPublic": true
+    },
+    {
+      "name": "media-routes",
+      "path": "/api/media",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "rateLimitPolicy": {
+        "mode": "route-module",
+        "limiters": [
+          "media-limiter"
+        ],
+        "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
+      }
+    },
+    {
+      "name": "social-routes",
+      "path": "/api/social",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "rateLimitPolicy": {
+        "mode": "route-module",
+        "limiters": [
+          "social-limiter"
+        ],
+        "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
+      }
+    },
+    {
+      "name": "life-routes",
+      "path": "/api/life",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "rateLimitPolicy": {
+        "mode": "route-module",
+        "limiters": [
+          "life-limiter"
+        ],
+        "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
+      }
+    },
+    {
+      "name": "log-routes",
+      "path": "/api",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": false,
+      "isPublic": true
+    },
+    {
+      "name": "passkey-routes",
+      "path": "/api/passkey",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "rateLimitPolicy": {
+        "mode": "route-module",
+        "limiters": [
+          "passkey-limiter"
+        ],
+        "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
+      }
+    },
+    {
+      "name": "miniapi-routes",
+      "path": "/api/miniapi",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "rateLimitPolicy": {
+        "mode": "mount",
+        "limiters": [
+          "miniapiLimiter"
+        ],
+        "note": "Inferred from mounted limiter middleware declared on the route module."
+      }
+    },
+    {
+      "name": "anta-routes",
+      "path": "/api/anta",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "rateLimitPolicy": {
+        "mode": "mount",
+        "limiters": [
+          "antaLimiter"
+        ],
+        "note": "Inferred from mounted limiter middleware declared on the route module."
+      }
+    },
+    {
+      "name": "modlist-routes",
+      "path": "/api/modlist",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "rateLimitPolicy": {
+        "mode": "mount",
+        "limiters": [
+          "modlistMountLimiter"
+        ],
+        "note": "Inferred from mounted limiter middleware declared on the route module."
+      }
+    },
+    {
+      "name": "image-data-routes",
+      "path": "/api/image-data",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": false,
+      "isPublic": true
+    },
+    {
+      "name": "resource-routes",
+      "path": "/api",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "rateLimitPolicy": {
+        "mode": "route-module",
+        "limiters": [
+          "auth-limiter",
+          "auth-me-limiter",
+          "tts-generate-limiter",
+          "tts-history-limiter",
+          "tts-jobs-limiter",
+          "totp-limiter",
+          "passkey-limiter",
+          "tamper-limiter",
+          "command-limiter",
+          "libre-chat-limiter",
+          "data-collection-limiter",
+          "ipfs-limiter",
+          "network-limiter",
+          "data-process-limiter",
+          "deeplx-limiter",
+          "media-limiter",
+          "social-limiter",
+          "life-limiter",
+          "status-limiter"
+        ],
+        "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
+      }
+    },
+    {
+      "name": "cdk-routes",
+      "path": "/api/cdks",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "rateLimitPolicy": {
+        "mode": "mount",
+        "limiters": [
+          "cdkMountLimiter"
+        ],
+        "note": "Inferred from mounted limiter middleware declared on the route module."
+      }
+    },
+    {
+      "name": "webhook-event-routes",
+      "path": "/api/webhook-events",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": true,
+      "rateLimited": true,
+      "isPublic": false,
+      "authPolicy": {
+        "mode": "mount",
+        "handlers": [
+          "authenticateToken"
+        ],
+        "note": "JWT authentication is enforced at mount; route handlers add admin authorization checks."
+      },
+      "rateLimitPolicy": {
+        "mode": "mount",
+        "limiters": [
+          "adminLimiter"
+        ],
+        "note": "Webhook event administration is protected by the admin mount limiter."
+      }
+    },
+    {
+      "name": "fbi-wanted-routes",
+      "path": "/api/fbi-wanted",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": false,
+      "isPublic": true
+    },
+    {
+      "name": "github-billing-routes",
+      "path": "/api/github-billing",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "rateLimitPolicy": {
+        "mode": "mount",
+        "limiters": [
+          "githubBillingLimiter"
+        ],
+        "note": "Inferred from mounted limiter middleware declared on the route module."
+      }
+    },
+    {
+      "name": "nexai-routes",
+      "path": "/api/nexai",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": "mixed",
+      "rateLimited": false,
+      "isPublic": "mixed"
+    },
+    {
+      "name": "nexai-security-routes",
+      "path": "/api/nexai",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "rateLimitPolicy": {
+        "mode": "mount",
+        "limiters": [
+          "nexaiSecurityLimiter"
+        ],
+        "note": "Inferred from mounted limiter middleware declared on the route module."
+      }
+    }
+  ]
+}

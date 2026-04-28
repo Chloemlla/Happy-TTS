@@ -75,16 +75,71 @@ import logger from "../utils/logger";
 import type { SecurityComponent } from "../security/securityPolicy";
 
 export type RouteMetaFlag = boolean | "mixed";
-export type RouteSecurityBypass = Partial<Record<SecurityComponent, RouteMetaFlag>>;
+export type RouteModuleKind = "route" | "limiter" | "middleware";
+export type RouteModulePhase = "route-limiters" | "pre-parser" | "early" | "pre-docs" | "pre-tamper" | "post-tamper";
+
+export interface RouteAuthPolicy {
+  mode: "mount" | "router" | "route" | "mixed";
+  handlers: string[];
+  note?: string;
+}
+
+export interface RouteRateLimitPolicy {
+  mode: "mount" | "route-module" | "route" | "router" | "mixed";
+  limiters: string[];
+  note?: string;
+}
+
+export interface RouteSecurityBypassEntry {
+  value: RouteMetaFlag;
+  reason: string;
+}
+
+export type RouteSecurityBypass = Partial<Record<SecurityComponent, RouteSecurityBypassEntry>>;
+
+export interface OpenCorsException {
+  path: string;
+  reason: string;
+}
+
+export interface RouteGovernanceViolation {
+  moduleName: string;
+  path: string;
+  phase: RouteModulePhase;
+  code:
+    | "missing-auth-policy"
+    | "missing-auth-handlers"
+    | "missing-rate-limit-policy"
+    | "missing-rate-limit-target"
+    | "missing-security-bypass-reason"
+    | "private-route-open-cors-conflict";
+  message: string;
+}
+
+export interface RouteAuditRecord {
+  name: string;
+  path: string;
+  phase: RouteModulePhase;
+  kind: RouteModuleKind;
+  requiresAuth: RouteMetaFlag;
+  rateLimited: RouteMetaFlag;
+  isPublic: RouteMetaFlag;
+  authPolicy?: RouteAuthPolicy;
+  rateLimitPolicy?: RouteRateLimitPolicy;
+  securityBypass?: RouteSecurityBypass;
+}
 
 export interface RouteModule {
   name: string;
   path: string;
   router: RequestHandler;
   middlewares?: RequestHandler[];
+  kind?: RouteModuleKind;
   requiresAuth: RouteMetaFlag;
   rateLimited: RouteMetaFlag;
   isPublic: RouteMetaFlag;
+  authPolicy?: RouteAuthPolicy;
+  rateLimitPolicy?: RouteRateLimitPolicy;
   securityBypass?: RouteSecurityBypass;
 }
 
@@ -108,8 +163,30 @@ const antaRequestLogger: RequestHandler = (req: Request, _res: Response, next: N
 const API_ROUTE_PREFIX = "/api";
 const NON_API_ROUTE_EXEMPTION_SET = new Set<string>(NON_API_ROUTE_EXEMPTION_PATHS);
 
+export const openCorsExceptions: OpenCorsException[] = [
+  {
+    path: "/api/shorturl/*path",
+    reason: "Public short URL resolution and preflight flow",
+  },
+  {
+    path: "/api/turnstile/verify-token",
+    reason: "Public Turnstile verification bootstrap",
+  },
+  {
+    path: "/api/turnstile/public-turnstile",
+    reason: "Public Turnstile config bootstrap",
+  },
+] as const;
+
 export function isExemptNonApiRoutePath(routePath: string): boolean {
   return NON_API_ROUTE_EXEMPTION_SET.has(routePath);
+}
+
+export function getRouteSecurityBypassFlag(
+  module: Pick<RouteModule, "securityBypass">,
+  component: SecurityComponent,
+): RouteMetaFlag | undefined {
+  return module.securityBypass?.[component]?.value;
 }
 
 function assertApiRouteModulePath(module: RouteModule): void {
@@ -118,6 +195,21 @@ function assertApiRouteModulePath(module: RouteModule): void {
       `[routes] Route module "${module.name}" must be mounted under ${API_ROUTE_PREFIX} or match an explicit exemption, received "${module.path}"`,
     );
   }
+}
+
+function stripWildcardPath(pathname: string): string {
+  return pathname.replace(/\/\*.*$/, "");
+}
+
+function normalizeScopedPath(pathname: string): string {
+  const normalized = stripWildcardPath(pathname).replace(/\/+$/, "");
+  return normalized || "/";
+}
+
+function pathScopesOverlap(left: string, right: string): boolean {
+  const a = normalizeScopedPath(left);
+  const b = normalizeScopedPath(right);
+  return a === b || a.startsWith(`${b}/`) || b.startsWith(`${a}/`);
 }
 
 export const routeLimiterModules: RouteModule[] = [
@@ -136,6 +228,11 @@ export const routeLimiterModules: RouteModule[] = [
     requiresAuth: true,
     rateLimited: true,
     isPublic: false,
+    rateLimitPolicy: {
+      mode: "mount",
+      limiters: ["meEndpointLimiter"],
+      note: "Dedicated limiter mount for the authenticated /auth/me endpoint",
+    },
   },
   {
     name: "tts-generate-limiter",
@@ -283,8 +380,16 @@ export const preParserRouteModules: RouteModule[] = [
     requiresAuth: false,
     rateLimited: true,
     isPublic: true,
+    rateLimitPolicy: {
+      mode: "route",
+      limiters: ["webhookLimiter"],
+      note: "Webhook routes apply a dedicated route-level limiter inside the router.",
+    },
     securityBypass: {
-      waf: true,
+      waf: {
+        value: true,
+        reason: "Webhook signature verification requires raw payload compatibility before WAF normalization.",
+      },
     },
   },
   {
@@ -294,8 +399,16 @@ export const preParserRouteModules: RouteModule[] = [
     requiresAuth: false,
     rateLimited: true,
     isPublic: true,
+    rateLimitPolicy: {
+      mode: "route-module",
+      limiters: ["dataCollectionLimiter"],
+      note: "Ingress is protected by the dedicated /api/data-collection limiter mount.",
+    },
     securityBypass: {
-      waf: true,
+      waf: {
+        value: true,
+        reason: "Telemetry ingestion accepts browser-originated payloads that the WAF would over-block.",
+      },
     },
   },
   {
@@ -305,8 +418,16 @@ export const preParserRouteModules: RouteModule[] = [
     requiresAuth: false,
     rateLimited: true,
     isPublic: true,
+    rateLimitPolicy: {
+      mode: "route-module",
+      limiters: ["dataCollectionLimiter"],
+      note: "The root /api mount shares the same data-collection limiter coverage.",
+    },
     securityBypass: {
-      waf: "mixed",
+      waf: {
+        value: "mixed",
+        reason: "Only the data-collection branch under /api should bypass WAF; sibling routes remain protected.",
+      },
     },
   },
 ];
@@ -327,6 +448,11 @@ export const earlyRouteModules: RouteModule[] = [
     requiresAuth: false,
     rateLimited: true,
     isPublic: true,
+    rateLimitPolicy: {
+      mode: "route",
+      limiters: ["outEmailLimiter", "statusQueryLimiter"],
+      note: "Public outemail endpoints apply dedicated route-level limiters for send and status flows.",
+    },
   },
 ];
 
@@ -359,13 +485,17 @@ export const preTamperRouteModules: RouteModule[] = [
     rateLimited: false,
     isPublic: true,
     securityBypass: {
-      ipVerification: true,
+      ipVerification: {
+        value: true,
+        reason: "This endpoint bootstraps IP verification and cannot be gated by itself.",
+      },
     },
   },
   {
     name: "ip-verification-middleware",
     path: "/api",
     router: ipVerificationMiddleware,
+    kind: "middleware",
     requiresAuth: false,
     rateLimited: false,
     isPublic: "mixed",
@@ -377,9 +507,20 @@ export const preTamperRouteModules: RouteModule[] = [
     requiresAuth: "mixed",
     rateLimited: true,
     isPublic: "mixed",
+    rateLimitPolicy: {
+      mode: "route-module",
+      limiters: ["auth-limiter"],
+      note: "Authentication endpoints are covered by the dedicated /api/auth limiter mount.",
+    },
     securityBypass: {
-      waf: "mixed",
-      ipVerification: "mixed",
+      waf: {
+        value: "mixed",
+        reason: "Login and register payloads need selective compatibility exceptions, not a full-module bypass.",
+      },
+      ipVerification: {
+        value: "mixed",
+        reason: "Third-party callback and bootstrap branches must remain reachable before verification completes.",
+      },
     },
   },
   {
@@ -398,6 +539,16 @@ export const preTamperRouteModules: RouteModule[] = [
     requiresAuth: true,
     rateLimited: true,
     isPublic: false,
+    authPolicy: {
+      mode: "mount",
+      handlers: ["authenticateToken"],
+      note: "The status endpoint is mounted with an explicit JWT guard.",
+    },
+    rateLimitPolicy: {
+      mode: "route-module",
+      limiters: ["totpLimiter"],
+      note: "Covered by the dedicated /api/totp limiter module.",
+    },
   },
   {
     name: "admin-routes",
@@ -407,6 +558,16 @@ export const preTamperRouteModules: RouteModule[] = [
     requiresAuth: true,
     rateLimited: true,
     isPublic: false,
+    authPolicy: {
+      mode: "router",
+      handlers: ["authMiddleware", "adminAuthMiddleware"],
+      note: "Admin routes enforce authentication and role checks inside the router before handler dispatch.",
+    },
+    rateLimitPolicy: {
+      mode: "mixed",
+      limiters: ["adminLimiter"],
+      note: "Admin ingress is rate-limited both at mount and within the router for sensitive subflows.",
+    },
   },
   {
     name: "admin-audit-log-routes",
@@ -416,6 +577,16 @@ export const preTamperRouteModules: RouteModule[] = [
     requiresAuth: true,
     rateLimited: true,
     isPublic: false,
+    authPolicy: {
+      mode: "mount",
+      handlers: ["authenticateToken"],
+      note: "Audit log ingress is guarded at mount; downstream admin logic remains inside the route implementation.",
+    },
+    rateLimitPolicy: {
+      mode: "mount",
+      limiters: ["adminLimiter"],
+      note: "Audit log access reuses the stricter admin mount limiter.",
+    },
   },
   {
     name: "api-key-routes",
@@ -424,6 +595,11 @@ export const preTamperRouteModules: RouteModule[] = [
     requiresAuth: true,
     rateLimited: false,
     isPublic: false,
+    authPolicy: {
+      mode: "router",
+      handlers: ["authMiddleware"],
+      note: "API key management is fully protected by router-level JWT authentication.",
+    },
   },
   {
     name: "status-routes",
@@ -433,8 +609,14 @@ export const preTamperRouteModules: RouteModule[] = [
     rateLimited: true,
     isPublic: "mixed",
     securityBypass: {
-      ipBan: true,
-      ipVerification: true,
+      ipBan: {
+        value: true,
+        reason: "Status endpoints must remain available for health probes even when ban infrastructure is active.",
+      },
+      ipVerification: {
+        value: true,
+        reason: "Operational status must be reachable before user-facing verification bootstraps.",
+      },
     },
   },
   {
@@ -444,8 +626,16 @@ export const preTamperRouteModules: RouteModule[] = [
     requiresAuth: "mixed",
     rateLimited: true,
     isPublic: "mixed",
+    rateLimitPolicy: {
+      mode: "route-module",
+      limiters: ["passkeyLimiter"],
+      note: "Passkey endpoints are covered by the dedicated /api/passkey limiter mount.",
+    },
     securityBypass: {
-      ipVerification: true,
+      ipVerification: {
+        value: true,
+        reason: "Turnstile bootstrap routes are intentionally public and must bypass IP verification.",
+      },
     },
   },
   {
@@ -455,6 +645,11 @@ export const preTamperRouteModules: RouteModule[] = [
     requiresAuth: "mixed",
     rateLimited: true,
     isPublic: "mixed",
+    rateLimitPolicy: {
+      mode: "route",
+      limiters: ["policyRateLimit", "adminRateLimit"],
+      note: "Policy routes enforce separate public and admin rate-limiters at route level.",
+    },
   },
   {
     name: "tamper-routes",
@@ -471,6 +666,11 @@ export const preTamperRouteModules: RouteModule[] = [
     requiresAuth: true,
     rateLimited: false,
     isPublic: false,
+    authPolicy: {
+      mode: "router",
+      handlers: ["authenticateToken"],
+      note: "Ticket routes apply a router-wide JWT guard before all ticket handlers.",
+    },
   },
 ];
 
@@ -499,7 +699,10 @@ export const postTamperRouteModules: RouteModule[] = [
     rateLimited: false,
     isPublic: true,
     securityBypass: {
-      ipVerification: true,
+      ipVerification: {
+        value: true,
+        reason: "Human-check bootstrap must be callable before IP verification has established trust.",
+      },
     },
   },
   {
@@ -517,6 +720,16 @@ export const postTamperRouteModules: RouteModule[] = [
     requiresAuth: true,
     rateLimited: true,
     isPublic: false,
+    authPolicy: {
+      mode: "route",
+      handlers: ["authenticateToken", "authenticateAdmin"],
+      note: "Every admin route composes the guard tuple directly at route level.",
+    },
+    rateLimitPolicy: {
+      mode: "route",
+      limiters: ["dataCollectionLimiter"],
+      note: "The admin data-collection router rate-limits each route through its shared guard tuple.",
+    },
   },
   {
     name: "ipfs-routes",
@@ -659,6 +872,16 @@ export const postTamperRouteModules: RouteModule[] = [
     requiresAuth: true,
     rateLimited: true,
     isPublic: false,
+    authPolicy: {
+      mode: "mount",
+      handlers: ["authenticateToken"],
+      note: "JWT authentication is enforced at mount; route handlers add admin authorization checks.",
+    },
+    rateLimitPolicy: {
+      mode: "mount",
+      limiters: ["adminLimiter"],
+      note: "Webhook event administration is protected by the admin mount limiter.",
+    },
   },
   {
     name: "fbi-wanted-routes",
@@ -695,6 +918,235 @@ export const postTamperRouteModules: RouteModule[] = [
     isPublic: "mixed",
   },
 ];
+
+const routeModuleGroups: Array<{ phase: RouteModulePhase; kind: RouteModuleKind; modules: RouteModule[] }> = [
+  { phase: "route-limiters", kind: "limiter", modules: routeLimiterModules },
+  { phase: "pre-parser", kind: "route", modules: preParserRouteModules },
+  { phase: "early", kind: "route", modules: earlyRouteModules },
+  { phase: "pre-docs", kind: "route", modules: preDocsRouteModules },
+  { phase: "pre-tamper", kind: "route", modules: preTamperRouteModules },
+  { phase: "post-tamper", kind: "route", modules: postTamperRouteModules },
+];
+
+const knownMountLimiters = new Map<RequestHandler, string>([
+  [adminLimiter, "adminLimiter"],
+  [antaLimiter, "antaLimiter"],
+  [authLimiter, "authLimiter"],
+  [cdkMountLimiter, "cdkMountLimiter"],
+  [commandLimiter, "commandLimiter"],
+  [dataCollectionLimiter, "dataCollectionLimiter"],
+  [dataProcessLimiter, "dataProcessLimiter"],
+  [deeplxLimiter, "deeplxLimiter"],
+  [githubBillingLimiter, "githubBillingLimiter"],
+  [historyLimiter, "historyLimiter"],
+  [ipfsLimiter, "ipfsLimiter"],
+  [libreChatLimiter, "libreChatLimiter"],
+  [lifeLimiter, "lifeLimiter"],
+  [mediaLimiter, "mediaLimiter"],
+  [meEndpointLimiter, "meEndpointLimiter"],
+  [miniapiLimiter, "miniapiLimiter"],
+  [modlistMountLimiter, "modlistMountLimiter"],
+  [networkLimiter, "networkLimiter"],
+  [nexaiSecurityLimiter, "nexaiSecurityLimiter"],
+  [passkeyLimiter, "passkeyLimiter"],
+  [socialLimiter, "socialLimiter"],
+  [statusLimiter, "statusLimiter"],
+  [tamperLimiter, "tamperLimiter"],
+  [totpLimiter, "totpLimiter"],
+  [ttsLimiter, "ttsLimiter"],
+]);
+
+function getModuleKind(module: RouteModule, defaultKind: RouteModuleKind): RouteModuleKind {
+  return module.kind || defaultKind;
+}
+
+function hasNonEmptyText(value: string | undefined): boolean {
+  return Boolean(value && value.trim().length > 0);
+}
+
+function inferRateLimitPolicy(module: RouteModule, kind: RouteModuleKind): RouteRateLimitPolicy | undefined {
+  if (kind !== "route") {
+    return module.rateLimitPolicy;
+  }
+
+  if (module.rateLimitPolicy) {
+    return module.rateLimitPolicy;
+  }
+
+  if (module.rateLimited !== true) {
+    return undefined;
+  }
+
+  const mountLimiters = (module.middlewares || [])
+    .map((middleware) => knownMountLimiters.get(middleware))
+    .filter((value): value is string => Boolean(value));
+  if (mountLimiters.length) {
+    return {
+      mode: "mount",
+      limiters: mountLimiters,
+      note: "Inferred from mounted limiter middleware declared on the route module.",
+    };
+  }
+
+  const matchedLimiterModules = routeLimiterModules
+    .filter((limiterModule) => pathScopesOverlap(module.path, limiterModule.path))
+    .map((limiterModule) => limiterModule.name);
+  if (matchedLimiterModules.length) {
+    return {
+      mode: "route-module",
+      limiters: matchedLimiterModules,
+      note: "Inferred from dedicated limiter modules mounted earlier in the registry pipeline.",
+    };
+  }
+
+  return undefined;
+}
+
+export function getAllRouteAuditRecords(): RouteAuditRecord[] {
+  return routeModuleGroups.flatMap(({ phase, kind, modules }) =>
+    modules.map((module) => {
+      const resolvedKind = getModuleKind(module, kind);
+      return {
+        name: module.name,
+        path: module.path,
+        phase,
+        kind: resolvedKind,
+        requiresAuth: module.requiresAuth,
+        rateLimited: module.rateLimited,
+        isPublic: module.isPublic,
+        authPolicy: module.authPolicy,
+        rateLimitPolicy: inferRateLimitPolicy(module, resolvedKind),
+        securityBypass: module.securityBypass,
+      };
+    }),
+  );
+}
+
+export function validateRouteGovernance(): RouteGovernanceViolation[] {
+  const violations: RouteGovernanceViolation[] = [];
+
+  for (const record of getAllRouteAuditRecords()) {
+    const isConcreteRoute = record.kind === "route";
+
+    if (isConcreteRoute && record.requiresAuth === true) {
+      if (!record.authPolicy) {
+        violations.push({
+          moduleName: record.name,
+          path: record.path,
+          phase: record.phase,
+          code: "missing-auth-policy",
+          message: `Route module "${record.name}" requires authentication but does not declare an authPolicy in the route registry.`,
+        });
+      } else if (!record.authPolicy.handlers.length) {
+        violations.push({
+          moduleName: record.name,
+          path: record.path,
+          phase: record.phase,
+          code: "missing-auth-handlers",
+          message: `Route module "${record.name}" requires authentication but authPolicy.handlers is empty.`,
+        });
+      }
+    }
+
+    if (isConcreteRoute && record.rateLimited === true) {
+      if (!record.rateLimitPolicy) {
+        violations.push({
+          moduleName: record.name,
+          path: record.path,
+          phase: record.phase,
+          code: "missing-rate-limit-policy",
+          message: `Route module "${record.name}" is marked rateLimited=true but does not declare a rateLimitPolicy.`,
+        });
+      } else if (!record.rateLimitPolicy.limiters.length) {
+        violations.push({
+          moduleName: record.name,
+          path: record.path,
+          phase: record.phase,
+          code: "missing-rate-limit-target",
+          message: `Route module "${record.name}" is marked rateLimited=true but rateLimitPolicy.limiters is empty.`,
+        });
+      }
+    }
+
+    for (const [component, entry] of Object.entries(record.securityBypass || {})) {
+      if (!hasNonEmptyText(entry?.reason)) {
+        violations.push({
+          moduleName: record.name,
+          path: record.path,
+          phase: record.phase,
+          code: "missing-security-bypass-reason",
+          message: `Route module "${record.name}" bypasses ${component} without a non-empty reason.`,
+        });
+      }
+    }
+
+    if (isConcreteRoute && record.isPublic === false) {
+      for (const exception of openCorsExceptions) {
+        if (pathScopesOverlap(record.path, exception.path)) {
+          violations.push({
+            moduleName: record.name,
+            path: record.path,
+            phase: record.phase,
+            code: "private-route-open-cors-conflict",
+            message: `Route module "${record.name}" is private but overlaps open CORS exception "${exception.path}".`,
+          });
+        }
+      }
+    }
+  }
+
+  return violations;
+}
+
+export function assertRouteGovernance(): void {
+  const violations = validateRouteGovernance();
+  if (!violations.length) {
+    return;
+  }
+
+  const formatted = violations
+    .map((violation) => `[${violation.phase}] ${violation.moduleName} (${violation.path}) ${violation.code}: ${violation.message}`)
+    .join("\n");
+  throw new Error(`[routes] Route governance validation failed:\n${formatted}`);
+}
+
+export function renderRouteAuditMarkdown(records: RouteAuditRecord[], violations: RouteGovernanceViolation[] = []): string {
+  const lines = [
+    "# Route Governance Audit",
+    "",
+    `Generated route modules: ${records.length}`,
+    `Validation violations: ${violations.length}`,
+    "",
+  ];
+
+  if (violations.length) {
+    lines.push("## Validation Findings", "");
+    for (const violation of violations) {
+      lines.push(`- [${violation.phase}] \`${violation.moduleName}\` \`${violation.path}\`: ${violation.message}`);
+    }
+    lines.push("");
+  }
+
+  lines.push("## Route Registry", "", "| Name | Phase | Kind | Path | Auth | Rate Limit | Public | Security Bypass |", "| --- | --- | --- | --- | --- | --- | --- | --- |");
+
+  for (const record of records) {
+    const bypassSummary = Object.entries(record.securityBypass || {})
+      .map(([component, entry]) => `${component}=${entry.value} (${entry.reason})`)
+      .join("<br>");
+    const authSummary = record.authPolicy
+      ? `${record.authPolicy.mode}: ${record.authPolicy.handlers.join(", ")}`
+      : "-";
+    const rateLimitSummary = record.rateLimitPolicy
+      ? `${record.rateLimitPolicy.mode}: ${record.rateLimitPolicy.limiters.join(", ")}`
+      : "-";
+
+    lines.push(
+      `| ${record.name} | ${record.phase} | ${record.kind} | \`${record.path}\` | ${String(record.requiresAuth)}<br>${authSummary} | ${String(record.rateLimited)}<br>${rateLimitSummary} | ${String(record.isPublic)} | ${bypassSummary || "-"} |`,
+    );
+  }
+
+  return `${lines.join("\n")}\n`;
+}
 
 export function registerRouteModules(app: Express, modules: RouteModule[]): void {
   for (const module of modules) {

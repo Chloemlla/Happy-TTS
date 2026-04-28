@@ -1,4 +1,10 @@
-import { postTamperRouteModules, preParserRouteModules, preTamperRouteModules } from "../routes";
+import {
+  getRouteSecurityBypassFlag,
+  postTamperRouteModules,
+  preParserRouteModules,
+  preTamperRouteModules,
+  validateRouteGovernance,
+} from "../routes";
 import { getSecurityPipelineSteps } from "../security/securityPipeline";
 import { shouldBypassSecurityComponent } from "../security/securityPolicy";
 
@@ -39,8 +45,8 @@ describe("route registry security metadata", () => {
     const webhookRoute = preParserRouteModules.find((route) => route.name === "webhook-routes");
     const dataCollectionRoute = preParserRouteModules.find((route) => route.name === "data-collection-routes");
 
-    expect(webhookRoute?.securityBypass?.waf).toBe(true);
-    expect(dataCollectionRoute?.securityBypass?.waf).toBe(true);
+    expect(webhookRoute && getRouteSecurityBypassFlag(webhookRoute, "waf")).toBe(true);
+    expect(dataCollectionRoute && getRouteSecurityBypassFlag(dataCollectionRoute, "waf")).toBe(true);
   });
 
   it("records mixed and full-route bypasses for API modules", () => {
@@ -48,9 +54,13 @@ describe("route registry security metadata", () => {
     const statusRoute = preTamperRouteModules.find((route) => route.name === "status-routes");
     const humanCheckRoute = postTamperRouteModules.find((route) => route.name === "human-check-routes");
 
-    expect(authRoute?.securityBypass?.ipVerification).toBe("mixed");
-    expect(statusRoute?.securityBypass?.ipBan).toBe(true);
-    expect(statusRoute?.securityBypass?.ipVerification).toBe(true);
-    expect(humanCheckRoute?.securityBypass?.ipVerification).toBe(true);
+    expect(authRoute && getRouteSecurityBypassFlag(authRoute, "ipVerification")).toBe("mixed");
+    expect(statusRoute && getRouteSecurityBypassFlag(statusRoute, "ipBan")).toBe(true);
+    expect(statusRoute && getRouteSecurityBypassFlag(statusRoute, "ipVerification")).toBe(true);
+    expect(humanCheckRoute && getRouteSecurityBypassFlag(humanCheckRoute, "ipVerification")).toBe(true);
+  });
+
+  it("keeps route governance validation clean", () => {
+    expect(validateRouteGovernance()).toEqual([]);
   });
 });
