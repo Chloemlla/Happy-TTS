@@ -1,4 +1,4 @@
-import { eventLoopUtilization, monitorEventLoopDelay } from "node:perf_hooks";
+import { monitorEventLoopDelay, performance } from "node:perf_hooks";
 import logger from "../utils/logger";
 
 export interface RequestProfileSample {
@@ -57,7 +57,7 @@ class ProfilingService {
   private started = false;
   private lastCpuUsage = process.cpuUsage();
   private lastCpuSampleNs = process.hrtime.bigint();
-  private lastEventLoopUtilization = eventLoopUtilization();
+  private lastEventLoopUtilization = performance.eventLoopUtilization();
 
   start(): void {
     if (!this.enabled || this.started) {
@@ -195,7 +195,7 @@ class ProfilingService {
     const systemDeltaUs = cpuUsage.system - this.lastCpuUsage.system;
     const cpuPercentRaw = elapsedMs > 0 ? ((userDeltaUs + systemDeltaUs) / 1000 / elapsedMs) * 100 : 0;
     const memory = process.memoryUsage();
-    const elu = eventLoopUtilization(this.lastEventLoopUtilization);
+    const elu = performance.eventLoopUtilization(this.lastEventLoopUtilization);
 
     this.processMetrics = {
       sampledAt: new Date().toISOString(),
@@ -213,7 +213,7 @@ class ProfilingService {
 
     this.lastCpuUsage = cpuUsage;
     this.lastCpuSampleNs = nowNs;
-    this.lastEventLoopUtilization = eventLoopUtilization();
+    this.lastEventLoopUtilization = performance.eventLoopUtilization();
   }
 }
 
