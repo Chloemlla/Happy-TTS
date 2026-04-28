@@ -1,6 +1,6 @@
 import { useState } from "react";
 import axios, { AxiosError } from "axios";
-import { TtsRequest, TtsResponse } from "../types/tts";
+import { TtsJobStatusResponse, TtsRequest, TtsResponse, TtsSubmitResponse } from "../types/tts";
 import { verifyContent } from "../utils/sign";
 import { getApiBaseUrl } from "../api/api";
 
@@ -12,6 +12,8 @@ const api = axios.create({
   },
   timeout: 30000,
 });
+
+const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
 type TtsErrorPayload = {
   error?: string;
@@ -45,17 +47,54 @@ export const useTts = () => {
         throw new Error("请先登录");
       }
 
-      const response = await api.post<TtsResponse>("/api/tts/generate", request, {
+      const submitResponse = await api.post<TtsSubmitResponse>("/api/tts/jobs", request, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const submitData = submitResponse.data;
+      if (!submitData?.success || !submitData.taskId) {
+        throw new Error(submitData?.message || "语音任务提交失败");
+      }
+
+      if (submitData.status === "queued") {
+        const pollInterval = submitData.pollAfterMs ?? 1500;
+        const maxAttempts = 120;
+        let completed = false;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+          await sleep(pollInterval);
+
+          const statusResponse = await api.get<TtsJobStatusResponse>(`/api/tts/jobs/${submitData.taskId}`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          const statusData = statusResponse.data;
+          if (statusData.status === "completed") {
+            completed = true;
+            break;
+          }
+
+          if (statusData.status === "failed") {
+            throw new Error(statusData.error || statusData.message || "语音生成失败");
+          }
+        }
+
+        if (!completed) {
+          throw new Error("任务处理超时，请稍后重试");
+        }
+      }
+
+      const response = await api.get<TtsResponse>(`/api/tts/jobs/${submitData.taskId}/result`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
       const responseData = response.data;
-      if (!responseData?.success) {
-        throw new Error(responseData?.message || "语音生成失败");
-      }
-
       if (!responseData.audioUrl) {
         throw new Error("服务器返回数据缺少音频URL");
       }
@@ -82,6 +121,7 @@ export const useTts = () => {
       const normalizedResult: TtsResponse = {
         ...responseData,
         audioUrl: finalAudioUrl,
+        taskId: submitData.taskId,
       };
 
       setAudioUrl(finalAudioUrl);

@@ -17,9 +17,32 @@ export interface TtsUsageSummary {
 }
 
 export interface TtsNextAction {
-  type: "play_or_download" | "reuse_existing_audio" | "check_generation_code" | "complete_verification" | "wait_for_quota_reset" | "retry";
+  type: string;
   label: string;
   message: string;
+}
+
+export interface TtsSubmitResponse {
+  success: boolean;
+  status: "queued" | "completed";
+  taskId: string;
+  queuePosition?: number;
+  pollAfterMs?: number;
+  message: string;
+  usage?: TtsUsageSummary;
+  nextAction?: TtsNextAction;
+}
+
+export interface TtsJobStatusResponse {
+  success: boolean;
+  taskId: string;
+  status: "queued" | "processing" | "completed" | "failed";
+  message: string;
+  error?: string;
+  resultReady?: boolean;
+  queuePosition?: number;
+  usage?: TtsUsageSummary;
+  nextAction?: TtsNextAction;
 }
 
 export interface TtsResponse {
@@ -27,6 +50,7 @@ export interface TtsResponse {
   status: "generated" | "reused";
   message: string;
   audioUrl: string;
+  taskId?: string;
   fileName?: string; // 兼容后端 fileName 字段
   signature: string;
   isDuplicate?: boolean;

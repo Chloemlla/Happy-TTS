@@ -131,6 +131,14 @@ export const routeLimiterModules: RouteModule[] = [
     isPublic: "mixed",
   },
   {
+    name: "tts-jobs-limiter",
+    path: "/api/tts/jobs",
+    router: historyLimiter,
+    requiresAuth: "mixed",
+    rateLimited: true,
+    isPublic: "mixed",
+  },
+  {
     name: "totp-limiter",
     path: "/api/totp",
     router: totpLimiter,

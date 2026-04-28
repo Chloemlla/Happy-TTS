@@ -66,7 +66,10 @@ const router = express.Router();
  *                   type: object
  *                   description: 建议的下一步动作
  */
-router.post("/generate", TtsController.generateSpeech);
+router.post("/generate", TtsController.submitJob);
+router.post("/jobs", TtsController.submitJob);
+router.get("/jobs/:taskId", TtsController.getJobStatus);
+router.get("/jobs/:taskId/result", TtsController.getJobResult);
 
 /**
  * @openapi
