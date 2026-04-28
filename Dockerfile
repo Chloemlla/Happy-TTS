@@ -117,6 +117,9 @@ RUN pnpm install --prod --frozen-lockfile
 COPY --from=backend-builder /app/dist-obfuscated ./dist
 COPY --from=backend-builder /app/openapi.json ./openapi.json
 COPY --from=backend-builder /app/openapi.json ./dist/openapi.json
+COPY --from=backend-builder /app/scripts/run-node-with-profiling.js ./scripts/run-node-with-profiling.js
+COPY --from=backend-builder /app/scripts/run-load-profile-report.js ./scripts/run-load-profile-report.js
+COPY --from=backend-builder /app/scripts/profiling-README.md ./scripts/profiling-README.md
 COPY --from=frontend-builder /app/frontend/dist ./public
 COPY --from=docs-builder /app/docs/build ./docs
 
