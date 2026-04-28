@@ -71,6 +71,11 @@ export class TtsController {
     return { type, label, message };
   }
 
+  private static getTaskIdParam(req: Request): string {
+    const taskId = Array.isArray(req.params.taskId) ? req.params.taskId[0] : req.params.taskId;
+    return taskId || "";
+  }
+
   private static sendStructuredError(
     res: Response,
     statusCode: number,
@@ -239,7 +244,7 @@ export class TtsController {
   }
 
   public static async getJobStatus(req: Request, res: Response) {
-    const taskId = req.params.taskId;
+    const taskId = TtsController.getTaskIdParam(req);
     const job = await ttsStorage.getJob(taskId);
 
     if (!job) {
@@ -263,7 +268,7 @@ export class TtsController {
   }
 
   public static async getJobResult(req: Request, res: Response) {
-    const taskId = req.params.taskId;
+    const taskId = TtsController.getTaskIdParam(req);
     const job = await ttsStorage.getJob(taskId);
 
     if (!job) {

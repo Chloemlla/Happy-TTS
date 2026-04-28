@@ -5,7 +5,7 @@ import rateLimit, {
   type RateLimitRequestHandler,
   type Store,
 } from "express-rate-limit";
-import { createClient, type RedisClientType } from "redis";
+import { createClient } from "redis";
 import { startupConfig } from "../config/config";
 import logger from "../utils/logger";
 
@@ -59,9 +59,13 @@ interface LimiterDefinition {
   profile: RateProfileName;
   category: LimiterCategory;
   message: string;
+  max?: number;
+  windowMs?: number;
   skip?: (req: Request) => boolean;
   handler?: (req: Request, res: Response, next: NextFunction) => void;
 }
+
+type RedisClientInstance = ReturnType<typeof createClient>;
 
 interface RateLimitMetricRecord {
   limiter: string;
@@ -238,11 +242,11 @@ class SharedMemoryStore implements Store {
 }
 
 class RedisStoreFactory {
-  private static client: RedisClientType | null = null;
-  private static clientPromise: Promise<RedisClientType | null> | null = null;
+  private static client: RedisClientInstance | null = null;
+  private static clientPromise: Promise<RedisClientInstance | null> | null = null;
   private static warnedUnavailable = false;
 
-  static async getClient(): Promise<RedisClientType | null> {
+  static async getClient(): Promise<RedisClientInstance | null> {
     if (!startupConfig.redis.url) return null;
     if (RedisStoreFactory.client?.isOpen) return RedisStoreFactory.client;
     if (RedisStoreFactory.clientPromise) return RedisStoreFactory.clientPromise;
@@ -641,10 +645,10 @@ const LIMITER_DEFINITIONS = {
     category: "public-api",
     message: "请求过于频繁，请稍后再试",
   },
-} as const satisfies Record<string, LimiterDefinition & Partial<RateProfile>>;
+} as const satisfies Record<string, LimiterDefinition>;
 
 function limiterFromDefinition(name: keyof typeof LIMITER_DEFINITIONS): RateLimitRequestHandler {
-  const definition = LIMITER_DEFINITIONS[name];
+  const definition: LimiterDefinition = LIMITER_DEFINITIONS[name];
   return createLimiter({
     name,
     profile: definition.profile,

@@ -230,6 +230,7 @@ export const runtimeMutableConfig = {
 export const config = {
   port: startupConfig.port,
   openaiApiKey: startupConfig.openai.apiKey,
+  openaiBaseUrl: startupConfig.openai.baseUrl,
   openaiModel: startupConfig.openai.model,
   openaiVoice: startupConfig.openai.voice,
   openaiResponseFormat: startupConfig.openai.responseFormat,

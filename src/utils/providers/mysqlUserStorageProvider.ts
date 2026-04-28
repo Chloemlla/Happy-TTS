@@ -192,10 +192,8 @@ export const mysqlUserStorageProvider: UserStorageProvider = {
         return value;
       });
 
-      await conn.execute(`UPDATE users SET ${fields.map((field) => `${field} = ?`).join(", ")} WHERE id = ?`, [
-        ...values,
-        userId,
-      ]);
+      const query = `UPDATE users SET ${fields.map((field) => `${field} = ?`).join(", ")} WHERE id = ?`;
+      await conn.execute(query, [...values, userId] as any[]);
 
       const [rows] = await conn.execute("SELECT * FROM users WHERE id = ?", [userId]);
       return removeAvatarBase64(deserializeUser((rows as User[])[0] || null));
