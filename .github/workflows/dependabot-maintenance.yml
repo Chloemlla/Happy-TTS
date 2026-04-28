@@ -43,7 +43,9 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Run fix script
-        run: node scripts/fix-dependabot-alerts.js
+        run: 
+          npm install is-docker
+          node scripts/fix-dependabot-alerts.js
 
       - name: Commit and push
         run: |

@@ -5,8 +5,8 @@
   "main": "dist/app.js",
   "sideEffects": true,
   "scripts": {
-    "start": "concurrently \"node dist/app.js\" \"serve -s public -l 3001\" \"serve -s docs -l 3002\"",
-    "start:file": "USER_STORAGE_MODE=file concurrently \"node dist/app.js\" \"serve -s public -l 3001\" \"serve -s docs -l 3002\"",
+    "start": "node dist/app.js",
+    "start:file": "USER_STORAGE_MODE=file node dist/app.js",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:file": "USER_STORAGE_MODE=file concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "nodemon --watch src -e ts --exec ts-node src/app.ts",

@@ -84,7 +84,6 @@ sidebar_position: 2
 - **接口地址**：`GET /auth/me`
 - **描述**：获取当前登录用户信息。
 - **请求头**：
-
   - `Authorization: Bearer <token>`
 
 - **响应示例**：
@@ -104,7 +103,6 @@ sidebar_position: 2
 - **接口地址**：`POST /tts/generate`
 - **描述**：提交文本生成语音，需携带认证令牌。
 - **请求头**：
-
   - `Authorization: Bearer <token>`
   - `Content-Type: application/json`
 
@@ -156,7 +154,6 @@ sidebar_position: 2
 - **接口地址**：`GET /tts/history`
 - **描述**：获取当前用户最近生成的语音记录。
 - **请求头**：
-
   - `Authorization: Bearer <token>`
 
 - **响应示例**：
@@ -194,11 +191,11 @@ sidebar_position: 2
   A: 通过注册并登录，获取返回的 token 字段。
 
 - **Q: 支持哪些语音模型和发音人？**
-  A: 详见[API 文档](/docs/intro)首页表格。
+  A: 详见[API 文档](/intro)首页表格。
 
 - **Q: 如何自定义输出文件名？**
   A: 在生成语音时传递 customFileName 字段。
 
 ---
 
-如需更多帮助，请联系 support@951100.xyz 或访问 [GitHub Issues](https://github.com/hapxscom/Synapse/issues)。
+如需更多帮助，请联系 support@951100.xyz 或访问 [GitHub Issues](https://github.com/Chloemlla/Synapse/issues)。

@@ -63,7 +63,7 @@ jobs:
       (
         github.actor == 'SynapticArch' ||
         github.actor == 'actions-user' ||
-        github.actor == 'hapxscom' ||
+        github.actor == 'Chloemlla' ||
         github.actor == 'Chloemlla'
       ) &&
       !contains(github.event.head_commit.message || '', 'npm(deps):')
@@ -178,7 +178,7 @@ jobs:
       (
         github.actor == 'SynapticArch' ||
         github.actor == 'actions-user' ||
-        github.actor == 'hapxscom' ||
+        github.actor == 'Chloemlla' ||
         github.actor == 'Chloemlla'
       ) &&
       needs.publish.result == 'success'

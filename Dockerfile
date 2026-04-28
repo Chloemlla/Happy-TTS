@@ -101,10 +101,10 @@ ENV TZ=Asia/Shanghai \
     NODE_ENV=production \
     NODE_OPTIONS="--max-old-space-size=2048" \
     FRONTEND_DIST_DIR="/app/public" \
+    DOCS_DIST_DIR="/app/docs" \
     OPENAPI_JSON_PATH="/app/openapi.json"
 
 RUN corepack enable && corepack prepare pnpm@latest --activate
-RUN npm install -g concurrently serve
 
 WORKDIR /app
 
@@ -126,6 +126,6 @@ RUN addgroup -S nodejs && adduser -S nodejs -G nodejs && \
 
 USER nodejs
 
-EXPOSE 3000 3001 3002
+EXPOSE 3000
 
-CMD ["pnpm", "start"]
+CMD ["node", "dist/app.js"]

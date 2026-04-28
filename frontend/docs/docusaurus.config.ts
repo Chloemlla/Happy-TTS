@@ -7,16 +7,25 @@ import type * as Preset from '@docusaurus/preset-classic';
 if (!process.env.DOCUSAURUS_DISABLE_GIT_INFO) process.env.DOCUSAURUS_DISABLE_GIT_INFO = 'true';
 if (!process.env.DISABLE_GIT_INFO) process.env.DISABLE_GIT_INFO = 'true';
 
+function normalizeBaseUrl(baseUrl: string): string {
+  if (!baseUrl) return '/docs/';
+  const withLeadingSlash = baseUrl.startsWith('/') ? baseUrl : `/${baseUrl}`;
+  return withLeadingSlash.endsWith('/') ? withLeadingSlash : `${withLeadingSlash}/`;
+}
+
+const deploymentUrl = (process.env.DOCS_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
+const docsBaseUrl = normalizeBaseUrl(process.env.DOCS_BASE_URL || '/docs/');
+
 const config: Config = {
   title: 'Synapse API 文档',
   tagline: 'Synapse 文本转语音服务 API 文档',
   favicon: 'img/favicon.svg',
 
   // Set the production url of your site here
-  url: 'https://tts-api-docs.951100.xyz',
+  url: deploymentUrl,
   // Set the /<baseUrl>/ pathname under which your site is served
   // For GitHub pages deployment, it is often '/<projectName>/'
-  baseUrl: '/',
+  baseUrl: docsBaseUrl,
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
@@ -44,6 +53,7 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
+          routeBasePath: '/',
           // 禁用Git历史信息获取，避免在Docker环境中出现Git相关警告
           showLastUpdateTime: false,
           showLastUpdateAuthor: false,
@@ -96,7 +106,7 @@ const config: Config = {
           position: 'left'
         },
         {
-          href: 'https://github.com/hapxscom/Synapse',
+          href: 'https://github.com/Chloemlla/Synapse',
           label: 'GitHub',
           position: 'right',
         },
@@ -110,11 +120,11 @@ const config: Config = {
           items: [
             {
               label: 'API 文档',
-              to: '/docs/intro',
+              to: '/intro',
             },
             {
               label: '快速开始',
-              to: '/docs/getting-started',
+              to: '/getting-started',
             },
           ],
         },
@@ -123,7 +133,7 @@ const config: Config = {
           items: [
             {
               label: 'GitHub Issues',
-              href: 'https://github.com/hapxscom/Synapse/issues',
+              href: 'https://github.com/Chloemlla/Synapse/issues',
             },
           ],
         },
@@ -132,7 +142,7 @@ const config: Config = {
           items: [
             {
               label: 'GitHub',
-              href: 'https://github.com/hapxscom/Synapse',
+              href: 'https://github.com/Chloemlla/Synapse',
             },
           ],
         },

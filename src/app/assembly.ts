@@ -184,6 +184,14 @@ const frontendCandidates = [
   path.resolve(process.cwd(), "frontend/dist"),
 ].filter(Boolean) as string[];
 
+const docsCandidates = [
+  process.env.DOCS_DIST_DIR && path.resolve(process.env.DOCS_DIST_DIR),
+  join(__dirname, "../docs"),
+  join(__dirname, "../../docs"),
+  path.resolve(process.cwd(), "docs"),
+  path.resolve(process.cwd(), "frontend/docs/build"),
+].filter(Boolean) as string[];
+
 const ensureAudioDir = async () => {
   if (!fs.existsSync(audioDir)) {
     await fs.promises.mkdir(audioDir, { recursive: true });
@@ -445,10 +453,6 @@ export function registerApiRoutes(app: Express): void {
     res.json(getNexaiAssetLinksStatements());
   });
 
-  app.get("/", rootLimiter, (_req, res) => {
-    res.redirect("http://tts.951100.xyz/");
-  });
-
   app.get("/favicon.ico", sendFaviconIfExists);
 
   app.get("/lc", lcCompatLimiter, (_req, res) => {
@@ -663,11 +667,26 @@ export function registerStaticRoutes(app: Express): void {
   );
   void ensureAudioDir().catch(console.error);
 
+  const resolvedDocsPath = docsCandidates.find((candidate) => existsSync(candidate));
+  if (resolvedDocsPath) {
+    logger.info(`[Docs] Serving static files from: ${resolvedDocsPath}`);
+    app.get("/docs", (_req, res) => {
+      res.redirect(301, "/docs/");
+    });
+    app.use("/docs", staticFileLimiter, express.static(resolvedDocsPath));
+  } else {
+    logger.warn(`[Docs] No docs build found. Tried: ${docsCandidates.join(" | ")}`);
+  }
+
   const resolvedFrontendPath = frontendCandidates.find((candidate) => existsSync(candidate));
   if (resolvedFrontendPath) {
     logger.info(`[Frontend] Serving static files from: ${resolvedFrontendPath}`);
+    app.use(staticFileLimiter, express.static(resolvedFrontendPath, { index: false }));
     app.use("/static", staticFileLimiter, express.static(resolvedFrontendPath));
-    app.get(/^\/(?!\.well-known(?:\/|$)|api|api-docs|static|openapi)(.*)/, frontendLimiter, (_req, res) => {
+    app.get("/", rootLimiter, (_req, res) => {
+      res.sendFile(join(resolvedFrontendPath, "index.html"));
+    });
+    app.get(/^\/(?!\.well-known(?:\/|$)|api|api-docs|docs(?:\/|$)|static|openapi)(.*)/, frontendLimiter, (_req, res) => {
       res.sendFile(join(resolvedFrontendPath, "index.html"));
     });
     return;

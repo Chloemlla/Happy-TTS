@@ -2,11 +2,15 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import vitePluginsAutoI18n, { GoogleTranslator } from "vite-auto-i18n-plugin";
 import path from "path";
+import { fileURLToPath } from "url";
 import JavaScriptObfuscator from "javascript-obfuscator";
 
 // 在 build 结束后自动混淆 dist 目录下的 JS 文件
 import { execSync } from "child_process";
 import fs from "fs";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Shared manual chunks mapping — used as a function for rolldown (Vite 7) compatibility
 const MANUAL_CHUNKS: Record<string, string[]> = {
@@ -27,6 +31,12 @@ function getManualChunk(id: string): string | undefined {
       return chunkName;
     }
   }
+}
+
+function normalizeBasePath(basePath: string): string {
+  if (!basePath) return "/";
+  const withLeadingSlash = basePath.startsWith("/") ? basePath : `/${basePath}`;
+  return withLeadingSlash.endsWith("/") ? withLeadingSlash : `${withLeadingSlash}/`;
 }
 
 function obfuscateDistJs() {
@@ -89,7 +99,7 @@ function escapeUnicodeInDistJs() {
 }
 
 // 构建后：混淆页面中的电子邮件地址，并注入浏览器端还原脚本
-function obfuscateEmailsInDist() {
+function obfuscateEmailsInDist(basePath: string) {
   try {
     const distRoot = path.resolve(__dirname, "dist");
     const assetsDir = path.join(distRoot, "assets");
@@ -109,7 +119,7 @@ function obfuscateEmailsInDist() {
       if (!/email-protection\.js/.test(html)) {
         html = html.replace(
           /<\/body>/i,
-          '  <script defer src="/assets/email-protection.js"></script>\n</body>'
+          `  <script defer src="${basePath}assets/email-protection.js"></script>\n</body>`
         );
         fs.writeFileSync(indexHtml, html, "utf-8");
       }
@@ -201,7 +211,9 @@ function generateSitemapXml() {
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
+  const base = normalizeBasePath(process.env.VITE_BASE_URL || "/");
   const config = {
+    base,
     plugins: [
       react(),
       // 自动多语言翻译插件（默认使用 Google 翻译）
@@ -469,7 +481,7 @@ export default defineConfig(({ mode }) => {
         obfuscateDistJs();
         escapeUnicodeInDistJs();
         generateSitemapXml();
-        obfuscateEmailsInDist();
+        obfuscateEmailsInDist(base);
       }
     } as any);
   }

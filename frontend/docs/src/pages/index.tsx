@@ -20,7 +20,7 @@ function HomepageHeader() {
         </Heading>
         <p className="hero__subtitle">{siteConfig.tagline}</p>
         <div className={styles.buttons}>
-          <Link className="button button--secondary button--lg" to="/docs/intro">
+          <Link className="button button--secondary button--lg" to="/intro">
             开始使用 - 5min
           </Link>
         </div>
@@ -175,7 +175,7 @@ export default function Home(): ReactNode {
               </div>
             </div>
             <div className="text--center margin-top--xl">
-              <Link className="button button--primary button--lg" to="/docs/getting-started">
+              <Link className="button button--primary button--lg" to="/getting-started">
                 查看完整文档 →
               </Link>
             </div>
@@ -190,37 +190,37 @@ export default function Home(): ReactNode {
             </div>
             <div className="row">
               <div className="col col--2">
-                <Link to="/docs/sdk/web-frontend" className={styles.techItem}>
+                <Link to="/sdk/web-frontend" className={styles.techItem}>
                   <div className={styles.techIcon}>⚙</div>
                   <span>JavaScript</span>
                 </Link>
               </div>
               <div className="col col--2">
-                <Link to="/docs/sdk/python-sdk" className={styles.techItem}>
+                <Link to="/sdk/python-sdk" className={styles.techItem}>
                   <div className={styles.techIcon}>🐍</div>
                   <span>Python</span>
                 </Link>
               </div>
               <div className="col col--2">
-                <Link to="/docs/sdk/java-sdk" className={styles.techItem}>
+                <Link to="/sdk/java-sdk" className={styles.techItem}>
                   <div className={styles.techIcon}>☕</div>
                   <span>Java</span>
                 </Link>
               </div>
               <div className="col col--2">
-                <Link to="/docs/sdk/go-sdk" className={styles.techItem}>
+                <Link to="/sdk/go-sdk" className={styles.techItem}>
                   <div className={styles.techIcon}>🐹</div>
                   <span>Go</span>
                 </Link>
               </div>
               <div className="col col--2">
-                <Link to="/docs/sdk/rest-api" className={styles.techItem}>
+                <Link to="/sdk/rest-api" className={styles.techItem}>
                   <div className={styles.techIcon}>🔌</div>
                   <span>REST API</span>
                 </Link>
               </div>
               <div className="col col--2">
-                <Link to="/docs/sdk/rust-sdk" className={styles.techItem}>
+                <Link to="/sdk/rust-sdk" className={styles.techItem}>
                   <div className={styles.techIcon}>🦀</div>
                   <span>Rust</span>
                 </Link>
