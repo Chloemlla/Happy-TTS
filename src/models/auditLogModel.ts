@@ -37,7 +37,7 @@ export interface IAuditLog {
 
 const AuditLogSchema = new mongoose.Schema<IAuditLog>(
   {
-    requestId: { type: String, index: true },
+    requestId: { type: String },
     userId: { type: String, required: true, index: true },
     username: { type: String, required: true },
     role: { type: String, required: true },

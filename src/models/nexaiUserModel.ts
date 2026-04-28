@@ -65,8 +65,6 @@ const nexaiUserSchema = new mongoose.Schema(
 );
 
 // 索引优化
-nexaiUserSchema.index({ googleId: 1 }, { sparse: true });
-nexaiUserSchema.index({ githubId: 1 }, { sparse: true });
 nexaiUserSchema.index({ email: 1, authProvider: 1 });
 
 export const NexaiUserModel = mongoose.models.NexaiUser || mongoose.model("NexaiUser", nexaiUserSchema);

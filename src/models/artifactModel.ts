@@ -33,14 +33,14 @@ export interface IArtifact extends Document {
 
 const ArtifactSchema: Schema<IArtifact> = new Schema<IArtifact>(
   {
-    shortId: { type: String, required: true, unique: true, index: true },
+    shortId: { type: String, required: true, unique: true },
     userId: { type: String, required: true, index: true },
 
     title: { type: String, required: true },
     contentType: { type: String, required: true },
     language: { type: String },
     content: { type: String, required: true },
-    contentHash: { type: String, required: true, index: true },
+    contentHash: { type: String, required: true },
 
     visibility: {
       type: String,
@@ -56,7 +56,7 @@ const ArtifactSchema: Schema<IArtifact> = new Schema<IArtifact>(
     viewCount: { type: Number, default: 0 },
     lastViewedAt: { type: Date },
 
-    expiresAt: { type: Date, index: true },
+    expiresAt: { type: Date },
   },
   { timestamps: true },
 );

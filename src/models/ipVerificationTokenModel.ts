@@ -28,7 +28,7 @@ const IpVerificationTokenSchema = new mongoose.Schema<IpVerificationTokenDoc>(
     challengePassed: { type: Boolean, required: true, default: false },
     fraudScore: { type: Number, default: undefined },
     riskFlags: { type: [String], default: [] },
-    expiresAt: { type: Date, required: true, index: true },
+    expiresAt: { type: Date, required: true },
     lastValidatedAt: { type: Date, default: undefined },
   },
   {
