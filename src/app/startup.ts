@@ -2,7 +2,6 @@ import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import type { Express } from "express";
-import { MongoClient } from "mongodb";
 import { compileTimeConfig, config, startupConfig } from "../config/config";
 import { runStartupDiagnostics } from "../config/startupDiagnostics";
 import { schedulerService } from "../services/schedulerService";
@@ -192,58 +191,6 @@ const configureEmailServices = () => {
   })();
 };
 
-const migrateTtsCollection = async () => {
-  const mongoUri = startupConfig.mongo.uri || "mongodb://localhost:27017";
-  const dbName = startupConfig.mongo.database;
-  const client = new MongoClient(mongoUri);
-
-  try {
-    await client.connect();
-    const db = client.db(dbName);
-    const ttsCollection = db.collection("tts");
-    const userDatasCollection = db.collection("user_datas");
-    const ttsCount = await ttsCollection.countDocuments();
-
-    if (ttsCount === 0) {
-      logger.info("[迁移] tts 集合为空，无需迁移");
-      return;
-    }
-
-    const userDatasCount = await userDatasCollection.countDocuments();
-    if (userDatasCount >= ttsCount) {
-      logger.info("[迁移] user_datas 集合已包含全部数据，无需迁移");
-      return;
-    }
-
-    const docs = await ttsCollection.find().toArray();
-    if (docs.length === 0) {
-      console.log("[迁移] tts 集合无数据");
-      return;
-    }
-
-    const bulk = userDatasCollection.initializeUnorderedBulkOp();
-    for (const doc of docs) {
-      bulk.find({ _id: doc._id }).upsert().replaceOne(doc);
-    }
-
-    const result = await bulk.execute();
-    const migratedCount = (result.upsertedCount || 0) + (result.modifiedCount || 0);
-    console.log(`[迁移] 已迁移 ${migratedCount} 条数据到 user_datas`);
-
-    const afterCount = await userDatasCollection.countDocuments();
-    if (afterCount >= ttsCount) {
-      await ttsCollection.drop();
-      console.log(`[迁移] 校验通过，已删除原 tts 集合。user_datas 总数: ${afterCount}`);
-    } else {
-      console.error(`[迁移] 校验失败，user_datas 数量(${afterCount}) < tts 数量(${ttsCount})，未删除原集合`);
-    }
-  } catch (error) {
-    console.error("[迁移] 发生错误:", error);
-  } finally {
-    await client.close();
-  }
-};
-
 export async function startServer(app: Express): Promise<void> {
   configureEmailServices();
   await ensureDirectories();
@@ -273,10 +220,8 @@ export async function startServer(app: Express): Promise<void> {
           error: error instanceof Error ? error.message : String(error),
         });
       }
-
-      await migrateTtsCollection();
     } catch (error) {
-      logger.error("[启动] 数据库初始化和Passkey数据修复失败", {
+      logger.error("[启动] 数据库初始化失败", {
         error: error instanceof Error ? error.message : String(error),
       });
     }
