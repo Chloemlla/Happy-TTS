@@ -9,9 +9,11 @@ import {
   registerSecurityMiddleware,
   registerStaticRoutes,
 } from "./app/assembly";
+import { profilingService } from "./services/profilingService";
 import { startServer } from "./app/startup";
 
 const app = express();
+profilingService.start();
 
 registerCoreMiddleware(app);
 registerSecurityMiddleware(app);

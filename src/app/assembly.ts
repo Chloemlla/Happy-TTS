@@ -17,6 +17,7 @@ import {
   openCorsPreflightHandler,
 } from "../middleware/corsMiddleware";
 import { passkeyErrorHandler } from "../middleware/passkeyAutoFix";
+import { requestProfilingMiddleware } from "../middleware/requestProfiling";
 import { requestIdMiddleware } from "../middleware/requestId";
 import {
   audioFileLimiter,
@@ -286,6 +287,7 @@ export function registerCoreMiddleware(app: Express): void {
   registerRouteModules(app, preParserRouteModules);
 
   app.use(requestIdMiddleware);
+  app.use(requestProfilingMiddleware);
   app.use(express.json({ limit: "10mb" }));
   app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 

@@ -1,5 +1,8 @@
 import { Router } from "express";
+import { adminOnly } from "../middleware/adminOnly";
 import { authMiddleware } from "../middleware/auth";
+import { authenticateToken } from "../middleware/authenticateToken";
+import { profilingService } from "../services/profilingService";
 
 const router = Router();
 
@@ -38,6 +41,10 @@ router.get("/", (_req, res) => {
     service: "Synapse API",
     version: "1.0.0",
   });
+});
+
+router.get("/profiling", authenticateToken, adminOnly, (_req, res) => {
+  res.json(profilingService.getSnapshot());
 });
 
 export default router;
