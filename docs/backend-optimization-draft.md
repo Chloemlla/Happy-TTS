@@ -1,547 +1,609 @@
 # Synapse 后端优化完整草案
 
-## 1. 文档目的
+## 1. 文档目标
 
-本草案用于指导当前 Synapse 后端的下一阶段优化工作。目标不是重写后端，也不是脱离现状做理想化设计，而是基于当前代码结构，梳理真实问题、明确优先级，并给出可分阶段执行的落地方案。
+这份草案用于指导 Synapse 后端下一阶段优化工作，目标不是推翻现有实现，而是在当前代码基础上做结构收口、可靠性增强和运行治理补齐。
 
-本草案覆盖以下范围：
+本文聚焦后端真实现状，覆盖以下范围：
 
 - 应用装配与启动链路
-- 路由注册与安全管线
-- 用户存储与鉴权相关基础设施
 - TTS 主业务链路
-- 限流、日志与可观测性
-- 测试、交付与实施节奏
+- 任务队列与持久化
+- 配置、存储与依赖治理
+- 安全、限流与可观测性
+- 测试、发布与实施节奏
 
-## 2. 当前代码现状
+## 2. 当前后端现状
 
-当前后端已经不是早期“单文件大入口”状态，部分结构化工作已经完成：
+### 2.1 已完成的结构化工作
 
-- 应用入口已经收敛到 [src/app.ts](</F:/Repositories/GitHub/Synapse/src/app.ts:1>)
-- 应用装配逻辑集中在 [src/app/assembly.ts](</F:/Repositories/GitHub/Synapse/src/app/assembly.ts:1>)
-- 启动副作用集中在 [src/app/startup.ts](</F:/Repositories/GitHub/Synapse/src/app/startup.ts:1>)
-- 配置校验与运行时配置已经集中在 [src/config/config.ts](</F:/Repositories/GitHub/Synapse/src/config/config.ts:1>)
-- 启动诊断已经集中在 [src/config/startupDiagnostics.ts](</F:/Repositories/GitHub/Synapse/src/config/startupDiagnostics.ts:1>)
-- 路由注册表已经初步形成于 [src/routes/index.ts](</F:/Repositories/GitHub/Synapse/src/routes/index.ts:1>)
-- 限流器已经具备 profile 化、指标聚合和 Redis 回退能力，见 [src/middleware/routeLimiters.ts](</F:/Repositories/GitHub/Synapse/src/middleware/routeLimiters.ts:1>)
-- TTS 主链路已经拆为 controller、service、queue，见 [src/tts/tts.controller.ts](</F:/Repositories/GitHub/Synapse/src/tts/tts.controller.ts:1)、[src/tts/tts.service.ts](</F:/Repositories/GitHub/Synapse/src/tts/tts.service.ts:1)、[src/tts/tts.queue.ts](</F:/Repositories/GitHub/Synapse/src/tts/tts.queue.ts:1>)
+当前仓库已经完成了一轮重要重构，不能再按早期“大一统单文件后端”来判断：
 
-这意味着当前优化工作的重点已经变化：
+- 入口已收敛到 [src/app.ts](/F:/Repositories/GitHub/Synapse/src/app.ts:1)
+- 应用装配已集中到 [src/app/assembly.ts](/F:/Repositories/GitHub/Synapse/src/app/assembly.ts:1)
+- 启动副作用已集中到 [src/app/startup.ts](/F:/Repositories/GitHub/Synapse/src/app/startup.ts:1)
+- 配置解析与约束已集中到 [src/config/config.ts](/F:/Repositories/GitHub/Synapse/src/config/config.ts:1)
+- 路由注册已经做成模块清单，位于 [src/routes/index.ts](/F:/Repositories/GitHub/Synapse/src/routes/index.ts:1)
+- 用户存储已不是单一巨型类，而是 facade + repository/provider 结构，见 [src/utils/userStorage.ts](/F:/Repositories/GitHub/Synapse/src/utils/userStorage.ts:1)、[src/utils/userRepository.ts](/F:/Repositories/GitHub/Synapse/src/utils/userRepository.ts:1)、[src/utils/providers/fileUserStorageProvider.ts](/F:/Repositories/GitHub/Synapse/src/utils/providers/fileUserStorageProvider.ts:1)
+- TTS 主链路已经迁移到独立命名空间，见 [src/tts/tts.controller.ts](/F:/Repositories/GitHub/Synapse/src/tts/tts.controller.ts:1)、[src/tts/tts.pipeline.ts](/F:/Repositories/GitHub/Synapse/src/tts/tts.pipeline.ts:1)、[src/tts/tts.queue.ts](/F:/Repositories/GitHub/Synapse/src/tts/tts.queue.ts:1)、[src/tts/tts.storage.ts](/F:/Repositories/GitHub/Synapse/src/tts/tts.storage.ts:1)
 
-- 不是“先拆 `src/app.ts`”
-- 而是“继续收缩新形成的耦合中心”
+这意味着当前优化重点已经变化。
 
-当前新的耦合中心主要有三个：
+现在不是优先讨论“怎么拆 `app.ts`”或“怎么把 `UserStorage` 拆开”，而是要处理新结构下已经形成的真实瓶颈。
 
-1. `src/app/assembly.ts`
-2. `src/app/startup.ts`
-3. `src/utils/userStorage.ts`
+### 2.2 当前后端的真实重心
 
-## 3. 当前主要问题判断
+结合代码现状，当前后端的核心重心主要有四个：
 
-### 3.1 装配层已经拆分，但 `assembly.ts` 正在重新变重
+1. `assembly.ts` 仍承担过多非装配职责。
+2. TTS 提交校验和队列处理已经可用，但还没到生产级稳态。
+3. 任务持久化和依赖降级逻辑具备雏形，但观测和一致性不足。
+4. 路由注册、限流、健康检查已结构化，但还没有形成治理闭环。
 
-[src/app/assembly.ts](</F:/Repositories/GitHub/Synapse/src/app/assembly.ts:1>) 目前承担了大量职责：
+## 3. 现状判断与主要问题
 
-- 中间件注册
-- 健康检查
-- Swagger 装配
-- 静态资源托管
-- 前端回退页
-- IP 查询与记录
-- 兼容接口
-- 根路径跳转
-- 404 与 JSON parse 错误处理
+## 3.1 装配层已经拆分，但 `assembly.ts` 再次变重
 
-这说明入口文件虽然拆了，但“复杂度”并未真正消失，只是从 `app.ts` 平移到了 `assembly.ts`。继续堆叠下去后，会重新回到难维护状态。
+[src/app/assembly.ts](/F:/Repositories/GitHub/Synapse/src/app/assembly.ts:1) 当前不仅负责挂载中间件和路由，还直接承载了大量业务型或运维型逻辑，例如：
 
-### 3.2 启动副作用仍然偏重
-
-[src/app/startup.ts](</F:/Repositories/GitHub/Synapse/src/app/startup.ts:1>) 当前在 `listen()` 生命周期里串行处理：
-
-- 目录创建
-- 启动诊断
-- 邮件服务配置探测
-- 存储初始化
-- Mongo 监听初始化
-- 调度器启动
-- 文件权限检查
-- WebSocket 初始化
-
-问题不在于这些事情不能做，而在于这些动作目前缺少更清晰的阶段模型：
-
-- 哪些失败必须阻止启动
-- 哪些失败允许降级运行
-- 哪些失败只影响管理功能或外围功能
-
-当前实现更多依赖日志和 `try/catch` 容忍，而不是明确的启动状态机。
-
-### 3.3 `UserStorage` 是当前最大的结构性技术债
-
-[src/utils/userStorage.ts](</F:/Repositories/GitHub/Synapse/src/utils/userStorage.ts:1>) 同时承担了过多职责：
-
-- 输入清洗与校验
-- 文件存储读写
-- Mongo 访问
-- MySQL 访问
-- 初始化默认管理员
-- 文件修复与自愈
-- 自动重试
-- 自动切换存储模式
-- 认证相关规则
-- 使用量统计
-
-这已经不是一个单纯的 storage 类，而是“用户域基础设施总包”。这类文件的风险在于：
-
-- 一个局部修复可能影响多个存储模式
-- 很难补齐针对性测试
-- 失败边界不清
-- 生产行为可能因为 fallback 变得不可预测
-
-### 3.4 路由注册表已存在，但治理还没闭环
-
-[src/routes/index.ts](</F:/Repositories/GitHub/Synapse/src/routes/index.ts:1>) 已经是正确方向，统一记录了：
-
-- path
-- middlewares
-- requiresAuth
-- rateLimited
-- isPublic
-- securityBypass
-
-但目前它更像“挂载清单”，还不是完整治理中心。缺的能力包括：
-
-- metadata 与实际中间件一致性检查
-- 路由级策略审计
-- 自动发现遗漏的限流和鉴权配置
-- 为测试和文档生成提供稳定数据源
-
-### 3.5 TTS 已队列化，但仍停留在单进程可用阶段
-
-[src/tts/tts.queue.ts](</F:/Repositories/GitHub/Synapse/src/tts/tts.queue.ts:1>) 已经实现了队列化处理，这比同步接口直接生成更合理。但当前仍有明显边界：
-
-- 队列处理是单进程内存模型
-- 重启后任务状态恢复能力不足
-- 多实例部署下无法共享队列
-- 失败重试与死信策略缺失
-- 上游 OpenAI 调用缺少统一超时、退避和熔断模型
-
-这意味着当前 TTS 任务系统是“功能可用”，但还不是“生产级任务系统”。
-
-### 3.6 限流器已改善，但缺乏外部观测出口
-
-[src/middleware/routeLimiters.ts](</F:/Repositories/GitHub/Synapse/src/middleware/routeLimiters.ts:1>) 已经具备：
-
-- profile 化定义
-- category 分类
-- SharedMemoryStore
-- RedisBackedStore
-- 429 聚合指标
-
-但问题是这些能力主要停留在进程内和日志里：
-
-- 热点路由与热点 IP 没有统一暴露出口
-- 管理面没有稳定读取方式
-- 没有与 `/health`、admin metrics、Prometheus 等观测面打通
-
-### 3.7 部分业务型 handler 仍混在装配层
-
-当前 `assembly.ts` 中仍包含一些业务型路由逻辑，例如：
-
-- `/ip`
-- `/ip-location`
+- `/api/ip`
+- `/api/ip-location`
 - `/api/report-ip`
-- `/server_status`
+- `/api/report-docs-timeout`
+- `/api/server_status`
+- Swagger JSON 读取与 UI 装配
+- docs/frontend 静态资源与 fallback 逻辑
 
-这些接口不应长期留在装配层。它们应该回到 controller/service 层，否则装配层会持续变成“临时业务落点”。
+这类文件的问题不是“代码能不能跑”，而是职责边界已经再次模糊。继续往这里加接口，最终会把装配层重新堆回新的“大入口文件”。
+
+结论：
+
+- `assembly.ts` 现在的风险不是体积本身，而是职责泄漏。
+- 它应该继续往“纯装配协调层”收敛，而不是继续成为临时业务落点。
+
+## 3.2 启动链路已经集中，但缺少明确的 readiness 分层
+
+[src/app/startup.ts](/F:/Repositories/GitHub/Synapse/src/app/startup.ts:1) 已经把很多副作用集中起来了，这一步是对的。但现在仍然存在一个问题：
+
+- 初始化动作很多
+- 大部分错误用日志和 `try/catch` 表达
+- 哪些失败会影响对外服务，哪些只是降级，边界还不够清楚
+
+例如：
+
+- 用户存储初始化失败是否允许服务继续暴露？
+- Redis 不可用时是仅影响 IP Ban，还是也影响后续限流与任务能力？
+- OpenAI 配置异常目前更像运行时失败，而不是启动期 readiness 信号
+
+当前 `/health` 已经有基础信息，但还不够区分 `live`、`ready`、`degraded` 三种状态。
+
+## 3.3 用户存储主债务已经下降，但“行为一致性”仍是风险点
+
+旧判断里把 `UserStorage` 作为“最大结构性技术债”已经不完全准确，因为当前 [src/utils/userStorage.ts](/F:/Repositories/GitHub/Synapse/src/utils/userStorage.ts:1) 实际上已经是 facade，底层职责已拆给：
+
+- `userRepository`
+- `userBootstrapService`
+- `userRepairService`
+- `providers/*`
+
+真正的风险已经从“单文件过大”变成了“多 provider 行为是否一致”：
+
+- file/mongo/mysql 的返回语义是否一致
+- usage 统计是否跨存储模式一致
+- repair/auto-fix 是否会造成隐式行为切换
+- 生产环境下 fallback 是否足够可预期
+
+因此这一块的优化重点不该再是“继续机械拆文件”，而是：
+
+- 明确 provider 契约
+- 为关键行为补一致性测试
+- 收紧自动降级和自动修复边界
+
+## 3.4 TTS 主链路已经成型，但存在三个明显短板
+
+### 3.4.1 提交校验链路串行过长
+
+[src/tts/tts.pipeline.ts](/F:/Repositories/GitHub/Synapse/src/tts/tts.pipeline.ts:1) 当前在一次提交中串行处理：
+
+- 文本长度校验
+- 本地违禁词检测
+- 外部违禁词检测
+- 生成码校验
+- Turnstile 校验
+- 用户剩余额度检查
+- 重复内容检查
+
+这些动作本身合理，但当前问题是：
+
+- 对外部依赖过于敏感
+- 错误语义偏混合
+- 某些环节失败会直接使提交不可用
+- 提交耗时会随着外部校验链路线性增加
+
+其中最明显的是远端违禁词检测 `https://v2.xxapi.cn/api/detect`。这一依赖一旦抖动，会直接让 TTS 提交变成 500/重试型错误。
+
+### 3.4.2 队列已经持久化，但仍属于“轻量任务系统”
+
+[src/tts/tts.storage.ts](/F:/Repositories/GitHub/Synapse/src/tts/tts.storage.ts:1) 已经支持：
+
+- Mongo 存储
+- 文件回退存储
+- 作业 claim
+- stale job recover
+
+这说明当前不再是纯内存队列，这一点比旧稿判断更成熟。
+
+但它仍然有明显上限：
+
+- 只有单 worker drain 模型
+- 缺少显式 dead-letter 机制
+- 缺少最大重试策略
+- 没有任务过期清理策略
+- 缺少队列深度、失败率、处理时长监控
+- 对多实例部署支持仍偏弱
+
+因此它适合“单服务节点 + 可恢复”场景，但还不适合“多节点 + 高吞吐 + 强治理”场景。
+
+### 3.4.3 生成服务已做超时重试和熔断，但幂等和缓存策略还不完整
+
+[src/tts/tts.service.ts](/F:/Repositories/GitHub/Synapse/src/tts/tts.service.ts:1) 已经具备：
+
+- OpenAI 调用超时
+- retry
+- circuit breaker
+- 重复内容 hash 命中
+- 本地文件与资产恢复
+
+这是当前后端里相对成熟的一块。
+
+但还存在几个问题：
+
+- 内容 hash 未包含 `speed` 和输出格式策略，幂等粒度未完全对齐业务语义
+- 重复生成处罚逻辑和复用逻辑耦合，容易影响用户体验
+- 熔断状态是进程内静态状态，多实例间不共享
+- 上游错误虽然做了映射，但缺少统一统计出口
+
+## 3.5 路由治理已有基础，但还停留在“清单化”
+
+[src/routes/index.ts](/F:/Repositories/GitHub/Synapse/src/routes/index.ts:1) 现在已经维护了：
+
+- `requiresAuth`
+- `rateLimited`
+- `isPublic`
+- `securityBypass`
+
+这非常重要，说明代码库已经在往 route registry 治理走。
+
+但目前 registry 的问题是：
+
+- metadata 没有自动一致性校验
+- 很多属性仍依赖人工自觉维护
+- 它还没有反向驱动测试、审计和监控
+
+换句话说，当前 registry 更像“结构化清单”，还不是“治理源”。
+
+## 3.6 限流器已不错，但观测出口仍偏弱
+
+从 `src/routes/index.ts` 与 `src/middleware/routeLimiters.ts` 的挂载方式看，限流体系已经比较系统。
+
+但目前仍缺少几项关键能力：
+
+- 热点 limiter 命中排行
+- 429 分布按 route / IP / user 分类
+- 管理接口或 metrics 接口统一暴露
+- 与 TTS 任务指标联动
+
+当前更像“限流已经在工作”，但还不够“限流可运营、可调优”。
+
+## 3.7 Redis 已接入，但还没形成统一基础能力层
+
+[src/services/redisService.ts](/F:/Repositories/GitHub/Synapse/src/services/redisService.ts:1) 当前主要用于 IP Ban，一些更上层的能力还没借上：
+
+- TTS 任务队列共享状态
+- 分布式熔断/限流状态
+- 统一短期缓存
+- 运行时状态广播
+
+如果后续确实要做多实例或更强任务治理，Redis 不应长期只作为“IP Ban 附件”存在。
 
 ## 4. 优化目标
 
-## 4.1 一个月目标
+### 4.1 一个月目标
 
-- 让装配层职责再次收口
-- 把 `UserStorage` 从超大混合体拆成可维护模块
-- 为启动阶段建立明确的“必须成功”和“允许降级”边界
-- 为 TTS 任务链路补齐持久化和观测基础
-- 为限流和健康检查提供统一可见性
+- 让装配层重新收口到“只做装配”
+- 为 TTS 提交流程建立更清晰的失败分级
+- 为 TTS 队列补齐重试、过期、清理和观测能力
+- 建立 `/live`、`/ready`、`/health` 分层探针
+- 补足 provider 一致性测试和关键链路测试
 
-## 4.2 两到三个月目标
+### 4.2 两到三个月目标
 
-- 形成可持续扩展的 route registry 治理模型
-- 形成 provider 化用户存储架构
-- 让 TTS 队列支持多实例或可恢复部署
-- 建立稳定的 metrics、readiness、slow-path 观测体系
-- 提升核心链路自动化测试覆盖
+- 将 TTS 任务系统升级为可治理的持久化任务系统
+- 让 route registry 成为校验与审计数据源
+- 形成统一 metrics 与结构化日志规范
+- 让 Redis 成为可选的共享基础设施层
 
-## 4.3 量化目标
+### 4.3 量化目标
 
-- `src/app/assembly.ts` 体量下降 30% 以上
-- `src/utils/userStorage.ts` 被拆为至少 4 个职责明确的模块
-- TTS 任务可在服务重启后继续查询状态
-- 429、5xx、OpenAI 上游失败、TTS 任务耗时可被统一观测
-- 登录、注册、TTS 提交、TTS 查询、启动诊断、限流命中等核心流程具备自动化回归测试
+- `assembly.ts` 体量和职责至少下沉 30%
+- TTS 提交平均耗时下降，外部内容检测失败不再直接拖垮主流程
+- TTS 任务具备最大重试、过期与失败审计
+- 核心链路具备请求级 `requestId`、耗时与错误码统计
+- 核心 provider 行为具备自动化一致性验证
 
-## 5. 总体优化策略
+## 5. 总体优化原则
 
-本次优化遵循四个原则：
-
-1. 不推翻现有结构，沿现有拆分方向继续收口。
-2. 优先处理结构性耦合，而不是先做局部微优化。
-3. 先澄清边界与失败模型，再做性能和扩展。
-4. 所有优化要能映射到当前代码文件，而不是抽象口号。
+1. 不重复做已经做过的拆分。
+2. 先治理失败边界，再谈更大规模重构。
+3. 优先解决会影响生产稳定性的链路。
+4. 所有优化要能映射到当前文件和当前部署方式。
 
 ## 6. 分领域优化方案
 
-### 6.1 应用装配层优化
+## 6.1 装配层优化
 
-目标：把 [src/app/assembly.ts](</F:/Repositories/GitHub/Synapse/src/app/assembly.ts:1>) 从“综合装配文件”进一步收敛为“纯装配协调层”。
+目标：让 [src/app/assembly.ts](/F:/Repositories/GitHub/Synapse/src/app/assembly.ts:1) 回到纯装配角色。
 
-建议拆分为以下模块：
+建议拆分方向：
 
 - `app/registerCoreMiddleware.ts`
 - `app/registerSecurityMiddleware.ts`
 - `app/registerApiRoutes.ts`
-- `app/registerDocsAndStatic.ts`
-- `app/registerFallbackRoutes.ts`
+- `app/registerDocsRoutes.ts`
+- `app/registerFrontendRoutes.ts`
+- `app/registerOperationalRoutes.ts`
 
-同步调整原则：
+其中业务型或运维型接口迁移方向建议为：
 
-- 装配层不再直接承载复杂业务 handler
-- 业务型 endpoint 回归 controller/service
-- Swagger、frontend fallback、favicon、status 这类横切逻辑集中管理
-
-预期收益：
-
-- 装配层职责更清晰
-- 路由冲突更容易定位
-- 中间件顺序测试更容易写
-
-### 6.2 启动链路优化
-
-目标：把 [src/app/startup.ts](</F:/Repositories/GitHub/Synapse/src/app/startup.ts:1>) 从“副作用集合”改造成“初始化阶段编排器”。
-
-建议拆出以下初始化任务：
-
-- `startup/ensureDirectories.ts`
-- `startup/runDiagnostics.ts`
-- `startup/initializeStorage.ts`
-- `startup/configureEmailServices.ts`
-- `startup/startSchedulers.ts`
-- `startup/initializeRealtime.ts`
-
-同时引入初始化结果模型：
-
-- required: 失败直接阻止启动
-- degradable: 失败后标记为降级运行
-- optional: 失败只记录告警
-
-建议映射关系：
-
-- OpenAI readiness: required
-- 当前存储模式连接初始化: required
-- Redis readiness: degradable
-- 邮件服务可用性: degradable
-- 调度器启动: optional 或 degradable
+- `/api/ip`、`/api/ip-location` 迁入 `networkController/networkService`
+- `/api/report-ip`、`/api/report-docs-timeout` 迁入 `analyticsController/analyticsService`
+- `/api/server_status` 迁入 `adminController` 或 `statusController`
 
 预期收益：
 
-- 启动失败原因更明确
-- 运维判断更直观
-- `health/ready/live` 分层探针更容易建立
+- 中间件顺序更清楚
+- 业务逻辑不再混在启动装配层
+- 未来新增接口不容易继续堆到 `assembly.ts`
 
-### 6.3 用户存储重构
+## 6.2 启动链路与健康探针优化
 
-目标：逐步拆分 [src/utils/userStorage.ts](</F:/Repositories/GitHub/Synapse/src/utils/userStorage.ts:1>)，让用户域逻辑、存储实现、初始化修复逻辑分层。
+目标：基于 [src/app/startup.ts](/F:/Repositories/GitHub/Synapse/src/app/startup.ts:1) 建立明确的初始化阶段模型。
 
-建议拆成四层：
+建议将初始化任务分为三类：
 
-1. `user/userValidationService.ts`
-2. `user/userRepository.ts`
-3. `user/providers/fileUserProvider.ts`
-4. `user/providers/mongoUserProvider.ts`
-5. `user/providers/mysqlUserProvider.ts`
-6. `user/userBootstrapService.ts`
-7. `user/userRepairService.ts`
+- required: 失败后服务不应进入 ready
+- degradable: 失败后服务可以启动，但应标记 degraded
+- optional: 失败仅记录告警
 
-说明：
+推荐划分：
 
-- `userRepository` 对上提供统一接口
-- provider 只负责底层 CRUD
-- bootstrap 负责默认管理员、建表、初始化
-- repair 负责文件修复、自愈、迁移
-- 输入校验不再塞进 storage provider
+- required
+  - 当前用户存储模式初始化
+  - JWT/管理员配置校验
+  - 核心目录可写性
+- degradable
+  - Redis
+  - 邮件服务
+  - OpenAI 上游可达性探测
+- optional
+  - 调度器
+  - 文档资源
+  - 额外诊断脚本
 
-重点治理项：
+建议新增接口：
 
-- 降低自动 fallback 行为
-- 将“自动切换存储模式”改为显式策略
-- 将同步文件 I/O 进一步收敛到有限边界
+- `/live`
+- `/ready`
+- `/health`
 
-预期收益：
+接口含义：
 
-- 每种存储模式可以单独测试
-- 用户认证逻辑不再依赖超大工具类
-- 线上问题更容易隔离到具体 provider
+- `/live`: 只表示进程活着
+- `/ready`: 只表示具备对外服务能力
+- `/health`: 返回组件级详情与降级信息
 
-### 6.4 路由注册表治理升级
+## 6.3 用户存储治理优化
 
-目标：让 [src/routes/index.ts](</F:/Repositories/GitHub/Synapse/src/routes/index.ts:1>) 从“挂载清单”升级为“路由治理中心”。
+目标：不再继续机械拆文件，而是提高行为一致性和可验证性。
 
-建议新增能力：
+建议工作：
 
-- route metadata 校验器
-- 安全策略一致性测试
-- 限流缺失扫描
-- auth requirement 一致性检查
-- 文档生成可消费结构
+- 统一 provider 契约文档
+- 抽出 provider contract tests
+- 明确哪些行为允许 auto-fix，哪些必须显式报错
+- 明确 file/mongo/mysql 下的 usage、admin bootstrap、账号状态处理语义
 
-建议最小校验规则：
+建议新增测试维度：
 
-- `requiresAuth = true` 的模块必须显式挂鉴权中间件
-- `rateLimited = true` 的模块必须存在 limiter 或 mount limiter
-- `securityBypass` 必须有注释和原因
+- `createUser/getUserById/updateUser/deleteUser` 的 provider 一致性
+- `authenticateUser` 在三种 provider 下结果一致
+- `getRemainingUsage/incrementUsage` 一致
+- repair/auto-switch 在生产模式下行为受控
+
+这一阶段的重点不是继续重命名，而是把“拆开的模块真正治理起来”。
+
+## 6.4 TTS 提交流程优化
+
+目标：降低 [src/tts/tts.pipeline.ts](/F:/Repositories/GitHub/Synapse/src/tts/tts.pipeline.ts:1) 的外部依赖耦合和串行耗时。
+
+建议改造方向：
+
+### 6.4.1 引入校验分层
+
+将提交校验分为三层：
+
+- 本地同步校验
+  - 参数格式
+  - 文本长度
+  - 模型/voice/outputFormat 合法值
+- 本地策略校验
+  - 额度
+  - 重复提交
+  - 生成码
+  - 账号状态
+- 外部依赖校验
+  - Turnstile
+  - 远端违禁词检测
+
+这样做的目的是把“用户输入有问题”和“外部服务暂时不可用”严格区分开。
+
+### 6.4.2 弱化远端违禁词依赖的阻断程度
+
+当前远端违禁词服务不可用会直接中断提交，这对可用性影响很大。
+
+建议改成可配置策略：
+
+- `strict`: 远端检测失败即阻断
+- `degraded`: 远端检测失败时仅保留本地过滤并记录风险日志
+
+默认建议：
+
+- 生产环境可配置
+- 默认 `degraded`
+- 高风险部署再切 `strict`
+
+### 6.4.3 提前缓存生成码与配置型依赖
+
+`GENERATION_CODE` 当前通过 Mongo 配置读取，可以增加本地短期缓存和版本刷新，避免每次提交都走一次配置读取链路。
+
+## 6.5 TTS 任务队列与持久化优化
+
+目标：把当前“轻量可恢复队列”升级为“可治理任务系统”。
+
+建议基于 [src/tts/tts.storage.ts](/F:/Repositories/GitHub/Synapse/src/tts/tts.storage.ts:1) 继续增强：
+
+### 6.5.1 标准化任务状态
+
+建议状态扩展为：
+
+- `queued`
+- `processing`
+- `completed`
+- `failed`
+- `expired`
+- `dead_letter`
+
+### 6.5.2 增加任务治理字段
+
+建议新增字段：
+
+- `startedAt`
+- `completedAt`
+- `failedAt`
+- `maxAttempts`
+- `lastErrorCode`
+- `lastErrorMessage`
+- `expiresAt`
+- `deadLetterReason`
+
+### 6.5.3 明确重试策略
+
+当前已有 `attempts`，但缺少完整策略。
+
+建议：
+
+- retryable 错误进入指数退避
+- non-retryable 直接失败
+- 超过 `maxAttempts` 进入 `dead_letter`
+
+### 6.5.4 增加清理任务
+
+建议周期清理：
+
+- 过期 completed job
+- 过期 failed job
+- 长时间无人查询的 job result
+
+### 6.5.5 为多实例预留升级路径
+
+当前可先不立即切换独立队列系统，但建议保留两步升级路径：
+
+1. 当前 Mongo/文件方案补齐治理能力
+2. 若后续吞吐增长，再迁到 Redis/BullMQ 或独立 worker
+
+## 6.6 TTS 生成服务优化
+
+目标：在保留 [src/tts/tts.service.ts](/F:/Repositories/GitHub/Synapse/src/tts/tts.service.ts:1) 现有优点的前提下，补齐语义一致性。
+
+建议项：
+
+- content hash 纳入 `speed`
+- 明确输出格式是否参与幂等键
+- 将“重复命中后记违规”改为独立策略配置
+- 为熔断器增加状态导出
+- 将上游调用结果纳入统一 metrics
+
+这里需要特别注意一个产品语义问题：
+
+“重复内容复用缓存”与“恶意重复提交惩罚”不应强绑定。前者是节省成本，后者是风控策略。两者绑在一起，后续非常容易误伤正常用户。
+
+## 6.7 可观测性优化
+
+目标：让当前后端从“有日志”升级到“可运营”。
+
+建议最少补齐以下指标：
+
+- `http_requests_total`
+- `http_request_duration_ms`
+- `http_5xx_total`
+- `http_429_total`
+- `tts_submit_total`
+- `tts_submit_rejected_total`
+- `tts_job_queued_total`
+- `tts_job_processing_total`
+- `tts_job_failed_total`
+- `tts_job_duration_ms`
+- `tts_openai_requests_total`
+- `tts_openai_failures_total`
+- `tts_circuit_state`
+
+建议统一日志字段：
+
+- `requestId`
+- `route`
+- `method`
+- `userId`
+- `ip`
+- `storageMode`
+- `jobId`
+- `durationMs`
+- `errorCode`
+- `upstream`
+
+建议暴露方式至少二选一：
+
+- 管理接口 JSON 输出
+- Prometheus 风格 `/metrics`
+
+## 6.8 路由治理闭环
+
+目标：让 [src/routes/index.ts](/F:/Repositories/GitHub/Synapse/src/routes/index.ts:1) 成为真正的治理源。
+
+建议新增自动校验：
+
+- `requiresAuth = true` 的模块必须显式携带鉴权链路
+- `rateLimited = true` 的模块必须存在 mount limiter 或 route limiter
+- `securityBypass` 必须带原因说明
 - `isPublic = false` 的模块不能落入开放 CORS 例外
 
-预期收益：
+建议新增用途：
 
-- 新增路由不再只靠人工记忆
-- 安全回归更容易被测试捕捉
-- 结构治理从“约定”变成“可校验”
+- 自动生成路由审计清单
+- 自动验证安全策略
+- 自动生成内部运维文档
 
-### 6.5 TTS 主链路优化
+## 6.9 Redis 能力升级
 
-目标：在保留现有 controller/service/queue 分层的前提下，将 TTS 从“可用型任务链路”提升为“可恢复型任务链路”。
+目标：让 Redis 从单点功能附件升级为可选基础设施层。
 
-当前关键文件：
+建议后续优先承载：
 
-- [src/tts/tts.controller.ts](</F:/Repositories/GitHub/Synapse/src/tts/tts.controller.ts:1>)
-- [src/tts/tts.service.ts](</F:/Repositories/GitHub/Synapse/src/tts/tts.service.ts:1>)
-- [src/tts/tts.queue.ts](</F:/Repositories/GitHub/Synapse/src/tts/tts.queue.ts:1>)
+- TTS 短期结果缓存
+- 分布式任务锁或共享队列
+- 熔断状态共享
+- 高频配置缓存
 
-建议优化方向：
-
-- 将任务状态存储持久化到 Redis 或数据库
-- 为任务增加重试次数、最后错误、开始时间、完成时间
-- 为 OpenAI 调用增加 timeout、retry、backoff、错误映射
-- 将提交校验链路抽为 `ttsSubmissionService`
-- 将重复内容检测、验证码校验、内容检测等从 controller 中下沉
-
-建议任务生命周期标准化：
-
-- queued
-- processing
-- completed
-- failed
-- expired
-
-进一步目标：
-
-- 支持服务重启后任务状态恢复
-- 支持将来切换到独立 worker
-- 支持管理端查看队列和失败任务
-
-### 6.6 限流与观测
-
-目标：在现有 [src/middleware/routeLimiters.ts](</F:/Repositories/GitHub/Synapse/src/middleware/routeLimiters.ts:1>) 基础上补齐观测出口。
-
-建议保留现有 profile 化设计，并新增：
-
-- `admin/rate-limit-metrics` 查询接口
-- 将 `getRateLimitMetricsSnapshot()` 接入监控端点
-- 记录每类 limiter 命中次数和热点接口
-- 区分 429 高频误伤和真实攻击流量
-
-建议核心指标最少包括：
-
-- request_total
-- request_duration_ms
-- response_5xx_total
-- response_429_total
-- openai_request_total
-- openai_failure_total
-- tts_job_queued_total
-- tts_job_failed_total
-- tts_job_duration_ms
-
-建议日志字段统一为：
-
-- requestId
-- route
-- method
-- userId
-- ip
-- storageMode
-- durationMs
-- upstream
-- errorCode
-
-### 6.7 健康检查与运行状态
-
-目标：将当前 `/health` 从综合状态接口扩展为分层探针体系。
-
-建议新增：
-
-- `/live`: 进程是否存活
-- `/ready`: 是否具备对外服务能力
-- `/health`: 综合状态详情
-
-判定原则：
-
-- `live` 不依赖 Mongo/Redis/OpenAI
-- `ready` 依赖当前 storage mode 与必要外部依赖
-- `health` 返回详细组件状态与降级信息
-
-这可以直接复用 [src/config/startupDiagnostics.ts](</F:/Repositories/GitHub/Synapse/src/config/startupDiagnostics.ts:1>) 的诊断数据，而不需要重新造一套模型。
-
-### 6.8 业务型接口回归控制器
-
-目标：清理 `assembly.ts` 中直接实现业务逻辑的临时接口。
-
-优先迁移目标：
-
-- `/ip`
-- `/ip-location`
-- `/api/report-ip`
-- `/api/report-docs-timeout`
-- `/server_status`
-
-建议方式：
-
-- 建立 `systemController` 或按领域拆分 controller
-- 业务逻辑统一进入 service
-- 装配层只负责挂载和中间件顺序
+这一步不是必须立刻做，但要在方案上预留，避免未来重复推翻现有任务系统。
 
 ## 7. 推荐实施顺序
 
-### 第一阶段：结构收口
+### 第一阶段：装配层和探针收口
 
 周期：1 周
 
 目标：
 
-- 进一步拆分 `assembly.ts`
-- 迁移装配层中的业务型 handler
-- 保持功能不变，只收口边界
+- 把业务型接口迁出 `assembly.ts`
+- 建立 `/live`、`/ready`、`/health`
+- 明确 required/degraded/optional 初始化结果
 
-交付物：
+### 第二阶段：TTS 提交流程治理
 
-- 新的装配层文件结构
-- 路由挂载保持兼容
-- 相关回归测试
+周期：1 周
 
-### 第二阶段：用户存储治理
+目标：
+
+- 校验链路分层
+- 外部违禁词依赖降级策略
+- 生成码和配置型依赖缓存
+
+### 第三阶段：TTS 任务系统增强
 
 周期：1 到 2 周
 
 目标：
 
-- 拆分 `UserStorage`
-- 建立 provider 化接口
-- 将 bootstrap 和 repair 从 CRUD 路径中分离
+- 补齐任务状态字段
+- 增加最大重试和 dead-letter
+- 增加任务清理与观测
 
-交付物：
-
-- 用户存储接口草图与实现
-- file/mongo/mysql provider
-- 初始化和修复服务
-
-### 第三阶段：启动链路与健康检查
+### 第四阶段：provider 一致性与回归测试
 
 周期：1 周
 
 目标：
 
-- 重构 `startup.ts`
-- 建立 required/degradable/optional 初始化模型
-- 增加 `/ready` 和 `/live`
+- 补齐 file/mongo/mysql 一致性测试
+- 补齐 TTS 提交与查询链路测试
+- 补齐启动链路与健康探针测试
 
-交付物：
-
-- 启动阶段任务清单
-- 分层健康检查接口
-- 启动失败判定规则
-
-### 第四阶段：TTS 任务系统增强
-
-周期：1 到 2 周
-
-目标：
-
-- 任务状态持久化
-- 失败重试基础能力
-- OpenAI 调用治理
-- 补齐队列观测
-
-交付物：
-
-- 持久化任务存储
-- TTS 任务状态模型
-- 失败任务查询和审计基础
-
-### 第五阶段：限流与观测完善
+### 第五阶段：指标与治理闭环
 
 周期：1 周
 
 目标：
 
-- 暴露 rate limit metrics
-- 增加核心链路 metrics
-- 建立慢路径和错误聚合视图
-
-交付物：
-
-- 限流指标接口
-- 统一指标命名
-- 请求级结构化日志规范
+- 暴露 metrics
+- 增加 route registry 校验
+- 打通限流、任务和上游依赖观测
 
 ## 8. 优先级清单
 
 ### P0
 
-- 拆分 `src/app/assembly.ts`
-- 拆分 `src/utils/userStorage.ts`
-- 重构 `src/app/startup.ts` 初始化边界
-- 为 TTS 任务引入可恢复状态存储
+- 收口 `assembly.ts`
+- 建立 readiness 分层
+- 优化 TTS 提交校验失败模型
+- 为 TTS 任务增加完整重试/过期/失败治理
 
 ### P1
 
-- 建立 route registry 一致性校验
-- 建立 `/live`、`/ready`、`/health`
-- 为 OpenAI/TTS 增加超时、重试与错误治理
-- 为限流与任务链路暴露 metrics
+- provider 一致性测试
+- route registry 自动校验
+- TTS/OpenAI 指标暴露
+- Redis 能力抽象预留
 
 ### P2
 
-- 为多实例部署准备共享队列
-- 将更多兼容接口迁出装配层
-- 完整统一错误码模型
-- 为 admin 增加运行状态面板
+- 多实例共享任务模型
+- 熔断状态共享
+- 管理端运行态面板
 
 ## 9. 风险与注意事项
 
-1. `UserStorage` 拆分时，最容易引入 file/mongo/mysql 行为不一致，必须先围绕现有行为补测试。
-2. 启动链路改造时，不要把“可降级”错误误判成“必须中止”，否则会造成部署可用性下降。
-3. TTS 任务持久化后，前端轮询协议要保持兼容，避免接口语义漂移。
-4. 路由注册表治理需要结合现有测试，不要只引入 metadata 而不做一致性断言。
-5. 限流 metrics 若直接暴露到公开接口，需要注意权限和敏感信息脱敏。
+1. 不要按旧认知重复拆已经拆开的模块，否则只会制造噪音。
+2. TTS 提交流程改造时，必须保证前端轮询协议和返回结构兼容。
+3. 外部违禁词服务降级后，要同步增加风险日志和审计，避免“可用性提升但失去风控证据”。
+4. 任务系统增强时，要先明确清理策略，否则持久化作业会持续膨胀。
+5. provider 一致性测试必须先行，否则存储层优化很容易引入行为漂移。
 
-## 10. 配套输出物建议
+## 10. 建议配套文档
 
-为了让本草案能真正进入执行阶段，建议同步产出以下配套文档：
+建议在这份总草案基础上继续产出以下专项文档：
 
-1. `docs/backend-route-registry-spec.md`
-2. `docs/backend-user-storage-refactor-spec.md`
-3. `docs/backend-startup-lifecycle-spec.md`
-4. `docs/backend-tts-job-system-spec.md`
-5. `docs/backend-observability-metrics-spec.md`
+1. `docs/backend-tts-job-system-spec.md`
+2. `docs/backend-readiness-health-spec.md`
+3. `docs/backend-route-governance-spec.md`
+4. `docs/backend-user-storage-contract-spec.md`
+5. `docs/backend-observability-spec.md`
 
 ## 11. 结论
 
-当前 Synapse 后端已经完成了第一轮入口拆分，优化重点不再是重复强调“拆 `app.ts`”，而是继续消化新阶段形成的耦合中心。真正决定后续维护成本和扩展能力的，是以下四件事：
+当前 Synapse 后端已经完成了第一轮重要重构，旧的“先拆入口、先拆 UserStorage”的思路已经不再是主战场。当前最值得投入的方向是：
 
-1. 收缩 `assembly.ts`
-2. 拆分 `UserStorage`
-3. 治理 `startup.ts` 的副作用边界
-4. 将 TTS 队列从单进程可用模型推进到可恢复模型
+1. 继续收口 `assembly.ts` 的职责
+2. 把 TTS 提交流程从“功能可用”推进到“故障边界清晰”
+3. 把 TTS 任务系统从“轻量可恢复”推进到“可治理”
+4. 把 route registry、限流、健康检查和 metrics 串成真正的治理闭环
 
-只要这四项落地，后续的性能优化、可观测性建设和多实例扩展都会顺很多。这也是当前代码状态下最实际、最可执行的后端优化路径。
+如果这四件事落地，Synapse 后端的维护成本、可靠性和后续扩展能力都会明显改善。这也是最符合当前代码现状的优化路线。
