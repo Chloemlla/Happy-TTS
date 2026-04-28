@@ -1,17 +1,16 @@
-import { config } from "dotenv";
-
-config();
+import legacyConfig from "../config";
+import { config as appConfig, startupConfig } from "./config";
 
 export default {
-  port: process.env.PORT || 3000,
+  port: appConfig.port,
   openai: {
-    apiKey: process.env.OPENAI_KEY,
-    baseUrl: process.env.OPENAI_BASE_URL,
+    apiKey: startupConfig.openai.apiKey,
+    baseUrl: startupConfig.openai.baseUrl,
   },
   server: {
-    password: process.env.SERVER_PASSWORD || "wmy",
+    password: startupConfig.serverPassword,
   },
-  userStorageMode: process.env.USER_STORAGE_MODE || "file",
+  userStorageMode: appConfig.userStorageMode,
   paths: {
     ipData: "ip_data.txt",
     lcData: "lc_data.txt",
@@ -23,7 +22,8 @@ export default {
     maxLines: 200,
     tts: {
       maxCalls: 5,
-      period: 30000, // 30 seconds
+      period: 30000,
     },
   },
+  email: legacyConfig.email,
 };

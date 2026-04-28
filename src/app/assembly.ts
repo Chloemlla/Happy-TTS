@@ -6,7 +6,8 @@ import express, { type Express, type NextFunction, type Request, type Response }
 import helmet from "helmet";
 import swaggerJSDoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
-import { config } from "../config/config";
+import { config, startupConfig } from "../config/config";
+import { getStartupDiagnosticsReport } from "../config/startupDiagnostics";
 import { registerLogoutRoute } from "../controllers/authController";
 import {
   corsHeadersMiddleware,
@@ -270,12 +271,16 @@ export function registerCoreMiddleware(app: Express): void {
 
   app.get("/health", (_req: Request, res: Response) => {
     const mongo = isMongoConnected();
-    const status = mongo ? "ok" : "degraded";
-    res.status(mongo ? 200 : 503).json({
+    const report = getStartupDiagnosticsReport();
+    const requiredFailures = report?.summary.requiredFailures || 0;
+    const status = mongo && requiredFailures === 0 ? "ok" : "degraded";
+    res.status(status === "ok" ? 200 : 503).json({
       status,
       uptime: process.uptime(),
       mongo: mongo ? "connected" : "disconnected",
       wsConnections: wsService.getConnectionCount(),
+      startupReadiness: report?.summary || null,
+      dependencies: report?.dependencies || [],
       timestamp: new Date().toISOString(),
     });
   });
@@ -285,7 +290,7 @@ export function registerSecurityMiddleware(app: Express): void {
   app.set("trust proxy", 1);
   registerSecurityPipeline(app, "postBodyParser");
 
-  if (process.env.WAF_ENABLED !== "false") {
+  if (startupConfig.security.wafEnabled) {
     logger.info("[WAF] 已启用");
   } else {
     logger.info("[WAF] 已通过 WAF_ENABLED=false 禁用");
@@ -578,7 +583,7 @@ export function registerApiRoutes(app: Express): void {
     });
   });
 
-  const password = process.env.SERVER_PASSWORD || "wmy";
+  const password = startupConfig.serverPassword;
   app.post("/server_status", serverStatusLimiter, (req, res) => {
     if (req.body.password === password) {
       const bootTime = process.uptime();

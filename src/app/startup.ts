@@ -3,7 +3,8 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import type { Express } from "express";
 import { MongoClient } from "mongodb";
-import { config } from "../config/config";
+import { compileTimeConfig, config, startupConfig } from "../config/config";
+import { runStartupDiagnostics } from "../config/startupDiagnostics";
 import { schedulerService } from "../services/schedulerService";
 import { wsService } from "../services/wsService";
 import logger from "../utils/logger";
@@ -62,7 +63,7 @@ const checkStartupFilePermissions = async () => {
 
 const initializeStorage = async () => {
   logger.info("[启动] 检查用户存储模式...");
-  const storageMode = process.env.USER_STORAGE_MODE || "file";
+  const storageMode = config.userStorageMode;
   logger.info(`[启动] 当前存储模式: ${storageMode}`);
 
   if (storageMode === "mongo") {
@@ -120,7 +121,7 @@ const initializeStorage = async () => {
 };
 
 const configureEmailServices = () => {
-  if (!process.env.RESEND_API_KEY) {
+  if (!startupConfig.email.resendApiKey) {
     (globalThis as any).EMAIL_ENABLED = false;
     (globalThis as any).EMAIL_SERVICE_STATUS = {
       available: false,
@@ -153,8 +154,7 @@ const configureEmailServices = () => {
 
   void (async () => {
     try {
-      const loadedConfig = require("../config").default;
-      if (!loadedConfig.email?.outemail?.enabled) {
+      if (!startupConfig.email.outemail.enabled) {
         (globalThis as any).OUTEMAIL_SERVICE_STATUS = {
           available: false,
           error: "对外邮件服务未启用",
@@ -162,7 +162,7 @@ const configureEmailServices = () => {
         logger.warn("[对外邮件服务] 服务未启用");
         return;
       }
-      if (!loadedConfig.email?.outemail?.domain) {
+      if (!startupConfig.email.outemail.domain) {
         (globalThis as any).OUTEMAIL_SERVICE_STATUS = {
           available: false,
           error: "对外邮件服务未配置域名",
@@ -170,7 +170,7 @@ const configureEmailServices = () => {
         logger.warn("[对外邮件服务] 未配置域名");
         return;
       }
-      const key = loadedConfig.email.outemail.apiKey;
+      const key = startupConfig.email.outemail.apiKey;
       if (!key || !/^re_\w{8,}/.test(key)) {
         (globalThis as any).OUTEMAIL_SERVICE_STATUS = {
           available: false,
@@ -193,8 +193,8 @@ const configureEmailServices = () => {
 };
 
 const migrateTtsCollection = async () => {
-  const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI || "mongodb://localhost:27017";
-  const dbName = process.env.MONGO_DB || "tts";
+  const mongoUri = startupConfig.mongo.uri || "mongodb://localhost:27017";
+  const dbName = startupConfig.mongo.database;
   const client = new MongoClient(mongoUri);
 
   try {
@@ -246,10 +246,13 @@ const migrateTtsCollection = async () => {
 
 export async function startServer(app: Express): Promise<void> {
   configureEmailServices();
+  await ensureDirectories();
+
+  const diagnostics = await runStartupDiagnostics(compileTimeConfig);
+  logger.info("[Config] 启动配置诊断完成", diagnostics);
 
   const port = Number(config.port);
   const server = app.listen(port, "::", async () => {
-    await ensureDirectories();
     wsService.init(server);
 
     logger.info(`服务器运行在 http://[::]:${port} (IPv4/IPv6 双栈)`);
