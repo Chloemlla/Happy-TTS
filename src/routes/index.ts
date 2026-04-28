@@ -88,6 +88,14 @@ export interface RouteModule {
   securityBypass?: RouteSecurityBypass;
 }
 
+export const NON_API_ROUTE_EXEMPTION_PATHS = [
+  "/s",
+  "/s/*path",
+  "/health",
+  "/.well-known/assetlinks.json",
+  "/favicon.ico",
+] as const;
+
 const antaRequestLogger: RequestHandler = (req: Request, _res: Response, next: NextFunction) => {
   logger.info(`安踏防伪查询请求: ${req.method} ${req.url}`, {
     ip: req.ip,
@@ -98,11 +106,16 @@ const antaRequestLogger: RequestHandler = (req: Request, _res: Response, next: N
 };
 
 const API_ROUTE_PREFIX = "/api";
+const NON_API_ROUTE_EXEMPTION_SET = new Set<string>(NON_API_ROUTE_EXEMPTION_PATHS);
+
+export function isExemptNonApiRoutePath(routePath: string): boolean {
+  return NON_API_ROUTE_EXEMPTION_SET.has(routePath);
+}
 
 function assertApiRouteModulePath(module: RouteModule): void {
-  if (!module.path.startsWith(API_ROUTE_PREFIX)) {
+  if (!module.path.startsWith(API_ROUTE_PREFIX) && !isExemptNonApiRoutePath(module.path)) {
     throw new Error(
-      `[routes] Route module "${module.name}" must be mounted under ${API_ROUTE_PREFIX}, received "${module.path}"`,
+      `[routes] Route module "${module.name}" must be mounted under ${API_ROUTE_PREFIX} or match an explicit exemption, received "${module.path}"`,
     );
   }
 }

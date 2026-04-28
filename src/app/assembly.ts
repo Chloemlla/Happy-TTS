@@ -36,6 +36,8 @@ import {
 } from "../middleware/routeLimiters";
 import {
   earlyRouteModules,
+  isExemptNonApiRoutePath,
+  NON_API_ROUTE_EXEMPTION_PATHS,
   postTamperRouteModules,
   preDocsRouteModules,
   preParserRouteModules,
@@ -63,6 +65,15 @@ const DATA_DIR = path.join(process.cwd(), "data");
 const CLIENT_REPORTED_IP_FILE = path.join(DATA_DIR, "clientReportedIP.json");
 const IP_DATA_FILE = "ip_data.txt";
 const audioDir = path.join(__dirname, "../finish");
+const assemblyNonApiRouteExemptionSet = new Set<string>(NON_API_ROUTE_EXEMPTION_PATHS);
+
+function assertAssemblyNonApiRoutePath(routePath: string): void {
+  if (!isExemptNonApiRoutePath(routePath)) {
+    throw new Error(
+      `[assembly] Non-API route "${routePath}" is not in the explicit exemption list: ${Array.from(assemblyNonApiRouteExemptionSet).join(", ")}`,
+    );
+  }
+}
 
 const authCacheBypassPaths = [
   "/api/totp/status",
@@ -268,6 +279,7 @@ async function readIpData(): Promise<Record<string, string>> {
 }
 
 export function registerCoreMiddleware(app: Express): void {
+  assertAssemblyNonApiRoutePath("/s/*path");
   app.options("/s/*path", corsPreflightHandler);
   app.use("/s/*path", corsHeadersMiddleware);
 
@@ -277,6 +289,7 @@ export function registerCoreMiddleware(app: Express): void {
   app.use(express.json({ limit: "10mb" }));
   app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
+  assertAssemblyNonApiRoutePath("/health");
   app.get("/health", (_req: Request, res: Response) => {
     const mongo = isMongoConnected();
     const report = getStartupDiagnosticsReport();
@@ -407,6 +420,7 @@ export function registerSecurityMiddleware(app: Express): void {
 }
 
 export function registerApiRoutes(app: Express): void {
+  assertAssemblyNonApiRoutePath("/s");
   app.use("/s", shortUrlRoutes);
 
   app.options("/api/shorturl/*path", corsPreflightHandler);
@@ -448,11 +462,13 @@ export function registerApiRoutes(app: Express): void {
   app.get("/api/proxy-test", integrityLimiter, (_req, res) => res.sendStatus(200));
   app.get("/api/timing-test", integrityLimiter, (_req, res) => res.sendStatus(200));
 
+  assertAssemblyNonApiRoutePath("/.well-known/assetlinks.json");
   app.get("/.well-known/assetlinks.json", (_req: Request, res: Response) => {
     res.setHeader("Cache-Control", "public, max-age=300");
     res.json(getNexaiAssetLinksStatements());
   });
 
+  assertAssemblyNonApiRoutePath("/favicon.ico");
   app.get("/favicon.ico", sendFaviconIfExists);
 
   app.get("/api/lc", lcCompatLimiter, (_req, res) => {
