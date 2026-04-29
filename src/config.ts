@@ -11,7 +11,6 @@ const config = {
     password: startupConfig.serverPassword,
   },
   email: {
-    code: process.env.EMAIL_CODE || "",
     outemail: {
       enabled: startupConfig.email.outemail.enabled,
       domain: startupConfig.email.outemail.domain || "",

@@ -3,7 +3,6 @@ import { EmailController } from "../controllers/emailController";
 import { authMiddleware } from "../middleware/authMiddleware";
 import { createLimiter } from "../middleware/rateLimiter";
 import { domainExemptionService } from "../services/domainExemptionService";
-import { sendOutEmail } from "../services/outEmailService";
 import logger from "../utils/logger";
 
 const router = express.Router();
@@ -54,88 +53,8 @@ const domainExemptionLimiter = createLimiter({
   routeName: "email.domain-exemption",
 });
 
-// 对外邮件发送限流（每分钟20封，每天100封，独立于管理员邮件）
-const outEmailLimiter = createLimiter({
-  windowMs: 60 * 1000,
-  max: 300,
-  message: "对外邮件发送过于频繁，请稍后再试",
-  routeName: "outemail.send",
-});
-
-// 对外邮件发送接口（无需 token 验证，必须放在所有中间件之前）
-const OUTEMAIL_ENABLED =
-  process.env.OUTEMAIL_ENABLED !== "false" && typeof process.env.OUTEMAIL_ENABLED !== "undefined";
-router.post("/outemail", outEmailLimiter, async (req, res) => {
-  if (!OUTEMAIL_ENABLED) {
-    return res.status(403).json({ error: "对外邮件功能未启用，请联系管理员配置 OUTEMAIL_ENABLED 环境变量" });
-  }
-  try {
-    const { to, subject, content, code } = req.body;
-    if (!to || !subject || !content || !code) {
-      return res.status(400).json({ error: "缺少参数" });
-    }
-    if (typeof to === "string") {
-      if (!/^[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}$/.test(to)) {
-        return res.status(400).json({ error: "收件人邮箱格式无效" });
-      }
-      const ip = String(req.ip || req.headers["x-real-ip"] || "");
-      const result = await sendOutEmail({ to, subject, content, code, ip });
-      if (result.success) {
-        res.json({ success: true, messageId: result.messageId });
-      } else {
-        res.status(400).json({ error: result.error });
-      }
-      return;
-    } else if (Array.isArray(to) && typeof to[0] === "string") {
-      const first = to[0];
-      if (!/^[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}$/.test(first)) {
-        return res.status(400).json({ error: "收件人邮箱格式无效" });
-      }
-      const ip = String(req.ip || req.headers["x-real-ip"] || "");
-      const result = await sendOutEmail({ to: first, subject, content, code, ip });
-      if (result.success) {
-        res.json({ success: true, messageId: result.messageId });
-      } else {
-        res.status(400).json({ error: result.error });
-      }
-      return;
-    } else {
-      return res.status(400).json({ error: "收件人邮箱格式无效" });
-    }
-  } catch (_e) {
-    res.status(500).json({ error: "服务器错误" });
-  }
-});
-
 // 全局邮件接口速率限制（每管理员每分钟最多5次）
 router.use(emailSendLimiter);
-
-// 新增：无需认证的 code 校验邮件发送接口
-router.post("/send-with-code", EmailController.sendEmailWithCode);
-
-// 对外邮件服务状态（公开，不需要鉴权；为兼容旧前端，保留在 /api/email 下）
-router.get("/outemail-status", statusQueryLimiter, (req, res) => {
-  try {
-    const outemailStatus = (globalThis as any).OUTEMAIL_SERVICE_STATUS;
-    if (outemailStatus && typeof outemailStatus.available === "boolean") {
-      res.json({
-        success: true,
-        available: outemailStatus.available,
-        error: outemailStatus.error || "",
-      });
-    } else {
-      res.json({ success: true, available: false, error: "对外邮件服务状态未初始化" });
-    }
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "未知错误";
-    logger.error("对外邮件服务状态查询异常", {
-      error: errorMessage,
-      stack: error instanceof Error ? error.stack : undefined,
-      ip: req.ip,
-    });
-    res.status(500).json({ success: false, available: false, error: "服务状态查询失败" });
-  }
-});
 
 // 应用认证和管理员权限中间件
 router.use(authMiddleware);
@@ -159,8 +78,8 @@ router.use(adminAuthMiddleware);
  *             properties:
  *               from:
  *                 type: string
- *                 description: 发件人邮箱（必须是 @951100.xyz 域名）
- *                 example: "noreply@951100.xyz"
+ *                 description: 发件人邮箱（必须使用已配置发信域名）
+ *                 example: "noreply@chloemlla.com"
  *               to:
  *                 type: array
  *                 items:
@@ -220,8 +139,8 @@ router.post("/send", emailSendLimiter, EmailController.sendEmail);
  *             properties:
  *               from:
  *                 type: string
- *                 description: 发件人邮箱，必须为 @951100.xyz 域名
- *                 example: "noreply@951100.xyz"
+ *                 description: 发件人邮箱，必须使用已配置发信域名
+ *                 example: "noreply@chloemlla.com"
  *               to:
  *                 type: array
  *                 maxItems: 100
@@ -287,8 +206,8 @@ router.post("/batch-send", emailSendLimiter, EmailController.sendEmailBatch);
  *                 example: "这是一封简单的通知邮件。"
  *               from:
  *                 type: string
- *                 description: 发件人邮箱（可选，必须是 @951100.xyz 域名）
- *                 example: "noreply@951100.xyz"
+ *                 description: 发件人邮箱（可选，必须使用已配置发信域名）
+ *                 example: "noreply@chloemlla.com"
  *               skipWhitelist:
  *                 type: boolean
  *                 description: 是否跳过收件人域名白名单检查（仅管理员可用）
@@ -327,8 +246,8 @@ router.post("/send-simple", emailSendLimiter, EmailController.sendSimpleEmail);
  *             properties:
  *               from:
  *                 type: string
- *                 description: 发件人邮箱（必须是 @951100.xyz 域名）
- *                 example: "noreply@951100.xyz"
+ *                 description: 发件人邮箱（必须使用已配置发信域名）
+ *                 example: "noreply@chloemlla.com"
  *               to:
  *                 type: array
  *                 items:
@@ -418,7 +337,7 @@ router.get("/status", statusQueryLimiter, EmailController.getServiceStatus);
  *               email:
  *                 type: string
  *                 description: 要验证的发件人邮箱地址
- *                 example: "noreply@951100.xyz"
+ *                 example: "noreply@chloemlla.com"
  *     responses:
  *       200:
  *         description: 域名验证成功
@@ -432,13 +351,15 @@ router.get("/status", statusQueryLimiter, EmailController.getServiceStatus);
  *                   example: true
  *                 email:
  *                   type: string
- *                   example: "noreply@951100.xyz"
+ *                   example: "noreply@chloemlla.com"
  *                 isValid:
  *                   type: boolean
  *                   example: true
- *                 allowedDomain:
- *                   type: string
- *                   example: "951100.xyz"
+ *                 allowedDomains:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *                   example: ["chloemlla.com", "example.com"]
  *       400:
  *         description: 请求参数错误
  *       401:
@@ -576,7 +497,7 @@ router.get("/quota", authMiddleware, adminAuthMiddleware, EmailController.getQuo
  *                   type: array
  *                   items:
  *                     type: string
- *                   example: ["951100.xyz", "example.com"]
+ *                   example: ["chloemlla.com", "example.com"]
  *                 error:
  *                   type: string
  *                   example: null
@@ -611,7 +532,7 @@ router.get("/domains", authMiddleware, EmailController.getDomains);
  *               domain:
  *                 type: string
  *                 description: 要检查的域名
- *                 example: "951100.xyz"
+ *                 example: "chloemlla.com"
  *     responses:
  *       200:
  *         description: 检查成功
@@ -634,7 +555,7 @@ router.get("/domains", authMiddleware, EmailController.getDomains);
  *                 domain:
  *                   type: string
  *                   description: 检查的域名
- *                   example: "951100.xyz"
+ *                   example: "chloemlla.com"
  *                 isInternal:
  *                   type: boolean
  *                   description: 是否为内部域名
