@@ -211,7 +211,11 @@ function generateSitemapXml() {
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  const base = normalizeBasePath(process.env.VITE_BASE_URL || "/");
+  const defaultBase =
+    mode === "production"
+      ? "/static/"
+      : "/";
+  const base = normalizeBasePath(process.env.VITE_BASE_URL || defaultBase);
   const config = {
     base,
     plugins: [
