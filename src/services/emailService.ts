@@ -377,7 +377,7 @@ export class EmailService {
         html: emailData.html,
         text: emailData.text,
         attachments: normalizedAttachments,
-        reply_to: emailData.replyTo,
+        replyTo: emailData.replyTo,
         headers: emailData.headers,
       });
 
@@ -449,7 +449,7 @@ export class EmailService {
         subject: message.subject,
         html: message.html,
         text: message.text,
-        reply_to: message.replyTo,
+        replyTo: message.replyTo,
         headers: message.headers,
       }));
 
