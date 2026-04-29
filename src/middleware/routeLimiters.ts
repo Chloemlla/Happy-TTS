@@ -94,8 +94,8 @@ const RATE_PROFILES: Record<RateProfileName, RateProfile> = {
   sensitive: { windowMs: 60_000, max: 10 },
   standard: { windowMs: 60_000, max: 30 },
   relaxed: { windowMs: 60_000, max: 60 },
-  burst: { windowMs: 60_000, max: 100 },
-  static: { windowMs: 60_000, max: 150 },
+  burst: { windowMs: 60_000, max: 600 },
+  static: { windowMs: 60_000, max: 5000 },
   global: { windowMs: 60_000, max: 100 },
 };
 
@@ -601,8 +601,9 @@ const LIMITER_DEFINITIONS = {
     message: "请求过于频繁，请稍后再试",
   },
   ipquery: {
-    profile: "standard",
+    profile: "relaxed",
     category: "public-api",
+    max: 180,
     message: "IP查询过于频繁，请稍后再试",
   },
   iplocation: {
@@ -625,7 +626,7 @@ const LIMITER_DEFINITIONS = {
   static: {
     profile: "static",
     category: "static",
-    max: 200,
+    max: 5000,
     message: "静态文件请求过于频繁，请稍后再试",
   },
   docstimeout: {

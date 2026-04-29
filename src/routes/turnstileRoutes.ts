@@ -12,7 +12,7 @@ const router = express.Router();
 // 公共接口限流器（无需认证的接口）
 const publicLimiter = rateLimit({
   windowMs: 60 * 1000, // 1分钟
-  max: 30, // 每分钟30次请求
+  max: 120, // 每分钟120次请求
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "请求过于频繁，请稍后再试" },
@@ -80,7 +80,7 @@ const adminLimiter = rateLimit({
 // 配置管理接口限流器（更严格）
 const configLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5分钟
-  max: 10, // 每5分钟10次请求
+  max: 120, // 每5分钟120次请求
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "配置操作过于频繁，请稍后再试" },
