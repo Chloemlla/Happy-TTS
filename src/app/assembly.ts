@@ -377,6 +377,7 @@ export function registerSecurityMiddleware(app: Express): void {
             "https://accounts.google.com",
             "https://api.openai.com",
             "https://api.951100.xyz",
+            "wss://api.951100.xyz",
             "https://*.chloemlla.com",
             ...(process.env.NODE_ENV !== "production"
               ? [
@@ -384,12 +385,16 @@ export function registerSecurityMiddleware(app: Express): void {
                   "http://localhost:3001",
                   "http://localhost:6000",
                   "http://localhost:6001",
+                  "ws://localhost:3000",
                   "http://127.0.0.1:3001",
                   "http://127.0.0.1:6000",
                   "http://127.0.0.1:6001",
+                  "ws://127.0.0.1:3000",
                   "http://192.168.10.7:3001",
+                  "http://192.168.10.7:3000",
                   "http://192.168.10.7:6000",
                   "http://192.168.10.7:6001",
+                  "ws://192.168.10.7:3000",
                 ]
               : []),
             "https://api.hcaptcha.com",
