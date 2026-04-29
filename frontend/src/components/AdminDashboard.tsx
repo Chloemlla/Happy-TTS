@@ -5,7 +5,6 @@ const AnnouncementManager = React.lazy(() => import('./AnnouncementManager'));
 const EnvManager = React.lazy(() => import('./EnvManager'));
 import { motion, AnimatePresence } from 'framer-motion';
 const LotteryAdmin = React.lazy(() => import('./LotteryAdmin'));
-const ModListEditor = React.lazy(() => import('./ModListEditor'));
 const OutEmail = React.lazy(() => import('./OutEmail'));
 const ShortLinkManager = React.lazy(() => import('./ShortLinkManager'));
 const ShortUrlMigrationManager = React.lazy(() => import('./ShortUrlMigrationManager'));
@@ -43,7 +42,6 @@ const AdminDashboard: React.FC = () => {
     { key: 'announcement', label: '公告管理' },
     { key: 'env', label: '环境变量' },
     { key: 'lottery', label: '抽奖管理' },
-    { key: 'modlist', label: 'Mod管理' },
     { key: 'outemail', label: '外部邮件' },
     { key: 'shortlink', label: '短链管理' },
     { key: 'shorturlmigration', label: '短链迁移' },
@@ -335,11 +333,6 @@ const AdminDashboard: React.FC = () => {
                 {tab === 'lottery' && (
                   <motion.div key="lottery" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
                     <Suspense fallback={<div className="text-[#023047]/30">加载中…</div>}><LotteryAdmin /></Suspense>
-                  </motion.div>
-                )}
-                {tab === 'modlist' && (
-                  <motion.div key="modlist" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
-                    <Suspense fallback={<div className="text-[#023047]/30">加载中…</div>}><ModListEditor /></Suspense>
                   </motion.div>
                 )}
                 {tab === 'outemail' && (

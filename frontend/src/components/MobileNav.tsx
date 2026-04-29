@@ -131,7 +131,6 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
         { to: '/fbi-wanted', label: 'FBI 通缉', icon: FaSearch, color: 'text-blue-800' },
         { to: '/anti-counterfeit', label: '安踏防伪', icon: FaShieldAlt, color: 'text-red-700' },
         { to: '/campus-emergency', label: '校园紧急', icon: FaExclamationTriangle, color: 'text-amber-600' },
-        { to: '/modlist', label: '模组列表', icon: FaList, color: 'text-indigo-400' },
         { to: '/api-docs', label: 'API 文档', icon: FaBook, color: 'text-blue-400' },
         { to: '/policy', label: '服务条款', icon: FaGavel, color: 'text-slate-400' },
       ]
