@@ -338,7 +338,8 @@ export function registerSecurityMiddleware(app: Express): void {
             "https://*.hcaptcha.com",
           ],
           styleSrcElem: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://accounts.google.com", "https://*.chloemlla.com"],
-          fontSrc: ["'self'", "https://fonts.gstatic.com", "https://fonts.googleapis.com"],
+          // Frontend bundles may inline woff2 as data URLs, so the static mount CSP must allow data: fonts.
+          fontSrc: ["'self'", "data:", "https://fonts.gstatic.com", "https://fonts.googleapis.com"],
           imgSrc: ["'self'", "data:", "blob:", "https:"],
           scriptSrc: [
             "'self'",
