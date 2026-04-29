@@ -9,6 +9,7 @@ RUN apk add --no-cache tzdata && \
     apk del tzdata
 
 ENV NODE_OPTIONS="--max-old-space-size=11264"
+ENV VITE_BASE_URL="/static/"
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /app/frontend
