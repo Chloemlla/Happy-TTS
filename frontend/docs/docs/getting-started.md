@@ -198,4 +198,4 @@ sidebar_position: 2
 
 ---
 
-如需更多帮助，请联系 support@951100.xyz 或访问 [GitHub Issues](https://github.com/Chloemlla/Synapse/issues)。
+如需更多帮助，请联系 support@chloemlla.com 或访问 [GitHub Issues](https://github.com/Chloemlla/Synapse/issues)。

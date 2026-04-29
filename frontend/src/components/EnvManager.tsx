@@ -2213,7 +2213,7 @@ const EnvManager: React.FC = () => {
               <input
                 value={settingDomain}
                 onChange={(e) => setSettingDomain(e.target.value)}
-                placeholder="例如: 951100.xyz 或 留空"
+                placeholder="例如: chloemlla.com 或 留空"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
               />
             </div>

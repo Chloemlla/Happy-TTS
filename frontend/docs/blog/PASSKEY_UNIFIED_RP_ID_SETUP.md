@@ -11,8 +11,8 @@
 ```
 前端 1: tts.hapx.one          ┐
 前端 2: tts.hapxs.com          │
-前端 3: 951100.xyz             ├── 所有 Passkey 请求都发送到
-前端 4: tts.951100.xyz         │   https://api.hapxs.com
+前端 3: chloemlla.com             ├── 所有 Passkey 请求都发送到
+前端 4: tts.chloemlla.com         │   https://api.hapxs.com
                               ┘
                                  ↓
                            后端 API: api.hapxs.com
@@ -43,8 +43,8 @@ export const PASSKEY_API_BASE = "https://api.hapxs.com";
 export const ALLOWED_FRONTEND_DOMAINS = [
   "tts.hapx.one",
   "tts.hapxs.com",
-  "951100.xyz",
-  "tts.951100.xyz",
+  "chloemlla.com",
+  "tts.chloemlla.com",
 ];
 
 // 获取 Passkey 操作使用的 Origin
@@ -78,7 +78,7 @@ startRegistration: (credentialName: string) =>
 RP_ID: process.env.RP_ID || 'api.hapxs.com',
 RP_ORIGIN: process.env.RP_ORIGIN || 'https://api.hapxs.com',
 RP_ORIGIN_MODE: process.env.RP_ORIGIN_MODE || 'fixed',
-ALLOWED_ORIGINS: 'https://api.hapxs.com,https://tts.hapx.one,https://tts.hapxs.com,https://951100.xyz,https://tts.951100.xyz'
+ALLOWED_ORIGINS: 'https://api.hapxs.com,https://tts.hapx.one,https://tts.hapxs.com,https://chloemlla.com,https://tts.chloemlla.com'
 ```
 
 ---
@@ -94,12 +94,12 @@ ALLOWED_ORIGINS: 'https://api.hapxs.com,https://tts.hapx.one,https://tts.hapxs.c
 RP_ID=api.hapxs.com
 RP_ORIGIN=https://api.hapxs.com
 RP_ORIGIN_MODE=fixed
-ALLOWED_ORIGINS=https://api.hapxs.com,https://tts.hapx.one,https://tts.hapxs.com,https://951100.xyz,https://tts.951100.xyz
+ALLOWED_ORIGINS=https://api.hapxs.com,https://tts.hapx.one,https://tts.hapxs.com,https://chloemlla.com,https://tts.chloemlla.com
 
 # ============================================
 # CORS Configuration
 # ============================================
-CORS_ORIGINS=https://api.hapxs.com,https://tts.hapx.one,https://tts.hapxs.com,https://951100.xyz,https://tts.951100.xyz
+CORS_ORIGINS=https://api.hapxs.com,https://tts.hapx.one,https://tts.hapxs.com,https://chloemlla.com,https://tts.chloemlla.com
 CORS_CREDENTIALS=true
 
 # ============================================
@@ -202,8 +202,8 @@ app.use(cors(corsOptions));
 ### 测试 3: 在第三、四个前端验证
 
 ```bash
-# 访问 https://951100.xyz
-# 访问 https://tts.951100.xyz
+# 访问 https://chloemlla.com
+# 访问 https://tts.chloemlla.com
 # 重复上述认证步骤
 # 期望：所有 Passkey 都能在所有前端中使用
 ```
@@ -337,7 +337,7 @@ npm run build
 
 ## 📊 工作流程详解
 
-### 场景：用户在 tts.hapx.one 注册，在 tts.951100.xyz 使用
+### 场景：用户在 tts.hapx.one 注册，在 tts.chloemlla.com 使用
 
 ```
 ┌─────────────────────────────────────┐
@@ -374,7 +374,7 @@ npm run build
                   [ 几小时后 ]
 
 ┌─────────────────────────────────────┐
-│ 用户访问 https://tts.951100.xyz     │
+│ 用户访问 https://tts.chloemlla.com     │
 │ - 点击"使用 Passkey 登录"
 │ - 输入用户名
 └────────────────────┬────────────────┘
@@ -386,7 +386,7 @@ npm run build
                      ↓
 ┌─────────────────────────────────────┐
 │ POST https://api.hapxs.com/api/...  │
-│ Headers: Origin: https://tts.951100.xyz
+│ Headers: Origin: https://tts.chloemlla.com
 └────────────────────┬────────────────┘
                      ↓
 ┌─────────────────────────────────────┐

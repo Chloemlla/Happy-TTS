@@ -277,7 +277,7 @@ function generateMD5Hash(fileContent: ArrayBuffer): string {
 
 // 工具函数：替换旧域名为新域名
 function fixIpfsDomain(url: string) {
-  return url.replace(/ipfs\.crossbell\.io/gi, 'ipfs.951100.xyz');
+  return url.replace(/ipfs\.crossbell\.io/gi, 'ipfs.chloemlla.com');
 }
 
 const ImageUploadPage: React.FC = () => {

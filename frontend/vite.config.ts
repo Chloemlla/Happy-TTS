@@ -163,7 +163,7 @@ function generateSitemapXml() {
     const distDir = path.resolve(__dirname, "dist");
     if (!fs.existsSync(distDir)) return;
 
-    const siteUrlRaw = "https://tts.951100.xyz";
+    const siteUrlRaw = "https://tts.chloemlla.com";
     const siteUrl = String(siteUrlRaw).replace(/\/$/, "");
 
     // 注意：仅列出静态公共路由；排除需要鉴权的管理/用户页与动态参数路由
@@ -332,7 +332,7 @@ export default defineConfig(({ mode }) => {
           : undefined,
       allowedHosts: [
         "18.217.88.110",
-        "tts.951100.xyz",
+        "tts.chloemlla.com",
         "localhost",
         "127.0.0.1",
         "192.168.137.1",

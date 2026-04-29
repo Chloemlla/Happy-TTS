@@ -1230,12 +1230,12 @@ function hasDangerousExtension() {
   const TRUSTED_HOST_PREFIXES = [
     "http://localhost",
     "https://localhost",
-    "https://ipfs.951100.xyz",
+    "https://ipfs.chloemlla.com",
     "https://cdn.jsdelivr.net",
     "https://tts-api-docs.hapx.one",
-    "https://tts-api-docs.951100.xyz",
-    "https://api.951100.xyz",
-    "https://tts.951100.xyz",
+    "https://tts-api-docs.chloemlla.com",
+    "https://tts.chloemlla.com",
+    "https://tts.chloemlla.com",
   ];
   const allImgs = Array.from(document.querySelectorAll("img"));
   if (allImgs.length > 0) {

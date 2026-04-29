@@ -376,8 +376,7 @@ export function registerSecurityMiddleware(app: Express): void {
             "'self'",
             "https://accounts.google.com",
             "https://api.openai.com",
-            "https://api.951100.xyz",
-            "wss://api.951100.xyz",
+            "wss://*.chloemlla.com",
             "https://*.chloemlla.com",
             ...(process.env.NODE_ENV !== "production"
               ? [

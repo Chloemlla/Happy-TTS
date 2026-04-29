@@ -171,10 +171,10 @@ export const TtsPage: React.FC = () => {
                 <p className="text-[#219EBC] text-sm">
                   如有任何问题或建议，请联系开发者：
                   <a
-                    href="mailto:admin@951100.xyz"
+                    href="mailto:admin@chloemlla.com"
                     className="font-medium hover:text-[#023047] transition-colors duration-200 ml-1 underline"
                   >
-                    admin@951100.xyz
+                    admin@chloemlla.com
                   </a>
                 </p>
               </div>

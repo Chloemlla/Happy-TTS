@@ -19,7 +19,7 @@ class ShortUrlMigrationService {
   private static instance: ShortUrlMigrationService;
   private readonly OLD_DOMAIN = "ipfs\\.crossbell\\.io";
   private readonly OLD_DOMAIN_LITERAL = "ipfs.crossbell.io";
-  private readonly NEW_DOMAIN = "ipfs.951100.xyz";
+  private readonly NEW_DOMAIN = "ipfs.chloemlla.com";
 
   private constructor() {}
 

@@ -13,8 +13,8 @@ import logger from "../utils/logger";
 import { normalizeScamalyticsUser, validateScamalyticsUser } from "../utils/scamalytics";
 import { mongoose } from "./mongoService";
 
-const FALLBACK_BASE_URL = "https://api.951100.xyz";
-const FALLBACK_FRONTEND_URL = "https://tts.951100.xyz";
+const FALLBACK_BASE_URL = "https://tts.chloemlla.com";
+const FALLBACK_FRONTEND_URL = "https://tts.chloemlla.com";
 const FALLBACK_JWT_SECRET = "yb56beb12b35ab636b66c4f9fc168646785a8e85a";
 const DURATION_PATTERN = /^\d+[smhd]$/i;
 const TRUSTED_DEEPLX_BASE_URL = "https://api.deeplx.org";

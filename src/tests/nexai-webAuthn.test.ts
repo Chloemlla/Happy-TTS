@@ -48,11 +48,11 @@ describe("NexAI WebAuthn backend fixes", () => {
     resetEnv();
   });
 
-  it("uses api.951100.xyz as the default RP ID instead of localhost", () => {
+  it("uses tts.chloemlla.com as the default RP ID instead of localhost", () => {
     const webAuthnConfig = getNexaiWebAuthnConfig();
 
-    expect(webAuthnConfig.rpID).toBe("api.951100.xyz");
-    expect(webAuthnConfig.expectedOrigins).toContain("https://api.951100.xyz");
+    expect(webAuthnConfig.rpID).toBe("tts.chloemlla.com");
+    expect(webAuthnConfig.expectedOrigins).toContain("https://tts.chloemlla.com");
     expect(webAuthnConfig.rpID).not.toBe("localhost");
   });
 
@@ -63,7 +63,7 @@ describe("NexAI WebAuthn backend fixes", () => {
 
     expect(webAuthnConfig.expectedOrigins).toEqual(
       expect.arrayContaining([
-        "https://api.951100.xyz",
+        "https://tts.chloemlla.com",
         "android:apk-key-hash:test-hash-1",
         "android:apk-key-hash:test-hash-2",
       ]),

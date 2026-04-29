@@ -24,7 +24,7 @@ class DomainExemptionService {
     // 从环境变量获取豁免域名列表
     this.exemptedDomains = process.env.EXEMPTED_DOMAINS
       ? process.env.EXEMPTED_DOMAINS.split(",").map((d) => d.trim())
-      : ["arteam.dev", "951100.xyz", "crossbell.io"];
+      : ["arteam.dev", "chloemlla.com", "crossbell.io"];
 
     // 从环境变量获取内部域名列表
     this.internalDomains = process.env.INTERNAL_DOMAINS

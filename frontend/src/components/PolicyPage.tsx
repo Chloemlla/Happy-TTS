@@ -319,7 +319,7 @@ const PolicyPage: React.FC<{ error?: any }> = ({ error }) => {
                     <FaExclamationTriangle className="text-gray-500 mr-2 inline" /> 本隐私政策可能会随时更新，建议您定期查阅相关条款。如有重大变更，我们将通过网站公告或邮件通知。
                   </li>
                   <li className="transition-all duration-200 hover:scale-105 hover:-translate-y-1 cursor-pointer">
-                    <FaEnvelope className="text-gray-500 mr-2 inline" /> 如对隐私政策有任何疑问，请通过以下方式联系我们：<a href="mailto:support@951100.xyz" className="text-blue-700 font-bold ml-1">support@951100.xyz</a>
+                    <FaEnvelope className="text-gray-500 mr-2 inline" /> 如对隐私政策有任何疑问，请通过以下方式联系我们：<a href="mailto:support@chloemlla.com" className="text-blue-700 font-bold ml-1">support@chloemlla.com</a>
                   </li>
                 </ul>
               </motion.section>
@@ -419,7 +419,7 @@ const PolicyPage: React.FC<{ error?: any }> = ({ error }) => {
                     <FaEnvelope className="text-blue-500 mr-2 inline" />如有任何疑问或反馈，请通过以下方式联系我们：
                   </p>
                   <p className="text-blue-700 font-bold">
-                    <a href="mailto:support@951100.xyz" className="transition-all duration-200 hover:scale-110 hover:-translate-y-1 cursor-pointer"> support@951100.xyz</a>
+                    <a href="mailto:support@chloemlla.com" className="transition-all duration-200 hover:scale-110 hover:-translate-y-1 cursor-pointer"> support@chloemlla.com</a>
                   </p>
                 </div>
               </motion.section>
@@ -559,10 +559,10 @@ const PolicyPage: React.FC<{ error?: any }> = ({ error }) => {
                     <p className="text-blue-700 text-sm">
                       如有任何问题或建议，请联系开发者：
                       <a
-                        href="mailto:admin@951100.xyz"
+                        href="mailto:admin@chloemlla.com"
                         className="font-medium hover:text-blue-800 transition-colors duration-200 ml-1 underline"
                       >
-                        admin@951100.xyz
+                        admin@chloemlla.com
                       </a>
                     </p>
                   </div>
@@ -627,10 +627,10 @@ const PolicyPage: React.FC<{ error?: any }> = ({ error }) => {
                     <p className="text-red-600 font-semibold">
                       官方联系方式：
                       <a
-                        href="mailto:support@951100.xyz"
+                        href="mailto:support@chloemlla.com"
                         className="text-red-700 font-bold underline hover:text-red-800 transition-colors duration-200 ml-1"
                       >
-                        support@951100.xyz
+                        support@chloemlla.com
                       </a>
                     </p>
                   </div>

@@ -64,7 +64,7 @@ const ShortUrlMigrationManager: React.FC = () => {
 
   // 执行迁移
   const executeMigration = async () => {
-    if (!window.confirm('确定要执行短链迁移吗？这将把所有的 ipfs.crossbell.io 域名替换为 ipfs.951100.xyz')) {
+    if (!window.confirm('确定要执行短链迁移吗？这将把所有的 ipfs.crossbell.io 域名替换为 ipfs.chloemlla.com')) {
       return;
     }
 
@@ -111,7 +111,7 @@ const ShortUrlMigrationManager: React.FC = () => {
           短链域名迁移管理
         </h2>
         <div className="text-gray-600 space-y-2">
-          <p>此功能用于将短链数据库中的旧域名 <code className="bg-gray-200 px-1 rounded">ipfs.crossbell.io</code> 自动替换为新域名 <code className="bg-gray-200 px-1 rounded">ipfs.951100.xyz</code></p>
+          <p>此功能用于将短链数据库中的旧域名 <code className="bg-gray-200 px-1 rounded">ipfs.crossbell.io</code> 自动替换为新域名 <code className="bg-gray-200 px-1 rounded">ipfs.chloemlla.com</code></p>
           <div className="flex items-start gap-2 text-sm">
             <FaInfoCircle className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
             <div>

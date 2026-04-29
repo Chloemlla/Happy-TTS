@@ -1,7 +1,7 @@
 import { config } from "../config/config";
 import logger from "./logger";
 
-const DEFAULT_RP_ID = "api.951100.xyz";
+const DEFAULT_RP_ID = "tts.chloemlla.com";
 const DEFAULT_RP_NAME = "NexAI";
 const DEFAULT_ASSET_LINK_RELATIONS = [
   "delegate_permission/common.get_login_creds",

@@ -3,16 +3,16 @@ import type { NextFunction, Request, Response } from "express";
 
 // 允许的域名
 const allowedOrigins = [
-  "https://tts.951100.xyz",
-  "https://tts.951100.xyz",
-  "https://951100.xyz",
-  "https://tts.951100.xyz",
-  "https://api.951100.xyz",
+  "https://tts.chloemlla.com",
+  "https://tts.chloemlla.com",
+  "https://chloemlla.com",
+  "https://tts.chloemlla.com",
+  "https://tts.chloemlla.com",
   ...(process.env.NODE_ENV === "development" || process.env.NODE_ENV === "dev"
     ? [
         "http://192.168.10.7:3001",
         "http://localhost:3000",
-        "https://tts.951100.xyz",
+        "https://tts.chloemlla.com",
         "http://localhost:6000",
         "http://localhost:6001",
         "http://localhost:3002",
@@ -74,7 +74,7 @@ function matchesOriginPattern(origin: string, pattern: string): boolean {
   return regex.test(origin);
 }
 
-/** 判断 origin 是否在白名单内（含 *.951100.xyz 通配） */
+/** 判断 origin 是否在白名单内（含 *.chloemlla.com 通配） */
 function isOriginAllowed(origin: string | undefined): boolean {
   if (!origin) return true; // 无 origin（curl/postman）放行
   if (/^https:\/\/([a-zA-Z0-9-]+\.)*hapxs\.com$/.test(origin)) return true;

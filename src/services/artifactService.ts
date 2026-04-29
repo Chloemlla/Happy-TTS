@@ -138,7 +138,7 @@ export class ArtifactService {
 
       logger.info(`[Artifact] Created artifact ${shortId} for user ${userId}`);
 
-      const baseUrl = process.env.BASE_URL || "https://tts.951100.xyz";
+      const baseUrl = process.env.BASE_URL || "https://tts.chloemlla.com";
       return {
         id: artifact._id.toString(),
         shortId: artifact.shortId,

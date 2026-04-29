@@ -512,7 +512,7 @@ const ModListEditor: React.FC = () => {
                   <h2 className="mt-2 text-3xl font-semibold text-[#023047]">模组列表</h2>
                 </div>
                 <p className="max-w-3xl text-sm leading-7 text-[#023047]/72">
-                  当前账号没有管理权限，因此页面只提供列表浏览。后端 `GET /api/modlist` 对普通用户返回明文数组，写操作需要修改码且通常由管理员执行。
+                  当前账号没有管理权限，因此页面只提供列表浏览。后端 `GET /api/modlist` 对普通用户返回明文数组，写操作需要修改码且由管理员执行。
                 </p>
               </div>
             </div>

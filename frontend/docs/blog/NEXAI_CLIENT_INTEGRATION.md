@@ -11,8 +11,8 @@
 ### 基础 URL
 
 ```
-生产环境: https://api.951100.xyz/api/nexai
-开发环境: https://api.951100.xyz/api/nexai
+生产环境: https://api.chloemlla.com/api/nexai
+开发环境: https://api.chloemlla.com/api/nexai
 ```
 
 ## 安全请求头规范
@@ -21,25 +21,25 @@
 
 ### 必需的请求头
 
-| 请求头 | 类型 | 说明 | 示例 |
-|--------|------|------|------|
-| `X-Device-Fingerprint` | String | 设备指纹（64字符 SHA256） | `a3f5c8d9e2b1f4a6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0` |
-| `X-Device-Risk-Score` | Integer | 风险评分（0-100） | `45` |
-| `X-Device-Risk-Level` | String | 风险等级 | `MEDIUM` |
-| `X-Device-Compromised` | String | 设备是否被攻破 | `0` 或 `1` |
-| `X-Device-Root` | String | 是否 Root | `0` 或 `1` |
-| `X-Device-Debugger` | String | 是否有调试器 | `0` 或 `1` |
-| `X-Device-Emulator` | String | 是否模拟器 | `0` 或 `1` |
-| `X-Device-VPN` | String | 是否使用 VPN | `0` 或 `1` |
-| `X-Device-Signature-Valid` | String | APK 签名是否有效 | `0` 或 `1` |
-| `X-Device-Hash-Valid` | String | APK 哈希是否有效 | `0` 或 `1` |
+| 请求头                     | 类型    | 说明                      | 示例                                                               |
+| -------------------------- | ------- | ------------------------- | ------------------------------------------------------------------ |
+| `X-Device-Fingerprint`     | String  | 设备指纹（64字符 SHA256） | `a3f5c8d9e2b1f4a6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0` |
+| `X-Device-Risk-Score`      | Integer | 风险评分（0-100）         | `45`                                                               |
+| `X-Device-Risk-Level`      | String  | 风险等级                  | `MEDIUM`                                                           |
+| `X-Device-Compromised`     | String  | 设备是否被攻破            | `0` 或 `1`                                                         |
+| `X-Device-Root`            | String  | 是否 Root                 | `0` 或 `1`                                                         |
+| `X-Device-Debugger`        | String  | 是否有调试器              | `0` 或 `1`                                                         |
+| `X-Device-Emulator`        | String  | 是否模拟器                | `0` 或 `1`                                                         |
+| `X-Device-VPN`             | String  | 是否使用 VPN              | `0` 或 `1`                                                         |
+| `X-Device-Signature-Valid` | String  | APK 签名是否有效          | `0` 或 `1`                                                         |
+| `X-Device-Hash-Valid`      | String  | APK 哈希是否有效          | `0` 或 `1`                                                         |
 
 ### 可选的请求头
 
-| 请求头 | 类型 | 说明 | 示例 |
-|--------|------|------|------|
+| 请求头          | 类型   | 说明       | 示例              |
+| --------------- | ------ | ---------- | ----------------- |
 | `X-App-Version` | String | 应用版本号 | `1.0.7-e19d98d36` |
-| `X-App-Build` | String | 构建号 | `107` |
+| `X-App-Build`   | String | 构建号     | `107`             |
 
 ## API 端点详情
 
@@ -52,6 +52,7 @@
 **请求头**: 包含所有安全请求头
 
 **请求体**:
+
 ```json
 {
   "event_type": "integrity_fail",
@@ -66,6 +67,7 @@
 ```
 
 **请求体字段说明**:
+
 - `event_type` (必需): 事件类型
   - `integrity_fail`: 完整性验证失败
   - `root_detected`: 检测到 Root
@@ -78,6 +80,7 @@
 - `timestamp` (可选): 事件时间戳（ISO 8601 格式）
 
 **响应**:
+
 ```json
 {
   "status": "recorded",
@@ -87,6 +90,7 @@
 ```
 
 **响应字段说明**:
+
 - `status`: 记录状态（`recorded`）
 - `action`: 服务器采取的动作
   - `monitor`: 正常服务，记录日志
@@ -96,12 +100,14 @@
 - `message`: 提示信息
 
 **HTTP 状态码**:
+
 - `200`: 成功
 - `400`: 请求参数错误
 - `429`: 请求过于频繁
 - `500`: 服务器内部错误
 
 **示例代码（Kotlin）**:
+
 ```kotlin
 suspend fun reportSecurityEvent(
     eventType: String,
@@ -137,20 +143,19 @@ reportSecurityEvent(
 **请求头**: 包含所有安全请求头
 
 **响应**:
+
 ```json
 {
   "device_fingerprint": "a3f5c8d9...",
   "status": "flagged",
   "risk_level": "HIGH",
-  "restrictions": [
-    "payment_disabled",
-    "api_rate_limited"
-  ],
+  "restrictions": ["payment_disabled", "api_rate_limited"],
   "message": "Your device has been flagged due to security concerns"
 }
 ```
 
 **响应字段说明**:
+
 - `device_fingerprint`: 设备指纹
 - `status`: 设备状态
   - `normal`: 正常
@@ -165,12 +170,14 @@ reportSecurityEvent(
 - `message`: 状态说明
 
 **HTTP 状态码**:
+
 - `200`: 成功
 - `400`: 缺少设备指纹
 - `429`: 请求过于频繁
 - `500`: 服务器内部错误
 
 **示例代码（Kotlin）**:
+
 ```kotlin
 suspend fun getSecurityStatus(): Result<SecurityStatusResponse> {
     return apiService.getSecurityStatus()
@@ -202,10 +209,12 @@ when (status.status) {
 **说明**: 检查多账号关联和频繁换设备等异常行为（需要认证）
 
 **请求头**:
+
 - 包含所有安全请求头
 - `Authorization: Bearer <JWT_TOKEN>` (必需)
 
 **响应**:
+
 ```json
 {
   "device_fingerprint": "a3f5c8d9...",
@@ -222,6 +231,7 @@ when (status.status) {
 ```
 
 **响应字段说明**:
+
 - `device_fingerprint`: 设备指纹
 - `user_id`: 用户 ID
 - `anomalies`: 异常检测结果
@@ -232,6 +242,7 @@ when (status.status) {
   - `device_count`: 该用户最近使用的设备数量
 
 **HTTP 状态码**:
+
 - `200`: 成功
 - `400`: 缺少设备指纹
 - `401`: 未认证
@@ -239,6 +250,7 @@ when (status.status) {
 - `500`: 服务器内部错误
 
 **示例代码（Kotlin）**:
+
 ```kotlin
 suspend fun checkAnomalies(): Result<AnomaliesResponse> {
     return apiService.checkAnomalies()
@@ -263,10 +275,12 @@ if (anomalies.anomalies.frequent_device_switch) {
 **说明**: 手动追踪设备信息（需要认证）
 
 **请求头**:
+
 - 包含所有安全请求头
 - `Authorization: Bearer <JWT_TOKEN>` (必需)
 
 **响应**:
+
 ```json
 {
   "status": "tracked",
@@ -277,6 +291,7 @@ if (anomalies.anomalies.frequent_device_switch) {
 ```
 
 **HTTP 状态码**:
+
 - `200`: 成功
 - `400`: 缺少设备指纹
 - `401`: 未认证
@@ -284,6 +299,7 @@ if (anomalies.anomalies.frequent_device_switch) {
 - `500`: 服务器内部错误
 
 **示例代码（Kotlin）**:
+
 ```kotlin
 suspend fun trackDevice(): Result<TrackDeviceResponse> {
     return apiService.trackDevice()
@@ -828,6 +844,7 @@ A: 是的，所有请求都应包含安全请求头，这样服务器才能进�
 ## 更新日志
 
 ### v1.0.0 (2026-03-13)
+
 - 初始版本
 - 实现设备指纹追踪
 - 实现风险评估系统

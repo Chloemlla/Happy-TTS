@@ -28,7 +28,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
   const getApiBaseUrl = () => {
     if (import.meta.env.DEV) return 'http://localhost:3000';
     if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-    return 'https://api.951100.xyz';
+    return 'https://tts.chloemlla.com';
   };
 
   const api = axios.create({

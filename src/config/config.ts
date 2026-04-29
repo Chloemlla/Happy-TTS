@@ -71,7 +71,7 @@ const envSchema = z
     AUDIT_LOG_MASKING: stringToBoolean,
     SERVER_PASSWORD: z.string().optional().default("wmy"),
     RESEND_API_KEY: optionalTrimmedString,
-    RESEND_DOMAIN: z.string().optional().default("951100.xyz"),
+    RESEND_DOMAIN: z.string().optional().default("chloemlla.com"),
     OUTEMAIL_ENABLED: stringToBoolean,
     VITE_OUTEMAIL_ENABLED: stringToBoolean,
     RESEND_OUTEMAIL_ENABLED: stringToBoolean,
@@ -123,8 +123,8 @@ const envSchema = z
 
 const parsedEnv = envSchema.parse(process.env);
 
-const baseUrl = parsedEnv.VITE_API_URL || parsedEnv.BASE_URL || "https://api.951100.xyz";
-const frontendBaseUrl = parsedEnv.FRONTEND_URL || "https://tts.951100.xyz";
+const baseUrl = parsedEnv.VITE_API_URL || parsedEnv.BASE_URL || "https://tts.chloemlla.com";
+const frontendBaseUrl = parsedEnv.FRONTEND_URL || "https://tts.chloemlla.com";
 const openaiApiKey = parsedEnv.OPENAI_KEY || parsedEnv.OPENAI_API_KEY;
 const jwtSecret = parsedEnv.NODE_ENV === "production" ? parsedEnv.JWT_SECRET! : parsedEnv.JWT_SECRET || DEV_JWT_SECRET;
 const adminPassword = parsedEnv.NODE_ENV === "production" ? parsedEnv.ADMIN_PASSWORD! : parsedEnv.ADMIN_PASSWORD || "admin";

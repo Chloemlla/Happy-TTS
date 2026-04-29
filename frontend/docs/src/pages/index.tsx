@@ -135,13 +135,13 @@ export default function Home(): ReactNode {
                   >
                     <h4 style={{ margin: 0 }}>1. 获取 API Key</h4>
                     <CopyButton
-                      text={`curl -X POST https://tts-api.951100.xyz/api/auth/register \\
+                      text={`curl -X POST https://tts.chloemlla.com/api/auth/register \\
   -H "Content-Type: application/json" \\
   -d '{"username": "your_username", "password": "your_password"}'`}
                     />
                   </div>
                   <pre>
-                    <code>{`curl -X POST https://tts-api.951100.xyz/api/auth/register \\
+                    <code>{`curl -X POST https://tts.chloemlla.com/api/auth/register \\
   -H "Content-Type: application/json" \\
   -d '{"username": "your_username", "password": "your_password"}'`}</code>
                   </pre>
@@ -159,14 +159,14 @@ export default function Home(): ReactNode {
                   >
                     <h4 style={{ margin: 0 }}>2. 调用 TTS 接口</h4>
                     <CopyButton
-                      text={`curl -X POST https://tts-api.951100.xyz/api/tts/generate \\
+                      text={`curl -X POST https://tts.chloemlla.com/api/tts/generate \\
   -H "Authorization: Bearer YOUR_TOKEN" \\
   -H "Content-Type: application/json" \\
   -d '{"text": "Hello, World!", "model": "tts-1", "voice": "alloy"}'`}
                     />
                   </div>
                   <pre>
-                    <code>{`curl -X POST https://tts-api.951100.xyz/api/tts/generate \\
+                    <code>{`curl -X POST https://tts.chloemlla.com/api/tts/generate \\
   -H "Authorization: Bearer YOUR_TOKEN" \\
   -H "Content-Type: application/json" \\
   -d '{"text": "Hello, World!", "model": "tts-1", "voice": "alloy"}'`}</code>

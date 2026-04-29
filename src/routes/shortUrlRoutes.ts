@@ -216,7 +216,7 @@ router.post("/public/create", async (req: any, res: any) => {
     const fixedTarget = shortUrlMigrationService.fixTargetUrlBeforeSave(trimmedTarget);
     const ShortUrlModelRef = mongoose.models.ShortUrl || mongoose.model("ShortUrl");
     await ShortUrlModelRef.create({ code, target: fixedTarget, userId: "public", username: "anonymous" });
-    const baseUrl = process.env.VITE_API_URL || process.env.BASE_URL || "https://api.951100.xyz";
+    const baseUrl = process.env.VITE_API_URL || process.env.BASE_URL || "https://tts.chloemlla.com";
     return res.json({ success: true, shortUrl: `${baseUrl}/s/${code}` });
   } catch (error: any) {
     return res.status(500).json({ error: error.message || "创建失败" });

@@ -34,7 +34,7 @@ const allowedDomains = [
   "yahoo.com",
   "icloud.com",
   "foxmail.com",
-  "951100.xyz",
+  "chloemlla.com",
 ];
 const emailPattern = new RegExp(`^[\\w.-]+@(${allowedDomains.map((d) => d.replace(".", "\\.")).join("|")})$`);
 
@@ -54,7 +54,7 @@ type UserWithVerified = User & { verified?: boolean };
 
 // 获取前端基础URL
 function getFrontendBaseUrl(): string {
-  return process.env.FRONTEND_URL || "https://tts.951100.xyz";
+  return process.env.FRONTEND_URL || "https://tts.chloemlla.com";
 }
 
 export class AuthController {

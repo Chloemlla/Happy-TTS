@@ -18,7 +18,7 @@ import { EmailService } from "./emailService";
  * 获取前端基础URL
  */
 function getFrontendBaseUrl(): string {
-  return process.env.FRONTEND_URL || "https://tts.951100.xyz";
+  return process.env.FRONTEND_URL || "https://tts.chloemlla.com";
 }
 
 /**

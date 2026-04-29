@@ -50,7 +50,7 @@ function resolveApiBaseUrl(): string {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
-  return 'https://api.951100.xyz';
+  return 'https://tts.chloemlla.com';
 }
 
 export function isExemptPath(pathname: string): boolean {

@@ -1569,10 +1569,10 @@ const LibreChatPage: React.FC = () => {
                   <p className="text-blue-700 text-sm">
                     如有任何问题或建议，请联系开发者：
                     <a
-                      href="mailto:admin@951100.xyz"
+                      href="mailto:admin@chloemlla.com"
                       className="font-medium hover:text-blue-800 transition-colors duration-200 ml-1 underline"
                     >
-                      admin@951100.xyz
+                      admin@chloemlla.com
                     </a>
                   </p>
                 </div>
