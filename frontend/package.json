@@ -115,7 +115,7 @@
     "javascript-obfuscator": "^5.4.1",
     "jest-environment-jsdom": "^30.3.0",
     "jsdom": "^29.1.1",
-    "postcss": "^8.5.12",
+    "postcss": "^8.5.14",
     "react-email": "6.0.8",
     "rollup-plugin-visualizer": "^7.0.1",
     "tailwind-scrollbar": "^4.0.2",
