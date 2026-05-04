@@ -195,3 +195,43 @@ export const updateUser = async (id: string, updates: Partial<UserType>): Promis
 export const deleteUser = async (id: string): Promise<void> => {
   await UserModel.deleteOne({ id });
 };
+
+export const incrementUserDailyUsageAtomic = async (
+  id: string,
+  dailyLimit: number,
+): Promise<{ success: boolean; user: UserType | null }> => {
+  const today = new Date().toISOString().split("T")[0];
+  const now = new Date().toISOString();
+
+  const doc = await UserModel.findOne({ id })
+    .select(
+      "id username email role password avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil isTranslationEnabled translationAccessUntil accountStatus dailyUsage lastUsageDate",
+    )
+    .lean();
+
+  if (!doc) {
+    return { success: false, user: null };
+  }
+
+  if ((doc as any).role === "admin") {
+    return { success: true, user: removeAvatarBase64(doc) as unknown as UserType };
+  }
+
+  const lastUsageDate = typeof (doc as any).lastUsageDate === "string" ? String((doc as any).lastUsageDate).split("T")[0] : "";
+
+  const query =
+    lastUsageDate === today
+      ? { id, dailyUsage: { $lt: dailyLimit }, lastUsageDate: { $regex: `^${today}` } }
+      : { id };
+
+  const update =
+    lastUsageDate === today
+      ? { $inc: { dailyUsage: 1 }, $set: { lastUsageDate: now } }
+      : { $set: { dailyUsage: 1, lastUsageDate: now } };
+
+  const updated = await UserModel.findOneAndUpdate(query, update, { returnDocument: "after" }).lean();
+  return {
+    success: Boolean(updated),
+    user: updated ? (removeAvatarBase64(updated) as unknown as UserType) : null,
+  };
+};

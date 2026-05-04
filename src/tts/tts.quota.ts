@@ -29,6 +29,38 @@ function getUsageDay(date = new Date()): string {
 }
 
 export class MongoQuotaLedger implements QuotaLedger {
+  private async countActiveUsage(userId: string, usageDay: string): Promise<{ reservedToday: number; consumedToday: number }> {
+    const [counts] = await TtsQuotaReservationModel.aggregate([
+      {
+        $match: {
+          userId,
+          usageDay,
+          releasedAt: { $in: [null, undefined] },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          reservedToday: {
+            $sum: {
+              $cond: [{ $eq: ["$consumedAt", null] }, 1, 0],
+            },
+          },
+          consumedToday: {
+            $sum: {
+              $cond: [{ $ne: ["$consumedAt", null] }, 1, 0],
+            },
+          },
+        },
+      },
+    ]).exec();
+
+    return {
+      reservedToday: counts?.reservedToday || 0,
+      consumedToday: counts?.consumedToday || 0,
+    };
+  }
+
   private async buildSnapshot(userId: string): Promise<TtsUsageSnapshot> {
     const user = await UserStorage.getUserById(userId);
     if (!user) {
@@ -40,16 +72,7 @@ export class MongoQuotaLedger implements QuotaLedger {
     }
 
     const usageDay = getUsageDay();
-    const reservations = await TtsQuotaReservationModel.find({
-      userId,
-      usageDay,
-      releasedAt: { $in: [null, undefined] },
-    })
-      .lean()
-      .exec();
-
-    const reservedToday = reservations.filter((item) => !item.consumedAt).length;
-    const consumedToday = reservations.filter((item) => !!item.consumedAt).length;
+    const { reservedToday, consumedToday } = await this.countActiveUsage(userId, usageDay);
     const remainingToday = Math.max(0, DAILY_LIMIT - reservedToday - consumedToday);
 
     return {
@@ -74,22 +97,63 @@ export class MongoQuotaLedger implements QuotaLedger {
       return { success: true, snapshot };
     }
 
-    if ((snapshot.remainingToday || 0) <= 0) {
-      return { success: false, snapshot };
-    }
-
     const usageDay = getUsageDay();
     const existing = await TtsQuotaReservationModel.findOne({ taskId }).lean().exec();
-    if (!existing) {
-      await TtsQuotaReservationModel.create({
-        taskId,
-        userId,
-        usageDay,
-        reservedAt: new Date().toISOString(),
-      });
+    if (existing) {
+      return { success: true, snapshot: await this.buildSnapshot(userId) };
     }
 
-    return { success: true, snapshot: await this.buildSnapshot(userId) };
+    const session = await mongoose.startSession();
+    try {
+      let reserved = false;
+      await session.withTransaction(async () => {
+        const alreadyReserved = await TtsQuotaReservationModel.findOne({ taskId }).session(session).lean().exec();
+        if (alreadyReserved) {
+          reserved = true;
+          return;
+        }
+
+        const [counts] = await TtsQuotaReservationModel.aggregate([
+          {
+            $match: {
+              userId,
+              usageDay,
+              releasedAt: { $in: [null, undefined] },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              activeCount: { $sum: 1 },
+            },
+          },
+        ]).session(session);
+
+        if ((counts?.activeCount || 0) >= DAILY_LIMIT) {
+          return;
+        }
+
+        await TtsQuotaReservationModel.create(
+          [
+            {
+              taskId,
+              userId,
+              usageDay,
+              reservedAt: new Date().toISOString(),
+            },
+          ],
+          { session },
+        );
+        reserved = true;
+      });
+
+      return {
+        success: reserved,
+        snapshot: await this.buildSnapshot(userId),
+      };
+    } finally {
+      await session.endSession();
+    }
   }
 
   public async confirm(userId: string, taskId: string): Promise<TtsUsageSnapshot> {

@@ -133,22 +133,12 @@ export const userRepository = {
     const user = await getUserById(userId);
     if (!user) return false;
     if (user.role === "admin") return true;
-
-    const today = new Date().toISOString().split("T")[0];
-    const lastUsageDate = new Date(user.lastUsageDate).toISOString().split("T")[0];
-    let dailyUsage = user.dailyUsage;
-
-    if (today !== lastUsageDate) {
-      dailyUsage = 0;
-    }
-
-    if (dailyUsage >= DAILY_LIMIT) {
+    const { incrementUserDailyUsageAtomic } = await import("../services/userService");
+    const result = await incrementUserDailyUsageAtomic(userId, DAILY_LIMIT);
+    if (!result.success || !result.user) {
       return false;
     }
-
-    dailyUsage += 1;
-    await updateUser(userId, { dailyUsage, lastUsageDate: new Date().toISOString() });
-    await maybeSendUsageAlert(user, dailyUsage);
+    await maybeSendUsageAlert(result.user, result.user.dailyUsage);
     return true;
   },
 };
