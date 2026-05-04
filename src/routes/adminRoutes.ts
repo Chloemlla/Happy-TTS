@@ -1,5 +1,6 @@
 import * as crypto from "node:crypto";
 import express from "express";
+import type { Request, Response } from "express";
 import rateLimit from "express-rate-limit";
 import multer from "multer";
 import validator from "validator";
@@ -196,7 +197,7 @@ router.post(
     extractTarget: (req) => ({ targetId: req.params.id }),
     extractDetail: (req) => ({ reason: req.body?.reason || "" }),
   }),
-  async (req, res) => {
+  async (req: Request & { user?: any }, res: Response) => {
     applyNoCacheHeaders(res);
     const targetUserId = req.params.id;
     const adminId = req.user?.id;

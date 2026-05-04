@@ -1,5 +1,4 @@
 import { MongoClient } from "mongodb";
-import mysql, { type Connection } from "mysql2/promise";
 import { createClient } from "redis";
 import { startupConfig } from "./config";
 
@@ -155,7 +154,7 @@ async function probeRedis(): Promise<DependencyReadiness> {
 
 async function probeMongo(): Promise<DependencyReadiness> {
   const startedAt = now();
-  const required = startupConfig.userStorageMode === "mongo" || startupConfig.ipBanStorage === "mongo";
+  const required = true;
 
   if (!startupConfig.mongo.uri) {
     return withLatency(startedAt, {
@@ -193,44 +192,12 @@ async function probeMongo(): Promise<DependencyReadiness> {
 
 async function probeMysql(): Promise<DependencyReadiness> {
   const startedAt = now();
-  const required = startupConfig.userStorageMode === "mysql";
-
-  if (startupConfig.userStorageMode !== "mysql") {
-    return withLatency(startedAt, {
-      name: "mysql",
-      required,
-      status: "skipped",
-      message: "当前未启用 MySQL 存储",
-    });
-  }
-
-  let connection: Connection | null = null;
-  try {
-    connection = await mysql.createConnection({
-      host: startupConfig.mysql.host,
-      port: startupConfig.mysql.port,
-      user: startupConfig.mysql.user,
-      password: startupConfig.mysql.password,
-      database: startupConfig.mysql.database,
-      connectTimeout: 5000,
-    });
-    await connection.execute("SELECT 1");
-    return withLatency(startedAt, {
-      name: "mysql",
-      required,
-      status: "ready",
-      message: "MySQL SELECT 1 成功",
-    });
-  } catch (error) {
-    return withLatency(startedAt, {
-      name: "mysql",
-      required,
-      status: "failed",
-      message: error instanceof Error ? error.message : String(error),
-    });
-  } finally {
-    await connection?.end().catch(() => undefined);
-  }
+  return withLatency(startedAt, {
+    name: "mysql",
+    required: false,
+    status: "skipped",
+    message: "当前版本未启用 MySQL 存储",
+  });
 }
 
 async function probeEmail(): Promise<DependencyReadiness> {
@@ -315,13 +282,13 @@ export async function runStartupDiagnostics(compileTimeConfig: {
       port: startupConfig.port,
       baseUrl: startupConfig.baseUrl,
       frontendBaseUrl: startupConfig.frontendBaseUrl,
-      userStorageMode: startupConfig.userStorageMode,
+      userStorageMode: "mongo",
       ipBanStorage: startupConfig.ipBanStorage,
       wafEnabled: startupConfig.security.wafEnabled,
       openaiConfigured: Boolean(startupConfig.openai.apiKey),
       redisConfigured: Boolean(startupConfig.redis.url),
       mongoConfigured: Boolean(startupConfig.mongo.uri),
-      mysqlConfigured: startupConfig.userStorageMode === "mysql",
+      mysqlConfigured: false,
       emailConfigured: Boolean(startupConfig.email.resendApiKey || startupConfig.email.outemail.apiKey),
       outemailEnabled: startupConfig.email.outemail.enabled,
     },

@@ -10,7 +10,7 @@ export default {
   server: {
     password: startupConfig.serverPassword,
   },
-  userStorageMode: appConfig.userStorageMode,
+  userStorageMode: "mongo",
   paths: {
     ipData: "ip_data.txt",
     lcData: "lc_data.txt",

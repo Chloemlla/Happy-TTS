@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import bcrypt from "bcrypt";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import multer from "multer";
@@ -122,7 +121,8 @@ async function checkAdminPassword(password: string) {
   console.log("    输入密码长度:", password ? password.length : 0);
   console.log("    输入密码预览:", password ? `${password.substring(0, 3)}***` : "undefined");
 
-  const users = await UserStorage.getAllUsers();
+  const { getAllUsersAuth } = await import("../services/userService");
+  const users = await getAllUsersAuth();
   console.log("    用户总数:", users.length);
 
   const admin = users.find((u) => u.role === "admin");
@@ -132,21 +132,9 @@ async function checkAdminPassword(password: string) {
   }
 
   console.log("    ✅ 找到管理员用户:", admin.username);
-  console.log("    管理员密码长度:", admin.password ? admin.password.length : 0);
-  console.log("    管理员密码预览:", admin.password ? `${admin.password.substring(0, 3)}***` : "undefined");
-
-  // 检查密码是否是 bcrypt 哈希格式（以 $2b$ 开头）
-  if (admin.password.startsWith("$2b$")) {
-    // 使用 bcrypt 验证
-    const isValid = await bcrypt.compare(password, admin.password);
-    console.log("    🔐 bcrypt 密码验证结果:", isValid ? "✅ 正确" : "❌ 错误");
-    return isValid;
-  } else {
-    // 使用明文密码比较（兼容旧版本）
-    const isValid = admin.password === password;
-    console.log("    🔐 明文密码验证结果:", isValid ? "✅ 正确" : "❌ 错误");
-    return isValid;
-  }
+  const isValid = await UserStorage.checkPassword(admin, password);
+  console.log("    🔐 管理员密码验证结果:", isValid ? "✅ 正确" : "❌ 错误");
+  return isValid;
 }
 
 // 复用的 Mongo 模型获取器
