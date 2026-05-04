@@ -7,7 +7,14 @@ export interface User {
   id: string;
   username: string;
   email: string;
-  password: string;
+  password?: string;
+  passwordHash?: string;
+  passwordCiphertext?: string;
+  passwordIv?: string;
+  passwordTag?: string;
+  passwordKeyVersion?: string;
+  passwordWrappedDek?: string;
+  passwordDekId?: string;
   role: "user" | "admin";
   dailyUsage: number;
   lastUsageDate: string;
@@ -50,4 +57,3 @@ export interface User {
   translationAccessUntil?: string;
   accountStatus?: "active" | "suspended";
 }
-

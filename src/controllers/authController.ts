@@ -535,7 +535,15 @@ export class AuthController {
       }
       const remainingUsage = await UserStorage.getRemainingUsage(userId);
       // 不返回avatarBase64
-      const { password: _, ...userWithoutPassword } = user;
+      const {
+        password: _password,
+        passwordHash: _passwordHash,
+        passwordCiphertext: _passwordCiphertext,
+        passwordIv: _passwordIv,
+        passwordTag: _passwordTag,
+        passwordKeyVersion: _passwordKeyVersion,
+        ...userWithoutPassword
+      } = user as any;
       res.json({
         ...userWithoutPassword,
         remainingUsage,
@@ -662,7 +670,15 @@ export class AuthController {
           logger.warn("[登录] Passkey路径更新lastLoginIp失败:", e);
         });
 
-        const { password: _, ...userWithoutPassword } = user;
+        const {
+          password: _password,
+          passwordHash: _passwordHash,
+          passwordCiphertext: _passwordCiphertext,
+          passwordIv: _passwordIv,
+          passwordTag: _passwordTag,
+          passwordKeyVersion: _passwordKeyVersion,
+          ...userWithoutPassword
+        } = user as any;
         return res.json({
           success: true,
           token,

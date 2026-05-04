@@ -1,13 +1,26 @@
 import validator from "validator";
 import type { User as UserType } from "../utils/userStorageTypes";
 import { mongoose } from "./mongoService";
+import {
+  canDecryptPassword,
+  decryptStoredPassword,
+  protectPassword,
+  verifyPasswordHash,
+} from "../utils/passwordSecurity";
 
 const userSchema = new mongoose.Schema(
   {
     id: { type: String, required: true, unique: true },
     username: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
-    password: { type: String, required: true },
+    password: { type: String },
+    passwordHash: { type: String },
+    passwordCiphertext: { type: String },
+    passwordIv: { type: String },
+    passwordTag: { type: String },
+    passwordKeyVersion: { type: String, default: "v1" },
+    passwordWrappedDek: { type: String },
+    passwordDekId: { type: String },
     role: { type: String, enum: ["user", "admin"], default: "user" },
     dailyUsage: { type: Number, default: 0 },
     lastUsageDate: { type: String },
@@ -68,6 +81,11 @@ const userSchema = new mongoose.Schema(
 
 const UserModel = mongoose.models.User || mongoose.model("User", userSchema);
 
+const PUBLIC_USER_SELECT =
+  "id username email role avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil isTranslationEnabled translationAccessUntil accountStatus dailyUsage lastUsageDate createdAt token tokenExpiresAt";
+const AUTH_USER_SELECT =
+  `${PUBLIC_USER_SELECT} password passwordHash passwordCiphertext passwordIv passwordTag passwordKeyVersion passwordWrappedDek passwordDekId`;
+
 // 工具函数：彻底删除对象中的avatarBase64字段
 function removeAvatarBase64(obj: any) {
   if (obj && typeof obj === "object" && "avatarBase64" in obj) {
@@ -77,7 +95,12 @@ function removeAvatarBase64(obj: any) {
 }
 
 export const getAllUsers = async (): Promise<UserType[]> => {
-  const docs = await UserModel.find().lean();
+  const docs = await UserModel.find().select(PUBLIC_USER_SELECT).lean();
+  return docs.map(removeAvatarBase64) as unknown as UserType[];
+};
+
+export const getAllUsersAuth = async (): Promise<UserType[]> => {
+  const docs = await UserModel.find().select(AUTH_USER_SELECT).lean();
   return docs.map(removeAvatarBase64) as unknown as UserType[];
 };
 
@@ -87,11 +110,8 @@ export const getUserById = async (id: string): Promise<UserType | null> => {
   }
   // 调试日志：记录查询条件和耗时
   const start = Date.now();
-  // 修复：select 字段包含所有passkey相关字段
   const doc = await UserModel.findOne({ id })
-    .select(
-      "id username email role password avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil isTranslationEnabled translationAccessUntil accountStatus",
-    )
+    .select(PUBLIC_USER_SELECT)
     .lean();
 
   const duration = Date.now() - start;
@@ -112,9 +132,7 @@ export const getUserByUsername = async (username: string): Promise<UserType | nu
     throw new Error("非法的用户名");
   }
   const doc = await UserModel.findOne({ username })
-    .select(
-      "id username email role token tokenExpiresAt password avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil isTranslationEnabled translationAccessUntil accountStatus",
-    )
+    .select(PUBLIC_USER_SELECT)
     .lean();
 
   if (!doc) return null;
@@ -127,9 +145,7 @@ export const getUserByLinuxDoId = async (linuxdoId: string): Promise<UserType | 
   }
 
   const doc = await UserModel.findOne({ linuxdoId: linuxdoId.trim() })
-    .select(
-      "id username email role token tokenExpiresAt password avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil isTranslationEnabled translationAccessUntil accountStatus",
-    )
+    .select(PUBLIC_USER_SELECT)
     .lean();
 
   if (!doc) return null;
@@ -142,9 +158,7 @@ export const getUserByEmail = async (email: string): Promise<UserType | null> =>
   const safeEmail = email.trim();
   if (!validator.isEmail(safeEmail)) return null;
   const doc = await UserModel.findOne({ email: safeEmail })
-    .select(
-      "id username email role token tokenExpiresAt password avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil isTranslationEnabled translationAccessUntil accountStatus",
-    )
+    .select(PUBLIC_USER_SELECT)
     .lean();
 
   if (!doc) return null;
@@ -152,8 +166,14 @@ export const getUserByEmail = async (email: string): Promise<UserType | null> =>
 };
 
 export const createUser = async (user: UserType): Promise<UserType> => {
-  const doc = await UserModel.create(user);
-  return doc.toObject() as unknown as UserType;
+  const { password, ...rest } = user;
+  const protectedPassword = await protectPassword(user.id, password || "");
+  const doc = await UserModel.create({
+    ...rest,
+    ...protectedPassword,
+    password: undefined,
+  });
+  return removeAvatarBase64(doc.toObject()) as unknown as UserType;
 };
 
 export const updateUser = async (id: string, updates: Partial<UserType>): Promise<UserType | null> => {
@@ -161,14 +181,19 @@ export const updateUser = async (id: string, updates: Partial<UserType>): Promis
   if (typeof id !== "string" || !/^[a-zA-Z0-9_-]+$/.test(id)) {
     throw new Error("非法的用户ID");
   }
-  // 处理avatarBase64字段：如果传入undefined，则物理删除
-  const updateOps: any = { $set: {} };
-  for (const key in updates) {
-    if (key === "avatarBase64" && (updates as any)[key] === undefined) {
+  const sanitizedUpdates = { ...updates } as Partial<UserType>;
+  if (typeof sanitizedUpdates.password === "string" && sanitizedUpdates.password.trim()) {
+    Object.assign(sanitizedUpdates, await protectPassword(id, sanitizedUpdates.password.trim()));
+  }
+  delete sanitizedUpdates.password;
+
+  const updateOps: any = { $set: {}, $unset: { password: "" } };
+  for (const key in sanitizedUpdates) {
+    if (key === "avatarBase64" && (sanitizedUpdates as any)[key] === undefined) {
       if (!updateOps.$unset) updateOps.$unset = {};
       updateOps.$unset.avatarBase64 = "";
     } else if (key !== "avatarBase64") {
-      updateOps.$set[key] = (updates as any)[key];
+      updateOps.$set[key] = (sanitizedUpdates as any)[key];
     }
   }
   // 如果$set为空对象，删除它
@@ -194,6 +219,92 @@ export const updateUser = async (id: string, updates: Partial<UserType>): Promis
 
 export const deleteUser = async (id: string): Promise<void> => {
   await UserModel.deleteOne({ id });
+};
+
+export const getUserAuthById = async (id: string): Promise<UserType | null> => {
+  if (typeof id !== "string" || !/^[a-zA-Z0-9_-]+$/.test(id)) {
+    throw new Error("非法的用户ID");
+  }
+  const doc = await UserModel.findOne({ id }).select(AUTH_USER_SELECT).lean();
+  return doc ? (removeAvatarBase64(doc) as unknown as UserType) : null;
+};
+
+export const getUserAuthByUsername = async (username: string): Promise<UserType | null> => {
+  if (typeof username !== "string" || !/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+    throw new Error("非法的用户名");
+  }
+  const doc = await UserModel.findOne({ username }).select(AUTH_USER_SELECT).lean();
+  return doc ? (removeAvatarBase64(doc) as unknown as UserType) : null;
+};
+
+export const getUserAuthByEmail = async (email: string): Promise<UserType | null> => {
+  if (typeof email !== "string") return null;
+  const safeEmail = email.trim();
+  if (!validator.isEmail(safeEmail)) return null;
+  const doc = await UserModel.findOne({ email: safeEmail }).select(AUTH_USER_SELECT).lean();
+  return doc ? (removeAvatarBase64(doc) as unknown as UserType) : null;
+};
+
+export const verifyAndMigrateUserPassword = async (
+  user: UserType,
+  password: string,
+): Promise<{ valid: boolean; migrated: boolean; user: UserType | null }> => {
+  if (await verifyPasswordHash(user.passwordHash, password)) {
+    if (canDecryptPassword(user)) {
+      return { valid: true, migrated: false, user };
+    }
+
+    const protectedPassword = await protectPassword(user.id, password);
+    const updated = await UserModel.findOneAndUpdate(
+      { id: user.id },
+      {
+        $set: protectedPassword,
+        $unset: { password: "" },
+      },
+      { returnDocument: "after" },
+    )
+      .select(AUTH_USER_SELECT)
+      .lean();
+
+    return {
+      valid: true,
+      migrated: true,
+      user: updated ? (removeAvatarBase64(updated) as unknown as UserType) : user,
+    };
+  }
+
+  if (user.password && user.password === password) {
+    const protectedPassword = await protectPassword(user.id, password);
+    const updated = await UserModel.findOneAndUpdate(
+      { id: user.id },
+      {
+        $set: protectedPassword,
+        $unset: { password: "" },
+      },
+      { returnDocument: "after" },
+    )
+      .select(AUTH_USER_SELECT)
+      .lean();
+
+    return {
+      valid: true,
+      migrated: true,
+      user: updated ? (removeAvatarBase64(updated) as unknown as UserType) : user,
+    };
+  }
+
+  return { valid: false, migrated: false, user: null };
+};
+
+export const revealUserPassword = async (id: string): Promise<string | null> => {
+  const user = await getUserAuthById(id);
+  if (!user) {
+    return null;
+  }
+  if (canDecryptPassword(user)) {
+    return decryptStoredPassword(user);
+  }
+  return user.password || null;
 };
 
 export const incrementUserDailyUsageAtomic = async (

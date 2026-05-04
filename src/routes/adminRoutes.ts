@@ -41,6 +41,44 @@ const adminLimiter = rateLimit({
   skip: (req: any) => req.isLocalIp || false,
 });
 
+const revealPasswordLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 10,
+  message: { error: "查看密码操作过于频繁，请稍后再试" },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: any) => req.user?.id || req.ip || req.socket?.remoteAddress || "unknown",
+  skip: (req: any) => req.isLocalIp || false,
+});
+
+const revealPasswordSessions = new Map<string, { adminId: string; targetUserId: string; expiresAt: number }>();
+const REVEAL_PASSWORD_SESSION_TTL_MS = 2 * 60 * 1000;
+
+function createRevealPasswordSession(adminId: string, targetUserId: string) {
+  const token = crypto.randomBytes(24).toString("hex");
+  const expiresAt = Date.now() + REVEAL_PASSWORD_SESSION_TTL_MS;
+  revealPasswordSessions.set(token, { adminId, targetUserId, expiresAt });
+  return { token, expiresAt };
+}
+
+function validateRevealPasswordSession(token: string, adminId: string, targetUserId: string): boolean {
+  const session = revealPasswordSessions.get(token);
+  if (!session) return false;
+  if (session.adminId !== adminId || session.targetUserId !== targetUserId) return false;
+  if (session.expiresAt < Date.now()) {
+    revealPasswordSessions.delete(token);
+    return false;
+  }
+  revealPasswordSessions.delete(token);
+  return true;
+}
+
+function applyNoCacheHeaders(res: any) {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+}
+
 // 管理员清空指定用户的全部指纹记录（需管理员权限）
 router.delete("/users/:id/fingerprints", async (req, res) => {
   try {
@@ -148,6 +186,36 @@ router.use(async (req: any, res: any, next: any) => {
  */
 router.get("/users", adminController.getUsers);
 router.get("/users/:id", adminController.getUser);
+router.post(
+  "/users/:id/reveal-password",
+  replayProtection,
+  revealPasswordLimiter,
+  auditLog({
+    module: "user",
+    action: "user.password.reveal",
+    extractTarget: (req) => ({ targetId: req.params.id }),
+    extractDetail: (req) => ({ reason: req.body?.reason || "" }),
+  }),
+  async (req, res) => {
+    applyNoCacheHeaders(res);
+    const targetUserId = req.params.id;
+    const adminId = req.user?.id;
+    const reason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
+    const verificationToken = typeof req.body?.verificationToken === "string" ? req.body.verificationToken : "";
+
+    if (!adminId || !targetUserId) {
+      return res.status(400).json({ error: "参数缺失" });
+    }
+    if (!reason || reason.length < 4 || reason.length > 200) {
+      return res.status(400).json({ error: "请填写查看原因（4-200字符）" });
+    }
+    if (!verificationToken || !validateRevealPasswordSession(verificationToken, adminId, targetUserId)) {
+      return res.status(401).json({ error: "二次鉴权已过期，请重新验证" });
+    }
+
+    return adminController.revealUserPassword(req, res);
+  },
+);
 
 /**
  * @openapi
@@ -953,7 +1021,8 @@ router.post("/user/profile/verify", authMiddleware, async (req, res) => {
     const user = req.user;
     if (!user) return res.status(401).json({ error: "未登录" });
 
-    const dbUser = await UserStorage.getUserById(user.id);
+    const { getUserAuthById } = require("../services/userService");
+    const dbUser = await getUserAuthById(user.id);
     if (!dbUser) {
       return res.status(404).json({ error: "用户不存在" });
     }
@@ -967,7 +1036,7 @@ router.post("/user/profile/verify", authMiddleware, async (req, res) => {
     }
 
     if (method === "password") {
-      if (!password || !UserStorage.checkPassword(dbUser, password)) {
+      if (!password || !(await UserStorage.checkPassword(dbUser, password))) {
         return res.status(401).json({ error: "当前密码错误" });
       }
     }
@@ -1035,12 +1104,86 @@ router.post("/user/profile/verify", authMiddleware, async (req, res) => {
   }
 });
 
+router.post("/users/:id/reveal-password/verify", async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user || user.role !== "admin") return res.status(403).json({ error: "需要管理员权限" });
+    const targetUserId = req.params.id;
+    if (!targetUserId) return res.status(400).json({ error: "缺少用户ID" });
+
+    const { getUserAuthById } = require("../services/userService");
+    const dbUser = await getUserAuthById(user.id);
+    if (!dbUser) {
+      return res.status(404).json({ error: "管理员用户不存在" });
+    }
+
+    const method = typeof req.body?.method === "string" ? req.body.method : "";
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+    const verificationCode = typeof req.body?.verificationCode === "string" ? req.body.verificationCode.trim() : "";
+
+    if (!method || !["password", "totp", "passkey"].includes(method)) {
+      return res.status(400).json({ error: "无效的验证方式" });
+    }
+
+    if (method === "password") {
+      if (!password || !(await UserStorage.checkPassword(dbUser, password))) {
+        return res.status(401).json({ error: "当前密码错误" });
+      }
+    }
+
+    if (method === "totp") {
+      if (!dbUser.totpEnabled || !dbUser.totpSecret) {
+        return res.status(400).json({ error: "当前账户未启用 TOTP" });
+      }
+      if (!/^\d{6}$/.test(verificationCode)) {
+        return res.status(400).json({ error: "请输入 6 位 TOTP 验证码" });
+      }
+      const { TOTPService } = require("../services/totpService");
+      if (!TOTPService.verifyToken(verificationCode, dbUser.totpSecret)) {
+        return res.status(401).json({ error: "TOTP 验证失败" });
+      }
+    }
+
+    if (method === "passkey") {
+      if (!dbUser.passkeyEnabled || !Array.isArray(dbUser.passkeyCredentials) || dbUser.passkeyCredentials.length === 0) {
+        return res.status(400).json({ error: "当前账户未启用 Passkey" });
+      }
+      if (!req.body?.passkeyResponse || typeof req.body.passkeyResponse !== "object") {
+        return res.status(400).json({ error: "缺少 Passkey 验证数据" });
+      }
+      const { PasskeyService } = require("../services/passkeyService");
+      const clientOrigin =
+        (typeof req.headers.origin === "string" ? req.headers.origin : undefined) || "https://tts.chloemlla.com";
+      const verification = await PasskeyService.verifyAuthentication(
+        dbUser,
+        req.body.passkeyResponse,
+        clientOrigin,
+        clientOrigin,
+      );
+      if (!verification?.verified) {
+        return res.status(401).json({ error: "Passkey 验证失败" });
+      }
+    }
+
+    const session = createRevealPasswordSession(dbUser.id, targetUserId);
+    return res.json({
+      success: true,
+      verificationToken: session.token,
+      expiresAt: session.expiresAt,
+    });
+  } catch (error) {
+    console.error("[AdminRoutes] 查看密码二次验证失败:", error);
+    return res.status(500).json({ error: "二次验证失败" });
+  }
+});
+
 router.post("/user/profile/email/send-code", authMiddleware, async (req, res) => {
   try {
     const user = req.user;
     if (!user) return res.status(401).json({ error: "未登录" });
 
-    const dbUser = await UserStorage.getUserById(user.id);
+    const { getUserAuthById } = require("../services/userService");
+    const dbUser = await getUserAuthById(user.id);
     if (!dbUser) {
       return res.status(404).json({ error: "用户不存在" });
     }
@@ -1157,7 +1300,7 @@ router.post("/user/profile", authMiddleware, async (req, res) => {
     }
 
     if (wantsPasswordChange) {
-      if (dbUser.password === newPassword) {
+      if (await UserStorage.checkPassword(dbUser, newPassword)) {
         return res.status(400).json({ error: "新密码不能与当前密码相同" });
       }
 
@@ -1167,7 +1310,7 @@ router.post("/user/profile", authMiddleware, async (req, res) => {
           return res.status(400).json({ error: passwordErrors[0].message });
         }
       } else {
-        if (!password || !UserStorage.checkPassword(dbUser, password)) {
+        if (!password || !(await UserStorage.checkPassword(dbUser, password))) {
           return res.status(401).json({ error: "当前密码错误" });
         }
 
@@ -1245,7 +1388,15 @@ router.post("/user/profile", authMiddleware, async (req, res) => {
       });
     }
 
-    const { password: _, ...safeUser } = updated;
+    const {
+      password: _password,
+      passwordHash: _passwordHash,
+      passwordCiphertext: _passwordCiphertext,
+      passwordIv: _passwordIv,
+      passwordTag: _passwordTag,
+      passwordKeyVersion: _passwordKeyVersion,
+      ...safeUser
+    } = updated as any;
     const resp = { ...safeUser };
     res.json(resp);
   } catch (e) {

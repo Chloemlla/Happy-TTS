@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { api } from '../api/api';
+import { getSignHeaders } from '../utils/requestSigner';
 
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -73,6 +74,20 @@ interface User {
   accountStatus?: 'active' | 'suspended';
 }
 
+type RevealPasswordMethod = 'password' | 'totp';
+
+interface RevealPasswordState {
+  open: boolean;
+  targetUser: User | null;
+  reason: string;
+  method: RevealPasswordMethod;
+  password: string;
+  verificationCode: string;
+  verificationToken: string;
+  revealedPassword: string;
+  loading: boolean;
+}
+
 const emptyUser: User = {
   id: '',
   username: '',
@@ -101,6 +116,18 @@ const emptyUser: User = {
   isTranslationEnabled: true,
   translationAccessUntil: '',
   accountStatus: 'active',
+};
+
+const emptyRevealPasswordState: RevealPasswordState = {
+  open: false,
+  targetUser: null,
+  reason: '',
+  method: 'password',
+  password: '',
+  verificationCode: '',
+  verificationToken: '',
+  revealedPassword: '',
+  loading: false,
 };
 
 // AES-256解密函数
@@ -797,6 +824,7 @@ const UserManagement: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [fpUser, setFpUser] = useState<User | null>(null);
   const [showFpModal, setShowFpModal] = useState(false);
+  const [revealPasswordState, setRevealPasswordState] = useState<RevealPasswordState>(emptyRevealPasswordState);
   const [fpRequireMap, setFpRequireMap] = useState<Record<string, number>>({});
   const [collapsedSections, setCollapsedSections] = useState<CollapsedSectionState>(createDefaultCollapsedSections);
   const navigate = useNavigate();
@@ -962,6 +990,85 @@ const UserManagement: React.FC = () => {
     setShowForm(true);
   }, []);
   const openFp = useCallback((u: User) => { setFpUser(u); setShowFpModal(true); }, []);
+  const openRevealPassword = useCallback((u: User) => {
+    setRevealPasswordState({
+      ...emptyRevealPasswordState,
+      open: true,
+      targetUser: u,
+    });
+  }, []);
+
+  const closeRevealPassword = useCallback(() => {
+    setRevealPasswordState(emptyRevealPasswordState);
+  }, []);
+
+  useEffect(() => {
+    if (!revealPasswordState.revealedPassword) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setRevealPasswordState(prev => ({ ...prev, revealedPassword: '' }));
+    }, 30000);
+
+    return () => window.clearTimeout(timer);
+  }, [revealPasswordState.revealedPassword]);
+
+  const handleVerifyRevealPassword = useCallback(async () => {
+    if (!revealPasswordState.targetUser) return;
+    if (!revealPasswordState.reason.trim()) {
+      setNotification({ type: 'error', message: '请填写查看原因' });
+      return;
+    }
+
+    setRevealPasswordState(prev => ({ ...prev, loading: true }));
+    try {
+      const payload =
+        revealPasswordState.method === 'password'
+          ? { method: 'password', password: revealPasswordState.password }
+          : { method: 'totp', verificationCode: revealPasswordState.verificationCode };
+      const res = await api.post(`/api/admin/users/${revealPasswordState.targetUser.id}/reveal-password/verify`, payload);
+      setRevealPasswordState(prev => ({
+        ...prev,
+        verificationToken: res.data?.verificationToken || '',
+      }));
+      setNotification({ type: 'success', message: '二次鉴权通过，请继续查看密码' });
+    } catch (e: any) {
+      setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '二次验证失败' });
+    } finally {
+      setRevealPasswordState(prev => ({ ...prev, loading: false }));
+    }
+  }, [revealPasswordState, setNotification]);
+
+  const handleRevealPassword = useCallback(async () => {
+    if (!revealPasswordState.targetUser) return;
+    if (!revealPasswordState.verificationToken) {
+      setNotification({ type: 'error', message: '请先完成二次鉴权' });
+      return;
+    }
+
+    setRevealPasswordState(prev => ({ ...prev, loading: true }));
+    try {
+      const body = {
+        reason: revealPasswordState.reason.trim(),
+        verificationToken: revealPasswordState.verificationToken,
+      };
+      const bodyString = JSON.stringify(body);
+      const headers = await getSignHeaders(bodyString);
+      const res = await api.post(`/api/admin/users/${revealPasswordState.targetUser.id}/reveal-password`, body, {
+        headers,
+      });
+      setRevealPasswordState(prev => ({
+        ...prev,
+        revealedPassword: res.data?.password || '',
+      }));
+      setNotification({ type: 'success', message: '密码已显示，30 秒后自动隐藏' });
+    } catch (e: any) {
+      setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '查看密码失败' });
+    } finally {
+      setRevealPasswordState(prev => ({ ...prev, loading: false }));
+    }
+  }, [revealPasswordState, setNotification]);
 
   if (!user || user.role !== 'admin') {
     return (
@@ -1260,6 +1367,14 @@ const UserManagement: React.FC = () => {
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
                         <motion.button
+                          className="px-3 py-1 bg-indigo-500 text-white rounded text-sm hover:bg-indigo-600 transition"
+                          onClick={() => openRevealPassword(u)}
+                          whileHover={hoverScale(1.02)}
+                          whileTap={tapScale(0.95)}
+                        >
+                          查看密码
+                        </motion.button>
+                        <motion.button
                           className="px-3 py-1 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600 transition"
                           onClick={() => openEdit(u)}
                           whileHover={hoverScale(1.02)}
@@ -1292,6 +1407,140 @@ const UserManagement: React.FC = () => {
           </div>
         )}
       </motion.div>
+
+      {/* 指纹详情弹窗 */}
+      {ReactDOM.createPortal(
+        <AnimatePresence>
+          {revealPasswordState.open && revealPasswordState.targetUser && (
+            <motion.div
+              className="fixed inset-0 bg-black/40 flex items-center justify-center z-[9999] p-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <motion.div
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6"
+                initial={{ scale: 0.95, y: 20, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                exit={{ scale: 0.95, y: 20, opacity: 0 }}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    查看密码 - {revealPasswordState.targetUser.username}
+                  </h3>
+                  <motion.button
+                    className="text-gray-500 hover:text-gray-700"
+                    onClick={closeRevealPassword}
+                    whileHover={hoverScale(1.02)}
+                    whileTap={tapScale(0.95)}
+                  >
+                    ✕
+                  </motion.button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-600 mb-1">查看原因</label>
+                    <textarea
+                      rows={3}
+                      value={revealPasswordState.reason}
+                      onChange={e => setRevealPasswordState(prev => ({ ...prev, reason: e.target.value }))}
+                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm"
+                      placeholder="请输入查看原因（4-200字符）"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-600 mb-1">二次验证方式</label>
+                    <select
+                      value={revealPasswordState.method}
+                      onChange={e => setRevealPasswordState(prev => ({
+                        ...prev,
+                        method: e.target.value as RevealPasswordMethod,
+                        password: '',
+                        verificationCode: '',
+                        verificationToken: '',
+                        revealedPassword: '',
+                      }))}
+                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm"
+                    >
+                      <option value="password">管理员密码</option>
+                      <option value="totp">TOTP 验证码</option>
+                    </select>
+                  </div>
+
+                  {revealPasswordState.method === 'password' ? (
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-600 mb-1">管理员密码</label>
+                      <input
+                        type="password"
+                        value={revealPasswordState.password}
+                        onChange={e => setRevealPasswordState(prev => ({ ...prev, password: e.target.value }))}
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm"
+                        placeholder="请输入当前管理员密码"
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-600 mb-1">TOTP 验证码</label>
+                      <input
+                        type="text"
+                        value={revealPasswordState.verificationCode}
+                        onChange={e => setRevealPasswordState(prev => ({ ...prev, verificationCode: e.target.value }))}
+                        className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm"
+                        placeholder="请输入 6 位验证码"
+                      />
+                    </div>
+                  )}
+
+                  {revealPasswordState.revealedPassword && (
+                    <div className="p-3 rounded-lg border border-indigo-200 bg-indigo-50">
+                      <div className="text-sm font-semibold text-indigo-700 mb-1">明文密码</div>
+                      <div className="font-mono text-sm break-all text-gray-800">
+                        {revealPasswordState.revealedPassword}
+                      </div>
+                      <div className="mt-2 text-xs text-indigo-600">30 秒后自动隐藏</div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 pt-2">
+                    <motion.button
+                      type="button"
+                      className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium disabled:opacity-60"
+                      onClick={handleVerifyRevealPassword}
+                      disabled={revealPasswordState.loading}
+                      whileHover={hoverScale(1.02)}
+                      whileTap={tapScale(0.95)}
+                    >
+                      二次验证
+                    </motion.button>
+                    <motion.button
+                      type="button"
+                      className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition font-medium disabled:opacity-60"
+                      onClick={handleRevealPassword}
+                      disabled={revealPasswordState.loading || !revealPasswordState.verificationToken}
+                      whileHover={hoverScale(1.02)}
+                      whileTap={tapScale(0.95)}
+                    >
+                      查看密码
+                    </motion.button>
+                    <motion.button
+                      type="button"
+                      className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium"
+                      onClick={closeRevealPassword}
+                      whileHover={hoverScale(1.02)}
+                      whileTap={tapScale(0.95)}
+                    >
+                      关闭
+                    </motion.button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
       {/* 指纹详情弹窗 */}
       {ReactDOM.createPortal(

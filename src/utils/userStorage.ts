@@ -22,7 +22,7 @@ export class UserStorage {
     return userValidationService.validateUserInput(username, password, email, isRegistration);
   }
 
-  public static checkPassword(user: User, password: string): boolean {
+  public static async checkPassword(user: User, password: string): Promise<boolean> {
     return userValidationService.checkPassword(user, password);
   }
 

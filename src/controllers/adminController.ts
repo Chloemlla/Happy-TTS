@@ -8,6 +8,7 @@ import { mongoose } from "../services/mongoService";
 import { RuntimeConfigService } from "../services/runtimeConfigService";
 import { TranslationLogService } from "../services/translationLogService";
 import logger from "../utils/logger";
+import { revealUserPassword } from "../services/userService";
 import { UserStorage } from "../utils/userStorage";
 
 const ANNOUNCEMENT_FILE = path.join(__dirname, "../../data/announcement.json");
@@ -100,6 +101,21 @@ const VALID_ACCOUNT_STATUSES = new Set(["active", "suspended"]);
 
 // 合法 announcement format 枚举
 const VALID_ANNOUNCEMENT_FORMATS = new Set(["markdown", "html"]);
+
+function stripSensitiveUserFields(user: any) {
+  const {
+    password,
+    passwordHash,
+    passwordCiphertext,
+    passwordIv,
+    passwordTag,
+    passwordKeyVersion,
+    passwordWrappedDek,
+    passwordDekId,
+    ...safeUser
+  } = user || {};
+  return safeUser;
+}
 
 /**
  * 对 updateUser / createUser 中允许写入的各字段做严格类型与范围校验。
@@ -320,7 +336,7 @@ export const adminController = {
       // 获取用户数据
       const users = await UserStorage.getAllUsers();
       const usersSanitized = users.map((user) => {
-        const { password, ...rest } = user as any;
+        const rest = stripSensitiveUserFields(user);
         if (!includeFingerprints) {
           const { fingerprints, ...restNoFp } = rest as any;
           return restNoFp;
@@ -410,7 +426,7 @@ export const adminController = {
         return res.status(404).json({ error: "用户不存在" });
       }
 
-      const { password, ...safeUser } = user as any;
+      const safeUser = stripSensitiveUserFields(user);
       return res.json({ success: true, user: safeUser });
     } catch (error) {
       logger.error("获取用户详情失败:", error);
@@ -451,7 +467,7 @@ export const adminController = {
       }
 
       const updated = await UserStorage.getUserById(user.id);
-      const { password: _, ...newUser } = (updated || user) as any;
+      const newUser = stripSensitiveUserFields(updated || user);
       res.status(201).json(newUser);
     } catch (error) {
       logger.error("创建用户失败:", error);
@@ -501,7 +517,7 @@ export const adminController = {
       }
 
       const updated = await UserStorage.updateUser(user.id, updates as any);
-      const { password: _, ...updatedUser } = (updated || {}) as any;
+      const updatedUser = stripSensitiveUserFields(updated || {});
 
       // 管理员修改用户信息后，发送通知邮件给用户
       // 需要通知的关键字段
@@ -696,11 +712,47 @@ export const adminController = {
         }).catch(() => {});
       }
 
-      const { password, ...deletedUser } = user;
+      const deletedUser = stripSensitiveUserFields(user);
       res.json(deletedUser);
     } catch (error) {
       logger.error("删除用户失败:", error);
       res.status(500).json({ error: "删除用户失败" });
+    }
+  },
+
+  revealUserPassword: async (req: Request, res: Response) => {
+    try {
+      if (!isValidUserId(req.params.id)) {
+        return res.status(400).json({ error: "非法的用户 ID" });
+      }
+
+      if (!req.user || req.user.role !== "admin") {
+        return res.status(403).json({ error: "无权限" });
+      }
+
+      const password = await revealUserPassword(req.params.id);
+      if (password === null) {
+        return res.status(404).json({ error: "用户不存在或未配置密码" });
+      }
+
+      logger.warn("[Admin] 管理员查看用户密码", {
+        adminId: req.user.id,
+        adminUsername: req.user.username,
+        targetUserId: req.params.id,
+        timestamp: new Date().toISOString(),
+      });
+
+      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+
+      return res.json({
+        success: true,
+        password,
+      });
+    } catch (error) {
+      logger.error("查看用户密码失败:", error);
+      return res.status(500).json({ error: "查看用户密码失败" });
     }
   },
 

@@ -73,15 +73,18 @@ export const userRepository = {
 
   async authenticateUser(identifier: string, password: string): Promise<User | null> {
     const sanitizedIdentifier = userValidationService.sanitizeInput(identifier);
-    const provider = getUserStorageProvider();
+    const { getUserAuthByUsername, getUserAuthByEmail, verifyAndMigrateUserPassword } = await import(
+      "../services/userService"
+    );
     const user =
-      (await provider.getUserByUsername(sanitizedIdentifier)) || (await provider.getUserByEmail(sanitizedIdentifier));
+      (await getUserAuthByUsername(sanitizedIdentifier)) || (await getUserAuthByEmail(sanitizedIdentifier));
 
-    if (!user || user.password !== password) {
+    if (!user) {
       return null;
     }
 
-    return user;
+    const result = await verifyAndMigrateUserPassword(user, password);
+    return result.valid ? result.user : null;
   },
 
   async getUserById(id: string): Promise<User | null> {

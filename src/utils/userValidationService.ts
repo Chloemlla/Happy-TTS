@@ -1,5 +1,6 @@
 import validator from "validator";
 import type { User, ValidationError } from "./userStorageTypes";
+import { verifyPasswordHash } from "./passwordSecurity";
 
 export class InputValidationError extends Error {
   errors: ValidationError[];
@@ -139,8 +140,15 @@ export const userValidationService = {
     return errors;
   },
 
-  checkPassword(user: User, password: string): boolean {
-    return Boolean(user) && user.password === password;
+  async checkPassword(user: User, password: string): Promise<boolean> {
+    if (!user || !password) {
+      return false;
+    }
+
+    if (await verifyPasswordHash(user.passwordHash, password)) {
+      return true;
+    }
+
+    return Boolean(user.password) && user.password === password;
   },
 };
-
