@@ -93,8 +93,8 @@ importers:
         specifier: ^4.0.0
         version: 4.0.0
       jsdom:
-        specifier: ^29.1.0
-        version: 29.1.0(@noble/hashes@1.8.0)
+        specifier: ^29.1.1
+        version: 29.1.1(@noble/hashes@1.8.0)
       jsonwebtoken:
         specifier: ^9.0.3
         version: 9.0.3
@@ -2508,8 +2508,8 @@ packages:
     resolution: {integrity: sha512-qQKT4zQxXl8lLwBtHMWwaTcGfFOZviOJet3Oy/xmGk2gZH677CJM9EvtfdSkgWcATZhj/55JZ0rmy3myCT5lsA==}
     hasBin: true
 
-  jsdom@29.1.0:
-    resolution: {integrity: sha512-YNUc7fB9QuvSSQWfrH0xF+TyABkxUwx8sswgIDaCrw4Hol8BghdZDkITtZheRJeMtzWlnTfsM3bBBusRvpO1wg==}
+  jsdom@29.1.1:
+    resolution: {integrity: sha512-ECi4Fi2f7BdJtUKTflYRTiaMxIB0O6zfR1fX0GXpUrf6flp8QIYn1UT20YQqdSOfk2dfkCwS8LAFoJDEppNK5Q==}
     engines: {node: ^20.19.0 || ^22.13.0 || >=24.0.0}
     peerDependencies:
       canvas: ^3.0.0
@@ -3475,11 +3475,11 @@ packages:
     resolution: {integrity: sha512-nt6AMGKW1p/70DF/hGBdJB57B8Tspmbp5gfJ8ilhLnt7kkr2ye7hzD6NVG8GGErk2HWF34igrL2CXmNIkzKqKw==}
     engines: {node: '>=18'}
 
-  tldts-core@7.0.29:
-    resolution: {integrity: sha512-W99NuU7b1DcG3uJ3v9k9VztCH3WialNbBkBft5wCs8V8mexu0XQqaZEYb9l9RNNzK8+3EJ9PKWB0/RUtTQ/o+Q==}
+  tldts-core@7.0.30:
+    resolution: {integrity: sha512-uiHN8PIB1VmWyS98eZYja4xzlYqeFZVjb4OuYlJQnZAuJhMw4PbKQOKgHKhBdJR3FE/t5mUQ1Kd80++B+qhD1Q==}
 
-  tldts@7.0.29:
-    resolution: {integrity: sha512-JIXCerhudr/N6OWLwLF1HVsTTUo7ry6qHa5eWZEkiMuxsIiAACL55tGLfqfHfoH7QaMQUW8fngD7u7TxWexYQg==}
+  tldts@7.0.30:
+    resolution: {integrity: sha512-ELrFxuqsDdHUwoh0XxDbxuLD3Wnz49Z57IFvTtvWy1hJdcMZjXLIuonjilCiWHlT2GbE4Wlv1wKVTzDFnXH1aw==}
     hasBin: true
 
   tmpl@1.0.5:
@@ -6454,7 +6454,7 @@ snapshots:
     dependencies:
       argparse: 2.0.1
 
-  jsdom@29.1.0(@noble/hashes@1.8.0):
+  jsdom@29.1.1(@noble/hashes@1.8.0):
     dependencies:
       '@asamuzakjp/css-color': 5.1.11
       '@asamuzakjp/dom-selector': 7.1.1
@@ -7432,7 +7432,7 @@ snapshots:
       helmet: 8.1.0
       http-proxy-agent: 9.0.0
       is-docker: 4.0.0
-      jsdom: 29.1.0(@noble/hashes@1.8.0)
+      jsdom: 29.1.1(@noble/hashes@1.8.0)
       jsonwebtoken: 9.0.3
       liquid-glass-react: 1.1.1(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       lodash: 4.18.1
@@ -7547,11 +7547,11 @@ snapshots:
 
   throttleit@2.1.0: {}
 
-  tldts-core@7.0.29: {}
+  tldts-core@7.0.30: {}
 
-  tldts@7.0.29:
+  tldts@7.0.30:
     dependencies:
-      tldts-core: 7.0.29
+      tldts-core: 7.0.30
 
   tmpl@1.0.5: {}
 
@@ -7565,7 +7565,7 @@ snapshots:
 
   tough-cookie@6.0.1:
     dependencies:
-      tldts: 7.0.29
+      tldts: 7.0.30
 
   tr46@5.1.1:
     dependencies:
