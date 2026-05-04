@@ -24,6 +24,7 @@ let runtimeConfigDefaults: RuntimeConfigDefaults = buildRuntimeConfigDefaults({
   baseUrl: FALLBACK_BASE_URL,
   frontendBaseUrl: FALLBACK_FRONTEND_URL,
   jwtSecret: FALLBACK_JWT_SECRET,
+  generationCode: "admin",
 });
 
 let runtimeConfigCache: RuntimeConfigDefaults = cloneRuntimeConfigDefaults(runtimeConfigDefaults);

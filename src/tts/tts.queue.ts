@@ -83,6 +83,9 @@ export class TtsQueue {
         contentHash,
         fileName: result.fileName,
         audioUrl: result.audioUrl,
+        provider: result.provider,
+        providerModel: result.providerModel,
+        providerVoice: result.providerVoice,
         createdAt: new Date().toISOString(),
       });
 
@@ -104,6 +107,9 @@ export class TtsQueue {
           audioUrl: result.audioUrl,
           isDuplicate: result.isDuplicate,
           outputFormat: result.outputFormat,
+          provider: result.provider,
+          providerModel: result.providerModel,
+          providerVoice: result.providerVoice,
           message: result.isDuplicate ? "检测到重复内容，已返回已有音频。" : "语音生成成功，音频已准备就绪。",
           status: result.isDuplicate ? "reused" : "generated",
         },

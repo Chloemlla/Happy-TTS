@@ -2,25 +2,18 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import dotenv from "dotenv";
-import OpenAI from "openai";
 import { config } from "../config/config";
 import logger from "../utils/logger";
 import { ttsAudioAssetStore } from "./tts.asset";
 import { TtsGenerationError } from "./tts.errors";
+import type { TtsProviderRequest } from "./tts.ports";
+import { ttsProviderRouter, TtsProviderRouter } from "./tts.provider-router";
 
 dotenv.config();
 
 type OutputFormat = "mp3" | "opus" | "aac" | "flac" | "wav" | "pcm";
 
-export interface TtsRequest {
-  text: string;
-  model: string;
-  voice: string;
-  outputFormat: string;
-  speed: number;
-  userId?: string;
-  isAdmin?: boolean;
-}
+export interface TtsRequest extends TtsProviderRequest {}
 
 interface UserViolation {
   count: number;
@@ -34,7 +27,6 @@ interface CircuitState {
   halfOpenSuccesses: number;
 }
 
-const OPENAI_TIMEOUT_MS = 45_000;
 const OPENAI_MAX_RETRIES = 2;
 const CIRCUIT_FAILURE_THRESHOLD = 5;
 const CIRCUIT_OPEN_MS = 60_000;
@@ -48,18 +40,13 @@ export class TtsService {
     halfOpenSuccesses: 0,
   };
 
-  private openai: OpenAI;
   private readonly outputDir: string;
   private readonly baseUrl: string;
   private readonly userViolations: Map<string, UserViolation>;
   private readonly violationThreshold = 3;
   private readonly violationWindow = 24 * 60 * 60 * 1000;
 
-  constructor() {
-    this.openai = new OpenAI({
-      apiKey: config.openaiApiKey,
-      ...(config.openaiBaseUrl ? { baseURL: config.openaiBaseUrl } : {}),
-    });
+  constructor(private readonly providerRouter: TtsProviderRouter = ttsProviderRouter) {
     this.outputDir = config.audioDir;
     this.baseUrl = config.baseUrl;
     this.userViolations = new Map();
@@ -130,7 +117,7 @@ export class TtsService {
         circuit.state = "HALF_OPEN";
         circuit.consecutiveFailures = 0;
         circuit.halfOpenSuccesses = 0;
-        logger.warn("TTS OpenAI 熔断器进入 HALF_OPEN");
+        logger.warn("TTS Provider 熔断器进入 HALF_OPEN");
         return;
       }
 
@@ -146,7 +133,7 @@ export class TtsService {
         circuit.state = "CLOSED";
         circuit.consecutiveFailures = 0;
         circuit.halfOpenSuccesses = 0;
-        logger.info("TTS OpenAI 熔断器已恢复 CLOSED");
+        logger.info("TTS Provider 熔断器已恢复 CLOSED");
       }
       return;
     }
@@ -162,7 +149,7 @@ export class TtsService {
       circuit.openedAt = Date.now();
       circuit.consecutiveFailures = 0;
       circuit.halfOpenSuccesses = 0;
-      logger.warn("TTS OpenAI 熔断器在 HALF_OPEN 期间失败，重新打开");
+      logger.warn("TTS Provider 熔断器在 HALF_OPEN 期间失败，重新打开");
       return;
     }
 
@@ -171,7 +158,7 @@ export class TtsService {
       circuit.state = "OPEN";
       circuit.openedAt = Date.now();
       circuit.halfOpenSuccesses = 0;
-      logger.error("TTS OpenAI 熔断器已打开", {
+      logger.error("TTS Provider 熔断器已打开", {
         consecutiveFailures: circuit.consecutiveFailures,
       });
     }
@@ -196,31 +183,6 @@ export class TtsService {
     return restored ? safeFileName : null;
   }
 
-  private async createSpeechWithTimeout(request: TtsRequest, safeOutputFormat: OutputFormat) {
-    const operation = this.openai.audio.speech.create({
-      model: request.model || config.openaiModel,
-      voice: request.voice || config.openaiVoice,
-      input: request.text,
-      response_format: safeOutputFormat,
-      speed: request.speed || parseFloat(config.openaiSpeed),
-    });
-
-    let timeoutHandle: NodeJS.Timeout | null = null;
-    return await Promise.race([
-      operation,
-      new Promise<never>((_, reject) => {
-        timeoutHandle = setTimeout(
-          () => reject(new TtsGenerationError("语音生成超时，请稍后重试", 504, "TTS_UPSTREAM_TIMEOUT", true)),
-          OPENAI_TIMEOUT_MS,
-        );
-      }),
-    ]).finally(() => {
-      if (timeoutHandle) {
-        clearTimeout(timeoutHandle);
-      }
-    });
-  }
-
   private isRetryableError(error: unknown) {
     if (!(error instanceof Error)) {
       return false;
@@ -242,7 +204,7 @@ export class TtsService {
     );
   }
 
-  private mapOpenAiError(error: unknown): TtsGenerationError {
+  private mapProviderError(error: unknown): TtsGenerationError {
     if (error instanceof TtsGenerationError) {
       return error;
     }
@@ -278,12 +240,15 @@ export class TtsService {
 
     for (let attempt = 1; attempt <= OPENAI_MAX_RETRIES + 1; attempt += 1) {
       try {
-        return await this.createSpeechWithTimeout(request, safeOutputFormat);
+        return await this.providerRouter.synthesize({
+          ...request,
+          outputFormat: safeOutputFormat,
+        });
       } catch (error) {
-        const mappedError = this.mapOpenAiError(error);
+        const mappedError = this.mapProviderError(error);
         lastError = mappedError;
 
-        logger.warn("OpenAI TTS 调用失败", {
+        logger.warn("TTS Provider 调用失败", {
           attempt,
           code: mappedError.code,
           statusCode: mappedError.statusCode,
@@ -328,23 +293,25 @@ export class TtsService {
           audioUrl: this.buildAudioUrl(existingFile),
           isDuplicate: true,
           outputFormat: safeOutputFormat,
+          provider: "cache",
+          providerModel: model || config.openaiModel,
+          providerVoice: voice || config.openaiVoice,
         };
       }
 
       this.assertCircuitAllowsRequest();
       const response = await this.requestSpeechWithRetry(request, safeOutputFormat);
 
-      const buffer = Buffer.from(await response.arrayBuffer());
       const fileName = `${contentHash}.${safeOutputFormat}`;
       const safeFileName = this.validateFileName(fileName);
       const filePath = path.join(this.outputDir, safeFileName);
 
-      await fs.promises.writeFile(filePath, buffer);
+      await fs.promises.writeFile(filePath, response.audioBuffer);
       await ttsAudioAssetStore.persistAudioAsset({
         contentHash,
         fileName: safeFileName,
         outputFormat: safeOutputFormat,
-        buffer,
+        buffer: response.audioBuffer,
       });
       this.recordCircuitSuccess();
 
@@ -353,9 +320,12 @@ export class TtsService {
         audioUrl: this.buildAudioUrl(safeFileName),
         isDuplicate: false,
         outputFormat: safeOutputFormat,
+        provider: response.provider,
+        providerModel: response.providerModel,
+        providerVoice: response.providerVoice,
       };
     } catch (error) {
-      const mappedError = this.mapOpenAiError(error);
+      const mappedError = this.mapProviderError(error);
       if (mappedError.retryable || mappedError.statusCode >= 500) {
         this.recordCircuitFailure();
       }

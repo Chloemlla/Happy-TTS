@@ -19,6 +19,9 @@ const TtsHistorySchema = new mongoose.Schema<TtsHistoryDocument>(
     contentHash: { type: String, required: true, index: true },
     fileName: { type: String, required: true },
     audioUrl: { type: String, required: true },
+    provider: { type: String, required: true },
+    providerModel: { type: String, required: true },
+    providerVoice: { type: String, required: true },
     createdAt: { type: String, required: true, index: true },
     duplicateScopeKey: { type: String, required: true, index: true },
   },
@@ -42,6 +45,9 @@ function mapDuplicate(record: Partial<TtsHistoryRecord> | null | undefined): Tts
     audioUrl: record.audioUrl,
     outputFormat: record.outputFormat,
     contentHash: record.contentHash,
+    provider: (record as any).provider,
+    providerModel: (record as any).providerModel,
+    providerVoice: (record as any).providerVoice,
   };
 }
 

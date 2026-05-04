@@ -23,6 +23,9 @@ export interface TtsJobResult {
   audioUrl: string;
   isDuplicate?: boolean;
   outputFormat?: string;
+  provider?: string;
+  providerModel?: string;
+  providerVoice?: string;
   message: string;
   status: "generated" | "reused";
 }
@@ -92,6 +95,9 @@ const TtsJobSchema = new mongoose.Schema<TtsJobRecord>(
       audioUrl: { type: String },
       isDuplicate: { type: Boolean },
       outputFormat: { type: String },
+      provider: { type: String },
+      providerModel: { type: String },
+      providerVoice: { type: String },
       message: { type: String },
       status: { type: String },
     },

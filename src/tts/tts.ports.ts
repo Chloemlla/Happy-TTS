@@ -24,6 +24,9 @@ export interface TtsHistoryRecord {
   contentHash: string;
   fileName: string;
   audioUrl: string;
+  provider: string;
+  providerModel: string;
+  providerVoice: string;
   createdAt: string;
 }
 
@@ -32,6 +35,9 @@ export interface TtsDuplicateHit {
   audioUrl: string;
   outputFormat: string;
   contentHash: string;
+  provider?: string;
+  providerModel?: string;
+  providerVoice?: string;
 }
 
 export interface TtsUsageSnapshot {
@@ -39,6 +45,29 @@ export interface TtsUsageSnapshot {
   remainingToday: number | null;
   reservedToday: number | null;
   consumedToday: number | null;
+}
+
+export interface TtsProviderRequest {
+  text: string;
+  model: string;
+  voice: string;
+  outputFormat: string;
+  speed: number;
+  userId?: string;
+  isAdmin?: boolean;
+}
+
+export interface TtsProviderResponse {
+  provider: string;
+  providerModel: string;
+  providerVoice: string;
+  outputFormat: string;
+  audioBuffer: Buffer;
+}
+
+export interface TtsProvider {
+  readonly providerId: string;
+  synthesize(request: TtsProviderRequest): Promise<TtsProviderResponse>;
 }
 
 export interface QuotaLedger {
