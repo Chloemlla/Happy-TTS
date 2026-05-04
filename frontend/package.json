@@ -86,7 +86,7 @@
     "rehype-katex": "^7.0.1",
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
-    "rollup": "^4.60.2",
+    "rollup": "^4.60.3",
     "swagger-ui-react": "^5.32.5",
     "tailwind-merge": "^3.5.0",
     "util": "^0.12.5",
