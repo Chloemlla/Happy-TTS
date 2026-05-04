@@ -1,90 +1,97 @@
-- Critical 核心用户认证仍是明文密码链路，不是 bcrypt。注册时原始密码直接进入用户对象并被持久化，src/controllers/
-  authController.ts:247、src/utils/userRepository.ts:78、src/utils/providers/fileUserStorageProvider.ts:84、src/utils/providers/
-  mysqlUserStorageProvider.ts:125、src/services/userService.ts:154。登录校验也是字符串直接比较，src/utils/userRepository.ts:87、
-  src/utils/userValidationService.ts:142。这不是“可优化项”，而是应优先修复的安全缺陷。
-- High preParserRouteModules 的挂载位置让部分入口绕过统一安全栈。registerCoreMiddleware 先挂了这些路由，src/app/assembly.ts:288；而
-  ip ban / audit log / WAF 是后面才注册的，src/app/assembly.ts:313、src/security/securityPipeline.ts:19。受影响的包括 webhook 和数
-  据采集入口，src/routes/index.ts:377、src/routes/index.ts:396、src/routes/index.ts:415。这会导致这些请求在进入统一审计和防护前就被 处理并返回。
-- High TTS 配额控制不是原子操作，队列化后会被并发提交穿透。提交阶段只读剩余额度，src/tts/tts.pipeline.ts:211；真正扣减是在异步生成
-  成功之后，src/tts/tts.queue.ts:85；底层更新也只是读改写，src/utils/userRepository.ts:145。多个并发请求可以在“都看到还有额度”后一
-  起入队，最终超额。
-- High TTS 的生成码配置被硬耦合到 Mongo 模型，即使仓库宣称支持 file/mysql。启动时仍暴露了 config.generationCode 概念，src/app/
-- Medium TTS 的去重、历史、惩罚状态分散在三套介质里，部署一扩容就会不一致。匿名去重和历史走本地 JSON，src/utils/storage.ts:71、src/
-  tts/tts.controller.ts:332；登录用户重复记录走 userGenerationService，src/tts/tts.pipeline.ts:222；重复命中惩罚又是进程内 Map，
-  src/tts/tts.service.ts:108。单机还能工作，多实例时语义会漂移。
+推荐结构
 
-Assumptions
+- passwordHash
+  - 登录专用
+  - 只用 bcrypt.hash / bcrypt.compare
+- passwordCiphertext
+  - 管理员查看专用
+  - 数据库存密文，不存明文
+- 配套字段
+  - passwordIv / nonce
+  - passwordTag（如果用 AES-256-GCM）
+  - passwordKeyVersion
+  - passwordWrappedDek 或 passwordDekId
 
-- 我按“USER_STORAGE_MODE=file/mysql 也应能跑主要 TTS 流程”来审查；如果你的真实前提是“生产必须带 Mongo”，第 4 条会从“功能缺陷”降级
-  为“架构边界误导”。
-- 这次是静态审查，未运行接口测试或压测。你提到的乱码问题确认只是 PowerShell 输出编码，不是文件损坏。
+管理员接口怎么解密
 
-Direction
+1. 管理员调用 POST /admin/users/:id/reveal-password
+2. 后端二次鉴权
+   - 要求管理员 JWT
+   - 再验一次密码或 MFA
+3. 权限校验 + 限流 + 审计
+4. 后端查出该用户的密文字段
+5. 后端用密钥管理系统解密
+   - 先拿到该条记录对应的 DEK
+   - 再用 DEK 解密 passwordCiphertext
+6. 只把明文密码通过 TLS 返回给前端展示
+7. 不写日志，不缓存，不落盘
+8. 写审计日志：谁、何时、查了谁、原因
 
-- 先修密码链路：统一哈希、比对、迁移旧数据。
-- 把安全中间件改成“默认全覆盖”，raw body 需求只在个别路由局部处理，不要靠提前挂载整组路由。
-- 给 TTS 建明确端口层：QuotaLedger、JobStore、GenerationHistoryStore、SettingsStore，tts.pipeline 不要直接碰 mongoose、本地文件和进
-  程内状态。
-- 配额改成“提交时预占，完成时确认/回滚”，并把匿名去重和历史放到同一后端存储或 Redis。
-- src/app.ts 现在已经够薄，route registry + security pipeline 是对的方向；真正要收敛的是底层状态源和跨模块边界。
+密钥可不可以不唯一
+可以，甚至应该不唯一。
 
-如果你要，我下一步可以直接给一版“按优先级的后端重构路线图”，或者先把“明文密码链路”这一项拆成可落地改造方案。
+最稳的是“信封加密”：
 
-─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+- KEK：主密钥
+  - 放 KMS / HSM / 环境密钥服务里
+- DEK：数据密钥
+  - 每个用户一把，或者每次改密码一把
+- 存储方式
+  - 用 DEK 加密密码得到 passwordCiphertext
+  - 用 KEK 再加密 DEK，得到 passwordWrappedDek
+  - 数据库里存密文和包裹后的 DEK
 
-› 接给一版“按优先级的后端重构路线图”
+这样即使一条记录泄露，也不会连带所有用户。
 
-• 路线图
+你可以选两种实现
 
-建议按 P0 -> P1 -> P2 -> P3 执行，不要并行大改。现在这个后端的主要问题不是“模块太多”，而是“状态源太散、边界不一致、关键链路有安全
-债”。
+- 更安全：每条记录随机 DEK
+- 更简单：从主密钥派生子密钥
+  - 例如 HKDF(masterKey, userId + keyVersion)
+  - 这样“每个用户密钥不同”，但不用存 wrappedDek
 
-1. P0 安全止血
-   目标：先修必须立刻处理的风险，再谈重构。
+如果你问“动态解密密钥不唯一”：
 
-- 统一密码链路为 bcrypt，覆盖注册、登录、重置密码、旧用户迁移。重点文件：src/controllers/authController.ts、src/utils/
-  userRepository.ts、src/utils/providers/\*UserStorageProvider.ts、src/services/userService.ts。
-- 给旧明文密码做兼容迁移策略：首次登录成功后自动重哈希，或跑一次离线迁移脚本。
-- 收敛敏感字段读取范围，减少 password 在查询和日志中的暴露。
-- 验收标准：新老存储模式都只能保存 hash；登录比对全部走 bcrypt.compare；旧用户可平滑迁移。
+- 推荐“每用户/每次密码变更一把 key”
+- 不推荐全站一个固定 key 直接加所有密码
 
-2. P1 安全管线收口
-   目标：让所有请求默认走统一安全链，例外必须显式声明且最小化。
+接口层建议
 
-- 调整 /F:/Repositories/GitHub/Synapse/src/app/assembly.ts:283，不要在 registerCoreMiddleware 里提前挂整组
-  preParserRouteModules。
-- 把 webhook/raw-body 需求改成“局部路由自带解析器”，而不是“为了少数接口把整组路由提前到安全栈之前”。
-- 保留现在 /F:/Repositories/GitHub/Synapse/src/security/securityPipeline.ts:19 这种“可声明的安全步骤”，但要改成默认全覆盖。
-- 路由治理继续保留，并补一条规则：凡是绕过 ipBan/auditLog/WAF 的模块，必须有精确原因，且只能是单一路径。
-- 验收标准：除明确白名单外，所有 /api/\* 请求都先经过 ip ban -> audit log -> WAF。
+- 前端永远拿不到解密密钥
+- 只有后端解密
+- 展示时默认遮罩，点一次才 reveal
+- 最好要求填写查看原因
+- 最好 30 秒后自动隐藏
 
-3. P2 TTS 状态源统一
-   目标：把 TTS 从“能跑”改成“可扩展、可多实例”。
+不要这样做
 
-- 抽出四个端口接口：
-  QuotaLedger、TtsSettingsStore、TtsJobStore、GenerationHistoryStore。
-- 让 /F:/Repositories/GitHub/Synapse/src/tts/tts.pipeline.ts:57 不再直接依赖 mongoose、StorageManager、UserStorage 的具体实现。
-- 去掉 TtsSettingModel 在 TTS 模块内的直连，把生成码配置并入统一配置仓储。
-- 把匿名去重、本地历史、重复惩罚、用户重复记录这些分散状态统一到同一后端，至少做到“单语义单存储”。
-- 验收标准：TTS 在 file/mongo/mysql 三种用户存储模式下，行为一致且不要求偷偷依赖 Mongo。
+- 不要只存可解密密文，不存 bcrypt
+- 不要把密钥写死在代码里
+- 不要在管理员列表接口默认返回可解密密码
+- 不要把解密后的密码写进日志、监控、异常栈
 
-4. P3 配额模型改造
-   目标：解决并发穿透和异步队列后的超额问题。
+一句话方案
 
-- 把“提交时检查额度、成功后再扣减”改成“提交时预占额度，完成时确认，失败时回滚”。
-- 预占记录要和任务 taskId 绑定，避免重复提交或 worker 重试导致双扣。
-- 队列处理只消费已预占成功的任务，不再自行决定额度。
-- 如果先不做完整事务，至少给 incrementUsage 做原子更新能力，不要继续读改写。
-- 验收标准：并发 20 个请求打同一用户，不会突破日限额。
+- 认证走 bcrypt
+- 展示走 AES-GCM/XChaCha20-Poly1305
+- 密钥走 KEK + DEK
+- 解密只在管理员后端接口按需发生
 
-5. P4 模块边界整理
-   目标：把现在“兼容导出 + 新旧混用”收干净。
+- 统一认证密码链路为 bcrypt，覆盖注册、登录、重置密码、旧用户迁移。
+- 数据库存储分为两部分：
+  - passwordHash：认证专用，一律不可逆。
+  - passwordCiphertext：展示专用，使用服务端密钥做对称加密后存库，管理员接口可解密查看。
+- 旧明文密码迁移策略：
+  - 首次登录成功时，如果发现还是旧明文字段，就立即写入 passwordHash 和 passwordCiphertext，然后删除旧明文字段。
+  - 或提供一次性离线迁移脚本完成同样处理。
+- 默认查询不返回 passwordHash / passwordCiphertext。
+- 仅管理员专用接口可显式读取并解密 passwordCiphertext，且必须记录审计日志。
+- 登录比对全部走 bcrypt.compare，禁止用可解密密文参与登录校验。
+- 验收标准：
+  - 新老存储模式都不再保存明文密码。
+  - 登录全部走 bcrypt.compare。
+  - 管理员接口可查看解密后的密码。
+  - 旧用户可平滑迁移。
 
-- 第 3-4 周：P2 + P3
-- 第 5 周：P4 + P5
-
-落地原则
-
-- 先修安全和一致性，再做目录美化。
-- 先统一状态源，再做服务拆分。
-- 先定义端口接口，再替换实现，不要边搬文件边改行为。
+需要强调：这比“只存 bcrypt”风险高很多。更安全的做法是“管理员只能重置密码，不能查看原密码”。如果你还是要按“可查看原密码”的方案落地，
+我可以直接按这个双字段方案改代码。

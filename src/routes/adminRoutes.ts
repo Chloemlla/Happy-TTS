@@ -199,7 +199,7 @@ router.post(
   }),
   async (req: Request & { user?: any }, res: Response) => {
     applyNoCacheHeaders(res);
-    const targetUserId = req.params.id;
+    const targetUserId = Array.isArray(req.params.id) ? req.params.id[0] || "" : req.params.id || "";
     const adminId = req.user?.id;
     const reason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
     const verificationToken = typeof req.body?.verificationToken === "string" ? req.body.verificationToken : "";
@@ -1109,7 +1109,7 @@ router.post("/users/:id/reveal-password/verify", async (req, res) => {
   try {
     const user = req.user;
     if (!user || user.role !== "admin") return res.status(403).json({ error: "需要管理员权限" });
-    const targetUserId = req.params.id;
+    const targetUserId = Array.isArray(req.params.id) ? req.params.id[0] || "" : req.params.id || "";
     if (!targetUserId) return res.status(400).json({ error: "缺少用户ID" });
 
     const { getUserAuthById } = require("../services/userService");
