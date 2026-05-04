@@ -129,8 +129,8 @@ importers:
         specifier: ^3.22.3
         version: 3.22.3(@types/node@25.6.0)
       nanoid:
-        specifier: ^5.1.9
-        version: 5.1.9
+        specifier: ^5.1.11
+        version: 5.1.11
       openai:
         specifier: ^6.36.0
         version: 6.36.0(ws@8.20.0)(zod@4.4.3)
@@ -2805,8 +2805,8 @@ packages:
     resolution: {integrity: sha512-Tz09sEL2EEuv5fFowm419c1+a/jSMiBjI9gHxVLrVdbUkkNUUfjsVYs9pVZu5oCon/kmRh9TfLEObFtkVxmY0w==}
     engines: {node: '>=8.0.0'}
 
-  nanoid@5.1.9:
-    resolution: {integrity: sha512-ZUvP7KeBLe3OZ1ypw6dI/TzYJuvHP77IM4Ry73waSQTLn8/g8rpdjfyVAh7t1/+FjBtG4lCP42MEbDxOsRpBMw==}
+  nanoid@5.1.11:
+    resolution: {integrity: sha512-v+KEsUv2ps74PaSKv0gHTxTCgMXOIfBEbaqa6w6ISIGC7ZsvHN4N9oJ8d4cmf0n5oTzQz2SLmThbQWhjd/8eKg==}
     engines: {node: ^18 || >=20}
     hasBin: true
 
@@ -6737,7 +6737,7 @@ snapshots:
     dependencies:
       lru.min: 1.1.4
 
-  nanoid@5.1.9: {}
+  nanoid@5.1.11: {}
 
   napi-postinstall@0.3.4: {}
 
@@ -7444,7 +7444,7 @@ snapshots:
       morgan: 1.10.1
       multer: 2.1.1
       mysql2: 3.22.3(@types/node@25.6.0)
-      nanoid: 5.1.9
+      nanoid: 5.1.11
       openai: 6.36.0(ws@8.20.0)(zod@4.4.3)
       path-to-regexp: 8.4.2
       qrcode: 1.5.4
