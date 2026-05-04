@@ -165,12 +165,12 @@ export async function startServer(app: Express): Promise<void> {
 
     logger.info(`服务器运行在 http://[::]:${port} (IPv4/IPv6 双栈)`);
     logger.info(`生成音频目录: ${path.join(__dirname, "../finish")}`);
-    logger.info(`当前生成码: ${config.generationCode}`);
 
     await checkStartupFilePermissions();
 
     try {
       await initializeStorage();
+      logger.info(`当前生成码: ${config.generationCode || "未配置"}`);
       UserStorage.initializeMongoListener();
 
       try {

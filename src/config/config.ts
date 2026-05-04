@@ -127,7 +127,7 @@ export const compileTimeConfig = Object.freeze({
   audioDir: path.join(process.cwd(), "finish"),
   dataDir: path.join(process.cwd(), "data"),
   logsDir: path.join(process.cwd(), "logs"),
-  runtimeMutableKeys: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI"] as const,
+  runtimeMutableKeys: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS"] as const,
 });
 
 const runtimeDefaults = buildRuntimeConfigDefaults({
@@ -146,7 +146,6 @@ export const startupConfig = Object.freeze({
   frontendBaseUrl,
   adminUsername: parsedEnv.ADMIN_USERNAME,
   adminPassword,
-  generationCode: parsedEnv.GENERATION_CODE,
   jwtSecret,
   jwtExpiresIn: "24h",
   bcryptSaltRounds: 12,
@@ -228,7 +227,6 @@ export const config = {
   adminPassword: startupConfig.adminPassword,
   localIps: startupConfig.localIps,
   baseUrl: startupConfig.baseUrl,
-  generationCode: startupConfig.generationCode,
   jwtSecret: startupConfig.jwtSecret,
   jwtExpiresIn: startupConfig.jwtExpiresIn,
   bcryptSaltRounds: startupConfig.bcryptSaltRounds,
@@ -263,6 +261,9 @@ export const config = {
   },
   get tts() {
     return runtimeMutableConfig.tts;
+  },
+  get generationCode() {
+    return runtimeMutableConfig.tts.generationCode;
   },
 };
 
