@@ -4,11 +4,11 @@ import path from "node:path";
 import type { Express } from "express";
 import { compileTimeConfig, config, startupConfig } from "../config/config";
 import { runStartupDiagnostics } from "../config/startupDiagnostics";
+import { connectMongo } from "../services/mongoService";
 import { schedulerService } from "../services/schedulerService";
 import { wsService } from "../services/wsService";
 import logger from "../utils/logger";
 import { UserStorage } from "../utils/userStorage";
-import { getMysqlConnection } from "../utils/userStorageProvider";
 
 // eslint-disable-next-line no-var
 var _EMAIL_ENABLED: boolean;
@@ -62,57 +62,10 @@ const checkStartupFilePermissions = async () => {
 };
 
 const initializeStorage = async () => {
-  logger.info("[启动] 检查用户存储模式...");
-  const storageMode = config.userStorageMode;
-  logger.info(`[启动] 当前存储模式: ${storageMode}`);
-  const shouldFailFast = storageMode !== "file" && process.env.NODE_ENV === "production";
-
-  if (storageMode === "mongo") {
-    try {
-      const { connectMongo } = require("../services/mongoService");
-      await connectMongo();
-      logger.info("[启动] MongoDB 连接成功");
-      const initResult = await UserStorage.initializeDatabase();
-      if (initResult.initialized) {
-        logger.info(`[启动] ${initResult.message}`);
-      } else {
-        throw new Error(initResult.message);
-      }
-    } catch (error) {
-      if (shouldFailFast) {
-        throw error;
-      }
-      logger.warn("[启动] MongoDB 连接或初始化失败，未自动降级到文件存储", {
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-    return;
-  }
-
-  if (storageMode === "mysql") {
-    try {
-      const conn = await getMysqlConnection();
-      await conn.execute("SELECT 1");
-      await conn.end();
-      logger.info("[启动] MySQL 连接成功");
-      const initResult = await UserStorage.initializeDatabase();
-      if (initResult.initialized) {
-        logger.info(`[启动] ${initResult.message}`);
-      } else {
-        throw new Error(initResult.message);
-      }
-    } catch (error) {
-      if (shouldFailFast) {
-        throw error;
-      }
-      logger.warn("[启动] MySQL 连接或初始化失败，未自动降级到文件存储", {
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-    return;
-  }
-
+  logger.info("[启动] 初始化 MongoDB 存储...");
   try {
+    await connectMongo();
+    logger.info("[启动] MongoDB 连接成功");
     const initResult = await UserStorage.initializeDatabase();
     if (initResult.initialized) {
       logger.info(`[启动] ${initResult.message}`);
@@ -120,7 +73,7 @@ const initializeStorage = async () => {
       throw new Error(initResult.message);
     }
   } catch (error) {
-    logger.error("[启动] 文件存储初始化失败", {
+    logger.error("[启动] MongoDB 初始化失败", {
       error: error instanceof Error ? error.message : String(error),
     });
     throw error;

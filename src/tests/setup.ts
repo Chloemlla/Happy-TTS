@@ -206,9 +206,6 @@ import type { NextFunction, Request, Response } from "express";
 // 设置测试环境变量
 process.env.NODE_ENV = "test";
 
-// 设置测试环境的存储模式为文件模式，避免MongoDB连接问题
-process.env.USER_STORAGE_MODE = "file";
-
 // 设置测试环境的MongoDB URI（即使不使用也要设置，避免连接尝试）
 process.env.MONGO_URI = "mongodb://localhost:27017/tts-test";
 

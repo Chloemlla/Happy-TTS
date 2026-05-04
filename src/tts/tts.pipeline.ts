@@ -1,25 +1,15 @@
 import axios from "axios";
-import { mongoose } from "../services/mongoService";
 import { ContentFilterService } from "../services/contentFilterService";
-import { findDuplicateGeneration } from "../services/userGenerationService";
 import { TurnstileService } from "../services/turnstileService";
-import { StorageManager } from "../utils/storage";
 import type { User } from "../utils/userStorage";
 import { UserStorage } from "../utils/userStorage";
 import { TtsRequestError } from "./tts.errors";
+import { generationHistoryStore } from "./tts.history";
+import type { GenerationHistoryStore, QuotaLedger, TtsSettingsStore, TtsUsageSnapshot } from "./tts.ports";
+import { quotaLedger } from "./tts.quota";
+import { ttsSettingsStore } from "./tts.settings";
 import type { TtsJobRequestPayload, TtsUsageSummary } from "./tts.storage";
 import { TtsService } from "./tts.service";
-
-const TtsSettingSchema = new mongoose.Schema(
-  {
-    key: { type: String, default: "GENERATION_CODE" },
-    code: { type: String, required: true },
-    updatedAt: { type: Date, default: Date.now },
-  },
-  { collection: "tts_settings" },
-);
-
-const TtsSettingModel = mongoose.models.TtsSetting || mongoose.model("TtsSetting", TtsSettingSchema);
 
 export interface TtsSubmissionInput {
   text: unknown;
@@ -37,6 +27,7 @@ export interface TtsSubmissionContext {
   input: TtsSubmissionInput;
   ip: string;
   currentUser: User | null;
+  taskId?: string;
 }
 
 export interface TtsSubmissionResult {
@@ -57,16 +48,13 @@ export interface TtsSubmissionResult {
 export class TtsSubmissionPipeline {
   private readonly ttsService = new TtsService();
 
-  private async getTtsGenerationCodeFromDb(): Promise<string | null> {
-    try {
-      const doc = (await TtsSettingModel.findOne({ key: "GENERATION_CODE" }).lean().exec()) as { code?: string } | null;
-      return doc && typeof doc.code === "string" && doc.code.length > 0 ? doc.code : null;
-    } catch {
-      return null;
-    }
-  }
+  constructor(
+    private readonly settingsStore: TtsSettingsStore = ttsSettingsStore,
+    private readonly historyStore: GenerationHistoryStore = generationHistoryStore,
+    private readonly ledger: QuotaLedger = quotaLedger,
+  ) {}
 
-  public buildUsageSummary(currentUser: User | null, remainingToday: number | null): TtsUsageSummary {
+  private buildUsageSummaryFromSnapshot(currentUser: User | null, snapshot: TtsUsageSnapshot | null): TtsUsageSummary {
     if (!currentUser) {
       return {
         authenticated: false,
@@ -74,6 +62,7 @@ export class TtsSubmissionPipeline {
         dailyLimit: null,
         usedToday: null,
         remainingToday: null,
+        reservedToday: null,
       };
     }
 
@@ -84,24 +73,28 @@ export class TtsSubmissionPipeline {
         dailyLimit: null,
         usedToday: null,
         remainingToday: null,
+        reservedToday: null,
       };
     }
 
     const dailyLimit = UserStorage.getDailyLimit();
-    const safeRemaining = remainingToday === null ? null : Math.max(0, remainingToday);
+    const reservedToday = snapshot?.reservedToday ?? 0;
+    const consumedToday = snapshot?.consumedToday ?? 0;
+    const remainingToday = snapshot?.remainingToday ?? Math.max(0, dailyLimit - reservedToday - consumedToday);
 
     return {
       authenticated: true,
       isAdmin: false,
       dailyLimit,
-      usedToday: safeRemaining === null ? null : Math.max(0, dailyLimit - safeRemaining),
-      remainingToday: safeRemaining,
+      usedToday: consumedToday,
+      remainingToday,
+      reservedToday,
     };
   }
 
   public async buildUsageSummaryByUserId(userId?: string, isAdmin?: boolean): Promise<TtsUsageSummary> {
     if (!userId) {
-      return this.buildUsageSummary(null, null);
+      return this.buildUsageSummaryFromSnapshot(null, null);
     }
 
     if (isAdmin) {
@@ -111,15 +104,12 @@ export class TtsSubmissionPipeline {
         dailyLimit: null,
         usedToday: null,
         remainingToday: null,
+        reservedToday: null,
       };
     }
 
-    const user = await UserStorage.getUserById(userId);
-    if (!user) {
-      return this.buildUsageSummary(null, null);
-    }
-
-    return this.buildUsageSummary(user, await UserStorage.getRemainingUsage(userId));
+    const snapshot = await this.ledger.getUsageSnapshot(userId);
+    return this.buildUsageSummaryFromSnapshot(snapshot.user, snapshot);
   }
 
   private buildRequestPayload(input: TtsSubmissionInput): TtsJobRequestPayload {
@@ -171,7 +161,7 @@ export class TtsSubmissionPipeline {
   }
 
   private async validateGenerationCode(generationCode: unknown) {
-    const expectedCode = await this.getTtsGenerationCodeFromDb();
+    const expectedCode = await this.settingsStore.getGenerationCode();
     if (
       typeof generationCode !== "string" ||
       generationCode.length === 0 ||
@@ -201,25 +191,25 @@ export class TtsSubmissionPipeline {
         : "unknown";
     const userId = context.currentUser?.id;
     const isAdmin = context.currentUser?.role === "admin";
-    let usageSummary = await this.buildUsageSummaryByUserId(userId, isAdmin);
 
     await this.validateContent(requestPayload.text);
     await this.validateGenerationCode(context.input.generationCode);
     await this.validateTurnstile(context.input.cfToken, context.ip);
 
+    const contentHash = this.ttsService.generateContentHash(
+      requestPayload.text,
+      requestPayload.voice,
+      requestPayload.model,
+    );
+
     if (userId && !isAdmin) {
-      const remainingBefore = await UserStorage.getRemainingUsage(userId);
-      usageSummary = this.buildUsageSummary(context.currentUser, remainingBefore);
-      if (remainingBefore <= 0) {
+      const snapshot = await this.ledger.getUsageSnapshot(userId);
+      const usageSummary = this.buildUsageSummaryFromSnapshot(context.currentUser, snapshot);
+      if ((snapshot.remainingToday || 0) <= 0) {
         throw new TtsRequestError(429, "您今日的使用次数已达上限", "TTS_USAGE_LIMIT_REACHED");
       }
 
-      const contentHash = this.ttsService.generateContentHash(
-        requestPayload.text,
-        requestPayload.voice,
-        requestPayload.model,
-      );
-      const duplicate = await findDuplicateGeneration({
+      const duplicate = await this.historyStore.findDuplicateForUser({
         userId,
         text: requestPayload.text,
         voice: requestPayload.voice,
@@ -237,21 +227,44 @@ export class TtsSubmissionPipeline {
           usageSummary,
           duplicateJobResult: {
             fileName: duplicate.fileName,
-            audioUrl: this.ttsService.buildAudioUrl(duplicate.fileName),
+            audioUrl: duplicate.audioUrl,
             message: "检测到重复内容，已返回已有音频。",
-            outputFormat: duplicate.fileName.split(".").pop()?.toLowerCase() || requestPayload.outputFormat,
+            outputFormat: duplicate.outputFormat,
           },
         };
       }
-    } else if (!userId) {
-      const isDuplicate = await StorageManager.checkDuplicate(context.ip, fingerprint, requestPayload.text);
-      if (isDuplicate) {
-        throw new TtsRequestError(
-          400,
-          "您已经生成过相同的内容，请登录以获取更多使用次数",
-          "TTS_DUPLICATE_ANONYMOUS_REQUEST",
-        );
+
+      if (!context.taskId) {
+        throw new TtsRequestError(500, "任务标识缺失", "TTS_TASK_ID_MISSING");
       }
+
+      const reservation = await this.ledger.reserve(userId, context.taskId);
+      if (!reservation.success) {
+        throw new TtsRequestError(429, "您今日的使用次数已达上限", "TTS_USAGE_LIMIT_REACHED");
+      }
+
+      return {
+        requestPayload,
+        ip: context.ip,
+        fingerprint,
+        userId,
+        isAdmin,
+        usageSummary: this.buildUsageSummaryFromSnapshot(context.currentUser, reservation.snapshot),
+      };
+    }
+
+    const duplicate = await this.historyStore.findDuplicateForAnonymous({
+      ip: context.ip,
+      fingerprint,
+      text: requestPayload.text,
+      contentHash,
+    });
+    if (duplicate) {
+      throw new TtsRequestError(
+        400,
+        "您已经生成过相同的内容，请登录以获取更多使用次数",
+        "TTS_DUPLICATE_ANONYMOUS_REQUEST",
+      );
     }
 
     return {
@@ -260,8 +273,7 @@ export class TtsSubmissionPipeline {
       fingerprint,
       userId,
       isAdmin,
-      usageSummary,
+      usageSummary: this.buildUsageSummaryFromSnapshot(context.currentUser, null),
     };
   }
 }
-

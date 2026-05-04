@@ -2,7 +2,6 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { Request, Response } from "express";
-import mysql from "mysql2/promise";
 import * as envModule from "../config/env";
 import { sendEmail } from "../services/emailSender";
 import { mongoose } from "../services/mongoService";
@@ -11,7 +10,6 @@ import { TranslationLogService } from "../services/translationLogService";
 import logger from "../utils/logger";
 import { UserStorage } from "../utils/userStorage";
 
-const STORAGE_MODE = process.env.STORAGE_MODE || "mongo";
 const ANNOUNCEMENT_FILE = path.join(__dirname, "../../data/announcement.json");
 const ENV_FILE = path.join(__dirname, "../../data/env.admin.json");
 
@@ -74,17 +72,6 @@ const ModlistSettingSchema = new mongoose.Schema(
 );
 const ModlistSettingModel = mongoose.models.ModlistSetting || mongoose.model("ModlistSetting", ModlistSettingSchema);
 
-// ========== 新增：TTS 生成码设置集合（tts_settings）===========
-const TtsSettingSchema = new mongoose.Schema(
-  {
-    key: { type: String, default: "GENERATION_CODE" },
-    code: { type: String, required: true },
-    updatedAt: { type: Date, default: Date.now },
-  },
-  { collection: "tts_settings" },
-);
-const TtsSettingModel = mongoose.models.TtsSetting || mongoose.model("TtsSetting", TtsSettingSchema);
-
 // ========== 新增：Webhook 密钥设置集合（webhook_settings）===========
 const WebhookSecretSchema = new mongoose.Schema(
   {
@@ -96,16 +83,6 @@ const WebhookSecretSchema = new mongoose.Schema(
   { collection: "webhook_settings" },
 );
 const WebhookSecretModel = mongoose.models.WebhookSecret || mongoose.model("WebhookSecret", WebhookSecretSchema);
-
-// MySQL建表
-async function ensureMysqlTable(conn: any) {
-  await conn.execute(`CREATE TABLE IF NOT EXISTS announcements (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    content TEXT NOT NULL,
-    format VARCHAR(16) DEFAULT 'markdown',
-    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-}
 
 // XSS 过滤简单实现
 function sanitizeInput(str: string) {
@@ -828,23 +805,10 @@ export const adminController = {
   // 获取当前公告
   async getAnnouncement(_req: Request, res: Response) {
     try {
-      if (STORAGE_MODE === "mongo" && mongoose.connection.readyState === 1) {
-        await ensureMongoAnnouncementCollection();
-        const ann = await AnnouncementModel.findOne().sort({ updatedAt: -1 }).lean();
-        return res.json({ success: true, announcement: ann });
-      } else if (STORAGE_MODE === "mysql" && process.env.MYSQL_URI) {
-        const conn = await mysql.createConnection(process.env.MYSQL_URI);
-        await ensureMysqlTable(conn);
-        const [rows] = await conn.execute("SELECT * FROM announcements ORDER BY updatedAt DESC LIMIT 1");
-        await conn.end();
-        return res.json({ success: true, announcement: (rows as any[])[0] });
-      } else {
-        if (fs.existsSync(ANNOUNCEMENT_FILE)) {
-          const data = JSON.parse(fs.readFileSync(ANNOUNCEMENT_FILE, "utf-8"));
-          return res.json({ success: true, announcement: data });
-        }
-        return res.json({ success: true, announcement: null });
-      }
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      await ensureMongoAnnouncementCollection();
+      const ann = await AnnouncementModel.findOne().sort({ updatedAt: -1 }).lean();
+      return res.json({ success: true, announcement: ann });
     } catch (_e) {
       res.status(500).json({ success: false, error: "获取公告失败" });
     }
@@ -860,32 +824,15 @@ export const adminController = {
       // format 枚举校验：只允许 markdown 或 html
       const safeFormat = VALID_ANNOUNCEMENT_FORMATS.has(format) ? format : "markdown";
       const safeContent = sanitizeInput(content);
-      if (STORAGE_MODE === "mongo" && mongoose.connection.readyState === 1) {
-        await ensureMongoAnnouncementCollection();
-        const ann = await AnnouncementModel.create({
-          content: safeContent,
-          format: safeFormat,
-          updatedAt: new Date(),
-        });
-        logger.info(`[公告] 管理员${req.user.username} 更新公告`);
-        return res.json({ success: true, announcement: ann });
-      } else if (STORAGE_MODE === "mysql" && process.env.MYSQL_URI) {
-        const conn = await mysql.createConnection(process.env.MYSQL_URI);
-        await ensureMysqlTable(conn);
-        await conn.execute("INSERT INTO announcements (content, format, updatedAt) VALUES (?, ?, NOW())", [
-          safeContent,
-          safeFormat,
-        ]);
-        const [rows] = await conn.execute("SELECT * FROM announcements ORDER BY updatedAt DESC LIMIT 1");
-        await conn.end();
-        logger.info(`[公告] 管理员${req.user.username} 更新公告`);
-        return res.json({ success: true, announcement: (rows as any[])[0] });
-      } else {
-        const data = { content: safeContent, format: safeFormat, updatedAt: new Date().toISOString() };
-        fs.writeFileSync(ANNOUNCEMENT_FILE, JSON.stringify(data, null, 2));
-        logger.info(`[公告] 管理员${req.user.username} 更新公告`);
-        return res.json({ success: true, announcement: data });
-      }
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      await ensureMongoAnnouncementCollection();
+      const ann = await AnnouncementModel.create({
+        content: safeContent,
+        format: safeFormat,
+        updatedAt: new Date(),
+      });
+      logger.info(`[公告] 管理员${req.user.username} 更新公告`);
+      return res.json({ success: true, announcement: ann });
     } catch (_e) {
       res.status(500).json({ success: false, error: "设置公告失败" });
     }
@@ -895,20 +842,10 @@ export const adminController = {
   async deleteAnnouncements(req: Request, res: Response) {
     try {
       if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
-      if (STORAGE_MODE === "mongo" && mongoose.connection.readyState === 1) {
-        await ensureMongoAnnouncementCollection();
-        await AnnouncementModel.deleteMany({});
-        return res.json({ success: true });
-      } else if (STORAGE_MODE === "mysql" && process.env.MYSQL_URI) {
-        const conn = await mysql.createConnection(process.env.MYSQL_URI);
-        await ensureMysqlTable(conn);
-        await conn.execute("DELETE FROM announcements");
-        await conn.end();
-        return res.json({ success: true });
-      } else {
-        if (fs.existsSync(ANNOUNCEMENT_FILE)) fs.unlinkSync(ANNOUNCEMENT_FILE);
-        return res.json({ success: true });
-      }
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      await ensureMongoAnnouncementCollection();
+      await AnnouncementModel.deleteMany({});
+      return res.json({ success: true });
     } catch (_e) {
       res.status(500).json({ success: false, error: "删除公告失败" });
     }
@@ -1371,14 +1308,11 @@ export const adminController = {
     try {
       if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
-      const doc = await TtsSettingModel.findOne({ key: "GENERATION_CODE" }).lean();
-      const setting = doc
+      const result = await RuntimeConfigService.getTtsSetting();
+      const setting = result.setting
         ? {
-            code:
-              typeof (doc as any).code === "string" && (doc as any).code.length > 8
-                ? `${(doc as any).code.slice(0, 2)}***${(doc as any).code.slice(-4)}`
-                : "***",
-            updatedAt: (doc as any).updatedAt,
+            code: result.setting.config.generationCode,
+            updatedAt: result.setting.updatedAt,
           }
         : null;
       return res.json({ success: true, setting });
@@ -1395,13 +1329,8 @@ export const adminController = {
       if (typeof code !== "string" || code.trim().length < 1 || code.length > 256) {
         return res.status(400).json({ error: "无效的生成码" });
       }
-      const now = new Date();
-      const doc = await TtsSettingModel.findOneAndUpdate(
-        { key: "GENERATION_CODE" },
-        { code, updatedAt: now },
-        { upsert: true, new: true },
-      );
-      return res.json({ success: true, setting: { updatedAt: doc.updatedAt } });
+      const result = await RuntimeConfigService.setTtsSetting({ generationCode: code });
+      return res.json({ success: true, setting: { updatedAt: result.updatedAt } });
     } catch (_e) {
       return res.status(500).json({ success: false, error: "保存生成码失败" });
     }
@@ -1411,7 +1340,7 @@ export const adminController = {
     try {
       if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
-      await TtsSettingModel.deleteOne({ key: "GENERATION_CODE" });
+      await RuntimeConfigService.deleteTtsSetting();
       return res.json({ success: true });
     } catch (_e) {
       return res.status(500).json({ success: false, error: "删除生成码失败" });

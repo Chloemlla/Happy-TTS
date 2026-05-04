@@ -7,6 +7,7 @@ import {
   type LinuxDoRuntimeConfig,
   type NexaiRuntimeConfig,
   type RuntimeConfigDefaults,
+  type TtsRuntimeConfig,
 } from "../config/runtimeConfigDefaults";
 import { type RuntimeConfigKey, RuntimeConfigModel } from "../models/runtimeConfigModel";
 import logger from "../utils/logger";
@@ -221,6 +222,14 @@ function normalizeStoredNexaiConfig(value: unknown, defaults = runtimeConfigDefa
   };
 }
 
+function normalizeStoredTtsConfig(value: unknown, defaults = runtimeConfigDefaults.tts): TtsRuntimeConfig {
+  const raw = asObject(value);
+
+  return {
+    generationCode: normalizeString(raw.generationCode, defaults.generationCode, 256),
+  };
+}
+
 async function readRuntimeConfigDoc(
   key: RuntimeConfigKey,
 ): Promise<{ value: Record<string, unknown>; updatedAt?: Date } | null> {
@@ -256,6 +265,11 @@ function applyCacheForKey(key: RuntimeConfigKey, value: unknown): void {
     return;
   }
 
+  if (key === "TTS") {
+    runtimeConfigCache.tts = normalizeStoredTtsConfig(value);
+    return;
+  }
+
   runtimeConfigCache.nexai = normalizeStoredNexaiConfig(value);
 }
 
@@ -278,6 +292,9 @@ export class RuntimeConfigService {
     if (!loadedKeys.has("NEXAI")) {
       runtimeConfigCache.nexai = cloneRuntimeConfigDefaults(defaults).nexai;
     }
+    if (!loadedKeys.has("TTS")) {
+      runtimeConfigCache.tts = cloneRuntimeConfigDefaults(defaults).tts;
+    }
   }
 
   static getCachedConfig(): RuntimeConfigDefaults {
@@ -289,7 +306,7 @@ export class RuntimeConfigService {
     if (initialized && !force) return;
 
     const docs = await RuntimeConfigModel.find({
-      key: { $in: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI"] },
+      key: { $in: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS"] },
     })
       .lean()
       .exec();
@@ -305,6 +322,7 @@ export class RuntimeConfigService {
       nextCache.googleAuth = runtimeConfigCache.googleAuth;
       nextCache.deeplx = runtimeConfigCache.deeplx;
       nextCache.nexai = runtimeConfigCache.nexai;
+      nextCache.tts = runtimeConfigCache.tts;
       loadedKeys.add(doc.key as RuntimeConfigKey);
     }
 
@@ -669,5 +687,78 @@ export class RuntimeConfigService {
     await RuntimeConfigModel.deleteOne({ key: "NEXAI" }).exec();
     runtimeConfigCache.nexai = cloneRuntimeConfigDefaults(runtimeConfigDefaults).nexai;
     loadedKeys.delete("NEXAI");
+  }
+
+  static async getTtsSetting(): Promise<{
+    setting: {
+      config: {
+        generationCode: string;
+      };
+      updatedAt?: string;
+    } | null;
+  }> {
+    const doc = await readRuntimeConfigDoc("TTS");
+    const config = doc ? normalizeStoredTtsConfig(doc.value) : runtimeConfigDefaults.tts;
+    runtimeConfigCache.tts = config;
+
+    if (!config.generationCode) {
+      return { setting: null };
+    }
+
+    return {
+      setting: {
+        config: {
+          generationCode:
+            config.generationCode.length > 8
+              ? `${config.generationCode.slice(0, 2)}***${config.generationCode.slice(-4)}`
+              : "***",
+        },
+        updatedAt: doc?.updatedAt?.toISOString(),
+      },
+    };
+  }
+
+  static async getRawTtsConfig(): Promise<TtsRuntimeConfig> {
+    const doc = await readRuntimeConfigDoc("TTS");
+    const config = doc ? normalizeStoredTtsConfig(doc.value) : runtimeConfigDefaults.tts;
+    runtimeConfigCache.tts = config;
+    return config;
+  }
+
+  static async setTtsSetting(input: Partial<TtsRuntimeConfig>): Promise<{ updatedAt: string }> {
+    const currentDoc = await readRuntimeConfigDoc("TTS");
+    const current = currentDoc ? normalizeStoredTtsConfig(currentDoc.value) : runtimeConfigCache.tts;
+
+    const generationCode =
+      typeof input.generationCode === "string" && input.generationCode.trim().length > 0
+        ? input.generationCode.trim().slice(0, 256)
+        : current.generationCode;
+
+    if (!generationCode) {
+      throw new Error("生成码不能为空");
+    }
+
+    const nextConfig: TtsRuntimeConfig = {
+      generationCode,
+    };
+
+    const now = new Date();
+    await RuntimeConfigModel.findOneAndUpdate(
+      { key: "TTS" },
+      { value: nextConfig, updatedAt: now },
+      { upsert: true, new: true },
+    ).exec();
+
+    runtimeConfigCache.tts = nextConfig;
+    loadedKeys.add("TTS");
+    initialized = true;
+
+    return { updatedAt: now.toISOString() };
+  }
+
+  static async deleteTtsSetting(): Promise<void> {
+    await RuntimeConfigModel.deleteOne({ key: "TTS" }).exec();
+    runtimeConfigCache.tts = cloneRuntimeConfigDefaults(runtimeConfigDefaults).tts;
+    loadedKeys.delete("TTS");
   }
 }

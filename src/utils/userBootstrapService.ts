@@ -1,12 +1,8 @@
 import { connectMongo } from "../services/mongoService";
-import logger from "./logger";
-import { fileUserStorageProvider, ensureUsersDirectory, readUsersFromFile, USERS_FILE, writeUsersToFile } from "./providers/fileUserStorageProvider";
-import { mongoUserStorageProvider } from "./providers/mongoUserStorageProvider";
-import { ensureMysqlUsersTable, mysqlUserStorageProvider } from "./providers/mysqlUserStorageProvider";
-import { getCurrentUserStorageMode } from "./userStorageProvider";
-import type { User } from "./userStorageTypes";
 import { config } from "../config/config";
-import fs from "node:fs";
+import logger from "./logger";
+import { mongoUserStorageProvider } from "./providers/mongoUserStorageProvider";
+import type { User } from "./userStorageTypes";
 
 const buildDefaultAdmin = (): User => {
   const adminUsername = config.adminUsername;
@@ -62,102 +58,35 @@ const reconcileAdmin = async (
   return conflicts.length;
 };
 
-const initializeFileStorage = async (): Promise<{ initialized: boolean; message: string }> => {
-  ensureUsersDirectory();
-
-  if (!fs.existsSync(USERS_FILE)) {
-    writeUsersToFile([]);
-  }
-
-  let users = readUsersFromFile();
-  const conflictCount = await reconcileAdmin(
-    users,
-    async (userId, updates) => fileUserStorageProvider.updateUser(userId, updates),
-    async (userId) => fileUserStorageProvider.deleteUser(userId),
-  );
-
-  if (conflictCount >= 0) {
-    return {
-      initialized: true,
-      message: `文件存储初始化完成，已存在管理员账户，清理了 ${conflictCount} 个冲突用户`,
-    };
-  }
-
-  const admin = buildDefaultAdmin();
-  users = [...users, admin];
-  writeUsersToFile(users);
-  printAdminCreated(admin);
-  return {
-    initialized: true,
-    message: `文件存储初始化完成，已创建默认管理员账户: ${admin.username}`,
-  };
-};
-
-const initializeMongoStorage = async (): Promise<{ initialized: boolean; message: string }> => {
-  await connectMongo();
-  const users = await mongoUserStorageProvider.getAllUsers();
-  const conflictCount = await reconcileAdmin(
-    users,
-    async (userId, updates) => mongoUserStorageProvider.updateUser(userId, updates),
-    async (userId) => mongoUserStorageProvider.deleteUser(userId),
-  );
-
-  if (conflictCount >= 0) {
-    return {
-      initialized: true,
-      message: `MongoDB 初始化完成，已存在管理员账户，清理了 ${conflictCount} 个冲突用户`,
-    };
-  }
-
-  const admin = buildDefaultAdmin();
-  await mongoUserStorageProvider.createUser(admin);
-  printAdminCreated(admin);
-  return {
-    initialized: true,
-    message: `MongoDB 初始化完成，已创建默认管理员账户: ${admin.username}`,
-  };
-};
-
-const initializeMysqlStorage = async (): Promise<{ initialized: boolean; message: string }> => {
-  await ensureMysqlUsersTable();
-  const users = await mysqlUserStorageProvider.getAllUsers();
-  const conflictCount = await reconcileAdmin(
-    users,
-    async (userId, updates) => mysqlUserStorageProvider.updateUser(userId, updates),
-    async (userId) => mysqlUserStorageProvider.deleteUser(userId),
-  );
-
-  if (conflictCount >= 0) {
-    return {
-      initialized: true,
-      message: `MySQL 初始化完成，已存在管理员账户，清理了 ${conflictCount} 个冲突用户`,
-    };
-  }
-
-  const admin = buildDefaultAdmin();
-  await mysqlUserStorageProvider.createUser(admin);
-  printAdminCreated(admin);
-  return {
-    initialized: true,
-    message: `MySQL 初始化完成，已创建默认管理员账户: ${admin.username}`,
-  };
-};
-
 export const userBootstrapService = {
   async initializeDatabase(): Promise<{ initialized: boolean; message: string }> {
-    const mode = getCurrentUserStorageMode();
-    logger.info(`[UserStorage] 开始初始化数据库，模式: ${mode}`);
+    logger.info("[UserStorage] 开始初始化 MongoDB 用户存储");
 
     try {
-      if (mode === "mongo") {
-        return await initializeMongoStorage();
+      await connectMongo();
+      const users = await mongoUserStorageProvider.getAllUsers();
+      const conflictCount = await reconcileAdmin(
+        users,
+        async (userId, updates) => mongoUserStorageProvider.updateUser(userId, updates),
+        async (userId) => mongoUserStorageProvider.deleteUser(userId),
+      );
+
+      if (conflictCount >= 0) {
+        return {
+          initialized: true,
+          message: `MongoDB 初始化完成，已存在管理员账户，清理了 ${conflictCount} 个冲突用户`,
+        };
       }
-      if (mode === "mysql") {
-        return await initializeMysqlStorage();
-      }
-      return await initializeFileStorage();
+
+      const admin = buildDefaultAdmin();
+      await mongoUserStorageProvider.createUser(admin);
+      printAdminCreated(admin);
+      return {
+        initialized: true,
+        message: `MongoDB 初始化完成，已创建默认管理员账户: ${admin.username}`,
+      };
     } catch (error) {
-      logger.error("[UserStorage] 数据库初始化失败", { error, mode });
+      logger.error("[UserStorage] 数据库初始化失败", { error, mode: "mongo" });
       return {
         initialized: false,
         message: `数据库初始化失败: ${error instanceof Error ? error.message : String(error)}`,
@@ -165,4 +94,3 @@ export const userBootstrapService = {
     }
   },
 };
-

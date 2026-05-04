@@ -2,7 +2,13 @@ import * as userService from "../../services/userService";
 import logger from "../logger";
 import type { User } from "../userStorageTypes";
 import type { UserStorageProvider } from "../userStorageProvider";
-import { removeAvatarBase64 } from "./fileUserStorageProvider";
+
+const removeAvatarBase64 = <T>(value: T): T => {
+  if (value && typeof value === "object" && "avatarBase64" in (value as Record<string, unknown>)) {
+    delete (value as Record<string, unknown>).avatarBase64;
+  }
+  return value;
+};
 
 export const mongoUserStorageProvider: UserStorageProvider = {
   async getAllUsers() {
@@ -43,4 +49,3 @@ export const mongoUserStorageProvider: UserStorageProvider = {
     }
   },
 };
-

@@ -48,18 +48,24 @@ export interface NexaiRuntimeConfig {
   frontendUrl: string;
 }
 
+export interface TtsRuntimeConfig {
+  generationCode: string;
+}
+
 export interface RuntimeConfigDefaults {
   ipqs: IpqsRuntimeConfig;
   linuxdo: LinuxDoRuntimeConfig;
   googleAuth: GoogleAuthRuntimeConfig;
   deeplx: DeepLXRuntimeConfig;
   nexai: NexaiRuntimeConfig;
+  tts: TtsRuntimeConfig;
 }
 
 export function buildRuntimeConfigDefaults(options: {
   baseUrl: string;
   frontendBaseUrl: string;
   jwtSecret: string;
+  generationCode: string;
 }): RuntimeConfigDefaults {
   const normalizedBaseUrl = options.baseUrl.replace(/\/+$/, "");
   const normalizedFrontendBaseUrl = options.frontendBaseUrl.replace(/\/+$/, "");
@@ -110,6 +116,9 @@ export function buildRuntimeConfigDefaults(options: {
       },
       frontendUrl: normalizedFrontendBaseUrl,
     },
+    tts: {
+      generationCode: options.generationCode,
+    },
   };
 }
 
@@ -137,6 +146,9 @@ export function cloneRuntimeConfigDefaults(config: RuntimeConfigDefaults): Runti
       github: {
         ...config.nexai.github,
       },
+    },
+    tts: {
+      ...config.tts,
     },
   };
 }

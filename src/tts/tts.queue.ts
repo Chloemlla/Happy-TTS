@@ -1,8 +1,8 @@
-import { addGenerationRecord } from "../services/userGenerationService";
-import { UserStorage } from "../utils/userStorage";
-import { StorageManager } from "../utils/storage";
 import { wsService } from "../services/wsService";
 import logger from "../utils/logger";
+import { generationHistoryStore } from "./tts.history";
+import type { GenerationHistoryStore, QuotaLedger } from "./tts.ports";
+import { quotaLedger } from "./tts.quota";
 import { TtsService } from "./tts.service";
 import { type TtsJobRecord, type TtsNextAction, ttsStorage } from "./tts.storage";
 
@@ -18,7 +18,11 @@ export class TtsQueue {
   private readonly workerId = `tts-worker-${process.pid}-${Math.random().toString(36).slice(2, 8)}`;
   private processing = false;
 
-  constructor(private readonly callbacks: QueueCallbacks) {}
+  constructor(
+    private readonly callbacks: QueueCallbacks,
+    private readonly historyStore: GenerationHistoryStore = generationHistoryStore,
+    private readonly ledger: QuotaLedger = quotaLedger,
+  ) {}
 
   public async enqueue(job: TtsJobRecord) {
     await ttsStorage.createJob(job);
@@ -64,34 +68,27 @@ export class TtsQueue {
         isAdmin: job.isAdmin,
       });
 
+      const contentHash = this.ttsService.generateContentHash(job.request.text, job.request.voice, job.request.model);
+
+      await this.historyStore.addRecord({
+        scope: job.userId ? "user" : "anonymous",
+        userId: job.userId,
+        ip: job.ip,
+        fingerprint: job.fingerprint,
+        text: job.request.text,
+        voice: job.request.voice,
+        model: job.request.model,
+        outputFormat: job.request.outputFormat,
+        speed: job.request.speed,
+        contentHash,
+        fileName: result.fileName,
+        audioUrl: result.audioUrl,
+        createdAt: new Date().toISOString(),
+      });
+
       if (job.userId && !job.isAdmin) {
-        const contentHash = this.ttsService.generateContentHash(
-          job.request.text,
-          job.request.voice,
-          job.request.model,
-        );
-
-        await addGenerationRecord({
-          userId: job.userId,
-          text: job.request.text,
-          voice: job.request.voice,
-          model: job.request.model,
-          outputFormat: job.request.outputFormat,
-          speed: job.request.speed,
-          fileName: result.fileName,
-          contentHash,
-        });
-
-        const usageRecorded = await UserStorage.incrementUsage(job.userId);
-        if (!usageRecorded) {
-          logger.warn("TTS 成功后写入用户用量失败", {
-            userId: job.userId,
-            fileName: result.fileName,
-          });
-        }
+        await this.ledger.confirm(job.userId, job.taskId);
       }
-
-      await StorageManager.addRecord(job.ip, job.fingerprint, job.request.text, result.fileName);
 
       const usage = await this.callbacks.buildUsageSummary(job.userId, job.isAdmin);
       const nextAction = this.callbacks.buildNextAction(
@@ -124,9 +121,15 @@ export class TtsQueue {
     } catch (error) {
       logger.error("TTS 队列处理失败", error);
       const message = error instanceof Error ? error.message : "生成语音失败";
-      const nextAction = this.callbacks.buildNextAction("retry", "稍后重试", "生成失败，请稍后重试。");
 
-      await ttsStorage.failJob(job.taskId, message, nextAction);
+      let usage = job.usage;
+      if (job.userId && !job.isAdmin) {
+        await this.ledger.release(job.userId, job.taskId);
+        usage = await this.callbacks.buildUsageSummary(job.userId, job.isAdmin);
+      }
+
+      const nextAction = this.callbacks.buildNextAction("retry", "稍后重试", "生成失败，请稍后重试。");
+      await ttsStorage.failJob(job.taskId, message, usage ?? undefined, nextAction);
 
       if (job.userId) {
         wsService.notifyTtsError(job.userId, {

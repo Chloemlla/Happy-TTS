@@ -2,9 +2,9 @@ import type { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { config } from "../config/config";
 import logger from "../utils/logger";
-import { StorageManager } from "../utils/storage";
 import { type User, UserStorage } from "../utils/userStorage";
 import { TtsRequestError } from "./tts.errors";
+import { generationHistoryStore } from "./tts.history";
 import { TtsSubmissionPipeline } from "./tts.pipeline";
 import { TtsQueue } from "./tts.queue";
 import { type TtsNextAction, ttsStorage } from "./tts.storage";
@@ -94,6 +94,8 @@ export class TtsController {
   }
 
   public static async submitJob(req: Request, res: Response) {
+    const taskId = ttsStorage.createTaskId();
+
     try {
       const currentUser = await TtsController.resolveCurrentUser(req);
       const ip = TtsController.getClientIp(req);
@@ -113,9 +115,9 @@ export class TtsController {
         input: req.body,
         ip,
         currentUser,
+        taskId,
       });
 
-      const taskId = ttsStorage.createTaskId();
       const createdAt = new Date().toISOString();
 
       if (process.env.NODE_ENV === "test") {
@@ -319,17 +321,22 @@ export class TtsController {
     try {
       const ip = TtsController.getClientIp(req);
       const fingerprint = (req.query.fingerprint as string) || "unknown";
-      const userId = req.headers["x-user-id"] as string;
+      const currentUser = await TtsController.resolveCurrentUser(req);
 
       logger.info("获取历史记录", {
         ip,
         fingerprint,
-        userId,
+        userId: currentUser?.id,
         userAgent: req.headers["user-agent"],
         timestamp: new Date().toISOString(),
       });
 
-      const records = await StorageManager.getRecentRecords(ip, fingerprint);
+      const records = await generationHistoryStore.getRecentRecords({
+        userId: currentUser?.id,
+        ip,
+        fingerprint,
+        limit: 10,
+      });
       res.json(records);
     } catch (error) {
       logger.error("获取生成历史失败:", error);

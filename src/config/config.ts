@@ -9,6 +9,7 @@ import {
   type IpqsRuntimeConfig,
   type LinuxDoRuntimeConfig,
   type NexaiRuntimeConfig,
+  type TtsRuntimeConfig,
 } from "./runtimeConfigDefaults";
 
 dotenv.config();
@@ -53,13 +54,6 @@ const envSchema = z
     ADMIN_PASSWORD: optionalTrimmedString,
     GENERATION_CODE: z.string().optional().default("admin"),
     JWT_SECRET: optionalTrimmedString,
-    USER_STORAGE_MODE: z.enum(["file", "mongo", "mysql"]).optional().default("file"),
-    USER_STORAGE_AUTO_SWITCH: stringToBoolean,
-    MYSQL_HOST: z.string().optional().default("localhost"),
-    MYSQL_PORT: z.coerce.number().int().min(1).max(65535).default(3306),
-    MYSQL_USER: z.string().optional().default("root"),
-    MYSQL_PASSWORD: z.string().optional().default("root"),
-    MYSQL_DATABASE: z.string().optional().default("synapse"),
     REDIS_URL: z.string().url().optional(),
     MONGO_URI: optionalTrimmedString,
     MONGODB_URI: optionalTrimmedString,
@@ -98,12 +92,11 @@ const envSchema = z
         });
       }
     }
-
-    if (env.USER_STORAGE_MODE === "mongo" && !env.MONGO_URI && !env.MONGODB_URI) {
+    if (!env.MONGO_URI && !env.MONGODB_URI) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["MONGO_URI"],
-        message: "USER_STORAGE_MODE=mongo requires MONGO_URI or MONGODB_URI",
+        message: "Application requires MONGO_URI or MONGODB_URI",
       });
     }
 
@@ -141,6 +134,7 @@ const runtimeDefaults = buildRuntimeConfigDefaults({
   baseUrl,
   frontendBaseUrl,
   jwtSecret,
+  generationCode: parsedEnv.GENERATION_CODE,
 });
 
 RuntimeConfigService.configureDefaults(runtimeDefaults);
@@ -157,8 +151,6 @@ export const startupConfig = Object.freeze({
   jwtExpiresIn: "24h",
   bcryptSaltRounds: 12,
   localIps: ["127.0.0.1", "localhost", "::1"],
-  userStorageMode: parsedEnv.USER_STORAGE_MODE,
-  userStorageAutoSwitch: parsedEnv.USER_STORAGE_AUTO_SWITCH ?? false,
   openai: {
     apiKey: openaiApiKey,
     baseUrl: parsedEnv.OPENAI_BASE_URL,
@@ -166,13 +158,6 @@ export const startupConfig = Object.freeze({
     voice: parsedEnv.OPENAI_VOICE,
     responseFormat: parsedEnv.OPENAI_RESPONSE_FORMAT,
     speed: parsedEnv.OPENAI_SPEED,
-  },
-  mysql: {
-    host: parsedEnv.MYSQL_HOST,
-    port: parsedEnv.MYSQL_PORT,
-    user: parsedEnv.MYSQL_USER,
-    password: parsedEnv.MYSQL_PASSWORD,
-    database: parsedEnv.MYSQL_DATABASE,
   },
   redis: {
     url: parsedEnv.REDIS_URL || "",
@@ -225,6 +210,9 @@ export const runtimeMutableConfig = {
   get nexai(): NexaiRuntimeConfig {
     return RuntimeConfigService.getCachedConfig().nexai;
   },
+  get tts(): TtsRuntimeConfig {
+    return RuntimeConfigService.getCachedConfig().tts;
+  },
 };
 
 export const config = {
@@ -252,10 +240,7 @@ export const config = {
     windowMs: 60 * 60 * 1000,
     max: 3,
   },
-  userStorageMode: startupConfig.userStorageMode,
-  userStorageAutoSwitch: startupConfig.userStorageAutoSwitch,
   turnstile: startupConfig.turnstile,
-  mysql: startupConfig.mysql,
   redis: startupConfig.redis,
   ipBanStorage: startupConfig.ipBanStorage,
   enableFirstVisitVerification: startupConfig.security.enableFirstVisitVerification,
@@ -275,6 +260,9 @@ export const config = {
   },
   get nexai() {
     return runtimeMutableConfig.nexai;
+  },
+  get tts() {
+    return runtimeMutableConfig.tts;
   },
 };
 

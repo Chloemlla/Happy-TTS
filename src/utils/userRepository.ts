@@ -1,23 +1,9 @@
 import logger from "./logger";
-import { fileUserStorageProvider } from "./providers/fileUserStorageProvider";
-import { mongoUserStorageProvider } from "./providers/mongoUserStorageProvider";
-import { mysqlUserStorageProvider } from "./providers/mysqlUserStorageProvider";
-import { getCurrentUserStorageMode, type UserStorageProvider } from "./userStorageProvider";
+import { getUserStorageProvider } from "./userStorageProvider";
 import type { User } from "./userStorageTypes";
 import { userValidationService } from "./userValidationService";
 
 const DAILY_LIMIT = 5;
-
-const getProvider = (): UserStorageProvider => {
-  switch (getCurrentUserStorageMode()) {
-    case "mongo":
-      return mongoUserStorageProvider;
-    case "mysql":
-      return mysqlUserStorageProvider;
-    default:
-      return fileUserStorageProvider;
-  }
-};
 
 const buildNewUser = (username: string, email: string, password: string): User => ({
   id: Date.now().toString(),
@@ -33,11 +19,12 @@ const buildNewUser = (username: string, email: string, password: string): User =
   accountStatus: "active",
 });
 
-const getUserById = async (userId: string): Promise<User | null> => getProvider().getUserById(userId);
-const getUserByEmail = async (email: string): Promise<User | null> => getProvider().getUserByEmail(email);
-const getUserByUsername = async (username: string): Promise<User | null> => getProvider().getUserByUsername(username);
+const getUserById = async (userId: string): Promise<User | null> => getUserStorageProvider().getUserById(userId);
+const getUserByEmail = async (email: string): Promise<User | null> => getUserStorageProvider().getUserByEmail(email);
+const getUserByUsername = async (username: string): Promise<User | null> =>
+  getUserStorageProvider().getUserByUsername(username);
 const updateUser = async (userId: string, updates: Partial<User>): Promise<User | null> =>
-  getProvider().updateUser(userId, updates);
+  getUserStorageProvider().updateUser(userId, updates);
 
 const maybeSendUsageAlert = async (user: User, dailyUsage: number): Promise<void> => {
   if (!user.email || user.role === "admin") {
@@ -72,7 +59,7 @@ export const userRepository = {
   },
 
   async getAllUsers(): Promise<User[]> {
-    return getProvider().getAllUsers();
+    return getUserStorageProvider().getAllUsers();
   },
 
   async createUser(username: string, email: string, password: string): Promise<User | null> {
@@ -81,12 +68,12 @@ export const userRepository = {
     if (existUserByName || existUserByEmail) {
       return null;
     }
-    return getProvider().createUser(buildNewUser(username, email, password));
+    return getUserStorageProvider().createUser(buildNewUser(username, email, password));
   },
 
   async authenticateUser(identifier: string, password: string): Promise<User | null> {
     const sanitizedIdentifier = userValidationService.sanitizeInput(identifier);
-    const provider = getProvider();
+    const provider = getUserStorageProvider();
     const user =
       (await provider.getUserByUsername(sanitizedIdentifier)) || (await provider.getUserByEmail(sanitizedIdentifier));
 
@@ -113,15 +100,15 @@ export const userRepository = {
     if (!linuxdoId || typeof linuxdoId !== "string") {
       return null;
     }
-    return getProvider().getUserByLinuxDoId(linuxdoId);
+    return getUserStorageProvider().getUserByLinuxDoId(linuxdoId);
   },
 
   async updateUser(userId: string, updates: Partial<User>): Promise<User | null> {
-    return getProvider().updateUser(userId, updates);
+    return getUserStorageProvider().updateUser(userId, updates);
   },
 
   async deleteUser(userId: string): Promise<boolean> {
-    return getProvider().deleteUser(userId);
+    return getUserStorageProvider().deleteUser(userId);
   },
 
   async getRemainingUsage(userId: string): Promise<number> {
