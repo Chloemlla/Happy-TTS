@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  marked: ^18.0.2
+  marked: ^18.0.3
   react: ^19.2.5
   react-dom: ^19.2.5
   lodash-es: '>=4.18.1'
@@ -123,14 +123,14 @@ importers:
         specifier: ^1.11.0
         version: 1.11.0(react@19.2.5)
       marked:
-        specifier: ^18.0.2
-        version: 18.0.2
+        specifier: ^18.0.3
+        version: 18.0.3
       marked-highlight:
         specifier: ^2.2.4
-        version: 2.2.4(marked@18.0.2)
+        version: 2.2.4(marked@18.0.3)
       marked-katex-extension:
         specifier: ^5.1.8
-        version: 5.1.8(katex@0.16.45)(marked@18.0.2)
+        version: 5.1.8(katex@0.16.45)(marked@18.0.3)
       md5:
         specifier: ^2.3.0
         version: 2.3.0
@@ -4055,16 +4055,16 @@ packages:
   marked-highlight@2.2.4:
     resolution: {integrity: sha512-PZxisNMJDduSjc0q6uvjsnqqHCXc9s0eyzxDO9sB1eNGJnd/H1/Fu+z6g/liC1dfJdFW4SftMwMlLvsBhUPrqQ==}
     peerDependencies:
-      marked: ^18.0.2
+      marked: ^18.0.3
 
   marked-katex-extension@5.1.8:
     resolution: {integrity: sha512-TsV9OCHHDjVBf4IH0RSjLs4Eqsjj8HGfmVCKlimrS391EtBBxzXj2gBYdF9tY7f7oXu9tb1kHV86ExJsG3iMhw==}
     peerDependencies:
       katex: '>=0.16 <0.17'
-      marked: ^18.0.2
+      marked: ^18.0.3
 
-  marked@18.0.2:
-    resolution: {integrity: sha512-NsmlUYBS/Zg57rgDWMYdnre6OTj4e+qq/JS2ot3KrYLSoHLw+sDu0Nm1ZGpRgYAq6c+b1ekaY5NzVchMCQnzcg==}
+  marked@18.0.3:
+    resolution: {integrity: sha512-7VT90JOkDeaRWpfjOReRGPEKn0ecdARBkDGL+tT1wZY0efPPqkUxLUSmzy/C7TIylQYJC9STISEsCHrqb/7VIA==}
     engines: {node: '>= 20'}
     hasBin: true
 
@@ -7069,7 +7069,7 @@ snapshots:
 
   '@react-email/markdown@0.0.18(react@19.2.5)':
     dependencies:
-      marked: 18.0.2
+      marked: 18.0.3
       react: 19.2.5
 
   '@react-email/preview@0.0.14(react@19.2.5)':
@@ -8088,7 +8088,7 @@ snapshots:
 
   '@types/marked@6.0.0':
     dependencies:
-      marked: 18.0.2
+      marked: 18.0.3
 
   '@types/md5@2.3.6': {}
 
@@ -9931,16 +9931,16 @@ snapshots:
 
   markdown-table@3.0.4: {}
 
-  marked-highlight@2.2.4(marked@18.0.2):
+  marked-highlight@2.2.4(marked@18.0.3):
     dependencies:
-      marked: 18.0.2
+      marked: 18.0.3
 
-  marked-katex-extension@5.1.8(katex@0.16.45)(marked@18.0.2):
+  marked-katex-extension@5.1.8(katex@0.16.45)(marked@18.0.3):
     dependencies:
       katex: 0.16.45
-      marked: 18.0.2
+      marked: 18.0.3
 
-  marked@18.0.2: {}
+  marked@18.0.3: {}
 
   math-intrinsics@1.1.0: {}
 
@@ -10139,7 +10139,7 @@ snapshots:
       katex: 0.16.45
       khroma: 2.1.0
       lodash-es: 4.18.1
-      marked: 18.0.2
+      marked: 18.0.3
       roughjs: 4.6.6
       stylis: 4.4.0
       ts-dedent: 2.2.0
@@ -10717,7 +10717,7 @@ snapshots:
       glob: 13.0.6
       jiti: 2.4.2
       log-symbols: 7.0.1
-      marked: 18.0.2
+      marked: 18.0.3
       mime-types: 3.0.2
       normalize-path: 3.0.0
       nypm: 0.6.6
