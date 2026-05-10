@@ -114,6 +114,7 @@ WORKDIR /app
 
 # 安装生产依赖
 COPY package.json pnpm-lock.yaml ./
+RUN pnpm approve-builds
 RUN pnpm add -D @types/ws
 RUN pnpm install --prod --frozen-lockfile
 
