@@ -51,7 +51,7 @@ WORKDIR /app/docs
 
 COPY frontend/docs/package.json frontend/docs/pnpm-lock.yaml ./
 RUN pnpm approve-builds
-RUN pnpm config set ignore-scripts false && pnpm install --frozen-lockfile --no-optional
+RUN pnpm config set ignore-scripts false && pnpm install --no-frozen-lockfile --no-optional
 
 COPY frontend/docs/ .
 
