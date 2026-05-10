@@ -3,8 +3,8 @@ import { type CheerioAPI, load } from "cheerio";
 const FORBIDDEN_TAGS = ["script", "iframe", "object", "embed", "link", "meta", "style", "foreignObject"];
 const URI_ATTRS = new Set(["href", "xlink:href", "src"]);
 const XML_NAMESPACE_ATTRS = new Set(["xmlns", "xmlns:xlink"]);
-const COMMENT_RE = /<!--[\s\S]*?-->/g;
-const CDATA_RE = /<!\[CDATA\[[\s\S]*?\]\]>/g;
+const COMMENT_RE = /<!--[\s\S]*?(?:-->|$)/g;
+const CDATA_RE = /<!\[CDATA\[[\s\S]*?(?:\]\]>|$)/g;
 const ESCAPED_CONTENT_RE = /&#x?[0-9a-f]+;|\\x[0-9a-f]{2}|\\u[0-9a-f]{4}|\\u\{[0-9a-f]+\}/gi;
 const UNSAFE_PROTOCOL_RE = /^[a-zA-Z][a-zA-Z0-9+.-]*\s*:/i;
 const UNSAFE_URL_RE = /url\(\s*["']?\s*(?!#)/i;
@@ -26,7 +26,7 @@ function preprocessSvg(content: string): string {
     current = current.replace(COMMENT_RE, "").replace(CDATA_RE, "");
   } while (current !== previous);
 
-  return current;
+  return current.replace(/<!--|<!\[CDATA\[/g, "");
 }
 
 function loadSvgDocument(content: string): SvgDocument {

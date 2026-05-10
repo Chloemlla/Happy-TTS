@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@jest/globals";
 import { JSDOM } from "jsdom";
+import { sanitizeSvgContent, validateSvgContent } from "../utils/svgSecurity";
 
 // 模拟IPFS服务的安全清理函数
 class MockIPFSService {
@@ -231,7 +232,21 @@ describe("IPFS Security Tests", () => {
       expect(sanitized).not.toContain("]]>");
       expect(sanitized).toContain("<circle");
     });
-  });
+    it("should handle incomplete comment blocks safely", () => {
+      const maliciousSVG = `<svg><!--<script>alert('xss')</script>`;
+      const sanitized = sanitizeSvgContent(maliciousSVG);
+      expect(sanitized).not.toContain("<!--");
+      expect(sanitized).not.toContain("<script>");
+      expect(validateSvgContent(sanitized)).toEqual({ valid: true });
+    });
+
+    it("should handle incomplete CDATA sections safely", () => {
+      const maliciousSVG = `<svg><![CDATA[<script>alert('xss')</script>`;
+      const sanitized = sanitizeSvgContent(maliciousSVG);
+      expect(sanitized).not.toContain("<![CDATA[");
+      expect(sanitized).not.toContain("<script>");
+      expect(validateSvgContent(sanitized)).toEqual({ valid: true });
+    });  });
 
   describe("SVG Content Validation", () => {
     it("should accept valid SVG", () => {
