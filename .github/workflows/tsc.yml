@@ -28,6 +28,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          pnpm approve-builds
           pnpm add -D @types/ws
           pnpm install
 
