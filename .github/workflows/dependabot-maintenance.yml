@@ -34,6 +34,11 @@ jobs:
         with:
           token: ${{ secrets.USER_PAT }}
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "latest"
+
       - name: Verify Node.js runtime
         run: |
           node --version
@@ -43,8 +48,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Run fix script
-        run: 
-          node scripts/fix-dependabot-alerts.js
+        run: node scripts/fix-dependabot-alerts.js
 
       - name: Commit and push
         run: |
