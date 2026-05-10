@@ -18,7 +18,7 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
 
 # 安装依赖（frozen-lockfile 保证一致性）
-RUN pnpm install --frozen-lockfile
+RUN pnpm config set ignore-scripts false && pnpm install --frozen-lockfile --no-optional
 
 # 再复制源代码
 COPY frontend/ .
@@ -49,7 +49,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app/docs
 
 COPY frontend/docs/package.json frontend/docs/pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --no-optional
+RUN pnpm config set ignore-scripts false && pnpm install --frozen-lockfile --no-optional
 
 COPY frontend/docs/ .
 
@@ -78,7 +78,7 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm add -D @types/ws
-RUN pnpm install --frozen-lockfile
+RUN pnpm config set ignore-scripts false && pnpm install --frozen-lockfile --no-optional
 
 COPY scripts/ ./scripts/
 COPY src/ ./src/
