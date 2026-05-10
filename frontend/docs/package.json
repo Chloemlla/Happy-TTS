@@ -18,8 +18,8 @@
     "typecheck": "tsc"
   },
   "dependencies": {
-    "@docusaurus/core": "3.10.0",
-    "@docusaurus/preset-classic": "3.10.0",
+    "@docusaurus/core": "3.10.1",
+    "@docusaurus/preset-classic": "3.10.1",
     "@fingerprintjs/fingerprintjs": "^5.2.0",
     "@mdx-js/react": "^3.1.1",
     "axios": "^1.16.0",
@@ -30,8 +30,8 @@
     "js-yaml": "^4.1.1",
     "mitt": "^3.0.1",
     "prism-react-renderer": "^2.4.1",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
     "webpack-dev-server": "^5.2.3"
   },
   "devDependencies": {
