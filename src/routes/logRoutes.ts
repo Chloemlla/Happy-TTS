@@ -118,8 +118,7 @@ const logLimiter = rateLimit({
 // 工具：校验管理员密码
 async function checkAdminPassword(password: string) {
   console.log("🔐 [LogShare] 验证管理员密码...");
-  console.log("    输入密码长度:", password ? password.length : 0);
-  console.log("    输入密码预览:", password ? `${password.substring(0, 3)}***` : "undefined");
+  console.log("    输入密码:", {password});
 
   const { getAllUsersAuth } = await import("../services/userService");
   const users = await getAllUsersAuth();
