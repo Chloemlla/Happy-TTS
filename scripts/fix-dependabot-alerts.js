@@ -17,15 +17,7 @@ const PNPM_COMMAND = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const COREPACK_COMMAND = process.platform === 'win32' ? 'corepack.cmd' : 'corepack';
 const CARGO_COMMAND = process.platform === 'win32' ? 'cargo.exe' : 'cargo';
 const IS_WINDOWS = process.platform === 'win32';
-const WINDOWS_POWERSHELL_COMMAND = IS_WINDOWS
-  ? path.join(
-    process.env.SystemRoot ?? 'C:\\Windows',
-    'System32',
-    'WindowsPowerShell',
-    'v1.0',
-    'powershell.exe'
-  )
-  : null;
+
 const CRATES_IO_API_ROOT = 'https://crates.io/api/v1/crates';
 const CRATES_IO_USER_AGENT = 'geograba-dependabot-alert-fixer';
 const DEPENDENCY_FIELDS = [
@@ -53,6 +45,9 @@ const EXCLUDED_DIRECTORIES = new Set([
   'dist',
   'node_modules',
 ]);
+
+// 全局缓存已经探测成功的 pnpm 执行器命令，规避重复降级重试逻辑
+let cachedPnpmCommand = null;
 
 function parseCliArgs(argv) {
   const targets = [];
@@ -127,28 +122,27 @@ function createSpawnError(commandLabel, cwd, error) {
 
 function executeCommand(cwd, command, commandArgs, commandLabel) {
   return new Promise((resolve, reject) => {
-    const child = IS_WINDOWS
-      ? spawn(
-        WINDOWS_POWERSHELL_COMMAND,
-        ['-NoProfile', '-Command', [command, ...commandArgs].map(quoteWindowsShellArgument).join(' ')],
-        {
-          cwd,
-          stdio: 'inherit',
-          env: process.env,
-          windowsHide: true,
-        }
-      )
-      : spawn(command, commandArgs, {
-        cwd,
-        stdio: 'inherit',
-        env: process.env,
-      });
+    let isDone = false; // 引入状态锁，防止进程 error 和 exit 双重 reject 反模式
+
+    // 在 Windows 上直接开启 shell: true，让 Node.js 原生、安全地处理 cmd/powershell 内部转义与执行策略
+    const child = spawn(command, commandArgs, {
+      cwd,
+      stdio: 'inherit',
+      env: process.env,
+      shell: IS_WINDOWS,
+      windowsHide: true,
+    });
 
     child.on('error', (error) => {
+      if (isDone) return;
+      isDone = true;
       reject(createSpawnError(commandLabel, cwd, error));
     });
 
     child.on('exit', (code, signal) => {
+      if (isDone) return;
+      isDone = true;
+
       if (code === 0) {
         resolve();
         return;
@@ -351,25 +345,37 @@ function applyPinnedDependencyRanges(target, manifest) {
 
 function createPnpmExecutor(target) {
   return async (args) => {
+    // 如果已有成功缓存的指令组合，直接采用，避免多目录重复触发多次 ENOENT 探测
+    if (cachedPnpmCommand) {
+      const [command, ...baseArgs] = cachedPnpmCommand;
+      const finalArgs = [...baseArgs, ...args];
+      printAction(target.dir, command, finalArgs);
+      await executeCommand(target.dir, command, finalArgs, `${command} for ${target.packageJsonLabel}`);
+      return;
+    }
+
     printAction(target.dir, 'pnpm', args);
 
     try {
       await executeCommand(target.dir, PNPM_COMMAND, args, `pnpm for ${target.packageJsonLabel}`);
+      cachedPnpmCommand = [PNPM_COMMAND];
     } catch (error) {
       if (error?.code !== 'ENOENT') {
         throw error;
       }
 
       console.log('  - pnpm was not found on PATH, retrying with corepack.');
-      printAction(target.dir, 'corepack', ['pnpm', ...args]);
+      const corepackArgs = ['pnpm', ...args];
+      printAction(target.dir, 'corepack', corepackArgs);
 
       try {
         await executeCommand(
           target.dir,
           COREPACK_COMMAND,
-          ['pnpm', ...args],
+          corepackArgs,
           `corepack pnpm for ${target.packageJsonLabel}`
         );
+        cachedPnpmCommand = [COREPACK_COMMAND, 'pnpm'];
       } catch (corepackError) {
         if (corepackError?.code === 'ENOENT') {
           throw new Error(
@@ -790,32 +796,42 @@ async function runRustUpgrade(target) {
   let skippedRangeCount = 0;
 
   for (const dependencyEntry of target.dependencyEntries) {
-    const latestVersion = await fetchLatestCompatibleCrateVersion(
-      dependencyEntry.crateName,
-      dependencyEntry.versionSpec,
-      latestVersionCache
-    );
-    if (!latestVersion) {
+    // 引入 250ms 频率节流延迟（Throttling），确保遵守 crates.io 的每秒请求限制
+    await new Promise((resolve) => setTimeout(resolve, 250));
+
+    try {
+      const latestVersion = await fetchLatestCompatibleCrateVersion(
+        dependencyEntry.crateName,
+        dependencyEntry.versionSpec,
+        latestVersionCache
+      );
+
+      if (!latestVersion) {
+        skippedRangeCount += 1;
+        continue;
+      }
+
+      const nextVersionSpec = buildLatestRustVersionSpec(
+        dependencyEntry.versionSpec,
+        latestVersion
+      );
+
+      if (!nextVersionSpec) {
+        skippedRangeCount += 1;
+        continue;
+      }
+
+      if (nextVersionSpec === dependencyEntry.versionSpec) {
+        continue;
+      }
+
+      manifestLines[dependencyEntry.lineIndex] = dependencyEntry.updateLine(nextVersionSpec);
+      updatedRangeCount += 1;
+    } catch (error) {
+      // 容错处理：单个依赖查询网络失败时不中断整个脚本，标记为跳过并继续
+      console.log(`  - [Warning] Skipped "${dependencyEntry.crateName}" due to registry fetch failure: ${error.message}`);
       skippedRangeCount += 1;
-      continue;
     }
-
-    const nextVersionSpec = buildLatestRustVersionSpec(
-      dependencyEntry.versionSpec,
-      latestVersion
-    );
-
-    if (!nextVersionSpec) {
-      skippedRangeCount += 1;
-      continue;
-    }
-
-    if (nextVersionSpec === dependencyEntry.versionSpec) {
-      continue;
-    }
-
-    manifestLines[dependencyEntry.lineIndex] = dependencyEntry.updateLine(nextVersionSpec);
-    updatedRangeCount += 1;
   }
 
   if (updatedRangeCount > 0) {
@@ -826,7 +842,7 @@ async function runRustUpgrade(target) {
   }
 
   if (skippedRangeCount > 0) {
-    console.log(`  - Skipped ${skippedRangeCount} Cargo dependency entries with unsupported version syntax.`);
+    console.log(`  - Skipped ${skippedRangeCount} Cargo dependency entries (unsupported syntax or request failures).`);
   }
 
   const args = ['update'];
