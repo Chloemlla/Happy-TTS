@@ -304,10 +304,14 @@ function normalizePnpmOverrides(manifest) {
 async function rewriteManifest(packageJsonPath, manifest) {
   const currentManifestText = await readFile(packageJsonPath, 'utf8');
   const newline = currentManifestText.includes('\r\n') ? '\r\n' : '\n';
-  await writeFile(
-    packageJsonPath,
-    `${JSON.stringify(manifest, null, 2).replace(/\n/g, newline)}${newline}`
-  );
+  
+  // 安全的换行符替换，仅替换系统默认换行
+  const serialized = JSON.stringify(manifest, null, 2);
+  const normalizedText = newline === '\r\n' 
+    ? serialized.replace(/\n/g, '\r\n') 
+    : serialized;
+    
+  await writeFile(packageJsonPath, `${normalizedText}${newline}`);
 }
 
 function applyPinnedDependencyRanges(target, manifest) {
@@ -579,10 +583,18 @@ function compareSimpleRustVersions(leftVersion, rightVersion) {
 }
 
 function isCompatibleRustVersion(currentVersion, candidateVersion) {
+  // Fix: Cargo SemVer rule for 0.x.y and 0.0.x is strict
   if (currentVersion.major === 0) {
+    if (currentVersion.minor === 0) {
+      return (
+        candidateVersion.major === 0 &&
+        candidateVersion.minor === 0 &&
+        candidateVersion.patch === currentVersion.patch
+      );
+    }
     return (
-      candidateVersion.major === 0
-      && candidateVersion.minor === currentVersion.minor
+      candidateVersion.major === 0 &&
+      candidateVersion.minor === currentVersion.minor
     );
   }
 
@@ -766,6 +778,7 @@ async function runPnpmUpgrade(target, options = {}) {
   const runPnpmCommand = createPnpmExecutor(target);
 
   if (!options.repairOnly) {
+    // 处理极大依赖列表时的防御，普通项目虽然达不到系统的 E2BIG 限制，但这是一种良好的 Node.js 实践
     await runPnpmCommand(['up', '--latest', '--lockfile-only', ...target.dependencyNames]);
   }
 
