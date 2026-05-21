@@ -14,10 +14,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@main
+        uses: actions/checkout@v4 # 建议使用明确的 v4 版本，避免 @main 的不稳定变更
 
       - name: Setup Node.js
-        uses: actions/setup-node@main
+        uses: actions/setup-node@v4 # 建议使用明确的 v4 版本
         with:
           node-version: "24"
 
@@ -27,11 +27,8 @@ jobs:
           version: latest
 
       - name: Install dependencies
-        run: |
-          pnpm approve-builds
-          pnpm config set ignore-scripts false
-          pnpm add -D @types/ws
-          pnpm install
+        # 使用 --frozen-lockfile 确保 CI 严格按照 lockfile 安装，不需要重复运行 approve-builds
+        run: pnpm install --frozen-lockfile
 
       - name: Install global tools
         run: npm install -g javascript-obfuscator
