@@ -317,7 +317,7 @@ export class AuthController {
   public static async login(req: Request, res: Response) {
     const t0 = Date.now();
     try {
-      const { identifier, password } = req.body;
+      const { identifier, password, cfToken, turnstileToken } = req.body;
       const ip = getClientIP(req);
       const userAgent = req.headers["user-agent"] || "unknown";
 
@@ -337,6 +337,21 @@ export class AuthController {
       if (!password) {
         logger.warn("登录失败：password 字段缺失", { body: req.body });
         return res.status(400).json({ error: "请提供密码" });
+      }
+
+      const turnstileConfig = await TurnstileService.getConfig();
+      if (turnstileConfig.enabled) {
+        const captchaToken = typeof cfToken === "string" ? cfToken : typeof turnstileToken === "string" ? turnstileToken : "";
+        if (!captchaToken) {
+          logger.warn("登录失败：缺少 Turnstile 令牌", { identifier, ip });
+          return res.status(400).json({ error: "请先完成人机验证" });
+        }
+
+        const isValidCaptcha = await TurnstileService.verifyToken(captchaToken, ip);
+        if (!isValidCaptcha) {
+          logger.warn("登录失败：Turnstile 验证失败", { identifier, ip });
+          return res.status(400).json({ error: "人机验证失败，请重试" });
+        }
       }
 
       const logDetails = {

@@ -6,6 +6,7 @@ import { createLimiter } from "../middleware/rateLimiter";
 import { replayProtection } from "../middleware/replayProtection";
 import { mongoose } from "../services/mongoService";
 import { ShortUrlService } from "../services/shortUrlService";
+import { config } from "../config/config";
 
 const router = Router();
 
@@ -47,6 +48,14 @@ const adminWriteLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "写入过于频繁，请稍后再试" },
+});
+
+const publicCreateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "公共短链创建请求过于频繁，请稍后再试" },
 });
 
 // 防重放保护实例
@@ -161,14 +170,21 @@ router.delete(
   },
 );
 
-// 匿名公共创建短链（仅需 SERVER_PASSWORD 校验，不限流）
-router.post("/public/create", async (req: any, res: any) => {
+// 匿名公共创建短链（显式启用、独立口令、严格限流）
+router.post("/public/create", publicCreateLimiter, async (req: any, res: any) => {
   try {
     const { target, customCode, password } = req.body || {};
 
-    // 校验 SERVER_PASSWORD
-    const serverPassword = process.env.SERVER_PASSWORD || "admin";
-    if (!password || password !== serverPassword) {
+    if (!config.publicShortUrl.enabled) {
+      return res.status(404).json({ error: "公共短链创建未启用" });
+    }
+
+    const publicShortUrlPassword = config.publicShortUrl.password;
+    if (!publicShortUrlPassword) {
+      return res.status(503).json({ error: "公共短链创建服务未正确配置" });
+    }
+
+    if (!password || password !== publicShortUrlPassword) {
       return res.status(403).json({ error: "密码错误" });
     }
 

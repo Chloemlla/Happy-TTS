@@ -10,7 +10,6 @@ import {
 } from "../templates/emailTemplates";
 import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
-import { TOTPDebugger } from "../utils/totpDebugger";
 import { UserStorage } from "../utils/userStorage";
 
 // TOTP验证尝试次数限制
@@ -237,31 +236,17 @@ export class TOTPController {
       if (!isValid) {
         const remainingAttempts = attemptCheck.remainingAttempts - 1;
 
-        // 生成当前时间窗口的期望验证码用于调试
-        const expectedToken = TOTPDebugger.generateTestToken(currentUser.totpSecret, 0);
-        const prevToken = TOTPDebugger.generateTestToken(currentUser.totpSecret, -30);
-        const nextToken = TOTPDebugger.generateTestToken(currentUser.totpSecret, 30);
-
         logger.warn("verifyAndEnable: 验证码错误", {
           userId,
           username: currentUser.username,
           token,
           remainingAttempts,
-          expectedToken,
-          prevToken,
-          nextToken,
         });
 
         return res.status(400).json({
           error: "验证码错误",
           remainingAttempts,
           lockedUntil: remainingAttempts === 0 ? Date.now() + TOTP_LOCKOUT_DURATION : undefined,
-          debug: {
-            expectedToken,
-            prevToken,
-            nextToken,
-            message: "这些是服务器当前时间窗口的期望验证码，用于调试时间同步问题",
-          },
         });
       }
 
@@ -322,6 +307,10 @@ export class TOTPController {
       const user = await UserStorage.getUserById(userId);
       if (!user) {
         return res.status(404).json({ error: "用户不存在" });
+      }
+
+      if (user.token !== pendingToken || !user.tokenExpiresAt || Date.now() > user.tokenExpiresAt) {
+        return res.status(401).json({ error: "二次验证临时令牌无效或已失效" });
       }
 
       if (!user.totpEnabled) {
@@ -427,19 +416,11 @@ export class TOTPController {
           const attemptCheck = TOTPController.checkTOTPAttempts(userId);
           const remainingAttempts = attemptCheck.remainingAttempts - 1;
 
-          // 生成当前时间窗口的期望验证码用于调试
-          const expectedToken = TOTPDebugger.generateTestToken(user.totpSecret!, 0);
-          const prevToken = TOTPDebugger.generateTestToken(user.totpSecret!, -30);
-          const nextToken = TOTPDebugger.generateTestToken(user.totpSecret!, 30);
-
           logger.warn("verifyToken: TOTP验证码错误", {
             userId,
             username: user.username,
             token,
             remainingAttempts,
-            expectedToken,
-            prevToken,
-            nextToken,
           });
 
           return res.status(400).json({
@@ -453,6 +434,11 @@ export class TOTPController {
       }
 
       logger.info("TOTP验证成功:", { userId, username: user.username, usedBackupCode: !!backupCode });
+
+      await UserStorage.updateUser(user.id, {
+        token: undefined,
+        tokenExpiresAt: undefined,
+      } as any);
 
       // 生成JWT token
       const jwt = require("jsonwebtoken");
@@ -522,31 +508,17 @@ export class TOTPController {
       if (!isValid) {
         const remainingAttempts = attemptCheck.remainingAttempts - 1;
 
-        // 生成当前时间窗口的期望验证码用于调试
-        const expectedToken = TOTPDebugger.generateTestToken(user.totpSecret!, 0);
-        const prevToken = TOTPDebugger.generateTestToken(user.totpSecret!, -30);
-        const nextToken = TOTPDebugger.generateTestToken(user.totpSecret!, 30);
-
         logger.warn("disable: TOTP验证码错误", {
           userId,
           username: user.username,
           token,
           remainingAttempts,
-          expectedToken,
-          prevToken,
-          nextToken,
         });
 
         return res.status(400).json({
           error: "验证码错误",
           remainingAttempts,
           lockedUntil: remainingAttempts === 0 ? Date.now() + TOTP_LOCKOUT_DURATION : undefined,
-          debug: {
-            expectedToken,
-            prevToken,
-            nextToken,
-            message: "这些是服务器当前时间窗口的期望验证码，用于调试时间同步问题",
-          },
         });
       }
 

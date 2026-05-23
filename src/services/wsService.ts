@@ -3,6 +3,7 @@ import type { Server as HttpServer, IncomingMessage } from "node:http";
 import { URL } from "node:url";
 import jwt from "jsonwebtoken";
 import { WebSocket, WebSocketServer } from "ws";
+import { config } from "../config/config";
 import logger from "../utils/logger";
 
 // ========== 类型定义 ==========
@@ -147,8 +148,7 @@ class WsService {
       const token = url.searchParams.get("token");
       if (!token) return { userId: null, isAdmin: false };
 
-      const secret = process.env.JWT_SECRET || process.env.SERVER_PASSWORD || "default-secret";
-      const decoded = jwt.verify(token, secret) as any;
+      const decoded = jwt.verify(token, config.jwtSecret) as any;
       return {
         userId: decoded.userId || decoded.username || decoded.id || null,
         isAdmin: decoded.role === "admin" || decoded.isAdmin === true,

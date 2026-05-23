@@ -130,7 +130,7 @@ const PublicShortLinkCreator: React.FC = () => {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="请输入 SERVER_PASSWORD"
+              placeholder="请输入公共短链访问口令"
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors text-sm"
               aria-label="服务密码"
             />

@@ -1,4 +1,5 @@
 import path from "node:path";
+import crypto from "node:crypto";
 import dotenv from "dotenv";
 import { z } from "zod";
 import { RuntimeConfigService } from "../services/runtimeConfigService";
@@ -14,7 +15,9 @@ import {
 
 dotenv.config();
 
-const DEV_JWT_SECRET = "yb56beb12b35ab636b66c4f9fc168646785a8e85a";
+function generateEphemeralSecret(): string {
+  return crypto.randomBytes(48).toString("hex");
+}
 
 const stringToBoolean = z
   .union([z.boolean(), z.string(), z.number()])
@@ -54,6 +57,8 @@ const envSchema = z
     ADMIN_PASSWORD: optionalTrimmedString,
     GENERATION_CODE: z.string().optional().default("admin"),
     JWT_SECRET: optionalTrimmedString,
+    PUBLIC_SHORT_URL_ENABLED: stringToBoolean,
+    PUBLIC_SHORT_URL_PASSWORD: optionalTrimmedString,
     REDIS_URL: z.string().url().optional(),
     MONGO_URI: optionalTrimmedString,
     MONGODB_URI: optionalTrimmedString,
@@ -91,6 +96,13 @@ const envSchema = z
           message: "Production requires ADMIN_PASSWORD",
         });
       }
+      if (env.PUBLIC_SHORT_URL_ENABLED === true && !env.PUBLIC_SHORT_URL_PASSWORD) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["PUBLIC_SHORT_URL_PASSWORD"],
+          message: "Production requires PUBLIC_SHORT_URL_PASSWORD when PUBLIC_SHORT_URL_ENABLED=true",
+        });
+      }
     }
     if (!env.MONGO_URI && !env.MONGODB_URI) {
       ctx.addIssue({
@@ -119,8 +131,10 @@ const parsedEnv = envSchema.parse(process.env);
 const baseUrl = parsedEnv.VITE_API_URL || parsedEnv.BASE_URL || "https://tts.chloemlla.com";
 const frontendBaseUrl = parsedEnv.FRONTEND_URL || "https://tts.chloemlla.com";
 const openaiApiKey = parsedEnv.OPENAI_KEY || parsedEnv.OPENAI_API_KEY;
-const jwtSecret = parsedEnv.NODE_ENV === "production" ? parsedEnv.JWT_SECRET! : parsedEnv.JWT_SECRET || DEV_JWT_SECRET;
+const jwtSecret = parsedEnv.JWT_SECRET || generateEphemeralSecret();
 const adminPassword = parsedEnv.NODE_ENV === "production" ? parsedEnv.ADMIN_PASSWORD! : parsedEnv.ADMIN_PASSWORD || "admin";
+const publicShortUrlEnabled = parsedEnv.PUBLIC_SHORT_URL_ENABLED === true;
+const publicShortUrlPassword = parsedEnv.PUBLIC_SHORT_URL_PASSWORD;
 
 export const compileTimeConfig = Object.freeze({
   timezone: "Asia/Shanghai",
@@ -189,6 +203,10 @@ export const startupConfig = Object.freeze({
     },
   },
   serverPassword: parsedEnv.SERVER_PASSWORD,
+  publicShortUrl: {
+    enabled: publicShortUrlEnabled,
+    password: publicShortUrlPassword,
+  },
   ipBanStorage: parsedEnv.REDIS_URL ? ("redis" as const) : ("mongo" as const),
 });
 
@@ -244,6 +262,7 @@ export const config = {
   enableFirstVisitVerification: startupConfig.security.enableFirstVisitVerification,
   frontendBaseUrl: startupConfig.frontendBaseUrl,
   auditLogMasking: startupConfig.security.auditLogMasking,
+  publicShortUrl: startupConfig.publicShortUrl,
   get ipqs() {
     return runtimeMutableConfig.ipqs;
   },
