@@ -17,8 +17,6 @@
     "build:analyze": "tsc && vite build --mode analyze",
     "build:optimized": "tsc && vite build --mode production",
     "preview": "vite preview",
-    "serve": "node static-server.js",
-    "serve:prod": "npm run build && node static-server.js",
     "test:rate-limit": "node test-rate-limit.js",
     "security-check": "node security-check.js",
     "test": "vitest",
