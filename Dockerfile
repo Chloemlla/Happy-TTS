@@ -131,4 +131,4 @@ USER nodejs
 
 EXPOSE 3000 3001
 
-CMD ["sh", "-c", "concurrently \"node dist/app.js\" \"pnpm exec serve -s public -l 3001\""]
+CMD ["concurrently", "node dist/app.js", "pnpm exec serve -s public -l 3001"]
