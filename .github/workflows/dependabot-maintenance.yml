@@ -44,9 +44,6 @@ jobs:
         with:
           version: latest
 
-      - name: Approve pnpm builds
-        run: pnpm approve-builds
-
       - name: Verify Node.js runtime
         run: |
           node --version

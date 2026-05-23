@@ -18,7 +18,6 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
 
 # 安装依赖（frozen-lockfile 保证一致性）
-RUN pnpm approve-builds
 RUN pnpm config set ignore-scripts false && pnpm install --frozen-lockfile --no-optional
 
 # 再复制源代码
@@ -50,7 +49,6 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app/docs
 
 COPY frontend/docs/package.json frontend/docs/pnpm-lock.yaml ./
-RUN pnpm approve-builds
 RUN pnpm config set ignore-scripts false && pnpm install --no-frozen-lockfile --no-optional
 
 COPY frontend/docs/ .
@@ -79,8 +77,7 @@ RUN npm install -g javascript-obfuscator
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm approve-builds
-RUN pnpm add -D @types/ws
+# 依赖已在仓库清单和 lockfile 中声明，构建阶段不再动态修改依赖图
 RUN pnpm config set ignore-scripts false && pnpm install --frozen-lockfile --no-optional
 
 COPY scripts/ ./scripts/
@@ -114,8 +111,6 @@ WORKDIR /app
 
 # 安装生产依赖
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm approve-builds
-RUN pnpm add -D @types/ws
 RUN pnpm install --prod --frozen-lockfile
 
 # 从构建阶段复制产物

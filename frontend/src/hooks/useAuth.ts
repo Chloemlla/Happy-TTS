@@ -253,18 +253,17 @@ export const useAuth = () => {
     };
 
     // 恢复原始代码的精细化 verifyTOTP 错误处理
-    const verifyTOTP = async (code: string, backupCode?: string) => {
+    const verifyTOTP = async (code: string, backupCode?: string, pendingToken?: string) => {
         const userId = pendingTOTP?.userId || pending2FA?.userId;
         if (!userId) throw new Error('没有待验证的TOTP请求');
+        if (!pendingToken) throw new Error('缺少二次验证临时令牌');
         
         try {
-            const token = localStorage.getItem('token');
             const response = await api.post('/api/totp/verify-token', {
                 userId,
                 token: backupCode ? undefined : code,
-                backupCode
-            }, {
-                headers: token ? { Authorization: `Bearer ${token}` } : {}
+                backupCode,
+                pendingToken
             });
 
             if (response.data.verified && response.data.token) {

@@ -67,7 +67,8 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
       const response = await api.post('/api/totp/verify-token', {
         userId: userId,
         token: useBackupCode ? undefined : verificationCode,
-        backupCode: useBackupCode ? backupCode : undefined
+        backupCode: useBackupCode ? backupCode : undefined,
+        pendingToken: token,
       });
 
       if (response.data.verified) {

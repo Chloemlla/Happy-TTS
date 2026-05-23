@@ -1,4 +1,6 @@
 import type { Request, Response } from "express";
+import jwt from "jsonwebtoken";
+import { config } from "../config/config";
 import { sendEmail } from "../services/emailSender";
 import { TOTPService } from "../services/totpService";
 import {
@@ -19,6 +21,25 @@ const TOTP_LOCKOUT_DURATION = 15 * 60 * 1000; // 15分钟
 const totpAttempts = new Map<string, { count: number; lastAttempt: number; lockedUntil?: number }>();
 
 export class TOTPController {
+  private static validatePendingToken(rawPendingToken: unknown, userId: string): { valid: true } | { valid: false; status: number; error: string } {
+    if (typeof rawPendingToken !== "string" || rawPendingToken.trim().length === 0) {
+      return { valid: false, status: 401, error: "缺少二次验证临时令牌" };
+    }
+
+    try {
+      const decoded = jwt.verify(rawPendingToken, config.jwtSecret) as any;
+      if (decoded?.purpose !== "2fa_pending") {
+        return { valid: false, status: 401, error: "二次验证临时令牌无效" };
+      }
+      if ((decoded.userId || decoded.sub) !== userId) {
+        return { valid: false, status: 403, error: "二次验证用户不匹配" };
+      }
+      return { valid: true };
+    } catch (_error) {
+      return { valid: false, status: 401, error: "二次验证临时令牌无效或已过期" };
+    }
+  }
+
   /**
    * 检查TOTP验证尝试次数
    */
@@ -287,10 +308,15 @@ export class TOTPController {
    */
   public static async verifyToken(req: Request, res: Response) {
     try {
-      const { userId, token, backupCode } = req.body;
+      const { userId, token, backupCode, pendingToken } = req.body;
 
       if (!userId || (!token && !backupCode)) {
         return res.status(400).json({ error: "请提供用户ID和验证码或恢复码" });
+      }
+
+      const pendingTokenCheck = TOTPController.validatePendingToken(pendingToken, userId);
+      if (!pendingTokenCheck.valid) {
+        return res.status(pendingTokenCheck.status).json({ error: pendingTokenCheck.error });
       }
 
       const user = await UserStorage.getUserById(userId);
@@ -420,12 +446,6 @@ export class TOTPController {
             error: "验证码错误",
             remainingAttempts,
             lockedUntil: remainingAttempts === 0 ? Date.now() + TOTP_LOCKOUT_DURATION : undefined,
-            debug: {
-              expectedToken,
-              prevToken,
-              nextToken,
-              message: "这些是服务器当前时间窗口的期望验证码，用于调试时间同步问题",
-            },
           });
         } else {
           return res.status(400).json({ error: "恢复码错误" });
