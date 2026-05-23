@@ -112,7 +112,7 @@ WORKDIR /app
 # 安装生产依赖
 COPY package.json pnpm-lock.yaml ./
 # 替换原本的 RUN pnpm config set ignore-scripts false && pnpm install --prod --frozen-lockfile
-RUN pnpm install --prod --frozen-lockfile --only-built-dependencies-file=/dev/null
+RUN pnpm install --prod --frozen-lockfile --ignore-scripts=false --config.unknown=value
 
 # 从构建阶段复制产物
 COPY --from=backend-builder /app/dist-obfuscated ./dist
