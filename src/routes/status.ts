@@ -2,6 +2,7 @@ import { Router } from "express";
 import { adminOnly } from "../middleware/adminOnly";
 import { authMiddleware } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
+import { statusLimiter } from "../middleware/routeLimiters";
 import { profilingService } from "../services/profilingService";
 
 const router = Router();
@@ -20,7 +21,7 @@ const router = Router();
  *       401:
  *         description: 未授权
  */
-router.get("/status", authMiddleware, (_req, res) => {
+router.get("/status", statusLimiter, authMiddleware, (_req, res) => {
   res.json({ status: "ok" });
 });
 
@@ -34,7 +35,7 @@ router.get("/status", authMiddleware, (_req, res) => {
  *       200:
  *         description: 服务正常
  */
-router.get("/", (_req, res) => {
+router.get("/", statusLimiter, (_req, res) => {
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
@@ -43,7 +44,7 @@ router.get("/", (_req, res) => {
   });
 });
 
-router.get("/profiling", authenticateToken, adminOnly, (_req, res) => {
+router.get("/profiling", statusLimiter, authenticateToken, adminOnly, (_req, res) => {
   res.json(profilingService.getSnapshot());
 });
 
