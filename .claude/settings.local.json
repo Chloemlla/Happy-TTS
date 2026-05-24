@@ -6,7 +6,10 @@
       "Bash(pnpm install:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git -C F:/Repositories/GitHub/Synapse status)",
+      "Bash(git -C F:/Repositories/GitHub/Synapse diff --stat)",
+      "Bash(git check-ignore *)"
     ]
   }
 }
