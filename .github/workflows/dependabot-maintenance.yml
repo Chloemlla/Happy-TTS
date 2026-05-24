@@ -76,7 +76,7 @@ jobs:
 
   manage-prs:
     name: Manage Dependabot PRs
-    if: github.event_name == 'workflow_dispatch' && inputs.action != 'fix-alerts'
+    if: github.event_name == 'workflow_dispatch' && inputs.action != 'fix-alerts' && inputs.action != 'repair-lockfiles'
     runs-on: ubuntu-latest
     steps:
       - name: Verify Node.js runtime
