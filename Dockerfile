@@ -10,7 +10,7 @@ RUN apk add --no-cache tzdata && \
 
 ENV NODE_OPTIONS="--max-old-space-size=11264"
 ENV VITE_BASE_URL="/static/"
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
 
 WORKDIR /app/frontend
 
@@ -44,7 +44,7 @@ ENV NODE_OPTIONS="--max-old-space-size=2048" \
     GIT_DISABLED=true \
     DOCUSAURUS_DISABLE_GIT_INFO=true
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
 
 WORKDIR /app/docs
 
@@ -71,7 +71,7 @@ RUN apk add --no-cache tzdata && \
     apk del tzdata
 
 ENV NODE_OPTIONS="--max-old-space-size=3048"
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
 RUN npm install -g javascript-obfuscator
 
 WORKDIR /app
@@ -104,7 +104,7 @@ ENV TZ=Asia/Shanghai \
     DOCS_DIST_DIR="/app/docs" \
     OPENAPI_JSON_PATH="/app/openapi.json"
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
 RUN npm install -g concurrently
 
 WORKDIR /app
