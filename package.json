@@ -56,7 +56,7 @@
     "profile:inspect": "node scripts/run-node-with-profiling.js --inspect",
     "profile:load": "node scripts/run-load-profile-report.js",
     "check:unused-deps": "npx depcheck",
-    "check:tree-shaking": "npm run analyze:full && echo '检查完成，请查看上面的分析结果'",
+    "check:tree-shaking": "pnpm run analyze:full && echo '检查完成，请查看上面的分析结果'",
     "check:tree-shaking-config": "node scripts/check-tree-shaking.js",
     "docker:build": "scripts/build-docker.sh",
     "docker:build:win": "scripts\\build-docker.bat",
