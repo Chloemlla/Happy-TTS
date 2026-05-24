@@ -25,8 +25,7 @@ function preprocessSvg(content: string): string {
     previous = current;
     current = current
       .replace(COMMENT_RE, "")
-      .replace(CDATA_RE, "")
-      .replace(/<!--|<!\[CDATA\[/g, "");
+      .replace(CDATA_RE, "");
   } while (current !== previous);
 
   return current;
