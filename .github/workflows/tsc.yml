@@ -27,8 +27,9 @@ jobs:
           version: latest
 
       - name: Install dependencies
-        # 使用 --frozen-lockfile 确保 CI 严格按照 lockfile 安装，不需要重复运行 approve-builds
-        run: pnpm install --frozen-lockfile
+        # 仅做 TypeScript 编译检查，跳过构建脚本，避免 pnpm v10 在 CI 中因
+        # 未批准的本地构建（bcrypt / @scarf/scarf / unrs-resolver 等）退出码 1
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Install global tools
         run: npm install -g javascript-obfuscator
