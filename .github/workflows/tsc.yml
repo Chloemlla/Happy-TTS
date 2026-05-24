@@ -34,8 +34,8 @@ jobs:
       - name: Install global tools
         run: npm install -g javascript-obfuscator
 
-      - name: Run backend build
-        run: pnpm run build:backend
+      - name: Run build
+        run: pnpm run build
 
       - name: Check for path-to-regexp issues
         run: |
