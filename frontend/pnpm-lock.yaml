@@ -66,8 +66,8 @@ importers:
         specifier: ^4.2.0
         version: 4.2.0
       date-fns:
-        specifier: ^4.2.1
-        version: 4.2.1
+        specifier: ^4.3.0
+        version: 4.3.0
       docx:
         specifier: ^9.6.1
         version: 9.6.1
@@ -120,8 +120,8 @@ importers:
         specifier: ^2.2.4
         version: 2.2.4(marked@18.0.4)
       marked-katex-extension:
-        specifier: ^5.1.8
-        version: 5.1.8(katex@0.17.0)(marked@18.0.4)
+        specifier: ^5.1.9
+        version: 5.1.9(katex@0.17.0)(marked@18.0.4)
       md5:
         specifier: ^2.3.0
         version: 2.3.0
@@ -262,8 +262,8 @@ importers:
         specifier: ^8.5.15
         version: 8.5.15
       react-email:
-        specifier: 6.3.1
-        version: 6.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+        specifier: 6.3.2
+        version: 6.3.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       rollup-plugin-visualizer:
         specifier: ^7.0.1
         version: 7.0.1(rolldown@1.0.2)(rollup@4.60.4)
@@ -2728,8 +2728,8 @@ packages:
     resolution: {integrity: sha512-lGe34o6EHj9y3Kts9R4ZYs/Gr+6N7MCaMlIFA3F1R2O5/m7K06AxfSeO5530PEERE6/WyEg3lsuyw4GHlPZHog==}
     engines: {node: ^4.5.0 || >= 5.9}
 
-  baseline-browser-mapping@2.10.31:
-    resolution: {integrity: sha512-MujYO3eP72uvmSE0i4wltsodRfIpZATP3jvzRNRGGxgzId7aVocVJJV3nf01qnzzKFGxQVC9bpWxl5cjxTr/7Q==}
+  baseline-browser-mapping@2.10.32:
+    resolution: {integrity: sha512-wbPvpyjJPC0zdfdKXxqEL3Ea+bOMD/87X4lftiJkkaBiuG6ALQy1SLmEd7BSmVCuwCQsBrCamgBoLyfFDD1EPg==}
     engines: {node: '>=6.0.0'}
     hasBin: true
 
@@ -3150,8 +3150,8 @@ packages:
     resolution: {integrity: sha512-23XHcCF+coGYevirZceTVD7NdJOqVn+49IHyxgszm+JIiHLoB2TkmPtsYkNWT1pvRSGkc35L6NHs0yHkN2SumA==}
     engines: {node: ^20.19.0 || ^22.12.0 || >=24.0.0}
 
-  date-fns@4.2.1:
-    resolution: {integrity: sha512-37RhSdxaG1suen6VDCza6rNrQfooyQh57HFVPwQGEq2QWliVLzPQZ8Oa017weOu+HZCnzI7N3Pf/wyoBKfEqrA==}
+  date-fns@4.3.0:
+    resolution: {integrity: sha512-OYcL+3N/jyWbYdFGqoMAhytDgxP9pbYPUUiRCOgn4Fewaadk9l/Wam4Avciiyp2BgkpfQyBV9B+ehnVJych+eQ==}
 
   dayjs@1.11.20:
     resolution: {integrity: sha512-YbwwqR/uYpeoP4pu043q+LTDLFBLApUP6VxRihdfNTqu4ubqMlGDLd6ErXhEgsyvY0K6nCs7nggYumAN+9uEuQ==}
@@ -4112,10 +4112,10 @@ packages:
     peerDependencies:
       marked: '>=4 <19'
 
-  marked-katex-extension@5.1.8:
-    resolution: {integrity: sha512-TsV9OCHHDjVBf4IH0RSjLs4Eqsjj8HGfmVCKlimrS391EtBBxzXj2gBYdF9tY7f7oXu9tb1kHV86ExJsG3iMhw==}
+  marked-katex-extension@5.1.9:
+    resolution: {integrity: sha512-eH9sHsx8WrRyq4NbYCyNm3oH8mfYkXrkjjwEpGheengR9TLWHQ9AVHpUFV1cPftm3bYkby+3Q/CD3Pu+kmZHTg==}
     peerDependencies:
-      katex: '>=0.16 <0.17'
+      katex: '>=0.16 <0.18'
       marked: '>=4 <19'
 
   marked@15.0.12:
@@ -4674,8 +4674,8 @@ packages:
     peerDependencies:
       react: ^19.2.6
 
-  react-email@6.3.1:
-    resolution: {integrity: sha512-mmd7pMAIdoGS28GEmudWDvUXVugOGRQiCfL8zMNcvg02iuq8AGYFxVPJIY1Yof+0ftHLsHdOEefheZkfDXqhNQ==}
+  react-email@6.3.2:
+    resolution: {integrity: sha512-ZzmrwM+QLzfs/EZBnFZRMZwT3Kfvp46zIMCLsGn/rtRBh9ocRJDKHcnV0JWJyc0AVJTdPDHeFNBWap6N/3Dnhg==}
     engines: {node: '>=20.0.0'}
     hasBin: true
     peerDependencies:
@@ -5644,6 +5644,18 @@ packages:
 
   ws@8.20.1:
     resolution: {integrity: sha512-It4dO0K5v//JtTXuPkfEOaI3uUN87iYPnqo/ZzqCoG3g8uhA66QUMs/SrM0YK7/NAu+r4LMh/9dq2A7k+rHs+w==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
+  ws@8.21.0:
+    resolution: {integrity: sha512-Vsp28b7DRcimFQvrqu2Wek3z1iYxDCWqHYB8Qsnk/S4RfaCQzPGPyBNuVjJV3cd6UiKtUtp6sNM77gWvzcCH+g==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -8459,7 +8471,7 @@ snapshots:
 
   base64id@2.0.0: {}
 
-  baseline-browser-mapping@2.10.31: {}
+  baseline-browser-mapping@2.10.32: {}
 
   bcrypt@6.0.0:
     dependencies:
@@ -8495,7 +8507,7 @@ snapshots:
 
   browserslist@4.28.2:
     dependencies:
-      baseline-browser-mapping: 2.10.31
+      baseline-browser-mapping: 2.10.32
       caniuse-lite: 1.0.30001793
       electron-to-chromium: 1.5.361
       node-releases: 2.0.46
@@ -8925,7 +8937,7 @@ snapshots:
     transitivePeerDependencies:
       - '@noble/hashes'
 
-  date-fns@4.2.1: {}
+  date-fns@4.3.0: {}
 
   dayjs@1.11.20: {}
 
@@ -9773,7 +9785,7 @@ snapshots:
       whatwg-encoding: 3.1.1
       whatwg-mimetype: 4.0.0
       whatwg-url: 14.2.0
-      ws: 8.20.1
+      ws: 8.21.0
       xml-name-validator: 5.0.0
     transitivePeerDependencies:
       - bufferutil
@@ -9996,7 +10008,7 @@ snapshots:
     dependencies:
       marked: 18.0.4
 
-  marked-katex-extension@5.1.8(katex@0.17.0)(marked@18.0.4):
+  marked-katex-extension@5.1.9(katex@0.17.0)(marked@18.0.4):
     dependencies:
       katex: 0.17.0
       marked: 18.0.4
@@ -10753,7 +10765,7 @@ snapshots:
       react: 19.2.6
       scheduler: 0.27.0
 
-  react-email@6.3.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
+  react-email@6.3.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
     dependencies:
       '@babel/parser': 7.27.0
       '@babel/traverse': 7.27.0
@@ -11853,6 +11865,8 @@ snapshots:
   wrappy@1.0.2: {}
 
   ws@8.20.1: {}
+
+  ws@8.21.0: {}
 
   wsl-utils@0.3.1:
     dependencies:
