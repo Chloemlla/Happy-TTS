@@ -23,10 +23,13 @@ function preprocessSvg(content: string): string {
 
   do {
     previous = current;
-    current = current.replace(COMMENT_RE, "").replace(CDATA_RE, "");
+    current = current
+      .replace(COMMENT_RE, "")
+      .replace(CDATA_RE, "")
+      .replace(/<!--|<!\[CDATA\[/g, "");
   } while (current !== previous);
 
-  return current.replace(/<!--|<!\[CDATA\[/g, "");
+  return current;
 }
 
 function loadSvgDocument(content: string): SvgDocument {
