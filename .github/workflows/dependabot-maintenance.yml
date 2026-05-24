@@ -27,7 +27,7 @@ permissions:
 jobs:
   fix-alerts:
     name: Fix Dependabot Alerts
-    if: github.event_name == 'push' || inputs.action == 'fix-alerts'
+    if: github.event_name == 'push' || inputs.action == 'fix-alerts' || inputs.action == 'repair-lockfiles'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -54,7 +54,12 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Run fix script
-        run: node scripts/fix-dependabot-alerts.js
+        run: |
+          if [ "${{ inputs.action }}" = "repair-lockfiles" ]; then
+            node scripts/fix-dependabot-alerts.js --repair
+          else
+            node scripts/fix-dependabot-alerts.js
+          fi
 
       - name: Commit and push
         run: |
@@ -62,7 +67,11 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
           git diff --cached --quiet && echo "No changes to commit" && exit 0
-          git commit -m "fix: auto-fix dependabot security alerts"
+          if [ "${{ inputs.action }}" = "repair-lockfiles" ]; then
+            git commit -m "fix: repair pnpm lockfiles to match current package.json"
+          else
+            git commit -m "fix: auto-fix dependabot security alerts"
+          fi
           git push origin main
 
   manage-prs:
