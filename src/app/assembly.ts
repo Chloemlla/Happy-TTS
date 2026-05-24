@@ -712,6 +712,12 @@ export function registerStaticRoutes(app: Express): void {
     logger.warn(`[Docs] No docs build found. Tried: ${docsCandidates.join(" | ")}`);
   }
 
+  const serveFrontend = process.env.SERVE_FRONTEND !== "false";
+  if (!serveFrontend) {
+    logger.info("[Frontend] Static hosting disabled via SERVE_FRONTEND=false");
+    return;
+  }
+
   const resolvedFrontendPath = frontendCandidates.find((candidate) => existsSync(candidate));
   if (resolvedFrontendPath) {
     logger.info(`[Frontend] Serving static files from: ${resolvedFrontendPath}`);
