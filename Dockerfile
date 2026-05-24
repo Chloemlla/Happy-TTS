@@ -18,7 +18,7 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/.npmrc ./
 
 # 安装依赖（frozen-lockfile 保证一致性）
-RUN pnpm config set ignore-scripts false && pnpm install --frozen-lockfile --no-optional
+RUN pnpm install --frozen-lockfile --ignore-scripts --no-optional
 
 # 再复制源代码
 COPY frontend/ .
@@ -49,7 +49,7 @@ RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
 WORKDIR /app/docs
 
 COPY frontend/docs/package.json frontend/docs/pnpm-lock.yaml frontend/docs/.npmrc ./
-RUN pnpm config set ignore-scripts false && pnpm install --no-frozen-lockfile --no-optional
+RUN pnpm install --frozen-lockfile --ignore-scripts --no-optional
 
 COPY frontend/docs/ .
 
@@ -78,7 +78,7 @@ WORKDIR /app
 
 COPY package.json pnpm-lock.yaml .npmrc ./
 # 依赖已在仓库清单和 lockfile 中声明，构建阶段不再动态修改依赖图
-RUN pnpm config set ignore-scripts false && pnpm install --frozen-lockfile --no-optional
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 COPY scripts/ ./scripts/
 COPY src/ ./src/
@@ -112,7 +112,7 @@ WORKDIR /app
 # 安装生产依赖
 COPY package.json pnpm-lock.yaml .npmrc ./
 # 替换原本的 RUN pnpm config set ignore-scripts false && pnpm install --prod --frozen-lockfile
-RUN pnpm install --prod --frozen-lockfile --ignore-scripts=false --config.unknown=value
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # 从构建阶段复制产物
 COPY --from=backend-builder /app/dist-obfuscated ./dist
