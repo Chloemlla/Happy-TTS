@@ -18,7 +18,7 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/.npmrc ./
 
 # 安装依赖（frozen-lockfile 保证一致性）
-RUN pnpm install --frozen-lockfile --ignore-scripts --no-optional
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # 再复制源代码
 COPY frontend/ .
@@ -49,7 +49,7 @@ RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
 WORKDIR /app/docs
 
 COPY frontend/docs/package.json frontend/docs/pnpm-lock.yaml frontend/docs/.npmrc ./
-RUN pnpm install --frozen-lockfile --ignore-scripts --no-optional
+RUN pnpm install --frozen-lockfile --ignore-script
 
 COPY frontend/docs/ .
 
