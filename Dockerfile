@@ -15,7 +15,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app/frontend
 
 # 利用 Docker 缓存层：先复制依赖声明文件
-COPY frontend/package.json frontend/pnpm-lock.yaml ./
+COPY frontend/package.json frontend/pnpm-lock.yaml frontend/.npmrc ./
 
 # 安装依赖（frozen-lockfile 保证一致性）
 RUN pnpm config set ignore-scripts false && pnpm install --frozen-lockfile --no-optional
@@ -48,7 +48,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /app/docs
 
-COPY frontend/docs/package.json frontend/docs/pnpm-lock.yaml ./
+COPY frontend/docs/package.json frontend/docs/pnpm-lock.yaml frontend/docs/.npmrc ./
 RUN pnpm config set ignore-scripts false && pnpm install --no-frozen-lockfile --no-optional
 
 COPY frontend/docs/ .
@@ -76,7 +76,7 @@ RUN npm install -g javascript-obfuscator
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml .npmrc ./
 # 依赖已在仓库清单和 lockfile 中声明，构建阶段不再动态修改依赖图
 RUN pnpm config set ignore-scripts false && pnpm install --frozen-lockfile --no-optional
 
@@ -110,7 +110,7 @@ RUN npm install -g concurrently
 WORKDIR /app
 
 # 安装生产依赖
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml .npmrc ./
 # 替换原本的 RUN pnpm config set ignore-scripts false && pnpm install --prod --frozen-lockfile
 RUN pnpm install --prod --frozen-lockfile --ignore-scripts=false --config.unknown=value
 

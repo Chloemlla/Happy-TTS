@@ -8,6 +8,8 @@ scripts/create_mongo_user.js
 scripts/quick-mongo-test.js
 scripts/test-mongo-simple.js
 scripts/test-mongo-connection.js
+logs_*.zip
+logs_*/
 LogPaste/
 .windsurf/
 .kiro/
