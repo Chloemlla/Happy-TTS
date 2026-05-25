@@ -18,13 +18,34 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/.npmrc ./
 
 # 安装依赖（frozen-lockfile 保证一致性）
-RUN pnpm install --frozen-lockfile --ignore-scripts
+# 不使用 --ignore-scripts：Tailwind v4 oxide 与 lightningcss 在 alpine/musl 上依赖
+# pnpm 在 install 阶段正确处理 optionalDependencies + onlyBuiltDependencies；
+# 强制 ignore-scripts 会导致 oxide 扫描静默失败，最终 CSS 缺失全部 utility classes。
+RUN pnpm install --frozen-lockfile
 
 # 再复制源代码
 COPY frontend/ .
 
 # 构建前端
 RUN pnpm run build
+
+# 校验 Tailwind 工具类已正确生成（防止 oxide 静默失败导致 CSS 只剩第三方库样式）
+RUN set -eu; \
+    cssfile=$(ls dist/assets/css/index.*.css 2>/dev/null | head -1 || true); \
+    if [ -z "$cssfile" ]; then \
+        echo "ERROR: No dist/assets/css/index.*.css produced" >&2; \
+        ls -la dist/assets/ >&2 || true; \
+        exit 1; \
+    fi; \
+    size=$(wc -c < "$cssfile"); \
+    tw_hits=$( (grep -oE '\.(flex|grid|bg-[a-z]|text-[a-z]|rounded|shadow|p-[0-9]|m-[0-9])[a-z0-9_-]*\{' "$cssfile" || true) | wc -l); \
+    echo "[verify] $cssfile size=$size tailwind_hits=$tw_hits"; \
+    if [ "$size" -lt 50000 ] || [ "$tw_hits" -lt 20 ]; then \
+        echo "ERROR: Frontend CSS appears to be missing Tailwind utilities (size=$size, hits=$tw_hits)" >&2; \
+        head -c 800 "$cssfile" >&2 || true; \
+        echo "" >&2; \
+        exit 1; \
+    fi
 
 # 确保 favicon.ico 存在
 RUN touch dist/favicon.ico
