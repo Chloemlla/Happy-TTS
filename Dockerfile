@@ -18,10 +18,20 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/.npmrc ./
 
 # 安装依赖（frozen-lockfile 保证一致性）
-# 不使用 --ignore-scripts：Tailwind v4 oxide 与 lightningcss 在 alpine/musl 上依赖
-# pnpm 在 install 阶段正确处理 optionalDependencies + onlyBuiltDependencies；
-# 强制 ignore-scripts 会导致 oxide 扫描静默失败，最终 CSS 缺失全部 utility classes。
-RUN pnpm install --frozen-lockfile
+# 保留 --ignore-scripts：pnpm 11 在 .npmrc 白名单外的包有未批准 build 时会 ERR_PNPM_IGNORED_BUILDS。
+# 关键：@tailwindcss/oxide 与 lightningcss 没有 install 生命周期脚本，
+# 它们的平台二进制通过 optionalDependencies 自动选择，因此 --ignore-scripts 不影响它们。
+RUN pnpm install --frozen-lockfile --ignore-scripts
+
+# 调试：验证 Tailwind v4 原生引擎在 alpine/musl 上能加载，若加载失败则 build 必然丢失 utility classes
+RUN echo "=== alpine info ===" && cat /etc/alpine-release && \
+    echo "=== libc (musl check) ===" && (ldd --version 2>&1 || true) | head -3 && \
+    echo "=== installed oxide / lightningcss store entries ===" && \
+    ls node_modules/.pnpm/ 2>/dev/null | grep -iE "(oxide|lightningcss)" | head -20 && \
+    echo "=== oxide require ===" && \
+    node -e "try { const o = require('@tailwindcss/oxide'); console.log('oxide ok, Scanner=', typeof o.Scanner, 'keys=', Object.keys(o).slice(0,8)); } catch (e) { console.log('oxide load FAILED:', e && e.message); if (e && e.cause) console.log('cause:', e.cause.message || e.cause); }" && \
+    echo "=== tailwindcss require ===" && \
+    node -e "try { const t = require('tailwindcss'); console.log('tailwindcss ok, version=', t.version || require('tailwindcss/package.json').version); } catch (e) { console.log('tailwindcss load FAILED:', e && e.message); }"
 
 # 再复制源代码
 COPY frontend/ .
