@@ -1,5 +1,5 @@
-@config "../tailwind.config.js";
 @import "tailwindcss";
+@config "../tailwind.config.js";
 
 body {
   margin: 0;
