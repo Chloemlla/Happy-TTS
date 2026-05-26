@@ -1347,7 +1347,7 @@ const App: React.FC = () => {
                 </AnimatePresence>
               </Suspense>
             </main>
-            <Suspense fallback={null}>
+            <Suspense fallback={<FooterLoadingShell />}>
               <Footer />
             </Suspense>
 
