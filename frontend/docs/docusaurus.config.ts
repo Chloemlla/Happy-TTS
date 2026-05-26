@@ -19,7 +19,7 @@ const docsBaseUrl = normalizeBaseUrl(process.env.DOCS_BASE_URL || '/docs/');
 const config: Config = {
   title: 'Synapse API 文档',
   tagline: 'Synapse 文本转语音服务 API 文档',
-  favicon: 'img/favicon.svg',
+  favicon: 'https://img.cdn1.vip/i/6a151e1365e9c_1779768851.webp',
 
   // Set the production url of your site here
   url: deploymentUrl,
@@ -86,12 +86,12 @@ const config: Config = {
 
   themeConfig: {
     // Replace with your project's social card
-    image: 'img/social-card.svg',
+    image: 'https://img.cdn1.vip/i/6a151e1365e9c_1779768851.webp',
     navbar: {
       title: 'Synapse API',
       logo: {
         alt: 'Synapse Logo',
-        src: 'img/logo.svg',
+        src: 'https://img.cdn1.vip/i/6a151e1365e9c_1779768851.webp',
       },
       items: [
         {

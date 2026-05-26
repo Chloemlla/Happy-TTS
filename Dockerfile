@@ -23,23 +23,15 @@ COPY frontend/package.json frontend/pnpm-lock.yaml frontend/.npmrc ./
 # 它们的平台二进制通过 optionalDependencies 自动选择，因此 --ignore-scripts 不影响它们。
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
-# 调试：验证 Tailwind v4 原生引擎在 alpine/musl 上能加载，若加载失败则 build 必然丢失 utility classes
-RUN echo "=== alpine info ===" && cat /etc/alpine-release && \
-    echo "=== libc (musl check) ===" && (ldd --version 2>&1 || true) | head -3 && \
-    echo "=== installed oxide / lightningcss store entries ===" && \
-    ls node_modules/.pnpm/ 2>/dev/null | grep -iE "(oxide|lightningcss)" | head -20 && \
-    echo "=== oxide require ===" && \
-    node -e "try { const o = require('@tailwindcss/oxide'); console.log('oxide ok, Scanner=', typeof o.Scanner, 'keys=', Object.keys(o).slice(0,8)); } catch (e) { console.log('oxide load FAILED:', e && e.message); if (e && e.cause) console.log('cause:', e.cause.message || e.cause); }" && \
-    echo "=== tailwindcss require ===" && \
-    node -e "try { const t = require('tailwindcss'); console.log('tailwindcss ok, version=', t.version || require('tailwindcss/package.json').version); } catch (e) { console.log('tailwindcss load FAILED:', e && e.message); }"
-
 # 再复制源代码
 COPY frontend/ .
 
 # 构建前端
 RUN pnpm run build
 
-# 校验 Tailwind 工具类已正确生成（防止 oxide 静默失败导致 CSS 只剩第三方库样式）
+# 校验 Tailwind 工具类已正确生成（防止 PostCSS 配置错位导致 CSS 只剩第三方库样式）。
+# 真因（已修复，9cb53b5）：index.css 中 @config 必须在 @import "tailwindcss" 之后；
+# 这一守护用于把任何同类回归立刻在 image build 阶段抛出。
 RUN set -eu; \
     cssfile=$(ls dist/assets/css/index.*.css 2>/dev/null | head -1 || true); \
     if [ -z "$cssfile" ]; then \
@@ -57,7 +49,7 @@ RUN set -eu; \
         exit 1; \
     fi
 
-# 确保 favicon.ico 存在
+# 确保 favicon.ico 存在（占位；运行时后端会将 /favicon.ico 重定向到 CDN）
 RUN touch dist/favicon.ico
 
 # ============================================
@@ -132,11 +124,11 @@ RUN apk add --no-cache tzdata && \
 ENV TZ=Asia/Shanghai \
     NODE_ENV=production \
     NODE_OPTIONS="--max-old-space-size=2048" \
+    FRONTEND_DIST_DIR="/app/frontend/dist" \
     DOCS_DIST_DIR="/app/docs" \
     OPENAPI_JSON_PATH="/app/openapi.json"
 
 RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
-RUN npm install -g concurrently
 
 WORKDIR /app
 
@@ -152,7 +144,9 @@ COPY --from=backend-builder /app/openapi.json ./dist/openapi.json
 COPY --from=backend-builder /app/scripts/run-node-with-profiling.js ./scripts/run-node-with-profiling.js
 COPY --from=backend-builder /app/scripts/run-load-profile-report.js ./scripts/run-load-profile-report.js
 COPY --from=backend-builder /app/scripts/profiling-README.md ./scripts/profiling-README.md
-COPY --from=frontend-builder /app/frontend/dist ./public
+# 前端与文档统一由后端 Express 提供：frontend/dist 命中 registerStaticRoutes 的候选路径，
+# docs 由 DOCS_DIST_DIR 指向 /app/docs（保持兼容）。
+COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 COPY --from=docs-builder /app/docs/build ./docs
 
 # 非 root 用户运行
@@ -161,6 +155,7 @@ RUN addgroup -S nodejs && adduser -S nodejs -G nodejs && \
 
 USER nodejs
 
-EXPOSE 3000 3001
+EXPOSE 3000
 
-CMD ["concurrently", "node dist/app.js", "pnpm exec serve -s public -l 3001"]
+# 单进程：后端 Express 同时承担 API、前端 SPA、Docusaurus 静态站点。
+CMD ["node", "dist/app.js"]

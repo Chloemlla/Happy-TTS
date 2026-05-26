@@ -228,13 +228,28 @@ const sendApiDocsJson = async (_req: Request, res: Response) => {
   }
 };
 
+// 站点统一图标（自动按浏览器需求缩放）。整站 favicon / apple-touch / docusaurus logo 都指向这里。
+const SITE_ICON_URL = "https://img.cdn1.vip/i/6a151e1365e9c_1779768851.webp";
+
 const sendFaviconIfExists = (_req: Request, res: Response) => {
-  const faviconPath = path.resolve(process.cwd(), "favicon.ico");
-  if (fs.existsSync(faviconPath)) {
-    res.sendFile(faviconPath);
+  res.setHeader("Cache-Control", "public, max-age=86400");
+  res.redirect(302, SITE_ICON_URL);
+};
+
+// 不可变缓存策略：Vite/Docusaurus 都使用 [name].[hash].[ext] 命名，
+// hashed 资源用 1 年 immutable；HTML 永远 no-cache 以便部署后立即拿到新 shell。
+const HASHED_FILE_RE = /\.[A-Za-z0-9_-]{6,}\.(?:js|mjs|cjs|css|woff2?|ttf|otf|eot|svg|png|jpe?g|gif|webp|avif|ico|map)$/i;
+
+const applyStaticCacheHeaders = (res: Response, filePath: string): void => {
+  if (/\.html?$/i.test(filePath)) {
+    res.set("Cache-Control", "no-cache, must-revalidate");
     return;
   }
-  res.status(204).end();
+  if (HASHED_FILE_RE.test(filePath) || /[\\/]assets[\\/]/.test(filePath)) {
+    res.set("Cache-Control", "public, max-age=31536000, immutable");
+    return;
+  }
+  res.set("Cache-Control", "public, max-age=3600");
 };
 
 const getFrontendFallbackHtml = (expected: string) => `<!doctype html>
@@ -707,7 +722,13 @@ export function registerStaticRoutes(app: Express): void {
     app.get("/docs", (_req, res) => {
       res.redirect(301, "/docs/");
     });
-    app.use("/docs", staticFileLimiter, express.static(resolvedDocsPath));
+    app.use(
+      "/docs",
+      staticFileLimiter,
+      express.static(resolvedDocsPath, {
+        setHeaders: (res, filePath) => applyStaticCacheHeaders(res, filePath),
+      }),
+    );
   } else {
     logger.warn(`[Docs] No docs build found. Tried: ${docsCandidates.join(" | ")}`);
   }
@@ -721,14 +742,17 @@ export function registerStaticRoutes(app: Express): void {
   const resolvedFrontendPath = frontendCandidates.find((candidate) => existsSync(candidate));
   if (resolvedFrontendPath) {
     logger.info(`[Frontend] Serving static files from: ${resolvedFrontendPath}`);
-    app.use(staticFileLimiter, express.static(resolvedFrontendPath, { index: false }));
-    app.use("/static", staticFileLimiter, express.static(resolvedFrontendPath));
-    app.get("/", rootLimiter, (_req, res) => {
+    const frontendStaticOptions = {
+      setHeaders: (res: Response, filePath: string) => applyStaticCacheHeaders(res, filePath),
+    };
+    app.use(staticFileLimiter, express.static(resolvedFrontendPath, { index: false, ...frontendStaticOptions }));
+    app.use("/static", staticFileLimiter, express.static(resolvedFrontendPath, frontendStaticOptions));
+    const sendIndexHtml = (_req: Request, res: Response) => {
+      res.set("Cache-Control", "no-cache, must-revalidate");
       res.sendFile(join(resolvedFrontendPath, "index.html"));
-    });
-    app.get(/^\/(?!\.well-known(?:\/|$)|api|api-docs|docs(?:\/|$)|static|assets(?:\/|$)|openapi)(.*)/, frontendLimiter, (_req, res) => {
-      res.sendFile(join(resolvedFrontendPath, "index.html"));
-    });
+    };
+    app.get("/", rootLimiter, sendIndexHtml);
+    app.get(/^\/(?!\.well-known(?:\/|$)|api|api-docs|docs(?:\/|$)|static|assets(?:\/|$)|openapi)(.*)/, frontendLimiter, sendIndexHtml);
     return;
   }
 
