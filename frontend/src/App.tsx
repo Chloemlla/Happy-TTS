@@ -326,19 +326,35 @@ const ANNOUNCEMENT_SUPPRESSED_ROUTES = new Set([
   '/verify-email',
 ]);
 
+const LOADING_CARD_CLASS =
+  'w-full rounded-[36px] border border-white/70 bg-white/88 px-6 py-8 text-center shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl';
+const LOADING_BADGE_CLASS =
+  'mx-auto flex h-14 w-14 items-center justify-center rounded-[26px] bg-slate-100 text-slate-500';
+const LOADING_EYEBROW_CLASS =
+  'mt-5 text-sm font-semibold uppercase tracking-[0.26em] text-slate-400';
+
+const LoadingCard: React.FC<{
+  eyebrow: string;
+  title?: string;
+  detail: string;
+}> = ({ eyebrow, title, detail }) => (
+  <div className={LOADING_CARD_CLASS}>
+    <div className={LOADING_BADGE_CLASS}>
+      <SimpleLoadingSpinner size={0.75} />
+    </div>
+    <div className={LOADING_EYEBROW_CLASS}>{eyebrow}</div>
+    {title && (
+      <h1 className="mt-3 text-xl font-semibold leading-tight text-slate-900 sm:text-2xl">
+        {title}
+      </h1>
+    )}
+    <p className="mt-3 text-sm leading-7 text-slate-600">{detail}</p>
+  </div>
+);
+
 const RouteLoadingShell: React.FC<{ label?: string }> = ({ label = '正在加载页面内容…' }) => (
   <div className="mx-auto flex min-h-[46vh] max-w-3xl items-center justify-center px-4 py-10">
-    <div className="w-full rounded-[36px] border border-white/70 bg-white/88 px-6 py-8 text-center shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[26px] bg-slate-100 text-slate-500">
-        <SimpleLoadingSpinner size={0.75} />
-      </div>
-      <div className="mt-5 text-sm font-semibold uppercase tracking-[0.26em] text-slate-400">
-        Synapse Route
-      </div>
-      <p className="mt-3 text-sm leading-7 text-slate-600">
-        {label}
-      </p>
-    </div>
+    <LoadingCard eyebrow="Synapse Route" detail={label} />
   </div>
 );
 
@@ -346,24 +362,26 @@ const AppLoadingScreen: React.FC<{ title: string; detail: string }> = ({ title, 
   <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.22),_transparent_34%),linear-gradient(180deg,#f8fbff_0%,#eef2ff_55%,#f8fafc_100%)]">
     <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.3)_0%,transparent_52%)]" />
     <div className="relative mx-auto flex min-h-screen max-w-3xl items-center justify-center px-4 py-10">
-      <div
-        role="status"
-        aria-live="polite"
-        className="w-full rounded-[36px] border border-white/70 bg-white/88 px-6 py-8 text-center shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl"
-      >
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[26px] bg-slate-100 text-slate-500">
-          <SimpleLoadingSpinner size={0.75} />
-        </div>
-        <div className="mt-5 text-sm font-semibold uppercase tracking-[0.26em] text-slate-400">
-          Synapse Runtime
-        </div>
-        <h1 className="mt-3 text-xl font-semibold leading-tight text-slate-900 sm:text-2xl">
-          {title}
-        </h1>
-        <p className="mt-3 text-sm leading-7 text-slate-600">
-          {detail}
-        </p>
+      <div role="status" aria-live="polite" className="w-full">
+        <LoadingCard eyebrow="Synapse Runtime" title={title} detail={detail} />
       </div>
+    </div>
+  </div>
+);
+
+const NavSlotLoadingBadge: React.FC = () => (
+  <div className="flex h-10 w-10 items-center justify-center rounded-[18px] border border-white/70 bg-white/88 text-slate-500 shadow-[0_8px_24px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+    <SimpleLoadingSpinner size={0.6} />
+  </div>
+);
+
+const FooterLoadingShell: React.FC = () => (
+  <div className="mx-auto mt-10 flex max-w-7xl items-center justify-center px-4 pb-8">
+    <div className="inline-flex items-center gap-3 rounded-full border border-white/70 bg-white/88 px-4 py-1.5 shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+      <SimpleLoadingSpinner size={0.5} />
+      <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-400">
+        Synapse Edge
+      </span>
     </div>
   </div>
 );
@@ -1240,7 +1258,7 @@ const App: React.FC = () => {
                   {/* 导航栏自适应切换 */}
                   <div ref={navRef} className="flex-1 flex justify-end">
                     {user ? (
-                      <Suspense fallback={<div className="flex h-10 w-10 items-center justify-center rounded-[18px] border border-white/70 bg-white/88 text-slate-500 shadow-[0_8px_24px_rgba(15,23,42,0.08)] backdrop-blur-xl"><SimpleLoadingSpinner size={0.6} /></div>}>
+                      <Suspense fallback={<NavSlotLoadingBadge />}>
                         <MobileNav
                           user={user}
                           logout={logout}
