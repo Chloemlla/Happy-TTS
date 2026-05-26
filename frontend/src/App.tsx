@@ -120,27 +120,28 @@ const TicketSystem = React.lazy(() => import('./components/TicketSystem'));
 
 // SmartHumanCheckTestPage 已抽取到 components/SmartHumanCheckTestPage.tsx
 
-// 页面切换动画变体
+// 页面切换动画变体：保留极轻量的纵向位移，避免横向滑动打断阅读
 const pageVariants = {
   initial: {
     opacity: 0,
-    x: -20,
-    scale: 0.98
+    y: 6,
+    scale: 0.995
   },
   in: {
     opacity: 1,
-    x: 0,
+    y: 0,
     scale: 1
   },
   out: {
     opacity: 0,
-    x: 20,
-    scale: 0.98
+    y: -2,
+    scale: 0.995
   }
 };
 
 // 统一过渡常量，结合 useReducedMotion 可降级
-const PAGE_TRANSITION = { type: 'tween', ease: 'easeInOut', duration: 0.4 } as const;
+// duration 收紧到 0.22s + easeOut，让 SPA 路由切换更跟手（mode="wait" 会串联进出动画）
+const PAGE_TRANSITION = { type: 'tween', ease: 'easeOut', duration: 0.22 } as const;
 const NAV_SPRING = { type: 'spring', stiffness: 100, damping: 20 } as const;
 const TOTP_SPRING = { type: 'spring', stiffness: 300, damping: 30 } as const;
 
@@ -353,7 +354,12 @@ const LoadingCard: React.FC<{
 );
 
 const RouteLoadingShell: React.FC<{ label?: string }> = ({ label = '正在加载页面内容…' }) => (
-  <div className="mx-auto flex min-h-[46vh] max-w-3xl items-center justify-center px-4 py-10">
+  <div
+    role="status"
+    aria-live="polite"
+    aria-busy="true"
+    className="mx-auto flex min-h-[46vh] max-w-3xl items-center justify-center px-4 py-10"
+  >
     <LoadingCard eyebrow="Synapse Route" detail={label} />
   </div>
 );
@@ -370,13 +376,21 @@ const AppLoadingScreen: React.FC<{ title: string; detail: string }> = ({ title, 
 );
 
 const NavSlotLoadingBadge: React.FC = () => (
-  <div className="flex h-10 w-10 items-center justify-center rounded-[18px] border border-white/70 bg-white/88 text-slate-500 shadow-[0_8px_24px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+  <div
+    role="status"
+    aria-label="导航加载中"
+    className="flex h-10 w-10 items-center justify-center rounded-[18px] border border-white/70 bg-white/88 text-slate-500 shadow-[0_8px_24px_rgba(15,23,42,0.08)] backdrop-blur-xl"
+  >
     <SimpleLoadingSpinner size={0.6} />
   </div>
 );
 
 const FooterLoadingShell: React.FC = () => (
-  <div className="mx-auto mt-10 flex max-w-7xl items-center justify-center px-4 pb-8">
+  <div
+    role="status"
+    aria-label="底栏加载中"
+    className="mx-auto mt-10 flex max-w-7xl items-center justify-center px-4 pb-8"
+  >
     <div className="inline-flex items-center gap-3 rounded-full border border-white/70 bg-white/88 px-4 py-1.5 shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl">
       <SimpleLoadingSpinner size={0.5} />
       <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-400">
@@ -386,49 +400,62 @@ const FooterLoadingShell: React.FC = () => (
   </div>
 );
 
-const NotFoundPage: React.FC<{ path: string }> = ({ path }) => (
-  <section className="mx-auto max-w-4xl px-4 py-12 sm:py-20">
-    <div className="relative overflow-hidden rounded-[34px] border border-slate-200/80 bg-white/92 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10">
-      <div className="absolute -right-12 top-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(59,130,246,0.22),_transparent_68%)]" />
-      <div className="absolute -left-10 bottom-0 h-32 w-32 rounded-full bg-[radial-gradient(circle,_rgba(14,165,233,0.16),_transparent_70%)]" />
-      <div className="relative">
-        <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
-          404
-        </div>
-        <h1 className="mt-5 text-3xl font-semibold leading-tight text-slate-900 sm:text-5xl">
-          这个入口不存在
-        </h1>
-        <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
-          链接可能已经失效、地址输入有误，或者这个页面还没有被正式挂载。
-        </p>
-        <div className="mt-6 rounded-[22px] border border-dashed border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-500">
-          当前路径：<code className="break-all font-medium text-slate-700">{path}</code>
-        </div>
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-          <button
-            type="button"
-            onClick={() => {
-              if (window.history.length > 1) {
-                window.history.back();
-                return;
-              }
-              window.location.assign('/');
-            }}
-            className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-          >
-            返回上一页
-          </button>
-          <Link
-            to="/"
-            className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
-          >
-            回到首页
-          </Link>
+const NotFoundPage: React.FC<{ path: string }> = ({ path }) => {
+  const handleBack = React.useCallback(() => {
+    // 仅在确认上一页是同源（或 SPA 内部导航）时才 back，避免被弹回搜索引擎/外站
+    try {
+      if (window.history.length > 1) {
+        const referrer = document.referrer;
+        const isSameOrigin = !referrer || new URL(referrer).origin === window.location.origin;
+        if (isSameOrigin) {
+          window.history.back();
+          return;
+        }
+      }
+    } catch (_) {
+      /* 解析失败时按"不安全"处理，直接走兜底 */
+    }
+    window.location.assign('/');
+  }, []);
+
+  return (
+    <section className="mx-auto max-w-4xl px-4 py-12 sm:py-20">
+      <div className="relative overflow-hidden rounded-[34px] border border-slate-200/80 bg-white/92 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10">
+        <div className="absolute -right-12 top-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(59,130,246,0.22),_transparent_68%)]" />
+        <div className="absolute -left-10 bottom-0 h-32 w-32 rounded-full bg-[radial-gradient(circle,_rgba(14,165,233,0.16),_transparent_70%)]" />
+        <div className="relative">
+          <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+            404
+          </div>
+          <h1 className="mt-5 text-3xl font-semibold leading-tight text-slate-900 sm:text-5xl">
+            这个入口不存在
+          </h1>
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+            链接可能已经失效、地址输入有误，或者这个页面还没有被正式挂载。
+          </p>
+          <div className="mt-6 rounded-[22px] border border-dashed border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-500">
+            当前路径：<code className="break-all font-medium text-slate-700">{path}</code>
+          </div>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={handleBack}
+              className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+            >
+              返回上一页
+            </button>
+            <Link
+              to="/"
+              className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
+            >
+              回到首页
+            </Link>
+          </div>
         </div>
       </div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
 type AnimatedRouteProps = {
   children: React.ReactNode;
@@ -468,6 +495,34 @@ const AdminRoute: React.FC<AdminRouteProps> = ({ userRole, redirectTo, children 
     {children}
   </ProtectedRoute>
 );
+
+/**
+ * 仅当 active 持续 ≥ delayMs 才返回 true。
+ * 用于消除"加载态闪一下"的视觉抖动——鉴权/配置常常在 50–200ms 内就返回，
+ * 在此之前直接渲染空 shell 比闪一帧加载页更不打断。
+ */
+const useDelayedFlag = (active: boolean, delayMs: number) => {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    if (!active) {
+      setShown(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setShown(true), delayMs);
+    return () => window.clearTimeout(timer);
+  }, [active, delayMs]);
+  return shown;
+};
+
+// 处于"鉴权/注册流程"中时隐藏导航的"立即登录"按钮，避免原地兜圈
+const AUTH_FLOW_PATHS = new Set([
+  '/welcome',
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+  '/verify-email',
+]);
 
 const App: React.FC = () => {
   const { user, loading, logout } = useAuth();
@@ -521,6 +576,10 @@ const App: React.FC = () => {
     [location.pathname, location.search],
   );
   const adminFallbackPath = user ? '/' : loginRedirectPath;
+  const isAuthFlowPath = React.useMemo(() => (
+    AUTH_FLOW_PATHS.has(location.pathname)
+    || location.pathname.startsWith('/auth/')
+  ), [location.pathname]);
   const isAnnouncementSuppressed = React.useMemo(() => (
     ANNOUNCEMENT_SUPPRESSED_ROUTES.has(location.pathname)
     || location.pathname.startsWith('/auth/')
@@ -1135,7 +1194,16 @@ const App: React.FC = () => {
     }
   };
 
+  // 仅当加载持续 ≥ 200ms 才显示全屏 loading，避免快路径上的闪屏
+  const showBootLoading = useDelayedFlag(loading || !isInitialized, 200);
+  const showFirstVisitLoading = useDelayedFlag(!configLoaded || isFirstVisitLoading, 200);
+
   if (loading || !isInitialized) {
+    if (!showBootLoading) {
+      // 处于"鉴权/初始化但还未到 200ms"的窗口期：不渲染任何主内容，
+      // 让浏览器留在 index.html 的纯背景上，避免一帧 loading 闪过
+      return null;
+    }
     return (
       <AppLoadingScreen
         title="正在恢复工作台状态"
@@ -1148,6 +1216,9 @@ const App: React.FC = () => {
 
   // 首次访问验证（等待配置加载完成）
   if (!configLoaded || isFirstVisitLoading) {
+    if (!showFirstVisitLoading) {
+      return null;
+    }
     return (
       <NotificationProvider>
         <LazyMotion features={domAnimation}>
