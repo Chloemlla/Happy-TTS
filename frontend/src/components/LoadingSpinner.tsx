@@ -79,78 +79,113 @@ export const LoadingSpinner: React.FC<{ size?: number }> = ({ size = 1 }) => {
 // 轻量级加载组件（用于组件级别的懒加载），支持 size
 export const SimpleLoadingSpinner: React.FC<{ size?: number }> = ({ size = 1 }) => {
   const compact = size <= 0.75;
-  const cardWidth = compact ? 52 * size : 168 * size;
-  const cardHeight = compact ? 32 * size : 76 * size;
-  const progressWidth = compact ? 30 * size : 126 * size;
-  const progressHeight = Math.max(3, (compact ? 5 : 6) * size);
-  const labelSize = 15 * size;
+  const ringSize = compact ? Math.round(34 * size) : Math.round(56 * size);
+  const ringStroke = Math.max(2, Math.round(2.6 * size));
+  const haloSize = ringSize + Math.round(10 * size);
+  const dotSize = Math.max(4, Math.round(ringSize * 0.26));
+  const labelSize = 13 * size;
   const hintSize = 11 * size;
-  const shimmerWidth = compact ? progressWidth * 0.82 : progressWidth * 0.42;
+
+  const Spinner = (
+    <div
+      className="relative inline-flex items-center justify-center"
+      style={{ width: ringSize, height: ringSize }}
+      role="status"
+      aria-label="加载中"
+    >
+      {/* 外发光光晕 */}
+      <motion.div
+        className="pointer-events-none absolute rounded-full"
+        style={{
+          width: haloSize,
+          height: haloSize,
+          background:
+            'radial-gradient(circle, rgba(99,102,241,0.22) 0%, rgba(56,189,248,0.16) 45%, transparent 72%)',
+          filter: 'blur(6px)',
+        }}
+        animate={{ opacity: [0.55, 0.95, 0.55], scale: [0.9, 1.04, 0.9] }}
+        transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
+      />
+
+      {/* 静态轨道环 */}
+      <div
+        className="absolute inset-0 rounded-full"
+        style={{
+          borderWidth: ringStroke,
+          borderStyle: 'solid',
+          borderColor: 'rgba(148, 163, 184, 0.22)',
+        }}
+      />
+
+      {/* 旋转主弧 */}
+      <motion.div
+        className="absolute inset-0 rounded-full"
+        style={{
+          borderWidth: ringStroke,
+          borderStyle: 'solid',
+          borderColor: 'transparent',
+          borderTopColor: 'rgb(99, 102, 241)',
+          borderRightColor: 'rgb(56, 189, 248)',
+          boxShadow: '0 0 12px rgba(99,102,241,0.28)',
+        }}
+        animate={{ rotate: 360 }}
+        transition={{ duration: 1.05, repeat: Infinity, ease: 'linear' }}
+      />
+
+      {/* 反向次弧，叠出细节层次 */}
+      <motion.div
+        className="absolute rounded-full"
+        style={{
+          inset: ringStroke + 2,
+          borderWidth: Math.max(1, ringStroke - 1),
+          borderStyle: 'solid',
+          borderColor: 'transparent',
+          borderBottomColor: 'rgba(34, 211, 238, 0.55)',
+        }}
+        animate={{ rotate: -360 }}
+        transition={{ duration: 1.7, repeat: Infinity, ease: 'linear' }}
+      />
+
+      {/* 中心律动小点 */}
+      <motion.div
+        className="relative rounded-full"
+        style={{
+          width: dotSize,
+          height: dotSize,
+          background: 'linear-gradient(135deg, #6366f1, #38bdf8)',
+          boxShadow: '0 0 10px rgba(99,102,241,0.55)',
+        }}
+        animate={{ scale: [0.78, 1.08, 0.78], opacity: [0.78, 1, 0.78] }}
+        transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+      />
+    </div>
+  );
+
+  if (compact) {
+    return Spinner;
+  }
 
   return (
     <motion.div
-      className="relative overflow-hidden border border-slate-200/80 bg-white/85 shadow-[0_20px_50px_-30px_rgba(15,23,42,0.45)] backdrop-blur-xl"
-      style={{
-        width: cardWidth,
-        minHeight: cardHeight,
-        borderRadius: 22 * size,
-        padding: compact ? `${6 * size}px ${8 * size}px` : `${14 * size}px ${16 * size}px`,
-      }}
-      initial={{ opacity: 0, y: 6 * size }}
+      className="inline-flex flex-col items-center"
+      style={{ gap: 14 * size }}
+      initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.28, ease: "easeOut" }}
+      transition={{ duration: 0.32, ease: 'easeOut' }}
     >
-      <motion.div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background: 'radial-gradient(circle at top left, rgba(99, 102, 241, 0.16), transparent 52%), radial-gradient(circle at bottom right, rgba(34, 211, 238, 0.14), transparent 48%)',
-        }}
-        animate={{ opacity: [0.55, 0.95, 0.55] }}
-        transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="pointer-events-none absolute inset-y-0 left-[-45%] w-1/2 rounded-full bg-white/75 blur-xl"
-        animate={{ x: ['0%', '250%'] }}
-        transition={{ duration: compact ? 2.1 : 2.8, repeat: Infinity, ease: "easeInOut" }}
-      />
-
-      <div className={`relative z-10 flex ${compact ? 'items-center justify-center' : 'flex-col gap-3'}`}>
-        {!compact && (
-          <div className="space-y-1">
-            <motion.span
-              className="block font-semibold tracking-[0.18em] text-slate-700"
-              style={{ fontSize: labelSize }}
-              animate={{ opacity: [0.82, 1, 0.82] }}
-              transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-            >
-              加载中
-            </motion.span>
-            <span
-              className="block text-slate-400"
-              style={{ fontSize: hintSize }}
-            >
-              正在整理页面内容，请稍候片刻
-            </span>
-          </div>
-        )}
-
-        <div
-          className="relative overflow-hidden rounded-full bg-slate-200/80"
-          style={{ width: progressWidth, height: progressHeight }}
+      {Spinner}
+      <div className="flex flex-col items-center" style={{ gap: 4 * size }}>
+        <motion.span
+          className="font-semibold uppercase tracking-[0.26em] text-slate-500"
+          style={{ fontSize: labelSize }}
+          animate={{ opacity: [0.78, 1, 0.78] }}
+          transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
         >
-          <motion.div
-            className="absolute inset-y-0 rounded-full bg-gradient-to-r from-indigo-500 via-sky-400 to-cyan-300 shadow-[0_0_18px_rgba(56,189,248,0.35)]"
-            style={{ width: shimmerWidth }}
-            animate={{ x: ['-62%', '122%'] }}
-            transition={{ duration: compact ? 1.15 : 1.75, repeat: Infinity, ease: "easeInOut" }}
-          />
-          <motion.div
-            className="absolute inset-0 rounded-full"
-            style={{ boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.55)' }}
-            animate={{ opacity: [0.65, 1, 0.65] }}
-            transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-          />
-        </div>
+          Loading
+        </motion.span>
+        <span className="text-slate-400" style={{ fontSize: hintSize }}>
+          正在整理页面内容
+        </span>
       </div>
     </motion.div>
   );
