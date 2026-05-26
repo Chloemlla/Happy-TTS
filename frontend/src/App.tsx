@@ -1234,7 +1234,7 @@ const App: React.FC = () => {
                   >
                     <m.img
                       id="app-brand-icon"
-                      className="w-8 h-8 rounded-lg shadow-sm"
+                      className="w-8 h-8"
                       src="/favicon.ico"
                       alt="Synapse Logo"
                       animate={prefersReducedMotion ? undefined : { rotate: [0, 4, -4, 0] }}
