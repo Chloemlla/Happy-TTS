@@ -394,10 +394,6 @@ export const DeepLXTranslatorPage: React.FC = () => {
               <h1 className="mt-5 text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">
                 文本翻译
               </h1>
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
-                以 DeepLX 作为后端引擎，保留高频翻译场景最需要的操作流：
-                自动识别、语言切换、自动翻译、候选译文、本地历史与语音朗读。
-              </p>
             </div>
 
             <div className="grid w-full gap-2 sm:grid-cols-3 lg:w-auto">

@@ -697,11 +697,11 @@ export function registerStaticRoutes(app: Express): void {
     preferSwaggerUrl
       ? swaggerUi.setup(undefined, {
           swaggerUrl: "/api/openapi.json",
-          customSiteTitle: "Happy API",
+          customSiteTitle: "Synapse API",
           customCss: swaggerCustomCss,
         })
       : swaggerUi.setup(swaggerUiSpec, {
-          customSiteTitle: "Happy API",
+          customSiteTitle: "Synapse API",
           customCss: swaggerCustomCss,
         }),
   );
