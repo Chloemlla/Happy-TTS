@@ -4,6 +4,7 @@
  */
 
 import { getApiBaseUrl } from '../api/api';
+import { signedFetch } from './requestSigner';
 
 export const testTamperAPI = async () => {
   const apiUrl = `${getApiBaseUrl()}/api/tamper/report-tampering`;
@@ -32,13 +33,14 @@ export const testTamperAPI = async () => {
   
   try {
     console.log('📤 发送测试数据:', testEvent);
+    const body = JSON.stringify(testEvent);
     
-    const response = await fetch(apiUrl, {
+    const response = await signedFetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(testEvent)
+      body
     });
     
     console.log('📥 响应状态:', response.status, response.statusText);

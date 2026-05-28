@@ -1,8 +1,17 @@
 import { type NextFunction, type Request, type Response, Router } from "express";
+import adminOnly from "../middleware/adminOnly";
+import { authenticateToken } from "../middleware/authenticateToken";
+import { replayProtection } from "../middleware/replayProtection";
 import { tamperService } from "../services/tamperService";
 import logger from "../utils/logger";
 
 const router = Router();
+
+function boundedNumber(value: unknown, fallback: number, min: number, max: number): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, Math.floor(parsed)));
+}
 
 /**
  * @openapi
@@ -192,7 +201,7 @@ const router = Router();
  *                   example: "内部服务器错误"
  *     security: []
  */
-router.post("/report-tampering", async (req, res) => {
+router.post("/report-tampering", replayProtection(), async (req, res) => {
   try {
     // 验证请求体是否存在
     if (!req.body || typeof req.body !== "object") {
@@ -211,9 +220,10 @@ router.post("/report-tampering", async (req, res) => {
       elementId: req.body.elementId || "unknown-element",
       timestamp: req.body.timestamp || new Date().toISOString(),
       url: req.body.url || "unknown-url",
+      signed: Boolean(req.headers["x-signature"]),
     };
 
-    await tamperService.recordTamperEvent(tamperEvent);
+    const storedEvent = await tamperService.recordTamperEvent(tamperEvent);
 
     // 检查是否需要立即返回封禁响应
     if (tamperService.isIPBlocked(tamperEvent.ip)) {
@@ -225,10 +235,69 @@ router.post("/report-tampering", async (req, res) => {
       });
     }
 
-    res.status(200).json({ message: "篡改报告已记录" });
+    res.status(200).json({ message: "篡改报告已记录", eventId: storedEvent.id });
   } catch (error) {
     logger.error("Error handling tamper report:", error);
     res.status(500).json({ error: "内部服务器错误" });
+  }
+});
+
+router.get("/admin/summary", authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const limit = boundedNumber(req.query.limit, 20, 1, 100);
+    const data = await tamperService.getSummary(limit);
+    res.json({ success: true, data });
+  } catch (error) {
+    logger.error("Error loading tamper summary:", error);
+    res.status(500).json({ error: "获取防篡改摘要失败" });
+  }
+});
+
+router.get("/admin/events", authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const data = await tamperService.listTamperEvents({
+      limit: boundedNumber(req.query.limit, 50, 1, 200),
+      offset: boundedNumber(req.query.offset, 0, 0, 100000),
+      ip: typeof req.query.ip === "string" ? req.query.ip : undefined,
+      tamperType: typeof req.query.tamperType === "string" ? req.query.tamperType : undefined,
+    });
+    res.json({ success: true, data });
+  } catch (error) {
+    logger.error("Error loading tamper events:", error);
+    res.status(500).json({ error: "获取篡改事件失败" });
+  }
+});
+
+router.get("/admin/blocked", authenticateToken, adminOnly, async (_req, res) => {
+  try {
+    await tamperService.clearExpiredBlockedIPs();
+    res.json({ success: true, data: tamperService.listBlockedIPs() });
+  } catch (error) {
+    logger.error("Error loading tamper blocked IPs:", error);
+    res.status(500).json({ error: "获取封禁 IP 失败" });
+  }
+});
+
+router.post("/admin/blocked", authenticateToken, adminOnly, replayProtection(), async (req, res) => {
+  try {
+    const ip = typeof req.body?.ip === "string" ? req.body.ip : "";
+    const reason = typeof req.body?.reason === "string" ? req.body.reason : "管理员手动封禁";
+    const durationHours = boundedNumber(req.body?.durationHours, 24, 1, 24 * 30);
+    const blocked = await tamperService.blockIP(ip, reason, durationHours);
+    res.json({ success: true, data: blocked });
+  } catch (error) {
+    logger.warn("Error manually blocking tamper IP:", error);
+    res.status(400).json({ error: error instanceof Error ? error.message : "封禁 IP 失败" });
+  }
+});
+
+router.delete("/admin/blocked/:ip", authenticateToken, adminOnly, replayProtection(), async (req, res) => {
+  try {
+    const removed = await tamperService.unblockIP(req.params.ip);
+    res.json({ success: true, removed });
+  } catch (error) {
+    logger.error("Error unblocking tamper IP:", error);
+    res.status(500).json({ error: "解除封禁失败" });
   }
 });
 

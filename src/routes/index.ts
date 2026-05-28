@@ -655,9 +655,14 @@ export const preTamperRouteModules: RouteModule[] = [
     name: "tamper-routes",
     path: "/api/tamper",
     router: tamperRoutes,
-    requiresAuth: false,
+    requiresAuth: "mixed",
     rateLimited: true,
-    isPublic: true,
+    isPublic: "mixed",
+    authPolicy: {
+      mode: "route",
+      handlers: ["authenticateToken", "adminOnly"],
+      note: "Public clients may submit signed tamper reports; administrative summary and blocklist actions require JWT admin checks inside the router.",
+    },
   },
   {
     name: "ticket-routes",

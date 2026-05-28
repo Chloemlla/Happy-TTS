@@ -1,5 +1,6 @@
 import CryptoJS from "crypto-js";
 import { getApiBaseUrl } from "../api/api";
+import { signedFetch } from "./requestSigner";
 
 interface IntegrityData {
   content: string;
@@ -1411,38 +1412,44 @@ class IntegrityChecker {
       },
     };
 
-    this.reportTampering(tamperEvent);
+    void this.reportTampering(tamperEvent);
     this.showTamperWarning(tamperEvent);
   }
 
-  private reportTampering(event: TamperEvent): void {
+  private async reportTampering(event: TamperEvent): Promise<boolean> {
     // 发送篡改事件到服务器
     const apiUrl = `${getApiBaseUrl()}/api/tamper/report-tampering`;
 
-    fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(event),
-    })
-      .then((response) => {
-        if (!response.ok) {
-          if (this.debugMode) {
-            this.safeLog(
-              "warn",
-              `⚠️ 篡改报告发送失败: ${response.status} ${response.statusText}`
-            );
-          }
-        } else if (this.debugMode) {
-          this.safeLog("log", "✅ 篡改报告已成功发送");
-        }
-      })
-      .catch((error) => {
-        if (this.debugMode) {
-          this.safeLog("error", "❌ 篡改报告发送错误:", error);
-        }
+    try {
+      const body = JSON.stringify(event);
+      const response = await signedFetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body,
       });
+
+      if (!response.ok) {
+        if (this.debugMode) {
+          this.safeLog(
+            "warn",
+            `⚠️ 篡改报告发送失败: ${response.status} ${response.statusText}`
+          );
+        }
+        return false;
+      }
+
+      if (this.debugMode) {
+        this.safeLog("log", "✅ 篡改报告已成功发送");
+      }
+      return true;
+    } catch (error) {
+      if (this.debugMode) {
+        this.safeLog("error", "❌ 篡改报告发送错误:", error);
+      }
+      return false;
+    }
   }
 
   private showTamperWarning(event: TamperEvent): void {
@@ -1989,8 +1996,12 @@ class IntegrityChecker {
           },
         };
 
-        this.reportTampering(tamperEvent);
-        resolve({ success: true, message: "篡改事件已成功报告" });
+        this.reportTampering(tamperEvent).then((success) => {
+          resolve({
+            success,
+            message: success ? "篡改事件已成功报告" : "篡改事件上报失败，请检查后端签名校验或网络状态",
+          });
+        });
       } catch (error) {
         const message = `报告篡改事件失败: ${error instanceof Error ? error.message : String(error)}`;
         resolve({ success: false, message });
