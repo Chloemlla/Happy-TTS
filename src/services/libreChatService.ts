@@ -5,6 +5,14 @@ import axios from "axios";
 import { load } from "cheerio";
 import { mongoose } from "../services/mongoService";
 import logger from "../utils/logger";
+import {
+  ChatHistoryModel,
+  ChatProviderModel,
+  ImageRecordModel,
+  LatestRecordModel,
+  type ChatProviderDoc,
+} from "./librechat/models";
+import type { ChatHistory, ChatMessage, ImageRecord, PaginationOptions, SSEClient } from "./librechat/types";
 
 // 基础输入清理：限制长度并移除可疑字符
 function sanitizeId(input?: string): string {
@@ -61,70 +69,6 @@ function isModelIdentityQuery(text: string): boolean {
   return patterns.some((r) => r.test(t));
 }
 
-// MongoDB 图片记录 Schema（历史图片记录，保留原有定义）
-const ImageRecordSchema = new mongoose.Schema(
-  {
-    userId: { type: String, required: true },
-    imageUrl: { type: String, required: true },
-    createdAt: { type: Date, default: Date.now },
-  },
-  { collection: "librechat_images" },
-);
-const ImageRecordModel = mongoose.models.LibreChatImage || mongoose.model("LibreChatImage", ImageRecordSchema);
-
-// MongoDB 最新记录 Schema（单例文档，用于 getLatestRecord 持久化）
-const LatestRecordSchema = new mongoose.Schema(
-  {
-    _id: { type: String, default: "latest" },
-    updateTime: { type: String, required: true },
-    updateTimeShanghai: { type: String },
-    imageUrl: { type: String, required: true },
-    updatedAt: { type: Date, default: Date.now },
-  },
-  { collection: "librechat_latest" },
-);
-const LatestRecordModel = mongoose.models.LibreChatLatest || mongoose.model("LibreChatLatest", LatestRecordSchema);
-
-// MongoDB 聊天历史 Schema
-const ChatHistorySchema = new mongoose.Schema(
-  {
-    userId: { type: String, required: true },
-    messages: { type: Array, required: true },
-    updatedAt: { type: Date, default: Date.now },
-    deleted: { type: Boolean, default: false },
-    deletedAt: { type: Date },
-  },
-  { collection: "librechat_histories" },
-);
-// 索引：按用户与更新时间查询
-ChatHistorySchema.index({ userId: 1 });
-ChatHistorySchema.index({ updatedAt: -1 });
-const ChatHistoryModel: any = mongoose.models.LibreChatHistory || mongoose.model("LibreChatHistory", ChatHistorySchema);
-
-// ========== 新增：聊天提供者配置（多组 BASE_URL/API_KEY/MODEL）===========
-interface ChatProviderDoc {
-  baseUrl: string;
-  apiKey: string;
-  model: string;
-  enabled?: boolean;
-  weight?: number;
-  group?: string;
-  updatedAt?: Date;
-}
-const ChatProviderSchema = new mongoose.Schema(
-  {
-    baseUrl: { type: String, required: true },
-    apiKey: { type: String, required: true },
-    model: { type: String, required: true },
-    enabled: { type: Boolean, default: true },
-    weight: { type: Number, default: 1 },
-    group: { type: String, default: "" },
-    updatedAt: { type: Date, default: Date.now },
-  },
-  { collection: "chat_providers" },
-);
-const ChatProviderModel = (mongoose.models.ChatProvider as any) || mongoose.model("ChatProvider", ChatProviderSchema);
-
 function normalizeBaseUrl(url?: string): string {
   if (!url) return "";
   return url.replace(/\/$/, "");
@@ -136,41 +80,6 @@ function shuffleInPlace<T>(arr: T[]): T[] {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
-}
-
-interface ImageRecord {
-  updateTime: string;
-  // 上海时间（UTC+8），用于本地化显示，可选以兼容历史数据
-  updateTimeShanghai?: string;
-  imageUrl: string;
-}
-
-interface ChatMessage {
-  id: string;
-  message: string;
-  role?: "user" | "assistant";
-  timestamp: string;
-  token: string;
-  userId?: string; // 可选：当登录用户ID可用时写入
-}
-
-interface ChatHistory {
-  messages: ChatMessage[];
-  total: number;
-}
-
-interface PaginationOptions {
-  page: number;
-  limit: number;
-}
-
-// 新增：SSE 连接管理器
-interface SSEClient {
-  id: string;
-  userId: string;
-  token: string;
-  res: any; // Express Response
-  lastPing: number;
 }
 
 class LibreChatService {

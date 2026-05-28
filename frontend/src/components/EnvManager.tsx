@@ -2,12 +2,51 @@
   useEffect, useState, useMemo, useCallback, startTransition
 } from 'react';
 import { LazyMotion, domAnimation, m, AnimatePresence, useReducedMotion } from 'framer-motion';
-import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
 import { signedFetch } from '../utils/requestSigner';
-import CryptoJS from 'crypto-js';
 import RuntimeConfigSections from './RuntimeConfigSections';
+import {
+  API_URL,
+  CLARITY_CONFIG_API,
+  DEBUG_CONSOLE_API,
+  GITHUB_BILLING_MULTI_CONFIG_API,
+  HCAPTCHA_CONFIG_API,
+  IPFS_CONFIG_API,
+  LIBRECHAT_PROVIDERS_API,
+  MODLIST_API,
+  OUTEMAIL_API,
+  SHORTURL_AES_API,
+  TTS_API,
+  TURNSTILE_CONFIG_API,
+  WEBHOOK_SECRET_API,
+  getAuthHeaders
+} from './env-manager/api';
+import CollapsibleSection from './env-manager/CollapsibleSection';
+import EnvRow from './env-manager/EnvRow';
+import { DURATION_03, DURATION_06, ENTER_ANIMATE, ENTER_INITIAL, NO_DURATION } from './env-manager/motion';
+import {
+  decryptAES256,
+  getEnvSource,
+  handleSourceClick,
+  handleSourceModalClose
+} from './env-manager/utils';
+import type {
+  ChatProviderItem,
+  ClarityConfigSetting,
+  DebugConsoleAccessLog,
+  DebugConsoleConfig,
+  EnvItem,
+  HCaptchaConfigSetting,
+  IPFSConfigSetting,
+  ModlistSettingItem,
+  MultiGitHubBillingConfig,
+  OutemailSettingItem,
+  ShortAesSetting,
+  TtsSettingItem,
+  TurnstileConfigSetting,
+  WebhookSecretSetting
+} from './env-manager/types';
 import {
   FaCog,
   FaLock,
@@ -21,367 +60,7 @@ import {
   FaChevronRight
 } from 'react-icons/fa';
 
-const API_URL = getApiBaseUrl() + '/api/admin/envs';
-const OUTEMAIL_API = getApiBaseUrl() + '/api/admin/outemail/settings';
-const MODLIST_API = getApiBaseUrl() + '/api/admin/modlist/setting';
-const TTS_API = getApiBaseUrl() + '/api/admin/tts/setting';
-const LIBRECHAT_PROVIDERS_API = getApiBaseUrl() + '/api/librechat/admin/providers';
-const SHORTURL_AES_API = getApiBaseUrl() + '/api/shorturl/admin/aes-key';
-const WEBHOOK_SECRET_API = getApiBaseUrl() + '/api/admin/webhook/secret';
-const DEBUG_CONSOLE_API = getApiBaseUrl() + '/api/debug-console';
-const IPFS_CONFIG_API = getApiBaseUrl() + '/api/ipfs/settings';
-const TURNSTILE_CONFIG_API = getApiBaseUrl() + '/api/turnstile/config';
-const HCAPTCHA_CONFIG_API = getApiBaseUrl() + '/api/turnstile/hcaptcha-config';
-const CLARITY_CONFIG_API = getApiBaseUrl() + '/api/tts/clarity/config';
-const GITHUB_BILLING_CONFIG_API = getApiBaseUrl() + '/api/github-billing/config';
-
-// 统一的进入动画与过渡配置，结合 useReducedMotion 可降级
-const ENTER_INITIAL = { opacity: 0, y: 20 } as const;
-const ENTER_ANIMATE = { opacity: 1, y: 0 } as const;
-const DURATION_06 = { duration: 0.6 } as const;
-const DURATION_03 = { duration: 0.3 } as const;
-const NO_DURATION = { duration: 0 } as const;
-
-function getAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem('token');
-  if (token) return { Authorization: `Bearer ${token}` };
-  return {};
-}
-
-interface EnvItem {
-  key: string;
-  value: string;
-  desc?: string;
-  updatedAt?: string;
-  source?: string; // 数据来源
-}
-
-interface OutemailSettingItem {
-  domain: string;
-  code: string; // 已脱敏显示
-  updatedAt?: string;
-}
-
-interface ModlistSettingItem {
-  code: string; // 已脱敏显示
-  updatedAt?: string;
-}
-interface TtsSettingItem {
-  code: string; // 已脱敏显示
-  updatedAt?: string;
-}
-interface ChatProviderItem {
-  id: string;
-  baseUrl: string;
-  apiKey: string; // 已脱敏显示
-  model: string;
-  group: string;
-  enabled: boolean;
-  weight: number;
-  updatedAt?: string;
-}
-interface ShortAesSetting {
-  aesKey: string | null;
-  updatedAt?: string;
-}
-interface WebhookSecretSetting {
-  key: string;
-  secret: string | null;
-  updatedAt?: string;
-}
-
-interface IPFSConfigSetting {
-  ipfsUploadUrl: string;
-  ipfsUa?: string;
-  imageBedApiUrl?: string;
-  imageBedCdnDomain?: string | null;
-  imageBedStorageDestination?: string | null;
-  imageBedOutputFormat?: string | null;
-  updatedAt?: string;
-}
-
-interface TurnstileConfigSetting {
-  enabled: boolean;
-  siteKey: string | null;
-  secretKey: string | null;
-  updatedAt?: string;
-}
-
-interface HCaptchaConfigSetting {
-  enabled: boolean;
-  siteKey: string | null;
-  secretKey: string | null;
-  updatedAt?: string;
-}
-
-interface ClarityConfigSetting {
-  enabled: boolean;
-  projectId: string | null;
-  updatedAt?: string;
-}
-
-interface GitHubBillingConfigSetting {
-  url?: string;
-  method?: string;
-  customerId?: string;
-  headersCount?: number;
-  hasCookies?: boolean;
-  updatedAt?: string;
-}
-
-interface MultiGitHubBillingConfig {
-  config1?: GitHubBillingConfigSetting;
-  config2?: GitHubBillingConfigSetting;
-  config3?: GitHubBillingConfigSetting;
-  lastUpdated?: string;
-}
-
-interface DebugConsoleConfig {
-  enabled: boolean;
-  keySequence: string;
-  verificationCode: string;
-  maxAttempts: number;
-  lockoutDuration: number;
-  group: string;
-  updatedAt?: string;
-}
-
-interface DebugConsoleAccessLog {
-  _id?: string;
-  userId?: string;
-  ip: string;
-  userAgent: string;
-  keySequence: string;
-  verificationCode: string;
-  success: boolean;
-  attempts: number;
-  timestamp: string;
-  lockoutUntil?: string;
-}
-
-// AES-256解密函数
-function decryptAES256(encryptedData: string, iv: string, key: string): string {
-  try {
-    const keyBytes = CryptoJS.SHA256(key);
-    const ivBytes = CryptoJS.enc.Hex.parse(iv);
-    const encryptedBytes = CryptoJS.enc.Hex.parse(encryptedData);
-
-    const decrypted = CryptoJS.AES.decrypt(
-      { ciphertext: encryptedBytes },
-      keyBytes,
-      {
-        iv: ivBytes,
-        mode: CryptoJS.mode.CBC,
-        padding: CryptoJS.pad.Pkcs7
-      }
-    );
-
-    return decrypted.toString(CryptoJS.enc.Utf8);
-  } catch (error) {
-    throw new Error('解密失败');
-  }
-}
-
-// 根据环境变量名判断数据来源
-function getEnvSource(key: string): string | undefined {
-  const keyLower = key.toLowerCase();
-
-  // 数据库相关
-  if (keyLower.includes('db_') || keyLower.includes('database_') || keyLower.includes('mongo')) {
-    return '数据库配置';
-  }
-
-  // 邮件相关
-  if (keyLower.includes('email_') || keyLower.includes('mail_') || keyLower.includes('smtp')) {
-    return '邮件服务配置';
-  }
-
-  // API相关
-  if (keyLower.includes('api_') || keyLower.includes('openai') || keyLower.includes('token')) {
-    return 'API配置';
-  }
-
-  // 安全相关
-  if (keyLower.includes('secret_') || keyLower.includes('key_') || keyLower.includes('password')) {
-    return '安全配置';
-  }
-
-  // 服务器相关
-  if (keyLower.includes('port') || keyLower.includes('host') || keyLower.includes('url')) {
-    return '服务器配置';
-  }
-
-  // 管理员相关
-  if (keyLower.includes('admin_')) {
-    return '管理员配置';
-  }
-
-  // 环境相关
-  if (keyLower.includes('env') || keyLower.includes('node_env')) {
-    return '环境配置';
-  }
-
-  return undefined; // 没有明确来源
-}
-
-// 抽取表格行，memo 化以减少不必要渲染
-interface EnvRowProps {
-  item: EnvItem;
-  idx: number;
-  prefersReducedMotion: boolean;
-  onSourceClick: (source: string) => void;
-}
-const EnvRow = React.memo(function EnvRow({ item, idx, prefersReducedMotion, onSourceClick }: EnvRowProps) {
-  const rowTransition = useMemo(() => (
-    prefersReducedMotion ? NO_DURATION : { duration: 0.3, delay: idx * 0.05 }
-  ), [prefersReducedMotion, idx]);
-
-  return (
-    <m.tr
-      className={`border-b border-gray-100 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-        }`}
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={rowTransition}
-      whileHover={{ backgroundColor: '#f8fafc' }}
-    >
-      <td className="px-4 py-3 font-mono text-sm font-medium text-gray-900 align-top">
-        <div className="break-words whitespace-normal leading-relaxed flex items-start gap-1">
-          {item.source && (
-            <button
-              onClick={() => onSourceClick(item.source!)}
-              className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 mt-0.5 flex-shrink-0 hover:text-blue-600 transition-colors cursor-pointer"
-            >
-              <FaInfoCircle />
-            </button>
-          )}
-          <span>{item.key.split(':').pop() || item.key}</span>
-        </div>
-      </td>
-      <td className="px-4 py-3 font-mono text-sm text-gray-700 align-top">
-        <div className="break-words whitespace-pre-wrap leading-relaxed">
-          {item.value}
-        </div>
-      </td>
-    </m.tr>
-  );
-});
-
-// 公共方法：处理数据来源点击
-export const handleSourceClick = (
-  source: string,
-  setSelectedSource: (source: string) => void,
-  setShowSourceModal: (show: boolean) => void,
-  options?: {
-    storageKey?: string;
-    getStorageValue?: () => string;
-    onBeforeOpen?: () => void;
-    onAfterOpen?: () => void;
-  }
-) => {
-  // 执行前置回调
-  options?.onBeforeOpen?.();
-
-  // 记录当前位置 - 支持自定义存储键和值
-  const currentScrollY = window.scrollY;
-  const storageKey = options?.storageKey || 'envManagerScrollPosition';
-  const storageValue = options?.getStorageValue ? options.getStorageValue() : currentScrollY.toString();
-
-  sessionStorage.setItem(storageKey, storageValue);
-
-  setSelectedSource(source);
-  setShowSourceModal(true);
-
-  // 自动滚动到弹窗位置
-  setTimeout(() => {
-    const modal = document.querySelector('[data-source-modal]');
-    if (modal) {
-      modal.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-        inline: 'center'
-      });
-    }
-
-    // 执行后置回调
-    options?.onAfterOpen?.();
-  }, 100);
-};
-
-// 公共方法：处理数据来源弹窗关闭
-export const handleSourceModalClose = (
-  setShowSourceModal: (show: boolean) => void,
-  options?: {
-    storageKey?: string;
-    getRestoreValue?: () => number;
-    onBeforeClose?: () => void;
-    onAfterClose?: () => void;
-    closeDelay?: number;
-  }
-) => {
-  // 执行前置回调
-  options?.onBeforeClose?.();
-
-  setShowSourceModal(false);
-
-  // 恢复原位置 - 支持自定义存储键和恢复值
-  setTimeout(() => {
-    const storageKey = options?.storageKey || 'envManagerScrollPosition';
-    const savedScrollY = sessionStorage.getItem(storageKey);
-
-    if (savedScrollY) {
-      const scrollY = options?.getRestoreValue ? options.getRestoreValue() : parseInt(savedScrollY, 10);
-      window.scrollTo({
-        top: scrollY,
-        behavior: 'smooth'
-      });
-      sessionStorage.removeItem(storageKey);
-    }
-
-    // 执行后置回调
-    options?.onAfterClose?.();
-  }, options?.closeDelay || 300); // 等待弹窗关闭动画完成
-};
-
-// 可折叠区块头部 — 点击展开/收起，减少不必要的 DOM 渲染
-interface CollapsibleSectionProps {
-  title: string;
-  sectionKey: string;
-  isOpen: boolean;
-  onToggle: (key: string) => void;
-  children: React.ReactNode;
-  headerRight?: React.ReactNode;
-  prefersReducedMotion?: boolean | null;
-}
-const CollapsibleSection = React.memo(function CollapsibleSection({
-  title, sectionKey, isOpen, onToggle, children, headerRight, prefersReducedMotion
-}: CollapsibleSectionProps) {
-  return (
-    <m.div
-      className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
-      initial={ENTER_INITIAL}
-      animate={ENTER_ANIMATE}
-      transition={prefersReducedMotion ? NO_DURATION : DURATION_06}
-    >
-      <button
-        type="button"
-        onClick={() => onToggle(sectionKey)}
-        className="w-full flex items-center justify-between p-4 sm:p-6 hover:bg-gray-50 transition-colors cursor-pointer"
-      >
-        <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
-        <div className="flex items-center gap-2">
-          {headerRight}
-          <FaChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
-        </div>
-      </button>
-      {isOpen && (
-        <div className="px-4 sm:px-6 pb-4 sm:pb-6">
-          {children}
-        </div>
-      )}
-    </m.div>
-  );
-});
+export { handleSourceClick, handleSourceModalClose };
 
 const EnvManager: React.FC = () => {
   const { user } = useAuth();
@@ -1836,7 +1515,7 @@ const EnvManager: React.FC = () => {
   const fetchGithubBillingConfig = useCallback(async () => {
     setGithubBillingConfigLoading(true);
     try {
-      const res = await fetch(getApiBaseUrl() + '/api/github-billing/multi-config', { headers: { ...getAuthHeaders() } });
+      const res = await fetch(GITHUB_BILLING_MULTI_CONFIG_API, { headers: { ...getAuthHeaders() } });
       const data = await res.json();
       if (!res.ok) {
         if (res.status === 404) {
@@ -1903,7 +1582,7 @@ const EnvManager: React.FC = () => {
 
     setGithubBillingConfigSaving(true);
     try {
-      const res = await fetch(getApiBaseUrl() + `/api/github-billing/multi-config/${selectedConfigKey}`, {
+      const res = await fetch(`${GITHUB_BILLING_MULTI_CONFIG_API}/${selectedConfigKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ curlCommand })
@@ -1927,7 +1606,7 @@ const EnvManager: React.FC = () => {
     if (githubBillingConfigSaving) return;
     setGithubBillingConfigSaving(true);
     try {
-      const res = await fetch(getApiBaseUrl() + `/api/github-billing/multi-config/${configKey}`, {
+      const res = await fetch(`${GITHUB_BILLING_MULTI_CONFIG_API}/${configKey}`, {
         method: 'DELETE',
         headers: { ...getAuthHeaders() }
       });
