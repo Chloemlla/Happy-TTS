@@ -68,125 +68,137 @@ const PublicShortLinkCreator: React.FC = () => {
   };
 
   return (
-    <div className="max-w-xl mx-auto px-4 py-8">
+    <section className="mx-auto max-w-2xl px-4 py-10 sm:py-12">
       <div className="mb-6">
-        <Link to="/" className="inline-flex items-center text-indigo-600 hover:text-indigo-800 transition-colors text-sm">
-          <FaArrowLeft className="mr-1" /> 返回首页
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500 backdrop-blur-xl transition hover:border-slate-300 hover:text-slate-700"
+        >
+          <FaArrowLeft className="text-[10px]" /> 返回首页
         </Link>
       </div>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl shadow-lg p-6 sm:p-8"
+        className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10"
       >
-        <div className="flex items-center space-x-3 mb-6">
-          <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
-            <FaLink className="text-indigo-600" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">公共短链创建</h1>
-            <p className="text-sm text-gray-500">无需登录，输入服务密码即可创建短链接</p>
-          </div>
-        </div>
+        <div className="pointer-events-none absolute -right-12 top-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(59,130,246,0.22),_transparent_68%)]" />
+        <div className="pointer-events-none absolute -left-10 bottom-0 h-32 w-32 rounded-full bg-[radial-gradient(circle,_rgba(14,165,233,0.16),_transparent_70%)]" />
 
-        <div className="space-y-4">
-          {/* 目标地址 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">目标地址</label>
-            <input
-              type="url"
-              value={target}
-              onChange={(e) => setTarget(e.target.value)}
-              placeholder="https://example.com/your-long-url"
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors text-sm"
-              aria-label="目标地址"
-            />
+        <div className="relative">
+          <div className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+            Public Shortlink
           </div>
+          <h1 className="mt-5 text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">
+            公共短链创建
+          </h1>
+          <p className="mt-4 max-w-xl text-sm leading-7 text-slate-600 sm:text-base">
+            无需登录，输入服务密码即可创建短链接。生成的短链可以分享给任何人访问。
+          </p>
 
-          {/* 自定义短码 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              自定义短码 <span className="text-gray-400 font-normal">(可选)</span>
-            </label>
-            <div className="relative">
+          <div className="mt-8 space-y-5">
+            <div>
+              <label className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                目标地址
+              </label>
               <input
-                type="text"
-                value={customCode}
-                onChange={(e) => setCustomCode(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))}
-                placeholder="my-link"
-                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors text-sm pr-10"
-                aria-label="自定义短码"
+                type="url"
+                value={target}
+                onChange={(e) => setTarget(e.target.value)}
+                placeholder="https://example.com/your-long-url"
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300"
+                aria-label="目标地址"
               />
-              <FaDice className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
             </div>
-            <p className="text-xs text-gray-400 mt-1">仅支持字母、数字、连字符和下划线，留空则自动生成</p>
-          </div>
 
-          {/* 服务密码 */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">服务密码</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="请输入公共短链访问口令"
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors text-sm"
-              aria-label="服务密码"
-            />
-          </div>
+            <div>
+              <label className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                自定义短码{' '}
+                <span className="ml-1 normal-case tracking-normal text-slate-400">(可选)</span>
+              </label>
+              <div className="relative mt-2">
+                <input
+                  type="text"
+                  value={customCode}
+                  onChange={(e) => setCustomCode(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))}
+                  placeholder="my-link"
+                  className="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 pr-11 text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  aria-label="自定义短码"
+                />
+                <FaDice className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              </div>
+              <p className="mt-2 text-xs leading-6 text-slate-500">
+                仅支持字母、数字、连字符和下划线，留空则自动生成。
+              </p>
+            </div>
 
-          {/* 创建按钮 */}
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleCreate}
-            disabled={creating}
-            className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg font-medium transition-colors text-sm flex items-center justify-center space-x-2"
-            aria-label="创建短链"
-          >
-            {creating ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <>
-                <FaLink />
-                <span>创建短链</span>
-              </>
-            )}
-          </motion.button>
-        </div>
-
-        {/* 结果展示 */}
-        {result && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg"
-          >
-            <p className="text-sm text-green-700 font-medium mb-2">创建成功</p>
-            <div className="flex items-center space-x-2">
+            <div>
+              <label className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                服务密码
+              </label>
               <input
-                type="text"
-                readOnly
-                value={result}
-                className="flex-1 px-3 py-2 bg-white border border-green-300 rounded-lg text-sm text-gray-800"
-                aria-label="短链结果"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="请输入公共短链访问口令"
+                className="mt-2 w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300"
+                aria-label="服务密码"
               />
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleCopy}
-                className="px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm flex items-center space-x-1"
-                aria-label="复制短链"
-              >
-                <FaCopy />
-                <span>复制</span>
-              </motion.button>
             </div>
-          </motion.div>
-        )}
+
+            <motion.button
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              onClick={handleCreate}
+              disabled={creating}
+              className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+              aria-label="创建短链"
+            >
+              {creating ? (
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              ) : (
+                <>
+                  <FaLink className="text-[13px]" />
+                  <span>创建短链</span>
+                </>
+              )}
+            </motion.button>
+          </div>
+
+          {result && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-7 rounded-[22px] border border-emerald-200/70 bg-emerald-50/80 px-5 py-4"
+            >
+              <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-emerald-600">
+                创建成功
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={result}
+                  className="flex-1 rounded-xl border border-emerald-200 bg-white/90 px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                  aria-label="短链结果"
+                />
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={handleCopy}
+                  className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  aria-label="复制短链"
+                >
+                  <FaCopy className="text-[12px]" />
+                  <span>复制</span>
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+        </div>
       </motion.div>
-    </div>
+    </section>
   );
 };
 

@@ -4,11 +4,11 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import { useNotification } from './Notification';
-import { 
-  FaFont, 
-  FaCopy, 
-  FaCut, 
-  FaTrash, 
+import {
+  FaFont,
+  FaCopy,
+  FaCut,
+  FaTrash,
   FaArrowLeft,
   FaMagic,
   FaCode,
@@ -75,13 +75,13 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
     firstLower: FaSortAlphaDown,
     sentenceCase: FaParagraph,
     titleCase: FaHeading,
-    
+
     // 智能转换
     smartCase: FaBrain,
     alternatingCase: FaRandom,
     spongebobCase: FaSmile,
     leetspeak: FaKeyboard,
-    
+
     // 分隔符转换
     spaceToUnderscore: FaExchangeAlt,
     underscoreToCamel: FaArrowsAltH,
@@ -93,33 +93,33 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
     underscoreToSpace: FaArrowsAltH,
     underscoreToDot: FaDotCircle,
     dotToUnderscore: FaDotCircle,
-    
+
     // 格式转换
     spaceToNewline: FaArrowsAltV,
     newlineToSpace: FaArrowsAltH,
     singleLine: FaArrowsAltH,
     properLineBreaks: FaArrowsAltV,
     newlineToComma: FaArrowsAltH,
-    
+
     // 清理功能
     removeSymbols: FaBroom,
     removeSpaces: FaEraser,
     removeNewlines: FaFilter,
     removeDuplicates: FaSort,
     trimWhitespace: FaTrashAlt,
-    
+
     // 编码转换
     toBase64: FaLock,
     fromBase64: FaUnlock,
     toUrlEncode: FaGlobe,
     fromUrlEncode: FaNetworkWired,
-    
+
     // 特殊格式
     toSlug: FaLink,
     toHashtag: FaHashtag,
     toMention: FaAt,
     toCodeBlock: FaCode,
-    
+
     // 智能处理
     autoFormat: FaMagic,
     normalizeText: FaCog,
@@ -127,65 +127,51 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
     enhanceReadability: FaEye
   }), []);
 
-  // 功能按钮颜色映射
+  // 功能按钮分组（用于细微视觉区分，但整体保持 slate 调性）
   const functionColors = useMemo(() => ({
-    // 基础大小写转换 - 蓝色
-    uppercase: 'bg-blue-500 hover:bg-blue-600',
-    lowercase: 'bg-blue-500 hover:bg-blue-600',
-    firstUpper: 'bg-blue-500 hover:bg-blue-600',
-    firstLower: 'bg-blue-500 hover:bg-blue-600',
-    sentenceCase: 'bg-blue-500 hover:bg-blue-600',
-    titleCase: 'bg-blue-500 hover:bg-blue-600',
-    
-    // 智能转换 - 紫色
-    smartCase: 'bg-purple-500 hover:bg-purple-600',
-    alternatingCase: 'bg-purple-500 hover:bg-purple-600',
-    spongebobCase: 'bg-purple-500 hover:bg-purple-600',
-    leetspeak: 'bg-purple-500 hover:bg-purple-600',
-    
-    // 分隔符转换 - 绿色
-    spaceToUnderscore: 'bg-green-500 hover:bg-green-600',
-    underscoreToCamel: 'bg-green-500 hover:bg-green-600',
-    camelToUnderscore: 'bg-green-500 hover:bg-green-600',
-    camelToSpace: 'bg-green-500 hover:bg-green-600',
-    spaceToDash: 'bg-green-500 hover:bg-green-600',
-    underscoreToDash: 'bg-green-500 hover:bg-green-600',
-    dashToUnderscore: 'bg-green-500 hover:bg-green-600',
-    underscoreToSpace: 'bg-green-500 hover:bg-green-600',
-    underscoreToDot: 'bg-green-500 hover:bg-green-600',
-    dotToUnderscore: 'bg-green-500 hover:bg-green-600',
-    
-    // 格式转换 - 青色
-    spaceToNewline: 'bg-cyan-500 hover:bg-cyan-600',
-    newlineToSpace: 'bg-cyan-500 hover:bg-cyan-600',
-    singleLine: 'bg-cyan-500 hover:bg-cyan-600',
-    properLineBreaks: 'bg-cyan-500 hover:bg-cyan-600',
-    newlineToComma: 'bg-cyan-500 hover:bg-cyan-600',
-    
-    // 清理功能 - 橙色
-    removeSymbols: 'bg-orange-500 hover:bg-orange-600',
-    removeSpaces: 'bg-orange-500 hover:bg-orange-600',
-    removeNewlines: 'bg-orange-500 hover:bg-orange-600',
-    removeDuplicates: 'bg-orange-500 hover:bg-orange-600',
-    trimWhitespace: 'bg-orange-500 hover:bg-orange-600',
-    
-    // 编码转换 - 红色
-    toBase64: 'bg-red-500 hover:bg-red-600',
-    fromBase64: 'bg-red-500 hover:bg-red-600',
-    toUrlEncode: 'bg-red-500 hover:bg-red-600',
-    fromUrlEncode: 'bg-red-500 hover:bg-red-600',
-    
-    // 特殊格式 - 靛蓝色
-    toSlug: 'bg-indigo-500 hover:bg-indigo-600',
-    toHashtag: 'bg-indigo-500 hover:bg-indigo-600',
-    toMention: 'bg-indigo-500 hover:bg-indigo-600',
-    toCodeBlock: 'bg-indigo-500 hover:bg-indigo-600',
-    
-    // 智能处理 - 粉色
-    autoFormat: 'bg-pink-500 hover:bg-pink-600',
-    normalizeText: 'bg-pink-500 hover:bg-pink-600',
-    fixCommonErrors: 'bg-pink-500 hover:bg-pink-600',
-    enhanceReadability: 'bg-pink-500 hover:bg-pink-600'
+    // 统一使用 slate 风格，保留 key 以维持原有 API
+    uppercase: '',
+    lowercase: '',
+    firstUpper: '',
+    firstLower: '',
+    sentenceCase: '',
+    titleCase: '',
+    smartCase: '',
+    alternatingCase: '',
+    spongebobCase: '',
+    leetspeak: '',
+    spaceToUnderscore: '',
+    underscoreToCamel: '',
+    camelToUnderscore: '',
+    camelToSpace: '',
+    spaceToDash: '',
+    underscoreToDash: '',
+    dashToUnderscore: '',
+    underscoreToSpace: '',
+    underscoreToDot: '',
+    dotToUnderscore: '',
+    spaceToNewline: '',
+    newlineToSpace: '',
+    singleLine: '',
+    properLineBreaks: '',
+    newlineToComma: '',
+    removeSymbols: '',
+    removeSpaces: '',
+    removeNewlines: '',
+    removeDuplicates: '',
+    trimWhitespace: '',
+    toBase64: '',
+    fromBase64: '',
+    toUrlEncode: '',
+    fromUrlEncode: '',
+    toSlug: '',
+    toHashtag: '',
+    toMention: '',
+    toCodeBlock: '',
+    autoFormat: '',
+    normalizeText: '',
+    fixCommonErrors: '',
+    enhanceReadability: ''
   }), []);
 
   // 检测是否为移动设备
@@ -193,10 +179,10 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
     };
-    
+
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    
+
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
@@ -247,7 +233,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
     clear: isEnglish ? 'Clear' : '清空',
     backToHome: isEnglish ? 'Back to Home' : '返回首页',
     language: isEnglish ? '中文' : 'English',
-    
+
     // 转换功能
     functions: {
       // 基础大小写转换
@@ -257,13 +243,13 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
       firstLower: isEnglish ? 'first letter lower' : '首字母小写',
       sentenceCase: isEnglish ? 'Sentence case' : '句子首字母大写',
       titleCase: isEnglish ? 'Title Case' : '标题大小写',
-      
+
       // 智能转换
       smartCase: isEnglish ? 'Smart Case' : '智能大小写',
       alternatingCase: isEnglish ? 'aLtErNaTiNg' : '交替大小写',
       spongebobCase: isEnglish ? 'SpOnGeBoB' : '海绵宝宝体',
       leetspeak: isEnglish ? 'L33t5p34k' : '黑客体',
-      
+
       // 分隔符转换
       spaceToUnderscore: isEnglish ? 'Space → Underscore' : '空格→下划线',
       underscoreToCamel: isEnglish ? 'Underscore & Space → Camel' : '下划线&空格→驼峰',
@@ -275,33 +261,33 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
       underscoreToSpace: isEnglish ? 'Underscore → Space' : '下划线→空格',
       underscoreToDot: isEnglish ? 'Underscore → Dot' : '下划线→小数点',
       dotToUnderscore: isEnglish ? 'Dot → Underscore' : '小数点→下划线',
-      
+
       // 格式转换
       spaceToNewline: isEnglish ? 'Space → Newline' : '空格→换行',
       newlineToSpace: isEnglish ? 'Newline → Space' : '换行→空格',
       singleLine: isEnglish ? 'Single Line' : '单行化',
       properLineBreaks: isEnglish ? 'Proper Line Breaks' : '规范换行',
       newlineToComma: isEnglish ? 'Newline → Comma' : '换行→逗号',
-      
+
       // 清理功能
       removeSymbols: isEnglish ? 'Remove Symbols' : '清除符号',
       removeSpaces: isEnglish ? 'Remove Spaces' : '清除空格',
       removeNewlines: isEnglish ? 'Remove Newlines' : '清除换行',
       removeDuplicates: isEnglish ? 'Remove Duplicates' : '清除重复',
       trimWhitespace: isEnglish ? 'Trim Whitespace' : '修剪空白',
-      
+
       // 编码转换
       toBase64: isEnglish ? 'To Base64' : '转Base64',
       fromBase64: isEnglish ? 'From Base64' : '从Base64',
       toUrlEncode: isEnglish ? 'URL Encode' : 'URL编码',
       fromUrlEncode: isEnglish ? 'URL Decode' : 'URL解码',
-      
+
       // 特殊格式
       toSlug: isEnglish ? 'To Slug' : '转Slug',
       toHashtag: isEnglish ? 'To Hashtag' : '转话题标签',
       toMention: isEnglish ? 'To Mention' : '转提及格式',
       toCodeBlock: isEnglish ? 'To Code Block' : '转代码块',
-      
+
       // 智能处理
       autoFormat: isEnglish ? 'Auto Format' : '自动格式化',
       normalizeText: isEnglish ? 'Normalize Text' : '文本标准化',
@@ -558,7 +544,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
     }
 
     let result = '';
-    
+
     try {
       switch (type) {
       // 基础大小写转换
@@ -586,7 +572,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
           return minorWords.includes(word) ? word : word.charAt(0).toUpperCase() + word.slice(1);
         });
         break;
-      
+
       // 智能转换
       case 'smartCase':
         result = inputText.split(' ').map(word => {
@@ -601,12 +587,12 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
         }).join(' ');
         break;
       case 'alternatingCase':
-        result = inputText.split('').map((char, index) => 
+        result = inputText.split('').map((char, index) =>
           index % 2 === 0 ? char.toLowerCase() : char.toUpperCase()
         ).join('');
         break;
       case 'spongebobCase':
-        result = inputText.split('').map((char, index) => 
+        result = inputText.split('').map((char, index) =>
           index % 2 === 0 ? char.toLowerCase() : char.toUpperCase()
         ).join('');
         break;
@@ -616,7 +602,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
         };
         result = inputText.toLowerCase().replace(/[aeiostgl]/g, char => leetMap[char] || char);
         break;
-      
+
       // 分隔符转换
       case 'spaceToUnderscore':
         result = inputText.replace(/\s+/g, '_');
@@ -648,7 +634,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
       case 'dotToUnderscore':
         result = inputText.replace(/\./g, '_');
         break;
-      
+
       // 格式转换
       case 'spaceToNewline':
         result = inputText.replace(/\s+/g, '\n');
@@ -665,7 +651,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
       case 'newlineToComma':
         result = inputText.split('\n').filter(line => line.trim()).join(',');
         break;
-      
+
       // 清理功能
       case 'removeSymbols':
         result = inputText.replace(/[^\w\s]/g, '');
@@ -684,7 +670,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
       case 'trimWhitespace':
         result = inputText.split('\n').map(line => line.trim()).join('\n');
         break;
-      
+
       // 编码转换
       case 'toBase64':
         try {
@@ -710,7 +696,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
           result = 'Error: Invalid URL encoded string';
         }
         break;
-      
+
       // 特殊格式
       case 'toSlug':
         result = inputText.toLowerCase()
@@ -719,19 +705,19 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
           .replace(/^-+|-+$/g, '');
         break;
       case 'toHashtag':
-        result = inputText.split(/\s+/).map(word => 
+        result = inputText.split(/\s+/).map(word =>
           word.startsWith('#') ? word : `#${word}`
         ).join(' ');
         break;
       case 'toMention':
-        result = inputText.split(/\s+/).map(word => 
+        result = inputText.split(/\s+/).map(word =>
           word.startsWith('@') ? word : `@${word}`
         ).join(' ');
         break;
       case 'toCodeBlock':
         result = `\`\`\`\n${inputText}\n\`\`\``;
         break;
-      
+
       // 智能处理
       case 'autoFormat':
         result = autoFormatText(inputText);
@@ -745,7 +731,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
       case 'enhanceReadability':
         result = enhanceReadability(inputText);
         break;
-      
+
       default:
         result = sanitizedInput;
     }
@@ -767,7 +753,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
     const isCode = lines.some(line => line.includes('function') || line.includes('const') || line.includes('var') || line.includes('if') || line.includes('for'));
     const isList = lines.some(line => /^\s*[-*+]\s/.test(line) || /^\s*\d+\.\s/.test(line));
     const isJson = text.trim().startsWith('{') || text.trim().startsWith('[');
-    
+
     if (isJson) {
       try {
         return JSON.stringify(JSON.parse(text), null, 2);
@@ -775,11 +761,11 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
         return text;
       }
     }
-    
+
     if (isCode) {
       return lines.map(line => line.trim()).join('\n');
     }
-    
+
     if (isList) {
       return lines.map(line => {
         if (/^\s*[-*+]\s/.test(line)) {
@@ -791,7 +777,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
         return line;
       }).join('\n');
     }
-    
+
     // 普通文本格式化
     return text
       .replace(/\n{3,}/g, '\n\n')
@@ -833,7 +819,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
         return part;
       }
     }).join('');
-    
+
     return enhanced
       .replace(/\s+/g, ' ')
       .replace(/\n\s*\n/g, '\n\n')
@@ -849,7 +835,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
       });
       return;
     }
-    
+
     // 验证文本长度
     if (text.length > 10000) {
       setNotification({
@@ -858,7 +844,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
       });
       return;
     }
-    
+
     try {
       // 优先使用现代 Clipboard API
       if (navigator.clipboard && window.isSecureContext) {
@@ -869,7 +855,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
         });
         return;
       }
-      
+
       // 降级方案：使用 document.execCommand
       const textArea = document.createElement('textarea');
       textArea.value = text;
@@ -881,10 +867,10 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
       document.body.appendChild(textArea);
       textArea.focus();
       textArea.select();
-      
+
       const successful = document.execCommand('copy');
       document.body.removeChild(textArea);
-      
+
       if (successful) {
         setNotification({
           message: t.tips.copied,
@@ -918,36 +904,36 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
     const rect = button.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
-    
+
     // 提示框的预估尺寸
     const tooltipWidth = isMobile ? 280 : 320;
     const tooltipHeight = 200;
-    
+
     let direction = 'bottom';
     let x = rect.left + rect.width / 2 - tooltipWidth / 2;
     let y = rect.bottom + 8;
-    
+
     // 检查右边界
     if (x + tooltipWidth > viewportWidth - 20) {
       x = viewportWidth - tooltipWidth - 20;
     }
-    
+
     // 检查左边界
     if (x < 20) {
       x = 20;
     }
-    
+
     // 检查下边界，如果超出则显示在上方
     if (y + tooltipHeight > viewportHeight - 20) {
       direction = 'top';
       y = rect.top - tooltipHeight - 8;
     }
-    
+
     // 检查上边界
     if (y < 20) {
       y = 20;
     }
-    
+
     setTooltipPosition({ x, y, direction });
     setHoveredFunction(key);
   }, [isMobile]);
@@ -965,36 +951,36 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
       const rect = button.getBoundingClientRect();
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
-      
+
       // 提示框的预估尺寸
       const tooltipWidth = 280;
       const tooltipHeight = 200;
-      
+
       let direction = 'bottom';
       let x = rect.left + rect.width / 2 - tooltipWidth / 2;
       let y = rect.bottom + 8;
-      
+
       // 检查右边界
       if (x + tooltipWidth > viewportWidth - 20) {
         x = viewportWidth - tooltipWidth - 20;
       }
-      
+
       // 检查左边界
       if (x < 20) {
         x = 20;
       }
-      
+
       // 检查下边界，如果超出则显示在上方
       if (y + tooltipHeight > viewportHeight - 20) {
         direction = 'top';
         y = rect.top - tooltipHeight - 8;
       }
-      
+
       // 检查上边界
       if (y < 20) {
         y = 20;
       }
-      
+
       setTooltipPosition({ x, y, direction });
       setHoveredFunction(key);
     }
@@ -1019,36 +1005,36 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
       const rect = button.getBoundingClientRect();
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
-      
+
       // 提示框的预估尺寸
       const tooltipWidth = 280;
       const tooltipHeight = 200;
-      
+
       let direction = 'bottom';
       let x = rect.left + rect.width / 2 - tooltipWidth / 2;
       let y = rect.bottom + 8;
-      
+
       // 检查右边界
       if (x + tooltipWidth > viewportWidth - 20) {
         x = viewportWidth - tooltipWidth - 20;
       }
-      
+
       // 检查左边界
       if (x < 20) {
         x = 20;
       }
-      
+
       // 检查下边界，如果超出则显示在上方
       if (y + tooltipHeight > viewportHeight - 20) {
         direction = 'top';
         y = rect.top - tooltipHeight - 8;
       }
-      
+
       // 检查上边界
       if (y < 20) {
         y = 20;
       }
-      
+
       setTooltipPosition({ x, y, direction });
       setHoveredFunction(key);
     }
@@ -1059,46 +1045,46 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
     if (isMobile) {
       event.preventDefault();
       event.stopPropagation();
-      
+
       // 执行转换功能
       convertCase(key);
-      
+
       // 如果提示框没有显示，则显示它
       if (hoveredFunction !== key) {
         const button = event.currentTarget;
         const rect = button.getBoundingClientRect();
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
-        
+
         // 提示框的预估尺寸
         const tooltipWidth = 280;
         const tooltipHeight = 200;
-        
+
         let direction = 'bottom';
         let x = rect.left + rect.width / 2 - tooltipWidth / 2;
         let y = rect.bottom + 8;
-        
+
         // 检查右边界
         if (x + tooltipWidth > viewportWidth - 20) {
           x = viewportWidth - tooltipWidth - 20;
         }
-        
+
         // 检查左边界
         if (x < 20) {
           x = 20;
         }
-        
+
         // 检查下边界，如果超出则显示在上方
         if (y + tooltipHeight > viewportHeight - 20) {
           direction = 'top';
           y = rect.top - tooltipHeight - 8;
         }
-        
+
         // 检查上边界
         if (y < 20) {
           y = 20;
         }
-        
+
         setTooltipPosition({ x, y, direction });
         setHoveredFunction(key);
       }
@@ -1150,126 +1136,120 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
   }, [convertCase, clearText]);
 
   return (
-    <motion.div 
-      className="space-y-6"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
-    >
-      {/* 标题和说明 */}
-      <motion.div 
-        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
-        initial={{ opacity: 0, y: 20 }}
+    <section className="mx-auto max-w-6xl px-4 py-10 sm:py-12">
+      <motion.div
+        className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10"
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
+        transition={{ duration: 0.5 }}
       >
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-2xl font-bold text-blue-700 flex items-center gap-2">
-            <FaFont className="text-2xl text-blue-600" />
-            {t.title}
-          </h2>
-              <Link 
-                to="/"
-            className="flex items-center space-x-2 text-gray-600 hover:text-blue-600 transition-colors duration-200"
-          >
-            <FaArrowLeft 
-              className="text-lg"
-            />
-                <span className="font-medium">{t.backToHome}</span>
-              </Link>
-        </div>
-        <div className="text-gray-600 space-y-2">
-          <p>{t.subtitle}</p>
-          <div className="flex items-start gap-2 text-sm">
+        <div className="pointer-events-none absolute -right-16 top-0 h-48 w-48 rounded-full bg-[radial-gradient(circle,_rgba(59,130,246,0.22),_transparent_68%)]" />
+        <div className="pointer-events-none absolute -left-10 bottom-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(14,165,233,0.16),_transparent_70%)]" />
+
+        <div className="relative space-y-8">
+          {/* 标题区 */}
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <p className="font-semibold text-blue-700">{isEnglish ? 'Features:' : '功能说明：'}</p>
-              <ul className="list-disc list-inside space-y-1 mt-1">
+              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+                <FaFont className="text-[10px]" /> CASE CONVERTER
+              </div>
+              <h1 className="mt-5 text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">
+                {t.title}
+              </h1>
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+                {t.subtitle}
+              </p>
+              <ul className="mt-4 grid grid-cols-1 gap-2 text-sm text-slate-600 sm:grid-cols-2">
                 <li className="flex items-center gap-2">
-                  <FaFont className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                  <FaFont className="h-3 w-3 flex-shrink-0 text-slate-500" />
                   {isEnglish ? 'Convert text case formats easily' : '轻松转换文本大小写格式'}
                 </li>
                 <li className="flex items-center gap-2">
-                  <FaSync className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                  <FaSync className="h-3 w-3 flex-shrink-0 text-slate-500" />
                   {isEnglish ? 'Support multiple conversion types' : '支持多种转换类型'}
                 </li>
                 <li className="flex items-center gap-2">
-                  <FaCopy className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                  <FaCopy className="h-3 w-3 flex-shrink-0 text-slate-500" />
                   {isEnglish ? 'Copy and paste functionality' : '复制粘贴功能'}
                 </li>
                 <li className="flex items-center gap-2">
-                  <FaLanguage className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                  <FaLanguage className="h-3 w-3 flex-shrink-0 text-slate-500" />
                   {isEnglish ? 'Bilingual interface support' : '双语界面支持'}
                 </li>
               </ul>
             </div>
+            <div className="flex flex-col items-start gap-3 sm:items-end">
+              <Link
+                to="/"
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
+              >
+                <FaArrowLeft className="text-xs" />
+                <span>{t.backToHome}</span>
+              </Link>
+              <motion.button
+                onClick={() => setIsEnglish(!isEnglish)}
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
+                whileTap={{ scale: 0.97 }}
+              >
+                <FaLanguage className="h-4 w-4" />
+                {t.language}
+              </motion.button>
+            </div>
           </div>
-        </div>
-      </motion.div>
 
-      {/* 输入区块 */}
-        <motion.div 
-        className="bg-blue-50 rounded-xl p-6 shadow-sm border border-gray-200"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <FaFont className="text-lg text-blue-500" />
-            {isEnglish ? 'Input Text' : '输入文本'}
-          </h3>
-          <motion.button
-            onClick={() => setIsEnglish(!isEnglish)}
-            className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium flex items-center gap-2"
-            whileTap={{ scale: 0.95 }}
+          {/* 输入区块 */}
+          <motion.div
+            className="relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-6"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.05 }}
           >
-            <FaLanguage className="w-4 h-4" />
-            {t.language}
-          </motion.button>
-        </div>
-        
-        <div className="space-y-4">
-          <div>
-            <label className="block mb-2 font-semibold text-gray-700">
-                {t.inputPlaceholder}
-              </label>
-              <textarea
-                value={inputText}
-                onChange={(e) => {
-                  // 限制输入长度，防止性能问题
-                  const value = e.target.value;
-                  if (value.length <= 10000) { // 限制10KB文本
-                    setInputText(value);
-                  } else {
-                    setNotification({
-                      message: isEnglish ? 'Text is too long (max 10,000 characters)' : '文本过长（最多10,000字符）',
-                      type: 'warning'
-                    });
-                  }
-                }}
-                onKeyDown={handleKeyDown}
-                className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent hover:scrollbar-thumb-gray-500" 
-                rows={8} 
-                placeholder={t.inputPlaceholder}
-                maxLength={10000}
-                aria-label={t.inputPlaceholder}
-              />
-            {inputText.length > 9000 && (
-              <div className="text-sm text-orange-600 mt-1">
-                {isEnglish ? 'Text is getting long, consider breaking it into smaller chunks' : '文本较长，建议分段处理'}
-              </div>
-            )}
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
+              <FaFont className="text-slate-500" />
+              {isEnglish ? 'Input Text' : '输入文本'}
+            </div>
 
-          </div>
-              
+            <div className="mt-4 space-y-4">
+              <div>
+                <label className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                  {t.inputPlaceholder}
+                </label>
+                <textarea
+                  value={inputText}
+                  onChange={(e) => {
+                    // 限制输入长度，防止性能问题
+                    const value = e.target.value;
+                    if (value.length <= 10000) { // 限制10KB文本
+                      setInputText(value);
+                    } else {
+                      setNotification({
+                        message: isEnglish ? 'Text is too long (max 10,000 characters)' : '文本过长（最多10,000字符）',
+                        type: 'warning'
+                      });
+                    }
+                  }}
+                  onKeyDown={handleKeyDown}
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent hover:scrollbar-thumb-slate-400"
+                  rows={8}
+                  placeholder={t.inputPlaceholder}
+                  maxLength={10000}
+                  aria-label={t.inputPlaceholder}
+                />
+                {inputText.length > 9000 && (
+                  <div className="mt-2 text-xs text-amber-600">
+                    {isEnglish ? 'Text is getting long, consider breaking it into smaller chunks' : '文本较长，建议分段处理'}
+                  </div>
+                )}
+              </div>
+
               {/* 操作按钮 */}
-          <div className="flex space-x-3">
+              <div className="flex flex-wrap gap-3">
                 <motion.button
                   onClick={() => copyToClipboard(inputText)}
-              className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium flex items-center gap-2"
-              whileTap={{ scale: 0.95 }}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+                  whileTap={{ scale: 0.97 }}
                 >
-              <FaCopy className="w-4 h-4" />
+                  <FaCopy className="h-4 w-4" />
                   {t.copy}
                 </motion.button>
                 <motion.button
@@ -1277,113 +1257,110 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
                     copyToClipboard(inputText);
                     setInputText('');
                   }}
-              className="flex-1 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition font-medium flex items-center gap-2"
-              whileTap={{ scale: 0.95 }}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
+                  whileTap={{ scale: 0.97 }}
                 >
-              <FaCut className="w-4 h-4" />
+                  <FaCut className="h-4 w-4" />
                   {t.cut}
                 </motion.button>
                 <motion.button
                   onClick={clearText}
-              className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium flex items-center gap-2"
-              whileTap={{ scale: 0.95 }}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm font-semibold text-slate-500 transition hover:border-rose-200 hover:text-rose-600"
+                  whileTap={{ scale: 0.97 }}
                 >
-              <FaTrash className="w-4 h-4" />
+                  <FaTrash className="h-4 w-4" />
                   {t.clear}
                 </motion.button>
               </div>
             </div>
           </motion.div>
 
-      {/* 输出区块 */}
-          <motion.div 
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <FaCopy className="text-lg text-green-500" />
-                  {t.outputLabel}
-          </h3>
-                <div className="flex items-center space-x-4 text-sm">
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={showOriginalOutput}
-                      onChange={(e) => setShowOriginalOutput(e.target.checked)}
-                className="rounded text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-gray-600">{t.originalOutput}</span>
-                  </label>
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={addOriginalToDict}
-                      onChange={(e) => setAddOriginalToDict(e.target.checked)}
-                className="rounded text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-gray-600">{t.addToDict}</span>
-                  </label>
-                </div>
+          {/* 输出区块 */}
+          <motion.div
+            className="relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-6"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
+                <FaCopy className="text-slate-500" />
+                {t.outputLabel}
               </div>
+              <div className="flex flex-wrap items-center gap-4 text-sm">
+                <label className="flex items-center gap-2 text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={showOriginalOutput}
+                    onChange={(e) => setShowOriginalOutput(e.target.checked)}
+                    className="rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+                  />
+                  <span>{t.originalOutput}</span>
+                </label>
+                <label className="flex items-center gap-2 text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={addOriginalToDict}
+                    onChange={(e) => setAddOriginalToDict(e.target.checked)}
+                    className="rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+                  />
+                  <span>{t.addToDict}</span>
+                </label>
+              </div>
+            </div>
 
-        <div className="space-y-4">
+            <div className="mt-4 space-y-4">
               <textarea
                 value={outputText}
                 readOnly
-                className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-gray-700 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent hover:scrollbar-thumb-gray-500" 
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-700 placeholder:text-slate-400 transition focus:outline-none focus:ring-2 focus:ring-slate-300 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent hover:scrollbar-thumb-slate-400"
                 rows={8}
-                placeholder="转换结果将显示在这里..."
+                placeholder={isEnglish ? 'Conversion result will appear here...' : '转换结果将显示在这里...'}
                 aria-label={isEnglish ? 'Conversion result' : '转换结果'}
                 aria-describedby="output-description"
                 data-testid="output-textarea"
               />
-          <div id="output-description" className="sr-only">
-            {isEnglish ? 'This is the converted text result' : '这是转换后的文本结果'}
-          </div>
-              
+              <div id="output-description" className="sr-only">
+                {isEnglish ? 'This is the converted text result' : '这是转换后的文本结果'}
+              </div>
+
               {/* 操作按钮 */}
-          <div className="flex space-x-3">
+              <div className="flex flex-wrap gap-3">
                 <motion.button
                   onClick={() => copyToClipboard(outputText)}
-              className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium flex items-center gap-2"
-              whileTap={{ scale: 0.95 }}
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+                  whileTap={{ scale: 0.97 }}
                 >
-              <FaCopy className="w-4 h-4" />
+                  <FaCopy className="h-4 w-4" />
                   {t.copy}
                 </motion.button>
                 <motion.button
                   onClick={() => setOutputText('')}
-              className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium flex items-center gap-2"
-              whileTap={{ scale: 0.95 }}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm font-semibold text-slate-500 transition hover:border-rose-200 hover:text-rose-600"
+                  whileTap={{ scale: 0.97 }}
                 >
-              <FaTrash className="w-4 h-4" />
+                  <FaTrash className="h-4 w-4" />
                   {t.clear}
                 </motion.button>
               </div>
             </div>
           </motion.div>
 
-        {/* 转换功能区域 */}
-        <motion.div 
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <FaSync className="text-lg text-blue-500" />
+          {/* 转换功能区域 */}
+          <motion.div
+            className="relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-6"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.15 }}
+          >
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
+              <FaSync className="text-slate-500" />
               {isEnglish ? 'Conversion Functions' : '转换功能'}
-            </h3>
-        </div>
-            
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
               {Object.entries(t.functions).map(([key, label], index) => {
                 const IconComponent = functionIcons[key as keyof typeof functionIcons];
-                const buttonColor = functionColors[key as keyof typeof functionColors] || 'bg-blue-500 hover:bg-blue-600';
                 return (
                   <div key={key} className="relative">
                     <motion.button
@@ -1394,12 +1371,12 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
                           convertCase(key);
                         }
                       }}
-                      className={`w-full px-4 py-3 text-white rounded-lg transition font-medium text-sm flex items-center justify-center gap-2 ${buttonColor}`}
-                      whileHover={{ scale: 1.02 }}
+                      className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-3 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-white hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
+                      whileHover={{ scale: 1.01 }}
                       whileTap={{ scale: 0.98 }}
-                      initial={{ opacity: 0, y: 20 }}
+                      initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.02 }}
+                      transition={{ duration: 0.25, delay: index * 0.015 }}
                       onMouseEnter={(e) => !isMobile && calculateTooltipPosition(e, key)}
                       onMouseLeave={handleMouseLeave}
                       onTouchStart={(e) => handleTouchStart(e, key)}
@@ -1413,7 +1390,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
                       aria-label={`${label} - ${t.functionDetails[key as keyof typeof t.functionDetails]?.description || ''}`}
                       data-testid={`convert-${key}`}
                     >
-                      {IconComponent && <IconComponent className="w-4 h-4 flex-shrink-0" />}
+                      {IconComponent && <IconComponent className="h-4 w-4 flex-shrink-0 text-slate-500" />}
                       <span className="truncate">{label}</span>
                     </motion.button>
                   </div>
@@ -1421,168 +1398,170 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
               })}
             </div>
 
-          {/* 移动端背景遮罩 */}
-          {hoveredFunction && isMobile && (
-            <motion.div
-              className="fixed inset-0 bg-black bg-opacity-50 z-40"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              onClick={handleMouseLeave}
-              onTouchStart={handleMouseLeave}
-            />
-          )}
-          
-          {/* 全局悬停提示框 */}
-          {hoveredFunction && (
-            <motion.div
-              className={`fixed z-50 bg-gray-900 text-white rounded-lg p-4 shadow-xl border border-gray-700 tooltip-container scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent hover:scrollbar-thumb-gray-500 ${
-                isMobile ? 'w-70 max-w-[calc(100vw-40px)]' : 'w-80'
-              }`}
-              style={{
-                left: tooltipPosition.x,
-                top: tooltipPosition.y,
-                maxHeight: isMobile ? '60vh' : '300px',
-                overflowY: 'auto',
-                ...(isMobile && {
-                  left: '20px',
-                  right: '20px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  width: 'auto',
-                  zIndex: 9999
-                })
-              }}
-              initial={{ opacity: 0, y: tooltipPosition.direction === 'top' ? 10 : -10, scale: 0.95 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: tooltipPosition.direction === 'top' ? 10 : -10, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
-              onMouseEnter={() => !isMobile && setHoveredFunction(hoveredFunction)}
-              onMouseLeave={() => !isMobile && handleMouseLeave()}
-              onTouchMove={(e) => e.stopPropagation()}
-            >
-              {/* 箭头 - 仅在桌面端显示 */}
-              {!isMobile && (
-                <div 
-                  className={`absolute w-0 h-0 border-l-4 border-r-4 border-transparent ${
-                    tooltipPosition.direction === 'top' 
-                      ? 'border-t-4 border-t-gray-900 -bottom-2' 
-                      : 'border-b-4 border-b-gray-900 -top-2'
-                  }`}
-                  style={{
-                    left: '50%',
-                    transform: 'translateX(-50%)'
-                  }}
-                ></div>
-              )}
-              
-              {/* 关闭按钮（移动端） */}
-              {isMobile && (
-                <button
-                  onClick={handleMouseLeave}
-                  className="absolute top-2 right-2 text-gray-400 hover:text-white transition-colors"
-                  aria-label={isEnglish ? 'Close tooltip' : '关闭提示'}
-                >
-                  <FaTimes className="w-4 h-4" />
-                </button>
-              )}
-              
-              <div className="space-y-3 pr-2">
-                {/* 功能描述 */}
-                <div>
-                  <h4 className="font-semibold text-blue-300 mb-1 flex items-center gap-2">
-                    <FaInfoCircle className="w-4 h-4" />
-                    {isEnglish ? 'Description' : '功能描述'}
-                  </h4>
-                  <div className="text-sm text-gray-200 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent hover:scrollbar-thumb-gray-500 max-h-24 overflow-y-auto">
-                    <p>
-                      {DOMPurify.sanitize(t.functionDetails[hoveredFunction as keyof typeof t.functionDetails]?.description || '')}
-                    </p>
-                  </div>
-                </div>
-                
-                {/* 代码示例 */}
-                <div>
-                  <h4 className="font-semibold text-green-300 mb-1 flex items-center gap-2">
-                    <FaFileCode className="w-4 h-4" />
-                    {isEnglish ? 'Code' : '代码'}
-                  </h4>
-                  <div className="bg-gray-800 rounded p-2 text-xs font-mono text-green-200 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent hover:scrollbar-thumb-gray-500 max-h-32 overflow-y-auto">
-                    <pre className="whitespace-pre-wrap break-words">
-                      {DOMPurify.sanitize(t.functionDetails[hoveredFunction as keyof typeof t.functionDetails]?.code || '')}
-                    </pre>
-                  </div>
-                </div>
-                
-                {/* 示例 */}
-                <div>
-                  <h4 className="font-semibold text-yellow-300 mb-1 flex items-center gap-2">
-                    <FaPlay className="w-4 h-4" />
-                    {isEnglish ? 'Example' : '示例'}
-                  </h4>
-                  <div className="bg-gray-800 rounded p-2 text-xs font-mono text-yellow-200 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent hover:scrollbar-thumb-gray-500 max-h-32 overflow-y-auto">
-                    <pre className="whitespace-pre-wrap break-words">
-                      {DOMPurify.sanitize(t.functionDetails[hoveredFunction as keyof typeof t.functionDetails]?.example || '')}
-                    </pre>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </motion.div>
+            {/* 移动端背景遮罩 */}
+            {hoveredFunction && isMobile && (
+              <motion.div
+                className="fixed inset-0 z-40 bg-slate-900/50"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={handleMouseLeave}
+                onTouchStart={handleMouseLeave}
+              />
+            )}
 
-        {/* 提示信息 */}
-        <motion.div 
-        className="bg-blue-50 border border-blue-200 rounded-xl p-6 scrollbar-thin scrollbar-thumb-blue-300 scrollbar-track-transparent hover:scrollbar-thumb-blue-400"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <h4 className="text-lg font-semibold text-blue-900 mb-3 flex items-center gap-2">
-          <FaLightbulb className="text-lg text-blue-600" />
-            {isEnglish ? 'Tips' : '提示'}
-          </h4>
-          <ul className="space-y-2 text-sm text-blue-800">
-            <li className="flex items-start gap-2">
-              <FaFont className="w-3 h-3 text-blue-600 flex-shrink-0 mt-0.5" />
-              {t.tips.firstLetterTip}
-            </li>
-            <li className="flex items-start gap-2">
-              <FaParagraph className="w-3 h-3 text-blue-600 flex-shrink-0 mt-0.5" />
-              {t.tips.sentenceTip}
-            </li>
-            <li className="flex items-start gap-2">
-              <FaHeading className="w-3 h-3 text-blue-600 flex-shrink-0 mt-0.5" />
-              {t.tips.titleTip}
-            </li>
-            <li className="flex items-start gap-2">
-              <FaBrain className="w-3 h-3 text-blue-600 flex-shrink-0 mt-0.5" />
-              {t.tips.smartCaseTip}
-            </li>
-            <li className="flex items-start gap-2">
-              <FaMagic className="w-3 h-3 text-blue-600 flex-shrink-0 mt-0.5" />
-              {t.tips.autoFormatTip}
-            </li>
-            <li className="flex items-start gap-2">
-              <FaKeyboard className="w-3 h-3 text-blue-600 flex-shrink-0 mt-0.5" />
-              {isEnglish ? 'Keyboard shortcuts: Ctrl+Enter (UPPERCASE), Ctrl+Shift+Enter (lowercase), Ctrl+K (Clear), Ctrl+S (Smart), Ctrl+A (Auto), Ctrl+N (Normalize), Ctrl+F (Fix), Ctrl+R (Readable)' : '键盘快捷键：Ctrl+Enter (全大写)，Ctrl+Shift+Enter (全小写)，Ctrl+K (清空)，Ctrl+S (智能)，Ctrl+A (自动)，Ctrl+N (标准化)，Ctrl+F (修复)，Ctrl+R (可读性)'}
-            </li>
-            <li className="flex items-start gap-2">
-              <FaStar className="w-3 h-3 text-blue-600 flex-shrink-0 mt-0.5" />
-              {isEnglish ? 'New features: Smart case detection, Auto formatting, Text normalization, Error fixing' : '新功能：智能大小写检测、自动格式化、文本标准化、错误修复'}
-            </li>
-            <li className="flex items-start gap-2">
-              <FaEye className="w-3 h-3 text-blue-600 flex-shrink-0 mt-0.5" />
-              {isEnglish ? 'Enhanced tooltip: Auto-adaptive positioning, scrollable content, mobile-friendly design' : '增强提示框：自动适配定位、可滚动内容、移动端友好设计'}
-            </li>
-            <li className="flex items-start gap-2">
-              <FaMobile className="w-3 h-3 text-blue-600 flex-shrink-0 mt-0.5" />
-              {isEnglish ? 'Mobile support: Touch-friendly interface, responsive design, background overlay' : '移动端支持：触摸友好界面、响应式设计、背景遮罩'}
-            </li>
-          </ul>
-        </motion.div>
+            {/* 全局悬停提示框 */}
+            {hoveredFunction && (
+              <motion.div
+                className={`tooltip-container fixed z-50 rounded-2xl border border-slate-700 bg-slate-900 p-4 text-white shadow-2xl scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent hover:scrollbar-thumb-slate-500 ${
+                  isMobile ? 'w-70 max-w-[calc(100vw-40px)]' : 'w-80'
+                }`}
+                style={{
+                  left: tooltipPosition.x,
+                  top: tooltipPosition.y,
+                  maxHeight: isMobile ? '60vh' : '300px',
+                  overflowY: 'auto',
+                  ...(isMobile && {
+                    left: '20px',
+                    right: '20px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    width: 'auto',
+                    zIndex: 9999
+                  })
+                }}
+                initial={{ opacity: 0, y: tooltipPosition.direction === 'top' ? 10 : -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: tooltipPosition.direction === 'top' ? 10 : -10, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+                onMouseEnter={() => !isMobile && setHoveredFunction(hoveredFunction)}
+                onMouseLeave={() => !isMobile && handleMouseLeave()}
+                onTouchMove={(e) => e.stopPropagation()}
+              >
+                {/* 箭头 - 仅在桌面端显示 */}
+                {!isMobile && (
+                  <div
+                    className={`absolute h-0 w-0 border-l-4 border-r-4 border-transparent ${
+                      tooltipPosition.direction === 'top'
+                        ? '-bottom-2 border-t-4 border-t-slate-900'
+                        : '-top-2 border-b-4 border-b-slate-900'
+                    }`}
+                    style={{
+                      left: '50%',
+                      transform: 'translateX(-50%)'
+                    }}
+                  ></div>
+                )}
+
+                {/* 关闭按钮（移动端） */}
+                {isMobile && (
+                  <button
+                    onClick={handleMouseLeave}
+                    className="absolute right-2 top-2 text-slate-400 transition-colors hover:text-white"
+                    aria-label={isEnglish ? 'Close tooltip' : '关闭提示'}
+                  >
+                    <FaTimes className="h-4 w-4" />
+                  </button>
+                )}
+
+                <div className="space-y-3 pr-2">
+                  {/* 功能描述 */}
+                  <div>
+                    <h4 className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-300">
+                      <FaInfoCircle className="h-3.5 w-3.5" />
+                      {isEnglish ? 'Description' : '功能描述'}
+                    </h4>
+                    <div className="max-h-24 overflow-y-auto text-sm text-slate-200 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent hover:scrollbar-thumb-slate-500">
+                      <p>
+                        {DOMPurify.sanitize(t.functionDetails[hoveredFunction as keyof typeof t.functionDetails]?.description || '')}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 代码示例 */}
+                  <div>
+                    <h4 className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-300">
+                      <FaFileCode className="h-3.5 w-3.5" />
+                      {isEnglish ? 'Code' : '代码'}
+                    </h4>
+                    <div className="max-h-32 overflow-y-auto rounded-lg bg-slate-800 p-2 font-mono text-xs text-emerald-200 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent hover:scrollbar-thumb-slate-500">
+                      <pre className="whitespace-pre-wrap break-words">
+                        {DOMPurify.sanitize(t.functionDetails[hoveredFunction as keyof typeof t.functionDetails]?.code || '')}
+                      </pre>
+                    </div>
+                  </div>
+
+                  {/* 示例 */}
+                  <div>
+                    <h4 className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-300">
+                      <FaPlay className="h-3.5 w-3.5" />
+                      {isEnglish ? 'Example' : '示例'}
+                    </h4>
+                    <div className="max-h-32 overflow-y-auto rounded-lg bg-slate-800 p-2 font-mono text-xs text-amber-200 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent hover:scrollbar-thumb-slate-500">
+                      <pre className="whitespace-pre-wrap break-words">
+                        {DOMPurify.sanitize(t.functionDetails[hoveredFunction as keyof typeof t.functionDetails]?.example || '')}
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </motion.div>
+
+          {/* 提示信息 */}
+          <motion.div
+            className="relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-6"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
+              <FaLightbulb className="text-slate-500" />
+              {isEnglish ? 'Tips' : '提示'}
+            </div>
+            <ul className="mt-4 space-y-2 text-sm leading-7 text-slate-600">
+              <li className="flex items-start gap-2">
+                <FaFont className="mt-1 h-3 w-3 flex-shrink-0 text-slate-500" />
+                {t.tips.firstLetterTip}
+              </li>
+              <li className="flex items-start gap-2">
+                <FaParagraph className="mt-1 h-3 w-3 flex-shrink-0 text-slate-500" />
+                {t.tips.sentenceTip}
+              </li>
+              <li className="flex items-start gap-2">
+                <FaHeading className="mt-1 h-3 w-3 flex-shrink-0 text-slate-500" />
+                {t.tips.titleTip}
+              </li>
+              <li className="flex items-start gap-2">
+                <FaBrain className="mt-1 h-3 w-3 flex-shrink-0 text-slate-500" />
+                {t.tips.smartCaseTip}
+              </li>
+              <li className="flex items-start gap-2">
+                <FaMagic className="mt-1 h-3 w-3 flex-shrink-0 text-slate-500" />
+                {t.tips.autoFormatTip}
+              </li>
+              <li className="flex items-start gap-2">
+                <FaKeyboard className="mt-1 h-3 w-3 flex-shrink-0 text-slate-500" />
+                {isEnglish ? 'Keyboard shortcuts: Ctrl+Enter (UPPERCASE), Ctrl+Shift+Enter (lowercase), Ctrl+K (Clear), Ctrl+S (Smart), Ctrl+A (Auto), Ctrl+N (Normalize), Ctrl+F (Fix), Ctrl+R (Readable)' : '键盘快捷键：Ctrl+Enter (全大写)，Ctrl+Shift+Enter (全小写)，Ctrl+K (清空)，Ctrl+S (智能)，Ctrl+A (自动)，Ctrl+N (标准化)，Ctrl+F (修复)，Ctrl+R (可读性)'}
+              </li>
+              <li className="flex items-start gap-2">
+                <FaStar className="mt-1 h-3 w-3 flex-shrink-0 text-slate-500" />
+                {isEnglish ? 'New features: Smart case detection, Auto formatting, Text normalization, Error fixing' : '新功能：智能大小写检测、自动格式化、文本标准化、错误修复'}
+              </li>
+              <li className="flex items-start gap-2">
+                <FaEye className="mt-1 h-3 w-3 flex-shrink-0 text-slate-500" />
+                {isEnglish ? 'Enhanced tooltip: Auto-adaptive positioning, scrollable content, mobile-friendly design' : '增强提示框：自动适配定位、可滚动内容、移动端友好设计'}
+              </li>
+              <li className="flex items-start gap-2">
+                <FaMobile className="mt-1 h-3 w-3 flex-shrink-0 text-slate-500" />
+                {isEnglish ? 'Mobile support: Touch-friendly interface, responsive design, background overlay' : '移动端支持：触摸友好界面、响应式设计、背景遮罩'}
+              </li>
+            </ul>
+          </motion.div>
+        </div>
       </motion.div>
+    </section>
   );
 });
 

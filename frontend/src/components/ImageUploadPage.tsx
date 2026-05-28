@@ -1025,307 +1025,295 @@ const ImageUploadPage: React.FC = () => {
   };
 
   return (
-    <motion.div
-      className="space-y-6"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
-    >
-      {/* 标题和说明 */}
+    <section className="mx-auto max-w-6xl px-4 py-10 sm:py-12">
+      {/* 主面板：上传图片 */}
       <motion.div
-        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
-        initial={{ opacity: 0, y: 20 }}
+        className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10"
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
+        transition={{ duration: 0.5 }}
       >
-        <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
-          <FaImage className="text-2xl text-blue-600" />
-          图片上传系统
-        </h2>
-        <div className="text-gray-600 space-y-2">
-          <p>支持 JPEG, PNG, GIF, WebP, BMP, SVG 格式，最大5MB。上传后将返回可直接访问的图片链接。</p>
-          <div className="flex items-start gap-2 text-sm">
-            <div>
-              <p className="font-semibold text-blue-700">功能特点：</p>
-              <ul className="list-disc list-inside space-y-1 mt-1">
-                <li>支持多种图片格式上传</li>
-                <li>自动生成IPFS链接</li>
-                <li>本地存储管理</li>
-                <li>图片预览和分享</li>
-              </ul>
-            </div>
+        <div className="pointer-events-none absolute -right-16 top-0 h-48 w-48 rounded-full bg-[radial-gradient(circle,_rgba(59,130,246,0.22),_transparent_68%)]" />
+        <div className="pointer-events-none absolute -left-10 bottom-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(14,165,233,0.16),_transparent_70%)]" />
+
+        <div className="relative">
+          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+            <FaImage className="text-[10px]" /> IMAGE UPLOAD
           </div>
-        </div>
-      </motion.div>
+          <h1 className="mt-5 text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">图片上传</h1>
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+            支持 JPEG、PNG、GIF、WebP、BMP、SVG 格式，最大 5MB。上传后将返回可直接访问的图片链接，并自动生成 IPFS 记录。
+          </p>
 
-      {/* 上传图片分区 */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <FaUpload className="text-lg text-blue-500" />
-            上传图片
-          </h3>
-          <div className="flex items-center gap-2">
-            {/* 批量上传按钮 */}
-            <div className="relative">
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                ref={batchFileInputRef}
-                className="hidden"
-                onChange={handleBatchFileChange}
-                disabled={batchUploading}
-              />
-              <motion.button
-                className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition text-sm font-medium flex items-center gap-2 cursor-pointer"
-                whileTap={{ scale: 0.95 }}
-                onClick={() => !batchUploading && batchFileInputRef.current?.click()}
-                disabled={batchUploading}
-              >
-                <FaUpload className="w-4 h-4" />
-                批量上传
-              </motion.button>
+          <div className="mt-7 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
+              <FaUpload className="text-slate-500" /> Upload
             </div>
-          </div>
-        </div>
-        <motion.div
-          className={`mb-6 sm:mb-8 p-4 sm:p-6 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 shadow ${dragActive ? 'ring-4 ring-indigo-200' : ''}`}
-          initial={{ opacity: 0, x: -30 }}
-          animate={{ opacity: 1, x: 0 }}
-          whileHover={{ scale: 1.01, y: -2, boxShadow: '0 8px 32px 0 rgba(99,102,241,0.10)' }}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          style={{ cursor: 'pointer' }}
-          title="点击或拖拽图片上传"
-        >
-          <input
-            type="file"
-            accept="image/*"
-            ref={fileInputRef}
-            className="hidden"
-            onChange={handleFileChange}
-            disabled={uploading}
-          />
-          <div
-            className="flex flex-col items-center justify-center select-none"
-            onClick={() => !uploading && !file && fileInputRef.current?.click()}
-            style={{ cursor: (uploading || file) ? 'not-allowed' : 'pointer' }}
-          >
-            <FaFolder className="text-3xl sm:text-4xl mb-3 sm:mb-4 text-gray-400" />
-            <div className="text-sm sm:text-base text-gray-600 mb-2 sm:mb-3 text-center">
-              {uploading ? '上传中...' : file ? '已选择文件' : '点击选择图片或拖拽图片到此处'}
-            </div>
-            <div className="text-xs text-gray-400 text-center">支持 JPG、PNG、GIF 等格式，可拖拽多个文件进行批量上传</div>
-          </div>
-          {file && previewUrl && (
-            <motion.div
-              className="mb-4 flex flex-col items-center border-2 border-dashed border-blue-200 rounded-xl bg-white/80 shadow p-3 sm:p-4"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              whileHover={{ scale: 1.03, boxShadow: '0 8px 32px 0 rgba(99,102,241,0.12)' }}
-            >
-              <img src={previewUrl} alt="预览" className="w-32 h-32 sm:w-48 sm:h-48 object-contain rounded-lg border border-gray-200 shadow" />
-              <div className="text-xs sm:text-sm text-gray-600 mt-2 text-center">{escapeHtml(file.name)} ({(file.size / 1024).toFixed(1)} KB)</div>
-              <motion.button
-                className="mt-2 px-3 py-2 sm:px-4 sm:py-2 border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-100 transition disabled:opacity-50 font-semibold text-sm sm:text-base min-h-[44px]"
-                onClick={handleRemove}
-                disabled={uploading}
-                whileTap={{ scale: 0.97 }}
-              >移除</motion.button>
-            </motion.div>
-          )}
-
-          {/* Turnstile 人机验证 */}
-          {!turnstileConfigLoading && turnstileConfig.siteKey && typeof turnstileConfig.siteKey === 'string' && (
-            <motion.div
-              className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <div className="text-sm text-gray-700 mb-3 text-center">
-                人机验证
-                {turnstileVerified && (
-                  <span className="ml-2 text-green-600 font-medium">✓ 验证通过</span>
-                )}
-              </div>
-
-              <TurnstileWidget
-                key={turnstileKey}
-                siteKey={turnstileConfig.siteKey}
-                onVerify={handleTurnstileVerify}
-                onExpire={handleTurnstileExpire}
-                onError={handleTurnstileError}
-                theme="light"
-                size="normal"
-              />
-
-              {turnstileError && (
-                <div className="mt-2 text-sm text-red-500 text-center">
-                  验证失败，请重新验证
-                </div>
-              )}
-            </motion.div>
-          )}
-
-          {/* 批量上传列表 */}
-          {showBatchList && batchFiles.length > 0 && (
-            <motion.div
-              className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-semibold text-gray-700">
-                  批量上传队列 ({batchFiles.length})
-                </h4>
+            <div className="flex items-center gap-2">
+              {/* 批量上传按钮 */}
+              <div className="relative">
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  ref={batchFileInputRef}
+                  className="hidden"
+                  onChange={handleBatchFileChange}
+                  disabled={batchUploading}
+                />
                 <motion.button
-                  className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition"
-                  onClick={clearBatchFiles}
-                  whileTap={{ scale: 0.95 }}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => !batchUploading && batchFileInputRef.current?.click()}
+                  disabled={batchUploading}
                 >
-                  清空队列
+                  <FaUpload className="text-[13px]" />
+                  批量上传
                 </motion.button>
               </div>
+            </div>
+          </div>
 
-              <div className="max-h-40 overflow-y-auto space-y-2">
-                {batchFiles.map((file, index) => {
-                  const progress = batchProgress[file.name];
-                  return (
-                    <div key={file.name} className="flex items-center justify-between p-2 bg-white rounded border">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-gray-800 truncate">
-                          {file.name}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {formatFileSize(file.size)}
-                        </div>
-                        {progress && (
-                          <div className="mt-1">
-                            {progress.status === 'pending' && (
-                              <div className="text-xs text-gray-500">等待上传</div>
-                            )}
-                            {progress.status === 'uploading' && (
-                              <div className="text-xs text-blue-600">上传中...</div>
-                            )}
-                            {progress.status === 'success' && (
-                              <div className="text-xs text-green-600">
-                                ✓ 上传成功
-                                {progress.shortUrl && (
-                                  <div className="mt-1">
-                                    <div className="text-xs text-blue-600 truncate" title={progress.shortUrl}>
-                                      短链: {progress.shortUrl}
-                                    </div>
-                                    <motion.button
-                                      className="text-xs text-blue-500 hover:text-blue-700 underline"
-                                      onClick={() => handleCopy(progress.shortUrl || '')}
-                                      whileTap={{ scale: 0.95 }}
-                                    >
-                                      复制
-                                    </motion.button>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                            {progress.status === 'error' && (
-                              <div className="text-xs text-red-600">✗ {progress.error}</div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 ml-2">
-                        {progress?.status === 'uploading' && (
-                          <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                        )}
-                        {progress?.status === 'success' && (
-                          <FaCheck className="w-4 h-4 text-green-500" />
-                        )}
-                        {progress?.status === 'error' && (
-                          <FaTrash className="w-4 h-4 text-red-500 cursor-pointer" onClick={() => removeBatchFile(file.name)} />
-                        )}
-                        {progress?.status === 'pending' && (
-                          <FaTrash className="w-4 h-4 text-gray-400 cursor-pointer hover:text-red-500" onClick={() => removeBatchFile(file.name)} />
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <motion.button
-                className="w-full mt-3 px-4 py-2 rounded-lg bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold shadow hover:from-green-700 hover:to-emerald-700 transition disabled:opacity-50 text-sm"
-                onClick={handleBatchUpload}
-                disabled={batchUploading || batchFiles.length === 0 || (!!turnstileConfig.siteKey && !turnstileVerified)}
-                whileTap={{ scale: 0.98 }}
-              >
-                {batchUploading ? '批量上传中...' : `开始批量上传 (${batchFiles.length} 个文件)`}
-              </motion.button>
-            </motion.div>
-          )}
-
-          <motion.button
-            className="w-full mt-2 px-4 py-3 sm:py-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow hover:from-blue-700 hover:to-indigo-700 transition disabled:opacity-50 text-base sm:text-lg tracking-wide min-h-[48px] sm:min-h-[44px]"
-            onClick={handleUpload}
-            disabled={!file || uploading || (!!turnstileConfig.siteKey && !turnstileVerified)}
-            whileTap={{ scale: 0.98 }}
+          <motion.div
+            className={`mt-5 rounded-[26px] border-2 border-dashed bg-slate-50/60 px-6 py-10 transition ${
+              dragActive ? 'border-slate-400 bg-slate-100/70 ring-2 ring-slate-300' : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50'
+            }`}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
           >
-            {uploading ? '上传中...' : '上传图片'}
-          </motion.button>
-          {error && <div className="mt-2 text-red-500 text-sm text-center">{error}</div>}
-        </motion.div>
-        <AnimatePresence>
-          {uploadedUrl && (
-            <motion.div
-              className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 text-center"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              transition={{ duration: 0.4, type: 'spring', stiffness: 100 }}
+            <input
+              type="file"
+              accept="image/*"
+              ref={fileInputRef}
+              className="hidden"
+              onChange={handleFileChange}
+              disabled={uploading}
+            />
+            <div
+              className="flex flex-col items-center justify-center text-center select-none"
+              onClick={() => !uploading && !file && fileInputRef.current?.click()}
+              style={{ cursor: (uploading || file) ? 'not-allowed' : 'pointer' }}
             >
-              <div className="mb-2 text-base font-bold flex items-center justify-center gap-2">
-                <span>上传成功</span>
-                <FaCheck className="w-5 h-5 text-green-500" />
+              <FaFolder className="mb-3 text-2xl text-slate-400" />
+              <div className="text-sm text-slate-700">
+                {uploading ? '上传中…' : file ? '已选择文件' : '点击选择图片或拖拽图片到此处'}
               </div>
-              <div className="mb-2 text-gray-700 text-sm">图片链接：</div>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
-                <a
-                  href={uploadedShortUrl || uploadedUrl}
-                  className="underline break-all text-blue-700 hover:text-blue-900 text-sm"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >{uploadedShortUrl || uploadedUrl}</a>
+              <div className="mt-1 text-xs text-slate-400">支持 JPG、PNG、GIF 等格式，可拖拽多个文件进行批量上传</div>
+            </div>
+
+            {file && previewUrl && (
+              <motion.div
+                className="mt-5 flex flex-col items-center rounded-[22px] border border-slate-200 bg-white/80 p-4"
+                initial={{ opacity: 0, scale: 0.97 }}
+                animate={{ opacity: 1, scale: 1 }}
+              >
+                <img src={previewUrl} alt="预览" className="h-32 w-32 rounded-2xl border border-slate-200 object-contain sm:h-48 sm:w-48" />
+                <div className="mt-3 text-center text-xs text-slate-600 sm:text-sm">
+                  {escapeHtml(file.name)} ({(file.size / 1024).toFixed(1)} KB)
+                </div>
                 <motion.button
-                  className="mt-2 sm:mt-0 sm:ml-2 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm font-medium min-h-[36px] transition-colors"
-                  onClick={() => handleCopy(uploadedShortUrl || uploadedUrl || '')}
-                  whileTap={{ scale: 0.95 }}
-                >复制</motion.button>
+                  className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 disabled:opacity-50"
+                  onClick={handleRemove}
+                  disabled={uploading}
+                  whileTap={{ scale: 0.97 }}
+                >移除</motion.button>
+              </motion.div>
+            )}
+
+            {/* Turnstile 人机验证 */}
+            {!turnstileConfigLoading && turnstileConfig.siteKey && typeof turnstileConfig.siteKey === 'string' && (
+              <motion.div
+                className="mt-5 rounded-[22px] border border-slate-200 bg-white/70 p-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+              >
+                <div className="mb-3 text-center text-sm text-slate-700">
+                  人机验证
+                  {turnstileVerified && (
+                    <span className="ml-2 font-medium text-emerald-600">✓ 验证通过</span>
+                  )}
+                </div>
+
+                <TurnstileWidget
+                  key={turnstileKey}
+                  siteKey={turnstileConfig.siteKey}
+                  onVerify={handleTurnstileVerify}
+                  onExpire={handleTurnstileExpire}
+                  onError={handleTurnstileError}
+                  theme="light"
+                  size="normal"
+                />
+
+                {turnstileError && (
+                  <div className="mt-2 text-center text-sm text-rose-600">
+                    验证失败，请重新验证
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* 批量上传列表 */}
+            {showBatchList && batchFiles.length > 0 && (
+              <motion.div
+                className="mt-5 rounded-[22px] border border-slate-200 bg-white/70 p-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+              >
+                <div className="mb-3 flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-slate-800">
+                    批量上传队列 ({batchFiles.length})
+                  </h4>
+                  <motion.button
+                    className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-500 transition hover:border-rose-200 hover:text-rose-600"
+                    onClick={clearBatchFiles}
+                    whileTap={{ scale: 0.96 }}
+                  >
+                    清空队列
+                  </motion.button>
+                </div>
+
+                <div className="max-h-44 space-y-2 overflow-y-auto pr-1">
+                  {batchFiles.map((file) => {
+                    const progress = batchProgress[file.name];
+                    return (
+                      <div key={file.name} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white/80 p-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-medium text-slate-800">
+                            {file.name}
+                          </div>
+                          <div className="text-xs text-slate-500">
+                            {formatFileSize(file.size)}
+                          </div>
+                          {progress && (
+                            <div className="mt-1">
+                              {progress.status === 'pending' && (
+                                <div className="text-xs text-slate-500">等待上传</div>
+                              )}
+                              {progress.status === 'uploading' && (
+                                <div className="text-xs text-slate-600">上传中…</div>
+                              )}
+                              {progress.status === 'success' && (
+                                <div className="text-xs text-emerald-600">
+                                  ✓ 上传成功
+                                  {progress.shortUrl && (
+                                    <div className="mt-1">
+                                      <div className="truncate text-xs text-slate-600" title={progress.shortUrl}>
+                                        短链: {progress.shortUrl}
+                                      </div>
+                                      <motion.button
+                                        className="text-xs font-semibold text-slate-700 underline-offset-2 hover:text-slate-900 hover:underline"
+                                        onClick={() => handleCopy(progress.shortUrl || '')}
+                                        whileTap={{ scale: 0.96 }}
+                                      >
+                                        复制
+                                      </motion.button>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              {progress.status === 'error' && (
+                                <div className="text-xs text-rose-600">✗ {progress.error}</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        <div className="ml-3 flex items-center gap-2">
+                          {progress?.status === 'uploading' && (
+                            <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-400 border-t-transparent"></div>
+                          )}
+                          {progress?.status === 'success' && (
+                            <FaCheck className="h-4 w-4 text-emerald-500" />
+                          )}
+                          {progress?.status === 'error' && (
+                            <FaTrash className="h-4 w-4 cursor-pointer text-rose-500" onClick={() => removeBatchFile(file.name)} />
+                          )}
+                          {progress?.status === 'pending' && (
+                            <FaTrash className="h-4 w-4 cursor-pointer text-slate-400 hover:text-rose-500" onClick={() => removeBatchFile(file.name)} />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <motion.button
+                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+                  onClick={handleBatchUpload}
+                  disabled={batchUploading || batchFiles.length === 0 || (!!turnstileConfig.siteKey && !turnstileVerified)}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {batchUploading ? '批量上传中…' : `开始批量上传 (${batchFiles.length} 个文件)`}
+                </motion.button>
+              </motion.div>
+            )}
+
+            <motion.button
+              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+              onClick={handleUpload}
+              disabled={!file || uploading || (!!turnstileConfig.siteKey && !turnstileVerified)}
+              whileTap={{ scale: 0.98 }}
+            >
+              {uploading ? '上传中…' : '上传图片'}
+            </motion.button>
+            {error && (
+              <div className="mt-3 rounded-[22px] border border-rose-200/70 bg-rose-50/80 px-5 py-3 text-center text-sm leading-7 text-rose-700">
+                {error}
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            )}
+          </motion.div>
+
+          <AnimatePresence>
+            {uploadedUrl && (
+              <motion.div
+                className="mt-5 rounded-[22px] border border-emerald-200/70 bg-emerald-50/80 px-5 py-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                transition={{ duration: 0.35 }}
+              >
+                <div className="mb-2 flex items-center justify-center gap-2 text-sm font-semibold text-emerald-700">
+                  <span>上传成功</span>
+                  <FaCheck className="h-4 w-4 text-emerald-500" />
+                </div>
+                <div className="mb-2 text-center text-xs text-slate-600">图片链接：</div>
+                <div className="flex flex-col items-center justify-center gap-2 sm:flex-row">
+                  <a
+                    href={uploadedShortUrl || uploadedUrl}
+                    className="break-all text-sm text-slate-700 underline-offset-2 hover:text-slate-900 hover:underline"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >{uploadedShortUrl || uploadedUrl}</a>
+                  <motion.button
+                    className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+                    onClick={() => handleCopy(uploadedShortUrl || uploadedUrl || '')}
+                    whileTap={{ scale: 0.96 }}
+                  >
+                    <FaCopy className="text-[11px]" /> 复制
+                  </motion.button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </motion.div>
 
       {/* 本地存储管理分区 */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        className="relative mt-6 overflow-hidden rounded-[28px] border border-white/70 bg-white/88 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-8"
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+        transition={{ duration: 0.5, delay: 0.1 }}
       >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <FaDatabase className="text-lg text-green-500" />
-            本地存储管理
-          </h3>
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
+            <FaDatabase className="text-slate-500" /> Local Storage
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
             {/* 导入按钮 */}
             <div className="relative">
               <input
@@ -1336,69 +1324,70 @@ const ImageUploadPage: React.FC = () => {
                 id="image-import-file-input"
               />
               <motion.button
-                className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition text-sm font-medium flex items-center gap-2 cursor-pointer"
-                whileTap={{ scale: 0.95 }}
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+                whileTap={{ scale: 0.97 }}
                 onClick={() => document.getElementById('image-import-file-input')?.click()}
               >
-                <FaImport className="w-4 h-4" />
+                <FaImport className="text-[13px]" />
                 导入
               </motion.button>
             </div>
 
             {/* 导出菜单 */}
-            <div className="relative export-menu-container">
+            <div className="export-menu-container relative">
               <motion.button
                 onClick={() => setShowExportMenu(!showExportMenu)}
-                className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium flex items-center gap-2"
-                whileTap={{ scale: 0.95 }}
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+                whileTap={{ scale: 0.97 }}
               >
-                <FaDownload className="w-4 h-4" />
+                <FaDownload className="text-[13px]" />
                 导出
               </motion.button>
 
               <AnimatePresence>
                 {showExportMenu && (
                   <motion.div
-                    className="absolute right-0 top-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[200px]"
-                    initial={{ opacity: 0, y: -10 }}
+                    className="absolute right-0 top-full z-10 mt-2 min-w-[220px] rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-[0_18px_60px_rgba(15,23,42,0.12)] backdrop-blur-xl"
+                    initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
+                    exit={{ opacity: 0, y: -8 }}
                   >
-                    <div className="p-2">
-                      <label className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded cursor-pointer">
-                        <input
-                          type="radio"
-                          value="plain"
-                          checked={exportType === 'plain'}
-                          onChange={(e) => setExportType(e.target.value as any)}
-                        />
-                        <span className="text-sm">明文导出</span>
-                      </label>
-                      <label className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded cursor-pointer">
-                        <input
-                          type="radio"
-                          value="base64"
-                          checked={exportType === 'base64'}
-                          onChange={(e) => setExportType(e.target.value as any)}
-                        />
-                        <span className="text-sm">Base64编码</span>
-                      </label>
-                      <label className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded cursor-pointer">
-                        <input
-                          type="radio"
-                          value="aes256"
-                          checked={exportType === 'aes256'}
-                          onChange={(e) => setExportType(e.target.value as any)}
-                        />
-                        <span className="text-sm">AES-256加密</span>
-                      </label>
-                      <button
-                        onClick={handleExport}
-                        className="w-full mt-2 px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-sm"
-                      >
-                        确认导出
-                      </button>
-                    </div>
+                    <label className="flex cursor-pointer items-center gap-2 rounded-xl p-2 text-sm text-slate-700 hover:bg-slate-50">
+                      <input
+                        type="radio"
+                        value="plain"
+                        checked={exportType === 'plain'}
+                        onChange={(e) => setExportType(e.target.value as any)}
+                        className="accent-slate-700"
+                      />
+                      <span>明文导出</span>
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-2 rounded-xl p-2 text-sm text-slate-700 hover:bg-slate-50">
+                      <input
+                        type="radio"
+                        value="base64"
+                        checked={exportType === 'base64'}
+                        onChange={(e) => setExportType(e.target.value as any)}
+                        className="accent-slate-700"
+                      />
+                      <span>Base64 编码</span>
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-2 rounded-xl p-2 text-sm text-slate-700 hover:bg-slate-50">
+                      <input
+                        type="radio"
+                        value="aes256"
+                        checked={exportType === 'aes256'}
+                        onChange={(e) => setExportType(e.target.value as any)}
+                        className="accent-slate-700"
+                      />
+                      <span>AES-256 加密</span>
+                    </label>
+                    <button
+                      onClick={handleExport}
+                      className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                    >
+                      确认导出
+                    </button>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -1407,28 +1396,30 @@ const ImageUploadPage: React.FC = () => {
             {/* 清除按钮 */}
             <motion.button
               onClick={handleClear}
-              className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-sm font-medium flex items-center gap-2"
-              whileTap={{ scale: 0.95 }}
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm font-semibold text-slate-500 transition hover:border-rose-200 hover:text-rose-600"
+              whileTap={{ scale: 0.97 }}
             >
-              <FaTrash className="w-4 h-4" />
+              <FaTrash className="text-[13px]" />
               清除
             </motion.button>
           </div>
         </div>
+
         <motion.div
-          className="bg-blue-50 rounded-lg p-3 sm:p-4 mb-4 text-center"
-          initial={{ opacity: 0, y: 20 }}
+          className="mt-5 flex items-center justify-center gap-2 rounded-[22px] border border-slate-200 bg-slate-50/70 px-4 py-4 text-center"
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
         >
-          <span className="text-xl sm:text-2xl font-bold text-blue-700">{storedImages.length}</span>
-          <span className="ml-2 text-sm sm:text-base text-gray-600">已保存图片</span>
+          <span className="text-2xl font-semibold text-slate-900">{storedImages.length}</span>
+          <span className="text-sm text-slate-600">已保存图片</span>
         </motion.div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+
+        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
           {storedImages.length === 0 ? (
             <motion.div
-              className="col-span-full text-gray-400 text-center py-8 sm:py-10 text-sm sm:text-base"
-              initial={{ opacity: 0, y: 20 }}
+              className="col-span-full py-10 text-center text-sm text-slate-400"
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
             >
@@ -1438,57 +1429,59 @@ const ImageUploadPage: React.FC = () => {
             storedImages.map((img, idx) => (
               <motion.div
                 key={img.cid}
-                className={`bg-white rounded-xl p-3 flex flex-col border shadow-sm ${flashingImages.has(img.imageId)
-                    ? 'border-green-400 shadow-lg shadow-green-200 animate-pulse'
-                    : 'border-gray-200'
-                  }`}
-                initial={{ opacity: 0, scale: 0.95 }}
+                className={`relative flex flex-col overflow-hidden rounded-[22px] border bg-white/82 p-3 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl transition ${
+                  flashingImages.has(img.imageId)
+                    ? 'border-emerald-300 shadow-[0_18px_60px_rgba(16,185,129,0.25)] animate-pulse'
+                    : 'border-white/70'
+                }`}
+                initial={{ opacity: 0, scale: 0.97 }}
                 animate={{
                   opacity: 1,
-                  scale: flashingImages.has(img.imageId) ? 1.05 : 1,
-                  boxShadow: flashingImages.has(img.imageId)
-                    ? '0 0 20px rgba(34, 197, 94, 0.3)'
-                    : '0 1px 3px rgba(0,0,0,0.1)'
+                  scale: flashingImages.has(img.imageId) ? 1.03 : 1,
                 }}
                 transition={{
                   duration: flashingImages.has(img.imageId) ? 0.6 : 0.3,
-                  delay: idx * 0.1,
+                  delay: idx * 0.05,
                   repeat: flashingImages.has(img.imageId) ? 3 : 0,
-                  repeatType: "reverse"
+                  repeatType: 'reverse',
                 }}
-                whileHover={{ scale: 1.02, y: -2, boxShadow: '0 8px 32px 0 rgba(0,0,0,0.12)' }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ y: -2 }}
               >
-                <img src={img.web2url} alt={img.fileName} className="w-full h-32 sm:h-40 object-cover rounded mb-2 border" loading="lazy" />
-                <div className="text-xs text-gray-500 break-all mb-1">CID: {img.cid}</div>
-                <div className="text-xs sm:text-sm text-gray-800 mb-1 truncate">{img.fileName}</div>
-                <div className="text-xs text-gray-400 mb-2">{formatFileSize(img.fileSize)} • {formatDate(img.uploadTime)}</div>
-                <div className="flex flex-col sm:flex-row gap-1 mt-auto">
+                <img
+                  src={img.web2url}
+                  alt={img.fileName}
+                  className="mb-2 h-32 w-full rounded-2xl border border-slate-200 object-cover sm:h-40"
+                  loading="lazy"
+                />
+                <div className="mb-1 break-all text-[11px] text-slate-500">CID: {img.cid}</div>
+                <div className="mb-1 truncate text-sm text-slate-800">{img.fileName}</div>
+                <div className="mb-3 text-xs text-slate-400">{formatFileSize(img.fileSize)} • {formatDate(img.uploadTime)}</div>
+                <div className="mt-auto flex flex-col gap-1 sm:flex-row">
                   <motion.button
-                    className="flex-1 px-2 py-2 rounded-lg bg-green-100 text-green-700 text-xs font-semibold hover:bg-green-200 min-h-[36px] transition-colors flex items-center justify-center gap-1"
+                    className="flex flex-1 items-center justify-center gap-1 rounded-2xl border border-slate-200 bg-white/80 px-2 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
                     onClick={() => handleCopy(fixIpfsDomain(img.web2url))}
-                    whileTap={{ scale: 0.95 }}
+                    whileTap={{ scale: 0.96 }}
                   >
-                    <FaCopy className="w-3 h-3" />
+                    <FaCopy className="text-[11px]" />
                     复制链接
                   </motion.button>
                   {/* 预览按钮始终使用后端返回的 web2url，确保域名和路径与后端一致 */}
                   <motion.a
-                    className="flex-1 px-2 py-2 rounded-lg bg-blue-100 text-blue-700 text-xs font-semibold hover:bg-blue-200 text-center min-h-[36px] flex items-center justify-center gap-1 transition-colors"
+                    className="flex flex-1 items-center justify-center gap-1 rounded-2xl border border-slate-200 bg-white/80 px-2 py-2 text-center text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
                     href={fixIpfsDomain(img.web2url)}
                     target="_blank"
                     rel="noopener noreferrer"
-                    whileTap={{ scale: 0.95 }}
+                    whileTap={{ scale: 0.96 }}
                   >
-                    <FaEye className="w-3 h-3" />
+                    <FaEye className="text-[11px]" />
                     预览
                   </motion.a>
                   <motion.button
-                    className="flex-1 px-2 py-2 rounded-lg bg-red-100 text-red-700 text-xs font-semibold hover:bg-red-200 min-h-[36px] transition-colors flex items-center justify-center gap-1"
+                    className="flex flex-1 items-center justify-center gap-1 rounded-2xl border border-slate-200 bg-white/80 px-2 py-2 text-xs font-semibold text-slate-500 transition hover:border-rose-200 hover:text-rose-600"
                     onClick={() => handleDelete(idx)}
-                    whileTap={{ scale: 0.95 }}
+                    whileTap={{ scale: 0.96 }}
                   >
-                    <FaTrash className="w-3 h-3" />
+                    <FaTrash className="text-[11px]" />
                     删除
                   </motion.button>
                 </div>
@@ -1497,8 +1490,8 @@ const ImageUploadPage: React.FC = () => {
           )}
         </div>
       </motion.div>
-    </motion.div>
+    </section>
   );
 };
 
-export default ImageUploadPage; 
+export default ImageUploadPage;

@@ -19,7 +19,15 @@ import {
   FaArchive,
   FaCloud,
   FaCompress,
-  FaTrash
+  FaTrash,
+  FaSearch,
+  FaHistory,
+  FaFileImport,
+  FaFileExport,
+  FaLock,
+  FaTimes,
+  FaCheck,
+  FaEdit,
 } from 'react-icons/fa';
 import {
   getStoredHistory,
@@ -101,6 +109,18 @@ const safeDecode = (decrypted: any): any => {
 
   throw new Error('所有解码方式都失败，无法处理解密后的数据');
 };
+
+const inputClass =
+  'w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300';
+
+const primaryButtonClass =
+  'inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2';
+
+const secondaryButtonClass =
+  'inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900';
+
+const dangerButtonClass =
+  'inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50/80 px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100';
 
 const LogShare: React.FC = React.memo(() => {
   const { user } = useAuth();
@@ -782,30 +802,27 @@ const LogShare: React.FC = React.memo(() => {
   // 管理员校验
   if (!user || user.role !== 'admin') {
     return (
-      <motion.div
-        className="space-y-6"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
+      <section className="mx-auto max-w-6xl px-4 py-10 sm:py-12">
         <motion.div
-          className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6 border border-red-100"
-          initial={{ opacity: 0, y: 20 }}
+          className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10"
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.4 }}
         >
-          <h2 className="text-2xl font-bold text-red-700 mb-3 flex items-center gap-2">
-            🤡
-            访问被拒绝
-          </h2>
-          <div className="text-gray-600 space-y-2">
-            <p>你不是管理员，禁止访问！请用管理员账号登录后再来。</p>
-            <div className="text-sm text-red-500 italic">
-              LogShare 仅限管理员使用
+          <div className="pointer-events-none absolute -right-16 top-0 h-48 w-48 rounded-full bg-[radial-gradient(circle,_rgba(244,63,94,0.18),_transparent_68%)]" />
+          <div className="pointer-events-none absolute -left-10 bottom-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(244,63,94,0.12),_transparent_70%)]" />
+          <div className="relative">
+            <div className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-rose-500">
+              <FaLock className="text-[10px]" /> ACCESS DENIED
             </div>
+            <h1 className="mt-5 text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">访问被拒绝</h1>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+              你不是管理员，禁止访问！请用管理员账号登录后再来。
+            </p>
+            <div className="mt-3 text-sm italic text-rose-500">LogShare 仅限管理员使用</div>
           </div>
         </motion.div>
-      </motion.div>
+      </section>
     );
   }
 
@@ -816,37 +833,40 @@ const LogShare: React.FC = React.memo(() => {
       <AnimatePresence>
         {showPwdModal && (
           <motion.div
-            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-[9999]"
+            className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
           >
             <motion.div
-              className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-xs relative"
-              initial={{ scale: 0.95, opacity: 0, y: 40 }}
+              className="relative w-full max-w-sm overflow-hidden rounded-[28px] border border-white/70 bg-white/95 p-8 shadow-[0_28px_110px_rgba(15,23,42,0.18)] backdrop-blur-xl"
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 40 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
               transition={{ duration: 0.25 }}
             >
-              <h3 className="text-lg font-bold mb-4 text-center">请输入管理员密码</h3>
+              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+                <FaLock className="text-[10px]" /> AUTH
+              </div>
+              <h3 className="mt-4 text-lg font-semibold text-slate-900">请输入管理员密码</h3>
               <input
                 type="password"
-                className="w-full border-2 border-green-200 rounded-lg px-3 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-green-400 transition-all"
+                className={`mt-4 ${inputClass}`}
                 value={adminPassword}
                 onChange={e => setAdminPassword(e.target.value)}
                 autoFocus
                 placeholder="管理员密码"
                 onKeyDown={e => { if (e.key === 'Enter') handleAutoQuery(); }}
               />
-              <div className="flex gap-2">
+              <div className="mt-5 flex gap-2">
                 <button
-                  className="flex-1 py-2 bg-green-500 text-white rounded-lg font-semibold hover:bg-green-600 transition"
+                  className={`${primaryButtonClass} flex-1`}
                   onClick={handleAutoQuery}
                   disabled={!adminPassword}
                 >查询日志</button>
                 <button
-                  className="flex-1 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition"
+                  className={`${secondaryButtonClass} flex-1 justify-center`}
                   onClick={() => setShowPwdModal(false)}
                 >取消</button>
               </div>
@@ -855,948 +875,974 @@ const LogShare: React.FC = React.memo(() => {
         )}
       </AnimatePresence>
       , document.body)}
+
       {/* 主体内容 */}
-      <motion.div
-        className="space-y-6"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        {/* 标题和说明 */}
+      <section className="mx-auto max-w-6xl px-4 py-10 sm:py-12">
         <motion.div
-          className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
-          initial={{ opacity: 0, y: 20 }}
+          className="space-y-6"
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.4 }}
         >
-          <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
-            <FaClipboard className="text-2xl text-blue-600" />
-            日志/文件剪贴板上传 & 查询
-          </h2>
-          <div className="text-gray-600 space-y-2">
-            <p>支持文本、日志、json等类型，单文件最大10MB。仅管理员可操作。</p>
-            <div className="flex items-start gap-2 text-sm">
-              <div>
-                <p className="font-semibold text-blue-700">功能说明：</p>
-                <ul className="list-disc list-inside space-y-1 mt-1">
-                  <li>支持文件上传和文本粘贴</li>
-                  <li>自动生成分享链接</li>
-                  <li>支持加密存储和查询</li>
-                  <li>提供历史记录管理</li>
-                </ul>
+          {/* 标题和说明 */}
+          <motion.div
+            className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <div className="pointer-events-none absolute -right-16 top-0 h-48 w-48 rounded-full bg-[radial-gradient(circle,_rgba(59,130,246,0.22),_transparent_68%)]" />
+            <div className="pointer-events-none absolute -left-10 bottom-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(14,165,233,0.16),_transparent_70%)]" />
+            <div className="relative">
+              <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+                <FaClipboard className="text-[10px]" /> LOG SHARE
+              </div>
+              <h1 className="mt-5 text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">日志/文件剪贴板上传 &amp; 查询</h1>
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+                支持文本、日志、json 等类型，单文件最大 10MB。仅管理员可操作。
+              </p>
+              <div className="mt-5 grid gap-2 text-sm leading-7 text-slate-600 sm:grid-cols-2">
+                <div className="flex items-start gap-2">
+                  <FaCheck className="mt-1.5 flex-shrink-0 text-[10px] text-slate-400" />
+                  <span>支持文件上传和文本粘贴</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <FaCheck className="mt-1.5 flex-shrink-0 text-[10px] text-slate-400" />
+                  <span>自动生成分享链接</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <FaCheck className="mt-1.5 flex-shrink-0 text-[10px] text-slate-400" />
+                  <span>支持加密存储和查询</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <FaCheck className="mt-1.5 flex-shrink-0 text-[10px] text-slate-400" />
+                  <span>提供历史记录管理</span>
+                </div>
               </div>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
 
-        {/* 上传区块 */}
-        <motion.div
-          className="bg-blue-50 rounded-xl p-6 shadow-sm border border-gray-200"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-              <FaUpload className="text-lg text-blue-500" />
-              上传日志/文件
-            </h3>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="block mb-2 font-semibold text-gray-700">
-                管理员密码
-              </label>
-              <input
-                type="password"
-                className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                value={adminPassword}
-                onChange={e => setAdminPassword(e.target.value)}
-                autoComplete="off"
-              />
+          {/* 上传区块 */}
+          <motion.div
+            className="relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-7"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.05 }}
+          >
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
+              <FaUpload className="text-slate-500" /> Upload
             </div>
+            <h3 className="mt-2 text-xl font-semibold text-slate-900">上传日志 / 文件</h3>
 
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="font-semibold text-gray-700">
-                  日志内容（粘贴或输入）或选择文件
-                </label>
-                {logContent && (
-                  <div className={`text-xs px-2 py-1 rounded-full ${isTextTooLarge
-                    ? 'bg-red-100 text-red-700 border border-red-200'
+            <div className="mt-5 space-y-4">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">管理员密码</label>
+                <input
+                  type="password"
+                  className={inputClass}
+                  value={adminPassword}
+                  onChange={e => setAdminPassword(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="text-sm font-medium text-slate-700">
+                    日志内容（粘贴或输入）或选择文件
+                  </label>
+                  {logContent && (
+                    <div className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${isTextTooLarge
+                      ? 'border-rose-200 bg-rose-50/80 text-rose-700'
+                      : currentTextSize > maxSize * 0.8
+                        ? 'border-amber-200 bg-amber-50/80 text-amber-700'
+                        : 'border-emerald-200 bg-emerald-50/80 text-emerald-700'
+                      }`}>
+                      {formatFileSize(currentTextSize)} / 10MB
+                    </div>
+                  )}
+                </div>
+                <textarea
+                  className={`w-full rounded-2xl border bg-white/80 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition focus:outline-none focus:ring-2 ${isTextTooLarge
+                    ? 'border-rose-300 focus:border-rose-400 focus:ring-rose-200'
                     : currentTextSize > maxSize * 0.8
-                      ? 'bg-yellow-100 text-yellow-700 border border-yellow-200'
-                      : 'bg-green-100 text-green-700 border border-green-200'
-                    }`}>
-                    {formatFileSize(currentTextSize)} / 10MB
+                      ? 'border-amber-300 focus:border-amber-400 focus:ring-amber-200'
+                      : 'border-slate-200 focus:border-slate-400 focus:ring-slate-300'
+                    }`}
+                  rows={6}
+                  value={logContent}
+                  onChange={e => setLogContent(e.target.value)}
+                  disabled={!!file}
+                  placeholder="可直接粘贴日志内容，或选择文件上传"
+                />
+                {isTextTooLarge && (
+                  <div className="mt-2 rounded-[22px] border border-rose-200/70 bg-rose-50/80 px-4 py-3 text-sm leading-6 text-rose-700">
+                    文本内容超出 10MB 限制，请删减内容或使用文件上传
+                  </div>
+                )}
+                {!isTextTooLarge && currentTextSize > maxSize * 0.8 && (
+                  <div className="mt-2 rounded-[22px] border border-amber-200/70 bg-amber-50/80 px-4 py-3 text-sm leading-6 text-amber-700">
+                    文本内容接近 10MB 限制，建议考虑使用文件上传
                   </div>
                 )}
               </div>
-              <textarea
-                className={`w-full border-2 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 transition-all ${isTextTooLarge
-                  ? 'border-red-300 focus:ring-red-400 bg-red-50'
-                  : currentTextSize > maxSize * 0.8
-                    ? 'border-yellow-300 focus:ring-yellow-400 bg-yellow-50'
-                    : 'border-gray-200 focus:ring-blue-400'
-                  }`}
-                rows={6}
-                value={logContent}
-                onChange={e => setLogContent(e.target.value)}
-                disabled={!!file}
-                placeholder="可直接粘贴日志内容，或选择文件上传"
-              />
-              {isTextTooLarge && (
-                <div className="mt-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-2 flex items-center gap-2">
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                  <span>⚠️ 文本内容超出10MB限制，请删减内容或使用文件上传</span>
-                </div>
-              )}
-              {!isTextTooLarge && currentTextSize > maxSize * 0.8 && (
-                <div className="mt-2 text-sm text-yellow-600 bg-yellow-50 border border-yellow-200 rounded-lg p-2 flex items-center gap-2">
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span>💡 文本内容接近10MB限制，建议考虑使用文件上传</span>
-                </div>
-              )}
-            </div>
 
-            <div>
-              <input
-                type="file"
-                ref={fileInputRef}
-                className="mb-2"
-                onChange={e => setFile(e.target.files?.[0] || null)}
-              />
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2">
-                <div className="text-sm text-blue-800 font-medium mb-1">📁 文件上传说明</div>
-                <div className="text-xs text-blue-600 space-y-1">
-                  <div>• <strong>支持格式：</strong>.txt, .log, .json, .md, .xml, .csv</div>
-                  <div>• <strong>文件大小：</strong>最大支持 10MB</div>
-                  <div>• <strong>上传方式：</strong>可直接拖拽文件或点击选择</div>
+              <div>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="mb-2 block w-full text-sm text-slate-600 file:mr-4 file:rounded-2xl file:border-0 file:bg-slate-900 file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-800"
+                  onChange={e => setFile(e.target.files?.[0] || null)}
+                />
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 text-sm leading-6 text-slate-600">
+                  <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">文件上传说明</div>
+                  <div className="space-y-1 text-xs text-slate-600">
+                    <div>• <strong className="text-slate-700">支持格式：</strong>.txt, .log, .json, .md, .xml, .csv</div>
+                    <div>• <strong className="text-slate-700">文件大小：</strong>最大支持 10MB</div>
+                    <div>• <strong className="text-slate-700">上传方式：</strong>可直接拖拽文件或点击选择</div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <AnimatePresence>
-              {file && (
-                <motion.div
-                  className="text-sm text-gray-600 mb-2"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  已选择文件: {file.name}
-                  <button
-                    className="ml-2 text-red-500 hover:underline"
-                    onClick={() => { setFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+              <AnimatePresence>
+                {file && (
+                  <motion.div
+                    className="flex items-center gap-2 text-sm text-slate-600"
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.2 }}
                   >
-                    移除
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                    <span>已选择文件: <span className="font-medium text-slate-900">{file.name}</span></span>
+                    <button
+                      className="text-rose-500 hover:text-rose-700"
+                      onClick={() => { setFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                    >
+                      移除
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-            <motion.button
-              className={`px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 font-medium flex items-center gap-2`}
-              onClick={handleUpload}
-              disabled={loading || !adminPassword || (!logContent && !file)}
-              whileTap={{ scale: 0.95 }}
-            >
-              {loading ? (
-                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                </svg>
-              )}
-              {loading ? '上传中...' : '上传日志/文件'}
-            </motion.button>
-
-            <AnimatePresence>
-              {uploadResult && uploadResult.link && (
-                <motion.div
-                  className="mt-3 text-green-600 font-semibold flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg p-3"
-                  initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                  transition={{ duration: 0.4, type: "spring", stiffness: 100 }}
-                >
-                  上传成功，访问链接：
-                  <a href={uploadResult.link} className="underline" target="_blank" rel="noopener noreferrer">
-                    {uploadResult.link}
-                  </a>
-                  <span className="text-gray-500">({uploadResult.ext})</span>
-                  <AnimatePresence>
-                    {copied && (
-                      <motion.span
-                        className="ml-2 text-green-500 text-sm"
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        已自动复制
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </motion.div>
-
-        {/* 查询区块 */}
-        <motion.div
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-              🔍
-              查询日志/文件内容
-            </h3>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex gap-2 flex-wrap sm:flex-nowrap">
               <motion.button
-                onClick={loadAllLogs}
-                disabled={isLoadingAllLogs}
-                className="px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-sm font-medium flex items-center gap-2 w-full sm:w-auto"
-                whileTap={{ scale: 0.95 }}
+                className={primaryButtonClass}
+                onClick={handleUpload}
+                disabled={loading || !adminPassword || (!logContent && !file)}
+                whileTap={{ scale: 0.97 }}
               >
-                {isLoadingAllLogs ? (
-                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                {loading ? (
+                  <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                 ) : (
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
+                  <FaUpload className="text-xs" />
                 )}
-                {isLoadingAllLogs ? '加载中...' : '查看所有日志'}
+                {loading ? '上传中...' : '上传日志/文件'}
               </motion.button>
 
-              {/* 批量操作 */}
-              {allLogs.length > 0 && (
-                <div className="flex gap-2 flex-1 sm:flex-none">
-                  <motion.button
-                    onClick={handleBatchDelete}
-                    className="px-4 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all duration-200 text-sm font-medium flex items-center gap-2 w-full sm:w-auto"
-                    whileTap={{ scale: 0.95 }}
+              <AnimatePresence>
+                {uploadResult && uploadResult.link && (
+                  <motion.div
+                    className="rounded-[22px] border border-emerald-200/70 bg-emerald-50/80 px-5 py-4 text-sm leading-6 text-emerald-800"
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.25 }}
                   >
-                    批量删除
-                  </motion.button>
-                  <motion.button
-                    onClick={handleDeleteAll}
-                    className="px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-200 text-sm font-medium flex items-center gap-2 w-full sm:w-auto"
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    清空所有
-                  </motion.button>
-                </div>
-              )}
-            </div>
-
-            {/* 所有日志列表 */}
-            {allLogs.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="mb-4"
-              >
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">所有日志列表 ({allLogs.length})</h4>
-                <div className="max-h-[60vh] overflow-y-auto border border-gray-200 rounded-lg">
-                  {/* 选择全选 */}
-                  <div className="flex items-center gap-2 p-3 border-b border-gray-100 bg-gray-50 sticky top-0 z-10">
-                    <input type="checkbox" checked={selectedIds.length === allLogs.length && allLogs.length > 0} onChange={selectAll} />
-                    <span className="text-sm text-gray-600">全选（已选 {selectedIds.length}）</span>
-                  </div>
-                  {allLogs.map((log, index) => (
-                    <motion.div
-                      key={log.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className={`p-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 ${selectedLogIndex === index ? 'bg-blue-50 border-blue-200' : ''
-                        }`}
-                      whileHover={{ scale: 1.01 }}
-                      whileTap={{ scale: 0.99 }}
-                    >
-                      <div className="flex items-start gap-3">
-                        <input className="mt-1.5 shrink-0" type="checkbox" checked={selectedIds.includes(log.id)} onChange={() => toggleSelect(log.id)} />
-                        <div className="flex-1 min-w-0" >
-                          <div className="flex items-center gap-2">
-                            <div className="text-sm font-medium text-gray-900 truncate max-w-[60vw] sm:max-w-none cursor-pointer" onClick={() => { setSelectedLogIndex(index); viewLog(log.id); }}>{log.id}</div>
-                            <span className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">{log.ext || '未知'}</span>
-                          </div>
-                          <div className="mt-1 text-xs text-gray-500 flex flex-wrap gap-x-3 gap-y-1">
-                            <span>{new Date(log.uploadTime).toLocaleString()}</span>
-                            <span>{(log.size / 1024).toFixed(1)}KB</span>
-                          </div>
-                          <div className="mt-2 grid grid-cols-3 gap-2 sm:flex sm:items-center sm:gap-2">
-                            <button className="col-span-1 px-3 py-2 text-xs bg-blue-500 text-white rounded active:scale-[0.98]" onClick={() => viewLog(log.id)} aria-label="查看">查看</button>
-                            <button className="col-span-1 px-3 py-2 text-xs bg-yellow-500 text-white rounded active:scale-[0.98]" onClick={() => openEdit(log)} aria-label="编辑">编辑</button>
-                            <button className="col-span-1 px-3 py-2 text-xs bg-red-500 text-white rounded active:scale-[0.98]" onClick={() => handleDeleteOne(log.id)} aria-label="删除">删除</button>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
-            <div>
-              <label className="block mb-2 font-semibold text-gray-700">
-                日志/文件ID
-              </label>
-              <input
-                className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                value={queryId}
-                onChange={e => setQueryId(e.target.value)}
-                placeholder="请输入上传后返回的ID"
-              />
-            </div>
-
-            <div>
-              <label className="block mb-2 font-semibold text-gray-700">
-                管理员密码
-              </label>
-              <input
-                type="password"
-                className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                value={adminPassword}
-                onChange={e => setAdminPassword(e.target.value)}
-                autoComplete="off"
-              />
-            </div>
-
-            <motion.button
-              className={`px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition disabled:opacity-50 font-medium flex items-center gap-2`}
-              onClick={handleQuery}
-              disabled={loading || !adminPassword || !queryId}
-              whileTap={{ scale: 0.95 }}
-            >
-              {loading ? (
-                <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : (
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              )}
-              {loading ? '查询中...' : '查询日志/文件'}
-            </motion.button>
-
-            <AnimatePresence>
-              {queryResult && (
-                <motion.div
-                  className="mt-4"
-                  initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 20, scale: 0.95 }}
-                  transition={{ duration: 0.4, type: "spring", stiffness: 100 }}
-                >
-                  <div className="mb-2 text-gray-600">
-                    类型: {queryResult.ext ? queryResult.ext : '未知'} {queryResult.encoding && <span>({queryResult.encoding})</span>}
-                  </div>
-                  {isTextExt(queryResult.ext) ? (
-                    <div>
-                      <div className="mb-2 text-yellow-700">
-                        文本文件预览：
-                      </div>
-                      <pre className="bg-gray-100 p-2 rounded text-sm whitespace-pre-wrap max-h-64 overflow-auto border border-gray-200 mb-3">
-                        {queryResult.content}
-                      </pre>
-                      <motion.button
-                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200 flex items-center gap-2"
-                        onClick={handleDownload}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        下载文本文件
-                      </motion.button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <FaCheck className="text-[10px]" />
+                      <span className="font-semibold">上传成功，访问链接：</span>
+                      <a href={uploadResult.link} className="underline" target="_blank" rel="noopener noreferrer">
+                        {uploadResult.link}
+                      </a>
+                      <span className="text-emerald-600">({uploadResult.ext})</span>
+                      <AnimatePresence>
+                        {copied && (
+                          <motion.span
+                            className="ml-1 text-xs text-emerald-600"
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.8 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            已自动复制
+                          </motion.span>
+                        )}
+                      </AnimatePresence>
                     </div>
-                  ) : (
-                    <div>
-                      <div className="mb-2 text-yellow-700">
-                        二进制/非文本文件，点击下载：
-                      </div>
-                      <motion.button
-                        className="px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-all duration-200 flex items-center gap-2"
-                        onClick={handleDownload}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        下载文件
-                      </motion.button>
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
 
-        {/* 历史记录 */}
-        <motion.div
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-              <FaClipboard className="text-lg text-blue-500" />
-              历史记录
-            </h3>
-            <div className="flex items-center gap-2">
-              {/* 导入按钮 */}
-              <div className="relative">
-                <input
-                  type="file"
-                  accept=".json"
-                  onChange={handleImport}
-                  className="hidden"
-                  id="import-file-input"
-                />
+          {/* 查询区块 */}
+          <motion.div
+            className="relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-7"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+          >
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
+              <FaSearch className="text-slate-500" /> Query
+            </div>
+            <h3 className="mt-2 text-xl font-semibold text-slate-900">查询日志 / 文件内容</h3>
+
+            <div className="mt-5 space-y-4">
+              <div className="flex flex-wrap gap-2">
                 <motion.button
-                  className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition text-sm font-medium flex items-center gap-2 cursor-pointer"
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => document.getElementById('import-file-input')?.click()}
+                  onClick={loadAllLogs}
+                  disabled={isLoadingAllLogs}
+                  className={primaryButtonClass}
+                  whileTap={{ scale: 0.97 }}
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  导入
+                  {isLoadingAllLogs ? (
+                    <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    <FaSync className="text-xs" />
+                  )}
+                  {isLoadingAllLogs ? '加载中...' : '查看所有日志'}
                 </motion.button>
+
+                {allLogs.length > 0 && (
+                  <>
+                    <motion.button
+                      onClick={handleBatchDelete}
+                      className={dangerButtonClass}
+                      whileTap={{ scale: 0.97 }}
+                    >
+                      <FaTrash className="text-xs" />
+                      批量删除
+                    </motion.button>
+                    <motion.button
+                      onClick={handleDeleteAll}
+                      className={secondaryButtonClass}
+                      whileTap={{ scale: 0.97 }}
+                    >
+                      清空所有
+                    </motion.button>
+                  </>
+                )}
               </div>
 
-              {/* 导出菜单 */}
-              <div className="relative export-menu-container">
-                <motion.button
-                  onClick={() => setShowExportMenu(!showExportMenu)}
-                  className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium flex items-center gap-2"
-                  whileTap={{ scale: 0.95 }}
+              {/* 所有日志列表 */}
+              {allLogs.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="overflow-hidden rounded-[26px] border border-slate-200 bg-white/80 backdrop-blur-xl"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  导出
-                </motion.button>
+                  <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 px-4 py-3">
+                    <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+                        checked={selectedIds.length === allLogs.length && allLogs.length > 0}
+                        onChange={selectAll}
+                      />
+                      全选（已选 {selectedIds.length}）
+                    </label>
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">{allLogs.length} 条</span>
+                  </div>
+                  <div className="max-h-[60vh] overflow-y-auto">
+                    {allLogs.map((log, index) => (
+                      <motion.div
+                        key={log.id}
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: Math.min(index * 0.03, 0.2) }}
+                        className={`border-b border-slate-100/70 px-4 py-3 transition hover:bg-slate-50/50 ${selectedLogIndex === index ? 'bg-slate-50' : ''}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <input
+                            type="checkbox"
+                            className="mt-1.5 h-4 w-4 shrink-0 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+                            checked={selectedIds.includes(log.id)}
+                            onChange={() => toggleSelect(log.id)}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <div
+                                className="max-w-[60vw] cursor-pointer truncate text-sm font-medium text-slate-900 sm:max-w-none"
+                                onClick={() => { setSelectedLogIndex(index); viewLog(log.id); }}
+                              >
+                                {log.id}
+                              </div>
+                              <span className="inline-block rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
+                                {log.ext || '未知'}
+                              </span>
+                            </div>
+                            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+                              <span>{new Date(log.uploadTime).toLocaleString()}</span>
+                              <span>{(log.size / 1024).toFixed(1)}KB</span>
+                            </div>
+                            <div className="mt-2 grid grid-cols-3 gap-2 sm:flex sm:items-center sm:gap-2">
+                              <button
+                                className="rounded-xl border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+                                onClick={() => viewLog(log.id)}
+                                aria-label="查看"
+                              >
+                                查看
+                              </button>
+                              <button
+                                className="rounded-xl border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+                                onClick={() => openEdit(log)}
+                                aria-label="编辑"
+                              >
+                                编辑
+                              </button>
+                              <button
+                                className="rounded-xl border border-rose-200 bg-rose-50/80 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
+                                onClick={() => handleDeleteOne(log.id)}
+                                aria-label="删除"
+                              >
+                                删除
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
 
-                <AnimatePresence>
-                  {showExportMenu && (
-                    <motion.div
-                      className="absolute right-0 top-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[200px]"
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                    >
-                      <div className="p-2">
-                        <label className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded cursor-pointer">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">日志 / 文件 ID</label>
+                <input
+                  className={inputClass}
+                  value={queryId}
+                  onChange={e => setQueryId(e.target.value)}
+                  placeholder="请输入上传后返回的ID"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-medium text-slate-700">管理员密码</label>
+                <input
+                  type="password"
+                  className={inputClass}
+                  value={adminPassword}
+                  onChange={e => setAdminPassword(e.target.value)}
+                  autoComplete="off"
+                />
+              </div>
+
+              <motion.button
+                className={primaryButtonClass}
+                onClick={handleQuery}
+                disabled={loading || !adminPassword || !queryId}
+                whileTap={{ scale: 0.97 }}
+              >
+                {loading ? (
+                  <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : (
+                  <FaSearch className="text-xs" />
+                )}
+                {loading ? '查询中...' : '查询日志/文件'}
+              </motion.button>
+
+              <AnimatePresence>
+                {queryResult && (
+                  <motion.div
+                    className="mt-2 space-y-3"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 8 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <div className="text-sm text-slate-600">
+                      类型: <span className="font-medium text-slate-900">{queryResult.ext ? queryResult.ext : '未知'}</span>
+                      {queryResult.encoding && <span className="ml-1 text-slate-500">({queryResult.encoding})</span>}
+                    </div>
+                    {isTextExt(queryResult.ext) ? (
+                      <div className="space-y-3">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">文本文件预览</div>
+                        <pre className="max-h-64 overflow-auto rounded-2xl border border-slate-200 bg-slate-900 p-4 font-mono text-xs leading-6 text-slate-100 whitespace-pre-wrap">
+                          {queryResult.content}
+                        </pre>
+                        <motion.button
+                          className={secondaryButtonClass}
+                          onClick={handleDownload}
+                          whileTap={{ scale: 0.97 }}
+                        >
+                          <FaDownload className="text-xs" />
+                          下载文本文件
+                        </motion.button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div className="rounded-[22px] border border-amber-200/70 bg-amber-50/80 px-5 py-4 text-sm leading-6 text-amber-700">
+                          二进制 / 非文本文件，点击下载：
+                        </div>
+                        <motion.button
+                          className={secondaryButtonClass}
+                          onClick={handleDownload}
+                          whileTap={{ scale: 0.97 }}
+                        >
+                          <FaDownload className="text-xs" />
+                          下载文件
+                        </motion.button>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+
+          {/* 历史记录 */}
+          <motion.div
+            className="relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-7"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.15 }}
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
+                  <FaHistory className="text-slate-500" /> History
+                </div>
+                <h3 className="mt-2 text-xl font-semibold text-slate-900">历史记录</h3>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {/* 导入按钮 */}
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleImport}
+                    className="hidden"
+                    id="import-file-input"
+                  />
+                  <motion.button
+                    className={secondaryButtonClass}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => document.getElementById('import-file-input')?.click()}
+                  >
+                    <FaFileImport className="text-xs" />
+                    导入
+                  </motion.button>
+                </div>
+
+                {/* 导出菜单 */}
+                <div className="export-menu-container relative">
+                  <motion.button
+                    onClick={() => setShowExportMenu(!showExportMenu)}
+                    className={secondaryButtonClass}
+                    whileTap={{ scale: 0.97 }}
+                  >
+                    <FaFileExport className="text-xs" />
+                    导出
+                  </motion.button>
+
+                  <AnimatePresence>
+                    {showExportMenu && (
+                      <motion.div
+                        className="absolute right-0 top-full z-10 mt-2 min-w-[220px] rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-[0_18px_60px_rgba(15,23,42,0.12)] backdrop-blur-xl"
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                      >
+                        <label className="flex cursor-pointer items-center gap-2 rounded-xl p-2 hover:bg-slate-50">
                           <input
                             type="radio"
                             value="plain"
                             checked={exportType === 'plain'}
                             onChange={(e) => setExportType(e.target.value as any)}
+                            className="text-slate-900 focus:ring-slate-400"
                           />
-                          <span className="text-sm">明文导出</span>
+                          <span className="text-sm text-slate-700">明文导出</span>
                         </label>
-                        <label className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded cursor-pointer">
+                        <label className="flex cursor-pointer items-center gap-2 rounded-xl p-2 hover:bg-slate-50">
                           <input
                             type="radio"
                             value="base64"
                             checked={exportType === 'base64'}
                             onChange={(e) => setExportType(e.target.value as any)}
+                            className="text-slate-900 focus:ring-slate-400"
                           />
-                          <span className="text-sm">Base64编码</span>
+                          <span className="text-sm text-slate-700">Base64 编码</span>
                         </label>
-                        <label className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded cursor-pointer">
+                        <label className="flex cursor-pointer items-center gap-2 rounded-xl p-2 hover:bg-slate-50">
                           <input
                             type="radio"
                             value="aes256"
                             checked={exportType === 'aes256'}
                             onChange={(e) => setExportType(e.target.value as any)}
+                            className="text-slate-900 focus:ring-slate-400"
                           />
-                          <span className="text-sm">AES-256加密</span>
+                          <span className="text-sm text-slate-700">AES-256 加密</span>
                         </label>
                         <button
                           onClick={handleExport}
-                          className="w-full mt-2 px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition text-sm"
+                          className="mt-2 w-full rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
                         >
                           确认导出
                         </button>
-                      </div>
-                    </motion.div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* 清除按钮 */}
+                <motion.button
+                  onClick={handleClear}
+                  className={dangerButtonClass}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  <FaTrash className="text-xs" />
+                  清除
+                </motion.button>
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+              {/* 上传历史 */}
+              <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+                <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                  <FaUpload className="text-slate-500" /> Uploads
+                </div>
+                <div className="space-y-2">
+                  {uploadHistory.length === 0 && (
+                    <div className="text-sm text-slate-400">暂无上传记录</div>
                   )}
-                </AnimatePresence>
-              </div>
-
-              {/* 清除按钮 */}
-              <motion.button
-                onClick={handleClear}
-                className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-sm font-medium flex items-center gap-2"
-                whileTap={{ scale: 0.95 }}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                清除
-              </motion.button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* 上传历史 */}
-            <div>
-              <h4 className="text-md font-semibold text-blue-700 mb-3">上传历史</h4>
-              <div className="space-y-2">
-                {uploadHistory.length === 0 && (
-                  <div className="text-gray-400 text-sm">暂无上传记录</div>
-                )}
-                {uploadHistory.map((item, idx) => (
-                  <motion.div
-                    key={idx}
-                    className="text-sm flex items-center gap-2 p-2 hover:bg-gray-50 rounded-lg"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: 0.1 * idx }}
-                    whileHover={{ scale: 1.02, x: 5 }}
-                  >
-                    <a
-                      href={item.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline text-blue-600 truncate flex-1"
+                  {uploadHistory.map((item, idx) => (
+                    <motion.div
+                      key={idx}
+                      className="flex items-center gap-2 rounded-xl px-2 py-2 text-sm hover:bg-slate-50"
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.2, delay: 0.04 * idx }}
                     >
-                      {item.link}
-                    </a>
-                    <span className="text-gray-500 text-xs">({item.ext})</span>
-                    <span className="text-gray-400 text-xs">{item.time}</span>
-                  </motion.div>
-                ))}
+                      <a
+                        href={item.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 truncate text-slate-700 underline-offset-2 hover:text-slate-900 hover:underline"
+                      >
+                        {item.link}
+                      </a>
+                      <span className="text-xs text-slate-500">({item.ext})</span>
+                      <span className="text-xs text-slate-400">{item.time}</span>
+                    </motion.div>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            {/* 查询历史 */}
-            <div>
-              <h4 className="text-md font-semibold text-green-700 mb-3">查询历史</h4>
-              <div className="space-y-2">
-                {queryHistory.length === 0 && (
-                  <div className="text-gray-400 text-sm">暂无查询记录</div>
-                )}
-                {queryHistory.map((item, idx) => (
-                  <motion.div
-                    key={idx}
-                    className="text-sm flex items-center gap-2 p-2 hover:bg-gray-50 rounded-lg"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: 0.1 * idx }}
-                    whileHover={{ scale: 1.02, x: -5 }}
-                  >
-                    <button
-                      className="underline text-green-600 truncate flex-1 text-left"
-                      onClick={() => { setQueryId(item.id); setQueryResult(null); setSuccess(''); setError(''); }}
+              {/* 查询历史 */}
+              <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+                <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                  <FaSearch className="text-slate-500" /> Queries
+                </div>
+                <div className="space-y-2">
+                  {queryHistory.length === 0 && (
+                    <div className="text-sm text-slate-400">暂无查询记录</div>
+                  )}
+                  {queryHistory.map((item, idx) => (
+                    <motion.div
+                      key={idx}
+                      className="flex items-center gap-2 rounded-xl px-2 py-2 text-sm hover:bg-slate-50"
+                      initial={{ opacity: 0, x: 8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.2, delay: 0.04 * idx }}
                     >
-                      {item.id}
-                    </button>
-                    <span className="text-gray-500 text-xs">{item.ext ? `(${item.ext})` : ''}</span>
-                    <span className="text-gray-400 text-xs">{item.time}</span>
-                  </motion.div>
-                ))}
+                      <button
+                        className="flex-1 truncate text-left text-slate-700 underline-offset-2 hover:text-slate-900 hover:underline"
+                        onClick={() => { setQueryId(item.id); setQueryResult(null); setSuccess(''); setError(''); }}
+                      >
+                        {item.id}
+                      </button>
+                      <span className="text-xs text-slate-500">{item.ext ? `(${item.ext})` : ''}</span>
+                      <span className="text-xs text-slate-400">{item.time}</span>
+                    </motion.div>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        </motion.div>
+          </motion.div>
 
-        {/* 日志归档管理区块 */}
-        <motion.div
-          className="bg-purple-50 rounded-xl p-6 shadow-sm border border-gray-200"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-              <FaArchive className="text-lg text-purple-500" />
-              日志归档管理
-            </h3>
-            <div className="flex items-center gap-2">
+          {/* 日志归档管理区块 */}
+          <motion.div
+            className="relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-7"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
+          >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
+                  <FaArchive className="text-slate-500" /> Archive
+                </div>
+                <h3 className="mt-2 text-xl font-semibold text-slate-900">日志归档管理</h3>
+              </div>
               <input
                 type="password"
-                className="border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all w-40"
+                className={`${inputClass} w-44`}
                 value={adminPassword}
                 onChange={e => setAdminPassword(e.target.value)}
                 placeholder="管理员密码"
                 autoComplete="off"
               />
             </div>
-          </div>
-          <div className="flex gap-2 mb-4">
-            <motion.button
-              onClick={() => setShowArchiveModal(true)}
-              className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition font-medium flex items-center gap-2 disabled:opacity-50"
-              whileTap={{ scale: 0.95 }}
-              disabled={!adminPassword}
-            >
-              <FaCompress className="text-sm" />
-              创建归档
-            </motion.button>
-            <motion.button
-              onClick={loadArchives}
-              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium flex items-center gap-2"
-              whileTap={{ scale: 0.95 }}
-              disabled={isLoadingArchives}
-            >
-              <FaSync className={`text-sm ${isLoadingArchives ? 'animate-spin' : ''}`} />
-              刷新列表
-            </motion.button>
-          </div>
 
-          <div className="bg-purple-100 border border-purple-200 rounded-lg p-3 mb-4">
-            <div className="text-sm text-purple-800 font-medium mb-1">📦 归档功能说明</div>
-            <div className="text-xs text-purple-600 space-y-1">
-              <div>• <strong>压缩存储：</strong>自动使用gzip压缩，节省存储空间</div>
-              <div>• <strong>IPFS上传：</strong>压缩文件自动上传到IPFS分布式存储</div>
-              <div>• <strong>本地清理：</strong>上传成功后自动删除本地压缩文件</div>
-              <div>• <strong>模式匹配：</strong>支持正则表达式过滤文件</div>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <motion.button
+                onClick={() => setShowArchiveModal(true)}
+                className={primaryButtonClass}
+                whileTap={{ scale: 0.97 }}
+                disabled={!adminPassword}
+              >
+                <FaCompress className="text-xs" />
+                创建归档
+              </motion.button>
+              <motion.button
+                onClick={loadArchives}
+                className={secondaryButtonClass}
+                whileTap={{ scale: 0.97 }}
+                disabled={isLoadingArchives}
+              >
+                <FaSync className={`text-xs ${isLoadingArchives ? 'animate-spin' : ''}`} />
+                刷新列表
+              </motion.button>
             </div>
-          </div>
 
-          {/* 归档列表 */}
-          <div className="space-y-3">
-            {isLoadingArchives ? (
-              <div className="text-center py-4">
-                <div className="inline-flex items-center gap-2 text-gray-600">
-                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+            <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 text-sm leading-6 text-slate-600">
+              <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">归档功能说明</div>
+              <div className="space-y-1 text-xs text-slate-600">
+                <div>• <strong className="text-slate-700">压缩存储：</strong>自动使用 gzip 压缩，节省存储空间</div>
+                <div>• <strong className="text-slate-700">IPFS 上传：</strong>压缩文件自动上传到 IPFS 分布式存储</div>
+                <div>• <strong className="text-slate-700">本地清理：</strong>上传成功后自动删除本地压缩文件</div>
+                <div>• <strong className="text-slate-700">模式匹配：</strong>支持正则表达式过滤文件</div>
+              </div>
+            </div>
+
+            {/* 归档列表 */}
+            <div className="mt-5 space-y-3">
+              {isLoadingArchives ? (
+                <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-500">
+                  <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                   加载归档列表中...
                 </div>
-              </div>
-            ) : archives.length === 0 ? (
-              <div className="text-center py-4 text-gray-500">
-                暂无归档记录
-              </div>
-            ) : (
-              archives.map((archive, idx) => (
-                <motion.div
-                  key={archive.archiveName}
-                  className="bg-white border border-gray-200 rounded-lg p-4"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.1 * idx }}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <FaArchive className="text-purple-500" />
-                        <span className="font-semibold text-gray-800">{archive.archiveName}</span>
-                        {archive.ipfsUpload?.enabled && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
-                            <FaCloud className="text-xs" />
-                            IPFS已上传
-                          </span>
-                        )}
-                      </div>
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-gray-700">创建时间</span>
-                          <span className="text-sm text-gray-600">{new Date(archive.createdAt).toLocaleString()}</span>
+              ) : archives.length === 0 ? (
+                <div className="py-6 text-center text-sm text-slate-400">暂无归档记录</div>
+              ) : (
+                archives.map((archive, idx) => (
+                  <motion.div
+                    key={archive.archiveName}
+                    className="rounded-2xl border border-slate-200 bg-white/80 p-4 backdrop-blur-xl"
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2, delay: 0.04 * idx }}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <FaArchive className="text-slate-500" />
+                          <span className="font-semibold text-slate-900">{archive.archiveName}</span>
+                          {archive.ipfsUpload?.enabled && (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/70 bg-emerald-50/80 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                              <FaCloud className="text-[10px]" />
+                              IPFS 已上传
+                            </span>
+                          )}
                         </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-gray-700">创建者</span>
-                          <span className="text-sm text-gray-600">{archive.createdBy}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-gray-700">文件数量</span>
-                          <span className="text-sm text-gray-600">{archive.totalFiles}</span>
-                        </div>
-                        {archive.databaseLogsIncluded !== undefined && (
+                        <div className="space-y-1.5 text-sm">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-700">数据库日志</span>
-                            <span className="text-sm text-blue-600">{archive.databaseLogsIncluded}</span>
+                            <span className="text-slate-500">创建时间</span>
+                            <span className="text-slate-700">{new Date(archive.createdAt).toLocaleString()}</span>
                           </div>
-                        )}
-                        {archive.fileSystemLogsIncluded !== undefined && (
                           <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-gray-700">文件系统日志</span>
-                            <span className="text-sm text-purple-600">{archive.fileSystemLogsIncluded}</span>
+                            <span className="text-slate-500">创建者</span>
+                            <span className="text-slate-700">{archive.createdBy}</span>
                           </div>
-                        )}
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-gray-700">原始大小</span>
-                          <span className="text-sm text-gray-600">{formatFileSize(archive.originalTotalSize)}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-gray-700">压缩后大小</span>
-                          <span className="text-sm text-gray-600">{formatFileSize(archive.compressedTotalSize)}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-gray-700">压缩率</span>
-                          <span className="text-sm text-green-600 font-medium">{archive.overallCompressionRatio}</span>
-                        </div>
-                        {archive.ipfsUpload && (
-                          <>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-500">文件数量</span>
+                            <span className="text-slate-700">{archive.totalFiles}</span>
+                          </div>
+                          {archive.databaseLogsIncluded !== undefined && (
                             <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium text-gray-700">IPFS上传</span>
-                              <span className={`text-sm font-medium ${archive.ipfsUpload.uploadedFiles > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                {archive.ipfsUpload.uploadedFiles}/{archive.ipfsUpload.totalFiles}
-                              </span>
+                              <span className="text-slate-500">数据库日志</span>
+                              <span className="text-slate-700">{archive.databaseLogsIncluded}</span>
                             </div>
-                            {archive.ipfsUpload.uploadResults && archive.ipfsUpload.uploadResults.length > 0 && archive.ipfsUpload.uploadResults[0].uploadSuccess && (
-                              <>
-                                <div className="pt-2 border-t border-gray-200">
-                                  <div className="flex items-center justify-between mb-1">
-                                    <span className="text-sm font-medium text-gray-700">IPFS CID</span>
+                          )}
+                          {archive.fileSystemLogsIncluded !== undefined && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-500">文件系统日志</span>
+                              <span className="text-slate-700">{archive.fileSystemLogsIncluded}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-500">原始大小</span>
+                            <span className="text-slate-700">{formatFileSize(archive.originalTotalSize)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-500">压缩后大小</span>
+                            <span className="text-slate-700">{formatFileSize(archive.compressedTotalSize)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-500">压缩率</span>
+                            <span className="font-medium text-emerald-600">{archive.overallCompressionRatio}</span>
+                          </div>
+                          {archive.ipfsUpload && (
+                            <>
+                              <div className="flex items-center justify-between">
+                                <span className="text-slate-500">IPFS 上传</span>
+                                <span className={`font-medium ${archive.ipfsUpload.uploadedFiles > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                  {archive.ipfsUpload.uploadedFiles}/{archive.ipfsUpload.totalFiles}
+                                </span>
+                              </div>
+                              {archive.ipfsUpload.uploadResults && archive.ipfsUpload.uploadResults.length > 0 && archive.ipfsUpload.uploadResults[0].uploadSuccess && (
+                                <div className="mt-2 border-t border-slate-100 pt-2">
+                                  <div className="mb-1 flex items-center justify-between">
+                                    <span className="text-slate-500">IPFS CID</span>
                                     <button
                                       onClick={() => navigator.clipboard.writeText(archive.ipfsUpload.uploadResults[0].ipfsCid)}
-                                      className="text-xs text-blue-600 hover:text-blue-800 font-mono bg-blue-50 px-2 py-1 rounded"
+                                      className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-xs text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
                                       title="点击复制CID"
                                     >
                                       {archive.ipfsUpload.uploadResults[0].ipfsCid?.substring(0, 20)}...
                                     </button>
                                   </div>
-                                  <div className="flex flex-col space-y-1">
+                                  <div className="flex flex-col gap-1">
                                     <a
                                       href={archive.ipfsUpload.uploadResults[0].web2Url}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="text-xs text-green-600 hover:text-green-800 underline flex items-center gap-1"
+                                      className="inline-flex items-center gap-1 text-xs text-slate-700 underline-offset-2 hover:text-slate-900 hover:underline"
                                     >
-                                      <FaCloud className="w-3 h-3" />
+                                      <FaCloud className="h-3 w-3" />
                                       Web2 下载链接
                                     </a>
                                     <a
                                       href={archive.ipfsUpload.uploadResults[0].ipfsUrl}
                                       target="_blank"
                                       rel="noopener noreferrer"
-                                      className="text-xs text-purple-600 hover:text-purple-800 underline flex items-center gap-1"
+                                      className="inline-flex items-center gap-1 text-xs text-slate-700 underline-offset-2 hover:text-slate-900 hover:underline"
                                     >
-                                      <FaLink className="w-3 h-3" />
+                                      <FaLink className="h-3 w-3" />
                                       IPFS 协议链接
                                     </a>
                                   </div>
                                 </div>
-                              </>
-                            )}
-                          </>
-                        )}
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <motion.button
+                        onClick={() => handleDeleteArchive(archive.archiveName)}
+                        className="inline-flex items-center justify-center rounded-xl border border-rose-200 bg-rose-50/80 px-2.5 py-2 text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
+                        whileTap={{ scale: 0.95 }}
+                        aria-label="删除归档"
+                      >
+                        <FaTrash className="text-xs" />
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                ))
+              )}
+            </div>
+          </motion.div>
+
+          {/* 创建归档弹窗 — Portal 到 body */}
+          {ReactDOM.createPortal(
+          <AnimatePresence>
+            {showArchiveModal && (
+              <motion.div
+                className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <motion.div
+                  className="relative w-full max-w-lg overflow-hidden rounded-[28px] border border-white/70 bg-white/95 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.18)] backdrop-blur-xl sm:p-8"
+                  initial={{ scale: 0.95, y: 20, opacity: 0 }}
+                  animate={{ scale: 1, y: 0, opacity: 1 }}
+                  exit={{ scale: 0.95, y: 20, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+                        <FaArchive className="text-[10px]" /> ARCHIVE
+                      </div>
+                      <h3 className="mt-3 text-xl font-semibold text-slate-900">创建日志归档</h3>
+                    </div>
+                    <button
+                      className="rounded-xl border border-slate-200 bg-white/80 p-2 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
+                      onClick={() => setShowArchiveModal(false)}
+                      aria-label="关闭"
+                    >
+                      <FaTimes className="text-xs" />
+                    </button>
+                  </div>
+
+                  <div className="mt-5 space-y-4">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-slate-700">归档名称（可选）</label>
+                      <input
+                        className={inputClass}
+                        placeholder="留空将自动生成时间戳名称"
+                        value={archiveName}
+                        onChange={(e) => setArchiveName(e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-slate-700">包含模式（正则表达式，可选）</label>
+                      <input
+                        className={inputClass}
+                        placeholder="例如: \.log$ 只包含.log文件"
+                        value={includePattern}
+                        onChange={(e) => setIncludePattern(e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-slate-700">排除模式（正则表达式，可选）</label>
+                      <input
+                        className={inputClass}
+                        placeholder="例如: temp 排除包含temp的文件"
+                        value={excludePattern}
+                        onChange={(e) => setExcludePattern(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4 text-sm leading-6 text-slate-600">
+                      <div className="mb-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">归档流程</div>
+                      <div className="space-y-1 text-xs text-slate-600">
+                        <div>1. 扫描日志目录中的文件</div>
+                        <div>2. 根据模式过滤文件</div>
+                        <div>3. 使用 gzip 压缩文件</div>
+                        <div>4. 上传压缩文件到 IPFS</div>
+                        <div>5. 删除本地压缩文件</div>
+                        <div>6. 保存归档元数据</div>
                       </div>
                     </div>
-                    <motion.button
-                      onClick={() => handleDeleteArchive(archive.archiveName)}
-                      className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition text-sm"
-                      whileTap={{ scale: 0.95 }}
+                  </div>
+
+                  <div className="mt-6 flex items-center justify-end gap-2">
+                    <button
+                      className={secondaryButtonClass}
+                      onClick={() => setShowArchiveModal(false)}
+                      disabled={archiveLoading}
                     >
-                      <FaTrash className="text-xs" />
-                    </motion.button>
+                      取消
+                    </button>
+                    <button
+                      className={primaryButtonClass}
+                      onClick={handleCreateArchive}
+                      disabled={archiveLoading || !adminPassword}
+                    >
+                      {archiveLoading ? (
+                        <>
+                          <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          创建中...
+                        </>
+                      ) : (
+                        <>
+                          <FaCompress className="text-xs" />
+                          创建归档
+                        </>
+                      )}
+                    </button>
                   </div>
                 </motion.div>
-              ))
+              </motion.div>
             )}
-          </div>
-        </motion.div>
+          </AnimatePresence>
+          , document.body)}
 
-        {/* 创建归档弹窗 — Portal 到 body */}
-        {ReactDOM.createPortal(
-        <AnimatePresence>
-          {showArchiveModal && (
-            <motion.div
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999]"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
+          {/* 编辑元数据弹窗 — Portal 到 body */}
+          {ReactDOM.createPortal(
+          <AnimatePresence>
+            {editingLog && (
               <motion.div
-                className="bg-white w-full max-w-lg rounded-xl shadow-xl p-6 border border-gray-200"
-                initial={{ scale: 0.95, y: 20, opacity: 0 }}
-                animate={{ scale: 1, y: 0, opacity: 1 }}
-                exit={{ scale: 0.95, y: 20, opacity: 0 }}
-                transition={{ duration: 0.2 }}
+                className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
               >
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                    <FaArchive className="text-purple-500" />
-                    创建日志归档
-                  </h3>
-                  <button
-                    className="text-gray-400 hover:text-gray-600"
-                    onClick={() => setShowArchiveModal(false)}
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      归档名称（可选）
-                    </label>
-                    <input
-                      className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
-                      placeholder="留空将自动生成时间戳名称"
-                      value={archiveName}
-                      onChange={(e) => setArchiveName(e.target.value)}
-                    />
+                <motion.div
+                  className="relative w-full max-w-lg overflow-hidden rounded-[28px] border border-white/70 bg-white/95 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.18)] backdrop-blur-xl sm:p-8"
+                  initial={{ scale: 0.95, y: 20, opacity: 0 }}
+                  animate={{ scale: 1, y: 0, opacity: 1 }}
+                  exit={{ scale: 0.95, y: 20, opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+                        <FaEdit className="text-[10px]" /> EDIT
+                      </div>
+                      <h3 className="mt-3 text-xl font-semibold text-slate-900">编辑日志元数据</h3>
+                    </div>
+                    <button
+                      className="rounded-xl border border-slate-200 bg-white/80 p-2 text-slate-500 transition hover:border-slate-300 hover:text-slate-900"
+                      onClick={() => { setEditingLog(null); setEditFileName(''); setEditNote(''); }}
+                      aria-label="关闭"
+                    >
+                      <FaTimes className="text-xs" />
+                    </button>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      包含模式（正则表达式，可选）
-                    </label>
-                    <input
-                      className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
-                      placeholder="例如: \.log$ 只包含.log文件"
-                      value={includePattern}
-                      onChange={(e) => setIncludePattern(e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      排除模式（正则表达式，可选）
-                    </label>
-                    <input
-                      className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-400 transition-all"
-                      placeholder="例如: temp 排除包含temp的文件"
-                      value={excludePattern}
-                      onChange={(e) => setExcludePattern(e.target.value)}
-                    />
-                  </div>
-
-                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-                    <div className="text-sm text-purple-800 font-medium mb-1">🔄 归档流程</div>
-                    <div className="text-xs text-purple-600 space-y-1">
-                      <div>1. 扫描日志目录中的文件</div>
-                      <div>2. 根据模式过滤文件</div>
-                      <div>3. 使用gzip压缩文件</div>
-                      <div>4. 上传压缩文件到IPFS</div>
-                      <div>5. 删除本地压缩文件</div>
-                      <div>6. 保存归档元数据</div>
+                  <div className="mt-5 space-y-4">
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-slate-700">文件名（可选）</label>
+                      <input
+                        className={inputClass}
+                        placeholder="例如：error-2025-08-10.txt"
+                        value={editFileName}
+                        onChange={(e) => setEditFileName(e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-slate-700">备注（可选）</label>
+                      <textarea
+                        className={`${inputClass} min-h-[100px]`}
+                        placeholder="补充说明、标签等"
+                        value={editNote}
+                        onChange={(e) => setEditNote(e.target.value)}
+                      />
                     </div>
                   </div>
-                </div>
-
-                <div className="mt-6 flex items-center justify-end gap-3">
-                  <button
-                    className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
-                    onClick={() => setShowArchiveModal(false)}
-                    disabled={archiveLoading}
-                  >
-                    取消
-                  </button>
-                  <button
-                    className="px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 flex items-center gap-2 disabled:opacity-50"
-                    onClick={handleCreateArchive}
-                    disabled={archiveLoading || !adminPassword}
-                  >
-                    {archiveLoading ? (
-                      <>
-                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        创建中...
-                      </>
-                    ) : (
-                      <>
-                        <FaCompress className="text-sm" />
-                        创建归档
-                      </>
-                    )}
-                  </button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-        , document.body)}
-
-        {/* 编辑元数据弹窗 — Portal 到 body */}
-        {ReactDOM.createPortal(
-        <AnimatePresence>
-          {editingLog && (
-            <motion.div
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[9999]"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <motion.div
-                className="bg-white w-full max-w-lg rounded-xl shadow-xl p-6 border border-gray-200"
-                initial={{ scale: 0.95, y: 20, opacity: 0 }}
-                animate={{ scale: 1, y: 0, opacity: 1 }}
-                exit={{ scale: 0.95, y: 20, opacity: 0 }}
-                transition={{ duration: 0.2 }}
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-800">编辑日志元数据</h3>
-                  <button className="text-gray-400 hover:text-gray-600" onClick={() => { setEditingLog(null); setEditFileName(''); setEditNote(''); }}>✕</button>
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">文件名（可选）</label>
-                    <input
-                      className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
-                      placeholder="例如：error-2025-08-10.txt"
-                      value={editFileName}
-                      onChange={(e) => setEditFileName(e.target.value)}
-                    />
+                  <div className="mt-6 flex items-center justify-end gap-2">
+                    <button
+                      className={secondaryButtonClass}
+                      onClick={() => { setEditingLog(null); setEditFileName(''); setEditNote(''); }}
+                    >
+                      取消
+                    </button>
+                    <button
+                      className={primaryButtonClass}
+                      onClick={handleEditSave}
+                    >
+                      保存
+                    </button>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">备注（可选）</label>
-                    <textarea
-                      className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all min-h-[100px]"
-                      placeholder="补充说明、标签等"
-                      value={editNote}
-                      onChange={(e) => setEditNote(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="mt-6 flex items-center justify-end gap-3">
-                  <button
-                    className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
-                    onClick={() => { setEditingLog(null); setEditFileName(''); setEditNote(''); }}
-                  >
-                    取消
-                  </button>
-                  <button
-                    className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
-                    onClick={handleEditSave}
-                  >
-                    保存
-                  </button>
-                </div>
+                </motion.div>
               </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-        , document.body)}
+            )}
+          </AnimatePresence>
+          , document.body)}
 
-        {/* 全局提示 */}
-        {/* 所有提示已用 setNotification 全局弹窗替换 */}
-      </motion.div>
+          {/* 全局提示 */}
+          {/* 所有提示已用 setNotification 全局弹窗替换 */}
+        </motion.div>
+      </section>
     </>
   );
 });
