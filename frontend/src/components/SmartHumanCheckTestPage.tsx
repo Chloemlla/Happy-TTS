@@ -12,6 +12,10 @@ const SmartHumanCheckTestPage: React.FC = () => {
   const [token, setToken] = React.useState('');
   const [error, setError] = React.useState('');
   const [nonce, setNonce] = React.useState('');
+  const [nonceKey, setNonceKey] = React.useState('');
+  const [nonceAction, setNonceAction] = React.useState('');
+  const [nonceDifficulty, setNonceDifficulty] = React.useState(0);
+  const [noncePowSalt, setNoncePowSalt] = React.useState('');
   const [nonceLoading, setNonceLoading] = React.useState(false);
   const [verifyMsg, setVerifyMsg] = React.useState('');
   const [verifying, setVerifying] = React.useState(false);
@@ -31,14 +35,22 @@ const SmartHumanCheckTestPage: React.FC = () => {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      if (data && data.success && typeof data.nonce === 'string') {
+      if (data && data.success && typeof data.nonce === 'string' && typeof data.key === 'string') {
         setNonce(data.nonce);
+        setNonceKey(data.key);
+        setNonceAction(data.action || '');
+        setNonceDifficulty(Number(data.difficulty || 0));
+        setNoncePowSalt(data.powSalt || '');
       } else {
         throw new Error('invalid_response');
       }
     } catch (e) {
       console.error('获取 nonce 失败:', e);
       setError('获取 nonce 失败');
+      setNonceKey('');
+      setNonceAction('');
+      setNonceDifficulty(0);
+      setNoncePowSalt('');
     } finally {
       setNonceLoading(false);
     }
@@ -60,7 +72,7 @@ const SmartHumanCheckTestPage: React.FC = () => {
           'X-Requested-With': 'XMLHttpRequest'
         },
         credentials: 'same-origin',
-        body: JSON.stringify({ token: t })
+        body: JSON.stringify({ token: t, ...(nonceAction ? { action: nonceAction } : {}) })
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data && data.success) {
@@ -75,7 +87,7 @@ const SmartHumanCheckTestPage: React.FC = () => {
     } finally {
       setVerifying(false);
     }
-  }, []);
+  }, [nonceAction]);
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -103,13 +115,20 @@ const SmartHumanCheckTestPage: React.FC = () => {
             </button>
           </div>
           <p className="text-xs text-gray-500 mt-1">建议使用后端下发的 nonce 以完成完整校验流程。</p>
+          <p className="text-xs text-gray-500 mt-1">
+            V2 Key: {nonceKey ? '已下发' : '未获取'} · Action: {nonceAction || 'default'} · PoW: {nonceDifficulty || 0}
+          </p>
         </div>
       </div>
 
       <Suspense fallback={<LoadingSpinner />}>
-        {nonce ? (
+        {nonce && nonceKey ? (
           <ManualNonceSmartHumanCheck
             challengeNonce={nonce}
+            challengeKey={nonceKey}
+            challengeAction={nonceAction || undefined}
+            challengeDifficulty={nonceDifficulty}
+            challengePowSalt={noncePowSalt || undefined}
             onSuccess={async (t) => {
               setToken(t);
               setError('');

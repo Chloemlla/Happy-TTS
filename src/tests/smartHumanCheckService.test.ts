@@ -1,31 +1,120 @@
 import crypto from "node:crypto";
-import { SmartHumanCheckService } from "../services/smartHumanCheckService";
+import { SmartHumanCheckService, type IssueResult, type SmartClientPayload } from "../services/smartHumanCheckService";
+
+const TEST_IP = "127.0.0.1";
+const TEST_UA = "test-agent";
+
+function deriveEphemeralSubkey(ephemeralKey: Buffer, purpose: "token.enc" | "token.mac"): Buffer {
+  return crypto.createHmac("sha256", ephemeralKey).update(`shc.v2.${purpose}`).digest();
+}
+
+function createV2Token(
+  nonceResult: IssueResult,
+  payload: SmartClientPayload | null,
+  opts?: { pow?: { nonce: string }; corruptMac?: boolean },
+): string {
+  if (!nonceResult.nonce || !nonceResult.key) throw new Error("missing nonce result fields");
+
+  const nonceBytes = Buffer.from(nonceResult.nonce, "utf8");
+  const ephemeralKey = Buffer.from(nonceResult.key, "base64");
+  const tokenEncKey = deriveEphemeralSubkey(ephemeralKey, "token.enc");
+  const tokenMacKey = deriveEphemeralSubkey(ephemeralKey, "token.mac");
+
+  const iv = crypto.randomBytes(12);
+  const plaintext = Buffer.from(JSON.stringify({ payload, ...(opts?.pow ? { pow: opts.pow } : {}) }), "utf8");
+  const aad = Buffer.from(`shc.v2.token|${nonceResult.nonce}`, "utf8");
+  const cipher = crypto.createCipheriv("aes-256-gcm", tokenEncKey, iv);
+  cipher.setAAD(aad);
+  const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final(), cipher.getAuthTag()]);
+
+  const len = Buffer.alloc(2);
+  len.writeUInt16BE(nonceBytes.length, 0);
+  const withoutMac = Buffer.concat([Buffer.from([2]), len, nonceBytes, iv, ciphertext]);
+  const mac = crypto.createHmac("sha256", tokenMacKey).update(withoutMac).digest();
+  if (opts?.corruptMac) mac[mac.length - 1] ^= 1;
+
+  return Buffer.concat([withoutMac, mac]).toString("base64url");
+}
+
+function goodSignals() {
+  return {
+    mouseMoves: 320,
+    keyPresses: 48,
+    totalDistance: 6200,
+    uniquePathPoints: 190,
+    avgSpeed: 620,
+    maxSpeed: 1800,
+    minSpeed: 12,
+    speedVariance: 3,
+    focusTimeMs: 9000,
+    visibilityChanges: 0,
+    trapTriggered: false,
+    keyTimings: [120, 180, 240, 190],
+    avgKeyInterval: 200,
+    keyPressVariance: 150,
+    mouseAcceleration: 0.5,
+    directionChanges: 90,
+    pauseCount: 24,
+    clickCount: 6,
+    screenResolution: "1920x1080",
+    devicePixelRatio: 1,
+    touchSupport: false,
+    sessionDuration: 15000,
+    idleTime: 800,
+    hardwareConcurrency: 8,
+    deviceMemory: 8,
+    connectionType: "4g",
+    webdriver: false,
+    sliderCompleted: true,
+    proofInteractionMs: 15000,
+  };
+}
+
+function payload(nonce: string, overrides: Partial<SmartClientPayload> = {}): SmartClientPayload {
+  return {
+    v: 2,
+    ts: Date.now(),
+    tz: "UTC",
+    ua: TEST_UA,
+    ce: "test-canvas-entropy",
+    st: goodSignals(),
+    cn: nonce,
+    ...overrides,
+  };
+}
 
 describe("SmartHumanCheckService", () => {
   let service: SmartHumanCheckService;
 
   beforeEach(() => {
+    process.env.SMART_HUMAN_CHECK_RL_WINDOW_MS = "1000";
+    process.env.SMART_HUMAN_CHECK_NONCE_LIMIT = "1000";
+    process.env.SMART_HUMAN_CHECK_VERIFY_LIMIT = "1000";
+    process.env.SMART_HUMAN_CHECK_ABUSE_WINDOW_MS = "60000";
+    process.env.SMART_HUMAN_CHECK_ABUSE_THRESHOLD = "100";
+    process.env.SMART_HUMAN_CHECK_BAN_MS = "60000";
+
     service = new SmartHumanCheckService({
-      secret: "test-secret-key",
-      ttlMs: 5 * 60 * 1000, // 5 minutes
-      maxSkewMs: 2 * 60 * 1000, // 2 minutes
+      secret: "test-secret-key-123",
+      ttlMs: 5 * 60 * 1000,
+      maxSkewMs: 2 * 60 * 1000,
       scoreThreshold: 0.62,
     });
   });
 
   describe("issueNonce", () => {
     it("should generate a valid nonce successfully", () => {
-      const result = service.issueNonce("127.0.0.1", "test-agent");
+      const result = service.issueNonce(TEST_IP, TEST_UA);
 
       expect(result.success).toBe(true);
-      expect(result.nonce).toBeDefined();
       expect(typeof result.nonce).toBe("string");
+      expect(typeof result.key).toBe("string");
+      expect(result.action).toBe("default");
       expect(result.timestamp).toBeDefined();
       expect(result.error).toBeUndefined();
     });
 
     it("should return structured error response on failure", () => {
-      // Mock crypto.randomBytes to throw an error
       const spy = jest.spyOn(crypto, "randomBytes").mockImplementation(() => {
         throw new Error("Crypto error");
       });
@@ -39,7 +128,6 @@ describe("SmartHumanCheckService", () => {
       expect(result.retryable).toBe(true);
       expect(result.timestamp).toBeDefined();
 
-      // Restore original function
       spy.mockRestore();
     });
   });
@@ -68,8 +156,11 @@ describe("SmartHumanCheckService", () => {
     });
 
     it("should return structured error for incomplete token", () => {
-      const incompleteToken = Buffer.from(JSON.stringify({ payload: null })).toString("base64");
-      const result = service.verifyToken(incompleteToken);
+      const nonceResult = service.issueNonce(TEST_IP, TEST_UA);
+      expect(nonceResult.success).toBe(true);
+
+      const token = createV2Token(nonceResult, null);
+      const result = service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA });
 
       expect(result.success).toBe(false);
       expect(result.reason).toBe("incomplete_token");
@@ -79,36 +170,18 @@ describe("SmartHumanCheckService", () => {
       expect(result.timestamp).toBeDefined();
     });
 
-    it("should return structured error for expired nonce", () => {
-      // Create a valid nonce first
-      const nonceResult = service.issueNonce("127.0.0.1", "test-agent");
+    it("should return structured error for client time skew", () => {
+      const nonceResult = service.issueNonce(TEST_IP, TEST_UA);
       expect(nonceResult.success).toBe(true);
 
-      // Create a token with expired timestamp
-      const expiredPayload = {
-        v: 1,
-        ts: Date.now() - 10 * 60 * 1000, // 10 minutes ago
-        tz: "UTC",
-        ua: "test-agent",
-        ce: "test-entropy",
-        sc: 0.8,
-        st: {},
-        cn: nonceResult.nonce,
-      };
-
-      const payloadStr = JSON.stringify(expiredPayload);
-      const salt = crypto.randomBytes(12).toString("base64");
-      const sig = crypto.createHash("sha256").update(`${payloadStr}|${salt}`).digest("base64");
-
-      const token = Buffer.from(
-        JSON.stringify({
-          payload: expiredPayload,
-          salt,
-          sig,
+      const token = createV2Token(
+        nonceResult,
+        payload(nonceResult.nonce!, {
+          ts: Date.now() - 10 * 60 * 1000,
         }),
-      ).toString("base64");
+      );
 
-      const result = service.verifyToken(token);
+      const result = service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA });
 
       expect(result.success).toBe(false);
       expect(result.reason).toBe("client_time_skew");
@@ -118,118 +191,80 @@ describe("SmartHumanCheckService", () => {
       expect(result.timestamp).toBeDefined();
     });
 
-    it("should return structured error for low score", () => {
-      // Create a valid nonce first
-      const nonceResult = service.issueNonce("127.0.0.1", "test-agent");
+    it("should compute low score server-side and ignore client supplied sc", () => {
+      const nonceResult = service.issueNonce(TEST_IP, TEST_UA);
       expect(nonceResult.success).toBe(true);
 
-      // Create a token with low score
-      const lowScorePayload = {
-        v: 1,
-        ts: Date.now(),
-        tz: "UTC",
-        ua: "test-agent",
-        ce: "test-entropy",
-        sc: 0.3, // Below threshold
+      const lowSignalPayload = payload(nonceResult.nonce!, {
         st: {},
-        cn: nonceResult.nonce,
-      };
+      } as Partial<SmartClientPayload>);
+      (lowSignalPayload as any).sc = 1;
 
-      const payloadStr = JSON.stringify(lowScorePayload);
-      const salt = crypto.randomBytes(12).toString("base64");
-      const sig = crypto.createHash("sha256").update(`${payloadStr}|${salt}`).digest("base64");
-
-      const token = Buffer.from(
-        JSON.stringify({
-          payload: lowScorePayload,
-          salt,
-          sig,
-        }),
-      ).toString("base64");
-
-      const result = service.verifyToken(token);
+      const token = createV2Token(nonceResult, lowSignalPayload);
+      const result = service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA });
 
       expect(result.success).toBe(false);
       expect(result.reason).toBe("low_score");
       expect(result.errorCode).toBe("LOW_SCORE");
       expect(result.errorMessage).toBe("行为评分过低");
       expect(result.retryable).toBe(true);
-      expect(result.score).toBe(0.3);
+      expect(result.score).toBeLessThan(0.62);
       expect(result.timestamp).toBeDefined();
     });
 
-    it("should successfully verify valid token", () => {
-      // Create a valid nonce first
-      const nonceResult = service.issueNonce("127.0.0.1", "test-agent");
+    it("should successfully verify valid v2 token from raw behavioral signals", () => {
+      const nonceResult = service.issueNonce(TEST_IP, TEST_UA);
       expect(nonceResult.success).toBe(true);
 
-      // Create a valid token
-      const validPayload = {
-        v: 1,
-        ts: Date.now(),
-        tz: "UTC",
-        ua: "test-agent",
-        ce: "test-entropy",
-        sc: 0.8, // Above threshold
-        st: {},
-        cn: nonceResult.nonce,
-      };
+      const highSignalPayload = payload(nonceResult.nonce!);
+      (highSignalPayload as any).sc = 0;
 
-      const payloadStr = JSON.stringify(validPayload);
-      const salt = crypto.randomBytes(12).toString("base64");
-      const sig = crypto.createHash("sha256").update(`${payloadStr}|${salt}`).digest("base64");
-
-      const token = Buffer.from(
-        JSON.stringify({
-          payload: validPayload,
-          salt,
-          sig,
-        }),
-      ).toString("base64");
-
-      const result = service.verifyToken(token, "127.0.0.1");
+      const token = createV2Token(nonceResult, highSignalPayload);
+      const result = service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA });
 
       expect(result.success).toBe(true);
-      expect(result.score).toBe(0.8);
+      expect(result.score).toBeGreaterThanOrEqual(0.62);
       expect(result.tokenOk).toBe(true);
       expect(result.nonceOk).toBe(true);
       expect(result.timestamp).toBeDefined();
-      // Risk fields should be present
       expect(result.riskScore).toBeGreaterThanOrEqual(0);
       expect(result.riskScore).toBeLessThanOrEqual(1);
       expect(["low", "medium", "high"]).toContain(result.riskLevel as any);
     });
 
-    it("should block when high risk is detected (trap triggered)", () => {
-      // Create a valid nonce first
-      const nonceResult = service.issueNonce("127.0.0.1", "test-agent");
+    it("should reject token replay after nonce consumption", () => {
+      const nonceResult = service.issueNonce(TEST_IP, TEST_UA);
+      expect(nonceResult.success).toBe(true);
+      const token = createV2Token(nonceResult, payload(nonceResult.nonce!));
+
+      expect(service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA }).success).toBe(true);
+      const replay = service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA });
+
+      expect(replay.success).toBe(false);
+      expect(replay.errorCode).toBe("NONCE_REUSED");
+    });
+
+    it("should reject tokens bound to a different user agent", () => {
+      const nonceResult = service.issueNonce(TEST_IP, TEST_UA);
       expect(nonceResult.success).toBe(true);
 
-      // Token with good score but trapTriggered => high risk
-      const riskyPayload = {
-        v: 1,
-        ts: Date.now(),
-        tz: "UTC",
-        ua: "test-agent",
-        ce: "test-entropy",
-        sc: 0.9, // above threshold
-        st: { trapTriggered: true },
-        cn: nonceResult.nonce,
-      };
+      const token = createV2Token(nonceResult, payload(nonceResult.nonce!));
+      const result = service.verifyToken(token, { ip: TEST_IP, ua: "different-agent" });
 
-      const payloadStr = JSON.stringify(riskyPayload);
-      const salt = crypto.randomBytes(12).toString("base64");
-      const sig = crypto.createHash("sha256").update(`${payloadStr}|${salt}`).digest("base64");
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe("bad_binding:ua");
+      expect(result.errorCode).toBe("BAD_BINDING_UA");
+    });
 
-      const token = Buffer.from(
-        JSON.stringify({
-          payload: riskyPayload,
-          salt,
-          sig,
-        }),
-      ).toString("base64");
+    it("should block when high risk is detected (trap triggered)", () => {
+      const nonceResult = service.issueNonce(TEST_IP, TEST_UA);
+      expect(nonceResult.success).toBe(true);
 
-      const result = service.verifyToken(token, "127.0.0.1");
+      const riskyPayload = payload(nonceResult.nonce!, {
+        st: { ...goodSignals(), trapTriggered: true },
+      });
+      const token = createV2Token(nonceResult, riskyPayload);
+      const result = service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA });
 
       expect(result.success).toBe(false);
       expect(result.reason).toBe("high_risk");
@@ -246,8 +281,7 @@ describe("SmartHumanCheckService", () => {
 
   describe("rate limiting and abuse prevention", () => {
     beforeEach(() => {
-      // Configure strict limits for quick tests
-      process.env.SMART_HUMAN_CHECK_RL_WINDOW_MS = "1000"; // 1s window
+      process.env.SMART_HUMAN_CHECK_RL_WINDOW_MS = "1000";
       process.env.SMART_HUMAN_CHECK_NONCE_LIMIT = "2";
       process.env.SMART_HUMAN_CHECK_VERIFY_LIMIT = "2";
       process.env.SMART_HUMAN_CHECK_ABUSE_WINDOW_MS = "60000";
@@ -255,7 +289,7 @@ describe("SmartHumanCheckService", () => {
       process.env.SMART_HUMAN_CHECK_BAN_MS = "60000";
 
       service = new SmartHumanCheckService({
-        secret: "test-secret-key",
+        secret: "test-secret-key-123",
         ttlMs: 5 * 60 * 1000,
         maxSkewMs: 2 * 60 * 1000,
         scoreThreshold: 0.62,
@@ -281,53 +315,37 @@ describe("SmartHumanCheckService", () => {
       const _r2 = service.verifyToken("", ip);
       const r3 = service.verifyToken("", ip);
 
-      // third call should be limited regardless of token content
       expect(r3.success).toBe(false);
       expect(r3.reason).toBe("rate_limited");
       expect(r3.errorCode).toBe("RATE_LIMITED");
     });
 
-    it("should temporarily ban IP after repeated abusive signals", () => {
-      // Loosen verify rate limit to avoid interfering with abuse threshold
+    it("should temporarily ban IP after repeated bad signatures", () => {
       process.env.SMART_HUMAN_CHECK_VERIFY_LIMIT = "1000";
+      process.env.SMART_HUMAN_CHECK_NONCE_LIMIT = "1000";
       service = new SmartHumanCheckService({
-        secret: "test-secret-key",
+        secret: "test-secret-key-123",
         ttlMs: 5 * 60 * 1000,
         maxSkewMs: 2 * 60 * 1000,
         scoreThreshold: 0.62,
       });
 
       const ip = "10.0.0.3";
-
-      // Craft tokens with bad signature to trigger abuse
       const makeBadSigToken = () => {
-        const payload: any = {
-          v: 1,
-          ts: Date.now(),
-          tz: "UTC",
-          ua: "ua",
-          ce: "ce",
-          sc: 0.9,
-          st: {},
-          cn: "fake-nonce",
-        };
-        const _payloadStr = JSON.stringify(payload);
-        const salt = "salt";
-        const sig = crypto.createHash("sha256").update("mismatch").digest("base64");
-        return Buffer.from(JSON.stringify({ payload, salt, sig })).toString("base64");
+        const nonceResult = service.issueNonce(ip, TEST_UA);
+        expect(nonceResult.success).toBe(true);
+        return createV2Token(nonceResult, payload(nonceResult.nonce!), { corruptMac: true });
       };
 
-      // Trigger abuse threshold
-      const t1 = service.verifyToken(makeBadSigToken(), ip);
-      const t2 = service.verifyToken(makeBadSigToken(), ip);
-      const t3 = service.verifyToken(makeBadSigToken(), ip);
+      const t1 = service.verifyToken(makeBadSigToken(), { ip, ua: TEST_UA });
+      const t2 = service.verifyToken(makeBadSigToken(), { ip, ua: TEST_UA });
+      const t3 = service.verifyToken(makeBadSigToken(), { ip, ua: TEST_UA });
 
       expect(t1.reason).toBe("bad_token_sig");
       expect(t2.reason).toBe("bad_token_sig");
       expect(t3.reason).toBe("bad_token_sig");
 
-      // Next call should be banned
-      const banned = service.verifyToken(makeBadSigToken(), ip);
+      const banned = service.verifyToken("anything", { ip, ua: TEST_UA });
       expect(banned.success).toBe(false);
       expect(banned.reason).toBe("abuse_banned");
       expect(banned.errorCode).toBe("ABUSE_BANNED");

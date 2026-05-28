@@ -45,7 +45,7 @@ const adminLimiter = rateLimit({
 router.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", req.headers.origin || "*");
   res.header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, X-SHC-Action");
   res.header("Access-Control-Max-Age", "86400");
 
   // 安全头

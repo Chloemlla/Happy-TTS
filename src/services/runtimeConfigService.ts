@@ -2,6 +2,7 @@ import {
   buildRuntimeConfigDefaults,
   cloneRuntimeConfigDefaults,
   type DeepLXRuntimeConfig,
+  type EmailRuntimeConfig,
   type GoogleAuthRuntimeConfig,
   type IpqsRuntimeConfig,
   type LinuxDoRuntimeConfig,
@@ -18,6 +19,8 @@ const FALLBACK_BASE_URL = "https://tts.chloemlla.com";
 const FALLBACK_FRONTEND_URL = "https://tts.chloemlla.com";
 const FALLBACK_JWT_SECRET = "yb56beb12b35ab636b66c4f9fc168646785a8e85a";
 const DURATION_PATTERN = /^\d+[smhd]$/i;
+const RESEND_API_KEY_PATTERN = /^re_\w{8,}/;
+const DOMAIN_PATTERN = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i;
 const TRUSTED_DEEPLX_BASE_URL = "https://api.deeplx.org";
 
 let runtimeConfigDefaults: RuntimeConfigDefaults = buildRuntimeConfigDefaults({
@@ -25,6 +28,17 @@ let runtimeConfigDefaults: RuntimeConfigDefaults = buildRuntimeConfigDefaults({
   frontendBaseUrl: FALLBACK_FRONTEND_URL,
   jwtSecret: FALLBACK_JWT_SECRET,
   generationCode: "",
+  email: {
+    enabled: false,
+    resendDomain: "chloemlla.com",
+    resendApiKey: "",
+    quotaTotal: 100,
+    outemailEnabled: false,
+    outemailDomain: "chloemlla.com",
+    outemailApiKey: "",
+    outemailCode: "",
+    outemailQuotaTotal: 100,
+  },
 });
 
 let runtimeConfigCache: RuntimeConfigDefaults = cloneRuntimeConfigDefaults(runtimeConfigDefaults);
@@ -64,6 +78,12 @@ function normalizeUrl(value: unknown, fallback: string): string {
   }
 
   return fallback;
+}
+
+function normalizeDomain(value: unknown, fallback: string): string {
+  const candidate = normalizeOptionalString(value, fallback, 253).toLowerCase();
+  if (!candidate) return fallback;
+  return DOMAIN_PATTERN.test(candidate) ? candidate : fallback;
 }
 
 function normalizeDuration(value: unknown, fallback: string): string {
@@ -231,6 +251,22 @@ function normalizeStoredTtsConfig(value: unknown, defaults = runtimeConfigDefaul
   };
 }
 
+function normalizeStoredEmailConfig(value: unknown, defaults = runtimeConfigDefaults.email): EmailRuntimeConfig {
+  const raw = asObject(value);
+
+  return {
+    enabled: normalizeBoolean(raw.enabled, defaults.enabled),
+    resendDomain: normalizeDomain(raw.resendDomain, defaults.resendDomain),
+    resendApiKey: normalizeOptionalString(raw.resendApiKey, defaults.resendApiKey, 2048),
+    quotaTotal: normalizeInteger(raw.quotaTotal, defaults.quotaTotal, 1, 1_000_000),
+    outemailEnabled: normalizeBoolean(raw.outemailEnabled, defaults.outemailEnabled),
+    outemailDomain: normalizeDomain(raw.outemailDomain, defaults.outemailDomain),
+    outemailApiKey: normalizeOptionalString(raw.outemailApiKey, defaults.outemailApiKey, 2048),
+    outemailCode: normalizeOptionalString(raw.outemailCode, defaults.outemailCode, 256),
+    outemailQuotaTotal: normalizeInteger(raw.outemailQuotaTotal, defaults.outemailQuotaTotal, 1, 1_000_000),
+  };
+}
+
 async function readRuntimeConfigDoc(
   key: RuntimeConfigKey,
 ): Promise<{ value: Record<string, unknown>; updatedAt?: Date } | null> {
@@ -271,6 +307,11 @@ function applyCacheForKey(key: RuntimeConfigKey, value: unknown): void {
     return;
   }
 
+  if (key === "EMAIL") {
+    runtimeConfigCache.email = normalizeStoredEmailConfig(value);
+    return;
+  }
+
   runtimeConfigCache.nexai = normalizeStoredNexaiConfig(value);
 }
 
@@ -296,6 +337,9 @@ export class RuntimeConfigService {
     if (!loadedKeys.has("TTS")) {
       runtimeConfigCache.tts = cloneRuntimeConfigDefaults(defaults).tts;
     }
+    if (!loadedKeys.has("EMAIL")) {
+      runtimeConfigCache.email = cloneRuntimeConfigDefaults(defaults).email;
+    }
   }
 
   static getCachedConfig(): RuntimeConfigDefaults {
@@ -307,7 +351,7 @@ export class RuntimeConfigService {
     if (initialized && !force) return;
 
     const docs = await RuntimeConfigModel.find({
-      key: { $in: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS"] },
+      key: { $in: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "EMAIL"] },
     })
       .lean()
       .exec();
@@ -324,6 +368,7 @@ export class RuntimeConfigService {
       nextCache.deeplx = runtimeConfigCache.deeplx;
       nextCache.nexai = runtimeConfigCache.nexai;
       nextCache.tts = runtimeConfigCache.tts;
+      nextCache.email = runtimeConfigCache.email;
       loadedKeys.add(doc.key as RuntimeConfigKey);
     }
 
@@ -761,5 +806,103 @@ export class RuntimeConfigService {
     await RuntimeConfigModel.deleteOne({ key: "TTS" }).exec();
     runtimeConfigCache.tts = cloneRuntimeConfigDefaults(runtimeConfigDefaults).tts;
     loadedKeys.delete("TTS");
+  }
+
+  static async getEmailSetting(): Promise<{
+    setting: {
+      config: Omit<EmailRuntimeConfig, "resendApiKey" | "outemailApiKey" | "outemailCode"> & {
+        resendApiKey: string;
+        outemailApiKey: string;
+        outemailCode: string;
+      };
+      updatedAt?: string;
+    };
+  }> {
+    const doc = await readRuntimeConfigDoc("EMAIL");
+    const config = doc ? normalizeStoredEmailConfig(doc.value) : runtimeConfigDefaults.email;
+    runtimeConfigCache.email = config;
+
+    return {
+      setting: {
+        config: {
+          enabled: config.enabled,
+          resendDomain: config.resendDomain,
+          resendApiKey: maskSecret(config.resendApiKey),
+          quotaTotal: config.quotaTotal,
+          outemailEnabled: config.outemailEnabled,
+          outemailDomain: config.outemailDomain,
+          outemailApiKey: maskSecret(config.outemailApiKey),
+          outemailCode: maskSecret(config.outemailCode),
+          outemailQuotaTotal: config.outemailQuotaTotal,
+        },
+        updatedAt: doc?.updatedAt?.toISOString(),
+      },
+    };
+  }
+
+  static async setEmailSetting(input: Partial<EmailRuntimeConfig>): Promise<{ updatedAt: string }> {
+    const currentDoc = await readRuntimeConfigDoc("EMAIL");
+    const current = currentDoc ? normalizeStoredEmailConfig(currentDoc.value) : runtimeConfigCache.email;
+
+    const nextConfig: EmailRuntimeConfig = {
+      enabled: normalizeBoolean(input.enabled, current.enabled),
+      resendDomain: normalizeDomain(input.resendDomain, current.resendDomain),
+      resendApiKey:
+        typeof input.resendApiKey === "string" && input.resendApiKey.trim().length > 0
+          ? input.resendApiKey.trim().slice(0, 2048)
+          : current.resendApiKey,
+      quotaTotal: normalizeInteger(input.quotaTotal, current.quotaTotal, 1, 1_000_000),
+      outemailEnabled: normalizeBoolean(input.outemailEnabled, current.outemailEnabled),
+      outemailDomain: normalizeDomain(input.outemailDomain, current.outemailDomain),
+      outemailApiKey:
+        typeof input.outemailApiKey === "string" && input.outemailApiKey.trim().length > 0
+          ? input.outemailApiKey.trim().slice(0, 2048)
+          : current.outemailApiKey,
+      outemailCode:
+        typeof input.outemailCode === "string" && input.outemailCode.trim().length > 0
+          ? input.outemailCode.trim().slice(0, 256)
+          : current.outemailCode,
+      outemailQuotaTotal: normalizeInteger(input.outemailQuotaTotal, current.outemailQuotaTotal, 1, 1_000_000),
+    };
+
+    if (nextConfig.enabled) {
+      if (!nextConfig.resendDomain || !DOMAIN_PATTERN.test(nextConfig.resendDomain)) {
+        throw new Error("主邮件发信域名格式不正确");
+      }
+      if (!RESEND_API_KEY_PATTERN.test(nextConfig.resendApiKey)) {
+        throw new Error("主邮件 API Key 必须以 re_ 开头且长度有效");
+      }
+    }
+
+    if (nextConfig.outemailEnabled) {
+      if (!nextConfig.outemailDomain || !DOMAIN_PATTERN.test(nextConfig.outemailDomain)) {
+        throw new Error("对外邮件发信域名格式不正确");
+      }
+      if (!RESEND_API_KEY_PATTERN.test(nextConfig.outemailApiKey)) {
+        throw new Error("对外邮件 API Key 必须以 re_ 开头且长度有效");
+      }
+      if (!nextConfig.outemailCode) {
+        throw new Error("启用对外邮件前需要配置默认校验码");
+      }
+    }
+
+    const now = new Date();
+    await RuntimeConfigModel.findOneAndUpdate(
+      { key: "EMAIL" },
+      { value: nextConfig, updatedAt: now },
+      { upsert: true, new: true },
+    ).exec();
+
+    runtimeConfigCache.email = nextConfig;
+    loadedKeys.add("EMAIL");
+    initialized = true;
+
+    return { updatedAt: now.toISOString() };
+  }
+
+  static async deleteEmailSetting(): Promise<void> {
+    await RuntimeConfigModel.deleteOne({ key: "EMAIL" }).exec();
+    runtimeConfigCache.email = cloneRuntimeConfigDefaults(runtimeConfigDefaults).email;
+    loadedKeys.delete("EMAIL");
   }
 }

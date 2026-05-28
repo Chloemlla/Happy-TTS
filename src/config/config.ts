@@ -6,6 +6,7 @@ import { RuntimeConfigService } from "../services/runtimeConfigService";
 import {
   buildRuntimeConfigDefaults,
   type DeepLXRuntimeConfig,
+  type EmailRuntimeConfig,
   type GoogleAuthRuntimeConfig,
   type IpqsRuntimeConfig,
   type LinuxDoRuntimeConfig,
@@ -151,13 +152,27 @@ const jwtSecret = parsedEnv.JWT_SECRET || generateEphemeralSecret();
 const adminPassword = parsedEnv.NODE_ENV === "production" ? parsedEnv.ADMIN_PASSWORD! : parsedEnv.ADMIN_PASSWORD || "admin";
 const publicShortUrlEnabled = parsedEnv.PUBLIC_SHORT_URL_ENABLED === true;
 const publicShortUrlPassword = parsedEnv.PUBLIC_SHORT_URL_PASSWORD;
+const emailRuntimeDefaults: EmailRuntimeConfig = {
+  enabled: Boolean(parsedEnv.RESEND_API_KEY),
+  resendDomain: parsedEnv.RESEND_DOMAIN,
+  resendApiKey: parsedEnv.RESEND_API_KEY || "",
+  quotaTotal: Number(process.env.RESEND_QUOTA_TOTAL) || 100,
+  outemailEnabled:
+    parsedEnv.OUTEMAIL_ENABLED === true ||
+    parsedEnv.VITE_OUTEMAIL_ENABLED === true ||
+    parsedEnv.RESEND_OUTEMAIL_ENABLED === true,
+  outemailDomain: parsedEnv.OUTEMAIL_DOMAIN || parsedEnv.RESEND_DOMAIN_OUT || parsedEnv.RESEND_DOMAIN,
+  outemailApiKey: parsedEnv.OUTEMAIL_API_KEY || parsedEnv.RESEND_API_OUT || parsedEnv.RESEND_API_KEY || "",
+  outemailCode: parsedEnv.OUTEMAIL_CODE,
+  outemailQuotaTotal: Number(process.env.OUTEMAIL_QUOTA_TOTAL || process.env.RESEND_QUOTA_TOTAL) || 100,
+};
 
 export const compileTimeConfig = Object.freeze({
   timezone: "Asia/Shanghai",
   audioDir: path.join(process.cwd(), "finish"),
   dataDir: path.join(process.cwd(), "data"),
   logsDir: path.join(process.cwd(), "logs"),
-  runtimeMutableKeys: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS"] as const,
+  runtimeMutableKeys: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "EMAIL"] as const,
 });
 
 const runtimeDefaults = buildRuntimeConfigDefaults({
@@ -165,6 +180,7 @@ const runtimeDefaults = buildRuntimeConfigDefaults({
   frontendBaseUrl,
   jwtSecret,
   generationCode: parsedEnv.GENERATION_CODE,
+  email: emailRuntimeDefaults,
 });
 
 RuntimeConfigService.configureDefaults(runtimeDefaults);
@@ -258,6 +274,9 @@ export const runtimeMutableConfig = {
   },
   get tts(): TtsRuntimeConfig {
     return RuntimeConfigService.getCachedConfig().tts;
+  },
+  get email(): EmailRuntimeConfig {
+    return RuntimeConfigService.getCachedConfig().email;
   },
 };
 

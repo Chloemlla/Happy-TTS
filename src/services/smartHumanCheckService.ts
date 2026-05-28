@@ -35,7 +35,7 @@ export interface IssueResult {
   success: boolean;
   /** 不透明字符串（base64url），客户端不应解析 */
   nonce?: string;
-  /** 客户端用来对 payload 做 HMAC-SHA256 的临时密钥（base64） */
+  /** 客户端用于 v2 token AES-GCM + HMAC 的临时密钥（base64） */
   key?: string;
   /** PoW 挑战 salt（base64），仅当 difficulty>0 返回 */
   powSalt?: string;
@@ -101,6 +101,8 @@ export interface BehaviorSignals {
   deviceMemory?: number;
   connectionType?: string;
   webdriver?: boolean;
+  sliderCompleted?: boolean;
+  proofInteractionMs?: number;
 }
 
 export interface VerifyResult {
@@ -159,6 +161,8 @@ const ERROR_CODES = {
   BAD_BINDING_ACTION: { code: "BAD_BINDING_ACTION", message: "动作绑定不匹配", retryable: false },
   BAD_BINDING_HOST: { code: "BAD_BINDING_HOST", message: "来源绑定不匹配", retryable: false },
   BAD_BINDING_IP: { code: "BAD_BINDING_IP", message: "客户端绑定不匹配", retryable: false },
+  BAD_BINDING_UA: { code: "BAD_BINDING_UA", message: "浏览器绑定不匹配", retryable: false },
+  BAD_BINDING_NONCE: { code: "BAD_BINDING_NONCE", message: "令牌与验证码不匹配", retryable: false },
   BAD_POW: { code: "BAD_POW", message: "工作量证明无效", retryable: true },
   CLIENT_TIME_SKEW: { code: "CLIENT_TIME_SKEW", message: "客户端时间偏差过大", retryable: true },
   LOW_SCORE: { code: "LOW_SCORE", message: "行为评分过低", retryable: false },
@@ -209,6 +213,52 @@ function aeadDecrypt(key: Buffer, envelopeB64: string, aad: Buffer): Buffer {
   return Buffer.concat([decipher.update(ct), decipher.final()]);
 }
 
+function aeadDecryptBytes(key: Buffer, iv: Buffer, ciphertextWithTag: Buffer, aad: Buffer): Buffer {
+  if (iv.length !== IV_LEN || ciphertextWithTag.length < TAG_LEN) throw new Error("token_envelope_malformed");
+  const tag = ciphertextWithTag.subarray(ciphertextWithTag.length - TAG_LEN);
+  const ct = ciphertextWithTag.subarray(0, ciphertextWithTag.length - TAG_LEN);
+  const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+  decipher.setAuthTag(tag);
+  if (aad.length) decipher.setAAD(aad);
+  return Buffer.concat([decipher.update(ct), decipher.final()]);
+}
+
+function deriveEphemeralSubkey(ephemeralKey: Buffer, purpose: "token.enc" | "token.mac"): Buffer {
+  return crypto.createHmac("sha256", ephemeralKey).update(`shc.v2.${purpose}`).digest();
+}
+
+function tokenAad(nonce: string): Buffer {
+  return Buffer.from(`shc.v2.token|${nonce}`, "utf8");
+}
+
+function parseTokenEnvelope(tokenB64: string): ParsedTokenEnvelope {
+  const buf = Buffer.from(tokenB64, "base64url");
+  const minLen = 1 + 2 + 1 + IV_LEN + TAG_LEN + 32;
+  if (buf.length < minLen) throw new Error("token_too_short");
+  if (buf[0] !== ENVELOPE_VERSION) throw new Error("bad_token_version");
+
+  const nonceLen = buf.readUInt16BE(1);
+  if (nonceLen <= 0 || nonceLen > 2048) throw new Error("bad_nonce_len");
+
+  const nonceStart = 3;
+  const nonceEnd = nonceStart + nonceLen;
+  const ivStart = nonceEnd;
+  const ivEnd = ivStart + IV_LEN;
+  const macStart = buf.length - 32;
+
+  if (nonceEnd > buf.length || ivEnd > macStart || macStart <= ivEnd + TAG_LEN) {
+    throw new Error("token_bounds");
+  }
+
+  return {
+    nonce: buf.subarray(nonceStart, nonceEnd).toString("utf8"),
+    iv: buf.subarray(ivStart, ivEnd),
+    ciphertext: buf.subarray(ivEnd, macStart),
+    mac: buf.subarray(macStart),
+    macInput: buf.subarray(0, macStart),
+  };
+}
+
 function timingSafeStrEq(a: string, b: string): boolean {
   if (typeof a !== "string" || typeof b !== "string") return false;
   const ba = Buffer.from(a, "utf8");
@@ -240,6 +290,22 @@ function canonicalize(value: unknown): string {
   const keys = Object.keys(obj).sort();
   const parts = keys.map((k) => JSON.stringify(k) + ":" + canonicalize(obj[k]));
   return "{" + parts.join(",") + "}";
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function hasUnsafeJsonKey(value: unknown, depth = 0): boolean {
+  if (depth > 20) return true;
+  if (Array.isArray(value)) return value.some((item) => hasUnsafeJsonKey(item, depth + 1));
+  if (!isPlainRecord(value)) return false;
+
+  for (const key of Object.keys(value)) {
+    if (key === "__proto__" || key === "constructor" || key === "prototype") return true;
+    if (hasUnsafeJsonKey(value[key], depth + 1)) return true;
+  }
+  return false;
 }
 
 function sha256Hex(input: string | Buffer): string {
@@ -345,6 +411,12 @@ function evaluateBehavior(payload: SmartClientPayload, ctx: VerifyContext): Scor
   let baseScore = 0;
   for (const k of Object.keys(weights) as Array<keyof typeof weights>) {
     baseScore += sub[k] * weights[k];
+  }
+  if (st.sliderCompleted && (mouseMoves > 5 || clickCount > 0 || Boolean(st.touchSupport))) {
+    baseScore = Math.min(1, baseScore + 0.12);
+  }
+  if (Number(st.proofInteractionMs || 0) > 500) {
+    baseScore = Math.min(1, baseScore + 0.04);
   }
 
   // 触摸设备略降基础（更易被自动化），存在 webdriver 直接重罚
@@ -621,33 +693,21 @@ export class SmartHumanCheckService {
         return this.buildVerifyError(ERROR_CODES.PAYLOAD_TOO_LARGE, now, "payload_too_large");
       }
 
-      // 解码 token 外壳：base64(JSON({ nonce, payload, hmac, pow? }))
-      let outer: SubmitEnvelope;
+      // 解码 v2 token 外壳：base64url(binary(version + nonce + AES-GCM(payload) + HMAC))
+      let tokenEnvelope: ParsedTokenEnvelope;
       try {
-        const raw = Buffer.from(tokenB64, "base64").toString("utf8");
-        if (raw.length > MAX_PAYLOAD_BYTES) {
-          this.recordPattern(ip, "payload_too_large", now);
-          return this.buildVerifyError(ERROR_CODES.PAYLOAD_TOO_LARGE, now, "payload_too_large");
-        }
-        outer = JSON.parse(raw);
+        tokenEnvelope = parseTokenEnvelope(tokenB64);
       } catch {
         this.recordPattern(ip, "bad_token_format", now);
         this.recordAbuse(ip, now);
         return this.buildVerifyError(ERROR_CODES.BAD_TOKEN_FORMAT, now, "bad_token_format");
       }
 
-      const { nonce, payload, hmac, pow } = outer || ({} as SubmitEnvelope);
-      if (!nonce || !payload || typeof hmac !== "string") {
+      const { nonce } = tokenEnvelope;
+      if (!nonce || typeof nonce !== "string") {
         this.recordPattern(ip, "incomplete_token", now);
         this.recordAbuse(ip, now);
         return this.buildVerifyError(ERROR_CODES.INCOMPLETE_TOKEN, now, "incomplete_token");
-      }
-
-      // 限制 payload 体积
-      const payloadStr = canonicalize(payload);
-      if (Buffer.byteLength(payloadStr, "utf8") > MAX_PAYLOAD_BYTES) {
-        this.recordPattern(ip, "payload_too_large", now);
-        return this.buildVerifyError(ERROR_CODES.PAYLOAD_TOO_LARGE, now, "payload_too_large");
       }
 
       // 解密 nonce 信封
@@ -691,6 +751,11 @@ export class SmartHumanCheckService {
         this.recordPattern(ip, "bad_binding", now);
         return this.buildVerifyError(ERROR_CODES.BAD_BINDING_IP, now, "bad_binding:ip");
       }
+      const currentUaHash = sha256Hex("ua|" + uaKey(ctx.ua));
+      if (!timingSafeStrEq(plain.uah, currentUaHash)) {
+        this.recordPattern(ip, "bad_binding", now);
+        return this.buildVerifyError(ERROR_CODES.BAD_BINDING_UA, now, "bad_binding:ua");
+      }
 
       // 原子消费 nonce
       const nonceId = sha256Hex(nonce);
@@ -707,13 +772,49 @@ export class SmartHumanCheckService {
         return this.buildVerifyError(ERROR_CODES[which], now, `nonce_invalid:${consume.reason}`);
       }
 
-      // HMAC binding：使用 nonce 内部的临时密钥
+      // Token HMAC + AES-GCM：使用 nonce 内部的临时密钥派生独立子密钥
       const ephemeralKey = Buffer.from(plain.k, "base64");
-      const computedHmac = crypto.createHmac("sha256", ephemeralKey).update(payloadStr).digest("base64");
-      if (!timingSafeStrEq(computedHmac, hmac)) {
+      const tokenMacKey = deriveEphemeralSubkey(ephemeralKey, "token.mac");
+      const computedMac = crypto.createHmac("sha256", tokenMacKey).update(tokenEnvelope.macInput).digest();
+      if (!timingSafeBufEq(computedMac, tokenEnvelope.mac)) {
         this.recordPattern(ip, "bad_token_sig", now);
         this.recordAbuse(ip, now);
         return this.buildVerifyError(ERROR_CODES.BAD_TOKEN_SIG, now, "bad_token_sig");
+      }
+
+      let submit: SubmitEnvelopePlain;
+      try {
+        const tokenEncKey = deriveEphemeralSubkey(ephemeralKey, "token.enc");
+        const raw = aeadDecryptBytes(tokenEncKey, tokenEnvelope.iv, tokenEnvelope.ciphertext, tokenAad(nonce));
+        if (raw.length > MAX_PAYLOAD_BYTES) {
+          this.recordPattern(ip, "payload_too_large", now);
+          return this.buildVerifyError(ERROR_CODES.PAYLOAD_TOO_LARGE, now, "payload_too_large");
+        }
+        const parsed = JSON.parse(raw.toString("utf8"));
+        if (!isPlainRecord(parsed) || hasUnsafeJsonKey(parsed)) throw new Error("unsafe_json");
+        submit = parsed as unknown as SubmitEnvelopePlain;
+      } catch {
+        this.recordPattern(ip, "bad_token_format", now);
+        this.recordAbuse(ip, now);
+        return this.buildVerifyError(ERROR_CODES.BAD_TOKEN_FORMAT, now, "bad_token_format");
+      }
+
+      const { payload, pow } = submit;
+      if (!payload || !isPlainRecord(payload) || !isPlainRecord(payload.st)) {
+        this.recordPattern(ip, "incomplete_token", now);
+        this.recordAbuse(ip, now);
+        return this.buildVerifyError(ERROR_CODES.INCOMPLETE_TOKEN, now, "incomplete_token");
+      }
+      if (!timingSafeStrEq(payload.cn, nonce)) {
+        this.recordPattern(ip, "bad_binding", now);
+        return this.buildVerifyError(ERROR_CODES.BAD_BINDING_NONCE, now, "bad_binding:nonce");
+      }
+
+      // 限制 payload 体积，并在后续评分中只使用服务端解密出的 payload
+      const payloadStr = canonicalize(payload);
+      if (Buffer.byteLength(payloadStr, "utf8") > MAX_PAYLOAD_BYTES) {
+        this.recordPattern(ip, "payload_too_large", now);
+        return this.buildVerifyError(ERROR_CODES.PAYLOAD_TOO_LARGE, now, "payload_too_large");
       }
 
       // PoW 校验（如启用）
@@ -723,7 +824,7 @@ export class SmartHumanCheckService {
           return this.buildVerifyError(ERROR_CODES.BAD_POW, now, "bad_pow:missing");
         }
         const powSalt = this.derivePowSalt(plain.nid);
-        if (!verifyPow(plain.nid + ":" + powSalt, pow.nonce, plain.d)) {
+        if (!verifyPow(powSalt, pow.nonce, plain.d)) {
           this.recordPattern(ip, "bad_pow", now);
           this.recordAbuse(ip, now);
           return this.buildVerifyError(ERROR_CODES.BAD_POW, now, "bad_pow:invalid");
@@ -740,6 +841,30 @@ export class SmartHumanCheckService {
       // 服务端权威评分
       const evalResult = evaluateBehavior(payload, ctx);
       const dyn = this.computeDynamicThreshold(this.scoreThreshold, ip, ctx.ua, evalResult.riskLevel, now);
+
+      if (evalResult.riskLevel === "high") {
+        this.recordAbuse(ip, now);
+        this.recordOutcome(ip, ctx.ua, false, now);
+        return {
+          success: false,
+          reason: "high_risk",
+          score: evalResult.score,
+          tokenOk: true,
+          nonceOk: true,
+          errorCode: ERROR_CODES.HIGH_RISK.code,
+          errorMessage: ERROR_CODES.HIGH_RISK.message,
+          retryable: ERROR_CODES.HIGH_RISK.retryable,
+          timestamp: now,
+          riskScore: evalResult.riskScore,
+          riskLevel: evalResult.riskLevel,
+          riskReasons: evalResult.riskReasons,
+          challengeRequired: true,
+          threshold: this.scoreThreshold,
+          thresholdBase: this.scoreThreshold,
+          thresholdUsed: dyn.used,
+          action: plain.act,
+        };
+      }
 
       if (evalResult.score < dyn.used) {
         const stepUp = evalResult.score >= this.scoreThreshold && dyn.used > this.scoreThreshold;
@@ -765,27 +890,6 @@ export class SmartHumanCheckService {
           riskScore: evalResult.riskScore,
           riskLevel: evalResult.riskLevel,
           riskReasons: evalResult.riskReasons,
-          action: plain.act,
-        };
-      }
-
-      if (evalResult.riskLevel === "high") {
-        this.recordAbuse(ip, now);
-        this.recordOutcome(ip, ctx.ua, false, now);
-        return {
-          success: false,
-          reason: "high_risk",
-          score: evalResult.score,
-          tokenOk: true,
-          nonceOk: true,
-          errorCode: ERROR_CODES.HIGH_RISK.code,
-          errorMessage: ERROR_CODES.HIGH_RISK.message,
-          retryable: ERROR_CODES.HIGH_RISK.retryable,
-          timestamp: now,
-          riskScore: evalResult.riskScore,
-          riskLevel: evalResult.riskLevel,
-          riskReasons: evalResult.riskReasons,
-          challengeRequired: true,
           action: plain.act,
         };
       }
@@ -1007,10 +1111,16 @@ interface NonceEnvelopePlain {
   d: number;
 }
 
-interface SubmitEnvelope {
+interface ParsedTokenEnvelope {
   nonce: string;
+  iv: Buffer;
+  ciphertext: Buffer;
+  mac: Buffer;
+  macInput: Buffer;
+}
+
+interface SubmitEnvelopePlain {
   payload: SmartClientPayload;
-  hmac: string;
   pow?: { nonce: string };
 }
 

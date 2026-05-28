@@ -52,6 +52,18 @@ export interface TtsRuntimeConfig {
   generationCode: string;
 }
 
+export interface EmailRuntimeConfig {
+  enabled: boolean;
+  resendDomain: string;
+  resendApiKey: string;
+  quotaTotal: number;
+  outemailEnabled: boolean;
+  outemailDomain: string;
+  outemailApiKey: string;
+  outemailCode: string;
+  outemailQuotaTotal: number;
+}
+
 export interface RuntimeConfigDefaults {
   ipqs: IpqsRuntimeConfig;
   linuxdo: LinuxDoRuntimeConfig;
@@ -59,6 +71,7 @@ export interface RuntimeConfigDefaults {
   deeplx: DeepLXRuntimeConfig;
   nexai: NexaiRuntimeConfig;
   tts: TtsRuntimeConfig;
+  email: EmailRuntimeConfig;
 }
 
 export function buildRuntimeConfigDefaults(options: {
@@ -66,6 +79,7 @@ export function buildRuntimeConfigDefaults(options: {
   frontendBaseUrl: string;
   jwtSecret: string;
   generationCode: string;
+  email: EmailRuntimeConfig;
 }): RuntimeConfigDefaults {
   const normalizedBaseUrl = options.baseUrl.replace(/\/+$/, "");
   const normalizedFrontendBaseUrl = options.frontendBaseUrl.replace(/\/+$/, "");
@@ -119,6 +133,9 @@ export function buildRuntimeConfigDefaults(options: {
     tts: {
       generationCode: options.generationCode,
     },
+    email: {
+      ...options.email,
+    },
   };
 }
 
@@ -149,6 +166,9 @@ export function cloneRuntimeConfigDefaults(config: RuntimeConfigDefaults): Runti
     },
     tts: {
       ...config.tts,
+    },
+    email: {
+      ...config.email,
     },
   };
 }

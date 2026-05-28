@@ -216,6 +216,7 @@ process.env.OPENAI_BASE_URL = "https://api.openai.com/v1";
 process.env.JWT_SECRET = "test-jwt-secret";
 process.env.ADMIN_USERNAME = "admin";
 process.env.ADMIN_PASSWORD = "admin123";
+process.env.SMART_HUMAN_CHECK_SECRET = "test-smart-human-check-secret";
 
 // 创建测试所需的目录
 const testDirs = [

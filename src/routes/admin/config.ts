@@ -106,6 +106,11 @@ router.get("/tts/setting", adminController.getTtsSetting);
 router.post("/tts/setting", adminController.setTtsSetting);
 router.delete("/tts/setting", adminController.deleteTtsSetting);
 
+// Backend email system management (admin)
+router.get("/email-system/setting", adminController.getEmailSystemSetting);
+router.post("/email-system/setting", adminController.setEmailSystemSetting);
+router.delete("/email-system/setting", adminController.deleteEmailSystemSetting);
+
 // Runtime config management (admin)
 router.get("/ipqs/setting", adminController.getIpqsSetting);
 router.post("/ipqs/setting", adminController.setIpqsSetting);

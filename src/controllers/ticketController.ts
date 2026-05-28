@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { type ITicket, TicketModel } from "../models/ticketModel";
-import { DEFAULT_EMAIL_FROM, EmailService } from "../services/emailService";
+import { EmailService, getDefaultEmailFrom } from "../services/emailService";
 import { libreChatService } from "../services/libreChatService";
 import { ModerationService } from "../services/moderationService";
 import { mongoose } from "../services/mongoService";
@@ -149,7 +149,7 @@ export const ticketController = {
                 );
               }
               await EmailService.sendEmail({
-                from: DEFAULT_EMAIL_FROM,
+                from: getDefaultEmailFrom(),
                 to: [user.email],
                 subject: bStat.isBanned ? "🚫 工单访问权限已封禁" : "⚠️ 工单言论违规警告",
                 html,
@@ -299,7 +299,7 @@ export const ticketController = {
                 else
                   html = emailTemplates.generateTicketViolationWarningEmailHtml(user.username, content, reason, time);
                 await EmailService.sendEmail({
-                  from: DEFAULT_EMAIL_FROM,
+                  from: getDefaultEmailFrom(),
                   to: [user.email],
                   subject: bStat.isBanned ? "🚫 工单访问权限已封禁" : "⚠️ 工单言论违规警告",
                   html,
@@ -342,7 +342,7 @@ export const ticketController = {
                 new Date().toLocaleString(),
               );
               await EmailService.sendEmail({
-                from: DEFAULT_EMAIL_FROM,
+                from: getDefaultEmailFrom(),
                 to: [ticketUser.email],
                 subject: `[回复] 您的工单「${ticket.title}」有了新回复`,
                 html,
@@ -420,7 +420,7 @@ export const ticketController = {
               new Date().toLocaleString(),
             );
             await EmailService.sendEmail({
-              from: DEFAULT_EMAIL_FROM,
+              from: getDefaultEmailFrom(),
               to: [ticketUser.email],
               subject: `[状态更新] 您的工单「${ticket.title}」已更新为 ${status}`,
               html,

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import UserManagement from './UserManagement';
 const AnnouncementManager = React.lazy(() => import('./AnnouncementManager'));
 const EnvManager = React.lazy(() => import('./EnvManager'));
+const MailSystemConfigManager = React.lazy(() => import('./MailSystemConfigManager'));
 import { motion, AnimatePresence } from 'framer-motion';
 const LotteryAdmin = React.lazy(() => import('./LotteryAdmin'));
 const OutEmail = React.lazy(() => import('./OutEmail'));
@@ -18,6 +19,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useNotification } from './Notification';
 import { getApiBaseUrl } from '../api/api';
 import { FaCog, FaUsers, FaShieldAlt } from 'react-icons/fa';
+import { SimpleLoadingSpinner } from './LoadingSpinner';
 const SmartHumanCheckTraces = React.lazy(() => import('./SmartHumanCheckTraces'));
 const GitHubBillingCacheManager = React.lazy(() => import('./GitHubBillingCacheManager'));
 const IPBanManager = React.lazy(() => import('./IPBanManager'));
@@ -27,6 +29,30 @@ const BroadcastManager = React.lazy(() => import('./BroadcastManager'));
 const ApiKeyManager = React.lazy(() => import('./ApiKeyManager'));
 const AuditLogViewer = React.lazy(() => import('./AuditLogViewer'));
 const TranslationAuditViewer = React.lazy(() => import('./TranslationAuditViewer'));
+
+const LOADING_CARD_CLASS =
+  'w-full rounded-[36px] border border-white/70 bg-white/88 px-6 py-8 text-center shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl';
+const LOADING_BADGE_CLASS =
+  'mx-auto flex h-14 w-14 items-center justify-center rounded-[26px] bg-slate-100 text-slate-500';
+const LOADING_EYEBROW_CLASS =
+  'mt-5 text-sm font-semibold uppercase tracking-[0.26em] text-slate-400';
+
+const AdminModuleLoadingShell: React.FC<{ label?: string }> = ({ label = '正在加载管理模块内容...' }) => (
+  <div
+    role="status"
+    aria-live="polite"
+    aria-busy="true"
+    className="mx-auto flex min-h-[46vh] max-w-3xl items-center justify-center px-4 py-10"
+  >
+    <div className={LOADING_CARD_CLASS}>
+      <div className={LOADING_BADGE_CLASS}>
+        <SimpleLoadingSpinner size={0.75} />
+      </div>
+      <div className={LOADING_EYEBROW_CLASS}>Synapse Route</div>
+      <p className="mt-3 text-sm leading-7 text-slate-600">{label}</p>
+    </div>
+  </div>
+);
 
 const AdminDashboard: React.FC = () => {
   const [tab, setTab] = useState('users');
@@ -41,6 +67,7 @@ const AdminDashboard: React.FC = () => {
     { key: 'librechat', label: 'LibreChat 管理' },
     { key: 'announcement', label: '公告管理' },
     { key: 'env', label: '环境变量' },
+    { key: 'mail-system', label: '邮件系统配置' },
     { key: 'lottery', label: '抽奖管理' },
     { key: 'outemail', label: '外部邮件' },
     { key: 'shortlink', label: '短链管理' },
@@ -328,6 +355,11 @@ const AdminDashboard: React.FC = () => {
                 {tab === 'env' && (
                   <motion.div key="env" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
                     <Suspense fallback={<div className="text-[#023047]/30">加载中…</div>}><EnvManager /></Suspense>
+                  </motion.div>
+                )}
+                {tab === 'mail-system' && (
+                  <motion.div key="mail-system" initial={{ opacity: 0, x: 40 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -40 }} transition={{ duration: 0.25 }}>
+                    <Suspense fallback={<AdminModuleLoadingShell label="正在加载后端邮件系统配置..." />}><MailSystemConfigManager /></Suspense>
                   </motion.div>
                 )}
                 {tab === 'lottery' && (

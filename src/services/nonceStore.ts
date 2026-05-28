@@ -16,6 +16,7 @@ export interface NonceRecord {
   consumedAt?: number; // 消费时间戳
   clientIp?: string; // 客户端 IP
   userAgent?: string; // 用户代理
+  metadata?: Record<string, unknown>; // 调用方附加的绑定/风控元数据
 }
 
 export interface NonceStoreConfig {
@@ -42,7 +43,7 @@ export class NonceStore {
   /**
    * 存储新发放的 nonce
    */
-  storeNonce(nonceId: string, clientIp?: string, userAgent?: string): void {
+  storeNonce(nonceId: string, clientIp?: string, userAgent?: string, metadata?: Record<string, unknown>): void {
     if (!nonceId || typeof nonceId !== "string") {
       throw new Error("无效的 nonce ID");
     }
@@ -69,6 +70,7 @@ export class NonceStore {
       issuedAt: Date.now(),
       clientIp,
       userAgent,
+      metadata,
     };
 
     this.store.set(nonceId, record);

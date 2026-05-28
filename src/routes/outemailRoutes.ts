@@ -1,5 +1,6 @@
 import express from "express";
 import { createLimiter } from "../middleware/rateLimiter";
+import { getOutEmailServiceStatus, resolveOutEmailDomain } from "../services/emailService";
 import { getOutEmailQuota, sendOutEmail, sendOutEmailBatch } from "../services/outEmailService";
 import logger from "../utils/logger";
 
@@ -40,18 +41,13 @@ router.get("/quota", statusQueryLimiter, async (_req, res) => {
  */
 router.get("/status", statusQueryLimiter, (req, res) => {
   try {
-    const outemailStatus = (globalThis as any).OUTEMAIL_SERVICE_STATUS;
-    const OUTEMAIL_DOMAIN = process.env.OUTEMAIL_DOMAIN || process.env.RESEND_DOMAIN || "";
-    if (outemailStatus && typeof outemailStatus.available === "boolean") {
-      res.json({
-        success: true,
-        available: outemailStatus.available,
-        error: outemailStatus.error || "",
-        domain: OUTEMAIL_DOMAIN,
-      });
-    } else {
-      res.json({ success: true, available: false, error: "对外邮件服务状态未初始化", domain: OUTEMAIL_DOMAIN });
-    }
+    const outemailStatus = getOutEmailServiceStatus();
+    res.json({
+      success: true,
+      available: outemailStatus.available,
+      error: outemailStatus.error || "",
+      domain: outemailStatus.domain || resolveOutEmailDomain(),
+    });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "未知错误";
     logger.error("[OutEmail] 服务状态查询异常", {
@@ -68,8 +64,7 @@ router.get("/status", statusQueryLimiter, (req, res) => {
  * 公共：获取对外发信所使用的域名
  */
 router.get("/domain", (_req, res) => {
-  const OUTEMAIL_DOMAIN = process.env.OUTEMAIL_DOMAIN || process.env.RESEND_DOMAIN || "";
-  res.json({ success: true, domain: OUTEMAIL_DOMAIN });
+  res.json({ success: true, domain: resolveOutEmailDomain() });
 });
 
 /**

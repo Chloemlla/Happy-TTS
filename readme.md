@@ -572,6 +572,7 @@ ADMIN_USERNAME=admin              # 管理员用户名
 ADMIN_PASSWORD=admin              # 管理员密码
 SERVER_PASSWORD=1145              # 服务器状态查询密码
 GENERATION_CODE=happyclo          # 注册生成码
+SMART_HUMAN_CHECK_SECRET=change-me-to-a-long-random-secret  # SmartHumanCheck v2 主密钥（必填，至少 16 字符）
 
 # ========== WebAuthn/Passkey 配置 ==========
 RP_ID=localhost                   # Relying Party ID（域名）

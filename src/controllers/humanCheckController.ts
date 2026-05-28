@@ -7,6 +7,30 @@ import logger from "../utils/logger";
 
 const service = new SmartHumanCheckService();
 
+function getClientIp(req: Request): string {
+  return (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "unknown";
+}
+
+function getRequestOrigin(req: Request): string | undefined {
+  const forwardedHost = (req.headers["x-forwarded-host"] as string)?.split(",")[0]?.trim();
+  const host = forwardedHost || req.headers.host;
+  if (!host) return req.headers.origin as string | undefined;
+
+  const forwardedProto = (req.headers["x-forwarded-proto"] as string)?.split(",")[0]?.trim();
+  const proto = forwardedProto || req.protocol || "http";
+  return `${proto}://${host}`;
+}
+
+function getAction(req: Request): string | undefined {
+  const raw =
+    (typeof req.query.action === "string" ? req.query.action : undefined) ||
+    (typeof req.headers["x-shc-action"] === "string" ? req.headers["x-shc-action"] : undefined) ||
+    req.body?.action;
+  if (typeof raw !== "string") return undefined;
+  const action = raw.trim();
+  return /^[A-Za-z0-9_.:-]{1,64}$/.test(action) ? action : undefined;
+}
+
 export class SmartHumanCheckController {
   /** 获取/复用 SHC 溯源模型 */
   private static getTraceModel() {
@@ -40,10 +64,16 @@ export class SmartHumanCheckController {
    */
   static async issueNonce(req: Request, res: Response) {
     try {
-      const clientIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip;
+      const clientIp = getClientIp(req);
       const userAgent = req.headers["user-agent"];
+      const action = getAction(req);
 
-      const result = service.issueNonce(clientIp, userAgent);
+      const result = service.issueNonce({
+        ip: clientIp,
+        ua: userAgent,
+        origin: getRequestOrigin(req),
+        action,
+      });
 
       if (result.success) {
         res.json(result);
@@ -109,35 +139,42 @@ export class SmartHumanCheckController {
         });
       }
 
-      const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip;
+      const ip = getClientIp(req);
       const ua = req.headers["user-agent"] as string | undefined;
-      const result = service.verifyToken(token, ip);
+      const result = service.verifyToken(token, {
+        ip,
+        ua,
+        origin: getRequestOrigin(req),
+        action: getAction(req),
+      });
       const withTrace = { ...result, traceId };
 
       // 持久化溯源信息
       try {
-        await connectMongo();
-        const M = SmartHumanCheckController.getTraceModel();
-        await M.create({
-          traceId,
-          time: new Date(result.timestamp || Date.now()),
-          ip,
-          ua,
-          success: result.success,
-          reason: result.reason,
-          errorCode: result.errorCode,
-          errorMessage: result.errorMessage,
-          score: result.score,
-          thresholdBase: result.thresholdBase,
-          thresholdUsed: result.thresholdUsed,
-          passRateIp: result.passRateIp,
-          passRateUa: result.passRateUa,
-          policy: result.policy,
-          riskLevel: result.riskLevel,
-          riskScore: result.riskScore,
-          riskReasons: result.riskReasons,
-          challengeRequired: result.challengeRequired,
-        });
+        if (process.env.NODE_ENV !== "test") {
+          await connectMongo();
+          const M = SmartHumanCheckController.getTraceModel();
+          await M.create({
+            traceId,
+            time: new Date(result.timestamp || Date.now()),
+            ip,
+            ua,
+            success: result.success,
+            reason: result.reason,
+            errorCode: result.errorCode,
+            errorMessage: result.errorMessage,
+            score: result.score,
+            thresholdBase: result.thresholdBase,
+            thresholdUsed: result.thresholdUsed,
+            passRateIp: result.passRateIp,
+            passRateUa: result.passRateUa,
+            policy: result.policy,
+            riskLevel: result.riskLevel,
+            riskScore: result.riskScore,
+            riskReasons: result.riskReasons,
+            challengeRequired: result.challengeRequired,
+          });
+        }
       } catch (persistErr) {
         logger.warn("[SmartHumanCheck] persist trace failed", persistErr);
       }

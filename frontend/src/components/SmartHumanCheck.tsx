@@ -26,6 +26,10 @@ export interface SmartHumanCheckCommonProps {
 
 export interface ManualNonceSmartHumanCheckProps extends SmartHumanCheckCommonProps {
   challengeNonce: string;
+  challengeKey?: string;
+  challengeAction?: string;
+  challengeDifficulty?: number;
+  challengePowSalt?: string;
 }
 
 type SmartHumanCheckVariant = {
@@ -125,6 +129,116 @@ async function getCanvasEntropy(): Promise<string> {
   } catch {
     return 'canvas-error';
   }
+}
+
+function utf8Bytes(input: string): Uint8Array {
+  return new TextEncoder().encode(input);
+}
+
+function base64ToBytes(input: string): Uint8Array {
+  const normalized = input.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function bytesToBase64Url(bytes: Uint8Array): string {
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function concatBytes(...parts: Uint8Array[]): Uint8Array {
+  const total = parts.reduce((sum, part) => sum + part.length, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const part of parts) {
+    out.set(part, offset);
+    offset += part.length;
+  }
+  return out;
+}
+
+function u16be(value: number): Uint8Array {
+  return new Uint8Array([(value >> 8) & 0xff, value & 0xff]);
+}
+
+async function hmacSha256(keyBytes: Uint8Array, data: Uint8Array): Promise<Uint8Array> {
+  const key = await crypto.subtle.importKey('raw', keyBytes as BufferSource, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return new Uint8Array(await crypto.subtle.sign('HMAC', key, data as BufferSource));
+}
+
+async function deriveTokenSubkey(challengeKey: string, purpose: 'token.enc' | 'token.mac'): Promise<Uint8Array> {
+  return hmacSha256(base64ToBytes(challengeKey), utf8Bytes(`shc.v2.${purpose}`));
+}
+
+async function aesGcmEncrypt(
+  keyBytes: Uint8Array,
+  plaintext: Uint8Array,
+  aad: Uint8Array,
+): Promise<{ iv: Uint8Array; ciphertext: Uint8Array }> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await crypto.subtle.importKey('raw', keyBytes as BufferSource, { name: 'AES-GCM' }, false, ['encrypt']);
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv: iv as BufferSource, additionalData: aad as BufferSource, tagLength: 128 },
+    key,
+    plaintext as BufferSource,
+  );
+  return { iv, ciphertext: new Uint8Array(encrypted) };
+}
+
+async function sha256Bytes(input: string): Promise<Uint8Array> {
+  return new Uint8Array(await crypto.subtle.digest('SHA-256', utf8Bytes(input) as BufferSource));
+}
+
+function leadingZeroBits(bytes: Uint8Array): number {
+  let count = 0;
+  for (const byte of bytes) {
+    if (byte === 0) {
+      count += 8;
+      continue;
+    }
+    for (let mask = 0x80; mask > 0; mask >>= 1) {
+      if ((byte & mask) === 0) count += 1;
+      else return count;
+    }
+  }
+  return count;
+}
+
+async function solvePow(powSalt?: string, difficulty?: number): Promise<{ nonce: string } | undefined> {
+  if (!powSalt || !difficulty || difficulty <= 0) return undefined;
+  for (let i = 0; i < 250000; i += 1) {
+    const candidate = `${Date.now().toString(36)}-${i.toString(36)}`;
+    const digest = await sha256Bytes(`${powSalt}:${candidate}`);
+    if (leadingZeroBits(digest) >= difficulty) return { nonce: candidate };
+  }
+  throw new Error('工作量证明计算超时，请重试');
+}
+
+async function createV2Token(input: {
+  nonce: string;
+  key: string;
+  payload: Record<string, unknown>;
+  pow?: { nonce: string };
+}): Promise<string> {
+  const tokenEncKey = await deriveTokenSubkey(input.key, 'token.enc');
+  const tokenMacKey = await deriveTokenSubkey(input.key, 'token.mac');
+  const nonceBytes = utf8Bytes(input.nonce);
+  if (nonceBytes.length <= 0 || nonceBytes.length > 2048) throw new Error('验证码格式错误');
+
+  const plaintext = utf8Bytes(JSON.stringify({ payload: input.payload, ...(input.pow ? { pow: input.pow } : {}) }));
+  const aad = utf8Bytes(`shc.v2.token|${input.nonce}`);
+  const { iv, ciphertext } = await aesGcmEncrypt(tokenEncKey, plaintext, aad);
+  const withoutMac = concatBytes(new Uint8Array([2]), u16be(nonceBytes.length), nonceBytes, iv, ciphertext);
+  const mac = await hmacSha256(tokenMacKey, withoutMac);
+  return bytesToBase64Url(concatBytes(withoutMac, mac));
 }
 
 // 增强的行为收集器
@@ -521,6 +635,10 @@ function CompactSlider(props: Omit<SliderBaseProps, 'hintMode'>) {
 
 type SmartHumanCheckBaseProps = SmartHumanCheckCommonProps & {
   challengeNonce?: string;
+  challengeKey?: string;
+  challengeAction?: string;
+  challengeDifficulty?: number;
+  challengePowSalt?: string;
   variant: SmartHumanCheckVariant;
 };
 
@@ -528,6 +646,10 @@ const SmartHumanCheckBase: React.FC<SmartHumanCheckBaseProps> = ({
   onSuccess,
   onFail,
   challengeNonce,
+  challengeKey,
+  challengeAction,
+  challengeDifficulty,
+  challengePowSalt,
   apiBaseUrl = '/api/human-check',
   variant,
 }) => {
@@ -544,6 +666,10 @@ const SmartHumanCheckBase: React.FC<SmartHumanCheckBaseProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nonce, setNonce] = useState<string | null>(challengeNonce || null);
+  const [tokenKey, setTokenKey] = useState<string | null>(challengeKey || null);
+  const [nonceAction, setNonceAction] = useState<string | null>(challengeAction || null);
+  const [powSalt, setPowSalt] = useState<string | null>(challengePowSalt || null);
+  const [powDifficulty, setPowDifficulty] = useState<number>(challengeDifficulty || 0);
   const [fetchingNonce, setFetchingNonce] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   // 速率限制与封禁控制
@@ -613,8 +739,12 @@ const SmartHumanCheckBase: React.FC<SmartHumanCheckBaseProps> = ({
   useEffect(() => {
     if (nonceStrategy === 'manual') {
       setNonce(challengeNonce || null);
+      setTokenKey(challengeKey || null);
+      setNonceAction(challengeAction || null);
+      setPowSalt(challengePowSalt || null);
+      setPowDifficulty(challengeDifficulty || 0);
     }
-  }, [challengeNonce, nonceStrategy]);
+  }, [challengeAction, challengeDifficulty, challengeKey, challengeNonce, challengePowSalt, nonceStrategy]);
 
   // 动态状态（依赖 pulse 触发重新计算以更新倒计时）
   const isBanned = useMemo(() => bannedUntil != null && bannedUntil > Date.now(), [bannedUntil, pulse]);
@@ -655,8 +785,12 @@ const SmartHumanCheckBase: React.FC<SmartHumanCheckBaseProps> = ({
       });
 
       const data = await response.json();
-      if (data.success && data.nonce) {
+      if (data.success && data.nonce && data.key) {
         setNonce(data.nonce);
+        setTokenKey(data.key);
+        setNonceAction(data.action || null);
+        setPowSalt(data.powSalt || null);
+        setPowDifficulty(Number(data.difficulty || 0));
         setRetryCount(0);
         setCooldownUntil(null);
         setBannedUntil(null);
@@ -871,7 +1005,15 @@ const SmartHumanCheckBase: React.FC<SmartHumanCheckBaseProps> = ({
     return () => clearInterval(trapInterval);
   }, [setTrapTriggered]);
 
-  const canSubmit = checked && sliderOk && ready && effectiveScore >= adaptiveThreshold && (nonce || challengeNonce) && !fetchingNonce && !isBanned;
+  const canSubmit =
+    checked &&
+    sliderOk &&
+    ready &&
+    effectiveScore >= adaptiveThreshold &&
+    Boolean(nonce || challengeNonce) &&
+    Boolean(tokenKey || challengeKey) &&
+    !fetchingNonce &&
+    !isBanned;
 
   const handleSliderComplete = useCallback(() => setSliderOk(true), []);
 
@@ -893,6 +1035,10 @@ const SmartHumanCheckBase: React.FC<SmartHumanCheckBaseProps> = ({
     // 重置时获取新的 nonce
     if (shouldManageNonce && !challengeNonce) {
       setNonce(null);
+      setTokenKey(null);
+      setNonceAction(null);
+      setPowSalt(null);
+      setPowDifficulty(0);
       fetchNonce();
     }
   }, [challengeNonce, fetchNonce, shouldManageNonce]);
@@ -904,38 +1050,45 @@ const SmartHumanCheckBase: React.FC<SmartHumanCheckBaseProps> = ({
 
     try {
       const now = Date.now();
+      const activeNonce = nonce || challengeNonce;
+      const activeKey = tokenKey || challengeKey;
+      if (!activeNonce || !activeKey) throw new Error('验证参数不完整，请刷新后重试');
       // 快照行为统计，防止在签名与打包阶段被异步更新导致签名与载荷不一致
       const statsSnapshot = JSON.parse(JSON.stringify(statsRef.current));
+      statsSnapshot.sliderCompleted = sliderOk;
+      statsSnapshot.proofInteractionMs = statsSnapshot.sessionDuration || 0;
+      statsSnapshot.hardwareConcurrency = navigator.hardwareConcurrency || 0;
+      statsSnapshot.deviceMemory = (navigator as any).deviceMemory || 0;
+      statsSnapshot.connectionType = (navigator as any).connection?.effectiveType || 'unknown';
+      statsSnapshot.webdriver = Boolean((navigator as any).webdriver);
       const payload = {
-        v: 1,
+        v: 2,
         ts: now,
         tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'unknown',
         ua: navigator.userAgent,
         ce: canvasEntropy,
-        sc: Number(effectiveScore.toFixed(3)),
         st: statsSnapshot,
-        cn: nonce || challengeNonce || null,
+        cn: activeNonce,
       };
-      const payloadStr = JSON.stringify(payload);
-      // 弱签名（仅用于防篡改提示，服务端不可依赖）：payload + 浏览器随机 salt
-      const salt = crypto.getRandomValues(new Uint8Array(12));
-      const saltB64 = btoa(String.fromCharCode(...salt));
-      const sig = await sha256Base64(payloadStr + '|' + saltB64);
+      const pow = await solvePow(powSalt || challengePowSalt || undefined, powDifficulty || challengeDifficulty || 0);
+      const token = await createV2Token({
+        nonce: activeNonce,
+        key: activeKey,
+        payload,
+        pow,
+      });
       // 可选调试输出：设置 localStorage SHC_DEBUG=1 以启用
       if (typeof localStorage !== 'undefined' && localStorage.getItem('SHC_DEBUG') === '1') {
         try {
-          const previewPayload = payloadStr.length > 300 ? payloadStr.slice(0, 300) + '…' : payloadStr;
-          console.debug('[SmartHumanCheck] sig-debug', {
-            payloadLen: payloadStr.length,
-            salt: saltB64,
-            sig,
-            previewPayload,
+          console.debug('[SmartHumanCheck] token-debug', {
+            version: 2,
+            tokenLen: token.length,
+            action: nonceAction || challengeAction || 'default',
+            pow: Boolean(pow),
+            payload,
           });
         } catch { }
       }
-      const token = btoa(
-        JSON.stringify({ payload: payload, salt: saltB64, sig })
-      );
 
       onSuccess(token);
       if (autoResetOnSuccess) {
@@ -947,7 +1100,26 @@ const SmartHumanCheckBase: React.FC<SmartHumanCheckBaseProps> = ({
     } finally {
       setSubmitting(false);
     }
-  }, [autoResetOnSuccess, canvasEntropy, canSubmit, challengeNonce, nonce, onFail, onSuccess, reset, effectiveScore, statsRef]);
+  }, [
+    autoResetOnSuccess,
+    canvasEntropy,
+    canSubmit,
+    challengeAction,
+    challengeDifficulty,
+    challengeKey,
+    challengeNonce,
+    challengePowSalt,
+    nonce,
+    nonceAction,
+    onFail,
+    onSuccess,
+    powDifficulty,
+    powSalt,
+    reset,
+    sliderOk,
+    statsRef,
+    tokenKey,
+  ]);
 
   const cardCls = 'bg-white/80 text-gray-800 border-white/20';
   const subTextCls = 'text-gray-500';

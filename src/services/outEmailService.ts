@@ -1,7 +1,14 @@
 import dayjs from "dayjs";
 import { logger } from "./logger";
 import { mongoose } from "./mongoService";
-import { EmailService, type EmailAttachmentInput } from "./emailService";
+import {
+  EmailService,
+  getOutEmailCodeFallback,
+  getOutEmailQuotaTotal,
+  getOutEmailServiceStatus,
+  resolveOutEmailDomain,
+  type EmailAttachmentInput,
+} from "./emailService";
 
 const OutEmailRecordSchema = new mongoose.Schema(
   {
@@ -45,8 +52,6 @@ const OutEmailSetting =
   (mongoose.models.OutEmailSetting as mongoose.Model<OutEmailSettingDoc>) ||
   mongoose.model<OutEmailSettingDoc>("OutEmailSetting", OutEmailSettingSchema);
 
-const OUTEMAIL_QUOTA_TOTAL = Number(process.env.OUTEMAIL_QUOTA_TOTAL || process.env.RESEND_QUOTA_TOTAL || 100);
-
 export interface OutEmailQuotaInfo {
   used: number;
   total: number;
@@ -67,19 +72,11 @@ async function getOutEmailCodeFromDb(domain?: string): Promise<string | null> {
   }
 }
 
-function getOutEmailDomain(preferredDomain?: string): string {
-  return (
-    preferredDomain ||
-    process.env.OUTEMAIL_DOMAIN ||
-    process.env.RESEND_DOMAIN_OUT ||
-    process.env.RESEND_DOMAIN ||
-    ""
-  );
-}
-
 async function ensureOutEmailCode(code: string, domain: string) {
   const dbCode = await getOutEmailCodeFromDb(domain);
-  if (!dbCode || code !== dbCode) {
+  const fallbackCode = getOutEmailCodeFallback();
+  const expectedCode = dbCode || fallbackCode;
+  if (!expectedCode || code !== expectedCode) {
     return { success: false as const, error: "校验码错误" };
   }
   return { success: true as const };
@@ -99,10 +96,11 @@ async function reserveQuota(count: number) {
       error: `当前一分钟可发送剩余额度不足（剩余 ${Math.max(0, 20 - currentMinuteCount)} 封）`,
     };
   }
-  if (quota.countDay + count > OUTEMAIL_QUOTA_TOTAL) {
+  const outemailQuotaTotal = getOutEmailQuotaTotal();
+  if (quota.countDay + count > outemailQuotaTotal) {
     return {
       success: false as const,
-      error: `今日可发送剩余额度不足（剩余 ${Math.max(0, OUTEMAIL_QUOTA_TOTAL - quota.countDay)} 封）`,
+      error: `今日可发送剩余额度不足（剩余 ${Math.max(0, outemailQuotaTotal - quota.countDay)} 封）`,
     };
   }
 
@@ -129,7 +127,7 @@ export async function getOutEmailQuota(): Promise<OutEmailQuotaInfo> {
     quota = await OutEmailQuota.create({ date, minute: now.format("YYYY-MM-DD-HH-mm"), countDay: 0, countMinute: 0 });
   }
   const resetAt = now.add(1, "day").startOf("day").toISOString();
-  return { used: quota.countDay || 0, total: OUTEMAIL_QUOTA_TOTAL, resetAt };
+  return { used: quota.countDay || 0, total: getOutEmailQuotaTotal(), resetAt };
 }
 
 export async function sendOutEmailBatch({
@@ -147,8 +145,8 @@ export async function sendOutEmailBatch({
   displayName?: string;
   domain?: string;
 }) {
-  const outemailStatus = (globalThis as any).OUTEMAIL_SERVICE_STATUS;
-  if (outemailStatus && !outemailStatus.available) {
+  const outemailStatus = getOutEmailServiceStatus();
+  if (!outemailStatus.available) {
     return { success: false, error: outemailStatus.error || "对外邮件服务不可用" };
   }
 
@@ -159,7 +157,7 @@ export async function sendOutEmailBatch({
     return { success: false, error: "单次最多批量发送100封" };
   }
 
-  const outemailDomain = getOutEmailDomain(domain);
+  const outemailDomain = resolveOutEmailDomain(domain);
   if (!outemailDomain) return { success: false, error: "域名未配置" };
   if (!EmailService.isValidSenderDomain(`noreply@${outemailDomain}`)) {
     return { success: false, error: "API密钥未配置" };
@@ -227,12 +225,12 @@ export async function sendOutEmail({
   domain?: string;
   attachments?: EmailAttachmentInput[];
 }) {
-  const outemailStatus = (globalThis as any).OUTEMAIL_SERVICE_STATUS;
-  if (outemailStatus && !outemailStatus.available) {
+  const outemailStatus = getOutEmailServiceStatus();
+  if (!outemailStatus.available) {
     return { success: false, error: outemailStatus.error || "对外邮件服务不可用" };
   }
 
-  const outemailDomain = getOutEmailDomain(domain);
+  const outemailDomain = resolveOutEmailDomain(domain);
   if (!outemailDomain) {
     return { success: false, error: "域名未配置" };
   }

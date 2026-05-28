@@ -1,20 +1,28 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
 import request from "supertest";
-import { SmartHumanCheckController } from "../controllers/humanCheckController";
 
-// Mock the service - 移到 jest.mock 之前
-const mockService = {
-  issueNonce: jest.fn(),
-  verifyToken: jest.fn(),
-  getStats: jest.fn(),
-  cleanupExpiredNonces: jest.fn(),
+let mockService: {
+  issueNonce: jest.Mock;
+  verifyToken: jest.Mock;
+  getStats: jest.Mock;
+  cleanupExpiredNonces: jest.Mock;
 };
 
 jest.mock("../services/smartHumanCheckService", () => ({
   __esModule: true,
-  default: jest.fn().mockImplementation(() => mockService),
+  default: jest.fn().mockImplementation(() => {
+    mockService = {
+      issueNonce: jest.fn(),
+      verifyToken: jest.fn(),
+      getStats: jest.fn(),
+      cleanupExpiredNonces: jest.fn(),
+    };
+    return mockService;
+  }),
 }));
+
+import { SmartHumanCheckController } from "../controllers/humanCheckController";
 
 describe("SmartHumanCheckController", () => {
   let app: express.Application;
@@ -58,8 +66,10 @@ describe("SmartHumanCheckController", () => {
 
       expect(response.body).toEqual(mockNonceResult);
       expect(mockService.issueNonce).toHaveBeenCalledWith(
-        expect.any(String), // IP
-        expect.any(String), // User Agent
+        expect.objectContaining({
+          ip: expect.any(String),
+          origin: expect.any(String),
+        }),
       );
     });
 
@@ -111,7 +121,13 @@ describe("SmartHumanCheckController", () => {
         .set("User-Agent", "Test-Agent/1.0")
         .expect(200);
 
-      expect(mockService.issueNonce).toHaveBeenCalledWith("192.168.1.100", "Test-Agent/1.0");
+      expect(mockService.issueNonce).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ip: "192.168.1.100",
+          ua: "Test-Agent/1.0",
+          origin: expect.any(String),
+        }),
+      );
     });
   });
 
@@ -129,10 +145,14 @@ describe("SmartHumanCheckController", () => {
 
       const response = await request(app).post("/verify").send({ token: "valid-token-123" }).expect(200);
 
-      expect(response.body).toEqual(mockVerifyResult);
+      expect(response.body).toMatchObject(mockVerifyResult);
+      expect(response.body.traceId).toEqual(expect.any(String));
       expect(mockService.verifyToken).toHaveBeenCalledWith(
         "valid-token-123",
-        expect.any(String), // IP
+        expect.objectContaining({
+          ip: expect.any(String),
+          origin: expect.any(String),
+        }),
       );
     });
 
@@ -174,7 +194,8 @@ describe("SmartHumanCheckController", () => {
 
       const response = await request(app).post("/verify").send({ token: "expired-token" }).expect(410); // 410 for expired nonce
 
-      expect(response.body).toEqual(mockFailureResult);
+      expect(response.body).toMatchObject(mockFailureResult);
+      expect(response.body.traceId).toEqual(expect.any(String));
     });
 
     it("should handle low score failure", async () => {
@@ -192,7 +213,8 @@ describe("SmartHumanCheckController", () => {
 
       const response = await request(app).post("/verify").send({ token: "low-score-token" }).expect(400);
 
-      expect(response.body).toEqual(mockFailureResult);
+      expect(response.body).toMatchObject(mockFailureResult);
+      expect(response.body.traceId).toEqual(expect.any(String));
     });
 
     it("should handle service exceptions during verification", async () => {
@@ -267,8 +289,10 @@ describe("SmartHumanCheckController", () => {
       await request(app).get("/nonce").set("X-Forwarded-For", "203.0.113.1, 198.51.100.1, 192.0.2.1").expect(200);
 
       expect(mockService.issueNonce).toHaveBeenCalledWith(
-        "203.0.113.1", // Should extract first IP
-        expect.any(String),
+        expect.objectContaining({
+          ip: "203.0.113.1",
+          origin: expect.any(String),
+        }),
       );
     });
 
@@ -284,8 +308,10 @@ describe("SmartHumanCheckController", () => {
       await request(app).get("/nonce").expect(200);
 
       expect(mockService.issueNonce).toHaveBeenCalledWith(
-        expect.any(String), // Should use req.ip
-        expect.any(String),
+        expect.objectContaining({
+          ip: expect.any(String),
+          origin: expect.any(String),
+        }),
       );
     });
   });

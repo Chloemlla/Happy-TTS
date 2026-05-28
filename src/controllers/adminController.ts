@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Request, Response } from "express";
 import * as envModule from "../config/env";
+import { EmailService, getAllSenderDomains, getOutEmailServiceStatus } from "../services/emailService";
 import { sendEmail } from "../services/emailSender";
 import { mongoose } from "../services/mongoService";
 import { RuntimeConfigService } from "../services/runtimeConfigService";
@@ -1396,6 +1397,75 @@ export const adminController = {
       return res.json({ success: true });
     } catch (_e) {
       return res.status(500).json({ success: false, error: "删除生成码失败" });
+    }
+  },
+
+  // ========== Backend email system runtime config management (admin) ===========
+  async getEmailSystemSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      const result = await RuntimeConfigService.getEmailSetting();
+      const emailStatus = await EmailService.getServiceStatus();
+      const outemailStatus = getOutEmailServiceStatus();
+      return res.json({
+        success: true,
+        ...result,
+        status: {
+          email: emailStatus,
+          outemail: outemailStatus,
+        },
+        domains: getAllSenderDomains(),
+      });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "获取邮件系统配置失败",
+      });
+    }
+  },
+
+  async setEmailSystemSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      const result = await RuntimeConfigService.setEmailSetting(req.body || {});
+      const emailStatus = await EmailService.getServiceStatus();
+      const outemailStatus = getOutEmailServiceStatus();
+      return res.json({
+        success: true,
+        setting: result,
+        status: {
+          email: emailStatus,
+          outemail: outemailStatus,
+        },
+        domains: getAllSenderDomains(),
+      });
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: error instanceof Error ? error.message : "保存邮件系统配置失败",
+      });
+    }
+  },
+
+  async deleteEmailSystemSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      await RuntimeConfigService.deleteEmailSetting();
+      const emailStatus = await EmailService.getServiceStatus();
+      const outemailStatus = getOutEmailServiceStatus();
+      return res.json({
+        success: true,
+        status: {
+          email: emailStatus,
+          outemail: outemailStatus,
+        },
+        domains: getAllSenderDomains(),
+      });
+    } catch (_error) {
+      return res.status(500).json({ success: false, error: "重置邮件系统配置失败" });
     }
   },
 

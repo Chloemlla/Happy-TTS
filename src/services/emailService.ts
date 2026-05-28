@@ -5,6 +5,7 @@ import { marked } from "marked";
 import { Resend } from "resend";
 import { logger } from "./logger";
 import { mongoose } from "./mongoService";
+import { RuntimeConfigService } from "./runtimeConfigService";
 
 // MongoDB 邮件配额 Schema
 const EmailQuotaSchema = new mongoose.Schema(
@@ -18,12 +19,13 @@ const EmailQuotaSchema = new mongoose.Schema(
 );
 const EmailQuotaModel = mongoose.models.EmailQuota || mongoose.model("EmailQuota", EmailQuotaSchema);
 
-const DEFAULT_RESEND_DOMAIN = process.env.RESEND_DOMAIN || "chloemlla.com";
+const FALLBACK_RESEND_DOMAIN = process.env.RESEND_DOMAIN || "chloemlla.com";
 const EMAIL_QUOTA_FILE = path.join(__dirname, "../../data/email_quota.json");
 
-export const DEFAULT_EMAIL_FROM = `noreply@${DEFAULT_RESEND_DOMAIN}`;
+export const DEFAULT_EMAIL_FROM = `noreply@${FALLBACK_RESEND_DOMAIN}`;
 
 const _EMAIL_QUOTA_TOTAL = Number(process.env.RESEND_QUOTA_TOTAL) || 100;
+const RESEND_API_KEY_PATTERN = /^re_\w{8,}/;
 
 export interface EmailQuotaInfo {
   used: number;
@@ -129,82 +131,146 @@ function safeSet<T extends { used: number; resetAt: string }>(map: Record<string
   map[key] = value;
 }
 
-const domainQuotaMap: Record<string, number> = {};
-(function loadDomainQuotas() {
-  let idx = 0;
-  while (true) {
-    const domain =
-      process.env[`RESEND_DOMAIN${idx ? `_${idx}` : ""}`] || (idx === 0 ? process.env.RESEND_DOMAIN : undefined);
-    const quota = process.env[`RESEND_QUOTA_TOTAL${idx ? `_${idx}` : ""}`];
-    if (!domain) break;
-    domainQuotaMap[domain] = quota ? Number(quota) : _EMAIL_QUOTA_TOTAL;
-    idx++;
-  }
-})();
+function normalizeDomain(domain?: string): string {
+  return String(domain || "").trim().toLowerCase();
+}
 
 function escapeRegExp(str: string) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function pushDomainConfig(map: Record<string, string>, domain?: string, key?: string) {
-  if (!domain || !key) return;
-  if (/^re_\w{8,}/.test(key)) {
-    map[domain] = key;
+  const safeDomain = normalizeDomain(domain);
+  const safeKey = String(key || "").trim();
+  if (!safeDomain || !safeKey) return;
+  if (RESEND_API_KEY_PATTERN.test(safeKey)) {
+    map[safeDomain] = safeKey;
   }
 }
 
-const domainApiKeyMap: Record<string, string> = {};
-(function loadDomainApiKeys() {
-  let resendIdx = 0;
-  while (true) {
-    const domain =
-      process.env[`RESEND_DOMAIN${resendIdx ? `_${resendIdx}` : ""}`] ||
-      (resendIdx === 0 ? process.env.RESEND_DOMAIN : undefined);
-    const key =
-      process.env[`RESEND_API_KEY${resendIdx ? `_${resendIdx}` : ""}`] ||
-      (resendIdx === 0 ? process.env.RESEND_API_KEY : undefined);
-    if (!domain || !key) break;
-    pushDomainConfig(domainApiKeyMap, domain, key);
-    resendIdx++;
+function pushDomainQuota(map: Record<string, number>, domain?: string, quota?: string | number) {
+  const safeDomain = normalizeDomain(domain);
+  if (!safeDomain) return;
+  const quotaTotal = Number(quota) || _EMAIL_QUOTA_TOTAL;
+  map[safeDomain] = Math.max(1, Math.round(quotaTotal));
+}
+
+function getEmailRuntimeConfig() {
+  return RuntimeConfigService.getCachedConfig().email;
+}
+
+function buildDomainQuotaMap(): Record<string, number> {
+  const map: Record<string, number> = {};
+  const runtimeEmail = getEmailRuntimeConfig();
+  if (runtimeEmail.enabled) {
+    let idx = 1;
+    while (true) {
+      const domain = process.env[`RESEND_DOMAIN_${idx}`];
+      const quota = process.env[`RESEND_QUOTA_TOTAL_${idx}`];
+      if (!domain) break;
+      pushDomainQuota(map, domain, quota);
+      idx++;
+    }
+    pushDomainQuota(map, runtimeEmail.resendDomain, runtimeEmail.quotaTotal);
+  }
+  if (runtimeEmail.outemailEnabled) {
+    pushDomainQuota(map, runtimeEmail.outemailDomain, runtimeEmail.outemailQuotaTotal);
   }
 
-  let outemailIdx = 0;
-  while (true) {
-    const domain =
-      process.env[`OUTEMAIL_DOMAIN${outemailIdx ? `_${outemailIdx}` : ""}`] ||
-      process.env[`RESEND_DOMAIN_OUT${outemailIdx ? `_${outemailIdx}` : ""}`] ||
-      (outemailIdx === 0 ? process.env.OUTEMAIL_DOMAIN || process.env.RESEND_DOMAIN_OUT : undefined);
-    const key =
-      process.env[`OUTEMAIL_API_KEY${outemailIdx ? `_${outemailIdx}` : ""}`] ||
-      process.env[`RESEND_API_OUT${outemailIdx ? `_${outemailIdx}` : ""}`] ||
-      (outemailIdx === 0 ? process.env.OUTEMAIL_API_KEY || process.env.RESEND_API_OUT : undefined);
-    if (!domain || !key) break;
-    pushDomainConfig(domainApiKeyMap, domain, key);
-    outemailIdx++;
+  return map;
+}
+
+function buildDomainApiKeyMap(): Record<string, string> {
+  const map: Record<string, string> = {};
+  const runtimeEmail = getEmailRuntimeConfig();
+  if (runtimeEmail.enabled) {
+    let resendIdx = 1;
+    while (true) {
+      const domain = process.env[`RESEND_DOMAIN_${resendIdx}`];
+      const key = process.env[`RESEND_API_KEY_${resendIdx}`];
+      if (!domain || !key) break;
+      pushDomainConfig(map, domain, key);
+      resendIdx++;
+    }
+    pushDomainConfig(map, runtimeEmail.resendDomain, runtimeEmail.resendApiKey);
+  }
+  if (runtimeEmail.outemailEnabled) {
+    let outemailIdx = 1;
+    while (true) {
+      const domain =
+        process.env[`OUTEMAIL_DOMAIN_${outemailIdx}`] || process.env[`RESEND_DOMAIN_OUT_${outemailIdx}`];
+      const key =
+        process.env[`OUTEMAIL_API_KEY_${outemailIdx}`] || process.env[`RESEND_API_OUT_${outemailIdx}`];
+      if (!domain || !key) break;
+      pushDomainConfig(map, domain, key);
+      outemailIdx++;
+    }
+    pushDomainConfig(map, runtimeEmail.outemailDomain, runtimeEmail.outemailApiKey);
   }
 
-  if (Object.keys(domainApiKeyMap).length === 0) {
-    pushDomainConfig(domainApiKeyMap, process.env.RESEND_DOMAIN, process.env.RESEND_API_KEY);
+  return map;
+}
+
+export function getDefaultEmailFrom(): string {
+  const domains = getAllSenderDomains();
+  const runtimeEmail = getEmailRuntimeConfig();
+  const preferredDomain =
+    runtimeEmail.enabled && runtimeEmail.resendDomain && domains.includes(normalizeDomain(runtimeEmail.resendDomain))
+      ? runtimeEmail.resendDomain
+      : domains[0] || FALLBACK_RESEND_DOMAIN;
+  return `noreply@${preferredDomain}`;
+}
+
+export function resolveOutEmailDomain(preferredDomain?: string): string {
+  const runtimeEmail = getEmailRuntimeConfig();
+  return normalizeDomain(preferredDomain) || normalizeDomain(runtimeEmail.outemailDomain) || normalizeDomain(process.env.OUTEMAIL_DOMAIN) || normalizeDomain(process.env.RESEND_DOMAIN_OUT) || normalizeDomain(process.env.RESEND_DOMAIN);
+}
+
+export function getOutEmailQuotaTotal(): number {
+  const runtimeEmail = getEmailRuntimeConfig();
+  return runtimeEmail.outemailQuotaTotal || Number(process.env.OUTEMAIL_QUOTA_TOTAL || process.env.RESEND_QUOTA_TOTAL) || 100;
+}
+
+export function getOutEmailCodeFallback(): string {
+  return getEmailRuntimeConfig().outemailCode || process.env.OUTEMAIL_CODE || "";
+}
+
+export function getOutEmailServiceStatus(): { available: boolean; error?: string; domain?: string } {
+  const runtimeEmail = getEmailRuntimeConfig();
+  const domain = resolveOutEmailDomain();
+  if (!runtimeEmail.outemailEnabled) {
+    return { available: false, error: "对外邮件服务未启用", domain };
   }
-})();
+  if (!domain) {
+    return { available: false, error: "对外邮件服务未配置域名", domain };
+  }
+  const domainMap = buildDomainApiKeyMap();
+  if (!domainMap[domain]) {
+    return { available: false, error: "未配置有效的对外邮件 API Key（re_ 开头）", domain };
+  }
+  if (!getOutEmailCodeFallback()) {
+    return { available: false, error: "对外邮件默认校验码未配置", domain };
+  }
+  return { available: true, domain };
+}
 
 export function getAllSenderDomains(): string[] {
-  return Object.keys(domainApiKeyMap);
+  return Object.keys(buildDomainApiKeyMap());
 }
 
 function getResendInstanceByDomain(domain: string) {
-  const key = domainApiKeyMap[domain];
+  const key = buildDomainApiKeyMap()[normalizeDomain(domain)];
   if (!key) throw new Error(`未配置该域名(${domain})的API key`);
   return new Resend(key);
 }
 
-function getServiceAvailabilityError(): string | undefined {
-  if (!(globalThis as any).EMAIL_ENABLED) {
-    return "邮件服务未启用，请联系管理员配置 RESEND_API_KEY";
+function getServiceAvailabilityError(domain?: string): string | undefined {
+  const domainMap = buildDomainApiKeyMap();
+  if (domain && domainMap[normalizeDomain(domain)]) {
+    return undefined;
   }
-  const serviceStatus = (globalThis as any).EMAIL_SERVICE_STATUS;
-  if (serviceStatus && !serviceStatus.available) {
-    return serviceStatus.error || "邮件服务不可用";
+  if (Object.keys(domainMap).length === 0) {
+    return "邮件服务未启用，请联系管理员配置 RESEND_API_KEY";
   }
   return undefined;
 }
@@ -213,7 +279,8 @@ export async function getEmailQuota(userId: string, domain?: string): Promise<Em
   try {
     if (mongoose.connection.readyState === 1) {
       const safeUserId = typeof userId === "string" ? userId : "";
-      const safeDomain = typeof domain === "string" ? domain : "default";
+      const safeDomain = typeof domain === "string" ? normalizeDomain(domain) : "default";
+      const domainQuotaMap = buildDomainQuotaMap();
       const quotaTotal = safeDomain && domainQuotaMap[safeDomain] ? domainQuotaMap[safeDomain] : _EMAIL_QUOTA_TOTAL;
       let quota = await EmailQuotaModel.findOne({ userId: safeUserId, domain: safeDomain });
       const now = dayjs();
@@ -240,7 +307,9 @@ export async function getEmailQuota(userId: string, domain?: string): Promise<Em
     safeSet(all, safeUserId, info);
     writeQuotaFile(all);
   }
-  const quotaTotal = domain && domainQuotaMap[domain] ? domainQuotaMap[domain] : _EMAIL_QUOTA_TOTAL;
+  const safeDomain = typeof domain === "string" ? normalizeDomain(domain) : "";
+  const domainQuotaMap = buildDomainQuotaMap();
+  const quotaTotal = safeDomain && domainQuotaMap[safeDomain] ? domainQuotaMap[safeDomain] : _EMAIL_QUOTA_TOTAL;
   return { used: info.used, total: quotaTotal, resetAt: info.resetAt, quotaTotal };
 }
 
@@ -248,7 +317,7 @@ export async function addEmailUsage(userId: string, count = 1, domain?: string) 
   try {
     if (mongoose.connection.readyState === 1) {
       const safeUserId = typeof userId === "string" ? userId : "";
-      const safeDomain = typeof domain === "string" ? domain : "default";
+      const safeDomain = typeof domain === "string" ? normalizeDomain(domain) : "default";
       let quota = await EmailQuotaModel.findOne({ userId: safeUserId, domain: safeDomain });
       const now = dayjs();
       if (!quota?.resetAt || dayjs(quota.resetAt).isBefore(now)) {
@@ -284,7 +353,7 @@ export async function resetEmailQuota(userId: string, domain?: string) {
   try {
     if (mongoose.connection.readyState === 1) {
       const safeUserId = typeof userId === "string" ? userId : "";
-      const safeDomain = typeof domain === "string" ? domain : "default";
+      const safeDomain = typeof domain === "string" ? normalizeDomain(domain) : "default";
       const resetAt = dayjs().add(1, "day").startOf("day").toISOString();
       await EmailQuotaModel.findOneAndUpdate(
         { userId: safeUserId, domain: safeDomain },
@@ -306,7 +375,7 @@ export async function resetEmailQuota(userId: string, domain?: string) {
 export class EmailService {
   static buildSenderAddress(fromPrefix?: string, domain?: string, displayName?: string) {
     const availableDomains = getAllSenderDomains();
-    const senderDomain = domain || availableDomains[0] || DEFAULT_RESEND_DOMAIN;
+    const senderDomain = normalizeDomain(domain) || availableDomains[0] || FALLBACK_RESEND_DOMAIN;
     const prefix = String(fromPrefix || "noreply")
       .trim()
       .replace(/[^a-zA-Z0-9._-]/g, "") || "noreply";
@@ -346,14 +415,15 @@ export class EmailService {
   }
 
   static async sendEmail(emailData: EmailData): Promise<EmailResponse> {
-    const availabilityError = getServiceAvailabilityError();
+    const domain = normalizeDomain(emailData.from.split("@")[1]);
+    const availabilityError = getServiceAvailabilityError(domain);
     if (availabilityError) {
       return { success: false, error: availabilityError };
     }
 
     try {
-      const domain = emailData.from.split("@")[1];
-      if (!domainApiKeyMap[domain]) {
+      const domainMap = buildDomainApiKeyMap();
+      if (!domainMap[domain]) {
         return {
           success: false,
           error: `发件人邮箱必须是已配置域名之一，当前域名: ${domain}`,
@@ -419,7 +489,8 @@ export class EmailService {
   }
 
   static async sendBatchEmail(batchEmailData: BatchEmailData): Promise<EmailResponse & { ids?: string[] }> {
-    const availabilityError = getServiceAvailabilityError();
+    const domain = normalizeDomain(batchEmailData.from.split("@")[1]);
+    const availabilityError = getServiceAvailabilityError(domain);
     if (availabilityError) {
       return { success: false, error: availabilityError };
     }
@@ -428,8 +499,8 @@ export class EmailService {
     if (safeMessages.length === 0) return { success: false, error: "消息列表不能为空" };
     if (safeMessages.length > 100) return { success: false, error: "单次最多批量发送100封" };
 
-    const domain = batchEmailData.from.split("@")[1];
-    if (!domainApiKeyMap[domain]) {
+    const domainMap = buildDomainApiKeyMap();
+    if (!domainMap[domain]) {
       return {
         success: false,
         error: `发件人邮箱必须是已配置域名之一，当前域名: ${domain}`,
@@ -477,7 +548,7 @@ export class EmailService {
 
   static async sendSimpleEmail(to: string[], subject: string, content: string, from?: string): Promise<EmailResponse> {
     return EmailService.sendEmail({
-      from: from || DEFAULT_EMAIL_FROM,
+      from: from || getDefaultEmailFrom(),
       to,
       subject,
       html: `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;"><p>${content.replace(/\n/g, "<br>")}</p></div>`,
@@ -487,7 +558,7 @@ export class EmailService {
 
   static async sendHtmlEmail(to: string[], subject: string, htmlContent: string, from?: string): Promise<EmailResponse> {
     return EmailService.sendEmail({
-      from: from || DEFAULT_EMAIL_FROM,
+      from: from || getDefaultEmailFrom(),
       to,
       subject,
       html: htmlContent,
@@ -502,7 +573,7 @@ export class EmailService {
   ): Promise<EmailResponse & { ids?: string[] }> {
     const safeTo = (to || []).map((item) => String(item).trim()).filter(Boolean);
     return EmailService.sendBatchEmail({
-      from: from || DEFAULT_EMAIL_FROM,
+      from: from || getDefaultEmailFrom(),
       messages: safeTo.map((recipient) => ({
         to: [recipient],
         subject,
@@ -569,8 +640,8 @@ export class EmailService {
   }
 
   static isValidSenderDomain(email: string): boolean {
-    const domain = email.split("@")[1];
-    return Boolean(domain && domainApiKeyMap[domain]);
+    const domain = normalizeDomain(email.split("@")[1]);
+    return Boolean(domain && buildDomainApiKeyMap()[domain]);
   }
 
   static validateEmails(emails: string[]): { valid: string[]; invalid: string[] } {
@@ -589,11 +660,8 @@ export class EmailService {
   }
 
   static async getServiceStatus(): Promise<{ available: boolean; error?: string }> {
-    if ((globalThis as any).EMAIL_SERVICE_STATUS) {
-      return (globalThis as any).EMAIL_SERVICE_STATUS;
-    }
-    const keys = Object.values(domainApiKeyMap);
-    const key = keys.find((value) => /^re_\w{8,}/.test(value));
+    const keys = Object.values(buildDomainApiKeyMap());
+    const key = keys.find((value) => RESEND_API_KEY_PATTERN.test(value));
     if (!key) {
       return { available: false, error: "未配置有效的邮件API密钥（re_ 开头）" };
     }
