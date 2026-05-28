@@ -1,5 +1,6 @@
 import type { Request } from "express";
 import logger from "../utils/logger";
+import { startupConfig } from "../config/config";
 
 const nanoid = require("nanoid").nanoid;
 
@@ -40,6 +41,12 @@ async function getIPFSUploadURL(): Promise<string> {
     logger.error("[IPFS] 读取IPFS_UPLOAD_URL配置失败", e);
   }
 
+  // 回退：环境变量 IPFS_UPLOAD_URL
+  if (startupConfig.ipfs.uploadUrl) {
+    logger.info("[IPFS] 使用环境变量 IPFS_UPLOAD_URL:", startupConfig.ipfs.uploadUrl);
+    return startupConfig.ipfs.uploadUrl;
+  }
+
   // 如果没有配置，抛出错�?
   throw new Error('IPFS_UPLOAD_URL配置未设置，请在MongoDB的shorturl_settings集合中设置key为"IPFS_UPLOAD_URL"的配置');
 }
@@ -57,7 +64,10 @@ async function getIPFSUserAgent(): Promise<string> {
     logger.error("[IPFS] 读取IPFS_UA配置失败", e);
   }
 
-  // 如果没有配置，使用默认User-Agent
+  // 回退：环境变量 IPFS_UA，再无配置则使用内置默认 UA
+  if (startupConfig.ipfs.userAgent) {
+    return startupConfig.ipfs.userAgent;
+  }
   const defaultUA = "Synapse-IPFS-Client/1.0";
   logger.info("[IPFS] 使用默认User-Agent:", defaultUA);
   return defaultUA;
@@ -76,6 +86,10 @@ async function getBypassUAKeyword(): Promise<string | null> {
     logger.error("[IPFS] 读取IPFS_BYPASS_UA_KEYWORD配置失败", e);
   }
 
+  // 回退：环境变量 IPFS_BYPASS_UA_KEYWORD
+  if (startupConfig.ipfs.bypassUaKeyword) {
+    return startupConfig.ipfs.bypassUaKeyword;
+  }
   return null;
 }
 
@@ -94,6 +108,10 @@ async function getAllowAllFileTypes(): Promise<boolean> {
     logger.error("[IPFS] 读取IPFS_ALLOW_ALL_FILE_TYPES配置失败", e);
   }
 
+  // 回退：环境变量 IPFS_ALLOW_ALL_FILE_TYPES
+  if (typeof startupConfig.ipfs.allowAllFileTypes === "boolean") {
+    return startupConfig.ipfs.allowAllFileTypes;
+  }
   return false;
 }
 
@@ -108,7 +126,7 @@ async function getImageBedApiUrl(): Promise<string> {
   } catch (e) {
     logger.error("[ImageBed] 读取IMAGE_BED_API_URL配置失败", e);
   }
-  return "https://img.scdn.io/api/v1.php";
+  return startupConfig.imageBed.apiUrl || "https://img.scdn.io/api/v1.php";
 }
 
 async function getImageBedDefaultCdn(): Promise<string | null> {
@@ -122,7 +140,7 @@ async function getImageBedDefaultCdn(): Promise<string | null> {
   } catch (e) {
     logger.error("[ImageBed] 读取IMAGE_BED_CDN_DOMAIN配置失败", e);
   }
-  return null;
+  return startupConfig.imageBed.cdnDomain || null;
 }
 
 async function getImageBedDefaultStorage(): Promise<string | null> {
@@ -136,7 +154,7 @@ async function getImageBedDefaultStorage(): Promise<string | null> {
   } catch (e) {
     logger.error("[ImageBed] 读取IMAGE_BED_STORAGE_DESTINATION配置失败", e);
   }
-  return null;
+  return startupConfig.imageBed.storageDestination || null;
 }
 
 async function getImageBedDefaultOutputFormat(): Promise<string | null> {
@@ -150,7 +168,7 @@ async function getImageBedDefaultOutputFormat(): Promise<string | null> {
   } catch (e) {
     logger.error("[ImageBed] 读取IMAGE_BED_OUTPUT_FORMAT配置失败", e);
   }
-  return null;
+  return startupConfig.imageBed.outputFormat || null;
 }
 
 async function getDevSkipTurnstile(): Promise<boolean> {
@@ -168,6 +186,10 @@ async function getDevSkipTurnstile(): Promise<boolean> {
     logger.error("[IPFS] 读取IPFS_DEV_SKIP_TURNSTILE配置失败", e);
   }
 
+  // 回退：环境变量 IPFS_DEV_SKIP_TURNSTILE，再无配置时开发环境默认跳过
+  if (typeof startupConfig.ipfs.devSkipTurnstile === "boolean") {
+    return startupConfig.ipfs.devSkipTurnstile;
+  }
   // 开发环境默认跳�?Turnstile 验证
   const isDev = process.env.NODE_ENV !== "production";
   logger.info("[IPFS] 使用默认IPFS_DEV_SKIP_TURNSTILE配置:", isDev);

@@ -79,6 +79,22 @@ const envSchema = z
     OUTEMAIL_API_KEY: optionalTrimmedString,
     RESEND_API_OUT: optionalTrimmedString,
     OUTEMAIL_CODE: z.string().optional().default(""),
+    // ============================================
+    // IPFS / ImageBed 上传相关配置
+    // 这些键同时支持 MongoDB shorturl_settings 动态覆盖；
+    // 当数据库未配置时，回退到此处的环境变量值。
+    // ============================================
+    IPFS_UPLOAD_URL: optionalTrimmedString,
+    IPFS_UA: optionalTrimmedString,
+    IPFS_BYPASS_UA_KEYWORD: optionalTrimmedString,
+    IPFS_ALLOW_ALL_FILE_TYPES: stringToBoolean,
+    IPFS_DEV_SKIP_TURNSTILE: stringToBoolean,
+    IMAGE_BED_API_URL: z.string().url().optional().default("https://img.scdn.io/api/v1.php"),
+    IMAGE_BED_CDN_DOMAIN: optionalTrimmedString,
+    IMAGE_BED_STORAGE_DESTINATION: z.enum(["local", "telegram", "r2"]).optional(),
+    IMAGE_BED_OUTPUT_FORMAT: z
+      .enum(["auto", "jpg", "jpeg", "png", "webp", "gif", "webp_animated"])
+      .optional(),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === "production") {
@@ -208,6 +224,19 @@ export const startupConfig = Object.freeze({
     password: publicShortUrlPassword,
   },
   ipBanStorage: parsedEnv.REDIS_URL ? ("redis" as const) : ("mongo" as const),
+  ipfs: {
+    uploadUrl: parsedEnv.IPFS_UPLOAD_URL,
+    userAgent: parsedEnv.IPFS_UA,
+    bypassUaKeyword: parsedEnv.IPFS_BYPASS_UA_KEYWORD,
+    allowAllFileTypes: parsedEnv.IPFS_ALLOW_ALL_FILE_TYPES,
+    devSkipTurnstile: parsedEnv.IPFS_DEV_SKIP_TURNSTILE,
+  },
+  imageBed: {
+    apiUrl: parsedEnv.IMAGE_BED_API_URL,
+    cdnDomain: parsedEnv.IMAGE_BED_CDN_DOMAIN,
+    storageDestination: parsedEnv.IMAGE_BED_STORAGE_DESTINATION,
+    outputFormat: parsedEnv.IMAGE_BED_OUTPUT_FORMAT,
+  },
 });
 
 export const runtimeMutableConfig = {
