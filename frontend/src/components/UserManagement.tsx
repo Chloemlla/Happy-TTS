@@ -1014,10 +1014,50 @@ const UserManagement: React.FC = () => {
     return () => window.clearTimeout(timer);
   }, [revealPasswordState.revealedPassword]);
 
+  const revealPasswordWithToken = useCallback(async (
+    targetUserId: string,
+    reason: string,
+    verificationToken: string,
+  ) => {
+    const body = {
+      reason,
+      verificationToken,
+    };
+    const bodyString = JSON.stringify(body);
+    const headers = await getSignHeaders(bodyString);
+    const res = await api.post(`/api/admin/users/${targetUserId}/reveal-password`, body, {
+      headers,
+    });
+    const password = res.data?.password;
+    if (typeof password !== 'string') {
+      throw new Error('接口未返回密码');
+    }
+
+    setRevealPasswordState(prev => ({
+      ...prev,
+      verificationToken: '',
+      revealedPassword: password,
+    }));
+    setNotification({ type: 'success', message: '密码已显示，30 秒后自动隐藏' });
+  }, [setNotification]);
+
   const handleVerifyRevealPassword = useCallback(async () => {
-    if (!revealPasswordState.targetUser) return;
-    if (!revealPasswordState.reason.trim()) {
-      setNotification({ type: 'error', message: '请填写查看原因' });
+    const targetUser = revealPasswordState.targetUser;
+    if (!targetUser) return;
+
+    const reason = revealPasswordState.reason.trim();
+    if (reason.length < 4 || reason.length > 200) {
+      setNotification({ type: 'error', message: '请填写查看原因（4-200字符）' });
+      return;
+    }
+
+    if (revealPasswordState.method === 'password' && !revealPasswordState.password) {
+      setNotification({ type: 'error', message: '请输入当前管理员密码' });
+      return;
+    }
+
+    if (revealPasswordState.method === 'totp' && !/^\d{6}$/.test(revealPasswordState.verificationCode.trim())) {
+      setNotification({ type: 'error', message: '请输入 6 位 TOTP 验证码' });
       return;
     }
 
@@ -1026,49 +1066,48 @@ const UserManagement: React.FC = () => {
       const payload =
         revealPasswordState.method === 'password'
           ? { method: 'password', password: revealPasswordState.password }
-          : { method: 'totp', verificationCode: revealPasswordState.verificationCode };
-      const res = await api.post(`/api/admin/users/${revealPasswordState.targetUser.id}/reveal-password/verify`, payload);
+          : { method: 'totp', verificationCode: revealPasswordState.verificationCode.trim() };
+      const res = await api.post(`/api/admin/users/${targetUser.id}/reveal-password/verify`, payload);
+      const verificationToken = res.data?.verificationToken;
+      if (typeof verificationToken !== 'string' || !verificationToken) {
+        throw new Error('验证通过但未返回查看凭证');
+      }
+
       setRevealPasswordState(prev => ({
         ...prev,
-        verificationToken: res.data?.verificationToken || '',
+        verificationToken,
+        revealedPassword: '',
       }));
-      setNotification({ type: 'success', message: '二次鉴权通过，请继续查看密码' });
+      await revealPasswordWithToken(targetUser.id, reason, verificationToken);
     } catch (e: any) {
-      setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '二次验证失败' });
+      setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '二次验证或查看密码失败' });
     } finally {
       setRevealPasswordState(prev => ({ ...prev, loading: false }));
     }
-  }, [revealPasswordState, setNotification]);
+  }, [revealPasswordState, revealPasswordWithToken, setNotification]);
 
   const handleRevealPassword = useCallback(async () => {
-    if (!revealPasswordState.targetUser) return;
+    const targetUser = revealPasswordState.targetUser;
+    if (!targetUser) return;
     if (!revealPasswordState.verificationToken) {
       setNotification({ type: 'error', message: '请先完成二次鉴权' });
+      return;
+    }
+    const reason = revealPasswordState.reason.trim();
+    if (reason.length < 4 || reason.length > 200) {
+      setNotification({ type: 'error', message: '请填写查看原因（4-200字符）' });
       return;
     }
 
     setRevealPasswordState(prev => ({ ...prev, loading: true }));
     try {
-      const body = {
-        reason: revealPasswordState.reason.trim(),
-        verificationToken: revealPasswordState.verificationToken,
-      };
-      const bodyString = JSON.stringify(body);
-      const headers = await getSignHeaders(bodyString);
-      const res = await api.post(`/api/admin/users/${revealPasswordState.targetUser.id}/reveal-password`, body, {
-        headers,
-      });
-      setRevealPasswordState(prev => ({
-        ...prev,
-        revealedPassword: res.data?.password || '',
-      }));
-      setNotification({ type: 'success', message: '密码已显示，30 秒后自动隐藏' });
+      await revealPasswordWithToken(targetUser.id, reason, revealPasswordState.verificationToken);
     } catch (e: any) {
       setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '查看密码失败' });
     } finally {
       setRevealPasswordState(prev => ({ ...prev, loading: false }));
     }
-  }, [revealPasswordState, setNotification]);
+  }, [revealPasswordState, revealPasswordWithToken, setNotification]);
 
   if (!user || user.role !== 'admin') {
     return (
