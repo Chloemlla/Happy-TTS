@@ -53,12 +53,36 @@ export class IPFSController {
         // 从请求中提取cfToken（Turnstile验证token）
         const cfToken = req.body.cfToken;
 
+        // ImageBed (scdn.io v1.php) 透传参数
+        const passwordEnabled =
+          req.body.password_enabled === "true" || req.body.password_enabled === true;
+        const useLegacyIpfs =
+          req.body.useLegacyIpfs === "true" || req.body.useLegacyIpfs === true;
+
         // 使用IPFS服务上传文件（传递上下文用于本机管理员免除Turnstile验证）
         const uploadResult = await IPFSService.uploadFile(
           buffer,
           originalname,
           mimetype,
-          { shortLink: !!shortLinkFlag, userId, username },
+          {
+            shortLink: !!shortLinkFlag,
+            userId,
+            username,
+            outputFormat: typeof req.body.outputFormat === "string" ? req.body.outputFormat : undefined,
+            cdnDomain:
+              typeof req.body.cdn_domain === "string" && req.body.cdn_domain !== "default"
+                ? req.body.cdn_domain
+                : undefined,
+            storageDestination:
+              typeof req.body.storage_destination === "string"
+                ? req.body.storage_destination
+                : undefined,
+            passwordEnabled,
+            imagePassword: typeof req.body.image_password === "string" ? req.body.image_password : undefined,
+            passwordType: typeof req.body.password_type === "string" ? req.body.password_type : undefined,
+            passwordQuestion:
+              typeof req.body.password_question === "string" ? req.body.password_question : undefined,
+          },
           cfToken,
           {
             clientIp: ip,
@@ -66,15 +90,19 @@ export class IPFSController {
             isDev,
             shouldSkipTurnstile,
             userAgent: req.headers["user-agent"] || "",
+            useLegacyIpfs,
           },
         );
 
-        logger.info("IPFS上传成功", {
+        logger.info("图片上传成功", {
           ip,
           filename: originalname,
           fileSize: buffer.length,
+          remoteFilename: uploadResult.filename,
           cid: uploadResult.cid,
+          url: uploadResult.url,
           web2url: uploadResult.web2url,
+          storageBackend: uploadResult.storageBackend,
         });
 
         return uploadResult;
@@ -83,14 +111,19 @@ export class IPFSController {
       // 返回成功响应
       res.json({
         success: true,
-        message: "图片上传成功",
+        message: result.message || "图片上传成功",
         data: {
           cid: result.cid,
           url: result.url,
           web2url: result.web2url,
           fileSize: result.fileSize,
-          filename: originalname,
+          filename: result.filename || originalname,
           shortUrl: result.shortUrl,
+          storageBackend: result.storageBackend,
+          passwordProtected: result.passwordProtected,
+          originalSize: result.originalSize,
+          compressedSize: result.compressedSize,
+          compressionRatio: result.compressionRatio,
         },
       });
     } catch (error) {
@@ -125,10 +158,14 @@ export class IPFSController {
         timestamp: new Date().toISOString(),
       });
 
-      const ipfsUploadUrl = await IPFSService.getCurrentIPFSUploadURL();
+      const ipfsUploadUrl = await IPFSService.getCurrentIPFSUploadURL().catch(() => "");
       const ipfsUa = await IPFSService.getCurrentIPFSUserAgent();
       const bypassUAKeyword = await IPFSService.getCurrentBypassUAKeyword();
       const allowAllFileTypes = await IPFSService.getCurrentAllowAllFileTypes();
+      const imageBedApiUrl = await IPFSService.getCurrentImageBedApiUrl();
+      const imageBedCdnDomain = await IPFSService.getCurrentImageBedDefaultCdn();
+      const imageBedStorageDestination = await IPFSService.getCurrentImageBedDefaultStorage();
+      const imageBedOutputFormat = await IPFSService.getCurrentImageBedDefaultOutputFormat();
 
       res.json({
         success: true,
@@ -137,6 +174,10 @@ export class IPFSController {
           ipfsUa,
           bypassUAKeyword,
           allowAllFileTypes,
+          imageBedApiUrl,
+          imageBedCdnDomain,
+          imageBedStorageDestination,
+          imageBedOutputFormat,
         },
       });
     } catch (error) {
@@ -162,7 +203,16 @@ export class IPFSController {
     try {
       const ip = IPFSController.getClientIp(req);
       const userId = (req as any).user?.id || "unknown";
-      const { ipfsUploadUrl, ipfsUa, bypassUAKeyword, allowAllFileTypes } = req.body;
+      const {
+        ipfsUploadUrl,
+        ipfsUa,
+        bypassUAKeyword,
+        allowAllFileTypes,
+        imageBedApiUrl,
+        imageBedCdnDomain,
+        imageBedStorageDestination,
+        imageBedOutputFormat,
+      } = req.body;
 
       logger.info("设置IPFS配置请求", {
         ip,
@@ -171,31 +221,52 @@ export class IPFSController {
         ipfsUa,
         bypassUAKeyword,
         allowAllFileTypes,
+        imageBedApiUrl,
+        imageBedCdnDomain,
+        imageBedStorageDestination,
+        imageBedOutputFormat,
         timestamp: new Date().toISOString(),
       });
 
       // 至少需要提供一个可更新的字段
+      const hasNonString = (v: any) => typeof v === "string" && v.trim().length > 0;
       if (
-        (!ipfsUploadUrl || typeof ipfsUploadUrl !== "string" || !ipfsUploadUrl.trim()) &&
-        (!ipfsUa || typeof ipfsUa !== "string" || !ipfsUa.trim()) &&
-        (!bypassUAKeyword || typeof bypassUAKeyword !== "string" || !bypassUAKeyword.trim()) &&
-        typeof allowAllFileTypes !== "boolean"
+        !hasNonString(ipfsUploadUrl) &&
+        !hasNonString(ipfsUa) &&
+        !hasNonString(bypassUAKeyword) &&
+        typeof allowAllFileTypes !== "boolean" &&
+        !hasNonString(imageBedApiUrl) &&
+        !hasNonString(imageBedCdnDomain) &&
+        !hasNonString(imageBedStorageDestination) &&
+        !hasNonString(imageBedOutputFormat)
       ) {
         return res.status(400).json({ success: false, error: "请提供至少一个配置项进行更新" });
       }
 
       // 更新各项配置
-      if (ipfsUploadUrl && typeof ipfsUploadUrl === "string" && ipfsUploadUrl.trim()) {
+      if (hasNonString(ipfsUploadUrl)) {
         await IPFSService.setIPFSUploadURL(ipfsUploadUrl);
       }
-      if (typeof ipfsUa === "string" && ipfsUa.trim()) {
+      if (hasNonString(ipfsUa)) {
         await IPFSService.setIPFSUserAgent(ipfsUa);
       }
-      if (typeof bypassUAKeyword === "string" && bypassUAKeyword.trim()) {
+      if (hasNonString(bypassUAKeyword)) {
         await IPFSService.setBypassUAKeyword(bypassUAKeyword);
       }
       if (typeof allowAllFileTypes === "boolean") {
         await IPFSService.setAllowAllFileTypes(allowAllFileTypes);
+      }
+      if (hasNonString(imageBedApiUrl)) {
+        await IPFSService.setImageBedApiUrl(imageBedApiUrl);
+      }
+      if (hasNonString(imageBedCdnDomain)) {
+        await IPFSService.setImageBedDefaultCdn(imageBedCdnDomain);
+      }
+      if (hasNonString(imageBedStorageDestination)) {
+        await IPFSService.setImageBedDefaultStorage(imageBedStorageDestination);
+      }
+      if (hasNonString(imageBedOutputFormat)) {
+        await IPFSService.setImageBedDefaultOutputFormat(imageBedOutputFormat);
       }
 
       res.json({
@@ -219,63 +290,78 @@ export class IPFSController {
   }
 
   /**
-   * 测试IPFS配置
+   * 测试ImageBed/IPFS配置
    */
   public static async testConfig(req: Request, res: Response) {
     try {
       const ip = IPFSController.getClientIp(req);
       const userId = (req as any).user?.id || "unknown";
+      const target = (req.query.target as string) || (req.body && req.body.target) || "imagebed";
 
-      logger.info("测试IPFS配置请求", {
+      logger.info("测试上传配置请求", {
         ip,
         userId,
+        target,
         timestamp: new Date().toISOString(),
       });
 
-      const ipfsUploadUrl = await IPFSService.getCurrentIPFSUploadURL();
-      const ipfsUa = await IPFSService.getCurrentIPFSUserAgent();
+      if (target === "ipfs") {
+        const ipfsUploadUrl = await IPFSService.getCurrentIPFSUploadURL();
+        const ipfsUa = await IPFSService.getCurrentIPFSUserAgent();
+        const testBuffer = Buffer.from("IPFS配置测试文件", "utf-8");
+        const testFilename = "test-ipfs-config.txt";
+        const formData = new (require("form-data"))();
+        formData.append("file", testBuffer, { filename: testFilename, contentType: "text/plain" });
 
-      // 创建一个简单的测试文件
-      const testBuffer = Buffer.from("IPFS配置测试文件", "utf-8");
-      const testFilename = "test-ipfs-config.txt";
-
-      // 测试上传
-      const formData = new (require("form-data"))();
-      formData.append("file", testBuffer, {
-        filename: testFilename,
-        contentType: "text/plain",
-      });
-
-      const response = await axios.post(
-        `${ipfsUploadUrl}?stream-channels=true&pin=false&wrap-with-directory=false&progress=false`,
-        formData,
-        {
-          headers: {
-            ...formData.getHeaders(),
-            "User-Agent": ipfsUa,
+        const response = await axios.post(
+          `${ipfsUploadUrl}?stream-channels=true&pin=false&wrap-with-directory=false&progress=false`,
+          formData,
+          {
+            headers: { ...formData.getHeaders(), "User-Agent": ipfsUa },
+            timeout: 10000,
           },
-          timeout: 10000, // 10秒超时
-        },
-      );
+        );
 
-      if (response.data?.Hash) {
-        logger.info("IPFS配置测试成功", {
-          ip,
-          userId,
-          cid: response.data.Hash,
-        });
-
-        res.json({
-          success: true,
-          message: `IPFS配置测试成功，测试文件CID: ${response.data.Hash}`,
-        });
-      } else {
+        if (response.data?.Hash) {
+          return res.json({
+            success: true,
+            message: `IPFS配置测试成功，CID: ${response.data.Hash}`,
+          });
+        }
         throw new Error("IPFS服务返回格式异常");
       }
+
+      // 默认测试 ImageBed（scdn.io v1.php）
+      const apiUrl = await IPFSService.getCurrentImageBedApiUrl();
+      // 1x1 透明 PNG
+      const pngBase64 =
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+      const testBuffer = Buffer.from(pngBase64, "base64");
+      const formData = new (require("form-data"))();
+      formData.append("image", testBuffer, { filename: "test-imagebed.png", contentType: "image/png" });
+
+      const response = await axios.post(apiUrl, formData, {
+        headers: { ...formData.getHeaders() },
+        timeout: 15000,
+        validateStatus: (s: number) => s >= 200 && s < 500,
+      });
+
+      const body: any = response.data || {};
+      if (body && body.success === true) {
+        const url = body.url || body.data?.url || "";
+        return res.json({
+          success: true,
+          message: `ImageBed 配置测试成功，URL: ${url}`,
+          data: body.data || null,
+        });
+      }
+
+      const errMsg = body?.error || body?.message || `HTTP ${response.status}`;
+      throw new Error(`ImageBed 返回失败: ${errMsg}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "测试配置失败";
 
-      logger.error("测试IPFS配置失败", {
+      logger.error("测试上传配置失败", {
         ip: IPFSController.getClientIp(req),
         error: errorMessage,
         timestamp: new Date().toISOString(),
@@ -283,7 +369,7 @@ export class IPFSController {
 
       res.status(500).json({
         success: false,
-        error: `IPFS配置测试失败: ${errorMessage}`,
+        error: `配置测试失败: ${errorMessage}`,
       });
     }
   }

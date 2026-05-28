@@ -97,6 +97,62 @@ async function getAllowAllFileTypes(): Promise<boolean> {
   return false;
 }
 
+async function getImageBedApiUrl(): Promise<string> {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      const doc = await IPFSSettingModel.findOne({ key: "IMAGE_BED_API_URL" }).lean().exec();
+      if (doc && typeof doc.value === "string" && doc.value.trim().length > 0) {
+        return doc.value.trim();
+      }
+    }
+  } catch (e) {
+    logger.error("[ImageBed] 读取IMAGE_BED_API_URL配置失败", e);
+  }
+  return "https://img.scdn.io/api/v1.php";
+}
+
+async function getImageBedDefaultCdn(): Promise<string | null> {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      const doc = await IPFSSettingModel.findOne({ key: "IMAGE_BED_CDN_DOMAIN" }).lean().exec();
+      if (doc && typeof doc.value === "string" && doc.value.trim().length > 0) {
+        return doc.value.trim();
+      }
+    }
+  } catch (e) {
+    logger.error("[ImageBed] 读取IMAGE_BED_CDN_DOMAIN配置失败", e);
+  }
+  return null;
+}
+
+async function getImageBedDefaultStorage(): Promise<string | null> {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      const doc = await IPFSSettingModel.findOne({ key: "IMAGE_BED_STORAGE_DESTINATION" }).lean().exec();
+      if (doc && typeof doc.value === "string" && doc.value.trim().length > 0) {
+        return doc.value.trim();
+      }
+    }
+  } catch (e) {
+    logger.error("[ImageBed] 读取IMAGE_BED_STORAGE_DESTINATION配置失败", e);
+  }
+  return null;
+}
+
+async function getImageBedDefaultOutputFormat(): Promise<string | null> {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      const doc = await IPFSSettingModel.findOne({ key: "IMAGE_BED_OUTPUT_FORMAT" }).lean().exec();
+      if (doc && typeof doc.value === "string" && doc.value.trim().length > 0) {
+        return doc.value.trim();
+      }
+    }
+  } catch (e) {
+    logger.error("[ImageBed] 读取IMAGE_BED_OUTPUT_FORMAT配置失败", e);
+  }
+  return null;
+}
+
 async function getDevSkipTurnstile(): Promise<boolean> {
   try {
     if (mongoose.connection.readyState === 1) {
@@ -127,6 +183,30 @@ export interface IPFSUploadResponse {
   gnfd_id: string | null;
   gnfd_txn: string | null;
   shortUrl?: string;
+  /** ImageBed: 上传后真实保存的文件名 */
+  filename?: string;
+  /** ImageBed: 后端存储类型 local/telegram/r2 */
+  storageBackend?: string;
+  /** ImageBed: 是否为加密图片（/p/ 路径） */
+  passwordProtected?: boolean;
+  /** ImageBed: 原始尺寸字节 */
+  originalSize?: number;
+  /** ImageBed: 压缩后尺寸字节 */
+  compressedSize?: number;
+  /** ImageBed: 压缩比 */
+  compressionRatio?: number;
+  /** ImageBed: 服务端提示信息（例如秒传命中） */
+  message?: string;
+}
+
+export interface ImageBedUploadOptions {
+  outputFormat?: string;
+  cdnDomain?: string;
+  storageDestination?: string;
+  passwordEnabled?: boolean;
+  imagePassword?: string;
+  passwordType?: string;
+  passwordQuestion?: string;
 }
 
 // 确保 mongoose 连接已建�?
@@ -154,7 +234,7 @@ export class IPFSService {
     fileBuffer: Buffer,
     filename: string,
     mimetype: string,
-    options?: { shortLink?: boolean; userId?: string; username?: string },
+    options?: { shortLink?: boolean; userId?: string; username?: string } & ImageBedUploadOptions,
     cfToken?: string,
     context?: {
       clientIp?: string;
@@ -163,6 +243,8 @@ export class IPFSService {
       shouldSkipTurnstile?: boolean;
       userAgent?: string;
       skipFileTypeCheck?: boolean;
+      /** 强制走旧的 IPFS 上传路径（默认 false） */
+      useLegacyIpfs?: boolean;
     },
   ): Promise<IPFSUploadResponse> {
     // 检查UA是否包含绕过关键�?
@@ -249,6 +331,16 @@ export class IPFSService {
     // 如果规范化后的文件名有问题，使用原始文件�?
     const finalFilename = normalizedFilename && normalizedFilename !== ".svg" ? normalizedFilename : filename;
 
+    // 图片走 ImageBed（scdn.io v1.php）；SVG / 归档 / 显式强制时仍走旧 IPFS
+    const lowerMime = (mimetype || "").toLowerCase();
+    const isSvg = lowerMime === "image/svg+xml" || finalFilename.toLowerCase().endsWith(".svg");
+    const isImageBedSupported = lowerMime.startsWith("image/") && !isSvg;
+    const shouldUseImageBed = isImageBedSupported && !context?.useLegacyIpfs && !context?.skipFileTypeCheck;
+
+    if (shouldUseImageBed) {
+      return await IPFSService.uploadToImageBed(fileBuffer, finalFilename, mimetype, options);
+    }
+
     // 如果是SVG文件，验证和优化文件内容
     if (mimetype.toLowerCase() === "image/svg+xml" || filename.toLowerCase().endsWith(".svg")) {
       logger.info(`[IPFS] 检测到SVG文件，进行安全验证和优化: ${filename}`);
@@ -257,6 +349,140 @@ export class IPFSService {
       fileBuffer = Buffer.from(await IPFSService.optimizeSVGContent(fileBuffer.toString("utf-8")));
     }
     return await IPFSService.uploadFileInternal(fileBuffer, finalFilename, mimetype, options, cfToken);
+  }
+
+  /**
+   * 通过 ImageBed (scdn.io v1.php) 上传图片
+   */
+  private static async uploadToImageBed(
+    fileBuffer: Buffer,
+    filename: string,
+    mimetype: string,
+    options?: { shortLink?: boolean; userId?: string; username?: string } & ImageBedUploadOptions,
+  ): Promise<IPFSUploadResponse> {
+    const apiUrl = await getImageBedApiUrl();
+    const cdnDomain = options?.cdnDomain || (await getImageBedDefaultCdn()) || undefined;
+    const storageDestination = options?.storageDestination || (await getImageBedDefaultStorage()) || undefined;
+    const outputFormat = options?.outputFormat || (await getImageBedDefaultOutputFormat()) || undefined;
+
+    const formData = new (require("form-data"))();
+    // 注意：ImageBed API 字段名为 image
+    formData.append("image", fileBuffer, { filename, contentType: mimetype });
+    if (outputFormat) formData.append("outputFormat", outputFormat);
+    if (cdnDomain) formData.append("cdn_domain", cdnDomain);
+    if (storageDestination) formData.append("storage_destination", storageDestination);
+    if (options?.passwordEnabled) {
+      if (!options.imagePassword) {
+        throw new Error("启用密码保护时必须提供 image_password");
+      }
+      formData.append("password_enabled", "true");
+      formData.append("image_password", options.imagePassword);
+      if (options.passwordType) {
+        formData.append("password_type", options.passwordType);
+        if (options.passwordType === "qa") {
+          if (!options.passwordQuestion) {
+            throw new Error("问答式密码必须提供 password_question");
+          }
+          formData.append("password_question", options.passwordQuestion);
+        }
+      }
+    }
+
+    logger.info("[ImageBed] 上传图片", {
+      apiUrl,
+      filename,
+      mimetype,
+      size: fileBuffer.length,
+      cdnDomain,
+      storageDestination,
+      outputFormat,
+      passwordProtected: !!options?.passwordEnabled,
+    });
+
+    let response: any;
+    try {
+      response = await require("axios").post(apiUrl, formData, {
+        headers: { ...formData.getHeaders() },
+        timeout: 60000,
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+        validateStatus: (s: number) => s >= 200 && s < 500, // 让上层根据 success 字段判断
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error("[ImageBed] 请求失败", { msg });
+      throw new Error(`ImageBed 上传失败: ${msg}`);
+    }
+
+    const body: any = response?.data || {};
+    if (!body || body.success !== true) {
+      const errMsg = body?.error || body?.message || `HTTP ${response?.status}`;
+      logger.error("[ImageBed] 上传返回失败", { status: response?.status, body });
+      throw new Error(`ImageBed 上传失败: ${errMsg}`);
+    }
+
+    const data = body.data || {};
+    const finalUrl: string = body.url || data.url || "";
+    const remoteFilename: string = data.filename || filename;
+    const storageBackend: string | undefined = data.storage_backend;
+    const originalSize: number | undefined =
+      typeof data.original_size === "number" ? data.original_size : undefined;
+    const compressedSize: number | undefined =
+      typeof data.compressed_size === "number" ? data.compressed_size : undefined;
+    const compressionRatio: number | undefined =
+      typeof data.compression_ratio === "number" ? data.compression_ratio : undefined;
+    const passwordProtected = /\/p\//.test(finalUrl);
+    const message: string | undefined = data.message || body.message;
+
+    // 用文件名（不含扩展名）作为 cid，兼容旧字段
+    const cidLike = remoteFilename ? remoteFilename.replace(/\.[^/.]+$/, "") : "";
+
+    let shortUrl = "";
+    if (options?.shortLink && finalUrl) {
+      try {
+        const fixedTarget = shortUrlMigrationService.fixTargetUrlBeforeSave(finalUrl);
+        shortUrl = await ShortUrlService.createShortUrl(
+          fixedTarget,
+          options.userId || "admin",
+          options.username || "admin",
+        );
+        logger.info("[ImageBed][ShortLink] 短链创建成功", { target: fixedTarget });
+      } catch (err) {
+        logger.error("[ImageBed][ShortLink] 短链创建失败", {
+          target: finalUrl,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    logger.info("[ImageBed] 上传成功", {
+      url: finalUrl,
+      remoteFilename,
+      storageBackend,
+      originalSize,
+      compressedSize,
+      compressionRatio,
+      passwordProtected,
+      message,
+    });
+
+    return {
+      status: "success",
+      cid: cidLike,
+      url: finalUrl,
+      web2url: finalUrl,
+      fileSize: (compressedSize ?? originalSize ?? fileBuffer.length).toString(),
+      gnfd_id: null,
+      gnfd_txn: null,
+      shortUrl,
+      filename: remoteFilename,
+      storageBackend,
+      passwordProtected,
+      originalSize,
+      compressedSize,
+      compressionRatio,
+      message,
+    };
   }
 
   /**
@@ -986,6 +1212,92 @@ export class IPFSService {
    */
   public static async getCurrentDevSkipTurnstile(): Promise<boolean> {
     return await getDevSkipTurnstile();
+  }
+
+  /**
+   * ImageBed (scdn.io) 配置读写
+   */
+  public static async getCurrentImageBedApiUrl(): Promise<string> {
+    return await getImageBedApiUrl();
+  }
+
+  public static async getCurrentImageBedDefaultCdn(): Promise<string | null> {
+    return await getImageBedDefaultCdn();
+  }
+
+  public static async getCurrentImageBedDefaultStorage(): Promise<string | null> {
+    return await getImageBedDefaultStorage();
+  }
+
+  public static async getCurrentImageBedDefaultOutputFormat(): Promise<string | null> {
+    return await getImageBedDefaultOutputFormat();
+  }
+
+  public static async setImageBedApiUrl(url: string): Promise<boolean> {
+    if (!url || typeof url !== "string" || url.trim().length === 0) {
+      throw new Error("IMAGE_BED_API_URL 不能为空");
+    }
+    const trimmed = url.trim();
+    try {
+      new URL(trimmed);
+    } catch {
+      throw new Error("IMAGE_BED_API_URL 格式无效");
+    }
+    await ensureMongoConnected();
+    await IPFSSettingModel.findOneAndUpdate(
+      { key: "IMAGE_BED_API_URL" },
+      { key: "IMAGE_BED_API_URL", value: trimmed, updatedAt: new Date() },
+      { upsert: true, new: true },
+    );
+    logger.info("[ImageBed] IMAGE_BED_API_URL 配置已更新", trimmed);
+    return true;
+  }
+
+  public static async setImageBedDefaultCdn(domain: string): Promise<boolean> {
+    if (!domain || typeof domain !== "string" || domain.trim().length === 0) {
+      throw new Error("IMAGE_BED_CDN_DOMAIN 不能为空");
+    }
+    await ensureMongoConnected();
+    await IPFSSettingModel.findOneAndUpdate(
+      { key: "IMAGE_BED_CDN_DOMAIN" },
+      { key: "IMAGE_BED_CDN_DOMAIN", value: domain.trim(), updatedAt: new Date() },
+      { upsert: true, new: true },
+    );
+    return true;
+  }
+
+  public static async setImageBedDefaultStorage(dest: string): Promise<boolean> {
+    if (!dest || typeof dest !== "string" || dest.trim().length === 0) {
+      throw new Error("IMAGE_BED_STORAGE_DESTINATION 不能为空");
+    }
+    const v = dest.trim().toLowerCase();
+    if (!["local", "telegram", "r2"].includes(v)) {
+      throw new Error("IMAGE_BED_STORAGE_DESTINATION 仅允许 local / telegram / r2");
+    }
+    await ensureMongoConnected();
+    await IPFSSettingModel.findOneAndUpdate(
+      { key: "IMAGE_BED_STORAGE_DESTINATION" },
+      { key: "IMAGE_BED_STORAGE_DESTINATION", value: v, updatedAt: new Date() },
+      { upsert: true, new: true },
+    );
+    return true;
+  }
+
+  public static async setImageBedDefaultOutputFormat(fmt: string): Promise<boolean> {
+    if (!fmt || typeof fmt !== "string" || fmt.trim().length === 0) {
+      throw new Error("IMAGE_BED_OUTPUT_FORMAT 不能为空");
+    }
+    const v = fmt.trim().toLowerCase();
+    if (!["auto", "jpg", "jpeg", "png", "webp", "gif", "webp_animated"].includes(v)) {
+      throw new Error("IMAGE_BED_OUTPUT_FORMAT 取值无效");
+    }
+    await ensureMongoConnected();
+    await IPFSSettingModel.findOneAndUpdate(
+      { key: "IMAGE_BED_OUTPUT_FORMAT" },
+      { key: "IMAGE_BED_OUTPUT_FORMAT", value: v, updatedAt: new Date() },
+      { upsert: true, new: true },
+    );
+    return true;
   }
 
   /**

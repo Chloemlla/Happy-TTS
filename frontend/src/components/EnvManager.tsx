@@ -93,6 +93,10 @@ interface WebhookSecretSetting {
 interface IPFSConfigSetting {
   ipfsUploadUrl: string;
   ipfsUa?: string;
+  imageBedApiUrl?: string;
+  imageBedCdnDomain?: string | null;
+  imageBedStorageDestination?: string | null;
+  imageBedOutputFormat?: string | null;
   updatedAt?: string;
 }
 
@@ -488,6 +492,10 @@ const EnvManager: React.FC = () => {
   const [ipfsConfigTesting, setIpfsConfigTesting] = useState(false);
   const [ipfsUploadUrlInput, setIpfsUploadUrlInput] = useState('');
   const [ipfsUserAgentInput, setIpfsUserAgentInput] = useState('');
+  const [imageBedApiUrlInput, setImageBedApiUrlInput] = useState('');
+  const [imageBedCdnDomainInput, setImageBedCdnDomainInput] = useState('');
+  const [imageBedStorageDestinationInput, setImageBedStorageDestinationInput] = useState('');
+  const [imageBedOutputFormatInput, setImageBedOutputFormatInput] = useState('');
 
   // Turnstile Config Setting
   const [turnstileConfig, setTurnstileConfig] = useState<TurnstileConfigSetting | null>(null);
@@ -1469,7 +1477,14 @@ const EnvManager: React.FC = () => {
         setIpfsConfigLoading(false);
         return;
       }
-      setIpfsConfig({ ipfsUploadUrl: data.data.ipfsUploadUrl, ipfsUa: data.data.ipfsUa });
+      setIpfsConfig({
+        ipfsUploadUrl: data.data.ipfsUploadUrl,
+        ipfsUa: data.data.ipfsUa,
+        imageBedApiUrl: data.data.imageBedApiUrl,
+        imageBedCdnDomain: data.data.imageBedCdnDomain,
+        imageBedStorageDestination: data.data.imageBedStorageDestination,
+        imageBedOutputFormat: data.data.imageBedOutputFormat,
+      });
     } catch (e) {
       setNotification({ message: '获取IPFS配置失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
     } finally {
@@ -1481,8 +1496,12 @@ const EnvManager: React.FC = () => {
     if (ipfsConfigSaving) return;
     const url = ipfsUploadUrlInput.trim();
     const ua = ipfsUserAgentInput.trim();
-    if (!url && !ua) {
-      setNotification({ message: '请填写IPFS上传URL或User-Agent至少一项', type: 'error' });
+    const ibApi = imageBedApiUrlInput.trim();
+    const ibCdn = imageBedCdnDomainInput.trim();
+    const ibStorage = imageBedStorageDestinationInput.trim();
+    const ibFormat = imageBedOutputFormatInput.trim();
+    if (!url && !ua && !ibApi && !ibCdn && !ibStorage && !ibFormat) {
+      setNotification({ message: '请至少填写一个 IPFS / ImageBed 配置项', type: 'error' });
       return;
     }
     setIpfsConfigSaving(true);
@@ -1490,7 +1509,14 @@ const EnvManager: React.FC = () => {
       const res = await fetch(IPFS_CONFIG_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ ...(url ? { ipfsUploadUrl: url } : {}), ...(ua ? { ipfsUa: ua } : {}) })
+        body: JSON.stringify({
+          ...(url ? { ipfsUploadUrl: url } : {}),
+          ...(ua ? { ipfsUa: ua } : {}),
+          ...(ibApi ? { imageBedApiUrl: ibApi } : {}),
+          ...(ibCdn ? { imageBedCdnDomain: ibCdn } : {}),
+          ...(ibStorage ? { imageBedStorageDestination: ibStorage } : {}),
+          ...(ibFormat ? { imageBedOutputFormat: ibFormat } : {}),
+        })
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -1500,21 +1526,26 @@ const EnvManager: React.FC = () => {
       setNotification({ message: '保存成功', type: 'success' });
       setIpfsUploadUrlInput('');
       setIpfsUserAgentInput('');
+      setImageBedApiUrlInput('');
+      setImageBedCdnDomainInput('');
+      setImageBedStorageDestinationInput('');
+      setImageBedOutputFormatInput('');
       await fetchIpfsConfig();
     } catch (e) {
       setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
     } finally {
       setIpfsConfigSaving(false);
     }
-  }, [ipfsConfigSaving, ipfsUploadUrlInput, ipfsUserAgentInput, fetchIpfsConfig, setNotification]);
+  }, [ipfsConfigSaving, ipfsUploadUrlInput, ipfsUserAgentInput, imageBedApiUrlInput, imageBedCdnDomainInput, imageBedStorageDestinationInput, imageBedOutputFormatInput, fetchIpfsConfig, setNotification]);
 
-  const handleTestIpfsConfig = useCallback(async () => {
+  const handleTestIpfsConfig = useCallback(async (target: 'imagebed' | 'ipfs' = 'imagebed') => {
     if (ipfsConfigTesting) return;
     setIpfsConfigTesting(true);
     try {
       const res = await fetch(`${IPFS_CONFIG_API}/test`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ target })
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -2573,12 +2604,20 @@ const EnvManager: React.FC = () => {
 
           <div className="flex items-center justify-end gap-3">
             <m.button
-              onClick={handleTestIpfsConfig}
+              onClick={() => handleTestIpfsConfig('imagebed')}
+              disabled={ipfsConfigTesting}
+              className="px-3 sm:px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition disabled:opacity-50 text-sm font-medium"
+              whileTap={{ scale: 0.96 }}
+            >
+              {ipfsConfigTesting ? '测试中...' : '测试 ImageBed'}
+            </m.button>
+            <m.button
+              onClick={() => handleTestIpfsConfig('ipfs')}
               disabled={ipfsConfigTesting || !ipfsConfig?.ipfsUploadUrl}
               className="px-3 sm:px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition disabled:opacity-50 text-sm font-medium"
               whileTap={{ scale: 0.96 }}
             >
-              {ipfsConfigTesting ? '测试中...' : '测试配置'}
+              {ipfsConfigTesting ? '测试中...' : '测试 IPFS'}
             </m.button>
             <m.button
               onClick={handleSaveIpfsConfig}
@@ -2590,8 +2629,76 @@ const EnvManager: React.FC = () => {
             </m.button>
           </div>
 
+          {/* ImageBed (scdn.io v1.php) 配置 */}
+          <div className="mt-6 border-t border-gray-200 pt-4">
+            <h4 className="text-md font-semibold text-gray-700 mb-3">ImageBed (scdn.io v1.php) 默认配置</h4>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">ImageBed API URL</label>
+                <input
+                  value={imageBedApiUrlInput}
+                  onChange={(e) => setImageBedApiUrlInput(e.target.value)}
+                  placeholder="默认：https://img.scdn.io/api/v1.php"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">当前 API</label>
+                <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 min-h-[40px] flex items-center break-all">
+                  {ipfsConfigLoading ? '加载中...' : (ipfsConfig?.imageBedApiUrl || '未设置')}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">默认 CDN 域名</label>
+                <input
+                  value={imageBedCdnDomainInput}
+                  onChange={(e) => setImageBedCdnDomainInput(e.target.value)}
+                  placeholder="例如：img.scdn.io"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
+                />
+                <div className="mt-1 text-xs text-gray-500 break-all">当前：{ipfsConfig?.imageBedCdnDomain || '未设置'}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">默认存储位置</label>
+                <select
+                  value={imageBedStorageDestinationInput}
+                  onChange={(e) => setImageBedStorageDestinationInput(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base bg-white"
+                >
+                  <option value="">不变更</option>
+                  <option value="local">local（默认）</option>
+                  <option value="telegram">telegram</option>
+                  <option value="r2">r2（Cloudflare R2）</option>
+                </select>
+                <div className="mt-1 text-xs text-gray-500">当前：{ipfsConfig?.imageBedStorageDestination || '未设置'}</div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">默认输出格式</label>
+                <select
+                  value={imageBedOutputFormatInput}
+                  onChange={(e) => setImageBedOutputFormatInput(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base bg-white"
+                >
+                  <option value="">不变更</option>
+                  <option value="auto">auto（自动）</option>
+                  <option value="webp">webp</option>
+                  <option value="webp_animated">webp_animated</option>
+                  <option value="jpg">jpg</option>
+                  <option value="jpeg">jpeg</option>
+                  <option value="png">png</option>
+                  <option value="gif">gif</option>
+                </select>
+                <div className="mt-1 text-xs text-gray-500">当前：{ipfsConfig?.imageBedOutputFormat || '未设置'}</div>
+              </div>
+            </div>
+          </div>
+
           <div className="mt-4 text-xs text-gray-500">
-            说明：IPFS上传URL与User-Agent用于文件上传到IPFS网络，支持动态配置（仅管理员可修改），保存后立即生效，无需重启服务。
+            说明：图片类上传（jpg/png/webp/gif/bmp/tiff）走 ImageBed (scdn.io v1.php) API；SVG 与归档等非图片文件仍走旧 IPFS。可在此设置 ImageBed 默认 API、CDN、存储位置与输出格式。
           </div>
         </CollapsibleSection>
 
