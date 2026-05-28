@@ -5,39 +5,48 @@ import {
   FaExclamationTriangle,
   FaShieldAlt,
   FaUserSecret,
-  FaFilter,
   FaInfoCircle,
   FaPhone,
   FaEnvelope,
-  FaGlobe,
   FaSpinner,
   FaEye,
   FaTimes,
-  FaCalendarAlt,
-  FaMapMarkerAlt,
-  FaWeight,
-  FaRuler,
   FaUser,
-  FaBullhorn
+  FaBullhorn,
+  FaFilter,
+  FaMapMarkerAlt,
+  FaDollarSign,
+  FaCalendarAlt,
 } from 'react-icons/fa';
-import { FBIWanted, FBIStatistics, DANGER_LEVEL_CONFIG, STATUS_CONFIG } from '../types/fbi';
+import { FBIWanted, FBIStatistics } from '../types/fbi';
 import { fbiAPI } from '../api/fbi';
 import { imageCacheService } from '../utils/imageCache';
+import {
+  InfoBadge,
+  InfoMetricCard,
+  InfoPanel,
+  InfoPrimaryButton,
+  InfoQueryHero,
+  InfoQueryShell,
+  InfoSectionTitle,
+} from './InfoQueryScaffold';
 
-// 图片组件，支持缓存和错误处理
+const PAGE_SIZE = 12;
+
 const CachedImage: React.FC<{ src?: string; alt?: string; className?: string; imageId?: string }> = React.memo(({
   src,
-  alt = '通缉犯照片',
+  alt = '通缉人员照片',
   className = '',
-  imageId
+  imageId,
 }) => {
-  const [imageSrc, setImageSrc] = useState<string>('');
+  const [imageSrc, setImageSrc] = useState('');
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(true);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     let mounted = true;
+    let objectUrlToRevoke: string | null = null;
 
     const loadImage = async () => {
       if (!src) {
@@ -62,29 +71,23 @@ const CachedImage: React.FC<{ src?: string; alt?: string; className?: string; im
 
       try {
         abortControllerRef.current = new AbortController();
-        const response = await fetch(src, {
-          signal: abortControllerRef.current.signal
-        });
+        const response = await fetch(src, { signal: abortControllerRef.current.signal });
+        if (!response.ok) {
+          throw new Error('image response failed');
+        }
 
-        if (response.ok) {
-          const blob = await response.blob();
-          const objectUrl = URL.createObjectURL(blob);
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        objectUrlToRevoke = objectUrl;
 
-          if (mounted) {
-            setImageSrc(objectUrl);
-            setLoading(false);
-
-            if (imageId) {
-              imageCacheService.set(imageId, src, blob);
-            }
-          }
-        } else {
-          if (mounted) {
-            setError(true);
-            setLoading(false);
+        if (mounted) {
+          setImageSrc(objectUrl);
+          setLoading(false);
+          if (imageId) {
+            imageCacheService.set(imageId, src, blob);
           }
         }
-      } catch (err) {
+      } catch (_) {
         if (mounted && !abortControllerRef.current?.signal.aborted) {
           setError(true);
           setLoading(false);
@@ -96,78 +99,82 @@ const CachedImage: React.FC<{ src?: string; alt?: string; className?: string; im
 
     return () => {
       mounted = false;
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      if (imageSrc && imageSrc.startsWith('blob:')) {
-        URL.revokeObjectURL(imageSrc);
+      abortControllerRef.current?.abort();
+      if (objectUrlToRevoke) {
+        URL.revokeObjectURL(objectUrlToRevoke);
       }
     };
   }, [src, imageId]);
 
   if (loading) {
     return (
-      <div className={`bg-[#8ECAE6]/10 flex items-center justify-center ${className}`}>
-        <FaSpinner className="animate-spin text-[#023047]/30" />
+      <div className={`flex items-center justify-center bg-slate-100 ${className}`}>
+        <FaSpinner className="animate-spin text-slate-400" />
       </div>
     );
   }
 
   if (error || !imageSrc) {
     return (
-      <div className={`bg-[#8ECAE6]/10 flex items-center justify-center ${className}`}>
-        <FaUser className="text-[#023047]/30" />
+      <div className={`flex items-center justify-center bg-slate-100 ${className}`}>
+        <FaUser className="text-slate-400" />
       </div>
     );
   }
 
-  return (
-    <img
-      src={imageSrc}
-      alt={alt}
-      className={className}
-      onError={() => setError(true)}
-    />
-  );
+  return <img src={imageSrc} alt={alt} className={className} onError={() => setError(true)} />;
 });
+
+const getDangerLevelText = (level: string) => {
+  switch (level) {
+    case 'LOW': return '低危险';
+    case 'MEDIUM': return '中等危险';
+    case 'HIGH': return '高危险';
+    case 'EXTREME': return '极度危险';
+    default: return '未知';
+  }
+};
+
+const getDangerLevelClass = (level: string) => {
+  switch (level) {
+    case 'LOW': return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+    case 'MEDIUM': return 'border-amber-200 bg-amber-50 text-amber-700';
+    case 'HIGH': return 'border-orange-200 bg-orange-50 text-orange-700';
+    case 'EXTREME': return 'border-rose-200 bg-rose-50 text-rose-700';
+    default: return 'border-slate-200 bg-slate-100 text-slate-600';
+  }
+};
 
 const FBIWantedPublic: React.FC = () => {
   const [wantedList, setWantedList] = useState<FBIWanted[]>([]);
-  const [filteredList, setFilteredList] = useState<FBIWanted[]>([]);
   const [selectedWanted, setSelectedWanted] = useState<FBIWanted | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [dangerFilter, setDangerFilter] = useState<string>('ALL');
-  const [statusFilter, setStatusFilter] = useState<string>('ACTIVE');
+  const [dangerFilter, setDangerFilter] = useState('ALL');
   const [statistics, setStatistics] = useState<FBIStatistics | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [pageSize] = useState(12);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
   const [showDisclaimer, setShowDisclaimer] = useState(false);
-  const [disclaimerClosed, setDisclaimerClosed] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
   const fetchWantedList = useCallback(async () => {
     try {
       setLoading(true);
+      setError('');
       const response = await fbiAPI.getPublicList({
         page: currentPage,
-        limit: 12,
+        limit: PAGE_SIZE,
         status: 'ACTIVE',
         ...(dangerFilter !== 'ALL' && { dangerLevel: dangerFilter }),
-        ...(searchTerm && { search: searchTerm })
+        ...(searchTerm && { search: searchTerm }),
       });
 
       setWantedList(response.data);
-      if (response.pagination) {
-        setTotalPages(response.pagination.pages);
-      }
-    } catch (error) {
-      console.error('获取通缉犯列表失败:', error);
-      setError('获取通缉犯列表失败，请稍后重试');
+      setTotalPages(response.pagination?.pages || 1);
+    } catch (fetchError) {
+      console.error('获取通缉犯列表失败:', fetchError);
+      setError('获取通缉信息失败，请稍后重试。');
     } finally {
       setLoading(false);
     }
@@ -177,8 +184,8 @@ const FBIWantedPublic: React.FC = () => {
     try {
       const response = await fbiAPI.getPublicStatistics();
       setStatistics(response.data);
-    } catch (error) {
-      console.error('获取统计信息失败:', error);
+    } catch (fetchError) {
+      console.error('获取统计信息失败:', fetchError);
     }
   }, []);
 
@@ -193,481 +200,316 @@ const FBIWantedPublic: React.FC = () => {
 
   useEffect(() => {
     const disclaimerKey = 'fbi_wanted_disclaimer_closed';
-    const disclaimerClosedPermanently = localStorage.getItem(disclaimerKey + '_forever');
-    const disclaimerClosedToday = localStorage.getItem(disclaimerKey + '_today');
+    const disclaimerClosedPermanently = localStorage.getItem(`${disclaimerKey}_forever`);
+    const disclaimerClosedToday = localStorage.getItem(`${disclaimerKey}_today`);
     const today = new Date().toDateString();
 
-    if (!disclaimerClosedPermanently && (!disclaimerClosedToday || disclaimerClosedToday !== today)) {
-      const timer = setTimeout(() => {
-        setShowDisclaimer(true);
-      }, 1000);
-      return () => clearTimeout(timer);
+    if (!disclaimerClosedPermanently && disclaimerClosedToday !== today) {
+      const timer = window.setTimeout(() => setShowDisclaimer(true), 1000);
+      return () => window.clearTimeout(timer);
     }
   }, []);
 
-  const handleCloseDisclaimer = () => {
-    setShowDisclaimer(false);
-  };
-
   const handleCloseDisclaimerToday = () => {
-    const disclaimerKey = 'fbi_wanted_disclaimer_closed';
-    const today = new Date().toDateString();
-    localStorage.setItem(disclaimerKey + '_today', today);
+    localStorage.setItem('fbi_wanted_disclaimer_closed_today', new Date().toDateString());
     setShowDisclaimer(false);
   };
 
   const handleCloseDisclaimerForever = () => {
-    const disclaimerKey = 'fbi_wanted_disclaimer_closed';
-    localStorage.setItem(disclaimerKey + '_forever', 'true');
+    localStorage.setItem('fbi_wanted_disclaimer_closed_forever', 'true');
     setShowDisclaimer(false);
   };
 
-  const getDangerLevelColor = (level: string) => {
-    switch (level) {
-      case 'LOW': return 'text-green-600 bg-green-100 border-green-200';
-      case 'MEDIUM': return 'text-yellow-600 bg-yellow-100 border-yellow-200';
-      case 'HIGH': return 'text-orange-600 bg-orange-100 border-orange-200';
-      case 'EXTREME': return 'text-red-600 bg-red-100 border-red-200';
-      default: return 'text-[#023047]/50 bg-[#8ECAE6]/10 border-[#8ECAE6]/30';
-    }
-  };
-
-  const getDangerLevelText = (level: string) => {
-    switch (level) {
-      case 'LOW': return '低危险';
-      case 'MEDIUM': return '中等危险';
-      case 'HIGH': return '高危险';
-      case 'EXTREME': return '极度危险';
-      default: return '未知';
-    }
+  const openWantedDetail = (wanted: FBIWanted) => {
+    setSelectedWanted(wanted);
+    setShowDetailModal(true);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10 py-8 px-4 rounded-lg">
-      <div className="max-w-7xl mx-auto px-4 space-y-8">
-        {/* 标题和警告信息部分 */}
-        <motion.div
-          className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 overflow-hidden"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <div className="bg-[#023047] text-white p-6">
-            <div className="text-center">
-              <motion.div
-                className="flex items-center justify-center gap-3 mb-4"
-                initial={{ scale: 0.9 }}
-                animate={{ scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-              >
-                <FaUserSecret className="text-4xl" />
-                <h1 className="text-4xl font-bold">FBI通缉犯公示</h1>
-              </motion.div>
-              <motion.p
-                className="text-[#8ECAE6] text-lg"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
-              >
-                权威的FBI通缉犯信息公示平台
-              </motion.p>
-            </div>
-          </div>
-
-          <div className="p-6">
-            {/* 重要提示 */}
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
-              <div className="flex items-center gap-2 mb-3">
-                <FaExclamationTriangle className="text-red-600" />
-                <h3 className="text-red-700 font-semibold">重要提示</h3>
-              </div>
-              <div className="space-y-2 text-sm text-red-700">
-                <p>• 如发现以下通缉犯，请立即报警，切勿私自接触</p>
-                <p>• 这些人员可能携带武器，具有极高危险性</p>
-                <p>• 提供有效线索可获得相应悬赏奖励</p>
-                <p>• 举报电话：110 或 FBI热线：1-800-CALL-FBI</p>
-              </div>
-            </div>
-
-            {/* 统计信息 */}
-            {statistics && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FaExclamationTriangle className="text-red-600" />
-                    <h3 className="text-red-700 font-semibold">在逃通缉犯</h3>
-                  </div>
-                  <p className="text-2xl font-bold text-red-600">{statistics.active}</p>
-                </div>
-
-                <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FaShieldAlt className="text-green-600" />
-                    <h3 className="text-green-700 font-semibold">已抓获</h3>
-                  </div>
-                  <p className="text-2xl font-bold text-green-600">{statistics.captured}</p>
-                </div>
-
-                <div className="bg-[#FB8500]/10 border border-[#FB8500]/30 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FaExclamationTriangle className="text-[#FB8500]" />
-                    <h3 className="text-[#FB8500] font-semibold">极度危险</h3>
-                  </div>
-                  <p className="text-2xl font-bold text-[#FB8500]">
-                    {statistics.dangerLevels.EXTREME || 0}
-                  </p>
-                </div>
-
-                <div className="bg-[#8ECAE6]/15 border border-[#8ECAE6]/30 rounded-xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FaUserSecret className="text-[#219EBC]" />
-                    <h3 className="text-[#219EBC] font-semibold">总计</h3>
-                  </div>
-                  <p className="text-2xl font-bold text-[#219EBC]">{statistics.total}</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </motion.div>
-
-        {/* 搜索和过滤部分 */}
-        <motion.div
-          className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 p-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
-        >
-          <div className="flex flex-col lg:flex-row gap-4 items-center">
-            <div className="relative flex-1">
-              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#023047]/30" />
-              <input
-                type="text"
-                placeholder="搜索通缉犯姓名、FBI编号或罪名..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-[#8ECAE6]/30 rounded-xl focus:ring-2 focus:ring-[#219EBC] focus:border-transparent"
-              />
-            </div>
-
-            <select
-              value={dangerFilter}
-              onChange={(e) => setDangerFilter(e.target.value)}
-              className="px-4 py-3 border border-[#8ECAE6]/30 rounded-xl focus:ring-2 focus:ring-[#219EBC] focus:border-transparent"
-            >
-              <option value="ALL">所有危险等级</option>
-              <option value="EXTREME">极度危险</option>
-              <option value="HIGH">高危险</option>
-              <option value="MEDIUM">中等危险</option>
-              <option value="LOW">低危险</option>
-            </select>
-          </div>
-        </motion.div>
-
-        {/* 通缉犯卡片网格 */}
-        <motion.div
-          className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 overflow-hidden"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-        >
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <FaSpinner className="animate-spin text-4xl text-[#FFB703]" />
-              <span className="ml-3 text-lg text-[#023047]/70">加载中...</span>
-            </div>
-          ) : (
+    <InfoQueryShell>
+      <div className="space-y-6">
+        <InfoQueryHero
+          eyebrow="Public Intelligence Query"
+          title="FBI 通缉信息公示"
+          description="集中展示公开通缉信息、危险等级、悬赏与举报入口。页面仅用于信息展示，发现相关线索请联系执法部门。"
+          icon={FaUserSecret}
+          tone="sky"
+          meta={(
             <>
-              <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                  {wantedList.map((wanted) => (
-                    <motion.div
-                      key={wanted._id}
-                      className="bg-white rounded-xl shadow-lg border border-[#8ECAE6]/30 overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer"
-                      whileHover={{ scale: 1.02 }}
-                      onClick={() => {
-                        setSelectedWanted(wanted);
-                        setShowDetailModal(true);
-                      }}
-                    >
-                      <div className="relative">
-                        <CachedImage
-                          src={wanted.photoUrl}
-                          alt={wanted.name}
-                          className="w-full h-48 object-cover"
-                          imageId={wanted._id}
-                        />
-                        <div className="absolute top-2 right-2">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${getDangerLevelColor(wanted.dangerLevel)}`}>
-                            {getDangerLevelText(wanted.dangerLevel)}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="p-4">
-                        <h3 className="text-lg font-bold text-[#023047] mb-2">{wanted.name}</h3>
-                        <p className="text-sm text-[#023047]/70 mb-2">FBI: {wanted.fbiNumber}</p>
-
-                        <div className="space-y-1 text-sm text-[#023047]/70 mb-3">
-                          <p>年龄: {wanted.age}岁</p>
-                          <p>身高: {wanted.height}</p>
-                          <p>体重: {wanted.weight}</p>
-                        </div>
-
-                        <div className="mb-3">
-                          <p className="text-sm font-semibold text-[#023047] mb-1">主要罪名:</p>
-                          <div className="flex flex-wrap gap-1">
-                            {wanted.charges.slice(0, 2).map((charge, index) => (
-                              <span key={index} className="inline-block px-2 py-1 bg-[#8ECAE6]/15 text-xs rounded-full">
-                                {charge}
-                              </span>
-                            ))}
-                            {wanted.charges.length > 2 && (
-                              <span className="inline-block px-2 py-1 bg-[#8ECAE6]/15 text-xs rounded-full">
-                                +{wanted.charges.length - 2}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <div className="text-lg font-bold text-green-600">
-                            悬赏: ${wanted.reward.toLocaleString()}
-                          </div>
-                          <button className="flex items-center gap-1 text-[#FFB703] hover:text-[#FB8500] transition-colors">
-                            <FaEye />
-                            <span className="text-sm">详情</span>
-                          </button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-
-              {/* 分页 */}
-              {totalPages > 1 && (
-                <div className="px-6 py-4 bg-[#8ECAE6]/10 border-t border-[#8ECAE6]/30">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-[#023047]/70">
-                      第 {currentPage} 页，共 {totalPages} 页
-                    </div>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                        disabled={currentPage === 1}
-                        className="px-4 py-2 border border-[#8ECAE6]/30 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#8ECAE6]/20 transition-colors"
-                      >
-                        上一页
-                      </button>
-                      <button
-                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                        disabled={currentPage === totalPages}
-                        className="px-4 py-2 border border-[#8ECAE6]/30 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[#8ECAE6]/20 transition-colors"
-                      >
-                        下一页
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+              <InfoBadge tone="sky">公开资料</InfoBadge>
+              <InfoBadge tone="rose">请勿私自接触</InfoBadge>
+              <InfoBadge tone="slate">分页查询</InfoBadge>
             </>
           )}
-        </motion.div>
+        />
 
-        {/* 联系信息 */}
-        <motion.div
-          className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 p-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-        >
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-[#023047] mb-4">发现线索？立即举报</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex items-center justify-center gap-2 p-4 bg-red-50 rounded-xl">
-                <FaPhone className="text-red-600" />
-                <div>
-                  <p className="font-semibold text-red-700">紧急报警</p>
-                  <p className="text-red-600">110</p>
-                </div>
+        {statistics && (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <InfoMetricCard label="在逃通缉" value={statistics.active} detail="当前公开在逃记录" icon={FaExclamationTriangle} tone="rose" />
+            <InfoMetricCard label="已抓获" value={statistics.captured} detail="历史公开结案记录" icon={FaShieldAlt} tone="emerald" />
+            <InfoMetricCard label="极度危险" value={statistics.dangerLevels.EXTREME || 0} detail="高优先级安全提醒" icon={FaBullhorn} tone="amber" />
+            <InfoMetricCard label="总记录" value={statistics.total} detail="公开数据总量" icon={FaInfoCircle} tone="sky" />
+          </div>
+        )}
+
+        <InfoPanel>
+          <InfoSectionTitle
+            title="检索与筛选"
+            description="按姓名、编号或罪名进行检索，并使用危险等级缩小范围。"
+            icon={FaFilter}
+            tone="sky"
+          />
+          <div className="flex flex-col gap-3 lg:flex-row">
+            <label className="relative flex-1">
+              <span className="sr-only">搜索通缉信息</span>
+              <FaSearch className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="搜索姓名、FBI 编号或罪名..."
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white/80 pl-11 pr-4 text-sm text-slate-800 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
+              />
+            </label>
+
+            <label className="relative lg:w-60">
+              <span className="sr-only">危险等级</span>
+              <select
+                value={dangerFilter}
+                onChange={(event) => setDangerFilter(event.target.value)}
+                className="h-12 w-full rounded-2xl border border-slate-200 bg-white/80 px-4 text-sm font-medium text-slate-700 outline-none transition focus:border-sky-300 focus:ring-4 focus:ring-sky-100"
+              >
+                <option value="ALL">所有危险等级</option>
+                <option value="EXTREME">极度危险</option>
+                <option value="HIGH">高危险</option>
+                <option value="MEDIUM">中等危险</option>
+                <option value="LOW">低危险</option>
+              </select>
+            </label>
+          </div>
+        </InfoPanel>
+
+        <InfoPanel>
+          <InfoSectionTitle
+            title="通缉列表"
+            description={`第 ${currentPage} 页，共 ${totalPages} 页`}
+            icon={FaUserSecret}
+            tone="sky"
+          />
+
+          {error && (
+            <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">
+              {error}
+            </div>
+          )}
+
+          {loading ? (
+            <div className="flex min-h-[320px] items-center justify-center text-slate-500">
+              <FaSpinner className="mr-3 animate-spin text-2xl text-sky-600" />
+              正在加载通缉信息...
+            </div>
+          ) : wantedList.length === 0 ? (
+            <div className="flex min-h-[260px] flex-col items-center justify-center text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-[24px] bg-slate-100 text-slate-500">
+                <FaSearch />
               </div>
+              <h3 className="mt-4 text-lg font-semibold text-slate-900">没有匹配记录</h3>
+              <p className="mt-2 text-sm text-slate-500">请调整搜索关键词或危险等级筛选条件。</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+              {wantedList.map((wanted) => (
+                <motion.article
+                  key={wanted._id}
+                  className="group overflow-hidden rounded-[26px] border border-slate-200/80 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.06)] transition hover:-translate-y-1 hover:shadow-[0_18px_60px_rgba(15,23,42,0.1)]"
+                  whileHover={{ scale: 1.01 }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => openWantedDetail(wanted)}
+                    className="block w-full text-left"
+                  >
+                    <div className="relative h-52 overflow-hidden bg-slate-100">
+                      <CachedImage src={wanted.photoUrl} alt={wanted.name} imageId={wanted._id} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                      <span className={`absolute right-3 top-3 rounded-full border px-2.5 py-1 text-xs font-semibold shadow-sm ${getDangerLevelClass(wanted.dangerLevel)}`}>
+                        {getDangerLevelText(wanted.dangerLevel)}
+                      </span>
+                    </div>
+                    <div className="p-4">
+                      <h3 className="line-clamp-1 text-lg font-semibold text-slate-950">{wanted.name}</h3>
+                      <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-slate-400">FBI {wanted.fbiNumber}</p>
+                      <div className="mt-4 grid grid-cols-2 gap-2 text-sm text-slate-600">
+                        <span>年龄 {wanted.age} 岁</span>
+                        <span>身高 {wanted.height}</span>
+                        <span>体重 {wanted.weight}</span>
+                        <span className="truncate">国籍 {wanted.nationality}</span>
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-1.5">
+                        {wanted.charges.slice(0, 2).map((charge) => (
+                          <span key={charge} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">
+                            {charge}
+                          </span>
+                        ))}
+                        {wanted.charges.length > 2 && (
+                          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">
+                            +{wanted.charges.length - 2}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
+                        <span className="text-sm font-semibold text-emerald-700">${wanted.reward.toLocaleString()}</span>
+                        <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-sky-700">
+                          <FaEye /> 详情
+                        </span>
+                      </div>
+                    </div>
+                  </button>
+                </motion.article>
+              ))}
+            </div>
+          )}
 
-              <div className="flex items-center justify-center gap-2 p-4 bg-[#8ECAE6]/15 rounded-xl">
-                <FaPhone className="text-[#219EBC]" />
-                <div>
-                  <p className="font-semibold text-[#023047]">FBI热线</p>
-                  <p className="text-[#219EBC]">1-800-CALL-FBI</p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-center gap-2 p-4 bg-green-50 rounded-xl">
-                <FaEnvelope className="text-green-600" />
-                <div>
-                  <p className="font-semibold text-green-700">在线举报</p>
-                  <p className="text-green-600">tips.fbi.gov</p>
-                </div>
+          {totalPages > 1 && (
+            <div className="mt-6 flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+              <div className="text-sm text-slate-500">第 {currentPage} 页，共 {totalPages} 页</div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                  disabled={currentPage === 1}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  上一页
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                  disabled={currentPage === totalPages}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  下一页
+                </button>
               </div>
             </div>
+          )}
+        </InfoPanel>
+
+        <InfoPanel>
+          <InfoSectionTitle
+            title="举报渠道"
+            description="发现线索时请优先联系当地执法部门，不要靠近或尝试自行处置。"
+            icon={FaPhone}
+            tone="rose"
+          />
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            {[
+              { title: '紧急报警', value: '110', icon: FaPhone, tone: 'rose' as const },
+              { title: 'FBI 热线', value: '1-800-CALL-FBI', icon: FaPhone, tone: 'sky' as const },
+              { title: '在线举报', value: 'tips.fbi.gov', icon: FaEnvelope, tone: 'emerald' as const },
+            ].map((item) => (
+              <InfoMetricCard key={item.title} label={item.title} value={item.value} icon={item.icon} tone={item.tone} />
+            ))}
           </div>
-        </motion.div>
+        </InfoPanel>
       </div>
 
-      {/* 详情模态框 */}
       <AnimatePresence>
         {showDetailModal && selectedWanted && (
           <motion.div
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowDetailModal(false)}
           >
             <motion.div
-              className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
+              className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-[32px] border border-white/70 bg-white/95 shadow-[0_32px_100px_rgba(15,23,42,0.22)] backdrop-blur-xl"
+              initial={{ scale: 0.96, opacity: 0, y: 16 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.96, opacity: 0, y: 16 }}
+              onClick={(event) => event.stopPropagation()}
             >
-              <div className="sticky top-0 bg-[#023047] text-white p-6 rounded-t-2xl">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold">通缉犯详细信息</h2>
-                  <button
-                    onClick={() => setShowDetailModal(false)}
-                    className="text-white hover:text-[#8ECAE6] transition-colors"
-                  >
-                    <FaTimes className="text-xl" />
-                  </button>
+              <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/90 px-5 py-4 backdrop-blur">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Wanted Detail</p>
+                  <h2 className="text-xl font-semibold text-slate-950">{selectedWanted.name}</h2>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDetailModal(false)}
+                  className="flex h-10 w-10 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                  aria-label="关闭详情"
+                >
+                  <FaTimes />
+                </button>
               </div>
 
-              <div className="p-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* 左侧：照片和基本信息 */}
-                  <div>
-                    <div className="mb-6">
-                      {selectedWanted.photoUrl ? (
-                        <img
-                          src={selectedWanted.photoUrl}
-                          alt={selectedWanted.name}
-                          className="w-full max-w-sm mx-auto rounded-xl shadow-lg"
-                        />
-                      ) : (
-                        <div className="w-full max-w-sm mx-auto h-64 bg-[#8ECAE6]/15 rounded-xl flex items-center justify-center">
-                          <FaUserSecret className="text-6xl text-[#023047]/50" />
-                        </div>
-                      )}
+              <div className="grid gap-6 p-5 lg:grid-cols-[320px_1fr]">
+                <div>
+                  <CachedImage src={selectedWanted.photoUrl} alt={selectedWanted.name} imageId={selectedWanted._id} className="aspect-[4/5] w-full rounded-[24px] object-cover" />
+                  <div className="mt-4 rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                    <div className="flex items-center gap-2 font-semibold">
+                      <FaExclamationTriangle /> 安全提醒
                     </div>
-
-                    <div className="space-y-4">
-                      <div>
-                        <h3 className="text-lg font-semibold text-[#023047] mb-2">基本信息</h3>
-                        <div className="space-y-2 text-sm">
-                          <p><span className="font-medium">姓名:</span> {selectedWanted.name}</p>
-                          <p><span className="font-medium">别名:</span> {selectedWanted.aliases.join(', ') || '无'}</p>
-                          <p><span className="font-medium">年龄:</span> {selectedWanted.age}岁</p>
-                          <p><span className="font-medium">身高:</span> {selectedWanted.height}</p>
-                          <p><span className="font-medium">体重:</span> {selectedWanted.weight}</p>
-                          <p><span className="font-medium">眼睛:</span> {selectedWanted.eyes}</p>
-                          <p><span className="font-medium">头发:</span> {selectedWanted.hair}</p>
-                          <p><span className="font-medium">种族:</span> {selectedWanted.race}</p>
-                          <p><span className="font-medium">国籍:</span> {selectedWanted.nationality}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 右侧：详细信息 */}
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-semibold text-[#023047] mb-2">案件信息</h3>
-                      <div className="space-y-2 text-sm">
-                        <p><span className="font-medium">FBI编号:</span> {selectedWanted.fbiNumber}</p>
-                        <p><span className="font-medium">NCIC编号:</span> {selectedWanted.ncicNumber || '无'}</p>
-                        <div>
-                          <span className="font-medium">危险等级:</span>
-                          <span className={`ml-2 inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${getDangerLevelColor(selectedWanted.dangerLevel)}`}>
-                            {getDangerLevelText(selectedWanted.dangerLevel)}
-                          </span>
-                        </div>
-                        <p><span className="font-medium">悬赏金额:</span> <span className="text-green-600 font-bold">${selectedWanted.reward.toLocaleString()}</span></p>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg font-semibold text-[#023047] mb-2">罪名</h3>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedWanted.charges.map((charge, index) => (
-                          <span key={index} className="inline-block px-3 py-1 bg-red-100 text-red-700 text-sm rounded-full border border-red-200">
-                            {charge}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
-                      <h3 className="text-lg font-semibold text-[#023047] mb-2">案件描述</h3>
-                      <p className="text-sm text-[#023047]/70 leading-relaxed">{selectedWanted.description}</p>
-                    </div>
-
-                    {selectedWanted.lastKnownLocation && (
-                      <div>
-                        <h3 className="text-lg font-semibold text-[#023047] mb-2">最后已知位置</h3>
-                        <p className="text-sm text-[#023047]/70">{selectedWanted.lastKnownLocation}</p>
-                      </div>
-                    )}
-
-                    {selectedWanted.caution && (
-                      <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                        <h3 className="text-lg font-semibold text-red-700 mb-2 flex items-center gap-2">
-                          <FaExclamationTriangle />
-                          警告
-                        </h3>
-                        <p className="text-sm text-red-700">{selectedWanted.caution}</p>
-                      </div>
-                    )}
-
-                    {selectedWanted.scarsAndMarks.length > 0 && (
-                      <div>
-                        <h3 className="text-lg font-semibold text-[#023047] mb-2">疤痕和标记</h3>
-                        <ul className="text-sm text-[#023047]/70 space-y-1">
-                          {selectedWanted.scarsAndMarks.map((mark, index) => (
-                            <li key={index}>• {mark}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
+                    <p className="mt-2 leading-6">{selectedWanted.caution || '如发现相关人员，请联系执法部门，切勿私自接触。'}</p>
                   </div>
                 </div>
 
-                {/* 举报提示 */}
-                <div className="mt-8 bg-[#8ECAE6]/15 border border-[#8ECAE6]/30 rounded-xl p-6">
-                  <div className="text-center">
-                    <h3 className="text-xl font-bold text-[#023047] mb-4">发现此人？立即举报！</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="flex items-center justify-center gap-2 p-3 bg-red-100 rounded-lg">
-                        <FaPhone className="text-red-600" />
-                        <div>
-                          <p className="font-semibold text-red-700">紧急报警</p>
-                          <p className="text-red-600">110</p>
-                        </div>
+                <div className="space-y-5">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {[
+                      ['FBI 编号', selectedWanted.fbiNumber],
+                      ['NCIC 编号', selectedWanted.ncicNumber || '无'],
+                      ['危险等级', getDangerLevelText(selectedWanted.dangerLevel)],
+                      ['悬赏金额', `$${selectedWanted.reward.toLocaleString()}`],
+                      ['年龄', `${selectedWanted.age} 岁`],
+                      ['国籍', selectedWanted.nationality],
+                      ['最后位置', selectedWanted.lastKnownLocation || '未公开'],
+                      ['加入日期', selectedWanted.dateAdded ? new Date(selectedWanted.dateAdded).toLocaleDateString('zh-CN') : '未公开'],
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
+                        <p className="mt-1 font-semibold text-slate-900">{value}</p>
                       </div>
+                    ))}
+                  </div>
 
-                      <div className="flex items-center justify-center gap-2 p-3 bg-[#8ECAE6]/20 rounded-lg">
-                        <FaPhone className="text-[#219EBC]" />
-                        <div>
-                          <p className="font-semibold text-[#023047]">FBI热线</p>
-                          <p className="text-[#219EBC]">1-800-CALL-FBI</p>
-                        </div>
-                      </div>
+                  <div>
+                    <h3 className="flex items-center gap-2 text-base font-semibold text-slate-950">
+                      <FaInfoCircle className="text-sky-600" /> 案件描述
+                    </h3>
+                    <p className="mt-3 text-sm leading-7 text-slate-600">{selectedWanted.description}</p>
+                  </div>
 
-                      <div className="flex items-center justify-center gap-2 p-3 bg-green-100 rounded-lg">
-                        <FaEnvelope className="text-green-600" />
-                        <div>
-                          <p className="font-semibold text-green-700">在线举报</p>
-                          <p className="text-green-600">tips.fbi.gov</p>
-                        </div>
-                      </div>
+                  <div>
+                    <h3 className="flex items-center gap-2 text-base font-semibold text-slate-950">
+                      <FaDollarSign className="text-emerald-600" /> 主要罪名
+                    </h3>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {selectedWanted.charges.map((charge) => (
+                        <span key={charge} className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-sm font-medium text-rose-700">
+                          {charge}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div className="rounded-[24px] border border-slate-200 bg-white p-4">
+                      <h3 className="flex items-center gap-2 text-base font-semibold text-slate-950">
+                        <FaMapMarkerAlt className="text-sky-600" /> 身份特征
+                      </h3>
+                      <p className="mt-3 text-sm leading-7 text-slate-600">
+                        身高 {selectedWanted.height}，体重 {selectedWanted.weight}，眼睛 {selectedWanted.eyes}，头发 {selectedWanted.hair}，种族 {selectedWanted.race}。
+                      </p>
+                    </div>
+                    <div className="rounded-[24px] border border-slate-200 bg-white p-4">
+                      <h3 className="flex items-center gap-2 text-base font-semibold text-slate-950">
+                        <FaCalendarAlt className="text-sky-600" /> 其他信息
+                      </h3>
+                      <p className="mt-3 text-sm leading-7 text-slate-600">
+                        别名：{selectedWanted.aliases.join('、') || '无'}。标记：{selectedWanted.scarsAndMarks.join('、') || '未公开'}。
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -677,94 +519,58 @@ const FBIWantedPublic: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* 免责声明弹窗 */}
       <AnimatePresence>
         {showDisclaimer && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            onClick={handleCloseDisclaimer}
+            onClick={() => setShowDisclaimer(false)}
           >
             <motion.div
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg xl:max-w-xl mx-4 p-4 sm:p-6 md:p-8 relative max-h-[90vh] overflow-y-auto"
-              initial={{ scale: 0.95, y: 40, opacity: 0 }}
+              className="w-full max-w-xl rounded-[32px] border border-white/70 bg-white/95 p-6 shadow-[0_28px_90px_rgba(15,23,42,0.2)] backdrop-blur-xl"
+              initial={{ scale: 0.96, y: 16, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
-              exit={{ scale: 0.95, y: 40, opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              onClick={e => e.stopPropagation()}
+              exit={{ scale: 0.96, y: 16, opacity: 0 }}
+              onClick={(event) => event.stopPropagation()}
             >
-              <div className="flex items-center mb-3 sm:mb-4">
-                <FaBullhorn className="text-2xl sm:text-3xl mr-2 text-red-600" />
-                <h2 className="text-lg sm:text-xl font-bold text-[#023047]">重要免责声明</h2>
-              </div>
-
-              <div className="prose max-w-none mb-4 sm:mb-6">
-                <div className="bg-red-50 border border-red-200 rounded-xl p-3 sm:p-4 mb-3 sm:mb-4">
-                  <div className="flex items-center gap-2 mb-2 sm:mb-3">
-                    <FaExclamationTriangle className="text-red-600 text-sm sm:text-base" />
-                    <h3 className="text-red-700 font-semibold text-sm sm:text-base">法律免责声明</h3>
-                  </div>
-                  <div className="space-y-1 sm:space-y-2 text-xs sm:text-sm text-red-700">
-                    <p><strong>本网站不负责关于以下页面任何法律责任，仅娱乐为主。</strong></p>
-                    <p>• 本页面展示的FBI通缉犯信息仅供参考和娱乐目的</p>
-                    <p>• 所有信息来源于公开渠道，本站不保证信息的准确性和时效性</p>
-                    <p>• 如需官方权威信息，请访问FBI官方网站</p>
-                    <p>• 发现可疑人员请联系当地执法部门，切勿私自行动</p>
-                  </div>
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[22px] bg-rose-50 text-rose-700 ring-1 ring-rose-100">
+                  <FaBullhorn />
                 </div>
-
-                <div className="bg-[#8ECAE6]/15 border border-[#8ECAE6]/30 rounded-xl p-3 sm:p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FaInfoCircle className="text-[#219EBC] text-sm sm:text-base" />
-                    <h3 className="text-[#023047] font-semibold text-sm sm:text-base">使用须知</h3>
-                  </div>
-                  <div className="space-y-1 text-xs sm:text-sm text-[#023047]/70">
-                    <p>• 继续使用本页面即表示您已阅读并同意本免责声明</p>
-                    <p>• 本站仅提供信息展示服务，不承担任何法律责任</p>
-                  </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-950">重要免责声明</h2>
+                  <p className="mt-3 text-sm leading-7 text-slate-600">
+                    本页面展示的信息仅供参考和娱乐用途，本站不保证数据准确性与时效性。需要权威信息请访问官方渠道，发现可疑人员请联系当地执法部门。
+                  </p>
                 </div>
               </div>
 
-              <div className="flex flex-col xs:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6">
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                <InfoPrimaryButton tone="rose" onClick={handleCloseDisclaimerToday}>
+                  今日不再提示
+                </InfoPrimaryButton>
                 <button
-                  className="flex-1 px-3 sm:px-4 py-2 bg-[#FB8500] text-white rounded-lg font-semibold shadow hover:bg-[#FFB703] transition text-sm sm:text-base"
-                  onClick={handleCloseDisclaimerToday}
-                >
-                  <span className="hidden sm:inline">我已了解，今日不再提示</span>
-                  <span className="sm:hidden">今日不再提示</span>
-                </button>
-                <button
-                  className="flex-1 px-3 sm:px-4 py-2 bg-[#8ECAE6]/15 text-[#023047]/70 rounded-lg font-semibold shadow hover:bg-[#8ECAE6]/25 transition text-sm sm:text-base"
-                  onClick={handleCloseDisclaimer}
+                  type="button"
+                  onClick={() => setShowDisclaimer(false)}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                 >
                   关闭
                 </button>
                 <button
-                  className="flex-1 px-3 sm:px-4 py-2 bg-[#8ECAE6]/30 text-[#023047]/70 rounded-lg font-semibold shadow hover:bg-[#8ECAE6]/40 transition text-sm sm:text-base"
+                  type="button"
                   onClick={handleCloseDisclaimerForever}
+                  className="rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
                 >
-                  <span className="hidden sm:inline">永久不再提示</span>
-                  <span className="sm:hidden">永不提示</span>
+                  永不提示
                 </button>
               </div>
-
-              <button
-                className="absolute top-4 right-4 text-[#023047]/30 hover:text-[#023047]/70"
-                onClick={handleCloseDisclaimer}
-                aria-label="关闭免责声明"
-              >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </InfoQueryShell>
   );
 };
 
