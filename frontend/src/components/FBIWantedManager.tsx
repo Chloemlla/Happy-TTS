@@ -69,8 +69,7 @@ const FBIWantedManager: React.FC = () => {
         'image/png',
         'image/gif',
         'image/webp',
-        'image/bmp',
-        'image/svg+xml'
+        'image/bmp'
     ];
     const [wantedList, setWantedList] = useState<FBIWanted[]>([]);
     const [statistics, setStatistics] = useState<Statistics | null>(null);

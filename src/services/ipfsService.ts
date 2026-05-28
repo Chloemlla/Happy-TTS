@@ -333,10 +333,18 @@ export class IPFSService {
     if (context?.skipFileTypeCheck) {
       logger.info("[IPFS] 跳过文件类型检查（归档上传）", { mimetype, filename });
     } else {
+      // 安全策略：禁止 SVG（可能包含可执行内容）
+      const lower = (mimetype || "").toLowerCase();
+      const isSvgMime = lower === "image/svg+xml" || lower === "image/svg";
+      const isSvgExt = (filename || "").toLowerCase().endsWith(".svg");
+      if (isSvgMime || isSvgExt) {
+        throw new Error("出于安全考虑，已禁止上传 SVG 文件");
+      }
+
       const allowAllFileTypes = await getAllowAllFileTypes();
       if (!allowAllFileTypes) {
         // 默认允许所有图片文件格�?
-        const isImageFile = mimetype.toLowerCase().startsWith("image/");
+        const isImageFile = lower.startsWith("image/");
         if (!isImageFile) {
           throw new Error("默认只支持图片文件格式，如需上传其他文件类型请联系管理员开启配置");
         }

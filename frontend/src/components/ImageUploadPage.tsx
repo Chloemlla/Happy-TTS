@@ -30,8 +30,8 @@ const ALLOWED_TYPES = [
   'image/gif',
   'image/webp',
   'image/bmp',
-  'image/svg+xml',
 ];
+const ACCEPT_ATTR = ALLOWED_TYPES.join(',');
 
 // 1. 新增本地存储相关常量和工具函数
 const STORAGE_KEY = 'happy_images';
@@ -1054,7 +1054,7 @@ const ImageUploadPage: React.FC = () => {
               <div className="relative">
                 <input
                   type="file"
-                  accept="image/*"
+                  accept={ACCEPT_ATTR}
                   multiple
                   ref={batchFileInputRef}
                   className="hidden"
@@ -1086,7 +1086,7 @@ const ImageUploadPage: React.FC = () => {
           >
             <input
               type="file"
-              accept="image/*"
+              accept={ACCEPT_ATTR}
               ref={fileInputRef}
               className="hidden"
               onChange={handleFileChange}

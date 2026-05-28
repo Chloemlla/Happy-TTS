@@ -21,7 +21,17 @@ import logger from "../../utils/logger";
 import { UserStorage } from "../../utils/userStorage";
 
 const router = express.Router();
-const upload = multer({ limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB限制
+const upload = multer({
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB限制
+  fileFilter: (_req, file, cb) => {
+    const mime = (file.mimetype || "").toLowerCase();
+    const name = (file.originalname || "").toLowerCase();
+    if (mime === "image/svg+xml" || mime === "image/svg" || name.endsWith(".svg")) {
+      return cb(new Error("出于安全考虑，已禁止上传 SVG 文件"));
+    }
+    cb(null, true);
+  },
+});
 
 function normalizeEmail(input: unknown): string {
   return typeof input === "string" ? input.trim().toLowerCase() : "";

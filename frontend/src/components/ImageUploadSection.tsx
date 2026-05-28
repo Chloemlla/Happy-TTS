@@ -95,7 +95,7 @@ const ImageUploadSection: React.FC<ImageUploadSectionProps> = ({
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/bmp"
             onChange={onImageUpload}
             className="hidden"
           />

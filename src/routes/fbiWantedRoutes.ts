@@ -7,8 +7,19 @@ import { createLimiter } from "../middleware/rateLimiter";
 
 const router = express.Router();
 
-// 文件上传中间件（内存存储，限制5MB）
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+// 文件上传中间件（内存存储，限制5MB；禁止 SVG）
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const mime = (file.mimetype || "").toLowerCase();
+    const name = (file.originalname || "").toLowerCase();
+    if (mime === "image/svg+xml" || mime === "image/svg" || name.endsWith(".svg")) {
+      return cb(new Error("出于安全考虑，已禁止上传 SVG 文件"));
+    }
+    cb(null, true);
+  },
+});
 
 // ===== 公开路由（无需认证） =====
 const publicLimiter = createLimiter({

@@ -16,9 +16,14 @@ const upload = multer({
     fileSize: 5 * 1024 * 1024, // 限制文件大小为5MB
     files: 1, // 只允许上传一个文件
   },
-  fileFilter: (_req, _file, cb) => {
-    // 文件类型检查将在服务层动态处理，这里允许所有文件通过
-    // 实际的文件类型限制由IPFS_ALLOW_ALL_FILE_TYPES配置控制
+  fileFilter: (_req, file, cb) => {
+    // 安全策略：直接拒绝 SVG 文件（mime 或扩展名）
+    const mime = (file.mimetype || "").toLowerCase();
+    const name = (file.originalname || "").toLowerCase();
+    if (mime === "image/svg+xml" || mime === "image/svg" || name.endsWith(".svg")) {
+      return cb(new Error("出于安全考虑，已禁止上传 SVG 文件"));
+    }
+    // 其他文件类型限制由 IPFS_ALLOW_ALL_FILE_TYPES 在服务层动态处理
     cb(null, true);
   },
 });
