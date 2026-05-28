@@ -1,306 +1,92 @@
-name: Auto Approve & Merge
+name: Auto Merge After TSC
 
 on:
-  pull_request_target:
-    types: [opened, synchronize, reopened]
-  pull_request_review:
-    types: [submitted]
-  check_suite:
+  workflow_run:
+    workflows: ["TypeScript Compilation Check"]
     types: [completed]
-  status:
   workflow_dispatch:
-  schedule:
-    - cron: "0 0 * * *" # 每天 UTC 零点运行
+    inputs:
+      pr_number:
+        description: "Pull request number to merge after manual verification"
+        required: true
+        type: number
 
 permissions:
   contents: write
   pull-requests: write
+  actions: read
   checks: read
-  actions: write
 
 jobs:
-  # Job 1: 定时批准 Dependabot PRs（原 auto-approve.yml）
-  auto-approve:
+  merge:
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'pull_request')
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@main
-
-      - name: Setup Node.js
-        uses: actions/setup-node@main
+      - name: Merge PR after TypeScript check passes
+        uses: actions/github-script@v7
         with:
-          node-version: "18"
-
-      - name: Install dependencies
-        run: npm install @octokit/rest
-
-      - name: Auto-approve Dependabot PRs
-        env:
-          GITHUB_TOKEN: ${{ secrets.USER_PAT }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-        run: node scripts/auto-approve.js
-
-  # Job 2: Dependabot PR 即时批准+自动合并
-  dependabot-approve:
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request_target' && github.actor == 'dependabot[bot]'
-    steps:
-      - name: Approve dependabot PR
-        uses: actions/github-script@main
-        with:
-          github-token: ${{ secrets.USER_PAT }}
+          github-token: ${{ secrets.USER_PAT || github.token }}
           script: |
             const { owner, repo } = context.repo;
-            const pull_number = context.payload.pull_request.number;
 
-            // 批准 PR
-            await github.rest.pulls.createReview({
-              owner,
-              repo,
-              pull_number,
-              event: 'APPROVE',
-              body: '🤖 Dependabot PR auto-approved.'
-            });
-            console.log(`✅ PR #${pull_number} approved`);
-
-            // 启用自动合并
-            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number });
-            const mutation = `
-              mutation($id: ID!) {
-                enablePullRequestAutoMerge(input: { pullRequestId: $id, mergeMethod: SQUASH }) {
-                  pullRequest { autoMergeRequest { enabledAt } }
-                }
+            const getPrNumbers = () => {
+              if (context.eventName === 'workflow_dispatch') {
+                return [Number(context.payload.inputs.pr_number)];
               }
-            `;
-            await github.graphql(mutation, { id: pr.node_id });
-            console.log(`✅ Auto-merge enabled for PR #${pull_number}`);
 
-  # Job 3: 事件驱动自动合并（原 auto-merge.yml）
-  auto-merge:
-    runs-on: ubuntu-latest
-    if: github.event_name != 'schedule'
-    steps:
-      - name: Check if PR is ready for auto-merge
-        id: check-ready
-        uses: actions/github-script@main
-        with:
-          script: |
-            const { owner, repo } = context.repo;
+              const prs = context.payload.workflow_run?.pull_requests || [];
+              return prs.map((pr) => pr.number).filter(Boolean);
+            };
 
-            // 尝试从不同的事件类型中获取 PR 编号
-            let pull_number = null;
+            const prNumbers = [...new Set(getPrNumbers())];
+            if (prNumbers.length === 0) {
+              core.info('No pull request is associated with this TypeScript workflow run.');
+              return;
+            }
 
-            if (context.eventName === 'pull_request' || context.eventName === 'pull_request_review') {
-              pull_number = context.payload.pull_request?.number || context.payload.number;
-            } else if (context.eventName === 'workflow_dispatch') {
-              // 对于手动触发，检查所有开放的 PR
-              console.log('Manual workflow dispatch - checking all open PRs');
-              
-              const { data: openPRs } = await github.rest.pulls.list({
+            for (const pull_number of prNumbers) {
+              const { data: pr } = await github.rest.pulls.get({
                 owner,
                 repo,
-                state: 'open',
-                sort: 'updated',
-                direction: 'desc'
+                pull_number,
               });
-              
-              console.log(`Found ${openPRs.length} open PRs`);
-              
-              // 处理所有开放的 PR
-              const results = [];
-              for (const pr of openPRs) {
-                const prNumber = pr.number;
-                console.log(`\n=== 检查 PR #${prNumber}: ${pr.title} ===`);
-                
-                // 检查是否为 dependabot PR
-                const isDependabot = pr.user.login === 'dependabot[bot]';
-                
-                // 检查是否有自动合并标签
-                const hasAutoMergeLabel = pr.labels.some(label => 
-                  ['auto-merge', 'automerge', '自动合并'].includes(label.name.toLowerCase())
-                );
-                
-                // 检查 PR 状态
-                const isApproved = pr.mergeable_state === 'clean';
-                const hasConflicts = pr.mergeable === false;
-                
-                console.log(`Dependabot PR: ${isDependabot}`);
-                console.log(`Has auto-merge label: ${hasAutoMergeLabel}`);
-                console.log(`Mergeable state: ${pr.mergeable_state}`);
-                console.log(`Has conflicts: ${hasConflicts}`);
-                
-                // 决定是否启用自动合并
-                const shouldAutoMerge = (isDependabot || hasAutoMergeLabel) && !hasConflicts;
-                
-                if (shouldAutoMerge) {
-                  try {
-                    const mutation = `
-                      mutation enableAutoMerge($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
-                        enablePullRequestAutoMerge(input: {
-                          pullRequestId: $pullRequestId,
-                          mergeMethod: $mergeMethod
-                        }) {
-                          pullRequest {
-                            autoMergeRequest {
-                              enabledAt
-                            }
-                          }
-                        }
-                      }
-                    `;
-                    
-                    const variables = {
-                      pullRequestId: pr.node_id,
-                      mergeMethod: 'SQUASH'
-                    };
-                    
-                    await github.graphql(mutation, variables);
-                    
-                    console.log(`✅ 已为 PR #${prNumber} 启用自动合并`);
-                    
-                    await github.rest.issues.createComment({
-                      owner,
-                      repo,
-                      issue_number: prNumber,
-                      body: '🤖 Automatic merging is enabled! This PR will be automatically merged once all checks pass.'
-                    });
-                    
-                    results.push({ pr: prNumber, status: 'enabled', title: pr.title });
-                  } catch (error) {
-                    console.log(`❌ 无法为 PR #${prNumber} 启用自动合并: ${error.message}`);
-                    results.push({ pr: prNumber, status: 'failed', title: pr.title, error: error.message });
-                  }
-                } else {
-                  console.log(`⏭️ 跳过 PR #${prNumber} (不满足自动合并条件)`);
-                  results.push({ pr: prNumber, status: 'skipped', title: pr.title, reason: '不满足自动合并条件' });
-                }
+
+              if (pr.state !== 'open') {
+                core.info(`PR #${pull_number} is ${pr.state}; skipping.`);
+                continue;
               }
-              
-              console.log('\n=== 手动触发总结 ===');
-              console.log(`总共检查: ${openPRs.length} 个 PR`);
-              console.log(`已启用自动合并: ${results.filter(r => r.status === 'enabled').length} 个`);
-              console.log(`跳过: ${results.filter(r => r.status === 'skipped').length} 个`);
-              console.log(`失败: ${results.filter(r => r.status === 'failed').length} 个`);
-              
-              core.setOutput('should-merge', 'true');
-              core.setOutput('pr-number', 'all');
-              core.setOutput('results', JSON.stringify(results));
-              
-              return true;
-            } else if (context.eventName === 'check_suite' || context.eventName === 'status') {
-              const commits = context.payload.check_suite?.head_sha ? 
-                [context.payload.check_suite.head_sha] : 
-                (context.payload.commits || []).map(c => c.sha);
-              
-              if (commits.length > 0) {
-                const { data: prs } = await github.rest.pulls.list({
+
+              if (pr.draft) {
+                core.info(`PR #${pull_number} is a draft; skipping.`);
+                continue;
+              }
+
+              const workflowUrl = context.payload.workflow_run?.html_url;
+              core.info(`Merging PR #${pull_number} after successful TypeScript Compilation Check${workflowUrl ? `: ${workflowUrl}` : ''}`);
+
+              try {
+                await github.rest.pulls.merge({
                   owner,
                   repo,
-                  state: 'open',
-                  head: `${owner}:${context.payload.repository?.default_branch || 'main'}`
+                  pull_number,
+                  merge_method: 'squash',
+                  commit_title: `${pr.title} (#${pull_number})`,
+                  commit_message: 'Merged automatically after TypeScript Compilation Check passed.',
                 });
-                
-                for (const pr of prs) {
-                  const { data: prCommits } = await github.rest.pulls.listCommits({
-                    owner,
-                    repo,
-                    pull_number: pr.number
-                  });
-                  
-                  const prCommitShas = prCommits.map(c => c.sha);
-                  if (commits.some(sha => prCommitShas.includes(sha))) {
-                    pull_number = pr.number;
-                    break;
-                  }
-                }
+
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: pull_number,
+                  body: '🤖 TypeScript Compilation Check passed, so this PR was merged automatically.',
+                });
+
+                core.info(`Merged PR #${pull_number}.`);
+              } catch (error) {
+                core.setFailed(`Failed to merge PR #${pull_number}: ${error.message}`);
               }
             }
-
-            if (!pull_number) {
-              console.log('No pull request number found for event:', context.eventName);
-              return false;
-            }
-
-            const { data: pr } = await github.rest.pulls.get({
-              owner,
-              repo,
-              pull_number
-            });
-
-            console.log(`检查 PR #${pull_number}: ${pr.title}`);
-
-            const isDependabot = pr.user.login === 'dependabot[bot]';
-            const hasAutoMergeLabel = pr.labels.some(label => 
-              ['auto-merge', 'automerge', '自动合并'].includes(label.name.toLowerCase())
-            );
-            const isApproved = pr.mergeable_state === 'clean';
-            const hasConflicts = pr.mergeable === false;
-
-            console.log(`Dependabot PR: ${isDependabot}`);
-            console.log(`Has auto-merge label: ${hasAutoMergeLabel}`);
-            console.log(`Mergeable state: ${pr.mergeable_state}`);
-            console.log(`Has conflicts: ${hasConflicts}`);
-
-            const shouldAutoMerge = (isDependabot || hasAutoMergeLabel) && !hasConflicts;
-
-            core.setOutput('should-merge', shouldAutoMerge);
-            core.setOutput('pr-number', pull_number);
-
-            return shouldAutoMerge;
-
-      - name: Enable auto-merge for eligible PRs
-        if: ${{ steps.check-ready.outputs.should-merge == 'true' && steps.check-ready.outputs.pr-number != 'all' }}
-        uses: actions/github-script@main
-        with:
-          script: |
-            const { owner, repo } = context.repo;
-            const pull_number = ${{ steps.check-ready.outputs.pr-number }};
-
-            try {
-              const { data: prData } = await github.rest.pulls.get({
-                owner,
-                repo,
-                pull_number
-              });
-
-              const mutation = `
-                mutation enableAutoMerge($pullRequestId: ID!, $mergeMethod: PullRequestMergeMethod!) {
-                  enablePullRequestAutoMerge(input: {
-                    pullRequestId: $pullRequestId,
-                    mergeMethod: $mergeMethod
-                  }) {
-                    pullRequest {
-                      autoMergeRequest {
-                        enabledAt
-                      }
-                    }
-                  }
-                }
-              `;
-              
-              const variables = {
-                pullRequestId: prData.node_id,
-                mergeMethod: 'SQUASH'
-              };
-              
-              await github.graphql(mutation, variables);
-
-              console.log(`✅ 已为 PR #${pull_number} 启用自动合并`);
-
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number: pull_number,
-                body: '🤖 Automatic merging is enabled! This PR will be automatically merged once all checks pass.'
-              });
-
-            } catch (error) {
-              console.log(`❌ 无法为 PR #${pull_number} 启用自动合并: ${error.message}`);
-            }
-
-      - name: Summary for manual dispatch
-        if: steps.check-ready.outputs.pr-number == 'all'
-        run: |
-          echo "手动触发完成！"
-          echo "结果已记录在日志中，请查看上方的详细输出"
