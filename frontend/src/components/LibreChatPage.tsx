@@ -35,6 +35,18 @@ import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
 import { LibreChatContext, LibreChatContextValue } from './LibreChatContext';
 import { LibreChatRealtimeDialog } from './LibreChatRealtimeDialog';
+import {
+  InfoBadge,
+  InfoPanel,
+  InfoQueryHero,
+  InfoQueryShell,
+  InfoSectionTitle
+} from './InfoQueryScaffold';
+
+const librePanelClass = 'rounded-[28px] border border-white/70 bg-white/88 shadow-[0_18px_60px_rgba(15,23,42,0.07)] backdrop-blur-xl';
+const libreTileClass = 'rounded-[22px] border border-white/70 bg-white/90 shadow-[0_10px_32px_rgba(15,23,42,0.06)] backdrop-blur';
+const libreInputClass = 'w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-800 shadow-sm transition-all placeholder:text-slate-400 focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200';
+const libreGhostButtonClass = 'inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50';
 
 // 将英文标点符号替换为中文标点符号
 function convertToChinesePunctuation(text: string): string {
@@ -1408,12 +1420,12 @@ const LibreChatPage: React.FC = () => {
   // 初始化加载指示器
   if (initializing && !latest && !history) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center space-y-4">
+      <InfoQueryShell maxWidthClassName="max-w-xl">
+        <InfoPanel className="text-center">
           <UnifiedLoadingSpinner size="lg" />
-          <p className="text-gray-600">正在初始化页面...</p>
-        </div>
-      </div>
+          <p className="mt-4 text-sm text-slate-600">正在初始化页面...</p>
+        </InfoPanel>
+      </InfoQueryShell>
     );
   }
 
@@ -1433,59 +1445,36 @@ const LibreChatPage: React.FC = () => {
 
   return (
     <LibreChatContext.Provider value={contextValue}>
+      <InfoQueryShell>
       <motion.div
         className="space-y-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        {/* 标题和说明 */}
-        <motion.div
-          className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
-            <FaEnvelope className="text-blue-500" />
-            LibreChat 聊天
-          </h2>
-          <div className="text-gray-600 space-y-2">
-            <p>与 LibreChat 进行智能对话，支持历史记录管理、消息编辑和导出功能。</p>
-            <div className="flex items-start gap-2 text-sm">
-              <div>
-                <p className="font-semibold text-blue-700">功能说明：</p>
-                <ul className="list-disc list-inside space-y-1 mt-1">
-                  <li>智能对话和流式响应</li>
-                  <li>历史记录查看和管理</li>
-                  <li>消息编辑和批量删除（支持VSCode Dark+主题代码编辑器）</li>
-                  <li>聊天记录导出功能</li>
-                  <li>游客模式和用户模式</li>
-                  <li>实时通知和自动刷新</li>
-                </ul>
-              </div>
-            </div>
-            {/* SSE连接状态指示器 */}
-            <div className="flex items-center gap-2 mt-2">
-              <div className={`w-2 h-2 rounded-full ${sseConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-              <span className="text-xs text-gray-500">
-                {sseConnected ? '实时连接已建立' : '实时连接已断开'}
-              </span>
-            </div>
-          </div>
-        </motion.div>
+        <InfoQueryHero
+          eyebrow="Entertainment"
+          title="LibreChat 聊天"
+          description="与 LibreChat 进行智能对话，支持历史记录管理、消息编辑、批量删除、导出和实时通知。"
+          icon={FaEnvelope}
+          tone="sky"
+          meta={
+            <>
+              <InfoBadge tone={guestMode ? 'slate' : 'sky'}>{guestMode ? '游客模式' : '用户模式'}</InfoBadge>
+              <InfoBadge tone={sseConnected ? 'emerald' : 'rose'}>{sseConnected ? '实时连接已建立' : '实时连接已断开'}</InfoBadge>
+              <InfoBadge tone="violet">历史记录管理</InfoBadge>
+            </>
+          }
+        />
 
         {/* 最新镜像信息 */}
         <motion.div
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          className={`${librePanelClass} p-5 sm:p-6`}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-            <FaDownload className="text-lg text-blue-500" />
-            LibreChat 最新镜像
-          </h3>
+          <InfoSectionTitle title="LibreChat 最新镜像" icon={FaDownload} tone="sky" />
           {loadingLatest ? (
             <UnifiedLoadingSpinner
               size="md"
@@ -1493,29 +1482,29 @@ const LibreChatPage: React.FC = () => {
               className="py-8"
             />
           ) : latest ? (
-            <div className="space-y-3">
+            <div className="space-y-3 text-slate-700">
               {latest.update_time && (
-                <div className="flex items-center gap-2 text-sm text-gray-700">
+                <div className={`${libreTileClass} flex items-center gap-2 p-3 text-sm`}>
                   <FaInfoCircle className="text-blue-500" />
                   <span>更新时间：{latest.update_time}</span>
                 </div>
               )}
               {latest.image_name && (
-                <div className="flex items-center gap-2 text-sm text-gray-700">
+                <div className={`${libreTileClass} flex items-center gap-2 p-3 text-sm`}>
                   <FaDownload className="text-green-500" />
                   <span>镜像名称：{latest.image_name}</span>
                 </div>
               )}
               {latest.image_url && (
-                <div className="flex items-center gap-2 text-sm text-gray-700">
+                <div className={`${libreTileClass} flex items-center gap-2 p-3 text-sm`}>
                   <FaEnvelope className="text-orange-500" />
                   <span className="break-all">镜像地址：{latest.image_url}</span>
                 </div>
               )}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">
-              <FaDownload className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+            <div className="py-8 text-center text-slate-500">
+              <FaDownload className="mx-auto mb-4 h-12 w-12 text-slate-300" />
               暂无数据
             </div>
           )}
@@ -1525,7 +1514,7 @@ const LibreChatPage: React.FC = () => {
         <AnimatePresence>
           {guestMode && !guestNoticeDismissed && (
             <motion.div
-              className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 relative"
+              className={`${librePanelClass} relative p-5 sm:p-6`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
@@ -1533,18 +1522,15 @@ const LibreChatPage: React.FC = () => {
             >
               <button
                 onClick={() => setGuestNoticeDismissed(true)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                className="absolute right-4 top-4 text-slate-400 transition-colors hover:text-slate-600"
                 title="关闭并不再提示"
               >
                 <FaTimes className="w-5 h-5" />
               </button>
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <FaExclamationTriangle className="text-orange-500" />
-                使用须知（游客）
-              </h3>
-              <div className="space-y-4 text-sm text-gray-700">
+              <InfoSectionTitle title="使用须知（游客）" icon={FaExclamationTriangle} tone="amber" />
+              <div className="space-y-4 text-sm text-slate-700">
                 <div>
-                  <p className="font-medium mb-2 text-gray-800">1. 禁止内容范围：</p>
+                  <p className="mb-2 font-medium text-slate-900">1. 禁止内容范围：</p>
                   <ul className="list-disc list-inside ml-4 space-y-1">
                     <li>政治敏感、民族歧视内容</li>
                     <li>色情、暴力、恐怖主义内容</li>
@@ -1553,7 +1539,7 @@ const LibreChatPage: React.FC = () => {
                   </ul>
                 </div>
                 <div>
-                  <p className="font-medium mb-2 text-gray-800">2. 违规处理措施：</p>
+                  <p className="mb-2 font-medium text-slate-900">2. 违规处理措施：</p>
                   <ul className="list-disc list-inside ml-4 space-y-1">
                     <li>立即停止服务并封禁账号</li>
                     <li>配合执法部门调查</li>
@@ -1561,12 +1547,12 @@ const LibreChatPage: React.FC = () => {
                     <li>保留追究法律责任权利</li>
                   </ul>
                 </div>
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                  <h4 className="text-blue-700 font-semibold mb-2 flex items-center gap-2">
+                <div className="rounded-2xl border border-sky-200 bg-sky-50/80 p-4">
+                  <h4 className="mb-2 flex items-center gap-2 font-semibold text-sky-700">
                     <FaEnvelope className="text-blue-500" />
                     联系我们
                   </h4>
-                  <p className="text-blue-700 text-sm">
+                  <p className="text-sm text-sky-700">
                     如有任何问题或建议，请联系开发者：
                     <a
                       href="mailto:admin@chloemlla.com"
@@ -1583,19 +1569,21 @@ const LibreChatPage: React.FC = () => {
 
         {/* 发送消息 */}
         <motion.div
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          className={`${librePanelClass} p-5 sm:p-6`}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-              <FaPaperPlane className="text-lg text-blue-500" />
-              发送消息
-            </h3>
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <InfoSectionTitle
+              title="发送消息"
+              description="支持游客会话、Token 会话和单次实时对话。"
+              icon={FaPaperPlane}
+              tone="sky"
+            />
             {guestMode && (
               <span
-                className="inline-flex items-center text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-full px-3 py-1"
+                className="inline-flex items-center rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs text-slate-600"
                 title="未填写令牌，将以游客模式使用 HttpOnly Cookie 维持会话"
               >
                 <FaUser className="w-3 h-3 mr-1" />
@@ -1604,7 +1592,7 @@ const LibreChatPage: React.FC = () => {
             )}
             {!guestMode && token && (
               <span
-                className="inline-flex items-center text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-full px-3 py-1"
+                className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs text-sky-700"
                 title={`当前Token: ${token.substring(0, 8)}...`}
               >
                 <FaUser className="w-3 h-3 mr-1" />
@@ -1617,7 +1605,7 @@ const LibreChatPage: React.FC = () => {
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="relative">
                 <input
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                  className={libreInputClass}
                   placeholder="请输入 Token"
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
@@ -1625,7 +1613,7 @@ const LibreChatPage: React.FC = () => {
               </div>
               <div className="relative sm:col-span-2">
                 <input
-                  className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                  className={libreInputClass}
                   placeholder="请输入消息"
                   value={message}
                   maxLength={MAX_MESSAGE_LEN}
@@ -1636,12 +1624,12 @@ const LibreChatPage: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-between">
-              <div className="text-xs text-gray-400">{message.length}/{MAX_MESSAGE_LEN}</div>
+              <div className="text-xs text-slate-400">{message.length}/{MAX_MESSAGE_LEN}</div>
               {guestMode && !guestHintDismissed && (
-                <div className="text-xs text-gray-500 flex items-center gap-2">
+                <div className="flex items-center gap-2 text-xs text-slate-500">
                   <span>当前以游客身份使用，会话通过浏览器 Cookie 保存。</span>
                   <button
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                    className="text-slate-400 transition-colors hover:text-slate-600"
                     onClick={() => setGuestHintDismissed(true)}
                     title="不再提示"
                   >
@@ -1652,7 +1640,7 @@ const LibreChatPage: React.FC = () => {
             </div>
 
             {sendError && (
-              <div className="text-red-500 text-sm bg-red-50 border border-red-200 rounded-lg p-3">
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-600">
                 {sendError}
               </div>
             )}
@@ -1660,12 +1648,12 @@ const LibreChatPage: React.FC = () => {
             {/* Turnstile 人机验证（非管理员用户） */}
             {!isAdmin && !turnstileConfigLoading && turnstileConfig.siteKey && typeof turnstileConfig.siteKey === 'string' && (
               <motion.div
-                className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200"
+                className={`${libreTileClass} mt-4 p-4`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
               >
-                <div className="text-sm text-gray-700 mb-3 text-center">
+                <div className="mb-3 text-center text-sm text-slate-700">
                   人机验证
                   {turnstileVerified && (
                     <span className="ml-2 text-green-600 font-medium">✓ 验证通过</span>
@@ -1694,7 +1682,7 @@ const LibreChatPage: React.FC = () => {
               <motion.button
                 onClick={handleSend}
                 disabled={sending || (!isAdmin && !!turnstileConfig.siteKey && !turnstileVerified)}
-                className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium flex items-center gap-2 disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-xl bg-sky-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-50"
                 whileTap={{ scale: 0.95 }}
               >
                 <FaPaperPlane className="w-4 h-4" />
@@ -1710,14 +1698,14 @@ const LibreChatPage: React.FC = () => {
                     onConfirm: handleClear
                   });
                 }}
-                className="px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+                className={libreGhostButtonClass}
                 whileTap={{ scale: 0.95 }}
               >
                 清除历史
               </motion.button>
               <motion.button
                 onClick={openRealtimeDialog}
-                className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition font-medium flex items-center gap-2"
+                className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800"
                 title="打开单次实时对话框"
                 whileTap={{ scale: 0.95 }}
               >
@@ -1754,7 +1742,7 @@ const config = {
                     }
                   });
                 }}
-                className="px-6 py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition font-medium flex items-center gap-2"
+                className="inline-flex items-center gap-2 rounded-xl bg-violet-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-800"
                 title="测试代码编辑器功能"
                 whileTap={{ scale: 0.95 }}
               >
@@ -1767,27 +1755,24 @@ const config = {
 
         {/* 聊天历史 */}
         <motion.div
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          className={`${librePanelClass} p-5 sm:p-6`}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
           {/* 工具栏 */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
-            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-              <FaHistory className="text-lg text-blue-500" />
-              聊天历史
-              {history && (
-                <span className="text-sm text-gray-500 font-normal">
-                  (共 {history.total} 条记录)
-                </span>
-              )}
-            </h3>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
+            <InfoSectionTitle
+              title="聊天历史"
+              description={history ? `共 ${history.total} 条记录` : '查看、编辑、导出和删除历史消息。'}
+              icon={FaHistory}
+              tone="violet"
+            />
+            <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
               <span>第 {page} / {history?.totalPages || 1} 页，共 {history?.total || 0} 条</span>
               <motion.button
                 onClick={refreshHistory}
-                className="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-50 transition flex items-center gap-1"
+                className={libreGhostButtonClass}
                 title="刷新"
                 whileTap={{ scale: 0.95 }}
               >
@@ -1796,7 +1781,7 @@ const config = {
               </motion.button>
               <motion.button
                 onClick={exportCurrentPage}
-                className="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-50 transition flex items-center gap-1"
+                className={libreGhostButtonClass}
                 title="导出本页"
                 whileTap={{ scale: 0.95 }}
               >
@@ -1805,7 +1790,7 @@ const config = {
               </motion.button>
               <motion.button
                 onClick={exportAll}
-                className="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-50 transition flex items-center gap-1"
+                className={libreGhostButtonClass}
                 title="导出全部"
                 whileTap={{ scale: 0.95 }}
               >
@@ -1815,9 +1800,9 @@ const config = {
               <motion.button
                 onClick={handleBatchDelete}
                 disabled={selectedIds.length === 0}
-                className={`px-3 py-1 rounded-lg border transition flex items-center gap-1 ${selectedIds.length === 0
-                  ? 'border-gray-200 text-gray-300'
-                  : 'border-red-200 text-red-600 hover:bg-red-50'
+                className={`${libreGhostButtonClass} ${selectedIds.length === 0
+                  ? 'text-slate-300'
+                  : 'border-rose-200 text-rose-600 hover:bg-rose-50'
                   }`}
                 title="批量删除所选"
                 whileTap={{ scale: 0.95 }}
@@ -1829,7 +1814,7 @@ const config = {
           </div>
 
           {/* 聊天记录内容区域 */}
-          <div className="border-t border-gray-200 pt-4">
+          <div className="border-t border-white/70 pt-4">
             {loadingHistory ? (
               <UnifiedLoadingSpinner
                 size="md"
@@ -1840,7 +1825,7 @@ const config = {
               <div className="max-h-[60vh] overflow-auto pr-1">
                 {streaming && (
                   <motion.div
-                    className="mb-4 p-4 border border-gray-200 rounded-lg bg-white"
+                    className={`${libreTileClass} mb-4 p-4`}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                   >
@@ -1850,7 +1835,7 @@ const config = {
                       </div>
                       <div className="flex flex-col">
                         <span className="text-sm font-medium text-green-700">助手</span>
-                        <span className="text-xs text-gray-500">生成中...</span>
+                        <span className="text-xs text-slate-500">生成中...</span>
                       </div>
                     </div>
                     <ReadOnlyMarkdownRenderer
@@ -1866,7 +1851,7 @@ const config = {
                   </motion.div>
                 )}
                 {/* 调试信息 */}
-                <div className="text-xs text-gray-500 mb-2">
+                <div className="mb-2 text-xs text-slate-500">
                   历史记录状态: {history ? `已加载 (${history.history.length} 条)` : '未加载'} |
                   加载状态: {loadingHistory ? '加载中' : '已完成'}
                 </div>
@@ -1875,7 +1860,7 @@ const config = {
                     {history.history.map((m: HistoryItem, idx: number) => (
                       <motion.div
                         key={idx}
-                        className="p-4 border border-gray-200 rounded-lg bg-white"
+                        className={`${libreTileClass} p-4`}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3, delay: 0.05 * idx }}
@@ -1901,7 +1886,7 @@ const config = {
                                   {m.role === 'user' ? '用户' : '助手'}
                                 </span>
                                 {m.createdAt && (
-                                  <span className="text-xs text-gray-500">{m.createdAt}</span>
+                                  <span className="text-xs text-slate-500">{m.createdAt}</span>
                                 )}
                               </div>
                             </div>
@@ -1918,7 +1903,7 @@ const config = {
                             )}
                             <motion.button
                               onClick={() => copyText(m.role === 'user' ? m.content : sanitizeAssistantText(m.content))}
-                              className="px-2 py-1 text-xs rounded border border-gray-300 hover:bg-gray-50 transition flex items-center gap-1"
+                              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white/80 px-2 py-1 text-xs text-slate-700 transition hover:bg-white"
                               whileTap={{ scale: 0.95 }}
                             >
                               <FaCopy className="w-3 h-3" />
@@ -1947,7 +1932,7 @@ const config = {
                           <div className="mt-3 flex justify-end gap-2">
                             <motion.button
                               onClick={() => handleEdit(m.id, m.content)}
-                              className="px-3 py-1 text-xs rounded border border-gray-300 hover:bg-gray-50 transition flex items-center gap-1"
+                              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white/80 px-3 py-1 text-xs text-slate-700 transition hover:bg-white"
                               whileTap={{ scale: 0.95 }}
                             >
                               <FaEdit className="w-3 h-3" />
@@ -1956,7 +1941,7 @@ const config = {
                             {m.role !== 'user' && (
                               <motion.button
                                 onClick={() => handleRetry(m.id)}
-                                className="px-3 py-1 text-xs rounded border border-blue-200 text-blue-600 hover:bg-blue-50 transition flex items-center gap-1"
+                                className="inline-flex items-center gap-1 rounded-xl border border-sky-200 bg-sky-50/70 px-3 py-1 text-xs text-sky-700 transition hover:bg-sky-50"
                                 whileTap={{ scale: 0.95 }}
                               >
                                 <FaRedo className="w-3 h-3" />
@@ -1965,7 +1950,7 @@ const config = {
                             )}
                             <motion.button
                               onClick={() => handleDelete(m.id)}
-                              className="px-3 py-1 text-xs rounded border border-red-200 text-red-600 hover:bg-red-50 transition flex items-center gap-1"
+                              className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-1 text-xs text-rose-700 transition hover:bg-rose-50"
                               whileTap={{ scale: 0.95 }}
                             >
                               <FaTrash className="w-3 h-3" />
@@ -1977,8 +1962,8 @@ const config = {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-12 text-gray-500">
-                    <FaHistory className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                  <div className="py-12 text-center text-slate-500">
+                    <FaHistory className="mx-auto mb-4 h-12 w-12 text-slate-300" />
                     {loadingHistory ? '加载中...' : '暂无历史记录'}
                   </div>
                 )}
@@ -1986,9 +1971,9 @@ const config = {
             )}
             {/* 分页控制 */}
             {history && history.history.length > 0 && (
-              <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+              <div className="mt-6 flex items-center justify-between border-t border-white/70 pt-4">
                 <motion.button
-                  className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition flex items-center gap-2"
+                  className={libreGhostButtonClass}
                   disabled={page <= 1}
                   onClick={() => {
                     setNotification({ type: 'info', message: '正在加载上一页...' });
@@ -2000,7 +1985,7 @@ const config = {
                   上一页
                 </motion.button>
                 <motion.button
-                  className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition flex items-center gap-2"
+                  className={libreGhostButtonClass}
                   disabled={history ? page >= history.totalPages : true}
                   onClick={() => {
                     setNotification({ type: 'info', message: '正在加载下一页...' });
@@ -2050,6 +2035,7 @@ const config = {
           maxLength={promptModal.maxLength}
         />
       </motion.div>
+      </InfoQueryShell>
     </LibreChatContext.Provider>
   );
 };

@@ -1,5 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { FaChevronLeft, FaChevronRight, FaGamepad, FaPlay, FaTimes } from 'react-icons/fa';
+import {
+  InfoBadge,
+  InfoPanel,
+  InfoPrimaryButton,
+  InfoQueryHero,
+  InfoQueryShell
+} from './InfoQueryScaffold';
+
+const tigerGlassButtonClass = 'inline-flex items-center justify-center gap-2 rounded-xl border border-white/60 bg-white/24 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(15,23,42,0.18)] backdrop-blur-md transition-colors hover:bg-white/34 disabled:cursor-not-allowed disabled:opacity-45';
+const tigerScenePanelClass = 'rounded-[28px] border border-white/60 bg-white/20 shadow-[0_18px_60px_rgba(15,23,42,0.16)] backdrop-blur-md';
 
 interface Scene {
   id: number;
@@ -1037,101 +1048,60 @@ const TigerAdventure: React.FC = () => {
 
   if (!isPlaying) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 px-4 relative overflow-hidden">
-        {/* Animated background elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          {/* 减少移动端动画元素数量以提高性能 */}
-          {[...Array(isMobile ? 10 : 20)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute rounded-full bg-white/10"
-              style={{
-                width: `${Math.random() * (isMobile ? 50 : 100) + (isMobile ? 10 : 20)}px`,
-                height: `${Math.random() * (isMobile ? 50 : 100) + (isMobile ? 10 : 20)}px`,
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-              }}
-              animate={{
-                x: [0, (Math.random() - 0.5) * (isMobile ? 50 : 100)],
-                y: [0, (Math.random() - 0.5) * (isMobile ? 50 : 100)],
-                opacity: [0.1, 0.3, 0.1],
-              }}
-              transition={{
-                duration: Math.random() * 10 + 10,
-                repeat: Infinity,
-                ease: "linear",
-              }}
-            />
-          ))}
-        </div>
-        
+      <InfoQueryShell>
         <motion.div
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="text-center w-full max-w-4xl z-10 relative"
+          className="space-y-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
         >
-          <motion.div
-            className="relative inline-block"
-            whileHover={{ scale: 1.05 }}
-            transition={{ type: "spring", stiffness: 300 }}
-          >
-            <motion.h1
-              className="text-3xl xs:text-4xl sm:text-5xl md:text-6xl font-bold text-white mb-4 sm:mb-6 md:mb-8 px-2 relative"
-              animate={{ 
-                textShadow: [
-                  "0 0 20px rgba(255,255,255,0.5)",
-                  "0 0 40px rgba(255,255,255,0.8)",
-                  "0 0 20px rgba(255,255,255,0.5)"
-                ]
-              }}
-              transition={{ duration: 2, repeat: Infinity }}
-            >
-              <span className="relative z-10">九·一三事件</span>
-              <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-lg blur-lg opacity-30"
-                animate={{
-                  scale: [1, 1.05, 1],
-                  opacity: [0.3, 0.5, 0.3]
-                }}
-                transition={{
-                  duration: 3,
-                  repeat: Infinity
-                }}
-              />
-            </motion.h1>
-          </motion.div>
-          
-          <motion.div
-            initial={{ y: 50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="mb-6 sm:mb-8"
-          >
-            <motion.p className="text-sm xs:text-base sm:text-lg md:text-xl text-gray-300 mb-6 max-w-2xl mx-auto px-4 leading-relaxed backdrop-blur-sm bg-black/20 rounded-xl py-4 border border-white/10">
-              1971年9月13日，林虎将军乘坐256号三叉戟专机在蒙古温都尔汗坠机身亡，飞机和老虎都被跌得粉碎，这场震惊中外的"九·一三"事件成为历史的重要转折点...
-            </motion.p>
-          </motion.div>
-          
-          <motion.button
-            onClick={startStory}
-            className="px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold rounded-lg text-lg sm:text-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 w-full max-w-xs sm:max-w-none relative overflow-hidden group"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            initial={{ y: 50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-          >
-            <span className="relative z-10">开始冒险</span>
-            <motion.div
-              className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-orange-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-              initial={{ x: "-100%" }}
-              whileHover={{ x: "100%" }}
-              transition={{ duration: 0.5 }}
-            />
-          </motion.button>
+          <InfoQueryHero
+            eyebrow="Entertainment"
+            title="九·一三事件"
+            description="以连续场景形式播放的互动冒险，支持自动推进、手动切换和移动端滑动操作。"
+            icon={FaGamepad}
+            tone="rose"
+            meta={
+              <>
+                <InfoBadge tone="rose">剧情场景</InfoBadge>
+                <InfoBadge tone="amber">{scenes.length} 幕</InfoBadge>
+                <InfoBadge tone="sky">{isMobile ? '移动端适配' : '桌面端适配'}</InfoBadge>
+              </>
+            }
+            actions={
+              <InfoPrimaryButton onClick={startStory} tone="rose">
+                <FaPlay className="h-4 w-4" />
+                开始冒险
+              </InfoPrimaryButton>
+            }
+          />
+
+          <InfoPanel>
+            <div className="grid gap-4 md:grid-cols-3">
+              {scenes.slice(0, 3).map((scene, index) => (
+                <motion.div
+                  key={scene.id}
+                  className="rounded-[24px] border border-white/70 bg-white/90 p-4 shadow-[0_10px_32px_rgba(15,23,42,0.06)] backdrop-blur"
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 * index }}
+                  whileHover={{ y: -3 }}
+                >
+                  <div
+                    className="mb-4 h-24 rounded-[20px] border border-white/60"
+                    style={{ background: scene.background }}
+                  />
+                  <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    Scene {index + 1}
+                  </div>
+                  <h3 className="mt-2 text-base font-semibold text-slate-950">{scene.title}</h3>
+                  <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">{scene.description}</p>
+                </motion.div>
+              ))}
+            </div>
+          </InfoPanel>
         </motion.div>
-      </div>
+      </InfoQueryShell>
     );
   }
 
@@ -1159,33 +1129,36 @@ const TigerAdventure: React.FC = () => {
         
         {/* 场景信息 */}
         <motion.div
-          className={`absolute left-4 xs:left-6 sm:left-8 right-4 xs:right-6 sm:right-8 text-center z-10 ${
-            currentScene === 4 ? 'top-4 xs:top-6 sm:top-8' : 'top-4 xs:top-6 sm:top-8'
+          className={`absolute left-4 right-4 z-10 mx-auto max-w-4xl px-4 py-4 text-center text-white xs:left-6 xs:right-6 sm:left-8 sm:right-8 ${tigerScenePanelClass} ${
+            currentScene === 4 ? 'top-20 sm:top-8' : 'top-20 sm:top-8'
           }`}
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.8 }}
         >
-          <h2 className="text-xl xs:text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-2 xs:mb-3 sm:mb-4 drop-shadow-lg px-2">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/70">
+            Scene {currentScene + 1} / {scenes.length}
+          </div>
+          <h2 className="px-2 text-xl font-semibold text-white drop-shadow-lg xs:text-2xl sm:mb-2 sm:text-3xl md:text-4xl">
             {currentSceneData.title}
           </h2>
-          <p className={`text-white/90 max-w-2xl mx-auto drop-shadow-lg px-4 leading-relaxed ${
-            currentScene === 4 ? 'text-xs xs:text-xs sm:text-sm bg-black/40 rounded-lg py-2' : 'text-xs xs:text-sm sm:text-base md:text-xl'
+          <p className={`mx-auto max-w-2xl px-2 leading-relaxed text-white/88 drop-shadow-lg ${
+            currentScene === 4 ? 'text-xs xs:text-xs sm:text-sm' : 'text-xs xs:text-sm sm:text-base md:text-xl'
           }`}>
             {currentSceneData.description}
           </p>
         </motion.div>
 
         {/* 进度指示器 */}
-        <div className={`absolute left-1/2 transform -translate-x-1/2 ${
+        <div className={`absolute left-1/2 z-20 transform -translate-x-1/2 ${
           currentScene === 4 ? 'bottom-6 xs:bottom-7 sm:bottom-12' : 'bottom-4 xs:bottom-5 sm:bottom-8'
         }`}>
-          <div className="flex space-x-1 xs:space-x-1.5 sm:space-x-2">
+          <div className="flex rounded-full border border-white/50 bg-white/20 px-3 py-2 shadow-[0_12px_32px_rgba(15,23,42,0.16)] backdrop-blur-md space-x-1 xs:space-x-1.5 sm:space-x-2">
             {scenes.map((_, index) => (
               <motion.div
                 key={index}
-                className={`w-1.5 h-1.5 xs:w-2 xs:h-2 sm:w-3 sm:h-3 rounded-full ${
-                  index === currentScene ? 'bg-white' : 'bg-white/30'
+                className={`w-1.5 h-1.5 xs:w-2 xs:h-2 sm:w-3 sm:h-3 rounded-full ring-1 ring-white/40 ${
+                  index === currentScene ? 'bg-white' : 'bg-white/35'
                 }`}
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
@@ -1196,39 +1169,38 @@ const TigerAdventure: React.FC = () => {
         </div>
 
         {/* 控制按钮 */}
-        <div className={`absolute right-4 xs:right-6 sm:right-8 flex flex-col xs:flex-row space-y-2 xs:space-y-0 xs:space-x-3 sm:space-x-4 ${
+        <div className={`absolute right-4 z-20 flex flex-col space-y-2 xs:right-6 xs:flex-row xs:space-x-3 xs:space-y-0 sm:right-8 sm:space-x-4 ${
           currentScene === 4 ? 'bottom-6 xs:bottom-7 sm:bottom-12' : 'bottom-4 xs:bottom-5 sm:bottom-8'
         }`}>
           <motion.button
             onClick={prevScene}
             disabled={currentScene === 0}
-            className={`px-3 xs:px-3.5 sm:px-4 py-1.5 xs:py-2 sm:py-2 rounded-lg font-semibold text-xs xs:text-sm sm:text-base ${
-              currentScene === 0
-                ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                : 'bg-white/20 text-white hover:bg-white/30'
-            }`}
+            className={tigerGlassButtonClass}
             whileHover={currentScene > 0 ? { scale: 1.05 } : {}}
             whileTap={currentScene > 0 ? { scale: 0.95 } : {}}
           >
+            <FaChevronLeft className="h-3 w-3" />
             上一幕
           </motion.button>
           <motion.button
             onClick={nextScene}
-            className="px-3 xs:px-3.5 sm:px-4 py-1.5 xs:py-2 sm:py-2 bg-white/20 text-white rounded-lg font-semibold hover:bg-white/30 text-xs xs:text-sm sm:text-base"
+            className={tigerGlassButtonClass}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
             {currentScene === scenes.length - 1 ? '重新开始' : '下一幕'}
+            <FaChevronRight className="h-3 w-3" />
           </motion.button>
         </div>
 
         {/* 退出按钮 */}
         <motion.button
           onClick={() => setIsPlaying(false)}
-          className="absolute top-4 xs:top-6 sm:top-8 right-4 xs:right-6 sm:right-8 px-3 xs:px-3.5 sm:px-4 py-1.5 xs:py-2 sm:py-2 bg-white/20 text-white rounded-lg font-semibold hover:bg-white/30 text-xs xs:text-sm sm:text-base"
+          className={`${tigerGlassButtonClass} absolute right-4 top-4 z-20 xs:right-6 xs:top-6 sm:right-8 sm:top-8`}
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
+          <FaTimes className="h-3 w-3" />
           退出
         </motion.button>
       </div>

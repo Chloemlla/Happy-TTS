@@ -9,6 +9,15 @@ import { useNotification } from './Notification';
 import getApiBaseUrl, { getApiBaseUrl as namedGetApiBaseUrl } from '../api';
 import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
+import {
+  InfoBadge,
+  InfoMetricCard,
+  InfoPanel,
+  InfoPrimaryButton,
+  InfoQueryHero,
+  InfoQueryShell,
+  InfoSectionTitle
+} from './InfoQueryScaffold';
 import { 
   FaLink, 
   FaChartBar, 
@@ -23,36 +32,39 @@ import {
   FaExclamationTriangle
 } from 'react-icons/fa';
 
+const lotteryPanelClass = 'rounded-[28px] border border-white/70 bg-white/88 shadow-[0_18px_60px_rgba(15,23,42,0.07)] backdrop-blur-xl';
+const lotteryTileClass = 'rounded-[22px] border border-white/70 bg-white/90 shadow-[0_10px_32px_rgba(15,23,42,0.06)] backdrop-blur';
+
 // 区块链数据展示组件
 const BlockchainDisplay: React.FC<{ data: any }> = React.memo(({ data }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.6 }}
-    className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+    className={`${lotteryPanelClass} p-5 sm:p-6`}
   >
-    <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-          <FaLink className="text-lg text-blue-500" />
-          区块链数据
-        </h3>
-    </div>
+    <InfoSectionTitle
+      title="区块链数据"
+      description="用于校验抽奖随机性的链上参考信息。"
+      icon={FaLink}
+      tone="sky"
+    />
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      <div className="text-center p-3 bg-blue-50 rounded-lg">
-        <div className="text-2xl font-bold text-blue-700">{data.height.toLocaleString()}</div>
-        <div className="text-sm text-gray-600">区块高度</div>
+      <div className={`${lotteryTileClass} p-4 text-center`}>
+        <div className="text-2xl font-semibold text-slate-950">{data.height.toLocaleString()}</div>
+        <div className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">区块高度</div>
       </div>
-      <div className="text-center p-3 bg-green-50 rounded-lg">
-        <div className="text-sm font-mono truncate text-green-700">{data.hash.substring(0, 8)}...</div>
-        <div className="text-sm text-gray-600">区块哈希</div>
+      <div className={`${lotteryTileClass} p-4 text-center`}>
+        <div className="truncate font-mono text-sm font-semibold text-emerald-700">{data.hash.substring(0, 8)}...</div>
+        <div className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">区块哈希</div>
       </div>
-      <div className="text-center p-3 bg-purple-50 rounded-lg">
-        <div className="text-lg font-bold text-purple-700">{new Date(data.timestamp).toLocaleTimeString()}</div>
-        <div className="text-sm text-gray-600">时间戳</div>
+      <div className={`${lotteryTileClass} p-4 text-center`}>
+        <div className="text-lg font-semibold text-violet-700">{new Date(data.timestamp).toLocaleTimeString()}</div>
+        <div className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">时间戳</div>
       </div>
-      <div className="text-center p-3 bg-orange-50 rounded-lg">
-        <div className="text-lg font-bold text-orange-700">{data.difficulty.toFixed(2)}</div>
-        <div className="text-sm text-gray-600">难度值</div>
+      <div className={`${lotteryTileClass} p-4 text-center`}>
+        <div className="text-lg font-semibold text-amber-700">{data.difficulty.toFixed(2)}</div>
+        <div className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">难度值</div>
       </div>
     </div>
   </motion.div>
@@ -62,10 +74,10 @@ const BlockchainDisplay: React.FC<{ data: any }> = React.memo(({ data }) => (
 const PrizeDisplay: React.FC<{ prize: any }> = ({ prize }) => {
   const getCategoryColor = (category: string) => {
     switch (category) {
-      case 'legendary': return 'bg-yellow-50 border-yellow-200 text-yellow-800';
-      case 'epic': return 'bg-purple-50 border-purple-200 text-purple-800';
-      case 'rare': return 'bg-blue-50 border-blue-200 text-blue-800';
-      default: return 'bg-gray-50 border-gray-200 text-gray-800';
+      case 'legendary': return 'border-amber-200 bg-amber-50/80 text-amber-800';
+      case 'epic': return 'border-violet-200 bg-violet-50/80 text-violet-800';
+      case 'rare': return 'border-sky-200 bg-sky-50/80 text-sky-800';
+      default: return 'border-slate-200 bg-slate-50/80 text-slate-800';
     }
   };
 
@@ -73,7 +85,7 @@ const PrizeDisplay: React.FC<{ prize: any }> = ({ prize }) => {
     <motion.div
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
-      className={`border-2 rounded-lg p-3 shadow-sm ${getCategoryColor(prize.category)}`}
+      className={`rounded-[20px] border p-3 shadow-[0_8px_24px_rgba(15,23,42,0.05)] ${getCategoryColor(prize.category)}`}
     >
       <div className="text-center">
         <h4 className="font-semibold text-sm">{prize.name}</h4>
@@ -124,35 +136,35 @@ const LotteryRoundCard: React.FC<{
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
-      className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-      whileHover={{ scale: 1.02, y: -2, boxShadow: '0 8px 32px 0 rgba(0,0,0,0.12)' }}
+      className={`${lotteryPanelClass} p-5 sm:p-6`}
+      whileHover={{ scale: 1.01, y: -2, boxShadow: '0 22px 60px rgba(15,23,42,0.10)' }}
       whileTap={{ scale: 0.98 }}
     >
-      <div className="flex justify-between items-start mb-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-800">{round.name}</h3>
-          <p className="text-gray-600 mt-1">{round.description}</p>
+          <h3 className="text-lg font-semibold text-slate-950">{round.name}</h3>
+          <p className="mt-1 text-sm leading-6 text-slate-600">{round.description}</p>
         </div>
-        <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-          isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+        <div className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold ${
+          isActive ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700'
         }`}>
           {isActive ? '进行中' : '已结束'}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <div className="text-sm text-gray-600">
+      <div className="my-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div className={`${lotteryTileClass} p-3 text-sm leading-6 text-slate-600`}>
           <div>开始时间: {new Date(round.startTime).toLocaleString()}</div>
           <div>结束时间: {new Date(round.endTime).toLocaleString()}</div>
         </div>
-        <div className="text-sm text-gray-600">
+        <div className={`${lotteryTileClass} p-3 text-sm leading-6 text-slate-600`}>
           <div>参与人数: {round.participants.length}</div>
           <div>中奖人数: {round.winners.length}</div>
         </div>
       </div>
 
       <div className="mb-4">
-        <h4 className="font-semibold text-gray-700 mb-2">奖品列表</h4>
+        <h4 className="mb-2 text-sm font-semibold text-slate-700">奖品列表</h4>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {round.prizes.slice(0, 6).map((prize) => (
             <PrizeDisplay key={prize.id} prize={prize} />
@@ -160,8 +172,8 @@ const LotteryRoundCard: React.FC<{
         </div>
       </div>
 
-      <div className="flex justify-between items-center">
-        <div className="text-sm text-gray-500">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="text-sm text-slate-500">
           区块链高度: {round.blockchainHeight.toLocaleString()}
         </div>
         {user && (
@@ -169,10 +181,10 @@ const LotteryRoundCard: React.FC<{
             <motion.button
               onClick={() => onParticipate(round.id, turnstileToken)}
               disabled={!isActive || hasParticipated || loading || (!isAdmin && !!turnstileConfig?.siteKey && !turnstileVerified)}
-              className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+              className={`rounded-xl px-6 py-2.5 text-sm font-semibold transition-colors ${
                 !isActive || hasParticipated || loading || (!isAdmin && !!turnstileConfig?.siteKey && !turnstileVerified)
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-blue-500 text-white hover:bg-blue-600'
+                  ? 'cursor-not-allowed bg-slate-200 text-slate-500'
+                  : 'bg-violet-700 text-white hover:bg-violet-800'
               }`}
               whileTap={{ scale: 0.95 }}
             >
@@ -186,12 +198,12 @@ const LotteryRoundCard: React.FC<{
                   {turnstileVerified ? (
                     <>
                       <FaCheckCircle className="w-4 h-4 text-green-500" />
-                      <span className="text-sm text-green-600 font-medium">已完成</span>
+                      <span className="text-sm font-medium text-emerald-700">已完成</span>
                     </>
                   ) : (
                     <>
                       <FaExclamationTriangle className="w-4 h-4 text-yellow-500" />
-                      <span className="text-sm text-gray-600">请完成人机验证</span>
+                      <span className="text-sm text-slate-600">请完成人机验证</span>
                     </>
                   )}
                 </div>
@@ -218,81 +230,76 @@ const UserRecordCard: React.FC<{ record: any }> = ({ record }) => {
   if (!record || typeof record !== 'object') {
     return (
       <motion.div 
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 text-center"
+        className={`${lotteryPanelClass} p-6 text-center`}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">我的抽奖记录</h3>
-        <div className="text-gray-400">暂无抽奖记录</div>
+        <h3 className="mb-4 text-lg font-semibold text-slate-950">我的抽奖记录</h3>
+        <div className="text-slate-400">暂无抽奖记录</div>
       </motion.div>
     );
   }
   const safeHistory = Array.isArray(record.history) ? record.history : [];
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
-      className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.6 }}
+      className={`${lotteryPanelClass} p-5 sm:p-6`}
     >
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-          <FaChartBar className="text-lg text-blue-500" />
-          我的抽奖记录
-        </h3>
-        </div>
+      <InfoSectionTitle title="我的抽奖记录" icon={FaChartBar} tone="sky" />
       
       {/* 统计信息 */}
       <motion.div 
-        className="bg-blue-50 rounded-lg p-3 mb-4 text-left"
+        className={`${lotteryTileClass} mb-4 p-4 text-left`}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <span className="text-xl font-bold text-blue-700">{record.participationCount}</span>
-        <span className="ml-2 text-sm text-gray-600">参与次数</span>
+        <span className="text-xl font-semibold text-slate-950">{record.participationCount}</span>
+        <span className="ml-2 text-sm text-slate-600">参与次数</span>
       </motion.div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="text-left p-3 bg-green-50 rounded-lg">
-          <div className="text-2xl font-bold text-green-700">{record.winCount}</div>
-          <div className="text-sm text-gray-600">中奖次数</div>
+        <div className={`${lotteryTileClass} p-3 text-left`}>
+          <div className="text-2xl font-semibold text-emerald-700">{record.winCount}</div>
+          <div className="text-sm text-slate-600">中奖次数</div>
         </div>
-        <div className="text-left p-3 bg-purple-50 rounded-lg">
-          <div className="text-2xl font-bold text-purple-700">¥{record.totalValue}</div>
-          <div className="text-sm text-gray-600">总价值</div>
+        <div className={`${lotteryTileClass} p-3 text-left`}>
+          <div className="text-2xl font-semibold text-violet-700">¥{record.totalValue}</div>
+          <div className="text-sm text-slate-600">总价值</div>
         </div>
-        <div className="text-left p-3 bg-orange-50 rounded-lg">
-          <div className="text-2xl font-bold text-orange-700">
+        <div className={`${lotteryTileClass} p-3 text-left`}>
+          <div className="text-2xl font-semibold text-amber-700">
             {record.participationCount > 0 ? ((record.winCount / record.participationCount) * 100).toFixed(1) : 0}%
           </div>
-          <div className="text-sm text-gray-600">中奖率</div>
+          <div className="text-sm text-slate-600">中奖率</div>
         </div>
       </div>
       
       {/* 历史记录 */}
       {safeHistory.length > 0 && (
         <div>
-          <h4 className="text-md font-semibold text-blue-700 mb-3">最近中奖记录</h4>
+          <h4 className="text-md mb-3 font-semibold text-slate-800">最近中奖记录</h4>
           <div className="space-y-2">
             {safeHistory.slice(0, 5).map((item: any, index: number) => (
               <motion.div 
                 key={index} 
-                className="text-sm flex items-center gap-2 p-2 hover:bg-gray-50 rounded-lg"
+                className="flex items-center gap-2 rounded-2xl p-2 text-sm hover:bg-white/70"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.3, delay: 0.1 * index }}
                 whileHover={{ scale: 1.02, x: 5 }}
               >
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-gray-900 truncate">{item.prizeName}</div>
-                  <div className="text-xs text-gray-500">
+                  <div className="truncate font-medium text-slate-900">{item.prizeName}</div>
+                  <div className="text-xs text-slate-500">
                     {formatDistanceToNow(item.drawTime, { addSuffix: true, locale: zhCN })}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="font-bold text-green-600">¥{item.value}</div>
+                  <div className="font-semibold text-emerald-700">¥{item.value}</div>
                 </div>
               </motion.div>
             ))}
@@ -312,19 +319,14 @@ const LeaderboardCard: React.FC<{ leaderboard: any[] }> = ({ leaderboard }) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
-      className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+      className={`${lotteryPanelClass} p-5 sm:p-6`}
     >
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-          <FaTrophy className="text-lg text-yellow-500" />
-          排行榜
-        </h3>
-      </div>
+      <InfoSectionTitle title="排行榜" icon={FaTrophy} tone="amber" />
       
       <div className="space-y-2">
         {safeLeaderboard.length === 0 ? (
           <motion.div
-            className="text-center text-gray-400 py-8"
+            className="py-8 text-center text-slate-400"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
@@ -338,7 +340,7 @@ const LeaderboardCard: React.FC<{ leaderboard: any[] }> = ({ leaderboard }) => {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3, delay: 0.1 * index }}
-              className="text-sm flex items-center gap-2 p-2 hover:bg-gray-50 rounded-lg"
+              className="flex items-center gap-3 rounded-2xl p-2 text-sm hover:bg-white/70"
               whileHover={{ scale: 1.02, x: -5 }}
           >
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-xs ${
@@ -352,13 +354,13 @@ const LeaderboardCard: React.FC<{ leaderboard: any[] }> = ({ leaderboard }) => {
                index + 1}
             </div>
               <div className="flex-1 min-w-0">
-                <div className="font-medium text-gray-900 truncate">{user.username}</div>
-                <div className="text-xs text-gray-500">
+                <div className="truncate font-medium text-slate-900">{user.username}</div>
+                <div className="text-xs text-slate-500">
                 参与 {user.participationCount} 次 | 中奖 {user.winCount} 次
               </div>
             </div>
             <div className="text-right">
-              <div className="font-bold text-green-600">¥{user.totalValue}</div>
+              <div className="font-semibold text-emerald-700">¥{user.totalValue}</div>
             </div>
           </motion.div>
           ))
@@ -374,35 +376,14 @@ const StatisticsCard: React.FC<{ stats: any }> = ({ stats }) => (
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.6 }}
-    className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+    className="space-y-4"
   >
-    <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-          <FaChartBar className="text-lg text-blue-500" />
-          统计信息
-        </h3>
-    </div>
-    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-      <div className="text-center p-3 bg-blue-50 rounded-lg">
-        <div className="text-2xl font-bold text-blue-700">{stats.totalRounds}</div>
-        <div className="text-sm text-gray-600">总轮次</div>
-      </div>
-      <div className="text-center p-3 bg-green-50 rounded-lg">
-        <div className="text-2xl font-bold text-green-700">{stats.activeRounds}</div>
-        <div className="text-sm text-gray-600">活跃轮次</div>
-      </div>
-      <div className="text-center p-3 bg-purple-50 rounded-lg">
-        <div className="text-2xl font-bold text-purple-700">{stats.totalParticipants}</div>
-        <div className="text-sm text-gray-600">总参与人数</div>
-      </div>
-      <div className="text-center p-3 bg-orange-50 rounded-lg">
-        <div className="text-2xl font-bold text-orange-700">{stats.totalWinners}</div>
-        <div className="text-sm text-gray-600">总中奖人数</div>
-      </div>
-      <div className="text-center p-3 bg-red-50 rounded-lg">
-        <div className="text-2xl font-bold text-red-700">¥{stats.totalValue}</div>
-        <div className="text-sm text-gray-600">总价值</div>
-      </div>
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <InfoMetricCard label="总轮次" value={stats.totalRounds} icon={FaDice} tone="sky" />
+      <InfoMetricCard label="活跃轮次" value={stats.activeRounds} icon={FaCrosshairs} tone="emerald" />
+      <InfoMetricCard label="总参与人数" value={stats.totalParticipants} icon={FaUsers} tone="violet" />
+      <InfoMetricCard label="总中奖人数" value={stats.totalWinners} icon={FaTrophy} tone="amber" />
+      <InfoMetricCard label="总价值" value={`¥${stats.totalValue}`} icon={FaGift} tone="rose" />
     </div>
   </motion.div>
 );
@@ -420,30 +401,24 @@ const WinnerModal: React.FC<{
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm"
         onClick={onClose}
       >
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.8, opacity: 0 }}
-          className="bg-white rounded-xl p-8 max-w-md w-full text-center shadow-lg"
+          className="w-full max-w-md rounded-[28px] border border-white/70 bg-white/90 p-8 text-center shadow-[0_24px_80px_rgba(15,23,42,0.18)] backdrop-blur-xl"
           onClick={(e) => e.stopPropagation()}
         >
           <FaGift className="text-6xl mb-4 text-yellow-500" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">恭喜中奖！</h2>
-          <p className="text-lg text-gray-600 mb-4">{winner.prizeName}</p>
-          <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-4">
-            <div className="text-lg font-bold text-blue-700">交易哈希</div>
-            <div className="text-sm font-mono break-all text-blue-600">{winner.transactionHash}</div>
+          <h2 className="mb-2 text-2xl font-semibold text-slate-950">恭喜中奖！</h2>
+          <p className="mb-4 text-lg text-slate-600">{winner.prizeName}</p>
+          <div className="mb-4 rounded-2xl border border-sky-200 bg-sky-50/80 p-4">
+            <div className="text-lg font-semibold text-sky-700">交易哈希</div>
+            <div className="break-all font-mono text-sm text-sky-700">{winner.transactionHash}</div>
           </div>
-          <motion.button
-            onClick={onClose}
-            className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors"
-            whileTap={{ scale: 0.95 }}
-          >
-            确定
-          </motion.button>
+          <InfoPrimaryButton onClick={onClose} tone="sky">确定</InfoPrimaryButton>
         </motion.div>
       </motion.div>
     </AnimatePresence>
@@ -528,57 +503,41 @@ const LotteryPage: React.FC = () => {
   if (error) {
     setNotification({ message: error, type: 'error' });
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4">
-        <div className="max-w-7xl mx-auto">
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+      <InfoQueryShell>
+        <InfoPanel className="border-rose-200 bg-rose-50/80">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-sm text-rose-700">
             <strong>错误:</strong> {error}
-            <button
-              onClick={clearError}
-              className="ml-4 text-red-800 underline"
-            >
-              重试
-            </button>
+            </div>
+            <InfoPrimaryButton onClick={clearError} tone="rose">重试</InfoPrimaryButton>
           </div>
-        </div>
-      </div>
+        </InfoPanel>
+      </InfoQueryShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4">
-      <div className="max-w-7xl mx-auto">
+    <InfoQueryShell>
         <motion.div
           className="space-y-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          {/* 标题和说明 */}
-          <motion.div 
-            className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-        >
-            <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
-              <FaDice className="text-2xl text-blue-600" />
-              区块链抽奖系统
-            </h2>
-            <div className="text-gray-600 space-y-2">
-              <p>基于区块链高度的公平透明抽奖平台，确保每次抽奖结果的不可篡改性和随机性。</p>
-              <div className="flex items-start gap-2 text-sm">
-                <div>
-                  <p className="font-semibold text-blue-700">功能特点：</p>
-                  <ul className="list-disc list-inside space-y-1 mt-1">
-                    <li>基于区块链高度的随机数生成</li>
-                    <li>实时查看抽奖轮次和奖品信息</li>
-                    <li>个人抽奖记录和排行榜</li>
-                    <li>透明公正的抽奖机制</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-        </motion.div>
+          <InfoQueryHero
+            eyebrow="Entertainment"
+            title="区块链抽奖系统"
+            description="基于区块链高度的公平透明抽奖平台，集中展示抽奖轮次、奖品、个人记录和排行榜。"
+            icon={FaDice}
+            tone="violet"
+            meta={
+              <>
+                <InfoBadge tone="sky">链上随机</InfoBadge>
+                <InfoBadge tone="emerald">实时轮次</InfoBadge>
+                <InfoBadge tone="amber">透明记录</InfoBadge>
+              </>
+            }
+          />
 
         {/* 区块链数据 */}
         {blockchainData && <BlockchainDisplay data={blockchainData} />}
@@ -593,12 +552,12 @@ const LotteryPage: React.FC = () => {
               <UserRecordCard record={userRecord} />
             ) : (
             <motion.div 
-              className="bg-white rounded-xl p-6 shadow-sm border border-gray-200 text-center"
+              className={`${lotteryPanelClass} p-6 text-center`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-                <p className="text-gray-600">请登录查看个人记录</p>
+                <p className="text-slate-600">请登录查看个人记录</p>
             </motion.div>
             )}
           </div>
@@ -614,18 +573,18 @@ const LotteryPage: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          className={`${lotteryPanelClass} p-5 sm:p-6`}
         >
-          <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <FaCrosshairs className="text-lg text-red-500" />
-            活跃抽奖轮次
-          </h3>
-          </div>
+          <InfoSectionTitle
+            title="活跃抽奖轮次"
+            description="选择可参与的抽奖轮次并完成必要验证。"
+            icon={FaCrosshairs}
+            tone="rose"
+          />
           {loading ? (
             <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-              <p className="mt-4 text-gray-600">加载中...</p>
+              <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-sky-200 border-b-sky-600"></div>
+              <p className="mt-4 text-slate-600">加载中...</p>
             </div>
           ) : activeRounds.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -648,16 +607,15 @@ const LotteryPage: React.FC = () => {
             </div>
           ) : (
             <div className="text-center py-8">
-              <p className="text-gray-600">暂无活跃的抽奖轮次</p>
+              <p className="text-slate-600">暂无活跃的抽奖轮次</p>
             </div>
           )}
         </motion.div>
         </motion.div>
-      </div>
 
       {/* 中奖弹窗 */}
       <WinnerModal winner={winner} onClose={() => setWinner(null)} />
-    </div>
+    </InfoQueryShell>
   );
 };
 

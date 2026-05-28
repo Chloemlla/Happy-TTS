@@ -26,6 +26,18 @@ import {
   FaPause,
   FaCog
 } from 'react-icons/fa';
+import {
+  InfoBadge,
+  InfoMetricCard,
+  InfoQueryHero,
+  InfoQueryShell,
+  InfoSectionTitle
+} from './InfoQueryScaffold';
+
+const coinPanelClass = 'rounded-[28px] border border-white/70 bg-white/88 shadow-[0_18px_60px_rgba(15,23,42,0.07)] backdrop-blur-xl';
+const coinTileClass = 'rounded-[22px] border border-white/70 bg-white/90 shadow-[0_10px_32px_rgba(15,23,42,0.06)] backdrop-blur';
+const coinButtonClass = 'inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60';
+const coinGhostButtonClass = `${coinButtonClass} border border-slate-200 bg-white/80 text-slate-700 hover:bg-white`;
 
 interface CoinFlipStats {
   heads: number;
@@ -418,50 +430,46 @@ const CoinFlip: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 px-4 rounded-lg">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <InfoQueryShell>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
           className="space-y-6"
         >
-          {/* 页面标题和描述 */}
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden"
-          >
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6">
-              <div className="text-center">
-                <h1 className="text-3xl font-bold text-white mb-2 flex items-center justify-center gap-3">
-                  <FaCoins className="text-4xl text-yellow-300" />
-                  抛硬币工具
-                </h1>
-                <p className="text-blue-100 max-w-2xl mx-auto">
-                  想要快速做决定？试试在线抛硬币工具吧！简单、快速、无需下载。只需点击按钮，就能随机生成"正面"或"反面"的结果，帮助您轻松做出选择。
-                </p>
-              </div>
-            </div>
-          </motion.div>
+          <InfoQueryHero
+            eyebrow="Entertainment"
+            title="抛硬币工具"
+            description="简单、快速、无需下载的随机决策工具，保留动画、音效、统计和随机算法查看功能。"
+            icon={FaCoins}
+            tone="amber"
+            meta={
+              <>
+                <InfoBadge tone="amber">随机决策</InfoBadge>
+                <InfoBadge tone="emerald">本地统计</InfoBadge>
+                <InfoBadge tone="sky">算法透明</InfoBadge>
+              </>
+            }
+          />
 
           {/* 主要抛硬币区域 */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.3 }}
-            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+            className={`${coinPanelClass} p-5 sm:p-6`}
           >
-            <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center gap-2">
-              <FaBullseye className="text-2xl text-red-500" />
-              抛硬币
-            </h3>
+            <InfoSectionTitle
+              title="抛硬币"
+              description="点击后生成正面或反面结果，动画过程中可直接跳过。"
+              icon={FaBullseye}
+              tone="amber"
+            />
 
             {/* 硬币显示区域 */}
-            <div className="flex justify-center mb-8">
+            <div className="mb-8 flex justify-center">
               <motion.div
-                className="relative w-32 h-32 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full border-4 border-yellow-300 shadow-lg flex items-center justify-center"
+                className="relative flex h-36 w-36 items-center justify-center rounded-full border-4 border-amber-200 bg-gradient-to-br from-amber-300 via-yellow-400 to-amber-600 shadow-[0_18px_50px_rgba(245,158,11,0.28)]"
                 animate={isFlipping ? {
                   rotateX: [0, 360, 720, 1080, 1440],
                   rotateY: [0, 180, 360, 540, 720],
@@ -490,7 +498,7 @@ const CoinFlip: React.FC = () => {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.5 }}
                   transition={{ duration: 0.3 }}
-                  className="text-6xl font-bold text-white"
+                  className="text-6xl font-bold text-white drop-shadow"
                 >
                   <FaCoins className="text-6xl" />
                 </motion.div>
@@ -504,11 +512,11 @@ const CoinFlip: React.FC = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className="text-center mb-6"
+                  className="mb-6 text-center"
                 >
-                  <div className={`inline-block px-6 py-3 rounded-lg text-lg font-semibold flex items-center gap-2 ${result === 'heads'
-                      ? 'bg-green-100 text-green-800 border border-green-200'
-                      : 'bg-blue-100 text-blue-800 border border-blue-200'
+                  <div className={`inline-flex items-center gap-2 rounded-2xl border px-6 py-3 text-lg font-semibold ${result === 'heads'
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                      : 'border-sky-200 bg-sky-50 text-sky-800'
                     }`}>
                     {result === 'heads' ? (
                       <FaCheckCircle className="text-green-600" />
@@ -526,7 +534,7 @@ const CoinFlip: React.FC = () => {
               <motion.button
                 onClick={flipCoin}
                 disabled={isFlipping}
-                className="px-8 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg hover:from-indigo-600 hover:to-purple-700 transition-all duration-300 font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className={`${coinButtonClass} bg-amber-600 text-white hover:bg-amber-700`}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -537,7 +545,7 @@ const CoinFlip: React.FC = () => {
               {isFlipping && (
                 <motion.button
                   onClick={skipAnimationHandler}
-                  className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-all duration-300 font-medium flex items-center gap-2"
+                  className={`${coinButtonClass} bg-slate-800 text-white hover:bg-slate-900`}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   initial={{ opacity: 0, scale: 0.8 }}
@@ -551,9 +559,9 @@ const CoinFlip: React.FC = () => {
 
               <motion.button
                 onClick={() => setAudioEnabled(!audioEnabled)}
-                className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 flex items-center gap-2 ${audioEnabled
-                    ? 'bg-green-500 text-white hover:bg-green-600'
-                    : 'bg-gray-500 text-white hover:bg-gray-600'
+                className={`${coinButtonClass} ${audioEnabled
+                    ? 'bg-emerald-700 text-white hover:bg-emerald-800'
+                    : 'bg-slate-600 text-white hover:bg-slate-700'
                   }`}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -565,12 +573,12 @@ const CoinFlip: React.FC = () => {
 
             {/* 动画设置 */}
             <div className="flex justify-center mt-4">
-              <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
                 <input
                   type="checkbox"
                   checked={skipAnimation}
                   onChange={(e) => setSkipAnimation(e.target.checked)}
-                  className="rounded text-indigo-600 focus:ring-indigo-500"
+                  className="rounded border-slate-300 text-amber-600 focus:ring-amber-500"
                 />
                 <span>默认跳过动画（快速模式）</span>
               </label>
@@ -582,18 +590,20 @@ const CoinFlip: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+            className={`${coinPanelClass} p-5 sm:p-6`}
           >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                <FaChartBar className="text-2xl text-blue-500" />
-                统计信息
-              </h3>
-              <div className="flex gap-2">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <InfoSectionTitle
+                title="统计信息"
+                description="统计数据保存在本地，可导入导出。"
+                icon={FaChartBar}
+                tone="sky"
+              />
+              <div className="flex flex-wrap gap-2">
                 {lastRandomData && (
                   <motion.button
                     onClick={() => setShowRandomAlgorithm(!showRandomAlgorithm)}
-                    className="text-green-600 hover:text-green-800 transition-colors flex items-center gap-2"
+                    className={coinGhostButtonClass}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     initial={{ opacity: 0, scale: 0.8 }}
@@ -606,7 +616,7 @@ const CoinFlip: React.FC = () => {
                 )}
                 <motion.button
                   onClick={() => setShowStats(!showStats)}
-                  className="text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-2"
+                  className={coinGhostButtonClass}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
@@ -616,19 +626,10 @@ const CoinFlip: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-              <div className="bg-blue-50 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-blue-600">{stats.heads}</div>
-                <div className="text-sm text-blue-700">正面</div>
-              </div>
-              <div className="bg-green-50 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-green-600">{stats.tails}</div>
-                <div className="text-sm text-green-700">反面</div>
-              </div>
-              <div className="bg-purple-50 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-purple-600">{stats.total}</div>
-                <div className="text-sm text-purple-700">总计</div>
-              </div>
+            <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <InfoMetricCard label="正面" value={stats.heads} icon={FaCheckCircle} tone="sky" />
+              <InfoMetricCard label="反面" value={stats.tails} icon={FaTimesCircle} tone="emerald" />
+              <InfoMetricCard label="总计" value={stats.total} icon={FaCoins} tone="violet" />
             </div>
 
             {showRandomAlgorithm && lastRandomData && (
@@ -638,30 +639,30 @@ const CoinFlip: React.FC = () => {
                 exit={{ opacity: 0, height: 0 }}
                 className="space-y-4 mb-4"
               >
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-green-900 mb-3 flex items-center gap-2">
+                <div className={`${coinTileClass} p-4`}>
+                  <h4 className="mb-3 flex items-center gap-2 font-semibold text-emerald-900">
                     <FaCode className="text-lg" />
                     随机算法详情
                   </h4>
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-green-700">使用算法:</span>
-                      <span className="font-mono text-green-800">{lastRandomData.method}</span>
+                      <span className="text-slate-600">使用算法:</span>
+                      <span className="font-mono text-emerald-800">{lastRandomData.method}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-green-700">最终随机值:</span>
-                      <span className="font-mono text-green-800">{lastRandomData.finalResult.toFixed(6)}</span>
+                      <span className="text-slate-600">最终随机值:</span>
+                      <span className="font-mono text-emerald-800">{lastRandomData.finalResult.toFixed(6)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-green-700">判定结果:</span>
-                      <span className="font-mono text-green-800">
+                      <span className="text-slate-600">判定结果:</span>
+                      <span className="font-mono text-emerald-800">
                         {lastRandomData.finalResult < 0.5 ? '正面 (≤0.5)' : '反面 (>0.5)'}
                       </span>
                     </div>
                     {lastRandomData.values.length > 1 && (
                       <div>
-                        <span className="text-green-700">随机源值:</span>
-                        <div className="mt-1 font-mono text-xs bg-green-100 p-2 rounded">
+                        <span className="text-slate-600">随机源值:</span>
+                        <div className="mt-1 rounded-2xl border border-emerald-100 bg-emerald-50/80 p-3 font-mono text-xs">
                           {lastRandomData.values.map((value, index) => (
                             <div key={index} className="flex justify-between">
                               <span>随机源 {index + 1}:</span>
@@ -675,15 +676,15 @@ const CoinFlip: React.FC = () => {
                 </div>
 
                 {/* 算法代码示例 */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                <div className={`${coinTileClass} p-4`}>
+                  <h4 className="mb-3 flex items-center gap-2 font-semibold text-sky-900">
                     <FaCode className="text-lg" />
                     算法实现代码
                   </h4>
                   <div className="space-y-3">
                     <div>
-                      <h5 className="font-medium text-blue-800 mb-2">加密安全随机数算法:</h5>
-                      <pre className="bg-blue-100 p-3 rounded text-xs font-mono text-blue-900 overflow-x-auto">
+                      <h5 className="mb-2 font-medium text-sky-800">加密安全随机数算法:</h5>
+                      <pre className="overflow-x-auto rounded-2xl border border-sky-100 bg-sky-50/80 p-3 font-mono text-xs text-sky-900">
                         {`// 使用 Web Crypto API
 if (window.crypto && window.crypto.getRandomValues) {
   const array = new Uint32Array(1);
@@ -694,8 +695,8 @@ if (window.crypto && window.crypto.getRandomValues) {
                       </pre>
                     </div>
                     <div>
-                      <h5 className="font-medium text-blue-800 mb-2">多重随机源组合算法:</h5>
-                      <pre className="bg-blue-100 p-3 rounded text-xs font-mono text-blue-900 overflow-x-auto">
+                      <h5 className="mb-2 font-medium text-sky-800">多重随机源组合算法:</h5>
+                      <pre className="overflow-x-auto rounded-2xl border border-sky-100 bg-sky-50/80 p-3 font-mono text-xs text-sky-900">
                         {`// 组合多个随机源
 const random1 = Math.random();        // Math.random()
 const random2 = Math.random();        // Math.random()
@@ -714,12 +715,12 @@ return finalRandom < 0.5 ? 'heads' : 'tails';`}
                 </div>
 
                 {/* 算法原理说明 */}
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-purple-900 mb-3 flex items-center gap-2">
+                <div className={`${coinTileClass} p-4`}>
+                  <h4 className="mb-3 flex items-center gap-2 font-semibold text-violet-900">
                     <FaCode className="text-lg" />
                     算法原理说明
                   </h4>
-                  <div className="space-y-2 text-sm text-purple-800">
+                  <div className="space-y-2 text-sm text-slate-700">
                     <div>
                       <h5 className="font-medium mb-1 flex items-center gap-2">
                         <FaShieldAlt className="text-blue-600" />
@@ -796,12 +797,12 @@ return finalRandom < 0.5 ? 'heads' : 'tails';`}
                 </div>
 
                 {/* 技术细节 */}
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <div className={`${coinTileClass} p-4`}>
+                  <h4 className="mb-3 flex items-center gap-2 font-semibold text-slate-900">
                     <FaCode className="text-lg" />
                     技术细节
                   </h4>
-                  <div className="space-y-2 text-sm text-gray-700">
+                  <div className="space-y-2 text-sm text-slate-700">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <h5 className="font-medium mb-1 flex items-center gap-2">
@@ -852,7 +853,7 @@ return finalRandom < 0.5 ? 'heads' : 'tails';`}
                         </ul>
                       </div>
                     </div>
-                    <div className="text-xs text-gray-600 mt-3 p-2 bg-gray-100 rounded flex items-start gap-2">
+                    <div className="mt-3 flex items-start gap-2 rounded-2xl border border-slate-100 bg-slate-50/80 p-3 text-xs text-slate-600">
                       <FaInfoCircle className="text-blue-500 mt-0.5 flex-shrink-0" />
                       <p><strong>注意:</strong> 本实现使用完全透明的随机算法，所有随机数生成过程都可以在浏览器开发者工具中查看和验证。</p>
                     </div>
@@ -869,8 +870,8 @@ return finalRandom < 0.5 ? 'heads' : 'tails';`}
                 className="space-y-4"
               >
                 {stats.total > 0 && (
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h4 className="font-semibold text-gray-900 mb-2">概率分析</h4>
+                  <div className={`${coinTileClass} p-4`}>
+                    <h4 className="mb-2 font-semibold text-slate-900">概率分析</h4>
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span>正面概率:</span>
@@ -888,7 +889,7 @@ return finalRandom < 0.5 ? 'heads' : 'tails';`}
                 <div className="flex flex-col sm:flex-row gap-3">
                   <motion.button
                     onClick={exportStats}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium flex items-center gap-2"
+                    className={`${coinButtonClass} bg-sky-700 text-white hover:bg-sky-800`}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
@@ -896,7 +897,7 @@ return finalRandom < 0.5 ? 'heads' : 'tails';`}
                     导出数据
                   </motion.button>
 
-                  <label className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm font-medium flex items-center gap-2 cursor-pointer">
+                  <label className={`${coinButtonClass} cursor-pointer bg-emerald-700 text-white hover:bg-emerald-800`}>
                     <FaUpload />
                     导入数据
                     <input
@@ -909,7 +910,7 @@ return finalRandom < 0.5 ? 'heads' : 'tails';`}
 
                   <motion.button
                     onClick={resetStats}
-                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors text-sm font-medium flex items-center gap-2"
+                    className={`${coinButtonClass} bg-rose-700 text-white hover:bg-rose-800`}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
@@ -926,13 +927,15 @@ return finalRandom < 0.5 ? 'heads' : 'tails';`}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+            className={`${coinPanelClass} p-5 sm:p-6`}
           >
-            <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <FaLightbulb className="text-2xl text-yellow-500" />
-              使用说明
-            </h3>
-            <div className="space-y-3 text-gray-600">
+            <InfoSectionTitle
+              title="使用说明"
+              description="常用操作入口保留在主面板内，这里只列出关键行为。"
+              icon={FaLightbulb}
+              tone="amber"
+            />
+            <div className="grid gap-3 text-sm text-slate-600 md:grid-cols-2">
               <div className="flex items-start gap-3">
                 <FaPlay className="text-blue-500 mt-0.5 flex-shrink-0" />
                 <span>点击"抛硬币"按钮开始随机抛硬币</span>
@@ -968,8 +971,7 @@ return finalRandom < 0.5 ? 'heads' : 'tails';`}
             </div>
           </motion.div>
         </motion.div>
-      </div>
-    </div>
+    </InfoQueryShell>
   );
 };
 
