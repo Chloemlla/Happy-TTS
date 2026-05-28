@@ -617,7 +617,7 @@ const UserProfile: React.FC = () => {
         return (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200">
             {avatarLoading ? (
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2541b2]"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
             ) : (
               <FaUser className="text-3xl text-slate-400" />
             )}
@@ -629,7 +629,7 @@ const UserProfile: React.FC = () => {
         <div className="relative w-full h-full">
           {imageLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#2541b2]"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900"></div>
             </div>
           )}
           <img
@@ -993,7 +993,7 @@ const UserProfile: React.FC = () => {
             onClick={() => {
               void loadProfile();
             }}
-            className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#2541b2] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#2541b2]/20 transition hover:bg-[#1f3794]"
+            className="mt-6 inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/15 transition hover:bg-slate-800"
           >
             重试
           </button>
@@ -1016,7 +1016,7 @@ const UserProfile: React.FC = () => {
               onClick={() => {
                 void loadProfile();
               }}
-              className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#2541b2] px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#2541b2]/20 transition hover:bg-[#1f3794]"
+              className="mt-6 inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/15 transition hover:bg-slate-800"
             >
               重试
             </button>
@@ -1125,7 +1125,7 @@ const UserProfile: React.FC = () => {
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#2541b2] focus:ring-2 focus:ring-[#2541b2]/20 sm:rounded-full"
+                className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-400/30 sm:rounded-full"
                 disabled={submitting}
                 placeholder="请输入邮箱地址"
               />
@@ -1143,7 +1143,7 @@ const UserProfile: React.FC = () => {
                     type="button"
                     onClick={handleSendEmailCode}
                     disabled={submitting || emailCodeCooldown > 0}
-                    className="inline-flex items-center gap-2 rounded-full bg-[#2541b2] px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-[#2541b2]/20 transition hover:bg-[#1f3794] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-slate-900/15 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {emailCodeCooldown > 0 ? `${emailCodeCooldown}s 后重新发送` : emailCodeSent ? '重新发送验证码' : '发送验证码'}
                   </button>
@@ -1154,7 +1154,7 @@ const UserProfile: React.FC = () => {
                         type="text"
                         value={emailVerificationCode}
                         onChange={(e) => setEmailVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#2541b2] focus:ring-2 focus:ring-[#2541b2]/20 sm:rounded-full"
+                        className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-400/30 sm:rounded-full"
                         placeholder="请输入 6 位验证码"
                         maxLength={6}
                         disabled={submitting}
@@ -1228,7 +1228,7 @@ const UserProfile: React.FC = () => {
                     type="password"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#2541b2] focus:ring-2 focus:ring-[#2541b2]/20 sm:rounded-full"
+                    className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-400/30 sm:rounded-full"
                     disabled={submitting}
                     placeholder="请输入当前密码用于身份验证"
                   />
@@ -1260,7 +1260,7 @@ const UserProfile: React.FC = () => {
                         onComplete={setVerificationCode}
                         loading={submitting}
                         error={undefined}
-                        inputClassName="bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#2541b2]/20 focus:border-[#2541b2] rounded-lg px-3 py-2 text-lg transition-all outline-none mx-1"
+                        inputClassName="bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-slate-400/30 focus:border-slate-400 rounded-lg px-3 py-2 text-lg transition-all outline-none mx-1"
                       />
                     </div>
                   )}
@@ -1317,7 +1317,7 @@ const UserProfile: React.FC = () => {
                         type="password"
                         value={oldPwd}
                         onChange={e => setOldPwd(e.target.value)}
-                        className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#2541b2] focus:ring-2 focus:ring-[#2541b2]/20 sm:rounded-full"
+                        className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-400/30 sm:rounded-full"
                         disabled={submitting}
                         placeholder="请输入当前密码"
                       />
@@ -1329,7 +1329,7 @@ const UserProfile: React.FC = () => {
                       type="password"
                       value={newPwd}
                       onChange={e => setNewPwd(e.target.value)}
-                      className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#2541b2] focus:ring-2 focus:ring-[#2541b2]/20 sm:rounded-full"
+                      className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-400/30 sm:rounded-full"
                       disabled={submitting}
                       placeholder="请输入新密码（至少8位）"
                     />
@@ -1343,7 +1343,7 @@ const UserProfile: React.FC = () => {
                       type="password"
                       value={confirmNewPwd}
                       onChange={e => setConfirmNewPwd(e.target.value)}
-                      className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#2541b2] focus:ring-2 focus:ring-[#2541b2]/20 sm:rounded-full"
+                      className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-400/30 sm:rounded-full"
                       disabled={submitting}
                       placeholder="请再次输入新密码"
                     />
@@ -1357,7 +1357,7 @@ const UserProfile: React.FC = () => {
                     type="button"
                     onClick={handleChangePassword}
                     disabled={submitting || (!verified && !oldPwd) || newPwd.length < 8 || newPwd !== confirmNewPwd}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-[18px] bg-[#2541b2] px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-[#2541b2]/20 transition hover:bg-[#1f3794] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:rounded-full sm:py-2"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-[18px] bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/15 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:rounded-full sm:py-2"
                   >
                     <FaSave />
                     {submitting ? '保存中…' : '保存新密码'}
@@ -1371,7 +1371,7 @@ const UserProfile: React.FC = () => {
               type="button"
               onClick={handleUpdate}
               disabled={submitting || avatarLoading || !emailChanged}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-[18px] bg-[#2541b2] px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#2541b2]/20 transition hover:bg-[#1f3794] disabled:cursor-not-allowed disabled:opacity-60 sm:rounded-full sm:py-3"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-[18px] bg-slate-900 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/15 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 sm:rounded-full sm:py-3"
             >
               {submitting && <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>}
               <FaSave />
@@ -1566,7 +1566,7 @@ const UserProfile: React.FC = () => {
 
             <div className="space-y-4">
               {/* TOTP */}
-              <div className="rounded-[22px] border border-slate-200 p-4 transition hover:border-[#2541b2]/30">
+              <div className="rounded-[22px] border border-slate-200 p-4 transition hover:border-slate-300">
                 <div className="mb-3 flex items-center gap-3">
                   <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-100">
                     <FaShieldAlt className="text-sm text-sky-600" />
@@ -1581,13 +1581,13 @@ const UserProfile: React.FC = () => {
                   onComplete={setVerificationCode}
                   loading={submitting}
                   error={undefined}
-                  inputClassName="bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-[#2541b2]/20 focus:border-[#2541b2] rounded-lg px-2 py-1 text-sm transition-all outline-none mx-1"
+                  inputClassName="bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-slate-400/30 focus:border-slate-400 rounded-lg px-2 py-1 text-sm transition-all outline-none mx-1"
                 />
                 <button
                   type="button"
                   onClick={handleTotpVerification}
                   disabled={submitting || verificationCode.length !== 6}
-                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-[18px] bg-[#2541b2] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-[#2541b2]/20 transition hover:bg-[#1f3794] disabled:opacity-50 sm:rounded-full sm:py-2"
+                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-[18px] bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/15 transition hover:bg-slate-800 disabled:opacity-50 sm:rounded-full sm:py-2"
                 >
                   {submitting ? '验证中…' : '使用 TOTP 验证'}
                 </button>

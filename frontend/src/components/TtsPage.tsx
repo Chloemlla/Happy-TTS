@@ -12,7 +12,24 @@ import {
   FaShieldAlt,
   FaCheckCircle,
   FaHistory,
+  FaEnvelope,
 } from "react-icons/fa";
+import { cn } from "../utils/cn";
+import {
+  studioAccentBlobBlueClassName,
+  studioAccentBlobSkyClassName,
+  studioDisplayFont,
+  studioEyebrowAccentPillClassName,
+  studioEyebrowClassName,
+  studioGhostButtonClassName,
+  studioHeroCardClassName,
+  studioMainSurfaceClassName,
+  studioPageClassName,
+  studioPageFont,
+  studioPanelClassName,
+  studioPrimaryButtonClassName,
+  studioStrongBadgeClassName,
+} from "./studioTheme";
 
 const getAudioMimeType = (outputFormat?: string) => {
   switch (outputFormat) {
@@ -95,102 +112,75 @@ export const TtsPage: React.FC = () => {
     );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10 py-8 rounded-3xl">
-      <div className="max-w-7xl mx-auto px-4 space-y-8">
+    <div className={studioPageClassName} style={{ fontFamily: studioPageFont }}>
+      <div className="mx-auto max-w-7xl min-w-0 space-y-5 sm:space-y-8">
+        {/* Hero */}
         <motion.div
-          className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 overflow-hidden"
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.45 }}
+          className={cn("relative overflow-hidden", studioHeroCardClassName)}
         >
-          <div className="bg-[#023047] text-white p-6">
-            <div className="text-center">
-              <motion.div
-                className="flex items-center justify-center gap-3 mb-4"
-                initial={{ scale: 0.9 }}
-                animate={{ scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-              >
-                <FaVolumeUp className="text-4xl" />
-                <h1 className="text-4xl font-bold">文本转语音</h1>
-              </motion.div>
-              <motion.p
-                className="text-[#8ECAE6] text-lg"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
-              >
-                将您的文本转换为自然流畅的语音
-              </motion.p>
-            </div>
-          </div>
-
-          <div className="p-6">
-            <div className="flex items-center gap-2 mb-4 p-3 bg-[#8ECAE6]/10 rounded-lg">
-              <FaInfoCircle className="text-[#219EBC]" />
-              <span className="font-semibold text-[#023047]">使用须知与联系方式</span>
-            </div>
-
-            <div
-              ref={noticeRef as React.RefObject<HTMLDivElement | null>}
-              className="space-y-4"
-            >
-              <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <FaShieldAlt className="text-red-600" />
-                  <h3 className="text-red-700 font-semibold">使用须知</h3>
-                </div>
-                <div className="space-y-3 text-sm text-red-700">
-                  <div>
-                    <p className="font-medium mb-2">1. 禁止生成违法违规内容：</p>
-                    <ul className="list-disc list-inside ml-4 space-y-1">
-                      <li>政治敏感、民族歧视内容</li>
-                      <li>色情、暴力、恐怖主义内容</li>
-                      <li>侵犯知识产权内容</li>
-                      <li>虚假信息或误导性内容</li>
-                    </ul>
-                  </div>
-                  <div>
-                    <p className="font-medium mb-2">2. 违规处理措施：</p>
-                    <ul className="list-disc list-inside ml-4 space-y-1">
-                      <li>立即停止服务并封禁账号</li>
-                      <li>配合执法部门调查</li>
-                      <li>提供使用记录和生成内容</li>
-                      <li>保留追究法律责任权利</li>
-                    </ul>
-                  </div>
-                </div>
+          <div className={cn(studioAccentBlobBlueClassName, "-right-12 top-0")} aria-hidden />
+          <div className={cn(studioAccentBlobSkyClassName, "-left-10 bottom-0")} aria-hidden />
+          <div className="relative flex min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-2xl min-w-0">
+              <div className={studioEyebrowAccentPillClassName}>
+                <FaVolumeUp />
+                Synapse Text-to-Speech
               </div>
-              <div className="bg-[#8ECAE6]/10 border border-[#8ECAE6]/30 rounded-xl p-4">
-                <h3 className="text-[#219EBC] font-semibold mb-2 flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  联系我们
-                </h3>
-                <p className="text-[#219EBC] text-sm">
-                  如有任何问题或建议，请联系开发者：
-                  <a
-                    href="mailto:admin@chloemlla.com"
-                    className="font-medium hover:text-[#023047] transition-colors duration-200 ml-1 underline"
-                  >
-                    admin@chloemlla.com
-                  </a>
-                </p>
+              <h1
+                className="mt-4 text-[2rem] font-semibold leading-[1.05] text-slate-900 sm:text-5xl sm:leading-tight"
+                style={{ fontFamily: studioDisplayFont }}
+              >
+                文本转语音
+              </h1>
+              <p className="mt-3 max-w-xl text-[13px] leading-6 text-slate-600 sm:text-base sm:leading-7">
+                将文本转换为自然流畅的语音。支持多种音色与导出格式，所有合成请求都会经过安全审计。
+              </p>
+            </div>
+
+            <div className="w-full lg:w-auto lg:max-w-sm">
+              <div
+                ref={noticeRef as React.RefObject<HTMLDivElement | null>}
+                className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 sm:rounded-2xl"
+              >
+                <div className={cn(studioEyebrowClassName, "flex items-center gap-2")}>
+                  <FaInfoCircle className="text-slate-500" />
+                  使用须知与联系方式
+                </div>
+                <ul className="mt-3 space-y-2 text-[13px] leading-6 text-slate-600">
+                  <li className="flex items-start gap-2">
+                    <FaShieldAlt className="mt-1 shrink-0 text-slate-400" />
+                    <span>禁止生成政治敏感、色情暴力、虚假误导或侵权类内容，违规会立即停服并保留追责权利。</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <FaEnvelope className="mt-1 shrink-0 text-slate-400" />
+                    <span>
+                      问题反馈：
+                      <a
+                        href="mailto:admin@chloemlla.com"
+                        className="ml-1 font-semibold text-slate-900 underline decoration-slate-300 underline-offset-2 transition hover:text-slate-700"
+                      >
+                        admin@chloemlla.com
+                      </a>
+                    </span>
+                  </li>
+                </ul>
               </div>
             </div>
           </div>
         </motion.div>
 
-        <div className="flex flex-col xl:flex-row gap-8">
+        <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+          {/* Form */}
           <motion.div
-            className="flex-1"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.05 }}
+            className={studioMainSurfaceClassName}
           >
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 p-6 relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1 bg-[#219EBC]" />
+            <div className="rounded-[24px] border border-slate-200 bg-white p-4 sm:rounded-[28px] sm:p-6">
               <TtsForm
                 loading={loading}
                 error={error}
@@ -201,68 +191,73 @@ export const TtsPage: React.FC = () => {
             </div>
           </motion.div>
 
+          {/* Result */}
           <AnimatePresence>
             {result && audioUrl && (
               <motion.div
-                className="flex-1 xl:max-w-md"
-                initial={{ opacity: 0, x: 20, scale: 0.95 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={{ opacity: 0, x: 20, scale: 0.95 }}
-                transition={{ duration: 0.5 }}
+                initial={{ opacity: 0, y: 24, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 12, scale: 0.98 }}
+                transition={{ duration: 0.45 }}
+                className={cn(studioPanelClassName, "xl:sticky xl:top-6")}
               >
-                <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 p-6 sticky top-8">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-[#219EBC]" />
-                  <div className="flex items-center gap-2 text-lg font-semibold text-[#023047] mb-4">
+                <div className="mb-4 flex items-center gap-3">
+                  <div className={studioStrongBadgeClassName}>
                     {statusIcon}
-                    <span>{statusTitle}</span>
+                  </div>
+                  <div>
+                    <div className={studioEyebrowClassName}>Synapse Output</div>
+                    <div className="mt-1 text-lg font-semibold text-slate-900">{statusTitle}</div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="rounded-[20px] border border-emerald-100 bg-emerald-50/70 p-4 sm:rounded-2xl">
+                    <p className="text-sm font-medium leading-6 text-emerald-900">{result.message}</p>
+                    {usageSummary && (
+                      <p className="mt-2 text-xs leading-5 text-emerald-700">{usageSummary}</p>
+                    )}
+                    {result.nextAction?.message && (
+                      <p className="mt-2 text-xs leading-5 text-emerald-700">
+                        下一步：{result.nextAction.message}
+                      </p>
+                    )}
                   </div>
 
-                  <div className="space-y-4">
-                    <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 p-4">
-                      <p className="text-sm font-medium text-emerald-900">{result.message}</p>
-                      {usageSummary && (
-                        <p className="mt-2 text-xs text-emerald-700">{usageSummary}</p>
-                      )}
-                      {result.nextAction?.message && (
-                        <p className="mt-2 text-xs text-emerald-700">
-                          下一步：{result.nextAction.message}
-                        </p>
-                      )}
-                    </div>
+                  <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-3 sm:rounded-2xl">
+                    <audio
+                      controls
+                      className="w-full"
+                      onPlay={() => setIsPlaying(true)}
+                      onPause={() => setIsPlaying(false)}
+                      onEnded={() => setIsPlaying(false)}
+                    >
+                      <source src={audioUrl} type={getAudioMimeType(result.outputFormat)} />
+                      您的浏览器不支持音频播放
+                    </audio>
+                  </div>
 
-                    <div className="bg-[#8ECAE6]/10 rounded-xl p-4">
-                      <audio
-                        controls
-                        className="w-full"
-                        onPlay={() => setIsPlaying(true)}
-                        onPause={() => setIsPlaying(false)}
-                        onEnded={() => setIsPlaying(false)}
-                      >
-                        <source src={audioUrl} type={getAudioMimeType(result.outputFormat)} />
-                        您的浏览器不支持音频播放
-                      </audio>
-                    </div>
-
-                    <div className="flex gap-3">
-                      <motion.button
-                        onClick={togglePlayPause}
-                        className="flex-1 bg-green-500 text-white py-3 px-4 rounded-xl hover:bg-green-600 transition-all duration-200 flex items-center justify-center gap-2 font-medium"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        {isPlaying ? <FaPause /> : <FaPlay />}
-                        {isPlaying ? "暂停" : "播放"}
-                      </motion.button>
-                      <motion.button
-                        onClick={handleDownload}
-                        className="flex-1 bg-[#FFB703] text-[#023047] py-3 px-4 rounded-xl hover:bg-[#FB8500] transition-all duration-200 flex items-center justify-center gap-2 font-medium"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <FaDownload />
-                        下载
-                      </motion.button>
-                    </div>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <motion.button
+                      type="button"
+                      onClick={togglePlayPause}
+                      className={cn(studioPrimaryButtonClassName, "w-full")}
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
+                    >
+                      {isPlaying ? <FaPause /> : <FaPlay />}
+                      {isPlaying ? "暂停播放" : "立即播放"}
+                    </motion.button>
+                    <motion.button
+                      type="button"
+                      onClick={handleDownload}
+                      className={cn(studioGhostButtonClassName, "w-full sm:w-auto")}
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.99 }}
+                    >
+                      <FaDownload />
+                      下载音频
+                    </motion.button>
                   </div>
                 </div>
               </motion.div>
