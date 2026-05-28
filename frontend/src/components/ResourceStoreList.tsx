@@ -350,11 +350,8 @@ export default function ResourceStoreList() {
                 Resource Store Studio
               </div>
               <h1 className="text-[2rem] font-semibold leading-[1.05] text-slate-900 sm:text-5xl sm:leading-tight" style={{ fontFamily: studioDisplayFont }}>
-                把资源商店做成统一的兑换工作台
+                资源商店
               </h1>
-              <p className="mt-3 max-w-2xl text-[13px] leading-6 text-slate-600 sm:text-base sm:leading-7">
-                商店浏览、我的资源、CDK 兑换和验证状态全部并到同一套 DeepLX 式布局里，减少页面切换，强化操作主次关系。
-              </p>
             </div>
             <div className="w-full lg:w-auto">
               <div className="grid gap-2 sm:grid-cols-3 sm:gap-3">

@@ -436,6 +436,8 @@ export function registerSecurityMiddleware(app: Express): void {
       referrerPolicy: { policy: "strict-origin-when-cross-origin" },
       xssFilter: true,
       frameguard: { action: "deny" },
+      crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+      crossOriginResourcePolicy: { policy: "cross-origin" },
     }),
   );
 

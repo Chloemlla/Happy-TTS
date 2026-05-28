@@ -10,6 +10,7 @@ scripts/test-mongo-simple.js
 scripts/test-mongo-connection.js
 logs_*.zip
 logs_*/
+docs/API 文档.html
 LogPaste/
 .windsurf/
 .kiro/
