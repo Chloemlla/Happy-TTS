@@ -2,7 +2,6 @@ import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotification } from './Notification';
 import { getApiBaseUrl } from '../api/api';
-import { escapeHtml } from '../utils/escapeHtml';
 import CryptoJS from 'crypto-js';
 import { imageDataApi } from '../api/imageData';
 import { openDB, deleteDB } from 'idb';
@@ -1112,7 +1111,7 @@ const ImageUploadPage: React.FC = () => {
               >
                 <img src={previewUrl} alt="预览" className="h-32 w-32 rounded-2xl border border-slate-200 object-contain sm:h-48 sm:w-48" />
                 <div className="mt-3 text-center text-xs text-slate-600 sm:text-sm">
-                  {escapeHtml(file.name)} ({(file.size / 1024).toFixed(1)} KB)
+                  {file.name} ({(file.size / 1024).toFixed(1)} KB)
                 </div>
                 <motion.button
                   className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 disabled:opacity-50"
