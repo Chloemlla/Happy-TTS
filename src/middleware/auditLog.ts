@@ -30,6 +30,8 @@ export function auditLog(options: AuditLogOptions) {
   const { module, action, extractTarget, extractDetail } = options;
 
   return (req: Request, res: Response, next: NextFunction) => {
+    (req as any).__routeAuditEnabled = true;
+
     const user = (req as any).user;
     const startTime = Date.now();
     let audited = false;

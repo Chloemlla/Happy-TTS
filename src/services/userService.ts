@@ -94,6 +94,59 @@ function removeAvatarBase64(obj: any) {
   return obj;
 }
 
+const parsedUserCacheTtlMs = Number(process.env.USER_BY_ID_CACHE_TTL_MS || 10_000);
+const USER_BY_ID_CACHE_TTL_MS = Number.isFinite(parsedUserCacheTtlMs)
+  ? Math.max(0, Math.min(60_000, parsedUserCacheTtlMs))
+  : 10_000;
+const parsedUserCacheMax = Number(process.env.USER_BY_ID_CACHE_MAX || 1000);
+const USER_BY_ID_CACHE_MAX = Number.isFinite(parsedUserCacheMax)
+  ? Math.max(100, Math.min(10_000, Math.floor(parsedUserCacheMax)))
+  : 1000;
+
+const userByIdCache = new Map<string, { user: UserType; expiresAt: number }>();
+
+function cloneUser(user: UserType): UserType {
+  return { ...(user as Record<string, unknown>) } as unknown as UserType;
+}
+
+function getCachedUserById(id: string): UserType | null {
+  if (USER_BY_ID_CACHE_TTL_MS <= 0) return null;
+  const cached = userByIdCache.get(id);
+  if (!cached) return null;
+
+  if (cached.expiresAt <= Date.now()) {
+    userByIdCache.delete(id);
+    return null;
+  }
+
+  userByIdCache.delete(id);
+  userByIdCache.set(id, cached);
+  return cloneUser(cached.user);
+}
+
+function setCachedUserById(user: UserType): UserType {
+  if (!user?.id || USER_BY_ID_CACHE_TTL_MS <= 0) {
+    return user;
+  }
+
+  if (userByIdCache.size >= USER_BY_ID_CACHE_MAX) {
+    const oldestKey = userByIdCache.keys().next().value as string | undefined;
+    if (oldestKey) {
+      userByIdCache.delete(oldestKey);
+    }
+  }
+
+  userByIdCache.set(user.id, {
+    user: cloneUser(user),
+    expiresAt: Date.now() + USER_BY_ID_CACHE_TTL_MS,
+  });
+  return cloneUser(user);
+}
+
+function invalidateCachedUserById(id: string): void {
+  userByIdCache.delete(id);
+}
+
 export const getAllUsers = async (): Promise<UserType[]> => {
   const docs = await UserModel.find().select(PUBLIC_USER_SELECT).lean();
   return docs.map(removeAvatarBase64) as unknown as UserType[];
@@ -108,12 +161,17 @@ export const getUserById = async (id: string): Promise<UserType | null> => {
   if (typeof id !== "string" || !/^[a-zA-Z0-9_-]+$/.test(id)) {
     throw new Error("非法的用户ID");
   }
+  const cached = getCachedUserById(id);
+  if (cached) {
+    return cached;
+  }
+
   const doc = await UserModel.findOne({ id })
     .select(PUBLIC_USER_SELECT)
     .lean();
 
   if (!doc) return null;
-  return removeAvatarBase64(doc) as unknown as UserType;
+  return setCachedUserById(removeAvatarBase64(doc) as unknown as UserType);
 };
 
 export const getUserByUsername = async (username: string): Promise<UserType | null> => {
@@ -162,7 +220,7 @@ export const createUser = async (user: UserType): Promise<UserType> => {
     ...protectedPassword,
     password: undefined,
   });
-  return removeAvatarBase64(doc.toObject()) as unknown as UserType;
+  return setCachedUserById(removeAvatarBase64(doc.toObject()) as unknown as UserType);
 };
 
 export const updateUser = async (id: string, updates: Partial<UserType>): Promise<UserType | null> => {
@@ -190,15 +248,17 @@ export const updateUser = async (id: string, updates: Partial<UserType>): Promis
   if (process.env.USER_SERVICE_DEBUG_LOGS === "true") {
     console.log("[updateUser] 更新条件:", { id }, "更新内容:", updateOps);
   }
+  invalidateCachedUserById(id);
   const doc = await UserModel.findOneAndUpdate({ id }, updateOps, { returnDocument: "after" }).lean();
 
   if (process.env.USER_SERVICE_DEBUG_LOGS === "true") {
     console.log("[updateUser] 更新后文档:", removeAvatarBase64(doc));
   }
-  return doc ? (removeAvatarBase64(doc) as unknown as UserType) : null;
+  return doc ? setCachedUserById(removeAvatarBase64(doc) as unknown as UserType) : null;
 };
 
 export const deleteUser = async (id: string): Promise<void> => {
+  invalidateCachedUserById(id);
   await UserModel.deleteOne({ id });
 };
 
@@ -322,8 +382,9 @@ export const incrementUserDailyUsageAtomic = async (
       : { $set: { dailyUsage: 1, lastUsageDate: now } };
 
   const updated = await UserModel.findOneAndUpdate(query, update, { returnDocument: "after" }).lean();
+  const user = updated ? setCachedUserById(removeAvatarBase64(updated) as unknown as UserType) : null;
   return {
     success: Boolean(updated),
-    user: updated ? (removeAvatarBase64(updated) as unknown as UserType) : null,
+    user,
   };
 };

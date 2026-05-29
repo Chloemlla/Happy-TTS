@@ -509,6 +509,7 @@ async function getRedisService(): Promise<any> {
 // CIDR 封禁列表缓存（避免每次请求都做 $regex 全表扫描）
 let cachedCIDRBans: any[] | null = null;
 let cidrBansCacheTime = 0;
+let cidrBansLoadPromise: Promise<any[]> | null = null;
 const CIDR_CACHE_TTL = 2 * 60 * 1000; // 2 分钟
 
 async function getCachedCIDRBans(): Promise<any[]> {
@@ -516,12 +517,27 @@ async function getCachedCIDRBans(): Promise<any[]> {
   if (cachedCIDRBans && now - cidrBansCacheTime < CIDR_CACHE_TTL) {
     return cachedCIDRBans;
   }
-  cachedCIDRBans = await IpBanModel.find({
+
+  if (cidrBansLoadPromise) {
+    return cidrBansLoadPromise;
+  }
+
+  cidrBansLoadPromise = IpBanModel.find({
     ipAddress: { $regex: /\//, $options: "" },
     expiresAt: { $gt: new Date() },
-  }).lean();
-  cidrBansCacheTime = now;
-  return cachedCIDRBans;
+  })
+    .select("ipAddress reason expiresAt")
+    .lean()
+    .then((bans) => {
+      cachedCIDRBans = bans;
+      cidrBansCacheTime = Date.now();
+      return bans;
+    })
+    .finally(() => {
+      cidrBansLoadPromise = null;
+    });
+
+  return cidrBansLoadPromise;
 }
 
 /**
@@ -557,6 +573,7 @@ async function parallelBanCheck(normalizedIP: string): Promise<{
       ipAddress: normalizedIP,
       expiresAt: { $gt: new Date() },
     })
+      .select("reason expiresAt")
       .lean() // 使用lean()提高查询性能
       .then((result) => ({ result, source: "mongodb-exact" }))
       .catch((error) => {

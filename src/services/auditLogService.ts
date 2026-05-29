@@ -53,6 +53,51 @@ const ALLOWED_MODULES = new Set([
 
 const ALLOWED_RESULTS = new Set(["success", "failure"]);
 
+const GLOBAL_AUDIT_ENABLED = process.env.GLOBAL_AUDIT_ENABLED !== "false";
+const AUDIT_LOG_DEDUP_ROUTE_LOGS = process.env.AUDIT_LOG_DEDUP_ROUTE_LOGS !== "false";
+const AUDIT_LOG_CAPTURE_PAYLOADS = process.env.AUDIT_LOG_CAPTURE_PAYLOADS === "true";
+const AUDIT_LOG_CAPTURE_SUCCESS_PAYLOADS = process.env.AUDIT_LOG_CAPTURE_SUCCESS_PAYLOADS === "true";
+const parsedAuditPayloadLimit = Number(process.env.AUDIT_PAYLOAD_STRING_LIMIT || 1000);
+const AUDIT_PAYLOAD_STRING_LIMIT = Number.isFinite(parsedAuditPayloadLimit)
+  ? Math.max(256, Math.min(4000, parsedAuditPayloadLimit))
+  : 1000;
+
+function shouldCapturePayload(result: "success" | "failure"): boolean {
+  if (!AUDIT_LOG_CAPTURE_PAYLOADS) {
+    return false;
+  }
+  return result === "failure" || AUDIT_LOG_CAPTURE_SUCCESS_PAYLOADS;
+}
+
+function sanitizePayload(obj: any): any {
+  if (!obj) return obj;
+  if (typeof obj === "string") {
+    return obj.length > AUDIT_PAYLOAD_STRING_LIMIT ? `${obj.substring(0, AUDIT_PAYLOAD_STRING_LIMIT)}...` : obj;
+  }
+  if (typeof obj !== "object") return obj;
+  if (Buffer.isBuffer(obj)) return "[Buffer]";
+
+  let parsedObj = obj;
+  try {
+    parsedObj = JSON.parse(JSON.stringify(obj));
+  } catch {
+    return "[Unserializable Object]";
+  }
+
+  const sanitizeNode = (node: any) => {
+    if (!node || typeof node !== "object") return;
+    for (const key of Object.keys(node)) {
+      if (typeof node[key] === "string" && node[key].length > AUDIT_PAYLOAD_STRING_LIMIT) {
+        node[key] = `${node[key].substring(0, AUDIT_PAYLOAD_STRING_LIMIT)}...[truncated]`;
+      } else if (typeof node[key] === "object") {
+        sanitizeNode(node[key]);
+      }
+    }
+  };
+  sanitizeNode(parsedObj);
+  return parsedObj;
+}
+
 export class AuditLogService {
   /**
    * 写入一条审计日志（fire-and-forget，不阻塞业务）
@@ -189,6 +234,10 @@ export class AuditLogService {
    */
   static globalAuditMiddleware() {
     return (req: Request, res: Response, next: NextFunction) => {
+      if (!GLOBAL_AUDIT_ENABLED) {
+        return next();
+      }
+
       // 过滤掉静态文件、Swagger等非接口请求
       if (!req.originalUrl?.startsWith("/api/")) {
         return next();
@@ -204,6 +253,10 @@ export class AuditLogService {
         if (audited) return;
         audited = true;
 
+        if (AUDIT_LOG_DEDUP_ROUTE_LOGS && (req as any).__routeAuditEnabled) {
+          return;
+        }
+
         const user = (req as any).user;
         const durationMs = Date.now() - startTime;
 
@@ -217,34 +270,7 @@ export class AuditLogService {
           safeModule = moduleName as any;
         }
 
-        // 脱敏与截断处理函数
-        const sanitizePayload = (obj: any): any => {
-          if (!obj) return obj;
-          if (typeof obj === "string") return obj.length > 2000 ? `${obj.substring(0, 2000)}...` : obj;
-          if (typeof obj !== "object") return obj;
-          if (Buffer.isBuffer(obj)) return "[Buffer]";
-
-          let parsedObj = obj;
-          // 若为对象，则深度克隆并脱敏
-          try {
-            parsedObj = JSON.parse(JSON.stringify(obj));
-          } catch {
-            return "[Unserializable Object]";
-          }
-
-          const sanitizeNode = (node: any) => {
-            if (!node || typeof node !== "object") return;
-            for (const key of Object.keys(node)) {
-              if (typeof node[key] === "string" && node[key].length > 2000) {
-                node[key] = `${node[key].substring(0, 2000)}...[truncated]`;
-              } else if (typeof node[key] === "object") {
-                sanitizeNode(node[key]);
-              }
-            }
-          };
-          sanitizeNode(parsedObj);
-          return parsedObj;
-        };
+        const capturePayload = shouldCapturePayload(result);
 
         const entry: AuditEntry = {
           requestId: (req as any).requestId,
@@ -257,9 +283,10 @@ export class AuditLogService {
           errorMessage: errorMessage ? String(errorMessage).substring(0, 500) : undefined,
           detail: {
             durationMs,
+            statusCode: res.statusCode,
             query: Object.keys(req.query).length ? req.query : undefined,
-            reqBody: Object.keys(req.body || {}).length ? sanitizePayload(req.body) : undefined,
-            resBody: resBody !== undefined ? sanitizePayload(resBody) : undefined,
+            reqBody: capturePayload && Object.keys(req.body || {}).length ? sanitizePayload(req.body) : undefined,
+            resBody: capturePayload && resBody !== undefined ? sanitizePayload(resBody) : undefined,
           },
           ip: req.ip || req.socket.remoteAddress || "unknown",
           userAgent: req.headers["user-agent"],
