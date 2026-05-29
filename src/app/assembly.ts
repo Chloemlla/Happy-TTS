@@ -35,6 +35,7 @@ import {
   registerRouteModules,
   routeLimiterModules,
 } from "../routes";
+import { legacyApiRedirectMiddleware } from "../routes/legacyApiRedirect";
 import { sendFaviconIfExists } from "../routes/siteMetadataRoutes";
 import { registerSecurityPipeline } from "../security/securityPipeline";
 import { readOpenapiJsonSync, shouldServeSwaggerFromJsonUrl } from "../services/openapiDocumentService";
@@ -176,7 +177,7 @@ const getFrontendFallbackHtml = (expected: string) => `<!doctype html>
     <style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:40px;line-height:1.6}.card{max-width:680px;margin:0 auto;border:1px solid #e5e7eb;border-radius:12px;padding:24px;box-shadow:0 4px 14px rgba(0,0,0,.08)}h1{margin:0 0 12px;font-size:24px}a{color:#3b82f6;text-decoration:none}code{background:#f3f4f6;padding:2px 6px;border-radius:6px}</style>
   </head>
   <body><div class="card"><h1>Synapse 后端已启动</h1><p>未检测到前端构建文件。您仍可通过 Swagger 访问 API 文档：</p>
-    <ul><li><a href="/api-docs">Swagger UI</a></li><li><a href="/api-docs.json">Swagger JSON</a></li></ul>
+    <ul><li><a href="/api-docs">Swagger UI</a></li><li><a href="/api/openapi.json">Swagger JSON</a></li></ul>
     <p>如果需要启用前端，请设置环境变量 <code>FRONTEND_DIST_DIR</code> 或将构建产物放到以下任一路径：<br/><small>${expected}</small></p>
   </div></body>
 </html>`;
@@ -389,6 +390,7 @@ export function registerApiRoutes(app: Express): void {
   app.options("/api/debug-console/*path", corsPreflightHandler);
   app.use("/api/debug-console/*path", corsHeadersMiddleware);
   registerRouteModules(app, postTamperRouteModules);
+  app.use(legacyApiRedirectMiddleware);
 
   logger.info("[NexAI] 鉴权路由已挂载 /api/nexai");
   logger.info("[NexAI Security] 安全路由已挂载 /api/nexai/security");

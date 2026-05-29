@@ -9,6 +9,7 @@ import { ShortUrlService } from "../services/shortUrlService";
 import { config } from "../config/config";
 
 const router = Router();
+const redirectRouter = Router();
 
 // 速率限制器
 const redirectLimiter = createLimiter({
@@ -240,6 +241,21 @@ router.post("/public/create", publicCreateLimiter, async (req: any, res: any) =>
 });
 
 // 短链重定向（公开访问）— 放到最后，避免覆盖 /admin 与 /shorturls 前缀
+const reservedShortUrlCodes = new Set(["admin", "shorturls", "public"]);
+
+redirectRouter.get(
+  "/:code",
+  (req, _res, next) => {
+    if (reservedShortUrlCodes.has(String(req.params.code || "").toLowerCase())) {
+      return next("route");
+    }
+    return next();
+  },
+  redirectLimiter,
+  ShortUrlController.redirectToTarget,
+);
+
 router.get("/:code", redirectLimiter, ShortUrlController.redirectToTarget);
 
+export const shortUrlRedirectRoutes = redirectRouter;
 export default router;

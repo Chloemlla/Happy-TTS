@@ -117,7 +117,7 @@ router.get("/turnstile/config", async (_req, res) => {
 
 /**
  * @openapi
- * /tts/clarity/config:
+ * /api/tts/clarity/config:
  *   get:
  *     summary: 获取 Clarity 配置
  *     description: 获取 Microsoft Clarity 配置
@@ -161,7 +161,7 @@ router.get("/clarity/config", async (_req, res) => {
 
 /**
  * @openapi
- * /tts/clarity/config:
+ * /api/tts/clarity/config:
  *   post:
  *     summary: 更新 Clarity 配置
  *     description: 更新 Microsoft Clarity 项目ID配置
@@ -232,7 +232,7 @@ router.post("/clarity/config", async (req, res) => {
 
 /**
  * @openapi
- * /tts/clarity/config:
+ * /api/tts/clarity/config:
  *   delete:
  *     summary: 删除 Clarity 配置
  *     description: 删除 Microsoft Clarity 项目ID配置

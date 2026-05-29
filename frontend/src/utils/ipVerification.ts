@@ -1,4 +1,5 @@
 import { getFingerprint } from './fingerprint';
+import { canonicalizeBackendApiUrlObject } from './apiPath';
 
 export type IpCaptchaType = 'turnstile' | 'hcaptcha';
 
@@ -260,8 +261,16 @@ export function installIpVerificationTransport(): void {
   const originalFetch = window.fetch.bind(window);
 
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-    const request = new Request(input, init);
-    const url = new URL(request.url, window.location.origin);
+    let request = new Request(input, init);
+    let url = new URL(request.url, window.location.origin);
+    const apiOrigin = new URL(resolveApiBaseUrl()).origin;
+    const sameBackendOrigin = url.origin === apiOrigin || url.origin === window.location.origin;
+    const canonicalUrl = sameBackendOrigin ? canonicalizeBackendApiUrlObject(url) : url;
+
+    if (canonicalUrl.toString() !== url.toString()) {
+      request = new Request(canonicalUrl.toString(), request);
+      url = canonicalUrl;
+    }
 
     if (!isBackendRequest(url)) {
       return originalFetch(request);

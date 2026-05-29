@@ -64,13 +64,13 @@ import modlistRoutes from "./modlistRoutes";
 import networkRoutes from "./networkRoutes";
 import nexaiRoutes from "./nexaiRoutes";
 import nexaiSecurityRoutes from "./nexaiSecurityRoutes";
-import openapiJsonRoutes, { legacyOpenapiJsonRoutes } from "./openapiJsonRoutes";
+import openapiJsonRoutes from "./openapiJsonRoutes";
 import outemailRoutes from "./outemailRoutes";
 import passkeyRoutes from "./passkeyRoutes";
 import policyRoutes from "./policyRoutes";
 import resourceRoutes from "./resourceRoutes";
 import { assetLinksRoutes, faviconRoutes } from "./siteMetadataRoutes";
-import shortUrlRoutes from "./shortUrlRoutes";
+import shortUrlRoutes, { shortUrlRedirectRoutes } from "./shortUrlRoutes";
 import socialRoutes from "./socialRoutes";
 import statusRouter from "./status";
 import tamperRoutes from "./tamperRoutes";
@@ -158,7 +158,6 @@ export const NON_API_ROUTE_EXEMPTION_PATHS = [
   "/health",
   "/.well-known/assetlinks.json",
   "/favicon.ico",
-  "/api-docs.json",
 ] as const;
 
 const antaRequestLogger: RequestHandler = (req: Request, _res: Response, next: NextFunction) => {
@@ -398,6 +397,20 @@ export const preParserRouteModules: RouteModule[] = [
     },
   },
   {
+    name: "api-health-route",
+    path: "/api/health",
+    router: healthRoutes,
+    requiresAuth: false,
+    rateLimited: false,
+    isPublic: true,
+    securityBypass: {
+      ipBan: {
+        value: true,
+        reason: "Canonical API health checks must remain available while ban infrastructure is active.",
+      },
+    },
+  },
+  {
     name: "webhook-routes",
     path: "/api/webhooks",
     router: webhookRoutes,
@@ -550,14 +563,14 @@ export const preTamperRouteModules: RouteModule[] = [
   {
     name: "short-url-non-api-routes",
     path: "/s",
-    router: shortUrlRoutes,
-    requiresAuth: "mixed",
+    router: shortUrlRedirectRoutes,
+    requiresAuth: false,
     rateLimited: true,
-    isPublic: "mixed",
+    isPublic: true,
     rateLimitPolicy: {
       mode: "route",
-      limiters: ["redirectLimiter", "userManageLimiter", "adminLimiter", "publicCreateLimiter"],
-      note: "The short URL router applies dedicated route-level limiters for redirect, user, admin, and public-create flows.",
+      limiters: ["redirectLimiter"],
+      note: "The non-API /s mount is limited to public short-link redirects; management APIs live under /api/shorturl.",
     },
     securityBypass: {
       ipVerification: {
@@ -566,7 +579,7 @@ export const preTamperRouteModules: RouteModule[] = [
       },
       tamperProtection: {
         value: true,
-        reason: "The /s compatibility mount historically executes before tamper protection.",
+        reason: "Public short URL redirects execute before tamper protection to preserve shared-link behavior.",
       },
     },
   },
@@ -1088,19 +1101,6 @@ export const postTamperRouteModules: RouteModule[] = [
       mode: "route",
       limiters: ["openapiLimiter"],
       note: "OpenAPI JSON endpoints apply the dedicated route-level OpenAPI limiter.",
-    },
-  },
-  {
-    name: "legacy-openapi-json-route",
-    path: "/api-docs.json",
-    router: legacyOpenapiJsonRoutes,
-    requiresAuth: false,
-    rateLimited: true,
-    isPublic: true,
-    rateLimitPolicy: {
-      mode: "route",
-      limiters: ["openapiLimiter"],
-      note: "The legacy OpenAPI JSON endpoint applies the dedicated route-level OpenAPI limiter.",
     },
   },
   {

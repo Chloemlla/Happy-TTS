@@ -10,6 +10,10 @@ import logger from "../utils/logger";
 
 // ========== 工具函数 ==========
 
+type ArtifactVisibility = "public" | "private" | "password";
+
+const SUPPORTED_CONTENT_TYPES = new Set(["html", "code", "markdown", "mermaid", "text", "json", "svg", "latex", "csv", "xml"]);
+
 function generateShortId(length = 12): string {
   const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   const charsLength = chars.length;
@@ -35,11 +39,58 @@ function calculateContentHash(content: string): string {
 
 /** 解码 base64 内容 */
 function decodeContent(content: string): string {
+  const compactContent = content.replace(/\s+/g, "");
+  if (!compactContent || !/^[A-Za-z0-9+/_-]+={0,2}$/.test(compactContent)) {
+    return content;
+  }
+
+  let normalized = compactContent.replace(/-/g, "+").replace(/_/g, "/");
+  const padding = normalized.length % 4;
+  if (padding === 1) {
+    return content;
+  }
+  if (padding > 0) {
+    normalized += "=".repeat(4 - padding);
+  }
+
   try {
-    return Buffer.from(content, "base64").toString("utf-8");
+    const decoded = Buffer.from(normalized, "base64").toString("utf-8");
+    const reencoded = Buffer.from(decoded, "utf-8").toString("base64").replace(/=+$/, "");
+    const normalizedWithoutPadding = normalized.replace(/=+$/, "");
+
+    return reencoded === normalizedWithoutPadding ? decoded : content;
   } catch {
     return content; // 如果不是 base64,直接返回
   }
+}
+
+function normalizeContentType(contentType: string): string {
+  const normalized = String(contentType || "").trim().toLowerCase();
+  if (!SUPPORTED_CONTENT_TYPES.has(normalized)) {
+    throw new Error("不支持的 Artifact 内容类型");
+  }
+
+  return normalized;
+}
+
+function normalizeVisibility(visibility?: string): ArtifactVisibility {
+  if (!visibility) return "public";
+
+  const normalized = String(visibility).trim().toLowerCase();
+  if (normalized === "public" || normalized === "private" || normalized === "password") {
+    return normalized;
+  }
+
+  throw new Error("不支持的 Artifact 可见性");
+}
+
+function normalizeTags(tags?: string[] | string): string[] {
+  const values = Array.isArray(tags) ? tags : typeof tags === "string" ? tags.split(",") : [];
+
+  return values
+    .map((tag) => String(tag).trim())
+    .filter(Boolean)
+    .slice(0, 20);
 }
 
 // ========== 服务类 ==========
@@ -54,10 +105,10 @@ export class ArtifactService {
     contentType: string;
     content: string; // base64 编码
     language?: string;
-    visibility?: "public" | "private" | "password";
+    visibility?: ArtifactVisibility;
     password?: string;
     description?: string;
-    tags?: string[];
+    tags?: string[] | string;
     expiresInDays?: number;
   }): Promise<{
     id: string;
@@ -81,6 +132,14 @@ export class ArtifactService {
         expiresInDays,
       } = params;
 
+      const normalizedContentType = normalizeContentType(contentType);
+      const normalizedVisibility = normalizeVisibility(visibility);
+      const normalizedTags = normalizeTags(tags);
+
+      if (normalizedVisibility === "password" && !password) {
+        throw new Error("密码保护的 Artifact 需要提供密码");
+      }
+
       // 解码内容
       const content = decodeContent(encodedContent);
 
@@ -100,7 +159,7 @@ export class ArtifactService {
 
       // 处理密码
       let passwordHash: string | undefined;
-      if (visibility === "password" && password) {
+      if (normalizedVisibility === "password" && password) {
         passwordHash = await bcrypt.hash(password, 10);
       }
 
@@ -115,15 +174,15 @@ export class ArtifactService {
       const artifact = await ArtifactModel.create({
         shortId,
         userId,
-        title,
-        contentType,
+        title: title.trim(),
+        contentType: normalizedContentType,
         language,
         content,
         contentHash,
-        visibility,
+        visibility: normalizedVisibility,
         passwordHash,
         description,
-        tags,
+        tags: normalizedTags,
         expiresAt,
         viewCount: 0,
       });
@@ -156,7 +215,7 @@ export class ArtifactService {
   /**
    * 获取 Artifact
    */
-  static async getArtifact(shortId: string, password?: string): Promise<IArtifact | null> {
+  static async getArtifact(shortId: string, password?: string, viewerUserId?: string): Promise<IArtifact | null> {
     try {
       const artifact = await ArtifactModel.findOne({ shortId }).lean();
 
@@ -167,6 +226,12 @@ export class ArtifactService {
       // 检查是否过期
       if (artifact.expiresAt && new Date() > artifact.expiresAt) {
         return null;
+      }
+
+      if (artifact.visibility === "private" && artifact.userId !== viewerUserId) {
+        const error: any = new Error("私密 Artifact 仅创建者可访问");
+        error.code = "ARTIFACT_PRIVATE";
+        throw error;
       }
 
       // 检查密码保护
@@ -201,10 +266,10 @@ export class ArtifactService {
     userId: string,
     updates: {
       title?: string;
-      visibility?: "public" | "private" | "password";
+      visibility?: ArtifactVisibility;
       password?: string;
       description?: string;
-      tags?: string[];
+      tags?: string[] | string;
       expiresInDays?: number;
     },
   ): Promise<IArtifact | null> {
@@ -215,16 +280,22 @@ export class ArtifactService {
         return null;
       }
 
+      const normalizedVisibility = updates.visibility ? normalizeVisibility(updates.visibility) : undefined;
+
       // 更新字段
-      if (updates.title) artifact.title = updates.title;
-      if (updates.visibility) artifact.visibility = updates.visibility;
+      if (updates.title) artifact.title = updates.title.trim();
+      if (normalizedVisibility) artifact.visibility = normalizedVisibility;
       if (updates.description !== undefined) artifact.description = updates.description;
-      if (updates.tags) artifact.tags = updates.tags;
+      if (updates.tags) artifact.tags = normalizeTags(updates.tags);
 
       // 处理密码
-      if (updates.visibility === "password" && updates.password) {
-        artifact.passwordHash = await bcrypt.hash(updates.password, 10);
-      } else if (updates.visibility !== "password") {
+      if (normalizedVisibility === "password") {
+        if (updates.password) {
+          artifact.passwordHash = await bcrypt.hash(updates.password, 10);
+        } else if (!artifact.passwordHash) {
+          throw new Error("密码保护的 Artifact 需要提供密码");
+        }
+      } else if (normalizedVisibility) {
         artifact.passwordHash = undefined;
       }
 

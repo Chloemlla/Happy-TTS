@@ -6,7 +6,7 @@ import express from "express";
 import { ArtifactController } from "../controllers/artifactController";
 import { NexaiAuthController } from "../controllers/nexaiAuthController";
 import { NexaiSyncController } from "../controllers/nexaiSyncController";
-import { nexaiAuthRequired } from "../middleware/nexaiAuth";
+import { nexaiAuthOptional, nexaiAuthRequired } from "../middleware/nexaiAuth";
 import { createLimiter } from "../middleware/rateLimiter";
 
 const router = express.Router();
@@ -690,7 +690,7 @@ router.post("/artifacts", nexaiAuthRequired, artifactCreateLimiter, ArtifactCont
  *       404:
  *         description: 不存在或已过期
  */
-router.get("/artifacts/:shortId", artifactViewLimiter, ArtifactController.getArtifact);
+router.get("/artifacts/:shortId", artifactViewLimiter, nexaiAuthOptional, ArtifactController.getArtifact);
 
 /**
  * @openapi

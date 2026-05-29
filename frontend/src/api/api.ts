@@ -6,6 +6,7 @@ import {
     emitIpVerificationRequired,
     isExemptPath,
 } from '../utils/ipVerification';
+import { canonicalizeBackendApiUrl } from '../utils/apiPath';
 
 // 获取API基础URL：生产环境默认同源，开发环境保留后端直连能力
 const getApiBaseUrl = () => {
@@ -64,6 +65,10 @@ export const api: AxiosInstance = axios.create({
 
 // 请求拦截器：添加 token
 api.interceptors.request.use(async (config) => {
+    if (typeof config.url === 'string') {
+        config.url = canonicalizeBackendApiUrl(config.url);
+    }
+
     const headers =
         config.headers instanceof AxiosHeaders
             ? config.headers
@@ -252,5 +257,5 @@ export const getAuthToken = (): string | null => {
     return localStorage.getItem('token');
 };
 
-export { getApiBaseUrl };
+export { canonicalizeBackendApiUrl, getApiBaseUrl };
 export default api;

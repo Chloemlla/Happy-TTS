@@ -1,6 +1,7 @@
 export {
   api,
   apiWithRetry,
+  canonicalizeBackendApiUrl,
   getApiBaseUrl,
   getAuthToken,
   handleFingerprintHeader,

@@ -7,6 +7,60 @@ import { ArtifactService } from "../services/artifactService";
 import { firstString, firstStringOr } from "../utils/httpParam";
 import logger from "../utils/logger";
 
+function optionalNumber(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    throw new Error("expires_in_days 必须是数字");
+  }
+
+  return parsed;
+}
+
+function serializeArtifact(artifact: any) {
+  const viewCount = Number(artifact.viewCount ?? 0);
+  const createdAt = artifact.createdAt;
+  const updatedAt = artifact.updatedAt;
+  const expiresAt = artifact.expiresAt;
+  const serialized: any = {
+    id: artifact._id?.toString?.() ?? artifact.id,
+    shortId: artifact.shortId,
+    short_id: artifact.shortId,
+    title: artifact.title,
+    contentType: artifact.contentType,
+    content_type: artifact.contentType,
+    language: artifact.language,
+    description: artifact.description,
+    tags: Array.isArray(artifact.tags) ? artifact.tags : [],
+    visibility: artifact.visibility,
+    viewCount,
+    view_count: viewCount,
+    createdAt,
+    created_at: createdAt,
+    updatedAt,
+    updated_at: updatedAt,
+    expiresAt,
+    expires_at: expiresAt,
+  };
+
+  if (artifact.content !== undefined) {
+    serialized.content = artifact.content;
+  }
+
+  return serialized;
+}
+
+function isArtifactValidationError(error: any): boolean {
+  const message = typeof error?.message === "string" ? error.message : "";
+
+  return (
+    message.includes("expires_in_days") ||
+    message.includes("不支持的 Artifact") ||
+    message.includes("密码保护的 Artifact")
+  );
+}
+
 export class ArtifactController {
   /**
    * POST /api/nexai/artifacts
@@ -35,9 +89,10 @@ export class ArtifactController {
         expires_in_days,
         expiresInDays,
       } = req.body;
+      const requestedContentType = content_type ?? contentType;
 
       // 验证必填字段
-      if (!title || !content || !(content_type || contentType)) {
+      if (typeof title !== "string" || !title.trim() || typeof content !== "string" || !content || !requestedContentType) {
         return res.status(400).json({
           success: false,
           error: "缺少必填字段: title, content_type, content",
@@ -46,15 +101,15 @@ export class ArtifactController {
 
       const result = await ArtifactService.createArtifact({
         userId,
-        title,
-        contentType: content_type || contentType,
+        title: title.trim(),
+        contentType: requestedContentType,
         content,
         language,
         visibility,
         password,
         description,
         tags,
-        expiresInDays: expires_in_days || expiresInDays,
+        expiresInDays: optionalNumber(expires_in_days ?? expiresInDays),
       });
 
       res.status(201).json({
@@ -64,7 +119,7 @@ export class ArtifactController {
       });
     } catch (error: any) {
       logger.error("[ArtifactController] createArtifact error:", error);
-      res.status(500).json({
+      res.status(isArtifactValidationError(error) ? 400 : 500).json({
         success: false,
         error: error.message || "创建失败",
       });
@@ -78,13 +133,14 @@ export class ArtifactController {
   static async getArtifact(req: Request, res: Response) {
     try {
       const shortId = firstString(req.params.shortId);
-      const password = req.headers["x-password"] as string;
+      const password = firstString(req.headers["x-password"]);
+      const viewerUserId = req.nexaiUser?.id;
 
       if (!shortId) {
         return res.status(400).json({ success: false, error: "invalid_short_id" });
       }
 
-      const artifact = await ArtifactService.getArtifact(shortId, password);
+      const artifact = await ArtifactService.getArtifact(shortId, password, viewerUserId);
 
       if (!artifact) {
         return res.status(404).json({
@@ -94,12 +150,9 @@ export class ArtifactController {
         });
       }
 
-      // 移除敏感字段
-      const { passwordHash, ...safeArtifact } = artifact as any;
-
       res.json({
         success: true,
-        data: safeArtifact,
+        data: serializeArtifact(artifact),
       });
     } catch (error: any) {
       if (error.code === "PASSWORD_REQUIRED") {
@@ -114,6 +167,13 @@ export class ArtifactController {
           success: false,
           error: "invalid_password",
           message: "密码错误",
+        });
+      }
+      if (error.code === "ARTIFACT_PRIVATE") {
+        return res.status(403).json({
+          success: false,
+          error: "private_artifact",
+          message: "此 Artifact 仅创建者可访问",
         });
       }
 
@@ -140,7 +200,10 @@ export class ArtifactController {
       }
 
       const shortId = firstString(req.params.shortId);
-      const updates = req.body;
+      const updates = {
+        ...req.body,
+        expiresInDays: optionalNumber(req.body?.expiresInDays ?? req.body?.expires_in_days),
+      };
 
       if (!shortId) {
         return res.status(400).json({ success: false, error: "invalid_short_id" });
@@ -166,7 +229,7 @@ export class ArtifactController {
       });
     } catch (error: any) {
       logger.error("[ArtifactController] updateArtifact error:", error);
-      res.status(500).json({
+      res.status(isArtifactValidationError(error) ? 400 : 500).json({
         success: false,
         error: error.message || "更新失败",
       });
@@ -240,7 +303,10 @@ export class ArtifactController {
 
       res.json({
         success: true,
-        data: result,
+        data: {
+          ...result,
+          artifacts: result.artifacts.map(serializeArtifact),
+        },
       });
     } catch (error: any) {
       logger.error("[ArtifactController] listArtifacts error:", error);

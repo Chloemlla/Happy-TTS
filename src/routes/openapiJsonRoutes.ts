@@ -15,7 +15,4 @@ const router = Router();
 router.get("/openapi.json", openapiLimiter, sendApiDocsJson);
 router.get("/api-docs.json", openapiLimiter, sendApiDocsJson);
 
-export const legacyOpenapiJsonRoutes = Router();
-legacyOpenapiJsonRoutes.get("/", openapiLimiter, sendApiDocsJson);
-
 export default router;

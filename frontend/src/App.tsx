@@ -576,6 +576,7 @@ const App: React.FC = () => {
     [location.pathname, location.search],
   );
   const adminFallbackPath = user ? '/' : loginRedirectPath;
+  const isArtifactSharePath = React.useMemo(() => location.pathname.startsWith('/artifacts/'), [location.pathname]);
   const isAuthFlowPath = React.useMemo(() => (
     AUTH_FLOW_PATHS.has(location.pathname)
     || location.pathname.startsWith('/auth/')
@@ -584,8 +585,10 @@ const App: React.FC = () => {
     ANNOUNCEMENT_SUPPRESSED_ROUTES.has(location.pathname)
     || location.pathname.startsWith('/auth/')
     || location.pathname.startsWith('/admin')
-  ), [location.pathname]);
-  const shouldBlockForFirstVisitCheck = enableFirstVisitVerification
+    || isArtifactSharePath
+  ), [isArtifactSharePath, location.pathname]);
+  const shouldBlockForFirstVisitCheck = !isArtifactSharePath
+    && enableFirstVisitVerification
     && Boolean(fingerprint)
     && (isIpBanned || (isFirstVisit && !isVerified));
   const toastPosition = isMobileNav ? 'bottom-center' : 'top-right';
@@ -654,6 +657,7 @@ const App: React.FC = () => {
       '/smart-human-check': 'Synapse - 智能人机验证',
       '/notification-test': 'Synapse - 通知测试',
       '/hcaptcha-verify': 'Synapse - hCaptcha验证',
+      '/artifacts': 'NexAI Artifacts',
       '/image-upload': 'Synapse - 图片上传',
       '/librechat': 'Synapse - LibreChat',
       '/tiger-adventure': 'Synapse - 老虎冒险',
@@ -680,6 +684,7 @@ const App: React.FC = () => {
       '/word-count': '精确统计文本字数、字符数、段落数等信息',
       '/age-calculator': '精确计算年龄，支持多种日期格式和时区',
       '/logshare': '安全分享和查看日志文件，支持加密传输',
+      '/artifacts': 'View a shared NexAI Artifact.',
       '/store': '浏览和下载优质资源，提升开发效率',
     }
   }), []);
@@ -930,7 +935,7 @@ const App: React.FC = () => {
 
       try {
         // 从后端获取 Clarity 配置
-        const response = await fetch('/tts/clarity/config', {
+        const response = await fetch(`${getApiBaseUrl()}/api/tts/clarity/config`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -1254,6 +1259,19 @@ const App: React.FC = () => {
     );
   }
 
+  if (isArtifactSharePath) {
+    return (
+      <div className="min-h-screen bg-slate-100">
+        <Suspense fallback={<RouteLoadingShell label="Loading artifact..." />}>
+          <Routes location={location} key={location.pathname}>
+            <Route path="/artifacts/:shortId" element={<ArtifactSharePage />} />
+            <Route path="*" element={<NotFoundPage path={location.pathname} />} />
+          </Routes>
+        </Suspense>
+      </div>
+    );
+  }
+
   return (
     <NotificationProvider>
       <BroadcastModalProvider>
@@ -1495,7 +1513,7 @@ const App: React.FC = () => {
 
             {/* 指纹请求弹窗 */}
             <FingerprintRequestModal
-              isOpen={shouldShowRequest}
+              isOpen={!isArtifactSharePath && shouldShowRequest}
               onClose={handleDismiss}
               onRequestComplete={markFingerprintRequestCompleted}
               hasDismissedOnce={requestStatus.fingerprintRequestDismissedOnce}

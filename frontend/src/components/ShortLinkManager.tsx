@@ -390,7 +390,7 @@ const ShortLinkManager: React.FC = () => {
     setExportingAll(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`${getApiBaseUrl()}/s/admin/export`, {
+      const response = await fetch(`${getApiBaseUrl()}/api/shorturl/admin/export`, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -455,7 +455,7 @@ const ShortLinkManager: React.FC = () => {
     setDeletingAll(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await signedFetch(`${getApiBaseUrl()}/s/admin/deleteall`, {
+      const response = await signedFetch(`${getApiBaseUrl()}/api/shorturl/admin/deleteall`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -497,7 +497,7 @@ const ShortLinkManager: React.FC = () => {
     try {
       const fileContent = await file.text();
       const token = localStorage.getItem('token');
-      const response = await signedFetch(`${getApiBaseUrl()}/s/admin/import`, {
+      const response = await signedFetch(`${getApiBaseUrl()}/api/shorturl/admin/import`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -536,7 +536,7 @@ const ShortLinkManager: React.FC = () => {
     setImportingData(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await signedFetch(`${getApiBaseUrl()}/s/admin/import`, {
+      const response = await signedFetch(`${getApiBaseUrl()}/api/shorturl/admin/import`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
