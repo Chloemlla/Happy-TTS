@@ -6,6 +6,16 @@ import SmartHumanCheckService from "../services/smartHumanCheckService";
 import logger from "../utils/logger";
 
 const service = new SmartHumanCheckService();
+const DEFAULT_POW_DIFFICULTY = clampPowDifficulty(Number(process.env.SMART_HUMAN_CHECK_POW_DIFFICULTY ?? 8));
+const HIGH_RISK_POW_DIFFICULTY = Math.max(
+  DEFAULT_POW_DIFFICULTY,
+  clampPowDifficulty(Number(process.env.SMART_HUMAN_CHECK_POW_HIGH_RISK_DIFFICULTY ?? 12)),
+);
+
+function clampPowDifficulty(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(24, Math.trunc(value)));
+}
 
 function getClientIp(req: Request): string {
   return (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "unknown";
@@ -29,6 +39,19 @@ function getAction(req: Request): string | undefined {
   if (typeof raw !== "string") return undefined;
   const action = raw.trim();
   return /^[A-Za-z0-9_.:-]{1,64}$/.test(action) ? action : undefined;
+}
+
+function getPowDifficulty(req: Request): number {
+  if (DEFAULT_POW_DIFFICULTY <= 0) return 0;
+
+  const ua = String(req.headers["user-agent"] || "");
+  const secFetchSite = String(req.headers["sec-fetch-site"] || "").toLowerCase();
+  const action = getAction(req) || "default";
+  const highRiskAction = /^(login|register|forgot-password|reset-password|tts|redeem|upload)$/i.test(action);
+  const suspiciousUa = /headless|phantomjs|electron|puppeteer|playwright|spider|crawler|\bbot\b|curl|wget|httpclient/i.test(ua);
+  const crossSite = secFetchSite === "cross-site";
+
+  return suspiciousUa || crossSite || highRiskAction ? HIGH_RISK_POW_DIFFICULTY : DEFAULT_POW_DIFFICULTY;
 }
 
 export class SmartHumanCheckController {
@@ -68,11 +91,12 @@ export class SmartHumanCheckController {
       const userAgent = req.headers["user-agent"];
       const action = getAction(req);
 
-      const result = service.issueNonce({
+      const result = await service.issueNonce({
         ip: clientIp,
         ua: userAgent,
         origin: getRequestOrigin(req),
         action,
+        difficulty: getPowDifficulty(req),
       });
 
       if (result.success) {
@@ -100,7 +124,7 @@ export class SmartHumanCheckController {
    */
   static async getStats(_req: Request, res: Response) {
     try {
-      const stats = service.getStats();
+      const stats = await service.getStats();
       res.json({
         success: true,
         stats,
@@ -141,7 +165,7 @@ export class SmartHumanCheckController {
 
       const ip = getClientIp(req);
       const ua = req.headers["user-agent"] as string | undefined;
-      const result = service.verifyToken(token, {
+      const result = await service.verifyToken(token, {
         ip,
         ua,
         origin: getRequestOrigin(req),

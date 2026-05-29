@@ -550,6 +550,9 @@ export class SmartHumanCheckService {
     this.defaultAction = opts?.defaultAction ?? process.env.SMART_HUMAN_CHECK_DEFAULT_ACTION ?? "default";
 
     this.nonceStore = getNonceStore({
+      namespace: "smart-human-check",
+      redisPrefix: process.env.SMART_HUMAN_CHECK_REDIS_PREFIX || "shc:nonce",
+      redisEnabled: process.env.SMART_HUMAN_CHECK_NONCE_STORE !== "memory",
       ttlMs: this.ttlMs,
       maxSize: Number(process.env.SMART_HUMAN_CHECK_NONCE_STORE_SIZE || 10000),
       cleanupInterval: Number(process.env.SMART_HUMAN_CHECK_CLEANUP_INTERVAL || 60000),
@@ -579,7 +582,7 @@ export class SmartHumanCheckService {
 
   // ---------- 公共 API ----------
 
-  issueNonce(ctxOrIp?: IssueContext | string, ua?: string): IssueResult {
+  async issueNonce(ctxOrIp?: IssueContext | string, ua?: string): Promise<IssueResult> {
     // 兼容旧位置参数 issueNonce(ip, ua)
     const ctx: IssueContext =
       typeof ctxOrIp === "string" || typeof ctxOrIp === "undefined"
@@ -628,7 +631,7 @@ export class SmartHumanCheckService {
       const nonce = aeadEncrypt(this.nonceEncKey, Buffer.from(canonicalize(plaintext), "utf8"), aad);
 
       const nonceId = sha256Hex(nonce);
-      this.nonceStore.storeNonce(nonceId, ip, ctx.ua, {
+      await this.nonceStore.storeNonceAsync(nonceId, ip, ctx.ua, {
         action,
         hostHash,
         ipcHash,
@@ -663,7 +666,7 @@ export class SmartHumanCheckService {
     }
   }
 
-  verifyToken(tokenB64: string, ctxOrIp?: VerifyContext | string): VerifyResult {
+  async verifyToken(tokenB64: string, ctxOrIp?: VerifyContext | string): Promise<VerifyResult> {
     const ctx: VerifyContext =
       typeof ctxOrIp === "string" || typeof ctxOrIp === "undefined"
         ? { ip: ctxOrIp }
@@ -759,7 +762,7 @@ export class SmartHumanCheckService {
 
       // 原子消费 nonce
       const nonceId = sha256Hex(nonce);
-      const consume = this.nonceStore.consume(nonceId);
+      const consume = await this.nonceStore.consumeAsync(nonceId);
       if (!consume.success) {
         const map: Record<string, keyof typeof ERROR_CODES> = {
           nonce_not_found: "BAD_NONCE_FORMAT",
@@ -928,12 +931,12 @@ export class SmartHumanCheckService {
 
   // ---------- 观察性 / 兼容 ----------
 
-  getStats() {
-    return this.nonceStore.getStats();
+  async getStats() {
+    return this.nonceStore.getStatsAsync();
   }
 
-  cleanupExpiredNonces(): number {
-    return this.nonceStore.cleanup();
+  async cleanupExpiredNonces(): Promise<number> {
+    return this.nonceStore.cleanupAsync();
   }
 
   isIpBanned(ip: string): boolean {

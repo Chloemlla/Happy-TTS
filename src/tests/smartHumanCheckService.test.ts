@@ -103,8 +103,8 @@ describe("SmartHumanCheckService", () => {
   });
 
   describe("issueNonce", () => {
-    it("should generate a valid nonce successfully", () => {
-      const result = service.issueNonce(TEST_IP, TEST_UA);
+    it("should generate a valid nonce successfully", async () => {
+      const result = await service.issueNonce(TEST_IP, TEST_UA);
 
       expect(result.success).toBe(true);
       expect(typeof result.nonce).toBe("string");
@@ -114,12 +114,12 @@ describe("SmartHumanCheckService", () => {
       expect(result.error).toBeUndefined();
     });
 
-    it("should return structured error response on failure", () => {
+    it("should return structured error response on failure", async () => {
       const spy = jest.spyOn(crypto, "randomBytes").mockImplementation(() => {
         throw new Error("Crypto error");
       });
 
-      const result = service.issueNonce();
+      const result = await service.issueNonce();
 
       expect(result.success).toBe(false);
       expect(result.error).toBe("服务器内部错误");
@@ -133,8 +133,8 @@ describe("SmartHumanCheckService", () => {
   });
 
   describe("verifyToken", () => {
-    it("should return structured error for missing token", () => {
-      const result = service.verifyToken("");
+    it("should return structured error for missing token", async () => {
+      const result = await service.verifyToken("");
 
       expect(result.success).toBe(false);
       expect(result.reason).toBe("missing_token");
@@ -144,8 +144,8 @@ describe("SmartHumanCheckService", () => {
       expect(result.timestamp).toBeDefined();
     });
 
-    it("should return structured error for bad token format", () => {
-      const result = service.verifyToken("invalid-base64");
+    it("should return structured error for bad token format", async () => {
+      const result = await service.verifyToken("invalid-base64");
 
       expect(result.success).toBe(false);
       expect(result.reason).toBe("bad_token_format");
@@ -155,12 +155,12 @@ describe("SmartHumanCheckService", () => {
       expect(result.timestamp).toBeDefined();
     });
 
-    it("should return structured error for incomplete token", () => {
-      const nonceResult = service.issueNonce(TEST_IP, TEST_UA);
+    it("should return structured error for incomplete token", async () => {
+      const nonceResult = await service.issueNonce(TEST_IP, TEST_UA);
       expect(nonceResult.success).toBe(true);
 
       const token = createV2Token(nonceResult, null);
-      const result = service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA });
+      const result = await service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA });
 
       expect(result.success).toBe(false);
       expect(result.reason).toBe("incomplete_token");
@@ -170,8 +170,8 @@ describe("SmartHumanCheckService", () => {
       expect(result.timestamp).toBeDefined();
     });
 
-    it("should return structured error for client time skew", () => {
-      const nonceResult = service.issueNonce(TEST_IP, TEST_UA);
+    it("should return structured error for client time skew", async () => {
+      const nonceResult = await service.issueNonce(TEST_IP, TEST_UA);
       expect(nonceResult.success).toBe(true);
 
       const token = createV2Token(
@@ -181,7 +181,7 @@ describe("SmartHumanCheckService", () => {
         }),
       );
 
-      const result = service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA });
+      const result = await service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA });
 
       expect(result.success).toBe(false);
       expect(result.reason).toBe("client_time_skew");
@@ -191,8 +191,8 @@ describe("SmartHumanCheckService", () => {
       expect(result.timestamp).toBeDefined();
     });
 
-    it("should compute low score server-side and ignore client supplied sc", () => {
-      const nonceResult = service.issueNonce(TEST_IP, TEST_UA);
+    it("should compute low score server-side and ignore client supplied sc", async () => {
+      const nonceResult = await service.issueNonce(TEST_IP, TEST_UA);
       expect(nonceResult.success).toBe(true);
 
       const lowSignalPayload = payload(nonceResult.nonce!, {
@@ -201,7 +201,7 @@ describe("SmartHumanCheckService", () => {
       (lowSignalPayload as any).sc = 1;
 
       const token = createV2Token(nonceResult, lowSignalPayload);
-      const result = service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA });
+      const result = await service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA });
 
       expect(result.success).toBe(false);
       expect(result.reason).toBe("low_score");
@@ -212,15 +212,15 @@ describe("SmartHumanCheckService", () => {
       expect(result.timestamp).toBeDefined();
     });
 
-    it("should successfully verify valid v2 token from raw behavioral signals", () => {
-      const nonceResult = service.issueNonce(TEST_IP, TEST_UA);
+    it("should successfully verify valid v2 token from raw behavioral signals", async () => {
+      const nonceResult = await service.issueNonce(TEST_IP, TEST_UA);
       expect(nonceResult.success).toBe(true);
 
       const highSignalPayload = payload(nonceResult.nonce!);
       (highSignalPayload as any).sc = 0;
 
       const token = createV2Token(nonceResult, highSignalPayload);
-      const result = service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA });
+      const result = await service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA });
 
       expect(result.success).toBe(true);
       expect(result.score).toBeGreaterThanOrEqual(0.62);
@@ -232,39 +232,39 @@ describe("SmartHumanCheckService", () => {
       expect(["low", "medium", "high"]).toContain(result.riskLevel as any);
     });
 
-    it("should reject token replay after nonce consumption", () => {
-      const nonceResult = service.issueNonce(TEST_IP, TEST_UA);
+    it("should reject token replay after nonce consumption", async () => {
+      const nonceResult = await service.issueNonce(TEST_IP, TEST_UA);
       expect(nonceResult.success).toBe(true);
       const token = createV2Token(nonceResult, payload(nonceResult.nonce!));
 
-      expect(service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA }).success).toBe(true);
-      const replay = service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA });
+      expect((await service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA })).success).toBe(true);
+      const replay = await service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA });
 
       expect(replay.success).toBe(false);
       expect(replay.errorCode).toBe("NONCE_REUSED");
     });
 
-    it("should reject tokens bound to a different user agent", () => {
-      const nonceResult = service.issueNonce(TEST_IP, TEST_UA);
+    it("should reject tokens bound to a different user agent", async () => {
+      const nonceResult = await service.issueNonce(TEST_IP, TEST_UA);
       expect(nonceResult.success).toBe(true);
 
       const token = createV2Token(nonceResult, payload(nonceResult.nonce!));
-      const result = service.verifyToken(token, { ip: TEST_IP, ua: "different-agent" });
+      const result = await service.verifyToken(token, { ip: TEST_IP, ua: "different-agent" });
 
       expect(result.success).toBe(false);
       expect(result.reason).toBe("bad_binding:ua");
       expect(result.errorCode).toBe("BAD_BINDING_UA");
     });
 
-    it("should block when high risk is detected (trap triggered)", () => {
-      const nonceResult = service.issueNonce(TEST_IP, TEST_UA);
+    it("should block when high risk is detected (trap triggered)", async () => {
+      const nonceResult = await service.issueNonce(TEST_IP, TEST_UA);
       expect(nonceResult.success).toBe(true);
 
       const riskyPayload = payload(nonceResult.nonce!, {
         st: { ...goodSignals(), trapTriggered: true },
       });
       const token = createV2Token(nonceResult, riskyPayload);
-      const result = service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA });
+      const result = await service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA });
 
       expect(result.success).toBe(false);
       expect(result.reason).toBe("high_risk");
@@ -296,11 +296,11 @@ describe("SmartHumanCheckService", () => {
       });
     });
 
-    it("should rate limit nonce issuance per IP", () => {
+    it("should rate limit nonce issuance per IP", async () => {
       const ip = "10.0.0.1";
-      const r1 = service.issueNonce(ip, "ua");
-      const r2 = service.issueNonce(ip, "ua");
-      const r3 = service.issueNonce(ip, "ua");
+      const r1 = await service.issueNonce(ip, "ua");
+      const r2 = await service.issueNonce(ip, "ua");
+      const r3 = await service.issueNonce(ip, "ua");
 
       expect(r1.success).toBe(true);
       expect(r2.success).toBe(true);
@@ -309,18 +309,18 @@ describe("SmartHumanCheckService", () => {
       expect(r3.errorMessage).toBe("请求过于频繁");
     });
 
-    it("should rate limit verify calls per IP before parsing token", () => {
+    it("should rate limit verify calls per IP before parsing token", async () => {
       const ip = "10.0.0.2";
-      const _r1 = service.verifyToken("", ip);
-      const _r2 = service.verifyToken("", ip);
-      const r3 = service.verifyToken("", ip);
+      const _r1 = await service.verifyToken("", ip);
+      const _r2 = await service.verifyToken("", ip);
+      const r3 = await service.verifyToken("", ip);
 
       expect(r3.success).toBe(false);
       expect(r3.reason).toBe("rate_limited");
       expect(r3.errorCode).toBe("RATE_LIMITED");
     });
 
-    it("should temporarily ban IP after repeated bad signatures", () => {
+    it("should temporarily ban IP after repeated bad signatures", async () => {
       process.env.SMART_HUMAN_CHECK_VERIFY_LIMIT = "1000";
       process.env.SMART_HUMAN_CHECK_NONCE_LIMIT = "1000";
       service = new SmartHumanCheckService({
@@ -331,21 +331,21 @@ describe("SmartHumanCheckService", () => {
       });
 
       const ip = "10.0.0.3";
-      const makeBadSigToken = () => {
-        const nonceResult = service.issueNonce(ip, TEST_UA);
+      const makeBadSigToken = async () => {
+        const nonceResult = await service.issueNonce(ip, TEST_UA);
         expect(nonceResult.success).toBe(true);
         return createV2Token(nonceResult, payload(nonceResult.nonce!), { corruptMac: true });
       };
 
-      const t1 = service.verifyToken(makeBadSigToken(), { ip, ua: TEST_UA });
-      const t2 = service.verifyToken(makeBadSigToken(), { ip, ua: TEST_UA });
-      const t3 = service.verifyToken(makeBadSigToken(), { ip, ua: TEST_UA });
+      const t1 = await service.verifyToken(await makeBadSigToken(), { ip, ua: TEST_UA });
+      const t2 = await service.verifyToken(await makeBadSigToken(), { ip, ua: TEST_UA });
+      const t3 = await service.verifyToken(await makeBadSigToken(), { ip, ua: TEST_UA });
 
       expect(t1.reason).toBe("bad_token_sig");
       expect(t2.reason).toBe("bad_token_sig");
       expect(t3.reason).toBe("bad_token_sig");
 
-      const banned = service.verifyToken("anything", { ip, ua: TEST_UA });
+      const banned = await service.verifyToken("anything", { ip, ua: TEST_UA });
       expect(banned.success).toBe(false);
       expect(banned.reason).toBe("abuse_banned");
       expect(banned.errorCode).toBe("ABUSE_BANNED");

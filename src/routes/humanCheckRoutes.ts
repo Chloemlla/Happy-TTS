@@ -1,6 +1,7 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
 import { SmartHumanCheckController } from "../controllers/humanCheckController";
+import adminOnly from "../middleware/adminOnly";
 import { authenticateToken } from "../middleware/authenticateToken";
 
 const router = express.Router();
@@ -66,8 +67,8 @@ router.get("/nonce", humanCheckLimiter, SmartHumanCheckController.issueNonce);
 // 校验 token（前端提交验证结果）
 router.post("/verify", verifyLimiter, SmartHumanCheckController.verifyToken);
 
-// 获取统计信息（管理端点，可能需要额外的认证）
-router.get("/stats", humanCheckLimiter, SmartHumanCheckController.getStats);
+// 获取统计信息（管理端点）
+router.get("/stats", adminLimiter, authenticateToken, adminOnly, SmartHumanCheckController.getStats);
 
 // 管理端：查询溯源记录（需要管理员权限）
 router.get("/traces", adminLimiter, authenticateToken, SmartHumanCheckController.listTraces);

@@ -1,17 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { FaShieldAlt, FaInfoCircle, FaSync, FaRobot } from 'react-icons/fa';
+import { FaCheck, FaShieldAlt, FaSync } from 'react-icons/fa';
 
 /**
  * SmartHumanCheck - 前端人机验证（仿 Turnstile）
  *
- * 目标：在前端通过多信号融合（行为轨迹、输入节律、可见性、陷阱字段、简单滑块挑战、指纹熵等）
- * 生成一个包含评分的 token，供后端进一步校验与风控。
+ * 目标：在前端收集行为轨迹、输入节律、可见性、陷阱字段、滑块挑战、指纹熵等原始信号，
+ * 使用后端下发的一次性 nonce/key 生成 v2 不透明 token，由后端进行权威评分与风控。
  *
- * 注意：前端无法提供强校验的防伪签名。生产环境建议：
- * 1) 后端下发一次性 challenge/nonce（短时有效），前端生成 token 时回传该 nonce；
- * 2) 后端基于 nonce 与服务器密钥重新计算签名并比对；
- * 3) 对 token 字段进行阈值判断与风控。
+ * 注意：客户端只负责采集 raw signals 与完成可选 PoW；不要信任客户端自评分。
+ * 后端会校验 nonce 绑定、token HMAC/AES-GCM、PoW 和上下文一致性。
  *
  * 使用示例：
  * <SmartHumanCheck onSuccess={(token) => setToken(token)} />
@@ -1121,33 +1119,26 @@ const SmartHumanCheckBase: React.FC<SmartHumanCheckBaseProps> = ({
     tokenKey,
   ]);
 
-  const cardCls = 'bg-white/80 text-gray-800 border-white/20';
-  const subTextCls = 'text-gray-500';
-  const sizeCls = density === 'compact' ? 'p-3 text-sm' : 'p-4';
-  const bubbleBgCls = 'bg-gray-100 text-gray-700';
+  const challengeOpen = checked && !sliderOk;
+  const activeNonceReady = Boolean(nonce || challengeNonce) && Boolean(tokenKey || challengeKey);
+  const statusText = (() => {
+    if (submitting) return '正在验证...';
+    if (fetchingNonce) return '正在初始化...';
+    if (error) return '验证失败';
+    if (sliderOk) return '验证通过';
+    if (checked) return '完成挑战';
+    if (!ready || !activeNonceReady) return '准备中...';
+    return '准备就绪';
+  })();
 
   return (
     <motion.div
-      className={`rounded-2xl shadow-xl backdrop-blur-sm border ${cardCls} w-full max-w-md overflow-hidden`}
+      className="w-full max-w-[320px] overflow-hidden rounded-sm border border-[#d9d9d9] bg-[#fafafa] text-[#232323] shadow-[0_1px_2px_rgba(0,0,0,0.08)]"
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
-      {/* 顶部渐变标题栏，与 TtsPage 统一（极简模式隐藏） */}
-      {!isMinimal && (
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 flex items-center gap-2">
-          <FaShieldAlt className="text-xl" />
-          <h3 className="font-semibold">人机验证</h3>
-          <div className="ml-auto text-xs opacity-90 flex items-center gap-2">
-            <span className="hidden sm:inline">行为评分</span>
-            <span className="font-mono">{(effectiveScore * 100).toFixed(0)}%</span>
-          </div>
-        </div>
-      )}
-
-      {/* 主体内容 */}
-      <div ref={containerRef} className={`${sizeCls} p-4`}>
-        {/* 增强的蜜罐输入框系统（隐藏） */}
+      <div ref={containerRef} className="relative">
         <input
           ref={trapInputRef}
           type="text"
@@ -1186,104 +1177,109 @@ const SmartHumanCheckBase: React.FC<SmartHumanCheckBaseProps> = ({
           style={{ opacity: 0, position: 'absolute', top: '-9999px' }}
         />
 
-        {/* 顶部状态与提示（极简模式隐藏） */}
-        {!isMinimal && (
-          <div className="flex items-center gap-3 mb-3">
-            <div className="flex items-center gap-2">
-              <FaRobot className="text-blue-600" />
-              <label htmlFor="shc-check" className="cursor-pointer select-none">我不是机器人</label>
-            </div>
-            <div className={`ml-auto text-xs ${subTextCls} flex items-center gap-2`}>
-              {fetchingNonce && (
-                <span className="inline-flex items-center gap-1"><FaSync className="animate-spin" /> 获取验证码...</span>
-              )}
-              {!fetchingNonce && (
-                <span>{ready ? '已准备' : '准备中...'}</span>
-              )}
-              <span className="hidden sm:inline">· Canvas熵: {canvasEntropy.slice(0, 10)}</span>
-              <span>· Nonce: {nonce || challengeNonce ? '✓' : '✗'}</span>
-            </div>
-          </div>
-        )}
-
-        <div className="flex items-center gap-3">
-          <input
-            id="shc-check"
-            type="checkbox"
-            className="h-5 w-5 accent-blue-600"
-            checked={checked}
-            onChange={handleCheckChange}
-            aria-label="我不是机器人"
-          />
-          {/* 极简模式：在打勾框右侧显示“人机验证”；正常模式显示评分条 */}
-          {isMinimal ? (
-            <label htmlFor="shc-check" className="text-sm select-none cursor-pointer">人机验证</label>
-          ) : (
-            <div className="flex-1">
-              {/* 行为评分进度条 */}
-              <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
-                <div
-                  className={`h-full transition-all duration-300 ${effectiveScore >= adaptiveThreshold ? 'bg-green-500' : 'bg-blue-500'}`}
-                  style={{ width: `${Math.min(100, Math.round(effectiveScore * 100))}%` }}
-                />
-              </div>
-              <div className={`mt-1 text-xs ${subTextCls}`}>当前评分：{(effectiveScore * 100).toFixed(0)}% · 阈值：{(adaptiveThreshold * 100).toFixed(0)}%</div>
-            </div>
-          )}
-        </div>
-
-        {/* 极简/高缩放模式：将“按住滑块拖动完成验证”从内嵌改为外部提示 */}
-        {isMinimal && checked && !sliderOk && (
-          <div className="mt-3 mb-1 text-center">
-            <span className={`inline-block px-3 py-1 rounded-full text-sm ${bubbleBgCls}`}>
-              按住滑块拖动完成验证
+        <div className="flex min-h-[74px] items-center justify-between gap-3 px-3 py-3">
+          <label htmlFor="shc-check" className="flex min-w-0 flex-1 cursor-pointer select-none items-center gap-3">
+            <input
+              id="shc-check"
+              type="checkbox"
+              className="sr-only"
+              checked={checked}
+              onChange={handleCheckChange}
+              aria-label="我不是机器人"
+            />
+            <span
+              className={`flex h-7 w-7 shrink-0 items-center justify-center border bg-white transition-colors ${
+                sliderOk
+                  ? 'border-[#2f7d32] bg-[#2f7d32] text-white'
+                  : checked
+                    ? 'border-[#777]'
+                    : 'border-[#767676] hover:border-[#4a4a4a]'
+              }`}
+            >
+              {submitting || fetchingNonce ? (
+                <FaSync className="animate-spin text-[#555]" size={14} aria-hidden="true" />
+              ) : sliderOk ? (
+                <FaCheck size={15} aria-hidden="true" />
+              ) : null}
             </span>
+            <span className="min-w-0">
+              <span className="block truncate text-[15px] leading-tight text-[#232323]">我不是机器人</span>
+              <span className="mt-1 block truncate text-[11px] leading-tight text-[#666]">{statusText}</span>
+            </span>
+          </label>
+
+          <div className="flex w-[76px] shrink-0 flex-col items-center text-center">
+            <div className="flex h-8 w-8 items-center justify-center rounded-[6px] bg-[#f48120] text-white shadow-sm">
+              <FaShieldAlt size={17} aria-hidden="true" />
+            </div>
+            <span className="mt-1 text-[10px] font-semibold leading-none text-[#555]">Synapse</span>
+            <span className="mt-1 whitespace-nowrap text-[8px] leading-none text-[#777]">隐私 · 条款</span>
+          </div>
+        </div>
+
+        {(challengeOpen || error || sliderOk) && (
+          <div className="border-t border-[#dfdfdf] bg-white px-3 py-3">
+            {challengeOpen && (
+              <div className="space-y-2">
+                {isMinimal && (
+                  <div className="text-center text-xs text-[#555]">按住滑块拖动完成验证</div>
+                )}
+                {isMinimal ? (
+                  <CompactSlider key={sliderKey} onComplete={handleSliderComplete} disabled={!checked} />
+                ) : (
+                  <StandardSlider key={sliderKey} onComplete={handleSliderComplete} disabled={!checked} />
+                )}
+              </div>
+            )}
+
+            {sliderOk && (
+              <div className="mt-3 flex items-center justify-between gap-3 first:mt-0">
+                <span className="text-xs text-[#555]">
+                  {submitting ? '正在提交验证' : canSubmit ? '可以继续' : '请稍候'}
+                </span>
+                <motion.button
+                  type="button"
+                  disabled={!canSubmit || submitting}
+                  onClick={submit}
+                  className="min-h-9 rounded-sm border border-[#1f5fbf] bg-[#2f6fda] px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-[#255fbd] disabled:cursor-not-allowed disabled:border-[#b7b7b7] disabled:bg-[#d1d1d1] disabled:text-[#777]"
+                  whileHover={{ scale: canSubmit && !submitting ? 1.01 : 1 }}
+                  whileTap={{ scale: canSubmit && !submitting ? 0.99 : 1 }}
+                >
+                  {submitting ? '验证中' : '验证'}
+                </motion.button>
+              </div>
+            )}
+
+            {error && (
+              <div className="mt-3 flex items-center justify-between gap-2 first:mt-0">
+                <span className="min-w-0 flex-1 truncate text-xs text-[#b3261e]">
+                  {lastErrorCode === 'RATE_LIMITED' && cooldownActive
+                    ? `请求过于频繁，请 ${remainingCooldownSec}s 后重试`
+                    : lastErrorCode === 'ABUSE_BANNED' && isBanned
+                      ? `暂时封禁，剩余 ${remainingBanSec}s`
+                      : error}
+                </span>
+                {retryCount < RETRY_CONFIG.maxRetries && (
+                  <button
+                    type="button"
+                    onClick={fetchNonce}
+                    disabled={fetchingNonce || cooldownActive || isBanned}
+                    className="min-h-8 rounded-sm border border-[#c9c9c9] bg-[#f7f7f7] px-3 text-xs font-semibold text-[#333] hover:bg-[#efefef] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {fetchingNonce ? '重试中' : '重试'}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
-        <div className="mt-4">
-          {isMinimal ? (
-            <CompactSlider key={sliderKey} onComplete={handleSliderComplete} disabled={!checked} />
-          ) : (
-            <StandardSlider key={sliderKey} onComplete={handleSliderComplete} disabled={!checked} />
-          )}
-        </div>
-
-        <div className="mt-4 flex items-center gap-3">
-          <motion.button
-            type="button"
-            disabled={!canSubmit || submitting}
-            onClick={submit}
-            className={`px-4 py-2 rounded-lg text-white font-medium ${canSubmit && !submitting ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700' : 'bg-gray-400 cursor-not-allowed'}`}
-            whileHover={{ scale: canSubmit && !submitting ? 1.02 : 1 }}
-            whileTap={{ scale: canSubmit && !submitting ? 0.98 : 1 }}
-          >
-            {submitting ? '验证中...' : '提交验证'}
-          </motion.button>
-
-          {/* 错误显示和重试按钮（极简模式隐藏，仅保留三项） */}
-          {!isMinimal && error && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-red-500">{error}</span>
-              {lastErrorCode === 'RATE_LIMITED' && cooldownActive && (
-                <span className="text-xs text-gray-500">剩余 {remainingCooldownSec}s</span>
-              )}
-              {lastErrorCode === 'ABUSE_BANNED' && isBanned && (
-                <span className="text-xs text-gray-500">解禁倒计时 {remainingBanSec}s</span>
-              )}
-              {retryCount < RETRY_CONFIG.maxRetries && (
-                <button
-                  type="button"
-                  onClick={fetchNonce}
-                  disabled={fetchingNonce || cooldownActive || isBanned}
-                  className="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
-                >
-                  {fetchingNonce ? '重试中...' : cooldownActive ? `冷却中 (${remainingCooldownSec}s)` : isBanned ? '已封禁' : '重试'}
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+        {density !== 'compact' && (
+          <div className="flex items-center justify-between border-t border-[#e7e7e7] bg-[#f5f5f5] px-3 py-1.5 text-[10px] leading-none text-[#777]">
+            <span>{activeNonceReady ? 'Protected' : 'Loading'}</span>
+            <span>{powDifficulty || challengeDifficulty ? `PoW ${powDifficulty || challengeDifficulty}` : 'Managed challenge'}</span>
+          </div>
+        )}
       </div>
     </motion.div>
   );

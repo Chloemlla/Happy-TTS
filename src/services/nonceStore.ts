@@ -1,3 +1,4 @@
+import { createClient } from "redis";
 import logger from "../utils/logger";
 
 /**
@@ -23,6 +24,68 @@ export interface NonceStoreConfig {
   maxSize?: number; // 最大存储数量
   cleanupInterval?: number; // 清理间隔（毫秒）
   ttlMs?: number; // nonce 有效期
+  namespace?: string; // 本地单例命名空间，避免不同业务共享 TTL
+  redisPrefix?: string; // Redis key 前缀
+  redisEnabled?: boolean; // 是否允许异步 Redis backing store
+}
+
+type RedisClientInstance = ReturnType<typeof createClient>;
+
+const REDIS_CONSUME_SCRIPT = `
+local record = redis.call("GET", KEYS[1])
+if record then
+  redis.call("DEL", KEYS[1])
+  local data = cjson.decode(record)
+  data["consumedAt"] = tonumber(ARGV[1])
+  local consumed = cjson.encode(data)
+  redis.call("SET", KEYS[2], consumed, "PX", ARGV[2])
+  return {1, consumed}
+end
+if redis.call("EXISTS", KEYS[2]) == 1 then
+  return {0, "nonce_already_consumed", redis.call("GET", KEYS[2])}
+end
+return {0, "nonce_not_found"}
+`;
+
+class RedisNonceClientFactory {
+  private static client: RedisClientInstance | null = null;
+  private static clientPromise: Promise<RedisClientInstance | null> | null = null;
+  private static warnedUnavailable = false;
+
+  static async getClient(): Promise<RedisClientInstance | null> {
+    const redisUrl = process.env.REDIS_URL;
+    if (!redisUrl) return null;
+    if (process.env.SMART_HUMAN_CHECK_NONCE_STORE === "memory") return null;
+    if (RedisNonceClientFactory.client?.isOpen) return RedisNonceClientFactory.client;
+    if (RedisNonceClientFactory.clientPromise) return RedisNonceClientFactory.clientPromise;
+
+    RedisNonceClientFactory.clientPromise = (async () => {
+      try {
+        const client = createClient({ url: redisUrl });
+        client.on("error", (error) => {
+          logger.error("[NonceStore][Redis] Redis error", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
+        await client.connect();
+        RedisNonceClientFactory.client = client;
+        logger.info("[NonceStore] Using Redis backing store for async nonce operations");
+        return client;
+      } catch (error) {
+        if (!RedisNonceClientFactory.warnedUnavailable) {
+          logger.warn("[NonceStore] Redis unavailable, falling back to in-memory nonce store", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+          RedisNonceClientFactory.warnedUnavailable = true;
+        }
+        return null;
+      } finally {
+        RedisNonceClientFactory.clientPromise = null;
+      }
+    })();
+
+    return RedisNonceClientFactory.clientPromise;
+  }
 }
 
 export class NonceStore {
@@ -31,11 +94,17 @@ export class NonceStore {
   private readonly maxSize: number;
   private readonly cleanupInterval: number;
   private readonly ttlMs: number;
+  private readonly redisPrefix: string;
+  private readonly redisEnabled: boolean;
+  private readonly consumedMarkerTtlMs: number;
 
   constructor(config: NonceStoreConfig = {}) {
     this.maxSize = config.maxSize || 10000;
     this.cleanupInterval = config.cleanupInterval || 60 * 1000; // 1 minute
     this.ttlMs = config.ttlMs || 5 * 60 * 1000; // 5 minutes
+    this.redisPrefix = config.redisPrefix || "nonce";
+    this.redisEnabled = config.redisEnabled !== false;
+    this.consumedMarkerTtlMs = Math.max(this.ttlMs, 60 * 1000);
 
     this.startCleanupTimer();
   }
@@ -80,6 +149,37 @@ export class NonceStore {
       clientIp,
       storeSize: this.store.size,
     });
+  }
+
+  /**
+   * 异步存储 nonce。配置 REDIS_URL 时优先写入 Redis；Redis 不可用时回退到本地 Map。
+   */
+  async storeNonceAsync(
+    nonceId: string,
+    clientIp?: string,
+    userAgent?: string,
+    metadata?: Record<string, unknown>,
+  ): Promise<void> {
+    if (!this.redisEnabled) {
+      this.storeNonce(nonceId, clientIp, userAgent, metadata);
+      return;
+    }
+
+    const client = await RedisNonceClientFactory.getClient();
+    if (!client) {
+      this.storeNonce(nonceId, clientIp, userAgent, metadata);
+      return;
+    }
+
+    const record: NonceRecord = {
+      id: nonceId,
+      issuedAt: Date.now(),
+      clientIp,
+      userAgent,
+      metadata,
+    };
+
+    await client.set(this.activeRedisKey(nonceId), JSON.stringify(record), { PX: this.ttlMs });
   }
 
   /**
@@ -132,6 +232,46 @@ export class NonceStore {
   }
 
   /**
+   * 异步消费 nonce。Redis 路径用 Lua 脚本实现 GET+DEL+consumed marker 的原子操作。
+   */
+  async consumeAsync(nonceId: string): Promise<{ success: boolean; reason?: string; record?: NonceRecord }> {
+    if (!nonceId || typeof nonceId !== "string") {
+      return { success: false, reason: "invalid_nonce_id" };
+    }
+    if (!this.redisEnabled) return this.consume(nonceId);
+
+    const client = await RedisNonceClientFactory.getClient();
+    if (!client) return this.consume(nonceId);
+
+    try {
+      const result = (await (client as any).eval(REDIS_CONSUME_SCRIPT, {
+        keys: [this.activeRedisKey(nonceId), this.consumedRedisKey(nonceId)],
+        arguments: [String(Date.now()), String(this.consumedMarkerTtlMs)],
+      })) as unknown;
+
+      if (!Array.isArray(result)) {
+        return { success: false, reason: "redis_consume_error" };
+      }
+
+      const [ok, reasonOrRecord, consumedRecord] = result;
+      if (Number(ok) === 1) {
+        return { success: true, record: parseNonceRecord(reasonOrRecord) };
+      }
+
+      return {
+        success: false,
+        reason: String(reasonOrRecord || "nonce_not_found"),
+        record: consumedRecord ? parseNonceRecord(consumedRecord) : undefined,
+      };
+    } catch (error) {
+      logger.warn("[NonceStore][Redis] consume failed, falling back to in-memory store", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return this.consume(nonceId);
+    }
+  }
+
+  /**
    * 检查 nonce 是否存在且有效
    */
   exists(nonceId: string): boolean {
@@ -171,6 +311,14 @@ export class NonceStore {
     }
 
     return cleanedCount;
+  }
+
+  async cleanupAsync(): Promise<number> {
+    if (!this.redisEnabled) return this.cleanup();
+    const client = await RedisNonceClientFactory.getClient();
+    if (!client) return this.cleanup();
+    // Redis key TTL 自动清理，保留方法用于统一接口。
+    return 0;
   }
 
   /**
@@ -223,6 +371,50 @@ export class NonceStore {
     }
 
     return result;
+  }
+
+  async getStatsAsync(): Promise<ReturnType<NonceStore["getStats"]> & { backend?: "redis" | "memory" }> {
+    if (!this.redisEnabled) return { ...this.getStats(), backend: "memory" };
+    const client = await RedisNonceClientFactory.getClient();
+    if (!client) return { ...this.getStats(), backend: "memory" };
+
+    const now = Date.now();
+    let consumedCount = 0;
+    let activeCount = 0;
+    let oldestAge = 0;
+    let newestAge = Number.MAX_SAFE_INTEGER;
+    let totalAge = 0;
+
+    const scan = async (pattern: string, consumed: boolean) => {
+      for await (const keyOrKeys of client.scanIterator({ MATCH: pattern, COUNT: 100 })) {
+        const keys = Array.isArray(keyOrKeys) ? keyOrKeys : [keyOrKeys];
+        for (const key of keys) {
+          const raw = await client.get(key);
+          const record = parseNonceRecord(raw);
+          const age = record ? now - record.issuedAt : 0;
+          if (age > oldestAge) oldestAge = age;
+          if (age < newestAge) newestAge = age;
+          totalAge += age;
+          if (consumed) consumedCount++;
+          else activeCount++;
+        }
+      }
+    };
+
+    await scan(`${this.redisPrefix}:active:*`, false);
+    await scan(`${this.redisPrefix}:consumed:*`, true);
+
+    const totalCount = activeCount + consumedCount;
+    return {
+      totalCount,
+      consumedCount,
+      activeCount,
+      expiredCount: 0,
+      oldestNonceAge: totalCount > 0 ? oldestAge : undefined,
+      newestNonceAge: totalCount > 0 ? (newestAge === Number.MAX_SAFE_INTEGER ? 0 : newestAge) : undefined,
+      averageAge: totalCount > 0 ? Math.round(totalAge / totalCount) : undefined,
+      backend: "redis",
+    };
   }
 
   /**
@@ -282,21 +474,50 @@ export class NonceStore {
     this.store.clear();
     logger.debug("[NonceStore] 已销毁存储和清理定时器");
   }
+
+  private activeRedisKey(nonceId: string): string {
+    return `${this.redisPrefix}:active:${nonceId}`;
+  }
+
+  private consumedRedisKey(nonceId: string): string {
+    return `${this.redisPrefix}:consumed:${nonceId}`;
+  }
 }
 
-// 单例实例
-let nonceStoreInstance: NonceStore | null = null;
+function parseNonceRecord(raw: unknown): NonceRecord | undefined {
+  if (!raw || typeof raw !== "string") return undefined;
+  try {
+    return JSON.parse(raw) as NonceRecord;
+  } catch {
+    return undefined;
+  }
+}
+
+// 单例实例。按 namespace 隔离，避免 SmartHumanCheck 与 replay protection 共享 TTL。
+const nonceStoreInstances = new Map<string, NonceStore>();
 
 export function getNonceStore(config?: NonceStoreConfig): NonceStore {
-  if (!nonceStoreInstance) {
-    nonceStoreInstance = new NonceStore(config);
-  }
-  return nonceStoreInstance;
+  const key = config?.namespace || "default";
+  const existing = nonceStoreInstances.get(key);
+  if (existing) return existing;
+
+  const created = new NonceStore(config);
+  nonceStoreInstances.set(key, created);
+  return created;
 }
 
-export function destroyNonceStore(): void {
-  if (nonceStoreInstance) {
-    nonceStoreInstance.destroy();
-    nonceStoreInstance = null;
+export function destroyNonceStore(namespace?: string): void {
+  if (namespace) {
+    const store = nonceStoreInstances.get(namespace);
+    if (store) {
+      store.destroy();
+      nonceStoreInstances.delete(namespace);
+    }
+    return;
   }
+
+  for (const store of nonceStoreInstances.values()) {
+    store.destroy();
+  }
+  nonceStoreInstances.clear();
 }
