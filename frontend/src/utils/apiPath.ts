@@ -3,6 +3,7 @@ const exactReplacements = new Map<string, string>([
   ['/openapi.json', '/api/openapi.json'],
   ['/health', '/api/health'],
   ['/server_status', '/api/server_status'],
+  ['/status', '/api/status'],
   ['/ip', '/api/ip'],
   ['/report-ip', '/api/report-ip'],
   ['/ip-location', '/api/ip-location'],
@@ -33,6 +34,8 @@ const prefixReplacements: Array<{ from: string; to: string }> = [
   { from: '/turnstile', to: '/api/turnstile' },
   { from: '/human-check', to: '/api/human-check' },
   { from: '/shorturl', to: '/api/shorturl' },
+  { from: '/cdks', to: '/api/cdks' },
+  { from: '/lottery', to: '/api/lottery' },
   { from: '/resources', to: '/api/resources' },
   { from: '/categories', to: '/api/categories' },
   { from: '/sharelog', to: '/api/sharelog' },
@@ -128,4 +131,3 @@ export function canonicalizeBackendApiUrl(rawUrl: string): string {
     return rawUrl;
   }
 }
-
