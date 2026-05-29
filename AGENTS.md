@@ -10,6 +10,11 @@ This file provides guidance to Codex when working with code in this repository.
 - Commit message format: `type: brief description` (e.g., `fix:`, `feat:`, `refactor:`, `chore:`)
 - If fixing GitHub issues/alerts, reference them in commit message (e.g., `fix: resolve memory leak #460 #461`)
 
+### Frontend Verification Workflow
+
+- For frontend changes, default to direct TypeScript verification only: run the local frontend `tsc --noEmit` command.
+- Do not run `npm run build:minimal` or other frontend build commands unless the user explicitly asks for a build verification.
+
 ## Project Overview
 
 Synapse is a comprehensive full-stack web application platform centered around text-to-speech functionality, with extensive user authentication, security features, resource management, and data analytics capabilities. The platform uses a frontend-backend separation architecture with 42 route modules, 50+ service modules, and 100+ React components.
