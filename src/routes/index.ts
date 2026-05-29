@@ -33,19 +33,25 @@ import adminRoutes from "./adminRoutes";
 import antaRoutes from "./antaRoutes";
 import apiKeyRoutes from "./apiKeyRoutes";
 import auditLogRoutes from "./auditLogRoutes";
+import authLogoutRoutes from "./authLogoutRoutes";
 import authRoutes from "./authRoutes";
 import cdkRoutes from "./cdkRoutes";
 import commandRoutes from "./commandRoutes";
+import compatRoutes from "./compatRoutes";
 import dataCollectionAdminRoutes from "./dataCollectionAdminRoutes";
 import dataCollectionRoutes from "./dataCollectionRoutes";
 import dataProcessRoutes from "./dataProcessRoutes";
 import debugConsoleRoutes from "./debugConsoleRoutes";
 import deeplxRoutes from "./deeplxRoutes";
+import diagnosticsRoutes from "./diagnosticsRoutes";
 import emailRoutes from "./emailRoutes";
 import fbiWantedRoutes from "./fbiWantedRoutes";
+import frontendConfigRoutes from "./frontendConfigRoutes";
 import githubBillingRoutes from "./githubBillingRoutes";
+import healthRoutes from "./healthRoutes";
 import humanCheckRoutes from "./humanCheckRoutes";
 import imageDataRoutes from "./imageDataRoutes";
+import ipInfoRoutes from "./ipInfoRoutes";
 import ipfsRoutes from "./ipfsRoutes";
 import ipVerificationRoutes from "./ipVerificationRoutes";
 import libreChatRoutes from "./libreChatRoutes";
@@ -58,10 +64,13 @@ import modlistRoutes from "./modlistRoutes";
 import networkRoutes from "./networkRoutes";
 import nexaiRoutes from "./nexaiRoutes";
 import nexaiSecurityRoutes from "./nexaiSecurityRoutes";
+import openapiJsonRoutes, { legacyOpenapiJsonRoutes } from "./openapiJsonRoutes";
 import outemailRoutes from "./outemailRoutes";
 import passkeyRoutes from "./passkeyRoutes";
 import policyRoutes from "./policyRoutes";
 import resourceRoutes from "./resourceRoutes";
+import { assetLinksRoutes, faviconRoutes } from "./siteMetadataRoutes";
+import shortUrlRoutes from "./shortUrlRoutes";
 import socialRoutes from "./socialRoutes";
 import statusRouter from "./status";
 import tamperRoutes from "./tamperRoutes";
@@ -149,6 +158,7 @@ export const NON_API_ROUTE_EXEMPTION_PATHS = [
   "/health",
   "/.well-known/assetlinks.json",
   "/favicon.ico",
+  "/api-docs.json",
 ] as const;
 
 const antaRequestLogger: RequestHandler = (req: Request, _res: Response, next: NextFunction) => {
@@ -374,6 +384,20 @@ export const routeLimiterModules: RouteModule[] = [
 
 export const preParserRouteModules: RouteModule[] = [
   {
+    name: "health-route",
+    path: "/health",
+    router: healthRoutes,
+    requiresAuth: false,
+    rateLimited: false,
+    isPublic: true,
+    securityBypass: {
+      ipBan: {
+        value: true,
+        reason: "Liveness/readiness probes must remain available while ban infrastructure is active.",
+      },
+    },
+  },
+  {
     name: "webhook-routes",
     path: "/api/webhooks",
     router: webhookRoutes,
@@ -477,6 +501,98 @@ export const preDocsRouteModules: RouteModule[] = [
 ];
 
 export const preTamperRouteModules: RouteModule[] = [
+  {
+    name: "frontend-config-route",
+    path: "/api/frontend-config",
+    router: frontendConfigRoutes,
+    requiresAuth: false,
+    rateLimited: true,
+    isPublic: true,
+    rateLimitPolicy: {
+      mode: "route",
+      limiters: ["statusLimiter"],
+      note: "Frontend bootstrap config is protected by a route-level status limiter.",
+    },
+    securityBypass: {
+      ipVerification: {
+        value: true,
+        reason: "Frontend boot config must be reachable before IP verification can initialize.",
+      },
+      tamperProtection: {
+        value: true,
+        reason: "Frontend boot config is mounted before tamper protection so first-visit clients can initialize.",
+      },
+    },
+  },
+  {
+    name: "auth-logout-route",
+    path: "/api/auth/logout",
+    router: authLogoutRoutes,
+    requiresAuth: false,
+    rateLimited: true,
+    isPublic: true,
+    rateLimitPolicy: {
+      mode: "route-module",
+      limiters: ["auth-limiter"],
+      note: "Logout remains covered by the /api/auth limiter mounted earlier in the registry pipeline.",
+    },
+    securityBypass: {
+      ipVerification: {
+        value: true,
+        reason: "Logout must remain callable to clear local auth state even before IP verification completes.",
+      },
+      tamperProtection: {
+        value: true,
+        reason: "Logout is mounted before tamper protection to preserve the historical early-exit behavior.",
+      },
+    },
+  },
+  {
+    name: "short-url-non-api-routes",
+    path: "/s",
+    router: shortUrlRoutes,
+    requiresAuth: "mixed",
+    rateLimited: true,
+    isPublic: "mixed",
+    rateLimitPolicy: {
+      mode: "route",
+      limiters: ["redirectLimiter", "userManageLimiter", "adminLimiter", "publicCreateLimiter"],
+      note: "The short URL router applies dedicated route-level limiters for redirect, user, admin, and public-create flows.",
+    },
+    securityBypass: {
+      ipVerification: {
+        value: true,
+        reason: "Public short URL resolution must be reachable before browser verification bootstraps.",
+      },
+      tamperProtection: {
+        value: true,
+        reason: "The /s compatibility mount historically executes before tamper protection.",
+      },
+    },
+  },
+  {
+    name: "short-url-api-routes",
+    path: "/api/shorturl",
+    router: shortUrlRoutes,
+    requiresAuth: "mixed",
+    rateLimited: true,
+    isPublic: "mixed",
+    rateLimitPolicy: {
+      mode: "route",
+      limiters: ["redirectLimiter", "userManageLimiter", "adminLimiter", "publicCreateLimiter"],
+      note: "The short URL router applies dedicated route-level limiters for redirect, user, admin, and public-create flows.",
+    },
+    securityBypass: {
+      ipVerification: {
+        value: true,
+        reason: "Short URL public and compatibility flows are mounted before IP verification by design.",
+      },
+      tamperProtection: {
+        value: true,
+        reason: "The /api/shorturl compatibility mount historically executes before tamper protection.",
+      },
+    },
+  },
   {
     name: "ip-verification-routes",
     path: "/api/ip-verification",
@@ -921,6 +1037,87 @@ export const postTamperRouteModules: RouteModule[] = [
     requiresAuth: "mixed",
     rateLimited: true,
     isPublic: "mixed",
+  },
+  {
+    name: "diagnostics-routes",
+    path: "/api",
+    router: diagnosticsRoutes,
+    requiresAuth: false,
+    rateLimited: true,
+    isPublic: true,
+    rateLimitPolicy: {
+      mode: "route",
+      limiters: ["integrityLimiter", "docsTimeoutLimiter", "serverStatusLimiter"],
+      note: "Diagnostics and operational endpoints apply dedicated route-level limiters.",
+    },
+  },
+  {
+    name: "ip-info-routes",
+    path: "/api",
+    router: ipInfoRoutes,
+    requiresAuth: false,
+    rateLimited: true,
+    isPublic: true,
+    rateLimitPolicy: {
+      mode: "route",
+      limiters: ["ipQueryLimiter", "ipReportLimiter", "ipLocationLimiter"],
+      note: "IP query, report, and location endpoints apply dedicated route-level limiters.",
+    },
+  },
+  {
+    name: "librechat-compat-api-routes",
+    path: "/api",
+    router: compatRoutes,
+    requiresAuth: false,
+    rateLimited: true,
+    isPublic: true,
+    rateLimitPolicy: {
+      mode: "route",
+      limiters: ["lcCompatLimiter"],
+      note: "LibreChat compatibility endpoints apply their dedicated route-level limiter.",
+    },
+  },
+  {
+    name: "openapi-json-routes",
+    path: "/api",
+    router: openapiJsonRoutes,
+    requiresAuth: false,
+    rateLimited: true,
+    isPublic: true,
+    rateLimitPolicy: {
+      mode: "route",
+      limiters: ["openapiLimiter"],
+      note: "OpenAPI JSON endpoints apply the dedicated route-level OpenAPI limiter.",
+    },
+  },
+  {
+    name: "legacy-openapi-json-route",
+    path: "/api-docs.json",
+    router: legacyOpenapiJsonRoutes,
+    requiresAuth: false,
+    rateLimited: true,
+    isPublic: true,
+    rateLimitPolicy: {
+      mode: "route",
+      limiters: ["openapiLimiter"],
+      note: "The legacy OpenAPI JSON endpoint applies the dedicated route-level OpenAPI limiter.",
+    },
+  },
+  {
+    name: "assetlinks-route",
+    path: "/.well-known/assetlinks.json",
+    router: assetLinksRoutes,
+    requiresAuth: false,
+    rateLimited: false,
+    isPublic: true,
+  },
+  {
+    name: "favicon-route",
+    path: "/favicon.ico",
+    router: faviconRoutes,
+    requiresAuth: false,
+    rateLimited: false,
+    isPublic: true,
   },
 ];
 

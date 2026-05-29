@@ -153,6 +153,7 @@ jest.mock("../middleware/routeLimiters", () => ({
 // Mock MongoDB 服务，避免连接超时
 jest.mock("../services/mongoService", () => ({
   connectMongo: jest.fn().mockResolvedValue(undefined),
+  isConnected: jest.fn().mockReturnValue(true),
   default: {
     connect: jest.fn().mockResolvedValue(undefined),
     connection: {

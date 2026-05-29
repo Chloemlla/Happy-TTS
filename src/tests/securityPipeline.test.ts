@@ -10,8 +10,10 @@ import { shouldBypassSecurityComponent } from "../security/securityPolicy";
 
 describe("security pipeline", () => {
   it("keeps the global security middleware order stable", () => {
+    const preBodySteps = getSecurityPipelineSteps("preBodyParser").map((step) => step.name);
     const steps = getSecurityPipelineSteps("postBodyParser").map((step) => step.name);
-    expect(steps).toEqual(["ip-ban-check", "audit-log", "waf"]);
+    expect(preBodySteps).toEqual(["ip-ban-check"]);
+    expect(steps).toEqual(["audit-log", "waf"]);
   });
 
   it("keeps tamper protection in its dedicated later phase", () => {
@@ -51,10 +53,12 @@ describe("route registry security metadata", () => {
 
   it("records mixed and full-route bypasses for API modules", () => {
     const authRoute = preTamperRouteModules.find((route) => route.name === "auth-routes");
+    const frontendConfigRoute = preTamperRouteModules.find((route) => route.name === "frontend-config-route");
     const statusRoute = preTamperRouteModules.find((route) => route.name === "status-routes");
     const humanCheckRoute = postTamperRouteModules.find((route) => route.name === "human-check-routes");
 
     expect(authRoute && getRouteSecurityBypassFlag(authRoute, "ipVerification")).toBe("mixed");
+    expect(frontendConfigRoute && getRouteSecurityBypassFlag(frontendConfigRoute, "ipVerification")).toBe(true);
     expect(statusRoute && getRouteSecurityBypassFlag(statusRoute, "ipBan")).toBe(true);
     expect(statusRoute && getRouteSecurityBypassFlag(statusRoute, "ipVerification")).toBe(true);
     expect(humanCheckRoute && getRouteSecurityBypassFlag(humanCheckRoute, "ipVerification")).toBe(true);

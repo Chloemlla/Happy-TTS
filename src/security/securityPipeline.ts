@@ -5,7 +5,7 @@ import { wafMiddleware } from "../middleware/wafMiddleware";
 import { AuditLogService } from "../services/auditLogService";
 import type { SecurityComponent } from "./securityPolicy";
 
-export type SecurityPipelinePhase = "postBodyParser" | "prePostTamperRoutes";
+export type SecurityPipelinePhase = "preBodyParser" | "postBodyParser" | "prePostTamperRoutes";
 
 export interface SecurityPipelineStep {
   name: string;
@@ -19,7 +19,7 @@ export interface SecurityPipelineStep {
 export const securityPipelineSteps: SecurityPipelineStep[] = [
   {
     name: "ip-ban-check",
-    phase: "postBodyParser",
+    phase: "preBodyParser",
     component: "ipBan",
     description: "Reject banned IPs before business routes execute",
     middlewares: [...ipBanCheckWithRateLimit],

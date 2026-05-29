@@ -1138,23 +1138,25 @@ export async function isAdminToken(token: string | undefined): Promise<boolean> 
   return true;
 }
 
-// 登出接口
-export function registerLogoutRoute(app: any) {
-  app.post("/api/auth/logout", async (req: any, res: any) => {
-    try {
-      const token = req.headers.authorization?.replace("Bearer ", "");
-      if (!token) return res.json({ success: true });
-      const users = await UserStorage.getAllUsers();
-      const idx = users.findIndex((u: any) => u.token === token);
-      if (idx !== -1) {
-        await UserStorage.updateUser(users[idx].id, {
-          token: undefined,
-          tokenExpiresAt: undefined,
-        });
-      }
-      res.json({ success: true });
-    } catch (_error) {
-      res.status(500).json({ error: "登出失败" });
+export async function logoutHandler(req: Request, res: Response) {
+  try {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) return res.json({ success: true });
+    const users = await UserStorage.getAllUsers();
+    const idx = users.findIndex((u: any) => u.token === token);
+    if (idx !== -1) {
+      await UserStorage.updateUser(users[idx].id, {
+        token: undefined,
+        tokenExpiresAt: undefined,
+      });
     }
-  });
+    res.json({ success: true });
+  } catch (_error) {
+    res.status(500).json({ error: "登出失败" });
+  }
+}
+
+// 登出接口：保留旧注册函数，路由装配改由 routes/authLogoutRoutes.ts 管理。
+export function registerLogoutRoute(app: any) {
+  app.post("/api/auth/logout", logoutHandler);
 }
