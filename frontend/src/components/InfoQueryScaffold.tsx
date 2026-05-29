@@ -67,14 +67,10 @@ export const InfoQueryShell: React.FC<{
   children: React.ReactNode;
   className?: string;
   maxWidthClassName?: string;
-}> = ({ children, className = '', maxWidthClassName = 'max-w-7xl' }) => (
-  <div className={`relative min-h-screen overflow-hidden rounded-3xl bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.18),_transparent_34%),linear-gradient(180deg,#f8fbff_0%,#eef2ff_55%,#f8fafc_100%)] text-slate-900 ${className}`}>
-    <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.38)_0%,transparent_52%)]" />
-    <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-white/25" />
-    <div className={`relative mx-auto ${maxWidthClassName} px-4 py-6 sm:px-6 lg:px-8 lg:py-8`}>
-      {children}
-    </div>
-  </div>
+}> = ({ children, className = '', maxWidthClassName = 'max-w-6xl' }) => (
+  <section className={`mx-auto ${maxWidthClassName} px-4 py-10 text-slate-900 sm:py-12 ${className}`}>
+    {children}
+  </section>
 );
 
 export const InfoQueryHero: React.FC<{
@@ -89,19 +85,17 @@ export const InfoQueryHero: React.FC<{
   const classes = getInfoToneClasses(tone);
 
   return (
-    <section className="relative overflow-hidden rounded-[32px] border border-white/70 bg-white/88 p-5 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-7">
-      <div className={`absolute inset-y-0 left-0 w-1.5 ${classes.accent}`} />
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div className="flex max-w-3xl gap-4">
-          <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[22px] ring-1 ${classes.icon}`}>
-            <Icon className="h-5 w-5" />
+    <section className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10">
+      <div className={`pointer-events-none absolute inset-x-0 top-0 h-1 ${classes.accent}`} />
+      <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-3xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500">
+            <Icon className={`text-[10px] ${classes.text}`} />
+            {eyebrow}
           </div>
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">{eyebrow}</div>
-            <h1 className="mt-2 text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">{title}</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">{description}</p>
-            {meta && <div className="mt-4 flex flex-wrap gap-2">{meta}</div>}
-          </div>
+          <h1 className="mt-5 text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">{title}</h1>
+          <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">{description}</p>
+          {meta && <div className="mt-5 flex flex-wrap gap-2">{meta}</div>}
         </div>
         {actions && <div className="flex flex-wrap gap-3 lg:justify-end">{actions}</div>}
       </div>
@@ -124,7 +118,7 @@ export const InfoPanel: React.FC<{
   className?: string;
   compact?: boolean;
 }> = ({ children, className = '', compact = false }) => (
-  <section className={`rounded-[28px] border border-white/70 bg-white/88 shadow-[0_18px_60px_rgba(15,23,42,0.07)] backdrop-blur-xl ${compact ? 'p-4' : 'p-5 sm:p-6'} ${className}`}>
+  <section className={`relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl ${compact ? 'p-4' : 'p-5 sm:p-7'} ${className}`}>
     {children}
   </section>
 );
@@ -139,7 +133,7 @@ export const InfoMetricCard: React.FC<{
   const classes = getInfoToneClasses(tone);
 
   return (
-    <div className="rounded-[24px] border border-white/70 bg-white/90 p-4 shadow-[0_10px_32px_rgba(15,23,42,0.06)] backdrop-blur">
+    <div className="rounded-[24px] border border-white/70 bg-white/82 p-4 shadow-[0_10px_32px_rgba(15,23,42,0.05)] backdrop-blur-xl">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
@@ -164,7 +158,7 @@ export const InfoSectionTitle: React.FC<{
   const classes = getInfoToneClasses(tone);
 
   return (
-    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="flex gap-3">
         {Icon && (
           <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[16px] ring-1 ${classes.icon}`}>
@@ -186,7 +180,7 @@ export const InfoPrimaryButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonEl
 }> = ({ tone = 'teal', className = '', children, ...props }) => (
   <button
     {...props}
-    className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${getInfoToneClasses(tone).button} ${className}`}
+    className={`inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${getInfoToneClasses(tone).button} ${className}`}
   >
     {children}
   </button>
