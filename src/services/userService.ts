@@ -106,7 +106,7 @@ const USER_BY_ID_CACHE_MAX = Number.isFinite(parsedUserCacheMax)
 const userByIdCache = new Map<string, { user: UserType; expiresAt: number }>();
 
 function cloneUser(user: UserType): UserType {
-  return { ...(user as Record<string, unknown>) } as unknown as UserType;
+  return { ...user };
 }
 
 function getCachedUserById(id: string): UserType | null {
