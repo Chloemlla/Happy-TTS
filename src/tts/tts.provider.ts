@@ -17,28 +17,26 @@ export class OpenAiTtsProvider implements TtsProvider {
   }
 
   private async createSpeechWithTimeout(request: TtsProviderRequest) {
-    const operation = this.client.audio.speech.create({
-      model: request.model || config.openaiModel,
-      voice: request.voice || config.openaiVoice,
-      input: request.text,
-      response_format: request.outputFormat as any,
-      speed: request.speed || parseFloat(config.openaiSpeed),
-    });
-
-    let timeoutHandle: NodeJS.Timeout | null = null;
-    return await Promise.race([
-      operation,
-      new Promise<never>((_, reject) => {
-        timeoutHandle = setTimeout(
-          () => reject(new TtsGenerationError("语音生成超时，请稍后重试", 504, "TTS_UPSTREAM_TIMEOUT", true)),
-          OPENAI_TIMEOUT_MS,
-        );
-      }),
-    ]).finally(() => {
-      if (timeoutHandle) {
-        clearTimeout(timeoutHandle);
+    try {
+      return await this.client.audio.speech.create(
+        {
+          model: request.model || config.openaiModel,
+          voice: request.voice || config.openaiVoice,
+          input: request.text,
+          response_format: request.outputFormat as any,
+          speed: request.speed || parseFloat(config.openaiSpeed),
+        },
+        { timeout: OPENAI_TIMEOUT_MS },
+      );
+    } catch (error) {
+      const code = String((error as { code?: string }).code ?? "");
+      const name = String((error as { name?: string }).name ?? "");
+      const message = String((error as { message?: string }).message ?? "");
+      if (code === "ETIMEDOUT" || name.includes("Timeout") || message.toLowerCase().includes("timeout")) {
+        throw new TtsGenerationError("语音生成超时，请稍后重试", 504, "TTS_UPSTREAM_TIMEOUT", true);
       }
-    });
+      throw error;
+    }
   }
 
   public async synthesize(request: TtsProviderRequest): Promise<TtsProviderResponse> {

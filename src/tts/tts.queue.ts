@@ -12,11 +12,22 @@ interface QueueCallbacks {
 }
 
 const PROCESSING_LEASE_MS = 15 * 60 * 1000;
+const MAX_QUEUE_CONCURRENCY = 5;
+
+function resolveQueueConcurrency(): number {
+  const raw = Number(process.env.TTS_QUEUE_CONCURRENCY || "2");
+  if (!Number.isFinite(raw)) {
+    return 2;
+  }
+  return Math.max(1, Math.min(MAX_QUEUE_CONCURRENCY, Math.floor(raw)));
+}
 
 export class TtsQueue {
   private readonly ttsService = new TtsService();
   private readonly workerId = `tts-worker-${process.pid}-${Math.random().toString(36).slice(2, 8)}`;
+  private readonly concurrency = resolveQueueConcurrency();
   private processing = false;
+  private drainRequested = false;
 
   constructor(
     private readonly callbacks: QueueCallbacks,
@@ -32,6 +43,7 @@ export class TtsQueue {
 
   private async drain() {
     if (this.processing) {
+      this.drainRequested = true;
       return;
     }
 
@@ -39,16 +51,32 @@ export class TtsQueue {
     try {
       await ttsStorage.recoverStaleJobs(Date.now());
 
+      const active = new Set<Promise<void>>();
       while (true) {
-        const nextJob = await ttsStorage.claimNextQueuedJob(this.workerId, PROCESSING_LEASE_MS);
-        if (!nextJob) {
+        while (active.size < this.concurrency) {
+          const nextJob = await ttsStorage.claimNextQueuedJob(this.workerId, PROCESSING_LEASE_MS);
+          if (!nextJob) {
+            break;
+          }
+
+          const task = this.processJob(nextJob).finally(() => {
+            active.delete(task);
+          });
+          active.add(task);
+        }
+
+        if (active.size === 0) {
           break;
         }
 
-        await this.processJob(nextJob);
+        await Promise.race(active);
       }
     } finally {
       this.processing = false;
+      if (this.drainRequested) {
+        this.drainRequested = false;
+        void this.drain();
+      }
     }
   }
 

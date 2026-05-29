@@ -3,7 +3,7 @@ import type { TtsSettingsStore } from "./tts.ports";
 
 export class RuntimeConfigTtsSettingsStore implements TtsSettingsStore {
   public async getGenerationCode() {
-    const config = await RuntimeConfigService.getRawTtsConfig();
+    const config = RuntimeConfigService.getCachedConfig().tts;
     return config.generationCode || null;
   }
 }

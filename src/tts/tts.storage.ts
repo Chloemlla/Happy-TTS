@@ -108,6 +108,9 @@ const TtsJobSchema = new mongoose.Schema<TtsJobRecord>(
   { collection: "tts_jobs" },
 );
 
+TtsJobSchema.index({ status: 1, createdAt: 1 });
+TtsJobSchema.index({ status: 1, leaseExpiresAt: 1 });
+
 const TtsJobModel = mongoose.models.TtsJob || mongoose.model<TtsJobRecord>("TtsJob", TtsJobSchema);
 
 class MongoTtsJobStore implements TtsJobStore {

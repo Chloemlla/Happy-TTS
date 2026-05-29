@@ -2,6 +2,11 @@ import logger from "../../utils/logger";
 import { isConnected, mongoose } from "../mongoService";
 import type { HCaptchaSettingDoc, TurnstileSettingDoc } from "./types";
 
+type TurnstileKeyName = "TURNSTILE_SECRET_KEY" | "TURNSTILE_SITE_KEY";
+
+const TURNSTILE_KEY_CACHE_TTL_MS = 60_000;
+const turnstileKeyCache = new Map<TurnstileKeyName, { value: string | null; expiresAt: number }>();
+
 const TurnstileSettingSchema = new mongoose.Schema<TurnstileSettingDoc>(
   {
     key: { type: String, required: true },
@@ -28,20 +33,39 @@ export const HCaptchaSettingModel =
   (mongoose.models.HCaptchaSetting as mongoose.Model<HCaptchaSettingDoc>) ||
   mongoose.model<HCaptchaSettingDoc>("HCaptchaSetting", HCaptchaSettingSchema);
 
-export async function getTurnstileKey(
-  keyName: "TURNSTILE_SECRET_KEY" | "TURNSTILE_SITE_KEY",
-): Promise<string | null> {
+export function invalidateTurnstileKeyCache(keyName?: TurnstileKeyName): void {
+  if (keyName) {
+    turnstileKeyCache.delete(keyName);
+    return;
+  }
+  turnstileKeyCache.clear();
+}
+
+export async function getTurnstileKey(keyName: TurnstileKeyName): Promise<string | null> {
+  const now = Date.now();
+  const cached = turnstileKeyCache.get(keyName);
+  if (cached && cached.expiresAt > now) {
+    return cached.value;
+  }
+
+  let value: string | null = null;
   try {
     if (isConnected()) {
       const doc = await TurnstileSettingModel.findOne({ key: keyName }).lean().exec();
       if (doc && typeof doc.value === "string" && doc.value.trim().length > 0) {
-        return doc.value.trim();
+        value = doc.value.trim();
       }
     }
   } catch (error) {
     logger.error("获取Turnstile密钥失败", { keyName, error: error instanceof Error ? error.message : String(error) });
   }
-  return null;
+
+  turnstileKeyCache.set(keyName, {
+    value,
+    expiresAt: now + TURNSTILE_KEY_CACHE_TTL_MS,
+  });
+
+  return value;
 }
 
 export async function getHCaptchaKey(keyName: "HCAPTCHA_SECRET_KEY" | "HCAPTCHA_SITE_KEY"): Promise<string | null> {

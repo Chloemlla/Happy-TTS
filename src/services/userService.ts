@@ -108,21 +108,10 @@ export const getUserById = async (id: string): Promise<UserType | null> => {
   if (typeof id !== "string" || !/^[a-zA-Z0-9_-]+$/.test(id)) {
     throw new Error("非法的用户ID");
   }
-  // 调试日志：记录查询条件和耗时
-  const start = Date.now();
   const doc = await UserModel.findOne({ id })
     .select(PUBLIC_USER_SELECT)
     .lean();
 
-  const duration = Date.now() - start;
-  console.log(
-    "[MongoDB getUserById] 查询条件:",
-    { id },
-    "耗时:",
-    `${duration}ms`,
-    "返回字段:",
-    doc ? Object.keys(doc) : "null",
-  );
   if (!doc) return null;
   return removeAvatarBase64(doc) as unknown as UserType;
 };
@@ -198,21 +187,13 @@ export const updateUser = async (id: string, updates: Partial<UserType>): Promis
   }
   // 如果$set为空对象，删除它
   if (Object.keys(updateOps.$set).length === 0) delete updateOps.$set;
-  // 调试日志：输出更新条件、内容
-  console.log("[updateUser] 更新条件:", { id }, "更新内容:", updateOps);
+  if (process.env.USER_SERVICE_DEBUG_LOGS === "true") {
+    console.log("[updateUser] 更新条件:", { id }, "更新内容:", updateOps);
+  }
   const doc = await UserModel.findOneAndUpdate({ id }, updateOps, { returnDocument: "after" }).lean();
-  // 调试日志：输出更新后文档
-  if (process.env.NODE_ENV !== "production") {
+
+  if (process.env.USER_SERVICE_DEBUG_LOGS === "true") {
     console.log("[updateUser] 更新后文档:", removeAvatarBase64(doc));
-  } else if (doc) {
-    // 生产环境只输出前20行
-    const safeDoc = removeAvatarBase64(doc);
-    const lines = JSON.stringify(safeDoc, null, 2).split("\n").slice(0, 20).join("\n");
-    console.log(
-      "[updateUser] 更新后文档(前20行):\n" +
-        lines +
-        (lines.length < JSON.stringify(safeDoc, null, 2).length ? "\n...（已截断）" : ""),
-    );
   }
   return doc ? (removeAvatarBase64(doc) as unknown as UserType) : null;
 };

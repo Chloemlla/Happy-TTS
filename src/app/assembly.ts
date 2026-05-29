@@ -91,7 +91,7 @@ const requestLogger = (req: Request, _res: Response, next: NextFunction) => {
       headers: sanitizeLogValue(req.headers),
       body: sanitizeLogValue(req.body),
     });
-  } else {
+  } else if (process.env.ACCESS_LOG_ENABLED === "true") {
     logger.info(`${req.method} ${req.url}`, { ip: req.ip });
   }
   next();

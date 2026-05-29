@@ -1,6 +1,6 @@
 import logger from "../../utils/logger";
 import { isConnected } from "../mongoService";
-import { getTurnstileKey, TurnstileSettingModel } from "./models";
+import { getTurnstileKey, invalidateTurnstileKeyCache, TurnstileSettingModel } from "./models";
 import { validateConfigKey, validateConfigValue } from "./validators";
 
 export async function isEnabled(): Promise<boolean> {
@@ -52,6 +52,7 @@ export async function updateConfig(
         : { key: "TURNSTILE_SITE_KEY", value: validatedValue, updatedAt: new Date() };
 
     await TurnstileSettingModel.findOneAndUpdate(updateQuery, updateData, { upsert: true, returnDocument: "after" });
+    invalidateTurnstileKeyCache(key);
 
     logger.info(`Turnstile配置更新成功: ${key}`);
     return true;
@@ -76,6 +77,7 @@ export async function deleteConfig(key: "TURNSTILE_SECRET_KEY" | "TURNSTILE_SITE
     }
 
     await TurnstileSettingModel.findOneAndDelete({ key: validatedKey });
+    invalidateTurnstileKeyCache(validatedKey);
     logger.info(`Turnstile配置删除成功: ${validatedKey}`);
     return true;
   } catch (error) {

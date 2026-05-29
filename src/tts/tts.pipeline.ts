@@ -1,4 +1,3 @@
-import axios from "axios";
 import { ContentFilterService } from "../services/contentFilterService";
 import { TurnstileService } from "../services/turnstileService";
 import type { User } from "../utils/userStorage";
@@ -129,7 +128,7 @@ export class TtsSubmissionPipeline {
     };
   }
 
-  private async validateContent(text: string) {
+  private validateContentShape(text: string) {
     if (!text) {
       throw new TtsRequestError(400, "文本内容不能为空", "TTS_EMPTY_TEXT");
     }
@@ -137,26 +136,19 @@ export class TtsSubmissionPipeline {
     if (text.length > 4096) {
       throw new TtsRequestError(400, "文本长度不能超过4096个字符", "TTS_TEXT_TOO_LONG");
     }
+  }
 
-    if (!ContentFilterService.shouldSkipDetection()) {
-      const contentFilterResult = await ContentFilterService.detectProhibitedContent(text);
-      if (contentFilterResult.isProhibited) {
-        throw new TtsRequestError(403, "内容包含违禁词，无法生成语音", "TTS_CONTENT_PROHIBITED");
-      }
+  private async validateContentPolicy(text: string) {
+    if (ContentFilterService.shouldSkipDetection()) {
+      return;
     }
 
-    try {
-      const detectResponse = await axios.get(`https://v2.xxapi.cn/api/detect?text=${encodeURIComponent(text)}`, {
-        timeout: 10000,
-      });
-      if (detectResponse.data.is_prohibited) {
-        throw new TtsRequestError(400, "文本包含违禁内容，请修改后重试", "TTS_REMOTE_CONTENT_PROHIBITED");
-      }
-    } catch (error) {
-      if (error instanceof TtsRequestError) {
-        throw error;
-      }
-      throw new TtsRequestError(500, "违禁词检测服务暂时不可用，请稍后重试", "TTS_REMOTE_FILTER_UNAVAILABLE", true);
+    const contentFilterResult = await ContentFilterService.detectProhibitedContent(text);
+    if (contentFilterResult.error) {
+      throw new TtsRequestError(500, contentFilterResult.error, "TTS_REMOTE_FILTER_UNAVAILABLE", true);
+    }
+    if (contentFilterResult.isProhibited) {
+      throw new TtsRequestError(403, "内容包含违禁词，无法生成语音", "TTS_CONTENT_PROHIBITED");
     }
   }
 
@@ -192,9 +184,10 @@ export class TtsSubmissionPipeline {
     const userId = context.currentUser?.id;
     const isAdmin = context.currentUser?.role === "admin";
 
-    await this.validateContent(requestPayload.text);
+    this.validateContentShape(requestPayload.text);
     await this.validateGenerationCode(context.input.generationCode);
     await this.validateTurnstile(context.input.cfToken, context.ip);
+    await this.validateContentPolicy(requestPayload.text);
 
     const contentHash = this.ttsService.generateContentHash(
       requestPayload.text,
