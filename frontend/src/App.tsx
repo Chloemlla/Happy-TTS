@@ -614,7 +614,11 @@ const App: React.FC = () => {
   const renderAdminRoute = React.useCallback(
     (element: React.ReactNode, redirectTo: string = adminFallbackPath) => (
       <AdminRoute userRole={user?.role} redirectTo={redirectTo}>
-        {renderAnimatedRoute(element)}
+        {renderAnimatedRoute(
+          <div className="logshare-admin-surface">
+            {element}
+          </div>
+        )}
       </AdminRoute>
     ),
     [adminFallbackPath, renderAnimatedRoute, user?.role],

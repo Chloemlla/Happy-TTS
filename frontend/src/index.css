@@ -208,6 +208,106 @@ body {
   }
 }
 
+/* Admin pages: scoped LogShare visual language */
+.logshare-admin-surface {
+  color: #0f172a;
+}
+
+.logshare-admin-surface .font-songti {
+  font-family: inherit !important;
+}
+
+.logshare-admin-surface :where([class*="bg-gradient-to-"]) {
+  background-image: none !important;
+}
+
+.logshare-admin-surface :where(section, main, article, form, header, div)[class*="rounded"][class*="border"],
+.logshare-admin-surface :where(section, main, article, form, header, div)[class*="rounded"][class*="shadow"] {
+  border-color: rgba(255, 255, 255, 0.7) !important;
+  border-radius: 26px !important;
+  box-shadow: 0 18px 60px rgba(15, 23, 42, 0.06) !important;
+  backdrop-filter: blur(16px);
+}
+
+.logshare-admin-surface :where(section, main, article, form, header, div)[class*="rounded"][class*="bg-white"],
+.logshare-admin-surface :where(section, main, article, form, header, div)[class*="rounded"][class*="bg-blue"],
+.logshare-admin-surface :where(section, main, article, form, header, div)[class*="rounded"][class*="bg-indigo"],
+.logshare-admin-surface :where(section, main, article, form, header, div)[class*="rounded"][class*="bg-purple"],
+.logshare-admin-surface :where(section, main, article, form, header, div)[class*="rounded"][class*="bg-cyan"],
+.logshare-admin-surface :where(section, main, article, form, header, div)[class*="rounded"][class*="bg-[#"] {
+  background-color: rgba(255, 255, 255, 0.82) !important;
+}
+
+.logshare-admin-surface :where(section, main, article, form, header, div)[class*="rounded"][class*="bg-slate"],
+.logshare-admin-surface :where(section, main, article, form, header, div)[class*="rounded"][class*="bg-gray"] {
+  background-color: rgba(248, 250, 252, 0.72) !important;
+}
+
+.logshare-admin-surface :where(input:not([type="checkbox"]):not([type="radio"]), textarea, select) {
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 1rem !important;
+  background-color: rgba(255, 255, 255, 0.8) !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+}
+
+.logshare-admin-surface :where(input:not([type="checkbox"]):not([type="radio"]), textarea, select):focus {
+  border-color: #94a3b8 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 2px #cbd5e1 !important;
+}
+
+.logshare-admin-surface :where(button, a)[class*="bg-"]:not([class*="bg-white"]):not([class*="bg-transparent"]):not([class*="bg-rose"]):not([class*="bg-red"]):not([class*="bg-amber"]):not([class*="bg-yellow"]) {
+  border-color: #0f172a !important;
+  border-radius: 1rem !important;
+  background-color: #0f172a !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+.logshare-admin-surface :where(button, a)[class*="bg-amber"],
+.logshare-admin-surface :where(button, a)[class*="bg-yellow"] {
+  border-color: #e2e8f0 !important;
+  border-radius: 1rem !important;
+  background-color: rgba(255, 255, 255, 0.8) !important;
+  color: #334155 !important;
+}
+
+.logshare-admin-surface :where(button, a)[class*="bg-red"],
+.logshare-admin-surface :where(button, a)[class*="bg-rose"] {
+  border-color: #fecdd3 !important;
+  border-radius: 1rem !important;
+  background-color: rgba(255, 241, 242, 0.82) !important;
+  color: #be123c !important;
+}
+
+.logshare-admin-surface :where([class*="text-[#"], [class*="text-blue"], [class*="text-indigo"], [class*="text-purple"], [class*="text-cyan"], [class*="text-orange"]) {
+  color: #334155 !important;
+}
+
+.logshare-admin-surface :where([class*="text-red"], [class*="text-rose"]) {
+  color: #be123c !important;
+}
+
+.logshare-admin-surface :where([class*="text-green"], [class*="text-emerald"]) {
+  color: #047857 !important;
+}
+
+.logshare-admin-surface :where(table) {
+  border-color: #e2e8f0 !important;
+  background-color: rgba(255, 255, 255, 0.78) !important;
+}
+
+.logshare-admin-surface :where(th) {
+  background-color: rgba(248, 250, 252, 0.9) !important;
+  color: #475569 !important;
+}
+
+.logshare-admin-surface :where(td) {
+  border-color: #e2e8f0 !important;
+  color: #334155;
+}
+
 /* 滚动条美化 (commented out)
 
 ::-webkit-scrollbar {
