@@ -13,6 +13,12 @@ import logger from "../utils/logger";
 type ArtifactVisibility = "public" | "private" | "password";
 
 const SUPPORTED_CONTENT_TYPES = new Set(["html", "code", "markdown", "mermaid", "text", "json", "svg", "latex", "csv", "xml"]);
+const DEFAULT_MAX_ARTIFACT_CONTENT_BYTES = 5 * 1024 * 1024;
+
+function getMaxArtifactContentBytes(): number {
+  const parsed = Number(process.env.NEXAI_ARTIFACT_MAX_CONTENT_BYTES);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MAX_ARTIFACT_CONTENT_BYTES;
+}
 
 function generateShortId(length = 12): string {
   const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -142,6 +148,9 @@ export class ArtifactService {
 
       // 解码内容
       const content = decodeContent(encodedContent);
+      if (Buffer.byteLength(content, "utf8") > getMaxArtifactContentBytes()) {
+        throw new Error("Artifact 内容过大");
+      }
 
       // 计算内容哈希
       const contentHash = calculateContentHash(content);

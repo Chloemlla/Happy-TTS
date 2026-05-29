@@ -12,12 +12,79 @@ import {
 } from "../models/nexaiSyncModel";
 import logger from "../utils/logger";
 
+const SENSITIVE_SETTINGS_FIELDS = ["apiKey", "vertexApiKey", "webdavPassword", "upstashToken"] as const;
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function redactSettings(settings: unknown): unknown {
+  if (!isPlainObject(settings)) {
+    return settings;
+  }
+
+  const redacted: Record<string, unknown> = { ...settings };
+  for (const field of SENSITIVE_SETTINGS_FIELDS) {
+    if (field in redacted) {
+      redacted[field] = "";
+    }
+  }
+  return redacted;
+}
+
+function redactSavedPasswords(savedPasswords: unknown): unknown {
+  if (!Array.isArray(savedPasswords)) {
+    return savedPasswords;
+  }
+
+  return savedPasswords.map((entry) => {
+    if (!isPlainObject(entry)) {
+      return entry;
+    }
+
+    return {
+      ...entry,
+      password: "",
+    };
+  });
+}
+
+function redactLegacySyncPayload<T extends Record<string, unknown>>(data: T): T {
+  const redacted: Record<string, unknown> = { ...data };
+
+  if ("settings" in redacted) {
+    redacted.settings = redactSettings(redacted.settings);
+  }
+
+  if ("savedPasswords" in redacted) {
+    redacted.savedPasswords = redactSavedPasswords(redacted.savedPasswords);
+  }
+
+  return redacted as T;
+}
+
+function redactSyncDocumentForResponse(doc: INexaiSyncData | null): INexaiSyncData | null {
+  if (!doc) {
+    return null;
+  }
+
+  return redactLegacySyncPayload({ ...doc } as unknown as Record<string, unknown>) as unknown as INexaiSyncData;
+}
+
+function redactIncrementalRequest(incoming: IIncrementalSyncRequest): IIncrementalSyncRequest {
+  return redactLegacySyncPayload({ ...incoming } as unknown as Record<string, unknown>) as unknown as IIncrementalSyncRequest;
+}
+
+function redactIncrementalResponse(response: IIncrementalSyncResponse): IIncrementalSyncResponse {
+  return redactLegacySyncPayload({ ...response } as unknown as Record<string, unknown>) as unknown as IIncrementalSyncResponse;
+}
+
 export class NexaiSyncService {
   // ---------- 获取同步数据 ----------
   static async getSyncData(userId: string): Promise<INexaiSyncData | null> {
     try {
       const doc = await NexaiSyncModel.findOne({ userId }).lean();
-      return doc as INexaiSyncData | null;
+      return redactSyncDocumentForResponse(doc as INexaiSyncData | null);
     } catch (error) {
       logger.error("[NexAI Sync] getSyncData error:", error);
       throw error;
@@ -27,8 +94,9 @@ export class NexaiSyncService {
   // ---------- 全量覆盖同步数据 ----------
   static async putSyncData(userId: string, data: Partial<Omit<INexaiSyncData, "userId">>): Promise<INexaiSyncData> {
     try {
+      const safeData = redactLegacySyncPayload(data as unknown as Record<string, unknown>);
       const update = {
-        ...data,
+        ...safeData,
         userId,
         lastSyncedAt: new Date(),
       };
@@ -40,7 +108,7 @@ export class NexaiSyncService {
       );
 
       logger.info(`[NexAI Sync] putSyncData OK for user ${userId}`);
-      return doc as INexaiSyncData;
+      return redactSyncDocumentForResponse(doc as INexaiSyncData) as INexaiSyncData;
     } catch (error) {
       logger.error("[NexAI Sync] putSyncData error:", error);
       throw error;
@@ -64,8 +132,10 @@ export class NexaiSyncService {
         throw new Error(`Invalid sync category: ${category}`);
       }
 
+      const safeData = category === "settings" ? redactSettings(data) : category === "passwords" ? redactSavedPasswords(data) : data;
+
       const update: Record<string, unknown> = {
-        [field]: data,
+        [field]: safeData,
         lastSyncedAt: new Date(),
       };
 
@@ -76,7 +146,7 @@ export class NexaiSyncService {
       );
 
       logger.info(`[NexAI Sync] patchSyncData [${category}] OK for user ${userId}`);
-      return doc as INexaiSyncData | null;
+      return redactSyncDocumentForResponse(doc as INexaiSyncData | null);
     } catch (error) {
       logger.error(`[NexAI Sync] patchSyncData [${category}] error:`, error);
       throw error;
@@ -149,21 +219,22 @@ export class NexaiSyncService {
 
       // 只在 settingsUpdatedAt > since 时才返回 settings
       if (doc.settingsUpdatedAt && doc.settingsUpdatedAt > since) {
-        result.settings = doc.settings;
+        result.settings = redactSettings(doc.settings) as IIncrementalSyncResponse["settings"];
         result.settingsUpdatedAt = doc.settingsUpdatedAt;
       }
 
+      const safeResult = redactIncrementalResponse(result);
       const totalChanges =
-        result.notes.length +
-        result.conversations.length +
-        result.translationHistory.length +
-        result.savedPasswords.length +
-        result.shortUrls.length +
-        (result.settings ? 1 : 0);
+        safeResult.notes.length +
+        safeResult.conversations.length +
+        safeResult.translationHistory.length +
+        safeResult.savedPasswords.length +
+        safeResult.shortUrls.length +
+        (safeResult.settings ? 1 : 0);
 
       logger.info(`[NexAI Sync] getChangesSince OK for user ${userId}, since=${since}, changes=${totalChanges}`);
 
-      return result;
+      return safeResult;
     } catch (error) {
       logger.error("[NexAI Sync] getChangesSince error:", error);
       throw error;
@@ -180,6 +251,7 @@ export class NexaiSyncService {
     clientLastSync: string,
   ): Promise<IIncrementalSyncResponse> {
     try {
+      const safeIncoming = redactIncrementalRequest(incoming);
       let doc = await NexaiSyncModel.findOne({ userId });
       if (!doc) {
         doc = new NexaiSyncModel({ userId });
@@ -238,7 +310,7 @@ export class NexaiSyncService {
       };
 
       // 处理删除
-      if (incoming.deletedIds) {
+      if (safeIncoming.deletedIds) {
         const deleteFromArray = <T extends { id: string }>(arr: T[], ids: string[] | undefined): T[] => {
           if (!ids || ids.length === 0) return arr;
           const now = serverTime;
@@ -250,19 +322,19 @@ export class NexaiSyncService {
           });
         };
 
-        doc.notes = deleteFromArray(doc.notes, incoming.deletedIds.notes);
-        doc.conversations = deleteFromArray(doc.conversations, incoming.deletedIds.conversations);
-        doc.translationHistory = deleteFromArray(doc.translationHistory, incoming.deletedIds.translationHistory);
-        doc.savedPasswords = deleteFromArray(doc.savedPasswords, incoming.deletedIds.savedPasswords);
-        doc.shortUrls = deleteFromArray(doc.shortUrls, incoming.deletedIds.shortUrls);
+        doc.notes = deleteFromArray(doc.notes, safeIncoming.deletedIds.notes);
+        doc.conversations = deleteFromArray(doc.conversations, safeIncoming.deletedIds.conversations);
+        doc.translationHistory = deleteFromArray(doc.translationHistory, safeIncoming.deletedIds.translationHistory);
+        doc.savedPasswords = deleteFromArray(doc.savedPasswords, safeIncoming.deletedIds.savedPasswords);
+        doc.shortUrls = deleteFromArray(doc.shortUrls, safeIncoming.deletedIds.shortUrls);
       }
 
       // 合并每个类别
-      const notesResult = mergeArrays(doc.notes, incoming.notes);
-      const convsResult = mergeArrays(doc.conversations, incoming.conversations);
-      const transResult = mergeArrays(doc.translationHistory, incoming.translationHistory);
-      const passResult = mergeArrays(doc.savedPasswords, incoming.savedPasswords);
-      const urlsResult = mergeArrays(doc.shortUrls, incoming.shortUrls);
+      const notesResult = mergeArrays(doc.notes, safeIncoming.notes);
+      const convsResult = mergeArrays(doc.conversations, safeIncoming.conversations);
+      const transResult = mergeArrays(doc.translationHistory, safeIncoming.translationHistory);
+      const passResult = mergeArrays(doc.savedPasswords, safeIncoming.savedPasswords);
+      const urlsResult = mergeArrays(doc.shortUrls, safeIncoming.shortUrls);
 
       doc.notes = notesResult.merged;
       doc.conversations = convsResult.merged;
@@ -280,20 +352,20 @@ export class NexaiSyncService {
         serverTime,
       };
 
-      if (incoming.settings && incoming.settingsUpdatedAt) {
+      if (safeIncoming.settings && safeIncoming.settingsUpdatedAt) {
         const serverSettingsTs = doc.settingsUpdatedAt || "";
-        if (incoming.settingsUpdatedAt >= serverSettingsTs) {
+        if (safeIncoming.settingsUpdatedAt >= serverSettingsTs) {
           // 客户端设置更新
-          doc.settings = incoming.settings;
-          doc.settingsUpdatedAt = incoming.settingsUpdatedAt;
+          doc.settings = safeIncoming.settings;
+          doc.settingsUpdatedAt = safeIncoming.settingsUpdatedAt;
         } else {
           // 服务端设置更新，回传给客户端
-          response.settings = doc.settings;
+          response.settings = redactSettings(doc.settings) as IIncrementalSyncResponse["settings"];
           response.settingsUpdatedAt = doc.settingsUpdatedAt;
         }
       } else if (doc.settingsUpdatedAt && doc.settingsUpdatedAt > clientLastSync) {
         // 服务端有更新的 settings，回传
-        response.settings = doc.settings;
+        response.settings = redactSettings(doc.settings) as IIncrementalSyncResponse["settings"];
         response.settingsUpdatedAt = doc.settingsUpdatedAt;
       }
 
@@ -301,25 +373,26 @@ export class NexaiSyncService {
       await doc.save();
 
       const totalIncoming =
-        (incoming.notes?.length ?? 0) +
-        (incoming.conversations?.length ?? 0) +
-        (incoming.translationHistory?.length ?? 0) +
-        (incoming.savedPasswords?.length ?? 0) +
-        (incoming.shortUrls?.length ?? 0);
+        (safeIncoming.notes?.length ?? 0) +
+        (safeIncoming.conversations?.length ?? 0) +
+        (safeIncoming.translationHistory?.length ?? 0) +
+        (safeIncoming.savedPasswords?.length ?? 0) +
+        (safeIncoming.shortUrls?.length ?? 0);
 
+      const safeResponse = redactIncrementalResponse(response);
       const totalServerChanges =
-        response.notes.length +
-        response.conversations.length +
-        response.translationHistory.length +
-        response.savedPasswords.length +
-        response.shortUrls.length;
+        safeResponse.notes.length +
+        safeResponse.conversations.length +
+        safeResponse.translationHistory.length +
+        safeResponse.savedPasswords.length +
+        safeResponse.shortUrls.length;
 
       logger.info(
         `[NexAI Sync] mergeIncremental OK for user ${userId}, ` +
           `incoming=${totalIncoming}, serverChanges=${totalServerChanges}`,
       );
 
-      return response;
+      return safeResponse;
     } catch (error) {
       logger.error("[NexAI Sync] mergeIncrementalData error:", error);
       throw error;

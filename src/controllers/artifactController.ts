@@ -57,7 +57,8 @@ function isArtifactValidationError(error: any): boolean {
   return (
     message.includes("expires_in_days") ||
     message.includes("不支持的 Artifact") ||
-    message.includes("密码保护的 Artifact")
+    message.includes("密码保护的 Artifact") ||
+    message.includes("Artifact 内容过大")
   );
 }
 

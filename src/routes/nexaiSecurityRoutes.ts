@@ -9,6 +9,7 @@ import {
   trackDeviceManually,
 } from "../controllers/nexaiSecurityController";
 import { authenticateToken } from "../middleware/authenticateToken";
+import { nexaiAuthRequired } from "../middleware/nexaiAuth";
 
 const router = express.Router();
 
@@ -88,7 +89,7 @@ router.get("/security/status", getSecurityStatus);
  *       500:
  *         description: Internal server error
  */
-router.get("/security/anomalies", authenticateToken, checkAnomalies);
+router.get("/security/anomalies", nexaiAuthRequired, checkAnomalies);
 
 /**
  * @openapi
@@ -110,7 +111,7 @@ router.get("/security/anomalies", authenticateToken, checkAnomalies);
  *       500:
  *         description: Internal server error
  */
-router.post("/security/track", authenticateToken, trackDeviceManually);
+router.post("/security/track", nexaiAuthRequired, trackDeviceManually);
 
 /**
  * @openapi

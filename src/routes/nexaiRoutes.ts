@@ -5,7 +5,9 @@
 import express from "express";
 import { ArtifactController } from "../controllers/artifactController";
 import { NexaiAuthController } from "../controllers/nexaiAuthController";
+import { NexaiReleaseController } from "../controllers/nexaiReleaseController";
 import { NexaiSyncController } from "../controllers/nexaiSyncController";
+import { NexaiSyncV2Controller } from "../controllers/nexaiSyncV2Controller";
 import { nexaiAuthOptional, nexaiAuthRequired } from "../middleware/nexaiAuth";
 import { createLimiter } from "../middleware/rateLimiter";
 
@@ -71,6 +73,12 @@ const artifactManageLimiter = createLimiter({
   windowMs: 15 * 60 * 1000, // 15 分钟
   max: 30,
   message: "操作过于频繁，请稍后再试",
+});
+
+const releaseManifestLimiter = createLimiter({
+  windowMs: 60 * 1000,
+  max: 60,
+  message: "Release manifest 请求过于频繁，请稍后再试",
 });
 
 // ========== 公开端点（无需登录） ==========
@@ -300,6 +308,28 @@ router.post("/auth/reset-password", nexaiAuthLimiter, NexaiAuthController.resetP
  *         description: 配置信息
  */
 router.get("/auth/oauth-config", NexaiAuthController.getOAuthConfig);
+
+// ========== 发布完整性端点（公开） ==========
+
+/**
+ * @openapi
+ * /nexai/releases/{tag}/manifest:
+ *   get:
+ *     summary: 获取 NexAI 发布包完整性清单
+ *     tags: [NexAI Releases]
+ *     parameters:
+ *       - in: path
+ *         name: tag
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: 发布清单
+ *       404:
+ *         description: 未找到发布清单
+ */
+router.get("/releases/:tag/manifest", releaseManifestLimiter, NexaiReleaseController.getManifest);
 
 // ========== 需要登录的端点 ==========
 
@@ -617,6 +647,63 @@ router.patch("/sync/:category", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncCo
  *         description: 清除成功
  */
 router.delete("/sync", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncController.deleteSyncData);
+
+// ========== 加密云同步端点（需要登录） ==========
+
+/**
+ * @openapi
+ * /nexai/sync/v2:
+ *   put:
+ *     summary: 上传端到端加密同步快照
+ *     tags: [NexAI Sync]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.put("/sync/v2", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncV2Controller.putSnapshot);
+
+/**
+ * @openapi
+ * /nexai/sync/v2:
+ *   get:
+ *     summary: 获取端到端加密同步快照
+ *     tags: [NexAI Sync]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get("/sync/v2", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncV2Controller.getSnapshot);
+
+/**
+ * @openapi
+ * /nexai/sync/v2/meta:
+ *   get:
+ *     summary: 获取端到端加密同步元信息
+ *     tags: [NexAI Sync]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get("/sync/v2/meta", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncV2Controller.getMeta);
+
+/**
+ * @openapi
+ * /nexai/sync/v2/incremental:
+ *   post:
+ *     summary: 端到端加密增量同步
+ *     tags: [NexAI Sync]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.post("/sync/v2/incremental", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncV2Controller.incrementalSync);
+
+/**
+ * @openapi
+ * /nexai/sync/v2:
+ *   delete:
+ *     summary: 清除端到端加密同步数据
+ *     tags: [NexAI Sync]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.delete("/sync/v2", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncV2Controller.deleteSnapshot);
 
 // ========== Artifacts 分享端点 ==========
 

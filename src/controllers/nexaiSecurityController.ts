@@ -10,6 +10,10 @@ import {
 } from "../services/nexaiSecurityService";
 import logger from "../utils/logger";
 
+function getRequestUserId(req: Request): string | undefined {
+  return req.nexaiUser?.id || (req as any).user?.id;
+}
+
 /**
  * POST /nexai/security/report
  * Client reports security event
@@ -33,7 +37,7 @@ export async function reportSecurityEvent(req: Request, res: Response): Promise<
       return;
     }
 
-    const userId = (req as any).user?.id;
+    const userId = getRequestUserId(req);
     const ipAddress = (req.ip || req.headers["x-forwarded-for"] || req.socket.remoteAddress) as string;
     const userAgent = req.headers["user-agent"] || "";
 
@@ -133,7 +137,7 @@ export async function getSecurityStatus(req: Request, res: Response): Promise<vo
 export async function checkAnomalies(req: Request, res: Response): Promise<void> {
   try {
     const headers = extractSecurityHeaders(req);
-    const userId = (req as any).user?.id;
+    const userId = getRequestUserId(req);
 
     if (!userId) {
       res.status(401).json({
@@ -178,7 +182,7 @@ export async function checkAnomalies(req: Request, res: Response): Promise<void>
 export async function trackDeviceManually(req: Request, res: Response): Promise<void> {
   try {
     const headers = extractSecurityHeaders(req);
-    const userId = (req as any).user?.id;
+    const userId = getRequestUserId(req);
 
     if (!userId) {
       res.status(401).json({
