@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotification } from './Notification';
 import { getApiBaseUrl } from '../api/api';
+import DOMPurify from 'dompurify';
 import CryptoJS from 'crypto-js';
 import { imageDataApi } from '../api/imageData';
 import { openDB, deleteDB } from 'idb';
@@ -31,6 +32,31 @@ const ALLOWED_TYPES = [
   'image/bmp',
 ];
 const ACCEPT_ATTR = ALLOWED_TYPES.join(',');
+const SAFE_IMAGE_URL_PROTOCOLS = new Set(['blob:', 'http:', 'https:']);
+
+function sanitizeDisplayText(value: unknown, fallback = ''): string {
+  const sanitized = DOMPurify.sanitize(String(value ?? ''), {
+    ALLOWED_TAGS: [],
+    ALLOWED_ATTR: [],
+  }).trim();
+
+  return sanitized || fallback;
+}
+
+function sanitizeImageUrl(value: unknown): string | undefined {
+  const sanitized = sanitizeDisplayText(value);
+
+  if (!sanitized) {
+    return undefined;
+  }
+
+  try {
+    const parsed = new URL(sanitized, window.location.origin);
+    return SAFE_IMAGE_URL_PROTOCOLS.has(parsed.protocol) ? sanitized : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 // 1. 新增本地存储相关常量和工具函数
 const STORAGE_KEY = 'happy_images';
@@ -373,10 +399,11 @@ const ImageUploadPage: React.FC = () => {
     const invalidFiles: string[] = [];
 
     files.forEach(file => {
+      const displayFileName = sanitizeDisplayText(file.name);
       if (!ALLOWED_TYPES.includes(file.type)) {
-        invalidFiles.push(`${file.name} (格式不支持)`);
+        invalidFiles.push(`${displayFileName} (格式不支持)`);
       } else if (file.size > MAX_IMAGE_SIZE) {
-        invalidFiles.push(`${file.name} (超过5MB)`);
+        invalidFiles.push(`${displayFileName} (超过5MB)`);
       } else {
         validFiles.push(file);
       }
@@ -787,7 +814,7 @@ const ImageUploadPage: React.FC = () => {
       });
 
       // 显示成功上传的文件列表
-      const successfulFileNames = successfulFiles.map(file => file.name).join(', ');
+      const successfulFileNames = successfulFiles.map(file => sanitizeDisplayText(file.name)).join(', ');
 
       // 根据上传结果显示不同的通知
       if (successCount === batchFiles.length) {
@@ -1023,6 +1050,8 @@ const ImageUploadPage: React.FC = () => {
     }
   };
 
+  const safeUploadedUrl = sanitizeImageUrl(uploadedShortUrl || uploadedUrl);
+
   return (
     <section className="mx-auto max-w-6xl px-4 py-10 sm:py-12">
       {/* 主面板：上传图片 */}
@@ -1109,9 +1138,9 @@ const ImageUploadPage: React.FC = () => {
                 initial={{ opacity: 0, scale: 0.97 }}
                 animate={{ opacity: 1, scale: 1 }}
               >
-                <img src={previewUrl} alt="预览" className="h-32 w-32 rounded-2xl border border-slate-200 object-contain sm:h-48 sm:w-48" />
+                <img src={sanitizeImageUrl(previewUrl)} alt="预览" className="h-32 w-32 rounded-2xl border border-slate-200 object-contain sm:h-48 sm:w-48" />
                 <div className="mt-3 text-center text-xs text-slate-600 sm:text-sm">
-                  {file.name} ({(file.size / 1024).toFixed(1)} KB)
+                  {sanitizeDisplayText(file.name)} ({(file.size / 1024).toFixed(1)} KB)
                 </div>
                 <motion.button
                   className="mt-3 inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 disabled:opacity-50"
@@ -1179,11 +1208,13 @@ const ImageUploadPage: React.FC = () => {
                 <div className="max-h-44 space-y-2 overflow-y-auto pr-1">
                   {batchFiles.map((file) => {
                     const progress = batchProgress[file.name];
+                    const displayFileName = sanitizeDisplayText(file.name);
+                    const safeShortUrl = sanitizeImageUrl(progress?.shortUrl);
                     return (
                       <div key={file.name} className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white/80 p-3">
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-sm font-medium text-slate-800">
-                            {file.name}
+                            {displayFileName}
                           </div>
                           <div className="text-xs text-slate-500">
                             {formatFileSize(file.size)}
@@ -1199,14 +1230,14 @@ const ImageUploadPage: React.FC = () => {
                               {progress.status === 'success' && (
                                 <div className="text-xs text-emerald-600">
                                   ✓ 上传成功
-                                  {progress.shortUrl && (
+                                  {safeShortUrl && (
                                     <div className="mt-1">
-                                      <div className="truncate text-xs text-slate-600" title={progress.shortUrl}>
-                                        短链: {progress.shortUrl}
+                                      <div className="truncate text-xs text-slate-600" title={safeShortUrl}>
+                                        短链: {safeShortUrl}
                                       </div>
                                       <motion.button
                                         className="text-xs font-semibold text-slate-700 underline-offset-2 hover:text-slate-900 hover:underline"
-                                        onClick={() => handleCopy(progress.shortUrl || '')}
+                                        onClick={() => handleCopy(safeShortUrl)}
                                         whileTap={{ scale: 0.96 }}
                                       >
                                         复制
@@ -1216,7 +1247,7 @@ const ImageUploadPage: React.FC = () => {
                                 </div>
                               )}
                               {progress.status === 'error' && (
-                                <div className="text-xs text-rose-600">✗ {progress.error}</div>
+                                <div className="text-xs text-rose-600">✗ {sanitizeDisplayText(progress.error, '上传失败')}</div>
                               )}
                             </div>
                           )}
@@ -1261,13 +1292,13 @@ const ImageUploadPage: React.FC = () => {
             </motion.button>
             {error && (
               <div className="mt-3 rounded-[22px] border border-rose-200/70 bg-rose-50/80 px-5 py-3 text-center text-sm leading-7 text-rose-700">
-                {error}
+                {sanitizeDisplayText(error, '上传失败')}
               </div>
             )}
           </motion.div>
 
           <AnimatePresence>
-            {uploadedUrl && (
+            {uploadedUrl && safeUploadedUrl && (
               <motion.div
                 className="mt-5 rounded-[22px] border border-emerald-200/70 bg-emerald-50/80 px-5 py-4"
                 initial={{ opacity: 0, y: 10 }}
@@ -1282,14 +1313,14 @@ const ImageUploadPage: React.FC = () => {
                 <div className="mb-2 text-center text-xs text-slate-600">图片链接：</div>
                 <div className="flex flex-col items-center justify-center gap-2 sm:flex-row">
                   <a
-                    href={uploadedShortUrl || uploadedUrl}
+                    href={safeUploadedUrl}
                     className="break-all text-sm text-slate-700 underline-offset-2 hover:text-slate-900 hover:underline"
                     target="_blank"
                     rel="noopener noreferrer"
-                  >{uploadedShortUrl || uploadedUrl}</a>
+                  >{safeUploadedUrl}</a>
                   <motion.button
                     className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
-                    onClick={() => handleCopy(uploadedShortUrl || uploadedUrl || '')}
+                    onClick={() => handleCopy(safeUploadedUrl)}
                     whileTap={{ scale: 0.96 }}
                   >
                     <FaCopy className="text-[11px]" /> 复制
@@ -1425,40 +1456,46 @@ const ImageUploadPage: React.FC = () => {
               暂无上传的图片
             </motion.div>
           ) : (
-            storedImages.map((img, idx) => (
-              <motion.div
-                key={img.cid}
-                className={`relative flex flex-col overflow-hidden rounded-[22px] border bg-white/82 p-3 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl transition ${
-                  flashingImages.has(img.imageId)
-                    ? 'border-emerald-300 shadow-[0_18px_60px_rgba(16,185,129,0.25)] animate-pulse'
-                    : 'border-white/70'
-                }`}
-                initial={{ opacity: 0, scale: 0.97 }}
-                animate={{
-                  opacity: 1,
-                  scale: flashingImages.has(img.imageId) ? 1.03 : 1,
-                }}
-                transition={{
-                  duration: flashingImages.has(img.imageId) ? 0.6 : 0.3,
-                  delay: idx * 0.05,
-                  repeat: flashingImages.has(img.imageId) ? 3 : 0,
-                  repeatType: 'reverse',
-                }}
-                whileHover={{ y: -2 }}
-              >
+            storedImages.map((img, idx) => {
+              const safeWeb2Url = sanitizeImageUrl(fixIpfsDomain(img.web2url));
+              const displayFileName = sanitizeDisplayText(img.fileName, '未命名图片');
+              const displayCid = sanitizeDisplayText(img.cid);
+
+              return (
+                <motion.div
+                  key={img.cid}
+                  className={`relative flex flex-col overflow-hidden rounded-[22px] border bg-white/82 p-3 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl transition ${
+                    flashingImages.has(img.imageId)
+                      ? 'border-emerald-300 shadow-[0_18px_60px_rgba(16,185,129,0.25)] animate-pulse'
+                      : 'border-white/70'
+                  }`}
+                  initial={{ opacity: 0, scale: 0.97 }}
+                  animate={{
+                    opacity: 1,
+                    scale: flashingImages.has(img.imageId) ? 1.03 : 1,
+                  }}
+                  transition={{
+                    duration: flashingImages.has(img.imageId) ? 0.6 : 0.3,
+                    delay: idx * 0.05,
+                    repeat: flashingImages.has(img.imageId) ? 3 : 0,
+                    repeatType: 'reverse',
+                  }}
+                  whileHover={{ y: -2 }}
+                >
                 <img
-                  src={img.web2url}
-                  alt={img.fileName}
+                  src={safeWeb2Url}
+                  alt={displayFileName}
                   className="mb-2 h-32 w-full rounded-2xl border border-slate-200 object-cover sm:h-40"
                   loading="lazy"
                 />
-                <div className="mb-1 break-all text-[11px] text-slate-500">CID: {img.cid}</div>
-                <div className="mb-1 truncate text-sm text-slate-800">{img.fileName}</div>
+                <div className="mb-1 break-all text-[11px] text-slate-500">CID: {displayCid}</div>
+                <div className="mb-1 truncate text-sm text-slate-800">{displayFileName}</div>
                 <div className="mb-3 text-xs text-slate-400">{formatFileSize(img.fileSize)} • {formatDate(img.uploadTime)}</div>
                 <div className="mt-auto flex flex-col gap-1 sm:flex-row">
                   <motion.button
                     className="flex flex-1 items-center justify-center gap-1 rounded-2xl border border-slate-200 bg-white/80 px-2 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
-                    onClick={() => handleCopy(fixIpfsDomain(img.web2url))}
+                    onClick={() => safeWeb2Url && handleCopy(safeWeb2Url)}
+                    disabled={!safeWeb2Url}
                     whileTap={{ scale: 0.96 }}
                   >
                     <FaCopy className="text-[11px]" />
@@ -1467,7 +1504,7 @@ const ImageUploadPage: React.FC = () => {
                   {/* 预览按钮始终使用后端返回的 web2url，确保域名和路径与后端一致 */}
                   <motion.a
                     className="flex flex-1 items-center justify-center gap-1 rounded-2xl border border-slate-200 bg-white/80 px-2 py-2 text-center text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
-                    href={fixIpfsDomain(img.web2url)}
+                    href={safeWeb2Url || '#'}
                     target="_blank"
                     rel="noopener noreferrer"
                     whileTap={{ scale: 0.96 }}
@@ -1484,8 +1521,9 @@ const ImageUploadPage: React.FC = () => {
                     删除
                   </motion.button>
                 </div>
-              </motion.div>
-            ))
+                </motion.div>
+              );
+            })
           )}
         </div>
       </motion.div>

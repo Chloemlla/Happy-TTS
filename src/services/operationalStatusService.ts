@@ -12,8 +12,24 @@ export interface ServerStatusSnapshot {
   };
 }
 
-function sha256(value: string): Buffer {
-  return crypto.createHash("sha256").update(value).digest();
+const MAX_SERVER_STATUS_PASSWORD_BYTES = 1024;
+
+function timingSafeStringEqual(candidate: string, expected: string): boolean {
+  const candidateLength = Buffer.byteLength(candidate, "utf8");
+  const expectedLength = Buffer.byteLength(expected, "utf8");
+
+  if (candidateLength > MAX_SERVER_STATUS_PASSWORD_BYTES) {
+    return false;
+  }
+
+  const compareLength = Math.max(candidateLength, expectedLength);
+  const candidateBuffer = Buffer.alloc(compareLength);
+  const expectedBuffer = Buffer.alloc(compareLength);
+
+  Buffer.from(candidate, "utf8").copy(candidateBuffer);
+  Buffer.from(expected, "utf8").copy(expectedBuffer);
+
+  return crypto.timingSafeEqual(candidateBuffer, expectedBuffer) && candidateLength === expectedLength;
 }
 
 export function isServerStatusPasswordValid(candidate: unknown): boolean {
@@ -21,7 +37,7 @@ export function isServerStatusPasswordValid(candidate: unknown): boolean {
     return false;
   }
 
-  return crypto.timingSafeEqual(sha256(candidate), sha256(startupConfig.serverPassword));
+  return timingSafeStringEqual(candidate, startupConfig.serverPassword);
 }
 
 export function getServerStatusSnapshot(): ServerStatusSnapshot {
@@ -39,4 +55,3 @@ export function getServerStatusSnapshot(): ServerStatusSnapshot {
     },
   };
 }
-
