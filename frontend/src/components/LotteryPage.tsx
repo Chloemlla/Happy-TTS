@@ -16,8 +16,11 @@ import {
   InfoPrimaryButton,
   InfoQueryHero,
   InfoQueryShell,
-  InfoSectionTitle
-} from './InfoQueryScaffold';
+  InfoSectionTitle,
+  logSharePanelClass,
+  logSharePrimaryButtonClass,
+  logShareTileClass
+} from './LogShareStyleScaffold';
 import { 
   FaLink, 
   FaChartBar, 
@@ -32,8 +35,8 @@ import {
   FaExclamationTriangle
 } from 'react-icons/fa';
 
-const lotteryPanelClass = 'rounded-[28px] border border-white/70 bg-white/88 shadow-[0_18px_60px_rgba(15,23,42,0.07)] backdrop-blur-xl';
-const lotteryTileClass = 'rounded-[22px] border border-white/70 bg-white/90 shadow-[0_10px_32px_rgba(15,23,42,0.06)] backdrop-blur';
+const lotteryPanelClass = logSharePanelClass;
+const lotteryTileClass = logShareTileClass;
 
 // 区块链数据展示组件
 const BlockchainDisplay: React.FC<{ data: any }> = React.memo(({ data }) => (
@@ -181,10 +184,10 @@ const LotteryRoundCard: React.FC<{
             <motion.button
               onClick={() => onParticipate(round.id, turnstileToken)}
               disabled={!isActive || hasParticipated || loading || (!isAdmin && !!turnstileConfig?.siteKey && !turnstileVerified)}
-              className={`rounded-xl px-6 py-2.5 text-sm font-semibold transition-colors ${
+              className={`${
                 !isActive || hasParticipated || loading || (!isAdmin && !!turnstileConfig?.siteKey && !turnstileVerified)
-                  ? 'cursor-not-allowed bg-slate-200 text-slate-500'
-                  : 'bg-violet-700 text-white hover:bg-violet-800'
+                  ? 'inline-flex cursor-not-allowed items-center justify-center gap-2 rounded-2xl bg-slate-200 px-5 py-3 text-sm font-semibold text-slate-500'
+                  : logSharePrimaryButtonClass
               }`}
               whileTap={{ scale: 0.95 }}
             >

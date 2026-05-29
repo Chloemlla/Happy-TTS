@@ -31,13 +31,17 @@ import {
   InfoMetricCard,
   InfoQueryHero,
   InfoQueryShell,
-  InfoSectionTitle
-} from './InfoQueryScaffold';
+  InfoSectionTitle,
+  logSharePanelClass,
+  logSharePrimaryButtonClass,
+  logShareSecondaryButtonClass,
+  logShareTileClass
+} from './LogShareStyleScaffold';
 
-const coinPanelClass = 'rounded-[28px] border border-white/70 bg-white/88 shadow-[0_18px_60px_rgba(15,23,42,0.07)] backdrop-blur-xl';
-const coinTileClass = 'rounded-[22px] border border-white/70 bg-white/90 shadow-[0_10px_32px_rgba(15,23,42,0.06)] backdrop-blur';
-const coinButtonClass = 'inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-60';
-const coinGhostButtonClass = `${coinButtonClass} border border-slate-200 bg-white/80 text-slate-700 hover:bg-white`;
+const coinPanelClass = logSharePanelClass;
+const coinTileClass = logShareTileClass;
+const coinButtonClass = logSharePrimaryButtonClass;
+const coinGhostButtonClass = logShareSecondaryButtonClass;
 
 interface CoinFlipStats {
   heads: number;
@@ -534,7 +538,7 @@ const CoinFlip: React.FC = () => {
               <motion.button
                 onClick={flipCoin}
                 disabled={isFlipping}
-                className={`${coinButtonClass} bg-amber-600 text-white hover:bg-amber-700`}
+                className={coinButtonClass}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -545,7 +549,7 @@ const CoinFlip: React.FC = () => {
               {isFlipping && (
                 <motion.button
                   onClick={skipAnimationHandler}
-                  className={`${coinButtonClass} bg-slate-800 text-white hover:bg-slate-900`}
+                  className={coinButtonClass}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   initial={{ opacity: 0, scale: 0.8 }}
@@ -559,10 +563,7 @@ const CoinFlip: React.FC = () => {
 
               <motion.button
                 onClick={() => setAudioEnabled(!audioEnabled)}
-                className={`${coinButtonClass} ${audioEnabled
-                    ? 'bg-emerald-700 text-white hover:bg-emerald-800'
-                    : 'bg-slate-600 text-white hover:bg-slate-700'
-                  }`}
+                className={coinGhostButtonClass}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -578,7 +579,7 @@ const CoinFlip: React.FC = () => {
                   type="checkbox"
                   checked={skipAnimation}
                   onChange={(e) => setSkipAnimation(e.target.checked)}
-                  className="rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                  className="rounded border-slate-300 text-slate-900 focus:ring-slate-400"
                 />
                 <span>默认跳过动画（快速模式）</span>
               </label>
@@ -889,7 +890,7 @@ return finalRandom < 0.5 ? 'heads' : 'tails';`}
                 <div className="flex flex-col sm:flex-row gap-3">
                   <motion.button
                     onClick={exportStats}
-                    className={`${coinButtonClass} bg-sky-700 text-white hover:bg-sky-800`}
+                    className={coinGhostButtonClass}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
@@ -897,7 +898,7 @@ return finalRandom < 0.5 ? 'heads' : 'tails';`}
                     导出数据
                   </motion.button>
 
-                  <label className={`${coinButtonClass} cursor-pointer bg-emerald-700 text-white hover:bg-emerald-800`}>
+                  <label className={`${coinGhostButtonClass} cursor-pointer`}>
                     <FaUpload />
                     导入数据
                     <input
@@ -910,7 +911,7 @@ return finalRandom < 0.5 ? 'heads' : 'tails';`}
 
                   <motion.button
                     onClick={resetStats}
-                    className={`${coinButtonClass} bg-rose-700 text-white hover:bg-rose-800`}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50/80 px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >

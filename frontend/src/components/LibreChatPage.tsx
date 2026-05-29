@@ -40,13 +40,19 @@ import {
   InfoPanel,
   InfoQueryHero,
   InfoQueryShell,
-  InfoSectionTitle
-} from './InfoQueryScaffold';
+  InfoSectionTitle,
+  logShareInputClass,
+  logSharePanelClass,
+  logSharePrimaryButtonClass,
+  logShareSecondaryButtonClass,
+  logShareTileClass
+} from './LogShareStyleScaffold';
 
-const librePanelClass = 'rounded-[28px] border border-white/70 bg-white/88 shadow-[0_18px_60px_rgba(15,23,42,0.07)] backdrop-blur-xl';
-const libreTileClass = 'rounded-[22px] border border-white/70 bg-white/90 shadow-[0_10px_32px_rgba(15,23,42,0.06)] backdrop-blur';
-const libreInputClass = 'w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-800 shadow-sm transition-all placeholder:text-slate-400 focus:border-sky-300 focus:outline-none focus:ring-2 focus:ring-sky-200';
-const libreGhostButtonClass = 'inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50';
+const librePanelClass = logSharePanelClass;
+const libreTileClass = logShareTileClass;
+const libreInputClass = logShareInputClass;
+const librePrimaryButtonClass = logSharePrimaryButtonClass;
+const libreGhostButtonClass = logShareSecondaryButtonClass;
 
 // 将英文标点符号替换为中文标点符号
 function convertToChinesePunctuation(text: string): string {
@@ -1485,13 +1491,13 @@ const LibreChatPage: React.FC = () => {
             <div className="space-y-3 text-slate-700">
               {latest.update_time && (
                 <div className={`${libreTileClass} flex items-center gap-2 p-3 text-sm`}>
-                  <FaInfoCircle className="text-blue-500" />
+                  <FaInfoCircle className="text-slate-500" />
                   <span>更新时间：{latest.update_time}</span>
                 </div>
               )}
               {latest.image_name && (
                 <div className={`${libreTileClass} flex items-center gap-2 p-3 text-sm`}>
-                  <FaDownload className="text-green-500" />
+                  <FaDownload className="text-slate-500" />
                   <span>镜像名称：{latest.image_name}</span>
                 </div>
               )}
@@ -1547,16 +1553,16 @@ const LibreChatPage: React.FC = () => {
                     <li>保留追究法律责任权利</li>
                   </ul>
                 </div>
-                <div className="rounded-2xl border border-sky-200 bg-sky-50/80 p-4">
-                  <h4 className="mb-2 flex items-center gap-2 font-semibold text-sky-700">
-                    <FaEnvelope className="text-blue-500" />
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                  <h4 className="mb-2 flex items-center gap-2 font-semibold text-slate-700">
+                    <FaEnvelope className="text-slate-500" />
                     联系我们
                   </h4>
-                  <p className="text-sm text-sky-700">
+                  <p className="text-sm text-slate-700">
                     如有任何问题或建议，请联系开发者：
                     <a
                       href="mailto:admin@chloemlla.com"
-                      className="font-medium hover:text-blue-800 transition-colors duration-200 ml-1 underline"
+                      className="ml-1 font-medium underline transition-colors duration-200 hover:text-slate-900"
                     >
                       admin@chloemlla.com
                     </a>
@@ -1592,7 +1598,7 @@ const LibreChatPage: React.FC = () => {
             )}
             {!guestMode && token && (
               <span
-                className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs text-sky-700"
+                className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600"
                 title={`当前Token: ${token.substring(0, 8)}...`}
               >
                 <FaUser className="w-3 h-3 mr-1" />
@@ -1656,7 +1662,7 @@ const LibreChatPage: React.FC = () => {
                 <div className="mb-3 text-center text-sm text-slate-700">
                   人机验证
                   {turnstileVerified && (
-                    <span className="ml-2 text-green-600 font-medium">✓ 验证通过</span>
+                    <span className="ml-2 font-medium text-emerald-600">✓ 验证通过</span>
                   )}
                 </div>
 
@@ -1682,7 +1688,7 @@ const LibreChatPage: React.FC = () => {
               <motion.button
                 onClick={handleSend}
                 disabled={sending || (!isAdmin && !!turnstileConfig.siteKey && !turnstileVerified)}
-                className="inline-flex items-center gap-2 rounded-xl bg-sky-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-800 disabled:cursor-not-allowed disabled:opacity-50"
+                className={librePrimaryButtonClass}
                 whileTap={{ scale: 0.95 }}
               >
                 <FaPaperPlane className="w-4 h-4" />
@@ -1705,7 +1711,7 @@ const LibreChatPage: React.FC = () => {
               </motion.button>
               <motion.button
                 onClick={openRealtimeDialog}
-                className="inline-flex items-center gap-2 rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800"
+                className={libreGhostButtonClass}
                 title="打开单次实时对话框"
                 whileTap={{ scale: 0.95 }}
               >
@@ -1742,7 +1748,7 @@ const config = {
                     }
                   });
                 }}
-                className="inline-flex items-center gap-2 rounded-xl bg-violet-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-800"
+                className={libreGhostButtonClass}
                 title="测试代码编辑器功能"
                 whileTap={{ scale: 0.95 }}
               >
@@ -1830,11 +1836,11 @@ const config = {
                     animate={{ opacity: 1, y: 0 }}
                   >
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
-                        <FaRobot className="w-4 h-4 text-white" />
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-slate-50">
+                        <FaRobot className="h-4 w-4 text-slate-500" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-sm font-medium text-green-700">助手</span>
+                        <span className="text-sm font-medium text-slate-700">助手</span>
                         <span className="text-xs text-slate-500">生成中...</span>
                       </div>
                     </div>
@@ -1868,21 +1874,19 @@ const config = {
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-3">
                             <div className="flex items-center gap-2">
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${m.role === 'user'
-                                ? 'bg-blue-500'
-                                : 'bg-green-500'
+                              <div className={`flex h-8 w-8 items-center justify-center rounded-full border ${
+                                m.role === 'user'
+                                  ? 'border-slate-300 bg-white text-slate-600'
+                                  : 'border-slate-200 bg-slate-50 text-slate-500'
                                 }`}>
                                 {m.role === 'user' ? (
-                                  <FaUser className="w-4 h-4 text-white" />
+                                  <FaUser className="h-4 w-4" />
                                 ) : (
-                                  <FaRobot className="w-4 h-4 text-white" />
+                                  <FaRobot className="h-4 w-4" />
                                 )}
                               </div>
                               <div className="flex flex-col">
-                                <span className={`text-sm font-medium ${m.role === 'user'
-                                  ? 'text-blue-700'
-                                  : 'text-green-700'
-                                  }`}>
+                                <span className="text-sm font-medium text-slate-700">
                                   {m.role === 'user' ? '用户' : '助手'}
                                 </span>
                                 {m.createdAt && (
@@ -1903,7 +1907,7 @@ const config = {
                             )}
                             <motion.button
                               onClick={() => copyText(m.role === 'user' ? m.content : sanitizeAssistantText(m.content))}
-                              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white/80 px-2 py-1 text-xs text-slate-700 transition hover:bg-white"
+                              className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white/80 px-2 py-1 text-xs text-slate-700 transition hover:bg-white"
                               whileTap={{ scale: 0.95 }}
                             >
                               <FaCopy className="w-3 h-3" />
@@ -1932,7 +1936,7 @@ const config = {
                           <div className="mt-3 flex justify-end gap-2">
                             <motion.button
                               onClick={() => handleEdit(m.id, m.content)}
-                              className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white/80 px-3 py-1 text-xs text-slate-700 transition hover:bg-white"
+                              className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white/80 px-3 py-1 text-xs text-slate-700 transition hover:bg-white"
                               whileTap={{ scale: 0.95 }}
                             >
                               <FaEdit className="w-3 h-3" />
@@ -1941,7 +1945,7 @@ const config = {
                             {m.role !== 'user' && (
                               <motion.button
                                 onClick={() => handleRetry(m.id)}
-                                className="inline-flex items-center gap-1 rounded-xl border border-sky-200 bg-sky-50/70 px-3 py-1 text-xs text-sky-700 transition hover:bg-sky-50"
+                                className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white/80 px-3 py-1 text-xs text-slate-700 transition hover:bg-white"
                                 whileTap={{ scale: 0.95 }}
                               >
                                 <FaRedo className="w-3 h-3" />
@@ -1950,7 +1954,7 @@ const config = {
                             )}
                             <motion.button
                               onClick={() => handleDelete(m.id)}
-                              className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50/70 px-3 py-1 text-xs text-rose-700 transition hover:bg-rose-50"
+                              className="inline-flex items-center gap-1 rounded-2xl border border-rose-200 bg-rose-50/70 px-3 py-1 text-xs text-rose-700 transition hover:bg-rose-50"
                               whileTap={{ scale: 0.95 }}
                             >
                               <FaTrash className="w-3 h-3" />

@@ -7,10 +7,10 @@ import {
   InfoPrimaryButton,
   InfoQueryHero,
   InfoQueryShell
-} from './InfoQueryScaffold';
+} from './LogShareStyleScaffold';
 
-const tigerGlassButtonClass = 'inline-flex items-center justify-center gap-2 rounded-xl border border-white/60 bg-white/24 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(15,23,42,0.18)] backdrop-blur-md transition-colors hover:bg-white/34 disabled:cursor-not-allowed disabled:opacity-45';
-const tigerScenePanelClass = 'rounded-[28px] border border-white/60 bg-white/20 shadow-[0_18px_60px_rgba(15,23,42,0.16)] backdrop-blur-md';
+const tigerGlassButtonClass = 'inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white/90 px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-xl transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-45';
+const tigerScenePanelClass = 'rounded-[28px] border border-white/70 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.12)] backdrop-blur-xl';
 
 interface Scene {
   id: number;
@@ -1129,20 +1129,20 @@ const TigerAdventure: React.FC = () => {
         
         {/* 场景信息 */}
         <motion.div
-          className={`absolute left-4 right-4 z-10 mx-auto max-w-4xl px-4 py-4 text-center text-white xs:left-6 xs:right-6 sm:left-8 sm:right-8 ${tigerScenePanelClass} ${
+          className={`absolute left-4 right-4 z-10 mx-auto max-w-4xl px-4 py-4 text-center text-slate-900 xs:left-6 xs:right-6 sm:left-8 sm:right-8 ${tigerScenePanelClass} ${
             currentScene === 4 ? 'top-20 sm:top-8' : 'top-20 sm:top-8'
           }`}
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.8 }}
         >
-          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/70">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
             Scene {currentScene + 1} / {scenes.length}
           </div>
-          <h2 className="px-2 text-xl font-semibold text-white drop-shadow-lg xs:text-2xl sm:mb-2 sm:text-3xl md:text-4xl">
+          <h2 className="px-2 text-xl font-semibold text-slate-900 xs:text-2xl sm:mb-2 sm:text-3xl md:text-4xl">
             {currentSceneData.title}
           </h2>
-          <p className={`mx-auto max-w-2xl px-2 leading-relaxed text-white/88 drop-shadow-lg ${
+          <p className={`mx-auto max-w-2xl px-2 leading-relaxed text-slate-600 ${
             currentScene === 4 ? 'text-xs xs:text-xs sm:text-sm' : 'text-xs xs:text-sm sm:text-base md:text-xl'
           }`}>
             {currentSceneData.description}
@@ -1153,12 +1153,12 @@ const TigerAdventure: React.FC = () => {
         <div className={`absolute left-1/2 z-20 transform -translate-x-1/2 ${
           currentScene === 4 ? 'bottom-6 xs:bottom-7 sm:bottom-12' : 'bottom-4 xs:bottom-5 sm:bottom-8'
         }`}>
-          <div className="flex rounded-full border border-white/50 bg-white/20 px-3 py-2 shadow-[0_12px_32px_rgba(15,23,42,0.16)] backdrop-blur-md space-x-1 xs:space-x-1.5 sm:space-x-2">
+          <div className="flex space-x-1 rounded-full border border-slate-200 bg-white/90 px-3 py-2 shadow-sm backdrop-blur-xl xs:space-x-1.5 sm:space-x-2">
             {scenes.map((_, index) => (
               <motion.div
                 key={index}
-                className={`w-1.5 h-1.5 xs:w-2 xs:h-2 sm:w-3 sm:h-3 rounded-full ring-1 ring-white/40 ${
-                  index === currentScene ? 'bg-white' : 'bg-white/35'
+                className={`h-1.5 w-1.5 rounded-full ring-1 ring-slate-200 xs:h-2 xs:w-2 sm:h-3 sm:w-3 ${
+                  index === currentScene ? 'bg-slate-900' : 'bg-slate-200'
                 }`}
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
