@@ -3,6 +3,7 @@ import adminOnly from "../middleware/adminOnly";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { replayProtection } from "../middleware/replayProtection";
 import { tamperService } from "../services/tamperService";
+import { firstStringOr } from "../utils/httpParam";
 import logger from "../utils/logger";
 
 const router = Router();
@@ -293,7 +294,7 @@ router.post("/admin/blocked", authenticateToken, adminOnly, replayProtection(), 
 
 router.delete("/admin/blocked/:ip", authenticateToken, adminOnly, replayProtection(), async (req, res) => {
   try {
-    const removed = await tamperService.unblockIP(req.params.ip);
+    const removed = await tamperService.unblockIP(firstStringOr(req.params.ip));
     res.json({ success: true, removed });
   } catch (error) {
     logger.error("Error unblocking tamper IP:", error);
