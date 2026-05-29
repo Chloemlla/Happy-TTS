@@ -5,6 +5,13 @@ import {
   ShoppingBag, Car, Film, Home as HomeIcon2, Pill, Book, MoreHorizontal,
   DollarSign, TrendingUp, Gift, LogOut, Settings
 } from 'lucide-react';
+import { FaWallet } from 'react-icons/fa';
+import {
+  InfoBadge,
+  InfoPanel,
+  InfoQueryHero,
+  InfoQueryShell,
+} from './LogShareStyleScaffold';
 
 // 记账理财APP UI展示页面 (Bento设计风格)
 const FinanceAppDemo: React.FC = () => {
@@ -310,16 +317,26 @@ const FinanceAppDemo: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f8f9fa] to-[#e9ecef] py-10 px-4">
-      <div className="max-w-[1200px] mx-auto">
-        <h1 className="text-4xl font-bold text-center mb-12 text-[#2c3e50]">
-          记账理财 APP UI 展示
-        </h1>
+    <InfoQueryShell maxWidthClassName="max-w-[1280px]" className="space-y-6">
+      <InfoQueryHero
+        eyebrow="Demo Center"
+        title="记账理财 APP UI 展示"
+        description="9 个 Bento 风格记账理财屏幕，覆盖首页、记账、账单、统计、预算、账户和设置等流程。"
+        icon={FaWallet}
+        meta={
+          <>
+            <InfoBadge>9 个屏幕</InfoBadge>
+            <InfoBadge>Bento 布局</InfoBadge>
+            <InfoBadge>Canvas 图表</InfoBadge>
+          </>
+        }
+      />
 
+      <InfoPanel className="overflow-visible">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
           {/* 第1屏: 首页 (Bento网格) */}
           <div className="flex flex-col items-center">
-            <h3 className="text-base font-semibold text-[#2c3e50] mb-4">首页 - Bento网格布局</h3>
+            <h3 className="text-base font-semibold text-slate-700 mb-4">首页 - Bento网格布局</h3>
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
@@ -420,7 +437,7 @@ const FinanceAppDemo: React.FC = () => {
 
           {/* 第2屏: 记账页面 */}
           <div className="flex flex-col items-center">
-            <h3 className="text-base font-semibold text-[#2c3e50] mb-4">记账页面</h3>
+            <h3 className="text-base font-semibold text-slate-700 mb-4">记账页面</h3>
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
@@ -529,7 +546,7 @@ const FinanceAppDemo: React.FC = () => {
 
           {/* 第3屏: 账单详情 */}
           <div className="flex flex-col items-center">
-            <h3 className="text-base font-semibold text-[#2c3e50] mb-4">账单详情</h3>
+            <h3 className="text-base font-semibold text-slate-700 mb-4">账单详情</h3>
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
@@ -611,7 +628,7 @@ const FinanceAppDemo: React.FC = () => {
 
           {/* 第4屏: 统计分析 */}
           <div className="flex flex-col items-center">
-            <h3 className="text-base font-semibold text-[#2c3e50] mb-4">统计分析</h3>
+            <h3 className="text-base font-semibold text-slate-700 mb-4">统计分析</h3>
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
@@ -682,7 +699,7 @@ const FinanceAppDemo: React.FC = () => {
 
           {/* 第5屏: 预算管理 */}
           <div className="flex flex-col items-center">
-            <h3 className="text-base font-semibold text-[#2c3e50] mb-4">预算管理</h3>
+            <h3 className="text-base font-semibold text-slate-700 mb-4">预算管理</h3>
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
@@ -744,7 +761,7 @@ const FinanceAppDemo: React.FC = () => {
 
           {/* 第6屏: 图表分析页 */}
           <div className="flex flex-col items-center">
-            <h3 className="text-base font-semibold text-[#2c3e50] mb-4">图表分析</h3>
+            <h3 className="text-base font-semibold text-slate-700 mb-4">图表分析</h3>
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
@@ -793,7 +810,7 @@ const FinanceAppDemo: React.FC = () => {
 
           {/* 第7屏: 账户管理 */}
           <div className="flex flex-col items-center">
-            <h3 className="text-base font-semibold text-[#2c3e50] mb-4">账户管理</h3>
+            <h3 className="text-base font-semibold text-slate-700 mb-4">账户管理</h3>
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
@@ -839,7 +856,7 @@ const FinanceAppDemo: React.FC = () => {
 
           {/* 第8屏: 分类管理 */}
           <div className="flex flex-col items-center">
-            <h3 className="text-base font-semibold text-[#2c3e50] mb-4">分类管理</h3>
+            <h3 className="text-base font-semibold text-slate-700 mb-4">分类管理</h3>
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
@@ -901,7 +918,7 @@ const FinanceAppDemo: React.FC = () => {
 
           {/* 第9屏: 设置页面 */}
           <div className="flex flex-col items-center">
-            <h3 className="text-base font-semibold text-[#2c3e50] mb-4">设置页面</h3>
+            <h3 className="text-base font-semibold text-slate-700 mb-4">设置页面</h3>
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
@@ -1025,7 +1042,7 @@ const FinanceAppDemo: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
+      </InfoPanel>
 
       {/* 动画样式 */}
       <style>{`
@@ -1038,7 +1055,7 @@ const FinanceAppDemo: React.FC = () => {
           scrollbar-width: none;
         }
       `}</style>
-    </div>
+    </InfoQueryShell>
   );
 };
 

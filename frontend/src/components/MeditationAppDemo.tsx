@@ -5,6 +5,14 @@ import {
   Heart, CloudRain, Waves, Trees, Moon, Radio as RadioIcon, Flame,
   Mountain, Bug, Bell, LogOut, Trophy, Award, Sunrise, Crown, CheckCircle
 } from 'lucide-react';
+import { FaLeaf } from 'react-icons/fa';
+import {
+  InfoBadge,
+  InfoPanel,
+  InfoQueryHero,
+  InfoQueryShell,
+  logShareSecondaryButtonClass,
+} from './LogShareStyleScaffold';
 
 // 冥想APP UI展示页面
 const MeditationAppDemo: React.FC = () => {
@@ -304,23 +312,32 @@ const MeditationAppDemo: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f5f7fa] to-[#c3cfe2] py-10 px-5">
-      <div className="max-w-[1200px] mx-auto">
-        {/* 标题 */}
-        <h1 className="text-4xl font-bold text-center mb-8 text-[#2c3e50]">
-          冥想APP UI展示
-        </h1>
+    <InfoQueryShell maxWidthClassName="max-w-[1280px]" className="space-y-6">
+      <InfoQueryHero
+        eyebrow="Demo Center"
+        title="冥想 APP UI 展示"
+        description="9 个冥想应用屏幕、Canvas 动画、呼吸引导和成就系统集中展示。外层页面已统一为 LogShare 的轻量工具页风格。"
+        icon={FaLeaf}
+        meta={
+          <>
+            <InfoBadge>9 个屏幕</InfoBadge>
+            <InfoBadge>Canvas 动画</InfoBadge>
+            <InfoBadge>React 19 Activity</InfoBadge>
+          </>
+        }
+      />
 
+      <InfoPanel className="overflow-visible">
         {/* 屏幕切换按钮 */}
         <div className="flex items-center justify-center gap-2 mb-8 flex-wrap">
           {['首页', '计时器', '完成', '统计', '成就', '日历', '场景库', '设置', '呼吸'].map((name, idx) => (
             <button
               key={idx}
               onClick={() => setActiveScreen(idx)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`${logShareSecondaryButtonClass} ${
                 activeScreen === idx
-                  ? 'bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white shadow-lg scale-105'
-                  : 'bg-white text-[#2c3e50] hover:bg-gray-100'
+                  ? '!border-slate-900 !bg-slate-900 !text-white shadow-sm'
+                  : ''
               }`}
             >
               {name}
@@ -329,10 +346,11 @@ const MeditationAppDemo: React.FC = () => {
         </div>
 
         {/* 使用Activity优化性能提示 */}
-        <div className="text-center mb-8 px-4">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
-            <span className="text-lg">⚡</span>
-            <span>使用 React 19 <code className="px-1 py-0.5 bg-blue-100 rounded">&lt;Activity&gt;</code> 组件优化性能 - 保留状态但清理副作用</span>
+        <div className="mb-8 flex justify-center px-4">
+          <div className="inline-flex flex-wrap items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-2 text-sm text-slate-600">
+            <span>使用 React 19</span>
+            <code className="rounded-lg border border-slate-200 bg-white px-1.5 py-0.5 text-xs text-slate-700">&lt;Activity&gt;</code>
+            <span>组件优化性能，保留状态并清理副作用</span>
           </div>
         </div>
 
@@ -1154,10 +1172,10 @@ const MeditationAppDemo: React.FC = () => {
         </div>
 
         {/* 底部提示 */}
-        <div className="mt-8 text-center text-sm text-[#95a5a6]">
-          <p>💡 点击上方按钮切换屏幕 · Canvas动画在后台自动优化 · 状态完整保留</p>
+        <div className="mt-8 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-center text-sm text-slate-600">
+          <p>点击上方按钮切换屏幕 · Canvas 动画在后台自动优化 · 状态完整保留</p>
         </div>
-      </div>
+      </InfoPanel>
 
       {/* 动画样式 */}
       <style>{`
@@ -1184,7 +1202,7 @@ const MeditationAppDemo: React.FC = () => {
           scrollbar-width: none;
         }
       `}</style>
-    </div>
+    </InfoQueryShell>
   );
 };
 

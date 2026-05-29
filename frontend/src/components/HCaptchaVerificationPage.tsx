@@ -1,8 +1,16 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion as m, AnimatePresence } from 'framer-motion';
+import { FaShieldAlt } from 'react-icons/fa';
 import HCaptchaWidget, { HCaptchaWidgetRef } from './HCaptchaWidget';
 import { LoadingSpinner } from './LoadingSpinner';
 import { api } from '../api/api';
+import {
+  InfoBadge,
+  InfoPanel,
+  InfoQueryShell,
+  logSharePrimaryButtonClass,
+  logShareSecondaryButtonClass,
+} from './LogShareStyleScaffold';
 
 interface VerificationResult {
   success: boolean;
@@ -156,29 +164,32 @@ const HCaptchaVerificationPageFrame: React.FC<HCaptchaVerificationPageFrameProps
       animate="animate"
       exit="exit"
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4"
+      className="min-h-screen"
     >
-      <m.div
-        variants={cardVariants}
-        initial="initial"
-        animate="animate"
-        transition={{ delay: 0.1, duration: 0.5 }}
-        className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md"
-      >
+      <InfoQueryShell maxWidthClassName="max-w-xl" className="flex min-h-screen items-center">
+        <m.div
+          variants={cardVariants}
+          initial="initial"
+          animate="animate"
+          transition={{ delay: 0.1, duration: 0.5 }}
+          className="w-full"
+        >
+          <InfoPanel>
         {/* 头部 */}
         <div className="text-center mb-8">
           <m.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-            className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4"
+            className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[24px] border border-slate-200 bg-slate-50 text-slate-600"
           >
-            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            <FaShieldAlt className="text-2xl" />
           </m.div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">{title}</h1>
-          <p className="text-gray-600">{description}</p>
+          <div className="mb-3 flex justify-center">
+            <InfoBadge>hCaptcha</InfoBadge>
+          </div>
+          <h1 className="text-2xl font-semibold text-slate-900 mb-2">{title}</h1>
+          <p className="text-sm leading-6 text-slate-600">{description}</p>
         </div>
 
         {/* 验证区域 */}
@@ -210,10 +221,10 @@ const HCaptchaVerificationPageFrame: React.FC<HCaptchaVerificationPageFrameProps
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.8 }}
-                className="flex flex-col items-center space-y-3"
+                className="flex flex-col items-center space-y-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4"
               >
                 <LoadingSpinner />
-                <p className="text-sm text-gray-600">正在验证中...</p>
+                <p className="text-sm text-slate-600">正在验证中...</p>
               </m.div>
             )}
           </AnimatePresence>
@@ -225,15 +236,15 @@ const HCaptchaVerificationPageFrame: React.FC<HCaptchaVerificationPageFrameProps
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className={`p-4 rounded-lg border-2 ${
+                className={`rounded-2xl border p-4 ${
                   verificationResult.success
-                    ? 'bg-green-50 border-green-200'
-                    : 'bg-red-50 border-red-200'
+                    ? 'border-emerald-200 bg-emerald-50/80'
+                    : 'border-rose-200 bg-rose-50/80'
                 }`}
               >
                 <div className="flex items-start space-x-3">
                   <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
-                    verificationResult.success ? 'bg-green-500' : 'bg-red-500'
+                    verificationResult.success ? 'bg-emerald-500' : 'bg-rose-500'
                   }`}>
                     {verificationResult.success ? (
                       <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -247,12 +258,12 @@ const HCaptchaVerificationPageFrame: React.FC<HCaptchaVerificationPageFrameProps
                   </div>
                   <div className="flex-1">
                     <h3 className={`font-semibold ${
-                      verificationResult.success ? 'text-green-800' : 'text-red-800'
+                      verificationResult.success ? 'text-emerald-800' : 'text-rose-800'
                     }`}>
                       {verificationResult.success ? '验证成功' : '验证失败'}
                     </h3>
                     <p className={`text-sm mt-1 ${
-                      verificationResult.success ? 'text-green-700' : 'text-red-700'
+                      verificationResult.success ? 'text-emerald-700' : 'text-rose-700'
                     }`}>
                       {verificationResult.message}
                     </p>
@@ -261,22 +272,22 @@ const HCaptchaVerificationPageFrame: React.FC<HCaptchaVerificationPageFrameProps
                     {verificationResult.details && (
                       <div className="mt-3 space-y-1">
                         {verificationResult.score !== undefined && (
-                          <p className="text-xs text-gray-600">
+                          <p className="text-xs text-slate-600">
                             验证分数: {verificationResult.score}
                           </p>
                         )}
                         {verificationResult.timestamp && (
-                          <p className="text-xs text-gray-600">
+                          <p className="text-xs text-slate-600">
                             验证时间: {new Date(verificationResult.timestamp).toLocaleString()}
                           </p>
                         )}
                         {verificationResult.details.hostname && (
-                          <p className="text-xs text-gray-600">
+                          <p className="text-xs text-slate-600">
                             主机名: {verificationResult.details.hostname}
                           </p>
                         )}
                         {verificationResult.details.error_codes && verificationResult.details.error_codes.length > 0 && (
-                          <p className="text-xs text-red-600">
+                          <p className="text-xs text-rose-600">
                             错误代码: {verificationResult.details.error_codes.join(', ')}
                           </p>
                         )}
@@ -295,15 +306,15 @@ const HCaptchaVerificationPageFrame: React.FC<HCaptchaVerificationPageFrameProps
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="p-4 bg-red-50 border border-red-200 rounded-lg"
+                className="rounded-2xl border border-rose-200 bg-rose-50/80 p-4"
               >
                 <div className="flex items-start space-x-3">
-                  <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5 text-rose-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <div>
-                    <h3 className="font-semibold text-red-800">验证错误</h3>
-                    <p className="text-sm text-red-700 mt-1">{error}</p>
+                    <h3 className="font-semibold text-rose-800">验证错误</h3>
+                    <p className="text-sm text-rose-700 mt-1">{error}</p>
                   </div>
                 </div>
               </m.div>
@@ -311,11 +322,11 @@ const HCaptchaVerificationPageFrame: React.FC<HCaptchaVerificationPageFrameProps
           </AnimatePresence>
 
           {/* 操作按钮 */}
-          <div className="flex space-x-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             {backAction && (
               <button
                 onClick={backAction.onBack}
-                className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-medium transition-colors"
+                className={`flex-1 ${logShareSecondaryButtonClass}`}
               >
                 {backAction.label}
               </button>
@@ -324,7 +335,7 @@ const HCaptchaVerificationPageFrame: React.FC<HCaptchaVerificationPageFrameProps
             {(error || (verificationResult && !verificationResult.success)) && (
               <button
                 onClick={handleRetry}
-                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+                className={`flex-1 ${logSharePrimaryButtonClass}`}
               >
                 重新验证
               </button>
@@ -333,7 +344,7 @@ const HCaptchaVerificationPageFrame: React.FC<HCaptchaVerificationPageFrameProps
             {verificationResult?.success && (
               <button
                 onClick={() => window.location.reload()}
-                className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                className={`flex-1 ${logSharePrimaryButtonClass}`}
               >
                 继续
               </button>
@@ -342,12 +353,14 @@ const HCaptchaVerificationPageFrame: React.FC<HCaptchaVerificationPageFrameProps
         </div>
 
         {/* 底部信息 */}
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <p className="text-xs text-gray-500 text-center">
+        <div className="mt-8 pt-6 border-t border-slate-200">
+          <p className="text-xs text-slate-500 text-center">
             此验证由 hCaptcha 提供技术支持
           </p>
         </div>
-      </m.div>
+          </InfoPanel>
+        </m.div>
+      </InfoQueryShell>
     </m.div>
   );
 };

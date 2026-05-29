@@ -493,23 +493,26 @@ const XiaohongshuDemo: React.FC = () => {
 
   return (
     <div 
-      className={`min-h-screen ${theme === 'dark' ? 'bg-[#1A1A1A]' : 'bg-white'} transition-colors duration-300`}
+      className={`min-h-screen ${theme === 'dark' ? 'bg-[#111827]' : 'bg-slate-50'} transition-colors duration-300`}
       style={{
         ['--primary-color' as any]: '#FF2442',
         ['--primary-hover' as any]: '#FF507A',
-        ['--bg-color' as any]: theme === 'dark' ? '#1A1A1A' : '#FFFFFF',
-        ['--secondary-bg' as any]: theme === 'dark' ? '#2A2A2A' : '#F8F8F8',
+        ['--bg-color' as any]: theme === 'dark' ? '#111827' : '#FFFFFF',
+        ['--secondary-bg' as any]: theme === 'dark' ? '#1F2937' : '#F8FAFC',
         ['--text-primary' as any]: theme === 'dark' ? '#EFEFEF' : '#333333',
         ['--text-secondary' as any]: theme === 'dark' ? '#AAAAAA' : '#666666',
         ['--text-light' as any]: theme === 'dark' ? '#777777' : '#999999',
-        ['--border-color' as any]: theme === 'dark' ? '#333333' : '#EEEEEE',
-        ['--shadow' as any]: theme === 'dark' ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.08)',
-        ['--shadow-hover' as any]: theme === 'dark' ? '0 8px 24px rgba(0,0,0,0.5)' : '0 8px 24px rgba(0,0,0,0.15)',
+        ['--border-color' as any]: theme === 'dark' ? '#334155' : '#E2E8F0',
+        ['--shadow' as any]: theme === 'dark' ? '0 18px 60px rgba(0,0,0,0.22)' : '0 18px 60px rgba(15,23,42,0.06)',
+        ['--shadow-hover' as any]: theme === 'dark' ? '0 22px 70px rgba(0,0,0,0.34)' : '0 22px 70px rgba(15,23,42,0.1)',
       }}
     >
       {/* 顶部导航栏 */}
-      <header className="fixed top-0 left-0 right-0 z-[1000] h-[60px] px-5 bg-white/90 dark:bg-[#1A1A1A]/90 backdrop-blur-md border-b"
-        style={{ borderBottomColor: 'var(--border-color)' }}>
+      <header className="fixed top-0 left-0 right-0 z-[1000] h-[60px] px-5 border-b shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl"
+        style={{
+          backgroundColor: theme === 'dark' ? 'rgba(17,24,39,0.88)' : 'rgba(255,255,255,0.88)',
+          borderBottomColor: 'var(--border-color)'
+        }}>
         <div className="h-full flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center mr-5 gap-2">
@@ -571,15 +574,16 @@ const XiaohongshuDemo: React.FC = () => {
             {/* 主题切换按钮 */}
             <button
               onClick={toggleTheme}
-              className="w-9 h-9 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-110"
-              style={{ backgroundColor: 'var(--secondary-bg)' }}
+              className="w-9 h-9 rounded-2xl border flex items-center justify-center transition-all duration-300 hover:border-slate-300 hover:bg-white"
+              style={{ backgroundColor: 'var(--secondary-bg)', borderColor: 'var(--border-color)' }}
             >
               {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
             </button>
 
             {/* 用户头像 */}
-            <div className="w-9 h-9 rounded-full flex items-center justify-center bg-gradient-to-br from-[#FF2442] to-[#FF8C00] cursor-pointer transition-transform duration-300 hover:scale-110">
-              <User className="w-5 h-5 text-white" />
+            <div className="w-9 h-9 rounded-2xl border flex items-center justify-center cursor-pointer transition-transform duration-300 hover:scale-105"
+              style={{ backgroundColor: 'var(--secondary-bg)', borderColor: 'var(--border-color)' }}>
+              <User className="w-5 h-5 text-[#FF2442]" />
             </div>
           </div>
         </div>
@@ -588,7 +592,7 @@ const XiaohongshuDemo: React.FC = () => {
       {/* 分类标签栏 */}
       <div className="fixed top-[60px] left-0 right-0 z-[999] h-[50px] overflow-x-auto overflow-y-hidden scrollbar-hide"
         style={{
-          backgroundColor: 'var(--bg-color)',
+          backgroundColor: theme === 'dark' ? 'rgba(17,24,39,0.88)' : 'rgba(255,255,255,0.82)',
           borderBottom: '1px solid var(--border-color)'
         }}>
         <div className="flex items-center gap-8 px-5 h-full min-w-max">
@@ -627,9 +631,10 @@ const XiaohongshuDemo: React.FC = () => {
             {displayedCards.map((card, index) => (
               <div
                 key={card.id}
-                className="rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1 animate-[fadeIn_0.5s_ease-out]"
+                className="rounded-[22px] border overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1 animate-[fadeIn_0.5s_ease-out]"
                 style={{
                   backgroundColor: 'var(--bg-color)',
+                  borderColor: 'var(--border-color)',
                   boxShadow: 'var(--shadow)',
                   animationDelay: `${index * 0.1}s`
                 }}
@@ -714,7 +719,7 @@ const XiaohongshuDemo: React.FC = () => {
       {/* 底部导航栏 (仅移动端) */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-[1000] h-[60px] flex items-center justify-around pb-safe"
         style={{
-          backgroundColor: 'var(--bg-color)',
+          backgroundColor: theme === 'dark' ? 'rgba(17,24,39,0.88)' : 'rgba(255,255,255,0.88)',
           borderTop: '1px solid var(--border-color)'
         }}>
           {bottomNavItems.map(item => (
@@ -738,8 +743,8 @@ const XiaohongshuDemo: React.FC = () => {
           onClick={closeModal}
         >
           <div
-            className="relative w-full max-w-[900px] lg:max-w-[1200px] max-h-[90vh] rounded-xl overflow-hidden animate-[slideUp_0.3s_ease-out] flex flex-col lg:flex-row"
-            style={{ backgroundColor: 'var(--bg-color)' }}
+            className="relative w-full max-w-[900px] lg:max-w-[1200px] max-h-[90vh] rounded-[26px] border overflow-hidden animate-[slideUp_0.3s_ease-out] flex flex-col lg:flex-row"
+            style={{ backgroundColor: 'var(--bg-color)', borderColor: 'var(--border-color)' }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* 关闭按钮 */}

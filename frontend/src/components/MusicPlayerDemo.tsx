@@ -5,6 +5,13 @@ import {
   Pause, Share2, Music, Download, Clock, Settings, HelpCircle, LogOut,
   List, ChevronUp, X, Plus
 } from 'lucide-react';
+import { FaMusic } from 'react-icons/fa';
+import {
+  InfoBadge,
+  InfoPanel,
+  InfoQueryHero,
+  InfoQueryShell,
+} from './LogShareStyleScaffold';
 
 // 音乐播放器UI展示页面 (类似Spotify深色主题)
 const MusicPlayerDemo: React.FC = () => {
@@ -59,18 +66,27 @@ const MusicPlayerDemo: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#667eea] to-[#764ba2] py-10 px-4">
-      <div className="max-w-[1800px] mx-auto">
-        {/* 标题 */}
-        <h1 className="text-4xl font-bold text-center mb-12 text-white drop-shadow-lg">
-          音乐播放器 UI 展示
-        </h1>
+    <InfoQueryShell maxWidthClassName="max-w-[1800px]" className="space-y-6">
+      <InfoQueryHero
+        eyebrow="Demo Center"
+        title="音乐播放器 UI 展示"
+        description="8 个深色音乐应用屏幕，包含播放器、歌词、搜索、歌单和个人中心等高频场景。"
+        icon={FaMusic}
+        meta={
+          <>
+            <InfoBadge>8 个屏幕</InfoBadge>
+            <InfoBadge>深色播放器</InfoBadge>
+            <InfoBadge>波形与唱片动效</InfoBadge>
+          </>
+        }
+      />
 
+      <InfoPanel className="overflow-visible">
         {/* 手机屏幕网格 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* 第1屏: 首页 */}
           <div className="flex flex-col items-center">
-            <h3 className="text-base font-semibold text-white mb-4 drop-shadow">首页 - 发现音乐</h3>
+            <h3 className="text-base font-semibold text-slate-700 mb-4">首页 - 发现音乐</h3>
             <div className="relative w-[340px] h-[720px] rounded-[32px] border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[130px] h-[20px] bg-[#1a1a1a] rounded-b-[10px] z-10" />
               
@@ -162,7 +178,7 @@ const MusicPlayerDemo: React.FC = () => {
 
           {/* 第2屏: 播放器页面 */}
           <div className="flex flex-col items-center">
-            <h3 className="text-base font-semibold text-white mb-4 drop-shadow">播放器页面</h3>
+            <h3 className="text-base font-semibold text-slate-700 mb-4">播放器页面</h3>
             <div className="relative w-[340px] h-[720px] rounded-[32px] border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[130px] h-[20px] bg-[#1a1a1a] rounded-b-[10px] z-10" />
               
@@ -269,7 +285,7 @@ const MusicPlayerDemo: React.FC = () => {
 
           {/* 第3屏: 歌词页面 */}
           <div className="flex flex-col items-center">
-            <h3 className="text-base font-semibold text-white mb-4 drop-shadow">歌词页面</h3>
+            <h3 className="text-base font-semibold text-slate-700 mb-4">歌词页面</h3>
             <div className="relative w-[340px] h-[720px] rounded-[32px] border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[130px] h-[20px] bg-[#1a1a1a] rounded-b-[10px] z-10" />
               
@@ -348,7 +364,7 @@ const MusicPlayerDemo: React.FC = () => {
 
           {/* 第4屏: 播放列表 */}
           <div className="flex flex-col items-center">
-            <h3 className="text-base font-semibold text-white mb-4 drop-shadow">播放列表</h3>
+            <h3 className="text-base font-semibold text-slate-700 mb-4">播放列表</h3>
             <div className="relative w-[340px] h-[720px] rounded-[32px] border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[130px] h-[20px] bg-[#1a1a1a] rounded-b-[10px] z-10" />
               
@@ -419,7 +435,7 @@ const MusicPlayerDemo: React.FC = () => {
 
           {/* 第5屏: 搜索页面 */}
           <div className="flex flex-col items-center">
-            <h3 className="text-base font-semibold text-white mb-4 drop-shadow">搜索页面</h3>
+            <h3 className="text-base font-semibold text-slate-700 mb-4">搜索页面</h3>
             <div className="relative w-[340px] h-[720px] rounded-[32px] border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[130px] h-[20px] bg-[#1a1a1a] rounded-b-[10px] z-10" />
               
@@ -512,7 +528,7 @@ const MusicPlayerDemo: React.FC = () => {
 
           {/* 第6屏: 个人中心 */}
           <div className="flex flex-col items-center">
-            <h3 className="text-base font-semibold text-white mb-4 drop-shadow">个人中心</h3>
+            <h3 className="text-base font-semibold text-slate-700 mb-4">个人中心</h3>
             <div className="relative w-[340px] h-[720px] rounded-[32px] border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[130px] h-[20px] bg-[#1a1a1a] rounded-b-[10px] z-10" />
               
@@ -587,7 +603,7 @@ const MusicPlayerDemo: React.FC = () => {
 
           {/* 第7屏: 歌单详情 */}
           <div className="flex flex-col items-center">
-            <h3 className="text-base font-semibold text-white mb-4 drop-shadow">歌单详情</h3>
+            <h3 className="text-base font-semibold text-slate-700 mb-4">歌单详情</h3>
             <div className="relative w-[340px] h-[720px] rounded-[32px] border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[130px] h-[20px] bg-[#1a1a1a] rounded-b-[10px] z-10" />
               
@@ -663,7 +679,7 @@ const MusicPlayerDemo: React.FC = () => {
 
           {/* 第8屏: 迷你播放条 */}
           <div className="flex flex-col items-center">
-            <h3 className="text-base font-semibold text-white mb-4 drop-shadow">迷你播放条</h3>
+            <h3 className="text-base font-semibold text-slate-700 mb-4">迷你播放条</h3>
             <div className="relative w-[340px] h-[720px] rounded-[32px] border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[130px] h-[20px] bg-[#1a1a1a] rounded-b-[10px] z-10" />
               
@@ -741,7 +757,7 @@ const MusicPlayerDemo: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
+      </InfoPanel>
 
       {/* 动画样式 */}
       <style>{`
@@ -782,7 +798,7 @@ const MusicPlayerDemo: React.FC = () => {
           scrollbar-width: none;
         }
       `}</style>
-    </div>
+    </InfoQueryShell>
   );
 };
 

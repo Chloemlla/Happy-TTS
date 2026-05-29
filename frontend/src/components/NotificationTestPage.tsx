@@ -1,6 +1,34 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { FaBell, FaInfoCircle, FaLayerGroup, FaListOl } from 'react-icons/fa';
 import { useNotification } from './Notification';
+import {
+    InfoBadge,
+    InfoPanel,
+    InfoQueryHero,
+    InfoQueryShell,
+    InfoSectionTitle,
+    logShareSecondaryButtonClass,
+} from './LogShareStyleScaffold';
+
+const notificationMeta = {
+    success: {
+        label: 'SUCCESS',
+        className: 'border-emerald-200 bg-emerald-50/80 text-emerald-700',
+    },
+    error: {
+        label: 'ERROR',
+        className: 'border-rose-200 bg-rose-50/80 text-rose-700',
+    },
+    warning: {
+        label: 'WARNING',
+        className: 'border-amber-200 bg-amber-50/80 text-amber-700',
+    },
+    info: {
+        label: 'INFO',
+        className: 'border-sky-200 bg-sky-50/80 text-sky-700',
+    },
+};
 
 const NotificationTestPage: React.FC = () => {
     const { setNotification } = useNotification();
@@ -72,136 +100,129 @@ const NotificationTestPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-            <div className="max-w-4xl mx-auto px-4 py-8">
-                {/* 页面标题 */}
+        <InfoQueryShell maxWidthClassName="max-w-5xl" className="space-y-6">
+            <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
+                <InfoQueryHero
+                    eyebrow="Notification"
+                    title="通知系统测试页面"
+                    description="测试多通知队列、淡出效果、手动关闭和详细信息展示。"
+                    icon={FaBell}
+                    meta={
+                        <>
+                            <InfoBadge>单条通知</InfoBadge>
+                            <InfoBadge>批量通知</InfoBadge>
+                            <InfoBadge>快速队列</InfoBadge>
+                        </>
+                    }
+                />
+            </motion.div>
+
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <motion.div
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-center mb-8"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 }}
                 >
-                    <h1 className="text-3xl font-bold text-gray-800 mb-2">
-                        通知系统测试页面
-                    </h1>
-                    <p className="text-gray-600">
-                        测试多通知队列、淡出效果和交互功能
-                    </p>
+                    <InfoPanel className="h-full">
+                        <InfoSectionTitle
+                            icon={FaListOl}
+                            eyebrow="Single"
+                            title="单个通知测试"
+                            description="逐个触发不同类型的通知，检查样式、层级和关闭行为。"
+                        />
+                        <div className="space-y-3">
+                            {testNotifications.map((notification, index) => {
+                                const meta = notificationMeta[notification.type];
+                                return (
+                                    <button
+                                        key={notification.type}
+                                        onClick={() => handleSingleNotification(index)}
+                                        className="flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-left text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-white hover:text-slate-900"
+                                    >
+                                        <span>{notification.title}</span>
+                                        <span className={`rounded-full border px-2.5 py-1 text-[11px] font-semibold ${meta.className}`}>
+                                            {meta.label}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </InfoPanel>
                 </motion.div>
 
-                {/* 测试按钮区域 */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* 单个通知测试 */}
-                    <motion.div
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.1 }}
-                        className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6"
-                    >
-                        <h2 className="text-xl font-semibold text-gray-800 mb-4">
-                            单个通知测试
-                        </h2>
-                        <div className="space-y-3">
-                            {testNotifications.map((notification, index) => (
-                                <button
-                                    key={index}
-                                    onClick={() => handleSingleNotification(index)}
-                                    className={`w-full px-4 py-3 rounded-lg font-medium transition-all duration-200 hover:scale-105 ${
-                                        notification.type === 'success'
-                                            ? 'bg-green-500 hover:bg-green-600 text-white'
-                                            : notification.type === 'error'
-                                            ? 'bg-red-500 hover:bg-red-600 text-white'
-                                            : notification.type === 'warning'
-                                            ? 'bg-yellow-500 hover:bg-yellow-600 text-white'
-                                            : 'bg-blue-500 hover:bg-blue-600 text-white'
-                                    }`}
-                                >
-                                    {notification.type.toUpperCase()} 通知
-                                </button>
-                            ))}
-                        </div>
-                    </motion.div>
-
-                    {/* 批量通知测试 */}
-                    <motion.div
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.2 }}
-                        className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6"
-                    >
-                        <h2 className="text-xl font-semibold text-gray-800 mb-4">
-                            批量通知测试
-                        </h2>
-                        <div className="space-y-3">
-                            <button
-                                onClick={handleMultipleNotifications}
-                                className="w-full px-4 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg font-medium transition-all duration-200 hover:scale-105"
-                            >
-                                顺序显示所有通知 (0.5s间隔)
-                            </button>
-                            <button
-                                onClick={handleRapidNotifications}
-                                className="w-full px-4 py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-lg font-medium transition-all duration-200 hover:scale-105"
-                            >
-                                快速连续通知 (0.1s间隔)
-                            </button>
-                            <button
-                                onClick={handleSimpleNotifications}
-                                className="w-full px-4 py-3 bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white rounded-lg font-medium transition-all duration-200 hover:scale-105"
-                            >
-                                简单通知测试 (0.3s间隔)
-                            </button>
-                        </div>
-                    </motion.div>
-                </div>
-
-                {/* 功能说明 */}
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="mt-8 bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 p-6"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.2 }}
                 >
-                    <h2 className="text-xl font-semibold text-gray-800 mb-4">
-                        测试功能说明
-                    </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <h3 className="font-semibold text-gray-700 mb-2">通知队列功能</h3>
-                            <ul className="text-sm text-gray-600 space-y-1">
-                                <li>• 支持多个通知同时显示</li>
-                                <li>• 新通知出现时旧通知自动淡出</li>
-                                <li>• 每个通知独立计时和管理</li>
-                                <li>• 支持手动关闭通知</li>
+                    <InfoPanel className="h-full">
+                        <InfoSectionTitle
+                            icon={FaLayerGroup}
+                            eyebrow="Queue"
+                            title="批量通知测试"
+                            description="模拟连续入队、快速覆盖和简单消息等典型通知压力场景。"
+                        />
+                        <div className="space-y-3">
+                            <button onClick={handleMultipleNotifications} className={`${logShareSecondaryButtonClass} w-full`}>
+                                顺序显示所有通知 (0.5s 间隔)
+                            </button>
+                            <button onClick={handleRapidNotifications} className={`${logShareSecondaryButtonClass} w-full`}>
+                                快速连续通知 (0.1s 间隔)
+                            </button>
+                            <button onClick={handleSimpleNotifications} className={`${logShareSecondaryButtonClass} w-full`}>
+                                简单通知测试 (0.3s 间隔)
+                            </button>
+                        </div>
+                    </InfoPanel>
+                </motion.div>
+            </div>
+
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+            >
+                <InfoPanel>
+                    <InfoSectionTitle
+                        icon={FaInfoCircle}
+                        eyebrow="Behavior"
+                        title="测试功能说明"
+                        description="用于核对通知系统的队列策略、倒计时、关闭和详情展示。"
+                    />
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+                            <h3 className="font-semibold text-slate-800">通知队列功能</h3>
+                            <ul className="mt-3 space-y-2 text-sm text-slate-600">
+                                <li>支持多个通知同时显示</li>
+                                <li>新通知出现时旧通知自动淡出</li>
+                                <li>每个通知独立计时和管理</li>
+                                <li>支持手动关闭通知</li>
                             </ul>
                         </div>
-                        <div>
-                            <h3 className="font-semibold text-gray-700 mb-2">交互功能</h3>
-                            <ul className="text-sm text-gray-600 space-y-1">
-                                <li>• 鼠标悬停暂停倒计时</li>
-                                <li>• 进度条显示剩余时间</li>
-                                <li>• 点击关闭按钮手动关闭</li>
-                                <li>• 支持详细信息展示</li>
+                        <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+                            <h3 className="font-semibold text-slate-800">交互功能</h3>
+                            <ul className="mt-3 space-y-2 text-sm text-slate-600">
+                                <li>鼠标悬停暂停倒计时</li>
+                                <li>进度条显示剩余时间</li>
+                                <li>点击关闭按钮手动关闭</li>
+                                <li>支持详细信息展示</li>
                             </ul>
                         </div>
                     </div>
-                </motion.div>
+                </InfoPanel>
+            </motion.div>
 
-                {/* 返回按钮 */}
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.4 }}
-                    className="mt-8 text-center"
-                >
-                    <button
-                        onClick={() => window.history.back()}
-                        className="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 hover:scale-105"
-                    >
-                        返回上一页
-                    </button>
-                </motion.div>
-            </div>
-        </div>
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="flex justify-center"
+            >
+                <button onClick={() => window.history.back()} className={logShareSecondaryButtonClass}>
+                    返回上一页
+                </button>
+            </motion.div>
+        </InfoQueryShell>
     );
 };
 

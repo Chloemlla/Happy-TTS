@@ -1,6 +1,16 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingBag, Brain, Music, Wallet } from 'lucide-react';
+import { ArrowUpRight, Brain, Code2, Layers, Music, ShoppingBag, Wallet, Wand2 } from 'lucide-react';
+import { FaFlask, FaMobileAlt } from 'react-icons/fa';
+import {
+  InfoBadge,
+  InfoPanel,
+  InfoQueryHero,
+  InfoQueryShell,
+  InfoSectionTitle,
+  logShareSecondaryButtonClass,
+  logShareTileClass,
+} from './LogShareStyleScaffold';
 
 // Demo Hub - 所有UI展示页面的导航中心
 const DemoHub: React.FC = () => {
@@ -11,7 +21,6 @@ const DemoHub: React.FC = () => {
       description: '响应式瀑布流布局，浅色/深色主题切换，搜索筛选，无限滚动',
       path: '/demo/xiaohongshu',
       icon: ShoppingBag,
-      gradient: 'from-[#FF2442] to-[#FF8C00]',
       features: ['瀑布流布局', '主题切换', '搜索筛选', '无限滚动', '点赞收藏']
     },
     {
@@ -20,7 +29,6 @@ const DemoHub: React.FC = () => {
       description: '9个精美屏幕，Canvas动画效果，呼吸引导，成就系统',
       path: '/demo/meditation',
       icon: Brain,
-      gradient: 'from-[#667eea] to-[#764ba2]',
       features: ['Canvas动画', '呼吸引导', '成就徽章', '日历打卡', '场景库']
     },
     {
@@ -29,7 +37,6 @@ const DemoHub: React.FC = () => {
       description: '8个Spotify风格深色主题屏幕，黑胶唱片动画，波形可视化',
       path: '/demo/music',
       icon: Music,
-      gradient: 'from-[#1DB954] to-[#1ed760]',
       features: ['深色主题', '黑胶动画', '波形可视化', '歌词页面', '播放列表']
     },
     {
@@ -38,119 +45,109 @@ const DemoHub: React.FC = () => {
       description: '9个Bento风格屏幕，Canvas图表绘制，数据可视化',
       path: '/demo/finance',
       icon: Wallet,
-      gradient: 'from-[#4facfe] to-[#00f2fe]',
       features: ['Bento布局', 'Canvas图表', '预算管理', '账户管理', '数据分析']
     }
   ];
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 py-10 px-4">
-      <div className="max-w-7xl mx-auto">
-        {/* 标题 */}
-        <div className="text-center mb-12">
-          <h1 className="text-5xl font-bold text-gray-900 mb-4">
-            UI 展示中心
-          </h1>
-          <p className="text-xl text-gray-600">
-            精美的移动应用UI设计展示 · 使用 TypeScript + Tailwind CSS + lucide-react
-          </p>
-        </div>
+  const techStack = [
+    {
+      title: 'TypeScript',
+      description: '类型安全的组件结构与状态管理',
+      icon: Code2,
+    },
+    {
+      title: 'Tailwind CSS',
+      description: '统一响应式布局、间距和交互状态',
+      icon: Wand2,
+    },
+    {
+      title: 'Canvas 图表',
+      description: '用于动画、统计图和可视化演示',
+      icon: Layers,
+    },
+  ];
 
-        {/* Demo卡片网格 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+  return (
+    <InfoQueryShell maxWidthClassName="max-w-7xl" className="space-y-6">
+      <InfoQueryHero
+        eyebrow="Demo Center"
+        title="演示中心"
+        description="集中查看移动端 UI 演示页面。入口、卡片、标签和操作按钮已统一为 LogShare 的轻量玻璃面板风格。"
+        icon={FaFlask}
+        meta={
+          <>
+            <InfoBadge>4 个应用演示</InfoBadge>
+            <InfoBadge>移动端屏幕预览</InfoBadge>
+            <InfoBadge>TypeScript + Tailwind CSS</InfoBadge>
+          </>
+        }
+      />
+
+      <InfoPanel>
+        <InfoSectionTitle
+          icon={FaMobileAlt}
+          eyebrow="Showcase"
+          title="应用演示"
+          description="每个演示保留原有交互和手机画布内容，外层导航和信息承载统一为 LogShare 的清爽工具页视觉。"
+        />
+
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           {demos.map((demo) => (
             <Link
               key={demo.id}
               to={demo.path}
-              className="group relative bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2"
+              className={`${logShareTileClass} group flex h-full flex-col p-5 transition duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_22px_70px_rgba(15,23,42,0.08)]`}
             >
-              {/* 渐变背景头部 */}
-              <div className={`h-48 bg-gradient-to-br ${demo.gradient} relative overflow-hidden`}>
-                <div className="absolute inset-0 bg-black/10" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-                    <demo.icon className="w-12 h-12 text-white" />
-                  </div>
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex h-14 w-14 items-center justify-center rounded-[22px] border border-slate-200 bg-slate-50 text-slate-600 transition group-hover:border-slate-300 group-hover:text-slate-900">
+                  <demo.icon className="h-6 w-6" />
+                </div>
+                <div className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-slate-900">
+                  <ArrowUpRight className="h-4 w-4" />
                 </div>
               </div>
 
-              {/* 内容区 */}
-              <div className="p-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2 group-hover:text-indigo-600 transition-colors">
-                  {demo.name}
-                </h2>
-                <p className="text-gray-600 mb-4 leading-relaxed">
-                  {demo.description}
-                </p>
+              <div className="mt-5 flex flex-1 flex-col">
+                <h2 className="text-xl font-semibold text-slate-900">{demo.name}</h2>
+                <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">{demo.description}</p>
 
-                {/* 特性标签 */}
-                <div className="flex flex-wrap gap-2">
-                  {demo.features.map((feature, idx) => (
-                    <span
-                      key={idx}
-                      className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full group-hover:bg-indigo-100 group-hover:text-indigo-700 transition-colors"
-                    >
-                      {feature}
-                    </span>
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {demo.features.map((feature) => (
+                    <InfoBadge key={feature}>{feature}</InfoBadge>
                   ))}
                 </div>
 
-                {/* 查看按钮 */}
-                <div className="mt-6 flex items-center justify-between">
-                  <span className="text-indigo-600 font-semibold group-hover:translate-x-2 transition-transform">
-                    查看演示 →
-                  </span>
-                </div>
+                <span className={`${logShareSecondaryButtonClass} mt-6 w-fit`}>
+                  查看演示
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                </span>
               </div>
-
-              {/* 悬停效果装饰 */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-16 translate-x-16 group-hover:scale-150 transition-transform duration-500" />
             </Link>
           ))}
         </div>
+      </InfoPanel>
 
-        {/* 技术栈信息 */}
-        <div className="mt-16 bg-white rounded-2xl shadow-lg p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">
-            技术栈与特性
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
-                <span className="text-3xl text-white font-bold">TS</span>
+      <InfoPanel>
+        <InfoSectionTitle title="技术栈与特性" description="演示页面共享的实现基础和交互能力。" />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {techStack.map((item) => (
+            <div key={item.title} className={`${logShareTileClass} p-4`}>
+              <div className="flex h-11 w-11 items-center justify-center rounded-[18px] border border-slate-200 bg-slate-50 text-slate-500">
+                <item.icon className="h-5 w-5" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">TypeScript</h3>
-              <p className="text-gray-600 text-sm">类型安全的代码，提升开发效率</p>
+              <h3 className="mt-4 text-base font-semibold text-slate-900">{item.title}</h3>
+              <p className="mt-2 text-sm leading-6 text-slate-600">{item.description}</p>
             </div>
-            <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center">
-                <span className="text-2xl text-white">🎨</span>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Tailwind CSS</h3>
-              <p className="text-gray-600 text-sm">原子化CSS，快速构建现代UI</p>
-            </div>
-            <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center">
-                <span className="text-2xl text-white">📊</span>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Canvas 图表</h3>
-              <p className="text-gray-600 text-sm">丰富的数据可视化和动画效果</p>
-            </div>
-          </div>
+          ))}
         </div>
+      </InfoPanel>
 
-        {/* 返回首页 */}
-        <div className="mt-12 text-center">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300"
-          >
-            <span>←</span>
-            <span>返回首页</span>
-          </Link>
-        </div>
+      <div className="flex justify-center">
+        <Link to="/" className={logShareSecondaryButtonClass}>
+          返回首页
+        </Link>
       </div>
-    </div>
+    </InfoQueryShell>
   );
 };
 

@@ -1,6 +1,18 @@
 import React, { Suspense } from 'react';
+import { FaClipboard, FaKey, FaRobot, FaShieldAlt } from 'react-icons/fa';
 import { LoadingSpinner } from './LoadingSpinner';
 import getApiBaseUrl from '../api';
+import {
+  InfoBadge,
+  InfoPanel,
+  InfoQueryHero,
+  InfoQueryShell,
+  InfoSectionTitle,
+  logShareInputClass,
+  logSharePrimaryButtonClass,
+  logShareSecondaryButtonClass,
+  logShareTileClass,
+} from './LogShareStyleScaffold';
 
 // 懒加载 SmartHumanCheck 组件
 const ManualNonceSmartHumanCheck = React.lazy(() =>
@@ -90,94 +102,139 @@ const SmartHumanCheckTestPage: React.FC = () => {
   }, [nonceAction]);
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">SmartHumanCheck 测试页</h1>
-        <p className="text-gray-600 mt-2">完成滑块与行为收集后点击“提交验证”，自动向后端校验。</p>
-      </div>
+    <InfoQueryShell maxWidthClassName="max-w-4xl" className="space-y-6">
+      <InfoQueryHero
+        eyebrow="Human Check"
+        title="SmartHumanCheck 测试页"
+        description="完成滑块与行为采集后提交验证，并自动向后端校验生成的 token。"
+        icon={FaRobot}
+        meta={
+          <>
+            <InfoBadge>Nonce Challenge</InfoBadge>
+            <InfoBadge>PoW 难度 {nonceDifficulty || 0}</InfoBadge>
+            <InfoBadge tone={nonceKey ? 'emerald' : 'slate'}>{nonceKey ? 'Key 已下发' : '等待 Key'}</InfoBadge>
+          </>
+        }
+      />
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-2">
-        <div>
-          <label className="block text-sm text-gray-600 mb-1">Challenge Nonce</label>
-          <div className="flex gap-2">
+      <InfoPanel>
+        <InfoSectionTitle
+          icon={FaKey}
+          eyebrow="Challenge"
+          title="挑战参数"
+          description="建议使用后端下发的 nonce，保证前后端校验链路完整。"
+        />
+
+        <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+          <label className="block">
+            <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Challenge Nonce
+            </span>
             <input
-              className="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className={`${logShareInputClass} font-mono`}
               placeholder="用于与后端配合的随机挑战串"
               value={nonce}
               onChange={(e) => setNonce(e.target.value)}
             />
-            <button
-              onClick={fetchNonce}
-              disabled={nonceLoading}
-              className="px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg disabled:opacity-60 hover:bg-indigo-700"
-            >
-              {nonceLoading ? '获取中…' : '从后端获取'}
-            </button>
-          </div>
-          <p className="text-xs text-gray-500 mt-1">建议使用后端下发的 nonce 以完成完整校验流程。</p>
-          <p className="text-xs text-gray-500 mt-1">
-            V2 Key: {nonceKey ? '已下发' : '未获取'} · Action: {nonceAction || 'default'} · PoW: {nonceDifficulty || 0}
-          </p>
+          </label>
+          <button
+            onClick={fetchNonce}
+            disabled={nonceLoading}
+            className={`${logShareSecondaryButtonClass} h-[46px]`}
+          >
+            {nonceLoading ? '获取中...' : '从后端获取'}
+          </button>
         </div>
-      </div>
 
-      <Suspense fallback={<LoadingSpinner />}>
-        {nonce && nonceKey ? (
-          <ManualNonceSmartHumanCheck
-            challengeNonce={nonce}
-            challengeKey={nonceKey}
-            challengeAction={nonceAction || undefined}
-            challengeDifficulty={nonceDifficulty}
-            challengePowSalt={noncePowSalt || undefined}
-            onSuccess={async (t) => {
-              setToken(t);
-              setError('');
-              try {
-                await verifyToken(t);
-              } finally {
-                // 成功或失败后都获取新的 nonce，避免复用
-                await fetchNonce().catch(() => {});
-              }
-            }}
-            onFail={async (reason) => {
-              setError(reason || '验证失败');
-              setVerifyMsg('');
-              // 验证失败时也刷新 nonce，避免旧的 nonce 被继续使用
-              await fetchNonce().catch(() => {});
-            }}
-          />
-        ) : (
-          <LoadingSpinner />
-        )}
-      </Suspense>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <InfoBadge>Action: {nonceAction || 'default'}</InfoBadge>
+          <InfoBadge>V2 Key: {nonceKey ? '已下发' : '未获取'}</InfoBadge>
+          <InfoBadge>PoW: {nonceDifficulty || 0}</InfoBadge>
+        </div>
+      </InfoPanel>
 
-      <div className="mt-6">
-        <div className="flex items-center gap-2 mb-2">
-          <h2 className="text-lg font-semibold">Token</h2>
-          {token && (
+      <InfoPanel>
+        <InfoSectionTitle
+          icon={FaShieldAlt}
+          eyebrow="Widget"
+          title="验证组件"
+          description="组件完成验证后会自动触发后端校验，并刷新挑战参数避免复用。"
+        />
+        <div className={`${logShareTileClass} p-4`}>
+          <Suspense fallback={<div className="flex min-h-[180px] items-center justify-center"><LoadingSpinner /></div>}>
+            {nonce && nonceKey ? (
+              <ManualNonceSmartHumanCheck
+                challengeNonce={nonce}
+                challengeKey={nonceKey}
+                challengeAction={nonceAction || undefined}
+                challengeDifficulty={nonceDifficulty}
+                challengePowSalt={noncePowSalt || undefined}
+                onSuccess={async (t) => {
+                  setToken(t);
+                  setError('');
+                  try {
+                    await verifyToken(t);
+                  } finally {
+                    // 成功或失败后都获取新的 nonce，避免复用
+                    await fetchNonce().catch(() => {});
+                  }
+                }}
+                onFail={async (reason) => {
+                  setError(reason || '验证失败');
+                  setVerifyMsg('');
+                  // 验证失败时也刷新 nonce，避免旧的 nonce 被继续使用
+                  await fetchNonce().catch(() => {});
+                }}
+              />
+            ) : (
+              <div className="flex min-h-[180px] items-center justify-center">
+                <LoadingSpinner />
+              </div>
+            )}
+          </Suspense>
+        </div>
+      </InfoPanel>
+
+      <InfoPanel>
+        <InfoSectionTitle
+          icon={FaClipboard}
+          eyebrow="Result"
+          title="Token"
+          description="验证通过后会在这里输出 Base64 token，便于复制和后续调试。"
+          action={token && (
             <button
               onClick={() => navigator.clipboard.writeText(token).catch(() => {})}
-              className="px-3 py-1 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              className={logSharePrimaryButtonClass}
             >
               复制
             </button>
           )}
-        </div>
+        />
         <textarea
-          className="w-full h-40 p-3 border rounded-lg font-mono text-xs"
+          className={`${logShareInputClass} h-40 font-mono text-xs`}
           readOnly
           value={token}
           placeholder="验证通过后，这里会显示生成的 token（Base64）"
         />
-        {error && <div className="mt-2 text-sm text-red-600">错误：{error}</div>}
-        {verifyMsg && (
-          <div className="mt-2 text-sm">
-            <span className={verifyMsg.includes('成功') ? 'text-green-600' : 'text-yellow-700'}>{verifyMsg}</span>
-            {verifying && <span className="ml-2 text-gray-500">(验证中…)</span>}
+        {error && (
+          <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50/80 px-4 py-3 text-sm text-rose-700">
+            错误：{error}
           </div>
         )}
-      </div>
-    </div>
+        {verifyMsg && (
+          <div
+            className={`mt-3 rounded-2xl border px-4 py-3 text-sm ${
+              verifyMsg.includes('成功')
+                ? 'border-emerald-200 bg-emerald-50/80 text-emerald-700'
+                : 'border-amber-200 bg-amber-50/80 text-amber-700'
+            }`}
+          >
+            {verifyMsg}
+            {verifying && <span className="ml-2 text-slate-500">(验证中...)</span>}
+          </div>
+        )}
+      </InfoPanel>
+    </InfoQueryShell>
   );
 };
 
