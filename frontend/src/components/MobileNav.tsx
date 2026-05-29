@@ -240,7 +240,9 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
       id: 'tools',
       title: '实用工具',
       items: [
-        { to: '/logshare', label: '日志分享', icon: FaShareAlt, color: 'text-blue-500' },
+        ...(isAdmin
+          ? [{ to: '/logshare', label: '日志分享', icon: FaShareAlt, color: 'text-blue-500' }]
+          : []),
         ...(canUseTranslation
           ? [{ to: '/translate', label: '文本翻译', icon: FaLanguage, color: 'text-violet-500' }]
           : []),
@@ -251,8 +253,12 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
         { to: '/age-calculator', label: '年龄计算', icon: FaBirthdayCake, color: 'text-pink-500' },
         { to: '/markdown-export', label: 'MD 导出', icon: FaFileAlt, color: 'text-gray-600' },
         { to: '/github-billing', label: 'GitHub 账单', icon: FaDollarSign, color: 'text-green-600' },
-        { to: '/modlist', label: '模组列表', icon: FaList, color: 'text-indigo-400' },
-        { to: '/outemail', label: '外部邮件', icon: FaEnvelope, color: 'text-blue-400' },
+        ...(isAdmin
+          ? [
+            { to: '/modlist', label: '模组列表', icon: FaList, color: 'text-indigo-400' },
+            { to: '/outemail', label: '外部邮件', icon: FaEnvelope, color: 'text-blue-400' },
+          ]
+          : []),
       ],
     },
     {
@@ -276,17 +282,19 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
         { to: '/policy', label: '服务条款', icon: FaGavel, color: 'text-slate-400' },
       ],
     },
-    {
-      id: 'demo',
-      title: '测试与演示',
-      items: [
-        { to: '/demo', label: '演示中心', icon: FaFlask, color: 'text-purple-400', matchChildren: true },
-        { to: '/smart-human-check', label: '人机验证', icon: FaBug, color: 'text-rose-400' },
-        { to: '/notification-test', label: '通知测试', icon: FaEnvelope, color: 'text-blue-300' },
-        { to: '/hcaptcha-verify', label: 'hCaptcha', icon: FaLockOpen, color: 'text-gray-400' },
-      ],
-    },
-  ], [canUseTranslation]);
+    ...(isAdmin
+      ? [{
+        id: 'demo',
+        title: '测试与演示',
+        items: [
+          { to: '/demo', label: '演示中心', icon: FaFlask, color: 'text-purple-400', matchChildren: true },
+          { to: '/smart-human-check', label: '人机验证', icon: FaBug, color: 'text-rose-400' },
+          { to: '/notification-test', label: '通知测试', icon: FaEnvelope, color: 'text-blue-300' },
+          { to: '/hcaptcha-verify', label: 'hCaptcha', icon: FaLockOpen, color: 'text-gray-400' },
+        ],
+      }]
+      : []),
+  ], [canUseTranslation, isAdmin]);
 
   const adminGroups = useMemo<NavGroup[]>(() => [
     {
