@@ -94,6 +94,8 @@ const CONTENT_TYPE_EXTENSIONS = {
   'image/svg+xml': '.svg',
 };
 
+const IMAGE_EXTENSIONS = new Set(Object.values(CONTENT_TYPE_EXTENSIONS));
+
 function getOutputRoot() {
   const arg = process.argv[2];
   return path.resolve(process.cwd(), arg || 'sqzx-course-images');
@@ -110,10 +112,12 @@ function sanitizeFileName(value) {
 function getUrlBaseName(url) {
   const parsed = new URL(url);
   const base = path.posix.basename(parsed.pathname) || 'image';
-  const ext = path.posix.extname(base);
+  const ext = path.posix.extname(base).toLowerCase();
+  const urlExtension = IMAGE_EXTENSIONS.has(ext) ? ext : '';
+
   return {
-    baseName: sanitizeFileName(ext ? base.slice(0, -ext.length) : base),
-    urlExtension: ext && ext.length <= 6 ? ext.toLowerCase() : '',
+    baseName: sanitizeFileName(urlExtension ? base.slice(0, -urlExtension.length) : base),
+    urlExtension,
   };
 }
 
