@@ -51,7 +51,7 @@ export class IpInfoController {
   static async reportClientIp(req: Request, res: Response): Promise<void> {
     try {
       const { ip: clientReportedIP, userAgent, url, referrer, timestamp } = req.body || {};
-      const normalizedClientIp = clientReportedIP ? normalizeIpAddress(clientReportedIP) : undefined;
+      const normalizedClientIp = clientReportedIP ? normalizeIpAddress(clientReportedIP) ?? undefined : undefined;
       if (clientReportedIP && !normalizedClientIp) {
         res.status(400).json({ error: "无效的IP地址" });
         return;
@@ -122,4 +122,3 @@ export class IpInfoController {
     });
   }
 }
-
