@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/License-Custom-red.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-24%2B-339933?logo=node.js)](https://nodejs.org/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 [![Express](https://img.shields.io/badge/Express-5.x-000000?logo=express)](https://expressjs.com/)
 
 > [!CAUTION]
@@ -15,7 +15,7 @@
 > [!IMPORTANT]
 > 本项目的 Docker 镜像托管在 [Docker Hub: happyclo/tts-node](https://hub.docker.com/r/happyclo/tts-node/tags)，请始终使用最新版本的镜像以获得安全更新和功能修复。
 
-一个功能丰富的全栈 Web 应用平台，以文本转语音（TTS）为核心，集成用户认证、安全防护、资源商店、数据分析、实用工具、娱乐游戏、管理后台等数十个功能模块。后端基于 Node.js + Express 5 + MongoDB，前端基于 React 19 + Vite 7 + Tailwind CSS，支持 Docker 一键部署。
+一个功能丰富的全栈 Web 应用平台，以文本转语音（TTS）为核心，集成用户认证、安全防护、资源商店、数据分析、实用工具、娱乐游戏、管理后台等数十个功能模块。后端基于 Node.js + Express 5 + MongoDB，前端基于 React 19 + Vite 8 + Tailwind CSS 4，支持 Docker 一键部署。
 
 ---
 
@@ -62,7 +62,7 @@ Synapse 是一个综合性 Web 应用平台，围绕文本转语音核心功能�
 - 🌐 WebSocket 实时通信
 - 🐳 多阶段 Docker 构建，支持代码混淆
 - 📚 内置 Swagger/OpenAPI 文档 + Docusaurus 文档站
-- ☁️ 可选 Cloudflare Worker 边缘部署
+- ☁️ 可选 Cloudflare Worker 分发包
 
 ---
 
@@ -251,7 +251,7 @@ Synapse 是一个综合性 Web 应用平台，围绕文本转语音核心功能�
 | 模块 | 说明 |
 |------|------|
 | LibreChat 集成 | LibreChat 镜像版本监控与数据同步 |
-| Cloudflare Worker | 可选的边缘计算部署（`worker/` 目录） |
+| Cloudflare Worker | 可选的边缘计算部署分发包（`worker.zip`） |
 | IPFS 集成 | 分布式文件存储上传 |
 | Svix Webhook | 企业级 Webhook 事件分发 |
 | Resend 邮件 | 现代邮件发送 API 集成 |
@@ -280,9 +280,9 @@ Synapse 是一个综合性 Web 应用平台，围绕文本转语音核心功能�
 
 | 类别 | 技术 |
 |------|------|
-| 运行时 | Node.js 18+ |
+| 运行时 | Node.js 24+ |
 | 框架 | Express.js 5.x |
-| 语言 | TypeScript 5.9 |
+| 语言 | TypeScript 6.0 |
 | 数据库 | MongoDB 7 + Mongoose 9 |
 | 缓存 | Redis 5 |
 | 认证 | JWT (jsonwebtoken) + WebAuthn (@simplewebauthn) + TOTP (speakeasy) |
@@ -306,10 +306,10 @@ Synapse 是一个综合性 Web 应用平台，围绕文本转语音核心功能�
 | 类别 | 技术 |
 |------|------|
 | 框架 | React 19 |
-| 构建工具 | Vite 7 |
-| 语言 | TypeScript 5.9 |
+| 构建工具 | Vite 8 |
+| 语言 | TypeScript 6.0 |
 | 路由 | React Router 7 |
-| 样式 | Tailwind CSS 3 + PostCSS |
+| 样式 | Tailwind CSS 4 + PostCSS |
 | 动画 | Framer Motion 12 |
 | UI 组件 | Radix UI, Lucide React, Heroicons, React Icons |
 | 图表 | Chart.js 4 + react-chartjs-2 |
@@ -331,7 +331,7 @@ Synapse 是一个综合性 Web 应用平台，围绕文本转语音核心功能�
 | 包管理 | pnpm |
 | 代码混淆 | javascript-obfuscator |
 | 文档站 | Docusaurus |
-| 边缘计算 | Cloudflare Workers (Wrangler) |
+| 边缘计算 | Cloudflare Workers 分发包（可选） |
 | CI/CD | GitHub Actions |
 
 ---
@@ -414,14 +414,6 @@ Synapse/
 │   ├── vitest.config.ts              # Vitest 测试配置
 │   └── package.json
 │
-├── worker/                           # Cloudflare Worker（可选边缘部署）
-│   ├── src/
-│   │   ├── index.ts                  # Worker 入口
-│   │   ├── routes/                   # Worker 路由
-│   │   ├── middleware/               # Worker 中间件
-│   │   └── lib/                      # Worker 工具库
-│   └── wrangler.toml                 # Wrangler 配置
-│
 ├── data/                             # 运行时数据目录
 │   ├── users.json                    # 用户数据（文件存储模式）
 │   ├── blocked-ips.json              # IP 封禁列表
@@ -434,6 +426,7 @@ Synapse/
 ├── secrets/                          # 签名密钥
 ├── Dockerfile                        # 多阶段 Docker 构建
 ├── docker-compose.yml                # Docker Compose 编排
+├── worker.zip                        # Cloudflare Worker 分发包（可选）
 ├── package.json                      # 后端依赖与脚本
 ├── tsconfig.json                     # TypeScript 配置
 ├── jest.config.js                    # Jest 测试配置
@@ -450,8 +443,8 @@ Synapse/
 
 ### 前置要求
 
-- Node.js 18.20.8+
-- pnpm（推荐）或 npm
+- Node.js 24+（与 Docker 镜像运行时一致）
+- pnpm 11.x（推荐）或 npm
 - MongoDB（可选，支持文件存储模式）
 - Redis（可选，用于缓存加速）
 
@@ -520,8 +513,6 @@ docker build -t Synapse:latest .
 # 运行容器
 docker run -d \
   -p 3000:3000 \
-  -p 3001:3001 \
-  -p 3002:3002 \
   --env-file .env \
   -v ./data:/app/data \
   Synapse:latest
@@ -535,6 +526,8 @@ Docker 镜像采用 4 阶段构建：
 2. **docs-builder** - Docusaurus 文档站构建
 3. **backend-builder** - TypeScript 编译 + 代码混淆 + OpenAPI 生成
 4. **production** - 精简运行时镜像（Alpine + 生产依赖）
+
+生产镜像默认只监听 `3000` 端口，后端 Express 在同一端口提供 API、前端 SPA、Swagger UI 和 Docusaurus 文档站。`3001` 和 `3002` 仅用于本地开发模式。
 
 ---
 
@@ -633,8 +626,8 @@ VITE_OUTEMAIL_ENABLED=true                      # 是否启用外部邮件功能
 ### 在线文档
 
 - **Swagger UI**: `http://localhost:3000/api-docs` — 交互式 API 文档界面
-- **OpenAPI JSON**: `http://localhost:3000/openapi.json` — OpenAPI 3.0 规范文件
-- **Docusaurus 文档站**: `http://localhost:3002` — 项目详细文档与博客
+- **OpenAPI JSON**: `http://localhost:3000/api/openapi.json` — OpenAPI 3.0 规范文件
+- **Docusaurus 文档站**: 开发模式为 `http://localhost:3002`，生产镜像中为 `http://localhost:3000/docs/`
 
 ### 主要 API 端点一览
 
@@ -790,7 +783,7 @@ pnpm run docker:build:minimal  # 最小化 Docker 构建（2GB 内存限制）
 
 # ========== 生产 ==========
 pnpm run prod               # 构建并启动生产服务器
-pnpm start                  # 启动生产服务器（后端 + 前端静态 + 文档站）
+pnpm start                  # 启动生产服务器（3000 端口提供 API + 前端 + 文档站）
 ```
 
 ### 前端脚本
@@ -945,9 +938,7 @@ services:
   app:
     image: happyclo/tts-node:latest
     ports:
-      - "3000:3000"   # 后端 API
-      - "3001:3001"   # 前端静态文件
-      - "3002:3002"   # 文档站
+      - "3000:3000"   # API + 前端 SPA + Swagger UI + 文档站
     environment:
       - NODE_ENV=production
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -963,18 +954,20 @@ docker-compose up -d
 
 ### 端口说明
 
-| 端口 | 服务 |
-|------|------|
-| 3000 | 后端 API + Swagger UI |
-| 3001 | 前端 React 应用（serve 静态文件） |
-| 3002 | Docusaurus 文档站 |
+| 场景 | 端口 | 服务 |
+|------|------|------|
+| 开发 | 3000 | 后端 API + Swagger UI |
+| 开发 | 3001 | 前端 React 应用（Vite HMR） |
+| 开发 | 3002 | Docusaurus 文档站 |
+| 生产/Docker | 3000 | API + 前端 SPA + Swagger UI + Docusaurus 文档站 |
 
 ### Cloudflare Worker 部署（可选）
 
 > [!NOTE]
-> Cloudflare Worker 为可选的边缘部署方案，适用于需要全球低延迟访问的场景。需要 Cloudflare 账户和 Wrangler CLI。
+> Cloudflare Worker 为可选的边缘部署方案，当前仓库提供 `worker.zip` 分发包。解压后按其中的 Wrangler 配置部署。
 
 ```bash
+Expand-Archive .\worker.zip -DestinationPath .\worker
 cd worker
 npm install
 npx wrangler dev     # 本地开发
