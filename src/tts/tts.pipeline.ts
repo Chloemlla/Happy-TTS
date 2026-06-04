@@ -189,6 +189,10 @@ export class TtsSubmissionPipeline {
     await this.validateTurnstile(context.input.cfToken, context.ip);
     await this.validateContentPolicy(requestPayload.text);
 
+    if (!userId && fingerprint === "unknown") {
+      throw new TtsRequestError(400, "匿名生成需要设备指纹", "TTS_FINGERPRINT_REQUIRED");
+    }
+
     const contentHash = this.ttsService.generateContentHash(
       requestPayload.text,
       requestPayload.voice,

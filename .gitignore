@@ -23,7 +23,6 @@ scripts\inspect.json
 tts-node_*.sh
 tts-node_*.json
 .agents/
-frontend/docs/build-simple/
 skills-lock.json
 # 允许特定环境文件
 !**/pnpm-lock.yaml
@@ -108,7 +107,9 @@ logs/
 # 静态文件目录（如果需要版本控制，请删除此行）
 
 frontend/static/
-!frontend/docs/static/img/
+frontend/docs/*
+!frontend/docs/.gitignore
+!frontend/docs/README.md
 
 # 本地开发配置
 *.local

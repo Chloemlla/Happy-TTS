@@ -1,6 +1,6 @@
 import { wsService } from "../services/wsService";
 import logger from "../utils/logger";
-import { generationHistoryStore } from "./tts.history";
+import { generationHistoryStore, redactTtsTextForStorage } from "./tts.history";
 import type { GenerationHistoryStore, QuotaLedger } from "./tts.ports";
 import { quotaLedger } from "./tts.quota";
 import { TtsService } from "./tts.service";
@@ -128,6 +128,13 @@ export class TtsQueue {
         "音频已生成完成，可直接播放或下载。",
       );
 
+      await ttsStorage.updateJob(job.taskId, {
+        request: {
+          ...job.request,
+          text: redactTtsTextForStorage(job.request.text),
+        },
+      });
+
       await ttsStorage.completeJob(
         job.taskId,
         {
@@ -163,6 +170,12 @@ export class TtsQueue {
       }
 
       const nextAction = this.callbacks.buildNextAction("retry", "稍后重试", "生成失败，请稍后重试。");
+      await ttsStorage.updateJob(job.taskId, {
+        request: {
+          ...job.request,
+          text: redactTtsTextForStorage(job.request.text),
+        },
+      });
       await ttsStorage.failJob(job.taskId, message, usage ?? undefined, nextAction);
 
       if (job.userId) {

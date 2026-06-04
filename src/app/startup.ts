@@ -161,32 +161,25 @@ export async function startServer(app: Express): Promise<void> {
   const diagnostics = await runStartupDiagnostics(compileTimeConfig);
   logger.info("[Config] 启动配置诊断完成", diagnostics);
 
+  await checkStartupFilePermissions();
+  await initializeStorage();
+  logger.info(`当前生成码: ${config.generationCode || "未配置"}`);
+  UserStorage.initializeMongoListener();
+
+  try {
+    schedulerService.start();
+    logger.info("[启动] 定时任务服务已启动");
+  } catch (error) {
+    logger.warn("[启动] 定时任务服务启动失败，继续启动", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
   const port = Number(config.port);
-  const server = app.listen(port, "::", async () => {
+  const server = app.listen(port, "::", () => {
     wsService.init(server);
 
     logger.info(`服务器运行在 http://[::]:${port} (IPv4/IPv6 双栈)`);
     logger.info(`生成音频目录: ${path.join(__dirname, "../finish")}`);
-
-    await checkStartupFilePermissions();
-
-    try {
-      await initializeStorage();
-      logger.info(`当前生成码: ${config.generationCode || "未配置"}`);
-      UserStorage.initializeMongoListener();
-
-      try {
-        schedulerService.start();
-        logger.info("[启动] 定时任务服务已启动");
-      } catch (error) {
-        logger.warn("[启动] 定时任务服务启动失败，继续启动", {
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    } catch (error) {
-      logger.error("[启动] 数据库初始化失败", {
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
   });
 }

@@ -133,14 +133,6 @@ const frontendCandidates = [
   path.resolve(process.cwd(), "frontend/dist"),
 ].filter(Boolean) as string[];
 
-const docsCandidates = [
-  process.env.DOCS_DIST_DIR && path.resolve(process.env.DOCS_DIST_DIR),
-  join(__dirname, "../docs"),
-  join(__dirname, "../../docs"),
-  path.resolve(process.cwd(), "docs"),
-  path.resolve(process.cwd(), "frontend/docs/build"),
-].filter(Boolean) as string[];
-
 const ensureAudioDir = () => {
   if (!fs.existsSync(audioDir)) {
     fs.mkdirSync(audioDir, { recursive: true });
@@ -155,7 +147,7 @@ const applyNoCacheHeaders = (_req: Request, res: Response, next: NextFunction) =
   next();
 };
 
-// 不可变缓存策略：Vite/Docusaurus 都使用 [name].[hash].[ext] 命名，
+// 不可变缓存策略：Vite 使用 [name].[hash].[ext] 命名，
 // hashed 资源用 1 年 immutable；HTML 永远 no-cache 以便部署后立即拿到新 shell。
 const HASHED_FILE_RE = /\.[A-Za-z0-9_-]{6,}\.(?:js|mjs|cjs|css|woff2?|ttf|otf|eot|svg|png|jpe?g|gif|webp|avif|ico|map)$/i;
 
@@ -441,23 +433,6 @@ export function registerStaticRoutes(app: Express): void {
       },
     }),
   );
-
-  const resolvedDocsPath = resolveStaticDirectory(docsCandidates, ["index.html"]);
-  if (resolvedDocsPath) {
-    logger.info(`[Docs] Serving static files from: ${resolvedDocsPath}`);
-    app.get("/docs", (_req, res) => {
-      res.redirect(301, "/docs/");
-    });
-    app.use(
-      "/docs",
-      staticFileLimiter,
-      express.static(resolvedDocsPath, {
-        setHeaders: (res, filePath) => applyStaticCacheHeaders(res, filePath),
-      }),
-    );
-  } else {
-    logger.warn(`[Docs] No docs build found. Tried: ${docsCandidates.join(" | ")}`);
-  }
 
   const serveFrontend = process.env.SERVE_FRONTEND !== "false";
   if (!serveFrontend) {

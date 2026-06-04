@@ -11,8 +11,6 @@ on:
       - 'pnpm-lock.yaml'
       - 'frontend/package.json'
       - 'frontend/pnpm-lock.yaml'
-      - 'frontend/docs/package.json'
-      - 'frontend/docs/pnpm-lock.yaml'
 
 permissions:
   contents: write
@@ -44,10 +42,6 @@ jobs:
         run: cd frontend && pnpm install --frozen-lockfile
         continue-on-error: true
 
-      - name: Install dependencies for frontend docs
-        run: cd frontend/docs && pnpm install --frozen-lockfile
-        continue-on-error: true
-
       - name: Generate and submit root dependencies
         run: |
           pnpm add -g @github/dependency-submission-toolkit
@@ -57,12 +51,6 @@ jobs:
       - name: Submit frontend dependency snapshot
         run: |
           cd frontend
-          pnpm dlx @github/dependency-submission-toolkit --directory . --token ${{ secrets.USER_PAT }}
-        continue-on-error: true
-
-      - name: Submit frontend docs dependency snapshot
-        run: |
-          cd frontend/docs
           pnpm dlx @github/dependency-submission-toolkit --directory . --token ${{ secrets.USER_PAT }}
         continue-on-error: true
 
@@ -158,8 +146,7 @@ jobs:
           async function main() {
             const packages = [
               { path: 'package.json', manifest: 'package.json' },
-              { path: 'frontend/package.json', manifest: 'frontend/package.json' },
-              { path: 'frontend/docs/package.json', manifest: 'frontend/docs/package.json' }
+              { path: 'frontend/package.json', manifest: 'frontend/package.json' }
             ];
 
             for (const pkg of packages) {
@@ -187,4 +174,3 @@ jobs:
           echo "Submitted manifests:" >> $GITHUB_STEP_SUMMARY
           echo "- Root: package.json" >> $GITHUB_STEP_SUMMARY
           echo "- Frontend: frontend/package.json" >> $GITHUB_STEP_SUMMARY
-          echo "- Frontend Docs: frontend/docs/package.json" >> $GITHUB_STEP_SUMMARY

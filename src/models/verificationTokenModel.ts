@@ -1,6 +1,5 @@
 import crypto from "node:crypto";
-import fs from "node:fs";
-import path from "node:path";
+import { mongoose } from "../services/mongoService";
 import logger from "../utils/logger";
 
 /**
@@ -32,13 +31,42 @@ export interface VerificationToken {
 
 /**
  * 验证令牌存储
- * 使用加密 metadata + 本地文件持久化，避免进程重启后注册链接/重置链接全部失效。
+ * 使用 MongoDB 持久化令牌，metadata 仅以 AES-GCM 密文保存。
  */
+type PersistedVerificationToken = Omit<VerificationToken, "metadata">;
+
+const VerificationTokenSchema = new mongoose.Schema<PersistedVerificationToken>(
+  {
+    token: { type: String, required: true, unique: true, index: true },
+    type: {
+      type: String,
+      required: true,
+      enum: Object.values(VerificationTokenType),
+      index: true,
+    },
+    email: { type: String, required: true, index: true },
+    fingerprint: { type: String, required: true },
+    ipAddress: { type: String, required: true },
+    metadataCiphertext: { type: String },
+    metadataIv: { type: String },
+    metadataTag: { type: String },
+    createdAt: { type: Number, required: true },
+    expiresAt: { type: Number, required: true, index: true },
+    used: { type: Boolean, required: true, default: false, index: true },
+    usedAt: { type: Number },
+  },
+  { collection: "verification_tokens" },
+);
+
+VerificationTokenSchema.index({ expiresAt: 1, used: 1 });
+
+const VerificationTokenModel =
+  (mongoose.models.VerificationToken as mongoose.Model<PersistedVerificationToken>) ||
+  mongoose.model<PersistedVerificationToken>("VerificationToken", VerificationTokenSchema);
+
 class VerificationTokenStorage {
-  private tokens: Map<string, VerificationToken> = new Map();
   private cleanupInterval: NodeJS.Timeout | null = null;
   private readonly TOKEN_EXPIRY_MS = 10 * 60 * 1000; // 10分钟有效期
-  private readonly storagePath = path.resolve(process.cwd(), "data", "verification_tokens.json");
   private readonly metadataKey = crypto
     .createHash("sha256")
     .update(
@@ -50,7 +78,6 @@ class VerificationTokenStorage {
     .digest();
 
   constructor() {
-    this.loadTokens();
     // 启动定期清理过期令牌的任务
     this.startCleanupTask();
   }
@@ -109,55 +136,23 @@ class VerificationTokenStorage {
     return safeToken;
   }
 
-  private persistTokens(): void {
-    try {
-      fs.mkdirSync(path.dirname(this.storagePath), { recursive: true });
-      const payload = Array.from(this.tokens.values()).map(({ metadata: _metadata, ...token }) => token);
-      fs.writeFileSync(this.storagePath, JSON.stringify(payload, null, 2), "utf8");
-    } catch (error) {
-      logger.error("[验证令牌] 持久化失败", {
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-
-  private loadTokens(): void {
-    try {
-      if (!fs.existsSync(this.storagePath)) {
-        return;
-      }
-
-      const raw = fs.readFileSync(this.storagePath, "utf8");
-      const parsed = JSON.parse(raw) as VerificationToken[];
-      if (!Array.isArray(parsed)) {
-        logger.warn("[验证令牌] 持久化文件格式无效，已忽略");
-        return;
-      }
-
-      const now = Date.now();
-      for (const token of parsed) {
-        if (!token?.token || now > token.expiresAt) {
-          continue;
-        }
-        this.tokens.set(token.token, token);
-      }
-    } catch (error) {
-      logger.error("[验证令牌] 读取持久化文件失败", {
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
+  private normalizePersistedToken(token: PersistedVerificationToken): VerificationToken {
+    const plain = { ...(token as any) };
+    delete plain._id;
+    delete plain.__v;
+    return plain as VerificationToken;
   }
 
   /**
    * 创建验证令牌
    */
-  createToken(
+  async createToken(
     type: VerificationTokenType,
     email: string,
     fingerprint: string,
     ipAddress: string,
     metadata?: any,
-  ): VerificationToken {
+  ): Promise<VerificationToken> {
     const token = this.generateToken();
     const now = Date.now();
 
@@ -173,8 +168,7 @@ class VerificationTokenStorage {
       used: false,
     };
 
-    this.tokens.set(token, verificationToken);
-    this.persistTokens();
+    await VerificationTokenModel.create(verificationToken);
 
     return this.withDecryptedMetadata(verificationToken);
   }
@@ -182,17 +176,18 @@ class VerificationTokenStorage {
   /**
    * 获取验证令牌
    */
-  getToken(token: string): VerificationToken | null {
-    const verificationToken = this.tokens.get(token);
+  async getToken(token: string): Promise<VerificationToken | null> {
+    const raw = await VerificationTokenModel.findOne({ token }).lean().exec();
 
-    if (!verificationToken) {
+    if (!raw) {
       return null;
     }
 
+    const verificationToken = this.normalizePersistedToken(raw);
+
     // 检查是否过期
     if (Date.now() > verificationToken.expiresAt) {
-      this.tokens.delete(token);
-      this.persistTokens();
+      await VerificationTokenModel.deleteOne({ token }).exec();
       logger.warn(`[验证令牌] 已过期`);
       return null;
     }
@@ -207,15 +202,14 @@ class VerificationTokenStorage {
    * @param ipAddress 当前IP地址
    * @returns 验证结果和令牌数据
    */
-  verifyAndUseToken(
+  async verifyAndUseToken(
     token: string,
     fingerprint: string,
     ipAddress: string,
-  ): { success: boolean; error?: string; data?: VerificationToken } {
-    const rawToken = this.tokens.get(token);
-    const verificationToken = this.getToken(token);
+  ): Promise<{ success: boolean; error?: string; data?: VerificationToken }> {
+    const verificationToken = await this.getToken(token);
 
-    if (!verificationToken || !rawToken) {
+    if (!verificationToken) {
       return { success: false, error: "验证链接无效或已过期" };
     }
 
@@ -236,14 +230,26 @@ class VerificationTokenStorage {
     }
 
     // 标记为已使用
-    rawToken.used = true;
-    rawToken.usedAt = Date.now();
-    this.tokens.set(token, rawToken);
-    this.persistTokens();
+    const usedAt = Date.now();
+    const updateResult = await VerificationTokenModel.updateOne(
+      { token, used: false },
+      { $set: { used: true, usedAt } },
+    ).exec();
+
+    if (updateResult.matchedCount === 0) {
+      return { success: false, error: "验证链接已被使用" };
+    }
 
     logger.info(`[验证令牌] 验证成功`);
 
-    return { success: true, data: this.withDecryptedMetadata(rawToken) };
+    return {
+      success: true,
+      data: this.withDecryptedMetadata({
+        ...verificationToken,
+        used: true,
+        usedAt,
+      }),
+    };
   }
 
   /**
@@ -254,8 +260,8 @@ class VerificationTokenStorage {
    * @param ipAddress 当前IP地址
    * @returns 验证结果
    */
-  validateToken(token: string, fingerprint: string, ipAddress: string): { valid: boolean; error?: string } {
-    const verificationToken = this.getToken(token);
+  async validateToken(token: string, fingerprint: string, ipAddress: string): Promise<{ valid: boolean; error?: string }> {
+    const verificationToken = await this.getToken(token);
 
     if (!verificationToken) {
       return { valid: false, error: "验证链接无效或已过期" };
@@ -283,28 +289,20 @@ class VerificationTokenStorage {
   /**
    * 删除令牌
    */
-  deleteToken(token: string): void {
-    this.tokens.delete(token);
-    this.persistTokens();
+  async deleteToken(token: string): Promise<void> {
+    await VerificationTokenModel.deleteOne({ token }).exec();
     logger.info(`[验证令牌] 已删除`);
   }
 
   /**
    * 清理过期令牌
    */
-  private cleanupExpiredTokens(): void {
+  private async cleanupExpiredTokens(): Promise<void> {
     const now = Date.now();
-    let deletedCount = 0;
-
-    for (const [token, verificationToken] of this.tokens.entries()) {
-      if (now > verificationToken.expiresAt) {
-        this.tokens.delete(token);
-        deletedCount++;
-      }
-    }
+    const result = await VerificationTokenModel.deleteMany({ expiresAt: { $lt: now } }).exec();
+    const deletedCount = result.deletedCount || 0;
 
     if (deletedCount > 0) {
-      this.persistTokens();
       logger.info(`[验证令牌] 清理过期令牌: ${deletedCount}个`);
     }
   }
@@ -316,7 +314,11 @@ class VerificationTokenStorage {
     // 每5分钟清理一次过期令牌
     this.cleanupInterval = setInterval(
       () => {
-        this.cleanupExpiredTokens();
+        this.cleanupExpiredTokens().catch((error) => {
+          logger.error("[验证令牌] 清理过期令牌失败", {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
       },
       5 * 60 * 1000,
     );
@@ -338,24 +340,17 @@ class VerificationTokenStorage {
   /**
    * 获取统计信息
    */
-  getStats(): { total: number; expired: number; used: number; active: number } {
+  async getStats(): Promise<{ total: number; expired: number; used: number; active: number }> {
     const now = Date.now();
-    let expired = 0;
-    let used = 0;
-    let active = 0;
-
-    for (const verificationToken of this.tokens.values()) {
-      if (now > verificationToken.expiresAt) {
-        expired++;
-      } else if (verificationToken.used) {
-        used++;
-      } else {
-        active++;
-      }
-    }
+    const [total, expired, used, active] = await Promise.all([
+      VerificationTokenModel.countDocuments({}).exec(),
+      VerificationTokenModel.countDocuments({ expiresAt: { $lt: now } }).exec(),
+      VerificationTokenModel.countDocuments({ expiresAt: { $gte: now }, used: true }).exec(),
+      VerificationTokenModel.countDocuments({ expiresAt: { $gte: now }, used: false }).exec(),
+    ]);
 
     return {
-      total: this.tokens.size,
+      total,
       expired,
       used,
       active,

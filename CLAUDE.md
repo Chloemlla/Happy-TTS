@@ -22,14 +22,13 @@ Synapse is a comprehensive full-stack web application platform centered around t
 npm run dev                 # Start backend + frontend concurrently
 npm run dev:backend         # Backend only (nodemon + ts-node, port 3000)
 npm run dev:frontend        # Frontend only (Vite HMR, port 3001)
-npm run dev:docs            # Docusaurus docs (port 3002)
 npm run dev:file            # File storage mode (no MongoDB required)
 ```
 
 ### Building
 
 ```bash
-npm run build               # Full build: backend (with obfuscation) + frontend + docs
+npm run build               # Full build: backend (with obfuscation) + frontend
 npm run build:simple        # Simplified build (faster, less optimization)
 npm run build:minimal       # Minimal build (fastest)
 npm run build:backend       # Backend: TypeScript compile + code obfuscation
@@ -258,18 +257,16 @@ Production builds use `javascript-obfuscator`:
 
 ## Docker Deployment
 
-Multi-stage Dockerfile with 4 stages:
+Multi-stage Dockerfile with 3 stages:
 
 1. **frontend-builder**: Builds React app
-2. **docs-builder**: Builds Docusaurus docs
-3. **backend-builder**: Compiles TypeScript + obfuscates + generates OpenAPI
-4. **production**: Alpine-based runtime with only production dependencies
+2. **backend-builder**: Compiles TypeScript + obfuscates + generates OpenAPI
+3. **production**: Alpine-based runtime with only production dependencies
 
 **Ports**:
 
 - 3000: Backend API + Swagger UI
 - 3001: Frontend static files (served by `serve`)
-- 3002: Docusaurus documentation (served by `serve`)
 
 ## Common Development Tasks
 

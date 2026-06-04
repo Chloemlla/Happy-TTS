@@ -4,7 +4,7 @@ import { config } from "../config/config";
 import logger from "../utils/logger";
 import { type User, UserStorage } from "../utils/userStorage";
 import { TtsRequestError } from "./tts.errors";
-import { generationHistoryStore } from "./tts.history";
+import { generationHistoryStore, redactTtsTextForStorage } from "./tts.history";
 import { TtsSubmissionPipeline } from "./tts.pipeline";
 import { TtsQueue } from "./tts.queue";
 import { type TtsNextAction, ttsStorage } from "./tts.storage";
@@ -76,6 +76,50 @@ export class TtsController {
     return taskId || "";
   }
 
+  private static getRequestFingerprint(req: Request): string {
+    const queryFingerprint = Array.isArray(req.query.fingerprint)
+      ? req.query.fingerprint[0]
+      : req.query.fingerprint;
+    const headerFingerprint = req.headers["x-fingerprint"];
+    const bodyFingerprint = req.body?.fingerprint;
+    const fingerprint =
+      (typeof queryFingerprint === "string" && queryFingerprint) ||
+      (typeof headerFingerprint === "string" && headerFingerprint) ||
+      (typeof bodyFingerprint === "string" && bodyFingerprint) ||
+      "";
+    return fingerprint.trim();
+  }
+
+  private static async assertCanAccessJob(req: Request, job: Awaited<ReturnType<typeof ttsStorage.getJob>>) {
+    if (!job) {
+      return;
+    }
+
+    const currentUser = await TtsController.resolveCurrentUser(req);
+    if (job.userId) {
+      if (!currentUser) {
+        throw new TtsRequestError(401, "请登录后查询该任务", "TTS_JOB_AUTH_REQUIRED");
+      }
+      if (currentUser.role !== "admin" && currentUser.id !== job.userId) {
+        throw new TtsRequestError(403, "无权访问该任务", "TTS_JOB_FORBIDDEN");
+      }
+      return;
+    }
+
+    if (currentUser?.role === "admin") {
+      return;
+    }
+
+    const fingerprint = TtsController.getRequestFingerprint(req);
+    const ip = TtsController.getClientIp(req);
+    if (!fingerprint || fingerprint === "unknown" || !job.fingerprint || job.fingerprint === "unknown") {
+      throw new TtsRequestError(403, "匿名任务需要提供设备指纹", "TTS_JOB_FINGERPRINT_REQUIRED");
+    }
+    if (job.ip !== ip || job.fingerprint !== fingerprint) {
+      throw new TtsRequestError(403, "无权访问该任务", "TTS_JOB_FORBIDDEN");
+    }
+  }
+
   private static sendStructuredError(
     res: Response,
     statusCode: number,
@@ -126,7 +170,10 @@ export class TtsController {
           status: "completed",
           createdAt,
           updatedAt: createdAt,
-          request: submission.requestPayload,
+          request: {
+            ...submission.requestPayload,
+            text: redactTtsTextForStorage(submission.requestPayload.text),
+          },
           userId: submission.userId,
           isAdmin: submission.isAdmin,
           ip: submission.ip,
@@ -160,7 +207,10 @@ export class TtsController {
           status: "completed",
           createdAt,
           updatedAt: createdAt,
-          request: submission.requestPayload,
+          request: {
+            ...submission.requestPayload,
+            text: redactTtsTextForStorage(submission.requestPayload.text),
+          },
           userId: submission.userId,
           isAdmin: submission.isAdmin,
           ip: submission.ip,
@@ -256,6 +306,19 @@ export class TtsController {
       });
     }
 
+    try {
+      await TtsController.assertCanAccessJob(req, job);
+    } catch (error) {
+      if (error instanceof TtsRequestError) {
+        return res.status(error.statusCode).json({
+          success: false,
+          error: error.message,
+          code: error.code,
+        });
+      }
+      throw error;
+    }
+
     return res.json({
       success: true,
       taskId: job.taskId,
@@ -278,6 +341,19 @@ export class TtsController {
         success: false,
         error: "任务不存在",
       });
+    }
+
+    try {
+      await TtsController.assertCanAccessJob(req, job);
+    } catch (error) {
+      if (error instanceof TtsRequestError) {
+        return res.status(error.statusCode).json({
+          success: false,
+          error: error.message,
+          code: error.code,
+        });
+      }
+      throw error;
     }
 
     if (job.status === "failed") {

@@ -332,7 +332,7 @@ export class IPFSService {
         userAgent: context?.userAgent,
         bypassKeyword: bypassUAKeyword,
       });
-    } else if (devSkipTurnstile) {
+    } else if (!isProduction && devSkipTurnstile) {
       logger.info("[IPFS] 开发环境配置跳过Turnstile验证", {
         environment: process.env.NODE_ENV || "development",
         devSkipTurnstile,

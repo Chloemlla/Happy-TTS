@@ -148,7 +148,11 @@ export const fbiWantedController = {
         file.mimetype,
         { shortLink: false },
         undefined,
-        { clientIp, isAdmin: (req as any).user?.role === "admin" },
+        {
+          clientIp,
+          isAdmin: (req as any).user?.role === "admin",
+          shouldSkipTurnstile: (req as any).user?.role === "admin",
+        },
       );
 
       const photoUrl = uploadRes.web2url || uploadRes.url; // 优先使用可直接访问的 Web2 URL

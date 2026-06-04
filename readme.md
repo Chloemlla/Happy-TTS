@@ -61,7 +61,7 @@ Synapse 是一个综合性 Web 应用平台，围绕文本转语音核心功能�
 - 📊 用户行为数据收集与分析（集成 Microsoft Clarity）
 - 🌐 WebSocket 实时通信
 - 🐳 多阶段 Docker 构建，支持代码混淆
-- 📚 内置 Swagger/OpenAPI 文档 + Docusaurus 文档站
+- 📚 内置 Swagger/OpenAPI 文档
 - ☁️ 可选 Cloudflare Worker 分发包
 
 ---
@@ -330,7 +330,7 @@ Synapse 是一个综合性 Web 应用平台，围绕文本转语音核心功能�
 | 容器化 | Docker（多阶段构建）+ Docker Compose |
 | 包管理 | pnpm |
 | 代码混淆 | javascript-obfuscator |
-| 文档站 | Docusaurus |
+| API 文档 | Swagger/OpenAPI |
 | 边缘计算 | Cloudflare Workers 分发包（可选） |
 | CI/CD | GitHub Actions |
 
@@ -408,7 +408,7 @@ Synapse/
 │   │   ├── utils/                    # 工具函数
 │   │   ├── styles/                   # 样式文件
 │   │   └── config/                   # 前端配置
-│   ├── docs/                         # Docusaurus 文档站
+│   ├── docs/                         # 已退役占位目录
 │   ├── vite.config.ts                # Vite 构建配置
 │   ├── tailwind.config.js            # Tailwind CSS 配置
 │   ├── vitest.config.ts              # Vitest 测试配置
@@ -457,8 +457,6 @@ pnpm install
 # 安装前端依赖
 cd frontend && pnpm install && cd ..
 
-# 安装文档站依赖（可选）
-cd frontend/docs && pnpm install && cd ../..
 ```
 
 ### 开发模式
@@ -470,14 +468,13 @@ pnpm run dev
 # 或分别启动
 pnpm run dev:backend      # 后端: http://localhost:3000
 pnpm run dev:frontend     # 前端: http://localhost:3001（Vite HMR）
-pnpm run dev:docs         # 文档站: http://localhost:3002
 
 ```
 
 ### 生产构建
 
 ```bash
-# 完整构建（后端 + 前端 + 文档站）
+# 完整构建（后端 + 前端）
 pnpm run build
 
 # 简化构建（跳过部分优化）
@@ -519,13 +516,12 @@ docker run -d \
 docker-compose logs -f app
 ```
 
-Docker 镜像采用 4 阶段构建：
+Docker 镜像采用 3 阶段构建：
 1. **frontend-builder** - 前端 React 应用构建
-2. **docs-builder** - Docusaurus 文档站构建
-3. **backend-builder** - TypeScript 编译 + 代码混淆 + OpenAPI 生成
-4. **production** - 精简运行时镜像（Alpine + 生产依赖）
+2. **backend-builder** - TypeScript 编译 + 代码混淆 + OpenAPI 生成
+3. **production** - 精简运行时镜像（Alpine + 生产依赖）
 
-生产镜像默认只监听 `3000` 端口，后端 Express 在同一端口提供 API、前端 SPA、Swagger UI 和 Docusaurus 文档站。`3001` 和 `3002` 仅用于本地开发模式。
+生产镜像默认只监听 `3000` 端口，后端 Express 在同一端口提供 API、前端 SPA 和 Swagger UI。`3001` 仅用于本地前端开发模式。
 
 ---
 
@@ -622,7 +618,6 @@ VITE_OUTEMAIL_ENABLED=true                      # 是否启用外部邮件功能
 
 - **Swagger UI**: `http://localhost:3000/api-docs` — 交互式 API 文档界面
 - **OpenAPI JSON**: `http://localhost:3000/api/openapi.json` — OpenAPI 3.0 规范文件
-- **Docusaurus 文档站**: 开发模式为 `http://localhost:3002`，生产镜像中为 `http://localhost:3000/docs/`
 
 ### 主要 API 端点一览
 
@@ -740,10 +735,9 @@ VITE_OUTEMAIL_ENABLED=true                      # 是否启用外部邮件功能
 pnpm run dev                # 同时启动后端 + 前端
 pnpm run dev:backend        # 仅启动后端（nodemon 热重载）
 pnpm run dev:frontend       # 仅启动前端（Vite HMR）
-pnpm run dev:docs           # 启动文档站开发服务器
 
 # ========== 构建 ==========
-pnpm run build              # 完整构建（后端 + 前端 + 文档站）
+pnpm run build              # 完整构建（后端 + 前端）
 pnpm run build:simple       # 简化构建
 pnpm run build:minimal      # 最小化构建
 pnpm run build:backend      # 后端编译 + 代码混淆
@@ -777,7 +771,7 @@ pnpm run docker:build:minimal  # 最小化 Docker 构建（2GB 内存限制）
 
 # ========== 生产 ==========
 pnpm run prod               # 构建并启动生产服务器
-pnpm start                  # 启动生产服务器（3000 端口提供 API + 前端 + 文档站）
+pnpm start                  # 启动生产服务器（3000 端口提供 API + 前端 + Swagger UI）
 ```
 
 ### 前端脚本
@@ -932,7 +926,7 @@ services:
   app:
     image: happyclo/tts-node:latest
     ports:
-      - "3000:3000"   # API + 前端 SPA + Swagger UI + 文档站
+      - "3000:3000"   # API + 前端 SPA + Swagger UI
     environment:
       - NODE_ENV=production
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -952,8 +946,7 @@ docker-compose up -d
 |------|------|------|
 | 开发 | 3000 | 后端 API + Swagger UI |
 | 开发 | 3001 | 前端 React 应用（Vite HMR） |
-| 开发 | 3002 | Docusaurus 文档站 |
-| 生产/Docker | 3000 | API + 前端 SPA + Swagger UI + Docusaurus 文档站 |
+| 生产/Docker | 3000 | API + 前端 SPA + Swagger UI |
 
 ### Cloudflare Worker 部署（可选）
 

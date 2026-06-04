@@ -153,7 +153,7 @@ export class TOTPService {
       }
       // 验证token格式
       if (!/^\d{6}$/.test(token)) {
-        logger.error("TOTP令牌格式错误:", { token });
+        logger.error("TOTP令牌格式错误:", { tokenLength: token.length });
         return false;
       }
       // 验证window参数
@@ -169,7 +169,7 @@ export class TOTPService {
       const localTime = now.toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
 
       logger.info("TOTP验证开始:", {
-        token,
+        tokenLength: token.length,
         timeZone,
         currentTime,
         localTime,
@@ -186,7 +186,6 @@ export class TOTPService {
       });
 
       logger.info("TOTP验证结果:", {
-        token,
         result,
         window,
         timeZone,
@@ -253,12 +252,12 @@ export class TOTPService {
         .replace(/[^A-Z0-9]/g, "");
       // 验证恢复码格式
       if (normalizedCode.length !== 8) {
-        logger.error("备用恢复码格式错误:", { code: normalizedCode });
+        logger.error("备用恢复码格式错误:", { codeLength: normalizedCode.length });
         return false;
       }
       // 验证恢复码只包含字母和数字
       if (!/^[A-Z0-9]{8}$/.test(normalizedCode)) {
-        logger.error("备用恢复码包含非法字符:", { code: normalizedCode });
+        logger.error("备用恢复码包含非法字符");
         return false;
       }
       const index = backupCodes.findIndex(
@@ -270,10 +269,10 @@ export class TOTPService {
       if (index !== -1) {
         // 移除已使用的恢复码
         backupCodes.splice(index, 1);
-        logger.info("备用恢复码验证成功:", { code: normalizedCode, remainingCodes: backupCodes.length });
+        logger.info("备用恢复码验证成功:", { remainingCodes: backupCodes.length });
         return true;
       }
-      logger.warn("备用恢复码验证失败:", { code: normalizedCode });
+      logger.warn("备用恢复码验证失败");
       return false;
     } catch (error) {
       logger.error("验证备用恢复码时发生错误:", error);

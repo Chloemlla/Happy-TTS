@@ -58,6 +58,35 @@ function getFrontendBaseUrl(): string {
   return process.env.FRONTEND_URL || "https://tts.chloemlla.com";
 }
 
+function summarizeAuthBody(body: any) {
+  return {
+    hasIdentifier: typeof body?.identifier === "string" && body.identifier.length > 0,
+    hasPassword: typeof body?.password === "string" && body.password.length > 0,
+    hasCfToken: typeof body?.cfToken === "string" && body.cfToken.length > 0,
+    hasTurnstileToken: typeof body?.turnstileToken === "string" && body.turnstileToken.length > 0,
+  };
+}
+
+async function verifyRequiredTurnstile(token: unknown, ip: string, logTag: string, subject?: string): Promise<string | null> {
+  const turnstileConfig = await TurnstileService.getConfig();
+  if (!turnstileConfig.enabled) {
+    return null;
+  }
+
+  if (typeof token !== "string" || token.length === 0) {
+    logger.warn(`[${logTag}] 缺少 Turnstile 令牌`, { subject, ip });
+    return "请先完成人机验证";
+  }
+
+  const isValid = await TurnstileService.verifyToken(token, ip);
+  if (!isValid) {
+    logger.warn(`[${logTag}] Turnstile 验证失败`, { subject, ip });
+    return "人机验证失败，请重试";
+  }
+
+  return null;
+}
+
 export class AuthController {
   public static getGoogleAuthConfig(_req: Request, res: Response) {
     res.json(getGoogleAuthConfigSummary());
@@ -90,7 +119,7 @@ export class AuthController {
 
   public static async register(req: Request, res: Response) {
     try {
-      const { username, email, password, fingerprint, clientIP } = req.body;
+      const { username, email, password, fingerprint, clientIP, cfToken, turnstileToken } = req.body;
       if (!username || !email || !password) {
         return res.status(400).json({ error: "请提供所有必需的注册信息" });
       }
@@ -109,6 +138,11 @@ export class AuthController {
       // 获取客户端IP（优先使用前端发送的IP，否则使用后端获取的）
       const serverIP = req.ip || req.connection.remoteAddress || "unknown";
       const ipAddress = clientIP || serverIP;
+      const captchaToken = typeof cfToken === "string" ? cfToken : turnstileToken;
+      const turnstileError = await verifyRequiredTurnstile(captchaToken, ipAddress, "注册", email);
+      if (turnstileError) {
+        return res.status(400).json({ error: turnstileError });
+      }
 
       // 记录IP比对情况（用于调试和安全分析）
       if (clientIP && clientIP !== serverIP && clientIP !== "unknown" && serverIP !== "unknown") {
@@ -137,7 +171,7 @@ export class AuthController {
       }
 
       // 创建验证令牌
-      const verificationToken = verificationTokenStorage.createToken(
+      const verificationToken = await verificationTokenStorage.createToken(
         VerificationTokenType.EMAIL_REGISTRATION,
         email,
         fingerprint,
@@ -164,7 +198,7 @@ export class AuthController {
           message: "验证链接已发送到邮箱，请查收",
         });
       } else {
-        verificationTokenStorage.deleteToken(verificationToken.token);
+        await verificationTokenStorage.deleteToken(verificationToken.token);
         if (result.error?.includes("上限")) {
           res.status(429).json({ error: result.error });
         } else {
@@ -332,11 +366,11 @@ export class AuthController {
 
       // 验证必填字段
       if (!identifier) {
-        logger.warn("登录失败：identifier 字段缺失", { body: req.body });
+        logger.warn("登录失败：identifier 字段缺失", summarizeAuthBody(req.body));
         return res.status(400).json({ error: "请提供用户名或邮箱" });
       }
       if (!password) {
-        logger.warn("登录失败：password 字段缺失", { body: req.body });
+        logger.warn("登录失败：password 字段缺失", summarizeAuthBody(req.body));
         return res.status(400).json({ error: "请提供密码" });
       }
 
@@ -500,7 +534,7 @@ export class AuthController {
         stack: error instanceof Error ? error.stack : undefined,
         identifier: req.body?.identifier,
         ip: req.ip,
-        body: req.body,
+        body: summarizeAuthBody(req.body),
       });
       res.status(500).json({ error: "登录失败" });
     }
@@ -712,7 +746,7 @@ export class AuthController {
   // 忘记密码 - 发送重置验证链接
   public static async forgotPassword(req: Request, res: Response) {
     try {
-      const { email, turnstileToken, fingerprint, clientIP } = req.body;
+      const { email, turnstileToken, cfToken, fingerprint, clientIP } = req.body;
       if (!email || !emailPattern.test(email)) {
         return res.status(400).json({ error: "邮箱格式不正确" });
       }
@@ -721,14 +755,11 @@ export class AuthController {
         return res.status(400).json({ error: "设备信息缺失" });
       }
 
-      // Turnstile验证（如果提供了token）
-      if (turnstileToken) {
-        const remoteIp = req.ip || req.connection.remoteAddress || "unknown";
-        const isValid = await TurnstileService.verifyToken(turnstileToken, remoteIp);
-        if (!isValid) {
-          logger.warn(`[密码重置] Turnstile验证失败: ${email}, IP: ${remoteIp}`);
-          return res.status(400).json({ error: "人机验证失败，请重试" });
-        }
+      const remoteIp = req.ip || req.connection.remoteAddress || "unknown";
+      const captchaToken = typeof turnstileToken === "string" ? turnstileToken : cfToken;
+      const turnstileError = await verifyRequiredTurnstile(captchaToken, remoteIp, "密码重置", email);
+      if (turnstileError) {
+        return res.status(400).json({ error: turnstileError });
       }
 
       // 检查用户是否存在
@@ -751,7 +782,7 @@ export class AuthController {
       }
 
       // 创建验证令牌
-      const verificationToken = verificationTokenStorage.createToken(
+      const verificationToken = await verificationTokenStorage.createToken(
         VerificationTokenType.PASSWORD_RESET,
         email,
         fingerprint,
@@ -776,6 +807,7 @@ export class AuthController {
         res.json({ success: true, message: "重置链接已发送到您的邮箱" });
       } else {
         resetPasswordCodeMap.delete(email);
+        await verificationTokenStorage.deleteToken(verificationToken.token);
         if (result.error?.includes("上限")) {
           res.status(429).json({ error: "重置链接发送次数已达上限，请明日再试" });
         } else {
@@ -874,7 +906,7 @@ export class AuthController {
       const ipAddress = clientIP || serverIP;
 
       // 使用验证令牌存储的 validateToken 方法进行只读检查
-      const result = verificationTokenStorage.validateToken(token, fingerprint, ipAddress);
+      const result = await verificationTokenStorage.validateToken(token, fingerprint, ipAddress);
 
       if (result.valid) {
         res.json({ valid: true });

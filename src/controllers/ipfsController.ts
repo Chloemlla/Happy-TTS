@@ -137,7 +137,14 @@ export class IPFSController {
         timestamp: new Date().toISOString(),
       });
 
-      res.status(500).json({
+      const statusCode =
+        /人机验证|Turnstile|请先完成/.test(errorMessage)
+          ? 403
+          : /文件|图片|格式|大小|SVG|配置未设置/.test(errorMessage)
+            ? 400
+            : 500;
+
+      res.status(statusCode).json({
         success: false,
         error: errorMessage,
       });

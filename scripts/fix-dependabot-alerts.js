@@ -26,11 +26,7 @@ const DEPENDENCY_FIELDS = [
   'peerDependencies',
   'optionalDependencies',
 ];
-const PINNED_DEPENDENCY_RANGES_BY_TARGET = {
-  'frontend/docs/package.json': {
-    webpack: '5.99.9',
-  },
-};
+const PINNED_DEPENDENCY_RANGES_BY_TARGET = {};
 
 const RUST_DEPENDENCY_FIELDS = [
   'dependencies',

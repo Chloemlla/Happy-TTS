@@ -35,6 +35,10 @@ const TtsHistoryModel =
   mongoose.models.TtsGenerationHistory ||
   mongoose.model<TtsHistoryDocument>("TtsGenerationHistory", TtsHistorySchema);
 
+export function redactTtsTextForStorage(text: string): string {
+  return text ? `[redacted:${text.length}]` : "";
+}
+
 function mapDuplicate(record: Partial<TtsHistoryRecord> | null | undefined): TtsDuplicateHit | null {
   if (!record?.fileName || !record.audioUrl || !record.outputFormat || !record.contentHash) {
     return null;
@@ -103,6 +107,7 @@ export class MongoGenerationHistoryStore implements GenerationHistoryStore {
         : this.buildAnonymousScopeKey(record.ip || "unknown", record.fingerprint || "unknown");
     const created = await TtsHistoryModel.create({
       ...record,
+      text: redactTtsTextForStorage(record.text),
       duplicateScopeKey,
     });
     return {

@@ -172,7 +172,7 @@ export class TOTPController {
       const { token } = req.body;
 
       if (!token) {
-        logger.warn("verifyAndEnable: 未提供验证码", { userId, token, body: req.body });
+        logger.warn("verifyAndEnable: 未提供验证码", { userId });
         return res.status(400).json({ error: "请提供验证码" });
       }
 
@@ -229,7 +229,7 @@ export class TOTPController {
 
       // 验证令牌
       const isValid = TOTPService.verifyToken(token, currentUser.totpSecret);
-      logger.info("verifyAndEnable: 验证TOTP令牌", { userId, username: currentUser.username, token, isValid });
+      logger.info("verifyAndEnable: 验证TOTP令牌", { userId, username: currentUser.username, isValid });
 
       // 记录验证尝试
       TOTPController.recordTOTPAttempt(userId, isValid);
@@ -240,7 +240,6 @@ export class TOTPController {
         logger.warn("verifyAndEnable: 验证码错误", {
           userId,
           username: currentUser.username,
-          token,
           remainingAttempts,
         });
 
@@ -283,7 +282,6 @@ export class TOTPController {
         stack: error instanceof Error ? error.stack : undefined,
         userId: currentUser?.id,
         username: currentUser?.username,
-        body: req.body,
       });
       res.status(500).json({ error: "验证并启用TOTP失败" });
     }
@@ -354,16 +352,11 @@ export class TOTPController {
           // 更新用户的备用恢复码（报废已使用的恢复码）
           await TOTPController.updateUserBackupCodes(userId, backupCodes);
 
-          // 记录详细的报废信息
-          const usedCode = (typeof backupCode === "string" ? backupCode : String(backupCode ?? ""))
-            .toUpperCase()
-            .replace(/[^A-Z0-9]/g, "");
           const remainingCount = backupCodes.length;
 
           logger.info("备用恢复码验证成功并已报废:", {
             userId,
             username: user.username,
-            usedCode,
             originalCount,
             remainingCount,
             codesRemoved: originalCount - remainingCount,
@@ -404,9 +397,6 @@ export class TOTPController {
           logger.warn("备用恢复码验证失败:", {
             userId,
             username: user.username,
-            attemptedCode: (typeof backupCode === "string" ? backupCode : String(backupCode ?? ""))
-              .toUpperCase()
-              .replace(/[^A-Z0-9]/g, ""),
             availableCodes: user.backupCodes.length,
           });
         }
@@ -420,7 +410,6 @@ export class TOTPController {
           logger.warn("verifyToken: TOTP验证码错误", {
             userId,
             username: user.username,
-            token,
             remainingAttempts,
           });
 
@@ -506,7 +495,6 @@ export class TOTPController {
         logger.warn("disable: TOTP验证码错误", {
           userId,
           username: user.username,
-          token,
           remainingAttempts,
         });
 

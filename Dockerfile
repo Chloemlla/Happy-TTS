@@ -53,38 +53,7 @@ RUN set -eu; \
 RUN touch dist/favicon.ico
 
 # ============================================
-# Stage 2: Docusaurus Docs Build
-# ============================================
-FROM node:24.3.0-alpine AS docs-builder
-
-RUN apk add --no-cache tzdata autoconf automake libtool build-base git && \
-    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
-    echo "Asia/Shanghai" > /etc/timezone && \
-    apk del tzdata
-
-ENV NODE_OPTIONS="--max-old-space-size=2048" \
-    DISABLE_GIT_INFO=true \
-    GIT_DISABLED=true \
-    DOCUSAURUS_DISABLE_GIT_INFO=true
-
-RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
-
-WORKDIR /app/docs
-
-COPY frontend/docs/package.json frontend/docs/pnpm-lock.yaml frontend/docs/.npmrc ./
-RUN pnpm install --frozen-lockfile --ignore-script
-
-COPY frontend/docs/ .
-
-# 初始化空 git repo，避免 Docusaurus 读取 git log 时产生大量警告
-RUN git config --global user.email "build@docker" && \
-    git config --global user.name "Docker Build" && \
-    git init && git add -A && git commit -m "init" --allow-empty
-
-RUN pnpm run build:no-git || pnpm run build:docker || pnpm run build:simple
-
-# ============================================
-# Stage 3: Backend Build
+# Stage 2: Backend Build
 # ============================================
 FROM node:24.3.0-alpine AS backend-builder
 
@@ -112,7 +81,7 @@ RUN mkdir -p dist-obfuscated/templates && cp src/templates/*.html dist-obfuscate
 RUN pnpm run generate:openapi
 
 # ============================================
-# Stage 4: Production Runtime
+# Stage 3: Production Runtime
 # ============================================
 FROM node:24.3.0-alpine
 
@@ -125,7 +94,6 @@ ENV TZ=Asia/Shanghai \
     NODE_ENV=production \
     NODE_OPTIONS="--max-old-space-size=2048" \
     FRONTEND_DIST_DIR="/app/frontend/dist" \
-    DOCS_DIST_DIR="/app/docs" \
     OPENAPI_JSON_PATH="/app/openapi.json"
 
 RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
@@ -144,10 +112,8 @@ COPY --from=backend-builder /app/openapi.json ./dist/openapi.json
 COPY --from=backend-builder /app/scripts/run-node-with-profiling.js ./scripts/run-node-with-profiling.js
 COPY --from=backend-builder /app/scripts/run-load-profile-report.js ./scripts/run-load-profile-report.js
 COPY --from=backend-builder /app/scripts/profiling-README.md ./scripts/profiling-README.md
-# 前端与文档统一由后端 Express 提供：frontend/dist 命中 registerStaticRoutes 的候选路径，
-# docs 由 DOCS_DIST_DIR 指向 /app/docs（保持兼容）。
+# 前端由后端 Express 提供：frontend/dist 命中 registerStaticRoutes 的候选路径。
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
-COPY --from=docs-builder /app/docs/build ./docs
 
 # 非 root 用户运行
 RUN addgroup -S nodejs && adduser -S nodejs -G nodejs && \
@@ -157,5 +123,5 @@ USER nodejs
 
 EXPOSE 3000
 
-# 单进程：后端 Express 同时承担 API、前端 SPA、Docusaurus 静态站点。
+# 单进程：后端 Express 同时承担 API、前端 SPA 和 Swagger UI。
 CMD ["node", "dist/app.js"]

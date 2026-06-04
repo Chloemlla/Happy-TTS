@@ -17,13 +17,6 @@ class CommandService {
     "df",
     "ps",
     "top",
-    "systemctl",
-    "service",
-    "docker",
-    "git",
-    "npm",
-    "node",
-    "echo",
     // Windows 命令
     "dir",
     "cd",
@@ -343,13 +336,6 @@ class CommandService {
           netstat: "/bin/netstat",
           route: "/sbin/route",
           arp: "/usr/sbin/arp",
-          echo: "/bin/echo",
-          systemctl: "/bin/systemctl",
-          service: "/usr/sbin/service",
-          docker: "/usr/bin/docker",
-          git: "/usr/bin/git",
-          npm: "/usr/bin/npm",
-          node: "/usr/bin/node",
         };
         const safeUnixCmd = SAFE_UNIX_COMMANDS[command];
         if (!safeUnixCmd) {

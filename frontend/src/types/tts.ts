@@ -6,6 +6,7 @@ export interface TtsRequest {
   speed: number;
   generationCode: string;
   cfToken?: string;
+  fingerprint?: string;
 }
 
 export interface TtsUsageSummary {

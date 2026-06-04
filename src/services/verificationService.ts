@@ -54,7 +54,7 @@ export async function createAndSendVerificationLink(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // 创建验证令牌
-    const verificationToken = verificationTokenStorage.createToken(
+    const verificationToken = await verificationTokenStorage.createToken(
       VerificationTokenType.EMAIL_REGISTRATION,
       email,
       fingerprint,
@@ -75,7 +75,7 @@ export async function createAndSendVerificationLink(
       return { success: true };
     } else {
       logger.error(`[邮箱验证链接] 发送失败: ${email}, 错误: ${emailResult.error}`);
-      verificationTokenStorage.deleteToken(verificationToken.token);
+      await verificationTokenStorage.deleteToken(verificationToken.token);
       return { success: false, error: "验证链接发送失败，请稍后重试" };
     }
   } catch (error) {
@@ -98,7 +98,7 @@ export async function verifyEmailLink(
 ): Promise<{ success: boolean; error?: string; message?: string }> {
   try {
     // 验证令牌
-    const result = verificationTokenStorage.verifyAndUseToken(token, fingerprint, ipAddress);
+    const result = await verificationTokenStorage.verifyAndUseToken(token, fingerprint, ipAddress);
 
     if (!result.success) {
       return { success: false, error: result.error };
@@ -117,13 +117,13 @@ export async function verifyEmailLink(
     const existUser = await UserStorage.getUserByUsername(username);
     const existEmail = await UserStorage.getUserByEmail(email);
     if (existUser || existEmail) {
-      verificationTokenStorage.deleteToken(token);
+      await verificationTokenStorage.deleteToken(token);
       return { success: false, error: "用户名或邮箱已被使用" };
     }
 
     // 创建用户
     await UserStorage.createUser(username, email, password);
-    verificationTokenStorage.deleteToken(token);
+    await verificationTokenStorage.deleteToken(token);
 
     // 发送欢迎邮件（不影响主流程）
     try {
@@ -159,7 +159,7 @@ export async function createAndSendPasswordResetLink(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // 创建验证令牌
-    const verificationToken = verificationTokenStorage.createToken(
+    const verificationToken = await verificationTokenStorage.createToken(
       VerificationTokenType.PASSWORD_RESET,
       email,
       fingerprint,
@@ -180,7 +180,7 @@ export async function createAndSendPasswordResetLink(
       return { success: true };
     } else {
       logger.error(`[密码重置] 发送失败: ${email}, 错误: ${emailResult.error}`);
-      verificationTokenStorage.deleteToken(verificationToken.token);
+      await verificationTokenStorage.deleteToken(verificationToken.token);
       return { success: false, error: "重置链接发送失败，请稍后重试" };
     }
   } catch (error) {
@@ -205,7 +205,7 @@ export async function verifyPasswordResetLink(
 ): Promise<{ success: boolean; error?: string; message?: string; email?: string; username?: string }> {
   try {
     // 验证令牌
-    const result = verificationTokenStorage.verifyAndUseToken(token, fingerprint, ipAddress);
+    const result = await verificationTokenStorage.verifyAndUseToken(token, fingerprint, ipAddress);
 
     if (!result.success) {
       return { success: false, error: result.error };
@@ -223,7 +223,7 @@ export async function verifyPasswordResetLink(
     // 获取用户信息
     const user = await UserStorage.getUserById(userId);
     if (!user) {
-      verificationTokenStorage.deleteToken(token);
+      await verificationTokenStorage.deleteToken(token);
       return { success: false, error: "用户不存在" };
     }
 
@@ -235,7 +235,7 @@ export async function verifyPasswordResetLink(
 
     // 更新密码
     await UserStorage.updateUser(user.id, { password: newPassword });
-    verificationTokenStorage.deleteToken(token);
+    await verificationTokenStorage.deleteToken(token);
 
     logger.info(`[密码重置] 用户 ${username} (${email}) 密码重置成功`);
     return { success: true, message: "密码重置成功，请使用新密码登录", email, username };

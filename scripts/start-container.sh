@@ -70,11 +70,6 @@ if [ ! -d "/app/public" ]; then
     log "警告: 前端文件目录不存在: /app/public"
 fi
 
-# 检查文档文件
-if [ ! -d "/app/docs" ]; then
-    log "警告: 文档文件目录不存在: /app/docs"
-fi
-
 # 启动应用
 log "启动应用..."
 exec npm start 

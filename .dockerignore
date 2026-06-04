@@ -1,12 +1,11 @@
 # 依赖目录
 node_modules
 frontend/node_modules
-frontend/docs/node_modules
+frontend/docs
 
 # 构建输出
 dist
 frontend/dist
-frontend/docs/build
 
 # 日志文件
 logs

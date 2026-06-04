@@ -3,6 +3,7 @@ import axios, { AxiosError } from "axios";
 import { TtsJobStatusResponse, TtsRequest, TtsResponse, TtsSubmitResponse } from "../types/tts";
 import { verifyContent } from "../utils/sign";
 import { getApiBaseUrl } from "../api/api";
+import { getFingerprint } from "../utils/fingerprint";
 
 const api = axios.create({
   baseURL: getApiBaseUrl(),
@@ -47,7 +48,13 @@ export const useTts = () => {
         throw new Error("请先登录");
       }
 
-      const submitResponse = await api.post<TtsSubmitResponse>("/api/tts/jobs", request, {
+      const fingerprint = request.fingerprint || (await getFingerprint());
+      const requestPayload = {
+        ...request,
+        ...(fingerprint ? { fingerprint } : {}),
+      };
+
+      const submitResponse = await api.post<TtsSubmitResponse>("/api/tts/jobs", requestPayload, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -70,6 +77,7 @@ export const useTts = () => {
             headers: {
               Authorization: `Bearer ${token}`,
             },
+            params: fingerprint ? { fingerprint } : undefined,
           });
 
           const statusData = statusResponse.data;
@@ -92,6 +100,7 @@ export const useTts = () => {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+        params: fingerprint ? { fingerprint } : undefined,
       });
 
       const responseData = response.data;

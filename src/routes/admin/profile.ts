@@ -517,7 +517,11 @@ router.post("/user/avatar", authMiddleware, upload.single("avatar"), async (req,
         req.file.mimetype,
         undefined,
         undefined,
-        { clientIp, isAdmin: (req as any).user?.role === "admin" },
+        {
+          clientIp,
+          isAdmin: (req as any).user?.role === "admin",
+          shouldSkipTurnstile: (req as any).user?.role === "admin",
+        },
       );
       if (!result?.web2url) {
         console.error("[avatar upload] IPFS上传失败，返回值:", result);
