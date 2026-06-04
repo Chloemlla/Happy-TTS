@@ -7,11 +7,7 @@ export interface LibreChatState {
     rtSending: boolean;
     rtStreaming: boolean;
     rtError: string | null;
-    isAdmin: boolean;
-    turnstileConfigLoading: boolean;
-    turnstileConfig: any;
-    turnstileVerified: boolean;
-    turnstileKey: number;
+    rtCanSend: boolean;
     rtHistory: any[];
     rtStreamContent: string | null;
     MAX_MESSAGE_LEN: number;
@@ -22,9 +18,6 @@ export interface LibreChatActions {
     setToken: (v: string) => void;
     onChangeRtMessage: (v: string) => void;
     handleRealtimeSend: () => void;
-    handleTurnstileVerify: (v: string) => void;
-    handleTurnstileExpire: () => void;
-    handleTurnstileError: () => void;
     setNotification: (v: any) => void;
     sanitizeAssistantText: (t: string) => string;
 }

@@ -15,6 +15,7 @@ import {
   generateWelcomeEmailHtml,
 } from "../templates/emailTemplates";
 import { getClientIP } from "../utils/ipUtils";
+import { signLoginToken } from "../utils/authToken";
 import logger from "../utils/logger";
 import { type User, UserStorage } from "../utils/userStorage";
 
@@ -453,13 +454,7 @@ export class AuthController {
         ...logDetails,
       });
       // 生成JWT token
-      const jwt = require("jsonwebtoken");
-      const config = require("../config/config").config;
-      const token = jwt.sign(
-        { userId: user.id, username: user.username, role: user.role || "user" },
-        config.jwtSecret,
-        { expiresIn: "2h" },
-      );
+      const token = signLoginToken(user);
 
       // 异地登录检测：比较当前IP与上次登录IP
       const lastIp = user.lastLoginIp;
@@ -640,13 +635,7 @@ export class AuthController {
         });
 
         // 生成JWT token
-        const jwt = require("jsonwebtoken");
-        const config = require("../config/config").config;
-        const token = jwt.sign(
-          { userId: user.id, username: user.username, role: user.role || "user" },
-          config.jwtSecret,
-          { expiresIn: "2h" },
-        );
+        const token = signLoginToken(user);
 
         logger.info("[AuthController] Passkey验证成功，生成JWT token", {
           userId: user.id,

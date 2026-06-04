@@ -58,6 +58,12 @@ const envSchema = z
     ADMIN_PASSWORD: optionalTrimmedString,
     GENERATION_CODE: z.string().optional().default("admin"),
     JWT_SECRET: optionalTrimmedString,
+    JWT_EXPIRES_IN: z
+      .string()
+      .trim()
+      .regex(/^\d+(ms|s|m|h|d|w|y)$/i, "JWT_EXPIRES_IN must be a duration like 30d, 12h, or 90m")
+      .optional()
+      .default("30d"),
     PUBLIC_SHORT_URL_ENABLED: stringToBoolean,
     PUBLIC_SHORT_URL_PASSWORD: optionalTrimmedString,
     REDIS_URL: z.string().url().optional(),
@@ -193,7 +199,7 @@ export const startupConfig = Object.freeze({
   adminUsername: parsedEnv.ADMIN_USERNAME,
   adminPassword,
   jwtSecret,
-  jwtExpiresIn: "24h",
+  jwtExpiresIn: parsedEnv.JWT_EXPIRES_IN,
   bcryptSaltRounds: 12,
   localIps: ["127.0.0.1", "localhost", "::1"],
   openai: {

@@ -1,8 +1,8 @@
 import crypto from "node:crypto";
 import axios from "axios";
-import jwt from "jsonwebtoken";
 import { config } from "../config/config";
 import logger from "../utils/logger";
+import { signLoginToken } from "../utils/authToken";
 import { type User, UserStorage } from "../utils/userStorage";
 
 export type LinuxDoAuthIntent = "login" | "register";
@@ -270,9 +270,7 @@ async function getAvailableLinuxDoUsername(baseUsername: string): Promise<string
 }
 
 function buildJwtToken(user: User): string {
-  return jwt.sign({ userId: user.id, username: user.username, role: user.role || "user" }, config.jwtSecret, {
-    expiresIn: "2h",
-  });
+  return signLoginToken(user);
 }
 
 function toExchangePayload(user: User, isNewUser: boolean): LinuxDoExchangePayload {

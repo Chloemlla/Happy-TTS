@@ -16,12 +16,10 @@ import {
   FaEnvelope,
   FaChevronLeft,
   FaChevronRight,
-  FaCode,
   FaEye,
   FaEyeSlash,
   FaExpand,
-  FaCompress,
-  FaQuestionCircle
+  FaCompress
 } from 'react-icons/fa';
 import MarkdownRenderer, { copyTextToClipboard } from './MarkdownRenderer';
 import getApiBaseUrl from '../api';
@@ -31,8 +29,6 @@ import ConfirmModal from './ConfirmModal';
 import PromptModal from './PromptModal';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
 import { FaCopy as FaCopyIcon } from 'react-icons/fa';
-import { TurnstileWidget } from './TurnstileWidget';
-import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
 import { LibreChatContext, LibreChatContextValue } from './LibreChatContext';
 import { LibreChatRealtimeDialog } from './LibreChatRealtimeDialog';
 import {
@@ -133,8 +129,6 @@ function sanitizeAssistantText(text: string): string {
 interface RequestBody {
   token?: string;
   message?: string;
-  cfToken?: string;
-  userRole?: string;
   messageId?: string;
 }
 
@@ -265,6 +259,27 @@ interface HistoryResponse {
   total: number;
   currentPage: number;
   totalPages: number;
+  limit?: number;
+}
+
+async function readLibreChatError(response: Response, fallback: string): Promise<string> {
+  try {
+    const data = await response.clone().json();
+    if (typeof data?.error === 'string' && data.error.trim()) return data.error;
+    if (typeof data?.message === 'string' && data.message.trim()) return data.message;
+  } catch {
+    try {
+      const text = await response.text();
+      if (text.trim()) return text.trim();
+    } catch {
+      // Ignore unreadable response bodies and use the fallback below.
+    }
+  }
+  return fallback;
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
 const LibreChatPage: React.FC = () => {
@@ -308,13 +323,6 @@ const LibreChatPage: React.FC = () => {
   const [streamContent, setStreamContent] = useState('');
   // 批量操作：选中的消息ID
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
-  // Turnstile 相关状态
-  const { config: turnstileConfig, loading: turnstileConfigLoading } = useTurnstileConfig();
-  const [turnstileToken, setTurnstileToken] = useState<string>('');
-  const [turnstileVerified, setTurnstileVerified] = useState(false);
-  const [turnstileError, setTurnstileError] = useState(false);
-  const [turnstileKey, setTurnstileKey] = useState(0);
 
   // 单次实时对话框状态（与 WebhookEventsManager 模态对齐样式）
   const [rtOpen, setRtOpen] = useState(false);
@@ -361,12 +369,6 @@ const LibreChatPage: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('lc_guest_hint_dismissed', guestHintDismissed ? '1' : '0');
   }, [guestHintDismissed]);
-
-  // 检查用户是否为管理员
-  const isAdmin = useMemo(() => {
-    const userRole = localStorage.getItem('userRole');
-    return userRole === 'admin' || userRole === 'administrator';
-  }, []);
 
   // 游客须知面板的隐藏状态
   const [guestNoticeDismissed, setGuestNoticeDismissed] = useState<boolean>(() => localStorage.getItem('lc_guest_notice_dismissed') === '1');
@@ -596,13 +598,6 @@ const LibreChatPage: React.FC = () => {
       setNotification({ type: 'info', message: '正在重试AI回复...' });
       const requestBody: RequestBody = token ? { token, messageId: id } : { messageId: id };
 
-      // 管理员发送 userRole 以跳过人机验证
-      if (isAdmin) {
-        requestBody.userRole = localStorage.getItem('userRole') || undefined;
-      } else if (!!turnstileConfig.siteKey && turnstileToken) {
-        requestBody.cfToken = turnstileToken;
-      }
-
       const res = await fetch(`${apiBase}/api/librechat/retry`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -613,10 +608,11 @@ const LibreChatPage: React.FC = () => {
         setNotification({ type: 'success', message: 'AI回复重试成功' });
         await fetchHistory(page);
       } else {
-        setNotification({ type: 'error', message: '重试失败' });
+        const errorMessage = await readLibreChatError(res, '重试失败');
+        setNotification({ type: 'error', message: errorMessage });
       }
     } catch (e: unknown) {
-      const errorMessage = e instanceof Error ? e.message : '重试失败';
+      const errorMessage = getErrorMessage(e, '重试失败');
       setNotification({ type: 'error', message: errorMessage });
     }
   };
@@ -775,8 +771,9 @@ const LibreChatPage: React.FC = () => {
         }
       } else {
         console.error('History API error:', res.status, res.statusText); // 调试信息
+        const errorMessage = await readLibreChatError(res, '加载历史记录失败');
         setHistory(null);
-        setNotification({ type: 'error', message: '加载历史记录失败' });
+        setNotification({ type: 'error', message: errorMessage });
       }
     } catch (e) {
       console.error('History fetch error:', e); // 调试信息
@@ -787,38 +784,20 @@ const LibreChatPage: React.FC = () => {
     }
   };
 
-  // Turnstile 验证处理函数
-  const handleTurnstileVerify = (token: string) => {
-    setTurnstileToken(token);
-    setTurnstileVerified(true);
-    setTurnstileError(false);
-  };
-
-  const handleTurnstileExpire = () => {
-    setTurnstileToken('');
-    setTurnstileVerified(false);
-    setTurnstileError(false);
-  };
-
-  const handleTurnstileError = () => {
-    setTurnstileToken('');
-    setTurnstileVerified(false);
-    setTurnstileError(true);
-  };
-
   const handleSend = async () => {
     setSendError('');
-    if (!message.trim()) return;
-
-    // 检查Turnstile验证（管理员除外）
-    if (!isAdmin && !!turnstileConfig.siteKey && (!turnstileVerified || !turnstileToken)) {
-      setSendError('请先完成人机验证');
-      setNotification({ message: '请先完成人机验证', type: 'warning' });
+    if (sending || streaming) {
+      setNotification({ type: 'warning', message: '正在处理中，请稍候...' });
+      return;
+    }
+    const trimmedMessage = message.trim();
+    if (!trimmedMessage) {
+      setSendError('请输入消息内容');
       return;
     }
 
     // 自动截断超长消息
-    let toSend = message;
+    let toSend = trimmedMessage;
     if (toSend.length > MAX_MESSAGE_LEN) {
       toSend = toSend.slice(0, MAX_MESSAGE_LEN);
       setSendError(`超出部分已自动截断（最大 ${MAX_MESSAGE_LEN} 字符）`);
@@ -834,14 +813,8 @@ const LibreChatPage: React.FC = () => {
       console.log('Sending message:', toSend); // 调试信息
 
       // 构建请求体
-      const requestBody: RequestBody = token ? { token, message: toSend } : { message: toSend };
-
-      // 管理员发送 userRole 以跳过人机验证
-      if (isAdmin) {
-        requestBody.userRole = localStorage.getItem('userRole') || undefined;
-      } else if (!!turnstileConfig.siteKey && turnstileToken) {
-        requestBody.cfToken = turnstileToken;
-      }
+      const trimmedToken = token.trim();
+      const requestBody: RequestBody = trimmedToken ? { token: trimmedToken, message: toSend } : { message: toSend };
 
       const res = await fetch(`${apiBase}/api/librechat/send`, {
         method: 'POST',
@@ -849,19 +822,12 @@ const LibreChatPage: React.FC = () => {
         credentials: 'include',
         body: JSON.stringify(requestBody)
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error(await readLibreChatError(res, '发送消息失败'));
       const data = await res.json();
       console.log('Send response:', data); // 调试信息
       const txtRaw: string = (data && typeof data.response === 'string') ? data.response : '';
       const txt = txtRaw;
       setMessage('');
-
-      // 重置Turnstile状态
-      if (!isAdmin) {
-        setTurnstileToken('');
-        setTurnstileVerified(false);
-        setTurnstileKey(k => k + 1);
-      }
 
       console.log('Message sent, waiting for response...'); // 调试信息
       if (txt) {
@@ -978,9 +944,10 @@ const LibreChatPage: React.FC = () => {
       }
     } catch (e) {
       console.error('Send message error:', e); // 调试信息
-      setSendError('发送失败，请稍后再试');
+      const errorMessage = getErrorMessage(e, '发送失败，请稍后再试');
+      setSendError(errorMessage);
       setStreaming(false);
-      setNotification({ type: 'error', message: '发送消息失败，请稍后再试' });
+      setNotification({ type: 'error', message: errorMessage });
     } finally {
       setSending(false);
     }
@@ -992,8 +959,9 @@ const LibreChatPage: React.FC = () => {
 
       // 构建请求体，确保包含token信息
       const requestBody: RequestBody = {};
-      if (token && token.trim()) {
-        requestBody.token = token;
+      const trimmedToken = token.trim();
+      if (trimmedToken) {
+        requestBody.token = trimmedToken;
       }
 
       console.log('清除历史记录请求体:', requestBody); // 调试信息
@@ -1090,15 +1058,8 @@ const LibreChatPage: React.FC = () => {
       return;
     }
 
-    // 检查Turnstile验证（管理员除外）
-    if (!isAdmin && !!turnstileConfig.siteKey && (!turnstileVerified || !turnstileToken)) {
-      setRtError('请先完成人机验证');
-      setNotification({ message: '请先完成人机验证', type: 'warning' });
-      return;
-    }
-
     // 自动截断超长消息
-    let toSend = rtMessage;
+    let toSend = rtMessage.trim();
     if (toSend.length > MAX_MESSAGE_LEN) {
       toSend = toSend.slice(0, MAX_MESSAGE_LEN);
       setRtError(`超出部分已自动截断（最大 ${MAX_MESSAGE_LEN} 字符）`);
@@ -1110,18 +1071,12 @@ const LibreChatPage: React.FC = () => {
       setRtStreamContent('');
       setNotification({ type: 'info', message: '正在发送消息...' });
       // 先把用户消息加入对话框内的本地上下文
-      const userEntry: HistoryItem = { role: 'user', content: rtMessage };
+      const userEntry: HistoryItem = { role: 'user', content: toSend };
       setRtHistory((prev) => [...prev, userEntry]);
       setRtMessage('');
       // 构建请求体
-      const requestBody: RequestBody = token ? { token, message: toSend } : { message: toSend };
-
-      // 管理员发送 userRole 以跳过人机验证
-      if (isAdmin) {
-        requestBody.userRole = localStorage.getItem('userRole') || undefined;
-      } else if (!!turnstileConfig.siteKey && turnstileToken) {
-        requestBody.cfToken = turnstileToken;
-      }
+      const trimmedToken = token.trim();
+      const requestBody: RequestBody = trimmedToken ? { token: trimmedToken, message: toSend } : { message: toSend };
 
       const res = await fetch(`${apiBase}/api/librechat/send`, {
         method: 'POST',
@@ -1129,7 +1084,7 @@ const LibreChatPage: React.FC = () => {
         credentials: 'include',
         body: JSON.stringify(requestBody)
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error(await readLibreChatError(res, '实时对话发送失败'));
       const data = await res.json();
       // 客户端模拟流式展示（后端字段为 response）
       const txtRaw: string = (data && typeof data.response === 'string') ? data.response : '';
@@ -1233,13 +1188,6 @@ const LibreChatPage: React.FC = () => {
             setRtStreaming(false);
             setRtSending(false);
 
-            // 重置Turnstile状态
-            if (!isAdmin) {
-              setTurnstileToken('');
-              setTurnstileVerified(false);
-              setTurnstileKey(k => k + 1);
-            }
-
             // 实时对话框发送完成后也刷新历史记录
             console.log('Realtime dialog completed, refreshing history...'); // 调试信息
             setNotification({ type: 'success', message: '实时对话完成，正在刷新历史记录...' });
@@ -1298,10 +1246,11 @@ const LibreChatPage: React.FC = () => {
       }, 30);
       rtIntervalRef.current = interval;
     } catch (e) {
-      setRtError('发送失败，请稍后再试');
+      const errorMessage = getErrorMessage(e, '发送失败，请稍后再试');
+      setRtError(errorMessage);
       setRtStreaming(false);
       setRtSending(false);
-      setNotification({ type: 'error', message: '实时对话发送失败，请稍后再试' });
+      setNotification({ type: 'error', message: errorMessage });
     }
   };
 
@@ -1435,15 +1384,17 @@ const LibreChatPage: React.FC = () => {
     );
   }
 
+  const canSend = !sending && !streaming && message.trim().length > 0;
+  const rtCanSend = !rtSending && !rtStreaming && rtMessage.trim().length > 0;
+
   const contextValue: LibreChatContextValue = {
     state: {
       rtOpen, token, rtMessage, rtSending, rtStreaming, rtError,
-      isAdmin, turnstileConfigLoading, turnstileConfig, turnstileVerified, turnstileKey,
+      rtCanSend,
       rtHistory, rtStreamContent, MAX_MESSAGE_LEN
     },
     actions: {
       closeRealtimeDialog, setToken, onChangeRtMessage, handleRealtimeSend,
-      handleTurnstileVerify, handleTurnstileExpire, handleTurnstileError,
       setNotification, sanitizeAssistantText
     },
     meta: {}
@@ -1612,19 +1563,26 @@ const LibreChatPage: React.FC = () => {
               <div className="relative">
                 <input
                   className={libreInputClass}
+                  aria-label="LibreChat Token"
                   placeholder="请输入 Token"
                   value={token}
                   onChange={(e) => setToken(e.target.value)}
                 />
               </div>
               <div className="relative sm:col-span-2">
-                <input
-                  className={libreInputClass}
+                <textarea
+                  className={`${libreInputClass} min-h-[96px] resize-y leading-6`}
+                  aria-label="聊天消息"
                   placeholder="请输入消息"
                   value={message}
                   maxLength={MAX_MESSAGE_LEN}
                   onChange={(e) => onChangeMessage(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
+                  onKeyDown={(e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                      e.preventDefault();
+                      void handleSend();
+                    }
+                  }}
                 />
               </div>
             </div>
@@ -1651,44 +1609,11 @@ const LibreChatPage: React.FC = () => {
               </div>
             )}
 
-            {/* Turnstile 人机验证（非管理员用户） */}
-            {!isAdmin && !turnstileConfigLoading && turnstileConfig.siteKey && typeof turnstileConfig.siteKey === 'string' && (
-              <motion.div
-                className={`${libreTileClass} mt-4 p-4`}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-              >
-                <div className="mb-3 text-center text-sm text-slate-700">
-                  人机验证
-                  {turnstileVerified && (
-                    <span className="ml-2 font-medium text-emerald-600">✓ 验证通过</span>
-                  )}
-                </div>
-
-                <TurnstileWidget
-                  key={turnstileKey}
-                  siteKey={turnstileConfig.siteKey}
-                  onVerify={handleTurnstileVerify}
-                  onExpire={handleTurnstileExpire}
-                  onError={handleTurnstileError}
-                  theme="light"
-                  size="normal"
-                />
-
-                {turnstileError && (
-                  <div className="mt-2 text-sm text-red-500 text-center">
-                    验证失败，请重新验证
-                  </div>
-                )}
-              </motion.div>
-            )}
-
             <div className="flex flex-wrap gap-3">
               <motion.button
                 onClick={handleSend}
-                disabled={sending || (!isAdmin && !!turnstileConfig.siteKey && !turnstileVerified)}
-                className={librePrimaryButtonClass}
+                disabled={!canSend}
+                className={`${librePrimaryButtonClass} disabled:cursor-not-allowed disabled:opacity-50`}
                 whileTap={{ scale: 0.95 }}
               >
                 <FaPaperPlane className="w-4 h-4" />
@@ -1717,43 +1642,6 @@ const LibreChatPage: React.FC = () => {
               >
                 <FaPaperPlane className="w-4 h-4" />
                 单次对话
-              </motion.button>
-              <motion.button
-                onClick={() => {
-                  setPromptModal({
-                    open: true,
-                    title: '测试代码编辑器',
-                    message: '这是一个测试，展示原生代码编辑器功能：',
-                    placeholder: '请输入代码内容...',
-                    defaultValue: `// 这是一个JavaScript示例
-function greet(name) {
-  return \`Hello, \${name}!\`;
-}
-
-const user = "World";
-console.log(greet(user));
-
-// JSON示例
-const config = {
-  "theme": "vscDarkPlus",
-  "language": "javascript",
-  "features": ["syntax-highlighting", "line-numbers", "auto-detection"]
-};`,
-                    codeEditor: true,
-                    language: 'auto',
-                    maxLength: 5000,
-                    onConfirm: (content: string) => {
-                      setNotification({ type: 'success', message: '代码编辑器测试完成！' });
-                      console.log('测试代码内容:', content);
-                    }
-                  });
-                }}
-                className={libreGhostButtonClass}
-                title="测试代码编辑器功能"
-                whileTap={{ scale: 0.95 }}
-              >
-                <FaCode className="w-4 h-4" />
-                测试编辑器
               </motion.button>
             </div>
           </div>

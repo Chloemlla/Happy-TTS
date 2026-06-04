@@ -490,7 +490,7 @@ const LIMITER_DEFINITIONS = {
     skip: skipLocalAndStatusPoll,
   },
   librechat: {
-    profile: "relaxed",
+    profile: "standard",
     category: "public-api",
     message: "LibreChat请求过于频繁，请稍后再试",
   },

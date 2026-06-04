@@ -8,6 +8,42 @@ import logger from "../utils/logger";
 const router = Router();
 // 与前端保持一致的消息长度上限（以字符近似 tokens 上限）
 const MAX_MESSAGE_LEN = 8192;
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 100;
+
+function sendLibreChatError(
+  res: any,
+  status: number,
+  code: string,
+  error: string,
+  details?: Record<string, unknown>,
+) {
+  return res.status(status).json({
+    success: false,
+    code,
+    error,
+    message: error,
+    ...(details ? { details } : {}),
+  });
+}
+
+function normalizeMessage(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function parsePositiveInt(value: unknown, fallback: number): number {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const parsed = Number.parseInt(String(raw ?? ""), 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function normalizePagination(pageValue: unknown, limitValue: unknown): { page: number; limit: number } {
+  return {
+    page: parsePositiveInt(pageValue, DEFAULT_PAGE),
+    limit: Math.min(parsePositiveInt(limitValue, DEFAULT_LIMIT), MAX_LIMIT),
+  };
+}
 
 // 从已登录上下文提取 userId（若存在）
 function extractUserId(req: any): string | undefined {
@@ -84,7 +120,7 @@ router.get("/lc", (_req, res) => {
  */
 router.post("/guest", (req, res) => {
   if (!isGuestEnabled()) {
-    return res.status(403).json({ error: "游客模式未启用" });
+    return sendLibreChatError(res, 403, "GUEST_DISABLED", "游客模式未启用");
   }
   // 生成高熵随机 token，带前缀标识
   const token = `guest_${randomBytes(24).toString("hex")}`;
@@ -195,20 +231,14 @@ router.get("/librechat-image", (_req, res) => {
  *         application/json:
  *           schema:
  *             type: object
- *             required: [token, message]
+ *             required: [message]
  *             properties:
  *               token:
  *                 type: string
- *                 description: 用户认证token
+ *                 description: 用户认证token，可选（游客模式或登录会话可不传）
  *               message:
  *                 type: string
  *                 description: 聊天消息
- *               cfToken:
- *                 type: string
- *                 description: Cloudflare Turnstile 验证token（非管理员用户必需）
- *               userRole:
- *                 type: string
- *                 description: 用户角色（admin/administrator 为管理员，其他为普通用户）
  *     responses:
  *       200:
  *         description: 消息发送成功
@@ -219,7 +249,7 @@ router.get("/librechat-image", (_req, res) => {
  */
 router.post("/send", async (req, res) => {
   try {
-    const { message, cfToken, userRole } = req.body;
+    const message = normalizeMessage(req.body?.message);
     const token = getTokenFromReq(req);
     const userId = extractUserId(req);
 
@@ -229,35 +259,37 @@ router.post("/send", async (req, res) => {
     } else {
       // 非游客模式：需要 token 或 已登录 userId
       if ((!token || token === "invalid-token") && !userId) {
-        return res.status(401).json({ error: "未认证：请提供有效 token 或登录后再试" });
+        return sendLibreChatError(res, 401, "AUTH_REQUIRED", "未认证：请提供有效 token 或登录后再试");
       }
     }
 
     // 验证消息
-    if (!message || message.trim() === "") {
-      return res.status(400).json({ error: "消息不能为空" });
+    if (!message) {
+      return sendLibreChatError(res, 400, "EMPTY_MESSAGE", "消息不能为空");
     }
 
     // 验证消息长度（与前端同步）
     if (message.length > MAX_MESSAGE_LEN) {
-      return res.status(400).json({ error: `消息过长，最大允许 ${MAX_MESSAGE_LEN} 字符` });
+      return sendLibreChatError(res, 400, "MESSAGE_TOO_LONG", `消息过长，最大允许 ${MAX_MESSAGE_LEN} 字符`, {
+        maxLength: MAX_MESSAGE_LEN,
+      });
     }
 
     // 发送消息到LibreChat服务
-    const response = await libreChatService.sendMessage(token ?? "", message, userId, cfToken, userRole);
+    const response = await libreChatService.sendMessage(token ?? "", message, userId);
 
-    res.json({ response });
+    res.json({
+      success: true,
+      response,
+      meta: {
+        messageLength: message.length,
+        generatedAt: new Date().toISOString(),
+      },
+    });
   } catch (error) {
     console.error("发送消息错误:", error);
 
-    // 处理 Turnstile 验证错误
-    if (error instanceof Error) {
-      if (error.message.includes("人机验证") || error.message.includes("Turnstile")) {
-        return res.status(400).json({ error: error.message });
-      }
-    }
-
-    res.status(500).json({ error: "发送消息失败" });
+    sendLibreChatError(res, 500, "SEND_FAILED", "发送消息失败");
   }
 });
 
@@ -269,10 +301,10 @@ router.post("/send", async (req, res) => {
  *     parameters:
  *       - in: query
  *         name: token
- *         required: true
+ *         required: false
  *         schema:
  *           type: string
- *         description: 用户认证token
+ *         description: 用户认证token，可选（游客模式或登录会话可不传）
  *       - in: query
  *         name: page
  *         schema:
@@ -293,7 +325,7 @@ router.post("/send", async (req, res) => {
  */
 router.get("/history", async (req, res) => {
   try {
-    const { page = 1, limit = 20 } = req.query as any;
+    const { page, limit } = normalizePagination(req.query.page, req.query.limit);
     const token = getTokenFromReq(req);
     const userId = extractUserId(req);
 
@@ -303,29 +335,32 @@ router.get("/history", async (req, res) => {
     } else {
       // 非游客模式：需要 token 或 已登录 userId
       if ((!token || token === "invalid-token") && !userId) {
-        return res.status(401).json({ error: "未认证：请提供有效 token 或登录后再试" });
+        return sendLibreChatError(res, 401, "AUTH_REQUIRED", "未认证：请提供有效 token 或登录后再试");
       }
     }
 
     // 获取聊天历史
     const history = await libreChatService.getHistory(
-      token as string,
+      token ?? "",
       {
-        page: parseInt(page as string, 10),
-        limit: parseInt(limit as string, 10),
+        page,
+        limit,
       },
       userId,
     );
 
+    const totalPages = history.total > 0 ? Math.ceil(history.total / limit) : 1;
     res.json({
+      success: true,
       history: history.messages,
       total: history.total,
-      currentPage: parseInt(page as string, 10),
-      totalPages: Math.ceil(history.total / parseInt(limit as string, 10)),
+      currentPage: page,
+      totalPages,
+      limit,
     });
   } catch (error) {
     console.error("获取历史错误:", error);
-    res.status(500).json({ error: "获取聊天历史失败" });
+    sendLibreChatError(res, 500, "HISTORY_FAILED", "获取聊天历史失败");
   }
 });
 
@@ -499,12 +534,6 @@ router.delete("/messages", async (req, res) => {
  *               messageId:
  *                 type: string
  *                 description: 需要重试的助手消息ID
- *               cfToken:
- *                 type: string
- *                 description: Cloudflare Turnstile 验证token（非管理员用户必需）
- *               userRole:
- *                 type: string
- *                 description: 用户角色（admin/administrator 为管理员，其他为普通用户）
  *     responses:
  *       200:
  *         description: 重试成功，返回新的回复
@@ -515,34 +544,34 @@ router.delete("/messages", async (req, res) => {
  */
 router.post("/retry", async (req, res) => {
   try {
-    const { messageId, cfToken, userRole } = req.body || {};
+    const { messageId } = req.body || {};
     const token = getTokenFromReq(req);
     const userId = extractUserId(req);
 
     // 游客模式：允许无认证
     if (!isGuestEnabled()) {
       if ((!token || token === "invalid-token") && !userId) {
-        return res.status(401).json({ error: "未认证：请提供有效 token 或登录后再试" });
+        return sendLibreChatError(res, 401, "AUTH_REQUIRED", "未认证：请提供有效 token 或登录后再试");
       }
     }
 
     if (!messageId || typeof messageId !== "string") {
-      return res.status(400).json({ error: "缺少消息ID" });
+      return sendLibreChatError(res, 400, "MESSAGE_ID_REQUIRED", "缺少消息ID");
     }
 
-    const response = await libreChatService.retryMessage(token ?? "", messageId as string, userId, cfToken, userRole);
-    return res.json({ response });
+    const response = await libreChatService.retryMessage(token ?? "", messageId as string, userId);
+    return res.json({
+      success: true,
+      response,
+      meta: {
+        messageId,
+        generatedAt: new Date().toISOString(),
+      },
+    });
   } catch (error) {
     console.error("重试生成错误:", error);
 
-    // 处理 Turnstile 验证错误
-    if (error instanceof Error) {
-      if (error.message.includes("人机验证") || error.message.includes("Turnstile")) {
-        return res.status(400).json({ error: error.message });
-      }
-    }
-
-    res.status(500).json({ error: "重试失败" });
+    sendLibreChatError(res, 500, "RETRY_FAILED", "重试失败");
   }
 });
 

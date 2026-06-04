@@ -561,6 +561,7 @@ REDIS_URL=redis://localhost:6379
 
 # ========== 认证配置 ==========
 JWT_SECRET=your-jwt-secret        # JWT 签名密钥
+JWT_EXPIRES_IN=30d                # 登录 JWT 有效期，例如 30d、12h、90m
 ADMIN_USERNAME=admin              # 管理员用户名
 ADMIN_PASSWORD=admin              # 管理员密码
 SERVER_PASSWORD=1145              # 服务器状态查询密码

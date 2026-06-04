@@ -6,12 +6,38 @@ import { getApiBaseUrl } from '../api/api';
 
 // 单设备多用户配置
 const ACCOUNTS_KEY = 'synapse_saved_accounts';
+const AUTH_TOKEN_EXPIRY_SKEW_MS = 30_000;
 
 export interface SavedAccount {
     user: User;
     token: string;
     lastActive: number;
 }
+
+const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
+    try {
+        const payload = token.split('.')[1];
+        if (!payload) return null;
+        const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+        const padded = normalized.padEnd(normalized.length + ((4 - normalized.length % 4) % 4), '=');
+        return JSON.parse(window.atob(padded)) as Record<string, unknown>;
+    } catch {
+        return null;
+    }
+};
+
+const getTokenExpiresAt = (token: string): number | null => {
+    const payload = decodeJwtPayload(token);
+    const exp = payload?.exp;
+    return typeof exp === 'number' ? exp * 1000 : null;
+};
+
+const isTokenExpired = (token: string): boolean => {
+    const expiresAt = getTokenExpiresAt(token);
+    return expiresAt !== null && expiresAt <= Date.now() + AUTH_TOKEN_EXPIRY_SKEW_MS;
+};
+
+const isAuthRejectionStatus = (status?: number): boolean => status === 401 || status === 403 || status === 404;
 
 // 创建axios实例
 const api = axios.create({
@@ -76,7 +102,12 @@ export const useAuth = () => {
         if (stored) {
             try {
                 const parsed = JSON.parse(stored) as SavedAccount[];
-                const sorted = parsed.sort((a, b) => b.lastActive - a.lastActive);
+                if (!Array.isArray(parsed)) return [];
+                const validAccounts = parsed.filter(account => account?.token && !isTokenExpired(account.token));
+                if (validAccounts.length !== parsed.length) {
+                    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(validAccounts));
+                }
+                const sorted = validAccounts.sort((a, b) => b.lastActive - a.lastActive);
                 setSavedAccounts(sorted);
                 return sorted;
             } catch (e) {
@@ -88,6 +119,7 @@ export const useAuth = () => {
 
     // 保存账号到列表
     const saveAccount = useCallback((user: User, token: string) => {
+        if (isTokenExpired(token)) return;
         const current = loadSavedAccounts();
         const filtered = current.filter(a => a.user.id !== user.id);
         const updated = [{ user, token, lastActive: Date.now() }, ...filtered];
@@ -128,6 +160,18 @@ export const useAuth = () => {
                 setLoading(false);
                 return;
             }
+            if (isTokenExpired(token)) {
+                console.log('本地token已过期，清除登录状态');
+                localStorage.removeItem('token');
+                setUser(null);
+                setLoading(false);
+                return;
+            }
+
+            const cachedAccount = loadSavedAccounts().find(account => account.token === token);
+            if (cachedAccount) {
+                setUser(current => current ?? cachedAccount.user);
+            }
 
             console.log('检查认证状态，token:', token);
             const response = await api.get<User>('/api/auth/me', {
@@ -136,7 +180,7 @@ export const useAuth = () => {
 
             console.log('认证检查响应:', response.status, response.data);
 
-            if (response.status === 401 || response.status === 403) {
+            if (isAuthRejectionStatus(response.status)) {
                 localStorage.removeItem('token');
                 setUser(null);
                 setLoading(false);
@@ -170,16 +214,18 @@ export const useAuth = () => {
             setLastErrorTime(now);
             if (error.response?.status === 429) {
                 console.warn('认证检查被限流，将在60秒后重试');
-            } else {
+            } else if (isAuthRejectionStatus(error.response?.status)) {
                 setUser(null);
                 localStorage.removeItem('token');
+            } else {
+                console.warn('认证检查暂时失败，保留本地登录状态:', error.message);
             }
         } finally {
             setLoading(false);
             setIsChecking(false);
             checkingRef.current = false;
         }
-    }, [saveAccount, navigate]);
+    }, [loadSavedAccounts, saveAccount, navigate]);
 
     useEffect(() => {
         loadSavedAccounts();
@@ -190,6 +236,12 @@ export const useAuth = () => {
         const accounts = loadSavedAccounts();
         const target = accounts.find(a => a.user.id === userId);
         if (target) {
+            if (isTokenExpired(target.token)) {
+                const updated = accounts.filter(a => a.user.id !== userId);
+                localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(updated));
+                setSavedAccounts(updated);
+                return;
+            }
             localStorage.setItem('token', target.token);
             setLoading(true);
             try {
@@ -200,13 +252,18 @@ export const useAuth = () => {
                 saveAccount(response.data, target.token);
                 setIsAdminChecked(false); // 重置管理员检查状态
                 navigate('/');
-            } catch (e) {
-                const updated = accounts.filter(a => a.user.id !== userId);
-                localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(updated));
-                setSavedAccounts(updated);
-                setUser(null);
-                localStorage.removeItem('token');
-                navigate('/welcome');
+            } catch (e: any) {
+                if (isAuthRejectionStatus(e.response?.status)) {
+                    const updated = accounts.filter(a => a.user.id !== userId);
+                    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(updated));
+                    setSavedAccounts(updated);
+                    setUser(null);
+                    localStorage.removeItem('token');
+                    navigate('/welcome');
+                } else {
+                    setUser(target.user);
+                    navigate('/');
+                }
             } finally {
                 setLoading(false);
             }

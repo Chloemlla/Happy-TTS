@@ -87,8 +87,6 @@ export class ModerationService {
         "moderation_check",
         prompt,
         "system_moderator",
-        undefined,
-        "admin",
       );
 
       isViolated = response.toLowerCase().includes("true");
@@ -128,8 +126,6 @@ export class ModerationService {
         "moderation_reason",
         prompt,
         "system_moderator",
-        undefined,
-        "admin",
       );
 
       return response || "内容违反社区准则。";

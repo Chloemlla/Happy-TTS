@@ -1,5 +1,4 @@
 import express from "express";
-import type { SignOptions } from "jsonwebtoken";
 import { AuthController } from "../controllers/authController";
 import { LinuxDoAuthController } from "../controllers/linuxDoAuthController";
 import { authenticateToken } from "../middleware/authenticateToken";
@@ -8,11 +7,6 @@ import { loginLimiter, registerLimiter } from "../middleware/routeLimiters";
 import { logUserData } from "../middleware/userDataLogger";
 
 const router = express.Router();
-
-// JWT 签名选项
-const _jwtSignOptions: SignOptions = {
-  expiresIn: "24h",
-};
 
 /**
  * @openapi

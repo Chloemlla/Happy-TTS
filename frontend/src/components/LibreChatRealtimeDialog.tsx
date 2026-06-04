@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FaPaperPlane, FaTimes, FaUser, FaRobot } from 'react-icons/fa';
 import { useLibreChat } from './LibreChatContext';
 import { ReadOnlyMarkdownRenderer } from './LibreChatPage';
-import { TurnstileWidget } from './TurnstileWidget';
 
 export function LibreChatRealtimeDialog() {
     const { state, actions } = useLibreChat();
@@ -37,17 +36,25 @@ export function LibreChatRealtimeDialog() {
                             <div className="grid gap-3 sm:grid-cols-3">
                                 <input
                                     className="border-2 border-gray-200 rounded-lg px-4 py-3 w-full focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                                    aria-label="LibreChat Token"
                                     placeholder="请输入 Token"
                                     value={state.token}
                                     onChange={(e) => actions.setToken(e.target.value)}
                                 />
-                                <input
-                                    className="border-2 border-gray-200 rounded-lg px-4 py-3 w-full sm:col-span-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                                <textarea
+                                    className="min-h-[96px] resize-y border-2 border-gray-200 rounded-lg px-4 py-3 w-full sm:col-span-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                                    aria-label="实时对话消息"
                                     placeholder="请输入消息（支持上下文）"
                                     value={state.rtMessage}
+                                    rows={3}
                                     maxLength={state.MAX_MESSAGE_LEN}
                                     onChange={(e) => actions.onChangeRtMessage(e.target.value)}
-                                    onKeyDown={(e) => { if (e.key === 'Enter' && !state.rtSending && !state.rtStreaming) actions.handleRealtimeSend(); }}
+                                    onKeyDown={(e) => {
+                                        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && state.rtCanSend) {
+                                            e.preventDefault();
+                                            void actions.handleRealtimeSend();
+                                        }
+                                    }}
                                 />
                             </div>
 
@@ -56,44 +63,11 @@ export function LibreChatRealtimeDialog() {
                                 {state.rtError && <div className="text-red-500 text-sm">{state.rtError}</div>}
                             </div>
 
-                            {/* Turnstile 人机验证（非管理员用户） */}
-                            {!state.isAdmin && !state.turnstileConfigLoading && state.turnstileConfig?.siteKey && typeof state.turnstileConfig.siteKey === 'string' && (
-                                <motion.div
-                                    className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200"
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.5 }}
-                                >
-                                    <div className="text-sm text-gray-700 mb-3 text-center">
-                                        人机验证
-                                        {state.turnstileVerified && (
-                                            <span className="ml-2 text-green-600 font-medium">✓ 验证通过</span>
-                                        )}
-                                    </div>
-
-                                    <TurnstileWidget
-                                        key={state.turnstileKey}
-                                        siteKey={state.turnstileConfig.siteKey}
-                                        onVerify={actions.handleTurnstileVerify}
-                                        onExpire={actions.handleTurnstileExpire}
-                                        onError={actions.handleTurnstileError}
-                                        theme="light"
-                                        size="normal"
-                                    />
-
-                                    {state.rtError && !state.turnstileVerified && (
-                                        <div className="mt-2 text-sm text-red-500 text-center">
-                                            验证失败，请重新验证
-                                        </div>
-                                    )}
-                                </motion.div>
-                            )}
-
                             <div className="flex items-center justify-end gap-2">
                                 <motion.button
                                     onClick={actions.handleRealtimeSend}
-                                    disabled={state.rtSending || (!state.isAdmin && !!state.turnstileConfig?.siteKey && !state.turnstileVerified)}
-                                    className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+                                    disabled={!state.rtCanSend}
+                                    className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:cursor-not-allowed disabled:opacity-50 text-sm font-medium flex items-center gap-2"
                                     whileTap={{ scale: 0.95 }}
                                 >
                                     <FaPaperPlane className="w-4 h-4" />

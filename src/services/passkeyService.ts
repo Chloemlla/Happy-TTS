@@ -9,6 +9,7 @@ import {
 import jwt from "jsonwebtoken";
 import { config } from "../config/config";
 import { env } from "../config/env";
+import { signLoginToken } from "../utils/authToken";
 import logger from "../utils/logger";
 import { type User, UserStorage } from "../utils/userStorage";
 
@@ -788,9 +789,7 @@ export class PasskeyService {
       email: user.email,
     });
 
-    const token = jwt.sign({ userId: user.id, username: user.username, role: user.role || "user" }, config.jwtSecret, {
-      expiresIn: "24h",
-    });
+    const token = signLoginToken(user);
 
     // 验证生成的token
     try {

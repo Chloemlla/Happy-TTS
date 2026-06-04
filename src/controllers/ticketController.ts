@@ -46,8 +46,6 @@ async function generateAiTicketResponse(ticket: any) {
         `ticket_context_${ticketId}`,
         `${systemPrompt}\n\n当前用户反馈: ${lastMessage.content}`,
         "system_ai_assistant",
-        undefined,
-        "admin",
         (delta) => {
           // 通过 WebSocket 发送流式分片
           wsService.notifyTicketAiResponse(ticket.userId, ticketId, delta, false);

@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
-import jwt from "jsonwebtoken";
 import { config } from "../config/config";
 import logger from "../utils/logger";
+import { signLoginToken } from "../utils/authToken";
 import { type User, UserStorage } from "../utils/userStorage";
 
 export interface GoogleAuthConfigSummary {
@@ -103,9 +103,7 @@ async function findUserByEmail(email: string): Promise<User | null> {
 }
 
 function buildJwtToken(user: User): string {
-  return jwt.sign({ userId: user.id, username: user.username, role: user.role || "user" }, config.jwtSecret, {
-    expiresIn: "2h",
-  });
+  return signLoginToken(user);
 }
 
 function toAuthPayload(user: User, isNewUser: boolean): GoogleAuthPayload {
