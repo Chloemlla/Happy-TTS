@@ -1,13 +1,13 @@
 #!/bin/bash
 
-# Synapse 文件存储模式启动脚本
+# Synapse 旧存储入口兼容启动脚本
 
-echo "=== Synapse 文件存储模式启动脚本 ==="
-echo "此脚本将使用文件存储模式启动应用"
+echo "=== Synapse MongoDB 存储启动脚本 ==="
+echo "旧存储入口已改为 MongoDB，用户存储固定使用 MongoDB"
 echo ""
 
 # 设置环境变量
-export USER_STORAGE_MODE=file
+export USER_STORAGE_MODE=mongo
 export NODE_ENV=production
 
 echo "已设置环境变量:"
@@ -26,7 +26,7 @@ echo ""
 
 # 启动应用
 echo "启动 Synapse 应用..."
-echo "使用文件存储模式，无需数据库连接"
+echo "使用 MongoDB 用户存储，请确保 MONGO_URI 已配置"
 echo ""
 
 # 如果是开发环境，使用 npm run dev

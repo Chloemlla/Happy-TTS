@@ -23,7 +23,8 @@ for (const arg of args) {
   } else if (arg === "--inspect") {
     nodeArgs.push("--inspect=0.0.0.0:9229");
   } else if (arg === "--file-storage") {
-    process.env.USER_STORAGE_MODE = "file";
+    console.error("[profiling] --file-storage is no longer supported; USER_STORAGE_MODE is fixed to mongo.");
+    process.exit(1);
   } else {
     passthroughArgs.push(arg);
   }
