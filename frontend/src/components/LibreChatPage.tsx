@@ -319,6 +319,7 @@ const LibreChatPage: React.FC = () => {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
+  const [historyView, setHistoryView] = useState<'rendered' | 'source'>('rendered');
   const [streaming, setStreaming] = useState(false);
   const [streamContent, setStreamContent] = useState('');
   // 批量操作：选中的消息ID
@@ -727,6 +728,45 @@ const LibreChatPage: React.FC = () => {
         }
       }
     });
+  };
+
+  const renderChatContent = (
+    content: string,
+    role: HistoryItem['role'],
+    interactive = true,
+  ) => {
+    const normalized = role === 'user' ? content : sanitizeAssistantText(content);
+
+    if (historyView === 'source') {
+      return (
+        <pre className="max-h-[520px] overflow-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-950 p-4 font-mono text-xs leading-6 text-slate-100">
+          {normalized}
+        </pre>
+      );
+    }
+
+    if (!interactive) {
+      return (
+        <ReadOnlyMarkdownRenderer
+          content={normalized}
+          onCodeCopy={(success) => {
+            setNotification({ type: success ? 'success' : 'error', message: success ? '代码已复制' : '复制失败' });
+          }}
+        />
+      );
+    }
+
+    return (
+      <InteractiveMarkdownRenderer
+        content={normalized}
+        onContentCopy={(success) => {
+          setNotification({ type: success ? 'success' : 'error', message: success ? 'Markdown内容已复制到剪贴板' : '复制失败' });
+        }}
+        onCodeCopy={(success) => {
+          setNotification({ type: success ? 'success' : 'error', message: success ? '代码已复制' : '复制失败' });
+        }}
+      />
+    );
   };
 
   const fetchHistory = async (toPage = 1) => {
@@ -1664,6 +1704,30 @@ const LibreChatPage: React.FC = () => {
             />
             <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
               <span>第 {page} / {history?.totalPages || 1} 页，共 {history?.total || 0} 条</span>
+              <div className="inline-flex rounded-2xl border border-slate-200 bg-white/80 p-1">
+                <button
+                  type="button"
+                  onClick={() => setHistoryView('rendered')}
+                  className={`inline-flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
+                    historyView === 'rendered' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                  aria-pressed={historyView === 'rendered'}
+                >
+                  <FaEye className="w-3 h-3" />
+                  渲染
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHistoryView('source')}
+                  className={`inline-flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-semibold transition ${
+                    historyView === 'source' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                  aria-pressed={historyView === 'source'}
+                >
+                  <FaEyeSlash className="w-3 h-3" />
+                  原文
+                </button>
+              </div>
               <motion.button
                 onClick={refreshHistory}
                 className={libreGhostButtonClass}
@@ -1719,7 +1783,7 @@ const LibreChatPage: React.FC = () => {
               <div className="max-h-[60vh] overflow-auto pr-1">
                 {streaming && (
                   <motion.div
-                    className={`${libreTileClass} mb-4 p-4`}
+                    className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                   >
@@ -1732,124 +1796,100 @@ const LibreChatPage: React.FC = () => {
                         <span className="text-xs text-slate-500">生成中...</span>
                       </div>
                     </div>
-                    <ReadOnlyMarkdownRenderer
-                      content={sanitizeAssistantText(streamContent || '...')}
-                      onCodeCopy={(success) => {
-                        if (success) {
-                          setNotification({ type: 'success', message: '代码已复制' });
-                        } else {
-                          setNotification({ type: 'error', message: '复制失败' });
-                        }
-                      }}
-                    />
+                    {renderChatContent(streamContent || '...', 'assistant', false)}
                   </motion.div>
                 )}
-                {/* 调试信息 */}
-                <div className="mb-2 text-xs text-slate-500">
-                  历史记录状态: {history ? `已加载 (${history.history.length} 条)` : '未加载'} |
-                  加载状态: {loadingHistory ? '加载中' : '已完成'}
-                </div>
                 {history && history.history.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="space-y-5">
                     {history.history.map((m: HistoryItem, idx: number) => (
                       <motion.div
                         key={idx}
-                        className={`${libreTileClass} p-4`}
+                        className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.3, delay: 0.05 * idx }}
                       >
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-2">
-                              <div className={`flex h-8 w-8 items-center justify-center rounded-full border ${
-                                m.role === 'user'
-                                  ? 'border-slate-300 bg-white text-slate-600'
-                                  : 'border-slate-200 bg-slate-50 text-slate-500'
-                                }`}>
-                                {m.role === 'user' ? (
-                                  <FaUser className="h-4 w-4" />
-                                ) : (
-                                  <FaRobot className="h-4 w-4" />
-                                )}
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="text-sm font-medium text-slate-700">
-                                  {m.role === 'user' ? '用户' : '助手'}
-                                </span>
-                                {m.createdAt && (
-                                  <span className="text-xs text-slate-500">{m.createdAt}</span>
-                                )}
+                        <div className={`rounded-lg border p-4 shadow-sm ${
+                          m.role === 'user'
+                            ? 'max-w-[min(92%,_720px)] border-slate-200 bg-slate-50'
+                            : 'w-full max-w-[980px] border-slate-200 bg-white'
+                        }`}>
+                          <div className="mb-3 flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-2">
+                                <div className={`flex h-8 w-8 items-center justify-center rounded-full border ${
+                                  m.role === 'user'
+                                    ? 'border-slate-300 bg-white text-slate-600'
+                                    : 'border-slate-200 bg-slate-50 text-slate-500'
+                                  }`}>
+                                  {m.role === 'user' ? (
+                                    <FaUser className="h-4 w-4" />
+                                  ) : (
+                                    <FaRobot className="h-4 w-4" />
+                                  )}
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium text-slate-700">
+                                    {m.role === 'user' ? '用户' : '助手'}
+                                  </span>
+                                  {m.createdAt && (
+                                    <span className="text-xs text-slate-500">{m.createdAt}</span>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {m.id && (
-                              <input
-                                type="checkbox"
-                                className="w-4 h-4"
-                                checked={selectedIds.includes(m.id)}
-                                onChange={() => toggleSelect(m.id)}
-                                title="选择此消息"
-                              />
-                            )}
-                            <motion.button
-                              onClick={() => copyText(m.role === 'user' ? m.content : sanitizeAssistantText(m.content))}
-                              className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white/80 px-2 py-1 text-xs text-slate-700 transition hover:bg-white"
-                              whileTap={{ scale: 0.95 }}
-                            >
-                              <FaCopy className="w-3 h-3" />
-                              复制
-                            </motion.button>
-                          </div>
-                        </div>
-                        <InteractiveMarkdownRenderer
-                          content={m.role === 'user' ? m.content : sanitizeAssistantText(m.content)}
-                          onContentCopy={(success) => {
-                            if (success) {
-                              setNotification({ type: 'success', message: 'Markdown内容已复制到剪贴板' });
-                            } else {
-                              setNotification({ type: 'error', message: '复制失败' });
-                            }
-                          }}
-                          onCodeCopy={(success) => {
-                            if (success) {
-                              setNotification({ type: 'success', message: '代码已复制' });
-                            } else {
-                              setNotification({ type: 'error', message: '复制失败' });
-                            }
-                          }}
-                        />
-                        {m.id && (
-                          <div className="mt-3 flex justify-end gap-2">
-                            <motion.button
-                              onClick={() => handleEdit(m.id, m.content)}
-                              className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white/80 px-3 py-1 text-xs text-slate-700 transition hover:bg-white"
-                              whileTap={{ scale: 0.95 }}
-                            >
-                              <FaEdit className="w-3 h-3" />
-                              编辑
-                            </motion.button>
-                            {m.role !== 'user' && (
+                            <div className="flex items-center gap-2">
+                              {m.id && (
+                                <input
+                                  type="checkbox"
+                                  className="w-4 h-4"
+                                  checked={selectedIds.includes(m.id)}
+                                  onChange={() => toggleSelect(m.id)}
+                                  title="选择此消息"
+                                />
+                              )}
                               <motion.button
-                                onClick={() => handleRetry(m.id)}
+                                onClick={() => copyText(m.role === 'user' ? m.content : sanitizeAssistantText(m.content))}
+                                className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white/80 px-2 py-1 text-xs text-slate-700 transition hover:bg-white"
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                <FaCopy className="w-3 h-3" />
+                                复制
+                              </motion.button>
+                            </div>
+                          </div>
+                          {renderChatContent(m.content, m.role)}
+                          {m.id && (
+                            <div className="mt-3 flex justify-end gap-2">
+                              <motion.button
+                                onClick={() => handleEdit(m.id, m.content)}
                                 className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white/80 px-3 py-1 text-xs text-slate-700 transition hover:bg-white"
                                 whileTap={{ scale: 0.95 }}
                               >
-                                <FaRedo className="w-3 h-3" />
-                                重试
+                                <FaEdit className="w-3 h-3" />
+                                编辑
                               </motion.button>
-                            )}
-                            <motion.button
-                              onClick={() => handleDelete(m.id)}
-                              className="inline-flex items-center gap-1 rounded-2xl border border-rose-200 bg-rose-50/70 px-3 py-1 text-xs text-rose-700 transition hover:bg-rose-50"
-                              whileTap={{ scale: 0.95 }}
-                            >
-                              <FaTrash className="w-3 h-3" />
-                              删除
-                            </motion.button>
-                          </div>
-                        )}
+                              {m.role !== 'user' && (
+                                <motion.button
+                                  onClick={() => handleRetry(m.id)}
+                                  className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white/80 px-3 py-1 text-xs text-slate-700 transition hover:bg-white"
+                                  whileTap={{ scale: 0.95 }}
+                                >
+                                  <FaRedo className="w-3 h-3" />
+                                  重试
+                                </motion.button>
+                              )}
+                              <motion.button
+                                onClick={() => handleDelete(m.id)}
+                                className="inline-flex items-center gap-1 rounded-2xl border border-rose-200 bg-rose-50/70 px-3 py-1 text-xs text-rose-700 transition hover:bg-rose-50"
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                <FaTrash className="w-3 h-3" />
+                                删除
+                              </motion.button>
+                            </div>
+                          )}
+                        </div>
                       </motion.div>
                     ))}
                   </div>
