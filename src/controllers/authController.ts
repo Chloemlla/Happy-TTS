@@ -536,7 +536,7 @@ export class AuthController {
         logger.warn("getUserById: 未找到用户", {
           id: userId,
           tokenType: "JWT",
-          storageMode: process.env.USER_STORAGE_MODE || "file",
+          storageMode: "mongo",
         });
         return res.status(404).json({ error: "用户不存在" });
       }

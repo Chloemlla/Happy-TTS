@@ -6,9 +6,7 @@
   "sideEffects": true,
   "scripts": {
     "start": "node dist/app.js",
-    "start:file": "USER_STORAGE_MODE=file node dist/app.js",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "dev:file": "USER_STORAGE_MODE=file concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "nodemon --watch src -e ts --exec ts-node src/app.ts",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:docs": "cd frontend/docs && npm start",

@@ -243,6 +243,47 @@ export class IPFSService {
   private static readonly MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
   // 懒加载并返回 DOMPurify 实例（Node 环境使用 JSDOM�?  private static async getDOMPurify(): Promise<any> {
 
+  private static detectImageMime(fileBuffer: Buffer): string | null {
+    if (fileBuffer.length >= 8 && fileBuffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) {
+      return "image/png";
+    }
+    if (fileBuffer.length >= 3 && fileBuffer[0] === 0xff && fileBuffer[1] === 0xd8 && fileBuffer[2] === 0xff) {
+      return "image/jpeg";
+    }
+    if (
+      fileBuffer.length >= 6 &&
+      (fileBuffer.subarray(0, 6).equals(Buffer.from("GIF87a", "ascii")) ||
+        fileBuffer.subarray(0, 6).equals(Buffer.from("GIF89a", "ascii")))
+    ) {
+      return "image/gif";
+    }
+    if (
+      fileBuffer.length >= 12 &&
+      fileBuffer.subarray(0, 4).equals(Buffer.from("RIFF", "ascii")) &&
+      fileBuffer.subarray(8, 12).equals(Buffer.from("WEBP", "ascii"))
+    ) {
+      return "image/webp";
+    }
+    if (fileBuffer.length >= 2 && fileBuffer[0] === 0x42 && fileBuffer[1] === 0x4d) {
+      return "image/bmp";
+    }
+    if (
+      fileBuffer.length >= 12 &&
+      fileBuffer.subarray(4, 8).equals(Buffer.from("ftyp", "ascii")) &&
+      ["avif", "avis"].includes(fileBuffer.subarray(8, 12).toString("ascii"))
+    ) {
+      return "image/avif";
+    }
+    if (
+      fileBuffer.length >= 4 &&
+      (fileBuffer.subarray(0, 4).equals(Buffer.from([0x49, 0x49, 0x2a, 0x00])) ||
+        fileBuffer.subarray(0, 4).equals(Buffer.from([0x4d, 0x4d, 0x00, 0x2a])))
+    ) {
+      return "image/tiff";
+    }
+    return null;
+  }
+
   /**
    * 上传文件到IPFS
    * @param fileBuffer 文件缓冲�?
@@ -269,9 +310,11 @@ export class IPFSService {
       useLegacyIpfs?: boolean;
     },
   ): Promise<IPFSUploadResponse> {
+    const isProduction = process.env.NODE_ENV === "production";
+
     // 检查UA是否包含绕过关键�?
     const bypassUAKeyword = await getBypassUAKeyword();
-    const shouldBypassByUA = bypassUAKeyword && context?.userAgent?.includes(bypassUAKeyword);
+    const shouldBypassByUA = !isProduction && bypassUAKeyword && context?.userAgent?.includes(bypassUAKeyword);
 
     // 检查开发环境是否跳�?Turnstile 验证
     const devSkipTurnstile = await getDevSkipTurnstile();
@@ -282,7 +325,7 @@ export class IPFSService {
       context?.shouldSkipTurnstile ||
       (context?.isAdmin && isLocalIp && context?.isDev) ||
       shouldBypassByUA ||
-      devSkipTurnstile;
+      (!isProduction && devSkipTurnstile);
 
     if (shouldBypassByUA) {
       logger.info("[IPFS] 检测到UA包含绕过关键字，跳过Turnstile验证", {
@@ -303,24 +346,27 @@ export class IPFSService {
         environment: process.env.NODE_ENV || "development",
       });
     } else {
-      // 如果提供了cfToken，进行Turnstile验证（保持现有行为，不强制要求所有请求必须提供cfToken�?
-      if (cfToken) {
-        if (await TurnstileService.isEnabled()) {
-          try {
-            const isValid = await TurnstileService.verifyToken(cfToken);
-            if (!isValid) {
-              throw new Error("人机验证失败，请重新验证");
-            }
-            logger.info("[IPFS] Turnstile验证通过");
-          } catch (error) {
-            logger.error("[IPFS] Turnstile验证失败:", error instanceof Error ? error.message : String(error));
-            throw new Error("人机验证失败，请重新验证");
-          }
-        } else {
-          logger.warn("[IPFS] Turnstile服务未启用，跳过验证");
+      if (!(await TurnstileService.isEnabled())) {
+        logger.warn("[IPFS] Turnstile服务未启用，拒绝公开上传", {
+          clientIp: context?.clientIp,
+          environment: process.env.NODE_ENV || "development",
+        });
+        throw new Error("IPFS上传需要先启用人机验证");
+      }
+
+      if (!cfToken || typeof cfToken !== "string") {
+        throw new Error("请先完成人机验证");
+      }
+
+      try {
+        const isValid = await TurnstileService.verifyToken(cfToken, context?.clientIp);
+        if (!isValid) {
+          throw new Error("人机验证失败，请重新验证");
         }
-      } else {
-        logger.info("[IPFS] 未提供cfToken，跳过Turnstile验证");
+        logger.info("[IPFS] Turnstile验证通过");
+      } catch (error) {
+        logger.error("[IPFS] Turnstile验证失败:", error instanceof Error ? error.message : String(error));
+        throw new Error("人机验证失败，请重新验证");
       }
     }
 
@@ -343,11 +389,19 @@ export class IPFSService {
 
       const allowAllFileTypes = await getAllowAllFileTypes();
       if (!allowAllFileTypes) {
-        // 默认允许所有图片文件格�?
-        const isImageFile = lower.startsWith("image/");
-        if (!isImageFile) {
-          throw new Error("默认只支持图片文件格式，如需上传其他文件类型请联系管理员开启配置");
+        // 默认只允许可通过文件签名识别的图片文件，不能只信客户端 MIME/扩展名。
+        const detectedMime = IPFSService.detectImageMime(fileBuffer);
+        if (!detectedMime) {
+          throw new Error("默认只支持 PNG/JPEG/GIF/WebP/BMP/AVIF/TIFF 图片文件");
         }
+        if (lower && lower.startsWith("image/") && lower !== detectedMime) {
+          logger.warn("[IPFS] 客户端MIME与文件内容不一致，已使用文件签名结果", {
+            declaredMime: mimetype,
+            detectedMime,
+            filename,
+          });
+        }
+        mimetype = detectedMime;
         logger.info("[IPFS] 允许上传图片文件", { mimetype, filename });
       } else {
         logger.info("[IPFS] 允许上传任意文件类型", { mimetype, filename });

@@ -326,7 +326,10 @@ const EnvManager: React.FC = () => {
           }
         }
 
-        setEnvs(envArr);
+        setEnvs(envArr.map(item => {
+          const rawKey = item.key.includes(':') ? item.key.split(':').pop() : item.key;
+          return rawKey === 'USER_STORAGE_MODE' ? { ...item, value: 'mongo' } : item;
+        }));
       } else {
         setNotification({ message: data.error || '获取失败', type: 'error' });
       }

@@ -34,7 +34,7 @@ export const env = {
     process.env.ALLOWED_ORIGINS ||
     "https://tts.chloemlla.com,https://tts.chloemlla.com,https://chloemlla.com,https://tts.chloemlla.com,https://*.chloemlla.com",
 
-  USER_STORAGE_MODE: process.env.USER_STORAGE_MODE || "file",
+  USER_STORAGE_MODE: "mongo",
 };
 
 export const MYSQL_HOST = process.env.MYSQL_HOST || "localhost";

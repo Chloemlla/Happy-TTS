@@ -115,14 +115,14 @@ Synapse 是一个综合性 Web 应用平台，围绕文本转语音核心功能�
 
 ### 3. 用户管理
 
-> [!TIP]
-> 如果不需要 MongoDB，可以设置 `USER_STORAGE_MODE=file` 使用文件存储模式快速启动，适合开发和小规模部署。
+> [!NOTE]
+> 用户数据存储仅支持 MongoDB。`USER_STORAGE_MODE` 只能设置为 `mongo`，或省略后使用默认值 `mongo`。
 
 - **用户注册/登录**：支持用户名 + 密码注册，JWT Token 认证
 - **个人资料**：头像、昵称、邮箱等个人信息管理
 - **API 密钥**：用户可生成和管理个人 API 密钥
 - **用户偏好**：个性化设置存储
-- **存储模式**：支持 MongoDB / MySQL / 文件三种用户数据存储模式
+- **存储模式**：仅支持 MongoDB 用户数据存储模式
 
 | 模块 | 说明 |
 |------|------|
@@ -415,7 +415,7 @@ Synapse/
 │   └── package.json
 │
 ├── data/                             # 运行时数据目录
-│   ├── users.json                    # 用户数据（文件存储模式）
+│   ├── users.json                    # 历史文件存储数据（不再作为用户存储模式）
 │   ├── blocked-ips.json              # IP 封禁列表
 │   ├── chat_history.json             # 聊天历史
 │   ├── logs/                         # 应用日志
@@ -445,7 +445,7 @@ Synapse/
 
 - Node.js 24+（与 Docker 镜像运行时一致）
 - pnpm 11.x（推荐）或 npm
-- MongoDB（可选，支持文件存储模式）
+- MongoDB（必需，用于用户数据存储）
 - Redis（可选，用于缓存加速）
 
 ### 安装依赖
@@ -472,8 +472,6 @@ pnpm run dev:backend      # 后端: http://localhost:3000
 pnpm run dev:frontend     # 前端: http://localhost:3001（Vite HMR）
 pnpm run dev:docs         # 文档站: http://localhost:3002
 
-# 文件存储模式（无需 MongoDB）
-pnpm run dev:file
 ```
 
 ### 生产构建
@@ -549,12 +547,8 @@ OPENAI_API_KEY=sk-xxx             # OpenAI API 密钥
 OPENAI_BASE_URL=https://api.openai.com/v1  # OpenAI API 地址（支持自定义代理）
 
 # ========== 数据库配置 ==========
-USER_STORAGE_MODE=mongo           # 存储模式: mongo | mysql | file
+USER_STORAGE_MODE=mongo           # 用户存储模式，仅允许 mongo
 MONGO_URI=mongodb://user:pass@host:27017/tts?authSource=admin
-# MYSQL_HOST=localhost            # MySQL 配置（当 USER_STORAGE_MODE=mysql 时）
-# MYSQL_USER=root
-# MYSQL_PASSWORD=xxx
-# MYSQL_DATABASE=tts
 
 # ========== Redis 配置（可选） ==========
 REDIS_URL=redis://localhost:6379
@@ -747,7 +741,6 @@ pnpm run dev                # 同时启动后端 + 前端
 pnpm run dev:backend        # 仅启动后端（nodemon 热重载）
 pnpm run dev:frontend       # 仅启动前端（Vite HMR）
 pnpm run dev:docs           # 启动文档站开发服务器
-pnpm run dev:file           # 文件存储模式启动
 
 # ========== 构建 ==========
 pnpm run build              # 完整构建（后端 + 前端 + 文档站）

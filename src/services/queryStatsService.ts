@@ -77,7 +77,7 @@ const QueryHistoryModel: Model<IQueryHistoryDoc> =
 export class QueryStatsService {
   private static readonly STATS_FILE = path.join(process.cwd(), "data", "anta-query-stats.json");
   private static readonly HISTORY_FILE = path.join(process.cwd(), "data", "anta-query-history.json");
-  private static readonly STORAGE_MODE = process.env.USER_STORAGE_MODE || "file"; // 'file' 或 'mongo'
+  private static readonly STORAGE_MODE = "mongo";
   private static readonly MAX_IPS = 100; // 每个产品最多记录的唯一IP数量
 
   private static ensureDataDir() {

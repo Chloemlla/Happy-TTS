@@ -9,6 +9,7 @@ import { schedulerService } from "../services/schedulerService";
 import { wsService } from "../services/wsService";
 import logger from "../utils/logger";
 import { UserStorage } from "../utils/userStorage";
+import { assertMongoUserStorageMode } from "../utils/userStorageMode";
 
 // eslint-disable-next-line no-var
 var _EMAIL_ENABLED: boolean;
@@ -153,6 +154,7 @@ const configureEmailServices = () => {
 };
 
 export async function startServer(app: Express): Promise<void> {
+  assertMongoUserStorageMode();
   configureEmailServices();
   await ensureDirectories();
 

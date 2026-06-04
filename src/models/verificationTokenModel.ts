@@ -1,4 +1,6 @@
 import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import logger from "../utils/logger";
 
 /**
@@ -19,6 +21,9 @@ export interface VerificationToken {
   fingerprint: string; // 设备指纹
   ipAddress: string; // IP地址
   metadata?: any; // 额外数据（如注册信息、用户ID等）
+  metadataCiphertext?: string; // 加密后的额外数据
+  metadataIv?: string; // metadata 加密 IV
+  metadataTag?: string; // metadata 认证标签
   createdAt: number; // 创建时间戳
   expiresAt: number; // 过期时间戳
   used: boolean; // 是否已使用
@@ -27,14 +32,25 @@ export interface VerificationToken {
 
 /**
  * 验证令牌存储
- * 使用内存Map存储，实际生产环境建议使用Redis
+ * 使用加密 metadata + 本地文件持久化，避免进程重启后注册链接/重置链接全部失效。
  */
 class VerificationTokenStorage {
   private tokens: Map<string, VerificationToken> = new Map();
   private cleanupInterval: NodeJS.Timeout | null = null;
   private readonly TOKEN_EXPIRY_MS = 10 * 60 * 1000; // 10分钟有效期
+  private readonly storagePath = path.resolve(process.cwd(), "data", "verification_tokens.json");
+  private readonly metadataKey = crypto
+    .createHash("sha256")
+    .update(
+      process.env.VERIFICATION_TOKEN_SECRET ||
+        process.env.JWT_SECRET ||
+        process.env.AES_KEY ||
+        "development-verification-token-secret",
+    )
+    .digest();
 
   constructor() {
+    this.loadTokens();
     // 启动定期清理过期令牌的任务
     this.startCleanupTask();
   }
@@ -44,6 +60,92 @@ class VerificationTokenStorage {
    */
   private generateToken(): string {
     return crypto.randomBytes(32).toString("hex");
+  }
+
+  private encryptMetadata(metadata: any): Partial<VerificationToken> {
+    if (metadata === undefined || metadata === null) {
+      return {};
+    }
+
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv("aes-256-gcm", this.metadataKey, iv);
+    const ciphertext = Buffer.concat([cipher.update(JSON.stringify(metadata), "utf8"), cipher.final()]);
+    const tag = cipher.getAuthTag();
+
+    return {
+      metadataCiphertext: ciphertext.toString("base64"),
+      metadataIv: iv.toString("base64"),
+      metadataTag: tag.toString("base64"),
+    };
+  }
+
+  private decryptMetadata(token: VerificationToken): any {
+    if (!token.metadataCiphertext || !token.metadataIv || !token.metadataTag) {
+      return token.metadata;
+    }
+
+    const decipher = crypto.createDecipheriv("aes-256-gcm", this.metadataKey, Buffer.from(token.metadataIv, "base64"));
+    decipher.setAuthTag(Buffer.from(token.metadataTag, "base64"));
+    const plaintext = Buffer.concat([
+      decipher.update(Buffer.from(token.metadataCiphertext, "base64")),
+      decipher.final(),
+    ]).toString("utf8");
+
+    return JSON.parse(plaintext);
+  }
+
+  private withDecryptedMetadata(token: VerificationToken): VerificationToken {
+    const safeToken = { ...token };
+    try {
+      safeToken.metadata = this.decryptMetadata(token);
+    } catch (error) {
+      logger.error("[验证令牌] metadata 解密失败", {
+        type: token.type,
+        email: token.email,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      safeToken.metadata = undefined;
+    }
+    return safeToken;
+  }
+
+  private persistTokens(): void {
+    try {
+      fs.mkdirSync(path.dirname(this.storagePath), { recursive: true });
+      const payload = Array.from(this.tokens.values()).map(({ metadata: _metadata, ...token }) => token);
+      fs.writeFileSync(this.storagePath, JSON.stringify(payload, null, 2), "utf8");
+    } catch (error) {
+      logger.error("[验证令牌] 持久化失败", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  private loadTokens(): void {
+    try {
+      if (!fs.existsSync(this.storagePath)) {
+        return;
+      }
+
+      const raw = fs.readFileSync(this.storagePath, "utf8");
+      const parsed = JSON.parse(raw) as VerificationToken[];
+      if (!Array.isArray(parsed)) {
+        logger.warn("[验证令牌] 持久化文件格式无效，已忽略");
+        return;
+      }
+
+      const now = Date.now();
+      for (const token of parsed) {
+        if (!token?.token || now > token.expiresAt) {
+          continue;
+        }
+        this.tokens.set(token.token, token);
+      }
+    } catch (error) {
+      logger.error("[验证令牌] 读取持久化文件失败", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   /**
@@ -65,15 +167,16 @@ class VerificationTokenStorage {
       email,
       fingerprint,
       ipAddress,
-      metadata,
+      ...this.encryptMetadata(metadata),
       createdAt: now,
       expiresAt: now + this.TOKEN_EXPIRY_MS,
       used: false,
     };
 
     this.tokens.set(token, verificationToken);
+    this.persistTokens();
 
-    return verificationToken;
+    return this.withDecryptedMetadata(verificationToken);
   }
 
   /**
@@ -89,11 +192,12 @@ class VerificationTokenStorage {
     // 检查是否过期
     if (Date.now() > verificationToken.expiresAt) {
       this.tokens.delete(token);
+      this.persistTokens();
       logger.warn(`[验证令牌] 已过期`);
       return null;
     }
 
-    return verificationToken;
+    return this.withDecryptedMetadata(verificationToken);
   }
 
   /**
@@ -108,9 +212,10 @@ class VerificationTokenStorage {
     fingerprint: string,
     ipAddress: string,
   ): { success: boolean; error?: string; data?: VerificationToken } {
+    const rawToken = this.tokens.get(token);
     const verificationToken = this.getToken(token);
 
-    if (!verificationToken) {
+    if (!verificationToken || !rawToken) {
       return { success: false, error: "验证链接无效或已过期" };
     }
 
@@ -131,13 +236,14 @@ class VerificationTokenStorage {
     }
 
     // 标记为已使用
-    verificationToken.used = true;
-    verificationToken.usedAt = Date.now();
-    this.tokens.set(token, verificationToken);
+    rawToken.used = true;
+    rawToken.usedAt = Date.now();
+    this.tokens.set(token, rawToken);
+    this.persistTokens();
 
     logger.info(`[验证令牌] 验证成功`);
 
-    return { success: true, data: verificationToken };
+    return { success: true, data: this.withDecryptedMetadata(rawToken) };
   }
 
   /**
@@ -179,6 +285,7 @@ class VerificationTokenStorage {
    */
   deleteToken(token: string): void {
     this.tokens.delete(token);
+    this.persistTokens();
     logger.info(`[验证令牌] 已删除`);
   }
 
@@ -197,6 +304,7 @@ class VerificationTokenStorage {
     }
 
     if (deletedCount > 0) {
+      this.persistTokens();
       logger.info(`[验证令牌] 清理过期令牌: ${deletedCount}个`);
     }
   }

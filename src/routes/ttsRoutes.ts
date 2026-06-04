@@ -1,5 +1,6 @@
 import express from "express";
 import { TtsController } from "../controllers/ttsController";
+import { authenticateAdmin } from "../middleware/auth";
 import { ClarityService } from "../services/clarityService";
 import { TurnstileService } from "../services/turnstileService";
 
@@ -188,7 +189,7 @@ router.get("/clarity/config", async (_req, res) => {
  *                 message:
  *                   type: string
  */
-router.post("/clarity/config", async (req, res) => {
+router.post("/clarity/config", authenticateAdmin, async (req, res) => {
   try {
     const { projectId } = req.body;
 
@@ -249,7 +250,7 @@ router.post("/clarity/config", async (req, res) => {
  *                 message:
  *                   type: string
  */
-router.delete("/clarity/config", async (req, res) => {
+router.delete("/clarity/config", authenticateAdmin, async (req, res) => {
   try {
     // 获取请求元数据（可选）
     const metadata = {
@@ -319,7 +320,7 @@ router.delete("/clarity/config", async (req, res) => {
  *                       changedAt:
  *                         type: string
  */
-router.get("/clarity/history", async (req, res) => {
+router.get("/clarity/history", authenticateAdmin, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit as string, 10) || 20;
     const result = await ClarityService.getConfigHistory(limit);

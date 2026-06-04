@@ -11,6 +11,7 @@ import { TranslationLogService } from "../services/translationLogService";
 import logger from "../utils/logger";
 import { revealUserPassword } from "../services/userService";
 import { UserStorage } from "../utils/userStorage";
+import { isUserStorageModeKey, USER_STORAGE_MODE } from "../utils/userStorageMode";
 
 const ANNOUNCEMENT_FILE = path.join(__dirname, "../../data/announcement.json");
 const ENV_FILE = path.join(__dirname, "../../data/env.admin.json");
@@ -25,6 +26,13 @@ function readEnvFile() {
 }
 function writeEnvFile(envs: any[]) {
   fs.writeFileSync(ENV_FILE, JSON.stringify(envs, null, 2));
+}
+
+function normalizeEnvForFrontend(key: string, value: unknown): string {
+  if (isUserStorageModeKey(key)) {
+    return USER_STORAGE_MODE;
+  }
+  return String(value);
 }
 
 // MongoDB 公告 Schema
@@ -357,7 +365,7 @@ export const adminController = {
           hasIp: !!firstFingerprint.ip,
           hasDeviceInfo: !!firstFingerprint.deviceInfo,
           deviceInfoKeys: firstFingerprint.deviceInfo ? Object.keys(firstFingerprint.deviceInfo) : [],
-          storageMode: process.env.USER_STORAGE_MODE || process.env.STORAGE_MODE || "unknown",
+          storageMode: USER_STORAGE_MODE,
         });
       }
 
@@ -1059,6 +1067,7 @@ export const adminController = {
         "API_BASE_URL",
         "JWT_SECRET",
         "ADMIN_PASSWORD",
+        "USER_STORAGE_MODE",
         "STORAGE_MODE",
         "LOG_LEVEL",
         "CORS_ORIGIN",
@@ -1110,11 +1119,13 @@ export const adminController = {
 
       logger.info("📊 [EnvManager] 收集到环境变量数量:", Object.keys(allEnvs).length);
 
+      allEnvs["APP:USER_STORAGE_MODE"] = USER_STORAGE_MODE;
+
       // 将环境变量转换为数组格式并按类别排序
       const envArray = Object.entries(allEnvs)
         .map(([key, value]) => ({
           key,
-          value: String(value),
+          value: normalizeEnvForFrontend(key, value),
           category: key.split(":")[0] || "OTHER",
         }))
         .sort((a, b) => {
@@ -1217,13 +1228,17 @@ export const adminController = {
         return res.status(400).json({ error: "key不能为空，不能包含空格/<>，且不超过64字" });
       if (typeof value !== "string" || !value.trim() || value.length > 1024)
         return res.status(400).json({ error: "value不能为空且不超过1024字" });
+      if (isUserStorageModeKey(key) && value.trim().toLowerCase() !== USER_STORAGE_MODE) {
+        return res.status(400).json({ error: "USER_STORAGE_MODE 只允许设置为 mongo" });
+      }
       const envs = readEnvFile();
       const idx = envs.findIndex((e: any) => e.key === key);
       const now = new Date().toISOString();
+      const nextValue = isUserStorageModeKey(key) ? USER_STORAGE_MODE : value;
       if (idx >= 0) {
-        envs[idx] = { ...envs[idx], value, desc, updatedAt: now };
+        envs[idx] = { ...envs[idx], value: nextValue, desc, updatedAt: now };
       } else {
-        envs.push({ key, value, desc, updatedAt: now });
+        envs.push({ key, value: nextValue, desc, updatedAt: now });
       }
       writeEnvFile(envs);
       logger.info(`[环境变量] 管理员${req.user.username} 设置/更新 key=${key}`);
