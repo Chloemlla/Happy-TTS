@@ -65,7 +65,8 @@ interface LimiterDefinition {
   handler?: (req: Request, res: Response, next: NextFunction) => void;
 }
 
-type RedisClientInstance = ReturnType<typeof createClient>;
+const createRateLimitRedisClient = (url: string) => createClient({ url });
+type RedisClientInstance = ReturnType<typeof createRateLimitRedisClient>;
 
 interface RateLimitMetricRecord {
   limiter: string;
@@ -253,7 +254,7 @@ class RedisStoreFactory {
 
     RedisStoreFactory.clientPromise = (async () => {
       try {
-        const client = createClient({ url: startupConfig.redis.url });
+        const client = createRateLimitRedisClient(startupConfig.redis.url);
         client.on("error", (error) => {
           logger.error("[RateLimit][RedisStore] Redis error", {
             error: error instanceof Error ? error.message : String(error),

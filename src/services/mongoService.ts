@@ -1,8 +1,9 @@
 import mongoose from "mongoose";
 import logger from "../utils/logger";
 
-// 优先使用环境变量 MONGO_URI，否则默认连接到本地 tts 数据库
-const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/tts";
+// 优先使用环境变量 MONGO_URI，其次兼容 MONGODB_URI；未指定 database 时使用 MONGO_DB。
+const DEFAULT_MONGO_DB = (process.env.MONGO_DB || "tts").trim() || "tts";
+const RAW_MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI || `mongodb://localhost:27017/${DEFAULT_MONGO_DB}`;
 const MONGO_PROXY_URL = process.env.MONGO_PROXY_URL; // 代理地址（如 socks5://127.0.0.1:1080 或 http://127.0.0.1:8888）
 
 // 检查代理配置（仅警告，不阻止连接）
@@ -10,39 +11,52 @@ if (MONGO_PROXY_URL) {
   logger.warn("[MongoDB] 检测到代理配置，但官方不支持通过代理连接MongoDB", { proxyUrl: MONGO_PROXY_URL });
 }
 
+function maskMongoUri(uri: string): string {
+  return uri.replace(/(mongodb(?:\+srv)?:\/\/)([^/@]+)@/i, "$1<credentials>@");
+}
+
+function hasDatabaseInUri(uri: string): boolean {
+  const withoutScheme = uri.replace(/^mongodb(?:\+srv)?:\/\//i, "");
+  const pathStart = withoutScheme.indexOf("/");
+  if (pathStart === -1) {
+    return false;
+  }
+
+  const database = withoutScheme.slice(pathStart + 1).split("?")[0];
+  return database.length > 0;
+}
+
+function appendDefaultDatabase(uri: string): string {
+  if (!/^mongodb(?:\+srv)?:\/\//i.test(uri) || hasDatabaseInUri(uri)) {
+    return uri;
+  }
+
+  const queryStart = uri.indexOf("?");
+  const base = queryStart >= 0 ? uri.slice(0, queryStart) : uri;
+  const query = queryStart >= 0 ? uri.slice(queryStart) : "";
+  return `${base.replace(/\/$/, "")}/${encodeURIComponent(DEFAULT_MONGO_DB)}${query}`;
+}
+
 export const connectMongo = async () => {
   let lastError;
-  let parsedUri = MONGO_URI;
+  let parsedUri = RAW_MONGO_URI;
 
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      // 解析 URI，若无 database，强制加上 tts
-      let uri = parsedUri;
+      // 解析 URI，若无 database，补全 MONGO_DB。
+      let uri = appendDefaultDatabase(parsedUri);
 
-      // 改进的URI解析逻辑
-      if (/mongodb\+srv:\/\/.+\/?(\?.*)?$/.test(uri)) {
-        // Atlas URI 没有指定 db，自动加 /tts
-        if (!/\/[a-zA-Z0-9_-]+(\?|$)/.test(uri.replace("mongodb+srv://", ""))) {
-          uri = uri.replace(/\/?(\?.*)?$/, "/tts$1");
-        }
-      } else if (/^mongodb:\/\//.test(uri)) {
-        // 普通 URI 没有指定 db，自动加 /tts
-        // 允许 mongodb://host:port/tts 这种格式，只有没有 /db 时才补全
-        const afterHost = uri.replace("mongodb://", "").replace(/^[^/]+/, "");
-        if (!/^\/[^/?]+(\?|$)/.test(afterHost)) {
-          uri = uri.replace(/\/?(\?.*)?$/, "/tts$1");
-        }
-      }
-
-      // 检查是否已经连接到tts数据库
-      if (uri.includes("/tts") || uri.includes("/tts?")) {
-        logger.info("[MongoDB] 检测到tts数据库连接，跳过URI修改");
+      if (uri !== parsedUri) {
+        logger.info("[MongoDB] URI 未指定数据库，已补全默认数据库", { database: DEFAULT_MONGO_DB });
       }
 
       // 更新parsedUri以便在catch块中使用
       parsedUri = uri;
 
-      logger.info("[MongoDB] 解析后的连接URI", { originalUri: MONGO_URI, parsedUri: uri });
+      logger.info("[MongoDB] 解析后的连接URI", {
+        originalUri: maskMongoUri(RAW_MONGO_URI),
+        parsedUri: maskMongoUri(uri),
+      });
 
       // 代理支持
       const mongooseOptions: any = {
@@ -93,7 +107,7 @@ export const connectMongo = async () => {
       }
       await mongoose.connect(uri, mongooseOptions);
       logger.info("MongoDB 连接成功", {
-        uri: uri,
+        uri: maskMongoUri(uri),
         database: mongoose.connection.name,
         host: mongoose.connection.host,
         port: mongoose.connection.port,
@@ -116,7 +130,7 @@ export const connectMongo = async () => {
         error: errorMessage,
         errorName: errorName,
         attempt: attempt,
-        uri: parsedUri,
+        uri: maskMongoUri(parsedUri),
       });
 
       // 提供具体的错误诊断信息
@@ -125,7 +139,7 @@ export const connectMongo = async () => {
       } else if (errorName === "MongoServerSelectionError") {
         logger.error("[MongoDB] 服务器选择错误，请检查连接字符串和认证信息");
       } else if (errorName === "MongoParseError") {
-        logger.error("[MongoDB] 连接字符串解析错误，请检查MONGO_URI格式");
+        logger.error("[MongoDB] 连接字符串解析错误，请检查 MONGO_URI / MONGODB_URI 格式");
       }
 
       if (attempt < 3) {

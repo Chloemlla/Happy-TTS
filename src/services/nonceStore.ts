@@ -29,7 +29,8 @@ export interface NonceStoreConfig {
   redisEnabled?: boolean; // 是否允许异步 Redis backing store
 }
 
-type RedisClientInstance = ReturnType<typeof createClient>;
+const createNonceRedisClient = (url: string) => createClient({ url });
+type RedisClientInstance = ReturnType<typeof createNonceRedisClient>;
 
 const REDIS_CONSUME_SCRIPT = `
 local record = redis.call("GET", KEYS[1])
@@ -61,7 +62,7 @@ class RedisNonceClientFactory {
 
     RedisNonceClientFactory.clientPromise = (async () => {
       try {
-        const client = createClient({ url: redisUrl });
+        const client = createNonceRedisClient(redisUrl);
         client.on("error", (error) => {
           logger.error("[NonceStore][Redis] Redis error", {
             error: error instanceof Error ? error.message : String(error),

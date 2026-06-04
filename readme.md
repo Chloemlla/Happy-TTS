@@ -117,6 +117,7 @@ Synapse 是一个综合性 Web 应用平台，围绕文本转语音核心功能�
 
 > [!NOTE]
 > 用户数据存储仅支持 MongoDB。`USER_STORAGE_MODE` 只能设置为 `mongo`，或省略后使用默认值 `mongo`。
+> 后端 MongoDB 持久化的启动链路、集合、索引和运维细节见 [后端 MongoDB 持久化细节](docs/backend-mongo-persistence-detail.md)。
 
 - **用户注册/登录**：支持用户名 + 密码注册，JWT Token 认证
 - **个人资料**：头像、昵称、邮箱等个人信息管理
@@ -545,6 +546,9 @@ OPENAI_BASE_URL=https://api.openai.com/v1  # OpenAI API 地址（支持自定义
 # ========== 数据库配置 ==========
 USER_STORAGE_MODE=mongo           # 用户存储模式，仅允许 mongo
 MONGO_URI=mongodb://user:pass@host:27017/tts?authSource=admin
+MONGODB_URI=                      # 可选别名，MONGO_URI 未设置时生效
+MONGO_DB=tts                      # 连接串未指定 database 时自动补全
+MONGO_PROXY_URL=                  # 可选代理地址，支持 socks/http agent
 
 # ========== Redis 配置（可选） ==========
 REDIS_URL=redis://localhost:6379

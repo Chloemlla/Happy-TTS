@@ -42,6 +42,18 @@ jobs:
       - name: Run build
         run: pnpm run build
 
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: synapse-build-${{ github.run_number }}-${{ github.run_attempt }}
+          path: |
+            dist/
+            dist-obfuscated/
+            frontend/dist/
+          if-no-files-found: warn
+          retention-days: 7
+
       - name: Check for path-to-regexp issues
         run: |
           echo "Checking for potential path-to-regexp issues..."

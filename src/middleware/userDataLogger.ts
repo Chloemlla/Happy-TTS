@@ -4,20 +4,21 @@ import type { NextFunction, Request, Response } from "express";
 import { mongoose } from "../services/mongoService";
 import logger from "../utils/logger";
 
-// MongoDB 用户行为日志 Schema
+// MongoDB 用户注册审计 Schema。不要和 canonical user_datas 集合混用。
 const UserDataSchema = new mongoose.Schema(
   {
-    users: { type: Array, required: true },
+    users: { type: Array, required: true, default: [] },
   },
-  { collection: "user_datas" },
+  { collection: "user_registration_audits" },
 );
 const UserDataModel = mongoose.models.UserData || mongoose.model("UserData", UserDataSchema);
 
 interface UserData {
   username: string;
   email: string;
-  password: string;
   registeredAt: string;
+  ip?: string;
+  userAgent?: string;
 }
 
 interface UserDataStore {
@@ -25,7 +26,7 @@ interface UserDataStore {
 }
 
 const DATA_DIR = path.join(process.cwd(), "data");
-const USER_DATA_FILE = path.join(DATA_DIR, "userdata.json");
+const USER_DATA_FILE = path.join(DATA_DIR, "user-registration-audits.json");
 
 // 确保数据目录存在
 const ensureDataDir = async () => {
@@ -88,15 +89,16 @@ export const logUserData = (req: Request, res: Response, next: NextFunction) => 
   // 重写 res.json 方法
   res.json = function (body: any) {
     // 如果是注册成功的响应
-    if (req.path === "/register" && body.status === "success") {
+    if (req.path === "/register" && (body?.status === "success" || body?.success === true || body?.needVerify === true)) {
       // 异步处理文件操作，不阻塞响应
       (async () => {
         try {
           const userData: UserData = {
             username: req.body.username,
             email: req.body.email,
-            password: req.body.password, // 存储未加密的密码
             registeredAt: new Date().toISOString(),
+            ip: req.ip,
+            userAgent: req.get("user-agent"),
           };
 
           // 读取现有数据

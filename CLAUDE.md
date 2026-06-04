@@ -22,7 +22,6 @@ Synapse is a comprehensive full-stack web application platform centered around t
 npm run dev                 # Start backend + frontend concurrently
 npm run dev:backend         # Backend only (nodemon + ts-node, port 3000)
 npm run dev:frontend        # Frontend only (Vite HMR, port 3001)
-npm run dev:file            # File storage mode (no MongoDB required)
 ```
 
 ### Building
@@ -76,13 +75,9 @@ Request → IP Ban Check → WAF → Rate Limiting → CORS → JWT Auth → Bus
 
 ### Storage Architecture
 
-The application supports three storage modes controlled by `USER_STORAGE_MODE` environment variable:
+The application is Mongo-only for user storage. `USER_STORAGE_MODE` can only be `mongo`, and production requires `MONGO_URI` or `MONGODB_URI`.
 
-1. **MongoDB** (`USER_STORAGE_MODE=mongo`): Default, requires `MONGO_URI`
-2. **MySQL** (`USER_STORAGE_MODE=mysql`): Requires MySQL connection config
-3. **File** (`USER_STORAGE_MODE=file`): JSON file storage in `data/` directory, no database required
-
-**Important**: Storage mode affects user data, but some features (IP bans, audit logs, resources) may still require MongoDB. The IP ban system uses Redis if `REDIS_URL` is configured, otherwise falls back to MongoDB.
+**Important**: MongoDB is the system of record for users, auth, TTS jobs, runtime config, audit logs, and most business data. Redis is optional and is used for acceleration/short-lived state such as IP bans when `REDIS_URL` is configured.
 
 ### Application Entry Point
 
@@ -102,7 +97,7 @@ Configuration is centralized in `src/config/config.ts`:
 
 - **Production requirements**: `ADMIN_PASSWORD` and `JWT_SECRET` must be set, or the app will throw errors on startup
 - **Default values**: Development has defaults, but production enforces explicit configuration
-- **Storage mode**: Determined by `USER_STORAGE_MODE` env var
+- **Storage mode**: Fixed to MongoDB through `USER_STORAGE_MODE=mongo`
 - **IP ban storage**: Automatically uses Redis if `REDIS_URL` is set, otherwise MongoDB
 
 ### Route & Controller Pattern
@@ -191,8 +186,9 @@ Jest with ts-jest preset:
 
 ### Storage Configuration
 
-- `USER_STORAGE_MODE`: `mongo` | `mysql` | `file` (default: `file`)
-- `MONGO_URI`: MongoDB connection string (if using MongoDB)
+- `USER_STORAGE_MODE`: only `mongo`
+- `MONGO_URI` / `MONGODB_URI`: MongoDB connection string
+- `MONGO_DB`: default database name when the URI has no database path (default: `tts`)
 - `REDIS_URL`: Redis connection string (optional, for caching and IP bans)
 
 ### Security Configuration
@@ -239,9 +235,11 @@ Services in `src/services/` should:
 
 MongoDB connection is managed by `src/services/mongoService.ts`:
 
-- Lazy connection (connects on first use)
+- Startup connection through `src/app/startup.ts`
 - Connection pooling configured
 - Automatic reconnection on failure
+- `MONGO_URI` takes precedence over `MONGODB_URI`
+- Missing URI database path is completed with `MONGO_DB`
 - All models should use the connection from this service
 
 **Important**: Don't create separate mongoose connections in other files.
@@ -281,19 +279,9 @@ Multi-stage Dockerfile with 3 stages:
 7. Apply rate limiter to route in `src/app.ts`
 8. Run `npm run generate:openapi` to update API documentation
 
-### Switching Storage Modes
+### MongoDB Persistence Details
 
-To switch from MongoDB to file storage:
-
-```bash
-# Set environment variable
-USER_STORAGE_MODE=file npm run dev
-
-# Or in .env file
-USER_STORAGE_MODE=file
-```
-
-**Note**: Some features may have reduced functionality in file mode. Check service implementations for storage-specific logic.
+Backend MongoDB persistence details are documented in `docs/backend-mongo-persistence-detail.md`.
 
 ### Running Tests for Specific Module
 
@@ -361,7 +349,7 @@ If MongoDB fails to connect:
 1. Check `MONGO_URI` format: `mongodb://user:pass@host:port/database?authSource=admin`
 2. Verify MongoDB is running and accessible
 3. Check firewall rules
-4. Try file storage mode: `USER_STORAGE_MODE=file`
+4. If the URI omits the database path, confirm `MONGO_DB` is set to the expected database
 
 ### Build Failures
 

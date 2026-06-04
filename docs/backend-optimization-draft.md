@@ -24,7 +24,7 @@
 - 启动副作用已集中到 [src/app/startup.ts](/F:/Repositories/GitHub/Synapse/src/app/startup.ts:1)
 - 配置解析与约束已集中到 [src/config/config.ts](/F:/Repositories/GitHub/Synapse/src/config/config.ts:1)
 - 路由注册已经做成模块清单，位于 [src/routes/index.ts](/F:/Repositories/GitHub/Synapse/src/routes/index.ts:1)
-- 用户存储已不是单一巨型类，而是 facade + repository/provider 结构，见 [src/utils/userStorage.ts](/F:/Repositories/GitHub/Synapse/src/utils/userStorage.ts:1)、[src/utils/userRepository.ts](/F:/Repositories/GitHub/Synapse/src/utils/userRepository.ts:1)、[src/utils/providers/fileUserStorageProvider.ts](/F:/Repositories/GitHub/Synapse/src/utils/providers/fileUserStorageProvider.ts:1)
+- 用户存储已不是单一巨型类，而是 facade + repository/provider 结构，且当前已收敛为 Mongo-only，见 [src/utils/userStorage.ts](/F:/Repositories/GitHub/Synapse/src/utils/userStorage.ts:1)、[src/utils/userRepository.ts](/F:/Repositories/GitHub/Synapse/src/utils/userRepository.ts:1)、[src/utils/providers/mongoUserStorageProvider.ts](/F:/Repositories/GitHub/Synapse/src/utils/providers/mongoUserStorageProvider.ts:1)
 - TTS 主链路已经迁移到独立命名空间，见 [src/tts/tts.controller.ts](/F:/Repositories/GitHub/Synapse/src/tts/tts.controller.ts:1)、[src/tts/tts.pipeline.ts](/F:/Repositories/GitHub/Synapse/src/tts/tts.pipeline.ts:1)、[src/tts/tts.queue.ts](/F:/Repositories/GitHub/Synapse/src/tts/tts.queue.ts:1)、[src/tts/tts.storage.ts](/F:/Repositories/GitHub/Synapse/src/tts/tts.storage.ts:1)
 
 这意味着当前优化重点已经变化。
@@ -84,20 +84,20 @@
 - `userRepository`
 - `userBootstrapService`
 - `userRepairService`
-- `providers/*`
+- `providers/mongoUserStorageProvider`
 
-真正的风险已经从“单文件过大”变成了“多 provider 行为是否一致”：
+真正的风险已经从“单文件过大”变成了“Mongo-only 契约是否清晰、是否有回归测试”：
 
-- file/mongo/mysql 的返回语义是否一致
-- usage 统计是否跨存储模式一致
-- repair/auto-fix 是否会造成隐式行为切换
-- 生产环境下 fallback 是否足够可预期
+- Mongo provider 的返回语义是否稳定
+- usage 统计、admin bootstrap、账号状态处理是否有测试兜底
+- repair/auto-fix 是否只做健康检查，不再隐式切换存储
+- 生产环境下 Mongo 不可用时是否明确失败，而不是静默 fallback
 
 因此这一块的优化重点不该再是“继续机械拆文件”，而是：
 
-- 明确 provider 契约
-- 为关键行为补一致性测试
-- 收紧自动降级和自动修复边界
+- 明确 Mongo-only provider 契约
+- 为关键行为补回归测试
+- 收紧自动修复边界
 
 ## 3.4 TTS 主链路已经成型，但存在三个明显短板
 
@@ -126,10 +126,10 @@
 
 [src/tts/tts.storage.ts](/F:/Repositories/GitHub/Synapse/src/tts/tts.storage.ts:1) 已经支持：
 
-- Mongo 存储
-- 文件回退存储
+- Mongo 任务持久化
 - 作业 claim
 - stale job recover
+- 配额 reservation、生成历史和音频资产持久化由 `tts.quota.ts`、`tts.history.ts`、`tts.asset.ts` 补齐
 
 这说明当前不再是纯内存队列，这一点比旧稿判断更成熟。
 
@@ -214,7 +214,7 @@
 - 为 TTS 提交流程建立更清晰的失败分级
 - 为 TTS 队列补齐重试、过期、清理和观测能力
 - 建立 `/live`、`/ready`、`/health` 分层探针
-- 补足 provider 一致性测试和关键链路测试
+- 补足 Mongo provider 契约测试和关键链路测试
 
 ### 4.2 两到三个月目标
 
@@ -304,21 +304,21 @@
 
 ## 6.3 用户存储治理优化
 
-目标：不再继续机械拆文件，而是提高行为一致性和可验证性。
+目标：不再继续机械拆文件，而是提高 Mongo-only 行为契约的可验证性。
 
 建议工作：
 
-- 统一 provider 契约文档
-- 抽出 provider contract tests
+- 统一 Mongo provider 契约文档
+- 抽出 Mongo provider contract tests
 - 明确哪些行为允许 auto-fix，哪些必须显式报错
-- 明确 file/mongo/mysql 下的 usage、admin bootstrap、账号状态处理语义
+- 明确 usage、admin bootstrap、账号状态处理语义
 
 建议新增测试维度：
 
-- `createUser/getUserById/updateUser/deleteUser` 的 provider 一致性
-- `authenticateUser` 在三种 provider 下结果一致
+- `createUser/getUserById/updateUser/deleteUser` 的 Mongo provider 行为
+- `authenticateUser`、旧密码迁移和密码材料选择逻辑
 - `getRemainingUsage/incrementUsage` 一致
-- repair/auto-switch 在生产模式下行为受控
+- repair/auto-fix 在生产模式下行为受控，且不会切换到其他存储
 
 这一阶段的重点不是继续重命名，而是把“拆开的模块真正治理起来”。
 
@@ -537,13 +537,13 @@
 - 增加最大重试和 dead-letter
 - 增加任务清理与观测
 
-### 第四阶段：provider 一致性与回归测试
+### 第四阶段：Mongo provider 与回归测试
 
 周期：1 周
 
 目标：
 
-- 补齐 file/mongo/mysql 一致性测试
+- 补齐 Mongo provider 契约测试
 - 补齐 TTS 提交与查询链路测试
 - 补齐启动链路与健康探针测试
 
@@ -568,7 +568,7 @@
 
 ### P1
 
-- provider 一致性测试
+- Mongo provider 契约测试
 - route registry 自动校验
 - TTS/OpenAI 指标暴露
 - Redis 能力抽象预留
@@ -585,7 +585,7 @@
 2. TTS 提交流程改造时，必须保证前端轮询协议和返回结构兼容。
 3. 外部违禁词服务降级后，要同步增加风险日志和审计，避免“可用性提升但失去风控证据”。
 4. 任务系统增强时，要先明确清理策略，否则持久化作业会持续膨胀。
-5. provider 一致性测试必须先行，否则存储层优化很容易引入行为漂移。
+5. Mongo provider 契约测试必须先行，否则存储层优化很容易引入行为漂移。
 
 ## 10. 建议配套文档
 
@@ -594,8 +594,9 @@
 1. `docs/backend-tts-job-system-spec.md`
 2. `docs/backend-readiness-health-spec.md`
 3. `docs/backend-route-governance-spec.md`
-4. `docs/backend-user-storage-contract-spec.md`
-5. `docs/backend-observability-spec.md`
+4. `docs/backend-mongo-persistence-detail.md`
+5. `docs/backend-user-storage-contract-spec.md`
+6. `docs/backend-observability-spec.md`
 
 ## 11. 结论
 

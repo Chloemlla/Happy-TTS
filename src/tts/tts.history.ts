@@ -36,6 +36,9 @@ const TtsHistoryModel =
   mongoose.model<TtsHistoryDocument>("TtsGenerationHistory", TtsHistorySchema);
 
 export function redactTtsTextForStorage(text: string): string {
+  if (/^\[redacted:\d+\]$/.test(text)) {
+    return text;
+  }
   return text ? `[redacted:${text.length}]` : "";
 }
 
@@ -139,6 +142,7 @@ export class MongoGenerationHistoryStore implements GenerationHistoryStore {
 
     return records.map((record: any) => ({
       ...record,
+      text: redactTtsTextForStorage(record.text || ""),
       id: record._id ? String(record._id) : record.id,
     }));
   }

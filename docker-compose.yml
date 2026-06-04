@@ -13,6 +13,11 @@ services:
       - NODE_ENV=production
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - OPENAI_BASE_URL=${OPENAI_BASE_URL}
+      - USER_STORAGE_MODE=mongo
+      - MONGO_URI=${MONGO_URI}
+      - MONGODB_URI=${MONGODB_URI}
+      - MONGO_DB=${MONGO_DB:-tts}
+      - MONGO_PROXY_URL=${MONGO_PROXY_URL}
     volumes:
       - ./data:/app/data
     restart: unless-stopped
