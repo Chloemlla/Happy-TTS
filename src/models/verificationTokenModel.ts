@@ -64,6 +64,8 @@ const VerificationTokenModel =
   (mongoose.models.VerificationToken as mongoose.Model<PersistedVerificationToken>) ||
   mongoose.model<PersistedVerificationToken>("VerificationToken", VerificationTokenSchema);
 
+const VERIFICATION_TOKEN_PATTERN = /^[a-fA-F0-9]{64}$/;
+
 class VerificationTokenStorage {
   private cleanupInterval: NodeJS.Timeout | null = null;
   private readonly TOKEN_EXPIRY_MS = 10 * 60 * 1000; // 10分钟有效期
@@ -176,8 +178,12 @@ class VerificationTokenStorage {
   /**
    * 获取验证令牌
    */
-  async getToken(token: string): Promise<VerificationToken | null> {
-    const raw = await VerificationTokenModel.findOne({ token }).lean().exec();
+  async getToken(token: unknown): Promise<VerificationToken | null> {
+    if (typeof token !== "string" || !VERIFICATION_TOKEN_PATTERN.test(token)) {
+      return null;
+    }
+
+    const raw = await VerificationTokenModel.findOne({ token: { $eq: token } }).lean().exec();
 
     if (!raw) {
       return null;
@@ -187,7 +193,7 @@ class VerificationTokenStorage {
 
     // 检查是否过期
     if (Date.now() > verificationToken.expiresAt) {
-      await VerificationTokenModel.deleteOne({ token }).exec();
+      await VerificationTokenModel.deleteOne({ token: { $eq: token } }).exec();
       logger.warn(`[验证令牌] 已过期`);
       return null;
     }
@@ -203,10 +209,14 @@ class VerificationTokenStorage {
    * @returns 验证结果和令牌数据
    */
   async verifyAndUseToken(
-    token: string,
+    token: unknown,
     fingerprint: string,
     ipAddress: string,
   ): Promise<{ success: boolean; error?: string; data?: VerificationToken }> {
+    if (typeof token !== "string" || !VERIFICATION_TOKEN_PATTERN.test(token)) {
+      return { success: false, error: "验证链接无效或已过期" };
+    }
+
     const verificationToken = await this.getToken(token);
 
     if (!verificationToken) {
@@ -232,7 +242,7 @@ class VerificationTokenStorage {
     // 标记为已使用
     const usedAt = Date.now();
     const updateResult = await VerificationTokenModel.updateOne(
-      { token, used: false },
+      { token: { $eq: token }, used: false },
       { $set: { used: true, usedAt } },
     ).exec();
 
@@ -260,7 +270,7 @@ class VerificationTokenStorage {
    * @param ipAddress 当前IP地址
    * @returns 验证结果
    */
-  async validateToken(token: string, fingerprint: string, ipAddress: string): Promise<{ valid: boolean; error?: string }> {
+  async validateToken(token: unknown, fingerprint: string, ipAddress: string): Promise<{ valid: boolean; error?: string }> {
     const verificationToken = await this.getToken(token);
 
     if (!verificationToken) {
@@ -289,8 +299,12 @@ class VerificationTokenStorage {
   /**
    * 删除令牌
    */
-  async deleteToken(token: string): Promise<void> {
-    await VerificationTokenModel.deleteOne({ token }).exec();
+  async deleteToken(token: unknown): Promise<void> {
+    if (typeof token !== "string" || !VERIFICATION_TOKEN_PATTERN.test(token)) {
+      return;
+    }
+
+    await VerificationTokenModel.deleteOne({ token: { $eq: token } }).exec();
     logger.info(`[验证令牌] 已删除`);
   }
 
