@@ -1,6 +1,12 @@
 import type { NextFunction, Request, Response } from "express";
 import { AuditLogModel, type IAuditLog } from "../models/auditLogModel";
 import logger from "../utils/logger";
+import {
+  ALLOWED_AUDIT_MODULES,
+  inferAuditModuleFromPath,
+  isAuditLogRuntimeEnabled,
+  isBackendApiPath,
+} from "./auditLogMetadata";
 
 export interface AuditEntry {
   requestId?: string;
@@ -25,35 +31,8 @@ function escapeRegex(str: string): string {
   return str.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, (ch) => `\\${ch}`);
 }
 
-/** 允许的模块白名单 */
-const ALLOWED_MODULES = new Set([
-  "auth",
-  "user",
-  "system",
-  "cdk",
-  "api",
-  "admin",
-  "security",
-  "config",
-  "email",
-  "tts",
-  "shorturl",
-  "ipfs",
-  "media",
-  "network",
-  "life",
-  "social",
-  "lottery",
-  "workspace",
-  "resource",
-  "recommendation",
-  "policy",
-  "debug",
-]);
-
 const ALLOWED_RESULTS = new Set(["success", "failure"]);
 
-const GLOBAL_AUDIT_ENABLED = process.env.GLOBAL_AUDIT_ENABLED !== "false";
 const AUDIT_LOG_DEDUP_ROUTE_LOGS = process.env.AUDIT_LOG_DEDUP_ROUTE_LOGS !== "false";
 const AUDIT_LOG_CAPTURE_PAYLOADS = process.env.AUDIT_LOG_CAPTURE_PAYLOADS === "true";
 const AUDIT_LOG_CAPTURE_SUCCESS_PAYLOADS = process.env.AUDIT_LOG_CAPTURE_SUCCESS_PAYLOADS === "true";
@@ -98,6 +77,12 @@ function sanitizePayload(obj: any): any {
   return parsedObj;
 }
 
+function getRequestPathname(req: Request): string {
+  const rawPath = req.path || req.originalUrl || req.url || "";
+  const [pathname] = rawPath.split("?");
+  return pathname || "/";
+}
+
 export class AuditLogService {
   /**
    * 写入一条审计日志（fire-and-forget，不阻塞业务）
@@ -131,7 +116,7 @@ export class AuditLogService {
       filter.requestId = params.requestId;
     }
 
-    if (params.module && ALLOWED_MODULES.has(params.module)) {
+    if (params.module && ALLOWED_AUDIT_MODULES.has(params.module as IAuditLog["module"])) {
       filter.module = params.module;
     }
     if (params.action && /^[a-zA-Z0-9_.-]+$/.test(params.action)) {
@@ -234,12 +219,14 @@ export class AuditLogService {
    */
   static globalAuditMiddleware() {
     return (req: Request, res: Response, next: NextFunction) => {
-      if (!GLOBAL_AUDIT_ENABLED) {
+      if (!isAuditLogRuntimeEnabled()) {
         return next();
       }
 
-      // 过滤掉静态文件、Swagger等非接口请求
-      if (!req.originalUrl?.startsWith("/api/")) {
+      const pathname = getRequestPathname(req);
+
+      // 过滤掉静态文件、Swagger UI 等非 API 请求
+      if (!isBackendApiPath(pathname)) {
         return next();
       }
 
@@ -260,15 +247,8 @@ export class AuditLogService {
         const user = (req as any).user;
         const durationMs = Date.now() - startTime;
 
-        // 尝试从 URL 中推断 action 和 module
-        const segments = req.path.split("/").filter(Boolean);
-        const moduleName = segments[1] || "system"; // /api/moduleName
-        const actionStr = `${req.method.toLowerCase()} ${req.path}`;
-
-        let safeModule = "other" as IAuditLog["module"];
-        if (ALLOWED_MODULES.has(moduleName)) {
-          safeModule = moduleName as any;
-        }
+        const safeModule = inferAuditModuleFromPath(pathname);
+        const actionStr = `${req.method.toLowerCase()} ${pathname}`;
 
         const capturePayload = shouldCapturePayload(result);
 

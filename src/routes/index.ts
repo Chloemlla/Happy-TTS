@@ -82,6 +82,7 @@ import webhookEventRoutes from "./webhookEventRoutes";
 import webhookRoutes from "./webhookRoutes";
 import logger from "../utils/logger";
 import type { SecurityComponent } from "../security/securityPolicy";
+import { AUDIT_LOG_ADAPTATION_STATUS, AUDIT_LOG_SOURCE, isBackendApiPath } from "../services/auditLogMetadata";
 
 export type RouteMetaFlag = boolean | "mixed";
 export type RouteModuleKind = "route" | "limiter" | "middleware";
@@ -97,6 +98,14 @@ export interface RouteRateLimitPolicy {
   mode: "mount" | "route-module" | "route" | "router" | "mixed";
   limiters: string[];
   note?: string;
+}
+
+export interface RouteAuditLogPolicy {
+  enabled: boolean;
+  coverage: "all-api-routes" | "not-applicable";
+  adaptationStatus: typeof AUDIT_LOG_ADAPTATION_STATUS | "not-applicable";
+  source: typeof AUDIT_LOG_SOURCE | "not-applicable";
+  note: string;
 }
 
 export interface RouteSecurityBypassEntry {
@@ -120,6 +129,7 @@ export interface RouteGovernanceViolation {
     | "missing-auth-handlers"
     | "missing-rate-limit-policy"
     | "missing-rate-limit-target"
+    | "missing-audit-log-policy"
     | "missing-security-bypass-reason"
     | "private-route-open-cors-conflict";
   message: string;
@@ -133,6 +143,7 @@ export interface RouteAuditRecord {
   requiresAuth: RouteMetaFlag;
   rateLimited: RouteMetaFlag;
   isPublic: RouteMetaFlag;
+  auditLogPolicy: RouteAuditLogPolicy;
   authPolicy?: RouteAuthPolicy;
   rateLimitPolicy?: RouteRateLimitPolicy;
   securityBypass?: RouteSecurityBypass;
@@ -1204,6 +1215,28 @@ function inferRateLimitPolicy(module: RouteModule, kind: RouteModuleKind): Route
   return undefined;
 }
 
+function inferAuditLogPolicy(module: RouteModule): RouteAuditLogPolicy {
+  const routePath = normalizeScopedPath(module.path);
+
+  if (!isBackendApiPath(routePath)) {
+    return {
+      enabled: false,
+      coverage: "not-applicable",
+      adaptationStatus: "not-applicable",
+      source: "not-applicable",
+      note: "Non-API route; global API audit coverage is not applicable.",
+    };
+  }
+
+  return {
+    enabled: true,
+    coverage: "all-api-routes",
+    adaptationStatus: AUDIT_LOG_ADAPTATION_STATUS,
+    source: AUDIT_LOG_SOURCE,
+    note: "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules.",
+  };
+}
+
 export function getAllRouteAuditRecords(): RouteAuditRecord[] {
   return routeModuleGroups.flatMap(({ phase, kind, modules }) =>
     modules.map((module) => {
@@ -1216,6 +1249,7 @@ export function getAllRouteAuditRecords(): RouteAuditRecord[] {
         requiresAuth: module.requiresAuth,
         rateLimited: module.rateLimited,
         isPublic: module.isPublic,
+        auditLogPolicy: inferAuditLogPolicy(module),
         authPolicy: module.authPolicy,
         rateLimitPolicy: inferRateLimitPolicy(module, resolvedKind),
         securityBypass: module.securityBypass,
@@ -1268,6 +1302,20 @@ export function validateRouteGovernance(): RouteGovernanceViolation[] {
           message: `Route module "${record.name}" is marked rateLimited=true but rateLimitPolicy.limiters is empty.`,
         });
       }
+    }
+
+    if (
+      isConcreteRoute &&
+      isBackendApiPath(normalizeScopedPath(record.path)) &&
+      (!record.auditLogPolicy.enabled || record.auditLogPolicy.adaptationStatus !== AUDIT_LOG_ADAPTATION_STATUS)
+    ) {
+      violations.push({
+        moduleName: record.name,
+        path: record.path,
+        phase: record.phase,
+        code: "missing-audit-log-policy",
+        message: `Route module "${record.name}" is an API route but is not marked as completed for audit log coverage.`,
+      });
     }
 
     for (const [component, entry] of Object.entries(record.securityBypass || {})) {
@@ -1329,7 +1377,12 @@ export function renderRouteAuditMarkdown(records: RouteAuditRecord[], violations
     lines.push("");
   }
 
-  lines.push("## Route Registry", "", "| Name | Phase | Kind | Path | Auth | Rate Limit | Public | Security Bypass |", "| --- | --- | --- | --- | --- | --- | --- | --- |");
+  lines.push(
+    "## Route Registry",
+    "",
+    "| Name | Phase | Kind | Path | Auth | Rate Limit | Audit Log | Public | Security Bypass |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+  );
 
   for (const record of records) {
     const bypassSummary = Object.entries(record.securityBypass || {})
@@ -1341,9 +1394,10 @@ export function renderRouteAuditMarkdown(records: RouteAuditRecord[], violations
     const rateLimitSummary = record.rateLimitPolicy
       ? `${record.rateLimitPolicy.mode}: ${record.rateLimitPolicy.limiters.join(", ")}`
       : "-";
+    const auditLogSummary = `${record.auditLogPolicy.adaptationStatus}<br>${record.auditLogPolicy.coverage}<br>${record.auditLogPolicy.source}`;
 
     lines.push(
-      `| ${record.name} | ${record.phase} | ${record.kind} | \`${record.path}\` | ${String(record.requiresAuth)}<br>${authSummary} | ${String(record.rateLimited)}<br>${rateLimitSummary} | ${String(record.isPublic)} | ${bypassSummary || "-"} |`,
+      `| ${record.name} | ${record.phase} | ${record.kind} | \`${record.path}\` | ${String(record.requiresAuth)}<br>${authSummary} | ${String(record.rateLimited)}<br>${rateLimitSummary} | ${auditLogSummary} | ${String(record.isPublic)} | ${bypassSummary || "-"} |`,
     );
   }
 

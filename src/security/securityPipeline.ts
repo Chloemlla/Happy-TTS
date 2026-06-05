@@ -26,9 +26,9 @@ export const securityPipelineSteps: SecurityPipelineStep[] = [
   },
   {
     name: "audit-log",
-    phase: "postBodyParser",
+    phase: "preBodyParser",
     component: "auditLog",
-    description: "Capture request audit trail after coarse rejection gates",
+    description: "Capture API audit trail before parser-dependent and pre-parser routes dispatch",
     middlewares: [AuditLogService.globalAuditMiddleware()],
   },
   {

@@ -1,5 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
+import swaggerJSDoc from "swagger-jsdoc";
+import {
+  AUDIT_LOG_ADAPTATION_STATUS,
+  AUDIT_LOG_OPENAPI_EXTENSION,
+  AUDIT_LOG_SOURCE,
+  inferAuditModuleFromPath,
+  isAuditLogRuntimeEnabled,
+  isBackendApiPath,
+} from "./auditLogMetadata";
 
 interface OpenapiJsonCache {
   filePath: string;
@@ -8,6 +17,25 @@ interface OpenapiJsonCache {
 }
 
 let openapiJsonCache: OpenapiJsonCache | null = null;
+const GENERATED_OPENAPI_CACHE_KEY = "__generated_openapi__";
+const OPENAPI_HTTP_METHODS = new Set(["get", "put", "post", "delete", "options", "head", "patch", "trace"]);
+
+type MutableOpenapiObject = Record<string, any>;
+
+const runtimeSwaggerOptions = {
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "Synapse API 文档",
+      version: "1.0.0",
+      description: "基于 OpenAPI 3.0 的接口文档",
+    },
+  },
+  apis: [
+    path.join(process.cwd(), "src/routes/**/*.ts"),
+    path.join(process.cwd(), "dist/routes/**/*.js"),
+  ],
+};
 
 export function getOpenapiJsonCandidates(): string[] {
   return [
@@ -21,6 +49,68 @@ export function getOpenapiJsonCandidates(): string[] {
 
 function formatOpenapiNotFoundError(candidates: string[]): Error {
   return new Error(`openapi.json not found in: ${candidates.join(" | ")}`);
+}
+
+function isRecord(value: unknown): value is MutableOpenapiObject {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function buildAuditLogMetadata(openapiPath: string, method?: string): MutableOpenapiObject {
+  const isApiPath = isBackendApiPath(openapiPath);
+
+  return {
+    enabled: isApiPath && isAuditLogRuntimeEnabled(),
+    coverage: isApiPath ? "all-api-routes" : "not-applicable",
+    adaptationStatus: isApiPath ? AUDIT_LOG_ADAPTATION_STATUS : "not-applicable",
+    source: isApiPath ? AUDIT_LOG_SOURCE : "not-applicable",
+    module: isApiPath ? inferAuditModuleFromPath(openapiPath) : "other",
+    action: method ? `${method.toUpperCase()} ${openapiPath}` : undefined,
+  };
+}
+
+export function addAuditLogMetadataToOpenapiDocument<T extends MutableOpenapiObject>(document: T): T {
+  document[AUDIT_LOG_OPENAPI_EXTENSION] = {
+    enabled: isAuditLogRuntimeEnabled(),
+    coverage: "all-api-routes",
+    adaptationStatus: AUDIT_LOG_ADAPTATION_STATUS,
+    source: AUDIT_LOG_SOURCE,
+    dynamic: true,
+  };
+
+  if (!isRecord(document.paths)) {
+    return document;
+  }
+
+  for (const [openapiPath, pathItem] of Object.entries(document.paths)) {
+    if (!isRecord(pathItem)) {
+      continue;
+    }
+
+    pathItem[AUDIT_LOG_OPENAPI_EXTENSION] = buildAuditLogMetadata(openapiPath);
+
+    for (const [method, operation] of Object.entries(pathItem)) {
+      if (!OPENAPI_HTTP_METHODS.has(method.toLowerCase()) || !isRecord(operation)) {
+        continue;
+      }
+
+      operation[AUDIT_LOG_OPENAPI_EXTENSION] = buildAuditLogMetadata(openapiPath, method);
+    }
+  }
+
+  return document;
+}
+
+function stringifyOpenapiDocument(document: MutableOpenapiObject): string {
+  return `${JSON.stringify(addAuditLogMetadataToOpenapiDocument(document), null, 2)}\n`;
+}
+
+function addAuditLogMetadataToOpenapiJson(content: string): string {
+  return stringifyOpenapiDocument(JSON.parse(content));
+}
+
+function generateOpenapiJson(): string {
+  const swaggerSpec = swaggerJSDoc(runtimeSwaggerOptions) as MutableOpenapiObject;
+  return stringifyOpenapiDocument(swaggerSpec);
 }
 
 export function readOpenapiJsonSync(): string {
@@ -37,7 +127,7 @@ export function readOpenapiJsonSync(): string {
         return openapiJsonCache.content;
       }
 
-      const content = fs.readFileSync(candidate, "utf-8");
+      const content = addAuditLogMetadataToOpenapiJson(fs.readFileSync(candidate, "utf-8"));
       openapiJsonCache = { filePath: candidate, mtimeMs: stats.mtimeMs, content };
       return content;
     } catch (_error) {
@@ -45,7 +135,17 @@ export function readOpenapiJsonSync(): string {
     }
   }
 
-  throw formatOpenapiNotFoundError(candidates);
+  try {
+    if (openapiJsonCache?.filePath === GENERATED_OPENAPI_CACHE_KEY) {
+      return openapiJsonCache.content;
+    }
+
+    const content = generateOpenapiJson();
+    openapiJsonCache = { filePath: GENERATED_OPENAPI_CACHE_KEY, mtimeMs: 0, content };
+    return content;
+  } catch (_error) {
+    throw formatOpenapiNotFoundError(candidates);
+  }
 }
 
 export async function readOpenapiJson(): Promise<string> {
@@ -62,7 +162,7 @@ export async function readOpenapiJson(): Promise<string> {
         return openapiJsonCache.content;
       }
 
-      const content = await fs.promises.readFile(candidate, "utf-8");
+      const content = addAuditLogMetadataToOpenapiJson(await fs.promises.readFile(candidate, "utf-8"));
       openapiJsonCache = { filePath: candidate, mtimeMs: stats.mtimeMs, content };
       return content;
     } catch (_error) {
@@ -70,7 +170,17 @@ export async function readOpenapiJson(): Promise<string> {
     }
   }
 
-  throw formatOpenapiNotFoundError(candidates);
+  try {
+    if (openapiJsonCache?.filePath === GENERATED_OPENAPI_CACHE_KEY) {
+      return openapiJsonCache.content;
+    }
+
+    const content = generateOpenapiJson();
+    openapiJsonCache = { filePath: GENERATED_OPENAPI_CACHE_KEY, mtimeMs: 0, content };
+    return content;
+  } catch (_error) {
+    throw formatOpenapiNotFoundError(candidates);
+  }
 }
 
 export function shouldServeSwaggerFromJsonUrl(): boolean {
@@ -84,4 +194,3 @@ export function shouldServeSwaggerFromJsonUrl(): boolean {
     return false;
   }
 }
-
