@@ -105,6 +105,26 @@ export class EcoEnchantsController {
     }
   }
 
+  static async reportRuntimeTelemetryEvents(req: Request, res: Response): Promise<void> {
+    const context = buildContext(req, "license");
+    try {
+      const result = await EcoEnchantsService.reportRuntimeTelemetryEvents(
+        req.body,
+        {
+          authorization: firstString(req.headers.authorization),
+          idempotencyKey: getIdempotencyKey(req),
+          productId: firstString(req.headers["x-eco-product-id"]),
+          installationId: firstString(req.headers["x-eco-installation-id"]),
+          pluginVersion: firstString(req.headers["x-eco-plugin-version"]),
+        },
+        context,
+      );
+      res.status(202).json(result);
+    } catch (error) {
+      sendError(res, context.requestId, error);
+    }
+  }
+
   static async activateLicense(req: Request, res: Response): Promise<void> {
     const context = buildContext(req, "license");
     try {

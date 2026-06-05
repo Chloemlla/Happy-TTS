@@ -177,6 +177,25 @@ export interface IEcoEnchantsWebhookEvent extends Document {
   processedAt?: Date;
 }
 
+export interface IEcoEnchantsTelemetryEvent extends Document {
+  telemetryEventId: string;
+  productId: string;
+  licenseId?: string;
+  activationId?: string;
+  installationIdHash: string;
+  eventId: string;
+  category: string;
+  timestamp: Date;
+  plugin?: Record<string, unknown>;
+  server?: Record<string, unknown>;
+  batch?: Record<string, unknown>;
+  payload: Record<string, unknown>;
+  requestId?: string;
+  idempotencyKey?: string;
+  receivedAt: Date;
+  sensitiveRetentionUntil?: Date;
+}
+
 export interface IEcoEnchantsOpsInstance extends Document {
   instanceId: string;
   productId: string;
@@ -434,6 +453,28 @@ const WebhookEventSchema = new Schema<IEcoEnchantsWebhookEvent>(
   { collection: "ecoenchants_webhook_events", timestamps: false },
 );
 
+const TelemetryEventSchema = new Schema<IEcoEnchantsTelemetryEvent>(
+  {
+    telemetryEventId: { type: String, required: true, unique: true, index: true },
+    productId: { type: String, required: true, index: true },
+    licenseId: { type: String, index: true },
+    activationId: { type: String, index: true },
+    installationIdHash: { type: String, required: true, index: true },
+    eventId: { type: String, required: true, index: true },
+    category: { type: String, required: true, index: true },
+    timestamp: { type: Date, required: true, index: true },
+    plugin: { type: MixedType },
+    server: { type: MixedType },
+    batch: { type: MixedType },
+    payload: { type: MixedType, required: true },
+    requestId: { type: String, index: true },
+    idempotencyKey: { type: String, index: true },
+    receivedAt: { type: Date, default: Date.now, index: true },
+    sensitiveRetentionUntil: { type: Date, index: true },
+  },
+  { collection: "ecoenchants_telemetry_events", timestamps: false },
+);
+
 const OpsInstanceSchema = new Schema<IEcoEnchantsOpsInstance>(
   {
     instanceId: { type: String, required: true, unique: true, index: true },
@@ -557,6 +598,9 @@ addIndex(ReleaseBuildSchema, { productId: 1, channel: 1, releasedAt: -1 });
 addIndex(IdempotencyRecordSchema, { scope: 1, key: 1 }, { unique: true });
 addIndex(IdempotencyRecordSchema, { createdAt: 1 }, { expireAfterSeconds: 24 * 60 * 60 });
 addIndex(WebhookEventSchema, { provider: 1, eventId: 1 }, { unique: true });
+addIndex(TelemetryEventSchema, { productId: 1, installationIdHash: 1, eventId: 1 }, { unique: true });
+addIndex(TelemetryEventSchema, { activationId: 1, timestamp: -1 });
+addIndex(TelemetryEventSchema, { category: 1, timestamp: -1 });
 addIndex(OpsInstanceSchema, { activationId: 1, productId: 1 }, { unique: true });
 addIndex(OpsInstanceSchema, { status: 1, lastSeenAt: -1 });
 addIndex(OpsJobSchema, { instanceId: 1, status: 1, createdAt: -1 });
@@ -604,6 +648,10 @@ export const EcoEnchantsRiskEventModel =
 export const EcoEnchantsWebhookEventModel =
   (existingModels.EcoEnchantsWebhookEvent as mongoose.Model<IEcoEnchantsWebhookEvent>) ||
   mongoose.model<IEcoEnchantsWebhookEvent>("EcoEnchantsWebhookEvent", WebhookEventSchema);
+
+export const EcoEnchantsTelemetryEventModel =
+  (existingModels.EcoEnchantsTelemetryEvent as mongoose.Model<IEcoEnchantsTelemetryEvent>) ||
+  mongoose.model<IEcoEnchantsTelemetryEvent>("EcoEnchantsTelemetryEvent", TelemetryEventSchema);
 
 export const EcoEnchantsOpsInstanceModel =
   (existingModels.EcoEnchantsOpsInstance as mongoose.Model<IEcoEnchantsOpsInstance>) ||

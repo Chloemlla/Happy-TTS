@@ -12,6 +12,7 @@ import {
   EcoEnchantsProductModel,
   EcoEnchantsReleaseBuildModel,
   EcoEnchantsRiskEventModel,
+  EcoEnchantsTelemetryEventModel,
   EcoEnchantsWebhookEventModel,
   type IEcoEnchantsActivation,
   type IEcoEnchantsLicense,
@@ -70,6 +71,32 @@ export interface LicenseDeactivateRequest {
   licenseKey: string;
   installationId: string;
   reason?: string;
+}
+
+export interface RuntimeTelemetryEventsRequest {
+  productId: string;
+  installationId: string;
+  activationId?: string;
+  plugin?: Record<string, unknown>;
+  server?: Record<string, unknown>;
+  batch?: Record<string, unknown>;
+  events?: unknown[];
+}
+
+export interface RuntimeTelemetryHeaders {
+  authorization?: string;
+  idempotencyKey?: string;
+  productId?: string;
+  installationId?: string;
+  pluginVersion?: string;
+}
+
+export interface EcoEnchantsRuntimeActivationTokenPayload {
+  productId: string;
+  licenseId: string;
+  activationId: string;
+  installationIdHash: string;
+  scope: "runtime.telemetry";
 }
 
 export interface IdempotentResponse<T extends Record<string, unknown>> {
@@ -168,6 +195,59 @@ function hashInstallationId(installationId: string): string {
   return hmacHex(`installation:${normalizeInstallationId(installationId)}`);
 }
 
+function getRuntimeActivationTokenSecret(): string {
+  return process.env.ECOENCHANTS_ACTIVATION_TOKEN_SECRET || process.env.ECOENCHANTS_RUNTIME_TOKEN_SECRET || config.jwtSecret;
+}
+
+function getRuntimeActivationTokenTtlSeconds(): number {
+  const parsed = Number(process.env.ECOENCHANTS_ACTIVATION_TOKEN_TTL_SECONDS || 24 * 60 * 60);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 24 * 60 * 60;
+  return Math.min(Math.max(Math.floor(parsed), 5 * 60), 30 * 24 * 60 * 60);
+}
+
+function createEcoEnchantsRuntimeActivationSession(params: {
+  productId: string;
+  licenseId: string;
+  activationId: string;
+  installationId: string;
+}): { token: string; expiresAt: Date } {
+  const expiresInSeconds = getRuntimeActivationTokenTtlSeconds();
+  const installationIdHash = hashInstallationId(params.installationId);
+  const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
+  const token = jwt.sign(
+    {
+      productId: params.productId,
+      licenseId: params.licenseId,
+      activationId: params.activationId,
+      installationIdHash,
+      scope: "runtime.telemetry",
+    },
+    getRuntimeActivationTokenSecret(),
+    {
+      expiresIn: expiresInSeconds,
+      jwtid: `rtel_${uuidv4()}`,
+      subject: params.activationId,
+    },
+  );
+
+  return { token, expiresAt };
+}
+
+export function verifyEcoEnchantsRuntimeActivationToken(token: string): EcoEnchantsRuntimeActivationTokenPayload {
+  const decoded = jwt.verify(token, getRuntimeActivationTokenSecret()) as Partial<EcoEnchantsRuntimeActivationTokenPayload>;
+  if (
+    decoded.scope !== "runtime.telemetry" ||
+    typeof decoded.productId !== "string" ||
+    typeof decoded.licenseId !== "string" ||
+    typeof decoded.activationId !== "string" ||
+    typeof decoded.installationIdHash !== "string"
+  ) {
+    throw new Error("Invalid EcoEnchants runtime activation token.");
+  }
+
+  return decoded as EcoEnchantsRuntimeActivationTokenPayload;
+}
+
 function generateLicenseKey(): string {
   const raw = crypto.randomBytes(6).toString("hex").toUpperCase();
   return `ECOE-${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}`;
@@ -187,6 +267,10 @@ function normalizeChannel(value: unknown): string {
 
 function cleanString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value.trim() : fallback;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value) && !Buffer.isBuffer(value));
 }
 
 function parseOptionalDate(value: unknown): Date | undefined {
@@ -226,6 +310,116 @@ function toIsoOrNull(date: Date | string | undefined | null): string | null {
 
 function isDuplicateKeyError(error: unknown): boolean {
   return Boolean(error && typeof error === "object" && (error as any).code === 11000);
+}
+
+function getMaxTelemetryBatchSize(): number {
+  const parsed = Number(process.env.ECOENCHANTS_TELEMETRY_MAX_BATCH_SIZE || 500);
+  if (!Number.isFinite(parsed) || parsed < 100) return 500;
+  return Math.min(Math.floor(parsed), 5000);
+}
+
+function parseTelemetryTimestamp(value: unknown): Date | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getTelemetrySensitiveRetentionUntil(payload: Record<string, unknown>): Date | undefined {
+  const raw = stableStringify(payload).toLowerCase();
+  const hasRawNetwork = raw.includes("raw-network") || raw.includes("rawnetwork") || raw.includes("raw_ip") || raw.includes("rawip");
+  const hasRawText = raw.includes("raw-text") || raw.includes("rawtext") || raw.includes("captureraw");
+  if (!hasRawNetwork && !hasRawText) return undefined;
+  return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+}
+
+function getBearerToken(authorization: unknown): string {
+  const header = cleanString(authorization);
+  const [type, token] = header.split(" ");
+  if (type !== "Bearer" || !token) {
+    throw serviceError(401, "invalid_activation_token", "Activation token is missing, expired, or revoked.", 300);
+  }
+  return token;
+}
+
+function validateTelemetryEvent(
+  value: unknown,
+  index: number,
+): { ok: true; event: { eventId: string; timestamp: Date; category: string; payload: Record<string, unknown> } } | {
+  ok: false;
+  rejected: { eventId: string | null; code: string; message: string; index: number };
+} {
+  if (!isPlainObject(value)) {
+    return {
+      ok: false,
+      rejected: {
+        eventId: null,
+        code: "invalid_event",
+        message: "Event must be an object.",
+        index,
+      },
+    };
+  }
+
+  const eventId = cleanString(value.eventId);
+  if (!eventId || eventId.length > 128) {
+    return {
+      ok: false,
+      rejected: {
+        eventId: eventId || null,
+        code: "invalid_event_id",
+        message: "eventId is required.",
+        index,
+      },
+    };
+  }
+
+  const timestamp = parseTelemetryTimestamp(value.timestamp);
+  if (!timestamp) {
+    return {
+      ok: false,
+      rejected: {
+        eventId,
+        code: "invalid_timestamp",
+        message: "timestamp must be an ISO-8601 date.",
+        index,
+      },
+    };
+  }
+
+  const category = cleanString(value.category);
+  if (!category || category.length > 120) {
+    return {
+      ok: false,
+      rejected: {
+        eventId,
+        code: "invalid_category",
+        message: "category is required.",
+        index,
+      },
+    };
+  }
+
+  if (!isPlainObject(value.payload)) {
+    return {
+      ok: false,
+      rejected: {
+        eventId,
+        code: "invalid_payload",
+        message: "payload must be an object.",
+        index,
+      },
+    };
+  }
+
+  return {
+    ok: true,
+    event: {
+      eventId,
+      timestamp,
+      category,
+      payload: value.payload,
+    },
+  };
 }
 
 function getRuntimeLicenseStatus(license: IEcoEnchantsLicense, now: Date): EcoEnchantsRuntimeStatus {
@@ -586,9 +780,19 @@ export class EcoEnchantsService {
       },
     );
 
+    const activationSession = createEcoEnchantsRuntimeActivationSession({
+      productId,
+      licenseId: license.licenseId,
+      activationId: activationResult.activation.activationId,
+      installationId,
+    });
+
     return {
       requestId,
       status: runtimeStatus,
+      activationId: activationResult.activation.activationId,
+      activationToken: activationSession.token,
+      activationTokenExpiresAt: activationSession.expiresAt.toISOString(),
       license: {
         licenseId: license.licenseId,
         plan: license.planId,
@@ -834,6 +1038,150 @@ export class EcoEnchantsService {
         error: error instanceof Error ? error.message : String(error),
       });
     }
+  }
+
+  static async reportRuntimeTelemetryEvents(
+    request: RuntimeTelemetryEventsRequest,
+    headers: RuntimeTelemetryHeaders,
+    context: EcoEnchantsRequestContext,
+  ) {
+    if (!isPlainObject(request)) {
+      throw serviceError(400, "invalid_telemetry_batch", "Telemetry request body must be a JSON object.");
+    }
+
+    const headerProductId = ensureProductId(headers.productId);
+    const productId = ensureProductId(request.productId || headerProductId);
+    if (productId !== headerProductId) {
+      throw serviceError(400, "invalid_product_id", "Product ID header and body do not match.");
+    }
+
+    const headerInstallationId = ensureRequiredText(headers.installationId, "X-Eco-Installation-Id", 128);
+    const installationId = ensureRequiredText(request.installationId || headerInstallationId, "installationId", 128);
+    if (installationId !== headerInstallationId) {
+      throw serviceError(400, "invalid_installation_id", "Installation ID header and body do not match.");
+    }
+
+    const pluginVersion = ensureRequiredText(headers.pluginVersion, "X-Eco-Plugin-Version", 80);
+    const idempotencyKey = ensureRequiredText(headers.idempotencyKey, "Idempotency-Key", 200);
+    if (!Array.isArray(request.events)) {
+      throw serviceError(400, "invalid_telemetry_batch", "events must be an array.");
+    }
+
+    const maxBatchSize = getMaxTelemetryBatchSize();
+    if (request.events.length > maxBatchSize) {
+      throw serviceError(422, "telemetry_batch_too_large", `events must contain at most ${maxBatchSize} items.`);
+    }
+
+    let tokenPayload: EcoEnchantsRuntimeActivationTokenPayload;
+    try {
+      tokenPayload = verifyEcoEnchantsRuntimeActivationToken(getBearerToken(headers.authorization));
+    } catch (error) {
+      if (error instanceof EcoEnchantsServiceError) throw error;
+      throw serviceError(401, "invalid_activation_token", "Activation token is missing, expired, or revoked.", 300);
+    }
+
+    const installationIdHash = hashInstallationId(installationId);
+    const activationId = cleanString(request.activationId);
+    if (
+      tokenPayload.productId !== productId ||
+      tokenPayload.installationIdHash !== installationIdHash ||
+      (activationId && activationId !== tokenPayload.activationId)
+    ) {
+      throw serviceError(403, "invalid_activation_token", "Activation token is not valid for this telemetry batch.", 300);
+    }
+
+    const [license, activation] = await Promise.all([
+      EcoEnchantsLicenseModel.findOne({
+        productId,
+        licenseId: tokenPayload.licenseId,
+      }),
+      EcoEnchantsActivationModel.findOne({
+        activationId: tokenPayload.activationId,
+        licenseId: tokenPayload.licenseId,
+        installationIdHash,
+        status: "active",
+      }),
+    ]);
+
+    const runtimeStatus = license ? getRuntimeLicenseStatus(license, new Date()) : "invalid";
+    if (!license || !isAllowedRuntimeStatus(runtimeStatus) || !activation) {
+      throw serviceError(403, "invalid_activation_token", "Activation token is missing, expired, or revoked.", 300);
+    }
+
+    const plugin = isPlainObject(request.plugin) ? { ...request.plugin } : {};
+    plugin.version = cleanString(plugin.version, pluginVersion) || pluginVersion;
+    const server = isPlainObject(request.server) ? request.server : {};
+    const batch = isPlainObject(request.batch) ? request.batch : {};
+    const rejectedEvents: Array<{ eventId: string | null; code: string; message: string; index: number }> = [];
+    const validEvents: Array<{
+      eventId: string;
+      timestamp: Date;
+      category: string;
+      payload: Record<string, unknown>;
+    }> = [];
+
+    request.events.forEach((event, index) => {
+      const validated = validateTelemetryEvent(event, index);
+      if (validated.ok) {
+        validEvents.push(validated.event);
+      } else {
+        rejectedEvents.push(validated.rejected);
+      }
+    });
+
+    let acceptedEvents = 0;
+    let duplicateEvents = 0;
+    const receivedAt = new Date();
+
+    for (const event of validEvents) {
+      try {
+        await EcoEnchantsTelemetryEventModel.create({
+          telemetryEventId: `tel_${uuidv4()}`,
+          productId,
+          licenseId: tokenPayload.licenseId,
+          activationId: tokenPayload.activationId,
+          installationIdHash,
+          eventId: event.eventId,
+          category: event.category,
+          timestamp: event.timestamp,
+          plugin,
+          server,
+          batch,
+          payload: event.payload,
+          requestId: context.requestId,
+          idempotencyKey,
+          receivedAt,
+          sensitiveRetentionUntil: getTelemetrySensitiveRetentionUntil(event.payload),
+        });
+        acceptedEvents += 1;
+      } catch (error) {
+        if (isDuplicateKeyError(error)) {
+          duplicateEvents += 1;
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    activation.lastSeenAt = receivedAt;
+    try {
+      await activation.save();
+    } catch (error) {
+      logger.warn("[EcoEnchants] Failed to update telemetry activation heartbeat", {
+        requestId: context.requestId,
+        activationId: tokenPayload.activationId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    return {
+      requestId: context.requestId,
+      status: "accepted",
+      acceptedEvents,
+      duplicateEvents,
+      rejectedEvents,
+      serverTime: new Date().toISOString(),
+    };
   }
 
   static async createProduct(body: Record<string, unknown>, context: EcoEnchantsRequestContext) {
