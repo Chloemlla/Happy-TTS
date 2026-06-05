@@ -5,6 +5,7 @@ import {
   EcoEnchantsService,
   type EcoEnchantsRequestContext,
 } from "../services/ecoEnchantsService";
+import { EcoEnchantsOpsService } from "../services/ecoEnchantsOpsService";
 import { firstString, firstStringOr } from "../utils/httpParam";
 
 function getRequestId(req: Request): string {
@@ -42,6 +43,28 @@ function parsePage(req: Request): { page: number; pageSize: number } {
   return {
     page: Number.parseInt(firstStringOr(req.query.page, "1"), 10),
     pageSize: Number.parseInt(firstStringOr(req.query.pageSize, "20"), 10),
+  };
+}
+
+function getPathAndQuery(req: Request): { path: string; query: string } {
+  const url = new URL(req.originalUrl || req.url || req.path, "http://localhost");
+  return {
+    path: url.pathname,
+    query: url.search ? url.search.slice(1) : "",
+  };
+}
+
+function getEcoSignature(req: Request) {
+  const { path, query } = getPathAndQuery(req);
+  return {
+    authorization: firstString(req.headers.authorization),
+    keyId: firstString(req.headers["x-eco-key-id"]),
+    timestamp: firstString(req.headers["x-eco-timestamp"]),
+    nonce: firstString(req.headers["x-eco-nonce"]),
+    signature: firstString(req.headers["x-eco-signature"]),
+    method: req.method,
+    path,
+    query,
   };
 }
 
@@ -423,6 +446,306 @@ export class EcoEnchantsController {
         status: firstString(req.query.status),
         severity: firstString(req.query.severity),
         type: firstString(req.query.type),
+      });
+      res.json(result);
+    } catch (error) {
+      sendError(res, requestId, error);
+    }
+  }
+
+  static async opsRegisterInstance(req: Request, res: Response): Promise<void> {
+    const context = buildContext(req, "license");
+    try {
+      const result = await EcoEnchantsService.withIdempotency(
+        {
+          scope: "ops.instances.register",
+          key: getIdempotencyKey(req),
+          method: req.method,
+          path: req.originalUrl || req.path,
+          body: req.body,
+        },
+        async () => ({
+          statusCode: 201,
+          body: await EcoEnchantsOpsService.registerInstance(req.body, context, getEcoSignature(req)),
+        }),
+      );
+      res.status(result.statusCode).json(result.body);
+    } catch (error) {
+      sendError(res, context.requestId, error);
+    }
+  }
+
+  static async opsInstances(req: Request, res: Response): Promise<void> {
+    const requestId = getRequestId(req);
+    try {
+      const { page, pageSize } = parsePage(req);
+      const result = await EcoEnchantsOpsService.listInstances({
+        requestId,
+        page,
+        pageSize,
+        status: firstString(req.query.status),
+      });
+      res.json(result);
+    } catch (error) {
+      sendError(res, requestId, error);
+    }
+  }
+
+  static async opsInstanceDetail(req: Request, res: Response): Promise<void> {
+    const requestId = getRequestId(req);
+    try {
+      const result = await EcoEnchantsOpsService.getInstance(firstStringOr(req.params.instanceId), requestId);
+      res.json(result);
+    } catch (error) {
+      sendError(res, requestId, error);
+    }
+  }
+
+  static async opsCreateJob(req: Request, res: Response): Promise<void> {
+    const context = buildContext(req, "admin");
+    try {
+      const result = await EcoEnchantsService.withIdempotency(
+        {
+          scope: "ops.jobs.create",
+          key: getIdempotencyKey(req),
+          method: req.method,
+          path: req.originalUrl || req.path,
+          body: req.body,
+        },
+        async () => ({
+          statusCode: 201,
+          body: await EcoEnchantsOpsService.createManagedJob(firstStringOr(req.params.instanceId), req.body, context),
+        }),
+      );
+      res.status(result.statusCode).json(result.body);
+    } catch (error) {
+      sendError(res, context.requestId, error);
+    }
+  }
+
+  static async opsJobs(req: Request, res: Response): Promise<void> {
+    const requestId = getRequestId(req);
+    try {
+      const { page, pageSize } = parsePage(req);
+      const result = await EcoEnchantsOpsService.listJobs({
+        requestId,
+        page,
+        pageSize,
+        instanceId: firstString(req.params.instanceId),
+        status: firstString(req.query.status),
+      });
+      res.json(result);
+    } catch (error) {
+      sendError(res, requestId, error);
+    }
+  }
+
+  static async opsJobDetail(req: Request, res: Response): Promise<void> {
+    const requestId = getRequestId(req);
+    try {
+      const result = await EcoEnchantsOpsService.getJob(firstStringOr(req.params.jobId), requestId);
+      res.json(result);
+    } catch (error) {
+      sendError(res, requestId, error);
+    }
+  }
+
+  static async opsFileRead(req: Request, res: Response): Promise<void> {
+    const context = buildContext(req, "admin");
+    try {
+      const result = await EcoEnchantsService.withIdempotency(
+        {
+          scope: "ops.files.read",
+          key: getIdempotencyKey(req),
+          method: req.method,
+          path: req.originalUrl || req.path,
+          body: req.body,
+        },
+        async () => ({
+          statusCode: 201,
+          body: await EcoEnchantsOpsService.createFileReadJob(firstStringOr(req.params.instanceId), req.body, context),
+        }),
+      );
+      res.status(result.statusCode).json(result.body);
+    } catch (error) {
+      sendError(res, context.requestId, error);
+    }
+  }
+
+  static async opsFileWrite(req: Request, res: Response): Promise<void> {
+    const context = buildContext(req, "admin");
+    try {
+      const result = await EcoEnchantsService.withIdempotency(
+        {
+          scope: "ops.files.write",
+          key: getIdempotencyKey(req),
+          method: req.method,
+          path: req.originalUrl || req.path,
+          body: req.body,
+        },
+        async () => ({
+          statusCode: 201,
+          body: await EcoEnchantsOpsService.createFileWriteJob(firstStringOr(req.params.instanceId), req.body, context),
+        }),
+      );
+      res.status(result.statusCode).json(result.body);
+    } catch (error) {
+      sendError(res, context.requestId, error);
+    }
+  }
+
+  static async opsFileDelete(req: Request, res: Response): Promise<void> {
+    const context = buildContext(req, "admin");
+    try {
+      const result = await EcoEnchantsService.withIdempotency(
+        {
+          scope: "ops.files.delete",
+          key: getIdempotencyKey(req),
+          method: req.method,
+          path: req.originalUrl || req.path,
+          body: req.body,
+        },
+        async () => ({
+          statusCode: 201,
+          body: await EcoEnchantsOpsService.createFileDeleteJob(firstStringOr(req.params.instanceId), req.body, context),
+        }),
+      );
+      res.status(result.statusCode).json(result.body);
+    } catch (error) {
+      sendError(res, context.requestId, error);
+    }
+  }
+
+  static async opsExport(req: Request, res: Response): Promise<void> {
+    const context = buildContext(req, "admin");
+    try {
+      const result = await EcoEnchantsService.withIdempotency(
+        {
+          scope: "ops.exports.create",
+          key: getIdempotencyKey(req),
+          method: req.method,
+          path: req.originalUrl || req.path,
+          body: req.body,
+        },
+        async () => ({
+          statusCode: 201,
+          body: await EcoEnchantsOpsService.createExportJob(firstStringOr(req.params.instanceId), req.body, context),
+        }),
+      );
+      res.status(result.statusCode).json(result.body);
+    } catch (error) {
+      sendError(res, context.requestId, error);
+    }
+  }
+
+  static async opsCreateBackup(req: Request, res: Response): Promise<void> {
+    const context = buildContext(req, "admin");
+    try {
+      const result = await EcoEnchantsService.withIdempotency(
+        {
+          scope: "ops.backups.create",
+          key: getIdempotencyKey(req),
+          method: req.method,
+          path: req.originalUrl || req.path,
+          body: req.body,
+        },
+        async () => ({
+          statusCode: 201,
+          body: await EcoEnchantsOpsService.createBackupJob(firstStringOr(req.params.instanceId), req.body, context),
+        }),
+      );
+      res.status(result.statusCode).json(result.body);
+    } catch (error) {
+      sendError(res, context.requestId, error);
+    }
+  }
+
+  static async opsBackups(req: Request, res: Response): Promise<void> {
+    const requestId = getRequestId(req);
+    try {
+      const result = await EcoEnchantsOpsService.listBackups({
+        requestId,
+        instanceId: firstStringOr(req.params.instanceId),
+      });
+      res.json(result);
+    } catch (error) {
+      sendError(res, requestId, error);
+    }
+  }
+
+  static async opsRestoreBackup(req: Request, res: Response): Promise<void> {
+    const context = buildContext(req, "admin");
+    try {
+      const result = await EcoEnchantsService.withIdempotency(
+        {
+          scope: "ops.backups.restore",
+          key: getIdempotencyKey(req),
+          method: req.method,
+          path: req.originalUrl || req.path,
+          body: req.body,
+        },
+        async () => ({
+          statusCode: 201,
+          body: await EcoEnchantsOpsService.createRestoreJob(
+            firstStringOr(req.params.instanceId),
+            firstStringOr(req.params.backupId),
+            req.body,
+            context,
+          ),
+        }),
+      );
+      res.status(result.statusCode).json(result.body);
+    } catch (error) {
+      sendError(res, context.requestId, error);
+    }
+  }
+
+  static async opsCommandPolicies(req: Request, res: Response): Promise<void> {
+    const requestId = getRequestId(req);
+    try {
+      const result = await EcoEnchantsOpsService.listCommandPolicies({ requestId });
+      res.json(result);
+    } catch (error) {
+      sendError(res, requestId, error);
+    }
+  }
+
+  static async opsUpsertCommandPolicy(req: Request, res: Response): Promise<void> {
+    const context = buildContext(req, "admin");
+    try {
+      const result = await EcoEnchantsService.withIdempotency(
+        {
+          scope: "ops.policies.commands.upsert",
+          key: getIdempotencyKey(req),
+          method: req.method,
+          path: req.originalUrl || req.path,
+          body: req.body,
+        },
+        async () => ({
+          statusCode: 200,
+          body: await EcoEnchantsOpsService.upsertCommandPolicy(req.body, context),
+        }),
+      );
+      res.status(result.statusCode).json(result.body);
+    } catch (error) {
+      sendError(res, context.requestId, error);
+    }
+  }
+
+  static async opsAuditLogs(req: Request, res: Response): Promise<void> {
+    const requestId = getRequestId(req);
+    try {
+      const { page, pageSize } = parsePage(req);
+      const result = await EcoEnchantsOpsService.listOpsAuditLogs({
+        requestId,
+        page,
+        pageSize,
+        instanceId: firstString(req.query.instanceId),
+        action: firstString(req.query.action),
+        actorId: firstString(req.query.actorId),
+        jobId: firstString(req.query.jobId),
+        from: firstString(req.query.from),
+        to: firstString(req.query.to),
       });
       res.json(result);
     } catch (error) {

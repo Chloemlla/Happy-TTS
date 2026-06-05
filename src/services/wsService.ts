@@ -4,6 +4,7 @@ import { URL } from "node:url";
 import jwt from "jsonwebtoken";
 import { WebSocket, WebSocketServer } from "ws";
 import { config } from "../config/config";
+import { EcoEnchantsOpsService } from "./ecoEnchantsOpsService";
 import logger from "../utils/logger";
 
 // ========== 类型定义 ==========
@@ -83,6 +84,7 @@ class WsService {
     this.wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
       this.handleConnection(ws, req);
     });
+    EcoEnchantsOpsService.initRpcWebSocket(server);
 
     // 心跳检测：每 30 秒清理无响应的连接
     this.heartbeatInterval = setInterval(() => {

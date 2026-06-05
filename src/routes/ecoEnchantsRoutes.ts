@@ -157,6 +157,16 @@ const adminEcoLimiter = createLimiter({
   handler: ecoRateLimitHandler("Admin requests are too frequent, please retry later.", 60),
 });
 
+const opsRegisterLimiter = createLimiter({
+  name: "ecoenchantsOpsRegister",
+  category: "public-api",
+  windowMs: 60 * 1000,
+  max: 20,
+  message: "Ops instance registration requests are too frequent, please retry later.",
+  keyGenerator: (req: Request) => bodyRateLimitKey(req, "ecoenchants:ops:register", "installationId"),
+  handler: ecoRateLimitHandler("Ops instance registration requests are too frequent, please retry later.", 60),
+});
+
 function sendAuthError(res: Response, req: Request, statusCode: number, code: string, message: string): void {
   res.status(statusCode).json({
     requestId: getRequestId(req),
@@ -263,6 +273,23 @@ router.post(
 router.post("/me/licenses/:licenseId/key/rotate", ...customerGuards, EcoEnchantsController.rotateMyLicenseKey);
 router.get("/me/downloads", ...customerGuards, EcoEnchantsController.myDownloads);
 
+router.post("/ops/instances/register", opsRegisterLimiter, EcoEnchantsController.opsRegisterInstance);
+router.get("/ops/instances", ...adminGuards, EcoEnchantsController.opsInstances);
+router.get("/ops/instances/:instanceId", ...adminGuards, EcoEnchantsController.opsInstanceDetail);
+router.get("/ops/instances/:instanceId/jobs", ...adminGuards, EcoEnchantsController.opsJobs);
+router.post("/ops/instances/:instanceId/jobs", ...adminGuards, EcoEnchantsController.opsCreateJob);
+router.post("/ops/instances/:instanceId/files/read", ...adminGuards, EcoEnchantsController.opsFileRead);
+router.post("/ops/instances/:instanceId/files/write", ...adminGuards, EcoEnchantsController.opsFileWrite);
+router.post("/ops/instances/:instanceId/files/delete", ...adminGuards, EcoEnchantsController.opsFileDelete);
+router.post("/ops/instances/:instanceId/exports", ...adminGuards, EcoEnchantsController.opsExport);
+router.get("/ops/instances/:instanceId/backups", ...adminGuards, EcoEnchantsController.opsBackups);
+router.post("/ops/instances/:instanceId/backups", ...adminGuards, EcoEnchantsController.opsCreateBackup);
+router.post("/ops/instances/:instanceId/backups/:backupId/restore", ...adminGuards, EcoEnchantsController.opsRestoreBackup);
+router.get("/ops/jobs/:jobId", ...adminGuards, EcoEnchantsController.opsJobDetail);
+router.get("/ops/policies/commands", ...adminGuards, EcoEnchantsController.opsCommandPolicies);
+router.post("/ops/policies/commands", ...adminGuards, EcoEnchantsController.opsUpsertCommandPolicy);
+router.get("/ops/audit-logs", ...adminGuards, EcoEnchantsController.opsAuditLogs);
+
 router.post("/admin/products", ...adminGuards, EcoEnchantsController.createProduct);
 router.patch("/admin/products/:productId", ...adminGuards, EcoEnchantsController.updateProduct);
 router.post("/admin/products/:productId/versions", ...adminGuards, EcoEnchantsController.createReleaseBuild);
@@ -273,4 +300,8 @@ router.post("/admin/licenses/:licenseId/revoke", ...adminGuards, EcoEnchantsCont
 router.get("/admin/audit-logs", ...adminGuards, EcoEnchantsController.adminAuditLogs);
 router.get("/admin/risk-events", ...adminGuards, EcoEnchantsController.adminRiskEvents);
 
-export default router;
+const versionedRouter = Router();
+versionedRouter.use("/", router);
+versionedRouter.use("/v1", router);
+
+export default versionedRouter;

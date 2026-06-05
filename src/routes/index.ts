@@ -1076,7 +1076,7 @@ export const postTamperRouteModules: RouteModule[] = [
     authPolicy: {
       mode: "route",
       handlers: ["authenticateEcoCustomer", "requireEcoAdmin", "verifyEcoEnchantsDownloadToken"],
-      note: "Public license boot endpoints are open; customer, download, and admin branches enforce EcoEnchants-specific JWT/admin/download-token guards.",
+      note: "Public license boot endpoints are open; ops registration enforces signed activation tokens; customer, download, and admin branches enforce EcoEnchants-specific JWT/admin/download-token guards.",
     },
     rateLimitPolicy: {
       mode: "route",
@@ -1090,8 +1090,9 @@ export const postTamperRouteModules: RouteModule[] = [
         "ecoenchantsDownload",
         "ecoenchantsAdminIp",
         "ecoenchantsAdmin",
+        "ecoenchantsOpsRegister",
       ],
-      note: "The EcoEnchants router applies dedicated route-level IP and authenticated-subject limiters for license, customer, download, and admin flows.",
+      note: "The EcoEnchants router applies dedicated route-level IP and authenticated-subject limiters for license, customer, download, admin, and ops-registration flows.",
     },
   },
   {
