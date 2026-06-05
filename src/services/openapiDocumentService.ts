@@ -69,7 +69,9 @@ function buildAuditLogMetadata(openapiPath: string, method?: string): MutableOpe
 }
 
 export function addAuditLogMetadataToOpenapiDocument<T extends MutableOpenapiObject>(document: T): T {
-  document[AUDIT_LOG_OPENAPI_EXTENSION] = {
+  const mutableDocument: MutableOpenapiObject = document;
+
+  mutableDocument[AUDIT_LOG_OPENAPI_EXTENSION] = {
     enabled: isAuditLogRuntimeEnabled(),
     coverage: "all-api-routes",
     adaptationStatus: AUDIT_LOG_ADAPTATION_STATUS,
@@ -77,11 +79,11 @@ export function addAuditLogMetadataToOpenapiDocument<T extends MutableOpenapiObj
     dynamic: true,
   };
 
-  if (!isRecord(document.paths)) {
+  if (!isRecord(mutableDocument.paths)) {
     return document;
   }
 
-  for (const [openapiPath, pathItem] of Object.entries(document.paths)) {
+  for (const [openapiPath, pathItem] of Object.entries(mutableDocument.paths)) {
     if (!isRecord(pathItem)) {
       continue;
     }

@@ -1,5 +1,14 @@
 import mongoose, { type Document, Schema } from "mongoose";
 
+const MixedType = (Schema as any).Types?.Mixed || (mongoose as any).Schema?.Types?.Mixed || Object;
+const existingModels = (mongoose as any).models || {};
+
+function addIndex(schema: Schema, fields: Record<string, any>, options?: Record<string, any>): void {
+  if (typeof (schema as any).index === "function") {
+    schema.index(fields as any, options as any);
+  }
+}
+
 export const ECO_ENCHANTS_LICENSE_STATUSES = [
   "valid",
   "trial",
@@ -191,7 +200,7 @@ const LicenseSchema = new Schema<IEcoEnchantsLicense>(
     status: { type: String, required: true, enum: ECO_ENCHANTS_LICENSE_STATUSES, default: "valid", index: true },
     maxActivations: { type: Number, required: true, min: 1, default: 1 },
     expiresAt: { type: Date, index: true },
-    metadata: { type: Schema.Types.Mixed },
+    metadata: { type: MixedType },
   },
   { collection: "ecoenchants_licenses", timestamps: true },
 );
@@ -243,7 +252,7 @@ const IdempotencyRecordSchema = new Schema<IEcoEnchantsIdempotencyRecord>(
     path: { type: String, required: true },
     bodyHash: { type: String, required: true },
     statusCode: { type: Number, required: true },
-    responseBody: { type: Schema.Types.Mixed, required: true },
+    responseBody: { type: MixedType, required: true },
     createdAt: { type: Date, default: Date.now },
   },
   { collection: "ecoenchants_idempotency_records", timestamps: false },
@@ -258,7 +267,7 @@ const AuditLogSchema = new Schema<IEcoEnchantsAuditLog>(
     targetType: { type: String },
     targetId: { type: String, index: true },
     result: { type: String, required: true, enum: ["success", "failure"], index: true },
-    detail: { type: Schema.Types.Mixed },
+    detail: { type: MixedType },
     requestId: { type: String, index: true },
     ip: { type: String },
     userAgent: { type: String },
@@ -277,7 +286,7 @@ const RiskEventSchema = new Schema<IEcoEnchantsRiskEvent>(
     severity: { type: String, required: true, enum: ["low", "medium", "high"], default: "low", index: true },
     status: { type: String, required: true, enum: ECO_ENCHANTS_RISK_EVENT_STATUSES, default: "open", index: true },
     message: { type: String, required: true },
-    detail: { type: Schema.Types.Mixed },
+    detail: { type: MixedType },
     createdAt: { type: Date, default: Date.now, index: true },
     resolvedAt: { type: Date },
   },
@@ -293,8 +302,8 @@ const WebhookEventSchema = new Schema<IEcoEnchantsWebhookEvent>(
     signatureVerified: { type: Boolean, required: true },
     status: { type: String, required: true, enum: ECO_ENCHANTS_WEBHOOK_STATUSES, default: "received", index: true },
     rawPayload: { type: String, required: true },
-    headers: { type: Schema.Types.Mixed },
-    data: { type: Schema.Types.Mixed },
+    headers: { type: MixedType },
+    data: { type: MixedType },
     errorMessage: { type: String },
     receivedAt: { type: Date, default: Date.now, index: true },
     processedAt: { type: Date },
@@ -302,46 +311,46 @@ const WebhookEventSchema = new Schema<IEcoEnchantsWebhookEvent>(
   { collection: "ecoenchants_webhook_events", timestamps: false },
 );
 
-ActivationSchema.index({ licenseId: 1, installationIdHash: 1 }, { unique: true });
-ActivationSchema.index({ licenseId: 1, status: 1 });
-ReleaseBuildSchema.index({ productId: 1, version: 1, channel: 1, sha256: 1 }, { unique: true });
-ReleaseBuildSchema.index({ productId: 1, channel: 1, releasedAt: -1 });
-IdempotencyRecordSchema.index({ scope: 1, key: 1 }, { unique: true });
-IdempotencyRecordSchema.index({ createdAt: 1 }, { expireAfterSeconds: 24 * 60 * 60 });
-WebhookEventSchema.index({ provider: 1, eventId: 1 }, { unique: true });
+addIndex(ActivationSchema, { licenseId: 1, installationIdHash: 1 }, { unique: true });
+addIndex(ActivationSchema, { licenseId: 1, status: 1 });
+addIndex(ReleaseBuildSchema, { productId: 1, version: 1, channel: 1, sha256: 1 }, { unique: true });
+addIndex(ReleaseBuildSchema, { productId: 1, channel: 1, releasedAt: -1 });
+addIndex(IdempotencyRecordSchema, { scope: 1, key: 1 }, { unique: true });
+addIndex(IdempotencyRecordSchema, { createdAt: 1 }, { expireAfterSeconds: 24 * 60 * 60 });
+addIndex(WebhookEventSchema, { provider: 1, eventId: 1 }, { unique: true });
 
 export const EcoEnchantsProductModel =
-  (mongoose.models.EcoEnchantsProduct as mongoose.Model<IEcoEnchantsProduct>) ||
+  (existingModels.EcoEnchantsProduct as mongoose.Model<IEcoEnchantsProduct>) ||
   mongoose.model<IEcoEnchantsProduct>("EcoEnchantsProduct", ProductSchema);
 
 export const EcoEnchantsPlanModel =
-  (mongoose.models.EcoEnchantsPlan as mongoose.Model<IEcoEnchantsPlan>) ||
+  (existingModels.EcoEnchantsPlan as mongoose.Model<IEcoEnchantsPlan>) ||
   mongoose.model<IEcoEnchantsPlan>("EcoEnchantsPlan", PlanSchema);
 
 export const EcoEnchantsLicenseModel =
-  (mongoose.models.EcoEnchantsLicense as mongoose.Model<IEcoEnchantsLicense>) ||
+  (existingModels.EcoEnchantsLicense as mongoose.Model<IEcoEnchantsLicense>) ||
   mongoose.model<IEcoEnchantsLicense>("EcoEnchantsLicense", LicenseSchema);
 
 export const EcoEnchantsActivationModel =
-  (mongoose.models.EcoEnchantsActivation as mongoose.Model<IEcoEnchantsActivation>) ||
+  (existingModels.EcoEnchantsActivation as mongoose.Model<IEcoEnchantsActivation>) ||
   mongoose.model<IEcoEnchantsActivation>("EcoEnchantsActivation", ActivationSchema);
 
 export const EcoEnchantsReleaseBuildModel =
-  (mongoose.models.EcoEnchantsReleaseBuild as mongoose.Model<IEcoEnchantsReleaseBuild>) ||
+  (existingModels.EcoEnchantsReleaseBuild as mongoose.Model<IEcoEnchantsReleaseBuild>) ||
   mongoose.model<IEcoEnchantsReleaseBuild>("EcoEnchantsReleaseBuild", ReleaseBuildSchema);
 
 export const EcoEnchantsIdempotencyRecordModel =
-  (mongoose.models.EcoEnchantsIdempotencyRecord as mongoose.Model<IEcoEnchantsIdempotencyRecord>) ||
+  (existingModels.EcoEnchantsIdempotencyRecord as mongoose.Model<IEcoEnchantsIdempotencyRecord>) ||
   mongoose.model<IEcoEnchantsIdempotencyRecord>("EcoEnchantsIdempotencyRecord", IdempotencyRecordSchema);
 
 export const EcoEnchantsAuditLogModel =
-  (mongoose.models.EcoEnchantsAuditLog as mongoose.Model<IEcoEnchantsAuditLog>) ||
+  (existingModels.EcoEnchantsAuditLog as mongoose.Model<IEcoEnchantsAuditLog>) ||
   mongoose.model<IEcoEnchantsAuditLog>("EcoEnchantsAuditLog", AuditLogSchema);
 
 export const EcoEnchantsRiskEventModel =
-  (mongoose.models.EcoEnchantsRiskEvent as mongoose.Model<IEcoEnchantsRiskEvent>) ||
+  (existingModels.EcoEnchantsRiskEvent as mongoose.Model<IEcoEnchantsRiskEvent>) ||
   mongoose.model<IEcoEnchantsRiskEvent>("EcoEnchantsRiskEvent", RiskEventSchema);
 
 export const EcoEnchantsWebhookEventModel =
-  (mongoose.models.EcoEnchantsWebhookEvent as mongoose.Model<IEcoEnchantsWebhookEvent>) ||
+  (existingModels.EcoEnchantsWebhookEvent as mongoose.Model<IEcoEnchantsWebhookEvent>) ||
   mongoose.model<IEcoEnchantsWebhookEvent>("EcoEnchantsWebhookEvent", WebhookEventSchema);

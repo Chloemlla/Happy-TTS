@@ -19,6 +19,7 @@ export const securityBypassPolicy: Record<SecurityComponent, SecurityBypassRule[
     { match: "exact", value: "/api/auth/login", note: "Authentication payload compatibility" },
     { match: "exact", value: "/api/auth/register", note: "Authentication payload compatibility" },
     { match: "prefix", value: "/api/webhooks", note: "Raw webhook payload verification" },
+    { match: "prefix", value: "/api/ecoenchants/v1/webhooks", note: "Raw EcoEnchants marketplace/payment webhook verification" },
     { match: "prefix", value: "/api/data-collection", note: "Accept non-JSON/browser telemetry payloads" },
   ],
   ipVerification: [

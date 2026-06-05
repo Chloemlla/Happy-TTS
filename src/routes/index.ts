@@ -45,6 +45,8 @@ import debugConsoleRoutes from "./debugConsoleRoutes";
 import deeplxRoutes from "./deeplxRoutes";
 import diagnosticsRoutes from "./diagnosticsRoutes";
 import emailRoutes from "./emailRoutes";
+import ecoEnchantsRoutes from "./ecoEnchantsRoutes";
+import ecoEnchantsWebhookRoutes from "./ecoEnchantsWebhookRoutes";
 import fbiWantedRoutes from "./fbiWantedRoutes";
 import frontendConfigRoutes from "./frontendConfigRoutes";
 import githubBillingRoutes from "./githubBillingRoutes";
@@ -432,6 +434,25 @@ export const preParserRouteModules: RouteModule[] = [
       mode: "route",
       limiters: ["webhookLimiter"],
       note: "Webhook routes apply a dedicated route-level limiter inside the router.",
+    },
+    securityBypass: {
+      waf: {
+        value: true,
+        reason: "Webhook signature verification requires raw payload compatibility before WAF normalization.",
+      },
+    },
+  },
+  {
+    name: "ecoenchants-webhook-routes",
+    path: "/api/ecoenchants/v1/webhooks",
+    router: ecoEnchantsWebhookRoutes,
+    requiresAuth: false,
+    rateLimited: true,
+    isPublic: true,
+    rateLimitPolicy: {
+      mode: "route",
+      limiters: ["ecoenchantsWebhook"],
+      note: "Payment and marketplace webhooks apply a route-level limiter and verify provider signatures from raw payloads.",
     },
     securityBypass: {
       waf: {
@@ -1044,6 +1065,31 @@ export const postTamperRouteModules: RouteModule[] = [
     requiresAuth: false,
     rateLimited: true,
     isPublic: true,
+  },
+  {
+    name: "ecoenchants-routes",
+    path: "/api/ecoenchants",
+    router: ecoEnchantsRoutes,
+    requiresAuth: "mixed",
+    rateLimited: true,
+    isPublic: "mixed",
+    authPolicy: {
+      mode: "route",
+      handlers: ["authenticateEcoCustomer", "requireEcoAdmin", "verifyEcoEnchantsDownloadToken"],
+      note: "Public license boot endpoints are open; customer, download, and admin branches enforce EcoEnchants-specific JWT/admin/download-token guards.",
+    },
+    rateLimitPolicy: {
+      mode: "route",
+      limiters: [
+        "ecoenchantsLicenseVerify",
+        "ecoenchantsLicenseActivate",
+        "ecoenchantsLicenseDeactivate",
+        "ecoenchantsCustomer",
+        "ecoenchantsDownload",
+        "ecoenchantsAdmin",
+      ],
+      note: "The EcoEnchants router applies dedicated route-level limiters for license, customer, download, and admin flows.",
+    },
   },
   {
     name: "nexai-routes",
