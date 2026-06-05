@@ -9,6 +9,11 @@ interface TtsAudioAssetDocument {
   outputFormat: string;
   mimeType: string;
   size: number;
+  watermarkId?: string;
+  ownerUserId?: string;
+  sourceTaskId?: string;
+  sourceFingerprintHash?: string;
+  policyVersion?: string;
   audioData: Buffer;
   createdAt: Date;
   updatedAt: Date;
@@ -21,6 +26,11 @@ const TtsAudioAssetSchema = new mongoose.Schema<TtsAudioAssetDocument>(
     outputFormat: { type: String, required: true, index: true },
     mimeType: { type: String, required: true },
     size: { type: Number, required: true },
+    watermarkId: { type: String, index: true },
+    ownerUserId: { type: String, index: true },
+    sourceTaskId: { type: String, index: true },
+    sourceFingerprintHash: { type: String },
+    policyVersion: { type: String },
     audioData: { type: Buffer, required: true },
   },
   {
@@ -56,6 +66,11 @@ export class TtsAudioAssetStore {
     fileName: string;
     outputFormat: string;
     buffer: Buffer;
+    watermarkId?: string;
+    ownerUserId?: string;
+    sourceTaskId?: string;
+    sourceFingerprintHash?: string;
+    policyVersion?: string;
   }) {
     if (mongoose.connection.readyState !== 1) {
       return;
@@ -71,6 +86,11 @@ export class TtsAudioAssetStore {
             outputFormat: params.outputFormat,
             mimeType: this.resolveMimeType(params.outputFormat),
             size: params.buffer.length,
+            watermarkId: params.watermarkId,
+            ownerUserId: params.ownerUserId,
+            sourceTaskId: params.sourceTaskId,
+            sourceFingerprintHash: params.sourceFingerprintHash,
+            policyVersion: params.policyVersion,
             audioData: params.buffer,
           },
         },
@@ -78,6 +98,22 @@ export class TtsAudioAssetStore {
       ).exec();
     } catch (error) {
       logger.warn("TTS 音频写入 MongoDB 失败", { error, fileName: params.fileName });
+    }
+  }
+
+  public async getAudioAssetMetadata(fileName: string) {
+    if (mongoose.connection.readyState !== 1) {
+      return null;
+    }
+
+    try {
+      return await TtsAudioAssetModel.findOne({ fileName })
+        .select("-audioData")
+        .lean()
+        .exec();
+    } catch (error) {
+      logger.warn("TTS audio metadata read failed", { error, fileName });
+      return null;
     }
   }
 
@@ -104,4 +140,3 @@ export class TtsAudioAssetStore {
 }
 
 export const ttsAudioAssetStore = new TtsAudioAssetStore();
-

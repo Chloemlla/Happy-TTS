@@ -1,4 +1,11 @@
-import { ContentFilterService } from "../services/contentFilterService";
+import crypto from "node:crypto";
+import { ContentFilterService, type ContentFilterResult } from "../services/contentFilterService";
+import { AuditLogService } from "../services/auditLogService";
+import {
+  CURRENT_POLICY_VERSION,
+  hasValidPolicyConsent,
+  shouldRequireTtsPolicyConsent,
+} from "../services/policyConsentService";
 import { TurnstileService } from "../services/turnstileService";
 import type { User } from "../utils/userStorage";
 import { UserStorage } from "../utils/userStorage";
@@ -7,7 +14,7 @@ import { generationHistoryStore } from "./tts.history";
 import type { GenerationHistoryStore, QuotaLedger, TtsSettingsStore, TtsUsageSnapshot } from "./tts.ports";
 import { quotaLedger } from "./tts.quota";
 import { ttsSettingsStore } from "./tts.settings";
-import type { TtsJobRequestPayload, TtsUsageSummary } from "./tts.storage";
+import type { TtsGovernanceSummary, TtsJobRequestPayload, TtsUsageSummary } from "./tts.storage";
 import { TtsService } from "./tts.service";
 
 export interface TtsSubmissionInput {
@@ -27,6 +34,10 @@ export interface TtsSubmissionContext {
   ip: string;
   currentUser: User | null;
   taskId?: string;
+  requestId?: string;
+  userAgent?: string;
+  path?: string;
+  method?: string;
 }
 
 export interface TtsSubmissionResult {
@@ -36,6 +47,7 @@ export interface TtsSubmissionResult {
   userId?: string;
   isAdmin?: boolean;
   usageSummary: TtsUsageSummary;
+  governance: TtsGovernanceSummary;
   duplicateJobResult?: {
     fileName: string;
     audioUrl: string;
@@ -138,18 +150,151 @@ export class TtsSubmissionPipeline {
     }
   }
 
-  private async validateContentPolicy(text: string) {
-    if (ContentFilterService.shouldSkipDetection()) {
+  private hashText(text: string): string {
+    return crypto.createHash("sha256").update(text).digest("hex").slice(0, 24);
+  }
+
+  private buildContentSafetySummary(result: ContentFilterResult): NonNullable<TtsGovernanceSummary["contentSafety"]> {
+    return {
+      decision: result.decision,
+      confidence: result.confidence,
+      categories: result.categories,
+      source: result.source,
+      remoteChecked: result.remoteChecked,
+      remoteUnavailable: result.remoteUnavailable,
+    };
+  }
+
+  private async auditGovernanceEvent(params: {
+    context: TtsSubmissionContext;
+    action: string;
+    result: "success" | "failure";
+    errorMessage?: string;
+    detail: Record<string, unknown>;
+  }) {
+    const user = params.context.currentUser;
+    await AuditLogService.log({
+      requestId: params.context.requestId,
+      userId: user?.id || "anonymous",
+      username: user?.username || "anonymous",
+      role: user?.role || "anonymous",
+      action: params.action,
+      module: "tts",
+      result: params.result,
+      errorMessage: params.errorMessage,
+      detail: params.detail,
+      ip: params.context.ip,
+      userAgent: params.context.userAgent,
+      path: params.context.path,
+      method: params.context.method,
+    });
+  }
+
+  private async validatePolicyConsent(context: TtsSubmissionContext, fingerprint: string) {
+    if (!shouldRequireTtsPolicyConsent()) {
       return;
+    }
+
+    if (context.currentUser?.role === "admin") {
+      return;
+    }
+
+    const hasConsent = await hasValidPolicyConsent(fingerprint, CURRENT_POLICY_VERSION);
+    if (hasConsent) {
+      return;
+    }
+
+    await this.auditGovernanceEvent({
+      context,
+      action: "tts.policy.consent_required",
+      result: "failure",
+      errorMessage: "Missing current policy consent",
+      detail: {
+        policyVersion: CURRENT_POLICY_VERSION,
+        fingerprintHash: this.hashText(fingerprint),
+      },
+    });
+
+    throw new TtsRequestError(
+      403,
+      "请先确认最新服务条款与隐私政策后再生成语音",
+      "TTS_POLICY_CONSENT_REQUIRED",
+    );
+  }
+
+  private async validateContentPolicy(
+    text: string,
+    context: TtsSubmissionContext,
+  ): Promise<NonNullable<TtsGovernanceSummary["contentSafety"]>> {
+    if (ContentFilterService.shouldSkipDetection()) {
+      return {
+        decision: "allow",
+        confidence: 0,
+        categories: [],
+        source: "skipped",
+        remoteChecked: false,
+      };
     }
 
     const contentFilterResult = await ContentFilterService.detectProhibitedContent(text);
     if (contentFilterResult.error) {
+      await this.auditGovernanceEvent({
+        context,
+        action: "tts.content_filter.unavailable",
+        result: "failure",
+        errorMessage: contentFilterResult.error,
+        detail: {
+          textHash: this.hashText(text),
+          textLength: text.length,
+          categories: contentFilterResult.categories,
+          confidence: contentFilterResult.confidence,
+          remoteUnavailable: contentFilterResult.remoteUnavailable,
+          remoteError: contentFilterResult.remoteError,
+        },
+      });
       throw new TtsRequestError(500, contentFilterResult.error, "TTS_REMOTE_FILTER_UNAVAILABLE", true);
     }
     if (contentFilterResult.isProhibited) {
+      await this.auditGovernanceEvent({
+        context,
+        action: "tts.content_filter.block",
+        result: "failure",
+        errorMessage: "Content safety policy blocked generation",
+        detail: {
+          textHash: this.hashText(text),
+          textLength: text.length,
+          decision: contentFilterResult.decision,
+          categories: contentFilterResult.categories,
+          confidence: contentFilterResult.confidence,
+          source: contentFilterResult.source,
+          findings: contentFilterResult.findings.map((finding) => ({
+            source: finding.source,
+            category: finding.category,
+            severity: finding.severity,
+            ruleId: finding.ruleId,
+            variantHash: finding.variantHash,
+          })),
+        },
+      });
       throw new TtsRequestError(403, "内容包含违禁词，无法生成语音", "TTS_CONTENT_PROHIBITED");
     }
+
+    if (contentFilterResult.decision === "review") {
+      await this.auditGovernanceEvent({
+        context,
+        action: "tts.content_filter.review",
+        result: "success",
+        detail: {
+          textHash: this.hashText(text),
+          textLength: text.length,
+          categories: contentFilterResult.categories,
+          confidence: contentFilterResult.confidence,
+          source: contentFilterResult.source,
+        },
+      });
+    }
+
+    return this.buildContentSafetySummary(contentFilterResult);
   }
 
   private async validateGenerationCode(generationCode: unknown) {
@@ -187,11 +332,17 @@ export class TtsSubmissionPipeline {
     this.validateContentShape(requestPayload.text);
     await this.validateGenerationCode(context.input.generationCode);
     await this.validateTurnstile(context.input.cfToken, context.ip);
-    await this.validateContentPolicy(requestPayload.text);
 
     if (!userId && fingerprint === "unknown") {
       throw new TtsRequestError(400, "匿名生成需要设备指纹", "TTS_FINGERPRINT_REQUIRED");
     }
+
+    await this.validatePolicyConsent(context, fingerprint);
+    const contentSafety = await this.validateContentPolicy(requestPayload.text, context);
+    const governance: TtsGovernanceSummary = {
+      policyVersion: CURRENT_POLICY_VERSION,
+      contentSafety,
+    };
 
     const contentHash = this.ttsService.generateContentHash(
       requestPayload.text,
@@ -222,9 +373,10 @@ export class TtsSubmissionPipeline {
           userId,
           isAdmin,
           usageSummary,
+          governance,
           duplicateJobResult: {
             fileName: duplicate.fileName,
-            audioUrl: duplicate.audioUrl,
+            audioUrl: this.ttsService.buildAudioUrl(duplicate.fileName),
             message: "检测到重复内容，已返回已有音频。",
             outputFormat: duplicate.outputFormat,
           },
@@ -247,6 +399,7 @@ export class TtsSubmissionPipeline {
         userId,
         isAdmin,
         usageSummary: this.buildUsageSummaryFromSnapshot(context.currentUser, reservation.snapshot),
+        governance,
       };
     }
 
@@ -271,6 +424,7 @@ export class TtsSubmissionPipeline {
       userId,
       isAdmin,
       usageSummary: this.buildUsageSummaryFromSnapshot(context.currentUser, null),
+      governance,
     };
   }
 }

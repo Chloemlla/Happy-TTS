@@ -4,6 +4,7 @@ import path from "node:path";
 import dotenv from "dotenv";
 import { config } from "../config/config";
 import logger from "../utils/logger";
+import { ttsAssetAccessService } from "./tts.assetAccess";
 import { ttsAudioAssetStore } from "./tts.asset";
 import { TtsGenerationError } from "./tts.errors";
 import type { TtsProviderRequest } from "./tts.ports";
@@ -69,7 +70,14 @@ export class TtsService {
   }
 
   public buildAudioUrl(fileName: string) {
-    return `${this.baseUrl}/static/audio/${fileName}`;
+    return `${this.baseUrl}/api/tts/assets/${encodeURIComponent(fileName)}`;
+  }
+
+  private hashFingerprint(fingerprint?: string): string | undefined {
+    if (!fingerprint || fingerprint === "unknown") {
+      return undefined;
+    }
+    return crypto.createHash("sha256").update(fingerprint).digest("hex").slice(0, 24);
   }
 
   private validateFileName(fileName: string): string {
@@ -288,6 +296,17 @@ export class TtsService {
           this.recordViolation(userId);
         }
 
+        const metadata = await ttsAudioAssetStore.getAudioAssetMetadata(existingFile);
+        const watermarkId =
+          metadata?.watermarkId ||
+          ttsAssetAccessService.buildWatermarkId({
+            contentHash,
+            fileName: existingFile,
+            userId,
+            taskId: request.taskId,
+            fingerprint: request.fingerprint,
+          });
+
         return {
           fileName: existingFile,
           audioUrl: this.buildAudioUrl(existingFile),
@@ -296,6 +315,7 @@ export class TtsService {
           provider: "cache",
           providerModel: model || config.openaiModel,
           providerVoice: voice || config.openaiVoice,
+          watermarkId,
         };
       }
 
@@ -305,6 +325,13 @@ export class TtsService {
       const fileName = `${contentHash}.${safeOutputFormat}`;
       const safeFileName = this.validateFileName(fileName);
       const filePath = path.join(this.outputDir, safeFileName);
+      const watermarkId = ttsAssetAccessService.buildWatermarkId({
+        contentHash,
+        fileName: safeFileName,
+        userId,
+        taskId: request.taskId,
+        fingerprint: request.fingerprint,
+      });
 
       await fs.promises.writeFile(filePath, response.audioBuffer);
       await ttsAudioAssetStore.persistAudioAsset({
@@ -312,6 +339,11 @@ export class TtsService {
         fileName: safeFileName,
         outputFormat: safeOutputFormat,
         buffer: response.audioBuffer,
+        watermarkId,
+        ownerUserId: userId,
+        sourceTaskId: request.taskId,
+        sourceFingerprintHash: this.hashFingerprint(request.fingerprint),
+        policyVersion: request.policyVersion,
       });
       this.recordCircuitSuccess();
 
@@ -323,6 +355,7 @@ export class TtsService {
         provider: response.provider,
         providerModel: response.providerModel,
         providerVoice: response.providerVoice,
+        watermarkId,
       };
     } catch (error) {
       const mappedError = this.mapProviderError(error);

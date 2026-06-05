@@ -23,6 +23,24 @@ export interface TtsNextAction {
   message: string;
 }
 
+export interface TtsGovernanceSummary {
+  policyVersion?: string;
+  contentSafety?: {
+    decision: "allow" | "review" | "block";
+    confidence: number;
+    categories: string[];
+    source: string;
+    remoteChecked: boolean;
+    remoteUnavailable?: boolean;
+  };
+}
+
+export interface TtsAssetWatermarkSummary {
+  id: string;
+  kind: "server_forensic";
+  policyVersion?: string;
+}
+
 export interface TtsSubmitResponse {
   success: boolean;
   status: "queued" | "completed";
@@ -56,6 +74,12 @@ export interface TtsResponse {
   signature: string;
   isDuplicate?: boolean;
   outputFormat?: string;
+  watermark?: TtsAssetWatermarkSummary;
+  permissions?: {
+    canDownload: boolean;
+    canShare: boolean;
+  };
+  governance?: TtsGovernanceSummary;
   usage?: TtsUsageSummary;
   nextAction?: TtsNextAction;
 }

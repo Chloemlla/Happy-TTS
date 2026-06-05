@@ -69,6 +69,7 @@ const router = express.Router();
  */
 router.post("/generate", TtsController.submitJob);
 router.post("/jobs", TtsController.submitJob);
+router.get("/assets/:fileName", TtsController.getAudioAsset);
 router.get("/jobs/:taskId", TtsController.getJobStatus);
 router.get("/jobs/:taskId/result", TtsController.getJobResult);
 

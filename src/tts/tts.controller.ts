@@ -7,6 +7,7 @@ import { TtsRequestError } from "./tts.errors";
 import { generationHistoryStore, redactTtsTextForStorage } from "./tts.history";
 import { TtsSubmissionPipeline } from "./tts.pipeline";
 import { TtsQueue } from "./tts.queue";
+import { ttsAssetAccessService } from "./tts.assetAccess";
 import { type TtsNextAction, ttsStorage } from "./tts.storage";
 
 export class TtsController {
@@ -160,6 +161,10 @@ export class TtsController {
         ip,
         currentUser,
         taskId,
+        requestId: (req as any).requestId,
+        userAgent: req.headers["user-agent"],
+        path: req.originalUrl || req.path,
+        method: req.method,
       });
 
       const createdAt = new Date().toISOString();
@@ -180,6 +185,7 @@ export class TtsController {
           fingerprint: submission.fingerprint,
           message: "测试环境 mock，不调用 OpenAI",
           usage: submission.usageSummary,
+          governance: submission.governance,
           nextAction: TtsController.buildNextAction("play_or_download", "播放或下载音频", "测试音频已准备就绪，可直接播放或下载。"),
           result: {
             status: "generated",
@@ -217,6 +223,7 @@ export class TtsController {
           fingerprint: submission.fingerprint,
           message: submission.duplicateJobResult.message,
           usage: submission.usageSummary,
+          governance: submission.governance,
           nextAction: TtsController.buildNextAction(
             "reuse_existing_audio",
             "播放或下载音频",
@@ -256,6 +263,7 @@ export class TtsController {
         isAdmin: submission.isAdmin,
         ip: submission.ip,
         fingerprint: submission.fingerprint,
+        governance: submission.governance,
         message: "任务已提交，等待处理",
         usage: submission.usageSummary,
         nextAction: TtsController.buildNextAction("queued", "等待任务完成", "任务已进入队列，请稍后查询状态。"),
@@ -377,19 +385,55 @@ export class TtsController {
     }
 
     const { signContent } = require("../utils/sign");
+    const audioUrl = ttsAssetAccessService.buildAccessUrl({
+      fileName: job.result.fileName,
+      taskId: job.taskId,
+      userId: job.userId,
+      fingerprint: job.fingerprint,
+      allowDownload: job.result.permissions?.canDownload,
+      allowShare: job.result.permissions?.canShare,
+      watermarkId: job.result.watermark?.id,
+      policyVersion: job.governance?.policyVersion || job.result.watermark?.policyVersion,
+    });
 
     return res.json({
       success: true,
       taskId: job.taskId,
       status: job.result.status,
       message: job.result.message,
-      audioUrl: job.result.audioUrl,
+      audioUrl,
       fileName: job.result.fileName,
-      signature: signContent(job.result.audioUrl),
+      signature: signContent(audioUrl),
       isDuplicate: job.result.isDuplicate,
       outputFormat: job.result.outputFormat,
+      watermark: job.result.watermark,
+      permissions: job.result.permissions,
+      governance: job.governance,
       usage: job.usage,
       nextAction: job.nextAction,
+    });
+  }
+
+  public static async getAudioAsset(req: Request, res: Response) {
+    const fileName = Array.isArray(req.params.fileName) ? req.params.fileName[0] : req.params.fileName;
+    const accessToken = Array.isArray(req.query.accessToken) ? req.query.accessToken[0] : req.query.accessToken;
+    const downloadValue = Array.isArray(req.query.download) ? req.query.download[0] : req.query.download;
+    const download = downloadValue === "1" || downloadValue === "true";
+
+    if (!fileName || typeof accessToken !== "string") {
+      return res.status(403).json({
+        success: false,
+        error: "Audio access token is required",
+        code: "TTS_ASSET_TOKEN_REQUIRED",
+      });
+    }
+
+    await ttsAssetAccessService.serveAsset({
+      req,
+      res,
+      fileName,
+      accessToken,
+      download,
     });
   }
 

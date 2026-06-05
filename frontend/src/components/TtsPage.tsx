@@ -83,8 +83,10 @@ export const TtsPage: React.FC = () => {
     if (!audioUrl) return;
 
     const extension = result?.outputFormat || "mp3";
+    const downloadUrl = new URL(audioUrl, window.location.origin);
+    downloadUrl.searchParams.set("download", "1");
     const link = document.createElement("a");
-    link.href = audioUrl;
+    link.href = downloadUrl.toString();
     link.download = result?.fileName || `tts-${Date.now()}.${extension}`;
     document.body.appendChild(link);
     link.click();

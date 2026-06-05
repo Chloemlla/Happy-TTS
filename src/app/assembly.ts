@@ -423,16 +423,26 @@ export function registerStaticRoutes(app: Express): void {
   );
 
   ensureAudioDir();
-  app.use(
-    "/static/audio",
-    audioFileLimiter,
-    express.static(audioDir, {
-      setHeaders: (res) => {
-        res.set("Cross-Origin-Resource-Policy", "cross-origin");
-        res.set("Access-Control-Allow-Origin", "*");
-      },
-    }),
-  );
+  if (process.env.TTS_PUBLIC_STATIC_AUDIO_ENABLED === "true") {
+    app.use(
+      "/static/audio",
+      audioFileLimiter,
+      express.static(audioDir, {
+        setHeaders: (res) => {
+          res.set("Cross-Origin-Resource-Policy", "cross-origin");
+          res.set("Access-Control-Allow-Origin", "*");
+        },
+      }),
+    );
+  } else {
+    app.use("/static/audio", audioFileLimiter, (_req, res) => {
+      res.status(410).json({
+        success: false,
+        error: "Public static audio access is disabled. Use authorized TTS asset URLs.",
+        code: "TTS_PUBLIC_AUDIO_DISABLED",
+      });
+    });
+  }
 
   const serveFrontend = process.env.SERVE_FRONTEND !== "false";
   if (!serveFrontend) {

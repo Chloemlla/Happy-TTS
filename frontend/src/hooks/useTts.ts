@@ -16,6 +16,19 @@ const api = axios.create({
 
 const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
+const resolveAudioUrl = (rawAudioUrl: string): string => {
+  if (rawAudioUrl.startsWith("http")) {
+    return rawAudioUrl;
+  }
+
+  const baseUrl = String(api.defaults.baseURL || "").replace(/\/+$/, "");
+  if (rawAudioUrl.startsWith("/")) {
+    return baseUrl ? `${baseUrl}${rawAudioUrl}` : rawAudioUrl;
+  }
+
+  return baseUrl ? `${baseUrl}/static/audio/${rawAudioUrl}` : `/static/audio/${rawAudioUrl}`;
+};
+
 type TtsErrorPayload = {
   error?: string;
   message?: string;
@@ -123,9 +136,7 @@ export const useTts = () => {
         throw new Error(`签名校验失败: ${resolvedError}`);
       }
 
-      const finalAudioUrl = responseData.audioUrl.startsWith("http")
-        ? responseData.audioUrl
-        : `${api.defaults.baseURL}/static/audio/${responseData.audioUrl}`;
+      const finalAudioUrl = resolveAudioUrl(responseData.audioUrl);
 
       const normalizedResult: TtsResponse = {
         ...responseData,

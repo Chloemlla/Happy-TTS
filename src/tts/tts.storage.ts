@@ -18,6 +18,24 @@ export interface TtsNextAction {
   message: string;
 }
 
+export interface TtsAssetWatermarkSummary {
+  id: string;
+  kind: "server_forensic";
+  policyVersion?: string;
+}
+
+export interface TtsGovernanceSummary {
+  policyVersion?: string;
+  contentSafety?: {
+    decision: "allow" | "review" | "block";
+    confidence: number;
+    categories: string[];
+    source: string;
+    remoteChecked: boolean;
+    remoteUnavailable?: boolean;
+  };
+}
+
 export interface TtsJobResult {
   fileName: string;
   audioUrl: string;
@@ -28,6 +46,11 @@ export interface TtsJobResult {
   providerVoice?: string;
   message: string;
   status: "generated" | "reused";
+  watermark?: TtsAssetWatermarkSummary;
+  permissions?: {
+    canDownload: boolean;
+    canShare: boolean;
+  };
 }
 
 export interface TtsJobRequestPayload {
@@ -52,6 +75,7 @@ export interface TtsJobRecord {
   error?: string;
   usage?: TtsUsageSummary;
   nextAction?: TtsNextAction;
+  governance?: TtsGovernanceSummary;
   result?: TtsJobResult;
   attempts?: number;
   processingOwner?: string;
@@ -90,6 +114,17 @@ const TtsJobSchema = new mongoose.Schema<TtsJobRecord>(
       label: { type: String },
       message: { type: String },
     },
+    governance: {
+      policyVersion: { type: String },
+      contentSafety: {
+        decision: { type: String },
+        confidence: { type: Number },
+        categories: [{ type: String }],
+        source: { type: String },
+        remoteChecked: { type: Boolean },
+        remoteUnavailable: { type: Boolean },
+      },
+    },
     result: {
       fileName: { type: String },
       audioUrl: { type: String },
@@ -100,6 +135,15 @@ const TtsJobSchema = new mongoose.Schema<TtsJobRecord>(
       providerVoice: { type: String },
       message: { type: String },
       status: { type: String },
+      watermark: {
+        id: { type: String },
+        kind: { type: String },
+        policyVersion: { type: String },
+      },
+      permissions: {
+        canDownload: { type: Boolean },
+        canShare: { type: Boolean },
+      },
     },
     attempts: { type: Number, default: 0 },
     processingOwner: { type: String, index: true },

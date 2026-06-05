@@ -55,6 +55,10 @@ export interface TtsProviderRequest {
   speed: number;
   userId?: string;
   isAdmin?: boolean;
+  taskId?: string;
+  ip?: string;
+  fingerprint?: string;
+  policyVersion?: string;
 }
 
 export interface TtsProviderResponse {

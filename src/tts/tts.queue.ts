@@ -94,6 +94,10 @@ export class TtsQueue {
         ...job.request,
         userId: job.userId,
         isAdmin: job.isAdmin,
+        taskId: job.taskId,
+        ip: job.ip,
+        fingerprint: job.fingerprint,
+        policyVersion: job.governance?.policyVersion,
       });
 
       const contentHash = this.ttsService.generateContentHash(job.request.text, job.request.voice, job.request.model);
@@ -145,6 +149,17 @@ export class TtsQueue {
           provider: result.provider,
           providerModel: result.providerModel,
           providerVoice: result.providerVoice,
+          watermark: result.watermarkId
+            ? {
+                id: result.watermarkId,
+                kind: "server_forensic",
+                policyVersion: job.governance?.policyVersion,
+              }
+            : undefined,
+          permissions: {
+            canDownload: process.env.TTS_DOWNLOADS_ENABLED !== "false",
+            canShare: process.env.TTS_ASSET_SHARE_ENABLED === "true",
+          },
           message: result.isDuplicate ? "检测到重复内容，已返回已有音频。" : "语音生成成功，音频已准备就绪。",
           status: result.isDuplicate ? "reused" : "generated",
         },

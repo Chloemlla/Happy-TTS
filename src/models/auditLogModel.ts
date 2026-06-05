@@ -12,7 +12,33 @@ export interface IAuditLog {
   /** 操作类型，如 user.create / cdk.delete / ipban.create */
   action: string;
   /** 操作模块分类 */
-  module: "user" | "cdk" | "shorturl" | "ipban" | "env" | "announcement" | "system" | "auth" | "other";
+  module:
+    | "auth"
+    | "user"
+    | "system"
+    | "cdk"
+    | "api"
+    | "admin"
+    | "security"
+    | "config"
+    | "email"
+    | "tts"
+    | "shorturl"
+    | "ipfs"
+    | "media"
+    | "network"
+    | "life"
+    | "social"
+    | "lottery"
+    | "workspace"
+    | "resource"
+    | "recommendation"
+    | "policy"
+    | "debug"
+    | "ipban"
+    | "env"
+    | "announcement"
+    | "other";
   /** 操作目标标识（如被操作的用户ID、CDK ID等） */
   targetId?: string;
   /** 操作目标描述 */

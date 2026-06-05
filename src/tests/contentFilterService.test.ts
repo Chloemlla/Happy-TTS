@@ -83,7 +83,7 @@ describe("ContentFilterService", () => {
 
       expect(result.isProhibited).toBe(true);
       expect(result.confidence).toBe(1.0);
-      expect(result.error).toBe("内容检测服务暂时不可用，请稍后重试");
+      expect(result.error).toBe("内容安全检测服务暂时不可用，请稍后重试");
     });
 
     it("应该处理超时", async () => {
@@ -94,7 +94,29 @@ describe("ContentFilterService", () => {
 
       expect(result.isProhibited).toBe(true);
       expect(result.confidence).toBe(1.0);
-      expect(result.error).toBe("内容检测服务暂时不可用，请稍后重试");
+      expect(result.error).toBe("内容安全检测服务暂时不可用，请稍后重试");
+    });
+
+    it("应该使用本地规则拦截高风险内容且不调用远程接口", async () => {
+      const result = await ContentFilterService.detectProhibitedContent("This is a phishing call script.");
+
+      expect(result.isProhibited).toBe(true);
+      expect(result.source).toBe("local");
+      expect(result.categories).toContain("fraud");
+      expect(mockedAxios.get).not.toHaveBeenCalled();
+    });
+
+    it("远程检测关闭时应该只执行本地规则", async () => {
+      const originalRemoteEnabled = process.env.CONTENT_FILTER_REMOTE_ENABLED;
+      process.env.CONTENT_FILTER_REMOTE_ENABLED = "false";
+
+      const result = await ContentFilterService.detectProhibitedContent("你好世界");
+
+      expect(result.isProhibited).toBe(false);
+      expect(result.remoteChecked).toBe(false);
+      expect(mockedAxios.get).not.toHaveBeenCalled();
+
+      process.env.CONTENT_FILTER_REMOTE_ENABLED = originalRemoteEnabled;
     });
   });
 

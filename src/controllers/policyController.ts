@@ -1,40 +1,18 @@
-import crypto from "node:crypto";
 import type { Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { PolicyConsent } from "../models/policyConsentModel";
+import {
+  CONSENT_VALIDITY_DAYS,
+  CURRENT_POLICY_VERSION,
+  verifyPolicyChecksum,
+} from "../services/policyConsentService";
 import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
 
 // 当前政策版本
-const CURRENT_POLICY_VERSION = "2.0";
-const CONSENT_VALIDITY_DAYS = 30;
-const SECRET_SALT = process.env.POLICY_SECRET_SALT || "hapxtts_secret_salt";
 
 // 验证校验和
-function verifyChecksum(
-  consent: { timestamp: number; version: string; fingerprint: string },
-  checksum: string,
-): boolean {
-  const data = `${consent.timestamp}|${consent.version}|${consent.fingerprint}`;
-  const expectedChecksum = crypto
-    .createHash("sha256")
-    .update(data + SECRET_SALT)
-    .digest("hex")
-    .substring(0, 8);
-
-  return checksum === expectedChecksum;
-}
-
 // 生成校验和（用于验证客户端逻辑）
-function _generateChecksum(consent: { timestamp: number; version: string; fingerprint: string }): string {
-  const data = `${consent.timestamp}|${consent.version}|${consent.fingerprint}`;
-  return crypto
-    .createHash("sha256")
-    .update(data + SECRET_SALT)
-    .digest("hex")
-    .substring(0, 8);
-}
-
 // 记录隐私政策同意
 export const recordPolicyConsent = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -97,7 +75,7 @@ export const recordPolicyConsent = async (req: Request, res: Response): Promise<
     const sanitizedChecksum = consent.checksum.trim();
 
     // 验证校验和
-    if (!verifyChecksum(consent, sanitizedChecksum)) {
+    if (!verifyPolicyChecksum(consent, sanitizedChecksum)) {
       logger.warn("Policy consent checksum verification failed", {
         fingerprint: sanitizedFingerprint,
         ip: clientIP,
