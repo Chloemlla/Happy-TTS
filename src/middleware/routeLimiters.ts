@@ -51,6 +51,7 @@ interface LimiterOptions {
   name?: string;
   category?: LimiterCategory;
   profile?: RateProfileName;
+  keyGenerator?: (req: Request) => string;
   skip?: (req: Request) => boolean;
   handler?: (req: Request, res: Response, next: NextFunction) => void;
 }
@@ -61,6 +62,7 @@ interface LimiterDefinition {
   message: string;
   max?: number;
   windowMs?: number;
+  keyGenerator?: (req: Request) => string;
   skip?: (req: Request) => boolean;
   handler?: (req: Request, res: Response, next: NextFunction) => void;
 }
@@ -420,7 +422,7 @@ export function createLimiter(opts: LimiterOptions): RateLimitRequestHandler {
     legacyHeaders: false,
     store: createStore(name, windowMs),
     validate: { unsharedStore: false },
-    keyGenerator: (req: Request) => getClientIp(req),
+    keyGenerator: opts.keyGenerator || ((req: Request) => getClientIp(req)),
     skip: opts.skip ?? ((req: Request): boolean => isLocalRequest(req)),
     handler: opts.handler || buildDefaultHandler(name, category, message),
   });
@@ -658,6 +660,7 @@ function limiterFromDefinition(name: keyof typeof LIMITER_DEFINITIONS): RateLimi
     message: definition.message,
     windowMs: definition.windowMs,
     max: definition.max,
+    keyGenerator: definition.keyGenerator,
     skip: definition.skip,
     handler: definition.handler,
   });

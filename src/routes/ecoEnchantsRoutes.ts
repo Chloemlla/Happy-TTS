@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import crypto from "node:crypto";
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { config } from "../config/config";
@@ -15,6 +16,44 @@ const router = Router();
 
 function getRequestId(req: Request): string {
   return req.requestId || firstString(req.headers["x-request-id"]) || "unknown";
+}
+
+function getRequestIp(req: Request): string {
+  return req.ip || req.socket?.remoteAddress || "unknown";
+}
+
+function hashRateLimitSubject(value: string): string {
+  return crypto.createHash("sha256").update(value).digest("hex").slice(0, 40);
+}
+
+function scopedRateLimitKey(scope: string, subject: string): string {
+  return `${scope}:${hashRateLimitSubject(subject)}`;
+}
+
+function getBodyString(req: Request, field: string): string | undefined {
+  if (!req.body || typeof req.body !== "object" || Buffer.isBuffer(req.body)) return undefined;
+  const value = (req.body as Record<string, unknown>)[field];
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function bodyRateLimitKey(req: Request, scope: string, field: string): string {
+  const bodyValue = getBodyString(req, field);
+  const subject = bodyValue ? `${field}:${bodyValue.toLowerCase()}` : `ip:${getRequestIp(req)}`;
+  return scopedRateLimitKey(scope, subject);
+}
+
+function authenticatedRateLimitKey(req: Request, scope: string): string {
+  const downloadToken = (req as any).ecoEnchantsDownloadToken;
+  const user = (req as any).user;
+  const subject =
+    (downloadToken?.customerId && `customer:${downloadToken.customerId}`) ||
+    (downloadToken?.licenseId && `license:${downloadToken.licenseId}`) ||
+    (user?.id && `user:${user.id}`) ||
+    (user?._id && `user:${user._id}`) ||
+    (user?.userId && `user:${user.userId}`) ||
+    (user?.username && `user:${user.username}`) ||
+    `ip:${getRequestIp(req)}`;
+  return scopedRateLimitKey(scope, String(subject));
 }
 
 function ecoRateLimitHandler(message: string, retryAfterSeconds: number) {
@@ -37,6 +76,7 @@ const licenseVerifyLimiter = createLimiter({
   windowMs: 60 * 1000,
   max: 5,
   message: "License verification requests are too frequent, please retry later.",
+  keyGenerator: (req: Request) => bodyRateLimitKey(req, "ecoenchants:licenses:verify", "installationId"),
   handler: ecoRateLimitHandler("License verification requests are too frequent, please retry later.", 60),
 });
 
@@ -46,6 +86,7 @@ const licenseActivateLimiter = createLimiter({
   windowMs: 60 * 60 * 1000,
   max: 10,
   message: "License activation requests are too frequent, please retry later.",
+  keyGenerator: (req: Request) => bodyRateLimitKey(req, "ecoenchants:licenses:activate", "licenseKey"),
   handler: ecoRateLimitHandler("License activation requests are too frequent, please retry later.", 60 * 60),
 });
 
@@ -55,7 +96,17 @@ const licenseDeactivateLimiter = createLimiter({
   windowMs: 24 * 60 * 60 * 1000,
   max: 20,
   message: "License deactivation requests are too frequent, please retry later.",
+  keyGenerator: (req: Request) => bodyRateLimitKey(req, "ecoenchants:licenses:deactivate", "licenseKey"),
   handler: ecoRateLimitHandler("License deactivation requests are too frequent, please retry later.", 24 * 60 * 60),
+});
+
+const customerIpLimiter = createLimiter({
+  name: "ecoenchantsCustomerIp",
+  category: "public-api",
+  windowMs: 60 * 1000,
+  max: 60,
+  message: "Customer portal requests are too frequent, please retry later.",
+  handler: ecoRateLimitHandler("Customer portal requests are too frequent, please retry later.", 60),
 });
 
 const customerLimiter = createLimiter({
@@ -64,7 +115,17 @@ const customerLimiter = createLimiter({
   windowMs: 60 * 1000,
   max: 60,
   message: "Customer portal requests are too frequent, please retry later.",
+  keyGenerator: (req: Request) => authenticatedRateLimitKey(req, "ecoenchants:customer"),
   handler: ecoRateLimitHandler("Customer portal requests are too frequent, please retry later.", 60),
+});
+
+const downloadIpLimiter = createLimiter({
+  name: "ecoenchantsDownloadIp",
+  category: "public-api",
+  windowMs: 60 * 60 * 1000,
+  max: 30,
+  message: "Download requests are too frequent, please retry later.",
+  handler: ecoRateLimitHandler("Download requests are too frequent, please retry later.", 60 * 60),
 });
 
 const downloadLimiter = createLimiter({
@@ -73,7 +134,17 @@ const downloadLimiter = createLimiter({
   windowMs: 60 * 60 * 1000,
   max: 30,
   message: "Download requests are too frequent, please retry later.",
+  keyGenerator: (req: Request) => authenticatedRateLimitKey(req, "ecoenchants:download"),
   handler: ecoRateLimitHandler("Download requests are too frequent, please retry later.", 60 * 60),
+});
+
+const adminIpLimiter = createLimiter({
+  name: "ecoenchantsAdminIp",
+  category: "admin",
+  windowMs: 60 * 1000,
+  max: 50,
+  message: "Admin requests are too frequent, please retry later.",
+  handler: ecoRateLimitHandler("Admin requests are too frequent, please retry later.", 60),
 });
 
 const adminEcoLimiter = createLimiter({
@@ -82,6 +153,7 @@ const adminEcoLimiter = createLimiter({
   windowMs: 60 * 1000,
   max: 50,
   message: "Admin requests are too frequent, please retry later.",
+  keyGenerator: (req: Request) => authenticatedRateLimitKey(req, "ecoenchants:admin"),
   handler: ecoRateLimitHandler("Admin requests are too frequent, please retry later.", 60),
 });
 
@@ -169,8 +241,8 @@ function requireEcoAdmin(req: Request, res: Response, next: NextFunction): void 
   next();
 }
 
-const adminGuards = [adminEcoLimiter, authenticateEcoCustomer, requireEcoAdmin];
-const customerGuards = [customerLimiter, authenticateEcoCustomer];
+const adminGuards = [adminIpLimiter, authenticateEcoCustomer, requireEcoAdmin, adminEcoLimiter];
+const customerGuards = [customerIpLimiter, authenticateEcoCustomer, customerLimiter];
 
 router.get("/health", EcoEnchantsController.health);
 router.get("/products/:productId/policy", EcoEnchantsController.productPolicy);
@@ -179,7 +251,7 @@ router.post("/licenses/verify", licenseVerifyLimiter, EcoEnchantsController.veri
 router.post("/licenses/activate", licenseActivateLimiter, EcoEnchantsController.activateLicense);
 router.post("/licenses/deactivate", licenseDeactivateLimiter, EcoEnchantsController.deactivateLicense);
 
-router.get("/downloads/latest", downloadLimiter, authenticateEcoDownload, EcoEnchantsController.latestDownload);
+router.get("/downloads/latest", downloadIpLimiter, authenticateEcoDownload, downloadLimiter, EcoEnchantsController.latestDownload);
 
 router.get("/me/licenses", ...customerGuards, EcoEnchantsController.myLicenses);
 router.get("/me/licenses/:licenseId", ...customerGuards, EcoEnchantsController.myLicenseDetail);

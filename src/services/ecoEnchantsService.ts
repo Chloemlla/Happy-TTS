@@ -476,7 +476,7 @@ export class EcoEnchantsService {
     }
   }
 
-  static async getProductPolicy(productId = ECO_ENCHANTS_PRODUCT_ID, requestId = crypto.randomUUID()) {
+  static async getProductPolicy(productId = ECO_ENCHANTS_PRODUCT_ID, requestId: string = crypto.randomUUID()) {
     const normalizedProductId = ensureProductId(productId);
     const product = await EcoEnchantsProductModel.findOne({ productId: normalizedProductId, isActive: true });
 
