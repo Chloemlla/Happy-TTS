@@ -236,7 +236,7 @@ export class TtsAssetAccessService {
       return;
     }
 
-    context.res.sendFile(filePath, (error) => {
+    context.res.sendFile(filePath, (error: Error | undefined) => {
       if (error) {
         logger.warn("TTS audio send failed", { error, fileName: safeFileName });
       }
