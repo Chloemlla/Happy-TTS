@@ -17,6 +17,7 @@ import {
   type IEcoEnchantsLicense,
   type IEcoEnchantsReleaseBuild,
 } from "../models/ecoEnchantsModel";
+import { createEcoEnchantsOpsActivationSession } from "./ecoEnchantsOpsTokens";
 import logger from "../utils/logger";
 
 export const ECO_ENCHANTS_PRODUCT_ID = "ecoenchants";
@@ -645,10 +646,21 @@ export class EcoEnchantsService {
       },
     );
 
+    const opsActivation = createEcoEnchantsOpsActivationSession({
+      productId,
+      licenseId: license.licenseId,
+      activationId: activationResult.activation.activationId,
+    });
+
     return {
       requestId: context.requestId,
       status: runtimeStatus,
       activationId: activationResult.activation.activationId,
+      opsActivation: {
+        token: opsActivation.token,
+        keyId: opsActivation.keyId,
+        expiresAt: opsActivation.expiresAt.toISOString(),
+      },
     };
   }
 

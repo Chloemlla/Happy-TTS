@@ -20,11 +20,28 @@ export const ECO_ENCHANTS_LICENSE_STATUSES = [
 export const ECO_ENCHANTS_ACTIVATION_STATUSES = ["active", "deactivated", "revoked"] as const;
 export const ECO_ENCHANTS_RISK_EVENT_STATUSES = ["open", "acknowledged", "resolved"] as const;
 export const ECO_ENCHANTS_WEBHOOK_STATUSES = ["received", "processed", "ignored", "failed"] as const;
+export const ECO_ENCHANTS_OPS_INSTANCE_STATUSES = ["registered", "online", "offline", "disabled"] as const;
+export const ECO_ENCHANTS_OPS_JOB_STATUSES = [
+  "queued",
+  "dispatched",
+  "acknowledged",
+  "running",
+  "succeeded",
+  "failed",
+  "canceled",
+  "expired",
+] as const;
+export const ECO_ENCHANTS_OPS_RISK_LEVELS = ["low", "medium", "high"] as const;
+export const ECO_ENCHANTS_OPS_BACKUP_STATUSES = ["pending", "available", "failed", "expired"] as const;
 
 export type EcoEnchantsLicenseStatus = (typeof ECO_ENCHANTS_LICENSE_STATUSES)[number];
 export type EcoEnchantsActivationStatus = (typeof ECO_ENCHANTS_ACTIVATION_STATUSES)[number];
 export type EcoEnchantsRiskEventStatus = (typeof ECO_ENCHANTS_RISK_EVENT_STATUSES)[number];
 export type EcoEnchantsWebhookStatus = (typeof ECO_ENCHANTS_WEBHOOK_STATUSES)[number];
+export type EcoEnchantsOpsInstanceStatus = (typeof ECO_ENCHANTS_OPS_INSTANCE_STATUSES)[number];
+export type EcoEnchantsOpsJobStatus = (typeof ECO_ENCHANTS_OPS_JOB_STATUSES)[number];
+export type EcoEnchantsOpsRiskLevel = (typeof ECO_ENCHANTS_OPS_RISK_LEVELS)[number];
+export type EcoEnchantsOpsBackupStatus = (typeof ECO_ENCHANTS_OPS_BACKUP_STATUSES)[number];
 
 export interface IEcoEnchantsProduct extends Document {
   productId: string;
@@ -158,6 +175,112 @@ export interface IEcoEnchantsWebhookEvent extends Document {
   errorMessage?: string;
   receivedAt: Date;
   processedAt?: Date;
+}
+
+export interface IEcoEnchantsOpsInstance extends Document {
+  instanceId: string;
+  productId: string;
+  activationId: string;
+  licenseId?: string;
+  installationIdHash?: string;
+  name?: string;
+  status: EcoEnchantsOpsInstanceStatus;
+  server?: Record<string, unknown>;
+  capabilities?: Record<string, unknown>;
+  supportedMethods: string[];
+  policyVersion: string;
+  sessionTokenHash?: string;
+  sessionExpiresAt?: Date;
+  signingKeyId?: string;
+  lastSeenAt?: Date;
+  connectedAt?: Date;
+  disconnectedAt?: Date;
+  disabledAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface IEcoEnchantsOpsCommandPolicy extends Document {
+  commandId: string;
+  description: string;
+  riskLevel: EcoEnchantsOpsRiskLevel;
+  allowedRoles: string[];
+  argumentSchema?: Record<string, unknown>;
+  timeoutSeconds: number;
+  maxOutputBytes: number;
+  requiresApproval: boolean;
+  minecraftConsoleTemplate: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface IEcoEnchantsOpsJob extends Document {
+  jobId: string;
+  requestId: string;
+  instanceId: string;
+  method: string;
+  riskLevel: EcoEnchantsOpsRiskLevel;
+  status: EcoEnchantsOpsJobStatus;
+  reason: string;
+  params: Record<string, unknown>;
+  actorType: "admin" | "system";
+  actorId: string;
+  policyVersion: string;
+  output?: Record<string, unknown>;
+  result?: Record<string, unknown>;
+  error?: Record<string, unknown>;
+  issuedAt?: Date;
+  expiresAt: Date;
+  dispatchedAt?: Date;
+  acknowledgedAt?: Date;
+  startedAt?: Date;
+  completedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface IEcoEnchantsOpsBackup extends Document {
+  backupId: string;
+  instanceId: string;
+  jobId?: string;
+  createdBy?: string;
+  format: string;
+  sizeBytes?: number;
+  sha256?: string;
+  scope: string[];
+  status: EcoEnchantsOpsBackupStatus;
+  manifest?: Record<string, unknown>;
+  retentionDays?: number;
+  expiresAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface IEcoEnchantsOpsNonce extends Document {
+  keyId: string;
+  nonce: string;
+  expiresAt: Date;
+  createdAt: Date;
+}
+
+export interface IEcoEnchantsOpsAuditLog extends Document {
+  auditId: string;
+  requestId?: string;
+  jobId?: string;
+  instanceId?: string;
+  actorType: "admin" | "license" | "system";
+  actorId: string;
+  action: string;
+  resource?: Record<string, unknown>;
+  decision: "allowed" | "denied";
+  result?: "success" | "failure";
+  beforeSha256?: string;
+  afterSha256?: string;
+  policyVersion?: string;
+  previousEntryHash?: string;
+  entryHash: string;
+  createdAt: Date;
 }
 
 const ProductSchema = new Schema<IEcoEnchantsProduct>(
@@ -311,6 +434,122 @@ const WebhookEventSchema = new Schema<IEcoEnchantsWebhookEvent>(
   { collection: "ecoenchants_webhook_events", timestamps: false },
 );
 
+const OpsInstanceSchema = new Schema<IEcoEnchantsOpsInstance>(
+  {
+    instanceId: { type: String, required: true, unique: true, index: true },
+    productId: { type: String, required: true, index: true },
+    activationId: { type: String, required: true, index: true },
+    licenseId: { type: String, index: true },
+    installationIdHash: { type: String, index: true },
+    name: { type: String },
+    status: { type: String, required: true, enum: ECO_ENCHANTS_OPS_INSTANCE_STATUSES, default: "registered", index: true },
+    server: { type: MixedType },
+    capabilities: { type: MixedType },
+    supportedMethods: { type: [String], default: [] },
+    policyVersion: { type: String, required: true, default: "pol_2026_06_05", index: true },
+    sessionTokenHash: { type: String },
+    sessionExpiresAt: { type: Date, index: true },
+    signingKeyId: { type: String, index: true },
+    lastSeenAt: { type: Date, index: true },
+    connectedAt: { type: Date },
+    disconnectedAt: { type: Date },
+    disabledAt: { type: Date },
+  },
+  { collection: "ecoenchants_ops_instances", timestamps: true },
+);
+
+const OpsCommandPolicySchema = new Schema<IEcoEnchantsOpsCommandPolicy>(
+  {
+    commandId: { type: String, required: true, unique: true, index: true },
+    description: { type: String, required: true },
+    riskLevel: { type: String, required: true, enum: ECO_ENCHANTS_OPS_RISK_LEVELS, default: "medium", index: true },
+    allowedRoles: { type: [String], default: ["ops-admin"] },
+    argumentSchema: { type: MixedType },
+    timeoutSeconds: { type: Number, required: true, min: 1, max: 300, default: 10 },
+    maxOutputBytes: { type: Number, required: true, min: 1024, max: 1048576, default: 65536 },
+    requiresApproval: { type: Boolean, required: true, default: false },
+    minecraftConsoleTemplate: { type: String, required: true },
+    isActive: { type: Boolean, required: true, default: true, index: true },
+  },
+  { collection: "ecoenchants_ops_command_policies", timestamps: true },
+);
+
+const OpsJobSchema = new Schema<IEcoEnchantsOpsJob>(
+  {
+    jobId: { type: String, required: true, unique: true, index: true },
+    requestId: { type: String, required: true, index: true },
+    instanceId: { type: String, required: true, index: true },
+    method: { type: String, required: true, index: true },
+    riskLevel: { type: String, required: true, enum: ECO_ENCHANTS_OPS_RISK_LEVELS, default: "low", index: true },
+    status: { type: String, required: true, enum: ECO_ENCHANTS_OPS_JOB_STATUSES, default: "queued", index: true },
+    reason: { type: String, required: true },
+    params: { type: MixedType, required: true },
+    actorType: { type: String, required: true, enum: ["admin", "system"], default: "admin" },
+    actorId: { type: String, required: true, index: true },
+    policyVersion: { type: String, required: true, default: "pol_2026_06_05" },
+    output: { type: MixedType },
+    result: { type: MixedType },
+    error: { type: MixedType },
+    issuedAt: { type: Date },
+    expiresAt: { type: Date, required: true, index: true },
+    dispatchedAt: { type: Date },
+    acknowledgedAt: { type: Date },
+    startedAt: { type: Date },
+    completedAt: { type: Date },
+  },
+  { collection: "ecoenchants_ops_jobs", timestamps: true },
+);
+
+const OpsBackupSchema = new Schema<IEcoEnchantsOpsBackup>(
+  {
+    backupId: { type: String, required: true, unique: true, index: true },
+    instanceId: { type: String, required: true, index: true },
+    jobId: { type: String, index: true },
+    createdBy: { type: String, index: true },
+    format: { type: String, required: true, default: "tar.gz" },
+    sizeBytes: { type: Number, min: 0 },
+    sha256: { type: String },
+    scope: { type: [String], default: [] },
+    status: { type: String, required: true, enum: ECO_ENCHANTS_OPS_BACKUP_STATUSES, default: "pending", index: true },
+    manifest: { type: MixedType },
+    retentionDays: { type: Number, min: 1 },
+    expiresAt: { type: Date, index: true },
+  },
+  { collection: "ecoenchants_ops_backups", timestamps: true },
+);
+
+const OpsNonceSchema = new Schema<IEcoEnchantsOpsNonce>(
+  {
+    keyId: { type: String, required: true },
+    nonce: { type: String, required: true },
+    expiresAt: { type: Date, required: true, index: true },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { collection: "ecoenchants_ops_nonces", timestamps: false },
+);
+
+const OpsAuditLogSchema = new Schema<IEcoEnchantsOpsAuditLog>(
+  {
+    auditId: { type: String, required: true, unique: true, index: true },
+    requestId: { type: String, index: true },
+    jobId: { type: String, index: true },
+    instanceId: { type: String, index: true },
+    actorType: { type: String, required: true, enum: ["admin", "license", "system"], index: true },
+    actorId: { type: String, required: true, index: true },
+    action: { type: String, required: true, index: true },
+    resource: { type: MixedType },
+    decision: { type: String, required: true, enum: ["allowed", "denied"], index: true },
+    result: { type: String, enum: ["success", "failure"], index: true },
+    beforeSha256: { type: String },
+    afterSha256: { type: String },
+    policyVersion: { type: String },
+    previousEntryHash: { type: String },
+    entryHash: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now, index: true },
+  },
+  { collection: "ecoenchants_ops_audit_logs", timestamps: false },
+);
+
 addIndex(ActivationSchema, { licenseId: 1, installationIdHash: 1 }, { unique: true });
 addIndex(ActivationSchema, { licenseId: 1, status: 1 });
 addIndex(ReleaseBuildSchema, { productId: 1, version: 1, channel: 1, sha256: 1 }, { unique: true });
@@ -318,6 +557,17 @@ addIndex(ReleaseBuildSchema, { productId: 1, channel: 1, releasedAt: -1 });
 addIndex(IdempotencyRecordSchema, { scope: 1, key: 1 }, { unique: true });
 addIndex(IdempotencyRecordSchema, { createdAt: 1 }, { expireAfterSeconds: 24 * 60 * 60 });
 addIndex(WebhookEventSchema, { provider: 1, eventId: 1 }, { unique: true });
+addIndex(OpsInstanceSchema, { activationId: 1, productId: 1 }, { unique: true });
+addIndex(OpsInstanceSchema, { status: 1, lastSeenAt: -1 });
+addIndex(OpsJobSchema, { instanceId: 1, status: 1, createdAt: -1 });
+addIndex(OpsJobSchema, { actorId: 1, createdAt: -1 });
+addIndex(OpsBackupSchema, { instanceId: 1, createdAt: -1 });
+addIndex(OpsNonceSchema, { keyId: 1, nonce: 1 }, { unique: true });
+addIndex(OpsNonceSchema, { expiresAt: 1 }, { expireAfterSeconds: 0 });
+addIndex(OpsAuditLogSchema, { instanceId: 1, createdAt: -1 });
+addIndex(OpsAuditLogSchema, { action: 1, createdAt: -1 });
+addIndex(OpsAuditLogSchema, { actorId: 1, createdAt: -1 });
+addIndex(OpsAuditLogSchema, { jobId: 1, createdAt: -1 });
 
 export const EcoEnchantsProductModel =
   (existingModels.EcoEnchantsProduct as mongoose.Model<IEcoEnchantsProduct>) ||
@@ -354,3 +604,27 @@ export const EcoEnchantsRiskEventModel =
 export const EcoEnchantsWebhookEventModel =
   (existingModels.EcoEnchantsWebhookEvent as mongoose.Model<IEcoEnchantsWebhookEvent>) ||
   mongoose.model<IEcoEnchantsWebhookEvent>("EcoEnchantsWebhookEvent", WebhookEventSchema);
+
+export const EcoEnchantsOpsInstanceModel =
+  (existingModels.EcoEnchantsOpsInstance as mongoose.Model<IEcoEnchantsOpsInstance>) ||
+  mongoose.model<IEcoEnchantsOpsInstance>("EcoEnchantsOpsInstance", OpsInstanceSchema);
+
+export const EcoEnchantsOpsCommandPolicyModel =
+  (existingModels.EcoEnchantsOpsCommandPolicy as mongoose.Model<IEcoEnchantsOpsCommandPolicy>) ||
+  mongoose.model<IEcoEnchantsOpsCommandPolicy>("EcoEnchantsOpsCommandPolicy", OpsCommandPolicySchema);
+
+export const EcoEnchantsOpsJobModel =
+  (existingModels.EcoEnchantsOpsJob as mongoose.Model<IEcoEnchantsOpsJob>) ||
+  mongoose.model<IEcoEnchantsOpsJob>("EcoEnchantsOpsJob", OpsJobSchema);
+
+export const EcoEnchantsOpsBackupModel =
+  (existingModels.EcoEnchantsOpsBackup as mongoose.Model<IEcoEnchantsOpsBackup>) ||
+  mongoose.model<IEcoEnchantsOpsBackup>("EcoEnchantsOpsBackup", OpsBackupSchema);
+
+export const EcoEnchantsOpsNonceModel =
+  (existingModels.EcoEnchantsOpsNonce as mongoose.Model<IEcoEnchantsOpsNonce>) ||
+  mongoose.model<IEcoEnchantsOpsNonce>("EcoEnchantsOpsNonce", OpsNonceSchema);
+
+export const EcoEnchantsOpsAuditLogModel =
+  (existingModels.EcoEnchantsOpsAuditLog as mongoose.Model<IEcoEnchantsOpsAuditLog>) ||
+  mongoose.model<IEcoEnchantsOpsAuditLog>("EcoEnchantsOpsAuditLog", OpsAuditLogSchema);
