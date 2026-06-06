@@ -281,8 +281,10 @@ const EcoEnchantsAdminPage: React.FC = () => {
       if (firstFailure) throw firstFailure.reason;
 
       setMfaRequired(false);
-      setAuditLogs(auditRes.value.data.logs || []);
-      setRiskEvents(riskRes.value.data.riskEvents || []);
+      if (auditRes.status === 'fulfilled' && riskRes.status === 'fulfilled') {
+        setAuditLogs(auditRes.value.data.logs || []);
+        setRiskEvents(riskRes.value.data.riskEvents || []);
+      }
     } catch (error) {
       setNotification({ message: getErrorMessage(error, '加载 EcoEnchants 管理数据失败'), type: 'error' });
     } finally {
