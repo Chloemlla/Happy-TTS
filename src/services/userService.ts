@@ -85,6 +85,49 @@ const PUBLIC_USER_SELECT =
   "id username email role avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil isTranslationEnabled translationAccessUntil accountStatus dailyUsage lastUsageDate createdAt token tokenExpiresAt";
 const AUTH_USER_SELECT =
   `${PUBLIC_USER_SELECT} password passwordHash passwordCiphertext passwordIv passwordTag passwordKeyVersion passwordWrappedDek passwordDekId`;
+const ADMIN_USER_LIST_PROJECT = {
+  _id: 0,
+  id: 1,
+  username: 1,
+  email: 1,
+  role: 1,
+  avatarUrl: 1,
+  authProvider: 1,
+  linuxdoId: 1,
+  linuxdoUsername: 1,
+  linuxdoAvatarUrl: 1,
+  totpSecret: 1,
+  totpEnabled: 1,
+  backupCodes: 1,
+  passkeyEnabled: 1,
+  passkeyCredentials: 1,
+  pendingChallenge: 1,
+  currentChallenge: 1,
+  passkeyVerified: 1,
+  requireFingerprint: 1,
+  requireFingerprintAt: 1,
+  fingerprintRequestDismissedOnce: 1,
+  fingerprintRequestDismissedAt: 1,
+  lastLoginIp: 1,
+  lastLoginAt: 1,
+  ticketViolationCount: 1,
+  ticketBannedUntil: 1,
+  isTranslationEnabled: 1,
+  translationAccessUntil: 1,
+  accountStatus: 1,
+  dailyUsage: 1,
+  lastUsageDate: 1,
+  createdAt: 1,
+  token: 1,
+  tokenExpiresAt: 1,
+  fingerprintCount: { $size: { $ifNull: ["$fingerprints", []] } },
+  latestFingerprint: {
+    $let: {
+      vars: { fingerprints: { $ifNull: ["$fingerprints", []] } },
+      in: { $arrayElemAt: ["$$fingerprints", -1] },
+    },
+  },
+};
 
 // 工具函数：彻底删除对象中的avatarBase64字段
 function removeAvatarBase64(obj: any) {
@@ -149,6 +192,15 @@ function invalidateCachedUserById(id: string): void {
 
 export const getAllUsers = async (): Promise<UserType[]> => {
   const docs = await UserModel.find().select(PUBLIC_USER_SELECT).lean();
+  return docs.map(removeAvatarBase64) as unknown as UserType[];
+};
+
+export const getAdminUserList = async (opts: { includeFingerprints?: boolean } = {}): Promise<UserType[]> => {
+  if (opts.includeFingerprints) {
+    return getAllUsers();
+  }
+
+  const docs = await UserModel.aggregate([{ $project: ADMIN_USER_LIST_PROJECT }]);
   return docs.map(removeAvatarBase64) as unknown as UserType[];
 };
 

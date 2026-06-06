@@ -4,6 +4,7 @@ export type UserStorageMode = "mongo";
 
 export interface UserStorageProvider {
   getAllUsers(): Promise<any[]>;
+  getAdminUserList?(opts?: { includeFingerprints?: boolean }): Promise<any[]>;
   getUserById(id: string): Promise<any | null>;
   getUserByEmail(email: string): Promise<any | null>;
   getUserByUsername(username: string): Promise<any | null>;

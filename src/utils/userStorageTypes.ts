@@ -49,6 +49,13 @@ export interface User {
     ua?: string;
     ip?: string;
   }[];
+  fingerprintCount?: number;
+  latestFingerprint?: {
+    id: string;
+    ts: number;
+    ua?: string;
+    ip?: string;
+  } | null;
   lastLoginIp?: string;
   lastLoginAt?: string;
   ticketViolationCount?: number;

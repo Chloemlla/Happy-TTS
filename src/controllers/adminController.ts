@@ -126,6 +126,45 @@ function stripSensitiveUserFields(user: any) {
   return safeUser;
 }
 
+function getLatestFingerprintSummary(fingerprints: unknown): { id: string; ts: number; ua?: string; ip?: string } | null {
+  if (!Array.isArray(fingerprints) || fingerprints.length === 0) return null;
+  const latest = fingerprints.reduce((currentLatest, item) => {
+    const currentTs = Number(currentLatest?.ts || 0);
+    const itemTs = Number(item?.ts || 0);
+    return itemTs > currentTs ? item : currentLatest;
+  }, fingerprints[0]);
+
+  if (!latest?.id) return null;
+  return {
+    id: String(latest.id),
+    ts: Number(latest.ts || 0),
+    ua: typeof latest.ua === "string" ? latest.ua : undefined,
+    ip: typeof latest.ip === "string" ? latest.ip : undefined,
+  };
+}
+
+function getAdminUserFingerprintCount(user: any): number {
+  if (typeof user?.fingerprintCount === "number") return user.fingerprintCount;
+  return Array.isArray(user?.fingerprints) ? user.fingerprints.length : 0;
+}
+
+function sanitizeAdminUserForList(user: any, includeFingerprints: boolean) {
+  const safeUser = stripSensitiveUserFields(user);
+  const fingerprints = Array.isArray(safeUser?.fingerprints) ? safeUser.fingerprints : [];
+  const fingerprintSummary = {
+    fingerprintCount: fingerprints.length > 0 ? fingerprints.length : getAdminUserFingerprintCount(safeUser),
+    latestFingerprint:
+      getLatestFingerprintSummary(fingerprints) || getLatestFingerprintSummary([safeUser?.latestFingerprint]) || null,
+  };
+
+  if (includeFingerprints) {
+    return { ...safeUser, ...fingerprintSummary };
+  }
+
+  const { fingerprints: _fingerprints, ...safeWithoutFingerprints } = safeUser;
+  return { ...safeWithoutFingerprints, ...fingerprintSummary };
+}
+
 type AdminUserListRoleFilter = "all" | "user" | "admin";
 type AdminUserListAccountStatusFilter = "all" | "active" | "suspended";
 type AdminUserListSecurityFilter = "all" | "totp" | "passkey" | "fingerprintRequired" | "noMfa";
@@ -321,7 +360,7 @@ function buildAdminUserListStats(users: any[]) {
       if (user?.totpEnabled) acc.totpEnabled += 1;
       if (user?.passkeyEnabled) acc.passkeyEnabled += 1;
       if (user?.requireFingerprint) acc.fingerprintRequired += 1;
-      if (Array.isArray(user?.fingerprints) && user.fingerprints.length > 0) acc.withFingerprints += 1;
+      if (getAdminUserFingerprintCount(user) > 0) acc.withFingerprints += 1;
       if (Number(user?.ticketViolationCount || 0) > 0) acc.ticketViolated += 1;
       if (isFutureDate(user?.ticketBannedUntil, now)) acc.ticketBanned += 1;
       if (user?.isTranslationEnabled === false) acc.translationDisabled += 1;
@@ -592,140 +631,29 @@ function validateAndSanitizeUserUpdates(body: Record<string, any>): Record<strin
 export const adminController = {
   getUsers: async (req: Request, res: Response) => {
     try {
-      logger.info("🔐 [UserManagement] 开始处理用户列表加密请求...");
-      logger.info("   用户ID:", req.user?.id);
-      logger.info("   用户名:", req.user?.username);
-      logger.info("   用户角色:", req.user?.role);
-      logger.info("   请求IP:", req.ip);
-
-      // 检查管理员权限
       if (!req.user || req.user.role !== "admin") {
-        logger.info("❌ [UserManagement] 权限检查失败：非管理员用户");
         return res.status(403).json({ error: "需要管理员权限" });
       }
 
-      logger.info("✅ [UserManagement] 权限检查通过");
-
-      // 获取管理员token作为加密密钥
-      const authHeader = req.headers.authorization;
-      if (!authHeader?.startsWith("Bearer ")) {
-        logger.info("❌ [UserManagement] Token格式错误：未携带Token或格式不正确");
-        return res.status(401).json({ error: "未携带Token，请先登录" });
-      }
-
-      const token = authHeader.substring(7); // 移除 'Bearer ' 前缀
-      if (!token) {
-        logger.info("❌ [UserManagement] Token为空");
-        return res.status(401).json({ error: "Token为空" });
-      }
-
-      logger.info("✅ [UserManagement] Token获取成功，长度:", token.length);
-
-      // 是否包含指纹信息（默认不返回）
       const includeFingerprints = isTruthyQueryFlag((req.query as any).includeFingerprints);
       const listQuery = parseAdminUserListQuery(req.query);
-      if (!includeFingerprints) {
-        logger.info("🛡️ [UserManagement] 将从响应中排除 fingerprints 字段");
-      } else {
-        logger.info("🔎 [UserManagement] 管理端请求包含 fingerprints 字段");
-      }
-
-      // 获取用户数据
-      const users = await UserStorage.getAllUsers();
-      const usersSanitized = users.map((user) => {
-        const rest = stripSensitiveUserFields(user);
-        if (!includeFingerprints) {
-          const { fingerprints, ...restNoFp } = rest as any;
-          return restNoFp;
-        }
-        return rest;
-      });
-
-      logger.info("📊 [UserManagement] 获取到用户数量:", usersSanitized.length);
-      if (listQuery.envelope) {
-        logger.info("🔎 [UserManagement] 使用分页筛选 envelope 响应", {
-          page: listQuery.page,
-          pageSize: listQuery.pageSize,
-          keyword: listQuery.keyword ? "***" : "",
-          role: listQuery.role,
-          accountStatus: listQuery.accountStatus,
-          security: listQuery.security,
-          ticket: listQuery.ticket,
-          translation: listQuery.translation,
-          sortBy: listQuery.sortBy,
-          sortOrder: listQuery.sortOrder,
-        });
-      }
-
-      // 调试：检查第一个用户的指纹数据
-      if (usersSanitized.length > 0 && usersSanitized[0]?.fingerprints?.length > 0) {
-        const firstFingerprint = usersSanitized[0].fingerprints[0];
-        logger.info("🔍 [UserManagement] 第一个指纹记录调试:", {
-          hasId: !!firstFingerprint.id,
-          hasTs: !!firstFingerprint.ts,
-          hasUa: !!firstFingerprint.ua,
-          hasIp: !!firstFingerprint.ip,
-          hasDeviceInfo: !!firstFingerprint.deviceInfo,
-          deviceInfoKeys: firstFingerprint.deviceInfo ? Object.keys(firstFingerprint.deviceInfo) : [],
-          storageMode: USER_STORAGE_MODE,
-        });
-      }
-
-      // 准备加密数据
+      const users = await UserStorage.getAdminUserList({ includeFingerprints });
+      const usersSanitized = users.map((user) => sanitizeAdminUserForList(user, includeFingerprints));
       const responsePayload = listQuery.envelope
         ? buildAdminUserListEnvelope(usersSanitized, listQuery)
         : usersSanitized;
-      const jsonData = JSON.stringify(responsePayload);
-      logger.info("📝 [UserManagement] JSON数据准备完成，长度:", jsonData.length);
 
-      // 使用AES-256-CBC加密数据
-      logger.info("🔐 [UserManagement] 开始AES-256-CBC加密...");
-      const algorithm = "aes-256-cbc";
+      logger.info("[UserManagement] 用户列表读取完成", {
+        total: users.length,
+        page: listQuery.envelope ? listQuery.page : undefined,
+        pageSize: listQuery.envelope ? listQuery.pageSize : undefined,
+        includeFingerprints,
+      });
 
-      // 生成密钥
-      logger.info("   生成密钥...");
-      const key = crypto.createHash("sha256").update(token).digest();
-      logger.info("   密钥生成完成，长度:", key.length);
-
-      // 生成IV
-      logger.info("   生成初始化向量(IV)...");
-      const iv = crypto.randomBytes(16);
-      logger.info("   IV生成完成，长度:", iv.length);
-      logger.info("   IV (hex):", iv.toString("hex"));
-
-      // 创建加密器
-      logger.info("   创建加密器...");
-      const cipher = crypto.createCipheriv(algorithm, key, iv);
-
-      // 执行加密
-      logger.info("   开始加密数据...");
-      let encrypted = cipher.update(jsonData, "utf8", "hex");
-      encrypted += cipher.final("hex");
-
-      logger.info("✅ [UserManagement] 加密完成");
-      logger.info("   原始数据长度:", jsonData.length);
-      logger.info("   加密后数据长度:", encrypted.length);
-      logger.info("   加密算法:", algorithm);
-      logger.info("   密钥长度:", key.length);
-      logger.info("   IV长度:", iv.length);
-
-      // 返回加密后的数据
-      const response = {
-        success: true,
-        data: encrypted,
-        iv: iv.toString("hex"),
-      };
-
-      logger.info("📤 [UserManagement] 准备返回加密数据");
-      logger.info("   响应数据大小:", JSON.stringify(response).length);
-
-      res.json(response);
-
-      logger.info("✅ [UserManagement] 用户列表加密请求处理完成");
+      return res.json(responsePayload);
     } catch (error) {
-      logger.error("❌ [UserManagement] 获取用户列表失败:", error);
       logger.error("获取用户列表失败:", error);
-      res.status(500).json({ error: "获取用户列表失败" });
+      return res.status(500).json({ error: "获取用户列表失败" });
     }
   },
 

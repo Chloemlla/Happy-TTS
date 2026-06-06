@@ -62,6 +62,14 @@ export const userRepository = {
     return getUserStorageProvider().getAllUsers();
   },
 
+  async getAdminUserList(opts: { includeFingerprints?: boolean } = {}): Promise<User[]> {
+    const provider = getUserStorageProvider();
+    if (typeof provider.getAdminUserList === "function") {
+      return provider.getAdminUserList(opts);
+    }
+    return provider.getAllUsers();
+  },
+
   async createUser(username: string, email: string, password: string): Promise<User | null> {
     const existUserByName = await getUserByUsername(username);
     const existUserByEmail = await getUserByEmail(email);
