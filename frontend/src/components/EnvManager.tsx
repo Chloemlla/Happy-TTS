@@ -97,7 +97,7 @@ const EnvManager: React.FC = () => {
   // 基于窗口宽度的移动端检测（随页面缩放实时更新，带防抖）
   const [isMobile, setIsMobile] = useState<boolean>(false);
   // 环境变量区折叠
-  const [isEnvCollapsed, setIsEnvCollapsed] = useState<boolean>(false);
+  const [isEnvCollapsed, setIsEnvCollapsed] = useState<boolean>(true);
   useEffect(() => {
     const checkIsMobile = () => {
       try {
@@ -253,7 +253,7 @@ const EnvManager: React.FC = () => {
 
   // ========== 性能优化：按需展开 & 懒加载数据 ==========
   // 追踪已展开的区块，只有展开时才渲染内容和拉取数据
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(() => new Set(['envs']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(() => new Set());
   // 追踪已经拉取过数据的区块，避免重复请求
   const fetchedSectionsRef = React.useRef<Set<string>>(new Set());
 

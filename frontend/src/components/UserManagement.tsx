@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { api } from '../api/api';
@@ -21,6 +21,8 @@ import {
   FaCog,
   FaChevronDown,
   FaChevronUp,
+  FaSearch,
+  FaSyncAlt,
 } from 'react-icons/fa';
 
 interface FingerprintRecord {
@@ -60,11 +62,17 @@ interface User {
   currentChallenge?: string;
   passkeyVerified?: boolean;
   avatarUrl?: string;
+  authProvider?: 'local' | 'linuxdo' | 'google';
+  linuxdoId?: string;
+  linuxdoUsername?: string;
+  linuxdoAvatarUrl?: string;
   requireFingerprint?: boolean;
   requireFingerprintAt?: number;
   fingerprintRequestDismissedOnce?: boolean;
   fingerprintRequestDismissedAt?: number;
   fingerprints?: FingerprintRecord[];
+  lastLoginIp?: string;
+  lastLoginAt?: string;
   // 工单违规处罚相关
   ticketViolationCount?: number;
   ticketBannedUntil?: string;
@@ -86,6 +94,67 @@ interface RevealPasswordState {
   verificationToken: string;
   revealedPassword: string;
   loading: boolean;
+}
+
+type UserListRoleFilter = 'all' | 'user' | 'admin';
+type UserListAccountStatusFilter = 'all' | 'active' | 'suspended';
+type UserListSecurityFilter = 'all' | 'totp' | 'passkey' | 'fingerprintRequired' | 'noMfa';
+type UserListTicketFilter = 'all' | 'normal' | 'violated' | 'banned';
+type UserListTranslationFilter = 'all' | 'enabled' | 'disabled' | 'limited';
+type UserListSortOrder = 'asc' | 'desc';
+type BulkUserAction =
+  | 'resetDailyUsage'
+  | 'requireFingerprint'
+  | 'clearFingerprintRequirement'
+  | 'suspend'
+  | 'activate'
+  | 'enableTranslation'
+  | 'disableTranslation'
+  | 'clearTranslationRestrictions'
+  | 'clearTicketRestrictions'
+  | 'resetMfa';
+
+interface UserListFilters {
+  keyword: string;
+  role: UserListRoleFilter;
+  accountStatus: UserListAccountStatusFilter;
+  security: UserListSecurityFilter;
+  ticket: UserListTicketFilter;
+  translation: UserListTranslationFilter;
+  sortBy: string;
+  sortOrder: UserListSortOrder;
+  pageSize: number;
+}
+
+interface UserListPagination {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+interface UserListStats {
+  total: number;
+  users: number;
+  admins: number;
+  active: number;
+  suspended: number;
+  totpEnabled: number;
+  passkeyEnabled: number;
+  fingerprintRequired: number;
+  withFingerprints: number;
+  ticketViolated: number;
+  ticketBanned: number;
+  translationDisabled: number;
+  translationLimited: number;
+  totalDailyUsage: number;
+}
+
+interface UserListEnvelope {
+  users: User[];
+  pagination: UserListPagination;
+  stats?: UserListStats;
+  filteredStats?: UserListStats;
 }
 
 const emptyUser: User = {
@@ -219,6 +288,100 @@ const ROLE_OPTIONS = [
 const ACCOUNT_STATUS_OPTIONS = [
   { value: 'active', label: '正常' },
   { value: 'suspended', label: '封停' },
+];
+
+const DEFAULT_USER_LIST_FILTERS: UserListFilters = {
+  keyword: '',
+  role: 'all',
+  accountStatus: 'all',
+  security: 'all',
+  ticket: 'all',
+  translation: 'all',
+  sortBy: 'createdAt',
+  sortOrder: 'desc',
+  pageSize: 20,
+};
+
+const DEFAULT_PAGINATION: UserListPagination = {
+  page: 1,
+  pageSize: 20,
+  total: 0,
+  totalPages: 1,
+};
+
+const DEFAULT_STATS: UserListStats = {
+  total: 0,
+  users: 0,
+  admins: 0,
+  active: 0,
+  suspended: 0,
+  totpEnabled: 0,
+  passkeyEnabled: 0,
+  fingerprintRequired: 0,
+  withFingerprints: 0,
+  ticketViolated: 0,
+  ticketBanned: 0,
+  translationDisabled: 0,
+  translationLimited: 0,
+  totalDailyUsage: 0,
+};
+
+const ROLE_FILTER_OPTIONS: Array<{ value: UserListRoleFilter; label: string }> = [
+  { value: 'all', label: '全部角色' },
+  { value: 'admin', label: '管理员' },
+  { value: 'user', label: '普通用户' },
+];
+
+const ACCOUNT_STATUS_FILTER_OPTIONS: Array<{ value: UserListAccountStatusFilter; label: string }> = [
+  { value: 'all', label: '全部状态' },
+  { value: 'active', label: '正常' },
+  { value: 'suspended', label: '封停' },
+];
+
+const SECURITY_FILTER_OPTIONS: Array<{ value: UserListSecurityFilter; label: string }> = [
+  { value: 'all', label: '全部安全状态' },
+  { value: 'totp', label: 'TOTP' },
+  { value: 'passkey', label: 'Passkey' },
+  { value: 'fingerprintRequired', label: '需指纹上报' },
+  { value: 'noMfa', label: '未启用 MFA' },
+];
+
+const TICKET_FILTER_OPTIONS: Array<{ value: UserListTicketFilter; label: string }> = [
+  { value: 'all', label: '全部工单状态' },
+  { value: 'normal', label: '工单正常' },
+  { value: 'violated', label: '有违规记录' },
+  { value: 'banned', label: '工单封禁中' },
+];
+
+const TRANSLATION_FILTER_OPTIONS: Array<{ value: UserListTranslationFilter; label: string }> = [
+  { value: 'all', label: '全部翻译权限' },
+  { value: 'enabled', label: '翻译启用' },
+  { value: 'disabled', label: '翻译停用' },
+  { value: 'limited', label: '翻译限制中' },
+];
+
+const SORT_OPTIONS = [
+  { value: 'createdAt', label: '创建时间' },
+  { value: 'username', label: '用户名' },
+  { value: 'email', label: '邮箱' },
+  { value: 'dailyUsage', label: '今日用量' },
+  { value: 'lastLoginAt', label: '最后登录' },
+  { value: 'ticketViolationCount', label: '工单违规' },
+];
+
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+
+const BULK_ACTION_OPTIONS: Array<{ value: BulkUserAction; label: string; confirm: string }> = [
+  { value: 'resetDailyUsage', label: '重置今日用量', confirm: '确定要重置所选用户今日用量吗？' },
+  { value: 'requireFingerprint', label: '要求指纹上报', confirm: '确定要求所选用户下次上报指纹吗？' },
+  { value: 'clearFingerprintRequirement', label: '取消指纹要求', confirm: '确定取消所选用户的指纹上报要求吗？' },
+  { value: 'suspend', label: '封停账户', confirm: '确定封停所选用户吗？' },
+  { value: 'activate', label: '恢复账户', confirm: '确定恢复所选用户账户吗？' },
+  { value: 'enableTranslation', label: '启用翻译', confirm: '确定启用所选用户的翻译页面权限吗？' },
+  { value: 'disableTranslation', label: '停用翻译', confirm: '确定停用所选用户的翻译页面权限吗？' },
+  { value: 'clearTranslationRestrictions', label: '清除翻译限制', confirm: '确定清除所选用户的翻译限制吗？' },
+  { value: 'clearTicketRestrictions', label: '清除工单限制', confirm: '确定清除所选用户的工单违规和封禁状态吗？' },
+  { value: 'resetMfa', label: '重置 MFA', confirm: '确定重置所选用户的 TOTP、备份码和 Passkey 吗？' },
 ];
 
 const createDefaultCollapsedSections = (): CollapsedSectionState => ({
@@ -807,11 +970,12 @@ const TABLE_COLUMNS = [
   { key: 'username', label: '用户名' },
   { key: 'email', label: '邮箱' },
   { key: 'role', label: '角色' },
+  { key: 'accountStatus', label: '账户' },
   { key: 'createdAt', label: '创建时间' },
   { key: 'dailyUsage', label: '用量' },
-  { key: 'totpEnabled', label: 'TOTP' },
-  { key: 'passkeyEnabled', label: 'Passkey' },
+  { key: 'security', label: '安全' },
   { key: 'ticketStatus', label: '工单状态' },
+  { key: 'translation', label: '翻译权限' },
 ];
 
 const UserManagement: React.FC = () => {
@@ -826,6 +990,13 @@ const UserManagement: React.FC = () => {
   const [showFpModal, setShowFpModal] = useState(false);
   const [revealPasswordState, setRevealPasswordState] = useState<RevealPasswordState>(emptyRevealPasswordState);
   const [fpRequireMap, setFpRequireMap] = useState<Record<string, number>>({});
+  const [pendingFilters, setPendingFilters] = useState<UserListFilters>(DEFAULT_USER_LIST_FILTERS);
+  const [activeFilters, setActiveFilters] = useState<UserListFilters>(DEFAULT_USER_LIST_FILTERS);
+  const [pagination, setPagination] = useState<UserListPagination>(DEFAULT_PAGINATION);
+  const [stats, setStats] = useState<UserListStats>(DEFAULT_STATS);
+  const [filteredStats, setFilteredStats] = useState<UserListStats>(DEFAULT_STATS);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [bulkAction, setBulkAction] = useState<BulkUserAction | ''>('');
   const [collapsedSections, setCollapsedSections] = useState<CollapsedSectionState>(createDefaultCollapsedSections);
   const navigate = useNavigate();
   const { setNotification } = useNotification();
@@ -836,6 +1007,9 @@ const UserManagement: React.FC = () => {
   const tapScale = React.useCallback((scale: number, enabled: boolean = true) => (
     enabled && !prefersReducedMotion ? { scale } : undefined
   ), [prefersReducedMotion]);
+  const selectedUserIdSet = useMemo(() => new Set(selectedUserIds), [selectedUserIds]);
+  const currentPageUserIds = useMemo(() => users.map(item => item.id), [users]);
+  const allCurrentPageSelected = users.length > 0 && users.every(item => selectedUserIdSet.has(item.id));
 
   const toggleSection = useCallback((section: CollapsibleSectionKey) => {
     setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -855,6 +1029,48 @@ const UserManagement: React.FC = () => {
     setCollapsedSections(createDefaultCollapsedSections());
   }, []);
 
+  const updatePendingFilter = useCallback(<K extends keyof UserListFilters,>(key: K, value: UserListFilters[K]) => {
+    setPendingFilters(prev => ({ ...prev, [key]: value }));
+  }, []);
+
+  const applyFilters = useCallback(() => {
+    setSelectedUserIds([]);
+    setPagination(prev => ({ ...prev, page: 1 }));
+    setActiveFilters(pendingFilters);
+  }, [pendingFilters]);
+
+  const resetFilters = useCallback(() => {
+    setPendingFilters(DEFAULT_USER_LIST_FILTERS);
+    setActiveFilters(DEFAULT_USER_LIST_FILTERS);
+    setPagination(DEFAULT_PAGINATION);
+    setSelectedUserIds([]);
+  }, []);
+
+  const setPage = useCallback((page: number) => {
+    setPagination(prev => ({
+      ...prev,
+      page: Math.max(1, Math.min(prev.totalPages || 1, page)),
+    }));
+  }, []);
+
+  const toggleUserSelection = useCallback((id: string) => {
+    setSelectedUserIds(prev => (
+      prev.includes(id)
+        ? prev.filter(item => item !== id)
+        : [...prev, id]
+    ));
+  }, []);
+
+  const toggleCurrentPageSelection = useCallback(() => {
+    setSelectedUserIds(prev => {
+      const pageIds = currentPageUserIds.filter(Boolean);
+      if (pageIds.length === 0) return prev;
+      const allSelected = pageIds.every(id => prev.includes(id));
+      if (allSelected) return prev.filter(id => !pageIds.includes(id));
+      return Array.from(new Set([...prev, ...pageIds]));
+    });
+  }, [currentPageUserIds]);
+
   // 获取工单封禁剩余时间描述
   const getBanRemainingText = (bannedUntil?: string) => {
     if (!bannedUntil) return null;
@@ -871,8 +1087,53 @@ const UserManagement: React.FC = () => {
     return `剩余 ${diffMins} 分钟`;
   };
 
+  const getFutureRemainingText = (value?: string) => {
+    if (!value) return null;
+    const ts = Date.parse(value);
+    if (!Number.isFinite(ts) || ts <= Date.now()) return null;
+    return new Date(ts).toLocaleString();
+  };
+
+  const getTranslationStatus = (u: User) => {
+    const limitedUntil = getFutureRemainingText(u.translationAccessUntil);
+    if (u.isTranslationEnabled === false) {
+      return { label: '已停用', className: 'bg-gray-100 text-gray-600' };
+    }
+    if (limitedUntil) {
+      return { label: `限制至 ${limitedUntil}`, className: 'bg-orange-100 text-orange-700' };
+    }
+    return { label: '正常', className: 'bg-green-100 text-green-700' };
+  };
+
+  const applyUserListPayload = useCallback((payload: User[] | UserListEnvelope, showTip: boolean) => {
+    const envelope = Array.isArray(payload) ? null : payload;
+    const nextUsers = Array.isArray(payload) ? payload : (payload.users || []);
+    setUsers(nextUsers);
+    setPagination(envelope?.pagination || {
+      page: 1,
+      pageSize: activeFilters.pageSize,
+      total: nextUsers.length,
+      totalPages: Math.max(1, Math.ceil(nextUsers.length / activeFilters.pageSize)),
+    });
+    setStats(envelope?.stats || DEFAULT_STATS);
+    setFilteredStats(envelope?.filteredStats || envelope?.stats || DEFAULT_STATS);
+
+    const initMap: Record<string, number> = {};
+    for (const u of nextUsers) {
+      const ts = Number((u as any).requireFingerprintAt || 0);
+      if (ts > 0) initMap[(u as any).id] = ts;
+    }
+    setFpRequireMap(initMap);
+    setSelectedUserIds(prev => prev.filter(id => nextUsers.some(item => item.id === id)));
+
+    if (showTip) {
+      const total = envelope?.pagination?.total ?? nextUsers.length;
+      setNotification({ type: 'success', message: `已获取 ${total} 个用户` });
+    }
+  }, [activeFilters.pageSize, setNotification]);
+
   // 获取用户列表
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async (showTip: boolean = false) => {
     setLoading(true);
     setError('');
     try {
@@ -883,22 +1144,30 @@ const UserManagement: React.FC = () => {
         return;
       }
 
-      const res = await api.get('/api/admin/users', { params: { includeFingerprints: 1 } });
+      const res = await api.get('/api/admin/users', {
+        params: {
+          includeFingerprints: 1,
+          envelope: 1,
+          page: pagination.page,
+          pageSize: activeFilters.pageSize,
+          keyword: activeFilters.keyword || undefined,
+          role: activeFilters.role,
+          accountStatus: activeFilters.accountStatus,
+          security: activeFilters.security,
+          ticket: activeFilters.ticket,
+          translation: activeFilters.translation,
+          sortBy: activeFilters.sortBy,
+          sortOrder: activeFilters.sortOrder,
+        },
+      });
 
       if (res.data.data && res.data.iv && typeof res.data.data === 'string' && typeof res.data.iv === 'string') {
         try {
           const decryptedJson = decryptAES256(res.data.data, res.data.iv, token);
           const decryptedData = JSON.parse(decryptedJson);
 
-          if (Array.isArray(decryptedData)) {
-            setUsers(decryptedData);
-            const initMap: Record<string, number> = {};
-            for (const u of decryptedData) {
-              const ts = Number((u as any).requireFingerprintAt || 0);
-              if (ts > 0) initMap[(u as any).id] = ts;
-            }
-            setFpRequireMap(initMap);
-            setNotification({ type: 'success', message: `已获取 ${decryptedData.length} 个用户` });
+          if (Array.isArray(decryptedData) || Array.isArray(decryptedData?.users)) {
+            applyUserListPayload(decryptedData, showTip);
           } else {
             setError('解密数据格式错误');
             setNotification({ type: 'error', message: '解密数据格式错误' });
@@ -908,18 +1177,16 @@ const UserManagement: React.FC = () => {
           setNotification({ type: 'error', message: '数据解密失败，请检查登录状态' });
         }
       } else {
-        setUsers(res.data);
-        const count = Array.isArray(res.data) ? res.data.length : 0;
-        if (count) setNotification({ type: 'success', message: `已获取 ${count} 个用户` });
+        applyUserListPayload(res.data, showTip);
       }
     } catch (e: any) {
       setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '获取用户列表失败' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeFilters, applyUserListPayload, pagination.page, setNotification]);
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
   // 表单变更 — 支持 checkbox 和 number
   const handleChange: UserFormChangeHandler = (e) => {
@@ -957,7 +1224,7 @@ const UserManagement: React.FC = () => {
       await api.request({ url, method, data: submitData });
       closeForm();
       setNotification({ type: 'success', message: editingUser ? '用户信息已更新' : '用户已创建' });
-      fetchUsers();
+      fetchUsers(true);
     } catch (e: any) {
       setError(e.response?.data?.error || e.message || '操作失败');
       setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '操作失败' });
@@ -974,14 +1241,54 @@ const UserManagement: React.FC = () => {
     try {
       await api.delete(`/api/admin/users/${id}`);
       setNotification({ type: 'success', message: '用户已删除' });
-      fetchUsers();
+      fetchUsers(true);
     } catch (e: any) {
       setError(e.response?.data?.error || e.message || '删除失败');
       setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '删除失败' });
     } finally {
       setLoading(false);
     }
-  }, [setNotification]);
+  }, [fetchUsers, setNotification]);
+
+  const handleBulkAction = useCallback(async () => {
+    if (selectedUserIds.length === 0) {
+      setNotification({ type: 'warning', message: '请先选择用户' });
+      return;
+    }
+
+    const actionMeta = BULK_ACTION_OPTIONS.find(item => item.value === bulkAction);
+    if (!bulkAction || !actionMeta) {
+      setNotification({ type: 'warning', message: '请选择批量操作' });
+      return;
+    }
+
+    if (!window.confirm(`${actionMeta.confirm}\n\n已选择 ${selectedUserIds.length} 个用户。`)) {
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      const res = await api.post('/api/admin/users/bulk-action', {
+        userIds: selectedUserIds,
+        action: bulkAction,
+      });
+      const processed = Number(res.data?.processed || 0);
+      const failed = Number(res.data?.failed || 0);
+      setSelectedUserIds([]);
+      setBulkAction('');
+      setNotification({
+        type: failed > 0 ? 'warning' : 'success',
+        message: failed > 0 ? `已处理 ${processed} 个用户，${failed} 个失败` : `已处理 ${processed} 个用户`,
+      });
+      fetchUsers(false);
+    } catch (e: any) {
+      setError(e.response?.data?.error || e.message || '批量操作失败');
+      setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '批量操作失败' });
+    } finally {
+      setLoading(false);
+    }
+  }, [bulkAction, fetchUsers, selectedUserIds, setNotification]);
 
   const openEdit = useCallback((u: User) => {
     setEditingUser(u);
@@ -1029,8 +1336,8 @@ const UserManagement: React.FC = () => {
       headers,
     });
     const password = res.data?.password;
-    if (typeof password !== 'string') {
-      throw new Error('接口未返回密码');
+    if (typeof password !== 'string' || password.length === 0) {
+      throw new Error('接口未返回可显示的密码');
     }
 
     setRevealPasswordState(prev => ({

@@ -1151,8 +1151,8 @@ export const adminController = {
       }
 
       const password = await revealUserPassword(req.params.id);
-      if (password === null) {
-        return res.status(404).json({ error: "用户不存在或未配置密码" });
+      if (typeof password !== "string" || password.length === 0) {
+        return res.status(404).json({ error: "用户不存在或未配置可查看的密码" });
       }
 
       logger.warn("[Admin] 管理员查看用户密码", {
