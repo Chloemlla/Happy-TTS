@@ -30,11 +30,11 @@ export class TtsController {
   }
 
   private static async resolveCurrentUser(req: Request): Promise<User | null> {
-    const apiKeyUser = (req as any).apiKey && (req as any).user;
-    if (apiKeyUser?.id) {
-      const user = await UserStorage.getUserById(apiKeyUser.id);
+    const apiCredentialUser = ((req as any).apiKey || (req as any).oauthToken) && (req as any).user;
+    if (apiCredentialUser?.id) {
+      const user = await UserStorage.getUserById(apiCredentialUser.id);
       if (!user) {
-        throw new TtsRequestError(401, "API Key 所属用户不存在", "TTS_API_KEY_USER_NOT_FOUND");
+        throw new TtsRequestError(401, "API 凭据所属用户不存在", "TTS_API_CREDENTIAL_USER_NOT_FOUND");
       }
       if ((user as { accountStatus?: string }).accountStatus === "suspended") {
         throw new TtsRequestError(403, "账户已被封停", "TTS_ACCOUNT_SUSPENDED");
@@ -177,7 +177,7 @@ export class TtsController {
         userAgent: req.headers["user-agent"],
         path: req.originalUrl || req.path,
         method: req.method,
-        authenticatedByApiKey: Boolean((req as any).apiKey),
+        authenticatedByApiKey: Boolean((req as any).apiKey || (req as any).oauthToken),
       });
 
       const createdAt = new Date().toISOString();

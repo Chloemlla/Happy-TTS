@@ -34,11 +34,13 @@ export class IPFSController {
         const username = (req as any).user?.username || "admin";
         const isAdmin = (req as any).user?.role === "admin";
         const authenticatedByApiKey = Boolean((req as any).apiKey);
+        const authenticatedByOAuth = Boolean((req as any).oauthToken);
+        const authenticatedByApiCredential = authenticatedByApiKey || authenticatedByOAuth;
 
         // 检查是否为本地开发环境的管理员请求
         const isLocalIp = ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(ip);
         const isDev = process.env.NODE_ENV !== "production";
-        const shouldSkipTurnstile = authenticatedByApiKey || (isAdmin && isLocalIp && isDev);
+        const shouldSkipTurnstile = authenticatedByApiCredential || (isAdmin && isLocalIp && isDev);
 
         if (shouldSkipTurnstile) {
           logger.info("认证上传请求，将跳过Turnstile验证", {
@@ -47,6 +49,7 @@ export class IPFSController {
             username,
             isAdmin,
             authenticatedByApiKey,
+            authenticatedByOAuth,
             isDev,
             environment: process.env.NODE_ENV || "development",
           });

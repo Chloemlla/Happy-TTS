@@ -14,7 +14,6 @@ import {
 import {
   ADMIN_PERMISSION,
   API_KEY_PERMISSION_DEFINITIONS,
-  ALL_PERMISSIONS,
   type ApiKeyPermissionDefinition,
 } from "./apiKeyService";
 import logger from "../utils/logger";
@@ -179,7 +178,7 @@ export const OAUTH_SCOPE_DEFINITIONS: OAuthScopeDefinition[] = [
 
 const scopeDefinitionMap = new Map(OAUTH_SCOPE_DEFINITIONS.map((scope) => [scope.key, scope]));
 const knownScopeSet = new Set(OAUTH_SCOPE_DEFINITIONS.map((scope) => scope.key));
-const apiScopeSet = new Set<string>(ALL_PERMISSIONS);
+const apiScopeSet = new Set<string>(apiScopeDefinitions.map((scope) => scope.key));
 const defaultClientScopes = ["openid", "profile", "email", "admin:identity", "status"];
 const defaultRequestedScopes = ["openid", "profile", "admin:identity"];
 
@@ -253,7 +252,7 @@ function normalizeRedirectUris(value: unknown): string[] {
 function normalizeUrlField(value: unknown, field: string): string | null {
   const normalized = normalizeOptionalText(value, 512);
   if (!normalized) return null;
-  if (!isValidUrl(normalized, { allowHttpLocalhost: true })) {
+  if (!isValidUrl(normalized)) {
     throw new OAuthError(400, "invalid_client_metadata", `${field} 必须是有效 URL`);
   }
   return normalized;
