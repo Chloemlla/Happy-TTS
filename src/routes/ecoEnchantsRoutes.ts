@@ -42,6 +42,16 @@ function bodyRateLimitKey(req: Request, scope: string, field: string): string {
   return scopedRateLimitKey(scope, subject);
 }
 
+function telemetryRateLimitKey(req: Request): string {
+  const headerInstallationId = firstString(req.headers["x-eco-installation-id"]);
+  const bodyInstallationId = getBodyString(req, "installationId");
+  const subject = headerInstallationId || bodyInstallationId;
+  return scopedRateLimitKey(
+    "ecoenchants:telemetry:events",
+    subject ? `installation:${subject.toLowerCase()}` : `ip:${getRequestIp(req)}`,
+  );
+}
+
 function authenticatedRateLimitKey(req: Request, scope: string): string {
   const downloadToken = (req as any).ecoEnchantsDownloadToken;
   const user = (req as any).user;
@@ -98,6 +108,16 @@ const licenseDeactivateLimiter = createLimiter({
   message: "License deactivation requests are too frequent, please retry later.",
   keyGenerator: (req: Request) => bodyRateLimitKey(req, "ecoenchants:licenses:deactivate", "licenseKey"),
   handler: ecoRateLimitHandler("License deactivation requests are too frequent, please retry later.", 24 * 60 * 60),
+});
+
+const telemetryEventsLimiter = createLimiter({
+  name: "ecoenchantsTelemetryEvents",
+  category: "public-api",
+  windowMs: 60 * 1000,
+  max: 120,
+  message: "Telemetry event reports are too frequent, please retry later.",
+  keyGenerator: telemetryRateLimitKey,
+  handler: ecoRateLimitHandler("Telemetry event reports are too frequent, please retry later.", 60),
 });
 
 const customerIpLimiter = createLimiter({
@@ -260,6 +280,8 @@ router.get("/products/:productId/policy", EcoEnchantsController.productPolicy);
 router.post("/licenses/verify", licenseVerifyLimiter, EcoEnchantsController.verifyLicense);
 router.post("/licenses/activate", licenseActivateLimiter, EcoEnchantsController.activateLicense);
 router.post("/licenses/deactivate", licenseDeactivateLimiter, EcoEnchantsController.deactivateLicense);
+
+router.post("/telemetry/events", telemetryEventsLimiter, EcoEnchantsController.reportRuntimeTelemetryEvents);
 
 router.get("/downloads/latest", downloadIpLimiter, authenticateEcoDownload, downloadLimiter, EcoEnchantsController.latestDownload);
 

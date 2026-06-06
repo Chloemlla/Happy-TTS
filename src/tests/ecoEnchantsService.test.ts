@@ -35,6 +35,9 @@ jest.mock("../models/ecoEnchantsModel", () => ({
   EcoEnchantsRiskEventModel: {
     create: jest.fn(),
   },
+  EcoEnchantsTelemetryEventModel: {
+    create: jest.fn(),
+  },
   EcoEnchantsWebhookEventModel: {
     findOne: jest.fn(),
     create: jest.fn(),
@@ -49,8 +52,13 @@ import {
   EcoEnchantsPlanModel,
   EcoEnchantsReleaseBuildModel,
   EcoEnchantsRiskEventModel,
+  EcoEnchantsTelemetryEventModel,
 } from "../models/ecoEnchantsModel";
-import { EcoEnchantsService, type LicenseVerifyRequest } from "../services/ecoEnchantsService";
+import {
+  EcoEnchantsService,
+  type LicenseVerifyRequest,
+  verifyEcoEnchantsRuntimeActivationToken,
+} from "../services/ecoEnchantsService";
 
 const mockedLicenseModel = EcoEnchantsLicenseModel as jest.Mocked<typeof EcoEnchantsLicenseModel>;
 const mockedActivationModel = EcoEnchantsActivationModel as jest.Mocked<typeof EcoEnchantsActivationModel>;
@@ -58,6 +66,7 @@ const mockedPlanModel = EcoEnchantsPlanModel as jest.Mocked<typeof EcoEnchantsPl
 const mockedReleaseBuildModel = EcoEnchantsReleaseBuildModel as jest.Mocked<typeof EcoEnchantsReleaseBuildModel>;
 const mockedAuditLogModel = EcoEnchantsAuditLogModel as jest.Mocked<typeof EcoEnchantsAuditLogModel>;
 const mockedRiskEventModel = EcoEnchantsRiskEventModel as jest.Mocked<typeof EcoEnchantsRiskEventModel>;
+const mockedTelemetryEventModel = EcoEnchantsTelemetryEventModel as jest.Mocked<typeof EcoEnchantsTelemetryEventModel>;
 const mockedIdempotencyModel = EcoEnchantsIdempotencyRecordModel as jest.Mocked<
   typeof EcoEnchantsIdempotencyRecordModel
 >;
@@ -125,6 +134,15 @@ describe("EcoEnchantsService.verifyLicense", () => {
 
     expect(result.status).toBe("valid");
     expect(result.activation?.activationId).toBe("act_test");
+    expect((result as any).activationId).toBe("act_test");
+    expect((result as any).activationToken).toEqual(expect.any(String));
+    expect((result as any).activationTokenExpiresAt).toEqual(expect.any(String));
+    expect(verifyEcoEnchantsRuntimeActivationToken((result as any).activationToken)).toMatchObject({
+      productId: "ecoenchants",
+      licenseId: "lic_test",
+      activationId: "act_test",
+      scope: "runtime.telemetry",
+    });
     expect(activation.save).toHaveBeenCalledTimes(1);
     expect(mockedReleaseBuildModel.findOne).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -230,6 +248,98 @@ describe("EcoEnchantsService.verifyLicense", () => {
 
     expect(result.status).toBe("activation_limit_exceeded");
     expect(mockedActivationModel.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("EcoEnchantsService.reportRuntimeTelemetryEvents", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedAuditLogModel.create.mockResolvedValue({} as any);
+    mockedRiskEventModel.create.mockResolvedValue({} as any);
+  });
+
+  it("accepts new events, counts duplicates, and reports invalid events without failing the batch", async () => {
+    const license = createLicense();
+    const activation = {
+      activationId: "act_test",
+      licenseId: "lic_test",
+      installationIdHash: "hash",
+      status: "active",
+      save: jest.fn().mockResolvedValue(undefined),
+    } as any;
+
+    mockedLicenseModel.findOne.mockResolvedValue(license);
+    mockedReleaseBuildModel.findOne.mockResolvedValue({ buildId: "build_test" } as any);
+    mockedActivationModel.findOne.mockResolvedValue(activation);
+    mockedActivationModel.countDocuments.mockResolvedValue(1);
+    mockedTelemetryEventModel.create
+      .mockResolvedValueOnce({ telemetryEventId: "tel_1" } as any)
+      .mockRejectedValueOnce({ code: 11000 });
+
+    const verifyResult = (await EcoEnchantsService.verifyLicense(baseVerifyRequest, {
+      requestId: "req_verify",
+    })) as any;
+
+    const result = await EcoEnchantsService.reportRuntimeTelemetryEvents(
+      {
+        productId: "ecoenchants",
+        installationId: "install-1",
+        activationId: "act_test",
+        plugin: { version: "13.0.0", channel: "stable" },
+        server: { platform: "Paper", minecraftVersion: "1.21.11" },
+        batch: { id: "batch-1", sequence: 1, eventCount: 3 },
+        events: [
+          {
+            eventId: "evt_1",
+            timestamp: "2026-06-06T08:00:00Z",
+            category: "identity_anchor",
+            payload: {},
+          },
+          {
+            eventId: "evt_2",
+            timestamp: "2026-06-06T08:00:01Z",
+            category: "client_context",
+            payload: { protocolVersion: 770 },
+          },
+          {
+            eventId: "evt_bad",
+            timestamp: "not-a-date",
+            category: "client_context",
+            payload: {},
+          },
+        ],
+      },
+      {
+        authorization: `Bearer ${verifyResult.activationToken}`,
+        idempotencyKey: "batch-id",
+        productId: "ecoenchants",
+        installationId: "install-1",
+        pluginVersion: "13.0.0",
+      },
+      { requestId: "req_telemetry", actorType: "license" },
+    );
+
+    expect(result).toMatchObject({
+      requestId: "req_telemetry",
+      status: "accepted",
+      acceptedEvents: 1,
+      duplicateEvents: 1,
+    });
+    expect(result.rejectedEvents).toHaveLength(1);
+    expect(result.rejectedEvents[0]).toMatchObject({
+      eventId: "evt_bad",
+      code: "invalid_timestamp",
+    });
+    expect(mockedTelemetryEventModel.create).toHaveBeenCalledTimes(2);
+    expect(mockedTelemetryEventModel.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        productId: "ecoenchants",
+        licenseId: "lic_test",
+        activationId: "act_test",
+        eventId: "evt_1",
+        idempotencyKey: "batch-id",
+      }),
+    );
   });
 });
 

@@ -1084,6 +1084,7 @@ export const postTamperRouteModules: RouteModule[] = [
         "ecoenchantsLicenseVerify",
         "ecoenchantsLicenseActivate",
         "ecoenchantsLicenseDeactivate",
+        "ecoenchantsTelemetryEvents",
         "ecoenchantsCustomerIp",
         "ecoenchantsCustomer",
         "ecoenchantsDownloadIp",
@@ -1092,7 +1093,7 @@ export const postTamperRouteModules: RouteModule[] = [
         "ecoenchantsAdmin",
         "ecoenchantsOpsRegister",
       ],
-      note: "The EcoEnchants router applies dedicated route-level IP and authenticated-subject limiters for license, customer, download, admin, and ops-registration flows.",
+      note: "The EcoEnchants router applies dedicated route-level IP and authenticated-subject limiters for license, telemetry, customer, download, admin, and ops-registration flows.",
     },
   },
   {
