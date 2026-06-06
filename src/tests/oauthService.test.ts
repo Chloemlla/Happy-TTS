@@ -8,7 +8,9 @@ import {
   normalizeOAuthScopes,
   OAuthError,
   parseClientBasicAuth,
+  updateOAuthClient,
 } from "../services/oauthService";
+import { OAuthClientModel } from "../models/oauthModel";
 
 const baseAuthorizeRequest = {
   response_type: "code",
@@ -16,6 +18,25 @@ const baseAuthorizeRequest = {
   redirect_uri: "https://client.example/callback",
   scope: "openid profile admin:identity",
 };
+
+const makeOAuthClientDoc = (overrides: Record<string, unknown> = {}) => ({
+  clientId: "syn_client_edit",
+  clientSecretHash: "secret-hash",
+  type: "confidential",
+  name: "Original Client",
+  description: null,
+  homepageUrl: null,
+  logoUrl: null,
+  redirectUris: ["https://client.example/callback"],
+  allowedScopes: ["openid", "profile", "admin:identity"],
+  ownerUserId: "admin-1",
+  rateLimitPerMinute: 120,
+  enabled: true,
+  lastUsedAt: null,
+  createdAt: new Date("2026-01-01T00:00:00.000Z"),
+  updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+  ...overrides,
+});
 
 describe("oauthService", () => {
   it("does not expose the API key admin wildcard as an OAuth API scope", () => {
@@ -78,6 +99,68 @@ describe("oauthService", () => {
     ]);
 
     expect(() => normalizeOAuthScopes("openid tts", { allowedScopes: ["openid"] })).toThrow(OAuthError);
+  });
+
+  it("updates OAuth client metadata and access settings", async () => {
+    const current = makeOAuthClientDoc();
+    let capturedPatch: Record<string, unknown> | null = null;
+
+    jest.spyOn(OAuthClientModel, "findOne").mockReturnValue({
+      lean: jest.fn().mockResolvedValue(current),
+    } as any);
+    jest.spyOn(OAuthClientModel, "findOneAndUpdate").mockImplementation((_query: any, update: any) => {
+      capturedPatch = update.$set;
+      return {
+        lean: jest.fn().mockResolvedValue(makeOAuthClientDoc(update.$set)),
+      } as any;
+    });
+
+    const updated = await updateOAuthClient("syn_client_edit", {
+      name: "Gemini Admin",
+      description: "Gemini admin OAuth client",
+      homepageUrl: "https://gemini.chloemlla.com/admin",
+      logoUrl: "https://gemini.chloemlla.com/logo.png",
+      redirectUris: [
+        "https://gemini.chloemlla.com/api/admin/auth/callback",
+        "http://localhost:8080/api/admin/auth/callback",
+      ],
+      allowedScopes: "openid profile email admin:identity",
+      rateLimitPerMinute: 300,
+      enabled: false,
+    });
+
+    expect(OAuthClientModel.findOne).toHaveBeenCalledWith({ clientId: "syn_client_edit" });
+    expect(capturedPatch).toEqual(
+      expect.objectContaining({
+        name: "Gemini Admin",
+        description: "Gemini admin OAuth client",
+        homepageUrl: "https://gemini.chloemlla.com/admin",
+        logoUrl: "https://gemini.chloemlla.com/logo.png",
+        redirectUris: [
+          "https://gemini.chloemlla.com/api/admin/auth/callback",
+          "http://localhost:8080/api/admin/auth/callback",
+        ],
+        allowedScopes: ["openid", "profile", "email", "admin:identity"],
+        rateLimitPerMinute: 300,
+        enabled: false,
+      }),
+    );
+    expect(updated).toEqual(
+      expect.objectContaining({
+        clientId: "syn_client_edit",
+        name: "Gemini Admin",
+        description: "Gemini admin OAuth client",
+        homepageUrl: "https://gemini.chloemlla.com/admin",
+        logoUrl: "https://gemini.chloemlla.com/logo.png",
+        redirectUris: [
+          "https://gemini.chloemlla.com/api/admin/auth/callback",
+          "http://localhost:8080/api/admin/auth/callback",
+        ],
+        allowedScopes: ["openid", "profile", "email", "admin:identity"],
+        rateLimitPerMinute: 300,
+        enabled: false,
+      }),
+    );
   });
 
   it("builds userinfo with Synapse admin identity fields", () => {

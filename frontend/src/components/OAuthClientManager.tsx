@@ -4,18 +4,41 @@ import {
   FaBan,
   FaCheck,
   FaCopy,
+  FaEdit,
   FaKey,
   FaPlus,
   FaRedo,
+  FaSave,
   FaSearch,
   FaShieldAlt,
   FaSyncAlt,
+  FaTimes,
   FaTrash,
 } from 'react-icons/fa';
 import { oauthApi, type OAuthClient, type OAuthGrant, type OAuthScopeDefinition } from '../api/oauth';
 import { useNotification } from './Notification';
 
 const defaultScopes = ['openid', 'profile', 'admin:identity', 'status'];
+
+type ClientFormState = {
+  name: string;
+  description: string;
+  homepageUrl: string;
+  logoUrl: string;
+  redirectUris: string;
+  rateLimitPerMinute: number;
+  selectedScopes: string[];
+};
+
+const createEmptyClientForm = (): ClientFormState => ({
+  name: '',
+  description: '',
+  homepageUrl: '',
+  logoUrl: '',
+  redirectUris: '',
+  rateLimitPerMinute: 120,
+  selectedScopes: [...defaultScopes],
+});
 
 const formatDate = (value?: string | null) => {
   if (!value) return '-';
@@ -35,6 +58,9 @@ const OAuthClientManager: React.FC = () => {
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState('');
   const [revealedSecret, setRevealedSecret] = useState<{ clientId: string; secret: string } | null>(null);
+  const [editingClientId, setEditingClientId] = useState<string | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editForm, setEditForm] = useState<ClientFormState>(createEmptyClientForm);
 
   const [name, setName] = useState('');
   const [type, setType] = useState<'confidential' | 'public'>('confidential');
@@ -82,6 +108,19 @@ const OAuthClientManager: React.FC = () => {
     );
   };
 
+  const toggleEditScope = (scope: string) => {
+    setEditForm((current) => ({
+      ...current,
+      selectedScopes: current.selectedScopes.includes(scope)
+        ? current.selectedScopes.filter((item) => item !== scope)
+        : [...current.selectedScopes, scope],
+    }));
+  };
+
+  const updateEditForm = <K extends keyof ClientFormState>(field: K, value: ClientFormState[K]) => {
+    setEditForm((current) => ({ ...current, [field]: value }));
+  };
+
   const resetForm = () => {
     setName('');
     setType('confidential');
@@ -93,12 +132,67 @@ const OAuthClientManager: React.FC = () => {
     setSelectedScopes(defaultScopes);
   };
 
+  const beginEdit = (client: OAuthClient) => {
+    setRevealedSecret(null);
+    setEditingClientId(client.clientId);
+    setEditForm({
+      name: client.name,
+      description: client.description || '',
+      homepageUrl: client.homepageUrl || '',
+      logoUrl: client.logoUrl || '',
+      redirectUris: client.redirectUris.join('\n'),
+      rateLimitPerMinute: client.rateLimitPerMinute || 120,
+      selectedScopes: client.allowedScopes.length > 0 ? client.allowedScopes : defaultScopes,
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingClientId(null);
+    setEditSaving(false);
+    setEditForm(createEmptyClientForm());
+  };
+
   const copy = async (value: string) => {
     try {
       await navigator.clipboard.writeText(value);
       setNotification({ message: '已复制到剪贴板', type: 'success' });
     } catch {
       setNotification({ message: '复制失败', type: 'error' });
+    }
+  };
+
+  const saveClient = async (client: OAuthClient) => {
+    if (!editForm.name.trim()) {
+      setNotification({ message: '请输入客户端名称', type: 'warning' });
+      return;
+    }
+    if (!editForm.redirectUris.trim()) {
+      setNotification({ message: '请至少配置一个回调地址', type: 'warning' });
+      return;
+    }
+    if (editForm.selectedScopes.length === 0) {
+      setNotification({ message: '请至少选择一个 scope', type: 'warning' });
+      return;
+    }
+
+    setEditSaving(true);
+    try {
+      await oauthApi.updateClient(client.clientId, {
+        name: editForm.name.trim(),
+        description: editForm.description.trim() || null,
+        homepageUrl: editForm.homepageUrl.trim() || null,
+        logoUrl: editForm.logoUrl.trim() || null,
+        redirectUris: editForm.redirectUris,
+        allowedScopes: editForm.selectedScopes,
+        rateLimitPerMinute: editForm.rateLimitPerMinute,
+      });
+      setNotification({ message: 'OAuth 客户端信息已更新', type: 'success' });
+      cancelEdit();
+      await loadAll();
+    } catch (error) {
+      setNotification({ message: getErrorMessage(error), type: 'error' });
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -181,15 +275,15 @@ const OAuthClientManager: React.FC = () => {
     }
   };
 
-  const renderScopeSelector = () => (
+  const renderScopeSelector = (activeScopes: string[], onToggle: (scope: string) => void) => (
     <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
       {scopes.map((scope) => {
-        const active = selectedScopes.includes(scope.key);
+        const active = activeScopes.includes(scope.key);
         return (
           <button
             key={scope.key}
             type="button"
-            onClick={() => toggleScope(scope.key)}
+            onClick={() => onToggle(scope.key)}
             className={`min-h-[82px] rounded-lg border px-3 py-2 text-left transition ${
               active
                 ? 'border-slate-900 bg-slate-900 text-white'
@@ -307,7 +401,7 @@ const OAuthClientManager: React.FC = () => {
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:ring-2 focus:ring-slate-900 lg:col-span-2"
           />
         </div>
-        <div className="mt-4">{renderScopeSelector()}</div>
+        <div className="mt-4">{renderScopeSelector(selectedScopes, toggleScope)}</div>
         <motion.button
           type="button"
           onClick={createClient}
@@ -377,6 +471,14 @@ const OAuthClientManager: React.FC = () => {
                   <div className="flex shrink-0 flex-wrap gap-2">
                     <button
                       type="button"
+                      onClick={() => (editingClientId === client.clientId ? cancelEdit() : beginEdit(client))}
+                      className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50"
+                      title={editingClientId === client.clientId ? '取消编辑' : '编辑客户端信息'}
+                    >
+                      {editingClientId === client.clientId ? <FaTimes /> : <FaEdit />}
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => copy(client.clientId)}
                       className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-50"
                       title="复制 clientId"
@@ -422,6 +524,78 @@ const OAuthClientManager: React.FC = () => {
                     </button>
                   </div>
                 </div>
+                {editingClientId === client.clientId && (
+                  <div className="mt-4 border-t border-slate-100 pt-4">
+                    <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="text-sm font-semibold text-slate-900">编辑客户端信息</div>
+                      <div className="text-xs text-slate-500">客户端类型和 secret 不在此处修改</div>
+                    </div>
+                    <div className="grid gap-3 lg:grid-cols-2">
+                      <input
+                        value={editForm.name}
+                        onChange={(event) => updateEditForm('name', event.target.value)}
+                        placeholder="客户端名称"
+                        className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:ring-2 focus:ring-slate-900"
+                      />
+                      <input
+                        type="number"
+                        min={1}
+                        max={1000}
+                        value={editForm.rateLimitPerMinute}
+                        onChange={(event) => {
+                          const value = Math.min(Math.max(Number(event.target.value) || 120, 1), 1000);
+                          updateEditForm('rateLimitPerMinute', value);
+                        }}
+                        className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:ring-2 focus:ring-slate-900"
+                      />
+                      <input
+                        value={editForm.homepageUrl}
+                        onChange={(event) => updateEditForm('homepageUrl', event.target.value)}
+                        placeholder="应用主页 URL（可选）"
+                        className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:ring-2 focus:ring-slate-900"
+                      />
+                      <input
+                        value={editForm.logoUrl}
+                        onChange={(event) => updateEditForm('logoUrl', event.target.value)}
+                        placeholder="Logo URL（可选）"
+                        className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:ring-2 focus:ring-slate-900"
+                      />
+                      <input
+                        value={editForm.description}
+                        onChange={(event) => updateEditForm('description', event.target.value)}
+                        placeholder="说明（可选）"
+                        className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:ring-2 focus:ring-slate-900 lg:col-span-2"
+                      />
+                      <textarea
+                        value={editForm.redirectUris}
+                        onChange={(event) => updateEditForm('redirectUris', event.target.value)}
+                        placeholder="回调地址，每行一个"
+                        rows={3}
+                        className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:ring-2 focus:ring-slate-900 lg:col-span-2"
+                      />
+                    </div>
+                    <div className="mt-4">{renderScopeSelector(editForm.selectedScopes, toggleEditScope)}</div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => saveClient(client)}
+                        disabled={editSaving}
+                        className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+                      >
+                        {editSaving ? <FaSyncAlt className="animate-spin" /> : <FaSave />}
+                        保存修改
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelEdit}
+                        disabled={editSaving}
+                        className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                      >
+                        <FaTimes /> 取消
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
