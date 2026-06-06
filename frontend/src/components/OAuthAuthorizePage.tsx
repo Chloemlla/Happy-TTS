@@ -312,7 +312,7 @@ const OAuthAuthorizePage: React.FC = () => {
               <div className="rounded-xl bg-slate-50 p-3">
                 <div className="text-xs font-semibold text-slate-400">管理员识别字段</div>
                 <code className="mt-2 block break-all text-xs text-slate-700">
-                  role / isAdmin / synapseAdmin
+                  role / isAdmin / is_admin / synapseAdmin
                 </code>
               </div>
             </div>
@@ -322,7 +322,7 @@ const OAuthAuthorizePage: React.FC = () => {
             <div className="flex items-start gap-3">
               <FaShieldAlt className="mt-1 shrink-0 text-amber-700" />
               <p className="text-sm leading-7 text-amber-900">
-                同意后，第三方应用将拿到授权码并交换 Synapse OAuth access token。信用者可以完成授权，但管理员识别字段会返回 false，管理员接口仍只接受管理员账号。
+                同意后，第三方应用将拿到授权码并交换 Synapse OAuth access token。信用者可以完成授权，管理员识别字段返回 false，信用者识别字段返回 true，管理员接口仍只接受管理员账号。
               </p>
             </div>
           </div>

@@ -431,9 +431,27 @@ function appendRedirectParams(redirectUri: string, params: Record<string, string
   return url.toString();
 }
 
+export function buildOAuthIdentityClaims(user: Pick<User, "role">): Record<string, unknown> {
+  const isAdmin = user.role === "admin";
+  const isTrusted = user.role === "trusted";
+
+  return {
+    role: user.role,
+    roles: [user.role],
+    isAdmin,
+    is_admin: isAdmin,
+    admin: isAdmin,
+    synapseAdmin: isAdmin,
+    synapse_admin: isAdmin,
+    isTrusted,
+    is_trusted: isTrusted,
+    synapseTrusted: isTrusted,
+    synapse_trusted: isTrusted,
+  };
+}
+
 function buildUserProfile(user: User, scopes: string[]): Record<string, unknown> {
   const scopeSet = new Set(scopes);
-  const isAdmin = user.role === "admin";
   const profile: Record<string, unknown> = {
     sub: user.id,
     id: user.id,
@@ -443,9 +461,7 @@ function buildUserProfile(user: User, scopes: string[]): Record<string, unknown>
     profile.username = user.username;
     profile.name = user.username;
     profile.avatarUrl = user.avatarUrl || null;
-    profile.role = user.role;
-    profile.isAdmin = isAdmin;
-    profile.synapseAdmin = isAdmin;
+    Object.assign(profile, buildOAuthIdentityClaims(user));
     profile.authProvider = user.authProvider || "local";
     profile.createdAt = user.createdAt;
     profile.accountStatus = user.accountStatus || "active";
@@ -929,9 +945,7 @@ export async function introspectOAuthToken(opts: {
       scope: context.scopes.join(" "),
       exp: Math.floor(context.token.accessTokenExpiresAt.getTime() / 1000),
       token_type: "Bearer",
-      role: context.user.role,
-      isAdmin: context.user.role === "admin",
-      synapseAdmin: context.user.role === "admin",
+      ...buildOAuthIdentityClaims(context.user),
     };
   } catch {
     return { active: false };

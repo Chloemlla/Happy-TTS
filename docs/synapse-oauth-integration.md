@@ -1,6 +1,6 @@
 # Synapse OAuth 第三方接入文档
 全文BASE_URL：https://tts.chloemlla.com/
-本文档面向需要接入 Synapse 的第三方应用，说明 OAuth 客户端注册、管理员授权、token 交换、管理员身份鉴别、用户资料读取以及 API scope 调用方式。
+本文档面向需要接入 Synapse 的第三方应用，说明 OAuth 客户端注册、管理员或信用者授权、token 交换、管理员身份鉴别、用户资料读取以及 API scope 调用方式。
 
 ## 1. 接入模型
 
@@ -8,18 +8,18 @@ Synapse 作为 OAuth 2.0 Provider，对第三方应用开放授权码模式。
 
 核心约束：
 
-- 授权主体必须是 Synapse 已存在用户，并且当前角色必须是 `admin`。
-- 非管理员用户不能打开授权预览，也不能同意授权。
-- 如果授权管理员后续被降级、封停或删除，已签发的 OAuth access token 在校验时会失效。
+- 授权主体必须是 Synapse 已存在用户，并且当前角色必须是 `admin` 或 `trusted`。
+- 普通用户不能打开授权预览，也不能同意授权。
+- 如果授权用户后续被降级为普通用户、封停或删除，已签发的 OAuth access token 在校验时会失效。
 - OAuth 不开放后台管理通配权限 `*`。第三方只能使用客户端允许的 identity scopes 和明确列出的 API scopes。
 - 第三方 API 调用使用 `Authorization: Bearer <access_token>`，不需要 `X-API-Key`。
 
 推荐流程：
 
 1. Synapse 管理员在后台创建 OAuth 客户端。
-2. 第三方应用将管理员跳转到 Synapse 授权页。
-3. Synapse 授权页展示应用信息、回调地址、scope 明细和当前授权管理员。
-4. 管理员同意后，第三方拿到 authorization code。
+2. 第三方应用将管理员或信用者跳转到 Synapse 授权页。
+3. Synapse 授权页展示应用信息、回调地址、scope 明细和当前授权用户。
+4. 授权用户同意后，第三方拿到 authorization code。
 5. 第三方后端使用 code 换取 access token 和 refresh token。
 6. 第三方调用 `/api/oauth/userinfo` 或 `/api/oauth/introspect` 鉴别管理员身份。
 7. 第三方用 access token 调用已授权的 Synapse API 能力。
@@ -127,10 +127,10 @@ Identity scopes：
 
 | Scope | 说明 |
 | --- | --- |
-| `openid` | 返回授权管理员的唯一用户 ID。 |
-| `profile` | 返回用户名、头像、角色、管理员状态、账号状态等基础资料。 |
-| `email` | 返回授权管理员邮箱。 |
-| `admin:identity` | 明确返回 `role`、`isAdmin`、`synapseAdmin`，供第三方鉴别 Synapse 管理员身份。 |
+| `openid` | 返回授权用户的唯一用户 ID。 |
+| `profile` | 返回用户名、头像、角色、管理员状态、信用者状态、账号状态等基础资料。 |
+| `email` | 返回授权用户邮箱。 |
+| `admin:identity` | 明确返回 `role`、`isAdmin`、`is_admin`、`synapseAdmin`、`synapse_admin` 等字段，供第三方鉴别 Synapse 管理员身份。 |
 
 API scopes：
 
@@ -150,7 +150,7 @@ API scopes：
 
 ## 5. 授权请求
 
-第三方应用将管理员浏览器跳转到：
+第三方应用将管理员或信用者浏览器跳转到：
 
 ```text
 GET /oauth/authorize
@@ -174,7 +174,7 @@ GET /oauth/authorize
 https://synapse.example.com/oauth/authorize?response_type=code&client_id=syn_client_xxx&redirect_uri=https%3A%2F%2Fpartner.example.com%2Foauth%2Fsynapse%2Fcallback&scope=openid%20profile%20email%20admin%3Aidentity%20tts&state=random_state
 ```
 
-如果管理员未登录，前端会引导到登录页并在登录后回到授权页。如果登录用户不是管理员，授权页不会允许继续授权。
+如果授权用户未登录，前端会引导到登录页并在登录后回到授权页。如果登录用户不是管理员或信用者，授权页不会允许继续授权。
 
 同意后 Synapse 跳转：
 
@@ -185,7 +185,7 @@ https://partner.example.com/oauth/synapse/callback?code=syn_oac_xxx&state=random
 拒绝后 Synapse 跳转：
 
 ```text
-https://partner.example.com/oauth/synapse/callback?error=access_denied&error_description=授权管理员拒绝了请求&state=random_state
+https://partner.example.com/oauth/synapse/callback?error=access_denied&error_description=授权用户拒绝了请求&state=random_state
 ```
 
 第三方必须校验返回的 `state` 与发起授权时保存的一致。
@@ -252,8 +252,14 @@ curl -X POST "https://synapse.example.com/api/oauth/token" \
     "name": "admin",
     "avatarUrl": "https://cdn.example.com/avatar.png",
     "role": "admin",
+    "roles": ["admin"],
     "isAdmin": true,
+    "is_admin": true,
+    "admin": true,
     "synapseAdmin": true,
+    "synapse_admin": true,
+    "isTrusted": false,
+    "is_trusted": false,
     "authProvider": "local",
     "createdAt": "2026-01-01T00:00:00.000Z",
     "accountStatus": "active",
@@ -289,7 +295,7 @@ curl -X POST "https://synapse.example.com/api/oauth/token" \
 - grant 没有被撤销。
 - 授权用户仍存在。
 - 授权用户没有被封停。
-- 授权用户仍然是 `admin`。
+- 授权用户仍然是 `admin` 或 `trusted`。
 
 如果校验通过，旧 token 会被吊销，并返回新的 access token 和 refresh token。
 
@@ -319,8 +325,14 @@ curl "https://synapse.example.com/api/oauth/userinfo" \
   "name": "admin",
   "avatarUrl": "https://cdn.example.com/avatar.png",
   "role": "admin",
+  "roles": ["admin"],
   "isAdmin": true,
+  "is_admin": true,
+  "admin": true,
   "synapseAdmin": true,
+  "synapse_admin": true,
+  "isTrusted": false,
+  "is_trusted": false,
   "authProvider": "local",
   "createdAt": "2026-01-01T00:00:00.000Z",
   "accountStatus": "active",
@@ -338,7 +350,9 @@ synapseAdmin === true
 accountStatus === "active"
 ```
 
-如果 token 对应用户已不是管理员，接口会返回错误，不会继续返回管理员身份。
+兼容只支持 snake_case 的客户端时，也可以检查 `is_admin === true` 和 `synapse_admin === true`。信用者授权会返回 `role === "trusted"`、`isTrusted === true`，但管理员字段仍为 `false`。
+
+如果 token 对应用户已不是管理员或信用者，接口会返回错误，不会继续返回身份资料。
 
 ## 9. Token introspection
 
@@ -371,12 +385,18 @@ curl -X POST "https://synapse.example.com/api/oauth/introspect" \
   "exp": 1780000000,
   "token_type": "Bearer",
   "role": "admin",
+  "roles": ["admin"],
   "isAdmin": true,
-  "synapseAdmin": true
+  "is_admin": true,
+  "admin": true,
+  "synapseAdmin": true,
+  "synapse_admin": true,
+  "isTrusted": false,
+  "is_trusted": false
 }
 ```
 
-无效、过期、已撤销、客户端不匹配、用户不再是管理员时：
+无效、过期、已撤销、客户端不匹配、用户不再是管理员或信用者时：
 
 ```json
 {

@@ -6,6 +6,7 @@ import {
   deleteOAuthClient,
   denyAuthorization,
   exchangeAuthorizationCode,
+  buildOAuthIdentityClaims,
   getOAuthScopeDefinitions,
   getOAuthServerMetadata,
   getOAuthUserInfo,
@@ -203,9 +204,7 @@ export class OAuthController {
           id: authorizingUser.id,
           username: authorizingUser.username,
           email: authorizingUser.email,
-          role: authorizingUser.role,
-          isAdmin: authorizingUser.role === "admin",
-          synapseAdmin: authorizingUser.role === "admin",
+          ...buildOAuthIdentityClaims(authorizingUser),
           avatarUrl: authorizingUser.avatarUrl || null,
         },
       });

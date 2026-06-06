@@ -193,8 +193,14 @@ describe("oauthService", () => {
         username: "root",
         email: "root@example.com",
         role: "admin",
+        roles: ["admin"],
         isAdmin: true,
+        is_admin: true,
+        admin: true,
         synapseAdmin: true,
+        synapse_admin: true,
+        isTrusted: false,
+        is_trusted: false,
         accountStatus: "active",
       }),
     );
@@ -222,9 +228,42 @@ describe("oauthService", () => {
         username: "trusted-user",
         email: "trusted@example.com",
         role: "trusted",
+        roles: ["trusted"],
         isAdmin: false,
+        is_admin: false,
+        admin: false,
         synapseAdmin: false,
+        synapse_admin: false,
+        isTrusted: true,
+        is_trusted: true,
         accountStatus: "active",
+      }),
+    );
+  });
+
+  it("returns admin identity aliases when only admin:identity is requested", () => {
+    const userinfo = getOAuthUserInfo({
+      user: {
+        id: "admin-2",
+        username: "owner",
+        email: "owner@example.com",
+        role: "admin",
+        authProvider: "local",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        accountStatus: "active",
+      },
+      scopes: ["openid", "admin:identity"],
+    } as any);
+
+    expect(userinfo).toEqual(
+      expect.objectContaining({
+        sub: "admin-2",
+        role: "admin",
+        isAdmin: true,
+        is_admin: true,
+        admin: true,
+        synapseAdmin: true,
+        synapse_admin: true,
       }),
     );
   });
