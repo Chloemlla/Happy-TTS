@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import {
   approveAuthorization,
+  canAuthorizeOAuth,
   createOAuthClient,
   deleteOAuthClient,
   denyAuthorization,
@@ -36,6 +37,11 @@ function getPublicBaseUrl(req: Request): string {
 function getAdminUser(req: Request): any | null {
   const user = (req as any).user;
   return user?.role === "admin" ? user : null;
+}
+
+function getOAuthAuthorizingUser(req: Request): any | null {
+  const user = (req as any).user;
+  return canAuthorizeOAuth(user) ? user : null;
 }
 
 function handleOAuthError(res: Response, error: unknown, logTag: string): Response {
@@ -181,11 +187,11 @@ export class OAuthController {
   public static async authorizePreview(req: Request, res: Response) {
     try {
       sendNoStoreHeaders(res);
-      const admin = getAdminUser(req);
-      if (!admin) {
+      const authorizingUser = getOAuthAuthorizingUser(req);
+      if (!authorizingUser) {
         return res.status(403).json({
           error: "access_denied",
-          error_description: "只有现有 Synapse 管理员可以授权第三方应用",
+          error_description: "只有现有 Synapse 管理员或信用者可以授权第三方应用",
         });
       }
 
@@ -194,12 +200,13 @@ export class OAuthController {
         success: true,
         ...preview,
         user: {
-          id: admin.id,
-          username: admin.username,
-          email: admin.email,
-          role: admin.role,
-          isAdmin: admin.role === "admin",
-          avatarUrl: admin.avatarUrl || null,
+          id: authorizingUser.id,
+          username: authorizingUser.username,
+          email: authorizingUser.email,
+          role: authorizingUser.role,
+          isAdmin: authorizingUser.role === "admin",
+          synapseAdmin: authorizingUser.role === "admin",
+          avatarUrl: authorizingUser.avatarUrl || null,
         },
       });
     } catch (error) {
@@ -210,17 +217,17 @@ export class OAuthController {
   public static async authorize(req: Request, res: Response) {
     try {
       sendNoStoreHeaders(res);
-      const admin = getAdminUser(req);
-      if (!admin) {
+      const authorizingUser = getOAuthAuthorizingUser(req);
+      if (!authorizingUser) {
         return res.status(403).json({
           error: "access_denied",
-          error_description: "只有现有 Synapse 管理员可以授权第三方应用",
+          error_description: "只有现有 Synapse 管理员或信用者可以授权第三方应用",
         });
       }
 
       const input = buildAuthorizeInput(req.body);
       const approve = req.body?.approve === true || req.body?.approve === "true";
-      const result = approve ? await approveAuthorization(input, admin) : await denyAuthorization(input);
+      const result = approve ? await approveAuthorization(input, authorizingUser) : await denyAuthorization(input);
       return res.json({ success: true, redirectUri: result.redirectUri, scopes: "scopes" in result ? result.scopes : [] });
     } catch (error) {
       return handleOAuthError(res, error, "授权处理失败");

@@ -55,6 +55,7 @@ export interface OAuthAuthorizePreview {
     email: string;
     role: string;
     isAdmin: boolean;
+    synapseAdmin?: boolean;
     avatarUrl: string | null;
   };
 }

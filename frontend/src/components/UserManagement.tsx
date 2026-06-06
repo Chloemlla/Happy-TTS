@@ -97,7 +97,7 @@ interface RevealPasswordState {
   loading: boolean;
 }
 
-type UserListRoleFilter = 'all' | 'user' | 'admin';
+type UserListRoleFilter = 'all' | 'user' | 'admin' | 'trusted';
 type UserListAccountStatusFilter = 'all' | 'active' | 'suspended';
 type UserListSecurityFilter = 'all' | 'totp' | 'passkey' | 'fingerprintRequired' | 'noMfa';
 type UserListTicketFilter = 'all' | 'normal' | 'violated' | 'banned';
@@ -138,6 +138,7 @@ interface UserListStats {
   total: number;
   users: number;
   admins: number;
+  trusted: number;
   active: number;
   suspended: number;
   totpEnabled: number;
@@ -259,6 +260,7 @@ type SharedUserFormProps = {
 
 const ROLE_OPTIONS = [
   { value: 'user', label: '普通用户' },
+  { value: 'trusted', label: '信用者' },
   { value: 'admin', label: '管理员' },
 ];
 
@@ -290,6 +292,7 @@ const DEFAULT_STATS: UserListStats = {
   total: 0,
   users: 0,
   admins: 0,
+  trusted: 0,
   active: 0,
   suspended: 0,
   totpEnabled: 0,
@@ -306,6 +309,7 @@ const DEFAULT_STATS: UserListStats = {
 const ROLE_FILTER_OPTIONS: Array<{ value: UserListRoleFilter; label: string }> = [
   { value: 'all', label: '全部角色' },
   { value: 'admin', label: '管理员' },
+  { value: 'trusted', label: '信用者' },
   { value: 'user', label: '普通用户' },
 ];
 
@@ -1111,8 +1115,8 @@ const UserManagement: React.FC = () => {
       total: nextUsers.length,
       totalPages: Math.max(1, Math.ceil(nextUsers.length / activeFilters.pageSize)),
     });
-    setStats(envelope?.stats || DEFAULT_STATS);
-    setFilteredStats(envelope?.filteredStats || envelope?.stats || DEFAULT_STATS);
+    setStats({ ...DEFAULT_STATS, ...(envelope?.stats || {}) });
+    setFilteredStats({ ...DEFAULT_STATS, ...(envelope?.filteredStats || envelope?.stats || {}) });
 
     const initMap: Record<string, number> = {};
     for (const u of nextUsers) {
@@ -1405,6 +1409,7 @@ const UserManagement: React.FC = () => {
   const statCards = useMemo(() => [
     { label: '总用户', value: stats.total, tone: 'bg-blue-50 text-blue-700 border-blue-100' },
     { label: '管理员', value: stats.admins, tone: 'bg-red-50 text-red-700 border-red-100' },
+    { label: '信用者', value: stats.trusted, tone: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
     { label: '封停账户', value: stats.suspended, tone: 'bg-gray-50 text-gray-700 border-gray-200' },
     { label: '今日用量', value: stats.totalDailyUsage, tone: 'bg-cyan-50 text-cyan-700 border-cyan-100' },
     { label: '需指纹', value: stats.fingerprintRequired, tone: 'bg-orange-50 text-orange-700 border-orange-100' },
@@ -1646,7 +1651,7 @@ const UserManagement: React.FC = () => {
           </div>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="text-xs text-gray-500">
-              当前筛选 {filteredStats.total} 个用户，管理员 {filteredStats.admins} 个，封停 {filteredStats.suspended} 个
+              当前筛选 {filteredStats.total} 个用户，管理员 {filteredStats.admins} 个，信用者 {filteredStats.trusted} 个，封停 {filteredStats.suspended} 个
               {hasActiveFilters ? '，已启用筛选' : ''}
             </div>
             <div className="flex flex-wrap gap-2">
@@ -1800,6 +1805,8 @@ const UserManagement: React.FC = () => {
                     <td className="px-4 py-3">
                       {u.role === 'admin' ? (
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">管理员</span>
+                      ) : u.role === 'trusted' ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">信用者</span>
                       ) : (
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">普通用户</span>
                       )}

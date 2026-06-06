@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema(
     passwordKeyVersion: { type: String, default: "v1" },
     passwordWrappedDek: { type: String },
     passwordDekId: { type: String },
-    role: { type: String, enum: ["user", "admin"], default: "user" },
+    role: { type: String, enum: ["user", "admin", "trusted"], default: "user" },
     dailyUsage: { type: Number, default: 0 },
     lastUsageDate: { type: String },
     createdAt: { type: String },

@@ -33,6 +33,21 @@ const getErrorMessage = (error: any) => {
 const buildLoginPath = (pathname: string, search: string) =>
   `/login?redirectTo=${encodeURIComponent(`${pathname}${search}`)}`;
 
+const formatUserRole = (role: string) => {
+  const map: Record<string, string> = {
+    admin: '管理员',
+    trusted: '信用者',
+    user: '普通用户',
+  };
+  return map[role] || role || '未知角色';
+};
+
+const getRoleBadgeClass = (role: string) => {
+  if (role === 'admin') return 'border-red-200 bg-red-50 text-red-700';
+  if (role === 'trusted') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+  return 'border-slate-200 bg-slate-50 text-slate-600';
+};
+
 const OAuthAuthorizePage: React.FC = () => {
   const location = useLocation();
   const { setNotification } = useNotification();
@@ -130,7 +145,7 @@ const OAuthAuthorizePage: React.FC = () => {
                     to={loginPath}
                     className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
                   >
-                    <FaUserShield /> 管理员登录
+                    <FaUserShield /> 登录授权账号
                   </Link>
                 )}
                 <Link
@@ -149,6 +164,8 @@ const OAuthAuthorizePage: React.FC = () => {
 
   const identityScopes = preview.scopeDetails.filter((scope) => scope.identityScope);
   const apiScopes = preview.scopeDetails.filter((scope) => !scope.identityScope);
+  const roleLabel = formatUserRole(preview.user.role);
+  const roleBadgeClass = getRoleBadgeClass(preview.user.role);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:py-10">
@@ -191,14 +208,17 @@ const OAuthAuthorizePage: React.FC = () => {
               <code className="mt-2 block break-all text-slate-700">{preview.redirectUri}</code>
             </div>
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
-                <FaUserShield /> 授权管理员
+              <div className="flex flex-wrap items-center gap-2 text-sm font-semibold text-emerald-800">
+                <FaUserShield /> 授权账号
+                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${roleBadgeClass}`}>
+                  {roleLabel}
+                </span>
               </div>
               <div className="mt-2 grid gap-1 text-sm text-emerald-900 sm:grid-cols-2">
                 <span>{preview.user.username}</span>
                 <span>{preview.user.email}</span>
-                <span>角色: {preview.user.role}</span>
-                <span>管理员: {preview.user.isAdmin ? '是' : '否'}</span>
+                <span>角色: {roleLabel}</span>
+                <span>管理员权益: {preview.user.isAdmin ? '是' : '否'}</span>
               </div>
             </div>
           </div>
@@ -302,7 +322,7 @@ const OAuthAuthorizePage: React.FC = () => {
             <div className="flex items-start gap-3">
               <FaShieldAlt className="mt-1 shrink-0 text-amber-700" />
               <p className="text-sm leading-7 text-amber-900">
-                同意后，第三方应用将拿到授权码并交换 Synapse OAuth access token。授权主体必须是现有管理员；如果该账号后续不再是管理员，token 会失效。
+                同意后，第三方应用将拿到授权码并交换 Synapse OAuth access token。信用者可以完成授权，但管理员识别字段会返回 false，管理员接口仍只接受管理员账号。
               </p>
             </div>
           </div>

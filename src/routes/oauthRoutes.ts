@@ -31,8 +31,8 @@ router.post("/introspect", OAuthController.introspect);
 router.post("/revoke", OAuthController.revoke);
 router.get("/userinfo", oauthTokenAuth(), OAuthController.userinfo);
 
-router.get("/authorize/preview", ...requireAdmin, OAuthController.authorizePreview);
-router.post("/authorize", ...requireAdmin, OAuthController.authorize);
+router.get("/authorize/preview", authMiddleware, OAuthController.authorizePreview);
+router.post("/authorize", authMiddleware, OAuthController.authorize);
 
 router.get("/clients", ...requireAdmin, OAuthController.listClients);
 router.post("/clients", ...requireAdmin, OAuthController.createClient);

@@ -129,7 +129,7 @@ const identityScopeDefinitions: OAuthScopeDefinition[] = [
   {
     key: "openid",
     label: "身份标识",
-    description: "确认授权管理员在 Synapse 中的唯一用户 ID。",
+    description: "确认授权用户在 Synapse 中的唯一用户 ID。",
     category: "identity",
     endpoints: ["/api/oauth/userinfo"],
     identityScope: true,
@@ -145,7 +145,7 @@ const identityScopeDefinitions: OAuthScopeDefinition[] = [
   {
     key: "email",
     label: "邮箱地址",
-    description: "读取授权管理员绑定的 Synapse 邮箱。",
+    description: "读取授权用户绑定的 Synapse 邮箱。",
     category: "identity",
     endpoints: ["/api/oauth/userinfo"],
     identityScope: true,
@@ -153,7 +153,7 @@ const identityScopeDefinitions: OAuthScopeDefinition[] = [
   {
     key: "admin:identity",
     label: "管理员身份",
-    description: "返回当前账号是否仍是 Synapse 管理员，用于第三方接入方做权限判定。",
+    description: "返回当前账号是否仍是 Synapse 管理员；信用者授权时该字段返回 false。",
     category: "identity",
     endpoints: ["/api/oauth/userinfo", "/api/oauth/introspect"],
     identityScope: true,
@@ -354,9 +354,13 @@ export function toOAuthGrantView(grant: OAuthGrantDoc, client?: OAuthClientDoc |
   };
 }
 
-function assertAdminUser(user: Pick<User, "role"> | null | undefined): void {
-  if (!user || user.role !== "admin") {
-    throw new OAuthError(403, "access_denied", "只有现有 Synapse 管理员可以授权第三方应用");
+export function canAuthorizeOAuth(user: Pick<User, "role"> | null | undefined): boolean {
+  return Boolean(user && (user.role === "admin" || user.role === "trusted"));
+}
+
+function assertOAuthAuthorizingUser(user: Pick<User, "role"> | null | undefined): void {
+  if (!canAuthorizeOAuth(user)) {
+    throw new OAuthError(403, "access_denied", "只有现有 Synapse 管理员或信用者可以授权第三方应用");
   }
 }
 
@@ -455,7 +459,7 @@ function buildUserProfile(user: User, scopes: string[]): Record<string, unknown>
   return profile;
 }
 
-async function loadActiveAdminUser(userId: string): Promise<User> {
+async function loadActiveOAuthAuthorizingUser(userId: string): Promise<User> {
   const user = await UserStorage.getUserById(userId);
   if (!user) {
     throw new OAuthError(400, "invalid_grant", "授权用户不存在");
@@ -463,7 +467,7 @@ async function loadActiveAdminUser(userId: string): Promise<User> {
   if ((user as any).accountStatus === "suspended") {
     throw new OAuthError(403, "access_denied", "授权用户已被封停");
   }
-  assertAdminUser(user);
+  assertOAuthAuthorizingUser(user);
   return user;
 }
 
@@ -677,7 +681,7 @@ export async function approveAuthorization(
   input: OAuthAuthorizeRequest,
   user: User,
 ): Promise<{ redirectUri: string; scopes: string[] }> {
-  assertAdminUser(user);
+  assertOAuthAuthorizingUser(user);
   const preview = await validateAuthorizeRequest(input);
   const client = assertClientEnabled((await OAuthClientModel.findOne({ clientId: preview.client.clientId }).lean()) as OAuthClientDoc | null);
   const grant = await upsertGrant(client.clientId, user.id, preview.scopes);
@@ -695,7 +699,7 @@ export async function approveAuthorization(
     usedAt: null,
   });
 
-  logger.info("[OAuth] 管理员同意授权", {
+  logger.info("[OAuth] 授权用户同意授权", {
     clientId: client.clientId,
     userId: user.id,
     grantId: grant.grantId,
@@ -716,7 +720,7 @@ export async function denyAuthorization(input: OAuthAuthorizeRequest): Promise<{
   return {
     redirectUri: appendRedirectParams(preview.redirectUri, {
       error: "access_denied",
-      error_description: "授权管理员拒绝了请求",
+      error_description: "授权用户拒绝了请求",
       state: preview.state,
     }),
   };
@@ -803,7 +807,7 @@ export async function exchangeAuthorizationCode(opts: {
     throw new OAuthError(400, "invalid_grant", "授权码已被使用");
   }
 
-  const user = await loadActiveAdminUser(codeDoc.userId);
+  const user = await loadActiveOAuthAuthorizingUser(codeDoc.userId);
   const grant = await upsertGrant(client.clientId, user.id, codeDoc.scopes);
   return createTokenPair({ client, grant, user, scopes: codeDoc.scopes });
 }
@@ -840,7 +844,7 @@ export async function refreshAccessToken(opts: {
     throw new OAuthError(400, "invalid_grant", "授权记录已撤销");
   }
 
-  const user = await loadActiveAdminUser(tokenDoc.userId);
+  const user = await loadActiveOAuthAuthorizingUser(tokenDoc.userId);
   await OAuthTokenModel.updateOne({ tokenId: tokenDoc.tokenId }, { $set: { revokedAt: new Date(), updatedAt: new Date() } });
   return createTokenPair({ client, grant, user, scopes: tokenDoc.scopes });
 }
@@ -869,8 +873,8 @@ export async function validateOAuthAccessToken(plainToken: string, requiredScope
   if (!grant || grant.revokedAt) {
     throw new OAuthError(401, "invalid_token", "OAuth 授权已撤销");
   }
-  if (!user || (user as any).accountStatus === "suspended" || user.role !== "admin") {
-    throw new OAuthError(403, "access_denied", "授权管理员状态无效");
+  if (!user || (user as any).accountStatus === "suspended" || !canAuthorizeOAuth(user)) {
+    throw new OAuthError(403, "access_denied", "授权用户状态无效");
   }
 
   return {

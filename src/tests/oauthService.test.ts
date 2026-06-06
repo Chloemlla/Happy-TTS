@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
 import {
   approveAuthorization,
+  canAuthorizeOAuth,
   createOAuthClient,
   getOAuthScopeDefinitions,
   getOAuthUserInfo,
@@ -77,7 +78,14 @@ describe("oauthService", () => {
     });
   });
 
-  it("rejects non-admin authorization before looking up the OAuth client", async () => {
+  it("allows administrators and trusted users to authorize OAuth clients", () => {
+    expect(canAuthorizeOAuth({ role: "admin" } as any)).toBe(true);
+    expect(canAuthorizeOAuth({ role: "trusted" } as any)).toBe(true);
+    expect(canAuthorizeOAuth({ role: "user" } as any)).toBe(false);
+    expect(canAuthorizeOAuth(null)).toBe(false);
+  });
+
+  it("rejects ordinary user authorization before looking up the OAuth client", async () => {
     await expect(
       approveAuthorization(baseAuthorizeRequest, {
         id: "user-1",
@@ -187,6 +195,35 @@ describe("oauthService", () => {
         role: "admin",
         isAdmin: true,
         synapseAdmin: true,
+        accountStatus: "active",
+      }),
+    );
+  });
+
+  it("builds trusted OAuth userinfo without admin privileges", () => {
+    const userinfo = getOAuthUserInfo({
+      user: {
+        id: "trusted-1",
+        username: "trusted-user",
+        email: "trusted@example.com",
+        role: "trusted",
+        avatarUrl: "https://cdn.example/trusted.png",
+        authProvider: "local",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        accountStatus: "active",
+      },
+      scopes: ["openid", "profile", "email", "admin:identity"],
+    } as any);
+
+    expect(userinfo).toEqual(
+      expect.objectContaining({
+        sub: "trusted-1",
+        id: "trusted-1",
+        username: "trusted-user",
+        email: "trusted@example.com",
+        role: "trusted",
+        isAdmin: false,
+        synapseAdmin: false,
         accountStatus: "active",
       }),
     );

@@ -105,7 +105,7 @@ function isValidUserId(id: unknown): id is string {
 }
 
 // 合法 role 枚举
-const VALID_ROLES = new Set(["user", "admin"]);
+const VALID_ROLES = new Set(["user", "admin", "trusted"]);
 const VALID_ACCOUNT_STATUSES = new Set(["active", "suspended"]);
 
 // 合法 announcement format 枚举
@@ -165,7 +165,7 @@ function sanitizeAdminUserForList(user: any, includeFingerprints: boolean) {
   return { ...safeWithoutFingerprints, ...fingerprintSummary };
 }
 
-type AdminUserListRoleFilter = "all" | "user" | "admin";
+type AdminUserListRoleFilter = "all" | "user" | "admin" | "trusted";
 type AdminUserListAccountStatusFilter = "all" | "active" | "suspended";
 type AdminUserListSecurityFilter = "all" | "totp" | "passkey" | "fingerprintRequired" | "noMfa";
 type AdminUserListTicketFilter = "all" | "normal" | "violated" | "banned";
@@ -234,7 +234,7 @@ function parseAdminUserListQuery(query: Request["query"]): AdminUserListQuery {
   const sortBy = getFirstQueryValue(query.sortBy);
   return {
     keyword: getFirstQueryValue(query.keyword).slice(0, 100).toLowerCase(),
-    role: normalizeEnumQuery(getFirstQueryValue(query.role), ["all", "user", "admin"] as const, "all"),
+    role: normalizeEnumQuery(getFirstQueryValue(query.role), ["all", "user", "admin", "trusted"] as const, "all"),
     accountStatus: normalizeEnumQuery(
       getFirstQueryValue(query.accountStatus),
       ["all", "active", "suspended"] as const,
@@ -354,6 +354,7 @@ function buildAdminUserListStats(users: any[]) {
     (acc, user) => {
       acc.total += 1;
       if (user?.role === "admin") acc.admins += 1;
+      else if (user?.role === "trusted") acc.trusted += 1;
       else acc.users += 1;
       if (getNormalizedAccountStatus(user) === "suspended") acc.suspended += 1;
       else acc.active += 1;
@@ -372,6 +373,7 @@ function buildAdminUserListStats(users: any[]) {
       total: 0,
       users: 0,
       admins: 0,
+      trusted: 0,
       active: 0,
       suspended: 0,
       totpEnabled: 0,
@@ -485,7 +487,7 @@ function validateAndSanitizeUserUpdates(body: Record<string, any>): Record<strin
   // role: 枚举限制
   if (body.role !== undefined) {
     if (!VALID_ROLES.has(body.role)) {
-      throw new Error("role 值非法，只允许 user 或 admin");
+      throw new Error("role 值非法，只允许 user、admin 或 trusted");
     }
     out.role = body.role;
   }

@@ -15,7 +15,7 @@ export interface User {
   passwordKeyVersion?: string;
   passwordWrappedDek?: string;
   passwordDekId?: string;
-  role: "user" | "admin";
+  role: "user" | "admin" | "trusted";
   dailyUsage: number;
   lastUsageDate: string;
   createdAt: string;
