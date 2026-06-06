@@ -9,128 +9,156 @@ interface TurnstileWidgetProps {
   size?: 'normal' | 'compact';
 }
 
+interface TurnstileRenderOptions {
+  sitekey: string;
+  theme?: 'light' | 'dark';
+  size?: 'normal' | 'compact';
+  language?: string;
+  callback?: (token: string) => void;
+  'expired-callback'?: () => void;
+  'error-callback'?: () => void;
+}
+
 declare global {
   interface Window {
     turnstile: {
       render: (
         container: string | HTMLElement,
-        options: {
-          sitekey: string;
-          theme?: 'light' | 'dark';
-          size?: 'normal' | 'compact';
-          callback?: (token: string) => void;
-          'expired-callback'?: () => void;
-          'error-callback'?: () => void;
-        }
+        options: TurnstileRenderOptions
       ) => string;
       reset: (widgetId: string) => void;
       remove?: (widgetId: string) => void;
     };
-    mockTurnstileCallback?: () => void;
   }
 }
 
 // 全局脚本加载状态
 let scriptLoaded = false;
-let scriptLoading = false;
+let turnstileScriptPromise: Promise<void> | null = null;
 const TURNSTILE_SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+const TURNSTILE_SCRIPT_SELECTOR = 'script[data-turnstile-api="true"], script[src^="https://challenges.cloudflare.com/turnstile/v0/api.js"]';
+const TURNSTILE_LOAD_TIMEOUT_MS = 10000;
+
+const installDevelopmentTurnstile = () => {
+  window.turnstile = {
+    render: (container: string | HTMLElement, options: TurnstileRenderOptions) => {
+      const element = typeof container === 'string' ? document.getElementById(container) : container;
+      if (element) {
+        element.replaceChildren();
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = '点击模拟验证 (开发模式)';
+        button.style.width = '300px';
+        button.style.height = '65px';
+        button.style.border = '2px dashed #9ca3af';
+        button.style.display = 'flex';
+        button.style.alignItems = 'center';
+        button.style.justifyContent = 'center';
+        button.style.background = '#f9fafb';
+        button.style.color = '#4b5563';
+        button.style.fontFamily = 'Arial, sans-serif';
+        button.style.fontSize = '14px';
+        button.style.cursor = 'pointer';
+
+        button.addEventListener('click', () => {
+          button.style.background = '#e8f5e8';
+          button.textContent = '验证成功 (开发模式)';
+          window.setTimeout(() => options.callback?.(`mock-token-${Date.now()}`), 500);
+        });
+
+        element.appendChild(button);
+      }
+
+      return 'mock-widget-id';
+    },
+    reset: (widgetId: string) => {
+      console.log('开发环境：重置 Turnstile widget', widgetId);
+    },
+    remove: (widgetId: string) => {
+      console.log('开发环境：移除 Turnstile widget', widgetId);
+    },
+  };
+};
+
+const waitForTurnstileApi = (timeoutMs = TURNSTILE_LOAD_TIMEOUT_MS): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    const startedAt = Date.now();
+
+    const checkLoaded = () => {
+      if (window.turnstile) {
+        resolve();
+        return;
+      }
+
+      if (Date.now() - startedAt > timeoutMs) {
+        reject(new Error('Turnstile API did not initialize'));
+        return;
+      }
+
+      window.setTimeout(checkLoaded, 100);
+    };
+
+    checkLoaded();
+  });
+};
 
 const loadTurnstileScript = (): Promise<void> => {
-  return new Promise((resolve, reject) => {
+  if (scriptLoaded && window.turnstile) {
+    return Promise.resolve();
+  }
+
+  if (turnstileScriptPromise) {
+    return turnstileScriptPromise;
+  }
+
+  if (import.meta.env.DEV) {
+    console.warn('开发环境：使用模拟 Turnstile 控件');
+    installDevelopmentTurnstile();
+    scriptLoaded = true;
+    return Promise.resolve();
+  }
+
+  turnstileScriptPromise = new Promise((resolve, reject) => {
     if (scriptLoaded && window.turnstile) {
       resolve();
       return;
     }
 
-    if (scriptLoading) {
-      // 如果正在加载，等待加载完成
-      const checkLoaded = () => {
-        if (scriptLoaded) {
-          resolve();
-        } else if (scriptLoading) {
-          setTimeout(checkLoaded, 100);
-        } else {
-          reject(new Error('Script loading failed'));
-        }
-      };
-      checkLoaded();
-      return;
-    }
+    let settled = false;
+    const timeout = window.setTimeout(() => {
+      fail(new Error('Turnstile script load timed out'));
+    }, TURNSTILE_LOAD_TIMEOUT_MS);
 
-    scriptLoading = true;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      scriptLoaded = true;
+      resolve();
+    };
+
+    const fail = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      scriptLoaded = false;
+      turnstileScriptPromise = null;
+      reject(error);
+    };
+
+    const waitForApi = () => {
+      waitForTurnstileApi()
+        .then(finish)
+        .catch(fail);
+    };
 
     // 检查是否已经存在脚本
-    const existingScript = document.querySelector<HTMLScriptElement>('script[data-turnstile-api="true"], script[src^="https://challenges.cloudflare.com/turnstile/v0/api.js"]');
+    const existingScript = document.querySelector<HTMLScriptElement>(TURNSTILE_SCRIPT_SELECTOR);
     if (existingScript) {
-      const startedAt = Date.now();
-      const waitForTurnstile = () => {
-        if (window.turnstile) {
-          scriptLoaded = true;
-          scriptLoading = false;
-          resolve();
-          return;
-        }
-
-        if (Date.now() - startedAt > 5000) {
-          scriptLoading = false;
-          reject(new Error('Turnstile API did not initialize'));
-          return;
-        }
-
-        window.setTimeout(waitForTurnstile, 100);
-      };
-      waitForTurnstile();
-      return;
-    }
-
-    // 开发环境或脚本加载失败时的模拟处理
-    const isDev = process.env.NODE_ENV === 'development';
-    
-    if (isDev) {
-      console.warn('🔧 开发环境：模拟 Turnstile 脚本加载');
-      // 模拟 Turnstile API
-      window.turnstile = {
-        render: (container: string | HTMLElement, options: any) => {
-          const element = typeof container === 'string' ? document.getElementById(container) : container;
-          if (element) {
-            element.innerHTML = `
-              <div style="
-                width: 300px;
-                height: 65px;
-                border: 2px dashed #ccc;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                background: #f9f9f9;
-                color: #666;
-                font-family: Arial, sans-serif;
-                font-size: 14px;
-                cursor: pointer;
-              " onclick="this.style.background='#e8f5e8'; this.innerHTML='✅ 验证成功 (开发模式)'; setTimeout(() => { if (window.mockTurnstileCallback) window.mockTurnstileCallback(); }, 500);">
-                🔧 点击模拟验证 (开发模式)
-              </div>
-            `;
-            
-            // 设置模拟回调
-            window.mockTurnstileCallback = () => {
-              if (options.callback) {
-                options.callback('mock-token-' + Date.now());
-              }
-            };
-          }
-          return 'mock-widget-id';
-        },
-        reset: (widgetId: string) => {
-          console.log('🔧 开发环境：重置 Turnstile widget', widgetId);
-        },
-        remove: (widgetId: string) => {
-          console.log('🔧 开发环境：移除 Turnstile widget', widgetId);
-        }
-      };
-      
-      scriptLoaded = true;
-      scriptLoading = false;
-      resolve();
+      existingScript.addEventListener('load', waitForApi, { once: true });
+      existingScript.addEventListener('error', () => fail(new Error('Turnstile script failed to load')), { once: true });
+      waitForApi();
       return;
     }
 
@@ -139,113 +167,20 @@ const loadTurnstileScript = (): Promise<void> => {
     script.async = true;
     script.defer = true;
     script.dataset.turnstileApi = 'true';
-
-    // 设置超时
-    const timeout = setTimeout(() => {
-      scriptLoading = false;
-      console.warn('⚠️ Turnstile 脚本加载超时，启用开发模式');
-      
-      // 超时后启用模拟模式
-      window.turnstile = {
-        render: (container: string | HTMLElement, options: any) => {
-          const element = typeof container === 'string' ? document.getElementById(container) : container;
-          if (element) {
-            element.innerHTML = `
-              <div style="
-                width: 300px;
-                height: 65px;
-                border: 2px dashed #orange;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                background: #fff3cd;
-                color: #856404;
-                font-family: Arial, sans-serif;
-                font-size: 14px;
-                cursor: pointer;
-              " onclick="this.style.background='#e8f5e8'; this.innerHTML='✅ 验证成功 (离线模式)'; setTimeout(() => { if (window.mockTurnstileCallback) window.mockTurnstileCallback(); }, 500);">
-                ⚠️ 点击模拟验证 (离线模式)
-              </div>
-            `;
-            
-            window.mockTurnstileCallback = () => {
-              if (options.callback) {
-                options.callback('offline-token-' + Date.now());
-              }
-            };
-          }
-          return 'offline-widget-id';
-        },
-        reset: (widgetId: string) => {
-          console.log('⚠️ 离线模式：重置 Turnstile widget', widgetId);
-        },
-        remove: (widgetId: string) => {
-          console.log('⚠️ 离线模式：移除 Turnstile widget', widgetId);
-        }
-      };
-      
-      scriptLoaded = true;
-      resolve();
-    }, 5000); // 5秒超时
+    script.setAttribute('data-cfasync', 'false');
 
     script.onload = () => {
-      clearTimeout(timeout);
-      scriptLoaded = true;
-      scriptLoading = false;
-      console.log('✅ Turnstile 脚本加载成功');
-      resolve();
+      waitForApi();
     };
 
     script.onerror = () => {
-      clearTimeout(timeout);
-      scriptLoading = false;
-      console.warn('❌ Turnstile 脚本加载失败，启用离线模式');
-      
-      // 加载失败时启用模拟模式
-      window.turnstile = {
-        render: (container: string | HTMLElement, options: any) => {
-          const element = typeof container === 'string' ? document.getElementById(container) : container;
-          if (element) {
-            element.innerHTML = `
-              <div style="
-                width: 300px;
-                height: 65px;
-                border: 2px dashed #dc3545;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                background: #f8d7da;
-                color: #721c24;
-                font-family: Arial, sans-serif;
-                font-size: 14px;
-                cursor: pointer;
-              " onclick="this.style.background='#e8f5e8'; this.innerHTML='✅ 验证成功 (离线模式)'; setTimeout(() => { if (window.mockTurnstileCallback) window.mockTurnstileCallback(); }, 500);">
-                🚫 点击模拟验证 (网络错误)
-              </div>
-            `;
-            
-            window.mockTurnstileCallback = () => {
-              if (options.callback) {
-                options.callback('error-fallback-token-' + Date.now());
-              }
-            };
-          }
-          return 'error-fallback-widget-id';
-        },
-        reset: (widgetId: string) => {
-          console.log('🚫 错误回退模式：重置 Turnstile widget', widgetId);
-        },
-        remove: (widgetId: string) => {
-          console.log('🚫 错误回退模式：移除 Turnstile widget', widgetId);
-        }
-      };
-      
-      scriptLoaded = true;
-      resolve(); // 即使失败也 resolve，使用模拟模式
+      fail(new Error('Turnstile script failed to load'));
     };
 
     document.head.appendChild(script);
   });
+
+  return turnstileScriptPromise;
 };
 
 export const TurnstileWidget: React.FC<TurnstileWidgetProps> = ({

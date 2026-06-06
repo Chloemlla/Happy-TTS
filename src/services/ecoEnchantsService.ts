@@ -16,6 +16,8 @@ import {
   EcoEnchantsWebhookEventModel,
   type IEcoEnchantsActivation,
   type IEcoEnchantsLicense,
+  type IEcoEnchantsPlan,
+  type IEcoEnchantsProduct,
   type IEcoEnchantsReleaseBuild,
 } from "../models/ecoEnchantsModel";
 import { createEcoEnchantsOpsActivationSession } from "./ecoEnchantsOpsTokens";
@@ -1201,7 +1203,7 @@ export class EcoEnchantsService {
 
   static async createProduct(body: Record<string, unknown>, context: EcoEnchantsRequestContext) {
     const productId = ensureProductId(body.productId || ECO_ENCHANTS_PRODUCT_ID);
-    let product: Awaited<ReturnType<typeof EcoEnchantsProductModel.create>>;
+    let product: IEcoEnchantsProduct;
     try {
       product = await EcoEnchantsProductModel.create({
         productId,
@@ -1266,7 +1268,7 @@ export class EcoEnchantsService {
   static async createPlan(body: Record<string, unknown>, context: EcoEnchantsRequestContext) {
     const productId = ensureProductId(body.productId || ECO_ENCHANTS_PRODUCT_ID);
     const planId = ensureRequiredText(body.planId || `plan_${uuidv4()}`, "planId", 80);
-    let plan: Awaited<ReturnType<typeof EcoEnchantsPlanModel.create>>;
+    let plan: IEcoEnchantsPlan;
     try {
       plan = await EcoEnchantsPlanModel.create({
         planId,
