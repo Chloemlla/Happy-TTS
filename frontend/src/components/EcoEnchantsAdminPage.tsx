@@ -104,8 +104,20 @@ const optionalText = (value: string): string | undefined => {
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
   const anyError = error as any;
+  if (getErrorCode(error) === 'mfa_required') {
+    return 'EcoEnchants 管理需要先启用双因素验证';
+  }
   return anyError?.response?.data?.error?.message || anyError?.response?.data?.message || anyError?.message || fallback;
 };
+
+const getErrorCode = (error: unknown): string | undefined => {
+  const data = (error as any)?.response?.data;
+  const nestedError = data?.error;
+  if (typeof nestedError === 'string') return nestedError;
+  return nestedError?.code || data?.code || data?.errorCode;
+};
+
+const isMfaRequiredError = (error: unknown): boolean => getErrorCode(error) === 'mfa_required';
 
 const Field: React.FC<{
   label: string;
@@ -187,6 +199,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [createdLicense, setCreatedLicense] = useState<CreatedLicense | null>(null);
+  const [mfaRequired, setMfaRequired] = useState(false);
 
   const [productForm, setProductForm] = useState({
     productId: PRODUCT_ID,
@@ -242,16 +255,34 @@ const EcoEnchantsAdminPage: React.FC = () => {
   const loadOverview = useCallback(async () => {
     setLoading(true);
     try {
-      const [healthRes, policyRes, auditRes, riskRes] = await Promise.all([
+      const [healthRes, policyRes, auditRes, riskRes] = await Promise.allSettled([
         api.get<EcoHealth>('/api/ecoenchants/v1/health'),
         api.get<EcoProductPolicy>('/api/ecoenchants/v1/products/ecoenchants/policy'),
         api.get<{ logs: EcoAuditLog[] }>('/api/ecoenchants/v1/admin/audit-logs?page=1&pageSize=8'),
         api.get<{ riskEvents: EcoRiskEvent[] }>('/api/ecoenchants/v1/admin/risk-events?page=1&pageSize=8'),
       ]);
-      setHealth(healthRes.data);
-      setPolicy(policyRes.data);
-      setAuditLogs(auditRes.data.logs || []);
-      setRiskEvents(riskRes.data.riskEvents || []);
+
+      if (healthRes.status === 'fulfilled') setHealth(healthRes.value.data);
+      if (policyRes.status === 'fulfilled') setPolicy(policyRes.value.data);
+
+      const adminFailures = [auditRes, riskRes].filter(
+        (result): result is PromiseRejectedResult => result.status === 'rejected',
+      );
+      if (adminFailures.some(result => isMfaRequiredError(result.reason))) {
+        setMfaRequired(true);
+        setAuditLogs([]);
+        setRiskEvents([]);
+        return;
+      }
+
+      const firstFailure = [healthRes, policyRes, auditRes, riskRes].find(
+        (result): result is PromiseRejectedResult => result.status === 'rejected',
+      );
+      if (firstFailure) throw firstFailure.reason;
+
+      setMfaRequired(false);
+      setAuditLogs(auditRes.value.data.logs || []);
+      setRiskEvents(riskRes.value.data.riskEvents || []);
     } catch (error) {
       setNotification({ message: getErrorMessage(error, '加载 EcoEnchants 管理数据失败'), type: 'error' });
     } finally {
@@ -270,6 +301,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
       setNotification({ message: successMessage, type: 'success' });
       await loadOverview();
     } catch (error) {
+      if (isMfaRequiredError(error)) setMfaRequired(true);
       setNotification({ message: getErrorMessage(error, `${successMessage}失败`), type: 'error' });
     } finally {
       setSubmitting(null);
@@ -398,6 +430,30 @@ const EcoEnchantsAdminPage: React.FC = () => {
         )}
       />
 
+      {mfaRequired && (
+        <InfoPanel>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                <FaShieldAlt />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-slate-900">需要双因素验证</h2>
+                <p className="mt-1 text-sm leading-6 text-slate-600">
+                  生产环境的 EcoEnchants 管理操作要求管理员账号启用 TOTP 或 Passkey。
+                </p>
+              </div>
+            </div>
+            <button type="button" className={logShareSecondaryButtonClass} onClick={loadOverview} disabled={loading}>
+              <FaRedo className={loading ? 'animate-spin' : ''} />
+              重新检查
+            </button>
+          </div>
+        </InfoPanel>
+      )}
+
+      {!mfaRequired && (
+        <>
       <div className="grid gap-4 md:grid-cols-3">
         <InfoMetricCard
           label="最低支持版本"
@@ -604,6 +660,8 @@ const EcoEnchantsAdminPage: React.FC = () => {
           </div>
         </SectionShell>
       </div>
+        </>
+      )}
     </div>
   );
 };

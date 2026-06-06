@@ -190,6 +190,9 @@ const opsRegisterLimiter = createLimiter({
 function sendAuthError(res: Response, req: Request, statusCode: number, code: string, message: string): void {
   res.status(statusCode).json({
     requestId: getRequestId(req),
+    code,
+    errorCode: code,
+    message,
     error: {
       code,
       message,
@@ -197,6 +200,15 @@ function sendAuthError(res: Response, req: Request, statusCode: number, code: st
       retryAfterSeconds: null,
     },
   });
+}
+
+function hasEcoAdminMfa(user: any): boolean {
+  return Boolean(
+    user?.totpEnabled ||
+      user?.mfaEnabled ||
+      (user?.passkeyEnabled && Array.isArray(user?.passkeyCredentials) && user.passkeyCredentials.length > 0) ||
+      (Array.isArray(user?.passkeyCredentials) && user.passkeyCredentials.length > 0),
+  );
 }
 
 async function authenticateEcoCustomer(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -263,7 +275,7 @@ function requireEcoAdmin(req: Request, res: Response, next: NextFunction): void 
 
   const mfaRequired =
     process.env.NODE_ENV === "production" && process.env.ECOENCHANTS_ADMIN_MFA_REQUIRED !== "false";
-  if (mfaRequired && !user.totpEnabled && !user.mfaEnabled) {
+  if (mfaRequired && !hasEcoAdminMfa(user)) {
     sendAuthError(res, req, 403, "mfa_required", "Admin MFA is required for EcoEnchants administration.");
     return;
   }

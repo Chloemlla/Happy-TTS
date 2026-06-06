@@ -1,5 +1,13 @@
 # Repository Guidelines
 
+Regarding the garbled characters issue you mentioned, I've confirmed it's not a file corruption problem. In PowerShell, you can read it directly like this:
+
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
+Get-Content -Encoding UTF8 src\controllers\ttsController.ts
+
 ## Project Structure & Module Organization
 
 Synapse is a TypeScript full-stack TTS platform. Backend source lives in `src/`: `routes/` define HTTP endpoints, `controllers/` handle request/response logic, `services/` contain business logic, `models/` hold database schemas, and `middleware/` contains auth, WAF, rate limiting, and request guards. The backend entry point is `src/app.ts`, with startup helpers under `src/app/`.
