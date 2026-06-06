@@ -167,6 +167,24 @@ const FIELD_LABELS: Record<string, string> = {
   avatarUrl: "头像",
 };
 
+const ROLE_LABELS: Record<string, string> = {
+  admin: "管理员",
+  trusted: "信用者",
+  user: "普通用户",
+};
+
+function getRoleName(role: string): string {
+  const normalizedRole = (role || "").trim().toLowerCase();
+  return ROLE_LABELS[normalizedRole] || role || "普通用户";
+}
+
+function formatChangeValue(field: string, value: string): string {
+  if (field === "role") {
+    return getRoleName(value);
+  }
+  return value;
+}
+
 /**
  * 生成管理员修改用户信息通知 HTML 邮件内容（通用版）。
  * 使用 admin-user-updated.html 模板，列出所有被修改的字段。
@@ -191,11 +209,13 @@ export function generateAdminUserUpdatedEmailHtml(
     .filter((c) => c.field !== "password") // 密码单独展示
     .map((c, i) => {
       const label = FIELD_LABELS[c.field] || c.field;
+      const oldValue = formatChangeValue(c.field, c.oldValue);
+      const newValue = formatChangeValue(c.field, c.newValue);
       const bg = i % 2 === 0 ? ' style="background-color: #f8f9fa;"' : "";
       return `<tr${bg}>
                 <td style="padding: 10px 16px; font-size: 13px; color: #5f6368; border-bottom: 1px solid #e8eaed; width: 100px;">${label}</td>
-                <td style="padding: 10px 16px; font-size: 13px; color: rgba(0,0,0,0.54); border-bottom: 1px solid #e8eaed; text-decoration: line-through;">${c.oldValue || "（空）"}</td>
-                <td style="padding: 10px 16px; font-size: 13px; color: rgba(0,0,0,0.87); border-bottom: 1px solid #e8eaed; font-weight: 600;">${c.newValue}</td>
+                <td style="padding: 10px 16px; font-size: 13px; color: rgba(0,0,0,0.54); border-bottom: 1px solid #e8eaed; text-decoration: line-through;">${oldValue || "（空）"}</td>
+                <td style="padding: 10px 16px; font-size: 13px; color: rgba(0,0,0,0.87); border-bottom: 1px solid #e8eaed; font-weight: 600;">${newValue}</td>
             </tr>`;
     })
     .join("\n");
@@ -480,7 +500,7 @@ export function generateRoleChangedEmailHtml(
   ip: string,
   device: string,
 ): string {
-  const roleName = newRole === "admin" ? "管理员" : "普通用户";
+  const roleName = getRoleName(newRole);
   return generateSecurityNoticeHtml(
     username,
     "账户权限已变更",
