@@ -126,6 +126,295 @@ function stripSensitiveUserFields(user: any) {
   return safeUser;
 }
 
+type AdminUserListRoleFilter = "all" | "user" | "admin";
+type AdminUserListAccountStatusFilter = "all" | "active" | "suspended";
+type AdminUserListSecurityFilter = "all" | "totp" | "passkey" | "fingerprintRequired" | "noMfa";
+type AdminUserListTicketFilter = "all" | "normal" | "violated" | "banned";
+type AdminUserListTranslationFilter = "all" | "enabled" | "disabled" | "limited";
+type AdminUserListSortOrder = "asc" | "desc";
+
+interface AdminUserListQuery {
+  keyword: string;
+  role: AdminUserListRoleFilter;
+  accountStatus: AdminUserListAccountStatusFilter;
+  security: AdminUserListSecurityFilter;
+  ticket: AdminUserListTicketFilter;
+  translation: AdminUserListTranslationFilter;
+  sortBy: string;
+  sortOrder: AdminUserListSortOrder;
+  page: number;
+  pageSize: number;
+  envelope: boolean;
+}
+
+const ADMIN_USER_LIST_SORT_FIELDS = new Set([
+  "username",
+  "email",
+  "role",
+  "accountStatus",
+  "createdAt",
+  "dailyUsage",
+  "lastUsageDate",
+  "lastLoginAt",
+  "ticketViolationCount",
+]);
+
+const ADMIN_USER_BULK_ACTIONS = new Set([
+  "resetDailyUsage",
+  "requireFingerprint",
+  "clearFingerprintRequirement",
+  "suspend",
+  "activate",
+  "enableTranslation",
+  "disableTranslation",
+  "clearTranslationRestrictions",
+  "clearTicketRestrictions",
+  "resetMfa",
+]);
+
+function getFirstQueryValue(value: unknown): string {
+  if (Array.isArray(value)) return getFirstQueryValue(value[0]);
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function isTruthyQueryFlag(value: unknown): boolean {
+  return ["1", "true", "yes", "on"].includes(getFirstQueryValue(value).toLowerCase());
+}
+
+function normalizeEnumQuery<T extends string>(value: string, allowed: readonly T[], fallback: T): T {
+  return allowed.includes(value as T) ? (value as T) : fallback;
+}
+
+function parseBoundedInteger(value: unknown, fallback: number, min: number, max: number): number {
+  const parsed = Number(getFirstQueryValue(value));
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(parsed)));
+}
+
+function parseAdminUserListQuery(query: Request["query"]): AdminUserListQuery {
+  const sortBy = getFirstQueryValue(query.sortBy);
+  return {
+    keyword: getFirstQueryValue(query.keyword).slice(0, 100).toLowerCase(),
+    role: normalizeEnumQuery(getFirstQueryValue(query.role), ["all", "user", "admin"] as const, "all"),
+    accountStatus: normalizeEnumQuery(
+      getFirstQueryValue(query.accountStatus),
+      ["all", "active", "suspended"] as const,
+      "all",
+    ),
+    security: normalizeEnumQuery(
+      getFirstQueryValue(query.security),
+      ["all", "totp", "passkey", "fingerprintRequired", "noMfa"] as const,
+      "all",
+    ),
+    ticket: normalizeEnumQuery(
+      getFirstQueryValue(query.ticket),
+      ["all", "normal", "violated", "banned"] as const,
+      "all",
+    ),
+    translation: normalizeEnumQuery(
+      getFirstQueryValue(query.translation),
+      ["all", "enabled", "disabled", "limited"] as const,
+      "all",
+    ),
+    sortBy: ADMIN_USER_LIST_SORT_FIELDS.has(sortBy) ? sortBy : "createdAt",
+    sortOrder: normalizeEnumQuery(getFirstQueryValue(query.sortOrder), ["asc", "desc"] as const, "desc"),
+    page: parseBoundedInteger(query.page, 1, 1, 100_000),
+    pageSize: parseBoundedInteger(query.pageSize, 20, 1, 100),
+    envelope: isTruthyQueryFlag(query.envelope),
+  };
+}
+
+function isFutureDate(value: unknown, now = Date.now()): boolean {
+  if (typeof value !== "string" || !value.trim()) return false;
+  const ts = Date.parse(value);
+  return Number.isFinite(ts) && ts > now;
+}
+
+function getNormalizedAccountStatus(user: any): "active" | "suspended" {
+  return user?.accountStatus === "suspended" ? "suspended" : "active";
+}
+
+function getUserSearchText(user: any): string {
+  return [
+    user?.id,
+    user?.username,
+    user?.email,
+    user?.role,
+    user?.authProvider,
+    user?.linuxdoId,
+    user?.linuxdoUsername,
+    user?.lastLoginIp,
+  ]
+    .filter((item) => typeof item === "string" && item.trim())
+    .join(" ")
+    .toLowerCase();
+}
+
+function matchesAdminUserListFilters(user: any, filters: AdminUserListQuery): boolean {
+  const now = Date.now();
+  if (filters.keyword && !getUserSearchText(user).includes(filters.keyword)) {
+    return false;
+  }
+
+  if (filters.role !== "all" && user?.role !== filters.role) {
+    return false;
+  }
+
+  if (filters.accountStatus !== "all" && getNormalizedAccountStatus(user) !== filters.accountStatus) {
+    return false;
+  }
+
+  if (filters.security === "totp" && !user?.totpEnabled) return false;
+  if (filters.security === "passkey" && !user?.passkeyEnabled) return false;
+  if (filters.security === "fingerprintRequired" && !user?.requireFingerprint) return false;
+  if (filters.security === "noMfa" && (user?.totpEnabled || user?.passkeyEnabled)) return false;
+
+  const ticketViolationCount = Number(user?.ticketViolationCount || 0);
+  const ticketBanned = isFutureDate(user?.ticketBannedUntil, now);
+  if (filters.ticket === "normal" && (ticketViolationCount > 0 || ticketBanned)) return false;
+  if (filters.ticket === "violated" && ticketViolationCount <= 0) return false;
+  if (filters.ticket === "banned" && !ticketBanned) return false;
+
+  const translationLimited = isFutureDate(user?.translationAccessUntil, now);
+  if (filters.translation === "enabled" && user?.isTranslationEnabled === false) return false;
+  if (filters.translation === "disabled" && user?.isTranslationEnabled !== false) return false;
+  if (filters.translation === "limited" && !translationLimited) return false;
+
+  return true;
+}
+
+function getAdminUserSortValue(user: any, field: string): string | number {
+  if (["createdAt", "lastUsageDate", "lastLoginAt"].includes(field)) {
+    const ts = Date.parse(String(user?.[field] || ""));
+    return Number.isFinite(ts) ? ts : 0;
+  }
+
+  if (["dailyUsage", "ticketViolationCount"].includes(field)) {
+    const value = Number(user?.[field] || 0);
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  return String(user?.[field] ?? "").toLowerCase();
+}
+
+function sortAdminUsers(users: any[], filters: AdminUserListQuery): any[] {
+  const multiplier = filters.sortOrder === "asc" ? 1 : -1;
+  return [...users].sort((a, b) => {
+    const av = getAdminUserSortValue(a, filters.sortBy);
+    const bv = getAdminUserSortValue(b, filters.sortBy);
+    if (typeof av === "number" && typeof bv === "number") {
+      return (av - bv) * multiplier;
+    }
+    return String(av).localeCompare(String(bv), "zh-CN") * multiplier;
+  });
+}
+
+function buildAdminUserListStats(users: any[]) {
+  const now = Date.now();
+  return users.reduce(
+    (acc, user) => {
+      acc.total += 1;
+      if (user?.role === "admin") acc.admins += 1;
+      else acc.users += 1;
+      if (getNormalizedAccountStatus(user) === "suspended") acc.suspended += 1;
+      else acc.active += 1;
+      if (user?.totpEnabled) acc.totpEnabled += 1;
+      if (user?.passkeyEnabled) acc.passkeyEnabled += 1;
+      if (user?.requireFingerprint) acc.fingerprintRequired += 1;
+      if (Array.isArray(user?.fingerprints) && user.fingerprints.length > 0) acc.withFingerprints += 1;
+      if (Number(user?.ticketViolationCount || 0) > 0) acc.ticketViolated += 1;
+      if (isFutureDate(user?.ticketBannedUntil, now)) acc.ticketBanned += 1;
+      if (user?.isTranslationEnabled === false) acc.translationDisabled += 1;
+      if (isFutureDate(user?.translationAccessUntil, now)) acc.translationLimited += 1;
+      acc.totalDailyUsage += Number(user?.dailyUsage || 0);
+      return acc;
+    },
+    {
+      total: 0,
+      users: 0,
+      admins: 0,
+      active: 0,
+      suspended: 0,
+      totpEnabled: 0,
+      passkeyEnabled: 0,
+      fingerprintRequired: 0,
+      withFingerprints: 0,
+      ticketViolated: 0,
+      ticketBanned: 0,
+      translationDisabled: 0,
+      translationLimited: 0,
+      totalDailyUsage: 0,
+    },
+  );
+}
+
+function buildAdminUserListEnvelope(users: any[], filters: AdminUserListQuery) {
+  const filteredUsers = users.filter((user) => matchesAdminUserListFilters(user, filters));
+  const sortedUsers = sortAdminUsers(filteredUsers, filters);
+  const total = sortedUsers.length;
+  const totalPages = Math.max(1, Math.ceil(total / filters.pageSize));
+  const page = Math.min(filters.page, totalPages);
+  const start = (page - 1) * filters.pageSize;
+
+  return {
+    users: sortedUsers.slice(start, start + filters.pageSize),
+    pagination: {
+      page,
+      pageSize: filters.pageSize,
+      total,
+      totalPages,
+    },
+    filters: {
+      keyword: filters.keyword,
+      role: filters.role,
+      accountStatus: filters.accountStatus,
+      security: filters.security,
+      ticket: filters.ticket,
+      translation: filters.translation,
+      sortBy: filters.sortBy,
+      sortOrder: filters.sortOrder,
+    },
+    stats: buildAdminUserListStats(users),
+    filteredStats: buildAdminUserListStats(filteredUsers),
+  };
+}
+
+function getAdminUserBulkActionUpdates(action: string, now: number): Record<string, any> | null {
+  switch (action) {
+    case "resetDailyUsage":
+      return { dailyUsage: 0, lastUsageDate: new Date(now).toISOString() };
+    case "requireFingerprint":
+      return { requireFingerprint: true, requireFingerprintAt: now };
+    case "clearFingerprintRequirement":
+      return { requireFingerprint: false, requireFingerprintAt: 0 };
+    case "suspend":
+      return { accountStatus: "suspended" };
+    case "activate":
+      return { accountStatus: "active" };
+    case "enableTranslation":
+      return { isTranslationEnabled: true };
+    case "disableTranslation":
+      return { isTranslationEnabled: false };
+    case "clearTranslationRestrictions":
+      return { isTranslationEnabled: true, translationAccessUntil: "", accountStatus: "active" };
+    case "clearTicketRestrictions":
+      return { ticketViolationCount: 0, ticketBannedUntil: "" };
+    case "resetMfa":
+      return {
+        totpEnabled: false,
+        totpSecret: "",
+        backupCodes: [],
+        passkeyEnabled: false,
+        passkeyVerified: false,
+        passkeyCredentials: [],
+        pendingChallenge: "",
+        currentChallenge: "",
+      };
+    default:
+      return null;
+  }
+}
+
 /**
  * 对 updateUser / createUser 中允许写入的各字段做严格类型与范围校验。
  * 返回净化后的 updates 对象，遇到非法值则抛出带描述的 Error。
@@ -333,9 +622,8 @@ export const adminController = {
       logger.info("✅ [UserManagement] Token获取成功，长度:", token.length);
 
       // 是否包含指纹信息（默认不返回）
-      const includeFingerprints = ["1", "true", "yes"].includes(
-        String((req.query as any).includeFingerprints || "").toLowerCase(),
-      );
+      const includeFingerprints = isTruthyQueryFlag((req.query as any).includeFingerprints);
+      const listQuery = parseAdminUserListQuery(req.query);
       if (!includeFingerprints) {
         logger.info("🛡️ [UserManagement] 将从响应中排除 fingerprints 字段");
       } else {
@@ -354,6 +642,20 @@ export const adminController = {
       });
 
       logger.info("📊 [UserManagement] 获取到用户数量:", usersSanitized.length);
+      if (listQuery.envelope) {
+        logger.info("🔎 [UserManagement] 使用分页筛选 envelope 响应", {
+          page: listQuery.page,
+          pageSize: listQuery.pageSize,
+          keyword: listQuery.keyword ? "***" : "",
+          role: listQuery.role,
+          accountStatus: listQuery.accountStatus,
+          security: listQuery.security,
+          ticket: listQuery.ticket,
+          translation: listQuery.translation,
+          sortBy: listQuery.sortBy,
+          sortOrder: listQuery.sortOrder,
+        });
+      }
 
       // 调试：检查第一个用户的指纹数据
       if (usersSanitized.length > 0 && usersSanitized[0]?.fingerprints?.length > 0) {
@@ -370,7 +672,10 @@ export const adminController = {
       }
 
       // 准备加密数据
-      const jsonData = JSON.stringify(usersSanitized);
+      const responsePayload = listQuery.envelope
+        ? buildAdminUserListEnvelope(usersSanitized, listQuery)
+        : usersSanitized;
+      const jsonData = JSON.stringify(responsePayload);
       logger.info("📝 [UserManagement] JSON数据准备完成，长度:", jsonData.length);
 
       // 使用AES-256-CBC加密数据
@@ -685,6 +990,112 @@ export const adminController = {
     } catch (error) {
       logger.error("更新用户失败:", error);
       res.status(500).json({ error: "更新用户失败" });
+    }
+  },
+
+  bulkUpdateUsers: async (req: Request, res: Response) => {
+    try {
+      if (!req.user || req.user.role !== "admin") {
+        return res.status(403).json({ error: "需要管理员权限" });
+      }
+
+      const action = typeof req.body?.action === "string" ? req.body.action.trim() : "";
+      if (!ADMIN_USER_BULK_ACTIONS.has(action)) {
+        return res.status(400).json({ error: "不支持的批量操作" });
+      }
+
+      if (!Array.isArray(req.body?.userIds)) {
+        return res.status(400).json({ error: "userIds 必须为数组" });
+      }
+
+      const userIds = Array.from(
+        new Set(
+          req.body.userIds
+            .map((id: unknown) => (typeof id === "string" ? id.trim() : ""))
+            .filter(Boolean),
+        ),
+      );
+
+      if (userIds.length === 0) {
+        return res.status(400).json({ error: "请选择至少一个用户" });
+      }
+
+      if (userIds.length > 100) {
+        return res.status(400).json({ error: "单次批量操作最多处理 100 个用户" });
+      }
+
+      const results: Array<{ id: string; success: boolean; error?: string; user?: any; hash?: string }> = [];
+      let processed = 0;
+      let failed = 0;
+
+      for (const id of userIds) {
+        try {
+          if (!isValidUserId(id)) {
+            throw new Error("非法的用户 ID");
+          }
+
+          const targetUser = await UserStorage.getUserById(id);
+          if (!targetUser) {
+            throw new Error("用户不存在");
+          }
+
+          if (req.user.id === targetUser.id && ["suspend", "resetMfa"].includes(action)) {
+            throw new Error("不允许对当前管理员执行该操作");
+          }
+
+          const updates = getAdminUserBulkActionUpdates(action, Date.now());
+          if (!updates) {
+            throw new Error("不支持的批量操作");
+          }
+
+          const updated = await UserStorage.updateUser(targetUser.id, updates as any);
+          let hash: string | undefined;
+          if (action === "requireFingerprint" || action === "clearFingerprintRequirement") {
+            try {
+              const { wsService } = require("../services/wsService");
+              hash = wsService.notifyFingerprintRequired(targetUser.id, action === "requireFingerprint");
+            } catch (notifyError) {
+              logger.warn("[管理员批量用户操作] 指纹 WebSocket 通知失败:", notifyError);
+            }
+          }
+
+          processed += 1;
+          results.push({
+            id,
+            success: true,
+            user: stripSensitiveUserFields(updated || targetUser),
+            hash,
+          });
+        } catch (itemError: any) {
+          failed += 1;
+          results.push({
+            id,
+            success: false,
+            error: itemError?.message || "操作失败",
+          });
+        }
+      }
+
+      logger.warn("[Admin] 批量用户操作", {
+        adminId: req.user.id,
+        adminUsername: req.user.username,
+        action,
+        requested: userIds.length,
+        processed,
+        failed,
+      });
+
+      return res.json({
+        success: failed === 0,
+        action,
+        requested: userIds.length,
+        processed,
+        failed,
+        results,
+      });
+    } catch (error) {
+      logger.error("批量用户操作失败:", error);
+      return res.status(500).json({ error: "批量用户操作失败" });
     }
   },
 

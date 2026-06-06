@@ -22,6 +22,7 @@ import {
   modlistMountLimiter,
   networkLimiter,
   nexaiSecurityLimiter,
+  oauthLimiter,
   passkeyLimiter,
   socialLimiter,
   statusLimiter,
@@ -67,6 +68,7 @@ import networkRoutes from "./networkRoutes";
 import nexaiRoutes from "./nexaiRoutes";
 import nexaiSecurityRoutes from "./nexaiSecurityRoutes";
 import openapiJsonRoutes from "./openapiJsonRoutes";
+import oauthRoutes from "./oauthRoutes";
 import outemailRoutes from "./outemailRoutes";
 import passkeyRoutes from "./passkeyRoutes";
 import policyRoutes from "./policyRoutes";
@@ -392,6 +394,14 @@ export const routeLimiterModules: RouteModule[] = [
     rateLimited: true,
     isPublic: "mixed",
   },
+  {
+    name: "oauth-limiter",
+    path: "/api/oauth",
+    router: oauthLimiter,
+    requiresAuth: "mixed",
+    rateLimited: true,
+    isPublic: "mixed",
+  },
 ];
 
 export const preParserRouteModules: RouteModule[] = [
@@ -681,6 +691,34 @@ export const preTamperRouteModules: RouteModule[] = [
       ipVerification: {
         value: "mixed",
         reason: "Third-party callback and bootstrap branches must remain reachable before verification completes.",
+      },
+    },
+  },
+  {
+    name: "oauth-routes",
+    path: "/api/oauth",
+    router: oauthRoutes,
+    requiresAuth: "mixed",
+    rateLimited: true,
+    isPublic: "mixed",
+    authPolicy: {
+      mode: "route",
+      handlers: ["authMiddleware", "adminAuthMiddleware", "oauthTokenAuth", "client_secret_basic"],
+      note: "Authorization and client/grant management require Synapse admin JWT; userinfo requires OAuth Bearer; token/introspection/revocation authenticate OAuth clients.",
+    },
+    rateLimitPolicy: {
+      mode: "route-module",
+      limiters: ["oauth-limiter"],
+      note: "OAuth endpoints are covered by the dedicated /api/oauth limiter module.",
+    },
+    securityBypass: {
+      ipVerification: {
+        value: true,
+        reason: "OAuth token and authorization endpoints must be callable by third-party clients outside browser IP-verification bootstrap.",
+      },
+      tamperProtection: {
+        value: true,
+        reason: "OAuth endpoints are mounted before tamper protection so external server-to-server token flows are not blocked by browser tamper state.",
       },
     },
   },
@@ -1212,6 +1250,7 @@ const knownMountLimiters = new Map<RequestHandler, string>([
   [modlistMountLimiter, "modlistMountLimiter"],
   [networkLimiter, "networkLimiter"],
   [nexaiSecurityLimiter, "nexaiSecurityLimiter"],
+  [oauthLimiter, "oauthLimiter"],
   [passkeyLimiter, "passkeyLimiter"],
   [socialLimiter, "socialLimiter"],
   [statusLimiter, "statusLimiter"],

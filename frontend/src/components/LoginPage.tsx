@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import { usePasskey } from '../hooks/usePasskey';
 import { useNotification } from './Notification';
@@ -25,6 +25,7 @@ export const LoginPage: React.FC = () => {
     const { user, login, pending2FA, setPending2FA } = useAuth();
     const { setNotification } = useNotification();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const { config: turnstileConfig, loading: turnstileConfigLoading } = useTurnstileConfig({ usePublicConfig: true });
     const { authenticateWithPasskey, authenticateWithDiscoverablePasskey } = usePasskey();
     const prefersReducedMotion = useReducedMotion();
@@ -50,6 +51,18 @@ export const LoginPage: React.FC = () => {
     const effectiveCardTransition = React.useMemo(() => prefersReducedMotion ? NO_TRANSITION : CARD_TRANSITION, [prefersReducedMotion]);
     const effectiveItemHover = React.useMemo(() => prefersReducedMotion ? undefined : ITEM_HOVER, [prefersReducedMotion]);
     const effectiveButtonTap = React.useMemo(() => prefersReducedMotion ? undefined : BUTTON_TAP, [prefersReducedMotion]);
+    const postLoginRedirect = React.useMemo(() => {
+        const raw = searchParams.get('redirectTo') || '';
+        if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return null;
+        return raw;
+    }, [searchParams]);
+    const completeLogin = React.useCallback(() => {
+        if (postLoginRedirect) {
+            navigate(postLoginRedirect, { replace: true });
+            return;
+        }
+        window.location.reload();
+    }, [navigate, postLoginRedirect]);
 
     useEffect(() => {
         const savedUsername = localStorage.getItem('rememberedUsername');
@@ -94,7 +107,7 @@ export const LoginPage: React.FC = () => {
                 }
                 return;
             }
-            setNotification({ message: '登录成功', type: 'success' }); window.location.reload();
+            setNotification({ message: '登录成功', type: 'success' }); completeLogin();
         } catch (err: any) {
             setError(err.message || '登录失败'); setNotification({ message: err.message || '登录失败', type: 'error' });
         } finally { setLoading(false); }
@@ -106,7 +119,7 @@ export const LoginPage: React.FC = () => {
             if (method === 'passkey') {
                 // authenticateWithPasskey throws on failure (including "not enabled" 400 errors)
                 const success = await authenticateWithPasskey(pendingVerificationData.username);
-                if (success) { setPendingVerificationData(null); window.location.reload(); }
+                if (success) { setPendingVerificationData(null); completeLogin(); }
                 else { setError('Passkey 验证失败'); setNotification({ message: 'Passkey 验证失败', type: 'error' }); }
             } else if (method === 'totp') {
                 setPending2FA({ userId: pendingVerificationData.userId, username: pendingVerificationData.username, type: ['TOTP'] });
@@ -261,7 +274,7 @@ export const LoginPage: React.FC = () => {
                                         </div>
                                     )}
                                 </div>
-                                <m.button type="button" onClick={async () => { try { setLoading(true); const success = await authenticateWithDiscoverablePasskey(); if (success) setNotification({ message: '通行密钥登录成功！', type: 'success' }); } catch (err: any) { setNotification({ message: err.message || '通行密钥登录失败', type: 'error' }); } finally { setLoading(false); } }} disabled={loading}
+                                <m.button type="button" onClick={async () => { try { setLoading(true); const success = await authenticateWithDiscoverablePasskey(); if (success) { setNotification({ message: '通行密钥登录成功！', type: 'success' }); completeLogin(); } } catch (err: any) { setNotification({ message: err.message || '通行密钥登录失败', type: 'error' }); } finally { setLoading(false); } }} disabled={loading}
                                     className="w-full flex items-center justify-center gap-3 py-3.5 px-4 border-2 border-[#8ECAE6]/30 rounded-xl text-sm font-semibold text-[#023047] bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
                                     aria-label="Sign in with Passkey" whileHover={effectiveItemHover} whileTap={effectiveButtonTap}>
                                     <FaFingerprint className="h-5 w-5" />
@@ -283,8 +296,8 @@ export const LoginPage: React.FC = () => {
                     </div>
                 </div>
 
-                <PasskeyVerifyModal open={showPasskeyVerification || false} username={username} onSuccess={() => { setShowPasskeyVerification(false); setPending2FA(null); setPendingVerificationData(null); window.location.reload(); }} onClose={() => { setShowPasskeyVerification(false); setPending2FA(null); setPendingVerificationData(null); }} />
-                {showTOTPVerification && (<TOTPVerification isOpen={showTOTPVerification} onClose={() => { setShowTOTPVerification(false); setPending2FA(null); setPendingVerificationData(null); }} onSuccess={() => { setShowTOTPVerification(false); setPending2FA(null); setPendingVerificationData(null); window.location.reload(); }} userId={pending2FA?.userId || ''} token={pendingToken || ''} />)}
+                <PasskeyVerifyModal open={showPasskeyVerification || false} username={username} onSuccess={() => { setShowPasskeyVerification(false); setPending2FA(null); setPendingVerificationData(null); completeLogin(); }} onClose={() => { setShowPasskeyVerification(false); setPending2FA(null); setPendingVerificationData(null); }} />
+                {showTOTPVerification && (<TOTPVerification isOpen={showTOTPVerification} onClose={() => { setShowTOTPVerification(false); setPending2FA(null); setPendingVerificationData(null); }} onSuccess={() => { setShowTOTPVerification(false); setPending2FA(null); setPendingVerificationData(null); completeLogin(); }} userId={pending2FA?.userId || ''} token={pendingToken || ''} />)}
                 {showVerificationSelector && pendingVerificationData && (<VerificationMethodSelector isOpen={showVerificationSelector} onClose={handleVerificationSelectorClose} onSelectMethod={handleVerificationMethodSelect} username={pendingVerificationData.username} loading={loading} availableMethods={pendingVerificationData.twoFactorType?.map((type: string) => type === 'Passkey' ? 'passkey' : type === 'TOTP' ? 'totp' : null).filter(Boolean) as ('passkey' | 'totp')[] || []} />)}
             </div>
         </LazyMotion>

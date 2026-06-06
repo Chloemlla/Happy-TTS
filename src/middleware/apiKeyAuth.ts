@@ -3,6 +3,7 @@ import { recordUsage, validateApiKey } from "../services/apiKeyService";
 import logger from "../utils/logger";
 import { UserStorage } from "../utils/userStorage";
 import { attachApiKeyBillingFinalizer, preauthorizeApiKeyBilling } from "../services/apiKeyBillingService";
+import { oauthTokenAuth } from "./oauthTokenAuth";
 
 // 简易内存滑动窗口限流
 const windowMap = new Map<string, { count: number; resetAt: number }>();
@@ -12,12 +13,14 @@ const windowMap = new Map<string, { count: number; resetAt: number }>();
  * @param requiredPermission 该路由需要的权限标识，如 'tts'
  */
 export function apiKeyAuth(requiredPermission: string) {
+  const oauthAuth = oauthTokenAuth(requiredPermission, { optional: true });
+
   return async (req: Request, res: Response, next: NextFunction) => {
     // 如果已经通过 JWT 认证（req.user 存在），直接放行
     if ((req as any).user) return next();
 
     const header = req.headers["x-api-key"] as string | undefined;
-    if (!header) return next(); // 没有 API Key header，交给后续 JWT 中间件处理
+    if (!header) return oauthAuth(req, res, next); // 没有 API Key 时尝试 OAuth Bearer，仍没有则交给后续链路
 
     try {
       const doc = await validateApiKey(header);

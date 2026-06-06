@@ -37,6 +37,7 @@ const WelcomePage = React.lazy(() => import('./components/WelcomePage').then(mod
 const LoginPage = React.lazy(() => import('./components/LoginPage').then(module => ({ default: module.LoginPage })));
 const RegisterPage = React.lazy(() => import('./components/RegisterPage').then(module => ({ default: module.RegisterPage })));
 const LinuxDoAuthCallbackPage = React.lazy(() => import('./components/LinuxDoAuthCallbackPage').then(module => ({ default: module.LinuxDoAuthCallbackPage })));
+const OAuthAuthorizePage = React.lazy(() => import('./components/OAuthAuthorizePage'));
 const DeepLXTranslatorPage = React.lazy(() => import('./components/DeepLXTranslatorPage').then(module => ({ default: module.DeepLXTranslatorPage })));
 const ForgotPasswordPage = React.lazy(() => import('./components/ForgotPasswordPage').then(module => ({ default: module.ForgotPasswordPage })));
 const ResetPasswordPage = React.lazy(() => import('./components/ResetPasswordPage').then(module => ({ default: module.ResetPasswordPage })));
@@ -325,6 +326,7 @@ const ANNOUNCEMENT_SUPPRESSED_ROUTES = new Set([
   '/forgot-password',
   '/reset-password',
   '/verify-email',
+  '/oauth/authorize',
 ]);
 
 const LOADING_CARD_CLASS =
@@ -522,6 +524,7 @@ const AUTH_FLOW_PATHS = new Set([
   '/forgot-password',
   '/reset-password',
   '/verify-email',
+  '/oauth/authorize',
 ]);
 
 const App: React.FC = () => {
@@ -1394,6 +1397,7 @@ const App: React.FC = () => {
                     <Route path="/login" element={renderAnimatedRoute(<LoginPage />)} />
                     <Route path="/register" element={renderAnimatedRoute(<RegisterPage />)} />
                     <Route path="/auth/linuxdo/callback" element={renderAnimatedRoute(<LinuxDoAuthCallbackPage />)} />
+                    <Route path="/oauth/authorize" element={renderAnimatedRoute(<OAuthAuthorizePage />)} />
                     <Route path="/translate" element={renderProtectedRoute(<DeepLXTranslatorPage />)} />
                     <Route path="/forgot-password" element={renderAnimatedRoute(<ForgotPasswordPage />)} />
                     <Route path="/reset-password" element={renderAnimatedRoute(<ResetPasswordLinkPage />)} />

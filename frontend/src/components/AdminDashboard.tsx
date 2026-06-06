@@ -53,6 +53,7 @@ const FingerprintManager = React.lazy(() => import("./FingerprintManager"));
 const SystemManager = React.lazy(() => import("./SystemManager"));
 const BroadcastManager = React.lazy(() => import("./BroadcastManager"));
 const ApiKeyManager = React.lazy(() => import("./ApiKeyManager"));
+const OAuthClientManager = React.lazy(() => import("./OAuthClientManager"));
 const AuditLogViewer = React.lazy(() => import("./AuditLogViewer"));
 const TranslationAuditViewer = React.lazy(
   () => import("./TranslationAuditViewer"),
@@ -115,6 +116,7 @@ const AdminDashboard: React.FC = () => {
         { key: "ip-ban", label: "IP封禁管理" },
         { key: "fingerprint", label: "指纹管理" },
         { key: "broadcast", label: "广播推送" },
+        { key: "oauth", label: "OAuth 接入" },
         { key: "apikeys", label: "API Key 管理" },
         { key: "apikey-billing", label: "API Key 计费" },
         { key: "audit-log", label: "操作审计" },
@@ -687,6 +689,19 @@ const AdminDashboard: React.FC = () => {
                   >
                     <Suspense fallback={<AdminModuleLoadingShell />}>
                       <ApiKeyManager />
+                    </Suspense>
+                  </motion.div>
+                )}
+                {tab === "oauth" && (
+                  <motion.div
+                    key="oauth"
+                    initial={{ opacity: 0, x: 40 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -40 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <Suspense fallback={<AdminModuleLoadingShell label="正在加载 OAuth 接入管理..." />}>
+                      <OAuthClientManager />
                     </Suspense>
                   </motion.div>
                 )}

@@ -136,6 +136,19 @@ router.post(
   adminController.createUser,
 );
 
+router.post(
+  "/users/bulk-action",
+  auditLog({
+    module: "user",
+    action: "user.bulkAction",
+    extractDetail: (req) => ({
+      action: req.body?.action,
+      count: Array.isArray(req.body?.userIds) ? req.body.userIds.length : 0,
+    }),
+  }),
+  adminController.bulkUpdateUsers,
+);
+
 // 管理员设置指定用户下次需要上报指纹（一次性或开关）
 router.post("/users/:id/fingerprint/require", async (req, res) => {
   try {

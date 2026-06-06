@@ -29,6 +29,7 @@ export const securityBypassPolicy: Record<SecurityComponent, SecurityBypassRule[
     { match: "prefix", value: "/api/status", note: "Status endpoint" },
     { match: "exact", value: "/api/frontend-config", note: "Frontend boot config" },
     { match: "prefix", value: "/api/auth/linuxdo/", note: "External auth callback" },
+    { match: "prefix", value: "/api/oauth", note: "OAuth third-party authorization and token endpoints" },
   ],
   tamperProtection: [],
   replayProtection: [],

@@ -72,6 +72,11 @@ const authCacheBypassPaths = [
   "/api/auth/logout",
   "/api/auth/login",
   "/api/auth/register",
+  "/api/oauth/authorize",
+  "/api/oauth/token",
+  "/api/oauth/userinfo",
+  "/api/oauth/introspect",
+  "/api/oauth/revoke",
 ];
 
 const isLocalIp = (req: Request, _res: Response, next: NextFunction) => {

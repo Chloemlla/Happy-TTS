@@ -558,6 +558,11 @@ const LIMITER_DEFINITIONS = {
     category: "public-api",
     message: "请求过于频繁，请稍后再试",
   },
+  oauth: {
+    profile: "auth",
+    category: "auth",
+    message: "OAuth 请求过于频繁，请稍后再试",
+  },
   audio: {
     profile: "admin",
     category: "static",
@@ -691,6 +696,7 @@ export const miniapiLimiter = limiterFromDefinition("miniapi");
 export const antaLimiter = limiterFromDefinition("anta");
 export const statusLimiter = limiterFromDefinition("status");
 export const openapiLimiter = limiterFromDefinition("openapi");
+export const oauthLimiter = limiterFromDefinition("oauth");
 export const audioFileLimiter = limiterFromDefinition("audio");
 export const modlistMountLimiter = limiterFromDefinition("modlist");
 export const cdkMountLimiter = limiterFromDefinition("cdk");

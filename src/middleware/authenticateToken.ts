@@ -6,7 +6,7 @@ import { UserStorage } from "../utils/userStorage";
 
 export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    if ((req as any).apiKey && (req as any).user) {
+    if (((req as any).apiKey || (req as any).oauthToken) && (req as any).user) {
       return next();
     }
 
