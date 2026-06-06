@@ -145,7 +145,7 @@ const asCapabilities = (value: unknown): SystemCapability[] => {
   return Array.isArray(value) ? value as SystemCapability[] : [];
 };
 
-const normalizeSchedulerStatus = (status: Partial<SchedulerStatus> & Record<string, any>): SchedulerStatus => {
+const normalizeSchedulerStatus = (status: any): SchedulerStatus => {
   return {
     isRunning: Boolean(status?.isRunning),
     isSyncEnabled: Boolean(status?.isSyncEnabled),
@@ -185,7 +185,7 @@ const countRedisToMongo = (value: unknown): number => {
   return toFiniteNumber(result?.synced) + toFiniteNumber(result?.updated);
 };
 
-const normalizeSyncStatus = (status: Partial<SyncStatus> & Record<string, any>): SyncStatus => {
+const normalizeSyncStatus = (status: any): SyncStatus => {
   return {
     lastSync: asDateString(status?.lastSync),
     nextSync: asDateString(status?.nextSync),
