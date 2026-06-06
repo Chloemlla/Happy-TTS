@@ -12,6 +12,7 @@ import {
   EcoEnchantsOpsInstanceModel,
   EcoEnchantsOpsJobModel,
   EcoEnchantsOpsNonceModel,
+  type EcoEnchantsOpsJobStatus,
   type EcoEnchantsOpsRiskLevel,
   type IEcoEnchantsActivation,
   type IEcoEnchantsOpsInstance,
@@ -119,7 +120,7 @@ const BLOCKED_WRITE_BASENAMES = new Set([
   "java-args.txt",
 ]);
 const PROTECTED_DELETE_ROOTS = new Set(["world", "world_nether", "world_the_end", "plugins", "backups"]);
-const QUEUED_JOB_STATUSES = ["queued", "dispatched", "acknowledged", "running"];
+const QUEUED_JOB_STATUSES = ["queued", "dispatched", "acknowledged", "running"] as const satisfies readonly EcoEnchantsOpsJobStatus[];
 
 function opsError(statusCode: number, code: string, message: string, retryAfterSeconds: number | null = null) {
   return new EcoEnchantsServiceError(statusCode, code, message, retryAfterSeconds);
@@ -606,7 +607,7 @@ export class EcoEnchantsOpsService {
   static async getJob(jobId: string, requestId: string) {
     const job = await EcoEnchantsOpsJobModel.findOne({ jobId });
     if (!job) throw opsError(404, "job_not_found", "Ops job was not found.");
-    return { requestId, ...getJobSummary(job) };
+    return { ...getJobSummary(job), requestId };
   }
 
   static async createManagedJob(instanceId: string, body: Record<string, unknown>, context: EcoEnchantsRequestContext) {
@@ -1204,12 +1205,14 @@ export class EcoEnchantsOpsService {
   }): Promise<void> {
     try {
       const previous = await EcoEnchantsOpsAuditLogModel.findOne({}).sort({ createdAt: -1 });
+      const actorType: "admin" | "license" | "system" =
+        params.context.actorType === "license" ? "license" : params.context.actorType === "system" ? "system" : "admin";
       const base = {
         auditId: `aud_${uuidv4()}`,
         requestId: params.context.requestId,
         jobId: params.jobId,
         instanceId: params.instanceId,
-        actorType: params.context.actorType === "license" ? "license" : params.context.actorType === "system" ? "system" : "admin",
+        actorType,
         actorId: params.context.actorId || "unknown",
         action: params.action,
         resource: sanitizeResource(params.resource),
