@@ -164,19 +164,13 @@ export class ShortUrlService {
       }
     }
 
-    // 策略5: 使用哈希算法（基于 target + userId + timestamp）
-    const hashInput = `${target}_${userId}_${timestamp}_${Math.random()}`;
-    const hash = crypto
-      .createHash("sha256")
-      .update(hashInput)
-      .digest("base64")
-      .replace(/[+/=]/g, "") // 移除特殊字符
-      .substring(0, 10); // 取前10位
+    // 策略5: 使用 CSPRNG 生成候选码，避免把目标地址或用户标识放入哈希输入
+    const randomCode = crypto.randomBytes(16).toString("base64url").substring(0, 10);
 
-    const existing = await ShortUrlModel.findOne({ code: hash }).session(session);
+    const existing = await ShortUrlModel.findOne({ code: randomCode }).session(session);
     if (!existing) {
-      logger.debug("[短链服务] 策略5成功: 哈希算法");
-      return hash;
+      logger.debug("[短链服务] 策略5成功: 安全随机码");
+      return randomCode;
     }
 
     // 策略6: 最后的保底策略 - UUID 截取
