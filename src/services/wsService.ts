@@ -51,6 +51,7 @@ interface WsClient {
   userId: string | null;
   isAdmin: boolean;
   channels: Set<string>;
+  connectedAt: number;
   lastPing: number;
 }
 
@@ -148,6 +149,7 @@ class WsService {
       userId,
       isAdmin,
       channels: new Set(),
+      connectedAt: Date.now(),
       lastPing: Date.now(),
     };
     this.clients.set(ws, client);
@@ -236,48 +238,90 @@ class WsService {
 
   // ========== 发送方法 ==========
 
-  private send(ws: WebSocket, msg: WsServerMessage) {
+  private send(ws: WebSocket, msg: WsServerMessage): boolean {
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(msg));
+      return true;
     }
+    return false;
   }
 
   /** 发送给指定用户 */
-  sendToUser(userId: string, msg: Omit<WsServerMessage, "timestamp">) {
+  sendToUser(userId: string, msg: Omit<WsServerMessage, "timestamp">): number {
+    return this.sendToUsers([userId], msg);
+  }
+
+  /** 发送给多个指定用户 */
+  sendToUsers(userIds: string[], msg: Omit<WsServerMessage, "timestamp">): number {
+    const targetIds = new Set(userIds.filter(Boolean));
+    if (targetIds.size === 0) return 0;
+
     const fullMsg: WsServerMessage = { ...msg, timestamp: Date.now() };
+    let sent = 0;
     for (const [, client] of this.clients) {
-      if (client.userId === userId) {
-        this.send(client.ws, fullMsg);
+      if (client.userId && targetIds.has(client.userId) && this.send(client.ws, fullMsg)) {
+        sent++;
       }
     }
+    return sent;
   }
 
   /** 发送给订阅了某频道的所有客户端 */
-  sendToChannel(channel: string, msg: Omit<WsServerMessage, "timestamp">) {
+  sendToChannel(channel: string, msg: Omit<WsServerMessage, "timestamp">): number {
     const fullMsg: WsServerMessage = { ...msg, timestamp: Date.now() };
+    let sent = 0;
     for (const [, client] of this.clients) {
       if (client.channels.has(channel)) {
-        this.send(client.ws, fullMsg);
+        if (this.send(client.ws, fullMsg)) sent++;
       }
     }
+    return sent;
   }
 
   /** 广播给所有已连接客户端 */
-  broadcast(msg: Omit<WsServerMessage, "timestamp">) {
+  broadcast(msg: Omit<WsServerMessage, "timestamp">): number {
     const fullMsg: WsServerMessage = { ...msg, timestamp: Date.now() };
+    let sent = 0;
     for (const [, client] of this.clients) {
-      this.send(client.ws, fullMsg);
+      if (this.send(client.ws, fullMsg)) sent++;
     }
+    return sent;
   }
 
   /** 广播给所有管理员 */
-  broadcastToAdmins(msg: Omit<WsServerMessage, "timestamp">) {
+  broadcastToAdmins(msg: Omit<WsServerMessage, "timestamp">): number {
     const fullMsg: WsServerMessage = { ...msg, timestamp: Date.now() };
+    let sent = 0;
     for (const [, client] of this.clients) {
       if (client.isAdmin) {
-        this.send(client.ws, fullMsg);
+        if (this.send(client.ws, fullMsg)) sent++;
       }
     }
+    return sent;
+  }
+
+  /** 广播给所有已认证用户 */
+  broadcastToAuthenticatedUsers(msg: Omit<WsServerMessage, "timestamp">): number {
+    const fullMsg: WsServerMessage = { ...msg, timestamp: Date.now() };
+    let sent = 0;
+    for (const [, client] of this.clients) {
+      if (client.userId && this.send(client.ws, fullMsg)) {
+        sent++;
+      }
+    }
+    return sent;
+  }
+
+  /** 广播给所有匿名连接 */
+  broadcastToAnonymous(msg: Omit<WsServerMessage, "timestamp">): number {
+    const fullMsg: WsServerMessage = { ...msg, timestamp: Date.now() };
+    let sent = 0;
+    for (const [, client] of this.clients) {
+      if (!client.userId && this.send(client.ws, fullMsg)) {
+        sent++;
+      }
+    }
+    return sent;
   }
 
   // ========== 便捷方法：TTS 进度推送 ==========
@@ -311,16 +355,16 @@ class WsService {
     message: string,
     level: "info" | "warn" | "error" = "info",
     options?: { duration?: number; display?: "toast" | "modal"; format?: "text" | "html" | "markdown"; title?: string },
-  ) {
-    this.broadcast({
+  ): number {
+    return this.broadcast({
       type: "notification",
       data: { message, level, ...options },
     });
   }
 
   /** 管理员消息 */
-  notifyAdmins(message: string, data?: any) {
-    this.broadcastToAdmins({
+  notifyAdmins(message: string, data?: any): number {
+    return this.broadcastToAdmins({
       type: "admin:broadcast",
       data: { message, ...data },
     });
@@ -443,17 +487,64 @@ class WsService {
   }
 
   /** 获取所有在线客户端信息（管理员用） */
-  getOnlineClients(): Array<{ userId: string | null; isAdmin: boolean; channels: string[]; connectedSince: number }> {
-    const result: Array<{ userId: string | null; isAdmin: boolean; channels: string[]; connectedSince: number }> = [];
+  getOnlineClients(): Array<{
+    userId: string | null;
+    isAdmin: boolean;
+    channels: string[];
+    connectedSince: number;
+    lastPing: number;
+  }> {
+    const result: Array<{
+      userId: string | null;
+      isAdmin: boolean;
+      channels: string[];
+      connectedSince: number;
+      lastPing: number;
+    }> = [];
     for (const [, client] of this.clients) {
       result.push({
         userId: client.userId,
         isAdmin: client.isAdmin,
         channels: Array.from(client.channels),
-        connectedSince: client.lastPing,
+        connectedSince: client.connectedAt,
+        lastPing: client.lastPing,
       });
     }
     return result;
+  }
+
+  /** 获取在线连接统计（管理员用） */
+  getConnectionStats(): {
+    total: number;
+    authenticated: number;
+    anonymous: number;
+    admins: number;
+    channels: Array<{ channel: string; connections: number }>;
+  } {
+    const channelMap = new Map<string, number>();
+    let authenticated = 0;
+    let anonymous = 0;
+    let admins = 0;
+
+    for (const [, client] of this.clients) {
+      if (client.userId) authenticated++;
+      else anonymous++;
+      if (client.isAdmin) admins++;
+
+      for (const channel of client.channels) {
+        channelMap.set(channel, (channelMap.get(channel) || 0) + 1);
+      }
+    }
+
+    return {
+      total: this.clients.size,
+      authenticated,
+      anonymous,
+      admins,
+      channels: Array.from(channelMap.entries())
+        .map(([channel, connections]) => ({ channel, connections }))
+        .sort((a, b) => b.connections - a.connections || a.channel.localeCompare(b.channel)),
+    };
   }
 
   /** 强制断开指定用户的所有连接 */

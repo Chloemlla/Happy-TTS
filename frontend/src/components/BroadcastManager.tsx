@@ -1,16 +1,22 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotification } from './Notification';
 import { getApiBaseUrl } from '../api/api';
 import {
   FaBullhorn, FaPaperPlane, FaUsers, FaHistory,
   FaUserSlash, FaClipboardList, FaSyncAlt, FaUserAlt,
-  FaCrown, FaPlug, FaLock, FaLockOpen,
+  FaCrown, FaPlug, FaLock, FaLockOpen, FaUserCheck,
+  FaUserSecret, FaHashtag,
 } from 'react-icons/fa';
 
 // ========== 类型 ==========
 
 type BroadcastLevel = 'info' | 'warn' | 'error';
+type BroadcastDisplay = 'toast' | 'modal';
+type BroadcastFormat = 'text' | 'html' | 'markdown';
+type BroadcastAudience = 'all' | 'authenticated' | 'admins' | 'anonymous' | 'channel';
+type BroadcastLogAudience = BroadcastAudience | 'users';
+type HistoryAudienceFilter = BroadcastLogAudience | 'any';
 type TabKey = 'broadcast' | 'direct' | 'online' | 'history' | 'templates';
 
 interface OnlineClient {
@@ -18,12 +24,28 @@ interface OnlineClient {
   isAdmin: boolean;
   channels: string[];
   connectedSince: number;
+  lastPing?: number;
+}
+
+interface OnlineStats {
+  total: number;
+  authenticated: number;
+  anonymous: number;
+  admins: number;
+  channels: Array<{ channel: string; connections: number }>;
 }
 
 interface BroadcastLogItem {
   _id: string;
   message: string;
   level: string;
+  title?: string;
+  duration?: number;
+  display?: BroadcastDisplay;
+  format?: BroadcastFormat;
+  audience?: BroadcastLogAudience;
+  targetUserIds?: string[];
+  targetChannel?: string;
   admin: string;
   connections: number;
   createdAt: string;
@@ -35,6 +57,24 @@ const LEVEL_OPTIONS: { value: BroadcastLevel; label: string; color: string; emoj
   { value: 'info', label: '通知', color: 'bg-blue-100 text-blue-700 border-blue-300', emoji: 'ℹ️' },
   { value: 'warn', label: '警告', color: 'bg-yellow-100 text-yellow-700 border-yellow-300', emoji: '⚠️' },
   { value: 'error', label: '紧急', color: 'bg-red-100 text-red-700 border-red-300', emoji: '🚨' },
+];
+
+const AUDIENCE_OPTIONS: { value: BroadcastAudience; label: string; description: string; icon: React.ReactNode }[] = [
+  { value: 'all', label: '全体连接', description: '所有在线 WebSocket 连接', icon: <FaBullhorn /> },
+  { value: 'authenticated', label: '已登录用户', description: '仅推送给带用户身份的连接', icon: <FaUserCheck /> },
+  { value: 'admins', label: '管理员', description: '仅推送给管理员在线连接', icon: <FaCrown /> },
+  { value: 'anonymous', label: '匿名连接', description: '仅推送给未登录连接', icon: <FaUserSecret /> },
+  { value: 'channel', label: '指定频道', description: '推送给订阅该频道的连接', icon: <FaHashtag /> },
+];
+
+const HISTORY_FILTER_OPTIONS: { value: HistoryAudienceFilter; label: string }[] = [
+  { value: 'any', label: '全部' },
+  { value: 'all', label: '全体' },
+  { value: 'authenticated', label: '已登录' },
+  { value: 'admins', label: '管理员' },
+  { value: 'anonymous', label: '匿名' },
+  { value: 'users', label: '指定用户' },
+  { value: 'channel', label: '频道' },
 ];
 
 const QUICK_TEMPLATES = [
@@ -64,6 +104,48 @@ const authHeaders = () => ({
 const api = (path: string, opts?: RequestInit) =>
   fetch(`${getApiBaseUrl()}${path}`, { headers: authHeaders(), ...opts });
 
+const parseUserIds = (value: string) =>
+  Array.from(new Set(value.split(/[\s,;，；]+/).map(item => item.trim()).filter(Boolean))).slice(0, 100);
+
+const getAudienceLabel = (audience?: BroadcastLogAudience) => {
+  switch (audience) {
+    case 'authenticated': return '已登录用户';
+    case 'admins': return '管理员';
+    case 'anonymous': return '匿名连接';
+    case 'users': return '指定用户';
+    case 'channel': return '指定频道';
+    case 'all':
+    default:
+      return '全体连接';
+  }
+};
+
+const getTargetSummary = (log: BroadcastLogItem) => {
+  if (log.audience === 'users') {
+    const count = log.targetUserIds?.length || 0;
+    return count > 0 ? `${count} 个用户` : '指定用户';
+  }
+  if (log.audience === 'channel') return log.targetChannel || '指定频道';
+  return getAudienceLabel(log.audience);
+};
+
+const formatDuration = (duration?: number) => {
+  if (!duration) return '默认';
+  return `${Math.round(duration / 1000)} 秒`;
+};
+
+const formatRelativeDuration = (timestamp?: number) => {
+  if (!timestamp) return '未知';
+  const seconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
+  if (seconds < 60) return `${seconds} 秒`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} 分钟`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} 小时 ${minutes % 60} 分钟`;
+  const days = Math.floor(hours / 24);
+  return `${days} 天 ${hours % 24} 小时`;
+};
+
 // ========== 组件 ==========
 
 const BroadcastManager: React.FC = () => {
@@ -74,39 +156,62 @@ const BroadcastManager: React.FC = () => {
   const [message, setMessage] = useState('');
   const [level, setLevel] = useState<BroadcastLevel>('info');
   const [sending, setSending] = useState(false);
-  const [lastResult, setLastResult] = useState<{ connections: number; time: string } | null>(null);
+  const [lastResult, setLastResult] = useState<{ connections: number; time: string; audience: string } | null>(null);
   const [keepBroadcastInput, setKeepBroadcastInput] = useState(false);
   const [broadcastDuration, setBroadcastDuration] = useState(5);
-  const [broadcastDisplay, setBroadcastDisplay] = useState<'toast' | 'modal'>('toast');
-  const [broadcastFormat, setBroadcastFormat] = useState<'text' | 'html' | 'markdown'>('text');
+  const [broadcastDisplay, setBroadcastDisplay] = useState<BroadcastDisplay>('toast');
+  const [broadcastFormat, setBroadcastFormat] = useState<BroadcastFormat>('text');
   const [broadcastTitle, setBroadcastTitle] = useState('');
+  const [broadcastAudience, setBroadcastAudience] = useState<BroadcastAudience>('all');
+  const [broadcastChannel, setBroadcastChannel] = useState('');
 
   // --- 定向推送 ---
-  const [directUserId, setDirectUserId] = useState('');
+  const [directUserIds, setDirectUserIds] = useState('');
   const [directMessage, setDirectMessage] = useState('');
   const [directLevel, setDirectLevel] = useState<BroadcastLevel>('info');
   const [directSending, setDirectSending] = useState(false);
   const [keepDirectInput, setKeepDirectInput] = useState(false);
   const [directDuration, setDirectDuration] = useState(5);
-  const [directDisplay, setDirectDisplay] = useState<'toast' | 'modal'>('toast');
-  const [directFormat, setDirectFormat] = useState<'text' | 'html' | 'markdown'>('text');
+  const [directDisplay, setDirectDisplay] = useState<BroadcastDisplay>('toast');
+  const [directFormat, setDirectFormat] = useState<BroadcastFormat>('text');
   const [directTitle, setDirectTitle] = useState('');
 
   // --- 在线用户 ---
   const [clients, setClients] = useState<OnlineClient[]>([]);
   const [clientsTotal, setClientsTotal] = useState(0);
+  const [clientStats, setClientStats] = useState<OnlineStats | null>(null);
   const [loadingClients, setLoadingClients] = useState(false);
   const [kickingUser, setKickingUser] = useState<string | null>(null);
 
   // --- 广播历史 ---
   const [history, setHistory] = useState<BroadcastLogItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [historyAudienceFilter, setHistoryAudienceFilter] = useState<HistoryAudienceFilter>('any');
+
+  const directTargetUserIds = useMemo(() => parseUserIds(directUserIds), [directUserIds]);
+  const availableChannels = useMemo(() => {
+    const channels = Array.isArray(clientStats?.channels) ? clientStats.channels : [];
+    if (channels.length > 0) return channels;
+
+    const channelMap = new Map<string, number>();
+    clients.forEach(client => {
+      client.channels.forEach(channel => {
+        channelMap.set(channel, (channelMap.get(channel) || 0) + 1);
+      });
+    });
+    return Array.from(channelMap.entries()).map(([channel, connections]) => ({ channel, connections }));
+  }, [clientStats, clients]);
 
   // ========== API 调用 ==========
 
   const handleBroadcast = async () => {
     const trimmed = message.trim();
     if (!trimmed) { setNotification({ message: '请输入广播内容', type: 'warning' }); return; }
+    const targetChannel = broadcastChannel.trim();
+    if (broadcastAudience === 'channel' && !targetChannel) {
+      setNotification({ message: '请输入频道名称', type: 'warning' });
+      return;
+    }
     setSending(true);
     try {
       const res = await api('/api/admin/broadcast', {
@@ -117,12 +222,15 @@ const BroadcastManager: React.FC = () => {
           display: broadcastDisplay,
           format: broadcastFormat,
           title: broadcastTitle.trim() || undefined,
+          audience: broadcastAudience,
+          targetChannel: broadcastAudience === 'channel' ? targetChannel : undefined,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '广播失败');
-      setLastResult({ connections: data.connections ?? 0, time: new Date().toLocaleTimeString() });
-      setNotification({ message: `广播已发送，${data.connections} 个在线连接`, type: 'success', duration: 5000 });
+      const connections = data.connections ?? 0;
+      setLastResult({ connections, time: new Date().toLocaleTimeString(), audience: getAudienceLabel(broadcastAudience) });
+      setNotification({ message: `广播已发送，送达 ${connections} 个连接`, type: 'success', duration: 5000 });
       if (!keepBroadcastInput) setMessage('');
     } catch (err) {
       setNotification({ message: err instanceof Error ? err.message : '广播失败', type: 'error' });
@@ -130,15 +238,15 @@ const BroadcastManager: React.FC = () => {
   };
 
   const handleDirectPush = async () => {
-    if (!directUserId.trim() || !directMessage.trim()) {
-      setNotification({ message: '请填写用户ID和消息内容', type: 'warning' }); return;
+    if (directTargetUserIds.length === 0 || !directMessage.trim()) {
+      setNotification({ message: '请填写用户 ID 和消息内容', type: 'warning' }); return;
     }
     setDirectSending(true);
     try {
       const res = await api('/api/admin/broadcast/user', {
         method: 'POST',
         body: JSON.stringify({
-          userId: directUserId.trim(), message: directMessage.trim(), level: directLevel,
+          targetUserIds: directTargetUserIds, message: directMessage.trim(), level: directLevel,
           duration: directDuration * 1000,
           display: directDisplay,
           format: directFormat,
@@ -147,7 +255,7 @@ const BroadcastManager: React.FC = () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || '推送失败');
-      setNotification({ message: '定向推送成功', type: 'success' });
+      setNotification({ message: `定向推送成功，送达 ${data.connections ?? 0} 个连接`, type: 'success' });
       if (!keepDirectInput) setDirectMessage('');
     } catch (err) {
       setNotification({ message: err instanceof Error ? err.message : '推送失败', type: 'error' });
@@ -159,7 +267,11 @@ const BroadcastManager: React.FC = () => {
     try {
       const res = await api('/api/admin/ws/clients');
       const data = await res.json();
-      if (data.success) { setClients(data.clients || []); setClientsTotal(data.total ?? 0); }
+      if (data.success) {
+        setClients(data.clients || []);
+        setClientsTotal(data.total ?? 0);
+        setClientStats(data.stats || null);
+      }
     } catch { setNotification({ message: '获取在线用户失败', type: 'error' }); }
     finally { setLoadingClients(false); }
   }, [setNotification]);
@@ -183,12 +295,14 @@ const BroadcastManager: React.FC = () => {
   const fetchHistory = useCallback(async () => {
     setLoadingHistory(true);
     try {
-      const res = await api('/api/admin/broadcast/history?limit=30');
+      const query = new URLSearchParams({ limit: '30' });
+      if (historyAudienceFilter !== 'any') query.set('audience', historyAudienceFilter);
+      const res = await api(`/api/admin/broadcast/history?${query.toString()}`);
       const data = await res.json();
       if (data.success) setHistory(data.logs || []);
     } catch { setNotification({ message: '获取广播历史失败', type: 'error' }); }
     finally { setLoadingHistory(false); }
-  }, [setNotification]);
+  }, [historyAudienceFilter, setNotification]);
 
   // 切换 tab 时自动加载数据
   useEffect(() => {
@@ -225,6 +339,45 @@ const BroadcastManager: React.FC = () => {
         </div>
       </div>
 
+      {/* 推送范围 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">推送范围</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          {AUDIENCE_OPTIONS.map(opt => (
+            <motion.button key={opt.value} onClick={() => setBroadcastAudience(opt.value)}
+              className={`text-left px-4 py-3 rounded-lg border transition-all ${
+                broadcastAudience === opt.value
+                  ? 'bg-sky-50 text-sky-700 border-sky-300 shadow-sm'
+                  : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+              }`} whileTap={{ scale: 0.97 }}>
+              <div className="flex items-center gap-2 text-sm font-semibold">
+                {opt.icon}
+                <span>{opt.label}</span>
+              </div>
+              <div className="mt-1 text-xs opacity-75">{opt.description}</div>
+            </motion.button>
+          ))}
+        </div>
+        {broadcastAudience === 'channel' && (
+          <div className="mt-3 space-y-2">
+            <input value={broadcastChannel} onChange={e => setBroadcastChannel(e.target.value)}
+              placeholder="例如 user:用户ID、admin:ops 或自定义频道"
+              maxLength={120}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" />
+            {availableChannels.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {availableChannels.slice(0, 8).map(item => (
+                  <button key={item.channel} onClick={() => setBroadcastChannel(item.channel)}
+                    className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 text-xs hover:bg-blue-100 transition">
+                    {item.channel} · {item.connections}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* 消息输入 */}
       <div>
         <div className="flex items-center justify-between mb-2">
@@ -239,10 +392,10 @@ const BroadcastManager: React.FC = () => {
           </button>
         </div>
         <textarea value={message} onChange={e => setMessage(e.target.value)}
-          placeholder="输入要广播给所有在线用户的消息..." rows={4} maxLength={500}
+          placeholder="输入要推送的消息..." rows={4} maxLength={1000}
           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm" />
         <div className="flex justify-between mt-1 text-xs text-gray-400">
-          <span>支持纯文本消息</span><span>{message.length}/500</span>
+          <span>{broadcastDisplay === 'modal' ? '弹窗可选择 Markdown / HTML' : '通知条按纯文本展示'}</span><span>{message.length}/1000</span>
         </div>
       </div>
 
@@ -279,7 +432,7 @@ const BroadcastManager: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">内容格式</label>
             <div className="flex gap-3">
               {([['text', '纯文本'], ['markdown', 'Markdown'], ['html', 'HTML']] as const).map(([f, label]) => (
-                <motion.button key={f} onClick={() => setBroadcastFormat(f as any)}
+                <motion.button key={f} onClick={() => setBroadcastFormat(f)}
                   className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
                     broadcastFormat === f ? 'bg-purple-100 text-purple-700 border-purple-300 shadow-sm' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
                   }`} whileTap={{ scale: 0.96 }}>
@@ -319,7 +472,7 @@ const BroadcastManager: React.FC = () => {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
           className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg text-sm">
           <FaUsers className="text-green-600" />
-          <span className="text-green-700">上次广播于 {lastResult.time}，送达 {lastResult.connections} 个在线连接</span>
+          <span className="text-green-700">上次广播于 {lastResult.time}，范围 {lastResult.audience}，送达 {lastResult.connections} 个在线连接</span>
         </motion.div>
       )}
     </div>
@@ -329,9 +482,14 @@ const BroadcastManager: React.FC = () => {
     <div className="space-y-5">
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">目标用户 ID</label>
-        <input value={directUserId} onChange={e => setDirectUserId(e.target.value)}
-          placeholder="输入要推送的用户ID..."
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" />
+        <textarea value={directUserIds} onChange={e => setDirectUserIds(e.target.value)}
+          placeholder="支持多个用户 ID，用逗号、空格或换行分隔"
+          rows={2} maxLength={2000}
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm" />
+        <div className="flex justify-between mt-1 text-xs text-gray-400">
+          <span>已识别 {directTargetUserIds.length} 个用户</span>
+          <span>最多发送 100 个目标用户</span>
+        </div>
       </div>
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">消息级别</label>
@@ -359,8 +517,12 @@ const BroadcastManager: React.FC = () => {
           </button>
         </div>
         <textarea value={directMessage} onChange={e => setDirectMessage(e.target.value)}
-          placeholder="输入要推送给该用户的消息..." rows={3} maxLength={500}
+          placeholder="输入要推送给目标用户的消息..." rows={3} maxLength={1000}
           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm" />
+        <div className="flex justify-between mt-1 text-xs text-gray-400">
+          <span>{directDisplay === 'modal' ? '弹窗可选择 Markdown / HTML' : '通知条按纯文本展示'}</span>
+          <span>{directMessage.length}/1000</span>
+        </div>
       </div>
       {/* 展示时长 */}
       <div>
@@ -392,7 +554,7 @@ const BroadcastManager: React.FC = () => {
             <label className="block text-sm font-medium text-gray-700 mb-2">内容格式</label>
             <div className="flex gap-3">
               {([['text', '纯文本'], ['markdown', 'Markdown'], ['html', 'HTML']] as const).map(([f, label]) => (
-                <motion.button key={f} onClick={() => setDirectFormat(f as any)}
+                <motion.button key={f} onClick={() => setDirectFormat(f)}
                   className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
                     directFormat === f ? 'bg-purple-100 text-purple-700 border-purple-300 shadow-sm' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
                   }`} whileTap={{ scale: 0.96 }}>
@@ -409,18 +571,29 @@ const BroadcastManager: React.FC = () => {
           </div>
         </>
       )}
-      <motion.button onClick={handleDirectPush} disabled={directSending || !directUserId.trim() || !directMessage.trim()}
+      <motion.button onClick={handleDirectPush} disabled={directSending || directTargetUserIds.length === 0 || !directMessage.trim()}
         className={`flex items-center justify-center gap-2 w-full px-6 py-3 rounded-lg font-semibold text-white transition-all ${
-          directSending || !directUserId.trim() || !directMessage.trim() ? 'bg-gray-300 cursor-not-allowed'
+          directSending || directTargetUserIds.length === 0 || !directMessage.trim() ? 'bg-gray-300 cursor-not-allowed'
             : 'bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 shadow-lg'
-        }`} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+        }`} whileHover={!directSending && directTargetUserIds.length > 0 && directMessage.trim() ? { scale: 1.02 } : {}} whileTap={!directSending && directTargetUserIds.length > 0 && directMessage.trim() ? { scale: 0.98 } : {}}>
         {directSending ? (<><div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" /><span>推送中...</span></>)
           : (<><FaPaperPlane /><span>发送定向推送</span></>)}
       </motion.button>
     </div>
   );
 
-  const renderOnline = () => (
+  const renderOnline = () => {
+    const stats = clientStats
+      ? { ...clientStats, channels: Array.isArray(clientStats.channels) ? clientStats.channels : [] }
+      : {
+          total: clientsTotal,
+          authenticated: clients.filter(client => !!client.userId).length,
+          anonymous: clients.filter(client => !client.userId).length,
+          admins: clients.filter(client => client.isAdmin).length,
+          channels: availableChannels,
+        };
+
+    return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -433,6 +606,35 @@ const BroadcastManager: React.FC = () => {
           <FaSyncAlt className={loadingClients ? 'animate-spin' : ''} /><span>刷新</span>
         </motion.button>
       </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { label: '总连接', value: stats.total, tone: 'text-slate-700 bg-slate-50 border-slate-200' },
+          { label: '已登录', value: stats.authenticated, tone: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+          { label: '管理员', value: stats.admins, tone: 'text-amber-700 bg-amber-50 border-amber-200' },
+          { label: '匿名', value: stats.anonymous, tone: 'text-gray-600 bg-gray-50 border-gray-200' },
+        ].map(item => (
+          <div key={item.label} className={`px-4 py-3 rounded-lg border ${item.tone}`}>
+            <div className="text-xs opacity-70">{item.label}</div>
+            <div className="mt-1 text-xl font-semibold">{item.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {stats.channels.length > 0 && (
+        <div>
+          <div className="text-sm font-medium text-gray-700 mb-2">频道分布</div>
+          <div className="flex flex-wrap gap-2">
+            {stats.channels.slice(0, 12).map(item => (
+              <button key={item.channel}
+                onClick={() => { setBroadcastAudience('channel'); setBroadcastChannel(item.channel); setActiveTab('broadcast'); }}
+                className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 text-xs hover:bg-blue-100 transition">
+                {item.channel} · {item.connections}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {loadingClients && clients.length === 0 ? (
         <div className="text-center py-10 text-gray-400">加载中...</div>
@@ -460,12 +662,16 @@ const BroadcastManager: React.FC = () => {
                       ))}
                     </div>
                   )}
+                  <div className="mt-1 text-xs text-gray-400">
+                    已连接 {formatRelativeDuration(c.connectedSince)}
+                    {c.lastPing ? ` · 心跳 ${formatRelativeDuration(c.lastPing)} 前` : ''}
+                  </div>
                 </div>
               </div>
               {c.userId && (
                 <div className="flex items-center gap-2">
                   <motion.button
-                    onClick={() => { setDirectUserId(c.userId!); setActiveTab('direct'); }}
+                    onClick={() => { setDirectUserIds(c.userId!); setActiveTab('direct'); }}
                     className="px-2 py-1 text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 rounded transition"
                     whileTap={{ scale: 0.95 }} title="定向推送">
                     <FaPaperPlane />
@@ -483,11 +689,25 @@ const BroadcastManager: React.FC = () => {
         </div>
       )}
     </div>
-  );
+    );
+  };
 
   const renderHistory = () => (
     <div className="space-y-4">
-      <div className="flex items-center justify-end">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {HISTORY_FILTER_OPTIONS.map(item => (
+            <button key={item.value}
+              onClick={() => setHistoryAudienceFilter(item.value)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition ${
+                historyAudienceFilter === item.value
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}>
+              {item.label}
+            </button>
+          ))}
+        </div>
         <motion.button onClick={fetchHistory} disabled={loadingHistory}
           className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition"
           whileTap={{ scale: 0.95 }}>
@@ -511,9 +731,20 @@ const BroadcastManager: React.FC = () => {
                       <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs ${lvl.color}`}>
                         {lvl.emoji} {lvl.label}
                       </span>
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-slate-100 text-slate-600">
+                        {getAudienceLabel(log.audience)}
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-500">
+                        {log.display === 'modal' ? '弹窗' : '通知条'} · {formatDuration(log.duration)}
+                      </span>
                       <span className="text-xs text-gray-400">by {log.admin}</span>
                     </div>
+                    {log.title && <div className="text-sm font-medium text-gray-700 mb-1">{log.title}</div>}
                     <p className="text-sm text-gray-800 break-all">{log.message}</p>
+                    <div className="mt-1 text-xs text-gray-400">
+                      目标：{getTargetSummary(log)}
+                      {log.format && log.display === 'modal' ? ` · ${log.format}` : ''}
+                    </div>
                   </div>
                   <div className="text-right shrink-0">
                     <div className="text-xs text-gray-400">{new Date(log.createdAt).toLocaleString()}</div>
