@@ -24,14 +24,22 @@ interface UseWebSocketOptions {
 
 // ========== WebSocket URL ==========
 
+function normalizeWsUrl(rawUrl: string, token: string | null): string {
+  const url = new URL(rawUrl, window.location.origin);
+  if (url.protocol === 'https:') url.protocol = 'wss:';
+  if (url.protocol === 'http:') url.protocol = 'ws:';
+  if (url.pathname === '/' || !url.pathname) url.pathname = '/ws';
+  if (token) url.searchParams.set('token', token);
+  return url.toString();
+}
+
 function getWsUrl(): string {
   const token = localStorage.getItem('token');
   const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
 
   const configuredWsUrl = import.meta.env.VITE_WS_URL?.trim();
   if (configuredWsUrl) {
-    const separator = configuredWsUrl.includes('?') ? '&' : '?';
-    return token ? `${configuredWsUrl}${separator}token=${encodeURIComponent(token)}` : configuredWsUrl;
+    return normalizeWsUrl(configuredWsUrl, token);
   }
 
   const apiBaseUrl = getApiBaseUrl();

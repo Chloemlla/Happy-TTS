@@ -24,6 +24,7 @@ declare global {
         }
       ) => string;
       reset: (widgetId: string) => void;
+      remove?: (widgetId: string) => void;
     };
     mockTurnstileCallback?: () => void;
   }
@@ -32,10 +33,11 @@ declare global {
 // 全局脚本加载状态
 let scriptLoaded = false;
 let scriptLoading = false;
+const TURNSTILE_SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
 
 const loadTurnstileScript = (): Promise<void> => {
   return new Promise((resolve, reject) => {
-    if (scriptLoaded) {
+    if (scriptLoaded && window.turnstile) {
       resolve();
       return;
     }
@@ -58,11 +60,26 @@ const loadTurnstileScript = (): Promise<void> => {
     scriptLoading = true;
 
     // 检查是否已经存在脚本
-    const existingScript = document.querySelector('script[src*="turnstile"]');
+    const existingScript = document.querySelector<HTMLScriptElement>('script[data-turnstile-api="true"], script[src^="https://challenges.cloudflare.com/turnstile/v0/api.js"]');
     if (existingScript) {
-      scriptLoaded = true;
-      scriptLoading = false;
-      resolve();
+      const startedAt = Date.now();
+      const waitForTurnstile = () => {
+        if (window.turnstile) {
+          scriptLoaded = true;
+          scriptLoading = false;
+          resolve();
+          return;
+        }
+
+        if (Date.now() - startedAt > 5000) {
+          scriptLoading = false;
+          reject(new Error('Turnstile API did not initialize'));
+          return;
+        }
+
+        window.setTimeout(waitForTurnstile, 100);
+      };
+      waitForTurnstile();
       return;
     }
 
@@ -105,6 +122,9 @@ const loadTurnstileScript = (): Promise<void> => {
         },
         reset: (widgetId: string) => {
           console.log('🔧 开发环境：重置 Turnstile widget', widgetId);
+        },
+        remove: (widgetId: string) => {
+          console.log('🔧 开发环境：移除 Turnstile widget', widgetId);
         }
       };
       
@@ -115,9 +135,10 @@ const loadTurnstileScript = (): Promise<void> => {
     }
 
     const script = document.createElement('script');
-    script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+    script.src = TURNSTILE_SCRIPT_SRC;
     script.async = true;
     script.defer = true;
+    script.dataset.turnstileApi = 'true';
 
     // 设置超时
     const timeout = setTimeout(() => {
@@ -157,6 +178,9 @@ const loadTurnstileScript = (): Promise<void> => {
         },
         reset: (widgetId: string) => {
           console.log('⚠️ 离线模式：重置 Turnstile widget', widgetId);
+        },
+        remove: (widgetId: string) => {
+          console.log('⚠️ 离线模式：移除 Turnstile widget', widgetId);
         }
       };
       
@@ -210,6 +234,9 @@ const loadTurnstileScript = (): Promise<void> => {
         },
         reset: (widgetId: string) => {
           console.log('🚫 错误回退模式：重置 Turnstile widget', widgetId);
+        },
+        remove: (widgetId: string) => {
+          console.log('🚫 错误回退模式：移除 Turnstile widget', widgetId);
         }
       };
       
@@ -323,11 +350,18 @@ export const TurnstileWidget: React.FC<TurnstileWidgetProps> = ({
       // 清理 widget
       if (widgetIdRef.current && window.turnstile) {
         try {
-          window.turnstile.reset(widgetIdRef.current);
+          if (typeof window.turnstile.remove === 'function') {
+            window.turnstile.remove(widgetIdRef.current);
+          } else {
+            window.turnstile.reset(widgetIdRef.current);
+          }
         } catch (error) {
-          console.warn('Turnstile reset error:', error);
+          console.warn('Turnstile cleanup error:', error);
         }
         widgetIdRef.current = null;
+      }
+      if (containerRef.current) {
+        containerRef.current.innerHTML = '';
       }
     };
   }, []); // 只在组件挂载时执行一次
@@ -343,7 +377,7 @@ export const TurnstileWidget: React.FC<TurnstileWidgetProps> = ({
 
   return (
     <div className="turnstile-widget">
-      <div ref={containerRef} className="cf-turnstile" />
+      <div ref={containerRef} className="turnstile-widget-container" />
     </div>
   );
 }; 

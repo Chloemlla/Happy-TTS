@@ -318,14 +318,11 @@ const ArtifactSharePage: React.FC = () => {
 
       case 'svg':
         return (
-          <iframe
-            title={`${artifact.title} svg preview`}
-            srcDoc={`<!doctype html><html><body style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#fff;">${DOMPurify.sanitize(
-              artifact.content,
-              { USE_PROFILES: { svg: true, svgFilters: true } },
-            )}</body></html>`}
-            sandbox=""
-            className="h-[560px] w-full border-0 bg-white"
+          <div
+            className="flex min-h-[560px] w-full items-center justify-center bg-white p-4 [&>svg]:max-h-[520px] [&>svg]:max-w-full"
+            dangerouslySetInnerHTML={{
+              __html: DOMPurify.sanitize(artifact.content, { USE_PROFILES: { svg: true, svgFilters: true } }),
+            }}
           />
         );
 

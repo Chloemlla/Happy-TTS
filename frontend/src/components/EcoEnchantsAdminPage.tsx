@@ -78,6 +78,12 @@ interface CreatedLicense {
 const PRODUCT_ID = 'ecoenchants';
 const statusOptions: LicenseStatus[] = ['valid', 'trial', 'expired', 'suspended', 'revoked'];
 const inputClass = `${logShareInputClass} py-2.5`;
+
+const isFulfilled = <T,>(result: PromiseSettledResult<T>): result is PromiseFulfilledResult<T> =>
+  result.status === 'fulfilled';
+
+const isRejected = (result: PromiseSettledResult<unknown>): result is PromiseRejectedResult =>
+  result.status === 'rejected';
 const labelClass = 'text-xs font-semibold uppercase tracking-[0.18em] text-slate-500';
 
 const makeIdempotencyKey = (scope: string): string => {
@@ -262,12 +268,10 @@ const EcoEnchantsAdminPage: React.FC = () => {
         api.get<{ riskEvents: EcoRiskEvent[] }>('/api/ecoenchants/v1/admin/risk-events?page=1&pageSize=8'),
       ]);
 
-      if (healthRes.status === 'fulfilled') setHealth(healthRes.value.data);
-      if (policyRes.status === 'fulfilled') setPolicy(policyRes.value.data);
+      if (isFulfilled(healthRes)) setHealth(healthRes.value.data);
+      if (isFulfilled(policyRes)) setPolicy(policyRes.value.data);
 
-      const adminFailures = [auditRes, riskRes].filter(
-        (result): result is PromiseRejectedResult => result.status === 'rejected',
-      );
+      const adminFailures = [auditRes, riskRes].filter(isRejected);
       if (adminFailures.some(result => isMfaRequiredError(result.reason))) {
         setMfaRequired(true);
         setAuditLogs([]);
@@ -275,13 +279,11 @@ const EcoEnchantsAdminPage: React.FC = () => {
         return;
       }
 
-      const firstFailure = [healthRes, policyRes, auditRes, riskRes].find(
-        (result): result is PromiseRejectedResult => result.status === 'rejected',
-      );
+      const firstFailure = [healthRes, policyRes, auditRes, riskRes].find(isRejected);
       if (firstFailure) throw firstFailure.reason;
 
       setMfaRequired(false);
-      if (auditRes.status === 'fulfilled' && riskRes.status === 'fulfilled') {
+      if (isFulfilled(auditRes) && isFulfilled(riskRes)) {
         setAuditLogs(auditRes.value.data.logs || []);
         setRiskEvents(riskRes.value.data.riskEvents || []);
       }
