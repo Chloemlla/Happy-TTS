@@ -786,8 +786,10 @@ const RuntimeConfigSections: React.FC = () => {
       <SectionCard
         title="IPQS 运行时配置"
         description="通过 EnvManager 直接管理风控开关、配额和 API Key，不再依赖环境变量。"
-        loading={ipqsLoading}
-        onRefresh={fetchIpqsSetting}
+        isOpen={isSectionOpen('ipqs')}
+        loading={isRuntimeSectionLoading('ipqs', ipqsLoading)}
+        onToggle={() => toggleSection('ipqs')}
+        onRefresh={() => refreshSection('ipqs', fetchIpqsSetting)}
       >
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <div>
@@ -912,8 +914,10 @@ const RuntimeConfigSections: React.FC = () => {
       <SectionCard
         title="LinuxDo 运行时配置"
         description="LinuxDo OAuth 配置改为直接从 MongoDB 读取，留空的密钥字段会保留当前值。"
-        loading={linuxdoLoading}
-        onRefresh={fetchLinuxDoSetting}
+        isOpen={isSectionOpen('linuxdo')}
+        loading={isRuntimeSectionLoading('linuxdo', linuxdoLoading)}
+        onToggle={() => toggleSection('linuxdo')}
+        onRefresh={() => refreshSection('linuxdo', fetchLinuxDoSetting)}
       >
         <div className="grid gap-4 md:grid-cols-2">
           <div>
@@ -1025,8 +1029,10 @@ const RuntimeConfigSections: React.FC = () => {
       <SectionCard
         title="Google Auth 运行时配置"
         description="主站 Google 登录使用这里的 Client ID，支持一键导入 Google 控制台下载的 OAuth JSON，不与 NexAI OAuth 配置共用。"
-        loading={googleAuthLoading}
-        onRefresh={fetchGoogleAuthSetting}
+        isOpen={isSectionOpen('googleAuth')}
+        loading={isRuntimeSectionLoading('googleAuth', googleAuthLoading)}
+        onToggle={() => toggleSection('googleAuth')}
+        onRefresh={() => refreshSection('googleAuth', fetchGoogleAuthSetting)}
       >
         <input
           ref={googleAuthImportInputRef}
@@ -1093,8 +1099,10 @@ const RuntimeConfigSections: React.FC = () => {
       <SectionCard
         title="DeepLX 运行时配置"
         description="直接在 EnvManager 中管理 DeepLX API Base URL 和 API Key，留空的密钥字段会保留当前值。"
-        loading={deeplxLoading}
-        onRefresh={fetchDeepLXSetting}
+        isOpen={isSectionOpen('deeplx')}
+        loading={isRuntimeSectionLoading('deeplx', deeplxLoading)}
+        onToggle={() => toggleSection('deeplx')}
+        onRefresh={() => refreshSection('deeplx', fetchDeepLXSetting)}
       >
         <div className="grid gap-4 md:grid-cols-2">
           <div>
@@ -1149,8 +1157,10 @@ const RuntimeConfigSections: React.FC = () => {
       <SectionCard
         title="NexAI 运行时配置"
         description="NexAI JWT、OAuth 和前端回调地址改为直接由 EnvManager 管理。"
-        loading={nexaiLoading}
-        onRefresh={fetchNexaiSetting}
+        isOpen={isSectionOpen('nexai')}
+        loading={isRuntimeSectionLoading('nexai', nexaiLoading)}
+        onToggle={() => toggleSection('nexai')}
+        onRefresh={() => refreshSection('nexai', fetchNexaiSetting)}
       >
         <div className="grid gap-4 md:grid-cols-2">
           <div>
