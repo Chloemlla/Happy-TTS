@@ -62,6 +62,27 @@ import {
 
 export { handleSourceClick, handleSourceModalClose };
 
+const ENV_MANAGER_FORM_CONTROL_CSS = `
+.env-manager-ui input:not([type="checkbox"]):not([type="radio"]),
+.env-manager-ui textarea,
+.env-manager-ui select {
+  background-color: #ffffff;
+  color: #111827;
+  color-scheme: light;
+}
+
+.env-manager-ui input:not([type="checkbox"]):not([type="radio"])::placeholder,
+.env-manager-ui textarea::placeholder {
+  color: #9ca3af;
+  opacity: 1;
+}
+
+.env-manager-ui select option {
+  background-color: #ffffff;
+  color: #111827;
+}
+`;
+
 const EnvManager: React.FC = () => {
   const { user } = useAuth();
   const [envs, setEnvs] = useState<EnvItem[]>([]);
@@ -1720,7 +1741,8 @@ const EnvManager: React.FC = () => {
 
   return (
     <LazyMotion features={domAnimation}>
-      <div className="relative">
+      <div className="relative env-manager-ui">
+        <style>{ENV_MANAGER_FORM_CONTROL_CSS}</style>
         {/* 标题和说明 */}
         <m.div
           className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-6 border border-blue-100"
