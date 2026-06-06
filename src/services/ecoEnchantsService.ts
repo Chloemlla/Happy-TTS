@@ -565,6 +565,21 @@ export class EcoEnchantsService {
       };
     }
 
+    if (isDuplicateKeyError(error)) {
+      return {
+        statusCode: 409,
+        body: {
+          requestId,
+          error: {
+            code: "duplicate_key",
+            message: "A resource with the same unique identifier already exists.",
+            docsUrl: EcoEnchantsService.docsUrl("duplicate_key"),
+            retryAfterSeconds: null,
+          },
+        },
+      };
+    }
+
     logger.error("[EcoEnchants] Unhandled service error", {
       requestId,
       error: error instanceof Error ? error.message : String(error),
@@ -1186,16 +1201,24 @@ export class EcoEnchantsService {
 
   static async createProduct(body: Record<string, unknown>, context: EcoEnchantsRequestContext) {
     const productId = ensureProductId(body.productId || ECO_ENCHANTS_PRODUCT_ID);
-    const product = await EcoEnchantsProductModel.create({
-      productId,
-      name: ensureRequiredText(body.name || "EcoEnchants", "name", 120),
-      latestVersion: cleanString(body.latestVersion, "13.0.0"),
-      minimumSupportedVersion: cleanString(body.minimumSupportedVersion, "12.5.0"),
-      recommendedJava: Number(body.recommendedJava || 21),
-      supportedPlatforms: Array.isArray(body.supportedPlatforms) ? body.supportedPlatforms.map(String) : ["Paper", "Folia"],
-      notices: Array.isArray(body.notices) ? body.notices.map(String) : [],
-      isActive: body.isActive === undefined ? true : Boolean(body.isActive),
-    });
+    let product: Awaited<ReturnType<typeof EcoEnchantsProductModel.create>>;
+    try {
+      product = await EcoEnchantsProductModel.create({
+        productId,
+        name: ensureRequiredText(body.name || "EcoEnchants", "name", 120),
+        latestVersion: cleanString(body.latestVersion, "13.0.0"),
+        minimumSupportedVersion: cleanString(body.minimumSupportedVersion, "12.5.0"),
+        recommendedJava: Number(body.recommendedJava || 21),
+        supportedPlatforms: Array.isArray(body.supportedPlatforms) ? body.supportedPlatforms.map(String) : ["Paper", "Folia"],
+        notices: Array.isArray(body.notices) ? body.notices.map(String) : [],
+        isActive: body.isActive === undefined ? true : Boolean(body.isActive),
+      });
+    } catch (error) {
+      if (isDuplicateKeyError(error)) {
+        throw serviceError(409, "product_already_exists", "Product already exists.");
+      }
+      throw error;
+    }
 
     await EcoEnchantsService.logAudit(context, {
       action: "admin.product.create",
@@ -1242,17 +1265,26 @@ export class EcoEnchantsService {
 
   static async createPlan(body: Record<string, unknown>, context: EcoEnchantsRequestContext) {
     const productId = ensureProductId(body.productId || ECO_ENCHANTS_PRODUCT_ID);
-    const plan = await EcoEnchantsPlanModel.create({
-      planId: ensureRequiredText(body.planId || `plan_${uuidv4()}`, "planId", 80),
-      productId,
-      name: ensureRequiredText(body.name, "name", 120),
-      maxActivations: Math.max(1, Number(body.maxActivations || 1)),
-      durationDays: body.durationDays === undefined ? undefined : Math.max(1, Number(body.durationDays)),
-      priceCents: body.priceCents === undefined ? undefined : Math.max(0, Number(body.priceCents)),
-      currency: cleanString(body.currency, "USD").toUpperCase(),
-      features: Array.isArray(body.features) ? body.features.map(String) : [],
-      isActive: body.isActive === undefined ? true : Boolean(body.isActive),
-    });
+    const planId = ensureRequiredText(body.planId || `plan_${uuidv4()}`, "planId", 80);
+    let plan: Awaited<ReturnType<typeof EcoEnchantsPlanModel.create>>;
+    try {
+      plan = await EcoEnchantsPlanModel.create({
+        planId,
+        productId,
+        name: ensureRequiredText(body.name, "name", 120),
+        maxActivations: Math.max(1, Number(body.maxActivations || 1)),
+        durationDays: body.durationDays === undefined ? undefined : Math.max(1, Number(body.durationDays)),
+        priceCents: body.priceCents === undefined ? undefined : Math.max(0, Number(body.priceCents)),
+        currency: cleanString(body.currency, "USD").toUpperCase(),
+        features: Array.isArray(body.features) ? body.features.map(String) : [],
+        isActive: body.isActive === undefined ? true : Boolean(body.isActive),
+      });
+    } catch (error) {
+      if (isDuplicateKeyError(error)) {
+        throw serviceError(409, "plan_already_exists", "Plan already exists.");
+      }
+      throw error;
+    }
 
     await EcoEnchantsService.logAudit(context, {
       action: "admin.plan.create",

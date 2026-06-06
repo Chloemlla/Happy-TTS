@@ -50,6 +50,7 @@ import {
   EcoEnchantsIdempotencyRecordModel,
   EcoEnchantsLicenseModel,
   EcoEnchantsPlanModel,
+  EcoEnchantsProductModel,
   EcoEnchantsReleaseBuildModel,
   EcoEnchantsRiskEventModel,
   EcoEnchantsTelemetryEventModel,
@@ -63,6 +64,7 @@ import {
 const mockedLicenseModel = EcoEnchantsLicenseModel as jest.Mocked<typeof EcoEnchantsLicenseModel>;
 const mockedActivationModel = EcoEnchantsActivationModel as jest.Mocked<typeof EcoEnchantsActivationModel>;
 const mockedPlanModel = EcoEnchantsPlanModel as jest.Mocked<typeof EcoEnchantsPlanModel>;
+const mockedProductModel = EcoEnchantsProductModel as jest.Mocked<typeof EcoEnchantsProductModel>;
 const mockedReleaseBuildModel = EcoEnchantsReleaseBuildModel as jest.Mocked<typeof EcoEnchantsReleaseBuildModel>;
 const mockedAuditLogModel = EcoEnchantsAuditLogModel as jest.Mocked<typeof EcoEnchantsAuditLogModel>;
 const mockedRiskEventModel = EcoEnchantsRiskEventModel as jest.Mocked<typeof EcoEnchantsRiskEventModel>;
@@ -343,6 +345,59 @@ describe("EcoEnchantsService.reportRuntimeTelemetryEvents", () => {
   });
 });
 
+describe("EcoEnchantsService.createProduct", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedAuditLogModel.create.mockResolvedValue({} as any);
+  });
+
+  it("maps duplicate product IDs to a conflict service error", async () => {
+    mockedProductModel.create.mockRejectedValue({ code: 11000, keyValue: { productId: "ecoenchants" } });
+
+    await expect(
+      EcoEnchantsService.createProduct(
+        {
+          productId: "ecoenchants",
+          name: "EcoEnchants",
+        },
+        { requestId: "req_test", actorType: "admin", actorId: "admin-1" },
+      ),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: "product_already_exists",
+    });
+
+    expect(mockedAuditLogModel.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("EcoEnchantsService.createPlan", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedAuditLogModel.create.mockResolvedValue({} as any);
+  });
+
+  it("maps duplicate plan IDs to a conflict service error", async () => {
+    mockedPlanModel.create.mockRejectedValue({ code: 11000, keyValue: { planId: "pro" } });
+
+    await expect(
+      EcoEnchantsService.createPlan(
+        {
+          productId: "ecoenchants",
+          planId: "pro",
+          name: "Pro",
+        },
+        { requestId: "req_test", actorType: "admin", actorId: "admin-1" },
+      ),
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      code: "plan_already_exists",
+    });
+
+    expect(mockedAuditLogModel.create).not.toHaveBeenCalled();
+  });
+});
+
 describe("EcoEnchantsService.createLicense", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -373,6 +428,18 @@ describe("EcoEnchantsService.createLicense", () => {
     expect(createPayload.keyLast4).toBe("3333");
     expect(result.license.key).toBe("****-****-****-3333");
     expect(result.licenseKey).toBe("ECOE-1111-2222-3333");
+  });
+});
+
+describe("EcoEnchantsService.formatError", () => {
+  it("maps duplicate key errors to a conflict response without treating them as unhandled", () => {
+    const result = EcoEnchantsService.formatError({ code: 11000 }, "req_test");
+
+    expect(result.statusCode).toBe(409);
+    expect(result.body.error).toMatchObject({
+      code: "duplicate_key",
+      message: "A resource with the same unique identifier already exists.",
+    });
   });
 });
 
