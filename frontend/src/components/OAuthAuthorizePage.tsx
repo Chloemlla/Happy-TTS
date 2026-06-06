@@ -214,11 +214,15 @@ const OAuthAuthorizePage: React.FC = () => {
                   {roleLabel}
                 </span>
               </div>
-              <div className="mt-2 grid gap-1 text-sm text-emerald-900 sm:grid-cols-2">
-                <span>{preview.user.username}</span>
-                <span>{preview.user.email}</span>
-                <span>角色: {roleLabel}</span>
-                <span>管理员权益: {preview.user.isAdmin ? '是' : '否'}</span>
+              <div className="mt-2 grid min-w-0 gap-1 text-sm text-emerald-900 sm:grid-cols-2">
+                <span className="min-w-0 max-w-full break-all" title={preview.user.username}>
+                  {preview.user.username}
+                </span>
+                <span className="min-w-0 max-w-full break-all" title={preview.user.email}>
+                  {preview.user.email}
+                </span>
+                <span className="min-w-0 max-w-full break-words">角色: {roleLabel}</span>
+                <span className="min-w-0 max-w-full break-words">管理员权益: {preview.user.isAdmin ? '是' : '否'}</span>
               </div>
             </div>
           </div>
