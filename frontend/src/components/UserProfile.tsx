@@ -534,6 +534,7 @@ const UserProfile: React.FC = () => {
   const [includeOAuthClientsInMerge, setIncludeOAuthClientsInMerge] = useState(false);
   const [acknowledgeMergeRisks, setAcknowledgeMergeRisks] = useState(false);
   const googleBindButtonRef = useRef<HTMLDivElement | null>(null);
+  const linkedAccountsSectionRef = useRef<HTMLElement | null>(null);
 
   // Password change state
   const [changePwdMode, setChangePwdMode] = useState(false);
@@ -1472,6 +1473,10 @@ const UserProfile: React.FC = () => {
     resetVerificationState();
   }, [profile, resetVerificationState]);
 
+  const handleScrollToLinkedAccounts = useCallback(() => {
+    linkedAccountsSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
   const displayedLinkedAccounts = useMemo<LinkedAccount[]>(() => {
     const defaults: LinkedAccount[] = [
       {
@@ -1650,6 +1655,16 @@ const UserProfile: React.FC = () => {
                     <div className="mt-2 break-words text-sm font-semibold text-slate-800">{item.value}</div>
                   </div>
                 ))}
+              </div>
+              <div className="mt-3 flex flex-wrap justify-start gap-2 lg:justify-end">
+                <button
+                  type="button"
+                  onClick={handleScrollToLinkedAccounts}
+                  className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-slate-900/15 transition hover:bg-slate-800 sm:text-sm"
+                >
+                  <FaLink />
+                  绑定第三方账号
+                </button>
               </div>
             </div>
           </div>
@@ -2082,6 +2097,7 @@ const UserProfile: React.FC = () => {
             </m.section>
 
             <m.section
+              ref={linkedAccountsSectionRef}
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.27 }}
