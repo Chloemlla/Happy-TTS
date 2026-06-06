@@ -1,7 +1,14 @@
 import type { Request, Response } from "express";
 import { VerificationTokenType, verificationTokenStorage } from "../models/verificationTokenModel";
 import { sendEmail } from "../services/emailSender";
-import { authenticateGoogleUser, getGoogleAuthConfigSummary, isGoogleAuthEnabled } from "../services/googleAuthService";
+import {
+  authenticateGoogleUser,
+  getGoogleAuthConfigSummary,
+  isGoogleAuthEnabled,
+  verifyGoogleIdToken,
+} from "../services/googleAuthService";
+import { bindProviderIdentityToUser } from "../services/accountIdentityService";
+import { validateProfileVerificationSession } from "../services/profileUpdateVerificationService";
 import { TurnstileService } from "../services/turnstileService";
 import * as VerificationService from "../services/verificationService";
 import {
@@ -1174,6 +1181,57 @@ export async function logoutHandler(req: Request, res: Response) {
     res.json({ success: true });
   } catch (_error) {
     res.status(500).json({ error: "登出失败" });
+  }
+
+  public static async googleBind(req: Request, res: Response) {
+    try {
+      if (!isGoogleAuthEnabled()) {
+        return res.status(503).json({ error: "Google Auth is not configured" });
+      }
+
+      const currentUser = (req as any).user as User | undefined;
+      if (!currentUser?.id) {
+        return res.status(401).json({ error: "未登录" });
+      }
+
+      const idToken = typeof req.body?.idToken === "string" ? req.body.idToken : "";
+      const verificationToken = typeof req.body?.verificationToken === "string" ? req.body.verificationToken : "";
+      if (!idToken) {
+        return res.status(400).json({ error: "缺少 Google idToken" });
+      }
+      if (!verificationToken || !validateProfileVerificationSession(currentUser.id, verificationToken)) {
+        return res.status(401).json({ error: "请先完成身份验证" });
+      }
+
+      const profile = await verifyGoogleIdToken(idToken);
+      const result = await bindProviderIdentityToUser({
+        targetUser: currentUser,
+        profile: {
+          provider: "google",
+          providerUserId: profile.id,
+          providerEmail: profile.email,
+          providerUsername: profile.name,
+          avatarUrl: profile.avatarUrl,
+        },
+        actor: {
+          userId: currentUser.id,
+          username: currentUser.username,
+          role: currentUser.role,
+          ip: getClientIP(req),
+          userAgent: String(req.headers["user-agent"] || ""),
+          path: req.originalUrl || req.path,
+          method: req.method,
+          requestId: typeof (req as any).requestId === "string" ? (req as any).requestId : undefined,
+        },
+      });
+
+      return res.json(result);
+    } catch (error) {
+      logger.error("[Google Auth] Bind failed", error);
+      return res.status(400).json({
+        error: error instanceof Error ? error.message : "Google 绑定失败",
+      });
+    }
   }
 }
 

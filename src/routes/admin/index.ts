@@ -35,7 +35,11 @@ const adminAuthMiddleware = (req: any, res: any, next: any) => {
     "/user/fingerprint",
   ]);
 
-  if (userSelfServicePaths.has(req.path)) {
+  if (
+    userSelfServicePaths.has(req.path) ||
+    req.path.startsWith("/user/profile/linked-accounts") ||
+    req.path.startsWith("/user/profile/account-merge")
+  ) {
     return next();
   }
 

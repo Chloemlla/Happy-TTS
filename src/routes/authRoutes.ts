@@ -55,6 +55,7 @@ router.post("/register", registerLimiter, validateAuthInput, logUserData, AuthCo
 router.post("/login", loginLimiter, validateAuthInput, AuthController.login);
 router.get("/google/config", AuthController.getGoogleAuthConfig);
 router.post("/google", loginLimiter, AuthController.googleAuth);
+router.post("/google/bind", authenticateToken, AuthController.googleBind);
 
 router.get("/linuxdo/config", LinuxDoAuthController.getConfig);
 router.get("/linuxdo/start", LinuxDoAuthController.start);

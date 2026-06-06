@@ -3,6 +3,7 @@ import { config } from "../config/config";
 import logger from "../utils/logger";
 import { signLoginToken } from "../utils/authToken";
 import { type User, UserStorage } from "../utils/userStorage";
+import { findUserByProviderIdentity, upsertIdentityForUser } from "./accountIdentityService";
 
 export interface GoogleAuthConfigSummary {
   enabled: boolean;
@@ -25,7 +26,7 @@ export interface GoogleAuthPayload {
   provider: "google";
 }
 
-interface GoogleProfile {
+export interface GoogleProfile {
   id: string;
   email: string;
   name?: string;
@@ -123,7 +124,7 @@ function toAuthPayload(user: User, isNewUser: boolean): GoogleAuthPayload {
   };
 }
 
-async function verifyGoogleIdToken(idToken: string): Promise<GoogleProfile> {
+export async function verifyGoogleIdToken(idToken: string): Promise<GoogleProfile> {
   if (!isGoogleAuthEnabled()) {
     throw new Error("Google Auth is not configured");
   }
@@ -170,6 +171,32 @@ async function upsertGoogleUser(profile: GoogleProfile): Promise<{
   user: User;
   isNewUser: boolean;
 }> {
+  const linkedIdentityUser = await findUserByProviderIdentity("google", profile.id);
+  if (linkedIdentityUser) {
+    if ((linkedIdentityUser as any).accountStatus === "suspended") {
+      throw new Error("Account is suspended");
+    }
+
+    const updatedLinkedUser = (await UserStorage.updateUser(linkedIdentityUser.id, {
+      avatarUrl: profile.avatarUrl || linkedIdentityUser.avatarUrl,
+      authProvider: linkedIdentityUser.authProvider || "google",
+    })) || {
+      ...linkedIdentityUser,
+      avatarUrl: profile.avatarUrl || linkedIdentityUser.avatarUrl,
+      authProvider: linkedIdentityUser.authProvider || "google",
+    };
+
+    await upsertIdentityForUser(updatedLinkedUser, {
+      provider: "google",
+      providerUserId: profile.id,
+      providerEmail: profile.email,
+      providerUsername: profile.name,
+      avatarUrl: profile.avatarUrl,
+    });
+
+    return { user: updatedLinkedUser, isNewUser: false };
+  }
+
   const existingUser = await findUserByEmail(profile.email);
   if (existingUser) {
     if ((existingUser as any).accountStatus === "suspended") {
@@ -183,6 +210,14 @@ async function upsertGoogleUser(profile: GoogleProfile): Promise<{
       avatarUrl: profile.avatarUrl || existingUser.avatarUrl,
       authProvider: existingUser.authProvider || "local",
     };
+
+    await upsertIdentityForUser(updatedExistingUser, {
+      provider: "google",
+      providerUserId: profile.id,
+      providerEmail: profile.email,
+      providerUsername: profile.name,
+      avatarUrl: profile.avatarUrl,
+    });
 
     return { user: updatedExistingUser, isNewUser: false };
   }
@@ -205,6 +240,14 @@ async function upsertGoogleUser(profile: GoogleProfile): Promise<{
     authProvider: "google" as const,
     avatarUrl: profile.avatarUrl,
   };
+
+  await upsertIdentityForUser(finalizedUser, {
+    provider: "google",
+    providerUserId: profile.id,
+    providerEmail: profile.email,
+    providerUsername: profile.name,
+    avatarUrl: profile.avatarUrl,
+  });
 
   return { user: finalizedUser, isNewUser: true };
 }
@@ -248,6 +291,14 @@ export async function authenticateGoogleUser(params: {
     userId: finalizedUser.id,
     username: finalizedUser.username,
     isNewUser,
+  });
+
+  await upsertIdentityForUser(finalizedUser, {
+    provider: "google",
+    providerUserId: profile.id,
+    providerEmail: profile.email,
+    providerUsername: profile.name,
+    avatarUrl: profile.avatarUrl,
   });
 
   return toAuthPayload(finalizedUser, isNewUser);

@@ -22,11 +22,45 @@ export const LinuxDoAuthCallbackPage: React.FC = () => {
 
     const error = searchParams.get("error");
     const ticket = searchParams.get("ticket");
+    const intent = searchParams.get("intent");
+    const bindStatus = searchParams.get("status");
+    const mergeToken = searchParams.get("mergeToken");
 
     if (error) {
-      setStatus("Linux.do 登录失败，正在返回登录页...");
+      setStatus(intent === "bind" ? "Linux.do 绑定失败，正在返回个人主页..." : "Linux.do 登录失败，正在返回登录页...");
       setNotification({ message: error, type: "error" });
-      window.setTimeout(() => navigate("/login", { replace: true }), 800);
+      window.setTimeout(() => navigate(intent === "bind" ? "/profile" : "/login", { replace: true }), 800);
+      return;
+    }
+
+    if (intent === "bind") {
+      if (bindStatus === "merge_required" && mergeToken) {
+        setStatus("检测到账号冲突，正在打开合并预览...");
+        setNotification({ message: "检测到该 Linux.do 账号已绑定其他本地账号，请查看合并预览", type: "warning" });
+        window.setTimeout(() => navigate(`/profile?mergeToken=${encodeURIComponent(mergeToken)}`, { replace: true }), 500);
+        return;
+      }
+
+      if (bindStatus === "bound" || bindStatus === "refreshed") {
+        setStatus("Linux.do 绑定已完成，正在返回个人主页...");
+        setNotification({
+          message: bindStatus === "bound" ? "Linux.do 绑定成功" : "Linux.do 绑定信息已刷新",
+          type: "success",
+        });
+        window.setTimeout(() => navigate("/profile", { replace: true }), 500);
+        return;
+      }
+
+      if (bindStatus === "conflict") {
+        setStatus("Linux.do 绑定存在冲突，正在返回个人主页...");
+        setNotification({ message: "当前账户已绑定另一个 Linux.do 身份", type: "error" });
+        window.setTimeout(() => navigate("/profile", { replace: true }), 800);
+        return;
+      }
+
+      setStatus("Linux.do 绑定状态无效，正在返回个人主页...");
+      setNotification({ message: "Linux.do 绑定状态无效", type: "error" });
+      window.setTimeout(() => navigate("/profile", { replace: true }), 800);
       return;
     }
 

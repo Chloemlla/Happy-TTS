@@ -288,9 +288,9 @@ export const updateUser = async (id: string, updates: Partial<UserType>): Promis
 
   const updateOps: any = { $set: {}, $unset: { password: "" } };
   for (const key in sanitizedUpdates) {
-    if (key === "avatarBase64" && (sanitizedUpdates as any)[key] === undefined) {
+    if ((sanitizedUpdates as any)[key] === undefined) {
       if (!updateOps.$unset) updateOps.$unset = {};
-      updateOps.$unset.avatarBase64 = "";
+      updateOps.$unset[key] = "";
     } else if (key !== "avatarBase64") {
       updateOps.$set[key] = (sanitizedUpdates as any)[key];
     }

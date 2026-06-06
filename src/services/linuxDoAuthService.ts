@@ -4,8 +4,14 @@ import { config } from "../config/config";
 import logger from "../utils/logger";
 import { signLoginToken } from "../utils/authToken";
 import { type User, UserStorage } from "../utils/userStorage";
+import {
+  bindProviderIdentityToUser,
+  buildProviderBindRedirect,
+  findUserByProviderIdentity,
+  upsertIdentityForUser,
+} from "./accountIdentityService";
 
-export type LinuxDoAuthIntent = "login" | "register";
+export type LinuxDoAuthIntent = "login" | "register" | "bind";
 
 export interface LinuxDoConfigSummary {
   enabled: boolean;
@@ -60,6 +66,7 @@ interface LinuxDoStateRecord {
   intent: LinuxDoAuthIntent;
   codeVerifier: string;
   expiresAt: number;
+  bindTargetUserId?: string;
 }
 
 interface LinuxDoTicketRecord {
@@ -376,6 +383,35 @@ async function upsertLinuxDoUser(profile: LinuxDoNormalizedProfile): Promise<{
   user: User;
   isNewUser: boolean;
 }> {
+  const identityUser = await findUserByProviderIdentity("linuxdo", profile.id);
+  if (identityUser) {
+    if ((identityUser as any).accountStatus === "suspended") {
+      throw new Error("Account is suspended");
+    }
+    const updatedIdentityUser = (await UserStorage.updateUser(identityUser.id, {
+      linuxdoUsername: profile.username,
+      linuxdoAvatarUrl: profile.avatarUrl,
+      avatarUrl: profile.avatarUrl || identityUser.avatarUrl,
+      authProvider: identityUser.authProvider || "linuxdo",
+    })) || {
+      ...identityUser,
+      linuxdoUsername: profile.username,
+      linuxdoAvatarUrl: profile.avatarUrl,
+      avatarUrl: profile.avatarUrl || identityUser.avatarUrl,
+      authProvider: identityUser.authProvider || "linuxdo",
+    };
+
+    await upsertIdentityForUser(updatedIdentityUser, {
+      provider: "linuxdo",
+      providerUserId: profile.id,
+      providerEmail: profile.email,
+      providerUsername: profile.username,
+      avatarUrl: profile.avatarUrl,
+    });
+
+    return { user: updatedIdentityUser, isNewUser: false };
+  }
+
   const linkedUser = await UserStorage.getUserByLinuxDoId(profile.id);
   if (linkedUser) {
     if ((linkedUser as any).accountStatus === "suspended") {
@@ -393,6 +429,14 @@ async function upsertLinuxDoUser(profile: LinuxDoNormalizedProfile): Promise<{
       avatarUrl: profile.avatarUrl || linkedUser.avatarUrl,
       authProvider: linkedUser.authProvider || "linuxdo",
     };
+
+    await upsertIdentityForUser(updatedLinkedUser, {
+      provider: "linuxdo",
+      providerUserId: profile.id,
+      providerEmail: profile.email,
+      providerUsername: profile.username,
+      avatarUrl: profile.avatarUrl,
+    });
 
     return { user: updatedLinkedUser, isNewUser: false };
   }
@@ -417,6 +461,14 @@ async function upsertLinuxDoUser(profile: LinuxDoNormalizedProfile): Promise<{
         avatarUrl: profile.avatarUrl || userWithSameEmail.avatarUrl,
         authProvider: userWithSameEmail.authProvider || "local",
       };
+
+      await upsertIdentityForUser(updatedExistingUser, {
+        provider: "linuxdo",
+        providerUserId: profile.id,
+        providerEmail: profile.email,
+        providerUsername: profile.username,
+        avatarUrl: profile.avatarUrl,
+      });
 
       return { user: updatedExistingUser, isNewUser: false };
     }
@@ -446,6 +498,14 @@ async function upsertLinuxDoUser(profile: LinuxDoNormalizedProfile): Promise<{
     avatarUrl: profile.avatarUrl,
   };
 
+  await upsertIdentityForUser(finalizedUser, {
+    provider: "linuxdo",
+    providerUserId: profile.id,
+    providerEmail: profile.email,
+    providerUsername: profile.username,
+    avatarUrl: profile.avatarUrl,
+  });
+
   return { user: finalizedUser, isNewUser: true };
 }
 
@@ -474,9 +534,16 @@ export function isLinuxDoAuthEnabled(): boolean {
   );
 }
 
-export async function createLinuxDoAuthorizationUrl(intent: LinuxDoAuthIntent): Promise<string> {
+export async function createLinuxDoAuthorizationUrl(
+  intent: LinuxDoAuthIntent,
+  options: { bindTargetUserId?: string } = {},
+): Promise<string> {
   if (!isLinuxDoAuthEnabled()) {
     throw new Error("Linux.do OAuth is not configured");
+  }
+
+  if (intent === "bind" && !options.bindTargetUserId) {
+    throw new Error("Linux.do bind target user is missing");
   }
 
   cleanupExpiredStates();
@@ -489,6 +556,7 @@ export async function createLinuxDoAuthorizationUrl(intent: LinuxDoAuthIntent): 
     intent,
     codeVerifier,
     expiresAt: Date.now() + STATE_TTL_MS,
+    bindTargetUserId: options.bindTargetUserId,
   });
 
   const params = new URLSearchParams({
@@ -508,6 +576,7 @@ export async function createLinuxDoAuthorizationUrl(intent: LinuxDoAuthIntent): 
 function consumeLinuxDoState(state: string): {
   intent: LinuxDoAuthIntent;
   codeVerifier: string;
+  bindTargetUserId?: string;
 } {
   cleanupExpiredStates();
 
@@ -525,6 +594,7 @@ function consumeLinuxDoState(state: string): {
   return {
     intent: record.intent,
     codeVerifier: record.codeVerifier,
+    bindTargetUserId: record.bindTargetUserId,
   };
 }
 
@@ -559,7 +629,7 @@ export async function completeLinuxDoAuthorization(params: {
   clientIp?: string;
 }): Promise<{
   redirectUrl: string;
-  payload: LinuxDoExchangePayload;
+  payload?: LinuxDoExchangePayload;
 }> {
   const { code, state, clientIp } = params;
 
@@ -567,7 +637,7 @@ export async function completeLinuxDoAuthorization(params: {
     throw new Error("Linux.do OAuth is not configured");
   }
 
-  const { intent, codeVerifier } = consumeLinuxDoState(state);
+  const { intent, codeVerifier, bindTargetUserId } = consumeLinuxDoState(state);
   const discoveryDocument = await getLinuxDoDiscoveryDocument();
   const accessToken = await exchangeAuthorizationCode({
     code,
@@ -576,6 +646,51 @@ export async function completeLinuxDoAuthorization(params: {
   });
   const rawProfile = await fetchLinuxDoUserProfile(accessToken, discoveryDocument.userinfo_endpoint);
   const normalizedProfile = normalizeLinuxDoProfile(rawProfile);
+
+  if (intent === "bind") {
+    if (!bindTargetUserId) {
+      throw new Error("Linux.do bind target user is missing");
+    }
+
+    const targetUser = await UserStorage.getUserById(bindTargetUserId);
+    if (!targetUser) {
+      throw new Error("绑定目标用户不存在");
+    }
+
+    const bindResult = await bindProviderIdentityToUser({
+      targetUser,
+      profile: {
+        provider: "linuxdo",
+        providerUserId: normalizedProfile.id,
+        providerEmail: normalizedProfile.email,
+        providerUsername: normalizedProfile.username,
+        avatarUrl: normalizedProfile.avatarUrl,
+      },
+      actor: {
+        userId: targetUser.id,
+        username: targetUser.username,
+        role: targetUser.role,
+        ip: clientIp || "unknown",
+        path: "/api/auth/linuxdo/callback",
+        method: "GET|POST",
+      },
+    });
+
+    logger.info("[Linux.do Auth] OAuth bind callback completed", {
+      userId: targetUser.id,
+      username: targetUser.username,
+      status: bindResult.status,
+      usedPkce: true,
+    });
+
+    return {
+      redirectUrl: buildProviderBindRedirect({
+        status: bindResult.status,
+        mergeToken: bindResult.mergeToken,
+      }),
+    };
+  }
+
   const { user, isNewUser } = await upsertLinuxDoUser(normalizedProfile);
   if ((user as any).accountStatus === "suspended") {
     throw new Error("Account is suspended");
@@ -601,6 +716,13 @@ export async function completeLinuxDoAuthorization(params: {
   };
 
   const payload = toExchangePayload(finalizedUser, isNewUser);
+  await upsertIdentityForUser(finalizedUser, {
+    provider: "linuxdo",
+    providerUserId: normalizedProfile.id,
+    providerEmail: normalizedProfile.email,
+    providerUsername: normalizedProfile.username,
+    avatarUrl: normalizedProfile.avatarUrl,
+  });
   const ticket = issueLinuxDoLoginTicket(payload);
   const redirectParams = new URLSearchParams({
     ticket,

@@ -7,10 +7,27 @@ import { LoadingSpinner } from './LoadingSpinner';
 import getApiBaseUrl from '../api';
 import { passkeyApi } from '../api/passkey';
 import { openDB } from 'idb';
-import { FaUser, FaUserCircle, FaShieldAlt, FaLock, FaEnvelope, FaCamera, FaSave, FaKey, FaCheckCircle, FaClock, FaExclamationCircle, FaGlobe, FaHistory, FaLink, FaUndoAlt } from 'react-icons/fa';
+import { FaUser, FaUserCircle, FaShieldAlt, FaLock, FaEnvelope, FaCamera, FaSave, FaKey, FaCheckCircle, FaClock, FaExclamationCircle, FaGlobe, FaHistory, FaLink, FaUndoAlt, FaGoogle, FaSyncAlt, FaUnlink, FaExternalLinkAlt } from 'react-icons/fa';
 
 type AuthProvider = 'local' | 'linuxdo' | 'google';
 type AccountStatus = 'active' | 'suspended';
+type IdentityProvider = 'google' | 'linuxdo';
+type LinkedAccountStatus = 'bound' | 'unbound' | 'merge_required' | 'conflict';
+type MergeStrategy = 'auto' | 'smart' | 'conservative';
+type RiskSeverity = 'low' | 'medium' | 'high';
+
+declare global {
+  interface Window {
+    google?: {
+      accounts?: {
+        id?: {
+          initialize: (options: Record<string, unknown>) => void;
+          renderButton: (element: HTMLElement, options: Record<string, unknown>) => void;
+        };
+      };
+    };
+  }
+}
 
 interface UserProfileData {
   id: string;
@@ -32,6 +49,59 @@ interface UserProfileData {
 interface TotpStatus {
   enabled: boolean;
   hasPasskey: boolean;
+}
+
+interface LinkedAccount {
+  provider: IdentityProvider;
+  label: string;
+  status: LinkedAccountStatus;
+  providerUserId?: string;
+  providerEmail?: string | null;
+  providerUsername?: string | null;
+  avatarUrl?: string | null;
+  linkedAt?: string;
+  lastUsedAt?: string | null;
+  canBind: boolean;
+  canUnlink: boolean;
+  mergeToken?: string;
+  mergePreview?: AccountMergePreview;
+  conflictReason?: string;
+}
+
+interface AccountMergeItem {
+  key: string;
+  label: string;
+  count: number;
+  strategy: MergeStrategy;
+}
+
+interface AccountMergeRiskItem {
+  key: string;
+  label: string;
+  severity: RiskSeverity;
+  blocking: boolean;
+  message: string;
+}
+
+interface AccountMergeAccountSummary {
+  id: string;
+  username: string;
+  email: string;
+  role: string;
+  accountStatus: string;
+}
+
+interface AccountMergePreview {
+  sourceAccount: AccountMergeAccountSummary;
+  targetAccount: AccountMergeAccountSummary;
+  provider: IdentityProvider;
+  providerUserId: string;
+  mergeItems: AccountMergeItem[];
+  riskItems: AccountMergeRiskItem[];
+  canConfirm: boolean;
+  requiresRiskAcknowledgement: boolean;
+  createdAt: string;
+  expiresAt?: number;
 }
 
 interface ApiResponse<T = any> {
@@ -135,11 +205,160 @@ const updateProfile = async (data: {
   return result;
 };
 
+const getAuthHeaders = (): HeadersInit => {
+  const token = localStorage.getItem('token');
+  if (!token) throw new Error('No authentication token');
+
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+  };
+};
+
+const fetchLinkedAccounts = async (): Promise<LinkedAccount[]> => {
+  const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile/linked-accounts`, {
+    headers: getAuthHeaders(),
+  });
+
+  const result = await res.json();
+  if (!res.ok) throw new Error(result.error || '获取第三方账号失败');
+  return Array.isArray(result.accounts) ? result.accounts : [];
+};
+
+const startLinkedAccountBind = async (
+  provider: IdentityProvider,
+  verificationToken: string,
+): Promise<{ action: 'google_id_token' | 'redirect'; clientId?: string; authorizationUrl?: string }> => {
+  const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile/linked-accounts/${provider}/start`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ verificationToken }),
+  });
+
+  const result = await res.json();
+  if (!res.ok) throw new Error(result.error || '启动第三方账号绑定失败');
+  return result;
+};
+
+const bindGoogleAccount = async (
+  idToken: string,
+  verificationToken: string,
+): Promise<{
+  success: true;
+  status: 'bound' | 'refreshed' | 'merge_required' | 'conflict';
+  account?: LinkedAccount;
+  mergeToken?: string;
+  mergePreview?: AccountMergePreview;
+  conflictReason?: string;
+}> => {
+  const res = await fetch(`${getApiBaseUrl()}/api/auth/google/bind`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ idToken, verificationToken }),
+  });
+
+  const result = await res.json();
+  if (!res.ok) throw new Error(result.error || 'Google 绑定失败');
+  return result;
+};
+
+const unlinkLinkedAccount = async (
+  provider: IdentityProvider,
+  verificationToken: string,
+): Promise<LinkedAccount[]> => {
+  const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile/linked-accounts/${provider}/unlink`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ verificationToken }),
+  });
+
+  const result = await res.json();
+  if (!res.ok) throw new Error(result.error || '解绑第三方账号失败');
+  return Array.isArray(result.accounts) ? result.accounts : [];
+};
+
+const fetchAccountMergePreview = async (
+  mergeToken: string,
+): Promise<{ mergeToken: string; preview: AccountMergePreview }> => {
+  const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile/account-merge/preview`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ mergeToken }),
+  });
+
+  const result = await res.json();
+  if (!res.ok) throw new Error(result.error || '获取合并预览失败');
+  return result;
+};
+
+const confirmAccountMerge = async (data: {
+  mergeToken: string;
+  verificationToken: string;
+  includeApiKeys: boolean;
+  includeOAuthClients: boolean;
+  acknowledgeRisks: boolean;
+}): Promise<ApiResponse> => {
+  const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile/account-merge/confirm`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data),
+  });
+
+  const result = await res.json();
+  if (!res.ok) throw new Error(result.error || '确认账号合并失败');
+  return result;
+};
+
 const getPasskeyAuthResponse = async (username: string) => {
   const optionsResponse = await passkeyApi.startAuthentication(username);
   const options = optionsResponse?.data?.options;
   if (!options) throw new Error('无法获取 Passkey 认证选项');
   return await startAuthentication({ optionsJSON: options });
+};
+
+let googleIdentityScriptPromise: Promise<void> | null = null;
+
+const loadGoogleIdentityScript = (): Promise<void> => {
+  if (window.google?.accounts?.id) {
+    return Promise.resolve();
+  }
+
+  if (googleIdentityScriptPromise) {
+    return googleIdentityScriptPromise;
+  }
+
+  googleIdentityScriptPromise = new Promise<void>((resolve, reject) => {
+    const existingScript = document.querySelector<HTMLScriptElement>('script[data-google-gsi="true"]');
+    if (existingScript) {
+      existingScript.addEventListener('load', () => resolve(), { once: true });
+      existingScript.addEventListener('error', () => reject(new Error('Google script failed to load')), { once: true });
+      if (window.google?.accounts?.id || existingScript.dataset.loaded === 'true') {
+        resolve();
+      }
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.dataset.googleGsi = 'true';
+    script.onload = () => {
+      script.dataset.loaded = 'true';
+      resolve();
+    };
+    script.onerror = () => {
+      script.dataset.failed = 'true';
+      script.remove();
+      reject(new Error('Google script failed to load'));
+    };
+    document.head.appendChild(script);
+  }).catch((error) => {
+    googleIdentityScriptPromise = null;
+    throw error;
+  });
+
+  return googleIdentityScriptPromise;
 };
 
 const AVATAR_DB = 'avatar-store';
@@ -249,6 +468,32 @@ const getAuthProviderLabel = (provider?: AuthProvider): string => {
   }
 };
 
+const getLinkedAccountStatusLabel = (status: LinkedAccountStatus): string => {
+  switch (status) {
+    case 'bound':
+      return '已绑定';
+    case 'merge_required':
+      return '可合并';
+    case 'conflict':
+      return '冲突';
+    case 'unbound':
+    default:
+      return '未绑定';
+  }
+};
+
+const getMergeStrategyLabel = (strategy: MergeStrategy): string => {
+  switch (strategy) {
+    case 'auto':
+      return '自动迁移';
+    case 'smart':
+      return '智能合并';
+    case 'conservative':
+    default:
+      return '保守处理';
+  }
+};
+
 const UserProfile: React.FC = () => {
   const { setNotification } = useNotification();
 
@@ -276,6 +521,19 @@ const UserProfile: React.FC = () => {
   // Authentication state
   const [totpStatus, setTotpStatus] = useState<TotpStatus | null>(null);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
+
+  // Third-party account state
+  const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccount[]>([]);
+  const [linkedAccountsLoading, setLinkedAccountsLoading] = useState(false);
+  const [googleBindClientId, setGoogleBindClientId] = useState('');
+  const [googleBindActive, setGoogleBindActive] = useState(false);
+  const [mergeToken, setMergeToken] = useState('');
+  const [mergePreview, setMergePreview] = useState<AccountMergePreview | null>(null);
+  const [showMergeModal, setShowMergeModal] = useState(false);
+  const [includeApiKeysInMerge, setIncludeApiKeysInMerge] = useState(false);
+  const [includeOAuthClientsInMerge, setIncludeOAuthClientsInMerge] = useState(false);
+  const [acknowledgeMergeRisks, setAcknowledgeMergeRisks] = useState(false);
+  const googleBindButtonRef = useRef<HTMLDivElement | null>(null);
 
   // Password change state
   const [changePwdMode, setChangePwdMode] = useState(false);
@@ -341,6 +599,70 @@ const UserProfile: React.FC = () => {
   useEffect(() => {
     loadProfile();
   }, [loadProfile]);
+
+  const loadLinkedAccounts = useCallback(async ({ background = false }: { background?: boolean } = {}) => {
+    if (!background) {
+      setLinkedAccountsLoading(true);
+    }
+
+    try {
+      const accounts = await fetchLinkedAccounts();
+      setLinkedAccounts(accounts);
+      const pendingMerge = accounts.find((account) => account.mergeToken && account.mergePreview);
+      if (pendingMerge?.mergeToken && pendingMerge.mergePreview && !mergePreview) {
+        setMergeToken(pendingMerge.mergeToken);
+        setMergePreview(pendingMerge.mergePreview);
+      }
+      return accounts;
+    } catch (error) {
+      console.warn('[UserProfile] Failed to fetch linked accounts:', error);
+      if (!background) {
+        setNotification({
+          message: error instanceof Error ? error.message : '获取第三方账号失败',
+          type: 'error',
+        });
+      }
+      return [];
+    } finally {
+      if (!background) {
+        setLinkedAccountsLoading(false);
+      }
+    }
+  }, [mergePreview, setNotification]);
+
+  useEffect(() => {
+    if (profile?.id) {
+      void loadLinkedAccounts({ background: true });
+    }
+  }, [loadLinkedAccounts, profile?.id]);
+
+  useEffect(() => {
+    if (!profile?.id) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const tokenFromUrl = params.get('mergeToken');
+    if (!tokenFromUrl) return;
+
+    const loadPreview = async () => {
+      try {
+        const result = await fetchAccountMergePreview(tokenFromUrl);
+        setMergeToken(result.mergeToken);
+        setMergePreview(result.preview);
+        setShowMergeModal(true);
+        params.delete('mergeToken');
+        const nextSearch = params.toString();
+        const nextUrl = `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ''}${window.location.hash}`;
+        window.history.replaceState(null, '', nextUrl);
+      } catch (error) {
+        setNotification({
+          message: error instanceof Error ? error.message : '获取合并预览失败',
+          type: 'error',
+        });
+      }
+    };
+
+    void loadPreview();
+  }, [profile?.id, setNotification]);
 
   const fetchTotpStatus = useCallback(async () => {
     try {
