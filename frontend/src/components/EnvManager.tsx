@@ -86,7 +86,7 @@ const ENV_MANAGER_FORM_CONTROL_CSS = `
 const EnvManager: React.FC = () => {
   const { user } = useAuth();
   const [envs, setEnvs] = useState<EnvItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<EnvItem>>({});
   const [showSourceModal, setShowSourceModal] = useState(false);
@@ -96,8 +96,6 @@ const EnvManager: React.FC = () => {
 
   // 基于窗口宽度的移动端检测（随页面缩放实时更新，带防抖）
   const [isMobile, setIsMobile] = useState<boolean>(false);
-  // 环境变量区折叠
-  const [isEnvCollapsed, setIsEnvCollapsed] = useState<boolean>(true);
   useEffect(() => {
     const checkIsMobile = () => {
       try {
@@ -273,7 +271,7 @@ const EnvManager: React.FC = () => {
 
   const isSectionOpen = useCallback((key: string) => expandedSections.has(key), [expandedSections]);
 
-  const fetchEnvs = async () => {
+  const fetchEnvs = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(API_URL, { headers: getAuthHeaders() });
@@ -359,7 +357,7 @@ const EnvManager: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [setNotification]);
 
   const fetchOutemailSettings = useCallback(async () => {
     setSettingsLoading(true);
@@ -1666,11 +1664,10 @@ const EnvManager: React.FC = () => {
     setShowDeleteConfirm(false);
   }, [deleteType, handleDeleteBatchLogs, handleDeleteAllLogs, handleDeleteLogsByFilter]);
 
-  useEffect(() => { fetchEnvs(); }, []);
-
   // 懒加载：仅在区块首次展开时拉取数据，避免页面初始化时 14 个 API 并发请求
   useEffect(() => {
     const lazyMap: Record<string, () => Promise<void> | void> = {
+      envs: fetchEnvs,
       outemail: fetchOutemailSettings,
       modlist: fetchModlistSetting,
       tts: fetchTtsSetting,
@@ -1691,10 +1688,14 @@ const EnvManager: React.FC = () => {
         lazyMap[key]();
       }
     }
-  }, [expandedSections, fetchOutemailSettings, fetchModlistSetting, fetchTtsSetting, fetchShortAes, fetchWebhookSecret, fetchProviders, fetchDebugConfigs, fetchDebugLogs, fetchIpfsConfig, fetchTurnstileConfig, fetchHcaptchaConfig, fetchClarityConfig, fetchGithubBillingConfig]);
+  }, [expandedSections, fetchEnvs, fetchOutemailSettings, fetchModlistSetting, fetchTtsSetting, fetchShortAes, fetchWebhookSecret, fetchProviders, fetchDebugConfigs, fetchDebugLogs, fetchIpfsConfig, fetchTurnstileConfig, fetchHcaptchaConfig, fetchClarityConfig, fetchGithubBillingConfig]);
 
   // 当过滤条件改变时重新获取日志
   useEffect(() => {
+    if (!expandedSections.has('debuglogs') || !fetchedSectionsRef.current.has('debuglogs')) {
+      return;
+    }
+
     if (debugLogsPage === 1) {
       fetchDebugLogs();
     } else {
@@ -1711,6 +1712,10 @@ const EnvManager: React.FC = () => {
   const handleSourceModalCloseWrapper = useCallback(() => {
     handleSourceModalClose(setShowSourceModal);
   }, []);
+
+  const isEnvSectionOpen = isSectionOpen('envs');
+  const isEnvCollapsed = !isEnvSectionOpen;
+  const isEnvLoading = loading || (isEnvSectionOpen && !fetchedSectionsRef.current.has('envs'));
 
   // 管理员校验
   if (!user || user.role !== 'admin') {
@@ -1784,7 +1789,7 @@ const EnvManager: React.FC = () => {
             </h3>
             <div className="flex items-center gap-2">
               <m.button
-                onClick={() => setIsEnvCollapsed(prev => !prev)}
+                onClick={() => toggleSection('envs')}
                 className="px-2 sm:px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-sm font-medium flex items-center gap-2"
                 whileTap={{ scale: 0.95 }}
               >
@@ -1798,12 +1803,15 @@ const EnvManager: React.FC = () => {
                 {isEnvCollapsed ? '展开' : '收起'}
               </m.button>
               <m.button
-                onClick={fetchEnvs}
-                disabled={loading}
+                onClick={() => {
+                  fetchedSectionsRef.current.add('envs');
+                  fetchEnvs();
+                }}
+                disabled={isEnvLoading}
                 className="px-2 sm:px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
                 whileTap={{ scale: 0.95 }}
               >
-                <FaSync className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                <FaSync className={`w-4 h-4 ${isEnvLoading ? 'animate-spin' : ''}`} />
                 刷新
               </m.button>
             </div>
@@ -1826,7 +1834,7 @@ const EnvManager: React.FC = () => {
                   </div>
                 </div>
 
-                {loading ? (
+                {isEnvLoading ? (
                   <div className="text-center py-6 sm:py-8 text-gray-500">
                     <svg className="animate-spin h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-3 sm:mb-4 text-blue-500" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -1900,7 +1908,7 @@ const EnvManager: React.FC = () => {
                 )}
 
                 {/* 统计信息 */}
-                {!loading && envs.length > 0 && (
+                {!isEnvLoading && envs.length > 0 && (
                   <m.div
                     initial={ENTER_INITIAL}
                     animate={ENTER_ANIMATE}

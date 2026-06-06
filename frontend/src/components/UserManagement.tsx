@@ -1336,7 +1336,7 @@ const UserManagement: React.FC = () => {
       headers,
     });
     const password = res.data?.password;
-    if (typeof password !== 'string' || password.length === 0) {
+    if (typeof password !== 'string' || password.trim().length === 0) {
       throw new Error('接口未返回可显示的密码');
     }
 
@@ -1416,6 +1416,30 @@ const UserManagement: React.FC = () => {
     }
   }, [revealPasswordState, revealPasswordWithToken, setNotification]);
 
+  const statCards = useMemo(() => [
+    { label: '总用户', value: stats.total, tone: 'bg-blue-50 text-blue-700 border-blue-100' },
+    { label: '管理员', value: stats.admins, tone: 'bg-red-50 text-red-700 border-red-100' },
+    { label: '封停账户', value: stats.suspended, tone: 'bg-gray-50 text-gray-700 border-gray-200' },
+    { label: '今日用量', value: stats.totalDailyUsage, tone: 'bg-cyan-50 text-cyan-700 border-cyan-100' },
+    { label: '需指纹', value: stats.fingerprintRequired, tone: 'bg-orange-50 text-orange-700 border-orange-100' },
+    { label: '翻译受限', value: stats.translationDisabled + stats.translationLimited, tone: 'bg-purple-50 text-purple-700 border-purple-100' },
+  ], [stats]);
+
+  const hasActiveFilters = useMemo(() => (
+    activeFilters.keyword !== DEFAULT_USER_LIST_FILTERS.keyword ||
+    activeFilters.role !== DEFAULT_USER_LIST_FILTERS.role ||
+    activeFilters.accountStatus !== DEFAULT_USER_LIST_FILTERS.accountStatus ||
+    activeFilters.security !== DEFAULT_USER_LIST_FILTERS.security ||
+    activeFilters.ticket !== DEFAULT_USER_LIST_FILTERS.ticket ||
+    activeFilters.translation !== DEFAULT_USER_LIST_FILTERS.translation ||
+    activeFilters.sortBy !== DEFAULT_USER_LIST_FILTERS.sortBy ||
+    activeFilters.sortOrder !== DEFAULT_USER_LIST_FILTERS.sortOrder ||
+    activeFilters.pageSize !== DEFAULT_USER_LIST_FILTERS.pageSize
+  ), [activeFilters]);
+
+  const rangeStart = pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.pageSize + 1;
+  const rangeEnd = Math.min(pagination.total, pagination.page * pagination.pageSize);
+
   if (!user || user.role !== 'admin') {
     return (
       <motion.div
@@ -1469,9 +1493,9 @@ const UserManagement: React.FC = () => {
             <div>
               <p className="font-semibold text-blue-700">功能说明：</p>
               <ul className="list-disc list-inside space-y-1 mt-1">
-                <li>查看所有用户账户的完整信息（基本信息、Token、TOTP、Passkey、指纹配置）</li>
-                <li>添加 / 编辑 / 删除用户</li>
-                <li>直接修改 dailyUsage、requireFingerprint 等运营字段</li>
+                <li>按角色、账户状态、安全状态、工单状态和翻译权限筛选用户</li>
+                <li>添加 / 编辑 / 删除用户，支持分页排序和批量运营动作</li>
+                <li>直接修改 dailyUsage、requireFingerprint、翻译权限与账户状态等运营字段</li>
                 <li>管理用户指纹记录（查看 / 删除 / 清空）</li>
                 <li>数据加密传输保护</li>
               </ul>
@@ -1479,6 +1503,15 @@ const UserManagement: React.FC = () => {
           </div>
         </div>
       </motion.div>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+        {statCards.map(item => (
+          <div key={item.label} className={`rounded-lg border px-4 py-3 ${item.tone}`}>
+            <div className="text-xs font-semibold text-current/70">{item.label}</div>
+            <div className="mt-1 text-2xl font-bold">{item.value}</div>
+          </div>
+        ))}
+      </div>
 
       {/* 错误提示 */}
       <AnimatePresence>
@@ -1519,22 +1552,161 @@ const UserManagement: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
             <FaList className="text-lg text-blue-500" />
             用户列表
+            <span className="text-sm font-normal text-gray-500">
+              {rangeStart}-{rangeEnd} / {pagination.total}
+            </span>
           </h3>
-          <motion.button
-            onClick={openCreate}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium flex items-center gap-2"
-            whileHover={hoverScale(1.02)}
-            whileTap={tapScale(0.95)}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            添加用户
-          </motion.button>
+          <div className="flex flex-wrap gap-2">
+            <motion.button
+              onClick={() => fetchUsers(true)}
+              className="px-3 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium flex items-center gap-2 border border-gray-200"
+              whileHover={hoverScale(1.02)}
+              whileTap={tapScale(0.95)}
+            >
+              <FaSyncAlt className="text-xs" />
+              刷新
+            </motion.button>
+            <motion.button
+              onClick={openCreate}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium flex items-center gap-2"
+              whileHover={hoverScale(1.02)}
+              whileTap={tapScale(0.95)}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              添加用户
+            </motion.button>
+          </div>
+        </div>
+
+        <div className="mb-4 space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            <div className="relative">
+              <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+              <input
+                value={pendingFilters.keyword}
+                onChange={e => updatePendingFilter('keyword', e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') applyFilters();
+                }}
+                placeholder="搜索用户名、邮箱、ID、IP"
+                className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm bg-white"
+              />
+            </div>
+            <select
+              value={pendingFilters.role}
+              onChange={e => updatePendingFilter('role', e.target.value as UserListRoleFilter)}
+              className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              {ROLE_FILTER_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+            <select
+              value={pendingFilters.accountStatus}
+              onChange={e => updatePendingFilter('accountStatus', e.target.value as UserListAccountStatusFilter)}
+              className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              {ACCOUNT_STATUS_FILTER_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+            <select
+              value={pendingFilters.security}
+              onChange={e => updatePendingFilter('security', e.target.value as UserListSecurityFilter)}
+              className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              {SECURITY_FILTER_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+            <select
+              value={pendingFilters.ticket}
+              onChange={e => updatePendingFilter('ticket', e.target.value as UserListTicketFilter)}
+              className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              {TICKET_FILTER_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+            <select
+              value={pendingFilters.translation}
+              onChange={e => updatePendingFilter('translation', e.target.value as UserListTranslationFilter)}
+              className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              {TRANSLATION_FILTER_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+            <div className="grid grid-cols-2 gap-2">
+              <select
+                value={pendingFilters.sortBy}
+                onChange={e => updatePendingFilter('sortBy', e.target.value)}
+                className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                {SORT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+              <select
+                value={pendingFilters.sortOrder}
+                onChange={e => updatePendingFilter('sortOrder', e.target.value as UserListSortOrder)}
+                className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                <option value="desc">降序</option>
+                <option value="asc">升序</option>
+              </select>
+            </div>
+            <select
+              value={pendingFilters.pageSize}
+              onChange={e => updatePendingFilter('pageSize', Number(e.target.value))}
+              className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+              {PAGE_SIZE_OPTIONS.map(size => <option key={size} value={size}>每页 {size} 条</option>)}
+            </select>
+          </div>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="text-xs text-gray-500">
+              当前筛选 {filteredStats.total} 个用户，管理员 {filteredStats.admins} 个，封停 {filteredStats.suspended} 个
+              {hasActiveFilters ? '，已启用筛选' : ''}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <motion.button
+                type="button"
+                onClick={applyFilters}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium"
+                whileHover={hoverScale(1.02)}
+                whileTap={tapScale(0.95)}
+              >
+                应用筛选
+              </motion.button>
+              <motion.button
+                type="button"
+                onClick={resetFilters}
+                className="px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm font-medium border border-gray-200"
+                whileHover={hoverScale(1.02)}
+                whileTap={tapScale(0.95)}
+              >
+                重置
+              </motion.button>
+            </div>
+          </div>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-t border-gray-200 pt-3">
+            <div className="text-sm text-gray-600">已选择 {selectedUserIds.length} 个用户</div>
+            <div className="flex flex-wrap gap-2">
+              <select
+                value={bulkAction}
+                onChange={e => setBulkAction(e.target.value as BulkUserAction | '')}
+                className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 min-w-[180px]"
+              >
+                <option value="">选择批量操作</option>
+                {BULK_ACTION_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+              <motion.button
+                type="button"
+                onClick={handleBulkAction}
+                disabled={selectedUserIds.length === 0 || !bulkAction || loading}
+                className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition text-sm font-medium disabled:opacity-50"
+                whileHover={hoverScale(1.02, selectedUserIds.length > 0 && Boolean(bulkAction) && !loading)}
+                whileTap={tapScale(0.95, selectedUserIds.length > 0 && Boolean(bulkAction) && !loading)}
+              >
+                执行
+              </motion.button>
+            </div>
+          </div>
         </div>
 
         {/* 添加/编辑用户表单 */}
@@ -1593,6 +1765,15 @@ const UserManagement: React.FC = () => {
             <table className="w-full border border-gray-200 rounded-lg overflow-hidden text-sm">
               <thead>
                 <tr className="bg-gray-50 text-gray-700">
+                  <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={allCurrentPageSelected}
+                      onChange={() => toggleCurrentPageSelection()}
+                      className="w-4 h-4 rounded"
+                      aria-label="选择当前页用户"
+                    />
+                  </th>
                   {TABLE_COLUMNS.map(col => (
                     <th key={col.key} className="px-4 py-3 text-left font-semibold whitespace-nowrap">{col.label}</th>
                   ))}
@@ -1610,8 +1791,26 @@ const UserManagement: React.FC = () => {
                     transition={{ duration: 0.3, delay: 0.05 * idx }}
                     whileHover={{ backgroundColor: '#f0f9ff' }}
                   >
-                    <td className="px-4 py-3 font-medium">{u.username}</td>
-                    <td className="px-4 py-3 text-gray-600">{u.email}</td>
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedUserIdSet.has(u.id)}
+                        onChange={() => toggleUserSelection(u.id)}
+                        className="w-4 h-4 rounded"
+                        aria-label={`选择用户 ${u.username}`}
+                      />
+                    </td>
+                    <td className="px-4 py-3 font-medium">
+                      <div>{u.username}</div>
+                      <div className="text-[11px] text-gray-400 font-normal">ID {u.id}</div>
+                      {u.authProvider && u.authProvider !== 'local' && (
+                        <div className="text-[11px] text-indigo-500 font-normal">{u.authProvider}</div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">
+                      <div>{u.email}</div>
+                      {u.lastLoginIp && <div className="text-[11px] text-gray-400">IP {u.lastLoginIp}</div>}
+                    </td>
                     <td className="px-4 py-3">
                       {u.role === 'admin' ? (
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">管理员</span>
@@ -1619,18 +1818,31 @@ const UserManagement: React.FC = () => {
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">普通用户</span>
                       )}
                     </td>
+                    <td className="px-4 py-3">
+                      {u.accountStatus === 'suspended' ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-700">封停</span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">正常</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-gray-600 text-xs">{u.createdAt ? new Date(u.createdAt).toLocaleString() : '-'}</td>
-                    <td className="px-4 py-3">
-                      {u.totpEnabled
-                        ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">已开启</span>
-                        : <span className="text-gray-400 text-xs">-</span>}
-                    </td>
-                    <td className="px-4 py-3">
-                      {u.passkeyEnabled
-                        ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">已开启</span>
-                        : <span className="text-gray-400 text-xs">-</span>}
-                    </td>
                     <td className="px-4 py-3 text-gray-600">{u.dailyUsage ?? 0}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-1">
+                        {u.totpEnabled
+                          ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">TOTP</span>
+                          : null}
+                        {u.passkeyEnabled
+                          ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">Passkey</span>
+                          : null}
+                        {u.requireFingerprint
+                          ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">需指纹</span>
+                          : null}
+                        {!u.totpEnabled && !u.passkeyEnabled && !u.requireFingerprint && (
+                          <span className="text-gray-400 text-xs">-</span>
+                        )}
+                      </div>
+                    </td>
                     {/* 工单状态列 */}
                     <td className="px-4 py-3">
                       <div className="flex flex-col gap-1">
@@ -1649,6 +1861,16 @@ const UserManagement: React.FC = () => {
                           </span>
                         )}
                       </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {(() => {
+                        const translationStatus = getTranslationStatus(u);
+                        return (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${translationStatus.className}`}>
+                            {translationStatus.label}
+                          </span>
+                        );
+                      })()}
                     </td>
                     {/* 指纹列 */}
                     <td className="px-4 py-3 text-gray-600 text-xs">
@@ -1750,6 +1972,51 @@ const UserManagement: React.FC = () => {
                 暂无用户数据
               </div>
             )}
+            <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between text-sm text-gray-600">
+              <div>第 {pagination.page} / {pagination.totalPages} 页，当前显示 {rangeStart}-{rangeEnd} 条</div>
+              <div className="flex items-center gap-2">
+                <motion.button
+                  type="button"
+                  onClick={() => setPage(1)}
+                  disabled={pagination.page <= 1}
+                  className="px-3 py-1.5 rounded border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  whileHover={hoverScale(1.02, pagination.page > 1)}
+                  whileTap={tapScale(0.95, pagination.page > 1)}
+                >
+                  首页
+                </motion.button>
+                <motion.button
+                  type="button"
+                  onClick={() => setPage(pagination.page - 1)}
+                  disabled={pagination.page <= 1}
+                  className="px-3 py-1.5 rounded border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  whileHover={hoverScale(1.02, pagination.page > 1)}
+                  whileTap={tapScale(0.95, pagination.page > 1)}
+                >
+                  上一页
+                </motion.button>
+                <motion.button
+                  type="button"
+                  onClick={() => setPage(pagination.page + 1)}
+                  disabled={pagination.page >= pagination.totalPages}
+                  className="px-3 py-1.5 rounded border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  whileHover={hoverScale(1.02, pagination.page < pagination.totalPages)}
+                  whileTap={tapScale(0.95, pagination.page < pagination.totalPages)}
+                >
+                  下一页
+                </motion.button>
+                <motion.button
+                  type="button"
+                  onClick={() => setPage(pagination.totalPages)}
+                  disabled={pagination.page >= pagination.totalPages}
+                  className="px-3 py-1.5 rounded border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  whileHover={hoverScale(1.02, pagination.page < pagination.totalPages)}
+                  whileTap={tapScale(0.95, pagination.page < pagination.totalPages)}
+                >
+                  尾页
+                </motion.button>
+              </div>
+            </div>
           </div>
         )}
       </motion.div>

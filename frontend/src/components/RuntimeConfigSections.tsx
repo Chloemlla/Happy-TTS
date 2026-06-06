@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { FaSync, FaUpload } from 'react-icons/fa';
+import { FaChevronDown, FaSync, FaUpload } from 'react-icons/fa';
 import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
 
@@ -8,6 +8,8 @@ const LINUXDO_API = getApiBaseUrl() + '/api/admin/linuxdo/setting';
 const GOOGLE_AUTH_API = getApiBaseUrl() + '/api/admin/google-auth/setting';
 const DEEPLX_API = getApiBaseUrl() + '/api/admin/deeplx/setting';
 const NEXAI_API = getApiBaseUrl() + '/api/admin/nexai/setting';
+
+type RuntimeConfigSectionKey = 'ipqs' | 'linuxdo' | 'googleAuth' | 'deeplx' | 'nexai';
 
 function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem('token');
@@ -101,11 +103,13 @@ function buildDeepLXRequestUrl(baseUrl: string, apiKey?: string): string {
 function SectionCard(props: {
   title: string;
   description: string;
+  isOpen: boolean;
   loading: boolean;
+  onToggle: () => void;
   onRefresh: () => void;
   children: React.ReactNode;
 }) {
-  const { title, description, loading, onRefresh, children } = props;
+  const { title, description, isOpen, loading, onToggle, onRefresh, children } = props;
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -114,17 +118,36 @@ function SectionCard(props: {
           <h3 className="text-lg font-semibold text-slate-800">{title}</h3>
           <p className="mt-1 text-sm text-slate-500">{description}</p>
         </div>
-        <button
-          type="button"
-          onClick={onRefresh}
-          disabled={loading}
-          className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <FaSync className={loading ? 'animate-spin' : ''} />
-          刷新
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <FaSync className={loading ? 'animate-spin' : ''} />
+            刷新
+          </button>
+          <button
+            type="button"
+            onClick={onToggle}
+            className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-800 transition hover:bg-slate-200"
+          >
+            <FaChevronDown className={`transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+            {isOpen ? '收起' : '展开'}
+          </button>
+        </div>
       </div>
-      <div className="space-y-4 px-5 py-5">{children}</div>
+      {isOpen ? (
+        <div className="space-y-4 px-5 py-5">
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-500">
+              <FaSync className="animate-spin" />
+              加载中...
+            </div>
+          ) : children}
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -218,6 +241,28 @@ const RuntimeConfigSections: React.FC = () => {
     githubClientId: '',
     frontendUrl: '',
   });
+
+  const [expandedSections, setExpandedSections] = useState<Set<RuntimeConfigSectionKey>>(() => new Set());
+  const fetchedSectionsRef = useRef<Set<RuntimeConfigSectionKey>>(new Set());
+
+  const toggleSection = useCallback((key: RuntimeConfigSectionKey) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  }, []);
+
+  const refreshSection = useCallback((key: RuntimeConfigSectionKey, fetchSetting: () => Promise<void> | void) => {
+    fetchedSectionsRef.current.add(key);
+    fetchSetting();
+  }, []);
+
+  const isSectionOpen = useCallback((key: RuntimeConfigSectionKey) => expandedSections.has(key), [expandedSections]);
 
   const handleRequestError = useCallback(async (res: Response, fallback: string) => {
     const data = await res.json().catch(() => null);
@@ -391,12 +436,22 @@ const RuntimeConfigSections: React.FC = () => {
   }, [handleRequestError, setNotification]);
 
   useEffect(() => {
-    fetchIpqsSetting();
-    fetchLinuxDoSetting();
-    fetchGoogleAuthSetting();
-    fetchDeepLXSetting();
-    fetchNexaiSetting();
+    const lazyMap: Record<RuntimeConfigSectionKey, () => Promise<void> | void> = {
+      ipqs: fetchIpqsSetting,
+      linuxdo: fetchLinuxDoSetting,
+      googleAuth: fetchGoogleAuthSetting,
+      deeplx: fetchDeepLXSetting,
+      nexai: fetchNexaiSetting,
+    };
+
+    for (const key of expandedSections) {
+      if (!fetchedSectionsRef.current.has(key)) {
+        fetchedSectionsRef.current.add(key);
+        lazyMap[key]();
+      }
+    }
   }, [
+    expandedSections,
     fetchDeepLXSetting,
     fetchGoogleAuthSetting,
     fetchIpqsSetting,
@@ -721,6 +776,10 @@ const RuntimeConfigSections: React.FC = () => {
   const deeplxRequestUrlPreview = deeplxApiKeyInput.trim()
     ? buildDeepLXRequestUrl(deeplxForm.baseUrl, deeplxApiKeyInput.trim())
     : deeplxSetting?.config.requestUrl || buildDeepLXRequestUrl(deeplxForm.baseUrl);
+
+  const isRuntimeSectionLoading = (key: RuntimeConfigSectionKey, loading: boolean) => (
+    loading || (expandedSections.has(key) && !fetchedSectionsRef.current.has(key))
+  );
 
   return (
     <div className="space-y-6">

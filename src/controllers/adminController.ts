@@ -9,7 +9,7 @@ import { mongoose } from "../services/mongoService";
 import { RuntimeConfigService } from "../services/runtimeConfigService";
 import { TranslationLogService } from "../services/translationLogService";
 import logger from "../utils/logger";
-import { revealUserPassword } from "../services/userService";
+import { getRevealUserPasswordResult } from "../services/userService";
 import { UserStorage } from "../utils/userStorage";
 import { isUserStorageModeKey, USER_STORAGE_MODE } from "../utils/userStorageMode";
 
@@ -1008,11 +1008,12 @@ export const adminController = {
         return res.status(400).json({ error: "userIds 必须为数组" });
       }
 
-      const userIds = Array.from(
+      const rawUserIds = req.body.userIds as unknown[];
+      const userIds: string[] = Array.from(
         new Set(
-          req.body.userIds
+          rawUserIds
             .map((id: unknown) => (typeof id === "string" ? id.trim() : ""))
-            .filter(Boolean),
+            .filter((id): id is string => id.length > 0),
         ),
       );
 
@@ -1150,9 +1151,16 @@ export const adminController = {
         return res.status(403).json({ error: "无权限" });
       }
 
-      const password = await revealUserPassword(req.params.id);
-      if (typeof password !== "string" || password.length === 0) {
-        return res.status(404).json({ error: "用户不存在或未配置可查看的密码" });
+      const result = await getRevealUserPasswordResult(req.params.id);
+      if (result.status === "not_found") {
+        return res.status(404).json({ error: "用户不存在" });
+      }
+      if (result.status === "not_revealable") {
+        return res.status(409).json({
+          error: "该用户密码不可查看，请通过重置密码处理",
+          errorCode: "PASSWORD_NOT_REVEALABLE",
+          reason: result.reason,
+        });
       }
 
       logger.warn("[Admin] 管理员查看用户密码", {
@@ -1168,7 +1176,7 @@ export const adminController = {
 
       return res.json({
         success: true,
-        password,
+        password: result.password,
       });
     } catch (error) {
       logger.error("查看用户密码失败:", error);

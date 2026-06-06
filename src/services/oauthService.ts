@@ -208,13 +208,17 @@ function safeEqual(left: string, right: string): boolean {
   return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
 }
 
+function isLocalhostName(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "[::1]";
+}
+
 function isValidUrl(value: string, opts: { allowHttpLocalhost?: boolean } = {}): boolean {
   try {
     const url = new URL(value);
     if (url.protocol !== "https:" && url.protocol !== "http:") return false;
-    if (url.protocol === "http:" && !opts.allowHttpLocalhost) {
-      const host = url.hostname.toLowerCase();
-      if (!["localhost", "127.0.0.1", "::1"].includes(host)) return false;
+    if (url.protocol === "http:") {
+      if (!opts.allowHttpLocalhost || !isLocalhostName(url.hostname)) return false;
     }
     if (url.hash) return false;
     return true;
