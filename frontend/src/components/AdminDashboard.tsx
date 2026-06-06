@@ -1,5 +1,5 @@
 import React, { useState, Suspense, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import UserManagement from "./UserManagement";
 const AnnouncementManager = React.lazy(() => import("./AnnouncementManager"));
 const EnvManager = React.lazy(() => import("./EnvManager"));
@@ -92,6 +92,7 @@ const AdminDashboard: React.FC = () => {
   const { user, loading, logout } = useAuth();
   const { setNotification } = useNotification();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const tabs = useMemo(
     () =>
@@ -125,6 +126,71 @@ const AdminDashboard: React.FC = () => {
       ] as const,
     [],
   );
+  const tabKeys = useMemo(() => new Set<string>(tabs.map((item) => item.key)), [tabs]);
+  const tabGroups = useMemo(
+    () => [
+      {
+        key: "identity",
+        label: "身份与权限",
+        items: tabs.filter((item) =>
+          ["users", "apikeys", "apikey-billing", "audit-log", "translation-audit"].includes(item.key),
+        ),
+      },
+      {
+        key: "integration",
+        label: "第三方接入",
+        items: tabs.filter((item) =>
+          ["oauth", "librechat", "ecoenchants", "webhookevents"].includes(item.key),
+        ),
+      },
+      {
+        key: "operations",
+        label: "运营与内容",
+        items: tabs.filter((item) =>
+          [
+            "announcement",
+            "lottery",
+            "outemail",
+            "shortlink",
+            "shorturlmigration",
+            "command",
+            "logshare",
+            "fbiwanted",
+            "broadcast",
+          ].includes(item.key),
+        ),
+      },
+      {
+        key: "security",
+        label: "安全与系统",
+        items: tabs.filter((item) =>
+          ["env", "mail-system", "humancheck", "data-collection", "github-billing-cache", "ip-ban", "fingerprint", "system"].includes(
+            item.key,
+          ),
+        ),
+      },
+    ],
+    [tabs],
+  );
+
+  useEffect(() => {
+    const requestedTab = searchParams.get("tab");
+    if (requestedTab && tabKeys.has(requestedTab) && requestedTab !== tab) {
+      setTab(requestedTab);
+    }
+  }, [searchParams, tab, tabKeys]);
+
+  const selectTab = (nextTab: string) => {
+    setTab(nextTab);
+    setSearchParams(
+      (current) => {
+        const next = new URLSearchParams(current);
+        next.set("tab", nextTab);
+        return next;
+      },
+      { replace: true },
+    );
+  };
 
   // 多重权限验证
   useEffect(() => {
@@ -391,24 +457,33 @@ const AdminDashboard: React.FC = () => {
         >
           <div>
             <InfoSectionTitle title="管理功能" icon={FaCog} eyebrow="Modules" />
-            <div
-              className="mb-6 flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-300/70 scrollbar-track-transparent"
-              style={{ WebkitOverflowScrolling: "touch" }}
-            >
-              {tabs.map((t) => (
-                <motion.button
-                  key={t.key}
-                  className={`flex min-w-max items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-semibold transition-all duration-150 ${
-                    tab === t.key
-                      ? "bg-slate-900 text-white shadow-sm"
-                      : "border border-slate-200 bg-white/80 text-slate-600 hover:border-slate-300 hover:text-slate-900"
-                  }`}
-                  onClick={() => setTab(t.key)}
-                  whileTap={{ scale: 0.96 }}
-                  whileHover={tab !== t.key ? { y: -1 } : {}}
-                >
-                  <span>{t.label}</span>
-                </motion.button>
+            <div className="mb-6 space-y-4">
+              {tabGroups.map((group) => (
+                <div key={group.key} className="space-y-2">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+                    {group.label}
+                  </div>
+                  <div
+                    className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-slate-300/70 scrollbar-track-transparent"
+                    style={{ WebkitOverflowScrolling: "touch" }}
+                  >
+                    {group.items.map((t) => (
+                      <motion.button
+                        key={t.key}
+                        className={`flex min-w-max items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-semibold transition-all duration-150 ${
+                          tab === t.key
+                            ? "bg-slate-900 text-white shadow-sm"
+                            : "border border-slate-200 bg-white/80 text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                        }`}
+                        onClick={() => selectTab(t.key)}
+                        whileTap={{ scale: 0.96 }}
+                        whileHover={tab !== t.key ? { y: -1 } : {}}
+                      >
+                        <span>{t.label}</span>
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
             <div className="min-h-[400px] rounded-[26px] border border-slate-200 bg-white/60 p-3 sm:p-5">
