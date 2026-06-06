@@ -637,12 +637,19 @@ async function runMergeTransaction(params: {
         { $set: { ownerId: params.targetUser.id, updatedAt: now } },
         session,
       );
-      counters.voiceProjectShares = await updateMany(
+      const voiceProjectSharesAdded = await updateMany(
         "voice_projects",
         { "sharing.sharedWith": params.sourceUser.id },
-        { $addToSet: { "sharing.sharedWith": params.targetUser.id }, $pull: { "sharing.sharedWith": params.sourceUser.id } },
+        { $addToSet: { "sharing.sharedWith": params.targetUser.id } },
         session,
       );
+      const voiceProjectSharesPulled = await updateMany(
+        "voice_projects",
+        { "sharing.sharedWith": params.sourceUser.id },
+        { $pull: { "sharing.sharedWith": params.sourceUser.id } },
+        session,
+      );
+      counters.voiceProjectShares = Math.max(voiceProjectSharesAdded, voiceProjectSharesPulled);
       counters.versions = await updateMany(
         "versions",
         { authorId: params.sourceUser.id },

@@ -1199,6 +1199,227 @@ const UserProfile: React.FC = () => {
     }
   }, [applyVerificationSuccess, profile, setNotification]);
 
+  const handleGoogleBindResult = useCallback(async (idToken: string) => {
+    if (!verificationToken) {
+      setNotification({ message: '请先完成身份验证', type: 'warning' });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const result = await bindGoogleAccount(idToken, verificationToken);
+      setGoogleBindActive(false);
+
+      if (result.status === 'merge_required' && result.mergeToken && result.mergePreview) {
+        setMergeToken(result.mergeToken);
+        setMergePreview(result.mergePreview);
+        setShowMergeModal(true);
+        setNotification({ message: '检测到该 Google 账号已绑定其他本地账号，请查看合并预览', type: 'warning' });
+      } else if (result.status === 'conflict') {
+        setNotification({ message: result.conflictReason || '当前账户已绑定另一个 Google 身份', type: 'error' });
+      } else {
+        setNotification({
+          message: result.status === 'refreshed' ? 'Google 绑定信息已刷新' : 'Google 绑定成功',
+          type: 'success',
+        });
+        await loadProfile({ background: true });
+      }
+
+      await loadLinkedAccounts({ background: true });
+    } catch (error) {
+      setNotification({
+        message: error instanceof Error ? error.message : 'Google 绑定失败',
+        type: 'error',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }, [loadLinkedAccounts, loadProfile, setNotification, verificationToken]);
+
+  useEffect(() => {
+    if (!googleBindActive || !googleBindClientId || !googleBindButtonRef.current) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const renderButton = async () => {
+      try {
+        await loadGoogleIdentityScript();
+        if (cancelled || !googleBindButtonRef.current || !window.google?.accounts?.id) {
+          return;
+        }
+
+        window.google.accounts.id.initialize({
+          client_id: googleBindClientId,
+          callback: (response: { credential?: string }) => {
+            const credential = typeof response.credential === 'string' ? response.credential : '';
+            if (!credential) {
+              setNotification({ message: 'Google 未返回有效凭证', type: 'error' });
+              return;
+            }
+            void handleGoogleBindResult(credential);
+          },
+        });
+
+        googleBindButtonRef.current.innerHTML = '';
+        window.google.accounts.id.renderButton(googleBindButtonRef.current, {
+          theme: 'outline',
+          size: 'large',
+          text: 'continue_with',
+          shape: 'rectangular',
+          width: Math.max(googleBindButtonRef.current.offsetWidth || 0, 240),
+        });
+      } catch (error) {
+        setGoogleBindActive(false);
+        setNotification({
+          message: error instanceof Error ? error.message : '无法加载 Google 绑定模块',
+          type: 'error',
+        });
+      }
+    };
+
+    void renderButton();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [googleBindActive, googleBindClientId, handleGoogleBindResult, setNotification]);
+
+  const handleStartLinkedAccountBind = useCallback(async (provider: IdentityProvider) => {
+    if (!verified || !verificationToken) {
+      setNotification({ message: '绑定第三方账号前请先完成身份验证', type: 'warning' });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const result = await startLinkedAccountBind(provider, verificationToken);
+
+      if (result.action === 'redirect' && result.authorizationUrl) {
+        window.location.assign(result.authorizationUrl);
+        return;
+      }
+
+      if (provider === 'google' && result.action === 'google_id_token' && result.clientId) {
+        setGoogleBindClientId(result.clientId);
+        setGoogleBindActive(true);
+        setNotification({ message: '请在 Google 按钮中选择要绑定的账号', type: 'success' });
+        return;
+      }
+
+      throw new Error('第三方账号绑定响应无效');
+    } catch (error) {
+      setNotification({
+        message: error instanceof Error ? error.message : '启动第三方账号绑定失败',
+        type: 'error',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }, [setNotification, verificationToken, verified]);
+
+  const handleUnlinkLinkedAccount = useCallback(async (provider: IdentityProvider) => {
+    if (!verified || !verificationToken) {
+      setNotification({ message: '解绑第三方账号前请先完成身份验证', type: 'warning' });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const accounts = await unlinkLinkedAccount(provider, verificationToken);
+      setLinkedAccounts(accounts);
+      setNotification({ message: `${provider === 'google' ? 'Google' : 'Linux.do'} 已解绑`, type: 'success' });
+      await loadProfile({ background: true });
+    } catch (error) {
+      setNotification({
+        message: error instanceof Error ? error.message : '解绑第三方账号失败',
+        type: 'error',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }, [loadProfile, setNotification, verificationToken, verified]);
+
+  const handleOpenMergePreview = useCallback(async (account: LinkedAccount) => {
+    const token = account.mergeToken || mergeToken;
+    if (!token) {
+      setNotification({ message: '缺少合并预览令牌', type: 'error' });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const result = await fetchAccountMergePreview(token);
+      setMergeToken(result.mergeToken);
+      setMergePreview(result.preview);
+      setShowMergeModal(true);
+    } catch (error) {
+      setNotification({
+        message: error instanceof Error ? error.message : '获取合并预览失败',
+        type: 'error',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }, [mergeToken, setNotification]);
+
+  const handleConfirmAccountMerge = useCallback(async () => {
+    if (!mergeToken || !mergePreview) {
+      setNotification({ message: '缺少合并预览', type: 'error' });
+      return;
+    }
+
+    if (!verified || !verificationToken) {
+      setNotification({ message: '确认合并前请先完成身份验证', type: 'warning' });
+      return;
+    }
+
+    if (mergePreview.requiresRiskAcknowledgement && !acknowledgeMergeRisks) {
+      setNotification({ message: '请先确认合并风险项', type: 'warning' });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await confirmAccountMerge({
+        mergeToken,
+        verificationToken,
+        includeApiKeys: includeApiKeysInMerge,
+        includeOAuthClients: includeOAuthClientsInMerge,
+        acknowledgeRisks: acknowledgeMergeRisks,
+      });
+
+      setNotification({ message: '账号合并已完成，当前登录账号保持不变', type: 'success' });
+      setShowMergeModal(false);
+      setMergeToken('');
+      setMergePreview(null);
+      setIncludeApiKeysInMerge(false);
+      setIncludeOAuthClientsInMerge(false);
+      setAcknowledgeMergeRisks(false);
+      await loadProfile({ background: true });
+      await loadLinkedAccounts({ background: true });
+    } catch (error) {
+      setNotification({
+        message: error instanceof Error ? error.message : '确认账号合并失败',
+        type: 'error',
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }, [
+    acknowledgeMergeRisks,
+    includeApiKeysInMerge,
+    includeOAuthClientsInMerge,
+    loadLinkedAccounts,
+    loadProfile,
+    mergePreview,
+    mergeToken,
+    setNotification,
+    verificationToken,
+    verified,
+  ]);
+
   const isAuthenticated = useMemo(() => {
     return Boolean(localStorage.getItem('token'));
   }, []);
@@ -1250,6 +1471,39 @@ const UserProfile: React.FC = () => {
     setChangePwdMode(false);
     resetVerificationState();
   }, [profile, resetVerificationState]);
+
+  const displayedLinkedAccounts = useMemo<LinkedAccount[]>(() => {
+    const defaults: LinkedAccount[] = [
+      {
+        provider: 'google',
+        label: 'Google',
+        status: 'unbound',
+        canBind: true,
+        canUnlink: false,
+      },
+      {
+        provider: 'linuxdo',
+        label: 'Linux.do',
+        status: 'unbound',
+        canBind: true,
+        canUnlink: false,
+      },
+    ];
+
+    return defaults.map((fallback) => linkedAccounts.find((account) => account.provider === fallback.provider) || fallback);
+  }, [linkedAccounts]);
+
+  const linkedAccountSummary = useMemo(() => {
+    const bound = displayedLinkedAccounts.filter((account) => account.status === 'bound');
+    if (bound.length === 0) return '未绑定第三方资料';
+    return bound
+      .map((account) => account.providerUsername ? `${account.label} / ${account.providerUsername}` : account.label)
+      .join('、');
+  }, [displayedLinkedAccounts]);
+
+  const mergeItemTotal = useMemo(() => {
+    return mergePreview?.mergeItems.reduce((sum, item) => sum + item.count, 0) || 0;
+  }, [mergePreview]);
 
   const statusCards = useMemo(() => [
     {
@@ -1818,19 +2072,125 @@ const UserProfile: React.FC = () => {
                   <span className="font-semibold text-slate-800 break-all">{profile.lastLoginIp || '未记录'}</span>
                 </div>
                 <div className="flex flex-col gap-1 rounded-[20px] border border-slate-100 px-3 py-2.5 text-[13px] sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:py-3 sm:text-sm">
-                  <span className="text-slate-500">关联账号</span>
-                  <span className="font-semibold text-slate-800 inline-flex items-center gap-2">
-                    <FaLink className="text-slate-400" />
-                    {profile.linuxdoUsername ? `Linux.do / ${profile.linuxdoUsername}` : '未绑定第三方资料'}
-                  </span>
-                </div>
-                <div className="flex flex-col gap-1 rounded-[20px] border border-slate-100 px-3 py-2.5 text-[13px] sm:flex-row sm:items-center sm:justify-between sm:rounded-2xl sm:py-3 sm:text-sm">
                   <span className="text-slate-500">权限来源</span>
                   <span className="font-semibold text-slate-800 inline-flex items-center gap-2">
                     <FaGlobe className="text-slate-400" />
                     {providerLabel}
                   </span>
                 </div>
+              </div>
+            </m.section>
+
+            <m.section
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.27 }}
+              className="rounded-[26px] border border-slate-200/80 bg-white/90 p-4 shadow-[0_20px_70px_rgba(32,48,90,0.08)] backdrop-blur-xl sm:rounded-[30px] sm:p-5"
+            >
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 sm:h-10 sm:w-10">
+                    <FaLink />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-lg font-semibold text-slate-900">第三方账号</div>
+                    <div className="truncate text-sm text-slate-500">{linkedAccountSummary}</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void loadLinkedAccounts()}
+                  disabled={linkedAccountsLoading || submitting}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                  title="刷新"
+                >
+                  <FaSyncAlt className={linkedAccountsLoading ? 'animate-spin' : ''} />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {displayedLinkedAccounts.map((account) => {
+                  const isGoogle = account.provider === 'google';
+                  const isBound = account.status === 'bound';
+                  const isMergeRequired = account.status === 'merge_required';
+                  const statusTone =
+                    account.status === 'bound'
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                      : account.status === 'merge_required'
+                        ? 'border-amber-200 bg-amber-50 text-amber-700'
+                        : account.status === 'conflict'
+                          ? 'border-rose-200 bg-rose-50 text-rose-700'
+                          : 'border-slate-200 bg-slate-50 text-slate-500';
+
+                  return (
+                    <div
+                      key={account.provider}
+                      className="rounded-[22px] border border-slate-100 bg-[#fbfcff] p-3.5 sm:rounded-2xl"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm">
+                          {isGoogle ? <FaGoogle /> : <FaLink />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold text-slate-900">{account.label}</span>
+                            <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${statusTone}`}>
+                              {getLinkedAccountStatusLabel(account.status)}
+                            </span>
+                          </div>
+                          <div className="mt-1 break-words text-[12px] leading-5 text-slate-500">
+                            {account.providerUsername || account.providerEmail || account.conflictReason || '未绑定'}
+                          </div>
+                          {account.linkedAt && (
+                            <div className="mt-1 text-[11px] text-slate-400">
+                              {formatDateTime(account.linkedAt)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {googleBindActive && isGoogle && (
+                        <div className="mt-3 rounded-[18px] border border-slate-200 bg-white p-2">
+                          <div ref={googleBindButtonRef} className="flex min-h-[44px] w-full items-center justify-center" />
+                        </div>
+                      )}
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleStartLinkedAccountBind(account.provider)}
+                          disabled={submitting || !account.canBind}
+                          className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-2 text-[12px] font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {isGoogle ? <FaGoogle /> : <FaExternalLinkAlt />}
+                          {isBound ? '刷新' : '绑定'}
+                        </button>
+                        {isBound && (
+                          <button
+                            type="button"
+                            onClick={() => void handleUnlinkLinkedAccount(account.provider)}
+                            disabled={submitting || !account.canUnlink}
+                            className="inline-flex items-center gap-2 rounded-full bg-rose-50 px-3 py-2 text-[12px] font-semibold text-rose-600 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <FaUnlink />
+                            解绑
+                          </button>
+                        )}
+                        {isMergeRequired && (
+                          <button
+                            type="button"
+                            onClick={() => void handleOpenMergePreview(account)}
+                            disabled={submitting}
+                            className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-2 text-[12px] font-semibold text-amber-700 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <FaExclamationCircle />
+                            合并预览
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </m.section>
 
@@ -1945,6 +2305,152 @@ const UserProfile: React.FC = () => {
                 className="text-sm font-medium text-slate-500 transition hover:text-slate-700"
               >
                 取消
+              </button>
+            </div>
+          </m.div>
+        </div>
+      )}
+
+      {showMergeModal && mergePreview && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm"
+          onClick={() => setShowMergeModal(false)}
+        >
+          <m.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-2xl rounded-[28px] border border-white/70 bg-white p-5 shadow-[0_30px_120px_rgba(32,48,90,0.24)] sm:rounded-[32px] sm:p-7"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-5 flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+                <FaExclamationCircle />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-xl font-semibold text-slate-900" style={{ fontFamily: displayFont }}>
+                  账号合并预览
+                </h3>
+                <div className="mt-1 text-sm text-slate-500">
+                  {mergePreview.provider === 'google' ? 'Google' : 'Linux.do'} · {mergeItemTotal} 项
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-[20px] border border-slate-200 bg-[#fbfcff] p-3.5">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">源账号</div>
+                <div className="mt-2 text-sm font-semibold text-slate-900">{mergePreview.sourceAccount.username}</div>
+                <div className="mt-1 break-all text-[12px] text-slate-500">{mergePreview.sourceAccount.email}</div>
+                <div className="mt-2 text-[12px] text-slate-500">
+                  {mergePreview.sourceAccount.role} · {mergePreview.sourceAccount.accountStatus}
+                </div>
+              </div>
+              <div className="rounded-[20px] border border-emerald-200 bg-emerald-50 p-3.5">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-600">目标账号</div>
+                <div className="mt-2 text-sm font-semibold text-slate-900">{mergePreview.targetAccount.username}</div>
+                <div className="mt-1 break-all text-[12px] text-slate-600">{mergePreview.targetAccount.email}</div>
+                <div className="mt-2 text-[12px] text-slate-600">
+                  {mergePreview.targetAccount.role} · {mergePreview.targetAccount.accountStatus}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">迁移项目</div>
+              <div className="grid max-h-56 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+                {mergePreview.mergeItems.map((item) => (
+                  <div
+                    key={item.key}
+                    className="flex items-center justify-between gap-3 rounded-[18px] border border-slate-100 bg-white px-3 py-2 text-[12px]"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate font-semibold text-slate-800">{item.label}</span>
+                      <span className="text-slate-400">{getMergeStrategyLabel(item.strategy)}</span>
+                    </span>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 font-semibold text-slate-700">
+                      {item.count}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {mergePreview.riskItems.length > 0 && (
+              <div className="mt-5">
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-400">风险项</div>
+                <div className="space-y-2">
+                  {mergePreview.riskItems.map((risk) => (
+                    <div
+                      key={risk.key}
+                      className={`rounded-[18px] border px-3 py-2 text-[12px] leading-5 ${
+                        risk.blocking
+                          ? 'border-rose-200 bg-rose-50 text-rose-700'
+                          : risk.severity === 'high'
+                            ? 'border-amber-200 bg-amber-50 text-amber-700'
+                            : 'border-slate-200 bg-slate-50 text-slate-600'
+                      }`}
+                    >
+                      <div className="font-semibold">{risk.label}</div>
+                      <div>{risk.message}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-5 space-y-2 rounded-[20px] border border-slate-200 bg-[#fbfcff] p-3.5 text-[13px] text-slate-700">
+              <label className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={includeApiKeysInMerge}
+                  onChange={(event) => setIncludeApiKeysInMerge(event.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>迁移 API Key 和计费事件</span>
+              </label>
+              <label className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={includeOAuthClientsInMerge}
+                  onChange={(event) => setIncludeOAuthClientsInMerge(event.target.checked)}
+                  className="mt-0.5"
+                />
+                <span>迁移 OAuth 应用；OAuth 授权和 Token 将撤销</span>
+              </label>
+              {mergePreview.requiresRiskAcknowledgement && (
+                <label className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    checked={acknowledgeMergeRisks}
+                    onChange={(event) => setAcknowledgeMergeRisks(event.target.checked)}
+                    className="mt-0.5"
+                  />
+                  <span>确认风险项</span>
+                </label>
+              )}
+            </div>
+
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setShowMergeModal(false)}
+                disabled={submitting}
+                className="inline-flex items-center justify-center rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-200 disabled:opacity-50"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmAccountMerge}
+                disabled={
+                  submitting ||
+                  !mergePreview.canConfirm ||
+                  (mergePreview.requiresRiskAcknowledgement && !acknowledgeMergeRisks)
+                }
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {submitting && <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />}
+                确认合并
               </button>
             </div>
           </m.div>

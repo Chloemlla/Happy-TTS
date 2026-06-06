@@ -251,7 +251,7 @@ export async function listLinkedAccounts(user: User): Promise<LinkedAccountView[
   }).lean<AccountIdentityDoc[]>();
 
   return SUPPORTED_PROVIDERS.map((provider) => {
-    const identity = identities.find((item) => item.provider === provider) || null;
+    const identity = (identities as AccountIdentityDoc[]).find((item: AccountIdentityDoc) => item.provider === provider) || null;
     const pendingMerge = getPendingMergeSessionForUser(user.id, provider);
     return toLinkedAccountView(provider, identity, pendingMerge);
   });
