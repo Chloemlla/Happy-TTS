@@ -28,13 +28,19 @@ function getWsUrl(): string {
   const token = localStorage.getItem('token');
   const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
 
-  // 基于 getApiBaseUrl 推导 WebSocket 地址
-  const baseUrl = getApiBaseUrl();
+  const configuredWsUrl = import.meta.env.VITE_WS_URL?.trim();
+  if (configuredWsUrl) {
+    const separator = configuredWsUrl.includes('?') ? '&' : '?';
+    return token ? `${configuredWsUrl}${separator}token=${encodeURIComponent(token)}` : configuredWsUrl;
+  }
+
+  const apiBaseUrl = getApiBaseUrl();
+  const baseUrl = apiBaseUrl || window.location.origin;
   const wsBase = baseUrl
     .replace(/^https:\/\//, 'wss://')
     .replace(/^http:\/\//, 'ws://');
 
-  return `${wsBase}/ws${tokenParam}`;
+  return `${wsBase.replace(/\/+$/, '')}/ws${tokenParam}`;
 }
 
 // ========== Hook ==========

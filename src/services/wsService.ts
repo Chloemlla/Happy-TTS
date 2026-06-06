@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type { Server as HttpServer, IncomingMessage } from "node:http";
+import type { Socket } from "node:net";
 import { URL } from "node:url";
 import jwt from "jsonwebtoken";
 import { WebSocket, WebSocketServer } from "ws";
@@ -67,6 +68,8 @@ class WsService {
   private wss: WebSocketServer | null = null;
   private clients = new Map<WebSocket, WsClient>();
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+  private server: HttpServer | null = null;
+  private upgradeHandler: ((req: IncomingMessage, socket: Socket, head: Buffer) => void) | null = null;
 
   /**
    * 已处理的指纹通知 hash 集合，用于前后端同步去重。
@@ -79,12 +82,38 @@ class WsService {
    * 将 WebSocket 服务器绑定到已有的 HTTP server
    */
   init(server: HttpServer) {
-    this.wss = new WebSocketServer({ server, path: "/ws" });
+    if (this.wss) {
+      logger.warn("[WS] WebSocket 服务已初始化，跳过重复初始化");
+      return;
+    }
+
+    this.server = server;
+    this.wss = new WebSocketServer({ noServer: true });
 
     this.wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
       this.handleConnection(ws, req);
     });
-    EcoEnchantsOpsService.initRpcWebSocket(server);
+    EcoEnchantsOpsService.initRpcWebSocket();
+
+    this.upgradeHandler = (req: IncomingMessage, socket: Socket, head: Buffer) => {
+      const pathname = this.getUpgradePathname(req);
+
+      if (pathname === "/ws") {
+        this.wss?.handleUpgrade(req, socket, head, (ws) => {
+          this.wss?.emit("connection", ws, req);
+        });
+        return;
+      }
+
+      if (EcoEnchantsOpsService.shouldHandleRpcUpgrade(pathname)) {
+        EcoEnchantsOpsService.handleRpcUpgrade(req, socket, head);
+        return;
+      }
+
+      socket.write("HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n");
+      socket.destroy();
+    };
+    server.on("upgrade", this.upgradeHandler);
 
     // 心跳检测：每 30 秒清理无响应的连接
     this.heartbeatInterval = setInterval(() => {
@@ -99,6 +128,15 @@ class WsService {
     }, 30_000);
 
     logger.info("[WS] WebSocket 服务已启动，路径: /ws");
+  }
+
+  private getUpgradePathname(req: IncomingMessage): string {
+    try {
+      const url = new URL(req.url || "", `http://${req.headers.host || "localhost"}`);
+      return url.pathname;
+    } catch {
+      return "";
+    }
   }
 
   private handleConnection(ws: WebSocket, req: IncomingMessage) {
@@ -440,10 +478,18 @@ class WsService {
   close() {
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
+    if (this.server && this.upgradeHandler) {
+      this.server.off("upgrade", this.upgradeHandler);
+      this.server = null;
+      this.upgradeHandler = null;
     }
     if (this.wss) {
       this.wss.close();
+      this.wss = null;
     }
+    EcoEnchantsOpsService.closeRpcWebSocket();
     this.clients.clear();
   }
 }

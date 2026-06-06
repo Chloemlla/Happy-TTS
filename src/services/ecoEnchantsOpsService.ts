@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type { IncomingMessage } from "node:http";
+import type { Socket } from "node:net";
 import { URL } from "node:url";
 import { v4 as uuidv4 } from "uuid";
 import { WebSocket, WebSocketServer } from "ws";
@@ -461,13 +462,37 @@ export class EcoEnchantsOpsService {
   private static rpcWss: WebSocketServer | null = null;
   private static rpcConnections = new Map<string, RpcConnection>();
 
-  static initRpcWebSocket(server: import("node:http").Server): void {
+  static initRpcWebSocket(): void {
     if (EcoEnchantsOpsService.rpcWss) return;
-    EcoEnchantsOpsService.rpcWss = new WebSocketServer({ server, path: RPC_PATH });
+    EcoEnchantsOpsService.rpcWss = new WebSocketServer({ noServer: true });
     EcoEnchantsOpsService.rpcWss.on("connection", (ws, req) => {
       void EcoEnchantsOpsService.handleRpcConnection(ws, req);
     });
     logger.info("[EcoEnchantsOps] RPC WebSocket service started", { path: RPC_PATH });
+  }
+
+  static shouldHandleRpcUpgrade(pathname: string): boolean {
+    return pathname === RPC_PATH;
+  }
+
+  static handleRpcUpgrade(req: IncomingMessage, socket: Socket, head: Buffer): void {
+    EcoEnchantsOpsService.initRpcWebSocket();
+    EcoEnchantsOpsService.rpcWss?.handleUpgrade(req, socket, head, (ws) => {
+      EcoEnchantsOpsService.rpcWss?.emit("connection", ws, req);
+    });
+  }
+
+  static closeRpcWebSocket(): void {
+    for (const connection of EcoEnchantsOpsService.rpcConnections.values()) {
+      try {
+        connection.ws.close();
+      } catch {
+        // ignore close failures
+      }
+    }
+    EcoEnchantsOpsService.rpcConnections.clear();
+    EcoEnchantsOpsService.rpcWss?.close();
+    EcoEnchantsOpsService.rpcWss = null;
   }
 
   static async registerInstance(
