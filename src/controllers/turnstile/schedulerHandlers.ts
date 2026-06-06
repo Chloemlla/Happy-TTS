@@ -23,6 +23,8 @@ export async function manualCleanup(req: Request, res: Response) {
     res.json({
       success: result.success,
       deletedCount: result.deletedCount,
+      cleanedCount: result.deletedCount,
+      details: result.details,
       message: result.success
         ? `手动清理完成，删除了 ${result.deletedCount} 条过期记录`
         : `手动清理失败: ${result.error}`,

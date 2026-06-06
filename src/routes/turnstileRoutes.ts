@@ -104,9 +104,27 @@ router.post(
 
 // 调度器（管理员）
 router.get("/scheduler-status", authenticateToken, adminLimiter, getSchedulerStatus);
-router.post("/manual-cleanup", authenticateToken, adminLimiter, manualCleanup);
-router.post("/scheduler/start", authenticateToken, adminLimiter, startScheduler);
-router.post("/scheduler/stop", authenticateToken, adminLimiter, stopScheduler);
+router.post(
+  "/manual-cleanup",
+  authenticateToken,
+  adminLimiter,
+  auditLog({ module: "system", action: "system.manualCleanup" }),
+  manualCleanup,
+);
+router.post(
+  "/scheduler/start",
+  authenticateToken,
+  adminLimiter,
+  auditLog({ module: "system", action: "system.schedulerStart" }),
+  startScheduler,
+);
+router.post(
+  "/scheduler/stop",
+  authenticateToken,
+  adminLimiter,
+  auditLog({ module: "system", action: "system.schedulerStop" }),
+  stopScheduler,
+);
 
 /**
  * @openapi
@@ -249,7 +267,13 @@ router.delete("/hcaptcha-config/:key", authenticateToken, configLimiter, deleteH
 router.post("/hcaptcha-verify", publicLimiter, verifyHCaptcha);
 
 // IP 封禁同步（管理员）
-router.post("/sync-ipbans", authenticateToken, adminLimiter, syncIpBans);
+router.post(
+  "/sync-ipbans",
+  authenticateToken,
+  adminLimiter,
+  auditLog({ module: "ipban", action: "ipban.sync" }),
+  syncIpBans,
+);
 router.get("/sync-status", authenticateToken, adminLimiter, getSyncStatus);
 
 export default router;

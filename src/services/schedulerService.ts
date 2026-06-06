@@ -170,10 +170,10 @@ class SchedulerService {
       // 启动同步服务
       ipBanSyncService.start();
       const syncStatus = ipBanSyncService.getStatus();
-      if (!syncStatus.redisAvailable) {
+      if (!syncStatus.redisAvailable || !syncStatus.isRunning) {
         this.isSyncEnabled = false;
         this.nextSync = undefined;
-        logger.info("IP 封禁同步服务未启用：Redis 当前不可用");
+        logger.info("IP 封禁同步服务未启用：Redis 当前不可用或同步配置未开启");
         return;
       }
 
