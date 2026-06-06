@@ -27,6 +27,13 @@ describe("legacyApiRedirectMiddleware", () => {
 
   it("keeps browser document navigation on frontend routes instead of redirecting prefixes", async () => {
     await request(createApp())
+      .get("/admin?tab=oauth")
+      .set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+      .set("Sec-Fetch-Mode", "navigate")
+      .set("Sec-Fetch-Dest", "document")
+      .expect(204);
+
+    await request(createApp())
       .get("/admin/users")
       .set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
       .set("Sec-Fetch-Mode", "navigate")

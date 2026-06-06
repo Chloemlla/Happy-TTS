@@ -1,4 +1,4 @@
-import type { RequestHandler } from "express";
+import type { Request, RequestHandler } from "express";
 
 const exactReplacements = new Map<string, string>([
   ["/api-docs.json", "/api/openapi.json"],
@@ -79,7 +79,10 @@ function resolveLegacyShortUrlApiPath(pathname: string): string | null {
   return null;
 }
 
-export function resolveLegacyApiPath(pathname: string): string | null {
+export function resolveLegacyApiPath(
+  pathname: string,
+  opts: { skipPrefixReplacements?: boolean } = {},
+): string | null {
   if (pathname.startsWith("/api/") || pathname === "/api") {
     return null;
   }
@@ -94,6 +97,10 @@ export function resolveLegacyApiPath(pathname: string): string | null {
     return exactReplacement;
   }
 
+  if (opts.skipPrefixReplacements) {
+    return null;
+  }
+
   for (const replacement of prefixReplacements) {
     if (hasPathPrefix(pathname, replacement.from)) {
       return `${replacement.to}${pathname.slice(replacement.from.length)}`;
@@ -103,8 +110,24 @@ export function resolveLegacyApiPath(pathname: string): string | null {
   return null;
 }
 
+function getHeaderValue(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? value.join(",") : value || "";
+}
+
+function isBrowserDocumentNavigation(req: Request): boolean {
+  if (req.method !== "GET" && req.method !== "HEAD") return false;
+
+  const accept = getHeaderValue(req.headers.accept).toLowerCase();
+  const fetchMode = getHeaderValue(req.headers["sec-fetch-mode"]).toLowerCase();
+  const fetchDest = getHeaderValue(req.headers["sec-fetch-dest"]).toLowerCase();
+
+  return accept.includes("text/html") || fetchMode === "navigate" || fetchDest === "document";
+}
+
 export const legacyApiRedirectMiddleware: RequestHandler = (req, res, next) => {
-  const canonicalPath = resolveLegacyApiPath(req.path);
+  const canonicalPath = resolveLegacyApiPath(req.path, {
+    skipPrefixReplacements: isBrowserDocumentNavigation(req),
+  });
   if (!canonicalPath) {
     return next();
   }
