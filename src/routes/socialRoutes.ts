@@ -1,7 +1,10 @@
 import { Router } from "express";
 import { SocialController } from "../controllers/socialController";
+import { apiKeyAuth } from "../middleware/apiKeyAuth";
 
 const router = Router();
+
+router.use(apiKeyAuth("social"));
 
 /**
  * @route GET /api/social/weibo-hot

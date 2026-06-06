@@ -3,11 +3,13 @@ import rateLimit from "express-rate-limit";
 import mongoose from "mongoose";
 import multer from "multer";
 import { IPFSController } from "../controllers/ipfsController";
+import { apiKeyAuth } from "../middleware/apiKeyAuth";
 import { authenticateAdmin } from "../middleware/auth";
 import { connectMongo } from "../services/mongoService";
 import logger from "../utils/logger";
 
 const router = express.Router();
+const ipfsApiKeyAuth = apiKeyAuth("ipfs");
 
 // 配置multer中间件用于文件上传
 const upload = multer({
@@ -121,7 +123,7 @@ const shortlinkLimiter = rateLimit({
  *                   type: string
  *                   description: 错误信息
  */
-router.post("/upload", uploadLimiter, upload.single("file"), IPFSController.uploadImage);
+router.post("/upload", ipfsApiKeyAuth, uploadLimiter, upload.single("file"), IPFSController.uploadImage);
 
 /**
  * @openapi

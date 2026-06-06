@@ -739,9 +739,9 @@ export const preTamperRouteModules: RouteModule[] = [
     rateLimited: true,
     isPublic: false,
     authPolicy: {
-      mode: "mount",
-      handlers: ["authenticateToken"],
-      note: "Audit log ingress is guarded at mount; downstream admin logic remains inside the route implementation.",
+      mode: "mixed",
+      handlers: ["authenticateToken", "authenticateAdmin"],
+      note: "Audit log ingress is JWT-guarded at mount and enforces administrator role checks inside the router.",
     },
     rateLimitPolicy: {
       mode: "mount",

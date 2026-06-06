@@ -1,11 +1,13 @@
 import { Router } from "express";
 import { adminOnly } from "../middleware/adminOnly";
+import { apiKeyAuth } from "../middleware/apiKeyAuth";
 import { authMiddleware } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { statusLimiter } from "../middleware/routeLimiters";
 import { profilingService } from "../services/profilingService";
 
 const router = Router();
+const statusApiKeyAuth = apiKeyAuth("status");
 
 /**
  * @openapi
@@ -21,7 +23,7 @@ const router = Router();
  *       401:
  *         description: 未授权
  */
-router.get("/status", statusLimiter, authMiddleware, (_req, res) => {
+router.get("/status", statusLimiter, statusApiKeyAuth, authMiddleware, (_req, res) => {
   res.json({ status: "ok" });
 });
 

@@ -6,6 +6,10 @@ import { UserStorage } from "../utils/userStorage";
 
 export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    if ((req as any).apiKey && (req as any).user) {
+      return next();
+    }
+
     const authHeader = req.headers.authorization;
     const _ip = req.ip || "unknown";
     if (!authHeader?.startsWith("Bearer ")) {

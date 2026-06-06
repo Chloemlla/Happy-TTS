@@ -116,6 +116,7 @@ const AdminDashboard: React.FC = () => {
         { key: "fingerprint", label: "指纹管理" },
         { key: "broadcast", label: "广播推送" },
         { key: "apikeys", label: "API Key 管理" },
+        { key: "apikey-billing", label: "API Key 计费" },
         { key: "audit-log", label: "操作审计" },
         { key: "translation-audit", label: "翻译审计" },
         { key: "system", label: "系统管理" },
@@ -686,6 +687,19 @@ const AdminDashboard: React.FC = () => {
                   >
                     <Suspense fallback={<AdminModuleLoadingShell />}>
                       <ApiKeyManager />
+                    </Suspense>
+                  </motion.div>
+                )}
+                {tab === "apikey-billing" && (
+                  <motion.div
+                    key="apikey-billing"
+                    initial={{ opacity: 0, x: 40 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -40 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <Suspense fallback={<AdminModuleLoadingShell />}>
+                      <ApiKeyManager initialView="billing" />
                     </Suspense>
                   </motion.div>
                 )}

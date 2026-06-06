@@ -1,8 +1,12 @@
 import axios from "axios";
 import express from "express";
 import { NetworkController } from "../controllers/networkController";
+import { apiKeyAuth } from "../middleware/apiKeyAuth";
 
 const router = express.Router();
+const networkApiKeyAuth = apiKeyAuth("network");
+
+router.use(networkApiKeyAuth);
 
 /**
  * @openapi

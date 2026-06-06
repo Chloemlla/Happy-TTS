@@ -1,7 +1,10 @@
 import { Router } from "express";
 import { MediaController } from "../controllers/mediaController";
+import { apiKeyAuth } from "../middleware/apiKeyAuth";
 
 const router = Router();
+
+router.use(apiKeyAuth("media"));
 
 /**
  * @route GET /api/media/music163

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { ShortUrlController } from "../controllers/shortUrlController";
+import { apiKeyAuth } from "../middleware/apiKeyAuth";
 import { adminAuthMiddleware, authMiddleware } from "../middleware/authMiddleware";
 import { createLimiter } from "../middleware/rateLimiter";
 import { replayProtection } from "../middleware/replayProtection";
@@ -10,6 +11,7 @@ import { config } from "../config/config";
 
 const router = Router();
 const redirectRouter = Router();
+const shortUrlApiKeyAuth = apiKeyAuth("shorturl");
 
 // 速率限制器
 const redirectLimiter = createLimiter({
@@ -63,9 +65,9 @@ const publicCreateLimiter = rateLimit({
 const replayGuard = replayProtection();
 
 // 用户短链管理（需要登录）
-router.get("/shorturls", authMiddleware, userManageLimiter, ShortUrlController.getUserShortUrls);
-router.delete("/shorturls/:code", authMiddleware, userManageLimiter, ShortUrlController.deleteShortUrl);
-router.delete("/shorturls/batch", authMiddleware, userManageLimiter, ShortUrlController.batchDeleteShortUrls);
+router.get("/shorturls", shortUrlApiKeyAuth, authMiddleware, userManageLimiter, ShortUrlController.getUserShortUrls);
+router.delete("/shorturls/:code", shortUrlApiKeyAuth, authMiddleware, userManageLimiter, ShortUrlController.deleteShortUrl);
+router.delete("/shorturls/batch", shortUrlApiKeyAuth, authMiddleware, userManageLimiter, ShortUrlController.batchDeleteShortUrls);
 
 // 管理员功能：导出所有短链数据
 router.get("/admin/export", authMiddleware, adminAuthMiddleware, adminLimiter, ShortUrlController.exportAllShortUrls);

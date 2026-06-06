@@ -1,7 +1,10 @@
 import express from "express";
 import { DataProcessController } from "../controllers/dataProcessController";
+import { apiKeyAuth } from "../middleware/apiKeyAuth";
 
 const router = express.Router();
+
+router.use(apiKeyAuth("data-process"));
 
 /**
  * @openapi

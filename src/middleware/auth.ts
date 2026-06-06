@@ -6,6 +6,10 @@ import { UserStorage } from "../utils/userStorage";
 
 export const authMiddleware = async (req: Request & { user?: any }, res: Response, next: NextFunction) => {
   try {
+    if ((req as any).apiKey && req.user) {
+      return next();
+    }
+
     const authHeader = req.headers.authorization || "";
     const [type, token] = authHeader.split(" ");
 

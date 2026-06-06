@@ -38,6 +38,7 @@ export interface TtsSubmissionContext {
   userAgent?: string;
   path?: string;
   method?: string;
+  authenticatedByApiKey?: boolean;
 }
 
 export interface TtsSubmissionResult {
@@ -330,8 +331,10 @@ export class TtsSubmissionPipeline {
     const isAdmin = context.currentUser?.role === "admin";
 
     this.validateContentShape(requestPayload.text);
-    await this.validateGenerationCode(context.input.generationCode);
-    await this.validateTurnstile(context.input.cfToken, context.ip);
+    if (!context.authenticatedByApiKey) {
+      await this.validateGenerationCode(context.input.generationCode);
+      await this.validateTurnstile(context.input.cfToken, context.ip);
+    }
 
     if (!userId && fingerprint === "unknown") {
       throw new TtsRequestError(400, "匿名生成需要设备指纹", "TTS_FINGERPRINT_REQUIRED");

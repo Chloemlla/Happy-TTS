@@ -1,10 +1,12 @@
 import express from "express";
 import { TtsController } from "../controllers/ttsController";
+import { apiKeyAuth } from "../middleware/apiKeyAuth";
 import { authenticateAdmin } from "../middleware/auth";
 import { ClarityService } from "../services/clarityService";
 import { TurnstileService } from "../services/turnstileService";
 
 const router = express.Router();
+const ttsApiKeyAuth = apiKeyAuth("tts");
 
 /**
  * @openapi
@@ -67,11 +69,11 @@ const router = express.Router();
  *                   type: object
  *                   description: 建议的下一步动作
  */
-router.post("/generate", TtsController.submitJob);
-router.post("/jobs", TtsController.submitJob);
+router.post("/generate", ttsApiKeyAuth, TtsController.submitJob);
+router.post("/jobs", ttsApiKeyAuth, TtsController.submitJob);
 router.get("/assets/:fileName", TtsController.getAudioAsset);
-router.get("/jobs/:taskId", TtsController.getJobStatus);
-router.get("/jobs/:taskId/result", TtsController.getJobResult);
+router.get("/jobs/:taskId", ttsApiKeyAuth, TtsController.getJobStatus);
+router.get("/jobs/:taskId/result", ttsApiKeyAuth, TtsController.getJobResult);
 
 /**
  * @openapi
@@ -365,6 +367,6 @@ router.get("/clarity/history", authenticateAdmin, async (req, res) => {
  *                   type: array
  *                   description: 生成记录列表
  */
-router.get("/history", TtsController.getRecentGenerations);
+router.get("/history", ttsApiKeyAuth, TtsController.getRecentGenerations);
 
 export default router;

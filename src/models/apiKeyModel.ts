@@ -12,6 +12,12 @@ export interface ApiKeyDoc {
   lastUsedIp: string | null;
   usageCount: number;
   enabled: boolean;
+  billingEnabled: boolean;
+  billingMode: "metered" | "prepaid";
+  balanceCredits: number;
+  totalChargedCredits: number;
+  totalBillableRequests: number;
+  lastBillingAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +35,12 @@ const ApiKeySchema = new mongoose.Schema<ApiKeyDoc>(
     lastUsedIp: { type: String, default: null },
     usageCount: { type: Number, default: 0 },
     enabled: { type: Boolean, default: true },
+    billingEnabled: { type: Boolean, default: true },
+    billingMode: { type: String, enum: ["metered", "prepaid"], default: "metered" },
+    balanceCredits: { type: Number, default: 0, min: 0 },
+    totalChargedCredits: { type: Number, default: 0, min: 0 },
+    totalBillableRequests: { type: Number, default: 0, min: 0 },
+    lastBillingAt: { type: Date, default: null },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
   },

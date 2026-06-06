@@ -63,6 +63,10 @@ const recordLoginAttempt = (identifier: string, success: boolean) => {
 // 增强的认证中间件
 export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    if ((req as any).apiKey && req.user) {
+      return next();
+    }
+
     const token = req.headers.authorization?.replace("Bearer ", "");
 
     if (!token) {

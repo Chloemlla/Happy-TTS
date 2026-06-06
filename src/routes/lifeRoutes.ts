@@ -1,7 +1,10 @@
 import { Router } from "express";
 import { LifeController } from "../controllers/lifeController";
+import { apiKeyAuth } from "../middleware/apiKeyAuth";
 
 const router = Router();
+
+router.use(apiKeyAuth("life"));
 
 /**
  * @route GET /api/life/phone-address
