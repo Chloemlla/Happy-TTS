@@ -274,6 +274,173 @@ function getDockerCompatibility(dockerVersion, platform, apiVersion) {
     };
 }
 
+function shellQuote(value) {
+    const str = String(value ?? '');
+    if (/^[A-Za-z0-9_@%+=:,./-]+$/.test(str)) {
+        return str;
+    }
+    return `'${str.replace(/'/g, `'\\''`)}'`;
+}
+
+function isSpecialNetworkMode(networkMode) {
+    return networkMode === 'host' ||
+        networkMode === 'none' ||
+        networkMode.startsWith('container:') ||
+        networkMode.startsWith('service:');
+}
+
+function getNetworkEntries(networkSettings) {
+    const networks = (networkSettings && networkSettings.Networks) || {};
+    return Object.entries(networks)
+        .filter(([networkName]) => networkName)
+        .map(([networkName, endpoint]) => ({
+            name: networkName,
+            endpoint: endpoint || {}
+        }));
+}
+
+function getDockerNetworkPlan(hostConfig = {}, networkSettings = {}) {
+    const networkMode = String(hostConfig.NetworkMode || '').trim();
+    const networks = getNetworkEntries(networkSettings);
+    const byName = new Map(networks.map(network => [network.name, network]));
+
+    if (networkMode && networkMode !== 'default') {
+        if (networkMode === 'bridge') {
+            return {
+                runNetwork: null,
+                primaryNetwork: byName.get('bridge') || null,
+                connectNetworks: networks.filter(network => network.name !== 'bridge')
+            };
+        }
+
+        if (isSpecialNetworkMode(networkMode)) {
+            return {
+                runNetwork: networkMode,
+                primaryNetwork: null,
+                connectNetworks: []
+            };
+        }
+
+        const primaryNetwork = byName.get(networkMode) || {
+            name: networkMode,
+            endpoint: {}
+        };
+
+        return {
+            runNetwork: networkMode,
+            primaryNetwork,
+            connectNetworks: networks.filter(network => network.name !== primaryNetwork.name)
+        };
+    }
+
+    const bridgeNetwork = byName.get('bridge');
+    if (bridgeNetwork) {
+        return {
+            runNetwork: null,
+            primaryNetwork: bridgeNetwork,
+            connectNetworks: networks.filter(network => network.name !== 'bridge')
+        };
+    }
+
+    const [primaryNetwork, ...connectNetworks] = networks;
+    return {
+        runNetwork: primaryNetwork ? primaryNetwork.name : null,
+        primaryNetwork: primaryNetwork || null,
+        connectNetworks
+    };
+}
+
+function getUserNetworkAliases(endpoint) {
+    const aliases = Array.isArray(endpoint.Aliases) ? endpoint.Aliases : [];
+    const generatedAliasPattern = /^[0-9a-f]{12,64}$/i;
+
+    return [...new Set(aliases)]
+        .filter(alias => alias && !generatedAliasPattern.test(alias));
+}
+
+function getEndpointIPv4(endpoint) {
+    return (endpoint.IPAMConfig && endpoint.IPAMConfig.IPv4Address) || '';
+}
+
+function getEndpointIPv6(endpoint) {
+    return (endpoint.IPAMConfig && endpoint.IPAMConfig.IPv6Address) || '';
+}
+
+function getEndpointLinkLocalIPs(endpoint) {
+    if (endpoint.IPAMConfig && Array.isArray(endpoint.IPAMConfig.LinkLocalIPs)) {
+        return endpoint.IPAMConfig.LinkLocalIPs;
+    }
+    return [];
+}
+
+function buildDockerRunNetworkArgs(networkPlan) {
+    if (!networkPlan.runNetwork) {
+        return [];
+    }
+
+    const args = [`--network ${shellQuote(networkPlan.runNetwork)}`];
+    const endpoint = networkPlan.primaryNetwork ? networkPlan.primaryNetwork.endpoint : null;
+    if (!endpoint || isSpecialNetworkMode(networkPlan.runNetwork) || networkPlan.runNetwork === 'bridge') {
+        return args;
+    }
+
+    for (const alias of getUserNetworkAliases(endpoint)) {
+        args.push(`--network-alias ${shellQuote(alias)}`);
+    }
+
+    const ipv4 = getEndpointIPv4(endpoint);
+    if (ipv4) {
+        args.push(`--ip ${shellQuote(ipv4)}`);
+    }
+
+    const ipv6 = getEndpointIPv6(endpoint);
+    if (ipv6) {
+        args.push(`--ip6 ${shellQuote(ipv6)}`);
+    }
+
+    for (const linkLocalIP of getEndpointLinkLocalIPs(endpoint)) {
+        args.push(`--link-local-ip ${shellQuote(linkLocalIP)}`);
+    }
+
+    return args;
+}
+
+function buildDockerNetworkConnectCommand(network, containerName) {
+    const options = [];
+    const endpoint = network.endpoint || {};
+
+    for (const alias of getUserNetworkAliases(endpoint)) {
+        options.push(`--alias ${shellQuote(alias)}`);
+    }
+
+    const ipv4 = getEndpointIPv4(endpoint);
+    if (ipv4 && network.name !== 'bridge') {
+        options.push(`--ip ${shellQuote(ipv4)}`);
+    }
+
+    const ipv6 = getEndpointIPv6(endpoint);
+    if (ipv6 && network.name !== 'bridge') {
+        options.push(`--ip6 ${shellQuote(ipv6)}`);
+    }
+
+    for (const linkLocalIP of getEndpointLinkLocalIPs(endpoint)) {
+        options.push(`--link-local-ip ${shellQuote(linkLocalIP)}`);
+    }
+
+    if (endpoint.DriverOpts) {
+        for (const [key, value] of Object.entries(endpoint.DriverOpts)) {
+            options.push(`--driver-opt ${shellQuote(`${key}=${value}`)}`);
+        }
+    }
+
+    const optionPart = options.length > 0 ? `${options.join(' ')} ` : '';
+    return `docker network connect ${optionPart}${shellQuote(network.name)} ${shellQuote(containerName)}`;
+}
+
+function buildDockerNetworkConnectCommands(networkPlan, containerName) {
+    return networkPlan.connectNetworks.map(network => buildDockerNetworkConnectCommand(network, containerName));
+}
+
 /**
  * 重新创建容器 - 对应 Python 的 recreate_container
  * 完全分析 docker inspect 输出并继承所有可能的配置
@@ -472,18 +639,13 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
             }
         }
 
-        // 继承网络模式
-        if (hostConfig.NetworkMode && hostConfig.NetworkMode !== 'default') {
-            createCommand += `--network ${hostConfig.NetworkMode} `;
-        } else {
-            // 继承网络设置
-            const networks = networkSettings.Networks || {};
-            for (const networkName of Object.keys(networks)) {
-                if (networkName !== 'bridge') {
-                    createCommand += `--network ${networkName} `;
-                }
-            }
+        // 继承网络模式：docker run 只能指定一个主网络，附加网络需要创建后 connect
+        const networkPlan = getDockerNetworkPlan(hostConfig, networkSettings);
+        const runNetworkArgs = buildDockerRunNetworkArgs(networkPlan);
+        if (runNetworkArgs.length > 0) {
+            createCommand += `${runNetworkArgs.join(' ')} `;
         }
+        const connectNetworkCommands = buildDockerNetworkConnectCommands(networkPlan, oldContainerName);
 
         // 继承重启策略
         const restartPolicy = hostConfig.RestartPolicy || {};
@@ -676,6 +838,13 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
         const createResult = await execSSHCommand(ssh, createCommand);
         if (createResult.stdout) logSensitive(createResult.stdout);
         if (createResult.stderr) logSensitive(createResult.stderr, 'ERROR');
+
+        for (const connectCommand of connectNetworkCommands) {
+            logSensitive(`继承附加网络命令: ${connectCommand}`);
+            const connectResult = await execSSHCommand(ssh, connectCommand);
+            if (connectResult.stdout) logSensitive(connectResult.stdout);
+            if (connectResult.stderr) logSensitive(connectResult.stderr, 'ERROR');
+        }
         
         logInfo(`容器重新创建完成: ${oldContainerName}`);
     } catch (err) {
@@ -1012,16 +1181,10 @@ function generateDockerRunCommand(inspectData, overrideImage) {
         }
     }
 
-    // 网络模式
-    if (hostConfig.NetworkMode && hostConfig.NetworkMode !== 'default' && hostConfig.NetworkMode !== 'bridge') {
-        cmd += ` \\\n  --network ${hostConfig.NetworkMode}`;
-    } else {
-        const networks = networkSettings.Networks || {};
-        for (const networkName of Object.keys(networks)) {
-            if (networkName !== 'bridge') {
-                cmd += ` \\\n  --network ${networkName}`;
-            }
-        }
+    // 网络模式：docker run 只保留主网络，附加网络在容器创建后 connect
+    const networkPlan = getDockerNetworkPlan(hostConfig, networkSettings);
+    for (const networkArg of buildDockerRunNetworkArgs(networkPlan)) {
+        cmd += ` \\\n  ${networkArg}`;
     }
 
     // 重启策略
@@ -1132,6 +1295,11 @@ function generateDockerRunCommand(inspectData, overrideImage) {
     // CMD（容器启动命令）
     if (config.Cmd && config.Cmd.length > 0) {
         cmd += ` ${config.Cmd.join(' ')}`;
+    }
+
+    const connectNetworkCommands = buildDockerNetworkConnectCommands(networkPlan, containerName);
+    if (connectNetworkCommands.length > 0) {
+        cmd += `\n\n${connectNetworkCommands.join('\n')}`;
     }
 
     return cmd;
