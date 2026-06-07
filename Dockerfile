@@ -192,7 +192,45 @@ EXPOSE 4030
 CMD ["/usr/local/bin/file-worker"]
 
 # ============================================
-# Stage 9: Rust Security Worker Build
+# Stage 9: Rust Data Tools Build
+# ============================================
+FROM rust:1.91-alpine3.22 AS rust-data-tools-builder
+
+RUN apk add --no-cache musl-dev
+
+WORKDIR /app/rust-services
+
+COPY rust-services/ ./
+
+RUN cargo build --release --manifest-path Cargo.toml -p data-tools
+
+# ============================================
+# Stage 10: Rust Data Tools Runtime
+# ============================================
+FROM alpine:3.21 AS rust-data-tools-runtime
+
+RUN apk add --no-cache ca-certificates tzdata && \
+    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone && \
+    apk del tzdata
+
+ENV TZ=Asia/Shanghai \
+    RUST_DATA_TOOLS_BIND_ADDR=0.0.0.0:4040 \
+    RUST_DATA_TOOLS_MAX_BYTES=20971520 \
+    RUST_DATA_TOOLS_MAX_ITEMS=1024
+
+COPY --from=rust-data-tools-builder /app/rust-services/target/release/data-tools /usr/local/bin/data-tools
+
+RUN addgroup -S datatools && adduser -S datatools -G datatools
+
+USER datatools
+
+EXPOSE 4040
+
+CMD ["/usr/local/bin/data-tools"]
+
+# ============================================
+# Stage 11: Rust Security Worker Build
 # ============================================
 FROM rust:1.91-alpine3.22 AS rust-security-worker-builder
 
@@ -205,7 +243,7 @@ COPY rust-services/ ./
 RUN cargo build --release --manifest-path Cargo.toml -p security-worker
 
 # ============================================
-# Stage 10: Rust Security Worker Runtime
+# Stage 12: Rust Security Worker Runtime
 # ============================================
 FROM alpine:3.21 AS rust-security-worker-runtime
 
@@ -230,7 +268,7 @@ EXPOSE 4050
 CMD ["/usr/local/bin/security-worker"]
 
 # ============================================
-# Stage 11: Production Runtime
+# Stage 13: Production Runtime
 # ============================================
 FROM node:24.3.0-alpine
 
@@ -248,10 +286,12 @@ ENV TZ=Asia/Shanghai \
     RUST_NETWORK_TOOLS_URL="http://127.0.0.1:4010" \
     RUST_AUDIO_WORKER_URL="http://127.0.0.1:4020" \
     RUST_FILE_WORKER_URL="http://127.0.0.1:4030" \
+    RUST_DATA_TOOLS_URL="http://127.0.0.1:4040" \
     RUST_SECURITY_WORKER_URL="http://127.0.0.1:4050" \
     RUST_NETWORK_TOOLS_BIN="/usr/local/bin/network-tools" \
     RUST_AUDIO_WORKER_BIN="/usr/local/bin/audio-worker" \
     RUST_FILE_WORKER_BIN="/usr/local/bin/file-worker" \
+    RUST_DATA_TOOLS_BIN="/usr/local/bin/data-tools" \
     RUST_SECURITY_WORKER_BIN="/usr/local/bin/security-worker"
 
 RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
@@ -275,6 +315,7 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 COPY --from=rust-network-tools-builder /app/rust-services/target/release/network-tools /usr/local/bin/network-tools
 COPY --from=rust-audio-worker-builder /app/rust-services/target/release/audio-worker /usr/local/bin/audio-worker
 COPY --from=rust-file-worker-builder /app/rust-services/target/release/file-worker /usr/local/bin/file-worker
+COPY --from=rust-data-tools-builder /app/rust-services/target/release/data-tools /usr/local/bin/data-tools
 COPY --from=rust-security-worker-builder /app/rust-services/target/release/security-worker /usr/local/bin/security-worker
 
 # 非 root 用户运行
@@ -283,7 +324,7 @@ RUN addgroup -S nodejs && adduser -S nodejs -G nodejs && \
 
 USER nodejs
 
-EXPOSE 3000 4010 4020 4030 4050
+EXPOSE 3000 4010 4020 4030 4040 4050
 
 # Node 作为主进程，同时按配置拉起同容器内 Rust 子进程。
 CMD ["node", "dist/app.js"]

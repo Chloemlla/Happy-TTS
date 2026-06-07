@@ -132,6 +132,7 @@ const envSchema = z
     RUST_NETWORK_TOOLS_BIN: optionalTrimmedString,
     RUST_AUDIO_WORKER_BIN: optionalTrimmedString,
     RUST_FILE_WORKER_BIN: optionalTrimmedString,
+    RUST_DATA_TOOLS_BIN: optionalTrimmedString,
     RUST_SECURITY_WORKER_BIN: optionalTrimmedString,
     RUST_AUDIO_WORKER_ENABLED: stringToBoolean,
     RUST_AUDIO_WORKER_URL: z.string().url().optional().default("http://127.0.0.1:4020"),
@@ -156,6 +157,18 @@ const envSchema = z
       .optional()
       .default(50 * 1024 * 1024),
     RUST_FILE_WORKER_FALLBACK_ENABLED: stringToBoolean,
+    RUST_DATA_TOOLS_ENABLED: stringToBoolean,
+    RUST_DATA_TOOLS_URL: z.string().url().optional().default("http://127.0.0.1:4040"),
+    RUST_DATA_TOOLS_TIMEOUT_MS: z.coerce.number().int().min(1000).max(300000).optional().default(30000),
+    RUST_DATA_TOOLS_MAX_BYTES: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(100 * 1024 * 1024)
+      .optional()
+      .default(20 * 1024 * 1024),
+    RUST_DATA_TOOLS_MAX_ITEMS: z.coerce.number().int().min(1).max(100000).optional().default(1024),
+    RUST_DATA_TOOLS_FALLBACK_ENABLED: stringToBoolean,
     RUST_SECURITY_WORKER_ENABLED: stringToBoolean,
     RUST_SECURITY_WORKER_URL: z.string().url().optional().default("http://127.0.0.1:4050"),
     RUST_SECURITY_WORKER_TIMEOUT_MS: z.coerce.number().int().min(100).max(60000).optional().default(5000),
@@ -220,12 +233,18 @@ const envSchema = z
       env.RUST_AUDIO_WORKER_ENABLED ?? defaultRustServicesEnabled(env.NODE_ENV);
     const rustFileWorkerEnabled =
       env.RUST_FILE_WORKER_ENABLED ?? defaultRustServicesEnabled(env.NODE_ENV);
+    const rustDataToolsEnabled =
+      env.RUST_DATA_TOOLS_ENABLED ?? defaultRustServicesEnabled(env.NODE_ENV);
     const rustSecurityWorkerEnabled =
       env.RUST_SECURITY_WORKER_ENABLED ?? defaultRustServicesEnabled(env.NODE_ENV);
     const embeddedRustServicesEnabled =
       env.RUST_EMBEDDED_SERVICES_ENABLED ?? defaultRustServicesEnabled(env.NODE_ENV);
     if (
-      (rustNetworkToolsEnabled || rustAudioWorkerEnabled || rustFileWorkerEnabled || rustSecurityWorkerEnabled) &&
+      (rustNetworkToolsEnabled ||
+        rustAudioWorkerEnabled ||
+        rustFileWorkerEnabled ||
+        rustDataToolsEnabled ||
+        rustSecurityWorkerEnabled) &&
       !embeddedRustServicesEnabled &&
       !env.INTERNAL_SERVICE_TOKEN
     ) {
@@ -358,6 +377,7 @@ export const startupConfig = Object.freeze({
       networkToolsBin: parsedEnv.RUST_NETWORK_TOOLS_BIN || "/usr/local/bin/network-tools",
       audioWorkerBin: parsedEnv.RUST_AUDIO_WORKER_BIN || "/usr/local/bin/audio-worker",
       fileWorkerBin: parsedEnv.RUST_FILE_WORKER_BIN || "/usr/local/bin/file-worker",
+      dataToolsBin: parsedEnv.RUST_DATA_TOOLS_BIN || "/usr/local/bin/data-tools",
       securityWorkerBin: parsedEnv.RUST_SECURITY_WORKER_BIN || "/usr/local/bin/security-worker",
       generatedInternalToken: !parsedEnv.INTERNAL_SERVICE_TOKEN && embeddedRustServicesEnabled,
     },
@@ -383,6 +403,14 @@ export const startupConfig = Object.freeze({
       timeoutMs: parsedEnv.RUST_FILE_WORKER_TIMEOUT_MS,
       maxBytes: parsedEnv.RUST_FILE_WORKER_MAX_BYTES,
       fallbackEnabled: parsedEnv.RUST_FILE_WORKER_FALLBACK_ENABLED ?? true,
+    },
+    dataTools: {
+      enabled: parsedEnv.RUST_DATA_TOOLS_ENABLED ?? rustServicesEnabledByDefault,
+      url: parsedEnv.RUST_DATA_TOOLS_URL,
+      timeoutMs: parsedEnv.RUST_DATA_TOOLS_TIMEOUT_MS,
+      maxBytes: parsedEnv.RUST_DATA_TOOLS_MAX_BYTES,
+      maxItems: parsedEnv.RUST_DATA_TOOLS_MAX_ITEMS,
+      fallbackEnabled: parsedEnv.RUST_DATA_TOOLS_FALLBACK_ENABLED ?? true,
     },
     securityWorker: {
       enabled: parsedEnv.RUST_SECURITY_WORKER_ENABLED ?? rustServicesEnabledByDefault,

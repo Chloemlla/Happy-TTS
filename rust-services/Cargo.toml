@@ -2,6 +2,7 @@
 members = [
   "network-tools",
   "audio-worker",
+  "data-tools",
   "file-worker",
   "security-worker",
 ]
