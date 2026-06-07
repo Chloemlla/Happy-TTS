@@ -1,4 +1,4 @@
-name: TypeScript Compilation Check
+name: Node and Rust Verification
 
 on:
   push:
@@ -14,7 +14,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  type-check:
+  node-verify:
+    name: Node verification
     runs-on: ubuntu-latest
 
     steps:
@@ -31,11 +32,6 @@ jobs:
         with:
           version: 11.1.1
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-
       - name: Install dependencies
         # 仅做 TypeScript 编译检查，跳过构建脚本，避免 pnpm v10 在 CI 中因
         # 未批准的本地构建（bcrypt / @scarf/scarf / unrs-resolver 等）退出码 1
@@ -49,12 +45,6 @@ jobs:
 
       - name: Run Jest tests
         run: pnpm run test -- --config jest.ci.config.js --ci --runInBand
-
-      - name: Check Rust formatting
-        run: cargo fmt --manifest-path rust-services/Cargo.toml --all --check
-
-      - name: Run Rust tests
-        run: cargo test --manifest-path rust-services/Cargo.toml
 
       - name: Upload build artifacts
         if: always()
@@ -78,3 +68,22 @@ jobs:
           else
             echo "No routes with hyphens found"
           fi
+
+  rust-verify:
+    name: Rust verification
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4 # 建议使用明确的 v4 版本，避免 @main 的不稳定变更
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path rust-services/Cargo.toml --all --check
+
+      - name: Run Rust tests
+        run: cargo test --manifest-path rust-services/Cargo.toml
