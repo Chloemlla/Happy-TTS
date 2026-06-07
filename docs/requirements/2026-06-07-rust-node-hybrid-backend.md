@@ -11,7 +11,7 @@
 ## 冻结决策
 
 - Node/Express 仍是唯一公网入口，所有第三方和前端请求必须先进入 Node。
-- 分层原则固定为：普通业务逻辑留在 Node；CPU 密集、二进制/媒体处理密集、低层网络探测、安全边界明确且可纯函数化的任务放 Rust 内部服务。
+- 分层原则固定为：普通业务逻辑留在 Node；CPU 密集、二进制/媒体处理密集、低层网络探测、安全边界明确且可纯函数化的任务放 Rust sidecar/内部服务。
 - Rust 服务只作为 Node 管理下的内网能力提供者，可运行于 Node 进程旁的内嵌子进程，也可运行于同一内网/Compose 网络中的外置 sidecar。
 - 生产环境未显式配置相关变量时，`RUST_NETWORK_TOOLS_ENABLED`、`RUST_AUDIO_WORKER_ENABLED`、`RUST_EMBEDDED_SERVICES_ENABLED` 默认启用 Rust；测试环境默认关闭；显式设置为 `false`、`0`、`no`、`off` 或空字符串时关闭。
 - Node 主进程负责内嵌 Rust 生命周期：根据 loopback URL 启动 Rust 二进制，注入 `INTERNAL_SERVICE_TOKEN` 和 bind addr，等待 `/healthz`，记录日志，Rust 异常退出后按退避策略重启，Node 收到退出信号时终止 Rust 子进程。
