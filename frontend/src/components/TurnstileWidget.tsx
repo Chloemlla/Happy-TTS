@@ -39,19 +39,9 @@ const TURNSTILE_SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api
 const TURNSTILE_SCRIPT_SELECTOR = 'script[data-turnstile-api="true"], script[src^="https://challenges.cloudflare.com/turnstile/v0/api.js"]';
 const TURNSTILE_LOAD_TIMEOUT_MS = 10000;
 
-const isTurnstileDebugEnabled = () => import.meta.env.DEV || import.meta.env.VITE_TURNSTILE_DEBUG === 'true';
+const debugTurnstile = (..._args: unknown[]) => {};
 
-const debugTurnstile = (...args: unknown[]) => {
-  if (isTurnstileDebugEnabled()) {
-    console.debug(...args);
-  }
-};
-
-const warnTurnstile = (...args: unknown[]) => {
-  if (isTurnstileDebugEnabled()) {
-    console.warn(...args);
-  }
-};
+const warnTurnstile = (..._args: unknown[]) => {};
 
 const maskSiteKey = (value: string) => {
   if (value.length <= 8) {

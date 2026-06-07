@@ -1075,19 +1075,6 @@ const SmartHumanCheckBase: React.FC<SmartHumanCheckBaseProps> = ({
         payload,
         pow,
       });
-      // 可选调试输出：设置 localStorage SHC_DEBUG=1 以启用
-      if (typeof localStorage !== 'undefined' && localStorage.getItem('SHC_DEBUG') === '1') {
-        try {
-          console.debug('[SmartHumanCheck] token-debug', {
-            version: 2,
-            tokenLen: token.length,
-            action: nonceAction || challengeAction || 'default',
-            pow: Boolean(pow),
-            payload,
-          });
-        } catch { }
-      }
-
       onSuccess(token);
       if (autoResetOnSuccess) {
         setTimeout(() => reset(), 500);
