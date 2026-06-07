@@ -9,7 +9,6 @@ pub struct FileBytesRequest {
     pub file_base64: String,
     pub file_name: Option<String>,
     pub declared_mime: Option<String>,
-    pub operations: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize)]

@@ -26,7 +26,12 @@ impl AudioAnalysis {
 }
 
 pub fn analyze_audio(bytes: &[u8], declared_format: &str) -> AudioAnalysis {
-    let detected_format = detect_format(bytes).unwrap_or_else(|| declared_format.to_string());
+    let detected_format = detect_format(bytes);
+    let magic_valid = detected_format
+        .as_deref()
+        .map(|detected_format| format_matches_declared(detected_format, declared_format))
+        .unwrap_or(false);
+    let detected_format = detected_format.unwrap_or_else(|| "unknown".to_string());
     let mut analysis = AudioAnalysis {
         detected_format: detected_format.clone(),
         duration_ms: None,
@@ -34,7 +39,7 @@ pub fn analyze_audio(bytes: &[u8], declared_format: &str) -> AudioAnalysis {
         sample_rate: None,
         channels: None,
         bits_per_sample: None,
-        magic_valid: format_matches_declared(&detected_format, declared_format),
+        magic_valid,
     };
 
     match detected_format.as_str() {
