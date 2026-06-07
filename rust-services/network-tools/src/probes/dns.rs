@@ -5,7 +5,7 @@ use hickory_resolver::{
     proto::rr::RecordType,
     TokioAsyncResolver,
 };
-use tokio::time;
+use tokio::{net::lookup_host, time};
 
 use crate::{error::AppError, models::DnsRecord};
 
@@ -14,18 +14,25 @@ pub async fn resolve_records(
     record_types: &[String],
     timeout: Duration,
 ) -> Result<Vec<DnsRecord>, AppError> {
-    let resolver = TokioAsyncResolver::tokio(ResolverConfig::default(), ResolverOpts::default());
+    let mut resolver: Option<TokioAsyncResolver> = None;
     let mut records = Vec::new();
 
     for record_type in record_types {
         let mut values = match record_type.as_str() {
-            "A" => lookup_ip_records(&resolver, address, true, timeout).await?,
-            "AAAA" => lookup_ip_records(&resolver, address, false, timeout).await?,
+            "A" => lookup_system_ip_records(address, true, timeout).await?,
+            "AAAA" => lookup_system_ip_records(address, false, timeout).await?,
             "CNAME" => {
-                lookup_generic_records(&resolver, address, RecordType::CNAME, timeout).await?
+                let resolver = resolver.get_or_insert_with(|| build_hickory_resolver(timeout));
+                lookup_generic_records(resolver, address, RecordType::CNAME, timeout).await?
             }
-            "MX" => lookup_mx_records(&resolver, address, timeout).await?,
-            "TXT" => lookup_txt_records(&resolver, address, timeout).await?,
+            "MX" => {
+                let resolver = resolver.get_or_insert_with(|| build_hickory_resolver(timeout));
+                lookup_mx_records(resolver, address, timeout).await?
+            }
+            "TXT" => {
+                let resolver = resolver.get_or_insert_with(|| build_hickory_resolver(timeout));
+                lookup_txt_records(resolver, address, timeout).await?
+            }
             _ => Vec::new(),
         };
 
@@ -42,19 +49,26 @@ pub async fn resolve_records(
     Ok(records)
 }
 
-async fn lookup_ip_records(
-    resolver: &TokioAsyncResolver,
+fn build_hickory_resolver(timeout: Duration) -> TokioAsyncResolver {
+    let mut opts = ResolverOpts::default();
+    opts.timeout = timeout;
+    opts.attempts = 1;
+    opts.num_concurrent_reqs = 1;
+    TokioAsyncResolver::tokio(ResolverConfig::default(), opts)
+}
+
+async fn lookup_system_ip_records(
     address: &str,
     ipv4: bool,
     timeout: Duration,
 ) -> Result<Vec<String>, AppError> {
-    let lookup = time::timeout(timeout, resolver.lookup_ip(address)).await;
+    let lookup = time::timeout(timeout, lookup_host((address, 0))).await;
     let Ok(Ok(response)) = lookup else {
         return Ok(Vec::new());
     };
 
     Ok(response
-        .iter()
+        .map(|socket_addr| socket_addr.ip())
         .filter(|ip| ip.is_ipv4() == ipv4)
         .map(|ip| ip.to_string())
         .collect())
@@ -110,4 +124,18 @@ async fn lookup_txt_records(
                 .collect::<Vec<_>>()
         })
         .collect())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn system_lookup_handles_ip_literals_without_hickory() {
+        let values = lookup_system_ip_records("1.1.1.1", true, Duration::from_millis(100))
+            .await
+            .unwrap();
+
+        assert_eq!(values, vec!["1.1.1.1"]);
+    }
 }

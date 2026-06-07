@@ -284,7 +284,7 @@ const OPERATION_DEFINITIONS: Record<RustBenchmarkOperation, OperationDefinition>
   },
 };
 
-class RustBenchmarkService {
+export class RustBenchmarkService {
   private currentRun: MutableRunState | null = null;
   private lastSnapshot: RustBenchmarkSnapshot = this.emptySnapshot();
 
@@ -593,13 +593,13 @@ class RustBenchmarkService {
   }
 
   private recordFailure(run: MutableRunState, latencyMs: number, error: unknown): void {
+    if (isBenchmarkCancellation(run, error)) {
+      return;
+    }
+
     run.counters.total += 1;
     run.counters.failed += 1;
     this.recordLatency(run, latencyMs);
-
-    if (run.abortController.signal.aborted && axios.isCancel(error)) {
-      return;
-    }
 
     const message = formatErrorMessage(error);
     const existing = run.errors.get(message);
@@ -740,6 +740,14 @@ class RustBenchmarkService {
       throw new Error("Rust benchmark baseUrl must point to a loopback host");
     }
   }
+}
+
+function isBenchmarkCancellation(run: MutableRunState, error: unknown): boolean {
+  if (!run.abortController.signal.aborted) {
+    return false;
+  }
+
+  return axios.isCancel(error) || (axios.isAxiosError(error) && error.code === "ERR_CANCELED");
 }
 
 function clampInteger(value: unknown, min: number, max: number, fallback: number): number {
