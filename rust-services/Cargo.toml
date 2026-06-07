@@ -1,3 +1,10 @@
 [workspace]
-members = ["network-tools", "audio-worker", "file-worker"]
+members = [
+  "network-tools",
+  "audio-worker",
+  "file-worker",
+  "data-tools",
+  "security-worker",
+  "analytics-worker",
+]
 resolver = "2"

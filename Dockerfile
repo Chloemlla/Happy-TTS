@@ -83,7 +83,7 @@ RUN pnpm run generate:openapi
 # ============================================
 # Stage 3: Rust Network Tools Build
 # ============================================
-FROM rust:1.85-alpine AS rust-network-tools-builder
+FROM rust:1.88-alpine AS rust-network-tools-builder
 
 RUN apk add --no-cache musl-dev
 
@@ -120,7 +120,7 @@ CMD ["/usr/local/bin/network-tools"]
 # ============================================
 # Stage 5: Rust Audio Worker Build
 # ============================================
-FROM rust:1.85-alpine AS rust-audio-worker-builder
+FROM rust:1.88-alpine AS rust-audio-worker-builder
 
 RUN apk add --no-cache musl-dev
 
@@ -157,7 +157,7 @@ CMD ["/usr/local/bin/audio-worker"]
 # ============================================
 # Stage 7: Rust File Worker Build
 # ============================================
-FROM rust:1.85-alpine AS rust-file-worker-builder
+FROM rust:1.88-alpine AS rust-file-worker-builder
 
 RUN apk add --no-cache musl-dev
 
