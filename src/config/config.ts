@@ -112,6 +112,9 @@ const envSchema = z
     RUST_NETWORK_TOOLS_TIMEOUT_MS: z.coerce.number().int().min(100).max(60000).optional().default(5000),
     RUST_NETWORK_TOOLS_FALLBACK_ENABLED: stringToBoolean,
     RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS: stringToBoolean,
+    RUST_EMBEDDED_SERVICES_ENABLED: stringToBoolean,
+    RUST_NETWORK_TOOLS_BIN: optionalTrimmedString,
+    RUST_AUDIO_WORKER_BIN: optionalTrimmedString,
     RUST_AUDIO_WORKER_ENABLED: stringToBoolean,
     RUST_AUDIO_WORKER_URL: z.string().url().optional().default("http://127.0.0.1:4020"),
     RUST_AUDIO_WORKER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(300000).optional().default(30000),
@@ -173,11 +176,13 @@ const envSchema = z
       env.RUST_NETWORK_TOOLS_ENABLED ?? defaultRustServicesEnabled(env.NODE_ENV);
     const rustAudioWorkerEnabled =
       env.RUST_AUDIO_WORKER_ENABLED ?? defaultRustServicesEnabled(env.NODE_ENV);
-    if ((rustNetworkToolsEnabled || rustAudioWorkerEnabled) && !env.INTERNAL_SERVICE_TOKEN) {
+    const embeddedRustServicesEnabled =
+      env.RUST_EMBEDDED_SERVICES_ENABLED ?? defaultRustServicesEnabled(env.NODE_ENV);
+    if ((rustNetworkToolsEnabled || rustAudioWorkerEnabled) && !embeddedRustServicesEnabled && !env.INTERNAL_SERVICE_TOKEN) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["INTERNAL_SERVICE_TOKEN"],
-        message: "Rust internal services require INTERNAL_SERVICE_TOKEN when enabled",
+        message: "External Rust internal services require INTERNAL_SERVICE_TOKEN when enabled",
       });
     }
   });
@@ -192,6 +197,9 @@ const adminPassword = parsedEnv.NODE_ENV === "production" ? parsedEnv.ADMIN_PASS
 const publicShortUrlEnabled = parsedEnv.PUBLIC_SHORT_URL_ENABLED === true;
 const publicShortUrlPassword = parsedEnv.PUBLIC_SHORT_URL_PASSWORD;
 const rustServicesEnabledByDefault = defaultRustServicesEnabled(parsedEnv.NODE_ENV);
+const embeddedRustServicesEnabled = parsedEnv.RUST_EMBEDDED_SERVICES_ENABLED ?? rustServicesEnabledByDefault;
+const internalServiceToken =
+  parsedEnv.INTERNAL_SERVICE_TOKEN || (embeddedRustServicesEnabled ? generateEphemeralSecret() : "");
 const emailRuntimeDefaults: EmailRuntimeConfig = {
   enabled: Boolean(parsedEnv.RESEND_API_KEY),
   resendDomain: parsedEnv.RESEND_DOMAIN,
@@ -294,7 +302,13 @@ export const startupConfig = Object.freeze({
     outputFormat: parsedEnv.IMAGE_BED_OUTPUT_FORMAT,
   },
   rustServices: {
-    internalToken: parsedEnv.INTERNAL_SERVICE_TOKEN || "",
+    internalToken: internalServiceToken,
+    embedded: {
+      enabled: embeddedRustServicesEnabled,
+      networkToolsBin: parsedEnv.RUST_NETWORK_TOOLS_BIN || "/usr/local/bin/network-tools",
+      audioWorkerBin: parsedEnv.RUST_AUDIO_WORKER_BIN || "/usr/local/bin/audio-worker",
+      generatedInternalToken: !parsedEnv.INTERNAL_SERVICE_TOKEN && embeddedRustServicesEnabled,
+    },
     networkTools: {
       enabled: parsedEnv.RUST_NETWORK_TOOLS_ENABLED ?? rustServicesEnabledByDefault,
       url: parsedEnv.RUST_NETWORK_TOOLS_URL,

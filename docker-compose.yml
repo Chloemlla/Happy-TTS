@@ -19,19 +19,17 @@ services:
       - MONGO_DB=${MONGO_DB:-tts}
       - MONGO_PROXY_URL=${MONGO_PROXY_URL}
       - RUST_NETWORK_TOOLS_ENABLED=${RUST_NETWORK_TOOLS_ENABLED:-true}
-      - RUST_NETWORK_TOOLS_URL=${RUST_NETWORK_TOOLS_URL:-http://network-tools:4010}
+      - RUST_EMBEDDED_SERVICES_ENABLED=${RUST_EMBEDDED_SERVICES_ENABLED:-true}
+      - RUST_NETWORK_TOOLS_URL=${RUST_NETWORK_TOOLS_URL:-http://127.0.0.1:4010}
       - RUST_NETWORK_TOOLS_TIMEOUT_MS=${RUST_NETWORK_TOOLS_TIMEOUT_MS:-5000}
       - RUST_NETWORK_TOOLS_FALLBACK_ENABLED=${RUST_NETWORK_TOOLS_FALLBACK_ENABLED:-true}
       - RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS=${RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS:-true}
       - RUST_AUDIO_WORKER_ENABLED=${RUST_AUDIO_WORKER_ENABLED:-true}
-      - RUST_AUDIO_WORKER_URL=${RUST_AUDIO_WORKER_URL:-http://audio-worker:4020}
+      - RUST_AUDIO_WORKER_URL=${RUST_AUDIO_WORKER_URL:-http://127.0.0.1:4020}
       - RUST_AUDIO_WORKER_TIMEOUT_MS=${RUST_AUDIO_WORKER_TIMEOUT_MS:-30000}
       - RUST_AUDIO_WORKER_MAX_BYTES=${RUST_AUDIO_WORKER_MAX_BYTES:-20971520}
       - RUST_AUDIO_WORKER_FALLBACK_ENABLED=${RUST_AUDIO_WORKER_FALLBACK_ENABLED:-true}
       - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:-}
-    depends_on:
-      - network-tools
-      - audio-worker
     volumes:
       - ./data:/app/data
     restart: unless-stopped
@@ -41,6 +39,8 @@ services:
       context: .
       dockerfile: Dockerfile
       target: rust-network-tools-runtime
+    profiles:
+      - rust-sidecars
     expose:
       - "4010"
     environment:
@@ -54,6 +54,8 @@ services:
       context: .
       dockerfile: Dockerfile
       target: rust-audio-worker-runtime
+    profiles:
+      - rust-sidecars
     expose:
       - "4020"
     environment:

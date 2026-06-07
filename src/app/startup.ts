@@ -4,6 +4,7 @@ import path from "node:path";
 import type { Express } from "express";
 import { compileTimeConfig, config, startupConfig } from "../config/config";
 import { runStartupDiagnostics } from "../config/startupDiagnostics";
+import { startEmbeddedRustServices } from "../services/embeddedRustServices";
 import { connectMongo } from "../services/mongoService";
 import { schedulerService } from "../services/schedulerService";
 import { wsService } from "../services/wsService";
@@ -161,6 +162,7 @@ export async function startServer(app: Express): Promise<void> {
   const diagnostics = await runStartupDiagnostics(compileTimeConfig);
   logger.info("[Config] 启动配置诊断完成", diagnostics);
 
+  await startEmbeddedRustServices();
   await checkStartupFilePermissions();
   await initializeStorage();
   logger.info(`当前生成码: ${config.generationCode || "未配置"}`);

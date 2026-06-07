@@ -168,7 +168,12 @@ ENV TZ=Asia/Shanghai \
     NODE_ENV=production \
     NODE_OPTIONS="--max-old-space-size=2048" \
     FRONTEND_DIST_DIR="/app/frontend/dist" \
-    OPENAPI_JSON_PATH="/app/openapi.json"
+    OPENAPI_JSON_PATH="/app/openapi.json" \
+    RUST_EMBEDDED_SERVICES_ENABLED=true \
+    RUST_NETWORK_TOOLS_URL="http://127.0.0.1:4010" \
+    RUST_AUDIO_WORKER_URL="http://127.0.0.1:4020" \
+    RUST_NETWORK_TOOLS_BIN="/usr/local/bin/network-tools" \
+    RUST_AUDIO_WORKER_BIN="/usr/local/bin/audio-worker"
 
 RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
 
@@ -188,6 +193,8 @@ COPY --from=backend-builder /app/scripts/run-load-profile-report.js ./scripts/ru
 COPY --from=backend-builder /app/scripts/profiling-README.md ./scripts/profiling-README.md
 # 前端由后端 Express 提供：frontend/dist 命中 registerStaticRoutes 的候选路径。
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
+COPY --from=rust-network-tools-builder /app/rust-services/target/release/network-tools /usr/local/bin/network-tools
+COPY --from=rust-audio-worker-builder /app/rust-services/target/release/audio-worker /usr/local/bin/audio-worker
 
 # 非 root 用户运行
 RUN addgroup -S nodejs && adduser -S nodejs -G nodejs && \
@@ -195,7 +202,7 @@ RUN addgroup -S nodejs && adduser -S nodejs -G nodejs && \
 
 USER nodejs
 
-EXPOSE 3000
+EXPOSE 3000 4010 4020
 
-# 单进程：后端 Express 同时承担 API、前端 SPA 和 Swagger UI。
+# Node 作为主进程，同时按配置拉起同容器内 Rust 子进程。
 CMD ["node", "dist/app.js"]

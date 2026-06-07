@@ -9,8 +9,9 @@ Rust services default by environment:
 - `NODE_ENV=production`: `network-tools` and `audio-worker` are enabled when their `*_ENABLED` variables are unset.
 - `NODE_ENV=development` or `NODE_ENV=test`: both services stay disabled when their `*_ENABLED` variables are unset.
 - Explicit `RUST_NETWORK_TOOLS_ENABLED=false` or `RUST_AUDIO_WORKER_ENABLED=false` always disables the corresponding path.
+- Docker production images include both Rust binaries. With `RUST_EMBEDDED_SERVICES_ENABLED=true`, Node starts them as child processes inside the same app container.
 
-Production requires a shared internal token whenever either Rust service is enabled:
+External Rust sidecars require a shared internal token whenever either Rust service is enabled:
 
 ```text
 INTERNAL_SERVICE_TOKEN=<long-random-secret>
@@ -28,6 +29,7 @@ RUST_AUDIO_WORKER_FALLBACK_ENABLED=true
 
 Generate the token yourself and keep the same value in the Node app and every Rust sidecar. Do not commit it to the repository.
 The value can change between coordinated full-stack restarts, but it must not be generated independently by each process. During one deployment, every Node instance and Rust sidecar must share the same token; otherwise internal calls fail with 401/403.
+When embedded Rust is enabled and `INTERNAL_SERVICE_TOKEN` is unset, Node generates a per-start token and passes it to the child processes. That is suitable for a single app container, but not for external sidecars or multi-container Rust services.
 
 PowerShell:
 
@@ -68,7 +70,7 @@ curl -H "X-Internal-Token: replace-me" http://127.0.0.1:4010/healthz
 
 ## Docker Compose
 
-Docker Compose is production-oriented and starts both Rust sidecars by default. Neither sidecar publishes a host port.
+Docker Compose is production-oriented and starts Rust inside the app container by default. The Rust HTTP ports stay bound to localhost inside that container and are not published to the host.
 
 ```bash
 INTERNAL_SERVICE_TOKEN=replace-me \
@@ -78,12 +80,13 @@ docker compose up -d --build
 The app container calls the sidecar through:
 
 ```text
-RUST_NETWORK_TOOLS_URL=http://network-tools:4010
+RUST_NETWORK_TOOLS_URL=http://127.0.0.1:4010
+RUST_AUDIO_WORKER_URL=http://127.0.0.1:4020
 ```
 
 `network-tools` validates `X-Internal-Token` on `/healthz`, `/v1/network/tcping`, and `/v1/network/portscan`.
 
-To disable a Rust path while leaving the sidecar container available:
+To disable a Rust path while leaving the binaries available:
 
 ```bash
 INTERNAL_SERVICE_TOKEN=replace-me \
@@ -92,10 +95,14 @@ RUST_AUDIO_WORKER_ENABLED=false \
 docker compose up -d --build
 ```
 
-The app container calls it through:
+To run Rust as separate sidecars instead, disable embedded services, point Node at the service names, and enable the sidecar profile:
 
-```text
-RUST_AUDIO_WORKER_URL=http://audio-worker:4020
+```bash
+INTERNAL_SERVICE_TOKEN=replace-me \
+RUST_EMBEDDED_SERVICES_ENABLED=false \
+RUST_NETWORK_TOOLS_URL=http://network-tools:4010 \
+RUST_AUDIO_WORKER_URL=http://audio-worker:4020 \
+docker compose --profile rust-sidecars up -d --build
 ```
 
 `audio-worker` validates `X-Internal-Token` on `/healthz` and `/v1/audio/process`. It accepts only audio bytes already held by Node as `audioBase64`; it does not fetch URLs, choose filenames, write storage, update history, or send WebSocket events.
