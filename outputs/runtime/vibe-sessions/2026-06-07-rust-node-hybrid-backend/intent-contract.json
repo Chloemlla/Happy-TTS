@@ -1,0 +1,34 @@
+{
+  "runId": "2026-06-07-rust-node-hybrid-backend",
+  "stage": "deep_interview",
+  "goal": "Create a concrete file-level plan for a Rust/Node hybrid backend deployment.",
+  "deliverable": [
+    "docs/requirements/2026-06-07-rust-node-hybrid-backend.md",
+    "docs/plans/2026-06-07-rust-node-hybrid-backend-execution-plan.md"
+  ],
+  "constraints": [
+    "Do not execute installation commands.",
+    "Node remains public API gateway.",
+    "Rust runs as internal sidecar or worker.",
+    "Do not migrate OAuth, JWT, API Key, WAF, rate limiting, users, audit, or queue ownership to Rust.",
+    "Stop after xl_plan."
+  ],
+  "acceptanceCriteria": [
+    "Plan identifies concrete files to add or modify.",
+    "Plan sequences network-tools before audio-worker.",
+    "Plan includes verification and rollback rules.",
+    "Plan preserves existing public API behavior."
+  ],
+  "nonGoals": [
+    "Implement code in this run.",
+    "Install dependencies.",
+    "Rewrite backend in Rust.",
+    "Expose Rust services publicly."
+  ],
+  "assumptions": [
+    "Production can add sidecar containers.",
+    "Cargo build can be introduced later through code and Docker configuration.",
+    "Feature flags are acceptable for gradual rollout."
+  ],
+  "terminalStage": "xl_plan"
+}

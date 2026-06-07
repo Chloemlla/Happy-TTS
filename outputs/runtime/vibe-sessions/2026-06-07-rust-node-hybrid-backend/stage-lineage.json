@@ -1,0 +1,27 @@
+[
+  {
+    "stage": "skeleton_check",
+    "status": "completed",
+    "artifact": "outputs/runtime/vibe-sessions/2026-06-07-rust-node-hybrid-backend/skeleton-receipt.json"
+  },
+  {
+    "stage": "deep_interview",
+    "status": "completed",
+    "artifact": "outputs/runtime/vibe-sessions/2026-06-07-rust-node-hybrid-backend/intent-contract.json"
+  },
+  {
+    "stage": "requirement_doc",
+    "status": "completed",
+    "artifact": "docs/requirements/2026-06-07-rust-node-hybrid-backend.md"
+  },
+  {
+    "stage": "xl_plan",
+    "status": "completed",
+    "artifact": "docs/plans/2026-06-07-rust-node-hybrid-backend-execution-plan.md"
+  },
+  {
+    "stage": "xl_plan_receipt",
+    "status": "completed",
+    "artifact": "outputs/runtime/vibe-sessions/2026-06-07-rust-node-hybrid-backend/phase-xl_plan.json"
+  }
+]

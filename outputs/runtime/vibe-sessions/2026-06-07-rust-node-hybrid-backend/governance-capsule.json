@@ -1,0 +1,11 @@
+{
+  "runId": "2026-06-07-rust-node-hybrid-backend",
+  "runtime": "vibe",
+  "entry": "vibe-how-do-we-do",
+  "mode": "interactive_governed",
+  "terminalStage": "xl_plan",
+  "objective": "Plan Rust/Node hybrid backend deployment with file-level execution detail.",
+  "createdAt": "2026-06-07T00:00:00+08:00",
+  "canonicalRequirement": "docs/requirements/2026-06-07-rust-node-hybrid-backend.md",
+  "canonicalPlan": "docs/plans/2026-06-07-rust-node-hybrid-backend-execution-plan.md"
+}

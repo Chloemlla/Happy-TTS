@@ -1,0 +1,13 @@
+{
+  "runId": "2026-06-07-rust-node-hybrid-backend",
+  "stage": "xl_plan",
+  "status": "completed",
+  "timestamp": "2026-06-07T00:00:00+08:00",
+  "artifact": "docs/plans/2026-06-07-rust-node-hybrid-backend-execution-plan.md",
+  "implementationStarted": false,
+  "notes": [
+    "Plan selects network-tools sidecar before audio-worker.",
+    "Plan preserves Node as the only public API gateway.",
+    "Plan requires feature flags and rollback switches for every Rust path."
+  ]
+}
