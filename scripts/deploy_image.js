@@ -282,6 +282,48 @@ function shellQuote(value) {
     return `'${str.replace(/'/g, `'\\''`)}'`;
 }
 
+function normalizeDockerCommand(command) {
+    if (command === null || command === undefined) {
+        return [];
+    }
+
+    if (Array.isArray(command)) {
+        return command.map(part => String(part));
+    }
+
+    return [String(command)];
+}
+
+function getDockerStartupCommandParts(config = {}) {
+    const entrypoint = normalizeDockerCommand(config.Entrypoint);
+    const cmd = normalizeDockerCommand(config.Cmd);
+
+    return {
+        entrypointExecutable: entrypoint.length > 0 ? entrypoint[0] : null,
+        commandArgs: [
+            ...entrypoint.slice(1),
+            ...cmd
+        ]
+    };
+}
+
+function buildDockerEntrypointOption(config = {}) {
+    const { entrypointExecutable } = getDockerStartupCommandParts(config);
+    if (entrypointExecutable === null) {
+        return '';
+    }
+
+    return `--entrypoint ${shellQuote(entrypointExecutable)}`;
+}
+
+function buildDockerImageAndCommand(image, config = {}) {
+    const { commandArgs } = getDockerStartupCommandParts(config);
+    return [
+        shellQuote(image),
+        ...commandArgs.map(shellQuote)
+    ].join(' ');
+}
+
 function isSpecialNetworkMode(networkMode) {
     return networkMode === 'host' ||
         networkMode === 'none' ||
@@ -530,15 +572,10 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
             }
         }
 
-        // 继承命令参数
-        if (config.Cmd && config.Cmd.length > 0) {
-            // 注意：通常不继承Cmd，因为使用新镜像的默认命令
-            // createCommand += `-- ${config.Cmd.join(' ')} `;
-        }
-
-        // 继承入口点
-        if (config.Entrypoint && config.Entrypoint.length > 0) {
-            createCommand += `--entrypoint "${config.Entrypoint.join(' ')}" `;
+        // 继承入口点；CMD 会在镜像名后追加，避免篡改原容器启动命令
+        const entrypointOption = buildDockerEntrypointOption(config);
+        if (entrypointOption) {
+            createCommand += `${entrypointOption} `;
         }
 
         // 继承工作目录
@@ -799,24 +836,9 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
             createCommand += `--isolation ${hostConfig.Isolation} `;
         }
 
-        // 继承启动参数（Args）
-        if (config.Args && config.Args.length > 0) {
-            // 将 Args 数组拼接成启动命令
-            const argsCommand = config.Args.join(' ');
-            logInfo(`继承启动参数: ${argsCommand}`);
-        }
-
         // 等待5秒
         await new Promise(resolve => setTimeout(resolve, 5000));
-        createCommand += newImageUrl;
-        
-        // 添加启动参数作为容器命令
-        if (config.Args && config.Args.length > 0) {
-            createCommand += ` ${config.Args.join(' ')}`;
-        }
-        
-        // 添加 npm start 启动命令
-        createCommand += ' npm start';
+        createCommand += buildDockerImageAndCommand(newImageUrl, config);
 
         // 检查并删除可能存在的旧容器
         const finalListResult = await execSSHCommand(ssh, "docker ps -a --format '{{.Names}}'");
@@ -1124,8 +1146,9 @@ function generateDockerRunCommand(inspectData, overrideImage) {
     }
 
     // 入口点
-    if (config.Entrypoint && config.Entrypoint.length > 0) {
-        cmd += ` \\\n  --entrypoint "${config.Entrypoint.join(' ')}"`;
+    const entrypointOption = buildDockerEntrypointOption(config);
+    if (entrypointOption) {
+        cmd += ` \\\n  ${entrypointOption}`;
     }
 
     // 工作目录
@@ -1289,13 +1312,8 @@ function generateDockerRunCommand(inspectData, overrideImage) {
         }
     }
 
-    // 镜像
-    cmd += ` \\\n  ${image}`;
-
-    // CMD（容器启动命令）
-    if (config.Cmd && config.Cmd.length > 0) {
-        cmd += ` ${config.Cmd.join(' ')}`;
-    }
+    // 镜像和 CMD（容器启动命令）
+    cmd += ` \\\n  ${buildDockerImageAndCommand(image, config)}`;
 
     const connectNetworkCommands = buildDockerNetworkConnectCommands(networkPlan, containerName);
     if (connectNetworkCommands.length > 0) {
