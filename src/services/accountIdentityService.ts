@@ -85,6 +85,51 @@ function normalizeProfile(profile: AccountProviderProfile): AccountProviderProfi
   };
 }
 
+function isDuplicateKeyError(error: unknown): boolean {
+  return Boolean(error && typeof error === "object" && (error as { code?: number }).code === 11000);
+}
+
+async function canWriteLegacyLinuxDoId(user: User, linuxdoId: string): Promise<boolean> {
+  if (user.linuxdoId === linuxdoId) {
+    return true;
+  }
+
+  const legacyUser = await UserStorage.getUserByLinuxDoId(linuxdoId);
+  if (!legacyUser || legacyUser.id === user.id) {
+    return true;
+  }
+
+  logger.warn("[AccountIdentity] Linux.do 旧字段已被其他用户占用，跳过旧字段写入", {
+    userId: user.id,
+    holderUserId: legacyUser.id,
+    linuxdoId,
+  });
+  return false;
+}
+
+export async function buildProviderUserUpdates(user: User, profile: AccountProviderProfile): Promise<Partial<User>> {
+  const normalized = normalizeProfile(profile);
+  const updates: Partial<User> = {};
+
+  if (normalized.provider === "linuxdo") {
+    if (await canWriteLegacyLinuxDoId(user, normalized.providerUserId)) {
+      updates.linuxdoId = normalized.providerUserId;
+    }
+    updates.linuxdoUsername = normalized.providerUsername;
+    updates.linuxdoAvatarUrl = normalized.avatarUrl;
+  }
+
+  if (normalized.avatarUrl) {
+    updates.avatarUrl = normalized.avatarUrl;
+  }
+
+  if (!user.authProvider) {
+    updates.authProvider = normalized.provider;
+  }
+
+  return updates;
+}
+
 function toLinkedAccountView(
   provider: AccountIdentityProvider,
   identity: AccountIdentityDoc | null,
@@ -128,21 +173,7 @@ function toLinkedAccountView(
 }
 
 async function updateLegacyProviderFields(user: User, profile: AccountProviderProfile): Promise<void> {
-  const updates: Partial<User> = {};
-
-  if (profile.provider === "linuxdo") {
-    updates.linuxdoId = profile.providerUserId;
-    updates.linuxdoUsername = profile.providerUsername;
-    updates.linuxdoAvatarUrl = profile.avatarUrl;
-  }
-
-  if (profile.avatarUrl) {
-    updates.avatarUrl = profile.avatarUrl;
-  }
-
-  if (!user.authProvider) {
-    updates.authProvider = profile.provider;
-  }
+  const updates = await buildProviderUserUpdates(user, profile);
 
   if (Object.keys(updates).length > 0) {
     await UserStorage.updateUser(user.id, updates);
@@ -164,8 +195,22 @@ export async function backfillLegacyLinuxDoIdentityForUser(user: User): Promise<
   if (!linuxdoId) return;
 
   try {
+    const existingIdentity = await AccountIdentityModel.findOne({
+      provider: "linuxdo",
+      providerUserId: linuxdoId,
+    }).lean<AccountIdentityDoc>();
+
+    if (existingIdentity && existingIdentity.userId !== user.id) {
+      logger.warn("[AccountIdentity] Linux.do 旧字段与账号身份不一致，跳过回填", {
+        userId: user.id,
+        identityUserId: existingIdentity.userId,
+        linuxdoId,
+      });
+      return;
+    }
+
     await AccountIdentityModel.findOneAndUpdate(
-      { provider: "linuxdo", providerUserId: linuxdoId },
+      { provider: "linuxdo", providerUserId: linuxdoId, userId: user.id },
       {
         $setOnInsert: {
           provider: "linuxdo",
@@ -174,16 +219,19 @@ export async function backfillLegacyLinuxDoIdentityForUser(user: User): Promise<
           linkedAt: user.createdAt ? new Date(user.createdAt) : new Date(),
         },
         $set: {
-          userId: user.id,
           providerEmail: user.email || null,
           providerUsername: user.linuxdoUsername || user.username || null,
           avatarUrl: user.linuxdoAvatarUrl || user.avatarUrl || null,
           status: "active",
         },
       },
-      { upsert: true, new: true },
+      { upsert: true, returnDocument: "after" },
     );
   } catch (error) {
+    if (isDuplicateKeyError(error)) {
+      logger.warn("[AccountIdentity] Linux.do 旧字段已存在账号身份，跳过回填", { userId: user.id, linuxdoId });
+      return;
+    }
     logger.warn("[AccountIdentity] Linux.do 旧字段回填失败", { userId: user.id, linuxdoId, error });
   }
 }
@@ -235,7 +283,7 @@ export async function upsertIdentityForUser(user: User, profile: AccountProvider
         status: "active",
       },
     },
-    { upsert: true, new: true },
+    { upsert: true, returnDocument: "after" },
   );
 
   await updateLegacyProviderFields(user, normalized);

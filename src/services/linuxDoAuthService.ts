@@ -6,6 +6,7 @@ import { signLoginToken } from "../utils/authToken";
 import { type User, UserStorage } from "../utils/userStorage";
 import {
   bindProviderIdentityToUser,
+  buildProviderUserUpdates,
   buildProviderBindRedirect,
   findUserByProviderIdentity,
   upsertIdentityForUser,
@@ -696,23 +697,24 @@ export async function completeLinuxDoAuthorization(params: {
     throw new Error("Account is suspended");
   }
 
-  const finalizedUser = (await UserStorage.updateUser(user.id, {
+  const providerUserUpdates = await buildProviderUserUpdates(user, {
+    provider: "linuxdo",
+    providerUserId: normalizedProfile.id,
+    providerEmail: normalizedProfile.email,
+    providerUsername: normalizedProfile.username,
+    avatarUrl: normalizedProfile.avatarUrl,
+  });
+  const loginUpdates: Partial<User> = {
+    ...providerUserUpdates,
     lastLoginIp: clientIp || "unknown",
     lastLoginAt: new Date().toISOString(),
-    linuxdoId: normalizedProfile.id,
-    linuxdoUsername: normalizedProfile.username,
-    linuxdoAvatarUrl: normalizedProfile.avatarUrl,
     avatarUrl: normalizedProfile.avatarUrl || user.avatarUrl,
     authProvider: user.authProvider || "linuxdo",
-  })) || {
+  };
+
+  const finalizedUser = (await UserStorage.updateUser(user.id, loginUpdates)) || {
     ...user,
-    lastLoginIp: clientIp || "unknown",
-    lastLoginAt: new Date().toISOString(),
-    linuxdoId: normalizedProfile.id,
-    linuxdoUsername: normalizedProfile.username,
-    linuxdoAvatarUrl: normalizedProfile.avatarUrl,
-    avatarUrl: normalizedProfile.avatarUrl || user.avatarUrl,
-    authProvider: user.authProvider || "linuxdo",
+    ...loginUpdates,
   };
 
   const payload = toExchangePayload(finalizedUser, isNewUser);
