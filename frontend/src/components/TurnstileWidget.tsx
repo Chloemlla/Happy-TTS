@@ -39,6 +39,28 @@ const TURNSTILE_SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api
 const TURNSTILE_SCRIPT_SELECTOR = 'script[data-turnstile-api="true"], script[src^="https://challenges.cloudflare.com/turnstile/v0/api.js"]';
 const TURNSTILE_LOAD_TIMEOUT_MS = 10000;
 
+const isTurnstileDebugEnabled = () => import.meta.env.DEV || import.meta.env.VITE_TURNSTILE_DEBUG === 'true';
+
+const debugTurnstile = (...args: unknown[]) => {
+  if (isTurnstileDebugEnabled()) {
+    console.debug(...args);
+  }
+};
+
+const warnTurnstile = (...args: unknown[]) => {
+  if (isTurnstileDebugEnabled()) {
+    console.warn(...args);
+  }
+};
+
+const maskSiteKey = (value: string) => {
+  if (value.length <= 8) {
+    return 'present';
+  }
+
+  return `${value.slice(0, 4)}...${value.slice(-4)}`;
+};
+
 const installDevelopmentTurnstile = () => {
   window.turnstile = {
     render: (container: string | HTMLElement, options: TurnstileRenderOptions) => {
@@ -73,10 +95,10 @@ const installDevelopmentTurnstile = () => {
       return 'mock-widget-id';
     },
     reset: (widgetId: string) => {
-      console.log('开发环境：重置 Turnstile widget', widgetId);
+      debugTurnstile('开发环境：重置 Turnstile widget', widgetId);
     },
     remove: (widgetId: string) => {
-      console.log('开发环境：移除 Turnstile widget', widgetId);
+      debugTurnstile('开发环境：移除 Turnstile widget', widgetId);
     },
   };
 };
@@ -113,7 +135,7 @@ const loadTurnstileScript = (): Promise<void> => {
   }
 
   if (import.meta.env.DEV) {
-    console.warn('开发环境：使用模拟 Turnstile 控件');
+    warnTurnstile('开发环境：使用模拟 Turnstile 控件');
     installDevelopmentTurnstile();
     scriptLoaded = true;
     return Promise.resolve();
@@ -198,7 +220,12 @@ export const TurnstileWidget: React.FC<TurnstileWidgetProps> = ({
 
   const renderWidget = useCallback(async () => {
     if (!containerRef.current || !window.turnstile || mountedRef.current || verifiedRef.current) {
-      console.log('Turnstile: Skipping render - container:', !!containerRef.current, 'turnstile:', !!window.turnstile, 'mounted:', mountedRef.current, 'verified:', verifiedRef.current);
+      debugTurnstile('Turnstile: Skipping render', {
+        hasContainer: !!containerRef.current,
+        hasTurnstile: !!window.turnstile,
+        mounted: mountedRef.current,
+        verified: verifiedRef.current,
+      });
       return;
     }
 
@@ -210,7 +237,7 @@ export const TurnstileWidget: React.FC<TurnstileWidgetProps> = ({
       }
 
       const cleanSiteKey = siteKey.trim();
-      console.log('Turnstile siteKey:', cleanSiteKey, typeof cleanSiteKey);
+      debugTurnstile('Turnstile siteKey loaded', { siteKey: maskSiteKey(cleanSiteKey) });
       
       if (!cleanSiteKey) {
         console.error('Turnstile: Invalid siteKey provided');
@@ -221,8 +248,8 @@ export const TurnstileWidget: React.FC<TurnstileWidgetProps> = ({
       // 清理容器
       containerRef.current.innerHTML = '';
 
-      console.log('Turnstile render options:', {
-        sitekey: cleanSiteKey,
+      debugTurnstile('Turnstile render options', {
+        sitekey: maskSiteKey(cleanSiteKey),
         theme,
         size,
         callback: typeof onVerify,
@@ -236,17 +263,17 @@ export const TurnstileWidget: React.FC<TurnstileWidgetProps> = ({
         theme,
         size,
         callback: (token: string) => {
-          console.log('Turnstile callback triggered with token:', token);
+          debugTurnstile('Turnstile callback triggered', { tokenLength: token.length });
           verifiedRef.current = true;
           onVerify(token);
         },
         'expired-callback': () => {
-          console.log('Turnstile expired');
+          debugTurnstile('Turnstile expired');
           verifiedRef.current = false;
           onExpire();
         },
         'error-callback': () => {
-          console.log('Turnstile error');
+          debugTurnstile('Turnstile error');
           verifiedRef.current = false;
           onError();
         },
@@ -291,7 +318,7 @@ export const TurnstileWidget: React.FC<TurnstileWidgetProps> = ({
             window.turnstile.reset(widgetIdRef.current);
           }
         } catch (error) {
-          console.warn('Turnstile cleanup error:', error);
+          warnTurnstile('Turnstile cleanup error:', error);
         }
         widgetIdRef.current = null;
       }
@@ -304,7 +331,7 @@ export const TurnstileWidget: React.FC<TurnstileWidgetProps> = ({
   // 当 siteKey 变化时重新渲染（仅在未验证成功时）
   useEffect(() => {
     if (mountedRef.current && window.turnstile && !verifiedRef.current) {
-      console.log('Turnstile: siteKey changed, re-rendering');
+      debugTurnstile('Turnstile: siteKey changed, re-rendering');
       mountedRef.current = false;
       renderWidget();
     }

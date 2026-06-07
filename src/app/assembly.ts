@@ -41,6 +41,7 @@ import { registerSecurityPipeline } from "../security/securityPipeline";
 import { readOpenapiJsonSync, shouldServeSwaggerFromJsonUrl } from "../services/openapiDocumentService";
 import logger from "../utils/logger";
 import { sanitizeLogValue } from "../utils/requestLogSanitizer";
+import cloudflareChallengeRoutes from "../routes/cloudflareChallengeRoutes";
 
 declare global {
   namespace Express {
@@ -415,6 +416,8 @@ export function registerApiRoutes(app: Express): void {
 }
 
 export function registerStaticRoutes(app: Express): void {
+  app.use("/cdn-cgi", cloudflareChallengeRoutes);
+
   let swaggerUiSpec: any = swaggerSpec;
   try {
     const json = readOpenapiJsonSync();

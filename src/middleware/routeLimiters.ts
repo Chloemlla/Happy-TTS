@@ -21,6 +21,7 @@ type LimiterCategory =
   | "public-api"
   | "status"
   | "static"
+  | "cloudflare-challenge"
   | "global";
 
 type RateProfileName =
@@ -643,6 +644,12 @@ const LIMITER_DEFINITIONS = {
     max: 5,
     message: "上报过于频繁，请稍后再试",
   },
+  cloudflareChallenge: {
+    profile: "verification",
+    category: "cloudflare-challenge",
+    max: 120,
+    message: "验证请求过于频繁，请稍后再试",
+  },
   global: {
     profile: "global",
     category: "global",
@@ -712,5 +719,6 @@ export const ipReportLimiter = limiterFromDefinition("ipreport");
 export const serverStatusLimiter = limiterFromDefinition("serverstatus");
 export const staticFileLimiter = limiterFromDefinition("static");
 export const docsTimeoutLimiter = limiterFromDefinition("docstimeout");
+export const cloudflareChallengeLimiter = limiterFromDefinition("cloudflareChallenge");
 export const globalDefaultLimiter = limiterFromDefinition("global");
 export const notFoundLimiter = limiterFromDefinition("notfound");

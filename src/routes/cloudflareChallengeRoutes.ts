@@ -19,7 +19,7 @@ function isValidChallengeId(value: unknown): value is string {
 
 function validateChallengeId(req: Request, _res: Response, next: NextFunction): void {
   if (!isValidChallengeId(req.params.challengeId)) {
-    next();
+    next("route");
     return;
   }
 

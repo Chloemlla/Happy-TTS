@@ -4,8 +4,11 @@ import { getTurnstileKey, invalidateTurnstileKeyCache, TurnstileSettingModel } f
 import { validateConfigKey, validateConfigValue } from "./validators";
 
 export async function isEnabled(): Promise<boolean> {
-  const secretKey = await getTurnstileKey("TURNSTILE_SECRET_KEY");
-  return !!secretKey;
+  const [secretKey, siteKey] = await Promise.all([
+    getTurnstileKey("TURNSTILE_SECRET_KEY"),
+    getTurnstileKey("TURNSTILE_SITE_KEY"),
+  ]);
+  return !!secretKey && !!siteKey;
 }
 
 export async function getConfig(): Promise<{
@@ -18,7 +21,7 @@ export async function getConfig(): Promise<{
     getTurnstileKey("TURNSTILE_SITE_KEY"),
   ]);
 
-  return { enabled: !!secretKey, siteKey, secretKey };
+  return { enabled: !!secretKey && !!siteKey, siteKey, secretKey };
 }
 
 export async function updateConfig(

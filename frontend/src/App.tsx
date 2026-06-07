@@ -101,6 +101,7 @@ const HCaptchaVerificationPage = React.lazy(() => import('./components/HCaptchaV
 
 // 通知测试页面懒加载
 const NotificationTestPage = React.lazy(() => import('./components/NotificationTestPage'));
+const CloudflareChallengePage = React.lazy(() => import('./components/CloudflareChallengePage'));
 
 // 篡改检测演示页面懒加载
 const TamperDetectionDemo = React.lazy(() => import('./components/TamperDetectionDemo'));
@@ -327,6 +328,7 @@ const ANNOUNCEMENT_SUPPRESSED_ROUTES = new Set([
   '/reset-password',
   '/verify-email',
   '/oauth/authorize',
+  '/cdn-cgi',
 ]);
 
 const LOADING_CARD_CLASS =
@@ -525,6 +527,7 @@ const AUTH_FLOW_PATHS = new Set([
   '/reset-password',
   '/verify-email',
   '/oauth/authorize',
+  '/cdn-cgi',
 ]);
 
 const App: React.FC = () => {
@@ -580,6 +583,7 @@ const App: React.FC = () => {
   );
   const adminFallbackPath = user ? '/' : loginRedirectPath;
   const isArtifactSharePath = React.useMemo(() => location.pathname.startsWith('/artifacts/'), [location.pathname]);
+  const isCloudflareChallengePage = React.useMemo(() => location.pathname === '/cdn-cgi', [location.pathname]);
   const isAuthFlowPath = React.useMemo(() => (
     AUTH_FLOW_PATHS.has(location.pathname)
     || location.pathname.startsWith('/auth/')
@@ -591,6 +595,7 @@ const App: React.FC = () => {
     || isArtifactSharePath
   ), [isArtifactSharePath, location.pathname]);
   const shouldBlockForFirstVisitCheck = !isArtifactSharePath
+    && !isCloudflareChallengePage
     && enableFirstVisitVerification
     && Boolean(fingerprint)
     && (isIpBanned || (isFirstVisit && !isVerified));
@@ -659,6 +664,7 @@ const App: React.FC = () => {
       '/modlist': 'Synapse - 模组列表',
       '/smart-human-check': 'Synapse - 智能人机验证',
       '/notification-test': 'Synapse - 通知测试',
+      '/cdn-cgi': 'Synapse - Cloudflare 验证',
       '/hcaptcha-verify': 'Synapse - hCaptcha验证',
       '/artifacts': 'NexAI Artifacts',
       '/image-upload': 'Synapse - 图片上传',
@@ -1421,6 +1427,7 @@ const App: React.FC = () => {
                     <Route path="/modlist" element={renderAnimatedRoute(<ModListPage />)} />
                     <Route path="/smart-human-check" element={renderAnimatedRoute(<SmartHumanCheckTestPage />)} />
                     <Route path="/notification-test" element={renderAnimatedRoute(<NotificationTestPage />)} />
+                    <Route path="/cdn-cgi" element={renderAnimatedRoute(<CloudflareChallengePage />)} />
                     <Route path="/hcaptcha-verify" element={renderAnimatedRoute(<HCaptchaVerificationPage />)} />
                     <Route path="/artifacts/:shortId" element={renderAnimatedRoute(<ArtifactSharePage />)} />
                     <Route path="/image-upload" element={renderAnimatedRoute(<ImageUploadPage />)} />

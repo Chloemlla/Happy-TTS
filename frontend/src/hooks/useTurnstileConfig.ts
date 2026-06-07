@@ -10,6 +10,26 @@ interface UseTurnstileConfigOptions {
   usePublicConfig?: boolean; // 是否使用公共配置接口（无需认证）
 }
 
+const isTurnstileConfigDebugEnabled = () => import.meta.env.DEV || import.meta.env.VITE_TURNSTILE_DEBUG === 'true';
+
+const maskSiteKey = (value: string | null) => {
+  if (!value) {
+    return null;
+  }
+
+  if (value.length <= 8) {
+    return 'present';
+  }
+
+  return `${value.slice(0, 4)}...${value.slice(-4)}`;
+};
+
+const debugTurnstileConfig = (...args: unknown[]) => {
+  if (isTurnstileConfigDebugEnabled()) {
+    console.debug(...args);
+  }
+};
+
 export const useTurnstileConfig = (options: UseTurnstileConfigOptions = {}) => {
   const { usePublicConfig = false } = options;
   const [config, setConfig] = useState<TurnstileConfig>({
@@ -23,7 +43,7 @@ export const useTurnstileConfig = (options: UseTurnstileConfigOptions = {}) => {
     const fetchConfig = async () => {
       try {
         setLoading(true);
-        console.log('正在获取 Turnstile 配置...', usePublicConfig ? '(公共配置)' : '(认证配置)');
+        debugTurnstileConfig('正在获取 Turnstile 配置...', usePublicConfig ? '(公共配置)' : '(认证配置)');
         
         // 根据选项选择不同的API端点
         const endpoint = usePublicConfig ? '/api/turnstile/public-config' : '/api/turnstile/config';
@@ -53,13 +73,20 @@ export const useTurnstileConfig = (options: UseTurnstileConfigOptions = {}) => {
         }
         
         const data = await response.json();
-        console.log('Turnstile 配置获取成功:', data);
+        const rawSiteKey = typeof data?.siteKey === 'string' ? data.siteKey.trim() : '';
+        const enabled = Boolean(data?.enabled && rawSiteKey);
+        debugTurnstileConfig('Turnstile 配置获取成功:', {
+          enabled,
+          siteKey: maskSiteKey(enabled ? rawSiteKey : null),
+        });
         setConfig({
-          enabled: Boolean(data?.enabled),
-          siteKey: typeof data?.siteKey === 'string' ? data.siteKey : null,
+          enabled,
+          siteKey: enabled ? rawSiteKey : null,
         });
       } catch (err) {
-        console.error('获取Turnstile配置失败:', err);
+        if (isTurnstileConfigDebugEnabled()) {
+          console.error('获取Turnstile配置失败:', err);
+        }
         setError('获取验证配置失败');
         // 失败时默认关闭Turnstile
         setConfig({ enabled: false, siteKey: null });
