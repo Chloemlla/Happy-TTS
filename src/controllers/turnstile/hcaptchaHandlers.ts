@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { config } from "../../config/config";
 import { TurnstileService } from "../../services/turnstileService";
 import { firstString } from "../../utils/httpParam";
 import { getClientIp, requireAdmin } from "./_helpers";
@@ -73,6 +74,17 @@ export async function verifyHCaptcha(req: Request, res: Response) {
   try {
     const { token, timestamp, fingerprint } = req.body;
     const validatedClientIp = getClientIp(req);
+
+    if (!config.enableFirstVisitVerification) {
+      return res.json({
+        success: true,
+        message: "验证已跳过",
+        timestamp: new Date().toISOString(),
+        verified: true,
+        accessToken: null,
+        bypassed: true,
+      });
+    }
 
     if (!token || typeof token !== "string") {
       return res.status(400).json({

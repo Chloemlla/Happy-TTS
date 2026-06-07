@@ -1,5 +1,6 @@
 import { getFingerprint } from './fingerprint';
 import { canonicalizeBackendApiUrlObject } from './apiPath';
+import { isFirstVisitVerificationEnabled } from './firstVisitVerificationConfig';
 
 export type IpCaptchaType = 'turnstile' | 'hcaptcha';
 
@@ -147,6 +148,7 @@ function normalizeSessionPayload(payload: Partial<IpVerificationSession>, finger
 
 export function emitIpVerificationRequired(detail: Record<string, unknown> = {}): void {
   if (typeof window === 'undefined') return;
+  if (!isFirstVisitVerificationEnabled()) return;
   window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail }));
 }
 
@@ -170,6 +172,7 @@ function isIpVerificationErrorPayload(payload: unknown): payload is Record<strin
 }
 
 async function maybeHandleBlockedResponse(response: Response, url: URL): Promise<void> {
+  if (!isFirstVisitVerificationEnabled()) return;
   if (response.status !== 403 || isExemptPath(url.pathname)) return;
 
   const payload = await response
@@ -187,6 +190,8 @@ async function maybeHandleBlockedResponse(response: Response, url: URL): Promise
 }
 
 export async function buildIpVerificationHeaders(): Promise<Record<string, string>> {
+  if (!isFirstVisitVerificationEnabled()) return {};
+
   const fingerprint = await getFingerprint();
   const headers: Record<string, string> = {};
 
@@ -203,7 +208,20 @@ export async function buildIpVerificationHeaders(): Promise<Record<string, strin
 }
 
 export async function initializeIpVerificationSession(existingFingerprint?: string): Promise<IpVerificationSession> {
+  if (!isFirstVisitVerificationEnabled()) {
+    return {
+      success: true,
+      verified: true,
+      requiresVerification: false,
+      fingerprint: existingFingerprint || '',
+      ipAddress: 'unknown',
+      issuedBy: 'auto',
+      tokenTtlMinutes: 40,
+    };
+  }
+
   const fingerprint = existingFingerprint || (await getFingerprint()) || '';
+
   const response = await fetch(`${resolveApiBaseUrl()}/api/ip-verification/session`, {
     method: 'POST',
     headers: {
@@ -230,7 +248,20 @@ export async function completeIpVerification(
   captchaToken: string,
   captchaType: IpCaptchaType,
 ): Promise<IpVerificationSession> {
+  if (!isFirstVisitVerificationEnabled()) {
+    return {
+      success: true,
+      verified: true,
+      requiresVerification: false,
+      fingerprint: fingerprintInput || '',
+      ipAddress: 'unknown',
+      issuedBy: 'auto',
+      tokenTtlMinutes: 40,
+    };
+  }
+
   const fingerprint = fingerprintInput || (await getFingerprint()) || '';
+
   const response = await fetch(`${resolveApiBaseUrl()}/api/ip-verification/complete`, {
     method: 'POST',
     headers: {
@@ -273,6 +304,10 @@ export function installIpVerificationTransport(): void {
     }
 
     if (!isBackendRequest(url)) {
+      return originalFetch(request);
+    }
+
+    if (!isFirstVisitVerificationEnabled() || isExemptPath(url.pathname)) {
       return originalFetch(request);
     }
 

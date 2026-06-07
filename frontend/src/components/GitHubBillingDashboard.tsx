@@ -4,6 +4,7 @@ import { FaSync, FaGithub, FaDollarSign, FaCalendarAlt, FaUser, FaTrash } from '
 import { useNotification } from './Notification';
 import { getApiBaseUrl, getAuthToken } from '../api/api';
 import { getFingerprint, getAccessToken } from '../utils/fingerprint';
+import { isFirstVisitVerificationEnabled } from '../utils/firstVisitVerificationConfig';
 
 // 动画配置
 const ENTER_INITIAL = { opacity: 0, y: 20 };
@@ -127,18 +128,20 @@ const GitHubBillingDashboard: React.FC = () => {
       return headers;
     }
 
-    // 尝试获取浏览器指纹和访问令牌，有则携带，无则跳过
-    try {
-      const fingerprint = await getFingerprint();
-      if (fingerprint) {
-        headers['X-Fingerprint'] = fingerprint;
-        const turnstileToken = getAccessToken(fingerprint);
-        if (turnstileToken) {
-          headers['Authorization'] = `Bearer ${turnstileToken}`;
+    if (isFirstVisitVerificationEnabled()) {
+      // 尝试获取浏览器指纹和访问令牌，有则携带，无则跳过
+      try {
+        const fingerprint = await getFingerprint();
+        if (fingerprint) {
+          headers['X-Fingerprint'] = fingerprint;
+          const turnstileToken = getAccessToken(fingerprint);
+          if (turnstileToken) {
+            headers['Authorization'] = `Bearer ${turnstileToken}`;
+          }
         }
+      } catch {
+        // 获取失败不阻塞请求
       }
-    } catch {
-      // 获取失败不阻塞请求
     }
 
     return headers;
@@ -168,7 +171,7 @@ const GitHubBillingDashboard: React.FC = () => {
     headers['Authorization'] = `Bearer ${adminToken}`;
 
     // 尝试获取Turnstile令牌，有则携带
-    if (!isDevelopment()) {
+    if (!isDevelopment() && isFirstVisitVerificationEnabled()) {
       try {
         const fingerprint = await getFingerprint();
         if (fingerprint) {

@@ -6,7 +6,7 @@ This document covers the optional Rust sidecars used by the hybrid backend. Node
 
 Rust services default by environment:
 
-- `NODE_ENV=production`: `network-tools`, `audio-worker`, and `file-worker` are enabled when their `*_ENABLED` variables are unset.
+- `NODE_ENV=production`: `network-tools`, `audio-worker`, `file-worker`, and `security-worker` are enabled when their `*_ENABLED` variables are unset.
 - `NODE_ENV=development` or `NODE_ENV=test`: Rust services stay disabled when their `*_ENABLED` variables are unset.
 - Explicit `RUST_NETWORK_TOOLS_ENABLED=false`, `RUST_AUDIO_WORKER_ENABLED=false`, or `RUST_FILE_WORKER_ENABLED=false` always disables the corresponding path.
 - Docker production images include both Rust binaries. With `RUST_EMBEDDED_SERVICES_ENABLED=true`, the Node main process is the Rust supervisor: it starts the Rust child processes, waits for health checks, restarts them after unexpected exits, and terminates them when Node exits.
@@ -32,6 +32,12 @@ RUST_FILE_WORKER_URL=http://127.0.0.1:4030
 RUST_FILE_WORKER_TIMEOUT_MS=30000
 RUST_FILE_WORKER_MAX_BYTES=52428800
 RUST_FILE_WORKER_FALLBACK_ENABLED=true
+RUST_SECURITY_WORKER_ENABLED=true
+RUST_SECURITY_WORKER_URL=http://127.0.0.1:4050
+RUST_SECURITY_WORKER_TIMEOUT_MS=5000
+RUST_SECURITY_WORKER_MAX_TEXT_BYTES=2097152
+RUST_SECURITY_WORKER_MAX_RULES=2048
+RUST_SECURITY_WORKER_FALLBACK_ENABLED=true
 ```
 
 Generate the token yourself and keep the same value in the Node app and every Rust sidecar. Do not commit it to the repository.
@@ -53,6 +59,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 When disabled explicitly, `/api/network/tcping`, `/api/network/portscan`, `/api/network/ping`, and `/api/network/speed` keep using the existing Node path and external API fallback behavior.
 When audio worker processing is disabled explicitly, TTS writes the provider buffer exactly as before.
 The file worker is an internal-only bytes inspection service. Node still owns upload authorization, quota checks, file accept/reject decisions, storage, and audit logging.
+The security worker is an internal-only pure-compute service. Node still owns WAF, rate limiting, authentication, banning, audit logging, and the final allow/deny decision.
 
 ## Local Sidecar
 
@@ -111,11 +118,13 @@ RUST_EMBEDDED_SERVICES_ENABLED=false \
 RUST_NETWORK_TOOLS_URL=http://network-tools:4010 \
 RUST_AUDIO_WORKER_URL=http://audio-worker:4020 \
 RUST_FILE_WORKER_URL=http://file-worker:4030 \
+RUST_SECURITY_WORKER_URL=http://security-worker:4050 \
 docker compose --profile rust-sidecars up -d --build
 ```
 
 `audio-worker` validates `X-Internal-Token` on `/healthz` and `/v1/audio/process`. It accepts only audio bytes already held by Node as `audioBase64`; it does not fetch URLs, choose filenames, write storage, update history, or send WebSocket events.
 `file-worker` validates `X-Internal-Token` on `/healthz`, `/v1/file/inspect`, `/v1/file/hash`, `/v1/file/image/inspect`, `/v1/file/image/process`, and `/v1/file/archive/inspect`. It accepts only bytes already held by Node as `fileBase64`.
+`security-worker` validates `X-Internal-Token` on `/healthz`, `/v1/security/pow/verify`, `/v1/security/hmac/verify`, `/v1/security/envelope/decrypt`, `/v1/security/risk/score`, and `/v1/security/content/scan`. The Node smart human check path uses it for PoW verification when enabled and falls back to the local verifier when operational failures occur and fallback is enabled.
 
 ## Safety Limits
 
@@ -130,6 +139,9 @@ The Rust sidecar enforces:
 - `audio-worker` default operations are `passthrough` and `analyze`. It also accepts operation-gated magic validation and MP3 ID3 metadata cleanup; encoder/DSP-backed operations return metadata warnings instead of silently transforming bytes.
 - `file-worker` maximum input size: `52428800` bytes by default.
 - `file-worker` detects magic MIME, SHA hashes, common image dimensions, JPEG EXIF cleanup, and ZIP archive risk from bytes. Image compression/WebP conversion return warnings unless an encoder backend is added later.
+- `security-worker` content scan maximum text size: `2097152` bytes by default.
+- `security-worker` content scan maximum rule count: `2048` by default.
+- `security-worker` does not make security policy decisions. It returns pure calculation results such as PoW validity, HMAC validity, risk score, decrypted bytes, and content-rule matches.
 
 For controlled private-network diagnostics, set `RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS=false` on both Node and the sidecar.
 
@@ -143,6 +155,7 @@ Fast rollback:
 RUST_NETWORK_TOOLS_ENABLED=false
 RUST_AUDIO_WORKER_ENABLED=false
 RUST_FILE_WORKER_ENABLED=false
+RUST_SECURITY_WORKER_ENABLED=false
 ```
 
 This does not require removing the sidecar container. Configuration or validation failures such as missing token, invalid token, or blocked private targets do not fall back to the external API.

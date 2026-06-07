@@ -1,4 +1,5 @@
 import axios from "axios";
+import { config } from "../../config/config";
 import { TempFingerprintModel } from "../../models/tempFingerprintModel";
 import logger from "../../utils/logger";
 import { mongoose } from "../mongoService";
@@ -462,6 +463,15 @@ export async function verifyTempFingerprint(
   const traceId = generateUniqueTraceId();
 
   try {
+    if (!config.enableFirstVisitVerification) {
+      logger.info("首次访问验证已禁用，跳过临时指纹验证码校验", {
+        fingerprint: typeof fingerprint === "string" ? `${fingerprint.substring(0, 8)}...` : "unknown",
+        ipAddress: remoteIp || "unknown",
+        traceId,
+      });
+      return { success: true, traceId };
+    }
+
     const validatedFingerprint = validateFingerprint(fingerprint);
     const validatedToken = validateToken(cfToken);
     const validatedIp = validateIpAddress(remoteIp || "");

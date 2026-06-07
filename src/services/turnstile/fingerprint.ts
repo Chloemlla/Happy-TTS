@@ -1,3 +1,4 @@
+import { config } from "../../config/config";
 import { TempFingerprintModel } from "../../models/tempFingerprintModel";
 import logger from "../../utils/logger";
 import { isConnected, mongoose } from "../mongoService";
@@ -9,6 +10,10 @@ export async function reportTempFingerprint(
   ipAddress: string,
 ): Promise<{ isFirstVisit: boolean; verified: boolean }> {
   try {
+    if (!config.enableFirstVisitVerification) {
+      return { isFirstVisit: false, verified: true };
+    }
+
     const validatedFingerprint = validateFingerprint(fingerprint);
     const validatedIp = validateIpAddress(ipAddress);
 
@@ -88,6 +93,10 @@ export async function checkTempFingerprintVerificationStatus(
   ip: string,
 ): Promise<{ isFirstVisit: boolean; verified: boolean }> {
   try {
+    if (!config.enableFirstVisitVerification) {
+      return { isFirstVisit: false, verified: true };
+    }
+
     const validatedFingerprint = validateFingerprint(fingerprint);
     const validatedIp = validateIpAddress(ip);
 
@@ -135,6 +144,10 @@ export async function checkTempFingerprintStatus(
   fingerprint: string,
 ): Promise<{ exists: boolean; verified: boolean }> {
   try {
+    if (!config.enableFirstVisitVerification) {
+      return { exists: true, verified: true };
+    }
+
     const validatedFingerprint = validateFingerprint(fingerprint);
 
     if (!validatedFingerprint) {

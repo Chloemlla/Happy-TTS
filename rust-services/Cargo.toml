@@ -3,5 +3,6 @@ members = [
   "network-tools",
   "audio-worker",
   "file-worker",
+  "security-worker",
 ]
 resolver = "2"

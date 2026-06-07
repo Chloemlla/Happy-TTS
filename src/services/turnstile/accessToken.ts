@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { config } from "../../config/config";
 import { AccessTokenModel } from "../../models/accessTokenModel";
 import logger from "../../utils/logger";
 import { mongoose } from "../mongoService";
@@ -6,6 +7,7 @@ import { isIpBanned } from "./ipBan";
 import { validateFingerprint, validateIpAddress, validateToken } from "./validators";
 
 const FIXED_DEV_TOKEN = "dev-permanent-token-2025";
+const FIRST_VISIT_DISABLED_TOKEN = "first-visit-verification-disabled";
 
 function isDevEnv(): boolean {
   return process.env.NODE_ENV === "development" || process.env.NODE_ENV === "dev";
@@ -17,6 +19,11 @@ function isLocalIp(ip: string): boolean {
 
 export async function generateAccessToken(fingerprint: string, ipAddress: string): Promise<string> {
   try {
+    if (!config.enableFirstVisitVerification) {
+      logger.info("首次访问验证已禁用，跳过访问密钥生成");
+      return FIRST_VISIT_DISABLED_TOKEN;
+    }
+
     const validatedFingerprint = validateFingerprint(fingerprint);
     const validatedIp = validateIpAddress(ipAddress);
 
@@ -116,6 +123,10 @@ export function generateDevToken(
 
 export async function verifyAccessToken(token: string, fingerprint: string, ipAddress: string): Promise<boolean> {
   try {
+    if (!config.enableFirstVisitVerification) {
+      return true;
+    }
+
     const validatedToken = validateToken(token);
     const validatedFingerprint = validateFingerprint(fingerprint);
     const validatedIp = validateIpAddress(ipAddress);
@@ -200,6 +211,10 @@ export async function verifyAccessToken(token: string, fingerprint: string, ipAd
 
 export async function hasValidAccessToken(fingerprint: string, ipAddress: string): Promise<boolean> {
   try {
+    if (!config.enableFirstVisitVerification) {
+      return true;
+    }
+
     const validatedFingerprint = validateFingerprint(fingerprint);
     const validatedIp = validateIpAddress(ipAddress);
 

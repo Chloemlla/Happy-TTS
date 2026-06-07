@@ -20,6 +20,7 @@ import { useFirstVisitDetection } from './hooks/useFirstVisitDetection';
 import { FirstVisitVerification } from './components/FirstVisitVerification';
 import { useFingerprintRequest } from './hooks/useFingerprintRequest';
 import FingerprintRequestModal from './components/FingerprintRequestModal';
+import { setFirstVisitVerificationEnabled } from './utils/firstVisitVerificationConfig';
 
 // 动态导入 clarity 以减少主 bundle 体积，避免与 FirstVisitVerification 的动态导入冲突
 let clarityModule: typeof import('@microsoft/clarity') | null = null;
@@ -705,9 +706,12 @@ const App: React.FC = () => {
         const response = await fetch(`${getApiBaseUrl()}/api/frontend-config`);
         if (response.ok) {
           const data = await response.json();
-          setEnableFirstVisitVerification(data.enableFirstVisitVerification ?? true);
+          const nextEnableFirstVisitVerification = Boolean(data.enableFirstVisitVerification ?? true);
+          setFirstVisitVerificationEnabled(nextEnableFirstVisitVerification);
+          setEnableFirstVisitVerification(nextEnableFirstVisitVerification);
         }
       } catch (error) {
+        setFirstVisitVerificationEnabled(true);
         console.error('获取前端配置失败:', error);
         // 失败时保持默认值（启用）
       } finally {

@@ -42,7 +42,6 @@ import compatRoutes from "./compatRoutes";
 import dataCollectionAdminRoutes from "./dataCollectionAdminRoutes";
 import dataCollectionRoutes from "./dataCollectionRoutes";
 import dataProcessRoutes from "./dataProcessRoutes";
-import debugConsoleRoutes from "./debugConsoleRoutes";
 import deeplxRoutes from "./deeplxRoutes";
 import diagnosticsRoutes from "./diagnosticsRoutes";
 import emailRoutes from "./emailRoutes";
@@ -908,14 +907,6 @@ export const postTamperRouteModules: RouteModule[] = [
         reason: "Human-check bootstrap must be callable before IP verification has established trust.",
       },
     },
-  },
-  {
-    name: "debug-console-routes",
-    path: "/api/debug-console",
-    router: debugConsoleRoutes,
-    requiresAuth: "mixed",
-    rateLimited: false,
-    isPublic: "mixed",
   },
   {
     name: "data-collection-admin-routes",

@@ -192,7 +192,45 @@ EXPOSE 4030
 CMD ["/usr/local/bin/file-worker"]
 
 # ============================================
-# Stage 9: Production Runtime
+# Stage 9: Rust Security Worker Build
+# ============================================
+FROM rust:1.91-alpine3.22 AS rust-security-worker-builder
+
+RUN apk add --no-cache musl-dev
+
+WORKDIR /app/rust-services
+
+COPY rust-services/ ./
+
+RUN cargo build --release --manifest-path Cargo.toml -p security-worker
+
+# ============================================
+# Stage 10: Rust Security Worker Runtime
+# ============================================
+FROM alpine:3.21 AS rust-security-worker-runtime
+
+RUN apk add --no-cache ca-certificates tzdata && \
+    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone && \
+    apk del tzdata
+
+ENV TZ=Asia/Shanghai \
+    RUST_SECURITY_WORKER_BIND_ADDR=0.0.0.0:4050 \
+    RUST_SECURITY_WORKER_MAX_TEXT_BYTES=2097152 \
+    RUST_SECURITY_WORKER_MAX_RULES=2048
+
+COPY --from=rust-security-worker-builder /app/rust-services/target/release/security-worker /usr/local/bin/security-worker
+
+RUN addgroup -S securityworker && adduser -S securityworker -G securityworker
+
+USER securityworker
+
+EXPOSE 4050
+
+CMD ["/usr/local/bin/security-worker"]
+
+# ============================================
+# Stage 11: Production Runtime
 # ============================================
 FROM node:24.3.0-alpine
 
@@ -210,9 +248,11 @@ ENV TZ=Asia/Shanghai \
     RUST_NETWORK_TOOLS_URL="http://127.0.0.1:4010" \
     RUST_AUDIO_WORKER_URL="http://127.0.0.1:4020" \
     RUST_FILE_WORKER_URL="http://127.0.0.1:4030" \
+    RUST_SECURITY_WORKER_URL="http://127.0.0.1:4050" \
     RUST_NETWORK_TOOLS_BIN="/usr/local/bin/network-tools" \
     RUST_AUDIO_WORKER_BIN="/usr/local/bin/audio-worker" \
-    RUST_FILE_WORKER_BIN="/usr/local/bin/file-worker"
+    RUST_FILE_WORKER_BIN="/usr/local/bin/file-worker" \
+    RUST_SECURITY_WORKER_BIN="/usr/local/bin/security-worker"
 
 RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
 
@@ -235,6 +275,7 @@ COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 COPY --from=rust-network-tools-builder /app/rust-services/target/release/network-tools /usr/local/bin/network-tools
 COPY --from=rust-audio-worker-builder /app/rust-services/target/release/audio-worker /usr/local/bin/audio-worker
 COPY --from=rust-file-worker-builder /app/rust-services/target/release/file-worker /usr/local/bin/file-worker
+COPY --from=rust-security-worker-builder /app/rust-services/target/release/security-worker /usr/local/bin/security-worker
 
 # 非 root 用户运行
 RUN addgroup -S nodejs && adduser -S nodejs -G nodejs && \
@@ -242,7 +283,7 @@ RUN addgroup -S nodejs && adduser -S nodejs -G nodejs && \
 
 USER nodejs
 
-EXPOSE 3000 4010 4020 4030
+EXPOSE 3000 4010 4020 4030 4050
 
 # Node 作为主进程，同时按配置拉起同容器内 Rust 子进程。
 CMD ["node", "dist/app.js"]

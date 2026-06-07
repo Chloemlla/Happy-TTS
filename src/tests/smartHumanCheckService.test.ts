@@ -1,4 +1,6 @@
 import crypto from "node:crypto";
+import { config } from "../config/config";
+import { InternalServiceClientError } from "../services/internalServiceClient";
 import { SmartHumanCheckService, type IssueResult, type SmartClientPayload } from "../services/smartHumanCheckService";
 
 const TEST_IP = "127.0.0.1";
@@ -70,6 +72,37 @@ function goodSignals() {
   };
 }
 
+function countLeadingZeroBits(buf: Buffer): number {
+  let count = 0;
+  for (const byte of buf) {
+    if (byte === 0) {
+      count += 8;
+      continue;
+    }
+
+    let mask = 0x80;
+    while (mask > 0) {
+      if ((byte & mask) === 0) {
+        count += 1;
+        mask >>= 1;
+      } else {
+        return count;
+      }
+    }
+  }
+  return count;
+}
+
+function solvePow(seed: string, difficulty: number): string {
+  for (let attempt = 0; attempt < 100_000; attempt += 1) {
+    const candidate = String(attempt);
+    const digest = crypto.createHash("sha256").update(`${seed}:${candidate}`).digest();
+    if (countLeadingZeroBits(digest) >= difficulty) return candidate;
+  }
+
+  throw new Error("failed to solve test PoW");
+}
+
 function payload(nonce: string, overrides: Partial<SmartClientPayload> = {}): SmartClientPayload {
   return {
     v: 2,
@@ -93,6 +126,8 @@ describe("SmartHumanCheckService", () => {
     process.env.SMART_HUMAN_CHECK_ABUSE_WINDOW_MS = "60000";
     process.env.SMART_HUMAN_CHECK_ABUSE_THRESHOLD = "100";
     process.env.SMART_HUMAN_CHECK_BAN_MS = "60000";
+    config.rustServices.securityWorker.enabled = false;
+    config.rustServices.securityWorker.fallbackEnabled = true;
 
     service = new SmartHumanCheckService({
       secret: "test-secret-key-123",
@@ -276,6 +311,104 @@ describe("SmartHumanCheckService", () => {
       expect(result.riskScore).toBeGreaterThanOrEqual(0.7);
       expect(result.riskReasons).toContain("trap_triggered");
       expect(result.timestamp).toBeDefined();
+    });
+
+    it("should verify PoW through the Rust security-worker when enabled", async () => {
+      config.rustServices.securityWorker.enabled = true;
+      const securityWorkerClient = {
+        verifyPow: jest.fn().mockResolvedValue({
+          valid: true,
+          hash: "00abcdef",
+          difficultyBits: 8,
+          source: "rust-security-worker",
+        }),
+      };
+      service = new SmartHumanCheckService({
+        secret: "test-secret-key-123",
+        ttlMs: 5 * 60 * 1000,
+        maxSkewMs: 2 * 60 * 1000,
+        scoreThreshold: 0.62,
+        securityWorkerClient,
+      });
+
+      const nonceResult = await service.issueNonce({ ip: TEST_IP, ua: TEST_UA, difficulty: 8 });
+      expect(nonceResult.success).toBe(true);
+      const token = createV2Token(nonceResult, payload(nonceResult.nonce!), {
+        pow: { nonce: "rust-approved" },
+      });
+
+      const result = await service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA });
+
+      expect(result.success).toBe(true);
+      expect(securityWorkerClient.verifyPow).toHaveBeenCalledWith({
+        challenge: nonceResult.powSalt,
+        nonce: "rust-approved",
+        difficultyBits: 8,
+      });
+    });
+
+    it("should reject PoW when the Rust security-worker returns invalid", async () => {
+      config.rustServices.securityWorker.enabled = true;
+      const securityWorkerClient = {
+        verifyPow: jest.fn().mockResolvedValue({
+          valid: false,
+          hash: "ffffffff",
+          difficultyBits: 8,
+          source: "rust-security-worker",
+        }),
+      };
+      service = new SmartHumanCheckService({
+        secret: "test-secret-key-123",
+        ttlMs: 5 * 60 * 1000,
+        maxSkewMs: 2 * 60 * 1000,
+        scoreThreshold: 0.62,
+        securityWorkerClient,
+      });
+
+      const nonceResult = await service.issueNonce({ ip: TEST_IP, ua: TEST_UA, difficulty: 8 });
+      expect(nonceResult.success).toBe(true);
+      const token = createV2Token(nonceResult, payload(nonceResult.nonce!), {
+        pow: { nonce: "bad-pow" },
+      });
+
+      const result = await service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA });
+
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe("bad_pow:invalid");
+      expect(result.errorCode).toBe("BAD_POW");
+    });
+
+    it("should fall back to local PoW verification when the Rust security-worker times out", async () => {
+      config.rustServices.securityWorker.enabled = true;
+      config.rustServices.securityWorker.fallbackEnabled = true;
+      const securityWorkerClient = {
+        verifyPow: jest.fn().mockRejectedValue(
+          new InternalServiceClientError("rust-security-worker timed out after 5000ms", {
+            code: "timeout",
+            serviceName: "rust-security-worker",
+          }),
+        ),
+      };
+      service = new SmartHumanCheckService({
+        secret: "test-secret-key-123",
+        ttlMs: 5 * 60 * 1000,
+        maxSkewMs: 2 * 60 * 1000,
+        scoreThreshold: 0.62,
+        securityWorkerClient,
+      });
+
+      const difficulty = 8;
+      const nonceResult = await service.issueNonce({ ip: TEST_IP, ua: TEST_UA, difficulty });
+      expect(nonceResult.success).toBe(true);
+      const powNonce = solvePow(nonceResult.powSalt!, difficulty);
+      const token = createV2Token(nonceResult, payload(nonceResult.nonce!), {
+        pow: { nonce: powNonce },
+      });
+
+      const result = await service.verifyToken(token, { ip: TEST_IP, ua: TEST_UA });
+
+      expect(result.success).toBe(true);
+      expect(securityWorkerClient.verifyPow).toHaveBeenCalledTimes(1);
     });
   });
 

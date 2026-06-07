@@ -1,6 +1,9 @@
 import crypto from "node:crypto";
+import { config } from "../config/config";
 import logger from "../utils/logger";
+import { isInternalServiceClientError } from "./internalServiceClient";
 import { getNonceStore, type NonceStore, type NonceRecord } from "./nonceStore";
+import { rustSecurityWorkerClient, type RustSecurityWorkerClient } from "./rustSecurityWorkerClient";
 
 /**
  * SmartHumanCheckService v2 - Cloudflare-grade design
@@ -351,6 +354,20 @@ interface ScoreBreakdown {
   riskReasons: string[];
 }
 
+type SecurityWorkerPowClient = Pick<RustSecurityWorkerClient, "verifyPow">;
+
+function shouldFallbackRustSecurityWorker(error: unknown): boolean {
+  if (!config.rustServices.securityWorker.fallbackEnabled) {
+    return false;
+  }
+
+  if (!isInternalServiceClientError(error)) {
+    return true;
+  }
+
+  return ["network_error", "rate_limited", "timeout", "upstream_error"].includes(error.code);
+}
+
 /**
  * 基于客户端原始信号 (st) 与上下文，由服务端计算行为分与风险评估。
  * 不信任客户端提交的 sc 字段。
@@ -499,6 +516,7 @@ export class SmartHumanCheckService {
   private readonly scoreThreshold: number;
   private readonly defaultAction: string;
   private readonly nonceStore: NonceStore;
+  private readonly securityWorkerClient: SecurityWorkerPowClient;
 
   // 限流 / 滥用 / 通过率统计
   private readonly rlWindowMs: number;
@@ -529,6 +547,7 @@ export class SmartHumanCheckService {
     maxSkewMs?: number;
     scoreThreshold?: number;
     defaultAction?: string;
+    securityWorkerClient?: SecurityWorkerPowClient;
   }) {
     const supplied = opts?.secret ?? process.env.SMART_HUMAN_CHECK_SECRET;
     if (!supplied || supplied.trim().length < 16) {
@@ -548,6 +567,7 @@ export class SmartHumanCheckService {
     this.scoreThreshold =
       opts?.scoreThreshold ?? Number(process.env.SMART_HUMAN_CHECK_SCORE || DEFAULT_SCORE_THRESHOLD);
     this.defaultAction = opts?.defaultAction ?? process.env.SMART_HUMAN_CHECK_DEFAULT_ACTION ?? "default";
+    this.securityWorkerClient = opts?.securityWorkerClient ?? rustSecurityWorkerClient;
 
     this.nonceStore = getNonceStore({
       namespace: "smart-human-check",
@@ -827,7 +847,7 @@ export class SmartHumanCheckService {
           return this.buildVerifyError(ERROR_CODES.BAD_POW, now, "bad_pow:missing");
         }
         const powSalt = this.derivePowSalt(plain.nid);
-        if (!verifyPow(powSalt, pow.nonce, plain.d)) {
+        if (!(await this.verifyProofOfWork(powSalt, pow.nonce, plain.d))) {
           this.recordPattern(ip, "bad_pow", now);
           this.recordAbuse(ip, now);
           return this.buildVerifyError(ERROR_CODES.BAD_POW, now, "bad_pow:invalid");
@@ -960,6 +980,45 @@ export class SmartHumanCheckService {
 
   private derivePowSalt(nid: string): string {
     return crypto.createHmac("sha256", this.powSaltKey).update("pow|" + nid).digest("base64").slice(0, 22);
+  }
+
+  private async verifyProofOfWork(challenge: string, nonce: string, difficulty: number): Promise<boolean> {
+    if (difficulty <= 0) return true;
+    if (typeof nonce !== "string" || nonce.length > 64) return false;
+
+    if (!config.rustServices.securityWorker.enabled) {
+      return verifyPowLocal(challenge, nonce, difficulty);
+    }
+
+    try {
+      const result = await this.securityWorkerClient.verifyPow({
+        challenge,
+        nonce,
+        difficultyBits: difficulty,
+      });
+      logger.debug("[SmartHumanCheck] Rust PoW verification completed", {
+        difficulty,
+        valid: result.valid,
+        source: result.source,
+      });
+      return result.valid;
+    } catch (error) {
+      logger.warn("[SmartHumanCheck] Rust PoW verification failed", {
+        difficulty,
+        source: "rust-security-worker",
+        error: error instanceof Error ? error.message : "未知错误",
+      });
+
+      if (shouldFallbackRustSecurityWorker(error)) {
+        logger.warn("[SmartHumanCheck] Rust PoW verification falling back to local verifier", {
+          difficulty,
+          source: "node-fallback",
+        });
+        return verifyPowLocal(challenge, nonce, difficulty);
+      }
+
+      throw error;
+    }
   }
 
   private buildIssueError(
@@ -1153,7 +1212,7 @@ function isSuspiciousUA(ua?: string): boolean {
   return /headless|phantomjs|electron|puppeteer|playwright|spider|crawler|\bbot\b|curl|wget|httpclient/i.test(ua);
 }
 
-function verifyPow(seed: string, candidate: string, difficulty: number): boolean {
+function verifyPowLocal(seed: string, candidate: string, difficulty: number): boolean {
   if (difficulty <= 0) return true;
   if (typeof candidate !== "string" || candidate.length > 64) return false;
   const t0 = Date.now();

@@ -47,6 +47,9 @@ jobs:
       - name: Run build
         run: pnpm run build
 
+      - name: Run Jest tests
+        run: pnpm run test -- --ci --runInBand
+
       - name: Check Rust formatting
         run: cargo fmt --manifest-path rust-services/Cargo.toml --all --check
 

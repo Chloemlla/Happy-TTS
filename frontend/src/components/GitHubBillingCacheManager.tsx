@@ -4,6 +4,7 @@ import { FaDatabase, FaClock, FaTrash, FaSync, FaUsers, FaChartLine, FaEye, FaHd
 import { getFingerprint, getAccessToken } from '../utils/fingerprint';
 import { useNotification } from '../components/Notification';
 import { getApiBaseUrl, getAuthToken } from '../api/api';
+import { isFirstVisitVerificationEnabled } from '../utils/firstVisitVerificationConfig';
 
 interface CachedCustomer {
     customerId: string;
@@ -45,6 +46,15 @@ const GitHubBillingCacheManager: React.FC = () => {
             throw new Error('缺少管理员访问令牌');
         }
 
+        const headers: Record<string, string> = {
+            'Authorization': `Bearer ${adminToken}`,
+            'Content-Type': 'application/json'
+        };
+
+        if (!isFirstVisitVerificationEnabled()) {
+            return headers;
+        }
+
         const fingerprint = await getFingerprint();
         if (!fingerprint) {
             throw new Error('缺少浏览器指纹');
@@ -55,12 +65,10 @@ const GitHubBillingCacheManager: React.FC = () => {
             throw new Error('缺少 Turnstile 访问令牌');
         }
 
-        return {
-            'Authorization': `Bearer ${adminToken}`,
-            'X-Turnstile-Token': turnstileToken,
-            'X-Fingerprint': fingerprint,
-            'Content-Type': 'application/json'
-        };
+        headers['X-Turnstile-Token'] = turnstileToken;
+        headers['X-Fingerprint'] = fingerprint;
+
+        return headers;
     };
 
     // 加载缓存客户列表

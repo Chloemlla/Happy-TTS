@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { config } from "../../config/config";
 import { TurnstileService } from "../../services/turnstileService";
 import { firstString } from "../../utils/httpParam";
 import { getClientIp } from "./_helpers";
@@ -131,6 +132,10 @@ export async function verifyTempFingerprint(req: Request, res: Response) {
     const validatedClientIp = getClientIp(req);
     const clientUserAgent = userAgent || req.headers["user-agent"] || "unknown";
 
+    if (!config.enableFirstVisitVerification) {
+      return res.json({ success: true, verified: true, accessToken: null, bypassed: true });
+    }
+
     if (!fingerprint || typeof fingerprint !== "string") {
       return res.status(400).json({ success: false, error: "指纹参数无效" });
     }
@@ -180,6 +185,10 @@ export async function verifyAccessToken(req: Request, res: Response) {
     const { token, fingerprint } = req.body;
     const clientIp = getClientIp(req);
 
+    if (!config.enableFirstVisitVerification) {
+      return res.json({ success: true, valid: true, bypassed: true });
+    }
+
     if (!token || typeof token !== "string") {
       return res.status(400).json({ success: false, error: "访问密钥无效" });
     }
@@ -215,6 +224,10 @@ export async function checkAccessToken(req: Request, res: Response) {
   try {
     const fingerprint = firstString(req.params.fingerprint);
     const validatedClientIp = getClientIp(req);
+
+    if (!config.enableFirstVisitVerification) {
+      return res.json({ success: true, hasValidToken: true, bypassed: true });
+    }
 
     if (!fingerprint) {
       return res.status(400).json({ success: false, error: "指纹参数无效" });

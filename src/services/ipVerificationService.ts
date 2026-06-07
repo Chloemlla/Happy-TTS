@@ -541,6 +541,10 @@ export class IpVerificationService {
     fingerprintInput: string,
     ipAddressInput: string,
   ): Promise<boolean> {
+    if (!config.enableFirstVisitVerification || !config.ipqs.enabled) {
+      return true;
+    }
+
     const token = tokenInput?.trim();
     const fingerprint = normalizeFingerprint(fingerprintInput);
     const ipAddress = normalizeIpAddress(ipAddressInput);

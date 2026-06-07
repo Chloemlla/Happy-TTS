@@ -42,7 +42,6 @@ const AUDIT_MODULE_ALIASES: Record<string, IAuditLog["module"]> = {
   cdks: "cdk",
   "data-collection": "security",
   data: "api",
-  "debug-console": "debug",
   "fbi-wanted": "api",
   "frontend-config": "config",
   "github-billing": "api",

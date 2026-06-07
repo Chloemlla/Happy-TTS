@@ -6,11 +6,15 @@ import { config } from "../config/config";
 import logger from "../utils/logger";
 
 interface EmbeddedRustServiceDefinition {
-  name: "network-tools" | "audio-worker" | "file-worker";
+  name: "network-tools" | "audio-worker" | "file-worker" | "security-worker";
   enabled: boolean;
   url: string;
   binPath: string;
-  bindEnvName: "RUST_BIND_ADDR" | "RUST_AUDIO_WORKER_BIND_ADDR" | "RUST_FILE_WORKER_BIND_ADDR";
+  bindEnvName:
+    | "RUST_BIND_ADDR"
+    | "RUST_AUDIO_WORKER_BIND_ADDR"
+    | "RUST_FILE_WORKER_BIND_ADDR"
+    | "RUST_SECURITY_WORKER_BIND_ADDR";
   extraEnv: Record<string, string>;
 }
 
@@ -65,6 +69,17 @@ export async function startEmbeddedRustServices(): Promise<void> {
       bindEnvName: "RUST_FILE_WORKER_BIND_ADDR",
       extraEnv: {
         RUST_FILE_WORKER_MAX_BYTES: String(config.rustServices.fileWorker.maxBytes),
+      },
+    },
+    {
+      name: "security-worker",
+      enabled: config.rustServices.securityWorker.enabled,
+      url: config.rustServices.securityWorker.url,
+      binPath: config.rustServices.embedded.securityWorkerBin,
+      bindEnvName: "RUST_SECURITY_WORKER_BIND_ADDR",
+      extraEnv: {
+        RUST_SECURITY_WORKER_MAX_TEXT_BYTES: String(config.rustServices.securityWorker.maxTextBytes),
+        RUST_SECURITY_WORKER_MAX_RULES: String(config.rustServices.securityWorker.maxRules),
       },
     },
   ];

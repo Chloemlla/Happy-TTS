@@ -406,8 +406,6 @@ export function registerApiRoutes(app: Express): void {
   registerRouteModules(app, preTamperRouteModules);
   registerSecurityPipeline(app, "prePostTamperRoutes");
 
-  app.options("/api/debug-console/*path", corsPreflightHandler);
-  app.use("/api/debug-console/*path", corsHeadersMiddleware);
   registerRouteModules(app, postTamperRouteModules);
   app.use(legacyApiRedirectMiddleware);
 

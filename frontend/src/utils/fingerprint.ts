@@ -1,6 +1,7 @@
 import FingerprintJS from '@fingerprintjs/fingerprintjs';
 import CryptoJS from 'crypto-js';
 import { getApiBaseUrl } from '../api/api';
+import { isFirstVisitVerificationEnabled } from './firstVisitVerificationConfig';
 
 const FP_STORAGE_KEY = 'hapx_fingerprint_v2';
 const FP_VERSION = '2';
@@ -458,6 +459,10 @@ export const reportFingerprintOnce = async (forceReport: boolean = false): Promi
 export const reportTempFingerprint = async (
   existingFingerprint?: string,
 ): Promise<{ isFirstVisit: boolean; verified: boolean }> => {
+  if (!isFirstVisitVerificationEnabled()) {
+    return { isFirstVisit: false, verified: true };
+  }
+
   const fingerprint = existingFingerprint || (await getFingerprint());
   if (!fingerprint) {
     throw new Error('无法生成指纹');
@@ -515,6 +520,10 @@ export const reportTempFingerprint = async (
 
 // 验证临时指纹
 export const verifyTempFingerprint = async (fingerprint: string, cfToken: string, captchaType: 'turnstile' | 'hcaptcha' = 'turnstile'): Promise<{ success: boolean; accessToken?: string }> => {
+  if (!isFirstVisitVerificationEnabled()) {
+    return { success: true };
+  }
+
   try {
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/verify-temp-fingerprint`, {
       method: 'POST',
@@ -604,6 +613,10 @@ export const checkTempFingerprintStatus = async (fingerprint: string): Promise<{
 
 // 验证访问密钥
 export const verifyAccessToken = async (token: string, fingerprint: string): Promise<boolean> => {
+  if (!isFirstVisitVerificationEnabled()) {
+    return true;
+  }
+
   try {
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/verify-access-token`, {
       method: 'POST',
@@ -649,6 +662,10 @@ export const verifyAccessToken = async (token: string, fingerprint: string): Pro
 
 // 检查指纹是否有有效访问密钥
 export const checkAccessToken = async (fingerprint: string): Promise<boolean> => {
+  if (!isFirstVisitVerificationEnabled()) {
+    return true;
+  }
+
   try {
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/check-access-token/${fingerprint}`, {
       method: 'GET',
@@ -676,6 +693,10 @@ export const checkAccessToken = async (fingerprint: string): Promise<boolean> =>
 
 // 存储访问密钥到本地存储
 export const storeAccessToken = (fingerprint: string, token: string): void => {
+  if (!isFirstVisitVerificationEnabled()) {
+    return;
+  }
+
   try {
     const accessTokens = JSON.parse(localStorage.getItem('accessTokens') || '{}');
     accessTokens[fingerprint] = {
@@ -691,6 +712,10 @@ export const storeAccessToken = (fingerprint: string, token: string): void => {
 
 // 从本地存储获取访问密钥
 export const getAccessToken = (fingerprint: string): string | null => {
+  if (!isFirstVisitVerificationEnabled()) {
+    return null;
+  }
+
   try {
     const accessTokens = JSON.parse(localStorage.getItem('accessTokens') || '{}');
     const tokenData = accessTokens[fingerprint];
@@ -716,6 +741,15 @@ export const getAccessToken = (fingerprint: string): string | null => {
 
 // 清理过期的访问密钥
 export const cleanupExpiredAccessTokens = (): void => {
+  if (!isFirstVisitVerificationEnabled()) {
+    try {
+      localStorage.removeItem('accessTokens');
+    } catch {
+      // ignore storage failures
+    }
+    return;
+  }
+
   try {
     const accessTokens = JSON.parse(localStorage.getItem('accessTokens') || '{}');
     const now = Date.now();
