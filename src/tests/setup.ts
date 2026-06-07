@@ -9,47 +9,91 @@ jest.mock("../middleware/ipCheck", () => ({
 }));
 
 // Mock MongoDB - 改进版本
+const createMockQuery = (value: unknown) => ({
+  exec: jest.fn().mockResolvedValue(value),
+  sort: jest.fn().mockReturnThis(),
+  limit: jest.fn().mockReturnThis(),
+  skip: jest.fn().mockReturnThis(),
+  lean: jest.fn().mockReturnThis(),
+  populate: jest.fn().mockReturnThis(),
+  select: jest.fn().mockReturnThis(),
+  session: jest.fn().mockReturnThis(),
+});
+
 const mockModel = {
-  find: jest.fn().mockReturnValue({
-    exec: jest.fn().mockResolvedValue([]),
-    sort: jest.fn().mockReturnThis(),
-    limit: jest.fn().mockReturnThis(),
-    skip: jest.fn().mockReturnThis(),
-  }),
-  findOne: jest.fn().mockReturnValue({
-    exec: jest.fn().mockResolvedValue(null),
-    sort: jest.fn().mockReturnThis(),
-  }),
+  find: jest.fn().mockReturnValue(createMockQuery([])),
+  findById: jest.fn().mockReturnValue(createMockQuery(null)),
+  findOne: jest.fn().mockReturnValue(createMockQuery(null)),
   create: jest.fn().mockResolvedValue({}),
   save: jest.fn().mockResolvedValue({}),
-  deleteOne: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({}) }),
-  deleteMany: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({}) }),
-  updateOne: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({}) }),
-  updateMany: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue({}) }),
-  countDocuments: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(0) }),
-  aggregate: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue([]) }),
+  deleteOne: jest.fn().mockReturnValue(createMockQuery({})),
+  deleteMany: jest.fn().mockReturnValue(createMockQuery({})),
+  updateOne: jest.fn().mockReturnValue(createMockQuery({})),
+  updateMany: jest.fn().mockReturnValue(createMockQuery({})),
+  countDocuments: jest.fn().mockReturnValue(createMockQuery(0)),
+  aggregate: jest.fn().mockReturnValue(createMockQuery([])),
   insertMany: jest.fn().mockResolvedValue([]),
-  findOneAndUpdate: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }),
-  findOneAndDelete: jest.fn().mockReturnValue({ exec: jest.fn().mockResolvedValue(null) }),
+  findOneAndUpdate: jest.fn().mockReturnValue(createMockQuery(null)),
+  findOneAndDelete: jest.fn().mockReturnValue(createMockQuery(null)),
+  exists: jest.fn().mockResolvedValue(null),
 };
 
 const mockSchema = jest.fn().mockImplementation(() => ({
+  index: jest.fn().mockReturnThis(),
+  pre: jest.fn().mockReturnThis(),
+  post: jest.fn().mockReturnThis(),
+  plugin: jest.fn().mockReturnThis(),
+  set: jest.fn().mockReturnThis(),
+  virtual: jest.fn().mockReturnValue({
+    get: jest.fn().mockReturnThis(),
+    set: jest.fn().mockReturnThis(),
+  }),
   model: jest.fn().mockReturnValue(mockModel),
-}));
+  methods: {},
+  statics: {},
+})) as jest.Mock & { Types: Record<string, unknown> };
 
-jest.mock("mongoose", () => ({
+const mockObjectId = Object.assign(
+  jest.fn().mockImplementation((value?: string) => value || "mock-object-id"),
+  { isValid: jest.fn().mockReturnValue(true) },
+);
+
+mockSchema.Types = {
+  Mixed: Object,
+  ObjectId: mockObjectId,
+};
+
+const mockMongoose = {
   Schema: mockSchema,
+  models: {},
   connect: jest.fn().mockResolvedValue({}),
   disconnect: jest.fn().mockResolvedValue({}),
   connection: {
     readyState: 1,
     on: jest.fn(),
     once: jest.fn(),
+    collection: jest.fn().mockReturnValue(mockModel),
+    name: "tts-test",
+    host: "localhost",
+    port: 27017,
   },
   model: jest.fn().mockReturnValue(mockModel),
   Types: {
-    ObjectId: jest.fn().mockReturnValue("mock-object-id"),
+    ObjectId: mockObjectId,
   },
+  isValidObjectId: jest.fn().mockReturnValue(true),
+  startSession: jest.fn().mockResolvedValue({
+    startTransaction: jest.fn(),
+    commitTransaction: jest.fn().mockResolvedValue(undefined),
+    abortTransaction: jest.fn().mockResolvedValue(undefined),
+    endSession: jest.fn().mockResolvedValue(undefined),
+  }),
+};
+
+jest.mock("mongoose", () => ({
+  __esModule: true,
+  default: mockMongoose,
+  ...mockMongoose,
 }));
 
 // Mock 篡改保护中间件
@@ -117,6 +161,7 @@ jest.mock("../middleware/routeLimiters", () => ({
   ipfsLimiter: createDummyLimiter(),
   networkLimiter: createDummyLimiter(),
   dataProcessLimiter: createDummyLimiter(),
+  cloudflareChallengeLimiter: createDummyLimiter(),
   mediaLimiter: createDummyLimiter(),
   socialLimiter: createDummyLimiter(),
   lifeLimiter: createDummyLimiter(),
@@ -152,14 +197,14 @@ jest.mock("../middleware/routeLimiters", () => ({
 
 // Mock MongoDB 服务，避免连接超时
 jest.mock("../services/mongoService", () => ({
+  __esModule: true,
   connectMongo: jest.fn().mockResolvedValue(undefined),
   isConnected: jest.fn().mockReturnValue(true),
-  default: {
-    connect: jest.fn().mockResolvedValue(undefined),
-    connection: {
-      readyState: 1,
-    },
-  },
+  waitForConnection: jest.fn().mockResolvedValue(true),
+  ensureConnection: jest.fn(async (operation: () => Promise<unknown>) => operation()),
+  getConnectionInfo: jest.fn().mockReturnValue({ readyState: 1, stateName: "已连接" }),
+  mongoose: mockMongoose,
+  default: mockMongoose,
 }));
 
 // Mock userService，避免MongoDB连接问题

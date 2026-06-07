@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { v4 as uuidv4 } from "uuid";
 import logger from "./logger";
+import { uuidv4 } from "./uuid";
 
 interface GenerationRecord {
   id: string;

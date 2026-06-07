@@ -1,7 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
-import { ipVerificationMiddleware } from "../middleware/ipVerification";
 
-const verifyRequestToken = jest.fn();
+const mockVerifyRequestToken = jest.fn();
 
 jest.mock("../config/config", () => ({
   config: {
@@ -14,9 +13,11 @@ jest.mock("../config/config", () => ({
 jest.mock("../services/ipVerificationService", () => ({
   __esModule: true,
   default: {
-    verifyRequestToken,
+    verifyRequestToken: mockVerifyRequestToken,
   },
 }));
+
+const { ipVerificationMiddleware } = require("../middleware/ipVerification");
 
 function createResponse() {
   const json = jest.fn();
@@ -64,7 +65,7 @@ describe("ipVerificationMiddleware", () => {
   });
 
   it("allows requests when the verification token is valid", async () => {
-    verifyRequestToken.mockResolvedValue(true);
+    mockVerifyRequestToken.mockResolvedValue(true);
 
     const req = {
       method: "POST",
@@ -82,7 +83,7 @@ describe("ipVerificationMiddleware", () => {
 
     await ipVerificationMiddleware(req, res, next);
 
-    expect(verifyRequestToken).toHaveBeenCalledWith("verification-token", "fingerprint_123456", "198.51.100.20");
+    expect(mockVerifyRequestToken).toHaveBeenCalledWith("verification-token", "fingerprint_123456", "198.51.100.20");
     expect(next).toHaveBeenCalled();
   });
 });

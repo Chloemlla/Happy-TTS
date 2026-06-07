@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
-import { v4 as uuidv4 } from "uuid";
 import { config } from "../config/config";
+import { uuidv4 } from "../utils/uuid";
 
 export interface EcoEnchantsOpsActivationTokenPayload {
   productId: string;

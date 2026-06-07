@@ -1,125 +1,14 @@
 import { describe, expect, it } from "@jest/globals";
-import { JSDOM } from "jsdom";
 import { sanitizeSvgContent, validateSvgContent } from "../utils/svgSecurity";
 
 // 模拟IPFS服务的安全清理函数
 class MockIPFSService {
   static sanitizeSVGContent(content: string): string {
-    try {
-      const dom = new JSDOM(content, { contentType: "image/svg+xml" });
-      const doc = dom.window.document;
-      const root = doc.documentElement;
-      if (!root || root.tagName.toLowerCase() !== "svg") return "";
-
-      // 移除注释
-      const commentWalker = doc.createTreeWalker(doc, dom.window.NodeFilter.SHOW_COMMENT);
-      const comments: Comment[] = [] as unknown as Comment[];
-      while (commentWalker.nextNode()) comments.push(commentWalker.currentNode as Comment);
-      comments.forEach((n) => n.parentNode?.removeChild(n));
-
-      // 移除 CDATA 节点
-      const removeCData = (node: Node) => {
-        const children = Array.from((node as Element).childNodes);
-        for (const child of children) {
-          if (child.nodeType === dom.window.Node.CDATA_SECTION_NODE) {
-            child.parentNode?.removeChild(child);
-          } else if (child.nodeType === dom.window.Node.ELEMENT_NODE) {
-            removeCData(child);
-          }
-        }
-      };
-      removeCData(root);
-
-      // 危险标签
-      const dangerousTags = ["script", "iframe", "object", "embed", "link", "meta", "style", "foreignObject"];
-      for (const tag of dangerousTags) {
-        doc.querySelectorAll(tag).forEach((el) => el.parentNode?.removeChild(el));
-      }
-
-      // 遍历元素，移除 on* 事件、危险协议与外部引用
-      const elements = root.querySelectorAll("*");
-      elements.forEach((el) => {
-        // 移除事件处理器
-        Array.from(el.attributes)
-          .filter((a) => /^on/i.test(a.name))
-          .forEach((a) => el.removeAttribute(a.name));
-
-        Array.from(el.attributes).forEach((a) => {
-          const name = a.name.toLowerCase();
-          const value = a.value.trim();
-
-          // 危险协议
-          const proto = value.match(/^\s*([a-zA-Z][a-zA-Z0-9+.-]*)\s*:\s*/);
-          if (proto) {
-            el.removeAttribute(a.name);
-            return;
-          }
-
-          // 外部引用，仅允许片段标识符
-          if (name === "href" || name === "xlink:href" || name === "src") {
-            if (!value.startsWith("#")) {
-              el.removeAttribute(a.name);
-              return;
-            }
-          }
-
-          // 样式中的外部 url 或协议
-          if (name === "style") {
-            const v = value.toLowerCase();
-            if (
-              /url\s*\(\s*(?:["'])?https?:\/\//.test(v) ||
-              /javascript\s*:/.test(v) ||
-              /vbscript\s*:/.test(v) ||
-              /data\s*:/.test(v)
-            ) {
-              el.removeAttribute("style");
-            }
-          }
-        });
-      });
-
-      return root.outerHTML;
-    } catch {
-      return "";
-    }
+    return sanitizeSvgContent(content);
   }
 
   static validateSVGContent(content: string): boolean {
-    // 文件大小
-    if (content.length > 1024 * 1024) return false;
-    try {
-      const dom = new JSDOM(content, { contentType: "image/svg+xml" });
-      const doc = dom.window.document;
-      const root = doc.documentElement;
-      if (!root || root.tagName.toLowerCase() !== "svg") return false;
-
-      // 禁止的标签
-      const forbidden = ["script", "iframe", "object", "embed", "link", "meta", "style", "foreignObject"];
-      if (forbidden.some((t) => root.querySelector(t))) return false;
-
-      // 事件处理器与危险/外部引用
-      const elements = root.querySelectorAll("*");
-      for (const el of Array.from(elements)) {
-        for (const a of Array.from((el as Element).attributes)) {
-          const name = a.name.toLowerCase();
-          const value = a.value;
-          if (/^on/i.test(name)) return false;
-          if (name === "href" || name === "xlink:href" || name === "src") {
-            if (!value.startsWith("#")) return false;
-          }
-          if (/^\s*([a-zA-Z][a-zA-Z0-9+.-]*)\s*:\s*/.test(value)) return false;
-          if (name === "style") {
-            const v = value.toLowerCase();
-            if (/url\s*\(/.test(v)) return false;
-            if (/javascript\s*:|vbscript\s*:|data\s*:/.test(v)) return false;
-          }
-        }
-      }
-
-      return true;
-    } catch {
-      return false;
-    }
+    return validateSvgContent(content).valid;
   }
 }
 

@@ -1,5 +1,4 @@
 import axios from "axios";
-import IpVerificationService from "../services/ipVerificationService";
 
 jest.mock("axios");
 
@@ -24,7 +23,7 @@ const findOneExec = jest.fn();
 const findQuotaExec = jest.fn();
 const deleteManyExec = jest.fn();
 const createToken = jest.fn();
-const createLookupLog = jest.fn();
+const mockCreateLookupLog = jest.fn();
 const quotaLean = jest.fn();
 const verifyTokenDetailed = jest.fn();
 
@@ -70,7 +69,7 @@ jest.mock("../models/ipqsQuotaModel", () => ({
 
 jest.mock("../models/ipqsLookupLogModel", () => ({
   IpqsLookupLogModel: {
-    create: createLookupLog,
+    create: mockCreateLookupLog,
   },
 }));
 
@@ -80,6 +79,8 @@ jest.mock("../services/turnstileService", () => ({
   },
 }));
 
+const IpVerificationService = require("../services/ipVerificationService").default;
+
 describe("IpVerificationService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -88,7 +89,7 @@ describe("IpVerificationService", () => {
     findQuotaExec.mockResolvedValue([]);
     deleteManyExec.mockResolvedValue({ deletedCount: 0 });
     createToken.mockResolvedValue({});
-    createLookupLog.mockResolvedValue({});
+    mockCreateLookupLog.mockResolvedValue({});
     quotaLean.mockResolvedValue({ usageCount: 1 });
     verifyTokenDetailed.mockResolvedValue({ success: true });
   });

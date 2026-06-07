@@ -9,6 +9,7 @@ const ESCAPED_CONTENT_RE = /&#x?[0-9a-f]+;|\\x[0-9a-f]{2}|\\u[0-9a-f]{4}|\\u\{[0
 const UNSAFE_PROTOCOL_RE = /^[a-zA-Z][a-zA-Z0-9+.-]*\s*:/i;
 const UNSAFE_URL_RE = /url\(\s*["']?\s*(?!#)/i;
 const UNSAFE_STYLE_RE = /url\(\s*["']?\s*(?!#)|javascript\s*:|vbscript\s*:|data\s*:/i;
+const SVG_ROOT_RE = /<svg(?:\s[^>]*)?(?:\/>|[\s\S]*<\/svg>)/i;
 
 type SvgRoot = ReturnType<ReturnType<CheerioAPI["root"]>["children"]>;
 
@@ -129,7 +130,7 @@ export function sanitizeSvgContent(content: string): string {
 }
 
 export function validateSvgContent(content: string): { valid: true } | { valid: false; reason: string } {
-  if (!content.includes("<svg") || !content.includes("</svg>")) {
+  if (!SVG_ROOT_RE.test(content)) {
     return { valid: false, reason: "SVG is missing required svg root tags" };
   }
 

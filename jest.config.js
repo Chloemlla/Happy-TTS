@@ -17,6 +17,9 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@frontend/(.*)$': '<rootDir>/frontend/src/$1',
   },
+  testPathIgnorePatterns: [
+    '[\\\\/]frontend[\\\\/]src[\\\\/].*\\.(test|spec)\\.(ts|tsx|js|jsx)$',
+  ],
   transform: {
     '^.+\\.(ts|tsx)$': ['ts-jest', {
       tsconfig: 'tsconfig.jest.json',

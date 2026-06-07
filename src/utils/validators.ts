@@ -17,26 +17,16 @@ export function sanitizeInput(str: string | undefined | null, maxLength: number 
   // 1. 限制长度
   let cleaned = str.substring(0, maxLength);
 
-  // 2. 移除HTML标签（迭代清理防止嵌套绕过）
+  // 2. 移除潜在的脚本注入（迭代替换直到完全清理）
   const maxIterations = 10;
   let previousCleaned = "";
 
   for (let i = 0; i < maxIterations && cleaned !== previousCleaned; i++) {
     previousCleaned = cleaned;
-    cleaned = cleaned.replace(/<[^>]*>/g, "");
+    cleaned = cleaned.replace(/javascript:|vbscript:|data:|on\w+\s*=|script/gi, "");
   }
 
-  // 3. 移除潜在的脚本注入（合并模式，迭代替换直到完全清理）
-  // 单个正则表达式包含所有危险模式，避免不完整的多字符清理漏洞
-  previousCleaned = "";
-
-  for (let i = 0; i < maxIterations && cleaned !== previousCleaned; i++) {
-    previousCleaned = cleaned;
-    // 每次都创建新的正则实例，避免全局标志的 lastIndex 状态问题
-    cleaned = cleaned.replace(/javascript:|vbscript:|data:|on\w+\s*=/gi, "");
-  }
-
-  // 4. 转义特殊字符
+  // 3. 转义特殊字符
   cleaned = cleaned
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -45,10 +35,10 @@ export function sanitizeInput(str: string | undefined | null, maxLength: number 
     .replace(/'/g, "&#x27;")
     .replace(/\//g, "&#x2F;");
 
-  // 5. 移除控制字符
+  // 4. 移除控制字符
   cleaned = cleaned.replace(/[\x00-\x1F\x7F]/g, "");
 
-  // 6. trim空白字符
+  // 5. trim空白字符
   return cleaned.trim();
 }
 

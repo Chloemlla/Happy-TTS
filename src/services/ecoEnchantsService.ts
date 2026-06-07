@@ -1,6 +1,5 @@
 import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
-import { v4 as uuidv4 } from "uuid";
 import { config } from "../config/config";
 import {
   EcoEnchantsActivationModel,
@@ -22,6 +21,7 @@ import {
 } from "../models/ecoEnchantsModel";
 import { createEcoEnchantsOpsActivationSession } from "./ecoEnchantsOpsTokens";
 import logger from "../utils/logger";
+import { uuidv4 } from "../utils/uuid";
 
 export const ECO_ENCHANTS_PRODUCT_ID = "ecoenchants";
 

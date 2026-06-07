@@ -16,12 +16,12 @@ import {
 import axios from "axios";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
-import { v4 as uuidv4 } from "uuid";
 import validator from "validator";
 import { config } from "../config/config";
 import { type INexaiUser, NexaiUserModel } from "../models/nexaiUserModel";
 import logger from "../utils/logger";
 import { getNexaiWebAuthnConfig } from "../utils/nexaiWebAuthn";
+import { uuidv4 } from "../utils/uuid";
 import { SINGLE_PASSKEY_ERROR_MESSAGE } from "./passkeyService";
 
 // ========== 配置 ==========

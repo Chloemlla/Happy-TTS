@@ -1,9 +1,4 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
-import {
-  backfillLegacyLinuxDoIdentityForUser,
-  buildProviderUserUpdates,
-  upsertIdentityForUser,
-} from "../services/accountIdentityService";
 import type { User } from "../utils/userStorage";
 
 const mockFindOne = jest.fn();
@@ -37,6 +32,12 @@ jest.mock("../services/auditLogService", () => ({
     log: jest.fn(),
   },
 }));
+
+const {
+  backfillLegacyLinuxDoIdentityForUser,
+  buildProviderUserUpdates,
+  upsertIdentityForUser,
+} = require("../services/accountIdentityService");
 
 function queryResult<T>(value: T) {
   return {

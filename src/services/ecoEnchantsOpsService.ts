@@ -2,7 +2,6 @@ import crypto from "node:crypto";
 import type { IncomingMessage } from "node:http";
 import type { Socket } from "node:net";
 import { URL } from "node:url";
-import { v4 as uuidv4 } from "uuid";
 import { WebSocket, WebSocketServer } from "ws";
 import { config } from "../config/config";
 import {
@@ -27,6 +26,7 @@ import {
   verifyEcoEnchantsRpcSessionToken,
 } from "./ecoEnchantsOpsTokens";
 import logger from "../utils/logger";
+import { uuidv4 } from "../utils/uuid";
 
 type RpcConnection = {
   ws: WebSocket;

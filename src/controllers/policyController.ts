@@ -1,5 +1,4 @@
 import type { Request, Response } from "express";
-import { v4 as uuidv4 } from "uuid";
 import { PolicyConsent } from "../models/policyConsentModel";
 import {
   CONSENT_VALIDITY_DAYS,
@@ -8,6 +7,7 @@ import {
 } from "../services/policyConsentService";
 import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
+import { uuidv4 } from "../utils/uuid";
 
 // 当前政策版本
 
