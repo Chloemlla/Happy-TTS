@@ -47,13 +47,13 @@ pub fn verify_hmac(
     let signature = decode_hex(signature_hex)?;
     match normalize_hmac_algorithm(algorithm)?.as_str() {
         "sha256" => {
-            let mut mac = HmacSha256::new_from_slice(&key)
+            let mut mac = <HmacSha256 as Mac>::new_from_slice(&key)
                 .map_err(|_| AppError::BadRequest("HMAC key is invalid".to_string()))?;
             mac.update(&message);
             Ok(mac.verify_slice(&signature).is_ok())
         }
         "sha512" => {
-            let mut mac = HmacSha512::new_from_slice(&key)
+            let mut mac = <HmacSha512 as Mac>::new_from_slice(&key)
                 .map_err(|_| AppError::BadRequest("HMAC key is invalid".to_string()))?;
             mac.update(&message);
             Ok(mac.verify_slice(&signature).is_ok())
