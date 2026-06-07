@@ -134,19 +134,161 @@ Identity scopes：
 
 API scopes：
 
-| Scope | 可调用能力 |
-| --- | --- |
-| `tts` | TTS 生成和任务查询。 |
-| `status` | 认证状态检查。 |
-| `shorturl` | 短链管理。 |
-| `media` | 媒体解析接口。 |
-| `network` | Ping、TCPing、测速、端口扫描、IP 查询等网络工具。 |
-| `life` | 生活信息接口。 |
-| `social` | 社交热榜接口。 |
-| `ipfs` | IPFS 上传。 |
-| `data-process` | Base64、MD5 等数据处理接口。 |
+| Scope | 可调用能力 | 典型接口 |
+| --- | --- | --- |
+| `tts` | TTS 生成和任务查询。 | `/api/tts/generate`、`/api/tts/jobs/*`、`/api/tts/history` |
+| `status` | 认证状态检查。 | `/api/status/status` |
+| `shorturl` | 短链管理。 | `/api/shorturl/shorturls`、`/api/shorturl/shorturls/*` |
+| `media` | 媒体解析接口。 | `/api/media/music163`、`/api/media/pipixia` |
+| `network` | Ping、TCPing、测速、端口扫描、IP 查询等网络工具。 | `/api/network/*` |
+| `life` | 生活信息接口。 | `/api/life/*` |
+| `social` | 社交热榜接口。 | `/api/social/*` |
+| `ipfs` | IPFS 上传。 | `/api/ipfs/upload` |
+| `data-process` | Base64、MD5 等数据处理接口。 | `/api/data/*` |
 
 `*` 不属于 OAuth scope，不能被第三方申请。
+
+### 4.1 API scopes 教程能力
+
+Synapse 将 API Key 权限映射为 OAuth API scopes。也就是说，原本接入了 `apiKeyAuth("tts")`、`apiKeyAuth("network")` 等认证中间件的接口，现在可以用同名 OAuth scope 授权后通过 Bearer token 调用。
+
+后端判断规则：
+
+- 客户端创建或更新时，`allowedScopes` 决定该 OAuth 客户端最多能申请哪些 identity scopes 和 API scopes。
+- 授权请求中的 `scope` 必须是 `allowedScopes` 的子集，否则返回 `invalid_scope`。
+- Access token 只携带用户实际同意的 scopes。调用 API 时，目标接口会校验 token 是否包含对应 API scope。
+- API scope 不会授予后台管理权限；`*` 只存在于 API Key 管理模型中，不会出现在 OAuth scopes 中。
+
+前端可以读取 scope 清单，用于渲染“申请哪些能力”的勾选项：
+
+```bash
+curl "https://synapse.example.com/api/oauth/scopes"
+```
+
+响应中的每个 scope 都包含 `key`、`label`、`description`、`category`、`endpoints`，identity scope 还会带 `identityScope: true`。`endpoints` 适合用于权限说明展示；实际调用地址仍以对应接口文档和当前部署路由为准。第三方前端可以按 `identityScope` 分组展示身份权限和 API 能力：
+
+```ts
+type SynapseScope = {
+  key: string;
+  label: string;
+  description: string;
+  endpoints: string[];
+  identityScope?: boolean;
+};
+
+async function loadSynapseScopes(baseUrl: string) {
+  const response = await fetch(`${baseUrl}/api/oauth/scopes`);
+  const data = await response.json();
+  const scopes = data.scopes as SynapseScope[];
+
+  return {
+    identityScopes: scopes.filter((scope) => scope.identityScope),
+    apiScopes: scopes.filter((scope) => !scope.identityScope),
+  };
+}
+```
+
+第三方应用应按功能最小化申请 API scopes：
+
+| 第三方功能 | 建议申请 |
+| --- | --- |
+| 只登录并确认管理员身份 | `openid profile admin:identity` |
+| 登录后展示邮箱 | `openid profile email admin:identity` |
+| 代授权用户生成语音 | `openid profile admin:identity tts` |
+| 展示系统认证状态 | `openid profile admin:identity status` |
+| 上传文件到 IPFS | `openid profile admin:identity ipfs` |
+| 调用网络工具 | `openid profile admin:identity network` |
+
+前端发起授权时，把所需 API scopes 拼进授权 URL 的 `scope` 参数：
+
+```ts
+function buildSynapseAuthorizeUrl() {
+  const scopes = [
+    "openid",
+    "profile",
+    "admin:identity",
+    "tts",
+    "status",
+  ];
+
+  const params = new URLSearchParams({
+    response_type: "code",
+    client_id: "syn_client_xxx",
+    redirect_uri: "https://partner.example.com/oauth/synapse/callback",
+    scope: scopes.join(" "),
+    state: crypto.randomUUID(),
+  });
+
+  return `https://synapse.example.com/oauth/authorize?${params.toString()}`;
+}
+```
+
+后端换取 token 后，应保存并校验响应里的 `scope` 字段。只有确认 token 包含目标 API scope 后，才向业务层开放对应按钮或能力：
+
+```ts
+type SynapseTokenSet = {
+  access_token: string;
+  refresh_token?: string;
+  expires_in: number;
+  scope: string;
+};
+
+function parseGrantedScopes(tokenSet: SynapseTokenSet) {
+  return new Set(tokenSet.scope.split(/\s+/).filter(Boolean));
+}
+
+function assertGrantedScope(grantedScopes: Set<string>, requiredScope: string) {
+  if (!grantedScopes.has(requiredScope)) {
+    throw new Error(`Synapse OAuth token 缺少 ${requiredScope} scope，请重新授权`);
+  }
+}
+```
+
+服务端调用 Synapse API 时，只需要发送 OAuth Bearer token，不要同时发送 `X-API-Key`：
+
+```ts
+async function callSynapseTts(accessToken: string, text: string) {
+  const response = await fetch("https://synapse.example.com/api/tts/generate", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      text,
+      model: "gpt-4o-mini-tts",
+      voice: "alloy",
+      outputFormat: "mp3",
+      speed: 1,
+    }),
+  });
+
+  if (response.status === 401) {
+    throw new Error("Synapse OAuth token 已失效，请 refresh 或重新授权");
+  }
+
+  if (response.status === 403) {
+    const wwwAuthenticate = response.headers.get("WWW-Authenticate");
+    if (wwwAuthenticate?.includes("insufficient_scope")) {
+      throw new Error("Synapse OAuth token 缺少 tts scope，请重新授权");
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(`Synapse API 调用失败: ${response.status}`);
+  }
+
+  return response.json();
+}
+```
+
+前端展示能力时推荐使用后端保存的授权结果，而不是仅依赖本地勾选状态。常见流程是：
+
+1. 前端让用户选择需要的 API scopes，并跳转到 Synapse 授权页。
+2. 后端在 callback 中换 token，保存 `access_token`、`refresh_token`、`expires_at` 和 `scope`。
+3. 后端向自家前端返回已授权 scope 列表，例如 `["openid", "profile", "admin:identity", "tts"]`。
+4. 前端只展示已授权 scope 对应的功能入口；调用自家后端业务接口时，由自家后端再携带 Synapse access token 访问 Synapse API。
+5. 收到 `insufficient_scope` 时，引导用户重新授权并追加缺失的 API scope。
 
 ## 5. 授权请求
 
@@ -466,6 +608,69 @@ curl -X POST "https://synapse.example.com/api/ipfs/upload" \
 ```
 
 OAuth token 调用这些接口时，Synapse 会按客户端配置的 `rateLimitPerMinute` 做 token 级限流。
+
+### 11.1 后端代理调用模式
+
+推荐第三方后端作为 Synapse API 的唯一调用方，尤其是 confidential 客户端。这样可以避免把 refresh token、client secret 或长期有效的 access token 暴露给浏览器。
+
+```ts
+const SYNAPSE_BASE_URL = "https://synapse.example.com";
+
+async function synapseFetch(
+  path: string,
+  accessToken: string,
+  init: RequestInit = {},
+) {
+  const headers = new Headers(init.headers);
+  headers.set("Authorization", `Bearer ${accessToken}`);
+
+  const response = await fetch(`${SYNAPSE_BASE_URL}${path}`, {
+    ...init,
+    headers,
+  });
+
+  if (response.status === 401) {
+    // access token 过期、被吊销、用户降级或客户端停用时会进入这里。
+    // 后端应尝试 refresh；refresh 失败则清理本地授权并要求重新授权。
+    throw new Error("synapse_oauth_invalid_token");
+  }
+
+  if (response.status === 403) {
+    const authHeader = response.headers.get("WWW-Authenticate") || "";
+    if (authHeader.includes("insufficient_scope")) {
+      throw new Error("synapse_oauth_insufficient_scope");
+    }
+  }
+
+  return response;
+}
+```
+
+后端实现业务接口时，应把“本业务需要哪个 API scope”写成明确约束：
+
+```ts
+async function generateSpeechForCurrentUser(userId: string, text: string) {
+  const tokenSet = await loadSynapseTokenSet(userId);
+  const grantedScopes = parseGrantedScopes(tokenSet);
+  assertGrantedScope(grantedScopes, "tts");
+
+  const response = await synapseFetch("/api/tts/generate", tokenSet.access_token, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text,
+      model: "gpt-4o-mini-tts",
+      voice: "alloy",
+      outputFormat: "mp3",
+      speed: 1,
+    }),
+  });
+
+  return response.json();
+}
+```
+
+如果第三方前端直接调用 Synapse API，只适合 public 客户端加 PKCE 的短会话场景。此时 access token 应只保存在内存中，页面刷新后重新授权或让后端签发自家会话；不要放进 localStorage。
 
 ## 12. 错误码
 
