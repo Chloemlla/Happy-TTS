@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: ["javascript", "typescript", "python"]
+        language: ["javascript", "typescript", "python", "rust"]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -32,7 +32,12 @@ jobs:
         with:
           languages: ${{ matrix.language }}
       - name: Autobuild
+        if: matrix.language != 'rust'
         uses: github/codeql-action/autobuild@v3
+      - name: Build Rust workspace
+        if: matrix.language == 'rust'
+        run: cargo build --workspace --locked
+        working-directory: rust-services
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:

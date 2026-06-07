@@ -31,3 +31,17 @@ updates:
     commit-message:
       prefix: "npm"
       include: "scope"
+
+  # Rust 依赖更新
+  - package-ecosystem: "cargo"
+    directory: "/rust-services"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 100
+    labels:
+      - "dependencies"
+      - "rust"
+      - "cargo"
+    commit-message:
+      prefix: "cargo"
+      include: "scope"
