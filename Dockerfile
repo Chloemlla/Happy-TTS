@@ -89,9 +89,7 @@ RUN apk add --no-cache musl-dev
 
 WORKDIR /app/rust-services
 
-COPY rust-services/Cargo.toml ./Cargo.toml
-COPY rust-services/network-tools/Cargo.toml ./network-tools/Cargo.toml
-COPY rust-services/network-tools/src ./network-tools/src
+COPY rust-services/ ./
 
 RUN cargo build --release --manifest-path Cargo.toml -p network-tools
 
@@ -120,7 +118,44 @@ EXPOSE 4010
 CMD ["/usr/local/bin/network-tools"]
 
 # ============================================
-# Stage 5: Production Runtime
+# Stage 5: Rust Audio Worker Build
+# ============================================
+FROM rust:1.85-alpine AS rust-audio-worker-builder
+
+RUN apk add --no-cache musl-dev
+
+WORKDIR /app/rust-services
+
+COPY rust-services/ ./
+
+RUN cargo build --release --manifest-path Cargo.toml -p audio-worker
+
+# ============================================
+# Stage 6: Rust Audio Worker Runtime
+# ============================================
+FROM alpine:3.21 AS rust-audio-worker-runtime
+
+RUN apk add --no-cache ca-certificates tzdata && \
+    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone && \
+    apk del tzdata
+
+ENV TZ=Asia/Shanghai \
+    RUST_AUDIO_WORKER_BIND_ADDR=0.0.0.0:4020 \
+    RUST_AUDIO_WORKER_MAX_BYTES=20971520
+
+COPY --from=rust-audio-worker-builder /app/rust-services/target/release/audio-worker /usr/local/bin/audio-worker
+
+RUN addgroup -S audioworker && adduser -S audioworker -G audioworker
+
+USER audioworker
+
+EXPOSE 4020
+
+CMD ["/usr/local/bin/audio-worker"]
+
+# ============================================
+# Stage 7: Production Runtime
 # ============================================
 FROM node:24.3.0-alpine
 

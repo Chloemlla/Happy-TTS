@@ -4,10 +4,11 @@ import path from "node:path";
 import dotenv from "dotenv";
 import { config } from "../config/config";
 import logger from "../utils/logger";
+import { ttsAudioPostProcessor } from "./tts.audioPostProcessor";
 import { ttsAssetAccessService } from "./tts.assetAccess";
 import { ttsAudioAssetStore } from "./tts.asset";
 import { TtsGenerationError } from "./tts.errors";
-import type { TtsProviderRequest } from "./tts.ports";
+import type { TtsAudioPostProcessor, TtsProviderRequest } from "./tts.ports";
 import { ttsProviderRouter, TtsProviderRouter } from "./tts.provider-router";
 
 dotenv.config();
@@ -47,7 +48,10 @@ export class TtsService {
   private readonly violationThreshold = 3;
   private readonly violationWindow = 24 * 60 * 60 * 1000;
 
-  constructor(private readonly providerRouter: TtsProviderRouter = ttsProviderRouter) {
+  constructor(
+    private readonly providerRouter: TtsProviderRouter = ttsProviderRouter,
+    private readonly audioPostProcessor: TtsAudioPostProcessor = ttsAudioPostProcessor,
+  ) {
     this.outputDir = config.audioDir;
     this.baseUrl = config.baseUrl;
     this.userViolations = new Map();
@@ -321,6 +325,12 @@ export class TtsService {
 
       this.assertCircuitAllowsRequest();
       const response = await this.requestSpeechWithRetry(request, safeOutputFormat);
+      const processedAudio = await this.audioPostProcessor.process({
+        audioBuffer: response.audioBuffer,
+        outputFormat: safeOutputFormat,
+        taskId: request.taskId,
+        contentHash,
+      });
 
       const fileName = `${contentHash}.${safeOutputFormat}`;
       const safeFileName = this.validateFileName(fileName);
@@ -333,12 +343,12 @@ export class TtsService {
         fingerprint: request.fingerprint,
       });
 
-      await fs.promises.writeFile(filePath, response.audioBuffer);
+      await fs.promises.writeFile(filePath, processedAudio.audioBuffer);
       await ttsAudioAssetStore.persistAudioAsset({
         contentHash,
         fileName: safeFileName,
         outputFormat: safeOutputFormat,
-        buffer: response.audioBuffer,
+        buffer: processedAudio.audioBuffer,
         watermarkId,
         ownerUserId: userId,
         sourceTaskId: request.taskId,
@@ -359,7 +369,7 @@ export class TtsService {
       };
     } catch (error) {
       const mappedError = this.mapProviderError(error);
-      if (mappedError.retryable || mappedError.statusCode >= 500) {
+      if (mappedError.code !== "TTS_AUDIO_POST_PROCESS_FAILED" && (mappedError.retryable || mappedError.statusCode >= 500)) {
         this.recordCircuitFailure();
       }
       logger.error("生成语音失败:", mappedError);

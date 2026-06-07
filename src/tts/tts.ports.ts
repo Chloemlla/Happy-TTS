@@ -74,6 +74,24 @@ export interface TtsProvider {
   synthesize(request: TtsProviderRequest): Promise<TtsProviderResponse>;
 }
 
+export interface TtsAudioPostProcessInput {
+  audioBuffer: Buffer;
+  outputFormat: string;
+  taskId?: string;
+  contentHash: string;
+}
+
+export interface TtsAudioPostProcessResult {
+  audioBuffer: Buffer;
+  outputFormat: string;
+  metadata?: Record<string, unknown>;
+  source: "node-passthrough" | "rust-audio-worker";
+}
+
+export interface TtsAudioPostProcessor {
+  process(input: TtsAudioPostProcessInput): Promise<TtsAudioPostProcessResult>;
+}
+
 export interface QuotaLedger {
   getUsageSnapshot(userId: string): Promise<TtsUsageSnapshot>;
   reserve(userId: string, taskId: string): Promise<{ success: boolean; snapshot: TtsUsageSnapshot }>;

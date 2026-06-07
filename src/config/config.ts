@@ -108,6 +108,17 @@ const envSchema = z
     RUST_NETWORK_TOOLS_TIMEOUT_MS: z.coerce.number().int().min(100).max(60000).optional().default(5000),
     RUST_NETWORK_TOOLS_FALLBACK_ENABLED: stringToBoolean,
     RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS: stringToBoolean,
+    RUST_AUDIO_WORKER_ENABLED: stringToBoolean,
+    RUST_AUDIO_WORKER_URL: z.string().url().optional().default("http://127.0.0.1:4020"),
+    RUST_AUDIO_WORKER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(300000).optional().default(30000),
+    RUST_AUDIO_WORKER_MAX_BYTES: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(100 * 1024 * 1024)
+      .optional()
+      .default(20 * 1024 * 1024),
+    RUST_AUDIO_WORKER_FALLBACK_ENABLED: stringToBoolean,
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === "production") {
@@ -154,11 +165,11 @@ const envSchema = z
       });
     }
 
-    if (env.RUST_NETWORK_TOOLS_ENABLED === true && !env.INTERNAL_SERVICE_TOKEN) {
+    if ((env.RUST_NETWORK_TOOLS_ENABLED === true || env.RUST_AUDIO_WORKER_ENABLED === true) && !env.INTERNAL_SERVICE_TOKEN) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["INTERNAL_SERVICE_TOKEN"],
-        message: "RUST_NETWORK_TOOLS_ENABLED=true requires INTERNAL_SERVICE_TOKEN",
+        message: "Rust internal services require INTERNAL_SERVICE_TOKEN when enabled",
       });
     }
   });
@@ -281,6 +292,13 @@ export const startupConfig = Object.freeze({
       timeoutMs: parsedEnv.RUST_NETWORK_TOOLS_TIMEOUT_MS,
       fallbackEnabled: parsedEnv.RUST_NETWORK_TOOLS_FALLBACK_ENABLED ?? true,
       blockPrivateTargets: parsedEnv.RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS ?? true,
+    },
+    audioWorker: {
+      enabled: parsedEnv.RUST_AUDIO_WORKER_ENABLED === true,
+      url: parsedEnv.RUST_AUDIO_WORKER_URL,
+      timeoutMs: parsedEnv.RUST_AUDIO_WORKER_TIMEOUT_MS,
+      maxBytes: parsedEnv.RUST_AUDIO_WORKER_MAX_BYTES,
+      fallbackEnabled: parsedEnv.RUST_AUDIO_WORKER_FALLBACK_ENABLED ?? true,
     },
   },
 });

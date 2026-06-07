@@ -1,4 +1,4 @@
 [workspace]
-members = ["network-tools"]
+members = ["network-tools", "audio-worker"]
 resolver = "2"
 
