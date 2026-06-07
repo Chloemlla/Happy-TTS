@@ -44,7 +44,7 @@ jobs:
         run: pnpm run build
 
       - name: Run Jest tests
-        run: pnpm run test -- --config jest.ci.config.js --ci --runInBand
+        run: pnpm run test --config jest.ci.config.js --ci --runInBand
 
       - name: Upload build artifacts
         if: always()
