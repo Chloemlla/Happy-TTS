@@ -8,6 +8,23 @@ import getApiBaseUrl from '../api';
 import { passkeyApi } from '../api/passkey';
 import { openDB } from 'idb';
 import { FaUser, FaUserCircle, FaShieldAlt, FaLock, FaEnvelope, FaCamera, FaSave, FaKey, FaCheckCircle, FaClock, FaExclamationCircle, FaGlobe, FaHistory, FaLink, FaUndoAlt, FaGoogle, FaSyncAlt, FaUnlink, FaExternalLinkAlt } from 'react-icons/fa';
+import { cn } from '../utils/cn';
+import {
+  studioAccentBlobBlueClassName,
+  studioAccentBlobSkyClassName,
+  studioDarkPanelClassName,
+  studioDisplayFont,
+  studioEyebrowPillClassName,
+  studioFieldClassName,
+  studioHeroCardClassName,
+  studioMainSurfaceClassName,
+  studioModalCardClassName,
+  studioModalOverlayClassName,
+  studioPageClassName,
+  studioPageFont,
+  studioPanelClassName,
+  studioPrimaryButtonClassName,
+} from './studioTheme';
 
 type AuthProvider = 'local' | 'linuxdo' | 'google';
 type AccountStatus = 'active' | 'suspended';
@@ -404,8 +421,8 @@ const setCachedAvatar = async (userId: string, avatarHash: string, blobUrl: stri
   }
 };
 
-const pageFont = '"Avenir Next","PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif';
-const displayFont = '"Iowan Old Style","Noto Serif SC","Source Han Serif SC",serif';
+const pageFont = studioPageFont;
+const displayFont = studioDisplayFont;
 
 const formatDateTime = (value?: string | number | null): string => {
   if (!value) return '未记录';
@@ -1514,12 +1531,12 @@ const UserProfile: React.FC = () => {
     {
       label: 'Account',
       value: profile?.username || '—',
-      tone: 'border-sky-100 bg-[linear-gradient(145deg,rgba(240,249,255,0.94),rgba(255,255,255,0.98))]',
+      tone: 'border-slate-200 bg-slate-50/80',
     },
     {
       label: 'Provider',
       value: providerLabel,
-      tone: 'border-amber-100 bg-[linear-gradient(145deg,rgba(255,251,235,0.94),rgba(255,255,255,0.98))]',
+      tone: 'border-slate-200 bg-slate-50/80',
     },
     {
       label: 'Security',
@@ -1530,23 +1547,25 @@ const UserProfile: React.FC = () => {
           : totpStatus?.hasPasskey
             ? 'Passkey 已启用'
             : '基础密码',
-      tone: 'border-emerald-100 bg-[linear-gradient(145deg,rgba(236,253,245,0.94),rgba(255,255,255,0.98))]',
+      tone: verified || totpStatus?.enabled || totpStatus?.hasPasskey
+        ? 'border-emerald-200 bg-emerald-50/80'
+        : 'border-slate-200 bg-slate-50/80',
     },
     {
       label: 'Status',
       value: profile?.accountStatus === 'suspended' ? '已暂停' : '正常',
       tone: profile?.accountStatus === 'suspended'
-        ? 'border-rose-100 bg-[linear-gradient(145deg,rgba(255,241,242,0.94),rgba(255,255,255,0.98))]'
-        : 'border-slate-100 bg-[linear-gradient(145deg,rgba(248,250,252,0.96),rgba(255,255,255,0.98))]',
+        ? 'border-rose-200 bg-rose-50/80'
+        : 'border-slate-200 bg-slate-50/80',
     },
   ], [profile, providerLabel, totpStatus, verificationTimeLeft, verified]);
 
   // ── Error / loading states ──
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen px-3 py-4 sm:px-6 sm:py-8 rounded-3xl lg:px-10 bg-[radial-gradient(circle_at_top,_rgba(68,92,190,0.16),_transparent_32%),linear-gradient(180deg,#eef2ff_0%,#f9fafb_42%,#eef4ff_100%)]" style={{ fontFamily: pageFont }}>
-        <div className="mx-auto max-w-3xl rounded-[28px] border border-rose-100 bg-white p-6 text-center shadow-xl sm:rounded-[32px] sm:p-10">
-          <div className="text-sm font-semibold uppercase tracking-[0.3em] text-rose-400">Authentication</div>
+      <div className={studioPageClassName} style={{ fontFamily: pageFont }}>
+        <div className={cn(studioHeroCardClassName, 'mx-auto max-w-3xl text-center')}>
+          <div className={studioEyebrowPillClassName}>Authentication</div>
           <h1 className="mt-4 text-3xl font-semibold text-slate-900 sm:text-4xl" style={{ fontFamily: displayFont }}>
             未登录或会话已过期
           </h1>
@@ -1560,9 +1579,9 @@ const UserProfile: React.FC = () => {
 
   if (loadError) {
     return (
-      <div className="min-h-screen px-3 py-4 sm:px-6 sm:py-8 rounded-3xl lg:px-10 bg-[radial-gradient(circle_at_top,_rgba(68,92,190,0.16),_transparent_32%),linear-gradient(180deg,#eef2ff_0%,#f9fafb_42%,#eef4ff_100%)]" style={{ fontFamily: pageFont }}>
-        <div className="mx-auto max-w-3xl rounded-[28px] border border-rose-100 bg-white p-6 text-center shadow-xl sm:rounded-[32px] sm:p-10">
-          <div className="text-sm font-semibold uppercase tracking-[0.3em] text-rose-400">Error</div>
+      <div className={studioPageClassName} style={{ fontFamily: pageFont }}>
+        <div className={cn(studioHeroCardClassName, 'mx-auto max-w-3xl text-center')}>
+          <div className={studioEyebrowPillClassName}>Error</div>
           <h1 className="mt-4 text-xl font-semibold text-slate-900 sm:text-2xl" style={{ fontFamily: displayFont }}>
             加载失败
           </h1>
@@ -1574,7 +1593,7 @@ const UserProfile: React.FC = () => {
             onClick={() => {
               void loadProfile();
             }}
-            className="mt-6 inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/15 transition hover:bg-slate-800"
+            className={cn(studioPrimaryButtonClassName, 'mt-6')}
           >
             重试
           </button>
@@ -1586,9 +1605,9 @@ const UserProfile: React.FC = () => {
   if (pageLoading || !profile) {
     if (loadTimeout) {
       return (
-        <div className="min-h-screen px-3 py-4 sm:px-6 sm:py-8 rounded-3xl lg:px-10 bg-[radial-gradient(circle_at_top,_rgba(68,92,190,0.16),_transparent_32%),linear-gradient(180deg,#eef2ff_0%,#f9fafb_42%,#eef4ff_100%)]" style={{ fontFamily: pageFont }}>
-          <div className="mx-auto max-w-3xl rounded-[28px] border border-amber-100 bg-white p-6 text-center shadow-xl sm:rounded-[32px] sm:p-10">
-            <div className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-400">Timeout</div>
+        <div className={studioPageClassName} style={{ fontFamily: pageFont }}>
+          <div className={cn(studioHeroCardClassName, 'mx-auto max-w-3xl text-center')}>
+            <div className={studioEyebrowPillClassName}>Timeout</div>
             <h1 className="mt-4 text-xl font-semibold text-slate-900" style={{ fontFamily: displayFont }}>
               加载超时
             </h1>
@@ -1597,7 +1616,7 @@ const UserProfile: React.FC = () => {
               onClick={() => {
                 void loadProfile();
               }}
-              className="mt-6 inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/15 transition hover:bg-slate-800"
+              className={cn(studioPrimaryButtonClassName, 'mt-6')}
             >
               重试
             </button>
@@ -1606,8 +1625,8 @@ const UserProfile: React.FC = () => {
       );
     }
     return (
-      <div className="min-h-screen px-3 py-4 sm:px-6 sm:py-8 rounded-3xl lg:px-10 bg-[radial-gradient(circle_at_top,_rgba(68,92,190,0.16),_transparent_32%),linear-gradient(180deg,#eef2ff_0%,#f9fafb_42%,#eef4ff_100%)]" style={{ fontFamily: pageFont }}>
-        <div className="mx-auto max-w-3xl rounded-[28px] border border-white/70 bg-white/75 p-8 shadow-xl backdrop-blur-xl sm:rounded-[32px]">
+      <div className={studioPageClassName} style={{ fontFamily: pageFont }}>
+        <div className={cn(studioHeroCardClassName, 'mx-auto max-w-3xl')}>
           <LoadingSpinner />
         </div>
       </div>
@@ -1616,7 +1635,7 @@ const UserProfile: React.FC = () => {
 
   return (
     <div
-      className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top,_rgba(68,92,190,0.16),_transparent_32%),linear-gradient(180deg,#eef2ff_0%,#f9fafb_42%,#eef4ff_100%)] px-3 py-4 sm:px-6 sm:py-8 rounded-3xl lg:px-10"
+      className={cn(studioPageClassName, 'max-w-5xl overflow-x-hidden')}
       style={{ fontFamily: pageFont }}
     >
       <div className="mx-auto max-w-4xl min-w-0">
@@ -1625,11 +1644,13 @@ const UserProfile: React.FC = () => {
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45 }}
-          className="mb-5 rounded-[28px] border border-white/70 bg-white/75 p-4 shadow-[0_24px_90px_rgba(32,48,90,0.12)] backdrop-blur-xl sm:mb-8 sm:rounded-[32px] sm:p-8 sm:shadow-[0_30px_120px_rgba(32,48,90,0.14)]"
+          className={cn('mb-5 sm:mb-8', studioHeroCardClassName)}
         >
-          <div className="flex min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div className={cn(studioAccentBlobBlueClassName, '-right-12 top-0')} aria-hidden />
+          <div className={cn(studioAccentBlobSkyClassName, '-left-10 bottom-0')} aria-hidden />
+          <div className="relative flex min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl min-w-0">
-              <div className="mb-3 inline-flex max-w-full items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-700 sm:px-3 sm:text-xs sm:tracking-[0.18em]">
+              <div className={cn('mb-3', studioEyebrowPillClassName)}>
                 <FaUserCircle />
                 Account Settings
               </div>
@@ -1660,7 +1681,7 @@ const UserProfile: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleScrollToLinkedAccounts}
-                  className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-slate-900/15 transition hover:bg-slate-800 sm:text-sm"
+                  className={cn(studioPrimaryButtonClassName, 'px-4 py-2.5 text-xs sm:text-sm')}
                 >
                   <FaLink />
                   绑定第三方账号
@@ -1676,7 +1697,7 @@ const UserProfile: React.FC = () => {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.05 }}
-            className="min-w-0 rounded-[28px] border border-slate-200/80 bg-white/85 p-4 shadow-[0_20px_70px_rgba(32,48,90,0.1)] backdrop-blur-xl sm:rounded-[34px] sm:p-6 sm:shadow-[0_24px_90px_rgba(32,48,90,0.1)]"
+            className={studioMainSurfaceClassName}
           >
             {/* Avatar section */}
             <div className="mb-6 flex flex-col items-center">
@@ -1707,7 +1728,7 @@ const UserProfile: React.FC = () => {
             </div>
 
             {/* Email field */}
-            <section className="mb-4 rounded-[24px] border border-slate-200 bg-[#fbfcff] p-4 sm:rounded-[28px] sm:p-5">
+            <section className="mb-4 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
               <label className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                 <FaEnvelope />
                 邮箱地址
@@ -1716,15 +1737,15 @@ const UserProfile: React.FC = () => {
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-400/30 sm:rounded-full"
+                className={studioFieldClassName}
                 disabled={submitting}
                 placeholder="请输入邮箱地址"
               />
 
               {/* Email change code */}
               {verified && emailChanged && (
-                <div className="mt-4 rounded-[20px] border border-sky-200 bg-sky-50 p-3.5 sm:rounded-2xl sm:p-4">
-                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-sky-600">
+                <div className="mt-4 rounded-[20px] border border-slate-200 bg-white/80 p-3.5 sm:p-4">
+                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                     新邮箱验证
                   </div>
                   <p className="mb-3 text-[13px] leading-6 text-slate-600">
@@ -1734,7 +1755,7 @@ const UserProfile: React.FC = () => {
                     type="button"
                     onClick={handleSendEmailCode}
                     disabled={submitting || emailCodeCooldown > 0}
-                    className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-lg shadow-slate-900/15 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                    className={cn(studioPrimaryButtonClassName, 'px-4 py-2 text-xs disabled:opacity-60')}
                   >
                     {emailCodeCooldown > 0 ? `${emailCodeCooldown}s 后重新发送` : emailCodeSent ? '重新发送验证码' : '发送验证码'}
                   </button>
@@ -1745,7 +1766,7 @@ const UserProfile: React.FC = () => {
                         type="text"
                         value={emailVerificationCode}
                         onChange={(e) => setEmailVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-400/30 sm:rounded-full"
+                        className={studioFieldClassName}
                         placeholder="请输入 6 位验证码"
                         maxLength={6}
                         disabled={submitting}
@@ -1780,7 +1801,7 @@ const UserProfile: React.FC = () => {
                   pendingChanges.map((item) => (
                     <div
                       key={item}
-                      className="flex items-start gap-3 rounded-[20px] border border-slate-100 bg-[#fbfcff] px-3.5 py-3 text-[13px] text-slate-700 sm:rounded-2xl sm:text-sm"
+                    className="flex items-start gap-3 rounded-[20px] border border-slate-200 bg-white/80 px-3.5 py-3 text-[13px] text-slate-700 sm:text-sm"
                     >
                       <FaCheckCircle className="mt-0.5 shrink-0 text-emerald-500" />
                       <span>{item}</span>
@@ -1808,7 +1829,7 @@ const UserProfile: React.FC = () => {
             </section>
 
             {/* Identity verification section */}
-            <section className="mb-4 rounded-[24px] border border-slate-200 bg-[#fbfcff] p-4 sm:rounded-[28px] sm:p-5">
+            <section className="mb-4 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
               {!totpStatus?.enabled && !totpStatus?.hasPasskey ? (
                 <>
                   <label className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
@@ -1819,7 +1840,7 @@ const UserProfile: React.FC = () => {
                     type="password"
                     value={password}
                     onChange={e => setPassword(e.target.value)}
-                    className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-400/30 sm:rounded-full"
+                    className={studioFieldClassName}
                     disabled={submitting}
                     placeholder="请输入当前密码用于身份验证"
                   />
@@ -1841,7 +1862,7 @@ const UserProfile: React.FC = () => {
                     <FaShieldAlt />
                     二次验证
                   </label>
-                  <div className="mb-3 rounded-[20px] border border-sky-200 bg-sky-50 p-3.5 text-[13px] leading-6 text-sky-700 sm:rounded-2xl sm:p-4 sm:text-sm sm:leading-7">
+                  <div className="mb-3 rounded-[20px] border border-slate-200 bg-white/80 p-3.5 text-[13px] leading-6 text-slate-600 sm:p-4 sm:text-sm sm:leading-7">
                     检测到您已启用二次验证，请完成验证后再修改信息
                   </div>
                   {totpStatus?.enabled && (
@@ -1878,7 +1899,7 @@ const UserProfile: React.FC = () => {
             </section>
 
             {/* Password change section */}
-            <section className="mb-4 rounded-[24px] border border-slate-200 bg-[#fbfcff] p-4 sm:rounded-[28px] sm:p-5">
+            <section className="mb-4 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                   <FaKey />
@@ -1908,7 +1929,7 @@ const UserProfile: React.FC = () => {
                         type="password"
                         value={oldPwd}
                         onChange={e => setOldPwd(e.target.value)}
-                        className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-400/30 sm:rounded-full"
+                        className={studioFieldClassName}
                         disabled={submitting}
                         placeholder="请输入当前密码"
                       />
@@ -1920,7 +1941,7 @@ const UserProfile: React.FC = () => {
                       type="password"
                       value={newPwd}
                       onChange={e => setNewPwd(e.target.value)}
-                      className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-400/30 sm:rounded-full"
+                      className={studioFieldClassName}
                       disabled={submitting}
                       placeholder="请输入新密码（至少8位）"
                     />
@@ -1934,7 +1955,7 @@ const UserProfile: React.FC = () => {
                       type="password"
                       value={confirmNewPwd}
                       onChange={e => setConfirmNewPwd(e.target.value)}
-                      className="w-full rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-400/30 sm:rounded-full"
+                      className={studioFieldClassName}
                       disabled={submitting}
                       placeholder="请再次输入新密码"
                     />
@@ -1948,7 +1969,7 @@ const UserProfile: React.FC = () => {
                     type="button"
                     onClick={handleChangePassword}
                     disabled={submitting || (!verified && !oldPwd) || newPwd.length < 8 || newPwd !== confirmNewPwd}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-[18px] bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-900/15 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:rounded-full sm:py-2"
+                    className={cn(studioPrimaryButtonClassName, 'w-full px-4 py-3 disabled:opacity-60 sm:w-auto sm:py-2')}
                   >
                     <FaSave />
                     {submitting ? '保存中…' : '保存新密码'}
@@ -1962,7 +1983,7 @@ const UserProfile: React.FC = () => {
               type="button"
               onClick={handleUpdate}
               disabled={submitting || avatarLoading || !emailChanged}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-[18px] bg-slate-900 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/15 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 sm:rounded-full sm:py-3"
+              className={cn(studioPrimaryButtonClassName, 'w-full disabled:opacity-60 sm:py-3')}
             >
               {submitting && <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>}
               <FaSave />
@@ -1977,7 +1998,7 @@ const UserProfile: React.FC = () => {
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.12 }}
-              className="rounded-[26px] border border-slate-200/80 bg-white/90 p-4 shadow-[0_20px_70px_rgba(32,48,90,0.08)] backdrop-blur-xl sm:rounded-[30px] sm:p-5"
+              className={studioPanelClassName}
             >
               <div className="mb-4">
                 <div className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
@@ -2015,7 +2036,7 @@ const UserProfile: React.FC = () => {
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.18 }}
-              className="rounded-[26px] border border-slate-200/80 bg-white/90 p-4 shadow-[0_20px_70px_rgba(32,48,90,0.08)] backdrop-blur-xl sm:rounded-[30px] sm:p-5"
+              className={studioPanelClassName}
             >
               <div className="mb-4 flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-slate-900 text-white sm:h-10 sm:w-10">
@@ -2063,7 +2084,7 @@ const UserProfile: React.FC = () => {
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.24 }}
-              className="rounded-[26px] border border-slate-200/80 bg-white/90 p-4 shadow-[0_20px_70px_rgba(32,48,90,0.08)] backdrop-blur-xl sm:rounded-[30px] sm:p-5"
+              className={studioPanelClassName}
             >
               <div className="mb-4 flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-sky-50 text-sky-600 sm:h-10 sm:w-10">
@@ -2101,7 +2122,7 @@ const UserProfile: React.FC = () => {
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.27 }}
-              className="rounded-[26px] border border-slate-200/80 bg-white/90 p-4 shadow-[0_20px_70px_rgba(32,48,90,0.08)] backdrop-blur-xl sm:rounded-[30px] sm:p-5"
+              className={studioPanelClassName}
             >
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
@@ -2141,7 +2162,7 @@ const UserProfile: React.FC = () => {
                   return (
                     <div
                       key={account.provider}
-                      className="rounded-[22px] border border-slate-100 bg-[#fbfcff] p-3.5 sm:rounded-2xl"
+                      className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-3.5"
                     >
                       <div className="flex items-start gap-3">
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white text-slate-700 shadow-sm">
@@ -2215,7 +2236,7 @@ const UserProfile: React.FC = () => {
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.30 }}
-              className="rounded-[26px] border border-slate-200/80 bg-[#111827] p-4 text-white shadow-[0_20px_70px_rgba(17,24,39,0.18)] sm:rounded-[30px] sm:p-5"
+              className={studioDarkPanelClassName}
             >
               <div className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
                 安全提示
@@ -2243,13 +2264,13 @@ const UserProfile: React.FC = () => {
       {/* ── Verification method modal ── */}
       {showVerificationModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          className={studioModalOverlayClassName}
           onClick={() => setShowVerificationModal(false)}
         >
           <m.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="m-4 w-full max-w-md rounded-[28px] border border-white/70 bg-white p-6 shadow-[0_30px_120px_rgba(32,48,90,0.2)] sm:rounded-[32px] sm:p-8"
+            className={cn(studioModalCardClassName, 'm-4 max-w-md')}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 text-center">
@@ -2285,7 +2306,7 @@ const UserProfile: React.FC = () => {
                   type="button"
                   onClick={handleTotpVerification}
                   disabled={submitting || verificationCode.length !== 6}
-                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-[18px] bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-slate-900/15 transition hover:bg-slate-800 disabled:opacity-50 sm:rounded-full sm:py-2"
+                  className={cn(studioPrimaryButtonClassName, 'mt-3 w-full py-2.5 disabled:opacity-50')}
                 >
                   {submitting ? '验证中…' : '使用 TOTP 验证'}
                 </button>
@@ -2306,7 +2327,7 @@ const UserProfile: React.FC = () => {
                   type="button"
                   onClick={handlePasskeyVerification}
                   disabled={submitting}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-[18px] bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-50 sm:rounded-full sm:py-2"
+                  className={cn(studioPrimaryButtonClassName, 'w-full py-2.5 disabled:opacity-50')}
                 >
                   {submitting ? '验证中…' : '使用 Passkey 验证'}
                 </button>
@@ -2329,13 +2350,13 @@ const UserProfile: React.FC = () => {
 
       {showMergeModal && mergePreview && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-4 backdrop-blur-sm"
+          className={cn(studioModalOverlayClassName, 'overflow-y-auto')}
           onClick={() => setShowMergeModal(false)}
         >
           <m.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className="w-full max-w-2xl rounded-[28px] border border-white/70 bg-white p-5 shadow-[0_30px_120px_rgba(32,48,90,0.24)] sm:rounded-[32px] sm:p-7"
+            className={cn(studioModalCardClassName, 'max-w-2xl p-5 sm:p-7')}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-5 flex items-start gap-3">
@@ -2353,7 +2374,7 @@ const UserProfile: React.FC = () => {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-[20px] border border-slate-200 bg-[#fbfcff] p-3.5">
+              <div className="rounded-[20px] border border-slate-200 bg-slate-50/80 p-3.5">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">源账号</div>
                 <div className="mt-2 text-sm font-semibold text-slate-900">{mergePreview.sourceAccount.username}</div>
                 <div className="mt-1 break-all text-[12px] text-slate-500">{mergePreview.sourceAccount.email}</div>
@@ -2414,7 +2435,7 @@ const UserProfile: React.FC = () => {
               </div>
             )}
 
-            <div className="mt-5 space-y-2 rounded-[20px] border border-slate-200 bg-[#fbfcff] p-3.5 text-[13px] text-slate-700">
+            <div className="mt-5 space-y-2 rounded-[20px] border border-slate-200 bg-slate-50/80 p-3.5 text-[13px] text-slate-700">
               <label className="flex items-start gap-2">
                 <input
                   type="checkbox"

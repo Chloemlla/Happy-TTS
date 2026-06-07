@@ -1458,7 +1458,7 @@ const App: React.FC = () => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
+                  className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm"
                   onClick={closeTOTPManager}
                 >
                   <m.div
@@ -1471,21 +1471,21 @@ const App: React.FC = () => {
                     aria-modal="true"
                     aria-labelledby="totp-manager-title"
                     aria-describedby="totp-manager-hint"
-                    className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto overscroll-contain"
+                    className="max-h-[90vh] w-full max-w-5xl overflow-y-auto overscroll-contain rounded-[34px] border border-white/70 bg-white/92 shadow-[0_28px_110px_rgba(15,23,42,0.16)] backdrop-blur-xl"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="p-6">
-                      <div className="flex items-start justify-between mb-6">
+                      <div className="mb-6 flex items-start justify-between">
                         <div>
-                          <h2 id="totp-manager-title" className="text-2xl font-bold text-gray-900">账户安全设置</h2>
-                          <p id="totp-manager-hint" className="mt-1 text-xs text-gray-400">
-                            按 <kbd className="rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 font-mono text-[10px] text-gray-500">Esc</kbd> 关闭
+                          <h2 id="totp-manager-title" className="text-2xl font-semibold text-slate-900">账户安全设置</h2>
+                          <p id="totp-manager-hint" className="mt-1 text-xs text-slate-400">
+                            按 <kbd className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] text-slate-500">Esc</kbd> 关闭
                           </p>
                         </div>
                         <button
                           ref={totpCloseButtonRef}
                           onClick={closeTOTPManager}
-                          className="rounded-full p-2 text-gray-400 transition-colors hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                          className="rounded-full border border-slate-200 bg-white/80 p-2 text-slate-400 transition hover:border-slate-300 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:ring-offset-2"
                           title="关闭"
                           aria-label="关闭账户安全设置"
                         >

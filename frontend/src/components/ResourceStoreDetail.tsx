@@ -1,7 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { FaArrowLeft, FaInfoCircle, FaTag } from 'react-icons/fa';
 import { resourcesApi, Resource } from '../api/resources';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
+import { cn } from '../utils/cn';
+import {
+  studioAccentBlobBlueClassName,
+  studioAccentBlobSkyClassName,
+  studioEyebrowPillClassName,
+  studioGhostButtonClassName,
+  studioHeroCardClassName,
+  studioPageClassName,
+  studioPageFont,
+} from './studioTheme';
 
 export default function ResourceStoreDetail() {
   const { id } = useParams<{ id: string }>();
@@ -28,97 +40,105 @@ export default function ResourceStoreDetail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <UnifiedLoadingSpinner size="lg" text="加载资源详情..." />
+      <div className={studioPageClassName} style={{ fontFamily: studioPageFont }}>
+        <div className="flex min-h-[46vh] items-center justify-center">
+          <UnifiedLoadingSpinner size="lg" text="加载资源详情..." />
+        </div>
       </div>
     );
   }
 
   if (error || !resource) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 mb-4">{error || '资源不存在'}</p>
-          <Link
-            to="/store"
-            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-          >
-            返回商店
-          </Link>
+      <div className={studioPageClassName} style={{ fontFamily: studioPageFont }}>
+        <div className="mx-auto max-w-2xl">
+          <div className={cn(studioHeroCardClassName, 'text-center')}>
+            <div className={cn(studioEyebrowPillClassName, 'mx-auto w-fit')}>Resource Store</div>
+            <h1 className="mt-5 text-3xl font-semibold leading-tight text-slate-900">资源不可用</h1>
+            <p className="mt-4 text-sm leading-7 text-slate-600">{error || '资源不存在'}</p>
+            <div className="mt-7">
+              <Link to="/store" className={studioGhostButtonClassName}>
+                <FaArrowLeft className="text-[10px]" />
+                返回商店
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        <div className="mb-6">
-          <Link
-            to="/store"
-            className="inline-flex items-center text-indigo-600 hover:text-indigo-500"
-          >
-            <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-            返回商店
-          </Link>
-        </div>
+    <section className={cn(studioPageClassName, 'max-w-5xl')} style={{ fontFamily: studioPageFont }}>
+      <div className="mb-6">
+        <Link to="/store" className={studioGhostButtonClassName}>
+          <FaArrowLeft className="text-[10px]" />
+          返回商店
+        </Link>
+      </div>
 
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          <div className="md:flex">
-            <div className="md:w-1/2">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className={studioHeroCardClassName}
+      >
+        <div className={cn(studioAccentBlobBlueClassName, '-right-12 top-0')} aria-hidden />
+        <div className={cn(studioAccentBlobSkyClassName, '-left-10 bottom-0')} aria-hidden />
+
+        <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+          <div className="min-w-0">
+            <div className="relative overflow-hidden rounded-[26px] border border-slate-200 bg-slate-100 shadow-sm">
               <img
                 src={resource.imageUrl || '/placeholder.jpg'}
                 alt={resource.title}
-                className="w-full h-64 md:h-full object-cover"
+                className="aspect-[16/10] w-full object-cover"
               />
+              <span className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-600 backdrop-blur-xl">
+                <FaTag className="text-[10px]" />
+                {resource.category}
+              </span>
             </div>
-            <div className="md:w-1/2 p-8">
-              <div className="mb-4">
-                <span className="inline-block px-3 py-1 text-sm font-semibold text-indigo-600 bg-indigo-100 rounded-full">
-                  {resource.category}
-                </span>
-              </div>
-              
-              <h1 className="text-3xl font-bold text-gray-900 mb-4">
-                {resource.title}
-              </h1>
-              
-              <p className="text-gray-600 mb-6 leading-relaxed">
-                {resource.description}
-              </p>
-              
-              <div className="mb-6">
-                <span className="text-3xl font-bold text-indigo-600">
-                  ¥{resource.price}
-                </span>
-              </div>
+          </div>
 
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <div className="flex items-start">
-                  <svg className="w-5 h-5 text-yellow-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <div>
-                    <h3 className="text-sm font-medium text-yellow-800">
-                      获取方式
-                    </h3>
-                    <p className="text-sm text-yellow-700 mt-1">
-                      使用CDK兑换码获取此资源的下载链接
-                    </p>
-                  </div>
+          <div className="min-w-0">
+            <div className={studioEyebrowPillClassName}>
+              Resource Detail
+            </div>
+            <h1 className="mt-5 break-words text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">
+              {resource.title}
+            </h1>
+            <p className="mt-4 text-sm leading-7 text-slate-600 sm:text-base">
+              {resource.description}
+            </p>
+
+            <div className="mt-7 rounded-[22px] border border-slate-200 bg-slate-50/80 px-5 py-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
+                Price
+              </div>
+              <div className="mt-2 text-3xl font-semibold text-slate-900">
+                ¥{resource.price}
+              </div>
+            </div>
+
+            <div className="mt-5 rounded-[22px] border border-amber-200/70 bg-amber-50/80 px-5 py-4">
+              <div className="flex items-start gap-3">
+                <FaInfoCircle className="mt-1 shrink-0 text-amber-600" />
+                <div>
+                  <h2 className="text-sm font-semibold text-amber-800">获取方式</h2>
+                  <p className="mt-1 text-sm leading-6 text-amber-700">
+                    使用 CDK 兑换码获取此资源的下载链接。
+                  </p>
                 </div>
               </div>
+            </div>
 
-              <div className="mt-6 text-xs text-gray-500">
-                <p>创建时间: {new Date(resource.createdAt).toLocaleDateString()}</p>
-                <p>更新时间: {new Date(resource.updatedAt).toLocaleDateString()}</p>
-              </div>
+            <div className="mt-5 grid gap-2 rounded-[22px] border border-slate-200 bg-white/80 px-5 py-4 text-xs leading-6 text-slate-500">
+              <p>创建时间: {new Date(resource.createdAt).toLocaleDateString()}</p>
+              <p>更新时间: {new Date(resource.updatedAt).toLocaleDateString()}</p>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </section>
   );
-} 
+}

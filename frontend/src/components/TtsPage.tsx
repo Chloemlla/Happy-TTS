@@ -182,7 +182,7 @@ export const TtsPage: React.FC = () => {
             transition={{ duration: 0.5, delay: 0.05 }}
             className={studioMainSurfaceClassName}
           >
-            <div className="rounded-[24px] border border-slate-200 bg-white p-4 sm:rounded-[28px] sm:p-6">
+            <div className="rounded-[22px] border border-slate-200 bg-white/80 p-4 sm:p-6">
               <TtsForm
                 loading={loading}
                 error={error}

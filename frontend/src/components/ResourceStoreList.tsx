@@ -21,8 +21,11 @@ import { resourcesApi, type Resource } from '../api/resources';
 import { cn } from '../utils/cn';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
 import {
+  studioAccentBlobBlueClassName,
+  studioAccentBlobSkyClassName,
   studioDarkPanelClassName,
   studioDisplayFont,
+  studioEyebrowPillClassName,
   studioFieldClassName,
   studioGhostButtonClassName,
   studioHeroCardClassName,
@@ -266,7 +269,7 @@ export default function ResourceStoreList() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.04 }}
-      className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(32,48,90,0.12)]"
+      className="overflow-hidden rounded-[24px] border border-slate-200 bg-white/90 shadow-sm transition hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(15,23,42,0.12)]"
     >
       <div className="relative h-48 overflow-hidden bg-slate-100">
         <img src={resource.imageUrl || '/placeholder.jpg'} alt={resource.title} className="h-full w-full object-cover" />
@@ -298,7 +301,7 @@ export default function ResourceStoreList() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.04 }}
-      className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(32,48,90,0.12)]"
+      className="overflow-hidden rounded-[24px] border border-slate-200 bg-white/90 shadow-sm transition hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(15,23,42,0.12)]"
     >
       <div className="relative h-48 overflow-hidden bg-slate-100">
         <img src={resource.imageUrl || '/placeholder.jpg'} alt={resource.title} className="h-full w-full object-cover" />
@@ -343,9 +346,11 @@ export default function ResourceStoreList() {
     <div className={studioPageClassName} style={{ fontFamily: studioPageFont }}>
       <div className="mx-auto max-w-7xl min-w-0">
         <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }} className={cn('mb-5 sm:mb-8', studioHeroCardClassName)}>
-          <div className="flex min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div className={cn(studioAccentBlobBlueClassName, '-right-12 top-0')} aria-hidden />
+          <div className={cn(studioAccentBlobSkyClassName, '-left-10 bottom-0')} aria-hidden />
+          <div className="relative flex min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl min-w-0">
-              <div className="mb-3 inline-flex max-w-full items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-700 sm:px-3 sm:text-xs sm:tracking-[0.18em]">
+              <div className={cn('mb-3', studioEyebrowPillClassName)}>
                 <FaStore />
                 Resource Store Studio
               </div>
@@ -368,7 +373,7 @@ export default function ResourceStoreList() {
 
         <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
           <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.05 }} className={studioMainSurfaceClassName}>
-            <div className="rounded-[24px] border border-slate-200 bg-white p-3 sm:rounded-[28px] sm:p-5">
+            <div className="rounded-[22px] border border-slate-200 bg-white/80 p-3 sm:p-5">
               <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex flex-wrap gap-2">
                   <button type="button" onClick={() => setActiveTab('store')} className={studioPillClassName(activeTab === 'store', 'blue')}>商店资源</button>
@@ -393,7 +398,7 @@ export default function ResourceStoreList() {
                   {resources.length > 0 ? (
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{resources.map(renderStoreCard)}</div>
                   ) : (
-                    <div className="rounded-[24px] border border-dashed border-slate-200 bg-[#f8faff] px-6 py-14 text-center text-slate-400">
+                    <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50/80 px-6 py-14 text-center text-slate-400">
                       {selectedCategory ? `当前分类 ${selectedCategory} 暂无资源。` : '当前没有可展示的资源。'}
                     </div>
                   )}
@@ -403,7 +408,7 @@ export default function ResourceStoreList() {
               ) : redeemedResources.length > 0 ? (
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{redeemedResources.map(renderOwnedCard)}</div>
               ) : (
-                <div className="rounded-[24px] border border-dashed border-slate-200 bg-[#f8faff] px-6 py-14 text-center text-slate-400">
+                <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50/80 px-6 py-14 text-center text-slate-400">
                   还没有已兑换资源，先在右侧输入 CDK 试试看。
                 </div>
               )}

@@ -9,6 +9,7 @@ import { PasskeySetup } from './PasskeySetup';
 import {
   studioDarkPanelClassName,
   studioDisplayFont,
+  studioEyebrowPillClassName,
   studioFieldClassName,
   studioGhostButtonClassName,
   studioHeroCardClassName,
@@ -100,7 +101,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-10" style={{ fontFamily: studioPageFont }}>
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-[#2541b2]" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-slate-900" />
       </div>
     );
   }
@@ -109,7 +110,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
     <div className="space-y-4" style={{ fontFamily: studioPageFont }}>
       <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className={studioHeroCardClassName}>
         <div className="flex flex-col gap-4">
-          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-sky-700">
+          <div className={studioEyebrowPillClassName}>
             <FaLock />
             Account Security Studio
           </div>
@@ -119,7 +120,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                 双因素验证工作台
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
-                保留原有的 TOTP、恢复码和 Passkey 流程，只把界面收束成和 DeepLX 一致的卡片层级与信息密度。
+                保留原有的 TOTP、恢复码和 Passkey 流程，并使用统一的半透明卡片、slate 按钮和紧凑信息层级。
               </p>
             </div>
             <div className="grid gap-2 sm:grid-cols-3">
@@ -136,14 +137,14 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_230px]">
         <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.05 }} className={studioMainSurfaceClassName}>
-          <div className="rounded-[24px] border border-slate-200 bg-white p-4 sm:rounded-[28px] sm:p-5">
+          <div className="rounded-[22px] border border-slate-200 bg-white/80 p-4 sm:p-5">
             {status?.enabled ? (
               <div className="space-y-4">
                 <div className="rounded-[22px] border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm leading-7 text-emerald-800">
                   双因素验证已开启。登录时除了密码，还会要求动态验证码，账户安全等级已经提升。
                 </div>
                 {status.hasBackupCodes ? (
-                  <div className="rounded-[22px] border border-sky-200 bg-sky-50 px-4 py-4 text-sm leading-7 text-sky-800">
+                  <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 px-4 py-4 text-sm leading-7 text-slate-600">
                     恢复码已经生成，可以在无法使用验证器时作为兜底方案。建议再次查看并确认已妥善保存。
                   </div>
                 ) : (
