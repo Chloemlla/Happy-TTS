@@ -5,9 +5,11 @@ import logger from "../utils/logger";
 
 export class DiagnosticsController {
   static getFrontendConfig(_req: Request, res: Response): void {
+    const enableIpVerification = config.enableFirstVisitVerification && config.ipqs.enabled;
+
     res.json({
-      enableFirstVisitVerification: config.ipqs.enabled,
-      enableIpVerification: config.ipqs.enabled,
+      enableFirstVisitVerification: enableIpVerification,
+      enableIpVerification,
       ipVerificationTtlMinutes: config.ipqs.tokenTtlMinutes,
     });
   }
@@ -40,4 +42,3 @@ export class DiagnosticsController {
     res.json(getServerStatusSnapshot());
   }
 }
-

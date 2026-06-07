@@ -420,7 +420,7 @@ export class IpVerificationService {
       };
     }
 
-    if (!config.ipqs.enabled) {
+    if (!config.enableFirstVisitVerification || !config.ipqs.enabled) {
       return {
         success: true,
         verified: true,

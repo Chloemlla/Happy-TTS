@@ -4,6 +4,7 @@ import { shouldBypassSecurityComponent } from "../security/securityPolicy";
 import IpVerificationService from "../services/ipVerificationService";
 
 function shouldSkipVerificationEnforcement(req: Request): boolean {
+  if (!config.enableFirstVisitVerification) return true;
   if (!config.ipqs.enabled) return true;
   if (req.method === "OPTIONS") return true;
 

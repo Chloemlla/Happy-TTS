@@ -20,7 +20,7 @@ interface UseFirstVisitDetectionReturn {
   markAsVerified: () => void;
 }
 
-export const useFirstVisitDetection = (): UseFirstVisitDetectionReturn => {
+export const useFirstVisitDetection = (enabled = true): UseFirstVisitDetectionReturn => {
   const [isFirstVisit, setIsFirstVisit] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -51,6 +51,15 @@ export const useFirstVisitDetection = (): UseFirstVisitDetectionReturn => {
   }, [clearRefreshTimer]);
 
   const checkFirstVisit = useCallback(async (silent = false) => {
+    if (!enabled) {
+      setError(null);
+      setIsFirstVisit(false);
+      setIsVerified(true);
+      setIsLoading(false);
+      clearRefreshTimer();
+      return;
+    }
+
     try {
       if (!silent) {
         setIsLoading(true);
@@ -90,7 +99,7 @@ export const useFirstVisitDetection = (): UseFirstVisitDetectionReturn => {
         setIsLoading(false);
       }
     }
-  }, [clearRefreshTimer, scheduleRefresh]);
+  }, [clearRefreshTimer, enabled, scheduleRefresh]);
 
   useEffect(() => {
     checkFirstVisitRef.current = checkFirstVisit;
@@ -104,15 +113,28 @@ export const useFirstVisitDetection = (): UseFirstVisitDetectionReturn => {
   }, [scheduleRefresh]);
 
   useEffect(() => {
+    if (!enabled) {
+      setError(null);
+      setIsFirstVisit(false);
+      setIsVerified(true);
+      setIsLoading(false);
+      clearRefreshTimer();
+      return;
+    }
+
     void checkFirstVisit();
 
     return () => {
       clearRefreshTimer();
     };
-  }, [checkFirstVisit, clearRefreshTimer]);
+  }, [checkFirstVisit, clearRefreshTimer, enabled]);
 
   useEffect(() => {
     const unsubscribe = onIpVerificationRequired((event) => {
+      if (!enabled) {
+        return;
+      }
+
       const nextError =
         typeof event.detail?.reason === 'string'
           ? event.detail.reason
@@ -124,7 +146,7 @@ export const useFirstVisitDetection = (): UseFirstVisitDetectionReturn => {
     });
 
     return unsubscribe;
-  }, [clearRefreshTimer]);
+  }, [clearRefreshTimer, enabled]);
 
   return useMemo(
     () => ({

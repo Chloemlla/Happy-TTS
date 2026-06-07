@@ -555,7 +555,7 @@ const App: React.FC = () => {
     banExpiresAt,
     clientIP,
     markAsVerified,
-  } = useFirstVisitDetection();
+  } = useFirstVisitDetection(configLoaded && enableFirstVisitVerification);
 
   // 指纹请求检测
   const {
