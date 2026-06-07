@@ -121,7 +121,10 @@ fn enforces_http_method_and_response_size_limits() {
     assert_eq!(normalize_http_method(Some("head")).unwrap(), "HEAD");
     assert!(normalize_http_method(Some("POST")).is_err());
     assert_eq!(normalize_max_response_bytes(None, &config).unwrap(), 1024);
-    assert_eq!(normalize_max_response_bytes(Some(512), &config).unwrap(), 512);
+    assert_eq!(
+        normalize_max_response_bytes(Some(512), &config).unwrap(),
+        512
+    );
     assert!(normalize_max_response_bytes(Some(0), &config).is_err());
     assert!(normalize_max_response_bytes(Some(2048), &config).is_err());
 }

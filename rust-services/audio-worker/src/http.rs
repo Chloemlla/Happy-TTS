@@ -77,23 +77,18 @@ async fn process_audio(
         )));
     }
 
-    let processed = processing::passthrough::process(decoded);
-    let analysis = processing::analyze::analyze_audio(&processed, &output_format);
-    let audio_base64 = general_purpose::STANDARD.encode(&processed);
+    let processed = processing::process_audio_bytes(decoded, &output_format, &operations)?;
+    let audio_base64 = general_purpose::STANDARD.encode(&processed.bytes);
 
     Ok(Json(SuccessEnvelope::ok(AudioProcessData {
         output_format,
-        duration_ms: analysis.duration_ms,
-        size: processed.len(),
+        duration_ms: processed.duration_ms,
+        size: processed.bytes.len(),
         loudness: Some(LoudnessSummary {
             integrated_lufs: None,
         }),
         audio_base64,
-        metadata: json!({
-          "detectedFormat": analysis.detected_format,
-          "operations": operations,
-          "passthrough": true
-        }),
+        metadata: processed.metadata,
         source: "rust-audio-worker",
     })))
 }

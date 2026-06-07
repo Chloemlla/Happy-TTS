@@ -21,7 +21,9 @@ pub async fn resolve_records(
         let mut values = match record_type.as_str() {
             "A" => lookup_ip_records(&resolver, address, true, timeout).await?,
             "AAAA" => lookup_ip_records(&resolver, address, false, timeout).await?,
-            "CNAME" => lookup_generic_records(&resolver, address, RecordType::CNAME, timeout).await?,
+            "CNAME" => {
+                lookup_generic_records(&resolver, address, RecordType::CNAME, timeout).await?
+            }
             "MX" => lookup_mx_records(&resolver, address, timeout).await?,
             "TXT" => lookup_txt_records(&resolver, address, timeout).await?,
             _ => Vec::new(),

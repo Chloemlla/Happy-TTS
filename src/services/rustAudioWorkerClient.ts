@@ -46,6 +46,7 @@ export class RustAudioWorkerClient {
         serviceName: RUST_AUDIO_WORKER_SOURCE,
       }),
       maxBytes: config.rustServices.audioWorker.maxBytes,
+      operations: config.rustServices.audioWorker.operations,
     });
   }
 

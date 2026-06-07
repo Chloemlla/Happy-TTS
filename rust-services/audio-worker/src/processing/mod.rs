@@ -3,9 +3,26 @@ pub mod normalize;
 pub mod passthrough;
 
 use crate::error::AppError;
+use serde_json::{json, Value};
 
 const SUPPORTED_FORMATS: &[&str] = &["mp3", "opus", "aac", "flac", "wav", "pcm"];
-const SUPPORTED_OPERATIONS: &[&str] = &["passthrough", "analyze"];
+const SUPPORTED_OPERATIONS: &[&str] = &[
+    "passthrough",
+    "analyze",
+    "validatemagic",
+    "metadatacleanup",
+    "silencetrim",
+    "loudnessnormalize",
+    "normalize",
+    "compress",
+    "flactomp3",
+];
+
+pub struct ProcessedAudio {
+    pub bytes: Vec<u8>,
+    pub duration_ms: Option<u64>,
+    pub metadata: Value,
+}
 
 pub fn normalize_output_format(output_format: &str) -> Result<String, AppError> {
     let normalized = output_format.trim().to_ascii_lowercase();
@@ -73,4 +90,85 @@ pub fn normalize_operations(operations: Option<&[String]>) -> Result<Vec<String>
     }
 
     Ok(normalized)
+}
+
+pub fn process_audio_bytes(
+    bytes: Vec<u8>,
+    output_format: &str,
+    operations: &[String],
+) -> Result<ProcessedAudio, AppError> {
+    let mut processed = passthrough::process(bytes);
+    let mut analysis = analyze::analyze_audio(&processed, output_format);
+    let mut warnings: Vec<String> = Vec::new();
+    let mut applied: Vec<&str> = Vec::new();
+
+    if operations
+        .iter()
+        .any(|operation| operation == "validatemagic")
+    {
+        if !analysis.magic_valid {
+            return Err(AppError::BadRequest(format!(
+                "audio magic bytes do not match outputFormat: {output_format}"
+            )));
+        }
+        applied.push("validateMagic");
+    }
+
+    if operations
+        .iter()
+        .any(|operation| operation == "metadatacleanup")
+    {
+        let (cleaned, changed) = analyze::strip_id3v2_metadata(&processed);
+        if changed {
+            processed = cleaned;
+            analysis = analyze::analyze_audio(&processed, output_format);
+        }
+        applied.push("metadataCleanup");
+    }
+
+    if operations
+        .iter()
+        .any(|operation| operation == "silencetrim")
+    {
+        warnings.push("silenceTrim was inspected but not applied because decoded PCM processing is not enabled".to_string());
+    }
+    if operations
+        .iter()
+        .any(|operation| operation == "loudnessnormalize" || operation == "normalize")
+    {
+        warnings.push(
+            "loudness normalization was not applied because a DSP backend is not enabled"
+                .to_string(),
+        );
+    }
+    if operations.iter().any(|operation| operation == "compress") {
+        warnings.push(
+            "audio compression was not applied because an encoder backend is not enabled"
+                .to_string(),
+        );
+    }
+    if operations.iter().any(|operation| operation == "flactomp3") {
+        warnings.push(
+            "flacToMp3 was not applied because an MP3 encoder backend is not enabled".to_string(),
+        );
+    }
+
+    let mut metadata = analysis.to_metadata();
+    if let Some(object) = metadata.as_object_mut() {
+        object.insert("operations".to_string(), json!(operations));
+        object.insert("appliedOperations".to_string(), json!(applied));
+        object.insert("warnings".to_string(), json!(warnings));
+        object.insert(
+            "passthrough".to_string(),
+            json!(operations
+                .iter()
+                .any(|operation| operation == "passthrough")),
+        );
+    }
+
+    Ok(ProcessedAudio {
+        bytes: processed,
+        duration_ms: analysis.duration_ms,
+        metadata,
+    })
 }

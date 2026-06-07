@@ -6,11 +6,11 @@ import { config } from "../config/config";
 import logger from "../utils/logger";
 
 interface EmbeddedRustServiceDefinition {
-  name: "network-tools" | "audio-worker";
+  name: "network-tools" | "audio-worker" | "file-worker";
   enabled: boolean;
   url: string;
   binPath: string;
-  bindEnvName: "RUST_BIND_ADDR" | "RUST_AUDIO_WORKER_BIND_ADDR";
+  bindEnvName: "RUST_BIND_ADDR" | "RUST_AUDIO_WORKER_BIND_ADDR" | "RUST_FILE_WORKER_BIND_ADDR";
   extraEnv: Record<string, string>;
 }
 
@@ -55,6 +55,16 @@ export async function startEmbeddedRustServices(): Promise<void> {
       bindEnvName: "RUST_AUDIO_WORKER_BIND_ADDR",
       extraEnv: {
         RUST_AUDIO_WORKER_MAX_BYTES: String(config.rustServices.audioWorker.maxBytes),
+      },
+    },
+    {
+      name: "file-worker",
+      enabled: config.rustServices.fileWorker.enabled,
+      url: config.rustServices.fileWorker.url,
+      binPath: config.rustServices.embedded.fileWorkerBin,
+      bindEnvName: "RUST_FILE_WORKER_BIND_ADDR",
+      extraEnv: {
+        RUST_FILE_WORKER_MAX_BYTES: String(config.rustServices.fileWorker.maxBytes),
       },
     },
   ];

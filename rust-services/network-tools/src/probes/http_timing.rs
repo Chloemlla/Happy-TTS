@@ -52,7 +52,8 @@ async fn probe_url_inner(
     let total_started_at = std::time::Instant::now();
 
     let dns_started_at = std::time::Instant::now();
-    let resolved = validation::resolve_target(&target.host, target.port, block_private_targets).await?;
+    let resolved =
+        validation::resolve_target(&target.host, target.port, block_private_targets).await?;
     let dns_ms = dns_started_at.elapsed().as_millis() as u64;
 
     let connect_started_at = std::time::Instant::now();

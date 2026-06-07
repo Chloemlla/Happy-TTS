@@ -153,10 +153,7 @@ pub fn normalize_max_response_bytes(
 }
 
 pub fn normalize_http_method(method: Option<&str>) -> Result<String, AppError> {
-    let normalized = method
-        .unwrap_or("GET")
-        .trim()
-        .to_ascii_uppercase();
+    let normalized = method.unwrap_or("GET").trim().to_ascii_uppercase();
     if !SUPPORTED_HTTP_METHODS.contains(&normalized.as_str()) {
         return Err(AppError::BadRequest(
             "method must be GET or HEAD".to_string(),
@@ -165,7 +162,9 @@ pub fn normalize_http_method(method: Option<&str>) -> Result<String, AppError> {
     Ok(normalized)
 }
 
-pub fn normalize_dns_record_types(record_types: Option<&[String]>) -> Result<Vec<String>, AppError> {
+pub fn normalize_dns_record_types(
+    record_types: Option<&[String]>,
+) -> Result<Vec<String>, AppError> {
     let requested = record_types
         .filter(|record_types| !record_types.is_empty())
         .map(|record_types| {
@@ -214,8 +213,8 @@ pub fn normalize_http_url(
         ));
     };
 
-    let parsed = Url::parse(&candidate)
-        .map_err(|_| AppError::BadRequest("url is invalid".to_string()))?;
+    let parsed =
+        Url::parse(&candidate).map_err(|_| AppError::BadRequest("url is invalid".to_string()))?;
     let scheme = parsed.scheme().to_ascii_lowercase();
     if scheme != "http" && scheme != "https" {
         return Err(AppError::BadRequest(

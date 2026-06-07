@@ -155,7 +155,44 @@ EXPOSE 4020
 CMD ["/usr/local/bin/audio-worker"]
 
 # ============================================
-# Stage 7: Production Runtime
+# Stage 7: Rust File Worker Build
+# ============================================
+FROM rust:1.85-alpine AS rust-file-worker-builder
+
+RUN apk add --no-cache musl-dev
+
+WORKDIR /app/rust-services
+
+COPY rust-services/ ./
+
+RUN cargo build --release --manifest-path Cargo.toml -p file-worker
+
+# ============================================
+# Stage 8: Rust File Worker Runtime
+# ============================================
+FROM alpine:3.21 AS rust-file-worker-runtime
+
+RUN apk add --no-cache ca-certificates tzdata && \
+    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone && \
+    apk del tzdata
+
+ENV TZ=Asia/Shanghai \
+    RUST_FILE_WORKER_BIND_ADDR=0.0.0.0:4030 \
+    RUST_FILE_WORKER_MAX_BYTES=52428800
+
+COPY --from=rust-file-worker-builder /app/rust-services/target/release/file-worker /usr/local/bin/file-worker
+
+RUN addgroup -S fileworker && adduser -S fileworker -G fileworker
+
+USER fileworker
+
+EXPOSE 4030
+
+CMD ["/usr/local/bin/file-worker"]
+
+# ============================================
+# Stage 9: Production Runtime
 # ============================================
 FROM node:24.3.0-alpine
 
@@ -172,8 +209,10 @@ ENV TZ=Asia/Shanghai \
     RUST_EMBEDDED_SERVICES_ENABLED=true \
     RUST_NETWORK_TOOLS_URL="http://127.0.0.1:4010" \
     RUST_AUDIO_WORKER_URL="http://127.0.0.1:4020" \
+    RUST_FILE_WORKER_URL="http://127.0.0.1:4030" \
     RUST_NETWORK_TOOLS_BIN="/usr/local/bin/network-tools" \
-    RUST_AUDIO_WORKER_BIN="/usr/local/bin/audio-worker"
+    RUST_AUDIO_WORKER_BIN="/usr/local/bin/audio-worker" \
+    RUST_FILE_WORKER_BIN="/usr/local/bin/file-worker"
 
 RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
 
@@ -195,6 +234,7 @@ COPY --from=backend-builder /app/scripts/profiling-README.md ./scripts/profiling
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 COPY --from=rust-network-tools-builder /app/rust-services/target/release/network-tools /usr/local/bin/network-tools
 COPY --from=rust-audio-worker-builder /app/rust-services/target/release/audio-worker /usr/local/bin/audio-worker
+COPY --from=rust-file-worker-builder /app/rust-services/target/release/file-worker /usr/local/bin/file-worker
 
 # 非 root 用户运行
 RUN addgroup -S nodejs && adduser -S nodejs -G nodejs && \
@@ -202,7 +242,7 @@ RUN addgroup -S nodejs && adduser -S nodejs -G nodejs && \
 
 USER nodejs
 
-EXPOSE 3000 4010 4020
+EXPOSE 3000 4010 4020 4030
 
 # Node 作为主进程，同时按配置拉起同容器内 Rust 子进程。
 CMD ["node", "dist/app.js"]

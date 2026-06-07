@@ -1,4 +1,3 @@
 [workspace]
-members = ["network-tools", "audio-worker"]
+members = ["network-tools", "audio-worker", "file-worker"]
 resolver = "2"
-

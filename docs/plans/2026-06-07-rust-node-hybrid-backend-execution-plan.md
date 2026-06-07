@@ -513,6 +513,8 @@ npm run test -- --testPathPattern="operationalStatus|startupDiagnostics"
 
 ## 波次 8：扩展 network-tools
 
+实施状态：已完成。已新增 Rust `/v1/network/ping`、`/v1/network/speed`、`/v1/network/dns`、`/v1/network/http-timing`、`/v1/network/tls-timing` 合同；Node `rustNetworkToolsClient` 已接入对应方法，公网 `ping` 和 `speedTest` 保持原响应包装并按 feature flag 使用 Rust 优先、外部 API 回退。
+
 目标：把当前后端更多低层网络探测从 Node/外部 API 迁移到 Rust。
 
 候选能力：
@@ -549,6 +551,8 @@ npm run build:backend
 
 ## 波次 9：扩展 audio-worker
 
+实施状态：已完成。已扩展 Rust 音频分析、magic bytes 校验、MP3 ID3 元数据清理和 operation 开关；Node 通过 `RUST_AUDIO_WORKER_OPERATIONS` 控制操作集合，默认仍为 `passthrough,analyze`，不改变 TTS 文件名、历史记录、WebSocket 或任务状态机。
+
 目标：把音频二进制处理逐步移到 Rust。
 
 候选能力：
@@ -577,6 +581,8 @@ npm run build:backend
 ```
 
 ## 波次 10：file-worker / media-worker
+
+实施状态：已完成。已新增 Rust `file-worker`、Node `rustFileWorkerClient.ts`、feature flag、embedded supervisor、Docker/Compose sidecar profile 和部署文档；第一版提供 magic MIME、hash、图片尺寸、JPEG EXIF 清理和 ZIP 风险检查，Node 仍保留上传权限、配额、接受/拒绝、存储和审计决策。
 
 目标：把文件和媒体 bytes 密集处理移到 Rust。
 

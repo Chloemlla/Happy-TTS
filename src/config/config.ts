@@ -34,6 +34,15 @@ function defaultRustServicesEnabled(nodeEnv: string | undefined): boolean {
   return nodeEnv === "production";
 }
 
+function parseCsv(value: string | undefined, fallback: string[]): string[] {
+  if (!value) return fallback;
+  const parsed = value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return parsed.length > 0 ? parsed : fallback;
+}
+
 const optionalTrimmedString = z
   .union([z.string(), z.undefined()])
   .optional()
@@ -122,6 +131,7 @@ const envSchema = z
     RUST_EMBEDDED_SERVICES_ENABLED: stringToBoolean,
     RUST_NETWORK_TOOLS_BIN: optionalTrimmedString,
     RUST_AUDIO_WORKER_BIN: optionalTrimmedString,
+    RUST_FILE_WORKER_BIN: optionalTrimmedString,
     RUST_AUDIO_WORKER_ENABLED: stringToBoolean,
     RUST_AUDIO_WORKER_URL: z.string().url().optional().default("http://127.0.0.1:4020"),
     RUST_AUDIO_WORKER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(300000).optional().default(30000),
@@ -132,7 +142,19 @@ const envSchema = z
       .max(100 * 1024 * 1024)
       .optional()
       .default(20 * 1024 * 1024),
+    RUST_AUDIO_WORKER_OPERATIONS: z.string().optional(),
     RUST_AUDIO_WORKER_FALLBACK_ENABLED: stringToBoolean,
+    RUST_FILE_WORKER_ENABLED: stringToBoolean,
+    RUST_FILE_WORKER_URL: z.string().url().optional().default("http://127.0.0.1:4030"),
+    RUST_FILE_WORKER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(300000).optional().default(30000),
+    RUST_FILE_WORKER_MAX_BYTES: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(500 * 1024 * 1024)
+      .optional()
+      .default(50 * 1024 * 1024),
+    RUST_FILE_WORKER_FALLBACK_ENABLED: stringToBoolean,
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === "production") {
@@ -183,9 +205,15 @@ const envSchema = z
       env.RUST_NETWORK_TOOLS_ENABLED ?? defaultRustServicesEnabled(env.NODE_ENV);
     const rustAudioWorkerEnabled =
       env.RUST_AUDIO_WORKER_ENABLED ?? defaultRustServicesEnabled(env.NODE_ENV);
+    const rustFileWorkerEnabled =
+      env.RUST_FILE_WORKER_ENABLED ?? defaultRustServicesEnabled(env.NODE_ENV);
     const embeddedRustServicesEnabled =
       env.RUST_EMBEDDED_SERVICES_ENABLED ?? defaultRustServicesEnabled(env.NODE_ENV);
-    if ((rustNetworkToolsEnabled || rustAudioWorkerEnabled) && !embeddedRustServicesEnabled && !env.INTERNAL_SERVICE_TOKEN) {
+    if (
+      (rustNetworkToolsEnabled || rustAudioWorkerEnabled || rustFileWorkerEnabled) &&
+      !embeddedRustServicesEnabled &&
+      !env.INTERNAL_SERVICE_TOKEN
+    ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["INTERNAL_SERVICE_TOKEN"],
@@ -314,6 +342,7 @@ export const startupConfig = Object.freeze({
       enabled: embeddedRustServicesEnabled,
       networkToolsBin: parsedEnv.RUST_NETWORK_TOOLS_BIN || "/usr/local/bin/network-tools",
       audioWorkerBin: parsedEnv.RUST_AUDIO_WORKER_BIN || "/usr/local/bin/audio-worker",
+      fileWorkerBin: parsedEnv.RUST_FILE_WORKER_BIN || "/usr/local/bin/file-worker",
       generatedInternalToken: !parsedEnv.INTERNAL_SERVICE_TOKEN && embeddedRustServicesEnabled,
     },
     networkTools: {
@@ -329,7 +358,15 @@ export const startupConfig = Object.freeze({
       url: parsedEnv.RUST_AUDIO_WORKER_URL,
       timeoutMs: parsedEnv.RUST_AUDIO_WORKER_TIMEOUT_MS,
       maxBytes: parsedEnv.RUST_AUDIO_WORKER_MAX_BYTES,
+      operations: parseCsv(parsedEnv.RUST_AUDIO_WORKER_OPERATIONS, ["passthrough", "analyze"]),
       fallbackEnabled: parsedEnv.RUST_AUDIO_WORKER_FALLBACK_ENABLED ?? true,
+    },
+    fileWorker: {
+      enabled: parsedEnv.RUST_FILE_WORKER_ENABLED ?? rustServicesEnabledByDefault,
+      url: parsedEnv.RUST_FILE_WORKER_URL,
+      timeoutMs: parsedEnv.RUST_FILE_WORKER_TIMEOUT_MS,
+      maxBytes: parsedEnv.RUST_FILE_WORKER_MAX_BYTES,
+      fallbackEnabled: parsedEnv.RUST_FILE_WORKER_FALLBACK_ENABLED ?? true,
     },
   },
 });
