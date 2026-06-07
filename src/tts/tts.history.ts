@@ -1,9 +1,16 @@
 import { mongoose } from "../services/mongoService";
-import type { GenerationHistoryStore, TtsDuplicateHit, TtsHistoryRecord } from "./tts.ports";
+import type {
+  GenerationHistoryStore,
+  TtsDuplicateHit,
+  TtsHistoryRecord,
+  TtsHistoryReviewStatus,
+} from "./tts.ports";
 
 interface TtsHistoryDocument extends TtsHistoryRecord {
   duplicateScopeKey: string;
 }
+
+const REVIEW_STATUSES: TtsHistoryReviewStatus[] = ["none", "needs_review", "in_review", "fixed", "dismissed"];
 
 const TtsHistorySchema = new mongoose.Schema<TtsHistoryDocument>(
   {
@@ -23,6 +30,13 @@ const TtsHistorySchema = new mongoose.Schema<TtsHistoryDocument>(
     providerModel: { type: String, required: true },
     providerVoice: { type: String, required: true },
     createdAt: { type: String, required: true, index: true },
+    adminNote: { type: String },
+    adminSuggestion: { type: String },
+    reviewStatus: { type: String, enum: REVIEW_STATUSES, default: "none", index: true },
+    reviewedBy: { type: String },
+    reviewedAt: { type: String },
+    fixedAt: { type: String },
+    updatedAt: { type: String },
     duplicateScopeKey: { type: String, required: true, index: true },
   },
   { collection: "tts_generation_history" },
@@ -40,6 +54,32 @@ export function redactTtsTextForStorage(text: string): string {
     return text;
   }
   return text ? `[redacted:${text.length}]` : "";
+}
+
+function normalizeReviewStatus(value: unknown): TtsHistoryReviewStatus {
+  return REVIEW_STATUSES.includes(value as TtsHistoryReviewStatus) ? (value as TtsHistoryReviewStatus) : "none";
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function trimOptionalText(value: unknown, maxLength: number): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  return String(value || "").trim().slice(0, maxLength);
+}
+
+function mapHistoryRecord(record: any): TtsHistoryRecord {
+  const { _id, __v, duplicateScopeKey, ...rest } = record || {};
+  return {
+    ...rest,
+    id: _id ? String(_id) : rest.id,
+    text: redactTtsTextForStorage(rest.text || ""),
+    reviewStatus: normalizeReviewStatus(rest.reviewStatus),
+  };
 }
 
 function mapDuplicate(record: Partial<TtsHistoryRecord> | null | undefined): TtsDuplicateHit | null {
@@ -111,12 +151,11 @@ export class MongoGenerationHistoryStore implements GenerationHistoryStore {
     const created = await TtsHistoryModel.create({
       ...record,
       text: redactTtsTextForStorage(record.text),
+      reviewStatus: record.reviewStatus || "none",
+      updatedAt: record.updatedAt || record.createdAt,
       duplicateScopeKey,
     });
-    return {
-      ...(created.toObject() as TtsHistoryRecord),
-      id: String(created._id),
-    };
+    return mapHistoryRecord(created.toObject());
   }
 
   public async getRecentRecords(params: {
@@ -140,11 +179,129 @@ export class MongoGenerationHistoryStore implements GenerationHistoryStore {
       .lean()
       .exec()) as TtsHistoryRecord[];
 
-    return records.map((record: any) => ({
-      ...record,
-      text: redactTtsTextForStorage(record.text || ""),
-      id: record._id ? String(record._id) : record.id,
-    }));
+    return records.map(mapHistoryRecord);
+  }
+
+  public async getAllRecords(params: {
+    page?: number;
+    limit?: number;
+    userId?: string;
+    scope?: "user" | "anonymous";
+    reviewStatus?: TtsHistoryReviewStatus | "all";
+    q?: string;
+  }) {
+    const page = Math.max(1, Math.floor(params.page || 1));
+    const limit = Math.max(1, Math.min(params.limit || 20, 100));
+    const query: Record<string, any> = {};
+    const and: Record<string, any>[] = [];
+
+    if (params.userId?.trim()) {
+      query.userId = params.userId.trim();
+    }
+
+    if (params.scope === "user" || params.scope === "anonymous") {
+      query.scope = params.scope;
+    }
+
+    if (params.reviewStatus && params.reviewStatus !== "all") {
+      if (params.reviewStatus === "none") {
+        and.push({
+          $or: [{ reviewStatus: "none" }, { reviewStatus: { $exists: false } }, { reviewStatus: null }],
+        });
+      } else {
+        query.reviewStatus = params.reviewStatus;
+      }
+    }
+
+    const q = params.q?.trim();
+    if (q) {
+      const pattern = new RegExp(escapeRegExp(q), "i");
+      and.push({
+        $or: [
+          { userId: pattern },
+          { fileName: pattern },
+          { contentHash: pattern },
+          { voice: pattern },
+          { model: pattern },
+          { outputFormat: pattern },
+          { provider: pattern },
+          { providerModel: pattern },
+          { providerVoice: pattern },
+        ],
+      });
+    }
+
+    if (and.length) {
+      query.$and = and;
+    }
+
+    const [records, total] = await Promise.all([
+      TtsHistoryModel.find(query)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean()
+        .exec(),
+      TtsHistoryModel.countDocuments(query).exec(),
+    ]);
+
+    return {
+      records: (records as TtsHistoryRecord[]).map(mapHistoryRecord),
+      total,
+      page,
+      limit,
+    };
+  }
+
+  public async updateAdminReview(
+    recordId: string,
+    patch: {
+      adminNote?: string;
+      adminSuggestion?: string;
+      reviewStatus?: TtsHistoryReviewStatus;
+      reviewedBy?: string;
+    },
+  ) {
+    if (!mongoose.Types.ObjectId.isValid(recordId)) {
+      return null;
+    }
+
+    const now = new Date().toISOString();
+    const setPatch: Record<string, unknown> = {
+      updatedAt: now,
+    };
+    const unsetPatch: Record<string, string> = {};
+
+    if (patch.adminNote !== undefined) {
+      setPatch.adminNote = trimOptionalText(patch.adminNote, 1000);
+    }
+
+    if (patch.adminSuggestion !== undefined) {
+      setPatch.adminSuggestion = trimOptionalText(patch.adminSuggestion, 1000);
+    }
+
+    if (patch.reviewStatus !== undefined) {
+      setPatch.reviewStatus = normalizeReviewStatus(patch.reviewStatus);
+      setPatch.reviewedAt = now;
+      setPatch.reviewedBy = trimOptionalText(patch.reviewedBy, 120);
+
+      if (setPatch.reviewStatus === "fixed") {
+        setPatch.fixedAt = now;
+      } else {
+        unsetPatch.fixedAt = "";
+      }
+    }
+
+    const update: Record<string, unknown> = { $set: setPatch };
+    if (Object.keys(unsetPatch).length) {
+      update.$unset = unsetPatch;
+    }
+
+    const updated = await TtsHistoryModel.findByIdAndUpdate(recordId, update, { returnDocument: "after" })
+      .lean()
+      .exec();
+
+    return updated ? mapHistoryRecord(updated) : null;
   }
 }
 

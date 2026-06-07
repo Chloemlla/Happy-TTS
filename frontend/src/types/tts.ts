@@ -83,3 +83,50 @@ export interface TtsResponse {
   usage?: TtsUsageSummary;
   nextAction?: TtsNextAction;
 }
+
+export type TtsHistoryReviewStatus = "none" | "needs_review" | "in_review" | "fixed" | "dismissed";
+
+export interface TtsHistoryRecord {
+  id: string;
+  scope: "user" | "anonymous";
+  userId?: string;
+  ip?: string;
+  fingerprint?: string;
+  text: string;
+  voice: string;
+  model: string;
+  outputFormat: string;
+  speed: number;
+  contentHash: string;
+  fileName: string;
+  audioUrl: string;
+  signature?: string;
+  provider: string;
+  providerModel: string;
+  providerVoice: string;
+  createdAt: string;
+  adminNote?: string;
+  adminSuggestion?: string;
+  reviewStatus?: TtsHistoryReviewStatus;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  fixedAt?: string;
+  updatedAt?: string;
+  permissions?: {
+    canDownload: boolean;
+    canShare: boolean;
+  };
+}
+
+export interface TtsAdminHistoryResponse {
+  records: TtsHistoryRecord[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface TtsAdminReviewUpdateResponse {
+  success: boolean;
+  record: TtsHistoryRecord;
+  error?: string;
+}

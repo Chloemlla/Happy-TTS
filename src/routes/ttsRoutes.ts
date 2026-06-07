@@ -2,6 +2,7 @@ import express from "express";
 import { TtsController } from "../controllers/ttsController";
 import { apiKeyAuth } from "../middleware/apiKeyAuth";
 import { authenticateAdmin } from "../middleware/auth";
+import { adminLimiter } from "../middleware/routeLimiters";
 import { ClarityService } from "../services/clarityService";
 import { TurnstileService } from "../services/turnstileService";
 
@@ -74,6 +75,8 @@ router.post("/jobs", ttsApiKeyAuth, TtsController.submitJob);
 router.get("/assets/:fileName", TtsController.getAudioAsset);
 router.get("/jobs/:taskId", ttsApiKeyAuth, TtsController.getJobStatus);
 router.get("/jobs/:taskId/result", ttsApiKeyAuth, TtsController.getJobResult);
+router.get("/admin/history", adminLimiter, authenticateAdmin, TtsController.getAllGenerations);
+router.patch("/admin/history/:recordId/review", adminLimiter, authenticateAdmin, TtsController.updateGenerationReview);
 
 /**
  * @openapi

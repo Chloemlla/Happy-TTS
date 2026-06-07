@@ -1,6 +1,8 @@
 import type { User } from "../utils/userStorage";
 import type { TtsJobRecord, TtsJobResult, TtsNextAction, TtsUsageSummary } from "./tts.storage";
 
+export type TtsHistoryReviewStatus = "none" | "needs_review" | "in_review" | "fixed" | "dismissed";
+
 export interface TtsQuotaReservation {
   taskId: string;
   userId: string;
@@ -28,6 +30,13 @@ export interface TtsHistoryRecord {
   providerModel: string;
   providerVoice: string;
   createdAt: string;
+  adminNote?: string;
+  adminSuggestion?: string;
+  reviewStatus?: TtsHistoryReviewStatus;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  fixedAt?: string;
+  updatedAt?: string;
 }
 
 export interface TtsDuplicateHit {
@@ -136,4 +145,26 @@ export interface GenerationHistoryStore {
     fingerprint?: string;
     limit?: number;
   }): Promise<TtsHistoryRecord[]>;
+  getAllRecords(params: {
+    page?: number;
+    limit?: number;
+    userId?: string;
+    scope?: "user" | "anonymous";
+    reviewStatus?: TtsHistoryReviewStatus | "all";
+    q?: string;
+  }): Promise<{
+    records: TtsHistoryRecord[];
+    total: number;
+    page: number;
+    limit: number;
+  }>;
+  updateAdminReview(
+    recordId: string,
+    patch: {
+      adminNote?: string;
+      adminSuggestion?: string;
+      reviewStatus?: TtsHistoryReviewStatus;
+      reviewedBy?: string;
+    },
+  ): Promise<TtsHistoryRecord | null>;
 }

@@ -61,6 +61,7 @@ const TranslationAuditViewer = React.lazy(
 const RustBenchmarkDashboard = React.lazy(
   () => import("./RustBenchmarkDashboard"),
 );
+const TtsGenerationManager = React.lazy(() => import("./TtsGenerationManager"));
 
 const LOADING_CARD_CLASS =
   "w-full rounded-[36px] border border-white/70 bg-white/88 px-6 py-8 text-center shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl";
@@ -125,6 +126,7 @@ const AdminDashboard: React.FC = () => {
         { key: "apikey-billing", label: "API Key 计费" },
         { key: "audit-log", label: "操作审计" },
         { key: "translation-audit", label: "翻译审计" },
+        { key: "tts-history", label: "TTS 生成记录" },
         { key: "rust-benchmark", label: "Rust 压测" },
         { key: "system", label: "系统管理" },
       ] as const,
@@ -137,7 +139,7 @@ const AdminDashboard: React.FC = () => {
         key: "identity",
         label: "身份与权限",
         items: tabs.filter((item) =>
-          ["users", "apikeys", "apikey-billing", "audit-log", "translation-audit"].includes(item.key),
+          ["users", "apikeys", "apikey-billing", "audit-log", "translation-audit", "tts-history"].includes(item.key),
         ),
       },
       {
@@ -820,6 +822,19 @@ const AdminDashboard: React.FC = () => {
                   >
                     <Suspense fallback={<AdminModuleLoadingShell />}>
                       <TranslationAuditViewer />
+                    </Suspense>
+                  </motion.div>
+                )}
+                {tab === "tts-history" && (
+                  <motion.div
+                    key="tts-history"
+                    initial={{ opacity: 0, x: 40 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -40 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <Suspense fallback={<AdminModuleLoadingShell label="正在加载 TTS 生成记录..." />}>
+                      <TtsGenerationManager />
                     </Suspense>
                   </motion.div>
                 )}

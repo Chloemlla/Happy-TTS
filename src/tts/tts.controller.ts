@@ -5,10 +5,12 @@ import logger from "../utils/logger";
 import { type User, UserStorage } from "../utils/userStorage";
 import { TtsRequestError } from "./tts.errors";
 import { generationHistoryStore, redactTtsTextForStorage } from "./tts.history";
+import type { TtsHistoryRecord, TtsHistoryReviewStatus } from "./tts.ports";
 import { TtsSubmissionPipeline } from "./tts.pipeline";
 import { TtsQueue } from "./tts.queue";
 import { ttsAssetAccessService } from "./tts.assetAccess";
 import { type TtsNextAction, ttsStorage } from "./tts.storage";
+import { signContent } from "../utils/sign";
 
 export class TtsController {
   private static readonly submissionPipeline = new TtsSubmissionPipeline();
@@ -101,6 +103,67 @@ export class TtsController {
       (typeof bodyFingerprint === "string" && bodyFingerprint) ||
       "";
     return fingerprint.trim();
+  }
+
+  private static parsePositiveInt(value: unknown, fallback: number, max: number): number {
+    const raw = Array.isArray(value) ? value[0] : value;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed)) {
+      return fallback;
+    }
+    return Math.max(1, Math.min(max, Math.floor(parsed)));
+  }
+
+  private static parseReviewStatus(value: unknown): TtsHistoryReviewStatus | "all" | undefined {
+    const raw = Array.isArray(value) ? value[0] : value;
+    if (typeof raw !== "string") {
+      return undefined;
+    }
+
+    if (raw === "all") {
+      return "all";
+    }
+
+    const allowed: TtsHistoryReviewStatus[] = ["none", "needs_review", "in_review", "fixed", "dismissed"];
+    return allowed.includes(raw as TtsHistoryReviewStatus) ? (raw as TtsHistoryReviewStatus) : undefined;
+  }
+
+  private static stringifyQueryValue(value: unknown): string | undefined {
+    const raw = Array.isArray(value) ? value[0] : value;
+    return typeof raw === "string" && raw.trim() ? raw.trim() : undefined;
+  }
+
+  private static serializeHistoryRecord(record: TtsHistoryRecord) {
+    let audioUrl = "";
+    let signature = "";
+
+    try {
+      audioUrl = ttsAssetAccessService.buildAccessUrl({
+        fileName: record.fileName,
+        userId: record.userId,
+        fingerprint: record.fingerprint,
+        allowDownload: process.env.TTS_DOWNLOADS_ENABLED !== "false",
+        allowShare: process.env.TTS_ASSET_SHARE_ENABLED === "true",
+      });
+      signature = signContent(audioUrl);
+    } catch (error) {
+      logger.warn("构建 TTS 历史音频访问地址失败", {
+        recordId: record.id,
+        fileName: record.fileName,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    return {
+      ...record,
+      text: redactTtsTextForStorage(record.text || ""),
+      audioUrl,
+      signature,
+      permissions: {
+        canDownload: process.env.TTS_DOWNLOADS_ENABLED !== "false",
+        canShare: process.env.TTS_ASSET_SHARE_ENABLED === "true",
+      },
+    };
   }
 
   private static async assertCanAccessJob(req: Request, job: Awaited<ReturnType<typeof ttsStorage.getJob>>) {
@@ -397,7 +460,6 @@ export class TtsController {
       });
     }
 
-    const { signContent } = require("../utils/sign");
     const audioUrl = ttsAssetAccessService.buildAccessUrl({
       fileName: job.result.fileName,
       taskId: job.taskId,
@@ -455,6 +517,7 @@ export class TtsController {
       const ip = TtsController.getClientIp(req);
       const fingerprint = (req.query.fingerprint as string) || "unknown";
       const currentUser = await TtsController.resolveCurrentUser(req);
+      const limit = TtsController.parsePositiveInt(req.query.limit, 10, 50);
 
       logger.info("获取历史记录", {
         ip,
@@ -468,12 +531,85 @@ export class TtsController {
         userId: currentUser?.id,
         ip,
         fingerprint,
-        limit: 10,
+        limit,
       });
-      res.json(records);
+      res.json(records.map((record) => TtsController.serializeHistoryRecord(record)));
     } catch (error) {
+      if (error instanceof TtsRequestError) {
+        return res.status(error.statusCode).json({
+          success: false,
+          error: error.message,
+          code: error.code,
+        });
+      }
+
       logger.error("获取生成历史失败:", error);
-      res.status(500).json({ error: "获取生成历史失败" });
+      return res.status(500).json({ error: "获取生成历史失败" });
+    }
+  }
+
+  public static async getAllGenerations(req: Request, res: Response) {
+    try {
+      const page = TtsController.parsePositiveInt(req.query.page, 1, 10000);
+      const limit = TtsController.parsePositiveInt(req.query.limit, 20, 100);
+      const scope = TtsController.stringifyQueryValue(req.query.scope);
+      const result = await generationHistoryStore.getAllRecords({
+        page,
+        limit,
+        userId: TtsController.stringifyQueryValue(req.query.userId),
+        scope: scope === "user" || scope === "anonymous" ? scope : undefined,
+        reviewStatus: TtsController.parseReviewStatus(req.query.reviewStatus),
+        q: TtsController.stringifyQueryValue(req.query.q),
+      });
+
+      res.json({
+        ...result,
+        records: result.records.map((record) => TtsController.serializeHistoryRecord(record)),
+      });
+    } catch (error) {
+      logger.error("获取全部 TTS 生成历史失败:", error);
+      res.status(500).json({ error: "获取全部 TTS 生成历史失败" });
+    }
+  }
+
+  public static async updateGenerationReview(req: Request, res: Response) {
+    try {
+      const recordId = Array.isArray(req.params.recordId) ? req.params.recordId[0] : req.params.recordId;
+      const parsedReviewStatus = TtsController.parseReviewStatus(req.body?.reviewStatus);
+
+      if (req.body?.reviewStatus !== undefined && (parsedReviewStatus === undefined || parsedReviewStatus === "all")) {
+        return res.status(400).json({
+          success: false,
+          error: "审核状态无效",
+        });
+      }
+
+      const reviewStatus = parsedReviewStatus && parsedReviewStatus !== "all" ? parsedReviewStatus : undefined;
+      const admin = (req as any).user;
+      const record = await generationHistoryStore.updateAdminReview(recordId, {
+        adminNote: req.body?.adminNote,
+        adminSuggestion: req.body?.adminSuggestion,
+        reviewStatus,
+        reviewedBy: admin?.username || admin?.id || "admin",
+      });
+
+      if (!record) {
+        return res.status(404).json({
+          success: false,
+          error: "生成记录不存在",
+        });
+      }
+
+      return res.json({
+        success: true,
+        record: TtsController.serializeHistoryRecord(record),
+      });
+    } catch (error) {
+      logger.error("更新 TTS 生成历史人工审核信息失败:", error);
+      return res.status(500).json({
+        success: false,
+        error: "更新生成记录失败",
+      });
     }
   }
 }

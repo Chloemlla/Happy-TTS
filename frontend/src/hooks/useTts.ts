@@ -1,6 +1,12 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import axios, { AxiosError } from "axios";
-import { TtsJobStatusResponse, TtsRequest, TtsResponse, TtsSubmitResponse } from "../types/tts";
+import type {
+  TtsHistoryRecord,
+  TtsJobStatusResponse,
+  TtsRequest,
+  TtsResponse,
+  TtsSubmitResponse,
+} from "../types/tts";
 import { verifyContent } from "../utils/sign";
 import { getApiBaseUrl } from "../api/api";
 import { getFingerprint } from "../utils/fingerprint";
@@ -37,17 +43,76 @@ type TtsErrorPayload = {
   };
 };
 
+type TtsHistoryPayload = TtsHistoryRecord[] | { records?: TtsHistoryRecord[] };
+
+const normalizeHistory = (payload: TtsHistoryPayload): TtsHistoryRecord[] => {
+  const records = Array.isArray(payload) ? payload : payload.records || [];
+  return records.map((record) => ({
+    ...record,
+    audioUrl: record.audioUrl ? resolveAudioUrl(record.audioUrl) : "",
+    reviewStatus: record.reviewStatus || "none",
+  }));
+};
+
 export const useTts = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [result, setResult] = useState<TtsResponse | null>(null);
+  const [history, setHistory] = useState<TtsHistoryRecord[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
 
   const reset = () => {
     setError(null);
     setAudioUrl(null);
     setResult(null);
   };
+
+  const fetchHistory = useCallback(async (limit = 20): Promise<TtsHistoryRecord[]> => {
+    try {
+      setHistoryLoading(true);
+      setHistoryError(null);
+
+      const token = localStorage.getItem("token");
+      if (!token) {
+        setHistory([]);
+        throw new Error("请先登录后查看历史记录");
+      }
+
+      const fingerprint = await getFingerprint();
+      const response = await api.get<TtsHistoryPayload>("/api/tts/history", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        params: {
+          limit,
+          ...(fingerprint ? { fingerprint } : {}),
+        },
+      });
+
+      const records = normalizeHistory(response.data);
+      setHistory(records);
+      return records;
+    } catch (requestError) {
+      if (axios.isAxiosError(requestError)) {
+        const axiosError = requestError as AxiosError<TtsErrorPayload>;
+        const message =
+          axiosError.response?.data?.error ||
+          axiosError.response?.data?.message ||
+          axiosError.message ||
+          "获取历史记录失败";
+        setHistoryError(message);
+        throw new Error(message);
+      }
+
+      const message = requestError instanceof Error ? requestError.message : "获取历史记录失败";
+      setHistoryError(message);
+      throw new Error(message);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
 
   const generateSpeech = async (request: TtsRequest): Promise<TtsResponse> => {
     try {
@@ -146,6 +211,7 @@ export const useTts = () => {
 
       setAudioUrl(finalAudioUrl);
       setResult(normalizedResult);
+      void fetchHistory(20).catch(() => {});
       return normalizedResult;
     } catch (requestError) {
       if (axios.isAxiosError(requestError)) {
@@ -175,7 +241,11 @@ export const useTts = () => {
     error,
     audioUrl,
     result,
+    history,
+    historyLoading,
+    historyError,
     reset,
     generateSpeech,
+    fetchHistory,
   };
 };
