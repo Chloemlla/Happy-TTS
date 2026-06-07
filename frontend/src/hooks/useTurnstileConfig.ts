@@ -10,8 +10,6 @@ interface UseTurnstileConfigOptions {
   usePublicConfig?: boolean; // 是否使用公共配置接口（无需认证）
 }
 
-const isTurnstileConfigDebugEnabled = () => import.meta.env.DEV || import.meta.env.VITE_TURNSTILE_DEBUG === 'true';
-
 const maskSiteKey = (value: string | null) => {
   if (!value) {
     return null;
@@ -24,11 +22,7 @@ const maskSiteKey = (value: string | null) => {
   return `${value.slice(0, 4)}...${value.slice(-4)}`;
 };
 
-const debugTurnstileConfig = (...args: unknown[]) => {
-  if (isTurnstileConfigDebugEnabled()) {
-    console.debug(...args);
-  }
-};
+const debugTurnstileConfig = (..._args: unknown[]) => {};
 
 export const useTurnstileConfig = (options: UseTurnstileConfigOptions = {}) => {
   const { usePublicConfig = false } = options;

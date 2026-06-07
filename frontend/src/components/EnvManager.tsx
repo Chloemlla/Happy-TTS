@@ -9,7 +9,6 @@ import RuntimeConfigSections from './RuntimeConfigSections';
 import {
   API_URL,
   CLARITY_CONFIG_API,
-  DEBUG_CONSOLE_API,
   GITHUB_BILLING_MULTI_CONFIG_API,
   HCAPTCHA_CONFIG_API,
   IPFS_CONFIG_API,
@@ -34,8 +33,6 @@ import {
 import type {
   ChatProviderItem,
   ClarityConfigSetting,
-  DebugConsoleAccessLog,
-  DebugConsoleConfig,
   EnvItem,
   HCaptchaConfigSetting,
   IPFSConfigSetting,
@@ -54,7 +51,6 @@ import {
   FaSync,
   FaInfoCircle,
   FaChevronDown,
-  FaChevronRight
 } from 'react-icons/fa';
 
 export { handleSourceClick, handleSourceModalClose };
@@ -2606,34 +2602,6 @@ const EnvManager: React.FC = () => {
           )}
         </AnimatePresence>
 
-      </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">确认删除</h3>
-                  <p className="text-gray-600 mb-6">
-                    {deleteType === 'single' && '确定要删除这条访问日志吗？'}
-                    {deleteType === 'batch' && `确定要删除选中的 ${selectedLogIds.length} 条访问日志吗？`}
-                    {deleteType === 'all' && '确定要删除所有访问日志吗？此操作不可恢复！'}
-                    {deleteType === 'filter' && `确定要删除选中的 ${selectedLogIds.length} 条访问日志吗？此操作不可恢复！`}
-                  </p>
-                  <div className="flex items-center justify-center gap-3">
-                    <button
-                      onClick={() => setShowDeleteConfirm(false)}
-                      className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
-                    >
-                      取消
-                    </button>
-                    <button
-                      onClick={handleConfirmDelete}
-                      disabled={deleteLogsLoading}
-                      className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium disabled:opacity-50"
-                    >
-                      {deleteLogsLoading ? '删除中...' : '确认删除'}
-                    </button>
-                  </div>
-                </div>
-              </m.div>
-            </m.div>
-          )}
-        </AnimatePresence>
       </div>
     </LazyMotion>
   );

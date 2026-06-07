@@ -9,7 +9,6 @@ export const TTS_API = `${API_BASE_URL}/api/admin/tts/setting`;
 export const LIBRECHAT_PROVIDERS_API = `${API_BASE_URL}/api/librechat/admin/providers`;
 export const SHORTURL_AES_API = `${API_BASE_URL}/api/shorturl/admin/aes-key`;
 export const WEBHOOK_SECRET_API = `${API_BASE_URL}/api/admin/webhook/secret`;
-export const DEBUG_CONSOLE_API = `${API_BASE_URL}/api/debug-console`;
 export const IPFS_CONFIG_API = `${API_BASE_URL}/api/ipfs/settings`;
 export const TURNSTILE_CONFIG_API = `${API_BASE_URL}/api/turnstile/config`;
 export const HCAPTCHA_CONFIG_API = `${API_BASE_URL}/api/turnstile/hcaptcha-config`;

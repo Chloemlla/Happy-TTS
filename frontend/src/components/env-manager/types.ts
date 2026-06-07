@@ -89,26 +89,3 @@ export interface MultiGitHubBillingConfig {
   config3?: GitHubBillingConfigSetting;
   lastUpdated?: string;
 }
-
-export interface DebugConsoleConfig {
-  enabled: boolean;
-  keySequence: string;
-  verificationCode: string;
-  maxAttempts: number;
-  lockoutDuration: number;
-  group: string;
-  updatedAt?: string;
-}
-
-export interface DebugConsoleAccessLog {
-  _id?: string;
-  userId?: string;
-  ip: string;
-  userAgent: string;
-  keySequence: string;
-  verificationCode: string;
-  success: boolean;
-  attempts: number;
-  timestamp: string;
-  lockoutUntil?: string;
-}

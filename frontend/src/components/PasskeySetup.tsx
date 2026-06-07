@@ -52,65 +52,6 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
         loadCredentials();
     }, [loadCredentials]);
 
-    // 连续按三次 F12（短时间内）在当前登录为管理员时尝试打开开发者工具
-    useEffect(() => {
-        const f12Timestamps: number[] = [];
-
-        const tryOpenDevTools = () => {
-            try {
-                // 方法1: 触发 F12 键事件
-                document.dispatchEvent(new KeyboardEvent('keydown', { key: 'F12', code: 'F12', keyCode: 123, which: 123, bubbles: true }));
-
-                // 方法2: 触发 Ctrl+Shift+I
-                setTimeout(() => {
-                    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'I', code: 'KeyI', keyCode: 73, which: 73, ctrlKey: true, shiftKey: true, bubbles: true }));
-                }, 100);
-
-                // 方法3: 触发 Ctrl+Shift+J（控制台）
-                setTimeout(() => {
-                    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'J', code: 'KeyJ', keyCode: 74, which: 74, ctrlKey: true, shiftKey: true, bubbles: true }));
-                }, 250);
-
-                // 记录尝试
-                console.log('Attempted to open devtools via synthetic key events');
-            } catch (err) {
-                console.warn('openDevTools attempt failed:', err);
-            }
-        };
-
-        const handler = (e: KeyboardEvent) => {
-            if (e.key !== 'F12') return;
-            const now = Date.now();
-            // 保留近 2000ms 的按键记录
-            f12Timestamps.push(now);
-            while (f12Timestamps.length > 0 && now - f12Timestamps[0] > 2000) {
-                f12Timestamps.shift();
-            }
-
-            if (f12Timestamps.length >= 3) {
-                // 管理员判断：与 main.tsx 一致，基于 token 简单判断
-                const token = localStorage.getItem('token');
-                const isAdmin = !!(token && token.length > 10);
-                if (isAdmin) {
-                    setNotification({ message: '检测到管理员快捷键（F12 x3），正在尝试打开开发者工具...', type: 'info' });
-                    tryOpenDevTools();
-                } else {
-                    setNotification({ message: '只有管理员可以通过快捷键打开开发者工具', type: 'warning' });
-                }
-                // 重置记录
-                f12Timestamps.length = 0;
-            }
-        };
-
-        window.addEventListener('keydown', handler);
-        return () => window.removeEventListener('keydown', handler);
-    }, [setNotification]);
-
-    // 打印 credentials 用于线上排查
-    useEffect(() => {
-        console.log('credentials:', credentials);
-    }, [credentials]);
-
     // 注册 Passkey
     const handleRegister = async () => {
         if (hasCredential) {

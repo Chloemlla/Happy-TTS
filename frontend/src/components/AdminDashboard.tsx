@@ -58,6 +58,9 @@ const AuditLogViewer = React.lazy(() => import("./AuditLogViewer"));
 const TranslationAuditViewer = React.lazy(
   () => import("./TranslationAuditViewer"),
 );
+const RustBenchmarkDashboard = React.lazy(
+  () => import("./RustBenchmarkDashboard"),
+);
 
 const LOADING_CARD_CLASS =
   "w-full rounded-[36px] border border-white/70 bg-white/88 px-6 py-8 text-center shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl";
@@ -122,6 +125,7 @@ const AdminDashboard: React.FC = () => {
         { key: "apikey-billing", label: "API Key 计费" },
         { key: "audit-log", label: "操作审计" },
         { key: "translation-audit", label: "翻译审计" },
+        { key: "rust-benchmark", label: "Rust 压测" },
         { key: "system", label: "系统管理" },
       ] as const,
     [],
@@ -164,7 +168,7 @@ const AdminDashboard: React.FC = () => {
         key: "security",
         label: "安全与系统",
         items: tabs.filter((item) =>
-          ["env", "mail-system", "humancheck", "data-collection", "github-billing-cache", "ip-ban", "fingerprint", "system"].includes(
+          ["env", "mail-system", "humancheck", "data-collection", "github-billing-cache", "ip-ban", "fingerprint", "rust-benchmark", "system"].includes(
             item.key,
           ),
         ),
@@ -816,6 +820,19 @@ const AdminDashboard: React.FC = () => {
                   >
                     <Suspense fallback={<AdminModuleLoadingShell />}>
                       <TranslationAuditViewer />
+                    </Suspense>
+                  </motion.div>
+                )}
+                {tab === "rust-benchmark" && (
+                  <motion.div
+                    key="rust-benchmark"
+                    initial={{ opacity: 0, x: 40 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -40 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <Suspense fallback={<AdminModuleLoadingShell label="正在加载 Rust 压测看板..." />}>
+                      <RustBenchmarkDashboard />
                     </Suspense>
                   </motion.div>
                 )}

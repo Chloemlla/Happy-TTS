@@ -72,6 +72,7 @@ import outemailRoutes from "./outemailRoutes";
 import passkeyRoutes from "./passkeyRoutes";
 import policyRoutes from "./policyRoutes";
 import resourceRoutes from "./resourceRoutes";
+import rustBenchmarkRoutes from "./rustBenchmarkRoutes";
 import { assetLinksRoutes, faviconRoutes } from "./siteMetadataRoutes";
 import shortUrlRoutes, { shortUrlRedirectRoutes } from "./shortUrlRoutes";
 import socialRoutes from "./socialRoutes";
@@ -1141,6 +1142,25 @@ export const postTamperRouteModules: RouteModule[] = [
     requiresAuth: "mixed",
     rateLimited: true,
     isPublic: "mixed",
+  },
+  {
+    name: "rust-benchmark-routes",
+    path: "/api/rust-benchmark",
+    router: rustBenchmarkRoutes,
+    middlewares: [adminLimiter],
+    requiresAuth: true,
+    rateLimited: true,
+    isPublic: false,
+    authPolicy: {
+      mode: "router",
+      handlers: ["authenticateToken", "adminOnly"],
+      note: "Rust benchmark routes are guarded inside the router and are available only to administrators.",
+    },
+    rateLimitPolicy: {
+      mode: "mount",
+      limiters: ["adminLimiter"],
+      note: "Benchmark start, stop, and status endpoints share the admin limiter at mount time.",
+    },
   },
   {
     name: "diagnostics-routes",
