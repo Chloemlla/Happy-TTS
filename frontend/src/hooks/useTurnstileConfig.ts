@@ -77,10 +77,7 @@ export const useTurnstileConfig = (options: UseTurnstileConfigOptions = {}) => {
           enabled,
           siteKey: enabled ? rawSiteKey : null,
         });
-      } catch (err) {
-        if (isTurnstileConfigDebugEnabled()) {
-          console.error('获取Turnstile配置失败:', err);
-        }
+      } catch {
         setError('获取验证配置失败');
         // 失败时默认关闭Turnstile
         setConfig({ enabled: false, siteKey: null });
