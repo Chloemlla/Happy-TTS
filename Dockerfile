@@ -81,7 +81,46 @@ RUN mkdir -p dist-obfuscated/templates && cp src/templates/*.html dist-obfuscate
 RUN pnpm run generate:openapi
 
 # ============================================
-# Stage 3: Production Runtime
+# Stage 3: Rust Network Tools Build
+# ============================================
+FROM rust:1.85-alpine AS rust-network-tools-builder
+
+RUN apk add --no-cache musl-dev
+
+WORKDIR /app/rust-services
+
+COPY rust-services/Cargo.toml ./Cargo.toml
+COPY rust-services/network-tools/Cargo.toml ./network-tools/Cargo.toml
+COPY rust-services/network-tools/src ./network-tools/src
+
+RUN cargo build --release --manifest-path Cargo.toml -p network-tools
+
+# ============================================
+# Stage 4: Rust Network Tools Runtime
+# ============================================
+FROM alpine:3.21 AS rust-network-tools-runtime
+
+RUN apk add --no-cache ca-certificates tzdata && \
+    cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone && \
+    apk del tzdata
+
+ENV TZ=Asia/Shanghai \
+    RUST_BIND_ADDR=0.0.0.0:4010 \
+    RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS=true
+
+COPY --from=rust-network-tools-builder /app/rust-services/target/release/network-tools /usr/local/bin/network-tools
+
+RUN addgroup -S networktools && adduser -S networktools -G networktools
+
+USER networktools
+
+EXPOSE 4010
+
+CMD ["/usr/local/bin/network-tools"]
+
+# ============================================
+# Stage 5: Production Runtime
 # ============================================
 FROM node:24.3.0-alpine
 

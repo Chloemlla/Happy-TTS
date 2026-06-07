@@ -1,6 +1,9 @@
 import { createHash } from "node:crypto";
 import axios from "axios";
+import { config } from "../config/config";
 import logger from "../utils/logger";
+import { isInternalServiceClientError } from "./internalServiceClient";
+import { rustNetworkToolsClient } from "./rustNetworkToolsClient";
 
 export interface NetworkTestResponse {
   success: boolean;
@@ -11,6 +14,26 @@ export interface NetworkTestResponse {
 export class NetworkService {
   private static readonly BASE_URL = "https://v2.xxapi.cn/api";
 
+  private static shouldFallbackRustNetworkTools(error: unknown): boolean {
+    if (!config.rustServices.networkTools.fallbackEnabled) {
+      return false;
+    }
+
+    if (!isInternalServiceClientError(error)) {
+      return true;
+    }
+
+    return ["network_error", "rate_limited", "timeout", "upstream_error"].includes(error.code);
+  }
+
+  private static rustNetworkToolsFailure(operation: string, error: unknown): NetworkTestResponse {
+    const message = error instanceof Error ? error.message : "未知错误";
+    return {
+      success: false,
+      error: `Rust network-tools ${operation}失败: ${message}`,
+    };
+  }
+
   /**
    * TCP连接检测
    * @param address 目标地址
@@ -18,6 +41,37 @@ export class NetworkService {
    * @returns TCP连接状态
    */
   public static async tcpPing(address: string, port: number): Promise<NetworkTestResponse> {
+    if (config.rustServices.networkTools.enabled) {
+      try {
+        logger.info("开始Rust TCP连接检测", { address, port, source: "rust-network-tools" });
+        const result = await rustNetworkToolsClient.tcpPing(address, port);
+        if (result.success) {
+          logger.info("Rust TCP连接检测完成", { address, port, result: result.data, source: "rust-network-tools" });
+          return result;
+        }
+
+        throw new Error(result.error || "Rust network-tools returned an unsuccessful tcping response");
+      } catch (error) {
+        logger.warn("Rust TCP连接检测失败", {
+          address,
+          port,
+          source: "rust-network-tools",
+          error: error instanceof Error ? error.message : "未知错误",
+        });
+
+        if (NetworkService.shouldFallbackRustNetworkTools(error)) {
+          logger.warn("Rust TCP连接检测回退到现有外部API", { address, port, source: "node-fallback" });
+          return NetworkService.tcpPingViaExternalApi(address, port);
+        }
+
+        return NetworkService.rustNetworkToolsFailure("TCP连接检测", error);
+      }
+    }
+
+    return NetworkService.tcpPingViaExternalApi(address, port);
+  }
+
+  private static async tcpPingViaExternalApi(address: string, port: number): Promise<NetworkTestResponse> {
     try {
       logger.info("开始TCP连接检测", { address, port });
 
@@ -150,6 +204,36 @@ export class NetworkService {
    * @returns 端口扫描结果
    */
   public static async portScan(address: string): Promise<NetworkTestResponse> {
+    if (config.rustServices.networkTools.enabled) {
+      try {
+        logger.info("开始Rust端口扫描", { address, source: "rust-network-tools" });
+        const result = await rustNetworkToolsClient.portScan(address);
+        if (result.success) {
+          logger.info("Rust端口扫描完成", { address, result: result.data, source: "rust-network-tools" });
+          return result;
+        }
+
+        throw new Error(result.error || "Rust network-tools returned an unsuccessful portscan response");
+      } catch (error) {
+        logger.warn("Rust端口扫描失败", {
+          address,
+          source: "rust-network-tools",
+          error: error instanceof Error ? error.message : "未知错误",
+        });
+
+        if (NetworkService.shouldFallbackRustNetworkTools(error)) {
+          logger.warn("Rust端口扫描回退到现有外部API", { address, source: "node-fallback" });
+          return NetworkService.portScanViaExternalApi(address);
+        }
+
+        return NetworkService.rustNetworkToolsFailure("端口扫描", error);
+      }
+    }
+
+    return NetworkService.portScanViaExternalApi(address);
+  }
+
+  private static async portScanViaExternalApi(address: string): Promise<NetworkTestResponse> {
     try {
       logger.info("开始端口扫描", { address });
 

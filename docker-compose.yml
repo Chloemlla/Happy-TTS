@@ -18,8 +18,29 @@ services:
       - MONGODB_URI=${MONGODB_URI}
       - MONGO_DB=${MONGO_DB:-tts}
       - MONGO_PROXY_URL=${MONGO_PROXY_URL}
+      - RUST_NETWORK_TOOLS_ENABLED=${RUST_NETWORK_TOOLS_ENABLED:-false}
+      - RUST_NETWORK_TOOLS_URL=${RUST_NETWORK_TOOLS_URL:-http://network-tools:4010}
+      - RUST_NETWORK_TOOLS_TIMEOUT_MS=${RUST_NETWORK_TOOLS_TIMEOUT_MS:-5000}
+      - RUST_NETWORK_TOOLS_FALLBACK_ENABLED=${RUST_NETWORK_TOOLS_FALLBACK_ENABLED:-true}
+      - RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS=${RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS:-true}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:-}
     volumes:
       - ./data:/app/data
+    restart: unless-stopped
+
+  network-tools:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: rust-network-tools-runtime
+    profiles:
+      - rust-network-tools
+    expose:
+      - "4010"
+    environment:
+      - RUST_BIND_ADDR=0.0.0.0:4010
+      - RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS=${RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS:-true}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:-}
     restart: unless-stopped
 
 networks:

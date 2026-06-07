@@ -6,6 +6,7 @@ frontend/docs
 # 构建输出
 dist
 frontend/dist
+rust-services/target
 
 # 日志文件
 logs

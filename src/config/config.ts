@@ -102,6 +102,12 @@ const envSchema = z
     IMAGE_BED_OUTPUT_FORMAT: z
       .enum(["auto", "jpg", "jpeg", "png", "webp", "gif", "webp_animated"])
       .optional(),
+    INTERNAL_SERVICE_TOKEN: optionalTrimmedString,
+    RUST_NETWORK_TOOLS_ENABLED: stringToBoolean,
+    RUST_NETWORK_TOOLS_URL: z.string().url().optional().default("http://127.0.0.1:4010"),
+    RUST_NETWORK_TOOLS_TIMEOUT_MS: z.coerce.number().int().min(100).max(60000).optional().default(5000),
+    RUST_NETWORK_TOOLS_FALLBACK_ENABLED: stringToBoolean,
+    RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS: stringToBoolean,
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV === "production") {
@@ -145,6 +151,14 @@ const envSchema = z
         code: z.ZodIssueCode.custom,
         path: ["OUTEMAIL_DOMAIN"],
         message: "Out-email service requires OUTEMAIL_DOMAIN or RESEND_DOMAIN",
+      });
+    }
+
+    if (env.RUST_NETWORK_TOOLS_ENABLED === true && !env.INTERNAL_SERVICE_TOKEN) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["INTERNAL_SERVICE_TOKEN"],
+        message: "RUST_NETWORK_TOOLS_ENABLED=true requires INTERNAL_SERVICE_TOKEN",
       });
     }
   });
@@ -259,6 +273,16 @@ export const startupConfig = Object.freeze({
     storageDestination: parsedEnv.IMAGE_BED_STORAGE_DESTINATION,
     outputFormat: parsedEnv.IMAGE_BED_OUTPUT_FORMAT,
   },
+  rustServices: {
+    internalToken: parsedEnv.INTERNAL_SERVICE_TOKEN || "",
+    networkTools: {
+      enabled: parsedEnv.RUST_NETWORK_TOOLS_ENABLED === true,
+      url: parsedEnv.RUST_NETWORK_TOOLS_URL,
+      timeoutMs: parsedEnv.RUST_NETWORK_TOOLS_TIMEOUT_MS,
+      fallbackEnabled: parsedEnv.RUST_NETWORK_TOOLS_FALLBACK_ENABLED ?? true,
+      blockPrivateTargets: parsedEnv.RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS ?? true,
+    },
+  },
 });
 
 export const runtimeMutableConfig = {
@@ -317,6 +341,7 @@ export const config = {
   frontendBaseUrl: startupConfig.frontendBaseUrl,
   auditLogMasking: startupConfig.security.auditLogMasking,
   publicShortUrl: startupConfig.publicShortUrl,
+  rustServices: startupConfig.rustServices,
   get ipqs() {
     return runtimeMutableConfig.ipqs;
   },

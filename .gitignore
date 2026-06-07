@@ -44,6 +44,7 @@ test-data/
 finish/
 *.mp3
 dist-obfuscated/
+rust-services/target/
 app.py
 .github/workflows/read.yml
 

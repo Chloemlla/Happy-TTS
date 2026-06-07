@@ -159,6 +159,22 @@ describe("NetworkController", () => {
         error: "端口参数必须是1-65535之间的数字",
       });
     });
+
+    it("应该保持服务失败响应包装不变", async () => {
+      mockRequest.query = { address: "example.com", port: "443" };
+      mockedNetworkService.tcpPing.mockResolvedValue({
+        success: false,
+        error: "Rust network-tools TCP连接检测失败: network-tools down",
+      });
+
+      await NetworkController.tcpPing(mockRequest as Request, mockResponse as Response);
+
+      expect(mockStatus).toHaveBeenCalledWith(500);
+      expect(mockJson).toHaveBeenCalledWith({
+        success: false,
+        error: "Rust network-tools TCP连接检测失败: network-tools down",
+      });
+    });
   });
 
   describe("ping", () => {
@@ -247,6 +263,18 @@ describe("NetworkController", () => {
         success: true,
         message: "端口扫描完成",
         data: mockData,
+      });
+    });
+
+    it("应该验证端口扫描地址参数", async () => {
+      mockRequest.query = {};
+
+      await NetworkController.portScan(mockRequest as Request, mockResponse as Response);
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith({
+        success: false,
+        error: "地址参数不能为空",
       });
     });
   });
