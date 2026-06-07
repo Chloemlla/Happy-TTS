@@ -713,3 +713,185 @@ OAuth 错误响应示例：
 - 怀疑 secret 泄漏时使用 `rotate-secret`，轮换会吊销既有 token。
 - 生产环境只配置 HTTPS redirect URI。
 - 为不同第三方应用创建独立客户端，不要复用 client secret。
+
+## 15. 最近提交暴露的 OAuth 踩坑点
+
+本节根据 2026-06-07 14:23 到 14:37 之间的提交复盘整理，重点覆盖 geograba 接入 Synapse OAuth 时已经踩过或最容易再次踩到的问题。
+
+### 15.1 userinfo 字段不能只按一种命名风格解析
+
+Synapse 的 `/api/oauth/userinfo` 可能同时返回 camelCase 和 snake_case 兼容字段，例如：
+
+```json
+{
+  "isAdmin": true,
+  "is_admin": true,
+  "synapseAdmin": true,
+  "synapse_admin": true,
+  "isTrusted": false,
+  "is_trusted": false,
+  "avatarUrl": "https://cdn.example.com/avatar.png",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "accountStatus": "active"
+}
+```
+
+坑点是：在 Rust/Serde 里用 `rename_all = "camelCase"` 再给同一个字段加 `alias = "is_admin"`，当响应里同时出现 `isAdmin` 和 `is_admin` 时，可能触发重复字段错误。当前实现改为手动解析 JSON，把兼容字段拆开读取后再归一化。
+
+接入方也应按这个思路处理：
+
+- `avatarUrl` 和 `avatar_url` 都要兼容。
+- `createdAt` 和 `created_at` 都要兼容，并按 RFC 3339 时间解析。
+- `accountStatus` 和 `account_status` 都要兼容，缺省时按 `active` 处理，但一旦不是 `active` 必须拒绝。
+- 布尔字段必须按布尔值处理，不要把字符串 `"true"` 当成合法响应静默接受。
+
+### 15.2 管理员身份不能只看一个字段
+
+不要只判断 `role === "admin"` 或只判断 `isAdmin`。Synapse 为了兼容不同客户端，会返回多组等价字段。当前归一化规则是：
+
+```text
+isAdmin
+is_admin
+synapseAdmin
+synapse_admin
+admin
+role === "admin"
+```
+
+任一命中即可认为是管理员。信用者授权也要兼容：
+
+```text
+isTrusted
+is_trusted
+role === "trusted"
+```
+
+但 `trusted` 不是管理员。需要后台管理能力时仍要调用需要管理员的接口或显式检查 `is_admin`/`synapse_admin` 一类字段。
+
+### 15.3 用户 ID、角色和展示信息都要有兜底
+
+userinfo 的用户 ID 可能来自 `sub` 或 `id`。接入时应优先使用 `sub`，缺失时再用 `id`，两者都没有时必须拒绝登录。
+
+显示信息也不能假设字段总是齐全：
+
+- `username` 缺失时可以退回 `name`。
+- `name` 缺失时可以退回 `username`。
+- `role` 缺失时可以从 `roles[0]` 兜底。
+- `email` 受 `email` scope 控制，没申请时可能为空。
+
+### 15.4 access token 要按不透明 token 处理
+
+当前后端每次需要认证时都会用 access token 调用 `/api/oauth/userinfo`，而不是本地解 JWT 或长期缓存身份。这是有意设计：
+
+- 用户被降级、封停或删除后，下一次 userinfo 校验应立即失败。
+- 客户端停用、grant 撤销或 token 过期后，也应按 401 处理。
+- 不要长期缓存 `isAdmin` 或 `isTrusted` 的结果。
+
+如果第三方有性能压力，可以做很短时间的缓存，但关键操作前仍应重新调用 `/api/oauth/userinfo` 或 `/api/oauth/introspect`。
+
+### 15.5 token 交换必须是服务端、Basic Auth、表单格式
+
+confidential 客户端换 token 时应由服务端调用：
+
+```text
+POST /api/oauth/token
+Authorization: Basic base64(client_id:client_secret)
+Content-Type: application/x-www-form-urlencoded
+```
+
+不要踩这些坑：
+
+- 不要在浏览器里暴露 `client_secret`。
+- 不要默认用 JSON body，当前实现使用表单提交。
+- `redirect_uri` 必须和发起授权时以及客户端白名单中的值完全一致。
+- `token_type`、`expires_in`、`refresh_token`、`scope` 都可能需要容错；但业务判断应优先使用 token 响应里实际返回的 `scope`。
+
+### 15.6 scope 有三层约束，缺一层都会失败
+
+OAuth API scope 不是只在授权 URL 里加上就能用，必须同时满足：
+
+1. Synapse OAuth 客户端的 `allowedScopes` 包含该 scope。
+2. 授权 URL 的 `scope` 参数请求了该 scope。
+3. 用户同意后返回的 token `scope` 确实包含该 scope。
+
+常见错误表现：
+
+- 第 1 层不满足：授权阶段返回 `invalid_scope`。
+- 第 2 或第 3 层不满足：调用 API 时返回 `insufficient_scope`。
+- 只配置了默认 `openid profile email admin:identity`：只能做登录和身份识别，不能调用 `tts`、`ipfs`、`network` 等 API 能力。
+
+### 15.7 BASE_URL、API_BASE_URL、FRONTEND_BASE_URL 和 redirect URI 要分清
+
+本项目同时涉及 Synapse Provider 地址、geograba 后端公开地址和 geograba 前端公开地址：
+
+| 配置 | 作用 |
+| --- | --- |
+| `SYNAPSE_BASE_URL` | Synapse OAuth Provider 地址，用于拼 `/oauth/authorize`、`/api/oauth/token`、`/api/oauth/userinfo`。 |
+| `API_BASE_URL` | geograba 后端对外地址，用于默认生成 `/api/v1/auth/oauth/callback`。 |
+| `FRONTEND_BASE_URL` | geograba 前端对外地址，用于 OAuth 完成后回到前端页面。 |
+| `SYNAPSE_OAUTH_REDIRECT_URI` | 注册在 Synapse 客户端里的回调地址，必须和实际回调完全一致。 |
+
+部署时最容易出错的是只改了前端域名，没有改 `API_BASE_URL` 或 `SYNAPSE_OAUTH_REDIRECT_URI`，导致 Synapse 回调到内网地址、旧域名或未登记的 URI。
+
+### 15.8 returnTo 不是任意跳转地址
+
+`/api/v1/auth/oauth/start?returnTo=...` 会保存前端回跳地址，但后端会校验来源，避免 open redirect。允许的来源包括：
+
+- `FRONTEND_BASE_URL`
+- `API_BASE_URL`
+- 当前请求的 `Origin`
+- 当前请求的 `Referer`
+- 同站相对路径，例如 `/auth`
+
+如果 `returnTo` 不是允许来源，会回退到 `${FRONTEND_BASE_URL}/auth`。因此生产环境必须正确配置 `FRONTEND_BASE_URL`，否则授权成功后可能回到错误页面。
+
+### 15.9 OAuth state 是短期、单次、内存态
+
+当前 state 记录保存在后端内存 store 中：
+
+- 有效期 10 分钟。
+- callback 到达时会被取出并删除。
+- 授权成功、授权拒绝、缺少 code 都会消费 state。
+
+这带来几个部署坑：
+
+- 用户停留授权页超过 10 分钟再回来，会得到 state 过期。
+- 浏览器重复刷新 callback，第二次会得到 state 无效。
+- 多实例部署时，如果没有共享 state 存储或粘性会话，callback 打到另一台实例会找不到 state。
+- 后端重启会清空 state，正在进行的授权流程会失败。
+
+多实例生产部署应把 OAuth state 放到共享存储，或者保证同一次 OAuth 流程命中同一实例。
+
+### 15.10 回调结果写在 URL hash，不在 query
+
+geograba 后端完成 token 交换后，会重定向回 `returnTo`，并把结果写入 fragment：
+
+```text
+#synapseAuth=<base64url session>
+#synapseError=<message>
+```
+
+前端必须从 `window.location.hash` 读取并消费结果，而不是从 query string 读取。读取后应清理 URL，避免用户复制链接时带上 session 信息。
+
+如果 `returnTo` 本身已经包含 hash，后端会继续追加 `&synapseAuth=...` 或 `&synapseError=...`，前端解析逻辑要兼容这种形式。
+
+### 15.11 Authorization 头格式要严格
+
+geograba 后端只从 `Authorization` 头提取 Bearer token：
+
+```text
+Authorization: Bearer <access_token>
+```
+
+已兼容 `Bearer` 和 `bearer` 前缀，但不接受空 token，也不会从 `X-API-Key`、cookie 或 query 参数读取 OAuth access token。调用 geograba 受保护 API 时，前端或第三方后端必须显式发送 Bearer token。
+
+### 15.12 refresh 不是无条件续命
+
+刷新 access token 时，Synapse 和 geograba 都会重新校验用户和客户端状态：
+
+- refresh token 无效、过期或已被轮换会失败。
+- 用户不再是 `admin` 或 `trusted` 会失败。
+- 用户账号不是 `active` 会失败。
+- 客户端停用、grant 撤销、secret 轮换都可能导致失败。
+
+因此收到 refresh 失败时，不要无限重试。应清理本地会话，引导用户重新授权。
