@@ -48,6 +48,7 @@
     "profile:heap": "node scripts/run-node-with-profiling.js --heap",
     "profile:inspect": "node scripts/run-node-with-profiling.js --inspect",
     "profile:load": "node scripts/run-load-profile-report.js",
+    "benchmark:rust": "node scripts/run-rust-worker-benchmark.js",
     "check:unused-deps": "npx depcheck",
     "check:tree-shaking": "pnpm run analyze:full && echo '检查完成，请查看上面的分析结果'",
     "check:tree-shaking-config": "node scripts/check-tree-shaking.js",
