@@ -4,24 +4,44 @@ This document covers the optional Rust sidecars used by the hybrid backend. Node
 
 ## Defaults
 
-Rust network tools are disabled by default:
+Rust services default by environment:
+
+- `NODE_ENV=production`: `network-tools` and `audio-worker` are enabled when their `*_ENABLED` variables are unset.
+- `NODE_ENV=development` or `NODE_ENV=test`: both services stay disabled when their `*_ENABLED` variables are unset.
+- Explicit `RUST_NETWORK_TOOLS_ENABLED=false` or `RUST_AUDIO_WORKER_ENABLED=false` always disables the corresponding path.
+
+Production requires a shared internal token whenever either Rust service is enabled:
 
 ```text
-RUST_NETWORK_TOOLS_ENABLED=false
+INTERNAL_SERVICE_TOKEN=<long-random-secret>
+RUST_NETWORK_TOOLS_ENABLED=true
 RUST_NETWORK_TOOLS_URL=http://127.0.0.1:4010
 RUST_NETWORK_TOOLS_TIMEOUT_MS=5000
 RUST_NETWORK_TOOLS_FALLBACK_ENABLED=true
 RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS=true
-INTERNAL_SERVICE_TOKEN=
-RUST_AUDIO_WORKER_ENABLED=false
+RUST_AUDIO_WORKER_ENABLED=true
 RUST_AUDIO_WORKER_URL=http://127.0.0.1:4020
 RUST_AUDIO_WORKER_TIMEOUT_MS=30000
 RUST_AUDIO_WORKER_MAX_BYTES=20971520
 RUST_AUDIO_WORKER_FALLBACK_ENABLED=true
 ```
 
-When disabled, `/api/network/tcping` and `/api/network/portscan` keep using the existing Node path and external API fallback behavior.
-When audio worker processing is disabled, TTS writes the provider buffer exactly as before.
+Generate the token yourself and keep the same value in the Node app and every Rust sidecar. Do not commit it to the repository.
+
+PowerShell:
+
+```powershell
+[Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+```
+
+Node:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+When disabled explicitly, `/api/network/tcping` and `/api/network/portscan` keep using the existing Node path and external API fallback behavior.
+When audio worker processing is disabled explicitly, TTS writes the provider buffer exactly as before.
 
 ## Local Sidecar
 
@@ -47,12 +67,11 @@ curl -H "X-Internal-Token: replace-me" http://127.0.0.1:4010/healthz
 
 ## Docker Compose
 
-The Compose sidecar is behind the `rust-network-tools` profile and does not publish a host port.
+Docker Compose is production-oriented and starts both Rust sidecars by default. Neither sidecar publishes a host port.
 
 ```bash
 INTERNAL_SERVICE_TOKEN=replace-me \
-RUST_NETWORK_TOOLS_ENABLED=true \
-docker compose --profile rust-network-tools up -d --build
+docker compose up -d --build
 ```
 
 The app container calls the sidecar through:
@@ -63,12 +82,13 @@ RUST_NETWORK_TOOLS_URL=http://network-tools:4010
 
 `network-tools` validates `X-Internal-Token` on `/healthz`, `/v1/network/tcping`, and `/v1/network/portscan`.
 
-To enable the audio worker sidecar:
+To disable a Rust path while leaving the sidecar container available:
 
 ```bash
 INTERNAL_SERVICE_TOKEN=replace-me \
-RUST_AUDIO_WORKER_ENABLED=true \
-docker compose --profile rust-audio-worker up -d --build
+RUST_NETWORK_TOOLS_ENABLED=false \
+RUST_AUDIO_WORKER_ENABLED=false \
+docker compose up -d --build
 ```
 
 The app container calls it through:

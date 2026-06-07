@@ -30,6 +30,10 @@ const stringToBoolean = z
     return undefined;
   });
 
+function defaultRustServicesEnabled(nodeEnv: string | undefined): boolean {
+  return nodeEnv === "production";
+}
+
 const optionalTrimmedString = z
   .union([z.string(), z.undefined()])
   .optional()
@@ -165,7 +169,11 @@ const envSchema = z
       });
     }
 
-    if ((env.RUST_NETWORK_TOOLS_ENABLED === true || env.RUST_AUDIO_WORKER_ENABLED === true) && !env.INTERNAL_SERVICE_TOKEN) {
+    const rustNetworkToolsEnabled =
+      env.RUST_NETWORK_TOOLS_ENABLED ?? defaultRustServicesEnabled(env.NODE_ENV);
+    const rustAudioWorkerEnabled =
+      env.RUST_AUDIO_WORKER_ENABLED ?? defaultRustServicesEnabled(env.NODE_ENV);
+    if ((rustNetworkToolsEnabled || rustAudioWorkerEnabled) && !env.INTERNAL_SERVICE_TOKEN) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["INTERNAL_SERVICE_TOKEN"],
@@ -183,6 +191,7 @@ const jwtSecret = parsedEnv.JWT_SECRET || generateEphemeralSecret();
 const adminPassword = parsedEnv.NODE_ENV === "production" ? parsedEnv.ADMIN_PASSWORD! : parsedEnv.ADMIN_PASSWORD || "admin";
 const publicShortUrlEnabled = parsedEnv.PUBLIC_SHORT_URL_ENABLED === true;
 const publicShortUrlPassword = parsedEnv.PUBLIC_SHORT_URL_PASSWORD;
+const rustServicesEnabledByDefault = defaultRustServicesEnabled(parsedEnv.NODE_ENV);
 const emailRuntimeDefaults: EmailRuntimeConfig = {
   enabled: Boolean(parsedEnv.RESEND_API_KEY),
   resendDomain: parsedEnv.RESEND_DOMAIN,
@@ -287,14 +296,14 @@ export const startupConfig = Object.freeze({
   rustServices: {
     internalToken: parsedEnv.INTERNAL_SERVICE_TOKEN || "",
     networkTools: {
-      enabled: parsedEnv.RUST_NETWORK_TOOLS_ENABLED === true,
+      enabled: parsedEnv.RUST_NETWORK_TOOLS_ENABLED ?? rustServicesEnabledByDefault,
       url: parsedEnv.RUST_NETWORK_TOOLS_URL,
       timeoutMs: parsedEnv.RUST_NETWORK_TOOLS_TIMEOUT_MS,
       fallbackEnabled: parsedEnv.RUST_NETWORK_TOOLS_FALLBACK_ENABLED ?? true,
       blockPrivateTargets: parsedEnv.RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS ?? true,
     },
     audioWorker: {
-      enabled: parsedEnv.RUST_AUDIO_WORKER_ENABLED === true,
+      enabled: parsedEnv.RUST_AUDIO_WORKER_ENABLED ?? rustServicesEnabledByDefault,
       url: parsedEnv.RUST_AUDIO_WORKER_URL,
       timeoutMs: parsedEnv.RUST_AUDIO_WORKER_TIMEOUT_MS,
       maxBytes: parsedEnv.RUST_AUDIO_WORKER_MAX_BYTES,
