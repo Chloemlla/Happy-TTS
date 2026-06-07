@@ -16,9 +16,15 @@ use crate::{
 type HmacSha256 = Hmac<Sha256>;
 type HmacSha512 = Hmac<Sha512>;
 
-pub fn verify_pow(challenge: &str, nonce: &str, difficulty_bits: u8) -> Result<(bool, String), AppError> {
+pub fn verify_pow(
+    challenge: &str,
+    nonce: &str,
+    difficulty_bits: u8,
+) -> Result<(bool, String), AppError> {
     if challenge.is_empty() || challenge.len() > 512 || nonce.is_empty() || nonce.len() > 256 {
-        return Err(AppError::BadRequest("challenge or nonce is invalid".to_string()));
+        return Err(AppError::BadRequest(
+            "challenge or nonce is invalid".to_string(),
+        ));
     }
     if difficulty_bits > 64 {
         return Err(AppError::BadRequest(
@@ -52,7 +58,9 @@ pub fn verify_hmac(
             mac.update(&message);
             Ok(mac.verify_slice(&signature).is_ok())
         }
-        _ => Err(AppError::BadRequest("unsupported HMAC algorithm".to_string())),
+        _ => Err(AppError::BadRequest(
+            "unsupported HMAC algorithm".to_string(),
+        )),
     }
 }
 
@@ -132,7 +140,9 @@ pub fn score_risk(signals: &Value) -> RiskScoreData {
     {
         add_score(&mut score, 10, &mut reasons, "weakUserAgent");
     }
-    if get_bool(signals, "newDevice").unwrap_or(false) && get_bool(signals, "newLocation").unwrap_or(false) {
+    if get_bool(signals, "newDevice").unwrap_or(false)
+        && get_bool(signals, "newLocation").unwrap_or(false)
+    {
         add_score(&mut score, 15, &mut reasons, "newDeviceAndLocation");
     }
 

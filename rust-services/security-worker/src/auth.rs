@@ -4,7 +4,10 @@ use crate::{config::SecurityWorkerConfig, error::AppError};
 
 const INTERNAL_TOKEN_HEADER: &str = "x-internal-token";
 
-pub fn require_internal_token(headers: &HeaderMap, config: &SecurityWorkerConfig) -> Result<(), AppError> {
+pub fn require_internal_token(
+    headers: &HeaderMap,
+    config: &SecurityWorkerConfig,
+) -> Result<(), AppError> {
     let Some(value) = headers.get(INTERNAL_TOKEN_HEADER) else {
         return Err(AppError::Unauthorized);
     };

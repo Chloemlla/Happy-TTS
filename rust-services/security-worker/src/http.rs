@@ -63,7 +63,8 @@ async fn verify_pow(
     Json(payload): Json<PowVerifyRequest>,
 ) -> Result<Json<SuccessEnvelope<PowVerifyData>>, AppError> {
     auth::require_internal_token(&headers, &state.config)?;
-    let (valid, hash) = processing::verify_pow(&payload.challenge, &payload.nonce, payload.difficulty_bits)?;
+    let (valid, hash) =
+        processing::verify_pow(&payload.challenge, &payload.nonce, payload.difficulty_bits)?;
 
     Ok(Json(SuccessEnvelope::ok(PowVerifyData {
         valid,
@@ -79,7 +80,8 @@ async fn verify_hmac(
     Json(payload): Json<HmacVerifyRequest>,
 ) -> Result<Json<SuccessEnvelope<HmacVerifyData>>, AppError> {
     auth::require_internal_token(&headers, &state.config)?;
-    let algorithm = processing::normalize_hmac_algorithm(payload.algorithm.as_deref().unwrap_or("sha256"))?;
+    let algorithm =
+        processing::normalize_hmac_algorithm(payload.algorithm.as_deref().unwrap_or("sha256"))?;
     let valid = processing::verify_hmac(
         &algorithm,
         &payload.key_base64,
@@ -100,7 +102,9 @@ async fn decrypt_envelope(
     Json(payload): Json<EnvelopeDecryptRequest>,
 ) -> Result<Json<SuccessEnvelope<EnvelopeDecryptData>>, AppError> {
     auth::require_internal_token(&headers, &state.config)?;
-    let algorithm = payload.algorithm.unwrap_or_else(|| "aes-256-gcm".to_string());
+    let algorithm = payload
+        .algorithm
+        .unwrap_or_else(|| "aes-256-gcm".to_string());
     let plaintext = processing::decrypt_envelope(
         &algorithm,
         &payload.key_base64,

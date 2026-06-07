@@ -3,8 +3,8 @@ use sha2::{Digest, Sha256};
 
 use crate::{
     config::SecurityWorkerConfig,
-    processing::{self, scan_content, score_risk},
     models::ContentRule,
+    processing::{self, scan_content, score_risk},
 };
 
 fn leading_zero_bits(bytes: &[u8]) -> u8 {
