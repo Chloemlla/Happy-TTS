@@ -17,6 +17,7 @@ import {
   type ApiKeyPermissionDefinition,
 } from "./apiKeyService";
 import logger from "../utils/logger";
+import { stripTrailingSlashes } from "../utils/urlString";
 import { type User, UserStorage } from "../utils/userStorage";
 
 const CLIENT_ID_PREFIX = "syn_client_";
@@ -997,7 +998,7 @@ export async function revokeOAuthGrant(grantId: string): Promise<boolean> {
 }
 
 export function getOAuthServerMetadata(baseUrl: string) {
-  const normalizedBase = baseUrl.replace(/\/+$/, "");
+  const normalizedBase = stripTrailingSlashes(baseUrl);
   return {
     issuer: normalizedBase,
     authorization_endpoint: `${normalizedBase}/oauth/authorize`,

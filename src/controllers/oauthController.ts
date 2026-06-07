@@ -23,6 +23,7 @@ import {
   validateAuthorizeRequest,
 } from "../services/oauthService";
 import logger from "../utils/logger";
+import { stripTrailingSlashes } from "../utils/urlString";
 
 function sendNoStoreHeaders(res: Response): void {
   res.set("Cache-Control", "no-store");
@@ -31,8 +32,8 @@ function sendNoStoreHeaders(res: Response): void {
 
 function getPublicBaseUrl(req: Request): string {
   const configured = process.env.BASE_URL || process.env.FRONTEND_URL;
-  if (configured) return configured.replace(/\/+$/, "");
-  return `${req.protocol}://${req.get("host")}`.replace(/\/+$/, "");
+  if (configured) return stripTrailingSlashes(configured);
+  return stripTrailingSlashes(`${req.protocol}://${req.get("host")}`);
 }
 
 function getAdminUser(req: Request): any | null {
