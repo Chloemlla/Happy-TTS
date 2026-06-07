@@ -952,6 +952,23 @@ docker-compose up -d
 | 开发 | 3001 | 前端 React 应用（Vite HMR） |
 | 生产/Docker | 3000 | API + 前端 SPA + Swagger UI |
 
+### 网络工具部署原则
+
+TCP 探测和端口扫描默认保留外部 API 回退能力。生产环境如要求这些能力只调用本机 Rust network-tools 服务，必须显式关闭回退：
+
+```env
+INTERNAL_SERVICE_TOKEN=change-me-to-a-long-random-token
+RUST_NETWORK_TOOLS_ENABLED=true
+RUST_NETWORK_TOOLS_URL=http://127.0.0.1:4010
+RUST_NETWORK_TOOLS_TIMEOUT_MS=5000
+RUST_NETWORK_TOOLS_FALLBACK_ENABLED=false
+RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS=true
+```
+
+- `RUST_NETWORK_TOOLS_ENABLED` 未开启时，`/api/network/tcping` 和 `/api/network/portscan` 会调用 `https://v2.xxapi.cn/api/tcping` 与 `https://v2.xxapi.cn/api/portscan`。
+- `RUST_NETWORK_TOOLS_FALLBACK_ENABLED=true` 时，即使 Rust 服务已启用，Rust 超时、网络错误、限流或上游错误也会回退到上述外部 API。
+- 地址校验在本地完成，不依赖外部 API；`RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS=true` 会阻止 localhost、私网和保留地址目标。
+
 ### Cloudflare Worker 部署（可选）
 
 > [!NOTE]
