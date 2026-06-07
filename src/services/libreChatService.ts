@@ -855,7 +855,7 @@ class LibreChatService {
           {
             upsert: true,
             setDefaultsOnInsert: true,
-            new: true, // 返回更新后的文档
+            returnDocument: "after", // 返回更新后的文档
           },
         );
 

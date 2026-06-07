@@ -99,7 +99,7 @@ export async function preauthorizeApiKeyBilling(
       $inc: { balanceCredits: -costCredits },
       $set: { updatedAt: new Date() },
     },
-    { new: true },
+    { returnDocument: "after" },
   ).lean()) as ApiKeyDoc | null;
 
   if (!updated) {
@@ -142,7 +142,7 @@ export async function finalizeApiKeyBilling(context: ApiKeyBillingContext, res: 
         $inc: { balanceCredits: context.costCredits },
         $set: { updatedAt: now },
       },
-      { new: true },
+      { returnDocument: "after" },
     ).lean()) as ApiKeyDoc | null;
 
     await ApiKeyBillingEventModel.create({
@@ -173,7 +173,7 @@ export async function finalizeApiKeyBilling(context: ApiKeyBillingContext, res: 
       },
       $set: { lastBillingAt: now, updatedAt: now },
     },
-    { new: true },
+    { returnDocument: "after" },
   ).lean()) as ApiKeyDoc | null;
 
   await ApiKeyBillingEventModel.create({
@@ -234,7 +234,7 @@ export async function adjustApiKeyBalance(opts: {
       $inc: { balanceCredits: credits },
       $set: { updatedAt: new Date() },
     },
-    { new: true },
+    { returnDocument: "after" },
   ).lean()) as ApiKeyDoc | null;
 
   if (!updated) {

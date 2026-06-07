@@ -257,7 +257,7 @@ export async function updateKey(
   const doc = await ApiKeyModel.findOneAndUpdate(
     { keyId },
     { $set: { ...updates, updatedAt: new Date() } },
-    { new: true },
+    { returnDocument: "after" },
   ).lean();
   return doc ? toApiKeyView(toPlainDoc(doc as ApiKeyDoc)) : null;
 }

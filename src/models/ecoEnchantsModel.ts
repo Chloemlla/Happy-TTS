@@ -532,7 +532,7 @@ const OpsJobSchema = new Schema<IEcoEnchantsOpsJob>(
     result: { type: MixedType },
     error: { type: MixedType },
     issuedAt: { type: Date },
-    expiresAt: { type: Date, required: true, index: true },
+    expiresAt: { type: Date, required: true },
     dispatchedAt: { type: Date },
     acknowledgedAt: { type: Date },
     startedAt: { type: Date },

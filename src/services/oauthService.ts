@@ -505,7 +505,7 @@ async function upsertGrant(clientId: string, userId: string, scopes: string[]): 
         createdAt: now,
       },
     },
-    { upsert: true, new: true },
+    { upsert: true, returnDocument: "after" },
   ).lean()) as OAuthGrantDoc | null;
 
   if (!grant) {
@@ -639,7 +639,7 @@ export async function updateOAuthClient(
   }
   if (updates.enabled !== undefined) patch.enabled = Boolean(updates.enabled);
 
-  const updated = (await OAuthClientModel.findOneAndUpdate({ clientId }, { $set: patch }, { new: true }).lean()) as OAuthClientDoc | null;
+  const updated = (await OAuthClientModel.findOneAndUpdate({ clientId }, { $set: patch }, { returnDocument: "after" }).lean()) as OAuthClientDoc | null;
   return updated ? toOAuthClientView(updated) : null;
 }
 
@@ -648,7 +648,7 @@ export async function rotateOAuthClientSecret(clientId: string): Promise<{ clien
   const updated = (await OAuthClientModel.findOneAndUpdate(
     { clientId, type: "confidential" },
     { $set: { clientSecretHash: hashSecret(clientSecret), updatedAt: new Date() } },
-    { new: true },
+    { returnDocument: "after" },
   ).lean()) as OAuthClientDoc | null;
 
   if (!updated) return null;
@@ -990,7 +990,7 @@ export async function revokeOAuthGrant(grantId: string): Promise<boolean> {
   const grant = (await OAuthGrantModel.findOneAndUpdate(
     { grantId },
     { $set: { revokedAt: now, updatedAt: now } },
-    { new: true },
+    { returnDocument: "after" },
   ).lean()) as OAuthGrantDoc | null;
   if (!grant) return false;
   await OAuthTokenModel.updateMany({ grantId }, { $set: { revokedAt: now, updatedAt: now } });

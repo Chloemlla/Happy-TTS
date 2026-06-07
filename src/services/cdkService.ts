@@ -468,7 +468,7 @@ export class CDKService {
           $or: [{ expiresAt: { $exists: false } }, { expiresAt: { $gt: new Date() } }],
         },
         { $set: updateData },
-        { new: true },
+        { returnDocument: "after" },
       );
 
       if (!cdk) {
@@ -697,7 +697,7 @@ export class CDKService {
         validatedData.expiresAt = updateData.expiresAt;
       }
 
-      const updatedCDK = await CDKModel.findByIdAndUpdate(id, { $set: validatedData }, { new: true });
+      const updatedCDK = await CDKModel.findByIdAndUpdate(id, { $set: validatedData }, { returnDocument: "after" });
 
       logger.info("更新CDK成功", { id, updateData: validatedData });
       return updatedCDK;

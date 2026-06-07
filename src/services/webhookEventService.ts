@@ -161,7 +161,7 @@ export const WebhookEventService = {
     return WebhookEventModel.findByIdAndUpdate(
       id,
       { $set: { ...safePatch, updatedAt: new Date() } },
-      { new: true },
+      { returnDocument: "after" },
     ).lean();
   },
   async remove(id: string) {

@@ -880,7 +880,7 @@ export class NexaiAuthService {
       throw Object.assign(new Error("没有可更新的字段"), { statusCode: 400 });
     }
 
-    const doc = await NexaiUserModel.findOneAndUpdate({ id: userId }, { $set: setFields }, { new: true })
+    const doc = await NexaiUserModel.findOneAndUpdate({ id: userId }, { $set: setFields }, { returnDocument: "after" })
       .select("-password -refreshToken -refreshTokenExpiresAt")
       .lean();
 
@@ -933,7 +933,7 @@ export class NexaiAuthService {
           authProvider: mergeAuthProvider(user.authProvider, "google"),
         },
       },
-      { new: true },
+      { returnDocument: "after" },
     )
       .select("-password -refreshToken -refreshTokenExpiresAt")
       .lean();
@@ -960,7 +960,7 @@ export class NexaiAuthService {
         $set: { authProvider: newProvider },
         $unset: { googleId: "", googleEmail: "", googleAvatarUrl: "" },
       },
-      { new: true },
+      { returnDocument: "after" },
     )
       .select("-password -refreshToken -refreshTokenExpiresAt")
       .lean();
@@ -1044,7 +1044,7 @@ export class NexaiAuthService {
           authProvider: mergeAuthProvider(user.authProvider, "github"),
         },
       },
-      { new: true },
+      { returnDocument: "after" },
     )
       .select("-password -refreshToken -refreshTokenExpiresAt")
       .lean();
@@ -1070,7 +1070,7 @@ export class NexaiAuthService {
         $set: { authProvider: newProvider },
         $unset: { githubId: "", githubUsername: "", githubEmail: "", githubAvatarUrl: "" },
       },
-      { new: true },
+      { returnDocument: "after" },
     )
       .select("-password -refreshToken -refreshTokenExpiresAt")
       .lean();

@@ -1647,7 +1647,7 @@ export const adminController = {
       const doc = await OutEmailSettingModel.findOneAndUpdate(
         { domain: safeDomain },
         { code: code, updatedAt: now },
-        { upsert: true, new: true },
+        { upsert: true, returnDocument: "after" },
       );
       return res.json({ success: true, setting: { domain: doc.domain, updatedAt: doc.updatedAt } });
     } catch (_e) {
@@ -1701,7 +1701,7 @@ export const adminController = {
       const doc = await ModlistSettingModel.findOneAndUpdate(
         { key: "MODIFY_CODE" },
         { code, updatedAt: now },
-        { upsert: true, new: true },
+        { upsert: true, returnDocument: "after" },
       );
       return res.json({ success: true, setting: { updatedAt: doc.updatedAt } });
     } catch (_e) {

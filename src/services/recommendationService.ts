@@ -240,7 +240,7 @@ export class RecommendationService {
           $inc: { totalCount: 1 },
           $set: { lastUpdated: now },
         },
-        { upsert: true, new: true },
+        { upsert: true, returnDocument: "after" },
       );
 
       logger.info(`[RecommendationService] 记录用户 ${userId} 的选择: ${styleId}`);

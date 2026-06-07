@@ -824,7 +824,7 @@ router.post("/admin/providers", authenticateAdmin, async (req, res) => {
           weight: safeWeight,
           updatedAt: new Date(),
         },
-        { new: true, upsert: false },
+        { returnDocument: "after", upsert: false },
       );
       if (!doc) return res.status(404).json({ success: false, error: "提供者不存在" });
     } else {

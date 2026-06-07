@@ -51,7 +51,6 @@ const UserPreferencesSchema = new Schema<IUserPreferences>(
 );
 
 // 索引
-UserPreferencesSchema.index({ userId: 1 }, { unique: true });
 UserPreferencesSchema.index({ updatedAt: -1 });
 
 export default mongoose.models.UserPreferences ||

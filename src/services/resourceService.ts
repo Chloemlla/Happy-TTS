@@ -191,7 +191,7 @@ export class ResourceService {
 
       // 使用乐观锁机制，检查版本号避免并发更新冲突
       const resource = await ResourceModel.findByIdAndUpdate(id, validatedData, {
-        new: true,
+        returnDocument: "after",
         runValidators: true, // 运行验证器
       });
       if (!resource) {

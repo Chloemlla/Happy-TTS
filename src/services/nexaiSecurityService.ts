@@ -122,7 +122,7 @@ export async function trackDevice(
       },
       {
         upsert: true,
-        new: true,
+        returnDocument: "after",
       },
     );
 

@@ -404,7 +404,7 @@ export const ticketController = {
       if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: "无效的工单ID" });
       const validStatuses = ["open", "in-progress", "resolved", "closed"];
       if (!validStatuses.includes(status)) return res.status(400).json({ error: "无效的状态值" });
-      const ticket = await TicketModel.findByIdAndUpdate(id, { $set: { status: String(status) } }, { new: true });
+      const ticket = await TicketModel.findByIdAndUpdate(id, { $set: { status: String(status) } }, { returnDocument: "after" });
       if (!ticket) return res.status(404).json({ error: "工单不存在" });
       wsService.notifyTicketUpdate(ticket.userId, ticket);
       (async () => {

@@ -218,7 +218,7 @@ export class NexaiEncryptedSyncService {
     const counter = await NexaiEncryptedSyncCounterModel.findOneAndUpdate(
       { userId },
       { $inc: { revision: count } },
-      { upsert: true, new: true, lean: true },
+      { upsert: true, returnDocument: "after", lean: true },
     );
     const end = Number(counter?.revision ?? count);
     const start = end - count + 1;

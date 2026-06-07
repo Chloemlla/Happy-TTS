@@ -175,7 +175,7 @@ class MongoTtsJobStore implements TtsJobStore {
     return (await TtsJobModel.findOneAndUpdate(
       { taskId },
       { $set: { ...patch, updatedAt: new Date().toISOString() } },
-      { new: true },
+      { returnDocument: "after" },
     )
       .lean()
       .exec()) as TtsJobRecord | null;
@@ -233,7 +233,7 @@ class MongoTtsJobStore implements TtsJobStore {
         },
         $inc: { attempts: 1 },
       },
-      { sort: { createdAt: 1 }, new: true },
+      { sort: { createdAt: 1 }, returnDocument: "after" },
     )
       .lean()
       .exec()) as TtsJobRecord | null;

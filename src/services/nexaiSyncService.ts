@@ -104,7 +104,7 @@ export class NexaiSyncService {
       const doc = await NexaiSyncModel.findOneAndUpdate(
         { userId },
         { $set: update },
-        { upsert: true, new: true, lean: true },
+        { upsert: true, returnDocument: "after", lean: true },
       );
 
       logger.info(`[NexAI Sync] putSyncData OK for user ${userId}`);
@@ -142,7 +142,7 @@ export class NexaiSyncService {
       const doc = await NexaiSyncModel.findOneAndUpdate(
         { userId },
         { $set: update },
-        { upsert: true, new: true, lean: true },
+        { upsert: true, returnDocument: "after", lean: true },
       );
 
       logger.info(`[NexAI Sync] patchSyncData [${category}] OK for user ${userId}`);

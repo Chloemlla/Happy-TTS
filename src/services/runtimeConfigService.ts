@@ -447,7 +447,7 @@ export class RuntimeConfigService {
     await RuntimeConfigModel.findOneAndUpdate(
       { key: "IPQS" },
       { value: nextConfig, updatedAt: now },
-      { upsert: true, new: true },
+      { upsert: true, returnDocument: "after" },
     ).exec();
 
     runtimeConfigCache.ipqs = nextConfig;
@@ -518,7 +518,7 @@ export class RuntimeConfigService {
     await RuntimeConfigModel.findOneAndUpdate(
       { key: "LINUXDO" },
       { value: nextConfig, updatedAt: now },
-      { upsert: true, new: true },
+      { upsert: true, returnDocument: "after" },
     ).exec();
 
     runtimeConfigCache.linuxdo = nextConfig;
@@ -573,7 +573,7 @@ export class RuntimeConfigService {
     await RuntimeConfigModel.findOneAndUpdate(
       { key: "GOOGLE_AUTH" },
       { value: nextConfig, updatedAt: now },
-      { upsert: true, new: true },
+      { upsert: true, returnDocument: "after" },
     ).exec();
 
     runtimeConfigCache.googleAuth = nextConfig;
@@ -637,7 +637,7 @@ export class RuntimeConfigService {
     await RuntimeConfigModel.findOneAndUpdate(
       { key: "DEEPLX" },
       { value: nextConfig, updatedAt: now },
-      { upsert: true, new: true },
+      { upsert: true, returnDocument: "after" },
     ).exec();
 
     runtimeConfigCache.deeplx = nextConfig;
@@ -719,7 +719,7 @@ export class RuntimeConfigService {
     await RuntimeConfigModel.findOneAndUpdate(
       { key: "NEXAI" },
       { value: nextConfig, updatedAt: now },
-      { upsert: true, new: true },
+      { upsert: true, returnDocument: "after" },
     ).exec();
 
     runtimeConfigCache.nexai = nextConfig;
@@ -792,7 +792,7 @@ export class RuntimeConfigService {
     await RuntimeConfigModel.findOneAndUpdate(
       { key: "TTS" },
       { value: nextConfig, updatedAt: now },
-      { upsert: true, new: true },
+      { upsert: true, returnDocument: "after" },
     ).exec();
 
     runtimeConfigCache.tts = nextConfig;
@@ -890,7 +890,7 @@ export class RuntimeConfigService {
     await RuntimeConfigModel.findOneAndUpdate(
       { key: "EMAIL" },
       { value: nextConfig, updatedAt: now },
-      { upsert: true, new: true },
+      { upsert: true, returnDocument: "after" },
     ).exec();
 
     runtimeConfigCache.email = nextConfig;

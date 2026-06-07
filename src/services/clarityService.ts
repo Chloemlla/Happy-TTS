@@ -583,7 +583,7 @@ export class ClarityService {
             value: validatedValue,
             updatedAt: new Date(),
           },
-          { upsert: true, new: true },
+          { upsert: true, returnDocument: "after" },
         ).maxTimeMS(5000),
         new Promise((_, reject) => setTimeout(() => reject(new Error("Update timeout")), 10000)),
       ]);

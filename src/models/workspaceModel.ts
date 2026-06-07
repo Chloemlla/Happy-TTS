@@ -50,7 +50,6 @@ const WorkspaceSchema = new Schema<IWorkspace>(
 );
 
 // 索引
-WorkspaceSchema.index({ id: 1 }, { unique: true });
 WorkspaceSchema.index({ creatorId: 1 });
 WorkspaceSchema.index({ "members.userId": 1 });
 WorkspaceSchema.index({ createdAt: -1 });

@@ -1250,7 +1250,7 @@ export class EcoEnchantsService {
     const product = await EcoEnchantsProductModel.findOneAndUpdate(
       { productId: normalizedProductId },
       { $set: allowed },
-      { new: true },
+      { returnDocument: "after" },
     );
     if (!product) throw serviceError(404, "product_not_found", "Product was not found.");
 
@@ -1374,7 +1374,7 @@ export class EcoEnchantsService {
       allowed.maxActivations = Math.max(1, Number(allowed.maxActivations));
     }
 
-    const license = await EcoEnchantsLicenseModel.findOneAndUpdate({ licenseId }, { $set: allowed }, { new: true });
+    const license = await EcoEnchantsLicenseModel.findOneAndUpdate({ licenseId }, { $set: allowed }, { returnDocument: "after" });
     if (!license) throw serviceError(404, "license_not_found", "License was not found.");
 
     await EcoEnchantsService.logAudit(context, {
@@ -1392,7 +1392,7 @@ export class EcoEnchantsService {
     const license = await EcoEnchantsLicenseModel.findOneAndUpdate(
       { licenseId },
       { $set: { status: "revoked" } },
-      { new: true },
+      { returnDocument: "after" },
     );
     if (!license) throw serviceError(404, "license_not_found", "License was not found.");
 
@@ -1443,7 +1443,7 @@ export class EcoEnchantsService {
     const activation = await EcoEnchantsActivationModel.findOneAndUpdate(
       { licenseId, activationId },
       { $set: { status: "deactivated", deactivatedAt: new Date() } },
-      { new: true },
+      { returnDocument: "after" },
     );
     if (!activation) throw serviceError(404, "activation_not_found", "Activation was not found.");
 

@@ -570,7 +570,7 @@ export class EcoEnchantsOpsService {
     };
 
     const instance = existing
-      ? await EcoEnchantsOpsInstanceModel.findOneAndUpdate({ instanceId: existing.instanceId }, { $set: patch }, { new: true })
+      ? await EcoEnchantsOpsInstanceModel.findOneAndUpdate({ instanceId: existing.instanceId }, { $set: patch }, { returnDocument: "after" })
       : await EcoEnchantsOpsInstanceModel.create({
           instanceId,
           supportedMethods: [],
@@ -816,7 +816,7 @@ export class EcoEnchantsOpsService {
     const policy = await EcoEnchantsOpsCommandPolicyModel.findOneAndUpdate(
       { commandId },
       { $set: patch, $setOnInsert: { commandId } },
-      { upsert: true, new: true },
+      { upsert: true, returnDocument: "after" },
     );
     await EcoEnchantsOpsService.logOpsAudit({
       context,

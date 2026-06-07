@@ -260,7 +260,7 @@ export class IpVerificationService {
           $inc: { usageCount: 1 },
           $set: { lastUsedAt: new Date() },
         },
-        { upsert: true, new: true },
+        { upsert: true, returnDocument: "after" },
       ).lean()
     )?.usageCount;
 

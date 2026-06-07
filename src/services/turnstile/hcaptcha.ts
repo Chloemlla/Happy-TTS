@@ -216,13 +216,13 @@ export async function updateHCaptchaConfig(
       await HCaptchaSettingModel.findOneAndUpdate(
         { key: "HCAPTCHA_SECRET_KEY" },
         { key: "HCAPTCHA_SECRET_KEY", value: validatedValue, updatedAt: new Date() },
-        { upsert: true, new: true },
+        { upsert: true, returnDocument: "after" },
       );
     } else if (key === "HCAPTCHA_SITE_KEY") {
       await HCaptchaSettingModel.findOneAndUpdate(
         { key: "HCAPTCHA_SITE_KEY" },
         { key: "HCAPTCHA_SITE_KEY", value: validatedValue, updatedAt: new Date() },
-        { upsert: true, new: true },
+        { upsert: true, returnDocument: "after" },
       );
     } else {
       logger.error("hCaptcha配置更新失败：未知的配置键", { key });

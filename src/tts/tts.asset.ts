@@ -94,7 +94,7 @@ export class TtsAudioAssetStore {
             audioData: params.buffer,
           },
         },
-        { upsert: true, new: true },
+        { upsert: true, returnDocument: "after" },
       ).exec();
     } catch (error) {
       logger.warn("TTS 音频写入 MongoDB 失败", { error, fileName: params.fileName });

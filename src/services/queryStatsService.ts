@@ -329,7 +329,7 @@ export class QueryStatsService {
 
     // 更新/插入统计
     const updated = (await QueryStatsModel.findOneAndUpdate({ productId }, updateOps, {
-      new: true,
+      returnDocument: "after",
       upsert: true,
     }).lean()) as IQueryStatsDoc | null;
 

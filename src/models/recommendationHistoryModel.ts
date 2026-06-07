@@ -48,7 +48,6 @@ const RecommendationHistorySchema = new Schema<IRecommendationHistory>(
 );
 
 // 索引
-RecommendationHistorySchema.index({ userId: 1 }, { unique: true });
 RecommendationHistorySchema.index({ lastUpdated: -1 });
 
 export default mongoose.models.RecommendationHistory ||

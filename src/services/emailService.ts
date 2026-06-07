@@ -289,7 +289,7 @@ export async function getEmailQuota(userId: string, domain?: string): Promise<Em
         quota = await EmailQuotaModel.findOneAndUpdate(
           { userId: safeUserId, domain: safeDomain },
           { used: 0, resetAt },
-          { upsert: true, new: true },
+          { upsert: true, returnDocument: "after" },
         );
       }
       return { used: quota.used, total: quotaTotal, resetAt: quota.resetAt, quotaTotal };
@@ -325,7 +325,7 @@ export async function addEmailUsage(userId: string, count = 1, domain?: string) 
         quota = await EmailQuotaModel.findOneAndUpdate(
           { userId: safeUserId, domain: safeDomain },
           { used: count, resetAt },
-          { upsert: true, new: true },
+          { upsert: true, returnDocument: "after" },
         );
       } else {
         quota.used = (quota.used || 0) + count;

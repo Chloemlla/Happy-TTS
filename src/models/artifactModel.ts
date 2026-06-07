@@ -62,7 +62,6 @@ const ArtifactSchema: Schema<IArtifact> = new Schema<IArtifact>(
 );
 
 // 索引优化
-ArtifactSchema.index({ shortId: 1 });
 ArtifactSchema.index({ userId: 1, createdAt: -1 });
 ArtifactSchema.index({ contentHash: 1 });
 ArtifactSchema.index({ expiresAt: 1 }, { sparse: true });

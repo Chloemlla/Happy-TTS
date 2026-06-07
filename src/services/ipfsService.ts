@@ -1107,7 +1107,7 @@ export class IPFSService {
           value: trimmedUrl,
           updatedAt: new Date(),
         },
-        { upsert: true, new: true },
+        { upsert: true, returnDocument: "after" },
       );
 
       logger.info("[IPFS] IPFS_UPLOAD_URL配置已更�?", trimmedUrl);
@@ -1145,7 +1145,7 @@ export class IPFSService {
           value: trimmedUA,
           updatedAt: new Date(),
         },
-        { upsert: true, new: true },
+        { upsert: true, returnDocument: "after" },
       );
 
       logger.info("[IPFS] IPFS_UA 配置已更�?", trimmedUA);
@@ -1205,7 +1205,7 @@ export class IPFSService {
           value: trimmedKeyword,
           updatedAt: new Date(),
         },
-        { upsert: true, new: true },
+        { upsert: true, returnDocument: "after" },
       );
 
       logger.info("[IPFS] IPFS_BYPASS_UA_KEYWORD 配置已更�?", trimmedKeyword);
@@ -1234,7 +1234,7 @@ export class IPFSService {
           value: allowAll ? "true" : "false",
           updatedAt: new Date(),
         },
-        { upsert: true, new: true },
+        { upsert: true, returnDocument: "after" },
       );
 
       logger.info("[IPFS] IPFS_ALLOW_ALL_FILE_TYPES 配置已更�?", allowAll);
@@ -1279,7 +1279,7 @@ export class IPFSService {
           value: skipTurnstile ? "true" : "false",
           updatedAt: new Date(),
         },
-        { upsert: true, new: true },
+        { upsert: true, returnDocument: "after" },
       );
 
       logger.info("[IPFS] IPFS_DEV_SKIP_TURNSTILE 配置已更�?", skipTurnstile);
@@ -1331,7 +1331,7 @@ export class IPFSService {
     await IPFSSettingModel.findOneAndUpdate(
       { key: "IMAGE_BED_API_URL" },
       { key: "IMAGE_BED_API_URL", value: trimmed, updatedAt: new Date() },
-      { upsert: true, new: true },
+      { upsert: true, returnDocument: "after" },
     );
     logger.info("[ImageBed] IMAGE_BED_API_URL 配置已更新", trimmed);
     return true;
@@ -1345,7 +1345,7 @@ export class IPFSService {
     await IPFSSettingModel.findOneAndUpdate(
       { key: "IMAGE_BED_CDN_DOMAIN" },
       { key: "IMAGE_BED_CDN_DOMAIN", value: domain.trim(), updatedAt: new Date() },
-      { upsert: true, new: true },
+      { upsert: true, returnDocument: "after" },
     );
     return true;
   }
@@ -1362,7 +1362,7 @@ export class IPFSService {
     await IPFSSettingModel.findOneAndUpdate(
       { key: "IMAGE_BED_STORAGE_DESTINATION" },
       { key: "IMAGE_BED_STORAGE_DESTINATION", value: v, updatedAt: new Date() },
-      { upsert: true, new: true },
+      { upsert: true, returnDocument: "after" },
     );
     return true;
   }
@@ -1379,7 +1379,7 @@ export class IPFSService {
     await IPFSSettingModel.findOneAndUpdate(
       { key: "IMAGE_BED_OUTPUT_FORMAT" },
       { key: "IMAGE_BED_OUTPUT_FORMAT", value: v, updatedAt: new Date() },
-      { upsert: true, new: true },
+      { upsert: true, returnDocument: "after" },
     );
     return true;
   }

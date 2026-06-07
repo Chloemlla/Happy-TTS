@@ -623,7 +623,7 @@ class DebugConsoleService {
       const result = await DebugConsoleConfigModel.findOneAndUpdate(
         { group: safeGroup },
         { $set: { ...safeUpdates, updatedAt: new Date() } },
-        { upsert: true, new: true, setDefaultsOnInsert: true, runValidators: true, context: "query" },
+        { upsert: true, returnDocument: "after", setDefaultsOnInsert: true, runValidators: true, context: "query" },
       );
 
       // 清除缓存

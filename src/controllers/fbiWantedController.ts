@@ -160,7 +160,7 @@ export const fbiWantedController = {
       const updated = await FBIWantedModel.findByIdAndUpdate(
         id,
         { $set: { photoUrl, lastUpdated: new Date() } },
-        { new: true, runValidators: true },
+        { returnDocument: "after", runValidators: true },
       );
 
       if (!updated) {
@@ -512,7 +512,7 @@ export const fbiWantedController = {
       // 更新时间戳
       updateData.lastUpdated = new Date();
 
-      const updatedWanted = await FBIWantedModel.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
+      const updatedWanted = await FBIWantedModel.findByIdAndUpdate(id, updateData, { returnDocument: "after", runValidators: true });
 
       if (!updatedWanted) {
         return res.status(404).json({
@@ -683,7 +683,7 @@ export const fbiWantedController = {
       const updatedWanted = await FBIWantedModel.findByIdAndUpdate(
         id,
         { $set: { status: safeStatus, lastUpdated: new Date() } },
-        { new: true, runValidators: true },
+        { returnDocument: "after", runValidators: true },
       );
 
       if (!updatedWanted) {

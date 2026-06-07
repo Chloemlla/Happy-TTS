@@ -165,7 +165,7 @@ export class MongoQuotaLedger implements QuotaLedger {
     await TtsQuotaReservationModel.findOneAndUpdate(
       { taskId, userId, consumedAt: { $in: [null, undefined] }, releasedAt: { $in: [null, undefined] } },
       { $set: { consumedAt: new Date().toISOString() } },
-      { new: true },
+      { returnDocument: "after" },
     ).exec();
 
     return this.buildSnapshot(userId);
@@ -180,7 +180,7 @@ export class MongoQuotaLedger implements QuotaLedger {
     await TtsQuotaReservationModel.findOneAndUpdate(
       { taskId, userId, consumedAt: { $in: [null, undefined] }, releasedAt: { $in: [null, undefined] } },
       { $set: { releasedAt: new Date().toISOString() } },
-      { new: true },
+      { returnDocument: "after" },
     ).exec();
 
     return this.buildSnapshot(userId);
