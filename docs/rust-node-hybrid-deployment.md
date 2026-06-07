@@ -27,6 +27,7 @@ RUST_AUDIO_WORKER_FALLBACK_ENABLED=true
 ```
 
 Generate the token yourself and keep the same value in the Node app and every Rust sidecar. Do not commit it to the repository.
+The value can change between coordinated full-stack restarts, but it must not be generated independently by each process. During one deployment, every Node instance and Rust sidecar must share the same token; otherwise internal calls fail with 401/403.
 
 PowerShell:
 
