@@ -9,7 +9,7 @@ Rust services default by environment:
 - `NODE_ENV=production`: `network-tools` and `audio-worker` are enabled when their `*_ENABLED` variables are unset.
 - `NODE_ENV=development` or `NODE_ENV=test`: both services stay disabled when their `*_ENABLED` variables are unset.
 - Explicit `RUST_NETWORK_TOOLS_ENABLED=false` or `RUST_AUDIO_WORKER_ENABLED=false` always disables the corresponding path.
-- Docker production images include both Rust binaries. With `RUST_EMBEDDED_SERVICES_ENABLED=true`, Node starts them as child processes inside the same app container.
+- Docker production images include both Rust binaries. With `RUST_EMBEDDED_SERVICES_ENABLED=true`, the Node main process is the Rust supervisor: it starts the Rust child processes, waits for health checks, restarts them after unexpected exits, and terminates them when Node exits.
 
 External Rust sidecars require a shared internal token whenever either Rust service is enabled:
 
@@ -70,7 +70,7 @@ curl -H "X-Internal-Token: replace-me" http://127.0.0.1:4010/healthz
 
 ## Docker Compose
 
-Docker Compose is production-oriented and starts Rust inside the app container by default. The Rust HTTP ports stay bound to localhost inside that container and are not published to the host.
+Docker Compose is production-oriented and starts Rust inside the app container by default. The Rust HTTP ports stay bound to localhost inside that container and are not published to the host. The `network-tools` and `audio-worker` services are only for the optional external-sidecar profile.
 
 ```bash
 INTERNAL_SERVICE_TOKEN=replace-me \

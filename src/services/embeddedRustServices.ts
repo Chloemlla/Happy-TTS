@@ -15,7 +15,9 @@ interface EmbeddedRustServiceDefinition {
 }
 
 const children: ChildProcess[] = [];
+const restartTimers: NodeJS.Timeout[] = [];
 let started = false;
+let shuttingDown = false;
 
 export async function startEmbeddedRustServices(): Promise<void> {
   if (started || process.env.NODE_ENV === "test") {
@@ -59,11 +61,11 @@ export async function startEmbeddedRustServices(): Promise<void> {
   registerShutdownHandlers();
 
   for (const service of services) {
-    await startService(service);
+    await startService(service, 0);
   }
 }
 
-async function startService(service: EmbeddedRustServiceDefinition): Promise<void> {
+async function startService(service: EmbeddedRustServiceDefinition, restartCount: number): Promise<void> {
   if (!service.enabled) {
     return;
   }
@@ -86,6 +88,23 @@ async function startService(service: EmbeddedRustServiceDefinition): Promise<voi
   }
 
   const bindAddr = `${normalizeBindHost(parsedUrl.hostname)}:${parsedUrl.port}`;
+  const child = spawnService(service, bindAddr, restartCount);
+
+  logger.info("[Rust] Embedded Rust service spawned", {
+    service: service.name,
+    pid: child.pid,
+    bindAddr,
+    restartCount,
+  });
+
+  await waitForHealth(service.name, service.url, config.rustServices.internalToken, 5000);
+}
+
+function spawnService(
+  service: EmbeddedRustServiceDefinition,
+  bindAddr: string,
+  restartCount: number,
+): ChildProcess {
   const child = spawn(service.binPath, [], {
     env: {
       ...process.env,
@@ -109,6 +128,7 @@ async function startService(service: EmbeddedRustServiceDefinition): Promise<voi
       code,
       signal,
     });
+    scheduleRestart(service, restartCount + 1);
   });
   child.on("error", (error) => {
     logger.error("[Rust] Embedded Rust service failed to start", {
@@ -117,13 +137,31 @@ async function startService(service: EmbeddedRustServiceDefinition): Promise<voi
     });
   });
 
-  logger.info("[Rust] Embedded Rust service spawned", {
+  return child;
+}
+
+function scheduleRestart(service: EmbeddedRustServiceDefinition, restartCount: number) {
+  if (shuttingDown || !service.enabled || !config.rustServices.embedded.enabled) {
+    return;
+  }
+
+  const delayMs = Math.min(30_000, 1000 * restartCount);
+  logger.warn("[Rust] Scheduling embedded Rust service restart", {
     service: service.name,
-    pid: child.pid,
-    bindAddr,
+    restartCount,
+    delayMs,
   });
 
-  await waitForHealth(service.name, service.url, config.rustServices.internalToken, 5000);
+  const timer = setTimeout(() => {
+    void startService(service, restartCount).catch((error) => {
+      logger.error("[Rust] Embedded Rust service restart failed", {
+        service: service.name,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      scheduleRestart(service, restartCount + 1);
+    });
+  }, delayMs);
+  restartTimers.push(timer);
 }
 
 function parseServiceUrl(rawUrl: string): URL | null {
@@ -197,6 +235,10 @@ function requestHealth(url: URL, internalToken: string): Promise<boolean> {
 
 function registerShutdownHandlers() {
   const shutdown = () => {
+    shuttingDown = true;
+    for (const timer of restartTimers) {
+      clearTimeout(timer);
+    }
     for (const child of children) {
       if (!child.killed) {
         child.kill("SIGTERM");
