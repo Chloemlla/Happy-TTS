@@ -11,6 +11,7 @@ describe("RustNetworkToolsClient", () => {
     const client = new RustNetworkToolsClient({
       internalClient,
       timeoutMs: 2500,
+      maxResponseBytes: 4096,
       defaultPortScanPorts: [80, 443],
       concurrency: 2,
       blockPrivateTargets: true,
@@ -93,10 +94,157 @@ describe("RustNetworkToolsClient", () => {
     });
   });
 
+  it("should call Rust ping endpoint and map the response", async () => {
+    const { client, internalClient } = createClient();
+    internalClient.postJson.mockResolvedValueOnce({
+      success: true,
+      data: {
+        target: "https://example.com/",
+        reachable: true,
+        method: "http-head",
+        port: 443,
+        latencyMs: 20,
+        source: "rust-network-tools",
+      },
+    });
+
+    const result = await client.ping("https://example.com");
+
+    expect(result.success).toBe(true);
+    expect(result.data.method).toBe("http-head");
+    expect(internalClient.postJson).toHaveBeenCalledWith("/v1/network/ping", {
+      target: "https://example.com",
+      timeoutMs: 2500,
+    });
+  });
+
+  it("should call Rust ping endpoint with bare public IP targets", async () => {
+    const { client, internalClient } = createClient();
+    internalClient.postJson.mockResolvedValueOnce({
+      success: true,
+      data: {
+        target: "134.209.101.203",
+        reachable: true,
+        method: "tcp-default",
+        port: 22,
+        latencyMs: 18,
+        source: "rust-network-tools",
+      },
+    });
+
+    const result = await client.ping("134.209.101.203");
+
+    expect(result.success).toBe(true);
+    expect(result.data.method).toBe("tcp-default");
+    expect(internalClient.postJson).toHaveBeenCalledWith("/v1/network/ping", {
+      target: "134.209.101.203",
+      timeoutMs: 2500,
+    });
+  });
+
+  it("should call Rust speed endpoint with maxBytes", async () => {
+    const { client, internalClient } = createClient();
+    internalClient.postJson.mockResolvedValueOnce({
+      success: true,
+      data: {
+        url: "https://example.com/",
+        statusCode: 200,
+        bytesRead: 4096,
+        totalMs: 100,
+        throughputBytesPerSec: 40960,
+        truncated: true,
+        source: "rust-network-tools",
+      },
+    });
+
+    const result = await client.speedTest("https://example.com");
+
+    expect(result.success).toBe(true);
+    expect(internalClient.postJson).toHaveBeenCalledWith("/v1/network/speed", {
+      url: "https://example.com",
+      timeoutMs: 2500,
+      maxBytes: 4096,
+    });
+  });
+
+  it("should call Rust DNS, HTTP timing, and TLS timing endpoints", async () => {
+    const { client, internalClient } = createClient();
+    internalClient.postJson
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          address: "example.com",
+          records: [{ recordType: "A", value: "93.184.216.34" }],
+          source: "rust-network-tools",
+        },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          url: "https://example.com/",
+          statusCode: 200,
+          dnsMs: 1,
+          connectMs: 2,
+          tlsMs: 3,
+          ttfbMs: 4,
+          totalMs: 5,
+          bytesRead: 6,
+          truncated: false,
+          source: "rust-network-tools",
+        },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        data: {
+          address: "example.com",
+          port: 443,
+          dnsMs: 1,
+          connectMs: 2,
+          tlsHandshakeMs: 3,
+          certificateCount: 1,
+          source: "rust-network-tools",
+        },
+      });
+
+    await expect(client.dnsResolve("example.com", ["A"])).resolves.toMatchObject({ success: true });
+    await expect(client.httpTiming("https://example.com", "HEAD")).resolves.toMatchObject({ success: true });
+    await expect(client.tlsTiming("example.com", { port: 443, serverName: "example.com" })).resolves.toMatchObject({
+      success: true,
+    });
+
+    expect(internalClient.postJson).toHaveBeenNthCalledWith(1, "/v1/network/dns", {
+      address: "example.com",
+      recordTypes: ["A"],
+      timeoutMs: 2500,
+    });
+    expect(internalClient.postJson).toHaveBeenNthCalledWith(2, "/v1/network/http-timing", {
+      url: "https://example.com",
+      method: "HEAD",
+      timeoutMs: 2500,
+      maxBytes: 4096,
+    });
+    expect(internalClient.postJson).toHaveBeenNthCalledWith(3, "/v1/network/tls-timing", {
+      address: "example.com",
+      port: 443,
+      serverName: "example.com",
+      timeoutMs: 2500,
+    });
+  });
+
   it("should block private IP targets before calling Rust when enabled", async () => {
     const { client, internalClient } = createClient();
 
     await expect(client.tcpPing("127.0.0.1", 80)).rejects.toMatchObject({
+      code: "bad_request",
+      statusCode: 400,
+    });
+    expect(internalClient.postJson).not.toHaveBeenCalled();
+  });
+
+  it("should block private URL targets before calling Rust when enabled", async () => {
+    const { client, internalClient } = createClient();
+
+    await expect(client.speedTest("http://127.0.0.1/status")).rejects.toMatchObject({
       code: "bad_request",
       statusCode: 400,
     });
@@ -133,4 +281,3 @@ describe("RustNetworkToolsClient", () => {
     });
   });
 });
-

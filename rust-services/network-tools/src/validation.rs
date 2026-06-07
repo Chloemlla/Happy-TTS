@@ -1,8 +1,32 @@
 use std::{collections::BTreeSet, net::IpAddr, time::Duration};
 
 use tokio::net::lookup_host;
+use url::Url;
 
 use crate::{config::NetworkToolsConfig, error::AppError};
+
+const SUPPORTED_DNS_RECORD_TYPES: &[&str] = &["A", "AAAA", "CNAME", "MX", "TXT"];
+const SUPPORTED_HTTP_METHODS: &[&str] = &["GET", "HEAD"];
+
+#[derive(Debug, Clone)]
+pub struct NormalizedHttpUrl {
+    pub url: String,
+    pub scheme: String,
+    pub host: String,
+    pub port: u16,
+    pub path_and_query: String,
+}
+
+impl NormalizedHttpUrl {
+    pub fn host_header(&self) -> String {
+        let default_port = if self.scheme == "https" { 443 } else { 80 };
+        if self.port == default_port {
+            self.host.clone()
+        } else {
+            format!("{}:{}", self.host, self.port)
+        }
+    }
+}
 
 pub fn normalize_timeout_ms(
     requested: Option<u64>,
@@ -112,6 +136,122 @@ pub fn normalize_concurrency(
         )));
     }
     Ok(concurrency)
+}
+
+pub fn normalize_max_response_bytes(
+    requested: Option<usize>,
+    config: &NetworkToolsConfig,
+) -> Result<usize, AppError> {
+    let max_bytes = requested.unwrap_or(config.max_response_bytes);
+    if max_bytes == 0 || max_bytes > config.max_response_bytes {
+        return Err(AppError::BadRequest(format!(
+            "maxBytes must be between 1 and {}",
+            config.max_response_bytes
+        )));
+    }
+    Ok(max_bytes)
+}
+
+pub fn normalize_http_method(method: Option<&str>) -> Result<String, AppError> {
+    let normalized = method
+        .unwrap_or("GET")
+        .trim()
+        .to_ascii_uppercase();
+    if !SUPPORTED_HTTP_METHODS.contains(&normalized.as_str()) {
+        return Err(AppError::BadRequest(
+            "method must be GET or HEAD".to_string(),
+        ));
+    }
+    Ok(normalized)
+}
+
+pub fn normalize_dns_record_types(record_types: Option<&[String]>) -> Result<Vec<String>, AppError> {
+    let requested = record_types
+        .filter(|record_types| !record_types.is_empty())
+        .map(|record_types| {
+            record_types
+                .iter()
+                .map(|record_type| record_type.trim().to_ascii_uppercase())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_else(|| vec!["A".to_string(), "AAAA".to_string()]);
+
+    let mut normalized = Vec::new();
+    for record_type in requested {
+        if !SUPPORTED_DNS_RECORD_TYPES.contains(&record_type.as_str()) {
+            return Err(AppError::BadRequest(format!(
+                "unsupported DNS record type: {record_type}"
+            )));
+        }
+        if !normalized.contains(&record_type) {
+            normalized.push(record_type);
+        }
+    }
+
+    Ok(normalized)
+}
+
+pub fn normalize_http_url(
+    raw_url: &str,
+    default_scheme: Option<&str>,
+    block_private_targets: bool,
+) -> Result<NormalizedHttpUrl, AppError> {
+    let trimmed = raw_url.trim();
+    if trimmed.is_empty() {
+        return Err(AppError::BadRequest("url is required".to_string()));
+    }
+    if trimmed.len() > 2048 || trimmed.chars().any(|value| value.is_ascii_control()) {
+        return Err(AppError::BadRequest("url is invalid".to_string()));
+    }
+
+    let candidate = if trimmed.contains("://") {
+        trimmed.to_string()
+    } else if let Some(default_scheme) = default_scheme {
+        format!("{default_scheme}://{trimmed}")
+    } else {
+        return Err(AppError::BadRequest(
+            "url must include http or https scheme".to_string(),
+        ));
+    };
+
+    let parsed = Url::parse(&candidate)
+        .map_err(|_| AppError::BadRequest("url is invalid".to_string()))?;
+    let scheme = parsed.scheme().to_ascii_lowercase();
+    if scheme != "http" && scheme != "https" {
+        return Err(AppError::BadRequest(
+            "url scheme must be http or https".to_string(),
+        ));
+    }
+    if !parsed.username().is_empty() || parsed.password().is_some() {
+        return Err(AppError::BadRequest(
+            "url credentials are not allowed".to_string(),
+        ));
+    }
+
+    let host = parsed
+        .host_str()
+        .ok_or_else(|| AppError::BadRequest("url host is required".to_string()))?;
+    let host = normalize_address(host, block_private_targets)?;
+    let port = parsed
+        .port_or_known_default()
+        .ok_or_else(|| AppError::BadRequest("url port is invalid".to_string()))?;
+
+    let mut path_and_query = parsed.path().to_string();
+    if path_and_query.is_empty() {
+        path_and_query.push('/');
+    }
+    if let Some(query) = parsed.query() {
+        path_and_query.push('?');
+        path_and_query.push_str(query);
+    }
+
+    Ok(NormalizedHttpUrl {
+        url: parsed.to_string(),
+        scheme,
+        host,
+        port,
+        path_and_query,
+    })
 }
 
 pub async fn resolve_target(

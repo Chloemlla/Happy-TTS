@@ -1,7 +1,8 @@
 use crate::{
     config::NetworkToolsConfig,
     validation::{
-        is_blocked_ip, normalize_address, normalize_concurrency, normalize_ports,
+        is_blocked_ip, normalize_address, normalize_concurrency, normalize_dns_record_types,
+        normalize_http_method, normalize_http_url, normalize_max_response_bytes, normalize_ports,
         normalize_timeout_ms,
     },
 };
@@ -12,6 +13,7 @@ fn test_config() -> NetworkToolsConfig {
         internal_token: "test-token".to_string(),
         default_timeout_ms: 3000,
         max_timeout_ms: 10_000,
+        max_response_bytes: 1024,
         max_ports: 3,
         max_concurrency: 4,
         block_private_targets: true,
@@ -79,4 +81,47 @@ fn enforces_concurrency_limit() {
     );
     assert!(normalize_concurrency(Some(0), &config).is_err());
     assert!(normalize_concurrency(Some(5), &config).is_err());
+}
+
+#[test]
+fn normalizes_http_urls_and_rejects_unsafe_variants() {
+    let normalized = normalize_http_url("Example.COM/path?q=1", Some("https"), true).unwrap();
+    assert_eq!(normalized.scheme, "https");
+    assert_eq!(normalized.host, "example.com");
+    assert_eq!(normalized.port, 443);
+    assert_eq!(normalized.path_and_query, "/path?q=1");
+
+    assert!(normalize_http_url("ftp://example.com", None, true).is_err());
+    assert!(normalize_http_url("https://user:pass@example.com", None, true).is_err());
+    assert!(normalize_http_url("http://127.0.0.1", None, true).is_err());
+}
+
+#[test]
+fn normalizes_dns_record_types() {
+    assert_eq!(
+        normalize_dns_record_types(None).unwrap(),
+        vec!["A".to_string(), "AAAA".to_string()]
+    );
+    assert_eq!(
+        normalize_dns_record_types(Some(&[
+            "txt".to_string(),
+            "MX".to_string(),
+            "txt".to_string()
+        ]))
+        .unwrap(),
+        vec!["TXT".to_string(), "MX".to_string()]
+    );
+    assert!(normalize_dns_record_types(Some(&["SRV".to_string()])).is_err());
+}
+
+#[test]
+fn enforces_http_method_and_response_size_limits() {
+    let config = test_config();
+    assert_eq!(normalize_http_method(None).unwrap(), "GET");
+    assert_eq!(normalize_http_method(Some("head")).unwrap(), "HEAD");
+    assert!(normalize_http_method(Some("POST")).is_err());
+    assert_eq!(normalize_max_response_bytes(None, &config).unwrap(), 1024);
+    assert_eq!(normalize_max_response_bytes(Some(512), &config).unwrap(), 512);
+    assert!(normalize_max_response_bytes(Some(0), &config).is_err());
+    assert!(normalize_max_response_bytes(Some(2048), &config).is_err());
 }

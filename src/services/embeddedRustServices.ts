@@ -44,6 +44,7 @@ export async function startEmbeddedRustServices(): Promise<void> {
       bindEnvName: "RUST_BIND_ADDR",
       extraEnv: {
         RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS: String(config.rustServices.networkTools.blockPrivateTargets),
+        RUST_NETWORK_TOOLS_MAX_RESPONSE_BYTES: String(config.rustServices.networkTools.maxResponseBytes),
       },
     },
     {

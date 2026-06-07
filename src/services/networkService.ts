@@ -116,6 +116,36 @@ export class NetworkService {
    * @returns Ping检测结果
    */
   public static async ping(url: string): Promise<NetworkTestResponse> {
+    if (config.rustServices.networkTools.enabled) {
+      try {
+        logger.info("开始Rust Ping检测", { url, source: "rust-network-tools" });
+        const result = await rustNetworkToolsClient.ping(url);
+        if (result.success) {
+          logger.info("Rust Ping检测完成", { url, result: result.data, source: "rust-network-tools" });
+          return result;
+        }
+
+        throw new Error(result.error || "Rust network-tools returned an unsuccessful ping response");
+      } catch (error) {
+        logger.warn("Rust Ping检测失败", {
+          url,
+          source: "rust-network-tools",
+          error: error instanceof Error ? error.message : "未知错误",
+        });
+
+        if (NetworkService.shouldFallbackRustNetworkTools(error)) {
+          logger.warn("Rust Ping检测回退到现有外部API", { url, source: "node-fallback" });
+          return NetworkService.pingViaExternalApi(url);
+        }
+
+        return NetworkService.rustNetworkToolsFailure("Ping检测", error);
+      }
+    }
+
+    return NetworkService.pingViaExternalApi(url);
+  }
+
+  private static async pingViaExternalApi(url: string): Promise<NetworkTestResponse> {
     try {
       logger.info("开始Ping检测", { url });
 
@@ -160,6 +190,36 @@ export class NetworkService {
    * @returns 网站测速结果
    */
   public static async speedTest(url: string): Promise<NetworkTestResponse> {
+    if (config.rustServices.networkTools.enabled) {
+      try {
+        logger.info("开始Rust网站测速", { url, source: "rust-network-tools" });
+        const result = await rustNetworkToolsClient.speedTest(url);
+        if (result.success) {
+          logger.info("Rust网站测速完成", { url, result: result.data, source: "rust-network-tools" });
+          return result;
+        }
+
+        throw new Error(result.error || "Rust network-tools returned an unsuccessful speed response");
+      } catch (error) {
+        logger.warn("Rust网站测速失败", {
+          url,
+          source: "rust-network-tools",
+          error: error instanceof Error ? error.message : "未知错误",
+        });
+
+        if (NetworkService.shouldFallbackRustNetworkTools(error)) {
+          logger.warn("Rust网站测速回退到现有外部API", { url, source: "node-fallback" });
+          return NetworkService.speedTestViaExternalApi(url);
+        }
+
+        return NetworkService.rustNetworkToolsFailure("网站测速", error);
+      }
+    }
+
+    return NetworkService.speedTestViaExternalApi(url);
+  }
+
+  private static async speedTestViaExternalApi(url: string): Promise<NetworkTestResponse> {
     try {
       logger.info("开始网站测速", { url });
 

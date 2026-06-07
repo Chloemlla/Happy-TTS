@@ -10,6 +10,8 @@ jest.mock("../services/rustNetworkToolsClient", () => ({
   rustNetworkToolsClient: {
     tcpPing: jest.fn(),
     portScan: jest.fn(),
+    ping: jest.fn(),
+    speedTest: jest.fn(),
   },
 }));
 const mockedAxios = axios as jest.Mocked<typeof axios>;
@@ -440,6 +442,74 @@ describe("NetworkService", () => {
         timeout: 15000,
       });
     });
+
+    it("启用Rust时应该优先调用network-tools Ping检测", async () => {
+      config.rustServices.networkTools.enabled = true;
+      mockedRustNetworkToolsClient.ping.mockResolvedValueOnce({
+        success: true,
+        data: {
+          target: "https://example.com/",
+          reachable: true,
+          method: "http-head",
+          latencyMs: 25,
+          source: "rust-network-tools",
+        },
+      });
+
+      const result = await NetworkService.ping("https://example.com");
+
+      expect(result.success).toBe(true);
+      expect(result.data.source).toBe("rust-network-tools");
+      expect(mockedRustNetworkToolsClient.ping).toHaveBeenCalledWith("https://example.com");
+      expect(mockedAxios.get).not.toHaveBeenCalled();
+    });
+
+    it("启用Rust时裸IP Ping不应该调用外部API", async () => {
+      config.rustServices.networkTools.enabled = true;
+      mockedRustNetworkToolsClient.ping.mockResolvedValueOnce({
+        success: true,
+        data: {
+          target: "134.209.101.203",
+          reachable: true,
+          method: "tcp-default",
+          port: 22,
+          latencyMs: 18,
+          source: "rust-network-tools",
+        },
+      });
+
+      const result = await NetworkService.ping("134.209.101.203");
+
+      expect(result.success).toBe(true);
+      expect(result.data.method).toBe("tcp-default");
+      expect(mockedRustNetworkToolsClient.ping).toHaveBeenCalledWith("134.209.101.203");
+      expect(mockedAxios.get).not.toHaveBeenCalled();
+    });
+
+    it("Rust Ping超时时应该回退到现有外部API", async () => {
+      config.rustServices.networkTools.enabled = true;
+      mockedRustNetworkToolsClient.ping.mockRejectedValueOnce(
+        new InternalServiceClientError("rust-network-tools timed out after 5000ms", {
+          code: "timeout",
+          serviceName: "rust-network-tools",
+        }),
+      );
+      mockedAxios.get.mockResolvedValueOnce({
+        data: {
+          code: 200,
+          msg: "Ping成功",
+          data: { url: "https://www.baidu.com", response_time: 50 },
+        },
+      });
+
+      const result = await NetworkService.ping("https://www.baidu.com");
+
+      expect(result.success).toBe(true);
+      expect(mockedAxios.get).toHaveBeenCalledWith("https://v2.xxapi.cn/api/ping", {
+        params: { url: "https://www.baidu.com" },
+        timeout: 15000,
+      });
+    });
   });
 
   describe("speedTest", () => {
@@ -462,6 +532,29 @@ describe("NetworkService", () => {
         params: { url: "https://www.google.com" },
         timeout: 30000,
       });
+    });
+
+    it("启用Rust时应该优先调用network-tools网站测速", async () => {
+      config.rustServices.networkTools.enabled = true;
+      mockedRustNetworkToolsClient.speedTest.mockResolvedValueOnce({
+        success: true,
+        data: {
+          url: "https://example.com/",
+          statusCode: 200,
+          bytesRead: 1024,
+          totalMs: 100,
+          throughputBytesPerSec: 10240,
+          truncated: false,
+          source: "rust-network-tools",
+        },
+      });
+
+      const result = await NetworkService.speedTest("https://example.com");
+
+      expect(result.success).toBe(true);
+      expect(result.data.source).toBe("rust-network-tools");
+      expect(mockedRustNetworkToolsClient.speedTest).toHaveBeenCalledWith("https://example.com");
+      expect(mockedAxios.get).not.toHaveBeenCalled();
     });
   });
 

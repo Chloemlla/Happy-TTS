@@ -110,6 +110,13 @@ const envSchema = z
     RUST_NETWORK_TOOLS_ENABLED: stringToBoolean,
     RUST_NETWORK_TOOLS_URL: z.string().url().optional().default("http://127.0.0.1:4010"),
     RUST_NETWORK_TOOLS_TIMEOUT_MS: z.coerce.number().int().min(100).max(60000).optional().default(5000),
+    RUST_NETWORK_TOOLS_MAX_RESPONSE_BYTES: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(10 * 1024 * 1024)
+      .optional()
+      .default(1024 * 1024),
     RUST_NETWORK_TOOLS_FALLBACK_ENABLED: stringToBoolean,
     RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS: stringToBoolean,
     RUST_EMBEDDED_SERVICES_ENABLED: stringToBoolean,
@@ -313,6 +320,7 @@ export const startupConfig = Object.freeze({
       enabled: parsedEnv.RUST_NETWORK_TOOLS_ENABLED ?? rustServicesEnabledByDefault,
       url: parsedEnv.RUST_NETWORK_TOOLS_URL,
       timeoutMs: parsedEnv.RUST_NETWORK_TOOLS_TIMEOUT_MS,
+      maxResponseBytes: parsedEnv.RUST_NETWORK_TOOLS_MAX_RESPONSE_BYTES,
       fallbackEnabled: parsedEnv.RUST_NETWORK_TOOLS_FALLBACK_ENABLED ?? true,
       blockPrivateTargets: parsedEnv.RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS ?? true,
     },

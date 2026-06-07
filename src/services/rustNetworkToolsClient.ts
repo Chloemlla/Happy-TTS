@@ -13,6 +13,7 @@ const RUST_SOURCE = "rust-network-tools";
 interface RustNetworkToolsClientOptions {
   internalClient: Pick<InternalServiceClient, "getHealth" | "postJson">;
   timeoutMs: number;
+  maxResponseBytes?: number;
   defaultPortScanPorts?: number[];
   concurrency?: number;
   blockPrivateTargets?: boolean;
@@ -38,9 +39,68 @@ interface RustPortScanData {
   source: typeof RUST_SOURCE;
 }
 
+interface RustPingData {
+  target: string;
+  reachable: boolean;
+  method: string;
+  port?: number;
+  latencyMs?: number;
+  error?: string;
+  source: typeof RUST_SOURCE;
+}
+
+interface RustSpeedData {
+  url: string;
+  statusCode?: number;
+  bytesRead: number;
+  totalMs: number;
+  ttfbMs?: number;
+  throughputBytesPerSec?: number;
+  truncated: boolean;
+  source: typeof RUST_SOURCE;
+}
+
+interface RustDnsData {
+  address: string;
+  records: Array<{
+    recordType: string;
+    value: string;
+  }>;
+  source: typeof RUST_SOURCE;
+}
+
+interface RustHttpTimingData {
+  url: string;
+  statusCode?: number;
+  dnsMs: number;
+  connectMs: number;
+  tlsMs?: number;
+  ttfbMs?: number;
+  totalMs: number;
+  bytesRead: number;
+  truncated: boolean;
+  source: typeof RUST_SOURCE;
+}
+
+interface RustTlsTimingData {
+  address: string;
+  port: number;
+  dnsMs: number;
+  connectMs: number;
+  tlsHandshakeMs: number;
+  certificateCount: number;
+  certificate?: {
+    subject?: string;
+    issuer?: string;
+    notAfter?: string;
+  };
+  source: typeof RUST_SOURCE;
+}
+
 export class RustNetworkToolsClient {
   private readonly internalClient: Pick<InternalServiceClient, "getHealth" | "postJson">;
   private readonly timeoutMs: number;
+  private readonly maxResponseBytes: number;
   private readonly defaultPortScanPorts: number[];
   private readonly concurrency: number;
   private readonly blockPrivateTargets: boolean;
@@ -48,6 +108,7 @@ export class RustNetworkToolsClient {
   public constructor(options: RustNetworkToolsClientOptions) {
     this.internalClient = options.internalClient;
     this.timeoutMs = options.timeoutMs;
+    this.maxResponseBytes = options.maxResponseBytes || 1024 * 1024;
     this.defaultPortScanPorts = options.defaultPortScanPorts || DEFAULT_PORT_SCAN_PORTS;
     this.concurrency = options.concurrency || 32;
     this.blockPrivateTargets = options.blockPrivateTargets ?? true;
@@ -62,6 +123,7 @@ export class RustNetworkToolsClient {
         serviceName: RUST_SOURCE,
       }),
       timeoutMs: config.rustServices.networkTools.timeoutMs,
+      maxResponseBytes: config.rustServices.networkTools.maxResponseBytes,
       blockPrivateTargets: config.rustServices.networkTools.blockPrivateTargets,
     });
   }
@@ -93,6 +155,71 @@ export class RustNetworkToolsClient {
     return this.toNetworkResponse(response, "端口扫描失败");
   }
 
+  public async ping(target: string): Promise<NetworkTestResponse> {
+    this.assertAllowedTarget(target);
+    const response = await this.internalClient.postJson<InternalServiceEnvelope<RustPingData>>("/v1/network/ping", {
+      target,
+      timeoutMs: this.timeoutMs,
+    });
+
+    return this.toNetworkResponse(response, "Ping检测失败");
+  }
+
+  public async speedTest(url: string): Promise<NetworkTestResponse> {
+    this.assertAllowedTarget(url);
+    const response = await this.internalClient.postJson<InternalServiceEnvelope<RustSpeedData>>("/v1/network/speed", {
+      url,
+      timeoutMs: this.timeoutMs,
+      maxBytes: this.maxResponseBytes,
+    });
+
+    return this.toNetworkResponse(response, "网站测速失败");
+  }
+
+  public async dnsResolve(address: string, recordTypes?: string[]): Promise<NetworkTestResponse> {
+    this.assertAllowedTarget(address);
+    const response = await this.internalClient.postJson<InternalServiceEnvelope<RustDnsData>>("/v1/network/dns", {
+      address,
+      recordTypes,
+      timeoutMs: this.timeoutMs,
+    });
+
+    return this.toNetworkResponse(response, "DNS解析失败");
+  }
+
+  public async httpTiming(url: string, method: "GET" | "HEAD" = "GET"): Promise<NetworkTestResponse> {
+    this.assertAllowedTarget(url);
+    const response = await this.internalClient.postJson<InternalServiceEnvelope<RustHttpTimingData>>(
+      "/v1/network/http-timing",
+      {
+        url,
+        method,
+        timeoutMs: this.timeoutMs,
+        maxBytes: this.maxResponseBytes,
+      },
+    );
+
+    return this.toNetworkResponse(response, "HTTP timing检测失败");
+  }
+
+  public async tlsTiming(address: string, options: { port?: number; serverName?: string } = {}): Promise<NetworkTestResponse> {
+    this.assertAllowedTarget(address);
+    if (options.serverName) {
+      this.assertAllowedTarget(options.serverName);
+    }
+    const response = await this.internalClient.postJson<InternalServiceEnvelope<RustTlsTimingData>>(
+      "/v1/network/tls-timing",
+      {
+        address,
+        port: options.port,
+        serverName: options.serverName,
+        timeoutMs: this.timeoutMs,
+      },
+    );
+
+    return this.toNetworkResponse(response, "TLS timing检测失败");
+  }
+
   private toNetworkResponse<T>(response: InternalServiceEnvelope<T>, fallbackError: string): NetworkTestResponse {
     if (!response.success || !response.data) {
       return {
@@ -108,7 +235,7 @@ export class RustNetworkToolsClient {
   }
 
   private assertAllowedTarget(address: string): void {
-    const normalized = address.trim().toLowerCase();
+    const normalized = extractTargetHost(address.trim().toLowerCase());
     if (!normalized) {
       throw new InternalServiceClientError("rust-network-tools target address is required", {
         code: "bad_request",
@@ -176,3 +303,14 @@ function isBlockedPrivateIp(address: string): boolean {
 
 export const rustNetworkToolsClient = RustNetworkToolsClient.fromConfig();
 
+function extractTargetHost(value: string): string {
+  if (!value) return "";
+
+  try {
+    const candidate = value.includes("://") ? value : `http://${value}`;
+    const parsed = new URL(candidate);
+    return parsed.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  } catch (_error) {
+    return value;
+  }
+}
