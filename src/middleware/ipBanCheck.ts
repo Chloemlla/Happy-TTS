@@ -29,7 +29,7 @@ const metrics: PerformanceMetrics = {
 };
 
 // 每5分钟重置性能指标
-setInterval(
+const metricsResetTimer = setInterval(
   () => {
     if (metrics.totalRequests > 0) {
       const hitRate = ((metrics.cacheHits / metrics.totalRequests) * 100).toFixed(2);
@@ -50,6 +50,7 @@ setInterval(
   },
   5 * 60 * 1000,
 );
+metricsResetTimer.unref?.();
 
 // 内存缓存配置 - 用于减少数据库查询压力
 // 已封禁的IP使用更长的TTL，未封禁的使用较短的TTL

@@ -188,6 +188,7 @@ jest.mock("../middleware/routeLimiters", () => ({
   miniapiLimiter: createDummyLimiter(),
   antaLimiter: createDummyLimiter(),
   statusLimiter: createDummyLimiter(),
+  oauthLimiter: createDummyLimiter(),
   openapiLimiter: createDummyLimiter(),
   audioFileLimiter: createDummyLimiter(),
   modlistMountLimiter: createDummyLimiter(),
