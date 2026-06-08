@@ -294,6 +294,11 @@ function isBlockedPrivateIp(address: string): boolean {
   }
 
   if (ipVersion === 6) {
+    const mappedIpv4 = extractIpv4MappedIpv6(address);
+    if (mappedIpv4) {
+      return isBlockedPrivateIp(mappedIpv4);
+    }
+
     return (
       address === "::1" ||
       address === "::" ||
@@ -306,6 +311,27 @@ function isBlockedPrivateIp(address: string): boolean {
   }
 
   return false;
+}
+
+function extractIpv4MappedIpv6(address: string): string | null {
+  const normalized = address.toLowerCase();
+  const dottedMatch = normalized.match(/^(?:::ffff:|0:0:0:0:0:ffff:)(\d{1,3}(?:\.\d{1,3}){3})$/);
+  if (dottedMatch && isIP(dottedMatch[1]) === 4) {
+    return dottedMatch[1];
+  }
+
+  const hexMatch = normalized.match(/^(?:::ffff:|0:0:0:0:0:ffff:)([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (!hexMatch) {
+    return null;
+  }
+
+  const high = Number.parseInt(hexMatch[1], 16);
+  const low = Number.parseInt(hexMatch[2], 16);
+  if (!Number.isFinite(high) || !Number.isFinite(low) || high > 0xffff || low > 0xffff) {
+    return null;
+  }
+
+  return `${(high >> 8) & 0xff}.${high & 0xff}.${(low >> 8) & 0xff}.${low & 0xff}`;
 }
 
 export const rustNetworkToolsClient = RustNetworkToolsClient.fromConfig();

@@ -87,6 +87,7 @@ async fn verify_hmac(
         &payload.key_base64,
         &payload.message_base64,
         &payload.signature_hex,
+        state.config.max_text_bytes,
     )?;
 
     Ok(Json(SuccessEnvelope::ok(HmacVerifyData {
@@ -111,6 +112,7 @@ async fn decrypt_envelope(
         &payload.nonce_base64,
         &payload.ciphertext_base64,
         payload.aad_base64.as_deref(),
+        state.config.max_text_bytes,
     )?;
 
     Ok(Json(SuccessEnvelope::ok(EnvelopeDecryptData {

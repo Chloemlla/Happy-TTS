@@ -41,11 +41,11 @@ pub async fn handle_request(config: Arc<SecurityWorkerConfig>, request: IpcReque
             .map(|data| envelope_json(SuccessEnvelope::ok(data)))
             .unwrap_or_else(error_json),
         "/v1/security/hmac/verify" => parse_body::<HmacVerifyRequest>(request.body)
-            .and_then(verify_hmac)
+            .and_then(|payload| verify_hmac(&config, payload))
             .map(|data| envelope_json(SuccessEnvelope::ok(data)))
             .unwrap_or_else(error_json),
         "/v1/security/envelope/decrypt" => parse_body::<EnvelopeDecryptRequest>(request.body)
-            .and_then(decrypt_envelope)
+            .and_then(|payload| decrypt_envelope(&config, payload))
             .map(|data| envelope_json(SuccessEnvelope::ok(data)))
             .unwrap_or_else(error_json),
         "/v1/security/risk/score" => parse_body::<RiskScoreRequest>(request.body)
@@ -75,7 +75,10 @@ fn verify_pow(payload: PowVerifyRequest) -> Result<PowVerifyData, AppError> {
     })
 }
 
-fn verify_hmac(payload: HmacVerifyRequest) -> Result<HmacVerifyData, AppError> {
+fn verify_hmac(
+    config: &SecurityWorkerConfig,
+    payload: HmacVerifyRequest,
+) -> Result<HmacVerifyData, AppError> {
     let algorithm =
         processing::normalize_hmac_algorithm(payload.algorithm.as_deref().unwrap_or("sha256"))?;
     let valid = processing::verify_hmac(
@@ -83,6 +86,7 @@ fn verify_hmac(payload: HmacVerifyRequest) -> Result<HmacVerifyData, AppError> {
         &payload.key_base64,
         &payload.message_base64,
         &payload.signature_hex,
+        config.max_text_bytes,
     )?;
 
     Ok(HmacVerifyData {
@@ -92,7 +96,10 @@ fn verify_hmac(payload: HmacVerifyRequest) -> Result<HmacVerifyData, AppError> {
     })
 }
 
-fn decrypt_envelope(payload: EnvelopeDecryptRequest) -> Result<EnvelopeDecryptData, AppError> {
+fn decrypt_envelope(
+    config: &SecurityWorkerConfig,
+    payload: EnvelopeDecryptRequest,
+) -> Result<EnvelopeDecryptData, AppError> {
     let algorithm = payload
         .algorithm
         .unwrap_or_else(|| "aes-256-gcm".to_string());
@@ -102,6 +109,7 @@ fn decrypt_envelope(payload: EnvelopeDecryptRequest) -> Result<EnvelopeDecryptDa
         &payload.nonce_base64,
         &payload.ciphertext_base64,
         payload.aad_base64.as_deref(),
+        config.max_text_bytes,
     )?;
 
     Ok(EnvelopeDecryptData {

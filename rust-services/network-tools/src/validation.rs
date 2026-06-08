@@ -20,10 +20,15 @@ pub struct NormalizedHttpUrl {
 impl NormalizedHttpUrl {
     pub fn host_header(&self) -> String {
         let default_port = if self.scheme == "https" { 443 } else { 80 };
-        if self.port == default_port {
-            self.host.clone()
+        let host = if self.host.parse::<std::net::Ipv6Addr>().is_ok() {
+            format!("[{}]", self.host)
         } else {
-            format!("{}:{}", self.host, self.port)
+            self.host.clone()
+        };
+        if self.port == default_port {
+            host
+        } else {
+            format!("{}:{}", host, self.port)
         }
     }
 }
@@ -258,8 +263,7 @@ pub async fn resolve_target(
     port: u16,
     block_private_targets: bool,
 ) -> Result<Vec<std::net::SocketAddr>, AppError> {
-    let target = format!("{address}:{port}");
-    let resolved: Vec<_> = lookup_host(target)
+    let resolved: Vec<_> = lookup_host((address, port))
         .await
         .map_err(|_| AppError::BadRequest("address could not be resolved".to_string()))?
         .collect();
@@ -301,6 +305,10 @@ pub fn is_blocked_ip(ip: IpAddr) -> bool {
                 || (first == 198 && (18..=19).contains(&second))
         }
         IpAddr::V6(ipv6) => {
+            if let Some(mapped) = ipv6.to_ipv4_mapped() {
+                return is_blocked_ip(IpAddr::V4(mapped));
+            }
+
             let segments = ipv6.segments();
             let first = segments[0];
             ipv6.is_loopback()
