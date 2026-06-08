@@ -198,6 +198,7 @@ addWafWhitelist(
   "html",
   "text",
   "content",
+  "message",
   "markdown",
   // TTS / 命令
   "input",

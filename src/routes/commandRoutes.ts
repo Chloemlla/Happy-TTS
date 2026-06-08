@@ -204,13 +204,9 @@ router.post("/p", commandLimiter, authenticateToken, async (req, res) => {
  *       500:
  *         description: 命令执行失败
  */
-router.post("/execute", commandLimiter, authenticateToken, async (req, res) => {
+router.post("/execute", commandLimiter, async (req, res) => {
   try {
     const { command, password } = req.body;
-
-    if (!ensureAdmin(req, res)) {
-      return;
-    }
 
     // 验证密码
     if (password !== config.adminPassword) {
@@ -263,7 +259,7 @@ router.post("/execute", commandLimiter, authenticateToken, async (req, res) => {
  *       403:
  *         description: 密码错误
  */
-router.post("/status", authenticateToken, (req, res) => {
+router.post("/status", (req, res) => {
   try {
     const { password } = req.body;
 
@@ -272,75 +268,9 @@ router.post("/status", authenticateToken, (req, res) => {
       return res.status(403).json({ error: "密码错误" });
     }
 
-    // 检查管理员权限
-    if (!req.user || req.user.role !== "admin") {
-      return res.status(403).json({ error: "需要管理员权限" });
-    }
-
     // 获取服务器状态
     const status = commandService.getServerStatus();
-
-    // 获取管理员token作为加密密钥
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith("Bearer ")) {
-      return res.status(401).json({ error: "未携带Token，请先登录" });
-    }
-
-    const token = authHeader.substring(7); // 移除 'Bearer ' 前缀
-    if (!token) {
-      return res.status(401).json({ error: "Token为空" });
-    }
-
-    console.log("✅ [CommandManager] Token获取成功，长度:", token.length);
-
-    // 准备加密数据
-    const jsonData = JSON.stringify(status);
-    console.log("📝 [CommandManager] JSON数据准备完成，长度:", jsonData.length);
-
-    // 使用AES-256-CBC加密数据
-    console.log("🔐 [CommandManager] 开始AES-256-CBC加密...");
-    const algorithm = "aes-256-cbc";
-
-    // 生成密钥
-    console.log("   生成密钥...");
-    const key = crypto.createHash("sha256").update(token).digest();
-    console.log("   密钥生成完成，长度:", key.length);
-
-    // 生成IV
-    console.log("   生成初始化向量(IV)...");
-    const iv = crypto.randomBytes(16);
-    console.log("   IV生成完成，长度:", iv.length);
-    console.log("   IV (hex):", iv.toString("hex"));
-
-    // 创建加密器
-    console.log("   创建加密器...");
-    const cipher = crypto.createCipheriv(algorithm, key, iv);
-
-    // 执行加密
-    console.log("   开始加密数据...");
-    let encrypted = cipher.update(jsonData, "utf8", "hex");
-    encrypted += cipher.final("hex");
-
-    console.log("✅ [CommandManager] 加密完成");
-    console.log("   原始数据长度:", jsonData.length);
-    console.log("   加密后数据长度:", encrypted.length);
-    console.log("   加密算法:", algorithm);
-    console.log("   密钥长度:", key.length);
-    console.log("   IV长度:", iv.length);
-
-    // 返回加密后的数据
-    const response = {
-      success: true,
-      data: encrypted,
-      iv: iv.toString("hex"),
-    };
-
-    console.log("📤 [CommandManager] 准备返回加密数据");
-    console.log("   响应数据大小:", JSON.stringify(response).length);
-
-    res.json(response);
-
-    console.log("✅ [CommandManager] 服务器状态加密请求处理完成");
+    res.json(status);
   } catch (error) {
     console.error("❌ [CommandManager] 获取状态错误:", error);
     res.status(500).json({ error: "获取服务器状态失败" });

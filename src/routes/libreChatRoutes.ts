@@ -7,7 +7,7 @@ import logger from "../utils/logger";
 
 const router = Router();
 // 与前端保持一致的消息长度上限（以字符近似 tokens 上限）
-const MAX_MESSAGE_LEN = 8192;
+const MAX_MESSAGE_LEN = 4096;
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -253,12 +253,16 @@ router.post("/send", async (req, res) => {
     const token = getTokenFromReq(req);
     const userId = extractUserId(req);
 
+    if (token === "invalid-token") {
+      return sendLibreChatError(res, 401, "INVALID_TOKEN", "无效的token");
+    }
+
     // 游客模式：允许无认证访问
     if (isGuestEnabled()) {
       // 游客模式下允许访问，无需严格验证
     } else {
       // 非游客模式：需要 token 或 已登录 userId
-      if ((!token || token === "invalid-token") && !userId) {
+      if (!token && !userId) {
         return sendLibreChatError(res, 401, "AUTH_REQUIRED", "未认证：请提供有效 token 或登录后再试");
       }
     }
@@ -329,12 +333,16 @@ router.get("/history", async (req, res) => {
     const token = getTokenFromReq(req);
     const userId = extractUserId(req);
 
+    if (token === "invalid-token") {
+      return sendLibreChatError(res, 401, "INVALID_TOKEN", "无效的token");
+    }
+
     // 游客模式：允许无认证访问历史
     if (isGuestEnabled()) {
       // 游客模式下允许访问，但如果有token则使用token，否则使用默认游客身份
     } else {
       // 非游客模式：需要 token 或 已登录 userId
-      if ((!token || token === "invalid-token") && !userId) {
+      if (!token && !userId) {
         return sendLibreChatError(res, 401, "AUTH_REQUIRED", "未认证：请提供有效 token 或登录后再试");
       }
     }
@@ -398,7 +406,11 @@ router.delete("/clear", async (req, res) => {
     });
 
     // 验证身份：允许 token 或 已登录 userId 其一存在
-    if ((!token || token === "invalid-token") && !userId) {
+    if (token === "invalid-token") {
+      console.log("清除历史记录认证失败: 无效token");
+      return res.status(401).json({ error: "无效的token" });
+    }
+    if (!token && !userId) {
       console.log("清除历史记录认证失败: 无有效token或userId");
       return res.status(401).json({ error: "未认证：请提供有效 token 或登录后再试" });
     }
