@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
-const BACKEND_DIRNAME = 'backend';
+const CARGO_ROOT_DIRNAME = 'rust-services';
 const MANIFEST_FILENAME = 'package.json';
 const CARGO_MANIFEST_FILENAME = 'Cargo.toml';
 const CARGO_LOCK_FILENAME = 'Cargo.lock';
@@ -40,6 +40,7 @@ const EXCLUDED_DIRECTORIES = new Set([
   'coverage',
   'dist',
   'node_modules',
+  'target',
 ]);
 
 // 全局缓存已经探测成功的 pnpm 执行器命令，规避重复降级重试逻辑
@@ -502,7 +503,7 @@ function describeRustCounts(counts) {
 }
 
 function buildRustDependencyKey(dependencyEntry) {
-  return `${dependencyEntry.section}:${dependencyEntry.dependencyName}`;
+  return `${dependencyEntry.cargoManifestLabel}:${dependencyEntry.section}:${dependencyEntry.dependencyName}`;
 }
 
 function collectRustRangeChanges(beforeDependencyEntries, afterDependencyEntries) {
@@ -531,6 +532,10 @@ function collectRustRangeChanges(beforeDependencyEntries, afterDependencyEntries
 
     if (beforeRange !== afterRange) {
       changes.push({
+        cargoManifestLabel:
+          beforeEntry?.cargoManifestLabel
+          ?? afterEntry?.cargoManifestLabel
+          ?? '<unknown Cargo.toml>',
         section: beforeEntry?.section ?? afterEntry?.section ?? 'dependencies',
         dependencyName: beforeEntry?.dependencyName ?? afterEntry?.dependencyName ?? dependencyKey,
         crateName: beforeEntry?.crateName ?? afterEntry?.crateName ?? dependencyKey,
@@ -548,7 +553,7 @@ function formatRustChange(change) {
     ? change.dependencyName
     : `${change.dependencyName} => ${change.crateName}`;
 
-  return `${dependencyLabel} (${getRustDependencyField(change.section)}) ${change.beforeRange ?? '<missing>'} -> ${change.afterRange ?? '<removed>'}`;
+  return `${change.cargoManifestLabel}: ${dependencyLabel} (${getRustDependencyField(change.section)}) ${change.beforeRange ?? '<missing>'} -> ${change.afterRange ?? '<removed>'}`;
 }
 
 function parseSimpleRustVersion(version) {
@@ -689,6 +694,30 @@ async function collectPackageJsonPaths(directoryPath) {
   return packageJsonPaths;
 }
 
+async function collectCargoManifestPaths(directoryPath) {
+  const entries = await readdir(directoryPath, { withFileTypes: true });
+  const cargoManifestPaths = [];
+
+  for (const entry of entries) {
+    const entryPath = path.join(directoryPath, entry.name);
+
+    if (entry.isDirectory()) {
+      if (EXCLUDED_DIRECTORIES.has(entry.name)) {
+        continue;
+      }
+
+      cargoManifestPaths.push(...(await collectCargoManifestPaths(entryPath)));
+      continue;
+    }
+
+    if (entry.isFile() && entry.name === CARGO_MANIFEST_FILENAME) {
+      cargoManifestPaths.push(entryPath);
+    }
+  }
+
+  return cargoManifestPaths;
+}
+
 function normalizeTargetFilter(targetFilter) {
   return `${targetFilter}`
     .trim()
@@ -697,26 +726,50 @@ function normalizeTargetFilter(targetFilter) {
     .replace(/\/$/, '');
 }
 
-function filterTargetsByCliArgs(targets, cliArgs) {
+function targetMatchesCliArgs(candidateValues, cliArgs) {
   if (cliArgs.targets.length === 0) {
-    return targets;
+    return true;
   }
 
   const normalizedFilters = cliArgs.targets.map(normalizeTargetFilter);
+  const normalizedValues = candidateValues
+    .map(normalizeTargetFilter)
+    .filter((value) => value.length > 0);
 
-  return targets.filter((target) => {
-    const normalizedLabel = normalizeTargetFilter(target.packageJsonLabel);
-    const normalizedDirectory = normalizeTargetFilter(
-      path.relative(ROOT_DIR, target.dir) || '.'
-    );
+  return normalizedFilters.some((targetFilter) =>
+    normalizedValues.some((candidateValue) =>
+      targetFilter === candidateValue || candidateValue.endsWith(`/${targetFilter}`)
+    )
+  );
+}
 
-    return normalizedFilters.some((targetFilter) =>
-      targetFilter === normalizedLabel
-      || targetFilter === normalizedDirectory
-      || normalizedLabel.endsWith(`/${targetFilter}`)
-      || normalizedDirectory.endsWith(`/${targetFilter}`)
-    );
-  });
+function filterTargetsByCliArgs(targets, cliArgs) {
+  return targets.filter((target) =>
+    targetMatchesCliArgs(
+      [
+        target.packageJsonLabel,
+        path.relative(ROOT_DIR, target.dir) || '.',
+      ],
+      cliArgs
+    )
+  );
+}
+
+function shouldIncludeRustTarget(target, cliArgs) {
+  if (cliArgs.repairOnly || !target) {
+    return false;
+  }
+
+  return targetMatchesCliArgs(
+    [
+      target.cargoManifestLabel,
+      path.relative(ROOT_DIR, target.dir) || '.',
+      CARGO_ROOT_DIRNAME,
+      'cargo',
+      'rust',
+    ],
+    cliArgs
+  );
 }
 
 async function discoverTargets() {
@@ -748,25 +801,47 @@ async function discoverTargets() {
 }
 
 async function discoverRustTarget() {
-  const backendDirectoryPath = path.join(ROOT_DIR, BACKEND_DIRNAME);
-  const cargoManifestPath = path.join(backendDirectoryPath, CARGO_MANIFEST_FILENAME);
+  const cargoRootDirectoryPath = path.join(ROOT_DIR, CARGO_ROOT_DIRNAME);
+  const cargoManifestPath = path.join(cargoRootDirectoryPath, CARGO_MANIFEST_FILENAME);
 
   if (!existsSync(cargoManifestPath)) {
     return null;
   }
 
-  const manifestText = await readFile(cargoManifestPath, 'utf8');
-  const dependencyEntries = collectRustDependencyEntries(manifestText);
+  const cargoManifestPaths = await collectCargoManifestPaths(cargoRootDirectoryPath);
+  const manifests = [];
+
+  for (const manifestPath of cargoManifestPaths.sort((left, right) => left.localeCompare(right))) {
+    const manifestText = await readFile(manifestPath, 'utf8');
+    const cargoManifestLabel =
+      path.relative(ROOT_DIR, manifestPath) || CARGO_MANIFEST_FILENAME;
+    const dependencyEntries = collectRustDependencyEntries(manifestText).map(
+      (dependencyEntry) => ({
+        ...dependencyEntry,
+        cargoManifestPath: manifestPath,
+        cargoManifestLabel,
+      })
+    );
+
+    manifests.push({
+      cargoManifestPath: manifestPath,
+      cargoManifestLabel,
+      beforeManifestText: manifestText,
+      dependencyEntries,
+    });
+  }
+
+  const dependencyEntries = manifests.flatMap((manifest) => manifest.dependencyEntries);
 
   return {
-    dir: backendDirectoryPath,
+    dir: cargoRootDirectoryPath,
     cargoManifestPath,
     cargoManifestLabel:
       path.relative(ROOT_DIR, cargoManifestPath) || CARGO_MANIFEST_FILENAME,
-    cargoLockPath: path.join(backendDirectoryPath, CARGO_LOCK_FILENAME),
+    cargoLockPath: path.join(cargoRootDirectoryPath, CARGO_LOCK_FILENAME),
+    manifests,
     dependencyEntries,
     dependencyCounts: collectRustDependencyCounts(dependencyEntries),
-    beforeManifestText: manifestText,
   };
 }
 
@@ -798,53 +873,62 @@ async function runPnpmUpgrade(target, options = {}) {
 }
 
 async function runRustUpgrade(target) {
-  const newline = target.beforeManifestText.includes('\r\n') ? '\r\n' : '\n';
-  const manifestLines = target.beforeManifestText.split(/\r?\n/);
   const latestVersionCache = new Map();
   let updatedRangeCount = 0;
   let skippedRangeCount = 0;
 
-  for (const dependencyEntry of target.dependencyEntries) {
-    // 引入 250ms 频率节流延迟（Throttling），确保遵守 crates.io 的每秒请求限制
-    await new Promise((resolve) => setTimeout(resolve, 250));
+  for (const manifest of target.manifests) {
+    const newline = manifest.beforeManifestText.includes('\r\n') ? '\r\n' : '\n';
+    const manifestLines = manifest.beforeManifestText.split(/\r?\n/);
+    let manifestUpdatedRangeCount = 0;
 
-    try {
-      const latestVersion = await fetchLatestCompatibleCrateVersion(
-        dependencyEntry.crateName,
-        dependencyEntry.versionSpec,
-        latestVersionCache
-      );
+    for (const dependencyEntry of manifest.dependencyEntries) {
+      // 引入 250ms 频率节流延迟（Throttling），确保遵守 crates.io 的每秒请求限制
+      await new Promise((resolve) => setTimeout(resolve, 250));
 
-      if (!latestVersion) {
+      try {
+        const latestVersion = await fetchLatestCompatibleCrateVersion(
+          dependencyEntry.crateName,
+          dependencyEntry.versionSpec,
+          latestVersionCache
+        );
+
+        if (!latestVersion) {
+          skippedRangeCount += 1;
+          continue;
+        }
+
+        const nextVersionSpec = buildLatestRustVersionSpec(
+          dependencyEntry.versionSpec,
+          latestVersion
+        );
+
+        if (!nextVersionSpec) {
+          skippedRangeCount += 1;
+          continue;
+        }
+
+        if (nextVersionSpec === dependencyEntry.versionSpec) {
+          continue;
+        }
+
+        manifestLines[dependencyEntry.lineIndex] = dependencyEntry.updateLine(nextVersionSpec);
+        manifestUpdatedRangeCount += 1;
+        updatedRangeCount += 1;
+      } catch (error) {
+        // 容错处理：单个依赖查询网络失败时不中断整个脚本，标记为跳过并继续
+        console.log(`  - [Warning] Skipped "${dependencyEntry.crateName}" in ${dependencyEntry.cargoManifestLabel} due to registry fetch failure: ${error.message}`);
         skippedRangeCount += 1;
-        continue;
       }
+    }
 
-      const nextVersionSpec = buildLatestRustVersionSpec(
-        dependencyEntry.versionSpec,
-        latestVersion
-      );
-
-      if (!nextVersionSpec) {
-        skippedRangeCount += 1;
-        continue;
-      }
-
-      if (nextVersionSpec === dependencyEntry.versionSpec) {
-        continue;
-      }
-
-      manifestLines[dependencyEntry.lineIndex] = dependencyEntry.updateLine(nextVersionSpec);
-      updatedRangeCount += 1;
-    } catch (error) {
-      // 容错处理：单个依赖查询网络失败时不中断整个脚本，标记为跳过并继续
-      console.log(`  - [Warning] Skipped "${dependencyEntry.crateName}" due to registry fetch failure: ${error.message}`);
-      skippedRangeCount += 1;
+    if (manifestUpdatedRangeCount > 0) {
+      await writeFile(manifest.cargoManifestPath, manifestLines.join(newline));
+      console.log(`  - Updated ${manifestUpdatedRangeCount} dependency range${manifestUpdatedRangeCount === 1 ? '' : 's'} in ${manifest.cargoManifestLabel}.`);
     }
   }
 
   if (updatedRangeCount > 0) {
-    await writeFile(target.cargoManifestPath, manifestLines.join(newline));
     console.log(`  - Updated ${updatedRangeCount} Cargo.toml dependency ranges to the newest published versions.`);
   } else {
     console.log('  - Cargo.toml dependency ranges are already current or do not need rewriting.');
@@ -903,8 +987,19 @@ async function verifyTarget(target) {
 }
 
 async function verifyRustTarget(target) {
-  const nextManifestText = await readFile(target.cargoManifestPath, 'utf8');
-  const nextDependencyEntries = collectRustDependencyEntries(nextManifestText);
+  const nextDependencyEntries = [];
+
+  for (const manifest of target.manifests) {
+    const nextManifestText = await readFile(manifest.cargoManifestPath, 'utf8');
+    nextDependencyEntries.push(
+      ...collectRustDependencyEntries(nextManifestText).map((dependencyEntry) => ({
+        ...dependencyEntry,
+        cargoManifestPath: manifest.cargoManifestPath,
+        cargoManifestLabel: manifest.cargoManifestLabel,
+      }))
+    );
+  }
+
   const changedRanges = collectRustRangeChanges(
     target.dependencyEntries,
     nextDependencyEntries
@@ -930,6 +1025,48 @@ async function verifyRustTarget(target) {
   }
 }
 
+async function runPnpmUpgradeLane(targets, cliArgs) {
+  for (const [index, target] of targets.entries()) {
+    printSection(
+      index + 1,
+      targets.length,
+      `pnpm lane: ${cliArgs.repairOnly ? 'repair' : 'upgrade'} ${target.packageJsonLabel}`
+    );
+    await runPnpmUpgrade(target, cliArgs);
+    await verifyTarget(target);
+  }
+}
+
+async function runRustUpgradeLane(target) {
+  printSection(1, 1, `cargo lane: upgrade ${target.cargoManifestLabel}`);
+  await runRustUpgrade(target);
+  await verifyRustTarget(target);
+}
+
+async function runDependencyLanes(lanes) {
+  if (lanes.length > 1) {
+    console.log(`Execution: ${lanes.map((lane) => lane.label).join(' + ')} lanes in parallel`);
+  } else {
+    console.log(`Execution: ${lanes[0].label} lane`);
+  }
+
+  const results = await Promise.allSettled(lanes.map((lane) => lane.run()));
+  const failures = results
+    .map((result, index) => ({
+      label: lanes[index].label,
+      result,
+    }))
+    .filter(({ result }) => result.status === 'rejected');
+
+  if (failures.length > 0) {
+    throw new Error(
+      failures
+        .map(({ label, result }) => `${label} lane failed: ${result.reason?.message ?? result.reason}`)
+        .join('; ')
+    );
+  }
+}
+
 async function main() {
   const cliArgs = parseCliArgs(process.argv.slice(2));
   printHeader(
@@ -941,14 +1078,14 @@ async function main() {
   const pnpmTargets = await discoverTargets();
   const filteredPnpmTargets = filterTargetsByCliArgs(pnpmTargets, cliArgs);
   const rustTarget = await discoverRustTarget();
-  const includeRustTarget = !cliArgs.repairOnly && rustTarget;
+  const includeRustTarget = shouldIncludeRustTarget(rustTarget, cliArgs);
   const totalTargets = filteredPnpmTargets.length + (includeRustTarget ? 1 : 0);
 
   if (totalTargets === 0) {
     throw new Error(
       cliArgs.targets.length > 0
-        ? `No package.json target matched: ${cliArgs.targets.join(', ')}`
-        : 'No package.json with dependencies or backend/Cargo.toml was found under the repository root.'
+        ? `No dependency target matched: ${cliArgs.targets.join(', ')}`
+        : `No package.json with dependencies or ${CARGO_ROOT_DIRNAME}/Cargo.toml was found under the repository root.`
     );
   }
 
@@ -971,25 +1108,23 @@ async function main() {
     );
   }
 
-  for (const [index, target] of filteredPnpmTargets.entries()) {
-    printSection(
-      index + 1,
-      totalTargets,
-      `${cliArgs.repairOnly ? 'repair' : 'upgrade'} ${target.packageJsonLabel}`
-    );
-    await runPnpmUpgrade(target, cliArgs);
-    await verifyTarget(target);
+  const lanes = [];
+
+  if (filteredPnpmTargets.length > 0) {
+    lanes.push({
+      label: 'pnpm',
+      run: () => runPnpmUpgradeLane(filteredPnpmTargets, cliArgs),
+    });
   }
 
   if (includeRustTarget) {
-    printSection(
-      filteredPnpmTargets.length + 1,
-      totalTargets,
-      `upgrade ${rustTarget.cargoManifestLabel}`
-    );
-    await runRustUpgrade(rustTarget);
-    await verifyRustTarget(rustTarget);
+    lanes.push({
+      label: 'cargo',
+      run: () => runRustUpgradeLane(rustTarget),
+    });
   }
+
+  await runDependencyLanes(lanes);
 
   console.log('\nDone.');
 }

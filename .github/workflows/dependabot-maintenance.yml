@@ -50,8 +50,8 @@ jobs:
           node --version
           npm --version
 
-      # - name: Setup Rust toolchain
-      #   uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Run fix script
         run: |
