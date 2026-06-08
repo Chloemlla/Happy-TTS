@@ -66,9 +66,9 @@ let mmapBindingLoadAttempted = false;
 let mmapBindingLoadError: string | null = null;
 
 function formatMmapBindingLoadError(error: unknown): string {
-  return `@cathodique/mmap-io is required for Rust shared-memory IPC: ${
-    error instanceof Error ? error.message : String(error)
-  }`;
+  const message = error instanceof Error ? error.message : String(error);
+  const conciseMessage = message.split("\nRequire stack:")[0];
+  return `@cathodique/mmap-io native binding is unavailable: ${conciseMessage}`;
 }
 
 function loadMmapBinding(): MmapBinding {
