@@ -389,7 +389,9 @@ const RustBenchmarkDashboard: React.FC = () => {
           <div className="space-y-3 text-sm text-slate-600">
             <KeyValue label="目标" value={snapshot.target ? TARGET_LABELS[snapshot.target] : '-'} />
             <KeyValue label="操作" value={snapshot.operation ? OPERATION_LABELS[snapshot.operation] : '-'} />
+            <KeyValue label="Transport" value={transportLabel(snapshot.transport || selectedTarget?.defaultTransport)} />
             <KeyValue label="Rust URL" value={snapshot.baseUrl || selectedTarget?.defaultBaseUrl || '-'} />
+            <KeyValue label="IPC 文件" value={snapshot.ipcPath || selectedTarget?.defaultIpcPath || '-'} />
             <KeyValue label="Target value" value={snapshot.requested?.targetValue || '-'} />
           </div>
         </InfoPanel>
@@ -514,6 +516,12 @@ function statusLabel(status: RustBenchmarkSnapshot['status']): string {
   if (status === 'completed') return '已完成';
   if (status === 'failed') return '失败';
   return '空闲';
+}
+
+function transportLabel(transport: RustBenchmarkSnapshot['transport']): string {
+  if (transport === 'shared-memory-ipc') return 'mmap IPC';
+  if (transport === 'http') return 'HTTP';
+  return '-';
 }
 
 function runDetail(snapshot: RustBenchmarkSnapshot): string {

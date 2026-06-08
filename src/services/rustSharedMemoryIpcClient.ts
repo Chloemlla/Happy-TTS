@@ -37,7 +37,6 @@ type MmapBinding = {
     advise?: number,
     name?: Buffer,
   ) => Buffer;
-  unmap?: (buffer: Buffer) => void;
   sync?: (buffer: Buffer, blockingSync?: boolean, invalidatePages?: boolean) => void;
   PROT_READ: number;
   PROT_WRITE: number;
@@ -137,8 +136,6 @@ export class RustSharedMemoryIpcClient {
 
   public close(): void {
     if (this.buffer) {
-      const mmap = loadMmapBinding();
-      mmap.unmap?.(this.buffer);
       this.buffer = undefined;
     }
     if (typeof this.fd === "number") {

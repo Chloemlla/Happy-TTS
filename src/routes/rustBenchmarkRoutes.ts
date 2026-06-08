@@ -6,6 +6,7 @@ import {
   type RustBenchmarkStartOptions,
   type RustBenchmarkTarget,
   type RustBenchmarkOperation,
+  type RustBenchmarkTransport,
 } from "../services/rustBenchmarkService";
 
 const router = express.Router();
@@ -39,6 +40,7 @@ router.post("/start", async (req, res) => {
       baseUrl: stringOrUndefined(body.baseUrl),
       internalToken: stringOrUndefined(body.internalToken),
       timeoutMs: numberOrUndefined(body.timeoutMs),
+      transport: stringOrUndefined(body.transport) as RustBenchmarkTransport | undefined,
     } satisfies RustBenchmarkStartOptions);
 
     res.json({

@@ -20,11 +20,14 @@ export type RustBenchmarkOperation =
   | 'security-content-scan';
 
 export type RustBenchmarkStatus = 'idle' | 'running' | 'stopping' | 'completed' | 'failed';
+export type RustBenchmarkTransport = 'shared-memory-ipc' | 'http';
 
 export interface RustBenchmarkTargetInfo {
   id: RustBenchmarkTarget;
   label: string;
   defaultBaseUrl: string;
+  defaultIpcPath?: string;
+  defaultTransport: RustBenchmarkTransport;
   configured: boolean;
   defaultOperation: RustBenchmarkOperation;
   operations: RustBenchmarkOperation[];
@@ -40,6 +43,7 @@ export interface RustBenchmarkStartPayload {
   targetValue?: string;
   baseUrl?: string;
   internalToken?: string;
+  transport?: RustBenchmarkTransport;
 }
 
 export interface RustBenchmarkSnapshot {
@@ -47,7 +51,9 @@ export interface RustBenchmarkSnapshot {
   status: RustBenchmarkStatus;
   target: RustBenchmarkTarget | null;
   operation: RustBenchmarkOperation | null;
+  transport?: RustBenchmarkTransport;
   baseUrl?: string;
+  ipcPath?: string;
   startedAt?: string;
   endedAt?: string;
   elapsedMs: number;

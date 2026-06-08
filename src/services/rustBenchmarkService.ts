@@ -3,6 +3,11 @@ import { performance } from "node:perf_hooks";
 import axios, { type AxiosRequestConfig, type Method } from "axios";
 import { config } from "../config/config";
 import logger from "../utils/logger";
+import {
+  buildRustIpcPath,
+  RustSharedMemoryIpcClient,
+  RustSharedMemoryIpcError,
+} from "./rustSharedMemoryIpcClient";
 import { wsService } from "./wsService";
 
 export type RustBenchmarkTarget =
@@ -25,11 +30,14 @@ export type RustBenchmarkOperation =
   | "security-content-scan";
 
 export type RustBenchmarkStatus = "idle" | "running" | "stopping" | "completed" | "failed";
+export type RustBenchmarkTransport = "shared-memory-ipc" | "http";
 
 export interface RustBenchmarkTargetInfo {
   id: RustBenchmarkTarget;
   label: string;
   defaultBaseUrl: string;
+  defaultIpcPath?: string;
+  defaultTransport: RustBenchmarkTransport;
   configured: boolean;
   defaultOperation: RustBenchmarkOperation;
   operations: RustBenchmarkOperation[];
@@ -45,6 +53,7 @@ export interface RustBenchmarkStartOptions {
   baseUrl?: string;
   internalToken?: string;
   timeoutMs?: number;
+  transport?: RustBenchmarkTransport;
 }
 
 export interface RustBenchmarkSample {
@@ -66,7 +75,9 @@ export interface RustBenchmarkSnapshot {
   status: RustBenchmarkStatus;
   target: RustBenchmarkTarget | null;
   operation: RustBenchmarkOperation | null;
+  transport?: RustBenchmarkTransport;
   baseUrl?: string;
+  ipcPath?: string;
   startedAt?: string;
   endedAt?: string;
   elapsedMs: number;
@@ -105,7 +116,9 @@ interface NormalizedBenchmarkRun {
   runId: string;
   target: RustBenchmarkTarget;
   operation: RustBenchmarkOperation;
+  transport: RustBenchmarkTransport;
   baseUrl: string;
+  ipcPath?: string;
   internalToken: string;
   durationMs: number;
   concurrency: number;
@@ -118,6 +131,8 @@ interface TargetDefinition {
   id: RustBenchmarkTarget;
   label: string;
   defaultBaseUrl: string;
+  defaultIpcPath?: string;
+  defaultTransport: RustBenchmarkTransport;
   configured: boolean;
   defaultOperation: RustBenchmarkOperation;
   operations: RustBenchmarkOperation[];
@@ -154,6 +169,7 @@ interface MutableRunState extends NormalizedBenchmarkRun {
   samples: RustBenchmarkSample[];
   abortController: AbortController;
   emitTimer: ReturnType<typeof setInterval> | null;
+  ipcClient?: RustSharedMemoryIpcClient;
 }
 
 const CHANNEL = "rust-benchmark";
@@ -293,6 +309,8 @@ export class RustBenchmarkService {
       id: target.id,
       label: target.label,
       defaultBaseUrl: target.defaultBaseUrl,
+      defaultIpcPath: target.defaultIpcPath,
+      defaultTransport: target.defaultTransport,
       configured: target.configured,
       defaultOperation: target.defaultOperation,
       operations: target.operations,
@@ -333,6 +351,16 @@ export class RustBenchmarkService {
       samples: [],
       abortController: new AbortController(),
       emitTimer: null,
+      ipcClient:
+        normalized.transport === "shared-memory-ipc" && normalized.ipcPath
+          ? new RustSharedMemoryIpcClient({
+              serviceName: normalized.target,
+              filePath: normalized.ipcPath,
+              sizeBytes: config.rustServices.ipc.channelBytes,
+              internalToken: normalized.internalToken,
+              timeoutMs: normalized.timeoutMs,
+            })
+          : undefined,
     };
 
     this.currentRun = run;
@@ -350,6 +378,8 @@ export class RustBenchmarkService {
       concurrency: run.concurrency,
       payloadBytes: run.payloadBytes,
       baseUrl: run.baseUrl,
+      transport: run.transport,
+      ipcPath: run.ipcPath,
     });
 
     void this.execute(run).catch((error) => {
@@ -412,6 +442,23 @@ export class RustBenchmarkService {
     sequence: number,
   ): Promise<{ status: number }> {
     const body = definition.buildBody(run, sequence);
+    if (run.transport === "shared-memory-ipc") {
+      if (!run.ipcClient) {
+        throw new Error("Rust benchmark IPC client is not initialized");
+      }
+      const response = await run.ipcClient.request<{ success?: boolean; error?: string }>({
+        method: definition.method,
+        path: definition.path,
+        body,
+      });
+
+      if (response.success === false) {
+        throw new Error(response.error || "Rust IPC benchmark request failed");
+      }
+
+      return { status: 200 };
+    }
+
     const requestConfig: AxiosRequestConfig = {
       method: definition.method,
       url: this.buildUrl(run.baseUrl, definition.path),
@@ -442,6 +489,8 @@ export class RustBenchmarkService {
       clearInterval(run.emitTimer);
       run.emitTimer = null;
     }
+    run.ipcClient?.close();
+    run.ipcClient = undefined;
 
     const finalSnapshot = this.snapshot(run);
     this.lastSnapshot = finalSnapshot;
@@ -481,8 +530,17 @@ export class RustBenchmarkService {
     const operation = options.operation || target.defaultOperation;
     this.getOperationDefinition(operation, target.id);
 
-    const baseUrl = (options.baseUrl || target.defaultBaseUrl).trim();
-    this.assertLoopbackBaseUrl(baseUrl);
+    const customBaseUrl = normalizeOptionalText(options.baseUrl);
+    const requestedTransport = normalizeBenchmarkTransport(options.transport);
+    const transport = requestedTransport || (customBaseUrl ? "http" : target.defaultTransport);
+    const baseUrl = (customBaseUrl || target.defaultBaseUrl).trim();
+    if (transport === "http") {
+      this.assertLoopbackBaseUrl(baseUrl);
+    }
+    const ipcPath = transport === "shared-memory-ipc" ? target.defaultIpcPath : undefined;
+    if (transport === "shared-memory-ipc" && !ipcPath) {
+      throw new Error(`Rust benchmark target ${target.id} does not have an IPC path`);
+    }
 
     const internalToken = (options.internalToken || target.token || config.rustServices.internalToken || "").trim();
     if (!internalToken) {
@@ -496,7 +554,9 @@ export class RustBenchmarkService {
       runId: randomUUID(),
       target: target.id,
       operation,
+      transport,
       baseUrl,
+      ipcPath,
       internalToken,
       durationMs: clampInteger(options.durationMs, MIN_DURATION_MS, MAX_DURATION_MS, DEFAULT_DURATION_MS),
       concurrency: clampInteger(options.concurrency, 1, MAX_CONCURRENCY, DEFAULT_CONCURRENCY),
@@ -526,11 +586,14 @@ export class RustBenchmarkService {
 
   private getTargetDefinitions(): TargetDefinition[] {
     const token = config.rustServices.internalToken;
+    const defaultTransport: RustBenchmarkTransport = config.rustServices.ipc.enabled ? "shared-memory-ipc" : "http";
     return [
       {
         id: "network-tools",
         label: "Network Tools",
         defaultBaseUrl: config.rustServices.networkTools.url,
+        defaultIpcPath: buildRustIpcPath(config.rustServices.ipc.dir, "network-tools"),
+        defaultTransport,
         configured: config.rustServices.networkTools.enabled,
         defaultOperation: "network-dns",
         operations: ["health", "network-dns", "network-http-timing"],
@@ -541,6 +604,8 @@ export class RustBenchmarkService {
         id: "audio-worker",
         label: "Audio Worker",
         defaultBaseUrl: config.rustServices.audioWorker.url,
+        defaultIpcPath: buildRustIpcPath(config.rustServices.ipc.dir, "audio-worker"),
+        defaultTransport,
         configured: config.rustServices.audioWorker.enabled,
         defaultOperation: "audio-passthrough",
         operations: ["health", "audio-passthrough"],
@@ -551,6 +616,8 @@ export class RustBenchmarkService {
         id: "file-worker",
         label: "File Worker",
         defaultBaseUrl: config.rustServices.fileWorker.url,
+        defaultIpcPath: buildRustIpcPath(config.rustServices.ipc.dir, "file-worker"),
+        defaultTransport,
         configured: config.rustServices.fileWorker.enabled,
         defaultOperation: "file-hash",
         operations: ["health", "file-hash", "file-inspect"],
@@ -560,22 +627,26 @@ export class RustBenchmarkService {
       {
         id: "data-tools",
         label: "Data Tools",
-        defaultBaseUrl: process.env.RUST_DATA_TOOLS_URL || "http://127.0.0.1:4040",
-        configured: Boolean(process.env.RUST_DATA_TOOLS_URL),
+        defaultBaseUrl: config.rustServices.dataTools.url,
+        defaultIpcPath: buildRustIpcPath(config.rustServices.ipc.dir, "data-tools"),
+        defaultTransport,
+        configured: config.rustServices.dataTools.enabled,
         defaultOperation: "data-hash",
         operations: ["health", "data-hash", "data-json-inspect"],
-        timeoutMs: Number(process.env.RUST_DATA_TOOLS_TIMEOUT_MS) || 30_000,
-        token: process.env.RUST_DATA_TOOLS_INTERNAL_TOKEN || token,
+        timeoutMs: config.rustServices.dataTools.timeoutMs,
+        token,
       },
       {
         id: "security-worker",
         label: "Security Worker",
-        defaultBaseUrl: process.env.RUST_SECURITY_WORKER_URL || "http://127.0.0.1:4050",
-        configured: Boolean(process.env.RUST_SECURITY_WORKER_URL),
+        defaultBaseUrl: config.rustServices.securityWorker.url,
+        defaultIpcPath: buildRustIpcPath(config.rustServices.ipc.dir, "security-worker"),
+        defaultTransport,
+        configured: config.rustServices.securityWorker.enabled,
         defaultOperation: "security-risk-score",
         operations: ["health", "security-risk-score", "security-content-scan"],
-        timeoutMs: Number(process.env.RUST_SECURITY_WORKER_TIMEOUT_MS) || 30_000,
-        token: process.env.RUST_SECURITY_WORKER_INTERNAL_TOKEN || token,
+        timeoutMs: config.rustServices.securityWorker.timeoutMs,
+        token,
       },
     ];
   }
@@ -649,7 +720,9 @@ export class RustBenchmarkService {
       status: run.status,
       target: run.target,
       operation: run.operation,
+      transport: run.transport,
       baseUrl: run.baseUrl,
+      ipcPath: run.ipcPath,
       startedAt: new Date(run.startedAt).toISOString(),
       endedAt: run.endedAt ? new Date(run.endedAt).toISOString() : undefined,
       elapsedMs,
@@ -764,6 +837,13 @@ function normalizeOptionalText(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+function normalizeBenchmarkTransport(value: unknown): RustBenchmarkTransport | undefined {
+  if (value === "shared-memory-ipc" || value === "http") {
+    return value;
+  }
+  return undefined;
+}
+
 function percentile(sortedValues: number[], quantile: number): number | null {
   if (sortedValues.length === 0) {
     return null;
@@ -827,6 +907,10 @@ function buildTextPayload(size: number, sequence: number): string {
 }
 
 function formatErrorMessage(error: unknown): string {
+  if (error instanceof RustSharedMemoryIpcError) {
+    return error.message;
+  }
+
   if (axios.isAxiosError(error)) {
     if (error.response) {
       const responseData = error.response.data as { error?: unknown; message?: unknown } | undefined;
