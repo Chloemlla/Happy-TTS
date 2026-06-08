@@ -6,6 +6,7 @@ import {
   InternalServiceClientError,
   type InternalServiceEnvelope,
 } from "./internalServiceClient";
+import { buildRustIpcPath } from "./rustSharedMemoryIpcClient";
 
 const DEFAULT_PORT_SCAN_PORTS = [21, 22, 25, 53, 80, 110, 143, 443, 465, 587, 993, 995, 3306, 5432, 6379, 8080, 8443];
 const RUST_SOURCE = "rust-network-tools";
@@ -121,6 +122,12 @@ export class RustNetworkToolsClient {
         internalToken: config.rustServices.internalToken,
         timeoutMs: config.rustServices.networkTools.timeoutMs,
         serviceName: RUST_SOURCE,
+        ipc: {
+          enabled: config.rustServices.ipc.enabled,
+          serviceName: RUST_SOURCE,
+          filePath: buildRustIpcPath(config.rustServices.ipc.dir, "network-tools"),
+          sizeBytes: config.rustServices.ipc.channelBytes,
+        },
       }),
       timeoutMs: config.rustServices.networkTools.timeoutMs,
       maxResponseBytes: config.rustServices.networkTools.maxResponseBytes,

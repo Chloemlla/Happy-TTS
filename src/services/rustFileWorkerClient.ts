@@ -4,6 +4,7 @@ import {
   InternalServiceClientError,
   type InternalServiceEnvelope,
 } from "./internalServiceClient";
+import { buildRustIpcPath } from "./rustSharedMemoryIpcClient";
 
 const RUST_FILE_WORKER_SOURCE = "rust-file-worker";
 
@@ -70,6 +71,12 @@ export class RustFileWorkerClient {
         internalToken: config.rustServices.internalToken,
         timeoutMs: config.rustServices.fileWorker.timeoutMs,
         serviceName: RUST_FILE_WORKER_SOURCE,
+        ipc: {
+          enabled: config.rustServices.ipc.enabled,
+          serviceName: RUST_FILE_WORKER_SOURCE,
+          filePath: buildRustIpcPath(config.rustServices.ipc.dir, "file-worker"),
+          sizeBytes: config.rustServices.ipc.channelBytes,
+        },
       }),
       maxBytes: config.rustServices.fileWorker.maxBytes,
     });

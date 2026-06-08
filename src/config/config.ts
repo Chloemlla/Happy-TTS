@@ -116,6 +116,15 @@ const envSchema = z
       .enum(["auto", "jpg", "jpeg", "png", "webp", "gif", "webp_animated"])
       .optional(),
     INTERNAL_SERVICE_TOKEN: optionalTrimmedString,
+    RUST_IPC_ENABLED: stringToBoolean,
+    RUST_IPC_DIR: optionalTrimmedString,
+    RUST_IPC_CHANNEL_BYTES: z.coerce
+      .number()
+      .int()
+      .min(1024 * 1024)
+      .max(2 * 1024 * 1024 * 1024)
+      .optional()
+      .default(256 * 1024 * 1024),
     RUST_NETWORK_TOOLS_ENABLED: stringToBoolean,
     RUST_NETWORK_TOOLS_URL: z.string().url().optional().default("http://127.0.0.1:4010"),
     RUST_NETWORK_TOOLS_TIMEOUT_MS: z.coerce.number().int().min(100).max(60000).optional().default(5000),
@@ -267,6 +276,8 @@ const publicShortUrlEnabled = parsedEnv.PUBLIC_SHORT_URL_ENABLED === true;
 const publicShortUrlPassword = parsedEnv.PUBLIC_SHORT_URL_PASSWORD;
 const rustServicesEnabledByDefault = defaultRustServicesEnabled(parsedEnv.NODE_ENV);
 const embeddedRustServicesEnabled = parsedEnv.RUST_EMBEDDED_SERVICES_ENABLED ?? rustServicesEnabledByDefault;
+const rustIpcEnabled = parsedEnv.RUST_IPC_ENABLED ?? embeddedRustServicesEnabled;
+const rustIpcDir = parsedEnv.RUST_IPC_DIR || path.join(process.cwd(), "data", "rust-ipc");
 const internalServiceToken =
   parsedEnv.INTERNAL_SERVICE_TOKEN || (embeddedRustServicesEnabled ? generateEphemeralSecret() : "");
 const emailRuntimeDefaults: EmailRuntimeConfig = {
@@ -372,6 +383,11 @@ export const startupConfig = Object.freeze({
   },
   rustServices: {
     internalToken: internalServiceToken,
+    ipc: {
+      enabled: rustIpcEnabled,
+      dir: rustIpcDir,
+      channelBytes: parsedEnv.RUST_IPC_CHANNEL_BYTES,
+    },
     embedded: {
       enabled: embeddedRustServicesEnabled,
       networkToolsBin: parsedEnv.RUST_NETWORK_TOOLS_BIN || "/usr/local/bin/network-tools",

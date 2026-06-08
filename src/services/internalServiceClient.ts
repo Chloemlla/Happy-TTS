@@ -1,4 +1,9 @@
 import axios, { type AxiosRequestConfig, type Method } from "axios";
+import {
+  RustSharedMemoryIpcClient,
+  RustSharedMemoryIpcError,
+  type RustSharedMemoryIpcClientOptions,
+} from "./rustSharedMemoryIpcClient";
 
 export type InternalServiceErrorCode =
   | "bad_request"
@@ -15,6 +20,10 @@ export interface InternalServiceClientOptions {
   internalToken: string;
   timeoutMs: number;
   serviceName?: string;
+  ipc?: Omit<RustSharedMemoryIpcClientOptions, "internalToken" | "timeoutMs"> & {
+    enabled: boolean;
+    timeoutMs?: number;
+  };
 }
 
 export interface InternalServiceHealthResult {
@@ -55,12 +64,22 @@ export class InternalServiceClient {
   private readonly internalToken: string;
   private readonly serviceName: string;
   private readonly timeoutMs: number;
+  private readonly ipcClient?: RustSharedMemoryIpcClient;
 
   public constructor(options: InternalServiceClientOptions) {
     this.baseUrl = options.baseUrl.replace(/\/+$/, "");
     this.internalToken = options.internalToken;
     this.timeoutMs = options.timeoutMs;
     this.serviceName = options.serviceName || "internal-service";
+    if (options.ipc?.enabled) {
+      this.ipcClient = new RustSharedMemoryIpcClient({
+        serviceName: options.ipc.serviceName,
+        filePath: options.ipc.filePath,
+        sizeBytes: options.ipc.sizeBytes,
+        internalToken: options.internalToken,
+        timeoutMs: options.ipc.timeoutMs || options.timeoutMs,
+      });
+    }
   }
 
   public async getHealth(): Promise<InternalServiceHealthResult> {
@@ -84,6 +103,18 @@ export class InternalServiceClient {
   }
 
   private async request<TResponse>(method: Method, path: string, body?: unknown): Promise<TResponse> {
+    if (this.ipcClient) {
+      try {
+        return await this.ipcClient.request<TResponse>({
+          method,
+          path,
+          body,
+        });
+      } catch (error) {
+        throw this.mapIpcError(error);
+      }
+    }
+
     const requestConfig: AxiosRequestConfig = {
       method,
       url: this.buildUrl(path),
@@ -138,6 +169,20 @@ export class InternalServiceClient {
     });
   }
 
+  private mapIpcError(error: unknown): InternalServiceClientError {
+    if (error instanceof RustSharedMemoryIpcError) {
+      return new InternalServiceClientError(error.message, {
+        code: error.code,
+        serviceName: this.serviceName,
+      });
+    }
+
+    return new InternalServiceClientError(error instanceof Error ? error.message : `${this.serviceName} IPC request failed`, {
+      code: "service_error",
+      serviceName: this.serviceName,
+    });
+  }
+
   private codeForStatus(statusCode: number): InternalServiceErrorCode {
     if (statusCode === 400) return "bad_request";
     if (statusCode === 401) return "unauthorized";
@@ -156,4 +201,3 @@ export class InternalServiceClient {
     return `${this.serviceName} returned HTTP ${statusCode}${suffix}`;
   }
 }
-

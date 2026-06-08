@@ -4,12 +4,14 @@ import { request as httpsRequest } from "node:https";
 import { spawn, type ChildProcess } from "node:child_process";
 import { config } from "../config/config";
 import logger from "../utils/logger";
+import { buildRustIpcPath, RustSharedMemoryIpcClient } from "./rustSharedMemoryIpcClient";
 
 interface EmbeddedRustServiceDefinition {
   name: "network-tools" | "audio-worker" | "file-worker" | "data-tools" | "security-worker";
   enabled: boolean;
   url: string;
   binPath: string;
+  ipcPath: string;
   bindEnvName:
     | "RUST_BIND_ADDR"
     | "RUST_AUDIO_WORKER_BIND_ADDR"
@@ -46,6 +48,7 @@ export async function startEmbeddedRustServices(): Promise<void> {
       enabled: config.rustServices.networkTools.enabled,
       url: config.rustServices.networkTools.url,
       binPath: config.rustServices.embedded.networkToolsBin,
+      ipcPath: buildRustIpcPath(config.rustServices.ipc.dir, "network-tools"),
       bindEnvName: "RUST_BIND_ADDR",
       extraEnv: {
         RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS: String(config.rustServices.networkTools.blockPrivateTargets),
@@ -57,6 +60,7 @@ export async function startEmbeddedRustServices(): Promise<void> {
       enabled: config.rustServices.audioWorker.enabled,
       url: config.rustServices.audioWorker.url,
       binPath: config.rustServices.embedded.audioWorkerBin,
+      ipcPath: buildRustIpcPath(config.rustServices.ipc.dir, "audio-worker"),
       bindEnvName: "RUST_AUDIO_WORKER_BIND_ADDR",
       extraEnv: {
         RUST_AUDIO_WORKER_MAX_BYTES: String(config.rustServices.audioWorker.maxBytes),
@@ -67,6 +71,7 @@ export async function startEmbeddedRustServices(): Promise<void> {
       enabled: config.rustServices.fileWorker.enabled,
       url: config.rustServices.fileWorker.url,
       binPath: config.rustServices.embedded.fileWorkerBin,
+      ipcPath: buildRustIpcPath(config.rustServices.ipc.dir, "file-worker"),
       bindEnvName: "RUST_FILE_WORKER_BIND_ADDR",
       extraEnv: {
         RUST_FILE_WORKER_MAX_BYTES: String(config.rustServices.fileWorker.maxBytes),
@@ -77,6 +82,7 @@ export async function startEmbeddedRustServices(): Promise<void> {
       enabled: config.rustServices.dataTools.enabled,
       url: config.rustServices.dataTools.url,
       binPath: config.rustServices.embedded.dataToolsBin,
+      ipcPath: buildRustIpcPath(config.rustServices.ipc.dir, "data-tools"),
       bindEnvName: "RUST_DATA_TOOLS_BIND_ADDR",
       extraEnv: {
         RUST_DATA_TOOLS_MAX_BYTES: String(config.rustServices.dataTools.maxBytes),
@@ -88,6 +94,7 @@ export async function startEmbeddedRustServices(): Promise<void> {
       enabled: config.rustServices.securityWorker.enabled,
       url: config.rustServices.securityWorker.url,
       binPath: config.rustServices.embedded.securityWorkerBin,
+      ipcPath: buildRustIpcPath(config.rustServices.ipc.dir, "security-worker"),
       bindEnvName: "RUST_SECURITY_WORKER_BIND_ADDR",
       extraEnv: {
         RUST_SECURITY_WORKER_MAX_TEXT_BYTES: String(config.rustServices.securityWorker.maxTextBytes),
@@ -109,12 +116,14 @@ async function startService(service: EmbeddedRustServiceDefinition, restartCount
   }
 
   const parsedUrl = parseServiceUrl(service.url);
-  if (!parsedUrl || !isLoopbackHost(parsedUrl.hostname)) {
-    logger.info("[Rust] Embedded Rust service skipped because URL is not loopback", {
-      service: service.name,
-      url: service.url,
-    });
-    return;
+  if (!config.rustServices.ipc.enabled) {
+    if (!parsedUrl || !isLoopbackHost(parsedUrl.hostname)) {
+      logger.info("[Rust] Embedded Rust service skipped because URL is not loopback", {
+        service: service.name,
+        url: service.url,
+      });
+      return;
+    }
   }
 
   if (!existsSync(service.binPath)) {
@@ -125,17 +134,19 @@ async function startService(service: EmbeddedRustServiceDefinition, restartCount
     return;
   }
 
-  const bindAddr = `${normalizeBindHost(parsedUrl.hostname)}:${parsedUrl.port}`;
+  const bindAddr = parsedUrl ? `${normalizeBindHost(parsedUrl.hostname)}:${parsedUrl.port}` : "127.0.0.1:0";
   const child = spawnService(service, bindAddr, restartCount);
 
   logger.info("[Rust] Embedded Rust service spawned", {
     service: service.name,
     pid: child.pid,
     bindAddr,
+    transport: config.rustServices.ipc.enabled ? "shared-memory-ipc" : "http",
+    ipcPath: config.rustServices.ipc.enabled ? service.ipcPath : undefined,
     restartCount,
   });
 
-  await waitForHealth(service.name, service.url, config.rustServices.internalToken, 5000);
+  await waitForServiceReady(service, 5000);
 }
 
 function spawnService(
@@ -148,6 +159,12 @@ function spawnService(
       ...process.env,
       INTERNAL_SERVICE_TOKEN: config.rustServices.internalToken,
       [service.bindEnvName]: bindAddr,
+      ...(config.rustServices.ipc.enabled
+        ? {
+            RUST_IPC_PATH: service.ipcPath,
+            RUST_IPC_CHANNEL_BYTES: String(config.rustServices.ipc.channelBytes),
+          }
+        : {}),
       ...service.extraEnv,
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -176,6 +193,51 @@ function spawnService(
   });
 
   return child;
+}
+
+async function waitForServiceReady(service: EmbeddedRustServiceDefinition, timeoutMs: number): Promise<void> {
+  if (config.rustServices.ipc.enabled) {
+    await waitForIpcHealth(service, timeoutMs);
+    return;
+  }
+
+  await waitForHealth(service.name, service.url, config.rustServices.internalToken, timeoutMs);
+}
+
+async function waitForIpcHealth(service: EmbeddedRustServiceDefinition, timeoutMs: number): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  const client = new RustSharedMemoryIpcClient({
+    serviceName: service.name,
+    filePath: service.ipcPath,
+    sizeBytes: config.rustServices.ipc.channelBytes,
+    internalToken: config.rustServices.internalToken,
+    timeoutMs: 1000,
+  });
+
+  try {
+    while (Date.now() < deadline) {
+      try {
+        const response = await client.request<{ success?: boolean }>({
+          method: "GET",
+          path: "/healthz",
+        });
+        if (response.success !== false) {
+          logger.info("[Rust] Embedded Rust IPC service is healthy", { service: service.name });
+          return;
+        }
+      } catch (_error) {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      }
+    }
+  } finally {
+    client.close();
+  }
+
+  logger.warn("[Rust] Embedded Rust IPC health check timed out; Node will continue startup", {
+    service: service.name,
+    timeoutMs,
+    ipcPath: service.ipcPath,
+  });
 }
 
 function scheduleRestart(service: EmbeddedRustServiceDefinition, restartCount: number) {

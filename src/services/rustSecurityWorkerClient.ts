@@ -4,6 +4,7 @@ import {
   InternalServiceClientError,
   type InternalServiceEnvelope,
 } from "./internalServiceClient";
+import { buildRustIpcPath } from "./rustSharedMemoryIpcClient";
 
 const RUST_SECURITY_WORKER_SOURCE = "rust-security-worker";
 
@@ -70,6 +71,12 @@ export class RustSecurityWorkerClient {
         internalToken: config.rustServices.internalToken,
         timeoutMs: config.rustServices.securityWorker.timeoutMs,
         serviceName: RUST_SECURITY_WORKER_SOURCE,
+        ipc: {
+          enabled: config.rustServices.ipc.enabled,
+          serviceName: RUST_SECURITY_WORKER_SOURCE,
+          filePath: buildRustIpcPath(config.rustServices.ipc.dir, "security-worker"),
+          sizeBytes: config.rustServices.ipc.channelBytes,
+        },
       }),
     });
   }

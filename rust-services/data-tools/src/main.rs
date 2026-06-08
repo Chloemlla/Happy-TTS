@@ -2,6 +2,7 @@ mod auth;
 mod config;
 mod error;
 mod http;
+mod ipc;
 mod models;
 mod processing;
 
@@ -9,7 +10,7 @@ mod processing;
 #[path = "tests/data_contract_tests.rs"]
 mod data_contract_tests;
 
-use std::net::SocketAddr;
+use std::{env, net::SocketAddr, path::PathBuf, sync::Arc};
 
 use config::DataToolsConfig;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
@@ -28,6 +29,28 @@ async fn main() {
             std::process::exit(1);
         }
     };
+
+    if let Some(ipc_path) = ipc_path_from_env() {
+        let size_bytes = ipc_channel_bytes_from_env();
+        let config = Arc::new(config);
+        if let Err(error) = ipc_runtime::serve(
+            ipc_runtime::IpcServerOptions {
+                service_name: "data-tools",
+                path: ipc_path,
+                size_bytes,
+            },
+            move |request| {
+                let config = Arc::clone(&config);
+                async move { ipc::handle_request(config, request).await }
+            },
+        )
+        .await
+        {
+            tracing::error!(error = %error, "data-tools IPC server stopped");
+            std::process::exit(1);
+        }
+        return;
+    }
 
     let bind_addr: SocketAddr = match config.bind_addr.parse() {
         Ok(addr) => addr,
@@ -50,4 +73,20 @@ async fn main() {
     if let Err(error) = axum::serve(listener, http::build_router(config)).await {
         tracing::error!(error = %error, "data-tools server stopped");
     }
+}
+
+fn ipc_path_from_env() -> Option<PathBuf> {
+    env::var("RUST_IPC_PATH")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+}
+
+fn ipc_channel_bytes_from_env() -> usize {
+    env::var("RUST_IPC_CHANNEL_BYTES")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|value| *value >= 1024 * 1024)
+        .unwrap_or(256 * 1024 * 1024)
 }

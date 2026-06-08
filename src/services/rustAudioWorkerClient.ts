@@ -4,6 +4,7 @@ import {
   InternalServiceClientError,
   type InternalServiceEnvelope,
 } from "./internalServiceClient";
+import { buildRustIpcPath } from "./rustSharedMemoryIpcClient";
 import type { TtsAudioPostProcessInput, TtsAudioPostProcessResult } from "../tts/tts.ports";
 
 const RUST_AUDIO_WORKER_SOURCE = "rust-audio-worker";
@@ -44,6 +45,12 @@ export class RustAudioWorkerClient {
         internalToken: config.rustServices.internalToken,
         timeoutMs: config.rustServices.audioWorker.timeoutMs,
         serviceName: RUST_AUDIO_WORKER_SOURCE,
+        ipc: {
+          enabled: config.rustServices.ipc.enabled,
+          serviceName: RUST_AUDIO_WORKER_SOURCE,
+          filePath: buildRustIpcPath(config.rustServices.ipc.dir, "audio-worker"),
+          sizeBytes: config.rustServices.ipc.channelBytes,
+        },
       }),
       maxBytes: config.rustServices.audioWorker.maxBytes,
       operations: config.rustServices.audioWorker.operations,

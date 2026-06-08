@@ -4,6 +4,7 @@ members = [
   "audio-worker",
   "data-tools",
   "file-worker",
+  "ipc-runtime",
   "security-worker",
 ]
 resolver = "2"
