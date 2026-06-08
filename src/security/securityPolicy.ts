@@ -40,7 +40,8 @@ export function matchesSecurityBypassRule(pathname: string, rule: SecurityBypass
     return pathname === rule.value;
   }
 
-  return pathname === rule.value || pathname.startsWith(`${rule.value}/`);
+  const prefix = rule.value.replace(/\/+$/, "");
+  return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
 
 export function shouldBypassSecurityComponent(component: SecurityComponent, pathname: string): boolean {

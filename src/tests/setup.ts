@@ -135,6 +135,16 @@ jest.mock("../services/rateLimiter", () => ({
 // Mock 自定义限速器中间件
 jest.mock("../middleware/rateLimiter", () => ({
   createLimiter: () => (_req: Request, _res: Response, next: NextFunction) => next(),
+  resourceLimiter: {
+    stats: (_req: Request, _res: Response, next: NextFunction) => next(),
+    create: (_req: Request, _res: Response, next: NextFunction) => next(),
+    initTest: (_req: Request, _res: Response, next: NextFunction) => next(),
+    getById: (_req: Request, _res: Response, next: NextFunction) => next(),
+    update: (_req: Request, _res: Response, next: NextFunction) => next(),
+    delete: (_req: Request, _res: Response, next: NextFunction) => next(),
+    getResources: (_req: Request, _res: Response, next: NextFunction) => next(),
+    getCategories: (_req: Request, _res: Response, next: NextFunction) => next(),
+  },
 }));
 
 // Mock 所有可能的限速器，确保测试时全部失效
