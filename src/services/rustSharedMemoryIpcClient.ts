@@ -36,12 +36,21 @@ type MmapBinding = {
     offset?: number,
     advise?: number,
     name?: Buffer,
-  ) => Buffer;
+  ) => Buffer | number;
+  unmap?: (bufferId: number) => void;
   sync?: (buffer: Buffer, blockingSync?: boolean, invalidatePages?: boolean) => void;
   PROT_READ: number;
   PROT_WRITE: number;
   MAP_SHARED: number;
   MADV_RANDOM?: number;
+};
+
+type IpcChannel = {
+  readUInt32LE: (offset: number) => number;
+  writeUInt32LE: (value: number, offset: number) => void;
+  writeBuffer: (buffer: Buffer, offset: number) => void;
+  toString: (encoding: BufferEncoding, start: number, end: number) => string;
+  close: () => void;
 };
 
 const IPC_MAGIC = 0x43504953; // "SIPC" in little-endian order.
@@ -97,19 +106,8 @@ function loadMmapBinding(): MmapBinding {
 }
 
 export function getRustSharedMemoryIpcUnavailableReason(): string | null {
-  if (mmapBinding) {
-    return null;
-  }
-
-  try {
-    loadMmapBinding();
-    return null;
-  } catch (error) {
-    if (error instanceof RustSharedMemoryIpcError) {
-      return error.message;
-    }
-    return error instanceof Error ? error.message : String(error);
-  }
+  // Native mmap is optional because the same IPC file can be driven through synchronous file I/O.
+  return null;
 }
 
 export function isRustSharedMemoryIpcAvailable(): boolean {
@@ -138,7 +136,7 @@ export class RustSharedMemoryIpcClient {
   private readonly internalToken: string;
   private readonly timeoutMs: number;
   private fd?: number;
-  private buffer?: Buffer;
+  private channel?: IpcChannel;
   private nextRequestId = 1;
   private queue: Promise<void> = Promise.resolve();
 
@@ -166,8 +164,9 @@ export class RustSharedMemoryIpcClient {
   }
 
   public close(): void {
-    if (this.buffer) {
-      this.buffer = undefined;
+    if (this.channel) {
+      this.channel.close();
+      this.channel = undefined;
     }
     if (typeof this.fd === "number") {
       fs.closeSync(this.fd);
@@ -176,12 +175,12 @@ export class RustSharedMemoryIpcClient {
   }
 
   private async performRequest<TResponse>(request: RustSharedMemoryIpcRequest): Promise<TResponse> {
-    const buffer = this.ensureMapped();
+    const channel = this.ensureChannel();
     const deadline = Date.now() + this.timeoutMs;
-    await this.waitForReady(buffer, deadline);
-    await this.waitForIdle(buffer, deadline);
+    await this.waitForReady(channel, deadline);
+    await this.waitForIdle(channel, deadline);
 
-    const requestCapacity = buffer.readUInt32LE(OFFSET_REQUEST_CAPACITY);
+    const requestCapacity = channel.readUInt32LE(OFFSET_REQUEST_CAPACITY);
     const payloadBuffer = Buffer.from(
       JSON.stringify({
         method: request.method,
@@ -205,18 +204,18 @@ export class RustSharedMemoryIpcClient {
     }
 
     const requestOffset = HEADER_BYTES;
-    payloadBuffer.copy(buffer, requestOffset);
-    buffer.writeUInt32LE(requestId, OFFSET_REQUEST_ID);
-    buffer.writeUInt32LE(payloadBuffer.length, OFFSET_REQUEST_LEN);
-    buffer.writeUInt32LE(0, OFFSET_RESPONSE_LEN);
-    buffer.writeUInt32LE(STATE_REQUEST_READY, OFFSET_STATE);
+    channel.writeBuffer(payloadBuffer, requestOffset);
+    channel.writeUInt32LE(requestId, OFFSET_REQUEST_ID);
+    channel.writeUInt32LE(payloadBuffer.length, OFFSET_REQUEST_LEN);
+    channel.writeUInt32LE(0, OFFSET_RESPONSE_LEN);
+    channel.writeUInt32LE(STATE_REQUEST_READY, OFFSET_STATE);
 
-    return this.waitForResponse<TResponse>(buffer, requestId, deadline);
+    return this.waitForResponse<TResponse>(channel, requestId, deadline);
   }
 
-  private ensureMapped(): Buffer {
-    if (this.buffer) {
-      return this.buffer;
+  private ensureChannel(): IpcChannel {
+    if (this.channel) {
+      return this.channel;
     }
 
     fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
@@ -226,29 +225,46 @@ export class RustSharedMemoryIpcClient {
       fs.ftruncateSync(this.fd, this.sizeBytes);
     }
 
-    const mmap = loadMmapBinding();
-    const mapped = mmap.map(
-      this.sizeBytes,
-      mmap.PROT_READ | mmap.PROT_WRITE,
-      mmap.MAP_SHARED,
-      this.fd,
-      0,
-      mmap.MADV_RANDOM,
-    );
-
-    if (!Buffer.isBuffer(mapped)) {
-      throw new RustSharedMemoryIpcError(`${this.serviceName} mmap did not return a Buffer`, "network_error");
-    }
-
-    this.buffer = mapped;
-    return mapped;
+    this.channel = this.tryCreateMmapChannel() || new FileBackedIpcChannel(this.fd);
+    return this.channel;
   }
 
-  private async waitForReady(buffer: Buffer, deadline: number): Promise<void> {
+  private tryCreateMmapChannel(): IpcChannel | null {
+    let mmap: MmapBinding;
+    try {
+      mmap = loadMmapBinding();
+    } catch (_error) {
+      return null;
+    }
+
+    try {
+      const mapped = mmap.map(
+        this.sizeBytes,
+        mmap.PROT_READ | mmap.PROT_WRITE,
+        mmap.MAP_SHARED,
+        this.fd!,
+        0,
+        mmap.MADV_RANDOM,
+      );
+
+      if (Buffer.isBuffer(mapped)) {
+        return new BufferIpcChannel(mapped);
+      }
+
+      if (typeof mapped === "number") {
+        mmap.unmap?.(mapped);
+      }
+      return null;
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  private async waitForReady(channel: IpcChannel, deadline: number): Promise<void> {
     while (Date.now() <= deadline) {
-      if (buffer.readUInt32LE(OFFSET_MAGIC) === IPC_MAGIC && buffer.readUInt32LE(OFFSET_VERSION) === IPC_VERSION) {
-        const requestCapacity = buffer.readUInt32LE(OFFSET_REQUEST_CAPACITY);
-        const responseCapacity = buffer.readUInt32LE(OFFSET_RESPONSE_CAPACITY);
+      if (channel.readUInt32LE(OFFSET_MAGIC) === IPC_MAGIC && channel.readUInt32LE(OFFSET_VERSION) === IPC_VERSION) {
+        const requestCapacity = channel.readUInt32LE(OFFSET_REQUEST_CAPACITY);
+        const responseCapacity = channel.readUInt32LE(OFFSET_RESPONSE_CAPACITY);
         if (requestCapacity > 0 && responseCapacity > 0) {
           return;
         }
@@ -259,15 +275,15 @@ export class RustSharedMemoryIpcClient {
     throw new RustSharedMemoryIpcError(`${this.serviceName} shared-memory channel was not initialized`, "timeout");
   }
 
-  private async waitForIdle(buffer: Buffer, deadline: number): Promise<void> {
+  private async waitForIdle(channel: IpcChannel, deadline: number): Promise<void> {
     while (Date.now() <= deadline) {
-      const state = buffer.readUInt32LE(OFFSET_STATE);
+      const state = channel.readUInt32LE(OFFSET_STATE);
       if (state === STATE_IDLE) {
         return;
       }
       if (state === STATE_RESPONSE_READY) {
-        buffer.writeUInt32LE(0, OFFSET_RESPONSE_LEN);
-        buffer.writeUInt32LE(STATE_IDLE, OFFSET_STATE);
+        channel.writeUInt32LE(0, OFFSET_RESPONSE_LEN);
+        channel.writeUInt32LE(STATE_IDLE, OFFSET_STATE);
         return;
       }
       await sleep(state === STATE_PROCESSING || state === STATE_REQUEST_READY ? 1 : 5);
@@ -276,26 +292,26 @@ export class RustSharedMemoryIpcClient {
     throw new RustSharedMemoryIpcError(`${this.serviceName} shared-memory channel is busy`, "timeout");
   }
 
-  private async waitForResponse<TResponse>(buffer: Buffer, requestId: number, deadline: number): Promise<TResponse> {
+  private async waitForResponse<TResponse>(channel: IpcChannel, requestId: number, deadline: number): Promise<TResponse> {
     while (Date.now() <= deadline) {
-      const state = buffer.readUInt32LE(OFFSET_STATE);
+      const state = channel.readUInt32LE(OFFSET_STATE);
       if (state === STATE_RESPONSE_READY) {
-        const responseRequestId = buffer.readUInt32LE(OFFSET_REQUEST_ID);
-        const responseLen = buffer.readUInt32LE(OFFSET_RESPONSE_LEN);
-        const responseCapacity = buffer.readUInt32LE(OFFSET_RESPONSE_CAPACITY);
+        const responseRequestId = channel.readUInt32LE(OFFSET_REQUEST_ID);
+        const responseLen = channel.readUInt32LE(OFFSET_RESPONSE_LEN);
+        const responseCapacity = channel.readUInt32LE(OFFSET_RESPONSE_CAPACITY);
         if (responseRequestId !== requestId) {
-          buffer.writeUInt32LE(STATE_IDLE, OFFSET_STATE);
+          channel.writeUInt32LE(STATE_IDLE, OFFSET_STATE);
           throw new RustSharedMemoryIpcError(`${this.serviceName} returned a mismatched IPC request id`, "service_error");
         }
         if (responseLen === 0 || responseLen > responseCapacity) {
-          buffer.writeUInt32LE(STATE_IDLE, OFFSET_STATE);
+          channel.writeUInt32LE(STATE_IDLE, OFFSET_STATE);
           throw new RustSharedMemoryIpcError(`${this.serviceName} returned an invalid IPC response length`, "service_error");
         }
 
-        const responseOffset = HEADER_BYTES + buffer.readUInt32LE(OFFSET_REQUEST_CAPACITY);
-        const responseText = buffer.toString("utf8", responseOffset, responseOffset + responseLen);
-        buffer.writeUInt32LE(0, OFFSET_RESPONSE_LEN);
-        buffer.writeUInt32LE(STATE_IDLE, OFFSET_STATE);
+        const responseOffset = HEADER_BYTES + channel.readUInt32LE(OFFSET_REQUEST_CAPACITY);
+        const responseText = channel.toString("utf8", responseOffset, responseOffset + responseLen);
+        channel.writeUInt32LE(0, OFFSET_RESPONSE_LEN);
+        channel.writeUInt32LE(STATE_IDLE, OFFSET_STATE);
         return JSON.parse(responseText) as TResponse;
       }
 
@@ -307,6 +323,82 @@ export class RustSharedMemoryIpcClient {
     }
 
     throw new RustSharedMemoryIpcError(`${this.serviceName} shared-memory request timed out`, "timeout");
+  }
+}
+
+class BufferIpcChannel implements IpcChannel {
+  public constructor(private readonly buffer: Buffer) {}
+
+  public readUInt32LE(offset: number): number {
+    return this.buffer.readUInt32LE(offset);
+  }
+
+  public writeUInt32LE(value: number, offset: number): void {
+    this.buffer.writeUInt32LE(value, offset);
+  }
+
+  public writeBuffer(buffer: Buffer, offset: number): void {
+    buffer.copy(this.buffer, offset);
+  }
+
+  public toString(encoding: BufferEncoding, start: number, end: number): string {
+    return this.buffer.toString(encoding, start, end);
+  }
+
+  public close(): void {
+    // mmap-io releases Buffer-backed mappings when the Buffer is garbage collected.
+  }
+}
+
+class FileBackedIpcChannel implements IpcChannel {
+  private readonly wordBuffer = Buffer.allocUnsafe(4);
+
+  public constructor(private readonly fd: number) {}
+
+  public readUInt32LE(offset: number): number {
+    this.readFully(this.wordBuffer, 0, this.wordBuffer.length, offset);
+    return this.wordBuffer.readUInt32LE(0);
+  }
+
+  public writeUInt32LE(value: number, offset: number): void {
+    this.wordBuffer.writeUInt32LE(value, 0);
+    this.writeFully(this.wordBuffer, 0, this.wordBuffer.length, offset);
+  }
+
+  public writeBuffer(buffer: Buffer, offset: number): void {
+    this.writeFully(buffer, 0, buffer.length, offset);
+  }
+
+  public toString(encoding: BufferEncoding, start: number, end: number): string {
+    const buffer = Buffer.allocUnsafe(end - start);
+    this.readFully(buffer, 0, buffer.length, start);
+    return buffer.toString(encoding);
+  }
+
+  public close(): void {
+    // The owning RustSharedMemoryIpcClient closes the file descriptor.
+  }
+
+  private readFully(buffer: Buffer, start: number, length: number, position: number): void {
+    let total = 0;
+    while (total < length) {
+      const bytesRead = fs.readSync(this.fd, buffer, start + total, length - total, position + total);
+      if (bytesRead === 0) {
+        throw new Error(`Unexpected EOF while reading shared-memory IPC file at offset ${position + total}`);
+      }
+      total += bytesRead;
+    }
+  }
+
+  private writeFully(buffer: Buffer, start: number, length: number, position: number): void {
+    let total = 0;
+    while (total < length) {
+      const bytesWritten = fs.writeSync(this.fd, buffer, start + total, length - total, position + total);
+      if (bytesWritten === 0) {
+        throw new Error(`Unable to write shared-memory IPC file at offset ${position + total}`);
+      }
+      total += bytesWritten;
+    }
   }
 }
 

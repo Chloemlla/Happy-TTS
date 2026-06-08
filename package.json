@@ -160,6 +160,7 @@
       "minimatch": ">=10.2.1"
     },
     "onlyBuiltDependencies": [
+      "@cathodique/mmap-io",
       "@scarf/scarf",
       "bcrypt",
       "unrs-resolver"
