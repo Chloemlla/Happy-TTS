@@ -98,15 +98,7 @@ pub fn convert_encoding(
     to_encoding: &str,
     config: &DataToolsConfig,
 ) -> Result<Vec<u8>, AppError> {
-    let input = general_purpose::STANDARD
-        .decode(text_base64.as_bytes())
-        .map_err(|_| AppError::BadRequest("textBase64 must be valid base64".to_string()))?;
-    if input.len() > config.max_bytes {
-        return Err(AppError::BadRequest(format!(
-            "encoding payload cannot exceed {} bytes",
-            config.max_bytes
-        )));
-    }
+    let input = decode_base64_limited(text_base64, config.max_bytes, "textBase64", "encoding payload")?;
 
     let text = decode_text(&input, from_encoding)?;
     encode_text(&text, to_encoding)
@@ -190,11 +182,15 @@ pub fn compress(
     config: &DataToolsConfig,
 ) -> Result<Vec<u8>, AppError> {
     let input = decode_limited(data_base64, config)?;
+    compress_bytes(&input, algorithm)
+}
+
+pub fn compress_bytes(input: &[u8], algorithm: &str) -> Result<Vec<u8>, AppError> {
     match normalize_compression_algorithm(algorithm)?.as_str() {
         "gzip" => {
             let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
             encoder
-                .write_all(&input)
+                .write_all(input)
                 .map_err(|_| AppError::BadRequest("gzip compression failed".to_string()))?;
             encoder
                 .finish()
@@ -203,7 +199,7 @@ pub fn compress(
         "deflate" => {
             let mut encoder = DeflateEncoder::new(Vec::new(), Compression::default());
             encoder
-                .write_all(&input)
+                .write_all(input)
                 .map_err(|_| AppError::BadRequest("deflate compression failed".to_string()))?;
             encoder
                 .finish()
@@ -221,33 +217,29 @@ pub fn decompress(
     config: &DataToolsConfig,
 ) -> Result<Vec<u8>, AppError> {
     let input = decode_limited(data_base64, config)?;
-    let mut output = Vec::new();
+    decompress_bytes(&input, algorithm, config)
+}
+
+pub fn decompress_bytes(
+    input: &[u8],
+    algorithm: &str,
+    config: &DataToolsConfig,
+) -> Result<Vec<u8>, AppError> {
     match normalize_compression_algorithm(algorithm)?.as_str() {
         "gzip" => {
             let mut decoder = GzDecoder::new(input.as_slice());
-            decoder
-                .read_to_end(&mut output)
-                .map_err(|_| AppError::BadRequest("gzip decompression failed".to_string()))?;
+            read_decompressed_limited(&mut decoder, config, "gzip")
         }
         "deflate" => {
             let mut decoder = DeflateDecoder::new(input.as_slice());
-            decoder
-                .read_to_end(&mut output)
-                .map_err(|_| AppError::BadRequest("deflate decompression failed".to_string()))?;
+            read_decompressed_limited(&mut decoder, config, "deflate")
         }
         _ => {
-            return Err(AppError::BadRequest(
+            Err(AppError::BadRequest(
                 "unsupported compression algorithm".to_string(),
             ))
         }
     }
-    if output.len() > config.max_bytes {
-        return Err(AppError::BadRequest(format!(
-            "decompressed payload cannot exceed {} bytes",
-            config.max_bytes
-        )));
-    }
-    Ok(output)
 }
 
 pub fn normalize_compression_algorithm(algorithm: &str) -> Result<String, AppError> {
@@ -262,16 +254,78 @@ pub fn normalize_compression_algorithm(algorithm: &str) -> Result<String, AppErr
 }
 
 fn decode_limited(data_base64: &str, config: &DataToolsConfig) -> Result<Vec<u8>, AppError> {
-    let input = general_purpose::STANDARD
-        .decode(data_base64.as_bytes())
-        .map_err(|_| AppError::BadRequest("dataBase64 must be valid base64".to_string()))?;
-    if input.len() > config.max_bytes {
+    decode_base64_limited(data_base64, config.max_bytes, "dataBase64", "data payload")
+}
+
+pub fn decode_limited_base64(
+    data_base64: &str,
+    config: &DataToolsConfig,
+    field: &str,
+    payload_label: &str,
+) -> Result<Vec<u8>, AppError> {
+    decode_base64_limited(data_base64, config.max_bytes, field, payload_label)
+}
+
+fn decode_base64_limited(
+    value: &str,
+    max_bytes: usize,
+    field: &str,
+    payload_label: &str,
+) -> Result<Vec<u8>, AppError> {
+    if decoded_base64_upper_bound(value) > max_bytes {
         return Err(AppError::BadRequest(format!(
-            "data payload cannot exceed {} bytes",
-            config.max_bytes
+            "{payload_label} cannot exceed {max_bytes} bytes"
+        )));
+    }
+
+    let input = general_purpose::STANDARD
+        .decode(value.as_bytes())
+        .map_err(|_| AppError::BadRequest(format!("{field} must be valid base64")))?;
+    if input.len() > max_bytes {
+        return Err(AppError::BadRequest(format!(
+            "{payload_label} cannot exceed {max_bytes} bytes"
         )));
     }
     Ok(input)
+}
+
+fn read_decompressed_limited<R: Read>(
+    reader: &mut R,
+    config: &DataToolsConfig,
+    algorithm: &str,
+) -> Result<Vec<u8>, AppError> {
+    let limit = config.max_bytes.saturating_add(1) as u64;
+    let mut output = Vec::with_capacity(config.max_bytes.min(8192));
+    reader
+        .take(limit)
+        .read_to_end(&mut output)
+        .map_err(|_| AppError::BadRequest(format!("{algorithm} decompression failed")))?;
+
+    if output.len() > config.max_bytes {
+        return Err(AppError::BadRequest(format!(
+            "decompressed payload cannot exceed {} bytes",
+            config.max_bytes
+        )));
+    }
+
+    Ok(output)
+}
+
+fn decoded_base64_upper_bound(value: &str) -> usize {
+    let padding = value
+        .as_bytes()
+        .iter()
+        .rev()
+        .take_while(|byte| **byte == b'=')
+        .count()
+        .min(2);
+    value
+        .len()
+        .saturating_add(3)
+        .checked_div(4)
+        .unwrap_or(0)
+        .saturating_mul(3)
+        .saturating_sub(padding)
 }
 
 fn decode_text(bytes: &[u8], encoding: &str) -> Result<String, AppError> {

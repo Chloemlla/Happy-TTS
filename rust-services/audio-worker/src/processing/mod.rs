@@ -92,6 +92,23 @@ pub fn normalize_operations(operations: Option<&[String]>) -> Result<Vec<String>
     Ok(normalized)
 }
 
+pub fn validate_base64_decoded_size(
+    value: &str,
+    max_bytes: usize,
+    field: &str,
+    payload_label: &str,
+) -> Result<(), AppError> {
+    if value.is_empty() {
+        return Err(AppError::BadRequest(format!("{field} is required")));
+    }
+    if decoded_base64_upper_bound(value) > max_bytes {
+        return Err(AppError::BadRequest(format!(
+            "{payload_label} cannot exceed {max_bytes} bytes"
+        )));
+    }
+    Ok(())
+}
+
 pub fn process_audio_bytes(
     bytes: Vec<u8>,
     output_format: &str,
@@ -171,4 +188,21 @@ pub fn process_audio_bytes(
         duration_ms: analysis.duration_ms,
         metadata,
     })
+}
+
+fn decoded_base64_upper_bound(value: &str) -> usize {
+    let padding = value
+        .as_bytes()
+        .iter()
+        .rev()
+        .take_while(|byte| **byte == b'=')
+        .count()
+        .min(2);
+    value
+        .len()
+        .saturating_add(3)
+        .checked_div(4)
+        .unwrap_or(0)
+        .saturating_mul(3)
+        .saturating_sub(padding)
 }

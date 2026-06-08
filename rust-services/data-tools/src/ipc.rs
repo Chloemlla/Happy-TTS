@@ -165,11 +165,10 @@ fn compress(
     let algorithm = processing::normalize_compression_algorithm(
         payload.algorithm.as_deref().unwrap_or("gzip"),
     )?;
-    let input_bytes = general_purpose::STANDARD
-        .decode(payload.data_base64.as_bytes())
-        .map_err(|_| AppError::BadRequest("dataBase64 must be valid base64".to_string()))?
-        .len();
-    let compressed = processing::compress(&payload.data_base64, &algorithm, config)?;
+    let input =
+        processing::decode_limited_base64(&payload.data_base64, config, "dataBase64", "data payload")?;
+    let input_bytes = input.len();
+    let compressed = processing::compress_bytes(&input, &algorithm)?;
 
     Ok(CompressionData {
         data_base64: general_purpose::STANDARD.encode(&compressed),
@@ -187,11 +186,10 @@ fn decompress(
     let algorithm = processing::normalize_compression_algorithm(
         payload.algorithm.as_deref().unwrap_or("gzip"),
     )?;
-    let input_bytes = general_purpose::STANDARD
-        .decode(payload.data_base64.as_bytes())
-        .map_err(|_| AppError::BadRequest("dataBase64 must be valid base64".to_string()))?
-        .len();
-    let decompressed = processing::decompress(&payload.data_base64, &algorithm, config)?;
+    let input =
+        processing::decode_limited_base64(&payload.data_base64, config, "dataBase64", "data payload")?;
+    let input_bytes = input.len();
+    let decompressed = processing::decompress_bytes(&input, &algorithm, config)?;
 
     Ok(CompressionData {
         data_base64: general_purpose::STANDARD.encode(&decompressed),

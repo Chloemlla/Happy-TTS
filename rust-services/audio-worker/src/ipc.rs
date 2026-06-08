@@ -52,6 +52,12 @@ fn process_audio(
     processing::validate_task_id(payload.task_id.as_deref())?;
 
     let operations = processing::normalize_operations(payload.operations.as_deref())?;
+    processing::validate_base64_decoded_size(
+        &payload.audio_base64,
+        config.max_bytes,
+        "audioBase64",
+        "audio payload",
+    )?;
     let decoded = general_purpose::STANDARD
         .decode(payload.audio_base64.as_bytes())
         .map_err(|_| AppError::BadRequest("audioBase64 must be valid base64".to_string()))?;

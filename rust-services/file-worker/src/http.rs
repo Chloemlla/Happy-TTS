@@ -146,9 +146,9 @@ async fn process_image(
             "file is not a supported image".to_string(),
         ));
     }
-    let operations = detection::normalize_operations(payload.operations.as_deref());
+    let operations = detection::normalize_operations(payload.operations.as_deref())?;
     let (processed, output_format, metadata) =
-        images::process_image(bytes, payload.output_format.as_deref(), &operations);
+        images::process_image(bytes, payload.output_format.as_deref(), &operations)?;
     let image_base64 = general_purpose::STANDARD.encode(&processed);
 
     Ok(Json(SuccessEnvelope::ok(ImageProcessData {
@@ -183,6 +183,7 @@ async fn inspect_archive(
 }
 
 fn decode_file_payload(file_base64: &str, config: &FileWorkerConfig) -> Result<Vec<u8>, AppError> {
+    detection::validate_base64_decoded_size(file_base64, config.max_bytes, "fileBase64", "file payload")?;
     let decoded = general_purpose::STANDARD
         .decode(file_base64.as_bytes())
         .map_err(|_| AppError::BadRequest("fileBase64 must be valid base64".to_string()))?;
