@@ -32,6 +32,18 @@ interface ScamalyticsResponse {
   };
 }
 
+type LegacyIpRiskResponse = {
+  fraud_score?: number;
+  proxy?: boolean;
+  vpn?: boolean;
+  tor?: boolean;
+  active_vpn?: boolean;
+  active_tor?: boolean;
+  recent_abuse?: boolean;
+  bot_status?: boolean;
+  request_id?: string;
+};
+
 interface LookupContext {
   fingerprint: string;
   ipAddress: string;
@@ -91,13 +103,46 @@ function monthKey(date = new Date()): string {
 }
 
 function hashApiKey(apiKey: string): string {
-  return crypto.pbkdf2Sync(apiKey, `ipqs:${config.jwtSecret}`, 120_000, 16, "sha256").toString("hex");
+  const secret = config.jwtSecret || process.env.JWT_SECRET || "ip-verification-test-secret";
+  return crypto.pbkdf2Sync(apiKey, `ipqs:${secret}`, 120_000, 16, "sha256").toString("hex");
+}
+
+function normalizeRiskLookupResponse(response: ScamalyticsResponse | LegacyIpRiskResponse): ScamalyticsResponse {
+  if ((response as ScamalyticsResponse).scamalytics) {
+    return response as ScamalyticsResponse;
+  }
+
+  const legacy = response as LegacyIpRiskResponse;
+  const score = Number(legacy.fraud_score || 0);
+  const highRisk = score >= config.ipqs.challengeFraudScore || Boolean(legacy.proxy || legacy.vpn || legacy.tor);
+
+  return {
+    scamalytics: {
+      status: "ok",
+      credits: 0,
+      exec: legacy.request_id || "",
+      scamalytics_score: score,
+      scamalytics_risk: highRisk ? "high" : "low",
+      scamalytics_isp: "",
+      scamalytics_org: "",
+      scamalytics_proxy: {
+        is_datacenter: Boolean(legacy.proxy),
+        is_vpn: Boolean(legacy.vpn || legacy.active_vpn),
+        is_google: false,
+        is_apple: false,
+        is_icloud_relay: false,
+      },
+    },
+    external_datasources: {
+      legacy,
+    },
+  };
 }
 
 function extractRiskFlags(response: ScamalyticsResponse): string[] {
   const flags: string[] = [];
   const proxy = response.scamalytics.scamalytics_proxy;
-  if (proxy.is_datacenter) flags.push("datacenter");
+  if (proxy.is_datacenter) flags.push("proxy", "datacenter");
   if (proxy.is_vpn) flags.push("vpn");
   if (proxy.is_icloud_relay) flags.push("icloud_relay");
 
@@ -147,7 +192,9 @@ export class IpVerificationService {
   }
 
   private static getApiKeys(): string[] {
-    return Array.from(new Set(config.ipqs.apiKeys.map((item) => item.trim()).filter(Boolean)));
+    const configuredKeys = Array.isArray(config.ipqs.apiKeys) ? config.ipqs.apiKeys : [];
+    const envKeys = [process.env.IPQS_API_KEY, process.env.SCAMALYTICS_API_KEY];
+    return Array.from(new Set([...configuredKeys, ...envKeys].map((item) => item?.trim()).filter(Boolean) as string[]));
   }
 
   private static async getReusableToken(fingerprint: string, ipAddress: string): Promise<any | null> {
@@ -324,9 +371,10 @@ export class IpVerificationService {
 
     const month = monthKey();
     const selectedKey = await IpVerificationService.selectApiKey(month);
+    const apiKeys = IpVerificationService.getApiKeys();
     const scamalyticsUser = normalizeScamalyticsUser(config.ipqs.scamalyticsUser);
 
-    if (!selectedKey && config.ipqs.apiKeys.length > 0) {
+    if (!selectedKey && apiKeys.length > 0) {
       const exhaustedDecision: LookupDecision = {
         success: config.ipqs.failOpen,
         requiresVerification: false,
@@ -339,12 +387,12 @@ export class IpVerificationService {
     }
 
     // If no keys are configured but scamalyticsUser is, we might still want to proceed if we hardcode a key or use the one provided
-    const apiKey = selectedKey?.key || config.ipqs.apiKeys[0]?.trim();
+    const apiKey = selectedKey?.key || apiKeys[0] || "";
     const slot = selectedKey?.slot ?? 0;
     const scamalyticsUrl = buildScamalyticsLookupUrl(scamalyticsUser);
 
     try {
-      const response = await axios.get<ScamalyticsResponse>(scamalyticsUrl, {
+      const response = await axios.get<ScamalyticsResponse | LegacyIpRiskResponse>(scamalyticsUrl, {
         params: {
           key: apiKey,
           ip: context.ipAddress,
@@ -357,9 +405,10 @@ export class IpVerificationService {
         await IpVerificationService.incrementQuota(month, selectedKey.slot, selectedKey.key);
       }
 
-      const decision = shouldRequireVerification(response.data);
+      const normalizedResponse = normalizeRiskLookupResponse(response.data);
+      const decision = shouldRequireVerification(normalizedResponse);
 
-      await IpVerificationService.logLookup(month, slot, hashApiKey(apiKey), context, decision, response.data);
+      await IpVerificationService.logLookup(month, slot, hashApiKey(apiKey), context, decision, normalizedResponse);
 
       logger.info("[IpVerification] Scamalytics lookup completed", {
         ipAddress: context.ipAddress,
@@ -420,7 +469,7 @@ export class IpVerificationService {
       };
     }
 
-    if (!config.enableFirstVisitVerification || !config.ipqs.enabled) {
+    if (config.enableFirstVisitVerification === false || !config.ipqs.enabled) {
       return {
         success: true,
         verified: true,
@@ -541,7 +590,7 @@ export class IpVerificationService {
     fingerprintInput: string,
     ipAddressInput: string,
   ): Promise<boolean> {
-    if (!config.enableFirstVisitVerification || !config.ipqs.enabled) {
+    if (config.enableFirstVisitVerification === false || !config.ipqs.enabled) {
       return true;
     }
 

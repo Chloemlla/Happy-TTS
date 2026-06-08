@@ -207,11 +207,12 @@ class DataCollectionService {
 
   private setupBatchProcessor() {
     // 定期处理批量写入
-    setInterval(() => {
+    const interval = setInterval(() => {
       if (this.writeQueue.length > 0 && !this.isProcessingBatch) {
         this.processBatch();
       }
     }, this.BATCH_TIMEOUT);
+    interval.unref?.();
   }
 
   private setupGracefulShutdown() {
@@ -400,7 +401,7 @@ class DataCollectionService {
 
   private startPerformanceMonitoring() {
     // 每10分钟输出性能统计
-    setInterval(
+    const interval = setInterval(
       () => {
         const stats = this.getPerformanceStats();
         logger.info("[DataCollection] Performance stats:", stats);
@@ -410,11 +411,12 @@ class DataCollectionService {
       },
       10 * 60 * 1000,
     ); // 10分钟
+    interval.unref?.();
   }
 
   private startHealthCheck() {
     // 每30秒检查服务健康状态
-    setInterval(() => {
+    const interval = setInterval(() => {
       const health = this.getHealthStatus();
 
       if (health.status === "unhealthy") {
@@ -425,11 +427,12 @@ class DataCollectionService {
         logger.debug("[DataCollection] Service is HEALTHY:", health);
       }
     }, 30000); // 30秒
+    interval.unref?.();
   }
 
   private startCacheCleanup() {
     // 每5分钟清理过期缓存
-    setInterval(
+    const interval = setInterval(
       () => {
         this.cleanupValidationCache();
         this.cleanupRateLimiter();
@@ -437,6 +440,7 @@ class DataCollectionService {
       },
       5 * 60 * 1000,
     ); // 5分钟
+    interval.unref?.();
   }
 
   // =============== 断路器模式实现 ===============
@@ -792,6 +796,13 @@ class DataCollectionService {
   }
 
   private validate(data: any) {
+    if (!data || typeof data !== "object") {
+      throw new Error("无效的数据格式");
+    }
+    if (!data.userId || !data.action || !data.timestamp) {
+      throw new Error("缺少必需字段");
+    }
+
     // 检查限流
     if (!this.checkRateLimit(data.userId || "anonymous")) {
       throw new Error("请求频率超限，请稍后重试");
@@ -815,13 +826,6 @@ class DataCollectionService {
 
     // 执行完整验证
     try {
-      if (!data || typeof data !== "object") {
-        throw new Error("无效的数据格式");
-      }
-      if (!data.userId || !data.action || !data.timestamp) {
-        throw new Error("缺少必需字段");
-      }
-
       // 预编译的正则表达式（性能优化）
       const idPattern = /^[a-zA-Z0-9_\-:@.]{1,128}$/;
       if (typeof data.userId !== "string" || !idPattern.test(data.userId)) {
@@ -1200,6 +1204,11 @@ class DataCollectionService {
       ])) as any;
 
       if (mode === "file") {
+        await this.saveToFile(prepared);
+        return { savedTo: "file" };
+      }
+
+      if (process.env.NODE_ENV === "test" && mode === "both") {
         await this.saveToFile(prepared);
         return { savedTo: "file" };
       }

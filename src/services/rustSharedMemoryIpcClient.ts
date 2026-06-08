@@ -62,11 +62,25 @@ const STATE_PROCESSING = 3;
 const MIN_CHANNEL_BYTES = 1024 * 1024;
 
 let mmapBinding: MmapBinding | null = null;
+let mmapBindingLoadAttempted = false;
+let mmapBindingLoadError: string | null = null;
+
+function formatMmapBindingLoadError(error: unknown): string {
+  return `@cathodique/mmap-io is required for Rust shared-memory IPC: ${
+    error instanceof Error ? error.message : String(error)
+  }`;
+}
 
 function loadMmapBinding(): MmapBinding {
   if (mmapBinding) {
     return mmapBinding;
   }
+
+  if (mmapBindingLoadAttempted && mmapBindingLoadError) {
+    throw new RustSharedMemoryIpcError(mmapBindingLoadError, "network_error");
+  }
+
+  mmapBindingLoadAttempted = true;
 
   try {
     // Loaded lazily so the app can still boot in HTTP-fallback environments.
@@ -74,15 +88,32 @@ function loadMmapBinding(): MmapBinding {
     const loaded = require("@cathodique/mmap-io");
     const binding = (loaded.default || loaded) as MmapBinding;
     mmapBinding = binding;
+    mmapBindingLoadError = null;
     return binding;
   } catch (error) {
-    throw new RustSharedMemoryIpcError(
-      `@cathodique/mmap-io is required for Rust shared-memory IPC: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-      "network_error",
-    );
+    mmapBindingLoadError = formatMmapBindingLoadError(error);
+    throw new RustSharedMemoryIpcError(mmapBindingLoadError, "network_error");
   }
+}
+
+export function getRustSharedMemoryIpcUnavailableReason(): string | null {
+  if (mmapBinding) {
+    return null;
+  }
+
+  try {
+    loadMmapBinding();
+    return null;
+  } catch (error) {
+    if (error instanceof RustSharedMemoryIpcError) {
+      return error.message;
+    }
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
+export function isRustSharedMemoryIpcAvailable(): boolean {
+  return getRustSharedMemoryIpcUnavailableReason() === null;
 }
 
 function sleep(ms: number): Promise<void> {

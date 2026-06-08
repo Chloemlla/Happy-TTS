@@ -352,6 +352,7 @@ export const startPoolMonitoring = (intervalMs: number = 60000) => {
       }
     }
   }, intervalMs);
+  poolMonitorInterval.unref?.();
 
   logger.info("[MongoDB] 连接池监控已启动", { intervalMs });
 };

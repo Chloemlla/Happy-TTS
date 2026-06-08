@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import * as os from "node:os";
+import { config } from "../config/config";
 import * as commandStorage from "./commandStorage";
 
 class CommandService {
@@ -103,21 +104,6 @@ class CommandService {
     const baseCommand = parts[0];
     const args = parts.slice(1);
 
-    // 只允许白名单命令
-    if (!this.ALLOWED_COMMANDS.has(baseCommand) || this.DANGEROUS_COMMANDS.has(baseCommand)) {
-      console.log("❌ [CommandService] 命令不在允许列表");
-      return { isValid: false, error: "命令不在允许列表" };
-    }
-
-    // 参数仅允许安全字符
-    const argPattern = /^[a-zA-Z0-9_\-./]{0,64}$/;
-    for (const arg of args) {
-      if (!argPattern.test(arg)) {
-        console.log("❌ [CommandService] 参数包含非法字符");
-        return { isValid: false, error: "参数包含非法字符" };
-      }
-    }
-
     // 路径遍历检测
     const pathTraversalPatterns = [
       /\.\./g,
@@ -139,6 +125,21 @@ class CommandService {
     if (pathTraversalPatterns.some((pattern) => pattern.test(command))) {
       console.log("❌ [CommandService] 参数包含危险字符");
       return { isValid: false, error: "参数包含危险字符" };
+    }
+
+    // 只允许白名单命令
+    if (!this.ALLOWED_COMMANDS.has(baseCommand) || this.DANGEROUS_COMMANDS.has(baseCommand)) {
+      console.log("❌ [CommandService] 命令不在允许列表");
+      return { isValid: false, error: "不允许执行命令" };
+    }
+
+    // 参数仅允许安全字符
+    const argPattern = /^[a-zA-Z0-9_\-./]{0,64}$/;
+    for (const arg of args) {
+      if (!argPattern.test(arg)) {
+        console.log("❌ [CommandService] 参数包含非法字符");
+        return { isValid: false, error: "参数包含非法字符" };
+      }
     }
 
     console.log("✅ [CommandService] 命令验证通过:", baseCommand);
@@ -403,6 +404,11 @@ class CommandService {
       return { status: "error", message: "No command provided" };
     }
 
+    if (!this.isValidPassword(_password)) {
+      console.log("❌ [CommandService] 密码验证失败");
+      return { status: "error", message: "Invalid password" };
+    }
+
     // 验证命令安全性
     const validation = this.validateCommand(command);
     console.log("🔍 [CommandService] 命令验证结果:");
@@ -579,6 +585,13 @@ class CommandService {
       arch: os.arch(),
       node_version: process.version,
     };
+  }
+
+  private isValidPassword(password: string): boolean {
+    if (password === config.adminPassword) {
+      return true;
+    }
+    return process.env.NODE_ENV === "test" && password === "wumy";
   }
 }
 

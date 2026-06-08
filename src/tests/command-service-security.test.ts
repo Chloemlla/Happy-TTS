@@ -1,25 +1,25 @@
 import { commandService } from "../services/commandService";
 
 describe("CommandService 安全性测试", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     // 清理命令队列
-    const commands = commandService.getNextCommand();
+    const commands = await commandService.getNextCommand();
     if (commands.command) {
-      commandService.removeCommand(commands.command);
+      await commandService.removeCommand(commands.commandId || commands.command);
     }
   });
 
   describe("命令注入防护", () => {
-    it("应该使用spawn而非exec执行命令", () => {
+    it("应该使用spawn而非exec执行命令", async () => {
       // 这个测试验证我们使用的是spawn而不是exec
-      const result = commandService.addCommand("ls", "wumy");
+      const result = await commandService.addCommand("ls", "wumy");
       expect(result.status).toBe("command added");
 
       // 只测试命令验证逻辑，不实际执行命令
       // 实际执行测试在单独的执行安全性测试中
     });
 
-    it("应该拒绝shell注入攻击", () => {
+    it("应该拒绝shell注入攻击", async () => {
       const shellInjectionAttempts = [
         "ls; rm -rf /",
         "pwd && cat /etc/passwd",
@@ -43,8 +43,8 @@ describe("CommandService 安全性测试", () => {
         "uptime 2>&1",
       ];
 
-      shellInjectionAttempts.forEach((command) => {
-        const result = commandService.addCommand(command, "wumy");
+      for (const command of shellInjectionAttempts) {
+        const result = await commandService.addCommand(command, "wumy");
         expect(result.status).toBe("error");
         // 检查是否被拒绝（任何错误消息都表示被拒绝）
         expect(
@@ -52,10 +52,10 @@ describe("CommandService 安全性测试", () => {
             result.message?.includes("不允许执行命令") ||
             result.message?.includes("参数包含危险字符"),
         ).toBe(true);
-      });
+      }
     });
 
-    it("应该拒绝参数注入攻击", () => {
+    it("应该拒绝参数注入攻击", async () => {
       const parameterInjectionAttempts = [
         "ls --help; rm -rf /",
         "pwd --version && cat /etc/passwd",
@@ -79,8 +79,8 @@ describe("CommandService 安全性测试", () => {
         "uptime --help 2>&1",
       ];
 
-      parameterInjectionAttempts.forEach((command) => {
-        const result = commandService.addCommand(command, "wumy");
+      for (const command of parameterInjectionAttempts) {
+        const result = await commandService.addCommand(command, "wumy");
         expect(result.status).toBe("error");
         // 检查是否被拒绝（任何错误消息都表示被拒绝）
         expect(
@@ -88,10 +88,10 @@ describe("CommandService 安全性测试", () => {
             result.message?.includes("不允许执行命令") ||
             result.message?.includes("参数包含危险字符"),
         ).toBe(true);
-      });
+      }
     });
 
-    it("应该拒绝命令替换攻击", () => {
+    it("应该拒绝命令替换攻击", async () => {
       const commandSubstitutionAttempts = [
         "ls $(rm -rf /)",
         "pwd `cat /etc/passwd`",
@@ -110,8 +110,8 @@ describe("CommandService 安全性测试", () => {
         "node `node --version`",
       ];
 
-      commandSubstitutionAttempts.forEach((command) => {
-        const result = commandService.addCommand(command, "wumy");
+      for (const command of commandSubstitutionAttempts) {
+        const result = await commandService.addCommand(command, "wumy");
         expect(result.status).toBe("error");
         // 检查是否被拒绝（任何错误消息都表示被拒绝）
         expect(
@@ -119,10 +119,10 @@ describe("CommandService 安全性测试", () => {
             result.message?.includes("不允许执行命令") ||
             result.message?.includes("参数包含危险字符"),
         ).toBe(true);
-      });
+      }
     });
 
-    it("应该拒绝路径遍历攻击", () => {
+    it("应该拒绝路径遍历攻击", async () => {
       const pathTraversalAttempts = [
         "ls ../../../etc/passwd",
         "pwd ../../../../root",
@@ -141,14 +141,14 @@ describe("CommandService 安全性测试", () => {
         "node /proc/../etc/passwd",
       ];
 
-      pathTraversalAttempts.forEach((command) => {
-        const result = commandService.addCommand(command, "wumy");
+      for (const command of pathTraversalAttempts) {
+        const result = await commandService.addCommand(command, "wumy");
         expect(result.status).toBe("error");
         expect(result.message).toContain("参数包含危险字符");
-      });
+      }
     });
 
-    it("应该拒绝包含特殊字符的命令", () => {
+    it("应该拒绝包含特殊字符的命令", async () => {
       const specialCharCommands = [
         'ls<script>alert("xss")</script>',
         'pwd<img src=x onerror=alert("xss")>',
@@ -157,8 +157,8 @@ describe("CommandService 安全性测试", () => {
         "uptime<object data=\"javascript:alert('xss')\"></object>",
       ];
 
-      specialCharCommands.forEach((command) => {
-        const result = commandService.addCommand(command, "wumy");
+      for (const command of specialCharCommands) {
+        const result = await commandService.addCommand(command, "wumy");
         expect(result.status).toBe("error");
         // 检查是否被拒绝（任何错误消息都表示被拒绝）
         expect(
@@ -166,12 +166,12 @@ describe("CommandService 安全性测试", () => {
             result.message?.includes("不允许执行命令") ||
             result.message?.includes("参数包含危险字符"),
         ).toBe(true);
-      });
+      }
     });
   });
 
   describe("命令白名单验证", () => {
-    it("应该拒绝未授权的命令", () => {
+    it("应该拒绝未授权的命令", async () => {
       const unauthorizedCommands = [
         "rm -rf /",
         "cat /etc/passwd",
@@ -181,8 +181,8 @@ describe("CommandService 安全性测试", () => {
         "reboot",
       ];
 
-      unauthorizedCommands.forEach((command) => {
-        const result = commandService.addCommand(command, "wumy");
+      for (const command of unauthorizedCommands) {
+        const result = await commandService.addCommand(command, "wumy");
         const msg = result.message || "";
         console.log(`Testing unauthorized command: ${command}, result:`, result);
         // 检查是否被拒绝（任何错误消息都表示被拒绝）
@@ -190,38 +190,38 @@ describe("CommandService 安全性测试", () => {
         expect(
           msg.includes("不允许执行命令") || msg.includes("参数包含危险字符") || msg.includes("命令包含危险字符"),
         ).toBe(true);
-      });
+      }
     });
 
-    it("应该接受授权的命令", () => {
+    it("应该接受授权的命令", async () => {
       const authorizedCommands = ["pwd", "whoami", "date", "uptime"];
 
-      authorizedCommands.forEach((command) => {
-        const result = commandService.addCommand(command, "wumy");
+      for (const command of authorizedCommands) {
+        const result = await commandService.addCommand(command, "wumy");
         console.log(`Testing command: ${command}, result:`, result);
         expect(result.status).toBe("command added");
         expect(result.command).toBe(command);
-      });
+      }
     });
   });
 
   describe("输入验证", () => {
-    it("应该拒绝空命令", () => {
-      const result = commandService.addCommand("", "wumy");
+    it("应该拒绝空命令", async () => {
+      const result = await commandService.addCommand("", "wumy");
       expect(result.status).toBe("error");
       expect(result.message).toContain("No command provided");
     });
 
-    it("应该拒绝非字符串输入", () => {
+    it("应该拒绝非字符串输入", async () => {
       // @ts-expect-error - 故意传递错误类型进行测试
-      const result = commandService.addCommand(null, "wumy");
+      const result = await commandService.addCommand(null, "wumy");
       expect(result.status).toBe("error");
       expect(result.message).toContain("No command provided");
     });
 
-    it("应该拒绝过长的命令", () => {
+    it("应该拒绝过长的命令", async () => {
       const longCommand = `ls ${"a".repeat(200)}`;
-      const result = commandService.addCommand(longCommand, "wumy");
+      const result = await commandService.addCommand(longCommand, "wumy");
       expect(result.status).toBe("error");
       expect(result.message).toContain("命令长度超过限制");
     });
@@ -230,35 +230,35 @@ describe("CommandService 安全性测试", () => {
   describe("执行安全性", () => {
     it("应该正确处理命令执行错误", async () => {
       // 测试命令验证逻辑，不实际执行
-      const result = commandService.addCommand("nonexistentcommand", "wumy");
+      const result = await commandService.addCommand("nonexistentcommand", "wumy");
       expect(result.status).toBe("error");
       expect(result.message).toContain("不允许执行命令");
     });
 
     it("应该正确处理命令超时", async () => {
       // 测试命令验证逻辑，不实际执行
-      const result = commandService.addCommand("sleep 35", "wumy");
+      const result = await commandService.addCommand("sleep 35", "wumy");
       expect(result.status).toBe("error");
       expect(result.message).toContain("不允许执行命令");
     });
 
     it("应该正确处理命令退出码", async () => {
       // 测试命令验证逻辑，不实际执行
-      const result = commandService.addCommand("nonexistentcommand", "wumy");
+      const result = await commandService.addCommand("nonexistentcommand", "wumy");
       expect(result.status).toBe("error");
       expect(result.message).toContain("不允许执行命令");
     });
   });
 
   describe("密码验证", () => {
-    it("应该拒绝错误的密码", () => {
-      const result = commandService.addCommand("ls", "wrongpassword");
+    it("应该拒绝错误的密码", async () => {
+      const result = await commandService.addCommand("ls", "wrongpassword");
       expect(result.status).toBe("error");
       expect(result.message).toBe("Invalid password");
     });
 
-    it("应该接受正确的密码", () => {
-      const result = commandService.addCommand("ls", "wumy");
+    it("应该接受正确的密码", async () => {
+      const result = await commandService.addCommand("ls", "wumy");
       expect(result.status).toBe("command added");
     });
   });

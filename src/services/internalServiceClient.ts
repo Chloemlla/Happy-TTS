@@ -1,5 +1,7 @@
 import axios, { type AxiosRequestConfig, type Method } from "axios";
+import logger from "../utils/logger";
 import {
+  getRustSharedMemoryIpcUnavailableReason,
   RustSharedMemoryIpcClient,
   RustSharedMemoryIpcError,
   type RustSharedMemoryIpcClientOptions,
@@ -59,6 +61,8 @@ export function isInternalServiceClientError(error: unknown): error is InternalS
   return error instanceof InternalServiceClientError;
 }
 
+const warnedIpcFallbackServices = new Set<string>();
+
 export class InternalServiceClient {
   private readonly baseUrl: string;
   private readonly internalToken: string;
@@ -72,13 +76,18 @@ export class InternalServiceClient {
     this.timeoutMs = options.timeoutMs;
     this.serviceName = options.serviceName || "internal-service";
     if (options.ipc?.enabled) {
-      this.ipcClient = new RustSharedMemoryIpcClient({
-        serviceName: options.ipc.serviceName,
-        filePath: options.ipc.filePath,
-        sizeBytes: options.ipc.sizeBytes,
-        internalToken: options.internalToken,
-        timeoutMs: options.ipc.timeoutMs || options.timeoutMs,
-      });
+      const ipcUnavailableReason = getRustSharedMemoryIpcUnavailableReason();
+      if (ipcUnavailableReason) {
+        this.warnIpcHttpFallback(ipcUnavailableReason);
+      } else {
+        this.ipcClient = new RustSharedMemoryIpcClient({
+          serviceName: options.ipc.serviceName,
+          filePath: options.ipc.filePath,
+          sizeBytes: options.ipc.sizeBytes,
+          internalToken: options.internalToken,
+          timeoutMs: options.ipc.timeoutMs || options.timeoutMs,
+        });
+      }
     }
   }
 
@@ -111,7 +120,12 @@ export class InternalServiceClient {
           body,
         });
       } catch (error) {
-        throw this.mapIpcError(error);
+        const mappedError = this.mapIpcError(error);
+        if (this.shouldFallbackToHttp(mappedError)) {
+          this.warnIpcHttpFallback(mappedError.message);
+        } else {
+          throw mappedError;
+        }
       }
     }
 
@@ -199,5 +213,21 @@ export class InternalServiceClient {
         : "";
     const suffix = responseMessage ? `: ${responseMessage}` : "";
     return `${this.serviceName} returned HTTP ${statusCode}${suffix}`;
+  }
+
+  private shouldFallbackToHttp(error: InternalServiceClientError): boolean {
+    return ["network_error", "timeout"].includes(error.code);
+  }
+
+  private warnIpcHttpFallback(reason: string): void {
+    if (warnedIpcFallbackServices.has(this.serviceName)) {
+      return;
+    }
+
+    warnedIpcFallbackServices.add(this.serviceName);
+    logger.warn("[RustIPC] Shared-memory IPC unavailable; falling back to HTTP transport", {
+      serviceName: this.serviceName,
+      reason,
+    });
   }
 }

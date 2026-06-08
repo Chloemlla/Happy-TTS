@@ -425,6 +425,7 @@ export class NonceStore {
     this.cleanupTimer = setInterval(() => {
       this.cleanup();
     }, this.cleanupInterval);
+    this.cleanupTimer.unref?.();
   }
 
   /**

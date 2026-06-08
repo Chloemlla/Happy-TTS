@@ -117,17 +117,18 @@ export class CDKService {
   // =============== 辅助方法 ===============
 
   private startPerformanceMonitoring() {
-    setInterval(
+    const interval = setInterval(
       () => {
         const stats = this.getPerformanceStats();
         logger.info("[CDKService] Performance stats:", stats);
       },
       10 * 60 * 1000,
     ); // 10分钟
+    interval.unref?.();
   }
 
   private startHealthCheck() {
-    setInterval(() => {
+    const interval = setInterval(() => {
       const health = this.getHealthStatus();
 
       if (health.status === "unhealthy") {
@@ -136,10 +137,11 @@ export class CDKService {
         logger.warn("[CDKService] Service is DEGRADED:", health);
       }
     }, 30000); // 30秒
+    interval.unref?.();
   }
 
   private startCacheCleanup() {
-    setInterval(
+    const interval = setInterval(
       () => {
         this.cleanupValidationCache();
         this.cleanupRateLimiter();
@@ -147,6 +149,7 @@ export class CDKService {
       },
       5 * 60 * 1000,
     ); // 5分钟
+    interval.unref?.();
   }
 
   private checkRateLimit(userId: string): boolean {

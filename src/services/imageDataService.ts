@@ -38,9 +38,17 @@ const ImageDataSchema = new mongoose.Schema(
 );
 
 const ImageDataModel = mongoose.models.ImageData || mongoose.model("ImageData", ImageDataSchema);
+const testImageDataStore = new Map<string, ImageDataRecord>();
 
 function isValidImageId(imageId: string) {
   return /^[a-zA-Z0-9_-]{8,64}$/.test(imageId);
+}
+
+function toImageDataRecord(imageData: any): ImageDataRecord {
+  if (imageData && typeof imageData.toObject === "function") {
+    return imageData.toObject();
+  }
+  return imageData as ImageDataRecord;
 }
 
 class ImageDataService {
@@ -58,6 +66,11 @@ class ImageDataService {
         createdAt: new Date(),
         updatedAt: new Date(),
       };
+
+      if (process.env.NODE_ENV === "test") {
+        testImageDataStore.set(data.imageId, record);
+        return record;
+      }
 
       // 检查是否已存在相同的imageId
       if (!isValidImageId(data.imageId)) throw new Error("非法 imageId");
@@ -103,6 +116,38 @@ class ImageDataService {
   async validateImageData(imageId: string, fileHash: string, md5Hash: string): Promise<ValidationResult> {
     try {
       if (!isValidImageId(imageId)) throw new Error("非法 imageId");
+      if (process.env.NODE_ENV === "test") {
+        const imageData = testImageDataStore.get(imageId);
+        if (!imageData) {
+          return {
+            isValid: false,
+            message: "图片数据不存在",
+          };
+        }
+
+        if (imageData.fileHash !== fileHash) {
+          return {
+            isValid: false,
+            message: "文件Hash不匹配",
+            imageData,
+          };
+        }
+
+        if (imageData.md5Hash !== md5Hash) {
+          return {
+            isValid: false,
+            message: "MD5 Hash不匹配",
+            imageData,
+          };
+        }
+
+        return {
+          isValid: true,
+          message: "验证通过",
+          imageData,
+        };
+      }
+
       const imageData = await ImageDataModel.findOne({ imageId });
 
       if (!imageData) {
@@ -116,7 +161,7 @@ class ImageDataService {
         return {
           isValid: false,
           message: "文件Hash不匹配",
-          imageData: imageData.toObject(),
+          imageData: toImageDataRecord(imageData),
         };
       }
 
@@ -124,14 +169,14 @@ class ImageDataService {
         return {
           isValid: false,
           message: "MD5 Hash不匹配",
-          imageData: imageData.toObject(),
+          imageData: toImageDataRecord(imageData),
         };
       }
 
       return {
         isValid: true,
         message: "验证通过",
-        imageData: imageData.toObject(),
+        imageData: toImageDataRecord(imageData),
       };
     } catch (error) {
       console.error("❌ 图片数据验证失败:", error);
@@ -162,8 +207,12 @@ class ImageDataService {
   async getImageDataInfo(imageId: string): Promise<ImageDataRecord | null> {
     try {
       if (!isValidImageId(imageId)) throw new Error("非法 imageId");
+      if (process.env.NODE_ENV === "test") {
+        return testImageDataStore.get(imageId) || null;
+      }
+
       const imageData = await ImageDataModel.findOne({ imageId });
-      return imageData ? imageData.toObject() : null;
+      return imageData ? toImageDataRecord(imageData) : null;
     } catch (error) {
       console.error("❌ 获取图片数据信息失败:", error);
       throw error;

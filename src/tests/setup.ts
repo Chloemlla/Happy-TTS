@@ -1,24 +1,27 @@
 // Jest测试设置文件
 
-// Mock 所有限速和保护中间件，确保性能测试时全部失效
-jest.mock("express-rate-limit", () => () => (_req: Request, _res: Response, next: NextFunction) => next());
-
 // Mock IP检查中间件
 jest.mock("../middleware/ipCheck", () => ({
   ipCheckMiddleware: (_req: Request, _res: Response, next: NextFunction) => next(),
 }));
 
 // Mock MongoDB - 改进版本
-const createMockQuery = (value: unknown) => ({
-  exec: jest.fn().mockResolvedValue(value),
-  sort: jest.fn().mockReturnThis(),
-  limit: jest.fn().mockReturnThis(),
-  skip: jest.fn().mockReturnThis(),
-  lean: jest.fn().mockReturnThis(),
-  populate: jest.fn().mockReturnThis(),
-  select: jest.fn().mockReturnThis(),
-  session: jest.fn().mockReturnThis(),
-});
+const createMockQuery = (value: unknown) => {
+  const promise = Promise.resolve(value);
+  return {
+    exec: jest.fn().mockResolvedValue(value),
+    sort: jest.fn().mockReturnThis(),
+    limit: jest.fn().mockReturnThis(),
+    skip: jest.fn().mockReturnThis(),
+    lean: jest.fn().mockReturnThis(),
+    populate: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    session: jest.fn().mockReturnThis(),
+    then: promise.then.bind(promise),
+    catch: promise.catch.bind(promise),
+    finally: promise.finally.bind(promise),
+  };
+};
 
 const mockModel = {
   find: jest.fn().mockReturnValue(createMockQuery([])),
@@ -30,6 +33,8 @@ const mockModel = {
   deleteMany: jest.fn().mockReturnValue(createMockQuery({})),
   updateOne: jest.fn().mockReturnValue(createMockQuery({})),
   updateMany: jest.fn().mockReturnValue(createMockQuery({})),
+  findByIdAndUpdate: jest.fn().mockReturnValue(createMockQuery(null)),
+  findByIdAndDelete: jest.fn().mockReturnValue(createMockQuery(null)),
   countDocuments: jest.fn().mockReturnValue(createMockQuery(0)),
   aggregate: jest.fn().mockReturnValue(createMockQuery([])),
   insertMany: jest.fn().mockResolvedValue([]),
@@ -137,7 +142,12 @@ const createDummyLimiter = () => (_req: Request, _res: Response, next: NextFunct
 
 // Mock 所有 express-rate-limit 的实例
 jest.mock("express-rate-limit", () => {
-  return () => createDummyLimiter();
+  const limiterFactory = () => createDummyLimiter();
+  return {
+    __esModule: true,
+    default: limiterFactory,
+    rateLimit: limiterFactory,
+  };
 });
 
 // Mock 所有自定义限速器
@@ -208,16 +218,94 @@ jest.mock("../services/mongoService", () => ({
 }));
 
 // Mock userService，避免MongoDB连接问题
-jest.mock("../services/userService", () => ({
-  getUserByUsername: jest.fn().mockResolvedValue(null),
-  getUserByLinuxDoId: jest.fn().mockResolvedValue(null),
-  getUserByEmail: jest.fn().mockResolvedValue(null),
-  getUserById: jest.fn().mockResolvedValue(null),
-  getAllUsers: jest.fn().mockResolvedValue([]),
-  createUser: jest.fn().mockResolvedValue(null),
-  updateUser: jest.fn().mockResolvedValue(null),
-  deleteUser: jest.fn().mockResolvedValue(false),
-}));
+jest.mock("../services/userService", () => {
+  type MockUser = Record<string, any>;
+  const users = new Map<string, MockUser>();
+
+  const clone = (user: MockUser | null | undefined) => (user ? { ...user } : null);
+  const seedUser = (user: MockUser) => users.set(user.id, { ...user });
+
+  seedUser({
+    id: "1",
+    username: "admin",
+    email: "admin@example.com",
+    password: "admin123",
+    role: "admin",
+    dailyUsage: 0,
+    lastUsageDate: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+  });
+  seedUser({
+    id: "2",
+    username: "testuser",
+    email: "test@example.com",
+    password: "TestPass123!",
+    role: "user",
+    dailyUsage: 0,
+    lastUsageDate: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
+  });
+
+  const findByUsername = (username: string) =>
+    Array.from(users.values()).find((user) => user.username === username) || null;
+  const findByEmail = (email: string) => Array.from(users.values()).find((user) => user.email === email) || null;
+
+  const createUser = jest.fn(async (userOrUsername: MockUser | string, email?: string, password?: string) => {
+    const user =
+      typeof userOrUsername === "string"
+        ? {
+            id: `mock-user-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            username: userOrUsername,
+            email,
+            password,
+            role: "user",
+            dailyUsage: 0,
+            lastUsageDate: new Date().toISOString(),
+            createdAt: new Date().toISOString(),
+          }
+        : { ...userOrUsername };
+
+    if (findByUsername(user.username) || findByEmail(user.email)) {
+      return null;
+    }
+
+    users.set(user.id, user);
+    return clone(user);
+  });
+
+  return {
+    getUserByUsername: jest.fn(async (username: string) => clone(findByUsername(username))),
+    getUserAuthByUsername: jest.fn(async (username: string) => clone(findByUsername(username))),
+    getUserByLinuxDoId: jest.fn(async (linuxdoId: string) =>
+      clone(Array.from(users.values()).find((user) => user.linuxdoId === linuxdoId)),
+    ),
+    getUserByEmail: jest.fn(async (email: string) => clone(findByEmail(email))),
+    getUserAuthByEmail: jest.fn(async (email: string) => clone(findByEmail(email))),
+    getUserById: jest.fn(async (id: string) => clone(users.get(id))),
+    getAllUsers: jest.fn(async () => Array.from(users.values()).map((user) => clone(user))),
+    getAdminUserList: jest.fn(async () => Array.from(users.values()).map((user) => clone(user))),
+    createUser,
+    updateUser: jest.fn(async (id: string, updates: MockUser) => {
+      const existing = users.get(id);
+      if (!existing) return null;
+      const updated = { ...existing, ...updates };
+      users.set(id, updated);
+      return clone(updated);
+    }),
+    deleteUser: jest.fn(async (id: string) => users.delete(id)),
+    verifyAndMigrateUserPassword: jest.fn(async (user: MockUser, password: string) => ({
+      valid: Boolean(user && user.password === password),
+      user,
+    })),
+    incrementUserDailyUsageAtomic: jest.fn(async (id: string, dailyLimit: number) => {
+      const user = users.get(id);
+      if (!user || user.dailyUsage >= dailyLimit) return { success: false, user: clone(user) };
+      user.dailyUsage += 1;
+      users.set(id, user);
+      return { success: true, user: clone(user) };
+    }),
+  };
+});
 
 // Mock IP 服务，确保测试时所有 IP 都被允许
 jest.mock("../services/ip", () => ({

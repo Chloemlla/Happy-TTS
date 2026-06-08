@@ -4,7 +4,11 @@ import { request as httpsRequest } from "node:https";
 import { spawn, type ChildProcess } from "node:child_process";
 import { config } from "../config/config";
 import logger from "../utils/logger";
-import { buildRustIpcPath, RustSharedMemoryIpcClient } from "./rustSharedMemoryIpcClient";
+import {
+  buildRustIpcPath,
+  getRustSharedMemoryIpcUnavailableReason,
+  RustSharedMemoryIpcClient,
+} from "./rustSharedMemoryIpcClient";
 
 interface EmbeddedRustServiceDefinition {
   name: "network-tools" | "audio-worker" | "file-worker" | "data-tools" | "security-worker";
@@ -197,6 +201,16 @@ function spawnService(
 
 async function waitForServiceReady(service: EmbeddedRustServiceDefinition, timeoutMs: number): Promise<void> {
   if (config.rustServices.ipc.enabled) {
+    const ipcUnavailableReason = getRustSharedMemoryIpcUnavailableReason();
+    if (ipcUnavailableReason) {
+      logger.warn("[Rust] Shared-memory IPC unavailable; checking embedded service over HTTP", {
+        service: service.name,
+        reason: ipcUnavailableReason,
+      });
+      await waitForHealth(service.name, service.url, config.rustServices.internalToken, timeoutMs);
+      return;
+    }
+
     await waitForIpcHealth(service, timeoutMs);
     return;
   }

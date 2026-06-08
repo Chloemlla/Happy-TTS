@@ -228,6 +228,7 @@ export abstract class ProductionServiceBase {
       const stats = this.getPerformanceStats();
       logger.info(`[${this.config.serviceName}] Performance stats:`, stats);
     }, performanceInterval);
+    perfInterval.unref?.();
     this.monitoringIntervals.push(perfInterval);
 
     // 健康检查
@@ -240,6 +241,7 @@ export abstract class ProductionServiceBase {
         logger.warn(`[${this.config.serviceName}] Service is DEGRADED:`, health);
       }
     }, healthCheckInterval);
+    healthInterval.unref?.();
     this.monitoringIntervals.push(healthInterval);
 
     // 缓存清理
@@ -247,6 +249,7 @@ export abstract class ProductionServiceBase {
       this.cleanupCache();
       this.cleanupRateLimiter();
     }, cacheCleanupInterval);
+    cacheInterval.unref?.();
     this.monitoringIntervals.push(cacheInterval);
   }
 

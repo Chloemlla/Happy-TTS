@@ -165,13 +165,13 @@ router.get("/q", commandLimiter, authenticateToken, async (req, res) => {
  *       200:
  *         description: 移除命令结果
  */
-router.post("/p", commandLimiter, authenticateToken, (req, res) => {
+router.post("/p", commandLimiter, authenticateToken, async (req, res) => {
   if (!ensureAdmin(req, res)) {
     return;
   }
 
   const { command } = req.body;
-  const result = commandService.removeCommand(command);
+  const result = await commandService.removeCommand(command);
   return res.json(result);
 });
 

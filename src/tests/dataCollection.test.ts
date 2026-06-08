@@ -25,8 +25,8 @@ describe("Data Collection Service", () => {
       fs.rmSync(testDataDir, { recursive: true, force: true });
     }
 
-    // 恢复环境
-    delete process.env.NODE_ENV;
+    // 恢复测试环境，避免影响同一 Jest 进程中的后续套件
+    process.env.NODE_ENV = "test";
   });
 
   it("应该成功保存数据", async () => {

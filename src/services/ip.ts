@@ -651,7 +651,7 @@ function getCacheStats(): { size: number; hitRate: number; memoryUsage: string }
 }
 
 // 定期清理过期缓存
-setInterval(() => {
+const cacheCleanupInterval = setInterval(() => {
   const now = Date.now();
   const expiredKeys: string[] = [];
 
@@ -667,6 +667,7 @@ setInterval(() => {
     logger.log(`清理${expiredKeys.length}个过期IP缓存`);
   }
 }, 300000); // 5分钟清理一次
+cacheCleanupInterval.unref?.();
 
 // 性能监控函数
 function recordResponseTime(time: number): void {
@@ -717,7 +718,7 @@ function resetIPServiceStats(): void {
 }
 
 // 定期输出性能统计
-setInterval(() => {
+const statsInterval = setInterval(() => {
   const stats = getIPServiceStats();
   if (stats.totalQueries > 0) {
     logger.log("IP服务性能统计:", {
@@ -732,6 +733,7 @@ setInterval(() => {
     });
   }
 }, 600000); // 10分钟输出一次统计
+statsInterval.unref?.();
 
 export async function getIPInfo(ip: string): Promise<IPInfo> {
   const startTime = Date.now();

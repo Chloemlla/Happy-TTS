@@ -362,6 +362,7 @@ class LibreChatService {
     this.intervalId = setInterval(() => {
       this.fetchAndRecord();
     }, 3600000); // 3600000 ms = 1 hour
+    this.intervalId.unref?.();
   }
 
   public getLatestRecord(): ImageRecord | null {
@@ -407,6 +408,7 @@ class LibreChatService {
 
       logger.info(`SSE连接清理完成，当前连接数: ${this.sseClients.size}`);
     }, 30000);
+    this.sseCleanupInterval.unref?.();
   }
 
   /**

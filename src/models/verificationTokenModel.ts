@@ -336,6 +336,7 @@ class VerificationTokenStorage {
       },
       5 * 60 * 1000,
     );
+    this.cleanupInterval.unref?.();
 
     logger.info("[验证令牌] 清理任务已启动");
   }

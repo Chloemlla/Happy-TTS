@@ -2,7 +2,7 @@ import { commandService } from "../services/commandService";
 
 describe("安全修复测试", () => {
   describe("CommandService 命令注入防护", () => {
-    it("应该拒绝包含危险字符的命令", () => {
+    it("应该拒绝包含危险字符的命令", async () => {
       const dangerousCommands = [
         "ls; rm -rf /",
         "pwd && cat /etc/passwd",
@@ -21,18 +21,18 @@ describe("安全修复测试", () => {
         "node; process.exit(1)",
       ];
 
-      dangerousCommands.forEach((command) => {
-        const result = commandService.addCommand(command, "wumy");
+      for (const command of dangerousCommands) {
+        const result = await commandService.addCommand(command, "wumy");
         expect(result.status).toBe("error");
         expect(
           result.message?.includes("命令包含危险字符") ||
             result.message?.includes("不允许执行命令") ||
             result.message?.includes("参数包含危险字符"),
         ).toBe(true);
-      });
+      }
     });
 
-    it("应该拒绝包含危险字符的参数", () => {
+    it("应该拒绝包含危险字符的参数", async () => {
       const dangerousArgs = [
         "ls --help; rm -rf /",
         "pwd --version && cat /etc/passwd",
@@ -51,14 +51,14 @@ describe("安全修复测试", () => {
         "node --help; process.exit(1)",
       ];
 
-      dangerousArgs.forEach((command) => {
-        const result = commandService.addCommand(command, "wumy");
+      for (const command of dangerousArgs) {
+        const result = await commandService.addCommand(command, "wumy");
         expect(result.status).toBe("error");
         expect(result.message).toContain("命令包含危险字符");
-      });
+      }
     });
 
-    it("应该拒绝不在白名单中的命令", () => {
+    it("应该拒绝不在白名单中的命令", async () => {
       const unauthorizedCommands = [
         "rm -rf /",
         "cat /etc/passwd",
@@ -72,30 +72,30 @@ describe("安全修复测试", () => {
         "ruby -e \"system('rm -rf /')\"",
       ];
 
-      unauthorizedCommands.forEach((command) => {
-        const result = commandService.addCommand(command, "wumy");
+      for (const command of unauthorizedCommands) {
+        const result = await commandService.addCommand(command, "wumy");
         const msg = result.message || "";
         console.log(command, msg);
         expect(result.status).toBe("error");
         expect(
           msg.includes("不允许执行命令") || msg.includes("参数包含危险字符") || msg.includes("命令包含危险字符"),
         ).toBe(true);
-      });
+      }
     });
 
-    it("应该接受安全的命令", () => {
+    it("应该接受安全的命令", async () => {
       const safeCommands = ["pwd", "whoami", "date", "uptime"];
 
-      safeCommands.forEach((command) => {
-        const result = commandService.addCommand(command, "wumy");
+      for (const command of safeCommands) {
+        const result = await commandService.addCommand(command, "wumy");
         expect(result.status).toBe("command added");
         expect(result.command).toBe(command);
-      });
+      }
     });
 
-    it("应该拒绝过长的命令", () => {
+    it("应该拒绝过长的命令", async () => {
       const longCommand = `ls ${"a".repeat(200)}`;
-      const result = commandService.addCommand(longCommand, "wumy");
+      const result = await commandService.addCommand(longCommand, "wumy");
       expect(result.status).toBe("error");
       expect(result.message).toContain("命令长度超过限制");
     });
