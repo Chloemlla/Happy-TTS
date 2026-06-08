@@ -73,6 +73,7 @@ const MIN_CHANNEL_BYTES = 1024 * 1024;
 let mmapBinding: MmapBinding | null = null;
 let mmapBindingLoadAttempted = false;
 let mmapBindingLoadError: string | null = null;
+const ipcPathLocks = new Map<string, Promise<void>>();
 
 function formatMmapBindingLoadError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
@@ -129,38 +130,53 @@ export function buildRustIpcPath(ipcDir: string, serviceName: string): string {
   return path.join(ipcDir, `${serviceName}.shm`);
 }
 
+function normalizeIpcLockKey(filePath: string): string {
+  const resolved = path.resolve(filePath);
+  return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+}
+
+async function withIpcPathLock<T>(lockKey: string, operation: () => Promise<T>): Promise<T> {
+  const previous = ipcPathLocks.get(lockKey) || Promise.resolve();
+  let release!: () => void;
+  const current = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const next = previous.then(() => current, () => current);
+  ipcPathLocks.set(lockKey, next);
+
+  await previous;
+  try {
+    return await operation();
+  } finally {
+    release();
+    if (ipcPathLocks.get(lockKey) === next) {
+      ipcPathLocks.delete(lockKey);
+    }
+  }
+}
+
 export class RustSharedMemoryIpcClient {
   private readonly serviceName: string;
   private readonly filePath: string;
+  private readonly lockKey: string;
   private readonly sizeBytes: number;
   private readonly internalToken: string;
   private readonly timeoutMs: number;
   private fd?: number;
   private channel?: IpcChannel;
   private nextRequestId = 1;
-  private queue: Promise<void> = Promise.resolve();
 
   public constructor(options: RustSharedMemoryIpcClientOptions) {
     this.serviceName = options.serviceName;
     this.filePath = options.filePath;
+    this.lockKey = normalizeIpcLockKey(options.filePath);
     this.sizeBytes = normalizeChannelSize(options.sizeBytes);
     this.internalToken = options.internalToken;
     this.timeoutMs = options.timeoutMs;
   }
 
   public async request<TResponse>(request: RustSharedMemoryIpcRequest): Promise<TResponse> {
-    const previous = this.queue;
-    let release!: () => void;
-    this.queue = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-
-    await previous;
-    try {
-      return await this.performRequest<TResponse>(request);
-    } finally {
-      release();
-    }
+    return withIpcPathLock(this.lockKey, () => this.performRequest<TResponse>(request));
   }
 
   public close(): void {
