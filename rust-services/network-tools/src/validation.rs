@@ -235,6 +235,10 @@ pub fn normalize_http_url(
     let host = parsed
         .host_str()
         .ok_or_else(|| AppError::BadRequest("url host is required".to_string()))?;
+    let host = host
+        .strip_prefix('[')
+        .and_then(|value| value.strip_suffix(']'))
+        .unwrap_or(host);
     let host = normalize_address(host, block_private_targets)?;
     let port = parsed
         .port_or_known_default()
