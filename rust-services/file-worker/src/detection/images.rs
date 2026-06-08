@@ -1,5 +1,6 @@
 use serde_json::{json, Value};
 
+use crate::error::AppError;
 use crate::models::{FileMagic, ImageInfo};
 
 pub fn inspect_image(bytes: &[u8], magic: &FileMagic) -> Option<ImageInfo> {
@@ -16,10 +17,11 @@ pub fn process_image(
     bytes: Vec<u8>,
     output_format: Option<&str>,
     operations: &[String],
-) -> (Vec<u8>, String, Value) {
+) -> Result<(Vec<u8>, String, Value), AppError> {
     let mut processed = bytes;
     let mut applied = Vec::new();
     let mut warnings = Vec::new();
+    let output_format = normalize_output_format(output_format)?;
 
     if operations
         .iter()
@@ -39,12 +41,7 @@ pub fn process_image(
         warnings.push("image compression or WebP conversion was not applied because an image encoder backend is not enabled");
     }
 
-    let output_format = output_format
-        .map(|value| value.trim().to_ascii_lowercase())
-        .filter(|value| !value.is_empty())
-        .unwrap_or_else(|| "original".to_string());
-
-    (
+    Ok((
         processed,
         output_format,
         json!({
@@ -52,7 +49,22 @@ pub fn process_image(
             "appliedOperations": applied,
             "warnings": warnings
         }),
-    )
+    ))
+}
+
+fn normalize_output_format(output_format: Option<&str>) -> Result<String, AppError> {
+    let normalized = output_format
+        .map(|value| value.trim().to_ascii_lowercase())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| "original".to_string());
+
+    if normalized == "original" {
+        return Ok(normalized);
+    }
+
+    Err(AppError::BadRequest(
+        "image outputFormat conversion is not supported without an encoder backend".to_string(),
+    ))
 }
 
 fn inspect_png(bytes: &[u8]) -> Option<ImageInfo> {

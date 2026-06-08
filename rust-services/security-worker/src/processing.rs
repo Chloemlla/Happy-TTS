@@ -41,9 +41,10 @@ pub fn verify_hmac(
     key_base64: &str,
     message_base64: &str,
     signature_hex: &str,
+    max_payload_bytes: usize,
 ) -> Result<bool, AppError> {
-    let key = decode_base64(key_base64, "keyBase64")?;
-    let message = decode_base64(message_base64, "messageBase64")?;
+    let key = decode_base64_limited(key_base64, "keyBase64", max_payload_bytes)?;
+    let message = decode_base64_limited(message_base64, "messageBase64", max_payload_bytes)?;
     let signature = decode_hex(signature_hex)?;
     match normalize_hmac_algorithm(algorithm)?.as_str() {
         "sha256" => {
@@ -81,6 +82,7 @@ pub fn decrypt_envelope(
     nonce_base64: &str,
     ciphertext_base64: &str,
     aad_base64: Option<&str>,
+    max_payload_bytes: usize,
 ) -> Result<Vec<u8>, AppError> {
     let normalized = algorithm.trim().to_ascii_lowercase();
     if normalized != "aes-256-gcm" {
@@ -88,21 +90,21 @@ pub fn decrypt_envelope(
             "unsupported envelope algorithm: {algorithm}"
         )));
     }
-    let key = decode_base64(key_base64, "keyBase64")?;
+    let key = decode_base64_limited(key_base64, "keyBase64", max_payload_bytes)?;
     if key.len() != 32 {
         return Err(AppError::BadRequest(
             "AES-256-GCM key must be 32 bytes".to_string(),
         ));
     }
-    let nonce = decode_base64(nonce_base64, "nonceBase64")?;
+    let nonce = decode_base64_limited(nonce_base64, "nonceBase64", max_payload_bytes)?;
     if nonce.len() != 12 {
         return Err(AppError::BadRequest(
             "AES-GCM nonce must be 12 bytes".to_string(),
         ));
     }
-    let ciphertext = decode_base64(ciphertext_base64, "ciphertextBase64")?;
+    let ciphertext = decode_base64_limited(ciphertext_base64, "ciphertextBase64", max_payload_bytes)?;
     let aad = match aad_base64 {
-        Some(value) => decode_base64(value, "aadBase64")?,
+        Some(value) => decode_base64_limited(value, "aadBase64", max_payload_bytes)?,
         None => Vec::new(),
     };
     let cipher = Aes256Gcm::new_from_slice(&key)
@@ -235,10 +237,39 @@ fn has_leading_zero_bits(bytes: &[u8], bits: u8) -> bool {
     next >> (8 - remaining_bits) == 0
 }
 
-fn decode_base64(value: &str, field: &str) -> Result<Vec<u8>, AppError> {
-    general_purpose::STANDARD
+fn decode_base64_limited(value: &str, field: &str, max_bytes: usize) -> Result<Vec<u8>, AppError> {
+    if decoded_base64_upper_bound(value) > max_bytes {
+        return Err(AppError::BadRequest(format!(
+            "{field} decoded payload cannot exceed {max_bytes} bytes"
+        )));
+    }
+
+    let decoded = general_purpose::STANDARD
         .decode(value.as_bytes())
-        .map_err(|_| AppError::BadRequest(format!("{field} must be valid base64")))
+        .map_err(|_| AppError::BadRequest(format!("{field} must be valid base64")))?;
+    if decoded.len() > max_bytes {
+        return Err(AppError::BadRequest(format!(
+            "{field} decoded payload cannot exceed {max_bytes} bytes"
+        )));
+    }
+    Ok(decoded)
+}
+
+fn decoded_base64_upper_bound(value: &str) -> usize {
+    let padding = value
+        .as_bytes()
+        .iter()
+        .rev()
+        .take_while(|byte| **byte == b'=')
+        .count()
+        .min(2);
+    value
+        .len()
+        .saturating_add(3)
+        .checked_div(4)
+        .unwrap_or(0)
+        .saturating_mul(3)
+        .saturating_sub(padding)
 }
 
 fn decode_hex(value: &str) -> Result<Vec<u8>, AppError> {
