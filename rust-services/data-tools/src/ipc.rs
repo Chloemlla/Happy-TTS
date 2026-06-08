@@ -165,8 +165,12 @@ fn compress(
     let algorithm = processing::normalize_compression_algorithm(
         payload.algorithm.as_deref().unwrap_or("gzip"),
     )?;
-    let input =
-        processing::decode_limited_base64(&payload.data_base64, config, "dataBase64", "data payload")?;
+    let input = processing::decode_limited_base64(
+        &payload.data_base64,
+        config,
+        "dataBase64",
+        "data payload",
+    )?;
     let input_bytes = input.len();
     let compressed = processing::compress_bytes(&input, &algorithm)?;
 
@@ -186,8 +190,12 @@ fn decompress(
     let algorithm = processing::normalize_compression_algorithm(
         payload.algorithm.as_deref().unwrap_or("gzip"),
     )?;
-    let input =
-        processing::decode_limited_base64(&payload.data_base64, config, "dataBase64", "data payload")?;
+    let input = processing::decode_limited_base64(
+        &payload.data_base64,
+        config,
+        "dataBase64",
+        "data payload",
+    )?;
     let input_bytes = input.len();
     let decompressed = processing::decompress_bytes(&input, &algorithm, config)?;
 
@@ -204,7 +212,7 @@ fn require_internal_token(token: &str, config: &DataToolsConfig) -> Result<(), A
     if token.trim().is_empty() {
         return Err(AppError::Unauthorized);
     }
-    if token != config.internal_token {
+    if !crate::auth::constant_time_eq(token.as_bytes(), config.internal_token.as_bytes()) {
         return Err(AppError::Forbidden);
     }
     Ok(())

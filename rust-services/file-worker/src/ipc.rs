@@ -171,7 +171,12 @@ fn inspect_archive(
 }
 
 fn decode_file_payload(file_base64: &str, config: &FileWorkerConfig) -> Result<Vec<u8>, AppError> {
-    detection::validate_base64_decoded_size(file_base64, config.max_bytes, "fileBase64", "file payload")?;
+    detection::validate_base64_decoded_size(
+        file_base64,
+        config.max_bytes,
+        "fileBase64",
+        "file payload",
+    )?;
     let decoded = general_purpose::STANDARD
         .decode(file_base64.as_bytes())
         .map_err(|_| AppError::BadRequest("fileBase64 must be valid base64".to_string()))?;
@@ -183,7 +188,7 @@ fn require_internal_token(token: &str, config: &FileWorkerConfig) -> Result<(), 
     if token.trim().is_empty() {
         return Err(AppError::Unauthorized);
     }
-    if token != config.internal_token {
+    if !crate::auth::constant_time_eq(token.as_bytes(), config.internal_token.as_bytes()) {
         return Err(AppError::Forbidden);
     }
     Ok(())

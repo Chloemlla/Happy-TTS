@@ -70,6 +70,7 @@ where
         .read(true)
         .write(true)
         .create(true)
+        .truncate(false)
         .open(&options.path)?;
     file.set_len(options.size_bytes as u64)?;
 

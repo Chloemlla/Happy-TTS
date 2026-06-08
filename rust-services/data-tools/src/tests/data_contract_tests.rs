@@ -1,4 +1,6 @@
 use base64::{engine::general_purpose, Engine as _};
+use flate2::{write::GzEncoder, Compression};
+use std::io::Write;
 
 use crate::{config::DataToolsConfig, processing};
 
@@ -55,4 +57,20 @@ fn compresses_and_decompresses_gzip() {
     let compressed_base64 = general_purpose::STANDARD.encode(compressed);
     let decompressed = processing::decompress(&compressed_base64, "gzip", &test_config()).unwrap();
     assert_eq!(decompressed, b"hello hello hello");
+}
+
+#[test]
+fn rejects_decompression_that_exceeds_output_limit() {
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+    encoder.write_all(&vec![b'a'; 4096]).unwrap();
+    let compressed = encoder.finish().unwrap();
+    let compressed_base64 = general_purpose::STANDARD.encode(compressed);
+    let mut config = test_config();
+    config.max_bytes = 128;
+
+    let error = processing::decompress(&compressed_base64, "gzip", &config).unwrap_err();
+
+    assert!(error
+        .to_string()
+        .contains("decompressed payload cannot exceed 128 bytes"));
 }

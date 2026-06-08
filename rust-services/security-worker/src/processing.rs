@@ -102,7 +102,8 @@ pub fn decrypt_envelope(
             "AES-GCM nonce must be 12 bytes".to_string(),
         ));
     }
-    let ciphertext = decode_base64_limited(ciphertext_base64, "ciphertextBase64", max_payload_bytes)?;
+    let ciphertext =
+        decode_base64_limited(ciphertext_base64, "ciphertextBase64", max_payload_bytes)?;
     let aad = match aad_base64 {
         Some(value) => decode_base64_limited(value, "aadBase64", max_payload_bytes)?,
         None => Vec::new(),

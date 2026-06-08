@@ -55,8 +55,9 @@ fn inspect_zip(bytes: &[u8]) -> ArchiveInfo {
         let name = String::from_utf8_lossy(&bytes[name_start..name_end]).to_string();
         let extra = &bytes[extra_start..extra_end];
         let uses_data_descriptor = flags & ZIP_DATA_DESCRIPTOR_FLAG != 0;
-        let uses_zip64 =
-            compressed_size_32 == u32::MAX || uncompressed_size_32 == u32::MAX || has_zip64_extra(extra);
+        let uses_zip64 = compressed_size_32 == u32::MAX
+            || uncompressed_size_32 == u32::MAX
+            || has_zip64_extra(extra);
 
         entries += 1;
         max_depth = max_depth.max(name.matches('/').count());

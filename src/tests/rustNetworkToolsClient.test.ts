@@ -238,6 +238,10 @@ describe("RustNetworkToolsClient", () => {
       code: "bad_request",
       statusCode: 400,
     });
+    await expect(client.tcpPing("::ffff:127.0.0.1", 80)).rejects.toMatchObject({
+      code: "bad_request",
+      statusCode: 400,
+    });
     expect(internalClient.postJson).not.toHaveBeenCalled();
   });
 

@@ -1,3 +1,4 @@
+use base64::{engine::general_purpose, Engine as _};
 use serde_json::json;
 use sha2::{Digest, Sha256};
 
@@ -88,4 +89,15 @@ fn scans_content_rules_with_limits() {
     assert_eq!(matches[0].rule_id, "blocked-word");
     assert_eq!(matches[0].severity, 7);
     assert_eq!(matches[0].count, 2);
+}
+
+#[test]
+fn rejects_hmac_payloads_that_exceed_configured_binary_limit() {
+    let key = general_purpose::STANDARD.encode(vec![0u8; 64]);
+    let message = general_purpose::STANDARD.encode(b"message");
+    let error = processing::verify_hmac("sha256", &key, &message, "00", 32).unwrap_err();
+
+    assert!(error
+        .to_string()
+        .contains("keyBase64 decoded payload cannot exceed 32 bytes"));
 }

@@ -51,7 +51,18 @@ fn allows_private_addresses_when_disabled() {
 fn recognizes_reserved_ip_ranges() {
     assert!(is_blocked_ip("169.254.1.1".parse().unwrap()));
     assert!(is_blocked_ip("fc00::1".parse().unwrap()));
+    assert!(is_blocked_ip("::ffff:127.0.0.1".parse().unwrap()));
+    assert!(!is_blocked_ip("::ffff:8.8.8.8".parse().unwrap()));
     assert!(!is_blocked_ip("8.8.8.8".parse().unwrap()));
+}
+
+#[test]
+fn accepts_public_ipv6_and_blocks_ipv4_mapped_private_ipv6() {
+    assert_eq!(
+        normalize_address("2606:4700:4700::1111", true).unwrap(),
+        "2606:4700:4700::1111"
+    );
+    assert!(normalize_address("::ffff:127.0.0.1", true).is_err());
 }
 
 #[test]
@@ -94,6 +105,16 @@ fn normalizes_http_urls_and_rejects_unsafe_variants() {
     assert!(normalize_http_url("ftp://example.com", None, true).is_err());
     assert!(normalize_http_url("https://user:pass@example.com", None, true).is_err());
     assert!(normalize_http_url("http://127.0.0.1", None, true).is_err());
+}
+
+#[test]
+fn normalizes_bracketed_public_ipv6_urls() {
+    let normalized =
+        normalize_http_url("http://[2606:4700:4700::1111]:8080/path", None, true).unwrap();
+
+    assert_eq!(normalized.host, "2606:4700:4700::1111");
+    assert_eq!(normalized.port, 8080);
+    assert_eq!(normalized.host_header(), "[2606:4700:4700::1111]:8080");
 }
 
 #[test]

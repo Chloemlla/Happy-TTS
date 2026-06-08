@@ -98,7 +98,12 @@ pub fn convert_encoding(
     to_encoding: &str,
     config: &DataToolsConfig,
 ) -> Result<Vec<u8>, AppError> {
-    let input = decode_base64_limited(text_base64, config.max_bytes, "textBase64", "encoding payload")?;
+    let input = decode_base64_limited(
+        text_base64,
+        config.max_bytes,
+        "textBase64",
+        "encoding payload",
+    )?;
 
     let text = decode_text(&input, from_encoding)?;
     encode_text(&text, to_encoding)
@@ -227,18 +232,16 @@ pub fn decompress_bytes(
 ) -> Result<Vec<u8>, AppError> {
     match normalize_compression_algorithm(algorithm)?.as_str() {
         "gzip" => {
-            let mut decoder = GzDecoder::new(input.as_slice());
+            let mut decoder = GzDecoder::new(input);
             read_decompressed_limited(&mut decoder, config, "gzip")
         }
         "deflate" => {
-            let mut decoder = DeflateDecoder::new(input.as_slice());
+            let mut decoder = DeflateDecoder::new(input);
             read_decompressed_limited(&mut decoder, config, "deflate")
         }
-        _ => {
-            Err(AppError::BadRequest(
-                "unsupported compression algorithm".to_string(),
-            ))
-        }
+        _ => Err(AppError::BadRequest(
+            "unsupported compression algorithm".to_string(),
+        )),
     }
 }
 

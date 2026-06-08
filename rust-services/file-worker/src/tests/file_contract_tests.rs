@@ -1,5 +1,6 @@
 use crate::detection::{
-    archives, hashes, images, mime, validate_declared_mime, validate_file_name,
+    archives, hashes, images, mime, normalize_operations, validate_declared_mime,
+    validate_file_name,
 };
 
 #[test]
@@ -40,7 +41,7 @@ fn strips_jpeg_exif_metadata_when_requested() {
         0x02, 0x01,
     ];
     let (processed, _format, metadata) =
-        images::process_image(jpeg, None, &["exifcleanup".to_string()]);
+        images::process_image(jpeg, None, &["exifcleanup".to_string()]).unwrap();
 
     assert!(!processed.windows(6).any(|window| window == b"Exif\0\0"));
     assert_eq!(metadata["appliedOperations"][0], "exifCleanup");
@@ -56,6 +57,40 @@ fn inspects_zip_headers() {
     assert_eq!(archive.entries, 1);
     assert_eq!(archive.total_uncompressed_size, 10);
     assert_eq!(archive.max_depth, 1);
+}
+
+#[test]
+fn marks_zip_descriptor_and_zip64_sizing_as_risky() {
+    let descriptor_zip = zip_entry_with_data_descriptor("descriptor.txt");
+    let descriptor_magic = mime::detect_magic(&descriptor_zip);
+    let descriptor_archive = archives::inspect_archive(&descriptor_zip, &descriptor_magic).unwrap();
+
+    assert!(descriptor_archive.zip_bomb_risk);
+    assert!(descriptor_archive
+        .warnings
+        .iter()
+        .any(|warning| warning.contains("data descriptor")));
+
+    let zip64 = zip64_local_entry("zip64.txt");
+    let zip64_magic = mime::detect_magic(&zip64);
+    let zip64_archive = archives::inspect_archive(&zip64, &zip64_magic).unwrap();
+
+    assert!(zip64_archive.zip_bomb_risk);
+    assert!(zip64_archive
+        .warnings
+        .iter()
+        .any(|warning| warning.contains("ZIP64")));
+}
+
+#[test]
+fn rejects_image_conversion_without_encoder_backend() {
+    let png = minimal_png(16, 16);
+    let error = images::process_image(png, Some("webp"), &["inspect".to_string()]).unwrap_err();
+
+    assert!(error
+        .to_string()
+        .contains("image outputFormat conversion is not supported"));
+    assert!(normalize_operations(Some(&["webp".to_string()])).is_err());
 }
 
 fn minimal_png(width: u32, height: u32) -> Vec<u8> {
@@ -81,5 +116,43 @@ fn minimal_zip_entry(name: &str, compressed_size: u32, uncompressed_size: u32) -
     bytes.extend_from_slice(&0u16.to_le_bytes());
     bytes.extend_from_slice(name_bytes);
     bytes.extend(vec![0u8; compressed_size as usize]);
+    bytes
+}
+
+fn zip_entry_with_data_descriptor(name: &str) -> Vec<u8> {
+    let name_bytes = name.as_bytes();
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(b"PK\x03\x04");
+    bytes.extend_from_slice(&[20, 0]);
+    bytes.extend_from_slice(&0x0008u16.to_le_bytes());
+    bytes.extend_from_slice(&[0, 0, 0, 0, 0, 0]);
+    bytes.extend_from_slice(&0u32.to_le_bytes());
+    bytes.extend_from_slice(&0u32.to_le_bytes());
+    bytes.extend_from_slice(&0u32.to_le_bytes());
+    bytes.extend_from_slice(&(name_bytes.len() as u16).to_le_bytes());
+    bytes.extend_from_slice(&0u16.to_le_bytes());
+    bytes.extend_from_slice(name_bytes);
+    bytes.extend_from_slice(b"payload");
+    bytes
+}
+
+fn zip64_local_entry(name: &str) -> Vec<u8> {
+    let name_bytes = name.as_bytes();
+    let mut extra = Vec::new();
+    extra.extend_from_slice(&0x0001u16.to_le_bytes());
+    extra.extend_from_slice(&16u16.to_le_bytes());
+    extra.extend_from_slice(&1024u64.to_le_bytes());
+    extra.extend_from_slice(&32u64.to_le_bytes());
+
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(b"PK\x03\x04");
+    bytes.extend_from_slice(&[45, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    bytes.extend_from_slice(&0u32.to_le_bytes());
+    bytes.extend_from_slice(&u32::MAX.to_le_bytes());
+    bytes.extend_from_slice(&u32::MAX.to_le_bytes());
+    bytes.extend_from_slice(&(name_bytes.len() as u16).to_le_bytes());
+    bytes.extend_from_slice(&(extra.len() as u16).to_le_bytes());
+    bytes.extend_from_slice(name_bytes);
+    bytes.extend_from_slice(&extra);
     bytes
 }

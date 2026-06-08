@@ -176,8 +176,12 @@ async fn compress(
     let algorithm = processing::normalize_compression_algorithm(
         payload.algorithm.as_deref().unwrap_or("gzip"),
     )?;
-    let input =
-        processing::decode_limited_base64(&payload.data_base64, &state.config, "dataBase64", "data payload")?;
+    let input = processing::decode_limited_base64(
+        &payload.data_base64,
+        &state.config,
+        "dataBase64",
+        "data payload",
+    )?;
     let input_bytes = input.len();
     let compressed = processing::compress_bytes(&input, &algorithm)?;
 
@@ -199,8 +203,12 @@ async fn decompress(
     let algorithm = processing::normalize_compression_algorithm(
         payload.algorithm.as_deref().unwrap_or("gzip"),
     )?;
-    let input =
-        processing::decode_limited_base64(&payload.data_base64, &state.config, "dataBase64", "data payload")?;
+    let input = processing::decode_limited_base64(
+        &payload.data_base64,
+        &state.config,
+        "dataBase64",
+        "data payload",
+    )?;
     let input_bytes = input.len();
     let decompressed = processing::decompress_bytes(&input, &algorithm, &state.config)?;
 

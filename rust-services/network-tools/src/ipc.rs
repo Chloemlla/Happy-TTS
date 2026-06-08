@@ -307,7 +307,7 @@ fn require_internal_token(token: &str, config: &NetworkToolsConfig) -> Result<()
     if token.trim().is_empty() {
         return Err(AppError::Unauthorized);
     }
-    if token != config.internal_token {
+    if !crate::auth::constant_time_eq(token.as_bytes(), config.internal_token.as_bytes()) {
         return Err(AppError::Forbidden);
     }
     Ok(())
