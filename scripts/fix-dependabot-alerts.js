@@ -18,8 +18,11 @@ const COREPACK_COMMAND = process.platform === 'win32' ? 'corepack.cmd' : 'corepa
 const CARGO_COMMAND = process.platform === 'win32' ? 'cargo.exe' : 'cargo';
 const IS_WINDOWS = process.platform === 'win32';
 
+const GITHUB_API_ROOT = 'https://api.github.com';
+const GITHUB_API_VERSION = '2022-11-28';
+const GITHUB_USER_AGENT = 'synapse-dependabot-alert-fixer';
 const CRATES_IO_API_ROOT = 'https://crates.io/api/v1/crates';
-const CRATES_IO_USER_AGENT = 'geograba-dependabot-alert-fixer';
+const CRATES_IO_USER_AGENT = 'synapse-dependabot-alert-fixer';
 const DEPENDENCY_FIELDS = [
   'dependencies',
   'devDependencies',
@@ -42,6 +45,7 @@ const EXCLUDED_DIRECTORIES = new Set([
   'node_modules',
   'target',
 ]);
+const SUPPORTED_DEPENDABOT_ECOSYSTEMS = new Set(['npm', 'cargo']);
 
 // 全局缓存已经探测成功的 pnpm 执行器命令，规避重复降级重试逻辑
 let cachedPnpmCommand = null;
@@ -65,6 +69,7 @@ function parseCliArgs(argv) {
 
   return {
     repairOnly: argv.includes('--repair') || argv.includes('--repair-only'),
+    allTargets: argv.includes('--all') || argv.includes('--all-targets') || argv.includes('--no-alerts'),
     targets,
   };
 }
@@ -152,6 +157,185 @@ function executeCommand(cwd, command, commandArgs, commandLabel) {
       );
     });
   });
+}
+
+function captureCommand(cwd, command, commandArgs, commandLabel) {
+  return new Promise((resolve, reject) => {
+    let stdout = '';
+    let stderr = '';
+    let isDone = false;
+
+    const child = spawn(command, commandArgs, {
+      cwd,
+      env: process.env,
+      shell: false,
+      windowsHide: true,
+    });
+
+    child.stdout?.on('data', (chunk) => {
+      stdout += chunk.toString('utf8');
+    });
+
+    child.stderr?.on('data', (chunk) => {
+      stderr += chunk.toString('utf8');
+    });
+
+    child.on('error', (error) => {
+      if (isDone) return;
+      isDone = true;
+      reject(createSpawnError(commandLabel, cwd, error));
+    });
+
+    child.on('exit', (code, signal) => {
+      if (isDone) return;
+      isDone = true;
+
+      if (code === 0) {
+        resolve(stdout.trim());
+        return;
+      }
+
+      reject(
+        new Error(
+          `${commandLabel} exited abnormally in ${cwd}: ${signal ? `signal ${signal}` : `code ${code}`}${stderr ? `; ${stderr.trim()}` : ''}`
+        )
+      );
+    });
+  });
+}
+
+function getGitHubToken() {
+  return (
+    process.env.USER_PAT
+    || process.env.GITHUB_TOKEN
+    || process.env.GH_TOKEN
+    || null
+  );
+}
+
+function normalizeRepositoryName(repositoryValue) {
+  const repository = `${repositoryValue ?? ''}`.trim();
+
+  if (!repository) {
+    return null;
+  }
+
+  const directMatch = repository.match(/^([A-Za-z0-9_.-]+)\/([A-Za-z0-9_.-]+?)(?:\.git)?$/);
+  if (directMatch) {
+    return `${directMatch[1]}/${directMatch[2]}`;
+  }
+
+  const sshMatch = repository.match(/^git@github\.com:([^/]+)\/(.+?)(?:\.git)?$/);
+  if (sshMatch) {
+    return `${sshMatch[1]}/${sshMatch[2]}`;
+  }
+
+  try {
+    const url = new URL(repository);
+
+    if (url.hostname.toLowerCase() !== 'github.com') {
+      return null;
+    }
+
+    const parts = url.pathname
+      .replace(/^\/+/, '')
+      .replace(/\.git$/, '')
+      .split('/')
+      .filter(Boolean);
+
+    if (parts.length >= 2) {
+      return `${parts[0]}/${parts[1]}`;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+async function inferGitHubRepository() {
+  const envRepository = normalizeRepositoryName(
+    process.env.GITHUB_REPOSITORY || process.env.REPOSITORY
+  );
+
+  if (envRepository) {
+    return envRepository;
+  }
+
+  try {
+    const remoteUrl = await captureCommand(
+      ROOT_DIR,
+      'git',
+      ['config', '--get', 'remote.origin.url'],
+      'git remote lookup'
+    );
+
+    return normalizeRepositoryName(remoteUrl);
+  } catch {
+    return null;
+  }
+}
+
+function parseNextLink(linkHeader) {
+  if (!linkHeader) {
+    return null;
+  }
+
+  for (const linkPart of linkHeader.split(',')) {
+    const match = linkPart.match(/<([^>]+)>;\s*rel="next"/);
+
+    if (!match) {
+      continue;
+    }
+
+    const nextUrl = new URL(match[1]);
+    return `${nextUrl.pathname}${nextUrl.search}`;
+  }
+
+  return null;
+}
+
+async function requestGitHubJson(apiPath, token) {
+  const response = await fetch(`${GITHUB_API_ROOT}${apiPath}`, {
+    headers: {
+      accept: 'application/vnd.github+json',
+      authorization: `Bearer ${token}`,
+      'user-agent': GITHUB_USER_AGENT,
+      'x-github-api-version': GITHUB_API_VERSION,
+    },
+  });
+  const responseText = await response.text();
+  const payload = responseText ? JSON.parse(responseText) : null;
+
+  if (!response.ok) {
+    throw new Error(
+      `GitHub API GET ${apiPath} failed: HTTP ${response.status} ${responseText || '<empty>'}`
+    );
+  }
+
+  return {
+    payload,
+    nextPath: parseNextLink(response.headers.get('link')),
+  };
+}
+
+async function fetchOpenDependabotAlerts(repository, token) {
+  const [owner, repo] = repository.split('/');
+  const alerts = [];
+  let nextPath =
+    `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/dependabot/alerts?state=open&per_page=100`;
+
+  while (nextPath) {
+    const { payload, nextPath: followingPath } = await requestGitHubJson(nextPath, token);
+    alerts.push(...(Array.isArray(payload) ? payload : []));
+    nextPath = followingPath;
+  }
+
+  return alerts;
+}
+
+function shouldUseDependabotAlertDiscovery(cliArgs) {
+  return !cliArgs.repairOnly && !cliArgs.allTargets && cliArgs.targets.length === 0;
 }
 
 function collectDependencyNames(manifest) {
@@ -268,6 +452,274 @@ function collectDirectDependencyRanges(manifest) {
   return dependencyRanges;
 }
 
+function normalizeDependabotEcosystem(ecosystem) {
+  const normalizedEcosystem = `${ecosystem ?? ''}`.trim().toLowerCase();
+
+  if (normalizedEcosystem === 'npm_and_yarn') {
+    return 'npm';
+  }
+
+  return normalizedEcosystem;
+}
+
+function getDependabotAlertEcosystem(alert) {
+  return normalizeDependabotEcosystem(
+    alert?.dependency?.package?.ecosystem
+    ?? alert?.security_vulnerability?.package?.ecosystem
+  );
+}
+
+function getDependabotAlertPackageName(alert) {
+  return (
+    alert?.dependency?.package?.name
+    ?? alert?.security_vulnerability?.package?.name
+    ?? ''
+  ).trim();
+}
+
+function getDependabotAlertManifestPath(alert) {
+  return `${alert?.dependency?.manifest_path ?? ''}`.trim();
+}
+
+function getDependabotAlertFixedVersion(alert) {
+  const fixedVersion =
+    alert?.security_vulnerability?.first_patched_version?.identifier
+    ?? alert?.security_advisory?.vulnerabilities
+      ?.find((vulnerability) => vulnerability?.first_patched_version?.identifier)
+      ?.first_patched_version
+      ?.identifier;
+
+  return typeof fixedVersion === 'string' && fixedVersion.trim().length > 0
+    ? fixedVersion.trim()
+    : null;
+}
+
+function normalizeRepoPath(repoPath) {
+  const normalizedPath = `${repoPath ?? ''}`
+    .trim()
+    .replace(/\\/g, '/')
+    .replace(/^\/+/, '')
+    .replace(/^\.\//, '')
+    .replace(/\/+$/, '');
+
+  return normalizedPath === '.' ? '' : normalizedPath;
+}
+
+function getRepoPathDir(repoPath) {
+  const normalizedPath = normalizeRepoPath(repoPath);
+  const lastSlashIndex = normalizedPath.lastIndexOf('/');
+
+  if (lastSlashIndex === -1) {
+    return '';
+  }
+
+  return normalizedPath.slice(0, lastSlashIndex);
+}
+
+function getNpmTargetPathInfo(target) {
+  return {
+    dirLabel: normalizeRepoPath(path.relative(ROOT_DIR, target.dir)),
+    packageJsonLabel: normalizeRepoPath(target.packageJsonLabel),
+    lockfileLabel: normalizeRepoPath(path.relative(ROOT_DIR, target.lockfilePath)),
+  };
+}
+
+function dependabotAlertPathMatchesNpmTarget(alertManifestPath, target) {
+  const normalizedAlertPath = normalizeRepoPath(alertManifestPath);
+
+  if (!normalizedAlertPath) {
+    return false;
+  }
+
+  const targetPathInfo = getNpmTargetPathInfo(target);
+  const alertDir = getRepoPathDir(normalizedAlertPath);
+
+  return (
+    normalizedAlertPath === targetPathInfo.packageJsonLabel
+    || normalizedAlertPath === targetPathInfo.lockfileLabel
+    || alertDir === targetPathInfo.dirLabel
+  );
+}
+
+function findNpmTargetsForDependabotAlert(alert, targets) {
+  const alertManifestPath = getDependabotAlertManifestPath(alert);
+  const packageName = getDependabotAlertPackageName(alert);
+  let matches = [];
+
+  if (alertManifestPath) {
+    matches = targets.filter((target) =>
+      dependabotAlertPathMatchesNpmTarget(alertManifestPath, target)
+    );
+  }
+
+  if (matches.length === 0 && packageName) {
+    matches = targets.filter((target) => target.dependencyNames.includes(packageName));
+  }
+
+  // Dependabot can report a transitive npm alert against a lockfile path that is
+  // absent locally. Updating every npm target is safer than silently skipping it.
+  if (matches.length === 0 && targets.length > 0) {
+    matches = targets;
+  }
+
+  return matches;
+}
+
+function dependabotAlertPathMatchesRustTarget(alertManifestPath, target) {
+  if (!target) {
+    return false;
+  }
+
+  const normalizedAlertPath = normalizeRepoPath(alertManifestPath);
+
+  if (!normalizedAlertPath) {
+    return true;
+  }
+
+  const cargoLockLabel = normalizeRepoPath(path.relative(ROOT_DIR, target.cargoLockPath));
+  const manifestLabels = target.manifests.map((manifest) =>
+    normalizeRepoPath(manifest.cargoManifestLabel)
+  );
+
+  return (
+    normalizedAlertPath === cargoLockLabel
+    || manifestLabels.includes(normalizedAlertPath)
+    || normalizedAlertPath.startsWith(`${CARGO_ROOT_DIRNAME}/`)
+  );
+}
+
+function addAlertToTargetMap(alertsByTarget, target, alert) {
+  if (!alertsByTarget.has(target)) {
+    alertsByTarget.set(target, []);
+  }
+
+  alertsByTarget.get(target).push(alert);
+}
+
+function createDependabotAlertPlan(alerts, pnpmTargets, rustTarget) {
+  const npmAlertsByTarget = new Map();
+  const rustAlerts = [];
+  const unsupportedAlerts = [];
+  const unmatchedAlerts = [];
+
+  for (const alert of alerts) {
+    const ecosystem = getDependabotAlertEcosystem(alert);
+
+    if (!SUPPORTED_DEPENDABOT_ECOSYSTEMS.has(ecosystem)) {
+      unsupportedAlerts.push(alert);
+      continue;
+    }
+
+    if (ecosystem === 'npm') {
+      const matches = findNpmTargetsForDependabotAlert(alert, pnpmTargets);
+
+      if (matches.length === 0) {
+        unmatchedAlerts.push(alert);
+        continue;
+      }
+
+      for (const target of matches) {
+        addAlertToTargetMap(npmAlertsByTarget, target, alert);
+      }
+
+      continue;
+    }
+
+    if (ecosystem === 'cargo') {
+      if (rustTarget && dependabotAlertPathMatchesRustTarget(getDependabotAlertManifestPath(alert), rustTarget)) {
+        rustAlerts.push(alert);
+      } else if (rustTarget) {
+        rustAlerts.push(alert);
+      } else {
+        unmatchedAlerts.push(alert);
+      }
+    }
+  }
+
+  return {
+    alerts,
+    npmAlertsByTarget,
+    rustAlerts,
+    unsupportedAlerts,
+    unmatchedAlerts,
+  };
+}
+
+function formatDependabotAlert(alert) {
+  const alertNumber = alert?.number ? `#${alert.number}` : '#?';
+  const ecosystem = getDependabotAlertEcosystem(alert) || '<unknown ecosystem>';
+  const packageName = getDependabotAlertPackageName(alert) || '<unknown package>';
+  const manifestPath = getDependabotAlertManifestPath(alert) || '<unknown manifest>';
+  const fixedVersion = getDependabotAlertFixedVersion(alert);
+
+  return `${alertNumber} ${ecosystem}:${packageName} (${manifestPath})${fixedVersion ? ` patched in ${fixedVersion}` : ''}`;
+}
+
+function printDependabotAlertDiscovery(repository, plan) {
+  const npmTargetCount = plan.npmAlertsByTarget.size;
+  const cargoTargetCount = plan.rustAlerts.length > 0 ? 1 : 0;
+
+  console.log(`Dependabot alert discovery: ${plan.alerts.length} open alert(s) from ${repository}.`);
+  console.log(`Actionable targets from alerts: ${npmTargetCount + cargoTargetCount}`);
+
+  for (const [target, alerts] of plan.npmAlertsByTarget.entries()) {
+    const packages = Array.from(new Set(alerts.map(getDependabotAlertPackageName).filter(Boolean)))
+      .sort((left, right) => left.localeCompare(right));
+    console.log(
+      `- ${target.packageJsonLabel}: ${alerts.length} npm alert(s)${packages.length > 0 ? ` (${packages.join(', ')})` : ''}`
+    );
+  }
+
+  if (plan.rustAlerts.length > 0) {
+    const packages = Array.from(new Set(plan.rustAlerts.map(getDependabotAlertPackageName).filter(Boolean)))
+      .sort((left, right) => left.localeCompare(right));
+    console.log(
+      `- ${CARGO_ROOT_DIRNAME}/${CARGO_MANIFEST_FILENAME}: ${plan.rustAlerts.length} cargo alert(s)${packages.length > 0 ? ` (${packages.join(', ')})` : ''}`
+    );
+  }
+
+  if (plan.unsupportedAlerts.length > 0) {
+    console.log(`- Unsupported alert ecosystem(s): ${plan.unsupportedAlerts.length}`);
+    plan.unsupportedAlerts
+      .slice(0, 10)
+      .forEach((alert) => console.log(`  - ${formatDependabotAlert(alert)}`));
+  }
+
+  if (plan.unmatchedAlerts.length > 0) {
+    console.log(`- Alerts without a local target: ${plan.unmatchedAlerts.length}`);
+    plan.unmatchedAlerts
+      .slice(0, 10)
+      .forEach((alert) => console.log(`  - ${formatDependabotAlert(alert)}`));
+  }
+}
+
+async function discoverDependabotAlertPlan(cliArgs, pnpmTargets, rustTarget) {
+  if (!shouldUseDependabotAlertDiscovery(cliArgs)) {
+    return null;
+  }
+
+  const token = getGitHubToken();
+  const repository = await inferGitHubRepository();
+
+  if (!token || !repository) {
+    console.log(
+      'Dependabot alert discovery skipped: USER_PAT/GITHUB_TOKEN or GitHub repository could not be detected.'
+    );
+    return null;
+  }
+
+  try {
+    const alerts = await fetchOpenDependabotAlerts(repository, token);
+    const plan = createDependabotAlertPlan(alerts, pnpmTargets, rustTarget);
+    printDependabotAlertDiscovery(repository, plan);
+    return plan;
+  } catch (error) {
+    throw new Error(
+      `${error.message}. Ensure USER_PAT can read Dependabot alerts for ${repository}.`
+    );
+  }
+}
+
 function normalizePnpmOverrides(manifest) {
   const overrides = manifest?.pnpm?.overrides;
   if (!overrides || typeof overrides !== 'object' || Array.isArray(overrides)) {
@@ -293,6 +745,98 @@ function normalizePnpmOverrides(manifest) {
       beforeRange: overrideRange,
       afterRange: nextOverrideRange,
     });
+  }
+
+  return changes;
+}
+
+function parseSimpleNpmVersion(version) {
+  const match = `${version ?? ''}`
+    .trim()
+    .match(/^v?(\d+)\.(\d+)\.(\d+)(?:[-+][0-9A-Za-z.+-]+)?$/);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    major: Number.parseInt(match[1], 10),
+    minor: Number.parseInt(match[2], 10),
+    patch: Number.parseInt(match[3], 10),
+  };
+}
+
+function compareSimpleNpmVersions(leftVersion, rightVersion) {
+  if (leftVersion.major !== rightVersion.major) {
+    return leftVersion.major - rightVersion.major;
+  }
+
+  if (leftVersion.minor !== rightVersion.minor) {
+    return leftVersion.minor - rightVersion.minor;
+  }
+
+  return leftVersion.patch - rightVersion.patch;
+}
+
+function extractFirstSimpleNpmVersion(versionRange) {
+  return `${versionRange ?? ''}`.match(/v?\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]+)?/)?.[0] ?? null;
+}
+
+function isOverrideRangeAtLeast(overrideRange, fixedVersion) {
+  const currentVersion = parseSimpleNpmVersion(extractFirstSimpleNpmVersion(overrideRange));
+  const requiredVersion = parseSimpleNpmVersion(fixedVersion);
+
+  if (!currentVersion || !requiredVersion) {
+    return false;
+  }
+
+  return compareSimpleNpmVersions(currentVersion, requiredVersion) >= 0;
+}
+
+function applyDependabotAlertOverrides(target, manifest, alerts = []) {
+  if (alerts.length === 0) {
+    return [];
+  }
+
+  const directDependencyRanges = collectDirectDependencyRanges(manifest);
+  const changes = [];
+
+  for (const alert of alerts) {
+    const packageName = getDependabotAlertPackageName(alert);
+    const fixedVersion = getDependabotAlertFixedVersion(alert);
+
+    if (!packageName || !fixedVersion || directDependencyRanges.has(packageName)) {
+      continue;
+    }
+
+    if (!manifest.pnpm || typeof manifest.pnpm !== 'object' || Array.isArray(manifest.pnpm)) {
+      manifest.pnpm = {};
+    }
+
+    if (!manifest.pnpm.overrides || typeof manifest.pnpm.overrides !== 'object' || Array.isArray(manifest.pnpm.overrides)) {
+      manifest.pnpm.overrides = {};
+    }
+
+    const beforeRange = manifest.pnpm.overrides[packageName];
+
+    if (beforeRange && isOverrideRangeAtLeast(beforeRange, fixedVersion)) {
+      continue;
+    }
+
+    const afterRange = `>=${fixedVersion}`;
+    manifest.pnpm.overrides[packageName] = afterRange;
+    changes.push({
+      name: packageName,
+      beforeRange,
+      afterRange,
+      alert: formatDependabotAlert(alert),
+    });
+  }
+
+  if (changes.length > 0) {
+    console.log(
+      `  - Added ${changes.length} Dependabot-driven pnpm override${changes.length === 1 ? '' : 's'} in ${target.packageJsonLabel}.`
+    );
   }
 
   return changes;
@@ -847,22 +1391,41 @@ async function discoverRustTarget() {
 
 async function runPnpmUpgrade(target, options = {}) {
   const runPnpmCommand = createPnpmExecutor(target);
+  const dependabotAlerts = options.dependabotAlerts ?? [];
 
   if (!options.repairOnly) {
+    if (dependabotAlerts.length > 0) {
+      const alertPackages = Array.from(new Set(dependabotAlerts.map(getDependabotAlertPackageName).filter(Boolean)))
+        .sort((left, right) => left.localeCompare(right));
+      console.log(
+        `  - Dependabot alert packages for ${target.packageJsonLabel}: ${alertPackages.join(', ') || '<unknown>'}`
+      );
+    }
+
     // 处理极大依赖列表时的防御，普通项目虽然达不到系统的 E2BIG 限制，但这是一种良好的 Node.js 实践
     await runPnpmCommand(['up', '--latest', '--lockfile-only', ...target.dependencyNames]);
   }
 
   const nextManifest = await readManifest(target.packageJsonPath);
   const pinnedRangeChanges = applyPinnedDependencyRanges(target, nextManifest);
+  const dependabotOverrideChanges = applyDependabotAlertOverrides(
+    target,
+    nextManifest,
+    dependabotAlerts
+  );
   const overrideChanges = normalizePnpmOverrides(nextManifest);
 
-  if (pinnedRangeChanges.length > 0 || overrideChanges.length > 0) {
+  if (pinnedRangeChanges.length > 0 || dependabotOverrideChanges.length > 0 || overrideChanges.length > 0) {
     await rewriteManifest(target.packageJsonPath, nextManifest);
     if (pinnedRangeChanges.length > 0) {
       console.log(
         `  - Reapplied ${pinnedRangeChanges.length} pinned dependency range${pinnedRangeChanges.length === 1 ? '' : 's'}.`
       );
+    }
+    if (dependabotOverrideChanges.length > 0) {
+      dependabotOverrideChanges
+        .slice(0, 10)
+        .forEach((change) => console.log(`  - ${formatOverrideChange(change)}`));
     }
     console.log(
       `  - Normalized ${overrideChanges.length} overlapping pnpm override${overrideChanges.length === 1 ? '' : 's'} to $dependency references.`
@@ -1025,20 +1588,32 @@ async function verifyRustTarget(target) {
   }
 }
 
-async function runPnpmUpgradeLane(targets, cliArgs) {
+async function runPnpmUpgradeLane(targets, cliArgs, dependabotAlertPlan = null) {
   for (const [index, target] of targets.entries()) {
+    const dependabotAlerts = dependabotAlertPlan?.npmAlertsByTarget.get(target) ?? [];
+
     printSection(
       index + 1,
       targets.length,
       `pnpm lane: ${cliArgs.repairOnly ? 'repair' : 'upgrade'} ${target.packageJsonLabel}`
     );
-    await runPnpmUpgrade(target, cliArgs);
+    await runPnpmUpgrade(target, {
+      ...cliArgs,
+      dependabotAlerts,
+    });
     await verifyTarget(target);
   }
 }
 
-async function runRustUpgradeLane(target) {
+async function runRustUpgradeLane(target, dependabotAlerts = []) {
   printSection(1, 1, `cargo lane: upgrade ${target.cargoManifestLabel}`);
+  if (dependabotAlerts.length > 0) {
+    const alertPackages = Array.from(new Set(dependabotAlerts.map(getDependabotAlertPackageName).filter(Boolean)))
+      .sort((left, right) => left.localeCompare(right));
+    console.log(
+      `  - Dependabot alert packages for ${target.cargoManifestLabel}: ${alertPackages.join(', ') || '<unknown>'}`
+    );
+  }
   await runRustUpgrade(target);
   await verifyRustTarget(target);
 }
@@ -1076,12 +1651,33 @@ async function main() {
   );
 
   const pnpmTargets = await discoverTargets();
-  const filteredPnpmTargets = filterTargetsByCliArgs(pnpmTargets, cliArgs);
   const rustTarget = await discoverRustTarget();
-  const includeRustTarget = shouldIncludeRustTarget(rustTarget, cliArgs);
+  const dependabotAlertPlan = await discoverDependabotAlertPlan(
+    cliArgs,
+    pnpmTargets,
+    rustTarget
+  );
+  const filteredPnpmTargets = dependabotAlertPlan
+    ? Array.from(dependabotAlertPlan.npmAlertsByTarget.keys())
+    : filterTargetsByCliArgs(pnpmTargets, cliArgs);
+  const includeRustTarget = dependabotAlertPlan
+    ? dependabotAlertPlan.rustAlerts.length > 0
+    : shouldIncludeRustTarget(rustTarget, cliArgs);
   const totalTargets = filteredPnpmTargets.length + (includeRustTarget ? 1 : 0);
 
   if (totalTargets === 0) {
+    if (dependabotAlertPlan && dependabotAlertPlan.alerts.length === 0) {
+      console.log('No open Dependabot alerts found for this repository.');
+      console.log('\nDone.');
+      return;
+    }
+
+    if (dependabotAlertPlan) {
+      throw new Error(
+        'Open Dependabot alerts were found, but none matched a supported local npm or cargo target.'
+      );
+    }
+
     throw new Error(
       cliArgs.targets.length > 0
         ? `No dependency target matched: ${cliArgs.targets.join(', ')}`
@@ -1091,9 +1687,14 @@ async function main() {
 
   console.log(`Repository root: ${ROOT_DIR}`);
   console.log(`Targets: ${totalTargets}`);
-  console.log(`Mode: ${cliArgs.repairOnly ? 'repair-only' : 'upgrade'}`);
-  if (cliArgs.targets.length > 0) {
+  console.log(
+    `Mode: ${cliArgs.repairOnly ? 'repair-only' : dependabotAlertPlan ? 'alert-driven upgrade' : 'upgrade'}`
+  );
+  if (cliArgs.targets.length > 0 && !dependabotAlertPlan) {
     console.log(`Target filter: ${cliArgs.targets.join(', ')}`);
+  }
+  if (cliArgs.allTargets) {
+    console.log('Dependabot alert discovery: disabled by --all/--all-targets/--no-alerts.');
   }
 
   for (const target of filteredPnpmTargets) {
@@ -1113,14 +1714,14 @@ async function main() {
   if (filteredPnpmTargets.length > 0) {
     lanes.push({
       label: 'pnpm',
-      run: () => runPnpmUpgradeLane(filteredPnpmTargets, cliArgs),
+      run: () => runPnpmUpgradeLane(filteredPnpmTargets, cliArgs, dependabotAlertPlan),
     });
   }
 
   if (includeRustTarget) {
     lanes.push({
       label: 'cargo',
-      run: () => runRustUpgradeLane(rustTarget),
+      run: () => runRustUpgradeLane(rustTarget, dependabotAlertPlan?.rustAlerts ?? []),
     });
   }
 

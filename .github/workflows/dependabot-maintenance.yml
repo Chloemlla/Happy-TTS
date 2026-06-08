@@ -23,6 +23,7 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
+  security-events: read
 
 jobs:
   fix-alerts:
@@ -54,6 +55,10 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Run fix script
+        env:
+          USER_PAT: ${{ secrets.USER_PAT }}
+          GITHUB_TOKEN: ${{ secrets.USER_PAT }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           if [ "${{ inputs.action }}" = "repair-lockfiles" ]; then
             node scripts/fix-dependabot-alerts.js --repair
