@@ -17,14 +17,21 @@ fn hashes_and_base64_batches() {
         processing::hash_text("hello", "sha256").unwrap(),
         "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
     );
-    assert_eq!(processing::base64_transform("hello", "encode").unwrap(), "aGVsbG8=");
-    assert_eq!(processing::base64_transform("aGVsbG8=", "decode").unwrap(), "hello");
+    assert_eq!(
+        processing::base64_transform("hello", "encode").unwrap(),
+        "aGVsbG8="
+    );
+    assert_eq!(
+        processing::base64_transform("aGVsbG8=", "decode").unwrap(),
+        "hello"
+    );
 }
 
 #[test]
 fn converts_utf8_to_utf16le() {
     let input = general_purpose::STANDARD.encode("hi".as_bytes());
-    let converted = processing::convert_encoding(&input, "utf-8", "utf-16le", &test_config()).unwrap();
+    let converted =
+        processing::convert_encoding(&input, "utf-8", "utf-16le", &test_config()).unwrap();
     assert_eq!(converted, vec![b'h', 0, b'i', 0]);
 }
 

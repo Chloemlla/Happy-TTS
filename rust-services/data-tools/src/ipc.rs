@@ -8,9 +8,9 @@ use crate::{
     config::DataToolsConfig,
     error::AppError,
     models::{
-        Base64Data, Base64Item, Base64Request, CompressionData, CompressionRequest,
-        CsvInspectData, CsvInspectRequest, EncodingConvertData, EncodingConvertRequest, HashData,
-        HashItem, HashRequest, JsonInspectData, JsonInspectRequest, SuccessEnvelope,
+        Base64Data, Base64Item, Base64Request, CompressionData, CompressionRequest, CsvInspectData,
+        CsvInspectRequest, EncodingConvertData, EncodingConvertRequest, HashData, HashItem,
+        HashRequest, JsonInspectData, JsonInspectRequest, SuccessEnvelope,
     },
     processing,
 };
@@ -73,7 +73,8 @@ pub async fn handle_request(config: Arc<DataToolsConfig>, request: IpcRequest) -
 
 fn hash(config: &DataToolsConfig, payload: HashRequest) -> Result<HashData, AppError> {
     processing::validate_items(&payload.items, config)?;
-    let algorithm = processing::normalize_algorithm(payload.algorithm.as_deref().unwrap_or("sha256"))?;
+    let algorithm =
+        processing::normalize_algorithm(payload.algorithm.as_deref().unwrap_or("sha256"))?;
     let items = payload
         .items
         .iter()
@@ -93,10 +94,7 @@ fn hash(config: &DataToolsConfig, payload: HashRequest) -> Result<HashData, AppE
     })
 }
 
-fn base64_batch(
-    config: &DataToolsConfig,
-    payload: Base64Request,
-) -> Result<Base64Data, AppError> {
+fn base64_batch(config: &DataToolsConfig, payload: Base64Request) -> Result<Base64Data, AppError> {
     processing::validate_items(&payload.items, config)?;
     let operation = processing::normalize_base64_operation(&payload.operation)?;
     let items = payload
@@ -164,7 +162,9 @@ fn compress(
     config: &DataToolsConfig,
     payload: CompressionRequest,
 ) -> Result<CompressionData, AppError> {
-    let algorithm = processing::normalize_compression_algorithm(payload.algorithm.as_deref().unwrap_or("gzip"))?;
+    let algorithm = processing::normalize_compression_algorithm(
+        payload.algorithm.as_deref().unwrap_or("gzip"),
+    )?;
     let input_bytes = general_purpose::STANDARD
         .decode(payload.data_base64.as_bytes())
         .map_err(|_| AppError::BadRequest("dataBase64 must be valid base64".to_string()))?
@@ -184,7 +184,9 @@ fn decompress(
     config: &DataToolsConfig,
     payload: CompressionRequest,
 ) -> Result<CompressionData, AppError> {
-    let algorithm = processing::normalize_compression_algorithm(payload.algorithm.as_deref().unwrap_or("gzip"))?;
+    let algorithm = processing::normalize_compression_algorithm(
+        payload.algorithm.as_deref().unwrap_or("gzip"),
+    )?;
     let input_bytes = general_purpose::STANDARD
         .decode(payload.data_base64.as_bytes())
         .map_err(|_| AppError::BadRequest("dataBase64 must be valid base64".to_string()))?

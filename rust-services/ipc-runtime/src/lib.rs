@@ -1,6 +1,6 @@
 use std::{
-    future::Future,
     fs::OpenOptions,
+    future::Future,
     path::PathBuf,
     sync::atomic::{AtomicU32, Ordering},
     time::Duration,
@@ -153,7 +153,8 @@ fn write_response(mmap: &mut MmapMut, response: Value) -> Result<(), serde_json:
 
     let response_offset = HEADER_BYTES + request_capacity;
     let response_len = response_bytes.len().min(response_capacity);
-    mmap[response_offset..response_offset + response_len].copy_from_slice(&response_bytes[..response_len]);
+    mmap[response_offset..response_offset + response_len]
+        .copy_from_slice(&response_bytes[..response_len]);
     write_u32(mmap, OFFSET_RESPONSE_LEN, response_len as u32);
     write_u32(mmap, OFFSET_REQUEST_LEN, 0);
     store_state(mmap, STATE_RESPONSE_READY);

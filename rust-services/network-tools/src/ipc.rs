@@ -134,7 +134,8 @@ async fn ping(config: &NetworkToolsConfig, payload: PingRequest) -> Result<PingD
     if let Some(port) = payload.port {
         let address = validation::normalize_address(&payload.target, config.block_private_targets)?;
         let port = validation::normalize_port(port)?;
-        let resolved = validation::resolve_target(&address, port, config.block_private_targets).await?;
+        let resolved =
+            validation::resolve_target(&address, port, config.block_private_targets).await?;
         let probe = probes::tcping::probe_socket_addrs(&resolved, timeout).await;
 
         return Ok(PingData {
@@ -180,16 +181,14 @@ async fn ping(config: &NetworkToolsConfig, payload: PingRequest) -> Result<PingD
         });
     }
 
-    let target =
-        validation::normalize_http_url(&payload.target, Some("http"), config.block_private_targets)?;
-    let probe = probes::http_timing::probe_url(
-        &target,
-        "HEAD",
-        timeout,
-        1,
+    let target = validation::normalize_http_url(
+        &payload.target,
+        Some("http"),
         config.block_private_targets,
-    )
-    .await?;
+    )?;
+    let probe =
+        probes::http_timing::probe_url(&target, "HEAD", timeout, 1, config.block_private_targets)
+            .await?;
 
     Ok(PingData {
         target: target.url,

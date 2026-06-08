@@ -49,7 +49,9 @@ pub fn hash_text(value: &str, algorithm: &str) -> Result<String, AppError> {
     match normalize_algorithm(algorithm)?.as_str() {
         "sha256" => Ok(hex(&Sha256::digest(value.as_bytes()))),
         "sha512" => Ok(hex(&Sha512::digest(value.as_bytes()))),
-        _ => Err(AppError::BadRequest("unsupported hash algorithm".to_string())),
+        _ => Err(AppError::BadRequest(
+            "unsupported hash algorithm".to_string(),
+        )),
     }
 }
 
@@ -182,36 +184,62 @@ pub fn inspect_json(text: &str) -> JsonInspectData {
     }
 }
 
-pub fn compress(data_base64: &str, algorithm: &str, config: &DataToolsConfig) -> Result<Vec<u8>, AppError> {
+pub fn compress(
+    data_base64: &str,
+    algorithm: &str,
+    config: &DataToolsConfig,
+) -> Result<Vec<u8>, AppError> {
     let input = decode_limited(data_base64, config)?;
     match normalize_compression_algorithm(algorithm)?.as_str() {
         "gzip" => {
             let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-            encoder.write_all(&input).map_err(|_| AppError::BadRequest("gzip compression failed".to_string()))?;
-            encoder.finish().map_err(|_| AppError::BadRequest("gzip compression failed".to_string()))
+            encoder
+                .write_all(&input)
+                .map_err(|_| AppError::BadRequest("gzip compression failed".to_string()))?;
+            encoder
+                .finish()
+                .map_err(|_| AppError::BadRequest("gzip compression failed".to_string()))
         }
         "deflate" => {
             let mut encoder = DeflateEncoder::new(Vec::new(), Compression::default());
-            encoder.write_all(&input).map_err(|_| AppError::BadRequest("deflate compression failed".to_string()))?;
-            encoder.finish().map_err(|_| AppError::BadRequest("deflate compression failed".to_string()))
+            encoder
+                .write_all(&input)
+                .map_err(|_| AppError::BadRequest("deflate compression failed".to_string()))?;
+            encoder
+                .finish()
+                .map_err(|_| AppError::BadRequest("deflate compression failed".to_string()))
         }
-        _ => Err(AppError::BadRequest("unsupported compression algorithm".to_string())),
+        _ => Err(AppError::BadRequest(
+            "unsupported compression algorithm".to_string(),
+        )),
     }
 }
 
-pub fn decompress(data_base64: &str, algorithm: &str, config: &DataToolsConfig) -> Result<Vec<u8>, AppError> {
+pub fn decompress(
+    data_base64: &str,
+    algorithm: &str,
+    config: &DataToolsConfig,
+) -> Result<Vec<u8>, AppError> {
     let input = decode_limited(data_base64, config)?;
     let mut output = Vec::new();
     match normalize_compression_algorithm(algorithm)?.as_str() {
         "gzip" => {
             let mut decoder = GzDecoder::new(input.as_slice());
-            decoder.read_to_end(&mut output).map_err(|_| AppError::BadRequest("gzip decompression failed".to_string()))?;
+            decoder
+                .read_to_end(&mut output)
+                .map_err(|_| AppError::BadRequest("gzip decompression failed".to_string()))?;
         }
         "deflate" => {
             let mut decoder = DeflateDecoder::new(input.as_slice());
-            decoder.read_to_end(&mut output).map_err(|_| AppError::BadRequest("deflate decompression failed".to_string()))?;
+            decoder
+                .read_to_end(&mut output)
+                .map_err(|_| AppError::BadRequest("deflate decompression failed".to_string()))?;
         }
-        _ => return Err(AppError::BadRequest("unsupported compression algorithm".to_string())),
+        _ => {
+            return Err(AppError::BadRequest(
+                "unsupported compression algorithm".to_string(),
+            ))
+        }
     }
     if output.len() > config.max_bytes {
         return Err(AppError::BadRequest(format!(
@@ -252,16 +280,26 @@ fn decode_text(bytes: &[u8], encoding: &str) -> Result<String, AppError> {
             .map_err(|_| AppError::BadRequest("input is not valid UTF-8".to_string())),
         "utf-16le" => decode_utf16(bytes, false),
         "utf-16be" => decode_utf16(bytes, true),
-        other => Err(AppError::BadRequest(format!("unsupported encoding: {other}"))),
+        other => Err(AppError::BadRequest(format!(
+            "unsupported encoding: {other}"
+        ))),
     }
 }
 
 fn encode_text(text: &str, encoding: &str) -> Result<Vec<u8>, AppError> {
     match encoding.trim().to_ascii_lowercase().as_str() {
         "utf-8" | "utf8" => Ok(text.as_bytes().to_vec()),
-        "utf-16le" => Ok(text.encode_utf16().flat_map(|value| value.to_le_bytes()).collect()),
-        "utf-16be" => Ok(text.encode_utf16().flat_map(|value| value.to_be_bytes()).collect()),
-        other => Err(AppError::BadRequest(format!("unsupported encoding: {other}"))),
+        "utf-16le" => Ok(text
+            .encode_utf16()
+            .flat_map(|value| value.to_le_bytes())
+            .collect()),
+        "utf-16be" => Ok(text
+            .encode_utf16()
+            .flat_map(|value| value.to_be_bytes())
+            .collect()),
+        other => Err(AppError::BadRequest(format!(
+            "unsupported encoding: {other}"
+        ))),
     }
 }
 
