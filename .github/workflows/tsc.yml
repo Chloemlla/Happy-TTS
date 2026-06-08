@@ -85,5 +85,55 @@ jobs:
       - name: Check Rust formatting
         run: cargo fmt --manifest-path rust-services/Cargo.toml --all --check
 
+      - name: Build Rust services
+        run: cargo build --manifest-path rust-services/Cargo.toml --workspace --release --locked
+
       - name: Run Rust tests
         run: cargo test --manifest-path rust-services/Cargo.toml
+
+      - name: Package Rust services
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_dir="rust-services/target/release"
+          package_dir="rust-services-package"
+          artifact_name="rust-services-${{ github.run_number }}-${{ github.run_attempt }}.tar.gz"
+          binaries=(
+            audio-worker
+            data-tools
+            file-worker
+            network-tools
+            security-worker
+          )
+
+          if [ ! -d "$release_dir" ]; then
+            echo "No Rust release output found; skipping package."
+            exit 0
+          fi
+
+          rm -rf "$package_dir" "$artifact_name"
+          mkdir -p "$package_dir/bin"
+
+          for binary in "${binaries[@]}"; do
+            if [ ! -f "$release_dir/$binary" ]; then
+              echo "Missing Rust binary: $release_dir/$binary" >&2
+              exit 1
+            fi
+
+            cp "$release_dir/$binary" "$package_dir/bin/"
+          done
+
+          cp rust-services/Cargo.toml "$package_dir/"
+          cp rust-services/Cargo.lock "$package_dir/"
+          tar -czf "$artifact_name" -C "$package_dir" .
+
+      - name: Upload Rust services artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-services-${{ github.run_number }}-${{ github.run_attempt }}
+          path: rust-services-${{ github.run_number }}-${{ github.run_attempt }}.tar.gz
+          if-no-files-found: warn
+          retention-days: 7
