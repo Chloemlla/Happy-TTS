@@ -6,42 +6,212 @@ jest.mock("../middleware/ipCheck", () => ({
 }));
 
 // Mock MongoDB - 改进版本
-const createMockQuery = (value: unknown) => {
-  const promise = Promise.resolve(value);
-  return {
-    exec: jest.fn().mockResolvedValue(value),
-    sort: jest.fn().mockReturnThis(),
-    limit: jest.fn().mockReturnThis(),
-    skip: jest.fn().mockReturnThis(),
+const createMockQuery = (initialValue: any) => {
+  let value = initialValue;
+  const resolve = () => Promise.resolve(value);
+  const query: any = {
+    exec: jest.fn(() => resolve()),
+    sort: jest.fn((sortSpec?: Record<string, 1 | -1>) => {
+      if (Array.isArray(value) && sortSpec && typeof sortSpec === "object") {
+        const [sortKey, direction] = Object.entries(sortSpec)[0] || [];
+        if (sortKey) {
+          value = [...value].sort((a, b) => {
+            const aValue = a?.[sortKey];
+            const bValue = b?.[sortKey];
+            if (aValue === bValue) return 0;
+            const comparison = aValue > bValue ? 1 : -1;
+            return direction === -1 ? -comparison : comparison;
+          });
+        }
+      }
+      return query;
+    }),
+    limit: jest.fn((count?: number) => {
+      if (Array.isArray(value) && typeof count === "number") {
+        value = value.slice(0, count);
+      }
+      return query;
+    }),
+    skip: jest.fn((count?: number) => {
+      if (Array.isArray(value) && typeof count === "number") {
+        value = value.slice(count);
+      }
+      return query;
+    }),
     lean: jest.fn().mockReturnThis(),
     populate: jest.fn().mockReturnThis(),
     select: jest.fn().mockReturnThis(),
     session: jest.fn().mockReturnThis(),
-    then: promise.then.bind(promise),
-    catch: promise.catch.bind(promise),
-    finally: promise.finally.bind(promise),
+    then: (onFulfilled?: any, onRejected?: any) => resolve().then(onFulfilled, onRejected),
+    catch: (onRejected?: any) => resolve().catch(onRejected),
+    finally: (onFinally?: any) => resolve().finally(onFinally),
+  };
+  return query;
+};
+
+const matchesMockFilter = (doc: Record<string, any>, filter: Record<string, any> = {}): boolean => {
+  return Object.entries(filter).every(([key, expected]) => {
+    if (key === "$or" && Array.isArray(expected)) {
+      return expected.some((nestedFilter) => matchesMockFilter(doc, nestedFilter));
+    }
+
+    if (key === "$and" && Array.isArray(expected)) {
+      return expected.every((nestedFilter) => matchesMockFilter(doc, nestedFilter));
+    }
+
+    const actual = doc[key];
+    if (expected && typeof expected === "object" && !Array.isArray(expected)) {
+      if ("$in" in expected) {
+        return Array.isArray(expected.$in) && expected.$in.includes(actual);
+      }
+      if ("$ne" in expected) {
+        return actual !== expected.$ne;
+      }
+      if ("$exists" in expected) {
+        return (actual !== undefined) === Boolean(expected.$exists);
+      }
+      if ("$gt" in expected && !(actual > expected.$gt)) {
+        return false;
+      }
+      if ("$gte" in expected && !(actual >= expected.$gte)) {
+        return false;
+      }
+      if ("$lt" in expected && !(actual < expected.$lt)) {
+        return false;
+      }
+      if ("$lte" in expected && !(actual <= expected.$lte)) {
+        return false;
+      }
+    }
+
+    return actual === expected;
+  });
+};
+
+const applyMockUpdate = (doc: Record<string, any>, update: Record<string, any> = {}) => {
+  if (update.$set && typeof update.$set === "object") {
+    Object.assign(doc, update.$set);
+    return;
+  }
+
+  Object.assign(doc, update);
+};
+
+const createMockModel = () => {
+  const documents: Record<string, any>[] = [];
+
+  const storeDocument = (doc: Record<string, any>) => {
+    const stored = {
+      ...doc,
+      _id: doc._id || `mock-object-id-${documents.length + 1}`,
+    };
+    documents.push(stored);
+    return stored;
+  };
+
+  return {
+    find: jest.fn((filter: Record<string, any> = {}) =>
+      createMockQuery(documents.filter((doc) => matchesMockFilter(doc, filter))),
+    ),
+    findById: jest.fn((id: string) => createMockQuery(documents.find((doc) => doc._id === id) || null)),
+    findOne: jest.fn((filter: Record<string, any> = {}) =>
+      createMockQuery(documents.find((doc) => matchesMockFilter(doc, filter)) || null),
+    ),
+    create: jest.fn(async (docOrDocs: Record<string, any> | Record<string, any>[]) => {
+      if (Array.isArray(docOrDocs)) {
+        return docOrDocs.map(storeDocument);
+      }
+      return storeDocument(docOrDocs);
+    }),
+    save: jest.fn().mockResolvedValue({}),
+    deleteOne: jest.fn((filter: Record<string, any> = {}) => {
+      const index = documents.findIndex((doc) => matchesMockFilter(doc, filter));
+      if (index === -1) {
+        return createMockQuery({ deletedCount: 0 });
+      }
+      documents.splice(index, 1);
+      return createMockQuery({ deletedCount: 1 });
+    }),
+    deleteMany: jest.fn((filter: Record<string, any> = {}) => {
+      let deletedCount = 0;
+      for (let index = documents.length - 1; index >= 0; index--) {
+        if (matchesMockFilter(documents[index], filter)) {
+          documents.splice(index, 1);
+          deletedCount++;
+        }
+      }
+      return createMockQuery({ deletedCount });
+    }),
+    updateOne: jest.fn((filter: Record<string, any> = {}, update: Record<string, any> = {}) => {
+      const doc = documents.find((candidate) => matchesMockFilter(candidate, filter));
+      if (!doc) {
+        return createMockQuery({ matchedCount: 0, modifiedCount: 0 });
+      }
+      applyMockUpdate(doc, update);
+      return createMockQuery({ matchedCount: 1, modifiedCount: 1 });
+    }),
+    updateMany: jest.fn((filter: Record<string, any> = {}, update: Record<string, any> = {}) => {
+      let modifiedCount = 0;
+      documents.forEach((doc) => {
+        if (matchesMockFilter(doc, filter)) {
+          applyMockUpdate(doc, update);
+          modifiedCount++;
+        }
+      });
+      return createMockQuery({ matchedCount: modifiedCount, modifiedCount });
+    }),
+    findByIdAndUpdate: jest.fn((id: string, update: Record<string, any> = {}) => {
+      const doc = documents.find((candidate) => candidate._id === id);
+      if (!doc) {
+        return createMockQuery(null);
+      }
+      applyMockUpdate(doc, update);
+      return createMockQuery(doc);
+    }),
+    findByIdAndDelete: jest.fn((id: string) => {
+      const index = documents.findIndex((doc) => doc._id === id);
+      if (index === -1) {
+        return createMockQuery(null);
+      }
+      const [deleted] = documents.splice(index, 1);
+      return createMockQuery(deleted);
+    }),
+    countDocuments: jest.fn((filter: Record<string, any> = {}) =>
+      createMockQuery(documents.filter((doc) => matchesMockFilter(doc, filter)).length),
+    ),
+    aggregate: jest.fn().mockReturnValue(createMockQuery([])),
+    insertMany: jest.fn(async (docs: Record<string, any>[]) => docs.map(storeDocument)),
+    findOneAndUpdate: jest.fn((filter: Record<string, any> = {}, update: Record<string, any> = {}) => {
+      const doc = documents.find((candidate) => matchesMockFilter(candidate, filter));
+      if (!doc) {
+        return createMockQuery(null);
+      }
+      applyMockUpdate(doc, update);
+      return createMockQuery(doc);
+    }),
+    findOneAndDelete: jest.fn((filter: Record<string, any> = {}) => {
+      const index = documents.findIndex((doc) => matchesMockFilter(doc, filter));
+      if (index === -1) {
+        return createMockQuery(null);
+      }
+      const [deleted] = documents.splice(index, 1);
+      return createMockQuery(deleted);
+    }),
+    exists: jest.fn(async (filter: Record<string, any> = {}) => {
+      const doc = documents.find((candidate) => matchesMockFilter(candidate, filter));
+      return doc ? { _id: doc._id } : null;
+    }),
   };
 };
 
-const mockModel = {
-  find: jest.fn().mockReturnValue(createMockQuery([])),
-  findById: jest.fn().mockReturnValue(createMockQuery(null)),
-  findOne: jest.fn().mockReturnValue(createMockQuery(null)),
-  create: jest.fn().mockResolvedValue({}),
-  save: jest.fn().mockResolvedValue({}),
-  deleteOne: jest.fn().mockReturnValue(createMockQuery({})),
-  deleteMany: jest.fn().mockReturnValue(createMockQuery({})),
-  updateOne: jest.fn().mockReturnValue(createMockQuery({})),
-  updateMany: jest.fn().mockReturnValue(createMockQuery({})),
-  findByIdAndUpdate: jest.fn().mockReturnValue(createMockQuery(null)),
-  findByIdAndDelete: jest.fn().mockReturnValue(createMockQuery(null)),
-  countDocuments: jest.fn().mockReturnValue(createMockQuery(0)),
-  aggregate: jest.fn().mockReturnValue(createMockQuery([])),
-  insertMany: jest.fn().mockResolvedValue([]),
-  findOneAndUpdate: jest.fn().mockReturnValue(createMockQuery(null)),
-  findOneAndDelete: jest.fn().mockReturnValue(createMockQuery(null)),
-  exists: jest.fn().mockResolvedValue(null),
+const mockModels: Record<string, any> = {};
+const getMockModel = (modelName = "MockModel") => {
+  if (!mockModels[modelName]) {
+    mockModels[modelName] = createMockModel();
+  }
+  return mockModels[modelName];
 };
+const mockModel = getMockModel();
 
 const mockSchema = jest.fn().mockImplementation(() => ({
   index: jest.fn().mockReturnThis(),
@@ -53,7 +223,7 @@ const mockSchema = jest.fn().mockImplementation(() => ({
     get: jest.fn().mockReturnThis(),
     set: jest.fn().mockReturnThis(),
   }),
-  model: jest.fn().mockReturnValue(mockModel),
+  model: jest.fn((modelName?: string) => getMockModel(modelName)),
   methods: {},
   statics: {},
 })) as jest.Mock & { Types: Record<string, unknown> };
@@ -70,19 +240,19 @@ mockSchema.Types = {
 
 const mockMongoose = {
   Schema: mockSchema,
-  models: {},
+  models: mockModels,
   connect: jest.fn().mockResolvedValue({}),
   disconnect: jest.fn().mockResolvedValue({}),
   connection: {
     readyState: 1,
     on: jest.fn(),
     once: jest.fn(),
-    collection: jest.fn().mockReturnValue(mockModel),
+    collection: jest.fn((collectionName = "collection") => getMockModel(collectionName)),
     name: "tts-test",
     host: "localhost",
     port: 27017,
   },
-  model: jest.fn().mockReturnValue(mockModel),
+  model: jest.fn((modelName?: string) => getMockModel(modelName)),
   Types: {
     ObjectId: mockObjectId,
   },
@@ -95,11 +265,15 @@ const mockMongoose = {
   }),
 };
 
-jest.mock("mongoose", () => ({
-  __esModule: true,
-  default: mockMongoose,
-  ...mockMongoose,
-}));
+jest.mock(
+  "mongoose",
+  () => ({
+    __esModule: true,
+    default: mockMongoose,
+    ...mockMongoose,
+  }),
+  { virtual: true },
+);
 
 // Mock 篡改保护中间件
 jest.mock("../middleware/tamperProtection", () => ({
