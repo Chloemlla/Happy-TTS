@@ -208,6 +208,11 @@ function safeEqual(left: string, right: string): boolean {
   return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
 }
 
+function isDuplicateKeyError(error: unknown): boolean {
+  const code = (error as any)?.code;
+  return code === 11000 || code === 11001;
+}
+
 function isLocalhostName(hostname: string): boolean {
   const host = hostname.toLowerCase();
   return host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "[::1]";
@@ -490,29 +495,51 @@ async function loadActiveOAuthAuthorizingUser(userId: string): Promise<User> {
 
 async function upsertGrant(clientId: string, userId: string, scopes: string[]): Promise<OAuthGrantDoc> {
   const now = new Date();
-  const grant = (await OAuthGrantModel.findOneAndUpdate(
-    { clientId, userId },
-    {
-      $set: {
-        scopes,
-        revokedAt: null,
-        updatedAt: now,
-      },
-      $setOnInsert: {
-        grantId: `og_${crypto.randomBytes(12).toString("hex")}`,
-        clientId,
-        userId,
-        createdAt: now,
-      },
+  const update = {
+    $set: {
+      scopes,
+      revokedAt: null,
+      updatedAt: now,
     },
-    { upsert: true, returnDocument: "after" },
-  ).lean()) as OAuthGrantDoc | null;
+    $setOnInsert: {
+      grantId: `og_${crypto.randomBytes(12).toString("hex")}`,
+      clientId,
+      userId,
+      createdAt: now,
+    },
+  };
+
+  let grant: OAuthGrantDoc | null = null;
+
+  try {
+    grant = (await OAuthGrantModel.findOneAndUpdate(
+      { clientId, userId },
+      update,
+      { upsert: true, returnDocument: "after" },
+    ).lean()) as OAuthGrantDoc | null;
+  } catch (error) {
+    if (!isDuplicateKeyError(error)) {
+      throw error;
+    }
+    logger.warn("[OAuth] 授权记录并发创建冲突，重试更新", { clientId, userId });
+    grant = (await OAuthGrantModel.findOneAndUpdate(
+      { clientId, userId },
+      update,
+      { upsert: true, returnDocument: "after" },
+    ).lean()) as OAuthGrantDoc | null;
+  }
 
   if (!grant) {
     throw new OAuthError(500, "server_error", "创建授权记录失败");
   }
 
   return grant;
+}
+
+function getEffectiveTokenScopes(token: OAuthTokenDoc, grant: OAuthGrantDoc, client: OAuthClientDoc): string[] {
+  const grantScopes = new Set(grant.scopes || []);
+  const clientScopes = new Set(client.allowedScopes || []);
+  return (token.scopes || []).filter((scope) => grantScopes.has(scope) && clientScopes.has(scope));
 }
 
 async function createTokenPair(opts: {
@@ -554,6 +581,24 @@ async function createTokenPair(opts: {
     scope: opts.scopes.join(" "),
     user: buildUserProfile(opts.user, opts.scopes),
   };
+}
+
+async function revokeClientAuthorizations(
+  clientId: string,
+  opts: { revokeGrants?: boolean; scopes?: string[] } = {},
+): Promise<void> {
+  const now = new Date();
+  const filter: Record<string, unknown> = { clientId };
+  if (opts.scopes?.length) {
+    filter.scopes = { $in: opts.scopes };
+  }
+
+  await Promise.all([
+    OAuthTokenModel.updateMany(filter, { $set: { revokedAt: now, updatedAt: now } }),
+    opts.revokeGrants
+      ? OAuthGrantModel.updateMany(filter, { $set: { revokedAt: now, updatedAt: now } })
+      : Promise.resolve(),
+  ]);
 }
 
 export async function createOAuthClient(opts: {
@@ -640,6 +685,23 @@ export async function updateOAuthClient(
   if (updates.enabled !== undefined) patch.enabled = Boolean(updates.enabled);
 
   const updated = (await OAuthClientModel.findOneAndUpdate({ clientId }, { $set: patch }, { returnDocument: "after" }).lean()) as OAuthClientDoc | null;
+  if (!updated) return null;
+
+  if (current.enabled && patch.enabled === false) {
+    await revokeClientAuthorizations(clientId, { revokeGrants: true });
+    logger.warn("[OAuth] 客户端已停用，相关授权和 token 已吊销", { clientId });
+  } else if (patch.allowedScopes) {
+    const nextScopes = new Set(patch.allowedScopes);
+    const removedScopes = (current.allowedScopes || []).filter((scope) => !nextScopes.has(scope));
+    if (removedScopes.length > 0) {
+      await revokeClientAuthorizations(clientId, { revokeGrants: true, scopes: removedScopes });
+      logger.warn("[OAuth] 客户端 scope 已收缩，含已移除 scope 的授权和 token 已吊销", {
+        clientId,
+        removedScopes,
+      });
+    }
+  }
+
   return updated ? toOAuthClientView(updated) : null;
 }
 
@@ -660,8 +722,7 @@ export async function rotateOAuthClientSecret(clientId: string): Promise<{ clien
 export async function deleteOAuthClient(clientId: string): Promise<boolean> {
   const now = new Date();
   const result = await OAuthClientModel.updateOne({ clientId }, { $set: { enabled: false, updatedAt: now } });
-  await OAuthTokenModel.updateMany({ clientId }, { $set: { revokedAt: now, updatedAt: now } });
-  await OAuthGrantModel.updateMany({ clientId }, { $set: { revokedAt: now, updatedAt: now } });
+  await revokeClientAuthorizations(clientId, { revokeGrants: true });
   return result.matchedCount > 0;
 }
 
@@ -744,9 +805,10 @@ export async function denyAuthorization(input: OAuthAuthorizeRequest): Promise<{
 }
 
 export function parseClientBasicAuth(authHeader: string | undefined): { clientId: string; clientSecret: string } | null {
-  if (!authHeader?.startsWith("Basic ")) return null;
+  const match = authHeader?.match(/^Basic\s+(.+)$/i);
+  if (!match) return null;
   try {
-    const decoded = Buffer.from(authHeader.substring(6), "base64").toString("utf8");
+    const decoded = Buffer.from(match[1].trim(), "base64").toString("utf8");
     const splitAt = decoded.indexOf(":");
     if (splitAt <= 0) return null;
     return {
@@ -763,15 +825,39 @@ async function authenticateClient(opts: {
   clientId?: unknown;
   clientSecret?: unknown;
 }): Promise<OAuthClientDoc> {
+  const hasBasicAuth = Boolean(opts.authHeader?.match(/^Basic\s+/i));
   const basic = parseClientBasicAuth(opts.authHeader);
-  const clientId = normalizeOptionalText(basic?.clientId || opts.clientId, 160);
-  const clientSecret = normalizeOptionalText(basic?.clientSecret || opts.clientSecret, 512);
+  if (hasBasicAuth && !basic) {
+    throw new OAuthError(401, "invalid_client", "client Basic 认证无效");
+  }
+
+  const basicClientId = normalizeOptionalText(basic?.clientId, 160);
+  const basicClientSecret = normalizeOptionalText(basic?.clientSecret, 512);
+  const bodyClientId = normalizeOptionalText(opts.clientId, 160);
+  const bodyClientSecret = normalizeOptionalText(opts.clientSecret, 512);
+
+  if (basicClientId && bodyClientId && basicClientId !== bodyClientId) {
+    throw new OAuthError(400, "invalid_request", "client_id 与 Basic 认证不一致");
+  }
+  if (basicClientSecret && bodyClientSecret && basicClientSecret !== bodyClientSecret) {
+    throw new OAuthError(400, "invalid_request", "client_secret 与 Basic 认证不一致");
+  }
+
+  const clientId = basicClientId || bodyClientId;
+  const clientSecret = basicClientSecret || bodyClientSecret;
 
   if (!clientId) {
     throw new OAuthError(401, "invalid_client", "缺少 client_id");
   }
 
   const client = assertClientEnabled((await OAuthClientModel.findOne({ clientId }).lean()) as OAuthClientDoc | null);
+
+  if (client.type === "public") {
+    if (hasBasicAuth || clientSecret) {
+      throw new OAuthError(401, "invalid_client", "public OAuth 客户端不能使用 client_secret 或 Basic 认证");
+    }
+    return client;
+  }
 
   if (client.type === "confidential") {
     if (!clientSecret || !client.clientSecretHash || !safeEqual(hashSecret(clientSecret), client.clientSecretHash)) {
@@ -814,14 +900,23 @@ export async function exchangeAuthorizationCode(opts: {
   if (client.type === "public" && !codeDoc.codeChallenge) {
     throw new OAuthError(400, "invalid_grant", "public 客户端授权码缺少 PKCE 绑定");
   }
+  if (!codeDoc.scopes.every((scope) => (client.allowedScopes || []).includes(scope))) {
+    throw new OAuthError(400, "invalid_grant", "授权码 scope 已不再被客户端允许");
+  }
   verifyPkce(codeDoc, normalizeOptionalText(opts.codeVerifier, 128) || undefined);
 
   const consumed = await OAuthAuthorizationCodeModel.updateOne(
-    { codeHash: codeDoc.codeHash, usedAt: null },
+    {
+      codeHash: codeDoc.codeHash,
+      clientId: client.clientId,
+      redirectUri,
+      usedAt: null,
+      expiresAt: { $gt: new Date() },
+    },
     { $set: { usedAt: new Date(), updatedAt: new Date() } },
   );
   if (consumed.modifiedCount === 0) {
-    throw new OAuthError(400, "invalid_grant", "授权码已被使用");
+    throw new OAuthError(400, "invalid_grant", "授权码无效、已过期或已被使用");
   }
 
   const user = await loadActiveOAuthAuthorizingUser(codeDoc.userId);
@@ -845,11 +940,15 @@ export async function refreshAccessToken(opts: {
     throw new OAuthError(400, "invalid_request", "缺少 refresh_token");
   }
 
-  const tokenDoc = (await OAuthTokenModel.findOne({ refreshTokenHash: hashSecret(refreshToken) }).lean()) as OAuthTokenDoc | null;
+  const refreshTokenHash = hashSecret(refreshToken);
+  const tokenDoc = (await OAuthTokenModel.findOne({
+    refreshTokenHash,
+    clientId: client.clientId,
+    revokedAt: null,
+    refreshTokenExpiresAt: { $gt: new Date() },
+  }).lean()) as OAuthTokenDoc | null;
   if (
     !tokenDoc ||
-    tokenDoc.clientId !== client.clientId ||
-    tokenDoc.revokedAt ||
     !tokenDoc.refreshTokenExpiresAt ||
     tokenDoc.refreshTokenExpiresAt.getTime() <= Date.now()
   ) {
@@ -862,8 +961,25 @@ export async function refreshAccessToken(opts: {
   }
 
   const user = await loadActiveOAuthAuthorizingUser(tokenDoc.userId);
-  await OAuthTokenModel.updateOne({ tokenId: tokenDoc.tokenId }, { $set: { revokedAt: new Date(), updatedAt: new Date() } });
-  return createTokenPair({ client, grant, user, scopes: tokenDoc.scopes });
+  const refreshScopes = getEffectiveTokenScopes(tokenDoc, grant, client);
+  if (refreshScopes.length === 0) {
+    throw new OAuthError(400, "invalid_grant", "授权记录不再包含有效 scope");
+  }
+
+  const consumed = await OAuthTokenModel.updateOne(
+    {
+      tokenId: tokenDoc.tokenId,
+      refreshTokenHash,
+      revokedAt: null,
+      refreshTokenExpiresAt: { $gt: new Date() },
+    },
+    { $set: { revokedAt: new Date(), updatedAt: new Date() } },
+  );
+  if (consumed.modifiedCount === 0) {
+    throw new OAuthError(400, "invalid_grant", "refresh_token 已被使用或已过期");
+  }
+
+  return createTokenPair({ client, grant, user, scopes: refreshScopes });
 }
 
 export async function validateOAuthAccessToken(plainToken: string, requiredScope?: string): Promise<OAuthAccessContext> {
@@ -874,10 +990,6 @@ export async function validateOAuthAccessToken(plainToken: string, requiredScope
   const tokenDoc = (await OAuthTokenModel.findOne({ accessTokenHash: hashSecret(plainToken) }).lean()) as OAuthTokenDoc | null;
   if (!tokenDoc || tokenDoc.revokedAt || tokenDoc.accessTokenExpiresAt.getTime() <= Date.now()) {
     throw new OAuthError(401, "invalid_token", "OAuth access token 无效或已过期");
-  }
-
-  if (requiredScope && !tokenDoc.scopes.includes(requiredScope)) {
-    throw new OAuthError(403, "insufficient_scope", `OAuth token 缺少 "${requiredScope}" scope`);
   }
 
   const [client, grant, user] = await Promise.all([
@@ -894,12 +1006,20 @@ export async function validateOAuthAccessToken(plainToken: string, requiredScope
     throw new OAuthError(403, "access_denied", "授权用户状态无效");
   }
 
+  const scopes = getEffectiveTokenScopes(tokenDoc, grant, client as OAuthClientDoc);
+  if (scopes.length === 0) {
+    throw new OAuthError(401, "invalid_token", "OAuth 授权没有有效 scope");
+  }
+  if (requiredScope && !scopes.includes(requiredScope)) {
+    throw new OAuthError(403, "insufficient_scope", `OAuth token 缺少 "${requiredScope}" scope`);
+  }
+
   return {
     token: tokenDoc,
     client: client as OAuthClientDoc,
     grant,
     user,
-    scopes: tokenDoc.scopes,
+    scopes,
   };
 }
 
