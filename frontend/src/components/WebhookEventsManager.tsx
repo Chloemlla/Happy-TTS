@@ -1,11 +1,29 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import {
+  CheckSquare,
+  Clipboard,
+  Copy,
+  Download,
+  Eye,
+  FileJson,
+  KeyRound,
+  Pencil,
+  Play,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Save,
+  Search,
+  Send,
+  Square,
+  Trash2,
+  Webhook,
+  X,
+} from 'lucide-react';
 import { getApiBaseUrl } from '../api/api';
 import { useNotification } from './Notification';
-import { FaChartBar, FaSync, FaPlus, FaEdit, FaTrash, FaEye, FaTimes } from 'react-icons/fa';
-import { useRef } from 'react';
-import { handleSourceClick, handleSourceModalClose } from './EnvManager';
 
 interface WebhookEventItem {
   _id: string;
@@ -17,635 +35,1336 @@ interface WebhookEventItem {
   content?: string;
   renderedContent?: string;
   created_at?: string;
-  to?: any;
+  to?: unknown;
   subject?: string;
   status?: string;
-  data?: any;
-  raw?: any;
+  data?: unknown;
+  raw?: unknown;
   receivedAt?: string;
   updatedAt?: string;
 }
 
+interface WebhookStats {
+  total: number;
+  last24h: number;
+  failed: number;
+  byStatus: CountRow[];
+  byProvider: CountRow[];
+  byRouteKey: CountRow[];
+  byType: CountRow[];
+}
+
+interface CountRow {
+  key: string | null;
+  total: number;
+}
+
+interface GroupRow extends CountRow {
+  routeKey?: string | null;
+}
+
+interface WebhookSecretSetting {
+  key: string;
+  secret: string | null;
+  updatedAt: string | null;
+}
+
+type ActivePanel = 'usage' | 'test' | 'secrets';
+type EditMode = 'create' | 'edit';
+
+const STATUS_OPTIONS = [
+  'received',
+  'testing',
+  'processed',
+  'replayed',
+  'ignored',
+  'failed',
+  'delivered',
+  'bounced',
+  'complained',
+];
+
+const defaultStats: WebhookStats = {
+  total: 0,
+  last24h: 0,
+  failed: 0,
+  byStatus: [],
+  byProvider: [],
+  byRouteKey: [],
+  byType: [],
+};
+
+const samplePayload = {
+  type: 'demo.notification',
+  title: 'Webhook 测试',
+  content: '来自 {{value}} 的事件，状态：{{value}}',
+  values: ['Synapse', 'OK'],
+  status: 'received',
+  timestamp: Date.now(),
+  data: {
+    source: 'admin-console',
+  },
+};
+
+function apiUrl(path = '') {
+  return `${getApiBaseUrl()}/api/webhook-events${path}`;
+}
+
+function secretUrl(key?: string) {
+  const params = new URLSearchParams();
+  if (key) params.set('key', key);
+  const query = params.toString();
+  return `${getApiBaseUrl()}/api/admin/webhook/secret${query ? `?${query}` : ''}`;
+}
+
+function authHeaders(json = false): HeadersInit {
+  const token = localStorage.getItem('token');
+  const headers: Record<string, string> = {};
+  if (json) headers['Content-Type'] = 'application/json';
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
+async function parseApiResponse(res: Response) {
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.success === false) {
+    throw new Error(data.error || data.message || `请求失败 (${res.status})`);
+  }
+  return data;
+}
+
+function safeRouteSegment(value: string) {
+  return value.trim().replace(/[^a-zA-Z0-9_-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
+}
+
+function buildPublicWebhookPath(kind: 'generic' | 'resend', routeKey: string) {
+  const key = safeRouteSegment(routeKey);
+  if (kind === 'generic') return key ? `/api/webhooks/generic-${key}` : '/api/webhooks/generic';
+  return key && key.toUpperCase() !== 'DEFAULT' ? `/api/webhooks/resend-${key}` : '/api/webhooks/resend';
+}
+
+function toAbsoluteUrl(path: string) {
+  const base = getApiBaseUrl();
+  return new URL(`${base}${path}`, window.location.origin).toString();
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleString('zh-CN');
+}
+
+function stringifyJson(value: unknown) {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  return JSON.stringify(value, null, 2);
+}
+
+function parseJsonDraft(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return value;
+  }
+}
+
+function csvEscape(value: unknown) {
+  const text = value == null ? '' : String(value);
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function statusClass(status?: string) {
+  const value = status?.toLowerCase();
+  if (value === 'failed' || value === 'error' || value === 'bounced' || value === 'complained') {
+    return 'bg-red-50 text-red-700 border-red-200';
+  }
+  if (value === 'processed' || value === 'delivered') {
+    return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  }
+  if (value === 'testing' || value === 'replayed') {
+    return 'bg-amber-50 text-amber-700 border-amber-200';
+  }
+  return 'bg-slate-50 text-slate-700 border-slate-200';
+}
+
 const WebhookEventsManager: React.FC = () => {
+  const { setNotification } = useNotification();
+  const prefersReducedMotion = useReducedMotion();
+  const hoverScale = useCallback(
+    (scale: number, enabled = true) => (enabled && !prefersReducedMotion ? { scale } : undefined),
+    [prefersReducedMotion],
+  );
+  const tapScale = useCallback(
+    (scale: number, enabled = true) => (enabled && !prefersReducedMotion ? { scale } : undefined),
+    [prefersReducedMotion],
+  );
+
   const [items, setItems] = useState<WebhookEventItem[]>([]);
+  const [groups, setGroups] = useState<GroupRow[]>([]);
+  const [stats, setStats] = useState<WebhookStats>(defaultStats);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [activePanel, setActivePanel] = useState<ActivePanel>('usage');
+
+  const [routeKeyFilter, setRouteKeyFilter] = useState<'all' | 'null' | string>('all');
+  const [providerFilter, setProviderFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [eventIdFilter, setEventIdFilter] = useState('');
+  const [searchFilter, setSearchFilter] = useState('');
+
+  const [endpointRouteKey, setEndpointRouteKey] = useState('');
+  const [testSource, setTestSource] = useState('');
+  const [testMode, setTestMode] = useState<'public' | 'admin'>('public');
+  const [testPayload, setTestPayload] = useState(() => JSON.stringify(samplePayload, null, 2));
+
+  const [secretKeyInput, setSecretKeyInput] = useState('DEFAULT');
+  const [secretInput, setSecretInput] = useState('');
+  const [secretSetting, setSecretSetting] = useState<WebhookSecretSetting | null>(null);
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const allPageSelected = items.length > 0 && items.every((item) => selectedSet.has(item._id));
+
   const [selected, setSelected] = useState<WebhookEventItem | null>(null);
   const [editing, setEditing] = useState<WebhookEventItem | null>(null);
-  const [creating, setCreating] = useState<boolean>(false);
-  // grouping & filters
-  const [groups, setGroups] = useState<{ routeKey: string | null; total: number }[]>([]);
-  const [selectedRouteKey, setSelectedRouteKey] = useState<string | 'null' | 'all'>('all');
-  const [typeFilter, setTypeFilter] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const { setNotification } = useNotification();
+  const [editMode, setEditMode] = useState<EditMode>('edit');
+  const [dataDraft, setDataDraft] = useState('');
+  const [rawDraft, setRawDraft] = useState('');
+  const [toDraft, setToDraft] = useState('');
 
-  // Zoom and auto-fit
-  const [zoom, setZoom] = useState<number>(1);
-  const [autoFit, setAutoFit] = useState<boolean>(true);
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [pageSize, total]);
+  const genericPath = buildPublicWebhookPath('generic', endpointRouteKey);
+  const resendPath = buildPublicWebhookPath('resend', endpointRouteKey);
+  const genericUrl = toAbsoluteUrl(genericPath);
+  const resendUrl = toAbsoluteUrl(resendPath);
+  const testPath = buildPublicWebhookPath('generic', testSource);
 
-  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize]);
-
-  const prefersReducedMotion = useReducedMotion();
-  const hoverScale = React.useCallback((scale: number, enabled: boolean = true) => (
-    enabled && !prefersReducedMotion ? { scale } : undefined
-  ), [prefersReducedMotion]);
-  const tapScale = React.useCallback((scale: number, enabled: boolean = true) => (
-    enabled && !prefersReducedMotion ? { scale } : undefined
-  ), [prefersReducedMotion]);
-
-  const fetchList = async (p = page, ps = pageSize) => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const params = new URLSearchParams({ page: String(p), pageSize: String(ps) });
-      if (selectedRouteKey !== 'all') {
-        params.set('routeKey', selectedRouteKey);
-      }
-      if (typeFilter.trim()) params.set('type', typeFilter.trim());
-      if (statusFilter.trim()) params.set('status', statusFilter.trim());
-      const res = await fetch(`${getApiBaseUrl()}/api/webhook-events?${params.toString()}` , {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        }
-      });
-      if (!res.ok) throw new Error('获取列表失败');
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || '获取列表失败');
-      setItems(data.items || []);
-      setTotal(data.total || 0);
-      setPage(data.page || p);
-      setPageSize(data.pageSize || ps);
-    } catch (e: any) {
-      setNotification({ type: 'error', message: e.message || '获取列表失败' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchGroups = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${getApiBaseUrl()}/api/webhook-events/groups`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error('获取分组失败');
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error || '获取分组失败');
-      setGroups(data.groups || []);
-    } catch (e: any) {
-      setNotification({ type: 'error', message: e.message || '获取分组失败' });
-    }
-  };
-
-  useEffect(() => {
-    fetchGroups();
-    fetchList(1, pageSize);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const fetchStats = useCallback(async () => {
+    const data = await parseApiResponse(await fetch(apiUrl('/stats'), { headers: authHeaders() }));
+    setStats({ ...defaultStats, ...(data.stats || {}) });
   }, []);
 
-  // refetch when filters change
-  useEffect(() => {
-    fetchList(1, pageSize);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRouteKey]);
+  const fetchGroups = useCallback(async () => {
+    const data = await parseApiResponse(await fetch(apiUrl('/groups'), { headers: authHeaders() }));
+    setGroups(data.groups || []);
+  }, []);
 
-  // Auto-fit zoom based on container width (target width: 1200px)
-  useEffect(() => {
-    if (!autoFit) return;
-    let rafId: number | null = null;
-    const update = () => {
-      if (rafId != null) cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        const w = containerRef.current?.clientWidth || window.innerWidth;
-        const target = 1200; // base design width
-        const scale = Math.min(1, Math.max(0.7, w / target));
-        setZoom(Number(scale.toFixed(2)));
-      });
-    };
-    update();
-    window.addEventListener('resize', update);
-    return () => {
-      window.removeEventListener('resize', update);
-      if (rafId != null) cancelAnimationFrame(rafId);
-    };
-  }, [autoFit]);
+  const fetchList = useCallback(
+    async (nextPage = page, nextPageSize = pageSize) => {
+      try {
+        setLoading(true);
+        const params = new URLSearchParams({
+          page: String(nextPage),
+          pageSize: String(nextPageSize),
+        });
+        if (routeKeyFilter !== 'all') params.set('routeKey', routeKeyFilter);
+        if (providerFilter.trim()) params.set('provider', providerFilter.trim());
+        if (typeFilter.trim()) params.set('type', typeFilter.trim());
+        if (statusFilter.trim()) params.set('status', statusFilter.trim());
+        if (eventIdFilter.trim()) params.set('eventId', eventIdFilter.trim());
+        if (searchFilter.trim()) params.set('q', searchFilter.trim());
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('确认删除该事件记录？')) return;
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${getApiBaseUrl()}/api/webhook-events/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || '删除失败');
-      setNotification({ type: 'success', message: '删除成功' });
-      fetchList(page, pageSize);
-    } catch (e: any) {
-      setNotification({ type: 'error', message: e.message || '删除失败' });
-    }
-  };
-
-  const handleSave = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const body = JSON.stringify(editing);
-      const res = await fetch(`${getApiBaseUrl()}/api/webhook-events/${editing!._id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || '保存失败');
-      setNotification({ type: 'success', message: '保存成功' });
-      setEditing(null);
-      fetchList(page, pageSize);
-    } catch (e: any) {
-      setNotification({ type: 'error', message: e.message || '保存失败' });
-    }
-  };
-
-  const handleCreate = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      // Do not send _id when creating to avoid Mongo ObjectId cast errors
-      const basePayload: Partial<WebhookEventItem> = creating ? (editing || {}) : {};
-      const { _id, ...payload } = basePayload as any;
-      const res = await fetch(`${getApiBaseUrl()}/api/webhook-events`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || '新增失败');
-      setNotification({ type: 'success', message: '新增成功' });
-      setCreating(false);
-      setEditing(null);
-      fetchList(1, pageSize);
-    } catch (e: any) {
-      setNotification({ type: 'error', message: e.message || '新增失败' });
-    }
-  };
-
-  // 使用 handleSourceClick 的包装函数
-  const openDetail = useCallback((item: WebhookEventItem) => {
-    handleSourceClick(
-      'webhook-event-detail',
-      (source: string) => setSelected(source === 'webhook-event-detail' ? item : null),
-      (show: boolean) => setSelected(show ? item : null),
-      {
-        storageKey: 'webhookEventsScrollPosition',
-        getStorageValue: () => JSON.stringify({
-          scrollY: window.scrollY,
-          timestamp: Date.now(),
-          eventId: item._id
-        }),
-        onBeforeOpen: () => { console.log('即将打开 Webhook 事件详情弹窗'); },
-        onAfterOpen: () => { console.log('Webhook 事件详情弹窗已打开'); }
+        const data = await parseApiResponse(await fetch(`${apiUrl()}?${params.toString()}`, { headers: authHeaders() }));
+        setItems(data.items || []);
+        setTotal(data.total || 0);
+        setPage(data.page || nextPage);
+        setPageSize(data.pageSize || nextPageSize);
+      } catch (error) {
+        setNotification({ type: 'error', message: error instanceof Error ? error.message : '获取列表失败' });
+      } finally {
+        setLoading(false);
       }
-    );
+    },
+    [eventIdFilter, page, pageSize, providerFilter, routeKeyFilter, searchFilter, setNotification, statusFilter, typeFilter],
+  );
+
+  const refreshAll = useCallback(
+    async (nextPage = page, nextPageSize = pageSize) => {
+      try {
+        await Promise.all([fetchGroups(), fetchStats(), fetchList(nextPage, nextPageSize)]);
+      } catch (error) {
+        setNotification({ type: 'error', message: error instanceof Error ? error.message : '刷新失败' });
+      }
+    },
+    [fetchGroups, fetchList, fetchStats, page, pageSize, setNotification],
+  );
+
+  useEffect(() => {
+    refreshAll(1, pageSize);
+  }, []);
+
+  const notifySuccess = useCallback((message: string) => setNotification({ type: 'success', message }), [setNotification]);
+
+  const copyText = useCallback(
+    async (text: string, message = '已复制') => {
+      try {
+        await navigator.clipboard.writeText(text);
+        notifySuccess(message);
+      } catch {
+        setNotification({ type: 'error', message: '复制失败' });
+      }
+    },
+    [notifySuccess, setNotification],
+  );
+
+  const handleFetchSecret = useCallback(async () => {
+    try {
+      setActionLoading('secret-load');
+      const key = secretKeyInput.trim().toUpperCase() || 'DEFAULT';
+      const data = await parseApiResponse(await fetch(secretUrl(key), { headers: authHeaders() }));
+      setSecretSetting({
+        key: data.key || key,
+        secret: data.secret ?? null,
+        updatedAt: data.updatedAt ?? null,
+      });
+    } catch (error) {
+      setNotification({ type: 'error', message: error instanceof Error ? error.message : '获取密钥失败' });
+    } finally {
+      setActionLoading(null);
+    }
+  }, [secretKeyInput, setNotification]);
+
+  const handleSaveSecret = useCallback(async () => {
+    const key = secretKeyInput.trim().toUpperCase() || 'DEFAULT';
+    const secret = secretInput.trim();
+    if (!secret) {
+      setNotification({ type: 'error', message: '请填写 Webhook 密钥' });
+      return;
+    }
+    try {
+      setActionLoading('secret-save');
+      await parseApiResponse(
+        await fetch(secretUrl(), {
+          method: 'POST',
+          headers: authHeaders(true),
+          body: JSON.stringify({ key, secret }),
+        }),
+      );
+      setSecretInput('');
+      notifySuccess('密钥已保存');
+      await handleFetchSecret();
+    } catch (error) {
+      setNotification({ type: 'error', message: error instanceof Error ? error.message : '保存密钥失败' });
+    } finally {
+      setActionLoading(null);
+    }
+  }, [handleFetchSecret, notifySuccess, secretInput, secretKeyInput, setNotification]);
+
+  const handleDeleteSecret = useCallback(async () => {
+    if (!confirm('确认删除该 Resend Webhook 密钥？')) return;
+    const key = secretKeyInput.trim().toUpperCase() || 'DEFAULT';
+    try {
+      setActionLoading('secret-delete');
+      await parseApiResponse(
+        await fetch(secretUrl(), {
+          method: 'DELETE',
+          headers: authHeaders(true),
+          body: JSON.stringify({ key }),
+        }),
+      );
+      setSecretSetting({ key, secret: null, updatedAt: null });
+      notifySuccess('密钥已删除');
+    } catch (error) {
+      setNotification({ type: 'error', message: error instanceof Error ? error.message : '删除密钥失败' });
+    } finally {
+      setActionLoading(null);
+    }
+  }, [notifySuccess, secretKeyInput, setNotification]);
+
+  const handleSendTest = useCallback(async () => {
+    let payload: unknown;
+    try {
+      payload = JSON.parse(testPayload);
+    } catch {
+      setNotification({ type: 'error', message: '测试 payload 不是有效 JSON' });
+      return;
+    }
+
+    try {
+      setActionLoading('test-send');
+      if (testMode === 'public') {
+        await parseApiResponse(
+          await fetch(`${getApiBaseUrl()}${testPath}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          }),
+        );
+      } else {
+        await parseApiResponse(
+          await fetch(apiUrl('/test'), {
+            method: 'POST',
+            headers: authHeaders(true),
+            body: JSON.stringify({
+              source: testSource.trim() || 'generic-test',
+              payload,
+              status: 'testing',
+            }),
+          }),
+        );
+      }
+      notifySuccess('测试事件已写入');
+      await refreshAll(1, pageSize);
+    } catch (error) {
+      setNotification({ type: 'error', message: error instanceof Error ? error.message : '测试发送失败' });
+    } finally {
+      setActionLoading(null);
+    }
+  }, [notifySuccess, pageSize, refreshAll, setNotification, testMode, testPath, testPayload, testSource]);
+
+  const handleDelete = useCallback(
+    async (id: string) => {
+      if (!confirm('确认删除该事件记录？')) return;
+      try {
+        setActionLoading(`delete-${id}`);
+        await parseApiResponse(
+          await fetch(apiUrl(`/${id}`), {
+            method: 'DELETE',
+            headers: authHeaders(),
+          }),
+        );
+        setSelectedIds((prev) => prev.filter((value) => value !== id));
+        notifySuccess('删除成功');
+        await refreshAll(page, pageSize);
+      } catch (error) {
+        setNotification({ type: 'error', message: error instanceof Error ? error.message : '删除失败' });
+      } finally {
+        setActionLoading(null);
+      }
+    },
+    [notifySuccess, page, pageSize, refreshAll, setNotification],
+  );
+
+  const handleReplay = useCallback(
+    async (id: string) => {
+      try {
+        setActionLoading(`replay-${id}`);
+        await parseApiResponse(
+          await fetch(apiUrl(`/${id}/replay`), {
+            method: 'POST',
+            headers: authHeaders(true),
+            body: JSON.stringify({ status: 'replayed', note: 'admin replay' }),
+          }),
+        );
+        notifySuccess('事件已重放');
+        await refreshAll(1, pageSize);
+      } catch (error) {
+        setNotification({ type: 'error', message: error instanceof Error ? error.message : '重放失败' });
+      } finally {
+        setActionLoading(null);
+      }
+    },
+    [notifySuccess, pageSize, refreshAll, setNotification],
+  );
+
+  const handleStatusChange = useCallback(
+    async (id: string, status: string) => {
+      try {
+        setActionLoading(`status-${id}`);
+        const data = await parseApiResponse(
+          await fetch(apiUrl(`/${id}/status`), {
+            method: 'PATCH',
+            headers: authHeaders(true),
+            body: JSON.stringify({ status }),
+          }),
+        );
+        setItems((prev) => prev.map((item) => (item._id === id ? data.item : item)));
+        notifySuccess('状态已更新');
+        await fetchStats();
+      } catch (error) {
+        setNotification({ type: 'error', message: error instanceof Error ? error.message : '更新状态失败' });
+      } finally {
+        setActionLoading(null);
+      }
+    },
+    [fetchStats, notifySuccess, setNotification],
+  );
+
+  const handleBulkStatus = useCallback(
+    async (status: string) => {
+      if (selectedIds.length === 0) {
+        setNotification({ type: 'warning', message: '请选择事件' });
+        return;
+      }
+      try {
+        setActionLoading('bulk-status');
+        await parseApiResponse(
+          await fetch(apiUrl('/bulk-status'), {
+            method: 'POST',
+            headers: authHeaders(true),
+            body: JSON.stringify({ ids: selectedIds, status }),
+          }),
+        );
+        notifySuccess('批量状态已更新');
+        await refreshAll(page, pageSize);
+      } catch (error) {
+        setNotification({ type: 'error', message: error instanceof Error ? error.message : '批量更新失败' });
+      } finally {
+        setActionLoading(null);
+      }
+    },
+    [notifySuccess, page, pageSize, refreshAll, selectedIds, setNotification],
+  );
+
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedIds.length === 0) {
+      setNotification({ type: 'warning', message: '请选择事件' });
+      return;
+    }
+    if (!confirm(`确认删除选中的 ${selectedIds.length} 条事件？`)) return;
+    try {
+      setActionLoading('bulk-delete');
+      await parseApiResponse(
+        await fetch(apiUrl('/bulk-delete'), {
+          method: 'POST',
+          headers: authHeaders(true),
+          body: JSON.stringify({ ids: selectedIds }),
+        }),
+      );
+      setSelectedIds([]);
+      notifySuccess('批量删除成功');
+      await refreshAll(page, pageSize);
+    } catch (error) {
+      setNotification({ type: 'error', message: error instanceof Error ? error.message : '批量删除失败' });
+    } finally {
+      setActionLoading(null);
+    }
+  }, [notifySuccess, page, pageSize, refreshAll, selectedIds, setNotification]);
+
+  const openCreate = useCallback(() => {
+    const item: WebhookEventItem = {
+      _id: '',
+      provider: 'manual',
+      routeKey: null,
+      type: 'manual.event',
+      status: 'received',
+      data: {},
+      raw: {},
+    };
+    setEditMode('create');
+    setEditing(item);
+    setDataDraft('{}');
+    setRawDraft('{}');
+    setToDraft('');
   }, []);
 
   const openEdit = useCallback((item: WebhookEventItem) => {
-    handleSourceClick(
-      'webhook-event-edit',
-      (source: string) => setEditing(source === 'webhook-event-edit' ? item : null),
-      (show: boolean) => setEditing(show ? item : null),
-      {
-        storageKey: 'webhookEventsEditScrollPosition',
-        getStorageValue: () => JSON.stringify({
-          scrollY: window.scrollY,
-          timestamp: Date.now(),
-          eventId: item._id
-        }),
-        onBeforeOpen: () => { console.log('即将打开 Webhook 事件编辑弹窗'); },
-        onAfterOpen: () => { console.log('Webhook 事件编辑弹窗已打开'); }
-      }
-    );
+    setEditMode('edit');
+    setEditing(item);
+    setDataDraft(stringifyJson(item.data));
+    setRawDraft(stringifyJson(item.raw));
+    setToDraft(stringifyJson(item.to));
   }, []);
 
-  const openCreate = useCallback(() => {
-    const newItem = { _id: '', type: '', provider: 'resend' } as any;
-    handleSourceClick(
-      'webhook-event-edit',
-      (source: string) => {
-        if (source === 'webhook-event-edit') {
-          setCreating(true);
-          setEditing(newItem);
-        }
-      },
-      (show: boolean) => {
-        if (show) {
-          setCreating(true);
-          setEditing(newItem);
-        } else {
-          setCreating(false);
-          setEditing(null);
-        }
-      },
-      {
-        storageKey: 'webhookEventsCreateScrollPosition',
-        getStorageValue: () => JSON.stringify({
-          scrollY: window.scrollY,
-          timestamp: Date.now(),
-          action: 'create'
-        }),
-        onBeforeOpen: () => { console.log('即将打开 Webhook 事件创建弹窗'); },
-        onAfterOpen: () => { console.log('Webhook 事件创建弹窗已打开'); }
-      }
-    );
+  const closeEdit = useCallback(() => {
+    setEditing(null);
+    setDataDraft('');
+    setRawDraft('');
+    setToDraft('');
   }, []);
 
-  // 关闭弹窗的包装函数
-  const closeDetailModal = useCallback(() => {
-    handleSourceModalClose(
-      (show: boolean) => setSelected(show ? selected : null),
-      {
-        storageKey: 'webhookEventsScrollPosition',
-        getRestoreValue: () => {
-          const saved = sessionStorage.getItem('webhookEventsScrollPosition');
-          if (saved) {
-            try {
-              const data = JSON.parse(saved);
-              if (Date.now() - data.timestamp < 5000) {
-                return data.scrollY;
-              }
-            } catch (e) {
-              const scrollY = parseInt(saved, 10);
-              if (!isNaN(scrollY)) return scrollY;
-            }
-          }
-          return 0;
-        },
-        onBeforeClose: () => { console.log('即将关闭 Webhook 事件详情弹窗'); },
-        onAfterClose: () => { console.log('Webhook 事件详情弹窗已关闭'); }
-      }
-    );
-  }, [selected]);
+  const handleSave = useCallback(async () => {
+    if (!editing) return;
+    const payload = {
+      ...editing,
+      data: parseJsonDraft(dataDraft),
+      raw: parseJsonDraft(rawDraft),
+      to: parseJsonDraft(toDraft),
+    };
+    delete (payload as { _id?: string })._id;
 
-  const closeEditModal = useCallback(() => {
-    handleSourceModalClose(
-      (show: boolean) => {
-        if (!show) {
-          setEditing(null);
-          setCreating(false);
-        }
-      },
-      {
-        storageKey: 'webhookEventsEditScrollPosition',
-        getRestoreValue: () => {
-          const saved = sessionStorage.getItem('webhookEventsEditScrollPosition');
-          if (saved) {
-            try {
-              const data = JSON.parse(saved);
-              if (Date.now() - data.timestamp < 5000) {
-                return data.scrollY;
-              }
-            } catch (e) {
-              const scrollY = parseInt(saved, 10);
-              if (!isNaN(scrollY)) return scrollY;
-            }
-          }
-          return 0;
-        },
-        onBeforeClose: () => { console.log('即将关闭 Webhook 事件编辑弹窗'); },
-        onAfterClose: () => { console.log('Webhook 事件编辑弹窗已关闭'); }
-      }
-    );
+    try {
+      setActionLoading('save-event');
+      const res =
+        editMode === 'create'
+          ? await fetch(apiUrl(), {
+              method: 'POST',
+              headers: authHeaders(true),
+              body: JSON.stringify(payload),
+            })
+          : await fetch(apiUrl(`/${editing._id}`), {
+              method: 'PUT',
+              headers: authHeaders(true),
+              body: JSON.stringify(payload),
+            });
+      await parseApiResponse(res);
+      notifySuccess(editMode === 'create' ? '事件已创建' : '事件已保存');
+      closeEdit();
+      await refreshAll(editMode === 'create' ? 1 : page, pageSize);
+    } catch (error) {
+      setNotification({ type: 'error', message: error instanceof Error ? error.message : '保存失败' });
+    } finally {
+      setActionLoading(null);
+    }
+  }, [closeEdit, dataDraft, editMode, editing, notifySuccess, page, pageSize, rawDraft, refreshAll, setNotification, toDraft]);
+
+  const togglePageSelection = useCallback(() => {
+    if (allPageSelected) {
+      const pageIds = new Set(items.map((item) => item._id));
+      setSelectedIds((prev) => prev.filter((id) => !pageIds.has(id)));
+      return;
+    }
+    setSelectedIds((prev) => Array.from(new Set([...prev, ...items.map((item) => item._id)])));
+  }, [allPageSelected, items]);
+
+  const toggleOne = useCallback((id: string) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id]));
   }, []);
+
+  const exportEvents = useCallback(
+    (format: 'json' | 'csv') => {
+      if (items.length === 0) {
+        setNotification({ type: 'warning', message: '当前列表没有可导出的事件' });
+        return;
+      }
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const blob =
+        format === 'json'
+          ? new Blob([JSON.stringify(items, null, 2)], { type: 'application/json;charset=utf-8' })
+          : new Blob(
+              [
+                [
+                  ['provider', 'routeKey', 'eventId', 'type', 'status', 'subject', 'receivedAt'],
+                  ...items.map((item) => [
+                    item.provider || '',
+                    item.routeKey || '',
+                    item.eventId || '',
+                    item.type || '',
+                    item.status || '',
+                    item.subject || item.title || '',
+                    item.receivedAt || '',
+                  ]),
+                ]
+                  .map((row) => row.map(csvEscape).join(','))
+                  .join('\n'),
+              ],
+              { type: 'text/csv;charset=utf-8' },
+            );
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `webhook-events-${timestamp}.${format}`;
+      link.click();
+      URL.revokeObjectURL(url);
+    },
+    [items, setNotification],
+  );
+
+  const renderPanel = () => {
+    if (activePanel === 'test') {
+      return (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white/90 border border-[#8ECAE6]/30 rounded-xl shadow-sm p-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-[#023047]/70 mb-1">来源 routeKey</label>
+              <input
+                value={testSource}
+                onChange={(event) => setTestSource(event.target.value)}
+                placeholder="github"
+                className="w-full px-3 py-2 rounded-lg border border-[#8ECAE6]/40 focus:ring-2 focus:ring-[#FFB703] text-[#023047]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#023047]/70 mb-1">写入方式</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setTestMode('public')}
+                  className={`px-3 py-2 rounded-lg border text-sm ${testMode === 'public' ? 'bg-[#023047] text-white border-[#023047]' : 'bg-white text-[#023047] border-[#8ECAE6]/40'}`}
+                >
+                  公开端点
+                </button>
+                <button
+                  onClick={() => setTestMode('admin')}
+                  className={`px-3 py-2 rounded-lg border text-sm ${testMode === 'admin' ? 'bg-[#023047] text-white border-[#023047]' : 'bg-white text-[#023047] border-[#8ECAE6]/40'}`}
+                >
+                  管理接口
+                </button>
+              </div>
+            </div>
+            <div className="flex items-end">
+              <motion.button
+                onClick={handleSendTest}
+                disabled={actionLoading === 'test-send'}
+                className="w-full px-3 py-2 rounded-lg bg-[#FFB703] text-[#023047] hover:bg-[#FB8500] disabled:opacity-50 text-sm font-semibold inline-flex items-center justify-center gap-2"
+                whileHover={hoverScale(1.02)}
+                whileTap={tapScale(0.98)}
+              >
+                <Send className="w-4 h-4" /> {actionLoading === 'test-send' ? '发送中' : '发送测试'}
+              </motion.button>
+            </div>
+          </div>
+          <div className="mt-3">
+            <div className="flex items-center justify-between mb-1 gap-2">
+              <label className="text-xs font-medium text-[#023047]/70">Payload JSON</label>
+              <button
+                onClick={() => setTestPayload(JSON.stringify(samplePayload, null, 2))}
+                className="px-2 py-1 rounded-md border border-[#8ECAE6]/40 text-xs text-[#023047]/70 hover:bg-[#8ECAE6]/10"
+              >
+                重置样例
+              </button>
+            </div>
+            <textarea
+              value={testPayload}
+              onChange={(event) => setTestPayload(event.target.value)}
+              spellCheck={false}
+              className="w-full min-h-56 px-3 py-2 rounded-lg bg-slate-950 text-slate-100 border border-slate-800 font-mono text-xs"
+            />
+          </div>
+          <div className="mt-3 text-xs text-[#023047]/60 break-all">POST {toAbsoluteUrl(testPath)}</div>
+        </motion.div>
+      );
+    }
+
+    if (activePanel === 'secrets') {
+      return (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white/90 border border-[#8ECAE6]/30 rounded-xl shadow-sm p-4">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-[#023047]/70 mb-1">Resend key</label>
+              <input
+                value={secretKeyInput}
+                onChange={(event) => setSecretKeyInput(event.target.value.toUpperCase())}
+                placeholder="DEFAULT"
+                className="w-full px-3 py-2 rounded-lg border border-[#8ECAE6]/40 focus:ring-2 focus:ring-[#FFB703] text-[#023047]"
+              />
+            </div>
+            <div className="lg:col-span-2">
+              <label className="block text-xs font-medium text-[#023047]/70 mb-1">Secret</label>
+              <input
+                value={secretInput}
+                onChange={(event) => setSecretInput(event.target.value)}
+                type="password"
+                placeholder="whsec_xxx 或 Base64"
+                className="w-full px-3 py-2 rounded-lg border border-[#8ECAE6]/40 focus:ring-2 focus:ring-[#FFB703] text-[#023047]"
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-2 lg:flex lg:items-end">
+              <button
+                onClick={handleFetchSecret}
+                disabled={actionLoading === 'secret-load'}
+                className="px-3 py-2 rounded-lg border border-[#8ECAE6]/40 text-[#023047] hover:bg-[#8ECAE6]/10 disabled:opacity-50 text-sm inline-flex items-center justify-center gap-2"
+              >
+                <RefreshCw className="w-4 h-4" /> 读取
+              </button>
+              <button
+                onClick={handleSaveSecret}
+                disabled={actionLoading === 'secret-save'}
+                className="px-3 py-2 rounded-lg bg-[#FFB703] text-[#023047] hover:bg-[#FB8500] disabled:opacity-50 text-sm inline-flex items-center justify-center gap-2"
+              >
+                <Save className="w-4 h-4" /> 保存
+              </button>
+              <button
+                onClick={handleDeleteSecret}
+                disabled={actionLoading === 'secret-delete'}
+                className="px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 text-sm inline-flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" /> 删除
+              </button>
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+            <div className="rounded-lg border border-[#8ECAE6]/30 bg-[#8ECAE6]/10 p-3">
+              <div className="text-xs text-[#023047]/60">当前 key</div>
+              <div className="font-mono text-[#023047] break-all">{secretSetting?.key || '-'}</div>
+            </div>
+            <div className="rounded-lg border border-[#8ECAE6]/30 bg-[#8ECAE6]/10 p-3">
+              <div className="text-xs text-[#023047]/60">密钥状态</div>
+              <div className="font-mono text-[#023047] break-all">{secretSetting?.secret ?? '未读取'}</div>
+            </div>
+            <div className="rounded-lg border border-[#8ECAE6]/30 bg-[#8ECAE6]/10 p-3">
+              <div className="text-xs text-[#023047]/60">更新时间</div>
+              <div className="text-[#023047]">{formatDate(secretSetting?.updatedAt)}</div>
+            </div>
+          </div>
+        </motion.div>
+      );
+    }
+
+    const curlPayload = JSON.stringify(samplePayload);
+    const genericCurl = `curl -X POST "${genericUrl}" -H "Content-Type: application/json" -d '${curlPayload}'`;
+    const resendCurl = `curl -X POST "${resendUrl}" -H "Content-Type: application/json" -H "svix-id: msg_xxx" -H "svix-timestamp: 1700000000" -H "svix-signature: v1,xxx" -d '{"type":"email.delivered","data":{"id":"email_xxx"}}'`;
+
+    return (
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white/90 border border-[#8ECAE6]/30 rounded-xl shadow-sm p-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-[#023047]/70 mb-1">routeKey</label>
+            <input
+              value={endpointRouteKey}
+              onChange={(event) => setEndpointRouteKey(event.target.value)}
+              placeholder="留空使用默认路由"
+              className="w-full px-3 py-2 rounded-lg border border-[#8ECAE6]/40 focus:ring-2 focus:ring-[#FFB703] text-[#023047]"
+            />
+          </div>
+          <EndpointBox label="Generic" value={genericUrl} onCopy={() => copyText(genericUrl, 'Generic URL 已复制')} />
+          <EndpointBox label="Resend" value={resendUrl} onCopy={() => copyText(resendUrl, 'Resend URL 已复制')} />
+        </div>
+        <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <CodeBlock title="Generic curl" value={genericCurl} onCopy={() => copyText(genericCurl, 'Generic curl 已复制')} />
+          <CodeBlock title="Resend curl" value={resendCurl} onCopy={() => copyText(resendCurl, 'Resend curl 已复制')} />
+        </div>
+      </motion.div>
+    );
+  };
 
   return (
-    <div ref={containerRef} className="max-w-7xl mx-auto px-2 sm:px-4 space-y-6">
-      {/* Header */}
+    <div className="max-w-7xl mx-auto px-2 sm:px-4 space-y-5">
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         className="bg-[#023047] text-white rounded-2xl shadow-xl border border-[#8ECAE6]/30 p-4 sm:p-6"
       >
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[#FFB703]/20 flex items-center justify-center shadow">
-              <FaChartBar className="w-5 h-5" />
+              <Webhook className="w-5 h-5" />
             </div>
             <div>
               <div className="text-lg font-semibold">Webhook 事件管理</div>
-              <div className="text-[#8ECAE6] text-sm">按路由分组、筛选与查看详情</div>
+              <div className="text-[#8ECAE6] text-sm">接收端点、Resend 密钥、测试投递与事件处理</div>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <motion.button
-              onClick={() => fetchList(page, pageSize)}
-              className="px-3 py-2 rounded-lg bg-[#8ECAE6]/15 text-white hover:bg-[#8ECAE6]/25 transition text-sm font-medium"
-              title="刷新"
-              whileHover={hoverScale(1.02)}
-              whileTap={tapScale(0.98)}
-            >
-              <span className="inline-flex items-center gap-2"><FaSync className="w-4 h-4" /> 刷新</span>
-            </motion.button>
-            <motion.button
-              onClick={openCreate}
-              className="px-3 py-2 rounded-lg bg-[#FFB703] text-[#023047] hover:bg-[#FB8500] transition text-sm font-medium"
-              whileHover={hoverScale(1.02)}
-              whileTap={tapScale(0.98)}
-            >
-              <span className="inline-flex items-center gap-2"><FaPlus className="w-4 h-4" /> 新增</span>
-            </motion.button>
+          <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+            <HeaderStat label="总数" value={stats.total} />
+            <HeaderStat label="24h" value={stats.last24h} />
+            <HeaderStat label="异常" value={stats.failed} tone="warning" />
           </div>
         </div>
-        {/* Filters */}
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-4 gap-3">
-          <div className="sm:col-span-2">
-            <label className="block text-xs text-[#8ECAE6] mb-1">分组（routeKey）</label>
-            <div className="flex flex-wrap gap-2">
-              <select
-                className="px-3 py-2 rounded-lg bg-white/10 text-white w-full sm:w-auto"
-                value={selectedRouteKey}
-                onChange={(e) => setSelectedRouteKey(e.target.value as any)}
-              >
-                <option value="all">全部</option>
-                <option value="null">未分组</option>
-                {groups.map(g => (
-                  <option key={String(g.routeKey ?? 'null')}
-                          value={g.routeKey ?? 'null'}>
-                    {g.routeKey ?? '未分组'} ({g.total})
-                  </option>
-                ))}
-              </select>
-              <motion.button
-                onClick={() => fetchGroups()}
-                className="px-3 py-2 rounded-lg bg-[#8ECAE6]/15 text-white hover:bg-[#8ECAE6]/25 text-sm"
-                whileHover={hoverScale(1.02)}
-                whileTap={tapScale(0.98)}
-              >更新分组</motion.button>
+
+        <div className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-2">
+          {(stats.byStatus.length ? stats.byStatus.slice(0, 4) : [{ key: 'received', total: 0 }]).map((row) => (
+            <div key={String(row.key)} className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 min-w-0">
+              <div className="text-xs text-[#8ECAE6] truncate">{row.key || '未设置状态'}</div>
+              <div className="text-base font-semibold">{row.total}</div>
             </div>
-          </div>
-          <div>
-            <label className="block text-xs text-[#8ECAE6] mb-1">类型筛选(type)</label>
-            <input value={typeFilter}
-                   onChange={(e)=>setTypeFilter(e.target.value)}
-                   onBlur={()=>fetchList(1, pageSize)}
-                   placeholder="email.sent"
-                   className="w-full px-3 py-2 rounded-lg bg-white/10 text-white placeholder-[#8ECAE6]/60" />
-          </div>
-          <div>
-            <label className="block text-xs text-[#8ECAE6] mb-1">状态筛选(status)</label>
-            <input value={statusFilter}
-                   onChange={(e)=>setStatusFilter(e.target.value)}
-                   onBlur={()=>fetchList(1, pageSize)}
-                   placeholder="processed"
-                   className="w-full px-3 py-2 rounded-lg bg-white/10 text-white placeholder-[#8ECAE6]/60" />
-          </div>
+          ))}
         </div>
       </motion.div>
 
-      {/* List & Table */}
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 overflow-hidden">
-        {/* Mobile Cards */}
-        <div className="block md:hidden divide-y divide-[#8ECAE6]/20">
-          {items.map(it => (
-            <div key={it._id} className="p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#219EBC]/15 text-[#219EBC]">{it.type || '未分类'}</span>
-                    {it.status && (
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${it.status === 'success' ? 'bg-green-100 text-green-700' : it.status === 'failed' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>{it.status}</span>
-                    )}
-                    {it.eventId && <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono bg-[#8ECAE6]/10 text-[#023047]/70 max-w-[60%] truncate" title={it.eventId}>#{it.eventId}</span>}
-                  </div>
-                  <div className="text-xs text-[#023047]/70 mt-1">{it.receivedAt ? new Date(it.receivedAt).toLocaleString('zh-CN') : '-'}</div>
-                  {it.subject && <div className="text-sm text-[#023047] mt-1 truncate">{it.subject}</div>}
-                  {it.title && it.title !== it.subject && <div className="text-sm text-[#023047] mt-1 truncate font-medium">📌 {it.title}</div>}
-                  {it.renderedContent && <div className="text-xs text-[#023047]/70 mt-1 line-clamp-2 whitespace-pre-wrap">{it.renderedContent}</div>}
-                  {it.to && (
-                    <div className="text-xs text-[#023047]/70 mt-1 truncate">收件人：{typeof it.to === 'string' ? it.to : Array.isArray(it.to) ? it.to.join(', ') : '-'}</div>
-                  )}
-                </div>
-              </div>
-              <div className="mt-3 grid grid-cols-3 gap-2 sm:flex sm:flex-row sm:grid-cols-none">
-                <motion.button className="w-full px-3 py-2 rounded-lg bg-[#8ECAE6]/15 hover:bg-[#8ECAE6]/25 text-[#219EBC] border border-[#8ECAE6]/30 text-xs font-medium flex items-center gap-2" onClick={() => openDetail(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
-                  <FaEye className="w-3.5 h-3.5" /> 详情
-                </motion.button>
-                <motion.button className="w-full px-3 py-2 rounded-lg bg-[#FFB703] text-[#023047] hover:bg-[#FB8500] text-xs font-medium flex items-center gap-2" onClick={() => openEdit(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
-                  <FaEdit className="w-3.5 h-3.5" /> 编辑
-                </motion.button>
-                <motion.button className="w-full px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 text-xs font-medium flex items-center gap-2" onClick={() => handleDelete(it._id)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
-                  <FaTrash className="w-3.5 h-3.5" /> 删除
-                </motion.button>
-              </div>
-            </div>
-          ))}
-          {!loading && items.length === 0 && (
-            <div className="p-6 text-center text-[#023047]/30">暂无数据</div>
-          )}
+      <div className="bg-white/80 backdrop-blur-sm border border-[#8ECAE6]/30 rounded-2xl p-3 shadow-sm">
+        <div className="flex flex-col xl:flex-row gap-3 xl:items-center xl:justify-between">
+          <div className="grid grid-cols-3 gap-2">
+            <PanelButton icon={<Clipboard className="w-4 h-4" />} active={activePanel === 'usage'} onClick={() => setActivePanel('usage')}>
+              使用
+            </PanelButton>
+            <PanelButton icon={<Play className="w-4 h-4" />} active={activePanel === 'test'} onClick={() => setActivePanel('test')}>
+              测试
+            </PanelButton>
+            <PanelButton icon={<KeyRound className="w-4 h-4" />} active={activePanel === 'secrets'} onClick={() => setActivePanel('secrets')}>
+              密钥
+            </PanelButton>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <motion.button
+              onClick={() => refreshAll(page, pageSize)}
+              disabled={loading}
+              className="px-3 py-2 rounded-lg border border-[#8ECAE6]/40 text-[#023047] hover:bg-[#8ECAE6]/10 disabled:opacity-50 text-sm font-medium inline-flex items-center gap-2"
+              whileHover={hoverScale(1.02)}
+              whileTap={tapScale(0.98)}
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> 刷新
+            </motion.button>
+            <motion.button
+              onClick={openCreate}
+              className="px-3 py-2 rounded-lg bg-[#FFB703] text-[#023047] hover:bg-[#FB8500] text-sm font-semibold inline-flex items-center gap-2"
+              whileHover={hoverScale(1.02)}
+              whileTap={tapScale(0.98)}
+            >
+              <Plus className="w-4 h-4" /> 新增
+            </motion.button>
+          </div>
+        </div>
+        <div className="mt-3">{renderPanel()}</div>
+      </div>
+
+      <div className="bg-white/80 backdrop-blur-sm border border-[#8ECAE6]/30 rounded-2xl p-3 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3">
+          <div>
+            <label className="block text-xs text-[#023047]/60 mb-1">routeKey</label>
+            <select
+              value={routeKeyFilter}
+              onChange={(event) => setRouteKeyFilter(event.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-[#8ECAE6]/40 bg-white text-[#023047]"
+            >
+              <option value="all">全部</option>
+              <option value="null">未分组</option>
+              {groups.map((group) => (
+                <option key={String(group.routeKey ?? group.key ?? 'null')} value={String(group.routeKey ?? group.key ?? 'null')}>
+                  {String(group.routeKey ?? group.key ?? '未分组')} ({group.total})
+                </option>
+              ))}
+            </select>
+          </div>
+          <FilterInput label="provider" value={providerFilter} onChange={setProviderFilter} placeholder="resend" />
+          <FilterInput label="type" value={typeFilter} onChange={setTypeFilter} placeholder="email.delivered" />
+          <FilterInput label="status" value={statusFilter} onChange={setStatusFilter} placeholder="processed" />
+          <FilterInput label="eventId" value={eventIdFilter} onChange={setEventIdFilter} placeholder="evt_xxx" />
+          <FilterInput label="搜索" value={searchFilter} onChange={setSearchFilter} placeholder="标题/主题" />
+        </div>
+        <div className="mt-3 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2">
+          <div className="flex flex-wrap gap-2">
+            <motion.button
+              onClick={() => fetchList(1, pageSize)}
+              className="px-3 py-2 rounded-lg bg-[#023047] text-white hover:bg-[#034766] text-sm font-medium inline-flex items-center gap-2"
+              whileHover={hoverScale(1.02)}
+              whileTap={tapScale(0.98)}
+            >
+              <Search className="w-4 h-4" /> 应用筛选
+            </motion.button>
+            <button
+              onClick={() => {
+                setRouteKeyFilter('all');
+                setProviderFilter('');
+                setTypeFilter('');
+                setStatusFilter('');
+                setEventIdFilter('');
+                setSearchFilter('');
+              }}
+              className="px-3 py-2 rounded-lg border border-[#8ECAE6]/40 text-[#023047] hover:bg-[#8ECAE6]/10 text-sm"
+            >
+              清空
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => exportEvents('json')} className="px-3 py-2 rounded-lg border border-[#8ECAE6]/40 text-[#023047] hover:bg-[#8ECAE6]/10 text-sm inline-flex items-center gap-2">
+              <FileJson className="w-4 h-4" /> JSON
+            </button>
+            <button onClick={() => exportEvents('csv')} className="px-3 py-2 rounded-lg border border-[#8ECAE6]/40 text-[#023047] hover:bg-[#8ECAE6]/10 text-sm inline-flex items-center gap-2">
+              <Download className="w-4 h-4" /> CSV
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white/80 backdrop-blur-sm border border-[#8ECAE6]/30 rounded-2xl shadow-xl overflow-hidden">
+        <div className="p-3 border-b border-[#8ECAE6]/20 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2 text-sm text-[#023047]/70">
+            <button onClick={togglePageSelection} className="px-3 py-2 rounded-lg border border-[#8ECAE6]/40 hover:bg-[#8ECAE6]/10 inline-flex items-center gap-2">
+              {allPageSelected ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />} 当前页
+            </button>
+            <span>已选 {selectedIds.length} 条</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <select
+              onChange={(event) => {
+                if (event.target.value) void handleBulkStatus(event.target.value);
+                event.target.value = '';
+              }}
+              disabled={selectedIds.length === 0 || actionLoading === 'bulk-status'}
+              className="px-3 py-2 rounded-lg border border-[#8ECAE6]/40 bg-white text-[#023047] text-sm disabled:opacity-50"
+              defaultValue=""
+            >
+              <option value="" disabled>批量状态</option>
+              {STATUS_OPTIONS.map((status) => (
+                <option key={status} value={status}>{status}</option>
+              ))}
+            </select>
+            <button
+              onClick={handleBulkDelete}
+              disabled={selectedIds.length === 0 || actionLoading === 'bulk-delete'}
+              className="px-3 py-2 rounded-lg bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 text-sm inline-flex items-center gap-2"
+            >
+              <Trash2 className="w-4 h-4" /> 批量删除
+            </button>
+            <select
+              value={pageSize}
+              onChange={(event) => fetchList(1, Number(event.target.value))}
+              className="px-3 py-2 rounded-lg border border-[#8ECAE6]/40 bg-white text-[#023047] text-sm"
+            >
+              {[10, 20, 50, 100].map((size) => (
+                <option key={size} value={size}>{size}/页</option>
+              ))}
+            </select>
+          </div>
         </div>
 
-        {/* Desktop Table */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="min-w-full text-xs sm:text-sm table-fixed">
+        <div className="block lg:hidden divide-y divide-[#8ECAE6]/20">
+          {items.map((item) => (
+            <EventCard
+              key={item._id}
+              item={item}
+              checked={selectedSet.has(item._id)}
+              onCheck={() => toggleOne(item._id)}
+              onDetail={() => setSelected(item)}
+              onEdit={() => openEdit(item)}
+              onReplay={() => handleReplay(item._id)}
+              onDelete={() => handleDelete(item._id)}
+              onStatusChange={(status) => handleStatusChange(item._id, status)}
+              actionLoading={actionLoading}
+            />
+          ))}
+          {!loading && items.length === 0 && <div className="p-6 text-center text-[#023047]/40">暂无数据</div>}
+        </div>
+
+        <div className="hidden lg:block overflow-x-auto">
+          <table className="min-w-full text-sm table-fixed">
             <thead className="bg-[#8ECAE6]/10">
               <tr className="text-left text-[#023047]">
-                <th className="p-3 w-28">类型</th>
-                <th className="p-3 w-48 hidden md:table-cell">事件ID</th>
-                <th className="p-3 w-48 hidden sm:table-cell">标题</th>
-                <th className="p-3 w-64 hidden lg:table-cell">通知内容</th>
-                <th className="p-3 w-24">状态</th>
+                <th className="p-3 w-12"></th>
+                <th className="p-3 w-32">来源</th>
+                <th className="p-3 w-40">类型</th>
+                <th className="p-3 w-44">事件 ID</th>
+                <th className="p-3 w-64">摘要</th>
+                <th className="p-3 w-40">状态</th>
                 <th className="p-3 w-44">时间</th>
-                <th className="p-3 w-40">操作</th>
+                <th className="p-3 w-64">操作</th>
               </tr>
             </thead>
             <tbody>
-              {items.map(it => (
-                <tr key={it._id} className="border-t border-[#8ECAE6]/20 hover:bg-[#8ECAE6]/10">
-                  <td className="p-3 whitespace-nowrap text-[#023047]">{it.type}</td>
-                  <td className="p-3 truncate hidden md:table-cell text-[#023047]/70" title={it.eventId || ''}>{it.eventId || '-'}</td>
-                  <td className="p-3 truncate hidden sm:table-cell text-[#023047]">{it.title || it.subject || '-'}</td>
-                  <td className="p-3 hidden lg:table-cell text-[#023047]/70">
-                    <div className="truncate max-w-xs" title={it.renderedContent || ''}>
-                      {it.renderedContent || (typeof it.to === 'string' ? it.to : Array.isArray(it.to) ? it.to.join(', ') : '-')}
-                    </div>
+              {items.map((item) => (
+                <tr key={item._id} className="border-t border-[#8ECAE6]/20 hover:bg-[#8ECAE6]/10">
+                  <td className="p-3">
+                    <button onClick={() => toggleOne(item._id)} className="text-[#023047]/70 hover:text-[#023047]" aria-label="选择事件">
+                      {selectedSet.has(item._id) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                    </button>
                   </td>
-                  <td className="p-3 whitespace-nowrap text-[#023047]">{it.status || '-'}</td>
-                  <td className="p-3 whitespace-nowrap text-[#023047]/70">{it.receivedAt ? new Date(it.receivedAt).toLocaleString('zh-CN') : '-'}</td>
+                  <td className="p-3 text-[#023047]">
+                    <div className="font-medium truncate">{item.provider || '-'}</div>
+                    <div className="text-xs text-[#023047]/50 truncate">{item.routeKey || '默认'}</div>
+                  </td>
+                  <td className="p-3 text-[#023047] truncate" title={item.type}>{item.type || '-'}</td>
+                  <td className="p-3 text-[#023047]/70 font-mono truncate" title={item.eventId || ''}>{item.eventId || '-'}</td>
+                  <td className="p-3 text-[#023047]">
+                    <div className="truncate">{item.title || item.subject || '-'}</div>
+                    <div className="text-xs text-[#023047]/50 truncate">{item.renderedContent || stringifyJson(item.to) || ''}</div>
+                  </td>
+                  <td className="p-3">
+                    <select
+                      value={item.status || ''}
+                      onChange={(event) => handleStatusChange(item._id, event.target.value)}
+                      className={`w-full px-2 py-1 rounded-md border text-xs ${statusClass(item.status)}`}
+                    >
+                      <option value="">未设置</option>
+                      {STATUS_OPTIONS.map((status) => (
+                        <option key={status} value={status}>{status}</option>
+                      ))}
+                      {item.status && !STATUS_OPTIONS.includes(item.status) && <option value={item.status}>{item.status}</option>}
+                    </select>
+                  </td>
+                  <td className="p-3 text-[#023047]/70 whitespace-nowrap">{formatDate(item.receivedAt)}</td>
                   <td className="p-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      <motion.button className="px-2 py-1 rounded-lg bg-[#8ECAE6]/15 hover:bg-[#8ECAE6]/25 text-[#219EBC] border border-[#8ECAE6]/30 text-xs font-medium flex items-center gap-2" onClick={() => openDetail(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
-                        <FaEye className="w-3.5 h-3.5" /> <span className="hidden sm:inline">详情</span>
-                      </motion.button>
-                      <motion.button className="px-2 py-1 rounded-lg bg-[#FFB703] text-[#023047] hover:bg-[#FB8500] text-xs font-medium" onClick={() => openEdit(it)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
-                        <FaEdit className="w-3.5 h-3.5" /> <span className="hidden sm:inline">编辑</span>
-                      </motion.button>
-                      <motion.button className="px-2 py-1 rounded-lg bg-red-500 text-white hover:bg-red-600 text-xs font-medium" onClick={() => handleDelete(it._id)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
-                        <FaTrash className="w-3.5 h-3.5" /> <span className="hidden sm:inline">删除</span>
-                      </motion.button>
+                      <IconButton title="详情" onClick={() => setSelected(item)}><Eye className="w-4 h-4" /></IconButton>
+                      <IconButton title="编辑" onClick={() => openEdit(item)} tone="warning"><Pencil className="w-4 h-4" /></IconButton>
+                      <IconButton title="重放" onClick={() => handleReplay(item._id)}><RotateCcw className="w-4 h-4" /></IconButton>
+                      <IconButton title="删除" onClick={() => handleDelete(item._id)} tone="danger"><Trash2 className="w-4 h-4" /></IconButton>
                     </div>
                   </td>
                 </tr>
               ))}
               {!loading && items.length === 0 && (
                 <tr>
-                  <td className="p-6 text-center text-[#023047]/30" colSpan={7}>暂无数据</td>
+                  <td className="p-6 text-center text-[#023047]/40" colSpan={8}>暂无数据</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-        {loading && <div className="p-4 text-[#023047]/30">加载中…</div>}
-      </motion.div>
+        {loading && <div className="p-4 text-[#023047]/50">加载中...</div>}
+      </div>
 
-      {/* Pagination */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-white/80 backdrop-blur-sm border border-[#8ECAE6]/30 rounded-2xl">
-        <div className="text-sm text-[#023047]/70">共 {total} 条 • 第 {page}/{totalPages} 页</div>
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <motion.button disabled={page <= 1} onClick={() => fetchList(page - 1, pageSize)} className="w-full sm:w-auto px-3 py-2 rounded-lg bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047]/70 disabled:opacity-50" whileHover={hoverScale(1.02, page > 1)} whileTap={tapScale(0.98, page > 1)}>上一页</motion.button>
-          <motion.button disabled={page >= totalPages} onClick={() => fetchList(page + 1, pageSize)} className="w-full sm:w-auto px-3 py-2 rounded-lg bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047]/70 disabled:opacity-50" whileHover={hoverScale(1.02, page < totalPages)} whileTap={tapScale(0.98, page < totalPages)}>下一页</motion.button>
+        <div className="text-sm text-[#023047]/70">共 {total} 条，第 {page}/{totalPages} 页</div>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <motion.button
+            disabled={page <= 1}
+            onClick={() => fetchList(page - 1, pageSize)}
+            className="px-3 py-2 rounded-lg bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047]/70 disabled:opacity-50"
+            whileHover={hoverScale(1.02, page > 1)}
+            whileTap={tapScale(0.98, page > 1)}
+          >
+            上一页
+          </motion.button>
+          <motion.button
+            disabled={page >= totalPages}
+            onClick={() => fetchList(page + 1, pageSize)}
+            className="px-3 py-2 rounded-lg bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047]/70 disabled:opacity-50"
+            whileHover={hoverScale(1.02, page < totalPages)}
+            whileTap={tapScale(0.98, page < totalPages)}
+          >
+            下一页
+          </motion.button>
         </div>
       </div>
 
-      {/* 详情弹窗 — Portal 到 body 以逃逸 backdrop-blur 产生的 stacking context */}
       {ReactDOM.createPortal(
         <AnimatePresence>
           {selected && (
-            <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-2 sm:p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <motion.div className="bg-white/90 backdrop-blur rounded-2xl max-w-3xl w-[95vw] max-h-[90vh] flex flex-col p-4 sm:p-6 border border-[#8ECAE6]/30 shadow-xl" initial={{ scale: 0.95, y: 10, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 10, opacity: 0 }} data-source-modal="webhook-event-detail">
-                <div className="flex items-center justify-between mb-3 flex-shrink-0">
-                  <div className="font-semibold text-[#023047] font-songti">事件详情</div>
-                  <motion.button onClick={closeDetailModal} className="px-3 py-1 rounded-lg bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047] border border-[#8ECAE6]/30 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
-                    <FaTimes className="w-4 h-4" /> 关闭
-                  </motion.button>
+            <Modal onClose={() => setSelected(null)} title="事件详情">
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                  <SummaryField label="来源" value={`${selected.provider || '-'} / ${selected.routeKey || '默认'}`} />
+                  <SummaryField label="类型" value={selected.type || '-'} />
+                  <SummaryField label="状态" value={selected.status || '-'} />
                 </div>
-                <div className="flex-1 overflow-auto min-h-0">
-                {/* 结构化通知摘要 */}
                 {(selected.title || selected.renderedContent) && (
-                  <div className="mb-3 p-3 bg-[#8ECAE6]/10 border border-[#8ECAE6]/30 rounded-lg space-y-1">
-                    {selected.title && <div className="text-sm font-semibold text-[#023047]">📌 {selected.title}</div>}
-                    {selected.renderedContent && <div className="text-sm text-[#023047]/70 whitespace-pre-wrap">{selected.renderedContent}</div>}
-                    {selected.content && selected.content !== selected.renderedContent && (
-                      <div className="text-xs text-[#023047]/30 mt-1">模板: {selected.content}</div>
-                    )}
+                  <div className="rounded-lg border border-[#8ECAE6]/30 bg-[#8ECAE6]/10 p-3">
+                    <div className="font-semibold text-[#023047]">{selected.title || selected.subject || '摘要'}</div>
+                    {selected.renderedContent && <div className="mt-1 text-sm text-[#023047]/70 whitespace-pre-wrap">{selected.renderedContent}</div>}
                   </div>
                 )}
-                <pre className="text-xs bg-gray-900 text-gray-100 p-3 rounded overflow-auto">{JSON.stringify(selected, null, 2)}</pre>
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => copyText(JSON.stringify(selected, null, 2), '事件 JSON 已复制')} className="px-3 py-2 rounded-lg border border-[#8ECAE6]/40 text-[#023047] hover:bg-[#8ECAE6]/10 text-sm inline-flex items-center gap-2">
+                    <Copy className="w-4 h-4" /> 复制 JSON
+                  </button>
+                  <button onClick={() => handleReplay(selected._id)} className="px-3 py-2 rounded-lg border border-[#8ECAE6]/40 text-[#023047] hover:bg-[#8ECAE6]/10 text-sm inline-flex items-center gap-2">
+                    <RotateCcw className="w-4 h-4" /> 重放
+                  </button>
                 </div>
-              </motion.div>
-            </motion.div>
+                <pre className="text-xs bg-slate-950 text-slate-100 p-3 rounded-lg overflow-auto max-h-[50vh]">{JSON.stringify(selected, null, 2)}</pre>
+              </div>
+            </Modal>
           )}
         </AnimatePresence>,
-        document.body
+        document.body,
       )}
 
-      {/* 编辑/创建弹窗 — Portal 到 body */}
       {ReactDOM.createPortal(
         <AnimatePresence>
-          {(editing || creating) && (
-            <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-2 sm:p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <motion.div className="bg-white/90 backdrop-blur rounded-2xl max-w-2xl w-[95vw] max-h-[90vh] flex flex-col p-4 sm:p-6 border border-[#8ECAE6]/30 shadow-xl" initial={{ scale: 0.95, y: 10, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 10, opacity: 0 }} data-source-modal="webhook-event-edit">
-              <div className="flex items-center justify-between flex-shrink-0">
-                <div className="font-semibold text-[#023047] font-songti">{creating ? '新增事件' : '编辑事件'}</div>
-                <motion.button onClick={closeEditModal} className="px-3 py-1 rounded-lg bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047] border border-[#8ECAE6]/30 text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
-                  <FaTimes className="w-4 h-4" /> 关闭
-                </motion.button>
-              </div>
-              <div className="flex-1 overflow-auto min-h-0 mt-4 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm text-[#023047]/70 mb-1">类型</label>
-                  <input className="w-full px-3 py-2 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]" value={editing?.type || ''} onChange={e => setEditing({ ...(editing as any), type: e.target.value })} />
-                </div>
-                <div>
-                  <label className="block text-sm text-[#023047]/70 mb-1">事件ID</label>
-                  <input className="w-full px-3 py-2 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]" value={editing?.eventId || ''} onChange={e => setEditing({ ...(editing as any), eventId: e.target.value })} />
-                </div>
-                <div>
-                  <label className="block text-sm text-[#023047]/70 mb-1">分组(routeKey)</label>
-                  <input className="w-full px-3 py-2 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]" value={editing?.routeKey ?? ''} onChange={e => setEditing({ ...(editing as any), routeKey: e.target.value || null })} />
-                </div>
-                <div>
-                  <label className="block text-sm text-[#023047]/70 mb-1">主题</label>
-                  <input className="w-full px-3 py-2 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]" value={editing?.subject || ''} onChange={e => setEditing({ ...(editing as any), subject: e.target.value })} />
-                </div>
-                <div>
-                  <label className="block text-sm text-[#023047]/70 mb-1">状态</label>
-                  <input className="w-full px-3 py-2 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]" value={editing?.status || ''} onChange={e => setEditing({ ...(editing as any), status: e.target.value })} />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-sm text-[#023047]/70 mb-1">标题(title)</label>
-                  <input className="w-full px-3 py-2 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]" value={editing?.title || ''} onChange={e => setEditing({ ...(editing as any), title: e.target.value })} placeholder="通知标题" />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-sm text-[#023047]/70 mb-1">内容模板(content)</label>
-                  <textarea className="w-full px-3 py-2 h-20 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]" value={editing?.content || ''} onChange={e => setEditing({ ...(editing as any), content: e.target.value })} placeholder="支持 {{value}} 占位符" />
-                </div>
-                {editing?.renderedContent && (
-                  <div className="sm:col-span-2">
-                    <label className="block text-sm text-[#023047]/70 mb-1">渲染后内容(renderedContent)</label>
-                    <div className="w-full px-3 py-2 rounded-lg bg-[#8ECAE6]/10 border border-[#8ECAE6]/30 text-sm text-[#023047]/70 whitespace-pre-wrap">{editing.renderedContent}</div>
+          {editing && (
+            <Modal onClose={closeEdit} title={editMode === 'create' ? '新增事件' : '编辑事件'} width="max-w-3xl">
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <EditInput label="provider" value={editing.provider || ''} onChange={(value) => setEditing({ ...editing, provider: value })} />
+                  <EditInput label="routeKey" value={editing.routeKey || ''} onChange={(value) => setEditing({ ...editing, routeKey: value || null })} />
+                  <EditInput label="type" value={editing.type || ''} onChange={(value) => setEditing({ ...editing, type: value })} />
+                  <EditInput label="eventId" value={editing.eventId || ''} onChange={(value) => setEditing({ ...editing, eventId: value })} />
+                  <EditInput label="status" value={editing.status || ''} onChange={(value) => setEditing({ ...editing, status: value })} />
+                  <EditInput label="subject" value={editing.subject || ''} onChange={(value) => setEditing({ ...editing, subject: value })} />
+                  <div className="md:col-span-2">
+                    <EditInput label="title" value={editing.title || ''} onChange={(value) => setEditing({ ...editing, title: value })} />
                   </div>
-                )}
-                <div className="sm:col-span-2">
-                  <label className="block text-sm text-[#023047]/70 mb-1">收件人(to)</label>
-                  <input className="w-full px-3 py-2 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]" value={typeof editing?.to === 'string' ? (editing?.to || '') : JSON.stringify(editing?.to || '')} onChange={e => {
-                    let value: any = e.target.value;
-                    try { value = JSON.parse(e.target.value); } catch {}
-                    setEditing({ ...(editing as any), to: value });
-                  }} />
+                  <div className="md:col-span-2">
+                    <label className="block text-sm text-[#023047]/70 mb-1">content</label>
+                    <textarea
+                      value={editing.content || ''}
+                      onChange={(event) => setEditing({ ...editing, content: event.target.value })}
+                      className="w-full h-20 px-3 py-2 rounded-lg border border-[#8ECAE6]/40 focus:ring-2 focus:ring-[#FFB703] text-[#023047]"
+                    />
+                  </div>
+                  <JsonDraft label="to" value={toDraft} onChange={setToDraft} height="h-20" />
+                  <JsonDraft label="data" value={dataDraft} onChange={setDataDraft} />
+                  <JsonDraft label="raw" value={rawDraft} onChange={setRawDraft} />
                 </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-sm text-[#023047]/70 mb-1">数据(data)</label>
-                  <textarea
-                    className="w-full px-3 py-2 h-32 rounded-lg bg-white border border-[#8ECAE6]/30 focus:ring-2 focus:ring-[#FFB703] text-[#023047]"
-                    value={
-                      editing?.data == null
-                        ? ''
-                        : (typeof editing.data === 'string'
-                            ? (editing.data as string)
-                            : JSON.stringify(editing.data, null, 2))
-                    }
-                    onChange={e => {
-                      const raw = e.target.value;
-                      // Try parse as JSON; if fails, keep as raw string
-                      try {
-                        const parsed = JSON.parse(raw);
-                        setEditing({ ...(editing as any), data: parsed });
-                      } catch {
-                        setEditing({ ...(editing as any), data: raw });
-                      }
-                    }}
-                  />
+                <div className="flex justify-end gap-2 pt-3 border-t border-[#8ECAE6]/30">
+                  <button onClick={closeEdit} className="px-3 py-2 rounded-lg border border-[#8ECAE6]/40 text-[#023047] hover:bg-[#8ECAE6]/10 text-sm">
+                    取消
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={actionLoading === 'save-event'}
+                    className="px-3 py-2 rounded-lg bg-[#FFB703] text-[#023047] hover:bg-[#FB8500] disabled:opacity-50 text-sm font-semibold inline-flex items-center gap-2"
+                  >
+                    <Save className="w-4 h-4" /> {actionLoading === 'save-event' ? '保存中' : '保存'}
+                  </button>
                 </div>
               </div>
-              </div>
-              <div className="flex items-center justify-end gap-2 flex-shrink-0 pt-3 border-t border-[#8ECAE6]/30">
-                {!creating && (
-                  <motion.button onClick={handleSave} className="px-3 py-2 rounded-lg bg-[#FFB703] text-[#023047] hover:bg-[#FB8500] text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
-                    <FaEdit className="w-4 h-4" /> 保存
-                  </motion.button>
-                )}
-                {creating && (
-                  <motion.button onClick={handleCreate} className="px-3 py-2 rounded-lg bg-[#FFB703] text-[#023047] hover:bg-[#FB8500] text-sm font-medium flex items-center gap-2" whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
-                    <FaPlus className="w-4 h-4" /> 创建
-                  </motion.button>
-                )}
-              </div>
-              </motion.div>
-            </motion.div>
+            </Modal>
           )}
         </AnimatePresence>,
-        document.body
+        document.body,
       )}
     </div>
   );
 };
+
+function HeaderStat({ label, value, tone }: { label: string; value: number; tone?: 'warning' }) {
+  return (
+    <div className={`rounded-lg px-3 py-2 border ${tone === 'warning' ? 'bg-red-500/15 border-red-300/20' : 'bg-white/10 border-white/10'}`}>
+      <div className="text-xs text-[#8ECAE6]">{label}</div>
+      <div className="text-lg font-semibold">{value}</div>
+    </div>
+  );
+}
+
+function PanelButton({ active, icon, children, onClick }: { active: boolean; icon: React.ReactNode; children: React.ReactNode; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-3 py-2 rounded-lg border text-sm font-medium inline-flex items-center justify-center gap-2 ${active ? 'bg-[#023047] text-white border-[#023047]' : 'bg-white text-[#023047] border-[#8ECAE6]/40 hover:bg-[#8ECAE6]/10'}`}
+    >
+      {icon}
+      {children}
+    </button>
+  );
+}
+
+function EndpointBox({ label, value, onCopy }: { label: string; value: string; onCopy: () => void }) {
+  return (
+    <div className="rounded-lg border border-[#8ECAE6]/30 bg-[#8ECAE6]/10 p-3 min-w-0">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs font-semibold text-[#023047]/70">{label}</div>
+        <button onClick={onCopy} className="p-1.5 rounded-md hover:bg-white/70 text-[#023047]" title={`复制 ${label}`}>
+          <Copy className="w-4 h-4" />
+        </button>
+      </div>
+      <div className="mt-1 text-xs font-mono text-[#023047] break-all">{value}</div>
+    </div>
+  );
+}
+
+function CodeBlock({ title, value, onCopy }: { title: string; value: string; onCopy: () => void }) {
+  return (
+    <div className="rounded-lg border border-slate-800 bg-slate-950 overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800">
+        <div className="text-xs text-slate-300">{title}</div>
+        <button onClick={onCopy} className="p-1.5 rounded-md hover:bg-slate-800 text-slate-200" title="复制">
+          <Copy className="w-4 h-4" />
+        </button>
+      </div>
+      <pre className="p-3 overflow-auto text-xs text-slate-100 whitespace-pre-wrap break-all">{value}</pre>
+    </div>
+  );
+}
+
+function FilterInput({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder: string }) {
+  return (
+    <div>
+      <label className="block text-xs text-[#023047]/60 mb-1">{label}</label>
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="w-full px-3 py-2 rounded-lg border border-[#8ECAE6]/40 bg-white text-[#023047]"
+      />
+    </div>
+  );
+}
+
+function IconButton({ children, title, onClick, tone }: { children: React.ReactNode; title: string; onClick: () => void; tone?: 'warning' | 'danger' }) {
+  const toneClass =
+    tone === 'danger'
+      ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+      : tone === 'warning'
+        ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+        : 'bg-[#8ECAE6]/15 text-[#219EBC] border-[#8ECAE6]/30 hover:bg-[#8ECAE6]/25';
+  return (
+    <button onClick={onClick} title={title} className={`p-2 rounded-lg border ${toneClass}`}>
+      {children}
+    </button>
+  );
+}
+
+function EventCard({
+  item,
+  checked,
+  onCheck,
+  onDetail,
+  onEdit,
+  onReplay,
+  onDelete,
+  onStatusChange,
+}: {
+  item: WebhookEventItem;
+  checked: boolean;
+  actionLoading: string | null;
+  onCheck: () => void;
+  onDetail: () => void;
+  onEdit: () => void;
+  onReplay: () => void;
+  onDelete: () => void;
+  onStatusChange: (status: string) => void;
+}) {
+  return (
+    <div className="p-4">
+      <div className="flex items-start gap-3">
+        <button onClick={onCheck} className="mt-1 text-[#023047]/70" aria-label="选择事件">
+          {checked ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+        </button>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#219EBC]/15 text-[#219EBC]">{item.type || '未分类'}</span>
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-[11px] font-medium ${statusClass(item.status)}`}>{item.status || '未设置'}</span>
+            {item.eventId && <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-mono bg-[#8ECAE6]/10 text-[#023047]/70 max-w-full truncate">#{item.eventId}</span>}
+          </div>
+          <div className="mt-1 text-xs text-[#023047]/60">
+            {item.provider || '-'} / {item.routeKey || '默认'} / {formatDate(item.receivedAt)}
+          </div>
+          <div className="mt-2 text-sm font-medium text-[#023047] truncate">{item.title || item.subject || '-'}</div>
+          {item.renderedContent && <div className="mt-1 text-xs text-[#023047]/70 line-clamp-2 whitespace-pre-wrap">{item.renderedContent}</div>}
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <select value={item.status || ''} onChange={(event) => onStatusChange(event.target.value)} className={`px-2 py-2 rounded-lg border text-xs ${statusClass(item.status)}`}>
+          <option value="">未设置</option>
+          {STATUS_OPTIONS.map((status) => (
+            <option key={status} value={status}>{status}</option>
+          ))}
+          {item.status && !STATUS_OPTIONS.includes(item.status) && <option value={item.status}>{item.status}</option>}
+        </select>
+        <div className="grid grid-cols-4 gap-2">
+          <IconButton title="详情" onClick={onDetail}><Eye className="w-4 h-4" /></IconButton>
+          <IconButton title="编辑" onClick={onEdit} tone="warning"><Pencil className="w-4 h-4" /></IconButton>
+          <IconButton title="重放" onClick={onReplay}><RotateCcw className="w-4 h-4" /></IconButton>
+          <IconButton title="删除" onClick={onDelete} tone="danger"><Trash2 className="w-4 h-4" /></IconButton>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Modal({ title, onClose, children, width = 'max-w-4xl' }: { title: string; onClose: () => void; children: React.ReactNode; width?: string }) {
+  return (
+    <motion.div className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm flex items-center justify-center p-3" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <motion.div
+        className={`bg-white/95 backdrop-blur rounded-2xl ${width} w-[95vw] max-h-[90vh] flex flex-col p-4 sm:p-6 border border-[#8ECAE6]/30 shadow-xl`}
+        initial={{ scale: 0.96, y: 10, opacity: 0 }}
+        animate={{ scale: 1, y: 0, opacity: 1 }}
+        exit={{ scale: 0.96, y: 10, opacity: 0 }}
+      >
+        <div className="flex items-center justify-between gap-3 mb-3 flex-shrink-0">
+          <div className="font-semibold text-[#023047]">{title}</div>
+          <button onClick={onClose} className="p-2 rounded-lg border border-[#8ECAE6]/40 text-[#023047] hover:bg-[#8ECAE6]/10" title="关闭">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-auto min-h-0">{children}</div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function SummaryField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-[#8ECAE6]/30 bg-[#8ECAE6]/10 p-3">
+      <div className="text-xs text-[#023047]/60">{label}</div>
+      <div className="text-[#023047] break-all">{value}</div>
+    </div>
+  );
+}
+
+function EditInput({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <div>
+      <label className="block text-sm text-[#023047]/70 mb-1">{label}</label>
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full px-3 py-2 rounded-lg border border-[#8ECAE6]/40 focus:ring-2 focus:ring-[#FFB703] text-[#023047]"
+      />
+    </div>
+  );
+}
+
+function JsonDraft({ label, value, onChange, height = 'h-32' }: { label: string; value: string; onChange: (value: string) => void; height?: string }) {
+  return (
+    <div className="md:col-span-2">
+      <label className="block text-sm text-[#023047]/70 mb-1">{label}</label>
+      <textarea
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        spellCheck={false}
+        className={`w-full ${height} px-3 py-2 rounded-lg border border-[#8ECAE6]/40 focus:ring-2 focus:ring-[#FFB703] text-[#023047] font-mono text-xs`}
+      />
+    </div>
+  );
+}
 
 export default WebhookEventsManager;
