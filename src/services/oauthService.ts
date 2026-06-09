@@ -213,6 +213,10 @@ function isDuplicateKeyError(error: unknown): boolean {
   return code === 11000 || code === 11001;
 }
 
+function wasUpdateApplied(result: { modifiedCount?: number; matchedCount?: number; nModified?: number }): boolean {
+  return Number(result.modifiedCount ?? result.nModified ?? result.matchedCount ?? 0) > 0;
+}
+
 function isLocalhostName(hostname: string): boolean {
   const host = hostname.toLowerCase();
   return host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "[::1]";
@@ -702,7 +706,7 @@ export async function updateOAuthClient(
     }
   }
 
-  return updated ? toOAuthClientView(updated) : null;
+  return toOAuthClientView(updated);
 }
 
 export async function rotateOAuthClientSecret(clientId: string): Promise<{ client: OAuthClientView; clientSecret: string } | null> {
@@ -915,7 +919,7 @@ export async function exchangeAuthorizationCode(opts: {
     },
     { $set: { usedAt: new Date(), updatedAt: new Date() } },
   );
-  if (consumed.modifiedCount === 0) {
+  if (!wasUpdateApplied(consumed)) {
     throw new OAuthError(400, "invalid_grant", "授权码无效、已过期或已被使用");
   }
 
@@ -975,7 +979,7 @@ export async function refreshAccessToken(opts: {
     },
     { $set: { revokedAt: new Date(), updatedAt: new Date() } },
   );
-  if (consumed.modifiedCount === 0) {
+  if (!wasUpdateApplied(consumed)) {
     throw new OAuthError(400, "invalid_grant", "refresh_token 已被使用或已过期");
   }
 

@@ -8,12 +8,14 @@ import {
 import logger from "../utils/logger";
 
 const oauthRateBuckets = new Map<string, { count: number; resetAt: number }>();
+const OAUTH_RATE_BUCKET_CLEANUP_INTERVAL_MS = 60_000;
+const MAX_OAUTH_RATE_BUCKETS = 50_000;
+let oauthRateBucketCleanupTimer: ReturnType<typeof setInterval> | null = null;
 
 function getBearerToken(req: Request): string | null {
   const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) return null;
-  const token = authHeader.substring(7).trim();
-  return token || null;
+  const match = authHeader?.match(/^Bearer\s+(.+)$/i);
+  return match?.[1]?.trim() || null;
 }
 
 function resolveIp(req: Request): string {
@@ -24,6 +26,11 @@ function resolveIp(req: Request): string {
 }
 
 function checkTokenRateLimit(tokenId: string, maxPerMinute: number): boolean {
+  ensureOAuthRateBucketCleanup();
+  if (oauthRateBuckets.size > MAX_OAUTH_RATE_BUCKETS) {
+    cleanupExpiredOAuthRateBuckets();
+  }
+
   const now = Date.now();
   const bucketKey = `oauth:${tokenId}`;
   let bucket = oauthRateBuckets.get(bucketKey);
@@ -33,16 +40,34 @@ function checkTokenRateLimit(tokenId: string, maxPerMinute: number): boolean {
   }
 
   bucket.count += 1;
-  return bucket.count <= maxPerMinute;
+  const effectiveMaxPerMinute = Math.max(1, Math.floor(Number(maxPerMinute) || 120));
+  return bucket.count <= effectiveMaxPerMinute;
+}
+
+function cleanupExpiredOAuthRateBuckets(now = Date.now()): void {
+  for (const [key, bucket] of oauthRateBuckets.entries()) {
+    if (bucket.resetAt <= now) {
+      oauthRateBuckets.delete(key);
+    }
+  }
+}
+
+function ensureOAuthRateBucketCleanup(): void {
+  if (oauthRateBucketCleanupTimer) return;
+
+  oauthRateBucketCleanupTimer = setInterval(cleanupExpiredOAuthRateBuckets, OAUTH_RATE_BUCKET_CLEANUP_INTERVAL_MS);
+  oauthRateBucketCleanupTimer.unref?.();
+}
+
+function buildBearerChallenge(errorCode?: string): string {
+  if (!errorCode) return "Bearer";
+  const safeCode = errorCode.replace(/[^A-Za-z0-9._~-]/g, "_").slice(0, 128) || "invalid_token";
+  return `Bearer error="${safeCode}"`;
 }
 
 function sendOAuthAuthError(res: Response, error: unknown): Response {
   if (error instanceof OAuthError) {
-    if (error.errorCode === "insufficient_scope") {
-      res.set("WWW-Authenticate", `Bearer error="insufficient_scope", error_description="${error.errorDescription}"`);
-    } else {
-      res.set("WWW-Authenticate", `Bearer error="${error.errorCode}", error_description="${error.errorDescription}"`);
-    }
+    res.set("WWW-Authenticate", buildBearerChallenge(error.errorCode));
     return res.status(error.statusCode).json({
       error: error.errorDescription,
       oauthError: error.errorCode,
@@ -60,11 +85,13 @@ export function oauthTokenAuth(requiredScope?: string, opts: { optional?: boolea
     const token = getBearerToken(req);
     if (!token) {
       if (opts.optional) return next();
+      res.set("WWW-Authenticate", buildBearerChallenge());
       return res.status(401).json({ error: "缺少 OAuth access token" });
     }
 
     if (!isOAuthAccessTokenValue(token)) {
       if (opts.optional) return next();
+      res.set("WWW-Authenticate", buildBearerChallenge("invalid_token"));
       return res.status(401).json({ error: "无效的 OAuth access token" });
     }
 

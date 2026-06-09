@@ -1,22 +1,8 @@
 import type { Request, Response } from "express";
-import { getResendSecret, verifyResendPayload, WebhookEventService } from "../services/webhookEventService";
+import { getResendSecret, normalizeGenericWebhookEvent, verifyResendPayload, WebhookEventService } from "../services/webhookEventService";
 import logger from "../utils/logger";
 
 export class WebhookController {
-  /**
-   * 将 content 中的 {{value}} 占位符按顺序替换为 values 数组中的值
-   */
-  private static renderContent(content: string, values?: any[]): string {
-    if (!content || !Array.isArray(values) || values.length === 0) return content || "";
-    let idx = 0;
-    return content.replace(/\{\{value\}\}/g, () => {
-      if (idx < values.length) {
-        return String(values[idx++]);
-      }
-      return "{{value}}";
-    });
-  }
-
   // POST /api/webhooks/generic 或 /api/webhooks/generic-:source
   // 接收任意服务的 POST 通知，无签名验证，直接持久化
   // 支持结构化通知格式：{ type, title, content, values, timestamp }
@@ -40,58 +26,27 @@ export class WebhookController {
               }
             })()
           : req.body || {};
-
-      const type = body.type || body.event || body.action || "generic";
-      const eventId = body.id || body.event_id || body.eventId || undefined;
-
-      // 解析结构化通知字段
-      const title = body.title || undefined;
-      const content = body.content || undefined;
-      const values = Array.isArray(body.values) ? body.values : undefined;
-      const renderedContent = content ? WebhookController.renderContent(content, values) : undefined;
-
-      // 时间戳：支持秒级和毫秒级
-      let createdAt: Date | undefined;
-      const ts = body.created_at || body.timestamp;
-      if (ts) {
-        const num = typeof ts === "number" ? ts : Number(ts);
-        // 秒级时间戳（10位）自动转毫秒
-        createdAt = new Date(num < 1e12 ? num * 1000 : num);
-      }
+      const normalized = normalizeGenericWebhookEvent(body, source);
 
       const summary = {
         source: source || "generic",
-        type,
-        eventId,
-        title,
-        renderedContent: renderedContent?.slice(0, 200),
+        type: normalized.type,
+        eventId: normalized.eventId,
+        title: normalized.title,
+        renderedContent: normalized.renderedContent?.slice(0, 200),
         keys: Object.keys(body).slice(0, 10),
       };
       logger.info("[GenericWebhook] Received event", summary);
 
       try {
-        await WebhookEventService.create({
-          provider: source || "generic",
-          routeKey: source || undefined,
-          eventId,
-          type,
-          title,
-          content,
-          renderedContent,
-          created_at: createdAt,
-          to: body.to || body.recipient || body.email || undefined,
-          subject: title || body.subject || body.message || undefined,
-          status: body.status || undefined,
-          data: body,
-          raw: body,
-        });
+        await WebhookEventService.create(normalized);
       } catch (dbErr) {
         logger.warn("[GenericWebhook] 保存事件到数据库失败", {
           error: dbErr instanceof Error ? dbErr.message : String(dbErr),
         });
       }
 
-      return res.status(200).json({ success: true, renderedContent });
+      return res.status(200).json({ success: true, renderedContent: normalized.renderedContent });
     } catch (err) {
       logger.error("[GenericWebhook] Error handling webhook", {
         error: err instanceof Error ? err.message : String(err),
