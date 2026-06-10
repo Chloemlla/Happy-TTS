@@ -52,8 +52,15 @@ export interface TtsSubmissionResult {
   duplicateJobResult?: {
     fileName: string;
     audioUrl: string;
+    audioFileId?: string;
+    audioStorage?: "file" | "mongo";
+    audioMimeType?: string;
+    audioSize?: number;
     message: string;
     outputFormat: string;
+    provider?: string;
+    providerModel?: string;
+    providerVoice?: string;
   };
 }
 
@@ -380,8 +387,15 @@ export class TtsSubmissionPipeline {
           duplicateJobResult: {
             fileName: duplicate.fileName,
             audioUrl: this.ttsService.buildAudioUrl(duplicate.fileName),
+            audioFileId: duplicate.audioFileId,
+            audioStorage: duplicate.audioStorage,
+            audioMimeType: duplicate.audioMimeType,
+            audioSize: duplicate.audioSize,
             message: "检测到重复内容，已返回已有音频。",
             outputFormat: duplicate.outputFormat,
+            provider: duplicate.provider,
+            providerModel: duplicate.providerModel,
+            providerVoice: duplicate.providerVoice,
           },
         };
       }

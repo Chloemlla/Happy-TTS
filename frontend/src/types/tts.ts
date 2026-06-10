@@ -68,7 +68,12 @@ export interface TtsResponse {
   success: boolean;
   status: "generated" | "reused";
   message: string;
+  text?: string;
   audioUrl: string;
+  audioFileId?: string;
+  audioStorage?: "file" | "mongo";
+  audioMimeType?: string;
+  audioSize?: number;
   taskId?: string;
   fileName?: string; // 兼容后端 fileName 字段
   signature: string;
@@ -100,6 +105,10 @@ export interface TtsHistoryRecord {
   contentHash: string;
   fileName: string;
   audioUrl: string;
+  audioFileId?: string;
+  audioStorage?: "file" | "mongo";
+  audioMimeType?: string;
+  audioSize?: number;
   signature?: string;
   provider: string;
   providerModel: string;

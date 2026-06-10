@@ -6,16 +6,31 @@ import { config } from "../config/config";
 import logger from "../utils/logger";
 import { ttsAudioPostProcessor } from "./tts.audioPostProcessor";
 import { ttsAssetAccessService } from "./tts.assetAccess";
-import { ttsAudioAssetStore } from "./tts.asset";
+import { ttsAudioAssetStore, type TtsAudioAssetMetadata } from "./tts.asset";
 import { TtsGenerationError } from "./tts.errors";
 import type { TtsAudioPostProcessor, TtsProviderRequest } from "./tts.ports";
 import { ttsProviderRouter, TtsProviderRouter } from "./tts.provider-router";
 
 dotenv.config();
 
-type OutputFormat = "mp3" | "opus" | "aac" | "flac" | "wav" | "pcm";
+export type OutputFormat = "mp3" | "opus" | "aac" | "flac" | "wav" | "pcm";
 
 export interface TtsRequest extends TtsProviderRequest {}
+
+export interface TtsGeneratedSpeechResult {
+  fileName: string;
+  audioUrl: string;
+  isDuplicate: boolean;
+  outputFormat: OutputFormat;
+  provider: string;
+  providerModel: string;
+  providerVoice: string;
+  watermarkId?: string;
+  audioFileId?: string;
+  audioStorage: "file" | "mongo";
+  audioMimeType: string;
+  audioSize: number;
+}
 
 interface UserViolation {
   count: number;
@@ -87,6 +102,32 @@ export class TtsService {
   private validateFileName(fileName: string): string {
     const sanitized = fileName.replace(/[<>:"/\\|?*\x00-\x1f]/g, "");
     return path.basename(sanitized);
+  }
+
+  private async buildFileOnlyAudioMetadata(params: {
+    contentHash: string;
+    fileName: string;
+    outputFormat: string;
+    watermarkId?: string;
+    ownerUserId?: string;
+    sourceTaskId?: string;
+    sourceFingerprintHash?: string;
+    policyVersion?: string;
+  }): Promise<TtsAudioAssetMetadata> {
+    const filePath = path.join(this.outputDir, this.validateFileName(params.fileName));
+    let size = 0;
+
+    try {
+      const stat = await fs.promises.stat(filePath);
+      size = stat.size;
+    } catch {
+      size = 0;
+    }
+
+    return ttsAudioAssetStore.buildFileOnlyMetadata({
+      ...params,
+      size,
+    });
   }
 
   private checkUserViolation(userId: string): boolean {
@@ -279,7 +320,7 @@ export class TtsService {
     throw lastError ?? new TtsGenerationError("生成语音失败");
   }
 
-  public async generateSpeech(request: TtsRequest) {
+  public async generateSpeech(request: TtsRequest): Promise<TtsGeneratedSpeechResult> {
     try {
       const { text, model, voice, outputFormat, userId, isAdmin } = request;
 
@@ -300,7 +341,17 @@ export class TtsService {
           this.recordViolation(userId);
         }
 
-        const metadata = await ttsAudioAssetStore.getAudioAssetMetadata(existingFile);
+        const metadata =
+          (await ttsAudioAssetStore.getAudioAssetMetadata(existingFile)) ||
+          (await this.buildFileOnlyAudioMetadata({
+            contentHash,
+            fileName: existingFile,
+            outputFormat: safeOutputFormat,
+            ownerUserId: userId,
+            sourceTaskId: request.taskId,
+            sourceFingerprintHash: this.hashFingerprint(request.fingerprint),
+            policyVersion: request.policyVersion,
+          }));
         const watermarkId =
           metadata?.watermarkId ||
           ttsAssetAccessService.buildWatermarkId({
@@ -320,6 +371,10 @@ export class TtsService {
           providerModel: model || config.openaiModel,
           providerVoice: voice || config.openaiVoice,
           watermarkId,
+          audioFileId: metadata?.id,
+          audioStorage: metadata.storage,
+          audioMimeType: metadata.mimeType,
+          audioSize: metadata.size,
         };
       }
 
@@ -344,7 +399,7 @@ export class TtsService {
       });
 
       await fs.promises.writeFile(filePath, processedAudio.audioBuffer);
-      await ttsAudioAssetStore.persistAudioAsset({
+      const persistedAsset = await ttsAudioAssetStore.persistAudioAsset({
         contentHash,
         fileName: safeFileName,
         outputFormat: safeOutputFormat,
@@ -355,6 +410,19 @@ export class TtsService {
         sourceFingerprintHash: this.hashFingerprint(request.fingerprint),
         policyVersion: request.policyVersion,
       });
+      const audioMetadata =
+        persistedAsset ||
+        ttsAudioAssetStore.buildFileOnlyMetadata({
+          contentHash,
+          fileName: safeFileName,
+          outputFormat: safeOutputFormat,
+          size: processedAudio.audioBuffer.length,
+          watermarkId,
+          ownerUserId: userId,
+          sourceTaskId: request.taskId,
+          sourceFingerprintHash: this.hashFingerprint(request.fingerprint),
+          policyVersion: request.policyVersion,
+        });
       this.recordCircuitSuccess();
 
       return {
@@ -366,6 +434,10 @@ export class TtsService {
         providerModel: response.providerModel,
         providerVoice: response.providerVoice,
         watermarkId,
+        audioFileId: audioMetadata.id,
+        audioStorage: audioMetadata.storage,
+        audioMimeType: audioMetadata.mimeType,
+        audioSize: audioMetadata.size,
       };
     } catch (error) {
       const mappedError = this.mapProviderError(error);
