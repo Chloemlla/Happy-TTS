@@ -45,13 +45,23 @@ type TtsErrorPayload = {
 
 type TtsHistoryPayload = TtsHistoryRecord[] | { records?: TtsHistoryRecord[] };
 
+type LegacyTtsHistoryRecord = TtsHistoryRecord & {
+  input?: string;
+  generatedText?: string;
+};
+
 const normalizeHistory = (payload: TtsHistoryPayload): TtsHistoryRecord[] => {
   const records = Array.isArray(payload) ? payload : payload.records || [];
-  return records.map((record) => ({
-    ...record,
-    audioUrl: record.audioUrl ? resolveAudioUrl(record.audioUrl) : "",
-    reviewStatus: record.reviewStatus || "none",
-  }));
+  return records.map((record) => {
+    const legacyRecord = record as LegacyTtsHistoryRecord;
+
+    return {
+      ...record,
+      text: legacyRecord.text || legacyRecord.generatedText || legacyRecord.input || "",
+      audioUrl: record.audioUrl ? resolveAudioUrl(record.audioUrl) : "",
+      reviewStatus: record.reviewStatus || "none",
+    };
+  });
 };
 
 export const useTts = () => {
@@ -205,6 +215,7 @@ export const useTts = () => {
 
       const normalizedResult: TtsResponse = {
         ...responseData,
+        text: responseData.text || request.text,
         audioUrl: finalAudioUrl,
         taskId: submitData.taskId,
       };

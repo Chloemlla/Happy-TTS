@@ -76,6 +76,12 @@ const formatDateTime = (value?: string) => {
   }).format(date);
 };
 
+const formatAudioSize = (value?: number) => {
+  if (!value || value <= 0) return "未知大小";
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(2)} MB`;
+};
+
 const normalizeReviewStatus = (value?: string): TtsHistoryReviewStatus => {
   if (value === "needs_review" || value === "in_review" || value === "fixed" || value === "dismissed") {
     return value;
@@ -278,7 +284,7 @@ const TtsGenerationManager: React.FC = () => {
                 value={draftQuery}
                 onChange={(event) => setDraftQuery(event.target.value)}
                 className={cn(fieldClassName, "pl-9")}
-                placeholder="文件名、哈希、音色、模型"
+                placeholder="文本、文件名、Mongo ID、哈希、音色、模型"
               />
             </div>
           </label>
@@ -398,6 +404,10 @@ const TtsGenerationManager: React.FC = () => {
                         <div>生成：{formatDateTime(record.createdAt)}</div>
                         <div>模型：{record.model}</div>
                         <div>音色：{record.voice} / {record.speed}x</div>
+                        <div>存储：{record.audioStorage === "mongo" ? "MongoDB" : "文件缓存"}</div>
+                        <div>类型：{record.audioMimeType || "-"}</div>
+                        <div>大小：{formatAudioSize(record.audioSize)}</div>
+                        <div className="break-all">音频ID：{record.audioFileId || "-"}</div>
                       </div>
                       <div className="break-words rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-xs leading-5 text-slate-500">
                         {record.text || "[redacted]"}
@@ -429,7 +439,7 @@ const TtsGenerationManager: React.FC = () => {
                   {record.audioUrl && (
                     <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-3">
                       <audio controls className="w-full">
-                        <source src={record.audioUrl} />
+                        <source src={record.audioUrl} type={record.audioMimeType} />
                         您的浏览器不支持音频播放
                       </audio>
                     </div>

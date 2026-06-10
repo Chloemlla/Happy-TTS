@@ -78,6 +78,12 @@ const formatHistoryTime = (value?: string) => {
   }).format(date);
 };
 
+const formatAudioSize = (value?: number) => {
+  if (!value || value <= 0) return "未知大小";
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(2)} MB`;
+};
+
 const buildDownloadUrl = (audioUrl: string) => {
   const downloadUrl = new URL(audioUrl, window.location.origin);
   downloadUrl.searchParams.set("download", "1");
@@ -335,6 +341,29 @@ export const TtsPage: React.FC = () => {
                     )}
                   </div>
 
+                  <div className="rounded-[20px] border border-slate-200 bg-white p-4 text-xs leading-5 text-slate-600 sm:rounded-2xl">
+                    <div className={studioEyebrowClassName}>Generated Text</div>
+                    <p className="mt-2 break-words text-sm leading-6 text-slate-800">
+                      {result.text || "未返回生成文本"}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-semibold text-slate-600">
+                        {result.audioStorage === "mongo" ? "MongoDB 音频" : "文件缓存"}
+                      </span>
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-semibold text-slate-600">
+                        {result.audioMimeType || getAudioMimeType(result.outputFormat)}
+                      </span>
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-semibold text-slate-600">
+                        {formatAudioSize(result.audioSize)}
+                      </span>
+                      {result.audioFileId && (
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-semibold text-slate-600">
+                          Mongo ID: {result.audioFileId}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-3 sm:rounded-2xl">
                     <audio
                       controls
@@ -343,7 +372,7 @@ export const TtsPage: React.FC = () => {
                       onPause={() => setIsPlaying(false)}
                       onEnded={() => setIsPlaying(false)}
                     >
-                      <source src={audioUrl} type={getAudioMimeType(result.outputFormat)} />
+                      <source src={audioUrl} type={result.audioMimeType || getAudioMimeType(result.outputFormat)} />
                       您的浏览器不支持音频播放
                     </audio>
                   </div>
@@ -459,6 +488,12 @@ export const TtsPage: React.FC = () => {
                           <div className="mt-1 text-xs text-slate-500">
                             {formatHistoryTime(record.createdAt)} · {record.speed}x · {record.provider}
                           </div>
+                          <div className="mt-1 text-xs text-slate-500">
+                            {record.audioStorage === "mongo" ? "MongoDB 音频" : "文件缓存"} ·{" "}
+                            {record.audioMimeType || getAudioMimeType(record.outputFormat)} ·{" "}
+                            {formatAudioSize(record.audioSize)}
+                            {record.audioFileId ? ` · ${record.audioFileId}` : ""}
+                          </div>
                           <div className="mt-2 break-words rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-xs leading-5 text-slate-500">
                             {record.text || "[redacted]"}
                           </div>
@@ -476,7 +511,7 @@ export const TtsPage: React.FC = () => {
                               setActiveHistoryId(null);
                             }}
                           >
-                            <source src={record.audioUrl} type={getAudioMimeType(record.outputFormat)} />
+                            <source src={record.audioUrl} type={record.audioMimeType || getAudioMimeType(record.outputFormat)} />
                             您的浏览器不支持音频播放
                           </audio>
                         </div>
