@@ -14,8 +14,16 @@ let oauthRateBucketCleanupTimer: ReturnType<typeof setInterval> | null = null;
 
 function getBearerToken(req: Request): string | null {
   const authHeader = req.headers.authorization;
-  const match = authHeader?.match(/^Bearer\s+(.+)$/i);
-  return match?.[1]?.trim() || null;
+  if (!authHeader) return null;
+  const trimmed = authHeader.trimStart();
+  const scheme = "Bearer";
+  if (trimmed.length <= scheme.length) return null;
+  const separator = trimmed.charCodeAt(scheme.length);
+  const hasSeparator = separator === 0x20 || separator === 0x09;
+  if (!hasSeparator || trimmed.slice(0, scheme.length).toLowerCase() !== scheme.toLowerCase()) {
+    return null;
+  }
+  return trimmed.slice(scheme.length).trim() || null;
 }
 
 function resolveIp(req: Request): string {
@@ -112,7 +120,7 @@ export function oauthTokenAuth(requiredScope?: string, opts: { optional?: boolea
 
       recordOAuthTokenUsage(context, resolveIp(req)).catch((error) => {
         logger.warn("[OAuthTokenAuth] 记录 token 使用失败", {
-          tokenId: context.token.tokenId,
+          clientId: context.client.clientId,
           error: error instanceof Error ? error.message : String(error),
         });
       });

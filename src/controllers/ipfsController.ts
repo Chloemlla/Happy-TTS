@@ -45,9 +45,8 @@ export class IPFSController {
         if (shouldSkipTurnstile) {
           logger.info("认证上传请求，将跳过Turnstile验证", {
             ip,
-            userId,
-            username,
-            isAdmin,
+            actor: IPFSController.maskLogValue(userId),
+            role: isAdmin ? "admin" : "user",
             authenticatedByApiKey,
             authenticatedByOAuth,
             isDev,
@@ -399,5 +398,11 @@ export class IPFSController {
       "unknown";
 
     return ip.replace(/^::ffff:/, "");
+  }
+
+  private static maskLogValue(value: string): string {
+    if (!value) return "unknown";
+    if (value.length <= 6) return "***";
+    return `${value.slice(0, 2)}***${value.slice(-2)}`;
   }
 }

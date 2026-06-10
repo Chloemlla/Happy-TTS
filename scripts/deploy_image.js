@@ -47,10 +47,11 @@ class InMemoryLogHandler {
 
   emit(level, message, options = {}) {
     const timestamp = new Date().toISOString().replace("T", " ").slice(0, 19);
-    const logEntry = `${timestamp} - ${level} - ${message}`;
+    const safeMessage = options.sensitive ? "[sensitive output redacted]" : message;
+    const logEntry = `${timestamp} - ${level} - ${safeMessage}`;
     this.logs.push(logEntry);
 
-    // 如果标记为敏感信息，只记录到日志文件，不输出到控制台
+    // 如果标记为敏感信息，不输出到控制台
     if (!options.sensitive) {
       console.log(logEntry);
     }
@@ -81,9 +82,10 @@ function logWarning(message, options = {}) {
   log(message, "WARNING", options);
 }
 
-// 敏感信息日志函数 - 只记录到日志文件，不输出到控制台
+// 敏感信息日志函数 - 不保留原始内容，只记录摘要
 function logSensitive(message, level = "INFO") {
-  log(message, level, { sensitive: true });
+  const byteLength = Buffer.byteLength(String(message ?? ""), "utf8");
+  log(`[sensitive output redacted, ${byteLength} bytes]`, level, { sensitive: true });
 }
 
 /**

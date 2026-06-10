@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import bcrypt from "bcrypt";
 import { config } from "../config/config";
 import {
   type OAuthAuthorizationCodeDoc,
@@ -198,7 +199,7 @@ function randomSecret(prefix: string, bytes = 32): string {
   return `${prefix}${crypto.randomBytes(bytes).toString("base64url")}`;
 }
 
-function hashSecret(value: string): string {
+function hashOpaqueToken(value: string): string {
   return crypto.createHmac("sha256", config.jwtSecret).update(value).digest("hex");
 }
 
@@ -206,6 +207,47 @@ function safeEqual(left: string, right: string): boolean {
   const leftBuffer = Buffer.from(left);
   const rightBuffer = Buffer.from(right);
   return leftBuffer.length === rightBuffer.length && crypto.timingSafeEqual(leftBuffer, rightBuffer);
+}
+
+async function hashClientSecret(value: string): Promise<string> {
+  return bcrypt.hash(value, config.bcryptSaltRounds);
+}
+
+function isBcryptHash(value: string): boolean {
+  return value.startsWith("$2a$") || value.startsWith("$2b$") || value.startsWith("$2y$");
+}
+
+function legacyClientSecretHash(value: string): string {
+  return hashOpaqueToken(value);
+}
+
+function hasAuthScheme(authHeader: string | undefined, scheme: string): boolean {
+  if (!authHeader) return false;
+  const trimmed = authHeader.trimStart();
+  if (trimmed.length <= scheme.length) return false;
+  const separator = trimmed.charCodeAt(scheme.length);
+  const hasSeparator = separator === 0x20 || separator === 0x09;
+  return hasSeparator && trimmed.slice(0, scheme.length).toLowerCase() === scheme.toLowerCase();
+}
+
+async function verifyClientSecret(client: OAuthClientDoc, clientSecret: string): Promise<boolean> {
+  const storedHash = client.clientSecretHash;
+  if (!storedHash) return false;
+
+  if (isBcryptHash(storedHash)) {
+    return bcrypt.compare(clientSecret, storedHash);
+  }
+
+  if (!safeEqual(legacyClientSecretHash(clientSecret), storedHash)) {
+    return false;
+  }
+
+  const upgradedHash = await hashClientSecret(clientSecret);
+  await OAuthClientModel.updateOne(
+    { clientId: client.clientId, clientSecretHash: storedHash },
+    { $set: { clientSecretHash: upgradedHash, updatedAt: new Date() } },
+  );
+  return true;
 }
 
 function isDuplicateKeyError(error: unknown): boolean {
@@ -560,8 +602,8 @@ async function createTokenPair(opts: {
 
   await OAuthTokenModel.create({
     tokenId: `ot_${crypto.randomBytes(12).toString("hex")}`,
-    accessTokenHash: hashSecret(accessToken),
-    refreshTokenHash: hashSecret(refreshToken),
+    accessTokenHash: hashOpaqueToken(accessToken),
+    refreshTokenHash: hashOpaqueToken(refreshToken),
     clientId: opts.client.clientId,
     userId: opts.user.id,
     grantId: opts.grant.grantId,
@@ -629,7 +671,7 @@ export async function createOAuthClient(opts: {
 
   const client = (await OAuthClientModel.create({
     clientId: randomSecret(CLIENT_ID_PREFIX, 18),
-    clientSecretHash: clientSecret ? hashSecret(clientSecret) : null,
+    clientSecretHash: clientSecret ? await hashClientSecret(clientSecret) : null,
     type,
     name,
     description: normalizeOptionalText(opts.description, 500),
@@ -713,7 +755,7 @@ export async function rotateOAuthClientSecret(clientId: string): Promise<{ clien
   const clientSecret = randomSecret(CLIENT_SECRET_PREFIX, 32);
   const updated = (await OAuthClientModel.findOneAndUpdate(
     { clientId, type: "confidential" },
-    { $set: { clientSecretHash: hashSecret(clientSecret), updatedAt: new Date() } },
+    { $set: { clientSecretHash: await hashClientSecret(clientSecret), updatedAt: new Date() } },
     { returnDocument: "after" },
   ).lean()) as OAuthClientDoc | null;
 
@@ -770,7 +812,7 @@ export async function approveAuthorization(
   const code = randomSecret(AUTH_CODE_PREFIX, 32);
 
   await OAuthAuthorizationCodeModel.create({
-    codeHash: hashSecret(code),
+    codeHash: hashOpaqueToken(code),
     clientId: client.clientId,
     userId: user.id,
     redirectUri: preview.redirectUri,
@@ -809,10 +851,11 @@ export async function denyAuthorization(input: OAuthAuthorizeRequest): Promise<{
 }
 
 export function parseClientBasicAuth(authHeader: string | undefined): { clientId: string; clientSecret: string } | null {
-  const match = authHeader?.match(/^Basic\s+(.+)$/i);
-  if (!match) return null;
+  if (!hasAuthScheme(authHeader, "Basic")) return null;
+  const encoded = authHeader!.trimStart().slice("Basic".length).trim();
+  if (!encoded) return null;
   try {
-    const decoded = Buffer.from(match[1].trim(), "base64").toString("utf8");
+    const decoded = Buffer.from(encoded, "base64").toString("utf8");
     const splitAt = decoded.indexOf(":");
     if (splitAt <= 0) return null;
     return {
@@ -829,7 +872,7 @@ async function authenticateClient(opts: {
   clientId?: unknown;
   clientSecret?: unknown;
 }): Promise<OAuthClientDoc> {
-  const hasBasicAuth = Boolean(opts.authHeader?.match(/^Basic\s+/i));
+  const hasBasicAuth = hasAuthScheme(opts.authHeader, "Basic");
   const basic = parseClientBasicAuth(opts.authHeader);
   if (hasBasicAuth && !basic) {
     throw new OAuthError(401, "invalid_client", "client Basic 认证无效");
@@ -864,7 +907,7 @@ async function authenticateClient(opts: {
   }
 
   if (client.type === "confidential") {
-    if (!clientSecret || !client.clientSecretHash || !safeEqual(hashSecret(clientSecret), client.clientSecretHash)) {
+    if (!clientSecret || !(await verifyClientSecret(client, clientSecret))) {
       throw new OAuthError(401, "invalid_client", "client_secret 无效");
     }
   }
@@ -891,7 +934,7 @@ export async function exchangeAuthorizationCode(opts: {
     throw new OAuthError(400, "invalid_request", "缺少 code 或 redirect_uri");
   }
 
-  const codeDoc = (await OAuthAuthorizationCodeModel.findOne({ codeHash: hashSecret(codeValue) }).lean()) as OAuthAuthorizationCodeDoc | null;
+  const codeDoc = (await OAuthAuthorizationCodeModel.findOne({ codeHash: hashOpaqueToken(codeValue) }).lean()) as OAuthAuthorizationCodeDoc | null;
   if (!codeDoc || codeDoc.expiresAt.getTime() <= Date.now()) {
     throw new OAuthError(400, "invalid_grant", "授权码无效或已过期");
   }
@@ -944,7 +987,7 @@ export async function refreshAccessToken(opts: {
     throw new OAuthError(400, "invalid_request", "缺少 refresh_token");
   }
 
-  const refreshTokenHash = hashSecret(refreshToken);
+  const refreshTokenHash = hashOpaqueToken(refreshToken);
   const tokenDoc = (await OAuthTokenModel.findOne({
     refreshTokenHash,
     clientId: client.clientId,
@@ -991,7 +1034,7 @@ export async function validateOAuthAccessToken(plainToken: string, requiredScope
     throw new OAuthError(401, "invalid_token", "不是 Synapse OAuth access token");
   }
 
-  const tokenDoc = (await OAuthTokenModel.findOne({ accessTokenHash: hashSecret(plainToken) }).lean()) as OAuthTokenDoc | null;
+  const tokenDoc = (await OAuthTokenModel.findOne({ accessTokenHash: hashOpaqueToken(plainToken) }).lean()) as OAuthTokenDoc | null;
   if (!tokenDoc || tokenDoc.revokedAt || tokenDoc.accessTokenExpiresAt.getTime() <= Date.now()) {
     throw new OAuthError(401, "invalid_token", "OAuth access token 无效或已过期");
   }
@@ -1091,7 +1134,7 @@ export async function revokeOAuthToken(opts: {
   const token = normalizeOptionalText(opts.token, 512);
   if (!token) return;
 
-  const hash = hashSecret(token);
+  const hash = hashOpaqueToken(token);
   await OAuthTokenModel.updateMany(
     {
       clientId: client.clientId,
