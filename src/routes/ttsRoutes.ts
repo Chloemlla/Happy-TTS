@@ -1,4 +1,5 @@
 import express from "express";
+import rateLimit from "express-rate-limit";
 import { TtsController } from "../controllers/ttsController";
 import { apiKeyAuth } from "../middleware/apiKeyAuth";
 import { authenticateAdmin } from "../middleware/auth";
@@ -8,6 +9,55 @@ import { TurnstileService } from "../services/turnstileService";
 
 const router = express.Router();
 const ttsApiKeyAuth = apiKeyAuth("tts");
+const ttsSubmissionLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "TTS 生成请求过于频繁，请稍后再试" },
+});
+const ttsJobReadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "TTS 任务查询过于频繁，请稍后再试" },
+});
+const ttsAssetLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "音频资源请求过于频繁，请稍后再试" },
+});
+const ttsConfigReadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "配置查询过于频繁，请稍后再试" },
+});
+const ttsConfigWriteLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "配置操作过于频繁，请稍后再试" },
+});
+const ttsHistoryLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "TTS 历史查询过于频繁，请稍后再试" },
+});
+const ttsAdminOperationLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 50,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "管理员操作过于频繁，请稍后再试" },
+});
 
 /**
  * @openapi
@@ -70,13 +120,13 @@ const ttsApiKeyAuth = apiKeyAuth("tts");
  *                   type: object
  *                   description: 建议的下一步动作
  */
-router.post("/generate", ttsApiKeyAuth, TtsController.submitJob);
-router.post("/jobs", ttsApiKeyAuth, TtsController.submitJob);
-router.get("/assets/:fileName", TtsController.getAudioAsset);
-router.get("/jobs/:taskId", ttsApiKeyAuth, TtsController.getJobStatus);
-router.get("/jobs/:taskId/result", ttsApiKeyAuth, TtsController.getJobResult);
-router.get("/admin/history", adminLimiter, authenticateAdmin, TtsController.getAllGenerations);
-router.patch("/admin/history/:recordId/review", adminLimiter, authenticateAdmin, TtsController.updateGenerationReview);
+router.post("/generate", ttsSubmissionLimiter, ttsApiKeyAuth, TtsController.submitJob);
+router.post("/jobs", ttsSubmissionLimiter, ttsApiKeyAuth, TtsController.submitJob);
+router.get("/assets/:fileName", ttsAssetLimiter, TtsController.getAudioAsset);
+router.get("/jobs/:taskId", ttsJobReadLimiter, ttsApiKeyAuth, TtsController.getJobStatus);
+router.get("/jobs/:taskId/result", ttsJobReadLimiter, ttsApiKeyAuth, TtsController.getJobResult);
+router.get("/admin/history", ttsAdminOperationLimiter, adminLimiter, authenticateAdmin, TtsController.getAllGenerations);
+router.patch("/admin/history/:recordId/review", ttsAdminOperationLimiter, adminLimiter, authenticateAdmin, TtsController.updateGenerationReview);
 
 /**
  * @openapi
@@ -98,7 +148,7 @@ router.patch("/admin/history/:recordId/review", adminLimiter, authenticateAdmin,
  *                   type: string
  *                   description: Turnstile 站点密钥
  */
-router.get("/turnstile/config", async (_req, res) => {
+router.get("/turnstile/config", ttsConfigReadLimiter, async (_req, res) => {
   try {
     const turnstileConfig = await TurnstileService.getConfig();
 
@@ -142,7 +192,7 @@ router.get("/turnstile/config", async (_req, res) => {
  *                   type: string
  *                   description: Clarity 项目ID
  */
-router.get("/clarity/config", async (_req, res) => {
+router.get("/clarity/config", ttsConfigReadLimiter, async (_req, res) => {
   try {
     const clarityConfig = await ClarityService.getConfig();
 
@@ -195,7 +245,7 @@ router.get("/clarity/config", async (_req, res) => {
  *                 message:
  *                   type: string
  */
-router.post("/clarity/config", authenticateAdmin, async (req, res) => {
+router.post("/clarity/config", ttsConfigWriteLimiter, authenticateAdmin, async (req, res) => {
   try {
     const { projectId } = req.body;
 
@@ -256,7 +306,7 @@ router.post("/clarity/config", authenticateAdmin, async (req, res) => {
  *                 message:
  *                   type: string
  */
-router.delete("/clarity/config", authenticateAdmin, async (req, res) => {
+router.delete("/clarity/config", ttsConfigWriteLimiter, authenticateAdmin, async (req, res) => {
   try {
     // 获取请求元数据（可选）
     const metadata = {
@@ -326,7 +376,7 @@ router.delete("/clarity/config", authenticateAdmin, async (req, res) => {
  *                       changedAt:
  *                         type: string
  */
-router.get("/clarity/history", authenticateAdmin, async (req, res) => {
+router.get("/clarity/history", ttsConfigReadLimiter, authenticateAdmin, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit as string, 10) || 20;
     const result = await ClarityService.getConfigHistory(limit);
@@ -370,6 +420,6 @@ router.get("/clarity/history", authenticateAdmin, async (req, res) => {
  *                   type: array
  *                   description: 生成记录列表
  */
-router.get("/history", ttsApiKeyAuth, TtsController.getRecentGenerations);
+router.get("/history", ttsHistoryLimiter, ttsApiKeyAuth, TtsController.getRecentGenerations);
 
 export default router;

@@ -1,4 +1,5 @@
 import express from "express";
+import rateLimit from "express-rate-limit";
 import { AuthController } from "../controllers/authController";
 import { LinuxDoAuthController } from "../controllers/linuxDoAuthController";
 import { authenticateToken } from "../middleware/authenticateToken";
@@ -7,6 +8,48 @@ import { loginLimiter, registerLimiter } from "../middleware/routeLimiters";
 import { logUserData } from "../middleware/userDataLogger";
 
 const router = express.Router();
+const authLoginEndpointLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "登录请求过于频繁，请稍后再试" },
+});
+const authRegisterEndpointLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "注册请求过于频繁，请稍后再试" },
+});
+const authReadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "认证配置请求过于频繁，请稍后再试" },
+});
+const authVerificationLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "验证请求过于频繁，请稍后再试" },
+});
+const authPasswordResetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "密码重置请求过于频繁，请稍后再试" },
+});
+const authExternalLoginLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "第三方登录请求过于频繁，请稍后再试" },
+});
 
 /**
  * @openapi
@@ -29,7 +72,7 @@ const router = express.Router();
  *       200:
  *         description: 注册成功
  */
-router.post("/register", registerLimiter, validateAuthInput, logUserData, AuthController.register);
+router.post("/register", authRegisterEndpointLimiter, registerLimiter, validateAuthInput, logUserData, AuthController.register);
 
 /**
  * @openapi
@@ -52,16 +95,16 @@ router.post("/register", registerLimiter, validateAuthInput, logUserData, AuthCo
  *       200:
  *         description: 登录成功
  */
-router.post("/login", loginLimiter, validateAuthInput, AuthController.login);
-router.get("/google/config", AuthController.getGoogleAuthConfig);
-router.post("/google", loginLimiter, AuthController.googleAuth);
-router.post("/google/bind", authenticateToken, AuthController.googleBind);
+router.post("/login", authLoginEndpointLimiter, loginLimiter, validateAuthInput, AuthController.login);
+router.get("/google/config", authReadLimiter, AuthController.getGoogleAuthConfig);
+router.post("/google", authExternalLoginLimiter, loginLimiter, AuthController.googleAuth);
+router.post("/google/bind", authVerificationLimiter, authenticateToken, AuthController.googleBind);
 
-router.get("/linuxdo/config", LinuxDoAuthController.getConfig);
-router.get("/linuxdo/start", LinuxDoAuthController.start);
-router.get("/linuxdo/callback", LinuxDoAuthController.callbackGet);
-router.post("/linuxdo/callback", LinuxDoAuthController.callback);
-router.post("/linuxdo/exchange", LinuxDoAuthController.exchangeTicket);
+router.get("/linuxdo/config", authReadLimiter, LinuxDoAuthController.getConfig);
+router.get("/linuxdo/start", authExternalLoginLimiter, LinuxDoAuthController.start);
+router.get("/linuxdo/callback", authExternalLoginLimiter, LinuxDoAuthController.callbackGet);
+router.post("/linuxdo/callback", authExternalLoginLimiter, LinuxDoAuthController.callback);
+router.post("/linuxdo/exchange", authExternalLoginLimiter, LinuxDoAuthController.exchangeTicket);
 
 /**
  * @openapi
@@ -73,10 +116,10 @@ router.post("/linuxdo/exchange", LinuxDoAuthController.exchangeTicket);
  *       200:
  *         description: 用户信息
  */
-router.get("/me", authenticateToken, AuthController.getCurrentUser);
+router.get("/me", authReadLimiter, authenticateToken, AuthController.getCurrentUser);
 
 // Passkey 二次校验接口
-router.post("/passkey-verify", AuthController.passkeyVerify);
+router.post("/passkey-verify", authVerificationLimiter, AuthController.passkeyVerify);
 
 /**
  * @openapi
@@ -99,7 +142,7 @@ router.post("/passkey-verify", AuthController.passkeyVerify);
  *       200:
  *         description: 验证成功
  */
-router.post("/verify-email-link", AuthController.verifyEmailLink);
+router.post("/verify-email-link", authVerificationLimiter, AuthController.verifyEmailLink);
 
 /**
  * @openapi
@@ -122,7 +165,7 @@ router.post("/verify-email-link", AuthController.verifyEmailLink);
  *       200:
  *         description: 验证成功
  */
-router.post("/verify-email", AuthController.verifyEmail);
+router.post("/verify-email", authVerificationLimiter, AuthController.verifyEmail);
 
 /**
  * @openapi
@@ -143,7 +186,7 @@ router.post("/verify-email", AuthController.verifyEmail);
  *       200:
  *         description: 发送成功
  */
-router.post("/send-verify-email", AuthController.sendVerifyEmail);
+router.post("/send-verify-email", authVerificationLimiter, AuthController.sendVerifyEmail);
 
 /**
  * @openapi
@@ -164,7 +207,7 @@ router.post("/send-verify-email", AuthController.sendVerifyEmail);
  *       200:
  *         description: 验证码发送成功
  */
-router.post("/forgot-password", AuthController.forgotPassword);
+router.post("/forgot-password", authPasswordResetLimiter, AuthController.forgotPassword);
 
 /**
  * @openapi
@@ -191,7 +234,7 @@ router.post("/forgot-password", AuthController.forgotPassword);
  *       400:
  *         description: 令牌无效或设备/网络不匹配
  */
-router.post("/validate-reset-token", AuthController.validateResetToken);
+router.post("/validate-reset-token", authPasswordResetLimiter, AuthController.validateResetToken);
 
 /**
  * @openapi
@@ -216,7 +259,7 @@ router.post("/validate-reset-token", AuthController.validateResetToken);
  *       200:
  *         description: 密码重置成功
  */
-router.post("/reset-password-link", AuthController.resetPasswordLink);
+router.post("/reset-password-link", authPasswordResetLimiter, AuthController.resetPasswordLink);
 
 /**
  * @openapi
@@ -241,6 +284,6 @@ router.post("/reset-password-link", AuthController.resetPasswordLink);
  *       200:
  *         description: 密码重置成功
  */
-router.post("/reset-password", AuthController.resetPassword);
+router.post("/reset-password", authPasswordResetLimiter, AuthController.resetPassword);
 
 export default router;

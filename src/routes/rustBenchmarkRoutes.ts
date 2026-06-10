@@ -1,4 +1,5 @@
 import express from "express";
+import rateLimit from "express-rate-limit";
 import { authenticateToken } from "../middleware/authenticateToken";
 import adminOnly from "../middleware/adminOnly";
 import {
@@ -10,8 +11,15 @@ import {
 } from "../services/rustBenchmarkService";
 
 const router = express.Router();
+const rustBenchmarkLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Benchmark 请求过于频繁，请稍后再试" },
+});
 
-router.use(authenticateToken, adminOnly);
+router.use(rustBenchmarkLimiter, authenticateToken, adminOnly);
 
 router.get("/targets", (_req, res) => {
   res.json({

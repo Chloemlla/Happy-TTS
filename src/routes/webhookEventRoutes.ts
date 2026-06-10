@@ -1,12 +1,27 @@
 import { type Request, type Response, Router } from "express";
+import rateLimit from "express-rate-limit";
 import { authenticateAdmin } from "../middleware/auth";
 import { WebhookEventService } from "../services/webhookEventService";
 import { firstString, firstStringOr } from "../utils/httpParam";
 
 const router = Router();
+const webhookEventReadLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Webhook event 查询过于频繁，请稍后再试" },
+});
+const webhookEventWriteLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Webhook event 操作过于频繁，请稍后再试" },
+});
 
 // List with pagination & filters
-router.get("/", authenticateAdmin, async (req: Request, res: Response) => {
+router.get("/", webhookEventReadLimiter, authenticateAdmin, async (req: Request, res: Response) => {
   try {
     const page = parseInt(firstStringOr(req.query.page, "1"), 10);
     const pageSize = parseInt(firstStringOr(req.query.pageSize, "20"), 10);
@@ -40,7 +55,7 @@ router.get("/", authenticateAdmin, async (req: Request, res: Response) => {
 });
 
 // Summary statistics for the management dashboard
-router.get("/stats", authenticateAdmin, async (_req: Request, res: Response) => {
+router.get("/stats", webhookEventReadLimiter, authenticateAdmin, async (_req: Request, res: Response) => {
   try {
     const stats = await WebhookEventService.stats();
     res.json({ success: true, stats });
@@ -50,7 +65,7 @@ router.get("/stats", authenticateAdmin, async (_req: Request, res: Response) => 
 });
 
 // Group list by routeKey
-router.get("/groups", authenticateAdmin, async (_req: Request, res: Response) => {
+router.get("/groups", webhookEventReadLimiter, authenticateAdmin, async (_req: Request, res: Response) => {
   try {
     const rows = await WebhookEventService.groups();
     res.json({ success: true, groups: rows });
@@ -60,7 +75,7 @@ router.get("/groups", authenticateAdmin, async (_req: Request, res: Response) =>
 });
 
 // Create a test generic webhook event through the same normalization path as /api/webhooks/generic
-router.post("/test", authenticateAdmin, async (req: Request, res: Response) => {
+router.post("/test", webhookEventWriteLimiter, authenticateAdmin, async (req: Request, res: Response) => {
   try {
     const { source, routeKey, payload, status } = req.body || {};
     const selectedSource = firstString(source) || firstString(routeKey) || "generic-test";
@@ -74,7 +89,7 @@ router.post("/test", authenticateAdmin, async (req: Request, res: Response) => {
 });
 
 // Bulk status update
-router.post("/bulk-status", authenticateAdmin, async (req: Request, res: Response) => {
+router.post("/bulk-status", webhookEventWriteLimiter, authenticateAdmin, async (req: Request, res: Response) => {
   try {
     const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter((id: unknown): id is string => typeof id === "string") : [];
     const status = firstString(req.body?.status);
@@ -87,7 +102,7 @@ router.post("/bulk-status", authenticateAdmin, async (req: Request, res: Respons
 });
 
 // Bulk delete
-router.post("/bulk-delete", authenticateAdmin, async (req: Request, res: Response) => {
+router.post("/bulk-delete", webhookEventWriteLimiter, authenticateAdmin, async (req: Request, res: Response) => {
   try {
     const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter((id: unknown): id is string => typeof id === "string") : [];
     const result = await WebhookEventService.bulkRemove(ids);
@@ -98,7 +113,7 @@ router.post("/bulk-delete", authenticateAdmin, async (req: Request, res: Respons
 });
 
 // Get by id
-router.get("/:id", authenticateAdmin, async (req: Request, res: Response) => {
+router.get("/:id", webhookEventReadLimiter, authenticateAdmin, async (req: Request, res: Response) => {
   try {
     const id = firstString(req.params.id);
     if (!id) return res.status(400).json({ success: false, error: "Invalid ID" });
@@ -111,7 +126,7 @@ router.get("/:id", authenticateAdmin, async (req: Request, res: Response) => {
 });
 
 // Update status only
-router.patch("/:id/status", authenticateAdmin, async (req: Request, res: Response) => {
+router.patch("/:id/status", webhookEventWriteLimiter, authenticateAdmin, async (req: Request, res: Response) => {
   try {
     const id = firstString(req.params.id);
     const status = firstString(req.body?.status);
@@ -126,7 +141,7 @@ router.patch("/:id/status", authenticateAdmin, async (req: Request, res: Respons
 });
 
 // Replay a stored event into a new record for re-processing/auditing
-router.post("/:id/replay", authenticateAdmin, async (req: Request, res: Response) => {
+router.post("/:id/replay", webhookEventWriteLimiter, authenticateAdmin, async (req: Request, res: Response) => {
   try {
     const id = firstString(req.params.id);
     if (!id) return res.status(400).json({ success: false, error: "Invalid ID" });
@@ -142,7 +157,7 @@ router.post("/:id/replay", authenticateAdmin, async (req: Request, res: Response
 });
 
 // Create (manual add)
-router.post("/", authenticateAdmin, async (req: Request, res: Response) => {
+router.post("/", webhookEventWriteLimiter, authenticateAdmin, async (req: Request, res: Response) => {
   try {
     const created = await WebhookEventService.create(req.body);
     res.json({ success: true, item: created });
@@ -152,7 +167,7 @@ router.post("/", authenticateAdmin, async (req: Request, res: Response) => {
 });
 
 // Update
-router.put("/:id", authenticateAdmin, async (req: Request, res: Response) => {
+router.put("/:id", webhookEventWriteLimiter, authenticateAdmin, async (req: Request, res: Response) => {
   try {
     const id = firstString(req.params.id);
     if (!id) return res.status(400).json({ success: false, error: "Invalid ID" });
@@ -165,7 +180,7 @@ router.put("/:id", authenticateAdmin, async (req: Request, res: Response) => {
 });
 
 // Delete
-router.delete("/:id", authenticateAdmin, async (req: Request, res: Response) => {
+router.delete("/:id", webhookEventWriteLimiter, authenticateAdmin, async (req: Request, res: Response) => {
   try {
     const id = firstString(req.params.id);
     if (!id) return res.status(400).json({ success: false, error: "Invalid ID" });
