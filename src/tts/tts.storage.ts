@@ -37,8 +37,13 @@ export interface TtsGovernanceSummary {
 }
 
 export interface TtsJobResult {
+  text?: string;
   fileName: string;
   audioUrl: string;
+  audioFileId?: string;
+  audioStorage?: "file" | "mongo";
+  audioMimeType?: string;
+  audioSize?: number;
   isDuplicate?: boolean;
   outputFormat?: string;
   provider?: string;
@@ -126,8 +131,13 @@ const TtsJobSchema = new mongoose.Schema<TtsJobRecord>(
       },
     },
     result: {
+      text: { type: String },
       fileName: { type: String },
       audioUrl: { type: String },
+      audioFileId: { type: String },
+      audioStorage: { type: String, enum: ["file", "mongo"] },
+      audioMimeType: { type: String },
+      audioSize: { type: Number },
       isDuplicate: { type: Boolean },
       outputFormat: { type: String },
       provider: { type: String },

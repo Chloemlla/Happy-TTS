@@ -26,6 +26,10 @@ export interface TtsHistoryRecord {
   contentHash: string;
   fileName: string;
   audioUrl: string;
+  audioFileId?: string;
+  audioStorage?: "file" | "mongo";
+  audioMimeType?: string;
+  audioSize?: number;
   provider: string;
   providerModel: string;
   providerVoice: string;
@@ -42,6 +46,10 @@ export interface TtsHistoryRecord {
 export interface TtsDuplicateHit {
   fileName: string;
   audioUrl: string;
+  audioFileId?: string;
+  audioStorage?: "file" | "mongo";
+  audioMimeType?: string;
+  audioSize?: number;
   outputFormat: string;
   contentHash: string;
   provider?: string;

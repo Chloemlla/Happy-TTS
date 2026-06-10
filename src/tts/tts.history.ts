@@ -26,6 +26,10 @@ const TtsHistorySchema = new mongoose.Schema<TtsHistoryDocument>(
     contentHash: { type: String, required: true, index: true },
     fileName: { type: String, required: true },
     audioUrl: { type: String, required: true },
+    audioFileId: { type: String, index: true },
+    audioStorage: { type: String, enum: ["file", "mongo"] },
+    audioMimeType: { type: String },
+    audioSize: { type: Number },
     provider: { type: String, required: true },
     providerModel: { type: String, required: true },
     providerVoice: { type: String, required: true },
@@ -50,10 +54,7 @@ const TtsHistoryModel =
   mongoose.model<TtsHistoryDocument>("TtsGenerationHistory", TtsHistorySchema);
 
 export function redactTtsTextForStorage(text: string): string {
-  if (/^\[redacted:\d+\]$/.test(text)) {
-    return text;
-  }
-  return text ? `[redacted:${text.length}]` : "";
+  return String(text || "");
 }
 
 function normalizeReviewStatus(value: unknown): TtsHistoryReviewStatus {
@@ -77,7 +78,7 @@ function mapHistoryRecord(record: any): TtsHistoryRecord {
   return {
     ...rest,
     id: _id ? String(_id) : rest.id,
-    text: redactTtsTextForStorage(rest.text || ""),
+    text: String(rest.text || ""),
     reviewStatus: normalizeReviewStatus(rest.reviewStatus),
   };
 }
@@ -90,6 +91,10 @@ function mapDuplicate(record: Partial<TtsHistoryRecord> | null | undefined): Tts
   return {
     fileName: record.fileName,
     audioUrl: record.audioUrl,
+    audioFileId: record.audioFileId,
+    audioStorage: record.audioStorage,
+    audioMimeType: record.audioMimeType,
+    audioSize: record.audioSize,
     outputFormat: record.outputFormat,
     contentHash: record.contentHash,
     provider: (record as any).provider,
@@ -219,7 +224,10 @@ export class MongoGenerationHistoryStore implements GenerationHistoryStore {
       and.push({
         $or: [
           { userId: pattern },
+          { text: pattern },
           { fileName: pattern },
+          { audioFileId: pattern },
+          { audioMimeType: pattern },
           { contentHash: pattern },
           { voice: pattern },
           { model: pattern },

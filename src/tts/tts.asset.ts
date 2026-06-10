@@ -19,6 +19,25 @@ interface TtsAudioAssetDocument {
   updatedAt: Date;
 }
 
+export type TtsAudioAssetStorage = "mongo" | "file";
+
+export interface TtsAudioAssetMetadata {
+  id?: string;
+  contentHash: string;
+  fileName: string;
+  outputFormat: string;
+  mimeType: string;
+  size: number;
+  watermarkId?: string;
+  ownerUserId?: string;
+  sourceTaskId?: string;
+  sourceFingerprintHash?: string;
+  policyVersion?: string;
+  storage: TtsAudioAssetStorage;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
 const TtsAudioAssetSchema = new mongoose.Schema<TtsAudioAssetDocument>(
   {
     contentHash: { type: String, required: true, index: true },
@@ -43,7 +62,7 @@ const TtsAudioAssetModel =
   mongoose.models.TtsAudioAsset || mongoose.model<TtsAudioAssetDocument>("TtsAudioAsset", TtsAudioAssetSchema);
 
 export class TtsAudioAssetStore {
-  private resolveMimeType(outputFormat: string) {
+  public resolveMimeType(outputFormat: string) {
     switch (outputFormat) {
       case "wav":
         return "audio/wav";
@@ -61,6 +80,55 @@ export class TtsAudioAssetStore {
     }
   }
 
+  public buildFileOnlyMetadata(params: {
+    contentHash: string;
+    fileName: string;
+    outputFormat: string;
+    size: number;
+    watermarkId?: string;
+    ownerUserId?: string;
+    sourceTaskId?: string;
+    sourceFingerprintHash?: string;
+    policyVersion?: string;
+  }): TtsAudioAssetMetadata {
+    return {
+      contentHash: params.contentHash,
+      fileName: params.fileName,
+      outputFormat: params.outputFormat,
+      mimeType: this.resolveMimeType(params.outputFormat),
+      size: params.size,
+      watermarkId: params.watermarkId,
+      ownerUserId: params.ownerUserId,
+      sourceTaskId: params.sourceTaskId,
+      sourceFingerprintHash: params.sourceFingerprintHash,
+      policyVersion: params.policyVersion,
+      storage: "file",
+    };
+  }
+
+  private mapMetadata(asset: any): TtsAudioAssetMetadata | null {
+    if (!asset) {
+      return null;
+    }
+
+    return {
+      id: asset._id ? String(asset._id) : undefined,
+      contentHash: asset.contentHash,
+      fileName: asset.fileName,
+      outputFormat: asset.outputFormat,
+      mimeType: asset.mimeType,
+      size: asset.size,
+      watermarkId: asset.watermarkId,
+      ownerUserId: asset.ownerUserId,
+      sourceTaskId: asset.sourceTaskId,
+      sourceFingerprintHash: asset.sourceFingerprintHash,
+      policyVersion: asset.policyVersion,
+      storage: "mongo",
+      createdAt: asset.createdAt,
+      updatedAt: asset.updatedAt,
+    };
+  }
+
   public async persistAudioAsset(params: {
     contentHash: string;
     fileName: string;
@@ -71,13 +139,13 @@ export class TtsAudioAssetStore {
     sourceTaskId?: string;
     sourceFingerprintHash?: string;
     policyVersion?: string;
-  }) {
+  }): Promise<TtsAudioAssetMetadata | null> {
     if (mongoose.connection.readyState !== 1) {
-      return;
+      return null;
     }
 
     try {
-      await TtsAudioAssetModel.findOneAndUpdate(
+      const asset = await TtsAudioAssetModel.findOneAndUpdate(
         { fileName: params.fileName },
         {
           $set: {
@@ -95,13 +163,17 @@ export class TtsAudioAssetStore {
           },
         },
         { upsert: true, returnDocument: "after" },
-      ).exec();
+      )
+        .lean()
+        .exec();
+      return this.mapMetadata(asset);
     } catch (error) {
       logger.warn("TTS 音频写入 MongoDB 失败", { error, fileName: params.fileName });
+      return null;
     }
   }
 
-  public async getAudioAssetMetadata(fileName: string) {
+  public async getAudioAssetMetadata(fileName: string): Promise<TtsAudioAssetMetadata | null> {
     if (mongoose.connection.readyState !== 1) {
       return null;
     }
@@ -110,7 +182,8 @@ export class TtsAudioAssetStore {
       return await TtsAudioAssetModel.findOne({ fileName })
         .select("-audioData")
         .lean()
-        .exec();
+        .exec()
+        .then((asset) => this.mapMetadata(asset));
     } catch (error) {
       logger.warn("TTS audio metadata read failed", { error, fileName });
       return null;
