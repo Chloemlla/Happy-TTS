@@ -10,13 +10,27 @@ import { TtsService } from "../tts/tts.service";
 const mockPersistAudioAsset = jest.fn();
 const mockRestoreAudioAssetToDisk = jest.fn();
 const mockGetAudioAssetMetadata = jest.fn();
+const mockBuildFileOnlyMetadata = jest.fn();
 const mockBuildWatermarkId = jest.fn();
+
+interface MockFileOnlyAudioMetadataParams {
+  contentHash: string;
+  fileName: string;
+  outputFormat: string;
+  size: number;
+  watermarkId?: string;
+  ownerUserId?: string;
+  sourceTaskId?: string;
+  sourceFingerprintHash?: string;
+  policyVersion?: string;
+}
 
 jest.mock("../tts/tts.asset", () => ({
   ttsAudioAssetStore: {
     persistAudioAsset: (...args: unknown[]) => mockPersistAudioAsset(...args),
     restoreAudioAssetToDisk: (...args: unknown[]) => mockRestoreAudioAssetToDisk(...args),
     getAudioAssetMetadata: (...args: unknown[]) => mockGetAudioAssetMetadata(...args),
+    buildFileOnlyMetadata: (...args: unknown[]) => mockBuildFileOnlyMetadata(...args),
   },
 }));
 
@@ -38,13 +52,28 @@ describe("Rust audio worker integration", () => {
     config.rustServices.audioWorker.maxBytes = 20 * 1024 * 1024;
     mockRestoreAudioAssetToDisk.mockResolvedValue(false);
     mockGetAudioAssetMetadata.mockResolvedValue(null);
-    mockPersistAudioAsset.mockResolvedValue(undefined);
+    mockPersistAudioAsset.mockResolvedValue(null);
+    mockBuildFileOnlyMetadata.mockImplementation((params: MockFileOnlyAudioMetadataParams) => ({
+      contentHash: params.contentHash,
+      fileName: params.fileName,
+      outputFormat: params.outputFormat,
+      mimeType: params.outputFormat === "mp3" ? "audio/mpeg" : `audio/${params.outputFormat}`,
+      size: params.size,
+      watermarkId: params.watermarkId,
+      ownerUserId: params.ownerUserId,
+      sourceTaskId: params.sourceTaskId,
+      sourceFingerprintHash: params.sourceFingerprintHash,
+      policyVersion: params.policyVersion,
+      storage: "file",
+    }));
     mockBuildWatermarkId.mockReturnValue("watermark-test-id");
+    await fs.rm(testAudioDir, { recursive: true, force: true });
     await fs.mkdir(testAudioDir, { recursive: true });
   });
 
-  afterAll(() => {
+  afterAll(async () => {
     config.audioDir = originalAudioDir;
+    await fs.rm(testAudioDir, { recursive: true, force: true });
   });
 
   it("RustAudioWorkerClient should encode audio bytes and decode processed output", async () => {
