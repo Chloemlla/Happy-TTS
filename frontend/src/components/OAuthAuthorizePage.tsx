@@ -7,14 +7,13 @@ import {
   FaInfoCircle,
   FaKey,
   FaShieldAlt,
-  FaSync,
   FaTimes,
   FaUserShield,
 } from "react-icons/fa";
 import { oauthApi, type OAuthAuthorizePreview } from "../api/oauth";
 import { useNotification } from "./Notification";
 import { cn } from "../utils/cn";
-import { UnifiedLoadingSpinner } from "./LoadingSpinner";
+import { SimpleLoadingSpinner, UnifiedLoadingSpinner } from "./LoadingSpinner";
 import {
   studioAccentBlobBlueClassName,
   studioAccentBlobSkyClassName,
@@ -556,7 +555,7 @@ const OAuthAuthorizePage: React.FC = () => {
                   whileTap={{ scale: 0.98 }}
                 >
                   {submitting === "approve" ? (
-                    <FaSync className="animate-spin" />
+                    <SimpleLoadingSpinner size={0.45} />
                   ) : (
                     <FaCheck />
                   )}
@@ -573,7 +572,7 @@ const OAuthAuthorizePage: React.FC = () => {
                   whileTap={{ scale: 0.98 }}
                 >
                   {submitting === "deny" ? (
-                    <FaSync className="animate-spin" />
+                    <SimpleLoadingSpinner size={0.45} />
                   ) : (
                     <FaTimes />
                   )}
