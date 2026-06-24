@@ -778,6 +778,23 @@ html {
 .markdown-renderer pre code {
   font-size: 13px;
   line-height: 1.65;
+  white-space: pre;
+}
+
+.markdown-renderer :where(.group:has(pre), pre) {
+  position: relative;
+}
+
+.markdown-renderer :where(.group:has(pre))::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  top: 2.25rem;
+  width: 28px;
+  background: linear-gradient(to left, rgba(15, 23, 42, 0.52), transparent);
+  opacity: 0.7;
 }
 
 .markdown-blockquote {
@@ -863,23 +880,62 @@ html {
 }
 
 .markdown-image-button {
+  position: relative;
   display: inline-block;
   max-width: 100%;
+  width: min(100%, 820px);
+  aspect-ratio: 16 / 9;
   min-height: auto;
   min-width: auto;
+  overflow: hidden;
   cursor: zoom-in;
   border: 0;
   border-radius: 1rem;
-  background: transparent;
+  background: var(--md-soft-bg);
   padding: 0;
 }
 
 .markdown-image-button img {
   display: block;
+  position: relative;
+  z-index: 1;
   max-width: 100%;
+  width: 100%;
   height: auto;
+  min-height: 100%;
+  object-fit: contain;
   border-radius: 1rem;
+  opacity: 0;
   box-shadow: 0 18px 46px rgba(15, 23, 42, 0.12);
+  transition: opacity 0.22s ease;
+}
+
+.markdown-image-button.is-loaded {
+  aspect-ratio: auto;
+}
+
+.markdown-image-button.is-loaded img {
+  opacity: 1;
+}
+
+.markdown-image-skeleton {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent),
+    var(--md-soft-bg);
+  background-size: 220% 100%, 100% 100%;
+  animation: markdownSkeleton 1.2s ease-in-out infinite;
+}
+
+@keyframes markdownSkeleton {
+  0% {
+    background-position: 120% 0, 0 0;
+  }
+  100% {
+    background-position: -120% 0, 0 0;
+  }
 }
 
 .markdown-image-frame figcaption {
@@ -975,6 +1031,45 @@ html {
 
   .markdown-renderer h3 {
     font-size: 1.2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .markdown-table-scroll {
+    border: 0;
+    background: transparent;
+  }
+
+  .markdown-renderer table,
+  .markdown-renderer thead,
+  .markdown-renderer tbody,
+  .markdown-renderer tr,
+  .markdown-renderer th,
+  .markdown-renderer td {
+    display: block;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .markdown-renderer thead {
+    display: none;
+  }
+
+  .markdown-renderer tr {
+    margin-bottom: 0.85rem;
+    overflow: hidden;
+    border: 1px solid var(--md-soft-border);
+    border-radius: 0.9rem;
+    background: var(--md-bg);
+  }
+
+  .markdown-renderer td {
+    border-bottom: 1px solid var(--md-soft-border);
+    padding: 0.75rem;
+  }
+
+  .markdown-renderer td:last-child {
+    border-bottom: 0;
   }
 }
 
