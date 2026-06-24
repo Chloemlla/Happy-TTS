@@ -21,6 +21,7 @@ import { FirstVisitVerification } from './components/FirstVisitVerification';
 import { useFingerprintRequest } from './hooks/useFingerprintRequest';
 import FingerprintRequestModal from './components/FingerprintRequestModal';
 import { setFirstVisitVerificationEnabled } from './utils/firstVisitVerificationConfig';
+import ArticleCommandPalette from './components/ArticleCommandPalette';
 
 // 动态导入 clarity 以减少主 bundle 体积，避免与 FirstVisitVerification 的动态导入冲突
 let clarityModule: typeof import('@microsoft/clarity') | null = null;
@@ -1291,6 +1292,7 @@ const App: React.FC = () => {
     <NotificationProvider>
       <BroadcastModalProvider>
         <WsConnector />
+        <ArticleCommandPalette />
         <LazyMotion features={domAnimation}>
           <ToastContainer position={toastPosition} autoClose={4500} hideProgressBar newestOnTop limit={3} />
           {/* 公告弹窗 */}
