@@ -85,6 +85,14 @@ function getCodeLanguage(codeClassName?: string): string {
   );
 }
 
+function getHeadingId(children: React.ReactNode): string {
+  return React.Children.toArray(children)
+    .join('')
+    .toLowerCase()
+    .replace(/[^\w\u4e00-\u9fa5]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   content,
   isDark,
@@ -168,6 +176,16 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       );
     },
     a: ({ node: _node, ...props }) => <a target="_blank" rel="noopener noreferrer" {...props} />,
+    h2: ({ node: _node, children, ...props }) => (
+      <h2 id={getHeadingId(children)} {...props}>
+        {children}
+      </h2>
+    ),
+    h3: ({ node: _node, children, ...props }) => (
+      <h3 id={getHeadingId(children)} {...props}>
+        {children}
+      </h3>
+    ),
   };
 
   return (

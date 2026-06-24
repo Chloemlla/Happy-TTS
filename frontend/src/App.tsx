@@ -1442,6 +1442,7 @@ const App: React.FC = () => {
                     <Route path="/tiger-adventure" element={renderAnimatedRoute(<TigerAdventure />)} />
                     <Route path="/coin-flip" element={renderAnimatedRoute(<CoinFlip />)} />
                     <Route path="/markdown-export" element={renderAnimatedRoute(<MarkdownExportPage />)} />
+                    <Route path="/articles" element={renderAnimatedRoute(<MarkdownArticlePage />)} />
                     <Route path="/articles/:slug" element={renderAnimatedRoute(<MarkdownArticlePage />)} />
                     <Route path="/campus-emergency" element={renderAnimatedRoute(<CampusEmergencyPage />)} />
                     <Route path="/tamper-detection-demo" element={renderAdminRoute(<TamperDetectionDemo />)} />

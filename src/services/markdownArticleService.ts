@@ -61,7 +61,7 @@ async function ensureUniqueSlug(slug: string, excludeId?: string): Promise<void>
 
 function toArticleResponse(article: IMarkdownArticle) {
   return {
-    id: article._id.toString(),
+    id: (article as any)._id.toString(),
     title: article.title,
     slug: article.slug,
     excerpt: article.excerpt,

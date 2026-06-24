@@ -11,6 +11,10 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "请求处理失败";
 }
 
+function getParam(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? value[0] || "" : value || "";
+}
+
 router.get("/", async (_req, res) => {
   try {
     const articles = await MarkdownArticleService.listPublished();
@@ -31,7 +35,7 @@ router.get("/admin/all", ...adminGuards, async (_req, res) => {
 
 router.get("/admin/:id", ...adminGuards, async (req, res) => {
   try {
-    const article = await MarkdownArticleService.getAdminById(req.params.id);
+    const article = await MarkdownArticleService.getAdminById(getParam(req.params.id));
     if (!article) {
       return res.status(404).json({ success: false, message: "文章不存在" });
     }
@@ -61,7 +65,7 @@ router.post("/", ...adminGuards, async (req, res) => {
 
 router.put("/admin/:id", ...adminGuards, async (req, res) => {
   try {
-    const article = await MarkdownArticleService.update(req.params.id, {
+    const article = await MarkdownArticleService.update(getParam(req.params.id), {
       title: req.body?.title,
       slug: req.body?.slug,
       excerpt: req.body?.excerpt,
@@ -82,7 +86,7 @@ router.put("/admin/:id", ...adminGuards, async (req, res) => {
 router.patch("/admin/:id/status", ...adminGuards, async (req, res) => {
   try {
     const status = req.body?.status === "published" ? "published" : "draft";
-    const article = await MarkdownArticleService.setStatus(req.params.id, status);
+    const article = await MarkdownArticleService.setStatus(getParam(req.params.id), status);
     if (!article) {
       return res.status(404).json({ success: false, message: "文章不存在" });
     }
@@ -94,7 +98,7 @@ router.patch("/admin/:id/status", ...adminGuards, async (req, res) => {
 
 router.delete("/admin/:id", ...adminGuards, async (req, res) => {
   try {
-    const deleted = await MarkdownArticleService.delete(req.params.id);
+    const deleted = await MarkdownArticleService.delete(getParam(req.params.id));
     if (!deleted) {
       return res.status(404).json({ success: false, message: "文章不存在" });
     }
@@ -106,7 +110,7 @@ router.delete("/admin/:id", ...adminGuards, async (req, res) => {
 
 router.get("/:slug", async (req, res) => {
   try {
-    const article = await MarkdownArticleService.getPublishedBySlug(req.params.slug);
+    const article = await MarkdownArticleService.getPublishedBySlug(getParam(req.params.slug));
     if (!article) {
       return res.status(404).json({ success: false, message: "文章不存在或尚未发布" });
     }
