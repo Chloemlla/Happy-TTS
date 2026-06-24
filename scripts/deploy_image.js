@@ -11,6 +11,10 @@
 const fs = require("fs");
 const path = require("path");
 
+const DEPLOY_LOCK_FILE = path.join(__dirname, ".deploy_image.lock");
+const DEPLOY_LOCK_WAIT_MS = 5000;
+let deployLockHeld = false;
+
 // 重型依赖延迟加载，inspect --file 本地模式无需加载
 let _ssh2, _dotenv, _axios, _FormData;
 function getSSH2() {
@@ -87,6 +91,72 @@ function logSensitive(message, level = "INFO") {
   const byteLength = Buffer.byteLength(String(message ?? ""), "utf8");
   log(`[sensitive output redacted, ${byteLength} bytes]`, level, { sensitive: true });
 }
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getDeployLockContent() {
+  const startedAt = new Date().toISOString();
+  return [
+    `pid=${process.pid}`,
+    `startedAt=${startedAt}`,
+    `script=${__filename}`,
+    `cwd=${process.cwd()}`,
+    "",
+  ].join("\n");
+}
+
+async function acquireDeployLock() {
+  while (true) {
+    try {
+      const fd = fs.openSync(DEPLOY_LOCK_FILE, "wx");
+      try {
+        fs.writeFileSync(fd, getDeployLockContent(), "utf8");
+      } finally {
+        fs.closeSync(fd);
+      }
+      deployLockHeld = true;
+      logInfo(`已创建部署锁文件: ${DEPLOY_LOCK_FILE}`);
+      return;
+    } catch (err) {
+      if (err.code !== "EEXIST") {
+        throw err;
+      }
+
+      logWarning(
+        `检测到已有部署正在进行，等待锁文件删除: ${DEPLOY_LOCK_FILE}`,
+      );
+      await sleep(DEPLOY_LOCK_WAIT_MS);
+    }
+  }
+}
+
+function releaseDeployLock() {
+  if (!deployLockHeld) {
+    return;
+  }
+
+  try {
+    fs.unlinkSync(DEPLOY_LOCK_FILE);
+    logInfo(`已删除部署锁文件: ${DEPLOY_LOCK_FILE}`);
+  } catch (err) {
+    if (err.code !== "ENOENT") {
+      logWarning(`删除部署锁文件失败: ${err.message}`);
+    }
+  } finally {
+    deployLockHeld = false;
+  }
+}
+
+function releaseDeployLockAndExit(signal) {
+  releaseDeployLock();
+  process.exit(signal === "SIGINT" ? 130 : 143);
+}
+
+process.once("exit", releaseDeployLock);
+process.once("SIGINT", () => releaseDeployLockAndExit("SIGINT"));
+process.once("SIGTERM", () => releaseDeployLockAndExit("SIGTERM"));
 
 /**
  * SSH 远程登录函数 - 对应 Python 的 remote_login
@@ -1081,6 +1151,7 @@ function writeDeployLog(serverAddress, username, containerNames, imageUrl) {
  * 主函数 - 对应 Python 的 main
  */
 async function main() {
+  await acquireDeployLock();
   try {
     const imageUrl = (process.env.IMAGE_URL || "").trim();
     const serverAddresses = (process.env.SERVER_ADDRESS || "").split(",");
@@ -1186,7 +1257,9 @@ async function main() {
     logInfo("\n===== 所有服务器部署完成 =====");
   } catch (err) {
     logError(`主函数执行失败: ${err.message}`);
-    process.exit(1);
+    process.exitCode = 1;
+  } finally {
+    releaseDeployLock();
   }
 }
 
