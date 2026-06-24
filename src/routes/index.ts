@@ -61,6 +61,7 @@ import lifeRoutes from "./lifeRoutes";
 import logRoutes from "./logRoutes";
 import lotteryRoutes from "./lotteryRoutes";
 import mediaRoutes from "./mediaRoutes";
+import markdownArticleRoutes from "./markdownArticleRoutes";
 import miniapiRoutes from "./miniapiRoutes";
 import modlistRoutes from "./modlistRoutes";
 import networkRoutes from "./networkRoutes";
@@ -974,6 +975,25 @@ export const postTamperRouteModules: RouteModule[] = [
     requiresAuth: false,
     rateLimited: true,
     isPublic: true,
+  },
+  {
+    name: "markdown-article-routes",
+    path: "/api/articles",
+    router: markdownArticleRoutes,
+    middlewares: [statusLimiter],
+    requiresAuth: "mixed",
+    rateLimited: true,
+    isPublic: "mixed",
+    authPolicy: {
+      mode: "route",
+      handlers: ["authenticateToken", "authenticateAdmin"],
+      note: "Public article reads are open; article creation, updates, publishing, and deletion require administrator JWT checks inside the router.",
+    },
+    rateLimitPolicy: {
+      mode: "mixed",
+      limiters: ["statusLimiter", "adminLimiter"],
+      note: "Public article reads use the status limiter at mount; administrator mutations apply the stricter admin limiter inside the router.",
+    },
   },
   {
     name: "social-routes",

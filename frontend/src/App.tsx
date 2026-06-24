@@ -62,6 +62,7 @@ const ImageUploadPage = React.lazy(() => import('./components/ImageUploadPage'))
 const TigerAdventure = React.lazy(() => import('./components/TigerAdventure'));
 const CoinFlip = React.lazy(() => import('./components/CoinFlip'));
 const MarkdownExportPage = React.lazy(() => import('./components/MarkdownExportPage'));
+const MarkdownArticlePage = React.lazy(() => import('./components/MarkdownArticlePage'));
 
 // 字数统计页面懒加载
 const WordCountPageSimple = React.lazy(() => import('./components/WordCountPageSimple'));
@@ -1441,6 +1442,7 @@ const App: React.FC = () => {
                     <Route path="/tiger-adventure" element={renderAnimatedRoute(<TigerAdventure />)} />
                     <Route path="/coin-flip" element={renderAnimatedRoute(<CoinFlip />)} />
                     <Route path="/markdown-export" element={renderAnimatedRoute(<MarkdownExportPage />)} />
+                    <Route path="/articles/:slug" element={renderAnimatedRoute(<MarkdownArticlePage />)} />
                     <Route path="/campus-emergency" element={renderAnimatedRoute(<CampusEmergencyPage />)} />
                     <Route path="/tamper-detection-demo" element={renderAdminRoute(<TamperDetectionDemo />)} />
 

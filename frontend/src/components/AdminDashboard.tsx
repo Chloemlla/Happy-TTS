@@ -62,6 +62,7 @@ const RustBenchmarkDashboard = React.lazy(
   () => import("./RustBenchmarkDashboard"),
 );
 const TtsGenerationManager = React.lazy(() => import("./TtsGenerationManager"));
+const MarkdownArticleManager = React.lazy(() => import("./MarkdownArticleManager"));
 
 const LOADING_CARD_CLASS =
   "w-full rounded-[36px] border border-white/70 bg-white/88 px-6 py-8 text-center shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl";
@@ -105,6 +106,7 @@ const AdminDashboard: React.FC = () => {
         { key: "librechat", label: "LibreChat 管理" },
         { key: "ecoenchants", label: "EcoEnchants 授权" },
         { key: "announcement", label: "公告管理" },
+        { key: "markdown-articles", label: "Markdown 文章" },
         { key: "env", label: "环境变量" },
         { key: "mail-system", label: "邮件系统配置" },
         { key: "lottery", label: "抽奖管理" },
@@ -155,6 +157,7 @@ const AdminDashboard: React.FC = () => {
         items: tabs.filter((item) =>
           [
             "announcement",
+            "markdown-articles",
             "lottery",
             "outemail",
             "shortlink",
@@ -545,6 +548,19 @@ const AdminDashboard: React.FC = () => {
                   >
                     <Suspense fallback={<AdminModuleLoadingShell />}>
                       <AnnouncementManager />
+                    </Suspense>
+                  </motion.div>
+                )}
+                {tab === "markdown-articles" && (
+                  <motion.div
+                    key="markdown-articles"
+                    initial={{ opacity: 0, x: 40 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -40 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <Suspense fallback={<AdminModuleLoadingShell label="正在加载 Markdown 文章发布页面..." />}>
+                      <MarkdownArticleManager />
                     </Suspense>
                   </motion.div>
                 )}
