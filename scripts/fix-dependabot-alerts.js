@@ -45,7 +45,9 @@ const EXCLUDED_DIRECTORIES = new Set([
   'node_modules',
   'target',
 ]);
-const SUPPORTED_DEPENDABOT_ECOSYSTEMS = new Set(['npm', 'cargo']);
+const SUPPORTED_DEPENDABOT_ECOSYSTEMS = new Set(['npm']);
+const CARGO_SKIP_REASON =
+  'Cargo alerts are intentionally skipped because rust-services is deployed as release artifacts; automatic cargo dependency refreshes do not match this project deployment mode.';
 
 // 全局缓存已经探测成功的 pnpm 执行器命令，规避重复降级重试逻辑
 let cachedPnpmCommand = null;
@@ -657,10 +659,12 @@ function formatDependabotAlert(alert) {
 
 function printDependabotAlertDiscovery(repository, plan) {
   const npmTargetCount = plan.npmAlertsByTarget.size;
-  const cargoTargetCount = plan.rustAlerts.length > 0 ? 1 : 0;
+  const skippedCargoAlerts = plan.unsupportedAlerts.filter(
+    (alert) => getDependabotAlertEcosystem(alert) === 'cargo'
+  );
 
   console.log(`Dependabot alert discovery: ${plan.alerts.length} open alert(s) from ${repository}.`);
-  console.log(`Actionable targets from alerts: ${npmTargetCount + cargoTargetCount}`);
+  console.log(`Actionable targets from alerts: ${npmTargetCount}`);
 
   for (const [target, alerts] of plan.npmAlertsByTarget.entries()) {
     const packages = Array.from(new Set(alerts.map(getDependabotAlertPackageName).filter(Boolean)))
@@ -670,11 +674,11 @@ function printDependabotAlertDiscovery(repository, plan) {
     );
   }
 
-  if (plan.rustAlerts.length > 0) {
-    const packages = Array.from(new Set(plan.rustAlerts.map(getDependabotAlertPackageName).filter(Boolean)))
+  if (skippedCargoAlerts.length > 0) {
+    const packages = Array.from(new Set(skippedCargoAlerts.map(getDependabotAlertPackageName).filter(Boolean)))
       .sort((left, right) => left.localeCompare(right));
     console.log(
-      `- ${CARGO_ROOT_DIRNAME}/${CARGO_MANIFEST_FILENAME}: ${plan.rustAlerts.length} cargo alert(s)${packages.length > 0 ? ` (${packages.join(', ')})` : ''}`
+      `- Skipped ${skippedCargoAlerts.length} cargo alert(s)${packages.length > 0 ? ` (${packages.join(', ')})` : ''}: ${CARGO_SKIP_REASON}`
     );
   }
 
@@ -691,6 +695,14 @@ function printDependabotAlertDiscovery(repository, plan) {
       .slice(0, 10)
       .forEach((alert) => console.log(`  - ${formatDependabotAlert(alert)}`));
   }
+}
+
+function hasOnlySkippedCargoAlerts(plan) {
+  return (
+    plan
+    && plan.alerts.length > 0
+    && plan.alerts.every((alert) => getDependabotAlertEcosystem(alert) === 'cargo')
+  );
 }
 
 async function discoverDependabotAlertPlan(cliArgs, pnpmTargets, rustTarget) {
@@ -1651,7 +1663,7 @@ async function main() {
   );
 
   const pnpmTargets = await discoverTargets();
-  const rustTarget = await discoverRustTarget();
+  const rustTarget = null;
   const dependabotAlertPlan = await discoverDependabotAlertPlan(
     cliArgs,
     pnpmTargets,
@@ -1660,9 +1672,7 @@ async function main() {
   const filteredPnpmTargets = dependabotAlertPlan
     ? Array.from(dependabotAlertPlan.npmAlertsByTarget.keys())
     : filterTargetsByCliArgs(pnpmTargets, cliArgs);
-  const includeRustTarget = dependabotAlertPlan
-    ? dependabotAlertPlan.rustAlerts.length > 0
-    : shouldIncludeRustTarget(rustTarget, cliArgs);
+  const includeRustTarget = false;
   const totalTargets = filteredPnpmTargets.length + (includeRustTarget ? 1 : 0);
 
   if (totalTargets === 0) {
@@ -1673,15 +1683,21 @@ async function main() {
     }
 
     if (dependabotAlertPlan) {
+      if (hasOnlySkippedCargoAlerts(dependabotAlertPlan)) {
+        console.log(CARGO_SKIP_REASON);
+        console.log('\nDone.');
+        return;
+      }
+
       throw new Error(
-        'Open Dependabot alerts were found, but none matched a supported local npm or cargo target.'
+        `Open Dependabot alerts were found, but none matched a supported local npm target. ${CARGO_SKIP_REASON}`
       );
     }
 
     throw new Error(
       cliArgs.targets.length > 0
         ? `No dependency target matched: ${cliArgs.targets.join(', ')}`
-        : `No package.json with dependencies or ${CARGO_ROOT_DIRNAME}/Cargo.toml was found under the repository root.`
+        : 'No package.json with dependencies was found under the repository root.'
     );
   }
 
