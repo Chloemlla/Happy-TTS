@@ -17,6 +17,7 @@ type MarkdownHeadingProps = ComponentPropsWithoutRef<'h1'> & ExtraProps;
 type MarkdownImageProps = ComponentPropsWithoutRef<'img'> & ExtraProps;
 type MarkdownLinkProps = ComponentPropsWithoutRef<'a'> & ExtraProps;
 type MarkdownInputProps = ComponentPropsWithoutRef<'input'> & ExtraProps;
+type HeadingTag = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
 
 interface MarkdownRendererProps {
   content: string;
@@ -136,6 +137,36 @@ const TaskCheckbox: React.FC<MarkdownInputProps> = ({ checked, disabled: _disabl
   );
 };
 
+const MarkdownImage: React.FC<MarkdownImageProps & {
+  onOpen: (image: { src: string; alt: string }) => void;
+}> = ({ src, alt = '', onOpen, node: _node, ...props }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  return (
+    <figure className="markdown-image-frame">
+      <button
+        type="button"
+        className={`markdown-image-button ${isLoaded ? 'is-loaded' : ''}`}
+        onClick={() => {
+          if (src) onOpen({ src, alt });
+        }}
+        title="点击放大图片"
+      >
+        <span className="markdown-image-skeleton" aria-hidden="true" />
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          decoding="async"
+          onLoad={() => setIsLoaded(true)}
+          {...props}
+        />
+      </button>
+      {alt && <figcaption>{alt}</figcaption>}
+    </figure>
+  );
+};
+
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   content,
   isDark,
@@ -171,7 +202,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     onCodeCopy?.(success);
   };
 
-  const renderHeading = (Tag: keyof JSX.IntrinsicElements, children: React.ReactNode, props: MarkdownHeadingProps) => {
+  const renderHeading = (Tag: HeadingTag, children: React.ReactNode, props: MarkdownHeadingProps) => {
     const id = getMarkdownHeadingId(children);
     return React.createElement(
       Tag,
@@ -292,23 +323,14 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     ),
     input: ({ node: _node, ...props }: MarkdownInputProps) =>
       props.type === 'checkbox' ? <TaskCheckbox {...props} /> : <input {...props} />,
-    img: ({ node: _node, src, alt = '', ...props }: MarkdownImageProps) => (
-      <figure className="markdown-image-frame">
-        <button
-          type="button"
-          className="markdown-image-button"
-          onClick={() => {
-            if (src) {
-              setLightboxImage({ src, alt });
-              setIsLightboxZoomed(false);
-            }
-          }}
-          title="点击放大图片"
-        >
-          <img src={src} alt={alt} loading="lazy" decoding="async" {...props} />
-        </button>
-        {alt && <figcaption>{alt}</figcaption>}
-      </figure>
+    img: (props: MarkdownImageProps) => (
+      <MarkdownImage
+        {...props}
+        onOpen={(image) => {
+          setLightboxImage(image);
+          setIsLightboxZoomed(false);
+        }}
+      />
     ),
     h1: ({ node: _node, children, ...props }: MarkdownHeadingProps) => renderHeading('h1', children, props),
     h2: ({ node: _node, children, ...props }: MarkdownHeadingProps) => renderHeading('h2', children, props),
