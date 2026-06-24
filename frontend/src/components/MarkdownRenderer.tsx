@@ -1,4 +1,4 @@
-import React, { type ComponentPropsWithoutRef } from 'react';
+import React, { useEffect, useState, type ComponentPropsWithoutRef } from 'react';
 import ReactMarkdown, { type Components, type ExtraProps } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -12,6 +12,11 @@ type MarkdownCodeProps = ComponentPropsWithoutRef<'code'> &
   ExtraProps & {
     inline?: boolean;
   };
+
+type MarkdownHeadingProps = ComponentPropsWithoutRef<'h1'> & ExtraProps;
+type MarkdownImageProps = ComponentPropsWithoutRef<'img'> & ExtraProps;
+type MarkdownLinkProps = ComponentPropsWithoutRef<'a'> & ExtraProps;
+type MarkdownInputProps = ComponentPropsWithoutRef<'input'> & ExtraProps;
 
 interface MarkdownRendererProps {
   content: string;
@@ -85,13 +90,51 @@ function getCodeLanguage(codeClassName?: string): string {
   );
 }
 
-function getHeadingId(children: React.ReactNode): string {
+function extractText(children: React.ReactNode): string {
   return React.Children.toArray(children)
-    .join('')
+    .map((child) => {
+      if (typeof child === 'string' || typeof child === 'number') return String(child);
+      if (React.isValidElement<{ children?: React.ReactNode }>(child)) return extractText(child.props.children);
+      return '';
+    })
+    .join('');
+}
+
+export function getMarkdownHeadingId(children: React.ReactNode): string {
+  return extractText(children)
     .toLowerCase()
     .replace(/[^\w\u4e00-\u9fa5]+/g, '-')
     .replace(/^-+|-+$/g, '');
 }
+
+function getLinkTitle(href?: string): string | undefined {
+  if (!href) return undefined;
+  try {
+    const url = new URL(href, window.location.origin);
+    if (url.origin === window.location.origin) return href;
+    return `${url.hostname}${url.pathname === '/' ? '' : url.pathname}`;
+  } catch {
+    return href;
+  }
+}
+
+const TaskCheckbox: React.FC<MarkdownInputProps> = ({ checked, disabled: _disabled, ...props }) => {
+  const [isChecked, setIsChecked] = useState(Boolean(checked));
+
+  useEffect(() => {
+    setIsChecked(Boolean(checked));
+  }, [checked]);
+
+  return (
+    <input
+      {...props}
+      type="checkbox"
+      checked={isChecked}
+      onChange={(event) => setIsChecked(event.target.checked)}
+      className="markdown-task-checkbox"
+    />
+  );
+};
 
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   content,
@@ -102,6 +145,56 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   const handleCodeCopy = async (code: string) => {
     const success = await copyTextToClipboard(code);
     onCodeCopy?.(success);
+  };
+
+  const [lightboxImage, setLightboxImage] = useState<{ src: string; alt: string } | null>(null);
+  const [isLightboxZoomed, setIsLightboxZoomed] = useState(false);
+
+  useEffect(() => {
+    if (!lightboxImage) return undefined;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setLightboxImage(null);
+        setIsLightboxZoomed(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxImage]);
+
+  const copyHeadingLink = async (id: string) => {
+    if (!id || typeof window === 'undefined') return;
+    const url = `${window.location.origin}${window.location.pathname}${window.location.search}#${id}`;
+    const success = await copyTextToClipboard(url);
+    onCodeCopy?.(success);
+  };
+
+  const renderHeading = (Tag: keyof JSX.IntrinsicElements, children: React.ReactNode, props: MarkdownHeadingProps) => {
+    const id = getMarkdownHeadingId(children);
+    return React.createElement(
+      Tag,
+      {
+        ...props,
+        id,
+        className: `markdown-heading markdown-heading-${Tag} group scroll-mt-24 ${props.className || ''}`,
+      },
+      <>
+        <span>{children}</span>
+        {id && (
+          <button
+            type="button"
+            className="markdown-heading-anchor"
+            onClick={() => void copyHeadingLink(id)}
+            title="复制此标题链接"
+            aria-label="复制此标题链接"
+          >
+            #
+          </button>
+        )}
+      </>,
+    );
   };
 
   const components: Components = {
@@ -175,36 +268,103 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         </div>
       );
     },
-    a: ({ node: _node, ...props }) => <a target="_blank" rel="noopener noreferrer" {...props} />,
-    h2: ({ node: _node, children, ...props }) => (
-      <h2 id={getHeadingId(children)} {...props}>
+    a: ({ node: _node, href, children, ...props }: MarkdownLinkProps) => (
+      <a
+        href={href}
+        target={href?.startsWith('#') ? undefined : '_blank'}
+        rel={href?.startsWith('#') ? undefined : 'noopener noreferrer'}
+        title={getLinkTitle(href)}
+        data-link-preview={getLinkTitle(href)}
+        {...props}
+      >
         {children}
-      </h2>
+      </a>
     ),
-    h3: ({ node: _node, children, ...props }) => (
-      <h3 id={getHeadingId(children)} {...props}>
+    blockquote: ({ node: _node, children, ...props }) => (
+      <blockquote className="markdown-blockquote" {...props}>
         {children}
-      </h3>
+      </blockquote>
     ),
+    table: ({ node: _node, children, ...props }) => (
+      <div className="markdown-table-scroll">
+        <table {...props}>{children}</table>
+      </div>
+    ),
+    input: ({ node: _node, ...props }: MarkdownInputProps) =>
+      props.type === 'checkbox' ? <TaskCheckbox {...props} /> : <input {...props} />,
+    img: ({ node: _node, src, alt = '', ...props }: MarkdownImageProps) => (
+      <figure className="markdown-image-frame">
+        <button
+          type="button"
+          className="markdown-image-button"
+          onClick={() => {
+            if (src) {
+              setLightboxImage({ src, alt });
+              setIsLightboxZoomed(false);
+            }
+          }}
+          title="点击放大图片"
+        >
+          <img src={src} alt={alt} loading="lazy" decoding="async" {...props} />
+        </button>
+        {alt && <figcaption>{alt}</figcaption>}
+      </figure>
+    ),
+    h1: ({ node: _node, children, ...props }: MarkdownHeadingProps) => renderHeading('h1', children, props),
+    h2: ({ node: _node, children, ...props }: MarkdownHeadingProps) => renderHeading('h2', children, props),
+    h3: ({ node: _node, children, ...props }: MarkdownHeadingProps) => renderHeading('h3', children, props),
+    h4: ({ node: _node, children, ...props }: MarkdownHeadingProps) => renderHeading('h4', children, props),
+    h5: ({ node: _node, children, ...props }: MarkdownHeadingProps) => renderHeading('h5', children, props),
+    h6: ({ node: _node, children, ...props }: MarkdownHeadingProps) => renderHeading('h6', children, props),
   };
 
   return (
-    <div
-      className={`prose prose-sm max-w-none break-words ${
-        isDark ? 'prose-invert text-white' : 'text-gray-800'
-      } ${className || ''}
-        prose-pre:bg-transparent prose-pre:p-0 prose-pre:m-0
-        prose-code:bg-gray-100/50 prose-code:text-pink-600 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded-md prose-code:before:content-none prose-code:after:content-none
-        prose-headings:text-inherit prose-strong:text-inherit prose-a:text-blue-500 hover:prose-a:underline`}
-    >
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeKatex]}
-        components={components}
+    <>
+      <div
+        className={`markdown-renderer prose max-w-none break-words ${
+          isDark ? 'markdown-renderer-dark prose-invert' : ''
+        } ${className || ''}`}
       >
-        {content}
-      </ReactMarkdown>
-    </div>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm, remarkMath]}
+          rehypePlugins={[rehypeKatex]}
+          components={components}
+        >
+          {content}
+        </ReactMarkdown>
+      </div>
+      {lightboxImage && (
+        <div
+          className="markdown-lightbox"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => {
+            setLightboxImage(null);
+            setIsLightboxZoomed(false);
+          }}
+        >
+          <button
+            type="button"
+            className="markdown-lightbox-close"
+            onClick={() => {
+              setLightboxImage(null);
+              setIsLightboxZoomed(false);
+            }}
+            aria-label="关闭图片预览"
+          >
+            ×
+          </button>
+          <div
+            className={`markdown-lightbox-content ${isLightboxZoomed ? 'is-zoomed' : ''}`}
+            onClick={(event) => event.stopPropagation()}
+            onDoubleClick={() => setIsLightboxZoomed((value) => !value)}
+          >
+            <img src={lightboxImage.src} alt={lightboxImage.alt} draggable={false} />
+            {lightboxImage.alt && <p>{lightboxImage.alt}</p>}
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ArrowLeft, CalendarDays, Clock, Copy, FileText } from 'lucide-react';
 import { markdownArticleApi, type MarkdownArticle, type MarkdownArticleSummary } from '../api/markdownArticles';
-import MarkdownRenderer from './MarkdownRenderer';
+import MarkdownRenderer, { getMarkdownHeadingId } from './MarkdownRenderer';
 
 function formatDate(value?: string | null): string {
   if (!value) return '未发布';
@@ -19,16 +19,13 @@ function extractHeadings(markdown: string) {
   return markdown
     .split(/\r?\n/)
     .map((line) => {
-      const match = /^(#{2,3})\s+(.+)$/.exec(line.trim());
+      const match = /^(#{1,6})\s+(.+)$/.exec(line.trim());
       if (!match) return null;
       const text = match[2].replace(/[#*_`~]/g, '').trim();
       return {
         level: match[1].length,
         text,
-        anchor: text
-          .toLowerCase()
-          .replace(/[^\w\u4e00-\u9fa5]+/g, '-')
-          .replace(/^-+|-+$/g, ''),
+        anchor: getMarkdownHeadingId(text),
       };
     })
     .filter((item): item is { level: number; text: string; anchor: string } => Boolean(item?.text));
@@ -40,7 +37,9 @@ const MarkdownArticlePage: React.FC = () => {
   const [articles, setArticles] = useState<MarkdownArticleSummary[]>([]);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const headings = useMemo(() => extractHeadings(article?.content || '').slice(0, 12), [article?.content]);
+  const [readingProgress, setReadingProgress] = useState(0);
+  const [activeHeading, setActiveHeading] = useState('');
+  const headings = useMemo(() => extractHeadings(article?.content || '').slice(0, 18), [article?.content]);
   const readingMinutes = useMemo(
     () => Math.max(1, Math.ceil((article?.content.trim().length || 0) / 500)),
     [article?.content],
@@ -73,6 +72,42 @@ const MarkdownArticlePage: React.FC = () => {
     };
   }, [slug]);
 
+  useEffect(() => {
+    if (!slug || !article) return undefined;
+
+    let ticking = false;
+    const updateReadingState = () => {
+      ticking = false;
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      setReadingProgress(Math.min(100, Math.max(0, (scrollTop / maxScroll) * 100)));
+
+      let current = headings[0]?.anchor || '';
+      for (const heading of headings) {
+        const element = document.getElementById(heading.anchor);
+        if (element && element.getBoundingClientRect().top <= 128) {
+          current = heading.anchor;
+        }
+      }
+      setActiveHeading(current);
+    };
+
+    const onScroll = () => {
+      if (!ticking) {
+        ticking = true;
+        window.requestAnimationFrame(updateReadingState);
+      }
+    };
+
+    updateReadingState();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+    };
+  }, [article, headings, slug]);
+
   const copyArticleLink = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
@@ -84,6 +119,14 @@ const MarkdownArticlePage: React.FC = () => {
       document.execCommand('copy');
       document.body.removeChild(input);
     }
+  };
+
+  const scrollToHeading = (event: React.MouseEvent<HTMLAnchorElement>, anchor: string) => {
+    event.preventDefault();
+    const element = document.getElementById(anchor);
+    if (!element) return;
+    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.history.replaceState(null, '', `#${anchor}`);
   };
 
   if (isLoading) {
@@ -147,7 +190,13 @@ const MarkdownArticlePage: React.FC = () => {
   }
 
   return (
-    <article className="mx-auto max-w-4xl px-4 py-10 sm:py-14">
+    <article className="mx-auto max-w-6xl px-4 py-10 sm:py-14">
+      <div className="fixed left-0 top-0 z-[80] h-0.5 w-full bg-transparent">
+        <div
+          className="h-full bg-slate-900/70 transition-[width] duration-150"
+          style={{ width: `${readingProgress}%` }}
+        />
+      </div>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <Link to="/articles" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-900">
           <ArrowLeft className="h-4 w-4" />
@@ -176,7 +225,7 @@ const MarkdownArticlePage: React.FC = () => {
         <h1 className="mt-5 text-3xl font-semibold leading-tight text-slate-950 sm:text-5xl">{article.title}</h1>
         {article.excerpt && <p className="mt-4 text-base leading-8 text-slate-600">{article.excerpt}</p>}
       </header>
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_220px]">
+      <div className="grid justify-center gap-6 lg:grid-cols-[minmax(0,760px)_240px]">
         <section className="min-w-0 rounded-[28px] border border-slate-200 bg-white/92 p-5 shadow-sm sm:p-8">
           <MarkdownRenderer content={article.content} />
         </section>
@@ -189,8 +238,15 @@ const MarkdownArticlePage: React.FC = () => {
                   <a
                     key={`${heading.anchor}-${index}`}
                     href={`#${heading.anchor}`}
-                    className={`block text-sm leading-5 text-slate-600 hover:text-slate-950 ${
+                    onClick={(event) => scrollToHeading(event, heading.anchor)}
+                    className={`block border-l-2 py-0.5 pr-2 text-sm leading-5 transition ${
+                      activeHeading === heading.anchor
+                        ? 'border-slate-900 text-slate-950'
+                        : 'border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-950'
+                    } ${
                       heading.level === 3 ? 'pl-3' : ''
+                    } ${
+                      heading.level >= 4 ? 'pl-5 text-xs' : ''
                     }`}
                   >
                     {heading.text}
