@@ -806,7 +806,7 @@ const OAuthClientManager: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => copy(grant.userId)}
-                        className="block max-w-full rounded bg-slate-50 px-2 py-1 text-left text-xs text-slate-600 hover:bg-slate-100"
+                        className="block max-w-full rounded border border-slate-200 bg-white px-2 py-1 text-left text-xs text-slate-600 transition hover:bg-slate-50"
                         title={`${userDisplay.title}，点击复制用户 ID`}
                       >
                         <span className="block truncate font-semibold text-slate-700">{userDisplay.primary}</span>
