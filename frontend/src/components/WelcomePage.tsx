@@ -1,51 +1,74 @@
 import React, { memo } from 'react';
 import { LazyMotion, domAnimation, m, useReducedMotion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { FaVolumeUp, FaStar, FaUsers, FaRocket, FaSignInAlt, FaUserPlus, FaUserCircle, FaTimes, FaChevronRight } from 'react-icons/fa';
-import { useAuth, SavedAccount } from '../hooks/useAuth';
+import {
+  FaVolumeUp,
+  FaStar,
+  FaUsers,
+  FaRocket,
+  FaSignInAlt,
+  FaUserPlus,
+  FaUserCircle,
+  FaTimes,
+  FaChevronRight,
+  FaShieldAlt,
+  FaCheckCircle,
+} from 'react-icons/fa';
+import { useAuth, type SavedAccount } from '../hooks/useAuth';
+import { cn } from '../utils/cn';
+import {
+  studioAccentBlobBlueClassName,
+  studioAccentBlobSkyClassName,
+  studioDisplayFont,
+  studioElevatedPanelClassName,
+  studioEyebrowAccentPillClassName,
+  studioEyebrowClassName,
+  studioGhostButtonClassName,
+  studioHeroCardClassName,
+  studioMainSurfaceClassName,
+  studioPageClassName,
+  studioPageFont,
+  studioPanelClassName,
+  studioPrimaryButtonClassName,
+  studioSoftBadgeClassName,
+  studioStrongBadgeClassName,
+  studioSubPanelClassName,
+} from './studioTheme';
 
-// 统一的 viewport 与过渡动画配置
 const VIEWPORT_20 = { once: true, amount: 0.2 } as const;
 const VIEWPORT_30 = { once: true, amount: 0.3 } as const;
-const VIEWPORT_40 = { once: true, amount: 0.4 } as const;
 
-const HEADER_TRANSITION = { duration: 0.6 } as const;
-const ICON_INITIAL = { scale: 0.9, opacity: 0 } as const;
-const ICON_VISIBLE = { scale: 1, opacity: 1 } as const;
-const ICON_ENTER_TRANSITION = { duration: 0.5, delay: 0.2 } as const;
-const DESC_ENTER_TRANSITION = { duration: 0.5, delay: 0.4 } as const;
-const AUTH_SPRING_TRANSITION = { duration: 0.6, type: 'spring', stiffness: 120 } as const;
-const CARD_SPRING_TRANSITION = { duration: 0.5, type: 'spring', stiffness: 200 } as const;
-const ITEM_HOVER = { scale: 1.05 } as const;
-const BUTTON_TAP = { scale: 0.95 } as const;
-
-// 降级方案：当用户偏好减少动态时
+const HEADER_TRANSITION = { duration: 0.45 } as const;
+const AUTH_SPRING_TRANSITION = { duration: 0.45, type: 'spring', stiffness: 120 } as const;
+const CARD_SPRING_TRANSITION = { duration: 0.4, type: 'spring', stiffness: 170 } as const;
+const ITEM_HOVER = { scale: 1.01, y: -2 } as const;
+const BUTTON_TAP = { scale: 0.99 } as const;
 const NO_TRANSITION = { duration: 0 } as const;
 const FADE_VARIANTS = { hidden: { opacity: 0 }, visible: { opacity: 1 } } as const;
 
 const FEATURES = [
-  { title: '高质量语音', desc: '使用 OpenAI 最新的 TTS 技术，生成自然流畅的语音', icon: FaStar },
-  { title: '多种声音选择', desc: '提供多种声音选项，满足不同场景需求', icon: FaUsers },
-  { title: '简单易用', desc: '直观的界面设计，轻松上手使用', icon: FaRocket }
+  { title: '高质量语音', desc: '面向播客、课程与短视频旁白，输出自然清晰的音频。', icon: FaStar },
+  { title: '多账号工作流', desc: '在同一设备上快速切换常用账号，减少重复登录。', icon: FaUsers },
+  { title: '安全合成链路', desc: '生成请求经过权限、额度与内容安全审计。', icon: FaRocket },
 ] as const;
 
 const headerVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 }
+  hidden: { opacity: 0, y: 18 },
+  visible: { opacity: 1, y: 0 },
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 30, scale: 0.95 },
-  visible: { opacity: 1, y: 0, scale: 1 }
+  hidden: { opacity: 0, y: 24, scale: 0.98 },
+  visible: { opacity: 1, y: 0, scale: 1 },
 };
 
 const listVariants = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.1 } }
+  visible: { transition: { staggerChildren: 0.08 } },
 };
 
-// FeatureCard — 浅色设计语言
 type FeatureIcon = React.ComponentType<{ className?: string }>;
+
 interface FeatureCardProps {
   title: string;
   desc: string;
@@ -55,20 +78,93 @@ interface FeatureCardProps {
   hover: any;
   tap: any;
 }
-const FeatureCard = memo(function FeatureCard({ title, desc, Icon, variants, transition, hover, tap }: FeatureCardProps) {
+
+const FeatureCard = memo(function FeatureCard({
+  title,
+  desc,
+  Icon,
+  variants,
+  transition,
+  hover,
+  tap,
+}: FeatureCardProps) {
   return (
     <m.div
-      className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 p-6 hover:shadow-2xl transition-all duration-300"
+      className={cn(studioElevatedPanelClassName, 'h-full transition hover:border-slate-300')}
       variants={variants}
       transition={transition}
       whileHover={hover}
       whileTap={tap}
     >
-      <div className="flex items-center gap-3 mb-4">
-        <Icon className="text-2xl text-[#FFB703]" />
-        <h3 className="text-lg font-songti font-semibold text-[#023047]">{title}</h3>
+      <div className="flex items-start gap-3">
+        <div className={cn(studioSoftBadgeClassName, 'shrink-0')}>
+          <Icon className="text-slate-600" />
+        </div>
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold text-slate-900">{title}</h3>
+          <p className="mt-2 text-sm leading-6 text-slate-600">{desc}</p>
+        </div>
       </div>
-      <p className="text-[#023047]/70">{desc}</p>
+    </m.div>
+  );
+});
+
+interface AccountSwitchCardProps {
+  account: SavedAccount;
+  isCurrent: boolean;
+  onSwitch: (userId: string) => void;
+  onRemove: (userId: string) => void;
+}
+
+const AccountSwitchCard = memo(function AccountSwitchCard({
+  account,
+  isCurrent,
+  onSwitch,
+  onRemove,
+}: AccountSwitchCardProps) {
+  return (
+    <m.div
+      className="flex min-w-0 items-center gap-2 rounded-[20px] border border-slate-200 bg-white/80 p-2.5 transition hover:border-slate-300 hover:bg-white"
+      whileHover={{ y: -2 }}
+    >
+      <button
+        type="button"
+        onClick={() => onSwitch(account.user.id)}
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-1 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300"
+      >
+        {account.user.avatarUrl ? (
+          <img
+            src={account.user.avatarUrl}
+            alt=""
+            className="h-10 w-10 shrink-0 rounded-2xl border border-slate-200 object-cover"
+          />
+        ) : (
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-500">
+            <FaUserCircle size={22} />
+          </div>
+        )}
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-2">
+            <p className="truncate text-sm font-semibold text-slate-900">{account.user.username}</p>
+            {isCurrent && (
+              <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                当前
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 truncate text-xs text-slate-500">{account.user.email}</p>
+        </div>
+      </button>
+      <FaChevronRight className="hidden shrink-0 text-slate-300 sm:block" size={12} />
+      <button
+        type="button"
+        onClick={() => onRemove(account.user.id)}
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-transparent text-slate-300 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-200"
+        title="从列表中移除"
+        aria-label={`从列表中移除 ${account.user.username}`}
+      >
+        <FaTimes size={10} />
+      </button>
     </m.div>
   );
 });
@@ -77,139 +173,209 @@ function WelcomePageComponent(): React.ReactElement<any> {
   const { user, savedAccounts, switchAccount, removeAccountFromList } = useAuth();
   const prefersReducedMotion = useReducedMotion();
 
-  const effectiveHeaderVariants = React.useMemo(() => (
-    prefersReducedMotion ? FADE_VARIANTS : headerVariants
-  ), [prefersReducedMotion]);
-  const effectiveItemVariants = React.useMemo(() => (
-    prefersReducedMotion ? FADE_VARIANTS : itemVariants
-  ), [prefersReducedMotion]);
-  const effectiveHeaderTransition = React.useMemo(() => (
-    prefersReducedMotion ? NO_TRANSITION : HEADER_TRANSITION
-  ), [prefersReducedMotion]);
-  const effectiveAuthTransition = React.useMemo(() => (
-    prefersReducedMotion ? NO_TRANSITION : AUTH_SPRING_TRANSITION
-  ), [prefersReducedMotion]);
-  const effectiveCardTransition = React.useMemo(() => (
-    prefersReducedMotion ? NO_TRANSITION : CARD_SPRING_TRANSITION
-  ), [prefersReducedMotion]);
-  const effectiveItemHover = React.useMemo(() => (
-    prefersReducedMotion ? undefined : ITEM_HOVER
-  ), [prefersReducedMotion]);
-  const effectiveButtonTap = React.useMemo(() => (
-    prefersReducedMotion ? undefined : BUTTON_TAP
-  ), [prefersReducedMotion]);
+  const effectiveHeaderVariants = React.useMemo(
+    () => (prefersReducedMotion ? FADE_VARIANTS : headerVariants),
+    [prefersReducedMotion],
+  );
+  const effectiveItemVariants = React.useMemo(
+    () => (prefersReducedMotion ? FADE_VARIANTS : itemVariants),
+    [prefersReducedMotion],
+  );
+  const effectiveHeaderTransition = React.useMemo(
+    () => (prefersReducedMotion ? NO_TRANSITION : HEADER_TRANSITION),
+    [prefersReducedMotion],
+  );
+  const effectiveAuthTransition = React.useMemo(
+    () => (prefersReducedMotion ? NO_TRANSITION : AUTH_SPRING_TRANSITION),
+    [prefersReducedMotion],
+  );
+  const effectiveCardTransition = React.useMemo(
+    () => (prefersReducedMotion ? NO_TRANSITION : CARD_SPRING_TRANSITION),
+    [prefersReducedMotion],
+  );
+  const effectiveItemHover = React.useMemo(
+    () => (prefersReducedMotion ? undefined : ITEM_HOVER),
+    [prefersReducedMotion],
+  );
+  const effectiveButtonTap = React.useMemo(
+    () => (prefersReducedMotion ? undefined : BUTTON_TAP),
+    [prefersReducedMotion],
+  );
 
   return (
     <LazyMotion features={domAnimation}>
-      <div className="min-h-screen bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10 py-8 rounded-3xl">
-        <div className="max-w-7xl mx-auto px-4 space-y-8">
-          {/* 主卡片容器 */}
-          <m.div
-            className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 overflow-hidden"
+      <div className={studioPageClassName} style={{ fontFamily: studioPageFont }}>
+        <div className="mx-auto max-w-7xl min-w-0 space-y-5 sm:space-y-8">
+          <m.section
+            className={cn('relative overflow-hidden', studioHeroCardClassName)}
             initial="hidden"
             whileInView="visible"
             viewport={VIEWPORT_30}
             variants={effectiveHeaderVariants}
             transition={effectiveHeaderTransition}
           >
-            {/* 头部横幅 */}
-            <div className="bg-[#023047] text-white p-6">
-              <div className="text-center">
-                <m.div className="flex items-center justify-center gap-3 mb-4">
-                  <FaVolumeUp className="text-4xl" />
-                  <h1 className="text-4xl font-bold font-songti">欢迎使用 Synapse</h1>
-                </m.div>
-                <p className="text-[#8ECAE6] text-lg opacity-80">使用最新的语音合成技术，生成自然流畅的语音</p>
+            <div className={cn(studioAccentBlobBlueClassName, '-right-12 top-0')} aria-hidden />
+            <div className={cn(studioAccentBlobSkyClassName, '-left-10 bottom-0')} aria-hidden />
+            <div className="relative flex min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+              <div className="max-w-2xl min-w-0">
+                <div className={studioEyebrowAccentPillClassName}>
+                  <FaVolumeUp />
+                  Synapse Access
+                </div>
+                <h1
+                  className="mt-4 text-[2rem] font-semibold leading-[1.05] text-slate-900 sm:text-5xl sm:leading-tight"
+                  style={{ fontFamily: studioDisplayFont }}
+                >
+                  欢迎使用 Synapse
+                </h1>
+                <p className="mt-3 max-w-xl text-[13px] leading-6 text-slate-600 sm:text-base sm:leading-7">
+                  进入语音合成工作台，继续管理账号、生成音频并查看历史记录。
+                </p>
+              </div>
+
+              <div className="w-full lg:w-auto lg:max-w-sm">
+                <div className={studioSubPanelClassName}>
+                  <div className={cn(studioEyebrowClassName, 'flex items-center gap-2')}>
+                    <FaShieldAlt className="text-slate-500" />
+                    Account State
+                  </div>
+                  <div className="mt-3 flex items-start gap-3">
+                    <div className={studioStrongBadgeClassName}>
+                      <FaCheckCircle className="text-emerald-300" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-slate-900">
+                        {user ? '已恢复当前登录态' : '准备进入账号流程'}
+                      </div>
+                      <p className="mt-1 text-xs leading-5 text-slate-600">
+                        {user
+                          ? `当前账号：${user.username}`
+                          : savedAccounts.length > 0
+                            ? `已发现 ${savedAccounts.length} 个本机账号`
+                            : '登录或注册后即可开始使用 TTS。'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
+          </m.section>
 
-            {/* 行动号召区域 */}
-            <div className="p-8 bg-[#8ECAE6]/5">
-              <div className="max-w-2xl mx-auto text-center space-y-8">
-                
-                {/* 账号切换列表 - 单设备多用户核心体现 */}
+          <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+            <m.section
+              className={studioMainSurfaceClassName}
+              initial="hidden"
+              whileInView="visible"
+              viewport={VIEWPORT_20}
+              variants={effectiveHeaderVariants}
+              transition={effectiveAuthTransition}
+            >
+              <div className="rounded-[22px] border border-slate-200 bg-white/80 p-4 sm:p-6">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={studioStrongBadgeClassName}>
+                      <FaUserCircle />
+                    </div>
+                    <div>
+                      <div className={studioEyebrowClassName}>Saved Accounts</div>
+                      <h2 className="mt-1 text-xl font-semibold text-slate-900">继续使用您的账号</h2>
+                    </div>
+                  </div>
+                </div>
+
                 <AnimatePresence>
-                  {savedAccounts.length > 0 && (
-                    <m.div 
-                      className="space-y-4"
+                  {savedAccounts.length > 0 ? (
+                    <m.div
+                      className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-2"
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                     >
-                      <h4 className="text-xs font-bold text-[#023047]/40 uppercase tracking-widest">继续使用您的账号</h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {savedAccounts.map((account) => (
-                          <m.div
-                            key={account.user.id}
-                            className="relative group bg-white border border-[#8ECAE6]/40 p-3 rounded-xl flex items-center justify-between hover:border-[#219EBC] hover:shadow-md transition-all cursor-pointer"
-                            whileHover={{ y: -2 }}
-                            onClick={() => switchAccount(account.user.id)}
-                          >
-                            <div className="flex items-center gap-3 overflow-hidden">
-                              {account.user.avatarUrl ? (
-                                <img src={account.user.avatarUrl} alt="" className="w-10 h-10 rounded-full object-cover border-2 border-indigo-50" />
-                              ) : (
-                                <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-500">
-                                  <FaUserCircle size={24} />
-                                </div>
-                              )}
-                              <div className="text-left overflow-hidden">
-                                <p className="font-bold text-[#023047] truncate">{account.user.username}</p>
-                                <p className="text-[10px] text-[#023047]/50 truncate">{account.user.email}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <FaChevronRight className="text-[#8ECAE6] group-hover:text-[#219EBC] transition-colors" size={12} />
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  removeAccountFromList(account.user.id);
-                                }}
-                                className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                                title="从列表中移除"
-                              >
-                                <FaTimes size={10} />
-                              </button>
-                            </div>
-                          </m.div>
-                        ))}
-                      </div>
+                      {savedAccounts.map((account) => (
+                        <AccountSwitchCard
+                          key={account.user.id}
+                          account={account}
+                          isCurrent={user?.id === account.user.id}
+                          onSwitch={switchAccount}
+                          onRemove={removeAccountFromList}
+                        />
+                      ))}
+                    </m.div>
+                  ) : (
+                    <m.div
+                      className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    >
+                      暂无已保存账号
                     </m.div>
                   )}
                 </AnimatePresence>
 
-                <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                  <m.div whileHover={effectiveItemHover} whileTap={effectiveButtonTap}>
-                    <Link
-                      to="/login"
-                      className="group flex items-center gap-2 px-8 py-3 bg-[#FFB703] hover:bg-[#FB8500] text-[#023047] font-semibold rounded-lg shadow-lg shadow-[#FFB703]/20 transition-all duration-300"
-                    >
-                      <FaSignInAlt className="text-xl" />
-                      <span>{savedAccounts.length > 0 ? '登录其他账号' : '登录'}</span>
+                <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+                  <m.div whileHover={effectiveItemHover} whileTap={effectiveButtonTap} className="w-full sm:w-auto">
+                    <Link to="/login" className={cn(studioPrimaryButtonClassName, 'w-full')}>
+                      <FaSignInAlt />
+                      {savedAccounts.length > 0 ? '登录其他账号' : '登录'}
                     </Link>
                   </m.div>
-
-                  <m.div whileHover={effectiveItemHover} whileTap={effectiveButtonTap}>
-                    <Link
-                      to="/register"
-                      className="group flex items-center gap-2 px-8 py-3 bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 text-[#023047]/70 hover:text-[#023047] font-semibold rounded-lg border border-[#8ECAE6]/30 hover:border-[#219EBC] transition-all duration-300"
-                    >
-                      <FaUserPlus className="text-xl" />
-                      <span>注册账号</span>
+                  <m.div whileHover={effectiveItemHover} whileTap={effectiveButtonTap} className="w-full sm:w-auto">
+                    <Link to="/register" className={cn(studioGhostButtonClassName, 'h-full w-full px-5 py-3.5 tracking-[0.16em]')}>
+                      <FaUserPlus />
+                      注册账号
                     </Link>
                   </m.div>
                 </div>
               </div>
-            </div>
-          </m.div>
+            </m.section>
 
-          {/* 功能特色卡片 */}
-          <m.div
+            <m.aside
+              className={studioPanelClassName}
+              initial="hidden"
+              whileInView="visible"
+              viewport={VIEWPORT_20}
+              variants={effectiveHeaderVariants}
+              transition={effectiveAuthTransition}
+            >
+              <div className="flex items-center gap-3">
+                <div className={studioStrongBadgeClassName}>
+                  <FaVolumeUp />
+                </div>
+                <div>
+                  <div className={studioEyebrowClassName}>Workspace</div>
+                  <h2 className="mt-1 text-lg font-semibold text-slate-900">语音合成入口</h2>
+                </div>
+              </div>
+              <p className="mt-4 text-sm leading-7 text-slate-600">
+                登录后将回到 Synapse 工作台，使用与文本转语音页面一致的表单、结果与历史记录体验。
+              </p>
+              <div className="mt-5 rounded-[20px] border border-slate-200 bg-slate-50/80 p-4">
+                <div className={studioEyebrowClassName}>Daily Flow</div>
+                <div className="mt-3 space-y-2 text-sm text-slate-600">
+                  <div className="flex items-center justify-between gap-3">
+                    <span>账号</span>
+                    <span className="font-semibold text-slate-900">鉴权</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>文本</span>
+                    <span className="font-semibold text-slate-900">合成</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span>音频</span>
+                    <span className="font-semibold text-slate-900">下载</span>
+                  </div>
+                </div>
+              </div>
+            </m.aside>
+          </div>
+
+          <m.section
             initial="hidden"
             whileInView="visible"
             viewport={VIEWPORT_20}
             variants={listVariants}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+            className="grid grid-cols-1 gap-4 md:grid-cols-3"
           >
             {FEATURES.map((item) => (
               <FeatureCard
@@ -223,7 +389,7 @@ function WelcomePageComponent(): React.ReactElement<any> {
                 tap={effectiveButtonTap}
               />
             ))}
-          </m.div>
+          </m.section>
         </div>
       </div>
     </LazyMotion>

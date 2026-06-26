@@ -96,6 +96,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
   };
 
   const handleClose = () => {
+    if (loading) return;
     setStep('loading');
     setVerificationCode('');
     setError('');
@@ -110,26 +111,25 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
     setNotification({ message: '密钥已复制到剪贴板', type: 'success' });
   };
 
-  if (!isOpen) return null;
-
   return (
     <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/30 p-4 backdrop-blur-sm"
-        onClick={handleClose}
-      >
+      {isOpen ? (
         <motion.div
-          initial={{ opacity: 0, scale: 0.96, y: 18 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: 18 }}
-          className={`${studioModalCardClassName} my-8 max-w-2xl`}
-          style={{ fontFamily: studioPageFont }}
-          onClick={(event) => event.stopPropagation()}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/30 p-4 backdrop-blur-sm"
+          onClick={handleClose}
         >
-          <div className="max-h-[82vh] overflow-y-auto pr-1">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 18 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: 18 }}
+            className={`${studioModalCardClassName} my-8 max-w-2xl`}
+            style={{ fontFamily: studioPageFont }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="max-h-[82vh] overflow-y-auto overscroll-contain pr-1">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div className="flex min-w-0 gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white">
@@ -145,6 +145,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
               <button
                 type="button"
                 onClick={handleClose}
+                disabled={loading}
                 className="rounded-full border border-slate-200 bg-white/80 p-2 text-slate-400 transition hover:border-slate-300 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
                 aria-label="关闭 TOTP 设置"
                 title="关闭"
@@ -266,6 +267,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                         className={`${studioFieldClassName} text-center font-mono text-lg`}
                         placeholder="000000"
                         maxLength={6}
+                        inputMode="numeric"
                         autoComplete="one-time-code"
                       />
                     </div>
@@ -297,9 +299,10 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                 </div>
               </div>
             )}
-          </div>
+            </div>
+          </motion.div>
         </motion.div>
-      </motion.div>
+      ) : null}
     </AnimatePresence>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import axios from "axios";
 import {
   FaCheckCircle,
@@ -10,6 +10,7 @@ import {
   FaShieldAlt,
 } from "react-icons/fa";
 import type { TOTPStatus } from "../types/auth";
+import { passkeyApi } from "../api/passkey";
 import {
   cleanTOTPToken,
   handleTOTPError,
@@ -26,7 +27,6 @@ import {
   studioPrimaryButtonClassName,
 } from "./studioTheme";
 import TOTPSetup from "./TOTPSetup";
-import { useTwoFactorStatus } from "../hooks/useTwoFactorStatus";
 import { getApiBaseUrl } from "../api/api";
 
 interface TOTPManagerProps {
@@ -36,13 +36,17 @@ interface TOTPManagerProps {
 const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
   const [status, setStatus] = useState<TOTPStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [statusError, setStatusError] = useState("");
+  const [passkeyEnabled, setPasskeyEnabled] = useState(false);
   const [showSetup, setShowSetup] = useState(false);
   const [showDisable, setShowDisable] = useState(false);
   const [showBackupCodes, setShowBackupCodes] = useState(false);
   const [showPasskeySetup, setShowPasskeySetup] = useState(false);
   const [disableCode, setDisableCode] = useState("");
   const [error, setError] = useState("");
-  const twoFactor = useTwoFactorStatus();
+  const [disabling, setDisabling] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
 
   const api = useMemo(
     () =>
@@ -56,24 +60,65 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
     [],
   );
 
-  const fetchStatus = useCallback(async () => {
+  const fetchStatus = useCallback(async (mode: "initial" | "refresh" = "refresh") => {
+    const isInitial = mode === "initial";
+
     try {
-      setLoading(true);
-      const response = await api.get<TOTPStatus>("/api/totp/status");
-      setStatus(response.data);
-      onStatusChange?.(response.data);
+      if (isInitial) {
+        setLoading(true);
+      } else {
+        setRefreshing(true);
+      }
+      setStatusError("");
+
+      const [totpResult, passkeyResult] = await Promise.allSettled([
+        api.get<TOTPStatus>("/api/totp/status"),
+        passkeyApi.getCredentials(),
+      ]);
+
+      if (totpResult.status === "fulfilled") {
+        const nextStatus = {
+          ...totpResult.value.data,
+          type: [
+            totpResult.value.data.enabled ? "TOTP" : null,
+            passkeyResult.status === "fulfilled" && passkeyResult.value.data.length > 0
+              ? "Passkey"
+              : null,
+          ].filter(Boolean) as string[],
+        };
+        setStatus(nextStatus);
+        onStatusChange?.(nextStatus);
+      } else if (isInitial) {
+        setStatusError("无法获取账户安全状态，请稍后重试。");
+        setStatus({ enabled: false, hasBackupCodes: false, type: [] });
+      } else {
+        setStatusError("状态刷新失败，页面仍显示上一次结果。");
+      }
+
+      if (passkeyResult.status === "fulfilled") {
+        setPasskeyEnabled(passkeyResult.value.data.length > 0);
+      } else if (isInitial) {
+        setPasskeyEnabled(false);
+      }
     } catch (err) {
       console.error("获取 TOTP 状态失败:", err);
+      setStatusError("无法获取账户安全状态，请稍后重试。");
     } finally {
-      setLoading(false);
+      if (isInitial) {
+        setLoading(false);
+      } else {
+        setRefreshing(false);
+      }
     }
   }, [api, onStatusChange]);
 
   useEffect(() => {
-    void fetchStatus();
+    void fetchStatus("initial");
   }, [fetchStatus]);
 
   const handleDisable = async () => {
+    if (disabling) return;
+
     const cleanCode = cleanTOTPToken(disableCode);
     if (!cleanCode.trim()) {
       setError("请输入验证码");
@@ -86,17 +131,20 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
 
     try {
       setError("");
+      setDisabling(true);
       await api.post("/api/totp/disable", { token: cleanCode });
       setShowDisable(false);
       setDisableCode("");
-      void fetchStatus();
+      void fetchStatus("refresh");
     } catch (err: any) {
       setError(handleTOTPError(err));
+    } finally {
+      setDisabling(false);
     }
   };
 
   const totpEnabled = Boolean(status?.enabled);
-  const hasPasskey = Boolean(twoFactor.type?.includes("Passkey"));
+  const hasPasskey = passkeyEnabled;
   const methodLabel = [
     totpEnabled ? "TOTP" : null,
     hasPasskey ? "Passkey" : null,
@@ -122,11 +170,14 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
       value: hasPasskey ? "已配置" : "未配置",
     },
   ];
+  const motionProps = prefersReducedMotion
+    ? { initial: false, animate: { opacity: 1 }, transition: { duration: 0 } }
+    : undefined;
 
   if (loading) {
     return (
       <div
-        className="mx-auto flex max-w-2xl items-center justify-center py-12"
+        className="mx-auto flex min-h-[360px] max-w-2xl items-center justify-center py-12"
         style={{ fontFamily: studioPageFont }}
       >
         <div className="h-7 w-7 animate-spin rounded-full border-2 border-slate-200 border-t-slate-900" />
@@ -140,9 +191,9 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
       style={{ fontFamily: studioPageFont }}
     >
       <motion.section
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.24 }}
+        initial={motionProps?.initial ?? { opacity: 0, y: 12 }}
+        animate={motionProps?.animate ?? { opacity: 1, y: 0 }}
+        transition={motionProps?.transition ?? { duration: 0.24 }}
         className="rounded-[26px] border border-slate-200 bg-slate-50/80 p-4 sm:p-5"
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -185,12 +236,24 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
             </div>
           ))}
         </div>
+
+        {statusError || refreshing ? (
+          <div
+            className={`mt-3 rounded-2xl border px-4 py-3 text-xs leading-5 ${
+              statusError
+                ? "border-amber-200 bg-amber-50 text-amber-800"
+                : "border-slate-200 bg-white/80 text-slate-500"
+            }`}
+          >
+            {statusError || "正在同步账户安全状态..."}
+          </div>
+        ) : null}
       </motion.section>
 
       <motion.section
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.24, delay: 0.04 }}
+        initial={motionProps?.initial ?? { opacity: 0, y: 12 }}
+        animate={motionProps?.animate ?? { opacity: 1, y: 0 }}
+        transition={motionProps?.transition ?? { duration: 0.24, delay: 0.04 }}
         className="space-y-3"
       >
         <div className="rounded-[24px] border border-slate-200 bg-white/90 p-4 shadow-sm">
@@ -294,7 +357,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
       <TOTPSetup
         isOpen={showSetup}
         onClose={() => setShowSetup(false)}
-        onSuccess={() => void fetchStatus()}
+        onSuccess={() => void fetchStatus("refresh")}
       />
       <BackupCodesModal
         isOpen={showBackupCodes}
@@ -308,7 +371,9 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className={studioModalOverlayClassName}
-            onClick={() => setShowDisable(false)}
+            onClick={() => {
+              if (!disabling) setShowDisable(false);
+            }}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 18 }}
@@ -332,8 +397,15 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                       event.target.value.replace(/\D/g, "").slice(0, 6),
                     )
                   }
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && disableCode.length === 6 && !disabling) {
+                      void handleDisable();
+                    }
+                  }}
                   placeholder="000000"
                   maxLength={6}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
                   className={`${studioFieldClassName} text-center font-mono sm:rounded-[18px]`}
                 />
                 {error ? (
@@ -345,6 +417,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                   <button
                     type="button"
                     onClick={() => setShowDisable(false)}
+                    disabled={disabling}
                     className={`${studioGhostButtonClassName} w-full sm:w-auto`}
                   >
                     取消
@@ -352,10 +425,14 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                   <button
                     type="button"
                     onClick={handleDisable}
-                    disabled={disableCode.length !== 6}
+                    disabled={disableCode.length !== 6 || disabling}
                     className={`${studioPrimaryButtonClassName} w-full bg-rose-600 shadow-rose-600/20 hover:bg-rose-700 sm:w-auto`}
                   >
-                    <FaClock />
+                    {disabling ? (
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/50 border-t-white" />
+                    ) : (
+                      <FaClock />
+                    )}
                     确认关闭
                   </button>
                 </div>
@@ -372,7 +449,10 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className={studioModalOverlayClassName}
-            onClick={() => setShowPasskeySetup(false)}
+            onClick={() => {
+              setShowPasskeySetup(false);
+              void fetchStatus("refresh");
+            }}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.96, y: 18 }}
@@ -381,8 +461,14 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
               className={`${studioModalCardClassName} max-w-4xl`}
               onClick={(event) => event.stopPropagation()}
             >
-              <div className="max-h-[80vh] overflow-y-auto pr-1">
-                <PasskeySetup />
+              <div className="max-h-[80vh] overflow-y-auto overscroll-contain pr-1">
+                <PasskeySetup
+                  onClose={() => {
+                    setShowPasskeySetup(false);
+                    void fetchStatus("refresh");
+                  }}
+                  onChanged={() => void fetchStatus("refresh")}
+                />
               </div>
             </motion.div>
           </motion.div>

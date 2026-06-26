@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import getApiBaseUrl from "../api";
+import { cn } from "../utils/cn";
+import { authElevatedPanelClassName } from "./authStudioTheme";
 
 interface LinuxDoAuthButtonProps {
   intent?: "login" | "register";
@@ -66,19 +68,23 @@ const LinuxDoAuthButton: React.FC<LinuxDoAuthButtonProps> = ({
     <button
       type="button"
       onClick={() => window.location.assign(startUrl)}
-      className={`w-full flex items-center justify-center gap-3 py-3.5 px-4 border-2 border-[#8ECAE6]/30 rounded-xl text-sm font-semibold text-[#023047] bg-white hover:bg-[#8ECAE6]/10 transition-all duration-200 shadow-sm ${className}`}
+      className={cn(
+        authElevatedPanelClassName,
+        "flex w-full items-center justify-center gap-3 px-4 py-3.5 text-sm font-semibold text-slate-900 transition hover:border-slate-300 hover:bg-white",
+        className,
+      )}
     >
       <img
         src={LINUXDO_ICON_URL}
         alt="Linux.do"
-        className="h-8 w-8 rounded-full object-cover shadow-sm"
+        className="h-8 w-8 rounded-full border border-slate-200 object-cover shadow-sm"
         loading="lazy"
         referrerPolicy="no-referrer"
       />
       <span className="flex flex-col items-start">
         <span>{label}</span>
         {description ? (
-          <span className="text-[11px] font-normal text-[#219EBC]">{description}</span>
+          <span className="text-[11px] font-normal leading-5 text-slate-500">{description}</span>
         ) : null}
       </span>
     </button>

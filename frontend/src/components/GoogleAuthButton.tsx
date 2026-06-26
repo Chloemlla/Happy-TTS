@@ -3,6 +3,8 @@ import getApiBaseUrl from "../api";
 import { useAuth } from "../hooks/useAuth";
 import type { User } from "../types/auth";
 import { useNotification } from "./Notification";
+import { cn } from "../utils/cn";
+import { authElevatedPanelClassName } from "./authStudioTheme";
 
 declare global {
   interface Window {
@@ -234,23 +236,21 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
   }
 
   return (
-    <div
-      className={`w-full rounded-xl border-2 border-[#8ECAE6]/30 bg-white px-4 py-3 shadow-sm ${className}`}
-    >
+    <div className={cn(authElevatedPanelClassName, "w-full px-4 py-3", className)}>
       <div className="mb-3 flex items-center gap-3">
         <img
           width="48"
           height="48"
           src="https://www.gstatic.com/marketing-cms/assets/images/d5/dc/cfe9ce8b4425b410b49b7f2dd3f3/g.webp=s96-fcrop64=1,00000000ffffffff-rw"
           alt="google-logo"
-          className="h-8 w-8 rounded-full object-cover shadow-sm flex-shrink-0"
+          className="h-8 w-8 flex-shrink-0 rounded-full border border-slate-200 object-cover shadow-sm"
           loading="lazy"
           referrerPolicy="no-referrer"
         />
         <div>
-          <div className="text-sm font-semibold text-[#023047]">{label}</div>
+          <div className="text-sm font-semibold text-slate-900">{label}</div>
         {description ? (
-          <div className="text-[11px] text-[#219EBC]">{description}</div>
+          <div className="text-[11px] leading-5 text-slate-500">{description}</div>
         ) : null}
         </div>
       </div>

@@ -12,14 +12,64 @@ import PasskeyVerifyModal from './PasskeyVerifyModal';
 import TOTPVerification from './TOTPVerification';
 import VerificationMethodSelector from './VerificationMethodSelector';
 import { LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion';
-import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaFingerprint, FaVolumeUp, FaArrowLeft, FaQuestionCircle, FaChevronDown, FaChevronUp, FaShieldAlt, FaBolt, FaMobileAlt, FaUser } from 'react-icons/fa';
+import {
+    FaEnvelope,
+    FaLock,
+    FaEye,
+    FaEyeSlash,
+    FaFingerprint,
+    FaVolumeUp,
+    FaArrowLeft,
+    FaQuestionCircle,
+    FaChevronDown,
+    FaChevronUp,
+    FaShieldAlt,
+    FaBolt,
+    FaMobileAlt,
+    FaUser,
+    FaSignInAlt,
+} from 'react-icons/fa';
+import {
+    authAlertClassName,
+    authBackLinkClassName,
+    authBrandBlockClassName,
+    authBrandPillClassName,
+    authBrandSubtitleClassName,
+    authBrandTitleClassName,
+    authCardBodyClassName,
+    authCardClassName,
+    authCardHeaderClassName,
+    authCheckboxClassName,
+    authDividerClassName,
+    authDividerLabelClassName,
+    authDividerLineClassName,
+    authElevatedPanelClassName,
+    authEyebrowClassName,
+    authFieldActionClassName,
+    authFieldClassName,
+    authFieldIconClassName,
+    authFormClassName,
+    authFrameClassName,
+    authHeaderBadgeClassName,
+    authInfoPanelClassName,
+    authLabelClassName,
+    authMutedLinkClassName,
+    authPageShellClassName,
+    authPasswordFieldClassName,
+    authPrimaryButtonClassName,
+    authSecondaryButtonClassName,
+    authTextLinkClassName,
+    authTitleClassName,
+    studioPageFont,
+} from './authStudioTheme';
+import { cn } from '../utils/cn';
 
 const NO_TRANSITION = { duration: 0 } as const;
 const FADE_VARIANTS = { hidden: { opacity: 0 }, visible: { opacity: 1 } } as const;
 const cardVariants = { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0 } };
-const CARD_TRANSITION = { duration: 0.55, type: 'spring', stiffness: 130 } as const;
-const ITEM_HOVER = { scale: 1.04 } as const;
-const BUTTON_TAP = { scale: 0.96 } as const;
+const CARD_TRANSITION = { duration: 0.45, type: 'spring', stiffness: 130 } as const;
+const ITEM_HOVER = { scale: 1.01, y: -1 } as const;
+const BUTTON_TAP = { scale: 0.99 } as const;
 
 export const LoginPage: React.FC = () => {
     const { user, login, pending2FA, setPending2FA } = useAuth();
@@ -117,7 +167,6 @@ export const LoginPage: React.FC = () => {
         setShowVerificationSelector(false); setLoading(true);
         try {
             if (method === 'passkey') {
-                // authenticateWithPasskey throws on failure (including "not enabled" 400 errors)
                 const success = await authenticateWithPasskey(pendingVerificationData.username);
                 if (success) { setPendingVerificationData(null); completeLogin(); }
                 else { setError('Passkey 验证失败'); setNotification({ message: 'Passkey 验证失败', type: 'error' }); }
@@ -136,88 +185,91 @@ export const LoginPage: React.FC = () => {
 
     return (
         <LazyMotion features={domAnimation}>
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10 py-8 px-6 rounded-3xl">
-                <div className="w-full max-w-md">
-                    <m.div className="mb-8 text-center" variants={effectiveCardVariants} initial="hidden" animate="visible" transition={{ duration: 0.5 }}>
-                        <div className="mb-3 inline-flex items-center gap-3">
-                            <FaVolumeUp className="h-10 w-10 text-[#219EBC]" />
-                            <h1 className="text-3xl font-bold font-songti text-[#023047]">Synapse</h1>
+            <div className={authPageShellClassName} style={{ fontFamily: studioPageFont }}>
+                <div className={authFrameClassName}>
+                    <m.div className={authBrandBlockClassName} variants={effectiveCardVariants} initial="hidden" animate="visible" transition={{ duration: 0.5 }}>
+                        <div className={authBrandPillClassName}>
+                            <FaVolumeUp />
+                            Synapse Access
                         </div>
-                        <p className="text-[#023047]/60 text-sm tracking-wide">Welcome back!</p>
+                        <h1 className={authBrandTitleClassName}>Synapse</h1>
+                        <p className={authBrandSubtitleClassName}>Welcome back</p>
                     </m.div>
 
-                    <m.div
-                        className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 overflow-hidden hover:shadow-2xl transition-shadow duration-300"
-                        variants={effectiveCardVariants} initial="hidden" animate="visible" transition={effectiveCardTransition}
-                    >
-                        <div className="bg-[#023047] px-8 py-5 text-white">
-                            <h2 className="text-lg font-songti font-semibold">登录账户</h2>
-                            <p className="text-[#8ECAE6] text-xs mt-1">使用您的账户信息安全登录</p>
-                        </div>
+                    <m.div className={authCardClassName} variants={effectiveCardVariants} initial="hidden" animate="visible" transition={effectiveCardTransition}>
+                        <div className={authCardBodyClassName}>
+                            <div className={authCardHeaderClassName}>
+                                <div className={authHeaderBadgeClassName}>
+                                    <FaSignInAlt />
+                                </div>
+                                <div>
+                                    <div className={authEyebrowClassName}>Account Login</div>
+                                    <h2 className={authTitleClassName}>登录账户</h2>
+                                </div>
+                            </div>
 
-                        <div className="px-8 py-8">
                             {user && (
-                                <m.div 
-                                    initial={{ opacity: 0, y: -10 }} 
-                                    animate={{ opacity: 1, y: 0 }} 
-                                    className="mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-xl flex items-start gap-3"
-                                >
-                                    <FaUser className="text-indigo-500 mt-1 flex-shrink-0" />
+                                <m.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className={cn(authInfoPanelClassName, 'mb-5 flex items-start gap-3')}>
+                                    <FaUser className="mt-1 shrink-0 text-slate-500" />
                                     <div>
-                                        <p className="text-xs font-bold text-indigo-700">您已登录为 {user.username}</p>
-                                        <p className="text-[11px] text-indigo-600/80 mt-0.5">继续登录将在此设备上添加新账号，您可以在菜单中随时切换。</p>
+                                        <p className="text-xs font-semibold text-slate-900">您已登录为 {user.username}</p>
+                                        <p className="mt-1 text-[11px] leading-5 text-slate-600">继续登录将在此设备上添加新账号，您可以在菜单中随时切换。</p>
                                     </div>
                                 </m.div>
                             )}
-                            <form className="space-y-5" onSubmit={handleSubmit}>
-                                {error && (
-                                    <div role="alert" aria-live="assertive" className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>
-                                )}
+
+                            <form className={authFormClassName} onSubmit={handleSubmit}>
+                                {error && <div role="alert" aria-live="assertive" className={authAlertClassName}>{error}</div>}
+
                                 <div>
-                                    <label htmlFor="username" className="block text-sm font-medium text-[#023047]/80 mb-2">邮箱或用户名</label>
+                                    <label htmlFor="username" className={authLabelClassName}>邮箱或用户名</label>
                                     <div className="relative">
-                                        <FaEnvelope className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8ECAE6]" />
+                                        <FaEnvelope className={authFieldIconClassName} />
                                         <input id="username" name="username" type="text" required inputMode="text" enterKeyHint="next" aria-label="用户名或邮箱" aria-required="true" aria-invalid={!!error}
-                                            className="block w-full pl-10 pr-3 py-3 border border-[#8ECAE6]/40 rounded-lg bg-white/60 placeholder-[#023047]/30 text-[#023047] focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all"
+                                            className={authFieldClassName}
                                             placeholder="请输入邮箱或用户名" value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" />
                                     </div>
                                 </div>
+
                                 <div>
-                                    <div className="flex items-center justify-between mb-2">
-                                        <label htmlFor="password" className="block text-sm font-medium text-[#023047]/80">密码</label>
-                                        <Link to="/forgot-password" className="text-xs text-[#FFB703] hover:text-[#FB8500] font-medium transition-colors" aria-label="忘记密码">忘记密码？</Link>
+                                    <div className="mb-2 flex items-center justify-between">
+                                        <label htmlFor="password" className="block text-sm font-medium text-slate-700">密码</label>
+                                        <Link to="/forgot-password" className={authMutedLinkClassName} aria-label="忘记密码">忘记密码？</Link>
                                     </div>
                                     <div className="relative">
-                                        <FaLock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8ECAE6]" />
-                                        <input id="password" name="password" type={showPassword ? "text" : "password"} required enterKeyHint="done" aria-label="密码" aria-required="true" aria-invalid={!!error}
-                                            className="block w-full pl-10 pr-10 py-3 border border-[#8ECAE6]/40 rounded-lg bg-white/60 placeholder-[#023047]/30 text-[#023047] focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all"
-                                            placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
-                                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8ECAE6] hover:text-[#219EBC] transition-colors" aria-label={showPassword ? "隐藏密码" : "显示密码"}>
+                                        <FaLock className={authFieldIconClassName} />
+                                        <input id="password" name="password" type={showPassword ? 'text' : 'password'} required enterKeyHint="done" aria-label="密码" aria-required="true" aria-invalid={!!error}
+                                            className={authPasswordFieldClassName}
+                                            placeholder="请输入密码" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+                                        <button type="button" onClick={() => setShowPassword(!showPassword)} className={authFieldActionClassName} aria-label={showPassword ? '隐藏密码' : '显示密码'}>
                                             {showPassword ? <FaEyeSlash className="h-4 w-4" /> : <FaEye className="h-4 w-4" />}
                                         </button>
                                     </div>
                                 </div>
+
                                 <div className="flex items-center">
-                                    <input id="remember-me" name="remember-me" type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} aria-label="Remember my username" className="h-4 w-4 text-[#FFB703] focus:ring-[#219EBC] border-[#8ECAE6]/40 rounded" />
-                                    <label htmlFor="remember-me" className="ml-2 block text-sm text-[#023047]/70">记住我</label>
+                                    <input id="remember-me" name="remember-me" type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} aria-label="Remember my username" className={authCheckboxClassName} />
+                                    <label htmlFor="remember-me" className="ml-2 block text-sm text-slate-600">记住我</label>
                                 </div>
+
                                 {!turnstileConfigLoading && turnstileConfig.siteKey && (
                                     <div role="group" aria-label="人机验证">
                                         <TurnstileWidget key={turnstileKey} siteKey={turnstileConfig.siteKey} onVerify={handleTurnstileVerify} onExpire={handleTurnstileExpire} onError={handleTurnstileError} theme="light" size="normal" />
-                                        {turnstileVerified && <p className="mt-2 text-xs text-green-600" role="status" aria-live="polite">人机验证通过</p>}
-                                        {turnstileError && <p className="mt-2 text-xs text-red-600" role="alert" aria-live="assertive">验证失败，请重新验证</p>}
+                                        {turnstileVerified && <p className="mt-2 text-xs text-emerald-600" role="status" aria-live="polite">人机验证通过</p>}
+                                        {turnstileError && <p className="mt-2 text-xs text-rose-600" role="alert" aria-live="assertive">验证失败，请重新验证</p>}
                                     </div>
                                 )}
+
                                 <m.button type="submit" disabled={loading || (!!turnstileConfig.siteKey && !turnstileVerified)} aria-label={loading ? '正在登录' : '登录'} aria-busy={loading}
-                                    className="w-full flex justify-center py-3 px-4 rounded-lg text-sm font-semibold text-[#023047] bg-[#FFB703] hover:bg-[#FB8500] shadow-lg shadow-[#FFB703]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                                    className={authPrimaryButtonClassName}
                                     whileHover={effectiveItemHover} whileTap={effectiveButtonTap}>
                                     {loading ? '登录中...' : '登录'}
                                 </m.button>
                             </form>
 
-                            <div className="relative my-6">
-                                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[#8ECAE6]/30"></div></div>
-                                <div className="relative flex justify-center text-xs"><span className="bg-white px-4 text-[#023047]/40">或者使用以下方式</span></div>
+                            <div className={authDividerClassName}>
+                                <div className="absolute inset-0 flex items-center"><div className={authDividerLineClassName}></div></div>
+                                <div className="relative flex justify-center"><span className={authDividerLabelClassName}>或者使用以下方式</span></div>
                             </div>
 
                             <div className="space-y-4">
@@ -231,66 +283,61 @@ export const LoginPage: React.FC = () => {
                                     label="使用 Linux.do 登录或注册"
                                     description="复用 Linux.do 论坛账号，首次登录自动创建本地账户"
                                 />
-                                <div className="bg-[#8ECAE6]/10 rounded-xl p-4 border border-[#8ECAE6]/30">
+                                <div className={authInfoPanelClassName}>
                                     <div className="flex items-start gap-3">
-                                        <FaFingerprint className="h-5 w-5 text-[#219EBC] flex-shrink-0 mt-0.5" />
-                                        <div className="flex-1">
-                                            <h3 className="text-sm font-semibold text-[#023047] mb-1">通行密钥 — 无密码认证</h3>
-                                            <p className="text-xs text-[#023047]/60 mb-3">使用生物识别或设备认证，更安全便捷的登录方式</p>
-                                            <div className="grid grid-cols-3 gap-2 mb-3">
-                                                {[{ Icon: FaShieldAlt, color: 'text-green-600', label: '安全', sub: '防钓鱼' }, { Icon: FaBolt, color: 'text-[#FFB703]', label: '快速', sub: '一键登录' }, { Icon: FaMobileAlt, color: 'text-[#219EBC]', label: '简单', sub: '无需密码' }].map(({ Icon, color, label, sub }) => (
-                                                    <div key={label} className="flex flex-col items-center text-center p-2 bg-white/80 rounded-lg">
-                                                        <Icon className={`h-4 w-4 ${color} mb-1`} /><span className="text-xs font-medium text-[#023047]">{label}</span><span className="text-[10px] text-[#023047]/50">{sub}</span>
+                                        <FaFingerprint className="mt-1 h-5 w-5 shrink-0 text-slate-500" />
+                                        <div className="min-w-0 flex-1">
+                                            <h3 className="text-sm font-semibold text-slate-900">通行密钥</h3>
+                                            <p className="mt-1 text-xs leading-5 text-slate-600">使用生物识别或设备认证完成无密码登录。</p>
+                                            <div className="mt-3 grid grid-cols-3 gap-2">
+                                                {[{ Icon: FaShieldAlt, label: '安全', sub: '防钓鱼' }, { Icon: FaBolt, label: '快速', sub: '一键登录' }, { Icon: FaMobileAlt, label: '简单', sub: '无需密码' }].map(({ Icon, label, sub }) => (
+                                                    <div key={label} className="rounded-2xl border border-slate-200 bg-white/80 p-2 text-center">
+                                                        <Icon className="mx-auto mb-1 h-4 w-4 text-slate-500" />
+                                                        <span className="block text-xs font-medium text-slate-900">{label}</span>
+                                                        <span className="block text-[10px] text-slate-500">{sub}</span>
                                                     </div>
                                                 ))}
                                             </div>
-                                            <button type="button" onClick={() => setShowPasskeyHelp(!showPasskeyHelp)} className="flex items-center gap-1.5 text-xs text-[#219EBC] hover:text-[#023047] font-medium transition-colors">
+                                            <button type="button" onClick={() => setShowPasskeyHelp(!showPasskeyHelp)} className="mt-3 flex items-center gap-1.5 text-xs font-medium text-slate-500 transition hover:text-slate-900">
                                                 <FaQuestionCircle className="h-3 w-3" /><span>{showPasskeyHelp ? '隐藏' : '显示'}详细指南</span>
                                                 {showPasskeyHelp ? <FaChevronUp className="h-2.5 w-2.5" /> : <FaChevronDown className="h-2.5 w-2.5" />}
                                             </button>
                                         </div>
                                     </div>
                                     {showPasskeyHelp && (
-                                        <div className="mt-4 pt-4 border-t border-[#8ECAE6]/30 space-y-3">
+                                        <div className="mt-4 space-y-3 border-t border-slate-200 pt-4">
                                             {[
-                                                { num: '1', title: '如何使用通行密钥', items: ['点击下方"使用通行密钥登录"按钮', '浏览器将提示您进行认证', '使用指纹、面部识别或设备PIN码', '验证后将自动登录'] },
-                                                { num: '2', title: '前置要求', items: ['您必须已为账户注册了通行密钥', '您的设备必须支持生物认证或安全密钥', '使用现代浏览器（Chrome、Edge、Safari、Firefox）'] },
+                                                { num: '1', title: '如何使用通行密钥', items: ['点击下方“使用通行密钥登录”按钮', '浏览器将提示您进行认证', '使用指纹、面部识别或设备 PIN 码', '验证后将自动登录'] },
+                                                { num: '2', title: '前置要求', items: ['您必须已为账户注册了通行密钥', '您的设备必须支持生物认证或安全密钥', '使用现代浏览器'] },
                                             ].map(({ num, title, items }) => (
                                                 <div key={num}>
-                                                    <h4 className="text-xs font-semibold text-[#023047] mb-2 flex items-center gap-2">
-                                                        <span className="flex items-center justify-center w-5 h-5 rounded-full bg-[#219EBC] text-white text-[10px]">{num}</span>{title}
+                                                    <h4 className="mb-2 flex items-center gap-2 text-xs font-semibold text-slate-900">
+                                                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-[10px] text-white">{num}</span>{title}
                                                     </h4>
-                                                    <ul className="space-y-1.5 text-xs text-[#023047]/60 ml-7">
-                                                        {items.map(item => <li key={item} className="flex items-start gap-2"><span className="text-[#219EBC] mt-0.5">•</span><span>{item}</span></li>)}
+                                                    <ul className="ml-7 space-y-1.5 text-xs leading-5 text-slate-600">
+                                                        {items.map(item => <li key={item}>{item}</li>)}
                                                     </ul>
                                                 </div>
                                             ))}
-                                            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                                                <div className="flex items-start gap-2">
-                                                    <FaShieldAlt className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                                                    <div><p className="text-xs font-medium text-green-900 mb-1">为什么通行密钥更安全</p><p className="text-xs text-green-700">通行密钥使用公钥加密，可以抵御钓鱼、凭据填充和其他常见攻击。您的生物特征数据从不离开您的设备。</p></div>
-                                                </div>
-                                            </div>
                                         </div>
                                     )}
                                 </div>
                                 <m.button type="button" onClick={async () => { try { setLoading(true); const success = await authenticateWithDiscoverablePasskey(); if (success) { setNotification({ message: '通行密钥登录成功！', type: 'success' }); completeLogin(); } } catch (err: any) { setNotification({ message: err.message || '通行密钥登录失败', type: 'error' }); } finally { setLoading(false); } }} disabled={loading}
-                                    className="w-full flex items-center justify-center gap-3 py-3.5 px-4 border-2 border-[#8ECAE6]/30 rounded-xl text-sm font-semibold text-[#023047] bg-[#8ECAE6]/10 hover:bg-[#8ECAE6]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm"
+                                    className={authSecondaryButtonClassName}
                                     aria-label="Sign in with Passkey" whileHover={effectiveItemHover} whileTap={effectiveButtonTap}>
                                     <FaFingerprint className="h-5 w-5" />
-                                    <span className="flex flex-col items-start"><span>使用通行密钥登录</span><span className="text-[11px] font-normal text-[#219EBC]">快速、安全、无密码</span></span>
+                                    使用通行密钥登录
                                 </m.button>
-                                <p className="text-xs text-center text-[#023047]/40 px-4">💡 提示：设置后，通行密钥登录比密码更快更安全</p>
                             </div>
 
                             <div className="mt-6 text-center">
-                                <p className="text-sm text-[#023047]/60">还没有账户？<Link to="/register" className="font-medium text-[#FFB703] hover:text-[#FB8500] transition-colors">立即注册</Link></p>
+                                <p className="text-sm text-slate-600">还没有账户？<Link to="/register" className={authTextLinkClassName}>立即注册</Link></p>
                             </div>
                         </div>
                     </m.div>
 
                     <div className="mt-6 text-center">
-                        <Link to="/" className="inline-flex items-center gap-2 text-sm text-[#023047]/50 hover:text-[#023047] transition-colors" aria-label="返回首页">
+                        <Link to="/" className={authBackLinkClassName} aria-label="返回首页">
                             <FaArrowLeft className="h-3.5 w-3.5" />返回首页
                         </Link>
                     </div>

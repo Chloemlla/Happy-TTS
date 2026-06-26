@@ -96,6 +96,8 @@ const BackupCodesModal: React.FC<BackupCodesModalProps> = ({ isOpen, onClose }) 
   };
 
   const downloadBackupCodes = () => {
+    if (!showCodes || backupCodes.length === 0) return;
+
     const content = `Synapse 备用恢复码
 
 重要提示：
@@ -121,6 +123,8 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
   };
 
   const printBackupCodes = () => {
+    if (!showCodes || backupCodes.length === 0) return;
+
     const printContent = `
       <!DOCTYPE html>
       <html>
@@ -172,7 +176,9 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className={studioModalOverlayClassName}
-          onClick={onClose}
+          onClick={() => {
+            if (!regenerating) onClose();
+          }}
         >
           <motion.div
             initial={{ opacity: 0, scale: 0.96, y: 18 }}
@@ -182,7 +188,7 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
             style={{ fontFamily: studioPageFont }}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="max-h-[82vh] overflow-y-auto pr-1">
+            <div className="max-h-[82vh] overflow-y-auto overscroll-contain pr-1">
               <div className="mb-5 flex items-start justify-between gap-4">
                 <div className="flex min-w-0 gap-3">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white">
@@ -198,6 +204,7 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
                 <button
                   type="button"
                   onClick={onClose}
+                  disabled={regenerating}
                   className="rounded-full border border-slate-200 bg-white/80 p-2 text-slate-400 transition hover:border-slate-300 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
                   aria-label="关闭备用恢复码"
                   title="关闭"
@@ -224,9 +231,9 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
                     每个恢复码只能使用一次。重新生成后，旧恢复码会立即失效。
                   </div>
 
-                  <div className="rounded-[24px] border border-slate-200 bg-white/90 p-4">
+                  <div className="min-h-[236px] rounded-[24px] border border-slate-200 bg-white/90 p-4">
                     {!showCodes ? (
-                      <div className="py-6 text-center">
+                      <div className="flex min-h-[204px] flex-col items-center justify-center py-6 text-center">
                         <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
                           <FaShieldAlt />
                         </div>
@@ -268,26 +275,24 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
                       <FaRedo />
                       重新生成
                     </button>
-                    {showCodes ? (
-                      <>
-                        <button
-                          type="button"
-                          onClick={downloadBackupCodes}
-                          className={studioGhostButtonClassName}
-                        >
-                          <FaDownload />
-                          下载
-                        </button>
-                        <button
-                          type="button"
-                          onClick={printBackupCodes}
-                          className={studioGhostButtonClassName}
-                        >
-                          <FaPrint />
-                          打印
-                        </button>
-                      </>
-                    ) : null}
+                    <button
+                      type="button"
+                      onClick={downloadBackupCodes}
+                      disabled={!showCodes || backupCodes.length === 0}
+                      className={studioGhostButtonClassName}
+                    >
+                      <FaDownload />
+                      下载
+                    </button>
+                    <button
+                      type="button"
+                      onClick={printBackupCodes}
+                      disabled={!showCodes || backupCodes.length === 0}
+                      className={studioGhostButtonClassName}
+                    >
+                      <FaPrint />
+                      打印
+                    </button>
                   </div>
                 </div>
               )}
@@ -300,7 +305,9 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
                   className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm"
-                  onClick={() => setShowRegenerateConfirm(false)}
+                  onClick={() => {
+                    if (!regenerating) setShowRegenerateConfirm(false);
+                  }}
                 >
                   <motion.div
                     initial={{ opacity: 0, scale: 0.96, y: 18 }}

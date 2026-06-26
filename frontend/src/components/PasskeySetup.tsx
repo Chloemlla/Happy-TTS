@@ -23,9 +23,10 @@ import {
 
 interface PasskeySetupProps {
   onClose?: () => void;
+  onChanged?: () => void;
 }
 
-export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
+export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose, onChanged }) => {
   const {
     credentials,
     isLoading,
@@ -40,6 +41,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
 
   const [isOpen, setIsOpen] = useState(false);
   const [credentialName, setCredentialName] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isPasskeySupported, setIsPasskeySupported] = useState<boolean | null>(null);
@@ -47,6 +49,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
 
   const hasCredential = Array.isArray(credentials) && credentials.length > 0;
   const singlePasskeyMessage = '每个账号仅可注册一个 Passkey。如需更换设备，请先删除当前 Passkey。';
+  const registerBusy = isLoading || isRegistering;
 
   useEffect(() => {
     latestCredentialsRef.current = credentials;
@@ -76,6 +79,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
   };
 
   const handleRegister = async () => {
+    if (isRegistering) return;
     if (hasCredential) {
       closeRegisterModal();
       setNotification({ message: singlePasskeyMessage, type: 'warning' });
@@ -84,31 +88,26 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
     if (!credentialName.trim()) return;
 
     let registerResult: any = null;
+    setIsRegistering(true);
     try {
       registerResult = await registerAuthenticator(credentialName.trim());
-    } catch (error) {
-      console.error('Passkey registration failed:', error);
-      setNotification({ message: 'Passkey 注册失败（请求错误）', type: 'error' });
-      return;
-    }
 
-    if (registerResult?.errorMessage) {
-      closeRegisterModal();
-      setNotification({ message: registerResult.errorMessage, type: 'warning' });
-      return;
-    }
+      if (registerResult?.errorMessage) {
+        closeRegisterModal();
+        setNotification({ message: registerResult.errorMessage, type: 'warning' });
+        return;
+      }
 
-    const newId =
-      registerResult?.id ||
-      registerResult?.credential?.id ||
-      registerResult?.attRespId ||
-      registerResult?.finishData?.passkeyCredentials?.[0]?.id;
+      const newId =
+        registerResult?.id ||
+        registerResult?.credential?.id ||
+        registerResult?.attRespId ||
+        registerResult?.finishData?.passkeyCredentials?.[0]?.id;
 
-    const maxAttempts = 6;
-    const delayMs = 500;
-    let confirmed = false;
+      const maxAttempts = 6;
+      const delayMs = 500;
+      let confirmed = false;
 
-    try {
       for (let index = 0; index < maxAttempts; index += 1) {
         try {
           await loadCredentials();
@@ -133,21 +132,25 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
         // eslint-disable-next-line no-await-in-loop
         await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
+
+      if (confirmed) {
+        setNotification({ message: 'Passkey 注册成功并已确认', type: 'success' });
+        closeRegisterModal();
+        onChanged?.();
+        return;
+      }
+
+      console.error('Passkey registration not confirmed after polling', registerResult);
+      setNotification({
+        message: 'Passkey 注册未确认，请稍后重试',
+        type: 'error',
+      });
     } catch (error) {
-      console.error('Error while confirming passkey creation', error);
+      console.error('Passkey registration failed:', error);
+      setNotification({ message: 'Passkey 注册失败（请求错误）', type: 'error' });
+    } finally {
+      setIsRegistering(false);
     }
-
-    if (confirmed) {
-      setNotification({ message: 'Passkey 注册成功并已确认', type: 'success' });
-      closeRegisterModal();
-      return;
-    }
-
-    console.error('Passkey registration not confirmed after polling', registerResult);
-    setNotification({
-      message: 'Passkey 注册未确认，请稍后重试',
-      type: 'error',
-    });
   };
 
   const handleRemoveConfirm = async () => {
@@ -156,6 +159,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
     try {
       await removeAuthenticator(confirmDeleteId);
       setNotification({ message: 'Passkey 已删除', type: 'success' });
+      onChanged?.();
     } catch (error) {
       console.error('Passkey removal failed:', error);
       setNotification({ message: '删除失败', type: 'error' });
@@ -212,7 +216,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-full border border-slate-200 bg-white/80 p-2 text-slate-400 transition hover:border-slate-300 hover:text-slate-700"
+                className="rounded-full border border-slate-200 bg-white/80 p-2 text-slate-400 transition hover:border-slate-300 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
                 aria-label="关闭 Passkey 设置"
                 title="关闭"
               >
@@ -320,7 +324,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
                 <button
                   type="button"
                   onClick={() => setConfirmDeleteId(null)}
-                  disabled={isLoading}
+                  disabled={Boolean(removingId)}
                   className={`${studioGhostButtonClassName} w-full sm:w-auto`}
                 >
                   <FaBan />
@@ -329,10 +333,10 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
                 <button
                   type="button"
                   onClick={() => void handleRemoveConfirm()}
-                  disabled={isLoading}
+                  disabled={Boolean(removingId)}
                   className={`${studioPrimaryButtonClassName} w-full bg-rose-600 hover:bg-rose-700 sm:w-auto`}
                 >
-                  {isLoading ? (
+                  {removingId ? (
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/50 border-t-white" />
                   ) : (
                     <FaTrash />
@@ -384,7 +388,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
                   value={credentialName}
                   onChange={(event) => setCredentialName(event.target.value)}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter' && !isLoading && credentialName.trim()) {
+                    if (event.key === 'Enter' && !registerBusy && credentialName.trim()) {
                       void handleRegister();
                     }
                   }}
@@ -398,7 +402,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
                 <button
                   type="button"
                   onClick={closeRegisterModal}
-                  disabled={isLoading}
+                  disabled={registerBusy}
                   className={`${studioGhostButtonClassName} w-full sm:w-auto`}
                 >
                   <FaBan />
@@ -407,10 +411,10 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
                 <button
                   type="button"
                   onClick={() => void handleRegister()}
-                  disabled={isLoading || !credentialName.trim() || hasCredential}
+                  disabled={registerBusy || !credentialName.trim() || hasCredential}
                   className={`${studioPrimaryButtonClassName} w-full sm:w-auto`}
                 >
-                  {isLoading ? (
+                  {registerBusy ? (
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/50 border-t-white" />
                   ) : (
                     <FaUserPlus />
