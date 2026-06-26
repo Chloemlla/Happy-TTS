@@ -1,458 +1,433 @@
 import React, { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  FaBan,
+  FaExclamationTriangle,
+  FaKey,
+  FaPlus,
+  FaTimes,
+  FaTrash,
+  FaUserPlus,
+} from 'react-icons/fa';
 import { usePasskey } from '../hooks/usePasskey';
 import { formatDate } from '../utils/date';
-import { FaKey, FaPlus, FaTrash, FaExclamationTriangle, FaTimes, FaBan, FaUserPlus } from 'react-icons/fa';
 import { useNotification } from './Notification';
-import { motion, AnimatePresence } from 'framer-motion';
 import { renderCredentialIdModal } from './ui/CredentialIdModal';
+import {
+  studioFieldClassName,
+  studioGhostButtonClassName,
+  studioModalCardClassName,
+  studioPageFont,
+  studioPrimaryButtonClassName,
+} from './studioTheme';
 
 interface PasskeySetupProps {
-    onClose?: () => void;
+  onClose?: () => void;
 }
 
 export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose }) => {
-    const {
-        credentials,
-        isLoading,
-        loadCredentials,
-        registerAuthenticator,
-        removeAuthenticator,
-        showModal,
-        setShowModal,
-        currentCredentialId
-    } = usePasskey();
-    const { setNotification } = useNotification();
+  const {
+    credentials,
+    isLoading,
+    loadCredentials,
+    registerAuthenticator,
+    removeAuthenticator,
+    showModal,
+    setShowModal,
+    currentCredentialId,
+  } = usePasskey();
+  const { setNotification } = useNotification();
 
-    const [isOpen, setIsOpen] = useState(false);
-    const [credentialName, setCredentialName] = useState('');
-    const [removingId, setRemovingId] = useState<string | null>(null);
-    const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-    // 保持对最新 credentials 的引用，便于在异步流程中校验注册是否生效
-    const latestCredentialsRef = React.useRef(credentials);
-    const hasCredential = Array.isArray(credentials) && credentials.length > 0;
-    const singlePasskeyMessage = '每个账号仅可注册一个 Passkey，如需更换请先删除当前 Passkey。';
+  const [isOpen, setIsOpen] = useState(false);
+  const [credentialName, setCredentialName] = useState('');
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [isPasskeySupported, setIsPasskeySupported] = useState<boolean | null>(null);
+  const latestCredentialsRef = React.useRef(credentials);
 
-    React.useEffect(() => {
-        latestCredentialsRef.current = credentials;
-    }, [credentials]);
+  const hasCredential = Array.isArray(credentials) && credentials.length > 0;
+  const singlePasskeyMessage = '每个账号仅可注册一个 Passkey。如需更换设备，请先删除当前 Passkey。';
 
-    // 浏览器Passkey支持性检测（异步）
-    const [isPasskeySupported, setIsPasskeySupported] = useState<boolean | null>(null);
-    useEffect(() => {
-        if (typeof window !== 'undefined' && window.PublicKeyCredential && typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function') {
-            window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
-                .then((result: boolean) => setIsPasskeySupported(result))
-                .catch(() => setIsPasskeySupported(false));
-        } else {
-            setIsPasskeySupported(false);
-        }
-    }, []);
+  useEffect(() => {
+    latestCredentialsRef.current = credentials;
+  }, [credentials]);
 
-    useEffect(() => {
-        loadCredentials();
-    }, [loadCredentials]);
+  useEffect(() => {
+    if (
+      typeof window !== 'undefined' &&
+      window.PublicKeyCredential &&
+      typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function'
+    ) {
+      window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        .then((result: boolean) => setIsPasskeySupported(result))
+        .catch(() => setIsPasskeySupported(false));
+    } else {
+      setIsPasskeySupported(false);
+    }
+  }, []);
 
-    // 注册 Passkey
-    const handleRegister = async () => {
-        if (hasCredential) {
-            setIsOpen(false);
-            setNotification({ message: singlePasskeyMessage, type: 'warning' });
-            return;
-        }
-        if (!credentialName.trim()) return;
+  useEffect(() => {
+    void loadCredentials();
+  }, [loadCredentials]);
 
-        // 1) 调用注册接口
-        let registerResult: any = null;
+  const closeRegisterModal = () => {
+    setCredentialName('');
+    setIsOpen(false);
+  };
+
+  const handleRegister = async () => {
+    if (hasCredential) {
+      closeRegisterModal();
+      setNotification({ message: singlePasskeyMessage, type: 'warning' });
+      return;
+    }
+    if (!credentialName.trim()) return;
+
+    let registerResult: any = null;
+    try {
+      registerResult = await registerAuthenticator(credentialName.trim());
+    } catch (error) {
+      console.error('Passkey registration failed:', error);
+      setNotification({ message: 'Passkey 注册失败（请求错误）', type: 'error' });
+      return;
+    }
+
+    if (registerResult?.errorMessage) {
+      closeRegisterModal();
+      setNotification({ message: registerResult.errorMessage, type: 'warning' });
+      return;
+    }
+
+    const newId =
+      registerResult?.id ||
+      registerResult?.credential?.id ||
+      registerResult?.attRespId ||
+      registerResult?.finishData?.passkeyCredentials?.[0]?.id;
+
+    const maxAttempts = 6;
+    const delayMs = 500;
+    let confirmed = false;
+
+    try {
+      for (let index = 0; index < maxAttempts; index += 1) {
         try {
-            registerResult = await registerAuthenticator(credentialName);
+          await loadCredentials();
         } catch (error) {
-            console.error('Passkey registration failed:', error);
-            setNotification({ message: 'Passkey 注册失败（请求错误）', type: 'error' });
-            return;
-        }
-        if (registerResult?.errorMessage) {
-            setIsOpen(false);
-            setNotification({ message: registerResult.errorMessage, type: 'warning' });
-            return;
+          console.warn('loadCredentials failed during confirmation', error);
         }
 
-        // 尝试从返回结果中获取 credential id（兼容多种返回结构）
-        const newId = registerResult && (
-            registerResult.id ||
-            (registerResult.credential && registerResult.credential.id) ||
-            registerResult.attRespId ||
-            (registerResult.finishData && Array.isArray(registerResult.finishData.passkeyCredentials) && registerResult.finishData.passkeyCredentials[0] && registerResult.finishData.passkeyCredentials[0].id)
-        );
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((resolve) => setTimeout(resolve, 200));
 
-        // 2) 主动刷新并轮询 credentials，确认后端已真正创建并可读
-        const maxAttempts = 6;
-        const delayMs = 500;
-        let confirmed = false;
-
-        try {
-            for (let i = 0; i < maxAttempts; i++) {
-                // 请求刷新 credentials
-                try {
-                    await loadCredentials();
-                } catch (err) {
-                    // 如果刷新失败，也继续重试几次
-                    console.warn('loadCredentials failed during confirmation', err);
-                }
-
-                // 等待 state 更新传播
-                // eslint-disable-next-line no-await-in-loop
-                await new Promise((res) => setTimeout(res, 200));
-
-                const list = latestCredentialsRef.current || [];
-                if (newId) {
-                    if (list.find((c: any) => c.id === newId)) {
-                        confirmed = true;
-                        break;
-                    }
-                } else {
-                    // 如果后端没有返回 id，则尝试通过名称匹配（宽松匹配）
-                    if (list.find((c: any) => String(c.name).trim() === credentialName.trim())) {
-                        confirmed = true;
-                        break;
-                    }
-                }
-
-                // 等待下次重试
-                // eslint-disable-next-line no-await-in-loop
-                await new Promise((res) => setTimeout(res, delayMs));
-            }
-        } catch (err) {
-            console.error('Error while confirming passkey creation', err);
+        const list = latestCredentialsRef.current || [];
+        if (newId) {
+          if (list.find((credential: any) => credential.id === newId)) {
+            confirmed = true;
+            break;
+          }
+        } else if (list.find((credential: any) => String(credential.name).trim() === credentialName.trim())) {
+          confirmed = true;
+          break;
         }
 
-        if (confirmed) {
-            setNotification({ message: 'Passkey 注册成功并已确认', type: 'success' });
-            setCredentialName('');
-            setIsOpen(false);
-        } else {
-            console.error('Passkey registration not confirmed after polling', registerResult);
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    } catch (error) {
+      console.error('Error while confirming passkey creation', error);
+    }
 
-            // 构建详细上下文信息并通过 Notification 的 details 数组展示，便于快速排查
-            const details: string[] = [];
-            try {
-                details.push('registerResult: ' + JSON.stringify(registerResult));
-            } catch (e) {
-                details.push('registerResult: <stringify error>');
-            }
+    if (confirmed) {
+      setNotification({ message: 'Passkey 注册成功并已确认', type: 'success' });
+      closeRegisterModal();
+      return;
+    }
 
-            try {
-                const creds = latestCredentialsRef.current || [];
-                details.push(`credentials_count: ${creds.length}`);
-                if (creds.length > 0) {
-                    const sample = creds.slice(0, 5).map((c: any) => ({ id: c.id, name: c.name, createdAt: c.createdAt }));
-                    details.push('credentials_sample: ' + JSON.stringify(sample));
-                }
-            } catch (e) {
-                details.push('credentials: <read error>');
-            }
+    console.error('Passkey registration not confirmed after polling', registerResult);
+    setNotification({
+      message: 'Passkey 注册未确认，请稍后重试',
+      type: 'error',
+    });
+  };
 
-            details.push(`polling_attempts: ${maxAttempts}, delayMs: ${delayMs}`);
-            details.push('建议：检查后端 /passkey 注册接口日志、数据库中是否存在新凭证；若后端无返回 id，则检查 finishRegistration 的入参与校验逻辑。');
+  const handleRemoveConfirm = async () => {
+    if (!confirmDeleteId) return;
+    setRemovingId(confirmDeleteId);
+    try {
+      await removeAuthenticator(confirmDeleteId);
+      setNotification({ message: 'Passkey 已删除', type: 'success' });
+    } catch (error) {
+      console.error('Passkey removal failed:', error);
+      setNotification({ message: '删除失败', type: 'error' });
+    } finally {
+      setRemovingId(null);
+      setConfirmDeleteId(null);
+    }
+  };
 
-            // 如果后端返回了 finishData 中的错误信息，也把它展示出来
-            try {
-                if (registerResult && registerResult.finishData && registerResult.finishData.error) {
-                    details.push('finishData.error: ' + JSON.stringify(registerResult.finishData.error));
-                }
-            } catch (e) {
-                // ignore
-            }
+  return (
+    <div className="space-y-4" style={{ fontFamily: studioPageFont }}>
+      {isPasskeySupported === false ? (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800"
+        >
+          <div className="flex gap-2">
+            <FaExclamationTriangle className="mt-1 shrink-0" />
+            <span>当前浏览器不支持 Passkey。请使用最新版 Chrome、Edge、Safari，并确保使用 HTTPS 访问。</span>
+          </div>
+        </motion.div>
+      ) : null}
 
-            setNotification({
-                message: 'Passkey 注册未确认，请检查后端或稍后重试',
-                type: 'error',
-                details
-            });
-
-            // 保持弹窗打开以便用户重试或查看错误
-        }
-    };
-
-    // 删除 Passkey（弹窗确认）
-    const handleRemove = (id: string) => {
-        setConfirmDeleteId(id);
-    };
-
-    const handleRemoveConfirm = async () => {
-        if (!confirmDeleteId) return;
-        setRemovingId(confirmDeleteId);
-        try {
-            await removeAuthenticator(confirmDeleteId);
-            setNotification({ message: 'Passkey 已删除', type: 'success' });
-        } catch (error) {
-            console.error('Passkey removal failed:', error);
-            setNotification({ message: '删除失败', type: 'error' });
-        }
-        setRemovingId(null);
-        setConfirmDeleteId(null);
-    };
-
-    return (
-        <>
-            {isPasskeySupported === false && (
-                <motion.div 
-                    className="bg-yellow-100 border border-yellow-300 text-yellow-800 rounded-lg p-3 sm:p-4 mb-4 flex items-start gap-2 sm:gap-3"
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4 }}
-                >
-                    <FaExclamationTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
-                    <span className="text-xs sm:text-sm md:text-base leading-relaxed">当前浏览器不支持 Passkey（无密码认证）。请使用最新版 Chrome、Edge、Safari，且确保使用 HTTPS 访问。</span>
-                </motion.div>
-            )}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-                transition={{ duration: 0.5, ease: 'easeOut' }}
-                className="space-y-3 sm:space-y-4 bg-white rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-lg overflow-visible"
+      <motion.section
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.24 }}
+        className="rounded-[24px] border border-slate-200 bg-white/90 p-4 shadow-sm sm:p-5"
+      >
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <div className="flex min-w-0 gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white">
+              <FaKey />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-lg font-semibold text-slate-900">Passkey</h2>
+              <p className="mt-1 text-sm leading-6 text-slate-500">
+                使用设备密钥或生物识别完成身份验证。
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <span
+              className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                hasCredential
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  : 'border-slate-200 bg-slate-50 text-slate-500'
+              }`}
             >
-                {/* 新增：Passkey 提示 */}
-                <motion.div 
-                    className="mb-4"
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 0.1 }}
+              {hasCredential ? '已配置' : '未配置'}
+            </span>
+            {onClose ? (
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-full border border-slate-200 bg-white/80 p-2 text-slate-400 transition hover:border-slate-300 hover:text-slate-700"
+                aria-label="关闭 Passkey 设置"
+                title="关闭"
+              >
+                <FaTimes />
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm leading-6 text-slate-600">
+          {singlePasskeyMessage}
+        </div>
+
+        <div className="mt-4 space-y-3">
+          <AnimatePresence>
+            {hasCredential
+              ? credentials.map((credential) => (
+                <motion.div
+                  key={credential.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  className="flex flex-col gap-3 rounded-[22px] border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                 >
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-blue-800 rounded-lg sm:rounded-xl px-3 sm:px-4 py-2 sm:py-3 flex items-center gap-3 shadow-sm justify-center text-center">
-                        <motion.div
-                            whileHover={{ scale: 1.05, rotate: 3 }}
-                            transition={{ type: "spring", stiffness: 200 }}
-                            className="flex-shrink-0"
-                        >
-                            <FaKey className="w-5 h-5 text-blue-500" />
-                        </motion.div>
-                        <div className="flex-1 min-w-0">
-                            <span className="font-semibold block text-sm sm:text-base md:text-lg leading-relaxed">每个账号目前仅支持注册 <strong>1 个</strong> Passkey 作为无密码验证方式。</span>
-                            <span className="text-xs sm:text-sm text-blue-600 mt-1 block leading-relaxed">如需更换设备，请先删除当前 Passkey，再重新注册新的凭证。</span>
-                        </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-slate-900">
+                      {credential.name}
                     </div>
-                </motion.div>
-                <div className="mb-2 flex items-center justify-between relative z-40 bg-white px-2 sm:px-4">
-                    <h2 className="text-lg sm:text-xl md:text-2xl font-bold flex items-center gap-2">
-                        <FaKey className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-indigo-500" />
-                        <span className="truncate">Passkey 无密码认证</span>
-                    </h2>
-                    {hasCredential && (
-                        <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700 sm:text-sm">
-                            已达上限 1/1
-                        </span>
+                    <div className="mt-1 text-xs text-slate-400">
+                      添加时间：{formatDate(credential.createdAt)}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteId(credential.id)}
+                    disabled={isLoading || removingId === credential.id}
+                    className={`${studioGhostButtonClassName} border-rose-200 text-rose-600 hover:border-rose-300 hover:text-rose-700 sm:w-auto`}
+                  >
+                    {removingId === credential.id ? (
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-rose-200 border-t-rose-600" />
+                    ) : (
+                      <FaTrash />
                     )}
+                    删除
+                  </button>
+                </motion.div>
+              ))
+              : null}
+          </AnimatePresence>
+
+          {!hasCredential && !isLoading ? (
+            <div className="rounded-[22px] border border-dashed border-slate-200 bg-white/70 px-4 py-8 text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+                <FaKey />
+              </div>
+              <div className="text-sm font-semibold text-slate-900">还没有 Passkey</div>
+              <p className="mt-1 text-sm text-slate-500">添加后可使用设备密钥完成验证。</p>
+            </div>
+          ) : null}
+
+          {isLoading && !hasCredential ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="h-7 w-7 animate-spin rounded-full border-2 border-slate-200 border-t-slate-900" />
+            </div>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={() => setIsOpen(true)}
+            disabled={isLoading || hasCredential || isPasskeySupported === false}
+            className={`${studioPrimaryButtonClassName} w-full sm:w-auto`}
+          >
+            <FaPlus />
+            添加 Passkey
+          </button>
+        </div>
+      </motion.section>
+
+      <AnimatePresence>
+        {confirmDeleteId ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm"
+            onClick={() => setConfirmDeleteId(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 18 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 18 }}
+              className={`${studioModalCardClassName} max-w-md`}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mb-3 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
+                  <FaExclamationTriangle />
                 </div>
-                {hasCredential && (
-                    <div className="mx-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 sm:mx-4">
-                        {singlePasskeyMessage}
-                    </div>
-                )}
-                <div className="w-full flex flex-col items-start justify-center mt-6 sm:mt-8">
-                    <div className="w-full flex justify-start px-2 sm:px-4">
-                        <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 w-full max-w-5xl auto-rows-fr place-items-stretch justify-items-start">
-                            <AnimatePresence>
-                        {Array.isArray(credentials) && credentials.length > 0 ? credentials.map((credential, index) => (
-                                    <motion.div
-                                        key={credential.id}
-                                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                                        exit={{ opacity: 0, scale: 0.95, y: -20 }}
-                                        transition={{ duration: 0.4, delay: index * 0.1 }}
-                                    className="group bg-gradient-to-br from-white to-gray-50 rounded-lg sm:rounded-xl shadow-lg border border-gray-100 hover:border-indigo-200 transition-all duration-300 p-3 sm:p-4 md:p-5 flex flex-col gap-3 sm:gap-4 min-h-[120px] sm:min-h-[140px] md:min-h-[160px] w-full sm:w-auto min-w-0 sm:min-w-[220px] md:min-w-[240px] lg:min-w-[260px] max-w-[360px] h-full z-10"
-                                        whileHover={{ translateY: -3, scale: 1.02 }}
-                                    >
-                                        <div className="flex items-center justify-center">
-                                            <motion.div
-                                                whileHover={{ scale: 1.2, rotate: 10 }}
-                                                transition={{ type: "spring", stiffness: 400 }}
-                                                className="p-2 sm:p-3 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-lg sm:rounded-xl"
-                                            >
-                                                <FaKey className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600" />
-                                            </motion.div>
-                                        </div>
-                                        <div className="text-center flex-1">
-                                            <div className="font-semibold text-sm sm:text-base md:text-lg text-gray-800 mb-1">{credential.name}</div>
-                                            <div className="text-xs sm:text-sm text-gray-500">添加时间：{formatDate(credential.createdAt)}</div>
-                                        </div>
-                                        <div className="flex justify-center">
-                                            <motion.button
-                                                onClick={() => handleRemove(credential.id)}
-                                                disabled={isLoading || removingId === credential.id}
-                                                className="flex items-center justify-center bg-white rounded-lg p-2 sm:p-2.5 border border-red-200 hover:bg-red-50 text-red-500 hover:text-red-700 shadow-sm transition-all duration-200"
-                                                title="删除"
-                                                whileHover={{ scale: 1.1 }}
-                                                whileTap={{ scale: 0.95 }}
-                                            >
-                                                {removingId === credential.id ? (
-                                                    <motion.span 
-                                                        className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full"
-                                                        animate={{ rotate: 360 }}
-                                                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                                                    />
-                                                ) : (
-                                                    <FaTrash className="w-4 h-4" />
-                                                )}
-                                            </motion.button>
-                                        </div>
-                                    </motion.div>
-                                )) : null}
-                            </AnimatePresence>
-                        </div>
-                    </div>
-                    <AnimatePresence>
-                        {(!Array.isArray(credentials) || credentials.length === 0) && !isLoading && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: 20 }}
-                                transition={{ duration: 0.5 }}
-                                className="w-full mx-auto max-w-[420px] flex flex-col items-center py-8 sm:py-12 text-gray-400"
-                            >
-                                <FaKey className="w-14 h-14 sm:w-16 sm:h-16 md:w-18 md:h-18 mb-3 text-gray-400" />
-                                <div className="mb-4 text-lg sm:text-xl text-center px-4">还没有添加任何 Passkey</div>
-                                <motion.button
-                                    onClick={() => setIsOpen(true)}
-                                    className="mt-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg px-6 py-3 shadow-lg hover:shadow-xl flex items-center gap-3 font-semibold transition-all duration-200 text-sm sm:text-base"
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.97 }}
-                                >
-                                    <FaPlus className="w-4 h-4 sm:w-5 sm:h-5" /> <span className="whitespace-nowrap">立即添加 Passkey</span>
-                                </motion.button>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-                </div>
-                {/* 删除确认弹窗 */}
-                {confirmDeleteId && (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.3 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
-                    >
-                        <motion.div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 max-w-sm sm:max-w-md lg:max-w-lg w-full mx-4">
-                            <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                                <FaExclamationTriangle className="text-red-500 w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
-                                <span className="font-bold text-base sm:text-lg">确认删除</span>
-                            </div>
-                            <div className="text-gray-600 mb-4 sm:mb-6 text-sm sm:text-base leading-relaxed">确定要删除这个 Passkey 吗？此操作不可恢复。</div>
-                            <div className="flex justify-end gap-2">
-                                <motion.button
-                                    onClick={() => setConfirmDeleteId(null)}
-                                    disabled={isLoading}
-                                    className="border border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-lg px-4 py-2 transition disabled:opacity-50 flex items-center gap-2"
-                                    whileTap={{ scale: 0.97 }}
-                                >
-                                    <FaBan className="w-4 h-4" />
-                                    取消
-                                </motion.button>
-                                <motion.button
-                                    onClick={handleRemoveConfirm}
-                                    disabled={isLoading}
-                                    className="bg-red-600 hover:bg-red-700 text-white rounded-lg px-3 sm:px-4 py-2 transition disabled:opacity-50 flex items-center justify-center gap-2 text-sm sm:text-base order-1 sm:order-2"
-                                    whileTap={{ scale: 0.97 }}
-                                >
-                                    {isLoading ? (
-                                        <motion.span 
-                                            className="w-3 h-3 sm:w-4 sm:h-4 border-2 border-white border-t-transparent rounded-full"
-                                            animate={{ rotate: 360 }}
-                                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                                        />
-                                    ) : (
-                                        <FaTrash className="w-4 h-4" />
-                                    )}
-                                    确认删除
-                                </motion.button>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
-                {/* 添加 Passkey 弹窗 */}
-                {isOpen && (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.3 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
-                    >
-                        <motion.div className="bg-white rounded-2xl shadow-2xl p-6 sm:p-8 max-w-sm sm:max-w-md lg:max-w-lg w-full mx-4">
-                            <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                                <FaKey className="text-indigo-500 w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
-                                <span className="font-bold text-base sm:text-lg">注册新的 Passkey</span>
-                            </div>
-                            <motion.div 
-                                className="mb-4 text-gray-700"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.3, delay: 0.1 }}
-                            >
-                                <div className="mb-2 text-xs sm:text-sm md:text-base leading-relaxed">Passkey 支持指纹、面容、Windows Hello、手机等安全认证方式。</div>
-                                <motion.div 
-                                    className="text-xs sm:text-sm text-blue-700 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-md sm:rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 mt-2 leading-relaxed border border-blue-100"
-                                    whileHover={{ scale: 1.02 }}
-                                    transition={{ type: "spring", stiffness: 300 }}
-                                >
-                                    <strong>建议：</strong>在您当前最常用且安全的设备上注册 Passkey。如果后续需要迁移到新设备，请先删除当前凭证，再绑定新的 Passkey。
-                                </motion.div>
-                            </motion.div>
-                            <div className="space-y-2 mb-4 sm:mb-6">
-                                <label htmlFor="name" className="text-xs sm:text-sm font-medium">Passkey 名称</label>
-                                <motion.input
-                                    id="name"
-                                    type="text"
-                                    placeholder="例如：Google Password Manager"
-                                    value={credentialName}
-                                    onChange={(e) => setCredentialName(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !isLoading && credentialName.trim()) {
-                                            handleRegister();
-                                        }
-                                    }}
-                                    autoFocus
-                                    className="w-full border-2 border-gray-200 rounded-lg px-3 sm:px-4 py-2 sm:py-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 hover:border-gray-300 text-sm sm:text-base"
-                                    maxLength={50}
-                                    whileFocus={{ scale: 1.02 }}
-                                />
-                            </div>
-                            <div className="flex justify-end gap-2">
-                                <motion.button
-                                    onClick={() => setIsOpen(false)}
-                                    disabled={isLoading}
-                                    className="border border-indigo-200 text-indigo-600 hover:bg-indigo-50 rounded-lg px-4 py-2 transition disabled:opacity-50 flex items-center gap-2"
-                                    whileTap={{ scale: 0.97 }}
-                                >
-                                    <FaBan className="w-4 h-4" />
-                                    取消
-                                </motion.button>
-                                <motion.button
-                                    onClick={handleRegister}
-                                    disabled={isLoading || !credentialName.trim() || hasCredential}
-                                    className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg px-3 sm:px-4 py-2 transition disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl text-sm sm:text-base order-1 sm:order-2"
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.97 }}
-                                >
-                                    {isLoading ? (
-                                        <motion.span 
-                                            className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
-                                            animate={{ rotate: 360 }}
-                                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                                        />
-                                    ) : (
-                                        <FaUserPlus className="w-3 h-3 sm:w-4 sm:h-4" />
-                                    )}
-                                    注册
-                                </motion.button>
-                            </div>
-                        </motion.div>
-                    </motion.div>
-                )}
+                <h3 className="text-lg font-semibold text-slate-900">删除 Passkey</h3>
+              </div>
+              <p className="text-sm leading-6 text-slate-500">
+                删除后这个设备凭证将无法继续用于登录验证。
+              </p>
+              <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setConfirmDeleteId(null)}
+                  disabled={isLoading}
+                  className={`${studioGhostButtonClassName} w-full sm:w-auto`}
+                >
+                  <FaBan />
+                  取消
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleRemoveConfirm()}
+                  disabled={isLoading}
+                  className={`${studioPrimaryButtonClassName} w-full bg-rose-600 hover:bg-rose-700 sm:w-auto`}
+                >
+                  {isLoading ? (
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/50 border-t-white" />
+                  ) : (
+                    <FaTrash />
+                  )}
+                  确认删除
+                </button>
+              </div>
             </motion.div>
-            {/* 替换 CredentialIdModal 为 renderCredentialIdModal 渲染 */}
-            {renderCredentialIdModal({ open: showModal, credentialId: currentCredentialId, onClose: () => setShowModal(false) })}
-        </>
-    );
-}; 
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isOpen ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm"
+            onClick={closeRegisterModal}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96, y: 18 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 18 }}
+              className={`${studioModalCardClassName} max-w-md`}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mb-4 flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white">
+                  <FaKey />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">添加 Passkey</h3>
+                  <p className="mt-1 text-sm leading-6 text-slate-500">
+                    建议使用当前最常用且安全的设备。
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="passkey-name" className="text-sm font-semibold text-slate-900">
+                  Passkey 名称
+                </label>
+                <input
+                  id="passkey-name"
+                  type="text"
+                  placeholder="例如：Windows Hello"
+                  value={credentialName}
+                  onChange={(event) => setCredentialName(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && !isLoading && credentialName.trim()) {
+                      void handleRegister();
+                    }
+                  }}
+                  autoFocus
+                  className={studioFieldClassName}
+                  maxLength={50}
+                />
+              </div>
+
+              <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={closeRegisterModal}
+                  disabled={isLoading}
+                  className={`${studioGhostButtonClassName} w-full sm:w-auto`}
+                >
+                  <FaBan />
+                  取消
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleRegister()}
+                  disabled={isLoading || !credentialName.trim() || hasCredential}
+                  className={`${studioPrimaryButtonClassName} w-full sm:w-auto`}
+                >
+                  {isLoading ? (
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/50 border-t-white" />
+                  ) : (
+                    <FaUserPlus />
+                  )}
+                  注册
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      {renderCredentialIdModal({
+        open: showModal,
+        credentialId: currentCredentialId,
+        onClose: () => setShowModal(false),
+      })}
+    </div>
+  );
+};

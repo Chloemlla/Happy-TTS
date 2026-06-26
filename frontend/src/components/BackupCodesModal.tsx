@@ -1,8 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import axios from 'axios';
+import {
+  FaDownload,
+  FaExclamationTriangle,
+  FaEye,
+  FaEyeSlash,
+  FaPrint,
+  FaRedo,
+  FaShieldAlt,
+  FaTimes,
+} from 'react-icons/fa';
 import { useNotification } from './Notification';
 import { getApiBaseUrl } from '../api/api';
+import {
+  studioGhostButtonClassName,
+  studioModalCardClassName,
+  studioModalOverlayClassName,
+  studioPageFont,
+  studioPrimaryButtonClassName,
+} from './studioTheme';
 
 interface BackupCodesModalProps {
   isOpen: boolean;
@@ -24,33 +41,40 @@ const BackupCodesModal: React.FC<BackupCodesModalProps> = ({ isOpen, onClose }) 
   const [regenerating, setRegenerating] = useState(false);
   const { setNotification } = useNotification();
 
-  const api = axios.create({
-    baseURL: getApiBaseUrl(),
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${localStorage.getItem('token')}`
-    }
-  });
+  const api = useMemo(
+    () =>
+      axios.create({
+        baseURL: getApiBaseUrl(),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      }),
+    [],
+  );
 
   useEffect(() => {
-    if (isOpen) {
-      fetchBackupCodes();
-    }
-  }, [isOpen]);
+    if (!isOpen) return;
 
-  const fetchBackupCodes = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      const response = await api.get<BackupCodesResponse>('/api/totp/backup-codes');
-      setBackupCodes(response.data.backupCodes);
-    } catch (error: any) {
-      console.error('获取备用恢复码失败:', error);
-      setNotification({ message: error.response?.data?.error || '获取备用恢复码失败', type: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  };
+    const fetchBackupCodes = async () => {
+      try {
+        setLoading(true);
+        setError('');
+        setShowCodes(false);
+        const response = await api.get<BackupCodesResponse>('/api/totp/backup-codes');
+        setBackupCodes(response.data.backupCodes);
+      } catch (error: any) {
+        const message = error.response?.data?.error || '获取备用恢复码失败';
+        console.error('获取备用恢复码失败:', error);
+        setError(message);
+        setNotification({ message, type: 'error' });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void fetchBackupCodes();
+  }, [api, isOpen, setNotification]);
 
   const regenerateBackupCodes = async () => {
     try {
@@ -59,10 +83,13 @@ const BackupCodesModal: React.FC<BackupCodesModalProps> = ({ isOpen, onClose }) 
       const response = await api.post<BackupCodesResponse>('/api/totp/regenerate-backup-codes');
       setBackupCodes(response.data.backupCodes);
       setShowRegenerateConfirm(false);
-      setShowCodes(true); // 重新生成后自动显示新的恢复码
+      setShowCodes(true);
+      setNotification({ message: '恢复码已重新生成', type: 'success' });
     } catch (error: any) {
+      const message = error.response?.data?.error || '重新生成备用恢复码失败';
       console.error('重新生成备用恢复码失败:', error);
-      setNotification({ message: error.response?.data?.error || '重新生成备用恢复码失败', type: 'error' });
+      setError(message);
+      setNotification({ message, type: 'error' });
     } finally {
       setRegenerating(false);
     }
@@ -80,12 +107,7 @@ const BackupCodesModal: React.FC<BackupCodesModalProps> = ({ isOpen, onClose }) 
 ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
 
 生成时间：${new Date().toLocaleString('zh-CN')}
-剩余数量：${backupCodes.length} 个
-
-安全建议：
-- 将恢复码保存在安全的地方
-- 不要与他人分享这些恢复码
-- 如果怀疑恢复码泄露，请立即重新生成`;
+剩余数量：${backupCodes.length} 个`;
 
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -105,12 +127,12 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
       <head>
         <title>备用恢复码</title>
         <style>
-          body { font-family: Arial, sans-serif; margin: 20px; }
-          .header { text-align: center; margin-bottom: 30px; }
-          .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; margin: 20px 0; border-radius: 5px; }
+          body { font-family: Arial, sans-serif; margin: 24px; color: #0f172a; }
+          .header { margin-bottom: 24px; }
+          .warning { background: #fffbeb; border: 1px solid #fde68a; padding: 16px; margin: 16px 0; border-radius: 12px; }
           .codes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 20px 0; }
-          .code { background: #f8f9fa; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 16px; text-align: center; }
-          .footer { margin-top: 30px; font-size: 12px; color: #666; }
+          .code { background: #f8fafc; padding: 10px; border: 1px solid #e2e8f0; border-radius: 10px; font-family: monospace; font-size: 16px; text-align: center; }
+          .footer { margin-top: 24px; font-size: 12px; color: #64748b; }
           @media print { body { margin: 0; } }
         </style>
       </head>
@@ -118,30 +140,15 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
         <div class="header">
           <h1>Synapse 备用恢复码</h1>
         </div>
-        
         <div class="warning">
-          <strong>重要提示：</strong>
-          <ul>
-            <li>请妥善保管这些恢复码，它们可以用于在无法使用认证器时登录您的账户</li>
-            <li>每个恢复码只能使用一次</li>
-            <li>如果所有恢复码都用完，您需要重新生成</li>
-          </ul>
+          请妥善保管这些恢复码。每个恢复码只能使用一次。
         </div>
-        
-        <h2>您的备用恢复码：</h2>
         <div class="codes">
           ${backupCodes.map((code, index) => `<div class="code">${index + 1}. ${code}</div>`).join('')}
         </div>
-        
         <div class="footer">
           <p>生成时间：${new Date().toLocaleString('zh-CN')}</p>
           <p>剩余数量：${backupCodes.length} 个</p>
-          <p><strong>安全建议：</strong></p>
-          <ul>
-            <li>将恢复码保存在安全的地方</li>
-            <li>不要与他人分享这些恢复码</li>
-            <li>如果怀疑恢复码泄露，请立即重新生成</li>
-          </ul>
         </div>
       </body>
       </html>
@@ -157,209 +164,192 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
     }
   };
 
-  const handleShowCodes = () => {
-    setShowCodes(true);
-  };
-
-  const handleHideCodes = () => {
-    setShowCodes(false);
-  };
-
   return (
     <AnimatePresence>
-      {isOpen && (
+      {isOpen ? (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto"
+          className={studioModalOverlayClassName}
           onClick={onClose}
         >
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-auto my-8 min-h-fit"
-            onClick={(e) => e.stopPropagation()}
+            initial={{ opacity: 0, scale: 0.96, y: 18 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: 18 }}
+            className={`${studioModalCardClassName} max-w-2xl`}
+            style={{ fontFamily: studioPageFont }}
+            onClick={(event) => event.stopPropagation()}
           >
-            <div className="p-6 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">备用恢复码</h2>
+            <div className="max-h-[82vh] overflow-y-auto pr-1">
+              <div className="mb-5 flex items-start justify-between gap-4">
+                <div className="flex min-w-0 gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white">
+                    <FaShieldAlt />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-xl font-semibold text-slate-900">备用恢复码</h2>
+                    <p className="mt-1 text-sm leading-6 text-slate-500">
+                      在无法使用认证器时，用恢复码完成登录。
+                    </p>
+                  </div>
+                </div>
                 <button
+                  type="button"
                   onClick={onClose}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="rounded-full border border-slate-200 bg-white/80 p-2 text-slate-400 transition hover:border-slate-300 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
+                  aria-label="关闭备用恢复码"
+                  title="关闭"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <FaTimes />
                 </button>
               </div>
 
               {loading ? (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500"></div>
+                <div className="flex items-center justify-center py-12">
+                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-slate-900" />
                 </div>
               ) : error ? (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                  <p className="text-red-700">{error}</p>
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                  {error}
                 </div>
               ) : (
-                <div className="space-y-6">
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <div className="flex items-start">
-                      <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <div>
-                        <p className="text-sm font-medium text-blue-800">重要提示</p>
-                        <ul className="text-sm text-blue-700 mt-1 space-y-1">
-                          <li>• 请妥善保管这些恢复码，它们可以用于在无法使用认证器时登录您的账户</li>
-                          <li>• 每个恢复码只能使用一次</li>
-                          <li>• 如果所有恢复码都用完，您需要重新生成</li>
-                        </ul>
-                      </div>
+                <div className="space-y-4">
+                  <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
+                    <div className="mb-1 flex items-center gap-2 font-semibold">
+                      <FaExclamationTriangle />
+                      请妥善保存
                     </div>
+                    每个恢复码只能使用一次。重新生成后，旧恢复码会立即失效。
                   </div>
 
-                  {!showCodes ? (
-                    <div className="text-center py-8">
-                      <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
+                  <div className="rounded-[24px] border border-slate-200 bg-white/90 p-4">
+                    {!showCodes ? (
+                      <div className="py-6 text-center">
+                        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+                          <FaShieldAlt />
+                        </div>
+                        <p className="text-sm text-slate-500">
+                          当前有 <span className="font-semibold text-slate-900">{backupCodes.length}</span> 个恢复码。
+                        </p>
                       </div>
-                      <p className="text-gray-600 mb-4">您有 {backupCodes.length} 个备用恢复码</p>
-                      <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                        <button
-                          onClick={handleShowCodes}
-                          className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                        >
-                          查看恢复码
-                        </button>
-                        <button
-                          onClick={() => setShowRegenerateConfirm(true)}
-                          className="px-6 py-3 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                        >
-                          重新生成
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-3">
+                    ) : (
+                      <div className="grid gap-2 sm:grid-cols-2">
                         {backupCodes.map((code, index) => (
                           <div
-                            key={index}
-                            className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center"
+                            key={code}
+                            className="rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-3 text-center"
                           >
-                            <div className="text-xs text-gray-500 mb-1">{index + 1}</div>
-                            <div className="font-mono text-lg font-semibold text-gray-900">{code}</div>
+                            <div className="text-[11px] text-slate-400">{index + 1}</div>
+                            <div className="mt-1 font-mono text-sm font-semibold text-slate-900">
+                              {code}
+                            </div>
                           </div>
                         ))}
                       </div>
+                    )}
+                  </div>
 
-                      <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowCodes((shown) => !shown)}
+                      className={studioPrimaryButtonClassName}
+                    >
+                      {showCodes ? <FaEyeSlash /> : <FaEye />}
+                      {showCodes ? '隐藏恢复码' : '查看恢复码'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowRegenerateConfirm(true)}
+                      className={`${studioGhostButtonClassName} border-rose-200 text-rose-600 hover:border-rose-300 hover:text-rose-700`}
+                    >
+                      <FaRedo />
+                      重新生成
+                    </button>
+                    {showCodes ? (
+                      <>
                         <button
+                          type="button"
                           onClick={downloadBackupCodes}
-                          className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center"
+                          className={studioGhostButtonClassName}
                         >
-                          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                          下载为文本文件
+                          <FaDownload />
+                          下载
                         </button>
                         <button
+                          type="button"
                           onClick={printBackupCodes}
-                          className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center"
+                          className={studioGhostButtonClassName}
                         >
-                          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                          </svg>
+                          <FaPrint />
                           打印
                         </button>
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <button
-                          onClick={handleHideCodes}
-                          className="flex-1 px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-                        >
-                          隐藏恢复码
-                        </button>
-                        <button
-                          onClick={() => setShowRegenerateConfirm(true)}
-                          className="flex-1 px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                        >
-                          重新生成
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                      </>
+                    ) : null}
+                  </div>
                 </div>
               )}
-
-              {/* 重新生成确认对话框 */}
-              <AnimatePresence>
-                {showRegenerateConfirm && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60"
-                    onClick={() => setShowRegenerateConfirm(false)}
-                  >
-                    <motion.div
-                      initial={{ scale: 0.9, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.9, opacity: 0 }}
-                      className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className="flex items-center mb-4">
-                        <svg className="w-6 h-6 text-red-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                        </svg>
-                        <h3 className="text-lg font-semibold text-gray-900">重新生成恢复码</h3>
-                      </div>
-
-                      <p className="text-gray-600 mb-6">
-                        重新生成将替换所有现有的备用恢复码。旧的恢复码将无法再使用。
-                        确定要继续吗？
-                      </p>
-
-                      <div className="flex gap-3">
-                        <button
-                          onClick={() => setShowRegenerateConfirm(false)}
-                          className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                          disabled={regenerating}
-                        >
-                          取消
-                        </button>
-                        <button
-                          onClick={regenerateBackupCodes}
-                          className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
-                          disabled={regenerating}
-                        >
-                          {regenerating ? (
-                            <div className="flex items-center justify-center">
-                              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white mr-2"></div>
-                              生成中...
-                            </div>
-                          ) : (
-                            '确认重新生成'
-                          )}
-                        </button>
-                      </div>
-                    </motion.div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
+
+            <AnimatePresence>
+              {showRegenerateConfirm ? (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm"
+                  onClick={() => setShowRegenerateConfirm(false)}
+                >
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.96, y: 18 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.96, y: 18 }}
+                    className={`${studioModalCardClassName} max-w-md`}
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <div className="mb-3 flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
+                        <FaExclamationTriangle />
+                      </div>
+                      <h3 className="text-lg font-semibold text-slate-900">重新生成恢复码</h3>
+                    </div>
+                    <p className="text-sm leading-6 text-slate-500">
+                      这会替换所有现有恢复码，旧恢复码将无法再使用。
+                    </p>
+                    <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setShowRegenerateConfirm(false)}
+                        className={`${studioGhostButtonClassName} w-full sm:w-auto`}
+                        disabled={regenerating}
+                      >
+                        取消
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void regenerateBackupCodes()}
+                        className={`${studioPrimaryButtonClassName} w-full bg-rose-600 hover:bg-rose-700 sm:w-auto`}
+                        disabled={regenerating}
+                      >
+                        {regenerating ? (
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/50 border-t-white" />
+                        ) : (
+                          <FaRedo />
+                        )}
+                        确认生成
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
           </motion.div>
         </motion.div>
-      )}
+      ) : null}
     </AnimatePresence>
   );
 };
 
-export default BackupCodesModal; 
+export default BackupCodesModal;
