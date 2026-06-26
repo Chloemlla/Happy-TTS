@@ -1,6 +1,7 @@
 import { getFingerprint } from './fingerprint';
 import { canonicalizeBackendApiUrlObject } from './apiPath';
 import { isFirstVisitVerificationEnabled } from './firstVisitVerificationConfig';
+import { getApiBaseUrl } from '../api/api';
 
 export type IpCaptchaType = 'turnstile' | 'hcaptcha';
 
@@ -40,27 +41,12 @@ export const EXEMPT_PATH_PREFIXES = [
 
 let fetchTransportInstalled = false;
 
-function resolveApiBaseUrl(): string {
-  if (import.meta.env.DEV) {
-    const currentHost = window.location.hostname;
-    const currentPort = window.location.port;
-    if (currentHost === '192.168.10.7' && currentPort === '3001') {
-      return 'http://192.168.10.7:3000';
-    }
-    return 'http://localhost:3000';
-  }
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-  return 'https://tts.chloemlla.com';
-}
-
 export function isExemptPath(pathname: string): boolean {
   return EXEMPT_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
 function isBackendRequest(url: URL): boolean {
-  const apiOrigin = new URL(resolveApiBaseUrl()).origin;
+  const apiOrigin = new URL(getApiBaseUrl(), window.location.origin).origin;
   const sameBackendOrigin = url.origin === apiOrigin || url.origin === window.location.origin;
   const relativeApiPath = url.pathname.startsWith('/api/');
   return sameBackendOrigin && relativeApiPath;
@@ -222,7 +208,7 @@ export async function initializeIpVerificationSession(existingFingerprint?: stri
 
   const fingerprint = existingFingerprint || (await getFingerprint()) || '';
 
-  const response = await fetch(`${resolveApiBaseUrl()}/api/ip-verification/session`, {
+  const response = await fetch(`${getApiBaseUrl()}/api/ip-verification/session`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -262,7 +248,7 @@ export async function completeIpVerification(
 
   const fingerprint = fingerprintInput || (await getFingerprint()) || '';
 
-  const response = await fetch(`${resolveApiBaseUrl()}/api/ip-verification/complete`, {
+  const response = await fetch(`${getApiBaseUrl()}/api/ip-verification/complete`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -294,7 +280,7 @@ export function installIpVerificationTransport(): void {
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     let request = new Request(input, init);
     let url = new URL(request.url, window.location.origin);
-    const apiOrigin = new URL(resolveApiBaseUrl()).origin;
+    const apiOrigin = new URL(getApiBaseUrl(), window.location.origin).origin;
     const sameBackendOrigin = url.origin === apiOrigin || url.origin === window.location.origin;
     const canonicalUrl = sameBackendOrigin ? canonicalizeBackendApiUrlObject(url) : url;
 

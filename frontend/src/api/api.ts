@@ -16,6 +16,10 @@ const getApiBaseUrl = () => {
     }
 
     if (import.meta.env.DEV) {
+        if (typeof window === 'undefined') {
+            return 'http://localhost:3000';
+        }
+
         // 在开发环境下，根据当前访问的URL自动切换后端地址
         const currentHost = window.location.hostname;
         const currentPort = window.location.port;

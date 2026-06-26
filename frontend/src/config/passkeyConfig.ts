@@ -1,3 +1,5 @@
+import { getApiBaseUrl } from "../api/api";
+
 /**
  * Passkey 统一配置
  * 确保所有前端都使用同一个 RP_ORIGIN 进行 Passkey 操作
@@ -21,24 +23,7 @@
  * @returns {string} Passkey API 服务器地址
  */
 export const getPasskeyApiBase = (): string => {
-  if (typeof window === "undefined") {
-    return "https://tts.chloemlla.com";
-  }
-
-  if (import.meta.env.DEV) {
-    // 开发环境：使用本地后端，避免 CORS 问题
-    const currentHost = window.location.hostname;
-    const currentPort = window.location.port;
-
-    if (currentHost === "192.168.10.7" && currentPort === "3001") {
-      return "http://192.168.10.7:3000";
-    }
-
-    return "http://localhost:3000";
-  }
-
-  // 生产环境：使用统一的后端
-  return "https://tts.chloemlla.com";
+  return getApiBaseUrl();
 };
 
 /**

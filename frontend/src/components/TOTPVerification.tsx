@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { validateTOTPToken, validateBackupCode, cleanTOTPToken, cleanBackupCode } from '../utils/totpUtils';
 import { FaLock, FaInfoCircle } from 'react-icons/fa';
+import { getApiBaseUrl } from '../api/api';
 interface TOTPVerificationProps {
   isOpen: boolean;
   onClose: () => void;
@@ -23,13 +24,6 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
   const [useBackupCode, setUseBackupCode] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-
-  // 获取API基础URL
-  const getApiBaseUrl = () => {
-    if (import.meta.env.DEV) return 'http://localhost:3000';
-    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-    return 'https://tts.chloemlla.com';
-  };
 
   const api = axios.create({
     baseURL: getApiBaseUrl(),

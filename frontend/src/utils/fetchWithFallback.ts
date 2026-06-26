@@ -1,8 +1,9 @@
-// 用于开发环境下主 API 失败时自动降级到 localhost:3000
+// 使用统一 API base URL 发起请求
+import { getApiBaseUrl } from '../api/api';
 import { canonicalizeBackendApiUrl } from './apiPath';
 
 export async function fetchWithFallback(input: string, init?: RequestInit) {
-  const apiUrl = import.meta.env.VITE_API_URL || '';
+  const apiUrl = getApiBaseUrl();
   const canonicalInput = canonicalizeBackendApiUrl(input);
   let url = canonicalInput.startsWith('http') ? canonicalInput : apiUrl.replace(/\/$/, '') + (canonicalInput.startsWith('/') ? canonicalInput : '/' + canonicalInput);
   try {
@@ -15,16 +16,6 @@ export async function fetchWithFallback(input: string, init?: RequestInit) {
     }
     return res;
   } catch (e) {
-    // 仅开发环境降级
-    if (import.meta.env.DEV && apiUrl && !url.startsWith('http://localhost:3000')) {
-      try {
-        const fallbackUrl = canonicalInput.startsWith('http') ? canonicalInput : 'http://localhost:3000' + canonicalInput;
-        const res2 = await fetch(fallbackUrl, init);
-        return res2;
-      } catch (e2) {
-        throw e2;
-      }
-    }
     throw e;
   }
 } 

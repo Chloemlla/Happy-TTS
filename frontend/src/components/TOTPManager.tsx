@@ -23,6 +23,7 @@ import {
 } from './studioTheme';
 import TOTPSetup from './TOTPSetup';
 import { useTwoFactorStatus } from '../hooks/useTwoFactorStatus';
+import { getApiBaseUrl } from '../api/api';
 
 interface TOTPManagerProps {
   onStatusChange?: (status: TOTPStatus) => void;
@@ -38,12 +39,6 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
   const [disableCode, setDisableCode] = useState('');
   const [error, setError] = useState('');
   const twoFactor = useTwoFactorStatus();
-
-  const getApiBaseUrl = () => {
-    if (import.meta.env.DEV) return 'http://localhost:3000';
-    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-    return 'https://tts.chloemlla.com';
-  };
 
   const api = axios.create({
     baseURL: getApiBaseUrl(),

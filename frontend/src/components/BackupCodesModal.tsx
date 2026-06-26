@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 import { useNotification } from './Notification';
+import { getApiBaseUrl } from '../api/api';
 
 interface BackupCodesModalProps {
   isOpen: boolean;
@@ -22,13 +23,6 @@ const BackupCodesModal: React.FC<BackupCodesModalProps> = ({ isOpen, onClose }) 
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const { setNotification } = useNotification();
-
-  // 获取API基础URL
-  const getApiBaseUrl = () => {
-    if (import.meta.env.DEV) return 'http://localhost:3000';
-    if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
-    return 'https://tts.chloemlla.com';
-  };
 
   const api = axios.create({
     baseURL: getApiBaseUrl(),

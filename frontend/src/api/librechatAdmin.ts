@@ -25,10 +25,8 @@ export interface AdminUserHistoryResponse {
     total: number;
 }
 
-// 统一的 LibreChat 接口前缀，可通过环境变量覆盖
-// VITE_LIBRECHAT_API_BASE 示例："/api/librechat" 或 "https://your-host/api/librechat"
-// 若未设置环境变量，则使用 getApiBaseUrl() 拼接为完整地址，避免不同部署环境下前缀不一致
-const BASE = (import.meta as any)?.env?.VITE_LIBRECHAT_API_BASE || `${getApiBaseUrl()}/api/librechat`;
+// 统一的 LibreChat 接口前缀，API base URL 只从 api.ts 读取
+const BASE = `${getApiBaseUrl()}/api/librechat`;
 
 export async function listUsers(params: { kw?: string; page?: number; limit?: number; includeDeleted?: boolean }): Promise<AdminUsersResponse> {
     const { kw = '', page = 1, limit = 20, includeDeleted = false } = params || {};
