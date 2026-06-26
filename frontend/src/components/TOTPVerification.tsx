@@ -4,6 +4,17 @@ import axios from 'axios';
 import { validateTOTPToken, validateBackupCode, cleanTOTPToken, cleanBackupCode } from '../utils/totpUtils';
 import { FaLock, FaInfoCircle } from 'react-icons/fa';
 import { getApiBaseUrl } from '../api/api';
+import { cn } from '../utils/cn';
+import {
+  authAlertClassName,
+  authFieldClassName,
+  authModalCardClassName,
+  authModalOverlayClassName,
+  authPrimaryButtonClassName,
+  authSecondaryButtonClassName,
+  authSoftBadgeClassName,
+  authWarningPanelClassName,
+} from './authStudioTheme';
 interface TOTPVerificationProps {
   isOpen: boolean;
   onClose: () => void;
@@ -115,7 +126,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.3 }}
-        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto"
+        className={authModalOverlayClassName}
         onClick={handleClose}
       >
         <motion.div
@@ -123,7 +134,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 50 }}
           transition={{ duration: 0.4, type: "spring", stiffness: 300, damping: 25 }}
-          className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto my-8 min-h-fit border border-gray-100 max-h-[90vh] overflow-hidden"
+          className={authModalCardClassName}
           onClick={(e) => e.stopPropagation()}
         >
           {/* 可滚动的内容容器 */}
@@ -136,18 +147,18 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
               transition={{ duration: 0.5, delay: 0.1 }}
             >
               <div className="flex flex-col items-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <div className={cn(authSoftBadgeClassName, 'mx-auto mb-4 h-16 w-16')}>
                   <motion.div
                     initial={{ opacity: 0, rotate: -180 }}
                     animate={{ opacity: 1, rotate: 0 }}
                     transition={{ duration: 0.6, delay: 0.2, type: "spring", stiffness: 200 }}
                     whileHover={{ rotate: 5 }}
                   >
-                    <FaLock className="w-8 h-8 text-indigo-600" />
+                    <FaLock className="h-8 w-8 text-slate-600" />
                   </motion.div>
                 </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">二次验证</h2>
-                <div className="text-gray-600">请输入验证码完成登录</div>
+                <h2 className="mb-2 text-2xl font-semibold text-slate-900">二次验证</h2>
+                <div className="text-slate-600">请输入验证码完成登录</div>
               </div>
             </motion.div>
 
@@ -161,8 +172,8 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
               <motion.button
                 onClick={() => setUseBackupCode(false)}
                 className={`flex-1 py-2 px-4 rounded-l-lg text-sm font-medium transition-all duration-200 ${!useBackupCode
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-slate-900 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -172,8 +183,8 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
               <motion.button
                 onClick={() => setUseBackupCode(true)}
                 className={`flex-1 py-2 px-4 rounded-r-lg text-sm font-medium transition-all duration-200 ${useBackupCode
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-slate-900 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -195,21 +206,21 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.4, delay: 0.7 }}
                 >
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
                     6位验证码
                   </label>
                   <motion.input
                     type="text"
                     value={verificationCode}
                     onChange={(e) => setVerificationCode(cleanTOTPToken(e.target.value))}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-center text-lg font-mono transition-all duration-200 hover:border-gray-300"
+                    className={cn(authFieldClassName, 'px-4 text-center font-mono text-lg tracking-wider')}
                     placeholder="000000"
                     maxLength={6}
                     autoFocus
                     whileFocus={{ scale: 1.02 }}
                   />
                   <motion.p
-                    className="text-xs text-gray-500 mt-1"
+                    className="mt-1 text-xs text-slate-500"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.3, delay: 0.8 }}
@@ -223,21 +234,21 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.4, delay: 0.7 }}
                 >
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="mb-2 block text-sm font-medium text-slate-700">
                     8位恢复码
                   </label>
                   <motion.input
                     type="text"
                     value={backupCode}
                     onChange={(e) => setBackupCode(cleanBackupCode(e.target.value))}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-center text-lg font-mono transition-all duration-200 hover:border-gray-300"
+                    className={cn(authFieldClassName, 'px-4 text-center font-mono text-lg tracking-wider')}
                     placeholder="ABCD1234"
                     maxLength={8}
                     autoFocus
                     whileFocus={{ scale: 1.02 }}
                   />
                   <motion.p
-                    className="text-xs text-gray-500 mt-1"
+                    className="mt-1 text-xs text-slate-500"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.3, delay: 0.8 }}
@@ -251,14 +262,14 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
               <AnimatePresence>
                 {error && (
                   <motion.div
-                    className="bg-red-50 border border-red-200 rounded-lg p-3"
+                    className={authAlertClassName}
                     initial={{ opacity: 0, scale: 0.95, y: -10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: -10 }}
                     transition={{ duration: 0.3 }}
                   >
                     <motion.p
-                      className="text-red-700 text-sm"
+                      className="text-sm"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.2, delay: 0.1 }}
@@ -278,7 +289,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
               >
                 <motion.button
                   onClick={handleClose}
-                  className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all duration-200"
+                  className={authSecondaryButtonClassName}
                   whileHover={{ scale: 1.02, y: -1 }}
                   whileTap={{ scale: 0.98 }}
                 >
@@ -287,7 +298,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
                 <motion.button
                   onClick={handleVerify}
                   disabled={loading || (!useBackupCode && verificationCode.length !== 6) || (useBackupCode && backupCode.length !== 8)}
-                  className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl"
+                  className={cn(authPrimaryButtonClassName, 'flex-1')}
                   whileHover={{ scale: 1.02, y: -1 }}
                   whileTap={{ scale: 0.98 }}
                 >
@@ -309,7 +320,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
 
             {/* 帮助信息 */}
             <motion.div
-              className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200"
+              className={cn(authWarningPanelClassName, 'mt-6')}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 1.0 }}
@@ -319,11 +330,11 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
                 <motion.div
                   whileHover={{ scale: 1.1, rotate: 5 }}
                 >
-                  <FaInfoCircle className="w-5 h-5 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
+                  <FaInfoCircle className="mr-2 mt-0.5 h-5 w-5 flex-shrink-0 text-slate-500" />
                 </motion.div>
                 <div>
                   <motion.p
-                    className="text-sm font-medium text-blue-800"
+                    className="text-sm font-medium text-slate-900"
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.3, delay: 1.1 }}
@@ -331,7 +342,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
                     需要帮助？
                   </motion.p>
                   <motion.p
-                    className="text-sm text-blue-700 mt-1"
+                    className="mt-1 text-sm text-slate-600"
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.3, delay: 1.2 }}

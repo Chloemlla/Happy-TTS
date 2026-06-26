@@ -3,17 +3,45 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useNotification } from './Notification';
 import { LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion';
-import { FaVolumeUp, FaLock, FaEye, FaEyeSlash, FaCheckCircle, FaTimesCircle, FaArrowLeft } from 'react-icons/fa';
+import { FaVolumeUp, FaLock, FaEye, FaEyeSlash, FaCheckCircle, FaTimesCircle, FaArrowLeft, FaKey } from 'react-icons/fa';
 import getApiBaseUrl from '../api';
 import { getFingerprint, getClientIP } from '../utils/fingerprint';
 import DOMPurify from 'dompurify';
+import {
+    authAlertClassName,
+    authBackLinkClassName,
+    authBrandBlockClassName,
+    authBrandPillClassName,
+    authBrandSubtitleClassName,
+    authBrandTitleClassName,
+    authCardBodyClassName,
+    authCardClassName,
+    authCardHeaderClassName,
+    authDescriptionClassName,
+    authEyebrowClassName,
+    authFieldActionClassName,
+    authFieldIconClassName,
+    authFormClassName,
+    authFrameClassName,
+    authHeaderBadgeClassName,
+    authInfoPanelClassName,
+    authMutedLinkClassName,
+    authPageShellClassName,
+    authPasswordFieldClassName,
+    authPrimaryButtonClassName,
+    authSecondaryButtonClassName,
+    authSuccessPanelClassName,
+    authTitleClassName,
+    studioPageFont,
+} from './authStudioTheme';
+import { cn } from '../utils/cn';
 
 const NO_TRANSITION = { duration: 0 } as const;
 const FADE_VARIANTS = { hidden: { opacity: 0 }, visible: { opacity: 1 } } as const;
 const cardVariants = { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0 } };
-const CARD_TRANSITION = { duration: 0.55, type: 'spring', stiffness: 130 } as const;
-const ITEM_HOVER = { scale: 1.04 } as const;
-const BUTTON_TAP = { scale: 0.96 } as const;
+const CARD_TRANSITION = { duration: 0.45, type: 'spring', stiffness: 130 } as const;
+const ITEM_HOVER = { scale: 1.01, y: -1 } as const;
+const BUTTON_TAP = { scale: 0.99 } as const;
 
 export const ResetPasswordLinkPage: React.FC = () => {
     const { user } = useAuth();
@@ -50,7 +78,6 @@ export const ResetPasswordLinkPage: React.FC = () => {
             setToken(tokenParam);
 
             try {
-                // 获取当前设备指纹和IP，用于与发起请求时的设备/网络进行比对
                 const [fingerprint, clientIP] = await Promise.all([
                     getFingerprint(),
                     getClientIP()
@@ -63,7 +90,6 @@ export const ResetPasswordLinkPage: React.FC = () => {
                     return;
                 }
 
-                // 调用后端预验证接口，检查令牌有效性+设备/网络一致性
                 const response = await fetch(getApiBaseUrl() + '/api/auth/validate-reset-token', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -122,121 +148,116 @@ export const ResetPasswordLinkPage: React.FC = () => {
 
     return (
         <LazyMotion features={domAnimation}>
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10 py-8 px-6 rounded-3xl">
-                <div className="w-full max-w-md">
-                    <m.div className="mb-8 text-center" variants={effectiveCardVariants} initial="hidden" animate="visible" transition={{ duration: 0.5 }}>
-                        <div className="mb-3 inline-flex items-center gap-3">
-                            <FaVolumeUp className="h-10 w-10 text-[#219EBC]" />
-                            <h1 className="text-3xl font-bold font-songti text-[#023047]">Synapse</h1>
+            <div className={authPageShellClassName} style={{ fontFamily: studioPageFont }}>
+                <div className={authFrameClassName}>
+                    <m.div className={authBrandBlockClassName} variants={effectiveCardVariants} initial="hidden" animate="visible" transition={{ duration: 0.5 }}>
+                        <div className={authBrandPillClassName}>
+                            <FaVolumeUp />
+                            Synapse Access
                         </div>
-                        <p className="text-[#023047]/60 text-sm tracking-wide">重置密码</p>
+                        <h1 className={authBrandTitleClassName}>Synapse</h1>
+                        <p className={authBrandSubtitleClassName}>重置密码</p>
                     </m.div>
 
-                    <m.div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 overflow-hidden hover:shadow-2xl transition-shadow duration-300"
-                        variants={effectiveCardVariants} initial="hidden" animate="visible" transition={effectiveCardTransition}>
-                        <div className="bg-[#023047] px-8 py-5 text-white">
-                            <h2 className="text-lg font-songti font-semibold">设置新密码</h2>
-                            <p className="text-[#8ECAE6] text-xs mt-1">通过安全链接重置您的账户密码</p>
-                        </div>
+                    <m.div className={authCardClassName} variants={effectiveCardVariants} initial="hidden" animate="visible" transition={effectiveCardTransition}>
+                        <div className={authCardBodyClassName}>
+                            <div className={authCardHeaderClassName}>
+                                <div className={authHeaderBadgeClassName}>
+                                    <FaKey />
+                                </div>
+                                <div>
+                                    <div className={authEyebrowClassName}>Secure Reset Link</div>
+                                    <h2 className={authTitleClassName}>设置新密码</h2>
+                                    <p className={authDescriptionClassName}>通过安全链接重置您的账户密码。</p>
+                                </div>
+                            </div>
 
-                        <div className="px-8 py-8">
                             {user && (
-                                <m.div 
-                                    initial={{ opacity: 0, y: -10 }} 
-                                    animate={{ opacity: 1, y: 0 }} 
-                                    className="mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-xl flex items-start gap-3 text-left"
-                                >
-                                    <FaLock className="text-indigo-500 mt-1 flex-shrink-0" />
+                                <m.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className={cn(authInfoPanelClassName, 'mb-5 flex items-start gap-3')}>
+                                    <FaLock className="mt-1 shrink-0 text-slate-500" />
                                     <div>
-                                        <p className="text-xs font-bold text-indigo-700">您当前登录为 {user.username}</p>
-                                        <p className="text-[11px] text-indigo-600/80 mt-0.5">您正在为另一个账号设置新密码。重置完成后，该账号的登录状态将生效。</p>
+                                        <p className="text-xs font-semibold text-slate-900">您当前登录为 {user.username}</p>
+                                        <p className="mt-1 text-[11px] leading-5 text-slate-600">您正在为另一个账号设置新密码。重置完成后，该账号的登录状态将生效。</p>
                                     </div>
                                 </m.div>
                             )}
+
                             {verifying ? (
-                                <div className="text-center py-8">
-                                    <div className="w-16 h-16 border-4 border-[#219EBC] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                                    <h3 className="text-xl font-semibold font-songti text-[#023047] mb-2">验证中...</h3>
-                                    <p className="text-[#023047]/60">正在验证重置链接</p>
+                                <div className="py-8 text-center">
+                                    <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900"></div>
+                                    <h3 className="text-xl font-semibold text-slate-900">验证中</h3>
+                                    <p className="mt-2 text-sm text-slate-600">正在验证重置链接</p>
                                 </div>
                             ) : !tokenValid ? (
-                                <div className="text-center py-4">
-                                    <div className="w-20 h-20 bg-gradient-to-br from-red-100 to-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                        <FaTimesCircle className="text-red-500 text-5xl" />
+                                <div className="py-4 text-center">
+                                    <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-100">
+                                        <FaTimesCircle className="h-8 w-8 text-rose-500" />
                                     </div>
-                                    <h3 className="text-2xl font-bold font-songti text-[#023047] mb-4">链接无效</h3>
-                                    <p className="text-[#023047]/60 mb-6">{error}</p>
-                                    <div className="space-y-3">
+                                    <h3 className="text-2xl font-semibold text-slate-900">链接无效</h3>
+                                    <p className="mt-3 text-sm leading-6 text-slate-600">{error}</p>
+                                    <div className="mt-6 space-y-3">
                                         <m.div whileHover={effectiveItemHover} whileTap={effectiveButtonTap}>
-                                            <Link to="/forgot-password" className="block w-full py-3 px-4 text-center rounded-lg text-sm font-semibold text-[#023047] bg-[#FFB703] hover:bg-[#FB8500] shadow-lg shadow-[#FFB703]/20 transition-all duration-200">重新获取重置链接</Link>
+                                            <Link to="/forgot-password" className={authPrimaryButtonClassName}>重新获取重置链接</Link>
                                         </m.div>
                                         <m.div whileHover={effectiveItemHover} whileTap={effectiveButtonTap}>
-                                            <Link to="/login" className="block w-full py-3 px-4 text-center border border-[#8ECAE6]/30 rounded-lg text-sm font-semibold text-[#023047]/70 bg-white hover:bg-[#8ECAE6]/10 hover:border-[#219EBC] transition-all duration-200">返回登录</Link>
+                                            <Link to="/login" className={authSecondaryButtonClassName}>返回登录</Link>
                                         </m.div>
                                     </div>
                                 </div>
                             ) : success ? (
-                                <div className="text-center py-4">
-                                    <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-[#8ECAE6]/30 rounded-full flex items-center justify-center mx-auto mb-6">
-                                        <FaCheckCircle className="text-green-600 text-5xl" />
+                                <div className="py-4 text-center">
+                                    <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100">
+                                        <FaCheckCircle className="h-8 w-8 text-emerald-600" />
                                     </div>
-                                    <h3 className="text-2xl font-bold font-songti text-[#023047] mb-4">密码重置成功！</h3>
-                                    <p className="text-[#023047]/60 mb-6">您的密码已成功重置</p>
-                                    <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-6 rounded-r-lg text-left">
-                                        <div className="flex items-start">
-                                            <svg className="w-5 h-5 text-green-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                                            <div className="text-sm text-green-800"><p className="font-semibold mb-1">下一步</p><p>即将自动跳转到登录页面，请使用新密码登录</p></div>
-                                        </div>
+                                    <h3 className="text-2xl font-semibold text-slate-900">密码重置成功</h3>
+                                    <p className="mt-3 text-sm leading-6 text-slate-600">您的密码已成功重置</p>
+                                    <div className={cn(authSuccessPanelClassName, 'my-6 text-left')}>
+                                        即将自动跳转到登录页面，请使用新密码登录。
                                     </div>
                                     <m.div whileHover={effectiveItemHover} whileTap={effectiveButtonTap}>
-                                        <Link to="/login" className="inline-block w-full py-3 px-4 text-center rounded-lg text-sm font-semibold text-[#023047] bg-[#FFB703] hover:bg-[#FB8500] shadow-lg shadow-[#FFB703]/20 transition-all duration-200">立即登录</Link>
+                                        <Link to="/login" className={authPrimaryButtonClassName}>立即登录</Link>
                                     </m.div>
                                 </div>
                             ) : (
                                 <>
-                                    <form className="space-y-5" onSubmit={handleSubmit}>
-                                        {error && <div role="alert" aria-live="assertive" className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>}
+                                    <form className={authFormClassName} onSubmit={handleSubmit}>
+                                        {error && <div role="alert" aria-live="assertive" className={authAlertClassName}>{error}</div>}
 
                                         <div>
-                                            <label htmlFor="newPassword" className="block text-sm font-medium text-[#023047]/80 mb-2">新密码</label>
+                                            <label htmlFor="newPassword" className="mb-2 block text-sm font-medium text-slate-700">新密码</label>
                                             <div className="relative">
-                                                <FaLock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8ECAE6]" />
+                                                <FaLock className={authFieldIconClassName} />
                                                 <input id="newPassword" name="newPassword" type={showPassword ? 'text' : 'password'} required minLength={6} aria-label="新密码" aria-required="true"
-                                                    className="block w-full pl-10 pr-10 py-3 border border-[#8ECAE6]/40 rounded-lg bg-white/60 placeholder-[#023047]/30 text-[#023047] focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all"
+                                                    className={authPasswordFieldClassName}
                                                     placeholder="请输入新密码（至少6位）" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
-                                                <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8ECAE6] hover:text-[#219EBC] transition-colors" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                                                <button type="button" className={authFieldActionClassName} onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
                                                     {showPassword ? <FaEyeSlash className="h-4 w-4" /> : <FaEye className="h-4 w-4" />}
                                                 </button>
                                             </div>
                                         </div>
 
                                         <div>
-                                            <label htmlFor="confirmPassword" className="block text-sm font-medium text-[#023047]/80 mb-2">确认密码</label>
+                                            <label htmlFor="confirmPassword" className="mb-2 block text-sm font-medium text-slate-700">确认密码</label>
                                             <div className="relative">
-                                                <FaLock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8ECAE6]" />
+                                                <FaLock className={authFieldIconClassName} />
                                                 <input id="confirmPassword" name="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} required minLength={6} aria-label="确认密码" aria-required="true"
-                                                    className="block w-full pl-10 pr-10 py-3 border border-[#8ECAE6]/40 rounded-lg bg-white/60 placeholder-[#023047]/30 text-[#023047] focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all"
+                                                    className={authPasswordFieldClassName}
                                                     placeholder="请再次输入新密码" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
-                                                <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8ECAE6] hover:text-[#219EBC] transition-colors" onClick={() => setShowConfirmPassword(!showConfirmPassword)} aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}>
+                                                <button type="button" className={authFieldActionClassName} onClick={() => setShowConfirmPassword(!showConfirmPassword)} aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}>
                                                     {showConfirmPassword ? <FaEyeSlash className="h-4 w-4" /> : <FaEye className="h-4 w-4" />}
                                                 </button>
                                             </div>
                                         </div>
 
                                         <m.button type="submit" disabled={loading} aria-label={loading ? '重置中...' : '重置密码'} aria-busy={loading}
-                                            className="w-full flex justify-center py-3 px-4 rounded-lg text-sm font-semibold text-[#023047] bg-[#FFB703] hover:bg-[#FB8500] shadow-lg shadow-[#FFB703]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                                            className={authPrimaryButtonClassName}
                                             whileHover={effectiveItemHover} whileTap={effectiveButtonTap}>
-                                            {loading ? (
-                                                <div className="flex items-center space-x-2">
-                                                    <div className="w-4 h-4 border-2 border-[#023047] border-t-transparent rounded-full animate-spin"></div>
-                                                    <span>重置中...</span>
-                                                </div>
-                                            ) : '重置密码'}
+                                            {loading ? '重置中...' : '重置密码'}
                                         </m.button>
                                     </form>
 
                                     <div className="mt-6 text-center">
-                                        <Link to="/login" className="text-sm text-[#FFB703] hover:text-[#FB8500] font-medium transition-colors">返回登录</Link>
+                                        <Link to="/login" className={authMutedLinkClassName}>返回登录</Link>
                                     </div>
                                 </>
                             )}
@@ -244,7 +265,7 @@ export const ResetPasswordLinkPage: React.FC = () => {
                     </m.div>
 
                     <div className="mt-6 text-center">
-                        <Link to="/" className="inline-flex items-center gap-2 text-sm text-[#023047]/50 hover:text-[#023047] transition-colors">
+                        <Link to="/" className={authBackLinkClassName}>
                             <FaArrowLeft className="h-3.5 w-3.5" />返回首页
                         </Link>
                     </div>

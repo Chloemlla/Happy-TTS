@@ -7,20 +7,55 @@ import GoogleAuthButton from './GoogleAuthButton';
 import LinuxDoAuthButton from './LinuxDoAuthButton';
 import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
-import VerifyCodeInput from './VerifyCodeInput';
 import { AnimatePresence, LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion';
 import getApiBaseUrl from '../api';
-import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaUser, FaVolumeUp, FaArrowLeft } from 'react-icons/fa';
+import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaUser, FaVolumeUp, FaArrowLeft, FaUserPlus, FaCheckCircle, FaInfoCircle } from 'react-icons/fa';
 import { getFingerprint, getClientIP } from '../utils/fingerprint';
+import {
+    authAlertClassName,
+    authBackLinkClassName,
+    authBrandBlockClassName,
+    authBrandPillClassName,
+    authBrandSubtitleClassName,
+    authBrandTitleClassName,
+    authCardBodyClassName,
+    authCardClassName,
+    authCardHeaderClassName,
+    authCheckboxClassName,
+    authDividerClassName,
+    authDividerLabelClassName,
+    authDividerLineClassName,
+    authEyebrowClassName,
+    authFieldActionClassName,
+    authFieldClassName,
+    authFieldIconClassName,
+    authFormClassName,
+    authFrameClassName,
+    authHeaderBadgeClassName,
+    authInfoPanelClassName,
+    authLabelClassName,
+    authModalCardClassName,
+    authModalOverlayClassName,
+    authPageShellClassName,
+    authPasswordFieldClassName,
+    authPrimaryButtonClassName,
+    authSecondaryButtonClassName,
+    authSuccessPanelClassName,
+    authTextLinkClassName,
+    authTitleClassName,
+    authWarningPanelClassName,
+    studioPageFont,
+} from './authStudioTheme';
+import { cn } from '../utils/cn';
 
 interface PasswordStrength { score: number; feedback: string; }
 
 const NO_TRANSITION = { duration: 0 } as const;
 const FADE_VARIANTS = { hidden: { opacity: 0 }, visible: { opacity: 1 } } as const;
 const cardVariants = { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0 } };
-const CARD_TRANSITION = { duration: 0.55, type: 'spring', stiffness: 130 } as const;
-const ITEM_HOVER = { scale: 1.04 } as const;
-const BUTTON_TAP = { scale: 0.96 } as const;
+const CARD_TRANSITION = { duration: 0.45, type: 'spring', stiffness: 130 } as const;
+const ITEM_HOVER = { scale: 1.01, y: -1 } as const;
+const BUTTON_TAP = { scale: 0.99 } as const;
 
 export const RegisterPage: React.FC = () => {
     const { user } = useAuth();
@@ -165,92 +200,94 @@ export const RegisterPage: React.FC = () => {
     };
 
     const strengthLabel = passwordStrength.score >= 4 ? '很强' : passwordStrength.score >= 3 ? '强' : passwordStrength.score >= 2 ? '中等' : '弱';
-    const strengthColor = passwordStrength.score >= 4 ? 'text-green-600' : passwordStrength.score >= 3 ? 'text-[#219EBC]' : passwordStrength.score >= 2 ? 'text-yellow-600' : 'text-red-600';
+    const strengthColor = passwordStrength.score >= 4 ? 'text-emerald-600' : passwordStrength.score >= 3 ? 'text-slate-700' : passwordStrength.score >= 2 ? 'text-amber-600' : 'text-rose-600';
 
     return (
         <LazyMotion features={domAnimation}>
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10 py-8 px-6 rounded-3xl">
-                <div className="w-full max-w-md">
-                    <m.div className="mb-8 text-center" variants={effectiveCardVariants} initial="hidden" animate="visible" transition={{ duration: 0.5 }}>
-                        <div className="mb-3 inline-flex items-center gap-3">
-                            <FaVolumeUp className="h-10 w-10 text-[#219EBC]" />
-                            <h1 className="text-3xl font-bold font-songti text-[#023047]">Synapse</h1>
+            <div className={authPageShellClassName} style={{ fontFamily: studioPageFont }}>
+                <div className={authFrameClassName}>
+                    <m.div className={authBrandBlockClassName} variants={effectiveCardVariants} initial="hidden" animate="visible" transition={{ duration: 0.5 }}>
+                        <div className={authBrandPillClassName}>
+                            <FaVolumeUp />
+                            Synapse Access
                         </div>
-                        <p className="text-[#023047]/60 text-sm tracking-wide">Create your account!</p>
+                        <h1 className={authBrandTitleClassName}>Synapse</h1>
+                        <p className={authBrandSubtitleClassName}>Create your account</p>
                     </m.div>
 
-                    <m.div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 overflow-hidden hover:shadow-2xl transition-shadow duration-300"
-                        variants={effectiveCardVariants} initial="hidden" animate="visible" transition={effectiveCardTransition}>
-                        <div className="bg-[#023047] px-8 py-5 text-white">
-                            <h2 className="text-lg font-songti font-semibold">创建账户</h2>
-                            <p className="text-[#8ECAE6] text-xs mt-1">填写以下信息完成注册</p>
-                        </div>
+                    <m.div className={authCardClassName} variants={effectiveCardVariants} initial="hidden" animate="visible" transition={effectiveCardTransition}>
+                        <div className={authCardBodyClassName}>
+                            <div className={authCardHeaderClassName}>
+                                <div className={authHeaderBadgeClassName}>
+                                    <FaUserPlus />
+                                </div>
+                                <div>
+                                    <div className={authEyebrowClassName}>New Account</div>
+                                    <h2 className={authTitleClassName}>创建账户</h2>
+                                </div>
+                            </div>
 
-                        <div className="px-8 py-8">
                             {user && (
-                                <m.div 
-                                    initial={{ opacity: 0, y: -10 }} 
-                                    animate={{ opacity: 1, y: 0 }} 
-                                    className="mb-6 p-4 bg-indigo-50 border border-indigo-100 rounded-xl flex items-start gap-3"
-                                >
-                                    <FaUser className="text-indigo-500 mt-1 flex-shrink-0" />
+                                <m.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className={cn(authInfoPanelClassName, 'mb-5 flex items-start gap-3')}>
+                                    <FaUser className="mt-1 shrink-0 text-slate-500" />
                                     <div>
-                                        <p className="text-xs font-bold text-indigo-700">您已登录为 {user.username}</p>
-                                        <p className="text-[11px] text-indigo-600/80 mt-0.5">注册新账号将自动添加至此设备的账号列表中，您可以随时切换。</p>
+                                        <p className="text-xs font-semibold text-slate-900">您已登录为 {user.username}</p>
+                                        <p className="mt-1 text-[11px] leading-5 text-slate-600">注册新账号将自动添加至此设备的账号列表中，您可以随时切换。</p>
                                     </div>
                                 </m.div>
                             )}
-                            <form className="space-y-4" onSubmit={handleSubmit} aria-label="注册表单">
-                                {error && <div role="alert" aria-live="assertive" className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>}
+
+                            <form className={authFormClassName} onSubmit={handleSubmit} aria-label="注册表单">
+                                {error && <div role="alert" aria-live="assertive" className={authAlertClassName}>{error}</div>}
 
                                 <div>
-                                    <label htmlFor="username" className="block text-sm font-medium text-[#023047]/80 mb-2">用户名</label>
+                                    <label htmlFor="username" className={authLabelClassName}>用户名</label>
                                     <div className="relative">
-                                        <FaUser className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8ECAE6]" />
+                                        <FaUser className={authFieldIconClassName} />
                                         <input id="username" name="username" type="text" required inputMode="text" enterKeyHint="next" aria-label="用户名" aria-required="true" aria-invalid={!!error} aria-describedby="username-hint"
-                                            className="block w-full pl-10 pr-3 py-3 border border-[#8ECAE6]/40 rounded-lg bg-white/60 placeholder-[#023047]/30 text-[#023047] focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all"
+                                            className={authFieldClassName}
                                             placeholder="3-20个字符" value={username} onChange={(e) => setUsername(e.target.value)} maxLength={20} pattern="^[a-zA-Z0-9_]{3,20}$" autoComplete="username" />
                                         <span id="username-hint" className="sr-only">用户名长度3到20个字符，只允许字母、数字和下划线</span>
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label htmlFor="email" className="block text-sm font-medium text-[#023047]/80 mb-2">邮箱</label>
+                                    <label htmlFor="email" className={authLabelClassName}>邮箱</label>
                                     <div className="relative">
-                                        <FaEnvelope className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8ECAE6]" />
+                                        <FaEnvelope className={authFieldIconClassName} />
                                         <input id="email" name="email" type="email" required inputMode="email" enterKeyHint="next" aria-label="邮箱地址" aria-required="true" aria-invalid={!!error}
-                                            className="block w-full pl-10 pr-3 py-3 border border-[#8ECAE6]/40 rounded-lg bg-white/60 placeholder-[#023047]/30 text-[#023047] focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all"
+                                            className={authFieldClassName}
                                             placeholder="请输入邮箱地址" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label htmlFor="password" className="block text-sm font-medium text-[#023047]/80 mb-2">密码</label>
+                                    <label htmlFor="password" className={authLabelClassName}>密码</label>
                                     <div className="relative">
-                                        <FaLock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8ECAE6]" />
-                                        <input id="password" name="password" type={showPassword ? "text" : "password"} required enterKeyHint="next" aria-label="密码" aria-required="true" aria-invalid={!!error} aria-describedby="password-strength"
-                                            className="block w-full pl-10 pr-10 py-3 border border-[#8ECAE6]/40 rounded-lg bg-white/60 placeholder-[#023047]/30 text-[#023047] focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all"
-                                            placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} autoComplete="new-password" />
-                                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8ECAE6] hover:text-[#219EBC] transition-colors" aria-label={showPassword ? "隐藏密码" : "显示密码"}>
+                                        <FaLock className={authFieldIconClassName} />
+                                        <input id="password" name="password" type={showPassword ? 'text' : 'password'} required enterKeyHint="next" aria-label="密码" aria-required="true" aria-invalid={!!error} aria-describedby="password-strength"
+                                            className={authPasswordFieldClassName}
+                                            placeholder="请输入密码" value={password} onChange={(e) => setPassword(e.target.value)} minLength={8} autoComplete="new-password" />
+                                        <button type="button" onClick={() => setShowPassword(!showPassword)} className={authFieldActionClassName} aria-label={showPassword ? '隐藏密码' : '显示密码'}>
                                             {showPassword ? <FaEyeSlash className="h-4 w-4" /> : <FaEye className="h-4 w-4" />}
                                         </button>
                                     </div>
                                     {password && username && email && (
-                                        <div id="password-strength" className="mt-2 p-2 text-xs bg-[#8ECAE6]/10 border border-[#8ECAE6]/20 rounded-lg" role="status" aria-live="polite">
-                                            <div className="mb-1">密码强度：<span className={`font-semibold ml-1 ${strengthColor}`}>{strengthLabel}</span></div>
-                                            {passwordStrength.feedback && <div className="text-[#023047]/60">{passwordStrength.feedback}</div>}
+                                        <div id="password-strength" className="mt-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-3 text-xs leading-5" role="status" aria-live="polite">
+                                            <div className="text-slate-600">密码强度：<span className={`ml-1 font-semibold ${strengthColor}`}>{strengthLabel}</span></div>
+                                            {passwordStrength.feedback && <div className="mt-1 text-slate-500">{passwordStrength.feedback}</div>}
                                         </div>
                                     )}
                                 </div>
 
                                 <div>
-                                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-[#023047]/80 mb-2">确认密码</label>
+                                    <label htmlFor="confirmPassword" className={authLabelClassName}>确认密码</label>
                                     <div className="relative">
-                                        <FaLock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8ECAE6]" />
-                                        <input id="confirmPassword" name="confirmPassword" type={showConfirmPassword ? "text" : "password"} required enterKeyHint="done" aria-label="确认密码" aria-required="true" aria-invalid={password !== confirmPassword}
-                                            className="block w-full pl-10 pr-10 py-3 border border-[#8ECAE6]/40 rounded-lg bg-white/60 placeholder-[#023047]/30 text-[#023047] focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all"
-                                            placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" />
-                                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8ECAE6] hover:text-[#219EBC] transition-colors" aria-label={showConfirmPassword ? "隐藏密码" : "显示密码"}>
+                                        <FaLock className={authFieldIconClassName} />
+                                        <input id="confirmPassword" name="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} required enterKeyHint="done" aria-label="确认密码" aria-required="true" aria-invalid={password !== confirmPassword}
+                                            className={authPasswordFieldClassName}
+                                            placeholder="请再次输入密码" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" />
+                                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className={authFieldActionClassName} aria-label={showConfirmPassword ? '隐藏密码' : '显示密码'}>
                                             {showConfirmPassword ? <FaEyeSlash className="h-4 w-4" /> : <FaEye className="h-4 w-4" />}
                                         </button>
                                     </div>
@@ -259,93 +296,94 @@ export const RegisterPage: React.FC = () => {
                                 {!turnstileConfigLoading && turnstileConfig.siteKey && (
                                     <div role="group" aria-label="人机验证">
                                         <TurnstileWidget key={turnstileKey} siteKey={turnstileConfig.siteKey} onVerify={handleTurnstileVerify} onExpire={handleTurnstileExpire} onError={handleTurnstileError} theme="light" size="normal" />
-                                        {turnstileVerified && <p className="mt-2 text-xs text-green-600" role="status" aria-live="polite">人机验证通过</p>}
-                                        {turnstileError && <p className="mt-2 text-xs text-red-600" role="alert" aria-live="assertive">验证失败，请重新验证</p>}
+                                        {turnstileVerified && <p className="mt-2 text-xs text-emerald-600" role="status" aria-live="polite">人机验证通过</p>}
+                                        {turnstileError && <p className="mt-2 text-xs text-rose-600" role="alert" aria-live="assertive">验证失败，请重新验证</p>}
                                     </div>
                                 )}
 
                                 <div className="flex items-start">
-                                    <input id="agree" name="agree" type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} aria-label="我已阅读并同意服务条款与隐私政策" aria-required="true" className="h-4 w-4 mt-0.5 text-[#FFB703] focus:ring-[#219EBC] border-[#8ECAE6]/40 rounded" required />
-                                    <label htmlFor="agree" className="ml-2 block text-xs text-[#023047]/70">我已阅读并同意<Link to="/policy" className="text-[#FFB703] hover:underline ml-1" target="_blank">服务条款与隐私政策</Link></label>
+                                    <input id="agree" name="agree" type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} aria-label="我已阅读并同意服务条款与隐私政策" aria-required="true" className={cn(authCheckboxClassName, 'mt-0.5')} required />
+                                    <label htmlFor="agree" className="ml-2 block text-xs leading-5 text-slate-600">我已阅读并同意<Link to="/policy" className={cn(authTextLinkClassName, 'ml-1')} target="_blank">服务条款与隐私政策</Link></label>
                                 </div>
 
                                 <m.button type="submit" disabled={loading || password !== confirmPassword || (!!turnstileConfig.siteKey && !turnstileVerified)} aria-label={loading ? '正在注册' : '创建账号'} aria-busy={loading}
-                                    className="w-full flex justify-center py-3 px-4 rounded-lg text-sm font-semibold text-[#023047] bg-[#FFB703] hover:bg-[#FB8500] shadow-lg shadow-[#FFB703]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                                    className={authPrimaryButtonClassName}
                                     whileHover={effectiveItemHover} whileTap={effectiveButtonTap}>
                                     {loading ? '注册中...' : '创建账户'}
                                 </m.button>
                             </form>
 
-                            <div className="relative my-6">
-                                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-[#8ECAE6]/30"></div></div>
-                                <div className="relative flex justify-center text-xs"><span className="bg-white px-4 text-[#023047]/40">或者</span></div>
+                            <div className={authDividerClassName}>
+                                <div className="absolute inset-0 flex items-center"><div className={authDividerLineClassName}></div></div>
+                                <div className="relative flex justify-center"><span className={authDividerLabelClassName}>或者</span></div>
                             </div>
 
-                            <GoogleAuthButton
-                                intent="register"
-                                label="使用 Google 注册或登录"
-                                description="使用 Google 账号快速注册，首次登录自动创建本地账户"
-                            />
-
-                            <LinuxDoAuthButton
-                                intent="register"
-                                label="使用 Linux.do 一键注册"
-                                description="复用 Linux.do 论坛账号，首次登录自动创建本地账户"
-                            />
+                            <div className="space-y-4">
+                                <GoogleAuthButton
+                                    intent="register"
+                                    label="使用 Google 注册或登录"
+                                    description="使用 Google 账号快速注册，首次登录自动创建本地账户"
+                                />
+                                <LinuxDoAuthButton
+                                    intent="register"
+                                    label="使用 Linux.do 一键注册"
+                                    description="复用 Linux.do 论坛账号，首次登录自动创建本地账户"
+                                />
+                            </div>
 
                             <div className="mt-6 text-center">
-                                <p className="text-sm text-[#023047]/60">已有账户？<Link to="/login" className="font-medium text-[#FFB703] hover:text-[#FB8500] transition-colors">立即登录</Link></p>
+                                <p className="text-sm text-slate-600">已有账户？<Link to="/login" className={authTextLinkClassName}>立即登录</Link></p>
                             </div>
                         </div>
                     </m.div>
 
                     <div className="mt-6 text-center">
-                        <Link to="/" className="inline-flex items-center gap-2 text-sm text-[#023047]/50 hover:text-[#023047] transition-colors" aria-label="返回首页">
+                        <Link to="/" className={authBackLinkClassName} aria-label="返回首页">
                             <FaArrowLeft className="h-3.5 w-3.5" />返回首页
                         </Link>
                     </div>
                 </div>
 
-                {/* Email verification modal */}
                 <AnimatePresence>
                     {showEmailVerify && (
-                        <m.div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm z-50 p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} role="dialog" aria-modal="true" aria-labelledby="verify-email-title" aria-describedby="verify-email-description">
-                            <m.div className="bg-white rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden max-h-[90vh] overflow-y-auto"
-                                initial={{ scale: 0.9, opacity: 0, y: 50 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 50 }} transition={{ duration: 0.3, type: "spring", damping: 25, stiffness: 300 }}>
-                                <div className="h-1 bg-[#FFB703]"></div>
-                                <div className="p-4 sm:p-6 md:p-8">
-                                    <div className="text-center mb-6">
-                                        <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-[#8ECAE6]/30 rounded-full flex items-center justify-center mx-auto mb-6">
-                                            <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                        </div>
-                                        <h3 id="verify-email-title" className="text-2xl font-bold font-songti text-[#023047] mb-4">验证邮件已发送</h3>
-                                        <p id="verify-email-description" className="text-[#023047]/70 leading-relaxed">
-                                            我们已向 <br /><span className="font-semibold text-[#219EBC]">{pendingEmail}</span> <br />发送了验证链接
-                                        </p>
+                        <m.div className={authModalOverlayClassName} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} role="dialog" aria-modal="true" aria-labelledby="verify-email-title" aria-describedby="verify-email-description">
+                            <m.div className={authModalCardClassName}
+                                initial={{ scale: 0.95, opacity: 0, y: 24 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 24 }} transition={{ duration: 0.3, type: 'spring', damping: 25, stiffness: 300 }}>
+                                <div className="text-center">
+                                    <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100">
+                                        <FaCheckCircle className="h-8 w-8 text-emerald-600" />
                                     </div>
-                                    <div className="bg-[#8ECAE6]/15 border-l-4 border-[#219EBC] p-4 mb-6 rounded-r-lg">
-                                        <div className="flex items-start">
-                                            <svg className="w-5 h-5 text-[#219EBC] mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
-                                            <div className="text-sm text-[#023047]">
-                                                <p className="font-semibold mb-2">下一步操作：</p>
-                                                <ul className="list-disc list-inside space-y-1"><li>打开您的邮箱</li><li>找到来自 Synapse 的验证邮件</li><li>点击邮件中的验证按钮</li><li>使用<strong>相同的设备和网络</strong>打开链接</li></ul>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="bg-amber-50 border-l-4 border-amber-500 p-4 mb-6 rounded-r-lg">
-                                        <div className="flex items-start">
-                                            <svg className="w-5 h-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
-                                            <div className="text-sm text-amber-800"><p className="font-semibold mb-1">重要提示</p><p>验证链接<strong>10分钟</strong>内有效，请及时验证</p></div>
+                                    <div className={authEyebrowClassName}>Email Verification</div>
+                                    <h3 id="verify-email-title" className="mt-2 text-2xl font-semibold text-slate-900">验证邮件已发送</h3>
+                                    <p id="verify-email-description" className="mt-3 text-sm leading-7 text-slate-600">
+                                        我们已向 <span className="font-semibold text-slate-900">{pendingEmail}</span> 发送了验证链接
+                                    </p>
+                                </div>
+
+                                <div className={cn(authInfoPanelClassName, 'mt-6')}>
+                                    <div className="flex items-start gap-3">
+                                        <FaInfoCircle className="mt-1 shrink-0 text-slate-500" />
+                                        <div className="text-sm leading-6 text-slate-600">
+                                            <p className="font-semibold text-slate-900">下一步操作</p>
+                                            <p className="mt-1">打开邮箱，找到来自 Synapse 的验证邮件，并使用相同设备和网络打开链接。</p>
                                         </div>
                                     </div>
-                                    <div className="space-y-3">
-                                        <button type="button" className="w-full py-4 px-6 rounded-2xl font-semibold text-lg transition-all duration-200 bg-[#FFB703] text-[#023047] hover:bg-[#FB8500] shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
-                                            onClick={() => { setShowEmailVerify(false); navigate('/login'); }}>前往登录页面</button>
-                                    </div>
-                                    <div className="mt-6 text-center">
-                                        <p className="text-sm text-[#023047]/50 mb-2" role="status">没有收到邮件？请检查垃圾邮件文件夹</p>
-                                        <button type="button" className="text-sm text-[#219EBC] hover:text-[#023047] font-medium transition-colors" onClick={() => setShowEmailVerify(false)} aria-label="返回修改邮箱地址">返回修改邮箱</button>
-                                    </div>
+                                </div>
+
+                                <div className={cn(authWarningPanelClassName, 'mt-4')}>
+                                    验证链接 10 分钟内有效，请及时验证。
+                                </div>
+
+                                {verifyError && <div className={cn(authAlertClassName, 'mt-4')}>{verifyError}</div>}
+                                {verifyResendTimer > 0 && <div className={cn(authSuccessPanelClassName, 'mt-4')}>验证码已重新发送，{verifyResendTimer} 秒后可再次发送。</div>}
+
+                                <div className="mt-6 space-y-3">
+                                    <button type="button" className={authPrimaryButtonClassName}
+                                        onClick={() => { setShowEmailVerify(false); navigate('/login'); }}>前往登录页面</button>
+                                    <button type="button" className={authSecondaryButtonClassName} disabled={verifyLoading || verifyResendTimer > 0} onClick={() => void handleResendVerifyCode()}>
+                                        {verifyLoading ? '发送中...' : '重新发送验证邮件'}
+                                    </button>
+                                    <button type="button" className={authSecondaryButtonClassName} onClick={() => setShowEmailVerify(false)} aria-label="返回修改邮箱地址">返回修改邮箱</button>
                                 </div>
                             </m.div>
                         </m.div>

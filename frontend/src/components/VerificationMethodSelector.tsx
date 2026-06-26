@@ -1,5 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '../utils/cn';
+import {
+    authInfoPanelClassName,
+    authModalCardClassName,
+    authModalOverlayClassName,
+    authSecondaryButtonClassName,
+    authSoftBadgeClassName,
+    authWarningPanelClassName,
+} from './authStudioTheme';
 
 interface VerificationMethodSelectorProps {
     isOpen: boolean;
@@ -150,14 +159,14 @@ const VerificationMethodSelector: React.FC<VerificationMethodSelectorProps> = ({
         <AnimatePresence>
             {isOpen && (
                 <motion.div
-                    className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4"
+                    className={authModalOverlayClassName}
                     variants={backdropVariants}
                     initial="hidden"
                     animate="visible"
                     exit="exit"
                 >
                     <motion.div
-                        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+                        className="fixed inset-0 bg-slate-950/30 backdrop-blur-sm"
                         onClick={onClose}
                     />
                     <motion.div
@@ -172,7 +181,7 @@ const VerificationMethodSelector: React.FC<VerificationMethodSelectorProps> = ({
                         onTouchEnd={handleTouchEnd}
                     >
                         <motion.div
-                            className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100"
+                            className={cn(authModalCardClassName, 'overflow-hidden')}
                             variants={containerVariants}
                             initial="hidden"
                             animate="visible"
@@ -188,25 +197,25 @@ const VerificationMethodSelector: React.FC<VerificationMethodSelectorProps> = ({
                                     transition={{ duration: 0.5, delay: 0.1 }}
                                 >
                                     <div className="flex flex-col items-center">
-                                        <div className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                                        <div className={cn(authSoftBadgeClassName, 'mx-auto mb-4 h-16 w-16')}>
                                             <motion.div
                                                 initial={{ opacity: 0, rotate: -180 }}
                                                 animate={{ opacity: 1, rotate: 0 }}
                                                 transition={{ duration: 0.6, delay: 0.2, type: "spring", stiffness: 200 }}
                                                 whileHover={{ rotate: 5 }}
                                             >
-                                                <svg className="w-8 h-8 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg className="h-8 w-8 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                                                 </svg>
                                             </motion.div>
                                         </div>
-                                        <h2 className="text-2xl font-bold text-gray-900 mb-2">选择验证方式</h2>
-                                        <div className="text-gray-600">为 <span className="text-gray-900 font-semibold">{username}</span> 选择安全验证方式</div>
+                                        <h2 className="mb-2 text-2xl font-semibold text-slate-900">选择验证方式</h2>
+                                        <div className="text-slate-600">为 <span className="font-semibold text-slate-900">{username}</span> 选择安全验证方式</div>
                                     </div>
                                 </motion.div>
                                 {/* 调试信息 - 临时显示可用方法 */}
                                 {process.env.NODE_ENV === 'development' && (
-                                    <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded-lg border border-blue-200 mb-4">
+                                    <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 p-2 text-xs text-slate-600">
                                         可用方法: {JSON.stringify(availableMethods)}
                                     </div>
                                 )}
@@ -219,14 +228,14 @@ const VerificationMethodSelector: React.FC<VerificationMethodSelectorProps> = ({
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: 0.2 }}
                                     >
-                                        <div className="w-16 h-16 mx-auto mb-6 bg-blue-100 rounded-full flex items-center justify-center border border-blue-200">
-                                            <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <div className={cn(authSoftBadgeClassName, 'mx-auto mb-6 h-16 w-16')}>
+                                            <svg className="h-8 w-8 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
                                             </svg>
                                         </div>
-                                        <h3 className="text-lg font-semibold text-blue-900 mb-3">未设置验证方式</h3>
-                                        <p className="text-blue-700 mb-2">检测到您还未设置任何二次验证方式</p>
-                                        <p className="text-sm text-blue-600">请先在设置中启用验证方式</p>
+                                        <h3 className="mb-3 text-lg font-semibold text-slate-900">未设置验证方式</h3>
+                                        <p className="mb-2 text-slate-600">检测到您还未设置任何二次验证方式</p>
+                                        <p className="text-sm text-slate-500">请先在设置中启用验证方式</p>
                                     </motion.div>
                                 )}
                                 
@@ -246,10 +255,10 @@ const VerificationMethodSelector: React.FC<VerificationMethodSelectorProps> = ({
                                             whileTap="tap"
                                             onClick={() => !loading && onSelectMethod('passkey')}
                                         >
-                                            <div className="relative p-4 border-2 border-gray-200 rounded-lg hover:border-indigo-300 transition-colors duration-200 bg-gradient-to-r from-gray-50 to-white hover:from-indigo-50 hover:to-purple-50">
+                                            <div className={cn(authInfoPanelClassName, 'relative transition hover:border-slate-300 hover:bg-white')}>
                                                 <div className="flex items-center space-x-4">
                                                     <motion.div
-                                                        className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center text-white shadow-lg flex-shrink-0"
+                                                        className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-sm"
                                                         whileHover={{ rotate: 5, scale: 1.1 }}
                                                         transition={{ type: "spring" as const, stiffness: 400 }}
                                                     >
@@ -258,15 +267,15 @@ const VerificationMethodSelector: React.FC<VerificationMethodSelectorProps> = ({
                                                         </svg>
                                                     </motion.div>
                                                     <div className="flex-1 min-w-0">
-                                                        <h3 className="text-lg font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors truncate">
+                                                        <h3 className="truncate text-lg font-semibold text-slate-900 transition-colors group-hover:text-slate-700">
                                                             Passkey 验证
                                                         </h3>
-                                                        <p className="text-sm text-gray-600 mt-1">
+                                                        <p className="mt-1 text-sm text-slate-600">
                                                             使用生物识别或设备PIN码快速验证
                                                         </p>
                                                     </div>
                                                     <motion.div
-                                                        className="text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                                        className="flex-shrink-0 text-slate-400 opacity-0 transition-opacity group-hover:opacity-100"
                                                         initial={{ x: -10 }}
                                                         whileHover={{ x: 0 }}
                                                     >
@@ -282,7 +291,7 @@ const VerificationMethodSelector: React.FC<VerificationMethodSelectorProps> = ({
                                                         animate={{ opacity: 1 }}
                                                     >
                                                         <motion.div
-                                                            className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full"
+                                                            className="h-6 w-6 rounded-full border-2 border-slate-900 border-t-transparent"
                                                             animate={{ rotate: 360 }}
                                                             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                                                         />
@@ -301,10 +310,10 @@ const VerificationMethodSelector: React.FC<VerificationMethodSelectorProps> = ({
                                             whileTap="tap"
                                             onClick={() => !loading && onSelectMethod('totp')}
                                         >
-                                            <div className="relative p-4 border-2 border-gray-200 rounded-lg hover:border-indigo-300 transition-colors duration-200 bg-gradient-to-r from-gray-50 to-white hover:from-indigo-50 hover:to-purple-50">
+                                            <div className={cn(authInfoPanelClassName, 'relative transition hover:border-slate-300 hover:bg-white')}>
                                                 <div className="flex items-center space-x-4">
                                                     <motion.div
-                                                        className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center text-white shadow-lg flex-shrink-0"
+                                                        className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-sm"
                                                         whileHover={{ rotate: -5, scale: 1.1 }}
                                                         transition={{ type: "spring" as const, stiffness: 400 }}
                                                     >
@@ -313,15 +322,15 @@ const VerificationMethodSelector: React.FC<VerificationMethodSelectorProps> = ({
                                                         </svg>
                                                     </motion.div>
                                                     <div className="flex-1 min-w-0">
-                                                        <h3 className="text-lg font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors truncate">
+                                                        <h3 className="truncate text-lg font-semibold text-slate-900 transition-colors group-hover:text-slate-700">
                                                             动态口令 (TOTP)
                                                         </h3>
-                                                        <p className="text-sm text-gray-600 mt-1">
+                                                        <p className="mt-1 text-sm text-slate-600">
                                                             使用验证器应用生成的6位数字码
                                                         </p>
                                                     </div>
                                                     <motion.div
-                                                        className="text-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+                                                        className="flex-shrink-0 text-slate-400 opacity-0 transition-opacity group-hover:opacity-100"
                                                         initial={{ x: -10 }}
                                                         whileHover={{ x: 0 }}
                                                     >
@@ -337,7 +346,7 @@ const VerificationMethodSelector: React.FC<VerificationMethodSelectorProps> = ({
                                                         animate={{ opacity: 1 }}
                                                     >
                                                         <motion.div
-                                                            className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full"
+                                                            className="h-6 w-6 rounded-full border-2 border-slate-900 border-t-transparent"
                                                             animate={{ rotate: 360 }}
                                                             transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                                                         />
@@ -350,7 +359,7 @@ const VerificationMethodSelector: React.FC<VerificationMethodSelectorProps> = ({
 
                                 {/* 帮助信息 */}
                                 <motion.div
-                                    className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200"
+                                    className={cn(authWarningPanelClassName, 'mt-6')}
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.5, delay: 1.0 }}
@@ -360,13 +369,13 @@ const VerificationMethodSelector: React.FC<VerificationMethodSelectorProps> = ({
                                         <motion.div
                                             whileHover={{ scale: 1.1, rotate: 5 }}
                                         >
-                                            <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg className="mr-2 mt-0.5 h-5 w-5 flex-shrink-0 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
                                             </svg>
                                         </motion.div>
                                         <div>
                                             <motion.p
-                                                className="text-sm font-medium text-blue-800"
+                                                className="text-sm font-medium text-slate-900"
                                                 initial={{ opacity: 0, x: -10 }}
                                                 animate={{ opacity: 1, x: 0 }}
                                                 transition={{ duration: 0.3, delay: 1.1 }}
@@ -374,7 +383,7 @@ const VerificationMethodSelector: React.FC<VerificationMethodSelectorProps> = ({
                                                 安全提示
                                             </motion.p>
                                             <motion.p
-                                                className="text-sm text-blue-700 mt-1"
+                                                className="mt-1 text-sm text-slate-600"
                                                 initial={{ opacity: 0, x: -10 }}
                                                 animate={{ opacity: 1, x: 0 }}
                                                 transition={{ duration: 0.3, delay: 1.2 }}
@@ -394,7 +403,7 @@ const VerificationMethodSelector: React.FC<VerificationMethodSelectorProps> = ({
                                 >
                                     <motion.button
                                         onClick={onClose}
-                                        className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all duration-200"
+                                        className={authSecondaryButtonClassName}
                                         disabled={loading}
                                         whileHover={{ scale: 1.02, y: -1 }}
                                         whileTap={{ scale: 0.98 }}

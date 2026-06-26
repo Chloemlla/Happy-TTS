@@ -8,13 +8,38 @@ import { LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion';
 import { FaEnvelope, FaLock, FaArrowLeft, FaVolumeUp, FaEye, FaEyeSlash, FaKey, FaCheckCircle } from 'react-icons/fa';
 import getApiBaseUrl from '../api';
 import { getFingerprint, getClientIP } from '../utils/fingerprint';
+import {
+    authAlertClassName,
+    authBackLinkClassName,
+    authBrandBlockClassName,
+    authBrandPillClassName,
+    authBrandSubtitleClassName,
+    authBrandTitleClassName,
+    authCardBodyClassName,
+    authCardClassName,
+    authCardHeaderClassName,
+    authDescriptionClassName,
+    authEyebrowClassName,
+    authFieldActionClassName,
+    authFieldClassName,
+    authFieldIconClassName,
+    authFormClassName,
+    authFrameClassName,
+    authHeaderBadgeClassName,
+    authMutedLinkClassName,
+    authPageShellClassName,
+    authPasswordFieldClassName,
+    authPrimaryButtonClassName,
+    authTitleClassName,
+    studioPageFont,
+} from './authStudioTheme';
 
 const NO_TRANSITION = { duration: 0 } as const;
 const FADE_VARIANTS = { hidden: { opacity: 0 }, visible: { opacity: 1 } } as const;
 const cardVariants = { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0 } };
-const CARD_TRANSITION = { duration: 0.55, type: 'spring', stiffness: 130 } as const;
-const ITEM_HOVER = { scale: 1.04 } as const;
-const BUTTON_TAP = { scale: 0.96 } as const;
+const CARD_TRANSITION = { duration: 0.45, type: 'spring', stiffness: 130 } as const;
+const ITEM_HOVER = { scale: 1.01, y: -1 } as const;
+const BUTTON_TAP = { scale: 0.99 } as const;
 
 export const ResetPasswordPage: React.FC = () => {
     const { setNotification } = useNotification();
@@ -83,79 +108,84 @@ export const ResetPasswordPage: React.FC = () => {
 
     return (
         <LazyMotion features={domAnimation}>
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10 py-8 px-6 rounded-3xl">
-                <div className="w-full max-w-md">
-                    <m.div className="mb-8 text-center" variants={effectiveCardVariants} initial="hidden" animate="visible" transition={{ duration: 0.5 }}>
-                        <div className="mb-3 inline-flex items-center gap-3">
-                            <FaVolumeUp className="h-10 w-10 text-[#219EBC]" />
-                            <h1 className="text-3xl font-bold font-songti text-[#023047]">Synapse</h1>
+            <div className={authPageShellClassName} style={{ fontFamily: studioPageFont }}>
+                <div className={authFrameClassName}>
+                    <m.div className={authBrandBlockClassName} variants={effectiveCardVariants} initial="hidden" animate="visible" transition={{ duration: 0.5 }}>
+                        <div className={authBrandPillClassName}>
+                            <FaVolumeUp />
+                            Synapse Access
                         </div>
-                        <p className="text-[#023047]/60 text-sm tracking-wide">重置密码</p>
+                        <h1 className={authBrandTitleClassName}>Synapse</h1>
+                        <p className={authBrandSubtitleClassName}>重置密码</p>
                     </m.div>
 
-                    <m.div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 overflow-hidden hover:shadow-2xl transition-shadow duration-300"
-                        variants={effectiveCardVariants} initial="hidden" animate="visible" transition={effectiveCardTransition}>
-                        <div className="bg-[#023047] px-8 py-5 text-white">
-                            <h2 className="text-lg font-songti font-semibold">输入新密码</h2>
-                            <p className="text-[#8ECAE6] text-xs mt-1">使用发送到您邮箱的验证码重置密码</p>
-                        </div>
+                    <m.div className={authCardClassName} variants={effectiveCardVariants} initial="hidden" animate="visible" transition={effectiveCardTransition}>
+                        <div className={authCardBodyClassName}>
+                            <div className={authCardHeaderClassName}>
+                                <div className={authHeaderBadgeClassName}>
+                                    <FaKey />
+                                </div>
+                                <div>
+                                    <div className={authEyebrowClassName}>Password Reset</div>
+                                    <h2 className={authTitleClassName}>输入新密码</h2>
+                                    <p className={authDescriptionClassName}>使用发送到邮箱的验证码重置密码。</p>
+                                </div>
+                            </div>
 
-                        <div className="px-8 py-8">
                             {success ? (
-                                <div className="text-center py-6">
-                                    <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-[#8ECAE6]/30 rounded-full flex items-center justify-center mx-auto mb-6">
-                                        <FaCheckCircle className="text-green-600 text-4xl" />
+                                <div className="py-4 text-center">
+                                    <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100">
+                                        <FaCheckCircle className="h-8 w-8 text-emerald-600" />
                                     </div>
-                                    <h3 className="text-xl font-semibold font-songti text-[#023047] mb-2">密码重置成功！</h3>
-                                    <p className="text-[#023047]/60 mb-4">您的密码已成功重置</p>
-                                    <p className="text-sm text-[#023047]/40">正在跳转到登录页面...</p>
+                                    <h3 className="text-xl font-semibold text-slate-900">密码重置成功</h3>
+                                    <p className="mt-2 text-sm leading-6 text-slate-600">您的密码已成功重置，正在跳转到登录页面。</p>
                                 </div>
                             ) : (
-                                <form className="space-y-5" onSubmit={handleSubmit}>
-                                    {error && <div role="alert" aria-live="assertive" className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>}
+                                <form className={authFormClassName} onSubmit={handleSubmit}>
+                                    {error && <div role="alert" aria-live="assertive" className={authAlertClassName}>{error}</div>}
 
                                     <div>
-                                        <label htmlFor="email" className="block text-sm font-medium text-[#023047]/80 mb-2">邮箱地址</label>
+                                        <label htmlFor="email" className="mb-2 block text-sm font-medium text-slate-700">邮箱地址</label>
                                         <div className="relative">
-                                            <FaEnvelope className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8ECAE6]" />
+                                            <FaEnvelope className={authFieldIconClassName} />
                                             <input id="email" name="email" type="email" required inputMode="email" aria-label="邮箱地址" aria-required="true" aria-invalid={!!error}
-                                                className="block w-full pl-10 pr-3 py-3 border border-[#8ECAE6]/40 rounded-lg bg-white/60 placeholder-[#023047]/30 text-[#023047] focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all"
+                                                className={authFieldClassName}
                                                 placeholder="请输入邮箱地址" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label htmlFor="code" className="block text-sm font-medium text-[#023047]/80 mb-2">验证码</label>
+                                        <label htmlFor="code" className="mb-2 block text-sm font-medium text-slate-700">验证码</label>
                                         <div className="relative">
-                                            <FaKey className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8ECAE6]" />
+                                            <FaKey className={authFieldIconClassName} />
                                             <input id="code" name="code" type="text" required inputMode="numeric" pattern="[0-9]{8}" maxLength={8} aria-label="Verification code" aria-required="true" aria-invalid={!!error}
-                                                className="block w-full pl-10 pr-3 py-3 border border-[#8ECAE6]/40 rounded-lg bg-white/60 placeholder-[#023047]/30 text-[#023047] focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all font-mono text-lg tracking-wider"
+                                                className={authFieldClassName}
                                                 placeholder="12345678" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} autoComplete="one-time-code" />
                                         </div>
-                                        <p className="mt-1 text-xs text-[#023047]/40">输入发送到您邮箱的8位数字验证码</p>
+                                        <p className="mt-2 text-xs text-slate-500">输入发送到您邮箱的 8 位数字验证码</p>
                                     </div>
 
                                     <div>
-                                        <label htmlFor="newPassword" className="block text-sm font-medium text-[#023047]/80 mb-2">新密码</label>
+                                        <label htmlFor="newPassword" className="mb-2 block text-sm font-medium text-slate-700">新密码</label>
                                         <div className="relative">
-                                            <FaLock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8ECAE6]" />
-                                            <input id="newPassword" name="newPassword" type={showPassword ? "text" : "password"} required aria-label="新密码" aria-required="true" aria-invalid={!!error}
-                                                className="block w-full pl-10 pr-10 py-3 border border-[#8ECAE6]/40 rounded-lg bg-white/60 placeholder-[#023047]/30 text-[#023047] focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all"
-                                                placeholder="••••••••" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" />
-                                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8ECAE6] hover:text-[#219EBC] transition-colors" aria-label={showPassword ? "隐藏密码" : "显示密码"}>
+                                            <FaLock className={authFieldIconClassName} />
+                                            <input id="newPassword" name="newPassword" type={showPassword ? 'text' : 'password'} required aria-label="新密码" aria-required="true" aria-invalid={!!error}
+                                                className={authPasswordFieldClassName}
+                                                placeholder="请输入新密码" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" />
+                                            <button type="button" onClick={() => setShowPassword(!showPassword)} className={authFieldActionClassName} aria-label={showPassword ? '隐藏密码' : '显示密码'}>
                                                 {showPassword ? <FaEyeSlash className="h-4 w-4" /> : <FaEye className="h-4 w-4" />}
                                             </button>
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label htmlFor="confirmPassword" className="block text-sm font-medium text-[#023047]/80 mb-2">确认新密码</label>
+                                        <label htmlFor="confirmPassword" className="mb-2 block text-sm font-medium text-slate-700">确认新密码</label>
                                         <div className="relative">
-                                            <FaLock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8ECAE6]" />
-                                            <input id="confirmPassword" name="confirmPassword" type={showConfirmPassword ? "text" : "password"} required aria-label="确认新密码" aria-required="true" aria-invalid={!!error}
-                                                className="block w-full pl-10 pr-10 py-3 border border-[#8ECAE6]/40 rounded-lg bg-white/60 placeholder-[#023047]/30 text-[#023047] focus:outline-none focus:ring-2 focus:ring-[#219EBC] focus:border-[#219EBC] transition-all"
-                                                placeholder="••••••••" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" />
-                                            <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8ECAE6] hover:text-[#219EBC] transition-colors" aria-label={showConfirmPassword ? "隐藏密码" : "显示密码"}>
+                                            <FaLock className={authFieldIconClassName} />
+                                            <input id="confirmPassword" name="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} required aria-label="确认新密码" aria-required="true" aria-invalid={!!error}
+                                                className={authPasswordFieldClassName}
+                                                placeholder="请再次输入新密码" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" />
+                                            <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className={authFieldActionClassName} aria-label={showConfirmPassword ? '隐藏密码' : '显示密码'}>
                                                 {showConfirmPassword ? <FaEyeSlash className="h-4 w-4" /> : <FaEye className="h-4 w-4" />}
                                             </button>
                                         </div>
@@ -164,20 +194,20 @@ export const ResetPasswordPage: React.FC = () => {
                                     {!turnstileConfigLoading && turnstileConfig.siteKey && (
                                         <div role="group" aria-label="人机验证">
                                             <TurnstileWidget key={turnstileKey} siteKey={turnstileConfig.siteKey} onVerify={handleTurnstileVerify} onExpire={handleTurnstileExpire} onError={handleTurnstileError} theme="light" size="normal" />
-                                            {turnstileVerified && <p className="mt-2 text-xs text-green-600" role="status" aria-live="polite">验证通过</p>}
-                                            {turnstileError && <p className="mt-2 text-xs text-red-600" role="alert" aria-live="assertive">验证失败，请重试</p>}
+                                            {turnstileVerified && <p className="mt-2 text-xs text-emerald-600" role="status" aria-live="polite">验证通过</p>}
+                                            {turnstileError && <p className="mt-2 text-xs text-rose-600" role="alert" aria-live="assertive">验证失败，请重试</p>}
                                         </div>
                                     )}
 
                                     <m.button type="submit" disabled={loading || (!!turnstileConfig.siteKey && !turnstileVerified)} aria-label={loading ? '重置密码中...' : '重置密码'} aria-busy={loading}
-                                        className="w-full flex justify-center py-3 px-4 rounded-lg text-sm font-semibold text-[#023047] bg-[#FFB703] hover:bg-[#FB8500] shadow-lg shadow-[#FFB703]/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                                        className={authPrimaryButtonClassName}
                                         whileHover={effectiveItemHover} whileTap={effectiveButtonTap}>
                                         {loading ? '重置密码中...' : '重置密码'}
                                     </m.button>
 
-                                    <div className="mt-2 text-center space-y-2">
-                                        <Link to="/forgot-password" className="block text-sm text-[#FFB703] hover:text-[#FB8500] font-medium transition-colors">重新发送验证码</Link>
-                                        <Link to="/login" className="block text-sm text-[#FFB703] hover:text-[#FB8500] font-medium transition-colors">返回登录</Link>
+                                    <div className="mt-2 space-y-2 text-center">
+                                        <Link to="/forgot-password" className={authMutedLinkClassName}>重新发送验证码</Link>
+                                        <Link to="/login" className={authMutedLinkClassName}>返回登录</Link>
                                     </div>
                                 </form>
                             )}
@@ -185,7 +215,7 @@ export const ResetPasswordPage: React.FC = () => {
                     </m.div>
 
                     <div className="mt-6 text-center">
-                        <Link to="/" className="inline-flex items-center gap-2 text-sm text-[#023047]/50 hover:text-[#023047] transition-colors" aria-label="返回首页">
+                        <Link to="/" className={authBackLinkClassName} aria-label="返回首页">
                             <FaArrowLeft className="h-3.5 w-3.5" />返回首页
                         </Link>
                     </div>
