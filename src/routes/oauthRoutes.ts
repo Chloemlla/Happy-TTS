@@ -1,6 +1,7 @@
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import { OAuthController } from "../controllers/oauthController";
+import { auditLog } from "../middleware/auditLog";
 import { adminAuthMiddleware, authMiddleware } from "../middleware/authMiddleware";
 import { oauthTokenAuth } from "../middleware/oauthTokenAuth";
 
@@ -34,6 +35,22 @@ const oauthAdminLimiter = rateLimit({
   message: { error: "OAuth 管理请求过于频繁，请稍后再试" },
 });
 
+const oauthClientAuditTarget = (req: any) => ({
+  targetId: req.params.clientId || req.body?.clientId,
+  targetName: req.body?.name,
+});
+
+const oauthClientAuditDetail = (req: any) => ({
+  requestedFields: Object.keys(req.body || {}).filter((key) => key !== "clientSecret"),
+  scopeCount: Array.isArray(req.body?.allowedScopes) ? req.body.allowedScopes.length : undefined,
+  redirectUriCount: Array.isArray(req.body?.redirectUris)
+    ? req.body.redirectUris.length
+    : typeof req.body?.redirectUris === "string"
+      ? req.body.redirectUris.split(/\r?\n|,/).filter((item: string) => item.trim()).length
+      : undefined,
+  enabled: typeof req.body?.enabled === "boolean" ? req.body.enabled : undefined,
+});
+
 /**
  * @openapi
  * /oauth/.well-known/openid-configuration:
@@ -63,13 +80,70 @@ router.get("/authorize/preview", oauthAuthorizeLimiter, authMiddleware, OAuthCon
 router.post("/authorize", oauthAuthorizeLimiter, authMiddleware, OAuthController.authorize);
 
 router.get("/clients", oauthAdminLimiter, authMiddleware, adminAuthMiddleware, OAuthController.listClients);
-router.post("/clients", oauthAdminLimiter, authMiddleware, adminAuthMiddleware, OAuthController.createClient);
+router.post(
+  "/clients",
+  oauthAdminLimiter,
+  authMiddleware,
+  adminAuthMiddleware,
+  auditLog({
+    module: "oauth",
+    action: "oauth.client.create",
+    extractTarget: oauthClientAuditTarget,
+    extractDetail: oauthClientAuditDetail,
+  }),
+  OAuthController.createClient,
+);
 router.get("/clients/:clientId", oauthAdminLimiter, authMiddleware, adminAuthMiddleware, OAuthController.getClient);
-router.put("/clients/:clientId", oauthAdminLimiter, authMiddleware, adminAuthMiddleware, OAuthController.updateClient);
-router.post("/clients/:clientId/rotate-secret", oauthAdminLimiter, authMiddleware, adminAuthMiddleware, OAuthController.rotateClientSecret);
-router.delete("/clients/:clientId", oauthAdminLimiter, authMiddleware, adminAuthMiddleware, OAuthController.deleteClient);
+router.put(
+  "/clients/:clientId",
+  oauthAdminLimiter,
+  authMiddleware,
+  adminAuthMiddleware,
+  auditLog({
+    module: "oauth",
+    action: "oauth.client.update",
+    extractTarget: oauthClientAuditTarget,
+    extractDetail: oauthClientAuditDetail,
+  }),
+  OAuthController.updateClient,
+);
+router.post(
+  "/clients/:clientId/rotate-secret",
+  oauthAdminLimiter,
+  authMiddleware,
+  adminAuthMiddleware,
+  auditLog({
+    module: "oauth",
+    action: "oauth.client.rotate_secret",
+    extractTarget: oauthClientAuditTarget,
+  }),
+  OAuthController.rotateClientSecret,
+);
+router.delete(
+  "/clients/:clientId",
+  oauthAdminLimiter,
+  authMiddleware,
+  adminAuthMiddleware,
+  auditLog({
+    module: "oauth",
+    action: "oauth.client.disable",
+    extractTarget: oauthClientAuditTarget,
+  }),
+  OAuthController.deleteClient,
+);
 
 router.get("/grants", oauthAdminLimiter, authMiddleware, adminAuthMiddleware, OAuthController.listGrants);
-router.post("/grants/:grantId/revoke", oauthAdminLimiter, authMiddleware, adminAuthMiddleware, OAuthController.revokeGrant);
+router.post(
+  "/grants/:grantId/revoke",
+  oauthAdminLimiter,
+  authMiddleware,
+  adminAuthMiddleware,
+  auditLog({
+    module: "oauth",
+    action: "oauth.grant.revoke",
+    extractTarget: (req) => ({ targetId: req.params.grantId }),
+  }),
+  OAuthController.revokeGrant,
+);
 
 export default router;

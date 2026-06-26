@@ -32,6 +32,11 @@ export interface OAuthGrant {
   grantId: string;
   clientId: string;
   userId: string;
+  user?: {
+    id: string;
+    username: string;
+    email: string;
+  } | null;
   scopes: string[];
   revokedAt: string | null;
   lastUsedAt: string | null;

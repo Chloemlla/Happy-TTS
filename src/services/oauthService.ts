@@ -67,6 +67,11 @@ export interface OAuthGrantView {
   grantId: string;
   clientId: string;
   userId: string;
+  user?: {
+    id: string;
+    username: string;
+    email: string;
+  } | null;
   scopes: string[];
   revokedAt: Date | null;
   lastUsedAt: Date | null;
@@ -391,12 +396,19 @@ export function toOAuthClientView(client: OAuthClientDoc): OAuthClientView {
   };
 }
 
-export function toOAuthGrantView(grant: OAuthGrantDoc, client?: OAuthClientDoc | null): OAuthGrantView {
+export function toOAuthGrantView(grant: OAuthGrantDoc, client?: OAuthClientDoc | null, user?: User | null): OAuthGrantView {
   const doc = toPlain(grant);
   return {
     grantId: doc.grantId,
     clientId: doc.clientId,
     userId: doc.userId,
+    user: user
+      ? {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+        }
+      : null,
     scopes: doc.scopes || [],
     revokedAt: doc.revokedAt,
     lastUsedAt: doc.lastUsedAt,
@@ -1147,9 +1159,15 @@ export async function revokeOAuthToken(opts: {
 export async function listOAuthGrants(): Promise<OAuthGrantView[]> {
   const grants = (await OAuthGrantModel.find().sort({ updatedAt: -1 }).lean()) as OAuthGrantDoc[];
   const clientIds = Array.from(new Set(grants.map((grant) => grant.clientId)));
-  const clients = (await OAuthClientModel.find({ clientId: { $in: clientIds } }).lean()) as OAuthClientDoc[];
+  const userIds = Array.from(new Set(grants.map((grant) => grant.userId)));
+  const [clientDocs, users] = await Promise.all([
+    OAuthClientModel.find({ clientId: { $in: clientIds } }).lean(),
+    Promise.all(userIds.map((userId) => UserStorage.getUserById(userId))),
+  ]);
+  const clients = clientDocs as OAuthClientDoc[];
   const clientMap = new Map(clients.map((client) => [client.clientId, client]));
-  return grants.map((grant) => toOAuthGrantView(grant, clientMap.get(grant.clientId) || null));
+  const userMap = new Map(users.filter((user): user is User => Boolean(user)).map((user) => [user.id, user]));
+  return grants.map((grant) => toOAuthGrantView(grant, clientMap.get(grant.clientId) || null, userMap.get(grant.userId) || null));
 }
 
 export async function revokeOAuthGrant(grantId: string): Promise<boolean> {

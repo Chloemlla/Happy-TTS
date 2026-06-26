@@ -5,7 +5,9 @@ import {
   FaCheck,
   FaCopy,
   FaEdit,
+  FaHistory,
   FaKey,
+  FaLayerGroup,
   FaPlus,
   FaRedo,
   FaSave,
@@ -15,10 +17,30 @@ import {
   FaTimes,
   FaTrash,
 } from 'react-icons/fa';
+import { auditLogApi, type AuditLogEntry } from '../api/auditLog';
 import { oauthApi, type OAuthClient, type OAuthGrant, type OAuthScopeDefinition } from '../api/oauth';
 import { useNotification } from './Notification';
 
 const defaultScopes = ['openid', 'profile', 'admin:identity', 'status'];
+
+const scopeCategoryLabels: Record<string, string> = {
+  identity: '身份资料',
+  tts: 'TTS 能力',
+  user: '用户数据',
+  system: '系统能力',
+  security: '安全能力',
+  resource: '资源能力',
+  admin: '管理能力',
+  other: '其他能力',
+};
+
+const auditActionLabels: Record<string, string> = {
+  'oauth.client.create': '创建客户端',
+  'oauth.client.update': '更新客户端',
+  'oauth.client.rotate_secret': '轮换密钥',
+  'oauth.client.disable': '停用客户端',
+  'oauth.grant.revoke': '撤销授权',
+};
 
 type ClientFormState = {
   name: string;
@@ -46,6 +68,19 @@ const formatDate = (value?: string | null) => {
   return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString('zh-CN');
 };
 
+const getGrantUserDisplay = (grant: OAuthGrant) => {
+  const username = grant.user?.username?.trim() || '';
+  const email = grant.user?.email?.trim() || '';
+  const options = [username, email].filter(Boolean);
+  const primary = options.length === 0 ? grant.userId : options.sort((left, right) => left.length - right.length)[0];
+  const secondary = primary === username ? email : username;
+  return {
+    primary,
+    secondary: secondary || grant.userId,
+    title: [username, email, grant.userId].filter(Boolean).join(' / '),
+  };
+};
+
 const getErrorMessage = (error: any) =>
   error?.response?.data?.error_description || error?.response?.data?.error || error?.message || '请求失败';
 
@@ -54,6 +89,7 @@ const OAuthClientManager: React.FC = () => {
   const [clients, setClients] = useState<OAuthClient[]>([]);
   const [grants, setGrants] = useState<OAuthGrant[]>([]);
   const [scopes, setScopes] = useState<OAuthScopeDefinition[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState('');
@@ -61,6 +97,8 @@ const OAuthClientManager: React.FC = () => {
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
   const [editForm, setEditForm] = useState<ClientFormState>(createEmptyClientForm);
+  const [grantSearch, setGrantSearch] = useState('');
+  const [grantStatus, setGrantStatus] = useState<'all' | 'active' | 'revoked'>('all');
 
   const [name, setName] = useState('');
   const [type, setType] = useState<'confidential' | 'public'>('confidential');
@@ -72,6 +110,18 @@ const OAuthClientManager: React.FC = () => {
   const [selectedScopes, setSelectedScopes] = useState<string[]>(defaultScopes);
 
   const scopeMap = useMemo(() => new Map(scopes.map((scope) => [scope.key, scope])), [scopes]);
+  const groupedScopes = useMemo(() => {
+    const groups = scopes.reduce<Record<string, OAuthScopeDefinition[]>>((acc, scope) => {
+      const category = scope.category || 'other';
+      acc[category] = [...(acc[category] || []), scope];
+      return acc;
+    }, {});
+    return Object.entries(groups).sort(([left], [right]) => {
+      if (left === 'identity') return -1;
+      if (right === 'identity') return 1;
+      return left.localeCompare(right);
+    });
+  }, [scopes]);
   const filteredClients = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     if (!keyword) return clients;
@@ -79,6 +129,21 @@ const OAuthClientManager: React.FC = () => {
       `${client.name} ${client.clientId} ${client.allowedScopes.join(' ')}`.toLowerCase().includes(keyword),
     );
   }, [clients, search]);
+  const filteredGrants = useMemo(() => {
+    const keyword = grantSearch.trim().toLowerCase();
+    return grants.filter((grant) => {
+      const matchesStatus =
+        grantStatus === 'all' || (grantStatus === 'active' ? !grant.revokedAt : Boolean(grant.revokedAt));
+      if (!matchesStatus) return false;
+      if (!keyword) return true;
+      return `${grant.client?.name || ''} ${grant.clientId} ${grant.userId} ${grant.user?.username || ''} ${grant.user?.email || ''} ${grant.scopes.join(' ')}`
+        .toLowerCase()
+        .includes(keyword);
+    });
+  }, [grantSearch, grantStatus, grants]);
+  const activeGrantCount = useMemo(() => grants.filter((grant) => !grant.revokedAt).length, [grants]);
+  const enabledClientCount = useMemo(() => clients.filter((client) => client.enabled).length, [clients]);
+  const apiScopeCount = useMemo(() => scopes.filter((scope) => !scope.identityScope).length, [scopes]);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -91,6 +156,10 @@ const OAuthClientManager: React.FC = () => {
       setScopes(scopeData.scopes || []);
       setClients(clientData.clients || []);
       setGrants(grantData.grants || []);
+      void auditLogApi
+        .query({ module: 'oauth', page: 1, pageSize: 6 })
+        .then((response) => setAuditLogs(response.logs || []))
+        .catch(() => setAuditLogs([]));
     } catch (error) {
       setNotification({ message: getErrorMessage(error), type: 'error' });
     } finally {
@@ -275,31 +344,96 @@ const OAuthClientManager: React.FC = () => {
     }
   };
 
-  const renderScopeSelector = (activeScopes: string[], onToggle: (scope: string) => void) => (
-    <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
-      {scopes.map((scope) => {
-        const active = activeScopes.includes(scope.key);
-        return (
+  const renderScopeSelector = (
+    activeScopes: string[],
+    onToggle: (scope: string) => void,
+    onReplace: (nextScopes: string[]) => void,
+  ) => (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+        <div className="inline-flex items-center gap-2 text-sm font-semibold text-slate-800">
+          <FaLayerGroup className="text-slate-500" />
+          已选择 {activeScopes.length} / {scopes.length} 个 scope
+        </div>
+        <div className="flex flex-wrap gap-2">
           <button
-            key={scope.key}
             type="button"
-            onClick={() => onToggle(scope.key)}
-            className={`min-h-[82px] rounded-lg border px-3 py-2 text-left transition ${
-              active
-                ? 'border-slate-900 bg-slate-900 text-white'
-                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-            }`}
+            onClick={() => onReplace(scopes.filter((scope) => scope.identityScope).map((scope) => scope.key))}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
           >
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-semibold">{scope.label}</span>
-              <code className={`rounded px-1.5 py-0.5 text-xs ${active ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                {scope.key}
-              </code>
-            </div>
-            <p className={`mt-1 line-clamp-2 text-xs leading-5 ${active ? 'text-white/75' : 'text-slate-500'}`}>
-              {scope.description}
-            </p>
+            仅身份
           </button>
+          <button
+            type="button"
+            onClick={() => onReplace(scopes.map((scope) => scope.key))}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+          >
+            全选
+          </button>
+          <button
+            type="button"
+            onClick={() => onReplace([])}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+          >
+            清空
+          </button>
+        </div>
+      </div>
+
+      {groupedScopes.map(([category, items]) => {
+        const selectedInGroup = items.filter((scope) => activeScopes.includes(scope.key)).length;
+        const allSelected = selectedInGroup === items.length;
+        return (
+          <div key={category} className="rounded-lg border border-slate-200 bg-white p-3">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div className="text-sm font-semibold text-slate-900">
+                  {scopeCategoryLabels[category] || category}
+                </div>
+                <div className="mt-0.5 text-xs text-slate-500">
+                  {selectedInGroup} / {items.length} 已启用
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const groupKeys = new Set(items.map((scope) => scope.key));
+                  const base = activeScopes.filter((scope) => !groupKeys.has(scope));
+                  onReplace(allSelected ? base : [...base, ...items.map((scope) => scope.key)]);
+                }}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                {allSelected ? '取消本组' : '选择本组'}
+              </button>
+            </div>
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+              {items.map((scope) => {
+                const active = activeScopes.includes(scope.key);
+                return (
+                  <button
+                    key={scope.key}
+                    type="button"
+                    onClick={() => onToggle(scope.key)}
+                    className={`min-h-[88px] rounded-lg border px-3 py-2 text-left transition ${
+                      active
+                        ? 'border-slate-900 bg-slate-900 text-white'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-sm font-semibold">{scope.label}</span>
+                      <code className={`break-all rounded px-1.5 py-0.5 text-xs ${active ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                        {scope.key}
+                      </code>
+                    </div>
+                    <p className={`mt-1 line-clamp-2 text-xs leading-5 ${active ? 'text-white/75' : 'text-slate-500'}`}>
+                      {scope.description}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         );
       })}
     </div>
@@ -325,6 +459,18 @@ const OAuthClientManager: React.FC = () => {
         >
           <FaSyncAlt className={loading ? 'animate-spin' : ''} /> 刷新
         </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <OAuthStatCard label="启用客户端" value={enabledClientCount} hint={`共 ${clients.length} 个`} />
+        <OAuthStatCard label="有效授权" value={activeGrantCount} hint={`共 ${grants.length} 条`} />
+        <OAuthStatCard label="可分配 scope" value={scopes.length} hint={`${apiScopeCount} 个 API scope`} />
+        <OAuthStatCard
+          label="近期记录"
+          value={auditLogs.length}
+          hint="OAuth 审计"
+          tone={auditLogs.some((log) => log.result === 'failure') ? 'amber' : 'slate'}
+        />
       </div>
 
       {revealedSecret && (
@@ -401,7 +547,7 @@ const OAuthClientManager: React.FC = () => {
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:ring-2 focus:ring-slate-900 lg:col-span-2"
           />
         </div>
-        <div className="mt-4">{renderScopeSelector(selectedScopes, toggleScope)}</div>
+        <div className="mt-4">{renderScopeSelector(selectedScopes, toggleScope, setSelectedScopes)}</div>
         <motion.button
           type="button"
           onClick={createClient}
@@ -574,7 +720,11 @@ const OAuthClientManager: React.FC = () => {
                         className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:ring-2 focus:ring-slate-900 lg:col-span-2"
                       />
                     </div>
-                    <div className="mt-4">{renderScopeSelector(editForm.selectedScopes, toggleEditScope)}</div>
+                    <div className="mt-4">
+                      {renderScopeSelector(editForm.selectedScopes, toggleEditScope, (nextScopes) =>
+                        updateEditForm('selectedScopes', nextScopes),
+                      )}
+                    </div>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <button
                         type="button"
@@ -603,10 +753,32 @@ const OAuthClientManager: React.FC = () => {
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
-        <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-900">
-          <FaShieldAlt /> 授权记录
+        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+            <FaShieldAlt /> 授权记录
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="relative">
+              <FaSearch className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-slate-400" />
+              <input
+                value={grantSearch}
+                onChange={(event) => setGrantSearch(event.target.value)}
+                placeholder="搜索授权用户、客户端或 scope"
+                className="w-full rounded-lg border border-slate-300 py-2 pl-9 pr-3 text-sm focus:border-slate-900 focus:ring-2 focus:ring-slate-900 sm:w-72"
+              />
+            </div>
+            <select
+              value={grantStatus}
+              onChange={(event) => setGrantStatus(event.target.value as 'all' | 'active' | 'revoked')}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:ring-2 focus:ring-slate-900"
+            >
+              <option value="all">全部授权</option>
+              <option value="active">仅有效</option>
+              <option value="revoked">仅撤销</option>
+            </select>
+          </div>
         </div>
-        {grants.length === 0 ? (
+        {filteredGrants.length === 0 ? (
           <div className="py-8 text-center text-sm text-slate-400">暂无授权记录</div>
         ) : (
           <div className="overflow-x-auto">
@@ -622,13 +794,25 @@ const OAuthClientManager: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {grants.map((grant) => (
+                {filteredGrants.map((grant) => {
+                  const userDisplay = getGrantUserDisplay(grant);
+                  return (
                   <tr key={grant.grantId}>
                     <td className="py-3 pr-4">
                       <div className="font-medium text-slate-800">{grant.client?.name || grant.clientId}</div>
                       <code className="text-xs text-slate-400">{grant.clientId}</code>
                     </td>
-                    <td className="py-3 pr-4 text-slate-600">{grant.userId}</td>
+                    <td className="max-w-[220px] py-3 pr-4">
+                      <button
+                        type="button"
+                        onClick={() => copy(grant.userId)}
+                        className="block max-w-full rounded bg-slate-50 px-2 py-1 text-left text-xs text-slate-600 hover:bg-slate-100"
+                        title={`${userDisplay.title}，点击复制用户 ID`}
+                      >
+                        <span className="block truncate font-semibold text-slate-700">{userDisplay.primary}</span>
+                        <span className="block truncate text-[11px] text-slate-400">{userDisplay.secondary}</span>
+                      </button>
+                    </td>
                     <td className="py-3 pr-4">
                       <div className="flex max-w-md flex-wrap gap-1">
                         {grant.scopes.map((scope) => (
@@ -656,7 +840,8 @@ const OAuthClientManager: React.FC = () => {
                       )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -672,8 +857,56 @@ const OAuthClientManager: React.FC = () => {
           <code className="rounded bg-white px-3 py-2">POST /api/oauth/introspect</code>
         </div>
       </section>
+
+      <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+        <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-900">
+          <FaHistory /> 近期 OAuth 操作记录
+        </div>
+        {auditLogs.length === 0 ? (
+          <div className="py-6 text-center text-sm text-slate-400">暂无 OAuth 审计记录</div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {auditLogs.map((log) => (
+              <div key={log._id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`h-2 w-2 rounded-full ${log.result === 'success' ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+                    <span className="text-sm font-semibold text-slate-800">
+                      {auditActionLabels[log.action] || log.action}
+                    </span>
+                    {log.targetId && (
+                      <code className="rounded bg-slate-50 px-2 py-1 text-xs text-slate-500">{log.targetId}</code>
+                    )}
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-500">
+                    <span>{log.username || 'unknown'}</span>
+                    <span>{log.ip}</span>
+                    {log.errorMessage && <span className="text-rose-600">{log.errorMessage}</span>}
+                  </div>
+                </div>
+                <div className="text-xs text-slate-400">{formatDate(log.createdAt)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 };
+
+const OAuthStatCard: React.FC<{
+  label: string;
+  value: number | string;
+  hint: string;
+  tone?: 'slate' | 'amber';
+}> = ({ label, value, hint, tone = 'slate' }) => (
+  <div className={`rounded-xl border p-4 ${tone === 'amber' ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+    <div className={`text-2xl font-bold ${tone === 'amber' ? 'text-amber-700' : 'text-slate-900'}`}>
+      {typeof value === 'number' ? value.toLocaleString() : value}
+    </div>
+    <div className="mt-1 text-sm font-semibold text-slate-700">{label}</div>
+    <div className="mt-1 text-xs text-slate-500">{hint}</div>
+  </div>
+);
 
 export default OAuthClientManager;

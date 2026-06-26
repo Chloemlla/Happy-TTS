@@ -27,6 +27,7 @@ export interface IAuditLog {
     | "ipfs"
     | "media"
     | "network"
+    | "oauth"
     | "life"
     | "social"
     | "lottery"

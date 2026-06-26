@@ -35,6 +35,7 @@ const MODULE_LABELS: Record<string, string> = {
   lottery: '抽奖',
   media: '媒体',
   network: '网络',
+  oauth: 'OAuth',
   other: '其他',
   policy: '策略',
   recommendation: '推荐',

@@ -44,6 +44,19 @@ const parsedAuditPayloadLimit = Number(process.env.AUDIT_PAYLOAD_STRING_LIMIT ||
 const AUDIT_PAYLOAD_STRING_LIMIT = Number.isFinite(parsedAuditPayloadLimit)
   ? Math.max(256, Math.min(4000, parsedAuditPayloadLimit))
   : 1000;
+const SENSITIVE_AUDIT_FIELDS = [
+  "password",
+  "token",
+  "secret",
+  "clientsecret",
+  "client_secret",
+  "authorization",
+  "apikey",
+  "api_key",
+  "jwt",
+  "refresh_token",
+  "access_token",
+];
 
 function shouldCapturePayload(result: "success" | "failure"): boolean {
   if (!AUDIT_LOG_CAPTURE_PAYLOADS) {
@@ -70,7 +83,10 @@ function sanitizePayload(obj: any): any {
   const sanitizeNode = (node: any) => {
     if (!node || typeof node !== "object") return;
     for (const key of Object.keys(node)) {
-      if (typeof node[key] === "string" && node[key].length > AUDIT_PAYLOAD_STRING_LIMIT) {
+      const normalizedKey = key.toLowerCase().replace(/[\s-]/g, "");
+      if (SENSITIVE_AUDIT_FIELDS.some((field) => normalizedKey.includes(field.replace(/_/g, "")))) {
+        node[key] = "[REDACTED]";
+      } else if (typeof node[key] === "string" && node[key].length > AUDIT_PAYLOAD_STRING_LIMIT) {
         node[key] = `${node[key].substring(0, AUDIT_PAYLOAD_STRING_LIMIT)}...[truncated]`;
       } else if (typeof node[key] === "object") {
         sanitizeNode(node[key]);

@@ -26,6 +26,20 @@ export interface AuditLogOptions {
   extractDetail?: (req: Request) => Record<string, any> | undefined;
 }
 
+const SENSITIVE_AUDIT_FIELDS = [
+  "password",
+  "token",
+  "secret",
+  "clientsecret",
+  "client_secret",
+  "authorization",
+  "apikey",
+  "api_key",
+  "jwt",
+  "refresh_token",
+  "access_token",
+];
+
 export function auditLog(options: AuditLogOptions) {
   const { module, action, extractTarget, extractDetail } = options;
 
@@ -62,7 +76,10 @@ export function auditLog(options: AuditLogOptions) {
         const sanitizeNode = (node: any) => {
           if (!node || typeof node !== "object") return;
           for (const key of Object.keys(node)) {
-            if (typeof node[key] === "string" && node[key].length > 2000)
+            const normalizedKey = key.toLowerCase().replace(/[\s-]/g, "");
+            if (SENSITIVE_AUDIT_FIELDS.some((field) => normalizedKey.includes(field.replace(/_/g, ""))))
+              node[key] = "[REDACTED]";
+            else if (typeof node[key] === "string" && node[key].length > 2000)
               node[key] = `${node[key].substring(0, 2000)}...`;
             else if (typeof node[key] === "object") sanitizeNode(node[key]);
           }
