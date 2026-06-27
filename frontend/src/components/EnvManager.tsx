@@ -56,6 +56,35 @@ import {
 export { handleSourceClick, handleSourceModalClose };
 
 const ENV_MANAGER_FORM_CONTROL_CSS = `
+.env-manager-ui {
+  color-scheme: light;
+  color: #374151;
+}
+
+.env-manager-ui .env-manager-title-panel {
+  background: linear-gradient(90deg, #eff6ff 0%, #eef2ff 100%) !important;
+  border-color: #dbeafe !important;
+  color: #4b5563 !important;
+}
+
+.env-manager-ui .env-manager-title {
+  background: transparent !important;
+  color: #1d4ed8 !important;
+}
+
+.env-manager-ui .env-manager-title-icon {
+  color: #2563eb !important;
+}
+
+.env-manager-ui .env-manager-title-panel p,
+.env-manager-ui .env-manager-title-panel li {
+  color: #4b5563 !important;
+}
+
+.env-manager-ui .env-manager-title-panel .env-manager-title-label {
+  color: #1d4ed8 !important;
+}
+
 .env-manager-ui input:not([type="checkbox"]):not([type="radio"]),
 .env-manager-ui textarea,
 .env-manager-ui select {
@@ -1334,20 +1363,20 @@ const EnvManager: React.FC = () => {
         <style>{ENV_MANAGER_FORM_CONTROL_CSS}</style>
         {/* 标题和说明 */}
         <m.div
-          className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-6 border border-blue-100"
+          className="env-manager-title-panel bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-6 border border-blue-100"
           initial={ENTER_INITIAL}
           animate={ENTER_ANIMATE}
           transition={trans06}
         >
-          <h2 className="text-xl sm:text-2xl font-bold text-blue-700 mb-2 sm:mb-3 flex items-center gap-2">
-            <FaCog className="text-xl sm:text-2xl text-blue-600" />
+          <h2 className="env-manager-title text-xl sm:text-2xl font-bold text-blue-700 mb-2 sm:mb-3 flex items-center gap-2">
+            <FaCog className="env-manager-title-icon text-xl sm:text-2xl text-blue-600" />
             环境变量管理
           </h2>
           <div className="text-gray-600 space-y-2">
             <p className="text-sm sm:text-base">查看系统环境变量配置，支持加密存储和传输。</p>
             <div className="flex items-start gap-2 text-sm">
               <div>
-                <p className="font-semibold text-blue-700">功能说明：</p>
+                <p className="env-manager-title-label font-semibold text-blue-700">功能说明：</p>
                 <ul className="list-disc list-inside space-y-1 mt-1">
                   <li className="leading-relaxed">实时查看系统环境变量</li>
                   <li className="leading-relaxed">支持AES-256加密传输</li>
