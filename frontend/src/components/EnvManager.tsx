@@ -55,10 +55,107 @@ import {
 
 export { handleSourceClick, handleSourceModalClose };
 
-const ENV_MANAGER_FORM_CONTROL_CSS = `
-.env-manager-ui {
+const ENV_MANAGER_LIGHT_THEME_CSS = `
+.env-manager-ui,
+.env-manager-ui * {
   color-scheme: light;
+}
+
+.env-manager-ui {
+  background: transparent;
   color: #374151;
+}
+
+.dark .env-manager-ui {
+  color: #374151 !important;
+}
+
+.env-manager-ui .bg-white {
+  background-color: #ffffff !important;
+}
+
+.env-manager-ui .bg-gray-50 {
+  background-color: #f9fafb !important;
+}
+
+.env-manager-ui .bg-gray-100 {
+  background-color: #f3f4f6 !important;
+}
+
+.env-manager-ui .bg-slate-50 {
+  background-color: #f8fafc !important;
+}
+
+.env-manager-ui .bg-blue-50 {
+  background-color: #eff6ff !important;
+}
+
+.env-manager-ui .bg-blue-100 {
+  background-color: #dbeafe !important;
+}
+
+.env-manager-ui .bg-indigo-50 {
+  background-color: #eef2ff !important;
+}
+
+.env-manager-ui .bg-green-50 {
+  background-color: #f0fdf4 !important;
+}
+
+.env-manager-ui .bg-emerald-50 {
+  background-color: #ecfdf5 !important;
+}
+
+.env-manager-ui .bg-red-50 {
+  background-color: #fef2f2 !important;
+}
+
+.env-manager-ui .bg-pink-50 {
+  background-color: #fdf2f8 !important;
+}
+
+.env-manager-ui .text-gray-900 {
+  color: #111827 !important;
+}
+
+.env-manager-ui .text-gray-800 {
+  color: #1f2937 !important;
+}
+
+.env-manager-ui .text-gray-700 {
+  color: #374151 !important;
+}
+
+.env-manager-ui .text-gray-600 {
+  color: #4b5563 !important;
+}
+
+.env-manager-ui .text-gray-500 {
+  color: #6b7280 !important;
+}
+
+.env-manager-ui .text-gray-400 {
+  color: #9ca3af !important;
+}
+
+.env-manager-ui .text-blue-700 {
+  color: #1d4ed8 !important;
+}
+
+.env-manager-ui .text-blue-600 {
+  color: #2563eb !important;
+}
+
+.env-manager-ui .text-red-700 {
+  color: #b91c1c !important;
+}
+
+.env-manager-ui .text-red-600 {
+  color: #dc2626 !important;
+}
+
+.env-manager-ui .text-red-500 {
+  color: #ef4444 !important;
 }
 
 .env-manager-ui .env-manager-title-panel {
@@ -1334,7 +1431,8 @@ const EnvManager: React.FC = () => {
   if (!user || user.role !== 'admin') {
     return (
       <LazyMotion features={domAnimation}>
-        <m.div className="space-y-6">
+        <m.div className="env-manager-ui space-y-6">
+          <style>{ENV_MANAGER_LIGHT_THEME_CSS}</style>
           <m.div
             className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6 border border-red-100"
             initial={ENTER_INITIAL}
@@ -1360,7 +1458,7 @@ const EnvManager: React.FC = () => {
   return (
     <LazyMotion features={domAnimation}>
       <div className="relative env-manager-ui">
-        <style>{ENV_MANAGER_FORM_CONTROL_CSS}</style>
+        <style>{ENV_MANAGER_LIGHT_THEME_CSS}</style>
         {/* 标题和说明 */}
         <m.div
           className="env-manager-title-panel bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-6 border border-blue-100"
