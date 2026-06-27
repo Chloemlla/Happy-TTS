@@ -32,7 +32,7 @@ export const env = {
   // 包含所有四个前端域名和后端域名
   ALLOWED_ORIGINS:
     process.env.ALLOWED_ORIGINS ||
-    "https://tts.chloemlla.com,https://tts.chloemlla.com,https://chloemlla.com,https://tts.chloemlla.com,https://*.chloemlla.com",
+    "https://tts.chloemlla.com,https://chloemlla.com,https://*.chloemlla.com",
 
   USER_STORAGE_MODE: "mongo",
 };

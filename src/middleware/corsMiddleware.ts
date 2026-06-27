@@ -4,10 +4,8 @@ import type { NextFunction, Request, Response } from "express";
 // 允许的域名
 const allowedOrigins = [
   "https://tts.chloemlla.com",
-  "https://tts.chloemlla.com",
   "https://chloemlla.com",
-  "https://tts.chloemlla.com",
-  "https://tts.chloemlla.com",
+  "https://*.chloemlla.com",
   ...(process.env.NODE_ENV === "development" || process.env.NODE_ENV === "dev"
     ? [
         "http://192.168.10.7:3001",
@@ -75,7 +73,7 @@ function matchesOriginPattern(origin: string, pattern: string): boolean {
 }
 
 /** 判断 origin 是否在白名单内（含 *.chloemlla.com 通配） */
-function isOriginAllowed(origin: string | undefined): boolean {
+export function isOriginAllowed(origin: string | undefined): boolean {
   if (!origin) return true; // 无 origin（curl/postman）放行
   if (/^https:\/\/([a-zA-Z0-9-]+\.)*hapxs\.com$/.test(origin)) return true;
   if (/^https:\/\/([a-zA-Z0-9-]+\.)*chloemlla\.com$/.test(origin)) return true;
