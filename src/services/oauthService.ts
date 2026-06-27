@@ -61,6 +61,7 @@ export interface OAuthClientView {
   createdAt: Date;
   updatedAt: Date;
   hasClientSecret: boolean;
+  operationalStats?: OAuthClientOperationalStats;
 }
 
 export interface OAuthGrantView {
@@ -78,6 +79,16 @@ export interface OAuthGrantView {
   createdAt: Date;
   updatedAt: Date;
   client?: OAuthClientView | null;
+}
+
+export interface OAuthClientOperationalStats {
+  activeGrantCount: number;
+  revokedGrantCount: number;
+  activeAccessTokenCount: number;
+  activeRefreshTokenCount: number;
+  revokedTokenCount: number;
+  tokenUsageCount: number;
+  lastTokenUsedAt: Date | null;
 }
 
 export interface OAuthAuthorizeRequest {
@@ -375,9 +386,24 @@ export function getScopeDetails(scopes: string[]): OAuthScopeDefinition[] {
     .filter((scope): scope is OAuthScopeDefinition => Boolean(scope));
 }
 
-export function toOAuthClientView(client: OAuthClientDoc): OAuthClientView {
-  const doc = toPlain(client);
+function emptyOAuthClientStats(): OAuthClientOperationalStats {
   return {
+    activeGrantCount: 0,
+    revokedGrantCount: 0,
+    activeAccessTokenCount: 0,
+    activeRefreshTokenCount: 0,
+    revokedTokenCount: 0,
+    tokenUsageCount: 0,
+    lastTokenUsedAt: null,
+  };
+}
+
+export function toOAuthClientView(
+  client: OAuthClientDoc,
+  operationalStats?: OAuthClientOperationalStats,
+): OAuthClientView {
+  const doc = toPlain(client);
+  const view: OAuthClientView = {
     clientId: doc.clientId,
     type: doc.type,
     name: doc.name,
@@ -394,6 +420,8 @@ export function toOAuthClientView(client: OAuthClientDoc): OAuthClientView {
     updatedAt: doc.updatedAt,
     hasClientSecret: Boolean(doc.clientSecretHash),
   };
+  if (operationalStats) view.operationalStats = operationalStats;
+  return view;
 }
 
 export function toOAuthGrantView(grant: OAuthGrantDoc, client?: OAuthClientDoc | null, user?: User | null): OAuthGrantView {
@@ -700,14 +728,98 @@ export async function createOAuthClient(opts: {
   return { client: toOAuthClientView(client), clientSecret };
 }
 
+async function loadOAuthClientOperationalStats(clientIds: string[]): Promise<Map<string, OAuthClientOperationalStats>> {
+  const uniqueClientIds = Array.from(new Set(clientIds.filter(Boolean)));
+  const statsMap = new Map<string, OAuthClientOperationalStats>();
+  uniqueClientIds.forEach((clientId) => statsMap.set(clientId, emptyOAuthClientStats()));
+  if (uniqueClientIds.length === 0) return statsMap;
+
+  const now = new Date();
+  const [grantRows, tokenRows] = await Promise.all([
+    OAuthGrantModel.aggregate([
+      { $match: { clientId: { $in: uniqueClientIds } } },
+      {
+        $group: {
+          _id: "$clientId",
+          activeGrantCount: { $sum: { $cond: [{ $eq: ["$revokedAt", null] }, 1, 0] } },
+          revokedGrantCount: { $sum: { $cond: [{ $ne: ["$revokedAt", null] }, 1, 0] } },
+        },
+      },
+    ]),
+    OAuthTokenModel.aggregate([
+      { $match: { clientId: { $in: uniqueClientIds } } },
+      {
+        $group: {
+          _id: "$clientId",
+          activeAccessTokenCount: {
+            $sum: {
+              $cond: [
+                { $and: [{ $eq: ["$revokedAt", null] }, { $gt: ["$accessTokenExpiresAt", now] }] },
+                1,
+                0,
+              ],
+            },
+          },
+          activeRefreshTokenCount: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$revokedAt", null] },
+                    { $ne: ["$refreshTokenHash", null] },
+                    { $gt: ["$refreshTokenExpiresAt", now] },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
+          },
+          revokedTokenCount: { $sum: { $cond: [{ $ne: ["$revokedAt", null] }, 1, 0] } },
+          tokenUsageCount: { $sum: { $ifNull: ["$usageCount", 0] } },
+          lastTokenUsedAt: { $max: "$lastUsedAt" },
+        },
+      },
+    ]),
+  ]);
+
+  for (const row of grantRows as Array<Record<string, any>>) {
+    const clientId = String(row._id || "");
+    const current = statsMap.get(clientId) || emptyOAuthClientStats();
+    statsMap.set(clientId, {
+      ...current,
+      activeGrantCount: Number(row.activeGrantCount || 0),
+      revokedGrantCount: Number(row.revokedGrantCount || 0),
+    });
+  }
+
+  for (const row of tokenRows as Array<Record<string, any>>) {
+    const clientId = String(row._id || "");
+    const current = statsMap.get(clientId) || emptyOAuthClientStats();
+    statsMap.set(clientId, {
+      ...current,
+      activeAccessTokenCount: Number(row.activeAccessTokenCount || 0),
+      activeRefreshTokenCount: Number(row.activeRefreshTokenCount || 0),
+      revokedTokenCount: Number(row.revokedTokenCount || 0),
+      tokenUsageCount: Number(row.tokenUsageCount || 0),
+      lastTokenUsedAt: row.lastTokenUsedAt || null,
+    });
+  }
+
+  return statsMap;
+}
+
 export async function listOAuthClients(): Promise<OAuthClientView[]> {
   const clients = (await OAuthClientModel.find().sort({ createdAt: -1 }).lean()) as OAuthClientDoc[];
-  return clients.map(toOAuthClientView);
+  const statsMap = await loadOAuthClientOperationalStats(clients.map((client) => client.clientId));
+  return clients.map((client) => toOAuthClientView(client, statsMap.get(client.clientId)));
 }
 
 export async function getOAuthClient(clientId: string): Promise<OAuthClientView | null> {
   const client = (await OAuthClientModel.findOne({ clientId }).lean()) as OAuthClientDoc | null;
-  return client ? toOAuthClientView(client) : null;
+  if (!client) return null;
+  const statsMap = await loadOAuthClientOperationalStats([client.clientId]);
+  return toOAuthClientView(client, statsMap.get(client.clientId));
 }
 
 export async function updateOAuthClient(
@@ -1160,12 +1272,13 @@ export async function listOAuthGrants(): Promise<OAuthGrantView[]> {
   const grants = (await OAuthGrantModel.find().sort({ updatedAt: -1 }).lean()) as OAuthGrantDoc[];
   const clientIds = Array.from(new Set(grants.map((grant) => grant.clientId)));
   const userIds = Array.from(new Set(grants.map((grant) => grant.userId)));
+  const clientDocsPromise = OAuthClientModel.find({ clientId: { $in: clientIds } }).lean() as Promise<OAuthClientDoc[]>;
+  const usersPromise = Promise.all(userIds.map((userId) => UserStorage.getUserById(userId))) as Promise<Array<User | null>>;
   const [clientDocs, users] = await Promise.all([
-    OAuthClientModel.find({ clientId: { $in: clientIds } }).lean(),
-    Promise.all(userIds.map((userId) => UserStorage.getUserById(userId))),
+    clientDocsPromise,
+    usersPromise,
   ]);
-  const clients = clientDocs as OAuthClientDoc[];
-  const clientMap = new Map(clients.map((client) => [client.clientId, client]));
+  const clientMap = new Map(clientDocs.map((client) => [client.clientId, client]));
   const userMap = new Map(users.filter((user): user is User => Boolean(user)).map((user) => [user.id, user]));
   return grants.map((grant) => toOAuthGrantView(grant, clientMap.get(grant.clientId) || null, userMap.get(grant.userId) || null));
 }

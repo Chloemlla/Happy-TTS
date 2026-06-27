@@ -143,7 +143,10 @@ const OAuthClientManager: React.FC = () => {
   }, [grantSearch, grantStatus, grants]);
   const activeGrantCount = useMemo(() => grants.filter((grant) => !grant.revokedAt).length, [grants]);
   const enabledClientCount = useMemo(() => clients.filter((client) => client.enabled).length, [clients]);
-  const apiScopeCount = useMemo(() => scopes.filter((scope) => !scope.identityScope).length, [scopes]);
+  const activeAccessTokenCount = useMemo(
+    () => clients.reduce((total, client) => total + (client.operationalStats?.activeAccessTokenCount || 0), 0),
+    [clients],
+  );
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -272,6 +275,10 @@ const OAuthClientManager: React.FC = () => {
     }
     if (!redirectUris.trim()) {
       setNotification({ message: '请至少配置一个回调地址', type: 'warning' });
+      return;
+    }
+    if (selectedScopes.length === 0) {
+      setNotification({ message: '请至少选择一个 scope', type: 'warning' });
       return;
     }
 
@@ -464,7 +471,7 @@ const OAuthClientManager: React.FC = () => {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <OAuthStatCard label="启用客户端" value={enabledClientCount} hint={`共 ${clients.length} 个`} />
         <OAuthStatCard label="有效授权" value={activeGrantCount} hint={`共 ${grants.length} 条`} />
-        <OAuthStatCard label="可分配 scope" value={scopes.length} hint={`${apiScopeCount} 个 API scope`} />
+        <OAuthStatCard label="活跃 Token" value={activeAccessTokenCount} hint="未过期 access token" />
         <OAuthStatCard
           label="近期记录"
           value={auditLogs.length}
@@ -606,6 +613,32 @@ const OAuthClientManager: React.FC = () => {
                       <span>最近使用: {formatDate(client.lastUsedAt)}</span>
                       <span>Secret: {client.hasClientSecret ? '已设置' : '无'}</span>
                     </div>
+                    {client.operationalStats && (
+                      <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                          <div className="font-semibold text-slate-800">{client.operationalStats.activeGrantCount}</div>
+                          <div className="mt-0.5 text-slate-500">有效授权</div>
+                        </div>
+                        <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                          <div className="font-semibold text-slate-800">{client.operationalStats.activeAccessTokenCount}</div>
+                          <div className="mt-0.5 text-slate-500">活跃 access token</div>
+                        </div>
+                        <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                          <div className="font-semibold text-slate-800">{client.operationalStats.activeRefreshTokenCount}</div>
+                          <div className="mt-0.5 text-slate-500">活跃 refresh token</div>
+                        </div>
+                        <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                          <div className="font-semibold text-slate-800">{client.operationalStats.tokenUsageCount}</div>
+                          <div className="mt-0.5 text-slate-500">累计调用</div>
+                        </div>
+                        <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 sm:col-span-2 xl:col-span-4">
+                          <div className="font-semibold text-slate-800">{formatDate(client.operationalStats.lastTokenUsedAt)}</div>
+                          <div className="mt-0.5 text-slate-500">
+                            最近 token 使用；已撤销 token {client.operationalStats.revokedTokenCount} 个，已撤销授权 {client.operationalStats.revokedGrantCount} 条
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     <div className="mt-3 space-y-1">
                       {client.redirectUris.map((uri) => (
                         <code key={uri} className="block break-all rounded bg-slate-50 px-2 py-1 text-xs text-slate-500">

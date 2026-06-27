@@ -10,6 +10,7 @@ import {
   getOAuthScopeDefinitions,
   getOAuthUserInfo,
   isApiScope,
+  listOAuthClients,
   normalizeOAuthScopes,
   OAuthError,
   parseClientBasicAuth,
@@ -234,6 +235,51 @@ describe("oauthService", () => {
     expect(grantRevokeSpy).toHaveBeenCalledWith(
       { clientId: "syn_client_edit" },
       expect.objectContaining({ $set: expect.objectContaining({ revokedAt: expect.any(Date) }) }),
+    );
+  });
+
+  it("attaches OAuth operational stats to client list results", async () => {
+    const lastTokenUsedAt = new Date("2026-02-03T04:05:06.000Z");
+
+    jest.spyOn(OAuthClientModel, "find").mockReturnValue({
+      sort: jest.fn().mockReturnValue({
+        lean: jest.fn().mockResolvedValue([makeOAuthClientDoc({ clientId: "syn_client_stats" })]),
+      }),
+    } as any);
+    jest.spyOn(OAuthGrantModel, "aggregate").mockResolvedValue([
+      {
+        _id: "syn_client_stats",
+        activeGrantCount: 2,
+        revokedGrantCount: 1,
+      },
+    ] as any);
+    jest.spyOn(OAuthTokenModel, "aggregate").mockResolvedValue([
+      {
+        _id: "syn_client_stats",
+        activeAccessTokenCount: 3,
+        activeRefreshTokenCount: 2,
+        revokedTokenCount: 4,
+        tokenUsageCount: 19,
+        lastTokenUsedAt,
+      },
+    ] as any);
+
+    const clients = await listOAuthClients();
+
+    expect(clients).toHaveLength(1);
+    expect(clients[0]).toEqual(
+      expect.objectContaining({
+        clientId: "syn_client_stats",
+        operationalStats: {
+          activeGrantCount: 2,
+          revokedGrantCount: 1,
+          activeAccessTokenCount: 3,
+          activeRefreshTokenCount: 2,
+          revokedTokenCount: 4,
+          tokenUsageCount: 19,
+          lastTokenUsedAt,
+        },
+      }),
     );
   });
 

@@ -26,6 +26,17 @@ export interface OAuthClient {
   createdAt: string;
   updatedAt: string;
   hasClientSecret: boolean;
+  operationalStats?: OAuthClientOperationalStats;
+}
+
+export interface OAuthClientOperationalStats {
+  activeGrantCount: number;
+  revokedGrantCount: number;
+  activeAccessTokenCount: number;
+  activeRefreshTokenCount: number;
+  revokedTokenCount: number;
+  tokenUsageCount: number;
+  lastTokenUsedAt: string | null;
 }
 
 export interface OAuthGrant {
