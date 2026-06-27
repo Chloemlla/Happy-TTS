@@ -5,6 +5,7 @@ import { DURATION_06, ENTER_ANIMATE, ENTER_INITIAL, NO_DURATION } from './motion
 
 interface CollapsibleSectionProps {
   title: string;
+  description?: string;
   sectionKey: string;
   isOpen: boolean;
   onToggle: (key: string) => void;
@@ -14,32 +15,38 @@ interface CollapsibleSectionProps {
 }
 
 const CollapsibleSection = React.memo(function CollapsibleSection({
-  title, sectionKey, isOpen, onToggle, children, headerRight, prefersReducedMotion
+  title, description, sectionKey, isOpen, onToggle, children, headerRight, prefersReducedMotion
 }: CollapsibleSectionProps) {
   return (
-    <m.div
-      className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+    <m.section
+      className="rounded-2xl border border-slate-200 bg-white shadow-sm"
       initial={ENTER_INITIAL}
       animate={ENTER_ANIMATE}
       transition={prefersReducedMotion ? NO_DURATION : DURATION_06}
     >
-      <button
-        type="button"
-        onClick={() => onToggle(sectionKey)}
-        className="w-full flex items-center justify-between p-4 sm:p-6 hover:bg-gray-50 transition-colors cursor-pointer"
-      >
-        <h3 className="text-lg font-semibold text-gray-800">{title}</h3>
-        <div className="flex items-center gap-2">
-          {headerRight}
-          <FaChevronDown className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+      <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-lg font-semibold text-slate-800">{title}</h3>
+          {description ? <p className="mt-1 text-sm text-slate-500">{description}</p> : null}
         </div>
-      </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {headerRight}
+          <button
+            type="button"
+            onClick={() => onToggle(sectionKey)}
+            className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-800 transition hover:bg-slate-200"
+          >
+            <FaChevronDown className={`transition-transform ${isOpen ? '' : '-rotate-90'}`} />
+            {isOpen ? '收起' : '展开'}
+          </button>
+        </div>
+      </div>
       {isOpen && (
-        <div className="px-4 sm:px-6 pb-4 sm:pb-6">
+        <div className="space-y-4 px-5 py-5">
           {children}
         </div>
       )}
-    </m.div>
+    </m.section>
   );
 });
 

@@ -86,6 +86,14 @@ const ENV_MANAGER_LIGHT_THEME_CSS = `
   background-color: #f8fafc !important;
 }
 
+.env-manager-ui .bg-slate-100 {
+  background-color: #f1f5f9 !important;
+}
+
+.env-manager-ui .bg-slate-200 {
+  background-color: #e2e8f0 !important;
+}
+
 .env-manager-ui .bg-blue-50 {
   background-color: #eff6ff !important;
 }
@@ -136,6 +144,18 @@ const ENV_MANAGER_LIGHT_THEME_CSS = `
 
 .env-manager-ui .text-gray-400 {
   color: #9ca3af !important;
+}
+
+.env-manager-ui .text-slate-800 {
+  color: #1e293b !important;
+}
+
+.env-manager-ui .text-slate-500 {
+  color: #64748b !important;
+}
+
+.env-manager-ui .text-slate-400 {
+  color: #94a3b8 !important;
 }
 
 .env-manager-ui .text-blue-700 {
@@ -201,6 +221,12 @@ const ENV_MANAGER_LIGHT_THEME_CSS = `
   color: #111827;
 }
 `;
+
+const ENV_MANAGER_REFRESH_BUTTON_CLASS =
+  'inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60';
+
+const ENV_MANAGER_TOGGLE_BUTTON_CLASS =
+  'inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-800 transition hover:bg-slate-200';
 
 const EnvManager: React.FC = () => {
   const { user } = useAuth();
@@ -1457,7 +1483,7 @@ const EnvManager: React.FC = () => {
 
   return (
     <LazyMotion features={domAnimation}>
-      <div className="relative env-manager-ui">
+      <div className="relative env-manager-ui space-y-6">
         <style>{ENV_MANAGER_LIGHT_THEME_CSS}</style>
         {/* 标题和说明 */}
         <m.div
@@ -1487,21 +1513,33 @@ const EnvManager: React.FC = () => {
         </m.div>
 
         {/* 环境变量表格 */}
-        <m.div
-          className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-gray-200"
+        <m.section
+          className="rounded-2xl border border-slate-200 bg-white shadow-sm"
           initial={ENTER_INITIAL}
           animate={ENTER_ANIMATE}
           transition={trans06}
         >
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 mb-4">
-            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-              <FaList className="text-lg text-blue-500" />
-              环境变量列表
-            </h3>
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-800">环境变量列表</h3>
+              <p className="mt-1 text-sm text-slate-500">查看系统环境变量配置，支持加密传输、自动解密和数据来源标记。</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <m.button
+                onClick={() => {
+                  fetchedSectionsRef.current.add('envs');
+                  fetchEnvs();
+                }}
+                disabled={isEnvLoading}
+                className={ENV_MANAGER_REFRESH_BUTTON_CLASS}
+                whileTap={{ scale: 0.95 }}
+              >
+                <FaSync className={`w-4 h-4 ${isEnvLoading ? 'animate-spin' : ''}`} />
+                刷新
+              </m.button>
               <m.button
                 onClick={() => toggleSection('envs')}
-                className="px-2 sm:px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-sm font-medium flex items-center gap-2"
+                className={ENV_MANAGER_TOGGLE_BUTTON_CLASS}
                 whileTap={{ scale: 0.95 }}
               >
                 <m.span
@@ -1512,18 +1550,6 @@ const EnvManager: React.FC = () => {
                   <FaChevronDown className="w-4 h-4" />
                 </m.span>
                 {isEnvCollapsed ? '展开' : '收起'}
-              </m.button>
-              <m.button
-                onClick={() => {
-                  fetchedSectionsRef.current.add('envs');
-                  fetchEnvs();
-                }}
-                disabled={isEnvLoading}
-                className="px-2 sm:px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
-                whileTap={{ scale: 0.95 }}
-              >
-                <FaSync className={`w-4 h-4 ${isEnvLoading ? 'animate-spin' : ''}`} />
-                刷新
               </m.button>
             </div>
           </div>
@@ -1536,9 +1562,10 @@ const EnvManager: React.FC = () => {
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25 }}
+                className="space-y-4 px-5 py-5"
               >
                 {/* 数据来源图例 */}
-                <div className="mb-4 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex items-start gap-2 sm:gap-3 text-sm sm:text-base text-blue-700">
                     <FaInfoCircle className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0 mt-0.5 sm:mt-0" />
                     <span className="font-medium leading-relaxed">带蓝色感叹号图标的变量表示有明确的数据来源信息</span>
@@ -1653,11 +1680,11 @@ const EnvManager: React.FC = () => {
               </m.div>
             )}
           </AnimatePresence>
-        </m.div>
+        </m.section>
 
         {/* 对外邮件校验码设置 */}
-        <CollapsibleSection title="对外邮件校验码设置" sectionKey="outemail" isOpen={isSectionOpen('outemail')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
-          <m.button onClick={(e) => { e.stopPropagation(); fetchOutemailSettings(); }} disabled={settingsLoading} className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2" whileTap={{ scale: 0.95 }}>
+        <CollapsibleSection title="对外邮件校验码设置" description="管理对外邮件域名校验码，支持默认域名和指定域名。" sectionKey="outemail" isOpen={isSectionOpen('outemail')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+          <m.button onClick={(e) => { e.stopPropagation(); fetchOutemailSettings(); }} disabled={settingsLoading} className={ENV_MANAGER_REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
             <FaSync className={`w-4 h-4 ${settingsLoading ? 'animate-spin' : ''}`} /> 刷新
           </m.button>
         }>
@@ -1772,8 +1799,8 @@ const EnvManager: React.FC = () => {
         </CollapsibleSection>
 
         {/* MOD 列表修改码设置 */}
-        <CollapsibleSection title="MOD 列表修改码设置" sectionKey="modlist" isOpen={isSectionOpen('modlist')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
-          <m.button onClick={(e) => { e.stopPropagation(); fetchModlistSetting(); }} disabled={modLoading} className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2" whileTap={{ scale: 0.95 }}>
+        <CollapsibleSection title="MOD 列表修改码设置" description="管理 MOD 列表修改码，用于保护列表编辑入口。" sectionKey="modlist" isOpen={isSectionOpen('modlist')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+          <m.button onClick={(e) => { e.stopPropagation(); fetchModlistSetting(); }} disabled={modLoading} className={ENV_MANAGER_REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
             <FaSync className={`w-4 h-4 ${modLoading ? 'animate-spin' : ''}`} /> 刷新
           </m.button>
         }>
@@ -1820,8 +1847,8 @@ const EnvManager: React.FC = () => {
         </CollapsibleSection>
 
         {/* TTS 生成码设置 */}
-        <CollapsibleSection title="TTS 生成码设置" sectionKey="tts" isOpen={isSectionOpen('tts')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
-          <m.button onClick={(e) => { e.stopPropagation(); fetchTtsSetting(); }} disabled={ttsLoading} className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2" whileTap={{ scale: 0.95 }}>
+        <CollapsibleSection title="TTS 生成码设置" description="管理 TTS 生成码，用于限制语音生成入口。" sectionKey="tts" isOpen={isSectionOpen('tts')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+          <m.button onClick={(e) => { e.stopPropagation(); fetchTtsSetting(); }} disabled={ttsLoading} className={ENV_MANAGER_REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
             <FaSync className={`w-4 h-4 ${ttsLoading ? 'animate-spin' : ''}`} /> 刷新
           </m.button>
         }>
@@ -1870,8 +1897,8 @@ const EnvManager: React.FC = () => {
         <RuntimeConfigSections />
 
         {/* 短链 AES_KEY 设置 */}
-        <CollapsibleSection title="短链 AES_KEY 设置" sectionKey="shortaes" isOpen={isSectionOpen('shortaes')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
-          <m.button onClick={(e) => { e.stopPropagation(); fetchShortAes(); }} disabled={shortAesLoading} className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2" whileTap={{ scale: 0.95 }}>
+        <CollapsibleSection title="短链 AES_KEY 设置" description="管理短链 AES_KEY，用于短链数据加密解密。" sectionKey="shortaes" isOpen={isSectionOpen('shortaes')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+          <m.button onClick={(e) => { e.stopPropagation(); fetchShortAes(); }} disabled={shortAesLoading} className={ENV_MANAGER_REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
             <FaSync className={`w-4 h-4 ${shortAesLoading ? 'animate-spin' : ''}`} /> 刷新
           </m.button>
         }>
@@ -1918,8 +1945,8 @@ const EnvManager: React.FC = () => {
         </CollapsibleSection>
 
         {/* Webhook 密钥设置（支持自定义 key，默认 DEFAULT） */}
-        <CollapsibleSection title="Webhook 密钥设置" sectionKey="webhook" isOpen={isSectionOpen('webhook')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
-          <m.button onClick={(e) => { e.stopPropagation(); fetchWebhookSecret(); }} disabled={webhookLoading} className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2" whileTap={{ scale: 0.95 }}>
+        <CollapsibleSection title="Webhook 密钥设置" description="管理 Webhook 路由密钥和签名密钥。" sectionKey="webhook" isOpen={isSectionOpen('webhook')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+          <m.button onClick={(e) => { e.stopPropagation(); fetchWebhookSecret(); }} disabled={webhookLoading} className={ENV_MANAGER_REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
             <FaSync className={`w-4 h-4 ${webhookLoading ? 'animate-spin' : ''}`} /> 刷新
           </m.button>
         }>
@@ -1984,8 +2011,8 @@ const EnvManager: React.FC = () => {
         </CollapsibleSection>
 
         {/* IPFS 配置设置 */}
-        <CollapsibleSection title="IPFS 配置设置" sectionKey="ipfs" isOpen={isSectionOpen('ipfs')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
-          <m.button onClick={(e) => { e.stopPropagation(); fetchIpfsConfig(); }} disabled={ipfsConfigLoading} className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2" whileTap={{ scale: 0.95 }}>
+        <CollapsibleSection title="IPFS 配置设置" description="管理 IPFS 上传、User-Agent 和图片床默认参数。" sectionKey="ipfs" isOpen={isSectionOpen('ipfs')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+          <m.button onClick={(e) => { e.stopPropagation(); fetchIpfsConfig(); }} disabled={ipfsConfigLoading} className={ENV_MANAGER_REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
             <FaSync className={`w-4 h-4 ${ipfsConfigLoading ? 'animate-spin' : ''}`} /> 刷新
           </m.button>
         }>
@@ -2126,8 +2153,8 @@ const EnvManager: React.FC = () => {
         </CollapsibleSection>
 
         {/* Turnstile 配置设置 */}
-        <CollapsibleSection title="Turnstile 配置设置" sectionKey="turnstile" isOpen={isSectionOpen('turnstile')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
-          <m.button onClick={(e) => { e.stopPropagation(); fetchTurnstileConfig(); }} disabled={turnstileConfigLoading} className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2" whileTap={{ scale: 0.95 }}>
+        <CollapsibleSection title="Turnstile 配置设置" description="管理 Cloudflare Turnstile Site Key 和 Secret Key。" sectionKey="turnstile" isOpen={isSectionOpen('turnstile')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+          <m.button onClick={(e) => { e.stopPropagation(); fetchTurnstileConfig(); }} disabled={turnstileConfigLoading} className={ENV_MANAGER_REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
             <FaSync className={`w-4 h-4 ${turnstileConfigLoading ? 'animate-spin' : ''}`} /> 刷新
           </m.button>
         }>
@@ -2228,8 +2255,8 @@ const EnvManager: React.FC = () => {
         </CollapsibleSection>
 
         {/* hCaptcha 配置设置 */}
-        <CollapsibleSection title="hCaptcha 配置设置" sectionKey="hcaptcha" isOpen={isSectionOpen('hcaptcha')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
-          <m.button onClick={(e) => { e.stopPropagation(); fetchHcaptchaConfig(); }} disabled={hcaptchaConfigLoading} className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2" whileTap={{ scale: 0.95 }}>
+        <CollapsibleSection title="hCaptcha 配置设置" description="管理 hCaptcha Site Key 和 Secret Key。" sectionKey="hcaptcha" isOpen={isSectionOpen('hcaptcha')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+          <m.button onClick={(e) => { e.stopPropagation(); fetchHcaptchaConfig(); }} disabled={hcaptchaConfigLoading} className={ENV_MANAGER_REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
             <FaSync className={`w-4 h-4 ${hcaptchaConfigLoading ? 'animate-spin' : ''}`} /> 刷新
           </m.button>
         }>
@@ -2330,8 +2357,8 @@ const EnvManager: React.FC = () => {
         </CollapsibleSection>
 
         {/* Clarity 配置设置 */}
-        <CollapsibleSection title="Microsoft Clarity 配置设置" sectionKey="clarity" isOpen={isSectionOpen('clarity')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
-          <m.button onClick={(e) => { e.stopPropagation(); fetchClarityConfig(); }} disabled={clarityConfigLoading} className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2" whileTap={{ scale: 0.95 }}>
+        <CollapsibleSection title="Microsoft Clarity 配置设置" description="管理 Microsoft Clarity Project ID 和启用状态。" sectionKey="clarity" isOpen={isSectionOpen('clarity')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+          <m.button onClick={(e) => { e.stopPropagation(); fetchClarityConfig(); }} disabled={clarityConfigLoading} className={ENV_MANAGER_REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
             <FaSync className={`w-4 h-4 ${clarityConfigLoading ? 'animate-spin' : ''}`} /> 刷新
           </m.button>
         }>
@@ -2406,8 +2433,8 @@ const EnvManager: React.FC = () => {
         </CollapsibleSection>
 
         {/* GitHub Billing 配置设置 */}
-        <CollapsibleSection title="GitHub Billing 配置设置" sectionKey="githubBilling" isOpen={isSectionOpen('githubBilling')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
-          <m.button onClick={(e) => { e.stopPropagation(); fetchGithubBillingConfig(); }} disabled={githubBillingConfigLoading} className="px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2" whileTap={{ scale: 0.95 }}>
+        <CollapsibleSection title="GitHub Billing 配置设置" description="管理 GitHub Billing curl 配置和账单数据读取参数。" sectionKey="githubBilling" isOpen={isSectionOpen('githubBilling')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+          <m.button onClick={(e) => { e.stopPropagation(); fetchGithubBillingConfig(); }} disabled={githubBillingConfigLoading} className={ENV_MANAGER_REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
             <FaSync className={`w-4 h-4 ${githubBillingConfigLoading ? 'animate-spin' : ''}`} /> 刷新
           </m.button>
         }>
@@ -2492,7 +2519,7 @@ const EnvManager: React.FC = () => {
         </CollapsibleSection>
 
         {/* LibreChat 提供者配置（多组BASE_URL/API_KEY/MODEL） */}
-        <CollapsibleSection title="LibreChat 提供者配置" sectionKey="providers" isOpen={isSectionOpen('providers')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+        <CollapsibleSection title="LibreChat 提供者配置" description="管理 LibreChat 多提供者 Base URL、API Key、模型和权重。" sectionKey="providers" isOpen={isSectionOpen('providers')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
           <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
             <input
               value={providerFilterGroup}
@@ -2503,7 +2530,7 @@ const EnvManager: React.FC = () => {
             <m.button
               onClick={fetchProviders}
               disabled={providersLoading}
-              className="w-full sm:w-auto px-2 sm:px-3 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition disabled:opacity-50 text-sm font-medium flex items-center justify-center gap-2"
+              className={`${ENV_MANAGER_REFRESH_BUTTON_CLASS} w-full justify-center sm:w-auto`}
               whileTap={{ scale: 0.95 }}
             >
               <FaSync className={`w-4 h-4 ${providersLoading ? 'animate-spin' : ''}`} /> 刷新
