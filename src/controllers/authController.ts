@@ -12,6 +12,10 @@ import { validateProfileVerificationSession } from "../services/profileUpdateVer
 import { TurnstileService } from "../services/turnstileService";
 import * as VerificationService from "../services/verificationService";
 import {
+  consumeRegistrationInvite,
+  validateRegistrationInviteForRegistration,
+} from "../services/registrationInviteService";
+import {
   generateAccountLockedEmailHtml,
   generateLoginIpChangedEmailHtml,
   generatePasswordChangedEmailHtml,
@@ -177,7 +181,7 @@ export class AuthController {
 
   public static async register(req: Request, res: Response) {
     try {
-      const { username, email, password, fingerprint, clientIP, cfToken, turnstileToken } = req.body;
+      const { username, email, password, fingerprint, clientIP, cfToken, turnstileToken, invitationCode } = req.body;
       if (!username || !email || !password) {
         return res.status(400).json({ error: "请提供所有必需的注册信息" });
       }
@@ -228,13 +232,18 @@ export class AuthController {
         return res.status(400).json({ error: "用户名或邮箱已被使用" });
       }
 
+      const inviteValidation = await validateRegistrationInviteForRegistration(invitationCode);
+      if (!inviteValidation.ok) {
+        return res.status(400).json({ error: inviteValidation.error || "邀请码无效" });
+      }
+
       // 创建验证令牌
       const verificationToken = await verificationTokenStorage.createToken(
         VerificationTokenType.EMAIL_REGISTRATION,
         email,
         fingerprint,
         ipAddress,
-        { username, email, password },
+        { username, email, password, invitationCode: inviteValidation.code },
       );
 
       // 生成验证链接
@@ -338,7 +347,26 @@ export class AuthController {
         emailCodeMap.delete(email);
         return res.status(400).json({ error: "用户名或邮箱已被使用" });
       }
-      await UserStorage.createUser(regInfo.username, regInfo.email, regInfo.password);
+      const inviteValidation = await validateRegistrationInviteForRegistration(regInfo.invitationCode);
+      if (!inviteValidation.ok) {
+        emailCodeMap.delete(email);
+        return res.status(400).json({ error: inviteValidation.error || "邀请码无效" });
+      }
+      const user = await UserStorage.createUser(regInfo.username, regInfo.email, regInfo.password);
+      if (!user) {
+        emailCodeMap.delete(email);
+        return res.status(500).json({ error: "注册失败" });
+      }
+      const consumeResult = await consumeRegistrationInvite(inviteValidation.code, {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+      });
+      if (!consumeResult.ok) {
+        await UserStorage.deleteUser(user.id);
+        emailCodeMap.delete(email);
+        return res.status(400).json({ error: consumeResult.error || "邀请码无效" });
+      }
       emailCodeMap.delete(email);
       // 发送欢迎邮件（不影响主流程）
       const welcomeHtml = generateWelcomeEmailHtml(regInfo.username);

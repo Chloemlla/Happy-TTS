@@ -9,7 +9,7 @@ import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
 import { AnimatePresence, LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion';
 import getApiBaseUrl from '../api';
-import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaUser, FaVolumeUp, FaArrowLeft, FaUserPlus, FaCheckCircle, FaInfoCircle } from 'react-icons/fa';
+import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaUser, FaVolumeUp, FaArrowLeft, FaUserPlus, FaCheckCircle, FaInfoCircle, FaTicketAlt } from 'react-icons/fa';
 import { getFingerprint, getClientIP } from '../utils/fingerprint';
 import {
     authAlertClassName,
@@ -68,6 +68,7 @@ export const RegisterPage: React.FC = () => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [invitationCode, setInvitationCode] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [agreed, setAgreed] = useState(false);
@@ -150,9 +151,11 @@ export const RegisterPage: React.FC = () => {
         try {
             const sanitizedUsername = DOMPurify.sanitize(username).trim();
             const sanitizedEmail = DOMPurify.sanitize(email).trim();
+            const sanitizedInvitationCode = DOMPurify.sanitize(invitationCode).trim().toUpperCase();
             const [fingerprint, clientIP] = await Promise.all([getFingerprint(), getClientIP()]);
             if (!fingerprint) { setError('无法获取设备信息，请稍后重试'); setLoading(false); return; }
             const requestBody: any = { username: sanitizedUsername, email: sanitizedEmail, password, fingerprint, clientIP };
+            if (sanitizedInvitationCode) requestBody.invitationCode = sanitizedInvitationCode;
             if (turnstileConfig.siteKey && turnstileToken) requestBody.cfToken = turnstileToken;
             const res = await fetch(getApiBaseUrl() + '/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestBody) });
             const data = await res.json();
@@ -290,6 +293,16 @@ export const RegisterPage: React.FC = () => {
                                         <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className={authFieldActionClassName} aria-label={showConfirmPassword ? '隐藏密码' : '显示密码'}>
                                             {showConfirmPassword ? <FaEyeSlash className="h-4 w-4" /> : <FaEye className="h-4 w-4" />}
                                         </button>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label htmlFor="invitationCode" className={authLabelClassName}>邀请码</label>
+                                    <div className="relative">
+                                        <FaTicketAlt className={authFieldIconClassName} />
+                                        <input id="invitationCode" name="invitationCode" type="text" inputMode="text" enterKeyHint="next" aria-label="邀请码"
+                                            className={authFieldClassName}
+                                            placeholder="如站点要求，请填写邀请码" value={invitationCode} onChange={(e) => setInvitationCode(e.target.value.toUpperCase())} maxLength={32} autoComplete="off" />
                                     </div>
                                 </div>
 

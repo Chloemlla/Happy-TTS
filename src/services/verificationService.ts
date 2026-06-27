@@ -13,6 +13,10 @@ import {
 import logger from "../utils/logger";
 import { UserStorage } from "../utils/userStorage";
 import { EmailService } from "./emailService";
+import {
+  consumeRegistrationInvite,
+  validateRegistrationInviteForRegistration,
+} from "./registrationInviteService";
 
 /**
  * 获取前端基础URL
@@ -111,7 +115,7 @@ export async function verifyEmailLink(
       return { success: false, error: "无效的验证类型" };
     }
 
-    const { username, email, password } = verificationData.metadata;
+    const { username, email, password, invitationCode } = verificationData.metadata;
 
     // 再次检查用户名/邮箱是否被注册（防止并发）
     const existUser = await UserStorage.getUserByUsername(username);
@@ -121,8 +125,28 @@ export async function verifyEmailLink(
       return { success: false, error: "用户名或邮箱已被使用" };
     }
 
+    const inviteValidation = await validateRegistrationInviteForRegistration(invitationCode);
+    if (!inviteValidation.ok) {
+      await verificationTokenStorage.deleteToken(token);
+      return { success: false, error: inviteValidation.error || "邀请码无效" };
+    }
+
     // 创建用户
-    await UserStorage.createUser(username, email, password);
+    const user = await UserStorage.createUser(username, email, password);
+    if (!user) {
+      await verificationTokenStorage.deleteToken(token);
+      return { success: false, error: "注册失败" };
+    }
+    const consumeResult = await consumeRegistrationInvite(invitationCode, {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+    });
+    if (!consumeResult.ok) {
+      await UserStorage.deleteUser(user.id);
+      await verificationTokenStorage.deleteToken(token);
+      return { success: false, error: consumeResult.error || "邀请码无效" };
+    }
     await verificationTokenStorage.deleteToken(token);
 
     // 发送欢迎邮件（不影响主流程）

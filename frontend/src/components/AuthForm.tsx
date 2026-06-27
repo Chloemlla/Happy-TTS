@@ -57,6 +57,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [invitationCode, setInvitationCode] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [agreed, setAgreed] = useState(false);
@@ -276,6 +277,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
             // 对输入进行清理
             const sanitizedUsername = DOMPurify.sanitize(username).trim();
             const sanitizedEmail = DOMPurify.sanitize(email).trim();
+            const sanitizedInvitationCode = DOMPurify.sanitize(invitationCode).trim().toUpperCase();
             const sanitizedPassword = password;
             if (isLogin) {
                 // 登录前必须完成人机验证（仅在启用Turnstile时）
@@ -351,6 +353,9 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                     email: sanitizedEmail,
                     password: sanitizedPassword
                 };
+                if (sanitizedInvitationCode) {
+                    requestBody.invitationCode = sanitizedInvitationCode;
+                }
 
                 if (turnstileConfig.siteKey && turnstileToken) {
                     requestBody.cfToken = turnstileToken;
@@ -685,6 +690,22 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                                     placeholder="确认密码"
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
+                                />
+                            </div>
+                        )}
+                        {!isLogin && (
+                            <div>
+                                <label htmlFor="invitationCode" className="sr-only">邀请码</label>
+                                <input
+                                    id="invitationCode"
+                                    name="invitationCode"
+                                    type="text"
+                                    className="appearance-none rounded-xl relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:z-10 sm:text-base bg-white mb-3 transition-all duration-200 uppercase"
+                                    placeholder="邀请码（如站点要求）"
+                                    value={invitationCode}
+                                    onChange={(e) => setInvitationCode(e.target.value.toUpperCase())}
+                                    maxLength={32}
+                                    autoComplete="off"
                                 />
                             </div>
                         )}

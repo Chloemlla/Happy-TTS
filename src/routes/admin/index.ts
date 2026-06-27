@@ -6,6 +6,7 @@ import { UserStorage } from "../../utils/userStorage";
 import broadcastRouter from "./broadcast";
 import configRouter from "./config";
 import profileRouter from "./profile";
+import registrationInvitesRouter from "./registrationInvites";
 import shortlinksRouter from "./shortlinks";
 import usersRouter from "./users";
 
@@ -97,5 +98,6 @@ router.use(configRouter);
 router.use(shortlinksRouter);
 router.use(profileRouter);
 router.use(broadcastRouter);
+router.use(registrationInvitesRouter);
 
 export default router;
