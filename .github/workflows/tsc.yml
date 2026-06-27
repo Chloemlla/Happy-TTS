@@ -72,6 +72,10 @@ jobs:
   rust-verify:
     name: Rust verification
     runs-on: ubuntu-latest
+    env:
+      CARGO_HTTP_MULTIPLEXING: "false"
+      CARGO_NET_RETRY: "10"
+      CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
 
     steps:
       - name: Checkout code
@@ -81,6 +85,34 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
+
+      - name: Cache Cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            rust-services/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust-services/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Fetch Rust dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for attempt in 1 2 3 4 5; do
+            if cargo fetch --manifest-path rust-services/Cargo.toml --locked; then
+              exit 0
+            fi
+
+            echo "Cargo fetch failed on attempt ${attempt}; retrying..." >&2
+            sleep $((attempt * 20))
+          done
+
+          cargo fetch --manifest-path rust-services/Cargo.toml --locked
 
       - name: Check Rust formatting
         run: cargo fmt --manifest-path rust-services/Cargo.toml --all --check

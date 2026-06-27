@@ -16,6 +16,10 @@ jobs:
   analyze:
     name: Analyze
     runs-on: ubuntu-latest
+    env:
+      CARGO_HTTP_MULTIPLEXING: "false"
+      CARGO_NET_RETRY: "10"
+      CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
     permissions:
       actions: read
       contents: read
@@ -34,6 +38,35 @@ jobs:
       - name: Autobuild
         if: matrix.language != 'rust'
         uses: github/codeql-action/autobuild@v3
+      - name: Cache Cargo dependencies
+        if: matrix.language == 'rust'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            rust-services/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust-services/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      - name: Fetch Rust dependencies
+        if: matrix.language == 'rust'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for attempt in 1 2 3 4 5; do
+            if cargo fetch --locked; then
+              exit 0
+            fi
+
+            echo "Cargo fetch failed on attempt ${attempt}; retrying..." >&2
+            sleep $((attempt * 20))
+          done
+
+          cargo fetch --locked
+        working-directory: rust-services
       - name: Build Rust workspace
         if: matrix.language == 'rust'
         run: cargo build --workspace --locked
