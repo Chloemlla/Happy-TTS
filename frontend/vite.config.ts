@@ -34,9 +34,29 @@ function getManualChunk(id: string): string | undefined {
 }
 
 function normalizeBasePath(basePath: string): string {
-  if (!basePath) return "/";
-  const withLeadingSlash = basePath.startsWith("/") ? basePath : `/${basePath}`;
+  const trimmed = basePath.trim();
+  if (!trimmed) return "/";
+  if (trimmed === "." || trimmed === "./") return "./";
+  if (/^(?:[a-z][a-z\d+\-.]*:)?\/\//i.test(trimmed)) {
+    return trimmed.endsWith("/") ? trimmed : `${trimmed}/`;
+  }
+  const withLeadingSlash = trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
   return withLeadingSlash.endsWith("/") ? withLeadingSlash : `${withLeadingSlash}/`;
+}
+
+function isTruthyEnv(value: string | undefined): boolean {
+  if (!value) return false;
+  return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
+}
+
+function isVercelBuild(mode: string): boolean {
+  const deployTarget = (process.env.VITE_DEPLOY_TARGET || process.env.DEPLOY_TARGET || "").trim().toLowerCase();
+  return (
+    mode === "vercel" ||
+    deployTarget === "vercel" ||
+    isTruthyEnv(process.env.VERCEL) ||
+    Boolean(process.env.VERCEL_ENV)
+  );
 }
 
 function obfuscateDistJs() {
@@ -210,9 +230,11 @@ function generateSitemapXml() {
 }
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
+  const vercelBuild = isVercelBuild(mode);
+  const productionBuild = command === "build" && (mode === "production" || vercelBuild);
   const defaultBase =
-    mode === "production"
+    mode === "production" && !vercelBuild
       ? "/static/"
       : "/";
   const base = normalizeBasePath(process.env.VITE_BASE_URL || defaultBase);
@@ -259,7 +281,7 @@ export default defineConfig(({ mode }) => {
         enforce: "post" as const,
         transform(code: string, id: string) {
           // 只在生产环境进行代码混淆，避免混淆外部依赖导致打包失败
-          if (mode === "production" && id.endsWith(".js") && !id.includes("node_modules") && !id.includes("node_modules\\")) {
+          if (productionBuild && id.endsWith(".js") && !id.includes("node_modules") && !id.includes("node_modules\\")) {
             const obfuscationResult = JavaScriptObfuscator.obfuscate(code, {
               compact: true, // 启用紧凑模式，移除所有多余的空白字符和换行符以最小化文件体积
               controlFlowFlattening: false, // 禁用控制流扁平化，避免性能损失和执行速度下降
@@ -452,7 +474,7 @@ export default defineConfig(({ mode }) => {
       host: "::",
     },
   };
-  if (mode === "production") {
+  if (productionBuild) {
     config.build = config.build || {};
     config.build.rollupOptions = config.build.rollupOptions || {};
     if (!config.build.rollupOptions.output)

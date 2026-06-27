@@ -555,7 +555,6 @@ const UserProfile: React.FC = () => {
 
   // Password change state
   const [changePwdMode, setChangePwdMode] = useState(false);
-  const [oldPwd, setOldPwd] = useState('');
   const [newPwd, setNewPwd] = useState('');
   const [confirmNewPwd, setConfirmNewPwd] = useState('');
 
@@ -805,6 +804,14 @@ const UserProfile: React.FC = () => {
     setNotification({ message: successMessage, type: 'success' });
   }, [setNotification]);
 
+  const isSecuritySessionActive = useMemo(() => (
+    verified && Boolean(verificationToken) && (!verificationExpiresAt || verificationExpiresAt > Date.now())
+  ), [verificationExpiresAt, verificationToken, verified]);
+
+  const passwordChangeReady = useMemo(() => (
+    changePwdMode && newPwd.length >= 8 && newPwd === confirmNewPwd
+  ), [changePwdMode, confirmNewPwd, newPwd]);
+
   // Avatar loading logic
   const loadAvatar = useCallback(async (profile: UserProfileData) => {
     if (!profile.avatarUrl || !profile.id) {
@@ -987,68 +994,54 @@ const UserProfile: React.FC = () => {
     };
   }, [avatarLoading]);
 
-  // Verification flow
+  // Security session flow
   const handleVerify = useCallback(async () => {
     if (!profile?.id) {
       setNotification({ message: '用户信息不完整', type: 'error' });
       return;
     }
 
+    if (isSecuritySessionActive) {
+      setNotification({ message: '安全会话仍有效，可继续保存账号修改', type: 'success' });
+      return;
+    }
+
+    setPassword('');
+    setVerificationCode('');
+    setShowVerificationModal(true);
+  }, [isSecuritySessionActive, profile?.id, setNotification]);
+
+  const handlePasswordVerification = useCallback(async () => {
+    if (!profile?.id) {
+      setNotification({ message: '用户信息不完整', type: 'error' });
+      return;
+    }
+
+    if (!password) {
+      setNotification({ message: '请输入当前密码', type: 'warning' });
+      return;
+    }
+
     setSubmitting(true);
-
     try {
-      const has2FA = totpStatus?.enabled || totpStatus?.hasPasskey;
-
-      if (!has2FA) {
-        if (!password) {
-          setNotification({ message: '请输入当前密码', type: 'warning' });
-          return;
-        }
-        const res = await verifyIdentity({ method: 'password', password });
-        applyVerificationSuccess(res, '密码验证成功，请继续修改');
-        return;
-      }
-
-      if (totpStatus?.hasPasskey && !totpStatus?.enabled) {
-        const username = profile.username;
-        if (!username) throw new Error('无法获取用户名');
-        const passkeyResponse = await getPasskeyAuthResponse(username);
-        const res = await verifyIdentity({
-          method: 'passkey',
-          passkeyResponse,
-          clientOrigin: window.location.origin,
-        });
-        applyVerificationSuccess(res, 'Passkey 验证成功');
-        return;
-      }
-
-      if (!totpStatus?.hasPasskey && totpStatus?.enabled) {
-        if (!verificationCode) {
-          setNotification({ message: '请输入验证码', type: 'warning' });
-          return;
-        }
-        const res = await verifyIdentity({ method: 'totp', verificationCode });
-        applyVerificationSuccess(res, '验证成功，请继续修改');
-        return;
-      }
-
-      if (totpStatus?.hasPasskey && totpStatus?.enabled) {
-        setShowVerificationModal(true);
-        return;
-      }
+      const res = await verifyIdentity({ method: 'password', password });
+      applyVerificationSuccess(res, '安全会话已建立，可继续保存账号修改');
+      setPassword('');
+      setShowVerificationModal(false);
     } catch (error) {
-      console.error('[UserProfile] Verification error:', error);
-      const errorMessage = error instanceof Error ? error.message : '验证失败';
+      console.error('[UserProfile] Password verification error:', error);
+      const errorMessage = error instanceof Error ? error.message : '密码验证失败';
       setNotification({ message: errorMessage, type: 'error' });
     } finally {
       setSubmitting(false);
     }
-  }, [applyVerificationSuccess, password, profile, setNotification, totpStatus, verificationCode]);
+  }, [applyVerificationSuccess, password, profile?.id, setNotification]);
 
   // Send email verification code
   const handleSendEmailCode = useCallback(async () => {
-    if (!verificationToken) {
-      setNotification({ message: '请先完成身份验证', type: 'warning' });
+    if (!isSecuritySessionActive) {
+      setNotification({ message: '请先建立安全会话，再发送新邮箱验证码', type: 'warning' });
+      setShowVerificationModal(true);
       return;
     }
     if (!email || !emailChanged) {
@@ -1069,30 +1062,45 @@ const UserProfile: React.FC = () => {
     } finally {
       setSubmitting(false);
     }
-  }, [verificationToken, email, emailChanged, setNotification]);
+  }, [verificationToken, email, emailChanged, isSecuritySessionActive, setNotification]);
 
   // Profile update
   const handleUpdate = useCallback(async () => {
-    const has2FA = totpStatus?.enabled || totpStatus?.hasPasskey;
+    const wantsPasswordChange = changePwdMode && Boolean(newPwd || confirmNewPwd);
 
-    if (!emailChanged) {
+    if (!emailChanged && !wantsPasswordChange) {
       setNotification({ message: '当前没有需要保存的资料变更', type: 'warning' });
       return;
     }
 
-    if (!has2FA && !verified) {
-      if (!password) {
-        setNotification({ message: '请输入当前密码', type: 'warning' });
-        return;
-      }
-    } else if (has2FA && !verified) {
-      setNotification({ message: '请先通过二次验证', type: 'warning' });
+    if (!isSecuritySessionActive) {
+      setNotification({ message: '保存账号修改前请先建立安全会话', type: 'warning' });
+      setShowVerificationModal(true);
       return;
     }
 
     if (emailChanged && !emailVerificationCode) {
       setNotification({ message: '请输入新邮箱验证码', type: 'warning' });
       return;
+    }
+
+    if (wantsPasswordChange) {
+      if (!newPwd) {
+        setNotification({ message: '请输入新密码', type: 'warning' });
+        return;
+      }
+      if (newPwd.length < 8) {
+        setNotification({ message: '新密码长度至少8位', type: 'warning' });
+        return;
+      }
+      if (!confirmNewPwd) {
+        setNotification({ message: '请再次输入新密码', type: 'warning' });
+        return;
+      }
+      if (newPwd !== confirmNewPwd) {
+        setNotification({ message: '两次输入的新密码不一致', type: 'warning' });
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -1102,17 +1110,22 @@ const UserProfile: React.FC = () => {
 
       if (emailChanged) updateData.email = email.trim().toLowerCase();
       if (verificationToken) updateData.verificationToken = verificationToken;
-      if (!has2FA && password) updateData.password = password;
       if (emailChanged && emailVerificationCode) {
         updateData.emailVerificationCode = emailVerificationCode;
       }
+      if (wantsPasswordChange) {
+        updateData.newPassword = newPwd;
+      }
 
       await updateProfile(updateData);
-      setNotification({ message: '信息修改成功', type: 'success' });
+      setNotification({ message: '账号修改已保存', type: 'success' });
 
       await loadProfile({ background: true });
 
       setPassword('');
+      setNewPwd('');
+      setConfirmNewPwd('');
+      setChangePwdMode(false);
       resetVerificationState();
     } catch (error) {
       console.error('[UserProfile] Update error:', error);
@@ -1121,54 +1134,19 @@ const UserProfile: React.FC = () => {
     } finally {
       setSubmitting(false);
     }
-  }, [email, emailChanged, emailVerificationCode, loadProfile, password, resetVerificationState, setNotification, totpStatus, verificationToken, verified]);
-
-  // Password change
-  const handleChangePassword = useCallback(async () => {
-    if (!verified && !oldPwd) {
-      setNotification({ message: '请输入旧密码', type: 'warning' });
-      return;
-    }
-    if (!newPwd) {
-      setNotification({ message: '请输入新密码', type: 'warning' });
-      return;
-    }
-    if (newPwd.length < 8) {
-      setNotification({ message: '新密码长度至少8位', type: 'warning' });
-      return;
-    }
-    if (!confirmNewPwd) {
-      setNotification({ message: '请再次输入新密码', type: 'warning' });
-      return;
-    }
-    if (newPwd !== confirmNewPwd) {
-      setNotification({ message: '两次输入的新密码不一致', type: 'warning' });
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      await updateProfile({
-        password: verified ? undefined : oldPwd,
-        newPassword: newPwd,
-        verificationToken: verified ? verificationToken : undefined,
-      });
-
-      setNotification({ message: '密码修改成功', type: 'success' });
-      setChangePwdMode(false);
-      setOldPwd('');
-      setNewPwd('');
-      setConfirmNewPwd('');
-      setPassword('');
-      resetVerificationState();
-    } catch (error) {
-      console.error('[UserProfile] Password change error:', error);
-      const errorMessage = error instanceof Error ? error.message : '密码修改失败';
-      setNotification({ message: errorMessage, type: 'error' });
-    } finally {
-      setSubmitting(false);
-    }
-  }, [confirmNewPwd, newPwd, oldPwd, resetVerificationState, setNotification, verificationToken, verified]);
+  }, [
+    changePwdMode,
+    confirmNewPwd,
+    email,
+    emailChanged,
+    emailVerificationCode,
+    isSecuritySessionActive,
+    loadProfile,
+    newPwd,
+    resetVerificationState,
+    setNotification,
+    verificationToken,
+  ]);
 
   // TOTP verification in modal
   const handleTotpVerification = useCallback(async () => {
@@ -1180,7 +1158,7 @@ const UserProfile: React.FC = () => {
     setSubmitting(true);
     try {
       const res = await verifyIdentity({ method: 'totp', verificationCode });
-      applyVerificationSuccess(res, '验证成功，请继续修改');
+      applyVerificationSuccess(res, '安全会话已建立，可继续保存账号修改');
       setShowVerificationModal(false);
     } catch (error) {
       console.error('[UserProfile] TOTP verification error:', error);
@@ -1206,7 +1184,7 @@ const UserProfile: React.FC = () => {
         passkeyResponse,
         clientOrigin: window.location.origin,
       });
-      applyVerificationSuccess(res, 'Passkey 验证成功，请继续修改');
+      applyVerificationSuccess(res, '安全会话已建立，可继续保存账号修改');
       setShowVerificationModal(false);
     } catch (error) {
       console.error('[UserProfile] Passkey verification error:', error);
@@ -1218,8 +1196,10 @@ const UserProfile: React.FC = () => {
   }, [applyVerificationSuccess, profile, setNotification]);
 
   const handleGoogleBindResult = useCallback(async (idToken: string) => {
-    if (!verificationToken) {
-      setNotification({ message: '请先完成身份验证', type: 'warning' });
+    if (!isSecuritySessionActive) {
+      setNotification({ message: '安全会话已过期，请重新验证后绑定 Google', type: 'warning' });
+      setGoogleBindActive(false);
+      setShowVerificationModal(true);
       return;
     }
 
@@ -1252,7 +1232,7 @@ const UserProfile: React.FC = () => {
     } finally {
       setSubmitting(false);
     }
-  }, [loadLinkedAccounts, loadProfile, setNotification, verificationToken]);
+  }, [isSecuritySessionActive, loadLinkedAccounts, loadProfile, setNotification, verificationToken]);
 
   useEffect(() => {
     if (!googleBindActive || !googleBindClientId || !googleBindButtonRef.current) {
@@ -1305,8 +1285,9 @@ const UserProfile: React.FC = () => {
   }, [googleBindActive, googleBindClientId, handleGoogleBindResult, setNotification]);
 
   const handleStartLinkedAccountBind = useCallback(async (provider: IdentityProvider) => {
-    if (!verified || !verificationToken) {
-      setNotification({ message: '绑定第三方账号前请先完成身份验证', type: 'warning' });
+    if (!isSecuritySessionActive) {
+      setNotification({ message: '绑定第三方账号前请先建立安全会话', type: 'warning' });
+      setShowVerificationModal(true);
       return;
     }
 
@@ -1335,11 +1316,12 @@ const UserProfile: React.FC = () => {
     } finally {
       setSubmitting(false);
     }
-  }, [setNotification, verificationToken, verified]);
+  }, [isSecuritySessionActive, setNotification, verificationToken]);
 
   const handleUnlinkLinkedAccount = useCallback(async (provider: IdentityProvider) => {
-    if (!verified || !verificationToken) {
-      setNotification({ message: '解绑第三方账号前请先完成身份验证', type: 'warning' });
+    if (!isSecuritySessionActive) {
+      setNotification({ message: '解绑第三方账号前请先建立安全会话', type: 'warning' });
+      setShowVerificationModal(true);
       return;
     }
 
@@ -1357,7 +1339,7 @@ const UserProfile: React.FC = () => {
     } finally {
       setSubmitting(false);
     }
-  }, [loadProfile, setNotification, verificationToken, verified]);
+  }, [isSecuritySessionActive, loadProfile, setNotification, verificationToken]);
 
   const handleOpenMergePreview = useCallback(async (account: LinkedAccount) => {
     const token = account.mergeToken || mergeToken;
@@ -1388,8 +1370,9 @@ const UserProfile: React.FC = () => {
       return;
     }
 
-    if (!verified || !verificationToken) {
-      setNotification({ message: '确认合并前请先完成身份验证', type: 'warning' });
+    if (!isSecuritySessionActive) {
+      setNotification({ message: '确认合并前请先建立安全会话', type: 'warning' });
+      setShowVerificationModal(true);
       return;
     }
 
@@ -1433,9 +1416,9 @@ const UserProfile: React.FC = () => {
     loadProfile,
     mergePreview,
     mergeToken,
+    isSecuritySessionActive,
     setNotification,
     verificationToken,
-    verified,
   ]);
 
   const isAuthenticated = useMemo(() => {
@@ -1466,24 +1449,23 @@ const UserProfile: React.FC = () => {
     if (changePwdMode && newPwd) {
       items.push(
         confirmNewPwd && newPwd === confirmNewPwd
-          ? '新的登录密码已填写并确认，需要点击“保存新密码”单独提交'
+          ? '新的登录密码已填写并确认，将随本次账号修改一起保存'
           : '新的登录密码草稿已填写，请确认两次输入一致后再提交',
       );
     }
 
-    if (verified && verificationTimeLeft > 0) {
-      items.push(`当前身份验证还可使用 ${formatCountdown(verificationTimeLeft)}`);
+    if (isSecuritySessionActive && verificationTimeLeft > 0) {
+      items.push(`当前安全会话还可使用 ${formatCountdown(verificationTimeLeft)}`);
     }
 
     return items;
-  }, [changePwdMode, confirmNewPwd, email, emailChanged, newPwd, verificationTimeLeft, verified]);
+  }, [changePwdMode, confirmNewPwd, email, emailChanged, isSecuritySessionActive, newPwd, verificationTimeLeft]);
 
   const handleResetForm = useCallback(() => {
     if (!profile) return;
 
     setEmail(profile.email);
     setPassword('');
-    setOldPwd('');
     setNewPwd('');
     setConfirmNewPwd('');
     setChangePwdMode(false);
@@ -1540,14 +1522,14 @@ const UserProfile: React.FC = () => {
     },
     {
       label: 'Security',
-      value: verified && verificationTimeLeft > 0
-        ? `已验证 ${formatCountdown(verificationTimeLeft)}`
+      value: isSecuritySessionActive && verificationTimeLeft > 0
+        ? `安全会话 ${formatCountdown(verificationTimeLeft)}`
         : totpStatus?.enabled
           ? 'TOTP 已启用'
           : totpStatus?.hasPasskey
             ? 'Passkey 已启用'
             : '基础密码',
-      tone: verified || totpStatus?.enabled || totpStatus?.hasPasskey
+      tone: isSecuritySessionActive || totpStatus?.enabled || totpStatus?.hasPasskey
         ? 'border-emerald-200 bg-emerald-50/80'
         : 'border-slate-200 bg-slate-50/80',
     },
@@ -1558,7 +1540,7 @@ const UserProfile: React.FC = () => {
         ? 'border-rose-200 bg-rose-50/80'
         : 'border-slate-200 bg-slate-50/80',
     },
-  ], [profile, providerLabel, totpStatus, verificationTimeLeft, verified]);
+  ], [isSecuritySessionActive, profile, providerLabel, totpStatus, verificationTimeLeft]);
 
   // ── Error / loading states ──
   if (!isAuthenticated) {
@@ -1743,7 +1725,7 @@ const UserProfile: React.FC = () => {
               />
 
               {/* Email change code */}
-              {verified && emailChanged && (
+              {isSecuritySessionActive && emailChanged && (
                 <div className="mt-4 rounded-[20px] border border-slate-200 bg-white/80 p-3.5 sm:p-4">
                   <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                     新邮箱验证
@@ -1815,7 +1797,7 @@ const UserProfile: React.FC = () => {
                 )}
               </div>
 
-              {verified && verificationTimeLeft > 0 && (
+              {isSecuritySessionActive && verificationTimeLeft > 0 && (
                 <div className="mt-4 rounded-[20px] border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-[13px] text-emerald-700 sm:rounded-2xl sm:text-sm">
                   <div className="flex items-center gap-2 font-semibold">
                     <FaClock />
@@ -1830,72 +1812,44 @@ const UserProfile: React.FC = () => {
 
             {/* Identity verification section */}
             <section className="mb-4 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
-              {!totpStatus?.enabled && !totpStatus?.hasPasskey ? (
-                <>
-                  <label className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                    <FaLock />
-                    当前密码
-                  </label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    className={studioFieldClassName}
-                    disabled={submitting}
-                    placeholder="请输入当前密码用于身份验证"
-                  />
-                  {!verified && (
-                    <button
-                      type="button"
-                      onClick={handleVerify}
-                      disabled={submitting || !password}
-                      className="mt-3 inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <FaShieldAlt />
-                      {submitting ? '验证中…' : '验证身份'}
-                    </button>
-                  )}
-                </>
-              ) : (
-                <>
-                  <label className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                     <FaShieldAlt />
-                    二次验证
+                    安全会话
                   </label>
-                  <div className="mb-3 rounded-[20px] border border-slate-200 bg-white/80 p-3.5 text-[13px] leading-6 text-slate-600 sm:p-4 sm:text-sm sm:leading-7">
-                    检测到您已启用二次验证，请完成验证后再修改信息
-                  </div>
-                  {totpStatus?.enabled && (
-                    <div className="mb-3">
-                      <VerifyCodeInput
-                        length={6}
-                        onComplete={setVerificationCode}
-                        loading={submitting}
-                        error={undefined}
-                        inputClassName="bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-slate-400/30 focus:border-slate-400 rounded-lg px-3 py-2 text-lg transition-all outline-none mx-1"
-                      />
-                    </div>
-                  )}
-                  {!verified && (
-                    <button
-                      type="button"
-                      onClick={handleVerify}
-                      disabled={submitting || (totpStatus?.enabled && verificationCode.length !== 6)}
-                      className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      <FaShieldAlt />
-                      {submitting ? '验证中…' : '验证'}
-                    </button>
-                  )}
-                </>
-              )}
-              {verified && (
-                <div className="mt-3 rounded-[20px] border border-emerald-200 bg-emerald-50 px-3 py-3 text-[13px] font-medium text-emerald-700 sm:rounded-2xl sm:text-sm">
-                  <span className="mr-2">✓</span>
-                  身份验证成功，现在可以修改信息
-                  {verificationTimeLeft > 0 ? `，剩余 ${formatCountdown(verificationTimeLeft)}` : ''}
+                  <p className="mt-2 text-[13px] leading-6 text-slate-600 sm:text-sm">
+                    先验证一次身份，邮箱、密码和第三方账号操作会复用同一安全会话。
+                  </p>
                 </div>
-              )}
+                <button
+                  type="button"
+                  onClick={handleVerify}
+                  disabled={submitting}
+                  className={cn(studioPrimaryButtonClassName, 'self-start px-4 py-2 text-xs disabled:opacity-60')}
+                >
+                  <FaShieldAlt />
+                  {isSecuritySessionActive ? '会话有效' : '建立安全会话'}
+                </button>
+              </div>
+              <div className={`mt-4 rounded-[20px] border px-3 py-3 text-[13px] font-medium sm:rounded-2xl sm:text-sm ${
+                isSecuritySessionActive
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  : 'border-amber-100 bg-amber-50 text-amber-700'
+              }`}>
+                {isSecuritySessionActive ? (
+                  <>
+                    <span className="mr-2">✓</span>
+                    安全会话已建立
+                    {verificationTimeLeft > 0 ? `，剩余 ${formatCountdown(verificationTimeLeft)}` : ''}
+                  </>
+                ) : (
+                  <>
+                    <FaExclamationCircle className="mr-2 inline" />
+                    保存账号修改或绑定第三方账号前需要建立安全会话。
+                  </>
+                )}
+              </div>
             </section>
 
             {/* Password change section */}
@@ -1909,7 +1863,6 @@ const UserProfile: React.FC = () => {
                   type="button"
                   onClick={() => {
                     if (changePwdMode) {
-                      setOldPwd('');
                       setNewPwd('');
                       setConfirmNewPwd('');
                     }
@@ -1922,19 +1875,9 @@ const UserProfile: React.FC = () => {
               </div>
               {changePwdMode && (
                 <div className="mt-4 space-y-3">
-                  {!verified && (
-                    <div>
-                      <div className="mb-2 text-[11px] font-medium text-slate-500">旧密码</div>
-                      <input
-                        type="password"
-                        value={oldPwd}
-                        onChange={e => setOldPwd(e.target.value)}
-                        className={studioFieldClassName}
-                        disabled={submitting}
-                        placeholder="请输入当前密码"
-                      />
-                    </div>
-                  )}
+                  <div className="rounded-[20px] border border-slate-200 bg-white/80 px-3.5 py-3 text-[13px] leading-6 text-slate-600 sm:text-sm">
+                    密码修改会复用上方安全会话，不需要在这里再次输入旧密码。
+                  </div>
                   <div>
                     <div className="mb-2 text-[11px] font-medium text-slate-500">新密码</div>
                     <input
@@ -1965,15 +1908,6 @@ const UserProfile: React.FC = () => {
                       </p>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleChangePassword}
-                    disabled={submitting || (!verified && !oldPwd) || newPwd.length < 8 || newPwd !== confirmNewPwd}
-                    className={cn(studioPrimaryButtonClassName, 'w-full px-4 py-3 disabled:opacity-60 sm:w-auto sm:py-2')}
-                  >
-                    <FaSave />
-                    {submitting ? '保存中…' : '保存新密码'}
-                  </button>
                 </div>
               )}
             </section>
@@ -1982,12 +1916,12 @@ const UserProfile: React.FC = () => {
             <button
               type="button"
               onClick={handleUpdate}
-              disabled={submitting || avatarLoading || !emailChanged}
+              disabled={submitting || avatarLoading || (!emailChanged && !passwordChangeReady)}
               className={cn(studioPrimaryButtonClassName, 'w-full disabled:opacity-60 sm:py-3')}
             >
               {submitting && <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white"></div>}
               <FaSave />
-              {submitting ? '保存中…' : '保存邮箱修改'}
+              {submitting ? '保存中…' : '保存账号修改'}
             </button>
           </m.div>
 
@@ -2278,60 +2212,94 @@ const UserProfile: React.FC = () => {
                 <FaShieldAlt className="text-2xl" />
               </div>
               <h3 className="text-xl font-semibold text-slate-900" style={{ fontFamily: displayFont }}>
-                选择验证方式
+                建立安全会话
               </h3>
-              <p className="mt-2 text-sm text-slate-500">为 {profile.username} 选择一种验证方式</p>
+              <p className="mt-2 text-sm text-slate-500">验证一次后，账号修改和第三方绑定会复用该会话</p>
             </div>
 
             <div className="space-y-4">
-              {/* TOTP */}
+              {/* Password */}
               <div className="rounded-[22px] border border-slate-200 p-4 transition hover:border-slate-300">
                 <div className="mb-3 flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-100">
-                    <FaShieldAlt className="text-sm text-sky-600" />
+                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100">
+                    <FaLock className="text-sm text-slate-600" />
                   </div>
                   <div>
-                    <div className="text-sm font-semibold text-slate-800">TOTP 验证码</div>
-                    <div className="text-[11px] text-slate-500">使用认证器应用生成的6位验证码</div>
+                    <div className="text-sm font-semibold text-slate-800">当前密码</div>
+                    <div className="text-[11px] text-slate-500">使用登录密码建立 10 分钟安全会话</div>
                   </div>
                 </div>
-                <VerifyCodeInput
-                  length={6}
-                  onComplete={setVerificationCode}
-                  loading={submitting}
-                  error={undefined}
-                  inputClassName="bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-slate-400/30 focus:border-slate-400 rounded-lg px-2 py-1 text-sm transition-all outline-none mx-1"
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className={studioFieldClassName}
+                  disabled={submitting}
+                  placeholder="请输入当前密码"
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"
-                  onClick={handleTotpVerification}
-                  disabled={submitting || verificationCode.length !== 6}
+                  onClick={handlePasswordVerification}
+                  disabled={submitting || !password}
                   className={cn(studioPrimaryButtonClassName, 'mt-3 w-full py-2.5 disabled:opacity-50')}
                 >
-                  {submitting ? '验证中…' : '使用 TOTP 验证'}
+                  {submitting ? '验证中…' : '使用密码验证'}
                 </button>
               </div>
 
-              {/* Passkey */}
-              <div className="rounded-[22px] border border-slate-200 p-4 transition hover:border-emerald-300/50">
-                <div className="mb-3 flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100">
-                    <FaLock className="text-sm text-emerald-600" />
+              {/* TOTP */}
+              {totpStatus?.enabled && (
+                <div className="rounded-[22px] border border-slate-200 p-4 transition hover:border-slate-300">
+                  <div className="mb-3 flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-100">
+                      <FaShieldAlt className="text-sm text-sky-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-slate-800">TOTP 验证码</div>
+                      <div className="text-[11px] text-slate-500">使用认证器应用生成的6位验证码</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="text-sm font-semibold text-slate-800">Passkey 验证</div>
-                    <div className="text-[11px] text-slate-500">使用生物识别或安全密钥进行验证</div>
-                  </div>
+                  <VerifyCodeInput
+                    length={6}
+                    onComplete={setVerificationCode}
+                    loading={submitting}
+                    error={undefined}
+                    inputClassName="bg-white border border-slate-200 text-slate-900 focus:ring-2 focus:ring-slate-400/30 focus:border-slate-400 rounded-lg px-2 py-1 text-sm transition-all outline-none mx-1"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleTotpVerification}
+                    disabled={submitting || verificationCode.length !== 6}
+                    className={cn(studioPrimaryButtonClassName, 'mt-3 w-full py-2.5 disabled:opacity-50')}
+                  >
+                    {submitting ? '验证中…' : '使用 TOTP 验证'}
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={handlePasskeyVerification}
-                  disabled={submitting}
-                  className={cn(studioPrimaryButtonClassName, 'w-full py-2.5 disabled:opacity-50')}
-                >
-                  {submitting ? '验证中…' : '使用 Passkey 验证'}
-                </button>
-              </div>
+              )}
+
+              {/* Passkey */}
+              {totpStatus?.hasPasskey && (
+                <div className="rounded-[22px] border border-slate-200 p-4 transition hover:border-emerald-300/50">
+                  <div className="mb-3 flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100">
+                      <FaLock className="text-sm text-emerald-600" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-slate-800">Passkey 验证</div>
+                      <div className="text-[11px] text-slate-500">使用生物识别或安全密钥进行验证</div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handlePasskeyVerification}
+                    disabled={submitting}
+                    className={cn(studioPrimaryButtonClassName, 'w-full py-2.5 disabled:opacity-50')}
+                  >
+                    {submitting ? '验证中…' : '使用 Passkey 验证'}
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="mt-6 text-center">

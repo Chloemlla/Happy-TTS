@@ -12,6 +12,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:vercel": "tsc && vite build --mode vercel",
     "build:simple": "tsc && vite build --mode simple",
     "build:minimal": "tsc && vite build --mode minimal",
     "build:analyze": "tsc && vite build --mode analyze",

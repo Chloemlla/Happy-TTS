@@ -10,6 +10,7 @@ import { RuntimeConfigService } from "../services/runtimeConfigService";
 import { TranslationLogService } from "../services/translationLogService";
 import logger from "../utils/logger";
 import { getRevealUserPasswordResult } from "../services/userService";
+import { buildAccountSecuritySummary } from "../services/accountSecuritySummaryService";
 import { UserStorage } from "../utils/userStorage";
 import { isUserStorageModeKey, USER_STORAGE_MODE } from "../utils/userStorageMode";
 
@@ -158,11 +159,13 @@ function sanitizeAdminUserForList(user: any, includeFingerprints: boolean) {
   };
 
   if (includeFingerprints) {
-    return { ...safeUser, ...fingerprintSummary };
+    const withSummary = { ...safeUser, ...fingerprintSummary };
+    return { ...withSummary, securitySummary: buildAccountSecuritySummary(withSummary) };
   }
 
   const { fingerprints: _fingerprints, ...safeWithoutFingerprints } = safeUser;
-  return { ...safeWithoutFingerprints, ...fingerprintSummary };
+  const withSummary = { ...safeWithoutFingerprints, ...fingerprintSummary };
+  return { ...withSummary, securitySummary: buildAccountSecuritySummary(withSummary) };
 }
 
 type AdminUserListRoleFilter = "all" | "user" | "admin" | "trusted";
