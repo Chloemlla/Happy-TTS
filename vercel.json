@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "installCommand": "cd frontend && pnpm install --frozen-lockfile --ignore-scripts",
+  "installCommand": "cd frontend && pnpm install --no-frozen-lockfile --ignore-scripts",
   "buildCommand": "cd frontend && pnpm run build:vercel",
   "outputDirectory": "frontend/dist",
   "rewrites": [
