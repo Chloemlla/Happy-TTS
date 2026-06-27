@@ -35,6 +35,10 @@ const LOGIN_ATTEMPT_LIMIT = 5;
 const LOGIN_LOCKOUT_DURATION = 15 * 60 * 1000; // 15分钟
 const loginAttempts = new Map<string, { count: number; lastAttempt: number; lockedUntil?: number }>();
 
+function getLoginRetrySeconds(lockedUntil: number): number {
+  return Math.max(1, Math.ceil((lockedUntil - Date.now()) / 1000));
+}
+
 // 支持的主流邮箱后缀
 const allowedDomains = [
   "gmail.com",
@@ -438,7 +442,8 @@ export class AuthController {
   public static async login(req: Request, res: Response) {
     const t0 = Date.now();
     try {
-      const { identifier, password, cfToken, turnstileToken } = req.body;
+      const { password, cfToken, turnstileToken } = req.body;
+      const identifier = typeof req.body?.identifier === "string" ? req.body.identifier.trim() : "";
       const ip = getClientIP(req);
       const userAgent = req.headers["user-agent"] || "unknown";
 
@@ -485,10 +490,22 @@ export class AuthController {
       logger.info("开始用户认证", logDetails);
 
       // 检查登录尝试限制
-      const attempts = loginAttempts.get(identifier) || { count: 0, lastAttempt: 0 };
+      const attemptKey = identifier.toLowerCase();
+      const attempts = loginAttempts.get(attemptKey) || { count: 0, lastAttempt: 0 };
+      if (attempts.lockedUntil && Date.now() >= attempts.lockedUntil) {
+        attempts.count = 0;
+        attempts.lockedUntil = undefined;
+      }
       if (attempts.lockedUntil && Date.now() < attempts.lockedUntil) {
         const remainingMinutes = Math.ceil((attempts.lockedUntil - Date.now()) / 60000);
-        return res.status(429).json({ error: `尝试次数过多，请在 ${remainingMinutes} 分钟后重试` });
+        return res.status(429).json({
+          error: `尝试次数过多，请在 ${remainingMinutes} 分钟后重试`,
+          code: "LOGIN_LOCKED",
+          remainingAttempts: 0,
+          attemptLimit: LOGIN_ATTEMPT_LIMIT,
+          lockedUntil: attempts.lockedUntil,
+          retryAfterSeconds: getLoginRetrySeconds(attempts.lockedUntil),
+        });
       }
 
       // 使用 UserStorage 进行认证
@@ -500,7 +517,7 @@ export class AuthController {
         attempts.lastAttempt = Date.now();
         if (attempts.count >= LOGIN_ATTEMPT_LIMIT) {
           attempts.lockedUntil = Date.now() + LOGIN_LOCKOUT_DURATION;
-          loginAttempts.set(identifier, attempts);
+          loginAttempts.set(attemptKey, attempts);
 
           // 发送锁定通知邮件
           const targetUser =
@@ -521,20 +538,32 @@ export class AuthController {
             }
           }
 
-          return res.status(429).json({ error: "尝试次数过多，账号已锁定 15 分钟" });
+          return res.status(429).json({
+            error: "尝试次数过多，账号已锁定 15 分钟",
+            code: "LOGIN_LOCKED",
+            remainingAttempts: 0,
+            attemptLimit: LOGIN_ATTEMPT_LIMIT,
+            lockedUntil: attempts.lockedUntil,
+            retryAfterSeconds: getLoginRetrySeconds(attempts.lockedUntil),
+          });
         }
-        loginAttempts.set(identifier, attempts);
+        loginAttempts.set(attemptKey, attempts);
 
         // 不区分「用户不存在」和「密码错误」，统一返回模糊提示（防用户名枚举）
         logger.warn("登录失败：用户名或密码错误", logDetails);
-        return res.status(401).json({ error: "用户名/邮箱或密码错误" });
+        return res.status(401).json({
+          error: "用户名/邮箱或密码错误",
+          code: "INVALID_CREDENTIALS",
+          remainingAttempts: Math.max(0, LOGIN_ATTEMPT_LIMIT - attempts.count),
+          attemptLimit: LOGIN_ATTEMPT_LIMIT,
+        });
       }
       if ((user as any).accountStatus === "suspended") {
         return res.status(403).json({ error: "账户已被封停" });
       }
 
       // 登录成功，重置尝试次数
-      loginAttempts.delete(identifier);
+      loginAttempts.delete(attemptKey);
 
       // 检查用户是否启用了TOTP或Passkey
       const hasTOTP = !!user.totpEnabled;

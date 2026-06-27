@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import type { AuthRequestError } from '../hooks/useAuth';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import DOMPurify from 'dompurify';
 import { usePasskey } from '../hooks/usePasskey';
@@ -24,6 +25,7 @@ import {
     FaChevronDown,
     FaChevronUp,
     FaShieldAlt,
+    FaUserShield,
     FaBolt,
     FaMobileAlt,
     FaUser,
@@ -60,6 +62,7 @@ import {
     authSecondaryButtonClassName,
     authTextLinkClassName,
     authTitleClassName,
+    authWarningPanelClassName,
     studioPageFont,
 } from './authStudioTheme';
 import { cn } from '../utils/cn';
@@ -70,6 +73,33 @@ const cardVariants = { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 
 const CARD_TRANSITION = { duration: 0.45, type: 'spring', stiffness: 130 } as const;
 const ITEM_HOVER = { scale: 1.01, y: -1 } as const;
 const BUTTON_TAP = { scale: 0.99 } as const;
+
+type LoginAttemptStatus = {
+    message: string;
+    tone: 'warning' | 'locked';
+};
+
+const buildLoginAttemptStatus = (error: AuthRequestError): LoginAttemptStatus | null => {
+    if (typeof error.lockedUntil === 'number') {
+        const lockedUntilText = new Date(error.lockedUntil).toLocaleTimeString('zh-CN', {
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+        return {
+            tone: 'locked',
+            message: `登录已暂时锁定，请在 ${lockedUntilText} 后重试。`,
+        };
+    }
+
+    if (typeof error.remainingAttempts === 'number' && typeof error.attemptLimit === 'number') {
+        return {
+            tone: error.remainingAttempts <= 1 ? 'locked' : 'warning',
+            message: `还可尝试 ${error.remainingAttempts}/${error.attemptLimit} 次。`,
+        };
+    }
+
+    return null;
+};
 
 export const LoginPage: React.FC = () => {
     const { user, login, pending2FA, setPending2FA } = useAuth();
@@ -96,6 +126,7 @@ export const LoginPage: React.FC = () => {
     const [rememberMe, setRememberMe] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [showPasskeyHelp, setShowPasskeyHelp] = useState(false);
+    const [attemptStatus, setAttemptStatus] = useState<LoginAttemptStatus | null>(null);
 
     const effectiveCardVariants = React.useMemo(() => prefersReducedMotion ? FADE_VARIANTS : cardVariants, [prefersReducedMotion]);
     const effectiveCardTransition = React.useMemo(() => prefersReducedMotion ? NO_TRANSITION : CARD_TRANSITION, [prefersReducedMotion]);
@@ -106,6 +137,9 @@ export const LoginPage: React.FC = () => {
         if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return null;
         return raw;
     }, [searchParams]);
+    const adminLoginRequested = React.useMemo(() => {
+        return postLoginRedirect?.startsWith('/admin') || username.trim().toLowerCase() === 'admin';
+    }, [postLoginRedirect, username]);
     const completeLogin = React.useCallback(() => {
         if (postLoginRedirect) {
             navigate(postLoginRedirect, { replace: true });
@@ -128,6 +162,7 @@ export const LoginPage: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
+        setAttemptStatus(null);
         const sanitizedUsername = DOMPurify.sanitize(username).trim();
         if (!sanitizedUsername || !password) { setError('请输入用户名和密码'); return; }
         if (turnstileConfig.siteKey && (!turnstileVerified || !turnstileToken)) {
@@ -157,9 +192,22 @@ export const LoginPage: React.FC = () => {
                 }
                 return;
             }
-            setNotification({ message: '登录成功', type: 'success' }); completeLogin();
+            if (postLoginRedirect?.startsWith('/admin') && result.user?.role !== 'admin') {
+                setNotification({ message: '当前账号没有管理员权限，已返回首页', type: 'warning' });
+                navigate('/', { replace: true });
+                return;
+            }
+            setNotification({ message: adminLoginRequested ? '管理员登录成功' : '登录成功', type: 'success' }); completeLogin();
         } catch (err: any) {
-            setError(err.message || '登录失败'); setNotification({ message: err.message || '登录失败', type: 'error' });
+            const authError = err as AuthRequestError;
+            const attemptFeedback = buildLoginAttemptStatus(authError);
+            if (attemptFeedback) setAttemptStatus(attemptFeedback);
+            if (turnstileConfig.siteKey) {
+                setTurnstileToken('');
+                setTurnstileVerified(false);
+                setTurnstileKey(k => k + 1);
+            }
+            setError(authError.message || '登录失败'); setNotification({ message: authError.message || '登录失败', type: 'error' });
         } finally { setLoading(false); }
     };
 
@@ -200,12 +248,38 @@ export const LoginPage: React.FC = () => {
                         <div className={authCardBodyClassName}>
                             <div className={authCardHeaderClassName}>
                                 <div className={authHeaderBadgeClassName}>
-                                    <FaSignInAlt />
+                                    {adminLoginRequested ? <FaUserShield /> : <FaSignInAlt />}
                                 </div>
                                 <div>
-                                    <div className={authEyebrowClassName}>Account Login</div>
-                                    <h2 className={authTitleClassName}>登录账户</h2>
+                                    <div className={authEyebrowClassName}>{adminLoginRequested ? 'Admin Access' : 'Account Login'}</div>
+                                    <h2 className={authTitleClassName}>{adminLoginRequested ? '管理员登录' : '登录账户'}</h2>
                                 </div>
+                            </div>
+
+                            <div className="mb-5 grid grid-cols-2 rounded-2xl border border-slate-200 bg-slate-50 p-1">
+                                <button
+                                    type="button"
+                                    onClick={() => navigate('/login', { replace: true })}
+                                    className={cn(
+                                        'rounded-xl px-3 py-2 text-sm font-semibold transition',
+                                        !postLoginRedirect?.startsWith('/admin') ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900',
+                                    )}
+                                >
+                                    用户入口
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (!username) setUsername('admin');
+                                        navigate('/login?redirectTo=%2Fadmin', { replace: true });
+                                    }}
+                                    className={cn(
+                                        'rounded-xl px-3 py-2 text-sm font-semibold transition',
+                                        postLoginRedirect?.startsWith('/admin') ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900',
+                                    )}
+                                >
+                                    管理员入口
+                                </button>
                             </div>
 
                             {user && (
@@ -218,8 +292,27 @@ export const LoginPage: React.FC = () => {
                                 </m.div>
                             )}
 
+                            {adminLoginRequested && (
+                                <m.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className={cn(authWarningPanelClassName, 'mb-5 flex items-start gap-3')}>
+                                    <FaShieldAlt className="mt-1 shrink-0 text-amber-600" />
+                                    <div>
+                                        <p className="text-xs font-semibold text-amber-950">管理员会话</p>
+                                        <p className="mt-1 text-[11px] leading-5">登录后将进入管理后台，非管理员账号会被带回首页。</p>
+                                    </div>
+                                </m.div>
+                            )}
+
                             <form className={authFormClassName} onSubmit={handleSubmit}>
                                 {error && <div role="alert" aria-live="assertive" className={authAlertClassName}>{error}</div>}
+                                {attemptStatus && (
+                                    <div
+                                        role="status"
+                                        aria-live="polite"
+                                        className={attemptStatus.tone === 'locked' ? authWarningPanelClassName : authInfoPanelClassName}
+                                    >
+                                        {attemptStatus.message}
+                                    </div>
+                                )}
 
                                 <div>
                                     <label htmlFor="username" className={authLabelClassName}>邮箱或用户名</label>

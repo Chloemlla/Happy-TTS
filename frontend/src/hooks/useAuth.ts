@@ -14,6 +14,26 @@ export interface SavedAccount {
     lastActive: number;
 }
 
+interface LoginResponse {
+    user: User;
+    token: string;
+    requires2FA?: boolean;
+    twoFactorType?: string[];
+}
+
+type LoginResult =
+    | { requires2FA: true; user: User; token: string; twoFactorType: string[] }
+    | { requires2FA: false; user: User; token: string };
+
+export interface AuthRequestError extends Error {
+    status?: number;
+    code?: string;
+    remainingAttempts?: number;
+    attemptLimit?: number;
+    lockedUntil?: number;
+    retryAfterSeconds?: number;
+}
+
 const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
     try {
         const payload = token.split('.')[1];
@@ -270,9 +290,9 @@ export const useAuth = () => {
         }
     };
 
-    const login = async (username: string, password: string, cfToken?: string) => {
+    const login = async (username: string, password: string, cfToken?: string): Promise<LoginResult> => {
         try {
-            const response = await api.post<{ user: User; token: string; requires2FA?: boolean; twoFactorType?: string[] }>('/api/auth/login', {
+            const response = await api.post<LoginResponse>('/api/auth/login', {
                 identifier: username,
                 password,
                 ...(cfToken && { cfToken })
@@ -282,22 +302,30 @@ export const useAuth = () => {
             if (requires2FA && twoFactorType && twoFactorType.length > 0) {
                 setPending2FA({ userId: user.id, type: twoFactorType, username: user.username });
                 // 同时支持旧版的 pendingTOTP
-                if (twoFactorType.includes('totp')) setPendingTOTP({ userId: user.id });
+                if (twoFactorType.includes('TOTP')) setPendingTOTP({ userId: user.id });
                 return { requires2FA: true, user, token, twoFactorType };
             }
 
-            if (token) {
-                localStorage.setItem('token', token);
-                saveAccount(user, token);
-                setUser(user);
-                lastCheckRef.current = Date.now();
-                setLastCheckTime(Date.now());
-            }
-            return { requires2FA: false };
+            if (!token) throw new Error('登录响应缺少认证令牌');
+
+            localStorage.setItem('token', token);
+            saveAccount(user, token);
+            setUser(user);
+            lastCheckRef.current = Date.now();
+            setLastCheckTime(Date.now());
+            return { requires2FA: false, user, token };
         } catch (error: any) {
             console.error('[login error]', error);
-            const msg = error.response?.data?.error || error.message || '登录失败，请检查网络或稍后重试';
-            throw new Error(msg);
+            const errorData = error.response?.data || {};
+            const msg = errorData.error || error.message || '登录失败，请检查网络或稍后重试';
+            const authError = new Error(msg) as AuthRequestError;
+            authError.status = error.response?.status;
+            authError.code = errorData.code;
+            authError.remainingAttempts = errorData.remainingAttempts;
+            authError.attemptLimit = errorData.attemptLimit;
+            authError.lockedUntil = errorData.lockedUntil;
+            authError.retryAfterSeconds = errorData.retryAfterSeconds;
+            throw authError;
         }
     };
 
