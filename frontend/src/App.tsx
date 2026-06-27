@@ -604,6 +604,10 @@ const App: React.FC = () => {
     && Boolean(fingerprint)
     && (isIpBanned || (isFirstVisit && !isVerified));
   const toastPosition = isMobileNav ? 'bottom-center' : 'top-right';
+  const openTOTPManager = React.useCallback(() => {
+    setShowTOTPManager(true);
+  }, []);
+
   const closeTOTPManager = React.useCallback(() => {
     setShowTOTPManager(false);
     window.requestAnimationFrame(() => {
@@ -1075,9 +1079,18 @@ const App: React.FC = () => {
     fetchTOTPStatus();
   }, [user]);
 
-  const handleTOTPStatusChange = (status: TOTPStatus) => {
-    setTotpStatus(status);
-  };
+  const handleTOTPStatusChange = React.useCallback((status: TOTPStatus) => {
+    setTotpStatus((current) => {
+      const currentTypes = current?.type ?? [];
+      const nextTypes = status.type ?? [];
+      const sameStatus = current?.enabled === status.enabled
+        && current?.hasBackupCodes === status.hasBackupCodes
+        && currentTypes.length === nextTypes.length
+        && currentTypes.every((type, index) => type === nextTypes[index]);
+
+      return sameStatus ? current : status;
+    });
+  }, []);
 
   // 公告弹窗相关状态
   const [announcement, setAnnouncement] = useState<{ content: string; format: 'markdown' | 'html'; updatedAt: string } | null>(null);
@@ -1372,7 +1385,7 @@ const App: React.FC = () => {
                         <MobileNav
                           user={user}
                           logout={logout}
-                          onTOTPManagerOpen={() => setShowTOTPManager(true)}
+                          onTOTPManagerOpen={openTOTPManager}
                           totpStatus={totpStatus}
                         />
                       </Suspense>

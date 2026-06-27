@@ -44,15 +44,14 @@ import {
   FaVolumeUp,
 } from 'react-icons/fa';
 import getApiBaseUrl from '../api';
-import { useTwoFactorStatus } from '../hooks/useTwoFactorStatus';
 import { useAuth } from '../hooks/useAuth';
-import type { User } from '../types/auth';
+import type { TOTPStatus, User } from '../types/auth';
 
 interface MobileNavProps {
   user: User | null;
   logout: () => void;
   onTOTPManagerOpen: () => void;
-  totpStatus?: { enabled: boolean } | null;
+  totpStatus?: TOTPStatus | null;
 }
 
 interface NavItem {
@@ -105,7 +104,6 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
 }) => {
   const { savedAccounts, switchAccount, removeAccountFromList, logoutAll } = useAuth();
   const location = useLocation();
-  const twoFactorStatus = useTwoFactorStatus();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const desktopNavRef = useRef<HTMLDivElement>(null);
 
@@ -312,15 +310,15 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
   }, [savedAccounts, user]);
 
   const effectiveTwoFactorStatus = useMemo(() => {
-    const statusTypes = Array.isArray(twoFactorStatus.type) ? twoFactorStatus.type : [];
-    const enabled = Boolean(totpStatus?.enabled || twoFactorStatus.enabled);
+    const statusTypes = Array.isArray(totpStatus?.type) ? totpStatus.type : [];
+    const enabled = Boolean(totpStatus?.enabled || statusTypes.length > 0);
     const typeText = statusTypes.length > 0 ? statusTypes.join(' / ') : 'TOTP';
 
     return {
       enabled,
       label: enabled ? typeText : '未启用',
     };
-  }, [totpStatus?.enabled, twoFactorStatus.enabled, twoFactorStatus.type]);
+  }, [totpStatus?.enabled, totpStatus?.type]);
 
   const isRouteActive = useCallback((item: Pick<NavItem, 'to' | 'matchChildren'>) => {
     if (item.to === '/') return location.pathname === '/';
