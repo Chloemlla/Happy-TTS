@@ -908,7 +908,7 @@ const CommandManager: React.FC = () => {
             </div>
             <div className="mt-1 text-xs text-gray-500 flex items-center gap-1">
               <FaInfoCircle className="text-blue-500" />
-              默认管理员密码: <code className="bg-gray-100 px-1 rounded">admin</code>
+              可在 EnvManager 的管理员安全配置中修改
             </div>
           </div>
         </div>

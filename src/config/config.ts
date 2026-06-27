@@ -6,6 +6,7 @@ import { RuntimeConfigService } from "../services/runtimeConfigService";
 import {
   buildRuntimeConfigDefaults,
   type DeepLXRuntimeConfig,
+  type AdminSecurityRuntimeConfig,
   type EmailRuntimeConfig,
   type GoogleAuthRuntimeConfig,
   type IpqsRuntimeConfig,
@@ -69,6 +70,7 @@ const envSchema = z
     OPENAI_SPEED: z.string().optional().default("1.0"),
     ADMIN_USERNAME: z.string().optional().default("admin"),
     ADMIN_PASSWORD: optionalTrimmedString,
+    ADMIN_OPERATION_PASSWORD: optionalTrimmedString,
     GENERATION_CODE: z.string().optional().default("admin"),
     JWT_SECRET: optionalTrimmedString,
     JWT_EXPIRES_IN: z
@@ -272,6 +274,7 @@ const frontendBaseUrl = parsedEnv.FRONTEND_URL || "https://tts.chloemlla.com";
 const openaiApiKey = parsedEnv.OPENAI_KEY || parsedEnv.OPENAI_API_KEY;
 const jwtSecret = parsedEnv.JWT_SECRET || generateEphemeralSecret();
 const adminPassword = parsedEnv.NODE_ENV === "production" ? parsedEnv.ADMIN_PASSWORD! : parsedEnv.ADMIN_PASSWORD || "admin";
+const adminOperationPassword = parsedEnv.ADMIN_OPERATION_PASSWORD || adminPassword;
 const publicShortUrlEnabled = parsedEnv.PUBLIC_SHORT_URL_ENABLED === true;
 const publicShortUrlPassword = parsedEnv.PUBLIC_SHORT_URL_PASSWORD;
 const rustServicesEnabledByDefault = defaultRustServicesEnabled(parsedEnv.NODE_ENV);
@@ -300,13 +303,17 @@ export const compileTimeConfig = Object.freeze({
   audioDir: path.join(process.cwd(), "finish"),
   dataDir: path.join(process.cwd(), "data"),
   logsDir: path.join(process.cwd(), "logs"),
-  runtimeMutableKeys: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "EMAIL"] as const,
+  runtimeMutableKeys: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "EMAIL", "ADMIN_SECURITY"] as const,
 });
 
 const runtimeDefaults = buildRuntimeConfigDefaults({
   baseUrl,
   frontendBaseUrl,
   jwtSecret,
+  adminPassword: adminOperationPassword,
+  serverStatusPassword: parsedEnv.SERVER_PASSWORD,
+  publicShortUrlEnabled,
+  publicShortUrlPassword,
   generationCode: parsedEnv.GENERATION_CODE,
   email: emailRuntimeDefaults,
 });
@@ -462,6 +469,9 @@ export const runtimeMutableConfig = {
   get email(): EmailRuntimeConfig {
     return RuntimeConfigService.getCachedConfig().email;
   },
+  get adminSecurity(): AdminSecurityRuntimeConfig {
+    return RuntimeConfigService.getCachedConfig().adminSecurity;
+  },
 };
 
 export const config = {
@@ -494,7 +504,19 @@ export const config = {
   enableFirstVisitVerification: startupConfig.security.enableFirstVisitVerification,
   frontendBaseUrl: startupConfig.frontendBaseUrl,
   auditLogMasking: startupConfig.security.auditLogMasking,
-  publicShortUrl: startupConfig.publicShortUrl,
+  get adminOperationPassword() {
+    return runtimeMutableConfig.adminSecurity.operationPassword;
+  },
+  get serverStatusPassword() {
+    return runtimeMutableConfig.adminSecurity.serverStatusPassword;
+  },
+  get publicShortUrl() {
+    const adminSecurity = runtimeMutableConfig.adminSecurity;
+    return {
+      enabled: adminSecurity.publicShortUrlEnabled,
+      password: adminSecurity.publicShortUrlPassword,
+    };
+  },
   rustServices: startupConfig.rustServices,
   get ipqs() {
     return runtimeMutableConfig.ipqs;

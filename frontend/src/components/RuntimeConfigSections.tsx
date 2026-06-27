@@ -8,8 +8,9 @@ const LINUXDO_API = getApiBaseUrl() + '/api/admin/linuxdo/setting';
 const GOOGLE_AUTH_API = getApiBaseUrl() + '/api/admin/google-auth/setting';
 const DEEPLX_API = getApiBaseUrl() + '/api/admin/deeplx/setting';
 const NEXAI_API = getApiBaseUrl() + '/api/admin/nexai/setting';
+const ADMIN_SECURITY_API = getApiBaseUrl() + '/api/admin/admin-security/setting';
 
-type RuntimeConfigSectionKey = 'ipqs' | 'linuxdo' | 'googleAuth' | 'deeplx' | 'nexai';
+type RuntimeConfigSectionKey = 'ipqs' | 'linuxdo' | 'googleAuth' | 'deeplx' | 'nexai' | 'adminSecurity';
 
 function getAuthHeaders(): Record<string, string> {
   const token = localStorage.getItem('token');
@@ -79,6 +80,16 @@ interface NexaiSettingResponse {
       clientSecret: string;
     };
     frontendUrl: string;
+  };
+  updatedAt?: string;
+}
+
+interface AdminSecuritySettingResponse {
+  config: {
+    operationPassword: string;
+    serverStatusPassword: string;
+    publicShortUrlEnabled: boolean;
+    publicShortUrlPassword: string;
   };
   updatedAt?: string;
 }
@@ -240,6 +251,17 @@ const RuntimeConfigSections: React.FC = () => {
     googleClientId: '',
     githubClientId: '',
     frontendUrl: '',
+  });
+
+  const [adminSecuritySetting, setAdminSecuritySetting] = useState<AdminSecuritySettingResponse | null>(null);
+  const [adminSecurityLoading, setAdminSecurityLoading] = useState(false);
+  const [adminSecuritySaving, setAdminSecuritySaving] = useState(false);
+  const [adminSecurityDeleting, setAdminSecurityDeleting] = useState(false);
+  const [adminOperationPasswordInput, setAdminOperationPasswordInput] = useState('');
+  const [serverStatusPasswordInput, setServerStatusPasswordInput] = useState('');
+  const [publicShortUrlPasswordInput, setPublicShortUrlPasswordInput] = useState('');
+  const [adminSecurityForm, setAdminSecurityForm] = useState({
+    publicShortUrlEnabled: false,
   });
 
   const [expandedSections, setExpandedSections] = useState<Set<RuntimeConfigSectionKey>>(() => new Set());
@@ -435,6 +457,37 @@ const RuntimeConfigSections: React.FC = () => {
     }
   }, [handleRequestError, setNotification]);
 
+  const fetchAdminSecuritySetting = useCallback(async () => {
+    setAdminSecurityLoading(true);
+    try {
+      const res = await fetch(ADMIN_SECURITY_API, { headers: getAuthHeaders() });
+      if (!res.ok) {
+        await handleRequestError(res, '获取管理员安全配置失败');
+        return;
+      }
+      const data = await res.json();
+      const setting = data?.setting as AdminSecuritySettingResponse | undefined;
+      if (!setting) {
+        setAdminSecuritySetting(null);
+        return;
+      }
+      setAdminSecuritySetting(setting);
+      setAdminSecurityForm({
+        publicShortUrlEnabled: Boolean(setting.config.publicShortUrlEnabled),
+      });
+      setAdminOperationPasswordInput('');
+      setServerStatusPasswordInput('');
+      setPublicShortUrlPasswordInput('');
+    } catch (error) {
+      setNotification({
+        message: error instanceof Error ? error.message : '获取管理员安全配置失败',
+        type: 'error',
+      });
+    } finally {
+      setAdminSecurityLoading(false);
+    }
+  }, [handleRequestError, setNotification]);
+
   useEffect(() => {
     const lazyMap: Record<RuntimeConfigSectionKey, () => Promise<void> | void> = {
       ipqs: fetchIpqsSetting,
@@ -442,6 +495,7 @@ const RuntimeConfigSections: React.FC = () => {
       googleAuth: fetchGoogleAuthSetting,
       deeplx: fetchDeepLXSetting,
       nexai: fetchNexaiSetting,
+      adminSecurity: fetchAdminSecuritySetting,
     };
 
     for (const key of expandedSections) {
@@ -452,6 +506,7 @@ const RuntimeConfigSections: React.FC = () => {
     }
   }, [
     expandedSections,
+    fetchAdminSecuritySetting,
     fetchDeepLXSetting,
     fetchGoogleAuthSetting,
     fetchIpqsSetting,
@@ -773,6 +828,74 @@ const RuntimeConfigSections: React.FC = () => {
     }
   }, [fetchNexaiSetting, handleRequestError, setNotification]);
 
+  const saveAdminSecuritySetting = useCallback(async () => {
+    setAdminSecuritySaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        publicShortUrlEnabled: adminSecurityForm.publicShortUrlEnabled,
+      };
+      if (adminOperationPasswordInput.trim()) {
+        payload.operationPassword = adminOperationPasswordInput.trim();
+      }
+      if (serverStatusPasswordInput.trim()) {
+        payload.serverStatusPassword = serverStatusPasswordInput.trim();
+      }
+      if (publicShortUrlPasswordInput.trim()) {
+        payload.publicShortUrlPassword = publicShortUrlPasswordInput.trim();
+      }
+
+      const res = await fetch(ADMIN_SECURITY_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        await handleRequestError(res, '保存管理员安全配置失败');
+        return;
+      }
+      setNotification({ message: '管理员安全配置已保存', type: 'success' });
+      await fetchAdminSecuritySetting();
+    } catch (error) {
+      setNotification({
+        message: error instanceof Error ? error.message : '保存管理员安全配置失败',
+        type: 'error',
+      });
+    } finally {
+      setAdminSecuritySaving(false);
+    }
+  }, [
+    adminOperationPasswordInput,
+    adminSecurityForm.publicShortUrlEnabled,
+    fetchAdminSecuritySetting,
+    handleRequestError,
+    publicShortUrlPasswordInput,
+    serverStatusPasswordInput,
+    setNotification,
+  ]);
+
+  const deleteAdminSecuritySetting = useCallback(async () => {
+    setAdminSecurityDeleting(true);
+    try {
+      const res = await fetch(ADMIN_SECURITY_API, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) {
+        await handleRequestError(res, '删除管理员安全配置失败');
+        return;
+      }
+      setNotification({ message: '管理员安全配置已重置', type: 'success' });
+      await fetchAdminSecuritySetting();
+    } catch (error) {
+      setNotification({
+        message: error instanceof Error ? error.message : '删除管理员安全配置失败',
+        type: 'error',
+      });
+    } finally {
+      setAdminSecurityDeleting(false);
+    }
+  }, [fetchAdminSecuritySetting, handleRequestError, setNotification]);
+
   const deeplxRequestUrlPreview = deeplxApiKeyInput.trim()
     ? buildDeepLXRequestUrl(deeplxForm.baseUrl, deeplxApiKeyInput.trim())
     : deeplxSetting?.config.requestUrl || buildDeepLXRequestUrl(deeplxForm.baseUrl);
@@ -783,6 +906,78 @@ const RuntimeConfigSections: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <SectionCard
+        title="管理员安全配置"
+        description="管理登录系统之外的管理员操作密码、服务器状态密码和公共短链服务密码。"
+        isOpen={isSectionOpen('adminSecurity')}
+        loading={isRuntimeSectionLoading('adminSecurity', adminSecurityLoading)}
+        onToggle={() => toggleSection('adminSecurity')}
+        onRefresh={() => refreshSection('adminSecurity', fetchAdminSecuritySetting)}
+      >
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <FieldLabel label="管理员操作密码" hint={adminSecuritySetting?.config.operationPassword || '未配置'} />
+            <input
+              type="password"
+              value={adminOperationPasswordInput}
+              onChange={(e) => setAdminOperationPasswordInput(e.target.value)}
+              placeholder="用于 LogShare、CommandManager，留空表示保持现有"
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+            />
+          </div>
+          <div>
+            <FieldLabel label="服务器状态密码" hint={adminSecuritySetting?.config.serverStatusPassword || '未配置'} />
+            <input
+              type="password"
+              value={serverStatusPasswordInput}
+              onChange={(e) => setServerStatusPasswordInput(e.target.value)}
+              placeholder="用于服务器状态接口，留空表示保持现有"
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+            />
+          </div>
+          <div>
+            <FieldLabel label="公共短链服务密码" hint={adminSecuritySetting?.config.publicShortUrlPassword || '未配置'} />
+            <input
+              type="password"
+              value={publicShortUrlPasswordInput}
+              onChange={(e) => setPublicShortUrlPasswordInput(e.target.value)}
+              placeholder="用于匿名公共短链创建，留空表示保持现有"
+              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+            />
+          </div>
+          <label className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={adminSecurityForm.publicShortUrlEnabled}
+              onChange={(e) => setAdminSecurityForm((prev) => ({ ...prev, publicShortUrlEnabled: e.target.checked }))}
+            />
+            <span>启用公共短链匿名创建</span>
+          </label>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <UpdatedAt value={adminSecuritySetting?.updatedAt} />
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={deleteAdminSecuritySetting}
+              disabled={adminSecurityDeleting}
+              className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-700 disabled:opacity-60"
+            >
+              {adminSecurityDeleting ? '重置中...' : '重置'}
+            </button>
+            <button
+              type="button"
+              onClick={saveAdminSecuritySetting}
+              disabled={adminSecuritySaving}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+            >
+              {adminSecuritySaving ? '保存中...' : '保存'}
+            </button>
+          </div>
+        </div>
+      </SectionCard>
+
       <SectionCard
         title="IPQS 运行时配置"
         description="通过 EnvManager 直接管理风控开关、配额和 API Key，不再依赖环境变量。"

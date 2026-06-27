@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { startupConfig } from "../config/config";
+import { config } from "../config/config";
 
 export interface ServerStatusSnapshot {
   boot_time: string;
@@ -37,7 +37,7 @@ export function isServerStatusPasswordValid(candidate: unknown): boolean {
     return false;
   }
 
-  return timingSafeStringEqual(candidate, startupConfig.serverPassword);
+  return timingSafeStringEqual(candidate, config.serverStatusPassword);
 }
 
 export function getServerStatusSnapshot(): ServerStatusSnapshot {

@@ -1,9 +1,9 @@
 import * as crypto from "node:crypto";
 import { type RequestHandler, Router } from "express";
-import { config } from "../config/config";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { commandLimiter } from "../middleware/routeLimiters";
 import { commandService } from "../services/commandService";
+import { isAdminOperationPasswordValid } from "../utils/adminOperationPassword";
 
 const router = Router();
 
@@ -43,7 +43,7 @@ router.post("/y", commandLimiter, authenticateToken, async (req, res) => {
   }
 
   // 验证密码
-  if (password !== config.adminPassword) {
+  if (!isAdminOperationPasswordValid(password)) {
     console.log("❌ [CommandManager] 密码验证失败");
     return res.status(403).json({ error: "密码错误" });
   }
@@ -209,7 +209,7 @@ router.post("/execute", commandLimiter, async (req, res) => {
     const { command, password } = req.body;
 
     // 验证密码
-    if (password !== config.adminPassword) {
+    if (!isAdminOperationPasswordValid(password)) {
       return res.status(403).json({ error: "密码错误" });
     }
 
@@ -264,7 +264,7 @@ router.post("/status", (req, res) => {
     const { password } = req.body;
 
     // 验证密码
-    if (password !== config.adminPassword) {
+    if (!isAdminOperationPasswordValid(password)) {
       return res.status(403).json({ error: "密码错误" });
     }
 
@@ -354,7 +354,7 @@ router.post("/clear-history", commandLimiter, authenticateToken, async (req, res
     const { password } = req.body;
 
     // 验证密码
-    if (password !== config.adminPassword) {
+    if (!isAdminOperationPasswordValid(password)) {
       return res.status(403).json({ error: "密码错误" });
     }
 
@@ -396,7 +396,7 @@ router.post("/clear-queue", commandLimiter, authenticateToken, async (req, res) 
     const { password } = req.body;
 
     // 验证密码
-    if (password !== config.adminPassword) {
+    if (!isAdminOperationPasswordValid(password)) {
       return res.status(403).json({ error: "密码错误" });
     }
 

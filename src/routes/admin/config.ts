@@ -127,6 +127,9 @@ router.delete("/deeplx/setting", adminController.deleteDeepLXSetting);
 router.get("/nexai/setting", adminController.getNexaiSetting);
 router.post("/nexai/setting", adminController.setNexaiSetting);
 router.delete("/nexai/setting", adminController.deleteNexaiSetting);
+router.get("/admin-security/setting", adminController.getAdminSecuritySetting);
+router.post("/admin-security/setting", adminController.setAdminSecuritySetting);
+router.delete("/admin-security/setting", adminController.deleteAdminSecuritySetting);
 
 // Webhook Secret management (admin)
 router.get("/webhook/secret", adminController.getWebhookSecret);

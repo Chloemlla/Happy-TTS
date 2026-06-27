@@ -5,11 +5,11 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import multer from "multer";
 import * as tar from "tar";
-import { config } from "../config/config";
 import { authenticateToken } from "../middleware/authenticateToken";
 import ArchiveModel from "../models/archiveModel";
 import { IPFSService } from "../services/ipfsService";
 import { connectMongo, mongoose } from "../services/mongoService";
+import { isAdminOperationPasswordValid } from "../utils/adminOperationPassword";
 import { firstString } from "../utils/httpParam";
 import logger from "../utils/logger";
 import { UserStorage } from "../utils/userStorage";
@@ -125,10 +125,7 @@ async function checkAdminPassword(password: string) {
   if (!password) {
     return false;
   }
-  if (password === config.adminPassword) {
-    return true;
-  }
-  if (process.env.NODE_ENV === "test" && password === (process.env.TEST_ADMIN_PASSWORD || "admin")) {
+  if (isAdminOperationPasswordValid(password)) {
     return true;
   }
 

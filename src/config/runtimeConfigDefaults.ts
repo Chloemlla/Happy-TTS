@@ -64,6 +64,13 @@ export interface EmailRuntimeConfig {
   outemailQuotaTotal: number;
 }
 
+export interface AdminSecurityRuntimeConfig {
+  operationPassword: string;
+  serverStatusPassword: string;
+  publicShortUrlEnabled: boolean;
+  publicShortUrlPassword: string;
+}
+
 export interface RuntimeConfigDefaults {
   ipqs: IpqsRuntimeConfig;
   linuxdo: LinuxDoRuntimeConfig;
@@ -72,12 +79,17 @@ export interface RuntimeConfigDefaults {
   nexai: NexaiRuntimeConfig;
   tts: TtsRuntimeConfig;
   email: EmailRuntimeConfig;
+  adminSecurity: AdminSecurityRuntimeConfig;
 }
 
 export function buildRuntimeConfigDefaults(options: {
   baseUrl: string;
   frontendBaseUrl: string;
   jwtSecret: string;
+  adminPassword: string;
+  serverStatusPassword: string;
+  publicShortUrlEnabled: boolean;
+  publicShortUrlPassword?: string;
   generationCode: string;
   email: EmailRuntimeConfig;
 }): RuntimeConfigDefaults {
@@ -136,6 +148,12 @@ export function buildRuntimeConfigDefaults(options: {
     email: {
       ...options.email,
     },
+    adminSecurity: {
+      operationPassword: options.adminPassword,
+      serverStatusPassword: options.serverStatusPassword,
+      publicShortUrlEnabled: options.publicShortUrlEnabled,
+      publicShortUrlPassword: options.publicShortUrlPassword || "",
+    },
   };
 }
 
@@ -169,6 +187,9 @@ export function cloneRuntimeConfigDefaults(config: RuntimeConfigDefaults): Runti
     },
     email: {
       ...config.email,
+    },
+    adminSecurity: {
+      ...config.adminSecurity,
     },
   };
 }

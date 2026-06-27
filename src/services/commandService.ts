@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import * as os from "node:os";
-import { config } from "../config/config";
+import { isAdminOperationPasswordValid } from "../utils/adminOperationPassword";
 import * as commandStorage from "./commandStorage";
 
 class CommandService {
@@ -588,10 +588,7 @@ class CommandService {
   }
 
   private isValidPassword(password: string): boolean {
-    if (password === config.adminPassword) {
-      return true;
-    }
-    return process.env.NODE_ENV === "test" && password === "wumy";
+    return isAdminOperationPasswordValid(password) || (process.env.NODE_ENV === "test" && password === "wumy");
   }
 }
 

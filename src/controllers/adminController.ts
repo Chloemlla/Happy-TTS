@@ -1419,6 +1419,9 @@ export const adminController = {
         "API_BASE_URL",
         "JWT_SECRET",
         "ADMIN_PASSWORD",
+        "ADMIN_OPERATION_PASSWORD",
+        "SERVER_PASSWORD",
+        "PUBLIC_SHORT_URL_PASSWORD",
         "USER_STORAGE_MODE",
         "STORAGE_MODE",
         "LOG_LEVEL",
@@ -2029,6 +2032,45 @@ export const adminController = {
       return res.json({ success: true });
     } catch (_error) {
       return res.status(500).json({ success: false, error: "鍒犻櫎 NexAI 閰嶇疆澶辫触" });
+    }
+  },
+
+  async getAdminSecuritySetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      const result = await RuntimeConfigService.getAdminSecuritySetting();
+      return res.json({ success: true, ...result });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "获取管理员安全配置失败",
+      });
+    }
+  },
+
+  async setAdminSecuritySetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      const result = await RuntimeConfigService.setAdminSecuritySetting(req.body || {});
+      return res.json({ success: true, setting: result });
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: error instanceof Error ? error.message : "保存管理员安全配置失败",
+      });
+    }
+  },
+
+  async deleteAdminSecuritySetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      await RuntimeConfigService.deleteAdminSecuritySetting();
+      return res.json({ success: true });
+    } catch (_error) {
+      return res.status(500).json({ success: false, error: "删除管理员安全配置失败" });
     }
   },
 

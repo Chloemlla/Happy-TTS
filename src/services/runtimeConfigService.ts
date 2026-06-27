@@ -1,6 +1,7 @@
 import {
   buildRuntimeConfigDefaults,
   cloneRuntimeConfigDefaults,
+  type AdminSecurityRuntimeConfig,
   type DeepLXRuntimeConfig,
   type EmailRuntimeConfig,
   type GoogleAuthRuntimeConfig,
@@ -27,6 +28,10 @@ let runtimeConfigDefaults: RuntimeConfigDefaults = buildRuntimeConfigDefaults({
   baseUrl: FALLBACK_BASE_URL,
   frontendBaseUrl: FALLBACK_FRONTEND_URL,
   jwtSecret: FALLBACK_JWT_SECRET,
+  adminPassword: "admin",
+  serverStatusPassword: "wmy",
+  publicShortUrlEnabled: false,
+  publicShortUrlPassword: "",
   generationCode: "",
   email: {
     enabled: false,
@@ -267,6 +272,20 @@ function normalizeStoredEmailConfig(value: unknown, defaults = runtimeConfigDefa
   };
 }
 
+function normalizeStoredAdminSecurityConfig(
+  value: unknown,
+  defaults = runtimeConfigDefaults.adminSecurity,
+): AdminSecurityRuntimeConfig {
+  const raw = asObject(value);
+
+  return {
+    operationPassword: normalizeOptionalString(raw.operationPassword, defaults.operationPassword, 1024),
+    serverStatusPassword: normalizeOptionalString(raw.serverStatusPassword, defaults.serverStatusPassword, 1024),
+    publicShortUrlEnabled: normalizeBoolean(raw.publicShortUrlEnabled, defaults.publicShortUrlEnabled),
+    publicShortUrlPassword: normalizeOptionalString(raw.publicShortUrlPassword, defaults.publicShortUrlPassword, 1024),
+  };
+}
+
 async function readRuntimeConfigDoc(
   key: RuntimeConfigKey,
 ): Promise<{ value: Record<string, unknown>; updatedAt?: Date } | null> {
@@ -312,6 +331,11 @@ function applyCacheForKey(key: RuntimeConfigKey, value: unknown): void {
     return;
   }
 
+  if (key === "ADMIN_SECURITY") {
+    runtimeConfigCache.adminSecurity = normalizeStoredAdminSecurityConfig(value);
+    return;
+  }
+
   runtimeConfigCache.nexai = normalizeStoredNexaiConfig(value);
 }
 
@@ -340,6 +364,9 @@ export class RuntimeConfigService {
     if (!loadedKeys.has("EMAIL")) {
       runtimeConfigCache.email = cloneRuntimeConfigDefaults(defaults).email;
     }
+    if (!loadedKeys.has("ADMIN_SECURITY")) {
+      runtimeConfigCache.adminSecurity = cloneRuntimeConfigDefaults(defaults).adminSecurity;
+    }
   }
 
   static getCachedConfig(): RuntimeConfigDefaults {
@@ -351,7 +378,7 @@ export class RuntimeConfigService {
     if (initialized && !force) return;
 
     const docs = await RuntimeConfigModel.find({
-      key: { $in: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "EMAIL"] },
+      key: { $in: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "EMAIL", "ADMIN_SECURITY"] },
     })
       .lean()
       .exec();
@@ -369,6 +396,7 @@ export class RuntimeConfigService {
       nextCache.nexai = runtimeConfigCache.nexai;
       nextCache.tts = runtimeConfigCache.tts;
       nextCache.email = runtimeConfigCache.email;
+      nextCache.adminSecurity = runtimeConfigCache.adminSecurity;
       loadedKeys.add(doc.key as RuntimeConfigKey);
     }
 
@@ -904,5 +932,84 @@ export class RuntimeConfigService {
     await RuntimeConfigModel.deleteOne({ key: "EMAIL" }).exec();
     runtimeConfigCache.email = cloneRuntimeConfigDefaults(runtimeConfigDefaults).email;
     loadedKeys.delete("EMAIL");
+  }
+
+  static async getAdminSecuritySetting(): Promise<{
+    setting: {
+      config: Omit<AdminSecurityRuntimeConfig, "operationPassword" | "serverStatusPassword" | "publicShortUrlPassword"> & {
+        operationPassword: string;
+        serverStatusPassword: string;
+        publicShortUrlPassword: string;
+      };
+      updatedAt?: string;
+    };
+  }> {
+    const doc = await readRuntimeConfigDoc("ADMIN_SECURITY");
+    const config = doc ? normalizeStoredAdminSecurityConfig(doc.value) : runtimeConfigDefaults.adminSecurity;
+    runtimeConfigCache.adminSecurity = config;
+
+    return {
+      setting: {
+        config: {
+          operationPassword: maskSecret(config.operationPassword),
+          serverStatusPassword: maskSecret(config.serverStatusPassword),
+          publicShortUrlEnabled: config.publicShortUrlEnabled,
+          publicShortUrlPassword: maskSecret(config.publicShortUrlPassword),
+        },
+        updatedAt: doc?.updatedAt?.toISOString(),
+      },
+    };
+  }
+
+  static async setAdminSecuritySetting(input: Partial<AdminSecurityRuntimeConfig>): Promise<{ updatedAt: string }> {
+    const currentDoc = await readRuntimeConfigDoc("ADMIN_SECURITY");
+    const current = currentDoc
+      ? normalizeStoredAdminSecurityConfig(currentDoc.value)
+      : runtimeConfigCache.adminSecurity;
+
+    const nextConfig: AdminSecurityRuntimeConfig = {
+      operationPassword:
+        typeof input.operationPassword === "string" && input.operationPassword.trim().length > 0
+          ? input.operationPassword.trim().slice(0, 1024)
+          : current.operationPassword,
+      serverStatusPassword:
+        typeof input.serverStatusPassword === "string" && input.serverStatusPassword.trim().length > 0
+          ? input.serverStatusPassword.trim().slice(0, 1024)
+          : current.serverStatusPassword,
+      publicShortUrlEnabled: normalizeBoolean(input.publicShortUrlEnabled, current.publicShortUrlEnabled),
+      publicShortUrlPassword:
+        typeof input.publicShortUrlPassword === "string" && input.publicShortUrlPassword.trim().length > 0
+          ? input.publicShortUrlPassword.trim().slice(0, 1024)
+          : current.publicShortUrlPassword,
+    };
+
+    if (!nextConfig.operationPassword) {
+      throw new Error("管理员操作密码不能为空");
+    }
+    if (!nextConfig.serverStatusPassword) {
+      throw new Error("服务器状态密码不能为空");
+    }
+    if (nextConfig.publicShortUrlEnabled && !nextConfig.publicShortUrlPassword) {
+      throw new Error("启用公共短链创建前需要配置服务密码");
+    }
+
+    const now = new Date();
+    await RuntimeConfigModel.findOneAndUpdate(
+      { key: "ADMIN_SECURITY" },
+      { value: nextConfig, updatedAt: now },
+      { upsert: true, returnDocument: "after" },
+    ).exec();
+
+    runtimeConfigCache.adminSecurity = nextConfig;
+    loadedKeys.add("ADMIN_SECURITY");
+    initialized = true;
+
+    return { updatedAt: now.toISOString() };
+  }
+
+  static async deleteAdminSecuritySetting(): Promise<void> {
+    await RuntimeConfigModel.deleteOne({ key: "ADMIN_SECURITY" }).exec();
+    runtimeConfigCache.adminSecurity = cloneRuntimeConfigDefaults(runtimeConfigDefaults).adminSecurity;
+    loadedKeys.delete("ADMIN_SECURITY");
   }
 }
