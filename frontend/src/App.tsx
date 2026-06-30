@@ -46,6 +46,7 @@ const ResetPasswordPage = React.lazy(() => import('./components/ResetPasswordPag
 const EmailVerifyPage = React.lazy(() => import('./components/EmailVerifyPage').then(module => ({ default: module.EmailVerifyPage })));
 const ResetPasswordLinkPage = React.lazy(() => import('./components/ResetPasswordLinkPage').then(module => ({ default: module.ResetPasswordLinkPage })));
 const TtsPage = React.lazy(() => import('./components/TtsPage').then(module => ({ default: module.TtsPage })));
+const LegacyApiChoicePage = React.lazy(() => import('./components/LegacyApiChoicePage'));
 const PolicyPage = React.lazy(() => import('./components/PolicyPage'));
 const Footer = React.lazy(() => import('./components/Footer'));
 const UserManagement = React.lazy(() => import('./components/UserManagement'));
@@ -1417,6 +1418,7 @@ const App: React.FC = () => {
               <Suspense fallback={<RouteLoadingShell />}>
                 <AnimatePresence mode="wait">
                   <Routes location={location} key={location.pathname}>
+                    <Route path="/legacy-api-choice" element={renderAnimatedRoute(<LegacyApiChoicePage />)} />
                     <Route path="/api-docs" element={renderAnimatedRoute(<ApiDocs />)} />
                     <Route path="/policy" element={renderAnimatedRoute(<PolicyPage />)} />
                     <Route path="/fbi-wanted" element={renderAnimatedRoute(<FBIWantedPublic />)} />

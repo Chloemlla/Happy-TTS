@@ -30,18 +30,19 @@ describe("legacyApiRedirectMiddleware", () => {
       .expect("X-Canonical-API-Path", "/api/admin/users");
   });
 
-  it("shows a choice page for browser document navigation on frontend/API route collisions", async () => {
+  it("redirects browser document navigation on frontend/API route collisions to the frontend choice page", async () => {
     const response = await request(createApp())
       .get("/admin?tab=oauth")
       .set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
       .set("Sec-Fetch-Mode", "navigate")
       .set("Sec-Fetch-Dest", "document")
-      .expect(300)
+      .expect(302)
       .expect("X-Canonical-API-Path", "/api/admin");
 
-    expect(response.text).toContain("This address has two destinations");
-    expect(response.text).toContain("/api/admin?tab=oauth");
-    expect(response.text).toContain("/admin?tab=oauth");
+    const location = new URL(response.headers.location, "http://local.invalid");
+    expect(location.pathname).toBe("/legacy-api-choice");
+    expect(location.searchParams.get("from")).toBe("/admin?tab=oauth");
+    expect(location.searchParams.get("api")).toBe("/api/admin?tab=oauth");
   });
 
   it("passes remembered frontend choices through to the frontend route", async () => {

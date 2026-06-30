@@ -76,6 +76,7 @@ const frontendRoutesWithLegacyApiCollision = new Set<string>([
 
 const legacyApiChoiceCookieName = "legacyApiNavigationChoice";
 const legacyApiFrontendBypassCookieName = "legacyApiFrontendBypass";
+const legacyApiChoicePagePath = "/legacy-api-choice";
 const legacyApiChoiceQueryParam = "__legacy_api_choice";
 const legacyApiRememberQueryParam = "__legacy_api_remember";
 const persistentChoiceMaxAgeSeconds = 60 * 60 * 24 * 180;
@@ -240,173 +241,17 @@ function getCanonicalLocation(req: Request, canonicalPath: string): string {
   return `${url.pathname}${url.search}`;
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-function renderHiddenQueryInputs(req: Request): string {
-  const url = new URL(req.originalUrl, "http://local.invalid");
-  url.searchParams.delete(legacyApiChoiceQueryParam);
-  url.searchParams.delete(legacyApiRememberQueryParam);
-
-  return Array.from(url.searchParams.entries())
-    .map(
-      ([name, value]) =>
-        `<input type="hidden" name="${escapeHtml(name)}" value="${escapeHtml(value)}">`,
-    )
-    .join("");
-}
-
 function isFrontendRouteWithLegacyApiCollision(pathname: string): boolean {
   return frontendRoutesWithLegacyApiCollision.has(pathname);
 }
 
-function sendLegacyApiChoicePage(req: Request, res: Response, canonicalPath: string): void {
-  const frontendPath = getCleanOriginalUrl(req);
-  const canonicalLocation = getCanonicalLocation(req, canonicalPath);
+function getLegacyApiChoicePageLocation(req: Request, canonicalPath: string): string {
+  const params = new URLSearchParams({
+    from: getCleanOriginalUrl(req),
+    api: getCanonicalLocation(req, canonicalPath),
+  });
 
-  res.status(300);
-  res.setHeader("Content-Type", "text/html; charset=utf-8");
-  res.setHeader("Cache-Control", "no-store");
-  res.setHeader("X-Canonical-API-Path", canonicalPath);
-  res.send(`<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Choose destination</title>
-  <style>
-    :root {
-      color-scheme: light dark;
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-    body {
-      min-height: 100vh;
-      margin: 0;
-      display: grid;
-      place-items: center;
-      background: #f6f7f9;
-      color: #17202a;
-    }
-    main {
-      width: min(560px, calc(100vw - 32px));
-      padding: 28px;
-      border: 1px solid #d7dde5;
-      border-radius: 8px;
-      background: #fff;
-      box-shadow: 0 18px 50px rgba(23, 32, 42, 0.12);
-    }
-    h1 {
-      margin: 0 0 12px;
-      font-size: 24px;
-      line-height: 1.25;
-    }
-    p {
-      margin: 0 0 18px;
-      line-height: 1.55;
-      color: #4a5565;
-    }
-    code {
-      display: block;
-      padding: 10px 12px;
-      margin: 8px 0;
-      overflow-wrap: anywhere;
-      border-radius: 6px;
-      background: #eef2f7;
-      color: #17202a;
-      font-size: 13px;
-    }
-    .remember {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin: 20px 0;
-      color: #344054;
-      font-size: 14px;
-    }
-    .actions {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
-    }
-    button {
-      min-height: 44px;
-      border: 1px solid #b8c2cc;
-      border-radius: 6px;
-      background: #fff;
-      color: #17202a;
-      font: inherit;
-      font-weight: 650;
-      cursor: pointer;
-    }
-    button[value="api"] {
-      border-color: #0f766e;
-      background: #0f766e;
-      color: #fff;
-    }
-    @media (max-width: 520px) {
-      main {
-        padding: 22px;
-      }
-      .actions {
-        grid-template-columns: 1fr;
-      }
-    }
-    @media (prefers-color-scheme: dark) {
-      body {
-        background: #111827;
-        color: #f8fafc;
-      }
-      main {
-        border-color: #334155;
-        background: #182235;
-        box-shadow: none;
-      }
-      p,
-      .remember {
-        color: #cbd5e1;
-      }
-      code {
-        background: #0f172a;
-        color: #e2e8f0;
-      }
-      button {
-        border-color: #64748b;
-        background: #1e293b;
-        color: #f8fafc;
-      }
-      button[value="api"] {
-        border-color: #14b8a6;
-        background: #0f766e;
-      }
-    }
-  </style>
-</head>
-<body>
-  <main>
-    <h1>This address has two destinations</h1>
-    <p>The path can open a frontend page or the legacy API endpoint. Choose where to go.</p>
-    <p>Frontend page:<code>${escapeHtml(frontendPath)}</code></p>
-    <p>API endpoint:<code>${escapeHtml(canonicalLocation)}</code></p>
-    <form method="get" action="${escapeHtml(req.path)}">
-      ${renderHiddenQueryInputs(req)}
-      <label class="remember">
-        <input type="checkbox" name="${legacyApiRememberQueryParam}" value="1">
-        Remember this choice for similar addresses
-      </label>
-      <div class="actions">
-        <button type="submit" name="${legacyApiChoiceQueryParam}" value="frontend">Open frontend page</button>
-        <button type="submit" name="${legacyApiChoiceQueryParam}" value="api">Open API endpoint</button>
-      </div>
-    </form>
-  </main>
-</body>
-</html>`);
+  return `${legacyApiChoicePagePath}?${params.toString()}`;
 }
 
 export const legacyApiRedirectMiddleware: RequestHandler = (req, res, next) => {
@@ -450,7 +295,8 @@ export const legacyApiRedirectMiddleware: RequestHandler = (req, res, next) => {
       return res.redirect(308, location);
     }
 
-    return sendLegacyApiChoicePage(req, res, canonicalPath);
+    res.setHeader("X-Canonical-API-Path", canonicalPath);
+    return res.redirect(302, getLegacyApiChoicePageLocation(req, canonicalPath));
   }
 
   const location = getCanonicalLocation(req, canonicalPath);
