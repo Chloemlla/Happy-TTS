@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import type { Request, RequestHandler, Response } from "express";
 
 const exactReplacements = new Map<string, string>([
@@ -79,10 +80,18 @@ const legacyApiFrontendBypassCookieName = "legacyApiFrontendBypass";
 const legacyApiChoicePagePath = "/legacy-api-choice";
 const legacyApiChoiceQueryParam = "__legacy_api_choice";
 const legacyApiRememberQueryParam = "__legacy_api_remember";
+const legacyApiChoiceStateQueryParam = "__legacy_api_state";
 const persistentChoiceMaxAgeSeconds = 60 * 60 * 24 * 180;
 const transientFrontendBypassMaxAgeSeconds = 30;
+const choiceStateTtlMs = 10 * 60 * 1000;
 
 type LegacyApiNavigationChoice = "api" | "frontend";
+
+type LegacyApiChoiceStatePayload = {
+  from: string;
+  api: string;
+  exp: number;
+};
 
 function hasPathPrefix(pathname: string, prefix: string): boolean {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
@@ -230,6 +239,7 @@ function getCleanOriginalUrl(req: Request): string {
   const url = new URL(req.originalUrl, "http://local.invalid");
   url.searchParams.delete(legacyApiChoiceQueryParam);
   url.searchParams.delete(legacyApiRememberQueryParam);
+  url.searchParams.delete(legacyApiChoiceStateQueryParam);
   return `${url.pathname}${url.search}`;
 }
 
@@ -238,6 +248,7 @@ function getCanonicalLocation(req: Request, canonicalPath: string): string {
   url.pathname = canonicalPath;
   url.searchParams.delete(legacyApiChoiceQueryParam);
   url.searchParams.delete(legacyApiRememberQueryParam);
+  url.searchParams.delete(legacyApiChoiceStateQueryParam);
   return `${url.pathname}${url.search}`;
 }
 
@@ -245,10 +256,73 @@ function isFrontendRouteWithLegacyApiCollision(pathname: string): boolean {
   return frontendRoutesWithLegacyApiCollision.has(pathname);
 }
 
+function getChoiceStateSecret(): string {
+  return process.env.LEGACY_API_CHOICE_SECRET || process.env.JWT_SECRET || "development-legacy-api-choice-secret";
+}
+
+function toBase64Url(value: string): string {
+  return Buffer.from(value, "utf8").toString("base64url");
+}
+
+function fromBase64Url(value: string): string {
+  return Buffer.from(value, "base64url").toString("utf8");
+}
+
+function signChoiceStatePayload(encodedPayload: string): string {
+  return createHmac("sha256", getChoiceStateSecret()).update(encodedPayload).digest("base64url");
+}
+
+function createLegacyApiChoiceState(from: string, api: string): string {
+  const payload: LegacyApiChoiceStatePayload = {
+    from,
+    api,
+    exp: Date.now() + choiceStateTtlMs,
+  };
+  const encodedPayload = toBase64Url(JSON.stringify(payload));
+  return `${encodedPayload}.${signChoiceStatePayload(encodedPayload)}`;
+}
+
+function verifyLegacyApiChoiceState(req: Request, canonicalPath: string): boolean {
+  const state = getFirstQueryValue(req.query[legacyApiChoiceStateQueryParam]);
+  const [encodedPayload, signature, extra] = state.split(".");
+  if (!encodedPayload || !signature || extra) {
+    return false;
+  }
+
+  const expectedSignature = signChoiceStatePayload(encodedPayload);
+  const signatureBuffer = Buffer.from(signature);
+  const expectedSignatureBuffer = Buffer.from(expectedSignature);
+  if (
+    signatureBuffer.length !== expectedSignatureBuffer.length ||
+    !timingSafeEqual(signatureBuffer, expectedSignatureBuffer)
+  ) {
+    return false;
+  }
+
+  let payload: LegacyApiChoiceStatePayload;
+  try {
+    payload = JSON.parse(fromBase64Url(encodedPayload)) as LegacyApiChoiceStatePayload;
+  } catch {
+    return false;
+  }
+
+  return (
+    typeof payload.from === "string" &&
+    typeof payload.api === "string" &&
+    typeof payload.exp === "number" &&
+    payload.exp >= Date.now() &&
+    payload.from === getCleanOriginalUrl(req) &&
+    payload.api === getCanonicalLocation(req, canonicalPath)
+  );
+}
+
 function getLegacyApiChoicePageLocation(req: Request, canonicalPath: string): string {
+  const from = getCleanOriginalUrl(req);
+  const api = getCanonicalLocation(req, canonicalPath);
   const params = new URLSearchParams({
-    from: getCleanOriginalUrl(req),
-    api: getCanonicalLocation(req, canonicalPath),
+    from,
+    api,
+    state: createLegacyApiChoiceState(from, api),
   });
 
   return `${legacyApiChoicePagePath}?${params.toString()}`;
@@ -267,12 +341,13 @@ export const legacyApiRedirectMiddleware: RequestHandler = (req, res, next) => {
     }
 
     const requestedChoice = parseLegacyApiNavigationChoice(req.query[legacyApiChoiceQueryParam]);
+    const hasValidChoiceState = requestedChoice ? verifyLegacyApiChoiceState(req, canonicalPath) : false;
     const rememberedChoice = getRememberedLegacyApiNavigationChoice(req);
-    const choice = requestedChoice || rememberedChoice;
+    const choice = hasValidChoiceState ? requestedChoice : rememberedChoice;
     const rememberChoice = getFirstQueryValue(req.query[legacyApiRememberQueryParam]) === "1";
 
     if (choice === "frontend") {
-      if (requestedChoice === "frontend") {
+      if (requestedChoice === "frontend" && hasValidChoiceState) {
         if (rememberChoice) {
           setLegacyApiNavigationChoiceCookie(res, "frontend");
         } else {
@@ -285,7 +360,7 @@ export const legacyApiRedirectMiddleware: RequestHandler = (req, res, next) => {
     }
 
     if (choice === "api") {
-      if (rememberChoice || rememberedChoice === "api") {
+      if ((requestedChoice === "api" && hasValidChoiceState && rememberChoice) || rememberedChoice === "api") {
         setLegacyApiNavigationChoiceCookie(res, "api");
       }
       const location = getCanonicalLocation(req, canonicalPath);

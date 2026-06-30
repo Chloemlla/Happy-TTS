@@ -4,6 +4,7 @@ import { ArrowRight, CheckCircle, Monitor, Server } from 'lucide-react';
 
 const CHOICE_QUERY_PARAM = '__legacy_api_choice';
 const REMEMBER_QUERY_PARAM = '__legacy_api_remember';
+const STATE_QUERY_PARAM = '__legacy_api_state';
 
 function normalizeLocalPath(rawValue: string | null, fallback: string, requiredPrefix?: string): string {
   if (!rawValue) {
@@ -31,9 +32,15 @@ function normalizeLocalPath(rawValue: string | null, fallback: string, requiredP
   }
 }
 
-function buildChoiceUrl(frontendTarget: string, choice: 'frontend' | 'api', rememberChoice: boolean): string {
+function buildChoiceUrl(
+  frontendTarget: string,
+  choice: 'frontend' | 'api',
+  rememberChoice: boolean,
+  state: string
+): string {
   const url = new URL(frontendTarget, window.location.origin);
   url.searchParams.set(CHOICE_QUERY_PARAM, choice);
+  url.searchParams.set(STATE_QUERY_PARAM, state);
 
   if (rememberChoice) {
     url.searchParams.set(REMEMBER_QUERY_PARAM, '1');
@@ -57,12 +64,18 @@ const LegacyApiChoicePage: React.FC = () => {
     () => normalizeLocalPath(params.get('api'), '/api', '/api'),
     [params]
   );
+  const state = params.get('state') || '';
+  const canChoose = state.length > 0;
 
   const chooseDestination = React.useCallback(
     (choice: 'frontend' | 'api') => {
-      window.location.assign(buildChoiceUrl(frontendTarget, choice, rememberChoice));
+      if (!state) {
+        return;
+      }
+
+      window.location.assign(buildChoiceUrl(frontendTarget, choice, rememberChoice, state));
     },
-    [frontendTarget, rememberChoice]
+    [frontendTarget, rememberChoice, state]
   );
 
   return (
@@ -78,7 +91,7 @@ const LegacyApiChoicePage: React.FC = () => {
               这个地址有两个可前往的位置
             </h1>
             <p className="mt-3 text-sm leading-7 text-slate-600">
-              请选择打开前端页面，或继续访问已规范化的 API endpoint。
+              请选择打开前端页面，或继续访问已规范化的 API endpoint。选择请求会回到后端校验后执行。
             </p>
           </div>
           <Link
@@ -125,6 +138,7 @@ const LegacyApiChoicePage: React.FC = () => {
           <button
             type="button"
             onClick={() => chooseDestination('frontend')}
+            disabled={!canChoose}
             className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
           >
             <Monitor className="h-4 w-4" aria-hidden="true" />
@@ -133,6 +147,7 @@ const LegacyApiChoicePage: React.FC = () => {
           <button
             type="button"
             onClick={() => chooseDestination('api')}
+            disabled={!canChoose}
             className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
           >
             打开 API endpoint

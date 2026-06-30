@@ -9,6 +9,11 @@ function createApp() {
   return app;
 }
 
+async function getChoiceLocation(path: string): Promise<URL> {
+  const response = await request(createApp()).get(path).set("Accept", "text/html").expect(302);
+  return new URL(response.headers.location, "http://local.invalid");
+}
+
 describe("legacyApiRedirectMiddleware", () => {
   it("resolves legacy API paths without rewriting canonical API paths", () => {
     expect(resolveLegacyApiPath("/api/admin/users")).toBeNull();
@@ -43,6 +48,7 @@ describe("legacyApiRedirectMiddleware", () => {
     expect(location.pathname).toBe("/legacy-api-choice");
     expect(location.searchParams.get("from")).toBe("/admin?tab=oauth");
     expect(location.searchParams.get("api")).toBe("/api/admin?tab=oauth");
+    expect(location.searchParams.get("state")).toBeTruthy();
   });
 
   it("passes remembered frontend choices through to the frontend route", async () => {
@@ -64,16 +70,22 @@ describe("legacyApiRedirectMiddleware", () => {
   });
 
   it("stores explicit choices when requested", async () => {
+    const apiChoiceLocation = await getChoiceLocation("/policy?view=terms");
+    const apiChoiceState = apiChoiceLocation.searchParams.get("state");
+    expect(apiChoiceState).toBeTruthy();
     const apiResponse = await request(createApp())
-      .get("/policy?view=terms&__legacy_api_choice=api&__legacy_api_remember=1")
+      .get(`/policy?view=terms&__legacy_api_choice=api&__legacy_api_remember=1&__legacy_api_state=${apiChoiceState}`)
       .set("Accept", "text/html")
       .expect(308)
       .expect("Location", "/api/policy?view=terms");
 
     expect(apiResponse.headers["set-cookie"]?.[0]).toContain("legacyApiNavigationChoice=api");
 
+    const frontendChoiceLocation = await getChoiceLocation("/policy?view=terms");
+    const frontendChoiceState = frontendChoiceLocation.searchParams.get("state");
+    expect(frontendChoiceState).toBeTruthy();
     const frontendResponse = await request(createApp())
-      .get("/policy?view=terms&__legacy_api_choice=frontend&__legacy_api_remember=1")
+      .get(`/policy?view=terms&__legacy_api_choice=frontend&__legacy_api_remember=1&__legacy_api_state=${frontendChoiceState}`)
       .set("Accept", "text/html")
       .expect(302)
       .expect("Location", "/policy?view=terms");
@@ -82,8 +94,11 @@ describe("legacyApiRedirectMiddleware", () => {
   });
 
   it("uses a transient bypass for one-time frontend choices", async () => {
+    const choiceLocation = await getChoiceLocation("/policy?view=terms");
+    const choiceState = choiceLocation.searchParams.get("state");
+    expect(choiceState).toBeTruthy();
     const frontendResponse = await request(createApp())
-      .get("/policy?view=terms&__legacy_api_choice=frontend")
+      .get(`/policy?view=terms&__legacy_api_choice=frontend&__legacy_api_state=${choiceState}`)
       .set("Accept", "text/html")
       .set("Cookie", "legacyApiNavigationChoice=api")
       .expect(302)
@@ -97,6 +112,19 @@ describe("legacyApiRedirectMiddleware", () => {
       .set("Accept", "text/html")
       .set("Cookie", "legacyApiNavigationChoice=api; legacyApiFrontendBypass=1")
       .expect(204);
+  });
+
+  it("ignores forged explicit choices and sends the browser back through backend conflict detection", async () => {
+    const response = await request(createApp())
+      .get("/policy?view=terms&__legacy_api_choice=frontend&__legacy_api_state=forged")
+      .set("Accept", "text/html")
+      .expect(302);
+
+    const location = new URL(response.headers.location, "http://local.invalid");
+    expect(location.pathname).toBe("/legacy-api-choice");
+    expect(location.searchParams.get("from")).toBe("/policy?view=terms");
+    expect(location.searchParams.get("api")).toBe("/api/policy?view=terms");
+    expect(location.searchParams.get("state")).toBeTruthy();
   });
 
   it("redirects browser navigation to legacy API paths when no matching frontend page exists", async () => {
