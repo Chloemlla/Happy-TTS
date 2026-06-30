@@ -85,7 +85,7 @@ const releaseManifestLimiter = createLimiter({
 
 /**
  * @openapi
- * /nexai/auth/register:
+ * /api/nexai/auth/register:
  *   post:
  *     summary: NexAI 用户注册
  *     tags: [NexAI Auth]
@@ -121,7 +121,7 @@ router.post("/auth/register", nexaiRegisterLimiter, NexaiAuthController.register
 
 /**
  * @openapi
- * /nexai/auth/login:
+ * /api/nexai/auth/login:
  *   post:
  *     summary: NexAI 用户登录
  *     tags: [NexAI Auth]
@@ -148,7 +148,7 @@ router.post("/auth/login", nexaiLoginLimiter, NexaiAuthController.login);
 
 /**
  * @openapi
- * /nexai/auth/passkey/login/options:
+ * /api/nexai/auth/passkey/login/options:
  *   post:
  *     summary: 获取 Passkey 登录选项
  *     tags: [NexAI WebAuthn]
@@ -157,7 +157,7 @@ router.post("/auth/passkey/login/options", nexaiLoginLimiter, NexaiAuthControlle
 
 /**
  * @openapi
- * /nexai/auth/passkey/login/verify:
+ * /api/nexai/auth/passkey/login/verify:
  *   post:
  *     summary: 验证 Passkey 登录
  *     tags: [NexAI WebAuthn]
@@ -166,7 +166,7 @@ router.post("/auth/passkey/login/verify", nexaiLoginLimiter, NexaiAuthController
 
 /**
  * @openapi
- * /nexai/auth/google:
+ * /api/nexai/auth/google:
  *   post:
  *     summary: Google OAuth 登录/注册
  *     tags: [NexAI Auth]
@@ -189,7 +189,7 @@ router.post("/auth/google", nexaiOAuthLimiter, NexaiAuthController.googleAuth);
 
 /**
  * @openapi
- * /nexai/auth/github:
+ * /api/nexai/auth/github:
  *   post:
  *     summary: GitHub OAuth 登录/注册
  *     tags: [NexAI Auth]
@@ -212,7 +212,7 @@ router.post("/auth/github", nexaiOAuthLimiter, NexaiAuthController.githubAuth);
 
 /**
  * @openapi
- * /nexai/auth/github/callback:
+ * /api/nexai/auth/github/callback:
  *   get:
  *     summary: GitHub OAuth 回调
  *     tags: [NexAI Auth]
@@ -230,7 +230,7 @@ router.get("/auth/github/callback", nexaiOAuthLimiter, NexaiAuthController.githu
 
 /**
  * @openapi
- * /nexai/auth/refresh:
+ * /api/nexai/auth/refresh:
  *   post:
  *     summary: 刷新 Access Token
  *     tags: [NexAI Auth]
@@ -252,7 +252,7 @@ router.post("/auth/refresh", nexaiRefreshLimiter, NexaiAuthController.refreshTok
 
 /**
  * @openapi
- * /nexai/auth/forgot-password:
+ * /api/nexai/auth/forgot-password:
  *   post:
  *     summary: 忘记密码
  *     tags: [NexAI Auth]
@@ -274,7 +274,7 @@ router.post("/auth/forgot-password", nexaiAuthLimiter, NexaiAuthController.forgo
 
 /**
  * @openapi
- * /nexai/auth/reset-password:
+ * /api/nexai/auth/reset-password:
  *   post:
  *     summary: 重置密码
  *     tags: [NexAI Auth]
@@ -298,7 +298,7 @@ router.post("/auth/reset-password", nexaiAuthLimiter, NexaiAuthController.resetP
 
 /**
  * @openapi
- * /nexai/auth/oauth-config:
+ * /api/nexai/auth/oauth-config:
  *   get:
  *     summary: 获取 OAuth 配置
  *     tags: [NexAI Auth]
@@ -313,7 +313,7 @@ router.get("/auth/oauth-config", NexaiAuthController.getOAuthConfig);
 
 /**
  * @openapi
- * /nexai/releases/{tag}/manifest:
+ * /api/nexai/releases/{tag}/manifest:
  *   get:
  *     summary: 获取 NexAI 发布包完整性清单
  *     tags: [NexAI Releases]
@@ -335,7 +335,7 @@ router.get("/releases/:tag/manifest", releaseManifestLimiter, NexaiReleaseContro
 
 /**
  * @openapi
- * /nexai/auth/passkey/register/options:
+ * /api/nexai/auth/passkey/register/options:
  *   post:
  *     summary: 获取 Passkey 注册选项
  *     tags: [NexAI WebAuthn]
@@ -350,7 +350,7 @@ router.post(
 
 /**
  * @openapi
- * /nexai/auth/passkey/register/verify:
+ * /api/nexai/auth/passkey/register/verify:
  *   post:
  *     summary: 验证并绑定 Passkey
  *     tags: [NexAI WebAuthn]
@@ -361,7 +361,7 @@ router.post("/auth/passkey/register/verify", nexaiAuthRequired, NexaiAuthControl
 
 /**
  * @openapi
- * /nexai/auth/me:
+ * /api/nexai/auth/me:
  *   get:
  *     summary: 获取当前用户信息
  *     tags: [NexAI Auth]
@@ -377,7 +377,7 @@ router.get("/auth/me", nexaiAuthRequired, NexaiAuthController.getCurrentUser);
 
 /**
  * @openapi
- * /nexai/auth/logout:
+ * /api/nexai/auth/logout:
  *   post:
  *     summary: 登出
  *     tags: [NexAI Auth]
@@ -391,7 +391,7 @@ router.post("/auth/logout", nexaiAuthRequired, NexaiAuthController.logout);
 
 /**
  * @openapi
- * /nexai/auth/profile:
+ * /api/nexai/auth/profile:
  *   put:
  *     summary: 更新个人资料
  *     tags: [NexAI Auth]
@@ -417,7 +417,7 @@ router.put("/auth/profile", nexaiAuthRequired, nexaiProfileLimiter, NexaiAuthCon
 
 /**
  * @openapi
- * /nexai/auth/link-google:
+ * /api/nexai/auth/link-google:
  *   post:
  *     summary: 关联 Google 账号
  *     tags: [NexAI Auth]
@@ -441,7 +441,7 @@ router.post("/auth/link-google", nexaiAuthRequired, nexaiOAuthLimiter, NexaiAuth
 
 /**
  * @openapi
- * /nexai/auth/unlink-google:
+ * /api/nexai/auth/unlink-google:
  *   post:
  *     summary: 取消关联 Google 账号
  *     tags: [NexAI Auth]
@@ -455,7 +455,7 @@ router.post("/auth/unlink-google", nexaiAuthRequired, NexaiAuthController.unlink
 
 /**
  * @openapi
- * /nexai/auth/link-github:
+ * /api/nexai/auth/link-github:
  *   post:
  *     summary: 关联 GitHub 账号
  *     tags: [NexAI Auth]
@@ -479,7 +479,7 @@ router.post("/auth/link-github", nexaiAuthRequired, nexaiOAuthLimiter, NexaiAuth
 
 /**
  * @openapi
- * /nexai/auth/unlink-github:
+ * /api/nexai/auth/unlink-github:
  *   post:
  *     summary: 取消关联 GitHub 账号
  *     tags: [NexAI Auth]
@@ -495,7 +495,7 @@ router.post("/auth/unlink-github", nexaiAuthRequired, NexaiAuthController.unlink
 
 /**
  * @openapi
- * /nexai/sync:
+ * /api/nexai/sync:
  *   get:
  *     summary: 获取全部同步数据
  *     tags: [NexAI Sync]
@@ -509,7 +509,7 @@ router.get("/sync", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncController.get
 
 /**
  * @openapi
- * /nexai/sync:
+ * /api/nexai/sync:
  *   put:
  *     summary: 全量上传同步数据
  *     tags: [NexAI Sync]
@@ -542,7 +542,7 @@ router.put("/sync", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncController.put
 
 /**
  * @openapi
- * /nexai/sync/meta:
+ * /api/nexai/sync/meta:
  *   get:
  *     summary: 获取同步元信息
  *     tags: [NexAI Sync]
@@ -556,7 +556,7 @@ router.get("/sync/meta", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncControlle
 
 /**
  * @openapi
- * /nexai/sync/changes:
+ * /api/nexai/sync/changes:
  *   get:
  *     summary: 增量拉取变更数据
  *     tags: [NexAI Sync]
@@ -578,7 +578,7 @@ router.get("/sync/changes", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncContro
 
 /**
  * @openapi
- * /nexai/sync/incremental:
+ * /api/nexai/sync/incremental:
  *   post:
  *     summary: 增量同步（上传本地变更 + 拉取服务端变更）
  *     tags: [NexAI Sync]
@@ -605,7 +605,7 @@ router.post("/sync/incremental", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncC
 
 /**
  * @openapi
- * /nexai/sync/{category}:
+ * /api/nexai/sync/{category}:
  *   patch:
  *     summary: 按类别局部更新同步数据
  *     tags: [NexAI Sync]
@@ -636,7 +636,7 @@ router.patch("/sync/:category", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncCo
 
 /**
  * @openapi
- * /nexai/sync:
+ * /api/nexai/sync:
  *   delete:
  *     summary: 清除所有同步数据
  *     tags: [NexAI Sync]
@@ -652,7 +652,7 @@ router.delete("/sync", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncController.
 
 /**
  * @openapi
- * /nexai/sync/v2:
+ * /api/nexai/sync/v2:
  *   put:
  *     summary: 上传端到端加密同步快照
  *     tags: [NexAI Sync]
@@ -663,7 +663,7 @@ router.put("/sync/v2", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncV2Controlle
 
 /**
  * @openapi
- * /nexai/sync/v2:
+ * /api/nexai/sync/v2:
  *   get:
  *     summary: 获取端到端加密同步快照
  *     tags: [NexAI Sync]
@@ -674,7 +674,7 @@ router.get("/sync/v2", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncV2Controlle
 
 /**
  * @openapi
- * /nexai/sync/v2/meta:
+ * /api/nexai/sync/v2/meta:
  *   get:
  *     summary: 获取端到端加密同步元信息
  *     tags: [NexAI Sync]
@@ -685,7 +685,7 @@ router.get("/sync/v2/meta", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncV2Cont
 
 /**
  * @openapi
- * /nexai/sync/v2/incremental:
+ * /api/nexai/sync/v2/incremental:
  *   post:
  *     summary: 端到端加密增量同步
  *     tags: [NexAI Sync]
@@ -696,7 +696,7 @@ router.post("/sync/v2/incremental", nexaiAuthRequired, nexaiSyncLimiter, NexaiSy
 
 /**
  * @openapi
- * /nexai/sync/v2:
+ * /api/nexai/sync/v2:
  *   delete:
  *     summary: 清除端到端加密同步数据
  *     tags: [NexAI Sync]
@@ -709,7 +709,7 @@ router.delete("/sync/v2", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncV2Contro
 
 /**
  * @openapi
- * /nexai/artifacts:
+ * /api/nexai/artifacts:
  *   post:
  *     summary: 创建 Artifact
  *     tags: [NexAI Artifacts]
@@ -754,7 +754,7 @@ router.post("/artifacts", nexaiAuthRequired, artifactCreateLimiter, ArtifactCont
 
 /**
  * @openapi
- * /nexai/artifacts/{shortId}:
+ * /api/nexai/artifacts/{shortId}:
  *   get:
  *     summary: 获取 Artifact
  *     tags: [NexAI Artifacts]
@@ -781,7 +781,7 @@ router.get("/artifacts/:shortId", artifactViewLimiter, nexaiAuthOptional, Artifa
 
 /**
  * @openapi
- * /nexai/artifacts/{shortId}:
+ * /api/nexai/artifacts/{shortId}:
  *   patch:
  *     summary: 更新 Artifact
  *     tags: [NexAI Artifacts]
@@ -819,7 +819,7 @@ router.patch("/artifacts/:shortId", nexaiAuthRequired, artifactManageLimiter, Ar
 
 /**
  * @openapi
- * /nexai/artifacts/{shortId}:
+ * /api/nexai/artifacts/{shortId}:
  *   delete:
  *     summary: 删除 Artifact
  *     tags: [NexAI Artifacts]
@@ -839,7 +839,7 @@ router.delete("/artifacts/:shortId", nexaiAuthRequired, artifactManageLimiter, A
 
 /**
  * @openapi
- * /nexai/artifacts:
+ * /api/nexai/artifacts:
  *   get:
  *     summary: 获取用户的 Artifacts 列表
  *     tags: [NexAI Artifacts]
@@ -871,7 +871,7 @@ router.get("/artifacts", nexaiAuthRequired, artifactManageLimiter, ArtifactContr
 
 /**
  * @openapi
- * /nexai/artifacts/{shortId}/view:
+ * /api/nexai/artifacts/{shortId}/view:
  *   post:
  *     summary: 记录访问
  *     tags: [NexAI Artifacts]

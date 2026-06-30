@@ -13,7 +13,12 @@ describe("legacyApiRedirectMiddleware", () => {
   it("resolves legacy API paths without rewriting canonical API paths", () => {
     expect(resolveLegacyApiPath("/api/admin/users")).toBeNull();
     expect(resolveLegacyApiPath("/admin/users")).toBe("/api/admin/users");
+    expect(resolveLegacyApiPath("/nexai/auth/login")).toBeNull();
     expect(resolveLegacyApiPath("/s/admin/export")).toBe("/api/shorturl/admin/export");
+  });
+
+  it("does not redirect removed NexAI legacy API paths", async () => {
+    await request(createApp()).post("/nexai/auth/login").set("Accept", "application/json").expect(204);
   });
 
   it("redirects API-like legacy prefix requests and preserves the query string", async () => {

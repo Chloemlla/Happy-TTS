@@ -45,7 +45,6 @@ const prefixReplacements: Array<{ from: string; to: string }> = [
   { from: "/webhook-events", to: "/api/webhook-events" },
   { from: "/webhooks", to: "/api/webhooks" },
   { from: "/github-billing", to: "/api/github-billing" },
-  { from: "/nexai", to: "/api/nexai" },
   { from: "/apikeys", to: "/api/apikeys" },
   { from: "/email", to: "/api/email" },
   { from: "/outemail", to: "/api/outemail" },

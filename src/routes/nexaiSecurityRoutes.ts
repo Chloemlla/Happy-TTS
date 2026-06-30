@@ -15,7 +15,7 @@ const router = express.Router();
 
 /**
  * @openapi
- * /nexai/security/report:
+ * /api/nexai/security/report:
  *   post:
  *     summary: Report security event
  *     description: Client reports security events like integrity failures, root detection, etc.
@@ -53,7 +53,7 @@ router.post("/security/report", reportSecurityEvent);
 
 /**
  * @openapi
- * /nexai/security/status:
+ * /api/nexai/security/status:
  *   get:
  *     summary: Get device security status
  *     description: Query the security status of the current device
@@ -71,7 +71,7 @@ router.get("/security/status", getSecurityStatus);
 
 /**
  * @openapi
- * /nexai/security/anomalies:
+ * /api/nexai/security/anomalies:
  *   get:
  *     summary: Check for anomalies
  *     description: Check for multi-account and device switching anomalies (requires authentication)
@@ -93,7 +93,7 @@ router.get("/security/anomalies", nexaiAuthRequired, checkAnomalies);
 
 /**
  * @openapi
- * /nexai/security/track:
+ * /api/nexai/security/track:
  *   post:
  *     summary: Track device
  *     description: Manually track device information (requires authentication)
@@ -115,7 +115,7 @@ router.post("/security/track", nexaiAuthRequired, trackDeviceManually);
 
 /**
  * @openapi
- * /nexai/security/stats:
+ * /api/nexai/security/stats:
  *   get:
  *     summary: Get dashboard statistics
  *     description: Get security dashboard statistics (requires admin authentication)
@@ -142,7 +142,7 @@ router.get("/security/stats", authenticateToken, getDashboardStats);
 
 /**
  * @openapi
- * /nexai/security/devices:
+ * /api/nexai/security/devices:
  *   get:
  *     summary: Get device list
  *     description: Get device list with pagination and filtering (requires admin authentication)
@@ -183,7 +183,7 @@ router.get("/security/devices", authenticateToken, getDeviceList);
 
 /**
  * @openapi
- * /nexai/security/events:
+ * /api/nexai/security/events:
  *   get:
  *     summary: Get security events
  *     description: Get security events with pagination and filtering (requires admin authentication)
