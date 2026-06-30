@@ -77,7 +77,7 @@ router.get("/users", adminController.getUsers);
 router.get("/users/:id", adminController.getUser);
 router.post(
   "/users/:id/reveal-password",
-  replayProtection,
+  replayProtection(),
   revealPasswordLimiter,
   auditLog({
     module: "user",
@@ -340,13 +340,17 @@ router.post("/users/:id/reveal-password/verify", async (req, res) => {
         return res.status(400).json({ error: "缺少 Passkey 验证数据" });
       }
       const { PasskeyService } = require("../../services/passkeyService");
-      const clientOrigin =
-        (typeof req.headers.origin === "string" ? req.headers.origin : undefined) || "https://tts.chloemlla.com";
+      const clientOrigin = typeof req.body?.clientOrigin === "string" ? req.body.clientOrigin : undefined;
+      const requestOrigin =
+        clientOrigin ||
+        (typeof req.headers.origin === "string" ? req.headers.origin : undefined) ||
+        (typeof req.headers.referer === "string" ? req.headers.referer : undefined) ||
+        "https://tts.chloemlla.com";
       const verification = await PasskeyService.verifyAuthentication(
         dbUser,
         req.body.passkeyResponse,
         clientOrigin,
-        clientOrigin,
+        requestOrigin,
       );
       if (!verification?.verified) {
         return res.status(401).json({ error: "Passkey 验证失败" });

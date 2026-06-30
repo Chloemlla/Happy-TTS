@@ -1,7 +1,9 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import ReactDOM from 'react-dom';
+import { startAuthentication } from '@simplewebauthn/browser';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { api } from '../api/api';
+import { getClientOrigin, passkeyApi } from '../api/passkey';
 import { getSignHeaders } from '../utils/requestSigner';
 
 import { useNavigate } from 'react-router-dom';
@@ -83,7 +85,7 @@ interface User {
   accountStatus?: 'active' | 'suspended';
 }
 
-type RevealPasswordMethod = 'password' | 'totp';
+type RevealPasswordMethod = 'password' | 'totp' | 'passkey';
 
 interface RevealPasswordState {
   open: boolean;
@@ -279,6 +281,13 @@ const DEFAULT_USER_LIST_FILTERS: UserListFilters = {
   sortBy: 'createdAt',
   sortOrder: 'desc',
   pageSize: 20,
+};
+
+const getAdminPasskeyAuthResponse = async (username: string) => {
+  const optionsResponse = await passkeyApi.startAuthentication(username);
+  const options = optionsResponse?.data?.options;
+  if (!options) throw new Error('无法获取 Passkey 认证选项');
+  return startAuthentication({ optionsJSON: options });
 };
 
 const DEFAULT_PAGINATION: UserListPagination = {
@@ -1360,10 +1369,23 @@ const UserManagement: React.FC = () => {
 
     setRevealPasswordState(prev => ({ ...prev, loading: true }));
     try {
-      const payload =
-        revealPasswordState.method === 'password'
-          ? { method: 'password', password: revealPasswordState.password }
-          : { method: 'totp', verificationCode: revealPasswordState.verificationCode.trim() };
+      let payload:
+        | { method: 'password'; password: string }
+        | { method: 'totp'; verificationCode: string }
+        | { method: 'passkey'; passkeyResponse: any; clientOrigin: string };
+
+      if (revealPasswordState.method === 'password') {
+        payload = { method: 'password', password: revealPasswordState.password };
+      } else if (revealPasswordState.method === 'totp') {
+        payload = { method: 'totp', verificationCode: revealPasswordState.verificationCode.trim() };
+      } else {
+        if (!user?.username) {
+          throw new Error('无法获取当前管理员用户名');
+        }
+        const passkeyResponse = await getAdminPasskeyAuthResponse(user.username);
+        payload = { method: 'passkey', passkeyResponse, clientOrigin: getClientOrigin() };
+      }
+
       const res = await api.post(`/api/admin/users/${targetUser.id}/reveal-password/verify`, payload);
       const verificationToken = res.data?.verificationToken;
       if (typeof verificationToken !== 'string' || !verificationToken) {
@@ -1381,30 +1403,7 @@ const UserManagement: React.FC = () => {
     } finally {
       setRevealPasswordState(prev => ({ ...prev, loading: false }));
     }
-  }, [revealPasswordState, revealPasswordWithToken, setNotification]);
-
-  const handleRevealPassword = useCallback(async () => {
-    const targetUser = revealPasswordState.targetUser;
-    if (!targetUser) return;
-    if (!revealPasswordState.verificationToken) {
-      setNotification({ type: 'error', message: '请先完成二次鉴权' });
-      return;
-    }
-    const reason = revealPasswordState.reason.trim();
-    if (reason.length < 4 || reason.length > 200) {
-      setNotification({ type: 'error', message: '请填写查看原因（4-200字符）' });
-      return;
-    }
-
-    setRevealPasswordState(prev => ({ ...prev, loading: true }));
-    try {
-      await revealPasswordWithToken(targetUser.id, reason, revealPasswordState.verificationToken);
-    } catch (e: any) {
-      setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '查看密码失败' });
-    } finally {
-      setRevealPasswordState(prev => ({ ...prev, loading: false }));
-    }
-  }, [revealPasswordState, revealPasswordWithToken, setNotification]);
+  }, [revealPasswordState, revealPasswordWithToken, setNotification, user?.username]);
 
   const statCards = useMemo(() => [
     { label: '总用户', value: stats.total, tone: 'bg-blue-50 text-blue-700 border-blue-100' },
@@ -2087,6 +2086,7 @@ const UserManagement: React.FC = () => {
                     >
                       <option value="password">管理员密码</option>
                       <option value="totp">TOTP 验证码</option>
+                      <option value="passkey">Passkey</option>
                     </select>
                   </div>
 
@@ -2101,7 +2101,7 @@ const UserManagement: React.FC = () => {
                         placeholder="请输入当前管理员密码"
                       />
                     </div>
-                  ) : (
+                  ) : revealPasswordState.method === 'totp' ? (
                     <div>
                       <label className="block text-sm font-semibold text-gray-600 mb-1">TOTP 验证码</label>
                       <input
@@ -2111,6 +2111,10 @@ const UserManagement: React.FC = () => {
                         className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm"
                         placeholder="请输入 6 位验证码"
                       />
+                    </div>
+                  ) : (
+                    <div className="p-3 rounded-lg border border-emerald-200 bg-emerald-50 text-sm text-emerald-700">
+                      Passkey 将使用当前管理员账号 {user?.username || ''} 进行验证
                     </div>
                   )}
 
@@ -2127,23 +2131,13 @@ const UserManagement: React.FC = () => {
                   <div className="flex gap-3 pt-2">
                     <motion.button
                       type="button"
-                      className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium disabled:opacity-60"
+                      className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition font-medium disabled:opacity-60"
                       onClick={handleVerifyRevealPassword}
                       disabled={revealPasswordState.loading}
                       whileHover={hoverScale(1.02)}
                       whileTap={tapScale(0.95)}
                     >
-                      二次验证
-                    </motion.button>
-                    <motion.button
-                      type="button"
-                      className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition font-medium disabled:opacity-60"
-                      onClick={handleRevealPassword}
-                      disabled={revealPasswordState.loading || !revealPasswordState.verificationToken}
-                      whileHover={hoverScale(1.02)}
-                      whileTap={tapScale(0.95)}
-                    >
-                      查看密码
+                      {revealPasswordState.loading ? '处理中...' : revealPasswordState.revealedPassword ? '重新验证并查看' : '验证并查看密码'}
                     </motion.button>
                     <motion.button
                       type="button"
