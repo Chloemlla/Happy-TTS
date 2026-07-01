@@ -589,6 +589,12 @@ const LIMITER_DEFINITIONS = {
     category: "public-api",
     message: "翻译请求过于频繁，请稍后再试",
   },
+  deeplxPublic: {
+    profile: "burst",
+    category: "public-api",
+    max: 300,
+    message: "公共翻译 API 请求过于频繁，请稍后再试",
+  },
   integrity: {
     profile: "sensitive",
     category: "public-api",
@@ -709,6 +715,7 @@ export const modlistMountLimiter = limiterFromDefinition("modlist");
 export const cdkMountLimiter = limiterFromDefinition("cdk");
 export const githubBillingLimiter = limiterFromDefinition("ghbilling");
 export const deeplxLimiter = limiterFromDefinition("deeplx");
+export const deeplxPublicLimiter = limiterFromDefinition("deeplxPublic");
 export const integrityLimiter = limiterFromDefinition("integrity");
 export const nexaiSecurityLimiter = limiterFromDefinition("nexaisecurity");
 export const rootLimiter = limiterFromDefinition("root");

@@ -369,6 +369,7 @@ jest.mock("../middleware/routeLimiters", () => ({
   cdkMountLimiter: createDummyLimiter(),
   githubBillingLimiter: createDummyLimiter(),
   deeplxLimiter: createDummyLimiter(),
+  deeplxPublicLimiter: createDummyLimiter(),
   integrityLimiter: createDummyLimiter(),
   nexaiSecurityLimiter: createDummyLimiter(),
   rootLimiter: createDummyLimiter(),

@@ -11,6 +11,7 @@ import {
   dataCollectionLimiter,
   dataProcessLimiter,
   deeplxLimiter,
+  deeplxPublicLimiter,
   githubBillingLimiter,
   historyLimiter,
   ipfsLimiter,
@@ -42,6 +43,7 @@ import compatRoutes from "./compatRoutes";
 import dataCollectionAdminRoutes from "./dataCollectionAdminRoutes";
 import dataCollectionRoutes from "./dataCollectionRoutes";
 import dataProcessRoutes from "./dataProcessRoutes";
+import deeplxPublicRoutes from "./deeplxPublicRoutes";
 import deeplxRoutes from "./deeplxRoutes";
 import diagnosticsRoutes from "./diagnosticsRoutes";
 import emailRoutes from "./emailRoutes";
@@ -359,6 +361,14 @@ export const routeLimiterModules: RouteModule[] = [
     name: "deeplx-limiter",
     path: "/api/deeplx",
     router: deeplxLimiter,
+    requiresAuth: false,
+    rateLimited: true,
+    isPublic: true,
+  },
+  {
+    name: "deeplx-public-limiter",
+    path: "/api/public/deeplx",
+    router: deeplxPublicLimiter,
     requiresAuth: false,
     rateLimited: true,
     isPublic: true,
@@ -956,9 +966,27 @@ export const postTamperRouteModules: RouteModule[] = [
     name: "deeplx-routes",
     path: "/api/deeplx",
     router: deeplxRoutes,
+    requiresAuth: true,
+    rateLimited: true,
+    isPublic: false,
+    authPolicy: {
+      mode: "router",
+      handlers: ["authenticateToken"],
+      note: "DeepLX page APIs use a router-wide JWT guard before exposing config or translation actions.",
+    },
+  },
+  {
+    name: "deeplx-public-routes",
+    path: "/api/public/deeplx",
+    router: deeplxPublicRoutes,
     requiresAuth: false,
     rateLimited: true,
     isPublic: true,
+    rateLimitPolicy: {
+      mode: "route-module",
+      limiters: ["deeplx-public-limiter"],
+      note: "Public translation API is protected by a dedicated loose limiter.",
+    },
   },
   {
     name: "lottery-routes",
@@ -1270,6 +1298,7 @@ const knownMountLimiters = new Map<RequestHandler, string>([
   [dataCollectionLimiter, "dataCollectionLimiter"],
   [dataProcessLimiter, "dataProcessLimiter"],
   [deeplxLimiter, "deeplxLimiter"],
+  [deeplxPublicLimiter, "deeplxPublicLimiter"],
   [githubBillingLimiter, "githubBillingLimiter"],
   [historyLimiter, "historyLimiter"],
   [ipfsLimiter, "ipfsLimiter"],
