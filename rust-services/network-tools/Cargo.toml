@@ -15,6 +15,6 @@ tokio-rustls = "0.26.4"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 url = "2.5.8"
-webpki-roots = "0.26.11"
+webpki-roots = "1.0.8"
 x509-parser = "0.16.0"
 
