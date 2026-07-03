@@ -121,8 +121,11 @@ export const LinuxDoAuthCallbackPage: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10 py-8 px-6 rounded-3xl">
       <div className="w-full max-w-md rounded-2xl border border-[#8ECAE6]/30 bg-white/85 p-8 text-center shadow-xl backdrop-blur-sm">
         <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-[#8ECAE6]/40 border-t-[#219EBC]" />
-        <h1 className="text-2xl font-bold text-[#023047]">Linux.do OAuth</h1>
+        <h1 className="text-2xl font-bold text-[#023047]">正在登录 Linux.do</h1>
         <p className="mt-3 text-sm text-[#023047]/70">{status}</p>
+        <p className="mt-2 text-xs leading-5 text-[#023047]/50">
+          如果没有自动跳转，请返回登录页重试。
+        </p>
         <Link
           to="/login"
           className="mt-6 inline-flex items-center gap-2 text-sm text-[#023047]/50 hover:text-[#023047] transition-colors"

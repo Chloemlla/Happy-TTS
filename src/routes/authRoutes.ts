@@ -98,7 +98,10 @@ router.post("/register", authRegisterEndpointLimiter, registerLimiter, validateA
 router.post("/login", authLoginEndpointLimiter, loginLimiter, validateAuthInput, AuthController.login);
 router.get("/google/config", authReadLimiter, AuthController.getGoogleAuthConfig);
 router.post("/google", authExternalLoginLimiter, loginLimiter, AuthController.googleAuth);
+router.post("/google/bind-session", authExternalLoginLimiter, AuthController.googleBindSession);
 router.post("/google/bind", authVerificationLimiter, authenticateToken, AuthController.googleBind);
+router.post("/provider-bind/session", authExternalLoginLimiter, AuthController.getProviderBindSession);
+router.post("/provider-bind/confirm", authLoginEndpointLimiter, loginLimiter, AuthController.confirmProviderBind);
 
 router.get("/linuxdo/config", authReadLimiter, LinuxDoAuthController.getConfig);
 router.get("/linuxdo/start", authExternalLoginLimiter, LinuxDoAuthController.start);

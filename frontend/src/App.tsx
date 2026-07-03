@@ -39,6 +39,7 @@ const WelcomePage = React.lazy(() => import('./components/WelcomePage').then(mod
 const LoginPage = React.lazy(() => import('./components/LoginPage').then(module => ({ default: module.LoginPage })));
 const RegisterPage = React.lazy(() => import('./components/RegisterPage').then(module => ({ default: module.RegisterPage })));
 const LinuxDoAuthCallbackPage = React.lazy(() => import('./components/LinuxDoAuthCallbackPage').then(module => ({ default: module.LinuxDoAuthCallbackPage })));
+const ProviderBindPage = React.lazy(() => import('./components/ProviderBindPage'));
 const OAuthAuthorizePage = React.lazy(() => import('./components/OAuthAuthorizePage'));
 const DeepLXTranslatorPage = React.lazy(() => import('./components/DeepLXTranslatorPage').then(module => ({ default: module.DeepLXTranslatorPage })));
 const ForgotPasswordPage = React.lazy(() => import('./components/ForgotPasswordPage').then(module => ({ default: module.ForgotPasswordPage })));
@@ -652,6 +653,7 @@ const App: React.FC = () => {
       '/login': 'Synapse - 登录',
       '/register': 'Synapse - 注册',
       '/auth/linuxdo/callback': 'Synapse - Linux.do 登录',
+      '/auth/provider/bind': 'Synapse - 绑定第三方登录',
       '/translate': 'Synapse - DeepLX 翻译',
       '/tts': 'Synapse - 语音合成',
       '/policy': 'Synapse - 服务条款',
@@ -1426,6 +1428,7 @@ const App: React.FC = () => {
                     <Route path="/login" element={renderAnimatedRoute(<LoginPage />)} />
                     <Route path="/register" element={renderAnimatedRoute(<RegisterPage />)} />
                     <Route path="/auth/linuxdo/callback" element={renderAnimatedRoute(<LinuxDoAuthCallbackPage />)} />
+                    <Route path="/auth/provider/bind" element={renderAnimatedRoute(<ProviderBindPage />)} />
                     <Route path="/oauth/authorize" element={renderAnimatedRoute(<OAuthAuthorizePage />)} />
                     <Route path="/translate" element={renderProtectedRoute(<DeepLXTranslatorPage />)} />
                     <Route path="/forgot-password" element={renderAnimatedRoute(<ForgotPasswordPage />)} />

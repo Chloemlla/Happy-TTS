@@ -5,9 +5,14 @@ import {
   authenticateGoogleUser,
   getGoogleAuthConfigSummary,
   isGoogleAuthEnabled,
+  startGoogleBindSession,
   verifyGoogleIdToken,
 } from "../services/googleAuthService";
 import { bindProviderIdentityToUser } from "../services/accountIdentityService";
+import {
+  confirmProviderBindSession,
+  getProviderBindSessionView,
+} from "../services/providerBindSessionService";
 import { validateProfileVerificationSession } from "../services/profileUpdateVerificationService";
 import { TurnstileService } from "../services/turnstileService";
 import * as VerificationService from "../services/verificationService";
@@ -110,7 +115,7 @@ export class AuthController {
   public static async googleAuth(req: Request, res: Response) {
     try {
       if (!isGoogleAuthEnabled()) {
-        return res.status(503).json({ error: "Google Auth is not configured" });
+        return res.status(503).json({ error: "Google 登录未配置" });
       }
 
       const idToken = typeof req.body?.idToken === "string" ? req.body.idToken : "";
@@ -132,10 +137,90 @@ export class AuthController {
     }
   }
 
+  public static async googleBindSession(req: Request, res: Response) {
+    try {
+      if (!isGoogleAuthEnabled()) {
+        return res.status(503).json({ error: "Google 登录未配置" });
+      }
+
+      const idToken = typeof req.body?.idToken === "string" ? req.body.idToken : "";
+      if (!idToken) {
+        return res.status(400).json({ error: "缺少 Google idToken" });
+      }
+
+      const result = await startGoogleBindSession({
+        idToken,
+        clientIp: getClientIP(req),
+      });
+
+      return res.json(result);
+    } catch (error) {
+      logger.error("[Google Auth] Bind session failed", error);
+      return res.status(400).json({
+        error: error instanceof Error ? error.message : "Google 登录失败",
+      });
+    }
+  }
+
+  public static getProviderBindSession(req: Request, res: Response) {
+    const sessionToken = typeof req.body?.sessionToken === "string" ? req.body.sessionToken : "";
+    if (!sessionToken) {
+      return res.status(400).json({ error: "缺少第三方登录绑定会话" });
+    }
+
+    const session = getProviderBindSessionView(sessionToken);
+    if (!session) {
+      return res.status(404).json({ error: "第三方登录绑定会话已过期，请返回登录页重试" });
+    }
+
+    return res.json({ success: true, session });
+  }
+
+  public static async confirmProviderBind(req: Request, res: Response) {
+    try {
+      const syncProfileInput =
+        req.body?.syncProfile && typeof req.body.syncProfile === "object" ? req.body.syncProfile : {};
+      const result = await confirmProviderBindSession({
+        sessionToken: typeof req.body?.sessionToken === "string" ? req.body.sessionToken : "",
+        identifier: typeof req.body?.identifier === "string" ? req.body.identifier : "",
+        password: typeof req.body?.password === "string" ? req.body.password : "",
+        acceptedTerms: req.body?.acceptedTerms === true,
+        syncProfile: {
+          username: syncProfileInput.username === true,
+          avatar: syncProfileInput.avatar !== false,
+        },
+        clientIp: getClientIP(req),
+        userAgent: String(req.headers["user-agent"] || ""),
+        path: req.originalUrl || req.path,
+        method: req.method,
+        requestId: typeof (req as any).requestId === "string" ? (req as any).requestId : undefined,
+      });
+
+      if (result.status === "conflict") {
+        return res.status(409).json(result);
+      }
+
+      return res.json(result);
+    } catch (error) {
+      logger.error("[Auth] Provider bind confirm failed", error);
+      const message = error instanceof Error ? error.message : "第三方登录绑定失败";
+      const status =
+        message.includes("用户名/邮箱或密码错误")
+          ? 401
+          : message.includes("已封停")
+            ? 403
+            : message.includes("已过期")
+              ? 410
+              : 400;
+
+      return res.status(status).json({ error: message });
+    }
+  }
+
   public static async googleBind(req: Request, res: Response) {
     try {
       if (!isGoogleAuthEnabled()) {
-        return res.status(503).json({ error: "Google Auth is not configured" });
+        return res.status(503).json({ error: "Google 登录未配置" });
       }
 
       const currentUser = (req as any).user as User | undefined;

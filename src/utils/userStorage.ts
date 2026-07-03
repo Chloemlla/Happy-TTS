@@ -57,12 +57,25 @@ export class UserStorage {
   }
 
   public static async authenticateUser(identifier: string, password: string): Promise<User | null> {
-    const errors = this.validateUserInput(identifier, password, undefined, false);
+    const sanitizedIdentifier = this.sanitizeInput(identifier);
+    const errors: ValidationError[] = [];
+
+    if (!sanitizedIdentifier) {
+      errors.push({ field: "username", message: "用户名不能为空" });
+    }
+    if (!password) {
+      errors.push({ field: "password", message: "密码不能为空" });
+    }
+
+    if (sanitizedIdentifier && !sanitizedIdentifier.includes("@")) {
+      errors.push(...this.validateUserInput(sanitizedIdentifier, password, undefined, false));
+    }
+
     if (errors.length > 0) {
-      logger.error("[UserStorage] authenticateUser 输入验证失败", { identifier, errors });
+      logger.error("[UserStorage] authenticateUser 输入验证失败", { identifier: sanitizedIdentifier, errors });
       throw new InputValidationError(errors);
     }
-    return userRepository.authenticateUser(identifier, password);
+    return userRepository.authenticateUser(sanitizedIdentifier, password);
   }
 
   public static async getUserById(id: string): Promise<User | null> {

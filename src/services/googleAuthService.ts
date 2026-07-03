@@ -4,6 +4,7 @@ import logger from "../utils/logger";
 import { signLoginToken } from "../utils/authToken";
 import { type User, UserStorage } from "../utils/userStorage";
 import { findUserByProviderIdentity, upsertIdentityForUser } from "./accountIdentityService";
+import { completeProviderLoginForBoundIdentity, issueProviderBindSession } from "./providerBindSessionService";
 
 export interface GoogleAuthConfigSummary {
   enabled: boolean;
@@ -25,6 +26,14 @@ export interface GoogleAuthPayload {
   isNewUser: boolean;
   provider: "google";
 }
+
+export type GoogleBindSessionResult =
+  | {
+      requiresBinding: true;
+      session: ReturnType<typeof issueProviderBindSession>;
+      provider: "google";
+    }
+  | (GoogleAuthPayload & { requiresBinding: false });
 
 export interface GoogleProfile {
   id: string;
@@ -83,7 +92,7 @@ async function getAvailableGoogleUsername(baseUsername: string): Promise<string>
     suffix += 1;
 
     if (suffix > 9999) {
-      throw new Error("Unable to allocate a unique username for Google sign-in");
+      throw new Error("无法为 Google 登录分配唯一用户名");
     }
   }
 
@@ -126,12 +135,12 @@ function toAuthPayload(user: User, isNewUser: boolean): GoogleAuthPayload {
 
 export async function verifyGoogleIdToken(idToken: string): Promise<GoogleProfile> {
   if (!isGoogleAuthEnabled()) {
-    throw new Error("Google Auth is not configured");
+    throw new Error("Google 登录未配置");
   }
 
   const trimmedToken = firstString(idToken);
   if (!trimmedToken) {
-    throw new Error("Google idToken is missing");
+    throw new Error("缺少 Google idToken");
   }
 
   let OAuth2Client: any;
@@ -139,7 +148,7 @@ export async function verifyGoogleIdToken(idToken: string): Promise<GoogleProfil
     ({ OAuth2Client } = await import("google-auth-library"));
   } catch (error) {
     logger.error("[Google Auth] Failed to load google-auth-library", error);
-    throw new Error("Google Auth dependency is not available");
+    throw new Error("Google 登录依赖不可用");
   }
 
   const client = new OAuth2Client(config.googleAuth.clientId);
@@ -156,7 +165,7 @@ export async function verifyGoogleIdToken(idToken: string): Promise<GoogleProfil
   const emailVerified = payload?.email_verified === true;
 
   if (!googleId || !email || !emailVerified) {
-    throw new Error("Google account email is missing or unverified");
+    throw new Error("Google 账号邮箱缺失或未验证");
   }
 
   return {
@@ -174,7 +183,7 @@ async function upsertGoogleUser(profile: GoogleProfile): Promise<{
   const linkedIdentityUser = await findUserByProviderIdentity("google", profile.id);
   if (linkedIdentityUser) {
     if ((linkedIdentityUser as any).accountStatus === "suspended") {
-      throw new Error("Account is suspended");
+      throw new Error("账户已被封停");
     }
 
     const updatedLinkedUser = (await UserStorage.updateUser(linkedIdentityUser.id, {
@@ -200,7 +209,7 @@ async function upsertGoogleUser(profile: GoogleProfile): Promise<{
   const existingUser = await findUserByEmail(profile.email);
   if (existingUser) {
     if ((existingUser as any).accountStatus === "suspended") {
-      throw new Error("Account is suspended");
+      throw new Error("账户已被封停");
     }
     const updatedExistingUser = (await UserStorage.updateUser(existingUser.id, {
       avatarUrl: profile.avatarUrl || existingUser.avatarUrl,
@@ -229,7 +238,7 @@ async function upsertGoogleUser(profile: GoogleProfile): Promise<{
 
   const createdUser = await UserStorage.createUser(username, profile.email, randomPassword);
   if (!createdUser) {
-    throw new Error("Failed to provision a local account for Google sign-in");
+    throw new Error("无法为 Google 登录创建本地账号");
   }
 
   const finalizedUser = (await UserStorage.updateUser(createdUser.id, {
@@ -271,7 +280,7 @@ export async function authenticateGoogleUser(params: {
   const profile = await verifyGoogleIdToken(params.idToken);
   const { user, isNewUser } = await upsertGoogleUser(profile);
   if ((user as any).accountStatus === "suspended") {
-    throw new Error("Account is suspended");
+    throw new Error("账户已被封停");
   }
 
   const finalizedUser = (await UserStorage.updateUser(user.id, {
@@ -302,4 +311,46 @@ export async function authenticateGoogleUser(params: {
   });
 
   return toAuthPayload(finalizedUser, isNewUser);
+}
+
+export async function startGoogleBindSession(params: {
+  idToken: string;
+  clientIp?: string;
+}): Promise<GoogleBindSessionResult> {
+  const profile = await verifyGoogleIdToken(params.idToken);
+  const linkedUser = await findUserByProviderIdentity("google", profile.id);
+
+  if (linkedUser) {
+    const payload = await completeProviderLoginForBoundIdentity({
+      user: linkedUser,
+      profile: {
+        provider: "google",
+        providerUserId: profile.id,
+        providerEmail: profile.email,
+        providerUsername: profile.name,
+        avatarUrl: profile.avatarUrl,
+      },
+      clientIp: params.clientIp,
+    });
+
+    return {
+      ...payload,
+      provider: "google",
+      requiresBinding: false,
+    };
+  }
+
+  const session = issueProviderBindSession({
+    provider: "google",
+    providerUserId: profile.id,
+    providerEmail: profile.email,
+    providerUsername: profile.name,
+    avatarUrl: profile.avatarUrl,
+  });
+
+  return {
+    requiresBinding: true,
+    session,
+    provider: "google",
+  };
 }

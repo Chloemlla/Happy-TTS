@@ -15,6 +15,11 @@ export interface AccountProviderProfile {
   avatarUrl?: string;
 }
 
+export interface ProfileSyncOptions {
+  username?: boolean;
+  avatar?: boolean;
+}
+
 export interface LinkedAccountView {
   provider: AccountIdentityProvider;
   label: string;
@@ -53,6 +58,7 @@ export interface IdentityAuditActor {
 }
 
 const SUPPORTED_PROVIDERS: AccountIdentityProvider[] = ["google", "linuxdo"];
+const RESERVED_USERNAMES = new Set(["admin", "administrator", "root", "system", "test"]);
 
 function assertProvider(provider: string): AccountIdentityProvider {
   if (!SUPPORTED_PROVIDERS.includes(provider as AccountIdentityProvider)) {
@@ -89,6 +95,61 @@ function isDuplicateKeyError(error: unknown): boolean {
   return Boolean(error && typeof error === "object" && (error as { code?: number }).code === 11000);
 }
 
+function sanitizeProviderUsername(rawUsername: string | undefined, provider: AccountIdentityProvider, fallbackId: string): string {
+  const prefix = provider === "google" ? "google" : "linuxdo";
+  const fallback = `${prefix}_${fallbackId}`.slice(0, 20);
+  const normalized =
+    (rawUsername || fallback)
+      .replace(/[^a-zA-Z0-9_]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 20) || fallback;
+
+  let candidate = normalized;
+
+  if (candidate.length < 3) {
+    candidate = `${provider === "google" ? "gg" : "ld"}_${fallbackId}`
+      .replace(/[^a-zA-Z0-9_]+/g, "_")
+      .slice(0, 20);
+  }
+
+  if (RESERVED_USERNAMES.has(candidate.toLowerCase())) {
+    candidate = `${candidate.slice(0, 17)}_${provider === "google" ? "gg" : "ld"}`.slice(0, 20);
+  }
+
+  if (candidate.length < 3) {
+    candidate = fallback;
+  }
+
+  return candidate;
+}
+
+async function getAvailableSynapseUsername(
+  user: User,
+  profile: AccountProviderProfile,
+): Promise<string | undefined> {
+  const baseUsername = sanitizeProviderUsername(profile.providerUsername, profile.provider, profile.providerUserId);
+  let candidate = baseUsername;
+  let suffix = 1;
+
+  while (suffix <= 9999) {
+    const existing = await UserStorage.getUserByUsername(candidate);
+    if (!existing || existing.id === user.id) {
+      return candidate;
+    }
+
+    const suffixText = `_${suffix}`;
+    candidate = `${baseUsername.slice(0, Math.max(3, 20 - suffixText.length))}${suffixText}`;
+    suffix += 1;
+  }
+
+  logger.warn("[AccountIdentity] 第三方昵称无法分配为唯一用户名，跳过同步", {
+    userId: user.id,
+    provider: profile.provider,
+    providerUserId: profile.providerUserId,
+  });
+  return undefined;
+}
+
 async function canWriteLegacyLinuxDoId(user: User, linuxdoId: string): Promise<boolean> {
   if (user.linuxdoId === linuxdoId) {
     return true;
@@ -107,7 +168,11 @@ async function canWriteLegacyLinuxDoId(user: User, linuxdoId: string): Promise<b
   return false;
 }
 
-export async function buildProviderUserUpdates(user: User, profile: AccountProviderProfile): Promise<Partial<User>> {
+export async function buildProviderUserUpdates(
+  user: User,
+  profile: AccountProviderProfile,
+  syncOptions: ProfileSyncOptions = {},
+): Promise<Partial<User>> {
   const normalized = normalizeProfile(profile);
   const updates: Partial<User> = {};
 
@@ -119,7 +184,14 @@ export async function buildProviderUserUpdates(user: User, profile: AccountProvi
     updates.linuxdoAvatarUrl = normalized.avatarUrl;
   }
 
-  if (normalized.avatarUrl) {
+  if (syncOptions.username) {
+    const username = await getAvailableSynapseUsername(user, normalized);
+    if (username && username !== user.username) {
+      updates.username = username;
+    }
+  }
+
+  if (syncOptions.avatar !== false && normalized.avatarUrl) {
     updates.avatarUrl = normalized.avatarUrl;
   }
 
@@ -172,8 +244,12 @@ function toLinkedAccountView(
   };
 }
 
-async function updateLegacyProviderFields(user: User, profile: AccountProviderProfile): Promise<void> {
-  const updates = await buildProviderUserUpdates(user, profile);
+async function updateLegacyProviderFields(
+  user: User,
+  profile: AccountProviderProfile,
+  syncOptions: ProfileSyncOptions = {},
+): Promise<void> {
+  const updates = await buildProviderUserUpdates(user, profile, syncOptions);
 
   if (Object.keys(updates).length > 0) {
     await UserStorage.updateUser(user.id, updates);
@@ -263,7 +339,11 @@ export async function findUserByProviderIdentity(
   return UserStorage.getUserById(identity.userId);
 }
 
-export async function upsertIdentityForUser(user: User, profile: AccountProviderProfile): Promise<void> {
+export async function upsertIdentityForUser(
+  user: User,
+  profile: AccountProviderProfile,
+  syncOptions: ProfileSyncOptions = {},
+): Promise<void> {
   const normalized = normalizeProfile(profile);
 
   await AccountIdentityModel.findOneAndUpdate(
@@ -286,7 +366,7 @@ export async function upsertIdentityForUser(user: User, profile: AccountProvider
     { upsert: true, returnDocument: "after" },
   );
 
-  await updateLegacyProviderFields(user, normalized);
+  await updateLegacyProviderFields(user, normalized, syncOptions);
 }
 
 export async function listLinkedAccounts(user: User): Promise<LinkedAccountView[]> {
@@ -308,6 +388,7 @@ export async function listLinkedAccounts(user: User): Promise<LinkedAccountView[
 export async function bindProviderIdentityToUser(params: {
   targetUser: User;
   profile: AccountProviderProfile;
+  syncProfile?: ProfileSyncOptions;
   actor?: IdentityAuditActor;
 }): Promise<BindIdentityResult> {
   const normalized = normalizeProfile(params.profile);
@@ -335,7 +416,7 @@ export async function bindProviderIdentityToUser(params: {
 
   const existingIdentity = await findAccountIdentity(normalized.provider, normalized.providerUserId);
   if (!existingIdentity || existingIdentity.status === "revoked") {
-    await upsertIdentityForUser(targetUser, normalized);
+    await upsertIdentityForUser(targetUser, normalized, params.syncProfile);
     await writeIdentityAudit(params.actor, targetUser, normalized, "account.identity.bind", "success");
     const accounts = await listLinkedAccounts(targetUser);
     return {
@@ -346,7 +427,7 @@ export async function bindProviderIdentityToUser(params: {
   }
 
   if (existingIdentity.userId === targetUser.id) {
-    await upsertIdentityForUser(targetUser, normalized);
+    await upsertIdentityForUser(targetUser, normalized, params.syncProfile);
     await writeIdentityAudit(params.actor, targetUser, normalized, "account.identity.refresh", "success");
     const accounts = await listLinkedAccounts(targetUser);
     return {

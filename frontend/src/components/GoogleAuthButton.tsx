@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import getApiBaseUrl from "../api";
 import { useAuth } from "../hooks/useAuth";
 import type { User } from "../types/auth";
@@ -29,6 +30,17 @@ interface GoogleAuthButtonProps {
 interface GoogleAuthConfigResponse {
   enabled?: boolean;
   clientId?: string;
+}
+
+interface GoogleBindSessionResponse {
+  requiresBinding?: boolean;
+  session?: {
+    sessionToken: string;
+  };
+  token?: string;
+  user?: User;
+  isNewUser?: boolean;
+  error?: string;
 }
 
 let googleScriptPromise: Promise<void> | null = null;
@@ -95,6 +107,7 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
   const buttonRef = useRef<HTMLDivElement | null>(null);
   const initializedClientIdRef = useRef<string>("");
   const notifiedLoadFailureRef = useRef(false);
+  const navigate = useNavigate();
   const [enabled, setEnabled] = useState(false);
   const [clientId, setClientId] = useState("");
   const [loading, setLoading] = useState(true);
@@ -115,7 +128,7 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
       }
 
       try {
-        const authResponse = await fetch(`${getApiBaseUrl()}/api/auth/google`, {
+        const authResponse = await fetch(`${getApiBaseUrl()}/api/auth/google/bind-session`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -123,9 +136,21 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
           credentials: "include",
           body: JSON.stringify({ idToken }),
         });
-        const data = await authResponse.json().catch(() => null);
+        const data = (await authResponse.json().catch(() => null)) as GoogleBindSessionResponse | null;
 
-        if (!authResponse.ok || !data?.token || !data?.user) {
+        if (!authResponse.ok) {
+          throw new Error(data?.error || "Google 登录失败");
+        }
+
+        if (data?.requiresBinding) {
+          if (!data.session?.sessionToken) {
+            throw new Error("Google 登录绑定会话创建失败");
+          }
+          navigate(`/auth/provider/bind?sessionToken=${encodeURIComponent(data.session.sessionToken)}`);
+          return;
+        }
+
+        if (!data?.token || !data?.user) {
           throw new Error(data?.error || "Google 登录失败");
         }
 
@@ -142,7 +167,7 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
         });
       }
     },
-    [loginWithToken, setNotification],
+    [loginWithToken, navigate, setNotification],
   );
 
   useEffect(() => {
@@ -196,6 +221,7 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
           window.google.accounts.id.initialize({
             client_id: clientId,
             callback: handleCredentialResponse,
+            locale: "zh-CN",
           });
           initializedClientIdRef.current = clientId;
         }
@@ -207,6 +233,7 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
           text: buttonText,
           shape: "rectangular",
           width: Math.max(buttonRef.current.offsetWidth || 0, 280),
+          locale: "zh-CN",
         });
         setScriptLoadFailed(false);
         notifiedLoadFailureRef.current = false;

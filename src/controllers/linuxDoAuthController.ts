@@ -56,7 +56,7 @@ export class LinuxDoAuthController {
 
       return res.redirect(302, redirectUrl);
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Linux.do OAuth callback failed";
+      const message = error instanceof Error ? error.message : "Linux.do 登录回调失败";
       logger.error("[Linux.do Auth] OAuth callback failed", {
         message,
         codePresent: Boolean(code),
@@ -73,7 +73,7 @@ export class LinuxDoAuthController {
   public static async start(req: Request, res: Response) {
     try {
       if (!isLinuxDoAuthEnabled()) {
-        return res.status(503).json({ error: "Linux.do OAuth is not configured" });
+        return res.status(503).json({ error: "Linux.do 登录未配置" });
       }
 
       const intent = parseIntent(req.query.intent);
@@ -81,7 +81,7 @@ export class LinuxDoAuthController {
       return res.redirect(302, authorizationUrl);
     } catch (error) {
       logger.error("[Linux.do Auth] Failed to start OAuth flow", error);
-      return res.status(500).json({ error: "Failed to start Linux.do OAuth flow" });
+      return res.status(500).json({ error: "无法启动 Linux.do 登录流程" });
     }
   }
 
@@ -90,7 +90,7 @@ export class LinuxDoAuthController {
       req,
       res,
       req.body,
-      "Missing Linux.do authorization code or state",
+      "缺少 Linux.do 授权码或登录状态",
     );
   }
 
@@ -99,7 +99,7 @@ export class LinuxDoAuthController {
       req,
       res,
       req.query,
-      "Missing Linux.do authorization code or state",
+      "缺少 Linux.do 授权码或登录状态",
     );
   }
 
@@ -107,12 +107,12 @@ export class LinuxDoAuthController {
     const { ticket } = req.body ?? {};
 
     if (!ticket || typeof ticket !== "string") {
-      return res.status(400).json({ error: "Missing Linux.do exchange ticket" });
+      return res.status(400).json({ error: "缺少 Linux.do 登录交换票据" });
     }
 
     const payload = consumeLinuxDoLoginTicket(ticket);
     if (!payload) {
-      return res.status(400).json({ error: "Linux.do exchange ticket is invalid or has expired" });
+      return res.status(400).json({ error: "Linux.do 登录交换票据无效或已过期" });
     }
 
     return res.json(payload);
