@@ -107,11 +107,13 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
   const buttonRef = useRef<HTMLDivElement | null>(null);
   const initializedClientIdRef = useRef<string>("");
   const notifiedLoadFailureRef = useRef(false);
+  const authenticatingRef = useRef(false);
   const navigate = useNavigate();
   const [enabled, setEnabled] = useState(false);
   const [clientId, setClientId] = useState("");
   const [loading, setLoading] = useState(true);
   const [scriptLoadFailed, setScriptLoadFailed] = useState(false);
+  const [authenticating, setAuthenticating] = useState(false);
   const { loginWithToken } = useAuth();
   const { setNotification } = useNotification();
   const buttonText = useMemo(
@@ -121,12 +123,18 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
 
   const handleCredentialResponse = useCallback(
     async (response: { credential?: string }) => {
+      if (authenticatingRef.current) {
+        return;
+      }
+
       const idToken = typeof response.credential === "string" ? response.credential : "";
       if (!idToken) {
         setNotification({ message: "Google 登录未返回有效凭证", type: "error" });
         return;
       }
 
+      authenticatingRef.current = true;
+      setAuthenticating(true);
       try {
         const authResponse = await fetch(`${getApiBaseUrl()}/api/auth/google/bind-session`, {
           method: "POST",
@@ -161,6 +169,8 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
         });
         window.location.replace("/");
       } catch (error) {
+        authenticatingRef.current = false;
+        setAuthenticating(false);
         setNotification({
           message: error instanceof Error ? error.message : "Google 登录失败",
           type: "error",
@@ -263,7 +273,7 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
   }
 
   return (
-    <div className={cn(authElevatedPanelClassName, "w-full px-4 py-3", className)}>
+    <div className={cn(authElevatedPanelClassName, "w-full px-4 py-3", className)} aria-busy={authenticating}>
       <div className="mb-3 flex items-center gap-3">
         <img
           width="48"
@@ -286,7 +296,22 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
           无法加载 Google 登录模块，请检查网络配置。
         </div>
       ) : (
-        <div ref={buttonRef} className="flex min-h-[44px] w-full items-center justify-center" />
+        <div className="relative min-h-[44px]">
+          <div
+            ref={buttonRef}
+            className={cn(
+              "flex min-h-[44px] w-full items-center justify-center transition",
+              authenticating && "pointer-events-none opacity-20",
+            )}
+          />
+          {authenticating ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center rounded-lg border border-slate-200 bg-white/95 px-3 text-center">
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-slate-900" />
+              <p className="mt-2 text-xs font-medium text-slate-700">正在完成 Google 登录...</p>
+              <p className="mt-1 text-[11px] leading-4 text-slate-500">如果没有自动跳转，请返回登录页重试。</p>
+            </div>
+          ) : null}
+        </div>
       )}
     </div>
   );

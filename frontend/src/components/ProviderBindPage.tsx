@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { FaArrowLeft, FaCheck, FaEnvelope, FaImage, FaLock, FaUser } from "react-icons/fa";
+import { FaArrowLeft, FaCheck, FaClock, FaEnvelope, FaImage, FaLock, FaUser } from "react-icons/fa";
 import getApiBaseUrl from "../api";
 import { useAuth } from "../hooks/useAuth";
 import type { User } from "../types/auth";
@@ -14,7 +14,6 @@ import {
   authCardBodyClassName,
   authCardClassName,
   authCheckboxClassName,
-  authDescriptionClassName,
   authFieldClassName,
   authFieldIconClassName,
   authFrameClassName,
@@ -26,6 +25,7 @@ import {
   authSecondaryButtonClassName,
   authTextLinkClassName,
   authTitleClassName,
+  authWideFrameClassName,
   studioPageFont,
 } from "./authStudioTheme";
 import { useNotification } from "./Notification";
@@ -73,6 +73,13 @@ const initialTerms = TERMS.reduce(
   {} as Record<TermKey, boolean>,
 );
 
+function formatRemainingTime(totalSeconds: number): string {
+  const boundedSeconds = Math.max(0, totalSeconds);
+  const minutes = Math.floor(boundedSeconds / 60);
+  const seconds = boundedSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
 const ProviderBindPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -89,11 +96,28 @@ const ProviderBindPage: React.FC = () => {
   const [syncUsername, setSyncUsername] = useState(true);
   const [syncAvatar, setSyncAvatar] = useState(true);
   const [terms, setTerms] = useState<Record<TermKey, boolean>>(initialTerms);
+  const [now, setNow] = useState(Date.now());
 
   const allTermsAccepted = useMemo(
     () => TERMS.every((item) => terms[item.key]),
     [terms],
   );
+  const acceptedTermCount = useMemo(
+    () => TERMS.filter((item) => terms[item.key]).length,
+    [terms],
+  );
+  const remainingSeconds = useMemo(() => {
+    if (!session?.expiresAt) {
+      return 0;
+    }
+    const expiresAt = Date.parse(session.expiresAt);
+    if (!Number.isFinite(expiresAt)) {
+      return 0;
+    }
+    return Math.max(0, Math.ceil((expiresAt - now) / 1000));
+  }, [now, session?.expiresAt]);
+  const sessionExpired = Boolean(session) && remainingSeconds <= 0;
+  const providerEmailLabel = session?.provider === "linuxdo" ? "Linux.do 返回邮箱" : "Google 返回邮箱";
 
   useEffect(() => {
     let cancelled = false;
@@ -147,8 +171,28 @@ const ProviderBindPage: React.FC = () => {
     };
   }, [sessionToken]);
 
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [session?.expiresAt]);
+
   const toggleTerm = (key: TermKey) => {
     setTerms((current) => ({ ...current, [key]: !current[key] }));
+  };
+
+  const toggleAllTerms = () => {
+    const nextValue = !allTermsAccepted;
+    setTerms(
+      TERMS.reduce(
+        (acc, item) => ({ ...acc, [item.key]: nextValue }),
+        {} as Record<TermKey, boolean>,
+      ),
+    );
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -158,6 +202,10 @@ const ProviderBindPage: React.FC = () => {
     }
     if (!allTermsAccepted) {
       setNotification({ message: "请先勾选全部服务条款确认项", type: "warning" });
+      return;
+    }
+    if (sessionExpired) {
+      setError("绑定会话已过期，请返回登录页重新发起第三方登录。");
       return;
     }
     if (!identifier.trim() || !password) {
@@ -258,7 +306,7 @@ const ProviderBindPage: React.FC = () => {
 
   return (
     <main className={cn(studioPageFont, authPageShellClassName)}>
-      <section className={authFrameClassName}>
+      <section className={authWideFrameClassName}>
         <div className={authBrandBlockClassName}>
           <div className={authBrandPillClassName}>{session.providerLabel} 登录</div>
           <h1 className={authBrandTitleClassName}>绑定已有账号</h1>
@@ -269,23 +317,44 @@ const ProviderBindPage: React.FC = () => {
 
         <form className={authCardClassName} onSubmit={handleSubmit}>
           <div className={authCardBodyClassName}>
-            <div className="mb-6 flex items-center gap-3">
-              {session.avatarUrl ? (
-                <img
-                  src={session.avatarUrl}
-                  alt={`${session.providerLabel} 头像`}
-                  className="h-12 w-12 rounded-full border border-slate-200 object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <div className="flex h-12 w-12 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500">
-                  <FaUser className="h-5 w-5" />
+            <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 items-center gap-3">
+                  {session.avatarUrl ? (
+                    <img
+                      src={session.avatarUrl}
+                      alt={`${session.providerLabel} 头像`}
+                      className="h-14 w-14 rounded-full border border-slate-200 object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500">
+                      <FaUser className="h-5 w-5" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <h2 className={authTitleClassName}>{session.providerLabel} 资料</h2>
+                    <p className="mt-1 truncate text-sm font-medium text-slate-700">
+                      {session.providerUsername || "未返回昵称"}
+                    </p>
+                  </div>
                 </div>
-              )}
-              <div className="min-w-0">
-                <h2 className={authTitleClassName}>{session.providerLabel} 资料</h2>
-                <p className={cn(authDescriptionClassName, "truncate")}>
-                  {session.providerEmail || "第三方账号未返回邮箱"}
+                <div
+                  className={cn(
+                    "inline-flex items-center gap-2 self-start rounded-full border px-3 py-1.5 text-xs font-semibold sm:self-center",
+                    sessionExpired
+                      ? "border-rose-200 bg-rose-50 text-rose-700"
+                      : "border-slate-200 bg-white text-slate-600",
+                  )}
+                >
+                  <FaClock className="h-3.5 w-3.5" />
+                  {sessionExpired ? "会话已过期" : `剩余 ${formatRemainingTime(remainingSeconds)}`}
+                </div>
+              </div>
+              <div className="mt-4 rounded-xl border border-slate-200 bg-white px-3 py-2">
+                <p className="text-[11px] font-semibold text-slate-500">{providerEmailLabel}</p>
+                <p className="mt-1 break-all font-mono text-sm text-slate-900">
+                  {session.providerEmail || "未返回邮箱"}
                 </p>
               </div>
             </div>
@@ -295,7 +364,12 @@ const ProviderBindPage: React.FC = () => {
                 是否将 {session.providerLabel} 资料同步到当前账号
               </p>
               {session.providerUsername ? (
-                <label className="flex items-start gap-3 text-sm leading-6 text-slate-700">
+                <label
+                  className={cn(
+                    "flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 text-sm leading-6 transition",
+                    syncUsername ? "border-slate-900 bg-white text-slate-900" : "border-slate-200 bg-white/70 text-slate-700",
+                  )}
+                >
                   <input
                     type="checkbox"
                     checked={syncUsername}
@@ -306,7 +380,12 @@ const ProviderBindPage: React.FC = () => {
                 </label>
               ) : null}
               {session.avatarUrl ? (
-                <label className="flex items-start gap-3 text-sm leading-6 text-slate-700">
+                <label
+                  className={cn(
+                    "flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 text-sm leading-6 transition",
+                    syncAvatar ? "border-slate-900 bg-white text-slate-900" : "border-slate-200 bg-white/70 text-slate-700",
+                  )}
+                >
                   <input
                     type="checkbox"
                     checked={syncAvatar}
@@ -318,6 +397,11 @@ const ProviderBindPage: React.FC = () => {
                     使用 {session.providerLabel} 头像
                   </span>
                 </label>
+              ) : null}
+              {!session.providerUsername && !session.avatarUrl ? (
+                <div className="rounded-2xl border border-slate-200 bg-white/70 px-4 py-3 text-sm leading-6 text-slate-600">
+                  第三方账号未返回可同步的昵称或头像。
+                </div>
               ) : null}
             </div>
 
@@ -336,6 +420,7 @@ const ProviderBindPage: React.FC = () => {
                     onChange={(event) => setIdentifier(event.target.value)}
                     className={cn(authFieldClassName, emailLocked && "bg-slate-50 text-slate-500")}
                     autoComplete="username"
+                    autoFocus={!emailLocked}
                     required
                   />
                 </div>
@@ -366,29 +451,45 @@ const ProviderBindPage: React.FC = () => {
                     onChange={(event) => setPassword(event.target.value)}
                     className={authPasswordFieldClassName}
                     autoComplete="current-password"
+                    autoFocus={emailLocked}
                     required
                   />
                 </div>
               </div>
             </div>
 
-            <div className="mt-6 space-y-3">
-              {TERMS.map((item) => (
-                <label key={item.key} className="flex items-start gap-3 text-sm leading-6 text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={terms[item.key]}
-                    onChange={() => toggleTerm(item.key)}
-                    className={cn(authCheckboxClassName, "mt-1")}
-                  />
-                  <span>
-                    我已阅读并同意
-                    <Link to="/policy" className={cn(authTextLinkClassName, "ml-1")} target="_blank">
-                      {item.label}
-                    </Link>
-                  </span>
-                </label>
-              ))}
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">条款确认</p>
+                  <p className="mt-1 text-xs text-slate-500">已勾选 {acceptedTermCount}/{TERMS.length}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleAllTerms}
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+                >
+                  {allTermsAccepted ? "取消全选" : "全部勾选"}
+                </button>
+              </div>
+              <div className="space-y-3">
+                {TERMS.map((item) => (
+                  <label key={item.key} className="flex items-start gap-3 text-sm leading-6 text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={terms[item.key]}
+                      onChange={() => toggleTerm(item.key)}
+                      className={cn(authCheckboxClassName, "mt-1")}
+                    />
+                    <span>
+                      我已阅读并同意
+                      <Link to="/policy" className={cn(authTextLinkClassName, "ml-1")} target="_blank">
+                        {item.label}
+                      </Link>
+                    </span>
+                  </label>
+                ))}
+              </div>
             </div>
 
             {error ? (
@@ -399,10 +500,10 @@ const ProviderBindPage: React.FC = () => {
 
             <button
               type="submit"
-              disabled={submitting || !allTermsAccepted || !identifier.trim() || !password}
+              disabled={submitting || sessionExpired || !allTermsAccepted || !identifier.trim() || !password}
               className={cn(authPrimaryButtonClassName, "mt-6 inline-flex items-center justify-center gap-2")}
             >
-              {submitting ? "正在绑定..." : (
+              {sessionExpired ? "绑定会话已过期" : submitting ? "正在绑定..." : (
                 <>
                   <FaCheck className="h-3.5 w-3.5" />
                   登录并绑定
