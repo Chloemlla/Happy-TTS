@@ -9,6 +9,9 @@ export interface EnvItem {
 export interface OutemailSettingItem {
   domain: string;
   code: string;
+  apiKey?: string;
+  hasCode?: boolean;
+  hasApiKey?: boolean;
   updatedAt?: string;
 }
 

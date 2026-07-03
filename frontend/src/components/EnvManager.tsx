@@ -267,6 +267,7 @@ const EnvManager: React.FC = () => {
   const [settingsLoading, setSettingsLoading] = useState(false);
   const [settingDomain, setSettingDomain] = useState('');
   const [settingCode, setSettingCode] = useState('');
+  const [settingApiKey, setSettingApiKey] = useState('');
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsDeletingDomain, setSettingsDeletingDomain] = useState<string | null>(null);
 
@@ -497,8 +498,9 @@ const EnvManager: React.FC = () => {
     if (settingsSaving) return;
     const domain = settingDomain.trim();
     const code = settingCode.trim();
-    if (!code) {
-      setNotification({ message: '请填写校验码', type: 'error' });
+    const apiKey = settingApiKey.trim();
+    if (!code && !apiKey) {
+      setNotification({ message: '请填写校验码或外部 API Key', type: 'error' });
       return;
     }
     setSettingsSaving(true);
@@ -506,7 +508,7 @@ const EnvManager: React.FC = () => {
       const res = await fetch(OUTEMAIL_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ domain, code })
+        body: JSON.stringify({ domain, code, apiKey })
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -515,13 +517,14 @@ const EnvManager: React.FC = () => {
       }
       setNotification({ message: '保存成功', type: 'success' });
       setSettingCode('');
+      setSettingApiKey('');
       await fetchOutemailSettings();
     } catch (e) {
       setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
     } finally {
       setSettingsSaving(false);
     }
-  }, [settingsSaving, settingDomain, settingCode, fetchOutemailSettings, setNotification]);
+  }, [settingsSaving, settingDomain, settingCode, settingApiKey, fetchOutemailSettings, setNotification]);
 
   const handleDeleteSetting = useCallback(async (domain: string) => {
     if (settingsDeletingDomain) return;
@@ -1682,8 +1685,8 @@ const EnvManager: React.FC = () => {
           </AnimatePresence>
         </m.section>
 
-        {/* 对外邮件校验码设置 */}
-        <CollapsibleSection title="对外邮件校验码设置" description="管理对外邮件域名校验码，支持默认域名和指定域名。" sectionKey="outemail" isOpen={isSectionOpen('outemail')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
+        {/* 对外邮件 API 鉴权设置 */}
+        <CollapsibleSection title="对外邮件 API 鉴权设置" description="管理外部应用调用对外邮件 API 的鉴权信息，支持默认域名和指定域名。" sectionKey="outemail" isOpen={isSectionOpen('outemail')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
           <m.button onClick={(e) => { e.stopPropagation(); fetchOutemailSettings(); }} disabled={settingsLoading} className={ENV_MANAGER_REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
             <FaSync className={`w-4 h-4 ${settingsLoading ? 'animate-spin' : ''}`} /> 刷新
           </m.button>
@@ -1699,11 +1702,20 @@ const EnvManager: React.FC = () => {
               />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">校验码</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">外部 API Key</label>
+              <input
+                value={settingApiKey}
+                onChange={(e) => setSettingApiKey(e.target.value)}
+                placeholder="推荐使用随机长令牌，请求头使用 Authorization: Bearer <API Key>"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
+              />
+            </div>
+            <div className="md:col-span-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">兼容校验码</label>
               <input
                 value={settingCode}
                 onChange={(e) => setSettingCode(e.target.value)}
-                placeholder="请输入校验码（仅用于校验，不会回显明文）"
+                placeholder="旧调用方可继续在请求体传 code；新调用推荐使用外部 API Key"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
               />
             </div>
@@ -1721,7 +1733,7 @@ const EnvManager: React.FC = () => {
           </div>
 
           <div className="mt-6">
-            <h4 className="text-sm font-semibold text-gray-700 mb-2">已配置域名</h4>
+            <h4 className="text-sm font-semibold text-gray-700 mb-2">已配置鉴权</h4>
             {settingsLoading ? (
               <div className="text-gray-500 text-sm">加载中...</div>
             ) : outemailSettings.length === 0 ? (
@@ -1740,7 +1752,10 @@ const EnvManager: React.FC = () => {
                       >
                         <div className="text-sm text-gray-800">
                           <div className="font-semibold mb-1">{s.domain || <span className="text-gray-400">默认</span>}</div>
-                          <div className="font-mono text-xs text-gray-700 break-all">{s.code}</div>
+                          <div className="text-xs text-gray-500 mt-2">外部 API Key</div>
+                          <div className="font-mono text-xs text-gray-700 break-all">{s.apiKey || '未配置'}</div>
+                          <div className="text-xs text-gray-500 mt-2">兼容校验码</div>
+                          <div className="font-mono text-xs text-gray-700 break-all">{s.code || '未配置'}</div>
                           <div className="text-xs text-gray-500 mt-1">{s.updatedAt ? new Date(s.updatedAt).toLocaleString() : '-'}</div>
                         </div>
                         <div className="mt-2 text-right">
@@ -1761,7 +1776,8 @@ const EnvManager: React.FC = () => {
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-200">
                         <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">域名</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">校验码（脱敏）</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">外部 API Key（脱敏）</th>
+                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">兼容校验码（脱敏）</th>
                         <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">更新时间</th>
                         <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">操作</th>
                       </tr>
@@ -1776,7 +1792,8 @@ const EnvManager: React.FC = () => {
                           className="border-b last:border-b-0"
                         >
                           <td className="px-4 py-3 text-sm text-gray-800">{s.domain || <span className="text-gray-400">默认</span>}</td>
-                          <td className="px-4 py-3 font-mono text-sm text-gray-700">{s.code}</td>
+                          <td className="px-4 py-3 font-mono text-sm text-gray-700">{s.apiKey || '未配置'}</td>
+                          <td className="px-4 py-3 font-mono text-sm text-gray-700">{s.code || '未配置'}</td>
                           <td className="px-4 py-3 text-sm text-gray-600">{s.updatedAt ? new Date(s.updatedAt).toLocaleString() : '-'}</td>
                           <td className="px-4 py-3 text-right">
                             <m.button

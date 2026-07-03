@@ -909,9 +909,6 @@ export class RuntimeConfigService {
       if (!RESEND_API_KEY_PATTERN.test(nextConfig.outemailApiKey)) {
         throw new Error("对外邮件 API Key 必须以 re_ 开头且长度有效");
       }
-      if (!nextConfig.outemailCode) {
-        throw new Error("启用对外邮件前需要配置默认校验码");
-      }
     }
 
     const now = new Date();

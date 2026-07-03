@@ -1,7 +1,7 @@
-import express from "express";
+import express, { type Request } from "express";
 import { createLimiter } from "../middleware/rateLimiter";
 import { getOutEmailServiceStatus, resolveOutEmailDomain } from "../services/emailService";
-import { getOutEmailQuota, sendOutEmail, sendOutEmailBatch } from "../services/outEmailService";
+import { getOutEmailAuthStatus, getOutEmailQuota, sendOutEmail, sendOutEmailBatch } from "../services/outEmailService";
 import logger from "../utils/logger";
 
 const router = express.Router();
@@ -22,6 +22,31 @@ const statusQueryLimiter = createLimiter({
   routeName: "outemail.status",
 });
 
+function getHeaderValue(value: unknown): string {
+  if (Array.isArray(value)) return typeof value[0] === "string" ? value[0].trim() : "";
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getRequestAuth(req: Request, body: Record<string, unknown>) {
+  const authorization = getHeaderValue(req.headers.authorization);
+  const bearerMatch = authorization.match(/^Bearer\s+(.+)$/i);
+  const bearerToken = bearerMatch ? bearerMatch[1].trim() : "";
+  const headerApiKey =
+    bearerToken || getHeaderValue(req.headers["x-outemail-api-key"]) || getHeaderValue(req.headers["x-api-key"]);
+  const bodyApiKey =
+    typeof body.apiKey === "string"
+      ? body.apiKey.trim()
+      : typeof body.authKey === "string"
+        ? body.authKey.trim()
+        : "";
+  const code = typeof body.code === "string" ? body.code.trim() : "";
+
+  return {
+    code: code || undefined,
+    apiKey: headerApiKey || bodyApiKey || undefined,
+  };
+}
+
 /**
  * GET /api/outemail/quota
  * 公共：查询对外邮件每日配额
@@ -39,14 +64,18 @@ router.get("/quota", statusQueryLimiter, async (_req, res) => {
  * GET /api/outemail/status
  * 公共：查询对外邮件服务状态
  */
-router.get("/status", statusQueryLimiter, (req, res) => {
+router.get("/status", statusQueryLimiter, async (req, res) => {
   try {
     const outemailStatus = getOutEmailServiceStatus();
+    const domain = outemailStatus.domain || resolveOutEmailDomain();
+    const authStatus = await getOutEmailAuthStatus(domain);
+    const available = outemailStatus.available && authStatus.configured;
     res.json({
       success: true,
-      available: outemailStatus.available,
-      error: outemailStatus.error || "",
-      domain: outemailStatus.domain || resolveOutEmailDomain(),
+      available,
+      error: available ? "" : outemailStatus.error || "对外邮件鉴权未配置",
+      domain,
+      authConfigured: authStatus.configured,
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "未知错误";
@@ -69,14 +98,16 @@ router.get("/domain", (_req, res) => {
 
 /**
  * POST /api/outemail/send
- * 公共：发送对外邮件（带验证码防滥用）
+ * 公共：发送对外邮件（支持 API Key 或兼容校验码鉴权）
  */
 router.post("/send", outEmailLimiter, async (req, res) => {
   try {
-    const { to, subject, content, code, attachments, from, displayName, domain } = req.body || {};
-    if (!to || !subject || !content || !code) {
+    const body = (req.body || {}) as Record<string, any>;
+    const { to, subject, content, attachments, from, displayName, domain } = body;
+    if (!to || !subject || !content) {
       return res.status(400).json({ error: "缺少参数" });
     }
+    const auth = getRequestAuth(req, body);
 
     const isValidEmail = (email: string) => /^[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}$/.test(email);
 
@@ -103,7 +134,8 @@ router.post("/send", outEmailLimiter, async (req, res) => {
         to,
         subject,
         content,
-        code,
+        code: auth.code,
+        apiKey: auth.apiKey,
         ip,
         attachments: safeAttachments,
         from,
@@ -137,7 +169,8 @@ router.post("/send", outEmailLimiter, async (req, res) => {
         to: first,
         subject,
         content,
-        code,
+        code: auth.code,
+        apiKey: auth.apiKey,
         ip,
         attachments: safeAttachments,
         from,
@@ -157,10 +190,12 @@ router.post("/send", outEmailLimiter, async (req, res) => {
 // 批量发送（不支持附件）
 router.post("/batch-send", outEmailLimiter, async (req, res) => {
   try {
-    const { messages, code, from, displayName, domain } = req.body || {};
-    if (!Array.isArray(messages) || !messages.length || !code) {
+    const body = (req.body || {}) as Record<string, any>;
+    const { messages, from, displayName, domain } = body;
+    if (!Array.isArray(messages) || !messages.length) {
       return res.status(400).json({ error: "缺少参数" });
     }
+    const auth = getRequestAuth(req, body);
     // 规范化与基本校验
     const normalized = messages
       .filter((m: any) => m?.to && m.subject && m.content)
@@ -173,7 +208,15 @@ router.post("/batch-send", outEmailLimiter, async (req, res) => {
     if (!normalized.length) return res.status(400).json({ error: "消息列表无有效项" });
 
     const ip = String(req.ip || req.headers["x-real-ip"] || "");
-    const result = await sendOutEmailBatch({ messages: normalized, code, ip, from, displayName, domain });
+    const result = await sendOutEmailBatch({
+      messages: normalized,
+      code: auth.code,
+      apiKey: auth.apiKey,
+      ip,
+      from,
+      displayName,
+      domain,
+    });
     if (result.success) return res.json({ success: true, ids: result.ids });
     return res.status(400).json({ error: result.error });
   } catch (e: any) {

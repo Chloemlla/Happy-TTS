@@ -248,9 +248,6 @@ export function getOutEmailServiceStatus(): { available: boolean; error?: string
   if (!domainMap[domain]) {
     return { available: false, error: "未配置有效的对外邮件 API Key（re_ 开头）", domain };
   }
-  if (!getOutEmailCodeFallback()) {
-    return { available: false, error: "对外邮件默认校验码未配置", domain };
-  }
   return { available: true, domain };
 }
 

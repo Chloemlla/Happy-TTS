@@ -36,6 +36,23 @@ function normalizeEnvForFrontend(key: string, value: unknown): string {
   return String(value);
 }
 
+function normalizeOutEmailDomain(value: unknown): string {
+  if (typeof value !== "string") return "";
+  return value.trim().toLowerCase();
+}
+
+function normalizeSecretInput(value: unknown, maxLength: number): string {
+  if (typeof value !== "string") return "";
+  return value.trim().slice(0, maxLength);
+}
+
+function maskSecretForDisplay(value: unknown): string {
+  const secret = typeof value === "string" ? value.trim() : "";
+  if (!secret) return "未配置";
+  if (secret.length > 8) return `${secret.slice(0, 2)}***${secret.slice(-4)}`;
+  return "***";
+}
+
 // MongoDB 公告 Schema
 const AnnouncementSchema = new mongoose.Schema(
   {
@@ -64,7 +81,8 @@ const AnnouncementModel = mongoose.models.Announcement || mongoose.model("Announ
 const OutEmailSettingSchema = new mongoose.Schema(
   {
     domain: { type: String, default: "" },
-    code: { type: String, required: true },
+    code: { type: String, default: "" },
+    apiKey: { type: String, default: "" },
     updatedAt: { type: Date, default: Date.now },
   },
   { collection: "outemail_settings" },
@@ -1627,11 +1645,13 @@ export const adminController = {
       if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const list = await OutEmailSettingModel.find({}).sort({ updatedAt: -1 }).lean();
-      // 返回时对 code 做部分脱敏显示
+      // 返回时对鉴权密钥做部分脱敏显示
       const safe = list.map((it: any) => ({
         domain: it.domain || "",
-        code:
-          typeof it.code === "string" && it.code.length > 8 ? `${it.code.slice(0, 2)}***${it.code.slice(-4)}` : "***",
+        code: maskSecretForDisplay(it.code),
+        apiKey: maskSecretForDisplay(it.apiKey),
+        hasCode: Boolean(typeof it.code === "string" && it.code.trim()),
+        hasApiKey: Boolean(typeof it.apiKey === "string" && it.apiKey.trim()),
         updatedAt: it.updatedAt,
       }));
       return res.json({ success: true, settings: safe });
@@ -1644,18 +1664,39 @@ export const adminController = {
     try {
       if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
-      const { domain, code } = req.body || {};
-      const safeDomain = typeof domain === "string" ? domain.trim() : "";
-      if (typeof code !== "string" || code.trim().length < 1 || code.length > 256) {
-        return res.status(400).json({ error: "无效的校验码" });
+      const { domain, code, apiKey } = req.body || {};
+      const safeDomain = normalizeOutEmailDomain(domain);
+      const nextCode = normalizeSecretInput(code, 256);
+      const nextApiKey = normalizeSecretInput(apiKey, 512);
+      const existing = (await OutEmailSettingModel.findOne({ domain: safeDomain }).lean()) as any;
+      const preservedCode = typeof existing?.code === "string" ? existing.code : "";
+      const preservedApiKey = typeof existing?.apiKey === "string" ? existing.apiKey : "";
+      const finalCode = nextCode || preservedCode;
+      const finalApiKey = nextApiKey || preservedApiKey;
+
+      if (!finalCode && !finalApiKey) {
+        return res.status(400).json({ error: "请至少填写校验码或外部 API Key" });
+      }
+      if (nextApiKey && nextApiKey.length < 8) {
+        return res.status(400).json({ error: "外部 API Key 至少需要 8 位" });
       }
       const now = new Date();
       const doc = await OutEmailSettingModel.findOneAndUpdate(
         { domain: safeDomain },
-        { code: code, updatedAt: now },
+        { code: finalCode, apiKey: finalApiKey, updatedAt: now },
         { upsert: true, returnDocument: "after" },
       );
-      return res.json({ success: true, setting: { domain: doc.domain, updatedAt: doc.updatedAt } });
+      return res.json({
+        success: true,
+        setting: {
+          domain: doc.domain,
+          code: maskSecretForDisplay((doc as any).code),
+          apiKey: maskSecretForDisplay((doc as any).apiKey),
+          hasCode: Boolean(typeof (doc as any).code === "string" && (doc as any).code.trim()),
+          hasApiKey: Boolean(typeof (doc as any).apiKey === "string" && (doc as any).apiKey.trim()),
+          updatedAt: doc.updatedAt,
+        },
+      });
     } catch (_e) {
       return res.status(500).json({ success: false, error: "保存设置失败" });
     }
@@ -1666,7 +1707,7 @@ export const adminController = {
       if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const { domain } = req.body || {};
-      const safeDomain = typeof domain === "string" ? domain.trim() : "";
+      const safeDomain = normalizeOutEmailDomain(domain);
       await OutEmailSettingModel.deleteOne({ domain: safeDomain });
       return res.json({ success: true });
     } catch (_e) {

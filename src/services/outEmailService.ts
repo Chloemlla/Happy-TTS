@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import dayjs from "dayjs";
 import { logger } from "./logger";
 import { mongoose } from "./mongoService";
@@ -35,14 +36,16 @@ const OutEmailQuota = mongoose.models.OutEmailQuota || mongoose.model("OutEmailQ
 
 interface OutEmailSettingDoc {
   domain: string;
-  code: string;
+  code?: string;
+  apiKey?: string;
   updatedAt?: Date;
 }
 
 const OutEmailSettingSchema = new mongoose.Schema<OutEmailSettingDoc>(
   {
     domain: { type: String, default: "" },
-    code: { type: String, required: true },
+    code: { type: String, default: "" },
+    apiKey: { type: String, default: "" },
     updatedAt: { type: Date, default: Date.now },
   },
   { collection: "outemail_settings" },
@@ -58,28 +61,66 @@ export interface OutEmailQuotaInfo {
   resetAt: string;
 }
 
-async function getOutEmailCodeFromDb(domain?: string): Promise<string | null> {
+function normalizeAuthSecret(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function timingSafeSecretEqual(candidate: unknown, expected: unknown): boolean {
+  const candidateSecret = normalizeAuthSecret(candidate);
+  const expectedSecret = normalizeAuthSecret(expected);
+  if (!candidateSecret || !expectedSecret) return false;
+
+  const candidateHash = crypto.createHash("sha256").update(candidateSecret).digest();
+  const expectedHash = crypto.createHash("sha256").update(expectedSecret).digest();
+  return crypto.timingSafeEqual(candidateHash, expectedHash);
+}
+
+async function getOutEmailAuthSettingFromDb(domain?: string): Promise<OutEmailSettingDoc | null> {
   try {
-    const domainKey = typeof domain === "string" ? domain : "";
+    const domainKey = typeof domain === "string" ? domain.trim().toLowerCase() : "";
     let doc = (await OutEmailSetting.findOne({ domain: domainKey }).lean().exec()) as OutEmailSettingDoc | null;
-    if (!doc && domainKey) {
+    if ((!doc || (!normalizeAuthSecret(doc.code) && !normalizeAuthSecret(doc.apiKey))) && domainKey) {
       doc = (await OutEmailSetting.findOne({ domain: "" }).lean().exec()) as OutEmailSettingDoc | null;
     }
-    return doc && typeof doc.code === "string" && doc.code.length > 0 ? doc.code : null;
+    return doc;
   } catch (error) {
-    logger.error("读取 OUTEMAIL_CODE 失败", { error: (error as any)?.message });
+    logger.error("读取对外邮件鉴权配置失败", { error: (error as any)?.message });
     return null;
   }
 }
 
-async function ensureOutEmailCode(code: string, domain: string) {
-  const dbCode = await getOutEmailCodeFromDb(domain);
+async function ensureOutEmailAuth({
+  code,
+  apiKey,
+  domain,
+}: {
+  code?: string;
+  apiKey?: string;
+  domain: string;
+}) {
+  const dbSetting = await getOutEmailAuthSettingFromDb(domain);
+  const dbCode = normalizeAuthSecret(dbSetting?.code);
+  const dbApiKey = normalizeAuthSecret(dbSetting?.apiKey);
   const fallbackCode = getOutEmailCodeFallback();
   const expectedCode = dbCode || fallbackCode;
-  if (!expectedCode || code !== expectedCode) {
-    return { success: false as const, error: "校验码错误" };
+
+  if (!dbApiKey && !expectedCode) {
+    return { success: false as const, error: "对外邮件鉴权未配置" };
   }
-  return { success: true as const };
+
+  if (!normalizeAuthSecret(apiKey) && !normalizeAuthSecret(code)) {
+    return { success: false as const, error: "缺少鉴权信息" };
+  }
+
+  if (dbApiKey && timingSafeSecretEqual(apiKey, dbApiKey)) {
+    return { success: true as const };
+  }
+
+  if (expectedCode && timingSafeSecretEqual(code, expectedCode)) {
+    return { success: true as const };
+  }
+
+  return { success: false as const, error: "鉴权失败" };
 }
 
 async function reserveQuota(count: number) {
@@ -130,16 +171,29 @@ export async function getOutEmailQuota(): Promise<OutEmailQuotaInfo> {
   return { used: quota.countDay || 0, total: getOutEmailQuotaTotal(), resetAt };
 }
 
+export async function getOutEmailAuthStatus(domain?: string): Promise<{ configured: boolean; hasApiKey: boolean; hasCode: boolean }> {
+  const dbSetting = await getOutEmailAuthSettingFromDb(domain);
+  const hasApiKey = Boolean(normalizeAuthSecret(dbSetting?.apiKey));
+  const hasCode = Boolean(normalizeAuthSecret(dbSetting?.code) || getOutEmailCodeFallback());
+  return {
+    configured: hasApiKey || hasCode,
+    hasApiKey,
+    hasCode,
+  };
+}
+
 export async function sendOutEmailBatch({
   messages,
   code,
+  apiKey,
   ip,
   from: fromUser,
   displayName,
   domain,
 }: {
   messages: Array<{ to: string | string[]; subject: string; content: string }>;
-  code: string;
+  code?: string;
+  apiKey?: string;
   ip: string;
   from?: string;
   displayName?: string;
@@ -163,8 +217,8 @@ export async function sendOutEmailBatch({
     return { success: false, error: "API密钥未配置" };
   }
 
-  const codeResult = await ensureOutEmailCode(code, outemailDomain);
-  if (!codeResult.success) return codeResult;
+  const authResult = await ensureOutEmailAuth({ code, apiKey, domain: outemailDomain });
+  if (!authResult.success) return authResult;
 
   const quotaResult = await reserveQuota(messages.length);
   if (!quotaResult.success) return quotaResult;
@@ -209,6 +263,7 @@ export async function sendOutEmail({
   subject,
   content,
   code,
+  apiKey,
   ip,
   from: fromUser,
   displayName,
@@ -218,7 +273,8 @@ export async function sendOutEmail({
   to: string;
   subject: string;
   content: string;
-  code: string;
+  code?: string;
+  apiKey?: string;
   ip: string;
   from?: string;
   displayName?: string;
@@ -242,8 +298,8 @@ export async function sendOutEmail({
     throw new Error("to 必须为字符串");
   }
 
-  const codeResult = await ensureOutEmailCode(code, outemailDomain);
-  if (!codeResult.success) return codeResult;
+  const authResult = await ensureOutEmailAuth({ code, apiKey, domain: outemailDomain });
+  if (!authResult.success) return authResult;
 
   const quotaResult = await reserveQuota(1);
   if (!quotaResult.success) return quotaResult;
