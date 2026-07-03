@@ -355,7 +355,7 @@ const AnnouncementManager: React.FC = () => {
                   <div className="border-2 border-gray-200 rounded-lg p-4 min-h-[120px] bg-gray-50">
                     {content ? (
                       format === 'markdown' ? (
-                        <MarkdownRenderer content={content} />
+                        <MarkdownRenderer content={content} density="compact" />
                       ) : (
                         <div 
                           className="prose prose-sm max-w-none"
@@ -400,4 +400,4 @@ const AnnouncementManager: React.FC = () => {
   );
 };
 
-export default AnnouncementManager; 
+export default AnnouncementManager;

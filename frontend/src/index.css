@@ -653,6 +653,170 @@ html {
   color: var(--md-text);
 }
 
+.markdown-renderer.markdown-renderer-compact {
+  font-size: 14px;
+  line-height: 1.62;
+}
+
+.markdown-renderer.markdown-renderer-compact :where(p, ul, ol, blockquote, pre, table, figure, .markdown-table-scroll, .katex-display) {
+  margin-bottom: 0.68em;
+}
+
+.markdown-renderer.markdown-renderer-compact p {
+  line-height: 1.62;
+}
+
+.markdown-renderer.markdown-renderer-compact h1 {
+  margin: 0.9em 0 0.5em;
+  padding-bottom: 0.2em;
+  font-size: 1.28rem;
+}
+
+.markdown-renderer.markdown-renderer-compact h2 {
+  margin: 0.85em 0 0.45em;
+  padding-bottom: 0.18em;
+  font-size: 1.14rem;
+}
+
+.markdown-renderer.markdown-renderer-compact h3 {
+  margin: 0.75em 0 0.38em;
+  font-size: 1.02rem;
+}
+
+.markdown-renderer.markdown-renderer-compact h4,
+.markdown-renderer.markdown-renderer-compact h5,
+.markdown-renderer.markdown-renderer-compact h6 {
+  margin: 0.7em 0 0.35em;
+  font-size: 0.96rem;
+}
+
+.markdown-renderer.markdown-renderer-compact ul,
+.markdown-renderer.markdown-renderer-compact ol {
+  padding-left: 1.25em;
+}
+
+.markdown-renderer.markdown-renderer-compact table {
+  min-width: 520px;
+  font-size: 0.9em;
+}
+
+.markdown-renderer.markdown-renderer-compact th,
+.markdown-renderer.markdown-renderer-compact td {
+  padding: 0.55rem 0.65rem;
+}
+
+.markdown-renderer.markdown-renderer-compact pre,
+.markdown-renderer.markdown-renderer-compact pre code {
+  font-size: 12px;
+  line-height: 1.58;
+}
+
+.markdown-reader {
+  position: relative;
+  min-width: 0;
+  --md-reader-control-bg: rgba(248, 250, 252, 0.86);
+  --md-reader-control-border: #e2e8f0;
+  --md-reader-control-text: #475569;
+  --md-reader-control-hover: #f1f5f9;
+  --md-reader-fade: linear-gradient(to bottom, rgba(255, 255, 255, 0), #ffffff 88%);
+}
+
+.markdown-reader.markdown-reader-dark {
+  --md-reader-control-bg: rgba(15, 23, 42, 0.76);
+  --md-reader-control-border: rgba(148, 163, 184, 0.26);
+  --md-reader-control-text: #cbd5e1;
+  --md-reader-control-hover: rgba(30, 41, 59, 0.9);
+  --md-reader-fade: linear-gradient(to bottom, rgba(15, 23, 42, 0), #0f172a 88%);
+}
+
+.markdown-reader-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  margin-bottom: 0.55rem;
+  min-height: 1.9rem;
+}
+
+.markdown-reader-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  min-width: auto;
+  min-height: auto;
+  border: 1px solid var(--md-reader-control-border);
+  border-radius: 0.5rem;
+  background: var(--md-reader-control-bg);
+  color: var(--md-reader-control-text);
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.markdown-reader-button:hover,
+.markdown-reader-button:focus-visible {
+  background: var(--md-reader-control-hover);
+  color: var(--md-link, #0969da);
+  outline: none;
+}
+
+.markdown-reader-button.is-success {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.markdown-reader-button.is-error {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.markdown-reader-body {
+  position: relative;
+  min-width: 0;
+}
+
+.markdown-reader-body.is-collapsed {
+  overflow: auto;
+  padding-right: 0.15rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.markdown-reader-fade {
+  position: sticky;
+  bottom: 0;
+  display: block;
+  height: 2.4rem;
+  margin-top: -2.4rem;
+  pointer-events: none;
+  background: var(--md-reader-fade);
+}
+
+.markdown-source-view {
+  max-width: 100%;
+  overflow: auto;
+  border: 1px solid #1e293b;
+  border-radius: 0.75rem;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 0;
+  padding: 1rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.markdown-source-view.markdown-source-view-compact {
+  border-radius: 0.65rem;
+  font-size: 12px;
+  line-height: 1.58;
+  padding: 0.8rem;
+}
+
 .markdown-renderer :where(p, ul, ol, blockquote, pre, table, figure, .markdown-table-scroll, .katex-display) {
   margin-top: 0;
   margin-bottom: 0.95em;

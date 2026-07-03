@@ -50,6 +50,34 @@ type ArtifactApiResponse = {
   message?: string;
 };
 
+type ArtifactLoadError = {
+  status?: number;
+  error?: string;
+  message?: string;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object';
+}
+
+function normalizeArtifactLoadError(error: unknown): ArtifactLoadError {
+  if (!isRecord(error)) return {};
+
+  const response = isRecord(error.response) ? error.response : null;
+  const data = response && isRecord(response.data) ? response.data : null;
+
+  return {
+    status: typeof response?.status === 'number' ? response.status : undefined,
+    error: typeof data?.error === 'string' ? data.error : undefined,
+    message:
+      typeof data?.message === 'string'
+        ? data.message
+        : typeof error.message === 'string'
+          ? error.message
+          : undefined,
+  };
+}
+
 const CONTENT_TYPE_EXTENSION: Record<string, string> = {
   html: 'html',
   markdown: 'md',
@@ -212,23 +240,22 @@ const ArtifactSharePage: React.FC = () => {
       setArtifact(normalizeArtifact(payload));
       setShowPasswordInput(false);
       await recordView();
-    } catch (err: any) {
-      const data = err?.response?.data;
-      const status = err?.response?.status;
+    } catch (error: unknown) {
+      const loadError = normalizeArtifactLoadError(error);
 
-      if (status === 403 && data?.error === 'password_required') {
+      if (loadError.status === 403 && loadError.error === 'password_required') {
         setShowPasswordInput(true);
         setError(null);
         return;
       }
 
-      if (status === 403 && data?.error === 'invalid_password') {
+      if (loadError.status === 403 && loadError.error === 'invalid_password') {
         setShowPasswordInput(true);
         setError('Password is incorrect');
         return;
       }
 
-      setError(data?.message || err.message || 'Unable to load this artifact');
+      setError(loadError.message || 'Unable to load this artifact');
     } finally {
       setLoading(false);
     }
@@ -329,7 +356,14 @@ const ArtifactSharePage: React.FC = () => {
       case 'markdown':
         return (
           <div className="bg-white p-6 text-slate-900 sm:p-8">
-            <MarkdownRenderer content={artifact.content} />
+            <MarkdownRenderer
+              content={artifact.content}
+              controls={{
+                showCopy: true,
+                showSourceToggle: true,
+                showExpandToggle: false,
+              }}
+            />
           </div>
         );
 

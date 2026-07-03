@@ -156,7 +156,7 @@ function BroadcastModalView({ title, content, format = 'text', level = 'info', o
                 <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{content}</p>
               )}
               {format === 'markdown' && (
-                <MarkdownRenderer content={content} />
+                <MarkdownRenderer content={content} density="compact" />
               )}
               {format === 'html' && (
                 <div

@@ -6,7 +6,6 @@ import {
   FaDownload,
   FaTrash,
   FaEdit,
-  FaCopy,
   FaRedo,
   FaHistory,
   FaUser,
@@ -17,18 +16,15 @@ import {
   FaChevronLeft,
   FaChevronRight,
   FaEye,
-  FaEyeSlash,
-  FaExpand,
-  FaCompress
+  FaEyeSlash
 } from 'react-icons/fa';
-import MarkdownRenderer, { copyTextToClipboard } from './MarkdownRenderer';
+import MarkdownRenderer from './MarkdownRenderer';
 import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
 import AlertModal from './AlertModal';
 import ConfirmModal from './ConfirmModal';
 import PromptModal from './PromptModal';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
-import { FaCopy as FaCopyIcon } from 'react-icons/fa';
 import { LibreChatContext, LibreChatContextValue } from './LibreChatContext';
 import { LibreChatRealtimeDialog } from './LibreChatRealtimeDialog';
 import {
@@ -141,89 +137,6 @@ interface HistoryMessage {
   createdAt?: string;
 }
 
-type ReadOnlyMarkdownRendererProps = {
-  content: string;
-  className?: string;
-  onCodeCopy?: (success: boolean) => void;
-};
-
-type InteractiveMarkdownRendererProps = {
-  content: string;
-  className?: string;
-  onContentCopy?: (success: boolean, content: string) => void;
-  onCodeCopy?: (success: boolean) => void;
-};
-
-export const ReadOnlyMarkdownRenderer: React.FC<ReadOnlyMarkdownRendererProps> = ({
-  content,
-  className = "",
-  onCodeCopy,
-}) => {
-  return (
-    <div className={`relative ${className}`}>
-      <div className="max-h-[500px] overflow-y-auto">
-        <MarkdownRenderer content={content} onCodeCopy={onCodeCopy} />
-      </div>
-    </div>
-  );
-};
-
-export const InteractiveMarkdownRenderer: React.FC<InteractiveMarkdownRendererProps> = ({
-  content,
-  className = "",
-  onContentCopy,
-  onCodeCopy,
-}) => {
-  const [showRaw, setShowRaw] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  const handleContentCopy = async () => {
-    const success = await copyTextToClipboard(content);
-    onContentCopy?.(success, content);
-  };
-
-  return (
-    <div className={`relative group ${className}`}>
-      <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 flex gap-2">
-        <button
-          type="button"
-          onClick={() => void handleContentCopy()}
-          className="p-1.5 bg-gray-100 text-gray-500 rounded hover:bg-gray-200 transition-colors shadow-sm"
-          title="复制 Markdown"
-        >
-          <FaCopyIcon size={12} />
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowRaw(!showRaw)}
-          className="p-1.5 bg-gray-100 text-gray-500 rounded hover:bg-gray-200 transition-colors shadow-sm"
-          title={showRaw ? '显示渲染' : '显示原文'}
-        >
-          {showRaw ? <FaEyeSlash size={12} /> : <FaEye size={12} />}
-        </button>
-        <button
-          type="button"
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="p-1.5 bg-gray-100 text-gray-500 rounded hover:bg-gray-200 transition-colors shadow-sm"
-          title={isExpanded ? '缩小' : '展开'}
-        >
-          {isExpanded ? <FaCompress size={12} /> : <FaExpand size={12} />}
-        </button>
-      </div>
-
-      <div className={`${isExpanded ? '' : 'max-h-[500px] overflow-y-auto'}`}>
-        {showRaw ? (
-          <pre className="p-4 bg-gray-50 text-gray-700 rounded-lg text-sm font-mono overflow-auto border border-gray-100 whitespace-pre-wrap">
-            {content}
-          </pre>
-        ) : (
-          <MarkdownRenderer content={content} onCodeCopy={onCodeCopy} />
-        )}
-      </div>
-    </div>
-  );
-};
-
 // 导出当前页为 TXT
 function downloadTextFile(filename: string, content: string) {
   // Ensure UTF-8 with BOM so Windows Notepad detects encoding correctly
@@ -260,6 +173,47 @@ interface HistoryResponse {
   currentPage: number;
   totalPages: number;
   limit?: number;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object';
+}
+
+function readString(value: unknown): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
+
+function readNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function normalizeHistoryItem(value: unknown): HistoryItem | null {
+  if (!isRecord(value)) return null;
+
+  const message = readString(value.message);
+  const content = readString(value.content);
+  return {
+    id: readString(value.id),
+    role: readString(value.role) || 'user',
+    message,
+    content: message || content || '',
+    timestamp: readString(value.timestamp),
+    createdAt: readString(value.timestamp) || readString(value.createdAt),
+  };
+}
+
+function parseHistoryResponse(data: unknown, fallbackPage: number): HistoryResponse {
+  const payload = isRecord(data) ? data : {};
+  const history = Array.isArray(payload.history)
+    ? payload.history.map(normalizeHistoryItem).filter((item): item is HistoryItem => Boolean(item))
+    : [];
+
+  return {
+    history,
+    total: readNumber(payload.total) || 0,
+    currentPage: readNumber(payload.currentPage) || fallbackPage,
+    totalPages: readNumber(payload.totalPages) || 1,
+  };
 }
 
 async function readLibreChatError(response: Response, fallback: string): Promise<string> {
@@ -347,23 +301,6 @@ const LibreChatPage: React.FC = () => {
 
   const apiBase = useMemo(() => getApiBaseUrl(), []);
 
-  // 复制到剪贴板
-  const copyText = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setNotification({ type: 'success', message: '内容已复制到剪贴板' });
-    } catch {
-      // fallback
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      setNotification({ type: 'success', message: '内容已复制到剪贴板' });
-    }
-  };
-
   // 游客模式：当未填写本地 token 时视为游客（服务端通过 HttpOnly Cookie 维持会话）
   const guestMode = useMemo(() => !token, [token]);
   const [guestHintDismissed, setGuestHintDismissed] = useState<boolean>(() => localStorage.getItem('lc_guest_hint_dismissed') === '1');
@@ -413,14 +350,12 @@ const LibreChatPage: React.FC = () => {
   const initializePage = useCallback(async () => {
     // 防止重复初始化（使用ref避免依赖项循环）
     if (initializingRef.current) {
-      console.log('Already initializing, skipping...');
       return;
     }
 
     try {
       initializingRef.current = true;
       setInitializing(true);
-      console.log('Initializing page, token:', token);
 
       // 如果没有token，先获取游客token
       if (!token) {
@@ -445,11 +380,9 @@ const LibreChatPage: React.FC = () => {
           setNotification({ type: 'success', message: '已切换到用户模式' });
         }
       } else {
-        console.error('Some initialization requests failed:', failures);
         setNotification({ type: 'warning', message: '部分数据加载失败，请刷新重试' });
       }
-    } catch (error) {
-      console.error('Initialization error:', error);
+    } catch {
       if (isMountedRef.current) {
         setNotification({ type: 'error', message: '初始化失败，请刷新页面' });
       }
@@ -737,18 +670,11 @@ const LibreChatPage: React.FC = () => {
   ) => {
     const normalized = role === 'user' ? content : sanitizeAssistantText(content);
 
-    if (historyView === 'source') {
-      return (
-        <pre className="max-h-[520px] overflow-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-950 p-4 font-mono text-xs leading-6 text-slate-100">
-          {normalized}
-        </pre>
-      );
-    }
-
     if (!interactive) {
       return (
-        <ReadOnlyMarkdownRenderer
+        <MarkdownRenderer
           content={normalized}
+          density="compact"
           onCodeCopy={(success) => {
             setNotification({ type: success ? 'success' : 'error', message: success ? '代码已复制' : '复制失败' });
           }}
@@ -757,8 +683,17 @@ const LibreChatPage: React.FC = () => {
     }
 
     return (
-      <InteractiveMarkdownRenderer
+      <MarkdownRenderer
         content={normalized}
+        density="compact"
+        controls={{
+          showCopy: true,
+          showSourceToggle: true,
+          showExpandToggle: true,
+          defaultMode: historyView === 'source' ? 'source' : 'rendered',
+          defaultExpanded: false,
+          collapsedHeight: 520,
+        }}
         onContentCopy={(success) => {
           setNotification({ type: success ? 'success' : 'error', message: success ? 'Markdown内容已复制到剪贴板' : '复制失败' });
         }}
@@ -770,53 +705,29 @@ const LibreChatPage: React.FC = () => {
   };
 
   const fetchHistory = async (toPage = 1) => {
-    console.log('fetchHistory called with page:', toPage); // 调试信息
     try {
       setLoadingHistory(true);
       const params = new URLSearchParams({ page: String(toPage), limit: String(limit) });
       // 若存在 token 则一并传递；否则依赖后端会话中的 userId
       if (token) params.set('token', token);
       const url = `${apiBase}/api/librechat/history?${params.toString()}`;
-      console.log('Fetching history from:', url); // 调试信息
       const res = await fetch(url, { credentials: 'include' });
       if (res.ok) {
         const data: unknown = await res.json();
-        console.log('History API response:', data); // 调试信息
-        // 后端返回的消息字段为 message/timestamp/role，这里映射到前端使用的字段
-        const responseData = data as { history?: HistoryItem[]; total?: number; currentPage?: number; totalPages?: number };
-        const mapped: HistoryResponse = {
-          history: Array.isArray(responseData.history)
-            ? responseData.history.map((m: HistoryItem) => {
-              console.log('Processing message:', m); // 调试信息
-              return {
-                id: m.id || `msg_${Date.now()}_${Math.random()}`, // 确保有ID
-                role: m.role || 'user', // 简化role判断逻辑
-                content: m.message || m.content || '',
-                createdAt: m.timestamp || m.createdAt
-              };
-            })
-            : [],
-          total: responseData.total || 0,
-          currentPage: responseData.currentPage || toPage,
-          totalPages: responseData.totalPages || 1
-        };
-        console.log('Mapped history:', mapped); // 调试信息
+        const mapped = parseHistoryResponse(data, toPage);
         setHistory(mapped);
         setPage(toPage);
-        console.log('History updated successfully'); // 调试信息
         if (mapped.history.length > 0) {
           setNotification({ type: 'success', message: `已加载 ${mapped.history.length} 条历史记录` });
         } else {
           setNotification({ type: 'info', message: '暂无历史记录' });
         }
       } else {
-        console.error('History API error:', res.status, res.statusText); // 调试信息
         const errorMessage = await readLibreChatError(res, '加载历史记录失败');
         setHistory(null);
         setNotification({ type: 'error', message: errorMessage });
       }
-    } catch (e) {
-      console.error('History fetch error:', e); // 调试信息
+    } catch {
       setHistory(null);
       setNotification({ type: 'error', message: '加载历史记录失败，请稍后再试' });
     } finally {
@@ -850,8 +761,6 @@ const LibreChatPage: React.FC = () => {
       setStreamContent('');
       setNotification({ type: 'info', message: '正在发送消息...' });
 
-      console.log('Sending message:', toSend); // 调试信息
-
       // 构建请求体
       const trimmedToken = token.trim();
       const requestBody: RequestBody = trimmedToken ? { token: trimmedToken, message: toSend } : { message: toSend };
@@ -864,14 +773,11 @@ const LibreChatPage: React.FC = () => {
       });
       if (!res.ok) throw new Error(await readLibreChatError(res, '发送消息失败'));
       const data = await res.json();
-      console.log('Send response:', data); // 调试信息
       const txtRaw: string = (data && typeof data.response === 'string') ? data.response : '';
       const txt = txtRaw;
       setMessage('');
 
-      console.log('Message sent, waiting for response...'); // 调试信息
       if (txt) {
-        console.log('AI response received:', txt.substring(0, 100) + '...'); // 调试信息
         setNotification({ type: 'success', message: 'AI回复已收到，正在生成...' });
       }
 
@@ -895,13 +801,12 @@ const LibreChatPage: React.FC = () => {
               });
 
               if (hasAssistantResponse) {
-                console.log('检测到历史记录中已有助手回复，停止流式展示');
                 return true;
               }
             }
           }
-        } catch (error) {
-          console.warn('检查历史记录失败:', error);
+        } catch {
+          // Ignore history polling failures during optimistic streaming.
         }
         return false;
       };
@@ -923,7 +828,6 @@ const LibreChatPage: React.FC = () => {
               clearInterval(interval);
               setStreaming(false);
               setStreamContent('');
-              console.log('检测到已有助手回复，立即停止流式展示并刷新历史');
               setNotification({ type: 'info', message: '检测到已有回复，正在刷新历史记录...' });
               fetchHistory(1);
               return;
@@ -936,10 +840,8 @@ const LibreChatPage: React.FC = () => {
             clearInterval(interval);
             setStreaming(false);
             // 完成后刷新历史，确保刷新第一页
-            console.log('Streaming completed, refreshing history...'); // 调试信息
             setNotification({ type: 'success', message: '对话完成，正在刷新历史记录...' });
             setTimeout(() => {
-              console.log('Delayed refresh triggered...'); // 调试信息
               fetchHistory(1);
             }, 2000); // 增加延迟到2秒确保后端数据已保存
           } else {
@@ -982,9 +884,8 @@ const LibreChatPage: React.FC = () => {
           fetchHistory(1);
         }, 500);
       }
-    } catch (e) {
-      console.error('Send message error:', e); // 调试信息
-      const errorMessage = getErrorMessage(e, '发送失败，请稍后再试');
+    } catch (error) {
+      const errorMessage = getErrorMessage(error, '发送失败，请稍后再试');
       setSendError(errorMessage);
       setStreaming(false);
       setNotification({ type: 'error', message: errorMessage });
@@ -1004,8 +905,6 @@ const LibreChatPage: React.FC = () => {
         requestBody.token = trimmedToken;
       }
 
-      console.log('清除历史记录请求体:', requestBody); // 调试信息
-
       const res = await fetch(`${apiBase}/api/librechat/clear`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
@@ -1014,8 +913,7 @@ const LibreChatPage: React.FC = () => {
       });
 
       if (res.ok) {
-        const result = await res.json();
-        console.log('清除历史记录成功:', result); // 调试信息
+        await res.json().catch(() => ({}));
         setNotification({ type: 'success', message: '历史记录已清除' });
 
         // 清除本地状态
@@ -1026,11 +924,9 @@ const LibreChatPage: React.FC = () => {
         await fetchHistory(1);
       } else {
         const errorData = await res.json().catch(() => ({}));
-        console.error('清除历史记录失败:', res.status, errorData); // 调试信息
         setNotification({ type: 'error', message: errorData.error || '清除历史记录失败' });
       }
-    } catch (e) {
-      console.error('清除历史记录异常:', e); // 调试信息
+    } catch {
       setNotification({ type: 'error', message: '清除历史记录失败，请稍后再试' });
     }
   };
@@ -1056,7 +952,6 @@ const LibreChatPage: React.FC = () => {
 
   // token 变更时统一初始化，避免竞态条件
   useEffect(() => {
-    console.log('Token changed, initializing page...', token);
     initializePage();
   }, [token, initializePage]);
 
@@ -1156,13 +1051,12 @@ const LibreChatPage: React.FC = () => {
               });
 
               if (hasAssistantResponse) {
-                console.log('实时对话框：检测到历史记录中已有助手回复，停止流式展示');
                 return true;
               }
             }
           }
-        } catch (error) {
-          console.warn('实时对话框：检查历史记录失败:', error);
+        } catch {
+          // Ignore history polling failures during optimistic realtime streaming.
         }
         return false;
       };
@@ -1170,7 +1064,8 @@ const LibreChatPage: React.FC = () => {
       // 放入一个助手占位项，随着流式更新
       let assistantIndex = -1;
       setRtHistory((prev) => {
-        const next = [...prev, { role: 'assistant', content: '' } as HistoryItem];
+        const assistantEntry: HistoryItem = { role: 'assistant', content: '' };
+        const next = [...prev, assistantEntry];
         assistantIndex = next.length - 1;
         return next;
       });
@@ -1203,7 +1098,6 @@ const LibreChatPage: React.FC = () => {
                 }
                 return next;
               });
-              console.log('实时对话框：检测到已有助手回复，立即停止流式展示并刷新历史');
               setNotification({ type: 'info', message: '检测到已有回复，正在刷新历史记录...' });
               fetchHistory(1);
               return;
@@ -1216,8 +1110,9 @@ const LibreChatPage: React.FC = () => {
             // 最终写回完整助手内容
             setRtHistory((prev) => {
               const next = [...prev];
-              if (assistantIndex >= 0 && assistantIndex < next.length) {
-                next[assistantIndex] = { ...next[assistantIndex], content: txt } as HistoryItem;
+              const current = next[assistantIndex];
+              if (current) {
+                next[assistantIndex] = { ...current, content: txt };
               }
               return next;
             });
@@ -1229,7 +1124,6 @@ const LibreChatPage: React.FC = () => {
             setRtSending(false);
 
             // 实时对话框发送完成后也刷新历史记录
-            console.log('Realtime dialog completed, refreshing history...'); // 调试信息
             setNotification({ type: 'success', message: '实时对话完成，正在刷新历史记录...' });
             setTimeout(() => {
               fetchHistory(1);
@@ -1266,14 +1160,14 @@ const LibreChatPage: React.FC = () => {
             setRtStreamContent(processedPartial);
             setRtHistory((prev) => {
               const next = [...prev];
-              if (assistantIndex >= 0 && assistantIndex < next.length) {
-                next[assistantIndex] = { ...next[assistantIndex], content: processedPartial } as HistoryItem;
+              const current = next[assistantIndex];
+              if (current) {
+                next[assistantIndex] = { ...current, content: processedPartial };
               }
               return next;
             });
           }
-        } catch (err) {
-          console.error('Realtime stream interval error:', err);
+        } catch {
           if (rtIntervalRef.current) {
             clearInterval(rtIntervalRef.current);
             rtIntervalRef.current = null;
@@ -1313,18 +1207,15 @@ const LibreChatPage: React.FC = () => {
       sseRef.current = eventSource;
 
       eventSource.onopen = () => {
-        console.log('[SSE] 连接已建立');
         setSseConnected(true);
       };
 
       eventSource.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          console.log('[SSE] 收到消息:', data);
 
           switch (data.type) {
             case 'connected':
-              console.log('[SSE] 连接确认，客户端ID:', data.clientId);
               break;
 
             case 'ping':
@@ -1332,7 +1223,6 @@ const LibreChatPage: React.FC = () => {
               break;
 
             case 'message_completed':
-              console.log('[SSE] 消息完成通知:', data.data);
               // 立即停止流式展示并刷新历史记录
               setStreaming(false);
               setStreamContent('');
@@ -1347,7 +1237,6 @@ const LibreChatPage: React.FC = () => {
               break;
 
             case 'retry_completed':
-              console.log('[SSE] 重试完成通知:', data.data);
               // 立即停止流式展示并刷新历史记录
               setStreaming(false);
               setStreamContent('');
@@ -1362,28 +1251,25 @@ const LibreChatPage: React.FC = () => {
               break;
 
             default:
-              console.log('[SSE] 未知消息类型:', data.type);
+              break;
           }
-        } catch (error) {
-          console.error('[SSE] 解析消息失败:', error);
+        } catch {
+          // Ignore malformed SSE payloads and keep the connection alive.
         }
       };
 
-      eventSource.onerror = (error) => {
-        console.error('[SSE] 连接错误:', error);
+      eventSource.onerror = () => {
         setSseConnected(false);
 
         // 自动重连（延迟3秒）
         setTimeout(() => {
           if (sseRef.current === eventSource) {
-            console.log('[SSE] 尝试重新连接...');
             connectSSE();
           }
         }, 3000);
       };
 
-    } catch (error) {
-      console.error('[SSE] 建立连接失败:', error);
+    } catch {
       setSseConnected(false);
     }
   }, [apiBase, token]);
@@ -1394,7 +1280,6 @@ const LibreChatPage: React.FC = () => {
       sseRef.current.close();
       sseRef.current = null;
       setSseConnected(false);
-      console.log('[SSE] 连接已断开');
     }
   }, []);
 
@@ -1846,16 +1731,9 @@ const LibreChatPage: React.FC = () => {
                                   checked={selectedIds.includes(m.id)}
                                   onChange={() => toggleSelect(m.id)}
                                   title="选择此消息"
+                                  aria-label="选择此消息"
                                 />
                               )}
-                              <motion.button
-                                onClick={() => copyText(m.role === 'user' ? m.content : sanitizeAssistantText(m.content))}
-                                className="inline-flex items-center gap-1 rounded-2xl border border-slate-200 bg-white/80 px-2 py-1 text-xs text-slate-700 transition hover:bg-white"
-                                whileTap={{ scale: 0.95 }}
-                              >
-                                <FaCopy className="w-3 h-3" />
-                                复制
-                              </motion.button>
                             </div>
                           </div>
                           {renderChatContent(m.content, m.role)}

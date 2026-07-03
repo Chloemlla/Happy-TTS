@@ -25,6 +25,29 @@ const PAGE_SIZES = [10, 20, 50];
 
 const formatTs = (ts?: string | null) => ts ? new Date(ts).toLocaleString() : '';
 
+type ApiErrorPayload = {
+  error?: string;
+  message?: string;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object';
+}
+
+function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (!isRecord(error)) return fallback;
+  const response = isRecord(error.response) ? error.response : null;
+  const data = response && isRecord(response.data) ? response.data : null;
+  const payload: ApiErrorPayload = {
+    error: typeof data?.error === 'string' ? data.error : undefined,
+    message: typeof data?.message === 'string' ? data.message : undefined,
+  };
+
+  if (payload.error) return payload.error;
+  if (payload.message) return payload.message;
+  return typeof error.message === 'string' ? error.message : fallback;
+}
+
 const LibreChatAdminPage: React.FC = () => {
   const { setNotification } = useNotification();
   
@@ -61,9 +84,8 @@ const LibreChatAdminPage: React.FC = () => {
       setTotal(res.total || 0);
       setPage(toPage);
       if (showTip) setNotification({ type: 'success', message: `已获取 ${res.users?.length || 0} 个用户` });
-    } catch (e: any) {
-      console.error('加载用户列表失败', e);
-      setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '加载用户列表失败' });
+    } catch (error: unknown) {
+      setNotification({ type: 'error', message: getApiErrorMessage(error, '加载用户列表失败') });
     } finally {
       setLoading(false);
     }
@@ -77,9 +99,8 @@ const LibreChatAdminPage: React.FC = () => {
       setHTotal(res.total || 0);
       setHPage(toPage);
       if (showTip) setNotification({ type: 'success', message: `已获取 ${res.messages?.length || 0} 条历史记录` });
-    } catch (e: any) {
-      console.error('加载用户历史失败', e);
-      setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '加载用户历史失败' });
+    } catch (error: unknown) {
+      setNotification({ type: 'error', message: getApiErrorMessage(error, '加载用户历史失败') });
     } finally {
       setHLoading(false);
     }
@@ -121,9 +142,8 @@ const LibreChatAdminPage: React.FC = () => {
       }
       await fetchUsers(page);
       setNotification({ type: 'success', message: '删除成功' });
-    } catch (e: any) {
-      console.error('删除用户历史失败', e);
-      setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '删除失败' });
+    } catch (error: unknown) {
+      setNotification({ type: 'error', message: getApiErrorMessage(error, '删除失败') });
     } finally {
       setActionLoading(false);
     }
@@ -170,9 +190,8 @@ const LibreChatAdminPage: React.FC = () => {
       }
       await fetchUsers(page);
       setNotification({ type: 'success', message: res.message || `已删除 ${res.deleted} 个用户历史` });
-    } catch (e: any) {
-      console.error('批量删除失败', e);
-      setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '批量删除失败' });
+    } catch (error: unknown) {
+      setNotification({ type: 'error', message: getApiErrorMessage(error, '批量删除失败') });
     } finally {
       setActionLoading(false);
     }
@@ -193,9 +212,8 @@ const LibreChatAdminPage: React.FC = () => {
       setHTotal(0);
       await fetchUsers(1);
       setNotification({ type: 'success', message: res.message || '已删除全部历史' });
-    } catch (e: any) {
-      console.error('删除所有用户失败', e);
-      setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '删除所有用户失败' });
+    } catch (error: unknown) {
+      setNotification({ type: 'error', message: getApiErrorMessage(error, '删除所有用户失败') });
     } finally {
       setActionLoading(false);
     }
@@ -684,10 +702,21 @@ const LibreChatAdminPage: React.FC = () => {
                           </button>
                         </div>
                       </div>
-                      <div className="max-h-40 overflow-y-auto overflow-x-hidden relative group">
+                      <div className="relative overflow-x-hidden">
                         <MarkdownRenderer 
                           content={m.message} 
-                          className="bg-gray-50 p-3 rounded border"
+                          density="compact"
+                          controls={{
+                            showCopy: true,
+                            showSourceToggle: true,
+                            showExpandToggle: true,
+                            defaultExpanded: false,
+                            collapsedHeight: 300,
+                          }}
+                          className="bg-gray-50 p-3 rounded-sm border"
+                          onContentCopy={(success) => {
+                            setNotification({ type: success ? 'success' : 'error', message: success ? '消息内容已复制' : '复制失败' });
+                          }}
                           onCodeCopy={(success) => {
                             if (success) {
                               setNotification({ type: 'success', message: '代码已复制' });
@@ -696,20 +725,6 @@ const LibreChatAdminPage: React.FC = () => {
                             }
                           }}
                         />
-                        <button
-                          className="absolute top-2 right-2 p-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 hover:text-white rounded opacity-0 group-hover:opacity-100 transition-all duration-200"
-                          onClick={async () => {
-                            try {
-                              await navigator.clipboard.writeText(m.message);
-                              setNotification({ type: 'success', message: '消息内容已复制' });
-                            } catch (err) {
-                              setNotification({ type: 'error', message: '复制失败' });
-                            }
-                          }}
-                          title="复制完整消息"
-                        >
-                          <FaCopy className="w-3 h-3" />
-                        </button>
                       </div>
                     </motion.div>
                   ))

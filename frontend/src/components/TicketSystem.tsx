@@ -11,7 +11,7 @@ import {
   FiCpu, FiCheck, FiTerminal, FiEdit2, FiTrash2,
   FiRefreshCw,
 } from "react-icons/fi";
-import MarkdownRenderer from './MarkdownRenderer';
+import MarkdownRenderer, { type MarkdownReaderControls } from './MarkdownRenderer';
 import { cn } from '../utils/cn';
 import {
   studioAccentBlobBlueClassName,
@@ -33,9 +33,42 @@ import {
 } from './studioTheme';
 
 type TicketProcessStep = "audit_start" | "audit_passed" | "ai_start" | "ai_complete" | "saving" | "audit_failed" | "error";
+type ApiErrorResponse = {
+  status?: number;
+  data?: {
+    error?: string;
+    punishment?: string;
+    details?: string;
+  };
+};
 
 const ROW_INITIAL = { opacity: 0, x: -16 } as const;
 const ROW_ANIMATE = { opacity: 1, x: 0 } as const;
+const CHAT_MARKDOWN_CONTROLS: MarkdownReaderControls = {
+  showCopy: true,
+  showSourceToggle: true,
+  showExpandToggle: true,
+  defaultExpanded: true,
+  collapsedHeight: 420,
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object';
+}
+
+function getApiErrorResponse(error: unknown): ApiErrorResponse | null {
+  if (!isRecord(error) || !isRecord(error.response)) return null;
+  const { response } = error;
+  const data = isRecord(response.data) ? response.data : {};
+  return {
+    status: typeof response.status === 'number' ? response.status : undefined,
+    data: {
+      error: typeof data.error === 'string' ? data.error : undefined,
+      punishment: typeof data.punishment === 'string' ? data.punishment : undefined,
+      details: typeof data.details === 'string' ? data.details : undefined,
+    },
+  };
+}
 
 const TicketSystem: React.FC = () => {
   const { user } = useAuth();
@@ -60,6 +93,12 @@ const TicketSystem: React.FC = () => {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion = useReducedMotion();
+  const notifyMarkdownCopy = useCallback((success: boolean, wholeMessage = false) => {
+    setNotification({
+      type: success ? 'success' : 'error',
+      message: success ? (wholeMessage ? 'Markdown内容已复制到剪贴板' : '代码已复制') : '复制失败',
+    });
+  }, [setNotification]);
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
@@ -201,9 +240,10 @@ const TicketSystem: React.FC = () => {
       setNewTicket({ title: "", description: "", priority: "medium" });
       setSelectedTicket(created);
       fetchTickets();
-    } catch (error: any) {
-      if (error.response?.status === 403) {
-        const data = error.response.data;
+    } catch (error: unknown) {
+      const apiError = getApiErrorResponse(error);
+      if (apiError?.status === 403) {
+        const data = apiError.data || {};
         setNotification({
           type: 'error',
           title: data.error || '提交失败',
@@ -225,9 +265,10 @@ const TicketSystem: React.FC = () => {
       setSelectedTicket(updated);
       setReplyContent("");
       setTickets(prev => prev.map(t => t._id === updated._id ? updated : t));
-    } catch (error: any) {
-      if (error.response?.status === 403) {
-        const data = error.response.data;
+    } catch (error: unknown) {
+      const apiError = getApiErrorResponse(error);
+      if (apiError?.status === 403) {
+        const data = apiError.data || {};
         setNotification({
           type: 'error',
           title: data.error || '发送失败',
@@ -705,6 +746,10 @@ const TicketSystem: React.FC = () => {
                                     <MarkdownRenderer
                                       content={msg.content}
                                       isDark={isMe}
+                                      density="compact"
+                                      controls={CHAT_MARKDOWN_CONTROLS}
+                                      onContentCopy={(success) => notifyMarkdownCopy(success, true)}
+                                      onCodeCopy={(success) => notifyMarkdownCopy(success)}
                                       className={isMe ? 'prose-code:bg-white/10 prose-code:text-white/90 prose-a:text-sky-200' : ''}
                                     />
                                   )}
@@ -749,7 +794,7 @@ const TicketSystem: React.FC = () => {
                                   <span className="font-semibold text-slate-500">🤖 智能助手 (正在输入...)</span>
                                 </div>
                                 <div className="relative rounded-[22px] p-3.5 sm:p-4 bg-white border border-slate-200 text-slate-900 rounded-tl-[10px] shadow-[0_6px_24px_rgba(15,23,42,0.06)] sm:rounded-[24px]">
-                                  <MarkdownRenderer content={streamingAiResponse.content} />
+                                  <MarkdownRenderer content={streamingAiResponse.content} density="compact" />
                                   <span className="inline-block w-1.5 h-4 ml-1 bg-slate-700 animate-pulse align-middle" />
                                 </div>
                               </div>

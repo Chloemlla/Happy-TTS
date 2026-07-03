@@ -2,10 +2,24 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaPaperPlane, FaTimes, FaUser, FaRobot } from 'react-icons/fa';
 import { useLibreChat } from './LibreChatContext';
-import { ReadOnlyMarkdownRenderer } from './LibreChatPage';
+import MarkdownRenderer from './MarkdownRenderer';
 
 export function LibreChatRealtimeDialog() {
     const { state, actions } = useLibreChat();
+    const markdownControls = {
+        showCopy: true,
+        showSourceToggle: true,
+        showExpandToggle: true,
+        defaultExpanded: false,
+        collapsedHeight: 420,
+    };
+
+    const handleMarkdownCopy = (success: boolean, wholeMessage = false) => {
+        actions.setNotification({
+            type: success ? 'success' : 'error',
+            message: success ? (wholeMessage ? 'Markdown内容已复制到剪贴板' : '代码已复制') : '复制失败',
+        });
+    };
 
     return (
         <AnimatePresence>
@@ -78,7 +92,7 @@ export function LibreChatRealtimeDialog() {
                             <div className="mt-4">
                                 {state.rtHistory.length > 0 ? (
                                     <div className="space-y-3 max-h-[45vh] overflow-auto pr-1">
-                                        {state.rtHistory.map((m: any, idx: number) => (
+                                        {state.rtHistory.map((m, idx: number) => (
                                             <motion.div
                                                 key={idx}
                                                 className="p-4 border border-gray-200 rounded-lg bg-white"
@@ -106,15 +120,12 @@ export function LibreChatRealtimeDialog() {
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <ReadOnlyMarkdownRenderer
+                                                <MarkdownRenderer
                                                     content={m.role === 'user' ? m.content : actions.sanitizeAssistantText(m.content)}
-                                                    onCodeCopy={(success) => {
-                                                        if (success) {
-                                                            actions.setNotification({ type: 'success', message: '代码已复制' });
-                                                        } else {
-                                                            actions.setNotification({ type: 'error', message: '复制失败' });
-                                                        }
-                                                    }}
+                                                    density="compact"
+                                                    controls={markdownControls}
+                                                    onContentCopy={(success) => handleMarkdownCopy(success, true)}
+                                                    onCodeCopy={(success) => handleMarkdownCopy(success)}
                                                 />
                                             </motion.div>
                                         ))}
@@ -135,15 +146,15 @@ export function LibreChatRealtimeDialog() {
                                                 </span>
                                             </div>
                                         </div>
-                                        <ReadOnlyMarkdownRenderer
+                                        <MarkdownRenderer
                                             content={actions.sanitizeAssistantText(state.rtStreamContent || '')}
-                                            onCodeCopy={(success) => {
-                                                if (success) {
-                                                    actions.setNotification({ type: 'success', message: '代码已复制' });
-                                                } else {
-                                                    actions.setNotification({ type: 'error', message: '复制失败' });
-                                                }
+                                            density="compact"
+                                            controls={{
+                                                showCopy: false,
+                                                showSourceToggle: false,
+                                                showExpandToggle: false,
                                             }}
+                                            onCodeCopy={(success) => handleMarkdownCopy(success)}
                                         />
                                     </motion.div>
                                 ) : (

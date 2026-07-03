@@ -1,10 +1,11 @@
-import React, { useEffect, useState, type ComponentPropsWithoutRef } from 'react';
+import React, { useEffect, useRef, useState, type ComponentPropsWithoutRef } from 'react';
 import ReactMarkdown, { type Components, type ExtraProps } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { Check, Clipboard, Code2, Eye, Maximize2, Minimize2 } from 'lucide-react';
 import 'katex/dist/katex.min.css';
 import Mermaid from './Mermaid';
 
@@ -18,16 +19,32 @@ type MarkdownImageProps = ComponentPropsWithoutRef<'img'> & ExtraProps;
 type MarkdownLinkProps = ComponentPropsWithoutRef<'a'> & ExtraProps;
 type MarkdownInputProps = ComponentPropsWithoutRef<'input'> & ExtraProps;
 type HeadingTag = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+type MarkdownDisplayMode = 'rendered' | 'source';
+type MarkdownDensity = 'default' | 'compact';
+
+export type MarkdownReaderControls = {
+  showCopy?: boolean;
+  showSourceToggle?: boolean;
+  showExpandToggle?: boolean;
+  defaultMode?: MarkdownDisplayMode;
+  defaultExpanded?: boolean;
+  collapsedHeight?: number | string;
+};
 
 interface MarkdownRendererProps {
   content: string;
   isDark?: boolean;
   className?: string;
   onCodeCopy?: (success: boolean) => void;
+  onContentCopy?: (success: boolean, content: string) => void;
+  density?: MarkdownDensity;
+  controls?: boolean | MarkdownReaderControls;
 }
 
 const CODE_FONT_FAMILY =
   'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+
+const DEFAULT_COLLAPSED_HEIGHT = 520;
 
 export async function copyTextToClipboard(text: string): Promise<boolean> {
   if (
@@ -119,6 +136,24 @@ function getLinkTitle(href?: string): string | undefined {
   }
 }
 
+function resolveReaderControls(controls?: boolean | MarkdownReaderControls) {
+  if (!controls) return null;
+
+  const config = controls === true ? {} : controls;
+  return {
+    showCopy: config.showCopy ?? true,
+    showSourceToggle: config.showSourceToggle ?? true,
+    showExpandToggle: config.showExpandToggle ?? false,
+    defaultMode: config.defaultMode ?? 'rendered',
+    defaultExpanded: config.defaultExpanded ?? !(config.showExpandToggle ?? false),
+    collapsedHeight: config.collapsedHeight ?? DEFAULT_COLLAPSED_HEIGHT,
+  };
+}
+
+function formatCssSize(value: number | string): string {
+  return typeof value === 'number' ? `${value}px` : value;
+}
+
 const TaskCheckbox: React.FC<MarkdownInputProps> = ({ checked, disabled: _disabled, ...props }) => {
   const [isChecked, setIsChecked] = useState(Boolean(checked));
 
@@ -172,7 +207,17 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   isDark,
   className,
   onCodeCopy,
+  onContentCopy,
+  density = 'default',
+  controls,
 }) => {
+  const readerControls = resolveReaderControls(controls);
+  const [displayMode, setDisplayMode] = useState<MarkdownDisplayMode>(
+    readerControls?.defaultMode ?? 'rendered',
+  );
+  const [isExpanded, setIsExpanded] = useState(readerControls?.defaultExpanded ?? true);
+  const [contentCopyStatus, setContentCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
+  const copyFeedbackTimer = useRef<number | null>(null);
   const handleCodeCopy = async (code: string) => {
     const success = await copyTextToClipboard(code);
     onCodeCopy?.(success);
@@ -180,6 +225,20 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 
   const [lightboxImage, setLightboxImage] = useState<{ src: string; alt: string } | null>(null);
   const [isLightboxZoomed, setIsLightboxZoomed] = useState(false);
+
+  useEffect(() => {
+    setDisplayMode(readerControls?.defaultMode ?? 'rendered');
+  }, [content, readerControls?.defaultMode]);
+
+  useEffect(() => {
+    setIsExpanded(readerControls?.defaultExpanded ?? true);
+  }, [content, readerControls?.defaultExpanded]);
+
+  useEffect(() => () => {
+    if (copyFeedbackTimer.current !== null) {
+      window.clearTimeout(copyFeedbackTimer.current);
+    }
+  }, []);
 
   useEffect(() => {
     if (!lightboxImage) return undefined;
@@ -194,6 +253,21 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [lightboxImage]);
+
+  const handleContentCopy = async () => {
+    const success = await copyTextToClipboard(content);
+    onContentCopy?.(success, content);
+    setContentCopyStatus(success ? 'copied' : 'failed');
+
+    if (copyFeedbackTimer.current !== null) {
+      window.clearTimeout(copyFeedbackTimer.current);
+    }
+
+    copyFeedbackTimer.current = window.setTimeout(() => {
+      setContentCopyStatus('idle');
+      copyFeedbackTimer.current = null;
+    }, 1600);
+  };
 
   const copyHeadingLink = async (id: string) => {
     if (!id || typeof window === 'undefined') return;
@@ -248,7 +322,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       }
 
       return (
-        <div className="group relative my-4 overflow-hidden rounded-xl border border-gray-700/50 shadow-lg">
+        <div className="group relative my-4 overflow-hidden rounded-md border border-gray-700/50 shadow-lg">
           <div className="flex items-center justify-between border-b border-gray-700/30 bg-gray-800 px-4 py-2 font-mono text-[10px] text-gray-400">
             <span className="font-bold uppercase tracking-wider">{languageLabel}</span>
             <div className="flex gap-1.5">
@@ -283,18 +357,11 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
           <button
             type="button"
             onClick={() => void handleCodeCopy(rawCode)}
-            className="absolute right-2 top-10 rounded-lg bg-white/10 p-2 text-white opacity-0 transition-opacity hover:bg-white/20 group-hover:opacity-100"
+            className="absolute right-2 top-10 rounded-sm bg-white/10 p-2 text-white opacity-85 transition hover:bg-white/20 hover:opacity-100 focus-visible:opacity-100"
             title="复制代码"
             aria-label={`Copy ${languageLabel} code`}
           >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"
-              />
-            </svg>
+            <Clipboard className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
       );
@@ -340,21 +407,102 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     h6: ({ node: _node, children, ...props }: MarkdownHeadingProps) => renderHeading('h6', children, props),
   };
 
+  const rendererClassName = `markdown-renderer ${
+    density === 'compact' ? 'markdown-renderer-compact' : ''
+  } prose max-w-none break-words ${isDark ? 'markdown-renderer-dark prose-invert' : ''} ${className || ''}`;
+
+  const markdownNode = (
+    <div className={rendererClassName}>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeKatex]}
+        components={components}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+
+  const sourceNode = (
+    <pre className={`markdown-source-view ${density === 'compact' ? 'markdown-source-view-compact' : ''}`}>
+      {content}
+    </pre>
+  );
+
+  const contentNode = displayMode === 'source' ? sourceNode : markdownNode;
+  const isCollapsed = Boolean(readerControls?.showExpandToggle && !isExpanded);
+  const collapsedHeight = readerControls
+    ? formatCssSize(readerControls.collapsedHeight)
+    : `${DEFAULT_COLLAPSED_HEIGHT}px`;
+  const bodyStyle = isCollapsed
+    ? { maxHeight: collapsedHeight }
+    : undefined;
+
+  const wrappedContent = readerControls ? (
+    <div className={`markdown-reader ${isDark ? 'markdown-reader-dark' : ''}`}>
+      <div className="markdown-reader-toolbar" aria-label="Markdown reading controls">
+        {readerControls.showCopy && (
+          <button
+            type="button"
+            className={`markdown-reader-button ${
+              contentCopyStatus === 'copied' ? 'is-success' : contentCopyStatus === 'failed' ? 'is-error' : ''
+            }`}
+            onClick={() => void handleContentCopy()}
+            title={contentCopyStatus === 'copied' ? '已复制' : contentCopyStatus === 'failed' ? '复制失败' : '复制 Markdown'}
+            aria-label={contentCopyStatus === 'copied' ? '已复制' : '复制 Markdown'}
+          >
+            {contentCopyStatus === 'copied' ? (
+              <Check className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <Clipboard className="h-4 w-4" aria-hidden="true" />
+            )}
+          </button>
+        )}
+        {readerControls.showSourceToggle && (
+          <button
+            type="button"
+            className="markdown-reader-button"
+            onClick={() => setDisplayMode((value) => (value === 'source' ? 'rendered' : 'source'))}
+            title={displayMode === 'source' ? '显示渲染结果' : '显示 Markdown 原文'}
+            aria-label={displayMode === 'source' ? '显示渲染结果' : '显示 Markdown 原文'}
+            aria-pressed={displayMode === 'source'}
+          >
+            {displayMode === 'source' ? (
+              <Eye className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <Code2 className="h-4 w-4" aria-hidden="true" />
+            )}
+          </button>
+        )}
+        {readerControls.showExpandToggle && (
+          <button
+            type="button"
+            className="markdown-reader-button"
+            onClick={() => setIsExpanded((value) => !value)}
+            title={isExpanded ? '收起长内容' : '展开长内容'}
+            aria-label={isExpanded ? '收起长内容' : '展开长内容'}
+            aria-expanded={isExpanded}
+          >
+            {isExpanded ? (
+              <Minimize2 className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <Maximize2 className="h-4 w-4" aria-hidden="true" />
+            )}
+          </button>
+        )}
+      </div>
+      <div className={`markdown-reader-body ${isCollapsed ? 'is-collapsed' : ''}`} style={bodyStyle}>
+        {contentNode}
+        {isCollapsed && <span className="markdown-reader-fade" aria-hidden="true" />}
+      </div>
+    </div>
+  ) : (
+    contentNode
+  );
+
   return (
     <>
-      <div
-        className={`markdown-renderer prose max-w-none break-words ${
-          isDark ? 'markdown-renderer-dark prose-invert' : ''
-        } ${className || ''}`}
-      >
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm, remarkMath]}
-          rehypePlugins={[rehypeKatex]}
-          components={components}
-        >
-          {content}
-        </ReactMarkdown>
-      </div>
+      {wrappedContent}
       {lightboxImage && (
         <div
           className="markdown-lightbox"

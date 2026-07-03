@@ -61,7 +61,7 @@ const AnnouncementModal: React.FC<AnnouncementModalProps> = ({
             <div className={`mb-6 min-h-[60px] ${contentClassName || ''}`}>
               {content ? (
                 format === 'markdown' ? (
-                  <MarkdownRenderer content={content} />
+                  <MarkdownRenderer content={content} density="compact" />
                 ) : (
                   <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }} />
                 )
