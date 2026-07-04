@@ -2,6 +2,7 @@ import express from "express";
 import rateLimit from "express-rate-limit";
 import { AuthController } from "../controllers/authController";
 import { LinuxDoAuthController } from "../controllers/linuxDoAuthController";
+import { MobileLoginController } from "../controllers/mobileLoginController";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { validateAuthInput } from "../middleware/authValidation";
 import { loginLimiter, registerLimiter } from "../middleware/routeLimiters";
@@ -49,6 +50,13 @@ const authExternalLoginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "第三方登录请求过于频繁，请稍后再试" },
+});
+const authMobileLoginLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "扫码登录请求过于频繁，请稍后再试" },
 });
 
 /**
@@ -108,6 +116,24 @@ router.get("/linuxdo/start", authExternalLoginLimiter, LinuxDoAuthController.sta
 router.get("/linuxdo/callback", authExternalLoginLimiter, LinuxDoAuthController.callbackGet);
 router.post("/linuxdo/callback", authExternalLoginLimiter, LinuxDoAuthController.callback);
 router.post("/linuxdo/exchange", authExternalLoginLimiter, LinuxDoAuthController.exchangeTicket);
+
+router.post("/mobile-login/challenge", authMobileLoginLimiter, MobileLoginController.createChallenge);
+router.post("/mobile-login/challenge/scan", authMobileLoginLimiter, MobileLoginController.scanChallenge);
+router.post("/mobile-login/challenge/confirm", authMobileLoginLimiter, MobileLoginController.confirmChallenge);
+router.post("/mobile-login/challenge/poll", authMobileLoginLimiter, MobileLoginController.pollChallenge);
+router.post(
+  "/mobile-login/client-token/issue",
+  authMobileLoginLimiter,
+  authenticateToken,
+  MobileLoginController.issueClientToken,
+);
+router.post("/mobile-login/client-token/exchange", authMobileLoginLimiter, MobileLoginController.exchangeClientToken);
+router.post(
+  "/mobile-login/client-token/revoke",
+  authMobileLoginLimiter,
+  authenticateToken,
+  MobileLoginController.revokeClientToken,
+);
 
 /**
  * @openapi

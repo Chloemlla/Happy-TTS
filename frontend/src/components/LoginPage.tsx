@@ -7,6 +7,7 @@ import { usePasskey } from '../hooks/usePasskey';
 import { useNotification } from './Notification';
 import GoogleAuthButton from './GoogleAuthButton';
 import LinuxDoAuthButton from './LinuxDoAuthButton';
+import MobileLoginPanel from './MobileLoginPanel';
 import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
 import PasskeyVerifyModal from './PasskeyVerifyModal';
@@ -102,7 +103,7 @@ const buildLoginAttemptStatus = (error: AuthRequestError): LoginAttemptStatus | 
 };
 
 export const LoginPage: React.FC = () => {
-    const { user, login, pending2FA, setPending2FA } = useAuth();
+    const { user, login, loginWithToken, pending2FA, setPending2FA } = useAuth();
     const { setNotification } = useNotification();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -366,6 +367,11 @@ export const LoginPage: React.FC = () => {
                             </div>
 
                             <div className="space-y-4">
+                                <MobileLoginPanel
+                                    disabled={loading}
+                                    loginWithToken={loginWithToken}
+                                    onSuccess={completeLogin}
+                                />
                                 <GoogleAuthButton
                                     intent="login"
                                     label="使用 Google 登录或注册"
