@@ -1,7 +1,7 @@
 # Android Mobile Login Integration
 
 本文档用于安卓客户端对接 Synapse 登录系统的扫码登录和客户端登录令牌能力。后端接口均挂载在同一站点 API 下，示例路径以 `/api/auth/mobile-login` 开头。
-
+API 地址：https://tts.chloemlla.com
 ## 登录能力
 
 安卓端需要支持两类登录凭证：

@@ -1,0 +1,59 @@
+• 这套流程是一个 LinuxDo 第三方登录绑定现有账号 的流程：
+
+  1. 用户通过 LinuxDo 登录后，页面显示 Signing you in，等待自动跳转。
+  2. 如果没有自动跳转，提示用户返回登录页重试。
+  3. 系统询问是否将 LinuxDo 的资料同步到当前账号：
+      - 使用 LinuxDo 昵称：Chloemlla
+      - 使用 LinuxDo 头像：给出的 avatar URL
+
+  4. 页面提示：需要登录一个已有账号，才能绑定这次 LinuxDo 登录。
+  5. 系统展示 LinuxDo 提供的中转邮箱：
+     2l06...@privaterelay.linux.do
+
+  6. 用户输入已有账号密码。
+  7. 用户勾选同意条款：
+      - Terms of Service
+      - Usage Policy
+      - Service-Specific Terms
+      - Supported Regions
+
+  8. 用户点击 Log in and bind 完成登录并绑定。
+  9. 如果邮箱不对或想换账号，可以点击 Use a different email。
+
+  核心逻辑：LinuxDo OAuth 登录成功后，用户选择是否同步昵称/头像，然后用已有账号密码确认身份，最终把 LinuxDo 登录方式绑定到该账号。
+Google 第三方登录绑定现有账号 流程：
+
+  1. 用户点击 Continue with Google。
+  2. Google OAuth 登录成功后，页面显示：
+     Signing you in
+
+  3. 如果没有自动跳转，提示：
+     If you are not redirected automatically, go back to the login page and try again.
+
+  4. 系统询问是否把 Google 资料应用到当前账号：
+      - 使用 Google 昵称
+      - 使用 Google 头像
+
+  5. 页面展示 Google 返回的邮箱，例如：
+     user@gmail.com
+
+  6. 系统提示：
+     Log in to an existing account to bind this Google sign-in.
+
+  7. 用户输入已有账号密码。
+  8. 用户勾选同意条款：
+      - Terms of Service
+      - Usage Policy
+      - Service-Specific Terms
+      - Supported Regions
+
+  9. 用户点击：
+     Log in and bind
+
+  10. 如果 Google 邮箱不是目标账号，可以点击：
+     Use a different email
+
+  核心逻辑：
+
+  Google OAuth 登录成功后，系统拿到 Google 的邮箱、昵称、头像。用户选择是否同步资料，然后用已有账号密码确认身份，最后把 Google 登录方
+  式绑定到这个已有账号。
