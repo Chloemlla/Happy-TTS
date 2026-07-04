@@ -90,6 +90,8 @@ const DISCOVERY_TTL_MS = 60 * 60 * 1000;
 const PLACEHOLDER_EMAIL_DOMAIN = "linuxdo.oauth.local";
 const TRUSTED_LINUXDO_DISCOVERY_URL = "https://connect.linux.do/.well-known/openid-configuration";
 const TRUSTED_LINUXDO_OAUTH_HOSTS = new Set(["connect.linux.do"]);
+const LINUXDO_BACKEND_CALLBACK_PATH = "/api/auth/linuxdo/callback";
+const LINUXDO_FRONTEND_CALLBACK_PATH = "/auth/linuxdo/callback";
 const RESERVED_USERNAMES = new Set(["admin", "administrator", "root", "system", "test"]);
 
 const oauthStateStore = new Map<string, LinuxDoStateRecord>();
@@ -270,6 +272,42 @@ export function normalizeLinuxDoProfile(rawProfile: unknown): LinuxDoNormalizedP
 
 function buildPlaceholderEmail(linuxdoId: string): string {
   return `linuxdo_${linuxdoId}@${PLACEHOLDER_EMAIL_DOMAIN}`;
+}
+
+function normalizeUrlPath(pathname: string): string {
+  return pathname.replace(/\/+$/, "") || "/";
+}
+
+function isConfiguredLinuxDoBackendCallbackUrl(url: URL): boolean {
+  if (normalizeUrlPath(url.pathname) === LINUXDO_BACKEND_CALLBACK_PATH) {
+    return true;
+  }
+
+  try {
+    const backendCallbackUrl = new URL(config.linuxdo.callbackUrl);
+    return (
+      url.origin === backendCallbackUrl.origin &&
+      normalizeUrlPath(url.pathname) === normalizeUrlPath(backendCallbackUrl.pathname)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function resolveLinuxDoFrontendCallbackUrl(): string {
+  try {
+    const frontendCallbackUrl = new URL(config.linuxdo.frontendCallbackUrl);
+    if (isConfiguredLinuxDoBackendCallbackUrl(frontendCallbackUrl)) {
+      frontendCallbackUrl.pathname = LINUXDO_FRONTEND_CALLBACK_PATH;
+      frontendCallbackUrl.search = "";
+      frontendCallbackUrl.hash = "";
+      return frontendCallbackUrl.toString();
+    }
+  } catch {
+    return config.linuxdo.frontendCallbackUrl;
+  }
+
+  return config.linuxdo.frontendCallbackUrl;
 }
 
 async function getAvailableLinuxDoUsername(baseUsername: string): Promise<string> {
@@ -523,8 +561,16 @@ async function upsertLinuxDoUser(profile: LinuxDoNormalizedProfile): Promise<{
 }
 
 function createLinuxDoErrorRedirect(message: string): string {
-  const params = new URLSearchParams({ error: message });
-  return `${config.linuxdo.frontendCallbackUrl}?${params.toString()}`;
+  const callbackUrl = resolveLinuxDoFrontendCallbackUrl();
+
+  try {
+    const redirectUrl = new URL(callbackUrl);
+    redirectUrl.searchParams.set("error", message);
+    return redirectUrl.toString();
+  } catch {
+    const params = new URLSearchParams({ error: message });
+    return `${callbackUrl}?${params.toString()}`;
+  }
 }
 
 export function getLinuxDoConfigSummary(): LinuxDoConfigSummary {

@@ -67,10 +67,29 @@ describe("LinuxDoAuthController", () => {
 
     await LinuxDoAuthController.callbackGet(req, res);
 
-    expect(getLinuxDoErrorRedirect).toHaveBeenCalledWith("Missing Linux.do authorization code or state");
+    expect(getLinuxDoErrorRedirect).toHaveBeenCalledWith("缺少 Linux.do 授权码或登录状态");
     expect(redirect).toHaveBeenCalledWith(
       302,
-      "https://frontend.example/auth/linuxdo/callback?error=Missing%20Linux.do%20authorization%20code%20or%20state",
+      "https://frontend.example/auth/linuxdo/callback?error=%E7%BC%BA%E5%B0%91%20Linux.do%20%E6%8E%88%E6%9D%83%E7%A0%81%E6%88%96%E7%99%BB%E5%BD%95%E7%8A%B6%E6%80%81",
+    );
+  });
+
+  it("redirects GET callback provider errors to the frontend callback page", async () => {
+    const redirect = jest.fn();
+    const req = {
+      query: {
+        error: "access_denied",
+      },
+    } as unknown as Request;
+    const res = { redirect } as unknown as Response;
+
+    await LinuxDoAuthController.callbackGet(req, res);
+
+    expect(completeLinuxDoAuthorization).not.toHaveBeenCalled();
+    expect(getLinuxDoErrorRedirect).toHaveBeenCalledWith("access_denied");
+    expect(redirect).toHaveBeenCalledWith(
+      302,
+      "https://frontend.example/auth/linuxdo/callback?error=access_denied",
     );
   });
 

@@ -1,4 +1,4 @@
-import express from "express";
+import express, { type Request } from "express";
 import rateLimit from "express-rate-limit";
 import { AuthController } from "../controllers/authController";
 import { LinuxDoAuthController } from "../controllers/linuxDoAuthController";
@@ -50,6 +50,26 @@ const authExternalLoginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "第三方登录请求过于频繁，请稍后再试" },
+});
+function hasCallbackProviderError(value: unknown): boolean {
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
+
+  return Array.isArray(value) && typeof value[0] === "string" && value[0].trim().length > 0;
+}
+
+export function shouldSkipLinuxDoCallbackRateLimit(req: Request): boolean {
+  return req.method === "GET" && hasCallbackProviderError(req.query?.error);
+}
+
+const linuxDoCallbackGetLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "第三方登录请求过于频繁，请稍后再试" },
+  skip: shouldSkipLinuxDoCallbackRateLimit,
 });
 const authMobileLoginLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,
@@ -113,7 +133,7 @@ router.post("/provider-bind/confirm", authLoginEndpointLimiter, loginLimiter, Au
 
 router.get("/linuxdo/config", authReadLimiter, LinuxDoAuthController.getConfig);
 router.get("/linuxdo/start", authExternalLoginLimiter, LinuxDoAuthController.start);
-router.get("/linuxdo/callback", authExternalLoginLimiter, LinuxDoAuthController.callbackGet);
+router.get("/linuxdo/callback", linuxDoCallbackGetLimiter, LinuxDoAuthController.callbackGet);
 router.post("/linuxdo/callback", authExternalLoginLimiter, LinuxDoAuthController.callback);
 router.post("/linuxdo/exchange", authExternalLoginLimiter, LinuxDoAuthController.exchangeTicket);
 

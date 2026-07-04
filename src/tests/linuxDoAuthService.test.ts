@@ -5,6 +5,7 @@ import {
   buildLinuxDoAvatarUrl,
   consumeLinuxDoLoginTicket,
   createLinuxDoAuthorizationUrl,
+  getLinuxDoErrorRedirect,
   issueLinuxDoLoginTicket,
   normalizeLinuxDoProfile,
   resetLinuxDoAuthStateForTests,
@@ -84,6 +85,17 @@ describe("linuxDoAuthService", () => {
       }),
     );
     expect(consumeLinuxDoLoginTicket(ticket)).toBeNull();
+  });
+
+  it("keeps error redirects out of the backend callback when the frontend URL is misconfigured", () => {
+    config.linuxdo.callbackUrl = "https://tts.chloemlla.com/api/auth/linuxdo/callback";
+    config.linuxdo.frontendCallbackUrl = "https://tts.chloemlla.com/api/auth/linuxdo/callback";
+
+    const redirectUrl = new URL(getLinuxDoErrorRedirect("缺少 Linux.do 授权码或登录状态"));
+
+    expect(redirectUrl.origin).toBe("https://tts.chloemlla.com");
+    expect(redirectUrl.pathname).toBe("/auth/linuxdo/callback");
+    expect(redirectUrl.searchParams.get("error")).toBe("缺少 Linux.do 授权码或登录状态");
   });
 
   it("builds Linux.do authorization URLs from discovery with scope and PKCE", async () => {
