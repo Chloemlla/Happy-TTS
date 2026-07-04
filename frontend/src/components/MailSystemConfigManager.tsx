@@ -4,6 +4,14 @@ import { FaRedo, FaSave, FaSync, FaTrash } from 'react-icons/fa';
 import { getApiBaseUrl } from '../api/api';
 import { SimpleLoadingSpinner } from './LoadingSpinner';
 import { useNotification } from './Notification';
+import {
+  InfoPanel,
+  InfoSectionTitle,
+  logShareDangerButtonClass,
+  logShareInputClass,
+  logShareSecondaryButtonClass,
+  logSharePrimaryButtonClass,
+} from './LogShareStyleScaffold';
 
 const MAIL_SYSTEM_API = `${getApiBaseUrl()}/api/admin/email-system/setting`;
 
@@ -135,7 +143,7 @@ function ToggleField(props: {
         type="checkbox"
         checked={props.checked}
         onChange={(event) => props.onChange(event.target.checked)}
-        className="h-5 w-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+        className="h-5 w-5 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
       />
     </label>
   );
@@ -273,23 +281,20 @@ const MailSystemConfigManager: React.FC = () => {
   }
 
   return (
-    <div className="relative overflow-hidden rounded-[36px] border border-white/70 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.22),_transparent_34%),linear-gradient(180deg,#f8fbff_0%,#eef2ff_55%,#f8fafc_100%)] p-4 shadow-[0_24px_80px_rgba(15,23,42,0.08)] sm:p-6">
-      <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.3)_0%,transparent_52%)]" />
-      <div className="relative space-y-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400">Synapse Runtime</div>
-            <h2 className="mt-3 text-2xl font-semibold text-slate-900 sm:text-3xl">后端邮件系统配置</h2>
-            <div className="mt-3">
-              <UpdatedAt value={setting?.updatedAt} />
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-3">
+    <div className="space-y-6">
+      <InfoPanel>
+        <InfoSectionTitle
+          eyebrow="Synapse Runtime"
+          title="后端邮件系统配置"
+          description="管理主邮件服务与对外邮件服务的域名、配额和 API Key 保留策略。"
+          icon={FaSave}
+          action={
+            <div className="flex flex-wrap gap-3">
             <motion.button
               type="button"
               onClick={loadSetting}
               disabled={loading || saving || resetting}
-              className="inline-flex items-center gap-2 rounded-[18px] border border-white/70 bg-white/88 px-4 py-2 text-sm font-semibold text-slate-700 shadow-[0_8px_24px_rgba(15,23,42,0.08)] backdrop-blur-xl transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
+              className={logShareSecondaryButtonClass}
               whileTap={{ scale: 0.97 }}
             >
               <FaSync className={loading ? 'animate-spin' : ''} />
@@ -299,7 +304,7 @@ const MailSystemConfigManager: React.FC = () => {
               type="button"
               onClick={resetSetting}
               disabled={saving || resetting}
-              className="inline-flex items-center gap-2 rounded-[18px] bg-rose-600 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(225,29,72,0.22)] transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+              className={logShareDangerButtonClass}
               whileTap={{ scale: 0.97 }}
             >
               {resetting ? <FaRedo className="animate-spin" /> : <FaTrash />}
@@ -309,16 +314,18 @@ const MailSystemConfigManager: React.FC = () => {
               type="button"
               onClick={saveSetting}
               disabled={saving || resetting}
-              className="inline-flex items-center gap-2 rounded-[18px] bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(15,23,42,0.2)] transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className={logSharePrimaryButtonClass}
               whileTap={{ scale: 0.97 }}
             >
               {saving ? <FaRedo className="animate-spin" /> : <FaSave />}
               保存
             </motion.button>
           </div>
-        </div>
+          }
+        />
+        <UpdatedAt value={setting?.updatedAt} />
 
-        <div className="grid gap-3 md:grid-cols-3">
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
           <StatusPill label="Mail Service" status={emailStatus} />
           <StatusPill label="OutEmail" status={outemailStatus} />
           <div className="rounded-[22px] border border-white/70 bg-white/88 px-4 py-3 shadow-[0_12px_36px_rgba(15,23,42,0.06)] backdrop-blur-xl">
@@ -326,9 +333,10 @@ const MailSystemConfigManager: React.FC = () => {
             <div className="mt-1 truncate text-sm text-slate-600">{domains.length ? domains.join(', ') : '-'}</div>
           </div>
         </div>
+      </InfoPanel>
 
         <div className="grid gap-4 lg:grid-cols-2">
-          <section className="rounded-[28px] border border-white/70 bg-white/88 p-5 shadow-[0_18px_52px_rgba(15,23,42,0.07)] backdrop-blur-xl">
+          <InfoPanel>
             <div className="mb-5 flex items-center justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">主邮件服务</h3>
@@ -348,7 +356,7 @@ const MailSystemConfigManager: React.FC = () => {
                   value={form.resendDomain}
                   onChange={(event) => setForm((prev) => ({ ...prev, resendDomain: event.target.value }))}
                   placeholder="example.com"
-                  className="w-full rounded-[18px] border border-slate-200 bg-white/90 px-4 py-3 text-sm text-slate-800 shadow-inner outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+                  className={logShareInputClass}
                 />
               </div>
               <div>
@@ -358,7 +366,7 @@ const MailSystemConfigManager: React.FC = () => {
                   value={resendApiKey}
                   onChange={(event) => setResendApiKey(event.target.value)}
                   placeholder="留空表示保留现有 API Key"
-                  className="w-full rounded-[18px] border border-slate-200 bg-white/90 px-4 py-3 text-sm text-slate-800 shadow-inner outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+                  className={logShareInputClass}
                 />
               </div>
               <div>
@@ -368,13 +376,13 @@ const MailSystemConfigManager: React.FC = () => {
                   min={1}
                   value={form.quotaTotal}
                   onChange={(event) => setForm((prev) => ({ ...prev, quotaTotal: Number(event.target.value) || 1 }))}
-                  className="w-full rounded-[18px] border border-slate-200 bg-white/90 px-4 py-3 text-sm text-slate-800 shadow-inner outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+                  className={logShareInputClass}
                 />
               </div>
             </div>
-          </section>
+          </InfoPanel>
 
-          <section className="rounded-[28px] border border-white/70 bg-white/88 p-5 shadow-[0_18px_52px_rgba(15,23,42,0.07)] backdrop-blur-xl">
+          <InfoPanel>
             <div className="mb-5 flex items-center justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold text-slate-900">对外邮件服务</h3>
@@ -394,7 +402,7 @@ const MailSystemConfigManager: React.FC = () => {
                   value={form.outemailDomain}
                   onChange={(event) => setForm((prev) => ({ ...prev, outemailDomain: event.target.value }))}
                   placeholder="example.com"
-                  className="w-full rounded-[18px] border border-slate-200 bg-white/90 px-4 py-3 text-sm text-slate-800 shadow-inner outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+                  className={logShareInputClass}
                 />
               </div>
               <div>
@@ -404,7 +412,7 @@ const MailSystemConfigManager: React.FC = () => {
                   value={outemailApiKey}
                   onChange={(event) => setOutemailApiKey(event.target.value)}
                   placeholder="留空表示保留现有 API Key"
-                  className="w-full rounded-[18px] border border-slate-200 bg-white/90 px-4 py-3 text-sm text-slate-800 shadow-inner outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+                  className={logShareInputClass}
                 />
               </div>
               <div>
@@ -414,7 +422,7 @@ const MailSystemConfigManager: React.FC = () => {
                   value={outemailCode}
                   onChange={(event) => setOutemailCode(event.target.value)}
                   placeholder="留空表示保留现有校验码"
-                  className="w-full rounded-[18px] border border-slate-200 bg-white/90 px-4 py-3 text-sm text-slate-800 shadow-inner outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+                  className={logShareInputClass}
                 />
               </div>
               <div>
@@ -424,13 +432,12 @@ const MailSystemConfigManager: React.FC = () => {
                   min={1}
                   value={form.outemailQuotaTotal}
                   onChange={(event) => setForm((prev) => ({ ...prev, outemailQuotaTotal: Number(event.target.value) || 1 }))}
-                  className="w-full rounded-[18px] border border-slate-200 bg-white/90 px-4 py-3 text-sm text-slate-800 shadow-inner outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+                  className={logShareInputClass}
                 />
               </div>
             </div>
-          </section>
+          </InfoPanel>
         </div>
-      </div>
     </div>
   );
 };

@@ -2,14 +2,23 @@ import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  FaBan, FaUnlock, FaPlus, FaTrash, FaSearch, FaSync, FaInfoCircle, 
-  FaExclamationTriangle, FaCheckCircle, FaShieldAlt, FaClock, FaChartBar,
-  FaUserShield, FaNetworkWired, FaCalendarAlt, FaTimes, FaCheck, FaList
+  FaBan, FaUnlock, FaTrash, FaSync,
+  FaExclamationTriangle, FaShieldAlt, FaClock,
+  FaUserShield, FaTimes, FaList
 } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-import { turnstileApi, IPBanStats, IPBan } from '../api/turnstile';
+import { turnstileApi, IPBanStats } from '../api/turnstile';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
 import { useNotification } from './Notification';
+import {
+  InfoMetricCard,
+  InfoPanel,
+  InfoSectionTitle,
+  logShareDangerButtonClass,
+  logShareInputClass,
+  logSharePanelClass,
+  logShareSecondaryButtonClass,
+} from './LogShareStyleScaffold';
 
 interface BanIPModalProps {
   isOpen: boolean;
@@ -23,6 +32,21 @@ interface UnbanIPModalProps {
   onClose: () => void;
   onSuccess: () => void;
   mode: 'single' | 'batch';
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  if (!isRecord(error)) return fallback;
+  const response = error.response;
+  if (isRecord(response)) {
+    const data = response.data;
+    if (isRecord(data) && typeof data.error === 'string') return data.error;
+    if (isRecord(data) && typeof data.message === 'string') return data.message;
+  }
+  return typeof error.message === 'string' ? error.message : fallback;
 }
 
 function BanIPModal({ isOpen, onClose, onSuccess, mode }: BanIPModalProps) {
@@ -78,9 +102,9 @@ function BanIPModal({ isOpen, onClose, onSuccess, mode }: BanIPModalProps) {
       }
       onSuccess();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('封禁IP失败:', err);
-      const msg = err?.response?.data?.error || '封禁失败，请重试';
+      const msg = getErrorMessage(err, '封禁失败，请重试');
       setError(msg);
       setNotification({ message: msg, type: 'error' });
     } finally {
@@ -96,21 +120,21 @@ function BanIPModal({ isOpen, onClose, onSuccess, mode }: BanIPModalProps) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-[9999] p-4 sm:p-0"
+        className="fixed inset-0 z-[9999] h-full w-full overflow-y-auto bg-black/50 p-4 backdrop-blur-sm sm:p-0"
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="relative top-0 sm:top-16 mx-auto my-4 sm:my-0 p-4 sm:p-5 border w-full max-w-2xl shadow-lg rounded-lg bg-white max-h-[95vh] overflow-y-auto"
+          className={`${logSharePanelClass} relative top-0 mx-auto my-4 max-h-[95vh] w-full max-w-2xl overflow-y-auto p-4 sm:top-16 sm:my-0 sm:p-5`}
         >
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                <FaBan className="w-5 h-5 text-red-500" />
+              <h3 className="flex items-center gap-2 text-xl font-semibold text-slate-900">
+                <FaBan className="h-5 w-5 text-slate-500" />
                 {mode === 'single' ? '封禁IP' : '批量封禁IP'}
               </h3>
-              <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors p-1">
+              <button onClick={onClose} className="p-1 text-slate-400 transition-colors hover:text-slate-600">
                 <FaTimes className="w-5 h-5" />
               </button>
             </div>
@@ -118,38 +142,38 @@ function BanIPModal({ isOpen, onClose, onSuccess, mode }: BanIPModalProps) {
             <form onSubmit={handleSubmit} className="space-y-4">
               {mode === 'single' ? (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">IP地址或IP段（CIDR）</label>
+                  <label className="block text-sm font-semibold text-slate-700">IP地址或IP段（CIDR）</label>
                   <input
                     type="text"
                     required
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    className={`${logShareInputClass} mt-1`}
                     value={formData.ipAddress}
                     onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
                     placeholder="例如: 192.168.1.100 或 192.168.1.0/24"
                   />
-                  <p className="mt-1 text-xs text-gray-500">支持单个IP或CIDR格式（IPv4: 192.168.1.0/24，IPv6: 2001:db8::/32）</p>
+                  <p className="mt-1 text-xs text-slate-500">支持单个IP或CIDR格式（IPv4: 192.168.1.0/24，IPv6: 2001:db8::/32）</p>
                 </div>
               ) : (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">IP地址列表或IP段（CIDR）</label>
+                  <label className="block text-sm font-semibold text-slate-700">IP地址列表或IP段（CIDR）</label>
                   <textarea
                     required
                     rows={6}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    className={`${logShareInputClass} mt-1`}
                     value={formData.ipAddresses}
                     onChange={(e) => setFormData({ ...formData, ipAddresses: e.target.value })}
                     placeholder="每行一个IP或IP段，例如：&#10;192.168.1.100&#10;192.168.1.0/24&#10;10.0.0.0/8&#10;2001:db8::/32"
                   />
-                  <p className="mt-1 text-xs text-gray-500">每行输入一个IP地址或CIDR IP段（支持IPv4和IPv6）</p>
+                  <p className="mt-1 text-xs text-slate-500">每行输入一个IP地址或CIDR IP段（支持IPv4和IPv6）</p>
                 </div>
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">封禁原因</label>
+                <label className="block text-sm font-semibold text-slate-700">封禁原因</label>
                 <textarea
                   required
                   rows={3}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  className={`${logShareInputClass} mt-1`}
                   value={formData.reason}
                   onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
                   placeholder="请输入封禁原因..."
@@ -157,22 +181,22 @@ function BanIPModal({ isOpen, onClose, onSuccess, mode }: BanIPModalProps) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700">封禁时长（分钟）</label>
+                <label className="block text-sm font-semibold text-slate-700">封禁时长（分钟）</label>
                 <input
                   type="number"
                   min="1"
                   max="1440"
                   required
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                  className={`${logShareInputClass} mt-1`}
                   value={formData.durationMinutes}
                   onChange={(e) => setFormData({ ...formData, durationMinutes: parseInt(e.target.value) || 60 })}
                 />
-                <p className="mt-1 text-xs text-gray-500">1分钟到24小时（1440分钟）</p>
+                <p className="mt-1 text-xs text-slate-500">1分钟到24小时（1440分钟）</p>
               </div>
 
               {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <p className="text-red-800 text-sm">{error}</p>
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3">
+                  <p className="text-sm text-rose-700">{error}</p>
                 </div>
               )}
 
@@ -180,14 +204,14 @@ function BanIPModal({ isOpen, onClose, onSuccess, mode }: BanIPModalProps) {
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+                  className={logShareSecondaryButtonClass}
                 >
                   取消
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={logShareDangerButtonClass}
                 >
                   {loading ? '处理中...' : (mode === 'single' ? '封禁IP' : '批量封禁')}
                 </button>
@@ -249,9 +273,9 @@ function UnbanIPModal({ isOpen, onClose, onSuccess, mode }: UnbanIPModalProps) {
       }
       onSuccess();
       onClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('解封IP失败:', err);
-      const msg = err?.response?.data?.error || '解封失败，请重试';
+      const msg = getErrorMessage(err, '解封失败，请重试');
       setError(msg);
       setNotification({ message: msg, type: 'error' });
     } finally {
@@ -267,21 +291,21 @@ function UnbanIPModal({ isOpen, onClose, onSuccess, mode }: UnbanIPModalProps) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-[9999] p-4 sm:p-0"
+        className="fixed inset-0 z-[9999] h-full w-full overflow-y-auto bg-black/50 p-4 backdrop-blur-sm sm:p-0"
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
-          className="relative top-0 sm:top-16 mx-auto my-4 sm:my-0 p-4 sm:p-5 border w-full max-w-2xl shadow-lg rounded-lg bg-white max-h-[95vh] overflow-y-auto"
+          className={`${logSharePanelClass} relative top-0 mx-auto my-4 max-h-[95vh] w-full max-w-2xl overflow-y-auto p-4 sm:top-16 sm:my-0 sm:p-5`}
         >
           <div className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
-                <FaUnlock className="w-5 h-5 text-green-500" />
+              <h3 className="flex items-center gap-2 text-xl font-semibold text-slate-900">
+                <FaUnlock className="h-5 w-5 text-slate-500" />
                 {mode === 'single' ? '解封IP' : '批量解封IP'}
               </h3>
-              <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors p-1">
+              <button onClick={onClose} className="p-1 text-slate-400 transition-colors hover:text-slate-600">
                 <FaTimes className="w-5 h-5" />
               </button>
             </div>
@@ -289,29 +313,29 @@ function UnbanIPModal({ isOpen, onClose, onSuccess, mode }: UnbanIPModalProps) {
             <form onSubmit={handleSubmit} className="space-y-4">
               {mode === 'single' ? (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">IP地址或IP段（CIDR）</label>
+                  <label className="block text-sm font-semibold text-slate-700">IP地址或IP段（CIDR）</label>
                   <input
                     type="text"
                     required
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    className={`${logShareInputClass} mt-1`}
                     value={formData.ipAddress}
                     onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
                     placeholder="例如: 192.168.1.100 或 192.168.1.0/24"
                   />
-                  <p className="mt-1 text-xs text-gray-500">支持单个IP或CIDR格式（IPv4: 192.168.1.0/24，IPv6: 2001:db8::/32）</p>
+                  <p className="mt-1 text-xs text-slate-500">支持单个IP或CIDR格式（IPv4: 192.168.1.0/24，IPv6: 2001:db8::/32）</p>
                 </div>
               ) : (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700">IP地址列表或IP段（CIDR）</label>
+                  <label className="block text-sm font-semibold text-slate-700">IP地址列表或IP段（CIDR）</label>
                   <textarea
                     required
                     rows={6}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    className={`${logShareInputClass} mt-1`}
                     value={formData.ipAddresses}
                     onChange={(e) => setFormData({ ...formData, ipAddresses: e.target.value })}
                     placeholder="每行一个IP或IP段，例如：&#10;192.168.1.100&#10;192.168.1.0/24&#10;10.0.0.0/8&#10;2001:db8::/32"
                   />
-                  <p className="mt-1 text-xs text-gray-500">每行输入一个IP地址或CIDR IP段（支持IPv4和IPv6）</p>
+                  <p className="mt-1 text-xs text-slate-500">每行输入一个IP地址或CIDR IP段（支持IPv4和IPv6）</p>
                 </div>
               )}
 
@@ -319,7 +343,7 @@ function UnbanIPModal({ isOpen, onClose, onSuccess, mode }: UnbanIPModalProps) {
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="text-red-600 text-sm bg-red-50 p-3 rounded-lg border border-red-200 flex items-center gap-2"
+                  className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"
                 >
                   <FaExclamationTriangle className="w-4 h-4" />
                   {error}
@@ -330,14 +354,14 @@ function UnbanIPModal({ isOpen, onClose, onSuccess, mode }: UnbanIPModalProps) {
                 <button
                   type="button"
                   onClick={onClose}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+                  className={logShareSecondaryButtonClass}
                 >
                   取消
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                  className={logShareSecondaryButtonClass}
                 >
                   {loading ? <UnifiedLoadingSpinner size="sm" /> : <FaUnlock />}
                   {mode === 'single' ? '解封IP' : '批量解封'}
@@ -403,103 +427,35 @@ export default function IPBanManager() {
 
   return (
     <div className="space-y-6">
-      {/* 标题和说明 */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-red-50 to-orange-50 rounded-xl p-6 border border-red-100"
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-          <h2 className="text-xl sm:text-2xl font-bold text-red-700 flex items-center gap-2">
-            <FaShieldAlt className="w-5 h-5 sm:w-6 sm:h-6" />
-            IP封禁管理
-          </h2>
-          <Link
-            to="/admin"
-            className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-sm font-medium flex items-center justify-center gap-2 w-full sm:w-auto"
-          >
-            <FaTimes className="w-4 h-4" />
-            返回仪表板
-          </Link>
-        </div>
-        <div className="text-gray-600 space-y-2">
-          <p>此功能用于管理IP封禁列表，支持单个和批量封禁操作，提供实时统计信息。</p>
-          <div className="flex items-start gap-2 text-sm">
-            <FaInfoCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="font-semibold text-red-700">功能说明：</p>
-              <ul className="list-disc list-inside space-y-1 mt-1">
-                <li>支持单个IP和批量IP封禁操作</li>
-                <li>支持CIDR格式封禁整个IP段（IPv4和IPv6）</li>
-                <li>自定义封禁原因和时长</li>
-                <li>实时查看IP封禁统计信息</li>
-                <li>支持IP和IP段解封操作</li>
-                <li>自动同步Redis和MongoDB数据</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </motion.div>
+      <InfoPanel>
+        <InfoSectionTitle
+          eyebrow="Access Control"
+          title="IP封禁管理"
+          description="管理 IP 与 CIDR 封禁列表，支持单个和批量封禁、解封以及实时统计刷新。"
+          icon={FaShieldAlt}
+          action={
+            <Link to="/admin" className={logShareSecondaryButtonClass}>
+              <FaTimes className="w-4 h-4" />
+              返回仪表板
+            </Link>
+          }
+        />
+      </InfoPanel>
 
       {/* 统计信息 */}
       {stats && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-        >
-          <h3 className="text-base sm:text-lg font-semibold text-gray-800 flex items-center gap-2 mb-4">
-            <FaChartBar className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
-            封禁统计
-          </h3>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-red-50 rounded-lg p-4 border border-red-200">
-              <div className="flex items-center justify-between">
-                <FaBan className="w-8 h-8 text-red-500" />
-                <span className="text-2xl font-bold text-red-700">{stats.totalBanned}</span>
-              </div>
-              <p className="text-sm text-gray-600 mt-2">总封禁数</p>
-            </div>
-            
-            <div className="bg-orange-50 rounded-lg p-4 border border-orange-200">
-              <div className="flex items-center justify-between">
-                <FaShieldAlt className="w-8 h-8 text-orange-500" />
-                <span className="text-2xl font-bold text-orange-700">{stats.activeBans}</span>
-              </div>
-              <p className="text-sm text-gray-600 mt-2">活跃封禁</p>
-            </div>
-            
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-              <div className="flex items-center justify-between">
-                <FaUnlock className="w-8 h-8 text-gray-500" />
-                <span className="text-2xl font-bold text-gray-700">{stats.expiredBans}</span>
-              </div>
-              <p className="text-sm text-gray-600 mt-2">已过期</p>
-            </div>
-            
-            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-              <div className="flex items-center justify-between">
-                <FaClock className="w-8 h-8 text-blue-500" />
-                <span className="text-2xl font-bold text-blue-700">{stats.recentBans}</span>
-              </div>
-              <p className="text-sm text-gray-600 mt-2">最近封禁</p>
-            </div>
-          </div>
-        </motion.div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <InfoMetricCard label="总封禁数" value={stats.totalBanned} detail="历史封禁记录" icon={FaBan} />
+          <InfoMetricCard label="活跃封禁" value={stats.activeBans} detail="当前仍生效" icon={FaShieldAlt} />
+          <InfoMetricCard label="已过期" value={stats.expiredBans} detail="等待清理或同步" icon={FaUnlock} />
+          <InfoMetricCard label="最近封禁" value={stats.recentBans} detail="近期新增记录" icon={FaClock} />
+        </div>
       )}
 
       {/* 操作按钮 */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-      >
+      <InfoPanel>
         <div className="space-y-4">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <FaUserShield className="w-4 h-4 sm:w-5 sm:h-5 text-red-500" />
-            封禁操作
-          </h3>
+          <InfoSectionTitle eyebrow="Actions" title="封禁操作" icon={FaUserShield} />
           
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             <motion.button
@@ -507,7 +463,7 @@ export default function IPBanManager() {
                 setBanMode('single');
                 setShowBanModal(true);
               }}
-              className="px-4 py-3 bg-gradient-to-r from-red-500 to-orange-600 text-white rounded-lg hover:from-red-600 hover:to-orange-700 transition-all duration-200 font-medium flex items-center justify-center gap-2"
+              className={logShareDangerButtonClass}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -520,7 +476,7 @@ export default function IPBanManager() {
                 setBanMode('batch');
                 setShowBanModal(true);
               }}
-              className="px-4 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-lg hover:from-orange-600 hover:to-red-700 transition-all duration-200 font-medium flex items-center justify-center gap-2"
+              className={logShareDangerButtonClass}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -533,7 +489,7 @@ export default function IPBanManager() {
                 setUnbanMode('single');
                 setShowUnbanModal(true);
               }}
-              className="px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200 font-medium flex items-center justify-center gap-2"
+              className={logShareSecondaryButtonClass}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -546,7 +502,7 @@ export default function IPBanManager() {
                 setUnbanMode('batch');
                 setShowUnbanModal(true);
               }}
-              className="px-4 py-3 bg-gradient-to-r from-emerald-500 to-green-600 text-white rounded-lg hover:from-emerald-600 hover:to-green-700 transition-all duration-200 font-medium flex items-center justify-center gap-2"
+              className={logShareSecondaryButtonClass}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -557,7 +513,7 @@ export default function IPBanManager() {
             <motion.button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="px-4 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium flex items-center justify-center gap-2"
+              className={logShareSecondaryButtonClass}
               whileHover={{ scale: refreshing ? 1 : 1.02 }}
               whileTap={{ scale: refreshing ? 1 : 0.98 }}
             >
@@ -566,7 +522,7 @@ export default function IPBanManager() {
             </motion.button>
           </div>
         </div>
-      </motion.div>
+      </InfoPanel>
 
       {/* 模态框 */}
       <BanIPModal

@@ -5,6 +5,14 @@ import { motion } from 'framer-motion';
 import { useNotification } from './Notification';
 import { FaListAlt, FaSync, FaSearch, FaEye, FaTimes, FaTrash, FaCopy, FaClipboard } from 'react-icons/fa';
 import { handleSourceClick, handleSourceModalClose } from './EnvManager';
+import {
+  InfoPanel,
+  InfoSectionTitle,
+  logShareDangerButtonClass,
+  logShareInputClass,
+  logSharePanelClass,
+  logShareSecondaryButtonClass,
+} from './LogShareStyleScaffold';
 
 type TraceItem = {
   traceId: string;
@@ -42,7 +50,7 @@ const TraceTableRow = memo(({
   const time = useMemo(() => new Date(item.time).toLocaleString('zh-CN'), [item.time]);
   
   return (
-    <tr className="border-t border-gray-100 hover:bg-gray-50">
+    <tr className="border-t border-slate-100 text-slate-600 transition-colors duration-150 hover:bg-slate-50/70">
       <td className="p-3 text-center">
         <input 
           type="checkbox" 
@@ -62,7 +70,7 @@ const TraceTableRow = memo(({
       <td className="p-3">
         <div className="flex flex-wrap items-center gap-2">
           <button 
-            className="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center gap-2" 
+            className={logShareSecondaryButtonClass}
             onClick={() => onOpenDetail(item.traceId)}
           >
             <FaEye className="w-3.5 h-3.5" /> <span className="hidden sm:inline">详情</span>
@@ -88,7 +96,7 @@ const TraceMobileCard = memo(({
   const time = useMemo(() => new Date(item.time).toLocaleString('zh-CN'), [item.time]);
   
   return (
-    <div className="p-4">
+    <div className="p-4 text-slate-600">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
@@ -98,29 +106,29 @@ const TraceMobileCard = memo(({
               checked={isSelected} 
               onChange={() => onToggleSelect(item.traceId)} 
             />
-            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${item.success ? 'bg-green-100 text-green-700':'bg-red-100 text-red-700'}`}>
+            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${item.success ? 'border-emerald-200 bg-emerald-50 text-emerald-700':'border-rose-200 bg-rose-50 text-rose-700'}`}>
               {item.success ? '成功':'失败'}
             </span>
             {item.reason && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-gray-100 text-gray-700">
+              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
                 {item.reason}
               </span>
             )}
             <span 
-              className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono bg-gray-100 text-gray-700 max-w-[60%] truncate" 
+              className="inline-flex max-w-[60%] items-center truncate rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 font-mono text-[10px] font-semibold text-slate-600"
               title={item.traceId}
             >
               #{item.traceId}
             </span>
           </div>
-          <div className="text-xs text-gray-500 mt-1">{time}</div>
-          <div className="text-xs text-gray-600 mt-1 truncate">IP：{item.ip || '-'}</div>
-          <div className="text-xs text-gray-600 mt-1 truncate" title={item.ua}>UA：{item.ua || '-'}</div>
+          <div className="text-xs text-slate-500 mt-1">{time}</div>
+          <div className="text-xs text-slate-600 mt-1 truncate">IP：{item.ip || '-'}</div>
+          <div className="text-xs text-slate-600 mt-1 truncate" title={item.ua}>UA：{item.ua || '-'}</div>
         </div>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:grid-cols-none">
         <button 
-          className="w-full px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-medium flex items-center gap-2" 
+          className={logShareSecondaryButtonClass}
           onClick={() => onOpenDetail(item.traceId)}
         >
           <FaEye className="w-3.5 h-3.5" /> 详情
@@ -531,91 +539,87 @@ const SmartHumanCheckTraces: React.FC = () => {
   return (
     <div
       ref={containerRef}
-      className="max-w-7xl mx-auto px-2 sm:px-4 space-y-6"
+      className="mx-auto max-w-7xl space-y-6 px-2 sm:px-4"
     >
-      {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl shadow-xl border border-white/20 p-4 sm:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shadow">
-              <FaListAlt className="w-5 h-5" />
+      <InfoPanel>
+        <InfoSectionTitle
+          eyebrow="Human Check"
+          title="人机验证日志"
+          description="按结果、原因、Trace ID、IP 和 UA 筛选验证链路记录，并支持批量复制与合并查看。"
+          icon={FaListAlt}
+          action={
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => fetchList(page, pageSize)} className={logShareSecondaryButtonClass} title="刷新">
+                <FaSync className="w-4 h-4" /> 刷新
+              </button>
+              <button onClick={resetAndSearch} className={logShareSecondaryButtonClass}>
+                <FaSearch className="w-4 h-4" /> 重置筛选
+              </button>
             </div>
-            <div>
-              <div className="text-lg font-semibold">人机验证日志</div>
-              <div className="text-white/80 text-sm">按条件筛选与查看详情</div>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => fetchList(page, pageSize)} className="px-3 py-2 rounded-lg bg-white/20 hover:bg-white/30 transition text-sm font-medium" title="刷新">
-              <span className="inline-flex items-center gap-2"><FaSync className="w-4 h-4" /> 刷新</span>
-            </button>
-            <button onClick={resetAndSearch} className="px-3 py-2 rounded-lg bg-white/20 hover:bg-white/30 transition text-sm font-medium">
-              <span className="inline-flex items-center gap-2"><FaSearch className="w-4 h-4" /> 重置筛选</span>
-            </button>
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-white/80">每页</span>
-              <select value={pageSize} onChange={(e)=>fetchList(1, Number(e.target.value))} className="px-3 py-2 rounded-lg bg-white/20 text-white">
-                {[20,50,100,200].map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-          </div>
-        </div>
-        {/* Filters */}
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-5 gap-3">
-          <div>
-            <label className="block text-xs text-white/80 mb-1">结果</label>
-            <select value={success} onChange={e => { setSuccess(e.target.value); fetchList(1, pageSize); }} className="w-full px-3 py-2 rounded-lg bg-white/20 text-white">
+          }
+        />
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-6">
+          <label className="space-y-2 text-sm font-semibold text-slate-700">
+            <span>结果</span>
+            <select value={success} onChange={e => { setSuccess(e.target.value); fetchList(1, pageSize); }} className={logShareInputClass}>
               <option value="">全部</option>
               <option value="true">成功</option>
               <option value="false">失败</option>
             </select>
-          </div>
-          <div>
-            <label className="block text-xs text-white/80 mb-1">原因</label>
-            <input value={reason} onChange={e => setReason(e.target.value)} placeholder="low_score / bad_token_sig ..." className="w-full px-3 py-2 rounded-lg bg-white/20 text-white placeholder-white/60" />
-          </div>
-          <div>
-            <label className="block text-xs text-white/80 mb-1">Trace ID</label>
-            <input value={traceId} onChange={e => setTraceId(e.target.value)} placeholder="traceId" className="w-full px-3 py-2 rounded-lg bg-white/20 text-white placeholder-white/60" />
-          </div>
-          <div>
-            <label className="block text-xs text-white/80 mb-1">IP</label>
-            <input value={ip} onChange={e => setIp(e.target.value)} placeholder="ip" className="w-full px-3 py-2 rounded-lg bg-white/20 text-white placeholder-white/60" />
-          </div>
-          <div>
-            <label className="block text-xs text-white/80 mb-1">UA 包含</label>
-            <input value={ua} onChange={e => setUa(e.target.value)} placeholder="user-agent 关键字" className="w-full px-3 py-2 rounded-lg bg-white/20 text-white placeholder-white/60" />
-          </div>
+          </label>
+          <label className="space-y-2 text-sm font-semibold text-slate-700">
+            <span>原因</span>
+            <input value={reason} onChange={e => setReason(e.target.value)} placeholder="low_score / bad_token_sig ..." className={logShareInputClass} />
+          </label>
+          <label className="space-y-2 text-sm font-semibold text-slate-700">
+            <span>Trace ID</span>
+            <input value={traceId} onChange={e => setTraceId(e.target.value)} placeholder="traceId" className={logShareInputClass} />
+          </label>
+          <label className="space-y-2 text-sm font-semibold text-slate-700">
+            <span>IP</span>
+            <input value={ip} onChange={e => setIp(e.target.value)} placeholder="ip" className={logShareInputClass} />
+          </label>
+          <label className="space-y-2 text-sm font-semibold text-slate-700">
+            <span>UA 包含</span>
+            <input value={ua} onChange={e => setUa(e.target.value)} placeholder="user-agent 关键字" className={logShareInputClass} />
+          </label>
+          <label className="space-y-2 text-sm font-semibold text-slate-700">
+            <span>每页</span>
+            <select value={pageSize} onChange={(e)=>fetchList(1, Number(e.target.value))} className={logShareInputClass}>
+              {[20,50,100,200].map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </label>
         </div>
-      </motion.div>
+      </InfoPanel>
 
       {/* List & Table */}
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/20 overflow-hidden">
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={`${logSharePanelClass} overflow-hidden`}>
         {/* 批量操作工具栏 */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 border-b border-gray-100 bg-white/60">
-          <div className="text-sm text-gray-600">已选 {selectedIds.length} 条</div>
+        <div className="flex flex-col gap-3 border-b border-slate-100 bg-white/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm text-slate-500">已选 {selectedIds.length} 条</div>
           <div className="flex flex-wrap gap-2">
-            <label className="inline-flex items-center gap-2 text-sm px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 cursor-pointer">
+            <label className="inline-flex cursor-pointer items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300">
               <input type="checkbox" checked={isAllSelected} onChange={toggleSelectAll} />
               <span>本页全选</span>
             </label>
-            <button onClick={() => setSelectedIds([])} className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm">清空选择</button>
-            <button onClick={viewSelectedLogs} disabled={!selectedIds.length || batchLoading} className="px-3 py-2 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 disabled:opacity-50 text-sm inline-flex items-center gap-2">
+            <button onClick={() => setSelectedIds([])} className={logShareSecondaryButtonClass}>清空选择</button>
+            <button onClick={viewSelectedLogs} disabled={!selectedIds.length || batchLoading} className={logShareSecondaryButtonClass}>
               <FaEye className="w-4 h-4" /> 查看合并
             </button>
-            <button onClick={copySelectedIds} disabled={!selectedIds.length} className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm inline-flex items-center gap-2">
+            <button onClick={copySelectedIds} disabled={!selectedIds.length} className={logShareSecondaryButtonClass}>
               <FaCopy className="w-4 h-4" /> 复制 TraceID
             </button>
-            <button onClick={copySelectedLogs} disabled={!selectedIds.length || batchLoading} className="px-3 py-2 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 disabled:opacity-50 text-sm inline-flex items-center gap-2">
+            <button onClick={copySelectedLogs} disabled={!selectedIds.length || batchLoading} className={logShareSecondaryButtonClass}>
               <FaClipboard className="w-4 h-4" /> 一键复制日志
             </button>
-            <button onClick={deleteSelected} disabled={!selectedIds.length || batchLoading} className="px-3 py-2 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 disabled:opacity-50 text-sm inline-flex items-center gap-2">
+            <button onClick={deleteSelected} disabled={!selectedIds.length || batchLoading} className={logShareDangerButtonClass}>
               <FaTrash className="w-4 h-4" /> 删除
             </button>
           </div>
         </div>
         {/* Mobile Cards */}
-        <div className="block md:hidden divide-y divide-gray-100">
+        <div className="block divide-y divide-slate-100 md:hidden">
           {visibleItems.map(it => (
             <TraceMobileCard
               key={it.traceId}
@@ -626,15 +630,15 @@ const SmartHumanCheckTraces: React.FC = () => {
             />
           ))}
           {!loading && items.length === 0 && (
-            <div className="p-6 text-center text-gray-400">暂无数据</div>
+            <div className="p-6 text-center text-slate-400">暂无数据</div>
           )}
         </div>
 
         {/* Desktop Table */}
         <div className="hidden md:block overflow-x-auto">
-          <table className="min-w-full text-xs sm:text-sm table-fixed">
-            <thead className="bg-gray-50">
-              <tr className="text-left text-gray-600">
+          <table className="min-w-full table-fixed text-xs sm:text-sm">
+            <thead className="bg-slate-50">
+              <tr className="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
                 <th className="p-3 w-10"><input type="checkbox" checked={isAllSelected} onChange={toggleSelectAll} /></th>
                 <th className="p-3 w-44">时间</th>
                 <th className="p-3 w-48">TraceID</th>
@@ -660,30 +664,30 @@ const SmartHumanCheckTraces: React.FC = () => {
               ))}
               {!loading && items.length === 0 && (
                 <tr>
-                  <td className="p-6 text-center text-gray-400" colSpan={10}>暂无数据</td>
+                  <td className="p-6 text-center text-slate-400" colSpan={10}>暂无数据</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-        {loading && <div className="p-4 text-gray-400">加载中…</div>}
+        {loading && <div className="p-4 text-slate-400">加载中…</div>}
       </motion.div>
 
       {/* Pagination */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 bg-gray-50 border border-gray-100 rounded-2xl">
-        <div className="text-sm text-gray-600">共 {total} 条 • 第 {page}/{pages} 页</div>
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-sm text-slate-500">共 {total} 条 • 第 {page}/{pages} 页</div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <button disabled={page <= 1} onClick={() => fetchList(page - 1, pageSize)} className="w-full sm:w-auto px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50">上一页</button>
-          <button disabled={page >= pages} onClick={() => fetchList(page + 1, pageSize)} className="w-full sm:w-auto px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50">下一页</button>
+          <button disabled={page <= 1} onClick={() => fetchList(page - 1, pageSize)} className={`${logShareSecondaryButtonClass} w-full sm:w-auto`}>上一页</button>
+          <button disabled={page >= pages} onClick={() => fetchList(page + 1, pageSize)} className={`${logShareSecondaryButtonClass} w-full sm:w-auto`}>下一页</button>
         </div>
       </div>
 
       {/* 详情弹窗 — Portal 到 body */}
       {ReactDOM.createPortal(selected && (
         <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <div className="bg-white/90 backdrop-blur rounded-2xl max-w-3xl w-[95vw] p-4 sm:p-6 border border-white/20 shadow-xl" data-source-modal="trace-detail">
+        <div className={`${logSharePanelClass} max-w-3xl w-[95vw] p-4 sm:p-6`} data-source-modal="trace-detail">
           <div className="flex items-center justify-between mb-3">
-            <div className="font-semibold text-gray-900">日志详情</div>
+            <div className="font-semibold text-slate-900">日志详情</div>
             <div className="flex items-center gap-2">
               <button
                 onClick={async () => {
@@ -694,7 +698,7 @@ const SmartHumanCheckTraces: React.FC = () => {
                     setNotification({ type: 'error', message: e?.message || '复制失败' });
                   }
                 }}
-                className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2"
+                className={logShareSecondaryButtonClass}
               >
                 <FaClipboard className="w-4 h-4" /> 复制
               </button>
@@ -712,16 +716,16 @@ const SmartHumanCheckTraces: React.FC = () => {
                     setNotification({ type: 'error', message: e?.message || '复制失败' });
                   }
                 }}
-                className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2"
+                className={logShareSecondaryButtonClass}
               >
                 <FaCopy className="w-4 h-4" /> 复制ID
               </button>
-              <button onClick={closeDetailModal} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2">
+              <button onClick={closeDetailModal} className={logShareSecondaryButtonClass}>
                 <FaTimes className="w-4 h-4" /> 关闭
               </button>
             </div>
           </div>
-          <pre className="text-xs bg-gray-900 text-gray-100 p-3 rounded overflow-auto max-h-[70vh]">{JSON.stringify(selected, null, 2)}</pre>
+          <pre className="max-h-[70vh] overflow-auto rounded-2xl bg-slate-950 p-3 text-xs text-slate-100">{JSON.stringify(selected, null, 2)}</pre>
         </div>
       </motion.div>
       ), document.body)}
@@ -729,19 +733,19 @@ const SmartHumanCheckTraces: React.FC = () => {
       {/* 批量合并查看弹窗 — Portal 到 body */}
       {ReactDOM.createPortal(batchView && (
         <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <div className="bg-white/90 backdrop-blur rounded-2xl max-w-5xl w-[95vw] p-4 sm:p-6 border border-white/20 shadow-xl" data-source-modal="batch-trace-detail">
+          <div className={`${logSharePanelClass} max-w-5xl w-[95vw] p-4 sm:p-6`} data-source-modal="batch-trace-detail">
             <div className="flex items-center justify-between mb-3">
-              <div className="font-semibold text-gray-900">合并日志（{batchView.ids.length} 条）</div>
+              <div className="font-semibold text-slate-900">合并日志（{batchView.ids.length} 条）</div>
               <div className="flex items-center gap-2">
-                <button onClick={async ()=>{ try { await navigator.clipboard.writeText(JSON.stringify(batchView, null, 2)); setNotification({ type:'success', message:'已复制' }); } catch(e:any){ setNotification({ type:'error', message:e?.message||'复制失败' }); } }} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2">
+                <button onClick={async ()=>{ try { await navigator.clipboard.writeText(JSON.stringify(batchView, null, 2)); setNotification({ type:'success', message:'已复制' }); } catch(e:any){ setNotification({ type:'error', message:e?.message||'复制失败' }); } }} className={logShareSecondaryButtonClass}>
                   <FaClipboard className="w-4 h-4" /> 复制
                 </button>
-                <button onClick={closeBatchModal} className="px-3 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium flex items-center gap-2">
+                <button onClick={closeBatchModal} className={logShareSecondaryButtonClass}>
                   <FaTimes className="w-4 h-4" /> 关闭
                 </button>
               </div>
             </div>
-            <pre className="text-xs bg-gray-900 text-gray-100 p-3 rounded overflow-auto max-h-[70vh]">{JSON.stringify(batchView, null, 2)}</pre>
+            <pre className="max-h-[70vh] overflow-auto rounded-2xl bg-slate-950 p-3 text-xs text-slate-100">{JSON.stringify(batchView, null, 2)}</pre>
           </div>
         </motion.div>
       ), document.body)}
