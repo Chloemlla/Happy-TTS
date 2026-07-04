@@ -438,7 +438,7 @@ const TtsGenerationManager: React.FC = () => {
 
                   {record.audioUrl && (
                     <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-3">
-                      <audio controls className="w-full">
+                      <audio controls preload="none" className="w-full">
                         <source src={record.audioUrl} type={record.audioMimeType} />
                         您的浏览器不支持音频播放
                       </audio>

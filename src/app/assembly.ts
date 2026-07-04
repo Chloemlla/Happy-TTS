@@ -341,6 +341,7 @@ export function registerSecurityMiddleware(app: Express): void {
             "https://*.cloudflare.com",
             "https://www.google-analytics.com",
             "https://analytics.google.com",
+            "https://www.google.com",
             "https://www.clarity.ms",
             "https://*.clarity.ms",
           ],

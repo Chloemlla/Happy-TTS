@@ -133,19 +133,27 @@ export class TtsController {
     return typeof raw === "string" && raw.trim() ? raw.trim() : undefined;
   }
 
-  private static serializeHistoryRecord(record: TtsHistoryRecord) {
+  private static async serializeHistoryRecord(record: TtsHistoryRecord) {
     let audioUrl = "";
     let signature = "";
 
     try {
-      audioUrl = ttsAssetAccessService.buildAccessUrl({
-        fileName: record.fileName,
-        userId: record.userId,
-        fingerprint: record.fingerprint,
-        allowDownload: process.env.TTS_DOWNLOADS_ENABLED !== "false",
-        allowShare: process.env.TTS_ASSET_SHARE_ENABLED === "true",
-      });
-      signature = signContent(audioUrl);
+      const assetAvailable = await ttsAssetAccessService.ensureAssetAvailable(record.fileName);
+      if (assetAvailable) {
+        audioUrl = ttsAssetAccessService.buildAccessUrl({
+          fileName: record.fileName,
+          userId: record.userId,
+          fingerprint: record.fingerprint,
+          allowDownload: process.env.TTS_DOWNLOADS_ENABLED !== "false",
+          allowShare: process.env.TTS_ASSET_SHARE_ENABLED === "true",
+        });
+        signature = signContent(audioUrl);
+      } else {
+        logger.warn("TTS 历史音频资产不可用，已隐藏访问地址", {
+          recordId: record.id,
+          fileName: record.fileName,
+        });
+      }
     } catch (error) {
       logger.warn("构建 TTS 历史音频访问地址失败", {
         recordId: record.id,
@@ -550,7 +558,7 @@ export class TtsController {
         fingerprint,
         limit,
       });
-      res.json(records.map((record) => TtsController.serializeHistoryRecord(record)));
+      res.json(await Promise.all(records.map((record) => TtsController.serializeHistoryRecord(record))));
     } catch (error) {
       if (error instanceof TtsRequestError) {
         return res.status(error.statusCode).json({
@@ -581,7 +589,7 @@ export class TtsController {
 
       res.json({
         ...result,
-        records: result.records.map((record) => TtsController.serializeHistoryRecord(record)),
+        records: await Promise.all(result.records.map((record) => TtsController.serializeHistoryRecord(record))),
       });
     } catch (error) {
       logger.error("获取全部 TTS 生成历史失败:", error);
@@ -619,7 +627,7 @@ export class TtsController {
 
       return res.json({
         success: true,
-        record: TtsController.serializeHistoryRecord(record),
+        record: await TtsController.serializeHistoryRecord(record),
       });
     } catch (error) {
       logger.error("更新 TTS 生成历史人工审核信息失败:", error);

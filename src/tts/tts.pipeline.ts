@@ -375,7 +375,11 @@ export class TtsSubmissionPipeline {
         contentHash,
       });
 
-      if (duplicate?.fileName) {
+      const reusableFileName = duplicate?.fileName
+        ? await this.ttsService.findExistingFile(contentHash, duplicate.outputFormat)
+        : null;
+
+      if (duplicate && reusableFileName) {
         return {
           requestPayload,
           ip: context.ip,
@@ -385,8 +389,8 @@ export class TtsSubmissionPipeline {
           usageSummary,
           governance,
           duplicateJobResult: {
-            fileName: duplicate.fileName,
-            audioUrl: this.ttsService.buildAudioUrl(duplicate.fileName),
+            fileName: reusableFileName,
+            audioUrl: this.ttsService.buildAudioUrl(reusableFileName),
             audioFileId: duplicate.audioFileId,
             audioStorage: duplicate.audioStorage,
             audioMimeType: duplicate.audioMimeType,
@@ -426,7 +430,10 @@ export class TtsSubmissionPipeline {
       text: requestPayload.text,
       contentHash,
     });
-    if (duplicate) {
+    const reusableAnonymousFileName = duplicate?.fileName
+      ? await this.ttsService.findExistingFile(contentHash, duplicate.outputFormat)
+      : null;
+    if (reusableAnonymousFileName) {
       throw new TtsRequestError(
         400,
         "您已经生成过相同的内容，请登录以获取更多使用次数",

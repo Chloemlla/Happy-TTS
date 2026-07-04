@@ -181,6 +181,18 @@ export class TtsAssetAccessService {
     return claims;
   }
 
+  public async ensureAssetAvailable(fileName: string): Promise<boolean> {
+    const safeFileName = this.sanitizeFileName(fileName);
+    const filePath = this.resolveAudioPath(safeFileName);
+
+    if (fs.existsSync(filePath)) {
+      return true;
+    }
+
+    await ttsAudioAssetStore.restoreAudioAssetToDisk(safeFileName, this.audioDir);
+    return fs.existsSync(filePath);
+  }
+
   public async serveAsset(context: AssetRequestContext): Promise<void> {
     let claims: TtsAssetAccessClaims;
     try {
@@ -201,11 +213,7 @@ export class TtsAssetAccessService {
     const safeFileName = this.sanitizeFileName(context.fileName);
     const filePath = this.resolveAudioPath(safeFileName);
 
-    if (!fs.existsSync(filePath)) {
-      await ttsAudioAssetStore.restoreAudioAssetToDisk(safeFileName, this.audioDir);
-    }
-
-    if (!fs.existsSync(filePath)) {
+    if (!(await this.ensureAssetAvailable(safeFileName))) {
       context.res.status(404).json({
         success: false,
         error: "Audio asset not found",

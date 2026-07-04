@@ -7,21 +7,25 @@
   <link rel="apple-touch-icon" href="https://img.cdn1.vip/i/6a151e1365e9c_1779768851.webp" />
   <link rel="shortcut icon" type="image/webp" href="https://img.cdn1.vip/i/6a151e1365e9c_1779768851.webp" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-TLCQ4KHRNR"></script>
   <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag() { dataLayer.push(arguments); }
-    gtag('js', new Date());
+    const gaMeasurementId = "%VITE_GA_MEASUREMENT_ID%";
+    if (gaMeasurementId && !gaMeasurementId.startsWith("%")) {
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function gtag() { window.dataLayer.push(arguments); };
 
-    gtag('config', 'G-TLCQ4KHRNR');
+      const gtagScript = document.createElement("script");
+      gtagScript.async = true;
+      gtagScript.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(gaMeasurementId)}`;
+      document.head.appendChild(gtagScript);
+
+      window.gtag("js", new Date());
+      window.gtag("config", gaMeasurementId);
+    }
   </script>
   <!-- CSP is authored by the backend helmet middleware to avoid frontend/backend drift. -->
   <meta http-equiv="X-Content-Type-Options" content="nosniff">
   <meta http-equiv="X-XSS-Protection" content="1; mode=block">
   <title>Synapse - 文本转语音服务</title>
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
   <!-- Preload Cloudflare Turnstile resources -->
   <link rel="preconnect" href="https://challenges.cloudflare.com">
   <link rel="dns-prefetch" href="https://challenges.cloudflare.com">

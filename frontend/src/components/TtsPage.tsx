@@ -367,6 +367,7 @@ export const TtsPage: React.FC = () => {
                   <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-3 sm:rounded-2xl">
                     <audio
                       controls
+                      preload="none"
                       className="w-full"
                       onPlay={() => setIsPlaying(true)}
                       onPause={() => setIsPlaying(false)}
@@ -504,6 +505,7 @@ export const TtsPage: React.FC = () => {
                         <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-3">
                           <audio
                             controls
+                            preload="none"
                             className="w-full"
                             onPlay={() => {
                               audioElement?.pause();
