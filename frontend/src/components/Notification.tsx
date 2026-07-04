@@ -29,6 +29,43 @@ const NotificationContext = createContext<NotificationContextProps>({
 
 export const useNotification = () => use(NotificationContext);
 
+const POST_REDIRECT_NOTIFICATION_KEY = 'synapse:post-auth-notification';
+
+function isNotificationType(value: unknown): value is NotificationData['type'] {
+    return value === 'success' || value === 'error' || value === 'warning' || value === 'info';
+}
+
+function parseStoredNotification(rawValue: string | null): NotificationData | null {
+    if (!rawValue) return null;
+
+    try {
+        const parsed: unknown = JSON.parse(rawValue);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+        const record = parsed as Record<string, unknown>;
+        if (typeof record.message !== 'string' || !isNotificationType(record.type)) return null;
+
+        return {
+            message: record.message,
+            type: record.type,
+            title: typeof record.title === 'string' ? record.title : undefined,
+            details: Array.isArray(record.details)
+                ? record.details.filter((detail): detail is string => typeof detail === 'string')
+                : undefined,
+            duration: typeof record.duration === 'number' ? record.duration : undefined,
+        };
+    } catch {
+        return null;
+    }
+}
+
+export function queuePostRedirectNotification(data: NotificationData): void {
+    try {
+        window.sessionStorage.setItem(POST_REDIRECT_NOTIFICATION_KEY, JSON.stringify(data));
+    } catch {
+        // Ignore storage failures; callers still show the in-page notification.
+    }
+}
+
 // Toast 兼容接口（支持 shadcn/ui 风格）
 interface ToastOptions {
     title?: string;
@@ -178,6 +215,20 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         // 启动新通知的计时器
         startNotificationTimer(newNotification);
     }, [createNotificationItem, startNotificationTimer]);
+
+    React.useEffect(() => {
+        let pending: NotificationData | null = null;
+        try {
+            pending = parseStoredNotification(window.sessionStorage.getItem(POST_REDIRECT_NOTIFICATION_KEY));
+            window.sessionStorage.removeItem(POST_REDIRECT_NOTIFICATION_KEY);
+        } catch {
+            pending = null;
+        }
+
+        if (pending) {
+            setNotification(pending);
+        }
+    }, [setNotification]);
 
     // 手动关闭通知
     const handleClose = useCallback((notificationId: number) => {
@@ -448,4 +499,4 @@ function getBarColor(type: NotificationData['type']) {
         default:
             return '#3b82f6';
     }
-} 
+}

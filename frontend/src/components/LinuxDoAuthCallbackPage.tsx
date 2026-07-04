@@ -4,7 +4,7 @@ import { FaArrowLeft } from "react-icons/fa";
 import getApiBaseUrl from "../api";
 import { useAuth } from "../hooks/useAuth";
 import type { User } from "../types/auth";
-import { useNotification } from "./Notification";
+import { queuePostRedirectNotification, useNotification } from "./Notification";
 
 export const LinuxDoAuthCallbackPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -66,10 +66,17 @@ export const LinuxDoAuthCallbackPage: React.FC = () => {
 
     const completeLogin = async (token: string, user: unknown, isNewUser: boolean) => {
       await loginWithToken(token, user as User);
-      setNotification({
-        message: isNewUser ? "Linux.do 注册并登录成功" : "Linux.do 登录成功",
+      const successNotification = {
+        message: isNewUser
+          ? "Linux.do 注册并登录成功，您的注册用户密码凭据也已发到您对应的邮箱，请及时更改密码"
+          : "Linux.do 登录成功",
         type: "success",
-      });
+        duration: isNewUser ? 8000 : undefined,
+      } as const;
+      if (isNewUser) {
+        queuePostRedirectNotification(successNotification);
+      }
+      setNotification(successNotification);
       setStatus("登录成功，正在跳转...");
 
       window.setTimeout(() => {

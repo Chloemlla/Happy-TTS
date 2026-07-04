@@ -23,6 +23,7 @@ import logger from "../utils/logger";
 import { getNexaiWebAuthnConfig } from "../utils/nexaiWebAuthn";
 import { uuidv4 } from "../utils/uuid";
 import { SINGLE_PASSKEY_ERROR_MESSAGE } from "./passkeyService";
+import { sendProviderGeneratedPasswordEmail } from "./providerCredentialEmailService";
 
 // ========== 配置 ==========
 
@@ -72,6 +73,10 @@ function generateAccessToken(user: INexaiUser): string {
 /** 生成 Refresh Token */
 function generateRefreshToken(): string {
   return `${uuidv4()}-${uuidv4()}`;
+}
+
+function generateSystemPassword(): string {
+  return crypto.randomBytes(32).toString("hex");
 }
 
 /** 计算 Refresh Token 过期时间 */
@@ -346,6 +351,8 @@ export class NexaiAuthService {
         // 创建新用户
         isNewUser = true;
         const username = await generateUniqueUsername(googleName);
+        const systemPassword = generateSystemPassword();
+        const hashedPassword = await bcrypt.hash(systemPassword, BCRYPT_ROUNDS);
         const refreshToken = generateRefreshToken();
         const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
 
@@ -353,6 +360,7 @@ export class NexaiAuthService {
           id: uuidv4(),
           username,
           email: (googleEmail || `${googleId}@google.nexai`).toLowerCase(),
+          password: hashedPassword,
           displayName: googleName,
           avatarUrl: googleAvatar,
           googleId,
@@ -372,6 +380,12 @@ export class NexaiAuthService {
         user = doc.toObject() as INexaiUser;
 
         logger.info("[NexAI] Google OAuth 新用户创建", { userId: user.id, username, googleId });
+        await sendProviderGeneratedPasswordEmail({
+          email: user.email,
+          username: user.username,
+          password: systemPassword,
+          providerLabel: "Google",
+        });
 
         return {
           user,
@@ -514,6 +528,8 @@ export class NexaiAuthService {
         // 创建新用户
         isNewUser = true;
         const username = await generateUniqueUsername(githubUsername || githubName);
+        const systemPassword = generateSystemPassword();
+        const hashedPassword = await bcrypt.hash(systemPassword, BCRYPT_ROUNDS);
         const refreshToken = generateRefreshToken();
         const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
 
@@ -521,6 +537,7 @@ export class NexaiAuthService {
           id: uuidv4(),
           username,
           email: (githubEmail || `${githubId}@github.nexai`).toLowerCase(),
+          password: hashedPassword,
           displayName: githubName,
           avatarUrl: githubAvatar,
           githubId,
@@ -541,6 +558,12 @@ export class NexaiAuthService {
         user = doc.toObject() as INexaiUser;
 
         logger.info("[NexAI] GitHub OAuth 新用户创建", { userId: user.id, username, githubId });
+        await sendProviderGeneratedPasswordEmail({
+          email: user.email,
+          username: user.username,
+          password: systemPassword,
+          providerLabel: "GitHub",
+        });
 
         return {
           user,

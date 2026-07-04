@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import getApiBaseUrl from "../api";
 import { useAuth } from "../hooks/useAuth";
 import type { User } from "../types/auth";
-import { useNotification } from "./Notification";
+import { queuePostRedirectNotification, useNotification } from "./Notification";
 import { cn } from "../utils/cn";
 import { authElevatedPanelClassName } from "./authStudioTheme";
 
@@ -163,10 +163,17 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
         }
 
         await loginWithToken(data.token, data.user as User);
-        setNotification({
-          message: data.isNewUser ? "Google 注册并登录成功" : "Google 登录成功",
+        const successNotification = {
+          message: data.isNewUser
+            ? "Google 注册并登录成功，您的注册用户密码凭据也已发到您对应的邮箱，请及时更改密码"
+            : "Google 登录成功",
           type: "success",
-        });
+          duration: data.isNewUser ? 8000 : undefined,
+        } as const;
+        if (data.isNewUser) {
+          queuePostRedirectNotification(successNotification);
+        }
+        setNotification(successNotification);
         window.location.replace("/");
       } catch (error) {
         authenticatingRef.current = false;

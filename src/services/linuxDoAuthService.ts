@@ -15,6 +15,7 @@ import {
   completeProviderLoginForBoundIdentity,
   issueProviderBindSession,
 } from "./providerBindSessionService";
+import { sendProviderGeneratedPasswordEmail } from "./providerCredentialEmailService";
 
 export type LinuxDoAuthIntent = "login" | "register" | "bind";
 
@@ -555,6 +556,13 @@ async function upsertLinuxDoUser(profile: LinuxDoNormalizedProfile): Promise<{
     providerEmail: profile.email,
     providerUsername: profile.username,
     avatarUrl: profile.avatarUrl,
+  });
+
+  await sendProviderGeneratedPasswordEmail({
+    email,
+    username: finalizedUser.username,
+    password: randomPassword,
+    providerLabel: "Linux.do",
   });
 
   return { user: finalizedUser, isNewUser: true };

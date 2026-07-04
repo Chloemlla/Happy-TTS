@@ -45,6 +45,15 @@ function renderTemplate(template: string, variables: Record<string, string>): st
   return html;
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // ---------------------------------------------------------------------------
 // Public API – 每种邮件场景对应一个生成函数
 // ---------------------------------------------------------------------------
@@ -94,6 +103,27 @@ export function generatePasswordResetLinkEmailHtml(username: string, resetLink: 
 export function generateWelcomeEmailHtml(username: string): string {
   const tpl = loadTemplate("welcome.html");
   return renderTemplate(tpl, { username });
+}
+
+/**
+ * 生成第三方注册系统密码凭据 HTML 邮件内容。
+ *
+ * 占位符：
+ * - `{{username}}`      – 用户名
+ * - `{{providerLabel}}` – 第三方登录提供商名称
+ * - `{{password}}`      – 系统生成的初始密码
+ */
+export function generateProviderGeneratedPasswordEmailHtml(
+  username: string,
+  providerLabel: string,
+  password: string,
+): string {
+  const tpl = loadTemplate("provider-generated-password.html");
+  return renderTemplate(tpl, {
+    username: escapeHtml(username),
+    providerLabel: escapeHtml(providerLabel),
+    password: escapeHtml(password),
+  });
 }
 
 /**

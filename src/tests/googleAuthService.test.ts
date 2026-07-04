@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { config } from "../config/config";
 import { authenticateGoogleUser, getGoogleAuthConfigSummary } from "../services/googleAuthService";
+import { sendProviderGeneratedPasswordEmail } from "../services/providerCredentialEmailService";
 import { UserStorage } from "../utils/userStorage";
 
 const verifyIdToken = jest.fn();
@@ -19,6 +20,10 @@ jest.mock("../utils/userStorage", () => ({
     createUser: jest.fn(),
     updateUser: jest.fn(),
   },
+}));
+
+jest.mock("../services/providerCredentialEmailService", () => ({
+  sendProviderGeneratedPasswordEmail: jest.fn().mockResolvedValue(undefined),
 }));
 
 describe("googleAuthService", () => {
@@ -99,6 +104,13 @@ describe("googleAuthService", () => {
     );
     expect(result.token).toEqual(expect.any(String));
     expect(UserStorage.createUser).toHaveBeenCalled();
+    const generatedPassword = (UserStorage.createUser as jest.Mock).mock.calls[0][2];
+    expect(sendProviderGeneratedPasswordEmail).toHaveBeenCalledWith({
+      email: "new-google-user@example.com",
+      username: "Google_User",
+      password: generatedPassword,
+      providerLabel: "Google",
+    });
   });
 
   it("rejects Google accounts without a verified email", async () => {

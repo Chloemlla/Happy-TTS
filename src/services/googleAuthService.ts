@@ -5,6 +5,7 @@ import { signLoginToken } from "../utils/authToken";
 import { type User, UserStorage } from "../utils/userStorage";
 import { findUserByProviderIdentity, upsertIdentityForUser } from "./accountIdentityService";
 import { completeProviderLoginForBoundIdentity, issueProviderBindSession } from "./providerBindSessionService";
+import { sendProviderGeneratedPasswordEmail } from "./providerCredentialEmailService";
 
 export interface GoogleAuthConfigSummary {
   enabled: boolean;
@@ -256,6 +257,13 @@ async function upsertGoogleUser(profile: GoogleProfile): Promise<{
     providerEmail: profile.email,
     providerUsername: profile.name,
     avatarUrl: profile.avatarUrl,
+  });
+
+  await sendProviderGeneratedPasswordEmail({
+    email: profile.email,
+    username: finalizedUser.username,
+    password: randomPassword,
+    providerLabel: "Google",
   });
 
   return { user: finalizedUser, isNewUser: true };
