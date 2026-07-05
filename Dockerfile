@@ -64,7 +64,6 @@ RUN apk add --no-cache tzdata && \
 
 ENV NODE_OPTIONS="--max-old-space-size=3048"
 RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
-RUN npm install -g javascript-obfuscator
 
 WORKDIR /app
 

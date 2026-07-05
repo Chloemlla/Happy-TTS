@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "installCommand": "pnpm install --no-frozen-lockfile --prefer-offline --ignore-scripts",
+  "installCommand": "pnpm install --frozen-lockfile --prefer-offline --ignore-scripts",
   "buildCommand": "pnpm run build:vercel",
   "outputDirectory": "dist",
   "rewrites": [

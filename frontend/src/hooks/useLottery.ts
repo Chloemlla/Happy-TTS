@@ -104,7 +104,8 @@ export function useLottery() {
           console.log('🔐 开始解密抽奖轮次数据...');
           console.log('   加密数据长度:', data.data.length);
           console.log('   IV:', data.iv);
-          console.log('   使用Token进行解密，Token长度:', token?.length || 0);
+          const hasCredential = Boolean(token);
+          console.log('   使用登录凭证进行解密:', hasCredential);
           
           // 解密数据
           const decryptedJson = decryptAES256(data.data, data.iv, token || '');
@@ -272,4 +273,4 @@ export function useLottery() {
     // 工具方法
     clearError: () => setError(null),
   };
-} 
+}

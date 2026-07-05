@@ -6,6 +6,35 @@ const DEFAULT_MONGO_DB = (process.env.MONGO_DB || "tts").trim() || "tts";
 const RAW_MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI || `mongodb://localhost:27017/${DEFAULT_MONGO_DB}`;
 const MONGO_PROXY_URL = process.env.MONGO_PROXY_URL; // 代理地址（如 socks5://127.0.0.1:1080 或 http://127.0.0.1:8888）
 
+type MongoConnectOptions = mongoose.ConnectOptions & {
+  proxyAgent?: unknown;
+};
+
+interface MongoPoolStats {
+  totalConnectionCount?: number;
+  availableConnectionCount?: number;
+  checkedOutConnections?: number;
+  waitQueueSize?: number;
+  options?: {
+    maxPoolSize?: number;
+    minPoolSize?: number;
+    maxIdleTimeMS?: number;
+    maxConnecting?: number;
+  };
+}
+
+interface MongoConnectionWithPool {
+  db?: {
+    s?: {
+      topology?: {
+        s?: {
+          pool?: MongoPoolStats;
+        };
+      };
+    };
+  };
+}
+
 // 检查代理配置（仅警告，不阻止连接）
 if (MONGO_PROXY_URL) {
   logger.warn("[MongoDB] 检测到代理配置，但官方不支持通过代理连接MongoDB", { proxyUrl: MONGO_PROXY_URL });
@@ -59,7 +88,7 @@ export const connectMongo = async () => {
       });
 
       // 代理支持
-      const mongooseOptions: any = {
+      const mongooseOptions: MongoConnectOptions = {
         serverSelectionTimeoutMS: 5000, // 5秒超时
         socketTimeoutMS: 45000, // 45秒超时
         // 连接池优化配置
@@ -223,8 +252,8 @@ export const getPoolStats = () => {
   }
 
   try {
-    const connection = mongoose.connection;
-    const pool = (connection as any).db?.s?.topology?.s?.pool;
+    const connection = mongoose.connection as unknown as MongoConnectionWithPool;
+    const pool = connection.db?.s?.topology?.s?.pool;
 
     if (!pool) {
       return { error: "无法获取连接池信息" };

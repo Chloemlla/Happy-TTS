@@ -114,7 +114,8 @@ const ShortLinkManager: React.FC = () => {
           console.log('🔐 开始解密短链列表数据...');
           console.log('   加密数据长度:', data.data.length);
           console.log('   IV:', data.iv);
-          console.log('   使用Token进行解密，Token长度:', token?.length || 0);
+          const hasCredential = Boolean(token);
+          console.log('   使用登录凭证进行解密:', hasCredential);
 
           const decryptedJson = decryptAES256(data.data, data.iv, token || '');
           const decryptedData = JSON.parse(decryptedJson);

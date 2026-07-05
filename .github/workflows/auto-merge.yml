@@ -29,7 +29,7 @@ jobs:
       - name: Merge PR after TypeScript check passes
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.USER_PAT || github.token }}
+          github-token: ${{ github.token }}
           script: |
             const { owner, repo } = context.repo;
 
@@ -82,7 +82,7 @@ jobs:
                   owner,
                   repo,
                   issue_number: pull_number,
-                  body: '🤖 TypeScript Compilation Check passed, so this PR was merged automatically.',
+                  body: 'TypeScript Compilation Check passed, so this PR was merged automatically.',
                 });
 
                 core.info(`Merged PR #${pull_number}.`);

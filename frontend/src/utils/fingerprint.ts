@@ -390,21 +390,24 @@ export const reportFingerprintOnce = async (forceReport: boolean = false): Promi
     }
   };
 
-  console.log('📱 收集到的设备特征信息:', deviceSignals);
-
   console.log('🔑 指纹生成成功:', fingerprint.substring(0, 8) + '...');
   const apiUrl = `${getApiBaseUrl()}/api/turnstile/fingerprint/report`;
   const token = localStorage.getItem('token');
+  const hasAuthToken = Boolean(token);
+  const authState = hasAuthToken ? 'present' : 'missing';
 
   console.log('🌐 准备发送请求到:', apiUrl);
-  console.log('🔐 使用Token:', token ? token.substring(0, 20) + '...' : 'null');
+  console.log('🔐 认证状态:', authState);
 
   const requestPayload = {
     fingerprint,
     deviceSignals
   };
   
-  console.log('📤 准备发送的请求载荷:', requestPayload);
+  console.log('📤 准备发送指纹上报请求:', {
+    fingerprint: fingerprint.substring(0, 8) + '...',
+    signalGroups: Object.keys(deviceSignals),
+  });
 
   try {
     const response = await fetchWithRetry(apiUrl, {

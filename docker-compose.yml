@@ -64,7 +64,7 @@ services:
     environment:
       - RUST_BIND_ADDR=0.0.0.0:4010
       - RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS=${RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS:-true}
-      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:-}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN is required when rust-sidecars profile is enabled}
     restart: unless-stopped
 
   audio-worker:
@@ -79,7 +79,7 @@ services:
     environment:
       - RUST_AUDIO_WORKER_BIND_ADDR=0.0.0.0:4020
       - RUST_AUDIO_WORKER_MAX_BYTES=${RUST_AUDIO_WORKER_MAX_BYTES:-20971520}
-      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:-}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN is required when rust-sidecars profile is enabled}
     restart: unless-stopped
 
   file-worker:
@@ -94,7 +94,7 @@ services:
     environment:
       - RUST_FILE_WORKER_BIND_ADDR=0.0.0.0:4030
       - RUST_FILE_WORKER_MAX_BYTES=${RUST_FILE_WORKER_MAX_BYTES:-52428800}
-      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:-}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN is required when rust-sidecars profile is enabled}
     restart: unless-stopped
 
   data-tools:
@@ -110,7 +110,7 @@ services:
       - RUST_DATA_TOOLS_BIND_ADDR=0.0.0.0:4040
       - RUST_DATA_TOOLS_MAX_BYTES=${RUST_DATA_TOOLS_MAX_BYTES:-20971520}
       - RUST_DATA_TOOLS_MAX_ITEMS=${RUST_DATA_TOOLS_MAX_ITEMS:-1024}
-      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:-}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN is required when rust-sidecars profile is enabled}
     restart: unless-stopped
 
   security-worker:
@@ -126,7 +126,7 @@ services:
       - RUST_SECURITY_WORKER_BIND_ADDR=0.0.0.0:4050
       - RUST_SECURITY_WORKER_MAX_TEXT_BYTES=${RUST_SECURITY_WORKER_MAX_TEXT_BYTES:-2097152}
       - RUST_SECURITY_WORKER_MAX_RULES=${RUST_SECURITY_WORKER_MAX_RULES:-2048}
-      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:-}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:?INTERNAL_SERVICE_TOKEN is required when rust-sidecars profile is enabled}
     restart: unless-stopped
 
 networks:

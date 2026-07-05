@@ -46,9 +46,8 @@ module.exports = {
   maxConcurrency: 1, // 串行运行性能测试
   maxWorkers: 1,     // 使用单个工作进程
   
-  // 强制退出配置
-  forceExit: true,   // 强制退出进程
-  detectOpenHandles: true, // 检测未关闭的句柄
+  // 开放句柄检测：不要 forceExit，否则会掩盖资源生命周期问题。
+  detectOpenHandles: true,
   
   // 覆盖率配置
   collectCoverage: true,

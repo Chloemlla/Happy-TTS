@@ -9,120 +9,118 @@ permissions:
 
 jobs:
   biome-safe:
-    name: Safe Fixes (auto-commit to main)
+    name: Safe Fixes (create PR for review)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@main
-        with:
-          token: ${{ secrets.USER_PAT }}
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@main
+        uses: actions/setup-node@v4
         with:
           node-version: "24"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: latest
+          version: 11.1.1
 
-      - name: Install Biome
-        run: pnpm add -D --save-exact @biomejs/biome
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Run Biome safe fixes
-        run: npx @biomejs/biome check --write --max-diagnostics=9999 ./src || true
+        run: pnpm exec biome check --write --max-diagnostics=9999 ./src || true
 
       - name: Check for changes
         id: diff
         run: |
           git add -A
           if git diff --cached --quiet; then
-            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
           else
-            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Verify TypeScript compilation
         if: steps.diff.outputs.has_changes == 'true'
         id: tsc
         run: |
-          pnpm install
-          TSC_OUTPUT=$(npx tsc --noEmit 2>&1 || true)
-          # Filter out TS2578 (unused @ts-expect-error) errors
+          TSC_OUTPUT=$(pnpm exec tsc --noEmit 2>&1 || true)
           FILTERED=$(echo "$TSC_OUTPUT" | grep -v "error TS2578" || true)
           REAL_ERRORS=$(echo "$FILTERED" | grep " error TS" || true)
           if [ -z "$REAL_ERRORS" ]; then
-            echo "tsc_pass=true" >> $GITHUB_OUTPUT
+            echo "tsc_pass=true" >> "$GITHUB_OUTPUT"
           else
             echo "$FILTERED"
-            echo "tsc_pass=false" >> $GITHUB_OUTPUT
-            echo "::error::TypeScript compilation failed after safe fixes, aborting commit"
+            echo "tsc_pass=false" >> "$GITHUB_OUTPUT"
+            echo "::error::TypeScript compilation failed after safe fixes, aborting PR creation"
           fi
 
-      - name: Commit and push
+      - name: Create PR if changes exist
         if: steps.diff.outputs.has_changes == 'true' && steps.tsc.outputs.tsc_pass == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          BRANCH="biome/safe-fixes-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git checkout -b "$BRANCH"
           git commit -m "style: apply biome safe fixes"
-          git push origin main
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "style: biome safe fixes" \
+            --body "This PR contains safe auto-fixes from Biome. TypeScript compilation passed in this workflow."
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   biome-unsafe:
     name: Unsafe Fixes (create PR for review)
-    needs: biome-safe
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@main
-        with:
-          token: ${{ secrets.USER_PAT }}
-          ref: main
-
-      - name: Pull latest
-        run: git pull origin main
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@main
+        uses: actions/setup-node@v4
         with:
           node-version: "24"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: latest
+          version: 11.1.1
 
-      - name: Install Biome
-        run: pnpm add -D --save-exact @biomejs/biome
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Run Biome unsafe fixes
-        run: npx @biomejs/biome check --write --unsafe --max-diagnostics=9999 ./src || true
+        run: pnpm exec biome check --write --unsafe --max-diagnostics=9999 ./src || true
 
       - name: Check for changes
         id: diff
         run: |
           git add -A
           if git diff --cached --quiet; then
-            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
           else
-            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Verify TypeScript compilation
         if: steps.diff.outputs.has_changes == 'true'
         id: tsc
         run: |
-          pnpm install
-          TSC_OUTPUT=$(npx tsc --noEmit 2>&1 || true)
-          # Filter out TS2578 (unused @ts-expect-error) errors
+          TSC_OUTPUT=$(pnpm exec tsc --noEmit 2>&1 || true)
           FILTERED=$(echo "$TSC_OUTPUT" | grep -v "error TS2578" || true)
           REAL_ERRORS=$(echo "$FILTERED" | grep " error TS" || true)
           if [ -z "$REAL_ERRORS" ]; then
-            echo "tsc_pass=true" >> $GITHUB_OUTPUT
+            echo "tsc_pass=true" >> "$GITHUB_OUTPUT"
           else
             echo "$FILTERED"
-            echo "tsc_pass=false" >> $GITHUB_OUTPUT
-            echo "::warning::TypeScript compilation has errors, PR will still be created for local review"
+            echo "tsc_pass=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::TypeScript compilation has errors; PR will still be created for review"
           fi
 
       - name: Create PR if changes exist
@@ -131,28 +129,25 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          BRANCH="biome/unsafe-fixes-$(date +%Y%m%d-%H%M%S)"
+          BRANCH="biome/unsafe-fixes-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           git checkout -b "$BRANCH"
           git commit -m "style: apply biome unsafe fixes"
           git push origin "$BRANCH"
 
-          if [ "${{ steps.tsc.outputs.tsc_pass }}" == "true" ]; then
-            TSC_STATUS="✅ TypeScript compilation verified."
+          if [ "${{ steps.tsc.outputs.tsc_pass }}" = "true" ]; then
+            TSC_STATUS="TypeScript compilation passed."
           else
-            TSC_STATUS="⚠️ TypeScript compilation has errors. Please pull this branch locally and fix type issues before merging."
+            TSC_STATUS="TypeScript compilation reported errors. Review and fix this branch before merging."
           fi
 
           gh pr create \
             --base main \
             --head "$BRANCH" \
             --title "style: biome unsafe fixes" \
-            --body "This PR contains **unsafe** auto-fixes from Biome.
+            --body "This PR contains unsafe auto-fixes from Biome.
 
-          These changes may alter runtime behavior (e.g. \`node:\` protocol imports, template literals, etc.). Please review before merging.
+          These changes may alter runtime behavior and require review.
 
-          ${TSC_STATUS}
-
-          ---
-          *Auto-generated by biome-check workflow*"
+          ${TSC_STATUS}"
         env:
-          GH_TOKEN: ${{ secrets.USER_PAT }}
+          GH_TOKEN: ${{ github.token }}

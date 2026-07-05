@@ -9,7 +9,7 @@ import logger from "../utils/logger";
  * 客户端需在请求头中携带：
  *   x-timestamp  — 毫秒级时间戳
  *   x-nonce      — 一次性随机字符串（≥16 字符）
- *   x-signature  — HMAC-SHA256(timestamp + nonce + body, secret)
+ *   x-signature  — HMAC-SHA256(timestamp + nonce + method + path + body, secret)
  *
  * 服务端校验：
  *   1. 时间戳偏差不超过 maxDriftMs（默认 5 分钟）
@@ -17,7 +17,33 @@ import logger from "../utils/logger";
  *   3. 签名正确
  */
 
-const SIGN_SECRET = process.env.SIGN_SECRET_KEY || "w=NKYzE?jZHbqmG1k4m6B!.Yp9t5)HY@LsMnN~UK9i";
+function getConfiguredSigningSecret(): string | null {
+  const secret = process.env.SIGN_SECRET_KEY?.trim();
+  return secret ? secret : null;
+}
+
+function getBearerToken(req: Request): string | null {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) return null;
+  const token = authHeader.slice("Bearer ".length).trim();
+  return token || null;
+}
+
+function getSigningKeys(req: Request): string[] {
+  const candidates = [getConfiguredSigningSecret(), getBearerToken(req)].filter((value): value is string =>
+    Boolean(value),
+  );
+  return [...new Set(candidates)];
+}
+
+function getSignaturePath(req: Request): string {
+  const originalPath = req.originalUrl?.split("?")[0];
+  return originalPath || req.path || "/";
+}
+
+function buildSignaturePayload(timestamp: string, nonce: string, req: Request, body: string): string {
+  return [timestamp, nonce, req.method.toUpperCase(), getSignaturePath(req), body].join("\n");
+}
 
 export interface ReplayProtectionOptions {
   /** 允许的时间戳偏差，毫秒，默认 5 分钟 */
@@ -103,18 +129,29 @@ export function replayProtection(options: ReplayProtectionOptions = {}) {
     }
 
     // --- 4. 签名校验 ---
-    // payload = timestamp + nonce + rawBody(JSON.stringify for objects, '' for empty)
+    // payload = timestamp + nonce + method + path + rawBody(JSON.stringify for objects, '' for empty)
     const bodyStr = req.body && Object.keys(req.body).length > 0 ? JSON.stringify(req.body) : "";
-    const payload = `${timestamp}${nonce}${bodyStr}`;
-    const expected = crypto.createHmac("sha256", SIGN_SECRET).update(payload).digest("hex");
-
-    // 长度不一致或非法 hex 直接拒绝，避免 timingSafeEqual 抛异常
-    if (signature.length !== expected.length || !/^[0-9a-f]+$/i.test(signature)) {
+    const payload = buildSignaturePayload(timestamp, nonce, req, bodyStr);
+    // HMAC-SHA256 signatures are 32 bytes / 64 hex chars. Reject malformed
+    // values before timingSafeEqual to avoid Buffer shape errors.
+    if (signature.length !== 64 || !/^[0-9a-f]+$/i.test(signature)) {
       logger.warn("[ReplayProtection] 签名格式无效", { ip: req.ip, path: req.path });
       return res.status(403).json({ error: "请求签名验证失败" });
     }
 
-    if (!crypto.timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(signature, "hex"))) {
+    const signingKeys = getSigningKeys(req);
+    if (signingKeys.length === 0) {
+      logger.error("[ReplayProtection] 缺少服务端签名密钥", { path: req.path });
+      return res.status(503).json({ error: "请求签名服务未配置" });
+    }
+
+    const provided = Buffer.from(signature, "hex");
+    const signatureMatches = signingKeys.some((signingKey) => {
+      const expected = crypto.createHmac("sha256", signingKey).update(payload).digest("hex");
+      return crypto.timingSafeEqual(Buffer.from(expected, "hex"), provided);
+    });
+
+    if (!signatureMatches) {
       logger.warn("[ReplayProtection] 签名不匹配", {
         ip: req.ip,
         path: req.path,

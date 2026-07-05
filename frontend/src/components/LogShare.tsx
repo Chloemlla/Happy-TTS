@@ -44,70 +44,124 @@ import {
 // 优化性能：将工具函数移到组件外部，避免每次渲染时重新创建
 const isTextExt = (ext: string) => ['.txt', '.log', '.json', '.md'].includes(ext);
 
+type EncryptedLogSharePayload = {
+  data: string;
+  iv: string;
+  version?: number;
+  algorithm?: string;
+  kdf?: string;
+  iterations?: number;
+  salt?: string;
+  tag?: string;
+};
+
+type LogShareQueryResult = { content: string; ext: string; encoding?: string };
+type LogShareListItem = { id: string; ext: string; uploadTime: string; size: number };
+type LogShareExportType = 'plain' | 'base64' | 'aes256';
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const isEncryptedLogSharePayload = (value: unknown): value is EncryptedLogSharePayload =>
+  isRecord(value) && typeof value.data === 'string' && typeof value.iv === 'string';
+
+const isLogShareExportType = (value: string): value is LogShareExportType =>
+  value === 'plain' || value === 'base64' || value === 'aes256';
+
+const normalizeQueryResult = (value: unknown): LogShareQueryResult => {
+  if (!isRecord(value)) {
+    throw new Error('日志数据格式无效');
+  }
+
+  return {
+    content: typeof value.content === 'string' ? value.content : '',
+    ext: typeof value.ext === 'string' && value.ext.trim() ? value.ext : 'unknown',
+    encoding: typeof value.encoding === 'string' ? value.encoding : undefined,
+  };
+};
+
+const normalizeLogList = (value: unknown): LogShareListItem[] => {
+  if (!isRecord(value) || !Array.isArray(value.logs)) return [];
+
+  return value.logs
+    .filter(isRecord)
+    .map((log) => ({
+      id: typeof log.id === 'string' ? log.id : '',
+      ext: typeof log.ext === 'string' ? log.ext : 'unknown',
+      uploadTime: typeof log.uploadTime === 'string' ? log.uploadTime : '',
+      size: Number.isFinite(Number(log.size)) ? Number(log.size) : 0,
+    }))
+    .filter((log) => log.id);
+};
+
+const hexToBytes = (hex: string): Uint8Array => {
+  if (!/^[0-9a-f]*$/i.test(hex) || hex.length % 2 !== 0) {
+    throw new Error('加密数据格式无效');
+  }
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < bytes.length; i += 1) {
+    bytes[i] = Number.parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
+};
+
+const decryptLogSharePayload = async (payload: EncryptedLogSharePayload, key: string): Promise<unknown> => {
+  if (payload.version === 2 && payload.algorithm === 'aes-256-gcm' && payload.salt && payload.tag) {
+    const keyMaterial = await crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(key),
+      { name: 'PBKDF2' },
+      false,
+      ['deriveKey'],
+    );
+    const derivedKey = await crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt: hexToBytes(payload.salt),
+        iterations: payload.iterations || 120000,
+        hash: 'SHA-512',
+      },
+      keyMaterial,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['decrypt'],
+    );
+    const encrypted = hexToBytes(payload.data);
+    const tag = hexToBytes(payload.tag);
+    const sealed = new Uint8Array(encrypted.length + tag.length);
+    sealed.set(encrypted);
+    sealed.set(tag, encrypted.length);
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv: hexToBytes(payload.iv) },
+      derivedKey,
+      sealed,
+    );
+    return JSON.parse(new TextDecoder().decode(decrypted));
+  }
+
+  const keyHash = CryptoJS.PBKDF2(key, 'logshare-salt', {
+    keySize: 256 / 32,
+    iterations: 10000,
+    hasher: CryptoJS.algo.SHA512,
+  }).toString(CryptoJS.enc.Hex);
+  const legacyKey = CryptoJS.enc.Hex.parse(keyHash);
+  const iv = CryptoJS.enc.Hex.parse(payload.iv);
+  const encryptedData = CryptoJS.enc.Hex.parse(payload.data);
+  const decrypted = CryptoJS.AES.decrypt(
+    { ciphertext: encryptedData },
+    legacyKey,
+    { iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 },
+  );
+  return safeDecode(decrypted);
+};
+
 // 安全的解码函数，支持多种编码格式
-const safeDecode = (decrypted: any): any => {
-  console.log('🔓 [LogShare] 开始解码解密数据...');
-  console.log('    解密数据类型:', typeof decrypted);
-  console.log('    解密数据长度:', decrypted ? decrypted.length : 'undefined');
-
-  // 首先尝试直接转换为UTF-8字符串
-  try {
-    const utf8String = decrypted.toString(CryptoJS.enc.Utf8);
-    console.log('🔓 [LogShare] UTF-8解码结果:', utf8String.substring(0, 100) + '...');
-    const parsedData = JSON.parse(utf8String);
-    console.log('🔓 [LogShare] JSON解析成功');
-    return parsedData;
-  } catch (error) {
-    console.log('🔓 [LogShare] UTF-8解码失败:', error);
+const safeDecode = (decrypted: CryptoJS.lib.WordArray): unknown => {
+  const utf8String = decrypted.toString(CryptoJS.enc.Utf8);
+  if (!utf8String) {
+    throw new Error('解密结果为空');
   }
-
-  // 如果UTF-8失败，尝试其他编码
-  const encodings = [
-    {
-      name: 'Base64', decoder: () => {
-        const base64 = decrypted.toString(CryptoJS.enc.Base64);
-        return atob(base64);
-      }
-    },
-    {
-      name: 'Hex', decoder: () => {
-        const hex = decrypted.toString(CryptoJS.enc.Hex);
-        const hexBytes = new Uint8Array(hex.match(/.{1,2}/g)?.map((byte: string) => parseInt(byte, 16)) || []);
-        return new TextDecoder().decode(hexBytes);
-      }
-    },
-    {
-      name: 'Latin1', decoder: () => {
-        return decrypted.toString(CryptoJS.enc.Latin1);
-      }
-    }
-  ];
-
-  for (const encoding of encodings) {
-    try {
-      console.log(`🔓 [LogShare] 尝试${encoding.name}解码...`);
-      const decodedString = encoding.decoder();
-      console.log(`🔓 [LogShare] ${encoding.name}解码结果:`, decodedString.substring(0, 100) + '...');
-      const parsedData = JSON.parse(decodedString);
-      console.log(`🔓 [LogShare] ${encoding.name}解码成功`);
-      return parsedData;
-    } catch (error) {
-      console.log(`🔓 [LogShare] ${encoding.name}解码失败:`, error);
-      continue;
-    }
-  }
-
-  // 如果所有编码都失败，尝试直接返回原始数据
-  console.log('🔓 [LogShare] 所有编码方式都失败，尝试直接使用原始数据');
-  try {
-    if (typeof decrypted === 'object' && decrypted !== null) {
-      return decrypted;
-    }
-  } catch (error) {
-    console.log('🔓 [LogShare] 直接使用原始数据也失败:', error);
-  }
-
-  throw new Error('所有解码方式都失败，无法处理解密后的数据');
+  return JSON.parse(utf8String);
 };
 
 const inputClass =
@@ -129,7 +183,7 @@ const LogShare: React.FC = React.memo(() => {
   const [logContent, setLogContent] = useState('');
   const [uploadResult, setUploadResult] = useState<{ link: string, ext: string } | null>(null);
   const [queryId, setQueryId] = useState('');
-  const [queryResult, setQueryResult] = useState<{ content: string, ext: string, encoding?: string } | null>(null);
+  const [queryResult, setQueryResult] = useState<LogShareQueryResult | null>(null);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
@@ -139,11 +193,11 @@ const LogShare: React.FC = React.memo(() => {
   const [uploadHistory, setUploadHistory] = useState<{ link: string, ext: string, time: string }[]>([]);
   const [queryHistory, setQueryHistory] = useState<{ id: string, ext: string, time: string }[]>([]);
   const [showExportMenu, setShowExportMenu] = useState(false);
-  const [exportType, setExportType] = useState<'plain' | 'base64' | 'aes256'>('plain');
+  const [exportType, setExportType] = useState<LogShareExportType>('plain');
   const { setNotification } = useNotification();
   const [showPwdModal, setShowPwdModal] = useState(false);
   const [autoQueryId, setAutoQueryId] = useState<string | null>(null);
-  const [allLogs, setAllLogs] = useState<{ id: string, ext: string, uploadTime: string, size: number }[]>([]);
+  const [allLogs, setAllLogs] = useState<LogShareListItem[]>([]);
   const [isLoadingAllLogs, setIsLoadingAllLogs] = useState(false);
   const [selectedLogIndex, setSelectedLogIndex] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -505,51 +559,22 @@ const LogShare: React.FC = React.memo(() => {
     setQueryResult(null);
     setLoading(true);
 
-    console.log('🔓 [LogShare] 发送查询请求...');
-    console.log('    查询ID:', queryId);
-    console.log('    管理员密码长度:', adminPassword ? adminPassword.length : 0);
-    console.log('    管理员密码预览:', adminPassword ? adminPassword.substring(0, 3) + '***' : 'undefined');
-
     try {
       const res = await axios.post(getApiBaseUrl() + `/api/sharelog/${queryId}`, {
         adminPassword,
         id: queryId
       });
 
+      let resolvedResult: LogShareQueryResult;
       // 检查是否为加密数据
-      if (res.data.data && res.data.iv) {
-        console.log('🔓 [LogShare] 检测到加密数据，开始解密...');
-        console.log('    数据类型:', typeof res.data);
-        console.log('    数据字段:', Object.keys(res.data));
-
+      if (isEncryptedLogSharePayload(res.data)) {
         if (!adminPassword) {
           throw new Error('管理员密码不存在，无法解密');
         }
 
         try {
-          // 替换 CryptoJS.SHA256(adminPassword) 为 PBKDF2 派生
-          const keyHash = CryptoJS.PBKDF2(adminPassword, 'logshare-salt', { keySize: 256 / 32, iterations: 10000, hasher: CryptoJS.algo.SHA512 }).toString(CryptoJS.enc.Hex);
-          const key = CryptoJS.enc.Hex.parse(keyHash);
-          const iv = CryptoJS.enc.Hex.parse(res.data.iv);
-          const encryptedData = CryptoJS.enc.Hex.parse(res.data.data);
-
-          const decrypted = CryptoJS.AES.decrypt(
-            { ciphertext: encryptedData },
-            key,
-            { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }
-          );
-
-          console.log('🔓 [LogShare] CryptoJS解密结果:', decrypted);
-          console.log('    解密结果类型:', typeof decrypted);
-          console.log('    解密结果toString:', decrypted.toString());
-
-          // 使用安全的解码函数
-          const decryptedData = safeDecode(decrypted);
-
-          console.log('🔓 [LogShare] 解密成功');
-          console.log('    文件类型:', decryptedData.ext);
-
-          setQueryResult(decryptedData);
+          resolvedResult = normalizeQueryResult(await decryptLogSharePayload(res.data, adminPassword));
+          setQueryResult(resolvedResult);
         } catch (decryptError: any) {
           console.error('🔓 [LogShare] 解密失败:', decryptError);
           setError('数据解密失败: ' + (decryptError?.message || '未知错误'));
@@ -557,16 +582,14 @@ const LogShare: React.FC = React.memo(() => {
         }
       } else {
         // 未加密数据
-        console.log('🔓 [LogShare] 未加密数据，直接使用');
-        setQueryResult(res.data);
+        resolvedResult = normalizeQueryResult(res.data);
+        setQueryResult(resolvedResult);
       }
 
       setSuccess('查询成功！');
 
       // 保存到 IndexedDB
-      const ext = (res.data.data && res.data.iv) ?
-        (queryResult?.ext || 'unknown') :
-        (res.data.ext || 'unknown');
+      const ext = resolvedResult?.ext || 'unknown';
 
       const historyItem: LogShareHistory = {
         id: generateHistoryId(),
@@ -599,40 +622,14 @@ const LogShare: React.FC = React.memo(() => {
       });
 
       // 检查是否为加密数据
-      if (res.data.data && res.data.iv) {
-        console.log('🔓 [LogShare] 检测到加密数据，开始解密...');
-        console.log('    数据类型:', typeof res.data);
-        console.log('    数据字段:', Object.keys(res.data));
-
+      if (isEncryptedLogSharePayload(res.data)) {
         const token = localStorage.getItem('token');
         if (!token) {
           throw new Error('Token不存在，无法解密');
         }
 
         try {
-          // 替换 CryptoJS.SHA256(token) 为 PBKDF2 派生
-          const keyHash = CryptoJS.PBKDF2(token, 'logshare-salt', { keySize: 256 / 32, iterations: 10000, hasher: CryptoJS.algo.SHA512 }).toString(CryptoJS.enc.Hex);
-          const key = CryptoJS.enc.Hex.parse(keyHash);
-          const iv = CryptoJS.enc.Hex.parse(res.data.iv);
-          const encryptedData = CryptoJS.enc.Hex.parse(res.data.data);
-
-          const decrypted = CryptoJS.AES.decrypt(
-            { ciphertext: encryptedData },
-            key,
-            { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }
-          );
-
-          console.log('🔓 [LogShare] CryptoJS解密结果:', decrypted);
-          console.log('    解密结果类型:', typeof decrypted);
-          console.log('    解密结果toString:', decrypted.toString());
-
-          // 使用安全的解码函数
-          const decryptedData = safeDecode(decrypted);
-
-          console.log('🔓 [LogShare] 解密成功');
-          console.log('    日志数量:', decryptedData.logs?.length || 0);
-
-          setAllLogs(decryptedData.logs || []);
+          setAllLogs(normalizeLogList(await decryptLogSharePayload(res.data, token)));
         } catch (decryptError: any) {
           console.error('🔓 [LogShare] 解密失败:', decryptError);
           setNotification({ message: '数据解密失败: ' + (decryptError?.message || '未知错误'), type: 'error' });
@@ -640,8 +637,7 @@ const LogShare: React.FC = React.memo(() => {
         }
       } else {
         // 未加密数据
-        console.log('🔓 [LogShare] 未加密数据，直接使用');
-        setAllLogs(res.data.logs || []);
+        setAllLogs(normalizeLogList(res.data));
       }
 
       // 刷新列表后清空选择
@@ -664,39 +660,13 @@ const LogShare: React.FC = React.memo(() => {
       });
 
       // 检查是否为加密数据
-      if (res.data.data && res.data.iv) {
-        console.log('🔓 [LogShare] 检测到加密数据，开始解密...');
-        console.log('    数据类型:', typeof res.data);
-        console.log('    数据字段:', Object.keys(res.data));
-
+      if (isEncryptedLogSharePayload(res.data)) {
         if (!adminPassword) {
           throw new Error('管理员密码不存在，无法解密');
         }
 
         try {
-          // 替换 CryptoJS.SHA256(adminPassword) 为 PBKDF2 派生
-          const keyHash = CryptoJS.PBKDF2(adminPassword, 'logshare-salt', { keySize: 256 / 32, iterations: 10000, hasher: CryptoJS.algo.SHA512 }).toString(CryptoJS.enc.Hex);
-          const key = CryptoJS.enc.Hex.parse(keyHash);
-          const iv = CryptoJS.enc.Hex.parse(res.data.iv);
-          const encryptedData = CryptoJS.enc.Hex.parse(res.data.data);
-
-          const decrypted = CryptoJS.AES.decrypt(
-            { ciphertext: encryptedData },
-            key,
-            { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }
-          );
-
-          console.log('🔓 [LogShare] CryptoJS解密结果:', decrypted);
-          console.log('    解密结果类型:', typeof decrypted);
-          console.log('    解密结果toString:', decrypted.toString());
-
-          // 使用安全的解码函数
-          const decryptedData = safeDecode(decrypted);
-
-          console.log('🔓 [LogShare] 解密成功');
-          console.log('    文件类型:', decryptedData.ext);
-
-          setQueryResult(decryptedData);
+          setQueryResult(normalizeQueryResult(await decryptLogSharePayload(res.data, adminPassword)));
         } catch (decryptError: any) {
           console.error('🔓 [LogShare] 解密失败:', decryptError);
           setNotification({ message: '数据解密失败: ' + (decryptError?.message || '未知错误'), type: 'error' });
@@ -704,8 +674,7 @@ const LogShare: React.FC = React.memo(() => {
         }
       } else {
         // 未加密数据
-        console.log('🔓 [LogShare] 未加密数据，直接使用');
-        setQueryResult(res.data);
+        setQueryResult(normalizeQueryResult(res.data));
       }
 
       setQueryId(logId);
@@ -1356,7 +1325,9 @@ const LogShare: React.FC = React.memo(() => {
                             type="radio"
                             value="plain"
                             checked={exportType === 'plain'}
-                            onChange={(e) => setExportType(e.target.value as any)}
+                            onChange={(e) => {
+                              if (isLogShareExportType(e.target.value)) setExportType(e.target.value);
+                            }}
                             className="text-slate-900 focus:ring-slate-400"
                           />
                           <span className="text-sm text-slate-700">明文导出</span>
@@ -1366,7 +1337,9 @@ const LogShare: React.FC = React.memo(() => {
                             type="radio"
                             value="base64"
                             checked={exportType === 'base64'}
-                            onChange={(e) => setExportType(e.target.value as any)}
+                            onChange={(e) => {
+                              if (isLogShareExportType(e.target.value)) setExportType(e.target.value);
+                            }}
                             className="text-slate-900 focus:ring-slate-400"
                           />
                           <span className="text-sm text-slate-700">Base64 编码</span>
@@ -1376,7 +1349,9 @@ const LogShare: React.FC = React.memo(() => {
                             type="radio"
                             value="aes256"
                             checked={exportType === 'aes256'}
-                            onChange={(e) => setExportType(e.target.value as any)}
+                            onChange={(e) => {
+                              if (isLogShareExportType(e.target.value)) setExportType(e.target.value);
+                            }}
                             className="text-slate-900 focus:ring-slate-400"
                           />
                           <span className="text-sm text-slate-700">AES-256 加密</span>

@@ -233,7 +233,7 @@ const AdminDashboard: React.FC = () => {
 
         const token = localStorage.getItem("token");
         if (!token) {
-          console.warn("[AdminDashboard] Token不存在");
+          console.warn("[AdminDashboard] 登录凭证不存在");
           setNotification({ message: "登录已过期，请重新登录", type: "error" });
           navigate("/login");
           return;
@@ -297,7 +297,7 @@ const AdminDashboard: React.FC = () => {
         try {
           const token = localStorage.getItem("token");
           if (!token) {
-            console.warn("[AdminDashboard] 定期检查：Token不存在");
+            console.warn("[AdminDashboard] 定期检查：登录凭证不存在");
             setNotification({
               message: "登录已过期，请重新登录",
               type: "warning",

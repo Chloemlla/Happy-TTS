@@ -201,7 +201,7 @@ function boundedNumber(value: unknown, fallback: number, min: number, max: numbe
  *                   example: "内部服务器错误"
  *     security: []
  */
-router.post("/report-tampering", replayProtection(), async (req, res) => {
+router.post("/report-tampering", async (req, res) => {
   try {
     // 验证请求体是否存在
     if (!req.body || typeof req.body !== "object") {

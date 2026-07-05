@@ -3,10 +3,10 @@ import type { Request, Response } from "express";
 import { replayProtection } from "../middleware/replayProtection";
 import { destroyNonceStore } from "../services/nonceStore";
 
-const SECRET = process.env.SIGN_SECRET_KEY || "w=NKYzE?jZHbqmG1k4m6B!.Yp9t5)HY@LsMnN~UK9i";
+const SECRET = "test-replay-signing-secret";
 
-function sign(timestamp: string, nonce: string, body: string) {
-  return crypto.createHmac("sha256", SECRET).update(`${timestamp}${nonce}${body}`).digest("hex");
+function sign(timestamp: string, nonce: string, body: string, method = "POST", path = "/test") {
+  return crypto.createHmac("sha256", SECRET).update([timestamp, nonce, method, path, body].join("\n")).digest("hex");
 }
 
 function makeMockReq(overrides: Partial<Request> = {}): Partial<Request> {
@@ -14,6 +14,8 @@ function makeMockReq(overrides: Partial<Request> = {}): Partial<Request> {
     headers: {},
     body: {},
     ip: "127.0.0.1",
+    method: "POST",
+    originalUrl: "/test",
     path: "/test",
     ...overrides,
   };
@@ -37,11 +39,18 @@ function makeMockRes(): { res: Partial<Response>; statusCode: number; jsonBody: 
 describe("replayProtection middleware", () => {
   // 强制非 development 环境
   const origEnv = process.env.NODE_ENV;
+  const origSignSecret = process.env.SIGN_SECRET_KEY;
   beforeAll(() => {
     process.env.NODE_ENV = "production";
+    process.env.SIGN_SECRET_KEY = SECRET;
   });
   afterAll(() => {
     process.env.NODE_ENV = origEnv;
+    if (origSignSecret === undefined) {
+      delete process.env.SIGN_SECRET_KEY;
+    } else {
+      process.env.SIGN_SECRET_KEY = origSignSecret;
+    }
     destroyNonceStore();
   });
 

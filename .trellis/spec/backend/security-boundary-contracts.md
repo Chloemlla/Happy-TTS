@@ -1,0 +1,63 @@
+# Backend Security Boundary Contracts
+
+## Scenario: Request Signing and LogShare Encryption
+
+### 1. Scope / Trigger
+
+- Trigger: request replay protection and LogShare encrypted responses cross frontend/backend, env, middleware, route, and UI boundaries.
+- Applies when changing `SIGN_SECRET_KEY`, `replayProtection`, signed frontend requests, LogShare upload/query/list responses, or related tests.
+
+### 2. Signatures
+
+- `replayProtection()` validates `x-timestamp`, `x-nonce`, and `x-signature`.
+- Signed payload is `timestamp + "\n" + nonce + "\n" + METHOD + "\n" + path + "\n" + body`.
+- Production config requires `SIGN_SECRET_KEY`; browser code must not embed a shared signing secret.
+- LogShare encrypted responses return `{ version: 2, algorithm: "aes-256-gcm", kdf: "pbkdf2-sha512", iterations, data, iv, salt, tag }`.
+
+### 3. Contracts
+
+- Authenticated browser signing uses the current Bearer token as a user-scoped signing key. Server verification may also accept `SIGN_SECRET_KEY` for trusted non-browser callers.
+- `path` is the origin-relative pathname without query string, matching `req.originalUrl.split("?")[0]`.
+- LogShare AES-GCM uses a random 12-byte IV, random salt, PBKDF2-SHA512, and an auth tag. Never log uploaded content previews.
+- Legacy AES-CBC LogShare payloads may be read for compatibility, but new server responses must use version 2.
+
+### 4. Validation & Error Matrix
+
+- Missing replay headers -> HTTP 400.
+- Malformed signature hex or signature mismatch -> HTTP 403.
+- No available signing key -> HTTP 503.
+- Expired timestamp or consumed nonce -> HTTP 403.
+- Missing LogShare admin password/token for encrypted data -> client-side decrypt error before rendering.
+- Tampered AES-GCM ciphertext/tag -> decrypt failure; do not render partial plaintext.
+
+### 5. Good/Base/Bad Cases
+
+- Good: authenticated admin request signs method/path/body with the Bearer token and passes replay protection after JWT auth.
+- Good: LogShare upload logs file metadata only: id, extension, sanitized file name, and size.
+- Base: old AES-CBC LogShare payloads still decrypt on the client for existing records.
+- Bad: frontend signing env secrets, hardcoded HMAC keys, Bearer token console logs, or uploaded-content log previews.
+
+### 6. Tests Required
+
+- Replay middleware tests must sign with the exact method/path/body payload and assert valid, expired, replayed, and malformed cases.
+- Production config tests must reject missing `SIGN_SECRET_KEY`.
+- LogShare encryption tests should assert AES-GCM response fields and verify tampered ciphertext/tag fails to decrypt.
+- Static scans should reject frontend signing secrets, token-bearing console logs, mutable workflow refs, and LogShare content previews.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+const SIGN_SECRET = import.meta.env.FRONTEND_SIGNING_SECRET || "default-secret";
+console.log("Authorization", `Bearer ${token}`);
+logger.info({ preview: content.slice(0, 100) });
+```
+
+#### Correct
+
+```ts
+const payload = [timestamp, nonce, method.toUpperCase(), path, body].join("\n");
+const signature = await hmacSha256(userBearerToken, payload);
+logger.info("[logshare] stored", { fileId, ext, fileName, fileSize });
+```

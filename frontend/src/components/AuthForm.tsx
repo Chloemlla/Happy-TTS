@@ -123,7 +123,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
 
     // Turnstile 验证处理函数
     const handleTurnstileVerify = (token: string) => {
-        console.log('Turnstile verification successful, token:', token);
+        console.log('Turnstile verification successful');
         setTurnstileToken(token);
         setTurnstileVerified(true);
         setTurnstileError(false);

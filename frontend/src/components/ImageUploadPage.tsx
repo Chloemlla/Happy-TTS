@@ -518,8 +518,9 @@ const ImageUploadPage: React.FC = () => {
         formData.append('cfToken', turnstileToken);
       }
       const token = localStorage.getItem('token');
+      const authenticated = Boolean(token);
       const uploadUrl = getApiBaseUrl() + '/api/ipfs/upload';
-      console.log('[图片上传] 开始上传:', { uploadUrl, file, token });
+      console.log('[图片上传] 开始上传:', { uploadUrl, fileName: file.name, fileSize: file.size, authenticated });
       const res = await fetch(uploadUrl, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,

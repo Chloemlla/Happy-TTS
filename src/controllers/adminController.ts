@@ -11,7 +11,7 @@ import { TranslationLogService } from "../services/translationLogService";
 import logger from "../utils/logger";
 import { getRevealUserPasswordResult } from "../services/userService";
 import { buildAccountSecuritySummary } from "../services/accountSecuritySummaryService";
-import { UserStorage } from "../utils/userStorage";
+import { type User, UserStorage } from "../utils/userStorage";
 import { isUserStorageModeKey, USER_STORAGE_MODE } from "../utils/userStorageMode";
 
 const ANNOUNCEMENT_FILE = path.join(__dirname, "../../data/announcement.json");
@@ -124,8 +124,16 @@ function isValidUserId(id: unknown): id is string {
 }
 
 // 合法 role 枚举
-const VALID_ROLES = new Set(["user", "admin", "trusted"]);
-const VALID_ACCOUNT_STATUSES = new Set(["active", "suspended"]);
+const VALID_ROLES = new Set<User["role"]>(["user", "admin", "trusted"]);
+const VALID_ACCOUNT_STATUSES = new Set<NonNullable<User["accountStatus"]>>(["active", "suspended"]);
+
+function isUserRole(value: unknown): value is User["role"] {
+  return typeof value === "string" && VALID_ROLES.has(value as User["role"]);
+}
+
+function isAccountStatus(value: unknown): value is NonNullable<User["accountStatus"]> {
+  return typeof value === "string" && VALID_ACCOUNT_STATUSES.has(value as NonNullable<User["accountStatus"]>);
+}
 
 // 合法 announcement format 枚举
 const VALID_ANNOUNCEMENT_FORMATS = new Set(["markdown", "html"]);
@@ -441,7 +449,7 @@ function buildAdminUserListEnvelope(users: any[], filters: AdminUserListQuery) {
   };
 }
 
-function getAdminUserBulkActionUpdates(action: string, now: number): Record<string, any> | null {
+function getAdminUserBulkActionUpdates(action: string, now: number): Partial<User> | null {
   switch (action) {
     case "resetDailyUsage":
       return { dailyUsage: 0, lastUsageDate: new Date(now).toISOString() };
@@ -482,8 +490,8 @@ function getAdminUserBulkActionUpdates(action: string, now: number): Record<stri
  * 返回净化后的 updates 对象，遇到非法值则抛出带描述的 Error。
  * token 字段故意不在白名单内（禁止通过此接口直接写 token）。
  */
-function validateAndSanitizeUserUpdates(body: Record<string, any>): Record<string, any> {
-  const out: Record<string, any> = {};
+function validateAndSanitizeUserUpdates(body: Record<string, unknown>): Partial<User> {
+  const out: Partial<User> = {};
 
   // username: 3-20 位字母数字下划线
   if (body.username !== undefined) {
@@ -507,7 +515,7 @@ function validateAndSanitizeUserUpdates(body: Record<string, any>): Record<strin
 
   // role: 枚举限制
   if (body.role !== undefined) {
-    if (!VALID_ROLES.has(body.role)) {
+    if (!isUserRole(body.role)) {
       throw new Error("role 值非法，只允许 user、admin 或 trusted");
     }
     out.role = body.role;
@@ -566,7 +574,7 @@ function validateAndSanitizeUserUpdates(body: Record<string, any>): Record<strin
         throw new Error("backupCodes 中包含非法元素");
       }
     }
-    out.backupCodes = body.backupCodes.map((c: string) => c.trim()).filter(Boolean);
+    out.backupCodes = (body.backupCodes as string[]).map((c) => c.trim()).filter(Boolean);
   }
 
   // passkeyEnabled / passkeyVerified: boolean
@@ -579,7 +587,11 @@ function validateAndSanitizeUserUpdates(body: Record<string, any>): Record<strin
       if (typeof body[field] !== "string" || body[field].length > 512) {
         throw new Error(`${field} 格式不合法`);
       }
-      out[field] = (body[field] as string).trim();
+      if (field === "pendingChallenge") {
+        out.pendingChallenge = body[field].trim();
+      } else {
+        out.currentChallenge = body[field].trim();
+      }
     }
   }
 
@@ -607,7 +619,11 @@ function validateAndSanitizeUserUpdates(body: Record<string, any>): Record<strin
       if (!Number.isFinite(v) || v < 0) {
         throw new Error(`${field} 必须为非负数`);
       }
-      out[field] = v;
+      if (field === "requireFingerprintAt") {
+        out.requireFingerprintAt = v;
+      } else {
+        out.fingerprintRequestDismissedAt = v;
+      }
     }
   }
 
@@ -642,7 +658,7 @@ function validateAndSanitizeUserUpdates(body: Record<string, any>): Record<strin
 
   if (body.accountStatus !== undefined || body.account_status !== undefined) {
     const value = body.accountStatus ?? body.account_status;
-    if (!VALID_ACCOUNT_STATUSES.has(value)) {
+    if (!isAccountStatus(value)) {
       throw new Error("accountStatus 值非法，只允许 active 或 suspended");
     }
     out.accountStatus = value;
@@ -658,7 +674,7 @@ export const adminController = {
         return res.status(403).json({ error: "需要管理员权限" });
       }
 
-      const includeFingerprints = isTruthyQueryFlag((req.query as any).includeFingerprints);
+      const includeFingerprints = isTruthyQueryFlag(req.query.includeFingerprints);
       const listQuery = parseAdminUserListQuery(req.query);
       const users = await UserStorage.getAdminUserList({ includeFingerprints });
       const usersSanitized = users.map((user) => sanitizeAdminUserForList(user, includeFingerprints));
@@ -710,14 +726,16 @@ export const adminController = {
       }
 
       // 校验并净化可选字段（username/email 由 createUser 内部再次校验）
-      let extraUpdates: Record<string, any>;
+      let extraUpdates: Partial<User>;
       try {
         extraUpdates = validateAndSanitizeUserUpdates(req.body);
         // 这两个字段由 createUser 处理，避免重复覆写
         delete extraUpdates.username;
         delete extraUpdates.email;
-      } catch (validationError: any) {
-        return res.status(400).json({ error: validationError.message || "字段校验失败" });
+      } catch (validationError: unknown) {
+        return res.status(400).json({
+          error: validationError instanceof Error ? validationError.message : "字段校验失败",
+        });
       }
 
       const exist = await UserStorage.getUserByUsername(username);
@@ -728,7 +746,7 @@ export const adminController = {
       if (!user) return res.status(500).json({ error: "创建用户失败" });
 
       if (Object.keys(extraUpdates).length > 0) {
-        await UserStorage.updateUser(user.id, extraUpdates as any);
+        await UserStorage.updateUser(user.id, extraUpdates);
       }
 
       const updated = await UserStorage.getUserById(user.id);
@@ -758,11 +776,13 @@ export const adminController = {
       }
 
       // 校验并净化字段（token 在函数内不会出现在白名单）
-      let updates: Record<string, any>;
+      let updates: Partial<User>;
       try {
         updates = validateAndSanitizeUserUpdates(req.body);
-      } catch (validationError: any) {
-        return res.status(400).json({ error: validationError.message || "字段校验失败" });
+      } catch (validationError: unknown) {
+        return res.status(400).json({
+          error: validationError instanceof Error ? validationError.message : "字段校验失败",
+        });
       }
 
       // 密码单独处理：仅在传入非空字符串时才更新
@@ -781,7 +801,7 @@ export const adminController = {
         return res.status(400).json({ error: "没有提供任何可更新的字段" });
       }
 
-      const updated = await UserStorage.updateUser(user.id, updates as any);
+      const updated = await UserStorage.updateUser(user.id, updates);
       const updatedUser = stripSensitiveUserFields(updated || {});
 
       // 管理员修改用户信息后，发送通知邮件给用户
@@ -801,7 +821,7 @@ export const adminController = {
       const changes: Array<{ field: string; oldValue: string; newValue: string }> = [];
       for (const [field, newVal] of Object.entries(updates)) {
         if (!NOTIFY_FIELDS.has(field)) continue;
-        const oldVal = (user as any)[field];
+        const oldVal = user[field as keyof User];
         // 密码：只要提交了新密码就算变更（无法比对哈希值）
         if (field === "password") {
           changes.push({ field, oldValue: "******", newValue: "******（已重置）" });
@@ -976,7 +996,7 @@ export const adminController = {
         return res.status(400).json({ error: "单次批量操作最多处理 100 个用户" });
       }
 
-      const results: Array<{ id: string; success: boolean; error?: string; user?: any; hash?: string }> = [];
+      const results: Array<{ id: string; success: boolean; error?: string; user?: Partial<User>; hash?: string }> = [];
       let processed = 0;
       let failed = 0;
 
@@ -1000,7 +1020,7 @@ export const adminController = {
             throw new Error("不支持的批量操作");
           }
 
-          const updated = await UserStorage.updateUser(targetUser.id, updates as any);
+          const updated = await UserStorage.updateUser(targetUser.id, updates);
           let hash: string | undefined;
           if (action === "requireFingerprint" || action === "clearFingerprintRequirement") {
             try {
@@ -1018,12 +1038,12 @@ export const adminController = {
             user: stripSensitiveUserFields(updated || targetUser),
             hash,
           });
-        } catch (itemError: any) {
+        } catch (itemError: unknown) {
           failed += 1;
           results.push({
             id,
             success: false,
-            error: itemError?.message || "操作失败",
+            error: itemError instanceof Error ? itemError.message : "操作失败",
           });
         }
       }
@@ -1191,21 +1211,21 @@ export const adminController = {
         }
         await UserStorage.updateUser(targetUser.id, {
           translationAccessUntil: until,
-        } as any);
+        });
         return res.json({ success: true, message: "已设置翻译权限限制" });
       }
 
       if (action === "REVOKE_PAGE_ACCESS") {
         await UserStorage.updateUser(targetUser.id, {
           isTranslationEnabled: false,
-        } as any);
+        });
         return res.json({ success: true, message: "已停用翻译页面访问权限" });
       }
 
       if (action === "SUSPEND_ACCOUNT") {
         await UserStorage.updateUser(targetUser.id, {
           accountStatus: "suspended",
-        } as any);
+        });
         return res.json({ success: true, message: "账户已封停" });
       }
 
@@ -1222,7 +1242,7 @@ export const adminController = {
           translationAccessUntil: "",
           isTranslationEnabled: true,
           accountStatus: "active",
-        } as any);
+        });
         return res.json({ success: true, message: "已清除翻译相关限制" });
       }
 

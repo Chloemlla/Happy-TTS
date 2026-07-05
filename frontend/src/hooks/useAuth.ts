@@ -74,8 +74,6 @@ api.interceptors.request.use(config => {
     const token = localStorage.getItem('token');
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-        // 保持原始代码的调试日志
-        console.log('设置Authorization头:', `Bearer ${token}`);
     }
     return config;
 });
@@ -175,13 +173,13 @@ export const useAuth = () => {
         try {
             const token = localStorage.getItem('token');
             if (!token) {
-                console.log('没有找到token，设置用户为null');
+                console.log('没有找到登录凭证，设置用户为null');
                 setUser(null);
                 setLoading(false);
                 return;
             }
             if (isTokenExpired(token)) {
-                console.log('本地token已过期，清除登录状态');
+                console.log('本地登录凭证已过期，清除登录状态');
                 localStorage.removeItem('token');
                 setUser(null);
                 setLoading(false);
@@ -193,12 +191,11 @@ export const useAuth = () => {
                 setUser(current => current ?? cachedAccount.user);
             }
 
-            console.log('检查认证状态，token:', token);
             const response = await api.get<User>('/api/auth/me', {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            console.log('认证检查响应:', response.status, response.data);
+            console.log('认证检查响应:', response.status);
 
             if (isAuthRejectionStatus(response.status)) {
                 localStorage.removeItem('token');

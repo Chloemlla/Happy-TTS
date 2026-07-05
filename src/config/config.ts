@@ -73,6 +73,7 @@ const envSchema = z
     ADMIN_OPERATION_PASSWORD: optionalTrimmedString,
     GENERATION_CODE: z.string().optional().default("admin"),
     JWT_SECRET: optionalTrimmedString,
+    SIGN_SECRET_KEY: optionalTrimmedString,
     JWT_EXPIRES_IN: z
       .string()
       .trim()
@@ -200,6 +201,13 @@ const envSchema = z
           code: z.ZodIssueCode.custom,
           path: ["JWT_SECRET"],
           message: "Production requires JWT_SECRET",
+        });
+      }
+      if (!env.SIGN_SECRET_KEY) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["SIGN_SECRET_KEY"],
+          message: "Production requires SIGN_SECRET_KEY",
         });
       }
       if (!env.ADMIN_PASSWORD) {

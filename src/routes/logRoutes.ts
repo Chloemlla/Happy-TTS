@@ -12,7 +12,7 @@ import { connectMongo, mongoose } from "../services/mongoService";
 import { isAdminOperationPasswordValid } from "../utils/adminOperationPassword";
 import { firstString } from "../utils/httpParam";
 import logger from "../utils/logger";
-import { UserStorage } from "../utils/userStorage";
+import { type User, UserStorage } from "../utils/userStorage";
 
 // Security helper functions
 function sanitizeFileName(fileName: string): string {
@@ -77,6 +77,19 @@ const SHARELOGS_DIR = path.join(DATA_DIR, "sharelogs");
 const logDir = path.join(DATA_DIR, "logs");
 const ARCHIVE_DIR = path.join(DATA_DIR, "archives");
 const TEXT_LOG_EXTENSIONS = new Set([".txt", ".log", ".json", ".md", ".xml", ".csv"]);
+const LOGSHARE_ENCRYPTION_VERSION = 2;
+const LOGSHARE_KDF_ITERATIONS = 120000;
+
+interface LogShareEncryptedPayload {
+  version: typeof LOGSHARE_ENCRYPTION_VERSION;
+  algorithm: "aes-256-gcm";
+  kdf: "pbkdf2-sha512";
+  iterations: number;
+  data: string;
+  iv: string;
+  salt: string;
+  tag: string;
+}
 
 // 确保必要的目录都存在
 const ensureDirectories = async () => {
@@ -119,19 +132,16 @@ const logLimiter = rateLimit({
 
 // 工具：校验管理员密码
 async function checkAdminPassword(password: string) {
-  console.log("🔐 [LogShare] 验证管理员密码...");
-  console.log("    输入密码:", password ? "[已提供]" : "[未提供]");
-
   if (!password) {
+    logger.warn("[LogShare] 管理员密码校验失败", { reason: "missing-password" });
     return false;
   }
   if (isAdminOperationPasswordValid(password)) {
+    logger.info("[LogShare] 管理员操作密码校验通过");
     return true;
   }
 
   let users = await UserStorage.getAllUsers();
-  console.log("    用户总数:", users.length);
-
   let admin = users.find((u) => u.role === "admin");
   if (!admin || !hasPasswordMaterial(admin)) {
     try {
@@ -146,17 +156,16 @@ async function checkAdminPassword(password: string) {
   }
 
   if (!admin) {
-    console.log("    ❌ 未找到管理员用户");
+    logger.warn("[LogShare] 管理员密码校验失败", { reason: "admin-user-not-found" });
     return false;
   }
 
-  console.log("    ✅ 找到管理员用户:", admin.username);
   const isValid = await UserStorage.checkPassword(admin, password);
-  console.log("    🔐 管理员密码验证结果:", isValid ? "✅ 正确" : "❌ 错误");
+  logger.info("[LogShare] 管理员密码校验完成", { success: isValid });
   return isValid;
 }
 
-function hasPasswordMaterial(user: any): boolean {
+function hasPasswordMaterial(user: User): boolean {
   return Boolean(
     user?.password ||
       user?.passwordHash ||
@@ -186,33 +195,27 @@ function getLogShareModel() {
   return mongoose.models.LogShareFile || mongoose.model("LogShareFile", LogShareSchema);
 }
 
-// AES-256加密函数，使用PBKDF2密钥派生
-function encryptData(data: any, key: string): { data: string; iv: string } {
-  console.log("🔐 [LogShare] 开始加密数据...");
-  console.log("    数据类型:", typeof data);
-  console.log("    数据长度:", JSON.stringify(data).length);
-
+// AES-256-GCM encryption with per-payload PBKDF2 salt and authentication tag.
+function encryptData(data: unknown, key: string): LogShareEncryptedPayload {
   const jsonString = JSON.stringify(data);
-  const iv = crypto.randomBytes(16);
-
-  // 使用PBKDF2密钥派生，与前端保持一致
-  const salt = "logshare-salt";
-  const iterations = 10000;
-  const keyLength = 32; // 256位
-
-  const keyHash = crypto.pbkdf2Sync(key, salt, iterations, keyLength, "sha512");
-  const cipher = crypto.createCipheriv("aes-256-cbc", keyHash, iv);
+  const iv = crypto.randomBytes(12);
+  const salt = crypto.randomBytes(16);
+  const keyHash = crypto.pbkdf2Sync(key, salt, LOGSHARE_KDF_ITERATIONS, 32, "sha512");
+  const cipher = crypto.createCipheriv("aes-256-gcm", keyHash, iv);
 
   let encrypted = cipher.update(jsonString, "utf8", "hex");
   encrypted += cipher.final("hex");
-
-  console.log("🔐 [LogShare] 加密完成");
-  console.log("    IV长度:", iv.length);
-  console.log("    加密数据长度:", encrypted.length);
+  const tag = cipher.getAuthTag();
 
   return {
+    version: LOGSHARE_ENCRYPTION_VERSION,
+    algorithm: "aes-256-gcm",
+    kdf: "pbkdf2-sha512",
+    iterations: LOGSHARE_KDF_ITERATIONS,
     data: encrypted,
     iv: iv.toString("hex"),
+    salt: salt.toString("hex"),
+    tag: tag.toString("hex"),
   };
 }
 
@@ -266,9 +269,12 @@ router.post("/sharelog", logLimiter, upload.single("file"), async (req, res) => 
       createdAt: new Date(),
     });
 
-    logger.info(
-      `[logshare] 已存入MongoDB: fileId=${fileId}, ext=${ext}, fileName=${fileName}, contentPreview=${content.slice(0, 100)}`,
-    );
+    logger.info("[logshare] 已存入MongoDB", {
+      fileId,
+      ext,
+      fileName: sanitizedFileName || "unknown",
+      fileSize: req.file.size,
+    });
 
     // 构造前端访问链接
     const baseUrl = "https://tts.chloemlla.com";
@@ -333,17 +339,14 @@ router.get("/sharelog/all", logLimiter, authenticateToken, async (req, res) => {
     // 使用管理员token加密数据
     const authHeader = req.headers.authorization;
     const token = authHeader?.split(" ")[1];
-    if (token) {
-      const encrypted = encryptData({ logs: allLogs }, token);
-      logger.info(`获取日志列表 | IP:${ip} | 结果:成功 | 数量:${allLogs.length} | 已加密`);
-      return res.json({
-        data: encrypted.data,
-        iv: encrypted.iv,
-      });
-    } else {
-      logger.info(`获取日志列表 | IP:${ip} | 结果:成功 | 数量:${allLogs.length} | 未加密`);
-      return res.json({ logs: allLogs });
+    if (!token) {
+      logger.warn(`获取日志列表 | IP:${ip} | 结果:失败 | 原因:缺少认证令牌`);
+      return res.status(401).json({ error: "缺少认证令牌" });
     }
+
+    const encrypted = encryptData({ logs: allLogs }, token);
+    logger.info(`获取日志列表 | IP:${ip} | 结果:成功 | 数量:${allLogs.length} | 已加密`);
+    return res.json(encrypted);
   } catch (e: any) {
     logger.error(`获取日志列表 | IP:${ip} | 结果:异常 | 错误:${e?.message}`, e);
     return res.status(500).json({ error: "获取日志列表失败" });
@@ -378,8 +381,9 @@ router.post("/sharelog/:id", logLimiter, async (req, res) => {
     const doc = await LogShareModel.findOne({ fileId: id });
     if (doc && TEXT_LOG_EXTENSIONS.has(doc.ext)) {
       logger.info(`[logshare] MongoDB命中: fileId=${id}, ext=${doc.ext}, fileName=${doc.fileName}`);
-      logger.info(`查询 | IP:${ip} | 文件ID:${id} | 结果:成功 | 类型:文本 | 未加密`);
-      return res.json({ content: doc.content, ext: doc.ext });
+      const encrypted = encryptData({ content: doc.content, ext: doc.ext }, adminPassword);
+      logger.info(`查询 | IP:${ip} | 文件ID:${id} | 结果:成功 | 类型:文本 | 已加密`);
+      return res.json(encrypted);
     }
     // 非文本类型查本地
     const files = await fs.promises.readdir(SHARELOGS_DIR);
@@ -407,8 +411,9 @@ router.post("/sharelog/:id", logLimiter, async (req, res) => {
     logger.info(`[调试] 查询文件路径: filePath=${filePath}, ext=${ext}`);
     if (TEXT_LOG_EXTENSIONS.has(ext)) {
       const content = await fs.promises.readFile(filePath, "utf-8");
-      logger.info(`查询 | IP:${ip} | 文件ID:${id} | 文件:${fileName} | 结果:成功 | 类型:文本 | 未加密`);
-      return res.json({ content, ext });
+      const encrypted = encryptData({ content, ext }, adminPassword);
+      logger.info(`查询 | IP:${ip} | 文件ID:${id} | 文件:${fileName} | 结果:成功 | 类型:文本 | 已加密`);
+      return res.json(encrypted);
     }
 
     // 只处理二进制
@@ -423,10 +428,7 @@ router.post("/sharelog/:id", logLimiter, async (req, res) => {
     // 使用管理员密码加密数据
     const encrypted = encryptData(result, adminPassword);
     logger.info(`查询 | IP:${ip} | 文件ID:${id} | 文件:${fileName} | 结果:成功 | 类型:二进制 | 已加密`);
-    return res.json({
-      data: encrypted.data,
-      iv: encrypted.iv,
-    });
+    return res.json(encrypted);
   } catch (e: any) {
     logger.error(`查询 | IP:${ip} | 文件ID:${id} | 结果:异常 | 错误:${e?.message}`);
     return res.status(500).json({ error: "日志查询失败" });

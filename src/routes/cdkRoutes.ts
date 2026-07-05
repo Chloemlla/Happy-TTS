@@ -16,15 +16,11 @@ import {
 } from "../controllers/cdkController";
 import { auditLog } from "../middleware/auditLog";
 import { authenticateAdmin } from "../middleware/auth";
-import { replayProtection } from "../middleware/replayProtection";
 
 const router = Router();
 
-// 防重放保护实例
-const replayGuard = replayProtection();
-
-// 公共API — CDK 兑换加防重放
-router.post("/redeem", replayGuard, redeemCDK);
+// 公共API
+router.post("/redeem", redeemCDK);
 router.get("/redeemed", getUserRedeemedResources);
 
 // 管理员API

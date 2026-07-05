@@ -31,7 +31,7 @@ interface TamperEvent {
   attempts?: number;
 
   // 额外信息
-  additionalInfo?: Record<string, any>;
+  additionalInfo?: Record<string, unknown>;
 }
 
 interface NetworkIntegrityData {
@@ -39,6 +39,40 @@ interface NetworkIntegrityData {
   hash: string;
   timestamp: number;
   url: string;
+}
+
+interface ProxyTamperingChanges {
+  hasProxyTampering: boolean;
+  replacedTexts: string[];
+  addedContent: string[];
+  removedContent: string[];
+  confidence: number;
+}
+
+interface IntegrityDebugInfo {
+  isInitialized: boolean;
+  isInRecoveryMode: boolean;
+  proxyDetectionEnabled: boolean;
+  falsePositiveCount: number;
+  baselineChecksum: string;
+  originalContentLength: number;
+  currentContentLength: number;
+  integrityMapSize: number;
+  networkIntegrityMapSize: number;
+}
+
+interface IntegrityErrorStatus {
+  errorCount: number;
+  maxErrors: number;
+  lastErrorTime: number;
+  errorCooldown: number;
+  isErrorLimited: boolean;
+}
+
+type IntegrityCheckResult = Record<string, unknown>;
+
+function createClientOnlyIntegrityKey(label: string): string {
+  return `${label}:${CryptoJS.lib.WordArray.random(32).toString()}`;
 }
 
 // 扩展XMLHttpRequest类型
@@ -53,9 +87,9 @@ class IntegrityChecker {
   private integrityMap: Map<string, IntegrityData> = new Map();
   private networkIntegrityMap: Map<string, NetworkIntegrityData> = new Map();
   private readonly SECRET_KEY =
-    import.meta.env.VITE_INTEGRITY_KEY || "your-integrity-key";
+    import.meta.env.VITE_INTEGRITY_KEY || createClientOnlyIntegrityKey("integrity");
   private readonly NETWORK_SECRET =
-    import.meta.env.VITE_NETWORK_KEY || "network-integrity-key";
+    import.meta.env.VITE_NETWORK_KEY || createClientOnlyIntegrityKey("network");
   private tamperAttempts: Map<string, number> = new Map();
   private readonly MAX_ATTEMPTS = 3;
   private isInRecoveryMode = false;
@@ -274,7 +308,7 @@ class IntegrityChecker {
   }
 
   // 获取调试信息
-  public getDebugInfo(): any {
+  public getDebugInfo(): IntegrityDebugInfo {
     return {
       isInitialized: this.isInitialized,
       isInRecoveryMode: this.isInRecoveryMode,
@@ -418,7 +452,7 @@ class IntegrityChecker {
       );
     };
 
-    XMLHttpRequest.prototype.send = function (...args: any[]) {
+    XMLHttpRequest.prototype.send = function (...args: Parameters<XMLHttpRequest["send"]>) {
       const xhr = this;
       const originalOnReadyStateChange = xhr.onreadystatechange;
 
@@ -770,7 +804,7 @@ class IntegrityChecker {
     return result;
   }
 
-  private handleProxyTampering(changes: any): void {
+  private handleProxyTampering(changes: ProxyTamperingChanges): void {
     // 大幅提高置信度阈值：低于60分视为误报
     if (changes.confidence < 60) {
       this.falsePositiveCount++;
@@ -1584,7 +1618,7 @@ class IntegrityChecker {
   }
 
   // 获取错误状态
-  public getErrorStatus(): any {
+  public getErrorStatus(): IntegrityErrorStatus {
     return {
       errorCount: this.errorCount,
       maxErrors: this.MAX_ERRORS,
@@ -1630,7 +1664,7 @@ class IntegrityChecker {
   private safeLog(
     level: "log" | "warn" | "error",
     message: string,
-    data?: any
+    data?: unknown
   ): void {
     const now = Date.now();
 
@@ -1895,11 +1929,11 @@ class IntegrityChecker {
     } = {}
   ): Promise<{
     success: boolean;
-    results: any[];
+    results: IntegrityCheckResult[];
     errors: string[];
   }> {
     return new Promise((resolve) => {
-      const results: any[] = [];
+      const results: IntegrityCheckResult[] = [];
       const errors: string[] = [];
 
       try {
@@ -1963,7 +1997,7 @@ class IntegrityChecker {
     tamperContent?: string;
     tamperType?: "dom" | "network" | "proxy" | "injection";
     detectionMethod?: string;
-    additionalInfo?: Record<string, any>;
+    additionalInfo?: Record<string, unknown>;
   }): Promise<{ success: boolean; message: string }> {
     return new Promise((resolve) => {
       try {

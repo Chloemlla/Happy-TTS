@@ -121,7 +121,7 @@ interface AccountMergePreview {
   expiresAt?: number;
 }
 
-interface ApiResponse<T = any> {
+interface ApiResponse<T = unknown> {
   success?: boolean;
   verified?: boolean;
   data?: T;
@@ -159,7 +159,7 @@ const verifyIdentity = async (data: {
   method: 'password' | 'totp' | 'passkey';
   password?: string;
   verificationCode?: string;
-  passkeyResponse?: any;
+  passkeyResponse?: unknown;
   clientOrigin?: string;
 }): Promise<ApiResponse & { verificationToken?: string; expiresAt?: number }> => {
   const token = localStorage.getItem('token');

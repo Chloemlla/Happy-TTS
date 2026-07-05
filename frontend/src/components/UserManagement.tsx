@@ -1330,8 +1330,9 @@ const UserManagement: React.FC = () => {
       verificationToken,
     };
     const bodyString = JSON.stringify(body);
-    const headers = await getSignHeaders(bodyString);
-    const res = await api.post(`/api/admin/users/${targetUserId}/reveal-password`, body, {
+    const revealPasswordPath = `/api/admin/users/${targetUserId}/reveal-password`;
+    const headers = await getSignHeaders(bodyString, undefined, 'POST', revealPasswordPath);
+    const res = await api.post(revealPasswordPath, body, {
       headers,
     });
     const password = res.data?.password;

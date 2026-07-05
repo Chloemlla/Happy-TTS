@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4 # 建议使用明确的 v4 版本，避免 @main 的不稳定变更
+        uses: actions/checkout@v4 # 使用明确的 v4 版本，避免可变分支引用
 
       - name: Setup Node.js
         uses: actions/setup-node@v4 # 建议使用明确的 v4 版本
@@ -36,9 +36,6 @@ jobs:
         # 仅做 TypeScript 编译检查，跳过构建脚本，避免 pnpm v10 在 CI 中因
         # 未批准的本地构建（bcrypt / @scarf/scarf / unrs-resolver 等）退出码 1
         run: pnpm install --frozen-lockfile --ignore-scripts
-
-      - name: Install global tools
-        run: npm install -g javascript-obfuscator
 
       - name: Run build
         run: pnpm run build
@@ -79,7 +76,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4 # 建议使用明确的 v4 版本，避免 @main 的不稳定变更
+        uses: actions/checkout@v4 # 使用明确的 v4 版本，避免可变分支引用
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable

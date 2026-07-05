@@ -1,5 +1,5 @@
 import { mongoose } from "../mongoService";
-import { getUserById } from "../userService";
+import { type GenerationRecord, isAdminUser as sharedIsAdminUser } from "./types";
 
 const generationSchema = new mongoose.Schema(
   {
@@ -18,13 +18,19 @@ const generationSchema = new mongoose.Schema(
 
 const GenerationModel = mongoose.models.UserGeneration || mongoose.model("UserGeneration", generationSchema);
 
-function sanitizeString(str: any): string {
+function sanitizeString(str: unknown): string {
   if (typeof str !== "string") return "";
   if (/[$.{}[\]]/.test(str)) return "";
   return str;
 }
 
-export async function findDuplicateGeneration({ userId, text, voice, model, contentHash }: any): Promise<any | null> {
+export async function findDuplicateGeneration({
+  userId,
+  text,
+  voice,
+  model,
+  contentHash,
+}: GenerationRecord): Promise<GenerationRecord | null> {
   const safeUserId = sanitizeString(userId);
   const safeText = sanitizeString(text);
   const safeVoice = sanitizeString(voice);
@@ -33,10 +39,10 @@ export async function findDuplicateGeneration({ userId, text, voice, model, cont
   const query = safeContentHash
     ? { userId: safeUserId, contentHash: safeContentHash }
     : { userId: safeUserId, text: safeText, voice: safeVoice, model: safeModel };
-  return await GenerationModel.findOne(query).lean();
+  return (await GenerationModel.findOne(query).lean()) as GenerationRecord | null;
 }
 
-export async function addGenerationRecord(record: any): Promise<any> {
+export async function addGenerationRecord(record: GenerationRecord): Promise<GenerationRecord> {
   const safeRecord = {
     ...record,
     userId: sanitizeString(record.userId),
@@ -45,10 +51,10 @@ export async function addGenerationRecord(record: any): Promise<any> {
     model: sanitizeString(record.model),
     contentHash: sanitizeString(record.contentHash),
   };
-  return await GenerationModel.create(safeRecord);
+  const created = await GenerationModel.create(safeRecord);
+  return typeof created.toObject === "function" ? (created.toObject() as GenerationRecord) : safeRecord;
 }
 
 export async function isAdminUser(userId: string): Promise<boolean> {
-  const user = await getUserById(userId);
-  return !!(user && user.role === "admin");
+  return sharedIsAdminUser(userId);
 }

@@ -8,14 +8,32 @@
  *   import { signedFetch, getSignHeaders } from '@/utils/requestSigner';
  *
  *   // 方式一：直接使用 signedFetch（包装 fetch）
- *   await signedFetch('/api/cdk/redeem', { method: 'POST', body: JSON.stringify(data) });
+ *   await signedFetch('/api/admin/example', { method: 'POST', body: JSON.stringify(data) });
  *
  *   // 方式二：获取签名头，手动附加到 axios / fetch
- *   const headers = await getSignHeaders(bodyString);
+ *   const headers = await getSignHeaders(bodyString, undefined, 'POST', '/api/admin/example');
  *   api.post(url, data, { headers });
  */
 
-const SIGN_SECRET = import.meta.env.VITE_SIGN_SECRET_KEY || 'w=NKYzE?jZHbqmG1k4m6B!.Yp9t5)HY@LsMnN~UK9i';
+function bearerFromHeaders(headers?: HeadersInit): string | null {
+  if (!headers) return null;
+  const normalized = new Headers(headers);
+  const auth = normalized.get('Authorization');
+  if (!auth?.startsWith('Bearer ')) return null;
+  const token = auth.slice('Bearer '.length).trim();
+  return token.length > 0 ? token : null;
+}
+
+function resolveSigningKey(headers?: HeadersInit): string | null {
+  const headerToken = bearerFromHeaders(headers);
+  if (headerToken) return headerToken;
+  const storedToken = localStorage.getItem('token')?.trim();
+  return storedToken || null;
+}
+
+function buildSignaturePayload(timestamp: string, nonce: string, method: string, path: string, body: string): string {
+  return [timestamp, nonce, method.toUpperCase(), path || '/', body].join('\n');
+}
 
 /**
  * 生成 16 字节随机 hex nonce（32 字符）
@@ -46,17 +64,43 @@ async function hmacSha256(key: string, message: string): Promise<string> {
  * 生成防重放签名头
  * @param body 请求体字符串（JSON.stringify 后的结果，GET 请求传空字符串）
  */
-export async function getSignHeaders(body: string = ''): Promise<Record<string, string>> {
+export async function getSignHeaders(
+  body: string = '',
+  headers?: HeadersInit,
+  method: string = 'GET',
+  path: string = '/',
+): Promise<Record<string, string>> {
+  const signingKey = resolveSigningKey(headers);
+  if (!signingKey) {
+    return {};
+  }
+
   const timestamp = String(Date.now());
   const nonce = generateNonce();
-  const payload = `${timestamp}${nonce}${body}`;
-  const signature = await hmacSha256(SIGN_SECRET, payload);
+  const payload = buildSignaturePayload(timestamp, nonce, method, path, body);
+  const signature = await hmacSha256(signingKey, payload);
 
   return {
     'x-timestamp': timestamp,
     'x-nonce': nonce,
     'x-signature': signature,
   };
+}
+
+function resolveRequestMethod(input: RequestInfo | URL, init: RequestInit): string {
+  if (init.method) return init.method;
+  if (typeof Request !== 'undefined' && input instanceof Request) return input.method;
+  return 'GET';
+}
+
+function resolveRequestPath(input: RequestInfo | URL): string {
+  const url =
+    typeof input === 'string'
+      ? new URL(input, window.location.origin)
+      : input instanceof URL
+        ? input
+        : new URL(input.url, window.location.origin);
+  return url.pathname || '/';
 }
 
 /**
@@ -67,9 +111,13 @@ export async function signedFetch(
   init: RequestInit = {},
 ): Promise<Response> {
   const bodyStr = typeof init.body === 'string' ? init.body : '';
-  const signHeaders = await getSignHeaders(bodyStr);
-
   const headers = new Headers(init.headers);
+  const signHeaders = await getSignHeaders(
+    bodyStr,
+    headers,
+    resolveRequestMethod(input, init),
+    resolveRequestPath(input),
+  );
   Object.entries(signHeaders).forEach(([k, v]) => headers.set(k, v));
 
   return fetch(input, { ...init, headers });

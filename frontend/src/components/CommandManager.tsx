@@ -291,12 +291,12 @@ const CommandManager: React.FC = () => {
           
           const token = localStorage.getItem('token');
           if (!token) {
-            console.error('❌ Token不存在，无法解密数据');
+            console.error('❌ 登录凭证不存在，无法解密数据');
             setNotification({ message: 'Token不存在，无法解密数据', type: 'error' });
             return;
           }
           
-          console.log('   使用Token进行解密，Token长度:', token.length);
+          console.log('   使用登录凭证进行解密');
           
           // 解密数据
           const decryptedJson = decryptAES256(response.data.data, response.data.iv, token);
@@ -354,12 +354,12 @@ const CommandManager: React.FC = () => {
           
           const token = localStorage.getItem('token');
           if (!token) {
-            console.error('❌ Token不存在，无法解密数据');
+            console.error('❌ 登录凭证不存在，无法解密数据');
             setNotification({ message: 'Token不存在，无法解密数据', type: 'error' });
             return;
           }
           
-          console.log('   使用Token进行解密，Token长度:', token.length);
+          console.log('   使用登录凭证进行解密');
           
           // 解密数据
           const decryptedJson = decryptAES256(response.data.data, response.data.iv, token);
@@ -430,12 +430,12 @@ const CommandManager: React.FC = () => {
           
           const token = localStorage.getItem('token');
           if (!token) {
-            console.error('❌ Token不存在，无法解密数据');
+            console.error('❌ 登录凭证不存在，无法解密数据');
             setNotification({ message: 'Token不存在，无法解密数据', type: 'error' });
             return;
           }
           
-          console.log('   使用Token进行解密，Token长度:', token.length);
+          console.log('   使用登录凭证进行解密');
           
           // 解密数据
           const decryptedJson = decryptAES256(response.data.data, response.data.iv, token);

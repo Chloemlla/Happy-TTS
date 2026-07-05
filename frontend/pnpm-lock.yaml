@@ -17,39 +17,21 @@ importers:
       '@microsoft/clarity':
         specifier: ^1.0.2
         version: 1.0.2
-      '@prisma/client':
-        specifier: ^7.8.0
-        version: 7.8.0(typescript@6.0.3)
       '@radix-ui/react-dialog':
         specifier: ^1.1.17
         version: 1.1.17(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@react-email/components':
-        specifier: 1.0.12
-        version: 1.0.12(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@simplewebauthn/browser':
         specifier: ^13.3.0
         version: 13.3.0
-      '@simplewebauthn/server':
-        specifier: ^13.3.1
-        version: 13.3.1
-      '@types/bcrypt':
-        specifier: ^6.0.0
-        version: 6.0.0
       '@types/jsdom':
         specifier: ^28.0.3
         version: 28.0.3
-      '@types/jsonwebtoken':
-        specifier: ^9.0.10
-        version: 9.0.10
       '@types/validator':
         specifier: ^13.15.10
         version: 13.15.10
       axios:
         specifier: ^1.18.1
         version: 1.18.1
-      bcrypt:
-        specifier: ^6.0.0
-        version: 6.0.0
       buffer:
         specifier: ^6.0.3
         version: 6.0.3
@@ -74,12 +56,6 @@ importers:
       dompurify:
         specifier: ^3.4.11
         version: 3.4.11
-      express-rate-limit:
-        specifier: ^8.5.2
-        version: 8.5.2(express@5.2.1)
-      form-data:
-        specifier: ^4.0.6
-        version: 4.0.6
       framer-motion:
         specifier: ^12.40.0
         version: 12.40.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -92,12 +68,6 @@ importers:
       idb:
         specifier: ^8.0.3
         version: 8.0.3
-      javascript-obfuscator:
-        specifier: ^5.4.3
-        version: 5.4.3
-      jsonwebtoken:
-        specifier: ^9.0.3
-        version: 9.0.3
       jspdf:
         specifier: ^4.2.1
         version: 4.2.1
@@ -216,9 +186,6 @@ importers:
       '@testing-library/user-event':
         specifier: ^14.6.1
         version: 14.6.1(@testing-library/dom@10.4.1)
-      '@types/javascript-obfuscator':
-        specifier: ^0.17.0
-        version: 0.17.0
       '@types/jest':
         specifier: ^30.0.0
         version: 30.0.0
@@ -261,9 +228,6 @@ importers:
       postcss:
         specifier: ^8.5.15
         version: 8.5.15
-      react-email:
-        specifier: 6.6.4
-        version: 6.6.4(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       rollup-plugin-visualizer:
         specifier: ^7.0.1
         version: 7.0.1(rolldown@1.1.2)(rollup@4.62.2)

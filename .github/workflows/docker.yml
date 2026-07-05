@@ -78,7 +78,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: latest
+          node-version: 24
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -171,7 +171,7 @@ jobs:
           version: 11.1.1
 
       - name: Install deployment dependencies
-        run: pnpm install ssh2 dotenv axios form-data --ignore-scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Set script permissions
         run: chmod +x scripts/deploy_image.js

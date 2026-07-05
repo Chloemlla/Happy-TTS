@@ -43,6 +43,8 @@ export interface User {
   linuxdoAvatarUrl?: string;
   requireFingerprint?: boolean;
   requireFingerprintAt?: number;
+  fingerprintRequestDismissedOnce?: boolean;
+  fingerprintRequestDismissedAt?: number;
   fingerprints?: {
     id: string;
     ts: number;

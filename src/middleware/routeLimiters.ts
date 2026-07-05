@@ -18,6 +18,7 @@ type LimiterCategory =
   | "admin"
   | "verification"
   | "command"
+  | "ticket"
   | "public-api"
   | "status"
   | "static"
@@ -34,6 +35,8 @@ type RateProfileName =
   | "admin"
   | "verification"
   | "sensitive"
+  | "ticketRead"
+  | "ticketWrite"
   | "standard"
   | "relaxed"
   | "burst"
@@ -96,6 +99,8 @@ const RATE_PROFILES: Record<RateProfileName, RateProfile> = {
   admin: { windowMs: 60_000, max: 50 },
   verification: { windowMs: 5 * 60_000, max: 20 },
   sensitive: { windowMs: 60_000, max: 10 },
+  ticketRead: { windowMs: 60_000, max: 60 },
+  ticketWrite: { windowMs: 60_000, max: 10 },
   standard: { windowMs: 60_000, max: 30 },
   relaxed: { windowMs: 60_000, max: 60 },
   burst: { windowMs: 60_000, max: 600 },
@@ -493,6 +498,21 @@ const LIMITER_DEFINITIONS = {
     message: "命令执行请求过于频繁，请稍后再试",
     skip: skipLocalAndStatusPoll,
   },
+  ticketRead: {
+    profile: "ticketRead",
+    category: "ticket",
+    message: "工单查询请求过于频繁，请稍后再试",
+  },
+  ticketWrite: {
+    profile: "ticketWrite",
+    category: "ticket",
+    message: "工单写入请求过于频繁，请稍后再试",
+  },
+  ticketAdmin: {
+    profile: "admin",
+    category: "ticket",
+    message: "工单管理请求过于频繁，请稍后再试",
+  },
   librechat: {
     profile: "standard",
     category: "public-api",
@@ -696,6 +716,9 @@ export const totpLimiter = limiterFromDefinition("totp");
 export const passkeyLimiter = limiterFromDefinition("passkey");
 export const tamperLimiter = limiterFromDefinition("tamper");
 export const commandLimiter = limiterFromDefinition("command");
+export const ticketReadLimiter = limiterFromDefinition("ticketRead");
+export const ticketWriteLimiter = limiterFromDefinition("ticketWrite");
+export const ticketAdminLimiter = limiterFromDefinition("ticketAdmin");
 export const libreChatLimiter = limiterFromDefinition("librechat");
 export const dataCollectionLimiter = limiterFromDefinition("datacollection");
 export const logsLimiter = limiterFromDefinition("logs");
