@@ -166,7 +166,7 @@ export async function verifyGoogleIdToken(idToken: string): Promise<GoogleProfil
   const emailVerified = payload?.email_verified === true;
 
   if (!googleId || !email || !emailVerified) {
-    throw new Error("Google 账号邮箱缺失或未验证");
+    throw new Error("Google account email is missing or unverified");
   }
 
   return {

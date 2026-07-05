@@ -148,40 +148,32 @@ function createPkcePair(): { codeVerifier: string; codeChallenge: string } {
 }
 
 function normalizeTrustedLinuxDoOAuthUrl(rawUrl: unknown, label: string): string {
-  const displayLabel =
-    label === "authorization endpoint"
-      ? "授权地址"
-      : label === "token endpoint"
-        ? "令牌地址"
-        : label === "userinfo endpoint"
-          ? "用户信息地址"
-          : label;
   const urlValue = firstString(rawUrl);
   if (!urlValue) {
-    throw new Error(`Linux.do ${displayLabel}缺失或无效`);
+    throw new Error(`Linux.do ${label} is missing or invalid`);
   }
 
   let parsedUrl: URL;
   try {
     parsedUrl = new URL(urlValue);
   } catch (_error) {
-    throw new Error(`Linux.do ${displayLabel}必须是有效的 HTTPS URL`);
+    throw new Error(`Linux.do ${label} must be a valid HTTPS URL`);
   }
 
   if (parsedUrl.protocol !== "https:") {
-    throw new Error(`Linux.do ${displayLabel}必须使用 HTTPS`);
+    throw new Error(`Linux.do ${label} must use HTTPS`);
   }
 
   if (parsedUrl.username || parsedUrl.password) {
-    throw new Error(`Linux.do ${displayLabel}不能包含内嵌凭据`);
+    throw new Error(`Linux.do ${label} must not include embedded credentials`);
   }
 
   if (parsedUrl.port && parsedUrl.port !== "443") {
-    throw new Error(`Linux.do ${displayLabel}必须使用默认 HTTPS 端口`);
+    throw new Error(`Linux.do ${label} must use the default HTTPS port`);
   }
 
   if (!TRUSTED_LINUXDO_OAUTH_HOSTS.has(parsedUrl.hostname.toLowerCase())) {
-    throw new Error(`Linux.do ${displayLabel}必须使用受信任的 Linux.do 主机`);
+    throw new Error(`Linux.do ${label} must use an approved Linux.do host`);
   }
 
   parsedUrl.hash = "";
