@@ -25,6 +25,8 @@ import { uuidv4 } from "../utils/uuid";
 import { SINGLE_PASSKEY_ERROR_MESSAGE } from "./passkeyService";
 import { sendProviderGeneratedPasswordEmail } from "./providerCredentialEmailService";
 
+export const NEXAI_PASSKEY_UNKNOWN_CREDENTIAL_CODE = "unknown_credential";
+
 // ========== 配置 ==========
 
 function getNexaiJwtSecret(): string {
@@ -119,6 +121,20 @@ function removeAuthProvider(existing: string, provider: "google" | "github"): st
 interface ValidationError {
   field: string;
   message: string;
+}
+
+function toWebAuthnUserId(userId: string): string {
+  return Buffer.from(userId, "utf8").toString("base64url");
+}
+
+function normalizeBase64Url(value: string): string {
+  return value.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function getAuthenticationCredentialId(response: AuthenticationResponseJSON): string | null {
+  const maybeResponse = response as AuthenticationResponseJSON & { rawId?: unknown };
+  const credentialId = typeof maybeResponse.id === "string" ? maybeResponse.id : maybeResponse.rawId;
+  return typeof credentialId === "string" && credentialId.length > 0 ? credentialId : null;
 }
 
 function validateUsername(username: string): ValidationError[] {
@@ -679,7 +695,7 @@ export class NexaiAuthService {
       const { credential } = registrationInfo;
       // 将新通行密钥添加到用户记录
       const newPasskey = {
-        id: Buffer.from(credential.id).toString("base64url"),
+        id: normalizeBase64Url(credential.id),
         publicKey: Buffer.from(credential.publicKey),
         counter: credential.counter,
         deviceType: registrationInfo.credentialDeviceType,
@@ -709,7 +725,7 @@ export class NexaiAuthService {
     if (!user) throw Object.assign(new Error("用户不存在"), { statusCode: 404 });
 
     const allowCredentials = (user.passkeys || []).map((pk) => ({
-      id: pk.id,
+      id: normalizeBase64Url(pk.id),
       type: "public-key" as const,
       transports: pk.transports as AuthenticatorTransport[],
     }));
@@ -740,9 +756,20 @@ export class NexaiAuthService {
     await NexaiUserModel.updateOne({ id: userId }, { $unset: { currentChallenge: "" } });
 
     // 找到使用的 passkey
-    const passkey = (user.passkeys || []).find((pk) => pk.id === response.id);
+    const credentialId = getAuthenticationCredentialId(response);
+    if (!credentialId) {
+      throw Object.assign(new Error("Passkey 响应缺少 credential id"), { statusCode: 400 });
+    }
+
+    const normalizedCredentialId = normalizeBase64Url(credentialId);
+    const passkey = (user.passkeys || []).find(
+      (pk) => typeof pk.id === "string" && normalizeBase64Url(pk.id) === normalizedCredentialId,
+    );
     if (!passkey) {
-      throw Object.assign(new Error("未找到对应通行密钥记录"), { statusCode: 400 });
+      throw Object.assign(new Error("未找到对应通行密钥记录"), {
+        statusCode: 400,
+        code: NEXAI_PASSKEY_UNKNOWN_CREDENTIAL_CODE,
+      });
     }
 
     const { rpID, expectedOrigins } = NexaiAuthService.getWebAuthnConfig();
@@ -756,7 +783,7 @@ export class NexaiAuthService {
         expectedOrigin,
         expectedRPID: rpID,
         credential: {
-          id: passkey.id,
+          id: normalizeBase64Url(passkey.id),
           publicKey: new Uint8Array(passkey.publicKey),
           counter: passkey.counter,
           transports: passkey.transports as AuthenticatorTransport[],
@@ -800,6 +827,35 @@ export class NexaiAuthService {
       return { user, accessToken, refreshToken };
     }
     throw Object.assign(new Error("Passkey 验证未通过"), { statusCode: 401 });
+  }
+
+  static async getPasskeySignalOptions(userId: string) {
+    const user = (await NexaiUserModel.findOne({ id: userId })
+      .select("id username email displayName passkeys")
+      .lean()) as INexaiUser | null;
+    if (!user) {
+      throw Object.assign(new Error("用户不存在"), { statusCode: 404 });
+    }
+
+    const { rpID } = NexaiAuthService.getWebAuthnConfig();
+    const allAcceptedCredentialIds = (user.passkeys || [])
+      .map((passkey) => (typeof passkey.id === "string" ? normalizeBase64Url(passkey.id) : ""))
+      .filter((credentialId) => credentialId.length > 0);
+    const signalUserId = toWebAuthnUserId(user.id);
+
+    return {
+      allAcceptedCredentials: {
+        rpId: rpID,
+        userId: signalUserId,
+        allAcceptedCredentialIds,
+      },
+      currentUserDetails: {
+        rpId: rpID,
+        userId: signalUserId,
+        name: user.email,
+        displayName: user.displayName || user.username || user.email,
+      },
+    };
   }
 
   // ---------- Token 刷新 ----------

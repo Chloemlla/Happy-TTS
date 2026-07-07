@@ -624,9 +624,38 @@ export class NexaiAuthController {
         },
       });
     } catch (error: any) {
-      res.status(error.statusCode || 500).json({
+      const response: any = {
         success: false,
         error: error.message || "登录验证失败",
+      };
+      if (error.code) {
+        response.code = error.code;
+      }
+      res.status(error.statusCode || 500).json(response);
+    }
+  }
+
+  /**
+   * GET /api/nexai/auth/passkey/signal/options
+   * 获取 Credential Manager Signal API 所需的 RP 侧权威状态（需先登录）
+   */
+  static async getPasskeySignalOptions(req: Request, res: Response) {
+    try {
+      const userId = req.nexaiUser?.id;
+      if (!userId) {
+        return res.status(401).json({ success: false, error: "未授权" });
+      }
+
+      const signalOptions = await NexaiAuthService.getPasskeySignalOptions(userId);
+
+      res.json({
+        success: true,
+        data: signalOptions,
+      });
+    } catch (error: any) {
+      res.status(error.statusCode || 500).json({
+        success: false,
+        error: error.message || "获取 Passkey Signal 选项失败",
       });
     }
   }

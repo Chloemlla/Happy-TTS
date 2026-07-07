@@ -1,5 +1,9 @@
 import request from "supertest";
+import jwt from "jsonwebtoken";
 import app from "../app";
+import { config } from "../config/config";
+import { NexaiUserModel } from "../models/nexaiUserModel";
+import { NEXAI_PASSKEY_UNKNOWN_CREDENTIAL_CODE, NexaiAuthService } from "../services/nexaiAuthService";
 import { getNexaiAssetLinksStatements, getNexaiWebAuthnConfig } from "../utils/nexaiWebAuthn";
 
 const ENV_KEYS = [
@@ -36,12 +40,27 @@ function resetEnv(): void {
   }
 }
 
+function createNexaiAccessToken(user: { id: string; username: string; email: string; role?: string }) {
+  return jwt.sign(
+    {
+      userId: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role || "user",
+      provider: "local",
+      scope: "nexai",
+    },
+    config.nexai.jwtSecret,
+  );
+}
+
 describe("NexAI WebAuthn backend fixes", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     resetEnv();
     for (const key of ENV_KEYS) {
       delete process.env[key];
     }
+    await NexaiUserModel.deleteMany({});
   });
 
   afterAll(() => {
@@ -103,5 +122,131 @@ describe("NexAI WebAuthn backend fixes", () => {
         },
       },
     ]);
+  });
+
+  it("returns server-authoritative passkey signal options", async () => {
+    const user = {
+      id: "user-123",
+      username: "alice",
+      email: "alice@example.com",
+      displayName: "Alice",
+      authProvider: "local",
+      emailVerified: true,
+      role: "user",
+      loginCount: 0,
+      passkeys: [
+        {
+          id: "credential-id==",
+          publicKey: Buffer.from("public-key"),
+          counter: 1,
+          backedUp: false,
+          transports: ["internal", "hybrid"],
+          deviceType: "singleDevice",
+        },
+      ],
+    };
+    await NexaiUserModel.create(user);
+
+    const response = await request(app)
+      .get("/api/nexai/auth/passkey/signal/options")
+      .set("Authorization", `Bearer ${createNexaiAccessToken(user)}`)
+      .expect(200);
+
+    const expectedUserId = Buffer.from(user.id, "utf8").toString("base64url");
+    expect(response.body).toEqual({
+      success: true,
+      data: {
+        allAcceptedCredentials: {
+          rpId: "tts.chloemlla.com",
+          userId: expectedUserId,
+          allAcceptedCredentialIds: ["credential-id"],
+        },
+        currentUserDetails: {
+          rpId: "tts.chloemlla.com",
+          userId: expectedUserId,
+          name: "alice@example.com",
+          displayName: "Alice",
+        },
+      },
+    });
+  });
+
+  it("returns an empty accepted credential list when the user has no passkeys", async () => {
+    await NexaiUserModel.create({
+      id: "no-passkeys",
+      username: "bob",
+      email: "bob@example.com",
+      displayName: "Bob",
+      authProvider: "local",
+      emailVerified: true,
+      role: "user",
+      loginCount: 0,
+      passkeys: [],
+    });
+
+    const signalOptions = await NexaiAuthService.getPasskeySignalOptions("no-passkeys");
+
+    expect(signalOptions.allAcceptedCredentials.allAcceptedCredentialIds).toEqual([]);
+    expect(signalOptions.currentUserDetails).toMatchObject({
+      name: "bob@example.com",
+      displayName: "Bob",
+    });
+  });
+
+  it("uses unknown_credential only when the passkey credential id is not known", async () => {
+    const baseUser = {
+      username: "carol",
+      email: "carol@example.com",
+      displayName: "Carol",
+      authProvider: "local",
+      emailVerified: true,
+      role: "user",
+      loginCount: 0,
+      passkeys: [
+        {
+          id: "known-credential",
+          publicKey: Buffer.from("public-key"),
+          counter: 1,
+          backedUp: false,
+          transports: ["internal"],
+          deviceType: "singleDevice",
+        },
+      ],
+    };
+    await NexaiUserModel.create({
+      ...baseUser,
+      id: "unknown-credential-user",
+      currentChallenge: "challenge",
+    });
+
+    const unknownCredentialResponse = await request(app)
+      .post("/api/nexai/auth/passkey/login/verify")
+      .send({
+        identifier: "carol@example.com",
+        response: { id: "missing-credential" },
+      })
+      .expect(400);
+
+    expect(unknownCredentialResponse.body).toMatchObject({
+      success: false,
+      code: NEXAI_PASSKEY_UNKNOWN_CREDENTIAL_CODE,
+    });
+
+    await NexaiUserModel.create({
+      ...baseUser,
+      id: "expired-challenge-user",
+      username: "dave",
+      email: "dave@example.com",
+    });
+
+    const expiredChallengeResponse = await request(app)
+      .post("/api/nexai/auth/passkey/login/verify")
+      .send({
+        identifier: "dave@example.com",
+        response: { id: "known-credential" },
+      })
+      .expect(400);
+
+    expect(expiredChallengeResponse.body.code).toBeUndefined();
   });
 });

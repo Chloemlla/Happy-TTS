@@ -361,6 +361,22 @@ router.post("/auth/passkey/register/verify", nexaiAuthRequired, NexaiAuthControl
 
 /**
  * @openapi
+ * /api/nexai/auth/passkey/signal/options:
+ *   get:
+ *     summary: 获取 Android Credential Manager Signal API 选项
+ *     tags: [NexAI WebAuthn]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get(
+  "/auth/passkey/signal/options",
+  nexaiAuthRequired,
+  nexaiProfileLimiter,
+  NexaiAuthController.getPasskeySignalOptions,
+);
+
+/**
+ * @openapi
  * /api/nexai/auth/me:
  *   get:
  *     summary: 获取当前用户信息
