@@ -58,6 +58,9 @@ type EncryptedLogSharePayload = {
 type LogShareQueryResult = { content: string; ext: string; encoding?: string };
 type LogShareListItem = { id: string; ext: string; uploadTime: string; size: number };
 type LogShareExportType = 'plain' | 'base64' | 'aes256';
+type CryptoJsWordArrayLike = {
+  toString(encoder?: typeof CryptoJS.enc.Utf8): string;
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -105,11 +108,19 @@ const hexToBytes = (hex: string): Uint8Array => {
   return bytes;
 };
 
+const toBufferSource = (bytes: Uint8Array): Uint8Array<ArrayBuffer> => {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  const view = new Uint8Array(buffer);
+  view.set(bytes);
+  return view;
+};
+
 const decryptLogSharePayload = async (payload: EncryptedLogSharePayload, key: string): Promise<unknown> => {
   if (payload.version === 2 && payload.algorithm === 'aes-256-gcm' && payload.salt && payload.tag) {
+    const keyBytes = toBufferSource(new TextEncoder().encode(key));
     const keyMaterial = await crypto.subtle.importKey(
       'raw',
-      new TextEncoder().encode(key),
+      keyBytes,
       { name: 'PBKDF2' },
       false,
       ['deriveKey'],
@@ -117,7 +128,7 @@ const decryptLogSharePayload = async (payload: EncryptedLogSharePayload, key: st
     const derivedKey = await crypto.subtle.deriveKey(
       {
         name: 'PBKDF2',
-        salt: hexToBytes(payload.salt),
+        salt: toBufferSource(hexToBytes(payload.salt)),
         iterations: payload.iterations || 120000,
         hash: 'SHA-512',
       },
@@ -132,9 +143,9 @@ const decryptLogSharePayload = async (payload: EncryptedLogSharePayload, key: st
     sealed.set(encrypted);
     sealed.set(tag, encrypted.length);
     const decrypted = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv: hexToBytes(payload.iv) },
+      { name: 'AES-GCM', iv: toBufferSource(hexToBytes(payload.iv)) },
       derivedKey,
-      sealed,
+      toBufferSource(sealed),
     );
     return JSON.parse(new TextDecoder().decode(decrypted));
   }
@@ -156,7 +167,7 @@ const decryptLogSharePayload = async (payload: EncryptedLogSharePayload, key: st
 };
 
 // 安全的解码函数，支持多种编码格式
-const safeDecode = (decrypted: CryptoJS.lib.WordArray): unknown => {
+const safeDecode = (decrypted: CryptoJsWordArrayLike): unknown => {
   const utf8String = decrypted.toString(CryptoJS.enc.Utf8);
   if (!utf8String) {
     throw new Error('解密结果为空');
