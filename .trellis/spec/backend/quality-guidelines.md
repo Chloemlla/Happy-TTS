@@ -97,6 +97,22 @@ test("keeps normalization idempotent for generated input", () => {
 });
 ```
 
+### Route limiter test mocks
+
+When Jest setup mocks `../middleware/routeLimiters`, every named `*Limiter` export that routes import must be present in the mock and must be an Express middleware function:
+
+```typescript
+const createDummyLimiter = () => (_req: Request, _res: Response, next: NextFunction) => next();
+
+jest.mock("../middleware/routeLimiters", () => ({
+  ticketReadLimiter: createDummyLimiter(),
+  ticketWriteLimiter: createDummyLimiter(),
+  ticketAdminLimiter: createDummyLimiter(),
+}));
+```
+
+Missing a named limiter export makes route imports receive `undefined`, causing Express route registration to fail during test startup with `TypeError: argument handler must be a function`. When adding or renaming a route limiter, update the Jest mock in the same change.
+
 --- 
 
 ## 4. Naming and comment hygiene
