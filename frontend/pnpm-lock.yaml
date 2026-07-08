@@ -219,6 +219,9 @@ importers:
       cross-env:
         specifier: ^10.1.0
         version: 10.1.0
+      javascript-obfuscator:
+        specifier: ^5.4.1
+        version: 5.4.3
       jest-environment-jsdom:
         specifier: ^30.4.1
         version: 30.4.1
