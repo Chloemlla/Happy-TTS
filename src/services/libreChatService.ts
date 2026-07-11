@@ -288,6 +288,8 @@ class LibreChatService {
             $set: {
               messages: limitedMessages,
               updatedAt: new Date(),
+              deleted: false,
+              deletedAt: null,
             },
           },
           {
@@ -313,6 +315,8 @@ class LibreChatService {
               $set: {
                 messages: reducedMessages,
                 updatedAt: new Date(),
+                deleted: false,
+                deletedAt: null,
               },
             },
             { upsert: true, setDefaultsOnInsert: true },
@@ -1026,9 +1030,11 @@ class LibreChatService {
   ): Promise<string> {
     const safeUserId = sanitizeId(userId);
     const safeToken = sanitizeId(token);
+    const belongsToConversation = (message: ChatMessage) =>
+      userId ? message.userId === userId : message.token === token;
 
     // 取该用户的所有消息
-    const userMessages = this.chatHistory.filter((m) => (safeUserId ? m.userId === safeUserId : m.token === safeToken));
+    const userMessages = this.chatHistory.filter(belongsToConversation);
     // 定位要重试的助手消息
     const targetIdxInUser = userMessages.findIndex((m) => m.id === messageId && m.role === "assistant");
     if (targetIdxInUser === -1) {
@@ -1037,7 +1043,7 @@ class LibreChatService {
     // 计算其在全局 chatHistory 中的索引
     const globalIndex = this.chatHistory.findIndex(
       (m) =>
-        (safeUserId ? m.userId === safeUserId : m.token === safeToken) && m.id === messageId && m.role === "assistant",
+        belongsToConversation(m) && m.id === messageId && m.role === "assistant",
     );
     if (globalIndex === -1) {
       return "";
@@ -1129,7 +1135,7 @@ class LibreChatService {
         const keyId = safeUserId || safeToken;
         await this.upsertTokenHistory(
           keyId,
-          this.chatHistory.filter((m) => (safeUserId ? m.userId === safeUserId : m.token === safeToken)),
+          this.chatHistory.filter(belongsToConversation),
         );
 
         // 发送SSE通知：重试完成
@@ -1178,7 +1184,7 @@ class LibreChatService {
     const keyId = safeUserId || safeToken;
     await this.upsertTokenHistory(
       keyId,
-      this.chatHistory.filter((m) => (safeUserId ? m.userId === safeUserId : m.token === safeToken)),
+      this.chatHistory.filter(belongsToConversation),
     );
 
     // 发送SSE通知：重试完成（降级回复）
