@@ -17,6 +17,7 @@ import {
   buildChatProviderFailureAttempt,
   mergeChatProviderFailureAttempt,
 } from "./librechat/diagnostics";
+import { messageBelongsToConversation } from "./librechat/history";
 import type {
   ChatFailureDiagnostics,
   ChatHistory,
@@ -1030,8 +1031,7 @@ class LibreChatService {
   ): Promise<string> {
     const safeUserId = sanitizeId(userId);
     const safeToken = sanitizeId(token);
-    const belongsToConversation = (message: ChatMessage) =>
-      userId ? message.userId === userId : message.token === token;
+    const belongsToConversation = (message: ChatMessage) => messageBelongsToConversation(message, token, userId);
 
     // 取该用户的所有消息
     const userMessages = this.chatHistory.filter(belongsToConversation);

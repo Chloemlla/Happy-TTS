@@ -3,6 +3,7 @@ import {
   mergeChatProviderFailureAttempt,
   toChatMessagesView,
 } from "../services/librechat/diagnostics";
+import { messageBelongsToConversation } from "../services/librechat/history";
 import { toTicketView } from "../utils/ticketView";
 
 describe("ticket AI diagnostics", () => {
@@ -104,5 +105,20 @@ describe("ticket AI diagnostics", () => {
     const attempts = mergeChatProviderFailureAttempt(mergeChatProviderFailureAttempt([], first), second);
     expect(attempts).toHaveLength(1);
     expect(attempts[0]).toEqual(expect.objectContaining({ status: 503, message: "latest failure" }));
+  });
+
+  it("matches retry history with the original long chat token", () => {
+    const longToken = `header.${"payload".repeat(40)}.signature`;
+    const message = {
+      id: "assistant-1",
+      role: "assistant" as const,
+      message: "fallback",
+      timestamp: "2026-07-11T00:00:00.000Z",
+      token: longToken,
+    };
+
+    expect(longToken.length).toBeGreaterThan(128);
+    expect(messageBelongsToConversation(message, longToken)).toBe(true);
+    expect(messageBelongsToConversation(message, longToken.slice(0, 128))).toBe(false);
   });
 });
