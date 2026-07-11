@@ -105,9 +105,11 @@ When you've made similar changes to multiple files:
 
 **Prevention checklist**:
 - [ ] Use the same package-manager version as CI when reasoning about generated lockfile fields
+- [ ] Declare the exact package-manager version in every install root's manifest and keep Docker/CI setup on that same version
 - [ ] Check whether references, aliases, catalogs, or environment values are normalized before persistence
 - [ ] Compare the generated representation, not only the source text
 - [ ] Keep every manifest and its corresponding lockfile synchronized when a repository has multiple install roots
+- [ ] Treat package-manager update notices as informational; diagnose frozen-lockfile mismatches by comparing the pinned generator version and generated snapshot
 
 ---
 

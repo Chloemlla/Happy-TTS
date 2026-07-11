@@ -1,6 +1,7 @@
 {
   "name": "synapse",
   "version": "1.0.0",
+  "packageManager": "pnpm@11.11.0",
   "description": "Synapse with Node.js",
   "main": "dist/app.js",
   "sideEffects": true,

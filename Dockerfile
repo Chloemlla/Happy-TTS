@@ -10,7 +10,7 @@ RUN apk add --no-cache tzdata && \
 
 ENV NODE_OPTIONS="--max-old-space-size=11264"
 ENV VITE_BASE_URL="/static/"
-RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
+RUN corepack enable && corepack prepare pnpm@11.11.0 --activate
 
 WORKDIR /app/frontend
 
@@ -63,7 +63,7 @@ RUN apk add --no-cache tzdata && \
     apk del tzdata
 
 ENV NODE_OPTIONS="--max-old-space-size=3048"
-RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
+RUN corepack enable && corepack prepare pnpm@11.11.0 --activate
 
 WORKDIR /app
 
@@ -293,7 +293,7 @@ ENV TZ=Asia/Shanghai \
     RUST_DATA_TOOLS_BIN="/usr/local/bin/data-tools" \
     RUST_SECURITY_WORKER_BIN="/usr/local/bin/security-worker"
 
-RUN corepack enable && corepack prepare pnpm@11.1.1 --activate
+RUN corepack enable && corepack prepare pnpm@11.11.0 --activate
 
 WORKDIR /app
 
