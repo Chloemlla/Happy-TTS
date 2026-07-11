@@ -2,18 +2,20 @@ import type { Request, Response } from "express";
 import { type ITicket, TicketModel } from "../models/ticketModel";
 import { EmailService, getDefaultEmailFrom } from "../services/emailService";
 import { libreChatService } from "../services/libreChatService";
+import type { ChatFailureDiagnostics } from "../services/librechat/types";
 import { ModerationService } from "../services/moderationService";
 import { mongoose } from "../services/mongoService";
 import { wsService } from "../services/wsService";
 import * as emailTemplates from "../templates/emailTemplates";
 import { firstString } from "../utils/httpParam";
 import logger from "../utils/logger";
+import { toTicketView } from "../utils/ticketView";
 import { UserStorage } from "../utils/userStorage";
 
 /**
  * 助手函数：生成 AI 回复并保存到工单
  */
-async function generateAiTicketResponse(ticket: any) {
+export async function generateAiTicketResponse(ticket: any) {
   try {
     const ticketId = ticket._id.toString();
     const lastMessage = ticket.messages[ticket.messages.length - 1];
@@ -42,6 +44,7 @@ async function generateAiTicketResponse(ticket: any) {
 6. 综合考虑当前所有的对话上下文进行回答。`;
 
     try {
+      let aiErrorDetails: ChatFailureDiagnostics | undefined;
       const aiResponse = await libreChatService.sendMessage(
         `ticket_context_${ticketId}`,
         `${systemPrompt}\n\n当前用户反馈: ${lastMessage.content}`,
@@ -49,6 +52,9 @@ async function generateAiTicketResponse(ticket: any) {
         (delta) => {
           // 通过 WebSocket 发送流式分片
           wsService.notifyTicketAiResponse(ticket.userId, ticketId, delta, false);
+        },
+        (diagnostics) => {
+          aiErrorDetails = diagnostics;
         },
       );
 
@@ -64,6 +70,7 @@ async function generateAiTicketResponse(ticket: any) {
           senderRole: "ai",
           content: aiResponse,
           isAi: true,
+          ...(aiErrorDetails ? { aiErrorDetails } : {}),
           createdAt: new Date(),
         });
 
@@ -209,7 +216,7 @@ export const ticketController = {
         }
       })();
 
-      res.status(201).json(newTicket);
+      res.status(201).json(toTicketView(newTicket, false));
     } catch (error) {
       logger.error("创建工单失败:", error);
       res.status(500).json({ error: "服务器内部错误" });
@@ -221,7 +228,7 @@ export const ticketController = {
     try {
       const user = (req as any).user;
       const tickets = await TicketModel.find({ userId: String(user.id) }).sort({ updatedAt: -1 });
-      res.json(tickets);
+      res.json(tickets.map((ticket) => toTicketView(ticket, false)));
     } catch (error) {
       logger.error("获取工单列表失败:", error);
       res.status(500).json({ error: "服务器内部错误" });
@@ -239,7 +246,7 @@ export const ticketController = {
       if (!ticket) return res.status(404).json({ error: "工单不存在" });
       const isAdmin = user.role?.toLowerCase().trim() === "admin";
       if (ticket.userId !== user.id && !isAdmin) return res.status(403).json({ error: "无权访问此工单" });
-      res.json(ticket);
+      res.json(toTicketView(ticket, isAdmin));
     } catch (error) {
       logger.error("获取工单详情失败:", error);
       res.status(500).json({ error: "服务器内部错误" });
@@ -370,7 +377,7 @@ export const ticketController = {
         })();
       }
 
-      res.json(ticket);
+      res.json(toTicketView(ticket, isAdmin));
     } catch (error) {
       logger.error("回复工单失败:", error);
       res.status(500).json({ error: "服务器内部错误" });
@@ -388,7 +395,7 @@ export const ticketController = {
       if (typeof status === "string" && validStatuses.includes(status)) query.status = status;
       if (typeof priority === "string" && validPriorities.includes(priority)) query.priority = priority;
       const tickets = await TicketModel.find(query).sort({ updatedAt: -1 });
-      res.json(tickets);
+      res.json(tickets.map((ticket) => toTicketView(ticket, true)));
     } catch (error) {
       logger.error("管理员获取工单列表失败:", error);
       res.status(500).json({ error: "服务器内部错误" });
@@ -428,7 +435,7 @@ export const ticketController = {
           logger.error("发送工单状态变更邮件通知失败:", err);
         }
       })();
-      res.json(ticket);
+      res.json(toTicketView(ticket, true));
     } catch (error) {
       logger.error("更新工单状态失败:", error);
       res.status(500).json({ error: "服务器内部错误" });
@@ -450,7 +457,7 @@ export const ticketController = {
       ticket.messages[idx].content = String(content);
       await ticket.save();
       wsService.notifyTicketUpdate(ticket.userId, ticket);
-      res.json(ticket);
+      res.json(toTicketView(ticket, true));
     } catch (error) {
       logger.error("编辑消息失败:", error);
       res.status(500).json({ error: "服务器内部错误" });
@@ -471,7 +478,7 @@ export const ticketController = {
       ticket.messages.splice(idx, 1);
       await ticket.save();
       wsService.notifyTicketUpdate(ticket.userId, ticket);
-      res.json(ticket);
+      res.json(toTicketView(ticket, true));
     } catch (error) {
       logger.error("删除消息失败:", error);
       res.status(500).json({ error: "服务器内部错误" });

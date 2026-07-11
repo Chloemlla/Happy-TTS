@@ -5,6 +5,7 @@ import { URL } from "node:url";
 import jwt from "jsonwebtoken";
 import { WebSocket, WebSocketServer } from "ws";
 import { config } from "../config/config";
+import { toTicketView } from "../utils/ticketView";
 import { EcoEnchantsOpsService } from "./ecoEnchantsOpsService";
 import logger from "../utils/logger";
 
@@ -453,12 +454,12 @@ class WsService {
     // 发送给工单拥有者
     this.sendToUser(userId, {
       type: "ticket:update",
-      data: ticket,
+      data: toTicketView(ticket, false),
     });
     // 广播给所有管理员，以便实时查看处理进度
     this.broadcastToAdmins({
       type: "ticket:update",
-      data: ticket,
+      data: toTicketView(ticket, false),
     });
   }
 

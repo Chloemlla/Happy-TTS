@@ -12,6 +12,7 @@ import {
   FiRefreshCw,
 } from "react-icons/fi";
 import MarkdownRenderer, { type MarkdownReaderControls } from './MarkdownRenderer';
+import { TicketAiErrorDetails } from './TicketAiErrorDetails';
 import { cn } from '../utils/cn';
 import {
   studioAccentBlobBlueClassName,
@@ -72,6 +73,7 @@ function getApiErrorResponse(error: unknown): ApiErrorResponse | null {
 
 const TicketSystem: React.FC = () => {
   const { user } = useAuth();
+  const isAdmin = user?.role?.toLowerCase().trim() === "admin";
   const { setNotification } = useNotification();
   const [tickets, setTickets] = useState<ITicket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<ITicket | null>(null);
@@ -113,6 +115,20 @@ const TicketSystem: React.FC = () => {
     };
   }, [processingStep]);
 
+  const applyTicketUpdate = useCallback((updatedTicket: ITicket) => {
+    setTickets(prev => {
+      const index = prev.findIndex(ticket => ticket._id === updatedTicket._id);
+      if (index !== -1) {
+        const next = [...prev];
+        next[index] = updatedTicket;
+        return next;
+      }
+      return [updatedTicket, ...prev];
+    });
+
+    setSelectedTicket(prev => prev?._id === updatedTicket._id ? updatedTicket : prev);
+  }, []);
+
   const onMessage = useCallback((msg: WsServerMessage) => {
     if (msg.type === "ticket:ai_response") {
       const { ticketId, content, isFinished } = msg.data;
@@ -129,18 +145,15 @@ const TicketSystem: React.FC = () => {
     }
 
     if (msg.type === "ticket:update") {
-      const updatedTicket = msg.data;
-      setTickets(prev => {
-        const index = prev.findIndex(t => t._id === updatedTicket._id);
-        if (index !== -1) {
-          const next = [...prev];
-          next[index] = updatedTicket;
-          return next;
-        }
-        return [updatedTicket, ...prev];
-      });
-
-      setSelectedTicket(prev => prev?._id === updatedTicket._id ? updatedTicket : prev);
+      if (!isRecord(msg.data) || typeof msg.data._id !== "string") return;
+      const updatedTicket = msg.data as unknown as ITicket;
+      if (isAdmin) {
+        void ticketApi.getTicket(updatedTicket._id)
+          .then(applyTicketUpdate)
+          .catch(() => applyTicketUpdate(updatedTicket));
+      } else {
+        applyTicketUpdate(updatedTicket);
+      }
 
       setProcessingStep(null);
     }
@@ -151,7 +164,7 @@ const TicketSystem: React.FC = () => {
         setProcessingStep(step);
       }
     }
-  }, [selectedTicket?._id]);
+  }, [applyTicketUpdate, isAdmin, selectedTicket?._id]);
 
   useWebSocket({ onMessage });
 
@@ -191,8 +204,6 @@ const TicketSystem: React.FC = () => {
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
-
-  const isAdmin = user?.role?.toLowerCase().trim() === "admin";
 
   const hoverScale = useCallback((scale: number, enabled: boolean = true) => (
     enabled && !prefersReducedMotion ? { scale } : undefined
@@ -752,6 +763,10 @@ const TicketSystem: React.FC = () => {
                                       onCodeCopy={(success) => notifyMarkdownCopy(success)}
                                       className={isMe ? 'prose-code:bg-white/10 prose-code:text-white/90 prose-a:text-sky-200' : ''}
                                     />
+                                  )}
+
+                                  {isAdmin && isAi && msg.aiErrorDetails && (
+                                    <TicketAiErrorDetails diagnostics={msg.aiErrorDetails} />
                                   )}
 
                                   {isAdmin && editingIdx !== idx && (

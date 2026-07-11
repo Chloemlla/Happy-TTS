@@ -30,3 +30,19 @@ export interface SSEClient {
   res: any;
   lastPing: number;
 }
+
+export interface ChatProviderFailureAttempt {
+  baseUrl: string;
+  model: string;
+  status?: number;
+  code?: string;
+  message: string;
+  occurredAt: Date;
+}
+
+export interface ChatFailureDiagnostics {
+  reason: "no_provider_configured" | "all_providers_failed";
+  summary: string;
+  attempts: ChatProviderFailureAttempt[];
+  occurredAt: Date;
+}
