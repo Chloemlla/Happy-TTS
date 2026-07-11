@@ -3,6 +3,7 @@ import path from "node:path";
 import request from "supertest";
 import app from "../app";
 import { UserStorage } from "../utils/userStorage";
+import { decryptLogSharePayload, type EncryptedLogSharePayload } from "./helpers/logShareCrypto";
 
 describe("logRoutes API", () => {
   let adminPassword = "";
@@ -60,7 +61,19 @@ describe("logRoutes API", () => {
   it("查询日志内容成功", async () => {
     const res = await request(app).post(`/api/sharelog/${logId}`).send({ adminPassword });
     expect(res.status).toBe(200);
-    expect(res.body.content).toBe(testLog);
+    expect(res.body).toEqual(
+      expect.objectContaining({
+        version: 2,
+        algorithm: "aes-256-gcm",
+        kdf: "pbkdf2-sha512",
+        data: expect.any(String),
+        iv: expect.any(String),
+        salt: expect.any(String),
+        tag: expect.any(String),
+      }),
+    );
+    const decrypted = decryptLogSharePayload(res.body as EncryptedLogSharePayload, adminPassword);
+    expect(decrypted.content).toBe(testLog);
   });
 
   it("查询不存在的日志返回404", async () => {

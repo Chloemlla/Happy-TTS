@@ -2,6 +2,7 @@
 import request from "supertest";
 import app from "../app";
 import { connectMongo, mongoose } from "../services/mongoService";
+import { decryptLogSharePayload, type EncryptedLogSharePayload } from "./helpers/logShareCrypto";
 
 describe("logshare MongoDB 文本上传与查询", () => {
   const adminPassword = process.env.TEST_ADMIN_PASSWORD || "admin";
@@ -40,11 +41,18 @@ describe("logshare MongoDB 文本上传与查询", () => {
     expect(doc.content).toBe(testContent);
   });
 
-  it("查询接口应直接返回文本内容", async () => {
+  it("查询接口应返回可解密的文本内容", async () => {
     const res = await request(app).post(`/api/sharelog/${fileId}`).send({ adminPassword });
     expect(res.status).toBe(200);
-    expect(res.body).toHaveProperty("content");
-    expect(res.body.content).toBe(testContent);
-    expect(res.body.ext).toBe(".txt");
+    expect(res.body).toEqual(
+      expect.objectContaining({
+        version: 2,
+        algorithm: "aes-256-gcm",
+        kdf: "pbkdf2-sha512",
+      }),
+    );
+    const decrypted = decryptLogSharePayload(res.body as EncryptedLogSharePayload, adminPassword);
+    expect(decrypted.content).toBe(testContent);
+    expect(decrypted.ext).toBe(".txt");
   });
 });
