@@ -14,6 +14,7 @@ function parseProviderFailure(value: unknown): AiProviderFailure | null {
   const model = readString(value.model);
   const message = readString(value.message);
   const occurredAt = readString(value.occurredAt);
+  const code = readString(value.code);
   if (!baseUrl || !model || !message || !occurredAt) return null;
 
   return {
@@ -22,7 +23,7 @@ function parseProviderFailure(value: unknown): AiProviderFailure | null {
     message,
     occurredAt,
     ...(typeof value.status === "number" && Number.isFinite(value.status) ? { status: value.status } : {}),
-    ...(readString(value.code) ? { code: readString(value.code) } : {}),
+    ...(code ? { code } : {}),
   };
 }
 

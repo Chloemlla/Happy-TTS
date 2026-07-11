@@ -53,7 +53,8 @@ function extractUserId(req: any): string | undefined {
 }
 
 function isAdminRequest(req: any): boolean {
-  return req?.user?.role?.toLowerCase?.().trim?.() === "admin";
+  const role = req?.user?.role;
+  return typeof role === "string" && role.toLowerCase().trim() === "admin";
 }
 
 // 轻量级 Cookie 解析（避免引入额外依赖）

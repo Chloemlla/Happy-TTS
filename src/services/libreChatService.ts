@@ -1117,7 +1117,8 @@ class LibreChatService {
 
         // 覆盖原助手消息
         const nowIso = new Date().toISOString();
-        const { aiErrorDetails: _previousFailure, ...previousMessage } = this.chatHistory[globalIndex];
+        const previousMessage = { ...this.chatHistory[globalIndex] };
+        delete previousMessage.aiErrorDetails;
         const updatedMsg: ChatMessage = {
           ...previousMessage,
           message: aiText,
