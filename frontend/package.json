@@ -115,26 +115,5 @@
     "vite-auto-i18n-plugin": "^1.1.16",
     "vite-plugin-obfuscator": "^1.0.5",
     "vitest": "^4.1.9"
-  },
-  "pnpm": {
-    "overrides": {
-      "marked": "$marked",
-      "react": "$react",
-      "react-dom": "$react-dom",
-      "lodash-es": ">=4.18.1",
-      "minimatch": ">=10.2.1",
-      "dompurify": "$dompurify",
-      "lodash": ">=4.18.0",
-      "esbuild": ">=0.28.1",
-      "undici": ">=7.28.0",
-      "js-yaml": ">=4.2.0"
-    },
-    "peerDependencyRules": {
-      "allowedVersions": {
-        "react": "19",
-        "react-dom": "19",
-        "marked": "17"
-      }
-    }
   }
 }

@@ -15,7 +15,7 @@ RUN corepack enable && corepack prepare pnpm@11.11.0 --activate
 WORKDIR /app/frontend
 
 # 利用 Docker 缓存层：先复制依赖声明文件
-COPY frontend/package.json frontend/pnpm-lock.yaml frontend/.npmrc ./
+COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml frontend/.npmrc ./
 
 # 安装依赖（frozen-lockfile 保证一致性）
 # 保留 --ignore-scripts：pnpm 11 在 .npmrc 白名单外的包有未批准 build 时会 ERR_PNPM_IGNORED_BUILDS。
@@ -67,7 +67,7 @@ RUN corepack enable && corepack prepare pnpm@11.11.0 --activate
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml .npmrc ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 # 依赖已在仓库清单和 lockfile 中声明，构建阶段不再动态修改依赖图
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
@@ -298,7 +298,7 @@ RUN corepack enable && corepack prepare pnpm@11.11.0 --activate
 WORKDIR /app
 
 # 安装生产依赖
-COPY package.json pnpm-lock.yaml .npmrc ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 # 替换原本的 RUN pnpm config set ignore-scripts false && pnpm install --prod --frozen-lockfile
 RUN pnpm install --frozen-lockfile --ignore-scripts
 

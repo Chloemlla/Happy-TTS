@@ -1,0 +1,14 @@
+overrides:
+  qs: '>=6.14.2'
+  ajv: '>=8.18.0'
+  diff: '>=4.0.4'
+  minimatch: '>=10.2.1'
+  undici: '>=7.28.0'
+  js-yaml: '>=4.2.0'
+
+allowBuilds:
+  '@cathodique/mmap-io': true
+  '@scarf/scarf': true
+  bcrypt: true
+  esbuild: true
+  unrs-resolver: true

@@ -1,0 +1,27 @@
+overrides:
+  marked: $marked
+  react: $react
+  react-dom: $react-dom
+  lodash-es: '>=4.18.1'
+  minimatch: '>=10.2.1'
+  dompurify: $dompurify
+  lodash: '>=4.18.0'
+  esbuild: '>=0.28.1'
+  undici: '>=7.28.0'
+  js-yaml: '>=4.2.0'
+
+peerDependencyRules:
+  allowedVersions:
+    react: '19'
+    react-dom: '19'
+    marked: '17'
+
+allowBuilds:
+  '@scarf/scarf': true
+  '@tree-sitter-grammars/tree-sitter-yaml': true
+  bcrypt: true
+  core-js: true
+  core-js-pure: true
+  esbuild: true
+  tree-sitter: true
+  tree-sitter-json: true

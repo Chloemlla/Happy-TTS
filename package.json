@@ -152,21 +152,5 @@
     "ts-jest": "^29.4.11",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3"
-  },
-  "pnpm": {
-    "overrides": {
-      "qs": ">=6.14.2",
-      "ajv": ">=8.18.0",
-      "diff": ">=4.0.4",
-      "minimatch": ">=10.2.1",
-      "undici": ">=7.28.0",
-      "js-yaml": ">=4.2.0"
-    },
-    "onlyBuiltDependencies": [
-      "@cathodique/mmap-io",
-      "@scarf/scarf",
-      "bcrypt",
-      "unrs-resolver"
-    ]
   }
 }
