@@ -97,6 +97,20 @@ When you've made similar changes to multiple files:
 
 ---
 
+## Gotcha: Generated Config Snapshots May Normalize Values
+
+**Problem**: Generated metadata can store normalized values instead of copying source configuration literally. For example, pnpm resolves override references such as `$react` to the matching direct dependency specifier before writing `pnpm-lock.yaml`.
+
+**Symptom**: The manifest and lockfile look equivalent to a reviewer, but `pnpm install --frozen-lockfile` reports `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`.
+
+**Prevention checklist**:
+- [ ] Use the same package-manager version as CI when reasoning about generated lockfile fields
+- [ ] Check whether references, aliases, catalogs, or environment values are normalized before persistence
+- [ ] Compare the generated representation, not only the source text
+- [ ] Keep every manifest and its corresponding lockfile synchronized when a repository has multiple install roots
+
+---
+
 ## Checklist Before Commit
 
 - [ ] Searched for existing similar code
