@@ -1,7 +1,9 @@
 import { randomBytes } from "node:crypto";
 import { Router } from "express";
 import { authenticateAdmin } from "../middleware/auth";
+import { optionalAuthenticateToken } from "../middleware/optionalAuthenticateToken";
 import { libreChatService } from "../services/libreChatService";
+import { toChatMessagesView } from "../services/librechat/diagnostics";
 import { mongoose } from "../services/mongoService";
 import logger from "../utils/logger";
 
@@ -48,6 +50,10 @@ function normalizePagination(pageValue: unknown, limitValue: unknown): { page: n
 // 从已登录上下文提取 userId（若存在）
 function extractUserId(req: any): string | undefined {
   return req?.user?.id || req?.user?._id || req?.auth?.userId || req?.session?.userId || undefined;
+}
+
+function isAdminRequest(req: any): boolean {
+  return req?.user?.role?.toLowerCase?.().trim?.() === "admin";
 }
 
 // 轻量级 Cookie 解析（避免引入额外依赖）
@@ -327,11 +333,11 @@ router.post("/send", async (req, res) => {
  *       401:
  *         description: 认证失败
  */
-router.get("/history", async (req, res) => {
+router.get("/history", optionalAuthenticateToken, async (req, res) => {
   try {
     const { page, limit } = normalizePagination(req.query.page, req.query.limit);
     const token = getTokenFromReq(req);
-    const userId = extractUserId(req);
+    const userId = token ? undefined : extractUserId(req);
 
     if (token === "invalid-token") {
       return sendLibreChatError(res, 401, "INVALID_TOKEN", "无效的token");
@@ -360,7 +366,7 @@ router.get("/history", async (req, res) => {
     const totalPages = history.total > 0 ? Math.ceil(history.total / limit) : 1;
     res.json({
       success: true,
-      history: history.messages,
+      history: toChatMessagesView(history.messages, isAdminRequest(req)),
       total: history.total,
       currentPage: page,
       totalPages,

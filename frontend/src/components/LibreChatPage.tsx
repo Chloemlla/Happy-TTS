@@ -20,6 +20,10 @@ import {
 } from 'react-icons/fa';
 import MarkdownRenderer from './MarkdownRenderer';
 import getApiBaseUrl from '../api';
+import { useAuth } from '../hooks/useAuth';
+import type { AiErrorDetails } from '../types/aiDiagnostics';
+import { parseAiErrorDetails } from '../utils/aiDiagnostics';
+import { AiErrorDetailsPanel } from './AiErrorDetailsPanel';
 import { useNotification } from './Notification';
 import AlertModal from './AlertModal';
 import ConfirmModal from './ConfirmModal';
@@ -165,6 +169,7 @@ interface HistoryItem {
   message?: string;
   timestamp?: string;
   createdAt?: string;
+  aiErrorDetails?: AiErrorDetails;
 }
 
 interface HistoryResponse {
@@ -199,6 +204,7 @@ function normalizeHistoryItem(value: unknown): HistoryItem | null {
     content: message || content || '',
     timestamp: readString(value.timestamp),
     createdAt: readString(value.timestamp) || readString(value.createdAt),
+    aiErrorDetails: parseAiErrorDetails(value.aiErrorDetails),
   };
 }
 
@@ -237,6 +243,8 @@ function getErrorMessage(error: unknown, fallback: string): string {
 }
 
 const LibreChatPage: React.FC = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.role?.toLowerCase().trim() === 'admin';
   const { setNotification } = useNotification();
 
   // 为 LibreChat 页面添加豁免标记，避免完整性检查器误报
@@ -300,6 +308,11 @@ const LibreChatPage: React.FC = () => {
   const [promptModal, setPromptModal] = useState<{ open: boolean; title?: string; message?: string; placeholder?: string; defaultValue?: string; codeEditor?: boolean; language?: string; maxLength?: number; onConfirm: (value: string) => void }>({ open: false, message: '', onConfirm: () => { } });
 
   const apiBase = useMemo(() => getApiBaseUrl(), []);
+  const getAdminHistoryHeaders = useCallback((): Record<string, string> | undefined => {
+    if (!isAdmin) return undefined;
+    const sessionToken = localStorage.getItem('token');
+    return sessionToken ? { Authorization: `Bearer ${sessionToken}` } : undefined;
+  }, [isAdmin]);
 
   // 游客模式：当未填写本地 token 时视为游客（服务端通过 HttpOnly Cookie 维持会话）
   const guestMode = useMemo(() => !token, [token]);
@@ -711,7 +724,7 @@ const LibreChatPage: React.FC = () => {
       // 若存在 token 则一并传递；否则依赖后端会话中的 userId
       if (token) params.set('token', token);
       const url = `${apiBase}/api/librechat/history?${params.toString()}`;
-      const res = await fetch(url, { credentials: 'include' });
+      const res = await fetch(url, { credentials: 'include', headers: getAdminHistoryHeaders() });
       if (res.ok) {
         const data: unknown = await res.json();
         const mapped = parseHistoryResponse(data, toPage);
@@ -787,7 +800,8 @@ const LibreChatPage: React.FC = () => {
           const params = new URLSearchParams({ page: '1', limit: '10' });
           if (token) params.set('token', token);
           const checkRes = await fetch(`${apiBase}/api/librechat/history?${params.toString()}`, {
-            credentials: 'include'
+            credentials: 'include',
+            headers: getAdminHistoryHeaders(),
           });
           if (checkRes.ok) {
             const checkData = await checkRes.json();
@@ -1037,7 +1051,8 @@ const LibreChatPage: React.FC = () => {
           const params = new URLSearchParams({ page: '1', limit: '10' });
           if (token) params.set('token', token);
           const checkRes = await fetch(`${apiBase}/api/librechat/history?${params.toString()}`, {
-            credentials: 'include'
+            credentials: 'include',
+            headers: getAdminHistoryHeaders(),
           });
           if (checkRes.ok) {
             const checkData = await checkRes.json();
@@ -1737,6 +1752,9 @@ const LibreChatPage: React.FC = () => {
                             </div>
                           </div>
                           {renderChatContent(m.content, m.role)}
+                          {isAdmin && m.role !== 'user' && m.aiErrorDetails && (
+                            <AiErrorDetailsPanel diagnostics={m.aiErrorDetails} />
+                          )}
                           {m.id && (
                             <div className="mt-3 flex justify-end gap-2">
                               <motion.button

@@ -11,6 +11,7 @@ export interface ChatMessage {
   timestamp: string;
   token: string;
   userId?: string;
+  aiErrorDetails?: ChatFailureDiagnostics;
 }
 
 export interface ChatHistory {

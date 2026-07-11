@@ -1,4 +1,5 @@
 import api, { getApiBaseUrl } from './api';
+import type { AiErrorDetails } from '../types/aiDiagnostics';
 
 export interface AdminUserSummary {
     userId: string;
@@ -18,6 +19,7 @@ export interface AdminUserHistoryItem {
     message: string;
     role?: 'user' | 'assistant';
     timestamp: string;
+    aiErrorDetails?: AiErrorDetails;
 }
 
 export interface AdminUserHistoryResponse {

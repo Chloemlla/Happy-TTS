@@ -1,11 +1,11 @@
 import { FiAlertCircle } from "react-icons/fi";
-import type { ITicketAiErrorDetails } from "../api/ticketApi";
+import type { AiErrorDetails } from "../types/aiDiagnostics";
 
-interface TicketAiErrorDetailsProps {
-  diagnostics: ITicketAiErrorDetails;
+interface AiErrorDetailsPanelProps {
+  diagnostics: AiErrorDetails;
 }
 
-export function TicketAiErrorDetails({ diagnostics }: TicketAiErrorDetailsProps) {
+export function AiErrorDetailsPanel({ diagnostics }: AiErrorDetailsPanelProps) {
   return (
     <details className="mt-3 rounded-[14px] border border-rose-200 bg-rose-50/80 p-3 text-slate-800">
       <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-semibold text-rose-700">

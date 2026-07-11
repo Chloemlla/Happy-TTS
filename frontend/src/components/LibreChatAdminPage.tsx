@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { listUsers, getUserHistory, deleteUser, batchDeleteUsers, deleteAllUsers, AdminUserSummary, AdminUserHistoryItem } from '../api/librechatAdmin';
+import { AiErrorDetailsPanel } from './AiErrorDetailsPanel';
 import { useNotification } from './Notification';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
 import {
@@ -725,6 +726,9 @@ const LibreChatAdminPage: React.FC = () => {
                             }
                           }}
                         />
+                        {m.role === 'assistant' && m.aiErrorDetails && (
+                          <AiErrorDetailsPanel diagnostics={m.aiErrorDetails} />
+                        )}
                       </div>
                     </motion.div>
                   ))

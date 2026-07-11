@@ -1,4 +1,8 @@
-import { buildChatProviderFailureAttempt } from "../services/librechat/diagnostics";
+import {
+  buildChatProviderFailureAttempt,
+  mergeChatProviderFailureAttempt,
+  toChatMessagesView,
+} from "../services/librechat/diagnostics";
 import { toTicketView } from "../utils/ticketView";
 
 describe("ticket AI diagnostics", () => {
@@ -63,5 +67,42 @@ describe("ticket AI diagnostics", () => {
     expect(ownerMessages[0]).not.toHaveProperty("aiErrorDetails");
     expect(adminMessages[0]).toHaveProperty("aiErrorDetails");
     expect(ticket.messages[0]).toHaveProperty("aiErrorDetails");
+  });
+
+  it("removes diagnostics from regular LibreChat history while preserving administrator history", () => {
+    const messages = [
+      {
+        id: "assistant-1",
+        role: "assistant" as const,
+        message: "对话服务暂不可用，请稍后重试。",
+        timestamp: "2026-07-11T00:00:00.000Z",
+        token: "chat-token",
+        aiErrorDetails: {
+          reason: "all_providers_failed" as const,
+          summary: "全部 1 个对话服务调用均失败",
+          attempts: [],
+          occurredAt: new Date("2026-07-11T00:00:00.000Z"),
+        },
+      },
+    ];
+
+    expect(toChatMessagesView(messages, false)[0]).not.toHaveProperty("aiErrorDetails");
+    expect(toChatMessagesView(messages, true)[0]).toHaveProperty("aiErrorDetails");
+    expect(messages[0]).toHaveProperty("aiErrorDetails");
+  });
+
+  it("deduplicates repeated weighted provider failures", () => {
+    const first = buildChatProviderFailureAttempt(
+      { baseUrl: "https://chat.example.com", apiKey: "secret-key", model: "support-model" },
+      { response: { status: 500, data: { error: { message: "first failure" } } } },
+    );
+    const second = buildChatProviderFailureAttempt(
+      { baseUrl: "https://chat.example.com", apiKey: "secret-key", model: "support-model" },
+      { response: { status: 503, data: { error: { message: "latest failure" } } } },
+    );
+
+    const attempts = mergeChatProviderFailureAttempt(mergeChatProviderFailureAttempt([], first), second);
+    expect(attempts).toHaveLength(1);
+    expect(attempts[0]).toEqual(expect.objectContaining({ status: 503, message: "latest failure" }));
   });
 });

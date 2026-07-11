@@ -1,27 +1,12 @@
 import { api } from "./api";
-
-export interface ITicketAiProviderFailure {
-  baseUrl: string;
-  model: string;
-  status?: number;
-  code?: string;
-  message: string;
-  occurredAt: string;
-}
-
-export interface ITicketAiErrorDetails {
-  reason: "no_provider_configured" | "all_providers_failed";
-  summary: string;
-  attempts: ITicketAiProviderFailure[];
-  occurredAt: string;
-}
+import type { AiErrorDetails } from "../types/aiDiagnostics";
 
 export interface ITicketMessage {
   senderId: string;
   senderRole: "user" | "admin" | "ai";
   content: string;
   isAi?: boolean;
-  aiErrorDetails?: ITicketAiErrorDetails;
+  aiErrorDetails?: AiErrorDetails;
   createdAt: string;
 }
 

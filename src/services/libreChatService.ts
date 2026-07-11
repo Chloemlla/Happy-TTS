@@ -12,7 +12,11 @@ import {
   LatestRecordModel,
   type ChatProviderDoc,
 } from "./librechat/models";
-import { buildChatProviderFailureAttempt } from "./librechat/diagnostics";
+import {
+  buildChatFailureDiagnostics,
+  buildChatProviderFailureAttempt,
+  mergeChatProviderFailureAttempt,
+} from "./librechat/diagnostics";
 import type {
   ChatFailureDiagnostics,
   ChatHistory,
@@ -576,12 +580,8 @@ class LibreChatService {
     if (!providers.length) {
       logger.warn("未配置任何聊天提供者（DB/ENV），使用本地模拟回复");
       const fallback = "系统暂未配置对话服务，已返回本地示例回答。";
-      onFailure?.({
-        reason: "no_provider_configured",
-        summary: "未配置可用的对话服务提供者",
-        attempts: [],
-        occurredAt: new Date(),
-      });
+      const aiErrorDetails = buildChatFailureDiagnostics("no_provider_configured", []);
+      onFailure?.(aiErrorDetails);
       const aiMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         message: fallback,
@@ -589,6 +589,7 @@ class LibreChatService {
         timestamp: new Date().toISOString(),
         token,
         userId,
+        aiErrorDetails,
       };
       this.chatHistory.push(aiMsg);
       await this.saveChatHistory();
@@ -633,7 +634,7 @@ class LibreChatService {
     ];
 
     // 依序尝试 providers，失败自动切换到下一个
-    const failureAttempts: ChatProviderFailureAttempt[] = [];
+    let failureAttempts: ChatProviderFailureAttempt[] = [];
     const isStream = typeof onDelta === "function";
 
     for (const p of providers) {
@@ -732,14 +733,7 @@ class LibreChatService {
         return aiText;
       } catch (err: unknown) {
         const failureAttempt = buildChatProviderFailureAttempt(p, err);
-        const existingAttemptIndex = failureAttempts.findIndex(
-          (attempt) => attempt.baseUrl === failureAttempt.baseUrl && attempt.model === failureAttempt.model,
-        );
-        if (existingAttemptIndex >= 0) {
-          failureAttempts[existingAttemptIndex] = failureAttempt;
-        } else if (failureAttempts.length < 20) {
-          failureAttempts.push(failureAttempt);
-        }
+        failureAttempts = mergeChatProviderFailureAttempt(failureAttempts, failureAttempt);
         logger.error("调用聊天提供者失败，尝试下一个", {
           baseURL: failureAttempt.baseUrl,
           model: failureAttempt.model,
@@ -762,12 +756,8 @@ class LibreChatService {
       })),
     });
     const fallback = "对话服务暂不可用，请稍后重试。";
-    onFailure?.({
-      reason: "all_providers_failed",
-      summary: `全部 ${failureAttempts.length} 个对话服务调用均失败`,
-      attempts: failureAttempts,
-      occurredAt: new Date(),
-    });
+    const aiErrorDetails = buildChatFailureDiagnostics("all_providers_failed", failureAttempts);
+    onFailure?.(aiErrorDetails);
     const aiMsg: ChatMessage = {
       id: (Date.now() + 1).toString(),
       message: fallback,
@@ -775,6 +765,7 @@ class LibreChatService {
       timestamp: new Date().toISOString(),
       token,
       userId,
+      aiErrorDetails,
     };
     this.chatHistory.push(aiMsg);
     await this.saveChatHistory();
@@ -1096,7 +1087,7 @@ class LibreChatService {
     ];
 
     // 依序尝试 providers
-    let lastError: any = null;
+    let failureAttempts: ChatProviderFailureAttempt[] = [];
     for (const p of providers) {
       const baseURL = p.baseUrl;
       const apiKey = p.apiKey;
@@ -1126,8 +1117,9 @@ class LibreChatService {
 
         // 覆盖原助手消息
         const nowIso = new Date().toISOString();
+        const { aiErrorDetails: _previousFailure, ...previousMessage } = this.chatHistory[globalIndex];
         const updatedMsg: ChatMessage = {
-          ...this.chatHistory[globalIndex],
+          ...previousMessage,
           message: aiText,
           timestamp: nowIso,
         };
@@ -1147,17 +1139,31 @@ class LibreChatService {
         });
 
         return aiText;
-      } catch (err: any) {
-        lastError = err;
+      } catch (err: unknown) {
+        const failureAttempt = buildChatProviderFailureAttempt(p, err);
+        failureAttempts = mergeChatProviderFailureAttempt(failureAttempts, failureAttempt);
         logger.error("重试调用聊天提供者失败，尝试下一个", {
-          baseURL,
-          model,
-          error: err?.response?.data || err?.message || String(err),
+          baseURL: failureAttempt.baseUrl,
+          model: failureAttempt.model,
+          status: failureAttempt.status,
+          code: failureAttempt.code,
+          error: failureAttempt.message,
         });
       }
     }
 
-    logger.error("所有聊天提供者均失败（重试）", lastError);
+    const failureReason = providers.length === 0 ? "no_provider_configured" : "all_providers_failed";
+    const aiErrorDetails = buildChatFailureDiagnostics(failureReason, failureAttempts);
+    logger.error("所有聊天提供者均失败（重试）", {
+      reason: failureReason,
+      attempts: failureAttempts.map(({ baseUrl, model, status, code, message }) => ({
+        baseUrl,
+        model,
+        status,
+        code,
+        message,
+      })),
+    });
     const fallback = "对话服务暂不可用，请稍后重试。";
     // 覆盖原助手消息为降级提示
     const nowIso = new Date().toISOString();
@@ -1165,6 +1171,7 @@ class LibreChatService {
       ...this.chatHistory[globalIndex],
       message: fallback,
       timestamp: nowIso,
+      aiErrorDetails,
     };
     await this.saveChatHistory();
     const keyId = safeUserId || safeToken;

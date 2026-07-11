@@ -1,4 +1,4 @@
-import type { ChatProviderFailureAttempt } from "./types";
+import type { ChatFailureDiagnostics, ChatMessage, ChatProviderFailureAttempt } from "./types";
 
 interface ChatProviderDescriptor {
   baseUrl: string;
@@ -75,4 +75,41 @@ export function buildChatProviderFailureAttempt(
     message: redactEmbeddedSecrets(rawMessage, provider.apiKey).slice(0, 1024),
     occurredAt: new Date(),
   };
+}
+
+export function mergeChatProviderFailureAttempt(
+  attempts: ChatProviderFailureAttempt[],
+  failureAttempt: ChatProviderFailureAttempt,
+  limit = 20,
+): ChatProviderFailureAttempt[] {
+  const existingAttemptIndex = attempts.findIndex(
+    (attempt) => attempt.baseUrl === failureAttempt.baseUrl && attempt.model === failureAttempt.model,
+  );
+  if (existingAttemptIndex >= 0) {
+    return attempts.map((attempt, index) => (index === existingAttemptIndex ? failureAttempt : attempt));
+  }
+  return attempts.length < limit ? [...attempts, failureAttempt] : attempts;
+}
+
+export function buildChatFailureDiagnostics(
+  reason: ChatFailureDiagnostics["reason"],
+  attempts: ChatProviderFailureAttempt[],
+): ChatFailureDiagnostics {
+  return {
+    reason,
+    summary:
+      reason === "no_provider_configured"
+        ? "未配置可用的对话服务提供者"
+        : `全部 ${attempts.length} 个对话服务调用均失败`,
+    attempts,
+    occurredAt: new Date(),
+  };
+}
+
+export function toChatMessagesView(messages: ChatMessage[], includeAiErrorDetails: boolean): ChatMessage[] {
+  return messages.map((message) => {
+    const view = { ...message };
+    if (!includeAiErrorDetails) delete view.aiErrorDetails;
+    return view;
+  });
 }

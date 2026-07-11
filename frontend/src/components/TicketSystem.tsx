@@ -12,7 +12,7 @@ import {
   FiRefreshCw,
 } from "react-icons/fi";
 import MarkdownRenderer, { type MarkdownReaderControls } from './MarkdownRenderer';
-import { TicketAiErrorDetails } from './TicketAiErrorDetails';
+import { AiErrorDetailsPanel } from './AiErrorDetailsPanel';
 import { cn } from '../utils/cn';
 import {
   studioAccentBlobBlueClassName,
@@ -766,7 +766,7 @@ const TicketSystem: React.FC = () => {
                                   )}
 
                                   {isAdmin && isAi && msg.aiErrorDetails && (
-                                    <TicketAiErrorDetails diagnostics={msg.aiErrorDetails} />
+                                    <AiErrorDetailsPanel diagnostics={msg.aiErrorDetails} />
                                   )}
 
                                   {isAdmin && editingIdx !== idx && (
