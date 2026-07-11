@@ -4,6 +4,14 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  qs: '>=6.14.2'
+  ajv: '>=8.18.0'
+  diff: '>=4.0.4'
+  minimatch: '>=10.2.1'
+  undici: '>=7.28.0'
+  js-yaml: '>=4.2.0'
+
 importers:
 
   .:
