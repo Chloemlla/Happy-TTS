@@ -1223,7 +1223,7 @@ const RuntimeConfigSections: React.FC = () => {
 
       <SectionCard
         title="Google Auth 运行时配置"
-        description="主站 GSI 登录配置，对应环境变量 GOOGLE_CLIENT_ID。仅使用 Web application Client ID；请按官方指南创建「Web 应用」凭据并配置 Authorized JavaScript origins。支持导入 web 类型 OAuth JSON；Desktop/Installed JSON 会被拒绝。不与 NEXAI_GOOGLE_CLIENT_ID 共用。"
+        description="主站 GSI 登录配置（GOOGLE_CLIENT_ID）。也可在上方「Google / NexAI Client ID 环境变量」区块快速配置。仅使用 Web application Client ID；支持导入 web JSON，拒绝 Desktop/Installed JSON。"
         isOpen={isSectionOpen('googleAuth')}
         loading={isRuntimeSectionLoading('googleAuth', googleAuthLoading)}
         onToggle={() => toggleSection('googleAuth')}
@@ -1357,7 +1357,7 @@ const RuntimeConfigSections: React.FC = () => {
 
       <SectionCard
         title="NexAI 运行时配置"
-        description="NexAI JWT、OAuth 与前端回调地址。Google 字段对应环境变量 NEXAI_GOOGLE_CLIENT_ID（可回退 GOOGLE_CLIENT_ID），与主站 Google Auth 独立。"
+        description="NexAI JWT、OAuth 与前端回调。Google 字段对应 NEXAI_GOOGLE_CLIENT_ID（可在上方快捷配置区块修改），与主站 Google Auth 独立。"
         isOpen={isSectionOpen('nexai')}
         loading={isRuntimeSectionLoading('nexai', nexaiLoading)}
         onToggle={() => toggleSection('nexai')}

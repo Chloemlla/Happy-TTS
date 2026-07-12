@@ -21,6 +21,11 @@ import {
   WEBHOOK_SECRET_API,
   getAuthHeaders
 } from './env-manager/api';
+import getApiBaseUrl from '../api';
+
+const GOOGLE_AUTH_API = `${getApiBaseUrl()}/api/admin/google-auth/setting`;
+const NEXAI_SETTING_API = `${getApiBaseUrl()}/api/admin/nexai/setting`;
+const GOOGLE_WEB_CLIENT_ID_PATTERN = /^[\w-]+\.apps\.googleusercontent\.com$/i;
 import CollapsibleSection from './env-manager/CollapsibleSection';
 import EnvRow from './env-manager/EnvRow';
 import { DURATION_03, DURATION_06, ENTER_ANIMATE, ENTER_INITIAL, NO_DURATION } from './env-manager/motion';
@@ -284,6 +289,16 @@ const EnvManager: React.FC = () => {
   const [ttsCodeInput, setTtsCodeInput] = useState('');
   const [ttsSaving, setTtsSaving] = useState(false);
   const [ttsDeleting, setTtsDeleting] = useState(false);
+
+  // Google / NexAI Client ID (runtime config backed, env-var named)
+  const [googleClientIdsLoading, setGoogleClientIdsLoading] = useState(false);
+  const [googleClientIdsSaving, setGoogleClientIdsSaving] = useState(false);
+  const [googleClientIdsDeleting, setGoogleClientIdsDeleting] = useState(false);
+  const [googleClientIdInput, setGoogleClientIdInput] = useState('');
+  const [nexaiGoogleClientIdInput, setNexaiGoogleClientIdInput] = useState('');
+  const [googleClientIdCurrent, setGoogleClientIdCurrent] = useState('');
+  const [nexaiGoogleClientIdCurrent, setNexaiGoogleClientIdCurrent] = useState('');
+  const [googleClientIdsUpdatedAt, setGoogleClientIdsUpdatedAt] = useState<string | undefined>(undefined);
 
   // ShortURL AES_KEY Setting
   const [shortAesSetting, setShortAesSetting] = useState<ShortAesSetting | null>(null);
@@ -694,6 +709,198 @@ const EnvManager: React.FC = () => {
       setTtsDeleting(false);
     }
   }, [ttsDeleting, fetchTtsSetting, setNotification]);
+
+  const fetchGoogleClientIds = useCallback(async () => {
+    setGoogleClientIdsLoading(true);
+    try {
+      const [googleRes, nexaiRes] = await Promise.all([
+        fetch(GOOGLE_AUTH_API, { headers: { ...getAuthHeaders() } }),
+        fetch(NEXAI_SETTING_API, { headers: { ...getAuthHeaders() } }),
+      ]);
+
+      let googleClientId = '';
+      let nexaiGoogleClientId = '';
+      let updatedAt: string | undefined;
+
+      if (googleRes.ok) {
+        const googleData = await googleRes.json();
+        googleClientId = String(googleData?.setting?.config?.clientId || '').trim();
+        updatedAt = googleData?.setting?.updatedAt || updatedAt;
+      } else {
+        const googleData = await googleRes.json().catch(() => ({}));
+        setNotification({ message: googleData.error || '获取 GOOGLE_CLIENT_ID 失败', type: 'error' });
+      }
+
+      if (nexaiRes.ok) {
+        const nexaiData = await nexaiRes.json();
+        nexaiGoogleClientId = String(nexaiData?.setting?.config?.google?.clientId || '').trim();
+        updatedAt = nexaiData?.setting?.updatedAt || updatedAt;
+      } else {
+        const nexaiData = await nexaiRes.json().catch(() => ({}));
+        setNotification({ message: nexaiData.error || '获取 NEXAI_GOOGLE_CLIENT_ID 失败', type: 'error' });
+      }
+
+      setGoogleClientIdCurrent(googleClientId);
+      setNexaiGoogleClientIdCurrent(nexaiGoogleClientId);
+      setGoogleClientIdInput(googleClientId);
+      setNexaiGoogleClientIdInput(nexaiGoogleClientId);
+      setGoogleClientIdsUpdatedAt(updatedAt);
+    } catch (e) {
+      setNotification({
+        message: '获取 Google Client ID 失败：' + (e instanceof Error ? e.message : '未知错误'),
+        type: 'error',
+      });
+    } finally {
+      setGoogleClientIdsLoading(false);
+    }
+  }, [setNotification]);
+
+  const handleSaveGoogleClientIds = useCallback(async () => {
+    if (googleClientIdsSaving) return;
+
+    const googleClientId = googleClientIdInput.trim();
+    const nexaiGoogleClientId = nexaiGoogleClientIdInput.trim();
+
+    if (googleClientId && !GOOGLE_WEB_CLIENT_ID_PATTERN.test(googleClientId)) {
+      setNotification({
+        message: 'GOOGLE_CLIENT_ID 格式无效，需为 xxx.apps.googleusercontent.com',
+        type: 'error',
+      });
+      return;
+    }
+    if (nexaiGoogleClientId && !GOOGLE_WEB_CLIENT_ID_PATTERN.test(nexaiGoogleClientId)) {
+      setNotification({
+        message: 'NEXAI_GOOGLE_CLIENT_ID 格式无效，需为 xxx.apps.googleusercontent.com',
+        type: 'error',
+      });
+      return;
+    }
+
+    setGoogleClientIdsSaving(true);
+    try {
+      // Form is source of truth: empty input clears the corresponding runtime value.
+      const googleTask = googleClientId
+        ? fetch(GOOGLE_AUTH_API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+            body: JSON.stringify({ clientId: googleClientId }),
+          })
+        : fetch(GOOGLE_AUTH_API, {
+            method: 'DELETE',
+            headers: { ...getAuthHeaders() },
+          });
+
+      // Preserve other NexAI fields when updating/clearing only google.clientId.
+      const nexaiGetRes = await fetch(NEXAI_SETTING_API, { headers: { ...getAuthHeaders() } });
+      let nexaiPayload: Record<string, unknown> = {
+        google: { clientId: nexaiGoogleClientId },
+      };
+      if (nexaiGetRes.ok) {
+        const nexaiData = await nexaiGetRes.json();
+        const cfg = nexaiData?.setting?.config || {};
+        nexaiPayload = {
+          jwtExpiresIn: cfg.jwtExpiresIn,
+          refreshExpiresIn: cfg.refreshExpiresIn,
+          frontendUrl: cfg.frontendUrl,
+          google: { clientId: nexaiGoogleClientId },
+          github: {
+            clientId: cfg.github?.clientId || '',
+          },
+        };
+      }
+
+      const nexaiTask = fetch(NEXAI_SETTING_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify(nexaiPayload),
+      });
+
+      const results = await Promise.all([googleTask, nexaiTask]);
+      for (const res of results) {
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setNotification({ message: data.error || '保存 Google Client ID 失败', type: 'error' });
+          return;
+        }
+      }
+
+      setNotification({ message: 'Google Client ID 已保存并立即生效', type: 'success' });
+      await fetchGoogleClientIds();
+    } catch (e) {
+      setNotification({
+        message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'),
+        type: 'error',
+      });
+    } finally {
+      setGoogleClientIdsSaving(false);
+    }
+  }, [
+    fetchGoogleClientIds,
+    googleClientIdInput,
+    googleClientIdsSaving,
+    nexaiGoogleClientIdInput,
+    setNotification,
+  ]);
+
+  const handleDeleteGoogleClientIds = useCallback(async () => {
+    if (googleClientIdsDeleting) return;
+    setGoogleClientIdsDeleting(true);
+    try {
+      // Reset main-site Google Auth; clear only NexAI google.clientId while preserving other NexAI fields.
+      const nexaiRes = await fetch(NEXAI_SETTING_API, { headers: { ...getAuthHeaders() } });
+      let nexaiPayload: Record<string, unknown> = {
+        google: { clientId: '' },
+      };
+      if (nexaiRes.ok) {
+        const nexaiData = await nexaiRes.json();
+        const cfg = nexaiData?.setting?.config || {};
+        nexaiPayload = {
+          jwtExpiresIn: cfg.jwtExpiresIn,
+          refreshExpiresIn: cfg.refreshExpiresIn,
+          frontendUrl: cfg.frontendUrl,
+          google: { clientId: '' },
+          github: {
+            clientId: cfg.github?.clientId || '',
+          },
+        };
+      }
+
+      const [googleDelRes, nexaiSaveRes] = await Promise.all([
+        fetch(GOOGLE_AUTH_API, {
+          method: 'DELETE',
+          headers: { ...getAuthHeaders() },
+        }),
+        fetch(NEXAI_SETTING_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify(nexaiPayload),
+        }),
+      ]);
+
+      if (!googleDelRes.ok) {
+        const data = await googleDelRes.json().catch(() => ({}));
+        setNotification({ message: data.error || '重置 GOOGLE_CLIENT_ID 失败', type: 'error' });
+        return;
+      }
+      if (!nexaiSaveRes.ok) {
+        const data = await nexaiSaveRes.json().catch(() => ({}));
+        setNotification({ message: data.error || '重置 NEXAI_GOOGLE_CLIENT_ID 失败', type: 'error' });
+        return;
+      }
+
+      setNotification({ message: 'Google Client ID 已重置', type: 'success' });
+      setGoogleClientIdInput('');
+      setNexaiGoogleClientIdInput('');
+      await fetchGoogleClientIds();
+    } catch (e) {
+      setNotification({
+        message: '重置失败：' + (e instanceof Error ? e.message : '未知错误'),
+        type: 'error',
+      });
+    } finally {
+      setGoogleClientIdsDeleting(false);
+    }
+  }, [fetchGoogleClientIds, googleClientIdsDeleting, setNotification]);
 
   // ShortURL AES_KEY handlers
   const fetchShortAes = useCallback(async () => {
@@ -1425,6 +1632,7 @@ const EnvManager: React.FC = () => {
       outemail: fetchOutemailSettings,
       modlist: fetchModlistSetting,
       tts: fetchTtsSetting,
+      googleClientIds: fetchGoogleClientIds,
       shortaes: fetchShortAes,
       webhook: fetchWebhookSecret,
       providers: fetchProviders,
@@ -1440,7 +1648,7 @@ const EnvManager: React.FC = () => {
         lazyMap[key]();
       }
     }
-  }, [expandedSections, fetchEnvs, fetchOutemailSettings, fetchModlistSetting, fetchTtsSetting, fetchShortAes, fetchWebhookSecret, fetchProviders, fetchIpfsConfig, fetchTurnstileConfig, fetchHcaptchaConfig, fetchClarityConfig, fetchGithubBillingConfig]);
+  }, [expandedSections, fetchEnvs, fetchOutemailSettings, fetchModlistSetting, fetchTtsSetting, fetchGoogleClientIds, fetchShortAes, fetchWebhookSecret, fetchProviders, fetchIpfsConfig, fetchTurnstileConfig, fetchHcaptchaConfig, fetchClarityConfig, fetchGithubBillingConfig]);
 
   // 使用公共方法处理数据来源点击
   const handleSourceClickWrapper = useCallback((source: string) => {
@@ -1911,14 +2119,99 @@ const EnvManager: React.FC = () => {
           </div>
         </CollapsibleSection>
 
-        <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
-          <div className="font-semibold">Google / NexAI Client ID 环境变量</div>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-indigo-800">
-            <li><code className="rounded bg-white/80 px-1">GOOGLE_CLIENT_ID</code>：主站 Google Identity Services（GSI）Web Client ID，可在下方「Google Auth 运行时配置」写入。</li>
-            <li><code className="rounded bg-white/80 px-1">NEXAI_GOOGLE_CLIENT_ID</code>：NexAI Google 登录 Client ID，可在下方「NexAI 运行时配置」写入；未配置时回退 <code className="rounded bg-white/80 px-1">GOOGLE_CLIENT_ID</code>。</li>
-            <li>进程环境 / <code className="rounded bg-white/80 px-1">.env</code> 中的同名变量会作为启动默认值；Env 列表若已存在这两个键也会显示来源标签。</li>
-          </ul>
-        </div>
+        <CollapsibleSection
+          title="Google / NexAI Client ID 环境变量"
+          description="直接配置 GOOGLE_CLIENT_ID 与 NEXAI_GOOGLE_CLIENT_ID。保存后写入运行时配置并立即生效；进程环境 / .env 同名变量仅作启动默认值。"
+          sectionKey="googleClientIds"
+          isOpen={isSectionOpen('googleClientIds')}
+          onToggle={toggleSection}
+          prefersReducedMotion={prefersReducedMotion}
+          headerRight={
+            <m.button
+              onClick={(e) => {
+                e.stopPropagation();
+                fetchGoogleClientIds();
+              }}
+              disabled={googleClientIdsLoading}
+              className={ENV_MANAGER_REFRESH_BUTTON_CLASS}
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaSync className={`w-4 h-4 ${googleClientIdsLoading ? 'animate-spin' : ''}`} /> 刷新
+            </m.button>
+          }
+        >
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50/70 px-4 py-3 text-xs leading-5 text-indigo-900">
+            <p>
+              <code className="rounded bg-white/80 px-1">GOOGLE_CLIENT_ID</code>
+              ：主站 Google Identity Services（GSI）Web Client ID。
+            </p>
+            <p className="mt-1">
+              <code className="rounded bg-white/80 px-1">NEXAI_GOOGLE_CLIENT_ID</code>
+              ：NexAI Google 登录 Client ID；未配置时可回退主站 ID。
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">GOOGLE_CLIENT_ID</label>
+              <input
+                value={googleClientIdInput}
+                onChange={(e) => setGoogleClientIdInput(e.target.value)}
+                placeholder="xxxx.apps.googleusercontent.com"
+                autoComplete="off"
+                spellCheck={false}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 sm:text-base"
+              />
+              <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                当前生效：
+                {googleClientIdsLoading
+                  ? '加载中...'
+                  : googleClientIdCurrent || '未设置'}
+              </div>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">NEXAI_GOOGLE_CLIENT_ID</label>
+              <input
+                value={nexaiGoogleClientIdInput}
+                onChange={(e) => setNexaiGoogleClientIdInput(e.target.value)}
+                placeholder="xxxx.apps.googleusercontent.com"
+                autoComplete="off"
+                spellCheck={false}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 sm:text-base"
+              />
+              <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                当前生效：
+                {googleClientIdsLoading
+                  ? '加载中...'
+                  : nexaiGoogleClientIdCurrent || '未设置（可回退 GOOGLE_CLIENT_ID）'}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3">
+            <m.button
+              onClick={handleDeleteGoogleClientIds}
+              disabled={googleClientIdsDeleting || googleClientIdsSaving}
+              className="rounded-lg bg-red-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-red-600 disabled:opacity-50 sm:px-4"
+              whileTap={{ scale: 0.96 }}
+            >
+              {googleClientIdsDeleting ? '重置中...' : '重置'}
+            </m.button>
+            <m.button
+              onClick={handleSaveGoogleClientIds}
+              disabled={googleClientIdsSaving || googleClientIdsDeleting}
+              className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50 sm:px-4"
+              whileTap={{ scale: 0.96 }}
+            >
+              {googleClientIdsSaving ? '保存中...' : '保存/更新'}
+            </m.button>
+          </div>
+
+          <div className="mt-1 text-xs text-gray-500">
+            最后更新时间：
+            {googleClientIdsUpdatedAt ? new Date(googleClientIdsUpdatedAt).toLocaleString() : '-'}
+          </div>
+        </CollapsibleSection>
 
         <RuntimeConfigSections />
 
