@@ -317,7 +317,7 @@ export const compileTimeConfig = Object.freeze({
   audioDir: path.join(process.cwd(), "finish"),
   dataDir: path.join(process.cwd(), "data"),
   logsDir: path.join(process.cwd(), "logs"),
-  runtimeMutableKeys: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "EMAIL", "ADMIN_SECURITY"] as const,
+  runtimeMutableKeys: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "EMAIL", "ADMIN_SECURITY", "SYNAPSE_ANDROID"] as const,
 });
 
 const runtimeDefaults = buildRuntimeConfigDefaults({
@@ -473,6 +473,9 @@ export const runtimeMutableConfig = {
   get googleAuth(): GoogleAuthRuntimeConfig {
     return RuntimeConfigService.getCachedConfig().googleAuth;
   },
+  get synapseAndroid() {
+    return RuntimeConfigService.getCachedConfig().synapseAndroid;
+  },
   get deeplx(): DeepLXRuntimeConfig {
     return RuntimeConfigService.getCachedConfig().deeplx;
   },
@@ -542,6 +545,9 @@ export const config = {
   },
   get googleAuth() {
     return runtimeMutableConfig.googleAuth;
+  },
+  get synapseAndroid() {
+    return runtimeMutableConfig.synapseAndroid;
   },
   get deeplx() {
     return runtimeMutableConfig.deeplx;

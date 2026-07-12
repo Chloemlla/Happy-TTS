@@ -71,6 +71,20 @@ export interface AdminSecurityRuntimeConfig {
   publicShortUrlPassword: string;
 }
 
+export interface SynapseAndroidRuntimeConfig {
+  /** Android applicationId / package name for Digital Asset Links */
+  packageName: string;
+  /** Colon-separated SHA-256 cert fingerprints for release (and optional debug) */
+  sha256CertFingerprints: string[];
+  /**
+   * Optional Google Web Client ID for Android Credential Manager SIWG serverClientId.
+   * Empty means fall back to main googleAuth.clientId / GOOGLE_CLIENT_ID.
+   */
+  googleClientId: string;
+  /** When true, assetlinks.json omits Synapse Android statements from this config */
+  disabled: boolean;
+}
+
 export interface RuntimeConfigDefaults {
   ipqs: IpqsRuntimeConfig;
   linuxdo: LinuxDoRuntimeConfig;
@@ -80,6 +94,7 @@ export interface RuntimeConfigDefaults {
   tts: TtsRuntimeConfig;
   email: EmailRuntimeConfig;
   adminSecurity: AdminSecurityRuntimeConfig;
+  synapseAndroid: SynapseAndroidRuntimeConfig;
 }
 
 export function buildRuntimeConfigDefaults(options: {
@@ -158,6 +173,14 @@ export function buildRuntimeConfigDefaults(options: {
       publicShortUrlEnabled: options.publicShortUrlEnabled,
       publicShortUrlPassword: options.publicShortUrlPassword || "",
     },
+    synapseAndroid: {
+      packageName: "com.synapse.mobile",
+      sha256CertFingerprints: [
+        "E9:D8:5A:D2:52:C3:8D:86:C6:E4:B2:A8:C0:49:B8:B5:A9:FA:79:AC:6E:BB:11:8C:94:0A:83:03:B6:96:39:98",
+      ],
+      googleClientId: "",
+      disabled: false,
+    },
   };
 }
 
@@ -194,6 +217,10 @@ export function cloneRuntimeConfigDefaults(config: RuntimeConfigDefaults): Runti
     },
     adminSecurity: {
       ...config.adminSecurity,
+    },
+    synapseAndroid: {
+      ...config.synapseAndroid,
+      sha256CertFingerprints: [...config.synapseAndroid.sha256CertFingerprints],
     },
   };
 }

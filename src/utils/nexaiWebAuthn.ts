@@ -1,4 +1,5 @@
 import { config } from "../config/config";
+import { RuntimeConfigService } from "../services/runtimeConfigService";
 import logger from "./logger";
 
 const DEFAULT_RP_ID = "tts.chloemlla.com";
@@ -194,7 +195,8 @@ function buildAssetLinkStatement(packageName: string, fingerprints: string[]): A
  * Priority:
  * 1. Full non-empty JSON override via `NEXAI_ANDROID_ASSETLINKS_JSON`
  * 2. Default packages (Synapse Mobile + NexAI) merged with env package/fingerprint lists
- * 3. Empty array only when explicitly disabled (`ANDROID_ASSETLINKS_DISABLED=true`)
+ * 3. Optional runtime SYNAPSE_ANDROID config from EnvManager (upsert/disable only)
+ * 4. Empty array only when explicitly disabled (`ANDROID_ASSETLINKS_DISABLED=true`)
  */
 export function getNexaiAssetLinksStatements(): AndroidAssetLinkStatement[] {
   if (isAssetLinksDisabled()) {
@@ -276,6 +278,42 @@ export function getNexaiAssetLinksStatements(): AndroidAssetLinkStatement[] {
     } else {
       byPackage.set(statement.target.package_name, statement);
     }
+  }
+
+  // Optional runtime config from EnvManager (SYNAPSE_ANDROID). Does not remove
+  // NexAI defaults or env-based entries; only upserts/disables the configured package.
+  try {
+    const runtimeAndroid = RuntimeConfigService.getCachedConfig().synapseAndroid;
+    const runtimePackage = String(runtimeAndroid?.packageName || "").trim();
+    if (runtimePackage) {
+      if (runtimeAndroid.disabled) {
+        byPackage.delete(runtimePackage);
+      } else if (Array.isArray(runtimeAndroid.sha256CertFingerprints) && runtimeAndroid.sha256CertFingerprints.length > 0) {
+        const statement = buildAssetLinkStatement(runtimePackage, runtimeAndroid.sha256CertFingerprints);
+        if (statement) {
+          const existing = byPackage.get(runtimePackage);
+          byPackage.set(
+            runtimePackage,
+            existing
+              ? {
+                  ...existing,
+                  target: {
+                    ...existing.target,
+                    sha256_cert_fingerprints: unique([
+                      ...existing.target.sha256_cert_fingerprints,
+                      ...statement.target.sha256_cert_fingerprints,
+                    ]),
+                  },
+                }
+              : statement,
+          );
+        }
+      }
+    }
+  } catch (error) {
+    logger.warn("[NexAI] 读取运行时 Synapse Android assetlinks 配置失败，已忽略", {
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 
   return Array.from(byPackage.values());

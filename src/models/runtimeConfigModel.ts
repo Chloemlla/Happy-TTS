@@ -9,6 +9,7 @@ export const RUNTIME_CONFIG_KEYS = [
   "TTS",
   "EMAIL",
   "ADMIN_SECURITY",
+  "SYNAPSE_ANDROID",
 ] as const;
 
 export type RuntimeConfigKey = (typeof RUNTIME_CONFIG_KEYS)[number];

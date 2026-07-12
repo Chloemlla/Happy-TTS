@@ -2025,6 +2025,45 @@ export const adminController = {
     }
   },
 
+  async getSynapseAndroidSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      const result = await RuntimeConfigService.getSynapseAndroidSetting();
+      return res.json({ success: true, ...result });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "获取 Synapse Android / assetlinks 配置失败",
+      });
+    }
+  },
+
+  async setSynapseAndroidSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      const result = await RuntimeConfigService.setSynapseAndroidSetting(req.body || {});
+      return res.json({ success: true, setting: result });
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: error instanceof Error ? error.message : "保存 Synapse Android / assetlinks 配置失败",
+      });
+    }
+  },
+
+  async deleteSynapseAndroidSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      await RuntimeConfigService.deleteSynapseAndroidSetting();
+      return res.json({ success: true });
+    } catch (_error) {
+      return res.status(500).json({ success: false, error: "删除 Synapse Android / assetlinks 配置失败" });
+    }
+  },
+
   async getDeepLXSetting(req: Request, res: Response) {
     try {
       if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "鏃犳潈闄?" });

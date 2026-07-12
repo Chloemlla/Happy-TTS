@@ -9,6 +9,7 @@ import {
   type LinuxDoRuntimeConfig,
   type NexaiRuntimeConfig,
   type RuntimeConfigDefaults,
+  type SynapseAndroidRuntimeConfig,
   type TtsRuntimeConfig,
 } from "../config/runtimeConfigDefaults";
 import { type RuntimeConfigKey, RuntimeConfigModel } from "../models/runtimeConfigModel";
@@ -354,6 +355,68 @@ async function readRuntimeConfigDoc(
   };
 }
 
+
+function normalizeSha256FingerprintList(value: unknown, fallback: string[]): string[] {
+  const items: string[] = [];
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      if (typeof entry === "string" && entry.trim()) {
+        items.push(entry.trim());
+      }
+    }
+  } else if (typeof value === "string" && value.trim()) {
+    for (const entry of value.split(/[\n,]+/)) {
+      if (entry.trim()) items.push(entry.trim());
+    }
+  }
+
+  const normalized = Array.from(
+    new Set(
+      items
+        .map((item) => {
+          const trimmed = item.trim();
+          if (!trimmed) return "";
+          if (trimmed.includes(":")) return trimmed.toUpperCase();
+          const compact = trimmed.replace(/[^0-9a-fA-F]/g, "");
+          if (compact.length === 64 && /^[0-9a-fA-F]+$/.test(compact)) {
+            return compact
+              .toUpperCase()
+              .match(/.{1,2}/g)!
+              .join(":");
+          }
+          return trimmed.toUpperCase();
+        })
+        .filter(Boolean),
+    ),
+  );
+
+  return normalized.length > 0 ? normalized : [...fallback];
+}
+
+function normalizeStoredSynapseAndroidConfig(
+  value: unknown,
+  defaults = runtimeConfigDefaults.synapseAndroid,
+): SynapseAndroidRuntimeConfig {
+  const obj = asObject(value);
+  const packageName = normalizeOptionalString(obj.packageName, defaults.packageName, 200) || defaults.packageName;
+  const googleClientId = normalizeOptionalString(
+    obj.googleClientId ?? obj.clientId,
+    defaults.googleClientId,
+    256,
+  );
+  const disabled =
+    obj.disabled === true || obj.disabled === "true" || obj.disabled === 1 || obj.disabled === "1";
+
+  return {
+    packageName,
+    sha256CertFingerprints: normalizeSha256FingerprintList(
+      obj.sha256CertFingerprints ?? obj.fingerprints,
+      defaults.sha256CertFingerprints,
+    ),
+    googleClientId,
+    disabled: Boolean(disabled),
+  };
+}
 function applyCacheForKey(key: RuntimeConfigKey, value: unknown): void {
   if (key === "IPQS") {
     runtimeConfigCache.ipqs = normalizeStoredIpqsConfig(value);
@@ -390,6 +453,11 @@ function applyCacheForKey(key: RuntimeConfigKey, value: unknown): void {
     return;
   }
 
+  if (key === "SYNAPSE_ANDROID") {
+    runtimeConfigCache.synapseAndroid = normalizeStoredSynapseAndroidConfig(value);
+    return;
+  }
+
   runtimeConfigCache.nexai = normalizeStoredNexaiConfig(value);
 }
 
@@ -421,6 +489,9 @@ export class RuntimeConfigService {
     if (!loadedKeys.has("ADMIN_SECURITY")) {
       runtimeConfigCache.adminSecurity = cloneRuntimeConfigDefaults(defaults).adminSecurity;
     }
+    if (!loadedKeys.has("SYNAPSE_ANDROID")) {
+      runtimeConfigCache.synapseAndroid = cloneRuntimeConfigDefaults(defaults).synapseAndroid;
+    }
   }
 
   static getCachedConfig(): RuntimeConfigDefaults {
@@ -432,7 +503,7 @@ export class RuntimeConfigService {
     if (initialized && !force) return;
 
     const docs = await RuntimeConfigModel.find({
-      key: { $in: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "EMAIL", "ADMIN_SECURITY"] },
+      key: { $in: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "EMAIL", "ADMIN_SECURITY", "SYNAPSE_ANDROID"] },
     })
       .lean()
       .exec();
@@ -451,6 +522,7 @@ export class RuntimeConfigService {
       nextCache.tts = runtimeConfigCache.tts;
       nextCache.email = runtimeConfigCache.email;
       nextCache.adminSecurity = runtimeConfigCache.adminSecurity;
+      nextCache.synapseAndroid = runtimeConfigCache.synapseAndroid;
       loadedKeys.add(doc.key as RuntimeConfigKey);
     }
 
@@ -680,6 +752,100 @@ export class RuntimeConfigService {
     await RuntimeConfigModel.deleteOne({ key: "GOOGLE_AUTH" }).exec();
     runtimeConfigCache.googleAuth = cloneRuntimeConfigDefaults(runtimeConfigDefaults).googleAuth;
     loadedKeys.delete("GOOGLE_AUTH");
+  }
+
+  static async getSynapseAndroidSetting(): Promise<{
+    setting: {
+      config: SynapseAndroidRuntimeConfig;
+      updatedAt?: string;
+      assetlinksPath: string;
+    };
+  }> {
+    const doc = await readRuntimeConfigDoc("SYNAPSE_ANDROID");
+    const config = doc ? normalizeStoredSynapseAndroidConfig(doc.value) : runtimeConfigDefaults.synapseAndroid;
+    runtimeConfigCache.synapseAndroid = config;
+
+    return {
+      setting: {
+        config: {
+          packageName: config.packageName,
+          sha256CertFingerprints: [...config.sha256CertFingerprints],
+          googleClientId: config.googleClientId,
+          disabled: config.disabled,
+        },
+        updatedAt: doc?.updatedAt?.toISOString(),
+        assetlinksPath: "/.well-known/assetlinks.json",
+      },
+    };
+  }
+
+  static async setSynapseAndroidSetting(
+    input: Partial<SynapseAndroidRuntimeConfig> | Record<string, unknown>,
+  ): Promise<{ updatedAt: string }> {
+    const currentDoc = await readRuntimeConfigDoc("SYNAPSE_ANDROID");
+    const current = currentDoc
+      ? normalizeStoredSynapseAndroidConfig(currentDoc.value)
+      : runtimeConfigCache.synapseAndroid;
+    const obj = asObject(input);
+
+    const nextPackageName = hasOwnKey(obj, "packageName")
+      ? normalizeOptionalString(obj.packageName, current.packageName, 200) || current.packageName
+      : current.packageName;
+
+    const nextFingerprints =
+      hasOwnKey(obj, "sha256CertFingerprints") || hasOwnKey(obj, "fingerprints")
+        ? normalizeSha256FingerprintList(
+            obj.sha256CertFingerprints ?? obj.fingerprints,
+            current.sha256CertFingerprints,
+          )
+        : current.sha256CertFingerprints;
+
+    const nextGoogleClientId =
+      hasOwnKey(obj, "googleClientId") || hasOwnKey(obj, "clientId")
+        ? normalizeOptionalString(obj.googleClientId ?? obj.clientId, "", 256)
+        : current.googleClientId;
+
+    if (nextGoogleClientId && !/^[\w-]+\.apps\.googleusercontent\.com$/i.test(nextGoogleClientId)) {
+      throw new Error("SYNAPSE_ANDROID_GOOGLE_CLIENT_ID 格式无效，需为 xxx.apps.googleusercontent.com");
+    }
+
+    if (!nextPackageName || !/^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$/.test(nextPackageName)) {
+      throw new Error("ANDROID_PACKAGE_NAME 格式无效");
+    }
+
+    if (nextFingerprints.length === 0) {
+      throw new Error("至少需要一个 SHA-256 证书指纹");
+    }
+
+    const nextDisabled = hasOwnKey(obj, "disabled")
+      ? obj.disabled === true || obj.disabled === "true" || obj.disabled === 1 || obj.disabled === "1"
+      : current.disabled;
+
+    const nextConfig: SynapseAndroidRuntimeConfig = {
+      packageName: nextPackageName,
+      sha256CertFingerprints: nextFingerprints,
+      googleClientId: nextGoogleClientId,
+      disabled: Boolean(nextDisabled),
+    };
+
+    const now = new Date();
+    await RuntimeConfigModel.findOneAndUpdate(
+      { key: "SYNAPSE_ANDROID" },
+      { value: nextConfig, updatedAt: now },
+      { upsert: true, returnDocument: "after" },
+    ).exec();
+
+    runtimeConfigCache.synapseAndroid = nextConfig;
+    loadedKeys.add("SYNAPSE_ANDROID");
+    initialized = true;
+
+    return { updatedAt: now.toISOString() };
+  }
+
+  static async deleteSynapseAndroidSetting(): Promise<void> {
+    await RuntimeConfigModel.deleteOne({ key: "SYNAPSE_ANDROID" }).exec();
+    runtimeConfigCache.synapseAndroid = cloneRuntimeConfigDefaults(runtimeConfigDefaults).synapseAndroid;
+    loadedKeys.delete("SYNAPSE_ANDROID");
   }
 
   static async getDeepLXSetting(): Promise<{
