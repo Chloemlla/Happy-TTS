@@ -636,6 +636,62 @@ export class NexaiAuthController {
   }
 
   /**
+   * POST /api/nexai/auth/passkey/login/discoverable/options
+   * 获取 Discoverable（无用户名）Passkey 登录选项
+   */
+  static async generateDiscoverablePasskeyAuthenticationOptions(req: Request, res: Response) {
+    try {
+      void req;
+      const options = await NexaiAuthService.generateDiscoverablePasskeyAuthenticationOptions();
+      res.json({
+        success: true,
+        data: options,
+      });
+    } catch (error: any) {
+      res.status(error.statusCode || 500).json({
+        success: false,
+        error: error.message || "获取 Discoverable 登录选项失败",
+      });
+    }
+  }
+
+  /**
+   * POST /api/nexai/auth/passkey/login/discoverable/verify
+   * 验证 Discoverable Passkey 登录
+   * Body: { response: any, challenge: string }
+   */
+  static async verifyDiscoverablePasskeyAuthentication(req: Request, res: Response) {
+    try {
+      const { response, challenge } = req.body || {};
+      if (!response || !challenge) {
+        return res.status(400).json({ success: false, error: "参数不完整" });
+      }
+
+      const ip = req.ip || (req.headers["x-real-ip"] as string) || "unknown";
+      const result = await NexaiAuthService.verifyDiscoverablePasskeyAuthentication(response, challenge, ip);
+
+      res.json({
+        success: true,
+        message: "Passkey 登录成功",
+        data: {
+          user: sanitizeUser(result.user),
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+        },
+      });
+    } catch (error: any) {
+      const body: any = {
+        success: false,
+        error: error.message || "登录验证失败",
+      };
+      if (error.code) {
+        body.code = error.code;
+      }
+      res.status(error.statusCode || 500).json(body);
+    }
+  }
+
+  /**
    * GET /api/nexai/auth/passkey/signal/options
    * 获取 Credential Manager Signal API 所需的 RP 侧权威状态（需先登录）
    */

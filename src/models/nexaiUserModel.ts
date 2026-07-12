@@ -66,6 +66,7 @@ const nexaiUserSchema = new mongoose.Schema(
 
 // 索引优化
 nexaiUserSchema.index({ email: 1, authProvider: 1 });
+nexaiUserSchema.index({ "passkeys.id": 1 });
 
 export const NexaiUserModel = mongoose.models.NexaiUser || mongoose.model("NexaiUser", nexaiUserSchema);
 

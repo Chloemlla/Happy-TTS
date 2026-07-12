@@ -166,6 +166,32 @@ router.post("/auth/passkey/login/verify", nexaiLoginLimiter, NexaiAuthController
 
 /**
  * @openapi
+ * /api/nexai/auth/passkey/login/discoverable/options:
+ *   post:
+ *     summary: 获取 Discoverable（无用户名）Passkey 登录选项
+ *     tags: [NexAI WebAuthn]
+ */
+router.post(
+  "/auth/passkey/login/discoverable/options",
+  nexaiLoginLimiter,
+  NexaiAuthController.generateDiscoverablePasskeyAuthenticationOptions,
+);
+
+/**
+ * @openapi
+ * /api/nexai/auth/passkey/login/discoverable/verify:
+ *   post:
+ *     summary: 验证 Discoverable Passkey 登录
+ *     tags: [NexAI WebAuthn]
+ */
+router.post(
+  "/auth/passkey/login/discoverable/verify",
+  nexaiLoginLimiter,
+  NexaiAuthController.verifyDiscoverablePasskeyAuthentication,
+);
+
+/**
+ * @openapi
  * /api/nexai/auth/google:
  *   post:
  *     summary: Google OAuth 登录/注册

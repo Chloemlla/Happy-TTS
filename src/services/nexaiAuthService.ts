@@ -27,6 +27,36 @@ import { sendProviderGeneratedPasswordEmail } from "./providerCredentialEmailSer
 
 export const NEXAI_PASSKEY_UNKNOWN_CREDENTIAL_CODE = "unknown_credential";
 
+/** In-memory discoverable (usernameless) challenge store with TTL. */
+const DISCOVERABLE_CHALLENGE_TTL_MS = 5 * 60 * 1000;
+const discoverableChallenges = new Map<string, number>();
+
+function pruneDiscoverableChallenges(now = Date.now()): void {
+  for (const [challenge, createdAt] of discoverableChallenges.entries()) {
+    if (now - createdAt > DISCOVERABLE_CHALLENGE_TTL_MS) {
+      discoverableChallenges.delete(challenge);
+    }
+  }
+}
+
+function storeDiscoverableChallenge(challenge: string): void {
+  const now = Date.now();
+  pruneDiscoverableChallenges(now);
+  discoverableChallenges.set(challenge, now);
+}
+
+function consumeDiscoverableChallenge(challenge: string): boolean {
+  const now = Date.now();
+  pruneDiscoverableChallenges(now);
+  const createdAt = discoverableChallenges.get(challenge);
+  if (createdAt === undefined) {
+    return false;
+  }
+  discoverableChallenges.delete(challenge);
+  return now - createdAt <= DISCOVERABLE_CHALLENGE_TTL_MS;
+}
+
+
 // ========== 配置 ==========
 
 function getNexaiJwtSecret(): string {
@@ -135,6 +165,21 @@ function getAuthenticationCredentialId(response: AuthenticationResponseJSON): st
   const maybeResponse = response as AuthenticationResponseJSON & { rawId?: unknown };
   const credentialId = typeof maybeResponse.id === "string" ? maybeResponse.id : maybeResponse.rawId;
   return typeof credentialId === "string" && credentialId.length > 0 ? credentialId : null;
+}
+
+async function findUserByPasskeyCredentialId(credentialId: string): Promise<INexaiUser | null> {
+  const normalized = normalizeBase64Url(credentialId);
+  if (!normalized) return null;
+
+  // New records store unpadded base64url ids.
+  const exact = (await NexaiUserModel.findOne({ "passkeys.id": normalized }).lean()) as INexaiUser | null;
+  if (exact) return exact;
+
+  // Legacy padded base64url variants.
+  const padLen = (4 - (normalized.length % 4)) % 4;
+  if (padLen === 0) return null;
+  const padded = normalized + "=".repeat(padLen);
+  return (await NexaiUserModel.findOne({ "passkeys.id": padded }).lean()) as INexaiUser | null;
 }
 
 function validateUsername(username: string): ValidationError[] {
@@ -648,7 +693,9 @@ export class NexaiAuthService {
       attestationType: "none",
       excludeCredentials: existingCredentials,
       authenticatorSelection: {
-        residentKey: "preferred",
+        // required improves usernameless discoverable login on Android Credential Manager
+        residentKey: "required",
+        requireResidentKey: true,
         userVerification: "preferred",
         authenticatorAttachment: "platform", // 优先使用设备内置，如 FaceID/TouchID/Android Passkeys
       },
@@ -744,6 +791,20 @@ export class NexaiAuthService {
     return { options, userId: user.id };
   }
 
+  /** 3b. 生成 Discoverable (无用户名) Passkey 登录选项 */
+  static async generateDiscoverablePasskeyAuthenticationOptions() {
+    const { rpID } = NexaiAuthService.getWebAuthnConfig();
+    const options = await generateAuthenticationOptions({
+      rpID,
+      // Empty allowCredentials enables Conditional UI / usernameless discoverable credentials.
+      allowCredentials: [],
+      userVerification: "preferred",
+    });
+
+    storeDiscoverableChallenge(options.challenge);
+    return options;
+  }
+
   /** 4. 验证 Passkey 登录响应 */
   static async verifyPasskeyAuthentication(userId: string, response: AuthenticationResponseJSON, ip?: string) {
     const user = (await NexaiUserModel.findOne({ id: userId }).lean()) as INexaiUser;
@@ -827,6 +888,96 @@ export class NexaiAuthService {
       return { user, accessToken, refreshToken };
     }
     throw Object.assign(new Error("Passkey 验证未通过"), { statusCode: 401 });
+  }
+
+  /** 4b. 验证 Discoverable Passkey 登录（通过 credential id 反查用户） */
+  static async verifyDiscoverablePasskeyAuthentication(
+    response: AuthenticationResponseJSON,
+    challenge: string,
+    ip?: string,
+  ) {
+    if (!challenge || typeof challenge !== "string") {
+      throw Object.assign(new Error("缺少 challenge"), { statusCode: 400 });
+    }
+    if (!consumeDiscoverableChallenge(challenge)) {
+      throw Object.assign(new Error("挑战不存在或已过期，请重试"), { statusCode: 400 });
+    }
+
+    const credentialId = getAuthenticationCredentialId(response);
+    if (!credentialId) {
+      throw Object.assign(new Error("Passkey 响应缺少 credential id"), { statusCode: 400 });
+    }
+
+    const user = await findUserByPasskeyCredentialId(credentialId);
+    if (!user) {
+      throw Object.assign(new Error("未找到对应通行密钥记录"), {
+        statusCode: 400,
+        code: NEXAI_PASSKEY_UNKNOWN_CREDENTIAL_CODE,
+      });
+    }
+
+    const normalizedCredentialId = normalizeBase64Url(credentialId);
+    const passkey = (user.passkeys || []).find(
+      (pk) => typeof pk.id === "string" && normalizeBase64Url(pk.id) === normalizedCredentialId,
+    );
+    if (!passkey) {
+      throw Object.assign(new Error("未找到对应通行密钥记录"), {
+        statusCode: 400,
+        code: NEXAI_PASSKEY_UNKNOWN_CREDENTIAL_CODE,
+      });
+    }
+
+    const { rpID, expectedOrigins } = NexaiAuthService.getWebAuthnConfig();
+    const expectedOrigin = expectedOrigins.length === 1 ? expectedOrigins[0] : expectedOrigins;
+
+    let verification;
+    try {
+      verification = await verifyAuthenticationResponse({
+        response,
+        expectedChallenge: challenge,
+        expectedOrigin,
+        expectedRPID: rpID,
+        credential: {
+          id: normalizeBase64Url(passkey.id),
+          publicKey: new Uint8Array(passkey.publicKey),
+          counter: passkey.counter,
+          transports: passkey.transports as AuthenticatorTransport[],
+        },
+        requireUserVerification: false,
+      });
+    } catch (error: any) {
+      logger.error("[NexAI] Discoverable Passkey 登录验证失败", { error: error.message });
+      throw Object.assign(new Error(`登录验证失败: ${error.message}`), { statusCode: 400 });
+    }
+
+    if (!verification.verified) {
+      throw Object.assign(new Error("Passkey 验证未通过"), { statusCode: 401 });
+    }
+
+    const { authenticationInfo } = verification;
+    await NexaiUserModel.updateOne(
+      { id: user.id, "passkeys.id": passkey.id },
+      { $set: { "passkeys.$.counter": authenticationInfo.newCounter } },
+    );
+
+    const refreshToken = generateRefreshToken();
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+    await NexaiUserModel.findOneAndUpdate(
+      { id: user.id },
+      {
+        $set: {
+          refreshToken: hashedRefreshToken,
+          refreshTokenExpiresAt: getRefreshTokenExpiry(),
+          lastLoginAt: new Date(),
+          lastLoginIp: ip || "",
+        },
+        $inc: { loginCount: 1 },
+      },
+    );
+
+    const accessToken = generateAccessToken(user);
+    logger.info("[NexAI] 用户通过 Discoverable Passkey 登录成功", { userId: user.id });
+    return { user, accessToken, refreshToken };
   }
 
   static async getPasskeySignalOptions(userId: string) {

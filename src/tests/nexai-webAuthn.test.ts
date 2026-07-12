@@ -249,4 +249,60 @@ describe("NexAI WebAuthn backend fixes", () => {
 
     expect(expiredChallengeResponse.body.code).toBeUndefined();
   });
+
+  it("issues discoverable passkey login options without an identifier", async () => {
+    const response = await request(app).post("/api/nexai/auth/passkey/login/discoverable/options").send({}).expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.data).toMatchObject({
+      rpId: "tts.chloemlla.com",
+      userVerification: "preferred",
+    });
+    expect(typeof response.body.data.challenge).toBe("string");
+    expect(response.body.data.challenge.length).toBeGreaterThan(0);
+    expect(response.body.data.allowCredentials).toEqual([]);
+  });
+
+  it("rejects discoverable verify for unknown credentials with unknown_credential", async () => {
+    const optionsResponse = await request(app)
+      .post("/api/nexai/auth/passkey/login/discoverable/options")
+      .send({})
+      .expect(200);
+
+    const challenge = optionsResponse.body.data.challenge as string;
+    const verifyResponse = await request(app)
+      .post("/api/nexai/auth/passkey/login/discoverable/verify")
+      .send({
+        challenge,
+        response: { id: "missing-discoverable-credential" },
+      })
+      .expect(400);
+
+    expect(verifyResponse.body).toMatchObject({
+      success: false,
+      code: NEXAI_PASSKEY_UNKNOWN_CREDENTIAL_CODE,
+    });
+  });
+
+  it("rejects discoverable verify when challenge is missing or expired", async () => {
+    const missingChallenge = await request(app)
+      .post("/api/nexai/auth/passkey/login/discoverable/verify")
+      .send({
+        response: { id: "any-credential" },
+      })
+      .expect(400);
+    expect(missingChallenge.body.success).toBe(false);
+    expect(missingChallenge.body.code).toBeUndefined();
+
+    const expiredChallenge = await request(app)
+      .post("/api/nexai/auth/passkey/login/discoverable/verify")
+      .send({
+        challenge: "never-issued-challenge",
+        response: { id: "any-credential" },
+      })
+      .expect(400);
+    expect(expiredChallenge.body.success).toBe(false);
+    expect(expiredChallenge.body.code).toBeUndefined();
+  });
+
 });
