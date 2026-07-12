@@ -92,9 +92,13 @@ export function buildRuntimeConfigDefaults(options: {
   publicShortUrlPassword?: string;
   generationCode: string;
   email: EmailRuntimeConfig;
+  googleClientId?: string;
+  nexaiGoogleClientId?: string;
 }): RuntimeConfigDefaults {
   const normalizedBaseUrl = options.baseUrl.replace(/\/+$/, "");
   const normalizedFrontendBaseUrl = options.frontendBaseUrl.replace(/\/+$/, "");
+  const googleClientId = (options.googleClientId || "").trim();
+  const nexaiGoogleClientId = (options.nexaiGoogleClientId || options.googleClientId || "").trim();
 
   return {
     ipqs: {
@@ -123,7 +127,7 @@ export function buildRuntimeConfigDefaults(options: {
       frontendCallbackUrl: `${normalizedFrontendBaseUrl}/auth/linuxdo/callback`,
     },
     googleAuth: {
-      clientId: "",
+      clientId: googleClientId,
     },
     deeplx: {
       baseUrl: "https://api.deeplx.org",
@@ -134,7 +138,7 @@ export function buildRuntimeConfigDefaults(options: {
       jwtExpiresIn: "2h",
       refreshExpiresIn: "30d",
       google: {
-        clientId: "",
+        clientId: nexaiGoogleClientId,
       },
       github: {
         clientId: "",

@@ -192,30 +192,84 @@ function normalizeStoredLinuxDoConfig(value: unknown, defaults = runtimeConfigDe
   };
 }
 
+/** Google Identity Services requires a Web application OAuth client ID. */
+export const GOOGLE_WEB_CLIENT_ID_PATTERN = /^[\w-]+\.apps\.googleusercontent\.com$/i;
+
+export function isValidGoogleWebClientId(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim();
+  return GOOGLE_WEB_CLIENT_ID_PATTERN.test(trimmed);
+}
+
+/**
+ * Extract client_id from admin form payloads or Google Cloud Console OAuth JSON.
+ * Preference order follows GSI Web requirements:
+ * 1) web.client_id (Web application)
+ * 2) top-level clientId / client_id
+ * 3) installed.client_id (Desktop) — last resort for diagnostics only
+ */
 export function extractGoogleAuthClientId(value: unknown): string {
   const raw = asObject(value);
   const web = asObject(raw.web);
   const installed = asObject(raw.installed);
 
-  return normalizeOptionalString(
-    raw.clientId ?? raw.client_id ?? web.clientId ?? web.client_id ?? installed.clientId ?? installed.client_id,
-    "",
-    512,
-  );
+  const webClientId = normalizeOptionalString(web.clientId ?? web.client_id, "", 512);
+  if (webClientId) {
+    return webClientId;
+  }
+
+  const plainClientId = normalizeOptionalString(raw.clientId ?? raw.client_id, "", 512);
+  if (plainClientId) {
+    return plainClientId;
+  }
+
+  return normalizeOptionalString(installed.clientId ?? installed.client_id, "", 512);
 }
 
 export function looksLikeGoogleOAuthClientJson(value: unknown): boolean {
   const raw = asObject(value);
 
-  return hasOwnKey(raw, "web") || hasOwnKey(raw, "installed") || hasOwnKey(raw, "client_id");
+  return hasOwnKey(raw, "web") || hasOwnKey(raw, "installed") || hasOwnKey(raw, "client_id") || hasOwnKey(raw, "clientId");
+}
+
+/**
+ * Desktop/Installed-only OAuth client JSON is incompatible with GSI Web Sign-In.
+ * Official guide: create a "Web application" OAuth client.
+ */
+export function isInstalledOnlyGoogleOAuthClientJson(value: unknown): boolean {
+  const raw = asObject(value);
+  if (!hasOwnKey(raw, "installed")) {
+    return false;
+  }
+  if (hasOwnKey(raw, "web")) {
+    return false;
+  }
+
+  const plainClientId = normalizeOptionalString(raw.clientId ?? raw.client_id, "", 512);
+  return !plainClientId;
+}
+
+export function assertGoogleAuthClientIdForGsi(clientId: string, source: "json" | "form" = "form"): string {
+  const normalized = clientId.trim();
+  if (!normalized) {
+    throw new Error(source === "json" ? "Google OAuth JSON 中缺少 client_id" : "Google Client ID 不能为空");
+  }
+  if (!isValidGoogleWebClientId(normalized)) {
+    throw new Error(
+      "Google Client ID 格式无效。GSI Web 登录需要形如 xxx.apps.googleusercontent.com 的 Web application Client ID。",
+    );
+  }
+  return normalized;
 }
 
 function normalizeStoredGoogleAuthConfig(
   value: unknown,
   defaults = runtimeConfigDefaults.googleAuth,
 ): GoogleAuthRuntimeConfig {
+  const extracted = extractGoogleAuthClientId(value);
+  const candidate = extracted || defaults.clientId;
   return {
-    clientId: extractGoogleAuthClientId(value) || defaults.clientId,
+    clientId: isValidGoogleWebClientId(candidate) ? candidate.trim() : "",
   };
 }
 
@@ -587,14 +641,25 @@ export class RuntimeConfigService {
   ): Promise<{ updatedAt: string }> {
     const currentDoc = await readRuntimeConfigDoc("GOOGLE_AUTH");
     const current = currentDoc ? normalizeStoredGoogleAuthConfig(currentDoc.value) : runtimeConfigCache.googleAuth;
-    const extractedClientId = extractGoogleAuthClientId(input);
-
-    if (looksLikeGoogleOAuthClientJson(input) && !extractedClientId) {
-      throw new Error("Google OAuth JSON 中缺少 client_id");
+    if (isInstalledOnlyGoogleOAuthClientJson(input)) {
+      throw new Error(
+        "当前 JSON 是 Desktop/Installed 客户端。Google Identity Services (GSI) 需要「Web application」类型的 OAuth 客户端：在 Google Cloud Console → API 和服务 → 凭据 → 创建 OAuth 客户端 ID → 应用类型选择「Web 应用」，配置 Authorized JavaScript origins 后下载 web 类型 JSON 再导入。",
+      );
     }
 
+    const extractedClientId = extractGoogleAuthClientId(input);
+    if (looksLikeGoogleOAuthClientJson(input) || extractedClientId) {
+      if (!extractedClientId) {
+        throw new Error("Google OAuth JSON 中缺少 client_id");
+      }
+      assertGoogleAuthClientIdForGsi(extractedClientId, looksLikeGoogleOAuthClientJson(input) ? "json" : "form");
+    }
+
+    const nextClientId = extractedClientId
+      ? assertGoogleAuthClientIdForGsi(extractedClientId, "form")
+      : current.clientId;
     const nextConfig: GoogleAuthRuntimeConfig = {
-      clientId: extractedClientId || current.clientId,
+      clientId: nextClientId,
     };
 
     const now = new Date();

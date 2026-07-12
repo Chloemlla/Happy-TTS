@@ -238,6 +238,12 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
           window.google.accounts.id.initialize({
             client_id: clientId,
             callback: handleCredentialResponse,
+            // GSI Web Sign-In defaults for SPA: popup credential flow + verified email
+            auto_select: false,
+            cancel_on_tap_outside: true,
+            context: intent === "register" ? "signup" : "signin",
+            ux_mode: "popup",
+            use_fedcm_for_prompt: true,
             locale: "zh-CN",
           });
           initializedClientIdRef.current = clientId;
@@ -273,7 +279,7 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [buttonText, clientId, enabled, handleCredentialResponse, loading, setNotification]);
+  }, [buttonText, clientId, enabled, handleCredentialResponse, intent, loading, setNotification]);
 
   if (loading || !enabled) {
     return null;

@@ -1223,7 +1223,7 @@ const RuntimeConfigSections: React.FC = () => {
 
       <SectionCard
         title="Google Auth 运行时配置"
-        description="主站 Google 登录使用这里的 Client ID，支持一键导入 Google 控制台下载的 OAuth JSON，不与 NexAI OAuth 配置共用。"
+        description="主站 Google Identity Services (GSI) 登录仅使用 Web application Client ID。请按官方指南创建「Web 应用」凭据，并配置 Authorized JavaScript origins（无需 redirect URI 即可用于 GSI 按钮）。支持导入 web 类型 OAuth JSON；Desktop/Installed JSON 会被拒绝。不与 NexAI OAuth 配置共用。"
         isOpen={isSectionOpen('googleAuth')}
         loading={isRuntimeSectionLoading('googleAuth', googleAuthLoading)}
         onToggle={() => toggleSection('googleAuth')}
@@ -1242,7 +1242,7 @@ const RuntimeConfigSections: React.FC = () => {
             <div>
               <div className="text-sm font-medium text-slate-800">导入 Google OAuth JSON</div>
               <div className="mt-1 text-xs text-slate-500">
-                支持 Google Cloud Console 下载的 `web` / `installed` JSON，系统会自动提取 `client_id` 并保存到主站 Google 登录配置。
+                请导入 Google Cloud Console 下载的 `web` 类型 OAuth JSON（应用类型：Web application）。系统会提取 `web.client_id`。Desktop/`installed` JSON 不符合 GSI 要求，将被拒绝。配置前请在凭据中加入前端 origin，例如 `https://tts.chloemlla.com` 与本地 `http://localhost:3001`。
               </div>
             </div>
             <button
@@ -1259,12 +1259,16 @@ const RuntimeConfigSections: React.FC = () => {
 
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <FieldLabel label="Google Client ID" />
+            <FieldLabel label="Google Client ID (Web application)" />
             <input
               value={googleAuthForm.clientId}
               onChange={(e) => setGoogleAuthForm((prev) => ({ ...prev, clientId: e.target.value }))}
+              placeholder="xxxx.apps.googleusercontent.com"
               className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
             />
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+              官方获取步骤：Google Cloud Console → API 和服务 → 凭据 → 创建 OAuth 客户端 ID → 应用类型选「Web 应用」→ 配置 Authorized JavaScript origins。GSI 按钮登录只需 Client ID，不需要 Client Secret。
+            </p>
           </div>
         </div>
 

@@ -61,6 +61,12 @@ const envSchema = z
     BASE_URL: z.string().url().optional(),
     VITE_API_URL: z.string().url().optional(),
     FRONTEND_URL: z.string().url().optional(),
+    // Google Identity Services (Web application client IDs)
+    GOOGLE_CLIENT_ID: optionalTrimmedString,
+    NEXAI_GOOGLE_CLIENT_ID: optionalTrimmedString,
+    NEXAI_GITHUB_CLIENT_ID: optionalTrimmedString,
+    NEXAI_GITHUB_CLIENT_SECRET: optionalTrimmedString,
+    NEXAI_FRONTEND_URL: z.string().url().optional(),
     OPENAI_API_KEY: optionalTrimmedString,
     OPENAI_KEY: optionalTrimmedString,
     OPENAI_BASE_URL: z.string().url().optional(),
@@ -324,6 +330,8 @@ const runtimeDefaults = buildRuntimeConfigDefaults({
   publicShortUrlPassword,
   generationCode: parsedEnv.GENERATION_CODE,
   email: emailRuntimeDefaults,
+  googleClientId: parsedEnv.GOOGLE_CLIENT_ID,
+  nexaiGoogleClientId: parsedEnv.NEXAI_GOOGLE_CLIENT_ID || parsedEnv.GOOGLE_CLIENT_ID,
 });
 
 RuntimeConfigService.configureDefaults(runtimeDefaults);

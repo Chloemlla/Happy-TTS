@@ -1258,6 +1258,12 @@ const UserProfile: React.FC = () => {
             }
             void handleGoogleBindResult(credential);
           },
+          auto_select: false,
+          cancel_on_tap_outside: true,
+          context: 'use',
+          ux_mode: 'popup',
+          use_fedcm_for_prompt: true,
+          locale: 'zh-CN',
         });
 
         googleBindButtonRef.current.innerHTML = '';
