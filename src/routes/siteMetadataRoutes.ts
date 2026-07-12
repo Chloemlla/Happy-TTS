@@ -13,7 +13,7 @@ faviconRoutes.get("/", sendFaviconIfExists);
 
 /**
  * Digital Asset Links for Android App Links / passkeys.
- * Built by getNexaiAssetLinksStatements() (default includes com.synapse.mobile).
+ * Built by getNexaiAssetLinksStatements() (defaults: com.synapse.mobile + com.chloemlla.nexai).
  */
 export const assetLinksRoutes = Router();
 assetLinksRoutes.get("/", (_req, res) => {
