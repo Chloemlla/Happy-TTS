@@ -1911,6 +1911,15 @@ const EnvManager: React.FC = () => {
           </div>
         </CollapsibleSection>
 
+        <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
+          <div className="font-semibold">Google / NexAI Client ID 环境变量</div>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-indigo-800">
+            <li><code className="rounded bg-white/80 px-1">GOOGLE_CLIENT_ID</code>：主站 Google Identity Services（GSI）Web Client ID，可在下方「Google Auth 运行时配置」写入。</li>
+            <li><code className="rounded bg-white/80 px-1">NEXAI_GOOGLE_CLIENT_ID</code>：NexAI Google 登录 Client ID，可在下方「NexAI 运行时配置」写入；未配置时回退 <code className="rounded bg-white/80 px-1">GOOGLE_CLIENT_ID</code>。</li>
+            <li>进程环境 / <code className="rounded bg-white/80 px-1">.env</code> 中的同名变量会作为启动默认值；Env 列表若已存在这两个键也会显示来源标签。</li>
+          </ul>
+        </div>
+
         <RuntimeConfigSections />
 
         {/* 短链 AES_KEY 设置 */}

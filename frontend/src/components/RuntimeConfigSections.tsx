@@ -1223,7 +1223,7 @@ const RuntimeConfigSections: React.FC = () => {
 
       <SectionCard
         title="Google Auth 运行时配置"
-        description="主站 Google Identity Services (GSI) 登录仅使用 Web application Client ID。请按官方指南创建「Web 应用」凭据，并配置 Authorized JavaScript origins（无需 redirect URI 即可用于 GSI 按钮）。支持导入 web 类型 OAuth JSON；Desktop/Installed JSON 会被拒绝。不与 NexAI OAuth 配置共用。"
+        description="主站 GSI 登录配置，对应环境变量 GOOGLE_CLIENT_ID。仅使用 Web application Client ID；请按官方指南创建「Web 应用」凭据并配置 Authorized JavaScript origins。支持导入 web 类型 OAuth JSON；Desktop/Installed JSON 会被拒绝。不与 NEXAI_GOOGLE_CLIENT_ID 共用。"
         isOpen={isSectionOpen('googleAuth')}
         loading={isRuntimeSectionLoading('googleAuth', googleAuthLoading)}
         onToggle={() => toggleSection('googleAuth')}
@@ -1259,15 +1259,17 @@ const RuntimeConfigSections: React.FC = () => {
 
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <FieldLabel label="Google Client ID (Web application)" />
+            <FieldLabel label="GOOGLE_CLIENT_ID (Web application)" />
             <input
               value={googleAuthForm.clientId}
               onChange={(e) => setGoogleAuthForm((prev) => ({ ...prev, clientId: e.target.value }))}
-              placeholder="xxxx.apps.googleusercontent.com"
+              placeholder="GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com"
               className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              autoComplete="off"
+              spellCheck={false}
             />
             <p className="mt-2 text-xs leading-5 text-slate-500">
-              官方获取步骤：Google Cloud Console → API 和服务 → 凭据 → 创建 OAuth 客户端 ID → 应用类型选「Web 应用」→ 配置 Authorized JavaScript origins。GSI 按钮登录只需 Client ID，不需要 Client Secret。
+              对应环境变量 <code className="rounded bg-slate-100 px-1">GOOGLE_CLIENT_ID</code>。也可在进程环境 / <code className="rounded bg-slate-100 px-1">.env</code> 中配置同名变量作为启动默认值；此处保存到运行时配置后立即生效。官方步骤：Google Cloud Console → API 和服务 → 凭据 → 创建 OAuth 客户端 ID → 应用类型选「Web 应用」→ 配置 Authorized JavaScript origins。GSI 按钮登录只需 Client ID，不需要 Client Secret。
             </p>
           </div>
         </div>
@@ -1355,7 +1357,7 @@ const RuntimeConfigSections: React.FC = () => {
 
       <SectionCard
         title="NexAI 运行时配置"
-        description="NexAI JWT、OAuth 和前端回调地址改为直接由 EnvManager 管理。"
+        description="NexAI JWT、OAuth 与前端回调地址。Google 字段对应环境变量 NEXAI_GOOGLE_CLIENT_ID（可回退 GOOGLE_CLIENT_ID），与主站 Google Auth 独立。"
         isOpen={isSectionOpen('nexai')}
         loading={isRuntimeSectionLoading('nexai', nexaiLoading)}
         onToggle={() => toggleSection('nexai')}
@@ -1396,12 +1398,18 @@ const RuntimeConfigSections: React.FC = () => {
             />
           </div>
           <div>
-            <FieldLabel label="Google Client ID" />
+            <FieldLabel label="NEXAI_GOOGLE_CLIENT_ID" />
             <input
               value={nexaiForm.googleClientId}
               onChange={(e) => setNexaiForm((prev) => ({ ...prev, googleClientId: e.target.value }))}
+              placeholder="NEXAI_GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com"
               className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              autoComplete="off"
+              spellCheck={false}
             />
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+              对应环境变量 <code className="rounded bg-slate-100 px-1">NEXAI_GOOGLE_CLIENT_ID</code>（可回退使用 <code className="rounded bg-slate-100 px-1">GOOGLE_CLIENT_ID</code>）。保存到 NexAI 运行时配置后立即生效，与主站 Google Auth 配置独立。
+            </p>
           </div>
           <div>
             <FieldLabel label="GitHub Client ID" />

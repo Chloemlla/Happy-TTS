@@ -24,6 +24,24 @@ export function decryptAES256(encryptedData: string, iv: string, key: string): s
 
 export function getEnvSource(key: string): string | undefined {
   const keyLower = key.toLowerCase();
+  const plainKey = keyLower.includes(':') ? keyLower.split(':').pop() || keyLower : keyLower;
+
+  if (
+    plainKey === 'google_client_id' ||
+    plainKey === 'nexai_google_client_id' ||
+    plainKey.includes('google_client') ||
+    plainKey.includes('google_auth')
+  ) {
+    return 'Google Identity Services (GSI) 配置';
+  }
+
+  if (
+    plainKey.startsWith('nexai_') ||
+    plainKey.includes('nexai_github') ||
+    plainKey.includes('nexai_frontend')
+  ) {
+    return 'NexAI OAuth 配置';
+  }
 
   if (keyLower.includes('db_') || keyLower.includes('database_') || keyLower.includes('mongo')) {
     return '数据库配置';

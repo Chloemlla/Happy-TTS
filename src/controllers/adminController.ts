@@ -1466,6 +1466,13 @@ export const adminController = {
         "CORS_ORIGIN",
         "RATE_LIMIT_WINDOW",
         "RATE_LIMIT_MAX",
+        "GOOGLE_CLIENT_ID",
+        "NEXAI_GOOGLE_CLIENT_ID",
+        "NEXAI_GITHUB_CLIENT_ID",
+        "NEXAI_GITHUB_CLIENT_SECRET",
+        "NEXAI_FRONTEND_URL",
+        "FRONTEND_URL",
+        "BASE_URL",
       ];
 
       for (const appVar of appEnvVars) {
