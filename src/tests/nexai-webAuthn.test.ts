@@ -23,6 +23,8 @@ const ENV_KEYS = [
   "ANDROID_PACKAGE_NAMES",
   "NEXAI_ANDROID_SHA256_CERT_FINGERPRINTS",
   "ANDROID_SHA256_CERT_FINGERPRINTS",
+  "ANDROID_ASSETLINKS_DISABLED",
+  "NEXAI_ANDROID_ASSETLINKS_DISABLED",
 ] as const;
 
 const ENV_SNAPSHOT = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]])) as Record<
@@ -89,20 +91,36 @@ describe("NexAI WebAuthn backend fixes", () => {
     );
   });
 
-  it("builds valid assetlinks statements from environment variables", () => {
+  it("includes default Synapse Mobile assetlinks when no env packages are set", () => {
+    const statements = getNexaiAssetLinksStatements();
+    expect(statements).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          relation: ["delegate_permission/common.get_login_creds", "delegate_permission/common.handle_all_urls"],
+          target: expect.objectContaining({
+            namespace: "android_app",
+            package_name: "com.synapse.mobile",
+            sha256_cert_fingerprints: expect.arrayContaining([
+              "E9:D8:5A:D2:52:C3:8D:86:C6:E4:B2:A8:C0:49:B8:B5:A9:FA:79:AC:6E:BB:11:8C:94:0A:83:03:B6:96:39:98",
+            ]),
+          }),
+        }),
+      ]),
+    );
+  });
+
+  it("builds valid assetlinks statements from environment variables and keeps Synapse default package", () => {
     process.env.NEXAI_ANDROID_PACKAGE_NAME = "xyz.nexai.app";
     process.env.NEXAI_ANDROID_SHA256_CERT_FINGERPRINTS = "AA:BB:CC,11:22:33";
 
-    expect(getNexaiAssetLinksStatements()).toEqual([
-      {
-        relation: ["delegate_permission/common.get_login_creds", "delegate_permission/common.handle_all_urls"],
-        target: {
-          namespace: "android_app",
-          package_name: "xyz.nexai.app",
-          sha256_cert_fingerprints: ["AA:BB:CC", "11:22:33"],
-        },
-      },
-    ]);
+    const statements = getNexaiAssetLinksStatements();
+    const packages = statements.map((item) => item.target.package_name);
+    expect(packages).toEqual(expect.arrayContaining(["xyz.nexai.app", "com.synapse.mobile"]));
+
+    const nexai = statements.find((item) => item.target.package_name === "xyz.nexai.app");
+    expect(nexai?.target.sha256_cert_fingerprints).toEqual(
+      expect.arrayContaining(["AA:BB:CC", "11:22:33"]),
+    );
   });
 
   it("serves /.well-known/assetlinks.json as JSON instead of HTML", async () => {
@@ -112,16 +130,14 @@ describe("NexAI WebAuthn backend fixes", () => {
     const response = await request(app).get("/.well-known/assetlinks.json").expect(200);
 
     expect(response.headers["content-type"]).toMatch(/application\/json/);
-    expect(response.body).toEqual([
-      {
-        relation: ["delegate_permission/common.get_login_creds", "delegate_permission/common.handle_all_urls"],
-        target: {
-          namespace: "android_app",
-          package_name: "xyz.nexai.app",
-          sha256_cert_fingerprints: ["AA:BB:CC"],
-        },
-      },
-    ]);
+    expect(Array.isArray(response.body)).toBe(true);
+    const packages = response.body.map((item: { target: { package_name: string } }) => item.target.package_name);
+    expect(packages).toEqual(expect.arrayContaining(["xyz.nexai.app", "com.synapse.mobile"]));
+  });
+
+  it("can disable assetlinks statements via ANDROID_ASSETLINKS_DISABLED", () => {
+    process.env.ANDROID_ASSETLINKS_DISABLED = "true";
+    expect(getNexaiAssetLinksStatements()).toEqual([]);
   });
 
   it("returns server-authoritative passkey signal options", async () => {

@@ -8,6 +8,16 @@ const DEFAULT_ASSET_LINK_RELATIONS = [
   "delegate_permission/common.handle_all_urls",
 ];
 
+/**
+ * Synapse Android client (Synapse-Client) release signing fingerprint.
+ * Used for Digital Asset Links / App Links (Linux.do callback + passkeys).
+ * Override or extend via NEXAI_ANDROID_* / ANDROID_* env vars, or full JSON override.
+ */
+const DEFAULT_SYNAPSE_MOBILE_PACKAGE_NAME = "com.synapse.mobile";
+const DEFAULT_SYNAPSE_MOBILE_SHA256_CERT_FINGERPRINTS = [
+  "E9:D8:5A:D2:52:C3:8D:86:C6:E4:B2:A8:C0:49:B8:B5:A9:FA:79:AC:6E:BB:11:8C:94:0A:83:03:B6:96:39:98",
+];
+
 type AndroidAssetLinkStatement = {
   relation: string[];
   target: {
@@ -26,6 +36,25 @@ function splitCsv(value?: string): string[] {
 
 function unique(values: string[]): string[] {
   return Array.from(new Set(values));
+}
+
+function normalizeSha256Fingerprint(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+  // Accept both colon-separated and compact hex forms.
+  if (trimmed.includes(":")) {
+    return trimmed.toUpperCase();
+  }
+  const compact = trimmed.replace(/[^0-9a-fA-F]/g, "");
+  if (compact.length === 64 && /^[0-9a-fA-F]+$/.test(compact)) {
+    return compact
+      .toUpperCase()
+      .match(/.{1,2}/g)!
+      .join(":");
+  }
+  return trimmed.toUpperCase();
 }
 
 function normalizeUrlOrigin(value: string): string | null {
@@ -109,33 +138,99 @@ function parseAssetLinksOverride(raw: string | undefined): AndroidAssetLinkState
   return null;
 }
 
+function isAssetLinksDisabled(): boolean {
+  const raw = (process.env.ANDROID_ASSETLINKS_DISABLED || process.env.NEXAI_ANDROID_ASSETLINKS_DISABLED || "")
+    .trim()
+    .toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes";
+}
+
+function buildAssetLinkStatement(packageName: string, fingerprints: string[]): AndroidAssetLinkStatement | null {
+  const normalizedPackage = packageName.trim();
+  const normalizedFingerprints = unique(
+    fingerprints.map(normalizeSha256Fingerprint).filter((item) => item.length > 0),
+  );
+  if (!normalizedPackage || normalizedFingerprints.length === 0) {
+    return null;
+  }
+
+  return {
+    relation: [...DEFAULT_ASSET_LINK_RELATIONS],
+    target: {
+      namespace: "android_app",
+      package_name: normalizedPackage,
+      sha256_cert_fingerprints: normalizedFingerprints,
+    },
+  };
+}
+
+/**
+ * Statements served at `GET /.well-known/assetlinks.json`.
+ *
+ * Priority:
+ * 1. Full JSON override via `NEXAI_ANDROID_ASSETLINKS_JSON`
+ * 2. Env package/fingerprint lists merged with default Synapse Mobile entry
+ * 3. Empty array when explicitly disabled (`ANDROID_ASSETLINKS_DISABLED=true`)
+ */
 export function getNexaiAssetLinksStatements(): AndroidAssetLinkStatement[] {
+  if (isAssetLinksDisabled()) {
+    return [];
+  }
+
   const overrideStatements = parseAssetLinksOverride(process.env.NEXAI_ANDROID_ASSETLINKS_JSON);
   if (overrideStatements) {
     return overrideStatements;
   }
 
-  const packageNames = unique([
+  const envPackageNames = unique([
     ...splitCsv(process.env.NEXAI_ANDROID_PACKAGE_NAMES),
     ...splitCsv(process.env.NEXAI_ANDROID_PACKAGE_NAME),
     ...splitCsv(process.env.ANDROID_PACKAGE_NAMES),
     ...splitCsv(process.env.ANDROID_PACKAGE_NAME),
   ]);
-  const fingerprints = unique([
-    ...splitCsv(process.env.NEXAI_ANDROID_SHA256_CERT_FINGERPRINTS),
-    ...splitCsv(process.env.ANDROID_SHA256_CERT_FINGERPRINTS),
-  ]);
+  const envFingerprints = unique(
+    [
+      ...splitCsv(process.env.NEXAI_ANDROID_SHA256_CERT_FINGERPRINTS),
+      ...splitCsv(process.env.ANDROID_SHA256_CERT_FINGERPRINTS),
+    ].map(normalizeSha256Fingerprint),
+  );
 
-  if (!packageNames.length || !fingerprints.length) {
-    return [];
+  const byPackage = new Map<string, AndroidAssetLinkStatement>();
+
+  const defaultStatement = buildAssetLinkStatement(
+    DEFAULT_SYNAPSE_MOBILE_PACKAGE_NAME,
+    DEFAULT_SYNAPSE_MOBILE_SHA256_CERT_FINGERPRINTS,
+  );
+  if (defaultStatement) {
+    byPackage.set(defaultStatement.target.package_name, defaultStatement);
   }
 
-  return packageNames.map((packageName) => ({
-    relation: DEFAULT_ASSET_LINK_RELATIONS,
-    target: {
-      namespace: "android_app",
-      package_name: packageName,
-      sha256_cert_fingerprints: fingerprints,
-    },
-  }));
+  for (const packageName of envPackageNames) {
+    // Explicit packages use env fingerprints when provided; otherwise fall back to
+    // the default Synapse release fingerprint so package-only env still works.
+    const fingerprints =
+      envFingerprints.length > 0 ? envFingerprints : DEFAULT_SYNAPSE_MOBILE_SHA256_CERT_FINGERPRINTS;
+    const statement = buildAssetLinkStatement(packageName, fingerprints);
+    if (!statement) {
+      continue;
+    }
+
+    const existing = byPackage.get(statement.target.package_name);
+    if (existing) {
+      byPackage.set(statement.target.package_name, {
+        ...existing,
+        target: {
+          ...existing.target,
+          sha256_cert_fingerprints: unique([
+            ...existing.target.sha256_cert_fingerprints,
+            ...statement.target.sha256_cert_fingerprints,
+          ]),
+        },
+      });
+    } else {
+      byPackage.set(statement.target.package_name, statement);
+    }
+  }
+
+  return Array.from(byPackage.values());
 }
