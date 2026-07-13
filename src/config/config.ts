@@ -64,6 +64,10 @@ const envSchema = z
     // Google Identity Services (Web application client IDs)
     GOOGLE_CLIENT_ID: optionalTrimmedString,
     NEXAI_GOOGLE_CLIENT_ID: optionalTrimmedString,
+    SYNAPSE_ANDROID_PACKAGE_NAME: optionalTrimmedString,
+    SYNAPSE_ANDROID_SHA256_CERT_FINGERPRINTS: optionalTrimmedString,
+    SYNAPSE_ANDROID_GOOGLE_CLIENT_ID: optionalTrimmedString,
+    SYNAPSE_ANDROID_DISABLED: stringToBoolean,
     NEXAI_GITHUB_CLIENT_ID: optionalTrimmedString,
     NEXAI_GITHUB_CLIENT_SECRET: optionalTrimmedString,
     NEXAI_FRONTEND_URL: z.string().url().optional(),
@@ -332,6 +336,13 @@ const runtimeDefaults = buildRuntimeConfigDefaults({
   email: emailRuntimeDefaults,
   googleClientId: parsedEnv.GOOGLE_CLIENT_ID,
   nexaiGoogleClientId: parsedEnv.NEXAI_GOOGLE_CLIENT_ID || parsedEnv.GOOGLE_CLIENT_ID,
+  synapseAndroidPackageName: parsedEnv.SYNAPSE_ANDROID_PACKAGE_NAME,
+  synapseAndroidSha256CertFingerprints: parseCsv(
+    parsedEnv.SYNAPSE_ANDROID_SHA256_CERT_FINGERPRINTS,
+    [],
+  ),
+  synapseAndroidGoogleClientId: parsedEnv.SYNAPSE_ANDROID_GOOGLE_CLIENT_ID,
+  synapseAndroidDisabled: parsedEnv.SYNAPSE_ANDROID_DISABLED,
 });
 
 RuntimeConfigService.configureDefaults(runtimeDefaults);

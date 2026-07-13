@@ -32,6 +32,11 @@ const ENV_SNAPSHOT = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[
   string | undefined
 >;
 
+const SYNAPSE_ANDROID_SNAPSHOT = {
+  ...config.synapseAndroid,
+  sha256CertFingerprints: [...config.synapseAndroid.sha256CertFingerprints],
+};
+
 function resetEnv(): void {
   for (const key of ENV_KEYS) {
     if (ENV_SNAPSHOT[key] === undefined) {
@@ -62,11 +67,17 @@ describe("NexAI WebAuthn backend fixes", () => {
     for (const key of ENV_KEYS) {
       delete process.env[key];
     }
+    Object.assign(config.synapseAndroid, SYNAPSE_ANDROID_SNAPSHOT, {
+      sha256CertFingerprints: [...SYNAPSE_ANDROID_SNAPSHOT.sha256CertFingerprints],
+    });
     await NexaiUserModel.deleteMany({});
   });
 
   afterAll(() => {
     resetEnv();
+    Object.assign(config.synapseAndroid, SYNAPSE_ANDROID_SNAPSHOT, {
+      sha256CertFingerprints: [...SYNAPSE_ANDROID_SNAPSHOT.sha256CertFingerprints],
+    });
   });
 
   it("uses tts.chloemlla.com as the default RP ID instead of localhost", () => {
@@ -148,6 +159,33 @@ describe("NexAI WebAuthn backend fixes", () => {
     expect(nexai?.target.sha256_cert_fingerprints).toEqual(
       expect.arrayContaining(["AA:BB:CC", "11:22:33"]),
     );
+  });
+
+  it("upserts the runtime Synapse Android package without removing defaults", () => {
+    Object.assign(config.synapseAndroid, {
+      packageName: "com.synapse.preview",
+      sha256CertFingerprints: ["AA:BB:CC"],
+      disabled: false,
+    });
+
+    const statements = getNexaiAssetLinksStatements();
+    const packages = statements.map((item) => item.target.package_name);
+
+    expect(packages).toEqual(
+      expect.arrayContaining(["com.synapse.preview", "com.synapse.mobile", "com.chloemlla.nexai"]),
+    );
+  });
+
+  it("disables only the runtime-configured Synapse Android package", () => {
+    Object.assign(config.synapseAndroid, {
+      packageName: "com.synapse.mobile",
+      disabled: true,
+    });
+
+    const packages = getNexaiAssetLinksStatements().map((item) => item.target.package_name);
+
+    expect(packages).not.toContain("com.synapse.mobile");
+    expect(packages).toContain("com.chloemlla.nexai");
   });
 
   it("serves /.well-known/assetlinks.json as JSON instead of HTML", async () => {

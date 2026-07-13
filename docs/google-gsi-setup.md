@@ -69,9 +69,19 @@ GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
 
 # Optional separate NexAI Google client
 NEXAI_GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
+
+# Optional Synapse Android SIWG serverClientId override
+SYNAPSE_ANDROID_GOOGLE_CLIENT_ID=xxxxx.apps.googleusercontent.com
+
+# Optional Synapse Android Digital Asset Links defaults
+SYNAPSE_ANDROID_PACKAGE_NAME=com.synapse.mobile
+SYNAPSE_ANDROID_SHA256_CERT_FINGERPRINTS=E9:D8:5A:D2:52:C3:8D:86:C6:E4:B2:A8:C0:49:B8:B5:A9:FA:79:AC:6E:BB:11:8C:94:0A:83:03:B6:96:39:98
+SYNAPSE_ANDROID_DISABLED=false
 ```
 
-These seed Mongo runtime defaults on process start. Admin UI values stored in Mongo under key `GOOGLE_AUTH` override at runtime after save.
+These seed Mongo runtime defaults on process start. Admin UI values stored under `GOOGLE_AUTH` and `SYNAPSE_ANDROID` override their corresponding startup defaults after save.
+
+Synapse Android uses `GET /api/auth/google/config?client=synapse-android`. When the dedicated value is empty, the response falls back to `GOOGLE_CLIENT_ID`. Google ID token verification accepts both configured Web Client IDs, while the existing web config response remains unchanged.
 
 # 5. What the app already does
 | Layer | Behavior |

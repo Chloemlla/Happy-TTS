@@ -109,11 +109,17 @@ export function buildRuntimeConfigDefaults(options: {
   email: EmailRuntimeConfig;
   googleClientId?: string;
   nexaiGoogleClientId?: string;
+  synapseAndroidPackageName?: string;
+  synapseAndroidSha256CertFingerprints?: string[];
+  synapseAndroidGoogleClientId?: string;
+  synapseAndroidDisabled?: boolean;
 }): RuntimeConfigDefaults {
   const normalizedBaseUrl = options.baseUrl.replace(/\/+$/, "");
   const normalizedFrontendBaseUrl = options.frontendBaseUrl.replace(/\/+$/, "");
   const googleClientId = (options.googleClientId || "").trim();
   const nexaiGoogleClientId = (options.nexaiGoogleClientId || options.googleClientId || "").trim();
+  const synapseAndroidSha256CertFingerprints =
+    options.synapseAndroidSha256CertFingerprints?.map((item) => item.trim()).filter(Boolean) || [];
 
   return {
     ipqs: {
@@ -174,12 +180,13 @@ export function buildRuntimeConfigDefaults(options: {
       publicShortUrlPassword: options.publicShortUrlPassword || "",
     },
     synapseAndroid: {
-      packageName: "com.synapse.mobile",
-      sha256CertFingerprints: [
-        "E9:D8:5A:D2:52:C3:8D:86:C6:E4:B2:A8:C0:49:B8:B5:A9:FA:79:AC:6E:BB:11:8C:94:0A:83:03:B6:96:39:98",
-      ],
-      googleClientId: "",
-      disabled: false,
+      packageName: options.synapseAndroidPackageName?.trim() || "com.synapse.mobile",
+      sha256CertFingerprints:
+        synapseAndroidSha256CertFingerprints.length > 0
+          ? synapseAndroidSha256CertFingerprints
+          : ["E9:D8:5A:D2:52:C3:8D:86:C6:E4:B2:A8:C0:49:B8:B5:A9:FA:79:AC:6E:BB:11:8C:94:0A:83:03:B6:96:39:98"],
+      googleClientId: options.synapseAndroidGoogleClientId?.trim() || "",
+      disabled: options.synapseAndroidDisabled === true,
     },
   };
 }

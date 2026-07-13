@@ -108,8 +108,12 @@ async function verifyRequiredTurnstile(token: unknown, ip: string, logTag: strin
 }
 
 export class AuthController {
-  public static getGoogleAuthConfig(_req: Request, res: Response) {
-    res.json(getGoogleAuthConfigSummary());
+  public static getGoogleAuthConfig(req: Request, res: Response) {
+    const target =
+      req.query.client === "synapse-android" || req.query.platform === "android"
+        ? "synapse-android"
+        : "web";
+    res.json(getGoogleAuthConfigSummary(target));
   }
 
   public static async googleAuth(req: Request, res: Response) {

@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { config } from "../config/config";
-import { authenticateGoogleUser, getGoogleAuthConfigSummary } from "../services/googleAuthService";
+import {
+  authenticateGoogleUser,
+  getGoogleAuthConfigSummary,
+  verifyGoogleIdToken,
+} from "../services/googleAuthService";
 import { sendProviderGeneratedPasswordEmail } from "../services/providerCredentialEmailService";
 import { UserStorage } from "../utils/userStorage";
 
@@ -31,14 +35,25 @@ describe("googleAuthService", () => {
     ...config.googleAuth,
     clientId: "google-client-id.apps.googleusercontent.com",
   };
+  const baseSynapseAndroidConfig = {
+    ...config.synapseAndroid,
+    sha256CertFingerprints: [...config.synapseAndroid.sha256CertFingerprints],
+    googleClientId: "",
+  };
 
   beforeEach(() => {
     Object.assign(config.googleAuth, baseGoogleAuthConfig);
+    Object.assign(config.synapseAndroid, baseSynapseAndroidConfig, {
+      sha256CertFingerprints: [...baseSynapseAndroidConfig.sha256CertFingerprints],
+    });
     jest.clearAllMocks();
   });
 
   afterEach(() => {
     Object.assign(config.googleAuth, baseGoogleAuthConfig);
+    Object.assign(config.synapseAndroid, baseSynapseAndroidConfig, {
+      sha256CertFingerprints: [...baseSynapseAndroidConfig.sha256CertFingerprints],
+    });
   });
 
   it("returns an enabled config summary when clientId is configured", () => {
@@ -110,6 +125,42 @@ describe("googleAuthService", () => {
       username: "Google_User",
       password: generatedPassword,
       providerLabel: "Google",
+    });
+  });
+
+  it("uses the Synapse Android Client ID only for the Android config target", () => {
+    config.synapseAndroid.googleClientId = "synapse-android.apps.googleusercontent.com";
+
+    expect(getGoogleAuthConfigSummary()).toEqual({
+      enabled: true,
+      clientIdConfigured: true,
+      clientId: "google-client-id.apps.googleusercontent.com",
+    });
+    expect(getGoogleAuthConfigSummary("synapse-android")).toEqual({
+      enabled: true,
+      clientIdConfigured: true,
+      clientId: "synapse-android.apps.googleusercontent.com",
+    });
+  });
+
+  it("accepts both web and Synapse Android Client IDs when verifying ID tokens", async () => {
+    config.synapseAndroid.googleClientId = "synapse-android.apps.googleusercontent.com";
+    verifyIdToken.mockResolvedValue({
+      getPayload: () => ({
+        sub: "google-user-123",
+        email: "verified@example.com",
+        email_verified: true,
+      }),
+    });
+
+    await verifyGoogleIdToken("google-id-token");
+
+    expect(verifyIdToken).toHaveBeenCalledWith({
+      idToken: "google-id-token",
+      audience: [
+        "google-client-id.apps.googleusercontent.com",
+        "synapse-android.apps.googleusercontent.com",
+      ],
     });
   });
 

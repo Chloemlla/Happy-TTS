@@ -9,7 +9,7 @@ import {
 } from "../../services/accountIdentityService";
 import { confirmAccountMerge, getMergePreviewByToken } from "../../services/accountMergeService";
 import { sendEmail } from "../../services/emailSender";
-import { getGoogleAuthConfigSummary, isGoogleAuthEnabled } from "../../services/googleAuthService";
+import { getGoogleAuthConfigSummary } from "../../services/googleAuthService";
 import { createLinuxDoAuthorizationUrl, isLinuxDoAuthEnabled } from "../../services/linuxDoAuthService";
 import {
   clearEmailChangeChallenge,
@@ -291,14 +291,15 @@ router.post("/user/profile/linked-accounts/:provider/start", authMiddleware, asy
     }
 
     if (provider === "google") {
-      if (!isGoogleAuthEnabled()) {
+      const googleConfig = getGoogleAuthConfigSummary();
+      if (!googleConfig.enabled) {
         return res.status(503).json({ error: "Google Auth is not configured" });
       }
       return res.json({
         success: true,
         provider,
         action: "google_id_token",
-        clientId: getGoogleAuthConfigSummary().clientId,
+        clientId: googleConfig.clientId,
       });
     }
 

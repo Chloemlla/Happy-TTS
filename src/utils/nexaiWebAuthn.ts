@@ -1,5 +1,4 @@
 import { config } from "../config/config";
-import { RuntimeConfigService } from "../services/runtimeConfigService";
 import logger from "./logger";
 
 const DEFAULT_RP_ID = "tts.chloemlla.com";
@@ -283,7 +282,7 @@ export function getNexaiAssetLinksStatements(): AndroidAssetLinkStatement[] {
   // Optional runtime config from EnvManager (SYNAPSE_ANDROID). Does not remove
   // NexAI defaults or env-based entries; only upserts/disables the configured package.
   try {
-    const runtimeAndroid = RuntimeConfigService.getCachedConfig().synapseAndroid;
+    const runtimeAndroid = config.synapseAndroid;
     const runtimePackage = String(runtimeAndroid?.packageName || "").trim();
     if (runtimePackage) {
       if (runtimeAndroid.disabled) {
