@@ -29,9 +29,8 @@ import {
   FaCheck,
   FaEdit,
 } from 'react-icons/fa';
-import {
 import { getAuthToken } from '../utils/authSession';
-
+import {
   getStoredHistory,
   saveHistoryToStorage,
   deleteHistoryFromStorage,

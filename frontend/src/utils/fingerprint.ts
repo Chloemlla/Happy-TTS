@@ -3,6 +3,7 @@ import CryptoJS from 'crypto-js';
 import { getApiBaseUrl } from '../api/api';
 import { isFirstVisitVerificationEnabled } from './firstVisitVerificationConfig';
 import { getAuthToken } from 'authSession';
+import { getAuthToken } from 'authSession';
 
 
 const FP_STORAGE_KEY = 'hapx_fingerprint_v2';

@@ -33,9 +33,8 @@ import {
   FaCheckCircle,
 } from "react-icons/fa";
 import { SimpleLoadingSpinner } from "./LoadingSpinner";
-import {
 import { getAuthToken } from '../utils/authSession';
-
+import {
   InfoBadge,
   InfoPanel,
   InfoPrimaryButton,

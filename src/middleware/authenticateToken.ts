@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { config } from "../config/config";
 import logger from "../utils/logger";
+import { getTokenFromRequest } from "../utils/authCookie";
 import { type User, UserStorage } from "../utils/userStorage";
 
 type AuthedRequest = Request & {
@@ -21,13 +22,9 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
       return next();
     }
 
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith("Bearer ")) {
-      return res.status(401).json({ error: "未授权" });
-    }
-    const token = authHeader.split(" ")[1];
+    const token = getTokenFromRequest(req);
     if (!token) {
-      return res.status(401).json({ error: "无效的Token" });
+      return res.status(401).json({ error: "未授权" });
     }
 
     let userId: string;

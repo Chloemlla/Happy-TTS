@@ -4,9 +4,8 @@ import { FaRedo, FaSave, FaSync, FaTrash } from 'react-icons/fa';
 import { getApiBaseUrl } from '../api/api';
 import { SimpleLoadingSpinner } from './LoadingSpinner';
 import { useNotification } from './Notification';
-import {
 import { getAuthToken } from '../utils/authSession';
-
+import {
   InfoPanel,
   InfoSectionTitle,
   logShareDangerButtonClass,

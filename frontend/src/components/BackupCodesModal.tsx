@@ -13,9 +13,8 @@ import {
 } from 'react-icons/fa';
 import { useNotification } from './Notification';
 import { getApiBaseUrl } from '../api/api';
-import {
 import { getAuthToken } from '../utils/authSession';
-
+import {
   studioGhostButtonClassName,
   studioModalCardClassName,
   studioModalOverlayClassName,

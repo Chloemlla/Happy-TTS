@@ -8,9 +8,8 @@ import { imageDataApi } from '../api/imageData';
 import { openDB, deleteDB } from 'idb';
 import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
-import {
 import { getAuthToken } from '../utils/authSession';
-
+import {
   FaImage,
   FaUpload,
   FaFolder,

@@ -128,7 +128,7 @@ export const useAuth = () => {
         try {
             const parsed = readSavedAccounts() as SavedAccount[];
             if (!Array.isArray(parsed)) return [];
-            const validAccounts = parsed.filter(account => account?.token && !isTokenExpired(account.token));
+            const validAccounts = parsed.filter(account => account?.user?.id && (!account.token || !isTokenExpired(account.token)));
             if (validAccounts.length !== parsed.length) {
                 writeSavedAccounts(validAccounts);
             }
@@ -142,10 +142,10 @@ export const useAuth = () => {
 
     // 保存账号到列表
     const saveAccount = useCallback((user: User, token: string) => {
-        if (isTokenExpired(token)) return;
+        if (token && isTokenExpired(token)) return;
         const current = loadSavedAccounts();
         const filtered = current.filter(a => a.user.id !== user.id);
-        const updated = [{ user, token, lastActive: Date.now() }, ...filtered];
+        const updated = [{ user, token: token || undefined, lastActive: Date.now() }, ...filtered] as SavedAccount[];
         writeSavedAccounts(updated);
         setSavedAccounts(updated);
     }, [loadSavedAccounts]);
@@ -154,10 +154,9 @@ export const useAuth = () => {
     const getUserById = useCallback(async (userId: string): Promise<User> => {
         try {
             const token = getAuthToken();
-            if (!token) throw new Error('没有有效的认证token');
-            const response = await api.get<User>(`/api/auth/me`, {
+            const response = await api.get<User>(`/api/auth/me`, token ? {
                 headers: { Authorization: `Bearer ${token}` }
-            });
+            } : undefined);
             return response.data;
         } catch (error: any) {
             throw new Error('获取用户信息失败');
@@ -177,28 +176,22 @@ export const useAuth = () => {
 
         try {
             const token = getAuthToken();
-            if (!token) {
-                console.log('没有找到登录凭证，设置用户为null');
-                setUser(null);
-                setLoading(false);
-                return;
-            }
-            if (isTokenExpired(token)) {
-                console.log('本地登录凭证已过期，清除登录状态');
+            if (token && isTokenExpired(token)) {
+                console.log('本地登录凭证已过期，清除本地 bearer，尝试 cookie 会话');
                 clearAuthToken();
-                setUser(null);
-                setLoading(false);
-                return;
             }
 
-            const cachedAccount = loadSavedAccounts().find(account => account.token === token);
-            if (cachedAccount) {
-                setUser(current => current ?? cachedAccount.user);
+            if (token) {
+                const cachedAccount = loadSavedAccounts().find(account => account.token === token);
+                if (cachedAccount) {
+                    setUser(current => current ?? cachedAccount.user);
+                }
             }
 
-            const response = await api.get<User>('/api/auth/me', {
+            // Cookie-first: withCredentials carries HttpOnly session when bearer is absent.
+            const response = await api.get<User>('/api/auth/me', token ? {
                 headers: { Authorization: `Bearer ${token}` }
-            });
+            } : undefined);
 
             console.log('认证检查响应:', response.status);
 
@@ -258,10 +251,16 @@ export const useAuth = () => {
         const accounts = loadSavedAccounts();
         const target = accounts.find(a => a.user.id === userId);
         if (target) {
-            if (isTokenExpired(target.token)) {
+            if (target.token && isTokenExpired(target.token)) {
                 const updated = accounts.filter(a => a.user.id !== userId);
                 writeSavedAccounts(updated);
                 setSavedAccounts(updated);
+                return;
+            }
+            if (!target.token) {
+                // Cookie-only account entries cannot hard-switch identity without re-login.
+                setUser(target.user);
+                navigate('/');
                 return;
             }
             setAuthToken(target.token);
@@ -308,10 +307,15 @@ export const useAuth = () => {
                 return { requires2FA: true, user, token, twoFactorType };
             }
 
-            if (!token) throw new Error('登录响应缺少认证令牌');
-
-            setAuthToken(token);
-            saveAccount(user, token);
+            // Cookie session is authoritative for browser requests (withCredentials).
+            // Keep bearer only for multi-account switching / API clients.
+            if (token) {
+                setAuthToken(token);
+                saveAccount(user, token);
+            } else {
+                clearAuthToken();
+                saveAccount(user, '');
+            }
             setUser(user);
             lastCheckRef.current = Date.now();
             setLastCheckTime(Date.now());
@@ -392,8 +396,13 @@ export const useAuth = () => {
                 username, email, password
             });
             const { user, token } = response.data;
-            setAuthToken(token);
-            saveAccount(user, token);
+            if (token) {
+                setAuthToken(token);
+                saveAccount(user, token);
+            } else {
+                clearAuthToken();
+                saveAccount(user, '');
+            }
             setUser(user);
             lastCheckRef.current = Date.now();
             setLastCheckTime(Date.now());
@@ -404,6 +413,11 @@ export const useAuth = () => {
     };
 
     const logout = async () => {
+        try {
+            await api.post('/api/auth/logout');
+        } catch {
+            // ignore network failures; still clear local state
+        }
         const accounts = loadSavedAccounts();
         if (user) {
             const updated = accounts.filter(a => a.user.id !== user.id);
@@ -426,6 +440,7 @@ export const useAuth = () => {
     };
 
     const logoutAll = () => {
+        void api.post('/api/auth/logout').catch(() => undefined);
         clearAuthToken();
         clearSavedAccounts();
         setUser(null);

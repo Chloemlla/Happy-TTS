@@ -5,8 +5,8 @@ import { validateTOTPToken, validateBackupCode, cleanTOTPToken, cleanBackupCode 
 import { FaLock, FaInfoCircle } from 'react-icons/fa';
 import { getApiBaseUrl } from '../api/api';
 import { cn } from '../utils/cn';
-import {
 import { setAuthToken } from '../utils/authSession';
+import {
   authAlertClassName,
   authFieldClassName,
   authModalCardClassName,

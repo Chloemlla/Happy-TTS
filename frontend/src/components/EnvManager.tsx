@@ -30,6 +30,7 @@ import EnvRow from './env-manager/EnvRow';
 import SynapseAndroidConfigSection from './env-manager/SynapseAndroidConfigSection';
 import GoogleClientIdsSection from './env-manager/GoogleClientIdsSection';
 import CodeSettingSection from './env-manager/CodeSettingSection';
+import OutemailSettingsSection from './env-manager/OutemailSettingsSection';
 import { DURATION_03, DURATION_06, ENTER_ANIMATE, ENTER_INITIAL, NO_DURATION } from './env-manager/motion';
 import {
   decryptAES256,
@@ -51,9 +52,8 @@ import type {
   TurnstileConfigSetting,
   WebhookSecretSetting
 } from './env-manager/types';
-import {
 import { getAuthToken } from '../utils/authSession';
-
+import {
   FaCog,
   FaLock,
   FaList,
@@ -2036,135 +2036,24 @@ const EnvManager: React.FC = () => {
           </AnimatePresence>
         </m.section>
 
-        {/* 对外邮件 API 鉴权设置 */}
-        <CollapsibleSection title="对外邮件 API 鉴权设置" description="管理外部应用调用对外邮件 API 的鉴权信息，支持默认域名和指定域名。" sectionKey="outemail" isOpen={isSectionOpen('outemail')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
-          <m.button onClick={(e) => { e.stopPropagation(); fetchOutemailSettings(); }} disabled={settingsLoading} className={ENV_MANAGER_REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
-            <FaSync className={`w-4 h-4 ${settingsLoading ? 'animate-spin' : ''}`} /> 刷新
-          </m.button>
-        }>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">域名（可留空表示默认）</label>
-              <input
-                value={settingDomain}
-                onChange={(e) => setSettingDomain(e.target.value)}
-                placeholder="例如: chloemlla.com 或 留空"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">外部 API Key</label>
-              <input
-                value={settingApiKey}
-                onChange={(e) => setSettingApiKey(e.target.value)}
-                placeholder="推荐使用随机长令牌，请求头使用 Authorization: Bearer <API Key>"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
-              />
-            </div>
-            <div className="md:col-span-3">
-              <label className="block text-sm font-medium text-gray-700 mb-1">兼容校验码</label>
-              <input
-                value={settingCode}
-                onChange={(e) => setSettingCode(e.target.value)}
-                placeholder="旧调用方可继续在请求体传 code；新调用推荐使用外部 API Key"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end">
-            <m.button
-              onClick={handleSaveSetting}
-              disabled={settingsSaving}
-              className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
-              whileTap={{ scale: 0.96 }}
-            >
-              {settingsSaving ? '保存中...' : '保存/更新'}
-            </m.button>
-          </div>
-
-          <div className="mt-6">
-            <h4 className="text-sm font-semibold text-gray-700 mb-2">已配置鉴权</h4>
-            {settingsLoading ? (
-              <div className="text-gray-500 text-sm">加载中...</div>
-            ) : outemailSettings.length === 0 ? (
-              <div className="text-gray-500 text-sm">暂无配置</div>
-            ) : (
-              <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                {isMobile ? (
-                  <div className="space-y-3 p-2">
-                    {outemailSettings.map((s, i) => (
-                      <m.div
-                        key={(s.domain || '') + i}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25, delay: i * 0.04 }}
-                        className="border rounded-lg p-3 bg-white"
-                      >
-                        <div className="text-sm text-gray-800">
-                          <div className="font-semibold mb-1">{s.domain || <span className="text-gray-400">默认</span>}</div>
-                          <div className="text-xs text-gray-500 mt-2">外部 API Key</div>
-                          <div className="font-mono text-xs text-gray-700 break-all">{s.apiKey || '未配置'}</div>
-                          <div className="text-xs text-gray-500 mt-2">兼容校验码</div>
-                          <div className="font-mono text-xs text-gray-700 break-all">{s.code || '未配置'}</div>
-                          <div className="text-xs text-gray-500 mt-1">{s.updatedAt ? new Date(s.updatedAt).toLocaleString() : '-'}</div>
-                        </div>
-                        <div className="mt-2 text-right">
-                          <m.button
-                            onClick={() => handleDeleteSetting(s.domain || '')}
-                            disabled={settingsDeletingDomain === (s.domain || '')}
-                            className="px-2 sm:px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm"
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            {settingsDeletingDomain === (s.domain || '') ? '删除中...' : '删除'}
-                          </m.button>
-                        </div>
-                      </m.div>
-                    ))}
-                  </div>
-                ) : (
-                  <table className="min-w-full">
-                    <thead>
-                      <tr className="bg-gray-50 border-b border-gray-200">
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">域名</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">外部 API Key（脱敏）</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">兼容校验码（脱敏）</th>
-                        <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">更新时间</th>
-                        <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">操作</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {outemailSettings.map((s, i) => (
-                        <m.tr
-                          key={(s.domain || '') + i}
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25, delay: i * 0.04 }}
-                          className="border-b last:border-b-0"
-                        >
-                          <td className="px-4 py-3 text-sm text-gray-800">{s.domain || <span className="text-gray-400">默认</span>}</td>
-                          <td className="px-4 py-3 font-mono text-sm text-gray-700">{s.apiKey || '未配置'}</td>
-                          <td className="px-4 py-3 font-mono text-sm text-gray-700">{s.code || '未配置'}</td>
-                          <td className="px-4 py-3 text-sm text-gray-600">{s.updatedAt ? new Date(s.updatedAt).toLocaleString() : '-'}</td>
-                          <td className="px-4 py-3 text-right">
-                            <m.button
-                              onClick={() => handleDeleteSetting(s.domain || '')}
-                              disabled={settingsDeletingDomain === (s.domain || '')}
-                              className="px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm"
-                              whileTap={{ scale: 0.95 }}
-                            >
-                              {settingsDeletingDomain === (s.domain || '') ? '删除中...' : '删除'}
-                            </m.button>
-                          </td>
-                        </m.tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            )}
-          </div>
-        </CollapsibleSection>
+        <OutemailSettingsSection
+          isOpen={isSectionOpen('outemail')}
+          onToggle={toggleSection}
+          prefersReducedMotion={prefersReducedMotion}
+          loading={settingsLoading}
+          saving={settingsSaving}
+          deletingDomain={settingsDeletingDomain}
+          domain={settingDomain}
+          code={settingCode}
+          apiKey={settingApiKey}
+          settings={outemailSettings}
+          onDomainChange={setSettingDomain}
+          onCodeChange={setSettingCode}
+          onApiKeyChange={setSettingApiKey}
+          onRefresh={fetchOutemailSettings}
+          onSave={handleSaveSetting}
+          onDelete={handleDeleteSetting}
+        />
 
         {/* MOD 列表修改码设置 */}
         <CodeSettingSection

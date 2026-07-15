@@ -31,9 +31,8 @@ import PromptModal from './PromptModal';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
 import { LibreChatContext, LibreChatContextValue } from './LibreChatContext';
 import { LibreChatRealtimeDialog } from './LibreChatRealtimeDialog';
-import {
 import { getAuthToken } from '../utils/authSession';
-
+import {
   InfoBadge,
   InfoPanel,
   InfoQueryHero,

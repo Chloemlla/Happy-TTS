@@ -1,4 +1,5 @@
 import { getAuthToken } from 'authSession';
+import { getAuthToken } from 'authSession';
 /**
  * 请求防重放签名工具
  *

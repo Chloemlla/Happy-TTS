@@ -9,6 +9,7 @@ import {
   generateTOTPEnabledEmailHtml,
 } from "../templates/emailTemplates";
 import { signLoginToken } from "../utils/authToken";
+import { setAuthSessionCookie } from "../utils/authCookie";
 import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
 import { UserStorage } from "../utils/userStorage";
@@ -439,10 +440,12 @@ export class TOTPController {
         tokenType: "JWT",
       });
 
+      setAuthSessionCookie(req, res, jwtToken);
       res.json({
         message: "验证成功",
         verified: true,
         token: jwtToken,
+        authMode: "cookie+bearer",
       });
     } catch (error) {
       logger.error("验证TOTP令牌失败:", error);
