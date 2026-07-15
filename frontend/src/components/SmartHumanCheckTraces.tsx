@@ -6,6 +6,8 @@ import { useNotification } from './Notification';
 import { FaListAlt, FaSync, FaSearch, FaEye, FaTimes, FaTrash, FaCopy, FaClipboard } from 'react-icons/fa';
 import { handleSourceClick, handleSourceModalClose } from './EnvManager';
 import {
+import { getAuthToken } from '../utils/authSession';
+
   InfoPanel,
   InfoSectionTitle,
   logShareDangerButtonClass,
@@ -206,7 +208,7 @@ const SmartHumanCheckTraces: React.FC = () => {
       if (filters.ip) params.set('ip', filters.ip);
       if (filters.ua) params.set('ua', filters.ua);
 
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const res = await fetch(`${getApiBaseUrl()}/api/human-check/traces?${params.toString()}` , {
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
@@ -285,7 +287,7 @@ const SmartHumanCheckTraces: React.FC = () => {
 
   const openDetail = async (id: string) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const res = await fetch(`${getApiBaseUrl()}/api/human-check/trace/${id}`, {
         headers: { 'Authorization': token ? `Bearer ${token}` : '' }
       });
@@ -428,7 +430,7 @@ const SmartHumanCheckTraces: React.FC = () => {
 
   // 拉取详情 - 使用并发请求优化
   const fetchDetailsByIds = useCallback(async (ids: string[]) => {
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     const headers = { 'Authorization': token ? `Bearer ${token}` : '' };
     
     // 使用 Promise.allSettled 进行并发请求
@@ -509,7 +511,7 @@ const SmartHumanCheckTraces: React.FC = () => {
     if (!window.confirm(`确定删除选中的 ${ids.length} 条日志吗？该操作不可恢复。`)) return;
     setBatchLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const res = await fetch(`${getApiBaseUrl()}/api/human-check/traces`, {
         method: 'DELETE',
         headers: {

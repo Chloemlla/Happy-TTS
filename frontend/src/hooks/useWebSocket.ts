@@ -1,5 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { getApiBaseUrl } from '../api/api';
+import { getAuthToken } from '../utils/authSession';
+
 
 // ========== 类型 ==========
 
@@ -34,7 +36,7 @@ function normalizeWsUrl(rawUrl: string, token: string | null): string {
 }
 
 function getWsUrl(): string {
-  const token = localStorage.getItem('token');
+  const token = getAuthToken();
   const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
 
   const configuredWsUrl = import.meta.env.VITE_WS_URL?.trim();

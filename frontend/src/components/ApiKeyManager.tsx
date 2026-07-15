@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNotification } from './Notification';
 import { getApiBaseUrl } from '../api/api';
 import {
+import { getAuthToken } from '../utils/authSession';
+
   FaBan,
   FaCheck,
   FaClock,
@@ -109,7 +111,7 @@ interface ApiResult<T> {
 }
 
 const authHeaders = () => ({
-  Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+  Authorization: `Bearer ${getAuthToken() || ''}`,
   'Content-Type': 'application/json',
 });
 

@@ -1,9 +1,9 @@
-import * as crypto from "node:crypto";
 import { type RequestHandler, Router } from "express";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { commandLimiter } from "../middleware/routeLimiters";
 import { commandService } from "../services/commandService";
 import { isAdminOperationPasswordValid } from "../utils/adminOperationPassword";
+import { encryptCommandPayload } from "../utils/commandCrypto";
 import logger from "../utils/logger";
 
 const router = Router();
@@ -25,13 +25,8 @@ function getBearerToken(req: { headers: { authorization?: string } }): string | 
   return token || null;
 }
 
-function encryptWithToken(payload: unknown, token: string): { data: string; iv: string } {
-  const key = crypto.createHash("sha256").update(token).digest();
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv("aes-256-cbc", key, iv);
-  let encrypted = cipher.update(JSON.stringify(payload), "utf8", "hex");
-  encrypted += cipher.final("hex");
-  return { data: encrypted, iv: iv.toString("hex") };
+function encryptWithToken(payload: unknown, token: string) {
+  return encryptCommandPayload(payload, token);
 }
 
 /**
@@ -109,8 +104,7 @@ router.get("/q", commandLimiter, authenticateToken, async (req, res) => {
 
     return res.json({
       success: true,
-      data: encrypted.data,
-      iv: encrypted.iv,
+      ...encrypted,
     });
   } catch (error) {
     logger.error("[CommandManager] 获取命令失败", { error });
@@ -275,7 +269,7 @@ router.get("/history", commandLimiter, authenticateToken, async (req, res) => {
     }
 
     const encrypted = encryptWithToken(history, token);
-    return res.json({ success: true, data: encrypted.data, iv: encrypted.iv });
+    return res.json({ success: true, ...encrypted });
   } catch (error) {
     logger.error("[CommandManager] 获取历史失败", { error });
     return res.status(500).json({ error: "获取执行历史失败" });

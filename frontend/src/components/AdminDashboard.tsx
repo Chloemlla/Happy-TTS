@@ -34,6 +34,8 @@ import {
 } from "react-icons/fa";
 import { SimpleLoadingSpinner } from "./LoadingSpinner";
 import {
+import { getAuthToken } from '../utils/authSession';
+
   InfoBadge,
   InfoPanel,
   InfoPrimaryButton,
@@ -231,7 +233,7 @@ const AdminDashboard: React.FC = () => {
           return;
         }
 
-        const token = localStorage.getItem("token");
+        const token = getAuthToken();
         if (!token) {
           console.warn("[AdminDashboard] 登录凭证不存在");
           setNotification({ message: "登录已过期，请重新登录", type: "error" });
@@ -295,7 +297,7 @@ const AdminDashboard: React.FC = () => {
     const interval = setInterval(
       async () => {
         try {
-          const token = localStorage.getItem("token");
+          const token = getAuthToken();
           if (!token) {
             console.warn("[AdminDashboard] 定期检查：登录凭证不存在");
             setNotification({

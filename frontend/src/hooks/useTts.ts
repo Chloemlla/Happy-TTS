@@ -10,6 +10,8 @@ import type {
 import { verifyContent } from "../utils/sign";
 import { getApiBaseUrl } from "../api/api";
 import { getFingerprint } from "../utils/fingerprint";
+import { getAuthToken } from '../utils/authSession';
+
 
 const api = axios.create({
   baseURL: getApiBaseUrl(),
@@ -84,7 +86,7 @@ export const useTts = () => {
       setHistoryLoading(true);
       setHistoryError(null);
 
-      const token = localStorage.getItem("token");
+      const token = getAuthToken();
       if (!token) {
         setHistory([]);
         throw new Error("请先登录后查看历史记录");
@@ -131,7 +133,7 @@ export const useTts = () => {
       setAudioUrl(null);
       setResult(null);
 
-      const token = localStorage.getItem("token");
+      const token = getAuthToken();
       if (!token) {
         throw new Error("请先登录");
       }

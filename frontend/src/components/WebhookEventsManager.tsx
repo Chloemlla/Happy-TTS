@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { getApiBaseUrl } from '../api/api';
 import { useNotification } from './Notification';
+import { getAuthToken } from '../utils/authSession';
+
 
 interface WebhookEventItem {
   _id: string;
@@ -118,7 +120,7 @@ function secretUrl(key?: string) {
 }
 
 function authHeaders(json = false): HeadersInit {
-  const token = localStorage.getItem('token');
+  const token = getAuthToken();
   const headers: Record<string, string> = {};
   if (json) headers['Content-Type'] = 'application/json';
   if (token) headers.Authorization = `Bearer ${token}`;

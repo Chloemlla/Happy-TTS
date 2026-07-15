@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import getApiBaseUrl from '../api';
+import { getAuthToken } from '../utils/authSession';
+
 
 interface TurnstileConfig {
   enabled: boolean;
@@ -50,7 +52,7 @@ export const useTurnstileConfig = (options: UseTurnstileConfigOptions = {}) => {
         };
         
         if (!usePublicConfig) {
-          const token = localStorage.getItem('token');
+          const token = getAuthToken();
           if (token) {
             headers['Authorization'] = `Bearer ${token}`;
           }

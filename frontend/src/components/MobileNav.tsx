@@ -46,6 +46,8 @@ import {
 import getApiBaseUrl from '../api';
 import { useAuth } from '../hooks/useAuth';
 import type { TOTPStatus, User } from '../types/auth';
+import { getAuthToken } from '../utils/authSession';
+
 
 interface MobileNavProps {
   user: User | null;
@@ -163,7 +165,7 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
     const fallbackAvatar = user.avatarUrl?.trim() || undefined;
     setAvatarImg(fallbackAvatar);
 
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     if (!token) return undefined;
 
     const controller = new AbortController();
@@ -306,7 +308,7 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
       return savedAccounts;
     }
 
-    return [{ user, token: localStorage.getItem('token') || '', lastActive: 0 }, ...savedAccounts];
+    return [{ user, token: getAuthToken() || '', lastActive: 0 }, ...savedAccounts];
   }, [savedAccounts, user]);
 
   const effectiveTwoFactorStatus = useMemo(() => {

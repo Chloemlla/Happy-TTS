@@ -7,6 +7,8 @@ import ErrorDisplay from './ErrorDisplay';
 import getApiBaseUrl from '../api';
 import { FaBarcode, FaCheckCircle, FaInfoCircle, FaShieldAlt } from 'react-icons/fa';
 import {
+import { getAuthToken } from '../utils/authSession';
+
   InfoBadge,
   InfoMetricCard,
   InfoPanel,
@@ -42,7 +44,7 @@ const AntiCounterfeitPage: React.FC = () => {
     }));
 
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const response = await fetch(`${getApiBaseUrl()}/api/anta/query`, {
         method: 'POST',
         headers: {

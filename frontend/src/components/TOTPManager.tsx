@@ -28,6 +28,8 @@ import {
 } from "./studioTheme";
 import TOTPSetup from "./TOTPSetup";
 import { getApiBaseUrl } from "../api/api";
+import { getAuthToken } from '../utils/authSession';
+
 
 interface TOTPManagerProps {
   onStatusChange?: (status: TOTPStatus) => void;
@@ -54,7 +56,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
         baseURL: getApiBaseUrl(),
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
       }),
     [],

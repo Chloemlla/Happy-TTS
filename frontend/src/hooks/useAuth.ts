@@ -3,9 +3,18 @@ import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { User } from '../types/auth';
 import { getApiBaseUrl } from '../api/api';
+import {
+    clearAuthToken,
+    clearSavedAccounts,
+    getAuthToken,
+    readSavedAccounts,
+    setAuthToken,
+    writeSavedAccounts,
+    ACCOUNTS_KEY as ACCOUNTS_KEY_CONST,
+} from '../utils/authSession';
 
 // 单设备多用户配置
-const ACCOUNTS_KEY = 'synapse_saved_accounts';
+const ACCOUNTS_KEY = ACCOUNTS_KEY_CONST;
 const AUTH_TOKEN_EXPIRY_SKEW_MS = 30_000;
 
 export interface SavedAccount {
@@ -71,7 +80,7 @@ const api = axios.create({
 });
 
 api.interceptors.request.use(config => {
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
     }
@@ -116,23 +125,19 @@ export const useAuth = () => {
 
     // 加载保存的账号列表
     const loadSavedAccounts = useCallback(() => {
-        const stored = localStorage.getItem(ACCOUNTS_KEY);
-        if (stored) {
-            try {
-                const parsed = JSON.parse(stored) as SavedAccount[];
-                if (!Array.isArray(parsed)) return [];
-                const validAccounts = parsed.filter(account => account?.token && !isTokenExpired(account.token));
-                if (validAccounts.length !== parsed.length) {
-                    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(validAccounts));
-                }
-                const sorted = validAccounts.sort((a, b) => b.lastActive - a.lastActive);
-                setSavedAccounts(sorted);
-                return sorted;
-            } catch (e) {
-                return [];
+        try {
+            const parsed = readSavedAccounts() as SavedAccount[];
+            if (!Array.isArray(parsed)) return [];
+            const validAccounts = parsed.filter(account => account?.token && !isTokenExpired(account.token));
+            if (validAccounts.length !== parsed.length) {
+                writeSavedAccounts(validAccounts);
             }
+            const sorted = validAccounts.sort((a, b) => b.lastActive - a.lastActive);
+            setSavedAccounts(sorted);
+            return sorted;
+        } catch (e) {
+            return [];
         }
-        return [];
     }, []);
 
     // 保存账号到列表
@@ -141,14 +146,14 @@ export const useAuth = () => {
         const current = loadSavedAccounts();
         const filtered = current.filter(a => a.user.id !== user.id);
         const updated = [{ user, token, lastActive: Date.now() }, ...filtered];
-        localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(updated));
+        writeSavedAccounts(updated);
         setSavedAccounts(updated);
     }, [loadSavedAccounts]);
 
     // 恢复原始代码的 getUserById
     const getUserById = useCallback(async (userId: string): Promise<User> => {
         try {
-            const token = localStorage.getItem('token');
+            const token = getAuthToken();
             if (!token) throw new Error('没有有效的认证token');
             const response = await api.get<User>(`/api/auth/me`, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -171,7 +176,7 @@ export const useAuth = () => {
         setIsChecking(true);
 
         try {
-            const token = localStorage.getItem('token');
+            const token = getAuthToken();
             if (!token) {
                 console.log('没有找到登录凭证，设置用户为null');
                 setUser(null);
@@ -180,7 +185,7 @@ export const useAuth = () => {
             }
             if (isTokenExpired(token)) {
                 console.log('本地登录凭证已过期，清除登录状态');
-                localStorage.removeItem('token');
+                clearAuthToken();
                 setUser(null);
                 setLoading(false);
                 return;
@@ -198,7 +203,7 @@ export const useAuth = () => {
             console.log('认证检查响应:', response.status);
 
             if (isAuthRejectionStatus(response.status)) {
-                localStorage.removeItem('token');
+                clearAuthToken();
                 setUser(null);
                 setLoading(false);
                 return;
@@ -222,7 +227,7 @@ export const useAuth = () => {
             } else {
                 console.log('认证检查返回空数据，清除用户状态');
                 setUser(null);
-                localStorage.removeItem('token');
+                clearAuthToken();
             }
             lastCheckRef.current = now;
             setLastCheckTime(now);
@@ -233,7 +238,7 @@ export const useAuth = () => {
                 console.warn('认证检查被限流，将在60秒后重试');
             } else if (isAuthRejectionStatus(error.response?.status)) {
                 setUser(null);
-                localStorage.removeItem('token');
+                clearAuthToken();
             } else {
                 console.warn('认证检查暂时失败，保留本地登录状态:', error.message);
             }
@@ -255,11 +260,11 @@ export const useAuth = () => {
         if (target) {
             if (isTokenExpired(target.token)) {
                 const updated = accounts.filter(a => a.user.id !== userId);
-                localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(updated));
+                writeSavedAccounts(updated);
                 setSavedAccounts(updated);
                 return;
             }
-            localStorage.setItem('token', target.token);
+            setAuthToken(target.token);
             setLoading(true);
             try {
                 const response = await api.get<User>('/api/auth/me', {
@@ -272,10 +277,10 @@ export const useAuth = () => {
             } catch (e: any) {
                 if (isAuthRejectionStatus(e.response?.status)) {
                     const updated = accounts.filter(a => a.user.id !== userId);
-                    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(updated));
+                    writeSavedAccounts(updated);
                     setSavedAccounts(updated);
                     setUser(null);
-                    localStorage.removeItem('token');
+                    clearAuthToken();
                     navigate('/welcome');
                 } else {
                     setUser(target.user);
@@ -305,7 +310,7 @@ export const useAuth = () => {
 
             if (!token) throw new Error('登录响应缺少认证令牌');
 
-            localStorage.setItem('token', token);
+            setAuthToken(token);
             saveAccount(user, token);
             setUser(user);
             lastCheckRef.current = Date.now();
@@ -327,7 +332,7 @@ export const useAuth = () => {
     };
 
     const loginWithToken = async (token: string, user: User) => {
-        if (token) localStorage.setItem('token', token);
+        if (token) setAuthToken(token);
         saveAccount(user, token);
         setUser(user);
         lastCheckRef.current = Date.now();
@@ -350,7 +355,7 @@ export const useAuth = () => {
 
             if (response.data.verified && response.data.token) {
                 const newToken = response.data.token;
-                localStorage.setItem('token', newToken);
+                setAuthToken(newToken);
                 const userData = await getUserById(userId);
                 setUser(userData);
                 saveAccount(userData, newToken);
@@ -387,7 +392,7 @@ export const useAuth = () => {
                 username, email, password
             });
             const { user, token } = response.data;
-            localStorage.setItem('token', token);
+            setAuthToken(token);
             saveAccount(user, token);
             setUser(user);
             lastCheckRef.current = Date.now();
@@ -402,11 +407,11 @@ export const useAuth = () => {
         const accounts = loadSavedAccounts();
         if (user) {
             const updated = accounts.filter(a => a.user.id !== user.id);
-            localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(updated));
+            writeSavedAccounts(updated);
             setSavedAccounts(updated);
         }
 
-        localStorage.removeItem('token');
+        clearAuthToken();
         setUser(null);
         setPendingTOTP(null);
         setPending2FA(null);
@@ -421,8 +426,8 @@ export const useAuth = () => {
     };
 
     const logoutAll = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem(ACCOUNTS_KEY);
+        clearAuthToken();
+        clearSavedAccounts();
         setUser(null);
         setSavedAccounts([]);
         setIsAdminChecked(false);
@@ -432,11 +437,11 @@ export const useAuth = () => {
     const removeAccountFromList = (userId: string) => {
         const accounts = loadSavedAccounts();
         const updated = accounts.filter(a => a.user.id !== userId);
-        localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(updated));
+        writeSavedAccounts(updated);
         setSavedAccounts(updated);
         
         if (user?.id === userId) {
-            localStorage.removeItem('token');
+            clearAuthToken();
             setUser(null);
             if (updated.length > 0) {
                 switchAccount(updated[0].user.id);
@@ -447,7 +452,7 @@ export const useAuth = () => {
     };
 
     const updateUserAvatar = async () => {
-        const token = localStorage.getItem('token');
+        const token = getAuthToken();
         if (!token) return;
         try {
             const response = await api.get<User>('/api/auth/me');

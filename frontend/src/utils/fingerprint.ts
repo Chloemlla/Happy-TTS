@@ -2,6 +2,8 @@ import FingerprintJS from '@fingerprintjs/fingerprintjs';
 import CryptoJS from 'crypto-js';
 import { getApiBaseUrl } from '../api/api';
 import { isFirstVisitVerificationEnabled } from './firstVisitVerificationConfig';
+import { getAuthToken } from 'authSession';
+
 
 const FP_STORAGE_KEY = 'hapx_fingerprint_v2';
 const FP_VERSION = '2';
@@ -198,7 +200,7 @@ async function getWithFingerprintJS(timeoutMs = 1500): Promise<string | null> {
 
 // 检查用户是否已登录
 function isUserLoggedIn(): boolean {
-  const token = localStorage.getItem('token');
+  const token = getAuthToken();
   return !!token;
 }
 
@@ -392,7 +394,7 @@ export const reportFingerprintOnce = async (forceReport: boolean = false): Promi
 
   console.log('🔑 指纹生成成功:', fingerprint.substring(0, 8) + '...');
   const apiUrl = `${getApiBaseUrl()}/api/turnstile/fingerprint/report`;
-  const token = localStorage.getItem('token');
+  const token = getAuthToken();
   const hasAuthToken = Boolean(token);
   const authState = hasAuthToken ? 'present' : 'missing';
 

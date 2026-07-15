@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNotification } from './Notification';
 import { getApiBaseUrl } from '../api/api';
 import {
+import { getAuthToken } from '../utils/authSession';
+
   FaBullhorn, FaPaperPlane, FaUsers, FaHistory,
   FaUserSlash, FaClipboardList, FaSyncAlt, FaUserAlt,
   FaCrown, FaPlug, FaLock, FaLockOpen, FaUserCheck,
@@ -97,7 +99,7 @@ const SUB_TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
 // ========== 工具函数 ==========
 
 const authHeaders = () => ({
-  Authorization: `Bearer ${localStorage.getItem('token')}`,
+  Authorization: `Bearer ${getAuthToken()}`,
   'Content-Type': 'application/json',
 });
 

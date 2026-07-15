@@ -1,4 +1,6 @@
 import getApiBaseUrl from '../../api';
+import { getAuthToken } from '../../utils/authSession';
+
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -21,7 +23,7 @@ export const SYNAPSE_ANDROID_API = `${API_BASE_URL}/api/admin/synapse-android/se
 export const GOOGLE_WEB_CLIENT_ID_PATTERN = /^[\w-]+\.apps\.googleusercontent\.com$/i;
 
 export function getAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem('token');
+  const token = getAuthToken();
   if (token) return { Authorization: `Bearer ${token}` };
   return {};
 }

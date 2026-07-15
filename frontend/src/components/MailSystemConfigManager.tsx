@@ -5,6 +5,8 @@ import { getApiBaseUrl } from '../api/api';
 import { SimpleLoadingSpinner } from './LoadingSpinner';
 import { useNotification } from './Notification';
 import {
+import { getAuthToken } from '../utils/authSession';
+
   InfoPanel,
   InfoSectionTitle,
   logShareDangerButtonClass,
@@ -75,7 +77,7 @@ const defaultForm: MailSystemForm = {
 };
 
 function getAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem('token');
+  const token = getAuthToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 

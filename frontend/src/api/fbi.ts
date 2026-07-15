@@ -5,6 +5,8 @@
 
 import { FBIWanted, FBIStatistics, FBIApiResponse, FBIPaginationParams, FBIWantedInput } from '../types/fbi';
 import getApiBaseUrl from './index';
+import { getAuthToken } from '../utils/authSession';
+
 
 const API_BASE = getApiBaseUrl();
 
@@ -19,7 +21,7 @@ class FBIWantedAPI {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<FBIApiResponse<T>> {
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     const headers: HeadersInit = {
       'Content-Type': 'application/json',
       ...(token && { Authorization: `Bearer ${token}` }),
@@ -191,7 +193,7 @@ class FBIWantedAPI {
     const formData = new FormData();
     formData.append('photo', file);
 
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     const response = await fetch(`${API_BASE}/api/fbi-wanted/${id}/photo`, {
       method: 'PATCH',
       headers: {

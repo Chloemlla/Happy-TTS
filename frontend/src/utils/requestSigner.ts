@@ -1,3 +1,4 @@
+import { getAuthToken } from 'authSession';
 /**
  * 请求防重放签名工具
  *
@@ -27,7 +28,7 @@ function bearerFromHeaders(headers?: HeadersInit): string | null {
 function resolveSigningKey(headers?: HeadersInit): string | null {
   const headerToken = bearerFromHeaders(headers);
   if (headerToken) return headerToken;
-  const storedToken = localStorage.getItem('token')?.trim();
+  const storedToken = getAuthToken()?.trim();
   return storedToken || null;
 }
 

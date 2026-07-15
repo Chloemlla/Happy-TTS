@@ -10,6 +10,8 @@ import { openDB } from 'idb';
 import { FaUser, FaUserCircle, FaShieldAlt, FaLock, FaEnvelope, FaCamera, FaSave, FaKey, FaCheckCircle, FaClock, FaExclamationCircle, FaGlobe, FaHistory, FaLink, FaUndoAlt, FaGoogle, FaSyncAlt, FaUnlink, FaExternalLinkAlt } from 'react-icons/fa';
 import { cn } from '../utils/cn';
 import {
+import { getAuthToken } from '../utils/authSession';
+
   studioAccentBlobBlueClassName,
   studioAccentBlobSkyClassName,
   studioDarkPanelClassName,
@@ -134,7 +136,7 @@ interface ApiResponse<T = unknown> {
 
 const fetchProfile = async (): Promise<UserProfileData | null> => {
   try {
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     if (!token) throw new Error('No authentication token');
 
     const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile`, {
@@ -162,7 +164,7 @@ const verifyIdentity = async (data: {
   passkeyResponse?: unknown;
   clientOrigin?: string;
 }): Promise<ApiResponse & { verificationToken?: string; expiresAt?: number }> => {
-  const token = localStorage.getItem('token');
+  const token = getAuthToken();
   if (!token) throw new Error('No authentication token');
 
   const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile/verify`, {
@@ -180,7 +182,7 @@ const verifyIdentity = async (data: {
 };
 
 const sendEmailCode = async (verificationToken: string, newEmail: string): Promise<ApiResponse> => {
-  const token = localStorage.getItem('token');
+  const token = getAuthToken();
   if (!token) throw new Error('No authentication token');
 
   const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile/email/send-code`, {
@@ -205,7 +207,7 @@ const updateProfile = async (data: {
   verificationToken?: string;
   emailVerificationCode?: string;
 }): Promise<ApiResponse> => {
-  const token = localStorage.getItem('token');
+  const token = getAuthToken();
   if (!token) throw new Error('No authentication token');
 
   const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile`, {
@@ -223,7 +225,7 @@ const updateProfile = async (data: {
 };
 
 const getAuthHeaders = (): HeadersInit => {
-  const token = localStorage.getItem('token');
+  const token = getAuthToken();
   if (!token) throw new Error('No authentication token');
 
   return {
@@ -683,7 +685,7 @@ const UserProfile: React.FC = () => {
 
   const fetchTotpStatus = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       if (!token) return;
 
       const res = await fetch(`${getApiBaseUrl()}/api/totp/status`, {
@@ -903,7 +905,7 @@ const UserProfile: React.FC = () => {
     setAvatarLoading(true);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       if (!token) throw new Error('No authentication token');
 
       const res = await fetch(`${getApiBaseUrl()}/api/admin/user/avatar`, {
@@ -1428,7 +1430,7 @@ const UserProfile: React.FC = () => {
   ]);
 
   const isAuthenticated = useMemo(() => {
-    return Boolean(localStorage.getItem('token'));
+    return Boolean(getAuthToken());
   }, []);
 
   const providerLabel = useMemo(() => getAuthProviderLabel(profile?.authProvider), [profile?.authProvider]);

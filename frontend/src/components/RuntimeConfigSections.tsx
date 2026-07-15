@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FaChevronDown, FaSync, FaUpload } from 'react-icons/fa';
 import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
+import { getAuthToken } from '../utils/authSession';
+
 
 const IPQS_API = getApiBaseUrl() + '/api/admin/ipqs/setting';
 const LINUXDO_API = getApiBaseUrl() + '/api/admin/linuxdo/setting';
@@ -13,7 +15,7 @@ const ADMIN_SECURITY_API = getApiBaseUrl() + '/api/admin/admin-security/setting'
 type RuntimeConfigSectionKey = 'ipqs' | 'linuxdo' | 'googleAuth' | 'deeplx' | 'nexai' | 'adminSecurity';
 
 function getAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem('token');
+  const token = getAuthToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 

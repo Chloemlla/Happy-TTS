@@ -7,13 +7,15 @@ import {
   LotteryApiResponse 
 } from '../types/lottery';
 import getApiBaseUrl, { getApiBaseUrl as namedGetApiBaseUrl } from '../api';
+import { getAuthToken } from '../utils/authSession';
+
 
 // 修正API_BASE，确保所有请求都指向 /api/lottery
 const API_BASE = getApiBaseUrl() + '/api/lottery';
 
 // 通用API请求函数
 async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const token = localStorage.getItem('token');
+  const token = getAuthToken();
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(token && { 'Authorization': `Bearer ${token}` }),

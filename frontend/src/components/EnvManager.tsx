@@ -29,6 +29,7 @@ import CollapsibleSection from './env-manager/CollapsibleSection';
 import EnvRow from './env-manager/EnvRow';
 import SynapseAndroidConfigSection from './env-manager/SynapseAndroidConfigSection';
 import GoogleClientIdsSection from './env-manager/GoogleClientIdsSection';
+import CodeSettingSection from './env-manager/CodeSettingSection';
 import { DURATION_03, DURATION_06, ENTER_ANIMATE, ENTER_INITIAL, NO_DURATION } from './env-manager/motion';
 import {
   decryptAES256,
@@ -51,6 +52,8 @@ import type {
   WebhookSecretSetting
 } from './env-manager/types';
 import {
+import { getAuthToken } from '../utils/authSession';
+
   FaCog,
   FaLock,
   FaList,
@@ -449,7 +452,7 @@ const EnvManager: React.FC = () => {
         // 检查是否为加密数据（通过检测data和iv字段来判断）
         if (data.data && data.iv && typeof data.data === 'string' && typeof data.iv === 'string') {
           try {
-            const token = localStorage.getItem('token');
+            const token = getAuthToken();
             if (!token) {
               setNotification({ message: 'Token不存在，无法解密数据', type: 'error' });
               setLoading(false);
@@ -2164,100 +2167,48 @@ const EnvManager: React.FC = () => {
         </CollapsibleSection>
 
         {/* MOD 列表修改码设置 */}
-        <CollapsibleSection title="MOD 列表修改码设置" description="管理 MOD 列表修改码，用于保护列表编辑入口。" sectionKey="modlist" isOpen={isSectionOpen('modlist')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
-          <m.button onClick={(e) => { e.stopPropagation(); fetchModlistSetting(); }} disabled={modLoading} className={ENV_MANAGER_REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
-            <FaSync className={`w-4 h-4 ${modLoading ? 'animate-spin' : ''}`} /> 刷新
-          </m.button>
-        }>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">修改码</label>
-              <input
-                value={modCodeInput}
-                onChange={(e) => setModCodeInput(e.target.value)}
-                placeholder="请输入修改码（仅用于校验，不会回显明文）"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">当前配置（脱敏）</label>
-              <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 min-h-[40px] flex items-center">
-                {modLoading ? '加载中...' : (modSetting?.code || '未设置')}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-3">
-            <m.button
-              onClick={handleDeleteModCode}
-              disabled={modDeleting}
-              className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm font-medium"
-              whileTap={{ scale: 0.96 }}
-            >
-              {modDeleting ? '删除中...' : '删除'}
-            </m.button>
-            <m.button
-              onClick={handleSaveModCode}
-              disabled={modSaving}
-              className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
-              whileTap={{ scale: 0.96 }}
-            >
-              {modSaving ? '保存中...' : '保存/更新'}
-            </m.button>
-          </div>
-
-          <div className="mt-4 text-xs text-gray-500">
-            最后更新时间：{modSetting?.updatedAt ? new Date(modSetting.updatedAt).toLocaleString() : '-'}
-          </div>
-        </CollapsibleSection>
+        <CodeSettingSection
+          title="MOD 列表修改码设置"
+          description="管理 MOD 列表修改码，用于保护列表编辑入口。"
+          sectionKey="modlist"
+          isOpen={isSectionOpen('modlist')}
+          onToggle={toggleSection}
+          prefersReducedMotion={prefersReducedMotion}
+          loading={modLoading}
+          saving={modSaving}
+          deleting={modDeleting}
+          inputLabel="修改码"
+          inputValue={modCodeInput}
+          inputPlaceholder="请输入修改码（仅用于校验，不会回显明文）"
+          currentValue={modSetting?.code}
+          updatedAt={modSetting?.updatedAt}
+          onInputChange={setModCodeInput}
+          onRefresh={fetchModlistSetting}
+          onSave={handleSaveModCode}
+          onDelete={handleDeleteModCode}
+        />
 
         {/* TTS 生成码设置 */}
-        <CollapsibleSection title="TTS 生成码设置" description="管理 TTS 生成码，用于限制语音生成入口。" sectionKey="tts" isOpen={isSectionOpen('tts')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
-          <m.button onClick={(e) => { e.stopPropagation(); fetchTtsSetting(); }} disabled={ttsLoading} className={ENV_MANAGER_REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
-            <FaSync className={`w-4 h-4 ${ttsLoading ? 'animate-spin' : ''}`} /> 刷新
-          </m.button>
-        }>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">生成码</label>
-              <input
-                value={ttsCodeInput}
-                onChange={(e) => setTtsCodeInput(e.target.value)}
-                placeholder="请输入生成码（仅用于校验，不会回显明文）"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">当前配置（脱敏）</label>
-              <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 min-h-[40px] flex items-center">
-                {ttsLoading ? '加载中...' : (ttsSetting?.code || '未设置')}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-3">
-            <m.button
-              onClick={handleDeleteTtsCode}
-              disabled={ttsDeleting}
-              className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm font-medium"
-              whileTap={{ scale: 0.96 }}
-            >
-              {ttsDeleting ? '删除中...' : '删除'}
-            </m.button>
-            <m.button
-              onClick={handleSaveTtsCode}
-              disabled={ttsSaving}
-              className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
-              whileTap={{ scale: 0.96 }}
-            >
-              {ttsSaving ? '保存中...' : '保存/更新'}
-            </m.button>
-          </div>
-
-          <div className="mt-4 text-xs text-gray-500">
-            最后更新时间：{ttsSetting?.updatedAt ? new Date(ttsSetting.updatedAt).toLocaleString() : '-'}
-          </div>
-        </CollapsibleSection>
+        <CodeSettingSection
+          title="TTS 生成码设置"
+          description="管理 TTS 生成码，用于限制语音生成入口。"
+          sectionKey="tts"
+          isOpen={isSectionOpen('tts')}
+          onToggle={toggleSection}
+          prefersReducedMotion={prefersReducedMotion}
+          loading={ttsLoading}
+          saving={ttsSaving}
+          deleting={ttsDeleting}
+          inputLabel="生成码"
+          inputValue={ttsCodeInput}
+          inputPlaceholder="请输入生成码（仅用于校验，不会回显明文）"
+          currentValue={ttsSetting?.code}
+          updatedAt={ttsSetting?.updatedAt}
+          onInputChange={setTtsCodeInput}
+          onRefresh={fetchTtsSetting}
+          onSave={handleSaveTtsCode}
+          onDelete={handleDeleteTtsCode}
+        />
 
         <GoogleClientIdsSection
           isOpen={isSectionOpen('googleClientIds')}

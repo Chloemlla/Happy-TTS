@@ -14,6 +14,8 @@ import {
 import { useNotification } from './Notification';
 import { getApiBaseUrl } from '../api/api';
 import {
+import { getAuthToken } from '../utils/authSession';
+
   studioGhostButtonClassName,
   studioModalCardClassName,
   studioModalOverlayClassName,
@@ -47,7 +49,7 @@ const BackupCodesModal: React.FC<BackupCodesModalProps> = ({ isOpen, onClose }) 
         baseURL: getApiBaseUrl(),
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
+          Authorization: `Bearer ${getAuthToken()}`,
         },
       }),
     [],

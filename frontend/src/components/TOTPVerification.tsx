@@ -6,6 +6,7 @@ import { FaLock, FaInfoCircle } from 'react-icons/fa';
 import { getApiBaseUrl } from '../api/api';
 import { cn } from '../utils/cn';
 import {
+import { setAuthToken } from '../utils/authSession';
   authAlertClassName,
   authFieldClassName,
   authModalCardClassName,
@@ -79,7 +80,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
       if (response.data.verified) {
         // TOTP验证成功，保存JWT token并调用成功回调
         if (response.data.token) {
-          localStorage.setItem('token', response.data.token);
+          setAuthToken(response.data.token);
         }
         onSuccess();
       } else {

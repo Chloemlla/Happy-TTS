@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getApiBaseUrl } from '../api/api';
+import { getAuthToken } from '../utils/authSession';
+
 
 interface FingerprintRequestStatus {
   requireFingerprint: boolean;
@@ -20,14 +22,14 @@ export const useFingerprintRequest = () => {
 
   // 检查用户是否已登录
   const isUserLoggedIn = useCallback((): boolean => {
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     return !!token;
   }, []);
 
   // 获取用户ID用于dismissal tracking
   const getUserId = useCallback((): string => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       if (!token) return '';
       // 简单的JWT解析获取用户ID（实际项目中可能需要更安全的方式）
       const payload = JSON.parse(atob(token.split('.')[1]));
@@ -57,7 +59,7 @@ export const useFingerprintRequest = () => {
   // 记录用户永久关闭（一生只能关闭一次）
   const recordDismissOnce = useCallback(async (): Promise<boolean> => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       if (!token) return false;
 
       const response = await fetch(`${getApiBaseUrl()}/api/admin/user/fingerprint/dismiss`, {
@@ -133,7 +135,7 @@ export const useFingerprintRequest = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const response = await fetch(`${getApiBaseUrl()}/api/admin/user/fingerprint/status`, {
         method: 'GET',
         headers: {

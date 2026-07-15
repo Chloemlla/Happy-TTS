@@ -6,6 +6,8 @@ import { useNotification } from './Notification';
 import getApiBaseUrl from '../api';
 import { openDB } from 'idb';
 import ImageUploadSection from './ImageUploadSection';
+import { getAuthToken } from '../utils/authSession';
+
 
 // 通缉犯接口定义
 interface FBIWanted {
@@ -102,7 +104,7 @@ const FBIWantedManager: React.FC = () => {
 
             const response = await fetch(`${getApiBaseUrl()}/api/fbi-wanted?${params}`, {
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Authorization': `Bearer ${getAuthToken()}`,
                     'Content-Type': 'application/json'
                 }
             });
@@ -130,7 +132,7 @@ const FBIWantedManager: React.FC = () => {
         try {
             const response = await fetch(`${getApiBaseUrl()}/api/fbi-wanted/statistics`, {
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Authorization': `Bearer ${getAuthToken()}`,
                     'Content-Type': 'application/json'
                 }
             });
@@ -186,7 +188,7 @@ const FBIWantedManager: React.FC = () => {
             const response = await fetch(`${getApiBaseUrl()}/api/fbi-wanted`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Authorization': `Bearer ${getAuthToken()}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(dataToSubmit)
@@ -238,7 +240,7 @@ const FBIWantedManager: React.FC = () => {
             const response = await fetch(`${getApiBaseUrl()}/api/fbi-wanted/${selectedWanted._id}`, {
                 method: 'PUT',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Authorization': `Bearer ${getAuthToken()}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(dataToSubmit)
@@ -284,7 +286,7 @@ const FBIWantedManager: React.FC = () => {
             const response = await fetch(`${getApiBaseUrl()}/api/fbi-wanted/multiple`, {
                 method: 'DELETE',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Authorization': `Bearer ${getAuthToken()}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ filter })
@@ -314,7 +316,7 @@ const FBIWantedManager: React.FC = () => {
             const response = await fetch(`${getApiBaseUrl()}/api/fbi-wanted/${id}`, {
                 method: 'DELETE',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Authorization': `Bearer ${getAuthToken()}`,
                     'Content-Type': 'application/json'
                 }
             });
@@ -376,7 +378,7 @@ const FBIWantedManager: React.FC = () => {
             const response = await fetch(`${getApiBaseUrl()}/api/ipfs/upload`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    'Authorization': `Bearer ${getAuthToken()}`
                 },
                 body: formData
             });

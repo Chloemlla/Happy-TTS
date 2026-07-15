@@ -4,6 +4,8 @@ import { FaSync, FaChartBar, FaExclamationTriangle, FaCheckCircle, FaInfoCircle 
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
 import { getApiBaseUrl } from '../api/api';
+import { getAuthToken } from '../utils/authSession';
+
 
 interface MigrationStats {
   totalRecords: number;
@@ -39,7 +41,7 @@ const ShortUrlMigrationManager: React.FC = () => {
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const response = await fetch(`${getApiBaseUrl()}/api/admin/shortlinks/migration-stats`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -70,7 +72,7 @@ const ShortUrlMigrationManager: React.FC = () => {
 
     try {
       setMigrating(true);
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const response = await fetch(`${getApiBaseUrl()}/api/admin/shortlinks/migrate`, {
         method: 'POST',
         headers: {

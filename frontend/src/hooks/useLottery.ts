@@ -10,6 +10,8 @@ import * as lotteryApi from '../api/lottery';
 import { useAuth } from './useAuth';
 import CryptoJS from 'crypto-js';
 import getApiBaseUrl from '../api';
+import { getAuthToken } from '../utils/authSession';
+
 
 // AES-256解密函数
 function decryptAES256(encryptedData: string, iv: string, key: string): string {
@@ -82,7 +84,7 @@ export function useLottery() {
   const fetchAllRounds = useCallback(async () => {
     try {
       setError(null);
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       
       // 直接调用API并处理加密响应
       const response = await fetch(getApiBaseUrl() + '/api/lottery/rounds', {

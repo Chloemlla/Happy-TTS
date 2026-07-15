@@ -7,6 +7,8 @@ import getApiBaseUrl from '../api';
 import { useAuth } from '../hooks/useAuth';
 import { signedFetch } from '../utils/requestSigner';
 import CryptoJS from 'crypto-js';
+import { getAuthToken } from '../utils/authSession';
+
 
 interface ShortLink {
   _id: string;
@@ -103,7 +105,7 @@ const ShortLinkManager: React.FC = () => {
   const fetchLinks = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const res = await fetch(`${getApiBaseUrl()}/api/admin/shortlinks?search=${encodeURIComponent(search)}&page=${page}&pageSize=${PAGE_SIZE}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -159,7 +161,7 @@ const ShortLinkManager: React.FC = () => {
   const handleDelete = async (id: string) => {
     if (!window.confirm('确定要删除该短链吗？')) return;
     setHighlightedId(id);
-    const token = localStorage.getItem('token');
+    const token = getAuthToken();
     await fetch(`${getApiBaseUrl()}/api/admin/shortlinks/${id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` }
@@ -248,7 +250,7 @@ const ShortLinkManager: React.FC = () => {
     }
     setCreating(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const requestBody: any = { target: createTarget.trim() };
       if (customCode.trim()) {
         requestBody.customCode = customCode.trim();
@@ -343,7 +345,7 @@ const ShortLinkManager: React.FC = () => {
     if (window.confirm(`确定要删除以下${selectedLinks.size}个短链吗？\n${linkCodes}\n\n此操作不可撤销。`)) {
       setBatchDeleting(true);
       try {
-        const token = localStorage.getItem('token');
+        const token = getAuthToken();
         const response = await fetch(`${getApiBaseUrl()}/api/admin/shortlinks/batch-delete`, {
           method: 'POST',
           headers: {
@@ -390,7 +392,7 @@ const ShortLinkManager: React.FC = () => {
   const handleExportAll = async () => {
     setExportingAll(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const response = await fetch(`${getApiBaseUrl()}/api/shorturl/admin/export`, {
         method: 'GET',
         headers: {
@@ -455,7 +457,7 @@ const ShortLinkManager: React.FC = () => {
     if (!window.confirm(confirmMessage)) return;
     setDeletingAll(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const response = await signedFetch(`${getApiBaseUrl()}/api/shorturl/admin/deleteall`, {
         method: 'DELETE',
         headers: {
@@ -497,7 +499,7 @@ const ShortLinkManager: React.FC = () => {
     setImportingData(true);
     try {
       const fileContent = await file.text();
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const response = await signedFetch(`${getApiBaseUrl()}/api/shorturl/admin/import`, {
         method: 'POST',
         headers: {
@@ -536,7 +538,7 @@ const ShortLinkManager: React.FC = () => {
     }
     setImportingData(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const response = await signedFetch(`${getApiBaseUrl()}/api/shorturl/admin/import`, {
         method: 'POST',
         headers: {
