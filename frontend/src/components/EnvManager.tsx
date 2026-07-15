@@ -32,6 +32,12 @@ import GoogleClientIdsSection from './env-manager/GoogleClientIdsSection';
 import CodeSettingSection from './env-manager/CodeSettingSection';
 import OutemailSettingsSection from './env-manager/OutemailSettingsSection';
 import SecretKeySection from './env-manager/SecretKeySection';
+import IpfsConfigSection from './env-manager/IpfsConfigSection';
+import TurnstileConfigSection from './env-manager/TurnstileConfigSection';
+import HcaptchaConfigSection from './env-manager/HcaptchaConfigSection';
+import ClarityConfigSection from './env-manager/ClarityConfigSection';
+import GithubBillingConfigSection from './env-manager/GithubBillingConfigSection';
+import LibreChatProvidersSection from './env-manager/LibreChatProvidersSection';
 import { DURATION_03, DURATION_06, ENTER_ANIMATE, ENTER_INITIAL, NO_DURATION } from './env-manager/motion';
 import {
   decryptAES256,
@@ -2193,713 +2199,125 @@ const EnvManager: React.FC = () => {
           }}
         />
 
-        {/* IPFS 配置设置 */}
-        <CollapsibleSection title="IPFS 配置设置" description="管理 IPFS 上传、User-Agent 和图片床默认参数。" sectionKey="ipfs" isOpen={isSectionOpen('ipfs')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
-          <m.button onClick={(e) => { e.stopPropagation(); fetchIpfsConfig(); }} disabled={ipfsConfigLoading} className={ENV_MANAGER_REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
-            <FaSync className={`w-4 h-4 ${ipfsConfigLoading ? 'animate-spin' : ''}`} /> 刷新
-          </m.button>
-        }>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">IPFS上传URL</label>
-              <input
-                value={ipfsUploadUrlInput}
-                onChange={(e) => setIpfsUploadUrlInput(e.target.value)}
-                placeholder="例如：https://ipfs.openai.com/api/v0/add"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">当前配置</label>
-              <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 min-h-[40px] flex items-center break-all">
-                {ipfsConfigLoading ? '加载中...' : (ipfsConfig?.ipfsUploadUrl || '未设置')}
-              </div>
-            </div>
-          </div>
+        <IpfsConfigSection
+          isOpen={isSectionOpen('ipfs')}
+          onToggle={toggleSection}
+          prefersReducedMotion={prefersReducedMotion}
+          loading={ipfsConfigLoading}
+          saving={ipfsConfigSaving}
+          testing={ipfsConfigTesting}
+          ipfsConfig={ipfsConfig}
+          ipfsUploadUrlInput={ipfsUploadUrlInput}
+          ipfsUserAgentInput={ipfsUserAgentInput}
+          imageBedApiUrlInput={imageBedApiUrlInput}
+          imageBedCdnDomainInput={imageBedCdnDomainInput}
+          imageBedStorageDestinationInput={imageBedStorageDestinationInput}
+          imageBedOutputFormatInput={imageBedOutputFormatInput}
+          onIpfsUploadUrlChange={setIpfsUploadUrlInput}
+          onIpfsUserAgentChange={setIpfsUserAgentInput}
+          onImageBedApiUrlChange={setImageBedApiUrlInput}
+          onImageBedCdnDomainChange={setImageBedCdnDomainInput}
+          onImageBedStorageDestinationChange={setImageBedStorageDestinationInput}
+          onImageBedOutputFormatChange={setImageBedOutputFormatInput}
+          onRefresh={fetchIpfsConfig}
+          onSave={handleSaveIpfsConfig}
+          onTest={handleTestIpfsConfig}
+        />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">IPFS User-Agent</label>
-              <input
-                value={ipfsUserAgentInput}
-                onChange={(e) => setIpfsUserAgentInput(e.target.value)}
-                placeholder="例如：Synapse-IPFS-Uploader/1.0 (+https://example.com)"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">当前User-Agent</label>
-              <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 min-h-[40px] flex items-center break-all">
-                {ipfsConfigLoading ? '加载中...' : (ipfsConfig?.ipfsUa || '未设置')}
-              </div>
-            </div>
-          </div>
+        <TurnstileConfigSection
+          isOpen={isSectionOpen('turnstile')}
+          onToggle={toggleSection}
+          prefersReducedMotion={prefersReducedMotion}
+          loading={turnstileConfigLoading}
+          saving={turnstileConfigSaving}
+          deleting={turnstileConfigDeleting}
+          config={turnstileConfig}
+          siteKeyInput={turnstileSiteKeyInput}
+          secretKeyInput={turnstileSecretKeyInput}
+          onSiteKeyChange={setTurnstileSiteKeyInput}
+          onSecretKeyChange={setTurnstileSecretKeyInput}
+          onRefresh={fetchTurnstileConfig}
+          onSave={handleSaveTurnstileConfig}
+          onDelete={handleDeleteTurnstileConfig}
+        />
 
-          <div className="flex items-center justify-end gap-3">
-            <m.button
-              onClick={() => handleTestIpfsConfig('imagebed')}
-              disabled={ipfsConfigTesting}
-              className="px-3 sm:px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition disabled:opacity-50 text-sm font-medium"
-              whileTap={{ scale: 0.96 }}
-            >
-              {ipfsConfigTesting ? '测试中...' : '测试 ImageBed'}
-            </m.button>
-            <m.button
-              onClick={() => handleTestIpfsConfig('ipfs')}
-              disabled={ipfsConfigTesting || !ipfsConfig?.ipfsUploadUrl}
-              className="px-3 sm:px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition disabled:opacity-50 text-sm font-medium"
-              whileTap={{ scale: 0.96 }}
-            >
-              {ipfsConfigTesting ? '测试中...' : '测试 IPFS'}
-            </m.button>
-            <m.button
-              onClick={handleSaveIpfsConfig}
-              disabled={ipfsConfigSaving}
-              className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
-              whileTap={{ scale: 0.96 }}
-            >
-              {ipfsConfigSaving ? '保存中...' : '保存/更新'}
-            </m.button>
-          </div>
+        <HcaptchaConfigSection
+          isOpen={isSectionOpen('hcaptcha')}
+          onToggle={toggleSection}
+          prefersReducedMotion={prefersReducedMotion}
+          loading={hcaptchaConfigLoading}
+          saving={hcaptchaConfigSaving}
+          deleting={hcaptchaConfigDeleting}
+          config={hcaptchaConfig}
+          siteKeyInput={hcaptchaSiteKeyInput}
+          secretKeyInput={hcaptchaSecretKeyInput}
+          onSiteKeyChange={setHcaptchaSiteKeyInput}
+          onSecretKeyChange={setHcaptchaSecretKeyInput}
+          onRefresh={fetchHcaptchaConfig}
+          onSave={handleSaveHcaptchaConfig}
+          onDelete={handleDeleteHcaptchaConfig}
+        />
 
-          {/* ImageBed (scdn.io v1.php) 配置 */}
-          <div className="mt-6 border-t border-gray-200 pt-4">
-            <h4 className="text-md font-semibold text-gray-700 mb-3">ImageBed (scdn.io v1.php) 默认配置</h4>
+        <ClarityConfigSection
+          isOpen={isSectionOpen('clarity')}
+          onToggle={toggleSection}
+          prefersReducedMotion={prefersReducedMotion}
+          loading={clarityConfigLoading}
+          saving={clarityConfigSaving}
+          deleting={clarityConfigDeleting}
+          config={clarityConfig}
+          projectIdInput={clarityProjectIdInput}
+          onProjectIdChange={setClarityProjectIdInput}
+          onRefresh={fetchClarityConfig}
+          onSave={handleSaveClarityConfig}
+          onDelete={handleDeleteClarityConfig}
+        />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">ImageBed API URL</label>
-                <input
-                  value={imageBedApiUrlInput}
-                  onChange={(e) => setImageBedApiUrlInput(e.target.value)}
-                  placeholder="默认：https://img.scdn.io/api/v1.php"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">当前 API</label>
-                <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 min-h-[40px] flex items-center break-all">
-                  {ipfsConfigLoading ? '加载中...' : (ipfsConfig?.imageBedApiUrl || '未设置')}
-                </div>
-              </div>
-            </div>
+        <GithubBillingConfigSection
+          isOpen={isSectionOpen('githubBilling')}
+          onToggle={toggleSection}
+          prefersReducedMotion={prefersReducedMotion}
+          loading={githubBillingConfigLoading}
+          saving={githubBillingConfigSaving}
+          curlInput={githubBillingCurlInput}
+          selectedConfigKey={selectedConfigKey}
+          multiConfig={multiGithubBillingConfig}
+          onCurlInputChange={setGithubBillingCurlInput}
+          onSelectedConfigKeyChange={setSelectedConfigKey}
+          onRefresh={fetchGithubBillingConfig}
+          onSave={handleSaveGithubBillingConfig}
+          onDelete={() => handleDeleteGithubBillingConfig(selectedConfigKey)}
+        />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">默认 CDN 域名</label>
-                <input
-                  value={imageBedCdnDomainInput}
-                  onChange={(e) => setImageBedCdnDomainInput(e.target.value)}
-                  placeholder="例如：img.scdn.io"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
-                />
-                <div className="mt-1 text-xs text-gray-500 break-all">当前：{ipfsConfig?.imageBedCdnDomain || '未设置'}</div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">默认存储位置</label>
-                <select
-                  value={imageBedStorageDestinationInput}
-                  onChange={(e) => setImageBedStorageDestinationInput(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base bg-white"
-                >
-                  <option value="">不变更</option>
-                  <option value="local">local（默认）</option>
-                  <option value="telegram">telegram</option>
-                  <option value="r2">r2（Cloudflare R2）</option>
-                </select>
-                <div className="mt-1 text-xs text-gray-500">当前：{ipfsConfig?.imageBedStorageDestination || '未设置'}</div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">默认输出格式</label>
-                <select
-                  value={imageBedOutputFormatInput}
-                  onChange={(e) => setImageBedOutputFormatInput(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base bg-white"
-                >
-                  <option value="">不变更</option>
-                  <option value="auto">auto（自动）</option>
-                  <option value="webp">webp</option>
-                  <option value="webp_animated">webp_animated</option>
-                  <option value="jpg">jpg</option>
-                  <option value="jpeg">jpeg</option>
-                  <option value="png">png</option>
-                  <option value="gif">gif</option>
-                </select>
-                <div className="mt-1 text-xs text-gray-500">当前：{ipfsConfig?.imageBedOutputFormat || '未设置'}</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 text-xs text-gray-500">
-            说明：图片类上传（jpg/png/webp/gif/bmp/tiff）走 ImageBed (scdn.io v1.php) API；SVG 与归档等非图片文件仍走旧 IPFS。可在此设置 ImageBed 默认 API、CDN、存储位置与输出格式。
-          </div>
-        </CollapsibleSection>
-
-        {/* Turnstile 配置设置 */}
-        <CollapsibleSection title="Turnstile 配置设置" description="管理 Cloudflare Turnstile Site Key 和 Secret Key。" sectionKey="turnstile" isOpen={isSectionOpen('turnstile')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
-          <m.button onClick={(e) => { e.stopPropagation(); fetchTurnstileConfig(); }} disabled={turnstileConfigLoading} className={ENV_MANAGER_REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
-            <FaSync className={`w-4 h-4 ${turnstileConfigLoading ? 'animate-spin' : ''}`} /> 刷新
-          </m.button>
-        }>
-          {/* Site Key 配置 */}
-          <div className="mb-6">
-            <h4 className="text-md font-semibold text-gray-700 mb-3">Site Key 配置</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Site Key</label>
-                <input
-                  value={turnstileSiteKeyInput}
-                  onChange={(e) => setTurnstileSiteKeyInput(e.target.value)}
-                  placeholder="请输入 Turnstile Site Key（例如：0x4AAAAAAABkMYinukE5NHzg）"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">当前配置</label>
-                <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 min-h-[40px] flex items-center">
-                  {turnstileConfigLoading ? '加载中...' : (turnstileConfig?.siteKey || '未设置')}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-3">
-              <m.button
-                onClick={() => handleDeleteTurnstileConfig('TURNSTILE_SITE_KEY')}
-                disabled={turnstileConfigDeleting}
-                className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm font-medium"
-                whileTap={{ scale: 0.96 }}
-              >
-                {turnstileConfigDeleting ? '删除中...' : '删除'}
-              </m.button>
-              <m.button
-                onClick={() => handleSaveTurnstileConfig('TURNSTILE_SITE_KEY')}
-                disabled={turnstileConfigSaving}
-                className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
-                whileTap={{ scale: 0.96 }}
-              >
-                {turnstileConfigSaving ? '保存中...' : '保存/更新'}
-              </m.button>
-            </div>
-          </div>
-
-          {/* Secret Key 配置 */}
-          <div className="mb-4">
-            <h4 className="text-md font-semibold text-gray-700 mb-3">Secret Key 配置</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Secret Key</label>
-                <input
-                  value={turnstileSecretKeyInput}
-                  onChange={(e) => setTurnstileSecretKeyInput(e.target.value)}
-                  placeholder="请输入 Turnstile Secret Key（仅用于后端验证，不回显明文）"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">当前配置（脱敏）</label>
-                <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 min-h-[40px] flex items-center">
-                  {turnstileConfigLoading ? '加载中...' : (turnstileConfig?.secretKey || '未设置')}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-3">
-              <m.button
-                onClick={() => handleDeleteTurnstileConfig('TURNSTILE_SECRET_KEY')}
-                disabled={turnstileConfigDeleting}
-                className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm font-medium"
-                whileTap={{ scale: 0.96 }}
-              >
-                {turnstileConfigDeleting ? '删除中...' : '删除'}
-              </m.button>
-              <m.button
-                onClick={() => handleSaveTurnstileConfig('TURNSTILE_SECRET_KEY')}
-                disabled={turnstileConfigSaving}
-                className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
-                whileTap={{ scale: 0.96 }}
-              >
-                {turnstileConfigSaving ? '保存中...' : '保存/更新'}
-              </m.button>
-            </div>
-          </div>
-
-          {/* 状态信息 */}
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center gap-2 text-sm text-blue-700">
-              <div className={`w-2 h-2 rounded-full ${turnstileConfig?.enabled ? 'bg-green-500' : 'bg-red-500'}`}></div>
-              <span className="font-medium">
-                Turnstile 状态：{turnstileConfig?.enabled ? '已启用' : '未启用'}
-              </span>
-            </div>
-            <div className="mt-2 text-xs text-blue-600">
-              说明：Turnstile 用于人机验证，支持动态配置。Site Key 用于前端显示，Secret Key 用于后端验证。
-            </div>
-          </div>
-        </CollapsibleSection>
-
-        {/* hCaptcha 配置设置 */}
-        <CollapsibleSection title="hCaptcha 配置设置" description="管理 hCaptcha Site Key 和 Secret Key。" sectionKey="hcaptcha" isOpen={isSectionOpen('hcaptcha')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
-          <m.button onClick={(e) => { e.stopPropagation(); fetchHcaptchaConfig(); }} disabled={hcaptchaConfigLoading} className={ENV_MANAGER_REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
-            <FaSync className={`w-4 h-4 ${hcaptchaConfigLoading ? 'animate-spin' : ''}`} /> 刷新
-          </m.button>
-        }>
-          {/* Site Key 配置 */}
-          <div className="mb-6">
-            <h4 className="text-md font-semibold text-gray-700 mb-3">Site Key 配置</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Site Key</label>
-                <input
-                  value={hcaptchaSiteKeyInput}
-                  onChange={(e) => setHcaptchaSiteKeyInput(e.target.value)}
-                  placeholder="请输入 hCaptcha Site Key（例如：10000000-ffff-ffff-ffff-000000000001）"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">当前配置</label>
-                <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 min-h-[40px] flex items-center">
-                  {hcaptchaConfigLoading ? '加载中...' : (hcaptchaConfig?.siteKey || '未设置')}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-3">
-              <m.button
-                onClick={() => handleDeleteHcaptchaConfig('HCAPTCHA_SITE_KEY')}
-                disabled={hcaptchaConfigDeleting}
-                className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm font-medium"
-                whileTap={{ scale: 0.96 }}
-              >
-                {hcaptchaConfigDeleting ? '删除中...' : '删除'}
-              </m.button>
-              <m.button
-                onClick={() => handleSaveHcaptchaConfig('HCAPTCHA_SITE_KEY')}
-                disabled={hcaptchaConfigSaving}
-                className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
-                whileTap={{ scale: 0.96 }}
-              >
-                {hcaptchaConfigSaving ? '保存中...' : '保存/更新'}
-              </m.button>
-            </div>
-          </div>
-
-          {/* Secret Key 配置 */}
-          <div className="mb-4">
-            <h4 className="text-md font-semibold text-gray-700 mb-3">Secret Key 配置</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Secret Key</label>
-                <input
-                  value={hcaptchaSecretKeyInput}
-                  onChange={(e) => setHcaptchaSecretKeyInput(e.target.value)}
-                  placeholder="请输入 hCaptcha Secret Key（仅用于后端验证，不回显明文）"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">当前配置（脱敏）</label>
-                <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 min-h-[40px] flex items-center">
-                  {hcaptchaConfigLoading ? '加载中...' : (hcaptchaConfig?.secretKey || '未设置')}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-3">
-              <m.button
-                onClick={() => handleDeleteHcaptchaConfig('HCAPTCHA_SECRET_KEY')}
-                disabled={hcaptchaConfigDeleting}
-                className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm font-medium"
-                whileTap={{ scale: 0.96 }}
-              >
-                {hcaptchaConfigDeleting ? '删除中...' : '删除'}
-              </m.button>
-              <m.button
-                onClick={() => handleSaveHcaptchaConfig('HCAPTCHA_SECRET_KEY')}
-                disabled={hcaptchaConfigSaving}
-                className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
-                whileTap={{ scale: 0.96 }}
-              >
-                {hcaptchaConfigSaving ? '保存中...' : '保存/更新'}
-              </m.button>
-            </div>
-          </div>
-
-          {/* 状态信息 */}
-          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-            <div className="flex items-center gap-2 text-sm text-green-700">
-              <div className={`w-2 h-2 rounded-full ${hcaptchaConfig?.enabled ? 'bg-green-500' : 'bg-red-500'}`}></div>
-              <span className="font-medium">
-                hCaptcha 状态：{hcaptchaConfig?.enabled ? '已启用' : '未启用'}
-              </span>
-            </div>
-            <div className="mt-2 text-xs text-green-600">
-              说明：hCaptcha 用于人机验证，支持动态配置。Site Key 用于前端显示，Secret Key 用于后端验证。
-            </div>
-          </div>
-        </CollapsibleSection>
-
-        {/* Clarity 配置设置 */}
-        <CollapsibleSection title="Microsoft Clarity 配置设置" description="管理 Microsoft Clarity Project ID 和启用状态。" sectionKey="clarity" isOpen={isSectionOpen('clarity')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
-          <m.button onClick={(e) => { e.stopPropagation(); fetchClarityConfig(); }} disabled={clarityConfigLoading} className={ENV_MANAGER_REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
-            <FaSync className={`w-4 h-4 ${clarityConfigLoading ? 'animate-spin' : ''}`} /> 刷新
-          </m.button>
-        }>
-          {/* Project ID 配置 */}
-          <div className="mb-4">
-            <h4 className="text-md font-semibold text-gray-700 mb-3">Project ID 配置</h4>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Project ID
-                  <span className="ml-2 text-xs text-gray-500">(10位小写字母数字组合)</span>
-                </label>
-                <input
-                  value={clarityProjectIdInput}
-                  onChange={(e) => setClarityProjectIdInput(e.target.value.toLowerCase())}
-                  placeholder="例如：t1dkcavsyz（10位小写字母数字）"
-                  maxLength={10}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base font-mono"
-                />
-                <div className="mt-1 text-xs text-gray-500">
-                  提示：自动转换为小写，仅支持字母和数字，长度必须为10位
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">当前配置</label>
-                <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 min-h-[40px] flex items-center font-mono">
-                  {clarityConfigLoading ? '加载中...' : (clarityConfig?.projectId || '未设置')}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-3">
-              <m.button
-                onClick={handleDeleteClarityConfig}
-                disabled={clarityConfigDeleting}
-                className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm font-medium"
-                whileTap={{ scale: 0.96 }}
-              >
-                {clarityConfigDeleting ? '删除中...' : '删除'}
-              </m.button>
-              <m.button
-                onClick={handleSaveClarityConfig}
-                disabled={clarityConfigSaving}
-                className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
-                whileTap={{ scale: 0.96 }}
-              >
-                {clarityConfigSaving ? '保存中...' : '保存/更新'}
-              </m.button>
-            </div>
-          </div>
-
-          {/* 状态信息 */}
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center gap-2 text-sm text-blue-700">
-              <div className={`w-2 h-2 rounded-full ${clarityConfig?.enabled ? 'bg-green-500' : 'bg-red-500'}`}></div>
-              <span className="font-medium">
-                Microsoft Clarity 状态：{clarityConfig?.enabled ? '已启用' : '未启用'}
-              </span>
-            </div>
-            <div className="mt-2 text-xs text-blue-600 space-y-1">
-              <div>
-                <strong>说明：</strong>Microsoft Clarity 用于用户行为分析和网站性能监控。
-              </div>
-              <div>
-                <strong>Project ID 格式：</strong>必须为10位小写字母数字组合（如：t1dkcavsyz）
-              </div>
-              <div>
-                <strong>获取方式：</strong>登录 <a href="https://clarity.microsoft.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-800">clarity.microsoft.com</a> 创建项目后获取
-              </div>
-            </div>
-          </div>
-        </CollapsibleSection>
-
-        {/* GitHub Billing 配置设置 */}
-        <CollapsibleSection title="GitHub Billing 配置设置" description="管理 GitHub Billing curl 配置和账单数据读取参数。" sectionKey="githubBilling" isOpen={isSectionOpen('githubBilling')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
-          <m.button onClick={(e) => { e.stopPropagation(); fetchGithubBillingConfig(); }} disabled={githubBillingConfigLoading} className={ENV_MANAGER_REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
-            <FaSync className={`w-4 h-4 ${githubBillingConfigLoading ? 'animate-spin' : ''}`} /> 刷新
-          </m.button>
-        }>
-          {/* Curl 命令配置 */}
-          <div className="mb-4">
-            <h4 className="text-md font-semibold text-gray-700 mb-3">Curl 命令配置</h4>
-            <div className="grid grid-cols-1 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">GitHub Billing Curl 命令</label>
-                <textarea
-                  value={githubBillingCurlInput}
-                  onChange={(e) => setGithubBillingCurlInput(e.target.value)}
-                  placeholder="请粘贴从浏览器开发者工具复制的 GitHub Billing curl 命令..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base min-h-[120px] font-mono"
-                  rows={6}
-                />
-                <div className="mt-1 text-xs text-gray-500">
-                  提示：从浏览器开发者工具的网络标签页中复制 GitHub Billing 相关的 curl 命令
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-3">
-              <m.button
-                onClick={handleSaveGithubBillingConfig}
-                disabled={githubBillingConfigSaving}
-                className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
-                whileTap={{ scale: 0.96 }}
-              >
-                {githubBillingConfigSaving ? '保存中...' : '保存/更新'}
-              </m.button>
-            </div>
-          </div>
-
-          {/* 当前配置状态 */}
-          {multiGithubBillingConfig && multiGithubBillingConfig[selectedConfigKey] && (
-            <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-              <h5 className="text-sm font-semibold text-gray-700 mb-2">当前配置信息 ({selectedConfigKey})</h5>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                <div>
-                  <span className="font-medium text-gray-600">URL:</span>
-                  <span className="ml-2 text-gray-800 break-all">{multiGithubBillingConfig[selectedConfigKey]?.url || '未设置'}</span>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-600">方法:</span>
-                  <span className="ml-2 text-gray-800">{multiGithubBillingConfig[selectedConfigKey]?.method || '未设置'}</span>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-600">Customer ID:</span>
-                  <span className="ml-2 text-gray-800">{multiGithubBillingConfig[selectedConfigKey]?.customerId || '未设置'}</span>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-600">Headers:</span>
-                  <span className="ml-2 text-gray-800">{multiGithubBillingConfig[selectedConfigKey]?.headersCount || 0} 个</span>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-600">Cookies:</span>
-                  <span className="ml-2 text-gray-800">{multiGithubBillingConfig[selectedConfigKey]?.hasCookies ? '已配置' : '未配置'}</span>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-600">更新时间:</span>
-                  <span className="ml-2 text-gray-800">
-                    {multiGithubBillingConfig[selectedConfigKey]?.updatedAt ? new Date(multiGithubBillingConfig[selectedConfigKey]!.updatedAt!).toLocaleString() : '未知'}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 状态信息 */}
-          <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center gap-2 text-sm text-blue-700">
-              <div className={`w-2 h-2 rounded-full ${multiGithubBillingConfig && multiGithubBillingConfig[selectedConfigKey] ? 'bg-green-500' : 'bg-red-500'}`}></div>
-              <span className="font-medium">
-                GitHub Billing 状态：{multiGithubBillingConfig && multiGithubBillingConfig[selectedConfigKey] ? '已配置' : '未配置'}
-              </span>
-            </div>
-            <div className="mt-2 text-xs text-blue-600">
-              说明：GitHub Billing 配置用于获取 GitHub 账单使用情况数据。需要从浏览器开发者工具复制有效的 curl 命令。
-            </div>
-          </div>
-        </CollapsibleSection>
-
-        {/* LibreChat 提供者配置（多组BASE_URL/API_KEY/MODEL） */}
-        <CollapsibleSection title="LibreChat 提供者配置" description="管理 LibreChat 多提供者 Base URL、API Key、模型和权重。" sectionKey="providers" isOpen={isSectionOpen('providers')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
-          <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
-            <input
-              value={providerFilterGroup}
-              onChange={(e) => setProviderFilterGroup(e.target.value)}
-              placeholder="按 group 过滤"
-              className="w-full sm:w-auto px-2 sm:px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm"
-            />
-            <m.button
-              onClick={fetchProviders}
-              disabled={providersLoading}
-              className={`${ENV_MANAGER_REFRESH_BUTTON_CLASS} w-full justify-center sm:w-auto`}
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaSync className={`w-4 h-4 ${providersLoading ? 'animate-spin' : ''}`} /> 刷新
-            </m.button>
-          </div>
-        }>
-          {/* 表单 */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Base URL</label>
-              <input
-                value={providerBaseUrl}
-                onChange={(e) => setProviderBaseUrl(e.target.value)}
-                placeholder="https://your-openai-compatible.example"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
-              <input
-                value={providerApiKey}
-                onChange={(e) => setProviderApiKey(e.target.value)}
-                placeholder="re_xxx 或 sk-xxx"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
-              <input
-                value={providerModel}
-                onChange={(e) => setProviderModel(e.target.value)}
-                placeholder="gpt-4o-mini / gpt-oss-120b 等"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Group（可选）</label>
-              <input
-                value={providerGroup}
-                onChange={(e) => setProviderGroup(e.target.value)}
-                placeholder="自定义分组名，用于归类"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <label className="text-sm font-medium text-gray-700">启用</label>
-              <input
-                type="checkbox"
-                checked={providerEnabled}
-                onChange={(e) => setProviderEnabled(e.target.checked)}
-                className="h-4 w-4"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">权重（1-10）</label>
-              <input
-                type="number"
-                value={providerWeight}
-                onChange={(e) => setProviderWeight(Math.max(1, Math.min(10, Number(e.target.value || 1))))}
-                min={1}
-                max={10}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-3 mb-4">
-            <m.button
-              onClick={resetProviderForm}
-              className="px-3 sm:px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-sm font-medium"
-              whileTap={{ scale: 0.96 }}
-            >
-              重置
-            </m.button>
-            <m.button
-              onClick={handleSaveProvider}
-              disabled={providerSaving}
-              className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
-              whileTap={{ scale: 0.96 }}
-            >
-              {providerSaving ? '保存中...' : (providerId ? '更新' : '新增')}
-            </m.button>
-          </div>
-
-          {/* 列表 */}
-          {providersLoading ? (
-            <div className="text-gray-500 text-sm">加载中...</div>
-          ) : providers.length === 0 ? (
-            <div className="text-gray-500 text-sm">暂无提供者</div>
-          ) : (
-            <div className="overflow-x-auto border border-gray-200 rounded-lg">
-              {isMobile ? (
-                <div className="space-y-3 p-2">
-                  {providers.map((p, i) => (
-                    <m.div
-                      key={p.id}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25, delay: i * 0.04 }}
-                      className="border rounded-lg p-3 bg-white"
-                    >
-                      <div className="text-sm text-gray-800 break-all">
-                        <div className="font-semibold">{p.baseUrl}</div>
-                        <div className="mt-1">Model：{p.model}</div>
-                        <div className="mt-1">Group：{p.group || '-'}</div>
-                        <div className="mt-1">Enabled：{p.enabled ? '是' : '否'}｜Weight：{p.weight}</div>
-                        <div className="mt-1 font-mono text-xs text-gray-700">{p.apiKey}</div>
-                        <div className="mt-1 text-xs text-gray-500">{p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '-'}</div>
-                      </div>
-                      <div className="mt-2 flex items-center justify-end gap-2">
-                        <m.button
-                          onClick={() => handleEditProvider(p)}
-                          className="px-2 sm:px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-sm"
-                          whileTap={{ scale: 0.95 }}
-                        >
-                          编辑
-                        </m.button>
-                        <m.button
-                          onClick={() => handleDeleteProvider(p.id)}
-                          disabled={providerDeletingId === p.id}
-                          className="px-2 sm:px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm"
-                          whileTap={{ scale: 0.95 }}
-                        >
-                          {providerDeletingId === p.id ? '删除中...' : '删除'}
-                        </m.button>
-                      </div>
-                    </m.div>
-                  ))}
-                </div>
-              ) : (
-                <table className="min-w-full">
-                  <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200">
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Base URL</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Model</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Group</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Enabled</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Weight</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">API Key（脱敏）</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Updated</th>
-                      <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">操作</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {providers.map((p, i) => (
-                      <m.tr
-                        key={p.id}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25, delay: i * 0.04 }}
-                        className="border-b last:border-b-0"
-                      >
-                        <td className="px-4 py-3 text-sm text-gray-800 break-all">{p.baseUrl}</td>
-                        <td className="px-4 py-3 text-sm text-gray-800">{p.model}</td>
-                        <td className="px-4 py-3 text-sm text-gray-800">{p.group || '-'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-800">{p.enabled ? '是' : '否'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-800">{p.weight}</td>
-                        <td className="px-4 py-3 font-mono text-sm text-gray-700">{p.apiKey}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '-'}</td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <m.button
-                              onClick={() => handleEditProvider(p)}
-                              className="px-2 sm:px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-sm"
-                              whileTap={{ scale: 0.95 }}
-                            >
-                              编辑
-                            </m.button>
-                            <m.button
-                              onClick={() => handleDeleteProvider(p.id)}
-                              disabled={providerDeletingId === p.id}
-                              className="px-2 sm:px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm"
-                              whileTap={{ scale: 0.95 }}
-                            >
-                              {providerDeletingId === p.id ? '删除中...' : '删除'}
-                            </m.button>
-                          </div>
-                        </td>
-                      </m.tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          )}
-        </CollapsibleSection>
+        <LibreChatProvidersSection
+          isOpen={isSectionOpen('providers')}
+          onToggle={toggleSection}
+          prefersReducedMotion={prefersReducedMotion}
+          loading={providersLoading}
+          saving={providerSaving}
+          deletingId={providerDeletingId}
+          providers={providers}
+          providerId={providerId}
+          providerFilterGroup={providerFilterGroup}
+          providerBaseUrl={providerBaseUrl}
+          providerApiKey={providerApiKey}
+          providerModel={providerModel}
+          providerGroup={providerGroup}
+          providerEnabled={providerEnabled}
+          providerWeight={providerWeight}
+          onFilterGroupChange={setProviderFilterGroup}
+          onBaseUrlChange={setProviderBaseUrl}
+          onApiKeyChange={setProviderApiKey}
+          onModelChange={setProviderModel}
+          onGroupChange={setProviderGroup}
+          onEnabledChange={setProviderEnabled}
+          onWeightChange={setProviderWeight}
+          onRefresh={fetchProviders}
+          onSave={handleSaveProvider}
+          onReset={resetProviderForm}
+          onEdit={handleEditProvider}
+          onDelete={handleDeleteProvider}
+        />
 
         {/* 数据来源弹窗（相对于当前屏幕居中） */}
         <AnimatePresence>
