@@ -3,7 +3,7 @@
   "name": "audit-command-logshare-ops",
   "title": "Standardize command/logshare logging and password gates",
   "description": "",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,

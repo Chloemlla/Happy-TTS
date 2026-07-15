@@ -10,26 +10,25 @@ import {
   API_URL,
   CLARITY_CONFIG_API,
   GITHUB_BILLING_MULTI_CONFIG_API,
+  GOOGLE_AUTH_API,
+  GOOGLE_WEB_CLIENT_ID_PATTERN,
   HCAPTCHA_CONFIG_API,
   IPFS_CONFIG_API,
   LIBRECHAT_PROVIDERS_API,
   MODLIST_API,
+  NEXAI_SETTING_API,
   OUTEMAIL_API,
   SHORTURL_AES_API,
+  SYNAPSE_ANDROID_API,
   TTS_API,
   TURNSTILE_CONFIG_API,
   WEBHOOK_SECRET_API,
   getAuthHeaders
 } from './env-manager/api';
-import getApiBaseUrl from '../api';
-
-const GOOGLE_AUTH_API = `${getApiBaseUrl()}/api/admin/google-auth/setting`;
-const NEXAI_SETTING_API = `${getApiBaseUrl()}/api/admin/nexai/setting`;
-const SYNAPSE_ANDROID_API = `${getApiBaseUrl()}/api/admin/synapse-android/setting`;
-const GOOGLE_WEB_CLIENT_ID_PATTERN = /^[\w-]+\.apps\.googleusercontent\.com$/i;
 import CollapsibleSection from './env-manager/CollapsibleSection';
 import EnvRow from './env-manager/EnvRow';
 import SynapseAndroidConfigSection from './env-manager/SynapseAndroidConfigSection';
+import GoogleClientIdsSection from './env-manager/GoogleClientIdsSection';
 import { DURATION_03, DURATION_06, ENTER_ANIMATE, ENTER_INITIAL, NO_DURATION } from './env-manager/motion';
 import {
   decryptAES256,
@@ -2260,99 +2259,24 @@ const EnvManager: React.FC = () => {
           </div>
         </CollapsibleSection>
 
-        <CollapsibleSection
-          title="Google / NexAI Client ID 环境变量"
-          description="直接配置 GOOGLE_CLIENT_ID 与 NEXAI_GOOGLE_CLIENT_ID。保存后写入运行时配置并立即生效；进程环境 / .env 同名变量仅作启动默认值。"
-          sectionKey="googleClientIds"
+        <GoogleClientIdsSection
           isOpen={isSectionOpen('googleClientIds')}
           onToggle={toggleSection}
           prefersReducedMotion={prefersReducedMotion}
-          headerRight={
-            <m.button
-              onClick={(e) => {
-                e.stopPropagation();
-                fetchGoogleClientIds();
-              }}
-              disabled={googleClientIdsLoading}
-              className={ENV_MANAGER_REFRESH_BUTTON_CLASS}
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaSync className={`w-4 h-4 ${googleClientIdsLoading ? 'animate-spin' : ''}`} /> 刷新
-            </m.button>
-          }
-        >
-          <div className="rounded-xl border border-indigo-100 bg-indigo-50/70 px-4 py-3 text-xs leading-5 text-indigo-900">
-            <p>
-              <code className="rounded bg-white/80 px-1">GOOGLE_CLIENT_ID</code>
-              ：主站 Google Identity Services（GSI）Web Client ID。
-            </p>
-            <p className="mt-1">
-              <code className="rounded bg-white/80 px-1">NEXAI_GOOGLE_CLIENT_ID</code>
-              ：NexAI Google 登录 Client ID；未配置时可回退主站 ID。
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">GOOGLE_CLIENT_ID</label>
-              <input
-                value={googleClientIdInput}
-                onChange={(e) => setGoogleClientIdInput(e.target.value)}
-                placeholder="xxxx.apps.googleusercontent.com"
-                autoComplete="off"
-                spellCheck={false}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 sm:text-base"
-              />
-              <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
-                当前生效：
-                {googleClientIdsLoading
-                  ? '加载中...'
-                  : googleClientIdCurrent || '未设置'}
-              </div>
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">NEXAI_GOOGLE_CLIENT_ID</label>
-              <input
-                value={nexaiGoogleClientIdInput}
-                onChange={(e) => setNexaiGoogleClientIdInput(e.target.value)}
-                placeholder="xxxx.apps.googleusercontent.com"
-                autoComplete="off"
-                spellCheck={false}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 sm:text-base"
-              />
-              <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
-                当前生效：
-                {googleClientIdsLoading
-                  ? '加载中...'
-                  : nexaiGoogleClientIdCurrent || '未设置（可回退 GOOGLE_CLIENT_ID）'}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-3">
-            <m.button
-              onClick={handleDeleteGoogleClientIds}
-              disabled={googleClientIdsDeleting || googleClientIdsSaving}
-              className="rounded-lg bg-red-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-red-600 disabled:opacity-50 sm:px-4"
-              whileTap={{ scale: 0.96 }}
-            >
-              {googleClientIdsDeleting ? '重置中...' : '重置'}
-            </m.button>
-            <m.button
-              onClick={handleSaveGoogleClientIds}
-              disabled={googleClientIdsSaving || googleClientIdsDeleting}
-              className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50 sm:px-4"
-              whileTap={{ scale: 0.96 }}
-            >
-              {googleClientIdsSaving ? '保存中...' : '保存/更新'}
-            </m.button>
-          </div>
-
-          <div className="mt-1 text-xs text-gray-500">
-            最后更新时间：
-            {googleClientIdsUpdatedAt ? new Date(googleClientIdsUpdatedAt).toLocaleString() : '-'}
-          </div>
-        </CollapsibleSection>
+          loading={googleClientIdsLoading}
+          saving={googleClientIdsSaving}
+          deleting={googleClientIdsDeleting}
+          googleClientIdInput={googleClientIdInput}
+          nexaiGoogleClientIdInput={nexaiGoogleClientIdInput}
+          googleClientIdCurrent={googleClientIdCurrent}
+          nexaiGoogleClientIdCurrent={nexaiGoogleClientIdCurrent}
+          updatedAt={googleClientIdsUpdatedAt}
+          onGoogleClientIdInputChange={setGoogleClientIdInput}
+          onNexaiGoogleClientIdInputChange={setNexaiGoogleClientIdInput}
+          onRefresh={fetchGoogleClientIds}
+          onSave={handleSaveGoogleClientIds}
+          onReset={handleDeleteGoogleClientIds}
+        />
 
         <SynapseAndroidConfigSection
           isOpen={isSectionOpen('synapseAndroid')}

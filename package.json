@@ -56,7 +56,9 @@
     "docker:build": "scripts/build-docker.sh",
     "docker:build:win": "scripts\\build-docker.bat",
     "docker:build:simple": "docker build --platform linux/amd64 --memory=4g --memory-swap=4g -t synapse:simple .",
-    "docker:build:minimal": "docker build --platform linux/amd64 --memory=2g --memory-swap=2g -t synapse:minimal ."
+    "docker:build:minimal": "docker build --platform linux/amd64 --memory=2g --memory-swap=2g -t synapse:minimal .",
+    "check:audit-policies": "node scripts/check-audit-policies.js",
+    "test:critical": "jest --runInBand --detectOpenHandles --testPathPatterns=\"healthRoutes|authTokenLogging|replayProtection|authRoutes\""
   },
   "keywords": [
     "happy",

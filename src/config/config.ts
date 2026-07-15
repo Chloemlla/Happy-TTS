@@ -291,6 +291,7 @@ const baseUrl = parsedEnv.VITE_API_URL || parsedEnv.BASE_URL || "https://tts.chl
 const frontendBaseUrl = parsedEnv.FRONTEND_URL || "https://tts.chloemlla.com";
 const openaiApiKey = parsedEnv.OPENAI_KEY || parsedEnv.OPENAI_API_KEY;
 const jwtSecret = parsedEnv.JWT_SECRET || generateEphemeralSecret();
+const signSecretKey = parsedEnv.SIGN_SECRET_KEY || "";
 const adminPassword = parsedEnv.NODE_ENV === "production" ? parsedEnv.ADMIN_PASSWORD! : parsedEnv.ADMIN_PASSWORD || "admin";
 const adminOperationPassword = parsedEnv.ADMIN_OPERATION_PASSWORD || adminPassword;
 const publicShortUrlEnabled = parsedEnv.PUBLIC_SHORT_URL_ENABLED === true;
@@ -355,6 +356,7 @@ export const startupConfig = Object.freeze({
   adminUsername: parsedEnv.ADMIN_USERNAME,
   adminPassword,
   jwtSecret,
+  signSecretKey,
   jwtExpiresIn: parsedEnv.JWT_EXPIRES_IN,
   bcryptSaltRounds: 12,
   localIps: ["127.0.0.1", "localhost", "::1"],
@@ -518,6 +520,7 @@ export const config = {
   localIps: startupConfig.localIps,
   baseUrl: startupConfig.baseUrl,
   jwtSecret: startupConfig.jwtSecret,
+  signSecretKey: startupConfig.signSecretKey,
   jwtExpiresIn: startupConfig.jwtExpiresIn,
   bcryptSaltRounds: startupConfig.bcryptSaltRounds,
   loginRateLimit: {

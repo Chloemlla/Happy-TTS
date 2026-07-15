@@ -47,7 +47,7 @@ services:
       - RUST_SECURITY_WORKER_MAX_TEXT_BYTES=${RUST_SECURITY_WORKER_MAX_TEXT_BYTES:-2097152}
       - RUST_SECURITY_WORKER_MAX_RULES=${RUST_SECURITY_WORKER_MAX_RULES:-2048}
       - RUST_SECURITY_WORKER_FALLBACK_ENABLED=${RUST_SECURITY_WORKER_FALLBACK_ENABLED:-true}
-      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:-}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN:-} # optional for embedded; rust-sidecars services require non-empty token
     volumes:
       - ./data:/app/data
     restart: unless-stopped

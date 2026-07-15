@@ -1,3 +1,7 @@
+// Compatibility env accessors for non-secret defaults.
+// Security-critical secrets (JWT_SECRET, SIGN_SECRET_KEY, ADMIN_PASSWORD, INTERNAL_SERVICE_TOKEN)
+// must be validated and consumed through src/config/config.ts, not ad-hoc process.env defaults.
+
 import path from "node:path";
 import dotenv from "dotenv";
 

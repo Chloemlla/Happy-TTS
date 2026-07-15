@@ -3,7 +3,7 @@
   "name": "audit-ci-supply-chain",
   "title": "Harden CI write workflows and pin toolchains",
   "description": "",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,

@@ -37,6 +37,9 @@ jobs:
         # 未批准的本地构建（bcrypt / @scarf/scarf / unrs-resolver 等）退出码 1
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      - name: Audit policy static checks
+        run: pnpm run check:audit-policies
+
       - name: Run build
         run: pnpm run build
 

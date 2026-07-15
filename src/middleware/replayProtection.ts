@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
+import { config } from "../config/config";
 import { getNonceStore } from "../services/nonceStore";
 import logger from "../utils/logger";
 
@@ -18,7 +19,7 @@ import logger from "../utils/logger";
  */
 
 function getConfiguredSigningSecret(): string | null {
-  const secret = process.env.SIGN_SECRET_KEY?.trim();
+  const secret = config.signSecretKey?.trim() || process.env.SIGN_SECRET_KEY?.trim();
   return secret ? secret : null;
 }
 

@@ -26,12 +26,21 @@ import {
   FaSyncAlt,
 } from 'react-icons/fa';
 
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (typeof error === 'object' && error !== null) {
+    const maybe = error as { response?: { data?: { error?: string } }; message?: string };
+    return maybe.response?.data?.error || maybe.message || fallback;
+  }
+  return fallback;
+};
+
 interface FingerprintRecord {
   id: string;
   ts: number;
   ua?: string;
   ip?: string;
-  deviceInfo?: any;
+  deviceInfo?: Record<string, unknown>;
 }
 
 interface PasskeyCredential {
@@ -1163,8 +1172,8 @@ const UserManagement: React.FC = () => {
       });
 
       applyUserListPayload(res.data, showTip);
-    } catch (e: any) {
-      setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '获取用户列表失败' });
+    } catch (e: unknown) {
+      setNotification({ type: 'error', message: getErrorMessage(e, '获取用户列表失败') });
     } finally {
       setLoading(false);
     }
@@ -1176,7 +1185,7 @@ const UserManagement: React.FC = () => {
   const handleChange: UserFormChangeHandler = (e) => {
     const target = e.target as HTMLInputElement;
     const name = target.name as keyof User;
-    let value: any = target.value;
+    let value: string | number | boolean = target.value;
     if (target.type === 'checkbox') value = target.checked;
     if (target.type === 'number') value = target.value === '' ? '' : Number(target.value);
     setForm(prev => ({ ...prev, [name]: value }));
@@ -1198,7 +1207,7 @@ const UserManagement: React.FC = () => {
       const method = editingUser ? 'put' : 'post';
       const url = editingUser ? `/api/admin/users/${editingUser.id}` : '/api/admin/users';
       // 构建提交数据，过滤掉空字符串密码（编辑时）
-      const submitData: any = { ...form };
+      const submitData: Partial<User> & Record<string, unknown> = { ...form };
       if (editingUser && !submitData.password) {
         delete submitData.password;
       }
@@ -1209,9 +1218,9 @@ const UserManagement: React.FC = () => {
       closeForm();
       setNotification({ type: 'success', message: editingUser ? '用户信息已更新' : '用户已创建' });
       fetchUsers(true);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setError(e.response?.data?.error || e.message || '操作失败');
-      setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '操作失败' });
+      setNotification({ type: 'error', message: getErrorMessage(e, '操作失败') });
     } finally {
       setLoading(false);
     }
@@ -1226,9 +1235,9 @@ const UserManagement: React.FC = () => {
       await api.delete(`/api/admin/users/${id}`);
       setNotification({ type: 'success', message: '用户已删除' });
       fetchUsers(true);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setError(e.response?.data?.error || e.message || '删除失败');
-      setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '删除失败' });
+      setNotification({ type: 'error', message: getErrorMessage(e, '删除失败') });
     } finally {
       setLoading(false);
     }
@@ -1266,9 +1275,9 @@ const UserManagement: React.FC = () => {
         message: failed > 0 ? `已处理 ${processed} 个用户，${failed} 个失败` : `已处理 ${processed} 个用户`,
       });
       fetchUsers(false);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setError(e.response?.data?.error || e.message || '批量操作失败');
-      setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '批量操作失败' });
+      setNotification({ type: 'error', message: getErrorMessage(e, '批量操作失败') });
     } finally {
       setLoading(false);
     }
@@ -1290,8 +1299,8 @@ const UserManagement: React.FC = () => {
       if (detail?.id) {
         setFpUser(detail);
       }
-    } catch (e: any) {
-      setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '获取指纹详情失败' });
+    } catch (e: unknown) {
+      setNotification({ type: 'error', message: getErrorMessage(e, '获取指纹详情失败') });
     } finally {
       setFpLoading(false);
     }
@@ -1373,7 +1382,7 @@ const UserManagement: React.FC = () => {
       let payload:
         | { method: 'password'; password: string }
         | { method: 'totp'; verificationCode: string }
-        | { method: 'passkey'; passkeyResponse: any; clientOrigin: string };
+        | { method: 'passkey'; passkeyResponse: Awaited<ReturnType<typeof getAdminPasskeyAuthResponse>>; clientOrigin: string };
 
       if (revealPasswordState.method === 'password') {
         payload = { method: 'password', password: revealPasswordState.password };
@@ -1399,8 +1408,8 @@ const UserManagement: React.FC = () => {
         revealedPassword: '',
       }));
       await revealPasswordWithToken(targetUser.id, reason, verificationToken);
-    } catch (e: any) {
-      setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '二次验证或查看密码失败' });
+    } catch (e: unknown) {
+      setNotification({ type: 'error', message: getErrorMessage(e, '二次验证或查看密码失败') });
     } finally {
       setRevealPasswordState(prev => ({ ...prev, loading: false }));
     }
@@ -1909,8 +1918,8 @@ const UserManagement: React.FC = () => {
                                       await api.post(`/api/admin/users/${u.id}/fingerprint/require`, { require: true });
                                       setFpRequireMap(prev => ({ ...prev, [u.id]: Date.now() }));
                                       setNotification({ type: 'success', message: '已再次请求该用户下次上报指纹' });
-                                    } catch (e: any) {
-                                      setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '请求失败' });
+                                    } catch (e: unknown) {
+                                      setNotification({ type: 'error', message: getErrorMessage(e, '请求失败') });
                                     }
                                   }}
                                   whileHover={hoverScale(1.02)}
@@ -1927,8 +1936,8 @@ const UserManagement: React.FC = () => {
                                       await api.post(`/api/admin/users/${u.id}/fingerprint/require`, { require: true });
                                       setFpRequireMap(prev => ({ ...prev, [u.id]: Date.now() }));
                                       setNotification({ type: 'success', message: '已请求该用户下次上报指纹' });
-                                    } catch (e: any) {
-                                      setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '请求失败' });
+                                    } catch (e: unknown) {
+                                      setNotification({ type: 'error', message: getErrorMessage(e, '请求失败') });
                                     }
                                   }}
                                   whileHover={hoverScale(1.02)}
@@ -2185,8 +2194,8 @@ const UserManagement: React.FC = () => {
                           await api.post(`/api/admin/users/${fpUser.id}/fingerprint/require`, { require: true });
                           setFpRequireMap(prev => ({ ...prev, [fpUser.id]: Date.now() }));
                           setNotification({ type: 'success', message: '已请求该用户下次上报指纹' });
-                        } catch (e: any) {
-                          setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '请求失败' });
+                        } catch (e: unknown) {
+                          setNotification({ type: 'error', message: getErrorMessage(e, '请求失败') });
                         }
                       }}
                       whileHover={hoverScale(1.02)}
@@ -2203,8 +2212,8 @@ const UserManagement: React.FC = () => {
                           setFpUser({ ...fpUser, fingerprints: next });
                           setUsers(prev => prev.map(u => u.id === fpUser.id ? { ...u, ...buildFingerprintListPatch(next) } : u));
                           setNotification({ type: 'success', message: '已清空全部指纹记录' });
-                        } catch (e: any) {
-                          setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '清空指纹失败' });
+                        } catch (e: unknown) {
+                          setNotification({ type: 'error', message: getErrorMessage(e, '清空指纹失败') });
                         }
                       }}
                       whileHover={hoverScale(1.02)}
@@ -2276,8 +2285,8 @@ const UserManagement: React.FC = () => {
                                 setFpUser({ ...fpUser, fingerprints: next });
                                 setUsers(prev => prev.map(u => u.id === fpUser.id ? { ...u, ...buildFingerprintListPatch(next) } : u));
                                 setNotification({ type: 'success', message: '已删除指纹记录' });
-                              } catch (e: any) {
-                                setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '删除指纹失败' });
+                              } catch (e: unknown) {
+                                setNotification({ type: 'error', message: getErrorMessage(e, '删除指纹失败') });
                               }
                             }}
                             whileHover={hoverScale(1.02)}
@@ -2305,8 +2314,8 @@ const UserManagement: React.FC = () => {
                           const ts = Number(r?.data?.requireFingerprintAt || Date.now());
                           setFpRequireMap(prev => ({ ...prev, [fpUser.id]: ts }));
                           setNotification({ type: 'success', message: `已再次请求该用户下次上报指纹` });
-                        } catch (e: any) {
-                          setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '请求失败' });
+                        } catch (e: unknown) {
+                          setNotification({ type: 'error', message: getErrorMessage(e, '请求失败') });
                         }
                       }}
                       whileHover={hoverScale(1.02)}
@@ -2324,8 +2333,8 @@ const UserManagement: React.FC = () => {
                           const ts = Number(r?.data?.requireFingerprintAt || Date.now());
                           setFpRequireMap(prev => ({ ...prev, [fpUser.id]: ts }));
                           setNotification({ type: 'success', message: `已请求该用户下次上报指纹` });
-                        } catch (e: any) {
-                          setNotification({ type: 'error', message: e?.response?.data?.error || e?.message || '请求失败' });
+                        } catch (e: unknown) {
+                          setNotification({ type: 'error', message: getErrorMessage(e, '请求失败') });
                         }
                       }}
                       whileHover={hoverScale(1.02)}

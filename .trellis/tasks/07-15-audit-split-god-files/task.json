@@ -3,7 +3,7 @@
   "name": "audit-split-god-files",
   "title": "Split oversized UI and admin modules",
   "description": "",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,

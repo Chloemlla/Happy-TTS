@@ -3,7 +3,7 @@
   "name": "audit-auth-token-storage",
   "title": "Fix auth token storage XSS blast radius",
   "description": "",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,

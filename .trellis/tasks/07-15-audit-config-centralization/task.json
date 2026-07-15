@@ -3,7 +3,7 @@
   "name": "audit-config-centralization",
   "title": "Centralize env access and fail-fast config",
   "description": "",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,

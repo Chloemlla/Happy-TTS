@@ -3,7 +3,7 @@
   "name": "audit-type-boundaries",
   "title": "Tighten type boundaries on high-risk any usage",
   "description": "",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "package": null,

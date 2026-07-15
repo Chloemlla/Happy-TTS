@@ -22,14 +22,12 @@ const buildDefaultAdmin = (): User => {
 };
 
 const printAdminCreated = (admin: User): void => {
-  console.log(`\n${"=".repeat(50)}`);
-  console.log("🔐 新创建的管理员账户信息");
-  console.log("=".repeat(50));
-  console.log(`用户名: ${admin.username}`);
-  console.log(`密码: ${admin.password}`);
-  console.log(`邮箱: ${admin.email}`);
-  console.log("=".repeat(50));
-  console.log("请妥善保管这些信息！\n");
+  // Never log the plaintext password; operators already provide ADMIN_PASSWORD via env.
+  logger.info("[Bootstrap] Default admin account ensured", {
+    username: admin.username,
+    email: admin.email,
+    passwordConfigured: Boolean(admin.password),
+  });
 };
 
 const reconcileAdmin = async (
