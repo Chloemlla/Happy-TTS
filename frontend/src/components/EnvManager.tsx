@@ -25,7 +25,6 @@ import {
   WEBHOOK_SECRET_API,
   getAuthHeaders
 } from './env-manager/api';
-import CollapsibleSection from './env-manager/CollapsibleSection';
 import EnvRow from './env-manager/EnvRow';
 import SynapseAndroidConfigSection from './env-manager/SynapseAndroidConfigSection';
 import GoogleClientIdsSection from './env-manager/GoogleClientIdsSection';
