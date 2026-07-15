@@ -1,21 +1,11 @@
-import { getAuthToken } from 'authSession';
-import { getAuthToken } from 'authSession';
 /**
- * 请求防重放签名工具
+ * Request replay-protection signing helper.
  *
- * 为关键 API 请求自动附加 x-timestamp / x-nonce / x-signature 头，
- * 服务端通过 replayProtection 中间件校验。
- *
- * 用法：
- *   import { signedFetch, getSignHeaders } from '@/utils/requestSigner';
- *
- *   // 方式一：直接使用 signedFetch（包装 fetch）
- *   await signedFetch('/api/admin/example', { method: 'POST', body: JSON.stringify(data) });
- *
- *   // 方式二：获取签名头，手动附加到 axios / fetch
- *   const headers = await getSignHeaders(bodyString, undefined, 'POST', '/api/admin/example');
- *   api.post(url, data, { headers });
+ * Attaches x-timestamp / x-nonce / x-signature when a JS-readable bearer key is available.
+ * Cookie-only browser sessions intentionally return no signature headers; the server allows
+ * cookie-authenticated requests without HMAC.
  */
+import { getAuthToken } from './authSession';
 
 function bearerFromHeaders(headers?: HeadersInit): string | null {
   if (!headers) return null;
@@ -37,18 +27,12 @@ function buildSignaturePayload(timestamp: string, nonce: string, method: string,
   return [timestamp, nonce, method.toUpperCase(), path || '/', body].join('\n');
 }
 
-/**
- * 生成 16 字节随机 hex nonce（32 字符）
- */
 function generateNonce(): string {
   const array = new Uint8Array(16);
   crypto.getRandomValues(array);
-  return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(array, (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/**
- * HMAC-SHA256 签名（Web Crypto API）
- */
 async function hmacSha256(key: string, message: string): Promise<string> {
   const encoder = new TextEncoder();
   const cryptoKey = await crypto.subtle.importKey(
@@ -59,13 +43,9 @@ async function hmacSha256(key: string, message: string): Promise<string> {
     ['sign'],
   );
   const sig = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(message));
-  return Array.from(new Uint8Array(sig), b => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(new Uint8Array(sig), (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/**
- * 生成防重放签名头
- * @param body 请求体字符串（JSON.stringify 后的结果，GET 请求传空字符串）
- */
 export async function getSignHeaders(
   body: string = '',
   headers?: HeadersInit,
@@ -105,13 +85,7 @@ function resolveRequestPath(input: RequestInfo | URL): string {
   return url.pathname || '/';
 }
 
-/**
- * 带签名的 fetch 包装
- */
-export async function signedFetch(
-  input: RequestInfo | URL,
-  init: RequestInit = {},
-): Promise<Response> {
+export async function signedFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
   const bodyStr = typeof init.body === 'string' ? init.body : '';
   const headers = new Headers(init.headers);
   const signHeaders = await getSignHeaders(
@@ -121,6 +95,5 @@ export async function signedFetch(
     resolveRequestPath(input),
   );
   Object.entries(signHeaders).forEach(([k, v]) => headers.set(k, v));
-
   return fetch(input, { ...init, headers });
 }

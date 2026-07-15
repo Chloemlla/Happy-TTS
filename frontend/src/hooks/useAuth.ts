@@ -205,7 +205,7 @@ export const useAuth = () => {
             const data = response.data;
             if (data) {
                 setUser(data);
-                saveAccount(data, token);
+                saveAccount(data, token || '');
                 
                 // 恢复原始重定向逻辑
                 if (data.role === 'admin' && !isAdminCheckedRef.current) {
@@ -258,11 +258,13 @@ export const useAuth = () => {
                 return;
             }
             if (!target.token) {
-                // Cookie-only account entries cannot hard-switch identity without re-login.
-                setUser(target.user);
-                navigate('/');
+                // Cookie-only accounts cannot silently assume another identity.
+                clearAuthToken();
+                setUser(null);
+                navigate('/welcome');
                 return;
             }
+            // Explicit bearer injection path (non-cookie multi-account tooling).
             setAuthToken(target.token);
             setLoading(true);
             try {
@@ -307,15 +309,9 @@ export const useAuth = () => {
                 return { requires2FA: true, user, token, twoFactorType };
             }
 
-            // Cookie session is authoritative for browser requests (withCredentials).
-            // Keep bearer only for multi-account switching / API clients.
-            if (token) {
-                setAuthToken(token);
-                saveAccount(user, token);
-            } else {
-                clearAuthToken();
-                saveAccount(user, '');
-            }
+            // Browser session is HttpOnly-cookie only. Do not persist access tokens in JS storage.
+            clearAuthToken();
+            saveAccount(user, '');
             setUser(user);
             lastCheckRef.current = Date.now();
             setLastCheckTime(Date.now());
@@ -357,12 +353,11 @@ export const useAuth = () => {
                 pendingToken
             });
 
-            if (response.data.verified && response.data.token) {
-                const newToken = response.data.token;
-                setAuthToken(newToken);
+            if (response.data.verified) {
+                clearAuthToken();
                 const userData = await getUserById(userId);
                 setUser(userData);
-                saveAccount(userData, newToken);
+                saveAccount(userData, '');
                 setPendingTOTP(null);
                 setPending2FA(null);
                 lastCheckRef.current = Date.now();
@@ -395,14 +390,9 @@ export const useAuth = () => {
             const response = await api.post<{ user: User; token: string }>('/api/auth/register', {
                 username, email, password
             });
-            const { user, token } = response.data;
-            if (token) {
-                setAuthToken(token);
-                saveAccount(user, token);
-            } else {
-                clearAuthToken();
-                saveAccount(user, '');
-            }
+            const { user } = response.data;
+            clearAuthToken();
+            saveAccount(user, '');
             setUser(user);
             lastCheckRef.current = Date.now();
             setLastCheckTime(Date.now());
@@ -467,13 +457,11 @@ export const useAuth = () => {
     };
 
     const updateUserAvatar = async () => {
-        const token = getAuthToken();
-        if (!token) return;
         try {
             const response = await api.get<User>('/api/auth/me');
             if (response.data) {
                 setUser(response.data);
-                saveAccount(response.data, token);
+                saveAccount(response.data, getAuthToken() || '');
             }
         } catch (e) {}
     };

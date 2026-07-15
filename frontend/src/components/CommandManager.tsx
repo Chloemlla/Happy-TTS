@@ -33,6 +33,21 @@ ChartJS.register(
 );
 
 
+
+function resolveCommandPayload(data: any): any {
+  if (data == null) return data;
+  if (data.mode === 'cookie-session' && 'payload' in data) return data.payload;
+  if (data.payload !== undefined && !data.data) return data.payload;
+  return data;
+}
+
+async function maybeDecryptCommandResponse(data: any): Promise<any> {
+  if (data?.data && data?.iv && typeof data.data === 'string' && typeof data.iv === 'string') {
+    return decryptWithSessionToken(data);
+  }
+  return resolveCommandPayload(data);
+}
+
 async function decryptWithSessionToken(envelope: {
   data: string;
   iv: string;
@@ -127,10 +142,9 @@ const CommandManager: React.FC = () => {
   const fetchServerStatus = async (showSuccess = true) => {
     try {
       const response = await api.post('/api/command/status', { password });
-      // 检查是否为加密数据
-      if (response.data.data && response.data.iv && typeof response.data.data === 'string' && typeof response.data.iv === 'string') {
-        try {
-          const decryptedData = await decryptWithSessionToken(response.data);
+      try {
+          const decryptedData = await maybeDecryptCommandResponse(response.data);
+          if (decryptedData && (decryptedData.memory_usage || response.data.data)) {
           setServerStatus(decryptedData);
           setLastUpdateTime(new Date());
           // 添加资源使用历史记录
@@ -149,7 +163,7 @@ const CommandManager: React.FC = () => {
           setNotification({ message: '数据解密失败，请检查登录状态', type: 'error' });
         }
       } else {
-        setServerStatus(response.data);
+        setServerStatus(resolveCommandPayload(response.data));
         setLastUpdateTime(new Date());
         if (showSuccess) setNotification({ message: '服务器状态获取成功', type: 'success' });
       }
@@ -262,7 +276,7 @@ const CommandManager: React.FC = () => {
       if (response.data.data && response.data.iv && typeof response.data.data === 'string' && typeof response.data.iv === 'string') {
         try {
                                         
-          const decryptedData = await decryptWithSessionToken(response.data);
+          const decryptedData = await maybeDecryptCommandResponse(response.data);
           
                     
           if (Array.isArray(decryptedData)) {
@@ -308,7 +322,7 @@ const CommandManager: React.FC = () => {
       if (response.data.data && response.data.iv && typeof response.data.data === 'string' && typeof response.data.iv === 'string') {
         try {
                                         
-          const decryptedData = await decryptWithSessionToken(response.data);
+          const decryptedData = await maybeDecryptCommandResponse(response.data);
           
                     
           if (decryptedData.command) {
@@ -368,7 +382,7 @@ const CommandManager: React.FC = () => {
         try {
           console.log('🔐 开始解密执行历史数据...');
                               
-          const decryptedData = await decryptWithSessionToken(response.data);
+          const decryptedData = await maybeDecryptCommandResponse(response.data);
           
           console.log('✅ 解密成功，获取到执行历史数据');
           

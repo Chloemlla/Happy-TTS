@@ -16,3 +16,18 @@ describe("auth token logging hygiene", () => {
     expect(source).not.toMatch(/console\.(log|warn|error|info|debug)\([^\n]*token\)/);
   });
 });
+
+
+describe("cookie-only browser login storage", () => {
+  const useAuthPath = require("node:path").join(process.cwd(), "frontend", "src", "hooks", "useAuth.ts");
+  const authSessionPath = require("node:path").join(process.cwd(), "frontend", "src", "utils", "authSession.ts");
+
+  it("does not persist login access tokens in JS storage helpers for browser login", () => {
+    const fs = require("node:fs");
+    const useAuth = fs.readFileSync(useAuthPath, "utf8");
+    const authSession = fs.readFileSync(authSessionPath, "utf8");
+    // Browser login path should clear token storage rather than setAuthToken(loginToken)
+    expect(useAuth).toMatch(/clearAuthToken\(\);\s*\n\s*saveAccount\(user, ''\)/);
+    expect(authSession).toMatch(/Browser sessions are cookie-only|cookie-only/);
+  });
+});

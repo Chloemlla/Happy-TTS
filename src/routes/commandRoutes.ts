@@ -92,18 +92,27 @@ router.get("/q", commandLimiter, authenticateToken, async (req, res) => {
 
     const result = await commandService.getNextCommand();
     const token = getBearerToken(req);
+    // Cookie-authenticated browser sessions receive plaintext JSON over TLS.
+    // Bearer clients still receive encrypted envelopes for backward compatibility.
     if (!token) {
-      return res.status(401).json({ error: "未携带Token，请先登录" });
+      logger.info("[CommandManager] 命令队列以会话明文返回", {
+        path: "/q",
+        hasPayload: Boolean(result),
+        mode: "cookie-session",
+      });
+      return res.json({ success: true, payload: result, mode: "cookie-session" });
     }
 
     const encrypted = encryptWithToken(result, token);
     logger.info("[CommandManager] 命令队列已加密返回", {
       path: "/q",
       hasPayload: Boolean(result),
+      mode: "bearer-encrypted",
     });
 
     return res.json({
       success: true,
+      mode: "bearer-encrypted",
       ...encrypted,
     });
   } catch (error) {
@@ -265,11 +274,11 @@ router.get("/history", commandLimiter, authenticateToken, async (req, res) => {
     const history = await commandService.getExecutionHistory(limit);
     const token = getBearerToken(req);
     if (!token) {
-      return res.status(401).json({ error: "未携带Token，请先登录" });
+      return res.json({ success: true, payload: history, mode: "cookie-session" });
     }
 
     const encrypted = encryptWithToken(history, token);
-    return res.json({ success: true, ...encrypted });
+    return res.json({ success: true, mode: "bearer-encrypted", ...encrypted });
   } catch (error) {
     logger.error("[CommandManager] 获取历史失败", { error });
     return res.status(500).json({ error: "获取执行历史失败" });

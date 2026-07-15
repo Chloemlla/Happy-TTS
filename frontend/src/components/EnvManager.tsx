@@ -31,6 +31,7 @@ import SynapseAndroidConfigSection from './env-manager/SynapseAndroidConfigSecti
 import GoogleClientIdsSection from './env-manager/GoogleClientIdsSection';
 import CodeSettingSection from './env-manager/CodeSettingSection';
 import OutemailSettingsSection from './env-manager/OutemailSettingsSection';
+import SecretKeySection from './env-manager/SecretKeySection';
 import { DURATION_03, DURATION_06, ENTER_ANIMATE, ENTER_INITIAL, NO_DURATION } from './env-manager/motion';
 import {
   decryptAES256,
@@ -2144,119 +2145,53 @@ const EnvManager: React.FC = () => {
 
         <RuntimeConfigSections />
 
-        {/* 短链 AES_KEY 设置 */}
-        <CollapsibleSection title="短链 AES_KEY 设置" description="管理短链 AES_KEY，用于短链数据加密解密。" sectionKey="shortaes" isOpen={isSectionOpen('shortaes')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
-          <m.button onClick={(e) => { e.stopPropagation(); fetchShortAes(); }} disabled={shortAesLoading} className={ENV_MANAGER_REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
-            <FaSync className={`w-4 h-4 ${shortAesLoading ? 'animate-spin' : ''}`} /> 刷新
-          </m.button>
-        }>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">AES_KEY</label>
-              <input
-                value={shortAesInput}
-                onChange={(e) => setShortAesInput(e.target.value)}
-                placeholder="请输入 AES_KEY（仅用于加解密，不会回显明文）"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">当前配置（脱敏）</label>
-              <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 min-h-[40px] flex items-center">
-                {shortAesLoading ? '加载中...' : (shortAesSetting?.aesKey ?? '未设置')}
-              </div>
-            </div>
-          </div>
+        <SecretKeySection
+          title="短链 AES_KEY 设置"
+          description="管理短链 AES_KEY，用于短链数据加密解密。"
+          sectionKey="shortaes"
+          isOpen={isSectionOpen('shortaes')}
+          onToggle={toggleSection}
+          prefersReducedMotion={prefersReducedMotion}
+          loading={shortAesLoading}
+          saving={shortAesSaving}
+          deleting={shortAesDeleting}
+          inputLabel="AES_KEY"
+          inputValue={shortAesInput}
+          inputPlaceholder="请输入 AES_KEY（仅用于加解密，不会回显明文）"
+          currentValue={shortAesSetting?.aesKey ?? undefined}
+          updatedAt={shortAesSetting?.updatedAt}
+          onInputChange={setShortAesInput}
+          onRefresh={fetchShortAes}
+          onSave={handleSaveShortAes}
+          onDelete={handleDeleteShortAes}
+        />
 
-          <div className="flex items-center justify-end gap-3">
-            <m.button
-              onClick={handleDeleteShortAes}
-              disabled={shortAesDeleting}
-              className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm font-medium"
-              whileTap={{ scale: 0.96 }}
-            >
-              {shortAesDeleting ? '删除中...' : '删除'}
-            </m.button>
-            <m.button
-              onClick={handleSaveShortAes}
-              disabled={shortAesSaving}
-              className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
-              whileTap={{ scale: 0.96 }}
-            >
-              {shortAesSaving ? '保存中...' : '保存/更新'}
-            </m.button>
-          </div>
-
-          <div className="mt-4 text-xs text-gray-500">
-            最后更新时间：{shortAesSetting?.updatedAt ? new Date(shortAesSetting.updatedAt).toLocaleString() : '-'}
-          </div>
-        </CollapsibleSection>
-
-        {/* Webhook 密钥设置（支持自定义 key，默认 DEFAULT） */}
-        <CollapsibleSection title="Webhook 密钥设置" description="管理 Webhook 路由密钥和签名密钥。" sectionKey="webhook" isOpen={isSectionOpen('webhook')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
-          <m.button onClick={(e) => { e.stopPropagation(); fetchWebhookSecret(); }} disabled={webhookLoading} className={ENV_MANAGER_REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
-            <FaSync className={`w-4 h-4 ${webhookLoading ? 'animate-spin' : ''}`} /> 刷新
-          </m.button>
-        }>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Route Key（可选，默认 DEFAULT）</label>
-              <input
-                value={webhookKeyInput}
-                onChange={(e) => setWebhookKeyInput(e.target.value)}
-                placeholder="例如：ORDER、PAY 等，留空为 DEFAULT"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">密钥 Secret</label>
-              <input
-                value={webhookSecretInput}
-                onChange={(e) => setWebhookSecretInput(e.target.value)}
-                placeholder="请输入 Webhook 密钥（支持 Base64 或明文，不回显明文）"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
-            <div className="md:col-span-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">当前 Key</label>
-              <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 min-h-[40px] flex items-center">
-                {webhookLoading ? '加载中...' : (webhookSetting?.key || 'DEFAULT')}
-              </div>
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">当前密钥（脱敏）</label>
-              <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 min-h-[40px] flex items-center">
-                {webhookLoading ? '加载中...' : (webhookSetting?.secret ?? '未设置')}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-3">
-            <m.button
-              onClick={handleDeleteWebhookSecret}
-              disabled={webhookDeleting}
-              className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm font-medium"
-              whileTap={{ scale: 0.96 }}
-            >
-              {webhookDeleting ? '删除中...' : '删除'}
-            </m.button>
-            <m.button
-              onClick={handleSaveWebhookSecret}
-              disabled={webhookSaving}
-              className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
-              whileTap={{ scale: 0.96 }}
-            >
-              {webhookSaving ? '保存中...' : '保存/更新'}
-            </m.button>
-          </div>
-
-          <div className="mt-4 text-xs text-gray-500">
-            最后更新时间：{webhookSetting?.updatedAt ? new Date(webhookSetting.updatedAt).toLocaleString() : '-'}
-          </div>
-        </CollapsibleSection>
+        <SecretKeySection
+          title="Webhook 密钥设置"
+          description="管理 Webhook 路由密钥和签名密钥。"
+          sectionKey="webhook"
+          isOpen={isSectionOpen('webhook')}
+          onToggle={toggleSection}
+          prefersReducedMotion={prefersReducedMotion}
+          loading={webhookLoading}
+          saving={webhookSaving}
+          deleting={webhookDeleting}
+          inputLabel="密钥 Secret"
+          inputValue={webhookSecretInput}
+          inputPlaceholder="请输入 Webhook 密钥（支持 Base64 或明文，不回显明文）"
+          currentValue={webhookSetting ? `${webhookSetting.key || 'DEFAULT'} / ${webhookSetting.secret || '未设置'}` : undefined}
+          updatedAt={webhookSetting?.updatedAt}
+          onInputChange={setWebhookSecretInput}
+          onRefresh={fetchWebhookSecret}
+          onSave={handleSaveWebhookSecret}
+          onDelete={handleDeleteWebhookSecret}
+          extraField={{
+            label: 'Route Key（可选，默认 DEFAULT）',
+            value: webhookKeyInput,
+            placeholder: '例如：ORDER、PAY 等，留空为 DEFAULT',
+            onChange: setWebhookKeyInput,
+          }}
+        />
 
         {/* IPFS 配置设置 */}
         <CollapsibleSection title="IPFS 配置设置" description="管理 IPFS 上传、User-Agent 和图片床默认参数。" sectionKey="ipfs" isOpen={isSectionOpen('ipfs')} onToggle={toggleSection} prefersReducedMotion={prefersReducedMotion} headerRight={
