@@ -179,6 +179,19 @@ function normalizeStoredIpqsConfig(value: unknown, defaults = runtimeConfigDefau
 function normalizeStoredLinuxDoConfig(value: unknown, defaults = runtimeConfigDefaults.linuxdo): LinuxDoRuntimeConfig {
   const raw = asObject(value);
 
+  const normalizeLinuxDoFrontendCallbackUrl = (candidate: unknown, fallback: string): string => {
+    const normalized = normalizeUrl(candidate, fallback);
+    try {
+      const url = new URL(normalized);
+      url.pathname = "/auth/linuxdo/callback";
+      url.search = "";
+      url.hash = "";
+      return url.toString();
+    } catch {
+      return fallback;
+    }
+  };
+
   return {
     clientId: normalizeOptionalString(raw.clientId, defaults.clientId, 512),
     clientSecret: normalizeOptionalString(raw.clientSecret, defaults.clientSecret, 1024),
@@ -189,7 +202,10 @@ function normalizeStoredLinuxDoConfig(value: unknown, defaults = runtimeConfigDe
     userEndpoint: normalizeUrl(raw.userEndpoint, defaults.userEndpoint),
     forumBaseUrl: normalizeUrl(raw.forumBaseUrl, defaults.forumBaseUrl),
     callbackUrl: normalizeUrl(raw.callbackUrl, defaults.callbackUrl),
-    frontendCallbackUrl: normalizeUrl(raw.frontendCallbackUrl, defaults.frontendCallbackUrl),
+    frontendCallbackUrl: normalizeLinuxDoFrontendCallbackUrl(
+      raw.frontendCallbackUrl,
+      defaults.frontendCallbackUrl,
+    ),
   };
 }
 
@@ -665,7 +681,10 @@ export class RuntimeConfigService {
       userEndpoint: normalizeUrl(input.userEndpoint, current.userEndpoint),
       forumBaseUrl: normalizeUrl(input.forumBaseUrl, current.forumBaseUrl),
       callbackUrl: normalizeUrl(input.callbackUrl, current.callbackUrl),
-      frontendCallbackUrl: normalizeUrl(input.frontendCallbackUrl, current.frontendCallbackUrl),
+      frontendCallbackUrl: normalizeStoredLinuxDoConfig({
+        ...current,
+        frontendCallbackUrl: input.frontendCallbackUrl ?? current.frontendCallbackUrl,
+      }).frontendCallbackUrl,
     };
 
     const now = new Date();

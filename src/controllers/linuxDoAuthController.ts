@@ -3,11 +3,14 @@ import {
   completeLinuxDoAuthorization,
   consumeLinuxDoLoginTicket,
   createLinuxDoAuthorizationUrl,
+  buildLinuxDoFrontendRedirect,
   getLinuxDoConfigSummary,
   getLinuxDoErrorRedirect,
   isLinuxDoAuthEnabled,
+  resolveLinuxDoFrontendCallbackUrl,
   type LinuxDoAuthIntent,
 } from "../services/linuxDoAuthService";
+import { buildProviderBindPageRedirect } from "../services/providerBindSessionService";
 import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
 
@@ -38,9 +41,34 @@ export class LinuxDoAuthController {
     const code = readCallbackField(payload.code);
     const state = readCallbackField(payload.state);
     const oauthError = readCallbackField(payload.error) || undefined;
+    const ticket = readCallbackField(payload.ticket);
+    const intent = readCallbackField(payload.intent) || undefined;
+    const bindStatus = readCallbackField(payload.status) || undefined;
+    const mergeToken = readCallbackField(payload.mergeToken) || undefined;
+    const sessionToken = readCallbackField(payload.sessionToken) || undefined;
 
     if (oauthError) {
       return res.redirect(302, getLinuxDoErrorRedirect(oauthError));
+    }
+
+    // Misconfigured frontendCallbackUrl may point at this backend path with
+    // completion params (ticket/status/sessionToken). Bounce once to the SPA.
+    if (ticket || bindStatus || sessionToken || mergeToken) {
+      if (sessionToken && !ticket && !bindStatus) {
+        return res.redirect(
+          302,
+          buildProviderBindPageRedirect(resolveLinuxDoFrontendCallbackUrl(), sessionToken),
+        );
+      }
+      return res.redirect(
+        302,
+        buildLinuxDoFrontendRedirect({
+          ticket: ticket || undefined,
+          intent,
+          status: bindStatus,
+          mergeToken: mergeToken || undefined,
+        }),
+      );
     }
 
     if (!code || !state) {

@@ -1187,6 +1187,9 @@ const RuntimeConfigSections: React.FC = () => {
               onChange={(e) => setLinuxdoForm((prev) => ({ ...prev, callbackUrl: e.target.value }))}
               className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
             />
+            <p className="mt-1 text-xs text-slate-500">
+              OAuth 服务端回调（redirect_uri），应为 <code>/api/auth/linuxdo/callback</code>。
+            </p>
           </div>
           <div>
             <FieldLabel label="Frontend Callback URL" />
@@ -1195,6 +1198,10 @@ const RuntimeConfigSections: React.FC = () => {
               onChange={(e) => setLinuxdoForm((prev) => ({ ...prev, frontendCallbackUrl: e.target.value }))}
               className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
             />
+            <p className="mt-1 text-xs text-slate-500">
+              浏览器完成页，必须是 SPA 路径 <code>/auth/linuxdo/callback</code>。不要填后端
+              <code>/api/auth/linuxdo/callback</code>，否则会 302 循环并触发 429。
+            </p>
           </div>
         </div>
 

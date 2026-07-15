@@ -59,8 +59,31 @@ function hasCallbackProviderError(value: unknown): boolean {
   return Array.isArray(value) && typeof value[0] === "string" && value[0].trim().length > 0;
 }
 
+function hasNonEmptyQueryValue(value: unknown): boolean {
+  if (typeof value === "string") {
+    return value.trim().length > 0;
+  }
+
+  return Array.isArray(value) && typeof value[0] === "string" && value[0].trim().length > 0;
+}
+
 export function shouldSkipLinuxDoCallbackRateLimit(req: Request): boolean {
-  return req.method === "GET" && hasCallbackProviderError(req.query?.error);
+  if (req.method !== "GET") {
+    return false;
+  }
+
+  // Provider error callbacks and already-completed SPA redirects must not burn
+  // the OAuth callback budget while we bounce them to the frontend path.
+  if (hasCallbackProviderError(req.query?.error)) {
+    return true;
+  }
+
+  return (
+    hasNonEmptyQueryValue(req.query?.ticket) ||
+    hasNonEmptyQueryValue(req.query?.sessionToken) ||
+    hasNonEmptyQueryValue(req.query?.mergeToken) ||
+    hasNonEmptyQueryValue(req.query?.status)
+  );
 }
 
 const linuxDoCallbackGetLimiter = rateLimit({

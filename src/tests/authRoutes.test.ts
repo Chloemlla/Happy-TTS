@@ -66,9 +66,12 @@ function makeRequest(method: string, query: Request["query"]): Request {
 
 describe("authRoutes", () => {
   describe("shouldSkipLinuxDoCallbackRateLimit", () => {
-    it("skips only provider error GET callbacks", () => {
+    it("skips provider error and completion-parameter GET callbacks", () => {
       expect(shouldSkipLinuxDoCallbackRateLimit(makeRequest("GET", { error: "access_denied" }))).toBe(true);
       expect(shouldSkipLinuxDoCallbackRateLimit(makeRequest("GET", { error: ["access_denied"] }))).toBe(true);
+      expect(shouldSkipLinuxDoCallbackRateLimit(makeRequest("GET", { ticket: "relay-ticket" }))).toBe(true);
+      expect(shouldSkipLinuxDoCallbackRateLimit(makeRequest("GET", { sessionToken: "bind-session" }))).toBe(true);
+      expect(shouldSkipLinuxDoCallbackRateLimit(makeRequest("GET", { status: "bound" }))).toBe(true);
       expect(shouldSkipLinuxDoCallbackRateLimit(makeRequest("GET", { code: "code", state: "state" }))).toBe(false);
       expect(shouldSkipLinuxDoCallbackRateLimit(makeRequest("POST", { error: "access_denied" }))).toBe(false);
       expect(shouldSkipLinuxDoCallbackRateLimit(makeRequest("GET", { error: "   " }))).toBe(false);

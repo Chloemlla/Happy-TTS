@@ -551,5 +551,15 @@ export function buildProviderBindRedirect(params: {
   if (params.error) {
     redirectParams.set("error", params.error);
   }
-  return `${config.linuxdo.frontendCallbackUrl}?${redirectParams.toString()}`;
+  // Keep origin from runtime config, but never bounce browsers back to the
+  // backend OAuth redirect_uri (that path is POST/GET OAuth completion only).
+  try {
+    const redirectUrl = new URL(config.linuxdo.frontendCallbackUrl);
+    redirectUrl.pathname = "/auth/linuxdo/callback";
+    redirectUrl.search = redirectParams.toString();
+    redirectUrl.hash = "";
+    return redirectUrl.toString();
+  } catch {
+    return `${config.linuxdo.frontendCallbackUrl}?${redirectParams.toString()}`;
+  }
 }

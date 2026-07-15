@@ -91,7 +91,6 @@ const DISCOVERY_TTL_MS = 60 * 60 * 1000;
 const PLACEHOLDER_EMAIL_DOMAIN = "linuxdo.oauth.local";
 const TRUSTED_LINUXDO_DISCOVERY_URL = "https://connect.linux.do/.well-known/openid-configuration";
 const TRUSTED_LINUXDO_OAUTH_HOSTS = new Set(["connect.linux.do"]);
-const LINUXDO_BACKEND_CALLBACK_PATH = "/api/auth/linuxdo/callback";
 const LINUXDO_FRONTEND_CALLBACK_PATH = "/auth/linuxdo/callback";
 const RESERVED_USERNAMES = new Set(["admin", "administrator", "root", "system", "test"]);
 
@@ -267,40 +266,47 @@ function buildPlaceholderEmail(linuxdoId: string): string {
   return `linuxdo_${linuxdoId}@${PLACEHOLDER_EMAIL_DOMAIN}`;
 }
 
-function normalizeUrlPath(pathname: string): string {
-  return pathname.replace(/\/+$/, "") || "/";
-}
+/**
+ * Always return the SPA callback URL. Runtime/admin config sometimes stores the
+ * backend OAuth redirect_uri under frontendCallbackUrl; sending browsers there
+ * creates a 302 loop and burns the Linux.do callback rate limit (HTTP 429).
+ */
+export function resolveLinuxDoFrontendCallbackUrl(): string {
+  const fallbackOrigin = (() => {
+    try {
+      return new URL(config.linuxdo.callbackUrl).origin;
+    } catch {
+      try {
+        return new URL(config.baseUrl).origin;
+      } catch {
+        return "https://tts.chloemlla.com";
+      }
+    }
+  })();
 
-function isConfiguredLinuxDoBackendCallbackUrl(url: URL): boolean {
-  if (normalizeUrlPath(url.pathname) === LINUXDO_BACKEND_CALLBACK_PATH) {
-    return true;
-  }
-
-  try {
-    const backendCallbackUrl = new URL(config.linuxdo.callbackUrl);
-    return (
-      url.origin === backendCallbackUrl.origin &&
-      normalizeUrlPath(url.pathname) === normalizeUrlPath(backendCallbackUrl.pathname)
-    );
-  } catch {
-    return false;
-  }
-}
-
-function resolveLinuxDoFrontendCallbackUrl(): string {
   try {
     const frontendCallbackUrl = new URL(config.linuxdo.frontendCallbackUrl);
-    if (isConfiguredLinuxDoBackendCallbackUrl(frontendCallbackUrl)) {
-      frontendCallbackUrl.pathname = LINUXDO_FRONTEND_CALLBACK_PATH;
-      frontendCallbackUrl.search = "";
-      frontendCallbackUrl.hash = "";
-      return frontendCallbackUrl.toString();
-    }
+    // Preserve configured origin (frontend host) but always land on the SPA path.
+    // Backend OAuth redirect_uri is never a valid browser completion target.
+    frontendCallbackUrl.pathname = LINUXDO_FRONTEND_CALLBACK_PATH;
+    frontendCallbackUrl.search = "";
+    frontendCallbackUrl.hash = "";
+    return frontendCallbackUrl.toString();
   } catch {
-    return config.linuxdo.frontendCallbackUrl;
+    return `${fallbackOrigin}${LINUXDO_FRONTEND_CALLBACK_PATH}`;
   }
+}
 
-  return config.linuxdo.frontendCallbackUrl;
+export function buildLinuxDoFrontendRedirect(
+  params: Record<string, string | undefined | null> = {},
+): string {
+  const redirectUrl = new URL(resolveLinuxDoFrontendCallbackUrl());
+  for (const [key, value] of Object.entries(params)) {
+    if (typeof value === "string" && value.trim()) {
+      redirectUrl.searchParams.set(key, value);
+    }
+  }
+  return redirectUrl.toString();
 }
 
 async function getAvailableLinuxDoUsername(baseUsername: string): Promise<string> {
@@ -561,16 +567,7 @@ async function upsertLinuxDoUser(profile: LinuxDoNormalizedProfile): Promise<{
 }
 
 function createLinuxDoErrorRedirect(message: string): string {
-  const callbackUrl = resolveLinuxDoFrontendCallbackUrl();
-
-  try {
-    const redirectUrl = new URL(callbackUrl);
-    redirectUrl.searchParams.set("error", message);
-    return redirectUrl.toString();
-  } catch {
-    const params = new URLSearchParams({ error: message });
-    return `${callbackUrl}?${params.toString()}`;
-  }
+  return buildLinuxDoFrontendRedirect({ error: message });
 }
 
 export function getLinuxDoConfigSummary(): LinuxDoConfigSummary {
@@ -578,7 +575,7 @@ export function getLinuxDoConfigSummary(): LinuxDoConfigSummary {
     enabled: isLinuxDoAuthEnabled(),
     clientIdConfigured: Boolean(config.linuxdo.clientId),
     callbackUrl: config.linuxdo.callbackUrl,
-    frontendCallbackUrl: config.linuxdo.frontendCallbackUrl,
+    frontendCallbackUrl: resolveLinuxDoFrontendCallbackUrl(),
     discoveryUrl: config.linuxdo.discoveryUrl,
     scopes: config.linuxdo.scopes,
   };
@@ -771,7 +768,7 @@ export async function completeLinuxDoAuthorization(params: {
     });
 
     return {
-      redirectUrl: buildProviderBindPageRedirect(config.linuxdo.frontendCallbackUrl, session.sessionToken),
+      redirectUrl: buildProviderBindPageRedirect(resolveLinuxDoFrontendCallbackUrl(), session.sessionToken),
     };
   }
 
@@ -785,11 +782,6 @@ export async function completeLinuxDoAuthorization(params: {
     provider: "linuxdo",
   };
   const ticket = issueLinuxDoLoginTicket(payload);
-  const redirectParams = new URLSearchParams({
-    ticket,
-    intent,
-  });
-
   logger.info("[Linux.do Auth] OAuth callback completed", {
     userId: providerLoginPayload.user.id,
     username: providerLoginPayload.user.username,
@@ -800,7 +792,10 @@ export async function completeLinuxDoAuthorization(params: {
   });
 
   return {
-    redirectUrl: `${config.linuxdo.frontendCallbackUrl}?${redirectParams.toString()}`,
+    redirectUrl: buildLinuxDoFrontendRedirect({
+      ticket,
+      intent,
+    }),
     payload,
   };
 }

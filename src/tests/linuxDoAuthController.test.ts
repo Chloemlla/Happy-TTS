@@ -17,6 +17,23 @@ jest.mock("../services/linuxDoAuthService", () => ({
     (message: string) => `https://frontend.example/auth/linuxdo/callback?error=${encodeURIComponent(message)}`,
   ),
   isLinuxDoAuthEnabled: jest.fn(),
+  resolveLinuxDoFrontendCallbackUrl: jest.fn(() => "https://frontend.example/auth/linuxdo/callback"),
+  buildLinuxDoFrontendRedirect: jest.fn((params: Record<string, string | undefined> = {}) => {
+    const url = new URL("https://frontend.example/auth/linuxdo/callback");
+    for (const [key, value] of Object.entries(params)) {
+      if (typeof value === "string" && value.trim()) {
+        url.searchParams.set(key, value);
+      }
+    }
+    return url.toString();
+  }),
+}));
+
+jest.mock("../services/providerBindSessionService", () => ({
+  buildProviderBindPageRedirect: jest.fn(
+    (_frontendCallbackUrl: string, sessionToken: string) =>
+      `https://frontend.example/auth/provider/bind?sessionToken=${encodeURIComponent(sessionToken)}`,
+  ),
 }));
 
 jest.mock("../utils/ipUtils", () => ({
@@ -115,5 +132,24 @@ describe("LinuxDoAuthController", () => {
       clientIp: "203.0.113.10",
     });
     expect(redirect).toHaveBeenCalledWith(302, "https://frontend.example/auth/linuxdo/callback?ticket=test");
+  });
+
+  it("bounces completion query params from the backend callback onto the SPA path", async () => {
+    const redirect = jest.fn();
+    const req = {
+      query: {
+        ticket: "relay-ticket",
+        intent: "login",
+      },
+    } as unknown as Request;
+    const res = { redirect } as unknown as Response;
+
+    await LinuxDoAuthController.callbackGet(req, res);
+
+    expect(completeLinuxDoAuthorization).not.toHaveBeenCalled();
+    expect(redirect).toHaveBeenCalledWith(
+      302,
+      "https://frontend.example/auth/linuxdo/callback?ticket=relay-ticket&intent=login",
+    );
   });
 });
