@@ -610,7 +610,6 @@ export class EmailService {
     subject: string;
     markdown: string;
   }): Promise<EmailResponse> {
-    let html: string;
     const html = await renderMarkdown(markdown || "");
     return EmailService.sendEmail({ from, to, subject, html, text: markdown });
   }
