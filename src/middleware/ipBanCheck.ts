@@ -493,7 +493,7 @@ async function getRedisService(): Promise<any> {
   }
 
   // 开始加载
-  redisServiceLoadPromise = import("../services/redisService")
+  redisServiceLoadPromise = import("../services/redisService.js")
     .then((module) => {
       redisServiceCache = module.redisService;
       redisServiceLoadPromise = null;

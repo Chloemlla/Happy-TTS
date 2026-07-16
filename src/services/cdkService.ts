@@ -495,9 +495,9 @@ export class CDKService {
       // 发送邮件通知
       if (userInfo?.userId) {
         try {
-          const { UserStorage } = await import("../utils/userStorage");
-          const { sendEmail } = await import("./emailSender");
-          const { generateCDKActivatedEmailHtml } = await import("../templates/emailTemplates");
+          const { UserStorage } = await import("../utils/userStorage.js");
+          const { sendEmail } = await import("./emailSender.js");
+          const { generateCDKActivatedEmailHtml } = await import("../templates/emailTemplates.js");
 
           const user = await UserStorage.getUserById(userInfo.userId);
           if (user?.email) {
@@ -516,7 +516,7 @@ export class CDKService {
               html: emailHtml,
               logTag: "CDK兑换通知",
               checkQuota: false,
-            }).catch((e) => logger.warn(`[CDK兑换通知] 邮件发送失败: ${user.email}`, e));
+            }).catch((e: unknown) => logger.warn(`[CDK兑换通知] 邮件发送失败: ${user.email}`, e));
           }
         } catch (notifyErr) {
           logger.warn("[CDK兑换通知] 发送通知邮件失败:", notifyErr);

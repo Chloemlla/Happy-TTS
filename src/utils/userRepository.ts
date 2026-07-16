@@ -37,8 +37,8 @@ const maybeSendUsageAlert = async (user: User, dailyUsage: number): Promise<void
   }
 
   try {
-    const { sendEmail } = await import("../services/emailSender");
-    const { generateUsageAlertEmailHtml } = await import("../templates/emailTemplates");
+    const { sendEmail } = await import("../services/emailSender.js");
+    const { generateUsageAlertEmailHtml } = await import("../templates/emailTemplates.js");
     const time = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
     const emailHtml = generateUsageAlertEmailHtml(user.username, `${usagePercent}%`, dailyUsage, DAILY_LIMIT, time);
     sendEmail({
@@ -47,7 +47,7 @@ const maybeSendUsageAlert = async (user: User, dailyUsage: number): Promise<void
       html: emailHtml,
       logTag: "用量警报通知",
       checkQuota: false,
-    }).catch((error) => logger.warn(`[用量警报通知] 邮件发送失败: ${user.email}`, error));
+    }).catch((error: unknown) => logger.warn(`[用量警报通知] 邮件发送失败: ${user.email}`, error));
   } catch (error) {
     logger.warn("[用量警报通知] 发送通知邮件失败:", error);
   }
@@ -81,9 +81,7 @@ export const userRepository = {
 
   async authenticateUser(identifier: string, password: string): Promise<User | null> {
     const sanitizedIdentifier = userValidationService.sanitizeInput(identifier);
-    const { getUserAuthByUsername, getUserAuthByEmail, verifyAndMigrateUserPassword } = await import(
-      "../services/userService"
-    );
+    const { getUserAuthByUsername, getUserAuthByEmail, verifyAndMigrateUserPassword } = await import("../services/userService.js");
     const user =
       (await getUserAuthByUsername(sanitizedIdentifier)) || (await getUserAuthByEmail(sanitizedIdentifier));
 
@@ -144,7 +142,7 @@ export const userRepository = {
     const user = await getUserById(userId);
     if (!user) return false;
     if (user.role === "admin") return true;
-    const { incrementUserDailyUsageAtomic } = await import("../services/userService");
+    const { incrementUserDailyUsageAtomic } = await import("../services/userService.js");
     const result = await incrementUserDailyUsageAtomic(userId, DAILY_LIMIT);
     if (!result.success || !result.user) {
       return false;

@@ -58,7 +58,7 @@ jest.mock("../middleware/userDataLogger", () => ({
   logUserData: jest.fn(mockNoopHandler),
 }));
 
-const { shouldSkipLinuxDoCallbackRateLimit } = require("../routes/authRoutes") as typeof import("../routes/authRoutes");
+const { shouldSkipLinuxDoCallbackRateLimit } = require("../routes/authRoutes") as typeof import("../routes/authRoutes.js");
 
 function makeRequest(method: string, query: Request["query"]): Request {
   return { method, query } as Request;

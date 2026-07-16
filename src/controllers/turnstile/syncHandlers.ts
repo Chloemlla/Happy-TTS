@@ -13,7 +13,7 @@ export async function syncIpBans(req: Request, res: Response) {
   try {
     if (!requireAdmin(req, res)) return;
 
-    const { schedulerService } = await import("../../services/schedulerService");
+    const { schedulerService } = await import("../../services/schedulerService.js");
     const result = await schedulerService.manualSync();
 
     if (result.success) {
@@ -44,7 +44,7 @@ export async function getSyncStatus(req: Request, res: Response) {
   try {
     if (!requireAdmin(req, res)) return;
 
-    const { schedulerService } = await import("../../services/schedulerService");
+    const { schedulerService } = await import("../../services/schedulerService.js");
     const status = schedulerService.getStatus();
     const ipBanSyncStatus = status.ipBanSyncStatus;
     const errors = status.lastSyncError ? [status.lastSyncError] : [];
@@ -67,7 +67,7 @@ export async function getSyncStatus(req: Request, res: Response) {
         lastSyncResult: status.lastSyncResult,
         lastSyncError: status.lastSyncError,
         lastSyncDurationMs: status.lastSyncDurationMs,
-        capabilities: status.capabilities.filter((capability) => capability.key === "ipban.sync"),
+        capabilities: status.capabilities.filter((capability: { key: string }) => capability.key === "ipban.sync"),
       },
     });
   } catch (error) {

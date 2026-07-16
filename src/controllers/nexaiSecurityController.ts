@@ -230,8 +230,8 @@ export async function trackDeviceManually(req: Request, res: Response): Promise<
  */
 export async function getDashboardStats(req: Request, res: Response): Promise<void> {
   try {
-    const { DeviceTracking } = await import("../models/deviceTrackingModel");
-    const { SecurityEvent } = await import("../models/securityEventModel");
+    const { DeviceTracking } = await import("../models/deviceTrackingModel.js");
+    const { SecurityEvent } = await import("../models/securityEventModel.js");
 
     const timeRange = (req.query.timeRange as string) || "24h";
     const timeRangeMs: Record<string, number> = {
@@ -305,7 +305,7 @@ export async function getDashboardStats(req: Request, res: Response): Promise<vo
  */
 export async function getDeviceList(req: Request, res: Response): Promise<void> {
   try {
-    const { DeviceTracking } = await import("../models/deviceTrackingModel");
+    const { DeviceTracking } = await import("../models/deviceTrackingModel.js");
 
     const page = parseInt(req.query.page as string, 10) || 1;
     const limit = parseInt(req.query.limit as string, 10) || 20;
@@ -350,7 +350,7 @@ export async function getDeviceList(req: Request, res: Response): Promise<void> 
  */
 export async function getSecurityEvents(req: Request, res: Response): Promise<void> {
   try {
-    const { SecurityEvent } = await import("../models/securityEventModel");
+    const { SecurityEvent } = await import("../models/securityEventModel.js");
 
     const page = parseInt(req.query.page as string, 10) || 1;
     const limit = parseInt(req.query.limit as string, 10) || 20;

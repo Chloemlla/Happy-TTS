@@ -604,7 +604,7 @@ export class NexaiAuthController {
       let userId: string;
       // 短路查找
       const safeValue = identifier.replace(/[^a-zA-Z0-9_@.-]/g, "").toLowerCase();
-      const { NexaiUserModel } = await import("../models/nexaiUserModel");
+      const { NexaiUserModel } = await import("../models/nexaiUserModel.js");
       const user = await NexaiUserModel.findOne({
         $or: [{ email: safeValue }, { username: safeValue }],
       }).lean();

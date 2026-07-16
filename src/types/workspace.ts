@@ -58,7 +58,7 @@ export interface VoiceProject {
 // 项目内容接口
 export interface ProjectContent {
   text: string;
-  voiceConfig: import("./recommendation").VoiceStyle;
+  voiceConfig: import("./recommendation.js").VoiceStyle;
   generatedAudioUrl?: string;
   metadata: Record<string, any>;
 }

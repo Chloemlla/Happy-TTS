@@ -145,7 +145,7 @@ async function checkAdminPassword(password: string) {
   let admin = users.find((u) => u.role === "admin");
   if (!admin || !hasPasswordMaterial(admin)) {
     try {
-      const userService = await import("../services/userService");
+      const userService = await import("../services/userService.js");
       if (typeof userService.getAllUsersAuth === "function") {
         users = await userService.getAllUsersAuth();
         admin = users.find((u) => u.role === "admin");
