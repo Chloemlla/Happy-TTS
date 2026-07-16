@@ -141,7 +141,7 @@ export const useAuth = () => {
     const loadSavedAccounts = useCallback(() => {
         try {
             const parsed = readSavedAccounts().map((account) => ({
-                user: account.user as User,
+                user: account.user as unknown as User,
                 token: account.token,
                 lastActive: account.lastActive,
             })) as SavedAccount[];
