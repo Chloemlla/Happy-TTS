@@ -1,9 +1,8 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import ReactDOM from 'react-dom';
-import { startAuthentication } from '@simplewebauthn/browser';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { api } from '../api/api';
-import { getClientOrigin, passkeyApi } from '../api/passkey';
+import { getClientOrigin } from '../api/passkey';
 import { getSignHeaders } from '../utils/requestSigner';
 
 import { useNavigate } from 'react-router-dom';
@@ -13,21 +12,46 @@ import {
   FaUserPlus,
   FaEdit,
   FaTrash,
-  FaSave,
   FaTimes,
-  FaUser,
-  FaKey,
   FaList,
-  FaShieldAlt,
-  FaCog,
-  FaChevronDown,
-  FaChevronUp,
   FaSearch,
   FaSyncAlt,
 } from 'react-icons/fa';
 
-import { UserFormScaffold } from './user-management/UserFormControls';
-import { RevealPasswordModal, type RevealPasswordMethod } from './user-management/RevealPasswordModal';
+import {
+  ACCOUNT_STATUS_FILTER_OPTIONS,
+  BULK_ACTION_OPTIONS,
+  CreateUserForm,
+  DEFAULT_PAGINATION,
+  DEFAULT_STATS,
+  DEFAULT_USER_LIST_FILTERS,
+  EditUserForm,
+  PAGE_SIZE_OPTIONS,
+  ROLE_FILTER_OPTIONS,
+  SECURITY_FILTER_OPTIONS,
+  SORT_OPTIONS,
+  TABLE_COLUMNS,
+  TICKET_FILTER_OPTIONS,
+  TRANSLATION_FILTER_OPTIONS,
+  buildFingerprintListPatch,
+  createDefaultCollapsedSections,
+  getAdminPasskeyAuthResponse,
+  getLatestFingerprint,
+  getUserFingerprintCount,
+  parseBackupCodes,
+  type BulkUserAction,
+  type CollapsedSectionState,
+  type CollapsibleSectionKey,
+  type UserFormChangeHandler,
+  type UserListFilters,
+  type UserListPagination,
+  type UserListStats,
+} from './user-management/UserFormControls';
+import {
+  RevealPasswordModal,
+  type RevealPasswordMethod,
+  type RevealPasswordState as ModalRevealPasswordState,
+} from './user-management/RevealPasswordModal';
 
 
 
@@ -44,7 +68,12 @@ interface FingerprintRecord {
   ts: number;
   ua?: string;
   ip?: string;
-  deviceInfo?: Record<string, unknown>;
+  deviceInfo?: {
+    screen?: { w?: number; h?: number };
+    timezone?: { tz?: string };
+    navigator?: { userAgent?: string };
+    [key: string]: unknown;
+  };
 }
 
 interface PasskeyCredential {
@@ -100,7 +129,7 @@ interface User {
 
 interface RevealPasswordState {
   open: boolean;
-  targetUser: User | null;
+  targetUser: { id: string; username: string } | null;
   reason: string;
   method: RevealPasswordMethod;
   password: string;
@@ -108,61 +137,6 @@ interface RevealPasswordState {
   verificationToken: string;
   revealedPassword: string;
   loading: boolean;
-}
-
-type UserListRoleFilter = 'all' | 'user' | 'admin' | 'trusted';
-type UserListAccountStatusFilter = 'all' | 'active' | 'suspended';
-type UserListSecurityFilter = 'all' | 'totp' | 'passkey' | 'fingerprintRequired' | 'noMfa';
-type UserListTicketFilter = 'all' | 'normal' | 'violated' | 'banned';
-type UserListTranslationFilter = 'all' | 'enabled' | 'disabled' | 'limited';
-type UserListSortOrder = 'asc' | 'desc';
-type BulkUserAction =
-  | 'resetDailyUsage'
-  | 'requireFingerprint'
-  | 'clearFingerprintRequirement'
-  | 'suspend'
-  | 'activate'
-  | 'enableTranslation'
-  | 'disableTranslation'
-  | 'clearTranslationRestrictions'
-  | 'clearTicketRestrictions'
-  | 'resetMfa';
-
-interface UserListFilters {
-  keyword: string;
-  role: UserListRoleFilter;
-  accountStatus: UserListAccountStatusFilter;
-  security: UserListSecurityFilter;
-  ticket: UserListTicketFilter;
-  translation: UserListTranslationFilter;
-  sortBy: string;
-  sortOrder: UserListSortOrder;
-  pageSize: number;
-}
-
-interface UserListPagination {
-  page: number;
-  pageSize: number;
-  total: number;
-  totalPages: number;
-}
-
-interface UserListStats {
-  total: number;
-  users: number;
-  admins: number;
-  trusted: number;
-  active: number;
-  suspended: number;
-  totpEnabled: number;
-  passkeyEnabled: number;
-  fingerprintRequired: number;
-  withFingerprints: number;
-  ticketViolated: number;
-  ticketBanned: number;
-  translationDisabled: number;
-  translationLimited: number;
-  totalDailyUsage: number;
 }
 
 interface UserListEnvelope {
@@ -216,12 +190,6 @@ const emptyRevealPasswordState: RevealPasswordState = {
 
 const ROW_INITIAL = { opacity: 0, x: -20 } as const;
 const ROW_ANIMATE = { opacity: 1, x: 0 } as const;
-
-type UserFormChangeEvent = React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>;
-type UserFormChangeHandler = (event: UserFormChangeEvent) => void;
-type MotionScaleHandler = (scale: number, enabled?: boolean) => { scale: number } | undefined;
-type CollapsibleSectionKey = 'token' | 'security' | 'fingerprint' | 'backupCodes';
-type CollapsedSectionState = Record<CollapsibleSectionKey, boolean>;
 
 const UserManagement: React.FC = () => {
   const { user } = useAuth();
@@ -447,7 +415,7 @@ const UserManagement: React.FC = () => {
       setNotification({ type: 'success', message: editingUser ? '用户信息已更新' : '用户已创建' });
       fetchUsers(true);
     } catch (e: unknown) {
-      setError(e.response?.data?.error || e.message || '操作失败');
+      setError(getErrorMessage(e, '操作失败'));
       setNotification({ type: 'error', message: getErrorMessage(e, '操作失败') });
     } finally {
       setLoading(false);
@@ -464,7 +432,7 @@ const UserManagement: React.FC = () => {
       setNotification({ type: 'success', message: '用户已删除' });
       fetchUsers(true);
     } catch (e: unknown) {
-      setError(e.response?.data?.error || e.message || '删除失败');
+      setError(getErrorMessage(e, '删除失败'));
       setNotification({ type: 'error', message: getErrorMessage(e, '删除失败') });
     } finally {
       setLoading(false);
@@ -504,7 +472,7 @@ const UserManagement: React.FC = () => {
       });
       fetchUsers(false);
     } catch (e: unknown) {
-      setError(e.response?.data?.error || e.message || '批量操作失败');
+      setError(getErrorMessage(e, '批量操作失败'));
       setNotification({ type: 'error', message: getErrorMessage(e, '批量操作失败') });
     } finally {
       setLoading(false);
@@ -537,7 +505,7 @@ const UserManagement: React.FC = () => {
     setRevealPasswordState({
       ...emptyRevealPasswordState,
       open: true,
-      targetUser: u,
+      targetUser: { id: u.id, username: u.username },
     });
   }, []);
 
@@ -1276,7 +1244,7 @@ const UserManagement: React.FC = () => {
               hoverScale={hoverScale}
               tapScale={tapScale}
               onClose={closeRevealPassword}
-              onChange={(patch) => setRevealPasswordState(prev => ({ ...prev, ...patch }))}
+              onChange={(patch: Partial<ModalRevealPasswordState>) => setRevealPasswordState(prev => ({ ...prev, ...patch }))}
               onVerify={handleVerifyRevealPassword}
             />
           )}

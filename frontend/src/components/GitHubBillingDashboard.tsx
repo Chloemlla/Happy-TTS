@@ -5,7 +5,6 @@ import { useNotification } from './Notification';
 import { getApiBaseUrl, getAuthToken } from '../api/api';
 import { getFingerprint, getAccessToken } from '../utils/fingerprint';
 import { isFirstVisitVerificationEnabled } from '../utils/firstVisitVerificationConfig';
-import { getAuthToken } from '../utils/authSession';
 
 // 动画配置
 const ENTER_INITIAL = { opacity: 0, y: 20 };

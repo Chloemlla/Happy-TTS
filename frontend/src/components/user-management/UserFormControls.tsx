@@ -1,5 +1,7 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
+import { startAuthentication } from '@simplewebauthn/browser';
+import { passkeyApi } from '../../api/passkey';
 import {
   FaUser,
   FaKey,
@@ -9,6 +11,7 @@ import {
   FaTimes,
   FaTrash,
   FaEdit,
+  FaUserPlus,
   FaChevronDown,
   FaChevronUp,
 } from 'react-icons/fa';
@@ -72,6 +75,67 @@ interface User {
   accountStatus?: 'active' | 'suspended';
 }
 
+export type UserFormChangeEvent = React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>;
+export type UserFormChangeHandler = (event: UserFormChangeEvent) => void;
+export type MotionScaleHandler = (scale: number, enabled?: boolean) => { scale: number } | undefined;
+export type CollapsibleSectionKey = 'token' | 'security' | 'fingerprint' | 'backupCodes';
+export type CollapsedSectionState = Record<CollapsibleSectionKey, boolean>;
+
+export type UserListRoleFilter = 'all' | 'user' | 'admin' | 'trusted';
+export type UserListAccountStatusFilter = 'all' | 'active' | 'suspended';
+export type UserListSecurityFilter = 'all' | 'totp' | 'passkey' | 'fingerprintRequired' | 'noMfa';
+export type UserListTicketFilter = 'all' | 'normal' | 'violated' | 'banned';
+export type UserListTranslationFilter = 'all' | 'enabled' | 'disabled' | 'limited';
+export type UserListSortOrder = 'asc' | 'desc';
+export type BulkUserAction =
+  | 'resetDailyUsage'
+  | 'requireFingerprint'
+  | 'clearFingerprintRequirement'
+  | 'suspend'
+  | 'activate'
+  | 'enableTranslation'
+  | 'disableTranslation'
+  | 'clearTranslationRestrictions'
+  | 'clearTicketRestrictions'
+  | 'resetMfa';
+
+export interface UserListFilters {
+  keyword: string;
+  role: UserListRoleFilter;
+  accountStatus: UserListAccountStatusFilter;
+  security: UserListSecurityFilter;
+  ticket: UserListTicketFilter;
+  translation: UserListTranslationFilter;
+  sortBy: string;
+  sortOrder: UserListSortOrder;
+  pageSize: number;
+}
+
+export interface UserListPagination {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface UserListStats {
+  total: number;
+  users: number;
+  admins: number;
+  trusted: number;
+  active: number;
+  suspended: number;
+  totpEnabled: number;
+  passkeyEnabled: number;
+  fingerprintRequired: number;
+  withFingerprints: number;
+  ticketViolated: number;
+  ticketBanned: number;
+  translationDisabled: number;
+  translationLimited: number;
+  totalDailyUsage: number;
+}
+
 export type UserFormSectionProps = {
   title: string;
   icon: React.ReactNode;
@@ -131,7 +195,7 @@ const ACCOUNT_STATUS_OPTIONS = [
   { value: 'suspended', label: '封停' },
 ];
 
-const DEFAULT_USER_LIST_FILTERS: UserListFilters = {
+export const DEFAULT_USER_LIST_FILTERS: UserListFilters = {
   keyword: '',
   role: 'all',
   accountStatus: 'all',
@@ -143,21 +207,21 @@ const DEFAULT_USER_LIST_FILTERS: UserListFilters = {
   pageSize: 20,
 };
 
-const getAdminPasskeyAuthResponse = async (username: string) => {
+export const getAdminPasskeyAuthResponse = async (username: string) => {
   const optionsResponse = await passkeyApi.startAuthentication(username);
   const options = optionsResponse?.data?.options;
   if (!options) throw new Error('无法获取 Passkey 认证选项');
   return startAuthentication({ optionsJSON: options });
 };
 
-const DEFAULT_PAGINATION: UserListPagination = {
+export const DEFAULT_PAGINATION: UserListPagination = {
   page: 1,
   pageSize: 20,
   total: 0,
   totalPages: 1,
 };
 
-const DEFAULT_STATS: UserListStats = {
+export const DEFAULT_STATS: UserListStats = {
   total: 0,
   users: 0,
   admins: 0,
@@ -175,20 +239,20 @@ const DEFAULT_STATS: UserListStats = {
   totalDailyUsage: 0,
 };
 
-const ROLE_FILTER_OPTIONS: Array<{ value: UserListRoleFilter; label: string }> = [
+export const ROLE_FILTER_OPTIONS: Array<{ value: UserListRoleFilter; label: string }> = [
   { value: 'all', label: '全部角色' },
   { value: 'admin', label: '管理员' },
   { value: 'trusted', label: '信用者' },
   { value: 'user', label: '普通用户' },
 ];
 
-const ACCOUNT_STATUS_FILTER_OPTIONS: Array<{ value: UserListAccountStatusFilter; label: string }> = [
+export const ACCOUNT_STATUS_FILTER_OPTIONS: Array<{ value: UserListAccountStatusFilter; label: string }> = [
   { value: 'all', label: '全部状态' },
   { value: 'active', label: '正常' },
   { value: 'suspended', label: '封停' },
 ];
 
-const SECURITY_FILTER_OPTIONS: Array<{ value: UserListSecurityFilter; label: string }> = [
+export const SECURITY_FILTER_OPTIONS: Array<{ value: UserListSecurityFilter; label: string }> = [
   { value: 'all', label: '全部安全状态' },
   { value: 'totp', label: 'TOTP' },
   { value: 'passkey', label: 'Passkey' },
@@ -196,21 +260,21 @@ const SECURITY_FILTER_OPTIONS: Array<{ value: UserListSecurityFilter; label: str
   { value: 'noMfa', label: '未启用 MFA' },
 ];
 
-const TICKET_FILTER_OPTIONS: Array<{ value: UserListTicketFilter; label: string }> = [
+export const TICKET_FILTER_OPTIONS: Array<{ value: UserListTicketFilter; label: string }> = [
   { value: 'all', label: '全部工单状态' },
   { value: 'normal', label: '工单正常' },
   { value: 'violated', label: '有违规记录' },
   { value: 'banned', label: '工单封禁中' },
 ];
 
-const TRANSLATION_FILTER_OPTIONS: Array<{ value: UserListTranslationFilter; label: string }> = [
+export const TRANSLATION_FILTER_OPTIONS: Array<{ value: UserListTranslationFilter; label: string }> = [
   { value: 'all', label: '全部翻译权限' },
   { value: 'enabled', label: '翻译启用' },
   { value: 'disabled', label: '翻译停用' },
   { value: 'limited', label: '翻译限制中' },
 ];
 
-const SORT_OPTIONS = [
+export const SORT_OPTIONS = [
   { value: 'createdAt', label: '创建时间' },
   { value: 'username', label: '用户名' },
   { value: 'email', label: '邮箱' },
@@ -219,9 +283,9 @@ const SORT_OPTIONS = [
   { value: 'ticketViolationCount', label: '工单违规' },
 ];
 
-const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+export const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
-const BULK_ACTION_OPTIONS: Array<{ value: BulkUserAction; label: string; confirm: string }> = [
+export const BULK_ACTION_OPTIONS: Array<{ value: BulkUserAction; label: string; confirm: string }> = [
   { value: 'resetDailyUsage', label: '重置今日用量', confirm: '确定要重置所选用户今日用量吗？' },
   { value: 'requireFingerprint', label: '要求指纹上报', confirm: '确定要求所选用户下次上报指纹吗？' },
   { value: 'clearFingerprintRequirement', label: '取消指纹要求', confirm: '确定取消所选用户的指纹上报要求吗？' },
@@ -234,33 +298,33 @@ const BULK_ACTION_OPTIONS: Array<{ value: BulkUserAction; label: string; confirm
   { value: 'resetMfa', label: '重置 MFA', confirm: '确定重置所选用户的 TOTP、备份码和 Passkey 吗？' },
 ];
 
-const createDefaultCollapsedSections = (): CollapsedSectionState => ({
+export const createDefaultCollapsedSections = (): CollapsedSectionState => ({
   token: true,
   security: true,
   fingerprint: true,
   backupCodes: true,
 });
 
-const parseBackupCodes = (value: string): string[] => (
+export const parseBackupCodes = (value: string): string[] => (
   value
     .split('\n')
     .map(item => item.trim())
     .filter(Boolean)
 );
 
-const getLatestFingerprint = (fingerprints?: FingerprintRecord[] | null): FingerprintRecord | null => {
+export const getLatestFingerprint = (fingerprints?: FingerprintRecord[] | null): FingerprintRecord | null => {
   if (!Array.isArray(fingerprints) || fingerprints.length === 0) return null;
   return fingerprints.reduce((latest, current) => (
     Number(current.ts || 0) > Number(latest.ts || 0) ? current : latest
   ), fingerprints[0]);
 };
 
-const getUserFingerprintCount = (user: User): number => {
+export const getUserFingerprintCount = (user: User): number => {
   if (typeof user.fingerprintCount === 'number') return user.fingerprintCount;
   return Array.isArray(user.fingerprints) ? user.fingerprints.length : 0;
 };
 
-const buildFingerprintListPatch = (fingerprints: FingerprintRecord[]) => ({
+export const buildFingerprintListPatch = (fingerprints: FingerprintRecord[]) => ({
   fingerprints: undefined,
   fingerprintCount: fingerprints.length,
   latestFingerprint: getLatestFingerprint(fingerprints),
@@ -728,7 +792,7 @@ export const UserFormScaffold: React.FC<{
   </form>
 );
 
-const CreateUserForm: React.FC<SharedUserFormProps> = ({
+export const CreateUserForm: React.FC<SharedUserFormProps> = ({
   form,
   loading,
   onSubmit,
@@ -780,7 +844,7 @@ const CreateUserForm: React.FC<SharedUserFormProps> = ({
   </UserFormScaffold>
 );
 
-const EditUserForm: React.FC<SharedUserFormProps & { username: string }> = ({
+export const EditUserForm: React.FC<SharedUserFormProps & { username: string }> = ({
   username,
   form,
   loading,
@@ -834,7 +898,7 @@ const EditUserForm: React.FC<SharedUserFormProps & { username: string }> = ({
 );
 
 // 所有可在列表中展示的字段（除 fingerprints/passkeyCredentials/backupCodes 等复杂数组）
-const TABLE_COLUMNS = [
+export const TABLE_COLUMNS = [
   { key: 'username', label: '用户名' },
   { key: 'email', label: '邮箱' },
   { key: 'role', label: '角色' },

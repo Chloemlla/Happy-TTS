@@ -41,7 +41,11 @@ async function decryptAesGcm(dataHex: string, ivHex: string, tagHex: string, tok
   const cipherBytes = new Uint8Array(data.length + tag.length);
   cipherBytes.set(data, 0);
   cipherBytes.set(tag, data.length);
-  const plainBuf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipherBytes);
+  const plainBuf = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: iv as BufferSource },
+    key,
+    cipherBytes as BufferSource,
+  );
   return new TextDecoder().decode(plainBuf);
 }
 
@@ -50,7 +54,7 @@ function decryptAesCbcLegacy(dataHex: string, ivHex: string, token: string): str
   const ivBytes = CryptoJS.enc.Hex.parse(ivHex);
   const encryptedBytes = CryptoJS.enc.Hex.parse(dataHex);
   const decrypted = CryptoJS.AES.decrypt(
-    { ciphertext: encryptedBytes } as CryptoJS.lib.CipherParams,
+    { ciphertext: encryptedBytes } as unknown as Parameters<typeof CryptoJS.AES.decrypt>[0],
     keyBytes,
     {
       iv: ivBytes,

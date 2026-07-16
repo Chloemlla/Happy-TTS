@@ -22,7 +22,7 @@ import { useFingerprintRequest } from './hooks/useFingerprintRequest';
 import FingerprintRequestModal from './components/FingerprintRequestModal';
 import { setFirstVisitVerificationEnabled } from './utils/firstVisitVerificationConfig';
 import ArticleCommandPalette from './components/ArticleCommandPalette';
-import { getAuthToken } from 'utils/authSession';
+import { getAuthToken } from './utils/authSession';
 
 
 // 动态导入 clarity 以减少主 bundle 体积，避免与 FirstVisitVerification 的动态导入冲突

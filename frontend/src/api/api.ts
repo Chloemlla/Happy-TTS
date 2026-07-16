@@ -7,7 +7,7 @@ import {
     isExemptPath,
 } from '../utils/ipVerification';
 import { canonicalizeBackendApiUrl } from '../utils/apiPath';
-import { getAuthToken, clearAuthToken } from '../utils/authSession';
+import { getAuthToken as readAuthToken, clearAuthToken } from '../utils/authSession';
 
 
 // 获取API基础URL：生产环境默认同源，开发环境保留后端直连能力
@@ -80,7 +80,7 @@ api.interceptors.request.use(async (config) => {
             ? config.headers
             : new AxiosHeaders(config.headers);
     config.headers = headers;
-    const token = getAuthToken();
+    const token = readAuthToken();
     if (token) {
         headers.set('Authorization', `Bearer ${token}`);
     }
@@ -260,7 +260,7 @@ export const apiWithRetry = {
 
 // 获取认证token
 export const getAuthToken = (): string | null => {
-    return getAuthToken();
+    return readAuthToken();
 };
 
 export { canonicalizeBackendApiUrl, getApiBaseUrl };

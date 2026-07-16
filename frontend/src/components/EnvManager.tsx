@@ -2292,6 +2292,7 @@ const EnvManager: React.FC = () => {
           isOpen={isSectionOpen('providers')}
           onToggle={toggleSection}
           prefersReducedMotion={prefersReducedMotion}
+          isMobile={isMobile}
           loading={providersLoading}
           saving={providerSaving}
           deletingId={providerDeletingId}

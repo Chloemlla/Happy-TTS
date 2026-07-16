@@ -2,6 +2,7 @@ import { m } from 'framer-motion';
 import { FaSync } from 'react-icons/fa';
 import CollapsibleSection from './CollapsibleSection';
 import type { ChatProviderItem } from './types';
+import { NO_DURATION } from './motion';
 
 const REFRESH_BUTTON_CLASS =
   'inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60';
@@ -10,6 +11,7 @@ export interface LibreChatProvidersSectionProps {
   isOpen: boolean;
   onToggle: (key: string) => void;
   prefersReducedMotion: boolean | null | undefined;
+  isMobile?: boolean;
   loading: boolean;
   saving: boolean;
   deletingId: string | null;
@@ -40,6 +42,7 @@ export default function LibreChatProvidersSection({
   isOpen,
   onToggle,
   prefersReducedMotion,
+  isMobile = false,
   loading,
   saving,
   deletingId,

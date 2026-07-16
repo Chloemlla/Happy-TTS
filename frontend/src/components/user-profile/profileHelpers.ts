@@ -1,9 +1,9 @@
 import { startAuthentication } from '@simplewebauthn/browser';
 import { openDB } from 'idb';
-import getApiBaseUrl from '../api';
-import { passkeyApi } from '../api/passkey';
-import { getAuthToken } from '../utils/authSession';
-import { studioDisplayFont, studioPageFont } from './studioTheme';
+import getApiBaseUrl from '../../api';
+import { passkeyApi } from '../../api/passkey';
+import { getAuthToken } from '../../utils/authSession';
+import { studioDisplayFont, studioPageFont } from '../studioTheme';
 
 export type AuthProvider = 'local' | 'linuxdo' | 'google';
 export type AccountStatus = 'active' | 'suspended';

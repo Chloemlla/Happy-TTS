@@ -14,8 +14,7 @@ export type StoredAccount = {
     username?: string;
     email?: string;
     role?: string;
-    [key: string]: unknown;
-  };
+  } & Record<string, unknown>;
   /** Only for explicit multi-account bearer injection; browser login leaves this empty. */
   token?: string;
   lastActive: number;

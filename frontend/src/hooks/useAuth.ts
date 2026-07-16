@@ -19,9 +19,23 @@ const AUTH_TOKEN_EXPIRY_SKEW_MS = 30_000;
 
 export interface SavedAccount {
     user: User;
-    token: string;
+    /** Optional: only for explicit non-cookie multi-account injection. */
+    token?: string;
     lastActive: number;
 }
+
+const toStoredAccounts = (accounts: SavedAccount[]) => (
+    accounts.map((account) => ({
+        user: account.user as unknown as {
+            id: string;
+            username?: string;
+            email?: string;
+            role?: string;
+        } & Record<string, unknown>,
+        token: account.token,
+        lastActive: account.lastActive,
+    }))
+);
 
 interface LoginResponse {
     user: User;
@@ -126,11 +140,15 @@ export const useAuth = () => {
     // 加载保存的账号列表
     const loadSavedAccounts = useCallback(() => {
         try {
-            const parsed = readSavedAccounts() as SavedAccount[];
+            const parsed = readSavedAccounts().map((account) => ({
+                user: account.user as User,
+                token: account.token,
+                lastActive: account.lastActive,
+            })) as SavedAccount[];
             if (!Array.isArray(parsed)) return [];
             const validAccounts = parsed.filter(account => account?.user?.id && (!account.token || !isTokenExpired(account.token)));
             if (validAccounts.length !== parsed.length) {
-                writeSavedAccounts(validAccounts);
+                writeSavedAccounts(toStoredAccounts(validAccounts));
             }
             const sorted = validAccounts.sort((a, b) => b.lastActive - a.lastActive);
             setSavedAccounts(sorted);
@@ -146,7 +164,7 @@ export const useAuth = () => {
         const current = loadSavedAccounts();
         const filtered = current.filter(a => a.user.id !== user.id);
         const updated = [{ user, token: token || undefined, lastActive: Date.now() }, ...filtered] as SavedAccount[];
-        writeSavedAccounts(updated);
+        writeSavedAccounts(toStoredAccounts(updated));
         setSavedAccounts(updated);
     }, [loadSavedAccounts]);
 
@@ -253,7 +271,7 @@ export const useAuth = () => {
         if (target) {
             if (target.token && isTokenExpired(target.token)) {
                 const updated = accounts.filter(a => a.user.id !== userId);
-                writeSavedAccounts(updated);
+                writeSavedAccounts(toStoredAccounts(updated));
                 setSavedAccounts(updated);
                 return;
             }
@@ -278,7 +296,7 @@ export const useAuth = () => {
             } catch (e: any) {
                 if (isAuthRejectionStatus(e.response?.status)) {
                     const updated = accounts.filter(a => a.user.id !== userId);
-                    writeSavedAccounts(updated);
+                    writeSavedAccounts(toStoredAccounts(updated));
                     setSavedAccounts(updated);
                     setUser(null);
                     clearAuthToken();
@@ -411,7 +429,7 @@ export const useAuth = () => {
         const accounts = loadSavedAccounts();
         if (user) {
             const updated = accounts.filter(a => a.user.id !== user.id);
-            writeSavedAccounts(updated);
+            writeSavedAccounts(toStoredAccounts(updated));
             setSavedAccounts(updated);
         }
 
@@ -442,7 +460,7 @@ export const useAuth = () => {
     const removeAccountFromList = (userId: string) => {
         const accounts = loadSavedAccounts();
         const updated = accounts.filter(a => a.user.id !== userId);
-        writeSavedAccounts(updated);
+        writeSavedAccounts(toStoredAccounts(updated));
         setSavedAccounts(updated);
         
         if (user?.id === userId) {
