@@ -10,7 +10,22 @@ powershell
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 Get-Content -Encoding UTF8 file-path
-Each time you complete the addition or modification of a feature according to my requirements, a commit message should be automatically generated and submitted after you finish modifying the code. When submitting a GPG key, you can temporarily omit the signature.
+Each time you complete the addition or modification of a feature according to my requirements, a commit message should be automatically generated and submitted after you finish modifying the code. When submitting a GPG key, you can temporarily omit the signature.auto push
+
+apply_patch 在当前环境可用。
+
+  原因
+  之前失败是因为 patch 头写成了：
+
+  *** Begin Patch ***
+
+  正确格式必须是：
+
+  *** Begin Patch
+  ...
+  *** End Patch
+
+  末尾不能多写 ***。工具只认精确的 *** Begin Patch 作为第一行。
 
 
 ## Project Structure & Module Organization

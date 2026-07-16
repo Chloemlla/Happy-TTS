@@ -54,7 +54,7 @@ jobs:
 
       - name: Run fix script
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.USER_PAT }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           if [ "${{ inputs.action }}" = "repair-lockfiles" ]; then
