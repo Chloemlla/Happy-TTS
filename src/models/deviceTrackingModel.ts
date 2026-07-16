@@ -10,6 +10,11 @@ export interface IDeviceTracking extends Document {
   isDebugger: boolean;
   isEmulator: boolean;
   isVpn: boolean;
+  isAdbEnabled: boolean;
+  isDevelopmentSettingsEnabled: boolean;
+  isDebugBuild: boolean;
+  isTracerAttached: boolean;
+  antiDebugScore: number;
   signatureValid: boolean;
   hashValid: boolean;
   appVersion?: string;
@@ -37,6 +42,11 @@ const deviceTrackingSchema = new Schema<IDeviceTracking>(
     isDebugger: { type: Boolean, required: true },
     isEmulator: { type: Boolean, required: true },
     isVpn: { type: Boolean, required: true },
+    isAdbEnabled: { type: Boolean, required: true, default: false },
+    isDevelopmentSettingsEnabled: { type: Boolean, required: true, default: false },
+    isDebugBuild: { type: Boolean, required: true, default: false },
+    isTracerAttached: { type: Boolean, required: true, default: false },
+    antiDebugScore: { type: Number, required: true, default: 0, min: 0, max: 1 },
     signatureValid: { type: Boolean, required: true },
     hashValid: { type: Boolean, required: true },
     appVersion: { type: String },

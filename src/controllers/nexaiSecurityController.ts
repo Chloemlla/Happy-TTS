@@ -208,6 +208,13 @@ export async function trackDeviceManually(req: Request, res: Response): Promise<
       device_fingerprint: headers.deviceFingerprint,
       risk_level: headers.riskLevel,
       risk_score: headers.riskScore,
+      anti_debug: {
+        adb: headers.isAdbEnabled,
+        development_settings: headers.isDevelopmentSettingsEnabled,
+        debug_build: headers.isDebugBuild,
+        tracer: headers.isTracerAttached,
+        score: headers.antiDebugScore,
+      },
     });
   } catch (error) {
     logger.error("Error tracking device:", error);
@@ -239,6 +246,15 @@ export async function getDashboardStats(req: Request, res: Response): Promise<vo
     const totalDevices = await DeviceTracking.countDocuments({});
     const highRiskDevices = await DeviceTracking.countDocuments({ riskScore: { $gte: 50 } });
     const compromisedDevices = await DeviceTracking.countDocuments({ isCompromised: true });
+    const antiDebugDevices = await DeviceTracking.countDocuments({
+      $or: [
+        { isTracerAttached: true },
+        { isDebugger: true },
+        { isAdbEnabled: true },
+        { isDebugBuild: true },
+        { antiDebugScore: { $gte: 0.5 } },
+      ],
+    });
     const totalEvents = await SecurityEvent.countDocuments({ createdAt: { $gte: startTime } });
 
     const riskDistribution = {
@@ -270,6 +286,7 @@ export async function getDashboardStats(req: Request, res: Response): Promise<vo
       totalDevices,
       highRiskDevices,
       compromisedDevices,
+      antiDebugDevices,
       totalEvents,
       riskDistribution,
       eventTypeDistribution,

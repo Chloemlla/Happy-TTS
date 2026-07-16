@@ -14,6 +14,11 @@ export interface DeviceSecurityHeaders {
   isDebugger: boolean;
   isEmulator: boolean;
   isVpn: boolean;
+  isAdbEnabled: boolean;
+  isDevelopmentSettingsEnabled: boolean;
+  isDebugBuild: boolean;
+  isTracerAttached: boolean;
+  antiDebugScore: number;
   signatureValid: boolean;
   hashValid: boolean;
 }
@@ -23,8 +28,31 @@ export type RiskStrategy = "NORMAL" | "MONITOR" | "RESTRICT" | "HONEYPOT" | "BLO
 /**
  * Extract security headers from request
  */
+function parseFlagHeader(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes";
+}
+
+function parseScoreHeader(value: unknown, fallback = 0): number {
+  if (typeof value !== "string" || value.trim() === "") return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(1, Math.max(0, parsed));
+}
+
 export function extractSecurityHeaders(req: Request): DeviceSecurityHeaders {
-  const riskScore = parseInt(req.headers["x-device-risk-score"] as string, 10) || 0;
+  const riskScore = parseInt(String(req.headers["x-device-risk-score"] ?? ""), 10) || 0;
+  const antiDebugScore = parseScoreHeader(req.headers["x-device-anti-debug-score"], 0);
+  const isDebugger = parseFlagHeader(req.headers["x-device-debugger"]);
+  const isAdbEnabled = parseFlagHeader(req.headers["x-device-adb"]);
+  const isDevelopmentSettingsEnabled = parseFlagHeader(req.headers["x-device-dev-settings"]);
+  const isDebugBuild = parseFlagHeader(req.headers["x-device-debug-build"]);
+  const isTracerAttached = parseFlagHeader(req.headers["x-device-tracer"]);
+  const isCompromised =
+    parseFlagHeader(req.headers["x-device-compromised"]) ||
+    isTracerAttached ||
+    antiDebugScore >= 0.5;
 
   return {
     deviceFingerprint: req.headers["x-device-fingerprint"] as string,
@@ -32,13 +60,18 @@ export function extractSecurityHeaders(req: Request): DeviceSecurityHeaders {
     appBuild: req.headers["x-app-build"] as string,
     riskScore,
     riskLevel: (req.headers["x-device-risk-level"] as any) || getRiskLevelFromScore(riskScore),
-    isCompromised: req.headers["x-device-compromised"] === "1",
-    isRoot: req.headers["x-device-root"] === "1",
-    isDebugger: req.headers["x-device-debugger"] === "1",
-    isEmulator: req.headers["x-device-emulator"] === "1",
-    isVpn: req.headers["x-device-vpn"] === "1",
-    signatureValid: req.headers["x-device-signature-valid"] === "1",
-    hashValid: req.headers["x-device-hash-valid"] === "1",
+    isCompromised,
+    isRoot: parseFlagHeader(req.headers["x-device-root"]),
+    isDebugger,
+    isEmulator: parseFlagHeader(req.headers["x-device-emulator"]),
+    isVpn: parseFlagHeader(req.headers["x-device-vpn"]),
+    isAdbEnabled,
+    isDevelopmentSettingsEnabled,
+    isDebugBuild,
+    isTracerAttached,
+    antiDebugScore,
+    signatureValid: parseFlagHeader(req.headers["x-device-signature-valid"]),
+    hashValid: parseFlagHeader(req.headers["x-device-hash-valid"]),
   };
 }
 
@@ -57,18 +90,32 @@ function getRiskLevelFromScore(score: number): "SAFE" | "LOW" | "MEDIUM" | "HIGH
  * Determine risk strategy based on headers
  */
 export function getRiskStrategy(headers: DeviceSecurityHeaders): RiskStrategy {
-  const { riskScore, isCompromised } = headers;
+  const {
+    riskScore,
+    isCompromised,
+    isDebugger,
+    isTracerAttached,
+    antiDebugScore,
+    isAdbEnabled,
+    isDebugBuild,
+  } = headers;
 
-  if (riskScore >= 80 || (isCompromised && riskScore >= 50)) {
+  // Anti-debug enrichment: elevate strategy using native signals when present.
+  const antiDebugElevated =
+    isTracerAttached ||
+    antiDebugScore >= 0.7 ||
+    (isDebugger && (isAdbEnabled || isDebugBuild));
+
+  if (riskScore >= 80 || (isCompromised && riskScore >= 50) || antiDebugScore >= 0.9) {
     return "BLOCK";
   }
-  if (riskScore >= 50) {
+  if (riskScore >= 50 || antiDebugElevated || antiDebugScore >= 0.5) {
     return "HONEYPOT";
   }
-  if (riskScore >= 30) {
+  if (riskScore >= 30 || isDebugger || isAdbEnabled || isDebugBuild) {
     return "RESTRICT";
   }
-  if (riskScore >= 10) {
+  if (riskScore >= 10 || antiDebugScore > 0) {
     return "MONITOR";
   }
   return "NORMAL";
@@ -105,6 +152,11 @@ export async function trackDevice(
           isDebugger: headers.isDebugger,
           isEmulator: headers.isEmulator,
           isVpn: headers.isVpn,
+          isAdbEnabled: headers.isAdbEnabled,
+          isDevelopmentSettingsEnabled: headers.isDevelopmentSettingsEnabled,
+          isDebugBuild: headers.isDebugBuild,
+          isTracerAttached: headers.isTracerAttached,
+          antiDebugScore: headers.antiDebugScore,
           signatureValid: headers.signatureValid,
           hashValid: headers.hashValid,
           appVersion: headers.appVersion,
@@ -229,6 +281,11 @@ export async function getDeviceStatus(deviceFingerprint: string): Promise<{
       isDebugger: device.isDebugger,
       isEmulator: device.isEmulator,
       isVpn: device.isVpn,
+      isAdbEnabled: Boolean((device as any).isAdbEnabled),
+      isDevelopmentSettingsEnabled: Boolean((device as any).isDevelopmentSettingsEnabled),
+      isDebugBuild: Boolean((device as any).isDebugBuild),
+      isTracerAttached: Boolean((device as any).isTracerAttached),
+      antiDebugScore: Number((device as any).antiDebugScore || 0),
       signatureValid: device.signatureValid,
       hashValid: device.hashValid,
     });
