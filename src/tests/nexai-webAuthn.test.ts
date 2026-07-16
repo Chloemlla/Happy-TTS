@@ -88,6 +88,10 @@ describe("NexAI WebAuthn backend fixes", () => {
     expect(webAuthnConfig.expectedOrigins).toContain(
       "android:apk-key-hash:_9HzfCcFGsx_oYdF4QfmF5ooVyYZtj_G902sPaRO184",
     );
+    // Android Credential Manager may return standard Base64 (`/`) instead of Base64URL (`_`).
+    expect(webAuthnConfig.expectedOrigins).toContain(
+      "android:apk-key-hash:/9HzfCcFGsx/oYdF4QfmF5ooVyYZtj/G902sPaRO184",
+    );
     expect(webAuthnConfig.rpID).not.toBe("localhost");
   });
 
@@ -100,8 +104,23 @@ describe("NexAI WebAuthn backend fixes", () => {
       expect.arrayContaining([
         "https://tts.chloemlla.com",
         "android:apk-key-hash:_9HzfCcFGsx_oYdF4QfmF5ooVyYZtj_G902sPaRO184",
+        "android:apk-key-hash:/9HzfCcFGsx/oYdF4QfmF5ooVyYZtj/G902sPaRO184",
         "android:apk-key-hash:test-hash-1",
         "android:apk-key-hash:test-hash-2",
+      ]),
+    );
+  });
+
+  it("accepts standard Base64 apk-key-hash origins from Android clients", () => {
+    process.env.NEXAI_ANDROID_APK_KEY_HASHES =
+      "android:apk-key-hash:/9HzfCcFGsx/oYdF4QfmF5ooVyYZtj/G902sPaRO184";
+
+    const webAuthnConfig = getNexaiWebAuthnConfig();
+
+    expect(webAuthnConfig.expectedOrigins).toEqual(
+      expect.arrayContaining([
+        "android:apk-key-hash:/9HzfCcFGsx/oYdF4QfmF5ooVyYZtj/G902sPaRO184",
+        "android:apk-key-hash:_9HzfCcFGsx_oYdF4QfmF5ooVyYZtj_G902sPaRO184",
       ]),
     );
   });

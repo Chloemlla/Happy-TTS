@@ -96,6 +96,33 @@ function normalizeAndroidApkKeyHash(value: string): string {
   return value.startsWith("android:apk-key-hash:") ? value : `android:apk-key-hash:${value}`;
 }
 
+/**
+ * Android Credential Manager may emit `android:apk-key-hash:` with either
+ * standard Base64 (`+/`) or Base64URL (`-_`). Expand one configured hash into
+ * both encodings so SimpleWebAuthn origin checks accept either form.
+ */
+function expandAndroidApkKeyHashOrigins(value: string): string[] {
+  const raw = value
+    .trim()
+    .replace(/^android:apk-key-hash:/i, "")
+    .replace(/=+$/g, "");
+  if (!raw) {
+    return [];
+  }
+
+  // Only rewrite pure base64 / base64url material; leave opaque env values alone.
+  if (!/^[A-Za-z0-9+/_-]+$/.test(raw)) {
+    return [normalizeAndroidApkKeyHash(raw)];
+  }
+
+  const base64url = raw.replace(/\+/g, "-").replace(/\//g, "_");
+  const base64 = raw.replace(/-/g, "+").replace(/_/g, "/");
+  return unique([
+    `android:apk-key-hash:${base64url}`,
+    `android:apk-key-hash:${base64}`,
+  ]);
+}
+
 export function getNexaiWebAuthnConfig(): {
   rpName: string;
   rpID: string;
@@ -121,7 +148,7 @@ export function getNexaiWebAuthnConfig(): {
   const androidOrigins = unique([
     ...DEFAULT_NEXAI_ANDROID_APK_KEY_HASHES,
     ...splitCsv(process.env.NEXAI_ANDROID_APK_KEY_HASHES || process.env.ANDROID_APK_KEY_HASHES),
-  ]).map(normalizeAndroidApkKeyHash);
+  ]).flatMap(expandAndroidApkKeyHashOrigins);
 
   const expectedOrigins = unique([baseOrigin, ...configuredOrigins, ...androidOrigins]);
 
