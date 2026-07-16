@@ -611,12 +611,7 @@ export class EmailService {
     markdown: string;
   }): Promise<EmailResponse> {
     let html: string;
-    const parsed = await renderMarkdown(markdown || "");
-    if (parsed instanceof Promise) {
-      html = await parsed;
-    } else {
-      html = parsed as string;
-    }
+    const html = await renderMarkdown(markdown || "");
     return EmailService.sendEmail({ from, to, subject, html, text: markdown });
   }
 
