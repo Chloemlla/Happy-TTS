@@ -2,20 +2,27 @@ import type { Request } from "express";
 import { buildAccountSecuritySummary } from "../services/accountSecuritySummaryService";
 import type { User } from "../utils/userStorage";
 
-type AdminUserRecord = User & {
-  fingerprints?: unknown;
-  fingerprintCount?: number;
-  latestFingerprint?: unknown;
-  totpEnabled?: boolean;
-  passkeyEnabled?: boolean;
-  requireFingerprint?: boolean;
-  ticketViolationCount?: number;
+export type AdminUserRecord = User & {
   ticketBanned?: boolean;
-  isTranslationEnabled?: boolean;
-  lastLoginAt?: string | number | Date;
-  [key: string]: unknown;
 };
 
+type SensitiveUserFields =
+  | "password"
+  | "passwordHash"
+  | "passwordCiphertext"
+  | "passwordIv"
+  | "passwordTag"
+  | "passwordKeyVersion"
+  | "passwordWrappedDek"
+  | "passwordDekId";
+
+export type SanitizedAdminUser = Omit<AdminUserRecord, SensitiveUserFields>;
+
+export type AdminUserListItem = SanitizedAdminUser & {
+  fingerprintCount: number;
+  latestFingerprint: { id: string; ts: number; ua?: string; ip?: string } | null;
+  securitySummary: ReturnType<typeof buildAccountSecuritySummary>;
+};
 
 export function sanitizeInput(str: string) {
   return str.replace(/[<>]/g, "");
@@ -39,9 +46,11 @@ export function isAccountStatus(value: unknown): value is NonNullable<User["acco
 }
 
 // 合法 announcement format 枚举
-const VALID_ANNOUNCEMENT_FORMATS = new Set(["markdown", "html"]);
+export const VALID_ANNOUNCEMENT_FORMATS = new Set(["markdown", "html"]);
 
-export function stripSensitiveUserFields(user: AdminUserRecord | null | undefined) {
+export function stripSensitiveUserFields(
+  user: Partial<AdminUserRecord> | null | undefined,
+): Partial<SanitizedAdminUser> {
   const {
     password,
     passwordHash,
@@ -53,7 +62,7 @@ export function stripSensitiveUserFields(user: AdminUserRecord | null | undefine
     passwordDekId,
     ...safeUser
   } = user || {};
-  return safeUser;
+  return safeUser as Partial<SanitizedAdminUser>;
 }
 
 export function getLatestFingerprintSummary(fingerprints: unknown): { id: string; ts: number; ua?: string; ip?: string } | null {
@@ -79,22 +88,28 @@ export function getAdminUserFingerprintCount(user: AdminUserRecord | null | unde
 }
 
 export function sanitizeAdminUserForList(user: AdminUserRecord, includeFingerprints: boolean) {
-  const safeUser = stripSensitiveUserFields(user);
-  const fingerprints = Array.isArray(safeUser?.fingerprints) ? safeUser.fingerprints : [];
+  const safeUser = stripSensitiveUserFields(user) as SanitizedAdminUser;
+  const fingerprints = Array.isArray(safeUser.fingerprints) ? safeUser.fingerprints : [];
   const fingerprintSummary = {
-    fingerprintCount: fingerprints.length > 0 ? fingerprints.length : getAdminUserFingerprintCount(safeUser),
+    fingerprintCount: fingerprints.length > 0 ? fingerprints.length : getAdminUserFingerprintCount(user),
     latestFingerprint:
-      getLatestFingerprintSummary(fingerprints) || getLatestFingerprintSummary([safeUser?.latestFingerprint]) || null,
+      getLatestFingerprintSummary(fingerprints) || getLatestFingerprintSummary([safeUser.latestFingerprint]) || null,
   };
 
   if (includeFingerprints) {
     const withSummary = { ...safeUser, ...fingerprintSummary };
-    return { ...withSummary, securitySummary: buildAccountSecuritySummary(withSummary) };
+    return {
+      ...withSummary,
+      securitySummary: buildAccountSecuritySummary(withSummary as User),
+    } as AdminUserListItem;
   }
 
   const { fingerprints: _fingerprints, ...safeWithoutFingerprints } = safeUser;
   const withSummary = { ...safeWithoutFingerprints, ...fingerprintSummary };
-  return { ...withSummary, securitySummary: buildAccountSecuritySummary(withSummary) };
+  return {
+    ...withSummary,
+    securitySummary: buildAccountSecuritySummary(withSummary as User),
+  } as AdminUserListItem;
 }
 
 type AdminUserListRoleFilter = "all" | "user" | "admin" | "trusted";
@@ -130,7 +145,7 @@ const ADMIN_USER_LIST_SORT_FIELDS = new Set([
   "ticketViolationCount",
 ]);
 
-const ADMIN_USER_BULK_ACTIONS = new Set([
+export const ADMIN_USER_BULK_ACTIONS = new Set([
   "resetDailyUsage",
   "requireFingerprint",
   "clearFingerprintRequirement",
@@ -255,17 +270,18 @@ export function matchesAdminUserListFilters(user: AdminUserRecord, filters: Admi
 }
 
 export function getAdminUserSortValue(user: AdminUserRecord, field: string): string | number {
+  const record = user as AdminUserRecord & Record<string, unknown>;
   if (["createdAt", "lastUsageDate", "lastLoginAt"].includes(field)) {
-    const ts = Date.parse(String(user?.[field] || ""));
+    const ts = Date.parse(String(record[field] || ""));
     return Number.isFinite(ts) ? ts : 0;
   }
 
   if (["dailyUsage", "ticketViolationCount"].includes(field)) {
-    const value = Number(user?.[field] || 0);
+    const value = Number(record[field] || 0);
     return Number.isFinite(value) ? value : 0;
   }
 
-  return String(user?.[field] ?? "").toLowerCase();
+  return String(record[field] ?? "").toLowerCase();
 }
 
 export function sortAdminUsers(users: AdminUserRecord[], filters: AdminUserListQuery): AdminUserRecord[] {
@@ -321,7 +337,7 @@ export function buildAdminUserListStats(users: AdminUserRecord[]) {
   );
 }
 
-export function buildAdminUserListEnvelope(users: AdminUserRecord[], filters: AdminUserListQuery) {
+export function buildAdminUserListEnvelope(users: AdminUserListItem[], filters: AdminUserListQuery) {
   const filteredUsers = users.filter((user) => matchesAdminUserListFilters(user, filters));
   const sortedUsers = sortAdminUsers(filteredUsers, filters);
   const total = sortedUsers.length;
