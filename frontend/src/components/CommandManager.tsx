@@ -143,29 +143,31 @@ const CommandManager: React.FC = () => {
     try {
       const response = await api.post('/api/command/status', { password });
       try {
-          const decryptedData = await maybeDecryptCommandResponse(response.data);
-          if (decryptedData && (decryptedData.memory_usage || response.data.data)) {
-          setServerStatus(decryptedData);
+        const statusData = await maybeDecryptCommandResponse(response.data);
+        if (statusData && (statusData.memory_usage || response.data?.data)) {
+          setServerStatus(statusData);
           setLastUpdateTime(new Date());
           // 添加资源使用历史记录
-          const currentTime = new Date();
-          const memoryUsagePercent = (decryptedData.memory_usage.heapUsed / decryptedData.memory_usage.heapTotal) * 100;
-          setResourceHistory(prev => {
-            const newHistory = [...prev, {
-              timestamp: currentTime,
-              memoryUsage: memoryUsagePercent,
-              cpuUsage: decryptedData.cpu_usage_percent
-            }];
-            return newHistory.slice(-20);
-          });
+          if (statusData.memory_usage?.heapTotal) {
+            const currentTime = new Date();
+            const memoryUsagePercent = (statusData.memory_usage.heapUsed / statusData.memory_usage.heapTotal) * 100;
+            setResourceHistory(prev => {
+              const newHistory = [...prev, {
+                timestamp: currentTime,
+                memoryUsage: memoryUsagePercent,
+                cpuUsage: statusData.cpu_usage_percent
+              }];
+              return newHistory.slice(-20);
+            });
+          }
           if (showSuccess) setNotification({ message: '服务器状态获取成功', type: 'success' });
-        } catch (decryptError) {
-          setNotification({ message: '数据解密失败，请检查登录状态', type: 'error' });
+        } else {
+          setServerStatus(resolveCommandPayload(response.data));
+          setLastUpdateTime(new Date());
+          if (showSuccess) setNotification({ message: '服务器状态获取成功', type: 'success' });
         }
-      } else {
-        setServerStatus(resolveCommandPayload(response.data));
-        setLastUpdateTime(new Date());
-        if (showSuccess) setNotification({ message: '服务器状态获取成功', type: 'success' });
+      } catch (decryptError) {
+        setNotification({ message: '数据解密失败，请检查登录状态', type: 'error' });
       }
     } catch (error: any) {
       setNotification({ 
