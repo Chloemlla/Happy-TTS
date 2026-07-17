@@ -3,12 +3,30 @@ import {
   detectAnomalies,
   extractSecurityHeaders,
   getDeviceStatus,
+  getPublicReportAction,
   getRiskStrategy,
   incrementBlockedCount,
   recordSecurityEvent,
   trackDevice,
 } from "../services/nexaiSecurityService";
 import logger from "../utils/logger";
+
+const ALLOWED_SECURITY_EVENT_TYPES = new Set([
+  "integrity_fail",
+  "root_detected",
+  "debugger_detected",
+  "emulator_detected",
+  "vpn_detected",
+  "hook_detected",
+  "tamper_detected",
+  "anti_debug",
+  "login_anomaly",
+  "device_switch",
+  "heartbeat",
+  "custom",
+]);
+
+const MAX_EVENT_DETAILS_JSON_LENGTH = 4_000;
 
 function getRequestUserId(req: Request): string | undefined {
   return req.nexaiUser?.id || (req as any).user?.id;
@@ -30,23 +48,43 @@ export async function reportSecurityEvent(req: Request, res: Response): Promise<
       return;
     }
 
-    if (!event_type) {
+    if (!event_type || typeof event_type !== "string") {
       res.status(400).json({
         error: "Missing event_type",
       });
       return;
     }
 
+    const normalizedEventType = event_type.trim().slice(0, 64);
+    if (!ALLOWED_SECURITY_EVENT_TYPES.has(normalizedEventType)) {
+      res.status(400).json({
+        error: "Unsupported event_type",
+      });
+      return;
+    }
+
+    let safeDetails: Record<string, unknown> = {};
+    if (details && typeof details === "object" && !Array.isArray(details)) {
+      const serialized = JSON.stringify(details);
+      if (serialized.length > MAX_EVENT_DETAILS_JSON_LENGTH) {
+        res.status(400).json({
+          error: "event details too large",
+        });
+        return;
+      }
+      safeDetails = details as Record<string, unknown>;
+    }
+
     const userId = getRequestUserId(req);
     const ipAddress = (req.ip || req.headers["x-forwarded-for"] || req.socket.remoteAddress) as string;
     const userAgent = req.headers["user-agent"] || "";
 
-    // Record the security event
+    // Record the security event. Client headers are telemetry only.
     await recordSecurityEvent(
       headers.deviceFingerprint,
       userId,
-      event_type,
-      details || {},
+      normalizedEventType,
+      safeDetails,
       headers.riskScore,
       ipAddress,
       userAgent,
@@ -57,22 +95,29 @@ export async function reportSecurityEvent(req: Request, res: Response): Promise<
       await trackDevice(userId, headers, ipAddress, userAgent);
     }
 
-    // Determine action based on risk strategy
-    const strategy = getRiskStrategy(headers);
-    let action = "monitor";
-
-    if (strategy === "BLOCK") {
-      action = "block";
-      if (userId && headers.deviceFingerprint) {
-        await incrementBlockedCount(userId, headers.deviceFingerprint);
+    // Unauthenticated clients cannot force BLOCK/HONEYPOT via self-reported headers.
+    // Authenticated reports may still compute full strategy for operator telemetry only,
+    // but destructive counter increments require authentication.
+    let action: string = getPublicReportAction(headers);
+    if (userId) {
+      const strategy = getRiskStrategy(headers);
+      if (strategy === "BLOCK") {
+        action = "block";
+        if (headers.deviceFingerprint) {
+          await incrementBlockedCount(userId, headers.deviceFingerprint);
+        }
+      } else if (strategy === "HONEYPOT") {
+        action = "honeypot";
+      } else if (strategy === "RESTRICT") {
+        action = "restrict";
+      } else if (strategy === "MONITOR") {
+        action = "monitor";
+      } else {
+        action = "monitor";
       }
-    } else if (strategy === "HONEYPOT") {
-      action = "honeypot";
-    } else if (strategy === "RESTRICT") {
-      action = "restrict";
     }
 
-    logger.info(`Security event reported: ${event_type} from device ${headers.deviceFingerprint}, action: ${action}`);
+    logger.info(`Security event reported: ${normalizedEventType} from device ${headers.deviceFingerprint}, action: ${action}`);
 
     res.json({
       status: "recorded",
@@ -230,8 +275,14 @@ export async function trackDeviceManually(req: Request, res: Response): Promise<
  */
 export async function getDashboardStats(req: Request, res: Response): Promise<void> {
   try {
-    const { DeviceTracking } = await import("../models/deviceTrackingModel.js");
-    const { SecurityEvent } = await import("../models/securityEventModel.js");
+
+    const role = req.nexaiUser?.role || (req as any).user?.role;
+    if (role !== "admin") {
+      res.status(403).json({ error: "Admin access required" });
+      return;
+    }
+    const { DeviceTracking } = await import("../models/deviceTrackingModel");
+    const { SecurityEvent } = await import("../models/securityEventModel");
 
     const timeRange = (req.query.timeRange as string) || "24h";
     const timeRangeMs: Record<string, number> = {
@@ -305,7 +356,13 @@ export async function getDashboardStats(req: Request, res: Response): Promise<vo
  */
 export async function getDeviceList(req: Request, res: Response): Promise<void> {
   try {
-    const { DeviceTracking } = await import("../models/deviceTrackingModel.js");
+
+    const role = req.nexaiUser?.role || (req as any).user?.role;
+    if (role !== "admin") {
+      res.status(403).json({ error: "Admin access required" });
+      return;
+    }
+    const { DeviceTracking } = await import("../models/deviceTrackingModel");
 
     const page = parseInt(req.query.page as string, 10) || 1;
     const limit = parseInt(req.query.limit as string, 10) || 20;
@@ -350,7 +407,13 @@ export async function getDeviceList(req: Request, res: Response): Promise<void> 
  */
 export async function getSecurityEvents(req: Request, res: Response): Promise<void> {
   try {
-    const { SecurityEvent } = await import("../models/securityEventModel.js");
+
+    const role = req.nexaiUser?.role || (req as any).user?.role;
+    if (role !== "admin") {
+      res.status(403).json({ error: "Admin access required" });
+      return;
+    }
+    const { SecurityEvent } = await import("../models/securityEventModel");
 
     const page = parseInt(req.query.page as string, 10) || 1;
     const limit = parseInt(req.query.limit as string, 10) || 20;

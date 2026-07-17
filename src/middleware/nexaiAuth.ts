@@ -7,6 +7,17 @@ import { NexaiUserModel } from "../models/nexaiUserModel";
 import { NexaiAuthService } from "../services/nexaiAuthService";
 import logger from "../utils/logger";
 
+function extractBearerToken(authHeader: string | undefined): string | null {
+  if (!authHeader) return null;
+  const trimmed = authHeader.trimStart();
+  if (trimmed.length < 7) return null;
+  if (trimmed.slice(0, 6).toLowerCase() !== "bearer") return null;
+  const sep = trimmed.charCodeAt(6);
+  if (sep !== 0x20 && sep !== 0x09) return null;
+  const token = trimmed.slice(7).trim();
+  return token || null;
+}
+
 // 扩展 Request 类型
 declare global {
   namespace Express {
@@ -29,19 +40,12 @@ declare global {
 export const nexaiAuthRequired = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith("Bearer ")) {
+    const token = extractBearerToken(authHeader);
+    if (!token) {
       return res.status(401).json({
         error: "未授权",
         message: "请提供有效的访问令牌",
         code: "NEXAI_AUTH_REQUIRED",
-      });
-    }
-
-    const token = authHeader.split(" ")[1];
-    if (!token) {
-      return res.status(401).json({
-        error: "无效的 Token",
-        code: "NEXAI_INVALID_TOKEN",
       });
     }
 
@@ -102,12 +106,7 @@ export const nexaiAuthRequired = async (req: Request, res: Response, next: NextF
  */
 export const nexaiAuthOptional = async (req: Request, _res: Response, next: NextFunction) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith("Bearer ")) {
-      return next();
-    }
-
-    const token = authHeader.split(" ")[1];
+    const token = extractBearerToken(req.headers.authorization);
     if (!token) {
       return next();
     }

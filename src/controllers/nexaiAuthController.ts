@@ -603,10 +603,12 @@ export class NexaiAuthController {
       // 由于 options 阶段我们已把 challenge 保存到特定的用户上，
       // 此时应该使用 identifier 获取 userID（避免安全风险，建议传 userID 此处简化）
       let userId: string;
-      // 短路查找
-      const safeValue = identifier.replace(/[^a-zA-Z0-9_@.-]/g, "").toLowerCase();
+      // Lookup by email (lowercased) or username (case-sensitive original sanitized only).
+      const raw = String(identifier).trim();
+      const emailCandidate = raw.toLowerCase();
+      const usernameCandidate = raw.replace(/[^a-zA-Z0-9_-]/g, "");
       const user = await NexaiUserModel.findOne({
-        $or: [{ email: safeValue }, { username: safeValue }],
+        $or: [{ email: emailCandidate }, { username: usernameCandidate }],
       }).lean();
 
       if (!user) throw Object.assign(new Error("用户不存在"), { statusCode: 404 });

@@ -9,7 +9,7 @@ import {
   trackDeviceManually,
 } from "../controllers/nexaiSecurityController";
 import { authenticateToken } from "../middleware/authenticateToken";
-import { nexaiAuthRequired } from "../middleware/nexaiAuth";
+import { nexaiAuthOptional, nexaiAuthRequired } from "../middleware/nexaiAuth";
 
 const router = express.Router();
 
@@ -49,7 +49,7 @@ const router = express.Router();
  *       500:
  *         description: Internal server error
  */
-router.post("/security/report", reportSecurityEvent);
+router.post("/security/report", nexaiAuthOptional, reportSecurityEvent);
 
 /**
  * @openapi

@@ -1,0 +1,5 @@
+{"_example": "Fill with {\"file\": \"<path>\", \"reason\": \"<why>\"}. Put spec/research files only — no code paths. Run `python .trellis/scripts/get_context.py --mode packages` to list available specs. Delete this line once real entries are added."}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend layer conventions for NexAI controllers/services"}
+{"file": ".trellis/spec/backend/security-boundary-contracts.md", "reason": "Auth and security boundary contracts"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Consistent statusCode/error response handling"}
+{"file": ".trellis/tasks/07-17-nexai-bug-audit/research/nexai-bug-inventory.md", "reason": "Full NexAI bug inventory and fix order"}

@@ -1,5 +1,6 @@
 import {
   extractSecurityHeaders,
+  getPublicReportAction,
   getRiskStrategy,
 } from "../services/nexaiSecurityService";
 
@@ -60,5 +61,16 @@ describe("NexAI anti-debug security headers", () => {
       }),
     );
     expect(getRiskStrategy(headers)).toBe("BLOCK");
+  });
+  it("does not allow public untrusted reports to escalate to BLOCK", () => {
+    const headers = extractSecurityHeaders(
+      makeReq({
+        "x-device-risk-score": "99",
+        "x-device-anti-debug-score": "0.99",
+        "x-device-tracer": "1",
+      }),
+    );
+    expect(getRiskStrategy(headers)).toBe("BLOCK");
+    expect(getPublicReportAction(headers)).toBe("restrict");
   });
 });

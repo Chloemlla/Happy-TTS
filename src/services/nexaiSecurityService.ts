@@ -124,6 +124,19 @@ export function getRiskStrategy(headers: DeviceSecurityHeaders): RiskStrategy {
 /**
  * Track device information
  */
+/**
+ * Public clients self-report device headers. Never let unauthenticated
+ * reports escalate to BLOCK/HONEYPOT solely from attacker-controlled headers.
+ * Authenticated flows may still use getRiskStrategy for full enforcement.
+ */
+export function getPublicReportAction(headers: DeviceSecurityHeaders): "monitor" | "restrict" {
+  const strategy = getRiskStrategy(headers);
+  if (strategy === "RESTRICT" || strategy === "HONEYPOT" || strategy === "BLOCK") {
+    return "restrict";
+  }
+  return "monitor";
+}
+
 export async function trackDevice(
   userId: string,
   headers: DeviceSecurityHeaders,
