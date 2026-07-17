@@ -9,12 +9,11 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: Dependabot maintenance action
+        description: Security maintenance action
         required: true
         type: choice
         options:
           - fix-alerts
-          - fix-codeql
           - repair-lockfiles
           - rebase
           - recreate
@@ -29,7 +28,7 @@ permissions:
 jobs:
   fix-alerts:
     name: Fix Security Alerts
-    if: github.event_name == 'push' || inputs.action == 'fix-alerts' || inputs.action == 'fix-codeql' || inputs.action == 'repair-lockfiles'
+    if: github.event_name == 'push' || inputs.action == 'fix-alerts' || inputs.action == 'repair-lockfiles'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -54,17 +53,18 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Run fix script
+        if: inputs.action != 'repair-lockfiles'
         env:
           GITHUB_TOKEN: ${{ secrets.USER_PAT }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: |
-          if [ "${{ inputs.action }}" = "repair-lockfiles" ]; then
-            node scripts/fix-dependabot-alerts.js --repair
-          elif [ "${{ inputs.action }}" = "fix-codeql" ]; then
-            node scripts/fix-dependabot-alerts.js --codeql-only
-          else
-            node scripts/fix-dependabot-alerts.js
-          fi
+        run: node scripts/fix-dependabot-alerts.js
+
+      - name: Repair lockfiles
+        if: inputs.action == 'repair-lockfiles'
+        env:
+          GITHUB_TOKEN: ${{ secrets.USER_PAT }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/fix-dependabot-alerts.js --repair
 
       - name: Create pull request
         run: |
@@ -83,9 +83,6 @@ jobs:
           if [ "$ACTION_NAME" = "repair-lockfiles" ]; then
             git commit -m "fix: repair pnpm lockfiles to match current package.json"
             TITLE="fix: repair pnpm lockfiles to match current package.json"
-          elif [ "$ACTION_NAME" = "fix-codeql" ]; then
-            git commit -m "fix: auto-fix CodeQL security alerts"
-            TITLE="fix: auto-fix CodeQL security alerts"
           else
             git commit -m "fix: auto-fix Dependabot and CodeQL security alerts"
             TITLE="fix: auto-fix Dependabot and CodeQL security alerts"
@@ -101,7 +98,7 @@ jobs:
 
   manage-prs:
     name: Manage Dependabot PRs
-    if: github.event_name == 'workflow_dispatch' && inputs.action != 'fix-alerts' && inputs.action != 'fix-codeql' && inputs.action != 'repair-lockfiles'
+    if: github.event_name == 'workflow_dispatch' && inputs.action != 'fix-alerts' && inputs.action != 'repair-lockfiles'
     runs-on: ubuntu-latest
     steps:
       - name: Verify Node.js runtime
