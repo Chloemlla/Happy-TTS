@@ -50,7 +50,8 @@ module.exports = {
   detectOpenHandles: true,
   
   // 覆盖率配置
-  collectCoverage: true,
+  collectCoverage: false, // opt-in via --coverage (avoids minimatch@10 + test-exclude CJS break)
+  coverageProvider: 'v8',
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov'],
   coveragePathIgnorePatterns: [

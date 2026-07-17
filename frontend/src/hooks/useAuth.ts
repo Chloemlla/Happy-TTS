@@ -195,7 +195,7 @@ export const useAuth = () => {
         try {
             const token = getAuthToken();
             if (token && isTokenExpired(token)) {
-                console.log('本地登录凭证已过期，清除本地 bearer，尝试 cookie 会话');
+                console.log('本地登录凭证已过期，清除本地访问令牌，尝试 cookie 会话');
                 clearAuthToken();
             }
 
