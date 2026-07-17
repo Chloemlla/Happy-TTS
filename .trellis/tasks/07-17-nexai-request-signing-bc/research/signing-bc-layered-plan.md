@@ -131,3 +131,11 @@ exaiRequestSignature (soft default)
 - [x] AuthProvider preserves staged error text for UI
 - [ ] Full enforce rollout + app secret provisioning in CI builds
 - [ ] Wire every NexAI page action to dialog helper (login enhanced; sync/artifacts follow-up)
+
+## Follow-up implementation
+- [x] refreshToken signing (client override key + backend body refreshToken candidate)
+- [x] Sync API throws NexaiApiError with server stage/code
+- [x] SyncProvider formats staged errors
+- [x] Settings upload/download/incremental/clear fail -> showNexaiErrorDialog
+- [x] Artifacts API/provider staged errors
+- [x] Share create + artifact delete fail dialogs

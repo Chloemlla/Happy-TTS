@@ -244,11 +244,26 @@ export function nexaiRequestSignature(req: Request, res: Response, next: NextFun
   const keys: Array<{ key: string; keyType: "token" | "app" }> = [];
 
   if (bearer) {
-    // Authed requests must bind to token (B).
+    // Authed requests must bind to access token (B).
     keys.push({ key: bearer, keyType: "token" });
-  } else if (allowsAppSecret(path)) {
-    for (const secret of getAppSecrets()) {
-      keys.push({ key: secret, keyType: "app" });
+  } else {
+    // Refresh: allow signing with the refreshToken in the raw body (B-variant).
+    if (path === "/api/nexai/auth/refresh") {
+      try {
+        const parsed = body ? JSON.parse(body) : null;
+        const refreshToken =
+          parsed && typeof parsed.refreshToken === "string" ? parsed.refreshToken.trim() : "";
+        if (refreshToken) {
+          keys.push({ key: refreshToken, keyType: "token" });
+        }
+      } catch {
+        // ignore JSON parse errors; will fall through to app secret / fail
+      }
+    }
+    if (allowsAppSecret(path)) {
+      for (const secret of getAppSecrets()) {
+        keys.push({ key: secret, keyType: "app" });
+      }
     }
   }
 
