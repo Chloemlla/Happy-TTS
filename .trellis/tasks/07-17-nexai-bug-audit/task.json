@@ -3,7 +3,7 @@
   "name": "nexai-bug-audit",
   "title": "Audit and fix all NexAI feature bugs",
   "description": "",
-  "status": "in_progress",
+  "status": "completed",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -11,7 +11,7 @@
   "creator": "Akiraph",
   "assignee": "Akiraph",
   "createdAt": "2026-07-17",
-  "completedAt": null,
+  "completedAt": "2026-07-17",
   "branch": null,
   "base_branch": "main",
   "worktree_path": null,
@@ -30,6 +30,6 @@
     "src/services/nexaiSecurityService.ts",
     "src/tests/nexaiSecurityHeaders.test.ts"
   ],
-  "notes": "Audit docs created; P0 security report trust + passkey lookup + bearer parse fixed. Remaining: discoverable challenge store, refresh reuse, dashboard dual-auth.",
+  "notes": "Audit inventory + P0 security report trust/passkey lookup/bearer parse landed (c7d8bc97). Residual P1/P2 remain as future work.",
   "meta": {}
 }

@@ -3,7 +3,7 @@
   "name": "nexai-request-signing-bc",
   "title": "NexAI B+C request signing with layered defense and explicit errors",
   "description": "",
-  "status": "in_progress",
+  "status": "completed",
   "dev_type": null,
   "scope": null,
   "package": null,
@@ -11,7 +11,7 @@
   "creator": "Akiraph",
   "assignee": "Akiraph",
   "createdAt": "2026-07-17",
-  "completedAt": null,
+  "completedAt": "2026-07-17",
   "branch": null,
   "base_branch": "main",
   "worktree_path": null,
@@ -24,6 +24,6 @@
     "prd.md",
     "research/signing-bc-layered-plan.md"
   ],
-  "notes": "B+C signing plan documented. HARD REQ: all NexAI errors return stage+code+message. Client must dialog stage+reason.",
+  "notes": "MVP landed: nexaiRequestSignature soft mode, rawBody, refreshToken key, explicit error envelope. Remaining: enforce rollout + full path coverage.",
   "meta": {}
 }

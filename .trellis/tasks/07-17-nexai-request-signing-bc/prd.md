@@ -26,13 +26,13 @@ Implement server-side **nexai-sig-v2** verification (Token-bound B + App-secret 
 7. Metrics/log reasons without leaking secrets.
 
 ## Acceptance Criteria
-- [ ] PRD + research present (this task).
-- [ ] Middleware + env documented.
-- [ ] Enforce/soft/off behaviors implemented or stubbed with clear TODO only if phased—prefer real soft mode.
-- [ ] All signature failures return `{success:false, error, code, stage}`.
-- [ ] Client-readable codes listed in research match implementation.
-- [ ] Public whitelist does not require signature.
-- [ ] Authed routes prefer token-bound verification when Bearer present.
+- [x] PRD + research present (this task).
+- [x] Middleware + env documented.
+- [x] Enforce/soft/off behaviors implemented (default soft).
+- [x] All signature failures return `{success:false, error, code, stage}`.
+- [x] Client-readable codes listed in research match implementation.
+- [x] Public whitelist does not require signature.
+- [x] Authed routes prefer token-bound verification when Bearer present.
 
 ## Definition of Done
 - Backend can soft-verify v2 signatures and return explicit errors.
