@@ -467,6 +467,11 @@ function normalizeDependabotEcosystem(ecosystem) {
     return 'npm';
   }
 
+  // GitHub Dependabot alerts use "rust"; cargo tooling and this script use "cargo".
+  if (normalizedEcosystem === 'rust') {
+    return 'cargo';
+  }
+
   return normalizedEcosystem;
 }
 
@@ -1228,10 +1233,80 @@ function buildLatestRustVersionSpec(currentVersionSpec, nextVersion) {
     return null;
   }
 
+  // Security upgrades may jump 0.x minor/major lanes. Prefer caret ranges so cargo
+  // can still resolve patch updates without freezing the old 0.y line.
+  if (simpleVersionMatch[1] === '') {
+    return `^${nextVersion}`;
+  }
+
   return `${simpleVersionMatch[1]}${nextVersion}`;
 }
 
-async function fetchLatestCompatibleCrateVersion(crateName, currentVersionSpec, versionCache) {
+function getRustCrateFamily(packageName) {
+  const normalized = `${packageName ?? ''}`.trim().toLowerCase();
+  if (!normalized) {
+    return '';
+  }
+
+  const parts = normalized.split(/[-_]/).filter(Boolean);
+  return parts[0] || normalized;
+}
+
+function expandRustAlertPackagesToDirectDeps(alertPackages, dependencyEntries = []) {
+  const expanded = new Set(alertPackages.filter(Boolean));
+  const families = new Set(
+    alertPackages
+      .map((packageName) => getRustCrateFamily(packageName))
+      .filter(Boolean)
+  );
+
+  for (const dependencyEntry of dependencyEntries) {
+    const crateName = dependencyEntry.crateName;
+    const dependencyName = dependencyEntry.dependencyName;
+    const family = getRustCrateFamily(crateName);
+
+    if (
+      expanded.has(crateName)
+      || expanded.has(dependencyName)
+      || (family && families.has(family))
+    ) {
+      expanded.add(crateName);
+      if (dependencyName) {
+        expanded.add(dependencyName);
+      }
+    }
+  }
+
+  return Array.from(expanded).sort((left, right) => left.localeCompare(right));
+}
+
+function getMinimumRustVersionForPackage(packageName, dependabotAlerts = []) {
+  let minimum = null;
+
+  for (const alert of dependabotAlerts) {
+    if (getDependabotAlertPackageName(alert) !== packageName) {
+      continue;
+    }
+
+    const fixedVersion = parseSimpleRustVersion(getDependabotAlertFixedVersion(alert));
+    if (!fixedVersion) {
+      continue;
+    }
+
+    if (!minimum || compareSimpleRustVersions(fixedVersion, minimum) > 0) {
+      minimum = fixedVersion;
+    }
+  }
+
+  return minimum;
+}
+
+async function fetchLatestCompatibleCrateVersion(
+  crateName,
+  currentVersionSpec,
+  versionCache,
+  options = {}
+) {
   const normalizedVersionSpec = `${currentVersionSpec}`.trim();
   const simpleVersionMatch = normalizedVersionSpec.match(/^[~^=]?(\d+\.\d+\.\d+|\d+\.\d+|\d+)$/);
 
@@ -1250,7 +1325,14 @@ async function fetchLatestCompatibleCrateVersion(crateName, currentVersionSpec, 
     return null;
   }
 
-  const cacheKey = `${crateName}@${currentVersion.major}.${currentVersion.minor}`;
+  const securityUpgrade = options.securityUpgrade === true;
+  const minimumVersion = options.minimumVersion
+    ? parseSimpleRustVersion(options.minimumVersion)
+    : null;
+  const cacheKey = securityUpgrade
+    ? `${crateName}@security:${minimumVersion?.raw ?? 'latest'}`
+    : `${crateName}@${currentVersion.major}.${currentVersion.minor}`;
+
   if (versionCache.has(cacheKey)) {
     return versionCache.get(cacheKey);
   }
@@ -1275,12 +1357,26 @@ async function fetchLatestCompatibleCrateVersion(crateName, currentVersionSpec, 
     }))
     .filter((version) => version.raw.length > 0 && version.parsed)
     .filter((version) => !version.raw.includes('-'))
-    .filter((version) => isCompatibleRustVersion(currentVersion, version.parsed))
+    .filter((version) => {
+      if (minimumVersion && compareSimpleRustVersions(version.parsed, minimumVersion) < 0) {
+        return false;
+      }
+
+      if (securityUpgrade) {
+        // Security remediation may need to leave the current 0.x minor lane.
+        return compareSimpleRustVersions(version.parsed, currentVersion) >= 0
+          || Boolean(minimumVersion);
+      }
+
+      return isCompatibleRustVersion(currentVersion, version.parsed);
+    })
     .sort((left, right) => compareSimpleRustVersions(right.parsed, left.parsed))[0]?.raw ?? null;
 
   if (typeof latestVersion !== 'string' || latestVersion.trim().length === 0) {
     throw new Error(
-      `crates.io did not provide a usable compatible version for ${crateName} within the ${currentVersion.major}.${currentVersion.minor} lane.`
+      securityUpgrade
+        ? `crates.io did not provide a usable security upgrade for ${crateName}${minimumVersion ? ` (>= ${minimumVersion.raw})` : ''}.`
+        : `crates.io did not provide a usable compatible version for ${crateName} within the ${currentVersion.major}.${currentVersion.minor} lane.`
     );
   }
 
@@ -1536,20 +1632,31 @@ function selectRustDependencyEntriesForUpgrade(target, dependabotAlerts = []) {
       dependencyEntries: target.dependencyEntries,
       alertPackages,
       selectedByAlert: false,
+      securityUpgrade: false,
     };
   }
 
-  const selectedEntries = target.dependencyEntries.filter((dependencyEntry) =>
-    alertPackages.includes(dependencyEntry.crateName)
-    || alertPackages.includes(dependencyEntry.dependencyName)
+  // Transitive crates (e.g. hickory-proto) often require upgrading the same-family
+  // direct dependency (e.g. hickory-resolver) before cargo update can land a fix.
+  const expandedPackages = expandRustAlertPackagesToDirectDeps(
+    alertPackages,
+    target.dependencyEntries
   );
 
-  // If alert package names are all transitive, still keep crate-local upgrade scope empty
-  // and only refresh lockfile packages via cargo update -p.
+  const selectedEntries = target.dependencyEntries.filter((dependencyEntry) =>
+    expandedPackages.includes(dependencyEntry.crateName)
+    || expandedPackages.includes(dependencyEntry.dependencyName)
+  );
+
   return {
     dependencyEntries: selectedEntries,
-    alertPackages,
+    // Keep cargo update -p focused on alert packages plus selected direct parents.
+    alertPackages: Array.from(new Set([
+      ...alertPackages,
+      ...selectedEntries.map((entry) => entry.crateName),
+    ])).sort((left, right) => left.localeCompare(right)),
     selectedByAlert: true,
+    securityUpgrade: true,
   };
 }
 
@@ -1562,20 +1669,36 @@ async function runRustUpgrade(target, options = {}) {
     dependencyEntries,
     alertPackages,
     selectedByAlert,
+    securityUpgrade,
   } = selectRustDependencyEntriesForUpgrade(target, dependabotAlerts);
 
   const newline = target.beforeManifestText.includes('\r\n') ? '\r\n' : '\n';
   const manifestLines = target.beforeManifestText.split(/\r?\n/);
+
+  if (selectedByAlert && securityUpgrade) {
+    console.log(
+      `  - Security-driven Rust upgrade for ${target.cargoManifestLabel}: ${alertPackages.join(', ') || '<unknown>'}`
+    );
+  }
 
   for (const dependencyEntry of dependencyEntries) {
     // 引入 250ms 频率节流延迟（Throttling），确保遵守 crates.io 的每秒请求限制
     await new Promise((resolve) => setTimeout(resolve, 250));
 
     try {
+      const minimumVersion = getMinimumRustVersionForPackage(
+        dependencyEntry.crateName,
+        dependabotAlerts
+      );
+
       const latestVersion = await fetchLatestCompatibleCrateVersion(
         dependencyEntry.crateName,
         dependencyEntry.versionSpec,
-        latestVersionCache
+        latestVersionCache,
+        {
+          securityUpgrade,
+          minimumVersion: minimumVersion?.raw ?? null,
+        }
       );
 
       if (!latestVersion) {
@@ -1599,6 +1722,9 @@ async function runRustUpgrade(target, options = {}) {
 
       manifestLines[dependencyEntry.lineIndex] = dependencyEntry.updateLine(nextVersionSpec);
       updatedRangeCount += 1;
+      console.log(
+        `  - ${dependencyEntry.crateName}: ${dependencyEntry.versionSpec} -> ${nextVersionSpec}`
+      );
     } catch (error) {
       // 容错处理：单个依赖查询网络失败时不中断整个脚本，标记为跳过并继续
       console.log(`  - [Warning] Skipped "${dependencyEntry.crateName}" in ${dependencyEntry.cargoManifestLabel} due to registry fetch failure: ${error.message}`);
