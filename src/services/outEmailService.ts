@@ -66,13 +66,18 @@ function normalizeAuthSecret(value: unknown): string {
 }
 
 function timingSafeSecretEqual(candidate: unknown, expected: unknown): boolean {
-  const candidateSecret = normalizeAuthSecret(candidate);
-  const expectedSecret = normalizeAuthSecret(expected);
-  if (!candidateSecret || !expectedSecret) return false;
+  const left = normalizeAuthSecret(candidate);
+  const right = normalizeAuthSecret(expected);
+  if (!left || !right) return false;
 
-  const candidateHash = crypto.createHash("sha256").update(candidateSecret).digest();
-  const expectedHash = crypto.createHash("sha256").update(expectedSecret).digest();
-  return crypto.timingSafeEqual(candidateHash, expectedHash);
+  // Shared API secrets are compared directly in constant time. These are not password hashes.
+  const leftBytes = Buffer.from(left, "utf8");
+  const rightBytes = Buffer.from(right, "utf8");
+  if (leftBytes.length !== rightBytes.length) {
+    crypto.timingSafeEqual(leftBytes, leftBytes);
+    return false;
+  }
+  return crypto.timingSafeEqual(leftBytes, rightBytes);
 }
 
 async function getOutEmailAuthSettingFromDb(domain?: string): Promise<OutEmailSettingDoc | null> {

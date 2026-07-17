@@ -109,18 +109,29 @@ export function oauthTokenAuth(requiredScope?: string, opts: { optional?: boolea
         return res.status(429).json({ error: "OAuth token 请求过于频繁，请稍后再试" });
       }
 
+      const clientId = context.client.clientId;
+      const tokenId = context.token.tokenId;
+      const scopes = context.scopes;
+      const grantId = context.grant.grantId;
+
       (req as any).user = context.user;
       (req as any).oauthToken = {
-        tokenId: context.token.tokenId,
-        clientId: context.client.clientId,
-        scopes: context.scopes,
-        grantId: context.grant.grantId,
+        tokenId,
+        clientId,
+        scopes,
+        grantId,
       };
-      (req as any).oauthContext = context;
+      // Keep a narrow public context on the request; avoid attaching full auth material for logging paths.
+      (req as any).oauthContext = {
+        clientId,
+        tokenId,
+        scopes,
+        grantId,
+      };
 
       recordOAuthTokenUsage(context, resolveIp(req)).catch((error) => {
         logger.warn("[OAuthTokenAuth] 记录 token 使用失败", {
-          clientId: context.client.clientId,
+          clientId,
           error: error instanceof Error ? error.message : String(error),
         });
       });

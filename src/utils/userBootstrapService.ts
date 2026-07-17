@@ -26,7 +26,7 @@ const printAdminCreated = (admin: User): void => {
   logger.info("[Bootstrap] Default admin account ensured", {
     username: admin.username,
     email: admin.email,
-    passwordConfigured: Boolean(admin.password),
+    hasCredential: Boolean(admin.password),
   });
 };
 

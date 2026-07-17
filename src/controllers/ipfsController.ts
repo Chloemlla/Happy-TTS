@@ -47,8 +47,7 @@ export class IPFSController {
             ip,
             actor: IPFSController.maskLogValue(userId),
             role: isAdmin ? "admin" : "user",
-            authenticatedByApiKey,
-            authenticatedByOAuth,
+            authMode: authenticatedByApiKey ? "api-key" : authenticatedByOAuth ? "oauth" : "session",
             isDev,
             environment: process.env.NODE_ENV || "development",
           });

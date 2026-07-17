@@ -158,7 +158,23 @@ function toWebAuthnUserId(userId: string): string {
 }
 
 function normalizeBase64Url(value: string): string {
-  return value.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  let out = "";
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value.charAt(index);
+    if (char === "+") {
+      out += "-";
+      continue;
+    }
+    if (char === "/") {
+      out += "_";
+      continue;
+    }
+    if (char === "=") {
+      continue;
+    }
+    out += char;
+  }
+  return out;
 }
 
 function getAuthenticationCredentialId(response: AuthenticationResponseJSON): string | null {

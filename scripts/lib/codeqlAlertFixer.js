@@ -11,7 +11,6 @@ const CODEQL_USER_AGENT = 'synapse-codeql-alert-fixer';
 
 /** Rules we can safely auto-remediate in-repo. */
 export const AUTOFIXABLE_CODEQL_RULES = new Set([
-  'js/missing-rate-limiting',
   'js/clear-text-logging',
 ]);
 
@@ -183,6 +182,13 @@ export function createCodeScanningAlertPlan(alerts) {
   for (const alert of alerts) {
     const ruleId = getCodeScanningAlertRuleId(alert);
     const filePath = getCodeScanningAlertPath(alert);
+
+    // Rate-limiting findings are intentionally not autofixed: limiters are often
+    // configured via shared middleware/global routers and produce frequent false positives.
+    if (ruleId === RATE_LIMITING_RULE) {
+      skipped.push(alert);
+      continue;
+    }
 
     if (!AUTOFIXABLE_CODEQL_RULES.has(ruleId)) {
       unsupported.push(alert);
@@ -496,9 +502,9 @@ function injectLimiterOnRouteLine(line, limiterName) {
     return `${indent}${callExpr}(${limiterName}, ${remainder}`;
   }
 
-  // Method routes: first arg should be path.
+  // Method routes: first arg should be path (string/template literal only; avoid ReDoS-prone regex-literal parsing).
   const withPath = remainder.match(
-    /^((['"`]).*?\2|\/(?:\\.|[^\/\n])+\/[gimsuy]*)\s*,\s*(.*)$/
+    /^((['"`])(?:\\.|(?!\2).)*\2)\s*,\s*(.*)$/
   );
 
   if (withPath) {

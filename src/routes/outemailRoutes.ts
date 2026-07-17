@@ -27,10 +27,18 @@ function getHeaderValue(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function extractBearerToken(authorization: string): string {
+  const trimmed = authorization.trimStart();
+  if (trimmed.length < 7) return "";
+  if (trimmed.slice(0, 6).toLowerCase() !== "bearer") return "";
+  const separator = trimmed.charCodeAt(6);
+  if (separator !== 0x20 && separator !== 0x09) return "";
+  return trimmed.slice(7).trim();
+}
+
 function getRequestAuth(req: Request, body: Record<string, unknown>) {
   const authorization = getHeaderValue(req.headers.authorization);
-  const bearerMatch = authorization.match(/^Bearer\s+(.+)$/i);
-  const bearerToken = bearerMatch ? bearerMatch[1].trim() : "";
+  const bearerToken = extractBearerToken(authorization);
   const headerApiKey =
     bearerToken || getHeaderValue(req.headers["x-outemail-api-key"]) || getHeaderValue(req.headers["x-api-key"]);
   const bodyApiKey =
