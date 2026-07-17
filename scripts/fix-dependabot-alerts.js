@@ -5,6 +5,10 @@ import { existsSync } from 'node:fs';
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  discoverCodeScanningAlertPlan,
+  runCodeScanningAutofix,
+} from './lib/codeqlAlertFixer.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -20,7 +24,7 @@ const IS_WINDOWS = process.platform === 'win32';
 
 const GITHUB_API_ROOT = 'https://api.github.com';
 const GITHUB_API_VERSION = '2022-11-28';
-const GITHUB_USER_AGENT = 'synapse-dependabot-alert-fixer';
+const GITHUB_USER_AGENT = 'synapse-security-alert-fixer';
 const CRATES_IO_API_ROOT = 'https://crates.io/api/v1/crates';
 const CRATES_IO_USER_AGENT = 'synapse-dependabot-alert-fixer';
 const DEPENDENCY_FIELDS = [
@@ -70,6 +74,10 @@ function parseCliArgs(argv) {
   return {
     repairOnly: argv.includes('--repair') || argv.includes('--repair-only'),
     allTargets: argv.includes('--all') || argv.includes('--all-targets') || argv.includes('--no-alerts'),
+    dependabotOnly: argv.includes('--dependabot-only'),
+    codeqlOnly: argv.includes('--codeql-only') || argv.includes('--code-scanning-only'),
+    skipCodeql: argv.includes('--skip-codeql') || argv.includes('--no-codeql'),
+    skipDependabot: argv.includes('--skip-dependabot') || argv.includes('--no-dependabot'),
     targets,
   };
 }
@@ -1767,96 +1775,207 @@ async function runDependencyLanes(lanes) {
   }
 }
 
+function shouldRunDependabotLane(cliArgs) {
+  if (cliArgs.codeqlOnly) {
+    return false;
+  }
+
+  if (cliArgs.skipDependabot) {
+    return false;
+  }
+
+  return true;
+}
+
+function shouldRunCodeqlLane(cliArgs) {
+  if (cliArgs.repairOnly || cliArgs.dependabotOnly || cliArgs.skipCodeql) {
+    return false;
+  }
+
+  if (cliArgs.allTargets && !cliArgs.codeqlOnly) {
+    // --all is a full dependency upgrade path; CodeQL remains opt-in unless --codeql-only.
+    return false;
+  }
+
+  return true;
+}
+
 async function main() {
   const cliArgs = parseCliArgs(process.argv.slice(2));
+  const runDependabot = shouldRunDependabotLane(cliArgs);
+  const runCodeql = shouldRunCodeqlLane(cliArgs);
+
   printHeader(
     cliArgs.repairOnly
       ? 'Repair Dependabot Dependency State'
-      : 'Upgrade Package Dependencies For Dependabot'
+      : cliArgs.codeqlOnly
+        ? 'Auto-fix CodeQL Security Alerts'
+        : runDependabot && runCodeql
+          ? 'Auto-fix Dependabot + CodeQL Security Alerts'
+          : runCodeql
+            ? 'Auto-fix CodeQL Security Alerts'
+            : 'Upgrade Package Dependencies For Dependabot'
   );
-
-  const [pnpmTargets, rustTargets] = await Promise.all([
-    discoverTargets(),
-    discoverRustTargets(),
-  ]);
-  const dependabotAlertPlan = await discoverDependabotAlertPlan(
-    cliArgs,
-    pnpmTargets,
-    rustTargets
-  );
-  const filteredPnpmTargets = dependabotAlertPlan
-    ? Array.from(dependabotAlertPlan.npmAlertsByTarget.keys())
-    : filterTargetsByCliArgs(pnpmTargets, cliArgs);
-  const filteredRustTargets = dependabotAlertPlan
-    ? filterRustTargetsForDependabotPlan(rustTargets, dependabotAlertPlan)
-    : filterRustTargetsByCliArgs(rustTargets, cliArgs);
-  const totalTargets = filteredPnpmTargets.length + filteredRustTargets.length;
-
-  if (totalTargets === 0) {
-    if (dependabotAlertPlan && dependabotAlertPlan.alerts.length === 0) {
-      console.log('No open Dependabot alerts found for this repository.');
-      console.log('\nDone.');
-      return;
-    }
-
-    if (dependabotAlertPlan) {
-      throw new Error(
-        'Open Dependabot alerts were found, but none matched a supported local dependency target.'
-      );
-    }
-
-    throw new Error(
-      cliArgs.targets.length > 0
-        ? `No dependency target matched: ${cliArgs.targets.join(', ')}`
-        : 'No package.json or Cargo.toml with dependencies was found under the repository root.'
-    );
-  }
 
   console.log(`Repository root: ${ROOT_DIR}`);
-  console.log(`Targets: ${totalTargets}`);
   console.log(
-    `Mode: ${cliArgs.repairOnly ? 'repair-only' : dependabotAlertPlan ? 'alert-driven upgrade' : 'upgrade'}`
+    `Lanes: ${[
+      runDependabot ? 'dependabot' : null,
+      runCodeql ? 'codeql' : null,
+    ].filter(Boolean).join(' + ') || '<none>'}`
   );
-  if (cliArgs.targets.length > 0 && !dependabotAlertPlan) {
-    console.log(`Target filter: ${cliArgs.targets.join(', ')}`);
-  }
-  if (cliArgs.allTargets) {
-    console.log('Dependabot alert discovery: disabled by --all/--all-targets/--no-alerts.');
+
+  let dependabotAlertPlan = null;
+  let filteredPnpmTargets = [];
+  let filteredRustTargets = [];
+  let totalDependencyTargets = 0;
+
+  if (runDependabot) {
+    const [pnpmTargets, rustTargets] = await Promise.all([
+      discoverTargets(),
+      discoverRustTargets(),
+    ]);
+
+    dependabotAlertPlan = await discoverDependabotAlertPlan(
+      cliArgs,
+      pnpmTargets,
+      rustTargets
+    );
+
+    filteredPnpmTargets = dependabotAlertPlan
+      ? Array.from(dependabotAlertPlan.npmAlertsByTarget.keys())
+      : filterTargetsByCliArgs(pnpmTargets, cliArgs);
+    filteredRustTargets = dependabotAlertPlan
+      ? filterRustTargetsForDependabotPlan(rustTargets, dependabotAlertPlan)
+      : filterRustTargetsByCliArgs(rustTargets, cliArgs);
+    totalDependencyTargets = filteredPnpmTargets.length + filteredRustTargets.length;
+
+    if (totalDependencyTargets === 0) {
+      if (dependabotAlertPlan && dependabotAlertPlan.alerts.length === 0) {
+        console.log('No open Dependabot alerts found for this repository.');
+      } else if (dependabotAlertPlan && !runCodeql) {
+        throw new Error(
+          'Open Dependabot alerts were found, but none matched a supported local dependency target.'
+        );
+      } else if (dependabotAlertPlan && runCodeql) {
+        console.log(
+          'Dependabot lane: open alerts found, but none matched a supported local dependency target; continuing with CodeQL lane.'
+        );
+      } else if (!runCodeql) {
+        throw new Error(
+          cliArgs.targets.length > 0
+            ? `No dependency target matched: ${cliArgs.targets.join(', ')}`
+            : 'No package.json or Cargo.toml with dependencies was found under the repository root.'
+        );
+      } else {
+        console.log('Dependabot lane: no actionable dependency targets.');
+      }
+    } else {
+      console.log(`Dependabot targets: ${totalDependencyTargets}`);
+      console.log(
+        `Dependabot mode: ${cliArgs.repairOnly ? 'repair-only' : dependabotAlertPlan ? 'alert-driven upgrade' : 'upgrade'}`
+      );
+
+      if (cliArgs.targets.length > 0 && !dependabotAlertPlan) {
+        console.log(`Target filter: ${cliArgs.targets.join(', ')}`);
+      }
+      if (cliArgs.allTargets) {
+        console.log('Dependabot alert discovery: disabled by --all/--all-targets/--no-alerts.');
+      }
+
+      for (const target of filteredPnpmTargets) {
+        console.log(
+          `- ${target.packageJsonLabel} (${describeCounts(target.dependencyCounts)})`
+        );
+      }
+
+      for (const target of filteredRustTargets) {
+        console.log(
+          `- ${target.cargoManifestLabel} (${describeRustCounts(target.dependencyCounts) || 'no versioned rust dependencies'})`
+        );
+      }
+    }
   }
 
-  for (const target of filteredPnpmTargets) {
-    console.log(
-      `- ${target.packageJsonLabel} (${describeCounts(target.dependencyCounts)})`
-    );
+  let codeScanningPlan = null;
+  if (runCodeql) {
+    const token = getGitHubToken();
+    const repository = await inferGitHubRepository();
+
+    if (!token || !repository) {
+      console.log(
+        'CodeQL alert discovery skipped: USER_PAT/GITHUB_TOKEN or GitHub repository could not be detected.'
+      );
+    } else {
+      try {
+        codeScanningPlan = await discoverCodeScanningAlertPlan({
+          repository,
+          token,
+          apiRoot: GITHUB_API_ROOT,
+          apiVersion: GITHUB_API_VERSION,
+        });
+      } catch (error) {
+        throw new Error(
+          `${error.message}. Ensure USER_PAT can read code-scanning alerts for ${repository}.`
+        );
+      }
+    }
   }
 
-  for (const target of filteredRustTargets) {
-    console.log(
-      `- ${target.cargoManifestLabel} (${describeRustCounts(target.dependencyCounts) || 'no versioned rust dependencies'})`
-    );
+  if (
+    runDependabot
+    && totalDependencyTargets === 0
+    && runCodeql
+    && (!codeScanningPlan || codeScanningPlan.autofixable.length === 0)
+    && (!dependabotAlertPlan || dependabotAlertPlan.alerts.length === 0)
+    && (!codeScanningPlan || codeScanningPlan.alerts.length === 0)
+  ) {
+    console.log('No open Dependabot or CodeQL alerts found for this repository.');
+    console.log('\nDone.');
+    return;
   }
 
   const lanes = [];
 
-  if (filteredPnpmTargets.length > 0) {
+  if (runDependabot && totalDependencyTargets > 0) {
+    if (filteredPnpmTargets.length > 0) {
+      lanes.push({
+        label: 'pnpm',
+        run: () => runPnpmUpgradeLane(filteredPnpmTargets, cliArgs, dependabotAlertPlan),
+      });
+    }
+
+    if (filteredRustTargets.length > 0) {
+      lanes.push({
+        label: 'cargo',
+        run: () => runRustUpgradeLane(filteredRustTargets, dependabotAlertPlan),
+      });
+    }
+  }
+
+  if (runCodeql && codeScanningPlan) {
     lanes.push({
-      label: 'pnpm',
-      run: () => runPnpmUpgradeLane(filteredPnpmTargets, cliArgs, dependabotAlertPlan),
+      label: 'codeql',
+      run: () => runCodeScanningAutofix(ROOT_DIR, codeScanningPlan),
     });
   }
 
-  if (filteredRustTargets.length > 0) {
-    lanes.push({
-      label: 'cargo',
-      run: () => runRustUpgradeLane(filteredRustTargets, dependabotAlertPlan),
-    });
+  if (lanes.length === 0) {
+    if (runCodeql && codeScanningPlan && codeScanningPlan.alerts.length > 0 && codeScanningPlan.autofixable.length === 0) {
+      console.log(
+        `CodeQL alerts are open (${codeScanningPlan.alerts.length}), but none are currently autofixable by supported rules.`
+      );
+      console.log('\nDone.');
+      return;
+    }
+
+    throw new Error('No security maintenance lane produced actionable work.');
   }
 
   await runDependencyLanes(lanes);
 
   console.log('\nDone.');
 }
-
 main().catch((error) => {
   console.error(`\n[failed] ${error.message}`);
   process.exitCode = 1;
