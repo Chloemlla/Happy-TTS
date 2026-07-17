@@ -279,74 +279,189 @@ function ensureImportLine(source, importStatement, afterImportPreference = null)
   };
 }
 
-function resolveRouteLimiterImportPath(filePath) {
-  const normalized = normalizeRepoPath(filePath);
-  if (normalized.startsWith('src/routes/') || normalized.startsWith('src/app/')) {
-    return '../middleware/routeLimiters';
+function detectCreateLimiterImport(source) {
+  const match = source.match(
+    /import\s*\{[^}]*\bcreateLimiter\b[^}]*\}\s*from\s*['"]([^'"]+)['"]/
+  );
+
+  if (!match) {
+    return null;
   }
 
-  if (normalized.startsWith('src/')) {
-    const depth = normalized.split('/').length - 2; // under src/
-    const prefix = depth > 0 ? '../'.repeat(depth) : './';
-    return `${prefix}middleware/routeLimiters`;
-  }
-
-  return '../middleware/routeLimiters';
+  return match[1];
 }
 
-function inferLimiterProfile(filePath, messageText) {
+function resolveCreateLimiterModule(filePath, source) {
+  const existingImport = detectCreateLimiterImport(source);
+  if (existingImport) {
+    return {
+      modulePath: existingImport,
+      api: /rateLimiter(?:\.[cm]?[jt]s)?$/.test(existingImport) ? 'legacy' : 'routeLimiters',
+      alreadyImported: true,
+    };
+  }
+
+  const normalized = normalizeRepoPath(filePath);
+  let modulePath = '../middleware/routeLimiters';
+
+  if (normalized.startsWith('src/routes/') || normalized.startsWith('src/app/')) {
+    modulePath = '../middleware/routeLimiters';
+  } else if (normalized.startsWith('src/')) {
+    const depth = normalized.split('/').length - 2;
+    const prefix = depth > 0 ? '../'.repeat(depth) : './';
+    modulePath = `${prefix}middleware/routeLimiters`;
+  }
+
+  return {
+    modulePath,
+    api: 'routeLimiters',
+    alreadyImported: false,
+  };
+}
+
+function inferLimiterConfig(filePath, messageText, api) {
   const haystack = `${filePath} ${messageText}`.toLowerCase();
+  const baseName = path.posix.basename(normalizeRepoPath(filePath), path.posix.extname(normalizeRepoPath(filePath)))
+    .replace(/[^A-Za-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '') || 'route';
+
+  if (api === 'legacy') {
+    if (/(login|register|auth|password|totp|passkey|oauth)/.test(haystack)) {
+      return {
+        varName: 'codeqlAuthLimiter',
+        options: {
+          windowMs: 15 * 60 * 1000,
+          max: 30,
+          routeName: `${baseName}.auth`,
+          message: '请求过于频繁，请稍后再试',
+        },
+      };
+    }
+
+    if (/(admin|health\/details|diagnostics)/.test(haystack)) {
+      return {
+        varName: 'codeqlAdminLimiter',
+        options: {
+          windowMs: 60 * 1000,
+          max: 50,
+          routeName: `${baseName}.admin`,
+          message: '管理员操作过于频繁，请稍后再试',
+        },
+      };
+    }
+
+    return {
+      varName: 'codeqlRouteLimiter',
+      options: {
+        windowMs: 60 * 1000,
+        max: 60,
+        routeName: `${baseName}.route`,
+        message: '请求过于频繁，请稍后再试',
+      },
+    };
+  }
 
   if (/(login|register|auth|password|totp|passkey|oauth)/.test(haystack)) {
     return {
-      profile: 'auth',
-      category: 'auth',
-      message: '请求过于频繁，请稍后再试',
-      name: 'codeqlAuthLimiter',
+      varName: 'codeqlAuthLimiter',
+      options: {
+        name: 'codeqlAuthLimiter',
+        profile: 'auth',
+        category: 'auth',
+        message: '请求过于频繁，请稍后再试',
+      },
     };
   }
 
   if (/(admin|health\/details|diagnostics)/.test(haystack)) {
     return {
-      profile: 'admin',
-      category: 'admin',
-      message: '管理员操作过于频繁，请稍后再试',
-      name: 'codeqlAdminLimiter',
+      varName: 'codeqlAdminLimiter',
+      options: {
+        name: 'codeqlAdminLimiter',
+        profile: 'admin',
+        category: 'admin',
+        message: '管理员操作过于频繁，请稍后再试',
+      },
     };
   }
 
   if (/(ticket)/.test(haystack)) {
     return {
-      profile: 'ticketWrite',
-      category: 'ticket',
-      message: '请求过于频繁，请稍后再试',
-      name: 'codeqlTicketLimiter',
+      varName: 'codeqlTicketLimiter',
+      options: {
+        name: 'codeqlTicketLimiter',
+        profile: 'ticketWrite',
+        category: 'ticket',
+        message: '请求过于频繁，请稍后再试',
+      },
     };
   }
 
   if (/(tts|audio)/.test(haystack)) {
     return {
-      profile: 'ttsGenerate',
-      category: 'tts',
-      message: '请求过于频繁，请稍后再试',
-      name: 'codeqlTtsLimiter',
+      varName: 'codeqlTtsLimiter',
+      options: {
+        name: 'codeqlTtsLimiter',
+        profile: 'ttsGenerate',
+        category: 'tts',
+        message: '请求过于频繁，请稍后再试',
+      },
     };
   }
 
   return {
-    profile: 'standard',
-    category: 'public-api',
-    message: '请求过于频繁，请稍后再试',
-    name: 'codeqlRouteLimiter',
+    varName: 'codeqlRouteLimiter',
+    options: {
+      name: 'codeqlRouteLimiter',
+      profile: 'standard',
+      category: 'public-api',
+      message: '请求过于频繁，请稍后再试',
+    },
   };
 }
 
-function hasNearbyRateLimiter(source, lineIndex) {
-  const lines = source.split(/\r?\n/);
-  const start = Math.max(0, lineIndex - 3);
-  const end = Math.min(lines.length - 1, lineIndex + 2);
-  const windowText = lines.slice(start, end + 1).join('\n');
-  return /Limiter\b|rateLimit\s*\(|createLimiter\s*\(/.test(windowText);
+function formatLimiterDeclaration(varName, options, api, newline) {
+  if (api === 'legacy') {
+    return [
+      `const ${varName} = createLimiter({`,
+      `  windowMs: ${options.windowMs},`,
+      `  max: ${options.max},`,
+      `  routeName: "${options.routeName}",`,
+      `  message: "${options.message}",`,
+      '});',
+    ].join(newline);
+  }
+
+  return [
+    `const ${varName} = createLimiter({`,
+    `  name: "${options.name}",`,
+    `  profile: "${options.profile}",`,
+    `  category: "${options.category}",`,
+    `  message: "${options.message}",`,
+    '});',
+  ].join(newline);
+}
+
+function findReusableLimiterName(source) {
+  const names = [];
+  const pattern = /\bconst\s+([A-Za-z_][A-Za-z0-9_]*(?:Limiter|limiter))\s*=/g;
+  let match = pattern.exec(source);
+
+  while (match) {
+    names.push(match[1]);
+    match = pattern.exec(source);
+  }
+
+  // Prefer non-codeql generated limiters first, then any available limiter.
+  const preferred = names.find((name) => !/^codeql/i.test(name));
+  return preferred || names[0] || null;
+}
+
+function routeLineAlreadyRateLimited(line) {
+  return /\b\w*Limiter\b/.test(line)
+    || /\brateLimit\b/.test(line)
+    || /\bcreateLimiter\b/.test(line)
+    || /\bexpress-rate-limit\b/.test(line);
 }
 
 function injectLimiterOnRouteLine(line, limiterName) {
@@ -370,12 +485,6 @@ function injectLimiterOnRouteLine(line, limiterName) {
 
   // router.use(middleware...) without path
   if (callExpr.endsWith('.use')) {
-    // router.use(authenticateToken) -> router.use(limiter, authenticateToken)
-    const useMatch = remainder.match(/^(.*)$/);
-    if (!useMatch) {
-      return null;
-    }
-
     // If first arg is string path, insert after path literal.
     const withPath = remainder.match(
       /^((['"`]).*?\2)\s*,\s*(.*)$/
@@ -414,54 +523,18 @@ function applyMissingRateLimitingFix(source, filePath, alertsForFile) {
   const sampleMessage = alertsForFile
     .map((alert) => getCodeScanningAlertMessage(alert))
     .join(' ');
-  const limiterMeta = inferLimiterProfile(filePath, sampleMessage);
-  const limiterName = limiterMeta.name;
-  const importPath = resolveRouteLimiterImportPath(filePath);
-  const importStatement = `import { createLimiter } from "${importPath}";`;
+  const limiterModule = resolveCreateLimiterModule(filePath, nextSource);
+  const limiterConfig = inferLimiterConfig(filePath, sampleMessage, limiterModule.api);
 
-  const importResult = ensureImportLine(nextSource, importStatement);
-  nextSource = importResult.source;
-  changed = changed || importResult.changed;
-
-  // Ensure a local limiter constant exists.
-  if (!new RegExp(`\\bconst\\s+${limiterName}\\b`).test(nextSource)) {
-    const lines = nextSource.split(/\r?\n/);
-    let insertAt = 0;
-    let lastImport = -1;
-    for (let index = 0; index < lines.length; index += 1) {
-      if (/^\s*import\s.+from\s+['"].+['"]\s*;?\s*$/.test(lines[index])) {
-        lastImport = index;
-      }
-    }
-    insertAt = lastImport >= 0 ? lastImport + 1 : 0;
-
-    // Prefer after first router declaration if present.
-    const routerIndex = lines.findIndex((line) =>
-      /\b(?:const|let|var)\s+\w*[Rr]outer\w*\s*=/.test(line)
-    );
-    if (routerIndex >= 0) {
-      insertAt = routerIndex + 1;
-    }
-
-    const limiterDecl = [
-      '',
-      `const ${limiterName} = createLimiter({`,
-      `  name: "${limiterName}",`,
-      `  profile: "${limiterMeta.profile}",`,
-      `  category: "${limiterMeta.category}",`,
-      `  message: "${limiterMeta.message}",`,
-      '});',
-      '',
-    ];
-
-    lines.splice(insertAt, 0, ...limiterDecl);
-    nextSource = lines.join(newline);
-    changed = true;
-    notes.push(`added ${limiterName}`);
+  // Prefer reusing an existing limiter in this file to avoid API mismatch.
+  const reusableLimiter = findReusableLimiterName(nextSource);
+  const limiterName = reusableLimiter || limiterConfig.varName;
+  if (reusableLimiter) {
+    notes.push(`reused existing limiter ${limiterName}`);
   }
 
-  // Patch specific alert lines when possible; otherwise patch all route handlers in file.
-  const lines = nextSource.split(/\r?\n/);
+  // Patch route lines first so CodeQL line numbers stay valid.
+  let lines = nextSource.split(/\r?\n/);
   const targetLineIndexes = new Set();
 
   for (const alert of alertsForFile) {
@@ -471,7 +544,6 @@ function applyMissingRateLimitingFix(source, filePath, alertsForFile) {
     }
   }
 
-  // If CodeQL line anchors are missing, fall back to all route definitions.
   if (targetLineIndexes.size === 0) {
     for (let index = 0; index < lines.length; index += 1) {
       if (/\.(?:get|post|put|patch|delete|all|use)\s*\(/.test(lines[index])) {
@@ -480,77 +552,72 @@ function applyMissingRateLimitingFix(source, filePath, alertsForFile) {
     }
   }
 
+  let routePatched = false;
   for (const lineIndex of targetLineIndexes) {
     const original = lines[lineIndex];
-    if (!original || hasNearbyRateLimiter(nextSource, lineIndex)) {
+    if (!original || routeLineAlreadyRateLimited(original)) {
       continue;
     }
 
     const patched = injectLimiterOnRouteLine(original, limiterName);
     if (patched && patched !== original) {
       lines[lineIndex] = patched;
-      changed = true;
+      routePatched = true;
       notes.push(`patched line ${lineIndex + 1}`);
     }
   }
 
+  if (routePatched) {
+    nextSource = lines.join(newline);
+    changed = true;
+  }
+
+  // Only introduce imports/declarations when we actually patched a route and no reusable limiter exists.
+  if (routePatched && !reusableLimiter) {
+    if (!limiterModule.alreadyImported) {
+      const importStatement = `import { createLimiter } from "${limiterModule.modulePath}";`;
+      const importResult = ensureImportLine(nextSource, importStatement);
+      nextSource = importResult.source;
+      changed = changed || importResult.changed;
+    }
+
+    if (!new RegExp(`\\bconst\\s+${limiterName}\\b`).test(nextSource)) {
+      lines = nextSource.split(/\r?\n/);
+      let insertAt = 0;
+      let lastImport = -1;
+      for (let index = 0; index < lines.length; index += 1) {
+        if (/^\s*import\s.+from\s+['"].+['"]\s*;?\s*$/.test(lines[index])) {
+          lastImport = index;
+        }
+      }
+      insertAt = lastImport >= 0 ? lastImport + 1 : 0;
+
+      const routerIndex = lines.findIndex((line) =>
+        /\b(?:const|let|var)\s+\w*[Rr]outer\w*\s*=/.test(line)
+      );
+      if (routerIndex >= 0) {
+        insertAt = routerIndex + 1;
+      }
+
+      const declaration = formatLimiterDeclaration(
+        limiterName,
+        limiterConfig.options,
+        limiterModule.api,
+        newline
+      );
+      lines.splice(insertAt, 0, '', ...declaration.split(newline), '');
+      nextSource = lines.join(newline);
+      changed = true;
+      notes.push(`added ${limiterName} via ${limiterModule.api} API`);
+    }
+  }
+
   return {
-    source: lines.join(newline),
+    source: nextSource,
     changed,
     notes,
   };
 }
-
-const SENSITIVE_KEY_PATTERN =
-  /(password|passwd|pwd|secret|token|api[_-]?key|private[_-]?key|authorization|credential)/i;
-
-function sanitizeClearTextLoggingLine(line) {
-  // logger.info("...", { password: value }) or console.log({ password })
-  if (!/console\.(log|info|warn|error|debug)|logger\.(log|info|warn|error|debug)/.test(line)) {
-    return null;
-  }
-
-  if (!SENSITIVE_KEY_PATTERN.test(line)) {
-    return null;
-  }
-
-  let next = line;
-
-  // object property: password: something -> passwordConfigured: Boolean(something)
-  next = next.replace(
-    /(["']?)([A-Za-z0-9_]*?(?:password|passwd|pwd|secret|token|api[_-]?key|private[_-]?key|authorization|credential)[A-Za-z0-9_]*)\1\s*:\s*([^,}]+)/gi,
-    (match, quote, key, value) => {
-      const normalizedKey = `${key}`;
-      if (/configured|present|set|exists|length|count/i.test(normalizedKey)) {
-        return match;
-      }
-
-      const booleanKey = /password|passwd|pwd/i.test(normalizedKey)
-        ? `${normalizedKey}Configured`
-        : `${normalizedKey}Present`;
-
-      const valueExpr = value.trim();
-      if (/^Boolean\(/.test(valueExpr) || valueExpr === 'true' || valueExpr === 'false') {
-        return match;
-      }
-
-      return `${quote || ''}${booleanKey}${quote || ''}: Boolean(${valueExpr})`;
-    }
-  );
-
-  // template/string interpolation of sensitive identifiers: ${password} -> [redacted]
-  next = next.replace(
-    /\$\{\s*([A-Za-z0-9_.]*?(?:password|passwd|pwd|secret|token|apiKey|api_key|privateKey|authorization|credential)[A-Za-z0-9_.]*)\s*\}/gi,
-    '[redacted]'
-  );
-
-  if (next === line) {
-    return null;
-  }
-
-  return next;
-}
-
 function applyClearTextLoggingFix(source, alertsForFile) {
   const newline = source.includes('\r\n') ? '\r\n' : '\n';
   const lines = source.split(/\r?\n/);
