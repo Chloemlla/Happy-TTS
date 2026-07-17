@@ -118,3 +118,16 @@ Unauthenticated risk headers must not alone BLOCK.
 - DeviceId-only HMAC as server trust root
 - Replacing JWT with signatures
 - Trusting client risk headers for unauthenticated BLOCK
+
+## Implementation progress (code)
+- [x] Backend middleware 
+exaiRequestSignature (soft default)
+- [x] rawBody capture on express.json
+- [x] Mount on /api/nexai routers
+- [x] Explicit signature error envelope (code/stage/error)
+- [x] Client signRequestV2 (token B / app secret C)
+- [x] Client NexaiApiError + showNexaiErrorDialog
+- [x] BackendClient maps transport/sign/tls to staged errors; soft-skips when no key
+- [x] AuthProvider preserves staged error text for UI
+- [ ] Full enforce rollout + app secret provisioning in CI builds
+- [ ] Wire every NexAI page action to dialog helper (login enhanced; sync/artifacts follow-up)

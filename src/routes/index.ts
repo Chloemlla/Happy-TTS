@@ -72,6 +72,7 @@ import modlistRoutes from "./modlistRoutes";
 import networkRoutes from "./networkRoutes";
 import nexaiRoutes from "./nexaiRoutes";
 import nexaiSecurityRoutes from "./nexaiSecurityRoutes";
+import { nexaiRequestSignature } from "../middleware/nexaiRequestSignature";
 import openapiJsonRoutes from "./openapiJsonRoutes";
 import oauthRoutes from "./oauthRoutes";
 import outemailRoutes from "./outemailRoutes";
@@ -1246,6 +1247,7 @@ export const postTamperRouteModules: RouteModule[] = [
     name: "nexai-routes",
     path: "/api/nexai",
     router: nexaiRoutes,
+    middlewares: [nexaiRequestSignature],
     requiresAuth: "mixed",
     rateLimited: true,
     isPublic: "mixed",
@@ -1276,7 +1278,7 @@ export const postTamperRouteModules: RouteModule[] = [
     name: "nexai-security-routes",
     path: "/api/nexai",
     router: nexaiSecurityRoutes,
-    middlewares: [nexaiSecurityLimiter],
+    middlewares: [nexaiRequestSignature, nexaiSecurityLimiter],
     requiresAuth: "mixed",
     rateLimited: true,
     isPublic: "mixed",

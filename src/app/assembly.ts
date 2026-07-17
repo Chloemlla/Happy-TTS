@@ -236,7 +236,13 @@ export function registerCoreMiddleware(app: Express): void {
 
   app.use(requestIdMiddleware);
   app.use(requestProfilingMiddleware);
-  app.use(express.json({ limit: "10mb" }));
+  app.use(express.json({
+    limit: "10mb",
+    verify: (req, _res, buf) => {
+      // Preserve raw bytes for NexAI request signature (nexai-sig-v2).
+      (req as any).rawBody = Buffer.from(buf);
+    },
+  }));
   app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 }
 
