@@ -987,7 +987,151 @@ npx wrangler deploy  # 部署到 Cloudflare
 
 ## 📝 更新日志
 
-按 commit 整理的 2026 年变更记录（合并同类项，省略纯依赖 bump / merge / 任务归档类提交）。
+按 commit 整理的 2025 年 6 月起变更记录（合并同类项，省略纯依赖 bump / merge / 任务归档类提交）。
+
+### 2025-06
+
+#### 06-15 ~ 06-17
+- 项目重构为 Node.js 全栈结构，清理无用文件
+- 搭建环境变量、代理与 CI 依赖安装流程
+- 实现 IP 限流与更稳健的 IP 识别
+- 前端接入 React Router，重构 App 与 TTS 页面
+- 登录改为 identifier，完善注册登录错误处理
+- TTS 增加重复内容检测、生成码校验、文本长度限制与混淆构建
+
+#### 06-18 ~ 06-20
+- 新增 IP 归属查询、缓存、重试与宕机容错
+- 增加服务状态接口、隐私政策 / 服务条款页
+- 后端代码混淆，前端补充 Footer 与调试快捷键限制
+- TTS 增加数据签名校验与 CSP / 篡改防护
+- 强化密码强度、CORS、输入消毒与 Token 认证
+- 新增公网 IP 获取 / 上报与上报限流白名单
+
+#### 06-21 ~ 06-26
+- 新增用户管理与管理员接口限流
+- 实现 TOTP 双因素认证与备份码
+- 增加移动端导航与 API 文档（Swagger / OpenAPI）
+- 多服务器部署、日志分享 / 查询与上传历史
+
+#### 06-28 ~ 06-29
+- 接入 Docusaurus 文档站与博客
+- 前端增加页面切换动画、粒子背景与技术栈展示
+- 增强扩展检测、水印覆盖、完整性校验与反调试能力
+
+### 2025-07
+
+#### 07-03 ~ 07-08
+- 前端测试切换 Vitest，优化 TOTP / TTS UI 与错误处理
+- 引入动态 API Base URL，并增强限流与危险关键词过滤
+- 用 Passkey 取代旧 WebAuthn 路径，完善 credentialID 修复与校验
+- 支持多 2FA 方式，修复命令注入，并补充网络 / PublicIP API
+- 增加代码分割、JWT 认证与 AudioPreview / Passkey 体验优化
+
+#### 07-09 ~ 07-15
+- 用户存储支持 MongoDB，后续补齐 MySQL 与使用量统计
+- 新增 CaseConverter、Cloudflare Turnstile（可开关）与 hCaptcha 简化实现
+- 管理端邮件发送、注册邮箱验证、多发件域名与邮件配额
+- 强化 IP 查询 SSRF 防护，新增用户主页与 TTS 内容去重存储
+
+#### 07-16 ~ 07-25
+- 新增管理后台、响应式导航与 MiniAPI 限流
+- 对外邮件 OutEmail、抽奖系统、ModList 与公告弹窗
+- 用户资料 / 头像上传，IndexedDB 头像缓存
+- IPFS 图床短链、短链跳转 / 管理与 XSS 防护
+
+#### 07-27 ~ 07-31
+- 管理后台增强命令管理、日志分享与域名豁免检查
+- 新增 Tiger Adventure 游戏
+- 强化命令 / 图片 ID 校验、安全日志与短链复制体验
+
+### 2025-08
+
+#### 08-01 ~ 08-10
+- 新增 CaseConverter / CoinFlip 等实用工具增强
+- 实现 CSRF 防护与会话安全加固
+- MongoDB 用户存储自动切换，新增资源商店
+- CDK 批量选择 / 删除 / 导出 / 导入与未使用 CDK 清理
+
+#### 08-11 ~ 08-16
+- 集成 FBI Wanted 模块与相关管理能力
+- 指纹上报 / 管理、Webhook 事件管理与 Resend 校验
+- LibreChat 兼容路由、实时聊天与数据收集管理
+- 上线 SmartHumanCheck 智能人机校验与风险评估
+
+#### 08-17 ~ 08-24
+- SmartHumanCheck 接入认证链路，增强防自动化挑战
+- 数据收集批处理、PII 检测与管理端设置面板
+- Debug Console、敏感管理接口限流与 Docker 构建优化
+- Markdown 支持 Mermaid / 数学公式，IPFS 配置管理与 SVG 消毒
+
+#### 08-25 ~ 08-31
+- Turnstile 配置管理、首次访问验证与临时指纹 / access token
+- 首次访问联动 IP 封禁，重构篡改防护中间件
+- 批量图片上传、Microsoft Clarity 分析、防伪查询页
+- 部署脚本 Node 化，GitHub Billing 配置与 DOCX 导出
+- Docker / GHCR 多架构构建与推送完善
+
+### 2025-09
+
+#### 09-05 ~ 09-10
+- 包管理逐步切换到 pnpm，并优化 Docker / CI 安装缓存
+- Turnstile 高级验证与风险评估，统一 `shc_traces` 溯源模型
+- GitHub Billing 本地缓存、公开路由与限流
+- 集成 hCaptcha 备选验证、CSP 更新与 Clarity
+- 日志归档、路径消毒、指纹增强与开发态自动放行
+
+#### 09-11 ~ 09-21
+- Billing / 管理端接入 Turnstile token 鉴权
+- GitHub Billing 高级缓存、性能指标与渐进加载
+- 通知测试页、校园应急页与多配置 curl 管理
+- PasskeySetup / FirstVisitVerification 可访问性与调试增强
+
+#### 09-24 ~ 09-29
+- 公开 Turnstile 配置 / token 校验端点
+- 用户资料按 2FA 状态优化验证流程
+- 管理端多个 Modal 组件性能与交互优化
+- 新增 IP 数据清理与统计能力
+
+### 2025-10
+
+#### 10-03 ~ 10-09
+- EnvManager 增强 Clarity Project ID 管理与 curl 校验
+- 篡改检测 / 完整性校验与品牌保护增强
+- 调度清理统计日志、首次访问懒加载
+- 策略执行 / 同意记录模块与时间戳校验放宽
+- 新增 `useToast` 通知 Hook
+
+#### 10-18 ~ 10-23
+- IPFS 开发态可跳过 Turnstile，增强 Crossbell 域名校验
+- 短链生成策略增强；数据收集 / CDK / Clarity / Life 服务补健康检查与缓存
+- 服务日志中文化
+- 新增多个 Demo 页面（财务 / 冥想 / 音乐播放器）
+
+### 2025-11
+
+#### 11-06 ~ 11-17
+- 统一 Passkey API 与 origin 管理，完善无密码登录路径
+- 新增字数统计页与年龄计算器，并统一设计语言
+- 接入 React 19 能力（metadata / use hook）并做组件性能优化
+- 指纹请求弹窗支持一次性关闭与强制上报
+- 实现基于 Redis + MongoDB 同步的 IP 封禁系统
+
+#### 11-18 ~ 11-30
+- 修复管理端弹窗、TypeScript 与数据库连通问题
+- 支持 CIDR 段封禁，并完善封禁 / 解封同步
+- 完整性检查误报显著降低，FBI Wanted 系统全面重构
+- 登录 / 注册页拆分并采用 GitHub 风格设计
+- 新增忘记密码 / 重置密码，兼容 mongoose 9，首次访问验证支持后端开关
+
+### 2025-12
+
+#### 12-03 ~ 12-07
+- 补充完整 Passkey 登录指南
+- 实现可发现凭证的无密码 Passkey 登录
+- 新增 Turnstile 全局旁路开关
+- 新增邮箱验证页与密码重置链接页
+- 认证页完成中文本地化，所有模态框增强响应式与滚动支持
+
 
 ### 2026-01
 
