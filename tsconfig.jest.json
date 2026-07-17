@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "es2019",
-    "module": "Node16",
+    "module": "CommonJS",
     "lib": ["es2019", "es2020.promise", "es2020.bigint", "es2020.string"],
     "outDir": "./dist-test",
     "rootDir": ".",
@@ -9,7 +9,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "Node16",
+    "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "jsx": "react-jsx",

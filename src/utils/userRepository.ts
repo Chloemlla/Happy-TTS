@@ -1,4 +1,5 @@
 import logger from "./logger";
+import { getUserAuthByEmail, getUserAuthByUsername, verifyAndMigrateUserPassword } from "../services/userService";
 import { getUserStorageProvider } from "./userStorageProvider";
 import type { User } from "./userStorageTypes";
 import { userValidationService } from "./userValidationService";
@@ -81,7 +82,6 @@ export const userRepository = {
 
   async authenticateUser(identifier: string, password: string): Promise<User | null> {
     const sanitizedIdentifier = userValidationService.sanitizeInput(identifier);
-    const { getUserAuthByUsername, getUserAuthByEmail, verifyAndMigrateUserPassword } = await import("../services/userService.js");
     const user =
       (await getUserAuthByUsername(sanitizedIdentifier)) || (await getUserAuthByEmail(sanitizedIdentifier));
 

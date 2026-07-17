@@ -4,6 +4,7 @@
  */
 import type { Request, Response } from "express";
 import { config } from "../config/config";
+import { NexaiUserModel } from "../models/nexaiUserModel";
 import { NexaiAuthService } from "../services/nexaiAuthService";
 import logger from "../utils/logger";
 
@@ -604,7 +605,6 @@ export class NexaiAuthController {
       let userId: string;
       // 短路查找
       const safeValue = identifier.replace(/[^a-zA-Z0-9_@.-]/g, "").toLowerCase();
-      const { NexaiUserModel } = await import("../models/nexaiUserModel.js");
       const user = await NexaiUserModel.findOne({
         $or: [{ email: safeValue }, { username: safeValue }],
       }).lean();

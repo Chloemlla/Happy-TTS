@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { OAuth2Client } from "google-auth-library";
 import { config } from "../config/config";
 import logger from "../utils/logger";
 import { signLoginToken } from "../utils/authToken";
@@ -145,14 +146,6 @@ export async function verifyGoogleIdToken(idToken: string): Promise<GoogleProfil
   const trimmedToken = firstString(idToken);
   if (!trimmedToken) {
     throw new Error("缺少 Google idToken");
-  }
-
-  let OAuth2Client: any;
-  try {
-    ({ OAuth2Client } = await import("google-auth-library"));
-  } catch (error) {
-    logger.error("[Google Auth] Failed to load google-auth-library", error);
-    throw new Error("Google 登录依赖不可用");
   }
 
   const client = new OAuth2Client(clientIds[0]);
