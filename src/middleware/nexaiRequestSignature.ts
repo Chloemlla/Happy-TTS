@@ -178,15 +178,16 @@ export function nexaiRequestSignature(req: Request, res: Response, next: NextFun
   const nonce = headerString(req.headers["x-nexai-nonce"]);
   const signature = headerString(req.headers["x-nexai-sig"]).toLowerCase();
 
-  const fail = (status: number, code: string, error: string, details?: Record<string, unknown>) => {
+  const fail = (status: number, code: string, error: string, details?: Record<string, unknown>): void => {
     logger.warn("[NexAI Sig]", { code, path, ip: req.ip, mode, ...details });
     if (mode === "soft") {
       res.setHeader("X-NexAI-Sig-Result", "fail");
       res.setHeader("X-NexAI-Sig-Code", code);
       req.nexaiSig = { mode, ok: false };
-      return next();
+      next();
+      return;
     }
-    return sendNexaiError(res, status, {
+    sendNexaiError(res, status, {
       error,
       code,
       stage: "server_signature",
