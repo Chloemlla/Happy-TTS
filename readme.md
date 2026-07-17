@@ -44,6 +44,7 @@
 - [开发指南](#开发指南)
 - [安全特性](#安全特性)
 - [监控与日志](#监控与日志)
+- [更新日志](#更新日志)
 - [许可证](#许可证)
 
 ---
@@ -981,6 +982,101 @@ npm install
 npx wrangler dev     # 本地开发
 npx wrangler deploy  # 部署到 Cloudflare
 ```
+
+---
+
+## 📝 更新日志
+
+按 commit 整理的 2026 年 7 月变更记录（合并同类项，省略纯依赖 bump / merge / 任务归档类提交）。
+
+### 2026-07
+
+#### 07-02
+- 自动处理 Dependabot 安全告警
+- 升级 `rust-services` 中 `webpki-roots` 依赖
+
+#### 07-03
+- 新增第三方账号绑定流程
+- 优化 Provider 绑定交互体验
+- 暴露已登录态外部邮箱 API
+- 补充 Rust OutEmail API 文档
+- 改进 Markdown 渲染体验
+
+#### 07-04
+- 新增 Android 移动端登录流程
+- 降低外部资源与过期 TTS 资源错误
+- 管理后台安全页面对齐基准仪表盘 UI
+- 处理乱码相关编码问题
+- 修复 Linux.do 回调错误跳转
+- 支持邮箱服务商注册凭证能力
+
+#### 07-05
+- 对齐认证错误信息与测试断言
+- 新增完整项目审计报告
+- 修复审计中的安全与发布相关问题
+
+#### 07-07
+- 为 NexAI Passkey 增加 signal 选项
+
+#### 07-08
+- 同步前端 lockfile
+- 重构解密函数，提升 buffer 处理与类型安全
+- 在测试中 mock 工单路由限流器
+
+#### 07-11
+- 持久化工单 AI 失败诊断信息
+- 增加加密 LogShare 响应解密测试
+- 同步并修复 pnpm override / lockfile 兼容性
+- 优化失败尝试合并逻辑与诊断结构
+- 更新 README 构建与测试说明
+- 保留 LibreChat 完整重试 token
+- 将 pnpm 设置迁移到 workspace 配置并统一版本
+
+#### 07-12
+- 新增 NexAI 可发现式 Passkey 登录
+- 完整适配 Google Identity Services Web 客户端
+- 在 EnvManager 暴露并可用化 `GOOGLE_CLIENT_ID` 配置
+
+#### 07-13
+- 在 `assetlinks.json` 提供 Synapse Mobile 入口
+- 为 NexAI Passkey 托管默认 Digital Asset Links
+- 完成 Synapse Android 运行时配置
+
+#### 07-15
+- 修复 Linux.do 回调重定向循环与 429
+- 落地健康检查、运维与配置相关审计修复
+- 完成全量审计整改收尾
+- 引入 HttpOnly Cookie 会话，并继续拆分管理后台 UI
+- 浏览器会话强制 Cookie-only，并深化前端拆分
+- 继续拆分 EnvManager 配置区块
+
+#### 07-16
+- 接受 Android base64 / base64url 的 apk-key-hash origin
+- NexAI 支持反调试设备安全请求头
+- 修复管理端 `AdminUserRecord` 类型错误
+- 修复 `CommandManager` 状态拉取 try/catch 结构
+- 修复 UI 拆分后的前端 TypeScript 构建错误
+- 精确升级嵌套 `rust-services` crates
+- 补充 `UserList` 过滤类型导入，并修正账户类型断言
+- 合入 Synapse TTS 平台代码主体
+- 适配 TypeScript 6 / Node16 模块解析规则
+- 继续自动处理 Dependabot 安全告警
+- 修复 `emailService` 中 `marked` Promise 类型问题
+
+#### 07-17
+- 清理 Node 验证日志
+- 固定 TypeScript 6 以兼容 ts-jest
+- 安全维护脚本支持自动修复 CodeQL 告警
+- CI 双通道安全告警修复常开
+- 兼容 `createLimiter` API 变体，降低 CodeQL 误报
+- 处理 Dependabot Rust 告警并升级安全相关 cargo 依赖
+- 恢复 Node 验证链路，规避损坏的 coverage 插桩
+- 修复剩余 Node 验证测试失败
+- 审计并修复 NexAI 安全信任问题
+- 接受 NexAI Frida / Xposed 安全事件类型
+- 新增 NexAI sig-v2 中间件与明确错误阶段
+- 支持 refreshToken 绑定的 NexAI 请求签名
+- 修复 NexAI TypeScript 构建错误（NodeNext 动态导入扩展名、签名中间件返回类型）
 
 ---
 
