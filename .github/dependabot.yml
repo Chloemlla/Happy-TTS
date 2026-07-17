@@ -17,6 +17,9 @@ updates:
     commit-message:
       prefix: "npm"
       include: "scope"
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   # 前端依赖更新
   - package-ecosystem: "npm"
@@ -31,6 +34,9 @@ updates:
     commit-message:
       prefix: "npm"
       include: "scope"
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   # Rust 依赖更新
   - package-ecosystem: "cargo"
