@@ -20,6 +20,8 @@ const ALLOWED_SECURITY_EVENT_TYPES = new Set([
   "hook_detected",
   "tamper_detected",
   "anti_debug",
+  "frida_detected",
+  "xposed_detected",
   "login_anomaly",
   "device_switch",
   "heartbeat",
