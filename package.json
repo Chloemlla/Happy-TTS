@@ -157,5 +157,10 @@
     "ts-jest": "^29.4.11",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "tar": "^7.5.20"
+    }
   }
 }

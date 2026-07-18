@@ -1,9 +1,10 @@
 use std::time::Duration;
 
 use hickory_resolver::{
-    config::{ResolverConfig, ResolverOpts},
+    config::{ResolverConfig, ResolverOpts, CLOUDFLARE},
     proto::rr::RecordType,
-    TokioAsyncResolver,
+    net::runtime::TokioRuntimeProvider,
+    TokioResolver,
 };
 use tokio::{net::lookup_host, time};
 
@@ -14,7 +15,7 @@ pub async fn resolve_records(
     record_types: &[String],
     timeout: Duration,
 ) -> Result<Vec<DnsRecord>, AppError> {
-    let mut resolver: Option<TokioAsyncResolver> = None;
+    let mut resolver: Option<TokioResolver> = None;
     let mut records = Vec::new();
 
     for record_type in record_types {
@@ -49,12 +50,18 @@ pub async fn resolve_records(
     Ok(records)
 }
 
-fn build_hickory_resolver(timeout: Duration) -> TokioAsyncResolver {
+fn build_hickory_resolver(timeout: Duration) -> TokioResolver {
     let mut opts = ResolverOpts::default();
     opts.timeout = timeout;
     opts.attempts = 1;
     opts.num_concurrent_reqs = 1;
-    TokioAsyncResolver::tokio(ResolverConfig::default(), opts)
+    TokioResolver::builder_with_config(
+        ResolverConfig::udp_and_tcp(&CLOUDFLARE),
+        TokioRuntimeProvider::default(),
+    )
+    .with_options(opts)
+    .build()
+    .expect("failed to build hickory resolver")
 }
 
 async fn lookup_system_ip_records(
@@ -75,7 +82,7 @@ async fn lookup_system_ip_records(
 }
 
 async fn lookup_generic_records(
-    resolver: &TokioAsyncResolver,
+    resolver: &TokioResolver,
     address: &str,
     record_type: RecordType,
     timeout: Duration,
@@ -89,7 +96,7 @@ async fn lookup_generic_records(
 }
 
 async fn lookup_mx_records(
-    resolver: &TokioAsyncResolver,
+    resolver: &TokioResolver,
     address: &str,
     timeout: Duration,
 ) -> Result<Vec<String>, AppError> {
@@ -105,7 +112,7 @@ async fn lookup_mx_records(
 }
 
 async fn lookup_txt_records(
-    resolver: &TokioAsyncResolver,
+    resolver: &TokioResolver,
     address: &str,
     timeout: Duration,
 ) -> Result<Vec<String>, AppError> {
