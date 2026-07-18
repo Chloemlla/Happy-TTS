@@ -1,8 +1,8 @@
 import { Router } from "express";
-import rateLimit from "express-rate-limit";
 import { GitHubBillingController } from "../controllers/githubBillingController";
 import { authenticateAdmin } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
+import { createLimiter, githubBillingLimiter } from "../middleware/routeLimiters";
 
 // 开发环境检测
 const isDevelopment = process.env.NODE_ENV === "development" || process.env.NODE_ENV === "dev";
@@ -15,29 +15,23 @@ const devConfigAuth = isDevelopment ? [authenticateToken, authenticateAdmin] : [
 
 const router = Router();
 
-// 速率限制配置
-const billingLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15分钟
-  max: 100, // 每个IP每15分钟最多100次请求
-  message: { error: "请求过于频繁，请稍后再试" },
-  standardHeaders: true,
-  legacyHeaders: false,
+// 速率限制配置（统一 routeLimiters）
+const billingLimiter = githubBillingLimiter;
+
+const cacheLimiter = createLimiter({
+  name: "githubBillingCache",
+  profile: "standard",
+  category: "public-api",
+  message: "请求过于频繁，请稍后再试",
 });
 
-const cacheLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1分钟
-  max: 30, // 每个IP每分钟最多30次请求
-  message: { error: "请求过于频繁，请稍后再试" },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-const configLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1小时
-  max: 10, // 每个IP每小时最多10次配置更新
-  message: { error: "配置更新过于频繁，请稍后再试" },
-  standardHeaders: true,
-  legacyHeaders: false,
+const configLimiter = createLimiter({
+  name: "githubBillingConfig",
+  profile: "sensitive",
+  category: "admin",
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: "配置更新过于频繁，请稍后再试",
 });
 
 // 应用速率限制到所有路由

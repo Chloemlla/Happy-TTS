@@ -1,45 +1,34 @@
 import express from "express";
-import rateLimit from "express-rate-limit";
 import { SmartHumanCheckController } from "../controllers/humanCheckController";
 import adminOnly from "../middleware/adminOnly";
 import { authenticateToken } from "../middleware/authenticateToken";
+import { createLimiter } from "../middleware/routeLimiters";
 
 const router = express.Router();
 
-// 适度限流，防止滥用（使用 express-rate-limit 以便静态分析识别）
-const humanCheckLimiter = rateLimit({
-  windowMs: 60 * 1000,
+// 适度限流，防止滥用（统一 routeLimiters）
+const humanCheckLimiter = createLimiter({
+  name: "humanCheckBootstrap",
+  profile: "burst",
+  category: "public-api",
   max: 120,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    error: "请求过于频繁，请稍后再试",
-  },
-  keyGenerator: (req) => req.ip || req.socket.remoteAddress || "unknown",
+  message: "请求过于频繁，请稍后再试",
 });
 
-// 更严格的验证限流（使用 express-rate-limit 以便静态分析识别）
-const verifyLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 30,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    error: "验证请求过于频繁，请稍后再试",
-  },
-  keyGenerator: (req) => req.ip || req.socket.remoteAddress || "unknown",
+// 更严格的验证限流
+const verifyLimiter = createLimiter({
+  name: "humanCheckVerify",
+  profile: "standard",
+  category: "verification",
+  message: "验证请求过于频繁，请稍后再试",
 });
 
-// 显式的管理员端点限流（使用 express-rate-limit 以便静态分析识别）
-const adminLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1分钟
-  max: 60, // 管理查询/删除操作 QPS 较低
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    error: "管理端请求过于频繁，请稍后再试",
-  },
-  keyGenerator: (req) => req.ip || req.socket.remoteAddress || "unknown",
+// 管理员端点限流
+const adminLimiter = createLimiter({
+  name: "humanCheckAdmin",
+  profile: "relaxed",
+  category: "admin",
+  message: "管理端请求过于频繁，请稍后再试",
 });
 
 // 添加 CORS 和安全头

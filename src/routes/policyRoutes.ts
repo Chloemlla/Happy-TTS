@@ -1,5 +1,4 @@
 import { Router } from "express";
-import rateLimit from "express-rate-limit";
 import {
   cleanExpiredConsents,
   getCurrentPolicyVersion,
@@ -10,61 +9,25 @@ import {
 } from "../controllers/policyController";
 import { adminOnly } from "../middleware/adminOnly";
 import { authenticateToken } from "../middleware/authenticateToken";
-import logger from "../utils/logger";
+import { createLimiter } from "../middleware/routeLimiters";
 
 const router = Router();
 
-// 检查是否为本地开发环境
-const isLocalDevelopment =
-  process.env.NODE_ENV === "development" || process.env.NODE_ENV === "dev" || process.env.NODE_ENV === "local";
-
-// 速率限制配置
-const policyRateLimit = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1分钟
-  max: isLocalDevelopment ? 1000 : 120, // 本地环境放宽限制，生产环境120次/分钟
-  message: {
-    success: false,
-    error: "Too many policy requests, please try again later",
-    code: "RATE_LIMIT_EXCEEDED",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  // 本地环境跳过速率限制
-  skip: (req) => {
-    if (isLocalDevelopment) {
-      logger.info("Skipping rate limit for local development:", {
-        ip: req.ip,
-        hostname: req.hostname,
-        url: req.url,
-      });
-      return true;
-    }
-    return false;
-  },
+// 速率限制配置（本地请求由 createLimiter 默认 skip）
+const policyRateLimit = createLimiter({
+  name: "policyPublic",
+  profile: "burst",
+  category: "public-api",
+  max: 120,
+  message: "Too many policy requests, please try again later",
 });
 
-const adminRateLimit = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1分钟
-  max: isLocalDevelopment ? 2000 : 120, // 本地环境放宽限制，生产环境120次/分钟
-  message: {
-    success: false,
-    error: "Too many admin requests, please try again later",
-    code: "ADMIN_RATE_LIMIT_EXCEEDED",
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  // 本地环境跳过速率限制
-  skip: (req) => {
-    if (isLocalDevelopment) {
-      logger.info("Skipping admin rate limit for local development:", {
-        ip: req.ip,
-        hostname: req.hostname,
-        url: req.url,
-      });
-      return true;
-    }
-    return false;
-  },
+const adminRateLimit = createLimiter({
+  name: "policyAdmin",
+  profile: "burst",
+  category: "admin",
+  max: 120,
+  message: "Too many admin requests, please try again later",
 });
 
 /**

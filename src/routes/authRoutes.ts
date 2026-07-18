@@ -1,55 +1,48 @@
 import express, { type Request } from "express";
-import rateLimit from "express-rate-limit";
 import { AuthController } from "../controllers/authController";
 import { LinuxDoAuthController } from "../controllers/linuxDoAuthController";
 import { MobileLoginController } from "../controllers/mobileLoginController";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { validateAuthInput } from "../middleware/authValidation";
-import { loginLimiter, registerLimiter } from "../middleware/routeLimiters";
+import { createLimiter, loginLimiter, registerLimiter } from "../middleware/routeLimiters";
 import { logUserData } from "../middleware/userDataLogger";
 
 const router = express.Router();
-const authLoginEndpointLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "登录请求过于频繁，请稍后再试" },
+const authLoginEndpointLimiter = createLimiter({
+  name: "authLoginEndpoint",
+  profile: "login",
+  category: "login",
+  message: "登录请求过于频繁，请稍后再试",
 });
-const authRegisterEndpointLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "注册请求过于频繁，请稍后再试" },
+const authRegisterEndpointLimiter = createLimiter({
+  name: "authRegisterEndpoint",
+  profile: "register",
+  category: "register",
+  message: "注册请求过于频繁，请稍后再试",
 });
-const authReadLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 60,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "认证配置请求过于频繁，请稍后再试" },
+const authReadLimiter = createLimiter({
+  name: "authRead",
+  profile: "relaxed",
+  category: "auth",
+  message: "认证配置请求过于频繁，请稍后再试",
 });
-const authVerificationLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "验证请求过于频繁，请稍后再试" },
+const authVerificationLimiter = createLimiter({
+  name: "authVerification",
+  profile: "verification",
+  category: "verification",
+  message: "验证请求过于频繁，请稍后再试",
 });
-const authPasswordResetLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "密码重置请求过于频繁，请稍后再试" },
+const authPasswordResetLimiter = createLimiter({
+  name: "authPasswordReset",
+  profile: "login",
+  category: "auth",
+  message: "密码重置请求过于频繁，请稍后再试",
 });
-const authExternalLoginLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "第三方登录请求过于频繁，请稍后再试" },
+const authExternalLoginLimiter = createLimiter({
+  name: "authExternalLogin",
+  profile: "verification",
+  category: "auth",
+  message: "第三方登录请求过于频繁，请稍后再试",
 });
 function hasCallbackProviderError(value: unknown): boolean {
   if (typeof value === "string") {
@@ -86,20 +79,20 @@ export function shouldSkipLinuxDoCallbackRateLimit(req: Request): boolean {
   );
 }
 
-const linuxDoCallbackGetLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "第三方登录请求过于频繁，请稍后再试" },
+const linuxDoCallbackGetLimiter = createLimiter({
+  name: "linuxDoCallbackGet",
+  profile: "verification",
+  category: "auth",
+  message: "第三方登录请求过于频繁，请稍后再试",
   skip: shouldSkipLinuxDoCallbackRateLimit,
 });
-const authMobileLoginLimiter = rateLimit({
+const authMobileLoginLimiter = createLimiter({
+  name: "authMobileLogin",
+  profile: "relaxed",
+  category: "auth",
   windowMs: 5 * 60 * 1000,
   max: 60,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "扫码登录请求过于频繁，请稍后再试" },
+  message: "扫码登录请求过于频繁，请稍后再试",
 });
 
 /**

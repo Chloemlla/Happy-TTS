@@ -1,9 +1,8 @@
 import { Router } from "express";
-import rateLimit from "express-rate-limit";
 import { ShortUrlController } from "../controllers/shortUrlController";
 import { apiKeyAuth } from "../middleware/apiKeyAuth";
 import { adminAuthMiddleware, authMiddleware } from "../middleware/authMiddleware";
-import { createLimiter } from "../middleware/rateLimiter";
+import { createLimiter } from "../middleware/routeLimiters";
 import { replayProtection } from "../middleware/replayProtection";
 import { mongoose } from "../services/mongoService";
 import { ShortUrlService } from "../services/shortUrlService";
@@ -13,52 +12,52 @@ const router = Router();
 const redirectRouter = Router();
 const shortUrlApiKeyAuth = apiKeyAuth("shorturl");
 
-// 速率限制器
+// 速率限制器（统一 routeLimiters）
 const redirectLimiter = createLimiter({
-  windowMs: 60 * 1000, // 1分钟
+  name: "shorturlRedirect",
+  profile: "burst",
+  category: "public-api",
   max: 120,
-  routeName: "shorturl.redirect",
   message: "访问过于频繁，请稍后再试",
 });
 
 const userManageLimiter = createLimiter({
-  windowMs: 60 * 1000, // 1分钟
-  max: 30,
-  routeName: "shorturl.userManage",
+  name: "shorturlUserManage",
+  profile: "standard",
+  category: "public-api",
   message: "操作过于频繁，请稍后再试",
 });
 
 const adminLimiter = createLimiter({
-  windowMs: 5 * 60 * 1000, // 5分钟
+  name: "shorturlAdmin",
+  profile: "admin",
+  category: "admin",
+  windowMs: 5 * 60 * 1000,
   max: 50,
-  routeName: "shorturl.admin",
   message: "管理员操作过于频繁，请稍后再试",
 });
 
-// 额外严格的敏感接口限流（直接率限制器，便于静态规则检测）
-const adminSensitiveLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "操作过于频繁，请稍后再试" },
+const adminSensitiveLimiter = createLimiter({
+  name: "shorturlAdminSensitive",
+  profile: "sensitive",
+  category: "admin",
+  message: "操作过于频繁，请稍后再试",
 });
 
-// 写操作专用更严格限流（提高 DoS 防护强度）
-const adminWriteLimiter = rateLimit({
-  windowMs: 60 * 1000,
+const adminWriteLimiter = createLimiter({
+  name: "shorturlAdminWrite",
+  profile: "sensitive",
+  category: "admin",
   max: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "写入过于频繁，请稍后再试" },
+  message: "写入过于频繁，请稍后再试",
 });
 
-const publicCreateLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+const publicCreateLimiter = createLimiter({
+  name: "shorturlPublicCreate",
+  profile: "login",
+  category: "public-api",
   max: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "公共短链创建请求过于频繁，请稍后再试" },
+  message: "公共短链创建请求过于频繁，请稍后再试",
 });
 
 // 防重放保护实例

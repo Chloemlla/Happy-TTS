@@ -1,5 +1,4 @@
 import express from "express";
-import rateLimit from "express-rate-limit";
 import mongoose from "mongoose";
 import multer from "multer";
 import { IPFSController } from "../controllers/ipfsController";
@@ -7,6 +6,7 @@ import { apiKeyAuth } from "../middleware/apiKeyAuth";
 import { authenticateAdmin } from "../middleware/auth";
 import { connectMongo } from "../services/mongoService";
 import logger from "../utils/logger";
+import { createLimiter } from "../middleware/routeLimiters";
 
 const router = express.Router();
 const ipfsApiKeyAuth = apiKeyAuth("ipfs");
@@ -31,23 +31,20 @@ const upload = multer({
 });
 
 // 图片上传限速：每IP每分钟最多10次
-const uploadLimiter = rateLimit({
-  windowMs: 60 * 1000,
+const uploadLimiter = createLimiter({
+  name: "ipfsUpload",
+  profile: "sensitive",
+  category: "public-api",
   max: 30,
-  message: { error: "上传过于频繁，请稍后再试" },
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => req.ip || req.socket?.remoteAddress || "unknown",
+  message: "上传过于频繁，请稍后再试",
 });
 
 // 短链跳转限速：每IP每分钟最多60次
-const shortlinkLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 60,
-  message: { error: "访问过于频繁，请稍后再试" },
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => req.ip || req.socket?.remoteAddress || "unknown",
+const shortlinkLimiter = createLimiter({
+  name: "ipfsShortlink",
+  profile: "relaxed",
+  category: "public-api",
+  message: "访问过于频繁，请稍后再试",
 });
 
 /**

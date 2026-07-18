@@ -58,6 +58,8 @@ interface LimiterOptions {
   keyGenerator?: (req: Request) => string;
   skip?: (req: Request) => boolean;
   handler?: (req: Request, res: Response, next: NextFunction) => void;
+  skipFailedRequests?: boolean;
+  skipSuccessfulRequests?: boolean;
 }
 
 interface LimiterDefinition {
@@ -431,6 +433,8 @@ export function createLimiter(opts: LimiterOptions): RateLimitRequestHandler {
     keyGenerator: opts.keyGenerator || ((req: Request) => getClientIp(req)),
     skip: opts.skip ?? ((req: Request): boolean => isLocalRequest(req)),
     handler: opts.handler || buildDefaultHandler(name, category, message),
+    ...(opts.skipFailedRequests !== undefined ? { skipFailedRequests: opts.skipFailedRequests } : {}),
+    ...(opts.skipSuccessfulRequests !== undefined ? { skipSuccessfulRequests: opts.skipSuccessfulRequests } : {}),
   });
 }
 

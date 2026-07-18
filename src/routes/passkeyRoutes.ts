@@ -1,6 +1,6 @@
 import express from "express";
 import { authenticateToken } from "../middleware/authenticateToken";
-import { rateLimitMiddleware } from "../middleware/rateLimit";
+import { passkeyLimiter } from "../middleware/routeLimiters";
 import { sendEmail } from "../services/emailSender";
 import { PasskeyDataRepairService } from "../services/passkeyDataRepairService";
 import { PasskeyService, SINGLE_PASSKEY_ERROR_MESSAGE } from "../services/passkeyService";
@@ -17,7 +17,7 @@ const adminOnly = require("../middleware/adminOnly").default;
 const router = express.Router();
 
 // 获取用户的 Passkey 凭证列表
-router.get("/credentials", authenticateToken, async (req, res) => {
+router.get("/credentials", authenticateToken, passkeyLimiter, async (req, res) => {
   try {
     const userId = (req as any).user.id;
     const credentials = await PasskeyService.getCredentials(userId);
@@ -29,7 +29,7 @@ router.get("/credentials", authenticateToken, async (req, res) => {
 });
 
 // 开始注册 Passkey
-router.post("/register/start", authenticateToken, rateLimitMiddleware, async (req, res) => {
+router.post("/register/start", authenticateToken, passkeyLimiter, async (req, res) => {
   try {
     const userId = (req as any).user?.id;
     const { credentialName, clientOrigin } = req.body;
@@ -136,7 +136,7 @@ router.post("/register/start", authenticateToken, rateLimitMiddleware, async (re
 });
 
 // 完成注册 Passkey
-router.post("/register/finish", authenticateToken, rateLimitMiddleware, async (req, res) => {
+router.post("/register/finish", authenticateToken, passkeyLimiter, async (req, res) => {
   try {
     const userId = (req as any).user.id;
     const { credentialName, response, clientOrigin } = req.body;
@@ -215,7 +215,7 @@ router.post("/register/finish", authenticateToken, rateLimitMiddleware, async (r
 });
 
 // 开始认证（Discoverable Credentials - 无需用户名）
-router.post("/authenticate/start/discoverable", rateLimitMiddleware, async (req, res) => {
+router.post("/authenticate/start/discoverable", passkeyLimiter, async (req, res) => {
   try {
     const { clientOrigin } = req.body;
     const ip = req.headers["x-real-ip"] || req.ip || "unknown";
@@ -243,7 +243,7 @@ router.post("/authenticate/start/discoverable", rateLimitMiddleware, async (req,
 });
 
 // 开始认证
-router.post("/authenticate/start", rateLimitMiddleware, async (req, res) => {
+router.post("/authenticate/start", passkeyLimiter, async (req, res) => {
   try {
     const { username, clientOrigin } = req.body;
     const ip = req.headers["x-real-ip"] || req.ip || "unknown";
@@ -307,7 +307,7 @@ router.post("/authenticate/start", rateLimitMiddleware, async (req, res) => {
 });
 
 // 完成认证（Discoverable Credentials - 无需用户名）
-router.post("/authenticate/finish/discoverable", rateLimitMiddleware, async (req, res) => {
+router.post("/authenticate/finish/discoverable", passkeyLimiter, async (req, res) => {
   try {
     const { response, challenge, clientOrigin } = req.body;
 
@@ -444,7 +444,7 @@ router.post("/authenticate/finish/discoverable", rateLimitMiddleware, async (req
 });
 
 // 完成认证
-router.post("/authenticate/finish", rateLimitMiddleware, async (req, res) => {
+router.post("/authenticate/finish", passkeyLimiter, async (req, res) => {
   try {
     const { username, response, clientOrigin } = req.body;
     if (!username || !response) {
@@ -599,7 +599,7 @@ router.post("/authenticate/finish", rateLimitMiddleware, async (req, res) => {
 });
 
 // 删除 Passkey 凭证
-router.delete("/credentials/:credentialId", authenticateToken, rateLimitMiddleware, async (req, res) => {
+router.delete("/credentials/:credentialId", authenticateToken, passkeyLimiter, async (req, res) => {
   try {
     const userId = (req as any).user.id;
     const credentialId = firstString(req.params.credentialId);
@@ -638,7 +638,7 @@ router.delete("/credentials/:credentialId", authenticateToken, rateLimitMiddlewa
 });
 
 // 检查当前用户的Passkey数据状态（需要认证）
-router.get("/data/check", authenticateToken, async (req, res) => {
+router.get("/data/check", authenticateToken, passkeyLimiter, async (req, res) => {
   try {
     const userId = (req as any).user.id;
     const result = await PasskeyDataRepairService.checkUserPasskeyData(userId);
@@ -657,7 +657,7 @@ router.get("/data/check", authenticateToken, async (req, res) => {
 });
 
 // 修复当前用户的Passkey数据（需要认证）
-router.post("/data/repair", authenticateToken, async (req, res) => {
+router.post("/data/repair", authenticateToken, passkeyLimiter, async (req, res) => {
   try {
     const userId = (req as any).user.id;
     const result = await PasskeyDataRepairService.repairUserPasskeyData(userId);
@@ -684,7 +684,7 @@ router.post("/data/repair", authenticateToken, async (req, res) => {
 });
 
 // 管理员接口：检查所有用户的Passkey数据状态（需要管理员权限）
-router.get("/admin/data/check-all", authenticateToken, async (req, res) => {
+router.get("/admin/data/check-all", authenticateToken, passkeyLimiter, async (req, res) => {
   try {
     const user = (req as any).user;
 
@@ -724,7 +724,7 @@ router.get("/admin/data/check-all", authenticateToken, async (req, res) => {
 });
 
 // 管理员接口：修复所有用户的Passkey数据（需要管理员权限）
-router.post("/admin/data/repair-all", authenticateToken, async (req, res) => {
+router.post("/admin/data/repair-all", authenticateToken, passkeyLimiter, async (req, res) => {
   try {
     const user = (req as any).user;
 
@@ -748,7 +748,7 @@ router.post("/admin/data/repair-all", authenticateToken, async (req, res) => {
 });
 
 // 修复当前用户的credentialID（需要认证）
-router.post("/credential-id/fix", authenticateToken, async (req, res) => {
+router.post("/credential-id/fix", authenticateToken, passkeyLimiter, async (req, res) => {
   try {
     const userId = (req as any).user.id;
     const result = await PasskeyCredentialIdFixer.fixUserCredentialIds(userId);
@@ -776,7 +776,7 @@ router.post("/credential-id/fix", authenticateToken, async (req, res) => {
 });
 
 // 管理员调试路由：返回最近一次 start/finish 简短 payload（仅管理员）
-router.get("/admin/debug/last-payloads", authenticateToken, adminOnly, async (_req, res) => {
+router.get("/admin/debug/last-payloads", authenticateToken, adminOnly, passkeyLimiter, async (_req, res) => {
   try {
     const repairService = require("../services/passkeyDataRepairService");
     if (
@@ -794,7 +794,7 @@ router.get("/admin/debug/last-payloads", authenticateToken, adminOnly, async (_r
 });
 
 // 检查当前用户的credentialID状态（需要认证）
-router.get("/credential-id/check", authenticateToken, async (req, res) => {
+router.get("/credential-id/check", authenticateToken, passkeyLimiter, async (req, res) => {
   try {
     const userId = (req as any).user.id;
     const user = await UserStorage.getUserById(userId);
@@ -839,7 +839,7 @@ router.get("/credential-id/check", authenticateToken, async (req, res) => {
 });
 
 // 管理员接口：修复所有用户的credentialID（需要管理员权限）
-router.post("/admin/credential-id/fix-all", authenticateToken, async (req, res) => {
+router.post("/admin/credential-id/fix-all", authenticateToken, passkeyLimiter, async (req, res) => {
   try {
     const user = (req as any).user;
 

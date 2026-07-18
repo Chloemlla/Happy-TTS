@@ -1,16 +1,14 @@
 import express from "express";
-import rateLimit from "express-rate-limit";
 import IpVerificationService from "../services/ipVerificationService";
+import { createLimiter } from "../middleware/routeLimiters";
 
 const router = express.Router();
 
-const sessionLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 30,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, error: "Too many verification requests" },
-  keyGenerator: (req) => req.ip || req.socket.remoteAddress || "unknown",
+const sessionLimiter = createLimiter({
+  name: "ipVerificationSession",
+  profile: "standard",
+  category: "verification",
+  message: "Too many verification requests",
 });
 
 function resolveIpAddress(req: express.Request): string {

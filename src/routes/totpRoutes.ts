@@ -1,28 +1,9 @@
 import { type RequestHandler, Router } from "express";
-import rateLimit from "express-rate-limit";
-import { config } from "../config/config";
 import { TOTPController } from "../controllers/totpController";
 import { authenticateToken } from "../middleware/authenticateToken";
+import { totpLimiter } from "../middleware/routeLimiters";
 
 const router = Router();
-
-// TOTP路由限流器
-const totpLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1分钟
-  max: 15, // 限制每个IP每分钟15次请求
-  message: { error: "TOTP操作过于频繁，请稍后再试" },
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => {
-    const ip = req.ip || req.socket.remoteAddress || "unknown";
-    return ip;
-  },
-  skip: (req) => {
-    // 跳过本地IP的限制
-    const ip = req.ip || req.socket.remoteAddress || "unknown";
-    return config.localIps.includes(ip);
-  },
-});
 
 /**
  * @openapi

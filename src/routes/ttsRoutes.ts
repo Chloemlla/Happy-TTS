@@ -1,63 +1,46 @@
 import express from "express";
-import rateLimit from "express-rate-limit";
 import { TtsController } from "../controllers/ttsController";
 import { apiKeyAuth } from "../middleware/apiKeyAuth";
 import { authenticateAdmin } from "../middleware/auth";
-import { adminLimiter } from "../middleware/routeLimiters";
+import {
+  adminLimiter,
+  createLimiter,
+  historyLimiter,
+  ttsLimiter,
+} from "../middleware/routeLimiters";
 import { ClarityService } from "../services/clarityService";
 import { TurnstileService } from "../services/turnstileService";
 
 const router = express.Router();
 const ttsApiKeyAuth = apiKeyAuth("tts");
-const ttsSubmissionLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "TTS 生成请求过于频繁，请稍后再试" },
+const ttsSubmissionLimiter = ttsLimiter;
+const ttsJobReadLimiter = createLimiter({
+  name: "ttsJobRead",
+  profile: "relaxed",
+  category: "tts",
+  message: "TTS 任务查询过于频繁，请稍后再试",
 });
-const ttsJobReadLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 60,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "TTS 任务查询过于频繁，请稍后再试" },
-});
-const ttsAssetLimiter = rateLimit({
-  windowMs: 60 * 1000,
+const ttsAssetLimiter = createLimiter({
+  name: "ttsAsset",
+  profile: "burst",
+  category: "tts",
   max: 120,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "音频资源请求过于频繁，请稍后再试" },
+  message: "音频资源请求过于频繁，请稍后再试",
 });
-const ttsConfigReadLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 60,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "配置查询过于频繁，请稍后再试" },
+const ttsConfigReadLimiter = createLimiter({
+  name: "ttsConfigRead",
+  profile: "relaxed",
+  category: "tts",
+  message: "配置查询过于频繁，请稍后再试",
 });
-const ttsConfigWriteLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "配置操作过于频繁，请稍后再试" },
+const ttsConfigWriteLimiter = createLimiter({
+  name: "ttsConfigWrite",
+  profile: "verification",
+  category: "tts",
+  message: "配置操作过于频繁，请稍后再试",
 });
-const ttsHistoryLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "TTS 历史查询过于频繁，请稍后再试" },
-});
-const ttsAdminOperationLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 50,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "管理员操作过于频繁，请稍后再试" },
-});
+const ttsHistoryLimiter = historyLimiter;
+const ttsAdminOperationLimiter = adminLimiter;
 
 /**
  * @openapi

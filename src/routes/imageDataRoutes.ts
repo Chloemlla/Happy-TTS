@@ -1,18 +1,16 @@
 import express from "express";
-import rateLimit from "express-rate-limit";
 import { imageDataController } from "../controllers/imageDataController";
 import { authenticateToken } from "../middleware/authenticateToken";
+import { createLimiter } from "../middleware/routeLimiters";
 
 const router = express.Router();
 
 // 图片数据相关接口限速器
-const imageDataLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1分钟
-  max: 20, // 每个IP每分钟最多20次请求
-  message: { error: "图片数据接口请求过于频繁，请稍后再试" },
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req) => req.ip || req.socket?.remoteAddress || "unknown",
+const imageDataLimiter = createLimiter({
+  name: "imageData",
+  profile: "verification",
+  category: "public-api",
+  message: "图片数据接口请求过于频繁，请稍后再试",
 });
 
 // 验证单个图片数据

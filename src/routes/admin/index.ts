@@ -1,5 +1,4 @@
 import express from "express";
-import rateLimit from "express-rate-limit";
 import { adminController } from "../../controllers/adminController";
 import { authMiddleware } from "../../middleware/authMiddleware";
 import { UserStorage } from "../../utils/userStorage";
@@ -9,19 +8,9 @@ import profileRouter from "./profile";
 import registrationInvitesRouter from "./registrationInvites";
 import shortlinksRouter from "./shortlinks";
 import usersRouter from "./users";
+import { adminLimiter } from "../../middleware/routeLimiters";
 
 const router = express.Router();
-
-// 管理员路由限流器（每IP每分钟50次）
-const adminLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 50,
-  message: { error: "管理员操作过于频繁，请稍后再试" },
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator: (req: any) => req.ip || req.socket?.remoteAddress || "unknown",
-  skip: (req: any) => req.isLocalIp || false,
-});
 
 // 管理员权限检查中间件
 const adminAuthMiddleware = (req: any, res: any, next: any) => {

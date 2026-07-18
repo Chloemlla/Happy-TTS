@@ -1,25 +1,26 @@
 import express from "express";
-import { rateLimit } from "express-rate-limit";
 import { lotteryController } from "../controllers/lotteryController";
 import { authenticateToken } from "../middleware/authenticateToken";
+import { createLimiter } from "../middleware/routeLimiters";
 
 const router = express.Router();
 
 // 抽奖相关限流器
-const lotteryLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1分钟
-  max: 90, // 限制每个IP每分钟90次请求
-  message: { error: "抽奖请求过于频繁，请稍后再试" },
-  standardHeaders: true,
-  legacyHeaders: false,
+const lotteryLimiter = createLimiter({
+  name: "lottery",
+  profile: "relaxed",
+  category: "public-api",
+  max: 90,
+  message: "抽奖请求过于频繁，请稍后再试",
 });
 
-const participationLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // 5分钟
-  max: 3, // 限制每个IP每5分钟3次参与抽奖
-  message: { error: "参与抽奖过于频繁，请稍后再试" },
-  standardHeaders: true,
-  legacyHeaders: false,
+const participationLimiter = createLimiter({
+  name: "lotteryParticipation",
+  profile: "sensitive",
+  category: "public-api",
+  windowMs: 5 * 60 * 1000,
+  max: 3,
+  message: "参与抽奖过于频繁，请稍后再试",
 });
 
 // 公开接口 - 无需认证（已限流）

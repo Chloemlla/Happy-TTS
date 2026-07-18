@@ -1,11 +1,11 @@
 import { isIP } from "node:net";
 import type { NextFunction, Request, Response } from "express";
-import rateLimit from "express-rate-limit";
 import { LRUCache } from "lru-cache";
 import { config } from "../config/config";
 import { IpBanModel } from "../models/ipBanModel";
 import { securityBypassPolicy } from "../security/securityPolicy";
 import logger from "../utils/logger";
+import { createLimiter } from "./routeLimiters";
 
 // 性能监控指标
 interface PerformanceMetrics {
@@ -93,16 +93,12 @@ let redisServiceCache: any = null;
 let redisServiceLoadPromise: Promise<any> | null = null;
 
 // IP 封禁检查速率限制器 - 防止恶意 IP 频繁查询封禁状态
-const ipBanCheckLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1分钟
-  max: 100, // 每分钟最多100次请求
-  standardHeaders: true,
-  legacyHeaders: false,
-  skipSuccessfulRequests: false, // 计算所有请求
-  skipFailedRequests: true, // 跳过失败的请求（避免攻击者通过失败请求绕过限制）
-  keyGenerator: (req: Request) => {
-    return getClientIP(req);
-  },
+const ipBanCheckLimiter = createLimiter({
+  name: "ipBanCheck",
+  profile: "global",
+  category: "global",
+  skipFailedRequests: true,
+  keyGenerator: (req: Request) => getClientIP(req),
   handler: (req: Request, res: Response) => {
     const clientIP = getClientIP(req);
     logger.warn(`⚠️ IP 封禁检查速率限制触发: ${clientIP}`);

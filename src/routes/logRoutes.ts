@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import express from "express";
-import rateLimit from "express-rate-limit";
+import { createLimiter } from "../middleware/routeLimiters";
 import multer from "multer";
 import * as tar from "tar";
 import { authenticateToken } from "../middleware/authenticateToken";
@@ -122,12 +122,11 @@ const upload = multer({
 });
 
 // 简单速率限制（每IP每分钟最多10次上传/查询）
-const logLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 10,
-  message: { error: "请求过于频繁，请稍后再试" },
-  standardHeaders: true,
-  legacyHeaders: false,
+const logLimiter = createLimiter({
+  name: "logShare",
+  profile: "sensitive",
+  category: "public-api",
+  message: "请求过于频繁，请稍后再试",
 });
 
 // 工具：校验管理员密码

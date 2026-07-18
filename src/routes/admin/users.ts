@@ -1,21 +1,21 @@
 import * as crypto from "node:crypto";
 import express from "express";
 import type { Request, Response } from "express";
-import rateLimit from "express-rate-limit";
 import { adminController } from "../../controllers/adminController";
 import { auditLog } from "../../middleware/auditLog";
+import { createLimiter } from "../../middleware/routeLimiters";
 import { replayProtection } from "../../middleware/replayProtection";
 
 const router = express.Router();
 
-const revealPasswordLimiter = rateLimit({
+const revealPasswordLimiter = createLimiter({
+  name: "adminRevealPassword",
+  profile: "sensitive",
+  category: "admin",
   windowMs: 5 * 60 * 1000,
   max: 10,
-  message: { error: "查看密码操作过于频繁，请稍后再试" },
-  standardHeaders: true,
-  legacyHeaders: false,
+  message: "查看密码操作过于频繁，请稍后再试",
   keyGenerator: (req: any) => req.user?.id || req.ip || req.socket?.remoteAddress || "unknown",
-  skip: (req: any) => req.isLocalIp || false,
 });
 
 const revealPasswordSessions = new Map<string, { adminId: string; targetUserId: string; expiresAt: number }>();

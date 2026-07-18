@@ -1,23 +1,21 @@
 import { type Request, type Response, Router } from "express";
-import rateLimit from "express-rate-limit";
 import { authenticateAdmin } from "../middleware/auth";
+import { createLimiter } from "../middleware/routeLimiters";
 import { WebhookEventService } from "../services/webhookEventService";
 import { firstString, firstStringOr } from "../utils/httpParam";
 
 const router = Router();
-const webhookEventReadLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 60,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Webhook event 查询过于频繁，请稍后再试" },
+const webhookEventReadLimiter = createLimiter({
+  name: "webhookEventRead",
+  profile: "relaxed",
+  category: "admin",
+  message: "Webhook event 查询过于频繁，请稍后再试",
 });
-const webhookEventWriteLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Webhook event 操作过于频繁，请稍后再试" },
+const webhookEventWriteLimiter = createLimiter({
+  name: "webhookEventWrite",
+  profile: "verification",
+  category: "admin",
+  message: "Webhook event 操作过于频繁，请稍后再试",
 });
 
 // List with pagination & filters

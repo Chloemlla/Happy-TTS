@@ -1,39 +1,31 @@
 import { Router } from "express";
-import rateLimit from "express-rate-limit";
 import { OAuthController } from "../controllers/oauthController";
 import { auditLog } from "../middleware/auditLog";
 import { adminAuthMiddleware, authMiddleware } from "../middleware/authMiddleware";
 import { oauthTokenAuth } from "../middleware/oauthTokenAuth";
+import { adminLimiter, createLimiter } from "../middleware/routeLimiters";
 
 const router = Router();
-const oauthReadLimiter = rateLimit({
-  windowMs: 60 * 1000,
+const oauthReadLimiter = createLimiter({
+  name: "oauthRead",
+  profile: "burst",
+  category: "auth",
   max: 120,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "OAuth 请求过于频繁，请稍后再试" },
+  message: "OAuth 请求过于频繁，请稍后再试",
 });
-const oauthTokenEndpointLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 30,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "OAuth token 请求过于频繁，请稍后再试" },
+const oauthTokenEndpointLimiter = createLimiter({
+  name: "oauthTokenEndpoint",
+  profile: "auth",
+  category: "auth",
+  message: "OAuth token 请求过于频繁，请稍后再试",
 });
-const oauthAuthorizeLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 30,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "OAuth 授权请求过于频繁，请稍后再试" },
+const oauthAuthorizeLimiter = createLimiter({
+  name: "oauthAuthorize",
+  profile: "auth",
+  category: "auth",
+  message: "OAuth 授权请求过于频繁，请稍后再试",
 });
-const oauthAdminLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 50,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "OAuth 管理请求过于频繁，请稍后再试" },
-});
+const oauthAdminLimiter = adminLimiter;
 
 const oauthClientAuditTarget = (req: any) => ({
   targetId: req.params.clientId || req.body?.clientId,
