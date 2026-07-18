@@ -7,6 +7,7 @@ import {
   getLinuxDoConfigSummary,
   getLinuxDoErrorRedirect,
   isLinuxDoAuthEnabled,
+  parseLinuxDoAuthClient,
   resolveLinuxDoFrontendCallbackUrl,
   type LinuxDoAuthIntent,
 } from "../services/linuxDoAuthService";
@@ -105,7 +106,8 @@ export class LinuxDoAuthController {
       }
 
       const intent = parseIntent(req.query.intent);
-      const authorizationUrl = await createLinuxDoAuthorizationUrl(intent);
+      const client = parseLinuxDoAuthClient(req.query.client);
+      const authorizationUrl = await createLinuxDoAuthorizationUrl(intent, { client });
       return res.redirect(302, authorizationUrl);
     } catch (error) {
       logger.error("[Linux.do Auth] Failed to start OAuth flow", error);

@@ -18,6 +18,7 @@ import {
 import { sendProviderGeneratedPasswordEmail } from "./providerCredentialEmailService";
 
 export type LinuxDoAuthIntent = "login" | "register" | "bind";
+export type LinuxDoAuthClient = "web" | "synapse-android";
 
 export interface LinuxDoConfigSummary {
   enabled: boolean;
@@ -73,6 +74,7 @@ interface LinuxDoStateRecord {
   codeVerifier: string;
   expiresAt: number;
   bindTargetUserId?: string;
+  client: LinuxDoAuthClient;
 }
 
 interface LinuxDoTicketRecord {
@@ -86,12 +88,14 @@ interface LinuxDoDiscoveryCacheRecord {
 }
 
 const STATE_TTL_MS = 10 * 60 * 1000;
-const TICKET_TTL_MS = 60 * 1000;
+// Keep tickets long enough for App Link failure + manual paste / custom-scheme handoff.
+const TICKET_TTL_MS = 3 * 60 * 1000;
 const DISCOVERY_TTL_MS = 60 * 60 * 1000;
 const PLACEHOLDER_EMAIL_DOMAIN = "linuxdo.oauth.local";
 const TRUSTED_LINUXDO_DISCOVERY_URL = "https://connect.linux.do/.well-known/openid-configuration";
 const TRUSTED_LINUXDO_OAUTH_HOSTS = new Set(["connect.linux.do"]);
 const LINUXDO_FRONTEND_CALLBACK_PATH = "/auth/linuxdo/callback";
+const SYNAPSE_ANDROID_APP_DEEP_LINK = "synapse://linuxdo-callback";
 const RESERVED_USERNAMES = new Set(["admin", "administrator", "root", "system", "test"]);
 
 const oauthStateStore = new Map<string, LinuxDoStateRecord>();
@@ -295,6 +299,40 @@ export function resolveLinuxDoFrontendCallbackUrl(): string {
   } catch {
     return `${fallbackOrigin}${LINUXDO_FRONTEND_CALLBACK_PATH}`;
   }
+}
+
+export function parseLinuxDoAuthClient(value: unknown): LinuxDoAuthClient {
+  return value === "synapse-android" ? "synapse-android" : "web";
+}
+
+/**
+ * Preferred completion target for a Linux.do ticket exchange.
+ *
+ * Always land on the SPA HTTPS callback first. For Synapse Android, the SPA
+ * page then hands off to `synapse://linuxdo-callback` without consuming the
+ * one-time ticket, so return works even when HTTPS App Links verification is 0.
+ */
+export function buildLinuxDoAppDeepLink(
+  params: Record<string, string | undefined | null> = {},
+): string {
+  const deepLink = new URL(SYNAPSE_ANDROID_APP_DEEP_LINK);
+  for (const [key, value] of Object.entries(params)) {
+    if (typeof value === "string" && value.trim()) {
+      deepLink.searchParams.set(key, value);
+    }
+  }
+  deepLink.searchParams.set("client", "synapse-android");
+  return deepLink.toString();
+}
+
+export function buildLinuxDoCompletionRedirect(
+  params: Record<string, string | undefined | null> = {},
+  client: LinuxDoAuthClient = "web",
+): string {
+  return buildLinuxDoFrontendRedirect({
+    ...params,
+    client: client === "synapse-android" ? "synapse-android" : params.client ?? "web",
+  });
 }
 
 export function buildLinuxDoFrontendRedirect(
@@ -592,7 +630,7 @@ export function isLinuxDoAuthEnabled(): boolean {
 
 export async function createLinuxDoAuthorizationUrl(
   intent: LinuxDoAuthIntent,
-  options: { bindTargetUserId?: string } = {},
+  options: { bindTargetUserId?: string; client?: LinuxDoAuthClient } = {},
 ): Promise<string> {
   if (!isLinuxDoAuthEnabled()) {
     throw new Error("Linux.do 登录未配置");
@@ -607,12 +645,14 @@ export async function createLinuxDoAuthorizationUrl(
   const discoveryDocument = await getLinuxDoDiscoveryDocument();
   const state = crypto.randomBytes(24).toString("hex");
   const { codeVerifier, codeChallenge } = createPkcePair();
+  const client = options.client ?? "web";
 
   oauthStateStore.set(state, {
     intent,
     codeVerifier,
     expiresAt: Date.now() + STATE_TTL_MS,
     bindTargetUserId: options.bindTargetUserId,
+    client,
   });
 
   const params = new URLSearchParams({
@@ -633,6 +673,7 @@ function consumeLinuxDoState(state: string): {
   intent: LinuxDoAuthIntent;
   codeVerifier: string;
   bindTargetUserId?: string;
+  client: LinuxDoAuthClient;
 } {
   cleanupExpiredStates();
 
@@ -651,6 +692,7 @@ function consumeLinuxDoState(state: string): {
     intent: record.intent,
     codeVerifier: record.codeVerifier,
     bindTargetUserId: record.bindTargetUserId,
+    client: record.client || "web",
   };
 }
 
@@ -693,7 +735,7 @@ export async function completeLinuxDoAuthorization(params: {
     throw new Error("Linux.do 登录未配置");
   }
 
-  const { intent, codeVerifier, bindTargetUserId } = consumeLinuxDoState(state);
+  const { intent, codeVerifier, bindTargetUserId, client } = consumeLinuxDoState(state);
   const discoveryDocument = await getLinuxDoDiscoveryDocument();
   const accessToken = await exchangeAuthorizationCode({
     code,
@@ -792,10 +834,14 @@ export async function completeLinuxDoAuthorization(params: {
   });
 
   return {
-    redirectUrl: buildLinuxDoFrontendRedirect({
-      ticket,
-      intent,
-    }),
+    redirectUrl: buildLinuxDoCompletionRedirect(
+      {
+        ticket,
+        intent,
+        client,
+      },
+      client,
+    ),
     payload,
   };
 }

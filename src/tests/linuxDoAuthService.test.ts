@@ -2,12 +2,15 @@ import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals
 import axios from "axios";
 import { config } from "../config/config";
 import {
+  buildLinuxDoAppDeepLink,
   buildLinuxDoAvatarUrl,
+  buildLinuxDoCompletionRedirect,
   consumeLinuxDoLoginTicket,
   createLinuxDoAuthorizationUrl,
   getLinuxDoErrorRedirect,
   issueLinuxDoLoginTicket,
   normalizeLinuxDoProfile,
+  parseLinuxDoAuthClient,
   resetLinuxDoAuthStateForTests,
   resolveLinuxDoFrontendCallbackUrl,
   sanitizeLinuxDoUsername,
@@ -108,6 +111,49 @@ describe("linuxDoAuthService", () => {
     expect(frontendUrl.origin).toBe("https://tts.chloemlla.com");
     expect(frontendUrl.pathname).toBe("/auth/linuxdo/callback");
     expect(frontendUrl.search).toBe("");
+  });
+
+
+  it("parses synapse-android client marker and keeps mobile completion on SPA with app deep-link helper", () => {
+    expect(parseLinuxDoAuthClient("synapse-android")).toBe("synapse-android");
+    expect(parseLinuxDoAuthClient("web")).toBe("web");
+    expect(parseLinuxDoAuthClient(undefined)).toBe("web");
+
+    const mobileRedirect = new URL(
+      buildLinuxDoCompletionRedirect(
+        {
+          ticket: "ticket-value",
+          intent: "login",
+        },
+        "synapse-android",
+      ),
+    );
+    expect(mobileRedirect.pathname).toBe("/auth/linuxdo/callback");
+    expect(mobileRedirect.searchParams.get("ticket")).toBe("ticket-value");
+    expect(mobileRedirect.searchParams.get("client")).toBe("synapse-android");
+
+    const appDeepLink = new URL(
+      buildLinuxDoAppDeepLink({
+        ticket: "ticket-value",
+        intent: "login",
+      }),
+    );
+    expect(appDeepLink.protocol).toBe("synapse:");
+    expect(appDeepLink.hostname).toBe("linuxdo-callback");
+    expect(appDeepLink.searchParams.get("ticket")).toBe("ticket-value");
+    expect(appDeepLink.searchParams.get("client")).toBe("synapse-android");
+
+    const webRedirect = new URL(
+      buildLinuxDoCompletionRedirect(
+        {
+          ticket: "web-ticket",
+          intent: "login",
+        },
+        "web",
+      ),
+    );
+    expect(webRedirect.pathname).toBe("/auth/linuxdo/callback");
+    expect(webRedirect.searchParams.get("ticket")).toBe("web-ticket");
   });
 
   it("builds Linux.do authorization URLs from discovery with scope and PKCE", async () => {

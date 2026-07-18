@@ -6,6 +6,21 @@ import { useAuth } from "../hooks/useAuth";
 import type { User } from "../types/auth";
 import { queuePostRedirectNotification, useNotification } from "./Notification";
 
+function buildSynapseAndroidDeepLink(searchParams: URLSearchParams): string {
+  const deepLink = new URL("synapse://linuxdo-callback");
+  const keys = ["ticket", "intent", "error", "status", "mergeToken", "sessionToken", "client"];
+  for (const key of keys) {
+    const value = searchParams.get(key);
+    if (value) {
+      deepLink.searchParams.set(key, value);
+    }
+  }
+  if (!deepLink.searchParams.get("client")) {
+    deepLink.searchParams.set("client", "synapse-android");
+  }
+  return deepLink.toString();
+}
+
 export const LinuxDoAuthCallbackPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -13,6 +28,8 @@ export const LinuxDoAuthCallbackPage: React.FC = () => {
   const { loginWithToken } = useAuth();
   const { setNotification } = useNotification();
   const [status, setStatus] = useState("正在完成 Linux.do 登录...");
+  const [deepLinkUrl, setDeepLinkUrl] = useState<string | null>(null);
+  const [ticketForCopy, setTicketForCopy] = useState<string | null>(null);
 
   useEffect(() => {
     if (handledRef.current) {
@@ -23,10 +40,21 @@ export const LinuxDoAuthCallbackPage: React.FC = () => {
     const error = searchParams.get("error");
     const ticket = searchParams.get("ticket");
     const intent = searchParams.get("intent");
+    const client = searchParams.get("client");
     const bindStatus = searchParams.get("status");
     const mergeToken = searchParams.get("mergeToken");
+    // Only honor the explicit mobile OAuth marker. Do not treat all Android
+    // browser sessions as Synapse Mobile, or normal web Linux.do login breaks.
+    const isSynapseAndroid = client === "synapse-android";
 
     if (error) {
+      if (isSynapseAndroid) {
+        const appUrl = buildSynapseAndroidDeepLink(searchParams);
+        setDeepLinkUrl(appUrl);
+        setStatus("Linux.do 授权失败，正在尝试返回 Synapse Mobile...");
+        window.location.replace(appUrl);
+        return;
+      }
       setStatus(intent === "bind" ? "Linux.do 绑定失败，正在返回个人主页..." : "Linux.do 登录失败，正在返回登录页...");
       setNotification({ message: error, type: "error" });
       window.setTimeout(() => navigate(intent === "bind" ? "/profile" : "/login", { replace: true }), 800);
@@ -109,6 +137,18 @@ export const LinuxDoAuthCallbackPage: React.FC = () => {
       return;
     }
 
+    // Synapse Mobile: never consume the one-time ticket in the browser.
+    // Prefer custom-scheme handoff so login returns to the app even when
+    // Android App Links verification is still 0.
+    if (isSynapseAndroid) {
+      const appUrl = buildSynapseAndroidDeepLink(searchParams);
+      setDeepLinkUrl(appUrl);
+      setTicketForCopy(ticket);
+      setStatus("授权完成。正在打开 Synapse Mobile...");
+      window.location.replace(appUrl);
+      return;
+    }
+
     const finalizeLogin = async () => {
       try {
         await exchangeTicket(ticket);
@@ -130,9 +170,35 @@ export const LinuxDoAuthCallbackPage: React.FC = () => {
         <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-[#8ECAE6]/40 border-t-[#219EBC]" />
         <h1 className="text-2xl font-bold text-[#023047]">正在登录 Linux.do</h1>
         <p className="mt-3 text-sm text-[#023047]/70">{status}</p>
-        <p className="mt-2 text-xs leading-5 text-[#023047]/50">
-          如果没有自动跳转，请返回登录页重试。
-        </p>
+        {deepLinkUrl ? (
+          <div className="mt-4 space-y-3 text-left">
+            <p className="text-xs leading-5 text-[#023047]/60">
+              如果没有自动打开 App，请点击下方按钮，或返回 Synapse Mobile 粘贴 ticket。
+            </p>
+            <a
+              href={deepLinkUrl}
+              className="inline-flex w-full items-center justify-center rounded-xl bg-[#219EBC] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-[#1b86a1]"
+            >
+              打开 Synapse Mobile
+            </a>
+            {ticketForCopy ? (
+              <button
+                type="button"
+                className="inline-flex w-full items-center justify-center rounded-xl border border-[#8ECAE6]/50 bg-white px-4 py-2.5 text-sm font-medium text-[#023047] transition-colors hover:bg-[#8ECAE6]/10"
+                onClick={() => {
+                  void navigator.clipboard?.writeText(ticketForCopy);
+                  setNotification({ message: "已复制 Linux.do ticket", type: "success" });
+                }}
+              >
+                复制 ticket
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <p className="mt-2 text-xs leading-5 text-[#023047]/50">
+            如果没有自动跳转，请返回登录页重试。
+          </p>
+        )}
         <Link
           to="/login"
           className="mt-6 inline-flex items-center gap-2 text-sm text-[#023047]/50 hover:text-[#023047] transition-colors"
