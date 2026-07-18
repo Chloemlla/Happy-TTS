@@ -105,25 +105,79 @@ X-Device-Signature-Valid
 X-Device-Hash-Valid
 X-App-Version
 X-App-Build
-X-NexAI-Ts
-X-NexAI-Sig
 X-NexAI-Device
 ```
 
 后端处理要求：
 
 - 不信任这些头作为唯一安全依据，只作为风控信号。
-- `X-NexAI-Ts` 允许时钟偏移建议不超过 120 秒。
-- 对同一设备、同一 timestamp、同一 path 的签名请求做短期 replay 缓存，TTL 5 分钟。
-- 如果签名校验暂时无法完成，不应阻断核心登录和同步，但必须记录风控事件。
 
-当前客户端签名算法使用本地设备信息派生 key。服务端无法仅凭请求还原这个 key，因此不要把现有 `X-NexAI-Sig` 当作强认证。建议后续升级为服务端下发 per-device secret：
+### 3.1 nexai-sig-v2 请求签名（当前实现）
 
-1. 客户端登录后调用 `POST /security/track`。
-2. 服务端为用户设备生成 `deviceSecret`，只返回一次。
-3. 客户端存入 secure storage。
-4. 后续 `X-NexAI-Sig` 使用 `deviceSecret` 派生。
-5. 服务端按 `user_id + device_fingerprint` 查 secret 校验。
+NexAI `/api/nexai` 使用 **nexai-sig-v2**（B+C）：
+
+| 模式 | 环境变量 | 行为 |
+|---|---|---|
+| `soft`（默认） | `NEXAI_REQUEST_SIGNING=soft` | 校验失败只写 `X-NexAI-Sig-Result/Code` 日志并放行 |
+| `enforce` | `NEXAI_REQUEST_SIGNING=enforce` | 校验失败返回 4xx 并阻断 |
+| `off` | `NEXAI_REQUEST_SIGNING=off` | 完全跳过 |
+
+相关环境变量：
+
+- `NEXAI_APP_SIGN_SECRET` / `NEXAI_APP_SIGN_SECRET_PREV`：匿名路由 App 共享密钥（C）
+- `NEXAI_SIG_MAX_DRIFT_MS`：时间戳允许偏移，默认 5 分钟
+
+请求头：
+
+```text
+X-NexAI-Sig-Version: 2
+X-NexAI-Ts: <unix ms 或 seconds>
+X-NexAI-Nonce: <>=16 chars random>
+X-NexAI-Sig: <hmac-sha256 hex>
+X-NexAI-Key-Id: <optional>
+```
+
+Canonical 字符串（UTF-8，换行分隔）：
+
+```text
+ts
+nonce
+METHOD
+path
+rawBody
+```
+
+- `path` = origin-relative pathname，不含 query，与 `req.originalUrl.split("?")[0]` 一致。
+- `rawBody` 必须是原始 JSON 字节；服务端用 `express.json` 的 `verify` 捕获 `rawBody`。
+- HMAC key：
+  - **B（优先）**：`Authorization: Bearer <accessToken>` 时使用 access token
+  - **B-refresh**：`POST /api/nexai/auth/refresh` 无 Bearer 时可用 body `refreshToken`
+  - **C**：无 Bearer 的 gated 匿名路由使用 `NEXAI_APP_SIGN_SECRET*`
+
+签名错误响应（`enforce`）统一为：
+
+```json
+{
+  "success": false,
+  "error": "请求签名无效",
+  "code": "NEXAI_SIG_INVALID",
+  "stage": "server_signature",
+  "details": { "reason": "hmac_mismatch", "path": "/api/nexai/sync/v2" }
+}
+```
+
+签名错误码：`NEXAI_SIG_MISSING` / `NEXAI_SIG_VERSION` / `NEXAI_SIG_EXPIRED` / `NEXAI_SIG_REPLAY` / `NEXAI_SIG_INVALID` / `NEXAI_SIG_KEY`。
+
+认证拒绝应带 `stage: "server_auth"`；路由限流应带 `stage: "rate_limit"` 与 `code: "NEXAI_RATE_LIMIT"`。
+
+签名豁免（仅 GET/HEAD）：
+
+- `/api/nexai/auth/oauth-config`
+- `/api/nexai/auth/github/callback`
+- `/api/nexai/releases/:tag/manifest`
+- `/api/nexai/artifacts/:shortId`（公开读取；PATCH/DELETE/POST 不豁免）
+
+遗留设备派生 HMAC 不能作为服务端信任根。可选后续增强仍是 per-device secret，但 **当前可验证协议是 token/app-secret bound HMAC**。
 
 ## 4. 认证接口
 

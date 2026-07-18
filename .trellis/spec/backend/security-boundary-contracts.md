@@ -5,19 +5,24 @@
 ### 1. Scope / Trigger
 
 - Trigger: request replay protection and LogShare encrypted responses cross frontend/backend, env, middleware, route, and UI boundaries.
-- Applies when changing `SIGN_SECRET_KEY`, `replayProtection`, signed frontend requests, LogShare upload/query/list responses, or related tests.
+- Applies when changing `SIGN_SECRET_KEY`, `replayProtection`, signed frontend requests, NexAI `nexai-sig-v2` middleware, LogShare upload/query/list responses, or related tests.
 
 ### 2. Signatures
 
 - `replayProtection()` validates `x-timestamp`, `x-nonce`, and `x-signature`.
 - Signed payload is `timestamp + "\n" + nonce + "\n" + METHOD + "\n" + path + "\n" + body`.
 - Production config requires `SIGN_SECRET_KEY`; browser code must not embed a shared signing secret.
+- `nexaiRequestSignature()` validates `X-NexAI-Sig-Version`, `X-NexAI-Ts`, `X-NexAI-Nonce`, and `X-NexAI-Sig` under mode `NEXAI_REQUEST_SIGNING=off|soft|enforce` (default soft).
+- NexAI signed payload is the same canonical form: `ts\nnonce\nMETHOD\npath\nrawBody`.
+- NexAI keys: Bearer access token (B), refreshToken body key on `/api/nexai/auth/refresh`, or `NEXAI_APP_SIGN_SECRET*` (C).
 - LogShare encrypted responses return `{ version: 2, algorithm: "aes-256-gcm", kdf: "pbkdf2-sha512", iterations, data, iv, salt, tag }`.
 
 ### 3. Contracts
 
 - Authenticated browser signing uses the current Bearer token as a user-scoped signing key. Server verification may also accept `SIGN_SECRET_KEY` for trusted non-browser callers.
 - `path` is the origin-relative pathname without query string, matching `req.originalUrl.split("?")[0]`.
+- NexAI public GET/HEAD exemptions: oauth-config, github callback, release manifest, artifact shortId read. Mutating artifact methods are not exempt.
+- NexAI signature/auth/rate-limit rejects must include stable `code` and pipeline `stage` (`server_signature` / `server_auth` / `rate_limit`).
 - LogShare AES-GCM uses a random 12-byte IV, random salt, PBKDF2-SHA512, and an auth tag. Never log uploaded content previews.
 - Legacy AES-CBC LogShare payloads may be read for compatibility, but new server responses must use version 2.
 
@@ -27,19 +32,23 @@
 - Malformed signature hex or signature mismatch -> HTTP 403.
 - No available signing key -> HTTP 503.
 - Expired timestamp or consumed nonce -> HTTP 403.
+- Missing NexAI sig headers under enforce -> HTTP 400 `NEXAI_SIG_MISSING` / `stage: server_signature`.
+- NexAI soft mode signature failures continue with `X-NexAI-Sig-Result: fail` headers.
 - Missing LogShare admin password/token for encrypted data -> client-side decrypt error before rendering.
 - Tampered AES-GCM ciphertext/tag -> decrypt failure; do not render partial plaintext.
 
 ### 5. Good/Base/Bad Cases
 
 - Good: authenticated admin request signs method/path/body with the Bearer token and passes replay protection after JWT auth.
+- Good: NexAI authed request signs with access token; refresh uses refreshToken-bound HMAC when no Bearer.
 - Good: LogShare upload logs file metadata only: id, extension, sanitized file name, and size.
 - Base: old AES-CBC LogShare payloads still decrypt on the client for existing records.
-- Bad: frontend signing env secrets, hardcoded HMAC keys, Bearer token console logs, or uploaded-content log previews.
+- Bad: frontend signing env secrets, hardcoded HMAC keys, Bearer token console logs, method-agnostic public exemptions for mutating artifact routes, or uploaded-content log previews.
 
 ### 6. Tests Required
 
 - Replay middleware tests must sign with the exact method/path/body payload and assert valid, expired, replayed, and malformed cases.
+- NexAI sig-v2 tests must cover soft/enforce missing headers, valid token/app/refresh keys, drift, replay, public GET exemption, and mutating artifact non-exemption.
 - Production config tests must reject missing `SIGN_SECRET_KEY`.
 - LogShare encryption tests should assert AES-GCM response fields and verify tampered ciphertext/tag fails to decrypt.
 - Static scans should reject frontend signing secrets, token-bearing console logs, mutable workflow refs, and LogShare content previews.

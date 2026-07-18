@@ -28,18 +28,27 @@ export const createLimiter = (options: {
   max?: number;
   message?: string;
   routeName?: string; // 添加路由名称用于日志
+  /** Optional stable machine code for client dialogs (e.g. NEXAI_RATE_LIMIT). */
+  code?: string;
+  /** Optional pipeline stage for client dialogs (e.g. rate_limit). */
+  stage?: string;
 }) => {
   const windowMs = options.windowMs || 15 * 60 * 1000; // 默认15分钟
   const routeName = options.routeName || "未知路由";
+  const errorMessage = options.message || "请求过于频繁，请稍后再试";
+  const payload = {
+    success: false as const,
+    error: errorMessage,
+    retryAfter: windowMs / 1000,
+    routeName,
+    ...(options.code ? { code: options.code } : {}),
+    ...(options.stage ? { stage: options.stage } : {}),
+  };
 
   return rateLimit({
     windowMs: windowMs,
     max: options.max || 100, // 默认限制100次
-    message: {
-      error: options.message || "请求过于频繁，请稍后再试",
-      retryAfter: windowMs / 1000, // 添加重试时间（秒）
-      routeName: routeName, // 添加路由信息
-    },
+    message: payload,
     standardHeaders: true, // 返回 RateLimit-* 头
     legacyHeaders: false,
     skip: (req: Request): boolean => {
@@ -56,11 +65,7 @@ export const createLimiter = (options: {
         headers: req.headers,
         timestamp: new Date().toISOString(),
       });
-      res.status(429).json({
-        error: options.message || "请求过于频繁，请稍后再试",
-        retryAfter: windowMs / 1000,
-        routeName: routeName,
-      });
+      res.status(429).json(payload);
     },
     keyGenerator: (req: Request): string => {
       return req.ip || req.socket.remoteAddress || "unknown";

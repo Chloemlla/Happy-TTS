@@ -19,66 +19,88 @@ const nexaiAuthLimiter = createLimiter({
   windowMs: 15 * 60 * 1000, // 15 分钟
   max: 20,
   message: "NexAI 认证请求过于频繁，请稍后再试",
+  code: "NEXAI_RATE_LIMIT",
+  stage: "rate_limit",
 });
 
 const nexaiLoginLimiter = createLimiter({
   windowMs: 15 * 60 * 1000,
   max: 10,
   message: "登录尝试次数过多，请 15 分钟后再试",
+  code: "NEXAI_RATE_LIMIT",
+  stage: "rate_limit",
 });
 
 const nexaiRegisterLimiter = createLimiter({
   windowMs: 60 * 60 * 1000, // 1 小时
   max: 5,
   message: "注册尝试次数过多，请稍后再试",
+  code: "NEXAI_RATE_LIMIT",
+  stage: "rate_limit",
 });
 
 const nexaiOAuthLimiter = createLimiter({
   windowMs: 15 * 60 * 1000,
   max: 15,
   message: "OAuth 请求过于频繁，请稍后再试",
+  code: "NEXAI_RATE_LIMIT",
+  stage: "rate_limit",
 });
 
 const nexaiRefreshLimiter = createLimiter({
   windowMs: 5 * 60 * 1000,
   max: 10,
   message: "Token 刷新过于频繁",
+  code: "NEXAI_RATE_LIMIT",
+  stage: "rate_limit",
 });
 
 const nexaiProfileLimiter = createLimiter({
   windowMs: 15 * 60 * 1000,
   max: 20,
   message: "操作过于频繁，请稍后再试",
+  code: "NEXAI_RATE_LIMIT",
+  stage: "rate_limit",
 });
 
 const nexaiSyncLimiter = createLimiter({
   windowMs: 5 * 60 * 1000,
   max: 30,
   message: "同步请求过于频繁，请稍后再试",
+  code: "NEXAI_RATE_LIMIT",
+  stage: "rate_limit",
 });
 
 const artifactCreateLimiter = createLimiter({
   windowMs: 60 * 60 * 1000, // 1 小时
   max: 10,
   message: "Artifact 创建过于频繁，请稍后再试",
+  code: "NEXAI_RATE_LIMIT",
+  stage: "rate_limit",
 });
 
 const artifactViewLimiter = createLimiter({
   windowMs: 60 * 1000, // 1 分钟
   max: 100,
   message: "访问过于频繁，请稍后再试",
+  code: "NEXAI_RATE_LIMIT",
+  stage: "rate_limit",
 });
 
 const artifactManageLimiter = createLimiter({
   windowMs: 15 * 60 * 1000, // 15 分钟
   max: 30,
   message: "操作过于频繁，请稍后再试",
+  code: "NEXAI_RATE_LIMIT",
+  stage: "rate_limit",
 });
 
 const releaseManifestLimiter = createLimiter({
   windowMs: 60 * 1000,
   max: 60,
   message: "Release manifest 请求过于频繁，请稍后再试",
+  code: "NEXAI_RATE_LIMIT",
+  stage: "rate_limit",
 });
 
 // ========== 公开端点（无需登录） ==========

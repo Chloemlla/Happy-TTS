@@ -5,6 +5,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { NexaiUserModel } from "../models/nexaiUserModel";
 import { NexaiAuthService } from "../services/nexaiAuthService";
+import { sendNexaiError } from "./nexaiRequestSignature";
 import logger from "../utils/logger";
 
 function extractBearerToken(authHeader: string | undefined): string | null {
@@ -42,10 +43,11 @@ export const nexaiAuthRequired = async (req: Request, res: Response, next: NextF
     const authHeader = req.headers.authorization;
     const token = extractBearerToken(authHeader);
     if (!token) {
-      return res.status(401).json({
+      return sendNexaiError(res, 401, {
         error: "未授权",
         message: "请提供有效的访问令牌",
         code: "NEXAI_AUTH_REQUIRED",
+        stage: "server_auth",
       });
     }
 
@@ -55,17 +57,19 @@ export const nexaiAuthRequired = async (req: Request, res: Response, next: NextF
       decoded = NexaiAuthService.verifyToken(token);
     } catch (err: any) {
       const isExpired = err.name === "TokenExpiredError";
-      return res.status(401).json({
+      return sendNexaiError(res, 401, {
         error: isExpired ? "Token 已过期" : "Token 无效",
         code: isExpired ? "NEXAI_TOKEN_EXPIRED" : "NEXAI_TOKEN_INVALID",
         message: isExpired ? "请使用 refreshToken 刷新访问令牌" : "请重新登录",
+        stage: "server_auth",
       });
     }
 
     if (!decoded.userId) {
-      return res.status(401).json({
+      return sendNexaiError(res, 401, {
         error: "Token 内容无效",
         code: "NEXAI_TOKEN_MALFORMED",
+        stage: "server_auth",
       });
     }
 
@@ -75,9 +79,10 @@ export const nexaiAuthRequired = async (req: Request, res: Response, next: NextF
       .lean();
 
     if (!user) {
-      return res.status(403).json({
+      return sendNexaiError(res, 403, {
         error: "用户不存在或已被删除",
         code: "NEXAI_USER_NOT_FOUND",
+        stage: "server_auth",
       });
     }
 
@@ -93,9 +98,10 @@ export const nexaiAuthRequired = async (req: Request, res: Response, next: NextF
     next();
   } catch (error) {
     logger.error("[NexAI Auth] 鉴权失败:", error);
-    res.status(401).json({
+    return sendNexaiError(res, 401, {
       error: "认证失败",
       code: "NEXAI_AUTH_ERROR",
+      stage: "server_auth",
     });
   }
 };
@@ -142,10 +148,11 @@ export const nexaiAdminRequired = async (req: Request, res: Response, next: Next
     if (!req.nexaiUser) return; // nexaiAuthRequired 已经返回了 401
 
     if (req.nexaiUser.role !== "admin") {
-      return res.status(403).json({
+      return sendNexaiError(res, 403, {
         error: "权限不足",
         message: "此操作需要管理员权限",
         code: "NEXAI_ADMIN_REQUIRED",
+        stage: "server_auth",
       });
     }
 

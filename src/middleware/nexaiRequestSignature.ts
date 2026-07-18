@@ -103,12 +103,17 @@ function headerString(value: unknown): string {
 }
 
 /** Paths under /api/nexai that never require signature. */
-function isSignatureExempt(path: string): boolean {
+function isSignatureExempt(method: string, path: string): boolean {
+  const m = method.toUpperCase();
   const p = path.split("?")[0];
-  if (p === "/api/nexai/auth/oauth-config") return true;
-  if (/^\/api\/nexai\/releases\/[^/]+\/manifest$/.test(p)) return true;
-  // Public artifact read: GET /api/nexai/artifacts/:shortId (not list GET /artifacts)
-  if (/^\/api\/nexai\/artifacts\/[^/]+$/.test(p)) return true;
+  // Browser redirects and public reads cannot carry app/client signatures.
+  if (m === "GET" || m === "HEAD") {
+    if (p === "/api/nexai/auth/oauth-config") return true;
+    if (p === "/api/nexai/auth/github/callback") return true;
+    if (/^\/api\/nexai\/releases\/[^/]+\/manifest$/.test(p)) return true;
+    // Public artifact read only (not list GET /artifacts, not mutating methods).
+    if (/^\/api\/nexai\/artifacts\/[^/]+$/.test(p)) return true;
+  }
   return false;
 }
 
@@ -141,6 +146,7 @@ export function sendNexaiError(
     error: string;
     code: string;
     stage: NexaiErrorStage;
+    message?: string;
     details?: Record<string, unknown>;
   },
 ): Response {
@@ -149,6 +155,7 @@ export function sendNexaiError(
     error: opts.error,
     code: opts.code,
     stage: opts.stage,
+    ...(opts.message ? { message: opts.message } : {}),
     ...(opts.details ? { details: opts.details } : {}),
   });
 }
@@ -168,7 +175,7 @@ export function nexaiRequestSignature(req: Request, res: Response, next: NextFun
   const mode = getSigningMode();
   const path = getSignaturePath(req);
 
-  if (mode === "off" || isSignatureExempt(path)) {
+  if (mode === "off" || isSignatureExempt(req.method, path)) {
     req.nexaiSig = { mode, ok: true };
     return next();
   }
