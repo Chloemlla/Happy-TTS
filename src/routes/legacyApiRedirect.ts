@@ -59,6 +59,13 @@ const prefixReplacements: Array<{ from: string; to: string }> = [
   { from: "/fbi-wanted", to: "/api/fbi-wanted" },
 ];
 
+// SPA routes under /auth/* that must never be rewritten to /api/auth/*.
+// OAuth providers complete into the SPA, which then exchanges tickets via API.
+const frontendOnlyAuthPaths = new Set<string>([
+  "/auth/linuxdo/callback",
+  "/auth/provider/bind",
+]);
+
 const frontendRoutesWithLegacyApiCollision = new Set<string>([
   "/admin",
   "/admin/lottery",
@@ -118,6 +125,12 @@ export function resolveLegacyApiPath(
   opts: { skipPrefixReplacements?: boolean } = {},
 ): string | null {
   if (pathname.startsWith("/api/") || pathname === "/api") {
+    return null;
+  }
+
+  // Keep browser OAuth completion pages on the SPA path. Rewriting them to
+  // /api/auth/* creates a 308/302 loop with LinuxDoAuthController bounce logic.
+  if (frontendOnlyAuthPaths.has(pathname)) {
     return null;
   }
 

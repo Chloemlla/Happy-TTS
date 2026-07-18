@@ -20,6 +20,10 @@ describe("legacyApiRedirectMiddleware", () => {
     expect(resolveLegacyApiPath("/admin/users")).toBe("/api/admin/users");
     expect(resolveLegacyApiPath("/nexai/auth/login")).toBeNull();
     expect(resolveLegacyApiPath("/s/admin/export")).toBe("/api/shorturl/admin/export");
+    // SPA OAuth completion pages must stay on the frontend path.
+    expect(resolveLegacyApiPath("/auth/linuxdo/callback")).toBeNull();
+    expect(resolveLegacyApiPath("/auth/provider/bind")).toBeNull();
+    expect(resolveLegacyApiPath("/auth/login")).toBe("/api/auth/login");
   });
 
   it("does not redirect removed NexAI legacy API paths", async () => {
@@ -150,5 +154,14 @@ describe("legacyApiRedirectMiddleware", () => {
       .set("Accept", "text/html")
       .expect(308)
       .expect("Location", "/api/auth/login");
+  });
+
+  it("does not rewrite SPA Linux.do callback pages into the API callback path", async () => {
+    await request(createApp())
+      .get("/auth/linuxdo/callback?ticket=relay-ticket&intent=login")
+      .set("Accept", "text/html,application/xhtml+xml")
+      .set("Sec-Fetch-Mode", "navigate")
+      .set("Sec-Fetch-Dest", "document")
+      .expect(204);
   });
 });
