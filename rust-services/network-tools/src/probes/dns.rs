@@ -2,8 +2,8 @@ use std::time::Duration;
 
 use hickory_resolver::{
     config::{ResolverConfig, ResolverOpts, CLOUDFLARE},
-    proto::rr::RecordType,
     net::runtime::TokioRuntimeProvider,
+    proto::rr::RecordType,
     TokioResolver,
 };
 use tokio::{net::lookup_host, time};
