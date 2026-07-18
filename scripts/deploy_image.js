@@ -212,7 +212,8 @@ function remoteLogin(serverAddress, username, port, privateKey) {
     }
 
     conn.on("ready", () => {
-      logInfo(`SSH连接成功: ${username}@${serverAddress}:${port}`);
+      // Never log env-derived SSH usernames; they are treated as sensitive credentials.
+      logInfo(`SSH连接成功: [redacted]@${serverAddress}:${port}`);
       resolve(conn);
     });
 
@@ -1131,12 +1132,11 @@ async function queryLogFile(logId, adminPassword) {
 /**
  * 写入部署日志 - 对应 Python 的 write_deploy_log
  * @param {string} serverAddress
- * @param {string} username
  * @param {string[]} containerNames
  * @param {string} imageUrl
  * @returns {string}
  */
-function writeDeployLog(serverAddress, username, containerNames, imageUrl) {
+function writeDeployLog(serverAddress, containerNames, imageUrl) {
   const logPath = "deploy.log";
   const timestamp = new Date().toLocaleString("zh-CN", {
     year: "numeric",
@@ -1151,7 +1151,8 @@ function writeDeployLog(serverAddress, username, containerNames, imageUrl) {
   const logContent = [
     `部署时间: ${timestamp}`,
     `服务器: ${serverAddress}`,
-    `用户名: ${username}`,
+    // Keep env-derived usernames out of on-disk deploy logs.
+    `用户名: [redacted]`,
     `容器: ${containerNames.join(", ")}`,
     `镜像: ${imageUrl}`,
     "",
@@ -1256,12 +1257,7 @@ async function main() {
       await new Promise((resolve) => setTimeout(resolve, 15000));
 
       // 生成并上传日志
-      const logPath = writeDeployLog(
-        serverAddress,
-        username,
-        containerNames,
-        imageUrl,
-      );
+      const logPath = writeDeployLog(serverAddress, containerNames, imageUrl);
       const link = await uploadLogFile(logPath, adminPassword);
       if (link) {
         logInfo(`日志已上传: ${link}`);
