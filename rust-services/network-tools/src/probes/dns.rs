@@ -3,7 +3,7 @@ use std::time::Duration;
 use hickory_resolver::{
     config::{ResolverConfig, ResolverOpts, CLOUDFLARE},
     net::runtime::TokioRuntimeProvider,
-    proto::rr::RecordType,
+    proto::rr::{RData, RecordType},
     TokioResolver,
 };
 use tokio::{net::lookup_host, time};
@@ -92,7 +92,11 @@ async fn lookup_generic_records(
         return Ok(Vec::new());
     };
 
-    Ok(response.iter().map(|record| record.to_string()).collect())
+    Ok(response
+        .answers()
+        .iter()
+        .map(|record| record.data().to_string())
+        .collect())
 }
 
 async fn lookup_mx_records(
@@ -106,8 +110,12 @@ async fn lookup_mx_records(
     };
 
     Ok(response
+        .answers()
         .iter()
-        .map(|record| format!("{} {}", record.preference(), record.exchange()))
+        .filter_map(|record| match record.data() {
+            RData::MX(mx) => Some(format!("{} {}", mx.preference, mx.exchange)),
+            _ => None,
+        })
         .collect())
 }
 
@@ -122,14 +130,18 @@ async fn lookup_txt_records(
     };
 
     Ok(response
+        .answers()
         .iter()
-        .flat_map(|record| {
-            record
-                .txt_data()
-                .iter()
-                .map(|part| String::from_utf8_lossy(part).to_string())
-                .collect::<Vec<_>>()
+        .filter_map(|record| match record.data() {
+            RData::TXT(txt) => Some(
+                txt.txt_data
+                    .iter()
+                    .map(|part| String::from_utf8_lossy(part).to_string())
+                    .collect::<Vec<_>>(),
+            ),
+            _ => None,
         })
+        .flatten()
         .collect())
 }
 

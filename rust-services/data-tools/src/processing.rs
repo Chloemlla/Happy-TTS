@@ -181,15 +181,6 @@ pub fn inspect_json(text: &str) -> JsonInspectData {
     }
 }
 
-pub fn compress(
-    data_base64: &str,
-    algorithm: &str,
-    config: &DataToolsConfig,
-) -> Result<Vec<u8>, AppError> {
-    let input = decode_limited(data_base64, config)?;
-    compress_bytes(&input, algorithm)
-}
-
 pub fn compress_bytes(input: &[u8], algorithm: &str) -> Result<Vec<u8>, AppError> {
     match normalize_compression_algorithm(algorithm)?.as_str() {
         "gzip" => {
@@ -214,15 +205,6 @@ pub fn compress_bytes(input: &[u8], algorithm: &str) -> Result<Vec<u8>, AppError
             "unsupported compression algorithm".to_string(),
         )),
     }
-}
-
-pub fn decompress(
-    data_base64: &str,
-    algorithm: &str,
-    config: &DataToolsConfig,
-) -> Result<Vec<u8>, AppError> {
-    let input = decode_limited(data_base64, config)?;
-    decompress_bytes(&input, algorithm, config)
 }
 
 pub fn decompress_bytes(
@@ -254,10 +236,6 @@ pub fn normalize_compression_algorithm(algorithm: &str) -> Result<String, AppErr
             "unsupported compression algorithm: {algorithm}"
         )))
     }
-}
-
-fn decode_limited(data_base64: &str, config: &DataToolsConfig) -> Result<Vec<u8>, AppError> {
-    decode_base64_limited(data_base64, config.max_bytes, "dataBase64", "data payload")
 }
 
 pub fn decode_limited_base64(

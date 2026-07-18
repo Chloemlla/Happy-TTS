@@ -52,10 +52,10 @@ fn inspects_csv_and_json() {
 
 #[test]
 fn compresses_and_decompresses_gzip() {
-    let input = general_purpose::STANDARD.encode(b"hello hello hello");
-    let compressed = processing::compress(&input, "gzip", &test_config()).unwrap();
-    let compressed_base64 = general_purpose::STANDARD.encode(compressed);
-    let decompressed = processing::decompress(&compressed_base64, "gzip", &test_config()).unwrap();
+    let input = b"hello hello hello".to_vec();
+    let compressed = processing::compress_bytes(&input, "gzip").unwrap();
+    let decompressed =
+        processing::decompress_bytes(&compressed, "gzip", &test_config()).unwrap();
     assert_eq!(decompressed, b"hello hello hello");
 }
 
@@ -64,11 +64,10 @@ fn rejects_decompression_that_exceeds_output_limit() {
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
     encoder.write_all(&vec![b'a'; 4096]).unwrap();
     let compressed = encoder.finish().unwrap();
-    let compressed_base64 = general_purpose::STANDARD.encode(compressed);
     let mut config = test_config();
     config.max_bytes = 128;
 
-    let error = processing::decompress(&compressed_base64, "gzip", &config).unwrap_err();
+    let error = processing::decompress_bytes(&compressed, "gzip", &config).unwrap_err();
 
     assert!(error
         .to_string()
