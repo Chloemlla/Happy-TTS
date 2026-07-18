@@ -10,8 +10,35 @@ import {
 } from "../controllers/nexaiSecurityController";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { nexaiAuthOptional, nexaiAuthRequired } from "../middleware/nexaiAuth";
+import { createLimiter } from "../middleware/routeLimiters";
 
 const router = express.Router();
+
+// Route-level limiters (shared project policy) so static analysis can see them.
+const nexaiSecurityReportLimiter = createLimiter({
+  name: "nexaiSecurityReport",
+  profile: "relaxed",
+  category: "public-api",
+  message: "安全事件上报过于频繁，请稍后再试",
+});
+const nexaiSecurityStatusLimiter = createLimiter({
+  name: "nexaiSecurityStatus",
+  profile: "relaxed",
+  category: "public-api",
+  message: "安全状态查询过于频繁，请稍后再试",
+});
+const nexaiSecurityAuthLimiter = createLimiter({
+  name: "nexaiSecurityAuth",
+  profile: "standard",
+  category: "public-api",
+  message: "安全请求过于频繁，请稍后再试",
+});
+const nexaiSecurityAdminLimiter = createLimiter({
+  name: "nexaiSecurityAdmin",
+  profile: "admin",
+  category: "admin",
+  message: "安全管理请求过于频繁，请稍后再试",
+});
 
 /**
  * @openapi
@@ -49,7 +76,7 @@ const router = express.Router();
  *       500:
  *         description: Internal server error
  */
-router.post("/security/report", nexaiAuthOptional, reportSecurityEvent);
+router.post("/security/report", nexaiSecurityReportLimiter, nexaiAuthOptional, reportSecurityEvent);
 
 /**
  * @openapi
@@ -67,7 +94,7 @@ router.post("/security/report", nexaiAuthOptional, reportSecurityEvent);
  *       500:
  *         description: Internal server error
  */
-router.get("/security/status", getSecurityStatus);
+router.get("/security/status", nexaiSecurityStatusLimiter, getSecurityStatus);
 
 /**
  * @openapi
@@ -89,7 +116,7 @@ router.get("/security/status", getSecurityStatus);
  *       500:
  *         description: Internal server error
  */
-router.get("/security/anomalies", nexaiAuthRequired, checkAnomalies);
+router.get("/security/anomalies", nexaiSecurityAuthLimiter, nexaiAuthRequired, checkAnomalies);
 
 /**
  * @openapi
@@ -111,7 +138,7 @@ router.get("/security/anomalies", nexaiAuthRequired, checkAnomalies);
  *       500:
  *         description: Internal server error
  */
-router.post("/security/track", nexaiAuthRequired, trackDeviceManually);
+router.post("/security/track", nexaiSecurityAuthLimiter, nexaiAuthRequired, trackDeviceManually);
 
 /**
  * @openapi
@@ -138,7 +165,7 @@ router.post("/security/track", nexaiAuthRequired, trackDeviceManually);
  *       500:
  *         description: Internal server error
  */
-router.get("/security/stats", authenticateToken, getDashboardStats);
+router.get("/security/stats", nexaiSecurityAdminLimiter, authenticateToken, getDashboardStats);
 
 /**
  * @openapi
@@ -179,7 +206,7 @@ router.get("/security/stats", authenticateToken, getDashboardStats);
  *       500:
  *         description: Internal server error
  */
-router.get("/security/devices", authenticateToken, getDeviceList);
+router.get("/security/devices", nexaiSecurityAdminLimiter, authenticateToken, getDeviceList);
 
 /**
  * @openapi
@@ -220,6 +247,6 @@ router.get("/security/devices", authenticateToken, getDeviceList);
  *       500:
  *         description: Internal server error
  */
-router.get("/security/events", authenticateToken, getSecurityEvents);
+router.get("/security/events", nexaiSecurityAdminLimiter, authenticateToken, getSecurityEvents);
 
 export default router;

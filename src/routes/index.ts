@@ -1282,6 +1282,17 @@ export const postTamperRouteModules: RouteModule[] = [
     requiresAuth: "mixed",
     rateLimited: true,
     isPublic: "mixed",
+    rateLimitPolicy: {
+      mode: "mixed",
+      limiters: [
+        "nexaiSecurityLimiter",
+        "nexaiSecurityReportLimiter",
+        "nexaiSecurityStatusLimiter",
+        "nexaiSecurityAuthLimiter",
+        "nexaiSecurityAdminLimiter",
+      ],
+      note: "NexAI security routes keep the mount limiter and add route-level createLimiter handlers for CodeQL-visible coverage on auth and admin endpoints.",
+    },
   },
   {
     name: "rust-benchmark-routes",

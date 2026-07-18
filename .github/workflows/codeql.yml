@@ -1,19 +1,77 @@
 name: "CodeQL"
 
-# Disabled: project rate limiting is centralized in src/middleware/routeLimiters.ts.
-# Re-enable only if a future security review explicitly requires CodeQL scanning again.
 on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - .github/workflows/**
+      - "!.github/workflows/codeql.yml"
+  pull_request_target:
+    branches: [main]
+  schedule:
+    - cron: "0 3 * * 0" # 每周日凌晨自动扫描
   workflow_dispatch:
 
 jobs:
   analyze:
     name: Analyze
-    if: false
     runs-on: ubuntu-latest
+    env:
+      CARGO_HTTP_MULTIPLEXING: "false"
+      CARGO_NET_RETRY: "10"
+      CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
     permissions:
       actions: read
       contents: read
       security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ["javascript", "typescript", "python", "rust"]
     steps:
-      - name: CodeQL disabled
-        run: echo "CodeQL workflow is disabled."
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+      - name: Autobuild
+        if: matrix.language != 'rust'
+        uses: github/codeql-action/autobuild@v3
+      - name: Cache Cargo dependencies
+        if: matrix.language == 'rust'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            rust-services/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust-services/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      - name: Fetch Rust dependencies
+        if: matrix.language == 'rust'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for attempt in 1 2 3 4 5; do
+            if cargo fetch --locked; then
+              exit 0
+            fi
+
+            echo "Cargo fetch failed on attempt ${attempt}; retrying..." >&2
+            sleep $((attempt * 20))
+          done
+
+          cargo fetch --locked
+        working-directory: rust-services
+      - name: Build Rust workspace
+        if: matrix.language == 'rust'
+        run: cargo build --workspace --locked
+        working-directory: rust-services
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
