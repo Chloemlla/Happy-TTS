@@ -12,11 +12,17 @@ const DEFAULT_ASSET_LINK_RELATIONS = [
  * Default Android clients for Digital Asset Links / App Links / passkeys.
  * Override or extend via NEXAI_ANDROID_* / ANDROID_* env vars, or full JSON override.
  *
- * - com.synapse.mobile: Synapse-Client release signing fingerprint
+ * - com.chloemlla.synapse.mobile: production Synapse-Client applicationId
+ * - com.synapse.mobile: legacy transition package (still used by legacy flavor / migration)
  * - com.chloemlla.nexai: NexAI Flutter Android release signing fingerprint
  *   (matches PackageInfo.buildSignature from production APK installs)
+ *
+ * Linux.do App Links complete on the SPA path `/auth/linuxdo/callback` (not
+ * `/api/auth/linuxdo/callback`). Both package names must appear so renamed
+ * production installs can auto-return after OAuth.
  */
-const DEFAULT_SYNAPSE_MOBILE_PACKAGE_NAME = "com.synapse.mobile";
+const DEFAULT_SYNAPSE_MOBILE_PACKAGE_NAME = "com.chloemlla.synapse.mobile";
+const DEFAULT_SYNAPSE_MOBILE_LEGACY_PACKAGE_NAME = "com.synapse.mobile";
 const DEFAULT_SYNAPSE_MOBILE_SHA256_CERT_FINGERPRINTS = [
   "E9:D8:5A:D2:52:C3:8D:86:C6:E4:B2:A8:C0:49:B8:B5:A9:FA:79:AC:6E:BB:11:8C:94:0A:83:03:B6:96:39:98",
 ];
@@ -258,6 +264,10 @@ export function getNexaiAssetLinksStatements(): AndroidAssetLinkStatement[] {
       fingerprints: DEFAULT_SYNAPSE_MOBILE_SHA256_CERT_FINGERPRINTS,
     },
     {
+      packageName: DEFAULT_SYNAPSE_MOBILE_LEGACY_PACKAGE_NAME,
+      fingerprints: DEFAULT_SYNAPSE_MOBILE_SHA256_CERT_FINGERPRINTS,
+    },
+    {
       packageName: DEFAULT_NEXAI_ANDROID_PACKAGE_NAME,
       fingerprints: DEFAULT_NEXAI_ANDROID_SHA256_CERT_FINGERPRINTS,
     },
@@ -277,7 +287,10 @@ export function getNexaiAssetLinksStatements(): AndroidAssetLinkStatement[] {
     if (fingerprints.length === 0) {
       if (packageName === DEFAULT_NEXAI_ANDROID_PACKAGE_NAME) {
         fingerprints = DEFAULT_NEXAI_ANDROID_SHA256_CERT_FINGERPRINTS;
-      } else if (packageName === DEFAULT_SYNAPSE_MOBILE_PACKAGE_NAME) {
+      } else if (
+        packageName === DEFAULT_SYNAPSE_MOBILE_PACKAGE_NAME ||
+        packageName === DEFAULT_SYNAPSE_MOBILE_LEGACY_PACKAGE_NAME
+      ) {
         fingerprints = DEFAULT_SYNAPSE_MOBILE_SHA256_CERT_FINGERPRINTS;
       } else {
         fingerprints = DEFAULT_SYNAPSE_MOBILE_SHA256_CERT_FINGERPRINTS;

@@ -180,7 +180,7 @@ export function buildRuntimeConfigDefaults(options: {
       publicShortUrlPassword: options.publicShortUrlPassword || "",
     },
     synapseAndroid: {
-      packageName: options.synapseAndroidPackageName?.trim() || "com.synapse.mobile",
+      packageName: options.synapseAndroidPackageName?.trim() || "com.chloemlla.synapse.mobile",
       sha256CertFingerprints:
         synapseAndroidSha256CertFingerprints.length > 0
           ? synapseAndroidSha256CertFingerprints
