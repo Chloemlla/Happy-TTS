@@ -4,6 +4,7 @@ import { CaptchaType } from '../utils/captchaSelection';
 import { completeIpVerification } from '../utils/ipVerification';
 import { useSecureCaptchaSelection } from '../hooks/useSecureCaptchaSelection';
 import { useNotification } from './Notification';
+import { PenaltyAppealActions } from './PenaltyAppealActions';
 
 const TurnstileWidget = lazy(() =>
   import('./TurnstileWidget').then((module) => ({ default: module.TurnstileWidget })),
@@ -226,6 +227,12 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
             {clientIP && clientIP !== 'unknown' && (
               <p className="font-mono text-xs text-[#7b8796]">IP {clientIP}</p>
             )}
+            <PenaltyAppealActions
+              kind="ip_ban"
+              reason={banState.reason}
+              remainingText={banState.expiresAt ? banState.expiresAt.toLocaleString() : undefined}
+              details={clientIP && clientIP !== 'unknown' ? `IP: ${clientIP}` : undefined}
+            />
           </div>
         </div>
       </div>

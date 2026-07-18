@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FaCheck, FaShieldAlt, FaSync } from 'react-icons/fa';
+import { PenaltyAppealActions } from './PenaltyAppealActions';
 
 /**
  * SmartHumanCheck - 前端人机验证（仿 Turnstile）
@@ -1238,23 +1239,33 @@ const SmartHumanCheckBase: React.FC<SmartHumanCheckBaseProps> = ({
             )}
 
             {error && (
-              <div className="mt-3 flex items-center justify-between gap-2 first:mt-0">
-                <span className="min-w-0 flex-1 truncate text-xs text-[#b3261e]">
-                  {lastErrorCode === 'RATE_LIMITED' && cooldownActive
-                    ? `请求过于频繁，请 ${remainingCooldownSec}s 后重试`
-                    : lastErrorCode === 'ABUSE_BANNED' && isBanned
-                      ? `暂时封禁，剩余 ${remainingBanSec}s`
-                      : error}
-                </span>
-                {retryCount < RETRY_CONFIG.maxRetries && (
-                  <button
-                    type="button"
-                    onClick={fetchNonce}
-                    disabled={fetchingNonce || cooldownActive || isBanned}
-                    className="min-h-8 rounded-sm border border-[#c9c9c9] bg-[#f7f7f7] px-3 text-xs font-semibold text-[#333] hover:bg-[#efefef] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {fetchingNonce ? '重试中' : '重试'}
-                  </button>
+              <div className="mt-3 space-y-2 first:mt-0">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 flex-1 truncate text-xs text-[#b3261e]">
+                    {lastErrorCode === 'RATE_LIMITED' && cooldownActive
+                      ? `请求过于频繁，请 ${remainingCooldownSec}s 后重试`
+                      : lastErrorCode === 'ABUSE_BANNED' && isBanned
+                        ? `暂时封禁，剩余 ${remainingBanSec}s`
+                        : error}
+                  </span>
+                  {retryCount < RETRY_CONFIG.maxRetries && (
+                    <button
+                      type="button"
+                      onClick={fetchNonce}
+                      disabled={fetchingNonce || cooldownActive || isBanned}
+                      className="min-h-8 rounded-sm border border-[#c9c9c9] bg-[#f7f7f7] px-3 text-xs font-semibold text-[#333] hover:bg-[#efefef] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {fetchingNonce ? '重试中' : '重试'}
+                    </button>
+                  )}
+                </div>
+                {lastErrorCode === 'ABUSE_BANNED' && isBanned && (
+                  <PenaltyAppealActions
+                    compact
+                    kind="abuse_ban"
+                    reason={error || '检测到滥用，已暂时封禁'}
+                    remainingText={`${remainingBanSec}s`}
+                  />
                 )}
               </div>
             )}

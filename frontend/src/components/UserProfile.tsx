@@ -10,6 +10,7 @@ import { openDB } from 'idb';
 import { FaUser, FaUserCircle, FaShieldAlt, FaLock, FaEnvelope, FaCamera, FaSave, FaKey, FaCheckCircle, FaClock, FaExclamationCircle, FaGlobe, FaHistory, FaLink, FaUndoAlt, FaGoogle, FaSyncAlt, FaUnlink, FaExternalLinkAlt } from 'react-icons/fa';
 import { cn } from '../utils/cn';
 import { getAuthToken } from '../utils/authSession';
+import { PenaltyAppealActions } from './PenaltyAppealActions';
 import {
   studioAccentBlobBlueClassName,
   studioAccentBlobSkyClassName,
@@ -1247,6 +1248,15 @@ const UserProfile: React.FC = () => {
                   绑定第三方账号
                 </button>
               </div>
+              {profile?.accountStatus === 'suspended' && (
+                <div className="mt-3">
+                  <PenaltyAppealActions
+                    kind="account_suspended"
+                    reason="当前账户状态为已暂停，部分功能可能受限。"
+                    details={`用户名: ${profile.username || '—'}`}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </m.div>

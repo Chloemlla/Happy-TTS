@@ -13,6 +13,7 @@ import {
 } from "react-icons/fi";
 import MarkdownRenderer, { type MarkdownReaderControls } from './MarkdownRenderer';
 import { AiErrorDetailsPanel } from './AiErrorDetailsPanel';
+import { PenaltyAppealActions, SUPPORT_EMAIL } from './PenaltyAppealActions';
 import { cn } from '../utils/cn';
 import {
   studioAccentBlobBlueClassName,
@@ -92,6 +93,12 @@ const TicketSystem: React.FC = () => {
   const [processingStep, setProcessingStep] = useState<TicketProcessStep | null>(null);
 
   const [streamingAiResponse, setStreamingAiResponse] = useState<{ ticketId: string, content: string } | null>(null);
+  const [penaltyAppeal, setPenaltyAppeal] = useState<{
+    kind: "ticket_moderation" | "ticket_permission_ban";
+    title: string;
+    reason: string;
+    details?: string;
+  } | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion = useReducedMotion();
@@ -255,11 +262,25 @@ const TicketSystem: React.FC = () => {
       const apiError = getApiErrorResponse(error);
       if (apiError?.status === 403) {
         const data = apiError.data || {};
+        const title = data.error || "提交失败";
+        const reason = data.punishment || "您的内容未能通过 AI 审核";
+        const details = data.details;
+        const isPermissionBan = title.includes("封禁") || reason.includes("封禁");
+        setPenaltyAppeal({
+          kind: isPermissionBan ? "ticket_permission_ban" : "ticket_moderation",
+          title,
+          reason,
+          details,
+        });
         setNotification({
           type: 'error',
-          title: data.error || '提交失败',
-          message: data.punishment || '您的内容未能通过 AI 审核',
-          details: data.details ? data.details.split('\n') : undefined,
+          title,
+          message: reason,
+          details: [
+            ...(details ? details.split("\n") : []),
+            `申诉邮箱: ${SUPPORT_EMAIL}`,
+            "也可使用页面中的“提交工单申诉”按钮",
+          ],
           duration: 6000
         });
       } else {
@@ -280,11 +301,25 @@ const TicketSystem: React.FC = () => {
       const apiError = getApiErrorResponse(error);
       if (apiError?.status === 403) {
         const data = apiError.data || {};
+        const title = data.error || "发送失败";
+        const reason = data.punishment || "您的回复未能通过 AI 审核";
+        const details = data.details;
+        const isPermissionBan = title.includes("封禁") || reason.includes("封禁");
+        setPenaltyAppeal({
+          kind: isPermissionBan ? "ticket_permission_ban" : "ticket_moderation",
+          title,
+          reason,
+          details,
+        });
         setNotification({
           type: 'error',
-          title: data.error || '发送失败',
-          message: data.punishment || '您的回复未能通过 AI 审核',
-          details: data.details ? data.details.split('\n') : undefined,
+          title,
+          message: reason,
+          details: [
+            ...(details ? details.split("\n") : []),
+            `申诉邮箱: ${SUPPORT_EMAIL}`,
+            "也可使用页面中的“提交工单申诉”按钮",
+          ],
           duration: 6000
         });
       } else {
@@ -357,6 +392,24 @@ const TicketSystem: React.FC = () => {
                   <p className="mt-3 max-w-xl text-[13px] leading-6 text-slate-600 sm:text-base sm:leading-7">
                     提交技术支持、功能反馈或投诉建议，所有工单都会经过 AI 审计并由人工跟进。
                   </p>
+                  {penaltyAppeal && (
+                    <div className="mt-4 max-w-xl">
+                      <div className="mb-2 rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                        <div className="font-semibold">{penaltyAppeal.title}</div>
+                        <div className="mt-1 leading-6">{penaltyAppeal.reason}</div>
+                        {penaltyAppeal.details && (
+                          <div className="mt-2 whitespace-pre-line text-xs leading-5 text-rose-800/90">
+                            {penaltyAppeal.details}
+                          </div>
+                        )}
+                      </div>
+                      <PenaltyAppealActions
+                        kind={penaltyAppeal.kind}
+                        reason={penaltyAppeal.reason}
+                        details={penaltyAppeal.details}
+                      />
+                    </div>
+                  )}
                 </div>
                 <div className="hidden w-full lg:block lg:w-auto lg:max-w-sm">
                   <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 sm:rounded-2xl">
