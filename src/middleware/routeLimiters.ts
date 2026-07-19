@@ -1,12 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
-import rateLimit, {
-  type IncrementResponse,
-  type Options,
-  type RateLimitRequestHandler,
-  type Store,
-} from "express-rate-limit";
-import { createClient } from "redis";
-import { startupConfig } from "../config/config";
+import rateLimit, { type RateLimitRequestHandler } from "express-rate-limit";
+import { createSharedRateLimitStore } from "../services/sharedRateLimitStore";
 import logger from "../utils/logger";
 
 type LimiterCategory =
@@ -72,9 +66,6 @@ interface LimiterDefinition {
   skip?: (req: Request) => boolean;
   handler?: (req: Request, res: Response, next: NextFunction) => void;
 }
-
-const createRateLimitRedisClient = (url: string) => createClient({ url });
-type RedisClientInstance = ReturnType<typeof createRateLimitRedisClient>;
 
 interface RateLimitMetricRecord {
   limiter: string;
@@ -178,206 +169,8 @@ export function getRateLimitMetricsSnapshot(limit = 10): RateLimitMetricsSnapsho
   return rateLimitMetricsRegistry.snapshot(limit);
 }
 
-class SharedMemoryStore implements Store {
-  private hits = new Map<string, { totalHits: number; resetTime: Date }>();
-  private readonly internalPrefix: string;
-  private readonly windowMs: number;
-
-  private static readonly globalMap = new Map<string, { totalHits: number; resetTime: Date }>();
-  private static cleanupTimer: ReturnType<typeof setInterval> | null = null;
-
-  readonly prefix: string;
-  readonly localKeys = true;
-
-  constructor(prefix: string, windowMs: number) {
-    this.internalPrefix = prefix;
-    this.prefix = prefix;
-    this.windowMs = windowMs;
-    this.hits = SharedMemoryStore.globalMap;
-
-    if (!SharedMemoryStore.cleanupTimer) {
-      SharedMemoryStore.cleanupTimer = setInterval(() => {
-        const now = Date.now();
-        for (const [key, value] of SharedMemoryStore.globalMap.entries()) {
-          if (value.resetTime.getTime() <= now) {
-            SharedMemoryStore.globalMap.delete(key);
-          }
-        }
-      }, 60_000);
-
-      if (SharedMemoryStore.cleanupTimer.unref) {
-        SharedMemoryStore.cleanupTimer.unref();
-      }
-    }
-  }
-
-  private key(key: string): string {
-    return `${this.internalPrefix}:${key}`;
-  }
-
-  init(_options: Options): void {}
-
-  async increment(key: string): Promise<IncrementResponse> {
-    const cacheKey = this.key(key);
-    const now = Date.now();
-    const entry = this.hits.get(cacheKey);
-
-    if (entry && entry.resetTime.getTime() > now) {
-      entry.totalHits += 1;
-      return { totalHits: entry.totalHits, resetTime: entry.resetTime };
-    }
-
-    const resetTime = new Date(now + this.windowMs);
-    this.hits.set(cacheKey, { totalHits: 1, resetTime });
-    return { totalHits: 1, resetTime };
-  }
-
-  async decrement(key: string): Promise<void> {
-    const entry = this.hits.get(this.key(key));
-    if (entry) {
-      entry.totalHits = Math.max(0, entry.totalHits - 1);
-    }
-  }
-
-  async resetKey(key: string): Promise<void> {
-    this.hits.delete(this.key(key));
-  }
-
-  async resetAll(): Promise<void> {
-    for (const key of this.hits.keys()) {
-      if (key.startsWith(`${this.internalPrefix}:`)) {
-        this.hits.delete(key);
-      }
-    }
-  }
-}
-
-class RedisStoreFactory {
-  private static client: RedisClientInstance | null = null;
-  private static clientPromise: Promise<RedisClientInstance | null> | null = null;
-  private static warnedUnavailable = false;
-
-  static async getClient(): Promise<RedisClientInstance | null> {
-    if (!startupConfig.redis.url) return null;
-    if (RedisStoreFactory.client?.isOpen) return RedisStoreFactory.client;
-    if (RedisStoreFactory.clientPromise) return RedisStoreFactory.clientPromise;
-
-    RedisStoreFactory.clientPromise = (async () => {
-      try {
-        const client = createRateLimitRedisClient(startupConfig.redis.url);
-        client.on("error", (error) => {
-          logger.error("[RateLimit][RedisStore] Redis error", {
-            error: error instanceof Error ? error.message : String(error),
-          });
-        });
-        await client.connect();
-        RedisStoreFactory.client = client;
-        logger.info("[RateLimit] Using Redis store for rate limiting");
-        return client;
-      } catch (error) {
-        if (!RedisStoreFactory.warnedUnavailable) {
-          logger.warn("[RateLimit] Redis store unavailable, falling back to SharedMemoryStore", {
-            error: error instanceof Error ? error.message : String(error),
-          });
-          RedisStoreFactory.warnedUnavailable = true;
-        }
-        return null;
-      } finally {
-        RedisStoreFactory.clientPromise = null;
-      }
-    })();
-
-    return RedisStoreFactory.clientPromise;
-  }
-}
-
-class RedisBackedStore implements Store {
-  readonly prefix: string;
-  readonly localKeys = false;
-
-  private readonly internalPrefix: string;
-  private readonly windowMs: number;
-  private readonly fallbackStore: SharedMemoryStore;
-
-  constructor(prefix: string, windowMs: number) {
-    this.prefix = prefix;
-    this.internalPrefix = prefix;
-    this.windowMs = windowMs;
-    this.fallbackStore = new SharedMemoryStore(prefix, windowMs);
-  }
-
-  init(_options: Options): void {}
-
-  private key(key: string): string {
-    return `${this.internalPrefix}:${key}`;
-  }
-
-  async increment(key: string): Promise<IncrementResponse> {
-    const client = await RedisStoreFactory.getClient();
-    if (!client) {
-      return this.fallbackStore.increment(key);
-    }
-
-    const cacheKey = this.key(key);
-    const totalHits = await client.incr(cacheKey);
-    let ttl = await client.pTTL(cacheKey);
-
-    if (totalHits === 1 || ttl < 0) {
-      await client.pExpire(cacheKey, this.windowMs);
-      ttl = this.windowMs;
-    }
-
-    return {
-      totalHits,
-      resetTime: new Date(Date.now() + ttl),
-    };
-  }
-
-  async decrement(key: string): Promise<void> {
-    const client = await RedisStoreFactory.getClient();
-    if (!client) {
-      await this.fallbackStore.decrement(key);
-      return;
-    }
-
-    const cacheKey = this.key(key);
-    const remaining = await client.decr(cacheKey);
-    if (remaining <= 0) {
-      await client.del(cacheKey);
-    }
-  }
-
-  async resetKey(key: string): Promise<void> {
-    const client = await RedisStoreFactory.getClient();
-    if (!client) {
-      await this.fallbackStore.resetKey(key);
-      return;
-    }
-
-    await client.del(this.key(key));
-  }
-
-  async resetAll(): Promise<void> {
-    const client = await RedisStoreFactory.getClient();
-    if (!client) {
-      await this.fallbackStore.resetAll();
-      return;
-    }
-
-    for await (const cacheKey of client.scanIterator({ MATCH: `${this.internalPrefix}:*`, COUNT: 100 })) {
-      const keys = Array.isArray(cacheKey) ? cacheKey : [cacheKey];
-      if (keys.length > 0) {
-        await client.del(keys);
-      }
-    }
-  }
-}
-
-function createStore(prefix: string, windowMs: number): Store {
-  if (startupConfig.redis.url) {
-    return new RedisBackedStore(prefix, windowMs);
-  }
-  return new SharedMemoryStore(prefix, windowMs);
+function createStore(prefix: string, windowMs: number) {
+  return createSharedRateLimitStore(prefix, windowMs);
 }
 
 function getClientIp(req: Request): string {
@@ -608,6 +401,11 @@ const LIMITER_DEFINITIONS = {
     category: "public-api",
     message: "GitHub Billing请求过于频繁，请稍后再试",
   },
+  linuxdocredit: {
+    profile: "sensitive",
+    category: "public-api",
+    message: "LINUX DO Credit 请求过于频繁，请稍后再试",
+  },
   deeplx: {
     profile: "verification",
     category: "public-api",
@@ -741,6 +539,7 @@ export const audioFileLimiter = limiterFromDefinition("audio");
 export const modlistMountLimiter = limiterFromDefinition("modlist");
 export const cdkMountLimiter = limiterFromDefinition("cdk");
 export const githubBillingLimiter = limiterFromDefinition("ghbilling");
+export const linuxDoCreditLimiter = limiterFromDefinition("linuxdocredit");
 export const deeplxLimiter = limiterFromDefinition("deeplx");
 export const deeplxPublicLimiter = limiterFromDefinition("deeplxPublic");
 export const integrityLimiter = limiterFromDefinition("integrity");

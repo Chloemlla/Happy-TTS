@@ -19,10 +19,14 @@ const MANUAL_CHUNKS: Record<string, string[]> = {
   ui: ["@radix-ui/react-dialog", "react-icons"],
   utils: ["axios", "clsx", "tailwind-merge"],
   auth: ["@simplewebauthn/browser", "qrcode.react"],
+  fingerprint: ["@fingerprintjs/fingerprintjs"],
   animations: ["framer-motion"],
   "code-highlight": ["react-syntax-highlighter", "prismjs"],
+  documents: ["docx"],
+  pdf: ["jspdf", "html2canvas"],
+  diagrams: ["mermaid", "katex"],
+  charts: ["chart.js", "react-chartjs-2"],
   toast: ["react-toastify"],
-  swagger: ["swagger-ui-react"],
 };
 
 function getManualChunk(id: string): string | undefined {
@@ -442,6 +446,7 @@ export default defineConfig(({ mode, command }) => {
       sourcemap: false,
       cssCodeSplit: true,
       assetsInlineLimit: 4096,
+      manifest: true,
       reportCompressedSize: true, // 启用压缩大小报告
       target: "esnext",
       modulePreload: {

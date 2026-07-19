@@ -6,7 +6,15 @@ const baseConfig = require("./jest.config");
 const liveEnvironmentTestPattern =
   "[\\\\/]src[\\\\/]tests[\\\\/](logshare-mongodb|policyApi|ipfs-upload|network-apis|media-social-life-apis|ip-query|yiyan-api)\\.test\\.(ts|js)$";
 
+// Playwright browser specs live under tests/browser and must not be collected by Jest.
+const playwrightBrowserTestPattern =
+  "[\\\\/]tests[\\\\/]browser[\\\\/].*\\.(test|spec)\\.(ts|tsx|js|jsx)$";
+
 module.exports = {
   ...baseConfig,
-  testPathIgnorePatterns: [...(baseConfig.testPathIgnorePatterns ?? []), liveEnvironmentTestPattern],
+  testPathIgnorePatterns: [
+    ...(baseConfig.testPathIgnorePatterns ?? []),
+    liveEnvironmentTestPattern,
+    playwrightBrowserTestPattern,
+  ],
 };

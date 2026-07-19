@@ -4,6 +4,7 @@ import path from "node:path";
 import type { Express } from "express";
 import { compileTimeConfig, config, startupConfig } from "../config/config";
 import { runStartupDiagnostics } from "../config/startupDiagnostics";
+import { startApiKeyBillingReconciliation } from "../services/apiKeyBillingService";
 import { startEmbeddedRustServices } from "../services/embeddedRustServices";
 import { connectMongo } from "../services/mongoService";
 import { schedulerService } from "../services/schedulerService";
@@ -165,8 +166,12 @@ export async function startServer(app: Express): Promise<void> {
   await startEmbeddedRustServices();
   await checkStartupFilePermissions();
   await initializeStorage();
-  logger.info(`当前生成码: ${config.generationCode || "未配置"}`);
+  // Never log the generation code value — only whether shared/anonymous TTS gate is configured.
+  logger.info("[Config] TTS generation code gate", {
+    configured: Boolean(config.generationCodeConfigured),
+  });
   UserStorage.initializeMongoListener();
+  startApiKeyBillingReconciliation();
 
   try {
     schedulerService.start();

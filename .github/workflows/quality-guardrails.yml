@@ -1,0 +1,161 @@
+name: Quality Guardrails
+
+on:
+  push:
+    branches: [main, develop]
+    paths-ignore:
+      - .github/workflows/**
+      - "!.github/workflows/quality-guardrails.yml"
+  pull_request:
+    branches: [main, develop]
+    paths-ignore:
+      - .github/workflows/**
+      - "!.github/workflows/quality-guardrails.yml"
+  workflow_dispatch:
+
+jobs:
+  governance:
+    name: Governance checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 11.11.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Resolve TypeScript size base ref
+        id: base
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "ref=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            echo "ref=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=HEAD~1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: TypeScript size guard
+        env:
+          TS_SIZE_BASE_REF: ${{ steps.base.outputs.ref }}
+          GITHUB_BASE_SHA: ${{ steps.base.outputs.ref }}
+        run: pnpm run check:ts-file-size
+
+      - name: Privacy contract validation
+        run: pnpm run check:privacy-contract
+
+  frontend-bundle:
+    name: Frontend bundle budget
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 11.11.0
+
+      - name: Install root dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build frontend
+        working-directory: frontend
+        run: pnpm run build
+
+      - name: Enforce frontend bundle budget
+        run: pnpm run check:frontend-bundle
+
+  mongo-replica:
+    name: Mongo replica integration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 11.11.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Start MongoDB replica set
+        shell: bash
+        run: |
+          docker run -d --name mongo-rs -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all
+          for attempt in $(seq 1 30); do
+            if docker exec mongo-rs mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' | grep -q 1; then
+              break
+            fi
+            sleep 1
+          done
+          docker exec mongo-rs mongosh --quiet --eval 'try { rs.initiate({_id:"rs0", members:[{_id:0, host:"127.0.0.1:27017"}]}) } catch (e) { if (!String(e.message || e).includes("already initialized")) throw e }'
+          for attempt in $(seq 1 30); do
+            if docker exec mongo-rs mongosh --quiet --eval 'rs.isMaster().ismaster' | grep -qi true; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Mongo replica set did not become primary"
+          docker logs mongo-rs || true
+          exit 1
+
+      - name: Run Mongo replica integration tests
+        env:
+          MONGO_REPLICA_URI: mongodb://127.0.0.1:27017/?replicaSet=rs0&directConnection=true
+        run: pnpm run test:integration:mongo
+
+  browser-cookie:
+    name: Browser cookie smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 11.11.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run browser cookie smoke
+        run: pnpm run test:browser

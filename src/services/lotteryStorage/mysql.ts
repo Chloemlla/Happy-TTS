@@ -1,11 +1,12 @@
 import mysql from "mysql2/promise";
+import { requireMysqlUri } from "../../utils/mysqlUriPolicy";
 
-const MYSQL_URI = process.env.MYSQL_URI || "mysql://root:password@localhost:3306/tts";
 const ROUNDS_TABLE = "lottery_rounds";
 const USERS_TABLE = "lottery_users";
 
 async function getConn() {
-  const conn = await mysql.createConnection(MYSQL_URI);
+  // MYSQL_URI is mandatory when LOTTERY_STORAGE=mysql — no root/password default.
+  const conn = await mysql.createConnection(requireMysqlUri());
   await conn.execute(`CREATE TABLE IF NOT EXISTS ${ROUNDS_TABLE} (
     id VARCHAR(64) PRIMARY KEY,
     data JSON

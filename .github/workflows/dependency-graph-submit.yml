@@ -19,12 +19,14 @@ jobs:
   submit-dependencies:
     name: Submit All Dependencies
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '20.x'
 
@@ -99,10 +101,10 @@ jobs:
                   res.on('data', (chunk) => { responseData += chunk; });
                   res.on('end', () => {
                     if (res.statusCode >= 200 && res.statusCode < 300) {
-                      console.log(`✅ Successfully submitted ${manifestPath}`);
+                      console.log(`Successfully submitted ${manifestPath}`);
                       resolve(responseData);
                     } else {
-                      console.error(`❌ Failed to submit ${manifestPath}: ${res.statusCode}`);
+                      console.error(`Failed to submit ${manifestPath}: ${res.statusCode}`);
                       console.error(responseData);
                       reject(new Error(responseData));
                     }
@@ -143,7 +145,7 @@ jobs:
         run: |
           echo "## Dependency Graph Submission Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ All dependency snapshots have been submitted to GitHub" >> $GITHUB_STEP_SUMMARY
+          echo "All dependency snapshots have been submitted to GitHub" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Submitted manifests:" >> $GITHUB_STEP_SUMMARY
           echo "- Root: package.json" >> $GITHUB_STEP_SUMMARY

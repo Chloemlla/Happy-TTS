@@ -1,0 +1,63 @@
+name: Nightly Test Matrix
+
+on:
+  schedule:
+    - cron: "0 16 * * *" # 00:00 Asia/Shanghai
+  workflow_dispatch:
+
+jobs:
+  nightly-live:
+    name: Nightly live / integration slice
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 11.11.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Start MongoDB for live-ish suite
+        shell: bash
+        run: |
+          docker run -d --name mongo-nightly -p 27017:27017 mongo:7
+          for attempt in $(seq 1 30); do
+            if docker exec mongo-nightly mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' | grep -q 1; then
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1
+
+      - name: Run nightly test matrix
+        env:
+          NODE_ENV: test
+          MONGO_URI: mongodb://127.0.0.1:27017/synapse_nightly
+          JWT_SECRET: nightly-test-jwt-secret
+          ADMIN_PASSWORD: nightly-admin-password
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
+          IPFS_API_URL: ${{ secrets.IPFS_API_URL }}
+          IPFS_GATEWAY_URL: ${{ secrets.IPFS_GATEWAY_URL }}
+          YIYAN_API_KEY: ${{ secrets.YIYAN_API_KEY }}
+          IP_QUERY_API_KEY: ${{ secrets.IP_QUERY_API_KEY }}
+        run: pnpm run test:nightly
+
+      - name: Upload Jest artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nightly-test-logs
+          path: |
+            logs/**
+            data/logs/**
+          if-no-files-found: ignore

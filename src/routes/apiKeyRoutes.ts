@@ -149,6 +149,7 @@ router.post("/:keyId/billing/adjust", async (req: Request, res: Response) => {
       credits: Number(req.body?.credits),
       reason: typeof req.body?.reason === "string" ? req.body.reason : undefined,
       actorUserId: user.id,
+      requestId: req.requestId,
     });
     if (!result) return res.status(400).json({ error: "余额不足或 API Key 不存在" });
 

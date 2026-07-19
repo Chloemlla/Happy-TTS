@@ -1,12 +1,15 @@
 import { mongoose } from "../services/mongoService";
 
 export type ApiKeyBillingMode = "metered" | "prepaid";
-export type ApiKeyBillingEventType = "charge" | "adjustment" | "waived" | "refund";
+export type ApiKeyBillingEventType = "reservation" | "charge" | "adjustment" | "waived" | "refund";
+export type ApiKeyBillingEventState = "pending" | "completed";
 
 export interface ApiKeyBillingEventDoc {
+  operationId: string;
   keyId: string;
   userId: string;
   type: ApiKeyBillingEventType;
+  state: ApiKeyBillingEventState;
   permission: string;
   billingMode: ApiKeyBillingMode;
   costCredits: number;
@@ -18,18 +21,28 @@ export interface ApiKeyBillingEventDoc {
   requestId: string | null;
   reason: string | null;
   actorUserId: string | null;
+  reservationExpiresAt: Date | null;
+  finalizedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
 
 const ApiKeyBillingEventSchema = new mongoose.Schema<ApiKeyBillingEventDoc>(
   {
+    operationId: { type: String, required: true },
     keyId: { type: String, required: true, index: true },
     userId: { type: String, required: true, index: true },
     type: {
       type: String,
-      enum: ["charge", "adjustment", "waived", "refund"],
+      enum: ["reservation", "charge", "adjustment", "waived", "refund"],
       required: true,
+      index: true,
+    },
+    state: {
+      type: String,
+      enum: ["pending", "completed"],
+      required: true,
+      default: "completed",
       index: true,
     },
     permission: { type: String, required: true, index: true },
@@ -48,12 +61,19 @@ const ApiKeyBillingEventSchema = new mongoose.Schema<ApiKeyBillingEventDoc>(
     requestId: { type: String, default: null },
     reason: { type: String, default: null },
     actorUserId: { type: String, default: null },
+    reservationExpiresAt: { type: Date, default: null, index: true },
+    finalizedAt: { type: Date, default: null },
   },
   { timestamps: true },
 );
 
+ApiKeyBillingEventSchema.index(
+  { operationId: 1 },
+  { unique: true, partialFilterExpression: { operationId: { $type: "string" } } },
+);
 ApiKeyBillingEventSchema.index({ keyId: 1, createdAt: -1 });
 ApiKeyBillingEventSchema.index({ userId: 1, createdAt: -1 });
+ApiKeyBillingEventSchema.index({ state: 1, reservationExpiresAt: 1 });
 
 const ApiKeyBillingEventModel =
   (mongoose.models.ApiKeyBillingEvent as mongoose.Model<ApiKeyBillingEventDoc>) ||

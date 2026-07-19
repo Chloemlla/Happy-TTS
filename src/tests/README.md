@@ -59,12 +59,31 @@ npm run test:auth
 # 速率限制测试
 npm run test:rate-limit
 
+# 关键路径子集
+npm run test:critical
+
 # 监听模式
 npm run test:watch
 
 # 生成覆盖率报告
 npm run test:coverage
 ```
+
+### 仓库治理与真实测试矩阵入口
+
+```bash
+pnpm run check:ts-file-size
+pnpm run check:privacy-contract
+pnpm run test:integration:mongo   # requires MONGO_REPLICA_URI
+pnpm run test:browser             # Playwright cookie smoke
+pnpm run test:nightly             # live/API suite excluded from PR CI
+```
+
+文档：
+
+- `docs/test-matrix.md`
+- `docs/repository-governance.md`
+- `docs/privacy-fingerprint-ip-contract.md`
 
 ## 测试覆盖率
 

@@ -55,6 +55,7 @@ import ecoEnchantsWebhookRoutes from "./ecoEnchantsWebhookRoutes";
 import fbiWantedRoutes from "./fbiWantedRoutes";
 import frontendConfigRoutes from "./frontendConfigRoutes";
 import githubBillingRoutes from "./githubBillingRoutes";
+import linuxDoCreditRoutes from "./linuxDoCreditRoutes";
 import healthRoutes from "./healthRoutes";
 import humanCheckRoutes from "./humanCheckRoutes";
 import imageDataRoutes from "./imageDataRoutes";
@@ -1212,6 +1213,24 @@ export const postTamperRouteModules: RouteModule[] = [
     requiresAuth: false,
     rateLimited: true,
     isPublic: true,
+  },
+  {
+    name: "linuxdo-credit-routes",
+    path: "/api/linuxdo-credit",
+    router: linuxDoCreditRoutes,
+    requiresAuth: "mixed",
+    rateLimited: true,
+    isPublic: "mixed",
+    authPolicy: {
+      mode: "route",
+      handlers: ["authMiddleware"],
+      note: "Notify endpoints are public for merchant callbacks; recharge/order APIs require JWT.",
+    },
+    rateLimitPolicy: {
+      mode: "router",
+      limiters: ["linuxdo-credit-notify", "linuxdo-credit-recharge", "linuxdo-credit-read"],
+      note: "LINUX DO Credit routes apply route-level limiters inside the router.",
+    },
   },
   {
     name: "ecoenchants-routes",

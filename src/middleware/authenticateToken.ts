@@ -2,14 +2,9 @@ import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { config } from "../config/config";
 import logger from "../utils/logger";
+import type { AuthenticatedRequest } from "../types/authRequest";
 import { getTokenFromRequest } from "../utils/authCookie";
-import { type User, UserStorage } from "../utils/userStorage";
-
-type AuthedRequest = Request & {
-  apiKey?: unknown;
-  oauthToken?: unknown;
-  user?: User;
-};
+import { UserStorage } from "../utils/userStorage";
 
 type JwtUserPayload = {
   userId?: string;
@@ -17,7 +12,7 @@ type JwtUserPayload = {
 
 export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const authedReq = req as AuthedRequest;
+    const authedReq = req as AuthenticatedRequest;
     if ((authedReq.apiKey || authedReq.oauthToken) && authedReq.user) {
       return next();
     }
@@ -46,6 +41,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
       return res.status(403).json({ error: "账户已被封停" });
     }
     authedReq.user = user;
+    authedReq.auth = { kind: "session", user };
     next();
   } catch (error) {
     logger.error("Token 认证失败:", error);

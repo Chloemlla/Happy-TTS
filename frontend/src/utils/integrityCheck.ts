@@ -1,6 +1,7 @@
 import CryptoJS from "crypto-js";
 import { getApiBaseUrl } from "../api/api";
 import { signedFetch } from "./requestSigner";
+import { createClientIntegrityCheck } from "./integrityDiagnostics";
 
 interface IntegrityData {
   content: string;
@@ -481,7 +482,7 @@ class IntegrityChecker {
           this.checkResponseIntegrity(text, url);
         })
         .catch(() => {
-          // 静默处理错误，避免误报
+          this.recordCheckFailure("network-response-text");
         });
     }
   }
@@ -495,9 +496,15 @@ class IntegrityChecker {
       try {
         this.checkResponseIntegrity(xhr.responseText, xhr._integrityUrl);
       } catch {
-        // 静默处理错误，避免误报
+        this.recordCheckFailure("xhr-response-integrity");
       }
     }
+  }
+
+  private recordCheckFailure(probe: string): void {
+    const check = createClientIntegrityCheck("integrity-checker");
+    check.fail(probe);
+    check.finish(false);
   }
 
   private checkResponseIntegrity(content: string, url: string): void {

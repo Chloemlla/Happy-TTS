@@ -25,6 +25,20 @@ export interface LinuxDoRuntimeConfig {
   frontendCallbackUrl: string;
 }
 
+/** LINUX DO Credit (积分支付) merchant settings — separate from Connect OAuth. */
+export interface LinuxDoCreditRuntimeConfig {
+  enabled: boolean;
+  pid: string;
+  key: string;
+  protocol: "epay" | "ldc";
+  gatewayBase: string;
+  privateKey: string;
+  creditRate: number;
+  maxMoney: number;
+  notifyUrl: string;
+  returnUrl: string;
+}
+
 export interface GoogleAuthRuntimeConfig {
   clientId: string;
 }
@@ -88,6 +102,7 @@ export interface SynapseAndroidRuntimeConfig {
 export interface RuntimeConfigDefaults {
   ipqs: IpqsRuntimeConfig;
   linuxdo: LinuxDoRuntimeConfig;
+  linuxdoCredit: LinuxDoCreditRuntimeConfig;
   googleAuth: GoogleAuthRuntimeConfig;
   deeplx: DeepLXRuntimeConfig;
   nexai: NexaiRuntimeConfig;
@@ -147,6 +162,18 @@ export function buildRuntimeConfigDefaults(options: {
       callbackUrl: `${normalizedBaseUrl}/api/auth/linuxdo/callback`,
       frontendCallbackUrl: `${normalizedFrontendBaseUrl}/auth/linuxdo/callback`,
     },
+    linuxdoCredit: {
+      enabled: false,
+      pid: "",
+      key: "",
+      protocol: "epay",
+      gatewayBase: "https://credit.linux.do/epay",
+      privateKey: "",
+      creditRate: 1,
+      maxMoney: 10000,
+      notifyUrl: `${normalizedBaseUrl}/api/linuxdo-credit/notify`,
+      returnUrl: `${normalizedFrontendBaseUrl}/api-keys`,
+    },
     googleAuth: {
       clientId: googleClientId,
     },
@@ -200,6 +227,9 @@ export function cloneRuntimeConfigDefaults(config: RuntimeConfigDefaults): Runti
     },
     linuxdo: {
       ...config.linuxdo,
+    },
+    linuxdoCredit: {
+      ...config.linuxdoCredit,
     },
     googleAuth: {
       ...config.googleAuth,

@@ -9,6 +9,7 @@ import {
   FaClock,
   FaCoins,
   FaCopy,
+  FaCreditCard,
   FaEdit,
   FaEye,
   FaEyeSlash,
@@ -24,6 +25,31 @@ import {
 
 type BillingMode = 'metered' | 'prepaid';
 type ManagerView = 'keys' | 'billing';
+
+interface LinuxDoCreditConfig {
+  enabled: boolean;
+  protocol: 'epay' | 'ldc';
+  gatewayBase: string;
+  creditRate: number;
+  minMoney: number;
+  maxMoney: number;
+  pidConfigured: boolean;
+}
+
+interface LinuxDoCreditOrder {
+  outTradeNo: string;
+  tradeNo: string | null;
+  keyId: string;
+  money: number;
+  credits: number;
+  orderName: string;
+  status: string;
+  payUrl: string | null;
+  paidAt: string | null;
+  creditedAt: string | null;
+  expiresAt: string;
+  createdAt: string;
+}
 
 interface ApiKeyManagerProps {
   initialView?: ManagerView;
@@ -106,6 +132,17 @@ interface ApiResult<T> {
   rates?: BillingRate[];
   events?: BillingEvent[];
   balanceCredits?: number;
+  config?: LinuxDoCreditConfig;
+  order?: LinuxDoCreditOrder;
+  orders?: LinuxDoCreditOrder[];
+  outTradeNo?: string;
+  money?: number;
+  credits?: number;
+  payUrl?: string | null;
+  formAction?: string;
+  formFields?: Record<string, string>;
+  expiresAt?: string;
+  status?: string;
   data?: T;
 }
 
@@ -186,6 +223,14 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ initialView = 'keys' }) =
   const [adjustCredits, setAdjustCredits] = useState<number | ''>('');
   const [adjustReason, setAdjustReason] = useState('');
   const [adjusting, setAdjusting] = useState(false);
+
+  // LINUX DO Credit recharge UI state
+  const [linuxDoCreditConfig, setLinuxDoCreditConfig] = useState<LinuxDoCreditConfig | null>(null);
+  const [rechargeKey, setRechargeKey] = useState<ApiKeyItem | null>(null);
+  const [rechargeMoney, setRechargeMoney] = useState<number | ''>(10);
+  const [recharging, setRecharging] = useState(false);
+  const [rechargeOrders, setRechargeOrders] = useState<LinuxDoCreditOrder[]>([]);
+  const [pendingOutTradeNo, setPendingOutTradeNo] = useState<string | null>(null);
 
   useEffect(() => setView(initialView), [initialView]);
 
@@ -441,6 +486,127 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ initialView = 'keys' }) =
       setAdjusting(false);
     }
   };
+
+  const fetchLinuxDoCreditConfig = useCallback(async () => {
+    try {
+      const data = await apiJson<never>('/api/linuxdo-credit/config');
+      setLinuxDoCreditConfig(data.config || null);
+    } catch {
+      setLinuxDoCreditConfig(null);
+    }
+  }, []);
+
+  const fetchRechargeOrders = useCallback(async (keyId?: string) => {
+    try {
+      const query = keyId ? `?keyId=${encodeURIComponent(keyId)}&limit=10` : '?limit=10';
+      const data = await apiJson<never>(`/api/linuxdo-credit/orders${query}`);
+      setRechargeOrders(data.orders || []);
+    } catch {
+      setRechargeOrders([]);
+    }
+  }, []);
+
+  const openRecharge = (key: ApiKeyItem) => {
+    setRechargeKey(key);
+    setRechargeMoney(10);
+    setView('billing');
+    void fetchLinuxDoCreditConfig();
+    void fetchRechargeOrders(key.keyId);
+  };
+
+  const submitLinuxDoCreditForm = (formAction: string, formFields: Record<string, string>) => {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = formAction;
+    form.target = '_blank';
+    form.style.display = 'none';
+    Object.entries(formFields).forEach(([name, value]) => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = name;
+      input.value = value;
+      form.appendChild(input);
+    });
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
+  };
+
+  const createLinuxDoRecharge = async () => {
+    if (!rechargeKey || rechargeMoney === '') return;
+    setRecharging(true);
+    try {
+      const data = await apiJson<never>('/api/linuxdo-credit/recharge', {
+        method: 'POST',
+        body: JSON.stringify({
+          keyId: rechargeKey.keyId,
+          money: Number(rechargeMoney),
+          orderName: `API Key 充值 ${rechargeKey.name}`,
+        }),
+      });
+      setPendingOutTradeNo(data.outTradeNo || null);
+      setNotification({
+        message: `已创建充值订单 ${data.outTradeNo}，即将跳转 LINUX DO Credit 完成支付`,
+        type: 'success',
+      });
+      if (data.payUrl) {
+        window.open(data.payUrl, '_blank', 'noopener,noreferrer');
+      } else if (data.formAction && data.formFields) {
+        submitLinuxDoCreditForm(data.formAction, data.formFields);
+      }
+      await fetchRechargeOrders(rechargeKey.keyId);
+    } catch (err) {
+      setNotification({ message: err instanceof Error ? err.message : '创建充值订单失败', type: 'error' });
+    } finally {
+      setRecharging(false);
+    }
+  };
+
+  const pollPendingOrder = useCallback(async (outTradeNo: string) => {
+    try {
+      const data = await apiJson<never>(`/api/linuxdo-credit/orders/${encodeURIComponent(outTradeNo)}`);
+      if (data.order?.status === 'paid') {
+        setNotification({ message: `订单 ${outTradeNo} 已支付并入账`, type: 'success' });
+        setPendingOutTradeNo(null);
+        await fetchKeys();
+        if (rechargeKey) await fetchRechargeOrders(rechargeKey.keyId);
+        return true;
+      }
+    } catch {
+      // ignore poll errors
+    }
+    return false;
+  }, [fetchKeys, fetchRechargeOrders, rechargeKey, setNotification]);
+
+  useEffect(() => {
+    void fetchLinuxDoCreditConfig();
+  }, [fetchLinuxDoCreditConfig]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const outTradeNo = params.get('out_trade_no');
+    if (params.get('linuxdo_credit') === '1' && outTradeNo) {
+      setView('billing');
+      setPendingOutTradeNo(outTradeNo);
+      void pollPendingOrder(outTradeNo);
+    }
+  }, [pollPendingOrder]);
+
+  useEffect(() => {
+    if (!pendingOutTradeNo) return;
+    let cancelled = false;
+    const timer = window.setInterval(() => {
+      if (cancelled) return;
+      void pollPendingOrder(pendingOutTradeNo).then((done) => {
+        if (done) window.clearInterval(timer);
+      });
+    }, 4000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [pendingOutTradeNo, pollPendingOrder]);
+
 
   const renderPermissionPill = (permission: string) => {
     const detail = permissionMap.get(permission);
@@ -708,6 +874,83 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ initialView = 'keys' }) =
                 <div className="flex justify-between"><span>累计扣费</span><span>{formatCredits(stats.totalCharged)}</span></div>
               </div>
             </div>
+
+          {/* LINUX DO Credit 充值 */}
+          <div className="rounded-lg border border-gray-200 bg-white p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-800">
+                <FaCreditCard className="text-indigo-600" /> LINUX DO Credit 充值
+              </div>
+              {linuxDoCreditConfig?.enabled ? (
+                <span className="rounded bg-green-100 px-2 py-0.5 text-xs text-green-700">已启用 · {linuxDoCreditConfig.protocol}</span>
+              ) : (
+                <span className="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500">未启用（配置 LINUXDO_CREDIT_*）</span>
+              )}
+            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              使用 LINUX DO 积分向预付费 API Key 充值。汇率：1 积分 = {linuxDoCreditConfig?.creditRate ?? 1} 点本地余额。
+            </p>
+            {rechargeKey ? (
+              <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[1fr_140px_auto]">
+                <div className="text-sm text-gray-700">
+                  目标 Key：<span className="font-semibold">{rechargeKey.name}</span>
+                  <span className="ml-2 font-mono text-xs text-gray-400">{rechargeKey.keyId}</span>
+                  <span className="ml-2">余额 {formatCredits(rechargeKey.balanceCredits)}</span>
+                </div>
+                <input
+                  type="number"
+                  min={linuxDoCreditConfig?.minMoney || 0.01}
+                  max={linuxDoCreditConfig?.maxMoney || 10000}
+                  step="0.01"
+                  value={rechargeMoney}
+                  onChange={(event) => setRechargeMoney(event.target.value === '' ? '' : Number(event.target.value))}
+                  placeholder="积分数量"
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                  disabled={!linuxDoCreditConfig?.enabled}
+                />
+                <button
+                  onClick={createLinuxDoRecharge}
+                  disabled={recharging || !linuxDoCreditConfig?.enabled || rechargeMoney === ''}
+                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:bg-gray-300"
+                >
+                  {recharging ? '创建中...' : '去支付'}
+                </button>
+              </div>
+            ) : (
+              <div className="mt-3 text-sm text-gray-500">请在下方预付费 Key 上点击「Credit 充值」选择目标。</div>
+            )}
+            {pendingOutTradeNo && (
+              <div className="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                等待支付回调 / 轮询中：{pendingOutTradeNo}
+              </div>
+            )}
+            {rechargeOrders.length > 0 && (
+              <div className="mt-4 overflow-x-auto">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="text-xs text-gray-400">
+                    <tr>
+                      <th className="py-2 pr-4">时间</th>
+                      <th className="py-2 pr-4">单号</th>
+                      <th className="py-2 pr-4">积分</th>
+                      <th className="py-2 pr-4">入账</th>
+                      <th className="py-2 pr-4">状态</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {rechargeOrders.map((order) => (
+                      <tr key={order.outTradeNo}>
+                        <td className="py-2 pr-4 text-gray-500">{formatDate(order.createdAt, true)}</td>
+                        <td className="py-2 pr-4 font-mono text-xs text-gray-600">{order.outTradeNo}</td>
+                        <td className="py-2 pr-4">{order.money.toFixed(2)}</td>
+                        <td className="py-2 pr-4 text-amber-700">{formatCredits(order.credits)}</td>
+                        <td className="py-2 pr-4">{order.status}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
           </div>
 
           {eventsKey && (
@@ -937,6 +1180,11 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ initialView = 'keys' }) =
                       <motion.button onClick={() => startEdit(key)} title="编辑" className="rounded p-2 text-sky-600 transition hover:bg-sky-50 sm:p-1.5" whileTap={{ scale: 0.9 }}>
                         <FaEdit />
                       </motion.button>
+                      {(key.billingMode || 'metered') === 'prepaid' && (
+                        <motion.button onClick={() => openRecharge(key)} title="LINUX DO Credit 充值" className="rounded p-2 text-indigo-600 transition hover:bg-indigo-50 sm:p-1.5" whileTap={{ scale: 0.9 }}>
+                          <FaCreditCard />
+                        </motion.button>
+                      )}
                       <motion.button onClick={() => { setView('billing'); fetchBillingEvents(key); }} title="计费流水" className="rounded p-2 text-emerald-600 transition hover:bg-emerald-50 sm:p-1.5" whileTap={{ scale: 0.9 }}>
                         <FaReceipt />
                       </motion.button>

@@ -1,4 +1,3 @@
-import FingerprintJS from '@fingerprintjs/fingerprintjs';
 import CryptoJS from 'crypto-js';
 import { getApiBaseUrl } from '../api/api';
 import { isFirstVisitVerificationEnabled } from './firstVisitVerificationConfig';
@@ -183,6 +182,7 @@ async function getWithFingerprintJS(timeoutMs = 1500): Promise<string | null> {
     const to = setTimeout(() => ctrl.abort(), timeoutMs);
     // FingerprintJS 自身不使用AbortController，这里用Promise.race模拟超时
     const p = (async () => {
+      const { default: FingerprintJS } = await import('@fingerprintjs/fingerprintjs');
       const fp = await FingerprintJS.load();
       const result = await fp.get();
       return result.visitorId as string;

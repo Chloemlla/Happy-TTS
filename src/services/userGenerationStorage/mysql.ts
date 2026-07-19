@@ -1,12 +1,13 @@
 import type { RowDataPacket } from "mysql2/promise";
 import mysql from "mysql2/promise";
+import { requireMysqlUri } from "../../utils/mysqlUriPolicy";
 import { type GenerationRecord, isAdminUser as sharedIsAdminUser } from "./types";
 
-const MYSQL_URI = process.env.MYSQL_URI || "mysql://root:password@localhost:3306/tts";
 const TABLE = "user_generations";
 
 async function getConn() {
-  const conn = await mysql.createConnection(MYSQL_URI);
+  // MYSQL_URI is mandatory when USER_GENERATION_STORAGE=mysql — no root/password default.
+  const conn = await mysql.createConnection(requireMysqlUri());
   await conn.execute(`CREATE TABLE IF NOT EXISTS ${TABLE} (
     id INT AUTO_INCREMENT PRIMARY KEY,
     userId VARCHAR(64),

@@ -13,22 +13,27 @@ on:
       - "!.github/workflows/tsc.yml"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   node-verify:
     name: Node verification
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4 # 使用明确的 v4 版本，避免可变分支引用
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4 # 建议使用明确的 v4 版本
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "24"
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
         with:
           version: 11.11.0
 
@@ -48,7 +53,7 @@ jobs:
 
       - name: Upload build artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: synapse-build-${{ github.run_number }}-${{ github.run_attempt }}
           path: |
@@ -72,6 +77,8 @@ jobs:
   rust-verify:
     name: Rust verification
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     env:
       CARGO_HTTP_MULTIPLEXING: "false"
       CARGO_NET_RETRY: "10"
@@ -79,22 +86,23 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4 # 使用明确的 v4 版本，避免可变分支引用
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # pin stable action + channel from rust-toolchain.toml
         with:
+          toolchain: "1.89.0"
           components: rustfmt
 
       - name: Cache Cargo dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             ~/.cargo/git/db
             rust-services/target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('rust-services/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('rust-services/Cargo.lock', 'rust-toolchain.toml') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
 
@@ -163,7 +171,7 @@ jobs:
 
       - name: Upload Rust services artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: rust-services-${{ github.run_number }}-${{ github.run_attempt }}
           path: rust-services-${{ github.run_number }}-${{ github.run_attempt }}.tar.gz

@@ -1,0 +1,278 @@
+{
+  "version": 1,
+  "updatedAt": "2026-07-19",
+  "notes": [
+    "This map is the machine-readable contract for fingerprint/IP privacy governance.",
+    "Retention is enforced by Mongo TTL indexes, scheduled cleanup jobs, or documented manual admin actions.",
+    "User account deletion currently removes the user_datas document; linked fingerprint/IP telemetry cleanup is tracked as a long-term debt item."
+  ],
+  "datasets": [
+    {
+      "id": "user-fingerprints",
+      "collection": "user_datas",
+      "fields": ["fingerprints.id", "fingerprints.ts", "fingerprints.ua", "fingerprints.ip", "fingerprints.deviceInfo", "lastLoginIp", "lastLoginAt", "requireFingerprint", "requireFingerprintAt", "fingerprintRequestDismissedOnce", "fingerprintRequestDismissedAt"],
+      "purpose": "Account risk control, fingerprint request UX, and abnormal login review",
+      "legalBasis": "security_and_service_integrity",
+      "retention": {
+        "type": "account_lifetime",
+        "description": "Stored with the account until the account is deleted or an admin clears fingerprints"
+      },
+      "delete": {
+        "onUserDelete": "delete_document",
+        "manual": "admin fingerprint manager / user delete",
+        "gap": "Does not cascade into anonymous TTS or temporary fingerprint collections"
+      },
+      "export": {
+        "supported": true,
+        "surface": "admin user export / profile admin views",
+        "includes": ["fingerprint ids", "timestamps", "last login IP"]
+      },
+      "evidence": ["src/services/userService.ts"]
+    },
+    {
+      "id": "temp-fingerprints",
+      "collection": "tempfingerprints",
+      "fields": ["fingerprint", "ipAddress", "verified", "expiresAt"],
+      "purpose": "First-visit and anonymous access verification",
+      "legalBasis": "security_and_abuse_prevention",
+      "retention": {
+        "type": "ttl",
+        "ttlField": "expiresAt",
+        "expireAfterSeconds": 0,
+        "typicalLifetime": "5m-24h",
+        "description": "Documents set expiresAt and are removed by Mongo TTL"
+      },
+      "delete": {
+        "onUserDelete": "not_linked",
+        "automatic": "Mongo TTL + cleanupExpiredFingerprints()",
+        "manual": "admin cleanup-expired-fingerprints API"
+      },
+      "export": {
+        "supported": false,
+        "reason": "Ephemeral security signal; not part of user data export"
+      },
+      "evidence": ["src/models/tempFingerprintModel.ts", "src/services/turnstile/fingerprint.ts"]
+    },
+    {
+      "id": "access-tokens",
+      "collection": "accesstokens",
+      "fields": ["token", "fingerprint", "ipAddress", "expiresAt"],
+      "purpose": "Short-lived access binding for verification flows",
+      "legalBasis": "security_and_abuse_prevention",
+      "retention": {
+        "type": "ttl",
+        "ttlField": "expiresAt",
+        "expireAfterSeconds": 0,
+        "typicalLifetime": "minutes",
+        "description": "TTL index deletes expired tokens"
+      },
+      "delete": {
+        "onUserDelete": "not_linked",
+        "automatic": "Mongo TTL"
+      },
+      "export": {
+        "supported": false,
+        "reason": "Security credential material"
+      },
+      "evidence": ["src/models/accessTokenModel.ts"]
+    },
+    {
+      "id": "ip-verification-tokens",
+      "collection": "ip_verification_tokens",
+      "fields": ["token", "fingerprint", "ipAddress", "issuedBy", "challengePassed", "fraudScore", "riskFlags", "expiresAt"],
+      "purpose": "IP challenge state for Turnstile/hCaptcha flows",
+      "legalBasis": "security_and_abuse_prevention",
+      "retention": {
+        "type": "ttl",
+        "ttlField": "expiresAt",
+        "expireAfterSeconds": 0,
+        "typicalLifetime": "minutes-hours"
+      },
+      "delete": {
+        "onUserDelete": "not_linked",
+        "automatic": "Mongo TTL"
+      },
+      "export": {
+        "supported": false
+      },
+      "evidence": ["src/models/ipVerificationTokenModel.ts"]
+    },
+    {
+      "id": "ip-bans",
+      "collection": "ipbans",
+      "fields": ["ipAddress", "reason", "violationCount", "bannedAt", "expiresAt", "fingerprint", "userAgent"],
+      "purpose": "Abuse enforcement and rate-limit escalation",
+      "legalBasis": "security_and_abuse_prevention",
+      "retention": {
+        "type": "ttl",
+        "ttlField": "expiresAt",
+        "expireAfterSeconds": 0,
+        "typicalLifetime": "ban duration"
+      },
+      "delete": {
+        "onUserDelete": "retain_until_expiry",
+        "reason": "Security enforcement may outlive an individual account",
+        "automatic": "Mongo TTL",
+        "manual": "admin IP ban manager"
+      },
+      "export": {
+        "supported": false,
+        "reason": "Security enforcement records"
+      },
+      "evidence": ["src/models/ipBanModel.ts"]
+    },
+    {
+      "id": "policy-consents",
+      "collection": "policy_consents",
+      "fields": ["fingerprint", "ipAddress", "userAgent", "version", "checksum", "expiresAt"],
+      "purpose": "Proof of privacy-policy acceptance for gated features such as anonymous TTS",
+      "legalBasis": "consent_record",
+      "retention": {
+        "type": "ttl",
+        "ttlField": "expiresAt",
+        "expireAfterSeconds": 0,
+        "typicalLifetime": "POLICY_CONSENT_VALIDITY_DAYS (default 30d)"
+      },
+      "delete": {
+        "onUserDelete": "not_linked",
+        "userAction": "POST /api/policy/revoke",
+        "automatic": "Mongo TTL + cleanExpiredConsents()"
+      },
+      "export": {
+        "supported": "partial",
+        "surface": "policy check/admin stats",
+        "includes": ["version", "expiresAt", "consent id"]
+      },
+      "evidence": ["src/models/policyConsentModel.ts", "src/services/policyConsentService.ts"]
+    },
+    {
+      "id": "tts-jobs",
+      "collection": "tts_jobs",
+      "fields": ["taskId", "userId", "ip", "fingerprint", "request", "result", "status", "createdAt"],
+      "purpose": "Job ownership, abuse detection, queue recovery, and result delivery",
+      "legalBasis": "service_delivery_and_security",
+      "retention": {
+        "type": "operational",
+        "description": "No TTL today; retained for queue recovery and support. Long-term deletion job is outstanding debt."
+      },
+      "delete": {
+        "onUserDelete": "gap",
+        "current": "userId remains on historical jobs; account document is removed separately",
+        "target": "delete or de-identify jobs for deleted users"
+      },
+      "export": {
+        "supported": "partial",
+        "surface": "authenticated job status/history APIs",
+        "includes": ["task metadata", "status", "result URLs when owned"]
+      },
+      "evidence": ["src/tts/tts.storage.ts"]
+    },
+    {
+      "id": "audit-logs",
+      "collection": "audit_logs",
+      "fields": ["userId", "username", "role", "action", "module", "ip", "userAgent", "path", "method", "detail", "createdAt"],
+      "purpose": "Security and admin accountability",
+      "legalBasis": "security_logging",
+      "retention": {
+        "type": "ttl",
+        "ttlField": "createdAt",
+        "expireAfterSeconds": 7776000,
+        "typicalLifetime": "90d"
+      },
+      "delete": {
+        "onUserDelete": "retain_until_ttl",
+        "reason": "Audit integrity may require short retention after account removal",
+        "automatic": "Mongo TTL"
+      },
+      "export": {
+        "supported": true,
+        "surface": "admin audit log APIs",
+        "includes": ["action metadata", "IP", "operator identity"]
+      },
+      "evidence": ["src/models/auditLogModel.ts", "src/services/auditLogService.ts"]
+    },
+    {
+      "id": "data-collections",
+      "collection": "data_collections",
+      "fields": ["userId", "action", "timestamp", "details", "riskScore", "riskLevel", "analysis", "hash"],
+      "purpose": "Behavioral risk scoring and abuse analytics",
+      "legalBasis": "security_and_product_analytics",
+      "retention": {
+        "type": "optional_ttl",
+        "env": "DATA_COLLECTION_TTL_DAYS",
+        "description": "TTL is optional and disabled unless DATA_COLLECTION_TTL_DAYS is set"
+      },
+      "delete": {
+        "onUserDelete": "gap",
+        "current": "no automatic cascade",
+        "target": "delete or anonymize rows for deleted userId"
+      },
+      "export": {
+        "supported": true,
+        "surface": "analytics export API",
+        "includes": ["action summaries", "optional raw records"]
+      },
+      "evidence": ["src/services/dataCollectionService.ts", "src/services/usageAnalyticsService.ts"]
+    },
+    {
+      "id": "device-tracking",
+      "collection": "devicetrackings",
+      "fields": ["userId", "deviceFingerprint", "riskScore", "riskLevel", "ipAddress", "userAgent", "firstSeen", "lastSeen"],
+      "purpose": "Mobile/device integrity signals for NexAI and related clients",
+      "legalBasis": "security_and_abuse_prevention",
+      "retention": {
+        "type": "account_linked",
+        "description": "No TTL today; intended lifetime is account lifetime plus short security hold"
+      },
+      "delete": {
+        "onUserDelete": "gap",
+        "target": "delete by userId when account is deleted"
+      },
+      "export": {
+        "supported": false,
+        "reason": "Security telemetry; export only via admin investigation tooling"
+      },
+      "evidence": ["src/models/deviceTrackingModel.ts"]
+    },
+    {
+      "id": "ipqs-lookup-logs",
+      "collection": "ipqs_lookup_logs",
+      "fields": ["ipAddress", "fingerprint", "userAgent", "decision", "fraudScore", "rawResponse", "createdAt"],
+      "purpose": "Third-party IP reputation decision audit",
+      "legalBasis": "security_and_abuse_prevention",
+      "retention": {
+        "type": "operational",
+        "description": "No TTL today; should be capped (recommended 30-90d) in a follow-up cleanup job"
+      },
+      "delete": {
+        "onUserDelete": "not_linked",
+        "automatic": "future retention job",
+        "manual": "admin ops"
+      },
+      "export": {
+        "supported": false,
+        "reason": "May contain third-party raw responses and should not be user-exported"
+      },
+      "evidence": ["src/models/ipqsLookupLogModel.ts"]
+    },
+    {
+      "id": "browser-local-fingerprint-cache",
+      "collection": "browser.localStorage",
+      "fields": ["hapx_fingerprint_v2", "hapx_fp_rand", "lastFingerprintReport"],
+      "purpose": "Client-side fingerprint cache and report debounce",
+      "legalBasis": "security_and_service_integrity",
+      "retention": {
+        "type": "client_ttl",
+        "typicalLifetime": "30d cache + local storage until cleared"
+      },
+      "delete": {
+        "onUserDelete": "client_only",
+        "userAction": "clear site data / logout does not currently wipe fingerprint cache"
+      },
+      "export": {
+        "supported": false
+      },
+      "evidence": ["frontend/src/utils/fingerprint.ts"]
+    }
+  ]
+}

@@ -1,6 +1,8 @@
 import type { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { config } from "../config/config";
+import { asAuthenticatedRequest, hasApiCredential } from "../types/authRequest";
+import { getTokenFromRequest } from "../utils/authCookie";
 import logger from "../utils/logger";
 import { type User, UserStorage } from "../utils/userStorage";
 import { TtsRequestError } from "./tts.errors";
@@ -32,9 +34,11 @@ export class TtsController {
   }
 
   private static async resolveCurrentUser(req: Request): Promise<User | null> {
-    const apiCredentialUser = ((req as any).apiKey || (req as any).oauthToken) && (req as any).user;
-    if (apiCredentialUser?.id) {
-      const user = await UserStorage.getUserById(apiCredentialUser.id);
+    const authReq = asAuthenticatedRequest(req);
+
+    // Prefer typed auth context / credential markers injected by middleware.
+    if (hasApiCredential(authReq) && authReq.user?.id) {
+      const user = await UserStorage.getUserById(authReq.user.id);
       if (!user) {
         throw new TtsRequestError(401, "API 凭据所属用户不存在", "TTS_API_CREDENTIAL_USER_NOT_FOUND");
       }
@@ -44,14 +48,18 @@ export class TtsController {
       return user;
     }
 
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith("Bearer ")) {
-      return null;
+    // Session JWT already resolved by authenticateToken / optional auth middleware.
+    if (authReq.auth?.kind === "session" && authReq.auth.user) {
+      return authReq.auth.user;
+    }
+    if (authReq.user?.id && !authReq.apiKey && !authReq.oauthToken) {
+      return authReq.user;
     }
 
-    const token = authHeader.slice("Bearer ".length).trim();
+    // Cookie-only and Bearer session tokens share getTokenFromRequest.
+    const token = getTokenFromRequest(req);
     if (!token) {
-      throw new TtsRequestError(401, "登录状态已失效，请重新登录", "TTS_AUTH_MISSING");
+      return null;
     }
 
     let decoded: jwt.JwtPayload | string;
@@ -244,11 +252,11 @@ export class TtsController {
         ip,
         currentUser,
         taskId,
-        requestId: (req as any).requestId,
+        requestId: asAuthenticatedRequest(req).requestId,
         userAgent: req.headers["user-agent"],
         path: req.originalUrl || req.path,
         method: req.method,
-        authenticatedByApiKey: Boolean((req as any).apiKey || (req as any).oauthToken),
+        authenticatedByApiKey: hasApiCredential(asAuthenticatedRequest(req)),
       });
 
       const createdAt = new Date().toISOString();
@@ -610,7 +618,7 @@ export class TtsController {
       }
 
       const reviewStatus = parsedReviewStatus && parsedReviewStatus !== "all" ? parsedReviewStatus : undefined;
-      const admin = (req as any).user;
+      const admin = asAuthenticatedRequest(req).user;
       const record = await generationHistoryStore.updateAdminReview(recordId, {
         adminNote: req.body?.adminNote,
         adminSuggestion: req.body?.adminSuggestion,

@@ -37,6 +37,12 @@ import {
 } from "../routes";
 import { legacyApiRedirectMiddleware } from "../routes/legacyApiRedirect";
 import { sendFaviconIfExists } from "../routes/siteMetadataRoutes";
+import {
+  applyCspNonceToHtml,
+  buildHelmetCspDirectives,
+  ensureCspNonce,
+  resolveCspSurface,
+} from "../security/contentSecurityPolicy";
 import { registerSecurityPipeline } from "../security/securityPipeline";
 import { readOpenapiJsonSync, shouldServeSwaggerFromJsonUrl } from "../services/openapiDocumentService";
 import logger from "../utils/logger";
@@ -169,7 +175,8 @@ const applyStaticCacheHeaders = (res: Response, filePath: string): void => {
   res.set("Cache-Control", "public, max-age=3600");
 };
 
-const getFrontendFallbackHtml = (expected: string) => `<!doctype html>
+const getFrontendFallbackHtml = (expected: string, nonce?: string) => {
+  const html = `<!doctype html>
 <html lang="zh-CN">
   <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Synapse API</title>
     <style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;padding:40px;line-height:1.6}.card{max-width:680px;margin:0 auto;border:1px solid #e5e7eb;border-radius:12px;padding:24px;box-shadow:0 4px 14px rgba(0,0,0,.08)}h1{margin:0 0 12px;font-size:24px}a{color:#3b82f6;text-decoration:none}code{background:#f3f4f6;padding:2px 6px;border-radius:6px}</style>
@@ -179,6 +186,8 @@ const getFrontendFallbackHtml = (expected: string) => `<!doctype html>
     <p>如果需要启用前端，请设置环境变量 <code>FRONTEND_DIST_DIR</code> 或将构建产物放到以下任一路径：<br/><small>${expected}</small></p>
   </div></body>
 </html>`;
+  return nonce ? applyCspNonceToHtml(html, nonce) : html;
+};
 
 function parseTrustProxySetting(): boolean | number | string | string[] {
   const raw = process.env.TRUST_PROXY?.trim();
@@ -256,128 +265,19 @@ export function registerSecurityMiddleware(app: Express): void {
   }
 
   app.use(globalCors);
+  // CSP is nonce-based in production-compatible mode:
+  // - no script unsafe-eval / unsafe-inline
+  // - style elements require nonce; style attributes keep unsafe-inline for React/Swagger
+  app.use((req, res, next) => {
+    res.locals.cspSurface = resolveCspSurface(req.path);
+    ensureCspNonce(res);
+    next();
+  });
   app.use(
     helmet({
       contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          styleSrc: [
-            "'self'",
-            "'unsafe-inline'",
-            "https://fonts.googleapis.com",
-            "https://accounts.google.com",
-            "https://www.gstatic.com",
-            "https://*.chloemlla.com",
-            "https://challenges.cloudflare.com",
-            "https://*.cloudflare.com",
-            "https://js.hcaptcha.com",
-            "https://*.hcaptcha.com",
-          ],
-          styleSrcElem: [
-            "'self'",
-            "'unsafe-inline'",
-            "https://fonts.googleapis.com",
-            "https://accounts.google.com",
-            "https://www.gstatic.com",
-            "https://*.chloemlla.com",
-            "https://challenges.cloudflare.com",
-            "https://*.cloudflare.com",
-            "https://js.hcaptcha.com",
-            "https://*.hcaptcha.com",
-          ],
-          // Frontend bundles may inline woff2 as data URLs, so the static mount CSP must allow data: fonts.
-          fontSrc: ["'self'", "data:", "https://fonts.gstatic.com", "https://fonts.googleapis.com"],
-          imgSrc: ["'self'", "data:", "blob:", "https:"],
-          scriptSrc: [
-            "'self'",
-            "'unsafe-inline'",
-            "'unsafe-eval'",
-            "https://accounts.google.com",
-            "https://www.gstatic.com",
-            "https://*.chloemlla.com",
-            "https://challenges.cloudflare.com",
-            "https://*.cloudflare.com",
-            "https://js.hcaptcha.com",
-            "https://*.hcaptcha.com",
-            "https://www.googletagmanager.com",
-            "https://www.google-analytics.com",
-            "https://analytics.google.com",
-            "https://www.clarity.ms",
-            "https://*.clarity.ms",
-          ],
-          scriptSrcElem: [
-            "'self'",
-            "'unsafe-inline'",
-            "https://accounts.google.com",
-            "https://www.gstatic.com",
-            "https://*.chloemlla.com",
-            "https://www.clarity.ms",
-            "https://*.clarity.ms",
-            "https://www.googletagmanager.com",
-            "https://www.google-analytics.com",
-            "https://analytics.google.com",
-            "https://challenges.cloudflare.com",
-            "https://*.cloudflare.com",
-            "https://js.hcaptcha.com",
-            "https://*.hcaptcha.com",
-          ],
-          connectSrc: [
-            "'self'",
-            "https://accounts.google.com",
-            "https://www.googleapis.com",
-            "https://oauth2.googleapis.com",
-            "https://api.openai.com",
-            "wss://*.chloemlla.com",
-            "https://*.chloemlla.com",
-            ...(process.env.NODE_ENV !== "production"
-              ? [
-                  "http://localhost:3000",
-                  "http://localhost:3001",
-                  "http://localhost:6000",
-                  "http://localhost:6001",
-                  "ws://localhost:3000",
-                  "http://127.0.0.1:3001",
-                  "http://127.0.0.1:6000",
-                  "http://127.0.0.1:6001",
-                  "ws://127.0.0.1:3000",
-                  "http://192.168.10.7:3001",
-                  "http://192.168.10.7:3000",
-                  "http://192.168.10.7:6000",
-                  "http://192.168.10.7:6001",
-                  "ws://192.168.10.7:3000",
-                ]
-              : []),
-            "https://api.hcaptcha.com",
-            "https://*.hcaptcha.com",
-            "https://challenges.cloudflare.com",
-            "https://*.cloudflare.com",
-            "https://www.google-analytics.com",
-            "https://analytics.google.com",
-            "https://www.google.com",
-            "https://www.clarity.ms",
-            "https://*.clarity.ms",
-          ],
-          frameSrc: [
-            "'self'",
-            "https://accounts.google.com",
-            "https://*.chloemlla.com",
-            "https://challenges.cloudflare.com",
-            "https://*.cloudflare.com",
-            "https://js.hcaptcha.com",
-            "https://*.hcaptcha.com",
-          ],
-          childSrc: [
-            "'self'",
-            "https://accounts.google.com",
-            "https://*.chloemlla.com",
-            "https://challenges.cloudflare.com",
-            "https://*.cloudflare.com",
-            "https://js.hcaptcha.com",
-            "https://*.hcaptcha.com",
-          ],
-          objectSrc: ["'none'"],
-          upgradeInsecureRequests: [],
-        },
+        useDefaults: false,
+        directives: buildHelmetCspDirectives(),
       },
       hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
       noSniff: true,
@@ -446,21 +346,39 @@ export function registerStaticRoutes(app: Express): void {
   app.get("/api-docs/favicon-32x32.png", sendFaviconIfExists);
   app.get("/api-docs/favicon-16x16.png", sendFaviconIfExists);
 
-  app.use(
-    "/api-docs",
-    applyNoCacheHeaders,
-    swaggerUi.serve,
-    preferSwaggerUrl
-      ? swaggerUi.setup(undefined, {
-          swaggerUrl: "/api/openapi.json",
-          customSiteTitle: "Synapse API",
-          customCss: swaggerCustomCss,
-        })
-      : swaggerUi.setup(swaggerUiSpec, {
-          customSiteTitle: "Synapse API",
-          customCss: swaggerCustomCss,
-        }),
-  );
+  // Serve Swagger assets via swagger-ui-express, but render HTML ourselves so
+  // per-request CSP nonces can be injected into inline <style>/<script> tags.
+  const swaggerSetupOptions = preferSwaggerUrl
+    ? {
+        swaggerUrl: "/api/openapi.json",
+        customSiteTitle: "Synapse API",
+        customCss: swaggerCustomCss,
+      }
+    : {
+        customSiteTitle: "Synapse API",
+        customCss: swaggerCustomCss,
+      };
+  const swaggerDocForHtml = preferSwaggerUrl ? undefined : swaggerUiSpec;
+  // generateHTML also seeds swagger-ui-init.js content used by swaggerUi.serve.
+  const generateSwaggerHtml = (
+    swaggerUi as typeof swaggerUi & {
+      generateHTML: (doc: unknown, opts?: Record<string, unknown>) => string;
+    }
+  ).generateHTML;
+  generateSwaggerHtml(swaggerDocForHtml, swaggerSetupOptions);
+
+  const sendSwaggerHtml = (_req: Request, res: Response) => {
+    const nonce = ensureCspNonce(res);
+    const html = generateSwaggerHtml(swaggerDocForHtml, swaggerSetupOptions);
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.set("Content-Type", "text/html; charset=utf-8");
+    res.status(200).send(applyCspNonceToHtml(html, nonce));
+  };
+
+  app.use("/api-docs", applyNoCacheHeaders, swaggerUi.serve);
+  app.get("/api-docs", sendSwaggerHtml);
+  app.get("/api-docs/", sendSwaggerHtml);
+  app.get("/api-docs/index.html", sendSwaggerHtml);
 
   ensureAudioDir();
   if (process.env.TTS_PUBLIC_STATIC_AUDIO_ENABLED === "true") {
@@ -499,8 +417,22 @@ export function registerStaticRoutes(app: Express): void {
     app.use(staticFileLimiter, express.static(resolvedFrontendPath, { index: false, ...frontendStaticOptions }));
     app.use("/static", staticFileLimiter, express.static(resolvedFrontendPath, frontendStaticOptions));
     const sendIndexHtml = (_req: Request, res: Response) => {
+      const nonce = ensureCspNonce(res);
+      const indexPath = join(resolvedFrontendPath, "index.html");
+      let html: string;
+      try {
+        html = fs.readFileSync(indexPath, "utf8");
+      } catch (error) {
+        logger.error("[Frontend] Failed to read index.html", {
+          path: indexPath,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        res.status(500).type("text/plain").send("Frontend shell unavailable");
+        return;
+      }
       res.set("Cache-Control", "no-cache, must-revalidate");
-      res.sendFile(join(resolvedFrontendPath, "index.html"));
+      res.set("Content-Type", "text/html; charset=utf-8");
+      res.status(200).send(applyCspNonceToHtml(html, nonce));
     };
     app.get("/", rootLimiter, sendIndexHtml);
     app.get(/^\/(?!\.well-known(?:\/|$)|api|api-docs|docs(?:\/|$)|static|assets(?:\/|$)|openapi)(.*)/, frontendLimiter, sendIndexHtml);
@@ -509,9 +441,9 @@ export function registerStaticRoutes(app: Express): void {
 
   const expected = frontendCandidates.join(" | ");
   logger.warn(`[Frontend] 在任何候选路径中均未找到前端文件。已尝试：${expected}`);
-  app.get("/index.html", (_req, res) => {
+  app.get("/index.html", (req, res) => {
     res.setHeader("Content-Type", "text/html; charset=utf-8");
-    res.status(200).send(getFrontendFallbackHtml(expected));
+    res.status(200).send(getFrontendFallbackHtml(expected, ensureCspNonce(res)));
   });
 }
 

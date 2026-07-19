@@ -1,0 +1,76 @@
+name: Code Quality (fuck-u-code)
+
+on:
+  push:
+    branches: [main, "**"]
+    paths-ignore:
+      - .github/workflows/**
+      - "!.github/workflows/fuck-u-code.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze with fuck-u-code
+    runs-on: ubuntu-latest
+    # Optional static quality report; do not block PR verification.
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: "1.23.x"
+
+      - name: Install fuck-u-code
+        id: install
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          # Clone source and discover main package; published module paths are unstable across tags.
+          tmpdir="$(mktemp -d)"
+          git clone --depth 1 --branch v2.2.1 https://github.com/Done-0/fuck-u-code.git "$tmpdir/fuck-u-code"
+          cd "$tmpdir/fuck-u-code"
+          if [ -f go.mod ]; then
+            go build -o "$HOME/go/bin/fuck-u-code" ./...
+          else
+            # Some tags ship without go.mod; init a local module for analysis binary build.
+            go mod init github.com/Done-0/fuck-u-code
+            go get ./...
+            go build -o "$HOME/go/bin/fuck-u-code" .
+          fi
+          echo "$HOME/go/bin" >> "$GITHUB_PATH"
+          command -v fuck-u-code
+
+      - name: Run analysis (Markdown)
+        if: steps.install.outcome == 'success'
+        shell: bash
+        run: |
+          set -e
+          fuck-u-code analyze             --markdown             --top 1000             --issues 1000             --lang zh-CN             --exclude "**/node_modules/**"             --exclude "**/dist/**"             --exclude "**/build/**"             --exclude "**/.next/**"             --exclude "**/coverage/**"             > code-quality-report.md
+          echo "### fuck-u-code 代码质量报告 (节选)" >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+          head -n 300 code-quality-report.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload report artifact
+        if: steps.install.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: code-quality-report
+          path: code-quality-report.md
+          if-no-files-found: warn
+
+      - name: Soft-skip when tool unavailable
+        if: steps.install.outcome != 'success'
+        run: |
+          echo "fuck-u-code install failed; skipping optional quality report." >> "$GITHUB_STEP_SUMMARY"

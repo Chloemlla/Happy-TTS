@@ -1,8 +1,11 @@
-name: Auto Merge After TSC
+name: Auto Merge After Required Checks
 
 on:
   workflow_run:
-    workflows: ["TypeScript Compilation Check"]
+    workflows:
+      - "Node and Rust Verification"
+      - "Docker"
+      - "CodeQL"
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -10,12 +13,17 @@ on:
         description: "Pull request number to merge after manual verification"
         required: true
         type: number
+      head_sha:
+        description: "Exact 40-character PR head SHA that was reviewed and checked"
+        required: true
+        type: string
 
 permissions:
   contents: write
   pull-requests: write
   actions: read
   checks: read
+  statuses: read
 
 jobs:
   merge:
@@ -24,69 +32,20 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'pull_request')
-
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+      checks: read
+      statuses: read
     steps:
-      - name: Merge PR after TypeScript check passes
-        uses: actions/github-script@v7
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Validate head SHA, required checks, and approvals before merge
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           github-token: ${{ github.token }}
           script: |
-            const { owner, repo } = context.repo;
-
-            const getPrNumbers = () => {
-              if (context.eventName === 'workflow_dispatch') {
-                return [Number(context.payload.inputs.pr_number)];
-              }
-
-              const prs = context.payload.workflow_run?.pull_requests || [];
-              return prs.map((pr) => pr.number).filter(Boolean);
-            };
-
-            const prNumbers = [...new Set(getPrNumbers())];
-            if (prNumbers.length === 0) {
-              core.info('No pull request is associated with this TypeScript workflow run.');
-              return;
-            }
-
-            for (const pull_number of prNumbers) {
-              const { data: pr } = await github.rest.pulls.get({
-                owner,
-                repo,
-                pull_number,
-              });
-
-              if (pr.state !== 'open') {
-                core.info(`PR #${pull_number} is ${pr.state}; skipping.`);
-                continue;
-              }
-
-              if (pr.draft) {
-                core.info(`PR #${pull_number} is a draft; skipping.`);
-                continue;
-              }
-
-              const workflowUrl = context.payload.workflow_run?.html_url;
-              core.info(`Merging PR #${pull_number} after successful TypeScript Compilation Check${workflowUrl ? `: ${workflowUrl}` : ''}`);
-
-              try {
-                await github.rest.pulls.merge({
-                  owner,
-                  repo,
-                  pull_number,
-                  merge_method: 'squash',
-                  commit_title: `${pr.title} (#${pull_number})`,
-                  commit_message: 'Merged automatically after TypeScript Compilation Check passed.',
-                });
-
-                await github.rest.issues.createComment({
-                  owner,
-                  repo,
-                  issue_number: pull_number,
-                  body: 'TypeScript Compilation Check passed, so this PR was merged automatically.',
-                });
-
-                core.info(`Merged PR #${pull_number}.`);
-              } catch (error) {
-                core.setFailed(`Failed to merge PR #${pull_number}: ${error.message}`);
-              }
-            }
+            const script = require('./scripts/auto-merge.js');
+            await script({ github, context, core });

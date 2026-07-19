@@ -23,21 +23,25 @@ export interface ErrorBoundaryState {
   errorInfo?: React.ErrorInfo;
 }
 
-// 安全配置
+// 安全配置（实际 CSP 由后端 helmet + contentSecurityPolicy 下发；此处仅作前端参考）
 export const SECURITY_CONFIG = {
   MAX_CONTENT_LENGTH: 10000, // 10KB
   MAX_LOCALSTORAGE_SIZE: 1024 * 1024, // 1MB
   ALLOWED_ORIGINS: ['same-origin'],
   CSRF_TOKEN_HEADER: 'X-CSRF-Token',
+  // Mirrors backend intent: no unsafe-eval; scripts use nonces; style attrs may be unsafe-inline.
   CONTENT_SECURITY_POLICY: {
     'default-src': ["'self'"],
-    'script-src': ["'self'", "'unsafe-inline'"],
-    'style-src': ["'self'", "'unsafe-inline'"],
+    'script-src': ["'self'", "'nonce-backend'"],
+    'script-src-attr': ["'none'"],
+    'style-src': ["'self'", "'nonce-backend'"],
+    'style-src-attr': ["'unsafe-inline'"],
     'img-src': ["'self'", 'data:', 'https:'],
     'connect-src': ["'self'"],
-    'font-src': ["'self'"],
+    'font-src': ["'self'", 'data:'],
     'object-src': ["'none'"],
-    'media-src': ["'self'"],
-    'frame-src': ["'none'"]
+    'media-src': ["'self'", 'blob:', 'data:'],
+    'frame-src': ["'self'"],
+    'frame-ancestors': ["'none'"],
   }
 } as const; 

@@ -13,6 +13,10 @@ import {
   type TtsRuntimeConfig,
 } from "../config/runtimeConfigDefaults";
 import { type RuntimeConfigKey, RuntimeConfigModel } from "../models/runtimeConfigModel";
+import {
+  assertStrongGenerationCode,
+  normalizeGenerationCode,
+} from "../utils/generationCodePolicy";
 import logger from "../utils/logger";
 import { normalizeScamalyticsUser, validateScamalyticsUser } from "../utils/scamalytics";
 import { mongoose } from "./mongoService";
@@ -321,9 +325,26 @@ function normalizeStoredNexaiConfig(value: unknown, defaults = runtimeConfigDefa
 
 function normalizeStoredTtsConfig(value: unknown, defaults = runtimeConfigDefaults.tts): TtsRuntimeConfig {
   const raw = asObject(value);
+  // Prefer stored value; fall back to env/runtime default. Strength is enforced on write
+  // (setTtsSetting) and env parse — weak legacy stored values are treated as unset so the
+  // shared-code gate stays closed rather than accepting a predictable code.
+  const candidate = normalizeGenerationCode(
+    typeof raw.generationCode === "string" && raw.generationCode.trim().length > 0
+      ? raw.generationCode
+      : defaults.generationCode,
+  );
+  let generationCode = "";
+  if (candidate) {
+    try {
+      generationCode = assertStrongGenerationCode(candidate, "generationCode");
+    } catch {
+      logger.warn("[RuntimeConfig] Ignoring weak TTS generation code from storage/defaults");
+      generationCode = "";
+    }
+  }
 
   return {
-    generationCode: normalizeString(raw.generationCode, defaults.generationCode, 256),
+    generationCode,
   };
 }
 
@@ -1053,11 +1074,13 @@ export class RuntimeConfigService {
     const currentDoc = await readRuntimeConfigDoc("TTS");
     const current = currentDoc ? normalizeStoredTtsConfig(currentDoc.value) : runtimeConfigCache.tts;
 
-    const generationCode =
+    const rawGenerationCode =
       typeof input.generationCode === "string" && input.generationCode.trim().length > 0
-        ? input.generationCode.trim().slice(0, 256)
+        ? input.generationCode
         : current.generationCode;
 
+    // Empty is not allowed on explicit set — admin must provide a high-entropy code.
+    const generationCode = assertStrongGenerationCode(rawGenerationCode, "生成码");
     if (!generationCode) {
       throw new Error("生成码不能为空");
     }

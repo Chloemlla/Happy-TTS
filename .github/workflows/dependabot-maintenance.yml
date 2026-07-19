@@ -17,7 +17,6 @@ on:
           - repair-lockfiles
           - rebase
           - recreate
-          - force-merge
 
 permissions:
   contents: write
@@ -30,17 +29,21 @@ jobs:
     name: Fix Security Alerts
     if: github.event_name == 'push' || inputs.action == 'fix-alerts' || inputs.action == 'repair-lockfiles'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      security-events: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "24"
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
         with:
           version: 11.11.0
 
@@ -50,19 +53,26 @@ jobs:
           npm --version
 
       - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # pin stable action + channel from rust-toolchain.toml
+        with:
+          toolchain: "1.89.0"
 
       - name: Run fix script
         if: inputs.action != 'repair-lockfiles'
         env:
-          GITHUB_TOKEN: ${{ secrets.USER_PAT }}
+          # USER_PAT is optional read-only access for Dependabot alerts only.
+          # Prefer a fine-grained PAT with Dependabot alerts:read and no write scopes.
+          # If unset, GITHUB_TOKEN is used (may lack Dependabot alerts access).
+          USER_PAT: ${{ secrets.USER_PAT }}
+          GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: node scripts/fix-dependabot-alerts.js
 
       - name: Repair lockfiles
         if: inputs.action == 'repair-lockfiles'
         env:
-          GITHUB_TOKEN: ${{ secrets.USER_PAT }}
+          USER_PAT: ${{ secrets.USER_PAT }}
+          GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: node scripts/fix-dependabot-alerts.js --repair
 
@@ -100,6 +110,10 @@ jobs:
     name: Manage Dependabot PRs
     if: github.event_name == 'workflow_dispatch' && inputs.action != 'fix-alerts' && inputs.action != 'repair-lockfiles'
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: write
+      contents: read
     steps:
       - name: Verify Node.js runtime
         run: |
@@ -121,10 +135,6 @@ jobs:
           const action = process.env.DEPENDABOT_ACTION;
           const [owner, repo] = repository.split('/');
           const summaryFile = process.env.GITHUB_STEP_SUMMARY;
-          const requiredChecks = new Set([
-            'Docker Build Verification',
-            'Docker Build Verification (pull_request)',
-          ]);
 
           function request(path, method = 'GET', body = null) {
             return new Promise((resolve, reject) => {
@@ -195,59 +205,11 @@ jobs:
             );
           }
 
-          async function forceMergePR(pr) {
-            const checks = await request(
-              `/repos/${owner}/${repo}/commits/${pr.head.sha}/check-runs`
-            );
-
-            const successfulCheck = (checks.check_runs || []).some((run) => {
-              return [...requiredChecks].some((required) => run.name === required || run.name.includes(required)) &&
-                run.status === 'completed' &&
-                run.conclusion === 'success';
-            });
-
-            if (!successfulCheck) {
-              return {
-                number: pr.number,
-                title: pr.title,
-                status: 'skipped',
-                reason: 'required Docker verification has not passed yet',
-              };
-            }
-
-            try {
-              await request('/graphql', 'POST', {
-                query: `
-                  mutation($id: ID!) {
-                    disablePullRequestAutoMerge(input: { pullRequestId: $id }) {
-                      clientMutationId
-                    }
-                  }
-                `,
-                variables: { id: pr.node_id },
-              });
-            } catch (error) {
-              console.log(`disablePullRequestAutoMerge skipped for #${pr.number}: ${error.message}`);
-            }
-
-            const mergeResult = await request(
-              `/repos/${owner}/${repo}/pulls/${pr.number}/merge`,
-              'PUT',
-              {
-                merge_method: 'squash',
-                commit_title: `${pr.title} (#${pr.number})`,
-              }
-            );
-
-            return {
-              number: pr.number,
-              title: pr.title,
-              status: mergeResult.merged ? 'merged' : 'failed',
-              reason: mergeResult.merged ? null : mergeResult.message,
-            };
-          }
-
           (async () => {
+            if (action !== 'rebase' && action !== 'recreate') {
+              throw new Error(`Unsupported action: ${action}. Direct merge from this workflow is intentionally disabled; use auto-merge after required checks and human approval.`);
+            }
+
             const prs = await listDependabotPRs();
             console.log(`Found ${prs.length} open Dependabot PR(s).`);
 
@@ -265,33 +227,16 @@ jobs:
             const results = [];
 
             for (const pr of prs) {
-              if (action === 'rebase' || action === 'recreate') {
-                const command = `@dependabot ${action}`;
-                await commentOnPR(pr, command);
-                console.log(`Commented "${command}" on PR #${pr.number}.`);
-                results.push({
-                  number: pr.number,
-                  title: pr.title,
-                  status: 'commented',
-                  reason: command,
-                });
-                continue;
-              }
-
-              if (action === 'force-merge') {
-                const result = await forceMergePR(pr);
-                console.log(`#${pr.number} ${result.status}${result.reason ? `: ${result.reason}` : ''}`);
-                results.push(result);
-                continue;
-              }
-
-              throw new Error(`Unsupported action: ${action}`);
+              const command = `@dependabot ${action}`;
+              await commentOnPR(pr, command);
+              console.log(`Commented "${command}" on PR #${pr.number}.`);
+              results.push({
+                number: pr.number,
+                title: pr.title,
+                status: 'commented',
+                reason: command,
+              });
             }
-
-            const grouped = results.reduce((acc, result) => {
-              acc[result.status] = (acc[result.status] || 0) + 1;
-              return acc;
-            }, {});
 
             appendSummary([
               '## Dependabot Maintenance',
@@ -299,10 +244,10 @@ jobs:
               `Action: \`${action}\``,
               '',
               `Processed PRs: ${results.length}`,
-              `Commented: ${grouped.commented || 0}`,
-              `Merged: ${grouped.merged || 0}`,
-              `Skipped: ${grouped.skipped || 0}`,
-              `Failed: ${grouped.failed || 0}`,
+              `Commented: ${results.length}`,
+              'Merged: 0',
+              'Skipped: 0',
+              'Failed: 0',
             ]);
           })().catch((error) => {
             console.error(error);
