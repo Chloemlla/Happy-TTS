@@ -26,7 +26,7 @@ describe("translationAccessMiddleware", () => {
     translationAccessMiddleware(req, res, next);
 
     expect(res.status).toHaveBeenCalledWith(403);
-    expect(res.json).toHaveBeenCalledWith({ error: "账户已被封停" });
+    expect(res.json).toHaveBeenCalledWith({ error: "账户已被封停", code: "ACCOUNT_SUSPENDED", supportEmail: "support@chloemlla.com" });
     expect(next).not.toHaveBeenCalled();
   });
 

@@ -1,103 +1,24 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="format-detection" content="email=no" />
-    <meta name="format-detection" content="date=no" />
-    <title>欢迎加入 Synapse</title>
-    <style>
-        .afal a {
-            color: #b0b0b0;
-            text-decoration: none;
-        }
-
-        @media screen and (min-width: 600px) {
-            .mdv2rw {
-                padding: 40px 40px;
-            }
-        }
-    </style>
-    <link href="//fonts.googleapis.com/css?family=Google+Sans" rel="stylesheet" type="text/css" />
-</head>
-
-<body style="margin: 0; padding: 0;" bgcolor="#FFFFFF">
-    <table width="100%" height="100%" style="min-width: 348px;" border="0" cellspacing="0" cellpadding="0">
-        <tr height="32" style="height: 32px;">
-            <td></td>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">
+  <tr>
+    <td style="padding:0 0 8px 0;">
+      <span style="display:inline-block;padding:6px 12px;background-color:#D3E3FD;border-radius:18px;font-size:14px;line-height:20px;font-weight:500;color:#041E49;">{{username}}</span>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:16px 0 0 0;">
+      <h1 style="margin:0;font-size:24px;line-height:32px;font-weight:500;color:#1F1F1F;">欢迎加入 Synapse</h1>
+    </td>
+  </tr>  <tr>
+    <td style="padding:16px 0 0 0;font-size:16px;line-height:24px;font-weight:400;color:#3C4043;">你的账号已创建完成。现在可以使用 Synapse 将文字转换为自然语音，并管理你的生成记录与配额。</td>
+  </tr>  <tr>
+    <td style="padding:24px 0 0 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:separate;background-color:#D3E3FD;border-radius:8px;">
+        <tr>
+          <td style="padding:14px 16px;font-size:14px;line-height:20px;color:#041E49;">建议你尽快在账号设置中开启两步验证或 Passkey，以更好地保护账号安全。</td>
         </tr>
-        <tr align="center">
-            <td>
-                <table border="0" cellspacing="0" cellpadding="0"
-                    style="padding-bottom: 20px; max-width: 516px; min-width: 220px;">
-                    <tr>
-                        <td width="8" style="width: 8px;"></td>
-                        <td>
-                            <div style="border-style: solid; border-width: thin; border-color: #dadce0; border-radius: 8px; padding: 40px 20px;"
-                                align="center" class="mdv2rw">
-                                <!-- Logo -->
-                                <img src="https://img.cdn1.vip/i/6a151e1365e9c_1779768851.webp" width="44" height="44" alt="Logo" style="display: inline-block; border-radius: 50%; margin-bottom: 16px;" />
-
-                                <!-- Title -->
-                                <div
-                                    style="font-family: 'Google Sans', Roboto, RobotoDraft, Helvetica, Arial, sans-serif; border-bottom: thin solid #dadce0; color: rgba(0,0,0,0.87); line-height: 32px; padding-bottom: 24px; text-align: center; word-break: break-word;">
-                                    <div style="font-size: 24px;">账号创建完成</div>
-                                    <table align="center" style="margin-top: 8px;">
-                                        <tr style="line-height: normal;">
-                                            <td>
-                                                <span
-                                                    style="font-family: 'Google Sans', Roboto, Arial, sans-serif; color: rgba(0,0,0,0.87); font-size: 14px; line-height: 20px;">尊敬的
-                                                    {{username}}：</span>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </div>
-
-                                <!-- Body -->
-                                <div
-                                    style="font-family: Roboto-Regular, Helvetica, Arial, sans-serif; font-size: 14px; color: rgba(0,0,0,0.87); line-height: 20px; padding-top: 20px; text-align: left;">
-                                    <p>我们很高兴地通知您，您的 Synapse 账号已成功创建。欢迎加入我们的电子文本转语音服务平台。</p>
-                                    <p style="margin-top: 12px; font-weight: 500;">您现在可以启用并体验以下服务：</p>
-                                    <ul style="padding-left: 20px; margin: 12px 0;">
-                                        <li style="margin-bottom: 8px;">访问个人中心以完善个人资料及安全设置</li>
-                                        <li style="margin-bottom: 8px;">体验由尖端 AI 驱动的多语种文本转语音功能</li>
-                                        <li style="margin-bottom: 8px;">集成 API 接口，将语音合成能力引入您的应用</li>
-                                        <li style="margin-bottom: 8px;">启用双重验证（TOTP）以进一步提升账号安全性</li>
-                                    </ul>
-
-                                    <div
-                                        style="padding-top: 12px; border-bottom: thin solid #dadce0; padding-bottom: 24px;">
-                                        <p style="color: #5f6368; font-size: 13px;">
-                                            请妥善保管您的登录凭据。如果您在使用过程中遇到任何疑问，欢迎通过站内渠道反馈。再次感谢您选择我们的服务。</p>
-                                    </div>
-                                </div>
-
-                                <!-- Footer inside card -->
-                                <div
-                                    style="padding-top: 20px; font-size: 12px; line-height: 16px; color: #5f6368; letter-spacing: 0.3px; text-align: center;">
-                                    本邮件由系统自动发出，请勿直接回复。
-                                </div>
-                            </div>
-
-                            <!-- Footer outside card -->
-                            <div style="text-align: left;">
-                                <div
-                                    style="font-family: Roboto-Regular, Helvetica, Arial, sans-serif; color: rgba(0,0,0,0.54); font-size: 11px; line-height: 18px; padding-top: 12px; text-align: center;">
-                                    <div>Synapse 团队 · 致力于让文字拥有声音的力量</div>
-                                    <div style="direction: ltr;">&copy; 2026 Synapse</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td width="8" style="width: 8px;"></td>
-                    </tr>
-                </table>
-            </td>
-        </tr>
-        <tr height="32" style="height: 32px;">
-            <td></td>
-        </tr>
-    </table>
-</body>
-
-</html>
+      </table>
+    </td>
+  </tr>  <tr>
+    <td style="padding:16px 0 0 0;font-size:16px;line-height:24px;font-weight:400;color:#3C4043;">如果这不是你本人注册的账号，请联系支持并及时修改密码。</td>
+  </tr>
+</table>

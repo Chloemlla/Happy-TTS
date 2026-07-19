@@ -38,7 +38,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
       return res.status(403).json({ error: "无效的Token" });
     }
     if (user.accountStatus === "suspended") {
-      return res.status(403).json({ error: "账户已被封停" });
+      return res.status(403).json({ error: "账户已被封停", code: "ACCOUNT_SUSPENDED", supportEmail: "support@chloemlla.com" });
     }
     authedReq.user = user;
     authedReq.auth = { kind: "session", user };

@@ -1,8 +1,9 @@
 /**
  * 邮件模板模块
  *
- * 所有 HTML 邮件模板以独立 .html 文件形式存放在 src/templates/ 目录，
- * 使用 {{placeholder}} 风格的占位符。此模块负责加载模板文件并替换占位符。
+ * 内容模板存放在 src/templates/*.html，共享外壳为 email-layout.html。
+ * UI 规范对齐 Google Account 通知风格（#0B57D0 CTA、#F8FAFD 页面底、
+ * 白卡片 + #DADCE0 边框、冷静中文文案）。
  */
 
 import { readFileSync } from "node:fs";
@@ -54,6 +55,17 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
+
+/** Content fragment + shared Google-style shell. */
+function renderEmail(pageTitle: string, contentFile: string, variables: Record<string, string>): string {
+  const content = renderTemplate(loadTemplate(contentFile), variables);
+  return renderTemplate(loadTemplate("email-layout.html"), {
+    pageTitle,
+    content,
+  });
+}
+
+
 // ---------------------------------------------------------------------------
 // Public API – 每种邮件场景对应一个生成函数
 // ---------------------------------------------------------------------------
@@ -66,8 +78,10 @@ function escapeHtml(value: string): string {
  * - `{{code}}`     – 8 位数字验证码
  */
 export function generateVerificationCodeEmailHtml(username: string, code: string): string {
-  const tpl = loadTemplate("verification-code.html");
-  return renderTemplate(tpl, { username, code });
+  return renderEmail("Synapse 电子邮件确认码", "verification-code.html", {
+    username: escapeHtml(username),
+    code: escapeHtml(code),
+  });
 }
 
 /**
@@ -78,8 +92,10 @@ export function generateVerificationCodeEmailHtml(username: string, code: string
  * - `{{verificationLink}}` – 完整验证链接 URL
  */
 export function generateVerificationLinkEmailHtml(username: string, verificationLink: string): string {
-  const tpl = loadTemplate("verification-link.html");
-  return renderTemplate(tpl, { username, verificationLink });
+  return renderEmail("Synapse 电子邮件确认", "verification-link.html", {
+    username: escapeHtml(username),
+    verificationLink: escapeHtml(verificationLink),
+  });
 }
 
 /**
@@ -90,8 +106,10 @@ export function generateVerificationLinkEmailHtml(username: string, verification
  * - `{{resetLink}}` – 完整重置链接 URL
  */
 export function generatePasswordResetLinkEmailHtml(username: string, resetLink: string): string {
-  const tpl = loadTemplate("password-reset.html");
-  return renderTemplate(tpl, { username, resetLink });
+  return renderEmail("Synapse 账号密码重置", "password-reset.html", {
+    username: escapeHtml(username),
+    resetLink: escapeHtml(resetLink),
+  });
 }
 
 /**
@@ -101,8 +119,9 @@ export function generatePasswordResetLinkEmailHtml(username: string, resetLink: 
  * - `{{username}}` – 用户名
  */
 export function generateWelcomeEmailHtml(username: string): string {
-  const tpl = loadTemplate("welcome.html");
-  return renderTemplate(tpl, { username });
+  return renderEmail("欢迎加入 Synapse", "welcome.html", {
+    username: escapeHtml(username),
+  });
 }
 
 /**
@@ -118,8 +137,7 @@ export function generateProviderGeneratedPasswordEmailHtml(
   providerLabel: string,
   password: string,
 ): string {
-  const tpl = loadTemplate("provider-generated-password.html");
-  return renderTemplate(tpl, {
+  return renderEmail("Synapse 账号密码凭据", "provider-generated-password.html", {
     username: escapeHtml(username),
     providerLabel: escapeHtml(providerLabel),
     password: escapeHtml(password),
@@ -143,13 +161,14 @@ export function generatePasswordChangedEmailHtml(
   deviceName: string,
   fingerprint: string,
 ): string {
-  const tpl = loadTemplate("password-changed.html");
-  return renderTemplate(tpl, {
-    username,
-    changeTime,
-    ipAddress,
-    deviceName,
-    fingerprint: fingerprint.length > 16 ? `${fingerprint.substring(0, 16)}...` : fingerprint,
+  return renderEmail("Synapse 账号密码变更通知", "password-changed.html", {
+    username: escapeHtml(username),
+    changeTime: escapeHtml(changeTime),
+    ipAddress: escapeHtml(ipAddress),
+    deviceName: escapeHtml(deviceName),
+    fingerprint: escapeHtml(
+      fingerprint.length > 16 ? `${fingerprint.substring(0, 16)}...` : fingerprint,
+    ),
     adminNotice: "",
   });
 }
@@ -171,13 +190,14 @@ export function generatePasswordResetSuccessEmailHtml(
   deviceName: string,
   fingerprint: string,
 ): string {
-  const tpl = loadTemplate("password-reset-success.html");
-  return renderTemplate(tpl, {
-    username,
-    changeTime,
-    ipAddress,
-    deviceName,
-    fingerprint: fingerprint.length > 16 ? `${fingerprint.substring(0, 16)}...` : fingerprint,
+  return renderEmail("Synapse 账号密码重置成功通知", "password-reset-success.html", {
+    username: escapeHtml(username),
+    changeTime: escapeHtml(changeTime),
+    ipAddress: escapeHtml(ipAddress),
+    deviceName: escapeHtml(deviceName),
+    fingerprint: escapeHtml(
+      fingerprint.length > 16 ? `${fingerprint.substring(0, 16)}...` : fingerprint,
+    ),
     adminNotice: "",
   });
 }
@@ -232,64 +252,65 @@ export function generateAdminUserUpdatedEmailHtml(
   changes: Array<{ field: string; oldValue: string; newValue: string }>,
   newPassword?: string,
 ): string {
-  const tpl = loadTemplate("admin-user-updated.html");
-
-  // 构建变更明细表格
-  const changeRows = changes
-    .filter((c) => c.field !== "password") // 密码单独展示
+  const nonPasswordChanges = changes.filter((c) => c.field !== "password");
+  const changeRows = nonPasswordChanges
     .map((c, i) => {
-      const label = FIELD_LABELS[c.field] || c.field;
-      const oldValue = formatChangeValue(c.field, c.oldValue);
-      const newValue = formatChangeValue(c.field, c.newValue);
-      const bg = i % 2 === 0 ? ' style="background-color: #f8f9fa;"' : "";
-      return `<tr${bg}>
-                <td style="padding: 10px 16px; font-size: 13px; color: #5f6368; border-bottom: 1px solid #e8eaed; width: 100px;">${label}</td>
-                <td style="padding: 10px 16px; font-size: 13px; color: rgba(0,0,0,0.54); border-bottom: 1px solid #e8eaed; text-decoration: line-through;">${oldValue || "（空）"}</td>
-                <td style="padding: 10px 16px; font-size: 13px; color: rgba(0,0,0,0.87); border-bottom: 1px solid #e8eaed; font-weight: 600;">${newValue}</td>
-            </tr>`;
+      const label = escapeHtml(FIELD_LABELS[c.field] || c.field);
+      const oldValue = escapeHtml(formatChangeValue(c.field, c.oldValue) || "（空）");
+      const newValue = escapeHtml(formatChangeValue(c.field, c.newValue));
+      const border = i === nonPasswordChanges.length - 1 ? "" : "border-bottom:1px solid #DADCE0;";
+      return `<tr>
+        <td width="28%" style="padding:14px 16px;${border}font-size:14px;line-height:20px;color:#5F6368;vertical-align:top;">${label}</td>
+        <td style="padding:14px 16px;${border}font-size:14px;line-height:20px;color:#5F6368;text-decoration:line-through;vertical-align:top;word-break:break-word;">${oldValue}</td>
+        <td style="padding:14px 16px;${border}font-size:14px;line-height:20px;font-weight:500;color:#1F1F1F;vertical-align:top;word-break:break-word;">${newValue}</td>
+      </tr>`;
     })
     .join("\n");
 
   let changesTableHtml = "";
   if (changeRows) {
     changesTableHtml = `
-            <p style="font-size: 14px; color: rgba(0,0,0,0.87); margin-bottom: 8px;">以下信息已被修改：</p>
-            <table width="100%" cellspacing="0" cellpadding="0"
-                style="margin-bottom: 16px; border: 1px solid #e8eaed; border-radius: 8px; overflow: hidden;">
-                <tr style="background-color: #e8eaed;">
-                    <td style="padding: 8px 16px; font-size: 12px; color: #5f6368; border-bottom: 1px solid #e8eaed; font-weight: 600;">字段</td>
-                    <td style="padding: 8px 16px; font-size: 12px; color: #5f6368; border-bottom: 1px solid #e8eaed; font-weight: 600;">原值</td>
-                    <td style="padding: 8px 16px; font-size: 12px; color: #5f6368; border-bottom: 1px solid #e8eaed; font-weight: 600;">新值</td>
-                </tr>
-                ${changeRows}
-            </table>`;
+      <div style="font-size:14px;line-height:20px;color:#5F6368;margin:0 0 8px 0;">以下信息已被修改：</div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+        style="width:100%;border-collapse:separate;border:1px solid #DADCE0;border-radius:8px;overflow:hidden;">
+        <tr style="background-color:#F8FAFD;">
+          <td style="padding:10px 16px;font-size:12px;line-height:18px;font-weight:600;color:#5F6368;border-bottom:1px solid #DADCE0;">字段</td>
+          <td style="padding:10px 16px;font-size:12px;line-height:18px;font-weight:600;color:#5F6368;border-bottom:1px solid #DADCE0;">原值</td>
+          <td style="padding:10px 16px;font-size:12px;line-height:18px;font-weight:600;color:#5F6368;border-bottom:1px solid #DADCE0;">新值</td>
+        </tr>
+        ${changeRows}
+      </table>`;
   }
 
-  // 密码变更凭据块
   let credentialsBlockHtml = "";
   if (newPassword) {
     credentialsBlockHtml = `
-            <div style="margin-top: 12px; margin-bottom: 16px; padding: 16px; background-color: #fce8e6; border: 1px solid #d93025; border-radius: 8px;">
-                <p style="font-size: 14px; color: #d93025; margin: 0 0 12px 0; font-weight: 600;">🔑 您的密码已被重置，请使用以下新凭据登录：</p>
-                <table width="100%" cellspacing="0" cellpadding="0"
-                    style="border: 1px solid #e8eaed; border-radius: 6px; overflow: hidden;">
-                    <tr style="background-color: #f8f9fa;">
-                        <td style="padding: 10px 16px; font-size: 13px; color: #5f6368; border-bottom: 1px solid #e8eaed; width: 80px;">用户名</td>
-                        <td style="padding: 10px 16px; font-size: 13px; color: rgba(0,0,0,0.87); border-bottom: 1px solid #e8eaed; font-weight: 600;">${username}</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 10px 16px; font-size: 13px; color: #5f6368;">新密码</td>
-                        <td style="padding: 10px 16px; font-size: 14px; color: rgba(0,0,0,0.87); font-family: 'Courier New', monospace; font-weight: 700; letter-spacing: 1px;">${newPassword}</td>
-                    </tr>
-                </table>
-                <p style="font-size: 12px; color: #d93025; margin: 12px 0 0 0;">❗ 请在登录后立即修改密码，不要将此密码分享给任何人。</p>
-            </div>`;
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+        style="width:100%;margin-top:16px;border-collapse:separate;background-color:#FCE8E6;border-radius:8px;">
+        <tr>
+          <td style="padding:14px 16px;">
+            <div style="font-size:14px;line-height:20px;font-weight:600;color:#B3261E;margin:0 0 12px 0;">你的密码已被重置，请使用以下新凭据登录：</div>
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+              style="width:100%;border-collapse:separate;border:1px solid #DADCE0;border-radius:8px;overflow:hidden;background-color:#FFFFFF;">
+              <tr>
+                <td width="38%" style="padding:14px 16px;border-bottom:1px solid #DADCE0;font-size:14px;color:#5F6368;">用户名</td>
+                <td style="padding:14px 16px;border-bottom:1px solid #DADCE0;font-size:14px;font-weight:500;color:#1F1F1F;">${escapeHtml(username)}</td>
+              </tr>
+              <tr>
+                <td width="38%" style="padding:14px 16px;font-size:14px;color:#5F6368;">新密码</td>
+                <td style="padding:14px 16px;font-size:14px;font-weight:700;color:#1F1F1F;font-family:Consolas,'Courier New',monospace;letter-spacing:0.5px;word-break:break-all;">${escapeHtml(newPassword)}</td>
+              </tr>
+            </table>
+            <div style="font-size:13px;line-height:18px;color:#B3261E;margin:12px 0 0 0;">请在登录后立即修改密码，不要将此密码分享给任何人。</div>
+          </td>
+        </tr>
+      </table>`;
   }
 
-  return renderTemplate(tpl, {
-    username,
-    changeTime,
-    adminUsername,
+  return renderEmail("Synapse 账号信息变更通知", "admin-user-updated.html", {
+    username: escapeHtml(username),
+    changeTime: escapeHtml(changeTime),
+    adminUsername: escapeHtml(adminUsername),
     changesTable: changesTableHtml,
     credentialsBlock: credentialsBlockHtml,
   });
@@ -312,15 +333,13 @@ export function generateLoginIpChangedEmailHtml(
   loginTime: string,
   userAgent: string,
 ): string {
-  const tpl = loadTemplate("login-ip-changed.html");
-  // 截断过长的 User-Agent
   const shortUA = userAgent.length > 120 ? `${userAgent.substring(0, 120)}...` : userAgent;
-  return renderTemplate(tpl, {
-    username,
-    currentIp,
-    lastIp,
-    loginTime,
-    userAgent: shortUA,
+  return renderEmail("Synapse 异地登录提醒", "login-ip-changed.html", {
+    username: escapeHtml(username),
+    currentIp: escapeHtml(currentIp),
+    lastIp: escapeHtml(lastIp),
+    loginTime: escapeHtml(loginTime),
+    userAgent: escapeHtml(shortUA),
   });
 }
 
@@ -334,18 +353,17 @@ function generateSecurityNoticeHtml(
   time: string,
   ip: string,
   device: string,
-  warning: string = "如果您并未进行此操作，请立即修改密码并检查账号安全。",
+  warning: string = "如果这不是你本人进行的操作，请立即修改密码并检查账号安全设置。",
 ): string {
-  const tpl = loadTemplate("security-notice.html");
   const shortUA = device.length > 120 ? `${device.substring(0, 120)}...` : device;
-  return renderTemplate(tpl, {
-    username,
-    title,
+  return renderEmail(title, "security-notice.html", {
+    username: escapeHtml(username),
+    title: escapeHtml(title),
     description,
-    time,
-    ip,
-    device: shortUA,
-    warning,
+    time: escapeHtml(time),
+    ip: escapeHtml(ip),
+    device: escapeHtml(shortUA),
+    warning: escapeHtml(warning),
   });
 }
 

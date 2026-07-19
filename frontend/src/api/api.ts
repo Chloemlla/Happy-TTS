@@ -8,6 +8,7 @@ import {
 } from '../utils/ipVerification';
 import { canonicalizeBackendApiUrl } from '../utils/apiPath';
 import { getAuthToken as readAuthToken, clearAuthToken } from '../utils/authSession';
+import { maybeEmitPenaltyAppealFromError } from '../utils/penaltyAppeal';
 
 
 // 获取API基础URL：生产环境默认同源，开发环境保留后端直连能力
@@ -152,6 +153,10 @@ api.interceptors.response.use(
         } catch { }
 
         // 处理 401 错误（未授权）
+        if (error.response?.status === 403) {
+            maybeEmitPenaltyAppealFromError(error, 'api-interceptor');
+        }
+
         if (error.response?.status === 403 && error.response?.data?.errorCode === 'IP_VERIFICATION_REQUIRED') {
             const pathname = resolveRequestPathname(originalRequest);
             if (pathname && isExemptPath(pathname)) {

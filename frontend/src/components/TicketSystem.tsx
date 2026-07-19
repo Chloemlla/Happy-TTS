@@ -14,6 +14,7 @@ import {
 import MarkdownRenderer, { type MarkdownReaderControls } from './MarkdownRenderer';
 import { AiErrorDetailsPanel } from './AiErrorDetailsPanel';
 import { PenaltyAppealActions, SUPPORT_EMAIL } from './PenaltyAppealActions';
+import { emitPenaltyAppealRequired } from '../utils/penaltyAppeal';
 import { cn } from '../utils/cn';
 import {
   studioAccentBlobBlueClassName,
@@ -272,6 +273,15 @@ const TicketSystem: React.FC = () => {
           reason,
           details,
         });
+        emitPenaltyAppealRequired({
+          kind: isPermissionBan ? "ticket_permission_ban" : "ticket_moderation",
+          title,
+          reason,
+          details,
+          ticketChannelEnabled: !isPermissionBan,
+          supportEmail: SUPPORT_EMAIL,
+          source: "ticket-system",
+        });
         setNotification({
           type: 'error',
           title,
@@ -310,6 +320,15 @@ const TicketSystem: React.FC = () => {
           title,
           reason,
           details,
+        });
+        emitPenaltyAppealRequired({
+          kind: isPermissionBan ? "ticket_permission_ban" : "ticket_moderation",
+          title,
+          reason,
+          details,
+          ticketChannelEnabled: !isPermissionBan,
+          supportEmail: SUPPORT_EMAIL,
+          source: "ticket-system",
         });
         setNotification({
           type: 'error',

@@ -12,6 +12,7 @@ import {
     writeSavedAccounts,
     ACCOUNTS_KEY as ACCOUNTS_KEY_CONST,
 } from '../utils/authSession';
+import { maybeEmitPenaltyAppealFromError } from '../utils/penaltyAppeal';
 
 // 单设备多用户配置
 const ACCOUNTS_KEY = ACCOUNTS_KEY_CONST;
@@ -248,6 +249,7 @@ export const useAuth = () => {
             if (error.response?.status === 429) {
                 console.warn('认证检查被限流，将在60秒后重试');
             } else if (isAuthRejectionStatus(error.response?.status)) {
+                maybeEmitPenaltyAppealFromError(error, 'auth-check');
                 setUser(null);
                 clearAuthToken();
             } else {
@@ -336,6 +338,7 @@ export const useAuth = () => {
             return { requires2FA: false, user, token };
         } catch (error: any) {
             console.error('[login error]', error);
+            maybeEmitPenaltyAppealFromError(error, 'login');
             const errorData = error.response?.data || {};
             const msg = errorData.error || error.message || '登录失败，请检查网络或稍后重试';
             const authError = new Error(msg) as AuthRequestError;

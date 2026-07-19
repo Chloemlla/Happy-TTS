@@ -92,7 +92,7 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
       return res.status(403).json({ error: "账户已被禁用" });
     }
     if ((user as any).accountStatus === "suspended") {
-      return res.status(403).json({ error: "账户已被封停" });
+      return res.status(403).json({ error: "账户已被封停", code: "ACCOUNT_SUSPENDED", supportEmail: "support@chloemlla.com" });
     }
 
     // 添加用户信息到请求对象

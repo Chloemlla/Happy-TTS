@@ -6,6 +6,7 @@ import { TOTPStatus } from './types/auth';
 import { SimpleLoadingSpinner } from './components/LoadingSpinner';
 import TOTPManager from './components/TOTPManager';
 import { NotificationProvider } from './components/Notification';
+import PenaltyAppealHost from './components/PenaltyAppealHost';
 import { BroadcastModalProvider } from './components/BroadcastModal';
 import WsConnector from './components/WsConnector';
 import ModListPage from './components/ModListPage';
@@ -1308,6 +1309,7 @@ const App: React.FC = () => {
 
   return (
     <NotificationProvider>
+      <PenaltyAppealHost />
       <BroadcastModalProvider>
         <WsConnector />
         <ArticleCommandPalette />

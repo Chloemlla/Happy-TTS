@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { FiMail, FiMessageSquare, FiSend, FiX, FiLogIn } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
@@ -36,6 +36,9 @@ export interface PenaltyAppealActionsProps {
   compact?: boolean;
   defaultTicketTitle?: string;
   defaultTicketDescription?: string;
+  /** false when ticket creation is blocked for this user */
+  ticketChannelEnabled?: boolean;
+  autoOpen?: boolean;
 }
 
 function buildDefaultTitle(kind: PenaltyAppealKind): string {
@@ -84,6 +87,8 @@ export const PenaltyAppealActions: React.FC<PenaltyAppealActionsProps> = ({
   compact = false,
   defaultTicketTitle,
   defaultTicketDescription,
+  ticketChannelEnabled = true,
+  autoOpen = false,
 }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -110,6 +115,11 @@ export const PenaltyAppealActions: React.FC<PenaltyAppealActionsProps> = ({
     );
     setOpen(true);
   };
+
+  useEffect(() => {
+    if (autoOpen) openModal();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpen]);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -204,17 +214,23 @@ export const PenaltyAppealActions: React.FC<PenaltyAppealActionsProps> = ({
             <FiMail />
             {SUPPORT_EMAIL}
           </a>
-          <button
-            type="button"
-            onClick={openModal}
-            className={cn(
-              studioPrimaryButtonClassName,
-              compact ? "px-3 py-2 text-xs" : "px-4 py-2.5 text-sm",
-            )}
-          >
-            <FiMessageSquare />
-            提交工单申诉
-          </button>
+          {ticketChannelEnabled && kind !== "ticket_permission_ban" ? (
+            <button
+              type="button"
+              onClick={openModal}
+              className={cn(
+                studioPrimaryButtonClassName,
+                compact ? "px-3 py-2 text-xs" : "px-4 py-2.5 text-sm",
+              )}
+            >
+              <FiMessageSquare />
+              提交工单申诉
+            </button>
+          ) : (
+            <span className={cn(compact ? "text-[11px] text-rose-700" : "text-sm text-rose-700")}>
+              工单通道不可用，请使用邮箱申诉
+            </span>
+          )}
         </div>
       </div>
 

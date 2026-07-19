@@ -108,7 +108,9 @@ export const ticketController = {
       if (banStatus.isBanned) {
         return res.status(403).json({
           error: "您的工单权限已被封禁",
+          code: "TICKET_PERMISSION_BANNED",
           details: `封禁剩余时间: ${banStatus.remainingTime}`,
+          supportEmail: "support@chloemlla.com",
         });
       }
 
@@ -275,7 +277,7 @@ export const ticketController = {
         if (banStatus.isBanned)
           return res
             .status(403)
-            .json({ error: "您的工单权限已被封禁", details: `封禁剩余时间: ${banStatus.remainingTime}` });
+            .json({ error: "您的工单权限已被封禁", code: "TICKET_PERMISSION_BANNED", details: `封禁剩余时间: ${banStatus.remainingTime}`, supportEmail: "support@chloemlla.com" });
 
         wsService.notifyTicketProcess(userObj.id, id, "audit_start");
         const isViolated = await ModerationService.checkContentWithAi(content);

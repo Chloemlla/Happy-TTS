@@ -1,149 +1,43 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="format-detection" content="email=no" />
-    <meta name="format-detection" content="date=no" />
-    <title>Synapse 异地登录提醒</title>
-    <style>
-        .afal a {
-            color: #b0b0b0;
-            text-decoration: none;
-        }
-
-        @media screen and (min-width: 600px) {
-            .mdv2rw {
-                padding: 40px 40px;
-            }
-        }
-    </style>
-    <link href="//fonts.googleapis.com/css?family=Google+Sans" rel="stylesheet" type="text/css" />
-</head>
-
-<body style="margin: 0; padding: 0;" bgcolor="#FFFFFF">
-    <table width="100%" height="100%" style="min-width: 348px;" border="0" cellspacing="0" cellpadding="0">
-        <tr height="32" style="height: 32px;">
-            <td></td>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">
+  <tr>
+    <td style="padding:0 0 8px 0;">
+      <span style="display:inline-block;padding:6px 12px;background-color:#D3E3FD;border-radius:18px;font-size:14px;line-height:20px;font-weight:500;color:#041E49;">{{username}}</span>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:16px 0 0 0;">
+      <h1 style="margin:0;font-size:24px;line-height:32px;font-weight:500;color:#1F1F1F;">检测到新的登录活动</h1>
+    </td>
+  </tr>  <tr>
+    <td style="padding:16px 0 0 0;font-size:16px;line-height:24px;font-weight:400;color:#3C4043;">你的 Synapse 账号在与上次不同的 IP 地址完成了登录。如果这是你本人的操作，则无需采取任何行动。</td>
+  </tr>  <tr>
+    <td style="padding:24px 0 0 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:separate;border:1px solid #DADCE0;border-radius:8px;overflow:hidden;">
+        <tr>
+          <td width="38%" style="padding:14px 16px;border-bottom:1px solid #DADCE0;font-size:14px;line-height:20px;color:#5F6368;vertical-align:top;">本次 IP</td>
+          <td style="padding:14px 16px;border-bottom:1px solid #DADCE0;font-size:14px;line-height:20px;font-weight:500;color:#1F1F1F;vertical-align:top;word-break:break-word;">{{currentIp}}</td>
         </tr>
-        <tr align="center">
-            <td>
-                <table border="0" cellspacing="0" cellpadding="0"
-                    style="padding-bottom: 20px; max-width: 516px; min-width: 220px;">
-                    <tr>
-                        <td width="8" style="width: 8px;"></td>
-                        <td>
-                            <div style="border-style: solid; border-width: thin; border-color: #dadce0; border-radius: 8px; padding: 40px 20px;"
-                                align="center" class="mdv2rw">
-                                <!-- Logo -->
-                                <img src="https://img.cdn1.vip/i/6a151e1365e9c_1779768851.webp" width="44" height="44" alt="Logo" style="display: inline-block; border-radius: 50%; margin-bottom: 16px;" />
-
-                                <!-- Title -->
-                                <div
-                                    style="font-family: 'Google Sans', Roboto, RobotoDraft, Helvetica, Arial, sans-serif; border-bottom: thin solid #dadce0; color: rgba(0,0,0,0.87); line-height: 32px; padding-bottom: 24px; text-align: center; word-break: break-word;">
-                                    <div style="font-size: 24px;">异地登录安全提醒</div>
-                                    <table align="center" style="margin-top: 8px;">
-                                        <tr style="line-height: normal;">
-                                            <td>
-                                                <span
-                                                    style="font-family: 'Google Sans', Roboto, Arial, sans-serif; color: rgba(0,0,0,0.87); font-size: 14px; line-height: 20px;">尊敬的
-                                                    {{username}}：</span>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </div>
-
-                                <!-- Body -->
-                                <div
-                                    style="font-family: Roboto-Regular, Helvetica, Arial, sans-serif; font-size: 14px; color: rgba(0,0,0,0.87); line-height: 20px; padding-top: 20px; text-align: left;">
-
-                                    <!-- Warning Banner -->
-                                    <div
-                                        style="margin-bottom: 16px; padding: 14px 16px; background-color: #fff3e0; border-left: 4px solid #ff9800; border-radius: 4px;">
-                                        <strong style="color: #e65100;">&#9888;&#65039; 检测到您的账号在新的IP地址登录</strong>
-                                        <p style="font-size: 13px; color: #5f6368; margin: 8px 0 0 0;">
-                                            本次登录的IP地址与您上次登录不同，如果这是您本人的操作，可以忽略此邮件。
-                                        </p>
-                                    </div>
-
-                                    <!-- Login Info Table -->
-                                    <p style="font-size: 14px; margin-bottom: 8px;"><strong>本次登录信息：</strong></p>
-                                    <table width="100%" cellspacing="0" cellpadding="0"
-                                        style="margin-bottom: 16px; border: 1px solid #e8eaed; border-radius: 8px; overflow: hidden;">
-                                        <tr style="background-color: #f8f9fa;">
-                                            <td
-                                                style="padding: 10px 16px; font-size: 13px; color: #5f6368; border-bottom: 1px solid #e8eaed; width: 110px;">
-                                                本次 IP 地址
-                                            </td>
-                                            <td
-                                                style="padding: 10px 16px; font-size: 13px; color: rgba(0,0,0,0.87); border-bottom: 1px solid #e8eaed; font-weight: 600;">
-                                                {{currentIp}}
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td
-                                                style="padding: 10px 16px; font-size: 13px; color: #5f6368; border-bottom: 1px solid #e8eaed;">
-                                                上次 IP 地址
-                                            </td>
-                                            <td
-                                                style="padding: 10px 16px; font-size: 13px; color: rgba(0,0,0,0.54); border-bottom: 1px solid #e8eaed;">
-                                                {{lastIp}}
-                                            </td>
-                                        </tr>
-                                        <tr style="background-color: #f8f9fa;">
-                                            <td
-                                                style="padding: 10px 16px; font-size: 13px; color: #5f6368; border-bottom: 1px solid #e8eaed;">
-                                                登录时间
-                                            </td>
-                                            <td
-                                                style="padding: 10px 16px; font-size: 13px; color: rgba(0,0,0,0.87); border-bottom: 1px solid #e8eaed;">
-                                                {{loginTime}}
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td style="padding: 10px 16px; font-size: 13px; color: #5f6368;">
-                                                设备信息
-                                            </td>
-                                            <td style="padding: 10px 16px; font-size: 13px; color: rgba(0,0,0,0.87);">
-                                                {{userAgent}}
-                                            </td>
-                                        </tr>
-                                    </table>
-
-                                    <div style="padding-top: 8px;">
-                                        <div style="border-bottom: thin solid #dadce0; padding-bottom: 24px;">
-                                            <span
-                                                style="color: #d93025; font-size: 13px;">安全提示：如果这不是您本人的操作，您的账号可能存在安全风险。请立即修改密码，并启用两步验证以提升账号安全性。</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Footer inside card -->
-                                <div
-                                    style="padding-top: 20px; font-size: 12px; line-height: 16px; color: #5f6368; letter-spacing: 0.3px; text-align: center;">
-                                    本邮件由系统自动发出，请勿直接回复。
-                                </div>
-                            </div>
-
-                            <!-- Footer outside card -->
-                            <div style="text-align: left;">
-                                <div
-                                    style="font-family: Roboto-Regular, Helvetica, Arial, sans-serif; color: rgba(0,0,0,0.54); font-size: 11px; line-height: 18px; padding-top: 12px; text-align: center;">
-                                    <div>Synapse 团队 · 致力于让文字拥有声音的力量</div>
-                                    <div style="direction: ltr;">&copy; 2026 Synapse</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td width="8" style="width: 8px;"></td>
-                    </tr>
-                </table>
-            </td>
+        <tr>
+          <td width="38%" style="padding:14px 16px;border-bottom:1px solid #DADCE0;font-size:14px;line-height:20px;color:#5F6368;vertical-align:top;">上次 IP</td>
+          <td style="padding:14px 16px;border-bottom:1px solid #DADCE0;font-size:14px;line-height:20px;font-weight:500;color:#1F1F1F;vertical-align:top;word-break:break-word;">{{lastIp}}</td>
         </tr>
-        <tr height="32" style="height: 32px;">
-            <td></td>
+        <tr>
+          <td width="38%" style="padding:14px 16px;border-bottom:1px solid #DADCE0;font-size:14px;line-height:20px;color:#5F6368;vertical-align:top;">登录时间</td>
+          <td style="padding:14px 16px;border-bottom:1px solid #DADCE0;font-size:14px;line-height:20px;font-weight:500;color:#1F1F1F;vertical-align:top;word-break:break-word;">{{loginTime}}</td>
         </tr>
-    </table>
-</body>
-
-</html>
+        <tr>
+          <td width="38%" style="padding:14px 16px;font-size:14px;line-height:20px;color:#5F6368;vertical-align:top;">设备信息</td>
+          <td style="padding:14px 16px;font-size:14px;line-height:20px;font-weight:500;color:#1F1F1F;vertical-align:top;word-break:break-word;">{{userAgent}}</td>
+        </tr>
+      </table>
+    </td>
+  </tr>  <tr>
+    <td style="padding:24px 0 0 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:separate;background-color:#D3E3FD;border-radius:8px;">
+        <tr>
+          <td style="padding:14px 16px;font-size:14px;line-height:20px;color:#041E49;">如果你不认识此活动，请立即修改密码，并检查账号中的已登录设备与安全设置。</td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>

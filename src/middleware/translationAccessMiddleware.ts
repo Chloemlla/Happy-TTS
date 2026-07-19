@@ -16,7 +16,7 @@ export const translationAccessMiddleware = (req: Request, res: Response, next: N
   }
 
   if (user.accountStatus === "suspended") {
-    return res.status(403).json({ error: "账户已被封停" });
+    return res.status(403).json({ error: "账户已被封停", code: "ACCOUNT_SUSPENDED", supportEmail: "support@chloemlla.com" });
   }
 
   if (user.isTranslationEnabled === false) {

@@ -1,108 +1,32 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="format-detection" content="email=no" />
-    <meta name="format-detection" content="date=no" />
-    <title>Synapse 电子邮件确认码</title>
-    <style>
-        .afal a {
-            color: #b0b0b0;
-            text-decoration: none;
-        }
-
-        @media screen and (min-width: 600px) {
-            .mdv2rw {
-                padding: 40px 40px;
-            }
-        }
-    </style>
-    <link href="//fonts.googleapis.com/css?family=Google+Sans" rel="stylesheet" type="text/css" />
-</head>
-
-<body style="margin: 0; padding: 0;" bgcolor="#FFFFFF">
-    <table width="100%" height="100%" style="min-width: 348px;" border="0" cellspacing="0" cellpadding="0">
-        <tr height="32" style="height: 32px;">
-            <td></td>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">
+  <tr>
+    <td style="padding:0 0 8px 0;">
+      <span style="display:inline-block;padding:6px 12px;background-color:#D3E3FD;border-radius:18px;font-size:14px;line-height:20px;font-weight:500;color:#041E49;">{{username}}</span>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:16px 0 0 0;">
+      <h1 style="margin:0;font-size:24px;line-height:32px;font-weight:500;color:#1F1F1F;">电子邮件确认码</h1>
+    </td>
+  </tr>  <tr>
+    <td style="padding:16px 0 0 0;font-size:16px;line-height:24px;font-weight:400;color:#3C4043;">你正在验证用于 Synapse 的电子邮箱。请在注册页面输入下方确认码以完成账号创建。</td>
+  </tr>  <tr>
+    <td style="padding:24px 0 0 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:separate;background-color:#F8FAFD;border:1px solid #DADCE0;border-radius:8px;">
+        <tr>
+          <td align="center" style="padding:20px 16px;font-family:Roboto,Arial,Helvetica,sans-serif;font-size:32px;line-height:40px;font-weight:700;letter-spacing:6px;color:#0B57D0;">{{code}}</td>
         </tr>
-        <tr align="center">
-            <td>
-                <table border="0" cellspacing="0" cellpadding="0"
-                    style="padding-bottom: 20px; max-width: 516px; min-width: 220px;">
-                    <tr>
-                        <td width="8" style="width: 8px;"></td>
-                        <td>
-                            <div style="border-style: solid; border-width: thin; border-color: #dadce0; border-radius: 8px; padding: 40px 20px;"
-                                align="center" class="mdv2rw">
-                                <!-- Logo -->
-                                <img src="https://img.cdn1.vip/i/6a151e1365e9c_1779768851.webp" width="44" height="44" alt="Logo" style="display: inline-block; border-radius: 50%; margin-bottom: 16px;" />
-
-                                <!-- Title -->
-                                <div
-                                    style="font-family: 'Google Sans', Roboto, RobotoDraft, Helvetica, Arial, sans-serif; border-bottom: thin solid #dadce0; color: rgba(0,0,0,0.87); line-height: 32px; padding-bottom: 24px; text-align: center; word-break: break-word;">
-                                    <div style="font-size: 24px;">电子邮件确认码</div>
-                                    <table align="center" style="margin-top: 8px;">
-                                        <tr style="line-height: normal;">
-                                            <td>
-                                                <span
-                                                    style="font-family: 'Google Sans', Roboto, Arial, sans-serif; color: rgba(0,0,0,0.87); font-size: 14px; line-height: 20px;">尊敬的
-                                                    {{username}}：</span>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </div>
-
-                                <!-- Body -->
-                                <div
-                                    style="font-family: Roboto-Regular, Helvetica, Arial, sans-serif; font-size: 14px; color: rgba(0,0,0,0.87); line-height: 20px; padding-top: 20px; text-align: center;">
-                                    <p style="text-align: left;">感谢您选择
-                                        Synapse。为确保您的账号安全及电子邮箱的有效性，请在注册页面输入下方验证码以完成您的账号创建流程：</p>
-
-                                    <!-- Verification Code -->
-                                    <div
-                                        style="margin: 24px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
-                                        <div
-                                            style="font-family: 'Google Sans', Roboto, Arial, sans-serif; font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #1a73e8;">
-                                            {{code}}</div>
-                                    </div>
-
-                                    <p style="text-align: left; color: #5f6368;">此验证码专门用于您的身份确认，有效期为 <strong>10
-                                            分钟</strong>。请在有效期内完成验证。</p>
-
-                                    <div
-                                        style="padding-top: 12px; border-bottom: thin solid #dadce0; padding-bottom: 24px; text-align: left;">
-                                        <p style="color: #d93025; font-size: 13px;">安全提示：请勿将此验证码泄露给他人。Synapse
-                                            官方工作人员不会向您索要验证码。若非本人操作，请忽略此邮件。</p>
-                                    </div>
-                                </div>
-
-                                <!-- Footer inside card -->
-                                <div
-                                    style="padding-top: 20px; font-size: 12px; line-height: 16px; color: #5f6368; letter-spacing: 0.3px; text-align: center;">
-                                    本邮件由系统自动发出，请勿直接回复。
-                                </div>
-                            </div>
-
-                            <!-- Footer outside card -->
-                            <div style="text-align: left;">
-                                <div
-                                    style="font-family: Roboto-Regular, Helvetica, Arial, sans-serif; color: rgba(0,0,0,0.54); font-size: 11px; line-height: 18px; padding-top: 12px; text-align: center;">
-                                    <div>Synapse 团队 · 致力于让文字拥有声音的力量</div>
-                                    <div style="direction: ltr;">&copy; 2026 Synapse</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td width="8" style="width: 8px;"></td>
-                    </tr>
-                </table>
-            </td>
+      </table>
+    </td>
+  </tr>  <tr>
+    <td style="padding:16px 0 0 0;font-size:16px;line-height:24px;font-weight:400;color:#3C4043;">此确认码有效期为 <strong style="color:#1F1F1F;">10 分钟</strong>。如果这不是你本人的操作，可以忽略此邮件。</td>
+  </tr>  <tr>
+    <td style="padding:24px 0 0 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:separate;background-color:#FCE8E6;border-radius:8px;">
+        <tr>
+          <td style="padding:14px 16px;font-size:14px;line-height:20px;color:#B3261E;">请勿将此确认码分享给他人。Synapse 工作人员不会通过邮件向你索要确认码。</td>
         </tr>
-        <tr height="32" style="height: 32px;">
-            <td></td>
-        </tr>
-    </table>
-</body>
-
-</html>
+      </table>
+    </td>
+  </tr>
+</table>

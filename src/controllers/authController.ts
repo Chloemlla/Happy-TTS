@@ -649,7 +649,7 @@ export class AuthController {
         });
       }
       if ((user as any).accountStatus === "suspended") {
-        return res.status(403).json({ error: "账户已被封停" });
+        return res.status(403).json({ error: "账户已被封停", code: "ACCOUNT_SUSPENDED", supportEmail: "support@chloemlla.com" });
       }
 
       // 登录成功，重置尝试次数
@@ -782,7 +782,7 @@ export class AuthController {
         return res.status(404).json({ error: "用户不存在" });
       }
       if ((user as any).accountStatus === "suspended") {
-        return res.status(403).json({ error: "账户已被封停" });
+        return res.status(403).json({ error: "账户已被封停", code: "ACCOUNT_SUSPENDED", supportEmail: "support@chloemlla.com" });
       }
       const remainingUsage = await UserStorage.getRemainingUsage(userId);
       // 不返回avatarBase64
@@ -825,7 +825,7 @@ export class AuthController {
         return res.status(404).json({ error: "用户不存在" });
       }
       if ((user as any).accountStatus === "suspended") {
-        return res.status(403).json({ error: "账户已被封停" });
+        return res.status(403).json({ error: "账户已被封停", code: "ACCOUNT_SUSPENDED", supportEmail: "support@chloemlla.com" });
       }
 
       // 验证用户是否启用了Passkey
