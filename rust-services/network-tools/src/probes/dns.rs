@@ -95,7 +95,7 @@ async fn lookup_generic_records(
     Ok(response
         .answers()
         .iter()
-        .map(|record| record.data().to_string())
+        .map(|record| record.data.to_string())
         .collect())
 }
 
@@ -112,7 +112,7 @@ async fn lookup_mx_records(
     Ok(response
         .answers()
         .iter()
-        .filter_map(|record| match record.data() {
+        .filter_map(|record| match &record.data {
             RData::MX(mx) => Some(format!("{} {}", mx.preference, mx.exchange)),
             _ => None,
         })
@@ -132,7 +132,7 @@ async fn lookup_txt_records(
     Ok(response
         .answers()
         .iter()
-        .filter_map(|record| match record.data() {
+        .filter_map(|record| match &record.data {
             RData::TXT(txt) => Some(
                 txt.txt_data
                     .iter()

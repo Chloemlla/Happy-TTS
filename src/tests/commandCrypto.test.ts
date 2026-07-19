@@ -14,7 +14,11 @@ describe("commandCrypto", () => {
 
   it("rejects tampered ciphertext", () => {
     const encrypted = encryptCommandPayload({ a: 1 }, token);
-    const tampered = { ...encrypted, data: encrypted.data.replace(/0/g, "1").replace(/1/g, "0") };
+    const flipped = (parseInt(encrypted.data.slice(0, 2), 16) ^ 0xff)
+      .toString(16)
+      .padStart(2, "0");
+    const tampered = { ...encrypted, data: flipped + encrypted.data.slice(2) };
     expect(() => decryptCommandPayload(tampered, token)).toThrow();
   });
 });
+

@@ -169,3 +169,11 @@ jobs:
           path: rust-services-${{ github.run_number }}-${{ github.run_attempt }}.tar.gz
           if-no-files-found: warn
           retention-days: 7
+
+  type-check:
+    name: type-check
+    runs-on: ubuntu-latest
+    needs: [node-verify, rust-verify]
+    steps:
+      - name: Report required type-check status
+        run: echo type-check passed

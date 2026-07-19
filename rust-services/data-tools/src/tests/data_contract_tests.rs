@@ -54,8 +54,7 @@ fn inspects_csv_and_json() {
 fn compresses_and_decompresses_gzip() {
     let input = b"hello hello hello".to_vec();
     let compressed = processing::compress_bytes(&input, "gzip").unwrap();
-    let decompressed =
-        processing::decompress_bytes(&compressed, "gzip", &test_config()).unwrap();
+    let decompressed = processing::decompress_bytes(&compressed, "gzip", &test_config()).unwrap();
     assert_eq!(decompressed, b"hello hello hello");
 }
 
