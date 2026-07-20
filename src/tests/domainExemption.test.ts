@@ -10,7 +10,7 @@ describe("DomainExemptionService", () => {
     });
 
     it("应该正确检查内部域名", () => {
-      const result = domainExemptionService.checkDomainExemption("arteam.dev");
+      const result = domainExemptionService.checkDomainExemption("chloemlla.com");
       expect(result.exempted).toBe(true);
       expect(result.isInternal).toBe(true);
       expect(result.message).toContain("豁免列表中");

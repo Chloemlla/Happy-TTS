@@ -19,7 +19,7 @@ const OutEmail: React.FC = () => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const [fromUser, setFromUser] = useState('noreply');
   const [displayName, setDisplayName] = useState('Synapse');
-  const OUTEMAIL_DOMAIN = 'arteam.dev';
+  const OUTEMAIL_DOMAIN = 'chloemlla.com';
   const [domains, setDomains] = useState<string[]>([OUTEMAIL_DOMAIN]);
   const [selectedDomain, setSelectedDomain] = useState(OUTEMAIL_DOMAIN);
   const [outemailStatus, setOutemailStatus] = useState<{ available: boolean; error?: string } | null>(null);
