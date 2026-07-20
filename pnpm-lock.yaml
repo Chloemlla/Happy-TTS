@@ -138,8 +138,8 @@ importers:
         specifier: ^6.0.0
         version: 6.0.0
       openai:
-        specifier: ^6.47.0
-        version: 6.47.0(ws@8.21.1)(zod@4.4.3)
+        specifier: ^6.48.0
+        version: 6.48.0(ws@8.21.1)(zod@4.4.3)
       path-to-regexp:
         specifier: ^8.4.2
         version: 8.4.2
@@ -3263,9 +3263,8 @@ packages:
     resolution: {integrity: sha512-kbpaSSGJTWdAY5KPVeMOKXSrPtr8C8C7wodJbcsd51jRnmD+GZu8Y0VoU6Dm5Z4vWr0Ig/1NKuWRKf7j5aaYSg==}
     engines: {node: '>=6'}
 
-  openai@6.47.0:
-    resolution: {integrity: sha512-xYr+R9woSzWxVxeiqkkNbHhv89tZDEI6eBMbrdPnv3poh+mijHvbhS35a+3o6xHa411/ns8j5ENY3So9DCXWYw==}
-    hasBin: true
+  openai@6.48.0:
+    resolution: {integrity: sha512-KhVp+FyV50QrXNextvL9hIU5l6ox5HYuKQjGVk7lIqprgJol90+dQXWONV6S1lRWsKA1bXjrow8RsUT14M1hNA==}
     peerDependencies:
       '@aws-sdk/credential-provider-node': '>=3.972.0 <4'
       '@smithy/hash-node': '>=4.3.0 <5'
@@ -7677,7 +7676,7 @@ snapshots:
     dependencies:
       mimic-fn: 2.1.0
 
-  openai@6.47.0(ws@8.21.1)(zod@4.4.3):
+  openai@6.48.0(ws@8.21.1)(zod@4.4.3):
     optionalDependencies:
       ws: 8.21.1
       zod: 4.4.3
