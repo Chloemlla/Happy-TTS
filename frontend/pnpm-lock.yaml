@@ -232,8 +232,8 @@ importers:
         specifier: ^10.1.0
         version: 10.1.0
       javascript-obfuscator:
-        specifier: ^5.4.1
-        version: 5.4.3
+        specifier: ^5.5.0
+        version: 5.5.0
       jest-environment-jsdom:
         specifier: ^30.4.1
         version: 30.4.1
@@ -1141,8 +1141,8 @@ packages:
     resolution: {integrity: sha512-Z0HEAVwwafOume+6LFXirAVZeuEMKWuPzpFbQhCEU9++BMz0IwEa9bmedJ+rMn/IlXRBID9j3gQ0XYAa6jM10g==}
     engines: {node: '>=6.0'}
 
-  '@javascript-obfuscator/escodegen@2.4.1':
-    resolution: {integrity: sha512-YrEJJDr4cb+pIQKWzHFoDlDkQzatcrNB6OhAD6iTSwiKwzZUMVdobwbOuLpF4EiLxUj0qP28Xl1saTHYzIPCLg==}
+  '@javascript-obfuscator/escodegen@2.4.2':
+    resolution: {integrity: sha512-3N7EUdYxuldwvtOtZIlAxNwPW1qTUFwWt3PxNkik6hB1uSSXLXj9JMlSyUbTCXK3Osjn0Nu0s/aa4mbvkGouXQ==}
     engines: {node: '>=6.0'}
 
   '@javascript-obfuscator/estraverse@5.4.0':
@@ -2214,8 +2214,8 @@ packages:
   '@upsetjs/venn.js@2.0.0':
     resolution: {integrity: sha512-WbBhLrooyePuQ1VZxrJjtLvTc4NVfpOyKx0sKqioq9bX1C1m7Jgykkn8gLrtwumBioXIqam8DLxp88Adbue6Hw==}
 
-  '@vercel/blob@2.4.1':
-    resolution: {integrity: sha512-8GQbIsNVWu0PnG6AYHSCHupYBW0RzP26mb2V3QSoirG7i1EvISHEnW0QcvX+NUc5htALNg6vvls9nEavlwYHuA==}
+  '@vercel/blob@2.6.1':
+    resolution: {integrity: sha512-KTJytw85j1XQBxjN5d6UXI7fIWNQe1jotn4nWN+0hePqLs+Qi1B3jHdQcSKFGF0m2rsy9uhPT6GOXMtHe3qNzg==}
     engines: {node: '>=20.0.0'}
 
   '@vercel/cli-config@0.2.0':
@@ -2225,8 +2225,8 @@ packages:
     resolution: {integrity: sha512-kQF8LGie/Hbdq9/psJxLE7owRTcqMQMhgybU04gCeR7cbQAr5t8OrjefDNColJv1QSSucFt4pLwRiARVmlOnug==}
     engines: {node: '>= 18'}
 
-  '@vercel/oidc@3.7.0':
-    resolution: {integrity: sha512-FWmULATInXyxER8FJjtSEUdoaoeqWv9G9T4y3vraYMJNAx/ox354COtDmhiBb/XaeDjFuiwTY9ss44NRBaGjLQ==}
+  '@vercel/oidc@3.8.0':
+    resolution: {integrity: sha512-r00laGW6Pv778RoR6M2NxX91ycSj+PBwVo+fOb9Bif+F0IyUKt25zrvBzfEzQpeAzbqOgPZyQibEWDdDFApd+A==}
     engines: {node: '>= 20'}
 
   '@vitalets/google-translate-api@9.2.1':
@@ -3378,8 +3378,8 @@ packages:
     engines: {node: '>=18.0.0'}
     hasBin: true
 
-  javascript-obfuscator@5.4.3:
-    resolution: {integrity: sha512-G5WUgh84tJa5jtk49w+nQCxQpXIvp65xhLyaFeTAdQeYqWji+SXo89k96UvYIDqojyWZEWSDKRmaWKK6bBn/2A==}
+  javascript-obfuscator@5.5.0:
+    resolution: {integrity: sha512-YBkZLadMb0ynLQKKMj8urk+NPsglWa4Upwm/kd6x65gyY6YkNkCJi40OOdGDQa1bVGixgRAmVINwODkLnmiJNw==}
     engines: {node: '>=18.0.0'}
     hasBin: true
 
@@ -3498,8 +3498,8 @@ packages:
     resolution: {integrity: sha512-0OO4y2iOHix2W6ujICbKIaEQXvFQHue65vUG3pb5EUomzPI90z9hsA1VsO/dbIIpC53J8gxM9Q4Oho0jrCM/yA==}
     engines: {node: '>= 0.8.0'}
 
-  libphonenumber-js@1.13.7:
-    resolution: {integrity: sha512-rvr3HIMdOgzhz1RFGjftji+wjoAFlzhqCNqJOU/MKTZQ8d9NZxAR/tI+0weDicyoucqVR0U1GCniqHJ0f8aM2A==}
+  libphonenumber-js@1.13.9:
+    resolution: {integrity: sha512-VNS5vWMM7r0P66BYv+TQJATxExEgLxN+34hfHDVhDkUsGAE4cRg0shCNSLTXNKm7nIUscC7AfB51TjxEeF7msQ==}
 
   lie@3.3.0:
     resolution: {integrity: sha512-UaiMJzeWRlEujzAuw5LokY1L5ecNQYZKfmyZ9L7wDHb/p5etKaxXhohBcrw0EYby+G/NA52vRSN4N39dxHAIwQ==}
@@ -6030,7 +6030,7 @@ snapshots:
     optionalDependencies:
       source-map: 0.6.1
 
-  '@javascript-obfuscator/escodegen@2.4.1':
+  '@javascript-obfuscator/escodegen@2.4.2':
     dependencies:
       '@javascript-obfuscator/estraverse': 5.4.0
       esprima: 4.0.1
@@ -7294,9 +7294,9 @@ snapshots:
       d3-selection: 3.0.0
       d3-transition: 3.0.1(d3-selection@3.0.0)
 
-  '@vercel/blob@2.4.1':
+  '@vercel/blob@2.6.1':
     dependencies:
-      '@vercel/oidc': 3.7.0
+      '@vercel/oidc': 3.8.0
       async-retry: 1.3.3
       is-buffer: 2.0.5
       is-node-process: 1.2.0
@@ -7312,7 +7312,7 @@ snapshots:
     dependencies:
       execa: 5.1.1
 
-  '@vercel/oidc@3.7.0':
+  '@vercel/oidc@3.8.0':
     dependencies:
       '@vercel/cli-config': 0.2.0
       '@vercel/cli-exec': 1.0.0
@@ -7643,7 +7643,7 @@ snapshots:
   class-validator@0.14.3:
     dependencies:
       '@types/validator': 13.15.10
-      libphonenumber-js: 1.13.7
+      libphonenumber-js: 1.13.9
       validator: 13.15.35
 
   classnames@2.5.1: {}
@@ -8560,11 +8560,11 @@ snapshots:
       stringz: 2.1.0
       tslib: 2.8.1
 
-  javascript-obfuscator@5.4.3:
+  javascript-obfuscator@5.5.0:
     dependencies:
-      '@javascript-obfuscator/escodegen': 2.4.1
+      '@javascript-obfuscator/escodegen': 2.4.2
       '@javascript-obfuscator/estraverse': 5.4.0
-      '@vercel/blob': 2.4.1
+      '@vercel/blob': 2.6.1
       acorn: 8.15.0
       acorn-import-attributes: 1.9.5(acorn@8.15.0)
       assert: 2.1.0
@@ -8752,7 +8752,7 @@ snapshots:
       prelude-ls: 1.1.2
       type-check: 0.3.2
 
-  libphonenumber-js@1.13.7: {}
+  libphonenumber-js@1.13.9: {}
 
   lie@3.3.0:
     dependencies:
