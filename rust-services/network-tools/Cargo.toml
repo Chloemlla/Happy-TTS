@@ -7,14 +7,14 @@ edition = "2021"
 axum = "0.8.9"
 hickory-resolver = "0.26.1"
 ipc-runtime = { path = "../ipc-runtime" }
-serde = { version = "1.0.228", features = ["derive"] }
+serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.150"
-thiserror = "2.0.18"
+thiserror = "2.0.19"
 tokio = { version = "1.52.3", features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
 tokio-rustls = "0.26.4"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 url = "2.5.8"
-webpki-roots = "1.0.8"
-x509-parser = "0.16.0"
+webpki-roots = "1.0.9"
+x509-parser = "0.18.1"
 

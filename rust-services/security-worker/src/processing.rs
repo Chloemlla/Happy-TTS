@@ -1,9 +1,9 @@
 use aes_gcm::{
-    aead::{Aead, Payload},
-    Aes256Gcm, KeyInit, Nonce,
+    aead::{Aead, KeyInit as AeadKeyInit, Nonce, Payload},
+    Aes256Gcm,
 };
 use base64::{engine::general_purpose, Engine as _};
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit as HmacKeyInit, Mac};
 use serde_json::Value;
 use sha2::{Digest, Sha256, Sha512};
 
@@ -48,13 +48,13 @@ pub fn verify_hmac(
     let signature = decode_hex(signature_hex)?;
     match normalize_hmac_algorithm(algorithm)?.as_str() {
         "sha256" => {
-            let mut mac = <HmacSha256 as Mac>::new_from_slice(&key)
+            let mut mac = HmacSha256::new_from_slice(&key)
                 .map_err(|_| AppError::BadRequest("HMAC key is invalid".to_string()))?;
             mac.update(&message);
             Ok(mac.verify_slice(&signature).is_ok())
         }
         "sha512" => {
-            let mut mac = <HmacSha512 as Mac>::new_from_slice(&key)
+            let mut mac = HmacSha512::new_from_slice(&key)
                 .map_err(|_| AppError::BadRequest("HMAC key is invalid".to_string()))?;
             mac.update(&message);
             Ok(mac.verify_slice(&signature).is_ok())
@@ -110,9 +110,11 @@ pub fn decrypt_envelope(
     };
     let cipher = Aes256Gcm::new_from_slice(&key)
         .map_err(|_| AppError::BadRequest("AES key is invalid".to_string()))?;
+    let nonce = Nonce::<Aes256Gcm>::try_from(nonce.as_slice())
+        .map_err(|_| AppError::BadRequest("AES-GCM nonce must be 12 bytes".to_string()))?;
     cipher
         .decrypt(
-            Nonce::from_slice(&nonce),
+            &nonce,
             Payload {
                 msg: &ciphertext,
                 aad: &aad,
