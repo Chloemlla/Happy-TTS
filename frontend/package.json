@@ -99,7 +99,7 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "@types/testing-library__jest-dom": "^6.0.0",
     "@vitejs/plugin-react": "^6.0.3",
-    "@vitest/ui": "^4.1.9",
+    "@vitest/ui": "^4.1.10",
     "autoprefixer": "^10.5.4",
     "cross-env": "^10.1.0",
     "javascript-obfuscator": "^5.4.1",
