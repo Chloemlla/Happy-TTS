@@ -132,8 +132,8 @@ importers:
         specifier: ^2.2.0
         version: 2.2.0
       mysql2:
-        specifier: ^3.23.0
-        version: 3.23.0(@types/node@26.1.1)
+        specifier: ^3.23.1
+        version: 3.23.1(@types/node@26.1.1)
       nanoid:
         specifier: ^6.0.0
         version: 6.0.0
@@ -3115,8 +3115,8 @@ packages:
     resolution: {integrity: sha512-ypMKuglUrZUD99Tk2bUQ+xNQj43lPEfAeX2o9cTteAmShXy2VHDJpuwu1o0xqoKCt9jLVAvwyFKdLTPXKAfJyA==}
     engines: {node: '>=10'}
 
-  mysql2@3.23.0:
-    resolution: {integrity: sha512-ZwyGLoG9BRlL7hKNDcIy7q18hA6WTWGEpLAerGHXj5Xahemia4msZdwjIOUIzesjK3B5z5gWLktf+2tYSLAyTA==}
+  mysql2@3.23.1:
+    resolution: {integrity: sha512-tTuRnC7qCet2IOfSNMYZ5SwXuBnfvBPAcIA28P0gtruXyZlU1LMxA6uha32kYypoFgyYklMqhLWwt4laYwXR/Q==}
     engines: {node: '>= 8.0'}
     peerDependencies:
       '@types/node': '>= 8'
@@ -7524,7 +7524,7 @@ snapshots:
       arrify: 2.0.1
       minimatch: 10.2.5
 
-  mysql2@3.23.0(@types/node@26.1.1):
+  mysql2@3.23.1(@types/node@26.1.1):
     dependencies:
       '@types/node': 26.1.1
       aws-ssl-profiles: 1.1.2
