@@ -105,7 +105,7 @@
     "javascript-obfuscator": "^5.5.0",
     "jest-environment-jsdom": "^30.4.1",
     "jsdom": "^29.1.1",
-    "postcss": "^8.5.15",
+    "postcss": "^8.5.20",
     "rollup-plugin-visualizer": "^7.0.1",
     "tailwind-scrollbar": "^4.0.2",
     "tailwindcss": "^4.3.2",
