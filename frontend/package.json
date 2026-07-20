@@ -45,7 +45,7 @@
     "crypto-js": "^4.2.0",
     "date-fns": "^4.4.0",
     "docx": "^9.7.1",
-    "dompurify": "^3.4.11",
+    "dompurify": "^3.4.12",
     "framer-motion": "^12.42.2",
     "highlight.js": "^11.11.1",
     "html2canvas": "^1.4.1",
