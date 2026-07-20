@@ -127,7 +127,7 @@
     "socks-proxy-agent": "^10.1.0",
     "speakeasy": "^2.0.0",
     "ssh2": "^1.17.0",
-    "svix": "^1.96.1",
+    "svix": "^1.98.0",
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",
     "tar": "^7.5.20",
