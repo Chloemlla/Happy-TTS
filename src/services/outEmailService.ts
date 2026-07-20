@@ -10,6 +10,8 @@ import {
   resolveOutEmailDomain,
   type EmailAttachmentInput,
 } from "./emailService";
+import { recordUsage, validateApiKey } from "./apiKeyService";
+import { UserStorage } from "../utils/userStorage";
 
 const OutEmailRecordSchema = new mongoose.Schema(
   {
@@ -94,38 +96,112 @@ async function getOutEmailAuthSettingFromDb(domain?: string): Promise<OutEmailSe
   }
 }
 
-async function ensureOutEmailAuth({
+export type OutEmailAuthSuccess = {
+  success: true;
+  authKind: "outemail-setting" | "outemail-code" | "platform-api-key";
+  keyId?: string;
+  userId?: string;
+};
+
+export type OutEmailAuthFailure = {
+  success: false;
+  error: string;
+};
+
+export type OutEmailAuthResult = OutEmailAuthSuccess | OutEmailAuthFailure;
+
+/**
+ * 校验对外邮件鉴权，顺序：
+ * 1. EnvManager / outemail_settings 外部 API Key
+ * 2. 兼容校验码 code（DB 或 OUTEMAIL_CODE 回退）
+ * 3. 平台 API Key（admin?tab=apikeys 创建，需 outemail 或 * 权限）
+ */
+async function tryValidatePlatformOutemailApiKey(
+  plainKey: string,
+  ip?: string,
+): Promise<OutEmailAuthResult> {
+  try {
+    const doc = await validateApiKey(plainKey);
+    if (!doc) {
+      return { success: false, error: "鉴权失败" };
+    }
+
+    if (!doc.permissions.includes("outemail") && !doc.permissions.includes("*")) {
+      return { success: false, error: '此 API Key 无 "outemail" 权限' };
+    }
+
+    const owner = await UserStorage.getUserById(doc.userId);
+    if (!owner) {
+      return { success: false, error: "API Key 所属用户不存在" };
+    }
+    if ((owner as any).disabled || (owner as any).accountStatus === "suspended") {
+      return { success: false, error: "API Key 所属账户不可用" };
+    }
+
+    if (ip) {
+      recordUsage(doc.keyId, ip).catch(() => {});
+    }
+
+    return {
+      success: true,
+      authKind: "platform-api-key",
+      keyId: doc.keyId,
+      userId: doc.userId,
+    };
+  } catch (error) {
+    logger.error("验证平台 API Key（outemail）失败", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { success: false, error: "鉴权失败" };
+  }
+}
+
+export async function ensureOutEmailAuth({
   code,
   apiKey,
   domain,
+  ip,
 }: {
   code?: string;
   apiKey?: string;
   domain: string;
-}) {
+  ip?: string;
+}): Promise<OutEmailAuthResult> {
+  const presentedApiKey = normalizeAuthSecret(apiKey);
+  const presentedCode = normalizeAuthSecret(code);
+
+  if (!presentedApiKey && !presentedCode) {
+    return { success: false, error: "缺少鉴权信息" };
+  }
+
   const dbSetting = await getOutEmailAuthSettingFromDb(domain);
   const dbCode = normalizeAuthSecret(dbSetting?.code);
   const dbApiKey = normalizeAuthSecret(dbSetting?.apiKey);
   const fallbackCode = getOutEmailCodeFallback();
   const expectedCode = dbCode || fallbackCode;
 
+  // 1) EnvManager / Mongo outemail_settings 外部 Key（明文比对，保持原行为）
+  if (dbApiKey && presentedApiKey && timingSafeSecretEqual(presentedApiKey, dbApiKey)) {
+    return { success: true, authKind: "outemail-setting" };
+  }
+
+  // 2) 兼容校验码（body.code）
+  if (expectedCode && presentedCode && timingSafeSecretEqual(presentedCode, expectedCode)) {
+    return { success: true, authKind: "outemail-code" };
+  }
+
+  // 3) 平台 API Key（admin apikeys 创建，带 outemail/* 权限）
+  if (presentedApiKey) {
+    return tryValidatePlatformOutemailApiKey(presentedApiKey, ip);
+  }
+
+  // 仅传了 code 且未匹配
   if (!dbApiKey && !expectedCode) {
-    return { success: false as const, error: "对外邮件鉴权未配置" };
+    // code 字段不接受平台 API Key；若外部鉴权也未配置则提示未配置
+    return { success: false, error: "对外邮件鉴权未配置" };
   }
 
-  if (!normalizeAuthSecret(apiKey) && !normalizeAuthSecret(code)) {
-    return { success: false as const, error: "缺少鉴权信息" };
-  }
-
-  if (dbApiKey && timingSafeSecretEqual(apiKey, dbApiKey)) {
-    return { success: true as const };
-  }
-
-  if (expectedCode && timingSafeSecretEqual(code, expectedCode)) {
-    return { success: true as const };
-  }
-
-  return { success: false as const, error: "鉴权失败" };
+  return { success: false, error: "鉴权失败" };
 }
 
 async function reserveQuota(count: number) {
@@ -176,14 +252,22 @@ export async function getOutEmailQuota(): Promise<OutEmailQuotaInfo> {
   return { used: quota.countDay || 0, total: getOutEmailQuotaTotal(), resetAt };
 }
 
-export async function getOutEmailAuthStatus(domain?: string): Promise<{ configured: boolean; hasApiKey: boolean; hasCode: boolean }> {
+export async function getOutEmailAuthStatus(domain?: string): Promise<{
+  configured: boolean;
+  hasApiKey: boolean;
+  hasCode: boolean;
+  platformApiKeySupported: boolean;
+}> {
   const dbSetting = await getOutEmailAuthSettingFromDb(domain);
   const hasApiKey = Boolean(normalizeAuthSecret(dbSetting?.apiKey));
   const hasCode = Boolean(normalizeAuthSecret(dbSetting?.code) || getOutEmailCodeFallback());
+  // 平台 API Key（admin apikeys + outemail 权限）始终可作为鉴权方式
+  const platformApiKeySupported = true;
   return {
-    configured: hasApiKey || hasCode,
+    configured: hasApiKey || hasCode || platformApiKeySupported,
     hasApiKey,
     hasCode,
+    platformApiKeySupported,
   };
 }
 
@@ -222,7 +306,7 @@ export async function sendOutEmailBatch({
     return { success: false, error: "API密钥未配置" };
   }
 
-  const authResult = await ensureOutEmailAuth({ code, apiKey, domain: outemailDomain });
+  const authResult = await ensureOutEmailAuth({ code, apiKey, domain: outemailDomain, ip });
   if (!authResult.success) return authResult;
 
   const quotaResult = await reserveQuota(messages.length);
@@ -303,7 +387,7 @@ export async function sendOutEmail({
     throw new Error("to 必须为字符串");
   }
 
-  const authResult = await ensureOutEmailAuth({ code, apiKey, domain: outemailDomain });
+  const authResult = await ensureOutEmailAuth({ code, apiKey, domain: outemailDomain, ip });
   if (!authResult.success) return authResult;
 
   const quotaResult = await reserveQuota(1);

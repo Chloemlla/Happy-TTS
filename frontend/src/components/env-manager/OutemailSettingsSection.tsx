@@ -46,7 +46,7 @@ export default function OutemailSettingsSection({
   return (
     <CollapsibleSection
       title="对外邮件 API 鉴权设置"
-      description="管理外部应用调用对外邮件 API 的鉴权信息，支持默认域名和指定域名。"
+      description="管理外部应用调用对外邮件 API 的共享鉴权信息（外部 API Key / 兼容校验码）。也可在 admin?tab=apikeys 创建带 outemail 权限的平台 API Key，两种方式均可调用 /api/outemail/*。"
       sectionKey="outemail"
       isOpen={isOpen}
       onToggle={onToggle}

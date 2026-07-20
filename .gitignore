@@ -145,3 +145,5 @@ _audit_scan3.py
 _audit_scan4.py
 _audit_scan5.py
 _audit_scan6.py
+.tmp_live_index.html
+.tmp_live_js/

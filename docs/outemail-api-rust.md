@@ -5,11 +5,25 @@ sidebar_position: 12
 
 # 对外邮件 API Rust 调用文档
 
-本文档说明 Rust 应用如何调用 Synapse 已配置好的对外邮件发信能力。外部应用不需要直接保存 Resend 邮箱账号或 Resend API Key，只需要使用管理员在前端配置的对外邮件 API 鉴权信息。
+本文档说明 Rust 应用如何调用 Synapse 已配置好的对外邮件发信能力。外部应用不需要直接保存 Resend 邮箱账号或 Resend API Key，只需使用以下任一鉴权方式即可调用 `/api/outemail/*`。
 
 ## 1. 前置配置
 
-管理员需要先在前端完成配置：
+后端需要已经启用对外邮件，并配置可用的对外发信域名和邮件 provider API Key。
+
+鉴权令牌可任选其一：
+
+### 方式 A：Admin API Keys（推荐给已有平台账号的集成）
+
+在管理后台创建带 **对外邮件（outemail）** 权限的 API Key：
+
+```text
+https://tts.chloemlla.com/admin?tab=apikeys
+```
+
+创建时勾选权限 `outemail`（或管理员 `*` 全部能力）。明文密钥形如 `ak_xxxxxxxx.<secret>`，仅创建时展示一次。
+
+### 方式 B：EnvManager 对外邮件 API 鉴权（共享外部令牌）
 
 ```text
 frontend/src/components/EnvManager.tsx -> 对外邮件 API 鉴权设置
@@ -23,7 +37,7 @@ frontend/src/components/EnvManager.tsx -> 对外邮件 API 鉴权设置
 | 外部 API Key | 推荐给外部应用使用的鉴权令牌 |
 | 兼容校验码 | 旧调用方使用的 `code`，新应用建议改用外部 API Key |
 
-后端需要已经启用对外邮件，并配置可用的对外发信域名和邮件 provider API Key。
+方式 A 与方式 B **可同时存在**，鉴权时优先匹配 EnvManager 外部 Key / 校验码，再回退到平台 API Key（需 `outemail` 或 `*` 权限）。
 
 ## 2. 接口地址
 
@@ -41,20 +55,25 @@ https://tts.chloemlla.com/api/outemail
 
 ## 3. 鉴权方式
 
+`<API_KEY>` 可以是：
+
+1. **平台 API Key**（`admin?tab=apikeys` 创建，权限含 `outemail` 或 `*`）
+2. **EnvManager 外部 API Key**（`outemail_settings` / 对外邮件 API 鉴权设置）
+
 推荐使用 Bearer Token：
 
 ```http
-Authorization: Bearer <OUTEMAIL_API_KEY>
+Authorization: Bearer <API_KEY>
 ```
 
 也支持以下请求头：
 
 ```http
-X-Outemail-Api-Key: <OUTEMAIL_API_KEY>
-X-API-Key: <OUTEMAIL_API_KEY>
+X-Outemail-Api-Key: <API_KEY>
+X-API-Key: <API_KEY>
 ```
 
-旧调用方仍可在请求体中传：
+旧调用方仍可在请求体中传兼容校验码（仅 EnvManager / `OUTEMAIL_CODE` 路径）：
 
 ```json
 {
@@ -62,7 +81,7 @@ X-API-Key: <OUTEMAIL_API_KEY>
 }
 ```
 
-新 Rust 应用不建议继续使用 `code`，避免把校验码散落在请求体日志中。
+新应用不建议继续使用 `code`，避免把校验码散落在请求体日志中。平台 API Key 不走 `code` 字段，请使用上述请求头。
 
 ## 4. Cargo 依赖
 
@@ -415,8 +434,9 @@ GET /api/outemail/domain
 | 错误 | 含义 | 处理建议 |
 | --- | --- | --- |
 | `缺少鉴权信息` | 没有传 Bearer Token、API Key 请求头或旧 `code` | 检查请求头 |
-| `鉴权失败` | API Key 或 `code` 不匹配 | 到 EnvManager 核对配置 |
-| `对外邮件鉴权未配置` | 后端没有可用的外部 API Key 或兼容校验码 | 管理员需要先配置鉴权 |
+| `鉴权失败` | 外部 API Key / `code` 不匹配，或平台 API Key 无效 | 核对 EnvManager 或 `admin?tab=apikeys` 密钥 |
+| `此 API Key 无 "outemail" 权限` | 平台 API Key 未分配 outemail / * | 在 apikeys 管理中编辑权限 |
+| `对外邮件鉴权未配置` | 仅传了 `code` 且后端无外部 Key/校验码 | 配置 EnvManager 或改用平台 API Key |
 | `对外邮件服务未启用` | 对外邮件功能未启用 | 管理员需要启用对外邮件 |
 | `未配置有效的对外邮件 API Key（re_ 开头）` | 邮件 provider API Key 不可用 | 管理员需要检查邮件系统配置 |
 | `当前一分钟可发送剩余额度不足` | 命中分钟级限额 | 降低发送频率并重试 |
@@ -424,8 +444,8 @@ GET /api/outemail/domain
 
 ## 10. 安全建议
 
-- Rust 应用应从环境变量或密钥管理系统读取 `OUTEMAIL_API_KEY`，不要写进源码。
+- Rust 应用应从环境变量或密钥管理系统读取 API Key（平台 `ak_*.*` 或 EnvManager 外部 Key），不要写进源码。
 - 生产环境只使用 HTTPS。
 - 不要把完整请求头、请求体或 API Key 写入业务日志。
-- 多个外部应用建议使用不同域名配置或不同 API Key，便于后续轮换。
-- 轮换 API Key 时，可以先在 EnvManager 保存新 Key，再更新调用方配置。
+- 多个外部应用建议使用不同平台 API Key 或不同 EnvManager 域名配置，便于后续轮换。
+- 轮换 EnvManager 外部 Key 时，可先保存新 Key 再更新调用方；平台 API Key 可在 `admin?tab=apikeys` 吊销后新建。

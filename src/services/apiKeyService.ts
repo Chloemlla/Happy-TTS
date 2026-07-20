@@ -13,6 +13,7 @@ export const ALL_PERMISSIONS = [
   "social", // 社交接口
   "ipfs", // IPFS 上传
   "data-process", // 数据处理
+  "outemail", // 对外邮件发送
 ] as const;
 
 export const ADMIN_PERMISSION = "*" as const;
@@ -114,6 +115,14 @@ export const API_KEY_PERMISSION_DEFINITIONS: ApiKeyPermissionDefinition[] = [
     category: "utility",
     costCredits: 0.05,
     endpoints: ["/api/data/*"],
+  },
+  {
+    key: "outemail",
+    label: "对外邮件",
+    description: "调用对外邮件发送接口（/api/outemail/send、/batch-send），与 EnvManager 外部 Key 鉴权方式兼容。",
+    category: "core",
+    costCredits: 0.2,
+    endpoints: ["/api/outemail/send", "/api/outemail/batch-send"],
   },
 ];
 

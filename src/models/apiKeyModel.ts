@@ -5,7 +5,7 @@ export interface ApiKeyDoc {
   keyHash: string; // SHA-256 哈希，存储而非明文
   name: string; // 用户自定义名称
   userId: string; // 所属用户 ID
-  permissions: string[]; // 权限列表，如 ['tts', 'shorturl', 'status']
+  permissions: string[]; // 权限列表，如 ['tts', 'shorturl', 'status', 'outemail']
   rateLimit: number; // 每分钟请求上限
   expiresAt: Date | null; // 过期时间，null 表示永不过期
   lastUsedAt: Date | null;
