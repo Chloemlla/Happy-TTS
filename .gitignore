@@ -80,6 +80,11 @@ lerna-debug.log*
 Thumbs.db
 desktop.ini
 
+# TurboScribe 研究抓包（可能含会话 Cookie / 签名 URL，勿入库）
+docs/research/turboscribe-js/
+docs/research/_tmp_*.txt
+docs/research/turboscribe-probe-raw.json
+
 # 测试覆盖率
 coverage/
 .nyc_output/
