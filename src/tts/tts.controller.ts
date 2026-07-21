@@ -243,7 +243,6 @@ export class TtsController {
           voice: req.body?.voice,
           outputFormat: req.body?.outputFormat || req.body?.output_format,
           textLength: typeof req.body?.text === "string" ? req.body.text.length : 0,
-          userId: currentUser?.id,
         });
       }
 
@@ -555,7 +554,6 @@ export class TtsController {
       logger.info("获取历史记录", {
         ip,
         fingerprint,
-        userId: currentUser?.id,
         userAgent: req.headers["user-agent"],
         timestamp: new Date().toISOString(),
       });

@@ -225,7 +225,12 @@ export class AuditLogService {
         createdAt: new Date(),
       });
     } catch (err) {
-      logger.error("[AuditLog] 写入失败", { err, entry });
+      logger.error("[AuditLog] 写入失败", {
+        err,
+        requestId: entry.requestId,
+        module: entry.module,
+        action: entry.action,
+      });
     }
   }
 
