@@ -275,6 +275,10 @@ module.exports = async function run({ github, context, core }) {
       candidates = associated.map((number) => ({ number, headSha }));
     } else {
       const matched = await findOpenPullsForHeadSha(github, owner, repo, headSha);
+      if (matched.length === 0) {
+        core.warning(`No open PR found for head ${headSha}; the PR may have already been merged or closed. Skipping.`);
+        return;
+      }
       assert(matched.length === 1, `Expected exactly one open PR for head ${headSha}, found ${matched.length}.`);
       candidates = [{ number: matched[0].number, headSha }];
     }
