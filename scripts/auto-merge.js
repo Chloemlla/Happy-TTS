@@ -172,18 +172,28 @@ async function findOpenPullsForHeadSha(github, owner, repo, headSha) {
   return pulls.filter((pr) => `${pr.head.sha || ""}`.toLowerCase() === headSha);
 }
 
+function softSkip(core, message) {
+  core.warning(message);
+  return null;
+}
+
 async function evaluatePullRequest({ github, core, owner, repo, pullNumber, expectedHeadSha }) {
   const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: pullNumber });
 
-  assert(pr.state === "open", `PR #${pullNumber} is not open.`);
-  assert(!pr.draft, `PR #${pullNumber} is a draft.`);
+  // Expected non-merge conditions: soft-skip so workflow_run noise does not fail Actions.
+  if (pr.state !== "open") {
+    return softSkip(core, `PR #${pullNumber} is not open; skipping auto-merge.`);
+  }
+  if (pr.draft) {
+    return softSkip(core, `PR #${pullNumber} is a draft; skipping auto-merge.`);
+  }
   assert(pr.base.repo?.full_name === `${owner}/${repo}`, `PR #${pullNumber} targets a different repository.`);
-  assert(
-    pr.labels.some((label) => label.name === AUTO_MERGE_LABEL),
-    `PR #${pullNumber} lacks the required ${AUTO_MERGE_LABEL} label.`
-  );
+  if (!pr.labels.some((label) => label.name === AUTO_MERGE_LABEL)) {
+    return softSkip(core, `PR #${pullNumber} lacks the required ${AUTO_MERGE_LABEL} label; skipping auto-merge.`);
+  }
 
   const currentHeadSha = normalizeSha(pr.head.sha);
+  // Head race is fail-closed: never merge a different SHA than the triggering run validated.
   assert(
     currentHeadSha === expectedHeadSha,
     `PR #${pullNumber} head changed: expected ${expectedHeadSha}, found ${currentHeadSha}.`
@@ -191,7 +201,9 @@ async function evaluatePullRequest({ github, core, owner, repo, pullNumber, expe
 
   const reviews = latestReviewsByAuthor(await listReviews(github, owner, repo, pullNumber));
   const blockingReviews = [...reviews.values()].filter((review) => review.state === "CHANGES_REQUESTED");
-  assert(blockingReviews.length === 0, `PR #${pullNumber} has an active changes-requested review.`);
+  if (blockingReviews.length > 0) {
+    return softSkip(core, `PR #${pullNumber} has an active changes-requested review; skipping auto-merge.`);
+  }
 
   const currentApprovals = [...reviews.values()].filter((review) => {
     const login = review.user?.login || "";
@@ -203,10 +215,12 @@ async function evaluatePullRequest({ github, core, owner, repo, pullNumber, expe
       !login.endsWith("[bot]")
     );
   });
-  assert(
-    currentApprovals.length > 0,
-    `PR #${pullNumber} has no human approval for current head ${currentHeadSha}.`
-  );
+  if (currentApprovals.length === 0) {
+    return softSkip(
+      core,
+      `PR #${pullNumber} has no human approval for current head ${currentHeadSha}; skipping auto-merge.`
+    );
+  }
 
   const requiredContexts = await resolveRequiredContexts(github, core, owner, repo, pr.base.ref);
   assert(requiredContexts.size > 0, `No required status checks available for ${pr.base.ref}.`);
@@ -217,31 +231,48 @@ async function evaluatePullRequest({ github, core, owner, repo, pullNumber, expe
     normalizeSha(state.headRefOid) === currentHeadSha,
     `PR #${pullNumber} GraphQL head SHA does not match REST head SHA.`
   );
-  assert(state.mergeable === "MERGEABLE", `PR #${pullNumber} is not mergeable (${state.mergeable}).`);
-  assert(
-    state.mergeStateStatus === "CLEAN",
-    `PR #${pullNumber} does not satisfy repository merge requirements (${state.mergeStateStatus}).`
-  );
-  assert(state.reviewDecision !== "CHANGES_REQUESTED", `PR #${pullNumber} has a blocking review decision.`);
-  assert(state.statusCheckRollup, `PR #${pullNumber} has no status check rollup.`);
+  if (state.mergeable !== "MERGEABLE") {
+    return softSkip(core, `PR #${pullNumber} is not mergeable (${state.mergeable}); skipping auto-merge.`);
+  }
+  if (state.mergeStateStatus !== "CLEAN") {
+    return softSkip(
+      core,
+      `PR #${pullNumber} does not satisfy repository merge requirements (${state.mergeStateStatus}); skipping auto-merge.`
+    );
+  }
+  if (state.reviewDecision === "CHANGES_REQUESTED") {
+    return softSkip(core, `PR #${pullNumber} has a blocking review decision; skipping auto-merge.`);
+  }
+  if (!state.statusCheckRollup) {
+    return softSkip(core, `PR #${pullNumber} has no status check rollup; skipping auto-merge.`);
+  }
   assert(
     !state.statusCheckRollup.contexts.pageInfo.hasNextPage,
     `PR #${pullNumber} has more than 100 check contexts; refusing incomplete evaluation.`
   );
-  assert(
-    state.statusCheckRollup.state === "SUCCESS",
-    `PR #${pullNumber} check rollup is ${state.statusCheckRollup.state}.`
-  );
+  if (state.statusCheckRollup.state !== "SUCCESS") {
+    return softSkip(
+      core,
+      `PR #${pullNumber} check rollup is ${state.statusCheckRollup.state}; skipping auto-merge.`
+    );
+  }
 
   const contexts = state.statusCheckRollup.contexts.nodes || [];
   const { successful, incomplete } = successfulContextNames(contexts);
-  assert(incomplete.length === 0, `PR #${pullNumber} has non-successful checks: ${incomplete.join(", ")}`);
+  if (incomplete.length > 0) {
+    return softSkip(
+      core,
+      `PR #${pullNumber} has non-successful checks: ${incomplete.join(", ")}; skipping auto-merge.`
+    );
+  }
 
   const missingRequired = [...requiredContexts].filter((name) => !successful.has(name));
-  assert(
-    missingRequired.length === 0,
-    `PR #${pullNumber} is missing successful required checks: ${missingRequired.join(", ")}`
-  );
+  if (missingRequired.length > 0) {
+    return softSkip(
+      core,
+      `PR #${pullNumber} is missing successful required checks: ${missingRequired.join(", ")}; skipping auto-merge.`
+    );
+  }
 
   core.info(
     `PR #${pullNumber}: head ${currentHeadSha}, ${currentApprovals.length} current approval(s), required checks passed: ${[...requiredContexts].join(", ")}.`
@@ -289,10 +320,13 @@ module.exports = async function run({ github, context, core }) {
   assert(Number.isInteger(pullNumber) && pullNumber > 0, "Invalid pull request number.");
   const expectedHeadSha = normalizeSha(candidates[0].headSha);
 
-  await evaluatePullRequest({ github, core, owner, repo, pullNumber, expectedHeadSha });
+  const firstPass = await evaluatePullRequest({ github, core, owner, repo, pullNumber, expectedHeadSha });
+  if (!firstPass) {
+    return;
+  }
 
   // Re-evaluate immediately before the merge and bind the merge API call to the same SHA.
-  const { pr, currentHeadSha } = await evaluatePullRequest({
+  const secondPass = await evaluatePullRequest({
     github,
     core,
     owner,
@@ -300,6 +334,11 @@ module.exports = async function run({ github, context, core }) {
     pullNumber,
     expectedHeadSha,
   });
+  if (!secondPass) {
+    return;
+  }
+
+  const { pr, currentHeadSha } = secondPass;
 
   const result = await github.rest.pulls.merge({
     owner,
