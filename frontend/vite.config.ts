@@ -16,7 +16,15 @@ const __dirname = path.dirname(__filename);
 const MANUAL_CHUNKS: Record<string, string[]> = {
   "react-vendor": ["react", "react-dom"],
   router: ["react-router-dom"],
-  ui: ["@radix-ui/react-dialog", "react-icons"],
+  // Keep Radix + Base UI + CVA out of the entry; desktop sidebar pulls these in.
+  ui: [
+    "@radix-ui/react-dialog",
+    "@base-ui/react",
+    "class-variance-authority",
+    "react-icons",
+  ],
+  // Hugeicons is only needed by the shadcn sidebar primitives.
+  hugeicons: ["@hugeicons/core-free-icons", "@hugeicons/react"],
   utils: ["axios", "clsx", "tailwind-merge"],
   auth: ["@simplewebauthn/browser", "qrcode.react"],
   fingerprint: ["@fingerprintjs/fingerprintjs"],
@@ -30,8 +38,10 @@ const MANUAL_CHUNKS: Record<string, string[]> = {
 };
 
 function getManualChunk(id: string): string | undefined {
+  // Normalize Windows paths so node_modules matching is reliable.
+  const normalized = id.replace(/\\/g, "/");
   for (const [chunkName, deps] of Object.entries(MANUAL_CHUNKS)) {
-    if (deps.some((dep) => id.includes(`node_modules/${dep}`) || id.includes(`node_modules\\${dep}`))) {
+    if (deps.some((dep) => normalized.includes(`/node_modules/${dep}/`) || normalized.includes(`/node_modules/${dep}`))) {
       return chunkName;
     }
   }

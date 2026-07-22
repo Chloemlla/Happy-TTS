@@ -24,9 +24,6 @@ import FingerprintRequestModal from './components/FingerprintRequestModal';
 import { setFirstVisitVerificationEnabled } from './utils/firstVisitVerificationConfig';
 import ArticleCommandPalette from './components/ArticleCommandPalette';
 import { getAuthToken } from './utils/authSession';
-import { SidebarInset, SidebarProvider, SidebarTrigger } from './components/ui/sidebar';
-import { AppSidebar, getSidebarDefaultOpen } from './layout';
-import { useSidebarView } from './hooks/useSidebarView';
 
 
 // 动态导入 clarity 以减少主 bundle 体积，避免与 FirstVisitVerification 的动态导入冲突
@@ -39,6 +36,9 @@ const loadClarity = async () => {
   }
   return clarityModule;
 };
+
+// Desktop sidebar shell is heavy (Base UI + Hugeicons); keep it out of the entry budget.
+const DesktopShell = React.lazy(() => import('./layout/DesktopShell'));
 
 // 懒加载组件
 const WelcomePage = React.lazy(() => import('./components/WelcomePage').then(module => ({ default: module.WelcomePage })));
@@ -626,7 +626,6 @@ const App: React.FC = () => {
     mql.addEventListener('change', update);
     return () => mql.removeEventListener('change', update);
   }, []);
-  const sidebarViewState = useSidebarView();
   // Desktop logged-in shell uses the left sidebar; mobile keeps MobileNav only.
   const useDesktopSidebar = Boolean(user) && isDesktopViewport;
   const openTOTPManager = React.useCallback(() => {
@@ -1479,11 +1478,8 @@ const App: React.FC = () => {
                     </Link>
                   </m.div>
 
-                  {/* 导航栏：桌面端用侧栏，顶栏只保留账号/安全入口；移动端继续 MobileNav */}
+                  {/* 导航栏：桌面端用侧栏（折叠用 SidebarRail），顶栏只保留账号/安全入口；移动端继续 MobileNav */}
                   <div ref={navRef} className="flex-1 flex justify-end items-center gap-2">
-                    {useDesktopSidebar ? (
-                      <SidebarTrigger className="md:flex" />
-                    ) : null}
                     {user ? (
                       <Suspense fallback={<NavSlotLoadingBadge />}>
                         <MobileNav
@@ -1513,30 +1509,27 @@ const App: React.FC = () => {
             </m.nav>
 
             {useDesktopSidebar ? (
-              <SidebarProvider defaultOpen={getSidebarDefaultOpen()} className="relative z-10 min-h-0 flex-1 flex-col">
-                <div className="flex min-h-0 w-full flex-1">
-                  <AppSidebar viewState={sidebarViewState} collapsible="icon" />
-                  <SidebarInset className="min-h-0 overflow-auto bg-transparent">
-                    <main
-                      id="app-main-content"
-                      ref={mainRef}
-                      tabIndex={-1}
-                      className="mx-auto w-full max-w-7xl flex-1 py-6 focus:outline-none sm:px-6 lg:px-8 relative"
-                    >
-                      <Suspense fallback={<RouteLoadingShell />}>
-                        <AnimatePresence mode="wait">
-                          <Routes location={location} key={location.pathname}>
-                            {renderAppRoutes()}
-                          </Routes>
-                        </AnimatePresence>
-                      </Suspense>
-                    </main>
-                    <Suspense fallback={<FooterLoadingShell />}>
-                      <Footer />
+              <Suspense fallback={<RouteLoadingShell />}>
+                <DesktopShell>
+                  <main
+                    id="app-main-content"
+                    ref={mainRef}
+                    tabIndex={-1}
+                    className="mx-auto w-full max-w-7xl flex-1 py-6 focus:outline-none sm:px-6 lg:px-8 relative"
+                  >
+                    <Suspense fallback={<RouteLoadingShell />}>
+                      <AnimatePresence mode="wait">
+                        <Routes location={location} key={location.pathname}>
+                          {renderAppRoutes()}
+                        </Routes>
+                      </AnimatePresence>
                     </Suspense>
-                  </SidebarInset>
-                </div>
-              </SidebarProvider>
+                  </main>
+                  <Suspense fallback={<FooterLoadingShell />}>
+                    <Footer />
+                  </Suspense>
+                </DesktopShell>
+              </Suspense>
             ) : (
               <>
                 <main
