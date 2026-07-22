@@ -18,8 +18,10 @@ const AdminDashboard: React.FC = () => {
   const [searchParams] = useSearchParams();
   const tab = searchParams.get('tab');
 
-  if (tab && ADMIN_TAB_TO_PATH[tab]) {
-    return <Navigate to={ADMIN_TAB_TO_PATH[tab]} replace />;
+  if (tab) {
+    const mapped = ADMIN_TAB_TO_PATH[tab];
+    // Known tab → module path; unknown tab → clean hub (drop stale query).
+    return <Navigate to={mapped || '/admin'} replace />;
   }
 
   return <AdminHub />;

@@ -140,7 +140,9 @@ function SidebarProvider({
           } as React.CSSProperties
         }
         className={cn(
-          'group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full',
+          // min-h-0 (not min-h-svh) so nested desktop shells can fill a parent flex column
+          // without forcing document-height double scroll.
+          'group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-0 w-full',
           className,
         )}
         {...props}
@@ -373,7 +375,8 @@ function SidebarContent({ className, ...props }: React.ComponentProps<'div'>) {
       data-slot='sidebar-content'
       data-sidebar='content'
       className={cn(
-        'no-scrollbar flex min-h-0 flex-1 flex-col gap-0 overflow-auto group-data-[collapsible=icon]:overflow-hidden',
+        // Keep overflow-y-auto in icon mode so long admin lists remain reachable.
+        'no-scrollbar flex min-h-0 flex-1 flex-col gap-0 overflow-y-auto overflow-x-hidden',
         className,
       )}
       {...props}

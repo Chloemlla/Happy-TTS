@@ -155,7 +155,7 @@ const PromptModal: React.FC<PromptModalProps> = ({
       <AnimatePresence>
         {open && (
         <motion.div
-          className={`fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm ${
+          className={`fixed inset-0 z-[10050] flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm ${
             isMobile ? 'p-2' : 'p-4'
           }`}
           initial={{ opacity: 0 }}

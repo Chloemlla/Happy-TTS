@@ -658,7 +658,7 @@ const App: React.FC = () => {
     (element: React.ReactNode, redirectTo: string = adminFallbackPath) => (
       <AdminRoute userRole={user?.role} redirectTo={redirectTo}>
         {renderAnimatedRoute(
-          <Suspense fallback={<RouteLoadingShell label="正在验证管理员权限..." />}>
+          <Suspense fallback={<RouteLoadingShell label="正在加载管理模块..." />}>
             <AdminGuard>
               <div className="logshare-admin-surface">
                 {element}
@@ -889,8 +889,12 @@ const App: React.FC = () => {
     }
 
     const frameId = window.requestAnimationFrame(() => {
+      // Mobile: document scrolls. Desktop shell: inset pane scrolls.
       window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-      mainRef.current?.focus();
+      if (mainRef.current && mainRef.current.scrollHeight > mainRef.current.clientHeight) {
+        mainRef.current.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      }
+      mainRef.current?.focus({ preventScroll: true });
     });
 
     return () => {
@@ -915,8 +919,12 @@ const App: React.FC = () => {
       ? document.activeElement
       : null;
 
-    const previousOverflow = document.body.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    // Desktop shell scrolls #app-main-content, not document — lock both.
+    const mainPane = document.getElementById('app-main-content') as HTMLElement | null;
+    const previousMainOverflow = mainPane?.style.overflow ?? '';
+    if (mainPane) mainPane.style.overflow = 'hidden';
 
     const focusableSelector = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
     const frameId = window.requestAnimationFrame(() => {
@@ -964,7 +972,8 @@ const App: React.FC = () => {
 
     return () => {
       window.cancelAnimationFrame(frameId);
-      document.body.style.overflow = previousOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+      if (mainPane) mainPane.style.overflow = previousMainOverflow;
       document.removeEventListener('keydown', handleDialogKeydown);
     };
   }, [closeTOTPManager, showTOTPManager]);
@@ -1405,7 +1414,13 @@ const App: React.FC = () => {
             // 新增：内容区自适应高度，超出可滚动
             contentClassName="max-h-[60vh] sm:max-h-[50vh] overflow-y-auto px-2 sm:px-4"
           />
-          <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden flex flex-col">
+          <div
+            className={
+              useDesktopSidebar
+                ? 'relative flex h-svh max-h-svh flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100'
+                : 'relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100'
+            }
+          >
             {showParticles && <BackgroundParticles />}
             <a
               href="#app-main-content"
@@ -1417,6 +1432,7 @@ const App: React.FC = () => {
             {useDesktopSidebar ? (
               <Suspense fallback={<RouteLoadingShell />}>
                 <DesktopShell
+                  contentRef={mainRef}
                   headerEnd={
                     user ? (
                       <Suspense fallback={<NavSlotLoadingBadge />}>
@@ -1431,12 +1447,7 @@ const App: React.FC = () => {
                     ) : null
                   }
                 >
-                  <div
-                    id="app-main-content"
-                    ref={mainRef}
-                    tabIndex={-1}
-                    className="relative mx-auto w-full max-w-7xl flex-1 px-4 py-6 focus:outline-none sm:px-6 lg:px-8"
-                  >
+                  <div className="relative mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
                     <Suspense fallback={<RouteLoadingShell />}>
                       <AnimatePresence mode="wait">
                         <Routes location={location} key={location.pathname}>
@@ -1558,7 +1569,7 @@ const App: React.FC = () => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm"
+                  className="fixed inset-0 z-[10050] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm"
                   onClick={closeTOTPManager}
                 >
                   <m.div

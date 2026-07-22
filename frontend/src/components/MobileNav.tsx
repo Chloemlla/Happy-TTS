@@ -121,7 +121,11 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
   useEffect(() => {
     if (!isMenuOpen) return undefined;
 
-    const previousOverflow = document.body.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
+    // Desktop shell scrolls the inset pane, not document.body.
+    const shellScroller = document.getElementById('app-main-content');
+    const previousShellOverflow = shellScroller?.style.overflow ?? '';
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         closeMenu();
@@ -130,10 +134,12 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
     };
 
     document.body.style.overflow = 'hidden';
+    if (shellScroller) shellScroller.style.overflow = 'hidden';
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+      if (shellScroller) shellScroller.style.overflow = previousShellOverflow;
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [closeMenu, isMenuOpen]);
@@ -226,10 +232,32 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
     };
   }, [totpStatus?.enabled, totpStatus?.type]);
 
-  const isRouteActive = useCallback((item: Pick<NavItem, 'to' | 'matchChildren'>) => {
+  const isRouteActive = useCallback((
+    item: Pick<NavItem, 'to' | 'matchChildren'>,
+    siblingTos: string[] = [],
+  ) => {
     if (item.to === '/') return location.pathname === '/';
-    if (location.pathname === item.to) return true;
-    return Boolean(item.matchChildren && location.pathname.startsWith(`${item.to}/`));
+    let matched = false;
+    let matchedLen = -1;
+    if (location.pathname === item.to) {
+      matched = true;
+      matchedLen = item.to.length;
+    } else if (item.matchChildren && location.pathname.startsWith(`${item.to}/`)) {
+      matched = true;
+      matchedLen = item.to.length;
+    }
+    if (!matched) return false;
+    // Prefer longer sibling match so parent+child don't both light up.
+    for (const sibling of siblingTos) {
+      if (!sibling || sibling === item.to || sibling === '/') continue;
+      if (
+        (location.pathname === sibling || location.pathname.startsWith(`${sibling}/`)) &&
+        sibling.length > matchedLen
+      ) {
+        return false;
+      }
+    }
+    return true;
   }, [location.pathname]);
 
   const handleTOTPManager = useCallback(() => {
@@ -266,9 +294,9 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
     logout();
   }, [closeMenu, logout]);
 
-  const renderNavLink = (item: NavItem, admin = false) => {
+  const renderNavLink = (item: NavItem, admin = false, siblingTos: string[] = []) => {
     const Icon = item.icon;
-    const active = isRouteActive(item);
+    const active = isRouteActive(item, siblingTos);
 
     return (
       <Link
@@ -277,7 +305,8 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
         aria-current={active ? 'page' : undefined}
         onClick={closeMenu}
         className={cn(
-          'flex min-h-12 items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2',
+          'flex items-center gap-3 rounded-2xl border px-4 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2',
+          admin ? 'min-h-11 py-2.5' : 'min-h-12 py-3',
           active
             ? 'border-slate-900 bg-slate-900 text-white shadow-[0_14px_38px_rgba(15,23,42,0.16)]'
             : cn(
@@ -365,10 +394,11 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
                 exit={{ opacity: 0, scale: 0.96, y: 10 }}
                 transition={{ duration: 0.18 }}
                 className={cn(
-                  'absolute top-16 z-[9999] flex max-h-[calc(100vh-5rem)] flex-col overflow-hidden rounded-[34px] border border-white/70 bg-white/88 shadow-[0_28px_110px_rgba(15,23,42,0.12)] backdrop-blur-xl',
+                  // accountOnly sits under desktop h-14 shell header; full mobile nav under h-16.
+                  'absolute z-[9999] flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden rounded-[34px] border border-white/70 bg-white/88 shadow-[0_28px_110px_rgba(15,23,42,0.12)] backdrop-blur-xl',
                   accountOnly
-                    ? 'right-4 left-auto w-[22rem]'
-                    : 'left-3 right-3 sm:left-auto sm:right-4 sm:w-[26rem]',
+                    ? 'top-14 right-4 left-auto w-[min(22rem,calc(100vw-2rem))]'
+                    : 'top-16 left-3 right-3 sm:left-auto sm:right-4 sm:w-[26rem]',
                 )}
               >
                 <div className="shrink-0 border-b border-slate-200/70 bg-white/70 p-5">
@@ -563,13 +593,15 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
                     </section>
                   ) : (
                     <>
-                      {menuGroups.map((group) => (
+                      {menuGroups.map((group) => {
+                        const siblingTos = group.items.map((item) => item.to);
+                        return (
                         <section key={group.id} className="space-y-2" aria-labelledby={`mobile-nav-group-${group.id}`}>
                           <p id={`mobile-nav-group-${group.id}`} className="px-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
                             {group.title}
                           </p>
                           <div className="grid grid-cols-1 gap-2">
-                            {group.items.map((item) => renderNavLink(item))}
+                            {group.items.map((item) => renderNavLink(item, false, siblingTos))}
                             {group.id === 'core' && (
                               <button
                                 type="button"
@@ -590,18 +622,25 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
                             )}
                           </div>
                         </section>
-                      ))}
+                        );
+                      })}
 
-                      {isAdmin && adminGroups.map((group) => (
+                      {isAdmin && adminGroups.map((group) => {
+                        const siblingTos = group.items.map((item) => item.to);
+                        return (
                         <section key={group.id} className="space-y-2 border-t border-slate-200/70 pt-4" aria-labelledby={`mobile-nav-group-${group.id}`}>
-                          <p id={`mobile-nav-group-${group.id}`} className="px-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                            {group.title}
-                          </p>
-                          <div className="grid grid-cols-1 gap-2">
-                            {group.items.map((item) => renderNavLink(item, true))}
+                          <div className="flex items-baseline justify-between gap-2 px-1">
+                            <p id={`mobile-nav-group-${group.id}`} className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                              {group.title}
+                            </p>
+                            <span className="text-[10px] font-medium text-slate-400">更多见总览</span>
+                          </div>
+                          <div className="grid grid-cols-1 gap-1.5">
+                            {group.items.map((item) => renderNavLink(item, true, siblingTos))}
                           </div>
                         </section>
-                      ))}
+                        );
+                      })}
                     </>
                   )}
                 </div>

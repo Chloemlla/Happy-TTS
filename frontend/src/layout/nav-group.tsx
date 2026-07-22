@@ -19,6 +19,10 @@ import type { NavGroup as NavGroupProps, NavLink } from './types';
  */
 export function NavGroup({ title, items }: NavGroupProps) {
   const pathname = useLocation().pathname;
+  const siblingUrls = items
+    .filter(isNavLink)
+    .map((item) => item.url)
+    .filter(Boolean);
 
   return (
     <SidebarGroup className='px-2 py-0.5'>
@@ -34,6 +38,7 @@ export function NavGroup({ title, items }: NavGroupProps) {
                   key={`${sub.title}-${sub.url}`}
                   item={sub as NavLink}
                   pathname={pathname}
+                  siblingUrls={siblingUrls}
                 />
               ));
             }
@@ -44,6 +49,7 @@ export function NavGroup({ title, items }: NavGroupProps) {
               key={`${item.title}-${item.url}`}
               item={item}
               pathname={pathname}
+              siblingUrls={siblingUrls}
             />
           );
         })}
@@ -55,15 +61,17 @@ export function NavGroup({ title, items }: NavGroupProps) {
 function SidebarMenuLink({
   item,
   pathname,
+  siblingUrls,
 }: {
   item: NavLink;
   pathname: string;
+  siblingUrls: string[];
 }) {
   const { setOpenMobile } = useSidebar();
   const Icon = item.icon;
-  const active = checkIsActive(pathname, item);
-  // Drill-in workspace entries (admin) get a trailing chevron.
-  const isDrillIn = item.matchChildren && item.url !== '/';
+  const active = checkIsActive(pathname, item, { siblingUrls });
+  // Only the admin workspace entry is a real drill-in (sidebarViews).
+  const isDrillIn = item.url === '/admin' && Boolean(item.matchChildren);
 
   return (
     <SidebarMenuItem>
@@ -81,22 +89,31 @@ function SidebarMenuLink({
         }
       >
         {Icon ? (
-          <span
-            className={cn(
-              'flex size-6 shrink-0 items-center justify-center rounded-md transition-colors',
-              active
-                ? 'bg-sidebar-primary/15 text-sidebar-primary'
-                : 'bg-sidebar-accent/50 text-sidebar-foreground/70 group-hover/menu-button:bg-sidebar-accent group-hover/menu-button:text-sidebar-foreground',
-            )}
-          >
-            <Icon className='size-3.5' aria-hidden='true' />
-          </span>
+          <>
+            <span
+              className={cn(
+                'flex size-6 shrink-0 items-center justify-center rounded-md transition-colors group-data-[collapsible=icon]:hidden',
+                active
+                  ? 'bg-sidebar-primary/15 text-sidebar-primary'
+                  : 'bg-sidebar-accent/50 text-sidebar-foreground/70 group-hover/menu-button:bg-sidebar-accent group-hover/menu-button:text-sidebar-foreground',
+              )}
+            >
+              <Icon className='size-3.5' aria-hidden='true' />
+            </span>
+            <Icon
+              className={cn(
+                'hidden size-4 shrink-0 group-data-[collapsible=icon]:block',
+                active ? 'text-sidebar-primary' : 'text-sidebar-foreground/75',
+              )}
+              aria-hidden='true'
+            />
+          </>
         ) : null}
-        <span className='min-w-0 flex-1 truncate text-[13px] font-medium'>
+        <span className='min-w-0 flex-1 truncate text-[13px] font-medium group-data-[collapsible=icon]:hidden'>
           {item.title}
         </span>
         {item.badge ? (
-          <span className='bg-sidebar-primary/12 text-sidebar-primary shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold'>
+          <span className='bg-sidebar-primary/12 text-sidebar-primary shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-semibold group-data-[collapsible=icon]:hidden'>
             {item.badge}
           </span>
         ) : null}

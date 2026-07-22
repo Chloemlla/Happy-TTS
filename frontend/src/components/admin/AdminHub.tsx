@@ -24,7 +24,7 @@ import {
  */
 export const AdminHub: React.FC = () => {
   const { user } = useAuth();
-  const groups = getAdminNavGroups();
+  const groups = getAdminNavGroups().filter((g) => g.id !== 'admin-hub');
   const totalModules = groups.reduce((sum, g) => sum + g.items.length, 0);
 
   return (
@@ -33,7 +33,7 @@ export const AdminHub: React.FC = () => {
         <InfoQueryHero
           eyebrow='Admin Console'
           title='管理后台'
-          description='系统管理与配置中心。桌面端可从左侧边栏 drill-in 视图直接切换模块；此处为分组总览。'
+          description='系统管理与配置中心。桌面端可从左侧边栏 drill-in 直接切换模块；手机端请从「管理总览」进入本页浏览全部分组。'
           icon={FaShieldAlt}
           tone='slate'
           meta={

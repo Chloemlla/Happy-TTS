@@ -206,7 +206,8 @@ const TicketSystem: React.FC = () => {
 
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024);
+      // Align with app shell breakpoint (md: 768px), not lg:1024.
+      setIsMobile(window.innerWidth < 768);
     };
     checkMobile();
     window.addEventListener("resize", checkMobile);
@@ -396,7 +397,7 @@ const TicketSystem: React.FC = () => {
             >
               <div className={cn(studioAccentBlobBlueClassName, "-right-12 top-0")} aria-hidden />
               <div className={cn(studioAccentBlobSkyClassName, "-left-10 bottom-0")} aria-hidden />
-              <div className="relative flex min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+              <div className="relative flex min-w-0 flex-col gap-5 md:flex-row md:items-end md:justify-between">
                 <div className="max-w-2xl min-w-0">
                   <div className={studioEyebrowAccentPillClassName}>
                     <FiMessageSquare />
@@ -430,7 +431,7 @@ const TicketSystem: React.FC = () => {
                     </div>
                   )}
                 </div>
-                <div className="hidden w-full lg:block lg:w-auto lg:max-w-sm">
+                <div className="hidden w-full md:block md:w-auto md:max-w-sm">
                   <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 sm:rounded-2xl">
                     <div className={cn(studioEyebrowClassName, "flex items-center gap-2")}>
                       <FiInfo className="text-slate-500" />
@@ -457,13 +458,13 @@ const TicketSystem: React.FC = () => {
           )}
         </AnimatePresence>
 
-        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 h-[calc(100dvh-220px)] lg:h-[600px] xl:h-[720px] min-h-[500px]">
+        <div className="flex min-h-[min(500px,calc(100dvh-14rem))] flex-col gap-4 md:h-[min(640px,calc(100dvh-12rem))] md:flex-row md:gap-6">
           {/* 左侧列表 */}
           <AnimatePresence mode="wait">
             {(!isMobile || !showDetailOnMobile) && (
               <motion.div
                 key="list"
-                className={cn("lg:w-96 w-full h-full flex flex-col overflow-hidden", studioPanelClassName, "p-0 sm:p-0")}
+                className={cn("md:w-96 w-full h-full flex flex-col overflow-hidden", studioPanelClassName, "p-0 sm:p-0")}
                 initial={isMobile ? { opacity: 0, x: -20 } : { opacity: 0 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={isMobile ? { opacity: 0, x: -20 } : undefined}

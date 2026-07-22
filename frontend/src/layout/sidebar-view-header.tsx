@@ -22,6 +22,7 @@ type SidebarViewHeaderProps = {
 export function SidebarViewHeader({ view }: SidebarViewHeaderProps) {
   const { setOpenMobile } = useSidebar();
   const isAdmin = view.id === 'admin';
+  const hubTo = isAdmin ? '/admin' : view.parent.to;
 
   return (
     <SidebarHeader className='border-sidebar-border gap-1 border-b px-2 py-2.5'>
@@ -38,15 +39,21 @@ export function SidebarViewHeader({ view }: SidebarViewHeaderProps) {
             }
           >
             <FaChevronLeft className='size-3.5 shrink-0 opacity-70' aria-hidden='true' />
-            <span className='truncate text-[13px]'>{view.parent.label}</span>
+            <span className='truncate text-[13px] group-data-[collapsible=icon]:hidden'>
+              {view.parent.label}
+            </span>
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <div
+          <SidebarMenuButton
+            tooltip={isAdmin ? '管理后台' : view.id}
+            size='lg'
             className={cn(
-              'flex items-center gap-2.5 rounded-xl px-2 py-2',
+              'h-auto gap-2.5 rounded-xl px-2 py-2',
               'bg-sidebar-accent/55 ring-1 ring-sidebar-border/80',
+              'hover:bg-sidebar-accent data-active:bg-sidebar-accent/55',
             )}
+            render={<Link to={hubTo} onClick={() => setOpenMobile(false)} />}
           >
             <span
               className={cn(
@@ -66,7 +73,7 @@ export function SidebarViewHeader({ view }: SidebarViewHeaderProps) {
                 {isAdmin ? '系统配置与运维' : '工作区'}
               </span>
             </div>
-          </div>
+          </SidebarMenuButton>
         </SidebarMenuItem>
       </SidebarMenu>
     </SidebarHeader>

@@ -43,6 +43,10 @@ export function AppSidebar({
 
   return (
     <Sidebar collapsible={collapsible} variant={variant}>
+      <nav
+        className='flex h-full min-h-0 w-full flex-col'
+        aria-label={view ? '管理后台导航' : '主导航'}
+      >
       {view ? (
         <SidebarViewHeader view={view} />
       ) : (
@@ -107,11 +111,12 @@ export function AppSidebar({
         <p className='text-muted-foreground/75 px-2 text-[10px] leading-relaxed'>
           {view
             ? '管理模块 · 点「返回」退出工作区'
-            : '顶栏按钮或侧栏边缘可折叠 · 状态会记住'}
+            : '顶栏按钮或侧栏边缘可折叠 · Ctrl/⌘+B · 状态会记住'}
         </p>
       </SidebarFooter>
 
       <SidebarRail />
+      </nav>
     </Sidebar>
   );
 }

@@ -252,6 +252,18 @@ export function getRootNavGroups(ctx: NavVisibilityContext): NavGroup[] {
 export function getAdminNavGroups(): NavGroup[] {
   return [
     {
+      id: 'admin-hub',
+      title: '总览',
+      items: [
+        {
+          title: '管理总览',
+          url: '/admin',
+          icon: FaUserShield as IconType,
+          // exact match only — children must not keep this lit
+        },
+      ],
+    },
+    {
       id: 'admin-identity',
       title: '身份与权限',
       items: [
@@ -486,18 +498,63 @@ export const ADMIN_TAB_TO_PATH: Record<string, string> = {
   'tts-history': '/admin/tts-history',
   'rust-benchmark': '/admin/rust-benchmark',
   system: '/admin/system',
+  store: '/admin/store',
+  resources: '/admin/store/resources',
+  cdks: '/admin/store/cdks',
+  'email-sender': '/email-sender',
+  'nexai-security': '/nexai-security',
+  'tamper-detection': '/tamper-detection-demo',
 };
 
 /**
  * Mobile overlay root groups — same IA as desktop root, but without the
- * admin-entry chip (full admin modules are listed separately via
- * {@link getMobileAdminNavGroups}).
+ * admin-entry chip (admin section is rendered separately).
  */
 export function getMobileRootNavGroups(ctx: NavVisibilityContext): NavGroup[] {
   return getRootNavGroups(ctx).filter((g) => g.id !== 'admin-entry');
 }
 
-/** Mobile overlay admin groups — full parity with desktop drill-in / AdminHub. */
+/**
+ * Mobile overlay admin section — hub + high-frequency shortcuts only.
+ * Full module catalog lives on AdminHub / desktop drill-in; dumping ~35
+ * min-h-12 rows into the phone overlay is unusable.
+ */
 export function getMobileAdminNavGroups(): NavGroup[] {
-  return getAdminNavGroups();
+  return [
+    {
+      id: 'admin-mobile',
+      title: '管理',
+      items: [
+        {
+          title: '管理总览',
+          url: '/admin',
+          icon: FaUserShield as IconType,
+          matchChildren: true,
+        },
+        { title: '用户管理', url: '/admin/users', icon: FaUserShield as IconType },
+        {
+          title: '商店管理',
+          url: '/admin/store',
+          icon: FaStore as IconType,
+          matchChildren: true,
+        },
+        { title: '抽奖管理', url: '/admin/lottery', icon: FaGift as IconType },
+        {
+          title: '邮件发送',
+          url: '/email-sender',
+          icon: FaPaperPlane as IconType,
+        },
+        {
+          title: '安全监控',
+          url: '/nexai-security',
+          icon: FaShieldAlt as IconType,
+        },
+        {
+          title: '系统管理',
+          url: '/admin/system',
+          icon: FaBars as IconType,
+        },
+      ],
+    },
+  ];
 }

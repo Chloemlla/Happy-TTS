@@ -17,6 +17,24 @@ type AdminGuardProps = {
   children: React.ReactNode;
 };
 
+/** Soft-cache last successful verify so admin module switches don't flash full re-auth. */
+const VERIFY_TTL_MS = 5 * 60 * 1000;
+let lastVerifyUserId: string | null = null;
+let lastVerifyAt = 0;
+
+function hasFreshVerify(userId?: string | null): boolean {
+  return Boolean(
+    userId &&
+      lastVerifyUserId === userId &&
+      Date.now() - lastVerifyAt < VERIFY_TTL_MS,
+  );
+}
+
+function rememberVerify(userId: string) {
+  lastVerifyUserId = userId;
+  lastVerifyAt = Date.now();
+}
+
 /**
  * Shared admin access gate for every `/admin/*` route.
  *
@@ -28,24 +46,26 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
   const { user, loading } = useAuth();
   const { setNotification } = useNotification();
   const navigate = useNavigate();
-  const [isAuthorized, setIsAuthorized] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const cachedOk = hasFreshVerify(user?.id);
+  const [isAuthorized, setIsAuthorized] = useState(cachedOk);
+  const [isLoading, setIsLoading] = useState(!cachedOk);
 
   useEffect(() => {
     let cancelled = false;
 
     const verifyAdminAccess = async () => {
       try {
-        setIsLoading(true);
         if (loading) return;
 
         if (!user) {
+          setIsLoading(true);
           setNotification({ message: '请先登录', type: 'warning' });
           navigate('/login');
           return;
         }
 
         if (user.role !== 'admin') {
+          setIsLoading(true);
           setNotification({
             message: '权限不足，仅限管理员访问',
             type: 'error',
@@ -53,6 +73,17 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
           navigate('/');
           return;
         }
+
+        // Skip full-page loader when we verified this admin recently.
+        if (hasFreshVerify(user.id)) {
+          if (!cancelled) {
+            setIsAuthorized(true);
+            setIsLoading(false);
+          }
+          return;
+        }
+
+        if (!cancelled) setIsLoading(true);
 
         const token = getAuthToken();
         if (!token) {
@@ -82,6 +113,7 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
           const result = await response.json();
           if (!result.success) throw new Error(result.message || '权限验证失败');
 
+          rememberVerify(user.id);
           if (!cancelled) setIsAuthorized(true);
         } catch (error) {
           console.error('[AdminGuard] 后端权限验证失败:', error);
@@ -139,16 +171,20 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
         );
 
         if (!response.ok) {
+          lastVerifyUserId = null;
+          lastVerifyAt = 0;
           setNotification({
             message: '权限已失效，请重新登录',
             type: 'warning',
           });
           navigate('/login');
+        } else if (user?.id) {
+          rememberVerify(user.id);
         }
       } catch (error) {
         console.error('[AdminGuard] 定期权限检查失败:', error);
       }
-    }, 5 * 60 * 1000);
+    }, VERIFY_TTL_MS);
 
     return () => window.clearInterval(interval);
   }, [isAuthorized, user, navigate, setNotification]);
