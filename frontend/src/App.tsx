@@ -1431,23 +1431,35 @@ const App: React.FC = () => {
               initial={{ y: -100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={navTransition}
-              className="bg-white/80 backdrop-blur-lg shadow-lg relative z-10 shrink-0"
+              className={
+                useDesktopSidebar
+                  ? 'relative z-20 shrink-0 border-b border-slate-200/80 bg-white/90 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur-xl'
+                  : 'relative z-10 shrink-0 bg-white/80 shadow-lg backdrop-blur-lg'
+              }
             >
               <div
                 id="app-header-container"
-                className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+                className={
+                  useDesktopSidebar
+                    ? 'mx-auto w-full px-4 sm:px-5 lg:px-6'
+                    : 'mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'
+                }
                 data-integrity="critical"
                 data-protection="maximum"
                 data-component="AppHeader"
               >
                 <div
                   id="app-header-content"
-                  className="flex justify-between items-center h-16"
+                  className="flex h-16 items-center justify-between"
                   data-integrity="critical"
                 >
                   <m.div
                     id="app-brand-logo"
-                    className="flex items-center space-x-2"
+                    className={
+                      useDesktopSidebar
+                        ? 'flex items-center space-x-2 md:opacity-90'
+                        : 'flex items-center space-x-2'
+                    }
                     whileHover={prefersReducedMotion ? undefined : { scale: 1.05 }}
                     whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
                     transition={{ type: "spring", stiffness: 400, damping: 10 }}
@@ -1457,7 +1469,7 @@ const App: React.FC = () => {
                   >
                     <m.img
                       id="app-brand-icon"
-                      className="w-8 h-8"
+                      className="h-8 w-8 rounded-xl"
                       src="/favicon.ico"
                       alt="Synapse Logo"
                       animate={prefersReducedMotion ? undefined : { rotate: [0, 4, -4, 0] }}
@@ -1468,7 +1480,7 @@ const App: React.FC = () => {
                     <Link
                       id="app-brand-text"
                       to="/"
-                      className="text-xl font-bold text-gray-900 hover:text-indigo-600 transition-colors"
+                      className="text-xl font-bold tracking-tight text-gray-900 transition-colors hover:text-indigo-600"
                       data-integrity="critical"
                       data-protection="brand-text"
                       data-critical-text="Synapse"
@@ -1476,6 +1488,11 @@ const App: React.FC = () => {
                     >
                       Synapse
                     </Link>
+                    {useDesktopSidebar ? (
+                      <span className="ml-1 hidden rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-slate-500 uppercase sm:inline-flex">
+                        Desktop
+                      </span>
+                    ) : null}
                   </m.div>
 
                   {/* 导航栏：桌面端用侧栏（折叠用 SidebarRail），顶栏只保留账号/安全入口；移动端继续 MobileNav */}
@@ -1515,7 +1532,7 @@ const App: React.FC = () => {
                     id="app-main-content"
                     ref={mainRef}
                     tabIndex={-1}
-                    className="mx-auto w-full max-w-7xl flex-1 py-6 focus:outline-none sm:px-6 lg:px-8 relative"
+                    className="relative mx-auto w-full max-w-7xl flex-1 px-4 py-6 focus:outline-none sm:px-6 lg:px-8"
                   >
                     <Suspense fallback={<RouteLoadingShell />}>
                       <AnimatePresence mode="wait">

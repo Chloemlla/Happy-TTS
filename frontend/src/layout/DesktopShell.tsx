@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { useSidebarView } from '@/hooks/useSidebarView';
+import { cn } from '@/lib/utils';
 
 import { AppSidebar } from './app-sidebar';
 import { getSidebarDefaultOpen } from './cookies';
@@ -24,7 +25,12 @@ export default function DesktopShell({ children }: DesktopShellProps) {
     >
       <div className='flex min-h-0 w-full flex-1'>
         <AppSidebar viewState={viewState} collapsible='icon' />
-        <SidebarInset className='hover-scrollbar min-h-0 overflow-auto bg-transparent'>
+        <SidebarInset
+          className={cn(
+            'hover-scrollbar min-h-0 overflow-auto bg-transparent',
+            'md:peer-data-[variant=inset]:bg-transparent',
+          )}
+        >
           {children}
         </SidebarInset>
       </div>

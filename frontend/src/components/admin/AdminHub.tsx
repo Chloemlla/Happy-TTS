@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { FaShieldAlt } from 'react-icons/fa';
+import { FaChevronRight, FaShieldAlt } from 'react-icons/fa';
 
 import {
   InfoBadge,
@@ -11,6 +11,7 @@ import {
 } from '@/components/LogShareStyleScaffold';
 import { getAdminNavGroups } from '@/navigation/navConfig';
 import { useAuth } from '@/hooks/useAuth';
+import { cn } from '@/lib/utils';
 
 import {
   AdminModuleComponents,
@@ -20,8 +21,6 @@ import {
 
 /**
  * `/admin` index — module hub with grouped cards linking into drill-in routes.
- * Desktop users also have the full list in the drill-in sidebar; this page
- * doubles as a landing overview and a mobile-friendly entry.
  */
 export const AdminHub: React.FC = () => {
   const { user } = useAuth();
@@ -53,7 +52,7 @@ export const AdminHub: React.FC = () => {
               icon={FaShieldAlt}
               eyebrow='Modules'
             />
-            <div className='mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3'>
+            <div className='mt-4 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3'>
               {group.items.map((item) => {
                 if (!('url' in item) || !item.url) return null;
                 const Icon = item.icon;
@@ -61,16 +60,27 @@ export const AdminHub: React.FC = () => {
                   <Link
                     key={item.url}
                     to={item.url}
-                    className='flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-white hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2'
+                    className={cn(
+                      'group flex items-center gap-3 rounded-2xl border border-slate-200/90 bg-white/90 px-4 py-3.5',
+                      'text-sm font-semibold text-slate-700 shadow-[0_1px_0_rgba(15,23,42,0.03)]',
+                      'transition duration-150',
+                      'hover:-translate-y-0.5 hover:border-indigo-200 hover:bg-white hover:text-slate-900',
+                      'hover:shadow-[0_10px_30px_-18px_rgba(79,70,229,0.45)]',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2',
+                    )}
                   >
-                    {Icon ? (
-                      <Icon
-                        className='shrink-0 text-slate-400'
-                        size={16}
-                        aria-hidden='true'
-                      />
-                    ) : null}
-                    <span className='truncate'>{item.title}</span>
+                    <span className='flex size-9 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition group-hover:bg-indigo-50 group-hover:text-indigo-600'>
+                      {Icon ? (
+                        <Icon className='size-4' aria-hidden='true' />
+                      ) : (
+                        <FaShieldAlt className='size-4' aria-hidden='true' />
+                      )}
+                    </span>
+                    <span className='min-w-0 flex-1 truncate'>{item.title}</span>
+                    <FaChevronRight
+                      className='size-3 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-indigo-400'
+                      aria-hidden='true'
+                    />
                   </Link>
                 );
               })}
@@ -93,6 +103,9 @@ export const AdminModulePage: React.FC = () => {
       <InfoQueryShell className='logshare-admin-surface'>
         <InfoPanel>
           <div className='py-16 text-center'>
+            <div className='mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400'>
+              <FaShieldAlt className='size-5' aria-hidden='true' />
+            </div>
             <h2 className='text-xl font-semibold text-slate-900'>
               未找到管理模块
             </h2>
@@ -114,7 +127,7 @@ export const AdminModulePage: React.FC = () => {
   const Component = AdminModuleComponents[module];
   return (
     <InfoQueryShell className='logshare-admin-surface'>
-      <div className='min-h-[400px] rounded-[26px] border border-slate-200 bg-white/60 p-3 sm:p-5'>
+      <div className='min-h-[400px] rounded-[26px] border border-slate-200/90 bg-white/70 p-3 shadow-[0_18px_50px_-36px_rgba(15,23,42,0.35)] sm:p-5'>
         {wrapAdminModule(Component)}
       </div>
     </InfoQueryShell>

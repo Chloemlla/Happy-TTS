@@ -46,34 +46,35 @@
   --radius: 0.75rem;
   --app-header-height: 4rem; /* matches App.tsx h-16 top nav */
 
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --background: oklch(0.985 0.004 255);
+  --foreground: oklch(0.18 0.02 255);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.18 0.02 255);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.45 0.14 255); /* indigo-ish, aligns with Synapse brand */
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.96 0 0);
-  --secondary-foreground: oklch(0.25 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.49 0 0);
-  --accent: color-mix(in oklch, var(--primary) 12%, var(--background));
-  --accent-foreground: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.18 0.02 255);
+  --primary: oklch(0.45 0.16 265); /* indigo-violet, Synapse brand */
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.96 0.01 255);
+  --secondary-foreground: oklch(0.28 0.03 255);
+  --muted: oklch(0.965 0.008 255);
+  --muted-foreground: oklch(0.5 0.02 255);
+  --accent: color-mix(in oklch, var(--primary) 10%, var(--background));
+  --accent-foreground: oklch(0.28 0.06 265);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.93 0 0);
-  --input: oklch(0.93 0 0);
-  --ring: oklch(0.55 0.16 255);
+  --border: oklch(0.91 0.01 255);
+  --input: oklch(0.91 0.01 255);
+  --ring: oklch(0.55 0.16 265);
 
-  --sidebar: color-mix(in oklch, var(--foreground) 0.5%, var(--background));
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.45 0.14 255);
-  --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: color-mix(in oklch, var(--primary) 12%, var(--background));
-  --sidebar-accent-foreground: oklch(0.35 0.12 255);
-  --sidebar-border: oklch(0.93 0 0);
-  --sidebar-ring: oklch(0.55 0.16 255);
+  /* Distinct app-chrome surface (not pure white page canvas) */
+  --sidebar: oklch(0.995 0.004 265);
+  --sidebar-foreground: oklch(0.22 0.03 265);
+  --sidebar-primary: oklch(0.48 0.17 265);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: color-mix(in oklch, var(--sidebar-primary) 11%, var(--sidebar));
+  --sidebar-accent-foreground: oklch(0.32 0.1 265);
+  --sidebar-border: oklch(0.92 0.012 265);
+  --sidebar-ring: oklch(0.55 0.16 265);
 }
 
 .dark {

@@ -1,33 +1,37 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 
-import { Sidebar, SidebarContent, SidebarRail } from '@/components/ui/sidebar';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarRail,
+  SidebarSeparator,
+} from '@/components/ui/sidebar';
+import { cn } from '@/lib/utils';
 
 import { NavGroup } from './nav-group';
 import { SidebarViewHeader } from './sidebar-view-header';
 import type { ResolvedSidebarView } from './types';
 
 type AppSidebarProps = {
-  /** Resolved view from `useSidebarView()` (PR2). */
   viewState: ResolvedSidebarView;
   collapsible?: 'offcanvas' | 'icon' | 'none';
   variant?: 'sidebar' | 'floating' | 'inset';
 };
 
 const SLIDE = {
-  initial: { opacity: 0, x: -8 },
+  initial: { opacity: 0, x: -10 },
   animate: { opacity: 1, x: 0 },
-  exit: { opacity: 0, x: 8 },
+  exit: { opacity: 0, x: 10 },
 };
 
 /**
- * Application sidebar.
- *
- * Adopts the Vercel / Cloudflare "drill-in" pattern: the URL drives which
- * sidebar *view* is rendered. Clicking a top-level entry like "管理后台"
- * swaps the sidebar to a contextual workspace with a "← 返回" affordance.
- *
- * View resolution lives in `useSidebarView` (PR2); this component is pure
- * presentation and only needs the already-resolved `viewState`.
+ * Application sidebar — drill-in workspace chrome (new-api / Vercel style).
  */
 export function AppSidebar({
   viewState,
@@ -39,24 +43,71 @@ export function AppSidebar({
 
   return (
     <Sidebar collapsible={collapsible} variant={variant}>
-      {view ? <SidebarViewHeader view={view} /> : null}
+      {view ? (
+        <SidebarViewHeader view={view} />
+      ) : (
+        <SidebarHeader className='border-sidebar-border gap-0 border-b px-2 py-2.5'>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                size='lg'
+                tooltip='Synapse'
+                className={cn(
+                  'h-11 gap-2.5 px-2 data-active:bg-transparent',
+                  'hover:bg-sidebar-accent/60',
+                )}
+                render={<Link to='/' />}
+              >
+                <span className='bg-primary text-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-xl shadow-sm ring-1 ring-black/5'>
+                  <img
+                    src='/favicon.ico'
+                    alt=''
+                    className='h-[18px] w-[18px]'
+                    width={18}
+                    height={18}
+                  />
+                </span>
+                <span className='grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden'>
+                  <span className='truncate text-sm font-semibold tracking-tight text-sidebar-foreground'>
+                    Synapse
+                  </span>
+                  <span className='text-muted-foreground truncate text-[11px] font-medium'>
+                    工作台
+                  </span>
+                </span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarHeader>
+      )}
 
-      <SidebarContent className='py-2'>
+      <SidebarContent className='gap-1 px-0 py-2'>
         <AnimatePresence mode='wait' initial={false}>
           <motion.div
             key={key}
             initial={shouldReduce ? false : SLIDE.initial}
             animate={SLIDE.animate}
             exit={shouldReduce ? undefined : SLIDE.exit}
-            transition={{ duration: 0.18, ease: 'easeOut' }}
-            className='flex flex-col'
+            transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+            className='flex flex-col gap-0.5'
           >
-            {navGroups.map((group) => (
-              <NavGroup key={group.id || group.title} {...group} />
+            {navGroups.map((group, index) => (
+              <div key={group.id || group.title}>
+                {index > 0 ? (
+                  <SidebarSeparator className='my-1.5 opacity-60' />
+                ) : null}
+                <NavGroup {...group} />
+              </div>
             ))}
           </motion.div>
         </AnimatePresence>
       </SidebarContent>
+
+      <SidebarFooter className='border-sidebar-border border-t px-2 py-2 group-data-[collapsible=icon]:hidden'>
+        <p className='text-muted-foreground/75 px-2 text-[10px] leading-relaxed'>
+          {view ? '管理模块 · 点「返回」退出工作区' : '侧栏边缘拖动可折叠 · 状态会记住'}
+        </p>
+      </SidebarFooter>
 
       <SidebarRail />
     </Sidebar>
