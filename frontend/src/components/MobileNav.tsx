@@ -54,6 +54,11 @@ interface MobileNavProps {
   logout: () => void;
   onTOTPManagerOpen: () => void;
   totpStatus?: TOTPStatus | null;
+  /**
+   * When true (desktop left-sidebar shell), only the account/security menu is shown.
+   * Full page navigation stays in AppSidebar — never both at once.
+   */
+  accountOnly?: boolean;
 }
 
 interface NavItem {
@@ -103,6 +108,7 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
   logout,
   onTOTPManagerOpen,
   totpStatus,
+  accountOnly = false,
 }) => {
   const { savedAccounts, switchAccount, removeAccountFromList, logoutAll } = useAuth();
   const location = useLocation();
@@ -368,9 +374,8 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
 
   if (!user) return null;
 
-  // Desktop navigation lives in the left AppSidebar (see App.tsx + layout/).
-  // MobileNav is the avatar menu for all breakpoints; the old horizontal
-  // pill bar (`desktopItems`) is intentionally not rendered anymore.
+  // Desktop: account menu only (AppSidebar owns navigation).
+  // Mobile: full avatar menu with page links.
   return (
     <div className="relative flex items-center gap-3">
       <motion.button
@@ -380,7 +385,15 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
         className="z-20 flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 p-1.5 pr-3 shadow-sm backdrop-blur-xl transition hover:border-slate-300 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
-        aria-label={isMenuOpen ? '关闭导航菜单' : '打开导航菜单'}
+        aria-label={
+          isMenuOpen
+            ? accountOnly
+              ? '关闭账号菜单'
+              : '关闭导航菜单'
+            : accountOnly
+              ? '打开账号菜单'
+              : '打开导航菜单'
+        }
         aria-haspopup="dialog"
         aria-expanded={isMenuOpen}
         aria-controls={MENU_PANEL_ID}
@@ -392,7 +405,15 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
           onImageError={() => setAvatarImg(undefined)}
         />
         <span className="hidden max-w-32 truncate text-sm font-semibold text-slate-700 sm:block">{user.username}</span>
-        <FaBars className="ml-1 text-slate-400" size={14} aria-hidden="true" />
+        {accountOnly ? (
+          <FaChevronDown
+            className={cn('ml-0.5 text-slate-400 transition-transform', isMenuOpen && 'rotate-180')}
+            size={12}
+            aria-hidden="true"
+          />
+        ) : (
+          <FaBars className="ml-1 text-slate-400" size={14} aria-hidden="true" />
+        )}
       </motion.button>
 
       {ReactDOM.createPortal(
@@ -422,7 +443,12 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.96, y: 10 }}
                 transition={{ duration: 0.18 }}
-                className="absolute left-3 right-3 top-16 z-[9999] flex max-h-[calc(100vh-5rem)] flex-col overflow-hidden rounded-[34px] border border-white/70 bg-white/88 shadow-[0_28px_110px_rgba(15,23,42,0.12)] backdrop-blur-xl sm:left-auto sm:right-4 sm:w-[26rem]"
+                className={cn(
+                  'absolute top-16 z-[9999] flex max-h-[calc(100vh-5rem)] flex-col overflow-hidden rounded-[34px] border border-white/70 bg-white/88 shadow-[0_28px_110px_rgba(15,23,42,0.12)] backdrop-blur-xl',
+                  accountOnly
+                    ? 'right-4 left-auto w-[22rem]'
+                    : 'left-3 right-3 sm:left-auto sm:right-4 sm:w-[26rem]',
+                )}
               >
                 <div className="shrink-0 border-b border-slate-200/70 bg-white/70 p-5">
                   <div className="mb-4 flex items-start justify-between gap-3">
@@ -589,45 +615,74 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
                     ) : null}
                   </AnimatePresence>
 
-                  {menuGroups.map((group) => (
-                    <section key={group.id} className="space-y-2" aria-labelledby={`mobile-nav-group-${group.id}`}>
-                      <p id={`mobile-nav-group-${group.id}`} className="px-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                        {group.title}
+                  {accountOnly ? (
+                    <section className="space-y-2" aria-labelledby="mobile-nav-group-account">
+                      <p id="mobile-nav-group-account" className="px-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                        账号
                       </p>
                       <div className="grid grid-cols-1 gap-2">
-                        {group.items.map((item) => renderNavLink(item))}
-                        {group.id === 'core' && (
-                          <button
-                            type="button"
-                            onClick={handleTOTPManager}
-                            className="flex min-h-12 w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-left text-sm font-semibold text-slate-600 transition-all hover:border-slate-300 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
-                          >
-                            <FaLock className="shrink-0 text-slate-400" size={16} aria-hidden="true" />
-                            <span className="truncate">安全设置</span>
-                            <span className={cn(
-                              'ml-auto rounded-full border px-2 py-0.5 text-[10px] font-semibold',
-                              effectiveTwoFactorStatus.enabled
-                                ? 'border-emerald-200 bg-emerald-50/80 text-emerald-700'
-                                : 'border-amber-200 bg-amber-50/80 text-amber-700',
-                            )}>
-                              {effectiveTwoFactorStatus.label}
-                            </span>
-                          </button>
-                        )}
+                        {renderNavLink({ to: '/profile', label: '个人中心', icon: FaUser })}
+                        <button
+                          type="button"
+                          onClick={handleTOTPManager}
+                          className="flex min-h-12 w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-left text-sm font-semibold text-slate-600 transition-all hover:border-slate-300 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+                        >
+                          <FaLock className="shrink-0 text-slate-400" size={16} aria-hidden="true" />
+                          <span className="truncate">安全设置</span>
+                          <span className={cn(
+                            'ml-auto rounded-full border px-2 py-0.5 text-[10px] font-semibold',
+                            effectiveTwoFactorStatus.enabled
+                              ? 'border-emerald-200 bg-emerald-50/80 text-emerald-700'
+                              : 'border-amber-200 bg-amber-50/80 text-amber-700',
+                          )}>
+                            {effectiveTwoFactorStatus.label}
+                          </span>
+                        </button>
                       </div>
                     </section>
-                  ))}
+                  ) : (
+                    <>
+                      {menuGroups.map((group) => (
+                        <section key={group.id} className="space-y-2" aria-labelledby={`mobile-nav-group-${group.id}`}>
+                          <p id={`mobile-nav-group-${group.id}`} className="px-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                            {group.title}
+                          </p>
+                          <div className="grid grid-cols-1 gap-2">
+                            {group.items.map((item) => renderNavLink(item))}
+                            {group.id === 'core' && (
+                              <button
+                                type="button"
+                                onClick={handleTOTPManager}
+                                className="flex min-h-12 w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-left text-sm font-semibold text-slate-600 transition-all hover:border-slate-300 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+                              >
+                                <FaLock className="shrink-0 text-slate-400" size={16} aria-hidden="true" />
+                                <span className="truncate">安全设置</span>
+                                <span className={cn(
+                                  'ml-auto rounded-full border px-2 py-0.5 text-[10px] font-semibold',
+                                  effectiveTwoFactorStatus.enabled
+                                    ? 'border-emerald-200 bg-emerald-50/80 text-emerald-700'
+                                    : 'border-amber-200 bg-amber-50/80 text-amber-700',
+                                )}>
+                                  {effectiveTwoFactorStatus.label}
+                                </span>
+                              </button>
+                            )}
+                          </div>
+                        </section>
+                      ))}
 
-                  {isAdmin && adminGroups.map((group) => (
-                    <section key={group.id} className="space-y-2 border-t border-slate-200/70 pt-4" aria-labelledby={`mobile-nav-group-${group.id}`}>
-                      <p id={`mobile-nav-group-${group.id}`} className="px-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                        {group.title}
-                      </p>
-                      <div className="grid grid-cols-1 gap-2">
-                        {group.items.map((item) => renderNavLink(item, true))}
-                      </div>
-                    </section>
-                  ))}
+                      {isAdmin && adminGroups.map((group) => (
+                        <section key={group.id} className="space-y-2 border-t border-slate-200/70 pt-4" aria-labelledby={`mobile-nav-group-${group.id}`}>
+                          <p id={`mobile-nav-group-${group.id}`} className="px-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                            {group.title}
+                          </p>
+                          <div className="grid grid-cols-1 gap-2">
+                            {group.items.map((item) => renderNavLink(item, true))}
+                          </div>
+                        </section>
+                      ))}
+                    </>
+                  )}
                 </div>
 
                 <div className="shrink-0 border-t border-slate-200/70 bg-white/70 p-4">

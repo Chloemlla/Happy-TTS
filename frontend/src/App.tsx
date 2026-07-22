@@ -1488,14 +1488,9 @@ const App: React.FC = () => {
                     >
                       Synapse
                     </Link>
-                    {useDesktopSidebar ? (
-                      <span className="ml-1 hidden rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-slate-500 uppercase sm:inline-flex">
-                        Desktop
-                      </span>
-                    ) : null}
                   </m.div>
 
-                  {/* 导航栏：桌面端用侧栏（折叠用 SidebarRail），顶栏只保留账号/安全入口；移动端继续 MobileNav */}
+                  {/* Desktop: AppSidebar owns nav; MobileNav is account-only. Mobile: full MobileNav. */}
                   <div ref={navRef} className="flex-1 flex justify-end items-center gap-2">
                     {user ? (
                       <Suspense fallback={<NavSlotLoadingBadge />}>
@@ -1504,6 +1499,7 @@ const App: React.FC = () => {
                           logout={logout}
                           onTOTPManagerOpen={openTOTPManager}
                           totpStatus={totpStatus}
+                          accountOnly={useDesktopSidebar}
                         />
                       </Suspense>
                     ) : isAuthFlowPath ? (
