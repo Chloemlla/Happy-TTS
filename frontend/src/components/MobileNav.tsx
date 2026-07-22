@@ -107,11 +107,9 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
   const { savedAccounts, switchAccount, removeAccountFromList, logoutAll } = useAuth();
   const location = useLocation();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const desktopNavRef = useRef<HTMLDivElement>(null);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
   const [avatarImg, setAvatarImg] = useState<string | undefined>(undefined);
 
   const closeMenu = useCallback(() => {
@@ -121,15 +119,6 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
 
   const toggleMenu = useCallback(() => {
     setIsMenuOpen((open) => !open);
-  }, []);
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(max-width: 1023px)');
-    const updateMobileState = () => setIsMobile(mediaQuery.matches);
-
-    updateMobileState();
-    mediaQuery.addEventListener('change', updateMobileState);
-    return () => mediaQuery.removeEventListener('change', updateMobileState);
   }, []);
 
   useEffect(() => {
@@ -200,18 +189,6 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
 
   const canUseTranslation = user?.isTranslationEnabled !== false;
   const isAdmin = user?.role === 'admin';
-
-  const desktopItems = useMemo<NavItem[]>(() => [
-    { to: '/', label: '语音合成', icon: FaVolumeUp },
-    { to: '/store', label: '资源商店', icon: FaStore, matchChildren: true },
-    ...(canUseTranslation
-      ? [{ to: '/translate', label: '翻译', icon: FaLanguage }]
-      : []),
-    { to: '/support', label: '支持中心', icon: FaHeadset },
-    ...(isAdmin
-      ? [{ to: '/admin', label: '管理', icon: FaUserShield }]
-      : []),
-  ], [canUseTranslation, isAdmin]);
 
   const menuGroups = useMemo<NavGroup[]>(() => [
     {
@@ -362,28 +339,6 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
     logout();
   }, [closeMenu, logout]);
 
-  const renderDesktopLink = (item: NavItem) => {
-    const Icon = item.icon;
-    const active = isRouteActive(item);
-
-    return (
-      <Link
-        key={item.to}
-        to={item.to}
-        aria-current={active ? 'page' : undefined}
-        className={cn(
-          'inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] transition hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2',
-          active
-            ? 'border-slate-900 bg-slate-900 text-white shadow-[0_14px_38px_rgba(15,23,42,0.18)]'
-            : 'border-slate-200 bg-white/80 text-slate-500 backdrop-blur-xl hover:border-slate-300 hover:text-slate-700',
-        )}
-      >
-        <Icon className={active ? 'text-current' : 'text-slate-400'} aria-hidden="true" />
-        <span>{item.label}</span>
-      </Link>
-    );
-  };
-
   const renderNavLink = (item: NavItem, admin = false) => {
     const Icon = item.icon;
     const active = isRouteActive(item);
@@ -413,14 +368,11 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
 
   if (!user) return null;
 
+  // Desktop navigation lives in the left AppSidebar (see App.tsx + layout/).
+  // MobileNav is the avatar menu for all breakpoints; the old horizontal
+  // pill bar (`desktopItems`) is intentionally not rendered anymore.
   return (
     <div className="relative flex items-center gap-3">
-      {!isMobile && (
-        <nav className="flex items-center gap-2" ref={desktopNavRef} aria-label="桌面导航">
-          {desktopItems.map(renderDesktopLink)}
-        </nav>
-      )}
-
       <motion.button
         ref={menuButtonRef}
         type="button"

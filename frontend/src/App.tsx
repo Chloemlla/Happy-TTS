@@ -24,6 +24,9 @@ import FingerprintRequestModal from './components/FingerprintRequestModal';
 import { setFirstVisitVerificationEnabled } from './utils/firstVisitVerificationConfig';
 import ArticleCommandPalette from './components/ArticleCommandPalette';
 import { getAuthToken } from './utils/authSession';
+import { SidebarInset, SidebarProvider, SidebarTrigger } from './components/ui/sidebar';
+import { AppSidebar, getSidebarDefaultOpen } from './layout';
+import { useSidebarView } from './hooks/useSidebarView';
 
 
 // 动态导入 clarity 以减少主 bundle 体积，避免与 FirstVisitVerification 的动态导入冲突
@@ -61,6 +64,10 @@ const CaseConverter = React.lazy(() => import('./components/CaseConverter').then
 const EmailSender = React.lazy(() => import('./components/EmailSender'));
 const UserProfile = React.lazy(() => import('./components/UserProfile'));
 const AdminDashboard = React.lazy(() => import('./components/AdminDashboard'));
+const AdminModulePage = React.lazy(() =>
+  import('./components/admin/AdminHub').then((m) => ({ default: m.AdminModulePage })),
+);
+const AdminGuard = React.lazy(() => import('./components/admin/AdminGuard'));
 const OutEmail = React.lazy(() => import('./components/OutEmail'));
 const LotteryPage = React.lazy(() => import('./components/LotteryPage'));
 const LotteryAdmin = React.lazy(() => import('./components/LotteryAdmin'));
@@ -609,6 +616,19 @@ const App: React.FC = () => {
     && Boolean(fingerprint)
     && (isIpBanned || (isFirstVisit && !isVerified));
   const toastPosition = isMobileNav ? 'bottom-center' : 'top-right';
+  // Default false so SSR / first paint never flashes the desktop sidebar on phones.
+  // Confirmed desktop only after matchMedia resolves (md: 768px, matches useIsMobile).
+  const [isDesktopViewport, setIsDesktopViewport] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia('(min-width: 768px)');
+    const update = () => setIsDesktopViewport(mql.matches);
+    update();
+    mql.addEventListener('change', update);
+    return () => mql.removeEventListener('change', update);
+  }, []);
+  const sidebarViewState = useSidebarView();
+  // Desktop logged-in shell uses the left sidebar; mobile keeps MobileNav only.
+  const useDesktopSidebar = Boolean(user) && isDesktopViewport;
   const openTOTPManager = React.useCallback(() => {
     setShowTOTPManager(true);
   }, []);
@@ -639,13 +659,87 @@ const App: React.FC = () => {
     (element: React.ReactNode, redirectTo: string = adminFallbackPath) => (
       <AdminRoute userRole={user?.role} redirectTo={redirectTo}>
         {renderAnimatedRoute(
-          <div className="logshare-admin-surface">
-            {element}
-          </div>
+          <Suspense fallback={<RouteLoadingShell label="正在验证管理员权限..." />}>
+            <AdminGuard>
+              <div className="logshare-admin-surface">
+                {element}
+              </div>
+            </AdminGuard>
+          </Suspense>
         )}
       </AdminRoute>
     ),
     [adminFallbackPath, renderAnimatedRoute, user?.role],
+  );
+
+  // Shared route tree — used by both the desktop sidebar shell and the mobile single-column shell.
+  const renderAppRoutes = React.useCallback(
+    () => (
+      <>
+        <Route path="/legacy-api-choice" element={renderAnimatedRoute(<LegacyApiChoicePage />)} />
+        <Route path="/api-docs" element={renderAnimatedRoute(<ApiDocs />)} />
+        <Route path="/policy" element={renderAnimatedRoute(<PolicyPage />)} />
+        <Route path="/fbi-wanted" element={renderAnimatedRoute(<FBIWantedPublic />)} />
+        <Route path="/welcome" element={renderAnimatedRoute(<WelcomePage />)} />
+        <Route path="/login" element={renderAnimatedRoute(<LoginPage />)} />
+        <Route path="/register" element={renderAnimatedRoute(<RegisterPage />)} />
+        <Route path="/auth/linuxdo/callback" element={renderAnimatedRoute(<LinuxDoAuthCallbackPage />)} />
+        <Route path="/auth/provider/bind" element={renderAnimatedRoute(<ProviderBindPage />)} />
+        <Route path="/oauth/authorize" element={renderAnimatedRoute(<OAuthAuthorizePage />)} />
+        <Route path="/translate" element={renderProtectedRoute(<DeepLXTranslatorPage />)} />
+        <Route path="/forgot-password" element={renderAnimatedRoute(<ForgotPasswordPage />)} />
+        <Route path="/reset-password" element={renderAnimatedRoute(<ResetPasswordLinkPage />)} />
+        <Route path="/verify-email" element={renderAnimatedRoute(<EmailVerifyPage />)} />
+        <Route path="/" element={renderAnimatedRoute(<TtsPage />)} />
+        <Route path="/lottery" element={renderAnimatedRoute(<LotteryPage />)} />
+        <Route path="/anti-counterfeit" element={renderAnimatedRoute(<AntiCounterfeitPage />)} />
+        {/* Static admin routes first (higher specificity than /admin/:module) */}
+        <Route path="/admin/lottery" element={renderAdminRoute(<LotteryAdmin />)} />
+        <Route path="/admin/users" element={renderAdminRoute(<UserManagement />)} />
+        <Route path="/admin/rust-benchmark" element={renderAdminRoute(<RustBenchmarkDashboard />)} />
+        <Route path="/admin/store" element={renderAdminRoute(<AdminStoreDashboard />)} />
+        <Route path="/admin/store/resources" element={renderAdminRoute(<ResourceStoreManager />)} />
+        <Route path="/admin/store/cdks" element={renderAdminRoute(<CDKStoreManager />)} />
+        {/* Admin hub + dynamic module routes (drill-in sidebar) */}
+        <Route path="/admin" element={renderAdminRoute(<AdminDashboard />)} />
+        <Route path="/admin/:module" element={renderAdminRoute(<AdminModulePage />)} />
+        <Route path="/nexai-security" element={renderAdminRoute(<NexAISecurityDashboard />)} />
+        <Route path="/github-billing" element={renderAnimatedRoute(<GitHubBillingDashboard />)} />
+        <Route path="/logshare" element={renderAnimatedRoute(<LogShare />)} />
+        <Route path="/case-converter" element={renderAnimatedRoute(<CaseConverter />)} />
+        <Route path="/word-count" element={renderAnimatedRoute(<WordCountPageSimple />)} />
+        <Route path="/age-calculator" element={renderAnimatedRoute(<AgeCalculatorPage />)} />
+        <Route path="/email-sender" element={renderAdminRoute(<EmailSender />)} />
+        <Route path="/profile" element={renderAnimatedRoute(<UserProfile />)} />
+        <Route path="/outemail" element={renderAnimatedRoute(<OutEmail />)} />
+        <Route path="/support" element={renderAnimatedRoute(<TicketSystem />)} />
+        <Route path="/modlist" element={renderAnimatedRoute(<ModListPage />)} />
+        <Route path="/smart-human-check" element={renderAnimatedRoute(<SmartHumanCheckTestPage />)} />
+        <Route path="/notification-test" element={renderAnimatedRoute(<NotificationTestPage />)} />
+        <Route path="/cdn-cgi" element={renderAnimatedRoute(<CloudflareChallengePage />)} />
+        <Route path="/hcaptcha-verify" element={renderAnimatedRoute(<HCaptchaVerificationPage />)} />
+        <Route path="/artifacts/:shortId" element={renderAnimatedRoute(<ArtifactSharePage />)} />
+        <Route path="/image-upload" element={renderAnimatedRoute(<ImageUploadPage />)} />
+        <Route path="/librechat" element={renderAnimatedRoute(<LibreChatPage />)} />
+        <Route path="/tiger-adventure" element={renderAnimatedRoute(<TigerAdventure />)} />
+        <Route path="/coin-flip" element={renderAnimatedRoute(<CoinFlip />)} />
+        <Route path="/markdown-export" element={renderAnimatedRoute(<MarkdownExportPage />)} />
+        <Route path="/articles" element={renderAnimatedRoute(<MarkdownArticlePage />)} />
+        <Route path="/articles/:slug" element={renderAnimatedRoute(<MarkdownArticlePage />)} />
+        <Route path="/campus-emergency" element={renderAnimatedRoute(<CampusEmergencyPage />)} />
+        <Route path="/tamper-detection-demo" element={renderAdminRoute(<TamperDetectionDemo />)} />
+        <Route path="/demo" element={renderAnimatedRoute(<DemoHub />)} />
+        <Route path="/demo/xiaohongshu" element={renderAnimatedRoute(<XiaohongshuDemo />)} />
+        <Route path="/demo/meditation" element={renderAnimatedRoute(<MeditationAppDemo />)} />
+        <Route path="/demo/music" element={renderAnimatedRoute(<MusicPlayerDemo />)} />
+        <Route path="/demo/finance" element={renderAnimatedRoute(<FinanceAppDemo />)} />
+        <Route path="/store" element={renderAnimatedRoute(<ResourceStoreList />)} />
+        <Route path="/store/resources/:id" element={renderAnimatedRoute(<ResourceStoreDetail />)} />
+        <Route path="/public-shortlink" element={renderAnimatedRoute(<PublicShortLinkCreator />)} />
+        <Route path="*" element={renderAnimatedRoute(<NotFoundPage path={location.pathname} />)} />
+      </>
+    ),
+    [renderAdminRoute, renderAnimatedRoute, renderProtectedRoute, location.pathname],
   );
 
   // React 19 文档元数据：路由配置优化，避免每次重新创建
@@ -1326,7 +1420,7 @@ const App: React.FC = () => {
             // 新增：内容区自适应高度，超出可滚动
             contentClassName="max-h-[60vh] sm:max-h-[50vh] overflow-y-auto px-2 sm:px-4"
           />
-          <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden">
+          <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 relative overflow-hidden flex flex-col">
             {showParticles && <BackgroundParticles />}
             <a
               href="#app-main-content"
@@ -1338,7 +1432,7 @@ const App: React.FC = () => {
               initial={{ y: -100, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={navTransition}
-              className="bg-white/80 backdrop-blur-lg shadow-lg relative z-10"
+              className="bg-white/80 backdrop-blur-lg shadow-lg relative z-10 shrink-0"
             >
               <div
                 id="app-header-container"
@@ -1385,8 +1479,11 @@ const App: React.FC = () => {
                     </Link>
                   </m.div>
 
-                  {/* 导航栏自适应切换 */}
-                  <div ref={navRef} className="flex-1 flex justify-end">
+                  {/* 导航栏：桌面端用侧栏，顶栏只保留账号/安全入口；移动端继续 MobileNav */}
+                  <div ref={navRef} className="flex-1 flex justify-end items-center gap-2">
+                    {useDesktopSidebar ? (
+                      <SidebarTrigger className="md:flex" />
+                    ) : null}
                     {user ? (
                       <Suspense fallback={<NavSlotLoadingBadge />}>
                         <MobileNav
@@ -1415,81 +1512,52 @@ const App: React.FC = () => {
               </div>
             </m.nav>
 
-            <main
-              id="app-main-content"
-              ref={mainRef}
-              tabIndex={-1}
-              className="max-w-7xl mx-auto py-6 focus:outline-none sm:px-6 lg:px-8 relative z-10"
-            >
-              <Suspense fallback={<RouteLoadingShell />}>
-                <AnimatePresence mode="wait">
-                  <Routes location={location} key={location.pathname}>
-                    <Route path="/legacy-api-choice" element={renderAnimatedRoute(<LegacyApiChoicePage />)} />
-                    <Route path="/api-docs" element={renderAnimatedRoute(<ApiDocs />)} />
-                    <Route path="/policy" element={renderAnimatedRoute(<PolicyPage />)} />
-                    <Route path="/fbi-wanted" element={renderAnimatedRoute(<FBIWantedPublic />)} />
-                    <Route path="/welcome" element={renderAnimatedRoute(<WelcomePage />)} />
-                    <Route path="/login" element={renderAnimatedRoute(<LoginPage />)} />
-                    <Route path="/register" element={renderAnimatedRoute(<RegisterPage />)} />
-                    <Route path="/auth/linuxdo/callback" element={renderAnimatedRoute(<LinuxDoAuthCallbackPage />)} />
-                    <Route path="/auth/provider/bind" element={renderAnimatedRoute(<ProviderBindPage />)} />
-                    <Route path="/oauth/authorize" element={renderAnimatedRoute(<OAuthAuthorizePage />)} />
-                    <Route path="/translate" element={renderProtectedRoute(<DeepLXTranslatorPage />)} />
-                    <Route path="/forgot-password" element={renderAnimatedRoute(<ForgotPasswordPage />)} />
-                    <Route path="/reset-password" element={renderAnimatedRoute(<ResetPasswordLinkPage />)} />
-                    <Route path="/verify-email" element={renderAnimatedRoute(<EmailVerifyPage />)} />
-                    <Route path="/" element={renderAnimatedRoute(<TtsPage />)} />
-                    <Route path="/lottery" element={renderAnimatedRoute(<LotteryPage />)} />
-                    <Route path="/anti-counterfeit" element={renderAnimatedRoute(<AntiCounterfeitPage />)} />
-                    <Route path="/admin/lottery" element={renderAdminRoute(<LotteryAdmin />)} />
-                    <Route path="/admin/users" element={renderAdminRoute(<UserManagement />)} />
-                    <Route path="/admin" element={renderAdminRoute(<AdminDashboard />)} />
-                    <Route path="/admin/rust-benchmark" element={renderAdminRoute(<RustBenchmarkDashboard />)} />
-                    <Route path="/nexai-security" element={renderAdminRoute(<NexAISecurityDashboard />)} />
-                    <Route path="/github-billing" element={renderAnimatedRoute(<GitHubBillingDashboard />)} />
-                    <Route path="/logshare" element={renderAnimatedRoute(<LogShare />)} />
-                    <Route path="/case-converter" element={renderAnimatedRoute(<CaseConverter />)} />
-                    <Route path="/word-count" element={renderAnimatedRoute(<WordCountPageSimple />)} />
-                    <Route path="/age-calculator" element={renderAnimatedRoute(<AgeCalculatorPage />)} />
-                    <Route path="/email-sender" element={renderAdminRoute(<EmailSender />)} />
-                    <Route path="/profile" element={renderAnimatedRoute(<UserProfile />)} />
-                    <Route path="/outemail" element={renderAnimatedRoute(<OutEmail />)} />
-                    <Route path="/support" element={renderAnimatedRoute(<TicketSystem />)} />
-                    <Route path="/modlist" element={renderAnimatedRoute(<ModListPage />)} />
-                    <Route path="/smart-human-check" element={renderAnimatedRoute(<SmartHumanCheckTestPage />)} />
-                    <Route path="/notification-test" element={renderAnimatedRoute(<NotificationTestPage />)} />
-                    <Route path="/cdn-cgi" element={renderAnimatedRoute(<CloudflareChallengePage />)} />
-                    <Route path="/hcaptcha-verify" element={renderAnimatedRoute(<HCaptchaVerificationPage />)} />
-                    <Route path="/artifacts/:shortId" element={renderAnimatedRoute(<ArtifactSharePage />)} />
-                    <Route path="/image-upload" element={renderAnimatedRoute(<ImageUploadPage />)} />
-                    <Route path="/librechat" element={renderAnimatedRoute(<LibreChatPage />)} />
-                    <Route path="/tiger-adventure" element={renderAnimatedRoute(<TigerAdventure />)} />
-                    <Route path="/coin-flip" element={renderAnimatedRoute(<CoinFlip />)} />
-                    <Route path="/markdown-export" element={renderAnimatedRoute(<MarkdownExportPage />)} />
-                    <Route path="/articles" element={renderAnimatedRoute(<MarkdownArticlePage />)} />
-                    <Route path="/articles/:slug" element={renderAnimatedRoute(<MarkdownArticlePage />)} />
-                    <Route path="/campus-emergency" element={renderAnimatedRoute(<CampusEmergencyPage />)} />
-                    <Route path="/tamper-detection-demo" element={renderAdminRoute(<TamperDetectionDemo />)} />
-
-                    <Route path="/demo" element={renderAnimatedRoute(<DemoHub />)} />
-                    <Route path="/demo/xiaohongshu" element={renderAnimatedRoute(<XiaohongshuDemo />)} />
-                    <Route path="/demo/meditation" element={renderAnimatedRoute(<MeditationAppDemo />)} />
-                    <Route path="/demo/music" element={renderAnimatedRoute(<MusicPlayerDemo />)} />
-                    <Route path="/demo/finance" element={renderAnimatedRoute(<FinanceAppDemo />)} />
-                    <Route path="/store" element={renderAnimatedRoute(<ResourceStoreList />)} />
-                    <Route path="/store/resources/:id" element={renderAnimatedRoute(<ResourceStoreDetail />)} />
-                    <Route path="/admin/store" element={renderAdminRoute(<AdminStoreDashboard />)} />
-                    <Route path="/admin/store/resources" element={renderAdminRoute(<ResourceStoreManager />)} />
-                    <Route path="/admin/store/cdks" element={renderAdminRoute(<CDKStoreManager />)} />
-                    <Route path="/public-shortlink" element={renderAnimatedRoute(<PublicShortLinkCreator />)} />
-                    <Route path="*" element={renderAnimatedRoute(<NotFoundPage path={location.pathname} />)} />
-                  </Routes>
-                </AnimatePresence>
-              </Suspense>
-            </main>
-            <Suspense fallback={<FooterLoadingShell />}>
-              <Footer />
-            </Suspense>
+            {useDesktopSidebar ? (
+              <SidebarProvider defaultOpen={getSidebarDefaultOpen()} className="relative z-10 min-h-0 flex-1 flex-col">
+                <div className="flex min-h-0 w-full flex-1">
+                  <AppSidebar viewState={sidebarViewState} collapsible="icon" />
+                  <SidebarInset className="min-h-0 overflow-auto bg-transparent">
+                    <main
+                      id="app-main-content"
+                      ref={mainRef}
+                      tabIndex={-1}
+                      className="mx-auto w-full max-w-7xl flex-1 py-6 focus:outline-none sm:px-6 lg:px-8 relative"
+                    >
+                      <Suspense fallback={<RouteLoadingShell />}>
+                        <AnimatePresence mode="wait">
+                          <Routes location={location} key={location.pathname}>
+                            {renderAppRoutes()}
+                          </Routes>
+                        </AnimatePresence>
+                      </Suspense>
+                    </main>
+                    <Suspense fallback={<FooterLoadingShell />}>
+                      <Footer />
+                    </Suspense>
+                  </SidebarInset>
+                </div>
+              </SidebarProvider>
+            ) : (
+              <>
+                <main
+                  id="app-main-content"
+                  ref={mainRef}
+                  tabIndex={-1}
+                  className="max-w-7xl mx-auto py-6 focus:outline-none sm:px-6 lg:px-8 relative z-10"
+                >
+                  <Suspense fallback={<RouteLoadingShell />}>
+                    <AnimatePresence mode="wait">
+                      <Routes location={location} key={location.pathname}>
+                        {renderAppRoutes()}
+                      </Routes>
+                    </AnimatePresence>
+                  </Suspense>
+                </main>
+                <Suspense fallback={<FooterLoadingShell />}>
+                  <Footer />
+                </Suspense>
+              </>
+            )}
 
             {/* TOTP管理器模态框 */}
             <AnimatePresence>

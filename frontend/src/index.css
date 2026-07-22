@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @config "../tailwind.config.js";
+@import "tw-animate-css";
+@import "./styles/sidebar-theme.css";
 
 body {
   margin: 0;
