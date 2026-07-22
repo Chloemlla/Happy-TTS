@@ -278,6 +278,7 @@ const BroadcastManager: React.FC = () => {
   }, [setNotification]);
 
   const handleKick = async (userId: string) => {
+    if (!window.confirm(`确定断开用户 ${userId} 的全部在线连接？`)) return;
     setKickingUser(userId);
     try {
       const res = await api('/api/admin/ws/kick', {

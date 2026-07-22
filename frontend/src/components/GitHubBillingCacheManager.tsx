@@ -132,13 +132,18 @@ const GitHubBillingCacheManager: React.FC = () => {
             }
         } catch (error) {
             console.error('获取缓存性能指标失败:', error);
+            setNotification({
+                message: '获取缓存性能指标失败：' + (error instanceof Error ? error.message : '未知错误'),
+                type: 'error'
+            });
         } finally {
             setMetricsLoading(false);
         }
-    }, []);
+    }, [setNotification]);
 
     // 清除指定客户缓存
     const clearCustomerCache = async (customerId: string) => {
+        if (!window.confirm(`确定清除客户「${customerId}」的缓存？`)) return;
         setClearingCache(customerId);
         try {
             const headers = await getAdminTurnstileAuthHeaders();
@@ -168,6 +173,7 @@ const GitHubBillingCacheManager: React.FC = () => {
 
     // 清除所有过期缓存
     const clearExpiredCache = async () => {
+        if (!window.confirm('确定清除全部过期缓存条目？')) return;
         setClearingExpired(true);
         try {
             const headers = await getAdminTurnstileAuthHeaders();

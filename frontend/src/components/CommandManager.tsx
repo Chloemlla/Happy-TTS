@@ -420,15 +420,20 @@ const CommandManager: React.FC = () => {
 
   // 清空历史记录
   const clearHistory = async () => {
+    if (!historyLoaded || commandHistory.length === 0) {
+      setNotification({ message: '当前没有可清空的历史记录', type: 'warning' });
+      return;
+    }
+    if (!window.confirm('确定清空全部命令执行历史？此操作不可撤销。')) return;
     try {
       await api.post('/api/command/clear-history', { password });
       setCommandHistory([]);
       setHistoryLoaded(false);
       setNotification({ message: '历史记录已清空', type: 'success' });
     } catch (error: any) {
-      setNotification({ 
-        message: error.response?.data?.error || '清空历史记录失败', 
-        type: 'error' 
+      setNotification({
+        message: error.response?.data?.error || '清空历史记录失败',
+        type: 'error'
       });
     }
   };
@@ -1555,14 +1560,16 @@ const CommandManager: React.FC = () => {
                 {isLoadingHistory ? '加载中...' : '加载历史'}
               </motion.button>
             )}
-            <motion.button
-              onClick={clearHistory}
-              className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-sm font-medium flex items-center gap-2"
-              whileTap={{ scale: 0.95 }}
-            >
-              <FaTrash className="w-4 h-4" />
-              清空历史
-            </motion.button>
+            {historyLoaded && commandHistory.length > 0 && (
+              <motion.button
+                onClick={clearHistory}
+                className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-sm font-medium flex items-center gap-2"
+                whileTap={{ scale: 0.95 }}
+              >
+                <FaTrash className="w-4 h-4" />
+                清空历史
+              </motion.button>
+            )}
           </div>
         </div>
         

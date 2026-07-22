@@ -545,6 +545,7 @@ const RuntimeConfigSections: React.FC = () => {
   }, [fetchIpqsSetting, handleRequestError, ipqsApiKeysInput, ipqsForm, setNotification]);
 
   const deleteIpqsSetting = useCallback(async () => {
+    if (!window.confirm('确定重置 IPQS 配置？风险评分相关能力可能立即失效。')) return;
     setIpqsDeleting(true);
     try {
       const res = await fetch(IPQS_API, {
@@ -596,6 +597,7 @@ const RuntimeConfigSections: React.FC = () => {
   }, [fetchLinuxDoSetting, handleRequestError, linuxdoForm, linuxdoSecretInput, setNotification]);
 
   const deleteLinuxDoSetting = useCallback(async () => {
+    if (!window.confirm('确定重置 LinuxDo OAuth 配置？第三方登录可能立即失效。')) return;
     setLinuxdoDeleting(true);
     try {
       const res = await fetch(LINUXDO_API, {
@@ -643,6 +645,7 @@ const RuntimeConfigSections: React.FC = () => {
   }, [fetchGoogleAuthSetting, googleAuthForm, handleRequestError, setNotification]);
 
   const deleteGoogleAuthSetting = useCallback(async () => {
+    if (!window.confirm('确定重置 Google Auth 配置？Google 登录可能立即失效。')) return;
     setGoogleAuthDeleting(true);
     try {
       const res = await fetch(GOOGLE_AUTH_API, {
@@ -734,6 +737,7 @@ const RuntimeConfigSections: React.FC = () => {
   }, [deeplxApiKeyInput, deeplxForm.baseUrl, fetchDeepLXSetting, handleRequestError, setNotification]);
 
   const deleteDeepLXSetting = useCallback(async () => {
+    if (!window.confirm('确定重置 DeepLX 配置？翻译能力可能立即失效。')) return;
     setDeeplxDeleting(true);
     try {
       const res = await fetch(DEEPLX_API, {
@@ -808,6 +812,7 @@ const RuntimeConfigSections: React.FC = () => {
   ]);
 
   const deleteNexaiSetting = useCallback(async () => {
+    if (!window.confirm('确定重置 NexAI 配置？相关集成可能立即失效。')) return;
     setNexaiDeleting(true);
     try {
       const res = await fetch(NEXAI_API, {
@@ -876,6 +881,7 @@ const RuntimeConfigSections: React.FC = () => {
   ]);
 
   const deleteAdminSecuritySetting = useCallback(async () => {
+    if (!window.confirm('确定重置管理员安全配置？将回退到环境变量默认值。')) return;
     setAdminSecurityDeleting(true);
     try {
       const res = await fetch(ADMIN_SECURITY_API, {

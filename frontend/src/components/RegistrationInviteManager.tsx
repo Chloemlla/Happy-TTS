@@ -44,11 +44,23 @@ function toLocalDatetimeInput(value: string | null): string {
   return local.toISOString().slice(0, 16);
 }
 
+type InviteEditDraft = {
+  maxUses: string;
+  expiresAt: string;
+};
+
+const buildInviteDraft = (invite: RegistrationInvite): InviteEditDraft => ({
+  maxUses: String(invite.maxUses),
+  expiresAt: toLocalDatetimeInput(invite.expiresAt),
+});
+
 const RegistrationInviteManager: React.FC = () => {
   const { setNotification } = useNotification();
   const [invites, setInvites] = useState<RegistrationInvite[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [editDrafts, setEditDrafts] = useState<Record<string, InviteEditDraft>>({});
   const [form, setForm] = useState({ code: "", note: "", maxUses: "1", expiresAt: "" });
   const activeCount = useMemo(
     () => invites.filter((invite) => invite.active && !invite.expired && invite.remainingUses > 0).length,
@@ -59,7 +71,9 @@ const RegistrationInviteManager: React.FC = () => {
     setLoading(true);
     try {
       const response = await api.get("/api/admin/registration-invites");
-      setInvites(response.data?.invites || []);
+      const nextInvites = response.data?.invites || [];
+      setInvites(nextInvites);
+      setEditDrafts(Object.fromEntries(nextInvites.map((invite: RegistrationInvite) => [invite.id, buildInviteDraft(invite)])));
     } catch (error: any) {
       setNotification({ type: "error", message: error?.response?.data?.error || "获取邀请码列表失败" });
     } finally {
@@ -82,7 +96,9 @@ const RegistrationInviteManager: React.FC = () => {
         expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : null,
       };
       const response = await api.post("/api/admin/registration-invites", payload);
-      setInvites((current) => [response.data.invite, ...current]);
+      const invite = response.data.invite as RegistrationInvite;
+      setInvites((current) => [invite, ...current]);
+      setEditDrafts((current) => ({ ...current, [invite.id]: buildInviteDraft(invite) }));
       setForm({ code: "", note: "", maxUses: "1", expiresAt: "" });
       setNotification({ type: "success", message: "邀请码已创建" });
     } catch (error: any) {
@@ -93,17 +109,59 @@ const RegistrationInviteManager: React.FC = () => {
   };
 
   const updateInvite = async (invite: RegistrationInvite, updates: Partial<RegistrationInvite>) => {
+    setUpdatingId(invite.id);
     try {
       const payload = {
         ...updates,
         expiresAt: Object.prototype.hasOwnProperty.call(updates, "expiresAt") ? updates.expiresAt : undefined,
       };
       const response = await api.patch(`/api/admin/registration-invites/${invite.id}`, payload);
-      setInvites((current) => current.map((item) => (item.id === invite.id ? response.data.invite : item)));
+      const nextInvite = response.data.invite as RegistrationInvite;
+      setInvites((current) => current.map((item) => (item.id === invite.id ? nextInvite : item)));
+      setEditDrafts((current) => ({ ...current, [invite.id]: buildInviteDraft(nextInvite) }));
       setNotification({ type: "success", message: "邀请码已更新" });
     } catch (error: any) {
       setNotification({ type: "error", message: error?.response?.data?.error || "更新邀请码失败" });
+    } finally {
+      setUpdatingId(null);
     }
+  };
+
+  const updateInviteDraft = (inviteId: string, patch: Partial<InviteEditDraft>) => {
+    setEditDrafts((current) => ({
+      ...current,
+      [inviteId]: {
+        ...(current[inviteId] || { maxUses: "1", expiresAt: "" }),
+        ...patch,
+      },
+    }));
+  };
+
+  const saveInviteDraft = async (invite: RegistrationInvite) => {
+    const draft = editDrafts[invite.id] || buildInviteDraft(invite);
+    const nextMaxUses = Math.max(invite.usedCount || 1, Number(draft.maxUses) || 1);
+    const nextExpiresAt = draft.expiresAt ? new Date(draft.expiresAt).toISOString() : null;
+    const currentExpiresAt = invite.expiresAt ? new Date(invite.expiresAt).toISOString() : null;
+    const maxUsesChanged = nextMaxUses !== invite.maxUses;
+    const expiresChanged = nextExpiresAt !== currentExpiresAt;
+
+    if (!maxUsesChanged && !expiresChanged) {
+      setNotification({ type: "info", message: "没有需要保存的更改" });
+      return;
+    }
+
+    await updateInvite(invite, {
+      ...(maxUsesChanged ? { maxUses: nextMaxUses } : {}),
+      ...(expiresChanged ? { expiresAt: nextExpiresAt } : {}),
+    } as Partial<RegistrationInvite>);
+  };
+
+  const isInviteDraftDirty = (invite: RegistrationInvite) => {
+    const draft = editDrafts[invite.id] || buildInviteDraft(invite);
+    const nextMaxUses = Math.max(invite.usedCount || 1, Number(draft.maxUses) || 1);
+    const nextExpiresAt = draft.expiresAt ? new Date(draft.expiresAt).toISOString() : null;
+    const currentExpiresAt = invite.expiresAt ? new Date(invite.expiresAt).toISOString() : null;
+    return nextMaxUses !== invite.maxUses || nextExpiresAt !== currentExpiresAt;
   };
 
   const deleteInvite = async (invite: RegistrationInvite) => {
@@ -111,6 +169,11 @@ const RegistrationInviteManager: React.FC = () => {
     try {
       await api.delete(`/api/admin/registration-invites/${invite.id}`);
       setInvites((current) => current.filter((item) => item.id !== invite.id));
+      setEditDrafts((current) => {
+        const next = { ...current };
+        delete next[invite.id];
+        return next;
+      });
       setNotification({ type: "success", message: "邀请码已删除" });
     } catch (error: any) {
       setNotification({ type: "error", message: error?.response?.data?.error || "删除邀请码失败" });
@@ -260,43 +323,58 @@ const RegistrationInviteManager: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid gap-2 sm:grid-cols-[120px_190px_auto_auto]">
-                <input
-                  className={inputClass}
-                  type="number"
-                  min={Math.max(1, invite.usedCount)}
-                  max={10000}
-                  value={invite.maxUses}
-                  onChange={(event) => void updateInvite(invite, { maxUses: Number(event.target.value) || 1 })}
-                  aria-label="最大使用次数"
-                />
-                <input
-                  className={inputClass}
-                  type="datetime-local"
-                  value={toLocalDatetimeInput(invite.expiresAt)}
-                  onChange={(event) =>
-                    void updateInvite(invite, {
-                      expiresAt: event.target.value ? new Date(event.target.value).toISOString() : null,
-                    } as any)
-                  }
-                  aria-label="过期时间"
-                />
-                <button
-                  type="button"
-                  onClick={() => void updateInvite(invite, { active: !invite.active })}
-                  className={`${buttonClass} border border-slate-200 bg-white text-slate-700 hover:border-slate-300`}
-                >
-                  {invite.active ? "停用" : "启用"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void deleteInvite(invite)}
-                  className={`${buttonClass} border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100`}
-                >
-                  <FaTrash />
-                  删除
-                </button>
-              </div>
+              {(() => {
+                const draft = editDrafts[invite.id] || buildInviteDraft(invite);
+                const isUpdating = updatingId === invite.id;
+                const dirty = isInviteDraftDirty(invite);
+                return (
+                  <div className="grid gap-2 sm:grid-cols-[120px_190px_auto_auto_auto]">
+                    <input
+                      className={inputClass}
+                      type="number"
+                      min={Math.max(1, invite.usedCount)}
+                      max={10000}
+                      value={draft.maxUses}
+                      onChange={(event) => updateInviteDraft(invite.id, { maxUses: event.target.value })}
+                      disabled={isUpdating}
+                      aria-label="最大使用次数"
+                    />
+                    <input
+                      className={inputClass}
+                      type="datetime-local"
+                      value={draft.expiresAt}
+                      onChange={(event) => updateInviteDraft(invite.id, { expiresAt: event.target.value })}
+                      disabled={isUpdating}
+                      aria-label="过期时间"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void saveInviteDraft(invite)}
+                      disabled={isUpdating || !dirty}
+                      className={`${buttonClass} border border-slate-200 bg-white text-slate-700 hover:border-slate-300`}
+                    >
+                      {isUpdating ? "保存中" : "保存"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void updateInvite(invite, { active: !invite.active })}
+                      disabled={isUpdating}
+                      className={`${buttonClass} border border-slate-200 bg-white text-slate-700 hover:border-slate-300`}
+                    >
+                      {invite.active ? "停用" : "启用"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void deleteInvite(invite)}
+                      disabled={isUpdating}
+                      className={`${buttonClass} border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100`}
+                    >
+                      <FaTrash />
+                      删除
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
 
             {invite.usedBy.length > 0 && (

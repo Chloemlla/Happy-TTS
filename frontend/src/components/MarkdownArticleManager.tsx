@@ -160,18 +160,6 @@ const MarkdownArticleManager: React.FC = () => {
     }
   }, [current, hasEditorContent]);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
-        event.preventDefault();
-        void saveArticle('draft');
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  });
-
   const updateField = (key: keyof MarkdownArticle, value: string) => {
     setCurrent((prev) => ({ ...prev, [key]: value }));
   };
@@ -250,6 +238,18 @@ const MarkdownArticleManager: React.FC = () => {
       setIsSaving(false);
     }
   };
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        void saveArticle('draft');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [current, isSaving]);
 
   const togglePublish = async (article: MarkdownArticleSummary) => {
     setIsSaving(true);

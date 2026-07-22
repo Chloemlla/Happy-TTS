@@ -362,6 +362,7 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ initialView = 'keys' }) =
   };
 
   const handleRevoke = async (keyId: string) => {
+    if (!confirm(`确定吊销 ${keyId}？吊销后该 Key 将立即失效，需手动重新启用。`)) return;
     try {
       await apiJson<never>(`/api/apikeys/${keyId}/revoke`, { method: 'POST' });
       setNotification({ message: '已吊销', type: 'success' });

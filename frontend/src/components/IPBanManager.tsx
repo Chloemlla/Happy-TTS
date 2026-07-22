@@ -75,24 +75,26 @@ function BanIPModal({ isOpen, onClose, onSuccess, mode }: BanIPModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
+    if (mode === 'single') {
+      if (!formData.ipAddress.trim()) {
+        setError('请输入IP地址');
+        return;
+      }
+    } else if (!formData.ipAddresses.trim()) {
+      setError('请输入IP地址列表');
+      return;
+    }
+
+    setLoading(true);
     try {
       if (mode === 'single') {
-        if (!formData.ipAddress.trim()) {
-          setError('请输入IP地址');
-          return;
-        }
         await turnstileApi.banIP(formData.ipAddress, formData.reason, formData.durationMinutes);
         setNotification({
           message: `成功封禁IP: ${formData.ipAddress}`,
           type: 'success'
         });
       } else {
-        if (!formData.ipAddresses.trim()) {
-          setError('请输入IP地址列表');
-          return;
-        }
         const ipList = formData.ipAddresses.split('\n').filter(ip => ip.trim());
         const result = await turnstileApi.banIPs(ipList, formData.reason, formData.durationMinutes);
         setNotification({
@@ -246,24 +248,26 @@ function UnbanIPModal({ isOpen, onClose, onSuccess, mode }: UnbanIPModalProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
+    if (mode === 'single') {
+      if (!formData.ipAddress.trim()) {
+        setError('请输入IP地址');
+        return;
+      }
+    } else if (!formData.ipAddresses.trim()) {
+      setError('请输入IP地址列表');
+      return;
+    }
+
+    setLoading(true);
     try {
       if (mode === 'single') {
-        if (!formData.ipAddress.trim()) {
-          setError('请输入IP地址');
-          return;
-        }
         await turnstileApi.unbanIP(formData.ipAddress);
         setNotification({
           message: `成功解封IP: ${formData.ipAddress}`,
           type: 'success'
         });
       } else {
-        if (!formData.ipAddresses.trim()) {
-          setError('请输入IP地址列表');
-          return;
-        }
         const ipList = formData.ipAddresses.split('\n').filter(ip => ip.trim());
         const result = await turnstileApi.unbanIPs(ipList);
         setNotification({

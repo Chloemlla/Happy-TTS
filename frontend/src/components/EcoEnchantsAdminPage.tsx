@@ -512,11 +512,17 @@ const EcoEnchantsAdminPage: React.FC = () => {
 
   const revokeLicense = async (event: React.FormEvent) => {
     event.preventDefault();
+    const licenseId = revokeLicenseId.trim();
+    if (!licenseId) {
+      setNotification({ message: "请输入要吊销的授权 ID", type: "warning" });
+      return;
+    }
+    if (!window.confirm(`确定吊销授权「${licenseId}」？此操作不可撤销。`)) return;
     await runSubmit(
       "license-revoke",
       async () => {
         await api.post(
-          `/api/ecoenchants/v1/admin/licenses/${encodeURIComponent(revokeLicenseId.trim())}/revoke`,
+          `/api/ecoenchants/v1/admin/licenses/${encodeURIComponent(licenseId)}/revoke`,
           {},
           {
             headers: {

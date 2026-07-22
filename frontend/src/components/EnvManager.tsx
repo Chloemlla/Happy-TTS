@@ -566,6 +566,7 @@ const EnvManager: React.FC = () => {
 
   const handleDeleteSetting = useCallback(async (domain: string) => {
     if (settingsDeletingDomain) return;
+    if (!window.confirm(`确定删除 OutEmail 域名配置「${domain}」？此操作不可撤销。`)) return;
     setSettingsDeletingDomain(domain);
     try {
       const res = await fetch(OUTEMAIL_API, {
@@ -640,6 +641,7 @@ const EnvManager: React.FC = () => {
 
   const handleDeleteModCode = useCallback(async () => {
     if (modDeleting) return;
+    if (!window.confirm('确定删除当前修改码配置？删除后相关功能将回退到默认/环境变量。')) return;
     setModDeleting(true);
     try {
       const res = await fetch(MODLIST_API, {
@@ -713,6 +715,7 @@ const EnvManager: React.FC = () => {
 
   const handleDeleteTtsCode = useCallback(async () => {
     if (ttsDeleting) return;
+    if (!window.confirm('确定删除当前 TTS 生成码配置？删除后相关功能将回退到默认/环境变量。')) return;
     setTtsDeleting(true);
     try {
       const res = await fetch(TTS_API, {
@@ -867,6 +870,7 @@ const EnvManager: React.FC = () => {
 
   const handleDeleteGoogleClientIds = useCallback(async () => {
     if (googleClientIdsDeleting) return;
+    if (!window.confirm('确定重置 Google Client ID 配置？主站与 NexAI 的 Google 登录可能立即失效。')) return;
     setGoogleClientIdsDeleting(true);
     try {
       // Reset main-site Google Auth; clear only NexAI google.clientId while preserving other NexAI fields.
@@ -1026,6 +1030,7 @@ const EnvManager: React.FC = () => {
 
   const handleDeleteSynapseAndroidSetting = useCallback(async () => {
     if (synapseAndroidDeleting) return;
+    if (!window.confirm('确定重置 Synapse Android / assetlinks 配置为默认值？')) return;
     setSynapseAndroidDeleting(true);
     try {
       const res = await fetch(SYNAPSE_ANDROID_API, {
@@ -1100,6 +1105,7 @@ const EnvManager: React.FC = () => {
 
   const handleDeleteShortAes = useCallback(async () => {
     if (shortAesDeleting) return;
+    if (!window.confirm('确定删除短链 AES 密钥配置？现有加密短链可能无法解密。')) return;
     setShortAesDeleting(true);
     try {
       const res = await signedFetch(SHORTURL_AES_API, {
@@ -1173,6 +1179,7 @@ const EnvManager: React.FC = () => {
   const handleDeleteWebhookSecret = useCallback(async () => {
     if (webhookDeleting) return;
     const key = webhookKeyInput.trim().toUpperCase() || 'DEFAULT';
+    if (!window.confirm(`确定删除 Webhook 密钥「${key}」？相关回调签名校验将失败。`)) return;
     setWebhookDeleting(true);
     try {
       const res = await fetch(WEBHOOK_SECRET_API, {
@@ -1264,6 +1271,7 @@ const EnvManager: React.FC = () => {
 
   const handleDeleteProvider = useCallback(async (id: string) => {
     if (providerDeletingId) return;
+    if (!window.confirm(`确定删除 LibreChat 提供商「${id}」？此操作不可撤销。`)) return;
     setProviderDeletingId(id);
     try {
       const res = await fetch(`${LIBRECHAT_PROVIDERS_API}/${id}`, {
@@ -1453,6 +1461,7 @@ const EnvManager: React.FC = () => {
 
   const handleDeleteTurnstileConfig = useCallback(async (key: 'TURNSTILE_SECRET_KEY' | 'TURNSTILE_SITE_KEY') => {
     if (turnstileConfigDeleting) return;
+    if (!window.confirm(`确定删除 Turnstile 配置「${key}」？人机验证可能立即失效。`)) return;
     setTurnstileConfigDeleting(true);
     try {
       const res = await fetch(`${TURNSTILE_CONFIG_API}/${key}`, {
@@ -1538,6 +1547,7 @@ const EnvManager: React.FC = () => {
 
   const handleDeleteHcaptchaConfig = useCallback(async (key: 'HCAPTCHA_SECRET_KEY' | 'HCAPTCHA_SITE_KEY') => {
     if (hcaptchaConfigDeleting) return;
+    if (!window.confirm(`确定删除 hCaptcha 配置「${key}」？人机验证可能立即失效。`)) return;
     setHcaptchaConfigDeleting(true);
     try {
       const res = await fetch(`${HCAPTCHA_CONFIG_API}/${key}`, {
@@ -1634,6 +1644,7 @@ const EnvManager: React.FC = () => {
 
   const handleDeleteClarityConfig = useCallback(async () => {
     if (clarityConfigDeleting) return;
+    if (!window.confirm('确定删除 Microsoft Clarity 配置？')) return;
     setClarityConfigDeleting(true);
     try {
       const res = await fetch(CLARITY_CONFIG_API, {
@@ -1753,6 +1764,7 @@ const EnvManager: React.FC = () => {
 
   const handleDeleteGithubBillingConfig = useCallback(async (configKey: 'config1' | 'config2' | 'config3') => {
     if (githubBillingConfigSaving) return;
+    if (!window.confirm(`确定删除 GitHub Billing 配置「${configKey}」？`)) return;
     setGithubBillingConfigSaving(true);
     try {
       const res = await fetch(`${GITHUB_BILLING_MULTI_CONFIG_API}/${configKey}`, {

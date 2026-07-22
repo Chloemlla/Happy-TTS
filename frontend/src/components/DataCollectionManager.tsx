@@ -338,6 +338,7 @@ const DataCollectionManager: React.FC = () => {
             if (!res.ok || data.success === false) throw new Error(data.message || '删除失败');
             await fetchList();
             setSelected(prev => { const s = new Set(prev); s.delete(id); return s; });
+            setNotification({ type: 'success', message: '记录已删除' });
         } catch (e) {
             setNotification({ type: 'error', message: '删除失败' });
         }
@@ -345,7 +346,10 @@ const DataCollectionManager: React.FC = () => {
 
     const deleteBatch = async () => {
         const ids = Array.from(selected);
-        if (ids.length === 0) return alert('请先选择要删除的记录');
+        if (ids.length === 0) {
+            setNotification({ type: 'warning', message: '请先选择要删除的记录' });
+            return;
+        }
         if (!confirm(`确认批量删除 ${ids.length} 条记录？`)) return;
         try {
             const res = await fetch(`${base}/api/data-collection/admin/delete-batch`, {
@@ -354,13 +358,14 @@ const DataCollectionManager: React.FC = () => {
                 body: JSON.stringify({ ids }),
             });
             if (res.status === 401) {
-                alert('未授权或登录已过期，请重新登录');
+                setNotification({ type: 'error', message: '未授权或登录已过期，请重新登录' });
                 return;
             }
             const data = await res.json();
             if (!res.ok || data.success === false) throw new Error(data.message || '批量删除失败');
             await fetchList();
             setSelected(new Set());
+            setNotification({ type: 'success', message: `已删除 ${ids.length} 条记录` });
         } catch (e) {
             setNotification({ type: 'error', message: '批量删除失败' });
         }

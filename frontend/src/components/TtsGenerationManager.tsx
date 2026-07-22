@@ -21,6 +21,7 @@ import type {
 import { cn } from "../utils/cn";
 import { SimpleLoadingSpinner } from "./LoadingSpinner";
 import { InfoSectionTitle } from "./LogShareStyleScaffold";
+import { useNotification } from "./Notification";
 
 type ReviewFilter = TtsHistoryReviewStatus | "all";
 type ScopeFilter = "all" | "user" | "anonymous";
@@ -102,6 +103,7 @@ const buildDownloadUrl = (audioUrl: string) => {
 };
 
 const TtsGenerationManager: React.FC = () => {
+  const { setNotification } = useNotification();
   const [records, setRecords] = useState<TtsHistoryRecord[]>([]);
   const [drafts, setDrafts] = useState<Record<string, ReviewDraft>>({});
   const [loading, setLoading] = useState(false);
@@ -211,13 +213,19 @@ const TtsGenerationManager: React.FC = () => {
           ...current,
           [updated.id]: buildDraft(updated),
         }));
+        setNotification({
+          type: "success",
+          message: override?.reviewStatus === "fixed" ? "已标记为修复完成" : "审核信息已保存",
+        });
       } catch (requestError: any) {
-        setError(requestError?.response?.data?.error || requestError?.message || "保存审核信息失败");
+        const message = requestError?.response?.data?.error || requestError?.message || "保存审核信息失败";
+        setError(message);
+        setNotification({ type: "error", message });
       } finally {
         setSavingId(null);
       }
     },
-    [drafts],
+    [drafts, setNotification],
   );
 
   const togglePlayback = useCallback(
