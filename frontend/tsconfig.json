@@ -19,6 +19,9 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
+    // TypeScript 6 deprecates baseUrl; keep it for path aliases until the
+    // TS 7 migration path lands. Silence the TS5101 deprecation error.
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
