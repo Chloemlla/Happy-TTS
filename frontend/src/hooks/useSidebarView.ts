@@ -4,8 +4,8 @@ import { useLocation } from 'react-router-dom';
 import type { NavGroup, ResolvedSidebarView } from '@/layout/types';
 import { useAuth } from '@/hooks/useAuth';
 
-import { getRootNavGroups } from './navConfig';
-import { resolveSidebarView } from './sidebarViews';
+import { getRootNavGroups } from '@/navigation/navConfig';
+import { resolveSidebarView } from '@/navigation/sidebarViews';
 
 /** Sentinel key used for the root navigation in animation `key=` props. */
 const ROOT_VIEW_KEY = '__root';
