@@ -90,7 +90,7 @@ const MusicPlayerDemo: React.FC = () => {
             <div className="relative w-[340px] h-[720px] rounded-[32px] border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[130px] h-[20px] bg-[#1a1a1a] rounded-b-[10px] z-10" />
               
-              <div className="h-full overflow-y-auto overflow-x-hidden scrollbar-hide">
+              <div className="h-full overflow-y-auto overflow-x-hidden no-scrollbar">
                 {/* 顶部区域 */}
                 <div className="flex items-center justify-between p-4 pt-7">
                   <div className="flex items-center gap-2 text-2xl font-bold text-[#1DB954]">
@@ -111,7 +111,7 @@ const MusicPlayerDemo: React.FC = () => {
                 {/* 推荐歌单 */}
                 <div className="px-4 mt-5">
                   <h2 className="text-[17px] font-bold text-white mb-3">推荐歌单</h2>
-                  <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-4">
+                  <div className="flex gap-3 overflow-x-auto no-scrollbar pb-4">
                     {[1, 2, 3, 4, 5].map((i) => (
                       <div key={i} className="flex-shrink-0">
                         <div className="w-[100px] h-[100px] bg-gradient-to-br from-[#667eea] to-[#764ba2] rounded-[10px] mb-2" />
@@ -289,7 +289,7 @@ const MusicPlayerDemo: React.FC = () => {
             <div className="relative w-[340px] h-[720px] rounded-[32px] border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[130px] h-[20px] bg-[#1a1a1a] rounded-b-[10px] z-10" />
               
-              <div className="h-full bg-gradient-to-b from-[#282828] to-black overflow-y-auto scrollbar-hide">
+              <div className="h-full bg-gradient-to-b from-[#282828] to-black overflow-y-auto no-scrollbar">
                 {/* 顶部栏 */}
                 <div className="flex items-center justify-between p-4 pt-7 text-white">
                   <button className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
@@ -368,7 +368,7 @@ const MusicPlayerDemo: React.FC = () => {
             <div className="relative w-[340px] h-[720px] rounded-[32px] border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[130px] h-[20px] bg-[#1a1a1a] rounded-b-[10px] z-10" />
               
-              <div className="h-full overflow-y-auto scrollbar-hide">
+              <div className="h-full overflow-y-auto no-scrollbar">
                 {/* 头部信息 */}
                 <div className="p-4 pt-7">
                   <h2 className="text-[23px] font-bold text-white mb-1">当前播放</h2>
@@ -439,7 +439,7 @@ const MusicPlayerDemo: React.FC = () => {
             <div className="relative w-[340px] h-[720px] rounded-[32px] border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[130px] h-[20px] bg-[#1a1a1a] rounded-b-[10px] z-10" />
               
-              <div className="h-full overflow-y-auto scrollbar-hide">
+              <div className="h-full overflow-y-auto no-scrollbar">
                 {/* 搜索头部 */}
                 <div className="p-4 pt-7">
                   <div className="flex items-center gap-3">
@@ -532,7 +532,7 @@ const MusicPlayerDemo: React.FC = () => {
             <div className="relative w-[340px] h-[720px] rounded-[32px] border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[130px] h-[20px] bg-[#1a1a1a] rounded-b-[10px] z-10" />
               
-              <div className="h-full overflow-y-auto scrollbar-hide">
+              <div className="h-full overflow-y-auto no-scrollbar">
                 {/* 个人信息卡片 */}
                 <div className="bg-gradient-to-br from-[#1DB954] to-[#1ed760] px-5 pt-7 pb-6 rounded-b-[12px]">
                   <div className="flex items-center gap-4">
@@ -607,7 +607,7 @@ const MusicPlayerDemo: React.FC = () => {
             <div className="relative w-[340px] h-[720px] rounded-[32px] border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[130px] h-[20px] bg-[#1a1a1a] rounded-b-[10px] z-10" />
               
-              <div className="h-full overflow-y-auto scrollbar-hide">
+              <div className="h-full overflow-y-auto no-scrollbar">
                 {/* 顶部封面区 */}
                 <div className="relative h-[200px] bg-gradient-to-b from-[#1DB954] to-[#191414] flex items-center justify-center">
                   <button className="absolute top-7 left-4 w-8 h-8 rounded-full bg-black/30 backdrop-blur-sm flex items-center justify-center text-white">
@@ -683,7 +683,7 @@ const MusicPlayerDemo: React.FC = () => {
             <div className="relative w-[340px] h-[720px] rounded-[32px] border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[130px] h-[20px] bg-[#1a1a1a] rounded-b-[10px] z-10" />
               
-              <div className="h-full overflow-y-auto scrollbar-hide">
+              <div className="h-full overflow-y-auto no-scrollbar">
                 {/* 首页内容 (背景) */}
                 <div className="flex items-center justify-between p-4 pt-7">
                   <div className="text-2xl font-bold text-[#1DB954]">Music</div>
@@ -700,7 +700,7 @@ const MusicPlayerDemo: React.FC = () => {
 
                 <div className="px-4 mt-5">
                   <h2 className="text-[17px] font-bold text-white mb-3">推荐歌单</h2>
-                  <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-4">
+                  <div className="flex gap-3 overflow-x-auto no-scrollbar pb-4">
                     {[1, 2, 3, 4, 5].map((i) => (
                       <div key={i} className="flex-shrink-0">
                         <div className="w-[100px] h-[100px] bg-gradient-to-br from-[#667eea] to-[#764ba2] rounded-[10px] mb-2" />
@@ -787,15 +787,6 @@ const MusicPlayerDemo: React.FC = () => {
 
         .animate-heartbeat {
           animation: heartbeat 1.5s ease-in-out infinite;
-        }
-
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
         }
       `}</style>
     </InfoQueryShell>

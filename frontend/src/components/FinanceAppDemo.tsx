@@ -340,7 +340,7 @@ const FinanceAppDemo: React.FC = () => {
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
-              <div className="h-full overflow-y-auto scrollbar-hide bg-[#f8f9fa] px-4 pt-8 pb-20">
+              <div className="h-full overflow-y-auto no-scrollbar bg-[#f8f9fa] px-4 pt-8 pb-20">
                 {/* Bento网格 */}
                 <div className="grid grid-cols-2 gap-3">
                   {/* 资产卡片 - 跨2列 */}
@@ -475,7 +475,7 @@ const FinanceAppDemo: React.FC = () => {
                 </div>
 
                 {/* 分类选择 */}
-                <div className="flex-1 px-5 py-5 overflow-y-auto scrollbar-hide">
+                <div className="flex-1 px-5 py-5 overflow-y-auto no-scrollbar">
                   <div className="grid grid-cols-4 gap-4 mb-5">
                     {[
                       { icon: '🍜', name: '餐饮' },
@@ -550,9 +550,9 @@ const FinanceAppDemo: React.FC = () => {
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
-              <div className="h-full overflow-y-auto scrollbar-hide bg-[#f8f9fa] pb-20">
+              <div className="h-full overflow-y-auto no-scrollbar bg-[#f8f9fa] pb-20">
                 {/* 日期筛选 */}
-                <div className="flex gap-2.5 p-5 overflow-x-auto scrollbar-hide">
+                <div className="flex gap-2.5 p-5 overflow-x-auto no-scrollbar">
                   {['本月', '上月', '本年', '2024', '2023', '2022'].map((date, idx) => (
                     <button
                       key={idx}
@@ -632,7 +632,7 @@ const FinanceAppDemo: React.FC = () => {
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
-              <div className="h-full overflow-y-auto scrollbar-hide bg-[#f8f9fa] pb-20">
+              <div className="h-full overflow-y-auto no-scrollbar bg-[#f8f9fa] pb-20">
                 {/* 月份选择器 */}
                 <div className="flex items-center justify-between p-5 bg-white">
                   <button 
@@ -703,7 +703,7 @@ const FinanceAppDemo: React.FC = () => {
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
-              <div className="h-full overflow-y-auto scrollbar-hide bg-[#f8f9fa] px-5 pt-5 pb-20">
+              <div className="h-full overflow-y-auto no-scrollbar bg-[#f8f9fa] px-5 pt-5 pb-20">
                 {/* 预算环形卡片 */}
                 <div className="bg-white rounded-[24px] p-8 text-center shadow-sm border border-black/6 mb-5 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
                   <div className="relative mx-auto mb-5" style={{ width: '200px', height: '200px' }}>
@@ -765,7 +765,7 @@ const FinanceAppDemo: React.FC = () => {
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
-              <div className="h-full overflow-y-auto scrollbar-hide bg-[#f8f9fa] px-5 pt-5 pb-20">
+              <div className="h-full overflow-y-auto no-scrollbar bg-[#f8f9fa] px-5 pt-5 pb-20">
                 {/* 年度图表 */}
                 <div className="bg-white rounded-[15px] p-5 shadow-sm mb-5">
                   <h3 className="text-base font-semibold text-[#2c3e50] mb-3">年度收支对比</h3>
@@ -814,7 +814,7 @@ const FinanceAppDemo: React.FC = () => {
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
-              <div className="h-full overflow-y-auto scrollbar-hide bg-[#f8f9fa] px-5 pt-5 pb-20">
+              <div className="h-full overflow-y-auto no-scrollbar bg-[#f8f9fa] px-5 pt-5 pb-20">
                 {/* 总资产卡片 */}
                 <div className="bg-gradient-to-br from-[#4facfe] to-[#00f2fe] rounded-[24px] p-8 text-white mb-5 shadow-md border border-white/20 hover:-translate-y-1 hover:shadow-xl transition-all duration-300">
                   <div className="text-sm opacity-90 mb-2">总资产</div>
@@ -860,7 +860,7 @@ const FinanceAppDemo: React.FC = () => {
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
-              <div className="h-full overflow-y-auto scrollbar-hide bg-[#f8f9fa] px-5 pt-5 pb-20">
+              <div className="h-full overflow-y-auto no-scrollbar bg-[#f8f9fa] px-5 pt-5 pb-20">
                 {/* 支出分类 */}
                 <div className="mb-8">
                   <h3 className="text-base font-bold text-[#2c3e50] mb-4">支出分类</h3>
@@ -922,7 +922,7 @@ const FinanceAppDemo: React.FC = () => {
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
-              <div className="h-full overflow-y-auto scrollbar-hide bg-[#f8f9fa] pb-20">
+              <div className="h-full overflow-y-auto no-scrollbar bg-[#f8f9fa] pb-20">
                 {/* 个人信息头部 */}
                 <div className="bg-gradient-to-br from-[#667eea] to-[#764ba2] px-5 pt-8 pb-7 text-white flex items-center gap-5 rounded-b-[28px] shadow-md">
                   <div className="w-[70px] h-[70px] rounded-full bg-white flex items-center justify-center text-[32px] shadow-lg">
@@ -1046,14 +1046,6 @@ const FinanceAppDemo: React.FC = () => {
 
       {/* 动画样式 */}
       <style>{`
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
       `}</style>
     </InfoQueryShell>
   );

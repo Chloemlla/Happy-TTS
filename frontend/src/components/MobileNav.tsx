@@ -496,7 +496,7 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
                   </button>
                 </div>
 
-                <div className="flex-1 space-y-5 overflow-y-auto overscroll-contain p-4">
+                <div className="hover-scrollbar flex-1 space-y-5 overflow-y-auto overscroll-contain p-4">
                   <AnimatePresence initial={false}>
                     {showAccountSwitcher ? (
                       <motion.div

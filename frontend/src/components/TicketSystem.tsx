@@ -534,7 +534,7 @@ const TicketSystem: React.FC = () => {
                   </div>
                 )}
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <div className="flex-1 overflow-y-auto hover-scrollbar">
                   {loading ? (
                     <div className="flex flex-col items-center justify-center p-12 space-y-3">
                       <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-slate-900" />
@@ -761,7 +761,7 @@ const TicketSystem: React.FC = () => {
                       </div>
 
                       {/* Messages */}
-                      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6 bg-white custom-scrollbar">
+                      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6 bg-white hover-scrollbar">
                         {selectedTicket.messages.map((msg, idx) => {
                           const isAi = msg.senderRole === "ai" || msg.isAi;
                           const isMe = msg.senderId === user?.id;

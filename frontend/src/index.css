@@ -2,6 +2,7 @@
 @config "../tailwind.config.js";
 @import "tw-animate-css";
 @import "./styles/sidebar-theme.css";
+@import "./styles/scrollbar.css";
 
 body {
   margin: 0;
@@ -309,41 +310,6 @@ body {
   border-color: #e2e8f0 !important;
   color: #334155;
 }
-
-/* 滚动条美化 (commented out)
-
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-button {
-    display: none;
-    width: 0;
-    height: 0;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 10px;
-  transition: background 0.3s;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.4);
-}
-
-Firefox
-* {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
-}
-
-*/
 
 /* 文本截断和行数限制样式 */
 .line-clamp-2 {

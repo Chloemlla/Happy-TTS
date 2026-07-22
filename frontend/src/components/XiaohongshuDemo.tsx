@@ -590,7 +590,7 @@ const XiaohongshuDemo: React.FC = () => {
       </header>
 
       {/* 分类标签栏 */}
-      <div className="fixed top-[60px] left-0 right-0 z-[999] h-[50px] overflow-x-auto overflow-y-hidden scrollbar-hide"
+      <div className="fixed top-[60px] left-0 right-0 z-[999] h-[50px] overflow-x-auto overflow-y-hidden no-scrollbar"
         style={{
           backgroundColor: theme === 'dark' ? 'rgba(17,24,39,0.88)' : 'rgba(255,255,255,0.82)',
           borderBottom: '1px solid var(--border-color)'
@@ -864,15 +864,6 @@ const XiaohongshuDemo: React.FC = () => {
           0%, 100% { transform: scale(1); }
           25% { transform: scale(1.3); }
           50% { transform: scale(1.1); }
-        }
-
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
         }
 
         .line-clamp-2 {

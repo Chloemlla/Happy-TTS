@@ -1229,7 +1229,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
                     }
                   }}
                   onKeyDown={handleKeyDown}
-                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent hover:scrollbar-thumb-slate-400"
+                  className="mt-2 w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300"
                   rows={8}
                   placeholder={t.inputPlaceholder}
                   maxLength={10000}
@@ -1313,7 +1313,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
               <textarea
                 value={outputText}
                 readOnly
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-700 placeholder:text-slate-400 transition focus:outline-none focus:ring-2 focus:ring-slate-300 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent hover:scrollbar-thumb-slate-400"
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-700 placeholder:text-slate-400 transition focus:outline-none focus:ring-2 focus:ring-slate-300"
                 rows={8}
                 placeholder={isEnglish ? 'Conversion result will appear here...' : '转换结果将显示在这里...'}
                 aria-label={isEnglish ? 'Conversion result' : '转换结果'}
@@ -1414,7 +1414,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
             {/* 全局悬停提示框 */}
             {hoveredFunction && (
               <motion.div
-                className={`tooltip-container fixed z-50 rounded-2xl border border-slate-700 bg-slate-900 p-4 text-white shadow-2xl scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent hover:scrollbar-thumb-slate-500 ${
+                className={`tooltip-container fixed z-50 rounded-2xl border border-slate-700 bg-slate-900 p-4 text-white shadow-2xl  ${
                   isMobile ? 'w-70 max-w-[calc(100vw-40px)]' : 'w-80'
                 }`}
                 style={{
@@ -1472,7 +1472,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
                       <FaInfoCircle className="h-3.5 w-3.5" />
                       {isEnglish ? 'Description' : '功能描述'}
                     </h4>
-                    <div className="max-h-24 overflow-y-auto text-sm text-slate-200 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent hover:scrollbar-thumb-slate-500">
+                    <div className="max-h-24 overflow-y-auto text-sm text-slate-200">
                       <p>
                         {DOMPurify.sanitize(t.functionDetails[hoveredFunction as keyof typeof t.functionDetails]?.description || '')}
                       </p>
@@ -1485,7 +1485,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
                       <FaFileCode className="h-3.5 w-3.5" />
                       {isEnglish ? 'Code' : '代码'}
                     </h4>
-                    <div className="max-h-32 overflow-y-auto rounded-lg bg-slate-800 p-2 font-mono text-xs text-emerald-200 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent hover:scrollbar-thumb-slate-500">
+                    <div className="max-h-32 overflow-y-auto rounded-lg bg-slate-800 p-2 font-mono text-xs text-emerald-200">
                       <pre className="whitespace-pre-wrap break-words">
                         {DOMPurify.sanitize(t.functionDetails[hoveredFunction as keyof typeof t.functionDetails]?.code || '')}
                       </pre>
@@ -1498,7 +1498,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
                       <FaPlay className="h-3.5 w-3.5" />
                       {isEnglish ? 'Example' : '示例'}
                     </h4>
-                    <div className="max-h-32 overflow-y-auto rounded-lg bg-slate-800 p-2 font-mono text-xs text-amber-200 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent hover:scrollbar-thumb-slate-500">
+                    <div className="max-h-32 overflow-y-auto rounded-lg bg-slate-800 p-2 font-mono text-xs text-amber-200">
                       <pre className="whitespace-pre-wrap break-words">
                         {DOMPurify.sanitize(t.functionDetails[hoveredFunction as keyof typeof t.functionDetails]?.example || '')}
                       </pre>

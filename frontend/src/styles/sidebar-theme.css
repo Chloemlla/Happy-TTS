@@ -107,11 +107,4 @@
   --sidebar-ring: oklch(0.65 0.14 255);
 }
 
-/* Hide scrollbars inside the sidebar content region (matches new-api). */
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
+/* no-scrollbar / hover-scrollbar live in styles/scrollbar.css (new-api parity). */

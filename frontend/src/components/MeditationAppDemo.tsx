@@ -365,7 +365,7 @@ const MeditationAppDemo: React.FC = () => {
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
               {/* 内容 */}
-              <div className="h-full overflow-y-auto overflow-x-hidden scrollbar-hide bg-[#f5f7fa]">
+              <div className="h-full overflow-y-auto overflow-x-hidden no-scrollbar bg-[#f5f7fa]">
                 {/* 顶部横幅 */}
                 <div className="bg-gradient-to-br from-[#667eea] to-[#764ba2] px-5 pt-9 pb-4 text-white">
                   <div className="text-sm opacity-90 mb-2">10月23日 星期三 14:30</div>
@@ -554,7 +554,7 @@ const MeditationAppDemo: React.FC = () => {
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
-              <div className="relative h-full bg-gradient-to-br from-[#f5f7fa] to-[#e8eaf6] overflow-y-auto scrollbar-hide">
+              <div className="relative h-full bg-gradient-to-br from-[#f5f7fa] to-[#e8eaf6] overflow-y-auto no-scrollbar">
                 {/* 烟花背景 */}
                 <canvas ref={setCanvasRef(3)} className="absolute inset-0" />
                 
@@ -621,7 +621,7 @@ const MeditationAppDemo: React.FC = () => {
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
-              <div className="h-full overflow-y-auto scrollbar-hide bg-[#f5f7fa]">
+              <div className="h-full overflow-y-auto no-scrollbar bg-[#f5f7fa]">
                 {/* 顶部横幅 */}
                 <div className="bg-gradient-to-br from-[#667eea] to-[#764ba2] px-5 pt-9 pb-6 text-white">
                   <h2 className="text-2xl font-light mb-4">本周统计</h2>
@@ -702,7 +702,7 @@ const MeditationAppDemo: React.FC = () => {
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
-              <div className="h-full overflow-y-auto scrollbar-hide bg-[#f5f7fa]">
+              <div className="h-full overflow-y-auto no-scrollbar bg-[#f5f7fa]">
                 {/* 顶部横幅 */}
                 <div className="bg-gradient-to-br from-[#667eea] to-[#764ba2] px-5 pt-9 pb-6 text-white text-center">
                   <h2 className="text-[42px] font-extralight leading-tight mb-2">累计冥想<br/>127 小时</h2>
@@ -761,7 +761,7 @@ const MeditationAppDemo: React.FC = () => {
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
-              <div className="h-full overflow-y-auto scrollbar-hide bg-[#f5f7fa]">
+              <div className="h-full overflow-y-auto no-scrollbar bg-[#f5f7fa]">
                 {/* 顶部横幅 */}
                 <div className="bg-gradient-to-br from-[#667eea] to-[#764ba2] px-5 pt-9 pb-5 text-white">
                   <div className="flex items-center justify-between mb-4">
@@ -862,7 +862,7 @@ const MeditationAppDemo: React.FC = () => {
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
-              <div className="h-full overflow-y-auto scrollbar-hide bg-[#f5f7fa]">
+              <div className="h-full overflow-y-auto no-scrollbar bg-[#f5f7fa]">
                 {/* 搜索区 */}
                 <div className="px-5 pt-9 pb-4 bg-white">
                   <div className="flex items-center gap-3">
@@ -876,7 +876,7 @@ const MeditationAppDemo: React.FC = () => {
                   </div>
 
                   {/* 分类标签 */}
-                  <div className="flex items-center gap-2 mt-4 overflow-x-auto scrollbar-hide">
+                  <div className="flex items-center gap-2 mt-4 overflow-x-auto no-scrollbar">
                     {['全部', '自然', '城市', '白噪音', '音乐'].map((cat, idx) => (
                       <button
                         key={idx}
@@ -940,7 +940,7 @@ const MeditationAppDemo: React.FC = () => {
             <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
-              <div className="h-full overflow-y-auto scrollbar-hide bg-[#f5f7fa]">
+              <div className="h-full overflow-y-auto no-scrollbar bg-[#f5f7fa]">
                 {/* 个人信息卡片 */}
                 <div className="bg-gradient-to-br from-[#667eea] to-[#764ba2] px-5 pt-10 pb-8 text-white">
                   <div className="flex items-center gap-5">
@@ -1191,15 +1191,6 @@ const MeditationAppDemo: React.FC = () => {
           33% { transform: scale(1.0); opacity: 1; }
           50% { transform: scale(1.0); opacity: 1; }
           83% { transform: scale(0.6); opacity: 0.6; }
-        }
-
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
         }
       `}</style>
     </InfoQueryShell>

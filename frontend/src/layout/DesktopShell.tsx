@@ -24,7 +24,7 @@ export default function DesktopShell({ children }: DesktopShellProps) {
     >
       <div className='flex min-h-0 w-full flex-1'>
         <AppSidebar viewState={viewState} collapsible='icon' />
-        <SidebarInset className='min-h-0 overflow-auto bg-transparent'>
+        <SidebarInset className='hover-scrollbar min-h-0 overflow-auto bg-transparent'>
           {children}
         </SidebarInset>
       </div>
