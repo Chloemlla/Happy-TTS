@@ -35,10 +35,10 @@ import {
 import type { NavGroup, NavItem } from '@/layout/types';
 
 /**
- * Shared navigation configuration for desktop sidebar + MobileNav.
+ * Shared navigation configuration (SSOT) for AppSidebar + MobileNav + AdminHub.
  *
- * Keep MobileNav and AppSidebar reading from this single source so the
- * information architecture stays identical across breakpoints.
+ * Desktop: useSidebarView → getRootNavGroups / getAdminNavGroups
+ * Mobile:  getMobileRootNavGroups / getMobileAdminNavGroups
  */
 
 export type NavVisibilityContext = {
@@ -60,7 +60,7 @@ function filterByVisibility(
   });
 }
 
-/** Root (desktop) sidebar groups — mirrors MobileNav `menuGroups`. */
+/** Root sidebar / mobile page-nav groups. */
 export function getRootNavGroups(ctx: NavVisibilityContext): NavGroup[] {
   const groups: NavGroup[] = [
     {
@@ -246,8 +246,8 @@ export function getRootNavGroups(ctx: NavVisibilityContext): NavGroup[] {
 }
 
 /**
- * Admin drill-in sidebar groups — mirrors AdminDashboard `tabGroups`.
- * Each item points at `/admin/<module>` (PR3 will wire the routes).
+ * Admin drill-in sidebar groups + AdminHub cards.
+ * Each item points at `/admin/<module>` or a dedicated admin route.
  */
 export function getAdminNavGroups(): NavGroup[] {
   return [
@@ -487,3 +487,17 @@ export const ADMIN_TAB_TO_PATH: Record<string, string> = {
   'rust-benchmark': '/admin/rust-benchmark',
   system: '/admin/system',
 };
+
+/**
+ * Mobile overlay root groups — same IA as desktop root, but without the
+ * admin-entry chip (full admin modules are listed separately via
+ * {@link getMobileAdminNavGroups}).
+ */
+export function getMobileRootNavGroups(ctx: NavVisibilityContext): NavGroup[] {
+  return getRootNavGroups(ctx).filter((g) => g.id !== 'admin-entry');
+}
+
+/** Mobile overlay admin groups — full parity with desktop drill-in / AdminHub. */
+export function getMobileAdminNavGroups(): NavGroup[] {
+  return getAdminNavGroups();
+}

@@ -5,49 +5,26 @@ import { Link, useLocation } from 'react-router-dom';
 import type { IconType } from 'react-icons';
 import {
   FaBars,
-  FaBirthdayCake,
-  FaBook,
-  FaBug,
-  FaChartBar,
   FaCheckCircle,
   FaChevronDown,
-  FaComments,
-  FaDatabase,
-  FaDollarSign,
-  FaEnvelope,
-  FaExchangeAlt,
-  FaExclamationTriangle,
-  FaFileAlt,
-  FaFlask,
-  FaFont,
-  FaGamepad,
-  FaGavel,
-  FaGift,
-  FaHeadset,
-  FaImage,
-  FaLanguage,
-  FaLink,
-  FaList,
   FaLock,
-  FaLockOpen,
-  FaPaperPlane,
   FaPlusCircle,
-  FaSearch,
-  FaShareAlt,
   FaShieldAlt,
   FaSignOutAlt,
-  FaStore,
   FaTimes,
   FaUser,
   FaUserPlus,
-  FaUserShield,
-  FaVolumeUp,
 } from 'react-icons/fa';
 import getApiBaseUrl from '../api';
 import { useAuth } from '../hooks/useAuth';
+import {
+  getMobileAdminNavGroups,
+  getMobileRootNavGroups,
+} from '../navigation/navConfig';
 import type { TOTPStatus, User } from '../types/auth';
 import { getAuthToken } from '../utils/authSession';
-
+import { isNavLink } from '../layout/url-utils';
+import type { NavItem as ConfigNavItem } from '../layout/types';
 
 interface MobileNavProps {
   user: User | null;
@@ -72,6 +49,16 @@ interface NavGroup {
   id: string;
   title: string;
   items: NavItem[];
+}
+
+function toMobileNavItem(item: ConfigNavItem): NavItem | null {
+  if (!isNavLink(item) || !item.url) return null;
+  return {
+    to: item.url,
+    label: item.title,
+    icon: (item.icon || FaBars) as IconType,
+    matchChildren: item.matchChildren,
+  };
 }
 
 const MENU_PANEL_ID = 'mobile-nav-panel';
@@ -196,94 +183,28 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
   const canUseTranslation = user?.isTranslationEnabled !== false;
   const isAdmin = user?.role === 'admin';
 
-  const menuGroups = useMemo<NavGroup[]>(() => [
-    {
-      id: 'core',
-      title: '核心功能',
-      items: [
-        { to: '/', label: '语音合成', icon: FaVolumeUp },
-        { to: '/store', label: '资源商店', icon: FaStore, matchChildren: true },
-        { to: '/profile', label: '个人中心', icon: FaUser },
-        { to: '/support', label: '支持中心', icon: FaHeadset },
-      ],
-    },
-    {
-      id: 'tools',
-      title: '实用工具',
-      items: [
-        ...(isAdmin
-          ? [{ to: '/logshare', label: '日志分享', icon: FaShareAlt }]
-          : []),
-        ...(canUseTranslation
-          ? [{ to: '/translate', label: '文本翻译', icon: FaLanguage }]
-          : []),
-        { to: '/image-upload', label: '图片上传', icon: FaImage },
-        { to: '/public-shortlink', label: '公共短链', icon: FaLink },
-        { to: '/case-converter', label: '大小写转换', icon: FaFont },
-        { to: '/word-count', label: '字数统计', icon: FaChartBar },
-        { to: '/age-calculator', label: '年龄计算', icon: FaBirthdayCake },
-        { to: '/markdown-export', label: 'MD 导出', icon: FaFileAlt },
-        { to: '/github-billing', label: 'GitHub 账单', icon: FaDollarSign },
-        ...(isAdmin
-          ? [
-            { to: '/modlist', label: '模组列表', icon: FaList },
-            { to: '/outemail', label: '外部邮件', icon: FaEnvelope },
-          ]
-          : []),
-      ],
-    },
-    {
-      id: 'playground',
-      title: '娱乐与探索',
-      items: [
-        { to: '/lottery', label: '抽奖系统', icon: FaGift },
-        { to: '/tiger-adventure', label: '老虎冒险', icon: FaGamepad },
-        { to: '/coin-flip', label: '硬币翻转', icon: FaExchangeAlt },
-        { to: '/librechat', label: 'LibreChat', icon: FaComments },
-      ],
-    },
-    {
-      id: 'info',
-      title: '信息与查询',
-      items: [
-        { to: '/fbi-wanted', label: 'FBI 通缉', icon: FaSearch },
-        { to: '/anti-counterfeit', label: '安踏防伪', icon: FaShieldAlt },
-        { to: '/campus-emergency', label: '校园紧急', icon: FaExclamationTriangle },
-        { to: '/api-docs', label: 'API 文档', icon: FaBook },
-        { to: '/policy', label: '服务条款', icon: FaGavel },
-      ],
-    },
-    ...(isAdmin
-      ? [{
-        id: 'demo',
-        title: '测试与演示',
-        items: [
-          { to: '/demo', label: '演示中心', icon: FaFlask, matchChildren: true },
-          { to: '/smart-human-check', label: '人机验证', icon: FaBug },
-          { to: '/notification-test', label: '通知测试', icon: FaEnvelope },
-          { to: '/hcaptcha-verify', label: 'hCaptcha', icon: FaLockOpen },
-        ],
-      }]
-      : []),
-  ], [canUseTranslation, isAdmin]);
+  // Page IA from navConfig SSOT (accountOnly skips — AppSidebar owns desktop nav).
+  const menuGroups = useMemo<NavGroup[]>(() => {
+    if (accountOnly) return [];
+    return getMobileRootNavGroups({ isAdmin, canUseTranslation }).map((group) => ({
+      id: group.id || group.title,
+      title: group.title,
+      items: group.items
+        .map(toMobileNavItem)
+        .filter((item): item is NavItem => item !== null),
+    })).filter((g) => g.items.length > 0);
+  }, [accountOnly, canUseTranslation, isAdmin]);
 
-  const adminGroups = useMemo<NavGroup[]>(() => [
-    {
-      id: 'admin',
-      title: '管理功能',
-      items: [
-        { to: '/admin', label: '管理后台', icon: FaBars },
-        { to: '/admin/users', label: '用户管理', icon: FaUserShield },
-        { to: '/nexai-security', label: '安全监控', icon: FaShieldAlt },
-        { to: '/admin/lottery', label: '抽奖管理', icon: FaGift },
-        { to: '/email-sender', label: '邮件发送', icon: FaPaperPlane },
-        { to: '/admin/store', label: '商店管理', icon: FaStore },
-        { to: '/admin/store/resources', label: '资源管理', icon: FaDatabase },
-        { to: '/admin/store/cdks', label: 'CDK 管理', icon: FaList },
-        { to: '/tamper-detection-demo', label: '篡改检测', icon: FaBug },
-      ],
-    },
-  ], []);
+  const adminGroups = useMemo<NavGroup[]>(() => {
+    if (accountOnly || !isAdmin) return [];
+    return getMobileAdminNavGroups().map((group) => ({
+      id: group.id || group.title,
+      title: group.title,
+      items: group.items
+        .map(toMobileNavItem)
+        .filter((item): item is NavItem => item !== null),
+    })).filter((g) => g.items.length > 0);
+  }, [accountOnly, isAdmin]);
 
   const accountsForDisplay = useMemo(() => {
     if (!user) return savedAccounts;

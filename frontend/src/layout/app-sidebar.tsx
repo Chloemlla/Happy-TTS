@@ -105,7 +105,9 @@ export function AppSidebar({
 
       <SidebarFooter className='border-sidebar-border border-t px-2 py-2 group-data-[collapsible=icon]:hidden'>
         <p className='text-muted-foreground/75 px-2 text-[10px] leading-relaxed'>
-          {view ? '管理模块 · 点「返回」退出工作区' : '侧栏边缘拖动可折叠 · 状态会记住'}
+          {view
+            ? '管理模块 · 点「返回」退出工作区'
+            : '顶栏按钮或侧栏边缘可折叠 · 状态会记住'}
         </p>
       </SidebarFooter>
 

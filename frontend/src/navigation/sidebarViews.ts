@@ -10,10 +10,16 @@ import type { SidebarView } from '@/layout/types';
  *
  * Match priority is array order; the first matching `pathPattern` wins.
  */
+/** Admin-workspace paths outside `/admin/*` that still use the drill-in shell. */
+const ADMIN_WORKSPACE_EXTRAS =
+  'email-sender|nexai-security|tamper-detection-demo';
+
 export const ADMIN_VIEW: SidebarView = {
   id: 'admin',
-  // Match /admin and /admin/* (but not /adminxxx).
-  pathPattern: /^\/admin(?:\/|$)/,
+  // Match /admin, /admin/*, and a few dedicated admin routes outside /admin.
+  pathPattern: new RegExp(
+    `^/(?:admin(?:/|$)|(?:${ADMIN_WORKSPACE_EXTRAS})$)`,
+  ),
   parent: {
     to: '/',
     label: '返回主导航',

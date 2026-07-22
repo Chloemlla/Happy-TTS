@@ -582,10 +582,8 @@ const App: React.FC = () => {
     requestStatus
   } = useFingerprintRequest();
 
-  // 在App组件内，提升isMobile/isOverflow状态
-  const [isMobileNav, setIsMobileNav] = useState(false);
   const navRef = useRef<HTMLDivElement>(null);
-  const mainRef = useRef<HTMLElement>(null);
+  const mainRef = useRef<HTMLDivElement>(null);
   const totpDialogRef = useRef<HTMLDivElement>(null);
   const totpCloseButtonRef = useRef<HTMLButtonElement>(null);
   const previousFocusedElementRef = useRef<HTMLElement | null>(null);
@@ -615,10 +613,11 @@ const App: React.FC = () => {
     && enableFirstVisitVerification
     && Boolean(fingerprint)
     && (isIpBanned || (isFirstVisit && !isVerified));
-  const toastPosition = isMobileNav ? 'bottom-center' : 'top-right';
-  // Default false so SSR / first paint never flashes the desktop sidebar on phones.
-  // Confirmed desktop only after matchMedia resolves (md: 768px, matches useIsMobile).
-  const [isDesktopViewport, setIsDesktopViewport] = useState(false);
+  // Single breakpoint source (md: 768px) — no overflow heuristic for shell/toast.
+  // Sync init avoids desktop first-paint flash of mobile chrome (CSR app).
+  const [isDesktopViewport, setIsDesktopViewport] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches,
+  );
   useEffect(() => {
     const mql = window.matchMedia('(min-width: 768px)');
     const update = () => setIsDesktopViewport(mql.matches);
@@ -626,6 +625,7 @@ const App: React.FC = () => {
     mql.addEventListener('change', update);
     return () => mql.removeEventListener('change', update);
   }, []);
+  const toastPosition = isDesktopViewport ? 'top-right' : 'bottom-center';
   // Desktop logged-in shell uses the left sidebar; mobile keeps MobileNav only.
   const useDesktopSidebar = Boolean(user) && isDesktopViewport;
   const openTOTPManager = React.useCallback(() => {
@@ -876,20 +876,6 @@ const App: React.FC = () => {
     updateOrCreateMeta('og:type', 'website');
     updateOrCreateMeta('og:site_name', 'Synapse');
   }, [location.pathname, routeConfig]);
-
-  useEffect(() => {
-    const checkMobileOrOverflow = () => {
-      const isMobileScreen = window.innerWidth < 768;
-      let overflow = false;
-      if (navRef.current && !isMobileScreen) {
-        overflow = navRef.current.scrollWidth > navRef.current.clientWidth;
-      }
-      setIsMobileNav(isMobileScreen || overflow);
-    };
-    checkMobileOrOverflow();
-    window.addEventListener('resize', checkMobileOrOverflow);
-    return () => window.removeEventListener('resize', checkMobileOrOverflow);
-  }, []);
 
   useEffect(() => {
     if (!loading) {
@@ -1427,104 +1413,25 @@ const App: React.FC = () => {
             >
               跳到主要内容
             </a>
-            <m.nav
-              initial={{ y: -100, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={navTransition}
-              className={
-                useDesktopSidebar
-                  ? 'relative z-20 shrink-0 border-b border-slate-200/80 bg-white/90 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur-xl'
-                  : 'relative z-10 shrink-0 bg-white/80 shadow-lg backdrop-blur-lg'
-              }
-            >
-              <div
-                id="app-header-container"
-                className={
-                  useDesktopSidebar
-                    ? 'mx-auto w-full px-4 sm:px-5 lg:px-6'
-                    : 'mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'
-                }
-                data-integrity="critical"
-                data-protection="maximum"
-                data-component="AppHeader"
-              >
-                <div
-                  id="app-header-content"
-                  className="flex h-16 items-center justify-between"
-                  data-integrity="critical"
-                >
-                  <m.div
-                    id="app-brand-logo"
-                    className={
-                      useDesktopSidebar
-                        ? 'flex items-center space-x-2 md:opacity-90'
-                        : 'flex items-center space-x-2'
-                    }
-                    whileHover={prefersReducedMotion ? undefined : { scale: 1.05 }}
-                    whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
-                    data-integrity="critical"
-                    data-protection="brand-identity"
-                    data-critical-text="Synapse"
-                  >
-                    <m.img
-                      id="app-brand-icon"
-                      className="h-8 w-8 rounded-xl"
-                      src="/favicon.ico"
-                      alt="Synapse Logo"
-                      animate={prefersReducedMotion ? undefined : { rotate: [0, 4, -4, 0] }}
-                      transition={prefersReducedMotion ? undefined : { duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                      data-integrity="critical"
-                      data-protection="brand-icon"
-                    />
-                    <Link
-                      id="app-brand-text"
-                      to="/"
-                      className="text-xl font-bold tracking-tight text-gray-900 transition-colors hover:text-indigo-600"
-                      data-integrity="critical"
-                      data-protection="brand-text"
-                      data-critical-text="Synapse"
-                      data-original-text="Synapse"
-                    >
-                      Synapse
-                    </Link>
-                  </m.div>
 
-                  {/* Desktop: AppSidebar owns nav; MobileNav is account-only. Mobile: full MobileNav. */}
-                  <div ref={navRef} className="flex-1 flex justify-end items-center gap-2">
-                    {user ? (
+            {useDesktopSidebar ? (
+              <Suspense fallback={<RouteLoadingShell />}>
+                <DesktopShell
+                  headerEnd={
+                    user ? (
                       <Suspense fallback={<NavSlotLoadingBadge />}>
                         <MobileNav
                           user={user}
                           logout={logout}
                           onTOTPManagerOpen={openTOTPManager}
                           totpStatus={totpStatus}
-                          accountOnly={useDesktopSidebar}
+                          accountOnly
                         />
                       </Suspense>
-                    ) : isAuthFlowPath ? (
-                      // 已经在鉴权/注册流程内，隐藏按钮避免原地兜圈
-                      null
-                    ) : (
-                      <Link
-                        to="/welcome"
-                        className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-sm font-bold shadow-md hover:bg-indigo-700 transition-colors flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
-                        </svg>
-                        立即登录
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </m.nav>
-
-            {useDesktopSidebar ? (
-              <Suspense fallback={<RouteLoadingShell />}>
-                <DesktopShell>
-                  <main
+                    ) : null
+                  }
+                >
+                  <div
                     id="app-main-content"
                     ref={mainRef}
                     tabIndex={-1}
@@ -1537,7 +1444,7 @@ const App: React.FC = () => {
                         </Routes>
                       </AnimatePresence>
                     </Suspense>
-                  </main>
+                  </div>
                   <Suspense fallback={<FooterLoadingShell />}>
                     <Footer />
                   </Suspense>
@@ -1545,10 +1452,89 @@ const App: React.FC = () => {
               </Suspense>
             ) : (
               <>
-                <main
+                <m.nav
+                  initial={{ y: -100, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={navTransition}
+                  className="relative z-10 shrink-0 bg-white/80 shadow-lg backdrop-blur-lg"
+                >
+                  <div
+                    id="app-header-container"
+                    className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8"
+                    data-integrity="critical"
+                    data-protection="maximum"
+                    data-component="AppHeader"
+                  >
+                    <div
+                      id="app-header-content"
+                      className="flex h-16 items-center justify-between"
+                      data-integrity="critical"
+                    >
+                      <m.div
+                        id="app-brand-logo"
+                        className="flex items-center space-x-2"
+                        whileHover={prefersReducedMotion ? undefined : { scale: 1.05 }}
+                        whileTap={prefersReducedMotion ? undefined : { scale: 0.95 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                        data-integrity="critical"
+                        data-protection="brand-identity"
+                        data-critical-text="Synapse"
+                      >
+                        <m.img
+                          id="app-brand-icon"
+                          className="h-8 w-8 rounded-xl"
+                          src="/favicon.ico"
+                          alt="Synapse Logo"
+                          animate={prefersReducedMotion ? undefined : { rotate: [0, 4, -4, 0] }}
+                          transition={prefersReducedMotion ? undefined : { duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                          data-integrity="critical"
+                          data-protection="brand-icon"
+                        />
+                        <Link
+                          id="app-brand-text"
+                          to="/"
+                          className="text-xl font-bold tracking-tight text-gray-900 transition-colors hover:text-indigo-600"
+                          data-integrity="critical"
+                          data-protection="brand-text"
+                          data-critical-text="Synapse"
+                          data-original-text="Synapse"
+                        >
+                          Synapse
+                        </Link>
+                      </m.div>
+
+                      <div ref={navRef} className="flex-1 flex justify-end items-center gap-2">
+                        {user ? (
+                          <Suspense fallback={<NavSlotLoadingBadge />}>
+                            <MobileNav
+                              user={user}
+                              logout={logout}
+                              onTOTPManagerOpen={openTOTPManager}
+                              totpStatus={totpStatus}
+                            />
+                          </Suspense>
+                        ) : isAuthFlowPath ? (
+                          null
+                        ) : (
+                          <Link
+                            to="/welcome"
+                            className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-sm font-bold shadow-md hover:bg-indigo-700 transition-colors flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                            </svg>
+                            立即登录
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </m.nav>
+                <div
                   id="app-main-content"
                   ref={mainRef}
                   tabIndex={-1}
+                  role="main"
                   className="max-w-7xl mx-auto py-6 focus:outline-none sm:px-6 lg:px-8 relative z-10"
                 >
                   <Suspense fallback={<RouteLoadingShell />}>
@@ -1558,7 +1544,7 @@ const App: React.FC = () => {
                       </Routes>
                     </AnimatePresence>
                   </Suspense>
-                </main>
+                </div>
                 <Suspense fallback={<FooterLoadingShell />}>
                   <Footer />
                 </Suspense>

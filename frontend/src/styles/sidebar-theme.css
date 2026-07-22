@@ -44,7 +44,8 @@
 
 :root {
   --radius: 0.75rem;
-  --app-header-height: 4rem; /* matches App.tsx h-16 top nav */
+  /* DesktopShell zeros this so the sidebar is full-height; mobile uses top nav h-16. */
+  --app-header-height: 4rem;
 
   --background: oklch(0.985 0.004 255);
   --foreground: oklch(0.18 0.02 255);
