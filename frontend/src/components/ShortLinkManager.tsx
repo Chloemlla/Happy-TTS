@@ -24,16 +24,9 @@ const PAGE_SIZE = 10;
 // AES-256解密函数
 function decryptAES256(encryptedData: string, iv: string, key: string): string {
   try {
-    console.log('   开始AES-256解密...');
-    console.log('   密钥长度:', key.length);
-    console.log('   加密数据长度:', encryptedData.length);
-    console.log('   IV长度:', iv.length);
-
     const keyBytes = CryptoJS.SHA256(key);
     const ivBytes = CryptoJS.enc.Hex.parse(iv);
     const encryptedBytes = CryptoJS.enc.Hex.parse(encryptedData);
-
-    console.log('   密钥哈希完成，开始解密...');
 
     const decrypted = CryptoJS.AES.decrypt(
       { ciphertext: encryptedBytes },
@@ -45,12 +38,8 @@ function decryptAES256(encryptedData: string, iv: string, key: string): string {
       }
     );
 
-    const result = decrypted.toString(CryptoJS.enc.Utf8);
-    console.log('   解密完成，结果长度:', result.length);
-
-    return result;
-  } catch (error) {
-    console.error('❌ AES-256解密失败:', error);
+    return decrypted.toString(CryptoJS.enc.Utf8);
+  } catch {
     throw new Error('解密失败');
   }
 }
@@ -113,41 +102,35 @@ const ShortLinkManager: React.FC = () => {
 
       if (data.data && data.iv && typeof data.data === 'string' && typeof data.iv === 'string') {
         try {
-          console.log('🔐 开始解密短链列表数据...');
-          console.log('   加密数据长度:', data.data.length);
-          console.log('   IV:', data.iv);
-          const hasCredential = Boolean(token);
-          console.log('   使用登录凭证进行解密:', hasCredential);
-
           const decryptedJson = decryptAES256(data.data, data.iv, token || '');
           const decryptedData = JSON.parse(decryptedJson);
 
           if (decryptedData.items && Array.isArray(decryptedData.items)) {
-            console.log('✅ 解密成功，获取到', decryptedData.items.length, '个短链');
+            const nextTotal = decryptedData.total || decryptedData.items.length;
             setLinks(decryptedData.items);
-            setTotal(decryptedData.total || decryptedData.items.length);
-            setTotalPages(Math.ceil((decryptedData.total || decryptedData.items.length) / PAGE_SIZE));
+            setTotal(nextTotal);
+            setTotalPages(Math.max(1, Math.ceil(nextTotal / PAGE_SIZE)));
           } else {
-            console.error('解密数据格式错误:', decryptedData);
             setLinks([]);
             setTotal(0);
             setTotalPages(1);
           }
-        } catch (decryptError) {
-          console.error('❌ 解密失败:', decryptError);
+        } catch {
           setLinks([]);
           setTotal(0);
+          setTotalPages(1);
           setNotification({ message: '数据解密失败，请重试', type: 'error' });
         }
       } else {
-        console.log('📝 使用未加密格式数据');
+        const nextTotal = data.total || 0;
         setLinks(data.items || []);
-        setTotal(data.total || 0);
+        setTotal(nextTotal);
+        setTotalPages(Math.max(1, Math.ceil(nextTotal / PAGE_SIZE)));
       }
-    } catch (error) {
-      console.error('获取短链列表失败:', error);
+    } catch {
       setLinks([]);
       setTotal(0);
+      setTotalPages(1);
       setNotification({ message: '获取短链列表失败，请重试', type: 'error' });
     }
     setLoading(false);
@@ -162,13 +145,29 @@ const ShortLinkManager: React.FC = () => {
     if (!window.confirm('确定要删除该短链吗？')) return;
     setHighlightedId(id);
     const token = getAuthToken();
-    await fetch(`${getApiBaseUrl()}/api/admin/shortlinks/${id}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    setTimeout(() => setHighlightedId(null), 800);
-    fetchLinks();
-    setNotification({ message: '删除成功', type: 'success' });
+    try {
+      const res = await fetch(`${getApiBaseUrl()}/api/admin/shortlinks/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) {
+        let message = '删除失败';
+        try {
+          const body = await res.json();
+          message = body?.error || body?.message || message;
+        } catch {
+          // ignore parse errors
+        }
+        setNotification({ message, type: 'error' });
+        return;
+      }
+      setNotification({ message: '删除成功', type: 'success' });
+      await fetchLinks();
+    } catch {
+      setNotification({ message: '删除失败，请重试', type: 'error' });
+    } finally {
+      setTimeout(() => setHighlightedId(null), 800);
+    }
   };
 
   const handleCopy = (code: string) => {
@@ -977,14 +976,28 @@ const ShortLinkManager: React.FC = () => {
           )}
         </h3>
 
-        {/* 桌面端表格视图 */}
+        {/* 桌面端表格视图：表头与表体在同一滚动容器内，避免列错位 */}
         <div className="hidden md:block">
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm text-[#023047]">
-              <thead className="sticky top-0 z-10 bg-white">
-                <tr className="bg-[#8ECAE6]/10 border-b border-[#8ECAE6]/30">
+          <div
+            ref={containerRef}
+            className="overflow-auto border border-[#8ECAE6]/30 rounded-lg"
+            style={{ height: useVirtualScrolling ? `${containerHeight}px` : 'auto', maxHeight: `${containerHeight}px` }}
+            onScroll={useVirtualScrolling ? handleScroll : undefined}
+          >
+            <table className="min-w-full table-fixed text-sm text-[#023047]">
+              <colgroup>
+                {isSelectMode && <col className="w-12" />}
+                <col className="w-[14%]" />
+                <col className="w-[28%]" />
+                <col className="w-[16%]" />
+                <col className="w-[12%]" />
+                <col className="w-[14%]" />
+                <col className="w-[16%]" />
+              </colgroup>
+              <thead className="sticky top-0 z-10">
+                <tr className="bg-[#8ECAE6]/15 border-b border-[#8ECAE6]/30">
                   {isSelectMode && (
-                    <th className="py-3 px-3 text-center font-semibold text-[#023047] w-12">
+                    <th className="py-3 px-3 text-center font-semibold text-[#023047]">
                       <input
                         type="checkbox"
                         checked={links.length > 0 && links.every(link => selectedLinks.has(link._id))}
@@ -1007,94 +1020,89 @@ const ShortLinkManager: React.FC = () => {
                   <th className="py-3 px-3 text-center font-semibold text-[#023047] font-songti">操作</th>
                 </tr>
               </thead>
-            </table>
-          </div>
-
-          {/* 虚拟滚动容器 */}
-          <div
-            ref={containerRef}
-            className="overflow-auto border border-[#8ECAE6]/30 rounded-b-lg"
-            style={{ height: useVirtualScrolling ? `${containerHeight}px` : 'auto', maxHeight: `${containerHeight}px` }}
-            onScroll={useVirtualScrolling ? handleScroll : undefined}
-          >
-            <div style={{ height: useVirtualScrolling ? `${totalItems * itemHeight}px` : 'auto', position: 'relative' }}>
-              <div style={{ transform: useVirtualScrolling ? `translateY(${offsetY}px)` : 'none' }}>
-                <table className="min-w-full text-sm text-[#023047]">
-                  <tbody>
-                    {loading ? (
-                      <tr>
-                        <td colSpan={6} className="text-center py-12">
-                          <div className="flex items-center justify-center gap-2">
-                            <div className="w-5 h-5 border-b-2 border-[#FFB703] rounded-full animate-spin" />
-                            <span className="text-lg font-medium text-[#023047]/70">加载中…</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : totalItems === 0 ? (
-                      <tr>
-                        <td colSpan={isSelectMode ? 7 : 6} className="text-center py-12 text-[#023047]/30">
-                          <div className="flex flex-col items-center gap-2">
-                            <FaList className="text-3xl text-[#8ECAE6]/50" />
-                            <div className="text-lg font-medium text-[#023047]/50">暂无短链</div>
-                            <div className="text-sm text-[#023047]/30">快去生成吧！</div>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : (useVirtualScrolling ? visibleItems : links).map((link) => (
-                      <tr
-                        key={link._id}
-                        className={`border-b border-[#8ECAE6]/20 hover:bg-[#8ECAE6]/10 ${highlightedId === link._id ? 'bg-[#FFB703]/10' : ''}`}
-                        style={{ height: `${itemHeight}px` }}
-                      >
-                        {isSelectMode && (
-                          <td className="whitespace-nowrap px-6 py-4 text-center">
-                            <input
-                              type="checkbox"
-                              checked={selectedLinks.has(link._id)}
-                              onChange={() => toggleSelectLink(link._id)}
-                              className="rounded border-[#8ECAE6]/30 text-[#FFB703] focus:ring-[#FFB703]"
-                            />
-                          </td>
-                        )}
-                        <td
-                          className="py-3 px-3 font-mono text-[#219EBC] break-all max-w-[120px] cursor-pointer hover:text-[#023047] transition font-semibold"
-                          onClick={() => window.open(`${getApiBaseUrl()}/s/${link.code}`, '_blank')}
+              <tbody>
+                {useVirtualScrolling && totalItems > 0 && (
+                  <tr aria-hidden="true" style={{ height: `${offsetY}px` }}>
+                    <td colSpan={isSelectMode ? 7 : 6} className="p-0 border-0" />
+                  </tr>
+                )}
+                {loading ? (
+                  <tr>
+                    <td colSpan={isSelectMode ? 7 : 6} className="text-center py-12">
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="w-5 h-5 border-b-2 border-[#FFB703] rounded-full animate-spin" />
+                        <span className="text-lg font-medium text-[#023047]/70">加载中…</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : totalItems === 0 ? (
+                  <tr>
+                    <td colSpan={isSelectMode ? 7 : 6} className="text-center py-12 text-[#023047]/30">
+                      <div className="flex flex-col items-center gap-2">
+                        <FaList className="text-3xl text-[#8ECAE6]/50" />
+                        <div className="text-lg font-medium text-[#023047]/50">暂无短链</div>
+                        <div className="text-sm text-[#023047]/30">快去生成吧！</div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (useVirtualScrolling ? visibleItems : links).map((link) => (
+                  <tr
+                    key={link._id}
+                    className={`border-b border-[#8ECAE6]/20 hover:bg-[#8ECAE6]/10 ${highlightedId === link._id ? 'bg-[#FFB703]/10' : ''}`}
+                    style={{ height: `${itemHeight}px` }}
+                  >
+                    {isSelectMode && (
+                      <td className="whitespace-nowrap px-3 py-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedLinks.has(link._id)}
+                          onChange={() => toggleSelectLink(link._id)}
+                          className="rounded border-[#8ECAE6]/30 text-[#FFB703] focus:ring-[#FFB703]"
+                        />
+                      </td>
+                    )}
+                    <td
+                      className="py-3 px-3 font-mono text-[#219EBC] break-all cursor-pointer hover:text-[#023047] transition font-semibold"
+                      onClick={() => window.open(`${getApiBaseUrl()}/s/${link.code}`, '_blank')}
+                    >
+                      {link.code}
+                    </td>
+                    <td className="py-3 px-3 break-all text-[#023047]">{link.target}</td>
+                    <td className="py-3 px-3 whitespace-nowrap text-[#023047]/70">{new Date(link.createdAt).toLocaleString()}</td>
+                    <td className="py-3 px-3 break-all text-[#023047] font-medium">{link.username || 'admin'}</td>
+                    <td className="py-3 px-3 break-all text-[#023047]/50 text-xs">{link.userId || 'admin'}</td>
+                    <td className="py-3 px-3 text-center">
+                      <div className="flex gap-2 justify-center">
+                        <motion.button
+                          className="flex items-center justify-center bg-[#8ECAE6]/15 hover:bg-[#8ECAE6]/25 text-[#219EBC] rounded-lg px-2 py-1 shadow-sm hover:shadow-md transition-all duration-150 border border-[#8ECAE6]/30"
+                          title="复制短链"
+                          onClick={() => handleCopy(link.code)}
+                          data-copy-code={link.code}
+                          whileHover={hoverScale(1.1)}
+                          whileTap={tapScale(0.9)}
                         >
-                          {link.code}
-                        </td>
-                        <td className="py-3 px-3 break-all max-w-[180px] text-[#023047]">{link.target}</td>
-                        <td className="py-3 px-3 whitespace-nowrap text-[#023047]/70">{new Date(link.createdAt).toLocaleString()}</td>
-                        <td className="py-3 px-3 break-all max-w-[80px] text-[#023047] font-medium">{link.username || 'admin'}</td>
-                        <td className="py-3 px-3 break-all max-w-[80px] text-[#023047]/50 text-xs">{link.userId || 'admin'}</td>
-                        <td className="py-3 px-3 text-center">
-                          <div className="flex gap-2 justify-center">
-                            <motion.button
-                              className="flex items-center justify-center bg-[#8ECAE6]/15 hover:bg-[#8ECAE6]/25 text-[#219EBC] rounded-lg px-2 py-1 shadow-sm hover:shadow-md transition-all duration-150 border border-[#8ECAE6]/30"
-                              title="复制短链"
-                              onClick={() => handleCopy(link.code)}
-                              data-copy-code={link.code}
-                              whileHover={hoverScale(1.1)}
-                              whileTap={tapScale(0.9)}
-                            >
-                              <FaCopy className="w-4 h-4" />
-                            </motion.button>
-                            <motion.button
-                              className="flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 rounded-lg px-2 py-1 shadow-sm hover:shadow-md transition-all duration-150 border border-red-200"
-                              title="删除"
-                              onClick={() => handleDelete(link._id)}
-                              whileHover={hoverScale(1.1)}
-                              whileTap={tapScale(0.9)}
-                            >
-                              <FaTrash className="w-4 h-4" />
-                            </motion.button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                          <FaCopy className="w-4 h-4" />
+                        </motion.button>
+                        <motion.button
+                          className="flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-500 rounded-lg px-2 py-1 shadow-sm hover:shadow-md transition-all duration-150 border border-red-200"
+                          title="删除"
+                          onClick={() => handleDelete(link._id)}
+                          whileHover={hoverScale(1.1)}
+                          whileTap={tapScale(0.9)}
+                        >
+                          <FaTrash className="w-4 h-4" />
+                        </motion.button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {useVirtualScrolling && totalItems > 0 && (
+                  <tr aria-hidden="true" style={{ height: `${Math.max(0, totalItems * itemHeight - offsetY - (useVirtualScrolling ? visibleItems.length : totalItems) * itemHeight)}px` }}>
+                    <td colSpan={isSelectMode ? 7 : 6} className="p-0 border-0" />
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 

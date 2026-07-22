@@ -73,10 +73,13 @@ const TranslationAuditViewer: React.FC = () => {
     try {
       const response = await translationAuditApi.getStats();
       setStats(response);
-    } catch {
-      // silent
+    } catch (error) {
+      setNotification({
+        message: error instanceof Error ? error.message : '获取翻译统计失败',
+        type: 'error',
+      });
     }
-  }, []);
+  }, [setNotification]);
 
   useEffect(() => {
     void fetchLogs(1);
@@ -123,7 +126,15 @@ const TranslationAuditViewer: React.FC = () => {
       until = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
     }
 
-    if (action === 'DELETE_USER' && !window.confirm('确定要删除该用户吗？此操作不可恢复。')) {
+    const confirmMessages: Partial<Record<TranslationPenaltyAction, string>> = {
+      LIMIT_TRANSLATION: `确定限制用户「${selectedUser.id}」的翻译权限？`,
+      REVOKE_PAGE_ACCESS: `确定撤销用户「${selectedUser.id}」的页面访问权限？`,
+      SUSPEND_ACCOUNT: `确定暂停用户「${selectedUser.id}」的账号？`,
+      DELETE_USER: '确定要删除该用户吗？此操作不可恢复。',
+      CLEAR_TRANSLATION_RESTRICTIONS: `确定清除用户「${selectedUser.id}」的翻译限制？`,
+    };
+    const confirmMessage = confirmMessages[action];
+    if (confirmMessage && !window.confirm(confirmMessage)) {
       return;
     }
 

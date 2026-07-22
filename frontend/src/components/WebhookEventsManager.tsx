@@ -163,13 +163,13 @@ function stringifyJson(value: unknown) {
   return JSON.stringify(value, null, 2);
 }
 
-function parseJsonDraft(value: string) {
+function parseJsonDraft(value: string, fieldLabel: string) {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
   try {
     return JSON.parse(trimmed);
   } catch {
-    return value;
+    throw new Error(`${fieldLabel} 不是有效 JSON`);
   }
 }
 
@@ -259,19 +259,36 @@ const WebhookEventsManager: React.FC = () => {
   }, []);
 
   const fetchList = useCallback(
-    async (nextPage = page, nextPageSize = pageSize) => {
+    async (
+      nextPage = page,
+      nextPageSize = pageSize,
+      filters?: {
+        routeKey?: 'all' | 'null' | string;
+        provider?: string;
+        type?: string;
+        status?: string;
+        eventId?: string;
+        search?: string;
+      },
+    ) => {
       try {
         setLoading(true);
+        const routeKey = filters?.routeKey ?? routeKeyFilter;
+        const provider = filters?.provider ?? providerFilter;
+        const type = filters?.type ?? typeFilter;
+        const status = filters?.status ?? statusFilter;
+        const eventId = filters?.eventId ?? eventIdFilter;
+        const search = filters?.search ?? searchFilter;
         const params = new URLSearchParams({
           page: String(nextPage),
           pageSize: String(nextPageSize),
         });
-        if (routeKeyFilter !== 'all') params.set('routeKey', routeKeyFilter);
-        if (providerFilter.trim()) params.set('provider', providerFilter.trim());
-        if (typeFilter.trim()) params.set('type', typeFilter.trim());
-        if (statusFilter.trim()) params.set('status', statusFilter.trim());
-        if (eventIdFilter.trim()) params.set('eventId', eventIdFilter.trim());
-        if (searchFilter.trim()) params.set('q', searchFilter.trim());
+        if (routeKey !== 'all') params.set('routeKey', routeKey);
+        if (provider.trim()) params.set('provider', provider.trim());
+        if (type.trim()) params.set('type', type.trim());
+        if (status.trim()) params.set('status', status.trim());
+        if (eventId.trim()) params.set('eventId', eventId.trim());
+        if (search.trim()) params.set('q', search.trim());
 
         const data = await parseApiResponse(await fetch(`${apiUrl()}?${params.toString()}`, { headers: authHeaders() }));
         setItems(data.items || []);
@@ -446,6 +463,7 @@ const WebhookEventsManager: React.FC = () => {
 
   const handleReplay = useCallback(
     async (id: string) => {
+      if (!confirm('确认重放该事件？可能会触发下游业务副作用。')) return;
       try {
         setActionLoading(`replay-${id}`);
         await parseApiResponse(
@@ -574,15 +592,15 @@ const WebhookEventsManager: React.FC = () => {
 
   const handleSave = useCallback(async () => {
     if (!editing) return;
-    const payload = {
-      ...editing,
-      data: parseJsonDraft(dataDraft),
-      raw: parseJsonDraft(rawDraft),
-      to: parseJsonDraft(toDraft),
-    };
-    delete (payload as { _id?: string })._id;
-
     try {
+      const payload = {
+        ...editing,
+        data: parseJsonDraft(dataDraft, 'data'),
+        raw: parseJsonDraft(rawDraft, 'raw'),
+        to: parseJsonDraft(toDraft, 'to'),
+      };
+      delete (payload as { _id?: string })._id;
+
       setActionLoading('save-event');
       const res =
         editMode === 'create'
@@ -928,6 +946,14 @@ const WebhookEventsManager: React.FC = () => {
                 setStatusFilter('');
                 setEventIdFilter('');
                 setSearchFilter('');
+                void fetchList(1, pageSize, {
+                  routeKey: 'all',
+                  provider: '',
+                  type: '',
+                  status: '',
+                  eventId: '',
+                  search: '',
+                });
               }}
               className="px-3 py-2 rounded-lg border border-[#8ECAE6]/40 text-[#023047] hover:bg-[#8ECAE6]/10 text-sm"
             >

@@ -116,10 +116,13 @@ const AuditLogViewer: React.FC = () => {
     try {
       const response = await auditLogApi.getStats(query);
       setStats(response);
-    } catch {
-      // silent
+    } catch (error) {
+      setNotification({
+        message: error instanceof Error ? error.message : '获取审计统计失败',
+        type: 'error',
+      });
     }
-  }, []);
+  }, [setNotification]);
 
   useEffect(() => {
     void auditLogApi.getMeta().then(setMeta).catch(() => undefined);

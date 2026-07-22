@@ -308,6 +308,9 @@ const OAuthClientManager: React.FC = () => {
   };
 
   const updateEnabled = async (client: OAuthClient, enabled: boolean) => {
+    if (!enabled && !window.confirm(`确定停用 ${client.name}？停用后该客户端将无法完成新的授权。`)) {
+      return;
+    }
     try {
       await oauthApi.updateClient(client.clientId, { enabled });
       setNotification({ message: enabled ? '客户端已启用' : '客户端已停用', type: 'success' });

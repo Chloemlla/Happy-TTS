@@ -31,6 +31,8 @@ const AnnouncementManager: React.FC = () => {
   const [content, setContent] = useState('');
   const [format, setFormat] = useState<'markdown' | 'html'>('markdown');
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState(false);
   const { setNotification } = useNotification();
 
@@ -85,6 +87,8 @@ const AnnouncementManager: React.FC = () => {
 
   // 保存公告
   const saveAnnouncement = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
       const res = await fetch(API_URL, {
         method: 'POST',
@@ -124,12 +128,16 @@ const AnnouncementManager: React.FC = () => {
       }
     } catch (e) {
       setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')), type: 'error' });
+    } finally {
+      setSaving(false);
     }
   };
 
   // 删除公告
   const deleteAnnouncement = async () => {
+    if (deleting) return;
     if (!window.confirm('确定要删除所有公告吗？')) return;
+    setDeleting(true);
     try {
       const res = await fetch(API_URL, {
         method: 'DELETE',
@@ -167,6 +175,8 @@ const AnnouncementManager: React.FC = () => {
       }
     } catch (e) {
       setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')), type: 'error' });
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -319,24 +329,26 @@ const AnnouncementManager: React.FC = () => {
                   <motion.button
                     className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 font-medium"
                     onClick={saveAnnouncement}
-                    disabled={!content.trim()}
+                    disabled={!content.trim() || saving || deleting}
                     whileTap={{ scale: 0.95 }}
                   >
-                    保存
+                    {saving ? '保存中...' : '保存'}
                   </motion.button>
                   <motion.button
-                    className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium"
+                    className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium disabled:opacity-50"
                     onClick={() => setEditing(false)}
+                    disabled={saving || deleting}
                     whileTap={{ scale: 0.95 }}
                   >
                     取消
                   </motion.button>
                   <motion.button
-                    className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium"
+                    className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium disabled:opacity-50"
                     onClick={deleteAnnouncement}
+                    disabled={saving || deleting}
                     whileTap={{ scale: 0.95 }}
                   >
-                    删除公告
+                    {deleting ? '删除中...' : '删除公告'}
                   </motion.button>
                 </div>
               </motion.div>
@@ -384,11 +396,12 @@ const AnnouncementManager: React.FC = () => {
                   </motion.button>
                   {content && (
                     <motion.button
-                      className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium"
+                      className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium disabled:opacity-50"
                       onClick={deleteAnnouncement}
+                      disabled={deleting}
                       whileTap={{ scale: 0.95 }}
                     >
-                      删除公告
+                      {deleting ? '删除中...' : '删除公告'}
                     </motion.button>
                   )}
                 </div>

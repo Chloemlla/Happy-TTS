@@ -403,13 +403,38 @@ const UserManagement: React.FC = () => {
   // 添加或编辑用户
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const username = String(form.username || '').trim();
+    const email = String(form.email || '').trim();
+    const password = String(form.password || '');
+    if (!username) {
+      const message = '用户名不能为空';
+      setError(message);
+      setNotification({ type: 'error', message });
+      return;
+    }
+    if (!email) {
+      const message = '邮箱不能为空';
+      setError(message);
+      setNotification({ type: 'error', message });
+      return;
+    }
+    if (!editingUser && !password.trim()) {
+      const message = '创建用户时密码不能为空';
+      setError(message);
+      setNotification({ type: 'error', message });
+      return;
+    }
     setLoading(true);
     setError('');
     try {
       const method = editingUser ? 'put' : 'post';
       const url = editingUser ? `/api/admin/users/${editingUser.id}` : '/api/admin/users';
       // 构建提交数据，过滤掉空字符串密码（编辑时）
-      const submitData: Partial<User> & Record<string, unknown> = { ...form };
+      const submitData: Partial<User> & Record<string, unknown> = {
+        ...form,
+        username,
+        email,
+      };
       if (editingUser && !submitData.password) {
         delete submitData.password;
       }

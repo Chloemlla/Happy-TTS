@@ -126,6 +126,7 @@ export default function SystemManager() {
   };
 
   const handleStartScheduler = async () => {
+    if (!window.confirm('确定启动调度器？将恢复所有定时任务。')) return;
     setStarting(true);
     try {
       const result = await turnstileApi.startScheduler();
@@ -193,6 +194,7 @@ export default function SystemManager() {
   };
 
   const handleSyncIPBans = async () => {
+    if (!window.confirm('确定立即同步 IP 封禁数据（MongoDB ↔ Redis）？')) return;
     setSyncing(true);
     try {
       const result = await turnstileApi.syncIPBans();

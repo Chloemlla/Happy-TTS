@@ -271,11 +271,13 @@ const LogShare: React.FC = React.memo(() => {
 
   // 删除单个
   const handleDeleteOne = async (id: string) => {
+    if (!confirm('确定删除该条分享日志？此操作不可恢复。')) return;
     try {
       await axios.delete(getApiBaseUrl() + `/api/sharelog/${id}`, {
         headers: { 'Authorization': `Bearer ${getAuthToken()}` }
       });
       setNotification({ message: '删除成功', type: 'success' });
+      setSelectedIds(prev => prev.filter(item => item !== id));
       await loadAllLogs();
     } catch (e: any) {
       setNotification({ message: e.response?.data?.error || '删除失败', type: 'error' });
@@ -288,11 +290,13 @@ const LogShare: React.FC = React.memo(() => {
       setNotification({ message: '请先选择要删除的日志', type: 'warning' });
       return;
     }
+    if (!confirm(`确定删除选中的 ${selectedIds.length} 条分享日志？此操作不可恢复。`)) return;
     try {
       await axios.post(getApiBaseUrl() + '/api/sharelog/delete-batch', { ids: selectedIds }, {
         headers: { 'Authorization': `Bearer ${getAuthToken()}` }
       });
       setNotification({ message: '批量删除成功', type: 'success' });
+      setSelectedIds([]);
       await loadAllLogs();
     } catch (e: any) {
       setNotification({ message: e.response?.data?.error || '批量删除失败', type: 'error' });
