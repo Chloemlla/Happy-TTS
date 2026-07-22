@@ -620,8 +620,8 @@ const EmailSender: React.FC = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.18),_transparent_32%),linear-gradient(180deg,#f8fafc_0%,#eef6ff_48%,#ffffff_100%)]">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+    <div className="min-h-0 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.18),_transparent_32%),linear-gradient(180deg,#f8fafc_0%,#eef6ff_48%,#ffffff_100%)]">
+      <div className="mx-auto w-full max-w-none px-0 py-0">
         <div className="mb-6 rounded-[28px] border border-sky-100 bg-white/90 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">

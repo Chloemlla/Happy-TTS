@@ -14,6 +14,7 @@ import {
 import { useNotification } from './Notification';
 import { getApiBaseUrl } from '../api/api';
 import { getAuthToken } from '../utils/authSession';
+import { ModalPortal } from './ModalPortal';
 import {
   studioGhostButtonClassName,
   studioModalCardClassName,
@@ -170,6 +171,7 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
   };
 
   return (
+    <ModalPortal>
     <AnimatePresence>
       {isOpen ? (
         <motion.div
@@ -305,7 +307,7 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm"
+                  className="fixed inset-0 z-[10070] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm"
                   onClick={() => {
                     if (!regenerating) setShowRegenerateConfirm(false);
                   }}
@@ -357,6 +359,7 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
         </motion.div>
       ) : null}
     </AnimatePresence>
+    </ModalPortal>
   );
 };
 

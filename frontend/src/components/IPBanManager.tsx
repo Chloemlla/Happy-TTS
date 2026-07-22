@@ -419,7 +419,7 @@ export default function IPBanManager() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex min-h-[min(24rem,50dvh)] items-center justify-center">
         <UnifiedLoadingSpinner size="lg" text="加载IP封禁管理..." />
       </div>
     );

@@ -84,7 +84,7 @@ function ImportCDKModal({ isOpen, onClose, onSuccess }: ImportCDKModalProps) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 p-4 sm:p-0"
+        className="fixed inset-0 z-[10050] h-full w-full overflow-y-auto bg-gray-600 bg-opacity-50 p-4 sm:p-0"
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -284,7 +284,7 @@ function GenerateCDKModal({ isOpen, onClose, onSuccess }: GenerateCDKModalProps)
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 p-4 sm:p-0"
+        className="fixed inset-0 z-[10050] h-full w-full overflow-y-auto bg-gray-600 bg-opacity-50 p-4 sm:p-0"
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -549,7 +549,7 @@ function EditCDKModal({ isOpen, onClose, onSuccess, cdk }: EditCDKModalProps) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 p-4 sm:p-0"
+        className="fixed inset-0 z-[10050] h-full w-full overflow-y-auto bg-gray-600 bg-opacity-50 p-4 sm:p-0"
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -1090,7 +1090,7 @@ export default function CDKStoreManager() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex min-h-[min(24rem,50dvh)] items-center justify-center">
         <UnifiedLoadingSpinner size="lg" text="加载CDK列表..." />
       </div>
     );
@@ -1832,7 +1832,7 @@ export default function CDKStoreManager() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 z-[10050] flex items-center justify-center bg-black bg-opacity-50 p-4"
             onClick={handleCancelDeleteAll}
           >
             <motion.div
@@ -1912,7 +1912,7 @@ export default function CDKStoreManager() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 z-[10050] flex items-center justify-center bg-black bg-opacity-50 p-4"
             onClick={handleCancelDeleteUnused}
           >
             <motion.div

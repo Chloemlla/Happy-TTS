@@ -458,7 +458,7 @@ const TicketSystem: React.FC = () => {
           )}
         </AnimatePresence>
 
-        <div className="flex min-h-[min(500px,calc(100dvh-14rem))] flex-col gap-4 md:h-[min(640px,calc(100dvh-12rem))] md:flex-row md:gap-6">
+        <div className="flex min-h-[min(480px,50dvh)] flex-col gap-4 md:h-[min(640px,calc(100svh-14rem))] md:min-h-0 md:flex-row md:gap-6">
           {/* 左侧列表 */}
           <AnimatePresence mode="wait">
             {(!isMobile || !showDetailOnMobile) && (

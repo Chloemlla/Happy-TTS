@@ -66,7 +66,7 @@ function AddResourceModal({ isOpen, onClose, onSuccess }: AddResourceModalProps)
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 p-4 sm:p-0"
+        className="fixed inset-0 z-[10050] h-full w-full overflow-y-auto bg-gray-600 bg-opacity-50 p-4 sm:p-0"
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -270,7 +270,7 @@ function EditResourceModal({ isOpen, onClose, onSuccess, resource }: EditResourc
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 p-4 sm:p-0"
+        className="fixed inset-0 z-[10050] h-full w-full overflow-y-auto bg-gray-600 bg-opacity-50 p-4 sm:p-0"
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -532,7 +532,7 @@ export default function ResourceStoreManager() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex min-h-[min(24rem,50dvh)] items-center justify-center">
         <UnifiedLoadingSpinner size="lg" text="加载资源列表..." />
       </div>
     );

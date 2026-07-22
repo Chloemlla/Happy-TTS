@@ -17,6 +17,7 @@ import {
   validateTOTPToken,
 } from "../utils/totpUtils";
 import BackupCodesModal from "./BackupCodesModal";
+import { ModalPortal } from "./ModalPortal";
 import { PasskeySetup } from "./PasskeySetup";
 import {
   studioFieldClassName,
@@ -366,6 +367,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
         onClose={() => setShowBackupCodes(false)}
       />
 
+      <ModalPortal>
       <AnimatePresence>
         {showDisable ? (
           <motion.div
@@ -476,6 +478,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
           </motion.div>
         ) : null}
       </AnimatePresence>
+      </ModalPortal>
     </div>
   );
 };

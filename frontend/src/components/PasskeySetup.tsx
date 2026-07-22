@@ -13,6 +13,7 @@ import { usePasskey } from '../hooks/usePasskey';
 import { formatDate } from '../utils/date';
 import { useNotification } from './Notification';
 import { renderCredentialIdModal } from './ui/CredentialIdModal';
+import { ModalPortal } from './ModalPortal';
 import {
   studioFieldClassName,
   studioGhostButtonClassName,
@@ -295,13 +296,14 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose, onChanged }
         </div>
       </motion.section>
 
+      <ModalPortal>
       <AnimatePresence>
         {confirmDeleteId ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-[10060] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm"
             onClick={() => setConfirmDeleteId(null)}
           >
             <motion.div
@@ -355,7 +357,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose, onChanged }
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm"
+            className="fixed inset-0 z-[10060] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm"
             onClick={closeRegisterModal}
           >
             <motion.div
@@ -426,6 +428,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose, onChanged }
           </motion.div>
         ) : null}
       </AnimatePresence>
+      </ModalPortal>
 
       {renderCredentialIdModal({
         open: showModal,

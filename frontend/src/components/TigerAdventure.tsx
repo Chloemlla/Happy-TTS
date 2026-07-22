@@ -1108,7 +1108,7 @@ const TigerAdventure: React.FC = () => {
   const currentSceneData = scenes[currentScene];
 
   return (
-    <div className="min-h-screen relative overflow-hidden">
+    <div className="relative min-h-[min(100svh,720px)] overflow-hidden md:h-[calc(100svh-3.5rem)] md:min-h-0">
       {/* 背景 */}
       <motion.div
         className="absolute inset-0"
@@ -1117,10 +1117,10 @@ const TigerAdventure: React.FC = () => {
         animate={{ opacity: 1 }}
         transition={{ duration: 1 }}
       />
-      
+
       {/* 场景内容 */}
-      <div 
-        className="relative z-10 h-screen w-full"
+      <div
+        className="relative z-10 h-full min-h-[min(100svh,720px)] w-full md:min-h-0"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}

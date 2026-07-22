@@ -5,8 +5,9 @@ export const studioPageFont =
 export const studioDisplayFont =
   studioPageFont;
 
+// Horizontal padding lives on the App shell wrapper — avoid double inset.
 export const studioPageClassName =
-  'mx-auto w-full max-w-7xl px-4 py-10 sm:py-12';
+  'mx-auto w-full max-w-none px-0 py-6 sm:py-8';
 
 export const studioHeroCardClassName =
   'relative overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10';
@@ -41,8 +42,9 @@ export const studioPrimaryButtonClassName =
 export const studioMutedPrimaryButtonClassName =
   'inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-700 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-600 disabled:cursor-not-allowed disabled:bg-slate-400';
 
+// Above MobileNav portal (z-[9998]) so account menu never covers page dialogs.
 export const studioModalOverlayClassName =
-  'fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm';
+  'fixed inset-0 z-[10050] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm';
 export const studioModalCardClassName =
   'w-full rounded-[34px] border border-white/70 bg-white/92 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.16)] backdrop-blur-xl sm:p-8';
 

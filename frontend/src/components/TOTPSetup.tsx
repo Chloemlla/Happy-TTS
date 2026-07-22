@@ -5,6 +5,7 @@ import { api } from '../api/api';
 import { TOTPSetupData } from '../types/auth';
 import { cleanTOTPToken, handleTOTPError, validateTOTPToken } from '../utils/totpUtils';
 import { useNotification } from './Notification';
+import { ModalPortal } from './ModalPortal';
 import {
   studioFieldClassName,
   studioGhostButtonClassName,
@@ -112,13 +113,14 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
   };
 
   return (
+    <ModalPortal>
     <AnimatePresence>
       {isOpen ? (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/30 p-4 backdrop-blur-sm"
+          className="fixed inset-0 z-[10060] flex items-center justify-center overflow-y-auto bg-slate-950/30 p-4 backdrop-blur-sm"
           onClick={handleClose}
         >
           <motion.div
@@ -304,6 +306,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
         </motion.div>
       ) : null}
     </AnimatePresence>
+    </ModalPortal>
   );
 };
 
