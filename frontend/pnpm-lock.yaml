@@ -20,12 +20,21 @@ importers:
 
   .:
     dependencies:
+      '@base-ui/react':
+        specifier: ^1.6.0
+        version: 1.6.0(@types/react@19.2.17)(date-fns@4.4.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@fingerprintjs/fingerprintjs':
         specifier: ^5.2.0
         version: 5.2.0
       '@heroicons/react':
         specifier: ^2.2.0
         version: 2.2.0(react@19.2.7)
+      '@hugeicons/core-free-icons':
+        specifier: ^4.2.2
+        version: 4.2.3
+      '@hugeicons/react':
+        specifier: ^1.1.9
+        version: 1.1.9(react@19.2.7)
       '@microsoft/clarity':
         specifier: ^1.0.2
         version: 1.0.2
@@ -53,6 +62,9 @@ importers:
       chart.js:
         specifier: ^4.5.1
         version: 4.5.1
+      class-variance-authority:
+        specifier: ^0.7.1
+        version: 0.7.1
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
@@ -170,6 +182,9 @@ importers:
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
+      tw-animate-css:
+        specifier: ^1.4.0
+        version: 1.4.0
       util:
         specifier: ^0.12.5
         version: 0.12.5
@@ -830,6 +845,33 @@ packages:
     resolution: {integrity: sha512-4zBIxpPzowiZpusoFkyGVwakdRJUyuH5PxQ/PrqghfdFWWasvnCdPfQXHrenDai+gyLARulZjZowCOj6fjT4pA==}
     engines: {node: '>=6.9.0'}
 
+  '@base-ui/react@1.6.0':
+    resolution: {integrity: sha512-/jzjTWJYXhRFO45Bev9lc3cHbmjzCMpUqbMZ2AgKy/z25mY9B6shGSNcXcjQar9n5doM0KYW1W8fcFv2jZBuMw==}
+    engines: {node: '>=14.0.0'}
+    peerDependencies:
+      '@date-fns/tz': ^1.2.0
+      '@types/react': ^17 || ^18 || ^19
+      date-fns: ^4.0.0
+      react: ^19.2.7
+      react-dom: ^19.2.7
+    peerDependenciesMeta:
+      '@date-fns/tz':
+        optional: true
+      '@types/react':
+        optional: true
+      date-fns:
+        optional: true
+
+  '@base-ui/utils@0.3.1':
+    resolution: {integrity: sha512-gFFiltORVmW/N6IILTGxizP3PBpVpysqML1ALY5Vk0mH+7faVkCknOU31goYHN5Aoek2dkjxva1XOD2Ce9WuIg==}
+    peerDependencies:
+      '@types/react': ^17 || ^18 || ^19
+      react: ^19.2.7
+      react-dom: ^19.2.7
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+
   '@braintree/sanitize-url@7.1.2':
     resolution: {integrity: sha512-jigsZK+sMF/cuiB7sERuo9V7N9jx+dhmHHnQyDSVdpZwVutaBu7WvNYqMDLSgFgfB30n452TP3vjDAvFC973mA==}
 
@@ -1090,8 +1132,31 @@ packages:
   '@fingerprintjs/fingerprintjs@5.2.0':
     resolution: {integrity: sha512-j+2nInkwCQNTJcNhOjvkGM/nLRTuGJTC6xai4quqvUpjob2ssrGwBZjS7k55nOmKvge7qvJT2nS3i/IRvQSTQA==}
 
+  '@floating-ui/core@1.8.0':
+    resolution: {integrity: sha512-0CIZ5itps/8x7BG8dEIhs53BvCUH2PCoogtakwRTut+Arm58sJooJ0AuZhLw2HJYIR5cMLNPBSS728sPho2khQ==}
+
+  '@floating-ui/dom@1.8.0':
+    resolution: {integrity: sha512-yXSrzeHZBTZadLOlfyhCkJHNeLJnHRnRInwdZ40L7ZiaAtrBwoYlsDrX3v5zB1Utk7CLfzcOVnVVWoXEky7Ceg==}
+
+  '@floating-ui/react-dom@2.1.9':
+    resolution: {integrity: sha512-JDjEFGCpImxDCA7JJKviA0M9+RtmJdj0m/NVU5IMgBK+AmZouAQQ7/+2GLH0GXXY0YMw9oXPB8hKdbPYg5QLYg==}
+    peerDependencies:
+      react: ^19.2.7
+      react-dom: ^19.2.7
+
+  '@floating-ui/utils@0.2.12':
+    resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
+
   '@heroicons/react@2.2.0':
     resolution: {integrity: sha512-LMcepvRaS9LYHJGsF0zzmgKCUim/X3N/DQKc4jepAXJ7l8QxJ1PmxJzqplF2Z3FE4PqBAIGyJAQ/w4B5dsqbtQ==}
+    peerDependencies:
+      react: ^19.2.7
+
+  '@hugeicons/core-free-icons@4.2.3':
+    resolution: {integrity: sha512-fpiU0qFZkv4ABi23xJ2m4qNr0BBfuIaYjPboN8WDA6aj9D+OzXa7eykxKOpACZRuGbDz1U9S5DsNx1d5KNnsgA==}
+
+  '@hugeicons/react@1.1.9':
+    resolution: {integrity: sha512-O+lWSWjbijoAvMCxn4K2bQWCGN5+mP1y5j+X99j23mXMj+s0X25fs71T6t9YJLaBodwmZdaewD27dzS/PiboQw==}
     peerDependencies:
       react: ^19.2.7
 
@@ -2519,6 +2584,9 @@ packages:
 
   class-validator@0.14.3:
     resolution: {integrity: sha512-rXXekcjofVN1LTOSw+u4u9WXVEUvNBVjORW154q/IdmYWy1nMbOU9aNtZB0t8m+FJQ9q91jlr2f9CwwUFdFMRA==}
+
+  class-variance-authority@0.7.1:
+    resolution: {integrity: sha512-Ka+9Trutv7G8M6WT6SeiRWz792K5qEqIGEGzXKhAE6xOWAY6pPH8U+9IY3oCMv6kqTmLsv7Xh/2w2RigkePMsg==}
 
   classnames@2.5.1:
     resolution: {integrity: sha512-saHYOzhIQs6wy2sVxTM6bUDsQO4F50V9RQ22qBpEdCW+I+/Wmke2HOl6lS6dTpdxVhb88/I6+Hs+438c3lfUow==}
@@ -4660,6 +4728,9 @@ packages:
     resolution: {integrity: sha512-1h/Lnq9yajKY2PEbBadPXj3VxsDDu844OnaAo52UVmIzIvwwtBPIuNvkjuzBlTWpfJyUbG3ez0KSBibQkj4ojg==}
     engines: {node: '>=0.6.11 <=0.7.0 || >=0.7.3'}
 
+  tw-animate-css@1.4.0:
+    resolution: {integrity: sha512-7bziOlRqH0hJx80h/3mbicLW7o8qLsH5+RaLR2t+OHM3D0JlWGODQKQ4cxbK7WlvmUxpcj6Kgu6EKqjrGFe3QQ==}
+
   type-check@0.3.2:
     resolution: {integrity: sha512-ZCmOJdvOWDBYJlzAoFkC+Q0+bUyEOS1ltgp1MGU03fqHG+dbi9tBFU2Rd9QKiDZFAYrhPh2JUf7rZRIuHRKtOg==}
     engines: {node: '>= 0.8.0'}
@@ -5779,6 +5850,30 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
+  '@base-ui/react@1.6.0(@types/react@19.2.17)(date-fns@4.4.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+    dependencies:
+      '@babel/runtime': 7.29.7
+      '@base-ui/utils': 0.3.1(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@floating-ui/react-dom': 2.1.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@floating-ui/utils': 0.2.12
+      react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
+      use-sync-external-store: 1.6.0(react@19.2.7)
+    optionalDependencies:
+      '@types/react': 19.2.17
+      date-fns: 4.4.0
+
+  '@base-ui/utils@0.3.1(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+    dependencies:
+      '@babel/runtime': 7.29.7
+      '@floating-ui/utils': 0.2.12
+      react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
+      reselect: 5.2.0
+      use-sync-external-store: 1.6.0(react@19.2.7)
+    optionalDependencies:
+      '@types/react': 19.2.17
+
   '@braintree/sanitize-url@7.1.2': {}
 
   '@bramus/specificity@2.4.2':
@@ -5942,7 +6037,30 @@ snapshots:
 
   '@fingerprintjs/fingerprintjs@5.2.0': {}
 
+  '@floating-ui/core@1.8.0':
+    dependencies:
+      '@floating-ui/utils': 0.2.12
+
+  '@floating-ui/dom@1.8.0':
+    dependencies:
+      '@floating-ui/core': 1.8.0
+      '@floating-ui/utils': 0.2.12
+
+  '@floating-ui/react-dom@2.1.9(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+    dependencies:
+      '@floating-ui/dom': 1.8.0
+      react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
+
+  '@floating-ui/utils@0.2.12': {}
+
   '@heroicons/react@2.2.0(react@19.2.7)':
+    dependencies:
+      react: 19.2.7
+
+  '@hugeicons/core-free-icons@4.2.3': {}
+
+  '@hugeicons/react@1.1.9(react@19.2.7)':
     dependencies:
       react: 19.2.7
 
@@ -7622,6 +7740,10 @@ snapshots:
       '@types/validator': 13.15.10
       libphonenumber-js: 1.13.9
       validator: 13.15.35
+
+  class-variance-authority@0.7.1:
+    dependencies:
+      clsx: 2.1.1
 
   classnames@2.5.1: {}
 
@@ -10160,6 +10282,8 @@ snapshots:
   tslib@2.8.1: {}
 
   tunnel@0.0.6: {}
+
+  tw-animate-css@1.4.0: {}
 
   type-check@0.3.2:
     dependencies:
