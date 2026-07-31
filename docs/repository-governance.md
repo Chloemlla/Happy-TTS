@@ -54,10 +54,11 @@ Heavy runtime libraries must stay route/feature-isolated:
 Budget defaults (gzip):
 
 - entry JS ≤ `FRONTEND_ENTRY_MAX_GZIP_KB` (default 220)
-- any single JS chunk ≤ `FRONTEND_CHUNK_MAX_GZIP_KB` (default 700)
-- total JS/CSS ≤ `FRONTEND_TOTAL_MAX_GZIP_KB` (default 2600)
+- any single JS chunk ≤ `FRONTEND_CHUNK_MAX_GZIP_KB` (default 1800)
+- total JS/CSS ≤ `FRONTEND_TOTAL_MAX_GZIP_KB` (default 4525)
 
 The checker also requires the named heavy chunks above to be present in `frontend/dist`.
+Production obfuscation uses a fixed non-zero seed so equivalent builds have reproducible hashes and gzip measurements.
 
 ## Test matrix
 

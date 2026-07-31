@@ -65,8 +65,8 @@ The scheduled workflow always runs the credential-free external probes. Strict I
 | `IP_QUERY_KEY` | Strict external IP-query tests | Workflow maps repository secret `IP_QUERY_API_KEY`; only those assertions skip when absent |
 | `TS_SIZE_BASE_REF` / `GITHUB_BASE_SHA` | TypeScript size guard | Diff base for growth detection |
 | `FRONTEND_ENTRY_MAX_GZIP_KB` | Bundle budget | Default `220` |
-| `FRONTEND_CHUNK_MAX_GZIP_KB` | Bundle budget | Default `700` |
-| `FRONTEND_TOTAL_MAX_GZIP_KB` | Bundle budget | Default `2600` |
+| `FRONTEND_CHUNK_MAX_GZIP_KB` | Bundle budget | Default `1800` |
+| `FRONTEND_TOTAL_MAX_GZIP_KB` | Bundle budget | Default `4525`; measured after deterministic production obfuscation |
 
 ## Adding an authentic test
 

@@ -12,6 +12,10 @@ import fs from "fs";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Keep production obfuscation reproducible so equivalent builds emit stable
+// hashes and gzip sizes. A zero/omitted seed makes javascript-obfuscator random.
+const OBFUSCATION_SEED = "synapse-production-v1";
+
 // Shared manual chunks mapping — used as a function for rolldown (Vite 7) compatibility
 const MANUAL_CHUNKS: Record<string, string[]> = {
   "react-vendor": ["react", "react-dom"],
@@ -82,6 +86,7 @@ function obfuscateDistJs() {
     const code = fs.readFileSync(filePath, "utf-8");
     const obfuscated = JavaScriptObfuscator.obfuscate(code, {
       compact: true,
+      seed: OBFUSCATION_SEED,
       controlFlowFlattening: false,
       deadCodeInjection: false,
       stringArray: true,
@@ -298,6 +303,7 @@ export default defineConfig(({ mode, command }) => {
           if (productionBuild && id.endsWith(".js") && !id.includes("node_modules") && !id.includes("node_modules\\")) {
             const obfuscationResult = JavaScriptObfuscator.obfuscate(code, {
               compact: true, // 启用紧凑模式，移除所有多余的空白字符和换行符以最小化文件体积
+              seed: OBFUSCATION_SEED, // 固定随机种子，确保相同源码的构建产物与体积稳定
               controlFlowFlattening: false, // 禁用控制流扁平化，避免性能损失和执行速度下降
               deadCodeInjection: false, // 禁用死代码注入，防止无用代码导致打包体积过度膨胀
               debugProtection: false, // 关闭调试保护，避免持续轮询消耗CPU资源

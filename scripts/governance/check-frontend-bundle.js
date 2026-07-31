@@ -10,7 +10,9 @@ const manifestPath = path.join(distDir, ".vite", "manifest.json");
 const entryMaxGzipBytes = Number(process.env.FRONTEND_ENTRY_MAX_GZIP_KB || 220) * 1024;
 // diagrams/mermaid can exceed 1.5MB gzip even when isolated; keep it separate and budget it.
 const chunkMaxGzipBytes = Number(process.env.FRONTEND_CHUNK_MAX_GZIP_KB || 1800) * 1024;
-const totalMaxGzipBytes = Number(process.env.FRONTEND_TOTAL_MAX_GZIP_KB || 4500) * 1024;
+// Provider-management UI intentionally grew the production surface; retain a
+// narrow, deterministic margin above the measured post-obfuscation baseline.
+const totalMaxGzipBytes = Number(process.env.FRONTEND_TOTAL_MAX_GZIP_KB || 4525) * 1024;
 // Require isolation for heavy deps that actually split. code-highlight may fold into other chunks depending on imports.
 const heavyChunkNames = ["documents", "pdf", "diagrams", "charts", "fingerprint"];
 
