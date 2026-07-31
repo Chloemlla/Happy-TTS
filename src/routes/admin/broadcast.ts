@@ -1,5 +1,5 @@
 import express from "express";
-import { mongoose } from "../../services/mongoService";
+import { getBroadcastLogModel } from "../../models/broadcastLogModel";
 import { wsService } from "../../services/wsService";
 import logger from "../../utils/logger";
 
@@ -32,25 +32,6 @@ const LEVELS = new Set<BroadcastLevel>(["info", "warn", "error"]);
 const DISPLAYS = new Set<BroadcastDisplay>(["toast", "modal"]);
 const FORMATS = new Set<BroadcastFormat>(["text", "html", "markdown"]);
 const AUDIENCES = new Set<BroadcastAudience>(["all", "authenticated", "admins", "anonymous", "users", "channel"]);
-
-const BroadcastLogSchema = new mongoose.Schema({
-  message: { type: String, required: true },
-  level: { type: String, default: "info" },
-  title: String,
-  duration: Number,
-  display: { type: String, default: "toast" },
-  format: { type: String, default: "text" },
-  audience: { type: String, default: "all" },
-  targetUserIds: { type: [String], default: [] },
-  targetChannel: String,
-  admin: String,
-  connections: Number,
-  createdAt: { type: Date, default: Date.now },
-});
-
-function getBroadcastLogModel() {
-  return mongoose.models.BroadcastLog || mongoose.model("BroadcastLog", BroadcastLogSchema);
-}
 
 function badRequest(message: string): Error & { statusCode: number } {
   const error = new Error(message) as Error & { statusCode: number };

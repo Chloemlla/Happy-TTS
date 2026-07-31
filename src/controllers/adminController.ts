@@ -1602,6 +1602,46 @@ export const adminController = {
     }
   },
 
+  // NexAI 请求签名中间件配置；保存后当前服务进程立即使用新的运行时配置。
+  async getNexaiSigningSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      const result = await RuntimeConfigService.getNexaiSigningSetting();
+      return res.json({ success: true, ...result });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "获取 NexAI 请求签名配置失败",
+      });
+    }
+  },
+
+  async setNexaiSigningSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      const result = await RuntimeConfigService.setNexaiSigningSetting(req.body || {});
+      return res.json({ success: true, setting: result });
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: error instanceof Error ? error.message : "保存 NexAI 请求签名配置失败",
+      });
+    }
+  },
+
+  async deleteNexaiSigningSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      await RuntimeConfigService.deleteNexaiSigningSetting();
+      return res.json({ success: true });
+    } catch (_error) {
+      return res.status(500).json({ success: false, error: "重置 NexAI 请求签名配置失败" });
+    }
+  },
+
   async getAdminSecuritySetting(req: Request, res: Response) {
     try {
       if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });

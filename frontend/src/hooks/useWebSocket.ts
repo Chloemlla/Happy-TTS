@@ -1,7 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { getApiBaseUrl } from '../api/api';
-import { getAuthToken } from '../utils/authSession';
-
+import { buildWebSocketUrl } from '../utils/webSocketUrl';
 
 // ========== 类型 ==========
 
@@ -24,33 +23,12 @@ interface UseWebSocketOptions {
   onMessage?: WsEventHandler;
 }
 
-// ========== WebSocket URL ==========
-
-function normalizeWsUrl(rawUrl: string, token: string | null): string {
-  const url = new URL(rawUrl, window.location.origin);
-  if (url.protocol === 'https:') url.protocol = 'wss:';
-  if (url.protocol === 'http:') url.protocol = 'ws:';
-  if (url.pathname === '/' || !url.pathname) url.pathname = '/ws';
-  if (token) url.searchParams.set('token', token);
-  return url.toString();
-}
-
-function getWsUrl(): string {
-  const token = getAuthToken();
-  const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
-
-  const configuredWsUrl = import.meta.env.VITE_WS_URL?.trim();
-  if (configuredWsUrl) {
-    return normalizeWsUrl(configuredWsUrl, token);
-  }
-
-  const apiBaseUrl = getApiBaseUrl();
-  const baseUrl = apiBaseUrl || window.location.origin;
-  const wsBase = baseUrl
-    .replace(/^https:\/\//, 'wss://')
-    .replace(/^http:\/\//, 'ws://');
-
-  return `${wsBase.replace(/\/+$/, '')}/ws${tokenParam}`;
+export function getWsUrl(): string {
+  return buildWebSocketUrl({
+    configuredUrl: import.meta.env.VITE_WS_URL,
+    apiBaseUrl: getApiBaseUrl(),
+    browserOrigin: window.location.origin,
+  });
 }
 
 // ========== Hook ==========

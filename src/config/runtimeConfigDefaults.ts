@@ -1,3 +1,12 @@
+import {
+  FISH_AUDIO_DEFAULT_BASE_URL,
+  FISH_AUDIO_DEFAULT_MODEL,
+  normalizeFishAudioBaseUrl,
+  normalizeTtsModelId,
+  normalizeTtsProviderId,
+  type TtsProviderRuntimeConfig,
+} from "./ttsProviderConfig";
+
 export interface IpqsRuntimeConfig {
   apiKeys: string[];
   scamalyticsUser?: string;
@@ -99,6 +108,14 @@ export interface SynapseAndroidRuntimeConfig {
   disabled: boolean;
 }
 
+/** Runtime-mutable settings consumed by the NexAI request-signature middleware. */
+export interface NexaiSigningRuntimeConfig {
+  mode: "off" | "soft" | "enforce";
+  appSignSecret: string;
+  appSignSecretPrev: string;
+  maxDriftMs: number;
+}
+
 export interface RuntimeConfigDefaults {
   ipqs: IpqsRuntimeConfig;
   linuxdo: LinuxDoRuntimeConfig;
@@ -107,9 +124,11 @@ export interface RuntimeConfigDefaults {
   deeplx: DeepLXRuntimeConfig;
   nexai: NexaiRuntimeConfig;
   tts: TtsRuntimeConfig;
+  ttsProvider: TtsProviderRuntimeConfig;
   email: EmailRuntimeConfig;
   adminSecurity: AdminSecurityRuntimeConfig;
   synapseAndroid: SynapseAndroidRuntimeConfig;
+  nexaiSigning: NexaiSigningRuntimeConfig;
 }
 
 export function buildRuntimeConfigDefaults(options: {
@@ -121,6 +140,13 @@ export function buildRuntimeConfigDefaults(options: {
   publicShortUrlEnabled: boolean;
   publicShortUrlPassword?: string;
   generationCode: string;
+  ttsProvider?: string;
+  ttsDefaultModel?: string;
+  openAiDefaultModel?: string;
+  fishAudioApiKey?: string;
+  fishAudioBaseUrl?: string;
+  fishAudioReferenceId?: string;
+  fishAudioModel?: string;
   email: EmailRuntimeConfig;
   googleClientId?: string;
   nexaiGoogleClientId?: string;
@@ -135,6 +161,15 @@ export function buildRuntimeConfigDefaults(options: {
   const nexaiGoogleClientId = (options.nexaiGoogleClientId || options.googleClientId || "").trim();
   const synapseAndroidSha256CertFingerprints =
     options.synapseAndroidSha256CertFingerprints?.map((item) => item.trim()).filter(Boolean) || [];
+  const ttsProvider = normalizeTtsProviderId(options.ttsProvider, "openai");
+  const providerModelFallback =
+    ttsProvider === "fish"
+      ? normalizeTtsModelId(options.fishAudioModel, FISH_AUDIO_DEFAULT_MODEL)
+      : normalizeTtsModelId(options.openAiDefaultModel, "tts-1");
+  const ttsDefaultModel = normalizeTtsModelId(
+    options.ttsDefaultModel || (ttsProvider === "openai" ? options.openAiDefaultModel : undefined),
+    providerModelFallback,
+  );
 
   return {
     ipqs: {
@@ -197,6 +232,15 @@ export function buildRuntimeConfigDefaults(options: {
     tts: {
       generationCode: options.generationCode,
     },
+    ttsProvider: {
+      provider: ttsProvider,
+      defaultModel: ttsDefaultModel,
+      fish: {
+        apiKey: options.fishAudioApiKey?.trim() || "",
+        baseUrl: normalizeFishAudioBaseUrl(options.fishAudioBaseUrl, FISH_AUDIO_DEFAULT_BASE_URL),
+        referenceId: options.fishAudioReferenceId?.trim() || "",
+      },
+    },
     email: {
       ...options.email,
     },
@@ -214,6 +258,12 @@ export function buildRuntimeConfigDefaults(options: {
           : ["E9:D8:5A:D2:52:C3:8D:86:C6:E4:B2:A8:C0:49:B8:B5:A9:FA:79:AC:6E:BB:11:8C:94:0A:83:03:B6:96:39:98"],
       googleClientId: options.synapseAndroidGoogleClientId?.trim() || "",
       disabled: options.synapseAndroidDisabled === true,
+    },
+    nexaiSigning: {
+      mode: "soft",
+      appSignSecret: "",
+      appSignSecretPrev: "",
+      maxDriftMs: 5 * 60 * 1000,
     },
   };
 }
@@ -249,6 +299,12 @@ export function cloneRuntimeConfigDefaults(config: RuntimeConfigDefaults): Runti
     tts: {
       ...config.tts,
     },
+    ttsProvider: {
+      ...config.ttsProvider,
+      fish: {
+        ...config.ttsProvider.fish,
+      },
+    },
     email: {
       ...config.email,
     },
@@ -258,6 +314,9 @@ export function cloneRuntimeConfigDefaults(config: RuntimeConfigDefaults): Runti
     synapseAndroid: {
       ...config.synapseAndroid,
       sha256CertFingerprints: [...config.synapseAndroid.sha256CertFingerprints],
+    },
+    nexaiSigning: {
+      ...config.nexaiSigning,
     },
   };
 }

@@ -269,7 +269,7 @@ const LibreChatPage: React.FC = () => {
   // 作为 8192 tokens 的近似代理，前端采用同等数量的字符上限；
   // 真正的 token 计数应在后端/模型端完成（此处仅做输入侧保护）。
   const MAX_MESSAGE_LEN = 8192;
-  const [token, setToken] = useState<string>(() => localStorage.getItem('librechat_token') || '');
+  const [token, setToken] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
@@ -327,25 +327,6 @@ const LibreChatPage: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('lc_guest_notice_dismissed', guestNoticeDismissed ? '1' : '0');
   }, [guestNoticeDismissed]);
-
-  // 将 librechat_token 持久化；若没有则尝试从 URL 和 登录态注入
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    const qpToken = url.searchParams.get('token');
-    if (!token && qpToken) {
-      setToken(qpToken);
-      return;
-    }
-    if (!token) {
-      const authToken = getAuthToken();
-      if (authToken) setToken(authToken);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    if (token) localStorage.setItem('librechat_token', token);
-  }, [token]);
 
   // 若无本地 token，则尝试申请游客 token（服务端通过 HttpOnly Cookie 下发）
   const ensureGuestToken = async () => {
@@ -476,7 +457,7 @@ const LibreChatPage: React.FC = () => {
           const res = await fetch(`${apiBase}/api/librechat/messages`, {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
-            credentials: 'same-origin',
+            credentials: 'include',
             body: JSON.stringify(token ? { token, messageIds: selectedIds } : { messageIds: selectedIds })
           });
           if (res.ok) {
@@ -598,11 +579,10 @@ const LibreChatPage: React.FC = () => {
   const exportAll = async () => {
     try {
       setNotification({ type: 'info', message: '正在导出全部历史记录...' });
-      const params = new URLSearchParams();
-      if (token) params.set('token', token);
-      const res = await fetch(`${apiBase}/api/librechat/export?${params.toString()}`, {
+      const res = await fetch(`${apiBase}/api/librechat/export`, {
         method: 'GET',
-        credentials: 'include'
+        credentials: 'include',
+        headers: token ? { 'x-chat-token': token } : undefined,
       });
       if (!res.ok) {
         setNotification({ type: 'error', message: '导出失败，请稍后再试' });
@@ -722,10 +702,14 @@ const LibreChatPage: React.FC = () => {
     try {
       setLoadingHistory(true);
       const params = new URLSearchParams({ page: String(toPage), limit: String(limit) });
-      // 若存在 token 则一并传递；否则依赖后端会话中的 userId
-      if (token) params.set('token', token);
       const url = `${apiBase}/api/librechat/history?${params.toString()}`;
-      const res = await fetch(url, { credentials: 'include', headers: getAdminHistoryHeaders() });
+      const res = await fetch(url, {
+        credentials: 'include',
+        headers: {
+          ...(getAdminHistoryHeaders() || {}),
+          ...(token ? { 'x-chat-token': token } : {}),
+        },
+      });
       if (res.ok) {
         const data: unknown = await res.json();
         const mapped = parseHistoryResponse(data, toPage);
@@ -799,10 +783,12 @@ const LibreChatPage: React.FC = () => {
       const checkForExistingAssistantResponse = async () => {
         try {
           const params = new URLSearchParams({ page: '1', limit: '10' });
-          if (token) params.set('token', token);
           const checkRes = await fetch(`${apiBase}/api/librechat/history?${params.toString()}`, {
             credentials: 'include',
-            headers: getAdminHistoryHeaders(),
+            headers: {
+              ...(getAdminHistoryHeaders() || {}),
+              ...(token ? { 'x-chat-token': token } : {}),
+            },
           });
           if (checkRes.ok) {
             const checkData = await checkRes.json();
@@ -1050,10 +1036,12 @@ const LibreChatPage: React.FC = () => {
       const checkForExistingAssistantResponseRealtime = async () => {
         try {
           const params = new URLSearchParams({ page: '1', limit: '10' });
-          if (token) params.set('token', token);
           const checkRes = await fetch(`${apiBase}/api/librechat/history?${params.toString()}`, {
             credentials: 'include',
-            headers: getAdminHistoryHeaders(),
+            headers: {
+              ...(getAdminHistoryHeaders() || {}),
+              ...(token ? { 'x-chat-token': token } : {}),
+            },
           });
           if (checkRes.ok) {
             const checkData = await checkRes.json();
@@ -1215,11 +1203,9 @@ const LibreChatPage: React.FC = () => {
     }
 
     try {
-      const params = new URLSearchParams();
-      if (token) params.set('token', token);
-      const sseUrl = `${apiBase}/api/librechat/sse?${params.toString()}`;
+      const sseUrl = `${apiBase}/api/librechat/sse`;
 
-      const eventSource = new EventSource(sseUrl);
+      const eventSource = new EventSource(sseUrl, { withCredentials: true });
       sseRef.current = eventSource;
 
       eventSource.onopen = () => {

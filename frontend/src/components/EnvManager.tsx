@@ -17,6 +17,7 @@ import {
   LIBRECHAT_PROVIDERS_API,
   MODLIST_API,
   NEXAI_SETTING_API,
+  NEXAI_SIGNING_API,
   OUTEMAIL_API,
   SHORTURL_AES_API,
   SYNAPSE_ANDROID_API,
@@ -27,6 +28,7 @@ import {
 } from './env-manager/api';
 import EnvRow from './env-manager/EnvRow';
 import SynapseAndroidConfigSection from './env-manager/SynapseAndroidConfigSection';
+import NexaiSigningConfigSection from './env-manager/NexaiSigningConfigSection';
 import GoogleClientIdsSection from './env-manager/GoogleClientIdsSection';
 import CodeSettingSection from './env-manager/CodeSettingSection';
 import OutemailSettingsSection from './env-manager/OutemailSettingsSection';
@@ -37,6 +39,7 @@ import HcaptchaConfigSection from './env-manager/HcaptchaConfigSection';
 import ClarityConfigSection from './env-manager/ClarityConfigSection';
 import GithubBillingConfigSection from './env-manager/GithubBillingConfigSection';
 import LibreChatProvidersSection from './env-manager/LibreChatProvidersSection';
+import TtsProviderConfigSection from './env-manager/TtsProviderConfigSection';
 import { DURATION_03, DURATION_06, ENTER_ANIMATE, ENTER_INITIAL, NO_DURATION } from './env-manager/motion';
 import {
   decryptAES256,
@@ -321,6 +324,18 @@ const EnvManager: React.FC = () => {
   const [synapseAndroidCurrentFingerprints, setSynapseAndroidCurrentFingerprints] = useState<string[]>([]);
   const [synapseAndroidCurrentGoogleClientId, setSynapseAndroidCurrentGoogleClientId] = useState('');
   const [synapseAndroidUpdatedAt, setSynapseAndroidUpdatedAt] = useState<string | undefined>(undefined);
+
+  // NexAI request-signature middleware config (NEXAI_REQUEST_SIGNING / NEXAI_APP_SIGN_SECRET(_PREV) / NEXAI_SIG_MAX_DRIFT_MS)
+  const [nexaiSigningLoading, setNexaiSigningLoading] = useState(false);
+  const [nexaiSigningSaving, setNexaiSigningSaving] = useState(false);
+  const [nexaiSigningDeleting, setNexaiSigningDeleting] = useState(false);
+  const [nexaiSigningModeInput, setNexaiSigningModeInput] = useState<'off' | 'soft' | 'enforce'>('soft');
+  const [nexaiSigningAppSignSecretInput, setNexaiSigningAppSignSecretInput] = useState('');
+  const [nexaiSigningAppSignSecretPrevInput, setNexaiSigningAppSignSecretPrevInput] = useState('');
+  const [nexaiSigningMaxDriftMsInput, setNexaiSigningMaxDriftMsInput] = useState('300000');
+  const [nexaiSigningCurrentAppSignSecret, setNexaiSigningCurrentAppSignSecret] = useState('');
+  const [nexaiSigningCurrentAppSignSecretPrev, setNexaiSigningCurrentAppSignSecretPrev] = useState('');
+  const [nexaiSigningUpdatedAt, setNexaiSigningUpdatedAt] = useState<string | undefined>(undefined);
 
 
   // ShortURL AES_KEY Setting
@@ -1053,6 +1068,113 @@ const EnvManager: React.FC = () => {
       setSynapseAndroidDeleting(false);
     }
   }, [fetchSynapseAndroidSetting, setNotification, synapseAndroidDeleting]);
+
+  const fetchNexaiSigningSetting = useCallback(async () => {
+    setNexaiSigningLoading(true);
+    try {
+      const res = await fetch(NEXAI_SIGNING_API, { headers: { ...getAuthHeaders() } });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setNotification({ message: data.error || '获取 NexAI 请求签名配置失败', type: 'error' });
+        return;
+      }
+      const cfg = data?.setting?.config || {};
+      const mode = ['off', 'soft', 'enforce'].includes(cfg.mode) ? cfg.mode : 'soft';
+      const maxDriftMsNum = Number(cfg.maxDriftMs);
+      setNexaiSigningModeInput(mode);
+      setNexaiSigningMaxDriftMsInput(Number.isFinite(maxDriftMsNum) ? String(maxDriftMsNum) : '300000');
+      setNexaiSigningAppSignSecretInput('');
+      setNexaiSigningAppSignSecretPrevInput('');
+      setNexaiSigningCurrentAppSignSecret(cfg.hasAppSignSecret ? (cfg.appSignSecret || '已设置') : '未设置');
+      setNexaiSigningCurrentAppSignSecretPrev(
+        cfg.hasAppSignSecretPrev ? (cfg.appSignSecretPrev || '已设置') : '未设置',
+      );
+      setNexaiSigningUpdatedAt(data?.setting?.updatedAt);
+    } catch (e) {
+      setNotification({
+        message: '获取 NexAI 请求签名配置失败：' + (e instanceof Error ? e.message : '未知错误'),
+        type: 'error',
+      });
+    } finally {
+      setNexaiSigningLoading(false);
+    }
+  }, [setNotification]);
+
+  const handleSaveNexaiSigningSetting = useCallback(async () => {
+    if (nexaiSigningSaving) return;
+    const maxDriftMsNum = Number(nexaiSigningMaxDriftMsInput);
+    if (!Number.isFinite(maxDriftMsNum) || maxDriftMsNum < 1000) {
+      setNotification({ message: 'NEXAI_SIG_MAX_DRIFT_MS 必须是一个不小于 1000 的数字（毫秒）', type: 'error' });
+      return;
+    }
+
+    setNexaiSigningSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        mode: nexaiSigningModeInput,
+        maxDriftMs: maxDriftMsNum,
+      };
+      if (nexaiSigningAppSignSecretInput.trim()) {
+        payload.appSignSecret = nexaiSigningAppSignSecretInput.trim();
+      }
+      if (nexaiSigningAppSignSecretPrevInput.trim()) {
+        payload.appSignSecretPrev = nexaiSigningAppSignSecretPrevInput.trim();
+      }
+      const res = await fetch(NEXAI_SIGNING_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setNotification({ message: data.error || '保存 NexAI 请求签名配置失败', type: 'error' });
+        return;
+      }
+      setNotification({ message: 'NexAI 请求签名配置已保存', type: 'success' });
+      await fetchNexaiSigningSetting();
+    } catch (e) {
+      setNotification({
+        message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'),
+        type: 'error',
+      });
+    } finally {
+      setNexaiSigningSaving(false);
+    }
+  }, [
+    fetchNexaiSigningSetting,
+    nexaiSigningAppSignSecretInput,
+    nexaiSigningAppSignSecretPrevInput,
+    nexaiSigningMaxDriftMsInput,
+    nexaiSigningModeInput,
+    nexaiSigningSaving,
+    setNotification,
+  ]);
+
+  const handleDeleteNexaiSigningSetting = useCallback(async () => {
+    if (nexaiSigningDeleting) return;
+    if (!window.confirm('确定重置 NexAI 请求签名配置为默认值（soft 模式，并清除已保存的应用签名密钥）？')) return;
+    setNexaiSigningDeleting(true);
+    try {
+      const res = await fetch(NEXAI_SIGNING_API, {
+        method: 'DELETE',
+        headers: { ...getAuthHeaders() },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setNotification({ message: data.error || '重置 NexAI 请求签名配置失败', type: 'error' });
+        return;
+      }
+      setNotification({ message: '已重置为默认 NexAI 请求签名配置', type: 'success' });
+      await fetchNexaiSigningSetting();
+    } catch (e) {
+      setNotification({
+        message: '重置失败：' + (e instanceof Error ? e.message : '未知错误'),
+        type: 'error',
+      });
+    } finally {
+      setNexaiSigningDeleting(false);
+    }
+  }, [fetchNexaiSigningSetting, nexaiSigningDeleting, setNotification]);
 
 
   // ShortURL AES_KEY handlers
@@ -1794,6 +1916,7 @@ const EnvManager: React.FC = () => {
       tts: fetchTtsSetting,
       googleClientIds: fetchGoogleClientIds,
       synapseAndroid: fetchSynapseAndroidSetting,
+      nexaiSigning: fetchNexaiSigningSetting,
       shortaes: fetchShortAes,
       webhook: fetchWebhookSecret,
       providers: fetchProviders,
@@ -1809,7 +1932,7 @@ const EnvManager: React.FC = () => {
         lazyMap[key]();
       }
     }
-  }, [expandedSections, fetchEnvs, fetchOutemailSettings, fetchModlistSetting, fetchTtsSetting, fetchGoogleClientIds, fetchSynapseAndroidSetting, fetchShortAes, fetchWebhookSecret, fetchProviders, fetchIpfsConfig, fetchTurnstileConfig, fetchHcaptchaConfig, fetchClarityConfig, fetchGithubBillingConfig]);
+  }, [expandedSections, fetchEnvs, fetchOutemailSettings, fetchModlistSetting, fetchTtsSetting, fetchGoogleClientIds, fetchSynapseAndroidSetting, fetchNexaiSigningSetting, fetchShortAes, fetchWebhookSecret, fetchProviders, fetchIpfsConfig, fetchTurnstileConfig, fetchHcaptchaConfig, fetchClarityConfig, fetchGithubBillingConfig]);
 
   // 使用公共方法处理数据来源点击
   const handleSourceClickWrapper = useCallback((source: string) => {
@@ -2117,6 +2240,8 @@ const EnvManager: React.FC = () => {
           onDelete={handleDeleteTtsCode}
         />
 
+        <TtsProviderConfigSection prefersReducedMotion={prefersReducedMotion} />
+
         <GoogleClientIdsSection
           isOpen={isSectionOpen('googleClientIds')}
           onToggle={toggleSection}
@@ -2158,6 +2283,29 @@ const EnvManager: React.FC = () => {
           onRefresh={fetchSynapseAndroidSetting}
           onSave={handleSaveSynapseAndroidSetting}
           onReset={handleDeleteSynapseAndroidSetting}
+        />
+
+        <NexaiSigningConfigSection
+          isOpen={isSectionOpen('nexaiSigning')}
+          onToggle={toggleSection}
+          prefersReducedMotion={prefersReducedMotion}
+          loading={nexaiSigningLoading}
+          saving={nexaiSigningSaving}
+          deleting={nexaiSigningDeleting}
+          modeInput={nexaiSigningModeInput}
+          appSignSecretInput={nexaiSigningAppSignSecretInput}
+          appSignSecretPrevInput={nexaiSigningAppSignSecretPrevInput}
+          maxDriftMsInput={nexaiSigningMaxDriftMsInput}
+          currentAppSignSecret={nexaiSigningCurrentAppSignSecret}
+          currentAppSignSecretPrev={nexaiSigningCurrentAppSignSecretPrev}
+          updatedAt={nexaiSigningUpdatedAt}
+          onModeInputChange={setNexaiSigningModeInput}
+          onAppSignSecretInputChange={setNexaiSigningAppSignSecretInput}
+          onAppSignSecretPrevInputChange={setNexaiSigningAppSignSecretPrevInput}
+          onMaxDriftMsInputChange={setNexaiSigningMaxDriftMsInput}
+          onRefresh={fetchNexaiSigningSetting}
+          onSave={handleSaveNexaiSigningSetting}
+          onReset={handleDeleteNexaiSigningSetting}
         />
 
         <RuntimeConfigSections />

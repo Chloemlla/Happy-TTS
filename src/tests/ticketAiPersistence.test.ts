@@ -41,9 +41,8 @@ describe("ticket AI failure persistence", () => {
 
     (libreChatService.sendMessage as jest.Mock).mockImplementation(
       async (
-        _token: string,
+        _ownerKey: string,
         _message: string,
-        _userId: string | undefined,
         _onDelta: ((delta: string) => void) | undefined,
         onFailure: ((failure: ChatFailureDiagnostics) => void) | undefined,
       ) => {

@@ -7,9 +7,11 @@ export const RUNTIME_CONFIG_KEYS = [
   "DEEPLX",
   "NEXAI",
   "TTS",
+  "TTS_PROVIDER",
   "EMAIL",
   "ADMIN_SECURITY",
   "SYNAPSE_ANDROID",
+  "NEXAI_SIGNING",
 ] as const;
 
 export type RuntimeConfigKey = (typeof RUNTIME_CONFIG_KEYS)[number];

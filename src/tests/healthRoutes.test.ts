@@ -21,6 +21,31 @@ jest.mock("../services/wsService", () => ({
   },
 }));
 
+jest.mock("../services/configurationNoticeService", () => ({
+  notifyAdminsForFrontendVisit: jest.fn().mockResolvedValue({ notified: true, issueCount: 1 }),
+}));
+
+jest.mock("../tts/tts.readiness", () => ({
+  getTtsProviderCapabilityReadiness: jest.fn().mockResolvedValue([
+    {
+      name: "openai",
+      required: false,
+      status: "ready",
+      message: "OpenAI TTS 已配置",
+      active: true,
+      configured: true,
+    },
+    {
+      name: "fish",
+      required: false,
+      status: "skipped",
+      message: "Fish Audio TTS 未启用",
+      active: false,
+      configured: false,
+    },
+  ]),
+}));
+
 jest.mock("../middleware/authenticateToken", () => ({
   authenticateToken: (req, _res, next) => {
     req.user = req.headers["x-test-role"]
@@ -32,6 +57,7 @@ jest.mock("../middleware/authenticateToken", () => ({
 
 const healthRoutesModule = require("../routes/healthRoutes");
 const healthRoutes = healthRoutesModule.default || healthRoutesModule;
+const { notifyAdminsForFrontendVisit } = require("../services/configurationNoticeService");
 
 describe("healthRoutes disclosure boundary", () => {
   const app = express();
@@ -51,6 +77,14 @@ describe("healthRoutes disclosure boundary", () => {
     expect(res.body.dependencies).toBeUndefined();
   });
 
+  it("accepts the frontend visit signal without exposing configuration details", async () => {
+    const res = await request(app).post("/health/frontend-visit");
+
+    expect(res.status).toBe(202);
+    expect(res.body).toEqual({ accepted: true });
+    expect(notifyAdminsForFrontendVisit).toHaveBeenCalledTimes(1);
+  });
+
   it("rejects detailed diagnostics for non-admin callers", async () => {
     const res = await request(app).get("/health/details");
     expect(res.status).toBe(403);
@@ -68,5 +102,12 @@ describe("healthRoutes disclosure boundary", () => {
       total: 3,
     });
     expect(Array.isArray(res.body.dependencies)).toBe(true);
+    expect(res.body.dependencies).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "openai", active: true, configured: true, required: false }),
+        expect.objectContaining({ name: "fish", active: false, configured: false, required: false }),
+      ]),
+    );
+    expect(JSON.stringify(res.body)).not.toContain("fish-secret");
   });
 });

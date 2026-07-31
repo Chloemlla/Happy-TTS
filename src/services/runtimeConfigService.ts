@@ -8,10 +8,16 @@ import {
   type IpqsRuntimeConfig,
   type LinuxDoRuntimeConfig,
   type NexaiRuntimeConfig,
+  type NexaiSigningRuntimeConfig,
   type RuntimeConfigDefaults,
   type SynapseAndroidRuntimeConfig,
   type TtsRuntimeConfig,
 } from "../config/runtimeConfigDefaults";
+import {
+  mergeTtsProviderAdminUpdate,
+  normalizeTtsProviderRuntimeConfig,
+  type TtsProviderRuntimeConfig,
+} from "../config/ttsProviderConfig";
 import { type RuntimeConfigKey, RuntimeConfigModel } from "../models/runtimeConfigModel";
 import {
   assertStrongGenerationCode,
@@ -348,6 +354,13 @@ function normalizeStoredTtsConfig(value: unknown, defaults = runtimeConfigDefaul
   };
 }
 
+function normalizeStoredTtsProviderConfig(
+  value: unknown,
+  defaults = runtimeConfigDefaults.ttsProvider,
+): TtsProviderRuntimeConfig {
+  return normalizeTtsProviderRuntimeConfig(value, defaults);
+}
+
 function normalizeStoredEmailConfig(value: unknown, defaults = runtimeConfigDefaults.email): EmailRuntimeConfig {
   const raw = asObject(value);
 
@@ -454,6 +467,33 @@ function normalizeStoredSynapseAndroidConfig(
     disabled: Boolean(disabled),
   };
 }
+
+const NEXAI_SIGNING_MODES = ["off", "soft", "enforce"] as const;
+
+function normalizeNexaiSigningMode(
+  value: unknown,
+  fallback: NexaiSigningRuntimeConfig["mode"],
+): NexaiSigningRuntimeConfig["mode"] {
+  const candidate = typeof value === "string" ? value.trim().toLowerCase() : "";
+  return (NEXAI_SIGNING_MODES as readonly string[]).includes(candidate)
+    ? (candidate as NexaiSigningRuntimeConfig["mode"])
+    : fallback;
+}
+
+function normalizeStoredNexaiSigningConfig(
+  value: unknown,
+  defaults = runtimeConfigDefaults.nexaiSigning,
+): NexaiSigningRuntimeConfig {
+  const raw = asObject(value);
+
+  return {
+    mode: normalizeNexaiSigningMode(raw.mode, defaults.mode),
+    appSignSecret: normalizeOptionalString(raw.appSignSecret, defaults.appSignSecret, 1024),
+    appSignSecretPrev: normalizeOptionalString(raw.appSignSecretPrev, defaults.appSignSecretPrev, 1024),
+    maxDriftMs: normalizeInteger(raw.maxDriftMs, defaults.maxDriftMs, 1000, 24 * 60 * 60 * 1000),
+  };
+}
+
 function applyCacheForKey(key: RuntimeConfigKey, value: unknown): void {
   if (key === "IPQS") {
     runtimeConfigCache.ipqs = normalizeStoredIpqsConfig(value);
@@ -480,6 +520,11 @@ function applyCacheForKey(key: RuntimeConfigKey, value: unknown): void {
     return;
   }
 
+  if (key === "TTS_PROVIDER") {
+    runtimeConfigCache.ttsProvider = normalizeStoredTtsProviderConfig(value);
+    return;
+  }
+
   if (key === "EMAIL") {
     runtimeConfigCache.email = normalizeStoredEmailConfig(value);
     return;
@@ -492,6 +537,11 @@ function applyCacheForKey(key: RuntimeConfigKey, value: unknown): void {
 
   if (key === "SYNAPSE_ANDROID") {
     runtimeConfigCache.synapseAndroid = normalizeStoredSynapseAndroidConfig(value);
+    return;
+  }
+
+  if (key === "NEXAI_SIGNING") {
+    runtimeConfigCache.nexaiSigning = normalizeStoredNexaiSigningConfig(value);
     return;
   }
 
@@ -520,6 +570,9 @@ export class RuntimeConfigService {
     if (!loadedKeys.has("TTS")) {
       runtimeConfigCache.tts = cloneRuntimeConfigDefaults(defaults).tts;
     }
+    if (!loadedKeys.has("TTS_PROVIDER")) {
+      runtimeConfigCache.ttsProvider = cloneRuntimeConfigDefaults(defaults).ttsProvider;
+    }
     if (!loadedKeys.has("EMAIL")) {
       runtimeConfigCache.email = cloneRuntimeConfigDefaults(defaults).email;
     }
@@ -528,6 +581,9 @@ export class RuntimeConfigService {
     }
     if (!loadedKeys.has("SYNAPSE_ANDROID")) {
       runtimeConfigCache.synapseAndroid = cloneRuntimeConfigDefaults(defaults).synapseAndroid;
+    }
+    if (!loadedKeys.has("NEXAI_SIGNING")) {
+      runtimeConfigCache.nexaiSigning = cloneRuntimeConfigDefaults(defaults).nexaiSigning;
     }
   }
 
@@ -540,7 +596,7 @@ export class RuntimeConfigService {
     if (initialized && !force) return;
 
     const docs = await RuntimeConfigModel.find({
-      key: { $in: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "EMAIL", "ADMIN_SECURITY", "SYNAPSE_ANDROID"] },
+      key: { $in: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "TTS_PROVIDER", "EMAIL", "ADMIN_SECURITY", "SYNAPSE_ANDROID", "NEXAI_SIGNING"] },
     })
       .lean()
       .exec();
@@ -557,9 +613,11 @@ export class RuntimeConfigService {
       nextCache.deeplx = runtimeConfigCache.deeplx;
       nextCache.nexai = runtimeConfigCache.nexai;
       nextCache.tts = runtimeConfigCache.tts;
+      nextCache.ttsProvider = runtimeConfigCache.ttsProvider;
       nextCache.email = runtimeConfigCache.email;
       nextCache.adminSecurity = runtimeConfigCache.adminSecurity;
       nextCache.synapseAndroid = runtimeConfigCache.synapseAndroid;
+      nextCache.nexaiSigning = runtimeConfigCache.nexaiSigning;
       loadedKeys.add(doc.key as RuntimeConfigKey);
     }
 
@@ -888,6 +946,96 @@ export class RuntimeConfigService {
     loadedKeys.delete("SYNAPSE_ANDROID");
   }
 
+  /**
+   * Runtime-mutable request-signature settings. The middleware reads the in-memory cache
+   * on every request, so successful saves take effect without restarting this process.
+   */
+  static async getNexaiSigningSetting(): Promise<{
+    setting: {
+      config: {
+        mode: NexaiSigningRuntimeConfig["mode"];
+        appSignSecret: string;
+        appSignSecretPrev: string;
+        hasAppSignSecret: boolean;
+        hasAppSignSecretPrev: boolean;
+        maxDriftMs: number;
+      };
+      updatedAt?: string;
+    };
+  }> {
+    const doc = await readRuntimeConfigDoc("NEXAI_SIGNING");
+    const config = doc ? normalizeStoredNexaiSigningConfig(doc.value) : runtimeConfigDefaults.nexaiSigning;
+    runtimeConfigCache.nexaiSigning = config;
+
+    return {
+      setting: {
+        config: {
+          mode: config.mode,
+          appSignSecret: maskSecret(config.appSignSecret),
+          appSignSecretPrev: maskSecret(config.appSignSecretPrev),
+          hasAppSignSecret: config.appSignSecret.length > 0,
+          hasAppSignSecretPrev: config.appSignSecretPrev.length > 0,
+          maxDriftMs: config.maxDriftMs,
+        },
+        updatedAt: doc?.updatedAt?.toISOString(),
+      },
+    };
+  }
+
+  static async setNexaiSigningSetting(
+    input: Partial<NexaiSigningRuntimeConfig> | Record<string, unknown>,
+  ): Promise<{ updatedAt: string }> {
+    const currentDoc = await readRuntimeConfigDoc("NEXAI_SIGNING");
+    const current = currentDoc
+      ? normalizeStoredNexaiSigningConfig(currentDoc.value)
+      : runtimeConfigCache.nexaiSigning;
+    const obj = asObject(input);
+
+    const nextMode = hasOwnKey(obj, "mode") ? normalizeNexaiSigningMode(obj.mode, current.mode) : current.mode;
+
+    // Secret fields: leaving the field blank preserves the currently stored secret,
+    // matching the SecretKeySection UX convention used elsewhere in this admin UI.
+    const nextAppSignSecret =
+      typeof obj.appSignSecret === "string" && obj.appSignSecret.trim().length > 0
+        ? obj.appSignSecret.trim().slice(0, 1024)
+        : current.appSignSecret;
+
+    const nextAppSignSecretPrev =
+      typeof obj.appSignSecretPrev === "string" && obj.appSignSecretPrev.trim().length > 0
+        ? obj.appSignSecretPrev.trim().slice(0, 1024)
+        : current.appSignSecretPrev;
+
+    const nextMaxDriftMs = hasOwnKey(obj, "maxDriftMs")
+      ? normalizeInteger(obj.maxDriftMs, current.maxDriftMs, 1000, 24 * 60 * 60 * 1000)
+      : current.maxDriftMs;
+
+    const nextConfig: NexaiSigningRuntimeConfig = {
+      mode: nextMode,
+      appSignSecret: nextAppSignSecret,
+      appSignSecretPrev: nextAppSignSecretPrev,
+      maxDriftMs: nextMaxDriftMs,
+    };
+
+    const now = new Date();
+    await RuntimeConfigModel.findOneAndUpdate(
+      { key: "NEXAI_SIGNING" },
+      { value: nextConfig, updatedAt: now },
+      { upsert: true, returnDocument: "after" },
+    ).exec();
+
+    runtimeConfigCache.nexaiSigning = nextConfig;
+    loadedKeys.add("NEXAI_SIGNING");
+    initialized = true;
+
+    return { updatedAt: now.toISOString() };
+  }
+
+  static async deleteNexaiSigningSetting(): Promise<void> {
+    await RuntimeConfigModel.deleteOne({ key: "NEXAI_SIGNING" }).exec();
+    runtimeConfigCache.nexaiSigning = cloneRuntimeConfigDefaults(runtimeConfigDefaults).nexaiSigning;
+    loadedKeys.delete("NEXAI_SIGNING");
+  }
+
   static async getDeepLXSetting(): Promise<{
     setting: {
       config: {
@@ -1107,6 +1255,67 @@ export class RuntimeConfigService {
     await RuntimeConfigModel.deleteOne({ key: "TTS" }).exec();
     runtimeConfigCache.tts = cloneRuntimeConfigDefaults(runtimeConfigDefaults).tts;
     loadedKeys.delete("TTS");
+  }
+
+  static async getRawTtsProviderConfig(): Promise<TtsProviderRuntimeConfig> {
+    const doc = await readRuntimeConfigDoc("TTS_PROVIDER");
+    const config = doc
+      ? normalizeStoredTtsProviderConfig(doc.value)
+      : cloneRuntimeConfigDefaults(runtimeConfigDefaults).ttsProvider;
+    runtimeConfigCache.ttsProvider = config;
+    return config;
+  }
+
+  static async getTtsProviderSetting(): Promise<{
+    config: {
+      provider: TtsProviderRuntimeConfig["provider"];
+      defaultModel: string;
+      fish: {
+        baseUrl: string;
+        referenceId: string;
+        apiKeyConfigured: boolean;
+      };
+      updatedAt?: string;
+    };
+  }> {
+    const doc = await readRuntimeConfigDoc("TTS_PROVIDER");
+    const config = doc
+      ? normalizeStoredTtsProviderConfig(doc.value)
+      : cloneRuntimeConfigDefaults(runtimeConfigDefaults).ttsProvider;
+    runtimeConfigCache.ttsProvider = config;
+
+    return {
+      config: {
+        provider: config.provider,
+        defaultModel: config.defaultModel,
+        fish: {
+          baseUrl: config.fish.baseUrl,
+          referenceId: config.fish.referenceId,
+          apiKeyConfigured: Boolean(config.fish.apiKey),
+        },
+        updatedAt: doc?.updatedAt?.toISOString(),
+      },
+    };
+  }
+
+  static async setTtsProviderSetting(input: unknown): Promise<{ updatedAt: string }> {
+    const currentDoc = await readRuntimeConfigDoc("TTS_PROVIDER");
+    const current = currentDoc
+      ? normalizeStoredTtsProviderConfig(currentDoc.value)
+      : runtimeConfigCache.ttsProvider;
+    const nextConfig = mergeTtsProviderAdminUpdate(current, input);
+
+    const now = new Date();
+    await RuntimeConfigModel.findOneAndUpdate(
+      { key: "TTS_PROVIDER" },
+      { value: nextConfig, updatedAt: now },
+      { upsert: true, returnDocument: "after" },
+    ).exec();
+
+    runtimeConfigCache.ttsProvider = nextConfig;
+    loadedKeys.add("TTS_PROVIDER");
+    initialized = true;
+    return { updatedAt: now.toISOString() };
   }
 
   static async getEmailSetting(): Promise<{

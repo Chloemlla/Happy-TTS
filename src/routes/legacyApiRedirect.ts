@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { Request, RequestHandler, Response } from "express";
+import { config } from "../config/config";
 
 const exactReplacements = new Map<string, string>([
   ["/api-docs.json", "/api/openapi.json"],
@@ -286,7 +287,7 @@ function isFrontendRouteWithLegacyApiCollision(pathname: string): boolean {
 }
 
 function getChoiceStateSecret(): string {
-  return process.env.LEGACY_API_CHOICE_SECRET || process.env.JWT_SECRET || "development-legacy-api-choice-secret";
+  return process.env.LEGACY_API_CHOICE_SECRET || config.jwtSecret;
 }
 
 function toBase64Url(value: string): string {

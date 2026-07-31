@@ -1,7 +1,9 @@
 import request from "supertest";
 import app from "../app";
 
-describe("精准IP查询 API", () => {
+const describeWithIpQueryKey = process.env.IP_QUERY_KEY ? describe : describe.skip;
+
+describeWithIpQueryKey("精准IP查询 API", () => {
   const testCases = [
     { ip: "180.76.76.76", name: "百度DNS服务器" },
     { ip: "223.5.5.5", name: "阿里DNS服务器" },

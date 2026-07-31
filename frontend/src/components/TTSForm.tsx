@@ -1,6 +1,7 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { TtsRequest, TtsResponse } from "../types/tts";
+import { getApiBaseUrl } from "../api/api";
 import { useNotification } from "./Notification";
 import { TurnstileWidget } from "./TurnstileWidget";
 import { useTurnstileConfig } from "../hooks/useTurnstileConfig";
@@ -18,6 +19,11 @@ import {
   studioPrimaryButtonClassName,
   studioTextareaClassName,
 } from "./studioTheme";
+import {
+  FALLBACK_TTS_PROVIDER_CONFIG,
+  getTtsOutputFormats,
+  normalizeTtsProviderConfig,
+} from "../utils/ttsProviderConfig";
 
 interface TtsFormProps {
   loading: boolean;
@@ -47,28 +53,67 @@ export const TtsForm: React.FC<TtsFormProps> = ({
   const [turnstileToken, setTurnstileToken] = useState("");
   const [turnstileVerified, setTurnstileVerified] = useState(false);
   const [turnstileError, setTurnstileError] = useState(false);
+  const [providerConfig, setProviderConfig] = useState(FALLBACK_TTS_PROVIDER_CONFIG);
+  const [providerConfigLoading, setProviderConfigLoading] = useState(true);
+  const [usingProviderFallback, setUsingProviderFallback] = useState(false);
 
   const { config: turnstileConfig, loading: turnstileConfigLoading } = useTurnstileConfig();
 
-  const voices = useMemo(
-    () => [
-      { id: "alloy", name: "Alloy", description: "中性、平衡的声音" },
-      { id: "echo", name: "Echo", description: "男性、深沉的声音" },
-      { id: "fable", name: "Fable", description: "英式口音、优雅" },
-      { id: "onyx", name: "Onyx", description: "男性、深沉、戏剧性" },
-      { id: "nova", name: "Nova", description: "女性、年轻、活泼" },
-      { id: "shimmer", name: "Shimmer", description: "女性、温柔、轻柔" },
-    ],
-    [],
-  );
+  const voices = providerConfig.voices;
+  const models = providerConfig.models;
+  const usesSelectableVoice = providerConfig.voiceMode === "select";
+  const providerLabel = usingProviderFallback
+    ? "兼容模式"
+    : providerConfig.provider === "fish"
+      ? "Fish Audio"
+      : "OpenAI";
+  const outputFormats = getTtsOutputFormats(usingProviderFallback ? "fish" : providerConfig.provider);
 
-  const models = useMemo(
-    () => [
-      { id: "tts-1", name: "TTS-1", description: "标准质量，速度快" },
-      { id: "tts-1-hd", name: "TTS-1-HD", description: "高清质量，更自然" },
-    ],
-    [],
-  );
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const loadProviderConfig = async () => {
+      try {
+        const response = await fetch(`${getApiBaseUrl()}/api/tts/provider-config`, {
+          credentials: "include",
+          headers: { Accept: "application/json" },
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error("TTS provider config unavailable");
+
+        const nextConfig = normalizeTtsProviderConfig(await response.json());
+        if (controller.signal.aborted) return;
+
+        setProviderConfig(nextConfig);
+        setModel(nextConfig.defaultModel);
+        if (nextConfig.provider === "fish") {
+          setOutputFormat("mp3");
+        }
+        if (nextConfig.voiceMode === "select") {
+          const nextVoice =
+            (nextConfig.defaultVoice && nextConfig.voices.some((option) => option.id === nextConfig.defaultVoice)
+              ? nextConfig.defaultVoice
+              : nextConfig.voices[0]?.id) || "";
+          setVoice(nextVoice);
+        } else {
+          setVoice("");
+        }
+        setUsingProviderFallback(false);
+      } catch {
+        if (controller.signal.aborted) return;
+        setProviderConfig(FALLBACK_TTS_PROVIDER_CONFIG);
+        setModel(FALLBACK_TTS_PROVIDER_CONFIG.defaultModel);
+        setVoice(FALLBACK_TTS_PROVIDER_CONFIG.defaultVoice || "nova");
+        setOutputFormat("mp3");
+        setUsingProviderFallback(true);
+      } finally {
+        if (!controller.signal.aborted) setProviderConfigLoading(false);
+      }
+    };
+
+    void loadProviderConfig();
+    return () => controller.abort();
+  }, []);
 
   const MAX_TEXT_LENGTH = 4096;
 
@@ -81,6 +126,9 @@ export const TtsForm: React.FC<TtsFormProps> = ({
   }, []);
 
   const validateForm = useCallback(() => {
+    if (providerConfigLoading) {
+      return "正在加载语音提供商配置，请稍候";
+    }
     if (cooldown) {
       return `请等待 ${cooldownTime} 秒后再试`;
     }
@@ -93,6 +141,12 @@ export const TtsForm: React.FC<TtsFormProps> = ({
     if (!generationCode.trim()) {
       return "请输入生成码";
     }
+    if (!model) {
+      return "请选择语音模型";
+    }
+    if (usesSelectableVoice && !voice) {
+      return "请选择声音";
+    }
     if (turnstileConfig.enabled && (!turnstileVerified || !turnstileToken)) {
       return "请完成人机验证";
     }
@@ -102,10 +156,14 @@ export const TtsForm: React.FC<TtsFormProps> = ({
     cooldown,
     cooldownTime,
     generationCode,
+    model,
+    providerConfigLoading,
     text,
     turnstileConfig.enabled,
     turnstileToken,
     turnstileVerified,
+    usesSelectableVoice,
+    voice,
   ]);
 
   const handleSubmit = useCallback(
@@ -123,7 +181,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({
         const result = await onSubmit({
           text,
           model,
-          voice,
+          ...(usesSelectableVoice && voice ? { voice } : {}),
           outputFormat,
           speed,
           generationCode,
@@ -156,6 +214,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({
       text,
       turnstileConfig.enabled,
       turnstileToken,
+      usesSelectableVoice,
       validateForm,
       voice,
     ],
@@ -278,6 +337,11 @@ export const TtsForm: React.FC<TtsFormProps> = ({
             <FaCog className="text-slate-400" />
             <span>语音设置</span>
           </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground" role="status" aria-live="polite">
+            <span className="rounded-full border border-border bg-background px-2.5 py-1 text-foreground">当前提供商：{providerLabel}</span>
+            {providerConfigLoading ? <span>正在同步模型配置...</span> : null}
+            {usingProviderFallback ? <span>配置暂不可用，已切换到 MP3 兼容选项</span> : null}
+          </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
@@ -313,6 +377,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({
                       value={modelOption.id}
                       checked={model === modelOption.id}
                       onChange={(event) => setModel(event.target.value)}
+                      disabled={providerConfigLoading}
                       className="sr-only"
                     />
                     <div
@@ -336,7 +401,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.4, delay: 0.6 }}
             >
-              <motion.label
+              <motion.div
                 className={cn(studioEyebrowClassName, "mb-3 block")}
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -344,11 +409,12 @@ export const TtsForm: React.FC<TtsFormProps> = ({
               >
                 <div className="flex items-center gap-2 mb-2">
                   <FaVolumeUp className="text-slate-400" />
-                  声音选择
+                  {usesSelectableVoice ? "声音选择" : "声音配置"}
                 </div>
-              </motion.label>
-              <div className="space-y-2">
-                {voices.map((voiceOption) => (
+              </motion.div>
+              {usesSelectableVoice ? (
+                <div className="space-y-2">
+                  {voices.map((voiceOption) => (
                   <motion.label
                     key={voiceOption.id}
                     className={`flex cursor-pointer items-center rounded-2xl border p-3 transition-all duration-200 ${
@@ -365,6 +431,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({
                       value={voiceOption.id}
                       checked={voice === voiceOption.id}
                       onChange={(event) => setVoice(event.target.value)}
+                      disabled={providerConfigLoading}
                       className="sr-only"
                     />
                     <div
@@ -379,8 +446,15 @@ export const TtsForm: React.FC<TtsFormProps> = ({
                       <div className={cn("text-sm", voice === voiceOption.id ? "text-white/70" : "text-slate-500")}>{voiceOption.description}</div>
                     </div>
                   </motion.label>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-md border border-border bg-muted/50 p-4 text-sm text-muted-foreground">
+                  {providerConfig.voiceMode === "configured_reference"
+                    ? "音色由管理员在 Fish Audio Reference ID 中统一配置，提交时不会发送 OpenAI voice 值。"
+                    : "当前提供商使用服务端默认音色，无需在此选择。"}
+                </div>
+              )}
             </motion.div>
           </div>
 
@@ -401,6 +475,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({
               <motion.select
                 value={outputFormat}
                 onChange={(event) => setOutputFormat(event.target.value)}
+                disabled={providerConfigLoading || outputFormats.length === 1}
                 className={cn(studioFieldClassName, "appearance-none bg-no-repeat bg-right pr-10")}
                 style={{
                   backgroundImage:
@@ -409,11 +484,15 @@ export const TtsForm: React.FC<TtsFormProps> = ({
                 }}
                 whileFocus={{ scale: 1.01 }}
               >
-                <option value="mp3">MP3</option>
-                <option value="opus">Opus</option>
-                <option value="aac">AAC</option>
-                <option value="flac">FLAC</option>
+                {outputFormats.map((format) => (
+                  <option key={format} value={format}>
+                    {format === "opus" ? "Opus" : format.toUpperCase()}
+                  </option>
+                ))}
               </motion.select>
+              {providerConfig.provider === "fish" ? (
+                <p className="mt-2 text-xs text-muted-foreground">Fish Audio 当前仅支持 MP3 输出。</p>
+              ) : null}
             </motion.div>
 
             <motion.div
@@ -568,18 +647,20 @@ export const TtsForm: React.FC<TtsFormProps> = ({
         >
           <motion.button
             type="submit"
-            disabled={loading || cooldown}
+            disabled={loading || cooldown || providerConfigLoading}
             className={cn(
               studioPrimaryButtonClassName,
               "flex-1 transition-all duration-200",
-              loading || cooldown
+              loading || cooldown || providerConfigLoading
                 ? "cursor-not-allowed bg-slate-400 text-white"
                 : "",
             )}
             whileHover={{ scale: 1.02, y: -1 }}
             whileTap={{ scale: 0.98 }}
           >
-            {loading ? (
+            {providerConfigLoading ? (
+              "正在加载语音配置..."
+            ) : loading ? (
               <motion.div className="flex items-center justify-center">
                 <motion.div
                   className="w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"

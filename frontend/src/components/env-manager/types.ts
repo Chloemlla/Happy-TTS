@@ -1,3 +1,5 @@
+import type { TtsProviderId } from '../../types/tts';
+
 export interface EnvItem {
   key: string;
   value: string;
@@ -91,4 +93,35 @@ export interface MultiGitHubBillingConfig {
   config2?: GitHubBillingConfigSetting;
   config3?: GitHubBillingConfigSetting;
   lastUpdated?: string;
+}
+
+export interface NexaiSigningConfigSetting {
+  mode: 'off' | 'soft' | 'enforce';
+  appSignSecret: string;
+  appSignSecretPrev: string;
+  hasAppSignSecret: boolean;
+  hasAppSignSecretPrev: boolean;
+  maxDriftMs: number;
+  updatedAt?: string;
+}
+
+export interface TtsProviderAdminConfig {
+  provider: TtsProviderId;
+  defaultModel: string;
+  fish: {
+    baseUrl: string;
+    referenceId: string;
+    apiKeyConfigured: boolean;
+  };
+  updatedAt?: string;
+}
+
+export interface TtsProviderAdminUpdate {
+  provider: TtsProviderId;
+  defaultModel: string;
+  fish: {
+    baseUrl: string;
+    referenceId: string;
+    apiKey: string;
+  };
 }

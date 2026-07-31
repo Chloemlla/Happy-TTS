@@ -20,6 +20,7 @@ import {
   consumeRegistrationInvite,
   validateRegistrationInviteForRegistration,
 } from "../services/registrationInviteService";
+import type { AuthenticatedRequest } from "../types/authRequest";
 import {
   generateAccountLockedEmailHtml,
   generateLoginIpChangedEmailHtml,
@@ -32,7 +33,7 @@ import {
 } from "../templates/emailTemplates";
 import { getClientIP } from "../utils/ipUtils";
 import { signLoginToken } from "../utils/authToken";
-import { clearAuthSessionCookie, setAuthSessionCookie } from "../utils/authCookie";
+import { clearAuthSessionCookie, getTokenFromRequest, setAuthSessionCookie } from "../utils/authCookie";
 import logger from "../utils/logger";
 import { type User, UserStorage } from "../utils/userStorage";
 
@@ -749,42 +750,18 @@ export class AuthController {
 
   public static async getCurrentUser(req: Request, res: Response) {
     try {
-      const _ip = req.ip || "unknown";
-      const authHeader = req.headers.authorization;
-      if (!authHeader?.startsWith("Bearer ")) {
+      // Credential parsing and current-user validation belong to authenticateToken.
+      const authenticatedReq = req as AuthenticatedRequest;
+      const user = authenticatedReq.auth?.user ?? authenticatedReq.user;
+      if (!user) {
         return res.status(401).json({
           error: "未登录",
         });
       }
-      // 使用 substring 而非 split，避免 "Bearer a b" 格式时取错值
-      const token = authHeader.substring(7);
-      if (!token) {
-        return res.status(401).json({
-          error: "无效的认证令牌",
-        });
-      }
-      // 只支持JWT token
-      let userId: string;
-      try {
-        const decoded: any = require("jsonwebtoken").verify(token, require("../config/config").config.jwtSecret);
-        userId = decoded.userId;
-      } catch (_e) {
-        return res.status(401).json({ error: "认证令牌无效" });
-      }
-      // 验证token是否有效（检查用户是否存在）
-      const user = await UserStorage.getUserById(userId);
-      if (!user) {
-        logger.warn("getUserById: 未找到用户", {
-          id: userId,
-          tokenType: "JWT",
-          storageMode: "mongo",
-        });
-        return res.status(404).json({ error: "用户不存在" });
-      }
-      if ((user as any).accountStatus === "suspended") {
+      if (user.accountStatus === "suspended") {
         return res.status(403).json({ error: "账户已被封停", code: "ACCOUNT_SUSPENDED", supportEmail: "support@chloemlla.com" });
       }
-      const remainingUsage = await UserStorage.getRemainingUsage(userId);
+      const remainingUsage = await UserStorage.getRemainingUsage(user.id);
       // 不返回avatarBase64
       const {
         password: _password,
@@ -803,6 +780,18 @@ export class AuthController {
       logger.error("获取用户信息失败:", error);
       res.status(500).json({ error: "获取用户信息失败" });
     }
+  }
+
+  public static async establishSession(req: Request, res: Response) {
+    const authenticatedReq = req as AuthenticatedRequest;
+    const user = authenticatedReq.auth?.user ?? authenticatedReq.user;
+    const token = getTokenFromRequest(req);
+    if (!user || !token) {
+      return res.status(401).json({ error: "未授权" });
+    }
+
+    setAuthSessionCookie(req, res, token);
+    return res.status(204).send();
   }
 
   /**

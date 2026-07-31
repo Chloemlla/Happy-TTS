@@ -18,6 +18,7 @@ import getApiBaseUrl from './api';
 import DOMPurify from 'dompurify';
 import { reportFingerprintOnce } from './utils/fingerprint';
 import { useFirstVisitDetection } from './hooks/useFirstVisitDetection';
+import { useConfigurationNoticeTrigger } from './hooks/useConfigurationNoticeTrigger';
 import { FirstVisitVerification } from './components/FirstVisitVerification';
 import { useFingerprintRequest } from './hooks/useFingerprintRequest';
 import FingerprintRequestModal from './components/FingerprintRequestModal';
@@ -548,6 +549,7 @@ const AUTH_FLOW_PATHS = new Set([
 
 const App: React.FC = () => {
   const { user, loading, logout } = useAuth();
+  useConfigurationNoticeTrigger();
   const location = useLocation();
   const [isInitialized, setIsInitialized] = useState(false);
   const [showTOTPManager, setShowTOTPManager] = useState(false);

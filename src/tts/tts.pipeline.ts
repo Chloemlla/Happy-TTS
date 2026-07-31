@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { FISH_AUDIO_SUPPORTED_FORMATS } from "../config/ttsProviderConfig";
 import { ContentFilterService, type ContentFilterResult } from "../services/contentFilterService";
 import { AuditLogService } from "../services/auditLogService";
 import {
@@ -329,7 +330,17 @@ export class TtsSubmissionPipeline {
   }
 
   public async validateAndBuild(context: TtsSubmissionContext): Promise<TtsSubmissionResult> {
-    const requestPayload = this.buildRequestPayload(context.input);
+    const rawRequestPayload = this.buildRequestPayload(context.input);
+    const providerExecution = await this.ttsService.resolveProviderExecution(
+      rawRequestPayload.model,
+      rawRequestPayload.voice,
+    );
+    const requestPayload: TtsJobRequestPayload = {
+      ...rawRequestPayload,
+      model: providerExecution.model,
+      voice: providerExecution.voice,
+      providerExecution,
+    };
     const fingerprint =
       typeof context.input.fingerprint === "string" && context.input.fingerprint.trim().length > 0
         ? context.input.fingerprint.trim()
@@ -338,6 +349,16 @@ export class TtsSubmissionPipeline {
     const isAdmin = context.currentUser?.role === "admin";
 
     this.validateContentShape(requestPayload.text);
+    if (
+      providerExecution.providerId === "fish" &&
+      !(FISH_AUDIO_SUPPORTED_FORMATS as readonly string[]).includes(requestPayload.outputFormat)
+    ) {
+      throw new TtsRequestError(
+        400,
+        "Fish Audio 当前仅支持 MP3 输出格式",
+        "TTS_OUTPUT_FORMAT_UNSUPPORTED",
+      );
+    }
     if (!context.authenticatedByApiKey) {
       await this.validateGenerationCode(context.input.generationCode);
       await this.validateTurnstile(context.input.cfToken, context.ip);
@@ -358,6 +379,7 @@ export class TtsSubmissionPipeline {
       requestPayload.text,
       requestPayload.voice,
       requestPayload.model,
+      providerExecution,
     );
 
     if (userId && !isAdmin) {

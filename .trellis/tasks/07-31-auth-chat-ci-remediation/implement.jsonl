@@ -1,0 +1,10 @@
+{"file":".trellis/spec/backend/security-boundary-contracts.md","reason":"Canonical authentication, authorization, secret redaction, and fail-closed boundary requirements."}
+{"file":".trellis/spec/backend/repository-session-flow-contracts.md","reason":"Repository ownership, uniqueness, transactional mutation, and concurrent update contracts."}
+{"file":".trellis/spec/backend/database-guidelines.md","reason":"Persistence indexing, atomic update, and data integrity guidance."}
+{"file":".trellis/spec/backend/logging-guidelines.md","reason":"Prevent credential and sensitive payload disclosure in operational logs."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Backend test isolation and regression quality expectations."}
+{"file":".trellis/spec/frontend/hook-guidelines.md","reason":"WebSocket hook lifecycle, credential transport, and cleanup conventions."}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Frontend test and CI quality expectations."}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"Keep the EnvManager provider/model UI in a focused reusable section rather than expanding a super component."}
+{"file":".trellis/spec/backend/error-handling.md","reason":"Represent missing optional provider configuration as a clear capability error instead of a startup crash."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Trace browser, middleware, controller, service, persistence, and CI behavior end to end."}

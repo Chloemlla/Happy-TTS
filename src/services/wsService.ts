@@ -2,11 +2,11 @@ import crypto from "node:crypto";
 import type { Server as HttpServer, IncomingMessage } from "node:http";
 import type { Socket } from "node:net";
 import { URL } from "node:url";
-import jwt from "jsonwebtoken";
 import { WebSocket, WebSocketServer } from "ws";
-import { config } from "../config/config";
+import { onUserAuthorityChanged } from "../utils/userAuthorityEvents";
 import { toTicketView } from "../utils/ticketView";
 import { EcoEnchantsOpsService } from "./ecoEnchantsOpsService";
+import { resolveWebSocketIdentity, type WebSocketIdentity } from "./wsAuthentication";
 import logger from "../utils/logger";
 
 // ========== 类型定义 ==========
@@ -73,6 +73,8 @@ class WsService {
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private server: HttpServer | null = null;
   private upgradeHandler: ((req: IncomingMessage, socket: Socket, head: Buffer) => void) | null = null;
+  private pendingUpgradeAuth = new WeakMap<IncomingMessage, WebSocketIdentity>();
+  private unsubscribeAuthorityChanges: (() => void) | null = null;
 
   /**
    * 已处理的指纹通知 hash 集合，用于前后端同步去重。
@@ -92,29 +94,26 @@ class WsService {
 
     this.server = server;
     this.wss = new WebSocketServer({ noServer: true });
+    this.unsubscribeAuthorityChanges = onUserAuthorityChanged((userId) => {
+      this.invalidateUserAuthority(userId);
+    });
 
     this.wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
-      this.handleConnection(ws, req);
+      const identity = this.pendingUpgradeAuth.get(req);
+      this.pendingUpgradeAuth.delete(req);
+      if (!identity) {
+        ws.close(1011, "Authentication context unavailable");
+        return;
+      }
+      this.handleConnection(ws, identity);
     });
     EcoEnchantsOpsService.initRpcWebSocket();
 
     this.upgradeHandler = (req: IncomingMessage, socket: Socket, head: Buffer) => {
-      const pathname = this.getUpgradePathname(req);
-
-      if (pathname === "/ws") {
-        this.wss?.handleUpgrade(req, socket, head, (ws) => {
-          this.wss?.emit("connection", ws, req);
-        });
-        return;
-      }
-
-      if (EcoEnchantsOpsService.shouldHandleRpcUpgrade(pathname)) {
-        EcoEnchantsOpsService.handleRpcUpgrade(req, socket, head);
-        return;
-      }
-
-      socket.write("HTTP/1.1 404 Not Found\r\nConnection: close\r\n\r\n");
-      socket.destroy();
+      void this.handleUpgrade(req, socket, head).catch((error) => {
+        logger.error("[WS] Upgrade 处理失败", { error: error instanceof Error ? error.message : String(error) });
+        this.rejectUpgrade(socket, 500, "Internal Server Error");
+      });
     };
     server.on("upgrade", this.upgradeHandler);
 
@@ -142,9 +141,50 @@ class WsService {
     }
   }
 
-  private handleConnection(ws: WebSocket, req: IncomingMessage) {
-    // 从 URL query 中提取 token 做认证
-    const { userId, isAdmin } = this.authenticate(req);
+  private async handleUpgrade(req: IncomingMessage, socket: Socket, head: Buffer): Promise<void> {
+    const pathname = this.getUpgradePathname(req);
+
+    if (pathname === "/ws") {
+      const upgradeWss = this.wss;
+      if (!upgradeWss) {
+        this.rejectUpgrade(socket, 503, "Service Unavailable");
+        return;
+      }
+
+      const identity = await resolveWebSocketIdentity(req);
+      if (!identity) {
+        this.rejectUpgrade(socket, 401, "Unauthorized");
+        return;
+      }
+
+      if (this.wss !== upgradeWss || socket.destroyed) {
+        this.rejectUpgrade(socket, 503, "Service Unavailable");
+        return;
+      }
+
+      this.pendingUpgradeAuth.set(req, identity);
+      upgradeWss.handleUpgrade(req, socket, head, (ws) => {
+        upgradeWss.emit("connection", ws, req);
+      });
+      return;
+    }
+
+    if (EcoEnchantsOpsService.shouldHandleRpcUpgrade(pathname)) {
+      EcoEnchantsOpsService.handleRpcUpgrade(req, socket, head);
+      return;
+    }
+
+    this.rejectUpgrade(socket, 404, "Not Found");
+  }
+
+  private rejectUpgrade(socket: Socket, statusCode: number, statusText: string): void {
+    if (socket.destroyed) return;
+    socket.write(`HTTP/1.1 ${statusCode} ${statusText}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
+    socket.destroy();
+  }
+
+  private handleConnection(ws: WebSocket, identity: WebSocketIdentity) {
+    const { userId, isAdmin } = identity;
 
     const client: WsClient = {
       ws,
@@ -161,6 +201,10 @@ class WsService {
     // 如果有 userId，自动订阅用户频道
     if (userId) {
       client.channels.add(`user:${userId}`);
+    }
+
+    if (isAdmin) {
+      void this.sendPendingConfigurationNotice(ws);
     }
 
     ws.on("message", (raw: Buffer) => {
@@ -183,22 +227,55 @@ class WsService {
     });
   }
 
-  /**
-   * 从 ws://host/ws?token=xxx 中提取并验证 JWT
-   */
-  private authenticate(req: IncomingMessage): { userId: string | null; isAdmin: boolean } {
+  private async sendPendingConfigurationNotice(ws: WebSocket): Promise<void> {
     try {
-      const url = new URL(req.url || "", `http://${req.headers.host}`);
-      const token = url.searchParams.get("token");
-      if (!token) return { userId: null, isAdmin: false };
+      const {
+        claimPendingConfigurationNoticeForAdminConnection,
+        completeConfigurationNoticeDelivery,
+        releaseConfigurationNoticeDeliveryClaim,
+      } = await import("./configurationNoticeService.js");
+      const pendingNotice = await claimPendingConfigurationNoticeForAdminConnection();
+      if (!pendingNotice) {
+        return;
+      }
 
-      const decoded = jwt.verify(token, config.jwtSecret) as any;
-      return {
-        userId: decoded.userId || decoded.username || decoded.id || null,
-        isAdmin: decoded.role === "admin" || decoded.isAdmin === true,
-      };
-    } catch {
-      return { userId: null, isAdmin: false };
+      if (!this.clients.get(ws)?.isAdmin) {
+        await releaseConfigurationNoticeDeliveryClaim(
+          pendingNotice.fingerprint,
+          pendingNotice.deliveryClaimId,
+        );
+        return;
+      }
+
+      const sent = this.send(ws, {
+        type: "admin:broadcast",
+        data: {
+          title: pendingNotice.title,
+          message: pendingNotice.message,
+          issueIds: pendingNotice.issueIds,
+          level: "warn",
+          duration: 15_000,
+          display: "modal",
+          format: "text",
+        },
+        timestamp: Date.now(),
+      });
+
+      if (sent) {
+        await completeConfigurationNoticeDelivery(
+          pendingNotice.fingerprint,
+          pendingNotice.deliveryClaimId,
+        );
+      } else {
+        await releaseConfigurationNoticeDeliveryClaim(
+          pendingNotice.fingerprint,
+          pendingNotice.deliveryClaimId,
+        );
+      }
+    } catch (error) {
+      logger.warn("[WS] Failed to replay pending administrator configuration notice", {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 
@@ -567,6 +644,18 @@ class WsService {
     return kicked;
   }
 
+  /** 用户角色、状态或存在性变化后，旧连接不得继续沿用缓存权限。 */
+  invalidateUserAuthority(userId: string): number {
+    let closed = 0;
+    for (const [ws, client] of this.clients) {
+      if (client.userId !== userId) continue;
+      ws.close(4003, "Authority changed");
+      this.clients.delete(ws);
+      closed++;
+    }
+    return closed;
+  }
+
   /** 关闭 WebSocket 服务 */
   close() {
     if (this.heartbeatInterval) {
@@ -578,12 +667,20 @@ class WsService {
       this.server = null;
       this.upgradeHandler = null;
     }
+    for (const [ws] of this.clients) {
+      ws.terminate();
+    }
     if (this.wss) {
       this.wss.close();
       this.wss = null;
     }
+    if (this.unsubscribeAuthorityChanges) {
+      this.unsubscribeAuthorityChanges();
+      this.unsubscribeAuthorityChanges = null;
+    }
     EcoEnchantsOpsService.closeRpcWebSocket();
     this.clients.clear();
+    this.pendingUpgradeAuth = new WeakMap<IncomingMessage, WebSocketIdentity>();
   }
 }
 

@@ -1,3 +1,4 @@
+import "./helpers/mockUserService";
 import jwt from "jsonwebtoken";
 import { config } from "../config/config";
 import { PasskeyService } from "../services/passkeyService";

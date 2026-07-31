@@ -1,12 +1,31 @@
 export interface TtsRequest {
   text: string;
   model: string;
-  voice: string;
+  voice?: string;
   outputFormat: string;
   speed: number;
   generationCode: string;
   cfToken?: string;
   fingerprint?: string;
+}
+
+export type TtsProviderId = "openai" | "fish";
+
+export type TtsVoiceMode = "select" | "configured_reference" | "provider_default";
+
+export interface TtsProviderOption {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+export interface TtsProviderPublicConfig {
+  provider: TtsProviderId;
+  defaultModel: string;
+  defaultVoice?: string;
+  models: TtsProviderOption[];
+  voices: TtsProviderOption[];
+  voiceMode: TtsVoiceMode;
 }
 
 export interface TtsUsageSummary {

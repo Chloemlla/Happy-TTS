@@ -5,7 +5,7 @@ import { startupConfig } from "./config";
 export type ReadinessStatus = "ready" | "failed" | "skipped";
 
 export interface DependencyReadiness {
-  name: "openai" | "redis" | "mongo" | "mysql" | "email";
+  name: "openai" | "fish" | "redis" | "mongo" | "mysql" | "email";
   required: boolean;
   status: ReadinessStatus;
   message: string;
@@ -35,6 +35,12 @@ export interface ConfigDiagnosticReport {
     mysqlConfigured: boolean;
     emailConfigured: boolean;
     outemailEnabled: boolean;
+    jwtSecretConfigured: boolean;
+    signSecretKeyConfigured: boolean;
+    adminPasswordConfigured: boolean;
+    serverPasswordConfigured: boolean;
+    passwordEncryptionKeyConfigured: boolean;
+    internalServiceTokenConfigured: boolean;
   };
   runtimeMutableConfig: {
     provider: "RuntimeConfigService";
@@ -69,14 +75,14 @@ function normalizeOpenAiBaseUrl(baseUrl?: string): string {
 
 async function probeOpenAi(): Promise<DependencyReadiness> {
   const startedAt = now();
-  const required = true;
+  const required = false;
   const apiKey = startupConfig.openai.apiKey;
 
   if (!apiKey) {
     return withLatency(startedAt, {
       name: "openai",
       required,
-      status: "failed",
+      status: "skipped",
       message: "OPENAI_API_KEY / OPENAI_KEY 未配置",
     });
   }
@@ -117,7 +123,7 @@ async function probeOpenAi(): Promise<DependencyReadiness> {
 
 async function probeRedis(): Promise<DependencyReadiness> {
   const startedAt = now();
-  const required = startupConfig.redis.enabled;
+  const required = false;
 
   if (!startupConfig.redis.url) {
     return withLatency(startedAt, {
@@ -128,8 +134,9 @@ async function probeRedis(): Promise<DependencyReadiness> {
     });
   }
 
-  const client = createClient({ url: startupConfig.redis.url });
+  let client: ReturnType<typeof createClient> | null = null;
   try {
+    client = createClient({ url: startupConfig.redis.url });
     await client.connect();
     await client.ping();
     return withLatency(startedAt, {
@@ -146,7 +153,7 @@ async function probeRedis(): Promise<DependencyReadiness> {
       message: error instanceof Error ? error.message : String(error),
     });
   } finally {
-    if (client.isOpen) {
+    if (client?.isOpen) {
       await client.quit().catch(() => undefined);
     }
   }
@@ -165,11 +172,12 @@ async function probeMongo(): Promise<DependencyReadiness> {
     });
   }
 
-  const client = new MongoClient(startupConfig.mongo.uri, {
-    serverSelectionTimeoutMS: 5000,
-    connectTimeoutMS: 5000,
-  });
+  let client: MongoClient | null = null;
   try {
+    client = new MongoClient(startupConfig.mongo.uri, {
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 5000,
+    });
     await client.connect();
     await client.db(startupConfig.mongo.database).command({ ping: 1 });
     return withLatency(startedAt, {
@@ -186,7 +194,7 @@ async function probeMongo(): Promise<DependencyReadiness> {
       message: error instanceof Error ? error.message : String(error),
     });
   } finally {
-    await client.close().catch(() => undefined);
+    await client?.close().catch(() => undefined);
   }
 }
 
@@ -202,7 +210,7 @@ async function probeMysql(): Promise<DependencyReadiness> {
 
 async function probeEmail(): Promise<DependencyReadiness> {
   const startedAt = now();
-  const required = startupConfig.email.outemail.enabled;
+  const required = false;
   const apiKey = startupConfig.email.outemail.apiKey || startupConfig.email.resendApiKey;
 
   if (!apiKey) {
@@ -291,6 +299,12 @@ export async function runStartupDiagnostics(compileTimeConfig: {
       mysqlConfigured: false,
       emailConfigured: Boolean(startupConfig.email.resendApiKey || startupConfig.email.outemail.apiKey),
       outemailEnabled: startupConfig.email.outemail.enabled,
+      jwtSecretConfigured: startupConfig.configuredSecrets.jwtSecret,
+      signSecretKeyConfigured: startupConfig.configuredSecrets.signSecretKey,
+      adminPasswordConfigured: startupConfig.configuredSecrets.adminPassword,
+      serverPasswordConfigured: startupConfig.configuredSecrets.serverPassword,
+      passwordEncryptionKeyConfigured: startupConfig.configuredSecrets.passwordEncryptionKey,
+      internalServiceTokenConfigured: startupConfig.configuredSecrets.internalServiceToken,
     },
     runtimeMutableConfig: {
       provider: "RuntimeConfigService",

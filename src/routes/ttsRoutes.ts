@@ -1,5 +1,6 @@
 import express from "express";
 import { TtsController } from "../controllers/ttsController";
+import { ttsProviderController } from "../controllers/ttsProviderController";
 import { apiKeyAuth } from "../middleware/apiKeyAuth";
 import { authenticateAdmin } from "../middleware/auth";
 import {
@@ -105,6 +106,7 @@ const ttsAdminOperationLimiter = adminLimiter;
  */
 router.post("/generate", ttsSubmissionLimiter, ttsApiKeyAuth, TtsController.submitJob);
 router.post("/jobs", ttsSubmissionLimiter, ttsApiKeyAuth, TtsController.submitJob);
+router.get("/provider-config", ttsConfigReadLimiter, ttsProviderController.getPublicConfig);
 router.get("/assets/:fileName", ttsAssetLimiter, TtsController.getAudioAsset);
 router.get("/jobs/:taskId", ttsJobReadLimiter, ttsApiKeyAuth, TtsController.getJobStatus);
 router.get("/jobs/:taskId/result", ttsJobReadLimiter, ttsApiKeyAuth, TtsController.getJobResult);

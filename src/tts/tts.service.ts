@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import dotenv from "dotenv";
 import { config } from "../config/config";
+import type { TtsProviderExecutionSnapshot } from "../config/ttsProviderConfig";
 import logger from "../utils/logger";
 import { ttsAudioPostProcessor } from "./tts.audioPostProcessor";
 import { ttsAssetAccessService } from "./tts.assetAccess";
@@ -79,8 +80,22 @@ export class TtsService {
     }
   }
 
-  public generateContentHash(text: string, voice: string, model: string): string {
-    return crypto.createHash("md5").update(`${text}-${voice}-${model}`).digest("hex");
+  public generateContentHash(
+    text: string,
+    voice: string,
+    model: string,
+    providerExecution?: TtsProviderExecutionSnapshot,
+  ): string {
+    const providerIdentity = providerExecution?.cacheIdentity || ["legacy", model, voice].join("|");
+    return crypto.createHash("md5").update(JSON.stringify([text, providerIdentity])).digest("hex");
+  }
+
+  public resolveProviderExecution(
+    model?: string,
+    voice?: string,
+    frozenSnapshot?: TtsProviderExecutionSnapshot,
+  ): Promise<TtsProviderExecutionSnapshot> {
+    return this.providerRouter.resolveExecutionSnapshot(model, voice, frozenSnapshot);
   }
 
   public resolveOutputFormat(format: string): OutputFormat {
@@ -322,7 +337,18 @@ export class TtsService {
 
   public async generateSpeech(request: TtsRequest): Promise<TtsGeneratedSpeechResult> {
     try {
-      const { text, model, voice, outputFormat, userId, isAdmin } = request;
+      const providerExecution = await this.resolveProviderExecution(
+        request.model,
+        request.voice,
+        request.providerExecution,
+      );
+      const normalizedRequest: TtsRequest = {
+        ...request,
+        model: providerExecution.model,
+        voice: providerExecution.voice,
+        providerExecution,
+      };
+      const { text, model, voice, outputFormat, userId, isAdmin } = normalizedRequest;
 
       if (!text) {
         throw new TtsGenerationError("文本不能为空", 400, "TTS_EMPTY_TEXT", false);
@@ -332,7 +358,7 @@ export class TtsService {
         throw new TtsGenerationError("由于重复提交相同内容，您的账号已被临时封禁24小时", 429, "TTS_USER_BLOCKED", false);
       }
 
-      const contentHash = this.generateContentHash(text, voice, model);
+      const contentHash = this.generateContentHash(text, voice, model, providerExecution);
       const safeOutputFormat = this.resolveOutputFormat(outputFormat);
       const existingFile = await this.findExistingFile(contentHash, safeOutputFormat);
 
@@ -348,9 +374,9 @@ export class TtsService {
             fileName: existingFile,
             outputFormat: safeOutputFormat,
             ownerUserId: userId,
-            sourceTaskId: request.taskId,
-            sourceFingerprintHash: this.hashFingerprint(request.fingerprint),
-            policyVersion: request.policyVersion,
+            sourceTaskId: normalizedRequest.taskId,
+            sourceFingerprintHash: this.hashFingerprint(normalizedRequest.fingerprint),
+            policyVersion: normalizedRequest.policyVersion,
           }));
         const watermarkId =
           metadata?.watermarkId ||
@@ -358,8 +384,8 @@ export class TtsService {
             contentHash,
             fileName: existingFile,
             userId,
-            taskId: request.taskId,
-            fingerprint: request.fingerprint,
+            taskId: normalizedRequest.taskId,
+            fingerprint: normalizedRequest.fingerprint,
           });
 
         return {
@@ -368,8 +394,8 @@ export class TtsService {
           isDuplicate: true,
           outputFormat: safeOutputFormat,
           provider: "cache",
-          providerModel: model || config.openaiModel,
-          providerVoice: voice || config.openaiVoice,
+          providerModel: providerExecution.model,
+          providerVoice: providerExecution.voice,
           watermarkId,
           audioFileId: metadata?.id,
           audioStorage: metadata.storage,
@@ -379,11 +405,11 @@ export class TtsService {
       }
 
       this.assertCircuitAllowsRequest();
-      const response = await this.requestSpeechWithRetry(request, safeOutputFormat);
+      const response = await this.requestSpeechWithRetry(normalizedRequest, safeOutputFormat);
       const processedAudio = await this.audioPostProcessor.process({
         audioBuffer: response.audioBuffer,
         outputFormat: safeOutputFormat,
-        taskId: request.taskId,
+        taskId: normalizedRequest.taskId,
         contentHash,
       });
 
@@ -394,8 +420,8 @@ export class TtsService {
         contentHash,
         fileName: safeFileName,
         userId,
-        taskId: request.taskId,
-        fingerprint: request.fingerprint,
+        taskId: normalizedRequest.taskId,
+        fingerprint: normalizedRequest.fingerprint,
       });
 
       await fs.promises.writeFile(filePath, processedAudio.audioBuffer);
@@ -406,9 +432,9 @@ export class TtsService {
         buffer: processedAudio.audioBuffer,
         watermarkId,
         ownerUserId: userId,
-        sourceTaskId: request.taskId,
-        sourceFingerprintHash: this.hashFingerprint(request.fingerprint),
-        policyVersion: request.policyVersion,
+        sourceTaskId: normalizedRequest.taskId,
+        sourceFingerprintHash: this.hashFingerprint(normalizedRequest.fingerprint),
+        policyVersion: normalizedRequest.policyVersion,
       });
       const audioMetadata =
         persistedAsset ||
@@ -419,9 +445,9 @@ export class TtsService {
           size: processedAudio.audioBuffer.length,
           watermarkId,
           ownerUserId: userId,
-          sourceTaskId: request.taskId,
-          sourceFingerprintHash: this.hashFingerprint(request.fingerprint),
-          policyVersion: request.policyVersion,
+          sourceTaskId: normalizedRequest.taskId,
+          sourceFingerprintHash: this.hashFingerprint(normalizedRequest.fingerprint),
+          policyVersion: normalizedRequest.policyVersion,
         });
       this.recordCircuitSuccess();
 

@@ -1,5 +1,6 @@
 import express from "express";
 import { adminController } from "../../controllers/adminController";
+import { ttsProviderController } from "../../controllers/ttsProviderController";
 import { auditLog } from "../../middleware/auditLog";
 
 const router = express.Router();
@@ -105,6 +106,16 @@ router.delete("/modlist/setting", adminController.deleteModlistSetting);
 router.get("/tts/setting", adminController.getTtsSetting);
 router.post("/tts/setting", adminController.setTtsSetting);
 router.delete("/tts/setting", adminController.deleteTtsSetting);
+router.get("/tts/provider", ttsProviderController.getAdminConfig);
+router.put(
+  "/tts/provider",
+  auditLog({
+    module: "tts",
+    action: "tts.provider.set",
+    extractDetail: (req) => ({ provider: req.body?.provider, defaultModel: req.body?.defaultModel }),
+  }),
+  ttsProviderController.updateAdminConfig,
+);
 
 // Backend email system management (admin)
 router.get("/email-system/setting", adminController.getEmailSystemSetting);
@@ -130,6 +141,10 @@ router.delete("/deeplx/setting", adminController.deleteDeepLXSetting);
 router.get("/nexai/setting", adminController.getNexaiSetting);
 router.post("/nexai/setting", adminController.setNexaiSetting);
 router.delete("/nexai/setting", adminController.deleteNexaiSetting);
+// NexAI request-signature middleware config (NEXAI_REQUEST_SIGNING / NEXAI_APP_SIGN_SECRET(_PREV) / NEXAI_SIG_MAX_DRIFT_MS)
+router.get("/nexai-signing/setting", adminController.getNexaiSigningSetting);
+router.post("/nexai-signing/setting", adminController.setNexaiSigningSetting);
+router.delete("/nexai-signing/setting", adminController.deleteNexaiSigningSetting);
 router.get("/admin-security/setting", adminController.getAdminSecuritySetting);
 router.post("/admin-security/setting", adminController.setAdminSecuritySetting);
 router.delete("/admin-security/setting", adminController.deleteAdminSecuritySetting);

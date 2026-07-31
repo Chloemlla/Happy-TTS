@@ -9,7 +9,10 @@ export interface ChatMessage {
   message: string;
   role?: "user" | "assistant";
   timestamp: string;
-  token: string;
+  /** Canonical, namespaced digest used for all new ownership checks. */
+  ownerKey?: string;
+  /** Legacy fields are read only while normalizing older file-backed data. */
+  token?: string;
   userId?: string;
   aiErrorDetails?: ChatFailureDiagnostics;
 }
@@ -26,8 +29,7 @@ export interface PaginationOptions {
 
 export interface SSEClient {
   id: string;
-  userId: string;
-  token: string;
+  ownerKey: string;
   res: any;
   lastPing: number;
 }

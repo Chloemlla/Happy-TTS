@@ -8,7 +8,6 @@ import {
     clearSavedAccounts,
     getAuthToken,
     readSavedAccounts,
-    setAuthToken,
     writeSavedAccounts,
     ACCOUNTS_KEY as ACCOUNTS_KEY_CONST,
 } from '../utils/authSession';
@@ -110,6 +109,14 @@ api.interceptors.response.use(
     }
 );
 
+const establishCookieSession = async (token: string): Promise<void> => {
+    clearAuthToken();
+    await api.post('/api/auth/session', undefined, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+    clearAuthToken();
+};
+
 export const useAuth = () => {
     const [user, setUser] = useState<User | null>(null);
     const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([]);
@@ -194,10 +201,11 @@ export const useAuth = () => {
         setIsChecking(true);
 
         try {
-            const token = getAuthToken();
+            let token = getAuthToken();
             if (token && isTokenExpired(token)) {
                 console.log('本地登录凭证已过期，清除本地访问令牌，尝试 cookie 会话');
                 clearAuthToken();
+                token = null;
             }
 
             if (token) {
@@ -205,12 +213,11 @@ export const useAuth = () => {
                 if (cachedAccount) {
                     setUser(current => current ?? cachedAccount.user);
                 }
+                await establishCookieSession(token);
             }
 
-            // Cookie-first: withCredentials carries HttpOnly session when bearer is absent.
-            const response = await api.get<User>('/api/auth/me', token ? {
-                headers: { Authorization: `Bearer ${token}` }
-            } : undefined);
+            // Active browser identity is now canonicalized into the HttpOnly Cookie.
+            const response = await api.get<User>('/api/auth/me');
 
             console.log('认证检查响应:', response.status);
 
@@ -284,13 +291,10 @@ export const useAuth = () => {
                 navigate('/welcome');
                 return;
             }
-            // Explicit bearer injection path (non-cookie multi-account tooling).
-            setAuthToken(target.token);
             setLoading(true);
             try {
-                const response = await api.get<User>('/api/auth/me', {
-                    headers: { Authorization: `Bearer ${target.token}` }
-                });
+                await establishCookieSession(target.token);
+                const response = await api.get<User>('/api/auth/me');
                 setUser(response.data);
                 saveAccount(response.data, target.token);
                 setIsAdminChecked(false); // 重置管理员检查状态
@@ -308,6 +312,7 @@ export const useAuth = () => {
                     navigate('/');
                 }
             } finally {
+                clearAuthToken();
                 setLoading(false);
             }
         }
@@ -353,7 +358,8 @@ export const useAuth = () => {
     };
 
     const loginWithToken = async (token: string, user: User) => {
-        if (token) setAuthToken(token);
+        if (!token) throw new Error('缺少登录令牌');
+        await establishCookieSession(token);
         saveAccount(user, token);
         setUser(user);
         lastCheckRef.current = Date.now();

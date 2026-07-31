@@ -3,7 +3,11 @@ import {
   mergeChatProviderFailureAttempt,
   toChatMessagesView,
 } from "../services/librechat/diagnostics";
-import { messageBelongsToConversation } from "../services/librechat/history";
+import {
+  deriveGuestOwnerKey,
+  deriveUserOwnerKey,
+  messageBelongsToConversation,
+} from "../services/librechat/history";
 import { toTicketView } from "../utils/ticketView";
 
 describe("ticket AI diagnostics", () => {
@@ -88,7 +92,10 @@ describe("ticket AI diagnostics", () => {
     ];
 
     expect(toChatMessagesView(messages, false)[0]).not.toHaveProperty("aiErrorDetails");
+    expect(toChatMessagesView(messages, false)[0]).not.toHaveProperty("token");
+    expect(toChatMessagesView(messages, false)[0]).not.toHaveProperty("ownerKey");
     expect(toChatMessagesView(messages, true)[0]).toHaveProperty("aiErrorDetails");
+    expect(toChatMessagesView(messages, true)[0]).not.toHaveProperty("token");
     expect(messages[0]).toHaveProperty("aiErrorDetails");
   });
 
@@ -120,5 +127,16 @@ describe("ticket AI diagnostics", () => {
     expect(longToken.length).toBeGreaterThan(128);
     expect(messageBelongsToConversation(message, longToken)).toBe(true);
     expect(messageBelongsToConversation(message, longToken.slice(0, 128))).toBe(false);
+  });
+
+  it("derives collision-free, namespaced owner keys instead of sanitized identifiers", () => {
+    const firstGuest = deriveGuestOwnerKey("owner/a");
+    const secondGuest = deriveGuestOwnerKey("ownera");
+    const userOwner = deriveUserOwnerKey("owner/a");
+
+    expect(firstGuest).not.toBe(secondGuest);
+    expect(firstGuest).not.toBe(userOwner);
+    expect(firstGuest).toMatch(/^guest:[a-f0-9]{64}$/);
+    expect(userOwner).toMatch(/^user:[a-f0-9]{64}$/);
   });
 });

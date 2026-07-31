@@ -1,11 +1,17 @@
-import { randomBytes } from "node:crypto";
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { authenticateAdmin } from "../middleware/auth";
 import { optionalAuthenticateToken } from "../middleware/optionalAuthenticateToken";
 import { libreChatService } from "../services/libreChatService";
 import { toChatMessagesView } from "../services/librechat/diagnostics";
 import { mongoose } from "../services/mongoService";
 import logger from "../utils/logger";
+import {
+  ensureLibreChatGuestCookie,
+  isLibreChatGuestEnabled,
+  LIBRECHAT_GUEST_MAX_AGE_MS,
+  type LibreChatIdentity,
+  resolveLibreChatIdentity,
+} from "./libreChatIdentity";
 
 const router = Router();
 // 与前端保持一致的消息长度上限（以字符近似 tokens 上限）
@@ -14,8 +20,10 @@ const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 
+router.use(optionalAuthenticateToken);
+
 function sendLibreChatError(
-  res: any,
+  res: Response,
   status: number,
   code: string,
   error: string,
@@ -47,51 +55,25 @@ function normalizePagination(pageValue: unknown, limitValue: unknown): { page: n
   };
 }
 
-// 从已登录上下文提取 userId（若存在）
-function extractUserId(req: any): string | undefined {
-  return req?.user?.id || req?.user?._id || req?.auth?.userId || req?.session?.userId || undefined;
-}
-
 function isAdminRequest(req: any): boolean {
   const role = req?.user?.role;
   return typeof role === "string" && role.toLowerCase().trim() === "admin";
 }
 
-// 轻量级 Cookie 解析（避免引入额外依赖）
-function parseCookies(header: string | undefined): Record<string, string> {
-  const out: Record<string, string> = {};
-  if (!header) return out;
-  const parts = header.split(";");
-  for (const p of parts) {
-    const idx = p.indexOf("=");
-    if (idx > -1) {
-      const k = decodeURIComponent(p.slice(0, idx).trim());
-      const v = decodeURIComponent(p.slice(idx + 1).trim());
-      out[k] = v;
-    }
+async function requireLibreChatIdentity(req: Request, res: Response): Promise<LibreChatIdentity | null> {
+  const resolution = resolveLibreChatIdentity(req, res);
+  if (resolution.ok) {
+    await libreChatService.prepareOwnerHistory(resolution.identity.ownerKey, resolution.identity.legacyOwnerId);
+    return resolution.identity;
   }
-  return out;
-}
-
-// 从请求中提取 token（body/query/header/cookie 皆可）
-function getTokenFromReq(req: any): string | undefined {
-  const bodyToken = req?.body?.token;
-  const queryToken = req?.query?.token;
-  const headerToken = req?.headers?.["x-chat-token"] || req?.headers?.["x-libretoken"];
-  if (typeof bodyToken === "string" && bodyToken) return bodyToken;
-  if (typeof queryToken === "string" && queryToken) return queryToken;
-  if (typeof headerToken === "string" && headerToken) return headerToken as string;
-  const cookies = parseCookies(req.headers?.cookie);
-  if (cookies.lc_guest) return cookies.lc_guest;
-  return undefined;
-}
-
-// 是否启用游客模式（默认关闭）
-function isGuestEnabled(): boolean {
-  const envFlag = String(process.env.LIBRECHAT_GUEST_ENABLED || "").toLowerCase();
-  // 在非生产环境默认开启游客模式，生产环境需显式设置为 true
-  if (process.env.NODE_ENV !== "production") return envFlag !== "false";
-  return envFlag === "true";
+  if (resolution.reason === "account-suspended") {
+    sendLibreChatError(res, 403, "ACCOUNT_SUSPENDED", "账户已被封停");
+  } else if (resolution.reason === "invalid-token") {
+    sendLibreChatError(res, 401, "INVALID_TOKEN", "无效的token");
+  } else {
+    sendLibreChatError(res, 401, "AUTH_REQUIRED", "未认证：请登录或启用游客模式后再试");
+  }
+  return null;
 }
 
 /**
@@ -118,33 +100,19 @@ router.get("/lc", (_req, res) => {
  * @openapi
  * /guest:
  *   post:
- *     summary: 申请游客 token（会通过 HttpOnly Cookie 下发）
+ *     summary: 申请游客身份（仅通过 HttpOnly Cookie 下发凭据）
  *     responses:
  *       200:
- *         description: 成功颁发游客 token
+ *         description: 成功建立游客会话，响应体不包含凭据
  *       403:
  *         description: 游客模式未启用
  */
 router.post("/guest", (req, res) => {
-  if (!isGuestEnabled()) {
+  if (!isLibreChatGuestEnabled()) {
     return sendLibreChatError(res, 403, "GUEST_DISABLED", "游客模式未启用");
   }
-  // 生成高熵随机 token，带前缀标识
-  const token = `guest_${randomBytes(24).toString("hex")}`;
-  // 30 天有效期
-  const maxAge = 30 * 24 * 60 * 60; // seconds
-  // 通过 Set-Cookie 下发 HttpOnly Cookie
-  // 注意：res.cookie 不需要额外中间件即可使用
-  res.cookie("lc_guest", token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure:
-      req.protocol === "https" ||
-      (!!req.headers["x-forwarded-proto"] && String(req.headers["x-forwarded-proto"]).includes("https")),
-    path: "/",
-    maxAge: maxAge * 1000,
-  });
-  return res.json({ token });
+  ensureLibreChatGuestCookie(req, res);
+  return res.json({ success: true, expiresIn: Math.floor(LIBRECHAT_GUEST_MAX_AGE_MS / 1000) });
 });
 
 /**
@@ -158,7 +126,7 @@ router.post("/guest", (req, res) => {
  *         application/json:
  *           schema:
  *             type: object
- *             required: [token, messageId, content]
+ *             required: [messageId, content]
  *             properties:
  *               token:
  *                 type: string
@@ -178,12 +146,8 @@ router.post("/guest", (req, res) => {
 router.put("/message", async (req, res) => {
   try {
     const { messageId, content } = req.body || {};
-    const token = getTokenFromReq(req);
-    const userId = extractUserId(req);
-
-    if (!token || token === "invalid-token") {
-      return res.status(401).json({ error: "无效的token" });
-    }
+    const identity = await requireLibreChatIdentity(req, res);
+    if (!identity) return;
     if (!messageId || typeof messageId !== "string") {
       return res.status(400).json({ error: "缺少消息ID" });
     }
@@ -194,12 +158,7 @@ router.put("/message", async (req, res) => {
       return res.status(400).json({ error: `消息过长，最大允许 ${MAX_MESSAGE_LEN} 字符` });
     }
 
-    const { updated } = await libreChatService.updateMessage(
-      token as string,
-      messageId as string,
-      content as string,
-      userId,
-    );
+    const { updated } = await libreChatService.updateMessage(identity.ownerKey, messageId as string, content as string);
     return res.json({ message: "修改成功", updated });
   } catch (error) {
     console.error("修改消息错误:", error);
@@ -242,7 +201,7 @@ router.get("/librechat-image", (_req, res) => {
  *             properties:
  *               token:
  *                 type: string
- *                 description: 用户认证token，可选（游客模式或登录会话可不传）
+ *                 description: 旧版会话凭据；登录身份与 HttpOnly 游客 Cookie 优先
  *               message:
  *                 type: string
  *                 description: 聊天消息
@@ -257,22 +216,8 @@ router.get("/librechat-image", (_req, res) => {
 router.post("/send", async (req, res) => {
   try {
     const message = normalizeMessage(req.body?.message);
-    const token = getTokenFromReq(req);
-    const userId = extractUserId(req);
-
-    if (token === "invalid-token") {
-      return sendLibreChatError(res, 401, "INVALID_TOKEN", "无效的token");
-    }
-
-    // 游客模式：允许无认证访问
-    if (isGuestEnabled()) {
-      // 游客模式下允许访问，无需严格验证
-    } else {
-      // 非游客模式：需要 token 或 已登录 userId
-      if (!token && !userId) {
-        return sendLibreChatError(res, 401, "AUTH_REQUIRED", "未认证：请提供有效 token 或登录后再试");
-      }
-    }
+    const identity = await requireLibreChatIdentity(req, res);
+    if (!identity) return;
 
     // 验证消息
     if (!message) {
@@ -287,7 +232,7 @@ router.post("/send", async (req, res) => {
     }
 
     // 发送消息到LibreChat服务
-    const response = await libreChatService.sendMessage(token ?? "", message, userId);
+    const response = await libreChatService.sendMessage(identity.ownerKey, message);
 
     res.json({
       success: true,
@@ -310,12 +255,12 @@ router.post("/send", async (req, res) => {
  *   get:
  *     summary: 获取聊天历史
  *     parameters:
- *       - in: query
- *         name: token
+ *       - in: header
+ *         name: x-chat-token
  *         required: false
  *         schema:
  *           type: string
- *         description: 用户认证token，可选（游客模式或登录会话可不传）
+ *         description: 旧版会话凭据；登录身份与 HttpOnly 游客 Cookie 优先
  *       - in: query
  *         name: page
  *         schema:
@@ -334,34 +279,19 @@ router.post("/send", async (req, res) => {
  *       401:
  *         description: 认证失败
  */
-router.get("/history", optionalAuthenticateToken, async (req, res) => {
+router.get("/history", async (req, res) => {
   try {
     const { page, limit } = normalizePagination(req.query.page, req.query.limit);
-    const token = getTokenFromReq(req);
-    const userId = token ? undefined : extractUserId(req);
-
-    if (token === "invalid-token") {
-      return sendLibreChatError(res, 401, "INVALID_TOKEN", "无效的token");
-    }
-
-    // 游客模式：允许无认证访问历史
-    if (isGuestEnabled()) {
-      // 游客模式下允许访问，但如果有token则使用token，否则使用默认游客身份
-    } else {
-      // 非游客模式：需要 token 或 已登录 userId
-      if (!token && !userId) {
-        return sendLibreChatError(res, 401, "AUTH_REQUIRED", "未认证：请提供有效 token 或登录后再试");
-      }
-    }
+    const identity = await requireLibreChatIdentity(req, res);
+    if (!identity) return;
 
     // 获取聊天历史
     const history = await libreChatService.getHistory(
-      token ?? "",
+      identity.ownerKey,
       {
         page,
         limit,
       },
-      userId,
     );
 
     const totalPages = history.total > 0 ? Math.ceil(history.total / limit) : 1;
@@ -385,16 +315,15 @@ router.get("/history", optionalAuthenticateToken, async (req, res) => {
  *   delete:
  *     summary: 清除聊天历史
  *     requestBody:
- *       required: true
+ *       required: false
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required: [token]
  *             properties:
  *               token:
  *                 type: string
- *                 description: 用户认证token
+ *                 description: 旧版会话凭据；登录身份与 HttpOnly 游客 Cookie 优先
  *     responses:
  *       200:
  *         description: 清除成功
@@ -403,31 +332,9 @@ router.get("/history", optionalAuthenticateToken, async (req, res) => {
  */
 router.delete("/clear", async (req, res) => {
   try {
-    const token = getTokenFromReq(req);
-    const userId = extractUserId(req);
-
-    console.log("清除历史记录请求:", {
-      token: token ? `${token.substring(0, 8)}...` : "null",
-      userId: userId ? `${userId.substring(0, 8)}...` : "null",
-      body: req.body,
-    });
-
-    // 验证身份：允许 token 或 已登录 userId 其一存在
-    if (token === "invalid-token") {
-      console.log("清除历史记录认证失败: 无效token");
-      return res.status(401).json({ error: "无效的token" });
-    }
-    if (!token && !userId) {
-      console.log("清除历史记录认证失败: 无有效token或userId");
-      return res.status(401).json({ error: "未认证：请提供有效 token 或登录后再试" });
-    }
-
-    console.log("开始清除聊天历史...");
-
-    // 清除聊天历史
-    await libreChatService.clearHistory(token ?? "", userId);
-
-    console.log("聊天历史清除成功");
+    const identity = await requireLibreChatIdentity(req, res);
+    if (!identity) return;
+    await libreChatService.clearHistory(identity.ownerKey);
     res.json({ message: "聊天历史清除成功" });
   } catch (error) {
     console.error("清除历史错误:", error);
@@ -441,12 +348,12 @@ router.delete("/clear", async (req, res) => {
  *   delete:
  *     summary: 删除单条消息
  *     parameters:
- *       - in: query
- *         name: token
- *         required: true
+ *       - in: header
+ *         name: x-chat-token
+ *         required: false
  *         schema:
  *           type: string
- *         description: 用户认证token
+ *         description: 旧版会话凭据；登录身份与 HttpOnly 游客 Cookie 优先
  *       - in: query
  *         name: messageId
  *         required: true
@@ -462,20 +369,15 @@ router.delete("/clear", async (req, res) => {
 router.delete("/message", async (req, res) => {
   try {
     const { messageId } = req.query as any;
-    const token = getTokenFromReq(req);
-    const userId = extractUserId(req);
-
-    // 验证身份：允许 token 或 已登录 userId 其一存在
-    if ((!token || token === "invalid-token") && !userId) {
-      return res.status(401).json({ error: "未认证：请提供有效 token 或登录后再试" });
-    }
+    const identity = await requireLibreChatIdentity(req, res);
+    if (!identity) return;
 
     if (!messageId || typeof messageId !== "string") {
       return res.status(400).json({ error: "缺少消息ID" });
     }
 
     // 删除单条消息
-    const { removed } = await libreChatService.deleteMessage(token as string, messageId as string, userId);
+    const { removed } = await libreChatService.deleteMessage(identity.ownerKey, messageId as string);
     res.json({ message: "消息删除成功", removed });
   } catch (error) {
     console.error("删除消息错误:", error);
@@ -494,11 +396,11 @@ router.delete("/message", async (req, res) => {
  *         application/json:
  *           schema:
  *             type: object
- *             required: [token, messageIds]
+ *             required: [messageIds]
  *             properties:
  *               token:
  *                 type: string
- *                 description: 用户认证token
+ *                 description: 旧版会话凭据；登录身份与 HttpOnly 游客 Cookie 优先
  *               messageIds:
  *                 type: array
  *                 items:
@@ -513,20 +415,15 @@ router.delete("/message", async (req, res) => {
 router.delete("/messages", async (req, res) => {
   try {
     const { messageIds } = req.body;
-    const token = getTokenFromReq(req);
-    const userId = extractUserId(req);
-
-    // 验证身份：允许 token 或 已登录 userId 其一存在
-    if ((!token || token === "invalid-token") && !userId) {
-      return res.status(401).json({ error: "未认证：请提供有效 token 或登录后再试" });
-    }
+    const identity = await requireLibreChatIdentity(req, res);
+    if (!identity) return;
 
     if (!Array.isArray(messageIds) || messageIds.length === 0) {
       return res.status(400).json({ error: "缺少消息ID列表" });
     }
 
     // 批量删除消息
-    const { removed } = await libreChatService.deleteMessages(token as string, messageIds as string[], userId);
+    const { removed } = await libreChatService.deleteMessages(identity.ownerKey, messageIds as string[]);
     res.json({ message: "消息删除成功", removed });
   } catch (error) {
     console.error("批量删除消息错误:", error);
@@ -549,7 +446,7 @@ router.delete("/messages", async (req, res) => {
  *             properties:
  *               token:
  *                 type: string
- *                 description: 用户认证token，可选（游客模式或登录会话可不传）
+ *                 description: 旧版会话凭据；登录身份与 HttpOnly 游客 Cookie 优先
  *               messageId:
  *                 type: string
  *                 description: 需要重试的助手消息ID
@@ -564,21 +461,14 @@ router.delete("/messages", async (req, res) => {
 router.post("/retry", async (req, res) => {
   try {
     const { messageId } = req.body || {};
-    const token = getTokenFromReq(req);
-    const userId = extractUserId(req);
-
-    // 游客模式：允许无认证
-    if (!isGuestEnabled()) {
-      if ((!token || token === "invalid-token") && !userId) {
-        return sendLibreChatError(res, 401, "AUTH_REQUIRED", "未认证：请提供有效 token 或登录后再试");
-      }
-    }
+    const identity = await requireLibreChatIdentity(req, res);
+    if (!identity) return;
 
     if (!messageId || typeof messageId !== "string") {
       return sendLibreChatError(res, 400, "MESSAGE_ID_REQUIRED", "缺少消息ID");
     }
 
-    const response = await libreChatService.retryMessage(token ?? "", messageId as string, userId);
+    const response = await libreChatService.retryMessage(identity.ownerKey, messageId as string);
     return res.json({
       success: true,
       response,
@@ -600,12 +490,12 @@ router.post("/retry", async (req, res) => {
  *   get:
  *     summary: 导出聊天历史
  *     parameters:
- *       - in: query
- *         name: token
- *         required: true
+ *       - in: header
+ *         name: x-chat-token
+ *         required: false
  *         schema:
  *           type: string
- *         description: 用户认证token
+ *         description: 旧版会话凭据；登录身份与 HttpOnly 游客 Cookie 优先
  *     responses:
  *       200:
  *         description: 聊天历史
@@ -614,16 +504,11 @@ router.post("/retry", async (req, res) => {
  */
 router.get("/export", async (req, res) => {
   try {
-    const token = getTokenFromReq(req);
-    const userId = extractUserId(req);
-
-    // 验证token
-    if (!token || token === "invalid-token") {
-      return res.status(401).json({ error: "无效的token" });
-    }
+    const identity = await requireLibreChatIdentity(req, res);
+    if (!identity) return;
 
     // 导出聊天历史（作为文本附件返回）
-    const { content, count } = await libreChatService.exportHistoryText(token as string, userId);
+    const { content, count } = await libreChatService.exportHistoryText(identity.ownerKey);
     const date = new Date().toISOString().slice(0, 10);
     // 为避免 Header 非法字符问题：
     // 1) 使用 ASCII 安全的 filename 作为回退
@@ -647,11 +532,11 @@ router.get("/export", async (req, res) => {
  *   get:
  *     summary: 建立SSE连接接收实时通知
  *     parameters:
- *       - in: query
- *         name: token
+ *       - in: header
+ *         name: x-chat-token
  *         schema:
  *           type: string
- *         description: 用户认证token
+ *         description: 旧版会话凭据；登录身份与 HttpOnly 游客 Cookie 优先
  *     responses:
  *       200:
  *         description: SSE连接建立成功
@@ -665,30 +550,19 @@ router.get("/export", async (req, res) => {
  */
 router.get("/sse", async (req, res) => {
   try {
-    const token = getTokenFromReq(req);
-    const userId = extractUserId(req);
-
-    // 游客模式：允许无认证访问
-    if (isGuestEnabled()) {
-      // 游客模式下允许访问，无需严格验证
-    } else {
-      // 非游客模式：需要 token 或 已登录 userId
-      if ((!token || token === "invalid-token") && !userId) {
-        return res.status(401).json({ error: "未认证：请提供有效 token 或登录后再试" });
-      }
-    }
+    const identity = await requireLibreChatIdentity(req, res);
+    if (!identity) return;
 
     // 设置SSE响应头
     res.writeHead(200, {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
-      "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Headers": "Cache-Control",
     });
 
     // 注册SSE客户端
-    const clientId = libreChatService.registerSSEClient(userId || "", token || "", res);
+    const clientId = libreChatService.registerSSEClient(identity.ownerKey, res);
 
     // 处理客户端断开连接
     req.on("close", () => {

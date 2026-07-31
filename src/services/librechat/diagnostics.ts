@@ -109,6 +109,9 @@ export function buildChatFailureDiagnostics(
 export function toChatMessagesView(messages: ChatMessage[], includeAiErrorDetails: boolean): ChatMessage[] {
   return messages.map((message) => {
     const view = { ...message };
+    delete view.ownerKey;
+    delete view.token;
+    delete view.userId;
     if (!includeAiErrorDetails) delete view.aiErrorDetails;
     return view;
   });

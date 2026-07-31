@@ -23,6 +23,7 @@
     "test:rate-limit": "node test-rate-limit.js",
     "security-check": "node security-check.js",
     "test": "vitest",
+    "test:ci": "vitest run --coverage",
     "analyze": "npm run build:analyze && npx vite-bundle-analyzer dist",
     "analyze:bundle": "node scripts/analyze-bundle.js",
     "fix:rollup": "node fix-rollup-deps.js",

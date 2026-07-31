@@ -1,200 +1,267 @@
-// ==UserScript==
-// @name         zxxk 资源篮一键复制链接
-// @namespace    https://cart.zxxk.com/
-// @version      1.1.0
-// @description  在资源篮中添加一键复制全部资源链接按钮
-// @match        http://cart.zxxk.com/*
-// @match        https://cart.zxxk.com/*
-// @run-at       document-start
-// @grant        GM_setClipboard
-// @grant        GM_addStyle
-// ==/UserScript==
+(async () => {
+  const API = 'https://downloadnew.zxxk.com/settle/get-payinfo-for-site';
 
-(function () {
-    'use strict';
+  function unique(values) {
+    return [...new Set(values.filter(Boolean))];
+  }
 
-    const BUTTON_CLASS = 'zxxk-copy-resource-links';
-    const LINK_PATTERN = /(?:https?:\/\/)?(?:www\.)?zxxk\.com\/soft\/(\d+)(?:\.html)?/i;
-    const ID_PATTERN = /\/soft\/(\d+)(?:\.html)?/i;
+  function getId(value) {
+    if (value == null) return null;
+    const text = String(value);
 
-    function addStyle() {
-        const css = `
-            .${BUTTON_CLASS} {
-                display: inline-block !important;
-                visibility: visible !important;
-                position: relative !important;
-                z-index: 2147483647 !important;
-                margin-left: 12px !important;
-                padding: 6px 13px !important;
-                border: 0 !important;
-                border-radius: 4px !important;
-                background: #1677ff !important;
-                color: #fff !important;
-                cursor: pointer !important;
-                font: 14px/1.5 Arial, sans-serif !important;
-                opacity: 1 !important;
-            }
+    // 匹配 /soft/9046329.html
+    const urlMatch = text.match(/\/soft\/(\d+)(?:\.html)?/i);
+    if (urlMatch) return urlMatch[1];
 
-            .${BUTTON_CLASS}:hover { background: #4096ff !important; }
-            .${BUTTON_CLASS}:disabled { background: #999 !important; cursor: wait !important; }
-            .zxxk-copy-resource-links-fixed {
-                position: fixed !important;
-                right: 24px !important;
-                bottom: 24px !important;
-                margin: 0 !important;
-                box-shadow: 0 3px 12px rgba(0, 0, 0, .25) !important;
-            }
-        `;
+    // 匹配纯数字 ID
+    if (/^\d+$/.test(text.trim())) {
+      return text.trim();
+    }
 
-        if (typeof GM_addStyle === 'function') {
-            GM_addStyle(css);
-        } else {
-            const style = document.createElement('style');
-            style.textContent = css;
-            (document.head || document.documentElement).appendChild(style);
+    return null;
+  }
+
+  function getTitle(element) {
+    if (!element) return '';
+
+    const titleAttributes = [
+      'title',
+      'data-title',
+      'data-name',
+      'data-resource-title',
+      'data-resource-name'
+    ];
+
+    for (const attribute of titleAttributes) {
+      const value = element.getAttribute?.(attribute)?.trim();
+      if (value && !/^\d+$/.test(value)) {
+        return value;
+      }
+    }
+
+    const titleElement = element.querySelector?.(
+      '[title], .title, .resource-title, .resource-name, ' +
+      '.name, .resource-basket-item-title, a'
+    );
+
+    if (titleElement) {
+      const value = (
+        titleElement.getAttribute('title') ||
+        titleElement.textContent ||
+        ''
+      ).trim();
+
+      if (value && !/^\d+$/.test(value)) {
+        return value.replace(/\s+/g, ' ');
+      }
+    }
+
+    return '';
+  }
+
+  function collectFromDom() {
+    const records = [];
+    const seen = new Set();
+
+    document.querySelectorAll(
+      'a[href], [data-resource-id], [data-resourceid], ' +
+      '[data-catalog-id], [data-catalogid], [data-id]'
+    ).forEach((element) => {
+      let id = null;
+
+      if (element.matches?.('a[href]')) {
+        id = getId(
+          element.getAttribute('href') ||
+          element.href
+        );
+      }
+
+      const attributes = [
+        'data-resource-id',
+        'data-resourceid',
+        'data-catalog-id',
+        'data-catalogid',
+        'data-id'
+      ];
+
+      if (!id) {
+        for (const attribute of attributes) {
+          id = getId(element.getAttribute(attribute));
+          if (id) break;
         }
-    }
+      }
 
-    function getResourceId(element) {
-        if (!(element instanceof HTMLElement)) return null;
+      if (!id) return;
 
-        const values = [
-            element.getAttribute('data-resource-id'),
-            element.getAttribute('data-resourceid'),
-            element.getAttribute('data-catalog-id'),
-            element.getAttribute('data-catalogid'),
-            element.getAttribute('data-id'),
-            ...Object.values(element.dataset || {})
-        ];
+      // 优先在资源所在行/卡片中找标题
+      const container = element.closest(
+        '[data-resource-id], [data-resourceid], [data-catalog-id], ' +
+        '[data-catalogid], [data-id], .resource-item, .basket-item, ' +
+        '.resource-list-item, li, tr, .item'
+      );
 
-        return values.find((value) => value && /^\d+$/.test(value)) || null;
-    }
+      const title = getTitle(container || element.parentElement);
 
-    function collectLinks(root) {
-        const result = [];
-        const seen = new Set();
-
-        root.querySelectorAll('a[href], [data-resource-id], [data-resourceid], [data-catalog-id], [data-catalogid], [data-id]')
-            .forEach((element) => {
-                let id = getResourceId(element);
-
-                if (element instanceof HTMLAnchorElement) {
-                    const match = element.href.match(ID_PATTERN) || element.getAttribute('href')?.match(ID_PATTERN);
-                    if (match) id = match[1];
-                }
-
-                if (id && !seen.has(id)) {
-                    seen.add(id);
-                    result.push(`https://www.zxxk.com/soft/${id}.html`);
-                }
-            });
-
-        return result;
-    }
-
-    function getLinks() {
-        const allLinks = collectLinks(document.body || document.documentElement);
-        if (allLinks.length) return allLinks;
-
-        // 某些页面把资源 ID 写在元素文本或属性中，作为最后的兼容处理。
-        const text = document.body?.innerText || '';
-        const result = [];
-        const seen = new Set();
-        const matches = text.matchAll(/(?:资源|soft)[^\d]{0,30}(\d{5,})/gi);
-
-        for (const match of matches) {
-            const id = match[1];
-            if (!seen.has(id)) {
-                seen.add(id);
-                result.push(`https://www.zxxk.com/soft/${id}.html`);
-            }
+      if (!seen.has(id)) {
+        seen.add(id);
+        records.push({ id, title });
+      } else {
+        const old = records.find((item) => item.id === id);
+        if (old && !old.title && title) {
+          old.title = title;
         }
+      }
+    });
 
-        return result;
+    return records;
+  }
+
+  function findObjects(value, result = []) {
+    if (!value || typeof value !== 'object') {
+      return result;
     }
 
-    function copyText(text) {
-        if (typeof GM_setClipboard === 'function') {
-            GM_setClipboard(text, 'text');
-            return Promise.resolve();
-        }
-
-        if (navigator.clipboard?.writeText) {
-            return navigator.clipboard.writeText(text);
-        }
-
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        textarea.style.cssText = 'position:fixed;left:-9999px;top:0';
-        document.body.appendChild(textarea);
-        textarea.select();
-        const copied = document.execCommand('copy');
-        textarea.remove();
-
-        return copied ? Promise.resolve() : Promise.reject(new Error('无法访问剪贴板'));
+    if (Array.isArray(value)) {
+      value.forEach((item) => findObjects(item, result));
+      return result;
     }
 
-    function makeButton(fixed = false) {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = `${BUTTON_CLASS}${fixed ? ' zxxk-copy-resource-links-fixed' : ''}`;
-        button.textContent = '复制全部资源链接';
-        button.title = '复制资源篮中的全部资源链接';
+    result.push(value);
 
-        button.addEventListener('click', async () => {
-            const originalText = button.textContent;
-            button.disabled = true;
-            button.textContent = '正在整理…';
+    Object.values(value).forEach((item) => {
+      if (item && typeof item === 'object') {
+        findObjects(item, result);
+      }
+    });
 
-            try {
-                const links = getLinks();
-                if (!links.length) {
-                    throw new Error('没有找到资源链接。请确认资源篮内容已经加载完成后再试。');
-                }
+    return result;
+  }
 
-                await copyText(links.join('\n'));
-                button.textContent = `已复制 ${links.length} 条`;
-            } catch (error) {
-                console.error('[zxxk-copy-resource-links]', error);
-                alert(error.message || '复制失败');
-                button.textContent = originalText;
-            } finally {
-                setTimeout(() => {
-                    button.textContent = originalText;
-                    button.disabled = false;
-                }, 1800);
-            }
-        });
+  function getApiRecords(data) {
+    const records = [];
+    const seen = new Set();
 
-        return button;
+    for (const object of findObjects(data)) {
+      const id =
+        getId(object.resourceId) ||
+        getId(object.resourceID) ||
+        getId(object.resource_id) ||
+        getId(object.catalogId) ||
+        getId(object.catalogID) ||
+        getId(object.catalog_id) ||
+        getId(object.id);
+
+      if (!id || seen.has(id)) continue;
+
+      const title =
+        object.title ||
+        object.name ||
+        object.resourceName ||
+        object.resourceTitle ||
+        object.catalogName ||
+        object.catalogTitle ||
+        '';
+
+      seen.add(id);
+      records.push({
+        id,
+        title: String(title || '').trim()
+      });
     }
 
-    function mount() {
-        if (!document.body) return;
+    return records;
+  }
 
-        const title = document.querySelector('.resource-basket-title');
-        if (title && !title.querySelector(`.${BUTTON_CLASS}`)) {
-            title.appendChild(makeButton());
-        }
+  const domRecords = collectFromDom();
 
-        // 标题选择器变化或页面由前端框架重绘时，固定按钮仍然可用。
-        if (!document.querySelector('.zxxk-copy-resource-links-fixed')) {
-            document.body.appendChild(makeButton(true));
-        }
+  if (!domRecords.length) {
+    console.warn('没有从当前页面找到资源 ID。请确认资源篮已经加载完成。');
+    return;
+  }
+
+  const resourceIds = unique(domRecords.map((item) => item.id));
+
+  const payload = {
+    product: 1,
+    albumId: 0,
+    curl: location.href,
+    downSource: 1,
+    resourceIds: resourceIds.join(','),
+    resourceType: 0,
+    allocationType: 0,
+    appId: '',
+    clientInfo: {
+      appType: 1,
+      isCart: 1,
+      needMultiPackage: 1,
+      needDownloadUrl: true
+    },
+    catalogs: resourceIds.map((id) => ({ id: Number(id) }))
+  };
+
+  console.log(`正在请求 ${resourceIds.length} 个资源...`);
+
+  let apiData = null;
+
+  try {
+    const response = await fetch(API, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Accept': 'application/json, text/javascript, */*; q=0.01',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      throw new Error(`接口请求失败：HTTP ${response.status}`);
     }
 
-    function start() {
-        addStyle();
-        mount();
+    apiData = await response.json();
+    console.log('接口返回数据：', apiData);
+  } catch (error) {
+    console.warn('接口请求失败，将使用页面中的资源 ID 和标题：', error);
+  }
 
-        const observer = new MutationObserver(mount);
-        observer.observe(document.documentElement, { childList: true, subtree: true });
-        window.setInterval(mount, 1000);
-    }
+  const apiRecords = apiData ? getApiRecords(apiData) : [];
+  const titleMap = new Map();
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', start, { once: true });
-    } else {
-        start();
+  // 页面标题优先
+  domRecords.forEach((item) => {
+    if (item.title) {
+      titleMap.set(item.id, item.title);
     }
+  });
+
+  // 页面没有标题时使用接口标题
+  apiRecords.forEach((item) => {
+    if (!titleMap.has(item.id) && item.title) {
+      titleMap.set(item.id, item.title);
+    }
+  });
+
+  const lines = resourceIds.map((id) => {
+    const title = titleMap.get(id) || `资源 ${id}`;
+    const url = `https://www.zxxk.com/soft/${id}.html`;
+    return `${title} ${url}`;
+  });
+
+  const output = lines.join('\n');
+
+  try {
+    await navigator.clipboard.writeText(output);
+  } catch {
+    const textarea = document.createElement('textarea');
+    textarea.value = output;
+    textarea.style.position = 'fixed';
+    textarea.style.left = '-9999px';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    textarea.remove();
+  }
+
+  console.log(`已复制 ${lines.length} 条资源链接：\n\n${output}`);
+  alert(`已复制 ${lines.length} 条资源链接到剪贴板`);
 })();

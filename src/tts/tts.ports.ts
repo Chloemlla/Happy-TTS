@@ -1,4 +1,5 @@
 import type { User } from "../utils/userStorage";
+import type { TtsProviderExecutionSnapshot } from "../config/ttsProviderConfig";
 import type { TtsJobRecord, TtsJobResult, TtsNextAction, TtsUsageSummary } from "./tts.storage";
 
 export type TtsHistoryReviewStatus = "none" | "needs_review" | "in_review" | "fixed" | "dismissed";
@@ -76,6 +77,7 @@ export interface TtsProviderRequest {
   ip?: string;
   fingerprint?: string;
   policyVersion?: string;
+  providerExecution?: TtsProviderExecutionSnapshot;
 }
 
 export interface TtsProviderResponse {

@@ -137,6 +137,21 @@ describe("SmartHumanCheckService", () => {
     });
   });
 
+  it("should use a process-local high-entropy secret when configuration is missing", () => {
+    const originalSecret = process.env.SMART_HUMAN_CHECK_SECRET;
+    delete process.env.SMART_HUMAN_CHECK_SECRET;
+
+    try {
+      expect(() => new SmartHumanCheckService()).not.toThrow();
+    } finally {
+      if (originalSecret === undefined) {
+        delete process.env.SMART_HUMAN_CHECK_SECRET;
+      } else {
+        process.env.SMART_HUMAN_CHECK_SECRET = originalSecret;
+      }
+    }
+  });
+
   describe("issueNonce", () => {
     it("should generate a valid nonce successfully", async () => {
       const result = await service.issueNonce(TEST_IP, TEST_UA);

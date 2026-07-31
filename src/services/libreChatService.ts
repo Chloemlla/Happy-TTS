@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -17,7 +18,14 @@ import {
   buildChatProviderFailureAttempt,
   mergeChatProviderFailureAttempt,
 } from "./librechat/diagnostics";
-import { messageBelongsToConversation } from "./librechat/history";
+import { SerialAtomicJsonWriter } from "./librechat/atomicJsonWriter";
+import {
+  assertConversationOwnerKey,
+  isConversationOwnerKey,
+  messageBelongsToOwner,
+  normalizeChatHistory,
+} from "./librechat/history";
+import { migrateLegacyMongoHistory } from "./librechat/legacyMongoHistory";
 import type {
   ChatFailureDiagnostics,
   ChatHistory,
@@ -28,11 +36,10 @@ import type {
   SSEClient,
 } from "./librechat/types";
 
-// 基础输入清理：限制长度并移除可疑字符
-function sanitizeId(input?: string): string {
+function normalizeOwnerReference(input?: string): string {
   if (!input || typeof input !== "string") return "";
-  // 仅保留常见安全字符，限制长度，防止注入与异常索引
-  return input.replace(/[^A-Za-z0-9_\-:@.]/g, "").slice(0, 128);
+  const normalized = input.trim();
+  return normalized && normalized.length <= 256 ? normalized : "";
 }
 
 // 安全构建正则：对模式进行转义
@@ -105,6 +112,13 @@ class LibreChatService {
   private isRunning: boolean = false;
   private intervalId: NodeJS.Timeout | null = null;
   private chatHistory: ChatMessage[] = [];
+  private readonly historyWriter = new SerialAtomicJsonWriter();
+  private readonly ownerLocks = new Map<string, Promise<void>>();
+  private readonly ownersUsingFileFallback = new Set<string>();
+  private readonly initializationPromise: Promise<void>;
+  private fileHistoryLoaded = false;
+  private fileHistoryLoadPromise: Promise<void> | null = null;
+  private restoreFileHistoryOnFallback = true;
   private readonly MAX_MEMORY_MESSAGES = 10000; // 限制内存中的最大消息数量
   private readonly MAX_USER_MESSAGES = 1000; // 限制单个用户的最大消息数量
 
@@ -119,7 +133,7 @@ class LibreChatService {
   private readonly MAX_SSE_CLIENTS = 1000; // 限制最大 SSE 连接数
 
   private constructor() {
-    this.initializeService();
+    this.initializationPromise = this.initializeService();
     this.startSSECleanup();
   }
 
@@ -153,11 +167,10 @@ class LibreChatService {
             logger.info("从 MongoDB 加载回退的 LibreChat 图片记录 (librechat_images)");
           }
         }
-        // 加载聊天历史
-        const history = await ChatHistoryModel.findOne().sort({ updatedAt: -1 }).lean();
-        const h: any = history;
-        this.chatHistory = h && Array.isArray(h.messages) ? h.messages : [];
-        logger.info(`从 MongoDB 加载聊天历史: ${this.chatHistory.length} 条消息`);
+        // MongoDB 历史按 owner 按需读取，避免把单个 owner 的文档误当作全局历史。
+        this.chatHistory = [];
+        this.restoreFileHistoryOnFallback = false;
+        logger.info("MongoDB 聊天历史已启用按 owner 延迟加载");
         if (!this.isRunning && process.env.NODE_ENV !== "test") {
           this.startPeriodicCheck();
         }
@@ -181,9 +194,14 @@ class LibreChatService {
       }
       if (existsSync(this.CHAT_HISTORY_FILE)) {
         const data = await readFile(this.CHAT_HISTORY_FILE, "utf-8");
-        this.chatHistory = JSON.parse(data);
+        const parsed = JSON.parse(data);
+        const rawMessages = Array.isArray(parsed) ? (parsed as ChatMessage[]) : [];
+        this.chatHistory = normalizeChatHistory(rawMessages);
+        const dropped = rawMessages.length - this.chatHistory.length;
         logger.info(`从本地文件加载聊天历史: ${this.chatHistory.length} 条消息`);
+        if (dropped > 0) logger.warn(`忽略了 ${dropped} 条缺少有效 owner 的旧聊天消息`);
       }
+      this.fileHistoryLoaded = true;
       if (!this.isRunning && process.env.NODE_ENV !== "test") {
         this.startPeriodicCheck();
       }
@@ -220,7 +238,8 @@ class LibreChatService {
         logger.info(`内存清理：从 ${oldLength} 条消息清理到 ${this.chatHistory.length} 条消息`);
       }
 
-      await writeFile(this.CHAT_HISTORY_FILE, JSON.stringify(this.chatHistory, null, 2));
+      const snapshot = this.chatHistory.map((message) => ({ ...message }));
+      await this.historyWriter.write(this.CHAT_HISTORY_FILE, snapshot);
       logger.info(`已保存聊天历史到本地文件: ${this.chatHistory.length} 条消息`);
     } catch (error) {
       logger.error("保存聊天历史时出错:", error);
@@ -276,58 +295,313 @@ class LibreChatService {
     return envFallbackFirst ? [...envProvider, ...tryList] : [...tryList, ...envProvider];
   }
 
-  private async upsertTokenHistory(keyId: string, messages: ChatMessage[]) {
-    try {
-      const safeKey = sanitizeId(keyId);
-      if (mongoose.connection.readyState === 1) {
-        // 限制单次写入的消息数量，防止文档过大
-        const limitedMessages = messages.slice(-this.MAX_USER_MESSAGES);
+  private async withOwnerLock<T>(ownerKey: string, action: () => Promise<T>): Promise<T> {
+    assertConversationOwnerKey(ownerKey);
+    const previous = this.ownerLocks.get(ownerKey) || Promise.resolve();
+    const run = previous.catch(() => undefined).then(action);
+    const tail = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    this.ownerLocks.set(ownerKey, tail);
 
-        await (mongoose.models.LibreChatHistory as any).findOneAndUpdate(
-          { userId: safeKey },
-          {
-            $set: {
-              messages: limitedMessages,
-              updatedAt: new Date(),
-              deleted: false,
-              deletedAt: null,
-            },
-          },
-          {
-            upsert: true,
-            setDefaultsOnInsert: true,
-            // 设置最大文档大小限制
-            maxTimeMS: 10000, // 10秒超时
-          },
-        );
-        logger.info(`已保存 ${limitedMessages.length} 条消息到 MongoDB，用户ID: ${safeKey}`);
-      } else {
-        logger.warn("MongoDB 未连接，跳过数据库保存");
+    try {
+      return await run;
+    } finally {
+      if (this.ownerLocks.get(ownerKey) === tail) this.ownerLocks.delete(ownerKey);
+    }
+  }
+
+  private async ensureFileHistoryLoaded(): Promise<void> {
+    if (this.fileHistoryLoaded) return;
+    if (!this.fileHistoryLoadPromise) {
+      this.fileHistoryLoadPromise = (async () => {
+        let fileMessages: ChatMessage[] = [];
+        if (this.restoreFileHistoryOnFallback && existsSync(this.CHAT_HISTORY_FILE)) {
+          try {
+            const data = await readFile(this.CHAT_HISTORY_FILE, "utf8");
+            const parsed = JSON.parse(data);
+            fileMessages = normalizeChatHistory(Array.isArray(parsed) ? parsed : []);
+          } catch (error) {
+            logger.error("加载 LibreChat 文件回退历史失败", error);
+          }
+        }
+
+        const merged = new Map<string, ChatMessage>();
+        for (const message of [...fileMessages, ...this.chatHistory]) {
+          if (!message.ownerKey) continue;
+          merged.set(`${message.ownerKey}:${message.id}`, message);
+        }
+        this.chatHistory = [...merged.values()];
+        this.fileHistoryLoaded = true;
+      })().finally(() => {
+        this.fileHistoryLoadPromise = null;
+      });
+    }
+    await this.fileHistoryLoadPromise;
+  }
+
+  private getMemoryMessages(ownerKey: string): ChatMessage[] {
+    return this.chatHistory.filter((message) => messageBelongsToOwner(message, ownerKey));
+  }
+
+  private mergeOwnerMessages(ownerKey: string, ...sources: ChatMessage[][]): ChatMessage[] {
+    const merged = new Map<string, ChatMessage>();
+    for (const message of normalizeChatHistory(sources.flat())) {
+      if (!messageBelongsToOwner(message, ownerKey)) continue;
+      merged.set(message.id, message);
+    }
+    return [...merged.values()];
+  }
+
+  public async prepareOwnerHistory(ownerKey: string, legacyOwnerId?: string): Promise<void> {
+    assertConversationOwnerKey(ownerKey);
+    await this.initializationPromise;
+    if (!legacyOwnerId || mongoose.connection.readyState !== 1) return;
+    try {
+      const migratedMessages = await this.withOwnerLock(ownerKey, () =>
+        migrateLegacyMongoHistory({
+          ownerKey,
+          rawLegacyOwnerId: legacyOwnerId,
+          maxMessages: this.MAX_USER_MESSAGES,
+        }),
+      );
+      if (migratedMessages !== null) {
+        logger.info("已迁移 LibreChat 旧版 MongoDB 历史", { ownerKey, migratedMessages });
       }
-    } catch (err) {
-      logger.error("写入 MongoDB 聊天历史失败:", err);
-      // 如果是文档过大错误，尝试只保存最近的消息
-      if (err instanceof Error && err.message.includes("document too large")) {
+    } catch (error) {
+      logger.error("迁移 LibreChat 旧版 MongoDB 历史失败，继续使用当前 owner", {
+        ownerKey,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  private async getOwnerMessages(ownerKey: string): Promise<ChatMessage[]> {
+    assertConversationOwnerKey(ownerKey);
+    await this.initializationPromise;
+
+    if (mongoose.connection.readyState === 1) {
+      try {
+        const doc = await ChatHistoryModel.findOne({ ownerKey, deleted: { $ne: true } }).lean();
+        const storedMessages = (doc as { messages?: unknown } | null)?.messages;
+        if (Array.isArray(storedMessages)) {
+          const canonicalMessages = this.mergeOwnerMessages(ownerKey, storedMessages as ChatMessage[]);
+          return this.ownersUsingFileFallback.has(ownerKey)
+            ? this.mergeOwnerMessages(ownerKey, canonicalMessages, this.getMemoryMessages(ownerKey))
+            : canonicalMessages;
+        }
+        if (!this.ownersUsingFileFallback.has(ownerKey)) return [];
+      } catch (error) {
+        logger.error("按 owner 读取 MongoDB 聊天历史失败，回退到文件缓存", error);
+      }
+    }
+
+    await this.ensureFileHistoryLoaded();
+    return this.getMemoryMessages(ownerKey);
+  }
+
+  private async appendHistoryMessage(ownerKey: string, message: ChatMessage): Promise<number> {
+    await this.initializationPromise;
+    if (mongoose.connection.readyState !== 1) await this.ensureFileHistoryLoaded();
+    return this.withOwnerLock(ownerKey, async () => {
+      const safeMessage: ChatMessage = { ...message, ownerKey };
+      const currentOwnerMessages = this.getMemoryMessages(ownerKey);
+      const overflow = Math.max(0, currentOwnerMessages.length - this.MAX_USER_MESSAGES + 1);
+      if (overflow > 0) {
+        const oldestIds = new Set(currentOwnerMessages.slice(0, overflow).map((item) => item.id));
+        this.chatHistory = this.chatHistory.filter(
+          (item) => !(messageBelongsToOwner(item, ownerKey) && oldestIds.has(item.id)),
+        );
+        logger.info("LibreChat owner 消息数量超限，已清理旧消息", { ownerKey, removed: overflow });
+      }
+
+      this.chatHistory.push(safeMessage);
+      if (mongoose.connection.readyState === 1) {
+        const atomicAppend = {
+          $push: { messages: { $each: [safeMessage], $slice: -this.MAX_USER_MESSAGES } },
+          $set: { updatedAt: new Date(), deleted: false, deletedAt: null },
+        };
         try {
-          const reducedMessages = messages.slice(-100); // 只保存最近100条
-          await (mongoose.models.LibreChatHistory as any).findOneAndUpdate(
-            { userId: sanitizeId(keyId) },
+          await ChatHistoryModel.findOneAndUpdate(
+            { ownerKey },
+            atomicAppend,
+            { upsert: true, setDefaultsOnInsert: true, maxTimeMS: 10_000 },
+          );
+        } catch (error) {
+          const duplicateKey = (error as { code?: number })?.code === 11000;
+          if (duplicateKey) {
+            try {
+              await ChatHistoryModel.updateOne({ ownerKey }, atomicAppend);
+            } catch (retryError) {
+              logger.error("并发创建 owner 后重试追加 MongoDB 聊天消息失败", retryError);
+              this.ownersUsingFileFallback.add(ownerKey);
+              this.restoreFileHistoryOnFallback = true;
+              await this.ensureFileHistoryLoaded();
+              await this.saveChatHistory();
+            }
+          } else {
+            logger.error("原子追加 MongoDB 聊天消息失败，已保留文件缓存", error);
+            this.ownersUsingFileFallback.add(ownerKey);
+            this.restoreFileHistoryOnFallback = true;
+            await this.ensureFileHistoryLoaded();
+            await this.saveChatHistory();
+          }
+        }
+      } else {
+        this.ownersUsingFileFallback.add(ownerKey);
+        await this.saveChatHistory();
+      }
+
+      return this.getMemoryMessages(ownerKey).length;
+    });
+  }
+
+  private async updateHistoryMessageContent(ownerKey: string, id: string, content: string): Promise<number> {
+    await this.initializationPromise;
+    if (mongoose.connection.readyState !== 1) await this.ensureFileHistoryLoaded();
+    return this.withOwnerLock(ownerKey, async () => {
+      let updated = 0;
+      this.chatHistory = this.chatHistory.map((message) => {
+        if (messageBelongsToOwner(message, ownerKey) && message.id === id) {
+          updated = 1;
+          return { ...message, message: content };
+        }
+        return message;
+      });
+      if (mongoose.connection.readyState === 1) {
+        try {
+          const result = await ChatHistoryModel.updateOne(
+            { ownerKey, "messages.id": id, deleted: { $ne: true } },
             {
               $set: {
-                messages: reducedMessages,
+                "messages.$.message": content,
                 updatedAt: new Date(),
                 deleted: false,
                 deletedAt: null,
               },
             },
+          );
+          if ((result as { matchedCount?: number } | null)?.matchedCount) updated = 1;
+        } catch (error) {
+          logger.error("原子更新 MongoDB 聊天消息失败", error);
+          if (updated) {
+            this.ownersUsingFileFallback.add(ownerKey);
+            this.restoreFileHistoryOnFallback = true;
+            await this.ensureFileHistoryLoaded();
+            await this.saveChatHistory();
+          }
+        }
+      } else if (updated) {
+        this.ownersUsingFileFallback.add(ownerKey);
+        await this.saveChatHistory();
+      }
+      return updated;
+    });
+  }
+
+  private async replaceHistoryMessage(ownerKey: string, replacement: ChatMessage): Promise<number> {
+    await this.initializationPromise;
+    if (mongoose.connection.readyState !== 1) await this.ensureFileHistoryLoaded();
+    return this.withOwnerLock(ownerKey, async () => {
+      const safeReplacement: ChatMessage = { ...replacement, ownerKey };
+      let updated = 0;
+      this.chatHistory = this.chatHistory.map((message) => {
+        if (messageBelongsToOwner(message, ownerKey) && message.id === replacement.id) {
+          updated = 1;
+          return safeReplacement;
+        }
+        return message;
+      });
+      if (mongoose.connection.readyState === 1) {
+        try {
+          const result = await ChatHistoryModel.updateOne(
+            { ownerKey, "messages.id": replacement.id, deleted: { $ne: true } },
+            {
+              $set: {
+                "messages.$": safeReplacement,
+                updatedAt: new Date(),
+                deleted: false,
+                deletedAt: null,
+              },
+            },
+          );
+          if ((result as { matchedCount?: number } | null)?.matchedCount) updated = 1;
+        } catch (error) {
+          logger.error("原子替换 MongoDB 聊天消息失败", error);
+          if (updated) {
+            this.ownersUsingFileFallback.add(ownerKey);
+            this.restoreFileHistoryOnFallback = true;
+            await this.ensureFileHistoryLoaded();
+            await this.saveChatHistory();
+          }
+        }
+      } else if (updated) {
+        this.ownersUsingFileFallback.add(ownerKey);
+        await this.saveChatHistory();
+      }
+      return updated;
+    });
+  }
+
+  private async removeHistoryMessages(ownerKey: string, ids: string[]): Promise<void> {
+    await this.initializationPromise;
+    if (mongoose.connection.readyState !== 1) await this.ensureFileHistoryLoaded();
+    await this.withOwnerLock(ownerKey, async () => {
+      const idSet = new Set(ids);
+      const before = this.chatHistory.length;
+      this.chatHistory = this.chatHistory.filter(
+        (message) => !(messageBelongsToOwner(message, ownerKey) && idSet.has(message.id)),
+      );
+      if (mongoose.connection.readyState === 1) {
+        try {
+          await ChatHistoryModel.updateOne(
+            { ownerKey, deleted: { $ne: true } },
+            { $pull: { messages: { id: { $in: ids } } }, $set: { updatedAt: new Date() } },
+          );
+        } catch (error) {
+          logger.error("原子删除 MongoDB 聊天消息失败", error);
+          if (this.chatHistory.length !== before) {
+            this.ownersUsingFileFallback.add(ownerKey);
+            this.restoreFileHistoryOnFallback = true;
+            await this.ensureFileHistoryLoaded();
+            await this.saveChatHistory();
+          }
+        }
+      } else if (this.chatHistory.length !== before) {
+        this.ownersUsingFileFallback.add(ownerKey);
+        await this.saveChatHistory();
+      }
+    });
+  }
+
+  private async clearOwnerMessages(ownerKey: string): Promise<void> {
+    await this.initializationPromise;
+    if (mongoose.connection.readyState !== 1) await this.ensureFileHistoryLoaded();
+    await this.withOwnerLock(ownerKey, async () => {
+      const before = this.chatHistory.length;
+      this.chatHistory = this.chatHistory.filter((message) => !messageBelongsToOwner(message, ownerKey));
+      if (mongoose.connection.readyState === 1) {
+        try {
+          await ChatHistoryModel.findOneAndUpdate(
+            { ownerKey },
+            { $set: { messages: [], deleted: true, deletedAt: new Date(), updatedAt: new Date() } },
             { upsert: true, setDefaultsOnInsert: true },
           );
-          logger.info(`文档过大，已保存最近 ${reducedMessages.length} 条消息到 MongoDB`);
-        } catch (retryErr) {
-          logger.error("重试写入 MongoDB 失败:", retryErr);
+        } catch (error) {
+          logger.error("原子清空 MongoDB 聊天历史失败", error);
+          if (this.chatHistory.length !== before) {
+            this.ownersUsingFileFallback.add(ownerKey);
+            this.restoreFileHistoryOnFallback = true;
+            await this.ensureFileHistoryLoaded();
+            await this.saveChatHistory();
+          }
         }
+      } else if (this.chatHistory.length !== before) {
+        this.ownersUsingFileFallback.add(ownerKey);
+        await this.saveChatHistory();
       }
-    }
+    });
   }
 
   private async fetchAndRecord() {
@@ -432,7 +706,8 @@ class LibreChatService {
   /**
    * 注册SSE客户端连接
    */
-  public registerSSEClient(userId: string, token: string, res: any): string {
+  public registerSSEClient(ownerKey: string, res: any): string {
+    assertConversationOwnerKey(ownerKey);
     // 检查连接数限制
     if (this.sseClients.size >= this.MAX_SSE_CLIENTS) {
       logger.warn(`SSE连接数已达上限 ${this.MAX_SSE_CLIENTS}，拒绝新连接`);
@@ -441,9 +716,7 @@ class LibreChatService {
       return "";
     }
 
-    const safeUserId = sanitizeId(userId);
-    const safeToken = sanitizeId(token);
-    const clientId = `${safeUserId || safeToken}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const clientId = randomUUID();
 
     // 发送初始连接消息
     res.write(`data: ${JSON.stringify({ type: "connected", clientId, timestamp: Date.now() })}\n\n`);
@@ -451,13 +724,12 @@ class LibreChatService {
     // 存储客户端信息
     this.sseClients.set(clientId, {
       id: clientId,
-      userId,
-      token,
+      ownerKey,
       res,
       lastPing: Date.now(),
     });
 
-    logger.info(`注册SSE客户端: ${clientId}, userId: ${userId}, token: ${token}`);
+    logger.info("注册SSE客户端", { clientId, ownerKey });
     return clientId;
   }
 
@@ -480,13 +752,11 @@ class LibreChatService {
   /**
    * 向指定用户发送SSE通知
    */
-  private sendSSENotification(userId: string, token: string, eventType: string, data: any): void {
-    const targetClients = Array.from(this.sseClients.values()).filter(
-      (client) => (userId && client.userId === userId) || (!userId && client.token === token),
-    );
+  private sendSSENotification(ownerKey: string, eventType: string, data: any): void {
+    const targetClients = Array.from(this.sseClients.values()).filter((client) => client.ownerKey === ownerKey);
 
     if (targetClients.length === 0) {
-      logger.debug(`未找到匹配的SSE客户端: userId=${userId}, token=${token}`);
+      logger.debug("未找到匹配的SSE客户端", { ownerKey });
       return;
     }
 
@@ -513,48 +783,29 @@ class LibreChatService {
    * 发送聊天消息
    */
   public async sendMessage(
-    token: string,
+    ownerKey: string,
     message: string,
-    userId?: string,
     onDelta?: (delta: string) => void,
     onFailure?: (diagnostics: ChatFailureDiagnostics) => void,
   ): Promise<string> {
+    assertConversationOwnerKey(ownerKey);
+    await this.initializationPromise;
     // 先将用户消息写入历史
     const userMsg: ChatMessage = {
-      id: Date.now().toString(),
+      id: randomUUID(),
       message,
       role: "user",
       timestamp: new Date().toISOString(),
-      token,
-      userId,
+      ownerKey,
     };
-    // 检查单个用户消息数量限制
-    const keyId = userId || token;
-    const currentUserMessages = this.chatHistory.filter((m) => (userId ? m.userId === userId : m.token === token));
-
-    if (currentUserMessages.length >= this.MAX_USER_MESSAGES) {
-      // 删除该用户最旧的消息，保持在限制内
-      const userMessagesToRemove = currentUserMessages.slice(
-        0,
-        currentUserMessages.length - this.MAX_USER_MESSAGES + 1,
-      );
-      this.chatHistory = this.chatHistory.filter((m) => !userMessagesToRemove.some((rm) => rm.id === m.id));
-      logger.info(`用户 ${keyId} 消息数量超限，已清理 ${userMessagesToRemove.length} 条旧消息`);
-    }
-
-    this.chatHistory.push(userMsg);
-    await this.saveChatHistory();
-    logger.info(`已保存用户消息到内存/文件，token: ${token}, userId: ${userId}`);
-
-    // 同步写入 MongoDB（用户消息）
-    const currentMessages = this.chatHistory.filter((m) => (userId ? m.userId === userId : m.token === token));
-    await this.upsertTokenHistory(keyId, currentMessages);
+    await this.appendHistoryMessage(ownerKey, userMsg);
+    logger.info("已保存 LibreChat 用户消息", { ownerKey, messageId: userMsg.id });
 
     // 若用户询问“你是什么模型”等同类问题，严格保持沉默并直接返回空字符串
     if (isModelIdentityQuery(message)) {
       logger.info("拦截模型识别类问题，按规则保持沉默");
       // 发送SSE通知：消息完成
-      this.sendSSENotification(userId || "", token, "message_completed", {
+      this.sendSSENotification(ownerKey, "message_completed", {
         messageId: userMsg.id,
         hasResponse: false,
         reason: "model_identity_query",
@@ -588,36 +839,30 @@ class LibreChatService {
       const aiErrorDetails = buildChatFailureDiagnostics("no_provider_configured", []);
       onFailure?.(aiErrorDetails);
       const aiMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
+        id: randomUUID(),
         message: fallback,
         role: "assistant",
         timestamp: new Date().toISOString(),
-        token,
-        userId,
+        ownerKey,
         aiErrorDetails,
       };
-      this.chatHistory.push(aiMsg);
-      await this.saveChatHistory();
-      logger.info(`已保存降级回复到内存/文件，token: ${token}, userId: ${userId}`);
-
-      const updatedUserMessages = this.chatHistory.filter((m) => (userId ? m.userId === userId : m.token === token));
-      await this.upsertTokenHistory(keyId, updatedUserMessages);
-      logger.info(`已更新MongoDB（降级回复），用户消息总数: ${updatedUserMessages.length}`);
+      const totalMessages = await this.appendHistoryMessage(ownerKey, aiMsg);
+      logger.info("已保存 LibreChat 降级回复", { ownerKey, messageId: aiMsg.id, totalMessages });
 
       // 发送SSE通知：消息完成（降级回复）
-      this.sendSSENotification(userId || "", token, "message_completed", {
+      this.sendSSENotification(ownerKey, "message_completed", {
         messageId: aiMsg.id,
         hasResponse: true,
         responseLength: fallback.length,
-        totalMessages: updatedUserMessages.length,
+        totalMessages,
         isFallback: true,
       });
 
       return fallback;
     }
 
-    // 组织对话上下文（带上最近若干轮同一 token 的消息）
-    const recent = this.chatHistory.filter((m) => m.token === token).slice(-20);
+    // 组织对话上下文，只读取 canonical owner 的最近消息。
+    const recent = (await this.getOwnerMessages(ownerKey)).slice(-20);
 
     const messagesPayload = [
       {
@@ -712,27 +957,21 @@ class LibreChatService {
 
         // 持久化助手回复
         const aiMsg: ChatMessage = {
-          id: (Date.now() + 1).toString(),
+          id: randomUUID(),
           message: aiText,
           role: "assistant",
           timestamp: new Date().toISOString(),
-          token,
-          userId,
+          ownerKey,
         };
-        this.chatHistory.push(aiMsg);
-        await this.saveChatHistory();
-        logger.info(`已保存AI回复到内存/文件，token: ${token}, userId: ${userId}`);
-
-        const updatedUserMessages = this.chatHistory.filter((m) => (userId ? m.userId === userId : m.token === token));
-        await this.upsertTokenHistory(keyId, updatedUserMessages);
-        logger.info(`已更新MongoDB，用户消息总数: ${updatedUserMessages.length}`);
+        const totalMessages = await this.appendHistoryMessage(ownerKey, aiMsg);
+        logger.info("已保存 LibreChat AI 回复", { ownerKey, messageId: aiMsg.id, totalMessages });
 
         // 发送SSE通知：消息完成
-        this.sendSSENotification(userId || "", token, "message_completed", {
+        this.sendSSENotification(ownerKey, "message_completed", {
           messageId: aiMsg.id,
           hasResponse: true,
           responseLength: aiText.length,
-          totalMessages: updatedUserMessages.length,
+          totalMessages,
         });
 
         return aiText;
@@ -764,28 +1003,22 @@ class LibreChatService {
     const aiErrorDetails = buildChatFailureDiagnostics("all_providers_failed", failureAttempts);
     onFailure?.(aiErrorDetails);
     const aiMsg: ChatMessage = {
-      id: (Date.now() + 1).toString(),
+      id: randomUUID(),
       message: fallback,
       role: "assistant",
       timestamp: new Date().toISOString(),
-      token,
-      userId,
+      ownerKey,
       aiErrorDetails,
     };
-    this.chatHistory.push(aiMsg);
-    await this.saveChatHistory();
-    logger.info(`已保存错误降级回复到内存/文件，token: ${token}, userId: ${userId}`);
-
-    const updatedUserMessages = this.chatHistory.filter((m) => (userId ? m.userId === userId : m.token === token));
-    await this.upsertTokenHistory(keyId, updatedUserMessages);
-    logger.info(`已更新MongoDB（错误降级），用户消息总数: ${updatedUserMessages.length}`);
+    const totalMessages = await this.appendHistoryMessage(ownerKey, aiMsg);
+    logger.info("已保存 LibreChat 错误降级回复", { ownerKey, messageId: aiMsg.id, totalMessages });
 
     // 发送SSE通知：消息完成（降级回复）
-    this.sendSSENotification(userId || "", token, "message_completed", {
+    this.sendSSENotification(ownerKey, "message_completed", {
       messageId: aiMsg.id,
       hasResponse: true,
       responseLength: fallback.length,
-      totalMessages: updatedUserMessages.length,
+      totalMessages,
       isFallback: true,
     });
 
@@ -796,54 +1029,22 @@ class LibreChatService {
    * 获取聊天历史
    */
   public async getHistory(
-    token: string,
+    ownerKey: string,
     options: PaginationOptions = { page: 1, limit: 20 },
-    userId?: string,
   ): Promise<ChatHistory> {
-    // 优先从 MongoDB 获取
-    let userMessages: ChatMessage[] | null = null;
-    if (mongoose.connection.readyState === 1) {
-      try {
-        const keyId = sanitizeId(userId || token);
-        logger.info(`从 MongoDB 获取历史记录，用户ID: ${keyId}`);
-        const doc = await (mongoose.models.LibreChatHistory as any)
-          .findOne({ userId: keyId, deleted: { $ne: true } })
-          .lean();
-        if (doc && Array.isArray(doc.messages)) {
-          userMessages = doc.messages as ChatMessage[];
-          logger.info(`从 MongoDB 获取到 ${userMessages.length} 条消息`);
-        } else {
-          logger.info("MongoDB 中未找到历史记录");
-        }
-      } catch (err) {
-        logger.error("从 MongoDB 获取聊天历史失败，回退到内存/文件:", err);
-      }
-    } else {
-      logger.warn("MongoDB 未连接，使用内存/文件存储");
-    }
-
-    if (!userMessages) {
-      // 回退到内存/文件存储
-      const _safeUserId = sanitizeId(userId);
-      const _safeToken = sanitizeId(token);
-      userMessages = this.chatHistory.filter((msg) => {
-        if (userId) {
-          return msg.userId === userId; // 使用原始userId进行比较
-        } else {
-          return msg.token === token; // 使用原始token进行比较
-        }
-      });
-      logger.info(`从内存/文件获取到 ${userMessages.length} 条消息，token: ${token}, userId: ${userId}`);
-    }
-
-    const total = userMessages.length;
+    const ownerMessages = await this.getOwnerMessages(ownerKey);
+    const total = ownerMessages.length;
     const startIndex = (options.page - 1) * options.limit;
     const endIndex = startIndex + options.limit;
-    const messages = userMessages.slice(startIndex, endIndex);
+    const messages = ownerMessages.slice(startIndex, endIndex);
 
-    logger.info(
-      `返回历史记录: 总数 ${total}, 当前页 ${options.page}, 每页 ${options.limit}, 返回 ${messages.length} 条`,
-    );
+    logger.info("返回 LibreChat 历史记录", {
+      ownerKey,
+      total,
+      page: options.page,
+      limit: options.limit,
+      returned: messages.length,
+    });
     return {
       messages,
       total,
@@ -853,201 +1054,51 @@ class LibreChatService {
   /**
    * 清除聊天历史
    */
-  public async clearHistory(token: string, userId?: string): Promise<void> {
-    const _safeUserId = sanitizeId(userId);
-    const _safeToken = sanitizeId(token);
-
-    // 从内存中删除该用户的消息
-    const beforeCount = this.chatHistory.length;
-    this.chatHistory = this.chatHistory.filter((msg) => {
-      if (userId) {
-        return msg.userId !== userId; // 使用原始userId进行比较
-      } else {
-        return msg.token !== token; // 使用原始token进行比较
-      }
-    });
-    const removedCount = beforeCount - this.chatHistory.length;
-
-    logger.info(`清除历史记录: 用户ID=${userId || token}, 从内存中删除了 ${removedCount} 条消息`);
-
-    // 保存更新后的内存数据到文件
-    await this.saveChatHistory();
-
-    // MongoDB 中软删除该用户的记录
-    if (mongoose.connection.readyState === 1) {
-      try {
-        const keyId = sanitizeId(userId || token);
-        logger.info(`在 MongoDB 中软删除用户记录: ${keyId}`);
-
-        // 使用 findOneAndUpdate 确保原子操作，如果记录不存在则创建
-        const result = await (mongoose.models.LibreChatHistory as any).findOneAndUpdate(
-          { userId: keyId },
-          {
-            $set: {
-              deleted: true,
-              deletedAt: new Date(),
-              messages: [], // 清空消息数组
-              updatedAt: new Date(),
-            },
-          },
-          {
-            upsert: true,
-            setDefaultsOnInsert: true,
-            returnDocument: "after", // 返回更新后的文档
-          },
-        );
-
-        logger.info(`MongoDB 软删除成功: ${result ? "记录已更新" : "记录已创建"}`);
-      } catch (err) {
-        logger.error("MongoDB 软删除聊天历史失败:", err);
-        // 即使 MongoDB 操作失败，内存和文件中的数据已经被清除
-      }
-    } else {
-      logger.warn("MongoDB 未连接，仅清除内存和文件中的历史记录");
-    }
+  public async clearHistory(ownerKey: string): Promise<void> {
+    assertConversationOwnerKey(ownerKey);
+    await this.clearOwnerMessages(ownerKey);
+    logger.info("已清除 LibreChat owner 历史", { ownerKey });
   }
 
   /**
-   * 按消息ID删除（仅删除属于该 token 的消息）
+   * 按消息ID删除（仅删除属于 canonical owner 的消息）
    */
-  public async deleteMessage(token: string, id: string, userId?: string): Promise<{ removed: number }> {
-    const before = this.chatHistory.length;
-    const safeUserId = sanitizeId(userId);
-    const safeToken = sanitizeId(token);
-    this.chatHistory = this.chatHistory.filter(
-      (m) => !((safeUserId ? m.userId === safeUserId : m.token === safeToken) && m.id === id),
-    );
-    const removed = before - this.chatHistory.length;
-    if (removed > 0) {
-      await this.saveChatHistory();
-      const keyId = sanitizeId(userId || token);
-      // upsert 时自动复活软删除
-      await (mongoose.models.LibreChatHistory as any)
-        .findOneAndUpdate(
-          { userId: keyId },
-          {
-            $set: {
-              messages: this.chatHistory.filter((m) => (safeUserId ? m.userId === safeUserId : m.token === safeToken)),
-              updatedAt: new Date(),
-              deleted: false,
-              deletedAt: null,
-            },
-          },
-          { upsert: true, setDefaultsOnInsert: true },
-        )
-        .catch(() => undefined);
-      await this.upsertTokenHistory(
-        keyId,
-        this.chatHistory.filter((m) => (safeUserId ? m.userId === safeUserId : m.token === safeToken)),
-      );
-    }
+  public async deleteMessage(ownerKey: string, id: string): Promise<{ removed: number }> {
+    const removed = (await this.getOwnerMessages(ownerKey)).some((message) => message.id === id) ? 1 : 0;
+    if (removed) await this.removeHistoryMessages(ownerKey, [id]);
     return { removed };
   }
 
   /**
-   * 批量按消息ID删除（仅删除属于该 token 的消息）
+   * 批量按消息ID删除（仅删除属于 canonical owner 的消息）
    */
-  public async deleteMessages(token: string, ids: string[], userId?: string): Promise<{ removed: number }> {
+  public async deleteMessages(ownerKey: string, ids: string[]): Promise<{ removed: number }> {
     const idSet = new Set(ids || []);
-    const before = this.chatHistory.length;
-    this.chatHistory = this.chatHistory.filter(
-      (m) => !((userId ? m.userId === userId : m.token === token) && idSet.has(m.id)),
-    );
-    const removed = before - this.chatHistory.length;
-    if (removed > 0) {
-      await this.saveChatHistory();
-      const keyId = userId || token;
-      await (mongoose.models.LibreChatHistory as any)
-        .findOneAndUpdate(
-          { userId: sanitizeId(keyId) },
-          {
-            $set: {
-              messages: this.chatHistory.filter((m) => (userId ? m.userId === userId : m.token === token)),
-              updatedAt: new Date(),
-              deleted: false,
-              deletedAt: null,
-            },
-          },
-          { upsert: true, setDefaultsOnInsert: true },
-        )
-        .catch(() => undefined);
-      await this.upsertTokenHistory(
-        keyId,
-        this.chatHistory.filter((m) => (userId ? m.userId === userId : m.token === token)),
-      );
-    }
+    const removed = (await this.getOwnerMessages(ownerKey)).filter((message) => idSet.has(message.id)).length;
+    if (removed > 0) await this.removeHistoryMessages(ownerKey, [...idSet]);
     return { removed };
   }
 
   /**
-   * 修改单条消息内容（仅允许修改属于该 token 的消息）
+   * 修改单条消息内容（仅允许修改属于 canonical owner 的消息）
    */
-  public async updateMessage(
-    token: string,
-    id: string,
-    content: string,
-    userId?: string,
-  ): Promise<{ updated: number }> {
-    let updated = 0;
-    this.chatHistory = this.chatHistory.map((m) => {
-      if ((userId ? m.userId === userId : m.token === token) && m.id === id) {
-        updated = 1;
-        return { ...m, message: content };
-      }
-      return m;
-    });
-    if (updated) {
-      await this.saveChatHistory();
-      const keyId = userId || token;
-      await (mongoose.models.LibreChatHistory as any)
-        .findOneAndUpdate(
-          { userId: sanitizeId(keyId) },
-          {
-            $set: {
-              messages: this.chatHistory.filter((m) => (userId ? m.userId === userId : m.token === token)),
-              updatedAt: new Date(),
-              deleted: false,
-              deletedAt: null,
-            },
-          },
-          { upsert: true, setDefaultsOnInsert: true },
-        )
-        .catch(() => undefined);
-      await this.upsertTokenHistory(
-        keyId,
-        this.chatHistory.filter((m) => (userId ? m.userId === userId : m.token === token)),
-      );
-    }
+  public async updateMessage(ownerKey: string, id: string, content: string): Promise<{ updated: number }> {
+    const updated = await this.updateHistoryMessageContent(ownerKey, id, content);
     return { updated };
   }
 
   /**
    * 携带上下文重试指定的助手消息：用该消息之前的上下文重新向提供者请求，并用新内容覆盖原助手消息
    */
-  public async retryMessage(
-    token: string,
-    messageId: string,
-    userId?: string,
-  ): Promise<string> {
-    const safeUserId = sanitizeId(userId);
-    const safeToken = sanitizeId(token);
-    const belongsToConversation = (message: ChatMessage) => messageBelongsToConversation(message, token, userId);
-
-    // 取该用户的所有消息
-    const userMessages = this.chatHistory.filter(belongsToConversation);
+  public async retryMessage(ownerKey: string, messageId: string): Promise<string> {
+    assertConversationOwnerKey(ownerKey);
+    const userMessages = await this.getOwnerMessages(ownerKey);
     // 定位要重试的助手消息
     const targetIdxInUser = userMessages.findIndex((m) => m.id === messageId && m.role === "assistant");
     if (targetIdxInUser === -1) {
       return "";
     }
-    // 计算其在全局 chatHistory 中的索引
-    const globalIndex = this.chatHistory.findIndex(
-      (m) =>
-        belongsToConversation(m) && m.id === messageId && m.role === "assistant",
-    );
-    if (globalIndex === -1) {
-      return "";
-    }
+    const targetMessage = userMessages[targetIdxInUser];
     // 构造上下文：取该消息之前此用户的消息
     const context = userMessages.slice(0, targetIdxInUser);
     // 若最后一条用户消息是模型身份询问，按规则保持沉默
@@ -1123,23 +1174,17 @@ class LibreChatService {
 
         // 覆盖原助手消息
         const nowIso = new Date().toISOString();
-        const previousMessage = { ...this.chatHistory[globalIndex] };
+        const previousMessage = { ...targetMessage };
         delete previousMessage.aiErrorDetails;
         const updatedMsg: ChatMessage = {
           ...previousMessage,
           message: aiText,
           timestamp: nowIso,
         };
-        this.chatHistory[globalIndex] = updatedMsg;
-        await this.saveChatHistory();
-        const keyId = safeUserId || safeToken;
-        await this.upsertTokenHistory(
-          keyId,
-          this.chatHistory.filter(belongsToConversation),
-        );
+        await this.replaceHistoryMessage(ownerKey, updatedMsg);
 
         // 发送SSE通知：重试完成
-        this.sendSSENotification(userId || "", token, "retry_completed", {
+        this.sendSSENotification(ownerKey, "retry_completed", {
           messageId: updatedMsg.id,
           hasResponse: true,
           responseLength: aiText.length,
@@ -1174,22 +1219,17 @@ class LibreChatService {
     const fallback = "对话服务暂不可用，请稍后重试。";
     // 覆盖原助手消息为降级提示
     const nowIso = new Date().toISOString();
-    this.chatHistory[globalIndex] = {
-      ...this.chatHistory[globalIndex],
+    const updatedMsg: ChatMessage = {
+      ...targetMessage,
       message: fallback,
       timestamp: nowIso,
       aiErrorDetails,
     };
-    await this.saveChatHistory();
-    const keyId = safeUserId || safeToken;
-    await this.upsertTokenHistory(
-      keyId,
-      this.chatHistory.filter(belongsToConversation),
-    );
+    await this.replaceHistoryMessage(ownerKey, updatedMsg);
 
     // 发送SSE通知：重试完成（降级回复）
-    this.sendSSENotification(userId || "", token, "retry_completed", {
-      messageId: this.chatHistory[globalIndex].id,
+    this.sendSSENotification(ownerKey, "retry_completed", {
+      messageId: updatedMsg.id,
       hasResponse: true,
       responseLength: fallback.length,
       isFallback: true,
@@ -1208,18 +1248,19 @@ class LibreChatService {
     if (mongoose.connection.readyState !== 1) return { users: [], total: 0 };
 
     // 安全处理搜索关键词，防止 NoSQL 注入
-    const sanitizedKeyword = sanitizeId(keyword.trim());
+    const sanitizedKeyword = keyword.trim().slice(0, 128);
     const q: any = {};
 
     if (sanitizedKeyword) {
       // 使用安全的字符串匹配而不是正则表达式，防止 ReDoS 攻击
-      q.userId = { $regex: `^${escapeRegex(sanitizedKeyword)}`, $options: "i" };
+      const prefix = { $regex: `^${escapeRegex(sanitizedKeyword)}`, $options: "i" };
+      q.$or = [{ ownerKey: prefix }, { userId: prefix }];
     }
 
     if (!includeDeleted) q.deleted = { $ne: true };
     const total = await (mongoose.models.LibreChatHistory as any).countDocuments(q);
     const docs = await (mongoose.models.LibreChatHistory as any)
-      .find(q, { userId: 1, messages: 1, updatedAt: 1, deleted: 1, deletedAt: 1 })
+      .find(q, { ownerKey: 1, userId: 1, messages: 1, updatedAt: 1, deleted: 1, deletedAt: 1 })
       .sort({ updatedAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
@@ -1233,7 +1274,7 @@ class LibreChatService {
         .sort();
       const firstTs = times[0] || null;
       const lastTs = times[times.length - 1] || null;
-      return { userId: d.userId, total: totalMsgs, updatedAt: d.updatedAt, firstTs, lastTs };
+      return { userId: d.ownerKey || d.userId, total: totalMsgs, updatedAt: d.updatedAt, firstTs, lastTs };
     });
     return { users, total };
   }
@@ -1241,11 +1282,19 @@ class LibreChatService {
   // 仅管理员使用：获取指定用户的历史（分页）
   public async adminGetUserHistory(userId: string, page = 1, limit = 20): Promise<ChatHistory> {
     if (mongoose.connection.readyState !== 1) return { messages: [], total: 0 };
-    const safeUserId = sanitizeId(userId);
+    const safeUserId = normalizeOwnerReference(userId);
+    if (!safeUserId) return { messages: [], total: 0 };
+    const ownerFilter = isConversationOwnerKey(safeUserId) ? { ownerKey: safeUserId } : { userId: safeUserId };
     const doc = await (mongoose.models.LibreChatHistory as any)
-      .findOne({ userId: safeUserId, deleted: { $ne: true } })
+      .findOne({ ...ownerFilter, deleted: { $ne: true } })
       .lean();
-    const all: ChatMessage[] = doc?.messages || [];
+    const all = normalizeChatHistory(Array.isArray(doc?.messages) ? doc.messages : []).map((message) => {
+      const view = { ...message };
+      delete view.ownerKey;
+      delete view.token;
+      delete view.userId;
+      return view;
+    });
     const total = all.length;
     const start = (page - 1) * limit;
     const end = start + limit;
@@ -1254,41 +1303,30 @@ class LibreChatService {
 
   // 仅管理员使用：删除指定用户全部历史（Mongo 不可用时回退到内存存储）
   public async adminDeleteUser(userId: string): Promise<{ deleted: number }> {
-    const safeUserId = sanitizeId(userId);
+    const safeUserId = normalizeOwnerReference(userId);
+    if (!safeUserId) return { deleted: 0 };
+    const ownerFilter = isConversationOwnerKey(safeUserId) ? { ownerKey: safeUserId } : { userId: safeUserId };
     let deleted = 0;
 
     // 优先尝试 MongoDB
     try {
       if (mongoose.connection.readyState === 1) {
-        // 若不存在文档，创建一个软删除占位文档，确保管理端可见并可恢复
-        const existing = await (mongoose.models.LibreChatHistory as any).findOne({ userId: safeUserId }).lean();
-        if (!existing) {
-          await (mongoose.models.LibreChatHistory as any).create({
-            userId: safeUserId,
-            messages: [],
-            deleted: true,
-            deletedAt: new Date(),
-            updatedAt: new Date(),
-          });
-          deleted = 1;
-        } else {
-          const ret = await (mongoose.models.LibreChatHistory as any).updateMany(
-            { userId: safeUserId },
-            { $set: { deleted: true, deletedAt: new Date() } },
-            { upsert: true },
-          );
-          deleted = (ret?.modifiedCount || 0) as number;
-        }
+        await ChatHistoryModel.findOneAndUpdate(
+          ownerFilter,
+          { $set: { messages: [], deleted: true, deletedAt: new Date(), updatedAt: new Date() } },
+          { upsert: true, setDefaultsOnInsert: true },
+        );
+        deleted = 1;
       }
     } catch (e) {
       console.warn("[LibreChat] adminDeleteUser mongo delete failed, fallback to memory", e);
     }
 
-    // 同步内存/文件（按 userId 清理）
+    // 同步内存/文件（按 canonical owner 清理）
     const before = this.chatHistory.length;
-    this.chatHistory = this.chatHistory.filter((m) => m.userId !== safeUserId);
+    this.chatHistory = this.chatHistory.filter((message) => message.ownerKey !== safeUserId);
     if (this.chatHistory.length !== before) {
-      await this.saveChatHistory();
+      if (mongoose.connection.readyState !== 1 || deleted === 0) await this.saveChatHistory();
       // 如果 Mongo 未删到文档，则至少按内存处理记作 1
       if (deleted === 0) deleted = 1;
     }
@@ -1300,55 +1338,18 @@ class LibreChatService {
   public async adminBatchDeleteUsers(
     userIds: string[],
   ): Promise<{ deleted: number; details: { userId: string; deleted: number }[] }> {
-    const safeUserIds = userIds.map((id) => sanitizeId(id));
+    const safeUserIds = [...new Set(userIds.map((id) => normalizeOwnerReference(id)).filter(Boolean))];
     const details: { userId: string; deleted: number }[] = [];
     let totalDeleted = 0;
 
-    // 优先尝试 MongoDB 删除
-    if (mongoose.connection.readyState === 1) {
-      for (const userId of safeUserIds) {
-        try {
-          let deletedCount = 0;
-          const existing = await (mongoose.models.LibreChatHistory as any).findOne({ userId }).lean();
-          if (!existing) {
-            await (mongoose.models.LibreChatHistory as any).create({
-              userId,
-              messages: [],
-              deleted: true,
-              deletedAt: new Date(),
-              updatedAt: new Date(),
-            });
-            deletedCount = 1;
-          } else {
-            const ret = await (mongoose.models.LibreChatHistory as any).updateMany(
-              { userId },
-              { $set: { deleted: true, deletedAt: new Date() } },
-              { upsert: true },
-            );
-            deletedCount = (ret?.modifiedCount || 0) as number;
-          }
-          details.push({ userId, deleted: deletedCount });
-          totalDeleted += deletedCount;
-        } catch (error) {
-          console.error("删除用户失败", { userId, error });
-          details.push({ userId, deleted: 0 });
-        }
-      }
-    }
-
-    // 同步内存/文件（按 userId 清理）
-    const beforeLen = this.chatHistory.length;
-    this.chatHistory = this.chatHistory.filter((m) => m.userId !== undefined && !safeUserIds.includes(m.userId));
-    const afterLen = this.chatHistory.length;
-    if (afterLen !== beforeLen) {
-      await this.saveChatHistory();
-      const memoryDeleted = beforeLen - afterLen;
-      // 如果 Mongo 没有删到，使用内存删除数量兜底
-      if (totalDeleted < memoryDeleted) totalDeleted = memoryDeleted;
-      for (const uid of safeUserIds) {
-        if (!details.find((d) => d.userId === uid)) {
-          details.push({ userId: uid, deleted: 1 });
-        }
+    for (const ownerKey of safeUserIds) {
+      try {
+        const result = await this.adminDeleteUser(ownerKey);
+        details.push({ userId: ownerKey, deleted: result.deleted });
+        totalDeleted += result.deleted;
+      } catch (error) {
+        logger.error("批量删除 LibreChat owner 失败", { ownerKey, error });
+        details.push({ userId: ownerKey, deleted: 0 });
       }
     }
 
@@ -1365,6 +1366,7 @@ class LibreChatService {
       let deletedCount = 0;
       let dbTotalBefore: number | null = null;
       let dbRemaining: number | null = null;
+      let databaseDeleteSucceeded = false;
 
       if (mongoConnected) {
         try {
@@ -1376,6 +1378,7 @@ class LibreChatService {
             { $set: { deleted: true, deletedAt: new Date() } },
           );
           deletedCount = typeof result?.modifiedCount === "number" ? result.modifiedCount : 0;
+          databaseDeleteSucceeded = true;
 
           dbRemaining = await (mongoose.models.LibreChatHistory as any).countDocuments({ deleted: { $ne: true } });
           logger.info("数据库删除结果", { deletedCount, remaining: dbRemaining });
@@ -1390,7 +1393,7 @@ class LibreChatService {
       logger.info("内存记录数（删除前）", { memoryBefore });
       if (memoryBefore > 0) {
         this.chatHistory = [];
-        await this.saveChatHistory();
+        if (!databaseDeleteSucceeded) await this.saveChatHistory();
         const memoryAfter = this.chatHistory.length;
         logger.info("内存与本地缓存已清空", { memoryAfter });
       } else {
@@ -1427,29 +1430,14 @@ class LibreChatService {
   }
 
   /**
-   * 导出指定 token 的全部历史为纯文本
+   * 导出指定 canonical owner 的全部历史为纯文本
    */
-  public async exportHistoryText(token: string, userId?: string): Promise<{ content: string; count: number }> {
-    // 优先从 MongoDB 读取
-    let userMessages: ChatMessage[] = [];
-    if (mongoose.connection.readyState === 1) {
-      const keyId = sanitizeId(userId || token);
-      const doc = await (mongoose.models.LibreChatHistory as any)
-        .findOne({ userId: keyId, deleted: { $ne: true } })
-        .lean();
-      if (doc && Array.isArray(doc.messages)) userMessages = doc.messages as ChatMessage[];
-    }
-    if (userMessages.length === 0) {
-      const safeUserId = sanitizeId(userId);
-      const safeToken = sanitizeId(token);
-      userMessages = this.chatHistory.filter((msg) =>
-        safeUserId ? msg.userId === safeUserId : msg.token === safeToken,
-      );
-    }
-    const count = userMessages.length;
+  public async exportHistoryText(ownerKey: string): Promise<{ content: string; count: number }> {
+    const ownerMessages = await this.getOwnerMessages(ownerKey);
+    const count = ownerMessages.length;
     const now = new Date();
-    const header = `LibreChat 历史导出\n导出时间：${now.toLocaleString()}\nToken：${token}\n总条数：${count}\n\n`;
-    const lines = userMessages.map((m, idx) => {
+    const header = `LibreChat 历史导出\n导出时间：${now.toLocaleString()}\n总条数：${count}\n\n`;
+    const lines = ownerMessages.map((m, idx) => {
       // 历史中未保存角色信息，保留通用格式
       const ts = m.timestamp ? ` @ ${m.timestamp}` : "";
       const content = sanitizeAssistantText(m.message || "");

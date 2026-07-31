@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import logger from "../utils/logger";
 import { getNonceStore } from "../services/nonceStore";
+import { RuntimeConfigService } from "../services/runtimeConfigService";
+import type { NexaiSigningRuntimeConfig } from "../config/runtimeConfigDefaults";
 
 type SigningMode = "off" | "soft" | "enforce";
 
@@ -30,21 +32,12 @@ const SIG_VERSION = "2";
 const DEFAULT_MAX_DRIFT_MS = 5 * 60 * 1000;
 const MIN_NONCE_LENGTH = 16;
 
-function getSigningMode(): SigningMode {
-  const raw = (process.env.NEXAI_REQUEST_SIGNING || "soft").trim().toLowerCase();
-  if (raw === "off" || raw === "enforce" || raw === "soft") return raw;
-  return "soft";
+function getSigningConfig(): NexaiSigningRuntimeConfig {
+  return RuntimeConfigService.getCachedConfig().nexaiSigning;
 }
 
-function getMaxDriftMs(): number {
-  const n = Number(process.env.NEXAI_SIG_MAX_DRIFT_MS || DEFAULT_MAX_DRIFT_MS);
-  return Number.isFinite(n) && n > 0 ? n : DEFAULT_MAX_DRIFT_MS;
-}
-
-function getAppSecrets(): string[] {
-  return [process.env.NEXAI_APP_SIGN_SECRET, process.env.NEXAI_APP_SIGN_SECRET_PREV]
-    .map((v) => (typeof v === "string" ? v.trim() : ""))
-    .filter(Boolean);
+function getAppSecrets(config: NexaiSigningRuntimeConfig): string[] {
+  return [config.appSignSecret, config.appSignSecretPrev].map((value) => value.trim()).filter(Boolean);
 }
 
 function getBearerToken(req: Request): string | null {
@@ -162,7 +155,9 @@ export function sendNexaiError(
 
 const nonceStore = getNonceStore({
   namespace: "nexai-sig-v2",
-  ttlMs: DEFAULT_MAX_DRIFT_MS,
+  // Runtime config permits up to 24 hours. Keep consumed markers at least that long so
+  // increasing maxDriftMs cannot reopen an already-used nonce inside the accepted window.
+  ttlMs: 24 * 60 * 60 * 1000,
   redisPrefix: "nexai-sig-nonce:",
 });
 
@@ -172,7 +167,8 @@ const nonceStore = getNonceStore({
  * C: HMAC key = NEXAI_APP_SIGN_SECRET for gated anonymous routes.
  */
 export function nexaiRequestSignature(req: Request, res: Response, next: NextFunction): void {
-  const mode = getSigningMode();
+  const signingConfig = getSigningConfig();
+  const mode = signingConfig.mode;
   const path = getSignaturePath(req);
 
   if (mode === "off" || isSignatureExempt(req.method, path)) {
@@ -218,7 +214,7 @@ export function nexaiRequestSignature(req: Request, res: Response, next: NextFun
   // Accept seconds or milliseconds; normalize to ms for drift.
   const tsMs = tsNum < 1e12 ? tsNum * 1000 : tsNum;
   const drift = Math.abs(Date.now() - tsMs);
-  const maxDrift = getMaxDriftMs();
+  const maxDrift = signingConfig.maxDriftMs || DEFAULT_MAX_DRIFT_MS;
   if (drift > maxDrift) {
     return fail(403, "NEXAI_SIG_EXPIRED", "请求已过期，请校准系统时间后重试", {
       driftMs: drift,
@@ -269,7 +265,7 @@ export function nexaiRequestSignature(req: Request, res: Response, next: NextFun
       }
     }
     if (allowsAppSecret(path)) {
-      for (const secret of getAppSecrets()) {
+      for (const secret of getAppSecrets(signingConfig)) {
         keys.push({ key: secret, keyType: "app" });
       }
     }

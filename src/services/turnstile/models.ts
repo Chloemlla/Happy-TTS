@@ -60,6 +60,11 @@ export async function getTurnstileKey(keyName: TurnstileKeyName): Promise<string
     logger.error("获取Turnstile密钥失败", { keyName, error: error instanceof Error ? error.message : String(error) });
   }
 
+  if (!value) {
+    const envValue = process.env[keyName]?.trim();
+    value = envValue && envValue.length > 0 ? envValue : null;
+  }
+
   turnstileKeyCache.set(keyName, {
     value,
     expiresAt: now + TURNSTILE_KEY_CACHE_TTL_MS,

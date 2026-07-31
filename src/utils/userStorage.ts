@@ -1,4 +1,5 @@
 import logger from "./logger";
+import { emitUserAuthorityChanged } from "./userAuthorityEvents";
 import { userBootstrapService } from "./userBootstrapService";
 import { userRepairService } from "./userRepairService";
 import { userRepository } from "./userRepository";
@@ -95,11 +96,22 @@ export class UserStorage {
   }
 
   public static async updateUser(userId: string, updates: Partial<User>): Promise<User | null> {
-    return userRepository.updateUser(userId, updates);
+    const updated = await userRepository.updateUser(userId, updates);
+    const authorityChanged = ["role", "accountStatus", "disabled"].some((field) =>
+      Object.prototype.hasOwnProperty.call(updates, field),
+    );
+    if (updated && authorityChanged) {
+      emitUserAuthorityChanged(userId, "updated");
+    }
+    return updated;
   }
 
   public static async deleteUser(userId: string): Promise<boolean> {
-    return userRepository.deleteUser(userId);
+    const deleted = await userRepository.deleteUser(userId);
+    if (deleted) {
+      emitUserAuthorityChanged(userId, "deleted");
+    }
+    return deleted;
   }
 
   public static async getRemainingUsage(userId: string): Promise<number> {

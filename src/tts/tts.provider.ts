@@ -5,20 +5,43 @@ import type { TtsProvider, TtsProviderRequest, TtsProviderResponse } from "./tts
 
 const OPENAI_TIMEOUT_MS = 45_000;
 
+interface OpenAiTtsProviderOptions {
+  apiKey?: string;
+  baseUrl?: string;
+}
+
 export class OpenAiTtsProvider implements TtsProvider {
   public readonly providerId = "openai";
-  private readonly client: OpenAI;
+  private client: OpenAI | null = null;
 
-  constructor() {
+  constructor(private readonly options: OpenAiTtsProviderOptions = {}) {}
+
+  private getClient(): OpenAI {
+    if (this.client) {
+      return this.client;
+    }
+
+    const apiKey = (this.options.apiKey ?? config.openaiApiKey ?? "").trim();
+    if (!apiKey) {
+      throw new TtsGenerationError(
+        "语音服务尚未配置，请联系管理员设置 TTS 提供方密钥",
+        503,
+        "TTS_PROVIDER_NOT_CONFIGURED",
+        false,
+      );
+    }
+
+    const baseUrl = (this.options.baseUrl ?? config.openaiBaseUrl ?? "").trim();
     this.client = new OpenAI({
-      apiKey: config.openaiApiKey,
-      ...(config.openaiBaseUrl ? { baseURL: config.openaiBaseUrl } : {}),
+      apiKey,
+      ...(baseUrl ? { baseURL: baseUrl } : {}),
     });
+    return this.client;
   }
 
   private async createSpeechWithTimeout(request: TtsProviderRequest) {
     try {
-      return await this.client.audio.speech.create(
+      return await this.getClient().audio.speech.create(
         {
           model: request.model || config.openaiModel,
           voice: request.voice || config.openaiVoice,

@@ -3,14 +3,8 @@ name: Node and Rust Verification
 on:
   push:
     branches: [main, develop]
-    paths-ignore:
-      - .github/workflows/**
-      - "!.github/workflows/tsc.yml"
   pull_request:
     branches: [main, develop]
-    paths-ignore:
-      - .github/workflows/**
-      - "!.github/workflows/tsc.yml"
   workflow_dispatch:
 
 permissions:
@@ -38,8 +32,8 @@ jobs:
           version: 11.11.0
 
       - name: Install dependencies
-        # 仅做 TypeScript 编译检查，跳过构建脚本，避免 pnpm v10 在 CI 中因
-        # 未批准的本地构建（bcrypt / @scarf/scarf / unrs-resolver 等）退出码 1
+        # 跳过依赖安装脚本，避免未批准的本地构建
+        # （bcrypt / @scarf/scarf / unrs-resolver 等）导致安装阶段退出。
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Audit policy static checks
@@ -48,8 +42,33 @@ jobs:
       - name: Run build
         run: pnpm run build
 
-      - name: Run Jest tests
-        run: pnpm run test --config jest.ci.config.js --ci --runInBand
+      - name: Run backend Jest tests with coverage
+        id: backend-tests
+        continue-on-error: true
+        run: pnpm run test:ci
+
+      - name: Run frontend Vitest tests with coverage
+        id: frontend-tests
+        continue-on-error: true
+        run: pnpm --dir frontend run test:ci
+
+      - name: Upload backend coverage
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: backend-coverage-${{ github.run_number }}-${{ github.run_attempt }}
+          path: coverage/
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Upload frontend coverage
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: frontend-coverage-${{ github.run_number }}-${{ github.run_attempt }}
+          path: frontend/coverage/
+          if-no-files-found: warn
+          retention-days: 7
 
       - name: Upload build artifacts
         if: always()
@@ -72,6 +91,19 @@ jobs:
             echo "Consider replacing hyphens with slashes in route paths"
           else
             echo "No routes with hyphens found"
+          fi
+
+      - name: Enforce Node test results
+        if: always()
+        shell: bash
+        run: |
+          backend_outcome="${{ steps.backend-tests.outcome }}"
+          frontend_outcome="${{ steps.frontend-tests.outcome }}"
+
+          if [ "$backend_outcome" != "success" ] || [ "$frontend_outcome" != "success" ]; then
+            echo "Backend tests: $backend_outcome"
+            echo "Frontend tests: $frontend_outcome"
+            exit 1
           fi
 
   rust-verify:

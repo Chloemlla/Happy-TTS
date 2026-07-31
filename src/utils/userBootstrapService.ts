@@ -76,6 +76,14 @@ export const userBootstrapService = {
         };
       }
 
+      if (!config.adminPassword) {
+        logger.warn("[Bootstrap] ADMIN_PASSWORD is not configured; default administrator creation is disabled");
+        return {
+          initialized: true,
+          message: "MongoDB 初始化完成；未配置 ADMIN_PASSWORD，已跳过默认管理员账户创建",
+        };
+      }
+
       const admin = buildDefaultAdmin();
       await mongoUserStorageProvider.createUser(admin);
       printAdminCreated(admin);

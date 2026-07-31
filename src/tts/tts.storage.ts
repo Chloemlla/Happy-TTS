@@ -1,4 +1,5 @@
 import { mongoose } from "../services/mongoService";
+import type { TtsProviderExecutionSnapshot } from "../config/ttsProviderConfig";
 import type { TtsJobStore } from "./tts.ports";
 
 export type TtsJobStatus = "queued" | "processing" | "completed" | "failed";
@@ -64,6 +65,7 @@ export interface TtsJobRequestPayload {
   voice: string;
   outputFormat: string;
   speed: number;
+  providerExecution?: TtsProviderExecutionSnapshot;
 }
 
 export interface TtsJobRecord {
@@ -99,6 +101,14 @@ const TtsJobSchema = new mongoose.Schema<TtsJobRecord>(
       voice: { type: String, required: true },
       outputFormat: { type: String, required: true },
       speed: { type: Number, required: true },
+      providerExecution: {
+        providerId: { type: String, enum: ["openai", "fish"] },
+        model: { type: String },
+        voice: { type: String },
+        referenceId: { type: String },
+        baseUrl: { type: String },
+        cacheIdentity: { type: String },
+      },
     },
     userId: { type: String, index: true },
     isAdmin: { type: Boolean },

@@ -33,11 +33,12 @@ function timingSafeStringEqual(candidate: string, expected: string): boolean {
 }
 
 export function isServerStatusPasswordValid(candidate: unknown): boolean {
-  if (typeof candidate !== "string") {
+  const configuredPassword = config.serverStatusPassword?.trim();
+  if (typeof candidate !== "string" || !candidate || !configuredPassword) {
     return false;
   }
 
-  return timingSafeStringEqual(candidate, config.serverStatusPassword);
+  return timingSafeStringEqual(candidate, configuredPassword);
 }
 
 export function getServerStatusSnapshot(): ServerStatusSnapshot {

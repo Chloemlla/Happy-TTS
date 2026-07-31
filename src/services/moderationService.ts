@@ -1,6 +1,7 @@
 import logger from "../utils/logger";
 import type { User } from "../utils/userStorage";
 import { libreChatService } from "./libreChatService";
+import { deriveUserOwnerKey } from "./librechat/history";
 import { mongoose } from "./mongoService";
 import * as userService from "./userService";
 
@@ -84,9 +85,8 @@ export class ModerationService {
 只需要回复 "true" (违规) 或 "false" (不违规)，不要回复任何其他内容。`;
 
       const response = await libreChatService.sendMessage(
-        "moderation_check",
+        deriveUserOwnerKey("system:moderation:check"),
         prompt,
-        "system_moderator",
       );
 
       isViolated = response.toLowerCase().includes("true");
@@ -123,9 +123,8 @@ export class ModerationService {
 请用中文直接回复原因，字数控制在 50 字以内。`;
 
       const response = await libreChatService.sendMessage(
-        "moderation_reason",
+        deriveUserOwnerKey("system:moderation:reason"),
         prompt,
-        "system_moderator",
       );
 
       return response || "内容违反社区准则。";

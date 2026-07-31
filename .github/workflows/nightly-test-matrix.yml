@@ -38,19 +38,24 @@ jobs:
           done
           exit 1
 
-      - name: Run nightly test matrix
+      - name: Run nightly MongoDB core contracts
         env:
           NODE_ENV: test
           MONGO_URI: mongodb://127.0.0.1:27017/synapse_nightly
           JWT_SECRET: nightly-test-jwt-secret
           ADMIN_PASSWORD: nightly-admin-password
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_BASE_URL: ${{ secrets.OPENAI_BASE_URL }}
-          IPFS_API_URL: ${{ secrets.IPFS_API_URL }}
-          IPFS_GATEWAY_URL: ${{ secrets.IPFS_GATEWAY_URL }}
-          YIYAN_API_KEY: ${{ secrets.YIYAN_API_KEY }}
-          IP_QUERY_API_KEY: ${{ secrets.IP_QUERY_API_KEY }}
-        run: pnpm run test:nightly
+          TEST_ADMIN_PASSWORD: nightly-admin-password
+        run: pnpm run test:nightly:core
+
+      - name: Run external API matrix
+        env:
+          NODE_ENV: test
+          MONGO_URI: mongodb://127.0.0.1:27017/synapse_nightly
+          JWT_SECRET: nightly-test-jwt-secret
+          ADMIN_PASSWORD: nightly-admin-password
+          TEST_ADMIN_PASSWORD: nightly-admin-password
+          IP_QUERY_KEY: ${{ secrets.IP_QUERY_API_KEY }}
+        run: pnpm run test:nightly:external
 
       - name: Upload Jest artifacts on failure
         if: failure()

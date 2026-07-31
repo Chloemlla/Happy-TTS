@@ -1,0 +1,10 @@
+{"file":".trellis/spec/backend/security-boundary-contracts.md","reason":"Verify every auth path uses one authoritative identity and emits no secrets."}
+{"file":".trellis/spec/backend/repository-session-flow-contracts.md","reason":"Verify ownership isolation and concurrency behavior across storage modes."}
+{"file":".trellis/spec/backend/database-guidelines.md","reason":"Verify unique indexes and atomic persistence operations."}
+{"file":".trellis/spec/backend/logging-guidelines.md","reason":"Verify token and request-body redaction."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Verify tests use real boundaries where behavior depends on middleware."}
+{"file":".trellis/spec/frontend/hook-guidelines.md","reason":"Verify WebSocket authentication URL and hook lifecycle."}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Verify frontend tests and coverage are enforced in CI."}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"Verify TTS provider/model controls remain isolated from the EnvManager super component."}
+{"file":".trellis/spec/backend/error-handling.md","reason":"Verify unconfigured optional providers fail at request/capability boundaries without blocking startup."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Verify end-to-end identity and failure propagation across layers."}

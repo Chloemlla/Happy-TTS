@@ -13,8 +13,10 @@ import {
   type LinuxDoRuntimeConfig,
   type LinuxDoCreditRuntimeConfig,
   type NexaiRuntimeConfig,
+  type NexaiSigningRuntimeConfig,
   type TtsRuntimeConfig,
 } from "./runtimeConfigDefaults";
+import type { TtsProviderRuntimeConfig } from "./ttsProviderConfig";
 import {
   isGenerationCodeConfigured,
   normalizeGenerationCode,
@@ -77,6 +79,12 @@ const envSchema = z
     NEXAI_GITHUB_CLIENT_ID: optionalTrimmedString,
     NEXAI_GITHUB_CLIENT_SECRET: optionalTrimmedString,
     NEXAI_FRONTEND_URL: z.string().url().optional(),
+    // NexAI request-signature middleware. Kept as loose strings (not z.enum/z.coerce) so a
+    // malformed value degrades to the safe default instead of crashing startup.
+    NEXAI_REQUEST_SIGNING: optionalTrimmedString,
+    NEXAI_APP_SIGN_SECRET: optionalTrimmedString,
+    NEXAI_APP_SIGN_SECRET_PREV: optionalTrimmedString,
+    NEXAI_SIG_MAX_DRIFT_MS: optionalTrimmedString,
     OPENAI_API_KEY: optionalTrimmedString,
     OPENAI_KEY: optionalTrimmedString,
     OPENAI_BASE_URL: z.string().url().optional(),
@@ -84,6 +92,12 @@ const envSchema = z
     OPENAI_VOICE: z.string().optional().default("alloy"),
     OPENAI_RESPONSE_FORMAT: z.string().optional().default("mp3"),
     OPENAI_SPEED: z.string().optional().default("1.0"),
+    TTS_PROVIDER: optionalTrimmedString,
+    TTS_DEFAULT_MODEL: optionalTrimmedString,
+    FISH_AUDIO_API_KEY: optionalTrimmedString,
+    FISH_AUDIO_BASE_URL: optionalTrimmedString,
+    FISH_AUDIO_REFERENCE_ID: optionalTrimmedString,
+    FISH_AUDIO_MODEL: optionalTrimmedString,
     ADMIN_USERNAME: z.string().optional().default("admin"),
     ADMIN_PASSWORD: optionalTrimmedString,
     ADMIN_OPERATION_PASSWORD: optionalTrimmedString,
@@ -109,7 +123,7 @@ const envSchema = z
     WAF_ENABLED: stringToBoolean,
     ENABLE_FIRST_VISIT_VERIFICATION: stringToBoolean,
     AUDIT_LOG_MASKING: stringToBoolean,
-    SERVER_PASSWORD: z.string().optional().default("wmy"),
+    SERVER_PASSWORD: optionalTrimmedString,
     RESEND_API_KEY: optionalTrimmedString,
     RESEND_DOMAIN: z.string().optional().default("chloemlla.com"),
     OUTEMAIL_ENABLED: stringToBoolean,
@@ -236,39 +250,9 @@ const envSchema = z
       }
     }
 
-    if (env.NODE_ENV === "production") {
-      if (!env.JWT_SECRET) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["JWT_SECRET"],
-          message: "Production requires JWT_SECRET",
-        });
-      }
-      if (!env.SIGN_SECRET_KEY) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["SIGN_SECRET_KEY"],
-          message: "Production requires SIGN_SECRET_KEY",
-        });
-      }
-      if (!env.ADMIN_PASSWORD) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["ADMIN_PASSWORD"],
-          message: "Production requires ADMIN_PASSWORD",
-        });
-      }
-      if (env.PUBLIC_SHORT_URL_ENABLED === true && !env.PUBLIC_SHORT_URL_PASSWORD) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["PUBLIC_SHORT_URL_PASSWORD"],
-          message: "Production requires PUBLIC_SHORT_URL_PASSWORD when PUBLIC_SHORT_URL_ENABLED=true",
-        });
-      }
-      // Production: when a generation code is supplied (enables shared/anonymous TTS gate),
-      // it must already have passed the high-entropy check above. Empty remains allowed
-      // (shared-code path stays closed until an admin configures a strong code at runtime).
-    }
+    // Missing credentials must not prevent the HTTP process from starting. Security-critical
+    // capabilities either use a process-local high-entropy secret (JWT) or remain disabled
+    // until an administrator supplies the corresponding credential.
     if (!env.MONGO_URI && !env.MONGODB_URI) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -277,46 +261,6 @@ const envSchema = z
       });
     }
 
-    if (
-      (env.OUTEMAIL_ENABLED === true || env.VITE_OUTEMAIL_ENABLED === true || env.RESEND_OUTEMAIL_ENABLED === true) &&
-      !env.OUTEMAIL_DOMAIN &&
-      !env.RESEND_DOMAIN_OUT &&
-      !env.RESEND_DOMAIN
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["OUTEMAIL_DOMAIN"],
-        message: "Out-email service requires OUTEMAIL_DOMAIN or RESEND_DOMAIN",
-      });
-    }
-
-    const rustNetworkToolsEnabled =
-      env.RUST_NETWORK_TOOLS_ENABLED ?? defaultRustServicesEnabled(env.NODE_ENV);
-    const rustAudioWorkerEnabled =
-      env.RUST_AUDIO_WORKER_ENABLED ?? defaultRustServicesEnabled(env.NODE_ENV);
-    const rustFileWorkerEnabled =
-      env.RUST_FILE_WORKER_ENABLED ?? defaultRustServicesEnabled(env.NODE_ENV);
-    const rustDataToolsEnabled =
-      env.RUST_DATA_TOOLS_ENABLED ?? defaultRustServicesEnabled(env.NODE_ENV);
-    const rustSecurityWorkerEnabled =
-      env.RUST_SECURITY_WORKER_ENABLED ?? defaultRustServicesEnabled(env.NODE_ENV);
-    const embeddedRustServicesEnabled =
-      env.RUST_EMBEDDED_SERVICES_ENABLED ?? defaultRustServicesEnabled(env.NODE_ENV);
-    if (
-      (rustNetworkToolsEnabled ||
-        rustAudioWorkerEnabled ||
-        rustFileWorkerEnabled ||
-        rustDataToolsEnabled ||
-        rustSecurityWorkerEnabled) &&
-      !embeddedRustServicesEnabled &&
-      !env.INTERNAL_SERVICE_TOKEN
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["INTERNAL_SERVICE_TOKEN"],
-        message: "External Rust internal services require INTERNAL_SERVICE_TOKEN when enabled",
-      });
-    }
   });
 
 const parsedEnv = envSchema.parse(process.env);
@@ -324,14 +268,26 @@ const parsedEnv = envSchema.parse(process.env);
 const baseUrl = parsedEnv.VITE_API_URL || parsedEnv.BASE_URL || "https://tts.chloemlla.com";
 const frontendBaseUrl = parsedEnv.FRONTEND_URL || "https://tts.chloemlla.com";
 const openaiApiKey = parsedEnv.OPENAI_KEY || parsedEnv.OPENAI_API_KEY;
+const jwtSecretConfigured = Boolean(parsedEnv.JWT_SECRET);
 const jwtSecret = parsedEnv.JWT_SECRET || generateEphemeralSecret();
 const signSecretKey = parsedEnv.SIGN_SECRET_KEY || "";
-const adminPassword = parsedEnv.NODE_ENV === "production" ? parsedEnv.ADMIN_PASSWORD! : parsedEnv.ADMIN_PASSWORD || "admin";
+const adminPassword = parsedEnv.ADMIN_PASSWORD || "";
 const adminOperationPassword = parsedEnv.ADMIN_OPERATION_PASSWORD || adminPassword;
+const serverPassword = parsedEnv.SERVER_PASSWORD || "";
 const publicShortUrlEnabled = parsedEnv.PUBLIC_SHORT_URL_ENABLED === true;
 const publicShortUrlPassword = parsedEnv.PUBLIC_SHORT_URL_PASSWORD;
 const rustServicesEnabledByDefault = defaultRustServicesEnabled(parsedEnv.NODE_ENV);
 const embeddedRustServicesEnabled = parsedEnv.RUST_EMBEDDED_SERVICES_ENABLED ?? rustServicesEnabledByDefault;
+const requestedRustServices = {
+  networkTools: parsedEnv.RUST_NETWORK_TOOLS_ENABLED ?? rustServicesEnabledByDefault,
+  audioWorker: parsedEnv.RUST_AUDIO_WORKER_ENABLED ?? rustServicesEnabledByDefault,
+  fileWorker: parsedEnv.RUST_FILE_WORKER_ENABLED ?? rustServicesEnabledByDefault,
+  dataTools: parsedEnv.RUST_DATA_TOOLS_ENABLED ?? rustServicesEnabledByDefault,
+  securityWorker: parsedEnv.RUST_SECURITY_WORKER_ENABLED ?? rustServicesEnabledByDefault,
+};
+const externalRustServicesRequested =
+  !embeddedRustServicesEnabled && Object.values(requestedRustServices).some(Boolean);
+const externalRustServicesConfigured = !externalRustServicesRequested || Boolean(parsedEnv.INTERNAL_SERVICE_TOKEN);
 const rustIpcEnabled = parsedEnv.RUST_IPC_ENABLED ?? embeddedRustServicesEnabled;
 const rustIpcDir = parsedEnv.RUST_IPC_DIR || path.join(process.cwd(), "data", "rust-ipc");
 const internalServiceToken =
@@ -356,7 +312,7 @@ export const compileTimeConfig = Object.freeze({
   audioDir: path.join(process.cwd(), "finish"),
   dataDir: path.join(process.cwd(), "data"),
   logsDir: path.join(process.cwd(), "logs"),
-  runtimeMutableKeys: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "EMAIL", "ADMIN_SECURITY", "SYNAPSE_ANDROID"] as const,
+  runtimeMutableKeys: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "TTS_PROVIDER", "EMAIL", "ADMIN_SECURITY", "SYNAPSE_ANDROID", "NEXAI_SIGNING"] as const,
 });
 
 const runtimeDefaults = buildRuntimeConfigDefaults({
@@ -364,10 +320,17 @@ const runtimeDefaults = buildRuntimeConfigDefaults({
   frontendBaseUrl,
   jwtSecret,
   adminPassword: adminOperationPassword,
-  serverStatusPassword: parsedEnv.SERVER_PASSWORD,
+  serverStatusPassword: serverPassword,
   publicShortUrlEnabled,
   publicShortUrlPassword,
   generationCode: normalizeGenerationCode(parsedEnv.GENERATION_CODE),
+  ttsProvider: parsedEnv.TTS_PROVIDER,
+  ttsDefaultModel: parsedEnv.TTS_DEFAULT_MODEL,
+  openAiDefaultModel: parsedEnv.OPENAI_MODEL,
+  fishAudioApiKey: parsedEnv.FISH_AUDIO_API_KEY,
+  fishAudioBaseUrl: parsedEnv.FISH_AUDIO_BASE_URL,
+  fishAudioReferenceId: parsedEnv.FISH_AUDIO_REFERENCE_ID,
+  fishAudioModel: parsedEnv.FISH_AUDIO_MODEL,
   email: emailRuntimeDefaults,
   googleClientId: parsedEnv.GOOGLE_CLIENT_ID,
   nexaiGoogleClientId: parsedEnv.NEXAI_GOOGLE_CLIENT_ID || parsedEnv.GOOGLE_CLIENT_ID,
@@ -400,6 +363,22 @@ runtimeDefaults.linuxdoCredit = {
 
 const linuxDoCreditConfig: LinuxDoCreditRuntimeConfig = { ...runtimeDefaults.linuxdoCredit };
 
+// NexAI request-signature defaults come from env; a stored NEXAI_SIGNING doc overrides them
+// at runtime (see src/middleware/nexaiRequestSignature.ts).
+runtimeDefaults.nexaiSigning = {
+  ...runtimeDefaults.nexaiSigning,
+  mode: ((): NexaiSigningRuntimeConfig["mode"] => {
+    const raw = (parsedEnv.NEXAI_REQUEST_SIGNING || "").toLowerCase();
+    return raw === "off" || raw === "soft" || raw === "enforce" ? raw : runtimeDefaults.nexaiSigning.mode;
+  })(),
+  appSignSecret: parsedEnv.NEXAI_APP_SIGN_SECRET || "",
+  appSignSecretPrev: parsedEnv.NEXAI_APP_SIGN_SECRET_PREV || "",
+  maxDriftMs: ((): number => {
+    const n = Number(parsedEnv.NEXAI_SIG_MAX_DRIFT_MS);
+    return Number.isFinite(n) && n > 0 ? Math.round(n) : runtimeDefaults.nexaiSigning.maxDriftMs;
+  })(),
+};
+
 RuntimeConfigService.configureDefaults(runtimeDefaults);
 
 export const startupConfig = Object.freeze({
@@ -411,6 +390,16 @@ export const startupConfig = Object.freeze({
   adminPassword,
   jwtSecret,
   signSecretKey,
+  configuredSecrets: {
+    openaiApiKey: Boolean(openaiApiKey),
+    jwtSecret: jwtSecretConfigured,
+    signSecretKey: Boolean(parsedEnv.SIGN_SECRET_KEY),
+    adminPassword: Boolean(parsedEnv.ADMIN_PASSWORD),
+    adminOperationPassword: Boolean(parsedEnv.ADMIN_OPERATION_PASSWORD || parsedEnv.ADMIN_PASSWORD),
+    serverPassword: Boolean(parsedEnv.SERVER_PASSWORD),
+    passwordEncryptionKey: Boolean(process.env.PASSWORD_ENCRYPTION_KEY || process.env.AES_KEY || parsedEnv.JWT_SECRET),
+    internalServiceToken: Boolean(parsedEnv.INTERNAL_SERVICE_TOKEN),
+  },
   jwtExpiresIn: parsedEnv.JWT_EXPIRES_IN,
   bcryptSaltRounds: 12,
   localIps: ["127.0.0.1", "localhost", "::1"],
@@ -452,7 +441,7 @@ export const startupConfig = Object.freeze({
       code: parsedEnv.OUTEMAIL_CODE,
     },
   },
-  serverPassword: parsedEnv.SERVER_PASSWORD,
+  serverPassword,
   publicShortUrl: {
     enabled: publicShortUrlEnabled,
     password: publicShortUrlPassword,
@@ -473,6 +462,7 @@ export const startupConfig = Object.freeze({
   },
   rustServices: {
     internalToken: internalServiceToken,
+    externalServicesConfigured: externalRustServicesConfigured,
     ipc: {
       enabled: rustIpcEnabled,
       dir: rustIpcDir,
@@ -488,7 +478,7 @@ export const startupConfig = Object.freeze({
       generatedInternalToken: !parsedEnv.INTERNAL_SERVICE_TOKEN && embeddedRustServicesEnabled,
     },
     networkTools: {
-      enabled: parsedEnv.RUST_NETWORK_TOOLS_ENABLED ?? rustServicesEnabledByDefault,
+      enabled: requestedRustServices.networkTools && externalRustServicesConfigured,
       url: parsedEnv.RUST_NETWORK_TOOLS_URL,
       timeoutMs: parsedEnv.RUST_NETWORK_TOOLS_TIMEOUT_MS,
       maxResponseBytes: parsedEnv.RUST_NETWORK_TOOLS_MAX_RESPONSE_BYTES,
@@ -496,7 +486,7 @@ export const startupConfig = Object.freeze({
       blockPrivateTargets: parsedEnv.RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS ?? true,
     },
     audioWorker: {
-      enabled: parsedEnv.RUST_AUDIO_WORKER_ENABLED ?? rustServicesEnabledByDefault,
+      enabled: requestedRustServices.audioWorker && externalRustServicesConfigured,
       url: parsedEnv.RUST_AUDIO_WORKER_URL,
       timeoutMs: parsedEnv.RUST_AUDIO_WORKER_TIMEOUT_MS,
       maxBytes: parsedEnv.RUST_AUDIO_WORKER_MAX_BYTES,
@@ -504,14 +494,14 @@ export const startupConfig = Object.freeze({
       fallbackEnabled: parsedEnv.RUST_AUDIO_WORKER_FALLBACK_ENABLED ?? true,
     },
     fileWorker: {
-      enabled: parsedEnv.RUST_FILE_WORKER_ENABLED ?? rustServicesEnabledByDefault,
+      enabled: requestedRustServices.fileWorker && externalRustServicesConfigured,
       url: parsedEnv.RUST_FILE_WORKER_URL,
       timeoutMs: parsedEnv.RUST_FILE_WORKER_TIMEOUT_MS,
       maxBytes: parsedEnv.RUST_FILE_WORKER_MAX_BYTES,
       fallbackEnabled: parsedEnv.RUST_FILE_WORKER_FALLBACK_ENABLED ?? true,
     },
     dataTools: {
-      enabled: parsedEnv.RUST_DATA_TOOLS_ENABLED ?? rustServicesEnabledByDefault,
+      enabled: requestedRustServices.dataTools && externalRustServicesConfigured,
       url: parsedEnv.RUST_DATA_TOOLS_URL,
       timeoutMs: parsedEnv.RUST_DATA_TOOLS_TIMEOUT_MS,
       maxBytes: parsedEnv.RUST_DATA_TOOLS_MAX_BYTES,
@@ -519,7 +509,7 @@ export const startupConfig = Object.freeze({
       fallbackEnabled: parsedEnv.RUST_DATA_TOOLS_FALLBACK_ENABLED ?? true,
     },
     securityWorker: {
-      enabled: parsedEnv.RUST_SECURITY_WORKER_ENABLED ?? rustServicesEnabledByDefault,
+      enabled: requestedRustServices.securityWorker && externalRustServicesConfigured,
       url: parsedEnv.RUST_SECURITY_WORKER_URL,
       timeoutMs: parsedEnv.RUST_SECURITY_WORKER_TIMEOUT_MS,
       maxTextBytes: parsedEnv.RUST_SECURITY_WORKER_MAX_TEXT_BYTES,
@@ -549,8 +539,14 @@ export const runtimeMutableConfig = {
   get nexai(): NexaiRuntimeConfig {
     return RuntimeConfigService.getCachedConfig().nexai;
   },
+  get nexaiSigning(): NexaiSigningRuntimeConfig {
+    return RuntimeConfigService.getCachedConfig().nexaiSigning;
+  },
   get tts(): TtsRuntimeConfig {
     return RuntimeConfigService.getCachedConfig().tts;
+  },
+  get ttsProvider(): TtsProviderRuntimeConfig {
+    return RuntimeConfigService.getCachedConfig().ttsProvider;
   },
   get email(): EmailRuntimeConfig {
     return RuntimeConfigService.getCachedConfig().email;

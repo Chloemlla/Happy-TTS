@@ -1,6 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { config } from "../config/config";
+import { asAuthenticatedRequest } from "../types/authRequest";
+import { getTokenFromRequest } from "../utils/authCookie";
 import { UserStorage } from "../utils/userStorage";
 
 // 可选认证中间件：
@@ -8,11 +10,12 @@ import { UserStorage } from "../utils/userStorage";
 // - 若未携带或解析失败，则不报错，继续作为游客
 export const optionalAuthenticateToken = async (req: Request, _res: Response, next: NextFunction) => {
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith("Bearer ")) {
+    const authedReq = asAuthenticatedRequest(req);
+    if (authedReq.auth || ((authedReq.apiKey || authedReq.oauthToken) && authedReq.user)) {
       return next();
     }
-    const token = authHeader.split(" ")[1];
+
+    const token = getTokenFromRequest(req);
     if (!token) {
       return next();
     }
@@ -27,7 +30,8 @@ export const optionalAuthenticateToken = async (req: Request, _res: Response, ne
     if (!userId) return next();
     const user = await UserStorage.getUserById(userId);
     if (!user) return next();
-    (req as any).user = user;
+    authedReq.user = user;
+    authedReq.auth = { kind: "session", user };
     return next();
   } catch {
     // 任何异常都不阻断请求

@@ -43,7 +43,7 @@ export async function verifyToken(token: string, remoteIp?: string): Promise<boo
     const secretKey = await getTurnstileKey("TURNSTILE_SECRET_KEY");
 
     if (!secretKey) {
-      logger.warn("Turnstile 密钥未配置，跳过验证", { traceId });
+      logger.warn("Turnstile 密钥未配置，拒绝当前验证请求", { traceId });
 
       const riskAssessmentBasic = assessClientRisk(remoteIp || "unknown", undefined, undefined);
       await persistTurnstileTrace({
@@ -61,7 +61,7 @@ export async function verifyToken(token: string, remoteIp?: string): Promise<boo
         riskReasons: riskAssessmentBasic.riskReasons,
       });
 
-      return true;
+      return false;
     }
 
     const formData = new URLSearchParams();

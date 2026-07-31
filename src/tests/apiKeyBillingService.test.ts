@@ -69,7 +69,7 @@ describe("apiKeyBillingService transactional consistency", () => {
       admin: () => ({ command: jest.fn().mockResolvedValue({ setName: "rs-test" }) }),
     };
 
-    (mongoose.startSession as jest.Mock).mockImplementation(async () => ({
+    jest.spyOn(mongoose, "startSession").mockImplementation(async () => ({
       withTransaction: async (callback: () => Promise<void>) => {
         const keySnapshot = { ...key };
         const eventSnapshots = events.map((event) => ({ ...event }));
@@ -82,7 +82,7 @@ describe("apiKeyBillingService transactional consistency", () => {
         }
       },
       endSession: jest.fn().mockResolvedValue(undefined),
-    }));
+    }) as any);
 
     jest.spyOn(ApiKeyModel, "findOneAndUpdate").mockImplementation(((filter: any, update: any) => {
       if (filter.keyId !== key.keyId) return query(null) as any;

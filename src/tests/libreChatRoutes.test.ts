@@ -1,3 +1,4 @@
+import "./helpers/mockAppSecurityBoundaries";
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import request from "supertest";
 import app from "../app";
@@ -8,6 +9,26 @@ describe("LibreChat Routes", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe("POST /api/libre-chat/guest", () => {
+    it("应该只通过 HttpOnly Cookie 颁发游客身份，不在响应体返回 token", async () => {
+      const previous = process.env.LIBRECHAT_GUEST_ENABLED;
+      process.env.LIBRECHAT_GUEST_ENABLED = "true";
+      try {
+        const res = await request(app).post("/api/libre-chat/guest");
+
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+        expect(res.body).not.toHaveProperty("token");
+        const setCookie = ([] as string[]).concat(res.headers["set-cookie"] || []).join(";");
+        expect(setCookie).toMatch(/lc_guest=guest_[a-f0-9]{64}/);
+        expect(setCookie).toMatch(/HttpOnly/i);
+      } finally {
+        if (previous === undefined) delete process.env.LIBRECHAT_GUEST_ENABLED;
+        else process.env.LIBRECHAT_GUEST_ENABLED = previous;
+      }
+    });
   });
 
   describe("POST /api/libre-chat/send", () => {
@@ -55,25 +76,27 @@ describe("LibreChat Routes", () => {
 
   describe("GET /api/libre-chat/history", () => {
     it("应该返回聊天历史", async () => {
-      const res = await request(app).get("/api/libre-chat/history").query({ token: validToken });
+      const res = await request(app).get("/api/libre-chat/history").set("x-chat-token", validToken);
 
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body.history)).toBe(true);
     });
 
     it("应该拒绝无效token的历史请求", async () => {
-      const res = await request(app).get("/api/libre-chat/history").query({ token: "invalid-token" });
+      const res = await request(app).get("/api/libre-chat/history").set("x-chat-token", "invalid-token");
 
       expect(res.status).toBe(401);
       expect(res.body.error).toMatch(/无效的token/);
     });
 
     it("应该正确处理分页", async () => {
-      const res = await request(app).get("/api/libre-chat/history").query({
-        token: validToken,
-        page: 1,
-        limit: 10,
-      });
+      const res = await request(app)
+        .get("/api/libre-chat/history")
+        .set("x-chat-token", validToken)
+        .query({
+          page: 1,
+          limit: 10,
+        });
 
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body.history)).toBe(true);

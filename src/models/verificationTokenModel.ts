@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { config } from "../config/config";
 import { mongoose } from "../services/mongoService";
 import logger from "../utils/logger";
 
@@ -75,7 +76,7 @@ class VerificationTokenStorage {
       process.env.VERIFICATION_TOKEN_SECRET ||
         process.env.JWT_SECRET ||
         process.env.AES_KEY ||
-        "development-verification-token-secret",
+        config.jwtSecret,
     )
     .digest();
 

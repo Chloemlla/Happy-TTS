@@ -16,7 +16,7 @@ import { rustSecurityWorkerClient, type RustSecurityWorkerClient } from "./rustS
  *    verify 时所有绑定必须一致，缓解跨站重用、UA 切换、Origin 冒充。
  * 5. 一次性消费：nonceStore 原子 consume，杜绝重放。
  * 6. 可选 Proof-of-Work（Hashcash 风格）：高风险路径可提高难度。
- * 7. 强制 SMART_HUMAN_CHECK_SECRET，缺失即抛错；杜绝重启换密钥导致大面积失败。
+ * 7. 优先使用 SMART_HUMAN_CHECK_SECRET；缺失或过短时使用进程级高熵临时密钥并通知管理员。
  * 8. 常量时间比较前先核对长度，避免 timingSafeEqual 抛出。
  * 9. AAD 绑定信封到 (version + action + host)，篡改 AAD 即触发解密失败。
  */
@@ -147,6 +147,7 @@ const HKDF_SALT = Buffer.from("shc-v2-salt-2026", "utf8");
 const DEFAULT_TTL_MS = 5 * 60 * 1000;
 const DEFAULT_MAX_SKEW_MS = 2 * 60 * 1000;
 const DEFAULT_SCORE_THRESHOLD = 0.62;
+const EPHEMERAL_SMART_HUMAN_CHECK_SECRET = crypto.randomBytes(32).toString("base64url");
 const MAX_PAYLOAD_BYTES = 8 * 1024; // 8 KB 上限，避免被塞入巨型 st
 const MAX_POW_DIFFICULTY = 24;
 const POW_HARD_TIMEOUT_MS = 2_500;
@@ -549,13 +550,14 @@ export class SmartHumanCheckService {
     defaultAction?: string;
     securityWorkerClient?: SecurityWorkerPowClient;
   }) {
-    const supplied = opts?.secret ?? process.env.SMART_HUMAN_CHECK_SECRET;
-    if (!supplied || supplied.trim().length < 16) {
-      // 强制要求显式配置；缺失即抛错，避免悄悄使用弱默认密钥
-      const reason = !supplied ? "未设置" : "长度不足 16";
-      throw new Error(
-        `[SmartHumanCheck] 拒绝启动：环境变量 SMART_HUMAN_CHECK_SECRET ${reason}。请在生产/开发环境显式设置长度 ≥16 的高熵密钥。`,
-      );
+    const configuredSecret = (opts?.secret ?? process.env.SMART_HUMAN_CHECK_SECRET ?? "").trim();
+    const supplied = configuredSecret.length >= 16
+      ? configuredSecret
+      : EPHEMERAL_SMART_HUMAN_CHECK_SECRET;
+    if (configuredSecret.length < 16) {
+      logger.warn("[SmartHumanCheck] SMART_HUMAN_CHECK_SECRET 未配置或长度不足，使用进程级临时高熵密钥", {
+        configured: configuredSecret.length > 0,
+      });
     }
     this.masterKey = toBuffer(supplied);
     this.nonceEncKey = hkdf(this.masterKey, "shc.v2.nonce.aead");

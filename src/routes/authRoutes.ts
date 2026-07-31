@@ -182,6 +182,7 @@ router.post(
  *         description: 用户信息
  */
 router.get("/me", authReadLimiter, authenticateToken, AuthController.getCurrentUser);
+router.post("/session", authReadLimiter, authenticateToken, AuthController.establishSession);
 
 // Passkey 二次校验接口
 router.post("/passkey-verify", authVerificationLimiter, AuthController.passkeyVerify);

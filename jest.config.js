@@ -51,9 +51,25 @@ module.exports = {
   
   // 覆盖率配置
   collectCoverage: false, // opt-in via --coverage (avoids minimatch@10 + test-exclude CJS break)
+  collectCoverageFrom: [
+    'src/**/*.{ts,tsx}',
+    '!src/**/*.d.ts',
+    '!src/tests/**',
+    '!src/**/__tests__/**',
+    '!src/**/*.test.{ts,tsx}',
+    '!src/**/*.spec.{ts,tsx}',
+  ],
   coverageProvider: 'v8',
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov'],
+  coverageThreshold: {
+    global: {
+      statements: 8,
+      functions: 7,
+      branches: 5,
+      lines: 8,
+    },
+  },
   coveragePathIgnorePatterns: [
     '/node_modules/',
     '/dist/',
@@ -63,6 +79,9 @@ module.exports = {
     '/build/',
     '/frontend/dist/',
     '/frontend/build/',
+    '/src/tests/',
+    '/__tests__/',
+    '\\.d\\.ts$',
     '.test.ts',
     '.test.tsx',
     '.spec.ts',

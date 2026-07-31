@@ -90,8 +90,19 @@ export class TtsQueue {
     }
 
     try {
-      const result = await this.ttsService.generateSpeech({
+      const providerExecution = await this.ttsService.resolveProviderExecution(
+        job.request.model,
+        job.request.voice,
+        job.request.providerExecution,
+      );
+      const effectiveRequest = {
         ...job.request,
+        model: providerExecution.model,
+        voice: providerExecution.voice,
+        providerExecution,
+      };
+      const result = await this.ttsService.generateSpeech({
+        ...effectiveRequest,
         userId: job.userId,
         isAdmin: job.isAdmin,
         taskId: job.taskId,
@@ -100,18 +111,23 @@ export class TtsQueue {
         policyVersion: job.governance?.policyVersion,
       });
 
-      const contentHash = this.ttsService.generateContentHash(job.request.text, job.request.voice, job.request.model);
+      const contentHash = this.ttsService.generateContentHash(
+        effectiveRequest.text,
+        effectiveRequest.voice,
+        effectiveRequest.model,
+        providerExecution,
+      );
 
       await this.historyStore.addRecord({
         scope: job.userId ? "user" : "anonymous",
         userId: job.userId,
         ip: job.ip,
         fingerprint: job.fingerprint,
-        text: job.request.text,
-        voice: job.request.voice,
-        model: job.request.model,
-        outputFormat: job.request.outputFormat,
-        speed: job.request.speed,
+        text: effectiveRequest.text,
+        voice: effectiveRequest.voice,
+        model: effectiveRequest.model,
+        outputFormat: effectiveRequest.outputFormat,
+        speed: effectiveRequest.speed,
         contentHash,
         fileName: result.fileName,
         audioUrl: result.audioUrl,
@@ -138,8 +154,8 @@ export class TtsQueue {
 
       await ttsStorage.updateJob(job.taskId, {
         request: {
-          ...job.request,
-          text: redactTtsTextForStorage(job.request.text),
+          ...effectiveRequest,
+          text: redactTtsTextForStorage(effectiveRequest.text),
         },
       });
 

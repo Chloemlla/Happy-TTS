@@ -36,10 +36,11 @@ const LatestRecordSchema = new mongoose.Schema(
 export const LatestRecordModel =
   mongoose.models.LibreChatLatest || mongoose.model("LibreChatLatest", LatestRecordSchema);
 
-const ChatHistorySchema = new mongoose.Schema(
+export const ChatHistorySchema = new mongoose.Schema(
   {
-    userId: { type: String, required: true },
-    messages: { type: Array, required: true },
+    ownerKey: { type: String },
+    userId: { type: String },
+    messages: { type: Array, required: true, default: [] },
     updatedAt: { type: Date, default: Date.now },
     deleted: { type: Boolean, default: false },
     deletedAt: { type: Date },
@@ -47,7 +48,12 @@ const ChatHistorySchema = new mongoose.Schema(
   { collection: "librechat_histories" },
 );
 
-ChatHistorySchema.index({ userId: 1 });
+export const LIBRECHAT_OWNER_INDEX = {
+  fields: { ownerKey: 1 } as const,
+  options: { unique: true, sparse: true, name: "librechat_owner_unique" } as const,
+};
+
+ChatHistorySchema.index(LIBRECHAT_OWNER_INDEX.fields, LIBRECHAT_OWNER_INDEX.options);
 ChatHistorySchema.index({ updatedAt: -1 });
 
 export const ChatHistoryModel: any =

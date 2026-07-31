@@ -40,7 +40,7 @@ export async function verifyHCaptchaToken(token: string, remoteIp?: string, site
     const secretKey = await getHCaptchaKey("HCAPTCHA_SECRET_KEY");
 
     if (!secretKey) {
-      logger.warn("hCaptcha 密钥未配置，跳过验证", { traceId });
+      logger.warn("hCaptcha 密钥未配置，拒绝当前验证请求", { traceId });
 
       const riskAssessmentBasic = assessClientRisk(remoteIp || "unknown", undefined, undefined);
       await persistTurnstileTrace({
@@ -59,7 +59,7 @@ export async function verifyHCaptchaToken(token: string, remoteIp?: string, site
         verificationMethod: "hcaptcha",
       });
 
-      return true;
+      return false;
     }
 
     const formData = new URLSearchParams();

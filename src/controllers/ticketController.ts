@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { type ITicket, TicketModel } from "../models/ticketModel";
 import { EmailService, getDefaultEmailFrom } from "../services/emailService";
 import { libreChatService } from "../services/libreChatService";
+import { deriveUserOwnerKey } from "../services/librechat/history";
 import type { ChatFailureDiagnostics } from "../services/librechat/types";
 import { ModerationService } from "../services/moderationService";
 import { mongoose } from "../services/mongoService";
@@ -46,9 +47,8 @@ export async function generateAiTicketResponse(ticket: any) {
     try {
       let aiErrorDetails: ChatFailureDiagnostics | undefined;
       const aiResponse = await libreChatService.sendMessage(
-        `ticket_context_${ticketId}`,
+        deriveUserOwnerKey(`system:ticket:${ticketId}`),
         `${systemPrompt}\n\n当前用户反馈: ${lastMessage.content}`,
-        "system_ai_assistant",
         (delta) => {
           // 通过 WebSocket 发送流式分片
           wsService.notifyTicketAiResponse(ticket.userId, ticketId, delta, false);

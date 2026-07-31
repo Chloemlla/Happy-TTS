@@ -160,8 +160,14 @@ export async function startServer(app: Express): Promise<void> {
   configureEmailServices();
   await ensureDirectories();
 
-  const diagnostics = await runStartupDiagnostics(compileTimeConfig);
-  logger.info("[Config] 启动配置诊断完成", diagnostics);
+  try {
+    const diagnostics = await runStartupDiagnostics(compileTimeConfig);
+    logger.info("[Config] 启动配置诊断完成", diagnostics);
+  } catch (error) {
+    logger.warn("[Config] 启动配置诊断失败，继续启动", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
 
   await startEmbeddedRustServices();
   await checkStartupFilePermissions();
