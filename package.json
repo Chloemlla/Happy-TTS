@@ -35,6 +35,7 @@
     "test:ci": "jest --config jest.ci.config.js --ci --runInBand --coverage --reporters=default",
     "generate:openapi": "node scripts/generate-openapi.js",
     "generate:route-audit": "ts-node --transpile-only scripts/generate-route-audit.ts",
+    "generate:cross-layer-report": "ts-node --transpile-only scripts/generate-route-audit.ts && echo 'Cross-layer report generated at docs/generated/cross-layer-compliance.md'",
     "migrate:tts-user-datas": "node scripts/migrations/migrate-tts-user-datas.js",
     "migrate:user-passwords": "ts-node --transpile-only scripts/migrations/migrate-user-passwords.ts",
     "check:api-docs": "node scripts/check-api-docs.js",

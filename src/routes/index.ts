@@ -35,6 +35,9 @@ import {
   totpLimiter,
   ttsLimiter,
 } from "../middleware/routeLimiters";
+import { adminOnly } from "../middleware/adminOnly";
+import { authMiddleware, authenticateAdmin } from "../middleware/auth";
+import { authMiddleware as authMiddlewareV2, adminAuthMiddleware } from "../middleware/authMiddleware";
 import adminRoutes from "./adminRoutes";
 import antaRoutes from "./antaRoutes";
 import apiKeyRoutes from "./apiKeyRoutes";
@@ -145,7 +148,11 @@ export interface RouteGovernanceViolation {
     | "missing-rate-limit-target"
     | "missing-audit-log-policy"
     | "missing-security-bypass-reason"
-    | "private-route-open-cors-conflict";
+    | "private-route-open-cors-conflict"
+    | "auth-middleware-not-found"
+    | "rate-limit-not-found"
+    | "auth-handler-unknown"
+    | "middleware-consistency-violation";
   message: string;
 }
 
@@ -161,6 +168,10 @@ export interface RouteAuditRecord {
   authPolicy?: RouteAuthPolicy;
   rateLimitPolicy?: RouteRateLimitPolicy;
   securityBypass?: RouteSecurityBypass;
+  /** Cross-layer: middleware found in the module's middlewares array */
+  mountMiddlewareNames?: string[];
+  /** Cross-layer: rate limiter modules that scope-overlap this route */
+  matchedLimiterModules?: string[];
 }
 
 export interface RouteModule {
@@ -1464,6 +1475,257 @@ const knownMountLimiters = new Map<RequestHandler, string>([
   [ttsLimiter, "ttsLimiter"],
 ]);
 
+/**
+ * Known auth middleware function references used for cross-layer validation.
+ * Maps a middleware function to its canonical name so the governance system
+ * can verify that declared auth handlers are actually present in the module's
+ * middleware chain.
+ */
+const knownAuthMiddleware = new Map<RequestHandler, string>([
+  [authenticateToken, "authenticateToken"],
+  [authMiddleware, "authMiddleware"],
+  [authMiddlewareV2, "authMiddleware"],
+  [adminAuthMiddleware, "adminAuthMiddleware"],
+  [authenticateAdmin, "authenticateAdmin"],
+  [adminOnly, "adminOnly"],
+  [nexaiRequestSignature, "nexaiRequestSignature"],
+]);
+
+/**
+ * Known auth handler names used in route-level or router-level authPolicy
+ * declarations. These are names that appear in the route registry but are
+ * implemented in middleware files that may not be directly importable in
+ * this module. Any handler name used in authPolicy.handlers must be listed
+ * here or be a known function reference in knownAuthMiddleware.
+ */
+const knownAuthHandlerNames = new Set([
+  "authenticateToken",
+  "authMiddleware",
+  "adminAuthMiddleware",
+  "authenticateAdmin",
+  "adminOnly",
+  "nexaiAuthRequired",
+  "nexaiAuthOptional",
+  "nexaiRequestSignature",
+  "authenticateEcoCustomer",
+  "requireEcoAdmin",
+  "verifyEcoEnchantsDownloadToken",
+  "oauthTokenAuth",
+  "client_secret_basic",
+]);
+
+/**
+ * Validate that auth middleware declared in authPolicy is actually present
+ * in the module's middleware chain. This bridges the gap between route
+ * registry declarations and the actual Express middleware composition.
+ */
+function validateAuthMiddlewarePresence(record: RouteAuditRecord, module: RouteModule): RouteGovernanceViolation[] {
+  const violations: RouteGovernanceViolation[] = [];
+  const isConcreteRoute = record.kind === "route";
+
+  if (!isConcreteRoute || record.requiresAuth !== true || !record.authPolicy) {
+    return violations;
+  }
+
+  const declaredHandlers = new Set(record.authPolicy.handlers.map((h) => h.toLowerCase()));
+
+  switch (record.authPolicy.mode) {
+    case "mount": {
+      // For mount mode, auth middleware should be in the module's middlewares array
+      const mountHandlers = new Set(
+        (module.middlewares || [])
+          .map((mw) => knownAuthMiddleware.get(mw))
+          .filter(Boolean)
+          .map((name) => name!.toLowerCase()),
+      );
+
+      for (const declared of declaredHandlers) {
+        if (!mountHandlers.has(declared)) {
+          violations.push({
+            moduleName: record.name,
+            path: record.path,
+            phase: record.phase,
+            code: "auth-middleware-not-found",
+            message: `Route module "${record.name}" declares authPolicy.mode="mount" with handler "${declared}" but the middleware is not found in the module's middlewares array.`,
+          });
+        }
+      }
+      break;
+    }
+    case "router": {
+      // For router mode, verify that the declared handlers are known middleware names.
+      // Full router-level validation requires inspecting the router's internal stack,
+      // which is done separately via validateRouterMiddlewarePresence().
+      const knownHandlerNames = new Set(
+        Array.from(knownAuthHandlerNames).map((name) => name.toLowerCase()),
+      );
+
+      for (const declared of declaredHandlers) {
+        if (!knownHandlerNames.has(declared)) {
+          violations.push({
+            moduleName: record.name,
+            path: record.path,
+            phase: record.phase,
+            code: "auth-handler-unknown",
+            message: `Route module "${record.name}" declares authPolicy.mode="router" with handler "${declared}" which is not in the known auth middleware registry.`,
+          });
+        }
+      }
+      break;
+    }
+    case "route": {
+      // Route-level auth is harder to validate statically, but we can check
+      // that the handler names are at least known.
+      const knownHandlerNames = new Set(
+        Array.from(knownAuthHandlerNames).map((name) => name.toLowerCase()),
+      );
+
+      for (const declared of declaredHandlers) {
+        if (!knownHandlerNames.has(declared)) {
+          violations.push({
+            moduleName: record.name,
+            path: record.path,
+            phase: record.phase,
+            code: "auth-handler-unknown",
+            message: `Route module "${record.name}" declares authPolicy.mode="route" with handler "${declared}" which is not in the known auth middleware registry.`,
+          });
+        }
+      }
+      break;
+    }
+    case "mixed":
+      break;
+  }
+
+  return violations;
+}
+
+/**
+ * Validate that rate limiters declared in rateLimitPolicy are actually present
+ * in the module's middleware chain. This verifies that rate limiting declarations
+ * match the actual Express middleware composition.
+ */
+function validateRateLimitApplied(record: RouteAuditRecord, module: RouteModule): RouteGovernanceViolation[] {
+  const violations: RouteGovernanceViolation[] = [];
+  const isConcreteRoute = record.kind === "route";
+
+  if (!isConcreteRoute || record.rateLimited !== true || !record.rateLimitPolicy) {
+    return violations;
+  }
+
+  const declaredLimiters = new Set(record.rateLimitPolicy.limiters.map((l) => l.toLowerCase()));
+
+  switch (record.rateLimitPolicy.mode) {
+    case "mount": {
+      // For mount mode, limiters should be in the module's middlewares array
+      const mountLimiters = new Set(
+        (module.middlewares || [])
+          .map((mw) => knownMountLimiters.get(mw))
+          .filter(Boolean)
+          .map((name) => name!.toLowerCase()),
+      );
+
+      for (const declared of declaredLimiters) {
+        if (!mountLimiters.has(declared)) {
+          violations.push({
+            moduleName: record.name,
+            path: record.path,
+            phase: record.phase,
+            code: "rate-limit-not-found",
+            message: `Route module "${record.name}" declares rateLimitPolicy.mode="mount" with limiter "${declared}" but it is not found in the module's middlewares array.`,
+          });
+        }
+      }
+      break;
+    }
+    case "route-module": {
+      // For route-module mode, the limiter should be registered as a routeLimiterModule
+      const declaredLimiterNames = new Set(
+        routeLimiterModules.map((lm) => lm.name.toLowerCase()),
+      );
+
+      for (const declared of declaredLimiters) {
+        if (!declaredLimiterNames.has(declared)) {
+          violations.push({
+            moduleName: record.name,
+            path: record.path,
+            phase: record.phase,
+            code: "rate-limit-not-found",
+            message: `Route module "${record.name}" declares rateLimitPolicy.mode="route-module" with limiter "${declared}" but no matching route limiter module is registered.`,
+          });
+        }
+      }
+      break;
+    }
+    case "router":
+    case "route":
+    case "mixed":
+      break;
+  }
+
+  return violations;
+}
+
+/**
+ * Validate that the module's middleware composition is consistent with its
+ * declared auth and rate-limit policies. This catches cases where middleware
+ * is present in the array but not declared in the policy, or vice versa.
+ */
+function validateMiddlewareConsistency(record: RouteAuditRecord, module: RouteModule): RouteGovernanceViolation[] {
+  const violations: RouteGovernanceViolation[] = [];
+  const isConcreteRoute = record.kind === "route";
+
+  if (!isConcreteRoute) {
+    return violations;
+  }
+
+  // Check for auth middleware in the middlewares array that isn't declared in authPolicy
+  if (module.middlewares && module.middlewares.length > 0) {
+    const mountAuthHandlers = module.middlewares
+      .map((mw) => knownAuthMiddleware.get(mw))
+      .filter(Boolean) as string[];
+
+    for (const handlerName of mountAuthHandlers) {
+      if (
+        record.requiresAuth === true &&
+        record.authPolicy &&
+        !record.authPolicy.handlers.some((h) => h.toLowerCase() === handlerName.toLowerCase())
+      ) {
+        violations.push({
+          moduleName: record.name,
+          path: record.path,
+          phase: record.phase,
+          code: "middleware-consistency-violation",
+          message: `Route module "${record.name}" has auth middleware "${handlerName}" in its middlewares array but it is not declared in authPolicy.handlers.`,
+        });
+      }
+    }
+
+    // Check for rate limiters in the middlewares array that aren't declared in rateLimitPolicy
+    const mountLimiters = module.middlewares
+      .map((mw) => knownMountLimiters.get(mw))
+      .filter(Boolean) as string[];
+
+    for (const limiterName of mountLimiters) {
+      if (
+        record.rateLimited === true &&
+        record.rateLimitPolicy &&
+        !record.rateLimitPolicy.limiters.some((l) => l.toLowerCase() === limiterName.toLowerCase())
+      ) {
+        violations.push({
+          moduleName: record.name,
+          path: record.path,
+          phase: record.phase,
+          code: "middleware-consistency-violation",
+          message: `Route module "${record.name}" has rate limiter "${limiterName}" in its middlewares array but it is not declared in rateLimitPolicy.limiters.`,
+        });
+      }
+    }
+  }
+
+  return violations;
+}
+
 function getModuleKind(module: RouteModule, defaultKind: RouteModuleKind): RouteModuleKind {
   return module.kind || defaultKind;
 }
@@ -1536,6 +1798,23 @@ export function getAllRouteAuditRecords(): RouteAuditRecord[] {
   return routeModuleGroups.flatMap(({ phase, kind, modules }) =>
     modules.map((module) => {
       const resolvedKind = getModuleKind(module, kind);
+
+      // Cross-layer: resolve mount middleware names
+      const mountMiddlewareNames = (module.middlewares || [])
+        .map((mw) => {
+          const known = knownAuthMiddleware.get(mw);
+          if (known) return known;
+          const limiter = knownMountLimiters.get(mw);
+          if (limiter) return limiter;
+          return undefined;
+        })
+        .filter(Boolean) as string[];
+
+      // Cross-layer: resolve matched limiter modules
+      const matchedLimiterModules = routeLimiterModules
+        .filter((limiterModule) => pathScopesOverlap(module.path, limiterModule.path))
+        .map((limiterModule) => limiterModule.name);
+
       return {
         name: module.name,
         path: module.path,
@@ -1548,9 +1827,28 @@ export function getAllRouteAuditRecords(): RouteAuditRecord[] {
         authPolicy: module.authPolicy,
         rateLimitPolicy: inferRateLimitPolicy(module, resolvedKind),
         securityBypass: module.securityBypass,
+        mountMiddlewareNames: mountMiddlewareNames.length > 0 ? mountMiddlewareNames : undefined,
+        matchedLimiterModules: matchedLimiterModules.length > 0 ? matchedLimiterModules : undefined,
       };
     }),
   );
+}
+
+/**
+ * Get all route module definitions (including non-audit limiter/middleware modules)
+ * keyed by name for cross-layer validation lookup.
+ */
+const allRouteModules: RouteModule[] = [
+  ...routeLimiterModules,
+  ...preParserRouteModules,
+  ...earlyRouteModules,
+  ...preDocsRouteModules,
+  ...preTamperRouteModules,
+  ...postTamperRouteModules,
+];
+
+function findRouteModule(name: string): RouteModule | undefined {
+  return allRouteModules.find((m) => m.name === name);
 }
 
 export function validateRouteGovernance(): RouteGovernanceViolation[] {
@@ -1638,6 +1936,18 @@ export function validateRouteGovernance(): RouteGovernanceViolation[] {
         }
       }
     }
+
+    // === Cross-layer validation ===
+    if (isConcreteRoute) {
+      const module = findRouteModule(record.name);
+      if (module) {
+        violations.push(
+          ...validateAuthMiddlewarePresence(record, module),
+          ...validateRateLimitApplied(record, module),
+          ...validateMiddlewareConsistency(record, module),
+        );
+      }
+    }
   }
 
   return violations;
@@ -1675,8 +1985,8 @@ export function renderRouteAuditMarkdown(records: RouteAuditRecord[], violations
   lines.push(
     "## Route Registry",
     "",
-    "| Name | Phase | Kind | Path | Auth | Rate Limit | Audit Log | Public | Security Bypass |",
-    "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+    "| Name | Phase | Kind | Path | Auth | Rate Limit | Audit Log | Public | Security Bypass | Mount Middleware | Matched Limiters |",
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
   );
 
   for (const record of records) {
@@ -1690,11 +2000,112 @@ export function renderRouteAuditMarkdown(records: RouteAuditRecord[], violations
       ? `${record.rateLimitPolicy.mode}: ${record.rateLimitPolicy.limiters.join(", ")}`
       : "-";
     const auditLogSummary = `${record.auditLogPolicy.adaptationStatus}<br>${record.auditLogPolicy.coverage}<br>${record.auditLogPolicy.source}`;
+    const mountMiddlewareSummary = (record.mountMiddlewareNames || []).join(", ") || "-";
+    const matchedLimiterSummary = (record.matchedLimiterModules || []).join(", ") || "-";
 
     lines.push(
-      `| ${record.name} | ${record.phase} | ${record.kind} | \`${record.path}\` | ${String(record.requiresAuth)}<br>${authSummary} | ${String(record.rateLimited)}<br>${rateLimitSummary} | ${auditLogSummary} | ${String(record.isPublic)} | ${bypassSummary || "-"} |`,
+      `| ${record.name} | ${record.phase} | ${record.kind} | \`${record.path}\` | ${String(record.requiresAuth)}<br>${authSummary} | ${String(record.rateLimited)}<br>${rateLimitSummary} | ${auditLogSummary} | ${String(record.isPublic)} | ${bypassSummary || "-"} | ${mountMiddlewareSummary} | ${matchedLimiterSummary} |`,
     );
   }
+
+  return `${lines.join("\n")}\n`;
+}
+
+/**
+ * Generate a cross-layer compliance report focused on auth middleware and
+ * rate limiter consistency between route registry declarations and actual
+ * Express middleware composition.
+ */
+export function renderCrossLayerComplianceReport(
+  records: RouteAuditRecord[],
+  violations: RouteGovernanceViolation[] = [],
+): string {
+  const crossLayerViolations = violations.filter(
+    (v) =>
+      v.code === "auth-middleware-not-found" ||
+      v.code === "rate-limit-not-found" ||
+      v.code === "auth-handler-unknown" ||
+      v.code === "middleware-consistency-violation",
+  );
+  const otherViolations = violations.filter((v) => !crossLayerViolations.includes(v));
+
+  const lines = [
+    "# Cross-Layer Compliance Report",
+    "",
+    `Generated: ${new Date().toISOString()}`,
+    "",
+    "## Summary",
+    "",
+    `| Metric | Value |`,
+    `| --- | --- |`,
+    `| Total route modules | ${records.length} |`,
+    `| Cross-layer violations | ${crossLayerViolations.length} |`,
+    `| Other violations | ${otherViolations.length} |`,
+    `| Auth-required routes | ${records.filter((r) => r.requiresAuth === true).length} |`,
+    `| Rate-limited routes | ${records.filter((r) => r.rateLimited === true).length} |`,
+    `| Public routes | ${records.filter((r) => r.isPublic === true).length} |`,
+    `| Mixed auth routes | ${records.filter((r) => r.requiresAuth === "mixed").length} |`,
+    "",
+  ];
+
+  if (crossLayerViolations.length) {
+    lines.push("## Cross-Layer Violations", "");
+    for (const violation of crossLayerViolations) {
+      lines.push(`- [${violation.code}] \`${violation.moduleName}\` (\`${violation.path}\`, ${violation.phase}): ${violation.message}`);
+    }
+    lines.push("");
+  }
+
+  if (otherViolations.length) {
+    lines.push("## Other Governance Violations", "");
+    for (const violation of otherViolations) {
+      lines.push(`- [${violation.code}] \`${violation.moduleName}\` (\`${violation.path}\`, ${violation.phase}): ${violation.message}`);
+    }
+    lines.push("");
+  }
+
+  // Auth middleware compliance matrix
+  lines.push("## Auth Middleware Compliance", "");
+  lines.push("| Module | Phase | requiresAuth | Auth Mode | Declared Handlers | Mount Middleware | Status |");
+  lines.push("| --- | --- | --- | --- | --- | --- | --- |");
+
+  const authRecords = records.filter((r) => r.kind === "route" && r.requiresAuth !== false);
+  for (const record of authRecords) {
+    const authMode = record.authPolicy?.mode || "none";
+    const declaredHandlers = record.authPolicy?.handlers.join(", ") || "-";
+    const mountMiddleware = (record.mountMiddlewareNames || []).join(", ") || "-";
+
+    const hasViolation = crossLayerViolations.some(
+      (v) => v.moduleName === record.name && (v.code === "auth-middleware-not-found" || v.code === "auth-handler-unknown" || v.code === "middleware-consistency-violation"),
+    );
+    const status = hasViolation ? "❌ VIOLATION" : record.requiresAuth === true ? "✅ Compliant" : "⚠️ Mixed";
+
+    lines.push(`| ${record.name} | ${record.phase} | ${String(record.requiresAuth)} | ${authMode} | ${declaredHandlers} | ${mountMiddleware} | ${status} |`);
+  }
+
+  lines.push("");
+
+  // Rate limit compliance matrix
+  lines.push("## Rate Limit Compliance", "");
+  lines.push("| Module | Phase | rateLimited | R-L Mode | Declared Limiters | Mount Limiters | Matched Limiter Modules | Status |");
+  lines.push("| --- | --- | --- | --- | --- | --- | --- | --- |");
+
+  const rateLimitedRecords = records.filter((r) => r.kind === "route" && r.rateLimited !== false);
+  for (const record of rateLimitedRecords) {
+    const rlMode = record.rateLimitPolicy?.mode || "none";
+    const declaredLimiters = record.rateLimitPolicy?.limiters.join(", ") || "-";
+    const mountLimiters = (record.mountMiddlewareNames || []).filter((n) => n.endsWith("Limiter")).join(", ") || "-";
+    const matchedModules = (record.matchedLimiterModules || []).join(", ") || "-";
+
+    const hasViolation = crossLayerViolations.some(
+      (v) => v.moduleName === record.name && (v.code === "rate-limit-not-found" || v.code === "middleware-consistency-violation"),
+    );
+    const status = hasViolation ? "❌ VIOLATION" : record.rateLimited === true ? "✅ Compliant" : "⚠️ Mixed";
+
+    lines.push(`| ${record.name} | ${record.phase} | ${String(record.rateLimited)} | ${rlMode} | ${declaredLimiters} | ${mountLimiters} | ${matchedModules} | ${status} |`);
+  }
+
+  lines.push("");
 
   return `${lines.join("\n")}\n`;
 }
