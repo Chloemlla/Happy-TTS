@@ -45,11 +45,13 @@ function normalizeCatalogItem(value: unknown): FishAudioCatalogItem | null {
 }
 
 function normalizeCatalogResponse(payload: unknown): { items: FishAudioCatalogItem[]; hasMore: boolean } {
-  const records = Array.isArray(payload)
-    ? payload
-    : payload && typeof payload === "object" && Array.isArray((payload as Record<string, unknown>).items)
-      ? (payload as Record<string, unknown>).items
-      : [];
+  let records: unknown[] = [];
+  if (Array.isArray(payload)) {
+    records = payload;
+  } else if (payload && typeof payload === "object") {
+    const items = (payload as Record<string, unknown>).items;
+    if (Array.isArray(items)) records = items;
+  }
   const unique = new Map<string, FishAudioCatalogItem>();
   for (const record of records) {
     const item = normalizeCatalogItem(record);
