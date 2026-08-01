@@ -7,4 +7,5 @@
 | 2 | NexAI sig-v2 wrap-up | `5baba9cd` | journal-1.md |
 | 3 | Penalty appeal UX | `2a006955` | journal-2.md |
 | 4 | Fix Node verification log | `03c6ff4d` | journal-3.md |
+| 5 | Fix Actions and archive remaining Trellis tasks | `0060f010` | journal-3.md |
 <!-- TRELLIS:SESSION_INDEX_END -->
