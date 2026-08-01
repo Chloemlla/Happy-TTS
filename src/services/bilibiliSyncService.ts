@@ -27,10 +27,10 @@ export class BilibiliSyncError extends Error {
 export interface BilibiliSearchRecordInput {
   id: string;
   keyword: string;
-  createdAt?: string;
-  updatedAt?: string;
-  isDeleted?: boolean;
-  deletedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  isDeleted: boolean;
+  deletedAt: string | null;
 }
 
 export interface BilibiliSearchRecordView extends Omit<BilibiliSearchRecord, "serverUpdatedAt" | "dedupeKey"> {
