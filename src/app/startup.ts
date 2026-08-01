@@ -8,17 +8,16 @@ import { startApiKeyBillingReconciliation } from "../services/apiKeyBillingServi
 import { startEmbeddedRustServices } from "../services/embeddedRustServices";
 import { connectMongo } from "../services/mongoService";
 import { schedulerService } from "../services/schedulerService";
+import { serviceRegistry } from "../services/serviceRegistry";
 import { wsService } from "../services/wsService";
 import logger from "../utils/logger";
 import { UserStorage } from "../utils/userStorage";
 import { assertMongoUserStorageMode } from "../utils/userStorageMode";
 
-// eslint-disable-next-line no-var
-var _EMAIL_ENABLED: boolean;
-// eslint-disable-next-line no-var
-var _EMAIL_SERVICE_STATUS: { available: boolean; error?: string };
-// eslint-disable-next-line no-var
-var _OUTEMAIL_SERVICE_STATUS: { available: boolean; error?: string };
+export interface EmailServiceStatus {
+  available: boolean;
+  error?: string;
+}
 
 const ensureDirectories = async () => {
   const dirs = ["logs", "finish", "data"];
@@ -84,33 +83,26 @@ const initializeStorage = async () => {
 };
 
 const configureEmailServices = () => {
+  const registry = serviceRegistry;
+
   if (!startupConfig.email.resendApiKey) {
-    (globalThis as any).EMAIL_ENABLED = false;
-    (globalThis as any).EMAIL_SERVICE_STATUS = {
-      available: false,
-      error: "未配置 RESEND_API_KEY",
-    };
-    (globalThis as any).OUTEMAIL_SERVICE_STATUS = {
-      available: false,
-      error: "未配置 RESEND_API_KEY",
-    };
+    registry.register("emailEnabled", false);
+    registry.register("emailStatus", { available: false, error: "未配置 RESEND_API_KEY" } satisfies EmailServiceStatus);
+    registry.register("outemailStatus", { available: false, error: "未配置 RESEND_API_KEY" } satisfies EmailServiceStatus);
     console.warn("[邮件服务] 未检测到 RESEND_API_KEY，邮件发送功能已禁用");
     return;
   }
 
-  (globalThis as any).EMAIL_ENABLED = true;
+  registry.register("emailEnabled", true);
 
   void (async () => {
     try {
       require("../services/emailService");
-      (globalThis as any).EMAIL_SERVICE_STATUS = { available: true };
+      registry.register("emailStatus", { available: true } satisfies EmailServiceStatus);
       logger.info("[邮件服务] 配置检查完成：已启用");
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "未知错误";
-      (globalThis as any).EMAIL_SERVICE_STATUS = {
-        available: false,
-        error: errorMessage,
-      };
+      registry.register("emailStatus", { available: false, error: errorMessage } satisfies EmailServiceStatus);
       logger.warn("[邮件服务] 配置检查失败：", errorMessage);
     }
   })();
@@ -118,38 +110,26 @@ const configureEmailServices = () => {
   void (async () => {
     try {
       if (!startupConfig.email.outemail.enabled) {
-        (globalThis as any).OUTEMAIL_SERVICE_STATUS = {
-          available: false,
-          error: "对外邮件服务未启用",
-        };
+        registry.register("outemailStatus", { available: false, error: "对外邮件服务未启用" } satisfies EmailServiceStatus);
         logger.warn("[对外邮件服务] 服务未启用");
         return;
       }
       if (!startupConfig.email.outemail.domain) {
-        (globalThis as any).OUTEMAIL_SERVICE_STATUS = {
-          available: false,
-          error: "对外邮件服务未配置域名",
-        };
+        registry.register("outemailStatus", { available: false, error: "对外邮件服务未配置域名" } satisfies EmailServiceStatus);
         logger.warn("[对外邮件服务] 未配置域名");
         return;
       }
       const key = startupConfig.email.outemail.apiKey;
       if (!key || !/^re_\w{8,}/.test(key)) {
-        (globalThis as any).OUTEMAIL_SERVICE_STATUS = {
-          available: false,
-          error: "未配置有效的对外邮件API密钥（re_ 开头）",
-        };
+        registry.register("outemailStatus", { available: false, error: "未配置有效的对外邮件API密钥（re_ 开头）" } satisfies EmailServiceStatus);
         logger.warn("[对外邮件服务] 未配置有效API密钥");
         return;
       }
-      (globalThis as any).OUTEMAIL_SERVICE_STATUS = { available: true };
+      registry.register("outemailStatus", { available: true } satisfies EmailServiceStatus);
       logger.info("[对外邮件服务] 配置检查完成：已启用");
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "未知错误";
-      (globalThis as any).OUTEMAIL_SERVICE_STATUS = {
-        available: false,
-        error: errorMessage,
-      };
+      registry.register("outemailStatus", { available: false, error: errorMessage } satisfies EmailServiceStatus);
       logger.warn("[对外邮件服务] 配置检查失败：", errorMessage);
     }
   })();
