@@ -1,5 +1,15 @@
 import { commandService } from "../services/commandService";
 
+jest.mock("../services/commandStorage", () => ({
+  getCommandQueue: jest.fn().mockResolvedValue([]),
+  addToQueue: jest.fn().mockResolvedValue({ commandId: "test-command-id" }),
+  removeFromQueue: jest.fn().mockResolvedValue(true),
+  clearQueue: jest.fn().mockResolvedValue(undefined),
+  getExecutionHistory: jest.fn().mockResolvedValue([]),
+  addToHistory: jest.fn().mockResolvedValue(undefined),
+  clearHistory: jest.fn().mockResolvedValue(undefined),
+}));
+
 describe("CommandService 安全性测试", () => {
   beforeEach(async () => {
     // 清理命令队列

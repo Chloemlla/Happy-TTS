@@ -35,6 +35,7 @@ describe("security bypass policy", () => {
   it("matches the IP verification bypass whitelist", () => {
     expect(shouldBypassSecurityComponent("ipVerification", "/api/turnstile/verify-token")).toBe(true);
     expect(shouldBypassSecurityComponent("ipVerification", "/api/auth/linuxdo/callback")).toBe(true);
+    expect(shouldBypassSecurityComponent("ipVerification", "/api/tts/assets/audio.mp3")).toBe(true);
     expect(shouldBypassSecurityComponent("ipVerification", "/api/tts/generate")).toBe(false);
   });
 

@@ -60,6 +60,16 @@ function resolveFishModel(value: string): string {
   return normalized;
 }
 
+function resolveOpenAiModel(value: string, fallback = "tts-1"): string {
+  const normalized = value.trim();
+  if (normalized && normalized !== FISH_AUDIO_DEFAULT_MODEL) {
+    return normalized;
+  }
+
+  const normalizedFallback = fallback.trim();
+  return normalizedFallback && normalizedFallback !== FISH_AUDIO_DEFAULT_MODEL ? normalizedFallback : "tts-1";
+}
+
 function asObject(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -109,11 +119,16 @@ export function normalizeTtsProviderRuntimeConfig(
   const raw = asObject(value);
   const fish = asObject(raw.fish);
   const provider = normalizeTtsProviderId(raw.provider, defaults.provider);
-  const fallbackModel = provider === "fish" ? FISH_AUDIO_DEFAULT_MODEL : defaults.defaultModel;
+  const fallbackModel =
+    provider === "fish" ? FISH_AUDIO_DEFAULT_MODEL : resolveOpenAiModel(defaults.defaultModel, "tts-1");
+  const normalizedModel = normalizeTtsModelId(raw.defaultModel, fallbackModel);
 
   return {
     provider,
-    defaultModel: normalizeTtsModelId(raw.defaultModel, fallbackModel),
+    defaultModel:
+      provider === "fish"
+        ? resolveFishModel(normalizedModel)
+        : resolveOpenAiModel(normalizedModel, fallbackModel),
     fish: {
       apiKey: normalizeString(fish.apiKey, defaults.fish.apiKey, 2048),
       baseUrl: normalizeFishAudioBaseUrl(fish.baseUrl, defaults.fish.baseUrl),
@@ -136,9 +151,10 @@ export function mergeTtsProviderAdminUpdate(
   if (!TTS_MODEL_ID_PATTERN.test(defaultModel)) {
     throw new Error("TTS 默认模型格式无效");
   }
-  if (provider === "fish" && OPENAI_TTS_MODELS.some((item) => item.id === defaultModel)) {
-    defaultModel = FISH_AUDIO_DEFAULT_MODEL;
-  }
+  const openAiFallback =
+    current.provider === "openai" ? resolveOpenAiModel(current.defaultModel, "tts-1") : "tts-1";
+  defaultModel =
+    provider === "fish" ? resolveFishModel(defaultModel) : resolveOpenAiModel(defaultModel, openAiFallback);
 
   let baseUrl = current.fish.baseUrl;
   if (Object.prototype.hasOwnProperty.call(fish, "baseUrl")) {
@@ -194,7 +210,7 @@ export function buildTtsProviderPublicConfig(
     };
   }
 
-  const configuredModel = runtimeConfig.defaultModel || openAiDefaults.model || "tts-1";
+  const configuredModel = resolveOpenAiModel(runtimeConfig.defaultModel, openAiDefaults.model || "tts-1");
   const models = [...OPENAI_TTS_MODELS];
   if (!models.some((item) => item.id === configuredModel)) {
     models.unshift({ id: configuredModel, name: configuredModel, description: "管理员配置模型" });
@@ -234,7 +250,7 @@ export function buildTtsProviderExecutionSnapshot(
     };
   }
 
-  const configuredModel = runtimeConfig.defaultModel || openAiDefaults.model || "tts-1";
+  const configuredModel = resolveOpenAiModel(runtimeConfig.defaultModel, openAiDefaults.model || "tts-1");
   const allowedModels = new Set([...OPENAI_TTS_MODELS.map((item) => item.id), configuredModel]);
   const requestedModel = typeof input.model === "string" ? input.model.trim() : "";
   const model = allowedModels.has(requestedModel) ? requestedModel : configuredModel;

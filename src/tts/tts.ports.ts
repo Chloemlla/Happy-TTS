@@ -140,13 +140,19 @@ export interface GenerationHistoryStore {
     text: string;
     voice: string;
     model: string;
-    contentHash: string;
+    speed: number;
+    outputFormat: string;
+    contentHashes: string[];
   }): Promise<TtsDuplicateHit | null>;
   findDuplicateForAnonymous(params: {
     ip: string;
     fingerprint: string;
     text: string;
-    contentHash: string;
+    voice: string;
+    model: string;
+    speed: number;
+    outputFormat: string;
+    contentHashes: string[];
   }): Promise<TtsDuplicateHit | null>;
   addRecord(record: TtsHistoryRecord): Promise<TtsHistoryRecord>;
   getRecentRecords(params: {

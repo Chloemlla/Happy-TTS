@@ -187,6 +187,13 @@ describe("Rust audio worker integration", () => {
 
   it("TtsService should write and persist processed audio without changing public result fields", async () => {
     const providerRouter = {
+      resolveExecutionSnapshot: jest.fn().mockResolvedValue({
+        providerId: "openai",
+        model: "tts-1",
+        voice: "alloy",
+        baseUrl: "https://api.openai.com/v1",
+        cacheIdentity: "openai|tts-1|alloy|https://api.openai.com/v1",
+      }),
       synthesize: jest.fn().mockResolvedValue({
         provider: "openai",
         providerModel: "tts-1",

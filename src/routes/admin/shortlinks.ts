@@ -4,6 +4,7 @@ import { auditLog } from "../../middleware/auditLog";
 import { authenticateToken } from "../../middleware/authenticateToken";
 import { replayProtection } from "../../middleware/replayProtection";
 import logger from "../../utils/logger";
+import { createUrlSafeRandomId } from "../../utils/randomId";
 
 const router = express.Router();
 
@@ -261,7 +262,6 @@ router.post(
 
       const mongoose = require("mongoose");
       const ShortUrlModel = mongoose.models.ShortUrl || mongoose.model("ShortUrl");
-      const nanoid = require("nanoid").nanoid;
       const { shortUrlMigrationService } = require("../../services/shortUrlMigrationService");
 
       let code: string;
@@ -289,7 +289,7 @@ router.post(
         code = trimmedCode;
       } else {
         // 生成随机短链接码
-        let randomCode = nanoid(6);
+        let randomCode = createUrlSafeRandomId(6);
         let retries = 0;
         const maxRetries = 10;
 
@@ -298,7 +298,7 @@ router.post(
           if (!existingCode) {
             break;
           }
-          randomCode = nanoid(6);
+          randomCode = createUrlSafeRandomId(6);
           retries++;
         }
 

@@ -2,13 +2,20 @@ import { describe, expect, it } from "vitest";
 import {
   FISH_DEFAULT_TTS_MODEL,
   getTtsOutputFormats,
+  isTtsProviderConfigPayload,
   normalizeTtsProviderConfig,
+  supportsTtsSpeed,
 } from "./ttsProviderConfig";
 
 describe("normalizeTtsProviderConfig", () => {
   it("limits Fish Audio output to MP3 while preserving OpenAI formats", () => {
     expect(getTtsOutputFormats("fish")).toEqual(["mp3"]);
     expect(getTtsOutputFormats("openai")).toEqual(["mp3", "opus", "aac", "flac"]);
+  });
+
+  it("only exposes speed adjustment for providers that honor it", () => {
+    expect(supportsTtsSpeed("openai")).toBe(true);
+    expect(supportsTtsSpeed("fish")).toBe(false);
   });
 
   it("falls back to the existing OpenAI choices for an invalid payload", () => {
@@ -18,6 +25,7 @@ describe("normalizeTtsProviderConfig", () => {
     expect(config.defaultModel).toBe("tts-1-hd");
     expect(config.defaultVoice).toBe("nova");
     expect(config.models.map((option) => option.id)).toEqual(["tts-1", "tts-1-hd"]);
+    expect(isTtsProviderConfigPayload({ provider: "unknown" })).toBe(false);
   });
 
   it("replaces a stale OpenAI model and removes selectable voices for configured Fish references", () => {

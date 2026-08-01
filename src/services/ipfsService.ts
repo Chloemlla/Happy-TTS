@@ -1,8 +1,7 @@
 import type { Request } from "express";
 import logger from "../utils/logger";
 import { startupConfig } from "../config/config";
-
-const nanoid = require("nanoid").nanoid;
+import { createUrlSafeRandomId } from "../utils/randomId";
 
 import mongoose from "mongoose";
 import { sanitizeSvgContent, validateSvgContent } from "../utils/svgSecurity";
@@ -1081,7 +1080,7 @@ export class IPFSService {
       if (hasChinese) {
         // 生成一个基于时间戳和随机数的英文名�?
         const timestamp = Date.now();
-        const randomId = nanoid(8);
+        const randomId = createUrlSafeRandomId(8);
         return `svg_${timestamp}_${randomId}.svg`;
       }
     }
@@ -1092,7 +1091,7 @@ export class IPFSService {
     // 如果名称为空或只包含特殊字符，生成一个默认名�?
     if (!cleanedName || cleanedName.trim() === "") {
       const timestamp = Date.now();
-      const randomId = nanoid(8);
+      const randomId = createUrlSafeRandomId(8);
       cleanedName = `file_${timestamp}_${randomId}`;
     } else {
       // 清理特殊字符但保留中�?

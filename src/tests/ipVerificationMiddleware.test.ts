@@ -64,6 +64,24 @@ describe("ipVerificationMiddleware", () => {
     expect(res.status).not.toHaveBeenCalled();
   });
 
+  it("bypasses signed TTS assets because media elements cannot attach verification headers", async () => {
+    const req = {
+      method: "GET",
+      originalUrl: "/api/tts/assets/audio.mp3?accessToken=signed-token",
+      headers: { "sec-fetch-mode": "no-cors" },
+      ip: "203.0.113.10",
+      socket: { remoteAddress: "203.0.113.10" },
+    } as unknown as Request;
+    const res = createResponse();
+    const next = jest.fn() as unknown as NextFunction;
+
+    await ipVerificationMiddleware(req, res, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(res.status).not.toHaveBeenCalled();
+    expect(mockVerifyRequestToken).not.toHaveBeenCalled();
+  });
+
   it("allows requests when the verification token is valid", async () => {
     mockVerifyRequestToken.mockResolvedValue(true);
 

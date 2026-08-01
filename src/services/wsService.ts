@@ -233,7 +233,7 @@ class WsService {
         claimPendingConfigurationNoticeForAdminConnection,
         completeConfigurationNoticeDelivery,
         releaseConfigurationNoticeDeliveryClaim,
-      } = await import("./configurationNoticeService.js");
+      } = await import("./configurationNoticeService");
       const pendingNotice = await claimPendingConfigurationNoticeForAdminConnection();
       if (!pendingNotice) {
         return;

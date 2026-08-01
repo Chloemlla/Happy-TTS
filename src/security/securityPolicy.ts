@@ -30,6 +30,11 @@ export const securityBypassPolicy: Record<SecurityComponent, SecurityBypassRule[
     { match: "exact", value: "/api/frontend-config", note: "Frontend boot config" },
     { match: "prefix", value: "/api/auth/linuxdo/", note: "External auth callback" },
     { match: "prefix", value: "/api/oauth", note: "OAuth third-party authorization and token endpoints" },
+    {
+      match: "prefix",
+      value: "/api/tts/assets",
+      note: "Browser audio requests are independently authorized by a scoped, expiring TTS asset token",
+    },
   ],
   tamperProtection: [],
   replayProtection: [],

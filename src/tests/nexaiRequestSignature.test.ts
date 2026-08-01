@@ -3,6 +3,24 @@ import type { NextFunction, Request, Response } from "express";
 import { nexaiRequestSignature } from "../middleware/nexaiRequestSignature";
 import { destroyNonceStore } from "../services/nonceStore";
 
+jest.mock("../services/runtimeConfigService", () => ({
+  RuntimeConfigService: {
+    getCachedConfig: jest.fn(() => {
+      const rawMode = String(process.env.NEXAI_REQUEST_SIGNING || "soft").toLowerCase();
+      const mode = rawMode === "off" || rawMode === "enforce" ? rawMode : "soft";
+      const rawMaxDrift = Number(process.env.NEXAI_SIG_MAX_DRIFT_MS);
+      return {
+        nexaiSigning: {
+          mode,
+          appSignSecret: process.env.NEXAI_APP_SIGN_SECRET || "",
+          appSignSecretPrev: process.env.NEXAI_APP_SIGN_SECRET_PREV || "",
+          maxDriftMs: Number.isFinite(rawMaxDrift) && rawMaxDrift > 0 ? rawMaxDrift : 5 * 60 * 1000,
+        },
+      };
+    }),
+  },
+}));
+
 const APP_SECRET = "test-nexai-app-sign-secret";
 const ACCESS_TOKEN = "test-access-token-value";
 const REFRESH_TOKEN = "test-refresh-token-value";

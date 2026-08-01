@@ -15,6 +15,9 @@ const mockStartupConfig = {
 };
 
 const mockRuntimeMutableConfig = {
+  tts: {
+    generationCode: "configured-generation-code",
+  },
   email: {
     enabled: true,
     resendApiKey: "re_configured",
@@ -102,6 +105,7 @@ describe("configuration notice issue collection", () => {
     }
     mockRuntimeMutableConfig.email.resendApiKey = "re_configured";
     mockRuntimeMutableConfig.googleAuth.clientId = "google-client";
+    mockRuntimeMutableConfig.tts.generationCode = "configured-generation-code";
     mockProbeOptionalCapabilities.mockResolvedValue({
       turnstile: { secretConfigured: true, siteConfigured: true },
       hcaptcha: { secretConfigured: true, siteConfigured: true },
@@ -154,6 +158,21 @@ describe("configuration notice issue collection", () => {
     expect(issues).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: "resend-email", settingNames: ["RESEND_API_KEY"] }),
+      ]),
+    );
+  });
+
+  it("reports the missing browser TTS generation code", async () => {
+    mockRuntimeMutableConfig.tts.generationCode = "";
+
+    const issues = await getMissingConfigurationIssues();
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "tts-generation-code",
+          settingNames: ["GENERATION_CODE"],
+        }),
       ]),
     );
   });

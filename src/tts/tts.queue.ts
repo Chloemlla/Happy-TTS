@@ -99,6 +99,7 @@ export class TtsQueue {
         ...job.request,
         model: providerExecution.model,
         voice: providerExecution.voice,
+        speed: this.ttsService.resolveSpeed(job.request.speed, providerExecution),
         providerExecution,
       };
       const result = await this.ttsService.generateSpeech({
@@ -111,12 +112,14 @@ export class TtsQueue {
         policyVersion: job.governance?.policyVersion,
       });
 
-      const contentHash = this.ttsService.generateContentHash(
-        effectiveRequest.text,
-        effectiveRequest.voice,
-        effectiveRequest.model,
+      const contentHash = this.ttsService.generateContentHash({
+        text: effectiveRequest.text,
+        voice: effectiveRequest.voice,
+        model: effectiveRequest.model,
+        speed: effectiveRequest.speed,
+        outputFormat: effectiveRequest.outputFormat,
         providerExecution,
-      );
+      });
 
       await this.historyStore.addRecord({
         scope: job.userId ? "user" : "anonymous",

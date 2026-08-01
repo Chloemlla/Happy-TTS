@@ -22,7 +22,9 @@ import {
 import {
   FALLBACK_TTS_PROVIDER_CONFIG,
   getTtsOutputFormats,
+  isTtsProviderConfigPayload,
   normalizeTtsProviderConfig,
+  supportsTtsSpeed,
 } from "../utils/ttsProviderConfig";
 
 interface TtsFormProps {
@@ -41,8 +43,8 @@ export const TtsForm: React.FC<TtsFormProps> = ({
   onSuccess,
 }) => {
   const [text, setText] = useState("");
-  const [model, setModel] = useState("tts-1-hd");
-  const [voice, setVoice] = useState("nova");
+  const [model, setModel] = useState(FALLBACK_TTS_PROVIDER_CONFIG.defaultModel);
+  const [voice, setVoice] = useState(FALLBACK_TTS_PROVIDER_CONFIG.defaultVoice || "");
   const [outputFormat, setOutputFormat] = useState("mp3");
   const [speed, setSpeed] = useState(1.0);
   const [generationCode, setGenerationCode] = useState("");
@@ -62,6 +64,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({
   const voices = providerConfig.voices;
   const models = providerConfig.models;
   const usesSelectableVoice = providerConfig.voiceMode === "select";
+  const supportsSpeedAdjustment = supportsTtsSpeed(providerConfig.provider);
   const providerLabel = usingProviderFallback
     ? "兼容模式"
     : providerConfig.provider === "fish"
@@ -81,13 +84,16 @@ export const TtsForm: React.FC<TtsFormProps> = ({
         });
         if (!response.ok) throw new Error("TTS provider config unavailable");
 
-        const nextConfig = normalizeTtsProviderConfig(await response.json());
+        const payload: unknown = await response.json();
+        const nextConfig = normalizeTtsProviderConfig(payload);
+        const hasValidPayload = isTtsProviderConfigPayload(payload);
         if (controller.signal.aborted) return;
 
         setProviderConfig(nextConfig);
         setModel(nextConfig.defaultModel);
         if (nextConfig.provider === "fish") {
           setOutputFormat("mp3");
+          setSpeed(1);
         }
         if (nextConfig.voiceMode === "select") {
           const nextVoice =
@@ -98,7 +104,10 @@ export const TtsForm: React.FC<TtsFormProps> = ({
         } else {
           setVoice("");
         }
-        setUsingProviderFallback(false);
+        setUsingProviderFallback(!hasValidPayload);
+        if (!hasValidPayload) {
+          setOutputFormat("mp3");
+        }
       } catch {
         if (controller.signal.aborted) return;
         setProviderConfig(FALLBACK_TTS_PROVIDER_CONFIG);
@@ -183,7 +192,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({
           model,
           ...(usesSelectableVoice && voice ? { voice } : {}),
           outputFormat,
-          speed,
+          speed: supportsSpeedAdjustment ? speed : 1,
           generationCode,
           ...(turnstileConfig.enabled && { cfToken: turnstileToken }),
         });
@@ -211,6 +220,7 @@ export const TtsForm: React.FC<TtsFormProps> = ({
       outputFormat,
       setNotification,
       speed,
+      supportsSpeedAdjustment,
       text,
       turnstileConfig.enabled,
       turnstileToken,
@@ -495,38 +505,51 @@ export const TtsForm: React.FC<TtsFormProps> = ({
               ) : null}
             </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.4, delay: 0.8 }}
-            >
-              <motion.label
-                className={cn(studioEyebrowClassName, "mb-3 block")}
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.9 }}
-              >
-                语速
-              </motion.label>
-              <motion.input
-                type="range"
-                min="0.25"
-                max="4.0"
-                step="0.25"
-                value={speed}
-                onChange={(event) => setSpeed(parseFloat(event.target.value))}
-                className="w-full"
-                whileHover={{ scale: 1.02 }}
-              />
+            {supportsSpeedAdjustment ? (
               <motion.div
-                className="text-center text-slate-600 mt-2"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3, delay: 1.0 }}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.8 }}
               >
-                {speed}x
+                <motion.label
+                  className={cn(studioEyebrowClassName, "mb-3 block")}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 0.9 }}
+                >
+                  语速
+                </motion.label>
+                <motion.input
+                  type="range"
+                  min="0.25"
+                  max="4.0"
+                  step="0.25"
+                  value={speed}
+                  onChange={(event) => setSpeed(parseFloat(event.target.value))}
+                  className="w-full"
+                  whileHover={{ scale: 1.02 }}
+                />
+                <motion.div
+                  className="mt-2 text-center text-muted-foreground"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3, delay: 1.0 }}
+                >
+                  {speed}x
+                </motion.div>
               </motion.div>
-            </motion.div>
+            ) : (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.8 }}
+              >
+                <div className={cn(studioEyebrowClassName, "mb-3 block")}>语速</div>
+                <div className="rounded-md border border-border bg-muted/50 p-4 text-sm text-muted-foreground" role="note">
+                  Fish Audio 当前使用默认语速 1x，暂不支持调整。
+                </div>
+              </motion.div>
+            )}
 
             <motion.div
               initial={{ opacity: 0, x: -20 }}

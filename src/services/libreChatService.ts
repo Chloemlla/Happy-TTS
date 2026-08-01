@@ -115,6 +115,8 @@ class LibreChatService {
   private readonly historyWriter = new SerialAtomicJsonWriter();
   private readonly ownerLocks = new Map<string, Promise<void>>();
   private readonly ownersUsingFileFallback = new Set<string>();
+  private readonly ownersWithPendingFallbackWrites = new Set<string>();
+  private readonly fallbackBaselines = new Map<string, ChatMessage[]>();
   private readonly initializationPromise: Promise<void>;
   private fileHistoryLoaded = false;
   private fileHistoryLoadPromise: Promise<void> | null = null;
@@ -354,6 +356,101 @@ class LibreChatService {
     return [...merged.values()];
   }
 
+  private replaceMemoryOwnerMessages(ownerKey: string, messages: ChatMessage[]): void {
+    const canonicalMessages = this.mergeOwnerMessages(ownerKey, messages);
+    this.chatHistory = [
+      ...this.chatHistory.filter((message) => !messageBelongsToOwner(message, ownerKey)),
+      ...canonicalMessages,
+    ];
+  }
+
+  private markFallbackWritePending(ownerKey: string, baseline?: ChatMessage[]): void {
+    this.ownersUsingFileFallback.add(ownerKey);
+    if (!this.ownersWithPendingFallbackWrites.has(ownerKey) && baseline) {
+      this.fallbackBaselines.set(
+        ownerKey,
+        baseline.map((message) => ({ ...message })),
+      );
+    }
+    this.ownersWithPendingFallbackWrites.add(ownerKey);
+  }
+
+  private markMongoOwnerHealthy(ownerKey: string, canonicalMessages?: ChatMessage[]): void {
+    // A successful Mongo operation is authoritative. Do not keep merging a
+    // stale file-fallback snapshot after another process has changed or
+    // deleted the canonical owner document.
+    this.ownersUsingFileFallback.delete(ownerKey);
+    this.ownersWithPendingFallbackWrites.delete(ownerKey);
+    this.fallbackBaselines.delete(ownerKey);
+    if (canonicalMessages) this.replaceMemoryOwnerMessages(ownerKey, canonicalMessages);
+  }
+
+  private async reconcileOwnerAfterMongoWrite(ownerKey: string): Promise<void> {
+    if (!this.ownersUsingFileFallback.has(ownerKey)) {
+      this.markMongoOwnerHealthy(ownerKey);
+      return;
+    }
+
+    try {
+      const pendingFallback = this.ownersWithPendingFallbackWrites.has(ownerKey);
+      if (pendingFallback) {
+        const baseline = this.fallbackBaselines.get(ownerKey) || [];
+        const current = this.getMemoryMessages(ownerKey);
+        const beforeById = new Map(baseline.map((message) => [message.id, message]));
+        const afterById = new Map(current.map((message) => [message.id, message]));
+
+        for (const [id, message] of afterById) {
+          const previous = beforeById.get(id);
+          if (!previous) {
+            await ChatHistoryModel.updateOne(
+              { ownerKey, "messages.id": { $ne: id } },
+              {
+                $push: { messages: { $each: [message], $slice: -this.MAX_USER_MESSAGES } },
+                $set: { updatedAt: new Date(), deleted: false, deletedAt: null },
+              },
+            );
+          } else if (JSON.stringify(previous) !== JSON.stringify(message)) {
+            await ChatHistoryModel.updateOne(
+              { ownerKey, "messages.id": id, deleted: { $ne: true } },
+              {
+                $set: {
+                  "messages.$": message,
+                  updatedAt: new Date(),
+                  deleted: false,
+                  deletedAt: null,
+                },
+              },
+            );
+          }
+        }
+
+        const removedIds = [...beforeById.keys()].filter((id) => !afterById.has(id));
+        if (removedIds.length > 0) {
+          await ChatHistoryModel.updateOne(
+            { ownerKey, deleted: { $ne: true } },
+            { $pull: { messages: { id: { $in: removedIds } } }, $set: { updatedAt: new Date() } },
+          );
+        }
+      }
+
+      const refreshed = await ChatHistoryModel.findOne({ ownerKey, deleted: { $ne: true } }).lean();
+      const refreshedMessages = (refreshed as { messages?: unknown } | null)?.messages;
+      this.markMongoOwnerHealthy(
+        ownerKey,
+        Array.isArray(refreshedMessages)
+          ? (refreshedMessages as ChatMessage[])
+          : [],
+      );
+    } catch (error) {
+      // Keep the fallback marker until a successful read replaces the stale
+      // snapshot; otherwise a later Mongo outage could re-introduce it.
+      logger.warn("Mongo 写入成功但无法刷新 LibreChat owner 回退快照", {
+        ownerKey,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   public async prepareOwnerHistory(ownerKey: string, legacyOwnerId?: string): Promise<void> {
     assertConversationOwnerKey(ownerKey);
     await this.initializationPromise;
@@ -385,13 +482,18 @@ class LibreChatService {
       try {
         const doc = await ChatHistoryModel.findOne({ ownerKey, deleted: { $ne: true } }).lean();
         const storedMessages = (doc as { messages?: unknown } | null)?.messages;
+        const hasPendingFallbackWrites = this.ownersWithPendingFallbackWrites.has(ownerKey);
         if (Array.isArray(storedMessages)) {
           const canonicalMessages = this.mergeOwnerMessages(ownerKey, storedMessages as ChatMessage[]);
-          return this.ownersUsingFileFallback.has(ownerKey)
-            ? this.mergeOwnerMessages(ownerKey, canonicalMessages, this.getMemoryMessages(ownerKey))
-            : canonicalMessages;
+          if (hasPendingFallbackWrites) {
+            return this.mergeOwnerMessages(ownerKey, canonicalMessages, this.getMemoryMessages(ownerKey));
+          }
+          this.markMongoOwnerHealthy(ownerKey, canonicalMessages);
+          return canonicalMessages;
         }
-        if (!this.ownersUsingFileFallback.has(ownerKey)) return [];
+        if (hasPendingFallbackWrites) return this.getMemoryMessages(ownerKey);
+        this.markMongoOwnerHealthy(ownerKey, []);
+        return [];
       } catch (error) {
         logger.error("按 owner 读取 MongoDB 聊天历史失败，回退到文件缓存", error);
       }
@@ -428,28 +530,30 @@ class LibreChatService {
             atomicAppend,
             { upsert: true, setDefaultsOnInsert: true, maxTimeMS: 10_000 },
           );
+          await this.reconcileOwnerAfterMongoWrite(ownerKey);
         } catch (error) {
           const duplicateKey = (error as { code?: number })?.code === 11000;
           if (duplicateKey) {
             try {
               await ChatHistoryModel.updateOne({ ownerKey }, atomicAppend);
+              await this.reconcileOwnerAfterMongoWrite(ownerKey);
             } catch (retryError) {
               logger.error("并发创建 owner 后重试追加 MongoDB 聊天消息失败", retryError);
-              this.ownersUsingFileFallback.add(ownerKey);
+              this.markFallbackWritePending(ownerKey, currentOwnerMessages);
               this.restoreFileHistoryOnFallback = true;
               await this.ensureFileHistoryLoaded();
               await this.saveChatHistory();
             }
           } else {
             logger.error("原子追加 MongoDB 聊天消息失败，已保留文件缓存", error);
-            this.ownersUsingFileFallback.add(ownerKey);
+            this.markFallbackWritePending(ownerKey, currentOwnerMessages);
             this.restoreFileHistoryOnFallback = true;
             await this.ensureFileHistoryLoaded();
             await this.saveChatHistory();
           }
         }
       } else {
-        this.ownersUsingFileFallback.add(ownerKey);
+        this.markFallbackWritePending(ownerKey, currentOwnerMessages);
         await this.saveChatHistory();
       }
 
@@ -461,6 +565,7 @@ class LibreChatService {
     await this.initializationPromise;
     if (mongoose.connection.readyState !== 1) await this.ensureFileHistoryLoaded();
     return this.withOwnerLock(ownerKey, async () => {
+      const ownerMessagesBefore = this.getMemoryMessages(ownerKey);
       let updated = 0;
       this.chatHistory = this.chatHistory.map((message) => {
         if (messageBelongsToOwner(message, ownerKey) && message.id === id) {
@@ -482,18 +587,19 @@ class LibreChatService {
               },
             },
           );
+          await this.reconcileOwnerAfterMongoWrite(ownerKey);
           if ((result as { matchedCount?: number } | null)?.matchedCount) updated = 1;
         } catch (error) {
           logger.error("原子更新 MongoDB 聊天消息失败", error);
           if (updated) {
-            this.ownersUsingFileFallback.add(ownerKey);
+            this.markFallbackWritePending(ownerKey, ownerMessagesBefore);
             this.restoreFileHistoryOnFallback = true;
             await this.ensureFileHistoryLoaded();
             await this.saveChatHistory();
           }
         }
       } else if (updated) {
-        this.ownersUsingFileFallback.add(ownerKey);
+        this.markFallbackWritePending(ownerKey, ownerMessagesBefore);
         await this.saveChatHistory();
       }
       return updated;
@@ -505,6 +611,7 @@ class LibreChatService {
     if (mongoose.connection.readyState !== 1) await this.ensureFileHistoryLoaded();
     return this.withOwnerLock(ownerKey, async () => {
       const safeReplacement: ChatMessage = { ...replacement, ownerKey };
+      const ownerMessagesBefore = this.getMemoryMessages(ownerKey);
       let updated = 0;
       this.chatHistory = this.chatHistory.map((message) => {
         if (messageBelongsToOwner(message, ownerKey) && message.id === replacement.id) {
@@ -526,18 +633,19 @@ class LibreChatService {
               },
             },
           );
+          await this.reconcileOwnerAfterMongoWrite(ownerKey);
           if ((result as { matchedCount?: number } | null)?.matchedCount) updated = 1;
         } catch (error) {
           logger.error("原子替换 MongoDB 聊天消息失败", error);
           if (updated) {
-            this.ownersUsingFileFallback.add(ownerKey);
+            this.markFallbackWritePending(ownerKey, ownerMessagesBefore);
             this.restoreFileHistoryOnFallback = true;
             await this.ensureFileHistoryLoaded();
             await this.saveChatHistory();
           }
         }
       } else if (updated) {
-        this.ownersUsingFileFallback.add(ownerKey);
+        this.markFallbackWritePending(ownerKey, ownerMessagesBefore);
         await this.saveChatHistory();
       }
       return updated;
@@ -549,6 +657,7 @@ class LibreChatService {
     if (mongoose.connection.readyState !== 1) await this.ensureFileHistoryLoaded();
     await this.withOwnerLock(ownerKey, async () => {
       const idSet = new Set(ids);
+      const ownerMessagesBefore = this.getMemoryMessages(ownerKey);
       const before = this.chatHistory.length;
       this.chatHistory = this.chatHistory.filter(
         (message) => !(messageBelongsToOwner(message, ownerKey) && idSet.has(message.id)),
@@ -559,17 +668,18 @@ class LibreChatService {
             { ownerKey, deleted: { $ne: true } },
             { $pull: { messages: { id: { $in: ids } } }, $set: { updatedAt: new Date() } },
           );
+          await this.reconcileOwnerAfterMongoWrite(ownerKey);
         } catch (error) {
           logger.error("原子删除 MongoDB 聊天消息失败", error);
           if (this.chatHistory.length !== before) {
-            this.ownersUsingFileFallback.add(ownerKey);
+            this.markFallbackWritePending(ownerKey, ownerMessagesBefore);
             this.restoreFileHistoryOnFallback = true;
             await this.ensureFileHistoryLoaded();
             await this.saveChatHistory();
           }
         }
       } else if (this.chatHistory.length !== before) {
-        this.ownersUsingFileFallback.add(ownerKey);
+        this.markFallbackWritePending(ownerKey, ownerMessagesBefore);
         await this.saveChatHistory();
       }
     });
@@ -579,6 +689,7 @@ class LibreChatService {
     await this.initializationPromise;
     if (mongoose.connection.readyState !== 1) await this.ensureFileHistoryLoaded();
     await this.withOwnerLock(ownerKey, async () => {
+      const ownerMessagesBefore = this.getMemoryMessages(ownerKey);
       const before = this.chatHistory.length;
       this.chatHistory = this.chatHistory.filter((message) => !messageBelongsToOwner(message, ownerKey));
       if (mongoose.connection.readyState === 1) {
@@ -588,17 +699,18 @@ class LibreChatService {
             { $set: { messages: [], deleted: true, deletedAt: new Date(), updatedAt: new Date() } },
             { upsert: true, setDefaultsOnInsert: true },
           );
+          await this.reconcileOwnerAfterMongoWrite(ownerKey);
         } catch (error) {
           logger.error("原子清空 MongoDB 聊天历史失败", error);
           if (this.chatHistory.length !== before) {
-            this.ownersUsingFileFallback.add(ownerKey);
+            this.markFallbackWritePending(ownerKey, ownerMessagesBefore);
             this.restoreFileHistoryOnFallback = true;
             await this.ensureFileHistoryLoaded();
             await this.saveChatHistory();
           }
         }
       } else if (this.chatHistory.length !== before) {
-        this.ownersUsingFileFallback.add(ownerKey);
+        this.markFallbackWritePending(ownerKey, ownerMessagesBefore);
         await this.saveChatHistory();
       }
     });

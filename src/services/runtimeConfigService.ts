@@ -393,16 +393,31 @@ function normalizeStoredAdminSecurityConfig(
 
 async function readRuntimeConfigDoc(
   key: RuntimeConfigKey,
+  options: {
+    fallbackOnError?: () => { value: Record<string, unknown>; updatedAt?: Date } | null;
+  } = {},
 ): Promise<{ value: Record<string, unknown>; updatedAt?: Date } | null> {
-  if (mongoose.connection.readyState !== 1) return null;
+  if (mongoose.connection.readyState !== 1) {
+    return options.fallbackOnError?.() ?? null;
+  }
 
-  const doc = await RuntimeConfigModel.findOne({ key }).lean().exec();
-  if (!doc?.value || typeof doc.value !== "object") return null;
+  try {
+    const doc = await RuntimeConfigModel.findOne({ key }).lean().exec();
+    if (!doc?.value || typeof doc.value !== "object") return null;
 
-  return {
-    value: doc.value as Record<string, unknown>,
-    updatedAt: doc.updatedAt,
-  };
+    return {
+      value: doc.value as Record<string, unknown>,
+      updatedAt: doc.updatedAt,
+    };
+  } catch (error) {
+    logger.warn("[RuntimeConfig] Failed to read runtime configuration", {
+      configKey: key,
+      error: error instanceof Error ? error.message : String(error),
+      fallback: options.fallbackOnError ? "cache-or-defaults" : "none",
+    });
+    if (options.fallbackOnError) return options.fallbackOnError();
+    throw error;
+  }
 }
 
 
@@ -1258,7 +1273,12 @@ export class RuntimeConfigService {
   }
 
   static async getRawTtsProviderConfig(): Promise<TtsProviderRuntimeConfig> {
-    const doc = await readRuntimeConfigDoc("TTS_PROVIDER");
+    const doc = await readRuntimeConfigDoc("TTS_PROVIDER", {
+      fallbackOnError: () =>
+        loadedKeys.has("TTS_PROVIDER")
+          ? { value: runtimeConfigCache.ttsProvider as unknown as Record<string, unknown> }
+          : null,
+    });
     const config = doc
       ? normalizeStoredTtsProviderConfig(doc.value)
       : cloneRuntimeConfigDefaults(runtimeConfigDefaults).ttsProvider;
@@ -1278,7 +1298,12 @@ export class RuntimeConfigService {
       updatedAt?: string;
     };
   }> {
-    const doc = await readRuntimeConfigDoc("TTS_PROVIDER");
+    const doc = await readRuntimeConfigDoc("TTS_PROVIDER", {
+      fallbackOnError: () =>
+        loadedKeys.has("TTS_PROVIDER")
+          ? { value: runtimeConfigCache.ttsProvider as unknown as Record<string, unknown> }
+          : null,
+    });
     const config = doc
       ? normalizeStoredTtsProviderConfig(doc.value)
       : cloneRuntimeConfigDefaults(runtimeConfigDefaults).ttsProvider;

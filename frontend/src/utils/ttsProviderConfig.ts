@@ -97,6 +97,15 @@ export function getTtsOutputFormats(provider: TtsProviderId): readonly string[] 
   return provider === "fish" ? FISH_TTS_OUTPUT_FORMATS : OPENAI_TTS_OUTPUT_FORMATS;
 }
 
+export function supportsTtsSpeed(provider: TtsProviderId): boolean {
+  return provider === "openai";
+}
+
+export function isTtsProviderConfigPayload(payload: unknown): boolean {
+  const source = unwrapConfig(payload);
+  return Boolean(source && normalizeProvider(source.provider));
+}
+
 export function normalizeTtsProviderConfig(payload: unknown): TtsProviderPublicConfig {
   const source = unwrapConfig(payload);
   const provider = normalizeProvider(source?.provider);

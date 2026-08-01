@@ -1,8 +1,8 @@
 import ShortUrlModel, { type IShortUrl } from "../models/shortUrlModel";
 import logger from "../utils/logger";
+import { createUrlSafeRandomId } from "../utils/randomId";
 import { TransactionService } from "./transactionService";
 
-const nanoid = require("nanoid").nanoid;
 const crypto = require("node:crypto");
 
 import { mongoose } from "./mongoService";
@@ -116,7 +116,7 @@ export class ShortUrlService {
     const baseRetries = 5;
 
     for (let i = 0; i < baseRetries; i++) {
-      const code = nanoid(baseLength);
+      const code = createUrlSafeRandomId(baseLength);
       const existing = await ShortUrlModel.findOne({ code }).session(session);
       if (!existing) {
         logger.debug(`[短链服务] 策略1成功: nanoid(${baseLength}), 重试${i}次`);
@@ -129,7 +129,7 @@ export class ShortUrlService {
     const mediumRetries = 5;
 
     for (let i = 0; i < mediumRetries; i++) {
-      const code = nanoid(mediumLength);
+      const code = createUrlSafeRandomId(mediumLength);
       const existing = await ShortUrlModel.findOne({ code }).session(session);
       if (!existing) {
         logger.debug(`[短链服务] 策略2成功: nanoid(${mediumLength}), 重试${i}次`);
@@ -142,7 +142,7 @@ export class ShortUrlService {
     const longRetries = 5;
 
     for (let i = 0; i < longRetries; i++) {
-      const code = nanoid(longLength);
+      const code = createUrlSafeRandomId(longLength);
       const existing = await ShortUrlModel.findOne({ code }).session(session);
       if (!existing) {
         logger.debug(`[短链服务] 策略3成功: nanoid(${longLength}), 重试${i}次`);
@@ -155,7 +155,7 @@ export class ShortUrlService {
     const timeCode = (timestamp % 1000000).toString(36); // 6位时间戳
 
     for (let i = 0; i < 3; i++) {
-      const randomPart = nanoid(4);
+      const randomPart = createUrlSafeRandomId(4);
       const code = `${randomPart}${timeCode}`; // 总长度约10位
       const existing = await ShortUrlModel.findOne({ code }).session(session);
       if (!existing) {

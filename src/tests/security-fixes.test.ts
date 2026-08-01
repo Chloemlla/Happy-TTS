@@ -1,5 +1,15 @@
 import { commandService } from "../services/commandService";
 
+jest.mock("../services/commandStorage", () => ({
+  getCommandQueue: jest.fn().mockResolvedValue([]),
+  addToQueue: jest.fn().mockResolvedValue({ commandId: "test-command-id" }),
+  removeFromQueue: jest.fn().mockResolvedValue(true),
+  clearQueue: jest.fn().mockResolvedValue(undefined),
+  getExecutionHistory: jest.fn().mockResolvedValue([]),
+  addToHistory: jest.fn().mockResolvedValue(undefined),
+  clearHistory: jest.fn().mockResolvedValue(undefined),
+}));
+
 describe("安全修复测试", () => {
   describe("CommandService 命令注入防护", () => {
     it("应该拒绝包含危险字符的命令", async () => {

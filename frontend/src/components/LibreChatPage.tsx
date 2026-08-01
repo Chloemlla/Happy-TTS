@@ -1202,6 +1202,14 @@ const LibreChatPage: React.FC = () => {
       sseRef.current.close();
     }
 
+    // EventSource cannot attach the legacy token header safely. Do not create
+    // a second cookie-backed identity for a manual-token conversation.
+    if (token.trim()) {
+      sseRef.current = null;
+      setSseConnected(false);
+      return;
+    }
+
     try {
       const sseUrl = `${apiBase}/api/librechat/sse`;
 
@@ -1285,9 +1293,9 @@ const LibreChatPage: React.FC = () => {
     }
   }, []);
 
-  // 监听token变化，重新建立SSE连接
+  // Cookie/authenticated sessions can use SSE; legacy token sessions poll.
   useEffect(() => {
-    if (token || guestMode) {
+    if (guestMode) {
       connectSSE();
     } else {
       disconnectSSE();

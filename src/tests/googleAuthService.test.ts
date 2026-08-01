@@ -30,6 +30,11 @@ jest.mock("../services/providerCredentialEmailService", () => ({
   sendProviderGeneratedPasswordEmail: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock("../services/accountIdentityService", () => ({
+  findUserByProviderIdentity: jest.fn().mockResolvedValue(null),
+  upsertIdentityForUser: jest.fn().mockResolvedValue(undefined),
+}));
+
 describe("googleAuthService", () => {
   const baseGoogleAuthConfig = {
     ...config.googleAuth,

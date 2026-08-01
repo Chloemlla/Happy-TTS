@@ -44,6 +44,21 @@ describe("TTS provider runtime capability", () => {
     expect(next.defaultModel).toBe(FISH_AUDIO_DEFAULT_MODEL);
   });
 
+  it("repairs the Fish default model when switching directly back to OpenAI", () => {
+    const fishConfig: TtsProviderRuntimeConfig = {
+      ...baseConfig,
+      provider: "fish",
+      defaultModel: FISH_AUDIO_DEFAULT_MODEL,
+    };
+    const next = mergeTtsProviderAdminUpdate(fishConfig, {
+      provider: "openai",
+      defaultModel: FISH_AUDIO_DEFAULT_MODEL,
+      fish: { apiKey: "" },
+    });
+
+    expect(next.defaultModel).toBe("tts-1");
+  });
+
   it("rejects model values that are unsafe for the Fish model header", () => {
     expect(() =>
       mergeTtsProviderAdminUpdate(baseConfig, {
@@ -65,6 +80,8 @@ describe("TTS provider runtime capability", () => {
       model: "future-fish-model",
       voice: "configured_reference",
       referenceId: "reference-a",
+      cacheIdentity:
+        "fish|future-fish-model|configured_reference|reference-a|https://api.fish.audio",
     });
 
     const openAiExecution = buildTtsProviderExecutionSnapshot(
@@ -77,6 +94,13 @@ describe("TTS provider runtime capability", () => {
       model: "tts-1-hd",
       voice: "alloy",
     });
+
+    const staleOpenAiExecution = buildTtsProviderExecutionSnapshot(
+      { ...baseConfig, defaultModel: FISH_AUDIO_DEFAULT_MODEL },
+      { model: FISH_AUDIO_DEFAULT_MODEL, voice: "alloy" },
+      { model: "tts-1-hd", voice: "alloy", baseUrl: "https://api.openai.com/v1" },
+    );
+    expect(staleOpenAiExecution.model).toBe("tts-1-hd");
   });
 
   it("does not expose the Fish API key in public capability output", () => {
@@ -93,7 +117,7 @@ describe("TTS provider runtime capability", () => {
     expect(JSON.stringify(publicConfig)).not.toContain("stored-fish-key");
   });
 
-  it("isolates cache hashes by provider and Fish reference", () => {
+  it("isolates provider, reference, OpenAI speed, and format while fixing Fish speed at 1x", () => {
     const service = Object.create(TtsService.prototype) as TtsService;
     const openAiExecution = buildTtsProviderExecutionSnapshot(
       baseConfig,
@@ -116,11 +140,63 @@ describe("TTS provider runtime capability", () => {
       { model: "tts-1", voice: "alloy" },
     );
 
-    const openAiHash = service.generateContentHash("hello", "nova", "tts-1-hd", openAiExecution);
-    const fishHashA = service.generateContentHash("hello", fishExecutionA.voice, fishExecutionA.model, fishExecutionA);
-    const fishHashB = service.generateContentHash("hello", fishExecutionB.voice, fishExecutionB.model, fishExecutionB);
+    const openAiIdentity = {
+      text: "hello",
+      voice: "nova",
+      model: "tts-1-hd",
+      speed: 1,
+      outputFormat: "mp3",
+      providerExecution: openAiExecution,
+    };
+    const fishIdentityA = {
+      text: "hello",
+      voice: fishExecutionA.voice,
+      model: fishExecutionA.model,
+      speed: 1,
+      outputFormat: "mp3",
+      providerExecution: fishExecutionA,
+    };
+    const openAiHash = service.generateContentHash(openAiIdentity);
+    const openAiFastHash = service.generateContentHash({ ...openAiIdentity, speed: 1.5 });
+    const openAiFlacHash = service.generateContentHash({ ...openAiIdentity, outputFormat: "flac" });
+    const fishFastHash = service.generateContentHash({ ...fishIdentityA, speed: 2 });
+    const fishHashA = service.generateContentHash(fishIdentityA);
+    const fishHashB = service.generateContentHash({
+      ...fishIdentityA,
+      voice: fishExecutionB.voice,
+      model: fishExecutionB.model,
+      providerExecution: fishExecutionB,
+    });
 
     expect(openAiHash).not.toBe(fishHashA);
     expect(fishHashA).not.toBe(fishHashB);
+    expect(fishHashA).toBe(fishFastHash);
+    expect(openAiHash).not.toBe(openAiFastHash);
+    expect(openAiHash).not.toBe(openAiFlacHash);
+  });
+
+  it("keeps the previous hash as a secondary compatibility candidate", () => {
+    const service = Object.create(TtsService.prototype) as TtsService;
+    const execution = buildTtsProviderExecutionSnapshot(
+      baseConfig,
+      { model: "tts-1-hd", voice: "nova" },
+      { model: "tts-1", voice: "alloy", baseUrl: "https://api.openai.com/v1" },
+    );
+    const identity = {
+      text: "legacy-compatible",
+      voice: execution.voice,
+      model: execution.model,
+      speed: 1.25,
+      outputFormat: "flac",
+      providerExecution: execution,
+    };
+
+    const candidates = service.generateContentHashCandidates(identity);
+
+    expect(candidates).toEqual([
+      service.generateContentHash(identity),
+      service.generateLegacyContentHash(identity),
+    ]);
+    expect(candidates[0]).not.toBe(candidates[1]);
   });
 });

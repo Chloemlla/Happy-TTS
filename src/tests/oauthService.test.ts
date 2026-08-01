@@ -179,8 +179,12 @@ describe("oauthService", () => {
         lean: jest.fn().mockResolvedValue(makeOAuthClientDoc(update.$set)),
       } as any;
     });
-    const tokenRevokeSpy = jest.spyOn(OAuthTokenModel, "updateMany");
-    const grantRevokeSpy = jest.spyOn(OAuthGrantModel, "updateMany");
+    const tokenRevokeSpy = jest
+      .spyOn(OAuthTokenModel, "updateMany")
+      .mockResolvedValue({ acknowledged: true, matchedCount: 1, modifiedCount: 1 } as any);
+    const grantRevokeSpy = jest
+      .spyOn(OAuthGrantModel, "updateMany")
+      .mockResolvedValue({ acknowledged: true, matchedCount: 1, modifiedCount: 1 } as any);
 
     const updated = await updateOAuthClient("syn_client_edit", {
       name: "Gemini Admin",
@@ -304,8 +308,12 @@ describe("oauthService", () => {
         ),
       } as any;
     });
-    const tokenRevokeSpy = jest.spyOn(OAuthTokenModel, "updateMany");
-    const grantRevokeSpy = jest.spyOn(OAuthGrantModel, "updateMany");
+    const tokenRevokeSpy = jest
+      .spyOn(OAuthTokenModel, "updateMany")
+      .mockResolvedValue({ acknowledged: true, matchedCount: 1, modifiedCount: 1 } as any);
+    const grantRevokeSpy = jest
+      .spyOn(OAuthGrantModel, "updateMany")
+      .mockResolvedValue({ acknowledged: true, matchedCount: 1, modifiedCount: 1 } as any);
 
     await updateOAuthClient("syn_client_scope_edit", {
       allowedScopes: "openid profile status",
@@ -483,6 +491,9 @@ describe("oauthService", () => {
       lean: jest.fn().mockResolvedValue(grant),
     } as any);
     jest.spyOn(UserStorage, "getUserById").mockResolvedValue(makeOAuthUser() as any);
+    jest
+      .spyOn(OAuthClientModel, "updateOne")
+      .mockResolvedValue({ acknowledged: true, matchedCount: 1, modifiedCount: 1 } as any);
     jest.spyOn(OAuthTokenModel, "updateOne").mockResolvedValue({ matchedCount: 0, modifiedCount: 0 } as any);
     const createTokenSpy = jest.spyOn(OAuthTokenModel, "create");
 

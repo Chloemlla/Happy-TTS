@@ -53,19 +53,41 @@ function mockApplyUpdate(ownerKey: string, update: MongoUpdate): { matchedCount:
   return { matchedCount: matchedCount ? 1 : 0 };
 }
 
-const mockFindOne = jest.fn((filter: { ownerKey?: string; userId?: string }) => ({
+type LegacyFilter = {
+  ownerKey?: string;
+  userId?: string;
+  $and?: Array<{
+    $or?: Array<Record<string, unknown>>;
+  }>;
+};
+
+function legacyMatchesFilter(
+  legacy: { userId: string; messages: ChatMessage[] },
+  filter: LegacyFilter,
+): boolean {
+  if (typeof filter.userId === "string" && legacy.userId !== filter.userId) return false;
+  const identityOr = filter.$and?.find(
+    (part) =>
+      Array.isArray(part.$or) &&
+      part.$or.some((item) => "userId" in item || "messages.ownerKey" in item),
+  );
+  if (!identityOr?.$or) return true;
+  return identityOr.$or.some((item) => {
+    if (typeof item.userId === "string") return legacy.userId === item.userId;
+    const ownerKey = item["messages.ownerKey"];
+    return typeof ownerKey === "string" && legacy.messages.some((message) => message.ownerKey === ownerKey);
+  });
+}
+
+const mockFindOne = jest.fn((filter: LegacyFilter) => ({
   lean: jest.fn(async () => {
     if (typeof filter.ownerKey === "string") {
       const ownerKey = filter.ownerKey;
       if (!mockHistories.has(ownerKey)) return null;
       return { ownerKey, messages: mockOwnerMessages(ownerKey).map((item) => ({ ...item })) };
     }
-    if (typeof filter.userId === "string") {
-      const legacy = mockLegacyHistories.get(filter.userId);
-      return legacy
-        ? { ...legacy, messages: legacy.messages.map((item) => ({ ...item })) }
-        : null;
-    }
+    const legacy = [...mockLegacyHistories.values()].find((item) => legacyMatchesFilter(item, filter));
+    if (legacy) return { ...legacy, messages: legacy.messages.map((item) => ({ ...item })) };
     return null;
   }),
 }));
@@ -77,15 +99,35 @@ const mockFindOneAndUpdate = jest.fn(
   },
 );
 const mockUpdateOne = jest.fn(async (
-  filter: { _id?: string; ownerKey?: string; userId?: string; "messages.id"?: string | { $ne?: string } },
+  filter: {
+    _id?: string;
+    ownerKey?: string;
+    userId?: string;
+    messages?: ChatMessage[];
+    "messages.id"?: string | { $ne?: string };
+  },
   update: MongoUpdate,
 ) => {
   if (filter._id || filter.userId) {
-    const legacy = [...mockLegacyHistories.values()].find(
-      (item) => (filter._id ? item._id === filter._id : item.userId === filter.userId),
+    const legacyEntry = [...mockLegacyHistories.entries()].find(([, item]) =>
+      filter._id ? item._id === filter._id : item.userId === filter.userId,
     );
-    if (!legacy) return { matchedCount: 0 };
-    if (update.$unset?.userId !== undefined) mockLegacyHistories.delete(legacy.userId);
+    if (!legacyEntry) return { matchedCount: 0 };
+    const [legacyMapKey, legacy] = legacyEntry;
+    if (Array.isArray(filter.messages) && JSON.stringify(filter.messages) !== JSON.stringify(legacy.messages)) {
+      return { matchedCount: 0 };
+    }
+    if (Array.isArray(update.$set?.messages)) {
+      legacy.messages = (update.$set.messages as ChatMessage[]).map((item) => ({ ...item }));
+    }
+    if (update.$unset?.userId !== undefined) {
+      if (legacy.messages.length === 0) {
+        mockLegacyHistories.delete(legacyMapKey);
+      } else {
+        // Keep the fixture addressable by _id while modeling Mongo's unset.
+        legacy.userId = "";
+      }
+    }
     return { matchedCount: 1 };
   }
 
@@ -231,13 +273,24 @@ describe("LibreChat ownership and persistence", () => {
     const ownerKey = deriveGuestOwnerKey(`fallback-${randomUUID()}`);
     const storedItem = message(ownerKey, "stored");
     const fallbackItem = message(ownerKey, "fallback");
+    const recoveredItem = message(ownerKey, "recovered");
+    const service = libreChatService as unknown as TestableLibreChatService & {
+      ownersUsingFileFallback: Set<string>;
+    };
     mockHistories.set(ownerKey, [storedItem]);
     mockFindOneAndUpdate.mockRejectedValueOnce(new Error("write failed"));
 
-    await (libreChatService as unknown as TestableLibreChatService).appendHistoryMessage(ownerKey, fallbackItem);
+    await service.appendHistoryMessage(ownerKey, fallbackItem);
 
     const history = await libreChatService.getHistory(ownerKey, { page: 1, limit: 10 });
     expect(history.messages.map((item) => item.id)).toEqual([storedItem.id, fallbackItem.id]);
+
+    await service.appendHistoryMessage(ownerKey, recoveredItem);
+
+    expect(new Set(mockOwnerMessages(ownerKey).map((item) => item.id))).toEqual(
+      new Set([storedItem.id, fallbackItem.id, recoveredItem.id]),
+    );
+    expect(service.ownersUsingFileFallback.has(ownerKey)).toBe(false);
   });
 
   it("migrates a legacy Mongo owner without retaining the raw token", async () => {
@@ -266,6 +319,88 @@ describe("LibreChat ownership and persistence", () => {
     expect(mockLegacyHistories.has(legacyToken)).toBe(false);
   });
 
+  it("keeps colliding legacy-owner messages for the next migration", async () => {
+    const firstToken = "legacy/owner";
+    const secondToken = "legacyowner";
+    const firstOwner = deriveGuestOwnerKey(firstToken);
+    const secondOwner = deriveGuestOwnerKey(secondToken);
+    const firstMessage: ChatMessage = {
+      id: randomUUID(),
+      message: "first owner",
+      role: "user",
+      timestamp: new Date().toISOString(),
+      token: firstToken,
+    };
+    const secondMessage: ChatMessage = {
+      id: randomUUID(),
+      message: "second owner",
+      role: "assistant",
+      timestamp: new Date().toISOString(),
+      token: secondToken,
+    };
+    const legacyKey = "legacyowner";
+    mockLegacyHistories.set(legacyKey, {
+      _id: randomUUID(),
+      userId: legacyKey,
+      messages: [firstMessage, secondMessage],
+    });
+
+    await libreChatService.prepareOwnerHistory(firstOwner, firstToken);
+
+    expect((await libreChatService.getHistory(firstOwner, { page: 1, limit: 10 })).messages).toEqual([
+      expect.objectContaining({ id: firstMessage.id, ownerKey: firstOwner }),
+    ]);
+    expect((await libreChatService.getHistory(secondOwner, { page: 1, limit: 10 })).messages).toEqual([]);
+    expect(mockLegacyHistories.has(legacyKey)).toBe(true);
+    const remaining = [...mockLegacyHistories.values()][0];
+    expect(remaining.messages).toEqual([
+      expect.objectContaining({ id: secondMessage.id, ownerKey: secondOwner }),
+    ]);
+    expect(JSON.stringify(remaining.messages)).not.toContain(firstToken);
+    expect(JSON.stringify(remaining.messages)).not.toContain(secondToken);
+
+    await libreChatService.prepareOwnerHistory(secondOwner, secondToken);
+
+    expect((await libreChatService.getHistory(secondOwner, { page: 1, limit: 10 })).messages).toEqual([
+      expect.objectContaining({ id: secondMessage.id, ownerKey: secondOwner }),
+    ]);
+    expect(mockLegacyHistories.has(legacyKey)).toBe(false);
+  });
+
+  it("retries a legacy migration when the CAS snapshot changed", async () => {
+    const legacyToken = `cas-${randomUUID()}`;
+    const ownerKey = deriveGuestOwnerKey(legacyToken);
+    const legacyMessage: ChatMessage = {
+      id: randomUUID(),
+      message: "cas",
+      role: "user",
+      timestamp: new Date().toISOString(),
+      token: legacyToken,
+    };
+    mockLegacyHistories.set(legacyToken, {
+      _id: randomUUID(),
+      userId: legacyToken,
+      messages: [legacyMessage],
+    });
+    const originalImplementation = mockUpdateOne.getMockImplementation();
+    expect(originalImplementation).toBeDefined();
+    let forcedConflict = false;
+    mockUpdateOne.mockImplementation(async (filter, update) => {
+      if (filter._id && !forcedConflict) {
+        forcedConflict = true;
+        return { matchedCount: 0 };
+      }
+      return originalImplementation!(filter, update);
+    });
+
+    await expect(libreChatService.prepareOwnerHistory(ownerKey, legacyToken)).resolves.toBeUndefined();
+    mockUpdateOne.mockImplementation(originalImplementation!);
+    expect((await libreChatService.getHistory(ownerKey, { page: 1, limit: 10 })).messages).toEqual([
+      expect.objectContaining({ id: legacyMessage.id, ownerKey }),
+    ]);
+    expect(mockLegacyHistories.has(legacyToken)).toBe(false);
+  });
+
   it("does not resurrect a Mongo deletion from a stale in-process cache", async () => {
     const ownerKey = deriveGuestOwnerKey(`stale-${randomUUID()}`);
     const item = message(ownerKey, "stale");
@@ -277,6 +412,43 @@ describe("LibreChat ownership and persistence", () => {
       messages: [],
       total: 0,
     });
+  });
+
+  it("drops a stale fallback snapshot after a successful Mongo read", async () => {
+    const ownerKey = deriveGuestOwnerKey(`recovered-${randomUUID()}`);
+    const staleItem = message(ownerKey, "stale fallback");
+    const service = libreChatService as unknown as {
+      chatHistory: ChatMessage[];
+      ownersUsingFileFallback: Set<string>;
+    };
+    service.chatHistory = [staleItem];
+    service.ownersUsingFileFallback.add(ownerKey);
+    mockHistories.set(ownerKey, []);
+
+    await expect(libreChatService.getHistory(ownerKey, { page: 1, limit: 10 })).resolves.toEqual({
+      messages: [],
+      total: 0,
+    });
+    expect(service.ownersUsingFileFallback.has(ownerKey)).toBe(false);
+    expect(service.chatHistory.filter((item) => item.ownerKey === ownerKey)).toEqual([]);
+  });
+
+  it("replaces a stale fallback snapshot after a successful Mongo write", async () => {
+    const ownerKey = deriveGuestOwnerKey(`recovered-write-${randomUUID()}`);
+    const staleItem = message(ownerKey, "stale fallback");
+    const freshItem = message(ownerKey, "fresh Mongo");
+    const service = libreChatService as unknown as TestableLibreChatService & {
+      chatHistory: ChatMessage[];
+      ownersUsingFileFallback: Set<string>;
+    };
+    service.chatHistory = [staleItem];
+    service.ownersUsingFileFallback.add(ownerKey);
+    mockHistories.set(ownerKey, []);
+
+    await service.appendHistoryMessage(ownerKey, freshItem);
+
+    expect(service.ownersUsingFileFallback.has(ownerKey)).toBe(false);
+    expect(service.chatHistory.filter((item) => item.ownerKey === ownerKey)).toEqual([freshItem]);
   });
 
   it("does not lose concurrent appends for the same owner", async () => {

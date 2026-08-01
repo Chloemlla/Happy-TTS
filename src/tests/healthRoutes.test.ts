@@ -15,6 +15,10 @@ jest.mock("../services/mongoService", () => ({
   isConnected: jest.fn(() => true),
 }));
 
+jest.mock("../middleware/routeLimiters", () => ({
+  createLimiter: jest.fn(() => (_req, _res, next) => next()),
+}));
+
 jest.mock("../services/wsService", () => ({
   wsService: {
     getConnectionCount: jest.fn(() => 7),

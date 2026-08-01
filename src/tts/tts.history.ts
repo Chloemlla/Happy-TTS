@@ -113,12 +113,19 @@ export class MongoGenerationHistoryStore implements GenerationHistoryStore {
     text: string;
     voice: string;
     model: string;
-    contentHash: string;
+    speed: number;
+    outputFormat: string;
+    contentHashes: string[];
   }) {
     const record = (await TtsHistoryModel.findOne({
       scope: "user",
       userId: params.userId,
-      contentHash: params.contentHash,
+      text: params.text,
+      voice: params.voice,
+      model: params.model,
+      speed: params.speed,
+      outputFormat: params.outputFormat,
+      contentHash: { $in: params.contentHashes },
     })
       .sort({ createdAt: -1 })
       .lean()
@@ -131,14 +138,23 @@ export class MongoGenerationHistoryStore implements GenerationHistoryStore {
     ip: string;
     fingerprint: string;
     text: string;
-    contentHash: string;
+    voice: string;
+    model: string;
+    speed: number;
+    outputFormat: string;
+    contentHashes: string[];
   }) {
     const duplicateScopeKey = this.buildAnonymousScopeKey(params.ip, params.fingerprint);
     const windowStart = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const record = (await TtsHistoryModel.findOne({
       scope: "anonymous",
       duplicateScopeKey,
-      contentHash: params.contentHash,
+      text: params.text,
+      voice: params.voice,
+      model: params.model,
+      speed: params.speed,
+      outputFormat: params.outputFormat,
+      contentHash: { $in: params.contentHashes },
       createdAt: { $gte: windowStart },
     })
       .sort({ createdAt: -1 })

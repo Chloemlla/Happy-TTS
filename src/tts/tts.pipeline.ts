@@ -145,7 +145,7 @@ export class TtsSubmissionPipeline {
       model: typeof input.model === "string" ? input.model : "",
       voice: typeof input.voice === "string" ? input.voice : "",
       outputFormat: this.ttsService.resolveOutputFormat(normalizedOutputFormat),
-      speed: typeof input.speed === "number" ? input.speed : Number(input.speed ?? 0),
+      speed: this.ttsService.resolveSpeed(input.speed),
     };
   }
 
@@ -339,6 +339,7 @@ export class TtsSubmissionPipeline {
       ...rawRequestPayload,
       model: providerExecution.model,
       voice: providerExecution.voice,
+      speed: this.ttsService.resolveSpeed(rawRequestPayload.speed, providerExecution),
       providerExecution,
     };
     const fingerprint =
@@ -375,12 +376,15 @@ export class TtsSubmissionPipeline {
       contentSafety,
     };
 
-    const contentHash = this.ttsService.generateContentHash(
-      requestPayload.text,
-      requestPayload.voice,
-      requestPayload.model,
+    const contentIdentity = {
+      text: requestPayload.text,
+      voice: requestPayload.voice,
+      model: requestPayload.model,
+      speed: requestPayload.speed,
+      outputFormat: requestPayload.outputFormat,
       providerExecution,
-    );
+    };
+    const contentHashCandidates = this.ttsService.generateContentHashCandidates(contentIdentity);
 
     if (userId && !isAdmin) {
       const snapshot = await this.ledger.getUsageSnapshot(userId);
@@ -394,11 +398,13 @@ export class TtsSubmissionPipeline {
         text: requestPayload.text,
         voice: requestPayload.voice,
         model: requestPayload.model,
-        contentHash,
+        speed: requestPayload.speed,
+        outputFormat: requestPayload.outputFormat,
+        contentHashes: contentHashCandidates,
       });
 
       const reusableFileName = duplicate?.fileName
-        ? await this.ttsService.findExistingFile(contentHash, duplicate.outputFormat)
+        ? await this.ttsService.findExistingFile(duplicate.contentHash, requestPayload.outputFormat)
         : null;
 
       if (duplicate && reusableFileName) {
@@ -450,10 +456,14 @@ export class TtsSubmissionPipeline {
       ip: context.ip,
       fingerprint,
       text: requestPayload.text,
-      contentHash,
+      voice: requestPayload.voice,
+      model: requestPayload.model,
+      speed: requestPayload.speed,
+      outputFormat: requestPayload.outputFormat,
+      contentHashes: contentHashCandidates,
     });
     const reusableAnonymousFileName = duplicate?.fileName
-      ? await this.ttsService.findExistingFile(contentHash, duplicate.outputFormat)
+      ? await this.ttsService.findExistingFile(duplicate.contentHash, requestPayload.outputFormat)
       : null;
     if (reusableAnonymousFileName) {
       throw new TtsRequestError(

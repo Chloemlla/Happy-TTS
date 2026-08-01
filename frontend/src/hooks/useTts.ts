@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import axios, { AxiosError } from "axios";
+import axios, { AxiosError, AxiosHeaders } from "axios";
 import type {
   TtsHistoryRecord,
   TtsJobStatusResponse,
@@ -10,8 +10,22 @@ import type {
 import { verifyContent } from "../utils/sign";
 import { getApiBaseUrl } from "../api/api";
 import { getFingerprint } from "../utils/fingerprint";
-import { getAuthToken } from '../utils/authSession';
+import { canonicalizeBackendApiUrl } from "../utils/apiPath";
+import {
+  buildIpVerificationHeaders,
+  clearIpVerificationToken,
+  emitIpVerificationRequired,
+  isExemptPath,
+} from "../utils/ipVerification";
 
+type TtsErrorPayload = {
+  error?: string;
+  errorCode?: string;
+  message?: string;
+  nextAction?: {
+    message?: string;
+  };
+};
 
 const api = axios.create({
   baseURL: getApiBaseUrl(),
@@ -21,6 +35,51 @@ const api = axios.create({
   },
   timeout: 30000,
 });
+
+api.interceptors.request.use(async (config) => {
+  if (typeof config.url === "string") {
+    config.url = canonicalizeBackendApiUrl(config.url);
+  }
+
+  const headers =
+    config.headers instanceof AxiosHeaders
+      ? config.headers
+      : new AxiosHeaders(config.headers);
+  config.headers = headers;
+
+  try {
+    const verificationHeaders = await buildIpVerificationHeaders();
+    Object.entries(verificationHeaders).forEach(([key, value]) => headers.set(key, value));
+  } catch {
+    // Let the backend return the authoritative verification error.
+  }
+
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  (requestError) => {
+    const axiosError = requestError as AxiosError<TtsErrorPayload>;
+    const payload = axiosError.response?.data;
+    if (axiosError.response?.status === 403 && payload?.errorCode === "IP_VERIFICATION_REQUIRED") {
+      const requestUrl = axiosError.config?.url || "";
+      let pathname = "";
+      try {
+        const baseUrl = axiosError.config?.baseURL || getApiBaseUrl() || window.location.origin;
+        pathname = new URL(requestUrl, baseUrl).pathname;
+      } catch {
+        pathname = "";
+      }
+
+      if (!pathname || !isExemptPath(pathname)) {
+        clearIpVerificationToken();
+        emitIpVerificationRequired(payload as Record<string, unknown>);
+      }
+    }
+    return Promise.reject(requestError);
+  },
+);
 
 const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
@@ -35,14 +94,6 @@ const resolveAudioUrl = (rawAudioUrl: string): string => {
   }
 
   return baseUrl ? `${baseUrl}/static/audio/${rawAudioUrl}` : `/static/audio/${rawAudioUrl}`;
-};
-
-type TtsErrorPayload = {
-  error?: string;
-  message?: string;
-  nextAction?: {
-    message?: string;
-  };
 };
 
 type TtsHistoryPayload = TtsHistoryRecord[] | { records?: TtsHistoryRecord[] };
@@ -86,17 +137,8 @@ export const useTts = () => {
       setHistoryLoading(true);
       setHistoryError(null);
 
-      const token = getAuthToken();
-      if (!token) {
-        setHistory([]);
-        throw new Error("请先登录后查看历史记录");
-      }
-
       const fingerprint = await getFingerprint();
       const response = await api.get<TtsHistoryPayload>("/api/tts/history", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
         params: {
           limit,
           ...(fingerprint ? { fingerprint } : {}),
@@ -133,22 +175,13 @@ export const useTts = () => {
       setAudioUrl(null);
       setResult(null);
 
-      const token = getAuthToken();
-      if (!token) {
-        throw new Error("请先登录");
-      }
-
       const fingerprint = request.fingerprint || (await getFingerprint());
       const requestPayload = {
         ...request,
         ...(fingerprint ? { fingerprint } : {}),
       };
 
-      const submitResponse = await api.post<TtsSubmitResponse>("/api/tts/jobs", requestPayload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const submitResponse = await api.post<TtsSubmitResponse>("/api/tts/jobs", requestPayload);
 
       const submitData = submitResponse.data;
       if (!submitData?.success || !submitData.taskId) {
@@ -164,9 +197,6 @@ export const useTts = () => {
           await sleep(pollInterval);
 
           const statusResponse = await api.get<TtsJobStatusResponse>(`/api/tts/jobs/${submitData.taskId}`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
             params: fingerprint ? { fingerprint } : undefined,
           });
 
@@ -187,9 +217,6 @@ export const useTts = () => {
       }
 
       const response = await api.get<TtsResponse>(`/api/tts/jobs/${submitData.taskId}/result`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
         params: fingerprint ? { fingerprint } : undefined,
       });
 

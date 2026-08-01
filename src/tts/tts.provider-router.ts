@@ -13,7 +13,9 @@ export class TtsProviderRouter {
   private readonly providers: Map<string, TtsProvider>;
 
   constructor(providers: TtsProvider[] = [new OpenAiTtsProvider(), new FishAudioTtsProvider()]) {
-    this.providers = new Map(providers.map((provider) => [provider.providerId, provider]));
+    this.providers = new Map<string, TtsProvider>(
+      providers.map((provider) => [provider.providerId, provider] as const),
+    );
   }
 
   public async resolveExecutionSnapshot(

@@ -18,6 +18,15 @@ export type OutputFormat = "mp3" | "opus" | "aac" | "flac" | "wav" | "pcm";
 
 export interface TtsRequest extends TtsProviderRequest {}
 
+export interface TtsContentIdentity {
+  text: string;
+  voice: string;
+  model: string;
+  speed: number;
+  outputFormat: string;
+  providerExecution?: TtsProviderExecutionSnapshot;
+}
+
 export interface TtsGeneratedSpeechResult {
   fileName: string;
   audioUrl: string;
@@ -45,7 +54,7 @@ interface CircuitState {
   halfOpenSuccesses: number;
 }
 
-const OPENAI_MAX_RETRIES = 2;
+const TTS_MAX_RETRIES = 2;
 const CIRCUIT_FAILURE_THRESHOLD = 5;
 const CIRCUIT_OPEN_MS = 60_000;
 const CIRCUIT_SUCCESS_THRESHOLD = 2;
@@ -80,14 +89,39 @@ export class TtsService {
     }
   }
 
-  public generateContentHash(
-    text: string,
-    voice: string,
-    model: string,
-    providerExecution?: TtsProviderExecutionSnapshot,
-  ): string {
-    const providerIdentity = providerExecution?.cacheIdentity || ["legacy", model, voice].join("|");
-    return crypto.createHash("md5").update(JSON.stringify([text, providerIdentity])).digest("hex");
+  private resolveProviderCacheIdentity(identity: TtsContentIdentity): string {
+    return identity.providerExecution?.cacheIdentity || ["legacy", identity.model, identity.voice].join("|");
+  }
+
+  public generateContentHash(identity: TtsContentIdentity): string {
+    const providerExecution = identity.providerExecution;
+    const payload = {
+      version: 2,
+      text: identity.text,
+      provider: providerExecution?.providerId || "legacy",
+      model: providerExecution?.model || identity.model,
+      voice: providerExecution?.voice || identity.voice,
+      speed: this.resolveSpeed(identity.speed, providerExecution),
+      outputFormat: this.resolveOutputFormat(identity.outputFormat),
+      providerIdentity: this.resolveProviderCacheIdentity(identity),
+    };
+    return crypto.createHash("md5").update(JSON.stringify(payload)).digest("hex");
+  }
+
+  public generateLegacyContentHash(identity: TtsContentIdentity): string {
+    return crypto
+      .createHash("md5")
+      .update(JSON.stringify([identity.text, this.resolveProviderCacheIdentity(identity)]))
+      .digest("hex");
+  }
+
+  public generateContentHashCandidates(identity: TtsContentIdentity): [string, ...string[]] {
+    const canonicalHash = this.generateContentHash(identity);
+    const legacyHash = this.generateLegacyContentHash(identity);
+    if (canonicalHash === legacyHash) {
+      return [canonicalHash];
+    }
+    return [canonicalHash, legacyHash];
   }
 
   public resolveProviderExecution(
@@ -101,6 +135,20 @@ export class TtsService {
   public resolveOutputFormat(format: string): OutputFormat {
     const validFormats: OutputFormat[] = ["mp3", "opus", "aac", "flac", "wav", "pcm"];
     return validFormats.includes(format as OutputFormat) ? (format as OutputFormat) : "mp3";
+  }
+
+  public resolveSpeed(value: unknown, providerExecution?: TtsProviderExecutionSnapshot): number {
+    if (providerExecution?.providerId === "fish") {
+      return 1;
+    }
+
+    const configuredSpeed = Number.parseFloat(config.openaiSpeed);
+    const fallback =
+      Number.isFinite(configuredSpeed) && configuredSpeed >= 0.25 && configuredSpeed <= 4
+        ? configuredSpeed
+        : 1;
+    const candidate = typeof value === "number" ? value : Number(value);
+    return Number.isFinite(candidate) && candidate >= 0.25 && candidate <= 4 ? candidate : fallback;
   }
 
   public buildAudioUrl(fileName: string) {
@@ -306,7 +354,7 @@ export class TtsService {
   private async requestSpeechWithRetry(request: TtsRequest, safeOutputFormat: OutputFormat) {
     let lastError: TtsGenerationError | null = null;
 
-    for (let attempt = 1; attempt <= OPENAI_MAX_RETRIES + 1; attempt += 1) {
+    for (let attempt = 1; attempt <= TTS_MAX_RETRIES + 1; attempt += 1) {
       try {
         return await this.providerRouter.synthesize({
           ...request,
@@ -324,7 +372,7 @@ export class TtsService {
           message: mappedError.message,
         });
 
-        if (!mappedError.retryable || attempt > OPENAI_MAX_RETRIES) {
+        if (!mappedError.retryable || attempt > TTS_MAX_RETRIES) {
           throw mappedError;
         }
 
@@ -337,6 +385,9 @@ export class TtsService {
 
   public async generateSpeech(request: TtsRequest): Promise<TtsGeneratedSpeechResult> {
     try {
+      if (!request.text) {
+        throw new TtsGenerationError("文本不能为空", 400, "TTS_EMPTY_TEXT", false);
+      }
       const providerExecution = await this.resolveProviderExecution(
         request.model,
         request.voice,
@@ -346,20 +397,25 @@ export class TtsService {
         ...request,
         model: providerExecution.model,
         voice: providerExecution.voice,
+        speed: this.resolveSpeed(request.speed, providerExecution),
+        outputFormat: this.resolveOutputFormat(request.outputFormat),
         providerExecution,
       };
-      const { text, model, voice, outputFormat, userId, isAdmin } = normalizedRequest;
-
-      if (!text) {
-        throw new TtsGenerationError("文本不能为空", 400, "TTS_EMPTY_TEXT", false);
-      }
+      const { text, model, voice, outputFormat, speed, userId, isAdmin } = normalizedRequest;
 
       if (userId && !isAdmin && this.checkUserViolation(userId)) {
         throw new TtsGenerationError("由于重复提交相同内容，您的账号已被临时封禁24小时", 429, "TTS_USER_BLOCKED", false);
       }
 
-      const contentHash = this.generateContentHash(text, voice, model, providerExecution);
       const safeOutputFormat = this.resolveOutputFormat(outputFormat);
+      const contentHash = this.generateContentHash({
+        text,
+        voice,
+        model,
+        speed,
+        outputFormat: safeOutputFormat,
+        providerExecution,
+      });
       const existingFile = await this.findExistingFile(contentHash, safeOutputFormat);
 
       if (existingFile) {

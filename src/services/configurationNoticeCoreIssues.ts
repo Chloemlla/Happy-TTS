@@ -1,4 +1,4 @@
-import { config, startupConfig } from "../config/config";
+import { config, runtimeMutableConfig, startupConfig } from "../config/config";
 import {
   appendMissingEnvironmentIssue,
   createConfigurationIssue,
@@ -6,6 +6,17 @@ import {
 } from "./configurationNoticeIssueTypes";
 
 export function appendCoreConfigurationIssues(issues: MissingConfigurationIssue[]): void {
+  if (!runtimeMutableConfig.tts.generationCode) {
+    issues.push(
+      createConfigurationIssue(
+        "tts-generation-code",
+        "TTS 生成码",
+        ["GENERATION_CODE"],
+        "浏览器与会话 TTS 生成请求会返回生成码无效，API Key 调用不受影响",
+      ),
+    );
+  }
+
   if (!startupConfig.configuredSecrets.openaiApiKey) {
     issues.push(
       createConfigurationIssue(
