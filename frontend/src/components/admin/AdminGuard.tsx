@@ -85,20 +85,15 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
 
         if (!cancelled) setIsLoading(true);
 
-        const token = getAuthToken();
-        if (!token) {
-          setNotification({ message: '登录已过期，请重新登录', type: 'error' });
-          navigate('/login');
-          return;
-        }
-
         try {
+          const token = getAuthToken();
           const response = await fetch(
             `${getApiBaseUrl()}/api/admin/verify-access`,
             {
               method: 'POST',
+              credentials: 'include',
               headers: {
-                Authorization: `Bearer ${token}`,
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
@@ -145,21 +140,13 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
     const interval = window.setInterval(async () => {
       try {
         const token = getAuthToken();
-        if (!token) {
-          setNotification({
-            message: '登录已过期，请重新登录',
-            type: 'warning',
-          });
-          navigate('/login');
-          return;
-        }
-
         const response = await fetch(
           `${getApiBaseUrl()}/api/admin/verify-access`,
           {
             method: 'POST',
+            credentials: 'include',
             headers: {
-              Authorization: `Bearer ${token}`,
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({

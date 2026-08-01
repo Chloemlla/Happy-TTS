@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { config } from "../config/config";
 import { safeLog } from "../utils/logger";
+import { getTokenFromRequest } from "../utils/authCookie";
 import { UserStorage } from "../utils/userStorage";
 
 // 扩展Request类型以包含用户信息
@@ -67,7 +68,7 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
       return next();
     }
 
-    const token = req.headers.authorization?.replace("Bearer ", "");
+    const token = getTokenFromRequest(req);
 
     if (!token) {
       return res.status(401).json({ error: "未提供认证令牌" });

@@ -70,3 +70,65 @@ const payload = [timestamp, nonce, method.toUpperCase(), path, body].join("\n");
 const signature = await hmacSha256(userBearerToken, payload);
 logger.info("[logshare] stored", { fileId, ext, fileName, fileSize });
 ```
+
+## Scenario: Browser Admin Cookie Session
+
+### 1. Scope / Trigger
+
+- Trigger: browser authentication uses an HttpOnly `synapse_token` cookie while admin routes and frontend guards still support explicit Bearer clients.
+- Applies when changing admin route authentication, `AdminGuard`, browser session storage, or the auth cookie parser.
+
+### 2. Signatures
+
+- `getTokenFromRequest(req)` resolves an explicit `Authorization: Bearer <token>` first, then the `synapse_token` cookie.
+- `POST /api/admin/verify-access` requires an authenticated administrator and validates the submitted `userId`, `username`, and `role` against the authenticated request user.
+- Browser admin verification requests use `credentials: "include"`; an optional readable Bearer token may be sent for explicit injection paths.
+
+### 3. Contracts
+
+- Browser login must not require JavaScript access to the JWT. The HttpOnly cookie is the canonical browser credential.
+- Admin middleware must accept both cookie and Bearer credentials, preserving Bearer support for non-browser callers.
+- A missing cookie and missing Bearer credential -> authentication failure; a valid cookie-only admin session -> normal admin authorization flow.
+
+### 4. Validation & Error Matrix
+
+- Missing credentials -> HTTP 401.
+- Invalid or expired cookie/Bearer JWT -> HTTP 401.
+- Authenticated non-admin -> HTTP 403.
+- Admin verification body differs from authenticated user -> HTTP 403.
+
+### 5. Good/Base/Bad Cases
+
+- Good: an administrator with only `synapse_token` loads `/admin`, and `AdminGuard` verifies access with `credentials: "include"`.
+- Good: an explicit Bearer client continues to pass the same admin middleware.
+- Base: a browser may also send a legacy/injected Bearer token; the server continues to prefer it before the cookie.
+- Bad: frontend redirects to login because `getAuthToken()` is null even though the HttpOnly cookie exists.
+- Bad: an admin router uses a Bearer-only middleware while the browser session is cookie-only.
+
+### 6. Tests Required
+
+- Middleware integration test: valid `synapse_token` cookie attaches the user and permits an admin verification route.
+- Middleware integration test: valid Bearer token remains accepted.
+- Regression coverage: missing credentials, invalid JWT, suspended account, and non-admin rejection remain unchanged.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```ts
+const token = getAuthToken();
+if (!token) navigate("/login");
+fetch("/api/admin/verify-access", {
+  headers: { Authorization: `Bearer ${token}` },
+});
+```
+
+#### Correct
+
+```ts
+const token = getAuthToken();
+fetch("/api/admin/verify-access", {
+  credentials: "include",
+  headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+});
+```

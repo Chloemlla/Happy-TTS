@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import request from "supertest";
 import { config } from "../config/config";
 import { AuthController } from "../controllers/authController";
+import { authMiddleware } from "../middleware/authMiddleware";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { AUTH_COOKIE_NAME, setAuthSessionCookie } from "../utils/authCookie";
 import { UserStorage } from "../utils/userStorage";
@@ -21,6 +22,12 @@ describe("HttpOnly cookie session auth", () => {
   const app = express();
   app.get("/api/auth/me", authenticateToken, AuthController.getCurrentUser);
   app.post("/api/auth/session", authenticateToken, AuthController.establishSession);
+  app.post("/api/admin/verify-access", authMiddleware, (req, res) => {
+    if (req.user?.role !== "admin") {
+      return res.status(403).json({ success: false });
+    }
+    return res.json({ success: true, userId: req.user.id });
+  });
   app.post("/login-set-cookie", (req, res) => {
     const token = jwt.sign({ userId: "cookie-user" }, config.jwtSecret, { expiresIn: "1h" });
     setAuthSessionCookie(req, res, token);
@@ -68,6 +75,23 @@ describe("HttpOnly cookie session auth", () => {
     const res = await request(app).get("/api/auth/me").set("Authorization", `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(res.body.id).toBe("cookie-user");
+  });
+
+  it("accepts an HttpOnly cookie for admin middleware", async () => {
+    mockGetUserById.mockResolvedValue({
+      id: "admin-user",
+      username: "admin",
+      email: "admin@example.com",
+      role: "admin",
+      accountStatus: "active",
+    } as any);
+
+    const token = jwt.sign({ userId: "admin-user" }, config.jwtSecret, { expiresIn: "1h" });
+    const res = await request(app)
+      .post("/api/admin/verify-access")
+      .set("Cookie", [`${AUTH_COOKIE_NAME}=${token}`]);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ success: true, userId: "admin-user" });
   });
 
   it("exchanges an explicit bearer identity into the canonical HttpOnly cookie session", async () => {
