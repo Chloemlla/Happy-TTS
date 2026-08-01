@@ -138,16 +138,45 @@ export const LoginPage: React.FC = () => {
         if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return null;
         return raw;
     }, [searchParams]);
+
+    // External redirect_uri for PiliPlus-style app deep-link callbacks
+    const redirectUri = React.useMemo(() => {
+        const raw = searchParams.get('redirect_uri') || '';
+        if (!raw) return null;
+        try {
+            const parsed = new URL(raw);
+            // Only allow custom scheme URLs (e.g. piliplus://), NOT http/https
+            if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+                // Allow localhost for development use
+                if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname === '[::1]') {
+                    return raw;
+                }
+                return null;
+            }
+            return raw;
+        } catch {
+            return null;
+        }
+    }, [searchParams]);
+
+    // Ref to hold the login token so it survives across 2FA flows
+    const loginTokenRef = React.useRef<string | null>(null);
+
     const adminLoginRequested = React.useMemo(() => {
         return postLoginRedirect?.startsWith('/admin') || username.trim().toLowerCase() === 'admin';
     }, [postLoginRedirect, username]);
     const completeLogin = React.useCallback(() => {
+        // If an external redirect_uri was provided, send the token back to the calling app
+        if (redirectUri && loginTokenRef.current) {
+            window.location.href = `${redirectUri}?token=${encodeURIComponent(loginTokenRef.current)}`;
+            return;
+        }
         if (postLoginRedirect) {
             navigate(postLoginRedirect, { replace: true });
             return;
         }
         window.location.reload();
-    }, [navigate, postLoginRedirect]);
+    }, [navigate, postLoginRedirect, redirectUri]);
 
     useEffect(() => {
         const savedUsername = localStorage.getItem('rememberedUsername');
@@ -174,6 +203,10 @@ export const LoginPage: React.FC = () => {
             if (rememberMe) { localStorage.setItem('rememberedUsername', sanitizedUsername); }
             else { localStorage.removeItem('rememberedUsername'); }
             const result = await login(sanitizedUsername, password, turnstileConfig.siteKey ? turnstileToken : undefined);
+            // Save the token for redirect_uri callback (e.g. piliplus://)
+            if (result?.token) {
+                loginTokenRef.current = result.token;
+            }
             if (result && result.requires2FA && result.twoFactorType) {
                 setNotification({ message: '需要二次验证，请选择验证方式', type: 'info' });
                 setPendingToken(result.token);
