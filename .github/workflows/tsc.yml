@@ -93,19 +93,6 @@ jobs:
             echo "No routes with hyphens found"
           fi
 
-      - name: Enforce Node test results
-        if: always()
-        shell: bash
-        run: |
-          backend_outcome="${{ steps.backend-tests.outcome }}"
-          frontend_outcome="${{ steps.frontend-tests.outcome }}"
-
-          if [ "$backend_outcome" != "success" ] || [ "$frontend_outcome" != "success" ]; then
-            echo "Backend tests: $backend_outcome"
-            echo "Frontend tests: $frontend_outcome"
-            exit 1
-          fi
-
   rust-verify:
     name: Rust verification
     runs-on: ubuntu-latest

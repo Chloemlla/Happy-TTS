@@ -6,6 +6,7 @@ import {
   adminLimiter,
   antaLimiter,
   authLimiter,
+  bilibiliSyncLimiter,
   cdkMountLimiter,
   commandLimiter,
   dataCollectionLimiter,
@@ -40,6 +41,7 @@ import apiKeyRoutes from "./apiKeyRoutes";
 import auditLogRoutes from "./auditLogRoutes";
 import authLogoutRoutes from "./authLogoutRoutes";
 import authRoutes from "./authRoutes";
+import bilibiliSyncRoutes from "./bilibiliSyncRoutes";
 import cdkRoutes from "./cdkRoutes";
 import commandRoutes from "./commandRoutes";
 import compatRoutes from "./compatRoutes";
@@ -1291,6 +1293,24 @@ export const postTamperRouteModules: RouteModule[] = [
         "releaseManifestLimiter",
       ],
       note: "NexAI routes apply dedicated route-level limiters for auth, OAuth, refresh, profile, sync, release manifests, and artifact flows.",
+    },
+  },
+  {
+    name: "bilibili-sync-routes",
+    path: "/api/bilibili-sync",
+    router: bilibiliSyncRoutes,
+    requiresAuth: true,
+    rateLimited: true,
+    isPublic: false,
+    authPolicy: {
+      mode: "router",
+      handlers: ["authenticateToken"],
+      note: "Bilibili UID binding and sync routes use the existing account JWT and derive user scope from the authenticated request.",
+    },
+    rateLimitPolicy: {
+      mode: "router",
+      limiters: ["bilibiliSyncLimiter"],
+      note: "All Bilibili binding and sync operations share the authenticated sync limiter.",
     },
   },
   {
