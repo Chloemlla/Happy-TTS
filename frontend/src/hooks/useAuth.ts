@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { User } from '../types/auth';
+import { useAuthStore } from '../stores/authStore';
 import { getApiBaseUrl } from '../api/api';
 import {
     clearAuthToken,
@@ -118,7 +119,12 @@ const establishCookieSession = async (token: string): Promise<void> => {
 };
 
 export const useAuth = () => {
-    const [user, setUser] = useState<User | null>(null);
+    // Auth identity state is owned by the Zustand authStore (single source of truth).
+    const user = useAuthStore((state) => state.user);
+    const token = useAuthStore((state) => state.token);
+    const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+    const setUser = useAuthStore((state) => state.setUser);
+    const setToken = useAuthStore((state) => state.setToken);
     const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([]);
     const [loading, setLoading] = useState(true);
     const [pendingTOTP, setPendingTOTP] = useState<{ userId: string } | null>(null);
@@ -211,7 +217,7 @@ export const useAuth = () => {
             if (token) {
                 const cachedAccount = loadSavedAccounts().find(account => account.token === token);
                 if (cachedAccount) {
-                    setUser(current => current ?? cachedAccount.user);
+                    setUser(useAuthStore.getState().user ?? cachedAccount.user);
                 }
                 await establishCookieSession(token);
             }
@@ -444,6 +450,7 @@ export const useAuth = () => {
 
         clearAuthToken();
         setUser(null);
+        setToken(null);
         setPendingTOTP(null);
         setPending2FA(null);
         setIsAdminChecked(false);
@@ -461,6 +468,7 @@ export const useAuth = () => {
         clearAuthToken();
         clearSavedAccounts();
         setUser(null);
+        setToken(null);
         setSavedAccounts([]);
         setIsAdminChecked(false);
         navigate('/welcome');
@@ -495,6 +503,8 @@ export const useAuth = () => {
 
     return {
         user,
+        token,
+        isAuthenticated,
         savedAccounts,
         loading,
         isChecking,
