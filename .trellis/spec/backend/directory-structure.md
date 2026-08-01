@@ -89,6 +89,44 @@ apps/server/src/
       └─ adapters/         # shared infrastructure adapters only
 ```
 
+### Synapse actual layout
+
+The project's actual source tree (`src/`) follows a flatter structure with bounded contexts as top-level directories:
+
+```
+src/
+├─ app/                   # Application assembly + startup
+├─ config/                # Configuration (env parsing + runtime mutable config)
+├─ routes/                # Express route definitions + governance
+├─ controllers/           # HTTP request/response handling
+├─ services/              # Business logic + infrastructure services
+│  ├─ serviceRegistry.ts  # Typed service registry (replaces globalThis)
+│  ├─ mongoService.ts     # MongoDB connection management
+│  └─ ...
+├─ middleware/            # Express middleware (auth, rate-limit, security, etc.)
+├─ models/                # Mongoose data models
+├─ security/              # Security pipeline + CSP + bypass policy
+├─ auth/                  # ← Auth domain module (ports/adapters pattern)
+│  ├─ auth.ports.ts       #   Port definitions (TokenVerifier, UserProvider, etc.)
+│  ├─ auth.errors.ts      #   Typed error classes
+│  ├─ auth.service.ts     #   Core authentication logic
+│  ├─ auth.middleware.ts  #   Express middleware adapters
+│  ├─ composition.ts      #   Singleton factory
+│  ├─ adapters/           #   Concrete implementations
+│  └─ index.ts            #   Public API
+├─ tts/                   # ← TTS domain module (ports/adapters pattern)
+│  ├─ tts.ports.ts        #   Port definitions
+│  ├─ tts.service.ts      #   Core service
+│  ├─ tts.pipeline.ts     #   Request pipeline
+│  ├─ tts.controller.ts   #   HTTP adapter
+│  └─ ...
+├─ types/                 # Shared TypeScript type definitions
+├─ utils/                 # Utility functions
+└─ tests/                 # Jest test files
+```
+
+**Pattern**: New domain modules follow the `src/tts/` and `src/auth/` structure — a top-level `<domain>/` directory with ports, service, errors, middleware adapters, and concrete adapters.
+
 Do not recreate top-level `usecases/`, `atoms/`, or `adapters/` for new backend work. Add code to the owning `contexts/<context>/...` folder or create a new bounded context when the responsibility does not fit an existing one.
 
 ---

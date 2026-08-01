@@ -132,3 +132,86 @@ fetch("/api/admin/verify-access", {
   headers: token ? { Authorization: `Bearer ${token}` } : undefined,
 });
 ```
+
+## Scenario: Auth Domain (Ports/Adapters)
+
+### 1. Scope / Trigger
+
+- Trigger: new authentication middleware, modifying existing auth middleware (`authenticateToken.ts`, `auth.ts`, `authMiddleware.ts`), or adding a new auth provider.
+- The Auth domain follows the ports/adapters pattern from `src/auth/`, mirroring `src/tts/`.
+
+### 2. Signatures
+
+```typescript
+// src/auth/auth.ports.ts
+interface TokenVerifier { verify(token: string): Promise<TokenPayload>; }
+interface UserProvider { getUserById(userId: string): Promise<AuthUser | null>; }
+interface TokenExtractor { extract(req: unknown): string | null; }
+interface PasswordVerifier { compare(plaintext: string, hash: string): Promise<boolean>; }
+
+// src/auth/auth.service.ts
+class AuthService {
+  async authenticate(token: string): Promise<AuthUser>;
+  requireAdmin(user: AuthUser): void;
+  isAdmin(user: AuthUser): boolean;
+  checkAccountStatus(user: AuthUser): void;
+}
+
+// src/auth/auth.middleware.ts
+function createAuthenticateToken(authService: AuthService, extractor: TokenExtractor): RequestHandler;
+function createRequireAdmin(authService: AuthService): RequestHandler;
+```
+
+### 3. Contracts
+
+- `AuthService.authenticate()`: verifies JWT → loads user → checks account status → returns user.
+- `AuthService.requireAdmin()`: throws `AuthError(FORBIDDEN)` if `user.role !== "admin"`.
+- `createAuthenticateToken()`: returns Express middleware that extracts token via `TokenExtractor`, delegates to `AuthService.authenticate()`, and attaches `req.user` and `req.auth`.
+- `AuthError.toJSON()`: returns `{ error: string, code?: string }` — `code` is present only for `ACCOUNT_SUSPENDED`.
+
+### 4. Validation & Error Matrix
+
+| Condition | HTTP Status | Error Code |
+|-----------|-------------|------------|
+| Missing token | 401 | `TOKEN_MISSING` |
+| Invalid JWT signature | 401 | `TOKEN_INVALID` |
+| Expired JWT | 401 | `TOKEN_EXPIRED` |
+| JWT without userId | 401 | `TOKEN_NO_USER_ID` |
+| User not found | 401 | `USER_NOT_FOUND` |
+| Account suspended | 403 | `ACCOUNT_SUSPENDED` |
+| Account disabled | 403 | `ACCOUNT_DISABLED` |
+| Non-admin user | 403 | `FORBIDDEN` |
+
+### 5. Good/Base/Bad Cases
+
+- Good: valid JWT → user loaded → status OK → `next()`.
+- Good: API key or OAuth token already authenticated → skip JWT verification.
+- Base: admin user with `accountStatus === "active"` → `requireAdmin()` passes.
+- Bad: empty `Authorization` header → `401 TOKEN_MISSING`.
+- Bad: valid JWT but suspended account → `403 ACCOUNT_SUSPENDED`.
+
+### 6. Tests Required
+
+- `AuthService.authenticate()`: valid token, invalid token, expired token, missing userId, user not found, suspended account, disabled account.
+- `AuthService.requireAdmin()`: admin user (passes), non-admin user (throws `FORBIDDEN`), missing user (throws `FORBIDDEN`).
+- `createAuthenticateToken()` middleware: valid token attaches user, invalid token returns 401, API key bypass, optional auth bypass paths.
+- `AuthError` serialization: `toJSON()` produces correct shape and status code.
+
+### 7. Wrong vs Correct
+
+#### Wrong
+
+```typescript
+// Direct jwt.verify() call in middleware — couples middleware to JWT library
+const decoded = jwt.verify(token, config.jwtSecret) as any;
+const user = await UserStorage.getUserById(decoded.userId);
+```
+
+#### Correct
+
+```typescript
+// AuthService handles all verification; middleware is a thin adapter
+const user = await authService.authenticate(token);
+(req as any).user = user;
+next();
+```

@@ -28,6 +28,9 @@ Before writing backend code, confirm:
 - [ ] Shared orchestration stays in same-context `workflows/` or `services/`, not in cross-context usecase calls.
 - [ ] I know the test I owe (atom = high-signal invariant/contract test when useful; usecase = mock-port).
 - [ ] No secret (LLM key / Git token) will touch logs, the sandbox, or plaintext storage.
+- [ ] **Cross-layer governance**: if adding a route module, I will declare `requiresAuth`, `rateLimited`, `isPublic`, `authPolicy`, `rateLimitPolicy`, and `securityBypass` on the `RouteModule` entry.
+- [ ] **Domain module pattern**: if creating a new bounded context, I will follow the ports/adapters pattern from `src/tts/` or `src/auth/` rather than adding to the flat `src/services/` directory.
+- [ ] **No `globalThis`**: service state uses `ServiceRegistry`, not `globalThis` assignments.
 
 ## Quality Check
 
@@ -36,6 +39,7 @@ Before marking work done, verify against [`quality-guidelines.md`](./quality-gui
 - [ ] Architecture invariants intact (one-way deps, I/O only in adapters).
 - [ ] Scanned for the 7 code smells; none introduced.
 - [ ] Required tests pass; lint + type-check green.
+- [ ] Cross-layer governance: `pnpm run generate:route-audit` passes (or cross-layer violations are intentional and documented).
 
 ---
 
@@ -45,7 +49,7 @@ Before marking work done, verify against [`quality-guidelines.md`](./quality-gui
 |-------|-------------|--------|
 | [Repository Session Flow Contracts](./repository-session-flow-contracts.md) | Concrete API/env/secret/workspace/session/activity/diff contracts | Filled |
 | [Directory Structure](./directory-structure.md) | **Context-first atomic 4+2 architecture** — bounded contexts, layers, deps, I/O isolation | ✅ Filled |
-| [Quality Guidelines](./quality-guidelines.md) | Invariants, 7 code smells, testing, forbidden patterns | ✅ Filled |
+| [Quality Guidelines](./quality-guidelines.md) | Invariants, 7 code smells, testing, forbidden patterns, domain module pattern, ServiceRegistry, cross-layer governance | ✅ Filled |
 | [Error Handling](./error-handling.md) | Error vocabulary, wrapping at boundaries, API error shape | ✅ Filled |
 | [Database Guidelines](./database-guidelines.md) | Postgres store, typed SQL, access via ports | ✅ Filled |
 | [Logging Guidelines](./logging-guidelines.md) | Structured logging, levels, **secret redaction** | ✅ Filled (⏳ lib to confirm) |

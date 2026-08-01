@@ -132,6 +132,104 @@ Missing a named limiter export makes route imports receive `undefined`, causing 
 - ❌ Shared mutable module-level state in `atoms/`.
 - ❌ **Any real LLM key / Git token written into the sandbox image, default env, or logs** (security-critical; see doc 03 §6 and `logging-guidelines.md`). Plaintext key storage anywhere is forbidden — use the encrypted key vault.
 - ❌ Swallowing errors (empty catch) — see `error-handling.md`.
+- ❌ **`globalThis` assignments for service state** — use `ServiceRegistry` instead (see `src/services/serviceRegistry.ts`). `globalThis` is untraceable, untyped, and pollutes the global namespace across modules.
+
+---
+
+## 6. Domain module pattern (ports/adapters)
+
+New domain modules should follow the pattern established by `src/tts/` and `src/auth/`:
+
+```
+src/<domain>/
+├── <domain>.ports.ts       ← Port definitions (interfaces for dependency inversion)
+├── <domain>.errors.ts      ← Typed error classes with statusCode + errorCode
+├── <domain>.service.ts     ← Core business logic (injected ports, no I/O)
+├── <domain>.middleware.ts  ← Express middleware adapters (optional)
+├── composition.ts          ← Singleton factory wiring adapters into service
+├── adapters/               ← Concrete implementations of ports
+│   ├── index.ts
+│   ├── someAdapter.ts
+│   └── ...
+└── index.ts                ← Public API re-exports
+```
+
+**Key constraints**:
+- `ports.ts` contains only type/interface declarations — no runtime code, no I/O.
+- `service.ts` imports only from `ports.ts` and `errors.ts` — never from `adapters/`.
+- `adapters/` implements ports; each adapter depends on exactly one external library or system.
+- `composition.ts` is the only file that imports both `service.ts` and `adapters/*` — this is the DI composition root.
+- `middleware.ts` wraps the service in Express middleware; it should be a thin adapter with no business logic.
+
+**Reference implementations**:
+- `src/tts/tts.ports.ts` — port definitions
+- `src/tts/tts.service.ts` — injected service
+- `src/auth/auth.ports.ts` — port definitions
+- `src/auth/auth.service.ts` — injected service
+- `src/auth/auth.middleware.ts` — Express middleware adapters
+
+---
+
+## 7. ServiceRegistry pattern (replaces globalThis)
+
+Use `ServiceRegistry` (`src/services/serviceRegistry.ts`) for any process-wide singleton service state that was previously stored on `globalThis`:
+
+```typescript
+import { serviceRegistry } from "../services/serviceRegistry";
+
+// Register during startup (one-time, frozen after first call)
+serviceRegistry.register("emailEnabled", true);
+serviceRegistry.register("emailStatus", { available: true, error: undefined });
+
+// Read anywhere (returns undefined if not registered yet)
+const status = serviceRegistry.get<{ available: boolean; error?: string }>("emailStatus");
+```
+
+**Rules**:
+- Each name may be registered only once; duplicate names throw.
+- Registration is frozen after the first call — no accidental overwrites.
+- Callers must handle the `undefined` case (service not yet initialized).
+- Use typed getters with explicit generics for type safety.
+
+---
+
+## 8. Cross-layer governance validation
+
+The route governance system in `src/routes/index.ts` validates consistency between route registry declarations and actual Express middleware composition. When adding or modifying a route module, the following cross-layer checks apply:
+
+### Violation codes
+
+| Code | Meaning | When it fires |
+|------|---------|---------------|
+| `auth-middleware-not-found` | Route declares `authPolicy.mode="mount"` with handler X but X is not in `middlewares[]` | Route module `requiresAuth: true` with mount-mode auth |
+| `rate-limit-not-found` | Route declares `rateLimitPolicy.mode="mount"` with limiter X but X is not in `middlewares[]` | Route module `rateLimited: true` with mount-mode rate limit |
+| `auth-handler-unknown` | Route declares handler name that is not in `knownAuthHandlerNames` | Route uses `authPolicy.mode="router"` or `"route"` |
+| `middleware-consistency-violation` | `middlewares[]` contains middleware not declared in policy | Mount-level middleware without policy declaration |
+
+### Adding a new route module
+
+1. Add the route module to the appropriate phase array in `src/routes/index.ts`:
+   - `routeLimiterModules` — standalone rate limiter mounts
+   - `preParserRouteModules` — routes that run before body parser
+   - `earlyRouteModules` — routes that run before docs generation
+   - `preDocsRouteModules` — routes that run before Swagger docs
+   - `preTamperRouteModules` — routes that run before tamper protection
+   - `postTamperRouteModules` — routes that run after tamper protection
+
+2. Declare `requiresAuth`, `rateLimited`, `isPublic`, `authPolicy`, `rateLimitPolicy`, and `securityBypass` on every route module.
+
+3. If the route uses `authPolicy.mode="mount"`, ensure the auth middleware function is in the module's `middlewares` array AND in the `knownAuthMiddleware` map in `src/routes/index.ts`.
+
+4. If the route uses a handler name not in `knownAuthHandlerNames`, add it to the set.
+
+5. Run `pnpm run generate:route-audit` to verify governance compliance.
+
+### Known auth middleware registry
+
+When adding a new auth middleware function, register it in `src/routes/index.ts` in two places:
+
+- `knownAuthMiddleware` (Map<RequestHandler, string>) — for mount-level middleware that can be matched by function reference
+- `knownAuthHandlerNames` (Set<string>) — for router/route-level handler names used in `authPolicy.handlers`
 
 ---
 
@@ -145,3 +243,6 @@ Missing a named limiter export makes route imports receive `undefined`, causing 
 - [ ] No secret touches logs, the sandbox, or plaintext storage.
 - [ ] User-facing text, comments, file names, and test names use product/domain terms rather than roadmap shorthand.
 - [ ] Scanned for the 7 smells; none introduced (or each flagged with a follow-up).
+- [ ] **Cross-layer governance**: if adding/modifying a route module, verify `authPolicy`, `rateLimitPolicy`, and `securityBypass` are declared and consistent with the module's `middlewares` array.
+- [ ] **No `globalThis`**: service state uses `ServiceRegistry`, not `globalThis` assignments.
+- [ ] **Domain module pattern**: if creating a new domain, follow the ports/adapters pattern from `src/tts/` or `src/auth/`.

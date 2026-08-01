@@ -77,11 +77,13 @@ Before implementation:
 - [ ] Identified all layer boundaries
 - [ ] Defined format at each boundary
 - [ ] Decided where validation happens
+- [ ] **Route governance**: if the feature touches route registration, ensure `authPolicy`, `rateLimitPolicy`, and `securityBypass` are declared on the `RouteModule` entry. See `quality-guidelines.md` §8.
 
 After implementation:
 - [ ] Tested with edge cases (null, empty, invalid)
 - [ ] Verified error handling at each boundary
 - [ ] Checked data survives round-trip
+- [ ] **Cross-layer governance**: run `pnpm run generate:route-audit` to verify route registry declarations match actual middleware composition.
 
 ---
 
