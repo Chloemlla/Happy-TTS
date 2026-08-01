@@ -87,6 +87,7 @@ import policyRoutes from "./policyRoutes";
 import resourceRoutes from "./resourceRoutes";
 import rustBenchmarkRoutes from "./rustBenchmarkRoutes";
 import { assetLinksRoutes, faviconRoutes } from "./siteMetadataRoutes";
+import { legacyApiRedirectMiddleware } from "./legacyApiRedirect";
 import shortUrlRoutes, { shortUrlRedirectRoutes } from "./shortUrlRoutes";
 import socialRoutes from "./socialRoutes";
 import statusRouter from "./status";
@@ -98,6 +99,7 @@ import turnstileRoutes from "./turnstileRoutes";
 import webhookEventRoutes from "./webhookEventRoutes";
 import webhookRoutes from "./webhookRoutes";
 import logger from "../utils/logger";
+import { securityBypassPolicy } from "../security/securityPolicy";
 import type { SecurityComponent } from "../security/securityPolicy";
 import { AUDIT_LOG_ADAPTATION_STATUS, AUDIT_LOG_SOURCE, isBackendApiPath } from "../services/auditLogMetadata";
 
@@ -148,6 +150,7 @@ export interface RouteGovernanceViolation {
     | "missing-rate-limit-target"
     | "missing-audit-log-policy"
     | "missing-security-bypass-reason"
+    | "security-bypass-inconsistency"
     | "private-route-open-cors-conflict"
     | "auth-middleware-not-found"
     | "rate-limit-not-found"
@@ -192,6 +195,7 @@ export const NON_API_ROUTE_EXEMPTION_PATHS = [
   "/s",
   "/s/*path",
   "/health",
+  "/status",
   "/.well-known/assetlinks.json",
   "/favicon.ico",
 ] as const;
@@ -538,6 +542,20 @@ export const preParserRouteModules: RouteModule[] = [
       },
     },
   },
+  {
+    name: "legacy-status-route",
+    path: "/status",
+    router: legacyApiRedirectMiddleware,
+    requiresAuth: false,
+    rateLimited: false,
+    isPublic: true,
+    securityBypass: {
+      ipBan: {
+        value: true,
+        reason: "Legacy /status redirect must remain reachable while IP ban infrastructure is active.",
+      },
+    },
+  },
 ];
 
 export const earlyRouteModules: RouteModule[] = [
@@ -572,6 +590,13 @@ export const preDocsRouteModules: RouteModule[] = [
     requiresAuth: "mixed",
     rateLimited: true,
     isPublic: "mixed",
+    securityBypass: {
+      ipVerification: {
+        value: "mixed",
+        reason:
+          "Only the /assets subtree (browser audio streaming with scoped, expiring asset tokens) bypasses IP verification; generation and job endpoints remain gated.",
+      },
+    },
   },
   {
     name: "librechat-compat-routes",
@@ -1851,6 +1876,92 @@ function findRouteModule(name: string): RouteModule | undefined {
   return allRouteModules.find((m) => m.name === name);
 }
 
+function normalizeRequestPathForBypass(path: string): string | undefined {
+  if (!path) {
+    return undefined;
+  }
+  const withoutQuery = path.split("?")[0].split("#")[0];
+  const normalized = withoutQuery.replace(/\/+$/, "");
+  return normalized || "/";
+}
+
+function routeScopeCoversPath(modulePath: string, requestPath: string): boolean {
+  const scope = normalizeScopedPath(modulePath);
+  return scope === requestPath || requestPath.startsWith(`${scope}/`);
+}
+
+/**
+ * Resolve the route-module security bypass flag for a request path and
+ * component.
+ *
+ * Route modules are the authoritative source for security bypass declarations.
+ * Returns the securityBypass value of the most specific route module whose
+ * scope covers `path` and that declares the given component. Returns
+ * `undefined` when no covering route module declares the component, so the
+ * caller can fall back to the deprecated static policy.
+ */
+export function getRouteBypassForPath(path: string, component: SecurityComponent): RouteMetaFlag | undefined {
+  const requestPath = normalizeRequestPathForBypass(path);
+  if (!requestPath) {
+    return undefined;
+  }
+
+  let bestMatch: { entry: RouteSecurityBypassEntry; scopeLength: number } | undefined;
+
+  for (const module of allRouteModules) {
+    const entry = module.securityBypass?.[component];
+    if (!entry || entry.value === undefined) {
+      continue;
+    }
+    if (!routeScopeCoversPath(module.path, requestPath)) {
+      continue;
+    }
+    const scopeLength = normalizeScopedPath(module.path).length;
+    if (!bestMatch || scopeLength > bestMatch.scopeLength) {
+      bestMatch = { entry, scopeLength };
+    }
+  }
+
+  return bestMatch?.entry.value;
+}
+
+/**
+ * Detect drift between the deprecated static securityBypassPolicy rules and
+ * the authoritative RouteModule.securityBypass declarations. Findings are
+ * advisory warnings (code `security-bypass-inconsistency`), not fatal
+ * governance violations: the static policy is being retired in favor of route
+ * module declarations, so only static rules that lack module coverage are
+ * flagged.
+ */
+function findSecurityBypassInconsistencies(): RouteGovernanceViolation[] {
+  const warnings: RouteGovernanceViolation[] = [];
+
+  for (const component of Object.keys(securityBypassPolicy) as SecurityComponent[]) {
+    for (const rule of securityBypassPolicy[component]) {
+      const rulePath = rule.value.replace(/\/+$/, "");
+      const covered = allRouteModules.some((module) => {
+        const entry = module.securityBypass?.[component];
+        if (!entry || entry.value === undefined) {
+          return false;
+        }
+        return routeScopeCoversPath(module.path, rulePath);
+      });
+
+      if (!covered) {
+        warnings.push({
+          moduleName: "securityPolicy.ts",
+          path: rule.value,
+          phase: "pre-tamper",
+          code: "security-bypass-inconsistency",
+          message: `Deprecated static securityBypassPolicy declares a ${component} bypass for "${rule.value}" (${rule.match}) but no RouteModule.securityBypass declaration covers it. RouteModule declarations are the authoritative source; declare this bypass on the owning route module.`,
+        });
+      }
+    }
+  }
+
+  return warnings;
+}
+
 export function validateRouteGovernance(): RouteGovernanceViolation[] {
   const violations: RouteGovernanceViolation[] = [];
 
@@ -1950,16 +2061,35 @@ export function validateRouteGovernance(): RouteGovernanceViolation[] {
     }
   }
 
+  // Advisory check: legacy static bypass rules must be covered by route module
+  // declarations. These are surfaced as warnings (not fatal violations) by
+  // assertRouteGovernance().
+  violations.push(...findSecurityBypassInconsistencies());
+
   return violations;
 }
 
 export function assertRouteGovernance(): void {
   const violations = validateRouteGovernance();
-  if (!violations.length) {
+
+  // Security bypass inconsistencies are advisory during the static-policy
+  // deprecation transition: RouteModule declarations are the authoritative
+  // source, so drift between them and the legacy static rules is logged as a
+  // warning instead of failing startup.
+  const warnings = violations.filter((violation) => violation.code === "security-bypass-inconsistency");
+  const fatal = violations.filter((violation) => violation.code !== "security-bypass-inconsistency");
+
+  for (const warning of warnings) {
+    logger.warn(
+      `[routes] Security bypass inconsistency [${warning.phase}] ${warning.moduleName} (${warning.path}) ${warning.code}: ${warning.message}`,
+    );
+  }
+
+  if (!fatal.length) {
     return;
   }
 
-  const formatted = violations
+  const formatted = fatal
     .map((violation) => `[${violation.phase}] ${violation.moduleName} (${violation.path}) ${violation.code}: ${violation.message}`)
     .join("\n");
   throw new Error(`[routes] Route governance validation failed:\n${formatted}`);
