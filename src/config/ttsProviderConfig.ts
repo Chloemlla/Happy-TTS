@@ -1,3 +1,9 @@
+import {
+  parseFishAudioCatalogCurl,
+  normalizeFishAudioCatalogConfig,
+  type FishAudioCatalogConfig,
+} from "./fishAudioCatalog";
+
 export type TtsProviderId = "openai" | "fish";
 
 export interface TtsProviderOption {
@@ -13,6 +19,7 @@ export interface TtsProviderRuntimeConfig {
     apiKey: string;
     baseUrl: string;
     referenceId: string;
+    catalog?: FishAudioCatalogConfig;
   };
 }
 
@@ -133,6 +140,7 @@ export function normalizeTtsProviderRuntimeConfig(
       apiKey: normalizeString(fish.apiKey, defaults.fish.apiKey, 2048),
       baseUrl: normalizeFishAudioBaseUrl(fish.baseUrl, defaults.fish.baseUrl),
       referenceId: normalizeOptionalString(fish.referenceId, defaults.fish.referenceId, 512),
+      catalog: normalizeFishAudioCatalogConfig(fish.catalog ?? defaults.fish.catalog),
     },
   };
 }
@@ -177,6 +185,35 @@ export function mergeTtsProviderAdminUpdate(
     ? normalizeOptionalString(fish.referenceId, "", 512)
     : current.fish.referenceId;
   const apiKey = normalizeOptionalString(fish.apiKey, "", 2048) || current.fish.apiKey;
+  const catalogInput = Object.prototype.hasOwnProperty.call(fish, "catalog")
+    ? fish.catalog
+    : current.fish.catalog;
+  const currentCatalog = current.fish.catalog || {};
+  let catalog = normalizeFishAudioCatalogConfig(catalogInput);
+  if (Object.prototype.hasOwnProperty.call(fish, "modelCurl")) {
+    const modelCurl = typeof fish.modelCurl === "string" ? fish.modelCurl.trim() : "";
+    catalog = {
+      ...catalog,
+      ...(modelCurl
+        ? { modelRequest: parseFishAudioCatalogCurl(modelCurl, currentCatalog.modelRequest, "/model/web") }
+        : { modelRequest: undefined }),
+    };
+  }
+  if (Object.prototype.hasOwnProperty.call(fish, "defaultVoicesCurl")) {
+    const defaultVoicesCurl = typeof fish.defaultVoicesCurl === "string" ? fish.defaultVoicesCurl.trim() : "";
+    catalog = {
+      ...catalog,
+      ...(defaultVoicesCurl
+        ? {
+            defaultVoicesRequest: parseFishAudioCatalogCurl(
+              defaultVoicesCurl,
+              currentCatalog.defaultVoicesRequest,
+              "/model/default-voices",
+            ),
+          }
+        : { defaultVoicesRequest: undefined }),
+    };
+  }
 
   return {
     provider,
@@ -185,6 +222,7 @@ export function mergeTtsProviderAdminUpdate(
       apiKey,
       baseUrl,
       referenceId,
+      catalog,
     },
   };
 }
@@ -237,16 +275,18 @@ export function buildTtsProviderExecutionSnapshot(
 ): TtsProviderExecutionSnapshot {
   if (runtimeConfig.provider === "fish") {
     const model = resolveFishModel(runtimeConfig.defaultModel);
-    const referenceId = runtimeConfig.fish.referenceId.trim();
-    const voice = referenceId ? "configured_reference" : "provider_default";
+    const requestedReferenceId = typeof input.voice === "string" ? input.voice.trim() : "";
+    const referenceId = requestedReferenceId || runtimeConfig.fish.referenceId.trim();
+    const safeReferenceId = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/.test(referenceId) ? referenceId : "";
+    const voice = safeReferenceId ? "configured_reference" : "provider_default";
     const baseUrl = normalizeFishAudioBaseUrl(runtimeConfig.fish.baseUrl);
     return {
       providerId: "fish",
       model,
       voice,
-      ...(referenceId ? { referenceId } : {}),
+      ...(safeReferenceId ? { referenceId: safeReferenceId } : {}),
       baseUrl,
-      cacheIdentity: ["fish", model, voice, referenceId || "default", baseUrl].join("|"),
+      cacheIdentity: ["fish", model, voice, safeReferenceId || "default", baseUrl].join("|"),
     };
   }
 

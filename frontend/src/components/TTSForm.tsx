@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { TtsRequest, TtsResponse } from "../types/tts";
+import { FishAudioCatalogItem, TtsRequest, TtsResponse } from "../types/tts";
 import { getApiBaseUrl } from "../api/api";
 import { useNotification } from "./Notification";
 import { TurnstileWidget } from "./TurnstileWidget";
@@ -26,6 +26,35 @@ import {
   normalizeTtsProviderConfig,
   supportsTtsSpeed,
 } from "../utils/ttsProviderConfig";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function normalizeFishCatalogItems(payload: unknown): FishAudioCatalogItem[] {
+  if (!isRecord(payload) || !Array.isArray(payload.items)) return [];
+  const unique = new Map<string, FishAudioCatalogItem>();
+  for (const value of payload.items) {
+    if (!isRecord(value) || typeof value.id !== "string" || typeof value.title !== "string") continue;
+    const id = value.id.trim();
+    const title = value.title.trim();
+    if (!id || !title) continue;
+    const stringArray = (candidate: unknown): string[] => Array.isArray(candidate)
+      ? candidate.filter((item): item is string => typeof item === "string").map((item) => item.trim()).filter(Boolean)
+      : [];
+    unique.set(id, {
+      id,
+      title,
+      ...(typeof value.description === "string" && value.description.trim() ? { description: value.description.trim() } : {}),
+      ...(typeof value.coverImage === "string" && value.coverImage.trim() ? { coverImage: value.coverImage.trim() } : {}),
+      languages: stringArray(value.languages),
+      tags: stringArray(value.tags),
+      ...(typeof value.sampleAudio === "string" && value.sampleAudio.trim() ? { sampleAudio: value.sampleAudio.trim() } : {}),
+      ...(typeof value.author === "string" && value.author.trim() ? { author: value.author.trim() } : {}),
+    });
+  }
+  return Array.from(unique.values());
+}
 
 interface TtsFormProps {
   loading: boolean;
@@ -58,6 +87,10 @@ export const TtsForm: React.FC<TtsFormProps> = ({
   const [providerConfig, setProviderConfig] = useState(FALLBACK_TTS_PROVIDER_CONFIG);
   const [providerConfigLoading, setProviderConfigLoading] = useState(true);
   const [usingProviderFallback, setUsingProviderFallback] = useState(false);
+  const [fishCatalog, setFishCatalog] = useState<FishAudioCatalogItem[]>([]);
+  const [fishDefaultVoices, setFishDefaultVoices] = useState<FishAudioCatalogItem[]>([]);
+  const [fishCatalogLoading, setFishCatalogLoading] = useState(false);
+  const [fishCatalogError, setFishCatalogError] = useState("");
 
   const { config: turnstileConfig, loading: turnstileConfigLoading } = useTurnstileConfig();
 
@@ -103,6 +136,38 @@ export const TtsForm: React.FC<TtsFormProps> = ({
           setVoice(nextVoice);
         } else {
           setVoice("");
+        }
+        if (nextConfig.provider === "fish") {
+          setFishCatalogLoading(true);
+          const loadCatalog = async (source: string) => {
+            const catalogResponse = await fetch(`${getApiBaseUrl()}/api/tts/fish-catalog?source=${source}`, {
+              credentials: "include",
+              headers: { Accept: "application/json" },
+              signal: controller.signal,
+            });
+            if (!catalogResponse.ok) throw new Error("Fish Audio 音色列表暂时不可用");
+            return normalizeFishCatalogItems(await catalogResponse.json());
+          };
+          try {
+            const [modelsCatalog, defaultCatalog] = await Promise.all([
+              loadCatalog("model"),
+              loadCatalog("default-voices"),
+            ]);
+            if (!controller.signal.aborted) {
+              setFishCatalog(modelsCatalog);
+              setFishDefaultVoices(defaultCatalog);
+              const firstVoice = modelsCatalog[0] || defaultCatalog[0];
+              if (firstVoice) setVoice(firstVoice.id);
+            }
+          } catch (catalogError) {
+            if (!controller.signal.aborted) setFishCatalogError(catalogError instanceof Error ? catalogError.message : "Fish Audio 音色列表暂时不可用");
+          } finally {
+            if (!controller.signal.aborted) setFishCatalogLoading(false);
+          }
+        } else {
+          setFishCatalog([]);
+          setFishDefaultVoices([]);
+          setFishCatalogError("");
         }
         setUsingProviderFallback(!hasValidPayload);
         if (!hasValidPayload) {
@@ -422,7 +487,27 @@ export const TtsForm: React.FC<TtsFormProps> = ({
                   {usesSelectableVoice ? "声音选择" : "声音配置"}
                 </div>
               </motion.div>
-              {usesSelectableVoice ? (
+              {providerConfig.provider === "fish" ? (
+                <div className="space-y-4">
+                  {fishCatalogLoading ? <div className="rounded-md border border-border bg-muted/50 p-4 text-sm text-muted-foreground">正在加载 Fish Audio 音色...</div> : null}
+                  {fishCatalogError ? <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{fishCatalogError}</div> : null}
+                  {[{ title: "模型库音色", items: fishCatalog }, { title: "默认音色", items: fishDefaultVoices }].map((group) => (
+                    <div key={group.title}>
+                      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{group.title}</div>
+                      <div className="grid max-h-96 gap-2 overflow-y-auto">
+                        {group.items.map((item) => (
+                          <label key={item.id} className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors ${voice === item.id ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background hover:bg-muted"}`}>
+                            <input type="radio" name="fish-voice" value={item.id} checked={voice === item.id} onChange={() => setVoice(item.id)} disabled={fishCatalogLoading} className="mt-1" />
+                            {item.coverImage ? <img src={item.coverImage} alt="" className="h-10 w-10 rounded-sm object-cover" /> : null}
+                            <span className="min-w-0 flex-1"><span className="block font-semibold">{item.title}</span><span className={`block text-xs ${voice === item.id ? "text-primary-foreground/75" : "text-muted-foreground"}`}>{item.author || "Fish Audio"}{item.languages.length ? ` · ${item.languages.join(", ")}` : ""}</span>{item.description ? <span className={`mt-1 block text-xs ${voice === item.id ? "text-primary-foreground/75" : "text-muted-foreground"}`}>{item.description}</span> : null}{item.tags.length ? <span className={`mt-1 block text-xs ${voice === item.id ? "text-primary-foreground/75" : "text-muted-foreground"}`}>{item.tags.join(" · ")}</span> : null}{item.sampleAudio ? <audio className="mt-2 h-7 w-full" controls preload="none" src={item.sampleAudio} aria-label={`${item.title} 试听`} /> : null}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  {!fishCatalogLoading && !fishCatalog.length && !fishDefaultVoices.length && !fishCatalogError ? <div className="rounded-md border border-border bg-muted/50 p-4 text-sm text-muted-foreground">管理员尚未配置 Fish Audio 音色请求。</div> : null}
+                </div>
+              ) : usesSelectableVoice ? (
                 <div className="space-y-2">
                   {voices.map((voiceOption) => (
                   <motion.label

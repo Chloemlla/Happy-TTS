@@ -71,6 +71,8 @@ function normalizeAdminConfig(payload: unknown): TtsProviderAdminConfig {
       referenceId: typeof fish.referenceId === 'string' ? fish.referenceId.trim() : '',
       apiKeyConfigured:
         fish.apiKeyConfigured === true || fish.hasApiKey === true,
+      modelCurl: typeof fish.modelCurl === 'string' ? fish.modelCurl : '',
+      defaultVoicesCurl: typeof fish.defaultVoicesCurl === 'string' ? fish.defaultVoicesCurl : '',
     },
     updatedAt:
       typeof source.updatedAt === 'string'
@@ -138,6 +140,8 @@ export default function TtsProviderConfigSection({
   const [fishBaseUrl, setFishBaseUrl] = useState(FISH_DEFAULT_TTS_BASE_URL);
   const [fishReferenceId, setFishReferenceId] = useState('');
   const [fishApiKey, setFishApiKey] = useState('');
+  const [fishModelCurl, setFishModelCurl] = useState('');
+  const [fishDefaultVoicesCurl, setFishDefaultVoicesCurl] = useState('');
   const [apiKeyConfigured, setApiKeyConfigured] = useState(false);
   const [updatedAt, setUpdatedAt] = useState<string | undefined>();
   const [error, setError] = useState('');
@@ -149,6 +153,8 @@ export default function TtsProviderConfigSection({
     setFishBaseUrl(config.fish.baseUrl);
     setFishReferenceId(config.fish.referenceId);
     setApiKeyConfigured(config.fish.apiKeyConfigured);
+    setFishModelCurl(config.fish.modelCurl);
+    setFishDefaultVoicesCurl(config.fish.defaultVoicesCurl);
     setUpdatedAt(config.updatedAt);
     setFishApiKey('');
   }, []);
@@ -221,6 +227,8 @@ export default function TtsProviderConfigSection({
           baseUrl: baseUrl || FISH_DEFAULT_TTS_BASE_URL,
           referenceId: fishReferenceId.trim(),
           apiKey: fishApiKey.trim(),
+          modelCurl: fishModelCurl.trim(),
+          defaultVoicesCurl: fishDefaultVoicesCurl.trim(),
         },
       });
 
@@ -311,6 +319,15 @@ export default function TtsProviderConfigSection({
             API Key
             <input type="password" value={fishApiKey} onChange={(event) => setFishApiKey(event.target.value)} className={`${FIELD_CLASS} mt-1 font-mono`} disabled={loading || saving} autoComplete="new-password" placeholder={apiKeyConfigured ? '已配置；留空保留现有密钥' : '请输入 Fish Audio API Key'} />
             <span className="mt-1 block text-xs text-muted-foreground">{apiKeyConfigured ? '服务器已保存 API Key。空值不会覆盖现有密钥。' : '尚未配置 API Key。'}</span>
+          </label>
+          <label className="block text-sm font-medium text-foreground">
+            Fish Audio 模型库请求 curl
+            <textarea value={fishModelCurl} onChange={(event) => setFishModelCurl(event.target.value)} className={`${FIELD_CLASS} mt-1 min-h-32 font-mono text-xs`} disabled={loading || saving} placeholder="粘贴 GET /model/web 的 Windows curl 命令" />
+            <span className="mt-1 block text-xs text-muted-foreground">保存后后台代发请求；Authorization 在页面回显时会隐藏。</span>
+          </label>
+          <label className="block text-sm font-medium text-foreground">
+            Fish Audio 默认音色请求 curl
+            <textarea value={fishDefaultVoicesCurl} onChange={(event) => setFishDefaultVoicesCurl(event.target.value)} className={`${FIELD_CLASS} mt-1 min-h-32 font-mono text-xs`} disabled={loading || saving} placeholder="粘贴 GET /model/default-voices 的 Windows curl 命令" />
           </label>
         </div>
       ) : null}

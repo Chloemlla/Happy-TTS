@@ -112,6 +112,8 @@ export interface TtsProviderAdminConfig {
     baseUrl: string;
     referenceId: string;
     apiKeyConfigured: boolean;
+    modelCurl: string;
+    defaultVoicesCurl: string;
   };
   updatedAt?: string;
 }
@@ -123,5 +125,7 @@ export interface TtsProviderAdminUpdate {
     baseUrl: string;
     referenceId: string;
     apiKey: string;
+    modelCurl: string;
+    defaultVoicesCurl: string;
   };
 }

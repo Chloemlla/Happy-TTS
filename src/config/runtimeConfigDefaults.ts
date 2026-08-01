@@ -239,6 +239,7 @@ export function buildRuntimeConfigDefaults(options: {
         apiKey: options.fishAudioApiKey?.trim() || "",
         baseUrl: normalizeFishAudioBaseUrl(options.fishAudioBaseUrl, FISH_AUDIO_DEFAULT_BASE_URL),
         referenceId: options.fishAudioReferenceId?.trim() || "",
+        catalog: {},
       },
     },
     email: {
@@ -303,6 +304,15 @@ export function cloneRuntimeConfigDefaults(config: RuntimeConfigDefaults): Runti
       ...config.ttsProvider,
       fish: {
         ...config.ttsProvider.fish,
+        catalog: {
+          ...config.ttsProvider.fish.catalog,
+          ...(config.ttsProvider.fish.catalog?.modelRequest
+            ? { modelRequest: { ...config.ttsProvider.fish.catalog.modelRequest, headers: { ...config.ttsProvider.fish.catalog.modelRequest.headers } } }
+            : {}),
+          ...(config.ttsProvider.fish.catalog?.defaultVoicesRequest
+            ? { defaultVoicesRequest: { ...config.ttsProvider.fish.catalog.defaultVoicesRequest, headers: { ...config.ttsProvider.fish.catalog.defaultVoicesRequest.headers } } }
+            : {}),
+        },
       },
     },
     email: {

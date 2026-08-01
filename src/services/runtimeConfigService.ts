@@ -18,6 +18,7 @@ import {
   normalizeTtsProviderRuntimeConfig,
   type TtsProviderRuntimeConfig,
 } from "../config/ttsProviderConfig";
+import { formatFishAudioCatalogCurl } from "../config/fishAudioCatalog";
 import { type RuntimeConfigKey, RuntimeConfigModel } from "../models/runtimeConfigModel";
 import {
   assertStrongGenerationCode,
@@ -1294,6 +1295,8 @@ export class RuntimeConfigService {
         baseUrl: string;
         referenceId: string;
         apiKeyConfigured: boolean;
+        modelCurl: string;
+        defaultVoicesCurl: string;
       };
       updatedAt?: string;
     };
@@ -1317,6 +1320,8 @@ export class RuntimeConfigService {
           baseUrl: config.fish.baseUrl,
           referenceId: config.fish.referenceId,
           apiKeyConfigured: Boolean(config.fish.apiKey),
+          modelCurl: formatFishAudioCatalogCurl(config.fish.catalog?.modelRequest),
+          defaultVoicesCurl: formatFishAudioCatalogCurl(config.fish.catalog?.defaultVoicesRequest),
         },
         updatedAt: doc?.updatedAt?.toISOString(),
       },

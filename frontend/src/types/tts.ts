@@ -19,6 +19,17 @@ export interface TtsProviderOption {
   description?: string;
 }
 
+export interface FishAudioCatalogItem {
+  id: string;
+  title: string;
+  description?: string;
+  coverImage?: string;
+  languages: string[];
+  tags: string[];
+  sampleAudio?: string;
+  author?: string;
+}
+
 export interface TtsProviderPublicConfig {
   provider: TtsProviderId;
   defaultModel: string;
