@@ -1,7 +1,7 @@
 import express from "express";
 import multer from "multer";
 import validator from "validator";
-import { authMiddleware } from "../../middleware/authMiddleware";
+import { authMiddlewareV2 as authMiddleware } from "../../middleware/auth";
 import {
   isAccountIdentityProvider,
   listLinkedAccounts,

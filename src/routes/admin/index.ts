@@ -1,6 +1,6 @@
 import express from "express";
 import { adminController } from "../../controllers/adminController";
-import { authMiddleware } from "../../middleware/authMiddleware";
+import { authMiddlewareV2 as authMiddleware } from "../../middleware/auth";
 import { UserStorage } from "../../utils/userStorage";
 import broadcastRouter from "./broadcast";
 import configRouter from "./config";

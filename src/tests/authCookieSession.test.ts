@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import request from "supertest";
 import { config } from "../config/config";
 import { AuthController } from "../controllers/authController";
-import { authMiddleware } from "../middleware/authMiddleware";
+import { authMiddlewareV2 as authMiddleware } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { AUTH_COOKIE_NAME, setAuthSessionCookie } from "../utils/authCookie";
 import { UserStorage } from "../utils/userStorage";

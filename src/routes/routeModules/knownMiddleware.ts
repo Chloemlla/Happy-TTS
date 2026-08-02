@@ -2,7 +2,7 @@ import type { RequestHandler } from "express";
 import { adminOnly } from "../../middleware/adminOnly";
 import { authenticateToken } from "../../middleware/authenticateToken";
 import { authenticateAdmin, authMiddleware } from "../../middleware/auth";
-import { adminAuthMiddleware, authMiddleware as authMiddlewareV2 } from "../../middleware/authMiddleware";
+import { adminAuthMiddleware, authMiddlewareV2 } from "../../middleware/auth";
 import { nexaiRequestSignature } from "../../middleware/nexaiRequestSignature";
 import {
   adminLimiter,

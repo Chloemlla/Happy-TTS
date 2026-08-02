@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { OAuthController } from "../controllers/oauthController";
 import { auditLog } from "../middleware/auditLog";
-import { adminAuthMiddleware, authMiddleware } from "../middleware/authMiddleware";
+import { adminAuthMiddleware, authMiddlewareV2 as authMiddleware } from "../middleware/auth";
 import { oauthTokenAuth } from "../middleware/oauthTokenAuth";
 import { adminLimiter, createLimiter } from "../middleware/routeLimiters";
 

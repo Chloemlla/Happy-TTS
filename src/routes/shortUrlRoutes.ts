@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { ShortUrlController } from "../controllers/shortUrlController";
 import { apiKeyAuth } from "../middleware/apiKeyAuth";
-import { adminAuthMiddleware, authMiddleware } from "../middleware/authMiddleware";
+import { adminAuthMiddleware, authMiddlewareV2 as authMiddleware } from "../middleware/auth";
 import { createLimiter } from "../middleware/routeLimiters";
 import { replayProtection } from "../middleware/replayProtection";
 import { mongoose } from "../services/mongoService";

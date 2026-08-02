@@ -1,6 +1,6 @@
 import express from "express";
 import { EmailController } from "../controllers/emailController";
-import { authMiddleware } from "../middleware/authMiddleware";
+import { authMiddlewareV2 as authMiddleware } from "../middleware/auth";
 import { createLimiter } from "../middleware/rateLimiter";
 import { domainExemptionService } from "../services/domainExemptionService";
 import logger from "../utils/logger";

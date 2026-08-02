@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { LinuxDoCreditController } from "../controllers/linuxDoCreditController";
-import { authMiddleware } from "../middleware/authMiddleware";
+import { authMiddlewareV2 as authMiddleware } from "../middleware/auth";
 import { createLimiter } from "../middleware/routeLimiters";
 
 const router = Router();

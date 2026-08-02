@@ -1,5 +1,5 @@
 import { type Request, type Response, Router } from "express";
-import { authMiddleware } from "../middleware/authMiddleware";
+import { authMiddlewareV2 as authMiddleware } from "../middleware/auth";
 import { firstString } from "../utils/httpParam";
 import {
   createApiKey,
