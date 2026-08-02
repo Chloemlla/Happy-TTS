@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { User } from '../types/auth';
 import { useAuthStore } from '../stores/authStore';
+import type { AuthRequestError, LoginResult } from '../stores/authStore';
 import { getApiBaseUrl } from '../api/api';
 import {
     clearAuthToken,
@@ -13,6 +14,8 @@ import {
     ACCOUNTS_KEY as ACCOUNTS_KEY_CONST,
 } from '../utils/authSession';
 import { maybeEmitPenaltyAppealFromError } from '../utils/penaltyAppeal';
+
+export type { AuthRequestError, LoginResult };
 
 // 单设备多用户配置
 const ACCOUNTS_KEY = ACCOUNTS_KEY_CONST;
@@ -37,26 +40,6 @@ const toStoredAccounts = (accounts: SavedAccount[]) => (
         lastActive: account.lastActive,
     }))
 );
-
-interface LoginResponse {
-    user: User;
-    token: string;
-    requires2FA?: boolean;
-    twoFactorType?: string[];
-}
-
-type LoginResult =
-    | { requires2FA: true; user: User; token: string; twoFactorType: string[] }
-    | { requires2FA: false; user: User; token: string };
-
-export interface AuthRequestError extends Error {
-    status?: number;
-    code?: string;
-    remainingAttempts?: number;
-    attemptLimit?: number;
-    lockedUntil?: number;
-    retryAfterSeconds?: number;
-}
 
 const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
     try {
@@ -123,8 +106,11 @@ export const useAuth = () => {
     const user = useAuthStore((state) => state.user);
     const token = useAuthStore((state) => state.token);
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+    const error = useAuthStore((state) => state.error);
     const setUser = useAuthStore((state) => state.setUser);
-    const setToken = useAuthStore((state) => state.setToken);
+    const setIsLoading = useAuthStore((state) => state.setIsLoading);
+    const storeLogin = useAuthStore((state) => state.login);
+    const storeLogout = useAuthStore((state) => state.logout);
     const [savedAccounts, setSavedAccounts] = useState<SavedAccount[]>([]);
     const [loading, setLoading] = useState(true);
     const [pendingTOTP, setPendingTOTP] = useState<{ userId: string } | null>(null);
@@ -270,6 +256,8 @@ export const useAuth = () => {
             }
         } finally {
             setLoading(false);
+            // Keep the store's auth-operation flag coherent with the app's session check.
+            setIsLoading(false);
             setIsChecking(false);
             checkingRef.current = false;
         }
@@ -320,46 +308,33 @@ export const useAuth = () => {
             } finally {
                 clearAuthToken();
                 setLoading(false);
+                setIsLoading(false);
             }
         }
     };
 
     const login = async (username: string, password: string, cfToken?: string): Promise<LoginResult> => {
         try {
-            const response = await api.post<LoginResponse>('/api/auth/login', {
-                identifier: username,
-                password,
-                ...(cfToken && { cfToken })
-            });
-            const { user, token, requires2FA, twoFactorType } = response.data;
-            
-            if (requires2FA && twoFactorType && twoFactorType.length > 0) {
-                setPending2FA({ userId: user.id, type: twoFactorType, username: user.username });
+            // Delegate the actual API call + auth state mutation to the Zustand store.
+            const result = await storeLogin(username, password, cfToken);
+
+            if (result.requires2FA && result.twoFactorType && result.twoFactorType.length > 0) {
+                setPending2FA({ userId: result.user.id, type: result.twoFactorType, username: result.user.username });
                 // 同时支持旧版的 pendingTOTP
-                if (twoFactorType.includes('TOTP')) setPendingTOTP({ userId: user.id });
-                return { requires2FA: true, user, token, twoFactorType };
+                if (result.twoFactorType.includes('TOTP')) setPendingTOTP({ userId: result.user.id });
+                return result;
             }
 
             // Browser session is HttpOnly-cookie only. Do not persist access tokens in JS storage.
             clearAuthToken();
-            saveAccount(user, '');
-            setUser(user);
+            saveAccount(result.user, '');
             lastCheckRef.current = Date.now();
             setLastCheckTime(Date.now());
-            return { requires2FA: false, user, token };
+            return result;
         } catch (error: any) {
             console.error('[login error]', error);
             maybeEmitPenaltyAppealFromError(error, 'login');
-            const errorData = error.response?.data || {};
-            const msg = errorData.error || error.message || '登录失败，请检查网络或稍后重试';
-            const authError = new Error(msg) as AuthRequestError;
-            authError.status = error.response?.status;
-            authError.code = errorData.code;
-            authError.remainingAttempts = errorData.remainingAttempts;
-            authError.attemptLimit = errorData.attemptLimit;
-            authError.lockedUntil = errorData.lockedUntil;
-            authError.retryAfterSeconds = errorData.retryAfterSeconds;
-            throw authError;
+            throw error;
         }
     };
 
@@ -449,8 +424,7 @@ export const useAuth = () => {
         }
 
         clearAuthToken();
-        setUser(null);
-        setToken(null);
+        storeLogout();
         setPendingTOTP(null);
         setPending2FA(null);
         setIsAdminChecked(false);
@@ -467,8 +441,7 @@ export const useAuth = () => {
         void api.post('/api/auth/logout').catch(() => undefined);
         clearAuthToken();
         clearSavedAccounts();
-        setUser(null);
-        setToken(null);
+        storeLogout();
         setSavedAccounts([]);
         setIsAdminChecked(false);
         navigate('/welcome');
@@ -507,6 +480,7 @@ export const useAuth = () => {
         isAuthenticated,
         savedAccounts,
         loading,
+        error,
         isChecking,
         lastCheckTime,
         pendingTOTP,
