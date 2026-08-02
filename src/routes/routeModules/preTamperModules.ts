@@ -216,7 +216,7 @@ export const preTamperRouteModules: RouteModule[] = [
     },
     rateLimitPolicy: {
       mode: "route-module",
-      limiters: ["totpLimiter"],
+      limiters: ["totp-limiter"],
       note: "Covered by the dedicated /api/totp limiter module.",
     },
   },
@@ -302,9 +302,9 @@ export const preTamperRouteModules: RouteModule[] = [
     rateLimited: true,
     isPublic: "mixed",
     rateLimitPolicy: {
-      mode: "route-module",
-      limiters: ["passkeyLimiter"],
-      note: "Passkey endpoints are covered by the dedicated /api/passkey limiter mount.",
+      mode: "route",
+      limiters: ["publicLimiter", "fingerprintLimiter", "authenticatedFingerprintLimiter", "adminLimiter", "configLimiter"],
+      note: "Turnstile endpoints apply dedicated route-level limiters for public, fingerprint, administrative, and configuration flows.",
     },
     securityBypass: {
       ipVerification: {

@@ -81,7 +81,7 @@ export const preParserRouteModules: RouteModule[] = [
     isPublic: true,
     rateLimitPolicy: {
       mode: "route-module",
-      limiters: ["dataCollectionLimiter"],
+      limiters: ["data-collection-limiter"],
       note: "Ingress is protected by the dedicated /api/data-collection limiter mount.",
     },
     securityBypass: {
@@ -100,7 +100,7 @@ export const preParserRouteModules: RouteModule[] = [
     isPublic: true,
     rateLimitPolicy: {
       mode: "route-module",
-      limiters: ["dataCollectionLimiter"],
+      limiters: ["data-collection-limiter"],
       note: "The root /api mount shares the same data-collection limiter coverage.",
     },
     securityBypass: {
