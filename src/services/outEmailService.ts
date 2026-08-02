@@ -252,6 +252,63 @@ export async function getOutEmailQuota(): Promise<OutEmailQuotaInfo> {
   return { used: quota.countDay || 0, total: getOutEmailQuotaTotal(), resetAt };
 }
 
+export async function getOutEmailRecords(params: {
+  page?: number;
+  pageSize?: number;
+  to?: string;
+  subject?: string;
+  startDate?: string;
+  endDate?: string;
+}): Promise<{
+  records: Array<{ to: string; subject: string; content: string; sentAt: Date; ip: string }>;
+  total: number;
+  page: number;
+  pageSize: number;
+}> {
+  const page = Math.max(1, params.page || 1);
+  const pageSize = Math.min(100, Math.max(1, params.pageSize || 20));
+  const filter: Record<string, any> = {};
+
+  if (params.to) {
+    filter.to = { $regex: params.to, $options: "i" };
+  }
+  if (params.subject) {
+    filter.subject = { $regex: params.subject, $options: "i" };
+  }
+  if (params.startDate || params.endDate) {
+    filter.sentAt = {};
+    if (params.startDate) filter.sentAt.$gte = new Date(params.startDate);
+    if (params.endDate) filter.sentAt.$lte = new Date(params.endDate);
+  }
+
+  try {
+    const [records, total] = await Promise.all([
+      OutEmailRecord.find(filter)
+        .sort({ sentAt: -1 })
+        .skip((page - 1) * pageSize)
+        .limit(pageSize)
+        .lean()
+        .exec(),
+      OutEmailRecord.countDocuments(filter),
+    ]);
+    return {
+      records: records.map((r: any) => ({
+        to: r.to || "",
+        subject: r.subject || "",
+        content: (r.content || "").substring(0, 200),
+        sentAt: r.sentAt || new Date(),
+        ip: r.ip || "",
+      })),
+      total,
+      page,
+      pageSize,
+    };
+  } catch (error) {
+    logger.error("查询对外邮件记录失败", { error: (error as any)?.message });
+    return { records: [], total: 0, page, pageSize };
+  }
+}
+
 export async function getOutEmailAuthStatus(domain?: string): Promise<{
   configured: boolean;
   hasApiKey: boolean;

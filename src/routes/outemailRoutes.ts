@@ -1,7 +1,7 @@
 import express, { type Request } from "express";
 import { createLimiter } from "../middleware/rateLimiter";
 import { getOutEmailServiceStatus, resolveOutEmailDomain } from "../services/emailService";
-import { getOutEmailAuthStatus, getOutEmailQuota, sendOutEmail, sendOutEmailBatch } from "../services/outEmailService";
+import { getOutEmailAuthStatus, getOutEmailQuota, sendOutEmail, sendOutEmailBatch, getOutEmailRecords } from "../services/outEmailService";
 import logger from "../utils/logger";
 
 const router = express.Router();
@@ -229,6 +229,26 @@ router.post("/batch-send", outEmailLimiter, async (req, res) => {
     return res.status(400).json({ error: result.error });
   } catch (e: any) {
     return res.status(500).json({ error: e?.message || "服务器错误" });
+  }
+});
+
+/**
+ * GET /api/outemail/records
+ * 查询对外邮件发送记录（溯源日志）
+ */
+router.get("/records", statusQueryLimiter, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const pageSize = parseInt(req.query.pageSize as string) || 20;
+    const to = req.query.to as string | undefined;
+    const subject = req.query.subject as string | undefined;
+    const startDate = req.query.startDate as string | undefined;
+    const endDate = req.query.endDate as string | undefined;
+
+    const result = await getOutEmailRecords({ page, pageSize, to, subject, startDate, endDate });
+    res.json({ success: true, ...result });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e?.message || "查询失败" });
   }
 });
 
