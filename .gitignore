@@ -134,6 +134,7 @@ debug/
 *.swp
 *.swo
 *.bat
+/src/pan.zip
 sqzx-course-images/
 sqzx-course-images.zip
 sqzx-current.png
