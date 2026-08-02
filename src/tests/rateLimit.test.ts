@@ -1,8 +1,7 @@
 import express from "express";
 import request from "supertest";
-import config from "../config";
 import { rateLimitMiddleware } from "../middleware/rateLimit";
-import { rateLimiter } from "../services/rateLimiter";
+import { MAX_REQUESTS_PER_MINUTE, rateLimiter } from "../services/rateLimiter";
 
 // 临时取消mock，使用真实的rate limiter
 jest.unmock("../services/rateLimiter");
@@ -37,7 +36,7 @@ describe("Rate Limiting", () => {
 
   it("应该在超过限制时返回429错误", async () => {
     // 获取配置的限制
-    const maxRequestsPerMinute = config.limits.maxRequestsPerMinute;
+    const maxRequestsPerMinute = MAX_REQUESTS_PER_MINUTE;
 
     // 发送超过限制的请求
     for (let i = 0; i < maxRequestsPerMinute; i++) {
@@ -51,7 +50,7 @@ describe("Rate Limiting", () => {
   });
 
   it("应该为不同IP分别计数", async () => {
-    const maxRequestsPerMinute = config.limits.maxRequestsPerMinute;
+    const maxRequestsPerMinute = MAX_REQUESTS_PER_MINUTE;
 
     // 清理rate limiter数据，确保测试干净
     (rateLimiter as any).data = {};

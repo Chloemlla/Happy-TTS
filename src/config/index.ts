@@ -1,4 +1,3 @@
-import legacyConfig from "../config";
 import { config as appConfig, startupConfig } from "./config";
 
 export default {
@@ -25,5 +24,12 @@ export default {
       period: 30000,
     },
   },
-  email: legacyConfig.email,
+  email: {
+    outemail: {
+      enabled: startupConfig.email.outemail.enabled,
+      domain: startupConfig.email.outemail.domain || "",
+      apiKey: startupConfig.email.outemail.apiKey || "",
+      code: startupConfig.email.outemail.code,
+    },
+  },
 };

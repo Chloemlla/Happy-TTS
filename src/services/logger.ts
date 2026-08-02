@@ -1,6 +1,6 @@
 import { createWriteStream, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import config from "../config";
+import { compileTimeConfig } from "../config/config";
 
 export class Logger {
   private logStream: NodeJS.WritableStream;
@@ -15,7 +15,7 @@ export class Logger {
       logDir = join(process.cwd(), "logs");
     } else {
       // Running in development - use config path
-      logDir = config.paths.logs;
+      logDir = compileTimeConfig.logsDir;
     }
 
     try {

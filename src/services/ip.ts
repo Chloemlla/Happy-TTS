@@ -3,9 +3,10 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import axios, { type AxiosError } from "axios";
 import cheerio from "cheerio";
-import config from "../config";
 import { logger } from "./logger";
 import { mongoose } from "./mongoService";
+
+const IP_WHITELIST = (process.env.IP_WHITELIST || "").split(",").filter(Boolean);
 
 // 性能监控和统计
 interface IPServiceStats {
@@ -831,9 +832,8 @@ export async function getIPInfo(ip: string): Promise<IPInfo> {
 }
 
 export function isIPAllowed(ip: string): boolean {
-  const whitelist = (config as any).ip?.whitelist || [];
-  if (!whitelist.length) return true;
-  return whitelist.includes(ip);
+  if (!IP_WHITELIST.length) return true;
+  return IP_WHITELIST.includes(ip);
 }
 
 // 优雅关闭函数

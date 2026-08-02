@@ -1,8 +1,12 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import config from "../config";
+import { compileTimeConfig } from "../config/config";
 import { logger } from "./logger";
 import { mongoose } from "./mongoService";
+
+export const MAX_REQUESTS_PER_MINUTE = 60;
+export const MAX_REQUESTS_PER_HOUR = 1000;
+export const MAX_REQUESTS_PER_DAY = 10000;
 
 // MongoDB 速率限制 Schema
 const RateLimitSchema = new mongoose.Schema(
@@ -33,7 +37,7 @@ export class RateLimiter {
     if ((process as any).pkg) {
       this.dataFile = join(process.cwd(), "data", "lc_data.json");
     } else {
-      this.dataFile = config.paths.lcData;
+      this.dataFile = join(compileTimeConfig.dataDir, "lc_data.json");
     }
     this.loadData();
   }
@@ -76,7 +80,7 @@ export class RateLimiter {
     }
     try {
       // Get the directory from the data file path
-      const dir = (process as any).pkg ? join(process.cwd(), "data") : config.paths.data;
+      const dir = (process as any).pkg ? join(process.cwd(), "data") : compileTimeConfig.dataDir;
       if (!existsSync(dir)) {
         mkdirSync(dir, { recursive: true });
       }
@@ -118,9 +122,9 @@ export class RateLimiter {
     await this.saveData();
 
     return (
-      this.data[ip].minute.length > config.limits.maxRequestsPerMinute ||
-      this.data[ip].hour.length > config.limits.maxRequestsPerHour ||
-      this.data[ip].day.length > config.limits.maxRequestsPerDay
+      this.data[ip].minute.length > MAX_REQUESTS_PER_MINUTE ||
+      this.data[ip].hour.length > MAX_REQUESTS_PER_HOUR ||
+      this.data[ip].day.length > MAX_REQUESTS_PER_DAY
     );
   }
 }
