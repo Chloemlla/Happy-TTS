@@ -449,7 +449,7 @@ if (!fs.existsSync(mysqlUriPolicyTs)) {
 const allowWeakMysqlMention = new Set(
   [
     "scripts/check-audit-policies.js",
-    "scripts/test-audit-policies.js",
+    "scripts/tests/test-audit-policies.js",
     "scripts/lib/mysqlUriPolicy.js",
     "src/utils/mysqlUriPolicy.ts",
   ].map((p) => p.replace(/\//g, path.sep)),

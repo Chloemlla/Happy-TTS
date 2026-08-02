@@ -306,9 +306,9 @@ RUN pnpm install --frozen-lockfile --ignore-scripts
 COPY --from=backend-builder /app/dist-obfuscated ./dist
 COPY --from=backend-builder /app/openapi.json ./openapi.json
 COPY --from=backend-builder /app/openapi.json ./dist/openapi.json
-COPY --from=backend-builder /app/scripts/run-node-with-profiling.js ./scripts/run-node-with-profiling.js
-COPY --from=backend-builder /app/scripts/run-load-profile-report.js ./scripts/run-load-profile-report.js
-COPY --from=backend-builder /app/scripts/profiling-README.md ./scripts/profiling-README.md
+COPY --from=backend-builder /app/scripts/profiling/run-node-with-profiling.js ./scripts/profiling/run-node-with-profiling.js
+COPY --from=backend-builder /app/scripts/profiling/run-load-profile-report.js ./scripts/profiling/run-load-profile-report.js
+COPY --from=backend-builder /app/scripts/profiling/README.md ./scripts/profiling/README.md
 # 前端由后端 Express 提供：frontend/dist 命中 registerStaticRoutes 的候选路径。
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 COPY --from=rust-network-tools-builder /app/rust-services/target/release/network-tools /usr/local/bin/network-tools

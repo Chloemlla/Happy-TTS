@@ -122,6 +122,9 @@ frontend/docs/*
 local.*
 local-*
 
+# 性能分析输出
+profiles/
+
 # 调试文件
 .debug/
 debug.log

@@ -327,7 +327,7 @@ npm run test -- artifacts.integration.test.ts
 
 - [Flutter 客户端集成指南](./flutter-artifacts-integration.md)
 - [测试指南](./artifacts-testing-guide.md)
-- [API 规范](../artifacts-share-backend-spec.md)
+- [API 规范](./artifacts-share-backend-spec.md)
 
 ## 技术支持
 
