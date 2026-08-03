@@ -301,7 +301,7 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
         const result = await onSubmit({
           text,
           model,
-          ...(usesSelectableVoice && voice ? { voice } : {}),
+          ...(usesSelectableVoice || providerConfig.provider === "fish" && voice ? { voice } : {}),
           outputFormat,
           speed: supportsSpeedAdjustment ? speed : 1,
           generationCode,
@@ -564,7 +564,7 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
               >
                 <div className="flex items-center gap-2 mb-2">
                   <FaVolumeUp className="text-slate-400" />
-                  {usesSelectableVoice ? "声音选择" : "声音配置"}
+                  {usesSelectableVoice || providerConfig.provider === "fish" ? "声音选择" : "声音配置"}
                 </div>
               </motion.div>
               {providerConfig.provider === "fish" ? (

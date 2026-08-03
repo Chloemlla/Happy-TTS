@@ -162,9 +162,11 @@ export const ttsProviderController = {
 
       const runtimeConfig = await RuntimeConfigService.getRawTtsProviderConfig();
       const modelRequest = runtimeConfig.fish.catalog?.modelRequest;
+      const defaultVoicesRequest = runtimeConfig.fish.catalog?.defaultVoicesRequest;
+      const authorization = modelRequest?.headers?.authorization || defaultVoicesRequest?.headers?.authorization;
       const headers: Record<string, string> = {
         Accept: "audio/*, */*",
-        ...(modelRequest?.headers?.authorization ? { authorization: modelRequest.headers.authorization } : {}),
+        ...(authorization ? { authorization } : {}),
       };
 
       const response = await fetch(safeUrl, {
@@ -189,7 +191,7 @@ export const ttsProviderController = {
             while (true) {
               const { done, value } = await reader.read();
               if (done) { res.end(); return; }
-              res.write(value);
+              res.write(Buffer.from(value));
             }
           } catch (streamError) {
             if (!res.headersSent) res.status(502).end();
