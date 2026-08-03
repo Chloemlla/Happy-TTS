@@ -25,7 +25,7 @@
 1. Go to **APIs & Services → Credentials**.
 2. **Create credentials → OAuth client ID**.
 3. Application type: **Web application** (not Desktop / iOS / Android / TV).
-4. Name it e.g. `Synapse Web GSI`.
+4. Name it e.g. `Synapse GSI`.
 5. **Authorized JavaScript origins** (must match the browser origin exactly, no path):
    - Production: `https://tts.chloemlla.com` (or your real frontend origin)
    - Local Vite: `http://localhost:3001`
