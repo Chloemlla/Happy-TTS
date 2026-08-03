@@ -111,7 +111,6 @@ const LANGUAGE_EXTENSION: Record<string, string> = {
   python: 'py',
   r: 'r',
   ruby: 'rb',
-  rust: 'rs',
   scala: 'scala',
   shell: 'sh',
   sql: 'sql',
