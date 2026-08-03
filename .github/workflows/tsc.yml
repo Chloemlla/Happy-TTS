@@ -197,10 +197,73 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
+  type-check-backend:
+    name: type-check-backend
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 11.11.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: TypeScript check backend
+        run: npx tsc --noEmit --project tsconfig.json
+
+  type-check-frontend:
+    name: type-check-frontend
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 11.11.0
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: TypeScript check frontend
+        run: pnpm --dir frontend run typecheck
+
   type-check:
     name: type-check
     runs-on: ubuntu-latest
-    needs: [node-verify, rust-verify]
+    needs: [node-verify, rust-verify, type-check-backend, type-check-frontend]
+    if: always()
     steps:
+      - name: Check type-check-backend result
+        if: needs.type-check-backend.result != 'success'
+        run: |
+          echo "type-check-backend result: ${{ needs.type-check-backend.result }}"
+          exit 1
+
+      - name: Check type-check-frontend result
+        if: needs.type-check-frontend.result != 'success'
+        run: |
+          echo "type-check-frontend result: ${{ needs.type-check-frontend.result }}"
+          exit 1
+
       - name: Report required type-check status
         run: echo type-check passed
