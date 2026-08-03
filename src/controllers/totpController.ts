@@ -8,7 +8,7 @@ import {
   generateTOTPDisabledEmailHtml,
   generateTOTPEnabledEmailHtml,
 } from "../templates/emailTemplates";
-import { signLoginToken } from "../utils/authToken";
+import { getAuthSessionMetadata, issueTrackedLoginToken } from "../services/authSessionService";
 import { setAuthSessionCookie } from "../utils/authCookie";
 import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
@@ -432,7 +432,7 @@ export class TOTPController {
       } as any);
 
       // 生成JWT token
-      const jwtToken = signLoginToken(user);
+      const jwtToken = await issueTrackedLoginToken(user, getAuthSessionMetadata(req, { ipAddress: getClientIP(req) }));
 
       logger.info("TOTP验证成功，生成JWT token", {
         userId: user.id,

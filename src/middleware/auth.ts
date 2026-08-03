@@ -4,6 +4,8 @@ import { config } from "../config/config";
 import logger, { safeLog } from "../utils/logger";
 import { getTokenFromRequest } from "../utils/authCookie";
 import { UserStorage } from "../utils/userStorage";
+import { assertActiveAuthSession, touchAuthSession } from "../services/authSessionService";
+import { getClientIP } from "../utils/ipUtils";
 
 // 扩展Request类型以包含用户信息
 declare global {
@@ -48,6 +50,12 @@ export const authMiddleware = async (req: Request & { user?: any }, res: Respons
     if ((user as any).accountStatus === "suspended") {
       return res.status(403).json({ error: "账户已被封停", code: "ACCOUNT_SUSPENDED", supportEmail: "support@chloemlla.com" });
     }
+
+    await assertActiveAuthSession(user.id, token);
+    await touchAuthSession(user.id, token, {
+      ipAddress: getClientIP(req),
+      userAgent: String(req.headers["user-agent"] || "unknown"),
+    });
 
     req.user = user;
     next();
@@ -174,6 +182,12 @@ export const authMiddlewareV2 = async (req: Request, res: Response, next: NextFu
       return res.status(403).json({ error: "账户已被封停", code: "ACCOUNT_SUSPENDED", supportEmail: "support@chloemlla.com" });
     }
 
+    await assertActiveAuthSession(user.id, token);
+    await touchAuthSession(user.id, token, {
+      ipAddress: getClientIP(req),
+      userAgent: String(req.headers["user-agent"] || "unknown"),
+    });
+
     // 添加用户信息到请求对象
     req.user = user;
 
@@ -186,6 +200,9 @@ export const authMiddlewareV2 = async (req: Request, res: Response, next: NextFu
 
     next();
   } catch (error: any) {
+    if (error?.name === "AuthSessionError" || error?.message?.includes("会话不存在或已撤销")) {
+      return res.status(401).json({ error: "会话不存在或已撤销" });
+    }
     if (error instanceof jwt.JsonWebTokenError) {
       return res.status(401).json({ error: "无效的认证令牌" });
     }

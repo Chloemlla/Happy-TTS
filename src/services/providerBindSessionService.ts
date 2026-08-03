@@ -7,9 +7,9 @@ import {
   upsertIdentityForUser,
   type ProfileSyncOptions,
 } from "./accountIdentityService";
-import { signLoginToken } from "../utils/authToken";
 import logger from "../utils/logger";
 import { type User, UserStorage } from "../utils/userStorage";
+import { issueTrackedLoginToken, type AuthSessionMetadata } from "./authSessionService";
 
 const BIND_SESSION_TTL_MS = 5 * 60 * 1000;
 
@@ -79,9 +79,13 @@ function toSessionView(token: string, record: ProviderBindSessionRecord): Provid
   };
 }
 
-function toLoginPayload(user: User, provider: AccountIdentityProvider): ProviderLoginPayload {
+async function toLoginPayload(
+  user: User,
+  provider: AccountIdentityProvider,
+  sessionMetadata: AuthSessionMetadata = {},
+): Promise<ProviderLoginPayload> {
   return {
-    token: signLoginToken(user),
+    token: await issueTrackedLoginToken(user, sessionMetadata),
     user: {
       id: user.id,
       username: user.username,
@@ -125,6 +129,7 @@ export async function createProviderLoginPayloadForUser(
   user: User,
   provider: AccountIdentityProvider,
   clientIp?: string,
+  sessionMetadata: AuthSessionMetadata = {},
 ): Promise<ProviderLoginPayload> {
   const loginUpdates: Partial<User> = {
     lastLoginIp: clientIp || "unknown",
@@ -135,13 +140,14 @@ export async function createProviderLoginPayloadForUser(
     ...loginUpdates,
   };
 
-  return toLoginPayload(updatedUser, provider);
+  return toLoginPayload(updatedUser, provider, { ...sessionMetadata, ipAddress: sessionMetadata.ipAddress || clientIp });
 }
 
 export async function completeProviderLoginForBoundIdentity(params: {
   user: User;
   profile: AccountProviderProfile;
   clientIp?: string;
+  sessionMetadata?: AuthSessionMetadata;
 }): Promise<ProviderLoginPayload> {
   if ((params.user as any).accountStatus === "suspended") {
     throw new Error("账户已被封停");
@@ -149,7 +155,7 @@ export async function completeProviderLoginForBoundIdentity(params: {
 
   await upsertIdentityForUser(params.user, params.profile);
   const refreshedUser = (await UserStorage.getUserById(params.user.id)) || params.user;
-  return createProviderLoginPayloadForUser(refreshedUser, params.profile.provider, params.clientIp);
+  return createProviderLoginPayloadForUser(refreshedUser, params.profile.provider, params.clientIp, params.sessionMetadata);
 }
 
 export async function confirmProviderBindSession(params: {
@@ -224,6 +230,10 @@ export async function confirmProviderBindSession(params: {
     refreshedUser,
     record.profile.provider,
     params.clientIp,
+    {
+      ipAddress: params.clientIp,
+      userAgent: params.userAgent,
+    },
   );
 
   return {

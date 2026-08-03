@@ -70,6 +70,27 @@ router.get("/userinfo", oauthReadLimiter, oauthTokenAuth(), OAuthController.user
 
 router.get("/authorize/preview", oauthAuthorizeLimiter, authMiddleware, OAuthController.authorizePreview);
 router.post("/authorize", oauthAuthorizeLimiter, authMiddleware, OAuthController.authorize);
+router.get("/authorize/mobile/preview", oauthAuthorizeLimiter, authMiddleware, OAuthController.authorizePreview);
+router.post(
+  "/authorize/mobile/approve",
+  oauthAuthorizeLimiter,
+  authMiddleware,
+  (req, _res, next) => {
+    req.body = { ...(req.body || {}), approve: true };
+    next();
+  },
+  OAuthController.authorize,
+);
+router.post(
+  "/authorize/mobile/deny",
+  oauthAuthorizeLimiter,
+  authMiddleware,
+  (req, _res, next) => {
+    req.body = { ...(req.body || {}), approve: false };
+    next();
+  },
+  OAuthController.authorize,
+);
 
 router.get("/clients", oauthAdminLimiter, authMiddleware, adminAuthMiddleware, OAuthController.listClients);
 router.post(

@@ -4,6 +4,14 @@ import { config } from "../config/config";
 import { PasskeyService } from "../services/passkeyService";
 import { type User, UserStorage } from "../utils/userStorage";
 
+jest.mock("../services/authSessionService", () => ({
+  issueTrackedLoginToken: jest.fn(async (user: any) => {
+    const jwt = require("jsonwebtoken");
+    const { config } = require("../config/config");
+    return jwt.sign({ userId: user.id, username: user.username }, config.jwtSecret, { expiresIn: "1h" });
+  }),
+}));
+
 describe("Passkey Token 和用户ID验证测试", () => {
   let testUser: User;
 

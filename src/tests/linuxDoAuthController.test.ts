@@ -40,6 +40,17 @@ jest.mock("../utils/ipUtils", () => ({
   getClientIP: jest.fn(),
 }));
 
+jest.mock("../services/authSessionService", () => ({
+  getAuthSessionMetadata: jest.fn((_req: Request, overrides: Record<string, unknown> = {}) => ({
+    ...overrides,
+    clientType: "web",
+    deviceName: "test-device",
+    platform: "Web",
+    userAgent: "test-agent",
+  })),
+  touchAuthSession: jest.fn().mockResolvedValue(undefined),
+}));
+
 describe("LinuxDoAuthController", () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -73,6 +84,7 @@ describe("LinuxDoAuthController", () => {
       code: "code-from-body",
       state: "state-from-body",
       clientIp: "203.0.113.10",
+      sessionMetadata: expect.objectContaining({ ipAddress: "203.0.113.10", clientType: "web" }),
     });
     expect(redirect).toHaveBeenCalledWith(302, "https://frontend.example/auth/linuxdo/callback?ticket=test");
   });
@@ -130,6 +142,7 @@ describe("LinuxDoAuthController", () => {
       code: "code-from-query",
       state: "state-from-query",
       clientIp: "203.0.113.10",
+      sessionMetadata: expect.objectContaining({ ipAddress: "203.0.113.10", clientType: "web" }),
     });
     expect(redirect).toHaveBeenCalledWith(302, "https://frontend.example/auth/linuxdo/callback?ticket=test");
   });

@@ -3,7 +3,6 @@ import { Navigate, useNavigate } from 'react-router-dom';
 
 import { getApiBaseUrl } from '@/api/api';
 import { useAuth } from '@/hooks/useAuth';
-import { getAuthToken } from '@/utils/authSession';
 import { SimpleLoadingSpinner } from '@/components/LoadingSpinner';
 import {
   InfoPanel,
@@ -86,14 +85,12 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
         if (!cancelled) setIsLoading(true);
 
         try {
-          const token = getAuthToken();
           const response = await fetch(
             `${getApiBaseUrl()}/api/admin/verify-access`,
             {
               method: 'POST',
               credentials: 'include',
               headers: {
-                ...(token ? { Authorization: `Bearer ${token}` } : {}),
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
@@ -139,14 +136,12 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
 
     const interval = window.setInterval(async () => {
       try {
-        const token = getAuthToken();
         const response = await fetch(
           `${getApiBaseUrl()}/api/admin/verify-access`,
           {
             method: 'POST',
             credentials: 'include',
             headers: {
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({

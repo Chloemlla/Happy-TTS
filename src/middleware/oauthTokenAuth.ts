@@ -7,6 +7,8 @@ import {
 } from "../services/oauthService";
 import logger from "../utils/logger";
 import type { AuthenticatedRequest, OAuthRequestContext } from "../types/authRequest";
+import { assertActiveAuthSession, AuthSessionError, touchAuthSession } from "../services/authSessionService";
+import { getClientIP } from "../utils/ipUtils";
 
 const oauthRateBuckets = new Map<string, { count: number; resetAt: number }>();
 const OAUTH_RATE_BUCKET_CLEANUP_INTERVAL_MS = 60_000;
@@ -107,6 +109,11 @@ export function oauthTokenAuth(requiredScope?: string, opts: { optional?: boolea
 
     try {
       const context = await validateOAuthAccessToken(token, requiredScope);
+      await assertActiveAuthSession(context.user.id, token);
+      await touchAuthSession(context.user.id, token, {
+        ipAddress: getClientIP(req),
+        userAgent: String(req.headers["user-agent"] || "unknown"),
+      });
       if (!checkTokenRateLimit(context.token.tokenId, context.client.rateLimitPerMinute || 120)) {
         return res.status(429).json({ error: "OAuth token 请求过于频繁，请稍后再试" });
       }
@@ -137,6 +144,10 @@ export function oauthTokenAuth(requiredScope?: string, opts: { optional?: boolea
 
       return next();
     } catch (error) {
+      if (error instanceof AuthSessionError) {
+        res.set("WWW-Authenticate", buildBearerChallenge("invalid_token"));
+        return res.status(401).json({ error: "OAuth access token 无效或已撤销", oauthError: "invalid_token" });
+      }
       return sendOAuthAuthError(res, error);
     }
   };

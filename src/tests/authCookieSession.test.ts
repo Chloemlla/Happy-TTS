@@ -15,6 +15,11 @@ jest.mock("../utils/userStorage", () => ({
   },
 }));
 
+jest.mock("../services/authSessionService", () => ({
+  assertActiveAuthSession: jest.fn().mockResolvedValue({ userAgent: "test-agent" }),
+  touchAuthSession: jest.fn().mockResolvedValue(undefined),
+}));
+
 const mockGetUserById = UserStorage.getUserById as jest.MockedFunction<typeof UserStorage.getUserById>;
 const mockGetRemainingUsage = UserStorage.getRemainingUsage as jest.MockedFunction<typeof UserStorage.getRemainingUsage>;
 

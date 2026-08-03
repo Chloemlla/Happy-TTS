@@ -2,7 +2,6 @@ import { startAuthentication } from '@simplewebauthn/browser';
 import { openDB } from 'idb';
 import getApiBaseUrl from '../../api';
 import { passkeyApi } from '../../api/passkey';
-import { getAuthToken } from '../../utils/authSession';
 import { studioDisplayFont, studioPageFont } from '../studioTheme';
 
 export type AuthProvider = 'local' | 'linuxdo' | 'google';
@@ -27,6 +26,21 @@ export interface UserProfileData {
   isTranslationEnabled?: boolean;
   translationAccessUntil?: string;
   accountStatus?: AccountStatus;
+}
+
+export interface UserDeviceSession {
+  id: string;
+  deviceName: string;
+  client: string;
+  platform: string;
+  lastActiveAt?: string | number | null;
+  ip?: string | null;
+  ipLocation?: string | null;
+  isCurrent: boolean;
+}
+
+export interface DeviceSessionRevokeResponse extends ApiResponse {
+  revokedCount?: number;
 }
 
 export interface TotpStatus {
@@ -100,12 +114,7 @@ export interface ApiResponse<T = unknown> {
 
 export const fetchProfile = async (): Promise<UserProfileData | null> => {
   try {
-    const token = getAuthToken();
-    if (!token) throw new Error('No authentication token');
-
-    const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile`);
 
     if (!res.ok) {
       if (res.status === 401) throw new Error('Authentication expired');
@@ -121,6 +130,88 @@ export const fetchProfile = async (): Promise<UserProfileData | null> => {
   }
 };
 
+const asRecord = (value: unknown): Record<string, unknown> => (
+  value !== null && typeof value === 'object' ? value as Record<string, unknown> : {}
+);
+
+const firstString = (record: Record<string, unknown>, keys: string[]): string | undefined => {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+  return undefined;
+};
+
+const firstDateValue = (record: Record<string, unknown>, keys: string[]): string | number | null => {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'string' || typeof value === 'number') return value;
+  }
+  return null;
+};
+
+export const normalizeDeviceSession = (
+  value: unknown,
+  currentDeviceId?: string,
+  index = 0,
+): UserDeviceSession => {
+  const record = asRecord(value);
+  const id = firstString(record, ['id', 'sessionId', 'deviceId']) || `device-${index}`;
+  const rawCurrent = record.isCurrent ?? record.current;
+
+  return {
+    id,
+    deviceName: firstString(record, ['deviceName', 'name', 'deviceLabel']) || '未知设备',
+    client: firstString(record, ['client', 'clientName', 'appName', 'application']) || '未知客户端',
+    platform: firstString(record, ['platform', 'operatingSystem', 'os']) || '未知平台',
+    lastActiveAt: firstDateValue(record, ['lastActiveAt', 'lastActivityAt', 'lastSeen', 'updatedAt']),
+    ip: firstString(record, ['ip', 'ipAddress', 'lastLoginIp', 'lastLoginIP']) || null,
+    ipLocation: firstString(record, ['ipLocation', 'location', 'ipRegion', 'region']) || null,
+    isCurrent: typeof rawCurrent === 'boolean' ? rawCurrent : id === currentDeviceId,
+  };
+};
+
+export const canLogoutDeviceSession = (session: UserDeviceSession): boolean => !session.isCurrent;
+
+export const fetchDeviceSessions = async (): Promise<UserDeviceSession[]> => {
+  const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile/devices`, {
+    credentials: 'include',
+    headers: getAuthHeaders(),
+  });
+
+  const result = await res.json();
+  if (!res.ok) throw new Error(result.error || '获取设备会话失败');
+
+  const response = asRecord(result);
+  const data = asRecord(response.data);
+  const currentDeviceId = firstString(response, ['currentDeviceId', 'currentSessionId'])
+    || firstString(data, ['currentDeviceId', 'currentSessionId']);
+  const rawSessions = [
+    response.devices,
+    response.sessions,
+    data.devices,
+    data.sessions,
+  ].find(Array.isArray);
+
+  if (!Array.isArray(rawSessions)) return [];
+  return rawSessions.map((session, index) => normalizeDeviceSession(session, currentDeviceId, index));
+};
+
+export const revokeOtherDeviceSessions = async (
+  verificationToken: string,
+): Promise<DeviceSessionRevokeResponse> => {
+  const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile/devices/logout-all`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ verificationToken }),
+  });
+
+  const result = await res.json();
+  if (!res.ok) throw new Error(result.error || '退出其他设备会话失败');
+  return result;
+};
+
 export const verifyIdentity = async (data: {
   method: 'password' | 'totp' | 'passkey';
   password?: string;
@@ -128,14 +219,10 @@ export const verifyIdentity = async (data: {
   passkeyResponse?: unknown;
   clientOrigin?: string;
 }): Promise<ApiResponse & { verificationToken?: string; expiresAt?: number }> => {
-  const token = getAuthToken();
-  if (!token) throw new Error('No authentication token');
-
   const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile/verify`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(data),
   });
@@ -146,14 +233,10 @@ export const verifyIdentity = async (data: {
 };
 
 export const sendEmailCode = async (verificationToken: string, newEmail: string): Promise<ApiResponse> => {
-  const token = getAuthToken();
-  if (!token) throw new Error('No authentication token');
-
   const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile/email/send-code`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({ verificationToken, newEmail }),
   });
@@ -171,14 +254,10 @@ export const updateProfile = async (data: {
   verificationToken?: string;
   emailVerificationCode?: string;
 }): Promise<ApiResponse> => {
-  const token = getAuthToken();
-  if (!token) throw new Error('No authentication token');
-
   const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(data),
   });
@@ -189,12 +268,8 @@ export const updateProfile = async (data: {
 };
 
 export const getAuthHeaders = (): HeadersInit => {
-  const token = getAuthToken();
-  if (!token) throw new Error('No authentication token');
-
   return {
     'Content-Type': 'application/json',
-    Authorization: `Bearer ${token}`,
   };
 };
 

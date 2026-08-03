@@ -28,7 +28,6 @@ export type LoginResult =
 
 interface AuthState {
   user: User | null;
-  token: string | null;
   isAuthenticated: boolean;
   /** true until the initial session check has settled. */
   isLoading: boolean;
@@ -37,7 +36,6 @@ interface AuthState {
   logout: () => void;
   checkAuth: () => Promise<void>;
   setUser: (user: User | null) => void;
-  setToken: (token: string | null) => void;
   setIsLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   reset: () => void;
@@ -62,7 +60,6 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,
-      token: null,
       isAuthenticated: false,
       isLoading: true,
       error: null,
@@ -75,14 +72,14 @@ export const useAuthStore = create<AuthState>()(
             password,
             ...(cfToken ? { cfToken } : {}),
           });
-          const { user, token, requires2FA, twoFactorType } = response.data;
+          const { user, requires2FA, twoFactorType } = response.data;
           // 2FA required: keep the session pending — do NOT mark authenticated yet.
           if (requires2FA && twoFactorType && twoFactorType.length > 0) {
             set({ isLoading: false });
-            return { requires2FA: true, user, token, twoFactorType };
+            return { requires2FA: true, user, token: response.data.token, twoFactorType };
           }
-          set({ user, token, isAuthenticated: true, isLoading: false, error: null });
-          return { requires2FA: false, user, token };
+          set({ user, isAuthenticated: true, isLoading: false, error: null });
+          return { requires2FA: false, user, token: response.data.token };
         } catch (error: any) {
           const authError = buildAuthError(error);
           set({ isLoading: false, error: authError.message });
@@ -91,7 +88,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        set({ user: null, token: null, isAuthenticated: false, error: null });
+        set({ user: null, isAuthenticated: false, error: null });
       },
 
       checkAuth: async () => {
@@ -117,21 +114,17 @@ export const useAuthStore = create<AuthState>()(
         set({ user, isAuthenticated: user !== null });
       },
 
-      setToken: (token) => {
-        set({ token });
-      },
-
       setIsLoading: (isLoading) => set({ isLoading }),
 
       setError: (error) => set({ error }),
 
       reset: () => {
-        set({ user: null, token: null, isAuthenticated: false, isLoading: false, error: null });
+        set({ user: null, isAuthenticated: false, isLoading: false, error: null });
       },
     }),
     {
       name: "auth-storage",
-      // Browser sessions are HttpOnly-cookie only — never persist access tokens.
+      // 仅持久化用户信息，认证状态由 HttpOnly Cookie 维护
       partialize: (state) => ({ user: state.user }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<{ user: User | null }>;

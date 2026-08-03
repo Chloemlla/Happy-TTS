@@ -154,8 +154,8 @@ const AccountSwitchCard = memo(function AccountSwitchCard({
           </div>
           <p className="mt-0.5 truncate text-xs text-slate-500">{account.user.email}</p>
         </div>
+        <FaChevronRight className="ml-auto shrink-0 text-slate-300" size={12} />
       </button>
-      <FaChevronRight className="hidden shrink-0 text-slate-300 sm:block" size={12} />
       <button
         type="button"
         onClick={() => onRemove(account.user.id)}

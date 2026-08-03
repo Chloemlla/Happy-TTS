@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import getApiBaseUrl from '../api';
-import { getAuthToken } from '../utils/authSession';
 
 
 interface TurnstileConfig {
@@ -46,18 +45,10 @@ export const useTurnstileConfig = (options: UseTurnstileConfigOptions = {}) => {
         const apiBaseUrl = getApiBaseUrl();
         const url = `${apiBaseUrl}${endpoint}`;
         
-        // 获取认证token（仅认证配置需要）
         const headers: Record<string, string> = {
           'Content-Type': 'application/json'
         };
-        
-        if (!usePublicConfig) {
-          const token = getAuthToken();
-          if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-          }
-        }
-        
+
         const response = await fetch(url, {
           method: 'GET',
           headers,

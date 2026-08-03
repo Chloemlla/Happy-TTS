@@ -13,6 +13,8 @@ jest.mock("../controllers/authController", () => ({
     getProviderBindSession: jest.fn(mockNoopHandler),
     confirmProviderBind: jest.fn(mockNoopHandler),
     getCurrentUser: jest.fn(mockNoopHandler),
+    listSessions: jest.fn(mockNoopHandler),
+    revokeSessionDevice: jest.fn(mockNoopHandler),
     establishSession: jest.fn(mockNoopHandler),
     passkeyVerify: jest.fn(mockNoopHandler),
     verifyEmailLink: jest.fn(mockNoopHandler),

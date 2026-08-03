@@ -9,7 +9,7 @@ import { passkeyApi } from '../api/passkey';
 import { openDB } from 'idb';
 import { FaUser, FaUserCircle, FaShieldAlt, FaLock, FaEnvelope, FaCamera, FaSave, FaKey, FaCheckCircle, FaClock, FaExclamationCircle, FaGlobe, FaHistory, FaLink, FaUndoAlt, FaGoogle, FaSyncAlt, FaUnlink, FaExternalLinkAlt } from 'react-icons/fa';
 import { cn } from '../utils/cn';
-import { getAuthToken } from '../utils/authSession';
+import { useAuthStore } from '../stores/authStore';
 import { PenaltyAppealActions } from './PenaltyAppealActions';
 import {
   studioAccentBlobBlueClassName,
@@ -43,7 +43,10 @@ import {
   AccountMergeAccountSummary,
   AccountMergePreview,
   ApiResponse,
+  UserDeviceSession,
   fetchProfile,
+  fetchDeviceSessions,
+  revokeOtherDeviceSessions,
   verifyIdentity,
   sendEmailCode,
   updateProfile,
@@ -70,6 +73,7 @@ import {
   getLinkedAccountStatusLabel,
   getMergeStrategyLabel,
 } from './user-profile/profileHelpers';
+import DeviceSessionsPanel from './user-profile/DeviceSessionsPanel';
 import { ProfileSidebarSummary } from './user-profile/ProfileSidebarSummary';
 declare global {
   interface Window {
@@ -111,6 +115,12 @@ const UserProfile: React.FC = () => {
   // Authentication state
   const [totpStatus, setTotpStatus] = useState<TotpStatus | null>(null);
   const [showVerificationModal, setShowVerificationModal] = useState(false);
+
+  // Device and session state
+  const [deviceSessions, setDeviceSessions] = useState<UserDeviceSession[]>([]);
+  const [deviceSessionsLoading, setDeviceSessionsLoading] = useState(false);
+  const [deviceSessionsError, setDeviceSessionsError] = useState<string | null>(null);
+  const [revokingDeviceSessions, setRevokingDeviceSessions] = useState(false);
 
   // Third-party account state
   const [linkedAccounts, setLinkedAccounts] = useState<LinkedAccount[]>([]);
@@ -190,6 +200,35 @@ const UserProfile: React.FC = () => {
     loadProfile();
   }, [loadProfile]);
 
+  const loadDeviceSessions = useCallback(async ({ background = false }: { background?: boolean } = {}) => {
+    if (!background) {
+      setDeviceSessionsLoading(true);
+    }
+
+    try {
+      const sessions = await fetchDeviceSessions();
+      setDeviceSessions(sessions);
+      setDeviceSessionsError(null);
+      return sessions;
+    } catch (error) {
+      console.warn('[UserProfile] Failed to fetch device sessions:', error);
+      if (!background) {
+        setDeviceSessionsError(error instanceof Error ? error.message : '获取设备会话失败');
+      }
+      return [];
+    } finally {
+      if (!background) {
+        setDeviceSessionsLoading(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (profile?.id) {
+      void loadDeviceSessions();
+    }
+  }, [loadDeviceSessions, profile?.id]);
+
   const loadLinkedAccounts = useCallback(async ({ background = false }: { background?: boolean } = {}) => {
     if (!background) {
       setLinkedAccountsLoading(true);
@@ -256,12 +295,7 @@ const UserProfile: React.FC = () => {
 
   const fetchTotpStatus = useCallback(async () => {
     try {
-      const token = getAuthToken();
-      if (!token) return;
-
-      const res = await fetch(`${getApiBaseUrl()}/api/totp/status`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(`${getApiBaseUrl()}/api/totp/status`);
 
       if (!res.ok) {
         console.warn('[UserProfile] Failed to fetch TOTP status:', res.status);
@@ -476,12 +510,8 @@ const UserProfile: React.FC = () => {
     setAvatarLoading(true);
 
     try {
-      const token = getAuthToken();
-      if (!token) throw new Error('No authentication token');
-
       const res = await fetch(`${getApiBaseUrl()}/api/admin/user/avatar`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
@@ -583,6 +613,33 @@ const UserProfile: React.FC = () => {
     setVerificationCode('');
     setShowVerificationModal(true);
   }, [isSecuritySessionActive, profile?.id, setNotification]);
+
+  const handleLogoutAllDeviceSessions = useCallback(async () => {
+    if (!isSecuritySessionActive || !verificationToken) {
+      setNotification({ message: '退出其他会话前请先建立安全会话', type: 'warning' });
+      setShowVerificationModal(true);
+      return;
+    }
+
+    setRevokingDeviceSessions(true);
+    try {
+      const result = await revokeOtherDeviceSessions(verificationToken);
+      const revokedCount = typeof result.revokedCount === 'number' ? result.revokedCount : null;
+      setNotification({
+        message: revokedCount === null ? '其他设备会话已退出' : `已退出 ${revokedCount} 个其他设备会话`,
+        type: 'success',
+      });
+      await loadDeviceSessions({ background: true });
+    } catch (error) {
+      console.error('[UserProfile] Device session logout error:', error);
+      setNotification({
+        message: error instanceof Error ? error.message : '退出其他设备会话失败',
+        type: 'error',
+      });
+    } finally {
+      setRevokingDeviceSessions(false);
+    }
+  }, [isSecuritySessionActive, loadDeviceSessions, setNotification, verificationToken]);
 
   const handlePasswordVerification = useCallback(async () => {
     if (!profile?.id) {
@@ -1000,9 +1057,7 @@ const UserProfile: React.FC = () => {
     verificationToken,
   ]);
 
-  const isAuthenticated = useMemo(() => {
-    return Boolean(getAuthToken());
-  }, []);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   const providerLabel = useMemo(() => getAuthProviderLabel(profile?.authProvider), [profile?.authProvider]);
 
@@ -1439,6 +1494,23 @@ const UserProfile: React.FC = () => {
                 )}
               </div>
             </section>
+
+            <DeviceSessionsPanel
+              sessions={deviceSessions}
+              loading={deviceSessionsLoading}
+              error={deviceSessionsError}
+              securitySessionActive={isSecuritySessionActive}
+              actionLoading={revokingDeviceSessions}
+              onRefresh={() => {
+                void loadDeviceSessions();
+              }}
+              onRequestVerification={() => {
+                void handleVerify();
+              }}
+              onLogoutAll={() => {
+                void handleLogoutAllDeviceSessions();
+              }}
+            />
 
             {/* Password change section */}
             <section className="mb-4 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 sm:p-5">

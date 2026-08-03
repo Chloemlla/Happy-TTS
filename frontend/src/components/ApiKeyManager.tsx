@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotification } from './Notification';
 import { getApiBaseUrl } from '../api/api';
-import { getAuthToken } from '../utils/authSession';
 import {
   FaBan,
   FaCheck,
@@ -146,14 +145,9 @@ interface ApiResult<T> {
   data?: T;
 }
 
-const authHeaders = () => ({
-  Authorization: `Bearer ${getAuthToken() || ''}`,
-  'Content-Type': 'application/json',
-});
-
 const apiJson = async <T,>(path: string, opts?: RequestInit): Promise<ApiResult<T>> => {
   const headers = new Headers(opts?.headers);
-  Object.entries(authHeaders()).forEach(([key, value]) => headers.set(key, value));
+  headers.set('Content-Type', 'application/json');
   const res = await fetch(`${getApiBaseUrl()}${path}`, { ...opts, headers });
   const data = (await res.json().catch(() => ({}))) as ApiResult<T>;
   if (!res.ok) {

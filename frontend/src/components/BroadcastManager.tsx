@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotification } from './Notification';
 import { getApiBaseUrl } from '../api/api';
-import { getAuthToken } from '../utils/authSession';
 import {
   FaBullhorn, FaPaperPlane, FaUsers, FaHistory,
   FaUserSlash, FaClipboardList, FaSyncAlt, FaUserAlt,
@@ -97,13 +96,8 @@ const SUB_TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
 
 // ========== 工具函数 ==========
 
-const authHeaders = () => ({
-  Authorization: `Bearer ${getAuthToken()}`,
-  'Content-Type': 'application/json',
-});
-
 const api = (path: string, opts?: RequestInit) =>
-  fetch(`${getApiBaseUrl()}${path}`, { headers: authHeaders(), ...opts });
+  fetch(`${getApiBaseUrl()}${path}`, { headers: { 'Content-Type': 'application/json' }, ...opts });
 
 const parseUserIds = (value: string) =>
   Array.from(new Set(value.split(/[\s,;，；]+/).map(item => item.trim()).filter(Boolean))).slice(0, 100);

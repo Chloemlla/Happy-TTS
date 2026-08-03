@@ -6,6 +6,7 @@ import { PasskeyDataRepairService } from "../services/passkeyDataRepairService";
 import { PasskeyService, SINGLE_PASSKEY_ERROR_MESSAGE } from "../services/passkeyService";
 import { generatePasskeyAddedEmailHtml, generatePasskeyRemovedEmailHtml } from "../templates/emailTemplates";
 import { getClientIP } from "../utils/ipUtils";
+import { getAuthSessionMetadata } from "../services/authSessionService";
 import logger from "../utils/logger";
 import { PasskeyCredentialIdFixer } from "../utils/passkeyCredentialIdFixer";
 import { firstString } from "../utils/httpParam";
@@ -407,7 +408,7 @@ router.post("/authenticate/finish/discoverable", passkeyAuthLimiter, async (req,
     }
 
     // 生成token并确保使用正确的用户信息
-    const token = await PasskeyService.generateToken(matchedUser);
+    const token = await PasskeyService.generateToken(matchedUser, getAuthSessionMetadata(req, { ipAddress: getClientIP(req) }));
 
     // 验证生成的token包含正确的用户信息
     try {
@@ -525,7 +526,7 @@ router.post("/authenticate/finish", passkeyAuthLimiter, async (req, res) => {
     }
 
     // 生成token并确保使用正确的用户信息
-    const token = await PasskeyService.generateToken(user);
+    const token = await PasskeyService.generateToken(user, getAuthSessionMetadata(req, { ipAddress: getClientIP(req) }));
 
     // 验证生成的token包含正确的用户信息
     try {

@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import jwt, { type SignOptions } from "jsonwebtoken";
 import { config } from "../config/config";
 
@@ -13,6 +14,7 @@ export function signLoginToken(user: LoginTokenUser): string {
       userId: user.id,
       username: user.username,
       role: user.role || "user",
+      jti: crypto.randomBytes(16).toString("hex"),
     },
     config.jwtSecret,
     { expiresIn: config.jwtExpiresIn as SignOptions["expiresIn"] },

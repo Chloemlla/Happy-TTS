@@ -5,8 +5,6 @@ import { Link } from 'react-router-dom';
 import { useNotification } from './Notification';
 import { api } from '../api/index';
 import { useAuth } from '../hooks/useAuth';
-import { decryptCommandEnvelope } from '../utils/commandCrypto';
-import { getAuthToken } from '../utils/authSession';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -42,24 +40,7 @@ function resolveCommandPayload(data: any): any {
 }
 
 async function maybeDecryptCommandResponse(data: any): Promise<any> {
-  if (data?.data && data?.iv && typeof data.data === 'string' && typeof data.iv === 'string') {
-    return decryptWithSessionToken(data);
-  }
   return resolveCommandPayload(data);
-}
-
-async function decryptWithSessionToken(envelope: {
-  data: string;
-  iv: string;
-  tag?: string;
-  version?: number;
-  algorithm?: string;
-}): Promise<any> {
-  const token = getAuthToken();
-  if (!token) {
-    throw new Error('Token不存在，无法解密数据');
-  }
-  return decryptCommandEnvelope(envelope, token);
 }
 
 interface CommandHistory {

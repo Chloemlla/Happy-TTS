@@ -35,6 +35,10 @@ jest.mock("../services/accountIdentityService", () => ({
   upsertIdentityForUser: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock("../services/authSessionService", () => ({
+  issueTrackedLoginToken: jest.fn().mockResolvedValue("tracked-google-token"),
+}));
+
 describe("googleAuthService", () => {
   const baseGoogleAuthConfig = {
     ...config.googleAuth,

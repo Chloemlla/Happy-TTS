@@ -7,7 +7,6 @@ import { resourcesApi, Resource } from '../api/resources';
 import { getApiBaseUrl } from '../api/api';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
 import { useNotification } from './Notification';
-import { getAuthToken } from '../utils/authSession';
 
 
 interface GenerateCDKModalProps {
@@ -343,7 +342,6 @@ function GenerateCDKModal({ isOpen, onClose, onSuccess }: GenerateCDKModalProps)
                           const response = await fetch(`${getApiBaseUrl()}/api/resources/init-test`, {
                             method: 'POST',
                             headers: {
-                              'Authorization': `Bearer ${getAuthToken()}`,
                               'Content-Type': 'application/json'
                             }
                           });

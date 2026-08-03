@@ -9,7 +9,7 @@ import {
 import jwt from "jsonwebtoken";
 import { config } from "../config/config";
 import { env } from "../config/env";
-import { signLoginToken } from "../utils/authToken";
+import { issueTrackedLoginToken, type AuthSessionMetadata } from "./authSessionService";
 import logger from "../utils/logger";
 import { type User, UserStorage } from "../utils/userStorage";
 
@@ -789,7 +789,7 @@ export class PasskeyService {
   }
 
   // 生成访问令牌
-  public static async generateToken(user: User): Promise<string> {
+  public static async generateToken(user: User, sessionMetadata: AuthSessionMetadata = {}): Promise<string> {
     // 验证用户数据完整性
     if (!user?.id || !user.username) {
       logger.error("[Passkey] generateToken: 用户数据不完整", {
@@ -807,7 +807,7 @@ export class PasskeyService {
       email: user.email,
     });
 
-    const token = signLoginToken(user);
+    const token = await issueTrackedLoginToken(user, sessionMetadata);
 
     // 验证生成的token
     try {

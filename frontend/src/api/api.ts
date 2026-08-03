@@ -7,7 +7,6 @@ import {
     isExemptPath,
 } from '../utils/ipVerification';
 import { canonicalizeBackendApiUrl } from '../utils/apiPath';
-import { getAuthToken as readAuthToken, clearAuthToken } from '../utils/authSession';
 import { maybeEmitPenaltyAppealFromError } from '../utils/penaltyAppeal';
 
 
@@ -70,7 +69,7 @@ export const api: AxiosInstance = axios.create({
     withCredentials: true, // 发送跨域凭据（Cookie），用于管理员会话与游客 Cookie
 });
 
-// 请求拦截器：添加 token
+// 请求拦截器：仅添加 IP 验证头，认证由 HttpOnly Cookie 自动携带
 api.interceptors.request.use(async (config) => {
     if (typeof config.url === 'string') {
         config.url = canonicalizeBackendApiUrl(config.url);
@@ -81,10 +80,6 @@ api.interceptors.request.use(async (config) => {
             ? config.headers
             : new AxiosHeaders(config.headers);
     config.headers = headers;
-    const token = readAuthToken();
-    if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-    }
     try {
         const ipVerificationHeaders = await buildIpVerificationHeaders();
         Object.entries(ipVerificationHeaders).forEach(([key, value]) => {
@@ -169,7 +164,6 @@ api.interceptors.response.use(
 
         if (error.response?.status === 401) {
             // 不再自动重定向到 /welcome，由组件自行处理未授权状态
-            clearAuthToken();
             return Promise.reject(error);
         }
 
@@ -261,11 +255,6 @@ export const apiWithRetry = {
     patch: <T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> => {
         return api.patch<T>(url, data, config);
     }
-};
-
-// 获取认证token
-export const getAuthToken = (): string | null => {
-    return readAuthToken();
 };
 
 export { canonicalizeBackendApiUrl, getApiBaseUrl };

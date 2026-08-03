@@ -5,7 +5,6 @@
  * Cookie-only browser sessions intentionally return no signature headers; the server allows
  * cookie-authenticated requests without HMAC.
  */
-import { getAuthToken } from './authSession';
 
 function bearerFromHeaders(headers?: HeadersInit): string | null {
   if (!headers) return null;
@@ -17,10 +16,7 @@ function bearerFromHeaders(headers?: HeadersInit): string | null {
 }
 
 function resolveSigningKey(headers?: HeadersInit): string | null {
-  const headerToken = bearerFromHeaders(headers);
-  if (headerToken) return headerToken;
-  const storedToken = getAuthToken()?.trim();
-  return storedToken || null;
+  return bearerFromHeaders(headers);
 }
 
 function buildSignaturePayload(timestamp: string, nonce: string, method: string, path: string, body: string): string {

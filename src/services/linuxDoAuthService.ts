@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import axios from "axios";
 import { config } from "../config/config";
 import logger from "../utils/logger";
-import { signLoginToken } from "../utils/authToken";
+import { type AuthSessionMetadata } from "./authSessionService";
 import { type User, UserStorage } from "../utils/userStorage";
 import {
   bindProviderIdentityToUser,
@@ -364,27 +364,6 @@ async function getAvailableLinuxDoUsername(baseUsername: string): Promise<string
   return candidate;
 }
 
-function buildJwtToken(user: User): string {
-  return signLoginToken(user);
-}
-
-function toExchangePayload(user: User, isNewUser: boolean): LinuxDoExchangePayload {
-  return {
-    token: buildJwtToken(user),
-    user: {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-      role: user.role,
-      isTranslationEnabled: (user as any).isTranslationEnabled,
-      translationAccessUntil: (user as any).translationAccessUntil,
-      accountStatus: (user as any).accountStatus,
-    },
-    isNewUser,
-    provider: "linuxdo",
-  };
-}
-
 async function fetchLinuxDoDiscoveryDocument(): Promise<ResolvedLinuxDoDiscoveryDocument> {
   if (firstString(config.linuxdo.discoveryUrl) && config.linuxdo.discoveryUrl !== TRUSTED_LINUXDO_DISCOVERY_URL) {
     logger.warn("[Linux.do Auth] Ignoring custom discovery URL and using trusted default", {
@@ -725,11 +704,12 @@ export async function completeLinuxDoAuthorization(params: {
   code: string;
   state: string;
   clientIp?: string;
+  sessionMetadata?: AuthSessionMetadata;
 }): Promise<{
   redirectUrl: string;
   payload?: LinuxDoExchangePayload;
 }> {
-  const { code, state, clientIp } = params;
+  const { code, state, clientIp, sessionMetadata } = params;
 
   if (!isLinuxDoAuthEnabled()) {
     throw new Error("Linux.do 登录未配置");
@@ -818,6 +798,10 @@ export async function completeLinuxDoAuthorization(params: {
     user: boundUser,
     profile: providerProfile,
     clientIp,
+    sessionMetadata: {
+      ...sessionMetadata,
+      clientType: client === "synapse-android" ? "Synapse-Client" : sessionMetadata?.clientType,
+    },
   });
   const payload: LinuxDoExchangePayload = {
     ...providerLoginPayload,

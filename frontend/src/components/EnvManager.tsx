@@ -42,7 +42,6 @@ import LibreChatProvidersSection from './env-manager/LibreChatProvidersSection';
 import TtsProviderConfigSection from './env-manager/TtsProviderConfigSection';
 import { DURATION_03, DURATION_06, ENTER_ANIMATE, ENTER_INITIAL, NO_DURATION } from './env-manager/motion';
 import {
-  decryptAES256,
   getEnvSource,
   handleSourceClick,
   handleSourceModalClose
@@ -61,7 +60,6 @@ import type {
   TurnstileConfigSetting,
   WebhookSecretSetting
 } from './env-manager/types';
-import { getAuthToken } from '../utils/authSession';
 import {
   FaCog,
   FaLock,
@@ -470,46 +468,18 @@ const EnvManager: React.FC = () => {
       if (data.success) {
         let envArr: EnvItem[] = [];
 
-        // 检查是否为加密数据（通过检测data和iv字段来判断）
-        if (data.data && data.iv && typeof data.data === 'string' && typeof data.iv === 'string') {
-          try {
-            const token = getAuthToken();
-            if (!token) {
-              setNotification({ message: 'Token不存在，无法解密数据', type: 'error' });
-              setLoading(false);
-              return;
-            }
-
-            // 解密数据
-            const decryptedJson = decryptAES256(data.data, data.iv, token);
-            const decryptedData = JSON.parse(decryptedJson);
-
-            if (Array.isArray(decryptedData)) {
-              envArr = decryptedData;
-            } else {
-              setNotification({ message: '解密数据格式错误', type: 'error' });
-              setLoading(false);
-              return;
-            }
-
-            // 为环境变量添加数据来源信息
-            envArr = envArr.map(item => {
-              const source = getEnvSource(item.key);
-              return { ...item, source };
-            });
-          } catch (decryptError) {
-            setNotification({ message: '数据解密失败，请检查登录状态', type: 'error' });
-            setLoading(false);
-            return;
-          }
-        } else {
-          // 兼容旧的未加密格式
-          if (Array.isArray(data.envs)) {
-            envArr = data.envs;
-          } else if (data.envs && typeof data.envs === 'object') {
-            envArr = Object.entries(data.envs).map(([key, value]) => ({ key, value: String(value) }));
-          }
+        // 兼容未加密格式（Cookie 会话下后端直接返回明文）
+        if (Array.isArray(data.envs)) {
+          envArr = data.envs;
+        } else if (data.envs && typeof data.envs === 'object') {
+          envArr = Object.entries(data.envs).map(([key, value]) => ({ key, value: String(value) }));
         }
+
+        // 为环境变量添加数据来源信息
+        envArr = envArr.map(item => {
+          const source = getEnvSource(item.key);
+          return { ...item, source };
+        });
 
         setEnvs(envArr.map(item => {
           const rawKey = item.key.includes(':') ? item.key.split(':').pop() : item.key;

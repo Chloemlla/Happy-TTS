@@ -5,6 +5,8 @@ import logger from "../utils/logger";
 import type { AuthenticatedRequest } from "../types/authRequest";
 import { getTokenFromRequest } from "../utils/authCookie";
 import { UserStorage } from "../utils/userStorage";
+import { assertActiveAuthSession, touchAuthSession } from "../services/authSessionService";
+import { getClientIP } from "../utils/ipUtils";
 
 type JwtUserPayload = {
   userId?: string;
@@ -40,10 +42,18 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     if (user.accountStatus === "suspended") {
       return res.status(403).json({ error: "账户已被封停", code: "ACCOUNT_SUSPENDED", supportEmail: "support@chloemlla.com" });
     }
+    const session = await assertActiveAuthSession(userId, token);
+    await touchAuthSession(userId, token, {
+      ipAddress: getClientIP(req),
+      userAgent: String(req.headers["user-agent"] || session.userAgent),
+    });
     authedReq.user = user;
     authedReq.auth = { kind: "session", user };
     next();
   } catch (error) {
+    if (error instanceof Error && (error.name === "AuthSessionError" || error.message.includes("会话不存在或已撤销"))) {
+      return res.status(401).json({ error: "会话不存在或已撤销" });
+    }
     logger.error("Token 认证失败:", error);
     res.status(401).json({ error: "认证失败" });
   }

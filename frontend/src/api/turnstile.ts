@@ -1,5 +1,4 @@
 import { getApiBaseUrl } from './api';
-import { getAuthToken } from '../utils/authSession';
 
 
 // IP 封禁相关接口
@@ -226,9 +225,7 @@ const readJsonResponse = async <T>(response: Response, fallbackMessage: string):
 // API 客户端
 class TurnstileAPI {
   private getAuthHeaders() {
-    const token = getAuthToken();
     return {
-      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     };
   }

@@ -260,7 +260,7 @@ export async function getOutEmailRecords(params: {
   startDate?: string;
   endDate?: string;
 }): Promise<{
-  records: Array<{ to: string; subject: string; content: string; sentAt: Date; ip: string }>;
+  records: Array<{ _id: string; to: string; subject: string; content: string; sentAt: Date; ip: string }>;
   total: number;
   page: number;
   pageSize: number;
@@ -293,6 +293,7 @@ export async function getOutEmailRecords(params: {
     ]);
     return {
       records: records.map((r: any) => ({
+        _id: String(r._id),
         to: r.to || "",
         subject: r.subject || "",
         content: (r.content || "").substring(0, 200),
@@ -306,6 +307,32 @@ export async function getOutEmailRecords(params: {
   } catch (error) {
     logger.error("查询对外邮件记录失败", { error: (error as any)?.message });
     return { records: [], total: 0, page, pageSize };
+  }
+}
+
+export async function getOutEmailRecordById(id: string): Promise<{
+  _id: string;
+  to: string;
+  subject: string;
+  content: string;
+  sentAt: Date;
+  ip: string;
+} | null> {
+  try {
+    const doc = await OutEmailRecord.findById(id).lean().exec();
+    if (!doc) return null;
+    const r = doc as any;
+    return {
+      _id: String(r._id),
+      to: r.to || "",
+      subject: r.subject || "",
+      content: r.content || "",
+      sentAt: r.sentAt || new Date(),
+      ip: r.ip || "",
+    };
+  } catch (error) {
+    logger.error("查询对外邮件详情失败", { error: (error as any)?.message, id });
+    return null;
   }
 }
 

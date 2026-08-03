@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { passkeyApi } from '../api/passkey';
 import axios from 'axios';
-import { getAuthToken } from '../utils/authSession';
 
 
 export function useTwoFactorStatus() {
@@ -11,7 +10,7 @@ export function useTwoFactorStatus() {
     async function fetchStatus() {
       try {
         const [totpRes, passkeyRes] = await Promise.all([
-          axios.get('/api/totp/status', { headers: { Authorization: `Bearer ${getAuthToken()}` } }),
+          axios.get('/api/totp/status'),
           passkeyApi.getCredentials()
         ]);
         const totpEnabled = totpRes.data?.enabled;

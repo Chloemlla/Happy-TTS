@@ -32,10 +32,16 @@ import {
   generateWelcomeEmailHtml,
 } from "../templates/emailTemplates";
 import { getClientIP } from "../utils/ipUtils";
-import { signLoginToken } from "../utils/authToken";
 import { clearAuthSessionCookie, getTokenFromRequest, setAuthSessionCookie } from "../utils/authCookie";
 import logger from "../utils/logger";
 import { type User, UserStorage } from "../utils/userStorage";
+import {
+  AuthSessionError,
+  getAuthSessionMetadata,
+  issueTrackedLoginToken,
+  listAuthDevices,
+  revokeAuthDevice,
+} from "../services/authSessionService";
 
 // 登录失败尝试次数限制
 const LOGIN_ATTEMPT_LIMIT = 5;
@@ -132,6 +138,7 @@ export class AuthController {
       const payload = await authenticateGoogleUser({
         idToken,
         clientIp: getClientIP(req),
+        sessionMetadata: getAuthSessionMetadata(req, { ipAddress: getClientIP(req) }),
       });
 
       return res.json(payload);
@@ -157,6 +164,7 @@ export class AuthController {
       const result = await startGoogleBindSession({
         idToken,
         clientIp: getClientIP(req),
+        sessionMetadata: getAuthSessionMetadata(req, { ipAddress: getClientIP(req) }),
       });
 
       return res.json(result);
@@ -694,7 +702,7 @@ export class AuthController {
         ...logDetails,
       });
       // 生成JWT token
-      const token = signLoginToken(user);
+      const token = await issueTrackedLoginToken(user, getAuthSessionMetadata(req, { ipAddress: ip }));
 
       // 异地登录检测：比较当前IP与上次登录IP
       const lastIp = user.lastLoginIp;
@@ -782,6 +790,40 @@ export class AuthController {
     }
   }
 
+  public static async listSessions(req: Request, res: Response) {
+    try {
+      const authenticatedReq = req as AuthenticatedRequest;
+      const user = authenticatedReq.auth?.user ?? authenticatedReq.user;
+      const token = getTokenFromRequest(req);
+      if (!user || !token) return res.status(401).json({ error: "未授权" });
+      const devices = await listAuthDevices(user.id, token);
+      return res.json({ success: true, devices });
+    } catch (error) {
+      logger.error("获取登录设备失败", error);
+      return res.status(500).json({ error: "获取登录设备失败" });
+    }
+  }
+
+  public static async revokeSessionDevice(req: Request, res: Response) {
+    try {
+      const authenticatedReq = req as AuthenticatedRequest;
+      const user = authenticatedReq.auth?.user ?? authenticatedReq.user;
+      const token = getTokenFromRequest(req);
+      const deviceKey = typeof req.params.deviceKey === "string" ? req.params.deviceKey : "";
+      if (!user || !token) return res.status(401).json({ error: "未授权" });
+      if (!/^[a-f0-9]{40}$/.test(deviceKey)) return res.status(400).json({ error: "设备标识无效" });
+      const result = await revokeAuthDevice(user.id, deviceKey, token);
+      return res.json({ success: true, ...result });
+    } catch (error) {
+      if (error instanceof AuthSessionError) {
+        const status = error.code === "CURRENT_SESSION_PROTECTED" ? 409 : error.code === "SESSION_NOT_FOUND" ? 404 : 401;
+        return res.status(status).json({ error: error.message, code: error.code });
+      }
+      logger.error("撤销登录设备失败", error);
+      return res.status(500).json({ error: "撤销登录设备失败" });
+    }
+  }
+
   public static async establishSession(req: Request, res: Response) {
     const authenticatedReq = req as AuthenticatedRequest;
     const user = authenticatedReq.auth?.user ?? authenticatedReq.user;
@@ -865,7 +907,7 @@ export class AuthController {
         });
 
         // 生成JWT token
-        const token = signLoginToken(user);
+        const token = await issueTrackedLoginToken(user, getAuthSessionMetadata(req, { ipAddress: ip }));
 
         logger.info("[AuthController] Passkey验证成功，生成JWT token", {
           userId: user.id,

@@ -3,7 +3,6 @@ export {
   apiWithRetry,
   canonicalizeBackendApiUrl,
   getApiBaseUrl,
-  getAuthToken,
   handleFingerprintHeader,
   markFingerprintHashProcessed,
 } from './api';

@@ -9,7 +9,6 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import jsonLang from 'react-syntax-highlighter/dist/esm/languages/prism/json';
 import jsLang from 'react-syntax-highlighter/dist/esm/languages/prism/javascript';
 import { handleSourceClick, handleSourceModalClose } from './EnvManager';
-import { getAuthToken } from '../utils/authSession';
 import {
     InfoMetricCard,
     InfoPanel,
@@ -187,9 +186,7 @@ const DataCollectionManager: React.FC = () => {
     const statsAbortRef = useRef<AbortController | null>(null);
 
     const buildHeaders = (): HeadersInit => {
-        const token = getAuthToken();
         const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
         return headers;
     };
 

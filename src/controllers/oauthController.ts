@@ -24,6 +24,7 @@ import {
 } from "../services/oauthService";
 import logger from "../utils/logger";
 import { stripTrailingSlashes } from "../utils/urlString";
+import { getAuthSessionMetadata } from "../services/authSessionService";
 
 function sendNoStoreHeaders(res: Response): void {
   res.set("Cache-Control", "no-store");
@@ -246,6 +247,7 @@ export class OAuthController {
           code: req.body?.code,
           redirectUri: req.body?.redirect_uri,
           codeVerifier: req.body?.code_verifier,
+          sessionMetadata: getAuthSessionMetadata(req),
         });
         return res.json(token);
       }
@@ -256,6 +258,7 @@ export class OAuthController {
           clientId: req.body?.client_id,
           clientSecret: req.body?.client_secret,
           refreshToken: req.body?.refresh_token,
+          sessionMetadata: getAuthSessionMetadata(req),
         });
         return res.json(token);
       }

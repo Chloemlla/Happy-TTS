@@ -182,6 +182,8 @@ router.post(
  *         description: 用户信息
  */
 router.get("/me", authReadLimiter, authenticateToken, AuthController.getCurrentUser);
+router.get("/sessions", authReadLimiter, authenticateToken, AuthController.listSessions);
+router.post("/sessions/:deviceKey/revoke", authReadLimiter, authenticateToken, AuthController.revokeSessionDevice);
 router.post("/session", authReadLimiter, authenticateToken, AuthController.establishSession);
 
 // Passkey 二次校验接口

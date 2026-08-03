@@ -1,7 +1,6 @@
 import CryptoJS from 'crypto-js';
 import { getApiBaseUrl } from '../api/api';
 import { isFirstVisitVerificationEnabled } from './firstVisitVerificationConfig';
-import { getAuthToken } from './authSession';
 
 
 const FP_STORAGE_KEY = 'hapx_fingerprint_v2';
@@ -198,10 +197,9 @@ async function getWithFingerprintJS(timeoutMs = 1500): Promise<string | null> {
   }
 }
 
-// 检查用户是否已登录
+// 检查用户是否已登录（认证由 HttpOnly Cookie 维护，服务端会拒绝未登录请求）
 function isUserLoggedIn(): boolean {
-  const token = getAuthToken();
-  return !!token;
+  return true;
 }
 
 // 获取客户端IP地址（增强版，支持多种响应格式）
@@ -394,18 +392,14 @@ export const reportFingerprintOnce = async (forceReport: boolean = false): Promi
 
   console.log('🔑 指纹生成成功:', fingerprint.substring(0, 8) + '...');
   const apiUrl = `${getApiBaseUrl()}/api/turnstile/fingerprint/report`;
-  const token = getAuthToken();
-  const hasAuthToken = Boolean(token);
-  const authState = hasAuthToken ? 'present' : 'missing';
 
   console.log('🌐 准备发送请求到:', apiUrl);
-  console.log('🔐 认证状态:', authState);
 
   const requestPayload = {
     fingerprint,
     deviceSignals
   };
-  
+
   console.log('📤 准备发送指纹上报请求:', {
     fingerprint: fingerprint.substring(0, 8) + '...',
     signalGroups: Object.keys(deviceSignals),
@@ -416,7 +410,6 @@ export const reportFingerprintOnce = async (forceReport: boolean = false): Promi
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
         'X-Requested-With': 'XMLHttpRequest'
       },
       credentials: 'same-origin',

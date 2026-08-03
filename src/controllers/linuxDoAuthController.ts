@@ -13,6 +13,7 @@ import {
 } from "../services/linuxDoAuthService";
 import { buildProviderBindPageRedirect } from "../services/providerBindSessionService";
 import { getClientIP } from "../utils/ipUtils";
+import { getAuthSessionMetadata, touchAuthSession } from "../services/authSessionService";
 import logger from "../utils/logger";
 
 function parseIntent(value: unknown): LinuxDoAuthIntent {
@@ -81,6 +82,7 @@ export class LinuxDoAuthController {
         code,
         state,
         clientIp: getClientIP(req),
+        sessionMetadata: getAuthSessionMetadata(req, { ipAddress: getClientIP(req) }),
       });
 
       return res.redirect(302, redirectUrl);
@@ -144,6 +146,13 @@ export class LinuxDoAuthController {
     if (!payload) {
       return res.status(400).json({ error: "Linux.do 登录交换票据无效或已过期" });
     }
+
+    touchAuthSession(payload.user.id, payload.token, getAuthSessionMetadata(req, { ipAddress: getClientIP(req) })).catch((error) => {
+      logger.warn("[Linux.do Auth] 记录 ticket 兑换会话活动失败", {
+        userId: payload.user.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
 
     return res.json(payload);
   }

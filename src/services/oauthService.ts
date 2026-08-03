@@ -20,6 +20,7 @@ import {
 import logger from "../utils/logger";
 import { stripTrailingSlashes } from "../utils/urlString";
 import { type User, UserStorage } from "../utils/userStorage";
+import { createAuthSession, revokeAuthSessionsByOauthTokenIds, type AuthSessionMetadata } from "./authSessionService";
 
 const CLIENT_ID_PREFIX = "syn_client_";
 const CLIENT_SECRET_PREFIX = "syn_secret_";
@@ -633,15 +634,17 @@ async function createTokenPair(opts: {
   grant: OAuthGrantDoc;
   user: User;
   scopes: string[];
+  sessionMetadata?: AuthSessionMetadata;
 }): Promise<OAuthTokenResponse> {
   const accessToken = randomSecret(ACCESS_TOKEN_PREFIX, 32);
   const refreshToken = opts.client.type === "confidential" ? randomSecret(REFRESH_TOKEN_PREFIX, 32) : randomSecret(REFRESH_TOKEN_PREFIX, 32);
   const now = Date.now();
   const accessTokenExpiresAt = new Date(now + ACCESS_TOKEN_TTL_SECONDS * 1000);
   const refreshTokenExpiresAt = new Date(now + REFRESH_TOKEN_TTL_SECONDS * 1000);
+  const tokenId = `ot_${crypto.randomBytes(12).toString("hex")}`;
 
   await OAuthTokenModel.create({
-    tokenId: `ot_${crypto.randomBytes(12).toString("hex")}`,
+    tokenId,
     accessTokenHash: hashOpaqueToken(accessToken),
     refreshTokenHash: hashOpaqueToken(refreshToken),
     clientId: opts.client.clientId,
@@ -652,6 +655,25 @@ async function createTokenPair(opts: {
     refreshTokenExpiresAt,
     revokedAt: null,
   });
+
+  try {
+    await createAuthSession({
+      userId: opts.user.id,
+      credential: accessToken,
+      credentialType: "oauth-access",
+      authKind: "oauth",
+      oauthClientId: opts.client.clientId,
+      oauthTokenId: tokenId,
+      oauthGrantId: opts.grant.grantId,
+      ...opts.sessionMetadata,
+    });
+  } catch (error) {
+    await OAuthTokenModel.updateOne(
+      { tokenId },
+      { $set: { revokedAt: new Date(), updatedAt: new Date() } },
+    );
+    throw new OAuthError(500, "server_error", "OAuth 会话记录失败");
+  }
 
   await OAuthClientModel.updateOne(
     { clientId: opts.client.clientId },
@@ -1046,6 +1068,7 @@ export async function exchangeAuthorizationCode(opts: {
   code?: unknown;
   redirectUri?: unknown;
   codeVerifier?: unknown;
+  sessionMetadata?: AuthSessionMetadata;
 }): Promise<OAuthTokenResponse> {
   const client = await authenticateClient({
     authHeader: opts.authHeader,
@@ -1092,7 +1115,7 @@ export async function exchangeAuthorizationCode(opts: {
 
   const user = await loadActiveOAuthAuthorizingUser(codeDoc.userId);
   const grant = await upsertGrant(client.clientId, user.id, codeDoc.scopes);
-  return createTokenPair({ client, grant, user, scopes: codeDoc.scopes });
+  return createTokenPair({ client, grant, user, scopes: codeDoc.scopes, sessionMetadata: opts.sessionMetadata });
 }
 
 export async function refreshAccessToken(opts: {
@@ -1100,6 +1123,7 @@ export async function refreshAccessToken(opts: {
   clientId?: unknown;
   clientSecret?: unknown;
   refreshToken?: unknown;
+  sessionMetadata?: AuthSessionMetadata;
 }): Promise<OAuthTokenResponse> {
   const client = await authenticateClient({
     authHeader: opts.authHeader,
@@ -1150,7 +1174,9 @@ export async function refreshAccessToken(opts: {
     throw new OAuthError(400, "invalid_grant", "refresh_token 已被使用或已过期");
   }
 
-  return createTokenPair({ client, grant, user, scopes: refreshScopes });
+  await revokeAuthSessionsByOauthTokenIds([tokenDoc.tokenId]);
+
+  return createTokenPair({ client, grant, user, scopes: refreshScopes, sessionMetadata: opts.sessionMetadata });
 }
 
 export async function validateOAuthAccessToken(plainToken: string, requiredScope?: string): Promise<OAuthAccessContext> {
@@ -1266,6 +1292,11 @@ export async function revokeOAuthToken(opts: {
     },
     { $set: { revokedAt: new Date(), updatedAt: new Date() } },
   );
+  const tokenDoc = (await OAuthTokenModel.findOne({
+    clientId: client.clientId,
+    $or: [{ accessTokenHash: hash }, { refreshTokenHash: hash }],
+  }).lean()) as OAuthTokenDoc | null;
+  if (tokenDoc) await revokeAuthSessionsByOauthTokenIds([tokenDoc.tokenId]);
 }
 
 export async function listOAuthGrants(): Promise<OAuthGrantView[]> {

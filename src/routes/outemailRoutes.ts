@@ -1,7 +1,7 @@
 import express, { type Request } from "express";
 import { createLimiter } from "../middleware/rateLimiter";
 import { getOutEmailServiceStatus, resolveOutEmailDomain } from "../services/emailService";
-import { getOutEmailAuthStatus, getOutEmailQuota, sendOutEmail, sendOutEmailBatch, getOutEmailRecords } from "../services/outEmailService";
+import { getOutEmailAuthStatus, getOutEmailQuota, sendOutEmail, sendOutEmailBatch, getOutEmailRecords, getOutEmailRecordById } from "../services/outEmailService";
 import logger from "../utils/logger";
 
 const router = express.Router();
@@ -247,6 +247,23 @@ router.get("/records", statusQueryLimiter, async (req, res) => {
 
     const result = await getOutEmailRecords({ page, pageSize, to, subject, startDate, endDate });
     res.json({ success: true, ...result });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e?.message || "查询失败" });
+  }
+});
+
+/**
+ * GET /api/outemail/records/:id
+ * 查询单条邮件记录的完整内容
+ */
+router.get("/records/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const record = await getOutEmailRecordById(id);
+    if (!record) {
+      return res.status(404).json({ success: false, error: "记录不存在" });
+    }
+    res.json({ success: true, record });
   } catch (e: any) {
     res.status(500).json({ success: false, error: e?.message || "查询失败" });
   }

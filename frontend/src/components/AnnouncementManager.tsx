@@ -5,7 +5,6 @@ import MarkdownRenderer from './MarkdownRenderer';
 import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
-import { getAuthToken } from '../utils/authSession';
 import {
   FaBullhorn, 
   FaEdit, 
@@ -19,12 +18,6 @@ import {
 } from 'react-icons/fa';
 
 const API_URL = getApiBaseUrl() + '/api/admin/announcement';
-
-function getAuthHeaders(): Record<string, string> {
-  const token = getAuthToken();
-  if (token) return { Authorization: `Bearer ${token}` };
-  return {};
-}
 
 const AnnouncementManager: React.FC = () => {
   const { user } = useAuth();
@@ -40,7 +33,7 @@ const AnnouncementManager: React.FC = () => {
   const fetchAnnouncement = async () => {
     setLoading(true);
     try {
-      const res = await fetch(API_URL, { headers: getAuthHeaders() });
+      const res = await fetch(API_URL);
       const data = await res.json();
       if (!res.ok) {
         switch (data.error) {
@@ -92,7 +85,7 @@ const AnnouncementManager: React.FC = () => {
     try {
       const res = await fetch(API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content, format }),
       });
       const data = await res.json();
@@ -141,7 +134,6 @@ const AnnouncementManager: React.FC = () => {
     try {
       const res = await fetch(API_URL, {
         method: 'DELETE',
-        headers: getAuthHeaders(),
       });
       const data = await res.json();
       if (!res.ok) {

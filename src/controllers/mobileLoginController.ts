@@ -10,6 +10,7 @@ import {
   revokeClientLoginToken,
 } from "../services/mobileLoginService";
 import { getClientIP } from "../utils/ipUtils";
+import { getAuthSessionMetadata } from "../services/authSessionService";
 import logger from "../utils/logger";
 import type { User } from "../utils/userStorage";
 
@@ -132,6 +133,7 @@ export class MobileLoginController {
         user,
         deviceId: typeof req.body?.deviceId === "string" ? req.body.deviceId : undefined,
         deviceName: typeof req.body?.deviceName === "string" ? req.body.deviceName : undefined,
+        metadata: getAuthSessionMetadata(req, { ipAddress: getClientIP(req) }),
       });
       return res.json({ success: true, ...result });
     } catch (error) {
@@ -151,6 +153,7 @@ export class MobileLoginController {
         clientLoginToken,
         deviceId: typeof req.body?.deviceId === "string" ? req.body.deviceId : undefined,
         ip: getClientIP(req),
+        metadata: getAuthSessionMetadata(req, { ipAddress: getClientIP(req) }),
       });
       return res.json({ success: true, ...payload });
     } catch (error) {

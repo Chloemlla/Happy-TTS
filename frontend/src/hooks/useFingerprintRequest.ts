@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getApiBaseUrl } from '../api/api';
-import { getAuthToken } from '../utils/authSession';
+import { useAuthStore } from '../stores/authStore';
 
 
 interface FingerprintRequestStatus {
@@ -20,23 +20,14 @@ export const useFingerprintRequest = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // 检查用户是否已登录
+  // 检查用户是否已登录（认证由 HttpOnly Cookie 维护，无法从 JS 读取）
   const isUserLoggedIn = useCallback((): boolean => {
-    const token = getAuthToken();
-    return !!token;
+    return true;
   }, []);
 
   // 获取用户ID用于dismissal tracking
   const getUserId = useCallback((): string => {
-    try {
-      const token = getAuthToken();
-      if (!token) return '';
-      // 简单的JWT解析获取用户ID（实际项目中可能需要更安全的方式）
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.id || '';
-    } catch {
-      return '';
-    }
+    return useAuthStore.getState().user?.id || '';
   }, []);
 
   // 检查是否在指定时间内被dismiss过
@@ -59,14 +50,10 @@ export const useFingerprintRequest = () => {
   // 记录用户永久关闭（一生只能关闭一次）
   const recordDismissOnce = useCallback(async (): Promise<boolean> => {
     try {
-      const token = getAuthToken();
-      if (!token) return false;
-
       const response = await fetch(`${getApiBaseUrl()}/api/admin/user/fingerprint/dismiss`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
           'X-Requested-With': 'XMLHttpRequest'
         },
         credentials: 'same-origin'
@@ -135,12 +122,10 @@ export const useFingerprintRequest = () => {
     }
 
     try {
-      const token = getAuthToken();
       const response = await fetch(`${getApiBaseUrl()}/api/admin/user/fingerprint/status`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
           'X-Requested-With': 'XMLHttpRequest'
         },
         credentials: 'same-origin'

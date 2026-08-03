@@ -3,8 +3,16 @@ import fs from "node:fs";
 import path from "node:path";
 import jwt from "jsonwebtoken";
 import { config } from "../config/config";
-import { signLoginToken } from "../utils/authToken";
 import { getClientIP } from "../utils/ipUtils";
+import {
+  assertActiveAuthSession,
+  createAuthSession,
+  issueTrackedLoginToken,
+  revokeAuthCredential,
+  revokeAuthSessionsByClientTokenHashes,
+  touchAuthSession,
+  type AuthSessionMetadata,
+} from "./authSessionService";
 import logger from "../utils/logger";
 import { type User, UserStorage } from "../utils/userStorage";
 import type { Request } from "express";
@@ -127,9 +135,10 @@ function writeClientTokens(records: ClientTokenRecord[]): void {
   }
 }
 
-function toLoginPayload(user: User): MobileLoginPayload {
+async function toLoginPayload(user: User, metadata: AuthSessionMetadata = {}, clientTokenHash?: string): Promise<MobileLoginPayload> {
+  const token = await issueTrackedLoginToken(user, metadata, { clientTokenHash });
   return {
-    token: signLoginToken(user),
+    token,
     user: {
       id: user.id,
       username: user.username,
@@ -282,7 +291,12 @@ export async function pollMobileLoginChallenge(params: {
   return {
     status: "approved" as ChallengeStatus,
     expiresAt: new Date(challenge.expiresAt).toISOString(),
-    ...toLoginPayload(updatedUser),
+    ...(await toLoginPayload(updatedUser, {
+      ipAddress: params.browserIp,
+      userAgent: challenge.browserUserAgent,
+      clientType: "web",
+      deviceName: challenge.browserUserAgent,
+    })),
   };
 }
 
@@ -290,6 +304,7 @@ export async function issueClientLoginToken(params: {
   user: User;
   deviceId?: string;
   deviceName?: string;
+  metadata?: AuthSessionMetadata;
 }) {
   if ((params.user as any).accountStatus === "suspended") {
     throw new Error("账户已被封停");
@@ -300,6 +315,11 @@ export async function issueClientLoginToken(params: {
   const records = readClientTokens().filter((record) => !record.revokedAt && !isExpired(record.expiresAt));
   const deviceId = typeof params.deviceId === "string" ? params.deviceId.slice(0, 128) : undefined;
   const deviceName = typeof params.deviceName === "string" ? params.deviceName.slice(0, 128) : undefined;
+  const replacedTokenHashes = deviceId
+    ? records
+        .filter((record) => record.userId === params.user.id && record.deviceId === deviceId)
+        .map((record) => record.tokenHash)
+    : [];
   const filtered = deviceId
     ? records.filter((record) => !(record.userId === params.user.id && record.deviceId === deviceId))
     : records;
@@ -313,6 +333,17 @@ export async function issueClientLoginToken(params: {
     expiresAt: now + CLIENT_TOKEN_TTL_MS,
   });
   writeClientTokens(filtered);
+  await revokeAuthSessionsByClientTokenHashes(params.user.id, replacedTokenHashes);
+  await createAuthSession({
+    userId: params.user.id,
+    credential: token,
+    credentialType: "client-token",
+    authKind: "client-token",
+    clientTokenHash: hashToken(token),
+    deviceId: params.deviceId,
+    deviceName: params.deviceName,
+    ...params.metadata,
+  });
 
   return {
     clientLoginToken: token,
@@ -324,6 +355,7 @@ export async function exchangeClientLoginToken(params: {
   clientLoginToken: string;
   deviceId?: string;
   ip?: string;
+  metadata?: AuthSessionMetadata;
 }) {
   const token = typeof params.clientLoginToken === "string" ? params.clientLoginToken.trim() : "";
   if (!token.startsWith("sml_") || token.length < 32) {
@@ -341,17 +373,27 @@ export async function exchangeClientLoginToken(params: {
     throw new Error("客户端登录令牌与设备不匹配");
   }
 
+  await assertActiveAuthSession(record.userId, token);
+
   const user = await loadActiveUser(record.userId);
   const updatedUser = await updateLoginAudit(user, params.ip || "unknown");
   record.lastUsedAt = Date.now();
   record.lastUsedIp = params.ip || "unknown";
   writeClientTokens(records);
 
-  return toLoginPayload(updatedUser);
+  const metadata = {
+    ...params.metadata,
+    ipAddress: params.ip || params.metadata?.ipAddress,
+    deviceId: params.deviceId || params.metadata?.deviceId || record.deviceId,
+    deviceName: params.metadata?.deviceName || record.deviceName,
+  };
+  await touchAuthSession(record.userId, token, metadata);
+  return toLoginPayload(updatedUser, metadata, record.tokenHash);
 }
 
 export async function revokeClientLoginToken(params: { clientLoginToken: string; userId: string }) {
-  const tokenHash = hashToken(params.clientLoginToken.trim());
+  const token = params.clientLoginToken.trim();
+  const tokenHash = hashToken(token);
   const records = readClientTokens();
   let revoked = false;
   for (const record of records) {
@@ -361,7 +403,20 @@ export async function revokeClientLoginToken(params: { clientLoginToken: string;
     }
   }
   writeClientTokens(records);
+  await revokeAuthCredential(params.userId, token);
   return { revoked };
+}
+
+export async function revokeClientLoginTokensByHashes(params: { userId: string; tokenHashes: string[] }): Promise<void> {
+  if (params.tokenHashes.length === 0) return;
+  const tokenHashes = new Set(params.tokenHashes);
+  const records = readClientTokens();
+  for (const record of records) {
+    if (record.userId === params.userId && tokenHashes.has(record.tokenHash) && !record.revokedAt) {
+      record.revokedAt = Date.now();
+    }
+  }
+  writeClientTokens(records);
 }
 
 export async function resolveUserFromBearerToken(authHeader: unknown): Promise<User | null> {
@@ -372,7 +427,9 @@ export async function resolveUserFromBearerToken(authHeader: unknown): Promise<U
   try {
     const decoded = jwt.verify(token, config.jwtSecret) as { userId?: string; sub?: string };
     const userId = decoded.userId || decoded.sub;
-    return userId ? await loadActiveUser(userId) : null;
+    if (!userId) return null;
+    await assertActiveAuthSession(userId, token);
+    return await loadActiveUser(userId);
   } catch {
     return null;
   }
@@ -389,6 +446,12 @@ export async function resolveMobileLoginUser(req: Request): Promise<User | null>
     clientLoginToken,
     deviceId: typeof req.body?.deviceId === "string" ? req.body.deviceId : undefined,
     ip: getClientIP(req),
+    metadata: {
+      userAgent: String(req.headers["user-agent"] || "unknown"),
+      deviceName: typeof req.body?.deviceName === "string" ? req.body.deviceName : undefined,
+      platform: typeof req.body?.platform === "string" ? req.body.platform : undefined,
+      clientType: typeof req.body?.clientType === "string" ? (req.body.clientType as any) : undefined,
+    },
   });
   return loadActiveUser(payload.user.id);
 }

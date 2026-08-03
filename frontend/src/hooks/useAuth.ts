@@ -6,9 +6,7 @@ import { useAuthStore } from '../stores/authStore';
 import type { AuthRequestError, LoginResult } from '../stores/authStore';
 import { getApiBaseUrl } from '../api/api';
 import {
-    clearAuthToken,
     clearSavedAccounts,
-    getAuthToken,
     readSavedAccounts,
     writeSavedAccounts,
     ACCOUNTS_KEY as ACCOUNTS_KEY_CONST,
@@ -19,11 +17,10 @@ export type { AuthRequestError, LoginResult };
 
 // 单设备多用户配置
 const ACCOUNTS_KEY = ACCOUNTS_KEY_CONST;
-const AUTH_TOKEN_EXPIRY_SKEW_MS = 30_000;
 
 export interface SavedAccount {
     user: User;
-    /** Optional: only for explicit non-cookie multi-account injection. */
+    /** 账号切换令牌，仅在调用 /api/auth/session 时使用，不用于常规认证检查 */
     token?: string;
     lastActive: number;
 }
@@ -41,32 +38,9 @@ const toStoredAccounts = (accounts: SavedAccount[]) => (
     }))
 );
 
-const decodeJwtPayload = (token: string): Record<string, unknown> | null => {
-    try {
-        const payload = token.split('.')[1];
-        if (!payload) return null;
-        const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
-        const padded = normalized.padEnd(normalized.length + ((4 - normalized.length % 4) % 4), '=');
-        return JSON.parse(window.atob(padded)) as Record<string, unknown>;
-    } catch {
-        return null;
-    }
-};
-
-const getTokenExpiresAt = (token: string): number | null => {
-    const payload = decodeJwtPayload(token);
-    const exp = payload?.exp;
-    return typeof exp === 'number' ? exp * 1000 : null;
-};
-
-const isTokenExpired = (token: string): boolean => {
-    const expiresAt = getTokenExpiresAt(token);
-    return expiresAt !== null && expiresAt <= Date.now() + AUTH_TOKEN_EXPIRY_SKEW_MS;
-};
-
 const isAuthRejectionStatus = (status?: number): boolean => status === 401 || status === 403 || status === 404;
 
-// 创建axios实例
+// 创建axios实例（仅用于 auth 相关请求，cookie 自动携带认证）
 const api = axios.create({
     baseURL: getApiBaseUrl(),
     withCredentials: true,
@@ -74,37 +48,12 @@ const api = axios.create({
         'Content-Type': 'application/json',
         'Accept': 'application/json'
     },
-    timeout: 5000 // 5秒超时
+    timeout: 5000
 });
-
-api.interceptors.request.use(config => {
-    const token = getAuthToken();
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-});
-
-// 添加请求拦截器
-api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-        return Promise.reject(error);
-    }
-);
-
-const establishCookieSession = async (token: string): Promise<void> => {
-    clearAuthToken();
-    await api.post('/api/auth/session', undefined, {
-        headers: { Authorization: `Bearer ${token}` }
-    });
-    clearAuthToken();
-};
 
 export const useAuth = () => {
     // Auth identity state is owned by the Zustand authStore (single source of truth).
     const user = useAuthStore((state) => state.user);
-    const token = useAuthStore((state) => state.token);
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
     const error = useAuthStore((state) => state.error);
     const setUser = useAuthStore((state) => state.setUser);
@@ -115,10 +64,10 @@ export const useAuth = () => {
     const [loading, setLoading] = useState(true);
     const [pendingTOTP, setPendingTOTP] = useState<{ userId: string } | null>(null);
     const [pending2FA, setPending2FA] = useState<{ userId: string; type: string[]; username?: string } | null>(null);
-    
+
     const navigate = useNavigate();
     const location = useLocation();
-    
+
     // 恢复原始代码的状态变量
     const [isChecking, setIsChecking] = useState(false);
     const [isAdminChecked, setIsAdminChecked] = useState(false);
@@ -131,7 +80,7 @@ export const useAuth = () => {
     const isAdminCheckedRef = useRef(false);
     const locationPathRef = useRef('');
 
-    const CHECK_INTERVAL = 30000; 
+    const CHECK_INTERVAL = 30000;
     const ERROR_RETRY_INTERVAL = 60000;
 
     isAdminCheckedRef.current = isAdminChecked;
@@ -146,7 +95,7 @@ export const useAuth = () => {
                 lastActive: account.lastActive,
             })) as SavedAccount[];
             if (!Array.isArray(parsed)) return [];
-            const validAccounts = parsed.filter(account => account?.user?.id && (!account.token || !isTokenExpired(account.token)));
+            const validAccounts = parsed.filter(account => account?.user?.id);
             if (validAccounts.length !== parsed.length) {
                 writeSavedAccounts(toStoredAccounts(validAccounts));
             }
@@ -158,12 +107,11 @@ export const useAuth = () => {
         }
     }, []);
 
-    // 保存账号到列表
-    const saveAccount = useCallback((user: User, token: string) => {
-        if (token && isTokenExpired(token)) return;
+    // 保存账号到列表（保留 token 用于账号切换，不用于常规认证检查）
+    const saveAccount = useCallback((user: User, token?: string) => {
         const current = loadSavedAccounts();
         const filtered = current.filter(a => a.user.id !== user.id);
-        const updated = [{ user, token: token || undefined, lastActive: Date.now() }, ...filtered] as SavedAccount[];
+        const updated = [{ user, token, lastActive: Date.now() }, ...filtered] as SavedAccount[];
         writeSavedAccounts(toStoredAccounts(updated));
         setSavedAccounts(updated);
     }, [loadSavedAccounts]);
@@ -171,10 +119,7 @@ export const useAuth = () => {
     // 恢复原始代码的 getUserById
     const getUserById = useCallback(async (userId: string): Promise<User> => {
         try {
-            const token = getAuthToken();
-            const response = await api.get<User>(`/api/auth/me`, token ? {
-                headers: { Authorization: `Bearer ${token}` }
-            } : undefined);
+            const response = await api.get<User>(`/api/auth/me`);
             return response.data;
         } catch (error: any) {
             throw new Error('获取用户信息失败');
@@ -193,28 +138,12 @@ export const useAuth = () => {
         setIsChecking(true);
 
         try {
-            let token = getAuthToken();
-            if (token && isTokenExpired(token)) {
-                console.log('本地登录凭证已过期，清除本地访问令牌，尝试 cookie 会话');
-                clearAuthToken();
-                token = null;
-            }
-
-            if (token) {
-                const cachedAccount = loadSavedAccounts().find(account => account.token === token);
-                if (cachedAccount) {
-                    setUser(useAuthStore.getState().user ?? cachedAccount.user);
-                }
-                await establishCookieSession(token);
-            }
-
-            // Active browser identity is now canonicalized into the HttpOnly Cookie.
+            // 认证由 HttpOnly Cookie 自动携带，无需手动读取 token
             const response = await api.get<User>('/api/auth/me');
 
             console.log('认证检查响应:', response.status);
 
             if (isAuthRejectionStatus(response.status)) {
-                clearAuthToken();
                 setUser(null);
                 setLoading(false);
                 return;
@@ -223,8 +152,10 @@ export const useAuth = () => {
             const data = response.data;
             if (data) {
                 setUser(data);
-                saveAccount(data, token || '');
-                
+                const accounts = loadSavedAccounts();
+                const existing = accounts.find(a => a.user.id === data.id);
+                saveAccount(data, existing?.token);
+
                 // 恢复原始重定向逻辑
                 if (data.role === 'admin' && !isAdminCheckedRef.current) {
                     console.log('检测到管理员用户，当前路径:', locationPathRef.current);
@@ -238,7 +169,6 @@ export const useAuth = () => {
             } else {
                 console.log('认证检查返回空数据，清除用户状态');
                 setUser(null);
-                clearAuthToken();
             }
             lastCheckRef.current = now;
             setLastCheckTime(now);
@@ -250,7 +180,6 @@ export const useAuth = () => {
             } else if (isAuthRejectionStatus(error.response?.status)) {
                 maybeEmitPenaltyAppealFromError(error, 'auth-check');
                 setUser(null);
-                clearAuthToken();
             } else {
                 console.warn('认证检查暂时失败，保留本地登录状态:', error.message);
             }
@@ -271,45 +200,42 @@ export const useAuth = () => {
     const switchAccount = async (userId: string) => {
         const accounts = loadSavedAccounts();
         const target = accounts.find(a => a.user.id === userId);
-        if (target) {
-            if (target.token && isTokenExpired(target.token)) {
+        if (!target) return;
+
+        // 无 token 的 cookie 会话账号无法静默切换，需重新登录
+        if (!target.token) {
+            setUser(null);
+            navigate('/welcome');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            // 用保存的 token 调用会话转换接口，后端设置新 cookie
+            await api.post('/api/auth/session', undefined, {
+                headers: { Authorization: `Bearer ${target.token}` }
+            });
+            const response = await api.get<User>('/api/auth/me');
+            setUser(response.data);
+            saveAccount(response.data, target.token);
+            setIsAdminChecked(false);
+            navigate('/');
+        } catch (e: any) {
+            if (isAuthRejectionStatus(e.response?.status)) {
+                // token 失效，移除该账号
                 const updated = accounts.filter(a => a.user.id !== userId);
                 writeSavedAccounts(toStoredAccounts(updated));
                 setSavedAccounts(updated);
-                return;
-            }
-            if (!target.token) {
-                // Cookie-only accounts cannot silently assume another identity.
-                clearAuthToken();
                 setUser(null);
                 navigate('/welcome');
-                return;
-            }
-            setLoading(true);
-            try {
-                await establishCookieSession(target.token);
-                const response = await api.get<User>('/api/auth/me');
-                setUser(response.data);
-                saveAccount(response.data, target.token);
-                setIsAdminChecked(false); // 重置管理员检查状态
+            } else {
+                // 网络错误，保留本地状态
+                setUser(target.user);
                 navigate('/');
-            } catch (e: any) {
-                if (isAuthRejectionStatus(e.response?.status)) {
-                    const updated = accounts.filter(a => a.user.id !== userId);
-                    writeSavedAccounts(toStoredAccounts(updated));
-                    setSavedAccounts(updated);
-                    setUser(null);
-                    clearAuthToken();
-                    navigate('/welcome');
-                } else {
-                    setUser(target.user);
-                    navigate('/');
-                }
-            } finally {
-                clearAuthToken();
-                setLoading(false);
-                setIsLoading(false);
             }
+        } finally {
+            setLoading(false);
+            setIsLoading(false);
         }
     };
 
@@ -326,8 +252,7 @@ export const useAuth = () => {
             }
 
             // Browser session is HttpOnly-cookie only. Do not persist access tokens in JS storage.
-            clearAuthToken();
-            saveAccount(result.user, '');
+            saveAccount(result.user, result.token);
             lastCheckRef.current = Date.now();
             setLastCheckTime(Date.now());
             return result;
@@ -340,7 +265,10 @@ export const useAuth = () => {
 
     const loginWithToken = async (token: string, user: User) => {
         if (!token) throw new Error('缺少登录令牌');
-        await establishCookieSession(token);
+        // 将 Bearer token 转换为 cookie 会话
+        await api.post('/api/auth/session', undefined, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
         saveAccount(user, token);
         setUser(user);
         lastCheckRef.current = Date.now();
@@ -352,7 +280,7 @@ export const useAuth = () => {
         const userId = pendingTOTP?.userId || pending2FA?.userId;
         if (!userId) throw new Error('没有待验证的TOTP请求');
         if (!pendingToken) throw new Error('缺少二次验证临时令牌');
-        
+
         try {
             const response = await api.post('/api/totp/verify-token', {
                 userId,
@@ -362,10 +290,9 @@ export const useAuth = () => {
             });
 
             if (response.data.verified) {
-                clearAuthToken();
                 const userData = await getUserById(userId);
                 setUser(userData);
-                saveAccount(userData, '');
+                saveAccount(userData);
                 setPendingTOTP(null);
                 setPending2FA(null);
                 lastCheckRef.current = Date.now();
@@ -398,9 +325,8 @@ export const useAuth = () => {
             const response = await api.post<{ user: User; token: string }>('/api/auth/register', {
                 username, email, password
             });
-            const { user } = response.data;
-            clearAuthToken();
-            saveAccount(user, '');
+            const { user, token } = response.data;
+            saveAccount(user, token);
             setUser(user);
             lastCheckRef.current = Date.now();
             setLastCheckTime(Date.now());
@@ -423,7 +349,6 @@ export const useAuth = () => {
             setSavedAccounts(updated);
         }
 
-        clearAuthToken();
         storeLogout();
         setPendingTOTP(null);
         setPending2FA(null);
@@ -439,7 +364,6 @@ export const useAuth = () => {
 
     const logoutAll = () => {
         void api.post('/api/auth/logout').catch(() => undefined);
-        clearAuthToken();
         clearSavedAccounts();
         storeLogout();
         setSavedAccounts([]);
@@ -452,9 +376,8 @@ export const useAuth = () => {
         const updated = accounts.filter(a => a.user.id !== userId);
         writeSavedAccounts(toStoredAccounts(updated));
         setSavedAccounts(updated);
-        
+
         if (user?.id === userId) {
-            clearAuthToken();
             setUser(null);
             if (updated.length > 0) {
                 switchAccount(updated[0].user.id);
@@ -469,14 +392,15 @@ export const useAuth = () => {
             const response = await api.get<User>('/api/auth/me');
             if (response.data) {
                 setUser(response.data);
-                saveAccount(response.data, getAuthToken() || '');
+                const accounts = loadSavedAccounts();
+                const existing = accounts.find(a => a.user.id === response.data.id);
+                saveAccount(response.data, existing?.token);
             }
         } catch (e) {}
     };
 
     return {
         user,
-        token,
         isAuthenticated,
         savedAccounts,
         loading,

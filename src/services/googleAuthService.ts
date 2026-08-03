@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { OAuth2Client } from "google-auth-library";
 import { config } from "../config/config";
 import logger from "../utils/logger";
-import { signLoginToken } from "../utils/authToken";
+import { issueTrackedLoginToken, type AuthSessionMetadata } from "./authSessionService";
 import { type User, UserStorage } from "../utils/userStorage";
 import { findUserByProviderIdentity, upsertIdentityForUser } from "./accountIdentityService";
 import { completeProviderLoginForBoundIdentity, issueProviderBindSession } from "./providerBindSessionService";
@@ -116,13 +116,9 @@ async function findUserByEmail(email: string): Promise<User | null> {
   );
 }
 
-function buildJwtToken(user: User): string {
-  return signLoginToken(user);
-}
-
 function toAuthPayload(user: User, isNewUser: boolean): GoogleAuthPayload {
   return {
-    token: buildJwtToken(user),
+    token: "",
     user: {
       id: user.id,
       username: user.username,
@@ -295,6 +291,7 @@ export function isGoogleAuthEnabled(): boolean {
 export async function authenticateGoogleUser(params: {
   idToken: string;
   clientIp?: string;
+  sessionMetadata?: AuthSessionMetadata;
 }): Promise<GoogleAuthPayload> {
   const profile = await verifyGoogleIdToken(params.idToken);
   const { user, isNewUser } = await upsertGoogleUser(profile);
@@ -329,12 +326,15 @@ export async function authenticateGoogleUser(params: {
     avatarUrl: profile.avatarUrl,
   });
 
-  return toAuthPayload(finalizedUser, isNewUser);
+  const payload = toAuthPayload(finalizedUser, isNewUser);
+  payload.token = await issueTrackedLoginToken(finalizedUser, params.sessionMetadata || { ipAddress: params.clientIp });
+  return payload;
 }
 
 export async function startGoogleBindSession(params: {
   idToken: string;
   clientIp?: string;
+  sessionMetadata?: AuthSessionMetadata;
 }): Promise<GoogleBindSessionResult> {
   const profile = await verifyGoogleIdToken(params.idToken);
   const linkedUser = await findUserByProviderIdentity("google", profile.id);
@@ -350,6 +350,7 @@ export async function startGoogleBindSession(params: {
         avatarUrl: profile.avatarUrl,
       },
       clientIp: params.clientIp,
+      sessionMetadata: params.sessionMetadata,
     });
 
     return {
