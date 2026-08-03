@@ -1,4 +1,4 @@
-@import "tailwindcss" config("../tailwind.config.js");
+@import "tailwindcss";
 @import "tw-animate-css";
 @import "./styles/sidebar-theme.css";
 @import "./styles/scrollbar.css";
