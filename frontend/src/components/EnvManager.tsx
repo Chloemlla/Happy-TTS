@@ -2691,6 +2691,27 @@ const EnvManager: React.FC = () => {
           onDelete={() => handleDeleteGithubBillingConfig(selectedConfigKey)}
         />
 
+        <EcoEnchantsTokenSection
+          isOpen={isSectionOpen('ecoEnchantsToken')}
+          onToggle={toggleSection}
+          loading={false}
+          onRefresh={() => {}}
+        />
+
+        <EcoEnchantsWebhookSection
+          isOpen={isSectionOpen('ecoEnchantsWebhook')}
+          onToggle={toggleSection}
+          loading={false}
+          onRefresh={() => {}}
+        />
+
+        <SecuritySecretSection
+          isOpen={isSectionOpen('securitySecrets')}
+          onToggle={toggleSection}
+          loading={false}
+          onRefresh={() => {}}
+        />
+
         <LibreChatProvidersSection
           isOpen={isSectionOpen('providers')}
           onToggle={toggleSection}
