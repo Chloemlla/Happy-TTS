@@ -120,6 +120,14 @@ logs/
 .parcel-cache
 !*.svg
 
+# 根目录临时文件
+TODO
+worker.zip
+*.vba
+*.user.js
+OpenAI-TTS-Gradio-*.zip
+tts-node_inspect.json
+
 # 静态文件目录（如果需要版本控制，请删除此行）
 
 frontend/static/
