@@ -409,7 +409,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="mt-8 grid gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="mt-8 grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)] xl:grid-cols-[minmax(0,1fr)_minmax(0,400px)]">
             <div className="relative min-w-0 rounded-[26px] border border-white/70 bg-white/82 p-4 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-5">
               <div className="mb-3 lg:hidden">
                 <div className="grid grid-cols-[minmax(0,1fr)_52px_minmax(0,1fr)] items-center gap-2 rounded-[22px] border border-slate-200 bg-white/80 p-2.5">

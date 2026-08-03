@@ -453,7 +453,7 @@ const TtsGenerationManager: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="mt-4 grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_220px]">
+                  <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_220px] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_220px]">
                     <label className="block">
                       <span className="mb-1 flex items-center gap-2 text-xs font-semibold text-slate-500">
                         <FaCommentDots className="text-slate-400" />

@@ -519,7 +519,7 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
           </div>
         )}
 
-        <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
           <div className="space-y-6">
             <section className={panelClass}>
               <SectionTitle
