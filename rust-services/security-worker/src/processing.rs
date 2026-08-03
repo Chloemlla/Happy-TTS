@@ -3,7 +3,7 @@ use aes_gcm::{
     Aes256Gcm,
 };
 use base64::{engine::general_purpose, Engine as _};
-use hmac::{Hmac, KeyInit as HmacKeyInit, Mac};
+use hmac::{Hmac, Mac};
 use serde_json::Value;
 use sha2::{Digest, Sha256, Sha512};
 
