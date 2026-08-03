@@ -333,7 +333,7 @@ export async function revokeAuthDevice(userId: string, deviceKey: string, curren
     await OAuthTokenModel.updateMany({ userId, tokenId: { $in: oauthTokenIds } }, { $set: { revokedAt: now, updatedAt: now } });
   }
   if (clientTokenHashes.length) {
-    const mobileLoginService = await import("./mobileLoginService");
+    const mobileLoginService = await import("./mobileLoginService.js");
     await mobileLoginService.revokeClientLoginTokensByHashes({ userId, tokenHashes: clientTokenHashes });
   }
   return { revoked: Number(result.modifiedCount || 0) };

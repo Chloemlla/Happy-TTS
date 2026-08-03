@@ -907,6 +907,7 @@ export class AuthController {
         });
 
         // 生成JWT token
+        const ip = getClientIP(req);
         const token = await issueTrackedLoginToken(user, getAuthSessionMetadata(req, { ipAddress: ip }));
 
         logger.info("[AuthController] Passkey验证成功，生成JWT token", {
@@ -916,7 +917,6 @@ export class AuthController {
         });
 
         // 异地登录检测（Passkey验证通过后）
-        const ip = getClientIP(req);
         const userAgent = req.headers["user-agent"] || "unknown";
         const lastIp = user.lastLoginIp;
         if (lastIp && lastIp !== "unknown" && ip !== "unknown" && lastIp !== ip && user.email) {
