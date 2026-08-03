@@ -8,6 +8,7 @@ import { sendEmail } from "../services/emailSender";
 import { mongoose } from "../services/mongoService";
 import { RuntimeConfigService } from "../services/runtimeConfigService";
 import { TranslationLogService } from "../services/translationLogService";
+import { validateGenerationCodeStrength } from "../utils/generationCodePolicy";
 import logger from "../utils/logger";
 import { getRevealUserPasswordResult } from "../services/userService";
 import { buildAccountSecuritySummary } from "../services/accountSecuritySummaryService";
@@ -1298,9 +1299,17 @@ export const adminController = {
       if (typeof code !== "string" || code.trim().length < 1 || code.length > 256) {
         return res.status(400).json({ error: "无效的生成码" });
       }
+      const validation = validateGenerationCodeStrength(code);
+      if (!validation.ok) {
+        return res.status(400).json({
+          success: false,
+          error: validation.reason.replace(/^GENERATION_CODE/, "生成码"),
+        });
+      }
       const result = await RuntimeConfigService.setTtsSetting({ generationCode: code });
       return res.json({ success: true, setting: { updatedAt: result.updatedAt } });
-    } catch (_e) {
+    } catch (error) {
+      logger.error("保存生成码失败:", error instanceof Error ? error.message : String(error));
       return res.status(500).json({ success: false, error: "保存生成码失败" });
     }
   },
