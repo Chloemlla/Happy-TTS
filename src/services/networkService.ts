@@ -2,8 +2,6 @@ import { createHash } from "node:crypto";
 import axios from "axios";
 import { config } from "../config/config";
 import logger from "../utils/logger";
-import { isInternalServiceClientError } from "./internalServiceClient";
-import { rustNetworkToolsClient } from "./rustNetworkToolsClient";
 
 export interface NetworkTestResponse {
   success: boolean;
@@ -14,60 +12,7 @@ export interface NetworkTestResponse {
 export class NetworkService {
   private static readonly BASE_URL = "https://v2.xxapi.cn/api";
 
-  private static shouldFallbackRustNetworkTools(error: unknown): boolean {
-    if (!config.rustServices.networkTools.fallbackEnabled) {
-      return false;
-    }
-
-    if (!isInternalServiceClientError(error)) {
-      return true;
-    }
-
-    return ["network_error", "rate_limited", "timeout", "upstream_error"].includes(error.code);
-  }
-
-  private static rustNetworkToolsFailure(operation: string, error: unknown): NetworkTestResponse {
-    const message = error instanceof Error ? error.message : "未知错误";
-    return {
-      success: false,
-      error: `Rust network-tools ${operation}失败: ${message}`,
-    };
-  }
-
-  /**
-   * TCP连接检测
-   * @param address 目标地址
-   * @param port 端口号
-   * @returns TCP连接状态
-   */
   public static async tcpPing(address: string, port: number): Promise<NetworkTestResponse> {
-    if (config.rustServices.networkTools.enabled) {
-      try {
-        logger.info("开始Rust TCP连接检测", { address, port, source: "rust-network-tools" });
-        const result = await rustNetworkToolsClient.tcpPing(address, port);
-        if (result.success) {
-          logger.info("Rust TCP连接检测完成", { address, port, result: result.data, source: "rust-network-tools" });
-          return result;
-        }
-
-        throw new Error(result.error || "Rust network-tools returned an unsuccessful tcping response");
-      } catch (error) {
-        logger.warn("Rust TCP连接检测失败", {
-          address,
-          port,
-          source: "rust-network-tools",
-          error: error instanceof Error ? error.message : "未知错误",
-        });
-
-        if (NetworkService.shouldFallbackRustNetworkTools(error)) {
-          logger.warn("Rust TCP连接检测回退到现有外部API", { address, port, source: "node-fallback" });
-          return NetworkService.tcpPingViaExternalApi(address, port);
-        }
-
-        return NetworkService.rustNetworkToolsFailure("TCP连接检测", error);
-      }
-    }
-
     return NetworkService.tcpPingViaExternalApi(address, port);
   }
 
@@ -77,7 +22,7 @@ export class NetworkService {
 
       const response = await axios.get(`${NetworkService.BASE_URL}/tcping`, {
         params: { address, port },
-        timeout: 10000, // 10秒超时
+        timeout: 10000,
       });
 
       logger.info("TCP连接检测完成", { address, port, result: response.data });
@@ -110,38 +55,7 @@ export class NetworkService {
     }
   }
 
-  /**
-   * Ping检测
-   * @param url 目标URL
-   * @returns Ping检测结果
-   */
   public static async ping(url: string): Promise<NetworkTestResponse> {
-    if (config.rustServices.networkTools.enabled) {
-      try {
-        logger.info("开始Rust Ping检测", { url, source: "rust-network-tools" });
-        const result = await rustNetworkToolsClient.ping(url);
-        if (result.success) {
-          logger.info("Rust Ping检测完成", { url, result: result.data, source: "rust-network-tools" });
-          return result;
-        }
-
-        throw new Error(result.error || "Rust network-tools returned an unsuccessful ping response");
-      } catch (error) {
-        logger.warn("Rust Ping检测失败", {
-          url,
-          source: "rust-network-tools",
-          error: error instanceof Error ? error.message : "未知错误",
-        });
-
-        if (NetworkService.shouldFallbackRustNetworkTools(error)) {
-          logger.warn("Rust Ping检测回退到现有外部API", { url, source: "node-fallback" });
-          return NetworkService.pingViaExternalApi(url);
-        }
-
-        return NetworkService.rustNetworkToolsFailure("Ping检测", error);
-      }
-    }
-
     return NetworkService.pingViaExternalApi(url);
   }
 
@@ -151,7 +65,7 @@ export class NetworkService {
 
       const response = await axios.get(`${NetworkService.BASE_URL}/ping`, {
         params: { url },
-        timeout: 15000, // 15秒超时
+        timeout: 15000,
       });
 
       logger.info("Ping检测完成", { url, result: response.data });
@@ -184,38 +98,7 @@ export class NetworkService {
     }
   }
 
-  /**
-   * 网站测速
-   * @param url 目标URL
-   * @returns 网站测速结果
-   */
   public static async speedTest(url: string): Promise<NetworkTestResponse> {
-    if (config.rustServices.networkTools.enabled) {
-      try {
-        logger.info("开始Rust网站测速", { url, source: "rust-network-tools" });
-        const result = await rustNetworkToolsClient.speedTest(url);
-        if (result.success) {
-          logger.info("Rust网站测速完成", { url, result: result.data, source: "rust-network-tools" });
-          return result;
-        }
-
-        throw new Error(result.error || "Rust network-tools returned an unsuccessful speed response");
-      } catch (error) {
-        logger.warn("Rust网站测速失败", {
-          url,
-          source: "rust-network-tools",
-          error: error instanceof Error ? error.message : "未知错误",
-        });
-
-        if (NetworkService.shouldFallbackRustNetworkTools(error)) {
-          logger.warn("Rust网站测速回退到现有外部API", { url, source: "node-fallback" });
-          return NetworkService.speedTestViaExternalApi(url);
-        }
-
-        return NetworkService.rustNetworkToolsFailure("网站测速", error);
-      }
-    }
-
     return NetworkService.speedTestViaExternalApi(url);
   }
 
@@ -225,7 +108,7 @@ export class NetworkService {
 
       const response = await axios.get(`${NetworkService.BASE_URL}/speed`, {
         params: { url },
-        timeout: 30000, // 30秒超时
+        timeout: 30000,
       });
 
       logger.info("网站测速完成", { url, result: response.data });
@@ -258,38 +141,7 @@ export class NetworkService {
     }
   }
 
-  /**
-   * 端口扫描
-   * @param address 目标IP地址
-   * @returns 端口扫描结果
-   */
   public static async portScan(address: string): Promise<NetworkTestResponse> {
-    if (config.rustServices.networkTools.enabled) {
-      try {
-        logger.info("开始Rust端口扫描", { address, source: "rust-network-tools" });
-        const result = await rustNetworkToolsClient.portScan(address);
-        if (result.success) {
-          logger.info("Rust端口扫描完成", { address, result: result.data, source: "rust-network-tools" });
-          return result;
-        }
-
-        throw new Error(result.error || "Rust network-tools returned an unsuccessful portscan response");
-      } catch (error) {
-        logger.warn("Rust端口扫描失败", {
-          address,
-          source: "rust-network-tools",
-          error: error instanceof Error ? error.message : "未知错误",
-        });
-
-        if (NetworkService.shouldFallbackRustNetworkTools(error)) {
-          logger.warn("Rust端口扫描回退到现有外部API", { address, source: "node-fallback" });
-          return NetworkService.portScanViaExternalApi(address);
-        }
-
-        return NetworkService.rustNetworkToolsFailure("端口扫描", error);
-      }
-    }
-
     return NetworkService.portScanViaExternalApi(address);
   }
 
@@ -299,7 +151,7 @@ export class NetworkService {
 
       const response = await axios.get(`${NetworkService.BASE_URL}/portscan`, {
         params: { address },
-        timeout: 60000, // 60秒超时
+        timeout: 60000,
       });
 
       logger.info("端口扫描完成", { address, result: response.data });
@@ -332,18 +184,13 @@ export class NetworkService {
     }
   }
 
-  /**
-   * 精准IP查询（可定位到县）
-   * @param ip IP地址
-   * @returns IP地理位置信息
-   */
   public static async ipQuery(ip: string): Promise<NetworkTestResponse> {
     try {
       logger.info("开始精准IP查询", { ip });
 
       const response = await axios.get(`${NetworkService.BASE_URL}/ipv2`, {
         params: { ip, key: process.env.IP_QUERY_KEY },
-        timeout: 10000, // 10秒超时
+        timeout: 10000,
       });
 
       logger.info("精准IP查询完成", { ip, result: response.data });
@@ -376,18 +223,13 @@ export class NetworkService {
     }
   }
 
-  /**
-   * 随机一言古诗词
-   * @param type 类型：hitokoto(一言) | poetry(古诗词)
-   * @returns 随机一言或古诗词
-   */
   public static async randomQuote(type: "hitokoto" | "poetry"): Promise<NetworkTestResponse> {
     try {
       logger.info("开始获取随机一言古诗词", { type });
 
       const response = await axios.get(`${NetworkService.BASE_URL}/yiyan`, {
         params: { type },
-        timeout: 8000, // 8秒超时
+        timeout: 8000,
       });
 
       logger.info("随机一言古诗词获取完成", { type, result: response.data });
@@ -420,16 +262,12 @@ export class NetworkService {
     }
   }
 
-  /**
-   * 抖音热榜查询
-   * @returns 抖音热榜数据
-   */
   public static async douyinHot(): Promise<NetworkTestResponse> {
     try {
       logger.info("开始获取抖音热榜");
 
       const response = await axios.get(`${NetworkService.BASE_URL}/douyinhot`, {
-        timeout: 15000, // 15秒超时
+        timeout: 15000,
       });
 
       logger.info("抖音热榜获取完成", { result: response.data });
@@ -462,15 +300,8 @@ export class NetworkService {
     }
   }
 
-  /**
-   * 字符串Hash加密
-   * @param type 加密算法类型：md4 | md5 | sha1 | sha256 | sha512
-   * @param text 需要加密的字符串
-   * @returns Hash加密结果
-   */
   public static hashEncrypt(type: "md4" | "md5" | "sha1" | "sha256" | "sha512", text: string): NetworkTestResponse {
     try {
-      // 验证参数
       if (!text || typeof text !== "string" || text.trim() === "") {
         return {
           success: false,
@@ -492,7 +323,6 @@ export class NetworkService {
 
       switch (type) {
         case "md4":
-          // Node.js 不直接支持 MD4，使用 MD5 作为替代
           hash = createHash("md5").update(text).digest("hex");
           logger.warn("MD4算法不可用，使用MD5替代", { originalType: type });
           break;
@@ -539,15 +369,8 @@ export class NetworkService {
     }
   }
 
-  /**
-   * Base64编码与解码
-   * @param type 操作类型：encode(编码) | decode(解码)
-   * @param text 需要编码或解码的字符串
-   * @returns Base64编码或解码结果
-   */
   public static base64Operation(type: "encode" | "decode", text: string): NetworkTestResponse {
     try {
-      // 验证参数
       if (!text || typeof text !== "string") {
         return {
           success: false,
@@ -567,11 +390,9 @@ export class NetworkService {
       let result: string;
 
       if (type === "encode") {
-        // Base64编码
         result = Buffer.from(text, "utf8").toString("base64");
         logger.info("Base64编码完成", { type, textLength: text.length, resultLength: result.length });
       } else {
-        // Base64解码前严格校验格式
         const base64Regex = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
         if (!base64Regex.test(text)) {
           logger.error("Base64解码失败", { type, text, error: "格式非法" });
@@ -582,7 +403,6 @@ export class NetworkService {
         }
         try {
           result = Buffer.from(text, "base64").toString("utf8");
-          // 检查解码后重新编码是否一致，防止容错解码
           if (Buffer.from(result, "utf8").toString("base64").replace(/=+$/, "") !== text.replace(/=+$/, "")) {
             logger.error("Base64解码失败", { type, text, error: "内容不匹配" });
             return {
@@ -626,14 +446,7 @@ export class NetworkService {
     }
   }
 
-  /**
-   * BMI身体指数计算
-   * @param height 身高（厘米）
-   * @param weight 体重（公斤）
-   * @returns BMI值和健康建议
-   */
   public static bmiCalculate(height: string, weight: string): NetworkTestResponse {
-    // 参数校验
     if (!height || !weight) {
       return {
         success: false,
@@ -648,11 +461,8 @@ export class NetworkService {
         error: "身高和体重必须为正数",
       };
     }
-    // 计算BMI
     const bmi = w / (h / 100) ** 2;
-    // 理想体重（BMI=22）
     const idealWeight = (22 * (h / 100) ** 2).toFixed(1);
-    // 健康建议
     let msg = "";
     if (bmi < 18.5) {
       msg = `您的身体指数偏低，理想体重为${idealWeight}KG`;
@@ -676,17 +486,10 @@ export class NetworkService {
     };
   }
 
-  /**
-   * FLAC转MP3音频转换
-   * @param url 需要转换的FLAC文件URL
-   * @param returnType 返回类型：json | 302
-   * @returns 转换结果或重定向URL
-   */
   public static async flacToMp3(url: string, returnType: "json" | "302" = "json"): Promise<NetworkTestResponse> {
     try {
       logger.info("开始FLAC转MP3转换", { url, returnType });
 
-      // 参数验证
       if (!url || typeof url !== "string") {
         return {
           success: false,
@@ -694,7 +497,6 @@ export class NetworkService {
         };
       }
 
-      // 验证URL格式
       try {
         new URL(url);
       } catch {
@@ -704,7 +506,6 @@ export class NetworkService {
         };
       }
 
-      // 构建转发请求URL
       const targetUrl = `${NetworkService.BASE_URL}/flactomp3`;
       const params = new URLSearchParams({
         url: url,
@@ -712,7 +513,7 @@ export class NetworkService {
       });
 
       const response = await axios.get(`${targetUrl}?${params.toString()}`, {
-        timeout: 60000, // 60秒超时，音频转换可能需要较长时间
+        timeout: 60000,
         maxRedirects: 5,
       });
 
@@ -750,16 +551,10 @@ export class NetworkService {
     }
   }
 
-  /**
-   * 随机驾考题目
-   * @param subject 科目类型：1(科目1) | 4(科目4)
-   * @returns 随机驾考题目
-   */
   public static async randomJiakao(subject: "1" | "4"): Promise<NetworkTestResponse> {
     try {
       logger.info("开始获取随机驾考题目", { subject });
 
-      // 参数验证
       if (!subject || (subject !== "1" && subject !== "4")) {
         return {
           success: false,
@@ -767,14 +562,13 @@ export class NetworkService {
         };
       }
 
-      // 构建转发请求URL
       const targetUrl = `${NetworkService.BASE_URL}/jiakao`;
       const params = new URLSearchParams({
         subject: subject,
       });
 
       const response = await axios.get(`${targetUrl}?${params.toString()}`, {
-        timeout: 15000, // 15秒超时
+        timeout: 15000,
         maxRedirects: 3,
       });
 

@@ -1,26 +1,9 @@
 import axios from "axios";
 import { config } from "../config/config";
-import { InternalServiceClientError } from "../services/internalServiceClient";
 import { NetworkService } from "../services/networkService";
-import { rustNetworkToolsClient } from "../services/rustNetworkToolsClient";
 
 // Mock axios
 jest.mock("axios");
-jest.mock("../services/rustNetworkToolsClient", () => ({
-  rustNetworkToolsClient: {
-    tcpPing: jest.fn(),
-    portScan: jest.fn(),
-    ping: jest.fn(),
-    speedTest: jest.fn(),
-  },
-}));
-const mockedAxios = axios as jest.Mocked<typeof axios>;
-const mockedRustNetworkToolsClient = rustNetworkToolsClient as jest.Mocked<typeof rustNetworkToolsClient>;
-
-// Mock axios.isAxiosError
-(axios.isAxiosError as any) = jest.fn((error) => {
-  return error && error.isAxiosError === true;
-});
 
 // 创建正确的axios错误对象
 const createAxiosError = (config: any) => {
@@ -35,9 +18,6 @@ const createAxiosError = (config: any) => {
 describe("NetworkService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    config.rustServices.networkTools.enabled = false;
-    config.rustServices.networkTools.fallbackEnabled = true;
-    config.rustServices.networkTools.blockPrivateTargets = true;
   });
 
   describe("douyinHot", () => {
@@ -346,8 +326,6 @@ describe("NetworkService", () => {
     });
 
     it("启用Rust时应该优先调用network-tools", async () => {
-      config.rustServices.networkTools.enabled = true;
-      mockedRustNetworkToolsClient.tcpPing.mockResolvedValueOnce({
         success: true,
         data: {
           address: "example.com",
@@ -362,13 +340,10 @@ describe("NetworkService", () => {
 
       expect(result.success).toBe(true);
       expect(result.data.source).toBe("rust-network-tools");
-      expect(mockedRustNetworkToolsClient.tcpPing).toHaveBeenCalledWith("example.com", 443);
       expect(mockedAxios.get).not.toHaveBeenCalled();
     });
 
     it("Rust超时时应该按配置回退到现有外部API", async () => {
-      config.rustServices.networkTools.enabled = true;
-      mockedRustNetworkToolsClient.tcpPing.mockRejectedValueOnce(
         new InternalServiceClientError("rust-network-tools timed out after 5000ms", {
           code: "timeout",
           serviceName: "rust-network-tools",
@@ -392,9 +367,6 @@ describe("NetworkService", () => {
     });
 
     it("关闭fallback时Rust失败应该返回明确错误", async () => {
-      config.rustServices.networkTools.enabled = true;
-      config.rustServices.networkTools.fallbackEnabled = false;
-      mockedRustNetworkToolsClient.tcpPing.mockRejectedValueOnce(new Error("network-tools down"));
 
       const result = await NetworkService.tcpPing("example.com", 443);
 
@@ -404,8 +376,6 @@ describe("NetworkService", () => {
     });
 
     it("Rust拒绝非法目标时不应该回退到外部API", async () => {
-      config.rustServices.networkTools.enabled = true;
-      mockedRustNetworkToolsClient.tcpPing.mockRejectedValueOnce(
         new InternalServiceClientError("rust-network-tools private or reserved target addresses are blocked", {
           code: "bad_request",
           serviceName: "rust-network-tools",
@@ -444,8 +414,6 @@ describe("NetworkService", () => {
     });
 
     it("启用Rust时应该优先调用network-tools Ping检测", async () => {
-      config.rustServices.networkTools.enabled = true;
-      mockedRustNetworkToolsClient.ping.mockResolvedValueOnce({
         success: true,
         data: {
           target: "https://example.com/",
@@ -460,13 +428,10 @@ describe("NetworkService", () => {
 
       expect(result.success).toBe(true);
       expect(result.data.source).toBe("rust-network-tools");
-      expect(mockedRustNetworkToolsClient.ping).toHaveBeenCalledWith("https://example.com");
       expect(mockedAxios.get).not.toHaveBeenCalled();
     });
 
     it("启用Rust时裸IP Ping不应该调用外部API", async () => {
-      config.rustServices.networkTools.enabled = true;
-      mockedRustNetworkToolsClient.ping.mockResolvedValueOnce({
         success: true,
         data: {
           target: "134.209.101.203",
@@ -482,13 +447,10 @@ describe("NetworkService", () => {
 
       expect(result.success).toBe(true);
       expect(result.data.method).toBe("tcp-default");
-      expect(mockedRustNetworkToolsClient.ping).toHaveBeenCalledWith("134.209.101.203");
       expect(mockedAxios.get).not.toHaveBeenCalled();
     });
 
     it("Rust Ping超时时应该回退到现有外部API", async () => {
-      config.rustServices.networkTools.enabled = true;
-      mockedRustNetworkToolsClient.ping.mockRejectedValueOnce(
         new InternalServiceClientError("rust-network-tools timed out after 5000ms", {
           code: "timeout",
           serviceName: "rust-network-tools",
@@ -535,8 +497,6 @@ describe("NetworkService", () => {
     });
 
     it("启用Rust时应该优先调用network-tools网站测速", async () => {
-      config.rustServices.networkTools.enabled = true;
-      mockedRustNetworkToolsClient.speedTest.mockResolvedValueOnce({
         success: true,
         data: {
           url: "https://example.com/",
@@ -553,7 +513,6 @@ describe("NetworkService", () => {
 
       expect(result.success).toBe(true);
       expect(result.data.source).toBe("rust-network-tools");
-      expect(mockedRustNetworkToolsClient.speedTest).toHaveBeenCalledWith("https://example.com");
       expect(mockedAxios.get).not.toHaveBeenCalled();
     });
   });
@@ -581,8 +540,6 @@ describe("NetworkService", () => {
     });
 
     it("启用Rust时应该优先调用network-tools端口扫描", async () => {
-      config.rustServices.networkTools.enabled = true;
-      mockedRustNetworkToolsClient.portScan.mockResolvedValueOnce({
         success: true,
         data: {
           address: "example.com",
@@ -600,7 +557,6 @@ describe("NetworkService", () => {
 
       expect(result.success).toBe(true);
       expect(result.data.source).toBe("rust-network-tools");
-      expect(mockedRustNetworkToolsClient.portScan).toHaveBeenCalledWith("example.com");
       expect(mockedAxios.get).not.toHaveBeenCalled();
     });
   });

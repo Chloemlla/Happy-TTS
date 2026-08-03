@@ -50,7 +50,6 @@
     "profile:heap": "node scripts/profiling/run-node-with-profiling.js --heap",
     "profile:inspect": "node scripts/profiling/run-node-with-profiling.js --inspect",
     "profile:load": "node scripts/profiling/run-load-profile-report.js",
-    "benchmark:rust": "node scripts/run-rust-worker-benchmark.js",
     "check:ts-file-size": "node scripts/governance/check-ts-file-size.js",
     "check:frontend-bundle": "node scripts/governance/check-frontend-bundle.js",
     "check:privacy-contract": "node scripts/governance/check-privacy-contract.js",
@@ -80,7 +79,6 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@cathodique/mmap-io": "^1.5.5",
     "@fingerprintjs/fingerprintjs": "^5.2.0",
     "@simplewebauthn/browser": "^13.3.0",
     "@simplewebauthn/server": "^13.3.2",

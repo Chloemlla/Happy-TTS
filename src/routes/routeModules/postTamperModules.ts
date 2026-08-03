@@ -46,7 +46,6 @@ import nexaiSecurityRoutes from "../nexaiSecurityRoutes";
 import openapiJsonRoutes from "../openapiJsonRoutes";
 import passkeyRoutes from "../passkeyRoutes";
 import resourceRoutes from "../resourceRoutes";
-import rustBenchmarkRoutes from "../rustBenchmarkRoutes";
 import socialRoutes from "../socialRoutes";
 import webhookEventRoutes from "../webhookEventRoutes";
 import { assetLinksRoutes, faviconRoutes } from "../siteMetadataRoutes";
@@ -480,25 +479,6 @@ export const postTamperRouteModules: RouteModule[] = [
         "nexaiSecurityAdminLimiter",
       ],
       note: "NexAI security routes keep the mount limiter and add route-level createLimiter handlers for CodeQL-visible coverage on auth and admin endpoints.",
-    },
-  },
-  {
-    name: "rust-benchmark-routes",
-    path: "/api/rust-benchmark",
-    router: rustBenchmarkRoutes,
-    middlewares: [adminLimiter],
-    requiresAuth: true,
-    rateLimited: true,
-    isPublic: false,
-    authPolicy: {
-      mode: "router",
-      handlers: ["authenticateToken", "adminOnly"],
-      note: "Rust benchmark routes are guarded inside the router and are available only to administrators.",
-    },
-    rateLimitPolicy: {
-      mode: "mount",
-      limiters: ["adminLimiter"],
-      note: "Benchmark start, stop, and status endpoints share the admin limiter at mount time.",
     },
   },
   {

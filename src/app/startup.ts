@@ -5,7 +5,6 @@ import type { Express } from "express";
 import { compileTimeConfig, config, startupConfig } from "../config/config";
 import { runStartupDiagnostics } from "../config/startupDiagnostics";
 import { startApiKeyBillingReconciliation } from "../services/apiKeyBillingService";
-import { startEmbeddedRustServices } from "../services/embeddedRustServices";
 import { connectMongo } from "../services/mongoService";
 import { schedulerService } from "../services/schedulerService";
 import { serviceRegistry } from "../services/serviceRegistry";
@@ -149,7 +148,6 @@ export async function startServer(app: Express): Promise<void> {
     });
   }
 
-  await startEmbeddedRustServices();
   await checkStartupFilePermissions();
   await initializeStorage();
   // Never log the generation code value — only whether shared/anonymous TTS gate is configured.

@@ -1,6 +1,4 @@
 import crypto from "node:crypto";
-import { config } from "../config/config";
-import { InternalServiceClientError } from "../services/internalServiceClient";
 import { SmartHumanCheckService, type IssueResult, type SmartClientPayload } from "../services/smartHumanCheckService";
 
 const TEST_IP = "127.0.0.1";
@@ -126,8 +124,6 @@ describe("SmartHumanCheckService", () => {
     process.env.SMART_HUMAN_CHECK_ABUSE_WINDOW_MS = "60000";
     process.env.SMART_HUMAN_CHECK_ABUSE_THRESHOLD = "100";
     process.env.SMART_HUMAN_CHECK_BAN_MS = "60000";
-    config.rustServices.securityWorker.enabled = false;
-    config.rustServices.securityWorker.fallbackEnabled = true;
 
     service = new SmartHumanCheckService({
       secret: "test-secret-key-123",
@@ -329,7 +325,6 @@ describe("SmartHumanCheckService", () => {
     });
 
     it("should verify PoW through the Rust security-worker when enabled", async () => {
-      config.rustServices.securityWorker.enabled = true;
       const securityWorkerClient = {
         verifyPow: jest.fn().mockResolvedValue({
           valid: true,
@@ -363,7 +358,6 @@ describe("SmartHumanCheckService", () => {
     });
 
     it("should reject PoW when the Rust security-worker returns invalid", async () => {
-      config.rustServices.securityWorker.enabled = true;
       const securityWorkerClient = {
         verifyPow: jest.fn().mockResolvedValue({
           valid: false,
@@ -394,8 +388,6 @@ describe("SmartHumanCheckService", () => {
     });
 
     it("should fall back to local PoW verification when the Rust security-worker times out", async () => {
-      config.rustServices.securityWorker.enabled = true;
-      config.rustServices.securityWorker.fallbackEnabled = true;
       const securityWorkerClient = {
         verifyPow: jest.fn().mockRejectedValue(
           new InternalServiceClientError("rust-security-worker timed out after 5000ms", {

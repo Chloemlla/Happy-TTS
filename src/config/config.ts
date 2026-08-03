@@ -39,10 +39,6 @@ const stringToBoolean = z
     return undefined;
   });
 
-function defaultRustServicesEnabled(nodeEnv: string | undefined): boolean {
-  return nodeEnv === "production";
-}
-
 function parseCsv(value: string | undefined, fallback: string[]): string[] {
   if (!value) return fallback;
   const parsed = value
@@ -161,80 +157,6 @@ const envSchema = z
     LINUXDO_CREDIT_MAX_MONEY: z.coerce.number().positive().max(1_000_000).optional(),
     LINUXDO_CREDIT_NOTIFY_URL: z.string().url().optional(),
     LINUXDO_CREDIT_RETURN_URL: z.string().url().optional(),
-    RUST_IPC_ENABLED: stringToBoolean,
-    RUST_IPC_DIR: optionalTrimmedString,
-    RUST_IPC_CHANNEL_BYTES: z.coerce
-      .number()
-      .int()
-      .min(1024 * 1024)
-      .max(2 * 1024 * 1024 * 1024)
-      .optional()
-      .default(256 * 1024 * 1024),
-    RUST_NETWORK_TOOLS_ENABLED: stringToBoolean,
-    RUST_NETWORK_TOOLS_URL: z.string().url().optional().default("http://127.0.0.1:4010"),
-    RUST_NETWORK_TOOLS_TIMEOUT_MS: z.coerce.number().int().min(100).max(60000).optional().default(5000),
-    RUST_NETWORK_TOOLS_MAX_RESPONSE_BYTES: z.coerce
-      .number()
-      .int()
-      .min(1)
-      .max(10 * 1024 * 1024)
-      .optional()
-      .default(1024 * 1024),
-    RUST_NETWORK_TOOLS_FALLBACK_ENABLED: stringToBoolean,
-    RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS: stringToBoolean,
-    RUST_EMBEDDED_SERVICES_ENABLED: stringToBoolean,
-    RUST_NETWORK_TOOLS_BIN: optionalTrimmedString,
-    RUST_AUDIO_WORKER_BIN: optionalTrimmedString,
-    RUST_FILE_WORKER_BIN: optionalTrimmedString,
-    RUST_DATA_TOOLS_BIN: optionalTrimmedString,
-    RUST_SECURITY_WORKER_BIN: optionalTrimmedString,
-    RUST_AUDIO_WORKER_ENABLED: stringToBoolean,
-    RUST_AUDIO_WORKER_URL: z.string().url().optional().default("http://127.0.0.1:4020"),
-    RUST_AUDIO_WORKER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(300000).optional().default(30000),
-    RUST_AUDIO_WORKER_MAX_BYTES: z.coerce
-      .number()
-      .int()
-      .min(1)
-      .max(100 * 1024 * 1024)
-      .optional()
-      .default(20 * 1024 * 1024),
-    RUST_AUDIO_WORKER_OPERATIONS: z.string().optional(),
-    RUST_AUDIO_WORKER_FALLBACK_ENABLED: stringToBoolean,
-    RUST_FILE_WORKER_ENABLED: stringToBoolean,
-    RUST_FILE_WORKER_URL: z.string().url().optional().default("http://127.0.0.1:4030"),
-    RUST_FILE_WORKER_TIMEOUT_MS: z.coerce.number().int().min(1000).max(300000).optional().default(30000),
-    RUST_FILE_WORKER_MAX_BYTES: z.coerce
-      .number()
-      .int()
-      .min(1)
-      .max(500 * 1024 * 1024)
-      .optional()
-      .default(50 * 1024 * 1024),
-    RUST_FILE_WORKER_FALLBACK_ENABLED: stringToBoolean,
-    RUST_DATA_TOOLS_ENABLED: stringToBoolean,
-    RUST_DATA_TOOLS_URL: z.string().url().optional().default("http://127.0.0.1:4040"),
-    RUST_DATA_TOOLS_TIMEOUT_MS: z.coerce.number().int().min(1000).max(300000).optional().default(30000),
-    RUST_DATA_TOOLS_MAX_BYTES: z.coerce
-      .number()
-      .int()
-      .min(1)
-      .max(100 * 1024 * 1024)
-      .optional()
-      .default(20 * 1024 * 1024),
-    RUST_DATA_TOOLS_MAX_ITEMS: z.coerce.number().int().min(1).max(100000).optional().default(1024),
-    RUST_DATA_TOOLS_FALLBACK_ENABLED: stringToBoolean,
-    RUST_SECURITY_WORKER_ENABLED: stringToBoolean,
-    RUST_SECURITY_WORKER_URL: z.string().url().optional().default("http://127.0.0.1:4050"),
-    RUST_SECURITY_WORKER_TIMEOUT_MS: z.coerce.number().int().min(100).max(60000).optional().default(5000),
-    RUST_SECURITY_WORKER_MAX_TEXT_BYTES: z.coerce
-      .number()
-      .int()
-      .min(1)
-      .max(50 * 1024 * 1024)
-      .optional()
-      .default(2 * 1024 * 1024),
-    RUST_SECURITY_WORKER_MAX_RULES: z.coerce.number().int().min(1).max(100000).optional().default(2048),
-    RUST_SECURITY_WORKER_FALLBACK_ENABLED: stringToBoolean,
   })
   .superRefine((env, ctx) => {
     const generationCode = normalizeGenerationCode(env.GENERATION_CODE);
@@ -275,22 +197,6 @@ const adminOperationPassword = parsedEnv.ADMIN_OPERATION_PASSWORD || adminPasswo
 const serverPassword = parsedEnv.SERVER_PASSWORD || "";
 const publicShortUrlEnabled = parsedEnv.PUBLIC_SHORT_URL_ENABLED === true;
 const publicShortUrlPassword = parsedEnv.PUBLIC_SHORT_URL_PASSWORD;
-const rustServicesEnabledByDefault = defaultRustServicesEnabled(parsedEnv.NODE_ENV);
-const embeddedRustServicesEnabled = parsedEnv.RUST_EMBEDDED_SERVICES_ENABLED ?? rustServicesEnabledByDefault;
-const requestedRustServices = {
-  networkTools: parsedEnv.RUST_NETWORK_TOOLS_ENABLED ?? rustServicesEnabledByDefault,
-  audioWorker: parsedEnv.RUST_AUDIO_WORKER_ENABLED ?? rustServicesEnabledByDefault,
-  fileWorker: parsedEnv.RUST_FILE_WORKER_ENABLED ?? rustServicesEnabledByDefault,
-  dataTools: parsedEnv.RUST_DATA_TOOLS_ENABLED ?? rustServicesEnabledByDefault,
-  securityWorker: parsedEnv.RUST_SECURITY_WORKER_ENABLED ?? rustServicesEnabledByDefault,
-};
-const externalRustServicesRequested =
-  !embeddedRustServicesEnabled && Object.values(requestedRustServices).some(Boolean);
-const externalRustServicesConfigured = !externalRustServicesRequested || Boolean(parsedEnv.INTERNAL_SERVICE_TOKEN);
-const rustIpcEnabled = parsedEnv.RUST_IPC_ENABLED ?? embeddedRustServicesEnabled;
-const rustIpcDir = parsedEnv.RUST_IPC_DIR || path.join(process.cwd(), "data", "rust-ipc");
-const internalServiceToken =
-  parsedEnv.INTERNAL_SERVICE_TOKEN || (embeddedRustServicesEnabled ? generateEphemeralSecret() : "");
 const emailRuntimeDefaults: EmailRuntimeConfig = {
   enabled: Boolean(parsedEnv.RESEND_API_KEY),
   resendDomain: parsedEnv.RESEND_DOMAIN,
@@ -399,7 +305,6 @@ export const startupConfig = Object.freeze({
     adminOperationPassword: Boolean(parsedEnv.ADMIN_OPERATION_PASSWORD || parsedEnv.ADMIN_PASSWORD),
     serverPassword: Boolean(parsedEnv.SERVER_PASSWORD),
     passwordEncryptionKey: Boolean(process.env.PASSWORD_ENCRYPTION_KEY || process.env.AES_KEY || parsedEnv.JWT_SECRET),
-    internalServiceToken: Boolean(parsedEnv.INTERNAL_SERVICE_TOKEN),
   },
   jwtExpiresIn: parsedEnv.JWT_EXPIRES_IN,
   bcryptSaltRounds: 12,
@@ -460,64 +365,6 @@ export const startupConfig = Object.freeze({
     storageDestination: parsedEnv.IMAGE_BED_STORAGE_DESTINATION,
     outputFormat: parsedEnv.IMAGE_BED_OUTPUT_FORMAT,
   },
-  rustServices: {
-    internalToken: internalServiceToken,
-    externalServicesConfigured: externalRustServicesConfigured,
-    ipc: {
-      enabled: rustIpcEnabled,
-      dir: rustIpcDir,
-      channelBytes: parsedEnv.RUST_IPC_CHANNEL_BYTES,
-    },
-    embedded: {
-      enabled: embeddedRustServicesEnabled,
-      networkToolsBin: parsedEnv.RUST_NETWORK_TOOLS_BIN || "/usr/local/bin/network-tools",
-      audioWorkerBin: parsedEnv.RUST_AUDIO_WORKER_BIN || "/usr/local/bin/audio-worker",
-      fileWorkerBin: parsedEnv.RUST_FILE_WORKER_BIN || "/usr/local/bin/file-worker",
-      dataToolsBin: parsedEnv.RUST_DATA_TOOLS_BIN || "/usr/local/bin/data-tools",
-      securityWorkerBin: parsedEnv.RUST_SECURITY_WORKER_BIN || "/usr/local/bin/security-worker",
-      generatedInternalToken: !parsedEnv.INTERNAL_SERVICE_TOKEN && embeddedRustServicesEnabled,
-    },
-    networkTools: {
-      enabled: requestedRustServices.networkTools && externalRustServicesConfigured,
-      url: parsedEnv.RUST_NETWORK_TOOLS_URL,
-      timeoutMs: parsedEnv.RUST_NETWORK_TOOLS_TIMEOUT_MS,
-      maxResponseBytes: parsedEnv.RUST_NETWORK_TOOLS_MAX_RESPONSE_BYTES,
-      fallbackEnabled: parsedEnv.RUST_NETWORK_TOOLS_FALLBACK_ENABLED ?? true,
-      blockPrivateTargets: parsedEnv.RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS ?? true,
-    },
-    audioWorker: {
-      enabled: requestedRustServices.audioWorker && externalRustServicesConfigured,
-      url: parsedEnv.RUST_AUDIO_WORKER_URL,
-      timeoutMs: parsedEnv.RUST_AUDIO_WORKER_TIMEOUT_MS,
-      maxBytes: parsedEnv.RUST_AUDIO_WORKER_MAX_BYTES,
-      operations: parseCsv(parsedEnv.RUST_AUDIO_WORKER_OPERATIONS, ["passthrough", "analyze"]),
-      fallbackEnabled: parsedEnv.RUST_AUDIO_WORKER_FALLBACK_ENABLED ?? true,
-    },
-    fileWorker: {
-      enabled: requestedRustServices.fileWorker && externalRustServicesConfigured,
-      url: parsedEnv.RUST_FILE_WORKER_URL,
-      timeoutMs: parsedEnv.RUST_FILE_WORKER_TIMEOUT_MS,
-      maxBytes: parsedEnv.RUST_FILE_WORKER_MAX_BYTES,
-      fallbackEnabled: parsedEnv.RUST_FILE_WORKER_FALLBACK_ENABLED ?? true,
-    },
-    dataTools: {
-      enabled: requestedRustServices.dataTools && externalRustServicesConfigured,
-      url: parsedEnv.RUST_DATA_TOOLS_URL,
-      timeoutMs: parsedEnv.RUST_DATA_TOOLS_TIMEOUT_MS,
-      maxBytes: parsedEnv.RUST_DATA_TOOLS_MAX_BYTES,
-      maxItems: parsedEnv.RUST_DATA_TOOLS_MAX_ITEMS,
-      fallbackEnabled: parsedEnv.RUST_DATA_TOOLS_FALLBACK_ENABLED ?? true,
-    },
-    securityWorker: {
-      enabled: requestedRustServices.securityWorker && externalRustServicesConfigured,
-      url: parsedEnv.RUST_SECURITY_WORKER_URL,
-      timeoutMs: parsedEnv.RUST_SECURITY_WORKER_TIMEOUT_MS,
-      maxTextBytes: parsedEnv.RUST_SECURITY_WORKER_MAX_TEXT_BYTES,
-      maxRules: parsedEnv.RUST_SECURITY_WORKER_MAX_RULES,
-      fallbackEnabled: parsedEnv.RUST_SECURITY_WORKER_FALLBACK_ENABLED ?? true,
-    },
-  },
-});
 
 export const runtimeMutableConfig = {
   defaults: runtimeDefaults,
@@ -600,7 +447,6 @@ export const config = {
       password: adminSecurity.publicShortUrlPassword,
     };
   },
-  rustServices: startupConfig.rustServices,
   get ipqs() {
     return runtimeMutableConfig.ipqs;
   },

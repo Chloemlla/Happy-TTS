@@ -9,9 +9,6 @@ const mockStartupConfig = {
     passwordEncryptionKey: true,
     internalServiceToken: true,
   },
-  rustServices: {
-    externalServicesConfigured: true,
-  },
 };
 
 const mockRuntimeMutableConfig = {

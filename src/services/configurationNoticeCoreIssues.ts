@@ -116,16 +116,6 @@ export function appendCoreConfigurationIssues(issues: MissingConfigurationIssue[
     );
   }
 
-  if (!startupConfig.rustServices.externalServicesConfigured) {
-    issues.push(
-      createConfigurationIssue(
-        "rust-internal-service-token",
-        "外置 Rust 服务认证",
-        ["INTERNAL_SERVICE_TOKEN"],
-        "外置 Rust 能力已禁用并使用可用的 Node.js 降级路径",
-      ),
-    );
-  }
 
   appendMissingEnvironmentIssue(
     issues,
