@@ -1555,6 +1555,23 @@ docker-compose up -d
 - 支持 refreshToken 绑定的 NexAI 请求签名
 - 修复 NexAI TypeScript 构建错误（NodeNext 动态导入扩展名、签名中间件返回类型）
 
+### 2026-08
+
+#### 08-03
+- 彻底移除 Rust 微服务集成：删除 `rust-services/` 目录（含 audio-worker / data-tools / file-worker / network-tools / security-worker / ipc-runtime）及 `rust-toolchain.toml`
+- 清理所有 Rust 相关 CI 工作流（tsc.yml / codeql.yml / auto-merge.yml / dependabot-maintenance.yml）
+- 移除 `RustBenchmarkDashboard` 组件及其所有前端引用（路由、导航菜单、管理模块加载器、WebSocket 消息类型）
+- 移除 `internalServiceToken` 配置项及后端引用（startup diagnostics、wsService、legacyApiRedirect）
+- 修复 Tailwind CSS v4 构建问题：`@config` 改为内联语法 `@import "tailwindcss" config("...")`
+- 修复 Tailwind v3 `config()` 语法不兼容 Vite 7 lightningcss 的问题
+- 移除 sidebar logo 蓝色背景
+- 修复 Config.ts 和 smartHumanCheckService.ts 缺少闭合括号的 TS 错误
+- 修复 adminController 和 ipBanSyncService 的 TS 编译错误
+- 项目显示名称统一为 Synapse
+- 清理根目录：移动审计报告、脚本，更新 gitignore 规则
+- 删除 `test-data/`、`logs/`、`outputs/` 目录
+- 更新 README 项目结构
+
 ---
 
 ## 📝 许可证
@@ -1577,4 +1594,4 @@ docker-compose up -d
 
 ---
 
-**版本**: 1771430945717
+**版本**: 2026-08-03
