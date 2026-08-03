@@ -253,7 +253,7 @@ Synapse 是一个综合性 Web 应用平台，围绕文本转语音核心功能�
 | 模块 | 说明 |
 |------|------|
 | LibreChat 集成 | LibreChat 镜像版本监控与数据同步 |
-| Cloudflare Worker | 可选的边缘计算部署分发包（`worker.zip`） |
+| Cloudflare Worker | 可选的边缘计算部署分发包 |
 | IPFS 集成 | 分布式文件存储上传 |
 | Svix Webhook | 企业级 Webhook 事件分发 |
 | Resend 邮件 | 现代邮件发送 API 集成 |
@@ -417,18 +417,21 @@ Synapse/
 │   └── package.json
 │
 ├── data/                             # 运行时数据目录
-│   ├── users.json                    # 历史文件存储数据（不再作为用户存储模式）
 │   ├── blocked-ips.json              # IP 封禁列表
 │   ├── chat_history.json             # 聊天历史
 │   ├── logs/                         # 应用日志
 │   ├── exports/                      # 数据导出文件
-│   └── sharelogs/                    # 分享日志
+│   ├── sharelogs/                    # 分享日志
+│   ├── poetry/                       # 诗词文库
+│   └── ...
 │
+├── docs/                             # 文档
+│   ├── audit/                       # 审计报告与代码审查
+│   └── ...
 ├── scripts/                          # 运维脚本（40+ 个）
-├── secrets/                          # 签名密钥
+├── secrets/                          # 签名密钥与服务凭证
 ├── Dockerfile                        # 多阶段 Docker 构建
 ├── docker-compose.yml                # Docker Compose 编排
-├── worker.zip                        # Cloudflare Worker 分发包（可选）
 ├── package.json                      # 后端依赖与脚本
 ├── tsconfig.json                     # TypeScript 配置
 ├── jest.config.js                    # Jest 测试配置
@@ -1133,15 +1136,7 @@ RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS=true
 ### Cloudflare Worker 部署（可选）
 
 > [!NOTE]
-> Cloudflare Worker 为可选的边缘部署方案，当前仓库提供 `worker.zip` 分发包。解压后按其中的 Wrangler 配置部署。
-
-```bash
-Expand-Archive .\worker.zip -DestinationPath .\worker
-cd worker
-npm install
-npx wrangler dev     # 本地开发
-npx wrangler deploy  # 部署到 Cloudflare
-```
+> Cloudflare Worker 为可选的边缘部署方案，不提供预构建分发包。如需部署，请参考仓库中的 `frontend/` 构建产物自行配置 Wrangler。
 
 ---
 
