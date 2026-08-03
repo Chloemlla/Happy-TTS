@@ -27,6 +27,7 @@ import {
   FaShareAlt,
   FaShieldAlt,
   FaStore,
+  FaTerminal,
   FaUser,
   FaUserShield,
   FaVolumeUp,
@@ -320,6 +321,11 @@ export function getAdminNavGroups(): NavGroup[] {
           icon: FaShieldAlt as IconType,
         },
         {
+          title: 'EcoEnchants 远程运维',
+          url: '/admin/ecoenchants-ops',
+          icon: FaTerminal as IconType,
+        },
+        {
           title: 'Webhook 事件',
           url: '/admin/webhookevents',
           icon: FaExchangeAlt as IconType,
@@ -472,6 +478,7 @@ export const ADMIN_TAB_TO_PATH: Record<string, string> = {
   'registration-invites': '/admin/registration-invites',
   librechat: '/admin/librechat',
   ecoenchants: '/admin/ecoenchants',
+  'ecoenchants-ops': '/admin/ecoenchants-ops',
   announcement: '/admin/announcement',
   'markdown-articles': '/admin/markdown-articles',
   env: '/admin/env',

@@ -38,6 +38,7 @@ export const ADMIN_MODULE_LOADERS = {
   'registration-invites': () => import('@/components/RegistrationInviteManager'),
   librechat: () => import('@/components/LibreChatAdminPage'),
   ecoenchants: () => import('@/components/EcoEnchantsAdminPage'),
+  'ecoenchants-ops': () => import('@/components/EcoEnchantsOpsPanel'),
   announcement: () => import('@/components/AnnouncementManager'),
   'markdown-articles': () => import('@/components/MarkdownArticleManager'),
   env: () => import('@/components/EnvManager'),
