@@ -1761,7 +1761,7 @@ export const adminController = {
   async getBilibiliSyncRecords(req: Request, res: Response) {
     try {
       if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
-      const { BilibiliSyncModel } = await import("../models/bilibiliSyncModel");
+      const { BilibiliSyncModel } = await import("../models/bilibiliSyncModel.js");
       const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
       const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string, 10) || 20));
       const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
