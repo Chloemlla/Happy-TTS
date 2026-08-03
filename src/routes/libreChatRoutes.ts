@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { authenticateAdmin } from "../middleware/auth";
 import { optionalAuthenticateToken } from "../middleware/optionalAuthenticateToken";
+import { libreChatLimiter } from "../middleware/routeLimiters";
 import { libreChatService } from "../services/libreChatService";
 import { toChatMessagesView } from "../services/librechat/diagnostics";
 import { mongoose } from "../services/mongoService";
@@ -20,7 +21,7 @@ const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 
-router.use(optionalAuthenticateToken);
+router.use(optionalAuthenticateToken, libreChatLimiter);
 
 function sendLibreChatError(
   res: Response,

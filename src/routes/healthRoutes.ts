@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { getStartupDiagnosticsReport } from "../config/startupDiagnostics";
 import { authenticateToken } from "../middleware/authenticateToken";
-import { createLimiter } from "../middleware/routeLimiters";
+import { adminLimiter, createLimiter } from "../middleware/routeLimiters";
 import {
   getMissingConfigurationIssues,
   notifyAdminsForFrontendVisit,
@@ -87,7 +87,7 @@ router.post("/frontend-visit", frontendVisitLimiter, async (_req, res) => {
   }
 });
 
-router.get("/configuration-notice", authenticateToken, async (req, res) => {
+router.get("/configuration-notice", authenticateToken, adminLimiter, async (req, res) => {
   const user = (req as { user?: { role?: string } }).user;
   if (!user || user.role !== "admin") {
     return res.status(403).json({ error: "需要管理员权限" });
@@ -105,7 +105,7 @@ router.get("/configuration-notice", authenticateToken, async (req, res) => {
 });
 
 // Detailed diagnostics require an authenticated admin session.
-router.get("/details", authenticateToken, async (req, res) => {
+router.get("/details", authenticateToken, adminLimiter, async (req, res) => {
   const user = (req as { user?: { role?: string } }).user;
   if (!user || user.role !== "admin") {
     return res.status(403).json({ error: "需要管理员权限" });

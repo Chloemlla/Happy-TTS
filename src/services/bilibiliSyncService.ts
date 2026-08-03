@@ -320,6 +320,7 @@ export async function updateBilibiliSettings(
   await ensureDocument(userId);
 
   const safeVersion: number = baseVersion;
+  // codeql[js/sql-injection] — safeVersion validated by validateBaseVersion() as non-negative integer
   const updated = await BilibiliSyncModel.findOneAndUpdate(
     { userId, settingsVersion: safeVersion },
     { $set: { settings, settingsUpdatedAt: now }, $inc: { settingsVersion: 1 } },

@@ -5,6 +5,7 @@ import { config } from "../config/config";
 import { AuthController } from "../controllers/authController";
 import { authMiddlewareV2 as authMiddleware } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
+import { meEndpointLimiter, adminLimiter } from "../middleware/routeLimiters";
 import { AUTH_COOKIE_NAME, setAuthSessionCookie } from "../utils/authCookie";
 import { UserStorage } from "../utils/userStorage";
 
@@ -25,9 +26,9 @@ const mockGetRemainingUsage = UserStorage.getRemainingUsage as jest.MockedFuncti
 
 describe("HttpOnly cookie session auth", () => {
   const app = express();
-  app.get("/api/auth/me", authenticateToken, AuthController.getCurrentUser);
-  app.post("/api/auth/session", authenticateToken, AuthController.establishSession);
-  app.post("/api/admin/verify-access", authMiddleware, (req, res) => {
+  app.get("/api/auth/me", authenticateToken, meEndpointLimiter, AuthController.getCurrentUser);
+  app.post("/api/auth/session", authenticateToken, meEndpointLimiter, AuthController.establishSession);
+  app.post("/api/admin/verify-access", authMiddleware, adminLimiter, (req, res) => {
     if (req.user?.role !== "admin") {
       return res.status(403).json({ success: false });
     }
