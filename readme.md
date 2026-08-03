@@ -605,7 +605,6 @@ RESEND_QUOTA_TOTAL=100             # 每日配额（默认 100）
 OUTEMAIL_ENABLED=true              # 启用对外邮件 API
 OUTEMAIL_DOMAIN=example.com        # 对外邮件域名
 OUTEMAIL_API_KEY=re_xxx            # 对外邮件 API 密钥
-OUTEMAIL_CODE=                     # 对外邮件兼容验证码
 OUTEMAIL_QUOTA_TOTAL=100           # 对外邮件每日配额（默认 100）
 
 # ==================== Cloudflare Turnstile ====================

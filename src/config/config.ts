@@ -133,7 +133,6 @@ const envSchema = z
     RESEND_DOMAIN_OUT: optionalTrimmedString,
     OUTEMAIL_API_KEY: optionalTrimmedString,
     RESEND_API_OUT: optionalTrimmedString,
-    OUTEMAIL_CODE: z.string().optional().default(""),
     // ============================================
     // IPFS / ImageBed 上传相关配置
     // 这些键同时支持 MongoDB shorturl_settings 动态覆盖；
@@ -303,7 +302,6 @@ const emailRuntimeDefaults: EmailRuntimeConfig = {
     parsedEnv.RESEND_OUTEMAIL_ENABLED === true,
   outemailDomain: parsedEnv.OUTEMAIL_DOMAIN || parsedEnv.RESEND_DOMAIN_OUT || parsedEnv.RESEND_DOMAIN,
   outemailApiKey: parsedEnv.OUTEMAIL_API_KEY || parsedEnv.RESEND_API_OUT || parsedEnv.RESEND_API_KEY || "",
-  outemailCode: parsedEnv.OUTEMAIL_CODE,
   outemailQuotaTotal: Number(process.env.OUTEMAIL_QUOTA_TOTAL || process.env.RESEND_QUOTA_TOTAL) || 100,
 };
 
@@ -438,7 +436,6 @@ export const startupConfig = Object.freeze({
         parsedEnv.RESEND_OUTEMAIL_ENABLED === true,
       domain: parsedEnv.OUTEMAIL_DOMAIN || parsedEnv.RESEND_DOMAIN_OUT || parsedEnv.RESEND_DOMAIN,
       apiKey: parsedEnv.OUTEMAIL_API_KEY || parsedEnv.RESEND_API_OUT || parsedEnv.RESEND_API_KEY,
-      code: parsedEnv.OUTEMAIL_CODE,
     },
   },
   serverPassword,

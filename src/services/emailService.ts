@@ -252,7 +252,7 @@ export function getOutEmailQuotaTotal(): number {
 }
 
 export function getOutEmailCodeFallback(): string {
-  return getEmailRuntimeConfig().outemailCode || process.env.OUTEMAIL_CODE || "";
+  return getEmailRuntimeConfig().outemailCode || "";
 }
 
 export function getOutEmailServiceStatus(): { available: boolean; error?: string; domain?: string } {
