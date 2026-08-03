@@ -129,15 +129,11 @@ const GitHubBillingDashboard: React.FC = () => {
     }
 
     if (isFirstVisitVerificationEnabled()) {
-      // 尝试获取浏览器指纹和访问令牌，有则携带，无则跳过
+      // 尝试获取浏览器指纹，有则携带，无则跳过
       try {
         const fingerprint = await getFingerprint();
         if (fingerprint) {
           headers['X-Fingerprint'] = fingerprint;
-          const turnstileToken = getAccessToken(fingerprint);
-          if (turnstileToken) {
-            headers['Authorization'] = `Bearer ${turnstileToken}`;
-          }
         }
       } catch {
         // 获取失败不阻塞请求
