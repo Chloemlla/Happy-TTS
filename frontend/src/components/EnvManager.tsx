@@ -79,6 +79,7 @@ import {
   FaList,
   FaSync,
   FaInfoCircle,
+  FaCheckCircle,
   FaChevronDown,
 } from 'react-icons/fa';
 
@@ -284,8 +285,9 @@ const EnvManager: React.FC = () => {
       });
       const payload: unknown = await response.json().catch(() => null);
       if (!response.ok || !payload || typeof payload !== 'object' || Array.isArray(payload)) return;
-      const issues = Array.isArray((payload as Record<string, unknown>).issues)
-        ? (payload as Record<string, unknown>).issues.filter(isConfigurationNoticeIssue)
+      const rawIssues = (payload as Record<string, unknown>).issues;
+      const issues = Array.isArray(rawIssues)
+        ? rawIssues.filter(isConfigurationNoticeIssue)
         : [];
       setConfigurationIssues(issues);
       setConfigurationStatusFetched(true);
