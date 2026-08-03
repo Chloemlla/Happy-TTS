@@ -86,9 +86,13 @@ an imported UID.
 
 ## Contract tests
 
-PiliPlus completes the Synapse login page in an embedded WebView and reads
-the HttpOnly `synapse_token` cookie after authorization; no JWT paste field is
-required. `tests/bilibili-settings-sync-contract.test.js` checks login gating, cookie
+PiliPlus authenticates via the OAuth 2.0 authorization code flow with PKCE (S256).
+The `piliplus` public client is built into the OAuth service. The authorization
+request is handled by Synapse-Client (Android) as an OAuth authorization
+intermediary, or directly via the web OAuth flow. After authorization, PiliPlus
+exchanges the code for an access token at `POST /api/oauth/token` and uses it
+to call the Bilibili sync API. No JWT paste field is required.
+`tests/bilibili-settings-sync-contract.test.js` checks login gating, cookie
 validity and UID equality, cookie-free serialization/response/conflict
 metadata, and ciphertext-only archive metadata. Service-level tests cover
 revalidation, unbind cleanup, version conflicts, deduplication, and
