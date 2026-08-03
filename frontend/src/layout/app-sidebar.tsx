@@ -62,7 +62,7 @@ export function AppSidebar({
                 )}
                 render={<Link to='/' />}
               >
-                <span className='bg-primary text-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-xl shadow-sm ring-1 ring-black/5'>
+                <span className='flex size-8 shrink-0 items-center justify-center'>
                   <img
                     src='/favicon.ico'
                     alt=''
