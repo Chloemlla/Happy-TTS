@@ -532,76 +532,195 @@ Docker 镜像采用 3 阶段构建：
 > [!CAUTION]
 > `.env` 文件包含 API 密钥、数据库凭证等敏感信息，**绝对不要**将其提交到版本控制系统。请确保 `.env` 已添加到 `.gitignore` 中。
 
+### 首次部署必读
+
+首次部署时，以下变量**必须正确配置**，否则应用会拒绝启动或关键功能不可用：
+
+| 变量 | 必须 | 说明 |
+|------|------|------|
+| `MONGO_URI` 或 `MONGODB_URI` | **是** | MongoDB 连接串，缺少时应用启动报错 |
+| `JWT_SECRET` | **生产环境是** | 缺少时自动生成临时密钥，进程重启后所有已签发的 JWT 失效 |
+| `ADMIN_PASSWORD` | **生产环境是** | 缺少时管理员无法登录；开发环境默认 `admin` |
+| `OPENAI_API_KEY` 或 `OPENAI_KEY` | **TTS 功能是** | TTS 核心功能依赖 |
+
 ### 后端环境变量（`.env`）
 
 ```env
-# ========== 服务器配置 ==========
-NODE_ENV=development              # 运行环境: development | production
-PORT=3000                         # 后端端口
-TZ=Asia/Shanghai                  # 时区
+# ==================== 服务器基础 ====================
+NODE_ENV=development               # 运行环境: development | production | test
+PORT=3000                          # 后端监听端口（默认 3000）
+TZ=Asia/Shanghai                   # 时区（默认 Asia/Shanghai）
+BASE_URL=                          # 公开访问地址，用于 OIDC Discovery 端点
+FRONTEND_URL=                      # 前端地址，BASE_URL 的备选
+TRUST_PROXY=                       # 反向代理信任层级（如 "1" 或 "loopback"）
 
-# ========== OpenAI 配置 ==========
-OPENAI_API_KEY=sk-xxx             # OpenAI API 密钥
-OPENAI_BASE_URL=https://api.openai.com/v1  # OpenAI API 地址（支持自定义代理）
-
-# ========== 数据库配置 ==========
-USER_STORAGE_MODE=mongo           # 用户存储模式，仅允许 mongo
+# ==================== 数据库（必须） ====================
 MONGO_URI=mongodb://user:pass@host:27017/tts?authSource=admin
-MONGODB_URI=                      # 可选别名，MONGO_URI 未设置时生效
-MONGO_DB=tts                      # 连接串未指定 database 时自动补全
-MONGO_PROXY_URL=                  # 可选代理地址，支持 socks/http agent
+MONGODB_URI=                       # MONGO_URI 的别名，两者选一
+MONGO_DB=tts                       # 连接串未指定 database 时自动补全的库名
+MONGO_PROXY_URL=                   # 可选 socks/http 代理地址
 
-# ========== Redis 配置（可选） ==========
-REDIS_URL=redis://localhost:6379
+# ==================== Redis（强烈推荐） ====================
+REDIS_URL=redis://localhost:6379   # 启用后：IP 封禁存 Redis、限流更高效、缓存加速
 
-# ========== 认证配置 ==========
-JWT_SECRET=your-jwt-secret        # JWT 签名密钥
-JWT_EXPIRES_IN=30d                # 登录 JWT 有效期，例如 30d、12h、90m
-ADMIN_USERNAME=admin              # 管理员用户名
-ADMIN_PASSWORD=admin              # 管理员密码
-SERVER_PASSWORD=1145              # 服务器状态查询密码
-GENERATION_CODE=happyclo          # 注册生成码
-SMART_HUMAN_CHECK_SECRET=change-me-to-a-long-random-secret  # SmartHumanCheck v2 主密钥（必填，至少 16 字符）
+# ==================== 认证与安全（必须） ====================
+JWT_SECRET=your-jwt-secret         # JWT 签名密钥，生产环境必填（不填则每次重启随机生成）
+JWT_EXPIRES_IN=30d                 # JWT 有效期（默认 30d，支持 30d/12h/90m）
+ADMIN_USERNAME=admin               # 管理员用户名（默认 admin）
+ADMIN_PASSWORD=admin               # 管理员密码，生产环境必填
+ADMIN_OPERATION_PASSWORD=          # 管理操作密码（可选，不填时与 ADMIN_PASSWORD 相同）
+SERVER_PASSWORD=1145               # 服务器状态查询接口 POST /server_status 密码
+SIGN_SECRET_KEY=                   # 签名密钥（用于 Short URL 等签名）
+AES_KEY=                           # AES 加密密钥（用于敏感数据加密，缺省时使用 JWT_SECRET）
+GENERATION_CODE=                   # 注册生成码（不填则注册功能受限）
 
-# ========== WebAuthn/Passkey 配置 ==========
-RP_ID=localhost                   # Relying Party ID（域名）
-RP_ORIGIN=http://localhost:3001   # Relying Party Origin
+# ==================== TTS 核心功能 ====================
+# OpenAI TTS（至少配置一个 Key）
+OPENAI_API_KEY=sk-xxx              # OpenAI API 密钥
+OPENAI_KEY=                        # 别名，OPENAI_API_KEY 未设置时生效
+OPENAI_BASE_URL=https://api.openai.com/v1  # OpenAI API 地址，支持自定义代理
+OPENAI_MODEL=tts-1                 # TTS 模型（默认 tts-1）
+OPENAI_VOICE=alloy                 # 默认语音（默认 alloy）
+OPENAI_RESPONSE_FORMAT=mp3         # 输出格式（默认 mp3）
+OPENAI_SPEED=1.0                   # 语速（默认 1.0）
 
-# ========== 邮件服务 ==========
-RESEND_API_KEY=re_xxx             # Resend API 密钥
-RESEND_DOMAIN=example.com         # 发件域名
-EMAIL_USER=noreply@example.com    # 发件人地址
+# Fish Audio TTS（可选，替代 OpenAI TTS）
+TTS_PROVIDER=                      # 默认 TTS 提供商（留空 = OpenAI）
+FISH_AUDIO_API_KEY=                # Fish Audio API 密钥
+FISH_AUDIO_BASE_URL=               # Fish Audio API 地址
+FISH_AUDIO_REFERENCE_ID=           # Fish Audio 音色参考 ID
+FISH_AUDIO_MODEL=                  # Fish Audio 模型
 
-# ========== 外部邮件服务 ==========
-OUTEMAIL_ENABLED=true             # 是否启用对外邮件
-OUTEMAIL_CODE=art                 # 外部邮件验证码
-OUTEMAIL_DOMAIN=example.com       # 外部邮件域名
-OUTEMAIL_API_KEY=re_xxx           # 外部邮件 API 密钥
+# ==================== WebAuthn / Passkey ====================
+RP_ID=localhost                    # Relying Party ID（域名，必须与访问域名一致）
+RP_ORIGIN=http://localhost:3001    # Relying Party Origin（完整 URL）
+RP_ORIGIN_MODE=                    # Origin 模式（前端框架专用）
+WEBAUTHN_RP_ID=                    # 备选，与 RP_ID 相同用途
+WEBAUTHN_EXPECTED_ORIGIN=          # 备选，与 RP_ORIGIN 相同用途
 
-# ========== Cloudflare Turnstile ==========
-TURNSTILE_SITE_KEY=0x4xxx         # Turnstile 站点密钥
-TURNSTILE_SECRET_KEY=0x4xxx       # Turnstile 服务端密钥
-CLOUDFLARE_TURNSTILE_SITE_KEY=0x4xxx
-CLOUDFLARE_TURNSTILE_SECRET_KEY=0x4xxx
+# ==================== 邮件服务（Resend） ====================
+RESEND_API_KEY=re_xxx              # Resend API 密钥（内部邮件）
+RESEND_DOMAIN=example.com          # 发件域名
+RESEND_QUOTA_TOTAL=100             # 每日配额（默认 100）
+OUTEMAIL_ENABLED=true              # 启用对外邮件 API
+OUTEMAIL_DOMAIN=example.com        # 对外邮件域名
+OUTEMAIL_API_KEY=re_xxx            # 对外邮件 API 密钥
+OUTEMAIL_CODE=                     # 对外邮件兼容验证码
+OUTEMAIL_QUOTA_TOTAL=100           # 对外邮件每日配额（默认 100）
 
-# ========== 安全配置 ==========
-AES_KEY=your-aes-key              # AES 加密密钥
-SIGNING_KEY=secrets/signing_key.pem  # 签名密钥路径
-LOCAL_IPS=127.0.0.1,::1           # 本地 IP 白名单
-WAF_ENABLED=true                  # WAF 开关（设为 false 可禁用）
+# ==================== Cloudflare Turnstile ====================
+TURNSTILE_SITE_KEY=0x4xxx          # Turnstile 站点密钥
+TURNSTILE_SECRET_KEY=0x4xxx        # Turnstile 服务端密钥
+TURNSTILE_DEV_AUTO_PASS=           # 开发模式自动通过验证（true/false）
+TURNSTILE_DEV_AUTO_ACCESS=         # 开发模式自动放行（true/false）
 
-# ========== LibreChat 集成 ==========
-CHAT_BASE_URL=https://chat.example.com
-CHAT_API_KEY=sk-xxx
+# ==================== 安全防护 ====================
+WAF_ENABLED=true                   # WAF Web 应用防火墙（默认 true）
+SMART_HUMAN_CHECK_SECRET=change-me  # 智能人机验证主密钥（至少 16 字符）
+SMART_HUMAN_CHECK_DEFAULT_ACTION=  # 默认动作（allow / deny / pow）
+SMART_HUMAN_CHECK_POW_DIFFICULTY=  # PoW 难度（默认值 50000）
+ENABLE_FIRST_VISIT_VERIFICATION=   # 首次访问验证（默认 true）
+AUDIT_LOG_MASKING=                 # 审计日志脱敏（默认 true）
+EXEMPTED_DOMAINS=                  # 豁免域名列表（逗号分隔）
+INTERNAL_DOMAINS=                  # 内部域名列表（逗号分隔）
+ALLOWED_ORIGINS=                   # 额外允许的 CORS 域名（逗号分隔）
+IP_WHITELIST=                      # IP 白名单（逗号分隔）
 
-# ========== Webhook ==========
-WEBHOOK_SECRET=whsec_xxx          # Svix Webhook 密钥
+# ==================== Google / OAuth 登录 ====================
+GOOGLE_CLIENT_ID=                  # Google Identity Services 客户端 ID
+NEXAI_GOOGLE_CLIENT_ID=            # NexAI Google 登录客户端 ID
+NEXAI_GITHUB_CLIENT_ID=            # NexAI GitHub 登录客户端 ID
+NEXAI_GITHUB_CLIENT_SECRET=        # NexAI GitHub 登录客户端 Secret
+NEXAI_FRONTEND_URL=                # NexAI 前端地址
+NEXAI_WEBAUTHN_RP_ID=              # NexAI WebAuthn 域名
+NEXAI_WEBAUTHN_ALLOWED_ORIGINS=    # NexAI WebAuthn 允许来源
+NEXAI_WEBAUTHN_EXPECTED_ORIGINS=   # NexAI WebAuthn 期望来源
 
-# ========== 抽奖系统 ==========
-LOTTERY_STORAGE=mongo             # 抽奖数据存储: mongo | file
+# ==================== LINUX DO 集成 ====================
+# OAuth 登录
+LINUXDO_CLIENT_ID=                 # LinuxDo OAuth Client ID
+LINUXDO_CLIENT_SECRET=             # LinuxDo OAuth Client Secret
+# Credit 积分支付
+LINUXDO_CREDIT_ENABLED=            # 启用积分支付
+LINUXDO_CREDIT_PID=                # 商户 PID
+LINUXDO_CREDIT_KEY=                # 商户密钥
+LINUXDO_CREDIT_PROTOCOL=epay       # 协议（epay / ldc）
+LINUXDO_CREDIT_GATEWAY_BASE=       # 网关地址
+LINUXDO_CREDIT_PRIVATE_KEY=        # 私钥
+LINUXDO_CREDIT_RATE=               # 汇率
+LINUXDO_CREDIT_MAX_MONEY=          # 单笔最大金额
+LINUXDO_CREDIT_NOTIFY_URL=         # 异步通知 URL
+LINUXDO_CREDIT_RETURN_URL=         # 同步跳转 URL
+
+# ==================== LibreChat 集成 ====================
+CHAT_BASE_URL=https://chat.example.com  # LibreChat 地址
+CHAT_API_KEY=sk-xxx                    # LibreChat API 密钥
+CHAT_MODEL=                            # 默认模型
+
+# ==================== 内容安全（可选） ====================
+CONTENT_SAFETY_ENABLED=            # 启用内容安全过滤
+CONTENT_FILTER_API_URL=            # 内容过滤 API 地址
+SKIP_CONTENT_FILTER=               # 跳过内容过滤
+DISABLE_SENSITIVE_FILTER=          # 禁用敏感词过滤
+
+# ==================== 网络工具（Rust） ====================
+RUST_NETWORK_TOOLS_ENABLED=        # 启用 Rust 网络工具（生产环境默认 true）
+RUST_NETWORK_TOOLS_URL=            # 网络工具地址（默认 http://127.0.0.1:4010）
+RUST_NETWORK_TOOLS_BIN=            # 网络工具二进制路径
+RUST_EMBEDDED_SERVICES_ENABLED=    # 启用嵌入式 Rust 服务（生产环境默认 true）
+INTERNAL_SERVICE_TOKEN=            # 内部服务通信令牌（外部 Rust 服务时必填）
+
+# ==================== 音频处理（Rust Worker） ====================
+RUST_AUDIO_WORKER_ENABLED=         # 启用 Rust 音频处理（生产环境默认 true）
+RUST_AUDIO_WORKER_URL=             # 音频 Worker 地址（默认 http://127.0.0.1:4020）
+RUST_AUDIO_WORKER_BIN=             # 音频 Worker 二进制路径
+
+# ==================== 文件处理（Rust Worker） ====================
+RUST_FILE_WORKER_ENABLED=          # 启用 Rust 文件处理
+RUST_FILE_WORKER_URL=              # 文件 Worker 地址（默认 http://127.0.0.1:4030）
+RUST_FILE_WORKER_BIN=              # 文件 Worker 二进制路径
+
+# ==================== 数据分析（Rust Worker） ====================
+RUST_DATA_TOOLS_ENABLED=           # 启用 Rust 数据分析
+RUST_DATA_TOOLS_URL=               # 数据工具地址（默认 http://127.0.0.1:4040）
+RUST_DATA_TOOLS_BIN=               # 数据工具二进制路径
+
+# ==================== 安全检测（Rust Worker） ====================
+RUST_SECURITY_WORKER_ENABLED=      # 启用 Rust 安全检测
+RUST_SECURITY_WORKER_URL=          # 安全 Worker 地址（默认 http://127.0.0.1:4050）
+RUST_SECURITY_WORKER_BIN=          # 安全 Worker 二进制路径
+
+# ==================== 图床上传 ====================
+IPFS_UPLOAD_URL=                   # IPFS 上传地址
+IPFS_UA=                           # IPFS 请求 User-Agent
+IPFS_ALLOW_ALL_FILE_TYPES=         # 允许所有文件类型
+IMAGE_BED_API_URL=                 # 图床 API 地址（默认 https://img.scdn.io/api/v1.php）
+IMAGE_BED_CDN_DOMAIN=              # 图床 CDN 域名
+IMAGE_BED_STORAGE_DESTINATION=     # 存储目标（local / telegram / r2）
+
+# ==================== 其他 ====================
+TTS_REQUIRE_POLICY_CONSENT=        # TTS 使用前需要同意政策（true/false）
+TTS_DOWNLOADS_ENABLED=             # 启用 TTS 下载（true/false）
+TTS_ASSET_SHARE_ENABLED=           # 启用 TTS 资产分享（true/false）
+TTS_PUBLIC_STATIC_AUDIO_ENABLED=   # 启用公共静态音频访问（true/false）
+TTS_QUEUE_CONCURRENCY=             # TTS 队列并发数
+REGISTRATION_INVITE_REQUIRED=      # 注册需要邀请码（true/false）
+ACCESS_LOG_ENABLED=                # 启用访问日志（true/false）
+VERBOSE_LOGGING=                   # 详细日志模式（true/false）
+POLICY_VERSION=                    # 当前政策版本号
+POLICY_CONSENT_VALIDITY_DAYS=      # 政策同意有效期（天）
+POLICY_SECRET_SALT=                # 政策签名盐值
+SERVE_FRONTEND=                    # 是否由后端托管前端静态文件（默认 true）
+FRONTEND_DIST_DIR=                 # 前端构建产物目录（默认 frontend/dist）
+OPENAPI_JSON_PATH=                 # OpenAPI JSON 输出路径（默认 openapi.json）
+VITE_API_URL=                      # 前端 API 地址（BASE_URL 未设置时作为后备）
+PUBLIC_SHORT_URL_ENABLED=          # 启用公共短链接（true/false）
+PUBLIC_SHORT_URL_PASSWORD=         # 公共短链接创建密码
 ```
 
 ### 前端环境变量（`frontend/.env`）
+
+前端编译时注入，构建后无法修改，需在构建前正确配置。
 
 ```env
 VITE_API_URL=http://localhost:3000              # 后端 API 地址
@@ -611,6 +730,48 @@ VITE_CLOUDFLARE_TURNSTILE_SITE_KEY=0x4xxx       # Turnstile 站点密钥
 VITE_ENABLE_TURNSTILE=false                     # 是否启用 Turnstile
 VITE_OUTEMAIL_ENABLED=true                      # 是否启用外部邮件功能
 ```
+
+### 运行时可变配置
+
+以下配置可通过管理后台动态修改，无需重启进程：
+
+| 配置项 | 管理后台路径 | 说明 |
+|--------|------------|------|
+| IPQS | 管理后台 → IPQS | IP 质量评分配置 |
+| LINUXDO | 管理后台 → LinuxDo | LinuxDo OAuth 配置 |
+| GOOGLE_AUTH | 管理后台 → Google Auth | Google 认证配置 |
+| DEEPLX | 管理后台 → DeepLX | DeepLX 翻译配置 |
+| NEXAI | 管理后台 → NexAI | NexAI 平台配置 |
+| NEXAI_SIGNING | 管理后台 → NexAI Signing | NexAI 请求签名配置 |
+| TTS | 管理后台 → TTS | TTS 服务配置（模型、队列、配额等） |
+| TTS_PROVIDER | 管理后台 → TTS Provider | TTS 提供商配置（Fish Audio 等） |
+| EMAIL | 管理后台 → Email | 邮件服务配置 |
+| ADMIN_SECURITY | 管理后台 → Admin Security | 管理后台安全配置 |
+| SYNAPSE_ANDROID | 管理后台 → Android | Android 应用配置 |
+
+### 快速部署清单
+
+首次部署到生产环境时，请逐一确认以下配置：
+
+```
+[ ] MONGO_URI / MONGODB_URI      — MongoDB 已就绪
+[ ] JWT_SECRET                    — 已设置（32+ 字符随机字符串）
+[ ] ADMIN_PASSWORD                — 已设置强密码
+[ ] OPENAI_API_KEY / OPENAI_KEY   — TTS 功能需要
+[ ] RP_ID + RP_ORIGIN             — WebAuthn 域名正确
+[ ] TURNSTILE_SITE_KEY + SECRET   — 人机验证
+[ ] RESEND_API_KEY + DOMAIN       — 邮件发送
+[ ] BASE_URL 或 FRONTEND_URL      — OAuth 回调正确
+[ ] WAF_ENABLED=true              — 安全防护开启
+[ ] SMART_HUMAN_CHECK_SECRET      — 人机验证密钥
+[ ] NODE_ENV=production           — 生产模式
+[ ] 所有密码已修改（非默认值）
+```
+
+### 安全提醒
+
+> [!WARNING]
+> 生产环境部署前，请务必修改所有默认密码（`ADMIN_PASSWORD`、`SERVER_PASSWORD`、`JWT_SECRET`），并确保 `WAF_ENABLED=true`。使用默认凭证部署将导致严重安全风险。
 
 ---
 
