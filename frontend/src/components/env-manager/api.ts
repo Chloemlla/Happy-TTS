@@ -5,6 +5,7 @@ const API_BASE_URL = getApiBaseUrl();
 
 export const API_URL = `${API_BASE_URL}/api/admin/envs`;
 export const OUTEMAIL_API = `${API_BASE_URL}/api/admin/outemail/settings`;
+export const EMAIL_SYSTEM_API = `${API_BASE_URL}/api/admin/email-system/setting`;
 export const MODLIST_API = `${API_BASE_URL}/api/admin/modlist/setting`;
 export const TTS_API = `${API_BASE_URL}/api/admin/tts/setting`;
 export const TTS_PROVIDER_ADMIN_API = `${API_BASE_URL}/api/admin/tts/provider`;

@@ -59,6 +59,19 @@ export interface IPFSConfigSetting {
   updatedAt?: string;
 }
 
+export interface EmailSystemConfigItem {
+  enabled: boolean;
+  resendDomain: string;
+  resendApiKey: string;
+  quotaTotal: number;
+  outemailEnabled: boolean;
+  outemailDomain: string;
+  outemailApiKey: string;
+  outemailCode: string;
+  outemailQuotaTotal: number;
+  updatedAt?: string;
+}
+
 export interface TurnstileConfigSetting {
   enabled: boolean;
   siteKey: string | null;

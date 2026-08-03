@@ -19,6 +19,7 @@ import {
   NEXAI_SETTING_API,
   NEXAI_SIGNING_API,
   OUTEMAIL_API,
+  EMAIL_SYSTEM_API,
   SHORTURL_AES_API,
   SYNAPSE_ANDROID_API,
   TTS_API,
@@ -32,6 +33,7 @@ import NexaiSigningConfigSection from './env-manager/NexaiSigningConfigSection';
 import GoogleClientIdsSection from './env-manager/GoogleClientIdsSection';
 import CodeSettingSection from './env-manager/CodeSettingSection';
 import OutemailSettingsSection from './env-manager/OutemailSettingsSection';
+import EmailSystemSettingsSection from './env-manager/EmailSystemSettingsSection';
 import SecretKeySection from './env-manager/SecretKeySection';
 import IpfsConfigSection from './env-manager/IpfsConfigSection';
 import TurnstileConfigSection from './env-manager/TurnstileConfigSection';
@@ -55,6 +57,7 @@ import type {
   ModlistSettingItem,
   MultiGitHubBillingConfig,
   OutemailSettingItem,
+  EmailSystemConfigItem,
   ShortAesSetting,
   TtsSettingItem,
   TurnstileConfigSetting,
@@ -286,6 +289,12 @@ const EnvManager: React.FC = () => {
   const [settingApiKey, setSettingApiKey] = useState('');
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsDeletingDomain, setSettingsDeletingDomain] = useState<string | null>(null);
+
+  // Email System Settings
+  const [emailSystemConfig, setEmailSystemConfig] = useState<EmailSystemConfigItem | null>(null);
+  const [emailSystemLoading, setEmailSystemLoading] = useState(false);
+  const [emailSystemSaving, setEmailSystemSaving] = useState(false);
+  const [emailSystemDeleting, setEmailSystemDeleting] = useState(false);
 
   // Modlist MODIFY_CODE Setting
   const [modSetting, setModSetting] = useState<ModlistSettingItem | null>(null);
@@ -572,6 +581,74 @@ const EnvManager: React.FC = () => {
       setSettingsDeletingDomain(null);
     }
   }, [settingsDeletingDomain, setNotification, fetchOutemailSettings]);
+
+  const fetchEmailSystemConfig = useCallback(async () => {
+    setEmailSystemLoading(true);
+    try {
+      const res = await fetch(EMAIL_SYSTEM_API, { headers: { ...getAuthHeaders() } });
+      const data = await res.json();
+      if (!res.ok) {
+        setNotification({ message: data.error || '获取邮件系统配置失败', type: 'error' });
+        setEmailSystemLoading(false);
+        return;
+      }
+      if (data?.success && data?.setting?.config) {
+        setEmailSystemConfig({ ...data.setting.config, updatedAt: data.setting.updatedAt });
+      } else {
+        setEmailSystemConfig(null);
+      }
+    } catch (e) {
+      setNotification({ message: '获取邮件系统配置失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
+    } finally {
+      setEmailSystemLoading(false);
+    }
+  }, [setNotification]);
+
+  const handleSaveEmailSystem = useCallback(async (config: Partial<EmailSystemConfigItem>) => {
+    if (emailSystemSaving) return;
+    setEmailSystemSaving(true);
+    try {
+      const res = await fetch(EMAIL_SYSTEM_API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify(config),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setNotification({ message: data.error || '保存邮件系统配置失败', type: 'error' });
+        return;
+      }
+      setNotification({ message: '保存成功', type: 'success' });
+      await fetchEmailSystemConfig();
+    } catch (e) {
+      setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
+    } finally {
+      setEmailSystemSaving(false);
+    }
+  }, [emailSystemSaving, fetchEmailSystemConfig, setNotification]);
+
+  const handleDeleteEmailSystem = useCallback(async () => {
+    if (emailSystemDeleting) return;
+    if (!window.confirm('确定重置邮件系统配置为默认值？此操作不可撤销。')) return;
+    setEmailSystemDeleting(true);
+    try {
+      const res = await fetch(EMAIL_SYSTEM_API, {
+        method: 'DELETE',
+        headers: { ...getAuthHeaders() },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setNotification({ message: data.error || '重置失败', type: 'error' });
+        return;
+      }
+      setNotification({ message: '重置成功', type: 'success' });
+      await fetchEmailSystemConfig();
+    } catch (e) {
+      setNotification({ message: '重置失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
+    } finally {
+      setEmailSystemDeleting(false);
+    }
+  }, [emailSystemDeleting, fetchEmailSystemConfig, setNotification]);
 
   const fetchModlistSetting = useCallback(async () => {
     setModLoading(true);
@@ -1881,6 +1958,7 @@ const EnvManager: React.FC = () => {
   useEffect(() => {
     const lazyMap: Record<string, () => Promise<void> | void> = {
       envs: fetchEnvs,
+      emailSystem: fetchEmailSystemConfig,
       outemail: fetchOutemailSettings,
       modlist: fetchModlistSetting,
       tts: fetchTtsSetting,
@@ -1902,7 +1980,7 @@ const EnvManager: React.FC = () => {
         lazyMap[key]();
       }
     }
-  }, [expandedSections, fetchEnvs, fetchOutemailSettings, fetchModlistSetting, fetchTtsSetting, fetchGoogleClientIds, fetchSynapseAndroidSetting, fetchNexaiSigningSetting, fetchShortAes, fetchWebhookSecret, fetchProviders, fetchIpfsConfig, fetchTurnstileConfig, fetchHcaptchaConfig, fetchClarityConfig, fetchGithubBillingConfig]);
+  }, [expandedSections, fetchEnvs, fetchEmailSystemConfig, fetchOutemailSettings, fetchModlistSetting, fetchTtsSetting, fetchGoogleClientIds, fetchSynapseAndroidSetting, fetchNexaiSigningSetting, fetchShortAes, fetchWebhookSecret, fetchProviders, fetchIpfsConfig, fetchTurnstileConfig, fetchHcaptchaConfig, fetchClarityConfig, fetchGithubBillingConfig]);
 
   // 使用公共方法处理数据来源点击
   const handleSourceClickWrapper = useCallback((source: string) => {
@@ -2146,6 +2224,19 @@ const EnvManager: React.FC = () => {
             )}
           </AnimatePresence>
         </m.section>
+
+        <EmailSystemSettingsSection
+          isOpen={isSectionOpen('emailSystem')}
+          onToggle={toggleSection}
+          prefersReducedMotion={prefersReducedMotion}
+          loading={emailSystemLoading}
+          saving={emailSystemSaving}
+          deleting={emailSystemDeleting}
+          config={emailSystemConfig}
+          onRefresh={fetchEmailSystemConfig}
+          onSave={handleSaveEmailSystem}
+          onDelete={handleDeleteEmailSystem}
+        />
 
         <OutemailSettingsSection
           isOpen={isSectionOpen('outemail')}
