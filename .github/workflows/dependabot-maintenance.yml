@@ -6,6 +6,8 @@ on:
     paths:
       - ".github/workflows/dependabot-maintenance.yml"
       - "scripts/fix-dependabot-alerts.js"
+  schedule:
+    - cron: "0 2 * * 0"
   workflow_dispatch:
     inputs:
       action:
@@ -27,7 +29,7 @@ permissions:
 jobs:
   fix-alerts:
     name: Fix Security Alerts
-    if: github.event_name == 'push' || inputs.action == 'fix-alerts' || inputs.action == 'repair-lockfiles'
+    if: github.event_name == 'push' || github.event_name == 'schedule' || inputs.action == 'fix-alerts' || inputs.action == 'repair-lockfiles'
     runs-on: ubuntu-latest
     permissions:
       contents: write
