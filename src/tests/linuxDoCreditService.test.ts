@@ -14,7 +14,7 @@ describe("linuxDoCreditService signing", () => {
     };
     const sign = signEpayParams(params, secret);
     const expectedPayload = "money=10&name=Test&out_trade_no=M20250101&pid=001&type=epay" + secret;
-    const expected = crypto.createHash("md5").update(expectedPayload, "utf8").digest("hex");
+    const expected = crypto.createHash("sha256").update(expectedPayload, "utf8").digest("hex");
     expect(sign).toBe(expected);
   });
 
@@ -25,12 +25,12 @@ describe("linuxDoCreditService signing", () => {
       out_trade_no: "M1",
       pid: "1",
       type: "epay",
-      sign_type: "MD5",
+      sign_type: "SHA256",
       sign: "deadbeef",
     };
     const sign = signEpayParams(params, secret);
     const expectedPayload = "money=10.00&name=Test&out_trade_no=M1&pid=1&type=epay" + secret;
-    const expected = crypto.createHash("md5").update(expectedPayload, "utf8").digest("hex");
+    const expected = crypto.createHash("sha256").update(expectedPayload, "utf8").digest("hex");
     expect(sign).toBe(expected);
   });
 

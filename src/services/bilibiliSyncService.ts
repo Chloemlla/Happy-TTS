@@ -319,8 +319,9 @@ export async function updateBilibiliSettings(
   const now = new Date();
   await ensureDocument(userId);
 
+  const safeVersion: number = baseVersion;
   const updated = await BilibiliSyncModel.findOneAndUpdate(
-    { userId, settingsVersion: baseVersion },
+    { userId, settingsVersion: safeVersion },
     { $set: { settings, settingsUpdatedAt: now }, $inc: { settingsVersion: 1 } },
     { returnDocument: "after" },
   ).lean<BilibiliSyncDoc | null>();

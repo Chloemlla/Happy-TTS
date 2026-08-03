@@ -91,7 +91,7 @@ function sortAndJoin(params: Record<string, string>): string {
 
 export function signEpayParams(params: Record<string, string>, secret: string): string {
   const payload = `${sortAndJoin(params)}${secret}`;
-  return crypto.createHash("md5").update(payload, "utf8").digest("hex");
+  return crypto.createHash("sha256").update(payload, "utf8").digest("hex");
 }
 
 export function signLdcParams(params: Record<string, string>, secret: string, privateKeyPem: string): string {
@@ -196,7 +196,7 @@ function buildSubmitParams(input: {
     money,
     notify_url: notifyUrl,
     return_url: returnUrl,
-    sign_type: "MD5",
+    sign_type: "SHA256",
   };
   const sign = signEpayParams(base, cfg.key);
   return { protocol: "epay", formAction, formFields: { ...base, sign } };

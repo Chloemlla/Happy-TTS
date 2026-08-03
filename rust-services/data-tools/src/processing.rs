@@ -276,7 +276,8 @@ fn read_decompressed_limited<R: Read>(
     algorithm: &str,
 ) -> Result<Vec<u8>, AppError> {
     let limit = config.max_bytes.saturating_add(1) as u64;
-    let mut output = Vec::with_capacity(config.max_bytes.min(8192));
+    let capacity = config.max_bytes.min(8192);
+    let mut output = Vec::with_capacity(capacity);
     reader
         .take(limit)
         .read_to_end(&mut output)

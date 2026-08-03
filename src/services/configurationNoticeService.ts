@@ -16,7 +16,7 @@ const DELIVERY_CLAIM_TTL_MS = 30_000;
 
 function buildFingerprint(issues: MissingConfigurationIssue[]): string {
   return crypto
-    .createHash("sha256")
+    .createHmac("sha256", "configuration-notice-fingerprint-v1")
     .update(
       issues
         .map((item) => `${item.id}:${[...item.settingNames].sort().join(",")}`)

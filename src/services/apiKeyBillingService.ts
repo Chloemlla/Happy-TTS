@@ -162,7 +162,7 @@ function toBillingEventView(doc: ApiKeyBillingEventDoc): ApiKeyBillingEventView 
 }
 
 function createOperationId(parts: Array<string | null | undefined>): string {
-  return crypto.createHash("sha256").update(parts.map((part) => part || "-").join("")).digest("hex");
+  return crypto.createHmac("sha256", "operation-id-v1").update(parts.map((part) => part || "-").join("")).digest("hex");
 }
 
 function contextFromEvent(event: ApiKeyBillingEventDoc): ApiKeyBillingContext {

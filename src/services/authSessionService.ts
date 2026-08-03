@@ -81,7 +81,7 @@ function clampText(value: unknown, max: number, fallback: string): string {
 }
 
 export function hashAuthCredential(value: string): string {
-  return crypto.createHmac("sha256", config.jwtSecret).update(value).digest("hex");
+  return crypto.pbkdf2Sync(value, config.jwtSecret, 10000, 32, "sha256").toString("hex");
 }
 
 function normalizeClientType(value: unknown): AuthClientType {
@@ -112,12 +112,40 @@ export function getAuthSessionMetadata(req: Request, overrides: AuthSessionMetad
   };
   const userAgent = clampText(overrides.userAgent ?? header("user-agent"), 512, "unknown");
   const clientType = normalizeClientType(
-    overrides.clientType ?? body.clientType ?? body.client ?? body.clientName ?? header("x-client-name") ?? header("x-client"),
+    overrides.clientType ??
+      body.clientType ??
+      body.client_type ??
+      body.client ??
+      body.clientName ??
+      body.client_name ??
+      body.clientId ??
+      body.client_id ??
+      header("x-client-name") ??
+      header("x-synapse-client-name") ??
+      header("x-client") ??
+      header("x-synapse-client-id"),
   );
   return {
-    deviceId: clampText(overrides.deviceId ?? body.deviceId ?? body.device_id ?? body.fingerprint ?? header("x-device-id"), 160, "") || undefined,
-    deviceName: clampText(overrides.deviceName ?? body.deviceName ?? header("x-device-name"), 128, userAgent),
-    platform: inferPlatform(clientType, overrides.platform ?? body.platform ?? header("x-platform"), userAgent),
+    deviceId: clampText(
+      overrides.deviceId ??
+        body.deviceId ??
+        body.device_id ??
+        body.fingerprint ??
+        header("x-device-id") ??
+        header("x-synapse-device-id"),
+      160,
+      "",
+    ) || undefined,
+    deviceName: clampText(
+      overrides.deviceName ?? body.deviceName ?? body.device_name ?? header("x-device-name") ?? header("x-synapse-device-name"),
+      128,
+      userAgent,
+    ),
+    platform: inferPlatform(
+      clientType,
+      overrides.platform ?? body.platform ?? header("x-platform") ?? header("x-synapse-platform"),
+      userAgent,
+    ),
     clientType,
     ipAddress: clampText(overrides.ipAddress ?? req.ip ?? req.socket?.remoteAddress, 128, "unknown"),
     userAgent,
@@ -267,7 +295,7 @@ function toIso(value: Date | null | undefined): string | null {
 }
 
 export async function listAuthDevices(userId: string, currentCredential?: string): Promise<AuthDeviceView[]> {
-  const docs = (await AuthSessionModel.find({ userId }).sort({ lastActivityAt: -1 }).lean()) as AuthSessionDoc[];
+  const docs = (await AuthSessionModel.find({ userId, revokedAt: null }).sort({ lastActivityAt: -1 }).lean()) as AuthSessionDoc[];
   const currentHash = currentCredential ? hashAuthCredential(currentCredential) : null;
   const groups = new Map<string, AuthDeviceView>();
   for (const doc of docs) {
