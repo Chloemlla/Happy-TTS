@@ -3,6 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FaTimes, FaBullhorn, FaExclamationTriangle, FaInfoCircle, FaCheckCircle } from 'react-icons/fa';
 import DOMPurify from 'dompurify';
 import MarkdownRenderer from './MarkdownRenderer';
+import { useNavigate } from 'react-router-dom';
+import {
+  type ConfigurationNoticeIssue,
+  type ConfigurationNoticeWorkflow,
+  readConfigurationWorkflow,
+  writeConfigurationWorkflow,
+} from './env-manager/configurationNotice';
 
 // ========== 类型 ==========
 
@@ -14,6 +21,8 @@ export interface BroadcastModalData {
   content: string;
   format?: BroadcastFormat;
   level?: BroadcastLevel;
+  issueIds?: string[];
+  issues?: ConfigurationNoticeIssue[];
 }
 
 interface BroadcastModalContextProps {
@@ -48,6 +57,8 @@ export const BroadcastModalProvider: React.FC<{ children: React.ReactNode }> = (
           content={modal.content}
           format={modal.format}
           level={modal.level}
+          issueIds={modal.issueIds}
+          issues={modal.issues}
           onClose={handleClose}
         />
       )}
@@ -62,6 +73,8 @@ interface BroadcastModalViewProps {
   content: string;
   format?: BroadcastFormat;
   level?: BroadcastLevel;
+  issueIds?: string[];
+  issues?: ConfigurationNoticeIssue[];
   onClose: () => void;
 }
 
@@ -89,8 +102,28 @@ const LEVEL_CONFIG = {
   },
 };
 
-function BroadcastModalView({ title, content, format = 'text', level = 'info', onClose }: BroadcastModalViewProps) {
+function BroadcastModalView({ title, content, format = 'text', level = 'info', issues = [], onClose }: BroadcastModalViewProps) {
   const cfg = LEVEL_CONFIG[level] || LEVEL_CONFIG.info;
+  const navigate = useNavigate();
+  const isConfigurationNotice = title === '服务配置待完善' && issues.length > 0;
+  const [ignoredIds, setIgnoredIds] = useState<string[]>(() => readConfigurationWorkflow()?.ignoredIds || []);
+  const activeIssues = issues.filter((issue) => !ignoredIds.includes(issue.id));
+
+  const handleConfigureIssue = useCallback((issue: ConfigurationNoticeIssue) => {
+    const workflow: ConfigurationNoticeWorkflow = {
+      issues,
+      ignoredIds,
+    };
+    writeConfigurationWorkflow(workflow);
+    onClose();
+    navigate(`/admin/env?configIssue=${encodeURIComponent(issue.id)}`);
+  }, [ignoredIds, issues, navigate, onClose]);
+
+  const handleIgnoreIssue = useCallback((issueId: string) => {
+    const nextIgnoredIds = Array.from(new Set([...ignoredIds, issueId]));
+    setIgnoredIds(nextIgnoredIds);
+    writeConfigurationWorkflow({ issues, ignoredIds: nextIgnoredIds });
+  }, [ignoredIds, issues]);
 
   const renderedHtml = useMemo(() => {
     if (format === 'html') {
@@ -150,7 +183,53 @@ function BroadcastModalView({ title, content, format = 'text', level = 'info', o
               </h2>
             </div>
 
+            {isConfigurationNotice ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between text-sm text-gray-600">
+                  <span>待处理配置</span>
+                  <span>{activeIssues.length} / {issues.length}</span>
+                </div>
+                {activeIssues.length > 0 ? (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                    <div className="flex items-start gap-3">
+                      <FaExclamationTriangle className="mt-0.5 shrink-0 text-amber-500" />
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-gray-800">{activeIssues[0].label}</div>
+                        <div className="mt-1 break-words font-mono text-xs text-gray-600">
+                          {activeIssues[0].settingNames.join(' / ')}
+                        </div>
+                        <p className="mt-2 text-sm leading-relaxed text-gray-700">{activeIssues[0].impact}</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex flex-wrap justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleIgnoreIssue(activeIssues[0].id)}
+                        className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600 transition hover:bg-white"
+                      >
+                        忽略此项
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleConfigureIssue(activeIssues[0])}
+                        className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-amber-600"
+                      >
+                        <FaCheckCircle />
+                        前往配置
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+                    <FaCheckCircle />
+                    已忽略当前列表中的配置项。
+                  </div>
+                )}
+              </div>
+            ) : null}
+
             {/* 正文 */}
+            {!isConfigurationNotice && (
             <div className="max-h-[50vh] overflow-y-auto">
               {format === 'text' && (
                 <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{content}</p>
@@ -165,6 +244,7 @@ function BroadcastModalView({ title, content, format = 'text', level = 'info', o
                 />
               )}
             </div>
+            )}
           </div>
 
           {/* 底部按钮 */}
@@ -174,7 +254,7 @@ function BroadcastModalView({ title, content, format = 'text', level = 'info', o
               className={`px-8 py-2.5 rounded-lg text-white font-medium transition ${cfg.btn}`}
               whileTap={{ scale: 0.96 }}
             >
-              知道了
+              {isConfigurationNotice && activeIssues.length > 0 ? '稍后处理' : '知道了'}
             </motion.button>
           </div>
         </motion.div>

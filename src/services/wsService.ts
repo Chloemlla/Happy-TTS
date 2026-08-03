@@ -250,10 +250,11 @@ class WsService {
 
       const sent = this.send(ws, {
         type: "admin:broadcast",
-        data: {
+      data: {
           title: pendingNotice.title,
           message: pendingNotice.message,
           issueIds: pendingNotice.issueIds,
+          issues: pendingNotice.issues,
           level: "warn",
           duration: 15_000,
           display: "modal",

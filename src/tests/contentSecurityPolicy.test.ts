@@ -58,22 +58,24 @@ describe("contentSecurityPolicy", () => {
   });
 
   describe("renderCspHeaderValue / summarizeCspHeader", () => {
-    it("removes unsafe-eval and script unsafe-inline for SPA", () => {
+    it("uses unsafe-inline for styles on SPA (needed for framer-motion) and nonce for scripts", () => {
       const header = renderCspHeaderValue({ cspNonce: "spaNonce", cspSurface: "spa" }, { path: "/", nodeEnv: "production" });
       const summary = summarizeCspHeader(header);
 
       expect(summary.hasUnsafeEval).toBe(false);
       expect(summary.hasScriptUnsafeInline).toBe(false);
       expect(summary.hasScriptNonce).toBe(true);
-      expect(summary.hasStyleElemUnsafeInline).toBe(false);
+      expect(summary.hasStyleElemUnsafeInline).toBe(true);
       expect(summary.hasStyleAttrUnsafeInline).toBe(true);
       expect(header).toContain("'nonce-spaNonce'");
       expect(header).toMatch(/script-src[^;]*'nonce-spaNonce'/);
-      expect(header).toMatch(/style-src[^;]*'nonce-spaNonce'/);
+      expect(header).toMatch(/style-src[^;]*'unsafe-inline'/);
       expect(header).toMatch(/style-src-attr\s+'unsafe-inline'/);
       expect(header).toMatch(/script-src-attr\s+'none'/);
       expect(header).not.toContain("'unsafe-eval'");
       expect(header).not.toMatch(/script-src[^;]*'unsafe-inline'/);
+      // Must not combine style nonce + unsafe-inline (browsers ignore unsafe-inline then).
+      expect(header).not.toMatch(/style-src[^;]*'nonce-/);
     });
 
     it("keeps docs style unsafe-inline without style nonces so Swagger can inject CSS", () => {
@@ -88,7 +90,6 @@ describe("contentSecurityPolicy", () => {
       expect(header).toMatch(/style-src[^;]*'unsafe-inline'/);
       // Must not combine style nonce + unsafe-inline (browsers ignore unsafe-inline then).
       expect(header).not.toMatch(/style-src[^;]*'nonce-/);
-      expect(header).not.toMatch(/style-src-elem[^;]*'nonce-/);
     });
 
     it("omits development connect hosts in production and includes them otherwise", () => {

@@ -2,7 +2,10 @@ import { Router } from "express";
 import { getStartupDiagnosticsReport } from "../config/startupDiagnostics";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { createLimiter } from "../middleware/routeLimiters";
-import { notifyAdminsForFrontendVisit } from "../services/configurationNoticeService";
+import {
+  getMissingConfigurationIssues,
+  notifyAdminsForFrontendVisit,
+} from "../services/configurationNoticeService";
 import { isConnected as isMongoConnected } from "../services/mongoService";
 import { wsService } from "../services/wsService";
 import { getTtsProviderCapabilityReadiness } from "../tts/tts.readiness";
@@ -81,6 +84,23 @@ router.post("/frontend-visit", frontendVisitLimiter, async (_req, res) => {
       error: error instanceof Error ? error.message : String(error),
     });
     return res.status(503).json({ accepted: false });
+  }
+});
+
+router.get("/configuration-notice", authenticateToken, async (req, res) => {
+  const user = (req as { user?: { role?: string } }).user;
+  if (!user || user.role !== "admin") {
+    return res.status(403).json({ error: "需要管理员权限" });
+  }
+
+  try {
+    const issues = await getMissingConfigurationIssues();
+    return res.json({ success: true, issues });
+  } catch (error) {
+    logger.warn("[Config] Failed to read configuration notice status", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return res.status(503).json({ success: false, error: "读取配置状态失败" });
   }
 });
 

@@ -126,6 +126,7 @@ export async function notifyAdminsForFrontendVisit(): Promise<{
         display: "modal",
         format: "text",
         issueIds,
+        issues,
       });
 
       if (connections > 0) {
@@ -156,6 +157,7 @@ export async function claimPendingConfigurationNoticeForAdminConnection(): Promi
   title: string;
   message: string;
   issueIds: string[];
+  issues: MissingConfigurationIssue[];
   fingerprint: string;
   deliveryClaimId: string;
 } | null> {
@@ -199,6 +201,7 @@ export async function claimPendingConfigurationNoticeForAdminConnection(): Promi
     title: NOTICE_TITLE,
     message: buildMessage(issues),
     issueIds: issues.map((item) => item.id),
+    issues,
     fingerprint,
     deliveryClaimId,
   };

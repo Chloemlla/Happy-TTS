@@ -4,6 +4,7 @@ import { useNotification } from '../components/Notification';
 import { useBroadcastModal } from '../components/BroadcastModal';
 import { markFingerprintHashProcessed } from '../api/api';
 import { reportFingerprintOnce } from '../utils/fingerprint';
+import { isConfigurationNoticeIssue } from '../components/env-manager/configurationNotice';
 
 /**
  * 将 WebSocket 消息接入应用通知系统
@@ -40,6 +41,9 @@ export function useWsNotifications() {
       case 'notification':
       case 'admin:broadcast':
         if (msg.data?.display === 'modal') {
+          const issues = Array.isArray(msg.data?.issues)
+            ? msg.data.issues.filter(isConfigurationNoticeIssue)
+            : undefined;
           showBroadcastModal({
             title: msg.data?.title,
             content: msg.data?.message || '系统通知',
@@ -47,6 +51,10 @@ export function useWsNotifications() {
             level: msg.data?.level === 'error' ? 'error'
               : msg.data?.level === 'warn' ? 'warn'
                 : 'info',
+            issueIds: Array.isArray(msg.data?.issueIds)
+              ? msg.data.issueIds.filter((id: unknown): id is string => typeof id === 'string')
+              : undefined,
+            issues,
           });
         } else {
           setNotification({

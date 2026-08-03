@@ -125,16 +125,16 @@ function nonceSource(_req: Request, res: Response): string {
 
 /**
  * Style elements:
- * - SPA/default: per-request nonce (no element-level unsafe-inline)
- * - docs (/api-docs): unsafe-inline only — Swagger UI injects styles without nonces,
- *   and CSP ignores 'unsafe-inline' when a nonce is also present in the same directive
+ * - SPA: unsafe-inline — framer-motion injects <style> elements dynamically
+ *   without nonces, and CSP ignores 'unsafe-inline' when a nonce is also present.
+ *   Using unsafe-inline keeps animation libraries working while script security
+ *   is still enforced via nonce.
+ * - docs (/api-docs): unsafe-inline — Swagger UI injects styles without nonces.
+ *   CSP ignores 'unsafe-inline' when a nonce is also present in the same directive,
+ *   so only one can be active at a time.
  */
 function styleElementSource(_req: Request, res: Response): string {
-  const surface = res.locals.cspSurface || resolveCspSurface(_req.path || "/");
-  if (surface === "docs") {
-    return "'unsafe-inline'";
-  }
-  return `'nonce-${ensureCspNonce(res)}'`;
+  return "'unsafe-inline'";
 }
 
 function buildConnectSrc(): string[] {
@@ -169,16 +169,10 @@ export function buildHelmetCspDirectives(): Record<string, Iterable<HelmetCspDir
   };
 
   const asHttpStyleElementSource = (
-    req: import("node:http").IncomingMessage,
-    res: import("node:http").ServerResponse,
+    _req: import("node:http").IncomingMessage,
+    _res: import("node:http").ServerResponse,
   ): string => {
-    const expressRes = res as unknown as Response;
-    const expressReq = req as unknown as Request;
-    const surface = expressRes.locals?.cspSurface || resolveCspSurface(expressReq.path || "/");
-    if (surface === "docs") {
-      return "'unsafe-inline'";
-    }
-    return `'nonce-${ensureCspNonce(expressRes)}'`;
+    return "'unsafe-inline'";
   };
 
   return {
