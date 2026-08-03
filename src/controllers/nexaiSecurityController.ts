@@ -1,4 +1,6 @@
 import type { Request, Response } from "express";
+import { DeviceTracking } from "../models/deviceTrackingModel";
+import { SecurityEvent } from "../models/securityEventModel";
 import {
   detectAnomalies,
   extractSecurityHeaders,
@@ -283,9 +285,6 @@ export async function getDashboardStats(req: Request, res: Response): Promise<vo
       res.status(403).json({ error: "Admin access required" });
       return;
     }
-    const { DeviceTracking } = await import("../models/deviceTrackingModel.js");
-    const { SecurityEvent } = await import("../models/securityEventModel.js");
-
     const timeRange = (req.query.timeRange as string) || "24h";
     const timeRangeMs: Record<string, number> = {
       "1h": 60 * 60 * 1000,
@@ -364,7 +363,6 @@ export async function getDeviceList(req: Request, res: Response): Promise<void> 
       res.status(403).json({ error: "Admin access required" });
       return;
     }
-    const { DeviceTracking } = await import("../models/deviceTrackingModel.js");
 
     const page = parseInt(req.query.page as string, 10) || 1;
     const limit = parseInt(req.query.limit as string, 10) || 20;
@@ -415,7 +413,6 @@ export async function getSecurityEvents(req: Request, res: Response): Promise<vo
       res.status(403).json({ error: "Admin access required" });
       return;
     }
-    const { SecurityEvent } = await import("../models/securityEventModel.js");
 
     const page = parseInt(req.query.page as string, 10) || 1;
     const limit = parseInt(req.query.limit as string, 10) || 20;
