@@ -7,6 +7,11 @@ import { onUserAuthorityChanged } from "../utils/userAuthorityEvents";
 import { toTicketView } from "../utils/ticketView";
 import { EcoEnchantsOpsService } from "./ecoEnchantsOpsService";
 import { resolveWebSocketIdentity, type WebSocketIdentity } from "./wsAuthentication";
+import {
+  claimPendingConfigurationNoticeForAdminConnection,
+  completeConfigurationNoticeDelivery,
+  releaseConfigurationNoticeDeliveryClaim,
+} from "./configurationNoticeService";
 import logger from "../utils/logger";
 
 // ========== 类型定义 ==========
@@ -230,11 +235,6 @@ class WsService {
 
   private async sendPendingConfigurationNotice(ws: WebSocket): Promise<void> {
     try {
-      const {
-        claimPendingConfigurationNoticeForAdminConnection,
-        completeConfigurationNoticeDelivery,
-        releaseConfigurationNoticeDeliveryClaim,
-      } = await import("./configurationNoticeService.js");
       const pendingNotice = await claimPendingConfigurationNoticeForAdminConnection();
       if (!pendingNotice) {
         return;
