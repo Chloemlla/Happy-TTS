@@ -68,7 +68,12 @@ jobs:
           USER_PAT: ${{ secrets.USER_PAT }}
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: node scripts/fix-dependabot-alerts.js
+        run: |
+          ARGS=""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            ARGS="--all-targets"
+          fi
+          node scripts/fix-dependabot-alerts.js $ARGS
 
       - name: Repair lockfiles
         if: inputs.action == 'repair-lockfiles'
@@ -95,6 +100,9 @@ jobs:
           if [ "$ACTION_NAME" = "repair-lockfiles" ]; then
             git commit -m "fix: repair pnpm lockfiles to match current package.json"
             TITLE="fix: repair pnpm lockfiles to match current package.json"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            git commit -m "chore: upgrade all npm and Rust dependencies"
+            TITLE="chore: upgrade all npm and Rust dependencies"
           else
             git commit -m "fix: auto-fix Dependabot and CodeQL security alerts"
             TITLE="fix: auto-fix Dependabot and CodeQL security alerts"
