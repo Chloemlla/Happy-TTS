@@ -16,6 +16,7 @@ LogPaste/
 .kiro/
 *.pem
 *.exe
+test-form-data.txt
 .claude/settings.local.json
 github-billing-multi-curl.json
 client_secret_*.apps.googleusercontent.com.json
