@@ -92,9 +92,10 @@ jobs:
           else
             git commit -m "fix: auto-fix Dependabot and CodeQL security alerts"
           fi
-          git push origin main
+          git remote set-url origin "https://x-access-token:${USER_PAT:-${{ github.token }}}@github.com/${GITHUB_REPOSITORY}.git"
+          git push --force origin main
         env:
-          GH_TOKEN: ${{ github.token }}
+          USER_PAT: ${{ secrets.USER_PAT }}
 
   manage-prs:
     name: Manage Dependabot PRs
