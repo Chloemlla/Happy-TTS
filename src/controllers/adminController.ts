@@ -456,9 +456,16 @@ export const adminController = {
         return res.status(400).json({ error: "单次批量操作最多处理 100 个用户" });
       }
 
-      const results: Array<{ id: string; success: boolean; error?: string; user?: Partial<User>; hash?: string }> = [];
-      let processed = 0;
-      let failed = 0;
+      // Batch-fetch all target users in one query, then bulkWrite updates.
+      // Avoids N+1 round-trips over up to 100 users.
+      const targetUsers = (await UserStorage.getUsersByIds(userIds)).reduce<Record<string, User>>((map, u) => {
+        map[u.id] = u;
+        return map;
+      }, {});
+
+      const now = Date.now();
+      const bulkOps: Array<{ updateOne: { filter: Record<string, unknown>; update: Record<string, unknown> } }> = [];
+      const wsNotifyTargets: Array<{ id: string; require: boolean }> = [];
 
       for (const id of userIds) {
         try {
@@ -466,7 +473,7 @@ export const adminController = {
             throw new Error("非法的用户 ID");
           }
 
-          const targetUser = await UserStorage.getUserById(id);
+          const targetUser = targetUsers[id];
           if (!targetUser) {
             throw new Error("用户不存在");
           }
@@ -475,28 +482,22 @@ export const adminController = {
             throw new Error("不允许对当前管理员执行该操作");
           }
 
-          const updates = getAdminUserBulkActionUpdates(action, Date.now());
+          const updates = getAdminUserBulkActionUpdates(action, now);
           if (!updates) {
             throw new Error("不支持的批量操作");
           }
 
-          const updated = await UserStorage.updateUser(targetUser.id, updates);
-          let hash: string | undefined;
+          bulkOps.push({ updateOne: { filter: { id }, update: { $set: updates } } });
+
           if (action === "requireFingerprint" || action === "clearFingerprintRequirement") {
-            try {
-              const { wsService } = require("../services/wsService");
-              hash = wsService.notifyFingerprintRequired(targetUser.id, action === "requireFingerprint");
-            } catch (notifyError) {
-              logger.warn("[管理员批量用户操作] 指纹 WebSocket 通知失败:", notifyError);
-            }
+            wsNotifyTargets.push({ id, require: action === "requireFingerprint" });
           }
 
           processed += 1;
           results.push({
             id,
             success: true,
-            user: stripSensitiveUserFields(updated || targetUser),
-            hash,
+            user: stripSensitiveUserFields(targetUser),
           });
         } catch (itemError: unknown) {
           failed += 1;
@@ -505,6 +506,20 @@ export const adminController = {
             success: false,
             error: itemError instanceof Error ? itemError.message : "操作失败",
           });
+        }
+      }
+
+      if (bulkOps.length > 0) {
+        await UserStorage.bulkUpdateUsers(bulkOps);
+      }
+
+      // Send WebSocket notifications after all DB writes
+      for (const { id, require } of wsNotifyTargets) {
+        try {
+          const { wsService } = require("../services/wsService");
+          wsService.notifyFingerprintRequired(id, require);
+        } catch (notifyError) {
+          logger.warn("[管理员批量用户操作] 指纹 WebSocket 通知失败:", notifyError);
         }
       }
 

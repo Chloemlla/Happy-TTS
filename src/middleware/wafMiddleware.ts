@@ -1,5 +1,13 @@
 import type { NextFunction, Request, Response } from "express";
-import { shouldBypassSecurityComponent } from "../security/securityPolicy";
+import {
+  earlyRouteModules,
+  postTamperRouteModules,
+  preDocsRouteModules,
+  preParserRouteModules,
+  preTamperRouteModules,
+  routeLimiterModules,
+} from "../routes";
+import { securityBypassPolicy } from "../security/securityPolicy";
 import logger from "../utils/logger";
 
 // ========== 缓存环境变量 ==========
@@ -21,6 +29,58 @@ const BODY_FIELD_WHITELIST = new Set<string>();
 
 // 白名单前缀集合（整棵子树跳过，如 deviceSignals.*）
 const WHITELIST_PREFIX_SET = new Set<string>();
+
+// ========== 预计算 WAF 绕过查找表（启动时构建一次） ==========
+// 把 RouteModule.securityBypass.waf 的明确声明（true/false）预计算成 Map，
+// 避免每次请求都遍历全部路由模块。请求时按路径从深到浅逐级 Map 命中，
+// 取最具体的模块声明；"mixed" 与未声明保持原语义，落入静态策略兜底。
+const wafModuleBypassMap = new Map<string, boolean>();
+
+for (const module of [
+  ...routeLimiterModules,
+  ...preParserRouteModules,
+  ...earlyRouteModules,
+  ...preDocsRouteModules,
+  ...preTamperRouteModules,
+  ...postTamperRouteModules,
+]) {
+  const entry = module.securityBypass?.waf;
+  if (!entry || entry.value === undefined || entry.value === "mixed") continue;
+  const scope = module.path.replace(/\/\*.*$/, "").replace(/\/+$/, "");
+  if (scope) wafModuleBypassMap.set(scope, entry.value === true);
+}
+
+// 遗留静态策略兜底（与 securityBypassPolicy.waf 一致），同样只构建一次。
+const wafStaticExactPaths = new Set<string>();
+const wafStaticPrefixPaths: string[] = [];
+for (const rule of securityBypassPolicy.waf) {
+  const value = rule.value.replace(/\/+$/, "");
+  if (!value) continue;
+  if (rule.match === "exact") {
+    wafStaticExactPaths.add(value);
+  } else {
+    wafStaticPrefixPaths.push(value);
+  }
+}
+
+/** 判断请求路径是否绕过 WAF 检查（预计算 Map + 静态策略兜底）。 */
+function isWafBypassPath(pathname: string): boolean {
+  let scope = pathname.replace(/\/+$/, "");
+  while (scope) {
+    const flag = wafModuleBypassMap.get(scope);
+    if (flag !== undefined) return flag;
+    const slash = scope.lastIndexOf("/");
+    if (slash <= 0) break;
+    scope = scope.slice(0, slash);
+  }
+
+  const normalized = pathname.replace(/\/+$/, "");
+  if (wafStaticExactPaths.has(normalized)) return true;
+  for (const prefix of wafStaticPrefixPaths) {
+    if (normalized === prefix || normalized.startsWith(`${prefix}/`)) return true;
+  }
+  return false;
+}
 
 /**
  * 注册 WAF body 字段白名单
@@ -131,7 +191,7 @@ export function wafMiddleware(req: Request, res: Response, next: NextFunction) {
   if (p.charCodeAt(0) !== 47 || p.charCodeAt(1) !== 97 || p.charCodeAt(4) !== 47) return next(); // 快速判断非 /api/
   if (!p.startsWith("/api/")) return next();
 
-  if (shouldBypassSecurityComponent("waf", p)) return next();
+  if (isWafBypassPath(p)) return next();
 
   // GET/HEAD/OPTIONS 通常无 body，只检查 query
   const method = req.method;

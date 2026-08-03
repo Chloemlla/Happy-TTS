@@ -1392,9 +1392,8 @@ async function updateUserToken(userId: string, token: string, expiresInMs = 2 * 
 // 校验管理员token
 export async function isAdminToken(token: string | undefined): Promise<boolean> {
   if (!token) return false;
-  const users = await UserStorage.getAllUsers();
-  const user = users.find((u) => u.role === "admin" && u.token === token);
-  if (!user) return false;
+  const user = await UserStorage.getUserByToken(token);
+  if (!user || user.role !== "admin") return false;
   if (!user.tokenExpiresAt || Date.now() > user.tokenExpiresAt) return false;
   return true;
 }
@@ -1404,10 +1403,9 @@ export async function logoutHandler(req: Request, res: Response) {
     clearAuthSessionCookie(req, res);
     const token = req.headers.authorization?.replace("Bearer ", "");
     if (token) {
-      const users = await UserStorage.getAllUsers();
-      const idx = users.findIndex((u: any) => u.token === token);
-      if (idx !== -1) {
-        await UserStorage.updateUser(users[idx].id, {
+      const user = await UserStorage.getUserByToken(token);
+      if (user) {
+        await UserStorage.updateUser(user.id, {
           token: undefined,
           tokenExpiresAt: undefined,
         });

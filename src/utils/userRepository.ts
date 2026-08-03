@@ -101,8 +101,56 @@ export const userRepository = {
     return getUserByEmail(email);
   },
 
+  async getUserByEmailCaseInsensitive(email: string): Promise<User | null> {
+    if (!email || typeof email !== "string") {
+      return null;
+    }
+    const provider = getUserStorageProvider();
+    if (typeof provider.getUserByEmailCaseInsensitive === "function") {
+      return provider.getUserByEmailCaseInsensitive(email);
+    }
+    return null;
+  },
+
   async getUserByUsername(username: string): Promise<User | null> {
     return getUserByUsername(username);
+  },
+
+  async getUserByToken(token: string): Promise<User | null> {
+    if (!token || typeof token !== "string") {
+      return null;
+    }
+    const provider = getUserStorageProvider();
+    if (typeof provider.getUserByToken === "function") {
+      return provider.getUserByToken(token);
+    }
+    return null;
+  },
+
+  async getUsersByIds(ids: string[]): Promise<User[]> {
+    if (!ids || ids.length === 0) return [];
+    const provider = getUserStorageProvider();
+    if (typeof provider.getUsersByIds === "function") {
+      return provider.getUsersByIds(ids);
+    }
+    return provider.getAllUsers().then((users) => users.filter((u) => ids.includes(u.id)));
+  },
+
+  async bulkUpdateUsers(ops: Array<{ updateOne: { filter: Record<string, unknown>; update: Record<string, unknown> } }>): Promise<void> {
+    if (!ops || ops.length === 0) return;
+    const provider = getUserStorageProvider();
+    if (typeof provider.bulkUpdateUsers === "function") {
+      await provider.bulkUpdateUsers(ops);
+    } else {
+      // Fallback: sequential updates
+      for (const op of ops) {
+        const id = op.updateOne.filter.id as string;
+        const updates = op.updateOne.update.$set as Partial<User>;
+        if (id && updates) {
+          await provider.updateUser(id, updates);
+        }
+      }
+    }
   },
 
   async getUserByLinuxDoId(linuxdoId: string): Promise<User | null> {

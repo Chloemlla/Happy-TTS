@@ -8,6 +8,47 @@ import {
   isBackendApiPath,
 } from "./auditLogMetadata";
 
+// ── Batch audit log buffer ───────────────────────────────────────────────
+// Accumulate audit entries in memory and flush periodically to reduce
+// per-request MongoDB write overhead.  Flush interval: 1s, max batch: 50.
+const AUDIT_BATCH_FLUSH_MS = 1000;
+const AUDIT_BATCH_MAX_SIZE = 50;
+const auditBatchBuffer: AuditEntry[] = [];
+let auditBatchTimer: ReturnType<typeof setInterval> | null = null;
+
+function ensureAuditBatchFlush(): void {
+  if (auditBatchTimer) return;
+  auditBatchTimer = setInterval(() => {
+    flushAuditBatch().catch((err) =>
+      logger.error("[AuditBatch] 定时刷新失败", err),
+    );
+  }, AUDIT_BATCH_FLUSH_MS);
+  // Allow the Node process to exit even if the timer is still pending.
+  if (auditBatchTimer && typeof auditBatchTimer === "object" && "unref" in auditBatchTimer) {
+    auditBatchTimer.unref();
+  }
+}
+
+async function flushAuditBatch(): Promise<void> {
+  if (auditBatchBuffer.length === 0) return;
+  const batch = auditBatchBuffer.splice(0, auditBatchBuffer.length);
+  try {
+    await AuditLogModel.insertMany(
+      batch.map((entry) => ({ ...entry, createdAt: new Date() })),
+      { ordered: false },
+    );
+  } catch (err) {
+    logger.error("[AuditBatch] 批量写入失败, 丢弃 %d 条日志", batch.length, err);
+  }
+}
+
+// Ensure flush on process exit
+process.once("beforeExit", () => {
+  if (auditBatchBuffer.length > 0) {
+    flushAuditBatch().catch(() => {});
+  }
+});
+
 export interface AuditEntry {
   requestId?: string;
   userId: string;
@@ -219,17 +260,12 @@ export class AuditLogService {
    * 写入一条审计日志（fire-and-forget，不阻塞业务）
    */
   static async log(entry: AuditEntry): Promise<void> {
-    try {
-      await AuditLogModel.create({
-        ...entry,
-        createdAt: new Date(),
-      });
-    } catch (err) {
-      logger.error("[AuditLog] 写入失败", {
-        err,
-        requestId: entry.requestId,
-        module: entry.module,
-        action: entry.action,
+    // Use batch buffer for lower latency
+    ensureAuditBatchFlush();
+    auditBatchBuffer.push(entry);
+    if (auditBatchBuffer.length >= AUDIT_BATCH_MAX_SIZE) {
+      flushAuditBatch().catch((err) => {
+        logger.error("[AuditLog] 批量写入失败", err);
       });
     }
   }
@@ -428,49 +464,64 @@ export class AuditLogService {
       ];
     }
 
-    const matchStage = Object.keys(filter).length > 0 ? [{ $match: filter }] : [];
+    // 默认时间窗口：未指定日期范围时统计最近 7 天，避免全集合聚合
+    if (!filter.createdAt) {
+      filter.createdAt = { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) };
+    }
+    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const recentFilter = {
       ...filter,
-      createdAt: mergeRecentDateFilter(filter.createdAt, new Date(Date.now() - 24 * 60 * 60 * 1000)),
+      createdAt: mergeRecentDateFilter(filter.createdAt, since24h),
     };
 
-    const [total, byModule, byResult, topActions, topUsers, byMethod, byStatusCode, durationStats, recentCount] =
-      await Promise.all([
-        AuditLogModel.countDocuments(filter),
-        AuditLogModel.aggregate([...matchStage, { $group: { _id: "$module", count: { $sum: 1 } } }, { $sort: { count: -1 } }]),
-        AuditLogModel.aggregate([...matchStage, { $group: { _id: "$result", count: { $sum: 1 } } }]),
-        AuditLogModel.aggregate([
-          ...matchStage,
-          { $group: { _id: "$action", count: { $sum: 1 } } },
-          { $sort: { count: -1 } },
-          { $limit: 8 },
-        ]),
-        AuditLogModel.aggregate([
-          ...matchStage,
-          { $group: { _id: "$username", userId: { $first: "$userId" }, count: { $sum: 1 } } },
-          { $sort: { count: -1 } },
-          { $limit: 8 },
-        ]),
-        AuditLogModel.aggregate([...matchStage, { $group: { _id: "$method", count: { $sum: 1 } } }, { $sort: { count: -1 } }]),
-        AuditLogModel.aggregate([
-          ...matchStage,
-          { $match: { "detail.statusCode": { $type: "number" } } },
-          { $group: { _id: "$detail.statusCode", count: { $sum: 1 } } },
-          { $sort: { _id: 1 } },
-        ]),
-        AuditLogModel.aggregate([
-          ...matchStage,
-          { $match: { "detail.durationMs": { $type: "number" } } },
-          {
-            $group: {
-              _id: null,
-              averageDurationMs: { $avg: "$detail.durationMs" },
-              maxDurationMs: { $max: "$detail.durationMs" },
+    // 单次扫描：所有聚合统计通过一个 $facet 流水线完成
+    const [facetResult] = await AuditLogModel.aggregate([
+      { $match: filter },
+      {
+        $facet: {
+          total: [{ $count: "count" }],
+          byModule: [{ $group: { _id: "$module", count: { $sum: 1 } } }, { $sort: { count: -1 } }],
+          byResult: [{ $group: { _id: "$result", count: { $sum: 1 } } }],
+          topActions: [
+            { $group: { _id: "$action", count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+            { $limit: 8 },
+          ],
+          topUsers: [
+            { $group: { _id: "$username", userId: { $first: "$userId" }, count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+            { $limit: 8 },
+          ],
+          byMethod: [{ $group: { _id: "$method", count: { $sum: 1 } } }, { $sort: { count: -1 } }],
+          byStatusCode: [
+            { $match: { "detail.statusCode": { $type: "number" } } },
+            { $group: { _id: "$detail.statusCode", count: { $sum: 1 } } },
+            { $sort: { _id: 1 } },
+          ],
+          durationStats: [
+            { $match: { "detail.durationMs": { $type: "number" } } },
+            {
+              $group: {
+                _id: null,
+                averageDurationMs: { $avg: "$detail.durationMs" },
+                maxDurationMs: { $max: "$detail.durationMs" },
+              },
             },
-          },
-        ]),
-        AuditLogModel.countDocuments(recentFilter),
+          ],
+          recentCount: [{ $match: recentFilter }, { $count: "count" }],
+        },
+      },
     ]);
+
+    const total = facetResult.total[0]?.count ?? 0;
+    const recentCount = facetResult.recentCount[0]?.count ?? 0;
+    const byModule = facetResult.byModule;
+    const byResult = facetResult.byResult;
+    const topActions = facetResult.topActions;
+    const topUsers = facetResult.topUsers;
+    const byMethod = facetResult.byMethod;
+    const byStatusCode = facetResult.byStatusCode;
+    const durationStats = facetResult.durationStats;
 
     return {
       byModule: byModule.map((m: { _id: string; count: number }) => ({ module: m._id, count: m.count })),

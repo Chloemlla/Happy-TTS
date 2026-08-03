@@ -55,7 +55,7 @@ metricsResetTimer.unref?.();
 // 内存缓存配置 - 用于减少数据库查询压力
 // 已封禁的IP使用更长的TTL，未封禁的使用较短的TTL
 const BANNED_IP_TTL = 10 * 60 * 1000; // 已封禁IP缓存10分钟
-const CLEAN_IP_TTL = 2 * 60 * 1000; // 未封禁IP缓存2分钟
+const CLEAN_IP_TTL = 5 * 60 * 1000; // 未封禁IP缓存5分钟
 
 const banCache = new LRUCache<
   string,

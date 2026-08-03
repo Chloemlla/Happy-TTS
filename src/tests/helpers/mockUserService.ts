@@ -52,6 +52,17 @@ const mockUserService = {
   getUserByUsername: jest.fn(async (username: string) => mockCloneUser(mockFindByUsername(username))),
   getUserAuthByUsername: jest.fn(async (username: string) => mockCloneUser(mockFindByUsername(username))),
   getUserByEmail: jest.fn(async (email: string) => mockCloneUser(mockFindByEmail(email))),
+  getUserByEmailCaseInsensitive: jest.fn(async (email: string) => {
+    const normalized = String(email).trim().toLowerCase();
+    return mockCloneUser(
+      Array.from(mockUsers.values()).find(
+        (user) => typeof user.email === "string" && user.email.trim().toLowerCase() === normalized,
+      ),
+    );
+  }),
+  getUserByToken: jest.fn(async (token: string) =>
+    mockCloneUser(Array.from(mockUsers.values()).find((user) => user.token === token)),
+  ),
   getUserAuthByEmail: jest.fn(async (email: string) => mockCloneUser(mockFindByEmail(email))),
   getUserByLinuxDoId: jest.fn(async (linuxdoId: string) =>
     mockCloneUser(Array.from(mockUsers.values()).find((user) => user.linuxdoId === linuxdoId)),

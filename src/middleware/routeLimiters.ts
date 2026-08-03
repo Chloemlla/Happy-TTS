@@ -130,6 +130,10 @@ const skipPrivateIpReport = (req: Request): boolean => {
 };
 
 class RateLimitMetricsRegistry {
+  // Cap per-IP/per-route tracking to bound memory growth: under attack the key
+  // space is unbounded, so once a map exceeds this many keys we evict the
+  // oldest-inserted entries (Map preserves insertion order).
+  private static readonly MAX_TRACKED_KEYS = 10_000;
   private total429Hits = 0;
   private readonly byLimiter = new Map<string, number>();
   private readonly byCategory = new Map<string, number>();
@@ -142,6 +146,8 @@ class RateLimitMetricsRegistry {
     this.bump(this.byCategory, record.category);
     this.bump(this.byIp, record.ip);
     this.bump(this.byRoute, record.route);
+    this.evictOverflow(this.byIp);
+    this.evictOverflow(this.byRoute);
   }
 
   snapshot(limit = 10): RateLimitMetricsSnapshot {
@@ -156,6 +162,17 @@ class RateLimitMetricsRegistry {
 
   private bump(map: Map<string, number>, key: string): void {
     map.set(key, (map.get(key) || 0) + 1);
+  }
+
+  private evictOverflow(map: Map<string, number>): void {
+    const overflow = map.size - RateLimitMetricsRegistry.MAX_TRACKED_KEYS;
+    if (overflow <= 0) return;
+    let evicted = 0;
+    for (const key of map.keys()) {
+      if (evicted >= overflow) break;
+      map.delete(key);
+      evicted += 1;
+    }
   }
 
   private topEntries(map: Map<string, number>, limit: number): Array<[string, number]> {

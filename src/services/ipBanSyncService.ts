@@ -224,54 +224,72 @@ class IpBanSyncService {
       const redisBans = await redisService.getAllBannedIPs();
       logger.info(`📊 Redis 中有 ${redisBans.length} 条封禁记录`);
 
+      if (redisBans.length === 0) {
+        logger.info("✅ 无 Redis 封禁记录需要同步");
+        return { synced: 0, updated: 0, skipped: 0, errors: 0, duration: Date.now() - startTime };
+      }
+
+      // 批量获取所有 Redis IP 在 MongoDB 中的记录（一次查询）
+      const redisIps = redisBans.map((b) => b.ip);
+      const existingMongoBans = await IpBanModel.find({ ipAddress: { $in: redisIps } }).lean();
+      const existingMap = new Map(existingMongoBans.map((b) => [b.ipAddress, b]));
+
+      // 构造 bulkWrite 操作
+      const bulkOps: any[] = [];
+
       for (const redisBan of redisBans) {
         try {
           const ip = redisBan.ip;
-
-          // 检查 MongoDB 中是否存在
-          const mongoBan = await IpBanModel.findOne({ ipAddress: ip });
+          const mongoBan = existingMap.get(ip);
+          const redisExpiresAt = new Date(redisBan.expiresAt);
 
           if (mongoBan) {
-            // 存在，检查是否需要更新
-            const redisExpiresAt = new Date(redisBan.expiresAt);
-
             if (redisExpiresAt > mongoBan.expiresAt) {
               // Redis 的过期时间更晚，更新 MongoDB
-              mongoBan.expiresAt = redisExpiresAt;
-              mongoBan.reason = redisBan.reason;
-              mongoBan.violationCount = Math.max(mongoBan.violationCount, redisBan.violationCount || 1);
-
-              if (redisBan.fingerprint) {
-                mongoBan.fingerprint = redisBan.fingerprint;
-              }
-              if (redisBan.userAgent) {
-                mongoBan.userAgent = redisBan.userAgent;
-              }
-
-              await mongoBan.save();
+              bulkOps.push({
+                updateOne: {
+                  filter: { ipAddress: ip },
+                  update: {
+                    $set: {
+                      expiresAt: redisExpiresAt,
+                      reason: redisBan.reason,
+                      violationCount: Math.max(mongoBan.violationCount, redisBan.violationCount || 1),
+                      ...(redisBan.fingerprint ? { fingerprint: redisBan.fingerprint } : {}),
+                      ...(redisBan.userAgent ? { userAgent: redisBan.userAgent } : {}),
+                    },
+                  },
+                },
+              });
               updated++;
-              logger.debug(`✅ 更新 MongoDB 记录: ${ip}`);
             } else {
               skipped++;
             }
           } else {
             // 不存在，创建新记录
-            await IpBanModel.create({
-              ipAddress: ip,
-              reason: redisBan.reason,
-              violationCount: redisBan.violationCount || 1,
-              bannedAt: new Date(redisBan.bannedAt),
-              expiresAt: new Date(redisBan.expiresAt),
-              fingerprint: redisBan.fingerprint,
-              userAgent: redisBan.userAgent,
+            bulkOps.push({
+              insertOne: {
+                document: {
+                  ipAddress: ip,
+                  reason: redisBan.reason,
+                  violationCount: redisBan.violationCount || 1,
+                  bannedAt: new Date(redisBan.bannedAt),
+                  expiresAt: redisExpiresAt,
+                  fingerprint: redisBan.fingerprint || "",
+                  userAgent: redisBan.userAgent || "",
+                },
+              },
             });
             synced++;
-            logger.debug(`✅ 创建 MongoDB 记录: ${ip}`);
           }
         } catch (error) {
           logger.error(`反向同步 IP ${redisBan.ip} 失败:`, error);
           errors++;
         }
+      }
+
+      // 执行批量写入（一次操作）
+      if (bulkOps.length > 0) {
+        await IpBanModel.bulkWrite(bulkOps);
       }
 
       const duration = Date.now() - startTime;

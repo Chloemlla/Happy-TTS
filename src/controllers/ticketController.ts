@@ -7,6 +7,7 @@ import type { ChatFailureDiagnostics } from "../services/librechat/types";
 import { ModerationService } from "../services/moderationService";
 import { mongoose } from "../services/mongoService";
 import { wsService } from "../services/wsService";
+import { UserModel } from "../services/userService";
 import * as emailTemplates from "../templates/emailTemplates";
 import { firstString } from "../utils/httpParam";
 import logger from "../utils/logger";
@@ -198,11 +199,8 @@ export const ticketController = {
 
       (async () => {
         try {
-          const allUsers = await UserStorage.getAllUsers();
-          const adminEmails = allUsers
-            .filter((u) => u.role === "admin")
-            .map((a) => a.email)
-            .filter(Boolean);
+          const adminDocs = await UserModel.find({ role: "admin" }).select("email username id").lean();
+          const adminEmails = adminDocs.map((a: any) => a.email).filter(Boolean);
           if (adminEmails.length > 0) {
             const html = emailTemplates.generateTicketCreatedEmailHtml(
               "管理员",
@@ -362,8 +360,8 @@ export const ticketController = {
       } else {
         (async () => {
           try {
-            const admins = (await UserStorage.getAllUsers()).filter((u) => u.role === "admin");
-            const adminEmails = admins.map((a) => a.email).filter(Boolean);
+            const adminDocs = await UserModel.find({ role: "admin" }).select("email username id").lean();
+            const adminEmails = adminDocs.map((a: any) => a.email).filter(Boolean);
             if (adminEmails.length > 0) {
               const html = emailTemplates.generateFeedbackRepliedEmailHtml(
                 "管理员",

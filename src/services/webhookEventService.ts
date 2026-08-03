@@ -283,7 +283,9 @@ export const WebhookEventService = {
     return { items, total, page: p, pageSize: ps };
   },
   async groups() {
+    const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const rows = await WebhookEventModel.aggregate([
+      { $match: { receivedAt: { $gte: since7d } } },
       {
         $group: {
           _id: { routeKey: "$routeKey" },
@@ -295,40 +297,34 @@ export const WebhookEventService = {
     return rows.map((r: any) => ({ routeKey: r._id.routeKey ?? null, total: r.total }));
   },
   async stats() {
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const failureStatuses = ["failed", "error", "bounced", "complained", "delivery_delayed"];
-    const [total, last24h, failed, byStatus, byProvider, byRouteKey, byType] = await Promise.all([
-      WebhookEventModel.countDocuments({}),
-      WebhookEventModel.countDocuments({ receivedAt: { $gte: since } }),
-      WebhookEventModel.countDocuments({ status: { $in: failureStatuses } }),
-      WebhookEventModel.aggregate([
-        { $group: { _id: "$status", total: { $sum: 1 } } },
-        { $sort: { total: -1 } },
-      ]),
-      WebhookEventModel.aggregate([
-        { $group: { _id: "$provider", total: { $sum: 1 } } },
-        { $sort: { total: -1 } },
-      ]),
-      WebhookEventModel.aggregate([
-        { $group: { _id: "$routeKey", total: { $sum: 1 } } },
-        { $sort: { total: -1 } },
-      ]),
-      WebhookEventModel.aggregate([
-        { $group: { _id: "$type", total: { $sum: 1 } } },
-        { $sort: { total: -1 } },
-        { $limit: 10 },
-      ]),
+
+    const [facetResult] = await WebhookEventModel.aggregate([
+      { $match: { receivedAt: { $gte: since7d } } },
+      {
+        $facet: {
+          total: [{ $count: "count" }],
+          last24h: [{ $match: { receivedAt: { $gte: since24h } } }, { $count: "count" }],
+          failed: [{ $match: { status: { $in: failureStatuses } } }, { $count: "count" }],
+          byStatus: [{ $group: { _id: "$status", total: { $sum: 1 } } }, { $sort: { total: -1 } }],
+          byProvider: [{ $group: { _id: "$provider", total: { $sum: 1 } } }, { $sort: { total: -1 } }],
+          byRouteKey: [{ $group: { _id: "$routeKey", total: { $sum: 1 } } }, { $sort: { total: -1 } }],
+          byType: [{ $group: { _id: "$type", total: { $sum: 1 } } }, { $sort: { total: -1 } }, { $limit: 10 }],
+        },
+      },
     ]);
 
     const mapRows = (rows: any[]) => rows.map((row) => ({ key: row._id ?? null, total: row.total }));
     return {
-      total,
-      last24h,
-      failed,
-      byStatus: mapRows(byStatus),
-      byProvider: mapRows(byProvider),
-      byRouteKey: mapRows(byRouteKey),
-      byType: mapRows(byType),
+      total: facetResult.total[0]?.count ?? 0,
+      last24h: facetResult.last24h[0]?.count ?? 0,
+      failed: facetResult.failed[0]?.count ?? 0,
+      byStatus: mapRows(facetResult.byStatus),
+      byProvider: mapRows(facetResult.byProvider),
+      byRouteKey: mapRows(facetResult.byRouteKey),
+      byType: mapRows(facetResult.byType),
     };
   },
   async get(id: string) {

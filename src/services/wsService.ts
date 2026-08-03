@@ -224,6 +224,8 @@ class WsService {
     ws.on("error", (err: Error) => {
       logger.error("[WS] 连接错误", { userId, error: err.message });
       this.clients.delete(ws);
+      // 出错后强制关闭底层连接，避免半开 socket 泄漏。
+      ws.terminate();
     });
   }
 

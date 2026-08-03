@@ -109,11 +109,8 @@ async function findUserByEmail(email: string): Promise<User | null> {
     return exactMatch;
   }
 
-  const normalizedEmail = email.trim().toLowerCase();
-  const users = await UserStorage.getAllUsers();
-  return (
-    users.find((user) => typeof user.email === "string" && user.email.trim().toLowerCase() === normalizedEmail) || null
-  );
+  // 精确匹配未命中时，使用区分大小写的数据库查询，避免全表扫描
+  return UserStorage.getUserByEmailCaseInsensitive(email);
 }
 
 function toAuthPayload(user: User, isNewUser: boolean): GoogleAuthPayload {

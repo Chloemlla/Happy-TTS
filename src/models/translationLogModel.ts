@@ -12,7 +12,7 @@ export interface ITranslationLog {
 const TranslationLogSchema = new mongoose.Schema<ITranslationLog>(
   {
     userId: { type: String, required: true, index: true },
-    timestamp: { type: Date, default: Date.now, index: true },
+    timestamp: { type: Date, default: Date.now },
     input_text: { type: String, required: true },
     output_text: { type: String, default: "" },
     ip_address: { type: String, required: true },
@@ -25,6 +25,9 @@ const TranslationLogSchema = new mongoose.Schema<ITranslationLog>(
 );
 
 TranslationLogSchema.index({ userId: 1, timestamp: -1 });
+
+// 90 天 TTL 自动清理（timestamp 到期后自动删除）
+TranslationLogSchema.index({ timestamp: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 });
 
 export const TranslationLogModel =
   (mongoose.models.TranslationLog as mongoose.Model<ITranslationLog>) ||

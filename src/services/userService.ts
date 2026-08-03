@@ -264,6 +264,45 @@ export const getUserByEmail = async (email: string): Promise<UserType | null> =>
   return removeAvatarBase64(doc) as unknown as UserType;
 };
 
+export const getUserByEmailCaseInsensitive = async (email: string): Promise<UserType | null> => {
+  // 防注入：只允许字符串类型且为合法邮箱
+  if (typeof email !== "string") return null;
+  const safeEmail = email.trim();
+  if (!safeEmail || !validator.isEmail(safeEmail)) return null;
+  const escaped = safeEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, (ch) => `\\${ch}`);
+  const doc = await UserModel.findOne({ email: new RegExp(`^${escaped}$`, "i") })
+    .select(PUBLIC_USER_SELECT)
+    .lean();
+
+  if (!doc) return null;
+  return removeAvatarBase64(doc) as unknown as UserType;
+};
+
+export const getUserByToken = async (token: string): Promise<UserType | null> => {
+  if (typeof token !== "string" || !token) {
+    return null;
+  }
+  const doc = await UserModel.findOne({ token })
+    .select(PUBLIC_USER_SELECT)
+    .lean();
+
+  if (!doc) return null;
+  return removeAvatarBase64(doc) as unknown as UserType;
+};
+
+export const getUsersByIds = async (ids: string[]): Promise<UserType[]> => {
+  if (!ids || ids.length === 0) return [];
+  const docs = await UserModel.find({ id: { $in: ids } })
+    .select(PUBLIC_USER_SELECT)
+    .lean();
+  return docs.map((d) => removeAvatarBase64(d)) as unknown as UserType[];
+};
+
+export const bulkUpdateUsers = async (ops: Array<{ updateOne: { filter: Record<string, unknown>; update: Record<string, unknown> } }>): Promise<void> => {
+  if (!ops || ops.length === 0) return;
+  await UserModel.bulkWrite(ops as any);
+};
+
 export const createUser = async (user: UserType): Promise<UserType> => {
   const { password, ...rest } = user;
   const protectedPassword = await protectPassword(user.id, password || "");
@@ -466,3 +505,5 @@ export const incrementUserDailyUsageAtomic = async (
     user,
   };
 };
+
+export { UserModel };

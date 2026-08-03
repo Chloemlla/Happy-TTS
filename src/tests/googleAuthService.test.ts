@@ -20,6 +20,7 @@ jest.mock("../utils/userStorage", () => ({
   UserStorage: {
     getAllUsers: jest.fn(),
     getUserByEmail: jest.fn(),
+    getUserByEmailCaseInsensitive: jest.fn(),
     getUserByUsername: jest.fn(),
     createUser: jest.fn(),
     updateUser: jest.fn(),
@@ -85,7 +86,7 @@ describe("googleAuthService", () => {
     });
 
     (UserStorage.getUserByEmail as jest.Mock).mockResolvedValue(null);
-    (UserStorage.getAllUsers as jest.Mock).mockResolvedValue([]);
+    (UserStorage.getUserByEmailCaseInsensitive as jest.Mock).mockResolvedValue(null);
     (UserStorage.getUserByUsername as jest.Mock).mockResolvedValue(null);
     (UserStorage.createUser as jest.Mock).mockResolvedValue({
       id: "user-123",

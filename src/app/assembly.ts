@@ -248,8 +248,12 @@ export function registerCoreMiddleware(app: Express): void {
   app.use(express.json({
     limit: "10mb",
     verify: (req, _res, buf) => {
-      // Preserve raw bytes for NexAI request signature (nexai-sig-v2).
-      (req as any).rawBody = Buffer.from(buf);
+      // Preserve raw bytes only for NexAI request signature (nexai-sig-v2).
+      // Copying the buffer for every request wastes CPU and memory; all other
+      // routes only need the parsed JSON body. req.url is path + optional query.
+      if (req.url?.startsWith("/api/nexai")) {
+        (req as any).rawBody = Buffer.from(buf);
+      }
     },
   }));
   app.use(express.urlencoded({ extended: true, limit: "10mb" }));
@@ -365,14 +369,15 @@ export function registerStaticRoutes(app: Express): void {
       generateHTML: (doc: unknown, opts?: Record<string, unknown>) => string;
     }
   ).generateHTML;
-  generateSwaggerHtml(swaggerDocForHtml, swaggerSetupOptions);
+  // Pre-render the Swagger HTML once at startup; per-request only the CSP nonce
+  // is injected, avoiding an expensive re-render on every /api-docs request.
+  const cachedSwaggerHtml = generateSwaggerHtml(swaggerDocForHtml, swaggerSetupOptions);
 
   const sendSwaggerHtml = (_req: Request, res: Response) => {
     const nonce = ensureCspNonce(res);
-    const html = generateSwaggerHtml(swaggerDocForHtml, swaggerSetupOptions);
     res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     res.set("Content-Type", "text/html; charset=utf-8");
-    res.status(200).send(applyCspNonceToHtml(html, nonce));
+    res.status(200).send(applyCspNonceToHtml(cachedSwaggerHtml, nonce));
   };
 
   app.use("/api-docs", applyNoCacheHeaders, swaggerUi.serve);
@@ -411,6 +416,18 @@ export function registerStaticRoutes(app: Express): void {
   const resolvedFrontendPath = resolveStaticDirectory(frontendCandidates, ["index.html"]);
   if (resolvedFrontendPath) {
     logger.info(`[Frontend] Serving static files from: ${resolvedFrontendPath}`);
+    // Read index.html once at startup instead of hitting the disk on every SPA
+    // request. Per-request only the CSP nonce is injected into the cached shell.
+    const indexPath = join(resolvedFrontendPath, "index.html");
+    let cachedIndexHtml: string | null = null;
+    try {
+      cachedIndexHtml = fs.readFileSync(indexPath, "utf8");
+    } catch (error) {
+      logger.error("[Frontend] Failed to read index.html at startup", {
+        path: indexPath,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
     const frontendStaticOptions = {
       setHeaders: (res: Response, filePath: string) => applyStaticCacheHeaders(res, filePath),
     };
@@ -418,21 +435,13 @@ export function registerStaticRoutes(app: Express): void {
     app.use("/static", staticFileLimiter, express.static(resolvedFrontendPath, frontendStaticOptions));
     const sendIndexHtml = (_req: Request, res: Response) => {
       const nonce = ensureCspNonce(res);
-      const indexPath = join(resolvedFrontendPath, "index.html");
-      let html: string;
-      try {
-        html = fs.readFileSync(indexPath, "utf8");
-      } catch (error) {
-        logger.error("[Frontend] Failed to read index.html", {
-          path: indexPath,
-          error: error instanceof Error ? error.message : String(error),
-        });
+      if (cachedIndexHtml === null) {
         res.status(500).type("text/plain").send("Frontend shell unavailable");
         return;
       }
       res.set("Cache-Control", "no-cache, must-revalidate");
       res.set("Content-Type", "text/html; charset=utf-8");
-      res.status(200).send(applyCspNonceToHtml(html, nonce));
+      res.status(200).send(applyCspNonceToHtml(cachedIndexHtml, nonce));
     };
     app.get("/", rootLimiter, sendIndexHtml);
     app.get(/^\/(?!\.well-known(?:\/|$)|api|api-docs|docs(?:\/|$)|static|assets(?:\/|$)|openapi)(.*)/, frontendLimiter, sendIndexHtml);

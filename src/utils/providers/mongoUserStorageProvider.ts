@@ -27,8 +27,24 @@ export const mongoUserStorageProvider: UserStorageProvider = {
     return removeAvatarBase64(await userService.getUserByEmail(email));
   },
 
+  async getUserByEmailCaseInsensitive(email: string) {
+    return removeAvatarBase64(await userService.getUserByEmailCaseInsensitive(email));
+  },
+
   async getUserByUsername(username: string) {
     return removeAvatarBase64(await userService.getUserByUsername(username));
+  },
+
+  async getUserByToken(token: string) {
+    return removeAvatarBase64(await userService.getUserByToken(token));
+  },
+
+  async getUsersByIds(ids: string[]) {
+    return (await userService.getUsersByIds(ids)).map((user) => removeAvatarBase64(user));
+  },
+
+  async bulkUpdateUsers(ops) {
+    await userService.bulkUpdateUsers(ops);
   },
 
   async getUserByLinuxDoId(linuxdoId: string) {

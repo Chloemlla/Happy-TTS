@@ -329,6 +329,8 @@ interface ResilientStoreOptions {
   mongoStore?: Store;
   memoryStore?: Store;
   redisEnabled?: boolean;
+  /** Prefer the bounded process-local memory store as the primary backend. */
+  preferMemory?: boolean;
 }
 
 export class ResilientRateLimitStore implements Store {
@@ -343,10 +345,13 @@ export class ResilientRateLimitStore implements Store {
     private readonly memoryStore: Store,
     private readonly requireSharedBackend: boolean,
     private readonly allowMongoFallbackAfterRedisError: boolean,
+    private readonly preferMemory = false,
   ) {
     this.prefix = prefix;
-    // Prefer shared Redis/Mongo backends; memory is only a last-resort local fallback.
-    this.localKeys = false;
+    // Memory is the default primary store; Redis/Mongo shared backends are only
+    // used when explicitly configured (preferMemory=false) for multi-instance
+    // deployments that need cross-process consistency.
+    this.localKeys = preferMemory;
   }
 
   init(options: Options): void {
@@ -380,6 +385,11 @@ export class ResilientRateLimitStore implements Store {
       if (!fn) return undefined;
       return fn.call(store, key);
     };
+
+    if (this.preferMemory) {
+      // Default path: bounded process-local memory, no database writes.
+      return call(this.memoryStore);
+    }
 
     if (this.redisStore) {
       try {
@@ -426,6 +436,9 @@ export function createSharedRateLimitStore(
   const redisStore = redisEnabled ? options.redisStore || new RedisRateLimitStore(prefix, windowMs) : null;
   const mongoStore = options.mongoStore || new MongoRateLimitStore(prefix, windowMs);
   const memoryStore = options.memoryStore || new BoundedMemoryRateLimitStore(prefix, windowMs);
+  // Memory is the default primary store; callers that explicitly require a shared
+  // backend (e.g. requireSharedBackend: true) opt back into Redis/Mongo.
+  const preferMemory = options.preferMemory ?? !options.requireSharedBackend;
   return new ResilientRateLimitStore(
     prefix,
     redisStore,
@@ -433,5 +446,6 @@ export function createSharedRateLimitStore(
     memoryStore,
     options.requireSharedBackend ?? false,
     options.allowMongoFallbackAfterRedisError ?? true,
+    preferMemory,
   );
 }

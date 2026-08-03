@@ -4,15 +4,11 @@ import { useAuth } from './hooks/useAuth';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import { TOTPStatus } from './types/auth';
 import { SimpleLoadingSpinner } from './components/LoadingSpinner';
-import TOTPManager from './components/TOTPManager';
 import { NotificationProvider } from './components/Notification';
-import PenaltyAppealHost from './components/PenaltyAppealHost';
 import { BroadcastModalProvider } from './components/BroadcastModal';
 import WsConnector from './components/WsConnector';
 import ModListPage from './components/ModListPage';
 import { ToastContainer } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import AnnouncementModal from './components/AnnouncementModal';
 import md5 from 'md5';
 import getApiBaseUrl from './api';
 import DOMPurify from 'dompurify';
@@ -76,6 +72,9 @@ const TigerAdventure = React.lazy(() => import('./components/TigerAdventure'));
 const CoinFlip = React.lazy(() => import('./components/CoinFlip'));
 const MarkdownExportPage = React.lazy(() => import('./components/MarkdownExportPage'));
 const MarkdownArticlePage = React.lazy(() => import('./components/MarkdownArticlePage'));
+const TOTPManager = React.lazy(() => import('./components/TOTPManager'));
+const AnnouncementModal = React.lazy(() => import('./components/AnnouncementModal'));
+const PenaltyAppealHost = React.lazy(() => import('./components/PenaltyAppealHost'));
 
 // 字数统计页面懒加载
 const WordCountPageSimple = React.lazy(() => import('./components/WordCountPageSimple'));

@@ -65,33 +65,43 @@ describe("auditLogService", () => {
     expect(result).toMatchObject({ total: 1, page: 1, pageSize: 100 });
   });
 
-  it("applies the current filter scope to stats aggregations", async () => {
-    (AuditLogModel.countDocuments as jest.Mock).mockResolvedValueOnce(12).mockResolvedValueOnce(3);
-    (AuditLogModel.aggregate as jest.Mock)
-      .mockResolvedValueOnce([{ _id: "tts", count: 7 }])
-      .mockResolvedValueOnce([{ _id: "success", count: 10 }, { _id: "failure", count: 2 }])
-      .mockResolvedValueOnce([{ _id: "post /api/tts/generate", count: 5 }])
-      .mockResolvedValueOnce([{ _id: "admin", userId: "u1", count: 4 }])
-      .mockResolvedValueOnce([{ _id: "POST", count: 8 }])
-      .mockResolvedValueOnce([{ _id: 200, count: 10 }, { _id: 500, count: 2 }])
-      .mockResolvedValueOnce([{ averageDurationMs: 42.4, maxDurationMs: 120 }]);
+  it("applies the current filter scope to stats via a single $facet aggregation", async () => {
+    (AuditLogModel.aggregate as jest.Mock).mockResolvedValueOnce([
+      {
+        total: [{ count: 12 }],
+        recentCount: [{ count: 3 }],
+        byModule: [{ _id: "tts", count: 7 }],
+        byResult: [{ _id: "success", count: 10 }, { _id: "failure", count: 2 }],
+        topActions: [{ _id: "post /api/tts/generate", count: 5 }],
+        topUsers: [{ _id: "admin", userId: "u1", count: 4 }],
+        byMethod: [{ _id: "POST", count: 8 }],
+        byStatusCode: [{ _id: 200, count: 10 }, { _id: 500, count: 2 }],
+        durationStats: [{ averageDurationMs: 42.4, maxDurationMs: 120 }],
+      },
+    ]);
 
     const stats = await AuditLogService.getStats({ module: "tts", result: "success" });
     const firstPipeline = (AuditLogModel.aggregate as jest.Mock).mock.calls[0][0] as Array<Record<string, unknown>>;
 
-    expect(firstPipeline[0]).toEqual({ $match: expect.objectContaining({ module: "tts", result: "success" }) });
-    expect(AuditLogModel.countDocuments).toHaveBeenNthCalledWith(2, expect.objectContaining({
+    expect(AuditLogModel.aggregate).toHaveBeenCalledTimes(1);
+    expect(AuditLogModel.countDocuments).not.toHaveBeenCalled();
+    const matchStage = firstPipeline[0] as { $match: Record<string, any> };
+    expect(matchStage.$match).toMatchObject({
       module: "tts",
       result: "success",
-      createdAt: expect.any(Object),
-    }));
+      createdAt: { $gte: expect.any(Date) },
+    });
+    expect(firstPipeline[1]).toHaveProperty("$facet");
     expect(stats).toMatchObject({
       total: 12,
       last24h: 3,
       averageDurationMs: 42,
       maxDurationMs: 120,
       byModule: [{ module: "tts", count: 7 }],
+      byResult: [{ result: "success", count: 10 }, { result: "failure", count: 2 }],
       topActions: [{ action: "post /api/tts/generate", count: 5 }],
+      topUsers: [{ username: "admin", userId: "u1", count: 4 }],
+      byStatusCode: [{ statusCode: 200, count: 10 }, { statusCode: 500, count: 2 }],
     });
   });
 

@@ -87,8 +87,24 @@ export class UserStorage {
     return userRepository.getUserByEmail(email);
   }
 
+  public static async getUserByEmailCaseInsensitive(email: string): Promise<User | null> {
+    return userRepository.getUserByEmailCaseInsensitive(email);
+  }
+
   public static async getUserByUsername(username: string): Promise<User | null> {
     return userRepository.getUserByUsername(username);
+  }
+
+  public static async getUserByToken(token: string): Promise<User | null> {
+    return userRepository.getUserByToken(token);
+  }
+
+  public static async getUsersByIds(ids: string[]): Promise<User[]> {
+    return userRepository.getUsersByIds(ids);
+  }
+
+  public static async bulkUpdateUsers(ops: Array<{ updateOne: { filter: Record<string, unknown>; update: Record<string, unknown> } }>): Promise<void> {
+    return userRepository.bulkUpdateUsers(ops);
   }
 
   public static async getUserByLinuxDoId(linuxdoId: string): Promise<User | null> {

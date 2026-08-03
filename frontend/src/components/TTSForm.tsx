@@ -64,7 +64,7 @@ interface TtsFormProps {
   onSuccess?: (result: TtsResponse) => void;
 }
 
-export const TtsForm: React.FC<TtsFormProps> = ({
+export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
   loading,
   error,
   latestResult,
@@ -787,6 +787,6 @@ export const TtsForm: React.FC<TtsFormProps> = ({
       </motion.form>
     </div>
   );
-};
+});
 
 export default TtsForm;
