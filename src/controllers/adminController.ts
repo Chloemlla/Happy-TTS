@@ -517,10 +517,10 @@ export const adminController = {
       }
 
       // Send WebSocket notifications after all DB writes
-      for (const { id, require } of wsNotifyTargets) {
+      for (const { id, require: requireFingerprint } of wsNotifyTargets) {
         try {
           const { wsService } = require("../services/wsService");
-          wsService.notifyFingerprintRequired(id, require);
+          wsService.notifyFingerprintRequired(id, requireFingerprint);
         } catch (notifyError) {
           logger.warn("[管理员批量用户操作] 指纹 WebSocket 通知失败:", notifyError);
         }

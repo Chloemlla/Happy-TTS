@@ -209,7 +209,7 @@ class IpBanSyncService {
   }> {
     if (!redisService.isAvailable()) {
       logger.warn("⚠️ Redis 不可用，跳过反向同步");
-      return { synced: 0, updated: 0, skipped: 0, errors: 0 };
+      return { synced: 0, updated: 0, skipped: 0, errors: 0, duration: 0 };
     }
 
     const startTime = Date.now();
@@ -298,10 +298,10 @@ class IpBanSyncService {
         `✅ 反向同步完成: 新增 ${synced}, 更新 ${updated}, 跳过 ${skipped}, 错误 ${errors}, 耗时 ${duration}ms`,
       );
 
-      return { synced, updated, skipped, errors };
+      return { synced, updated, skipped, errors, duration: Date.now() - startTime };
     } catch (error) {
       logger.error("❌ 反向同步过程失败:", error);
-      return { synced, updated, skipped, errors };
+      return { synced, updated, skipped, errors, duration: Date.now() - startTime };
     }
   }
 
