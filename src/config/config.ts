@@ -365,6 +365,7 @@ export const startupConfig = Object.freeze({
     storageDestination: parsedEnv.IMAGE_BED_STORAGE_DESTINATION,
     outputFormat: parsedEnv.IMAGE_BED_OUTPUT_FORMAT,
   },
+});
 
 export const runtimeMutableConfig = {
   defaults: runtimeDefaults,

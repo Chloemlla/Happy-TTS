@@ -971,7 +971,6 @@ export class SmartHumanCheckService {
 
     return verifyPowLocal(challenge, nonce, difficulty);
   }
-  }
 
   private buildIssueError(
     info: { code: string; message: string; retryable: boolean },
