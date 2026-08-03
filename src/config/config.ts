@@ -302,6 +302,9 @@ const emailRuntimeDefaults: EmailRuntimeConfig = {
     parsedEnv.RESEND_OUTEMAIL_ENABLED === true,
   outemailDomain: parsedEnv.OUTEMAIL_DOMAIN || parsedEnv.RESEND_DOMAIN_OUT || parsedEnv.RESEND_DOMAIN,
   outemailApiKey: parsedEnv.OUTEMAIL_API_KEY || parsedEnv.RESEND_API_OUT || parsedEnv.RESEND_API_KEY || "",
+  // The shared outemail code is managed by RuntimeConfigService / Env Manager,
+  // not by process environment variables.
+  outemailCode: "",
   outemailQuotaTotal: Number(process.env.OUTEMAIL_QUOTA_TOTAL || process.env.RESEND_QUOTA_TOTAL) || 100,
 };
 

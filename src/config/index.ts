@@ -1,4 +1,4 @@
-import { config as appConfig, startupConfig } from "./config";
+import { config as appConfig, runtimeMutableConfig, startupConfig } from "./config";
 
 export default {
   port: appConfig.port,
@@ -29,7 +29,7 @@ export default {
       enabled: startupConfig.email.outemail.enabled,
       domain: startupConfig.email.outemail.domain || "",
       apiKey: startupConfig.email.outemail.apiKey || "",
-      code: startupConfig.email.outemail.code,
+      code: runtimeMutableConfig.email.outemailCode,
     },
   },
 };
