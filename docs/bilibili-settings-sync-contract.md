@@ -54,11 +54,32 @@ history uses `POST /api/bilibili-sync/search-records/batch` and
 Cookie is retained only as AES-GCM ciphertext in the dedicated credential
 archive. It is never returned or placed in settings/search payloads.
 
+PiliPlus sends a versioned settings snapshot containing both local settings
+boxes:
+
+```json
+{
+  "schemaVersion": 2,
+  "setting": { "SETTING_KEY": "SETTING_VALUE" },
+  "video": { "VIDEO_SETTING_KEY": "VIDEO_SETTING_VALUE" }
+}
+```
+
+Every JSON-serializable value in those boxes is synchronized. Synapse
+connection state, device identity, sync metadata, WebDAV passwords, cookies,
+tokens, and other credential-like keys remain local. The server accepts older
+flat snapshots as the `setting` section, supports up to 256 KiB per settings
+snapshot and up to 1000 records per search batch/change page. PiliPlus uploads
+changes after a short debounce and runs a background synchronization every
+five minutes while the account is active.
+
 ## Serialization and conflict rules
 
 - Settings use `baseVersion`; a stale write returns HTTP 409 and an opaque
   summary. Search records are deduplicated by normalized keyword and retain
   tombstones for incremental reads.
+- Startup and explicit conflict flows show the setting-key and search-record
+  changes before applying remote or merged data.
 - Conflict entries contain only category, record ID, and timestamps. They do
   not contain decrypted settings, cookies, or upstream Bilibili responses.
 - Revoking the binding or losing Bilibili login disables later writes until a

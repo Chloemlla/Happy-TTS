@@ -4,9 +4,10 @@ import { BilibiliSyncModel, type BilibiliSearchRecord, type BilibiliSyncDoc, typ
 import { config } from "../config/config";
 
 export const BILIBILI_UID_PATTERN = /^\d{1,12}$/;
-export const MAX_SETTINGS_BYTES = 64 * 1024;
-export const MAX_SEARCH_BATCH_SIZE = 100;
+export const MAX_SETTINGS_BYTES = 256 * 1024;
 export const MAX_SEARCH_RECORDS = 1000;
+export const MAX_SEARCH_BATCH_SIZE = MAX_SEARCH_RECORDS;
+export const MAX_SEARCH_CHANGE_LIMIT = MAX_SEARCH_RECORDS;
 export const MAX_SEARCH_KEYWORD_LENGTH = 256;
 export const MAX_SEARCH_RECORD_ID_LENGTH = 128;
 const CREDENTIAL_ALGO = "aes-256-gcm";
@@ -228,7 +229,7 @@ function settingsSummary(settings: BilibiliSyncSettings): { keys: string[]; size
 async function ensureDocument(userId: string): Promise<BilibiliSyncDoc> {
   const doc = await BilibiliSyncModel.findOneAndUpdate(
     { userId },
-    { $setOnInsert: { userId, settingsVersion: 0, settings: {}, searchRecords: [] } },
+    { $setOnInsert: { userId, settingsVersion: 0, settings: {}, searchRecords: [], searchRecordsVersion: 0 } },
     { upsert: true, returnDocument: "after" },
   );
   if (!doc) throw new Error("无法初始化 Bilibili 同步文档");
@@ -278,7 +279,7 @@ export async function bindBilibiliUid(userId: string, rawUid: unknown, rawCookie
           credentialValidatedAt: boundAt,
           credentialLastCheckedAt: boundAt,
         },
-        $setOnInsert: { userId, settings: {}, settingsVersion: 0, searchRecords: [] },
+        $setOnInsert: { userId, settings: {}, settingsVersion: 0, searchRecords: [], searchRecordsVersion: 0 },
       },
       { upsert: true, returnDocument: "after" },
     );
@@ -364,40 +365,63 @@ export async function upsertBilibiliSearchRecords(
     if (!previous || record.updatedAt >= previous.updatedAt || record.isDeleted) deduped.set(key, record);
   }
 
-  const doc = await ensureDocument(userId);
-  const records = [...((doc.searchRecords || []) as BilibiliSearchRecord[])];
-  let accepted = 0;
-  let ignored = 0;
-  for (const incoming of deduped.values()) {
-    const incomingKey = normalizeDedupeKey(incoming.keyword);
-    const existingIndex = records.findIndex((item) => item.id === incoming.id || item.dedupeKey === incomingKey);
-    const next: BilibiliSearchRecord = {
-      ...incoming,
-      dedupeKey: incomingKey,
-      deletedAt: incoming.isDeleted ? incoming.deletedAt || nowIso : null,
-      serverUpdatedAt: now,
-    };
-    if (existingIndex < 0) {
-      records.push(next);
-      accepted += 1;
-      continue;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const doc = await ensureDocument(userId);
+    const records = [...((doc.searchRecords || []) as BilibiliSearchRecord[])];
+    const indexById = new Map(records.map((record, index) => [record.id, index]));
+    const indexByDedupeKey = new Map(records.map((record, index) => [record.dedupeKey, index]));
+    let accepted = 0;
+    let ignored = 0;
+    for (const incoming of deduped.values()) {
+      const incomingKey = normalizeDedupeKey(incoming.keyword);
+      const existingIndex = indexById.get(incoming.id) ?? indexByDedupeKey.get(incomingKey);
+      const next: BilibiliSearchRecord = {
+        ...incoming,
+        dedupeKey: incomingKey,
+        deletedAt: incoming.isDeleted ? incoming.deletedAt || nowIso : null,
+        serverUpdatedAt: now,
+      };
+      if (existingIndex === undefined) {
+        indexById.set(next.id, records.length);
+        indexByDedupeKey.set(next.dedupeKey, records.length);
+        records.push(next);
+        accepted += 1;
+        continue;
+      }
+
+      const existing = records[existingIndex];
+      if (incoming.updatedAt >= existing.updatedAt || incoming.isDeleted) {
+        indexById.delete(existing.id);
+        indexByDedupeKey.delete(existing.dedupeKey);
+        records[existingIndex] = next;
+        indexById.set(next.id, existingIndex);
+        indexByDedupeKey.set(next.dedupeKey, existingIndex);
+        accepted += 1;
+      } else {
+        ignored += 1;
+      }
     }
 
-    const existing = records[existingIndex];
-    if (incoming.updatedAt >= existing.updatedAt || incoming.isDeleted) {
-      records[existingIndex] = next;
-      accepted += 1;
-    } else {
-      ignored += 1;
+    if (accepted === 0) {
+      return { accepted, ignored, deduplicated, pruned: 0, serverTime: nowIso };
     }
+
+    records.sort((a, b) => new Date(b.serverUpdatedAt).getTime() - new Date(a.serverUpdatedAt).getTime());
+    const pruned = Math.max(0, records.length - MAX_SEARCH_RECORDS);
+    records.splice(MAX_SEARCH_RECORDS);
+    const version = Number(doc.searchRecordsVersion || 0);
+    const versionFilter = doc.searchRecordsVersion === undefined
+      ? { $or: [{ searchRecordsVersion: { $exists: false } }, { searchRecordsVersion: 0 }] }
+      : { searchRecordsVersion: version };
+    const updated = await BilibiliSyncModel.findOneAndUpdate(
+      { userId, ...versionFilter },
+      { $set: { searchRecords: records }, $inc: { searchRecordsVersion: 1 } },
+      { returnDocument: "after" },
+    ) as BilibiliSyncDoc | null;
+    if (updated) return { accepted, ignored, deduplicated, pruned, serverTime: nowIso };
   }
 
-  records.sort((a, b) => new Date(b.serverUpdatedAt).getTime() - new Date(a.serverUpdatedAt).getTime());
-  const pruned = Math.max(0, records.length - MAX_SEARCH_RECORDS);
-  records.splice(MAX_SEARCH_RECORDS);
-  await BilibiliSyncModel.updateOne({ userId }, { $set: { searchRecords: records } });
-
-  return { accepted, ignored, deduplicated, pruned, serverTime: nowIso };
+  throw new BilibiliSyncError("搜索记录同步发生并发冲突，请稍后重试", "BILIBILI_SEARCH_CONFLICT", 409);
 }
 
 export async function getBilibiliSearchChanges(
@@ -410,8 +434,8 @@ export async function getBilibiliSearchChanges(
     throw new BilibiliSyncError("since 必须是有效的 ISO 8601 时间", "BILIBILI_SYNC_INVALID_SINCE");
   }
   const limit = rawLimit === undefined ? 200 : Number(rawLimit);
-  if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
-    throw new BilibiliSyncError("limit 必须是 1-200 的整数", "BILIBILI_SYNC_INVALID_LIMIT");
+  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_SEARCH_CHANGE_LIMIT) {
+    throw new BilibiliSyncError(`limit 必须是 1-${MAX_SEARCH_CHANGE_LIMIT} 的整数`, "BILIBILI_SYNC_INVALID_LIMIT");
   }
 
   const serverTime = new Date().toISOString();

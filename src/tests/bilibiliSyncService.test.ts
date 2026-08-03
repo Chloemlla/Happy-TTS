@@ -48,6 +48,7 @@ function syncDoc(overrides: Record<string, unknown> = {}) {
     settingsVersion: 0,
     settingsUpdatedAt: null,
     searchRecords: [],
+    searchRecordsVersion: 0,
     bilibiliUid: "12345",
     credentialStatus: "active",
     credentialCiphertext: ciphertext.toString("base64"),
@@ -114,7 +115,9 @@ describe("bilibiliSyncService", () => {
       { id: "c", keyword: "remove", isDeleted: true },
     ]);
 
-    const update = mockUpdateOne.mock.calls[0][1] as { $set: { searchRecords: Array<{ isDeleted: boolean }> } };
+    const update = mockFindOneAndUpdate.mock.calls[mockFindOneAndUpdate.mock.calls.length - 1][1] as {
+      $set: { searchRecords: Array<{ isDeleted: boolean }> };
+    };
     expect(update.$set.searchRecords).toHaveLength(2);
     expect(update.$set.searchRecords.some((record) => record.isDeleted)).toBe(true);
 
@@ -128,5 +131,11 @@ describe("bilibiliSyncService", () => {
       }));
     const changes = await getBilibiliSearchChanges("user-1", "1970-01-01T00:00:00.000Z", 10);
     expect(changes.records.some((record) => record.isDeleted)).toBe(true);
+  });
+
+  it("accepts the full retained search history page size", async () => {
+    await expect(
+      getBilibiliSearchChanges("user-1", "1970-01-01T00:00:00.000Z", 1000),
+    ).resolves.toMatchObject({ records: [] });
   });
 });

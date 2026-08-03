@@ -23,6 +23,7 @@ export interface BilibiliSyncDoc {
   settingsVersion: number;
   settingsUpdatedAt: Date | null;
   searchRecords: BilibiliSearchRecord[];
+  searchRecordsVersion: number;
   createdAt: Date;
   updatedAt: Date;
   credentialCiphertext?: string;
@@ -57,6 +58,7 @@ const bilibiliSyncSchema = new mongoose.Schema<BilibiliSyncDoc>(
     settingsVersion: { type: Number, required: true, default: 0 },
     settingsUpdatedAt: { type: Date, default: null },
     searchRecords: { type: [searchRecordSchema], default: [] },
+    searchRecordsVersion: { type: Number, default: 0 },
     credentialCiphertext: { type: String, select: false },
     credentialIv: { type: String, select: false },
     credentialTag: { type: String, select: false },
