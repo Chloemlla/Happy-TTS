@@ -7,7 +7,6 @@ const mockStartupConfig = {
     adminOperationPassword: true,
     serverPassword: true,
     passwordEncryptionKey: true,
-    internalServiceToken: true,
   },
 };
 

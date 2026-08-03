@@ -13,20 +13,14 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
-const CARGO_ROOT_DIRNAME = 'rust-services';
 const MANIFEST_FILENAME = 'package.json';
-const CARGO_MANIFEST_FILENAME = 'Cargo.toml';
-const CARGO_LOCK_FILENAME = 'Cargo.lock';
 const PNPM_COMMAND = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 const COREPACK_COMMAND = process.platform === 'win32' ? 'corepack.cmd' : 'corepack';
-const CARGO_COMMAND = process.platform === 'win32' ? 'cargo.exe' : 'cargo';
 const IS_WINDOWS = process.platform === 'win32';
 
 const GITHUB_API_ROOT = 'https://api.github.com';
 const GITHUB_API_VERSION = '2022-11-28';
 const GITHUB_USER_AGENT = 'synapse-security-alert-fixer';
-const CRATES_IO_API_ROOT = 'https://crates.io/api/v1/crates';
-const CRATES_IO_USER_AGENT = 'synapse-dependabot-alert-fixer';
 const DEPENDENCY_FIELDS = [
   'dependencies',
   'devDependencies',
@@ -35,11 +29,6 @@ const DEPENDENCY_FIELDS = [
 ];
 const PINNED_DEPENDENCY_RANGES_BY_TARGET = {};
 
-const RUST_DEPENDENCY_FIELDS = [
-  'dependencies',
-  'dev-dependencies',
-  'build-dependencies',
-];
 const EXCLUDED_DIRECTORIES = new Set([
   '.git',
   '.github',
@@ -47,9 +36,8 @@ const EXCLUDED_DIRECTORIES = new Set([
   'coverage',
   'dist',
   'node_modules',
-  'target',
 ]);
-const SUPPORTED_DEPENDABOT_ECOSYSTEMS = new Set(['npm', 'cargo']);
+const SUPPORTED_DEPENDABOT_ECOSYSTEMS = new Set(['npm']);
 
 // 全局缓存已经探测成功的 pnpm 执行器命令，规避重复降级重试逻辑
 let cachedPnpmCommand = null;
@@ -467,11 +455,6 @@ function normalizeDependabotEcosystem(ecosystem) {
     return 'npm';
   }
 
-  // GitHub Dependabot alerts use "rust"; cargo tooling and this script use "cargo".
-  if (normalizedEcosystem === 'rust') {
-    return 'cargo';
-  }
-
   return normalizedEcosystem;
 }
 
@@ -578,92 +561,6 @@ function findNpmTargetsForDependabotAlert(alert, targets) {
   return matches;
 }
 
-function dependabotAlertPathMatchesRustTarget(alertManifestPath, target) {
-  if (!target) {
-    return false;
-  }
-
-  const normalizedAlertPath = normalizeRepoPath(alertManifestPath);
-
-  if (!normalizedAlertPath) {
-    return false;
-  }
-
-  const cargoLockLabel = normalizeRepoPath(path.relative(ROOT_DIR, target.cargoLockPath));
-  const manifestLabel = normalizeRepoPath(target.cargoManifestLabel);
-  const crateDirLabel = normalizeRepoPath(path.relative(ROOT_DIR, target.crateDir));
-
-  return (
-    normalizedAlertPath === manifestLabel
-    || normalizedAlertPath === cargoLockLabel
-    || (crateDirLabel.length > 0 && (
-      normalizedAlertPath === crateDirLabel
-      || normalizedAlertPath.startsWith(`${crateDirLabel}/`)
-    ))
-  );
-}
-
-function rustTargetContainsPackage(target, packageName) {
-  if (!packageName) {
-    return false;
-  }
-
-  return target.dependencyEntries.some((dependencyEntry) =>
-    dependencyEntry.crateName === packageName
-    || dependencyEntry.dependencyName === packageName
-  );
-}
-
-function findRustTargetsForDependabotAlert(alert, targets) {
-  const alertManifestPath = getDependabotAlertManifestPath(alert);
-  const packageName = getDependabotAlertPackageName(alert);
-  const normalizedAlertPath = normalizeRepoPath(alertManifestPath);
-  let matches = [];
-
-  if (normalizedAlertPath) {
-    matches = targets.filter((target) =>
-      dependabotAlertPathMatchesRustTarget(normalizedAlertPath, target)
-    );
-
-    // Workspace lockfile alerts should only hit crates that declare the package.
-    const cargoLockLabels = new Set(
-      targets.map((target) => normalizeRepoPath(path.relative(ROOT_DIR, target.cargoLockPath)))
-    );
-    if (
-      matches.length > 0
-      && packageName
-      && cargoLockLabels.has(normalizedAlertPath)
-    ) {
-      const packageMatches = matches.filter((target) =>
-        rustTargetContainsPackage(target, packageName)
-      );
-      if (packageMatches.length > 0) {
-        matches = packageMatches;
-      } else {
-        // Transitive lockfile-only package: one workspace representative is enough.
-        matches = matches.slice(0, 1);
-      }
-    }
-  }
-
-  if (matches.length === 0 && packageName) {
-    matches = targets.filter((target) => rustTargetContainsPackage(target, packageName));
-  }
-
-  // Workspace-root manifest alerts without a crate path fall back to package matches above.
-  // If still unmatched for a Cargo.lock path, use one workspace target for cargo update -p.
-  if (
-    matches.length === 0
-    && targets.length > 0
-    && normalizedAlertPath
-    && path.posix.basename(normalizedAlertPath) === CARGO_LOCK_FILENAME
-  ) {
-    matches = [targets[0]];
-  }
-
-  return matches;
-}
-
 function addAlertToTargetMap(alertsByTarget, target, alert) {
   if (!alertsByTarget.has(target)) {
     alertsByTarget.set(target, []);
@@ -672,9 +569,8 @@ function addAlertToTargetMap(alertsByTarget, target, alert) {
   alertsByTarget.get(target).push(alert);
 }
 
-function createDependabotAlertPlan(alerts, pnpmTargets, rustTargets) {
+function createDependabotAlertPlan(alerts, pnpmTargets) {
   const npmAlertsByTarget = new Map();
-  const rustAlertsByTarget = new Map();
   const unsupportedAlerts = [];
   const unmatchedAlerts = [];
 
@@ -700,25 +596,11 @@ function createDependabotAlertPlan(alerts, pnpmTargets, rustTargets) {
 
       continue;
     }
-
-    if (ecosystem === 'cargo') {
-      const matches = findRustTargetsForDependabotAlert(alert, rustTargets);
-
-      if (matches.length === 0) {
-        unmatchedAlerts.push(alert);
-        continue;
-      }
-
-      for (const target of matches) {
-        addAlertToTargetMap(rustAlertsByTarget, target, alert);
-      }
-    }
   }
 
   return {
     alerts,
     npmAlertsByTarget,
-    rustAlertsByTarget,
     unsupportedAlerts,
     unmatchedAlerts,
   };
@@ -736,24 +618,15 @@ function formatDependabotAlert(alert) {
 
 function printDependabotAlertDiscovery(repository, plan) {
   const npmTargetCount = plan.npmAlertsByTarget.size;
-  const cargoTargetCount = plan.rustAlertsByTarget.size;
 
   console.log(`Dependabot alert discovery: ${plan.alerts.length} open alert(s) from ${repository}.`);
-  console.log(`Actionable targets from alerts: ${npmTargetCount + cargoTargetCount}`);
+  console.log(`Actionable targets from alerts: ${npmTargetCount}`);
 
   for (const [target, alerts] of plan.npmAlertsByTarget.entries()) {
     const packages = Array.from(new Set(alerts.map(getDependabotAlertPackageName).filter(Boolean)))
       .sort((left, right) => left.localeCompare(right));
     console.log(
       `- ${target.packageJsonLabel}: ${alerts.length} npm alert(s)${packages.length > 0 ? ` (${packages.join(', ')})` : ''}`
-    );
-  }
-
-  for (const [target, alerts] of plan.rustAlertsByTarget.entries()) {
-    const packages = Array.from(new Set(alerts.map(getDependabotAlertPackageName).filter(Boolean)))
-      .sort((left, right) => left.localeCompare(right));
-    console.log(
-      `- ${target.cargoManifestLabel}: ${alerts.length} cargo alert(s)${packages.length > 0 ? ` (${packages.join(', ')})` : ''}`
     );
   }
 
@@ -772,7 +645,7 @@ function printDependabotAlertDiscovery(repository, plan) {
   }
 }
 
-async function discoverDependabotAlertPlan(cliArgs, pnpmTargets, rustTargets) {
+async function discoverDependabotAlertPlan(cliArgs, pnpmTargets) {
   if (!shouldUseDependabotAlertDiscovery(cliArgs)) {
     return null;
   }
@@ -789,7 +662,7 @@ async function discoverDependabotAlertPlan(cliArgs, pnpmTargets, rustTargets) {
 
   try {
     const alerts = await fetchOpenDependabotAlerts(repository, token);
-    const plan = createDependabotAlertPlan(alerts, pnpmTargets, rustTargets);
+    const plan = createDependabotAlertPlan(alerts, pnpmTargets);
     printDependabotAlertDiscovery(repository, plan);
     return plan;
   } catch (error) {
@@ -924,13 +797,13 @@ function applyDependabotAlertOverrides(target, manifest, alerts = []) {
 async function rewriteManifest(packageJsonPath, manifest) {
   const currentManifestText = await readFile(packageJsonPath, 'utf8');
   const newline = currentManifestText.includes('\r\n') ? '\r\n' : '\n';
-  
+
   // 安全的换行符替换，仅替换系统默认换行
   const serialized = JSON.stringify(manifest, null, 2);
-  const normalizedText = newline === '\r\n' 
-    ? serialized.replace(/\n/g, '\r\n') 
+  const normalizedText = newline === '\r\n'
+    ? serialized.replace(/\n/g, '\r\n')
     : serialized;
-    
+
   await writeFile(packageJsonPath, `${normalizedText}${newline}`);
 }
 
@@ -1013,377 +886,6 @@ function createPnpmExecutor(target) {
   };
 }
 
-function isRustDependencySection(sectionName) {
-  return RUST_DEPENDENCY_FIELDS.some(
-    (field) => sectionName === field || sectionName.endsWith(`.${field}`)
-  );
-}
-
-function getRustDependencyField(sectionName) {
-  return (
-    RUST_DEPENDENCY_FIELDS.find(
-      (field) => sectionName === field || sectionName.endsWith(`.${field}`)
-    ) ?? 'dependencies'
-  );
-}
-
-function collectRustDependencyEntries(manifestText) {
-  const lines = manifestText.split(/\r?\n/);
-  const dependencyEntries = [];
-  let currentSectionName = '';
-
-  for (const [lineIndex, line] of lines.entries()) {
-    const trimmedLine = line.trim();
-
-    if (!trimmedLine || trimmedLine.startsWith('#')) {
-      continue;
-    }
-
-    const sectionMatch = trimmedLine.match(/^\[(.+)\]$/);
-    if (sectionMatch) {
-      currentSectionName = sectionMatch[1].trim();
-      continue;
-    }
-
-    if (!isRustDependencySection(currentSectionName)) {
-      continue;
-    }
-
-    const stringDependencyMatch = line.match(
-      /^(\s*)([A-Za-z0-9_-]+)\s*=\s*"([^"]+)"(\s*(#.*)?)?$/
-    );
-
-    if (stringDependencyMatch) {
-      const indent = stringDependencyMatch[1] ?? '';
-      const dependencyName = stringDependencyMatch[2];
-      const versionSpec = stringDependencyMatch[3];
-      const trailingComment = stringDependencyMatch[4] ?? '';
-
-      dependencyEntries.push({
-        lineIndex,
-        dependencyName,
-        crateName: dependencyName,
-        section: currentSectionName,
-        versionSpec,
-        updateLine(nextVersionSpec) {
-          return `${indent}${dependencyName} = "${nextVersionSpec}"${trailingComment}`;
-        },
-      });
-      continue;
-    }
-
-    const inlineTableMatch = line.match(
-      /^(\s*)([A-Za-z0-9_-]+)\s*=\s*\{(.*)\}(\s*(#.*)?)?$/
-    );
-
-    if (!inlineTableMatch) {
-      continue;
-    }
-
-    const dependencyName = inlineTableMatch[2];
-    const packageNameMatch = inlineTableMatch[3].match(/\bpackage\s*=\s*"([^"]+)"/);
-    const versionMatch = inlineTableMatch[3].match(/\bversion\s*=\s*"([^"]+)"/);
-
-    if (!versionMatch) {
-      continue;
-    }
-
-    const versionSpec = versionMatch[1];
-    dependencyEntries.push({
-      lineIndex,
-      dependencyName,
-      crateName: packageNameMatch?.[1] ?? dependencyName,
-      section: currentSectionName,
-      versionSpec,
-      updateLine(nextVersionSpec) {
-        return line.replace(versionMatch[0], versionMatch[0].replace(versionSpec, nextVersionSpec));
-      },
-    });
-  }
-
-  return dependencyEntries;
-}
-
-function collectRustDependencyCounts(dependencyEntries) {
-  return dependencyEntries.reduce(
-    (counts, dependencyEntry) => {
-      counts[getRustDependencyField(dependencyEntry.section)] += 1;
-      return counts;
-    },
-    {
-      dependencies: 0,
-      'dev-dependencies': 0,
-      'build-dependencies': 0,
-    }
-  );
-}
-
-function describeRustCounts(counts) {
-  return RUST_DEPENDENCY_FIELDS
-    .filter((field) => counts[field] > 0)
-    .map((field) => `${field}:${counts[field]}`)
-    .join(', ');
-}
-
-function buildRustDependencyKey(dependencyEntry) {
-  return `${dependencyEntry.cargoManifestLabel}:${dependencyEntry.section}:${dependencyEntry.dependencyName}`;
-}
-
-function collectRustRangeChanges(beforeDependencyEntries, afterDependencyEntries) {
-  const beforeEntriesByKey = new Map(
-    beforeDependencyEntries.map((dependencyEntry) => [
-      buildRustDependencyKey(dependencyEntry),
-      dependencyEntry,
-    ])
-  );
-  const afterEntriesByKey = new Map(
-    afterDependencyEntries.map((dependencyEntry) => [
-      buildRustDependencyKey(dependencyEntry),
-      dependencyEntry,
-    ])
-  );
-  const dependencyKeys = Array.from(
-    new Set([...beforeEntriesByKey.keys(), ...afterEntriesByKey.keys()])
-  ).sort((left, right) => left.localeCompare(right));
-  const changes = [];
-
-  for (const dependencyKey of dependencyKeys) {
-    const beforeEntry = beforeEntriesByKey.get(dependencyKey);
-    const afterEntry = afterEntriesByKey.get(dependencyKey);
-    const beforeRange = beforeEntry?.versionSpec;
-    const afterRange = afterEntry?.versionSpec;
-
-    if (beforeRange !== afterRange) {
-      changes.push({
-        cargoManifestLabel:
-          beforeEntry?.cargoManifestLabel
-          ?? afterEntry?.cargoManifestLabel
-          ?? '<unknown Cargo.toml>',
-        section: beforeEntry?.section ?? afterEntry?.section ?? 'dependencies',
-        dependencyName: beforeEntry?.dependencyName ?? afterEntry?.dependencyName ?? dependencyKey,
-        crateName: beforeEntry?.crateName ?? afterEntry?.crateName ?? dependencyKey,
-        beforeRange,
-        afterRange,
-      });
-    }
-  }
-
-  return changes;
-}
-
-function formatRustChange(change) {
-  const dependencyLabel = change.dependencyName === change.crateName
-    ? change.dependencyName
-    : `${change.dependencyName} => ${change.crateName}`;
-
-  return `${change.cargoManifestLabel}: ${dependencyLabel} (${getRustDependencyField(change.section)}) ${change.beforeRange ?? '<missing>'} -> ${change.afterRange ?? '<removed>'}`;
-}
-
-function parseSimpleRustVersion(version) {
-  const match = `${version}`.trim().match(/^(\d+)\.(\d+)\.(\d+)(?:[-+][0-9A-Za-z.+-]+)?$/);
-
-  if (!match) {
-    return null;
-  }
-
-  return {
-    major: Number.parseInt(match[1], 10),
-    minor: Number.parseInt(match[2], 10),
-    patch: Number.parseInt(match[3], 10),
-    raw: match[0],
-  };
-}
-
-function compareSimpleRustVersions(leftVersion, rightVersion) {
-  if (leftVersion.major !== rightVersion.major) {
-    return leftVersion.major - rightVersion.major;
-  }
-
-  if (leftVersion.minor !== rightVersion.minor) {
-    return leftVersion.minor - rightVersion.minor;
-  }
-
-  return leftVersion.patch - rightVersion.patch;
-}
-
-function isCompatibleRustVersion(currentVersion, candidateVersion) {
-  // Fix: Cargo SemVer rule for 0.x.y and 0.0.x is strict
-  if (currentVersion.major === 0) {
-    if (currentVersion.minor === 0) {
-      return (
-        candidateVersion.major === 0 &&
-        candidateVersion.minor === 0 &&
-        candidateVersion.patch === currentVersion.patch
-      );
-    }
-    return (
-      candidateVersion.major === 0 &&
-      candidateVersion.minor === currentVersion.minor
-    );
-  }
-
-  return candidateVersion.major === currentVersion.major;
-}
-
-function buildLatestRustVersionSpec(currentVersionSpec, nextVersion) {
-  const trimmedVersionSpec = currentVersionSpec.trim();
-  const simpleVersionMatch = trimmedVersionSpec.match(/^([~^=]?)(\d+(?:\.\d+)*(?:-[0-9A-Za-z.+-]+)?)$/);
-
-  if (!simpleVersionMatch) {
-    return null;
-  }
-
-  // Security upgrades may jump 0.x minor/major lanes. Prefer caret ranges so cargo
-  // can still resolve patch updates without freezing the old 0.y line.
-  if (simpleVersionMatch[1] === '') {
-    return `^${nextVersion}`;
-  }
-
-  return `${simpleVersionMatch[1]}${nextVersion}`;
-}
-
-function getRustCrateFamily(packageName) {
-  const normalized = `${packageName ?? ''}`.trim().toLowerCase();
-  if (!normalized) {
-    return '';
-  }
-
-  const parts = normalized.split(/[-_]/).filter(Boolean);
-  return parts[0] || normalized;
-}
-
-function expandRustAlertPackagesToDirectDeps(alertPackages, dependencyEntries = []) {
-  const expanded = new Set(alertPackages.filter(Boolean));
-  const families = new Set(
-    alertPackages
-      .map((packageName) => getRustCrateFamily(packageName))
-      .filter(Boolean)
-  );
-
-  for (const dependencyEntry of dependencyEntries) {
-    const crateName = dependencyEntry.crateName;
-    const dependencyName = dependencyEntry.dependencyName;
-    const family = getRustCrateFamily(crateName);
-
-    if (
-      expanded.has(crateName)
-      || expanded.has(dependencyName)
-      || (family && families.has(family))
-    ) {
-      expanded.add(crateName);
-      if (dependencyName) {
-        expanded.add(dependencyName);
-      }
-    }
-  }
-
-  return Array.from(expanded).sort((left, right) => left.localeCompare(right));
-}
-
-function getMinimumRustVersionForPackage(packageName, dependabotAlerts = []) {
-  let minimum = null;
-
-  for (const alert of dependabotAlerts) {
-    if (getDependabotAlertPackageName(alert) !== packageName) {
-      continue;
-    }
-
-    const fixedVersion = parseSimpleRustVersion(getDependabotAlertFixedVersion(alert));
-    if (!fixedVersion) {
-      continue;
-    }
-
-    if (!minimum || compareSimpleRustVersions(fixedVersion, minimum) > 0) {
-      minimum = fixedVersion;
-    }
-  }
-
-  return minimum;
-}
-
-async function fetchLatestCompatibleCrateVersion(
-  crateName,
-  currentVersionSpec,
-  versionCache,
-  options = {}
-) {
-  const normalizedVersionSpec = `${currentVersionSpec}`.trim();
-  const simpleVersionMatch = normalizedVersionSpec.match(/^[~^=]?(\d+\.\d+\.\d+|\d+\.\d+|\d+)$/);
-
-  if (!simpleVersionMatch) {
-    return null;
-  }
-
-  const currentVersionText = simpleVersionMatch[1]
-    .split('.')
-    .concat(['0', '0'])
-    .slice(0, 3)
-    .join('.');
-  const currentVersion = parseSimpleRustVersion(currentVersionText);
-
-  if (!currentVersion) {
-    return null;
-  }
-
-  const securityUpgrade = options.securityUpgrade === true;
-  const minimumVersion = options.minimumVersion
-    ? parseSimpleRustVersion(options.minimumVersion)
-    : null;
-  const cacheKey = securityUpgrade
-    ? `${crateName}@security:${minimumVersion?.raw ?? 'latest'}`
-    : `${crateName}@${currentVersion.major}.${currentVersion.minor}`;
-
-  if (versionCache.has(cacheKey)) {
-    return versionCache.get(cacheKey);
-  }
-
-  const response = await fetch(`${CRATES_IO_API_ROOT}/${encodeURIComponent(crateName)}/versions`, {
-    headers: {
-      'user-agent': CRATES_IO_USER_AGENT,
-      accept: 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Unable to query crates.io for ${crateName}: HTTP ${response.status}`);
-  }
-
-  const payload = await response.json();
-  const latestVersion = (payload?.versions ?? [])
-    .filter((version) => version?.yanked !== true)
-    .map((version) => ({
-      raw: typeof version?.num === 'string' ? version.num.trim() : '',
-      parsed: parseSimpleRustVersion(version?.num),
-    }))
-    .filter((version) => version.raw.length > 0 && version.parsed)
-    .filter((version) => !version.raw.includes('-'))
-    .filter((version) => {
-      if (minimumVersion && compareSimpleRustVersions(version.parsed, minimumVersion) < 0) {
-        return false;
-      }
-
-      if (securityUpgrade) {
-        // Security remediation may need to leave the current 0.x minor lane.
-        return compareSimpleRustVersions(version.parsed, currentVersion) >= 0
-          || Boolean(minimumVersion);
-      }
-
-      return isCompatibleRustVersion(currentVersion, version.parsed);
-    })
-    .sort((left, right) => compareSimpleRustVersions(right.parsed, left.parsed))[0]?.raw ?? null;
-
-  if (typeof latestVersion !== 'string' || latestVersion.trim().length === 0) {
-    throw new Error(
-      securityUpgrade
-        ? `crates.io did not provide a usable security upgrade for ${crateName}${minimumVersion ? ` (>= ${minimumVersion.raw})` : ''}.`
-        : `crates.io did not provide a usable compatible version for ${crateName} within the ${currentVersion.major}.${currentVersion.minor} lane.`
-    );
-  }
-
-  versionCache.set(cacheKey, latestVersion.trim());
-  return latestVersion.trim();
-}
-
 async function collectPackageJsonPaths(directoryPath) {
   const entries = await readdir(directoryPath, { withFileTypes: true });
   const packageJsonPaths = [];
@@ -1406,30 +908,6 @@ async function collectPackageJsonPaths(directoryPath) {
   }
 
   return packageJsonPaths;
-}
-
-async function collectCargoManifestPaths(directoryPath) {
-  const entries = await readdir(directoryPath, { withFileTypes: true });
-  const cargoManifestPaths = [];
-
-  for (const entry of entries) {
-    const entryPath = path.join(directoryPath, entry.name);
-
-    if (entry.isDirectory()) {
-      if (EXCLUDED_DIRECTORIES.has(entry.name)) {
-        continue;
-      }
-
-      cargoManifestPaths.push(...(await collectCargoManifestPaths(entryPath)));
-      continue;
-    }
-
-    if (entry.isFile() && entry.name === CARGO_MANIFEST_FILENAME) {
-      cargoManifestPaths.push(entryPath);
-    }
-  }
-
-  return cargoManifestPaths;
 }
 
 function normalizeTargetFilter(targetFilter) {
@@ -1469,36 +947,6 @@ function filterTargetsByCliArgs(targets, cliArgs) {
   );
 }
 
-function getRustTargetCliCandidates(target) {
-  return [
-    target.cargoManifestLabel,
-    path.relative(ROOT_DIR, target.crateDir) || '.',
-    path.relative(ROOT_DIR, target.workspaceDir) || '.',
-    path.basename(target.crateDir),
-    CARGO_ROOT_DIRNAME,
-    'cargo',
-    'rust',
-  ];
-}
-
-function filterRustTargetsByCliArgs(targets, cliArgs) {
-  if (cliArgs.repairOnly) {
-    return [];
-  }
-
-  return targets.filter((target) =>
-    targetMatchesCliArgs(getRustTargetCliCandidates(target), cliArgs)
-  );
-}
-
-function filterRustTargetsForDependabotPlan(targets, dependabotAlertPlan) {
-  if (!dependabotAlertPlan) {
-    return [];
-  }
-
-  return targets.filter((target) => dependabotAlertPlan.rustAlertsByTarget.has(target));
-}
-
 async function discoverTargets() {
   const packageJsonPaths = await collectPackageJsonPaths(ROOT_DIR);
   const targets = [];
@@ -1521,51 +969,6 @@ async function discoverTargets() {
       dependencyCounts: collectDependencyCounts(manifest),
       beforeSnapshot: cloneDependencySnapshot(manifest),
       beforeOverrideSnapshot: cloneOverrideSnapshot(manifest),
-    });
-  }
-
-  return targets;
-}
-
-async function discoverRustTargets() {
-  const cargoRootDirectoryPath = path.join(ROOT_DIR, CARGO_ROOT_DIRNAME);
-  const cargoRootManifestPath = path.join(cargoRootDirectoryPath, CARGO_MANIFEST_FILENAME);
-
-  if (!existsSync(cargoRootManifestPath)) {
-    return [];
-  }
-
-  const cargoManifestPaths = await collectCargoManifestPaths(cargoRootDirectoryPath);
-  const targets = [];
-
-  for (const manifestPath of cargoManifestPaths.sort((left, right) => left.localeCompare(right))) {
-    const manifestText = await readFile(manifestPath, 'utf8');
-    const cargoManifestLabel =
-      path.relative(ROOT_DIR, manifestPath) || CARGO_MANIFEST_FILENAME;
-    const crateDir = path.dirname(manifestPath);
-    const dependencyEntries = collectRustDependencyEntries(manifestText).map(
-      (dependencyEntry) => ({
-        ...dependencyEntry,
-        cargoManifestPath: manifestPath,
-        cargoManifestLabel,
-      })
-    );
-
-    // Workspace root without direct crate dependencies is not an upgrade unit.
-    if (dependencyEntries.length === 0 && path.resolve(crateDir) === path.resolve(cargoRootDirectoryPath)) {
-      continue;
-    }
-
-    targets.push({
-      dir: cargoRootDirectoryPath,
-      workspaceDir: cargoRootDirectoryPath,
-      crateDir,
-      cargoManifestPath: manifestPath,
-      cargoManifestLabel,
-      cargoLockPath: path.join(cargoRootDirectoryPath, CARGO_LOCK_FILENAME),
-      beforeManifestText: manifestText,
-      dependencyEntries,
-      dependencyCounts: collectRustDependencyCounts(dependencyEntries),
     });
   }
 
@@ -1618,156 +1021,6 @@ async function runPnpmUpgrade(target, options = {}) {
   await runPnpmCommand(['install', '--lockfile-only']);
 }
 
-function getRustPackageNamesFromAlerts(dependabotAlerts = []) {
-  return Array.from(
-    new Set(dependabotAlerts.map(getDependabotAlertPackageName).filter(Boolean))
-  ).sort((left, right) => left.localeCompare(right));
-}
-
-function selectRustDependencyEntriesForUpgrade(target, dependabotAlerts = []) {
-  const alertPackages = getRustPackageNamesFromAlerts(dependabotAlerts);
-
-  if (alertPackages.length === 0) {
-    return {
-      dependencyEntries: target.dependencyEntries,
-      alertPackages,
-      selectedByAlert: false,
-      securityUpgrade: false,
-    };
-  }
-
-  // Transitive crates (e.g. hickory-proto) often require upgrading the same-family
-  // direct dependency (e.g. hickory-resolver) before cargo update can land a fix.
-  const expandedPackages = expandRustAlertPackagesToDirectDeps(
-    alertPackages,
-    target.dependencyEntries
-  );
-
-  const selectedEntries = target.dependencyEntries.filter((dependencyEntry) =>
-    expandedPackages.includes(dependencyEntry.crateName)
-    || expandedPackages.includes(dependencyEntry.dependencyName)
-  );
-
-  return {
-    dependencyEntries: selectedEntries,
-    // Keep cargo update -p focused on alert packages plus selected direct parents.
-    alertPackages: Array.from(new Set([
-      ...alertPackages,
-      ...selectedEntries.map((entry) => entry.crateName),
-    ])).sort((left, right) => left.localeCompare(right)),
-    selectedByAlert: true,
-    securityUpgrade: true,
-  };
-}
-
-async function runRustUpgrade(target, options = {}) {
-  const dependabotAlerts = options.dependabotAlerts ?? [];
-  const latestVersionCache = new Map();
-  let updatedRangeCount = 0;
-  let skippedRangeCount = 0;
-  const {
-    dependencyEntries,
-    alertPackages,
-    selectedByAlert,
-    securityUpgrade,
-  } = selectRustDependencyEntriesForUpgrade(target, dependabotAlerts);
-
-  const newline = target.beforeManifestText.includes('\r\n') ? '\r\n' : '\n';
-  const manifestLines = target.beforeManifestText.split(/\r?\n/);
-
-  if (selectedByAlert && securityUpgrade) {
-    console.log(
-      `  - Security-driven Rust upgrade for ${target.cargoManifestLabel}: ${alertPackages.join(', ') || '<unknown>'}`
-    );
-  }
-
-  for (const dependencyEntry of dependencyEntries) {
-    // 引入 250ms 频率节流延迟（Throttling），确保遵守 crates.io 的每秒请求限制
-    await new Promise((resolve) => setTimeout(resolve, 250));
-
-    try {
-      const minimumVersion = getMinimumRustVersionForPackage(
-        dependencyEntry.crateName,
-        dependabotAlerts
-      );
-
-      const latestVersion = await fetchLatestCompatibleCrateVersion(
-        dependencyEntry.crateName,
-        dependencyEntry.versionSpec,
-        latestVersionCache,
-        {
-          securityUpgrade,
-          minimumVersion: minimumVersion?.raw ?? null,
-        }
-      );
-
-      if (!latestVersion) {
-        skippedRangeCount += 1;
-        continue;
-      }
-
-      const nextVersionSpec = buildLatestRustVersionSpec(
-        dependencyEntry.versionSpec,
-        latestVersion
-      );
-
-      if (!nextVersionSpec) {
-        skippedRangeCount += 1;
-        continue;
-      }
-
-      if (nextVersionSpec === dependencyEntry.versionSpec) {
-        continue;
-      }
-
-      manifestLines[dependencyEntry.lineIndex] = dependencyEntry.updateLine(nextVersionSpec);
-      updatedRangeCount += 1;
-      console.log(
-        `  - ${dependencyEntry.crateName}: ${dependencyEntry.versionSpec} -> ${nextVersionSpec}`
-      );
-    } catch (error) {
-      // 容错处理：单个依赖查询网络失败时不中断整个脚本，标记为跳过并继续
-      console.log(`  - [Warning] Skipped "${dependencyEntry.crateName}" in ${dependencyEntry.cargoManifestLabel} due to registry fetch failure: ${error.message}`);
-      skippedRangeCount += 1;
-    }
-  }
-
-  if (updatedRangeCount > 0) {
-    await writeFile(target.cargoManifestPath, manifestLines.join(newline));
-    console.log(
-      `  - Updated ${updatedRangeCount} dependency range${updatedRangeCount === 1 ? '' : 's'} in ${target.cargoManifestLabel}.`
-    );
-  } else if (selectedByAlert && dependencyEntries.length === 0) {
-    console.log(
-      `  - No direct Cargo.toml dependency matched alert packages for ${target.cargoManifestLabel}; lockfile-only package refresh will be used.`
-    );
-  } else {
-    console.log(
-      `  - Cargo.toml dependency ranges in ${target.cargoManifestLabel} are already current or do not need rewriting.`
-    );
-  }
-
-  if (skippedRangeCount > 0) {
-    console.log(`  - Skipped ${skippedRangeCount} Cargo dependency entries (unsupported syntax or request failures).`);
-  }
-
-  const packageUpdateArgs = [];
-  for (const packageName of alertPackages) {
-    packageUpdateArgs.push('-p', packageName);
-  }
-
-  // Prefer precise package updates when alert-driven; otherwise refresh the whole lockfile.
-  const args = packageUpdateArgs.length > 0 ? ['update', ...packageUpdateArgs] : ['update'];
-  printAction(target.dir, 'cargo', args);
-
-  await executeCommand(
-    target.dir,
-    CARGO_COMMAND,
-    args,
-    `cargo for ${target.cargoManifestLabel}`
-  );
-}
-
 async function verifyTarget(target) {
   const nextManifest = await readManifest(target.packageJsonPath);
   const changedRanges = collectRangeChanges(target.beforeSnapshot, nextManifest);
@@ -1805,39 +1058,6 @@ async function verifyTarget(target) {
   }
 }
 
-async function verifyRustTarget(target) {
-  const nextManifestText = await readFile(target.cargoManifestPath, 'utf8');
-  const nextDependencyEntries = collectRustDependencyEntries(nextManifestText).map((dependencyEntry) => ({
-    ...dependencyEntry,
-    cargoManifestPath: target.cargoManifestPath,
-    cargoManifestLabel: target.cargoManifestLabel,
-  }));
-
-  const changedRanges = collectRustRangeChanges(
-    target.dependencyEntries,
-    nextDependencyEntries
-  );
-  const lockfileExists = existsSync(target.cargoLockPath);
-  const lockfileLabel = lockfileExists
-    ? path.relative(ROOT_DIR, target.cargoLockPath)
-    : '<no local Cargo.lock>';
-
-  console.log(
-    `[ok] ${target.cargoManifestLabel} -> ${target.dependencyEntries.length} dependencies inspected, ${changedRanges.length} ranges updated, lockfile: ${lockfileLabel}`
-  );
-
-  if (changedRanges.length > 0) {
-    const preview = changedRanges.slice(0, 10).map(formatRustChange);
-    preview.forEach((line) => console.log(`  - ${line}`));
-
-    if (changedRanges.length > preview.length) {
-      console.log(`  - ... ${changedRanges.length - preview.length} more`);
-    }
-  } else {
-    console.log('  - Already at the newest published ranges or no manifest rewrite was necessary.');
-  }
-}
-
 async function runPnpmUpgradeLane(targets, cliArgs, dependabotAlertPlan = null) {
   for (const [index, target] of targets.entries()) {
     const dependabotAlerts = dependabotAlertPlan?.npmAlertsByTarget.get(target) ?? [];
@@ -1852,28 +1072,6 @@ async function runPnpmUpgradeLane(targets, cliArgs, dependabotAlertPlan = null) 
       dependabotAlerts,
     });
     await verifyTarget(target);
-  }
-}
-
-async function runRustUpgradeLane(targets, dependabotAlertPlan = null) {
-  for (const [index, target] of targets.entries()) {
-    const dependabotAlerts = dependabotAlertPlan?.rustAlertsByTarget.get(target) ?? [];
-
-    printSection(
-      index + 1,
-      targets.length,
-      `cargo lane: upgrade ${target.cargoManifestLabel}`
-    );
-
-    if (dependabotAlerts.length > 0) {
-      const alertPackages = getRustPackageNamesFromAlerts(dependabotAlerts);
-      console.log(
-        `  - Dependabot alert packages for ${target.cargoManifestLabel}: ${alertPackages.join(', ') || '<unknown>'}`
-      );
-    }
-
-    await runRustUpgrade(target, { dependabotAlerts });
-    await verifyRustTarget(target);
   }
 }
 
@@ -1953,28 +1151,20 @@ async function main() {
 
   let dependabotAlertPlan = null;
   let filteredPnpmTargets = [];
-  let filteredRustTargets = [];
   let totalDependencyTargets = 0;
 
   if (runDependabot) {
-    const [pnpmTargets, rustTargets] = await Promise.all([
-      discoverTargets(),
-      discoverRustTargets(),
-    ]);
+    const pnpmTargets = await discoverTargets();
 
     dependabotAlertPlan = await discoverDependabotAlertPlan(
       cliArgs,
-      pnpmTargets,
-      rustTargets
+      pnpmTargets
     );
 
     filteredPnpmTargets = dependabotAlertPlan
       ? Array.from(dependabotAlertPlan.npmAlertsByTarget.keys())
       : filterTargetsByCliArgs(pnpmTargets, cliArgs);
-    filteredRustTargets = dependabotAlertPlan
-      ? filterRustTargetsForDependabotPlan(rustTargets, dependabotAlertPlan)
-      : filterRustTargetsByCliArgs(rustTargets, cliArgs);
-    totalDependencyTargets = filteredPnpmTargets.length + filteredRustTargets.length;
+    totalDependencyTargets = filteredPnpmTargets.length;
 
     if (totalDependencyTargets === 0) {
       if (dependabotAlertPlan && dependabotAlertPlan.alerts.length === 0) {
@@ -1991,7 +1181,7 @@ async function main() {
         throw new Error(
           cliArgs.targets.length > 0
             ? `No dependency target matched: ${cliArgs.targets.join(', ')}`
-            : 'No package.json or Cargo.toml with dependencies was found under the repository root.'
+            : 'No package.json with dependencies was found under the repository root.'
         );
       } else {
         console.log('Dependabot lane: no actionable dependency targets.');
@@ -2012,12 +1202,6 @@ async function main() {
       for (const target of filteredPnpmTargets) {
         console.log(
           `- ${target.packageJsonLabel} (${describeCounts(target.dependencyCounts)})`
-        );
-      }
-
-      for (const target of filteredRustTargets) {
-        console.log(
-          `- ${target.cargoManifestLabel} (${describeRustCounts(target.dependencyCounts) || 'no versioned rust dependencies'})`
         );
       }
     }
@@ -2068,13 +1252,6 @@ async function main() {
       lanes.push({
         label: 'pnpm',
         run: () => runPnpmUpgradeLane(filteredPnpmTargets, cliArgs, dependabotAlertPlan),
-      });
-    }
-
-    if (filteredRustTargets.length > 0) {
-      lanes.push({
-        label: 'cargo',
-        run: () => runRustUpgradeLane(filteredRustTargets, dependabotAlertPlan),
       });
     }
   }

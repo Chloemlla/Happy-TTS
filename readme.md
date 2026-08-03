@@ -665,33 +665,6 @@ CONTENT_FILTER_API_URL=            # 内容过滤 API 地址
 SKIP_CONTENT_FILTER=               # 跳过内容过滤
 DISABLE_SENSITIVE_FILTER=          # 禁用敏感词过滤
 
-# ==================== 网络工具（Rust） ====================
-RUST_NETWORK_TOOLS_ENABLED=        # 启用 Rust 网络工具（生产环境默认 true）
-RUST_NETWORK_TOOLS_URL=            # 网络工具地址（默认 http://127.0.0.1:4010）
-RUST_NETWORK_TOOLS_BIN=            # 网络工具二进制路径
-RUST_EMBEDDED_SERVICES_ENABLED=    # 启用嵌入式 Rust 服务（生产环境默认 true）
-INTERNAL_SERVICE_TOKEN=            # 内部服务通信令牌（外部 Rust 服务时必填）
-
-# ==================== 音频处理（Rust Worker） ====================
-RUST_AUDIO_WORKER_ENABLED=         # 启用 Rust 音频处理（生产环境默认 true）
-RUST_AUDIO_WORKER_URL=             # 音频 Worker 地址（默认 http://127.0.0.1:4020）
-RUST_AUDIO_WORKER_BIN=             # 音频 Worker 二进制路径
-
-# ==================== 文件处理（Rust Worker） ====================
-RUST_FILE_WORKER_ENABLED=          # 启用 Rust 文件处理
-RUST_FILE_WORKER_URL=              # 文件 Worker 地址（默认 http://127.0.0.1:4030）
-RUST_FILE_WORKER_BIN=              # 文件 Worker 二进制路径
-
-# ==================== 数据分析（Rust Worker） ====================
-RUST_DATA_TOOLS_ENABLED=           # 启用 Rust 数据分析
-RUST_DATA_TOOLS_URL=               # 数据工具地址（默认 http://127.0.0.1:4040）
-RUST_DATA_TOOLS_BIN=               # 数据工具二进制路径
-
-# ==================== 安全检测（Rust Worker） ====================
-RUST_SECURITY_WORKER_ENABLED=      # 启用 Rust 安全检测
-RUST_SECURITY_WORKER_URL=          # 安全 Worker 地址（默认 http://127.0.0.1:4050）
-RUST_SECURITY_WORKER_BIN=          # 安全 Worker 二进制路径
-
 # ==================== 图床上传 ====================
 IPFS_UPLOAD_URL=                   # IPFS 上传地址
 IPFS_UA=                           # IPFS 请求 User-Agent
@@ -1118,21 +1091,6 @@ docker-compose up -d
 
 ### 网络工具部署原则
 
-TCP 探测和端口扫描默认保留外部 API 回退能力。生产环境如要求这些能力只调用本机 Rust network-tools 服务，必须显式关闭回退：
-
-```env
-INTERNAL_SERVICE_TOKEN=change-me-to-a-long-random-token
-RUST_NETWORK_TOOLS_ENABLED=true
-RUST_NETWORK_TOOLS_URL=http://127.0.0.1:4010
-RUST_NETWORK_TOOLS_TIMEOUT_MS=5000
-RUST_NETWORK_TOOLS_FALLBACK_ENABLED=false
-RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS=true
-```
-
-- `RUST_NETWORK_TOOLS_ENABLED` 未开启时，`/api/network/tcping` 和 `/api/network/portscan` 会调用 `https://v2.xxapi.cn/api/tcping` 与 `https://v2.xxapi.cn/api/portscan`。
-- `RUST_NETWORK_TOOLS_FALLBACK_ENABLED=true` 时，即使 Rust 服务已启用，Rust 超时、网络错误、限流或上游错误也会回退到上述外部 API。
-- 地址校验在本地完成，不依赖外部 API；`RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS=true` 会阻止 localhost、私网和保留地址目标。
-
 ### Cloudflare Worker 部署（可选）
 
 > [!NOTE]
@@ -1514,7 +1472,6 @@ RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS=true
 
 #### 07-02
 - 自动处理 Dependabot 安全告警
-- 升级 `rust-services` 中 `webpki-roots` 依赖
 
 #### 07-03
 - 新增第三方账号绑定流程
@@ -1577,7 +1534,6 @@ RUST_NETWORK_TOOLS_BLOCK_PRIVATE_TARGETS=true
 - 修复管理端 `AdminUserRecord` 类型错误
 - 修复 `CommandManager` 状态拉取 try/catch 结构
 - 修复 UI 拆分后的前端 TypeScript 构建错误
-- 精确升级嵌套 `rust-services` crates
 - 补充 `UserList` 过滤类型导入，并修正账户类型断言
 - 合入 Synapse TTS 平台代码主体
 - 适配 TypeScript 6 / Node16 模块解析规则

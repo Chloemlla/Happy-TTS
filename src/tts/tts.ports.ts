@@ -104,7 +104,7 @@ export interface TtsAudioPostProcessResult {
   audioBuffer: Buffer;
   outputFormat: string;
   metadata?: Record<string, unknown>;
-  source: "node-passthrough" | "rust-audio-worker";
+  source: "node-passthrough";
 }
 
 export interface TtsAudioPostProcessor {

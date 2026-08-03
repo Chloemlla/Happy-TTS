@@ -40,7 +40,6 @@ export interface ConfigDiagnosticReport {
     adminPasswordConfigured: boolean;
     serverPasswordConfigured: boolean;
     passwordEncryptionKeyConfigured: boolean;
-    internalServiceTokenConfigured: boolean;
   };
   runtimeMutableConfig: {
     provider: "RuntimeConfigService";
@@ -304,7 +303,6 @@ export async function runStartupDiagnostics(compileTimeConfig: {
       adminPasswordConfigured: startupConfig.configuredSecrets.adminPassword,
       serverPasswordConfigured: startupConfig.configuredSecrets.serverPassword,
       passwordEncryptionKeyConfigured: startupConfig.configuredSecrets.passwordEncryptionKey,
-      internalServiceTokenConfigured: startupConfig.configuredSecrets.internalServiceToken,
     },
     runtimeMutableConfig: {
       provider: "RuntimeConfigService",
