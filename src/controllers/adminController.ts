@@ -1794,4 +1794,36 @@ export const adminController = {
       return res.status(500).json({ success: false, error: "获取 Bilibili 同步记录失败" });
     }
   },
+
+  async getBilibiliSearchRecords(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      const { BilibiliSyncModel } = await import("../models/bilibiliSyncModel.js");
+      const { userId } = req.params;
+      if (!userId) return res.status(400).json({ error: "缺少 userId 参数" });
+
+      const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
+      const limit = Math.min(200, Math.max(1, parseInt(req.query.limit as string, 10) || 50));
+      const skip = (page - 1) * limit;
+
+      const doc = await BilibiliSyncModel.findOne({ userId }).select("searchRecords").lean();
+      if (!doc) return res.json({ success: true, data: [], pagination: { page, limit, total: 0, totalPages: 0 } });
+
+      const records = (doc.searchRecords || []) as Array<Record<string, unknown>>;
+      const total = records.length;
+      const sorted = [...records].sort(
+        (a, b) => new Date((b.serverUpdatedAt as Date) || 0).getTime() - new Date((a.serverUpdatedAt as Date) || 0).getTime(),
+      );
+      const paged = sorted.slice(skip, skip + limit);
+
+      return res.json({
+        success: true,
+        data: paged,
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      });
+    } catch (error) {
+      logger.error("[AdminController] 获取 Bilibili 搜索记录失败", error);
+      return res.status(500).json({ success: false, error: "获取 Bilibili 搜索记录失败" });
+    }
+  },
 };

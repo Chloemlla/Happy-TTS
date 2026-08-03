@@ -91,5 +91,6 @@ router.use(registrationInvitesRouter);
 
 // Bilibili Sync 管理（PiliPlus 配置数据）
 router.get("/bilibili-sync", (req, res) => adminController.getBilibiliSyncRecords(req, res));
+router.get("/bilibili-sync/:userId/search-records", (req, res) => adminController.getBilibiliSearchRecords(req, res));
 
 export default router;

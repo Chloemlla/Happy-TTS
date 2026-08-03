@@ -100,6 +100,8 @@ const BilibiliSyncAdmin: React.FC = () => {
   const [error, setError] = useState('');
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [showAllSearch, setShowAllSearch] = useState<Record<string, boolean>>({});
+  const [searchRecordData, setSearchRecordData] = useState<Record<string, { data: BilibiliSyncRecord['searchRecords']; total: number; page: number; totalPages: number }>>({});
+  const [searchRecordLoading, setSearchRecordLoading] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const detailRef = useRef<HTMLDivElement>(null);
 
@@ -117,6 +119,7 @@ const BilibiliSyncAdmin: React.FC = () => {
       setPagination(json.pagination);
       setExpandedRow(null);
       setShowAllSearch({});
+      setSearchRecordData({});
     } catch (e) {
       setError(getErrorMessage(e, '加载失败'));
     } finally {
@@ -128,6 +131,39 @@ const BilibiliSyncAdmin: React.FC = () => {
 
   const handleSearch = () => fetchRecords(1, keyword);
   const handlePageChange = (page: number) => fetchRecords(page, keyword);
+
+  const fetchSearchRecords = useCallback(async (userId: string, page: number) => {
+    setSearchRecordLoading(userId);
+    try {
+      const res = await fetch(`/api/admin/bilibili-sync/${encodeURIComponent(userId)}/search-records?page=${page}&limit=50`, { credentials: 'include' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || '请求失败');
+      setSearchRecordData(prev => ({
+        ...prev,
+        [userId]: { data: json.data, total: json.pagination.total, page: json.pagination.page, totalPages: json.pagination.totalPages },
+      }));
+    } catch {
+      setSearchRecordData(prev => ({
+        ...prev,
+        [userId]: { data: [], total: 0, page: 1, totalPages: 0 },
+      }));
+    } finally {
+      setSearchRecordLoading(prev => prev === userId ? null : prev);
+    }
+  }, []);
+
+  const handleShowAllSearch = (record: BilibiliSyncRecord) => {
+    const isOpen = showAllSearch[record._id];
+    if (!isOpen) {
+      fetchSearchRecords(record.userId, 1);
+    }
+    setShowAllSearch(prev => ({ ...prev, [record._id]: !isOpen }));
+  };
+
+  const handleSearchRecordPage = (userId: string, page: number) => {
+    fetchSearchRecords(userId, page);
+  };
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -480,10 +516,12 @@ const BilibiliSyncAdmin: React.FC = () => {
                                             {r.searchRecords.length > 10 && (
                                               <button
                                                 type="button"
-                                                onClick={(e) => { e.stopPropagation(); setShowAllSearch(prev => ({ ...prev, [r._id]: !prev[r._id] })); }}
+                                                onClick={(e) => { e.stopPropagation(); handleShowAllSearch(r); }}
                                                 className="ml-auto inline-flex items-center gap-1 rounded-xl px-2.5 py-1 text-[11px] font-medium text-indigo-600 transition hover:bg-indigo-50"
                                               >
-                                                {showAllSearch[r._id] ? (
+                                                {searchRecordLoading === r.userId ? (
+                                                  <FaRedo className="size-2.5 animate-spin" />
+                                                ) : showAllSearch[r._id] ? (
                                                   <><FaChevronUp className="size-2.5" /> 收起</>
                                                 ) : (
                                                   <><FaChevronDown className="size-2.5" /> 查看全部</>
@@ -491,25 +529,77 @@ const BilibiliSyncAdmin: React.FC = () => {
                                               </button>
                                             )}
                                           </div>
-                                          <div className={`space-y-1.5 overflow-auto ${showAllSearch[r._id] ? 'max-h-[600px]' : 'max-h-44'}`}>
-                                            {(showAllSearch[r._id] ? r.searchRecords : r.searchRecords.slice(0, 10)).map((sr) => (
-                                              <div
-                                                key={sr.id}
-                                                className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-xs text-slate-600 transition hover:bg-slate-100"
-                                              >
-                                                <FaSearch className="size-2.5 shrink-0 text-slate-400" />
-                                                <span className="flex-1 truncate font-medium">
-                                                  {sr.keyword.length > 80 ? sr.keyword.slice(0, 80) + '…' : sr.keyword}
-                                                </span>
-                                                {sr.createdAt && (
-                                                  <span className="shrink-0 text-slate-400 flex items-center gap-1.5">
-                                                    <FaClock className="size-2.5" />
-                                                    {formatDate(sr.createdAt)}
-                                                  </span>
-                                                )}
+                                          {showAllSearch[r._id] && searchRecordData[r.userId] ? (
+                                            <>
+                                              <div className="max-h-[600px] space-y-1.5 overflow-auto">
+                                                {searchRecordData[r.userId].data.map((sr) => (
+                                                  <div
+                                                    key={sr.id}
+                                                    className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-xs text-slate-600 transition hover:bg-slate-100"
+                                                  >
+                                                    <FaSearch className="size-2.5 shrink-0 text-slate-400" />
+                                                    <span className="flex-1 truncate font-medium">
+                                                      {sr.keyword.length > 80 ? sr.keyword.slice(0, 80) + '…' : sr.keyword}
+                                                    </span>
+                                                    {sr.createdAt && (
+                                                      <span className="shrink-0 text-slate-400 flex items-center gap-1.5">
+                                                        <FaClock className="size-2.5" />
+                                                        {formatDate(sr.createdAt)}
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                ))}
                                               </div>
-                                            ))}
-                                          </div>
+                                              {searchRecordData[r.userId].totalPages > 1 && (
+                                                <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-2.5">
+                                                  <span className="text-[11px] text-slate-400">
+                                                    共 {searchRecordData[r.userId].total} 条，{searchRecordData[r.userId].totalPages} 页
+                                                  </span>
+                                                  <div className="flex items-center gap-1.5">
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => handleSearchRecordPage(r.userId, searchRecordData[r.userId].page - 1)}
+                                                      disabled={searchRecordData[r.userId].page <= 1}
+                                                      className="inline-flex size-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-[11px] text-slate-500 transition hover:bg-slate-50 disabled:opacity-30"
+                                                    >
+                                                      <FaAngleLeft />
+                                                    </button>
+                                                    <span className="text-[11px] font-medium text-slate-600 min-w-[4rem] text-center">
+                                                      {searchRecordData[r.userId].page}/{searchRecordData[r.userId].totalPages}
+                                                    </span>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => handleSearchRecordPage(r.userId, searchRecordData[r.userId].page + 1)}
+                                                      disabled={searchRecordData[r.userId].page >= searchRecordData[r.userId].totalPages}
+                                                      className="inline-flex size-7 items-center justify-center rounded-lg border border-slate-200 bg-white text-[11px] text-slate-500 transition hover:bg-slate-50 disabled:opacity-30"
+                                                    >
+                                                      <FaAngleRight />
+                                                    </button>
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </>
+                                          ) : (
+                                            <div className={`space-y-1.5 overflow-auto ${showAllSearch[r._id] ? 'max-h-[600px]' : 'max-h-44'}`}>
+                                              {(showAllSearch[r._id] ? r.searchRecords : r.searchRecords.slice(0, 10)).map((sr) => (
+                                                <div
+                                                  key={sr.id}
+                                                  className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-2.5 text-xs text-slate-600 transition hover:bg-slate-100"
+                                                >
+                                                  <FaSearch className="size-2.5 shrink-0 text-slate-400" />
+                                                  <span className="flex-1 truncate font-medium">
+                                                    {sr.keyword.length > 80 ? sr.keyword.slice(0, 80) + '…' : sr.keyword}
+                                                  </span>
+                                                  {sr.createdAt && (
+                                                    <span className="shrink-0 text-slate-400 flex items-center gap-1.5">
+                                                      <FaClock className="size-2.5" />
+                                                      {formatDate(sr.createdAt)}
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
                                         </div>
                                       )}
                                     </div>
