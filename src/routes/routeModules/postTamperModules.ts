@@ -453,8 +453,8 @@ export const postTamperRouteModules: RouteModule[] = [
     isPublic: false,
     authPolicy: {
       mode: "router",
-      handlers: ["authenticateToken"],
-      note: "Bilibili UID binding and sync routes use the existing account JWT and derive user scope from the authenticated request.",
+      handlers: ["oauthTokenAuth", "authenticateToken"],
+      note: "Bilibili UID binding and sync routes accept the existing account JWT or a scoped OAuth access token and derive user scope from the authenticated request.",
     },
     rateLimitPolicy: {
       mode: "router",

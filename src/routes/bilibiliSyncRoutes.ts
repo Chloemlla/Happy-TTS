@@ -1,11 +1,12 @@
 import express from "express";
 import { batchSearchRecords, bindUid, getSearchChanges, getSettings, getUid, putSettings, unbindUid } from "../controllers/bilibiliSyncController";
 import { authenticateToken } from "../middleware/authenticateToken";
+import { oauthTokenAuth } from "../middleware/oauthTokenAuth";
 import { bilibiliSyncLimiter } from "../middleware/routeLimiters";
 
 const router = express.Router();
 
-router.use(authenticateToken, bilibiliSyncLimiter);
+router.use(oauthTokenAuth("bilibili:sync", { optional: true }), authenticateToken, bilibiliSyncLimiter);
 
 router.get("/uid", getUid);
 router.post("/uid", bindUid);
@@ -16,4 +17,3 @@ router.post("/search-records/batch", batchSearchRecords);
 router.get("/search-records/changes", getSearchChanges);
 
 export default router;
-

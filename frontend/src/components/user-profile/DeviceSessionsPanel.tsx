@@ -29,7 +29,7 @@ export interface DeviceSessionsPanelProps {
   actionLoading: boolean;
   onRefresh: () => void;
   onRequestVerification: () => void;
-  onLogoutAll: () => void;
+  onLogoutDevice: (deviceKey: string) => void;
 }
 
 const getDeviceIcon = (session: UserDeviceSession) => {
@@ -47,11 +47,10 @@ const DeviceSessionsPanel: React.FC<DeviceSessionsPanelProps> = ({
   actionLoading,
   onRefresh,
   onRequestVerification,
-  onLogoutAll,
+  onLogoutDevice,
 }) => {
   const otherSessions = sessions.filter(canLogoutDeviceSession);
   const hasOtherSessions = otherSessions.length > 0;
-  const logoutLabel = securitySessionActive ? '退出其他全部会话' : '验证后退出其他会话';
 
   return (
     <section
@@ -156,7 +155,9 @@ const DeviceSessionsPanel: React.FC<DeviceSessionsPanelProps> = ({
                   {canLogout && (
                     <button
                       type="button"
-                      onClick={securitySessionActive ? onLogoutAll : onRequestVerification}
+                      onClick={securitySessionActive
+                        ? () => onLogoutDevice(session.id)
+                        : onRequestVerification}
                       disabled={actionLoading}
                       className={cn(
                         studioPrimaryButtonClassName,
@@ -165,7 +166,7 @@ const DeviceSessionsPanel: React.FC<DeviceSessionsPanelProps> = ({
                       title="需要安全会话验证"
                     >
                       {actionLoading ? <FaSyncAlt className="animate-spin" /> : <FaSignOutAlt />}
-                      {logoutLabel}
+                      {securitySessionActive ? '退出此设备全部会话' : '验证后退出此设备'}
                     </button>
                   )}
                 </div>
@@ -202,7 +203,7 @@ const DeviceSessionsPanel: React.FC<DeviceSessionsPanelProps> = ({
       {hasOtherSessions && (
         <div className="mt-4 flex items-start gap-2 rounded-2xl border border-amber-100 bg-amber-50 px-3.5 py-3 text-[12px] leading-5 text-amber-700">
           <FaSignOutAlt className="mt-0.5 shrink-0" />
-          <span>退出其他会话前需要完成安全验证；当前 Profile 设备不会被此操作登出。</span>
+          <span>每个设备的退出操作会撤销该设备或客户端的全部关联会话；当前 Profile 设备不会提供退出按钮。</span>
         </div>
       )}
     </section>

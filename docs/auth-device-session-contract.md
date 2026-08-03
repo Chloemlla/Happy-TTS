@@ -10,6 +10,7 @@ This contract covers Synapse account sessions created by password login, TOTP/pa
 - Sessions are grouped by `deviceKey`, derived from `userId + clientType + deviceId/userAgent`.
 - Device records expose `deviceName`, `platform`, `clientType`, `recentActivityAt`, `ip`, `ipLocation`, `current`, `revoked`, and nested `sessions`.
 - JWT and OAuth protected middleware fail closed when the credential has no active session row or when the row was revoked.
+- The built-in public `piliplus` client is provisioned on first authorization with the fixed `piliplus://synapse-auth` redirect and the `bilibili:sync` scope.
 
 ## APIs
 
@@ -56,6 +57,16 @@ Response `200`:
 { "success": true, "revoked": 3 }
 ```
 
+### Profile device management
+
+`GET /api/admin/user/profile/devices` returns the same active device groups for
+the current Profile session. `POST
+/api/admin/user/profile/devices/:deviceKey/revoke` additionally requires the
+short-lived `verificationToken` issued by
+`POST /api/admin/user/profile/verify`. The current Profile device is marked
+`current: true` and is rejected by the server even when a caller supplies its
+device key.
+
 ## Mobile OAuth authorization
 
 Protected mobile aliases are available for Synapse-Client PKCE flows:
@@ -65,6 +76,8 @@ Protected mobile aliases are available for Synapse-Client PKCE flows:
 - `POST /api/oauth/authorize/mobile/deny`
 
 They use the same current Synapse JWT authentication as `/api/oauth/authorize/preview` and `/api/oauth/authorize`. Clients submit `client_id`, `redirect_uri`, `scope`, `state`, `code_challenge`, and `code_challenge_method`; approval/denial is conveyed in the JSON body. JWTs are accepted only in headers/cookies, never in redirect URIs.
+
+PiliPlus requests the public-client `bilibili:sync` scope. The Bilibili sync routes accept either the current Synapse JWT or an OAuth access token carrying that scope; the latter is still bound to the authenticated Synapse user.
 
 ## Required client metadata
 

@@ -39,14 +39,14 @@ describe('DeviceSessionsPanel', () => {
         actionLoading={false}
         onRefresh={vi.fn()}
         onRequestVerification={vi.fn()}
-        onLogoutAll={vi.fn()}
+        onLogoutDevice={vi.fn()}
       />,
     );
 
     const currentCard = screen.getByText('当前 Profile 设备').closest('article');
     expect(currentCard).toBeInTheDocument();
     expect(currentCard?.querySelector('button')).toBeNull();
-    expect(screen.getByRole('button', { name: '退出其他全部会话' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '退出此设备全部会话' })).toBeInTheDocument();
   });
 
   it('requests security verification before logout when the security session is inactive', async () => {
@@ -62,12 +62,33 @@ describe('DeviceSessionsPanel', () => {
         actionLoading={false}
         onRefresh={vi.fn()}
         onRequestVerification={onRequestVerification}
-        onLogoutAll={vi.fn()}
+        onLogoutDevice={vi.fn()}
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: '验证后退出其他会话' }));
+    await user.click(screen.getByRole('button', { name: '验证后退出此设备' }));
     expect(onRequestVerification).toHaveBeenCalledTimes(1);
+  });
+
+  it('revokes only the selected non-current device group after verification', async () => {
+    const user = userEvent.setup();
+    const onLogoutDevice = vi.fn();
+
+    render(
+      <DeviceSessionsPanel
+        sessions={sessions}
+        loading={false}
+        error={null}
+        securitySessionActive
+        actionLoading={false}
+        onRefresh={vi.fn()}
+        onRequestVerification={vi.fn()}
+        onLogoutDevice={onLogoutDevice}
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: '退出此设备全部会话' }));
+    expect(onLogoutDevice).toHaveBeenCalledWith('piliplus-1');
   });
 
   it('normalizes the backend device shape and current marker', () => {

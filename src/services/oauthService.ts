@@ -27,6 +27,9 @@ const CLIENT_SECRET_PREFIX = "syn_secret_";
 const AUTH_CODE_PREFIX = "syn_oac_";
 const ACCESS_TOKEN_PREFIX = "syn_oat_";
 const REFRESH_TOKEN_PREFIX = "syn_ort_";
+const PILIPLUS_CLIENT_ID = "piliplus";
+const PILIPLUS_REDIRECT_URI = "piliplus://synapse-auth";
+const PILIPLUS_SYNC_SCOPE = "bilibili:sync";
 
 const AUTH_CODE_TTL_MS = 10 * 60 * 1000;
 const ACCESS_TOKEN_TTL_SECONDS = 2 * 60 * 60;
@@ -120,6 +123,7 @@ export interface OAuthTokenResponse {
   refresh_expires_in?: number;
   scope: string;
   user?: Record<string, unknown>;
+  device_tracked?: boolean;
 }
 
 export interface OAuthAccessContext {
@@ -190,9 +194,19 @@ const apiScopeDefinitions: OAuthScopeDefinition[] = API_KEY_PERMISSION_DEFINITIO
   costCredits: permission.costCredits,
 }));
 
+const bilibiliSyncScopeDefinition: OAuthScopeDefinition = {
+  key: PILIPLUS_SYNC_SCOPE,
+  label: "PiliPlus 设置同步",
+  description: "读取和更新当前账号绑定的 PiliPlus 搜索记录与安全设置。",
+  category: "utility",
+  endpoints: ["/api/bilibili-sync/*"],
+  identityScope: false,
+};
+
 export const OAUTH_SCOPE_DEFINITIONS: OAuthScopeDefinition[] = [
   ...identityScopeDefinitions,
   ...apiScopeDefinitions,
+  bilibiliSyncScopeDefinition,
 ];
 
 const scopeDefinitionMap = new Map(OAUTH_SCOPE_DEFINITIONS.map((scope) => [scope.key, scope]));
@@ -284,7 +298,14 @@ function isLocalhostName(hostname: string): boolean {
 function isValidUrl(value: string, opts: { allowHttpLocalhost?: boolean } = {}): boolean {
   try {
     const url = new URL(value);
-    if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+    const isHttp = url.protocol === "https:" || url.protocol === "http:";
+    const isNative = !isHttp &&
+      /^[a-z][a-z0-9+.-]*:$/.test(url.protocol) &&
+      Boolean(url.hostname) &&
+      !url.username &&
+      !url.password &&
+      !url.port;
+    if (!isHttp && !isNative) return false;
     if (url.protocol === "http:") {
       if (!opts.allowHttpLocalhost || !isLocalhostName(url.hostname)) return false;
     }
@@ -462,6 +483,36 @@ function assertClientEnabled(client: OAuthClientDoc | null): OAuthClientDoc {
     throw new OAuthError(400, "invalid_client", "OAuth 客户端不存在或已停用");
   }
   return client;
+}
+
+async function loadOAuthClient(clientId: string): Promise<OAuthClientDoc | null> {
+  const existing = (await OAuthClientModel.findOne({ clientId }).lean()) as OAuthClientDoc | null;
+  if (existing || clientId !== PILIPLUS_CLIENT_ID) return existing;
+
+  const now = new Date();
+  return (await OAuthClientModel.findOneAndUpdate(
+    { clientId: PILIPLUS_CLIENT_ID },
+    {
+      $setOnInsert: {
+        clientId: PILIPLUS_CLIENT_ID,
+        clientSecretHash: null,
+        type: "public",
+        name: "PiliPlus",
+        description: "PiliPlus 使用 Synapse OAuth 访问设置同步服务。",
+        homepageUrl: null,
+        logoUrl: null,
+        redirectUris: [PILIPLUS_REDIRECT_URI],
+        allowedScopes: ["openid", "profile", "email", PILIPLUS_SYNC_SCOPE],
+        ownerUserId: "system",
+        rateLimitPerMinute: 120,
+        enabled: true,
+        lastUsedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      },
+    },
+    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true },
+  ).lean()) as OAuthClientDoc | null;
 }
 
 function assertRedirectUri(client: OAuthClientDoc, redirectUri: string): void {
@@ -688,6 +739,7 @@ async function createTokenPair(opts: {
     refresh_expires_in: REFRESH_TOKEN_TTL_SECONDS,
     scope: opts.scopes.join(" "),
     user: buildUserProfile(opts.user, opts.scopes),
+    device_tracked: true,
   };
 }
 
@@ -710,6 +762,7 @@ async function revokeClientAuthorizations(
 }
 
 export async function createOAuthClient(opts: {
+  clientId?: unknown;
   name: unknown;
   description?: unknown;
   homepageUrl?: unknown;
@@ -726,13 +779,17 @@ export async function createOAuthClient(opts: {
   }
 
   const type: OAuthClientType = opts.type === "public" ? "public" : "confidential";
+  const requestedClientId = normalizeOptionalText(opts.clientId, 80);
+  if (requestedClientId && !/^[A-Za-z0-9._~-]+$/.test(requestedClientId)) {
+    throw new OAuthError(400, "invalid_client_metadata", "clientId 包含非法字符");
+  }
   const clientSecret = type === "confidential" ? randomSecret(CLIENT_SECRET_PREFIX, 32) : null;
   const allowedScopes = normalizeOAuthScopes(opts.allowedScopes, { fallback: defaultClientScopes });
   const redirectUris = normalizeRedirectUris(opts.redirectUris);
   const rateLimitPerMinute = Math.min(Math.max(Number(opts.rateLimitPerMinute) || 120, 1), 1000);
 
   const client = (await OAuthClientModel.create({
-    clientId: randomSecret(CLIENT_ID_PREFIX, 18),
+    clientId: requestedClientId || randomSecret(CLIENT_ID_PREFIX, 18),
     clientSecretHash: clientSecret ? await hashClientSecret(clientSecret) : null,
     type,
     name,
@@ -929,7 +986,7 @@ export async function validateAuthorizeRequest(input: OAuthAuthorizeRequest): Pr
     throw new OAuthError(400, "invalid_request", "缺少 client_id 或 redirect_uri");
   }
 
-  const client = assertClientEnabled((await OAuthClientModel.findOne({ clientId }).lean()) as OAuthClientDoc | null);
+  const client = assertClientEnabled(await loadOAuthClient(clientId));
   assertRedirectUri(client, redirectUri);
   const codeChallengeMethod = normalizeCodeChallengeMethod(input.code_challenge_method);
   const codeChallenge = normalizeOptionalText(input.code_challenge, 128) || undefined;
@@ -953,7 +1010,7 @@ export async function approveAuthorization(
 ): Promise<{ redirectUri: string; scopes: string[] }> {
   assertOAuthAuthorizingUser(user);
   const preview = await validateAuthorizeRequest(input);
-  const client = assertClientEnabled((await OAuthClientModel.findOne({ clientId: preview.client.clientId }).lean()) as OAuthClientDoc | null);
+  const client = assertClientEnabled(await loadOAuthClient(preview.client.clientId));
   const grant = await upsertGrant(client.clientId, user.id, preview.scopes);
   const code = randomSecret(AUTH_CODE_PREFIX, 32);
 
@@ -1043,7 +1100,7 @@ async function authenticateClient(opts: {
     throw new OAuthError(401, "invalid_client", "缺少 client_id");
   }
 
-  const client = assertClientEnabled((await OAuthClientModel.findOne({ clientId }).lean()) as OAuthClientDoc | null);
+  const client = assertClientEnabled(await loadOAuthClient(clientId));
 
   if (client.type === "public") {
     if (hasBasicAuth || clientSecret) {

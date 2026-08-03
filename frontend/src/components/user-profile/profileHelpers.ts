@@ -156,7 +156,7 @@ export const normalizeDeviceSession = (
   index = 0,
 ): UserDeviceSession => {
   const record = asRecord(value);
-  const id = firstString(record, ['id', 'sessionId', 'deviceId']) || `device-${index}`;
+  const id = firstString(record, ['deviceKey', 'device_key', 'id', 'sessionId', 'deviceId']) || `device-${index}`;
   const rawCurrent = record.isCurrent ?? record.current;
 
   return {
@@ -197,10 +197,11 @@ export const fetchDeviceSessions = async (): Promise<UserDeviceSession[]> => {
   return rawSessions.map((session, index) => normalizeDeviceSession(session, currentDeviceId, index));
 };
 
-export const revokeOtherDeviceSessions = async (
+export const revokeDeviceSession = async (
+  deviceKey: string,
   verificationToken: string,
 ): Promise<DeviceSessionRevokeResponse> => {
-  const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile/devices/logout-all`, {
+  const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile/devices/${encodeURIComponent(deviceKey)}/revoke`, {
     method: 'POST',
     credentials: 'include',
     headers: getAuthHeaders(),
@@ -208,7 +209,7 @@ export const revokeOtherDeviceSessions = async (
   });
 
   const result = await res.json();
-  if (!res.ok) throw new Error(result.error || '退出其他设备会话失败');
+  if (!res.ok) throw new Error(result.error || '退出设备会话失败');
   return result;
 };
 

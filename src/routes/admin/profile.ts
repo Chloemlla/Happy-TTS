@@ -27,6 +27,12 @@ import {
 import { getClientIP } from "../../utils/ipUtils";
 import logger from "../../utils/logger";
 import { UserStorage } from "../../utils/userStorage";
+import {
+  AuthSessionError,
+  listAuthDevices,
+  revokeAuthDevice,
+} from "../../services/authSessionService";
+import { getTokenFromRequest } from "../../utils/authCookie";
 
 const router = express.Router();
 const upload = multer({
@@ -165,6 +171,44 @@ router.get("/user/profile", authMiddleware, async (req, res) => {
     res.json(resp);
   } catch (_e) {
     res.status(500).json({ error: "获取用户信息失败" });
+  }
+});
+
+router.get("/user/profile/devices", authMiddleware, async (req, res) => {
+  try {
+    const user = req.user;
+    const token = getTokenFromRequest(req);
+    if (!user || !token) return res.status(401).json({ error: "未登录" });
+
+    const devices = await listAuthDevices(user.id, token);
+    return res.json({ success: true, devices });
+  } catch (error) {
+    logger.error("[AdminRoutes] 获取资料页设备会话失败", error);
+    return res.status(500).json({ error: "获取设备会话失败" });
+  }
+});
+
+router.post("/user/profile/devices/:deviceKey/revoke", authMiddleware, async (req, res) => {
+  try {
+    const user = req.user;
+    const token = getTokenFromRequest(req);
+    const deviceKey = typeof req.params.deviceKey === "string" ? req.params.deviceKey : "";
+    const verificationToken = typeof req.body?.verificationToken === "string" ? req.body.verificationToken : "";
+    if (!user || !token) return res.status(401).json({ error: "未登录" });
+    if (!/^[a-f0-9]{40}$/.test(deviceKey)) return res.status(400).json({ error: "设备标识无效" });
+    if (!verificationToken || !validateProfileVerificationSession(user.id, verificationToken)) {
+      return res.status(401).json({ error: "请先完成身份验证", code: "PROFILE_VERIFICATION_REQUIRED" });
+    }
+
+    const result = await revokeAuthDevice(user.id, deviceKey, token);
+    return res.json({ success: true, revokedCount: result.revoked, ...result });
+  } catch (error) {
+    if (error instanceof AuthSessionError) {
+      const status = error.code === "CURRENT_SESSION_PROTECTED" ? 409 : error.code === "SESSION_NOT_FOUND" ? 404 : 401;
+      return res.status(status).json({ error: error.message, code: error.code });
+    }
+    logger.error("[AdminRoutes] 撤销资料页设备会话失败", error);
+    return res.status(500).json({ error: "撤销设备会话失败" });
   }
 });
 

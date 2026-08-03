@@ -46,7 +46,7 @@ import {
   UserDeviceSession,
   fetchProfile,
   fetchDeviceSessions,
-  revokeOtherDeviceSessions,
+  revokeDeviceSession,
   verifyIdentity,
   sendEmailCode,
   updateProfile,
@@ -614,26 +614,26 @@ const UserProfile: React.FC = () => {
     setShowVerificationModal(true);
   }, [isSecuritySessionActive, profile?.id, setNotification]);
 
-  const handleLogoutAllDeviceSessions = useCallback(async () => {
+  const handleLogoutDeviceSession = useCallback(async (deviceKey: string) => {
     if (!isSecuritySessionActive || !verificationToken) {
-      setNotification({ message: '退出其他会话前请先建立安全会话', type: 'warning' });
+      setNotification({ message: '退出设备会话前请先建立安全会话', type: 'warning' });
       setShowVerificationModal(true);
       return;
     }
 
     setRevokingDeviceSessions(true);
     try {
-      const result = await revokeOtherDeviceSessions(verificationToken);
+      const result = await revokeDeviceSession(deviceKey, verificationToken);
       const revokedCount = typeof result.revokedCount === 'number' ? result.revokedCount : null;
       setNotification({
-        message: revokedCount === null ? '其他设备会话已退出' : `已退出 ${revokedCount} 个其他设备会话`,
+        message: revokedCount === null ? '设备会话已退出' : `已退出 ${revokedCount} 个关联会话`,
         type: 'success',
       });
       await loadDeviceSessions({ background: true });
     } catch (error) {
       console.error('[UserProfile] Device session logout error:', error);
       setNotification({
-        message: error instanceof Error ? error.message : '退出其他设备会话失败',
+        message: error instanceof Error ? error.message : '退出设备会话失败',
         type: 'error',
       });
     } finally {
@@ -1507,8 +1507,8 @@ const UserProfile: React.FC = () => {
               onRequestVerification={() => {
                 void handleVerify();
               }}
-              onLogoutAll={() => {
-                void handleLogoutAllDeviceSessions();
+              onLogoutDevice={(deviceKey) => {
+                void handleLogoutDeviceSession(deviceKey);
               }}
             />
 
