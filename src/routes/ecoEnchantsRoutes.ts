@@ -10,6 +10,7 @@ import {
   verifyEcoEnchantsDownloadToken,
 } from "../services/ecoEnchantsService";
 import { firstString } from "../utils/httpParam";
+import { getTokenFromRequest } from "../utils/authCookie";
 import { UserStorage } from "../utils/userStorage";
 
 const router = Router();
@@ -213,14 +214,16 @@ function hasEcoAdminMfa(user: any): boolean {
 
 async function authenticateEcoCustomer(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    // Try Authorization header first, then fall back to session cookie
     const authHeader = req.headers.authorization || "";
     const [type, token] = authHeader.split(" ");
-    if (type !== "Bearer" || !token) {
+    const jwtToken = (type === "Bearer" && token) ? token : getTokenFromRequest(req);
+    if (!jwtToken) {
       sendAuthError(res, req, 401, "unauthorized", "Authorization bearer token is required.");
       return;
     }
 
-    const decoded = jwt.verify(token, config.jwtSecret) as any;
+    const decoded = jwt.verify(jwtToken, config.jwtSecret) as any;
     const userId = decoded.userId || decoded.sub;
     if (!userId) {
       sendAuthError(res, req, 401, "unauthorized", "Token does not contain a user ID.");
