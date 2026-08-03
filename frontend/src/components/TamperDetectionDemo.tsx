@@ -23,7 +23,6 @@ import {
 import { getApiBaseUrl } from '../api/api';
 import { integrityChecker } from '../utils/integrityCheck';
 import { signedFetch } from '../utils/requestSigner';
-import { getAuthToken } from '../utils/authSession';
 
 
 interface TamperDetectionDemoProps {
@@ -243,10 +242,8 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
   const [manualBlockHours, setManualBlockHours] = useState(24);
 
   const getAuthHeaders = () => {
-    const token = getAuthToken();
     return {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
   };
 

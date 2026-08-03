@@ -5,7 +5,6 @@ import { motion } from 'framer-motion';
 import { useNotification } from './Notification';
 import { FaListAlt, FaSync, FaSearch, FaEye, FaTimes, FaTrash, FaCopy, FaClipboard } from 'react-icons/fa';
 import { handleSourceClick, handleSourceModalClose } from './EnvManager';
-import { getAuthToken } from '../utils/authSession';
 import {
   InfoPanel,
   InfoSectionTitle,
@@ -207,12 +206,7 @@ const SmartHumanCheckTraces: React.FC = () => {
       if (filters.ip) params.set('ip', filters.ip);
       if (filters.ua) params.set('ua', filters.ua);
 
-      const token = getAuthToken();
-      const res = await fetch(`${getApiBaseUrl()}/api/human-check/traces?${params.toString()}` , {
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-        }
-      });
+      const res = await fetch(`${getApiBaseUrl()}/api/human-check/traces?${params.toString()}`);
       if (!res.ok) throw new Error(`加载失败: ${res.status}`);
       const data = await res.json();
       setItems(data.items || []);
@@ -286,10 +280,7 @@ const SmartHumanCheckTraces: React.FC = () => {
 
   const openDetail = async (id: string) => {
     try {
-      const token = getAuthToken();
-      const res = await fetch(`${getApiBaseUrl()}/api/human-check/trace/${id}`, {
-        headers: { 'Authorization': token ? `Bearer ${token}` : '' }
-      });
+      const res = await fetch(`${getApiBaseUrl()}/api/human-check/trace/${id}`);
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data.error || '获取详情失败');
       
@@ -429,13 +420,10 @@ const SmartHumanCheckTraces: React.FC = () => {
 
   // 拉取详情 - 使用并发请求优化
   const fetchDetailsByIds = useCallback(async (ids: string[]) => {
-    const token = getAuthToken();
-    const headers = { 'Authorization': token ? `Bearer ${token}` : '' };
-    
     // 使用 Promise.allSettled 进行并发请求
     const promises = ids.map(async (id) => {
       try {
-        const res = await fetch(`${getApiBaseUrl()}/api/human-check/trace/${id}`, { headers });
+        const res = await fetch(`${getApiBaseUrl()}/api/human-check/trace/${id}`);
         const data = await res.json();
         if (res.ok && data?.success && data?.item) return data.item;
         else return { traceId: id, error: data?.error || 'not_ok' };
@@ -510,12 +498,10 @@ const SmartHumanCheckTraces: React.FC = () => {
     if (!window.confirm(`确定删除选中的 ${ids.length} 条日志吗？该操作不可恢复。`)) return;
     setBatchLoading(true);
     try {
-      const token = getAuthToken();
       const res = await fetch(`${getApiBaseUrl()}/api/human-check/traces`, {
         method: 'DELETE',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ ids })
       });

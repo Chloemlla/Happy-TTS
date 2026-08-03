@@ -29,7 +29,6 @@ import {
 } from "./studioTheme";
 import TOTPSetup from "./TOTPSetup";
 import { getApiBaseUrl } from "../api/api";
-import { getAuthToken } from '../utils/authSession';
 
 
 interface TOTPManagerProps {
@@ -57,7 +56,6 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
         baseURL: getApiBaseUrl(),
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${getAuthToken()}`,
         },
       }),
     [],

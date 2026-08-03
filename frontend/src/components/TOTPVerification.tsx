@@ -5,7 +5,6 @@ import { validateTOTPToken, validateBackupCode, cleanTOTPToken, cleanBackupCode 
 import { FaLock, FaInfoCircle } from 'react-icons/fa';
 import { getApiBaseUrl } from '../api/api';
 import { cn } from '../utils/cn';
-import { clearAuthToken } from '../utils/authSession';
 import {
   authAlertClassName,
   authFieldClassName,
@@ -78,10 +77,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
       });
 
       if (response.data.verified) {
-        // TOTP验证成功，保存JWT token并调用成功回调
-        if (response.data.token) {
-          clearAuthToken(); // HttpOnly cookie already set by API
-        }
+        // TOTP验证成功，调用成功回调
         onSuccess();
       } else {
         throw new Error('TOTP验证失败');

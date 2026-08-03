@@ -22,7 +22,6 @@ import {
   getMobileRootNavGroups,
 } from '../navigation/navConfig';
 import type { TOTPStatus, User } from '../types/auth';
-import { getAuthToken } from '../utils/authSession';
 import { isNavLink } from '../layout/url-utils';
 import type { NavItem as ConfigNavItem } from '../layout/types';
 
@@ -153,16 +152,13 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
     const fallbackAvatar = user.avatarUrl?.trim() || undefined;
     setAvatarImg(fallbackAvatar);
 
-    const token = getAuthToken();
-    if (!token) return undefined;
-
     const controller = new AbortController();
     let cancelled = false;
 
     const fetchProfileAvatar = async () => {
       try {
         const response = await fetch(`${getApiBaseUrl()}/api/admin/user/profile`, {
-          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
           signal: controller.signal,
         });
 
@@ -218,7 +214,7 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
       return savedAccounts;
     }
 
-    return [{ user, token: getAuthToken() || '', lastActive: 0 }, ...savedAccounts];
+    return [{ user, token: '', lastActive: 0 }, ...savedAccounts];
   }, [savedAccounts, user]);
 
   const effectiveTwoFactorStatus = useMemo(() => {

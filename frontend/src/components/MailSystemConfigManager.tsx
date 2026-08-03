@@ -4,7 +4,6 @@ import { FaRedo, FaSave, FaSync, FaTrash } from 'react-icons/fa';
 import { getApiBaseUrl } from '../api/api';
 import { SimpleLoadingSpinner } from './LoadingSpinner';
 import { useNotification } from './Notification';
-import { getAuthToken } from '../utils/authSession';
 import {
   InfoPanel,
   InfoSectionTitle,
@@ -74,11 +73,6 @@ const defaultForm: MailSystemForm = {
   outemailDomain: '',
   outemailQuotaTotal: 100,
 };
-
-function getAuthHeaders(): Record<string, string> {
-  const token = getAuthToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
 
 function LoadingCard(props: { eyebrow: string; detail: string }) {
   return (
@@ -175,7 +169,7 @@ const MailSystemConfigManager: React.FC = () => {
   const loadSetting = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch(MAIL_SYSTEM_API, { headers: getAuthHeaders() });
+      const response = await fetch(MAIL_SYSTEM_API);
       const data = (await response.json().catch(() => null)) as MailSystemResponse | null;
       if (!response.ok || !data?.success) {
         throw new Error(data?.error || '获取邮件系统配置失败');
@@ -231,7 +225,7 @@ const MailSystemConfigManager: React.FC = () => {
     try {
       const response = await fetch(MAIL_SYSTEM_API, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
       const data = (await response.json().catch(() => null)) as MailSystemResponse | null;
@@ -259,7 +253,6 @@ const MailSystemConfigManager: React.FC = () => {
     try {
       const response = await fetch(MAIL_SYSTEM_API, {
         method: 'DELETE',
-        headers: getAuthHeaders(),
       });
       const data = (await response.json().catch(() => null)) as MailSystemResponse | null;
       if (!response.ok || !data?.success) {

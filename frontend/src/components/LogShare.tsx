@@ -29,7 +29,6 @@ import {
   FaCheck,
   FaEdit,
 } from 'react-icons/fa';
-import { getAuthToken } from '../utils/authSession';
 import {
   getStoredHistory,
   saveHistoryToStorage,
@@ -273,9 +272,7 @@ const LogShare: React.FC = React.memo(() => {
   const handleDeleteOne = async (id: string) => {
     if (!confirm('确定删除该条分享日志？此操作不可恢复。')) return;
     try {
-      await axios.delete(getApiBaseUrl() + `/api/sharelog/${id}`, {
-        headers: { 'Authorization': `Bearer ${getAuthToken()}` }
-      });
+      await axios.delete(getApiBaseUrl() + `/api/sharelog/${id}`);
       setNotification({ message: '删除成功', type: 'success' });
       setSelectedIds(prev => prev.filter(item => item !== id));
       await loadAllLogs();
@@ -292,9 +289,7 @@ const LogShare: React.FC = React.memo(() => {
     }
     if (!confirm(`确定删除选中的 ${selectedIds.length} 条分享日志？此操作不可恢复。`)) return;
     try {
-      await axios.post(getApiBaseUrl() + '/api/sharelog/delete-batch', { ids: selectedIds }, {
-        headers: { 'Authorization': `Bearer ${getAuthToken()}` }
-      });
+      await axios.post(getApiBaseUrl() + '/api/sharelog/delete-batch', { ids: selectedIds });
       setNotification({ message: '批量删除成功', type: 'success' });
       setSelectedIds([]);
       await loadAllLogs();
@@ -311,9 +306,7 @@ const LogShare: React.FC = React.memo(() => {
     }
     if (!confirm('确定要删除所有日志吗？该操作不可恢复')) return;
     try {
-      await axios.delete(getApiBaseUrl() + '/api/sharelog/all', {
-        headers: { 'Authorization': `Bearer ${getAuthToken()}` }
-      });
+      await axios.delete(getApiBaseUrl() + '/api/sharelog/all');
       setNotification({ message: '已清空所有日志', type: 'success' });
       await loadAllLogs();
     } catch (e: any) {
@@ -325,11 +318,7 @@ const LogShare: React.FC = React.memo(() => {
   const loadArchives = async () => {
     setIsLoadingArchives(true);
     try {
-      const res = await axios.get(getApiBaseUrl() + '/api/logs/archives', {
-        headers: {
-          'Authorization': `Bearer ${getAuthToken()}`
-        }
-      });
+      const res = await axios.get(getApiBaseUrl() + '/api/logs/archives');
       setArchives(res.data.archives || []);
       setNotification({ message: '归档列表加载成功', type: 'success' });
     } catch (e: any) {
@@ -351,10 +340,6 @@ const LogShare: React.FC = React.memo(() => {
         archiveName: archiveName || undefined,
         includePattern: includePattern || undefined,
         excludePattern: excludePattern || undefined
-      }, {
-        headers: {
-          'Authorization': `Bearer ${getAuthToken()}`
-        }
       });
 
       setNotification({
@@ -380,11 +365,7 @@ const LogShare: React.FC = React.memo(() => {
     }
 
     try {
-      await axios.delete(getApiBaseUrl() + `/api/logs/archives/${archiveName}`, {
-        headers: {
-          'Authorization': `Bearer ${getAuthToken()}`
-        }
-      });
+      await axios.delete(getApiBaseUrl() + `/api/logs/archives/${archiveName}`);
 
       setNotification({ message: '归档删除成功', type: 'success' });
       await loadArchives();
@@ -410,8 +391,6 @@ const LogShare: React.FC = React.memo(() => {
       await axios.put(getApiBaseUrl() + `/api/sharelog/${editingLog.id}`, {
         fileName: editFileName || undefined,
         note: editNote || undefined,
-      }, {
-        headers: { 'Authorization': `Bearer ${getAuthToken()}` }
       });
       setNotification({ message: '保存成功', type: 'success' });
       setEditingLog(null);
@@ -631,30 +610,10 @@ const LogShare: React.FC = React.memo(() => {
   const loadAllLogs = async () => {
     setIsLoadingAllLogs(true);
     try {
-      const res = await axios.get(getApiBaseUrl() + '/api/sharelog/all', {
-        headers: {
-          'Authorization': `Bearer ${getAuthToken()}`
-        }
-      });
+      const res = await axios.get(getApiBaseUrl() + '/api/sharelog/all');
 
-      // 检查是否为加密数据
-      if (isEncryptedLogSharePayload(res.data)) {
-        const token = getAuthToken();
-        if (!token) {
-          throw new Error('Token不存在，无法解密');
-        }
-
-        try {
-          setAllLogs(normalizeLogList(await decryptLogSharePayload(res.data, token)));
-        } catch (decryptError: any) {
-          console.error('🔓 [LogShare] 解密失败:', decryptError);
-          setNotification({ message: '数据解密失败: ' + (decryptError?.message || '未知错误'), type: 'error' });
-          return;
-        }
-      } else {
-        // 未加密数据
-        setAllLogs(normalizeLogList(res.data));
-      }
+      // 未加密数据（Cookie 会话下后端直接返回明文）
+      setAllLogs(normalizeLogList(res.data));
 
       // 刷新列表后清空选择
       setSelectedIds([]);

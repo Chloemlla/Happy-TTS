@@ -31,7 +31,6 @@ import PromptModal from './PromptModal';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
 import { LibreChatContext, LibreChatContextValue } from './LibreChatContext';
 import { LibreChatRealtimeDialog } from './LibreChatRealtimeDialog';
-import { getAuthToken } from '../utils/authSession';
 import {
   InfoBadge,
   InfoPanel,
@@ -309,12 +308,6 @@ const LibreChatPage: React.FC = () => {
   const [promptModal, setPromptModal] = useState<{ open: boolean; title?: string; message?: string; placeholder?: string; defaultValue?: string; codeEditor?: boolean; language?: string; maxLength?: number; onConfirm: (value: string) => void }>({ open: false, message: '', onConfirm: () => { } });
 
   const apiBase = useMemo(() => getApiBaseUrl(), []);
-  const getAdminHistoryHeaders = useCallback((): Record<string, string> | undefined => {
-    if (!isAdmin) return undefined;
-    const sessionToken = getAuthToken();
-    return sessionToken ? { Authorization: `Bearer ${sessionToken}` } : undefined;
-  }, [isAdmin]);
-
   // 游客模式：当未填写本地 token 时视为游客（服务端通过 HttpOnly Cookie 维持会话）
   const guestMode = useMemo(() => !token, [token]);
   const [guestHintDismissed, setGuestHintDismissed] = useState<boolean>(() => localStorage.getItem('lc_guest_hint_dismissed') === '1');
@@ -706,7 +699,6 @@ const LibreChatPage: React.FC = () => {
       const res = await fetch(url, {
         credentials: 'include',
         headers: {
-          ...(getAdminHistoryHeaders() || {}),
           ...(token ? { 'x-chat-token': token } : {}),
         },
       });
@@ -786,7 +778,6 @@ const LibreChatPage: React.FC = () => {
           const checkRes = await fetch(`${apiBase}/api/librechat/history?${params.toString()}`, {
             credentials: 'include',
             headers: {
-              ...(getAdminHistoryHeaders() || {}),
               ...(token ? { 'x-chat-token': token } : {}),
             },
           });
@@ -1039,7 +1030,6 @@ const LibreChatPage: React.FC = () => {
           const checkRes = await fetch(`${apiBase}/api/librechat/history?${params.toString()}`, {
             credentials: 'include',
             headers: {
-              ...(getAdminHistoryHeaders() || {}),
               ...(token ? { 'x-chat-token': token } : {}),
             },
           });

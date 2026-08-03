@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { FaDatabase, FaClock, FaTrash, FaSync, FaUsers, FaChartLine, FaEye, FaHdd, FaFire } from 'react-icons/fa';
 import { getFingerprint, getAccessToken } from '../utils/fingerprint';
 import { useNotification } from '../components/Notification';
-import { getApiBaseUrl, getAuthToken } from '../api/api';
+import { getApiBaseUrl } from '../api/api';
 import { isFirstVisitVerificationEnabled } from '../utils/firstVisitVerificationConfig';
 import {
     InfoMetricCard,
@@ -47,13 +47,7 @@ const GitHubBillingCacheManager: React.FC = () => {
 
     // 获取管理员和Turnstile认证头部
     const getAdminTurnstileAuthHeaders = async () => {
-        const adminToken = getAuthToken();
-        if (!adminToken) {
-            throw new Error('缺少管理员访问令牌');
-        }
-
         const headers: Record<string, string> = {
-            'Authorization': `Bearer ${adminToken}`,
             'Content-Type': 'application/json'
         };
 

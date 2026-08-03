@@ -7,7 +7,6 @@ import { FaCode, FaEdit, FaEye, FaList, FaPlus, FaSyncAlt, FaTrash } from "react
 import { api } from "../api/api";
 import { useAuth } from "../hooks/useAuth";
 import { useNotification } from "./Notification";
-import { getAuthToken } from '../utils/authSession';
 
 
 interface ModItem {
@@ -81,14 +80,6 @@ async function fetchModList(): Promise<ModItem[]> {
 
   if (Array.isArray(response.data.mods)) {
     return response.data.mods;
-  }
-
-  if (typeof response.data.data === "string" && typeof response.data.iv === "string") {
-    const token = getAuthToken();
-    if (!token) {
-      throw new Error("missing_token");
-    }
-    return decryptModsPayload(response.data.data, response.data.iv, token);
   }
 
   return [];

@@ -7,7 +7,6 @@ import getApiBaseUrl from '../api';
 import { useAuth } from '../hooks/useAuth';
 import { signedFetch } from '../utils/requestSigner';
 import CryptoJS from 'crypto-js';
-import { getAuthToken } from '../utils/authSession';
 
 
 interface ShortLink {
@@ -94,39 +93,13 @@ const ShortLinkManager: React.FC = () => {
   const fetchLinks = async () => {
     setLoading(true);
     try {
-      const token = getAuthToken();
-      const res = await fetch(`${getApiBaseUrl()}/api/admin/shortlinks?search=${encodeURIComponent(search)}&page=${page}&pageSize=${PAGE_SIZE}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await fetch(`${getApiBaseUrl()}/api/admin/shortlinks?search=${encodeURIComponent(search)}&page=${page}&pageSize=${PAGE_SIZE}`);
       const data = await res.json();
 
-      if (data.data && data.iv && typeof data.data === 'string' && typeof data.iv === 'string') {
-        try {
-          const decryptedJson = decryptAES256(data.data, data.iv, token || '');
-          const decryptedData = JSON.parse(decryptedJson);
-
-          if (decryptedData.items && Array.isArray(decryptedData.items)) {
-            const nextTotal = decryptedData.total || decryptedData.items.length;
-            setLinks(decryptedData.items);
-            setTotal(nextTotal);
-            setTotalPages(Math.max(1, Math.ceil(nextTotal / PAGE_SIZE)));
-          } else {
-            setLinks([]);
-            setTotal(0);
-            setTotalPages(1);
-          }
-        } catch {
-          setLinks([]);
-          setTotal(0);
-          setTotalPages(1);
-          setNotification({ message: '数据解密失败，请重试', type: 'error' });
-        }
-      } else {
-        const nextTotal = data.total || 0;
-        setLinks(data.items || []);
-        setTotal(nextTotal);
-        setTotalPages(Math.max(1, Math.ceil(nextTotal / PAGE_SIZE)));
-      }
+      const nextTotal = data.total || 0;
+      setLinks(data.items || []);
+      setTotal(nextTotal);
+      setTotalPages(Math.max(1, Math.ceil(nextTotal / PAGE_SIZE)));
     } catch {
       setLinks([]);
       setTotal(0);
@@ -144,11 +117,9 @@ const ShortLinkManager: React.FC = () => {
   const handleDelete = async (id: string) => {
     if (!window.confirm('确定要删除该短链吗？')) return;
     setHighlightedId(id);
-    const token = getAuthToken();
     try {
       const res = await fetch(`${getApiBaseUrl()}/api/admin/shortlinks/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
       });
       if (!res.ok) {
         let message = '删除失败';
@@ -249,7 +220,6 @@ const ShortLinkManager: React.FC = () => {
     }
     setCreating(true);
     try {
-      const token = getAuthToken();
       const requestBody: any = { target: createTarget.trim() };
       if (customCode.trim()) {
         requestBody.customCode = customCode.trim();
@@ -257,8 +227,7 @@ const ShortLinkManager: React.FC = () => {
       const res = await signedFetch(`${getApiBaseUrl()}/api/admin/shortlinks`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(requestBody)
       });
@@ -344,12 +313,10 @@ const ShortLinkManager: React.FC = () => {
     if (window.confirm(`确定要删除以下${selectedLinks.size}个短链吗？\n${linkCodes}\n\n此操作不可撤销。`)) {
       setBatchDeleting(true);
       try {
-        const token = getAuthToken();
         const response = await fetch(`${getApiBaseUrl()}/api/admin/shortlinks/batch-delete`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({ ids: selectedArray })
         });
@@ -391,11 +358,9 @@ const ShortLinkManager: React.FC = () => {
   const handleExportAll = async () => {
     setExportingAll(true);
     try {
-      const token = getAuthToken();
       const response = await fetch(`${getApiBaseUrl()}/api/shorturl/admin/export`, {
         method: 'GET',
         headers: {
-          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -456,11 +421,9 @@ const ShortLinkManager: React.FC = () => {
     if (!window.confirm(confirmMessage)) return;
     setDeletingAll(true);
     try {
-      const token = getAuthToken();
       const response = await signedFetch(`${getApiBaseUrl()}/api/shorturl/admin/deleteall`, {
         method: 'DELETE',
         headers: {
-          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -498,11 +461,9 @@ const ShortLinkManager: React.FC = () => {
     setImportingData(true);
     try {
       const fileContent = await file.text();
-      const token = getAuthToken();
       const response = await signedFetch(`${getApiBaseUrl()}/api/shorturl/admin/import`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ content: fileContent })
@@ -537,11 +498,9 @@ const ShortLinkManager: React.FC = () => {
     }
     setImportingData(true);
     try {
-      const token = getAuthToken();
       const response = await signedFetch(`${getApiBaseUrl()}/api/shorturl/admin/import`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ content: content.trim() })

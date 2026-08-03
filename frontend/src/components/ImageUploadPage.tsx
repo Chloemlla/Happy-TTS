@@ -8,7 +8,6 @@ import { imageDataApi } from '../api/imageData';
 import { openDB, deleteDB } from 'idb';
 import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
-import { getAuthToken } from '../utils/authSession';
 import {
   FaImage,
   FaUpload,
@@ -518,13 +517,10 @@ const ImageUploadPage: React.FC = () => {
       if (!!turnstileConfig.siteKey && turnstileToken) {
         formData.append('cfToken', turnstileToken);
       }
-      const token = getAuthToken();
-      const authenticated = Boolean(token);
       const uploadUrl = getApiBaseUrl() + '/api/ipfs/upload';
-      console.log('[图片上传] 开始上传:', { uploadUrl, fileName: file.name, fileSize: file.size, authenticated });
+      console.log('[图片上传] 开始上传:', { uploadUrl, fileName: file.name, fileSize: file.size });
       const res = await fetch(uploadUrl, {
         method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         body: formData,
       });
       console.log('[图片上传] 响应状态:', res.status);
@@ -626,7 +622,6 @@ const ImageUploadPage: React.FC = () => {
     }
 
     setBatchUploading(true);
-    const token = getAuthToken();
     const uploadUrl = getApiBaseUrl() + '/api/ipfs/upload';
 
     console.log('[批量上传] 开始上传，文件数量:', batchFiles.length);
@@ -656,7 +651,6 @@ const ImageUploadPage: React.FC = () => {
 
         const res = await fetch(uploadUrl, {
           method: 'POST',
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
           body: formData,
         });
 

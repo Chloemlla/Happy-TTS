@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion as m } from 'framer-motion';
 import { FaSync, FaGithub, FaDollarSign, FaCalendarAlt, FaUser, FaTrash } from 'react-icons/fa';
 import { useNotification } from './Notification';
-import { getApiBaseUrl, getAuthToken } from '../api/api';
+import { getApiBaseUrl } from '../api/api';
 import { getFingerprint, getAccessToken } from '../utils/fingerprint';
 import { isFirstVisitVerificationEnabled } from '../utils/firstVisitVerificationConfig';
 
@@ -160,15 +160,6 @@ const GitHubBillingDashboard: React.FC = () => {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json'
     };
-
-    // 获取管理员令牌
-    const adminToken = getAuthToken();
-    if (!adminToken) {
-      throw new Error('缺少管理员访问令牌');
-    }
-
-    // 设置管理员令牌作为主要认证
-    headers['Authorization'] = `Bearer ${adminToken}`;
 
     // 尝试获取Turnstile令牌，有则携带
     if (!isDevelopment() && isFirstVisitVerificationEnabled()) {
@@ -338,23 +329,7 @@ const GitHubBillingDashboard: React.FC = () => {
 
   // 检查是否有管理员访问令牌（Turnstile令牌不再强制要求）
   const checkAdminAndTurnstileToken = async (): Promise<boolean> => {
-    try {
-      const adminToken = getAuthToken();
-      if (!adminToken) {
-        setNotification({
-          message: '缺少管理员访问令牌',
-          type: 'error'
-        });
-        return false;
-      }
-      return true;
-    } catch (error) {
-      setNotification({
-        message: '检查访问令牌失败：' + (error instanceof Error ? error.message : '未知错误'),
-        type: 'error'
-      });
-      return false;
-    }
+    return true;
   };
 
   // 清除缓存

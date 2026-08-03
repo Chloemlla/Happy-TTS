@@ -169,7 +169,7 @@ export async function createAuthSession(input: AuthSessionCreateInput): Promise<
     revokedAt: null,
     updatedAt: now,
   });
-  return session.toObject() as AuthSessionDoc;
+  return (typeof (session as any)?.toObject === "function" ? (session as any).toObject() : session) as AuthSessionDoc;
 }
 
 function getAuthSessionMetadataFromInput(input: AuthSessionCreateInput): Required<AuthSessionMetadata> {
@@ -240,18 +240,24 @@ export async function assertActiveAuthSession(userId: string, credential: string
 export async function touchAuthSession(userId: string, credential: string, metadata: AuthSessionMetadata = {}): Promise<void> {
   const now = new Date();
   const normalized = getAuthSessionMetadataFromInput(metadata as AuthSessionCreateInput);
+  const credentialHash = hashAuthCredential(credential);
+  const existing = (await AuthSessionModel.findOne({ userId, credentialHash, revokedAt: null }).lean()) as AuthSessionDoc | null;
+  if (!existing) throw new AuthSessionError("会话不存在或已撤销", "SESSION_REVOKED");
   const update: Record<string, unknown> = {
     lastActivityAt: now,
     updatedAt: now,
     ipAddress: normalized.ipAddress,
     userAgent: normalized.userAgent,
   };
+  if (existing.ipAddress !== normalized.ipAddress) {
+    update.ipLocation = await resolveIpLocation(normalized.ipAddress);
+  }
   if (metadata.deviceName) update.deviceName = normalized.deviceName;
   if (metadata.platform) update.platform = normalized.platform;
   if (metadata.clientType) update.clientType = normalized.clientType;
   if (metadata.deviceId) update.deviceId = normalized.deviceId;
   await AuthSessionModel.updateOne(
-    { userId, credentialHash: hashAuthCredential(credential), revokedAt: null },
+    { userId, credentialHash, revokedAt: null },
     { $set: update },
   );
 }
