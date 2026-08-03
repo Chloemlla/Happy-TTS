@@ -44,6 +44,9 @@ import ClarityConfigSection from './env-manager/ClarityConfigSection';
 import GithubBillingConfigSection from './env-manager/GithubBillingConfigSection';
 import LibreChatProvidersSection from './env-manager/LibreChatProvidersSection';
 import TtsProviderConfigSection from './env-manager/TtsProviderConfigSection';
+import EcoEnchantsTokenSection from './env-manager/EcoEnchantsTokenSection';
+import EcoEnchantsWebhookSection from './env-manager/EcoEnchantsWebhookSection';
+import SecuritySecretSection from './env-manager/SecuritySecretSection';
 import { DURATION_03, DURATION_06, ENTER_ANIMATE, ENTER_INITIAL, NO_DURATION } from './env-manager/motion';
 import {
   getEnvSource,
@@ -312,7 +315,7 @@ const EnvManager: React.FC = () => {
   useEffect(() => {
     if (!configurationTargetIssueId) return;
     const sectionKey = getConfigurationSectionKey(configurationTargetIssueId);
-    if (sectionKey !== 'envs' && sectionKey !== 'ipqs' && sectionKey !== 'linuxdo' && sectionKey !== 'googleAuth' && sectionKey !== 'deeplx' && sectionKey !== 'nexai' && sectionKey !== 'adminSecurity') {
+    if (sectionKey !== 'envs' && sectionKey !== 'ipqs' && sectionKey !== 'linuxdo' && sectionKey !== 'googleAuth' && sectionKey !== 'deeplx' && sectionKey !== 'nexai' && sectionKey !== 'adminSecurity' && sectionKey !== 'ecoEnchantsToken' && sectionKey !== 'ecoEnchantsWebhook' && sectionKey !== 'securitySecrets') {
       setExpandedSections((previous) => {
         if (previous.has(sectionKey)) return previous;
         const next = new Set(previous);

@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { FaDatabase, FaSearch, FaSync, FaTrash, FaUser } from 'react-icons/fa';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FaDatabase, FaSearch, FaSyncAlt, FaUser, FaList, FaKey, FaCheck, FaTimes, FaClock } from 'react-icons/fa';
 import { useAuth } from '@/hooks/useAuth';
-import { cn } from '@/lib/utils';
 
 interface BilibiliSyncRecord {
   _id: string;
@@ -11,11 +11,7 @@ interface BilibiliSyncRecord {
   settings: Record<string, unknown>;
   settingsVersion: number;
   settingsUpdatedAt?: string;
-  searchRecords: Array<{
-    id: string;
-    keyword: string;
-    createdAt: string;
-  }>;
+  searchRecords: Array<{ id: string; keyword: string; createdAt: string }>;
   credentialStatus: string;
   createdAt: string;
   updatedAt: string;
@@ -28,20 +24,40 @@ interface Pagination {
   totalPages: number;
 }
 
-/**
- * Admin page for viewing PiliPlus/Bilibili Sync data — the settings,
- * search records, and credentials that PiliPlus uploads via OAuth.
- */
+const MOTION_CONFIG = { duration: 0.6 };
+const ROW_INITIAL = { opacity: 0, x: -10 };
+const ROW_ANIMATE = { opacity: 1, x: 0 };
+
+const hoverScale = (s = 1.02) => ({ scale: s });
+const tapScale = (s = 0.95) => ({ scale: s });
+
+const formatDate = (dateStr?: string) => {
+  if (!dateStr) return '-';
+  try {
+    return new Date(dateStr).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+  } catch {
+    return dateStr;
+  }
+};
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+  if (typeof error === 'object' && error !== null) {
+    const maybe = error as { response?: { data?: { error?: string } }; message?: string };
+    return maybe.response?.data?.error || maybe.message || fallback;
+  }
+  return fallback;
+};
+
 const BilibiliSyncAdmin: React.FC = () => {
   const { user } = useAuth();
   const [records, setRecords] = useState<BilibiliSyncRecord[]>([]);
   const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 20, total: 0, totalPages: 0 });
-  const [search, setSearch] = useState('');
+  const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
-  const fetchRecords = useCallback(async (page: number, searchTerm: string) => {
+  const fetchRecords = useCallback(async (page: number, searchTerm: string, append = false) => {
     setLoading(true);
     setError('');
     try {
@@ -51,255 +67,379 @@ const BilibiliSyncAdmin: React.FC = () => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       if (!json.success) throw new Error(json.error || '请求失败');
-      setRecords(json.data);
+      setRecords(append ? [...records, ...json.data] : json.data);
       setPagination(json.pagination);
     } catch (e) {
-      setError(e instanceof Error ? e.message : '加载失败');
+      setError(getErrorMessage(e, '加载失败'));
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchRecords(1, '');
-  }, [fetchRecords]);
+  useEffect(() => { fetchRecords(1, ''); }, [fetchRecords]);
 
-  const handleSearch = () => fetchRecords(1, search);
-  const handlePageChange = (page: number) => fetchRecords(page, search);
+  const handleSearch = () => fetchRecords(1, keyword);
+  const handlePageChange = (page: number) => fetchRecords(page, keyword);
 
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return '-';
-    try {
-      return new Date(dateStr).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
-    } catch {
-      return dateStr;
-    }
-  };
+  const stats = useMemo(() => {
+    const total = pagination.total;
+    const active = records.filter(r => r.credentialStatus === 'active').length;
+    const bound = records.filter(r => r.bilibiliUid).length;
+    const withRecords = records.filter(r => r.searchRecords.length > 0).length;
+    return { total, active, bound, withRecords };
+  }, [records, pagination.total]);
 
-  const truncate = (val: string, max = 60) => (val.length > max ? `${val.slice(0, max)}…` : val);
+  const rangeStart = pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1;
+  const rangeEnd = Math.min(pagination.page * pagination.limit, pagination.total);
 
   const isAdmin = user?.role === 'admin';
 
   return (
-    <div className='space-y-4 p-2 sm:p-4'>
+    <motion.div
+      className="space-y-6"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={MOTION_CONFIG}
+    >
+      {/* 标题和说明 */}
+      <motion.div
+        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={MOTION_CONFIG}
+      >
+        <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
+          <FaDatabase className="text-blue-600" />
+          PiliPlus 设置同步
+        </h2>
+        <div className="text-gray-600 space-y-2">
+          <p>查看 PiliPlus 通过 Bilibili Sync OAuth 上传的配置数据、搜索记录和凭据信息。</p>
+          <div className="flex items-start gap-2 text-sm">
+            <div>
+              <p className="font-semibold text-blue-700">功能说明：</p>
+              <ul className="list-disc list-inside space-y-1 mt-1">
+                <li>按 userId 或 Bilibili UID 搜索同步记录</li>
+                <li>展开查看 settings 配置 JSON 和搜索记录详情</li>
+                <li>凭据状态、绑定状态一目了然</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
       {!isAdmin && (
-        <div className='rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700'>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700 text-sm">
           需要管理员权限才能查看此页面。
         </div>
       )}
 
-      {/* Header */}
-      <div className='flex items-center gap-3'>
-        <div className='flex size-10 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600'>
-          <FaDatabase className='size-4' />
-        </div>
-        <div className='flex-1'>
-          <h2 className='text-lg font-semibold text-slate-900'>PiliPlus 设置同步</h2>
-          <p className='text-sm text-slate-500'>
-            Bilibili 同步数据 — 配置、搜索记录和凭据状态
-          </p>
-        </div>
-        <button
-          onClick={() => fetchRecords(pagination.page, search)}
-          disabled={loading}
-          className='flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50'
-        >
-          <FaSync className={cn('size-3', loading && 'animate-spin')} />
-          刷新
-        </button>
+      {/* 统计卡片 */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {[
+          { label: '总记录', value: stats.total, tone: 'bg-blue-50 text-blue-700 border-blue-200' },
+          { label: '凭据有效', value: stats.active, tone: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+          { label: '已绑定 UID', value: stats.bound, tone: 'bg-sky-50 text-sky-700 border-sky-200' },
+          { label: '有搜索记录', value: stats.withRecords, tone: 'bg-amber-50 text-amber-700 border-amber-200' },
+        ].map(item => (
+          <div key={item.label} className={`rounded-lg border px-4 py-3 ${item.tone}`}>
+            <div className="text-xs font-semibold text-current/70">{item.label}</div>
+            <div className="mt-1 text-2xl font-bold">{item.value}</div>
+          </div>
+        ))}
       </div>
 
-      {/* Search */}
-      <div className='flex gap-2'>
-        <div className='relative flex-1'>
-          <FaSearch className='pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-slate-400' />
-          <input
-            type='text'
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            placeholder='搜索 userId 或 Bilibili UID…'
-            className='w-full rounded-2xl border border-slate-200 bg-white py-2 pl-9 pr-4 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100'
-          />
-        </div>
-        <button
-          onClick={handleSearch}
-          disabled={loading}
-          className='rounded-2xl bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50'
-        >
-          搜索
-        </button>
-      </div>
+      {/* 错误提示 */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            className="bg-red-50 border border-red-200 rounded-xl p-4"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="flex items-center gap-2 text-red-700">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="font-medium">{error}</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Error */}
-      {error && (
-        <div className='rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700'>{error}</div>
-      )}
-
-      {/* Loading */}
-      {loading && (
-        <div className='flex items-center justify-center py-12 text-sm text-slate-400'>
-          <FaSync className='mr-2 size-4 animate-spin' />
-          加载中…
-        </div>
-      )}
-
-      {/* Records */}
-      {!loading && records.length === 0 && (
-        <div className='rounded-2xl border border-slate-200 bg-white/70 px-6 py-12 text-center text-sm text-slate-400'>
-          {search ? '未找到匹配的记录' : '暂无 Bilibili 同步数据'}
-        </div>
-      )}
-
-      {!loading && records.length > 0 && (
-        <div className='space-y-2.5'>
-          {records.map((record) => (
-            <div
-              key={record._id}
-              className='overflow-hidden rounded-2xl border border-slate-200 bg-white/90 shadow-sm'
+      {/* 列表 */}
+      <motion.div
+        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={MOTION_CONFIG}
+      >
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <FaList className="text-lg text-blue-500" />
+            同步记录
+            <span className="text-sm font-normal text-gray-500">
+              {rangeStart}-{rangeEnd} / {pagination.total}
+            </span>
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            <motion.button
+              onClick={() => fetchRecords(pagination.page, keyword)}
+              disabled={loading}
+              className="px-3 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium flex items-center gap-2 border border-gray-200 disabled:opacity-50"
+              whileHover={hoverScale()}
+              whileTap={tapScale()}
             >
-              {/* Summary row */}
-              <button
-                onClick={() => setExpandedId(expandedId === record._id ? null : record._id)}
-                className='flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50'
+              <FaSyncAlt className="text-xs" />
+              刷新
+            </motion.button>
+          </div>
+        </div>
+
+        {/* 搜索栏 */}
+        <div className="mb-4 space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative flex-1 max-w-md">
+              <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+              <input
+                value={keyword}
+                onChange={e => setKeyword(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleSearch(); }}
+                placeholder="搜索 userId 或 Bilibili UID…"
+                className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm bg-white"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <motion.button
+                type="button"
+                onClick={handleSearch}
+                disabled={loading}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium disabled:opacity-50"
+                whileHover={hoverScale()}
+                whileTap={tapScale()}
               >
-                <FaUser className='size-3.5 shrink-0 text-slate-400' />
-                <div className='min-w-0 flex-1'>
-                  <div className='flex items-center gap-2'>
-                    <span className='text-sm font-semibold text-slate-800'>
-                      {record.userId.slice(0, 12)}…
-                    </span>
-                    {record.bilibiliUid && (
-                      <span className='rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-medium text-sky-700'>
-                        UID: {record.bilibiliUid}
-                      </span>
-                    )}
-                    <span
-                      className={cn(
-                        'rounded-full px-2 py-0.5 text-[11px] font-medium',
-                        record.credentialStatus === 'active'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : 'bg-amber-100 text-amber-700',
-                      )}
-                    >
-                      {record.credentialStatus === 'active' ? '凭据有效' : '凭据无效'}
-                    </span>
-                  </div>
-                  <div className='mt-0.5 text-xs text-slate-400'>
-                    settings v{record.settingsVersion} · 搜索记录 {record.searchRecords.length} 条 · 更新于{' '}
-                    {formatDate(record.updatedAt)}
-                  </div>
-                </div>
-                <span className='text-xs text-slate-400'>
-                  {expandedId === record._id ? '收起' : '展开'}
-                </span>
-              </button>
-
-              {/* Expanded detail */}
-              {expandedId === record._id && (
-                <div className='border-t border-slate-100 px-4 py-3 space-y-3 text-sm'>
-                  {/* Info */}
-                  <div className='grid grid-cols-2 gap-2 text-xs text-slate-600'>
-                    <div>
-                      <span className='font-medium text-slate-500'>User ID:</span>{' '}
-                      <span className='font-mono'>{record.userId}</span>
-                    </div>
-                    <div>
-                      <span className='font-medium text-slate-500'>Bilibili UID:</span>{' '}
-                      {record.bilibiliUid || '-'}
-                    </div>
-                    <div>
-                      <span className='font-medium text-slate-500'>UID 绑定时间:</span>{' '}
-                      {formatDate(record.uidBoundAt)}
-                    </div>
-                    <div>
-                      <span className='font-medium text-slate-500'>凭据状态:</span>{' '}
-                      {record.credentialStatus}
-                    </div>
-                    <div>
-                      <span className='font-medium text-slate-500'>设置版本:</span>{' '}
-                      {record.settingsVersion}
-                    </div>
-                    <div>
-                      <span className='font-medium text-slate-500'>设置更新:</span>{' '}
-                      {formatDate(record.settingsUpdatedAt)}
-                    </div>
-                    <div>
-                      <span className='font-medium text-slate-500'>创建时间:</span>{' '}
-                      {formatDate(record.createdAt)}
-                    </div>
-                    <div>
-                      <span className='font-medium text-slate-500'>更新时间:</span>{' '}
-                      {formatDate(record.updatedAt)}
-                    </div>
-                  </div>
-
-                  {/* Settings */}
-                  {record.settings && Object.keys(record.settings).length > 0 && (
-                    <div>
-                      <h4 className='mb-1 text-xs font-semibold text-slate-500 uppercase tracking-wider'>
-                        配置数据
-                      </h4>
-                      <pre className='max-h-48 overflow-auto rounded-xl bg-slate-50 p-3 text-[11px] leading-relaxed text-slate-600'>
-                        {JSON.stringify(record.settings, null, 2)}
-                      </pre>
-                    </div>
-                  )}
-
-                  {/* Search Records */}
-                  {record.searchRecords.length > 0 && (
-                    <div>
-                      <h4 className='mb-1 text-xs font-semibold text-slate-500 uppercase tracking-wider'>
-                        搜索记录（最近 {Math.min(record.searchRecords.length, 10)} 条）
-                      </h4>
-                      <div className='max-h-40 space-y-1 overflow-auto'>
-                        {record.searchRecords.slice(0, 10).map((sr) => (
-                          <div
-                            key={sr.id}
-                            className='flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-1.5 text-xs text-slate-600'
-                          >
-                            <FaSearch className='size-2.5 shrink-0 text-slate-400' />
-                            <span className='font-medium'>{truncate(sr.keyword, 40)}</span>
-                            {sr.createdAt && (
-                              <span className='ml-auto shrink-0 text-slate-400'>
-                                {formatDate(sr.createdAt)}
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <FaSearch className="inline mr-1 text-xs" />
+                搜索
+              </motion.button>
+              {keyword && (
+                <motion.button
+                  type="button"
+                  onClick={() => { setKeyword(''); fetchRecords(1, ''); }}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition text-sm font-medium"
+                  whileHover={hoverScale()}
+                  whileTap={tapScale()}
+                >
+                  清除
+                </motion.button>
               )}
             </div>
-          ))}
+          </div>
         </div>
-      )}
 
-      {/* Pagination */}
-      {pagination.totalPages > 1 && (
-        <div className='flex items-center justify-center gap-2'>
-          <button
-            onClick={() => handlePageChange(pagination.page - 1)}
-            disabled={pagination.page <= 1 || loading}
-            className='rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40'
-          >
-            上一页
-          </button>
-          <span className='text-xs text-slate-400'>
-            {pagination.page} / {pagination.totalPages}（共 {pagination.total} 条）
-          </span>
-          <button
-            onClick={() => handlePageChange(pagination.page + 1)}
-            disabled={pagination.page >= pagination.totalPages || loading}
-            className='rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40'
-          >
-            下一页
-          </button>
-        </div>
-      )}
-    </div>
+        {/* 加载中 */}
+        {loading && (
+          <div className="text-center py-8 text-gray-500">
+            <svg className="animate-spin h-8 w-8 mx-auto mb-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            加载中...
+          </div>
+        )}
+
+        {/* 空状态 */}
+        {!loading && records.length === 0 && (
+          <div className="text-center py-12 text-gray-400">
+            <FaDatabase className="mx-auto text-3xl mb-3 opacity-50" />
+            <p>{keyword ? '未找到匹配的记录' : '暂无 Bilibili 同步数据'}</p>
+          </div>
+        )}
+
+        {/* 表格 */}
+        {!loading && records.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full border border-gray-200 rounded-lg overflow-hidden text-sm">
+              <thead>
+                <tr className="bg-gray-50 text-gray-700">
+                  <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">用户 ID</th>
+                  <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">Bilibili UID</th>
+                  <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">凭据状态</th>
+                  <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">设置版本</th>
+                  <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">搜索记录</th>
+                  <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">更新时间</th>
+                  <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {records.map((r, idx) => (
+                  <motion.tr
+                    key={r._id}
+                    className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
+                    initial={ROW_INITIAL}
+                    animate={ROW_ANIMATE}
+                    transition={{ duration: 0.3, delay: 0.03 * idx }}
+                    whileHover={{ backgroundColor: '#f0f9ff' }}
+                  >
+                    <td className="px-4 py-3 font-mono text-xs text-gray-700 max-w-[120px] truncate" title={r.userId}>
+                      {r.userId.slice(0, 16)}…
+                    </td>
+                    <td className="px-4 py-3">
+                      {r.bilibiliUid ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-sky-100 text-sky-700">
+                          <FaUser className="mr-1 text-[9px]" />
+                          {r.bilibiliUid}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {r.credentialStatus === 'active' ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+                          <FaCheck className="mr-1 text-[9px]" />
+                          有效
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-600">
+                          <FaTimes className="mr-1 text-[9px]" />
+                          无效
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-gray-600">v{r.settingsVersion}</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                        {r.searchRecords.length} 条
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 text-xs">{formatDate(r.updatedAt)}</td>
+                    <td className="px-4 py-3">
+                      <motion.button
+                        onClick={() => setExpandedRow(expandedRow === r._id ? null : r._id)}
+                        className="text-blue-600 hover:underline text-xs font-medium"
+                        whileHover={hoverScale()}
+                        whileTap={tapScale()}
+                      >
+                        {expandedRow === r._id ? '收起' : '详情'}
+                      </motion.button>
+                    </td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* 展开详情 */}
+        {expandedRow && (() => {
+          const record = records.find(r => r._id === expandedRow);
+          if (!record) return null;
+          return (
+            <motion.div
+              className="mt-4 bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-3"
+              initial={{ opacity: 0, height: 0, scale: 0.95 }}
+              animate={{ opacity: 1, height: 'auto', scale: 1 }}
+              exit={{ opacity: 0, height: 0, scale: 0.95 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                <div>
+                  <span className="text-xs font-medium text-gray-500 block">User ID</span>
+                  <span className="font-mono text-xs text-gray-800 break-all">{record.userId}</span>
+                </div>
+                <div>
+                  <span className="text-xs font-medium text-gray-500 block">Bilibili UID</span>
+                  <span className="text-gray-800">{record.bilibiliUid || '-'}</span>
+                </div>
+                <div>
+                  <span className="text-xs font-medium text-gray-500 block">UID 绑定时间</span>
+                  <span className="text-gray-800">{formatDate(record.uidBoundAt)}</span>
+                </div>
+                <div>
+                  <span className="text-xs font-medium text-gray-500 block">凭据状态</span>
+                  <span className="text-gray-800">{record.credentialStatus}</span>
+                </div>
+                <div>
+                  <span className="text-xs font-medium text-gray-500 block">设置版本</span>
+                  <span className="text-gray-800">{record.settingsVersion}</span>
+                </div>
+                <div>
+                  <span className="text-xs font-medium text-gray-500 block">设置更新</span>
+                  <span className="text-gray-800">{formatDate(record.settingsUpdatedAt)}</span>
+                </div>
+                <div>
+                  <span className="text-xs font-medium text-gray-500 block">创建时间</span>
+                  <span className="text-gray-800">{formatDate(record.createdAt)}</span>
+                </div>
+                <div>
+                  <span className="text-xs font-medium text-gray-500 block">更新时间</span>
+                  <span className="text-gray-800">{formatDate(record.updatedAt)}</span>
+                </div>
+              </div>
+
+              {record.settings && Object.keys(record.settings).length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">配置数据</h4>
+                  <pre className="max-h-48 overflow-auto rounded-lg bg-white border border-gray-200 p-3 text-xs leading-relaxed text-gray-600">
+                    {JSON.stringify(record.settings, null, 2)}
+                  </pre>
+                </div>
+              )}
+
+              {record.searchRecords.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">
+                    搜索记录（最近 {Math.min(record.searchRecords.length, 10)} 条）
+                  </h4>
+                  <div className="max-h-40 space-y-1 overflow-auto">
+                    {record.searchRecords.slice(0, 10).map(sr => (
+                      <div key={sr.id} className="flex items-center gap-2 rounded-lg bg-white border border-gray-200 px-3 py-1.5 text-xs text-gray-600">
+                        <FaSearch className="size-2.5 shrink-0 text-gray-400" />
+                        <span className="font-medium">{sr.keyword.length > 60 ? sr.keyword.slice(0, 60) + '…' : sr.keyword}</span>
+                        {sr.createdAt && (
+                          <span className="ml-auto shrink-0 text-gray-400 flex items-center gap-1">
+                            <FaClock className="text-[9px]" />
+                            {formatDate(sr.createdAt)}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          );
+        })()}
+
+        {/* 分页 */}
+        {pagination.totalPages > 1 && (
+          <div className="flex items-center justify-center gap-3 mt-6">
+            <motion.button
+              onClick={() => handlePageChange(pagination.page - 1)}
+              disabled={pagination.page <= 1 || loading}
+              className="px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium text-sm border border-gray-200 disabled:opacity-40"
+              whileHover={hoverScale()}
+              whileTap={tapScale()}
+            >
+              上一页
+            </motion.button>
+            <span className="text-sm text-gray-500">
+              {pagination.page} / {pagination.totalPages}（共 {pagination.total} 条）
+            </span>
+            <motion.button
+              onClick={() => handlePageChange(pagination.page + 1)}
+              disabled={pagination.page >= pagination.totalPages || loading}
+              className="px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium text-sm border border-gray-200 disabled:opacity-40"
+              whileHover={hoverScale()}
+              whileTap={tapScale()}
+            >
+              下一页
+            </motion.button>
+          </div>
+        )}
+      </motion.div>
+    </motion.div>
   );
 };
 
