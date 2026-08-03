@@ -5,10 +5,12 @@ import { LazyMotion, domAnimation, m, AnimatePresence, useReducedMotion } from '
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
 import { signedFetch } from '../utils/requestSigner';
+import { useSearchParams } from 'react-router-dom';
 import RuntimeConfigSections from './RuntimeConfigSections';
 import {
   API_URL,
   CLARITY_CONFIG_API,
+  CONFIGURATION_NOTICE_API,
   GITHUB_BILLING_MULTI_CONFIG_API,
   GOOGLE_AUTH_API,
   GOOGLE_WEB_CLIENT_ID_PATTERN,
@@ -48,6 +50,14 @@ import {
   handleSourceClick,
   handleSourceModalClose
 } from './env-manager/utils';
+import {
+  getConfigurationSectionKey,
+  isConfigurationNoticeIssue,
+  readConfigurationWorkflow,
+  writeConfigurationWorkflow,
+  type ConfigurationNoticeIssue,
+  type ConfigurationNoticeWorkflow,
+} from './env-manager/configurationNotice';
 import type {
   ChatProviderItem,
   ClarityConfigSetting,
@@ -257,6 +267,105 @@ const EnvManager: React.FC = () => {
   const [selectedSource, setSelectedSource] = useState<string>('');
   const { setNotification } = useNotification();
   const prefersReducedMotion = useReducedMotion();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [configurationWorkflow, setConfigurationWorkflow] = useState<ConfigurationNoticeWorkflow | null>(
+    () => readConfigurationWorkflow(),
+  );
+  const [configurationIssues, setConfigurationIssues] = useState<ConfigurationNoticeIssue[]>([]);
+  const [configurationStatusLoading, setConfigurationStatusLoading] = useState(false);
+  const [configurationStatusFetched, setConfigurationStatusFetched] = useState(false);
+
+  const fetchConfigurationIssues = useCallback(async () => {
+    setConfigurationStatusLoading(true);
+    try {
+      const response = await fetch(CONFIGURATION_NOTICE_API, {
+        credentials: 'include',
+        headers: getAuthHeaders(),
+      });
+      const payload: unknown = await response.json().catch(() => null);
+      if (!response.ok || !payload || typeof payload !== 'object' || Array.isArray(payload)) return;
+      const issues = Array.isArray((payload as Record<string, unknown>).issues)
+        ? (payload as Record<string, unknown>).issues.filter(isConfigurationNoticeIssue)
+        : [];
+      setConfigurationIssues(issues);
+      setConfigurationStatusFetched(true);
+    } catch {
+      // Configuration progress is auxiliary and must not block EnvManager.
+    } finally {
+      setConfigurationStatusLoading(false);
+    }
+  }, []);
+
+  const configurationTargetIssueId = searchParams.get('configIssue');
+
+  useEffect(() => {
+    if (!configurationWorkflow && !configurationTargetIssueId) return;
+    void fetchConfigurationIssues();
+    const timer = window.setInterval(() => {
+      void fetchConfigurationIssues();
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, [configurationTargetIssueId, configurationWorkflow, fetchConfigurationIssues]);
+
+  useEffect(() => {
+    if (!configurationTargetIssueId) return;
+    const sectionKey = getConfigurationSectionKey(configurationTargetIssueId);
+    if (sectionKey !== 'envs' && sectionKey !== 'ipqs' && sectionKey !== 'linuxdo' && sectionKey !== 'googleAuth' && sectionKey !== 'deeplx' && sectionKey !== 'nexai' && sectionKey !== 'adminSecurity') {
+      setExpandedSections((previous) => {
+        if (previous.has(sectionKey)) return previous;
+        const next = new Set(previous);
+        next.add(sectionKey);
+        return next;
+      });
+    }
+
+    const scrollTimer = window.setTimeout(() => {
+      document.querySelector(`[data-env-section="${sectionKey}"]`)?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+    }, 250);
+    return () => window.clearTimeout(scrollTimer);
+  }, [configurationTargetIssueId]);
+
+  useEffect(() => {
+    if (!configurationWorkflow || configurationStatusLoading || !configurationStatusFetched) return;
+    const ignoredIds = new Set(configurationWorkflow.ignoredIds);
+    const pendingIssues = configurationWorkflow.issues.filter(
+      (issue) => !ignoredIds.has(issue.id) && configurationIssues.some((current) => current.id === issue.id),
+    );
+    const currentTargetStillPending = configurationTargetIssueId
+      ? pendingIssues.some((issue) => issue.id === configurationTargetIssueId)
+      : false;
+
+    if (pendingIssues.length === 0) {
+      if (configurationTargetIssueId) {
+        setSearchParams((previous) => {
+          const next = new URLSearchParams(previous);
+          next.delete('configIssue');
+          return next;
+        }, { replace: true });
+      }
+      return;
+    }
+
+    if (!currentTargetStillPending) {
+      const nextIssue = pendingIssues[0];
+      setSearchParams((previous) => {
+        const next = new URLSearchParams(previous);
+        next.set('configIssue', nextIssue.id);
+        return next;
+      }, { replace: true });
+    }
+  }, [configurationIssues, configurationStatusFetched, configurationStatusLoading, configurationTargetIssueId, configurationWorkflow, setSearchParams]);
+
+  const ignoreConfigurationIssue = useCallback((issueId: string) => {
+    if (!configurationWorkflow) return;
+    const ignoredIds = Array.from(new Set([...configurationWorkflow.ignoredIds, issueId]));
+    const nextWorkflow = { ...configurationWorkflow, ignoredIds };
+    writeConfigurationWorkflow(nextWorkflow);
+    setConfigurationWorkflow(nextWorkflow);
+  }, [configurationWorkflow]);
 
   // 基于窗口宽度的移动端检测（随页面缩放实时更新，带防抖）
   const [isMobile, setIsMobile] = useState<boolean>(false);
@@ -1995,6 +2104,13 @@ const EnvManager: React.FC = () => {
   const isEnvSectionOpen = isSectionOpen('envs');
   const isEnvCollapsed = !isEnvSectionOpen;
   const isEnvLoading = loading || (isEnvSectionOpen && !fetchedSectionsRef.current.has('envs'));
+  const configurationCurrentIds = new Set(configurationIssues.map((issue) => issue.id));
+  const configurationProgressItems = configurationWorkflow?.issues.filter(
+    (issue) => !configurationWorkflow.ignoredIds.includes(issue.id),
+  ) || [];
+  const configurationNextIssue = configurationProgressItems.find(
+    (issue) => configurationCurrentIds.has(issue.id),
+  );
 
   // 管理员校验
   if (!user || user.role !== 'admin') {
@@ -2055,8 +2171,69 @@ const EnvManager: React.FC = () => {
           </div>
         </m.div>
 
+        {configurationWorkflow && configurationProgressItems.length > 0 && (
+          <m.section
+            className="rounded-2xl border border-amber-200 bg-amber-50 shadow-sm"
+            initial={ENTER_INITIAL}
+            animate={ENTER_ANIMATE}
+            transition={trans06}
+          >
+            <div className="flex flex-col gap-3 border-b border-amber-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-amber-900">服务配置处理进度</h3>
+                <p className="mt-1 text-sm text-amber-800">
+                  {configurationNextIssue
+                    ? `当前处理：${configurationNextIssue.label}`
+                    : configurationStatusFetched
+                      ? '全部配置已完成'
+                      : '正在检查配置状态...'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!configurationNextIssue) return;
+                  setSearchParams((previous) => {
+                    const next = new URLSearchParams(previous);
+                    next.set('configIssue', configurationNextIssue.id);
+                    return next;
+                  }, { replace: true });
+                }}
+                disabled={!configurationNextIssue}
+                className="inline-flex items-center justify-center rounded-lg bg-amber-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {configurationNextIssue ? '处理下一项' : '已完成'}
+              </button>
+            </div>
+            <div className="grid gap-2 px-5 py-4 md:grid-cols-2">
+              {configurationProgressItems.map((issue) => {
+                const resolved = !configurationCurrentIds.has(issue.id);
+                return (
+                  <div
+                    key={issue.id}
+                    className={`flex items-center gap-3 rounded-lg border px-3 py-2 text-sm ${resolved ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-white text-amber-900'}`}
+                  >
+                    {resolved ? <FaCheckCircle className="shrink-0" /> : <FaInfoCircle className="shrink-0" />}
+                    <span className="min-w-0 flex-1 break-words">{issue.label}</span>
+                    {!resolved && (
+                      <button
+                        type="button"
+                        onClick={() => ignoreConfigurationIssue(issue.id)}
+                        className="shrink-0 text-xs text-gray-500 underline hover:text-gray-800"
+                      >
+                        忽略
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </m.section>
+        )}
+
         {/* 环境变量表格 */}
         <m.section
+          data-env-section="envs"
           className="rounded-2xl border border-slate-200 bg-white shadow-sm"
           initial={ENTER_INITIAL}
           animate={ENTER_ANIMATE}

@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FaChevronDown, FaSync, FaUpload } from 'react-icons/fa';
+import { useSearchParams } from 'react-router-dom';
 import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
+import { getConfigurationSectionKey } from './env-manager/configurationNotice';
 
 
 const IPQS_API = getApiBaseUrl() + '/api/admin/ipqs/setting';
@@ -108,6 +110,7 @@ function buildDeepLXRequestUrl(baseUrl: string, apiKey?: string): string {
 }
 
 function SectionCard(props: {
+  sectionKey: string;
   title: string;
   description: string;
   isOpen: boolean;
@@ -116,10 +119,10 @@ function SectionCard(props: {
   onRefresh: () => void;
   children: React.ReactNode;
 }) {
-  const { title, description, isOpen, loading, onToggle, onRefresh, children } = props;
+  const { sectionKey, title, description, isOpen, loading, onToggle, onRefresh, children } = props;
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <section data-env-section={sectionKey} className="rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-slate-800">{title}</h3>
@@ -262,6 +265,20 @@ const RuntimeConfigSections: React.FC = () => {
 
   const [expandedSections, setExpandedSections] = useState<Set<RuntimeConfigSectionKey>>(() => new Set());
   const fetchedSectionsRef = useRef<Set<RuntimeConfigSectionKey>>(new Set());
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const issueId = searchParams.get('configIssue');
+    if (!issueId) return;
+    const sectionKey = getConfigurationSectionKey(issueId);
+    if (!['ipqs', 'linuxdo', 'googleAuth', 'deeplx', 'nexai', 'adminSecurity'].includes(sectionKey)) return;
+    setExpandedSections((previous) => {
+      if (previous.has(sectionKey as RuntimeConfigSectionKey)) return previous;
+      const next = new Set(previous);
+      next.add(sectionKey as RuntimeConfigSectionKey);
+      return next;
+    });
+  }, [searchParams]);
 
   const toggleSection = useCallback((key: RuntimeConfigSectionKey) => {
     setExpandedSections(prev => {
@@ -903,6 +920,7 @@ const RuntimeConfigSections: React.FC = () => {
   return (
     <div className="space-y-6">
       <SectionCard
+        sectionKey="adminSecurity"
         title="管理员安全配置"
         description="管理登录系统之外的管理员操作密码、服务器状态密码和公共短链服务密码。"
         isOpen={isSectionOpen('adminSecurity')}
@@ -975,6 +993,7 @@ const RuntimeConfigSections: React.FC = () => {
       </SectionCard>
 
       <SectionCard
+        sectionKey="ipqs"
         title="IPQS 运行时配置"
         description="通过 EnvManager 直接管理风控开关、配额和 API Key，不再依赖环境变量。"
         isOpen={isSectionOpen('ipqs')}
@@ -1103,6 +1122,7 @@ const RuntimeConfigSections: React.FC = () => {
       </SectionCard>
 
       <SectionCard
+        sectionKey="linuxdo"
         title="LinuxDo 运行时配置"
         description="LinuxDo OAuth 配置改为直接从 MongoDB 读取，留空的密钥字段会保留当前值。"
         isOpen={isSectionOpen('linuxdo')}
@@ -1225,6 +1245,7 @@ const RuntimeConfigSections: React.FC = () => {
       </SectionCard>
 
       <SectionCard
+        sectionKey="googleAuth"
         title="Google Auth 运行时配置"
         description="主站 GSI 登录配置（GOOGLE_CLIENT_ID）。也可在上方「Google / NexAI Client ID 环境变量」区块快速配置。仅使用 Web application Client ID；支持导入 web JSON，拒绝 Desktop/Installed JSON。"
         isOpen={isSectionOpen('googleAuth')}
@@ -1301,6 +1322,7 @@ const RuntimeConfigSections: React.FC = () => {
       </SectionCard>
 
       <SectionCard
+        sectionKey="deeplx"
         title="DeepLX 运行时配置"
         description="直接在 EnvManager 中管理 DeepLX API Base URL 和 API Key，留空的密钥字段会保留当前值。"
         isOpen={isSectionOpen('deeplx')}
@@ -1359,6 +1381,7 @@ const RuntimeConfigSections: React.FC = () => {
       </SectionCard>
 
       <SectionCard
+        sectionKey="nexai"
         title="NexAI 运行时配置"
         description="NexAI JWT、OAuth 与前端回调。Google 字段对应 NEXAI_GOOGLE_CLIENT_ID（可在上方快捷配置区块修改），与主站 Google Auth 独立。"
         isOpen={isSectionOpen('nexai')}
