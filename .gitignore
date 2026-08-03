@@ -128,6 +128,9 @@ worker.zip
 OpenAI-TTS-Gradio-*.zip
 tts-node_inspect.json
 
+# 运行时输出
+outputs/
+
 # 静态文件目录（如果需要版本控制，请删除此行）
 
 frontend/static/
