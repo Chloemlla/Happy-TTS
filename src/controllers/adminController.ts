@@ -466,6 +466,9 @@ export const adminController = {
       const now = Date.now();
       const bulkOps: Array<{ updateOne: { filter: Record<string, unknown>; update: Record<string, unknown> } }> = [];
       const wsNotifyTargets: Array<{ id: string; require: boolean }> = [];
+      let processed = 0;
+      let failed = 0;
+      const results: Array<Record<string, unknown>> = [];
 
       for (const id of userIds) {
         try {

@@ -205,6 +205,7 @@ class IpBanSyncService {
     updated: number;
     skipped: number;
     errors: number;
+    duration: number;
   }> {
     if (!redisService.isAvailable()) {
       logger.warn("⚠️ Redis 不可用，跳过反向同步");
