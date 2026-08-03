@@ -18,11 +18,19 @@ LogPaste/
 *.exe
 .claude/settings.local.json
 github-billing-multi-curl.json
-client_secret_17055657909-fvhkanhq0ht0gm69ra2sjb5onpeqrh91.apps.googleusercontent.com.json
+client_secret_*.apps.googleusercontent.com.json
 scripts\inspect.json
 tts-node_*.sh
 tts-node_*.json
 .agents/
+
+# 敏感密钥文件（严禁提交或 git add -f）
+secrets/
+*.key
+*.cred
+credentials.json
+service-account*.json
+*.token
 skills-lock.json
 # 允许特定环境文件
 !**/pnpm-lock.yaml
@@ -48,8 +56,10 @@ rust-services/target/
 app.py
 .github/workflows/read.yml
 
-# 环境文件
+# 环境文件（含敏感密钥，严禁提交）
 .env
+.env.*
+!.env.example
 .env.local
 .env.development.local
 .env.test.local
