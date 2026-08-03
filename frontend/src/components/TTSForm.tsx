@@ -110,11 +110,16 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
   const { config: turnstileConfig, loading: turnstileConfigLoading } = useTurnstileConfig();
 
   useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
     const mediaQuery = window.matchMedia("(max-width: 639px)");
     const updateViewport = () => setIsNarrowViewport(mediaQuery.matches);
     updateViewport();
-    mediaQuery.addEventListener("change", updateViewport);
-    return () => mediaQuery.removeEventListener("change", updateViewport);
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", updateViewport);
+      return () => mediaQuery.removeEventListener("change", updateViewport);
+    }
+    mediaQuery.addListener(updateViewport);
+    return () => mediaQuery.removeListener(updateViewport);
   }, []);
 
   const voices = providerConfig.voices;
@@ -438,6 +443,7 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
             }}
             className={cn(
               studioTextareaClassName,
+              "max-w-full",
               text.length > MAX_TEXT_LENGTH * 0.9
                 ? "border-red-300 bg-red-50/80 focus:ring-red-200"
                 : text.length > MAX_TEXT_LENGTH * 0.7
@@ -712,6 +718,7 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
               </motion.div>
             ) : (
               <motion.div
+                className="min-w-0"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.4, delay: 0.8 }}
@@ -724,6 +731,7 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
             )}
 
             <motion.div
+              className="min-w-0"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.4, delay: 0.9 }}
@@ -781,7 +789,7 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
               onExpire={handleTurnstileExpire}
               onError={handleTurnstileError}
               theme="light"
-              size="normal"
+              size={isNarrowViewport ? "compact" : "normal"}
             />
 
             {turnstileError && (
@@ -795,13 +803,13 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
             )}
 
             <motion.div
-              className="flex items-center space-x-2 text-sm text-slate-600"
+              className="flex min-w-0 items-start space-x-2 text-sm text-slate-600"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.3, delay: 1.3 }}
             >
               <FaLock className="w-4 h-4 text-slate-500" />
-              <span>请完成人机验证以证明您是人类用户</span>
+              <span className="min-w-0 break-words">请完成人机验证以证明您是人类用户</span>
             </motion.div>
           </motion.div>
         )}
@@ -809,7 +817,7 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
         <AnimatePresence>
           {displayError && (
             <motion.div
-              className="rounded-2xl border border-red-200 bg-red-50/80 px-4 py-3 text-sm text-red-700"
+              className="max-w-full break-words rounded-2xl border border-red-200 bg-red-50/80 px-4 py-3 text-sm text-red-700"
               initial={{ opacity: 0, scale: 0.95, y: -10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -10 }}
@@ -823,7 +831,7 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
         <AnimatePresence>
           {latestNextAction && !displayError && (
             <motion.div
-              className="rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-700"
+              className="max-w-full break-words rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-700"
               initial={{ opacity: 0, scale: 0.95, y: -10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -10 }}
@@ -835,7 +843,7 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
         </AnimatePresence>
 
         <motion.div
-          className="flex flex-col sm:flex-row gap-3 sm:gap-4"
+          className="flex min-w-0 flex-col gap-3 sm:flex-row sm:gap-4"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 1.0 }}

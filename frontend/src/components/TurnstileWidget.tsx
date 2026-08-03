@@ -61,8 +61,8 @@ const installDevelopmentTurnstile = () => {
         const button = document.createElement('button');
         button.type = 'button';
         button.textContent = '点击模拟验证 (开发模式)';
-        button.style.width = '300px';
-        button.style.height = '65px';
+        button.style.width = options.size === 'compact' ? '130px' : '300px';
+        button.style.height = options.size === 'compact' ? '120px' : '65px';
         button.style.border = '2px dashed #9ca3af';
         button.style.display = 'flex';
         button.style.alignItems = 'center';
@@ -318,14 +318,14 @@ export const TurnstileWidget: React.FC<TurnstileWidgetProps> = ({
     };
   }, []); // 只在组件挂载时执行一次
 
-  // 当 siteKey 变化时重新渲染（仅在未验证成功时）
+  // 当 siteKey 或尺寸变化时重新渲染（仅在未验证成功时）
   useEffect(() => {
     if (mountedRef.current && window.turnstile && !verifiedRef.current) {
-      debugTurnstile('Turnstile: siteKey changed, re-rendering');
+      debugTurnstile('Turnstile: siteKey or size changed, re-rendering');
       mountedRef.current = false;
       renderWidget();
     }
-  }, [siteKey]); // 移除 renderWidget 依赖，避免无限循环
+  }, [siteKey, size]); // 移除 renderWidget 依赖，避免无限循环
 
   return (
     <div className="turnstile-widget">

@@ -232,7 +232,7 @@ export const TtsPage: React.FC = () => {
             <div className="w-full lg:w-auto lg:max-w-sm">
               <div
                 ref={noticeRef as React.RefObject<HTMLDivElement | null>}
-                className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 sm:rounded-2xl"
+                className="min-w-0 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 sm:rounded-2xl"
               >
                 <div className={cn(studioEyebrowClassName, "flex items-center gap-2")}>
                   <FaInfoCircle className="text-slate-500" />
@@ -261,7 +261,7 @@ export const TtsPage: React.FC = () => {
           </div>
         </motion.div>
 
-        <div className="grid w-full min-w-0 max-w-full gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="grid w-full min-w-0 max-w-full gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,360px)]">
           {/* Form */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
@@ -300,8 +300,8 @@ export const TtsPage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="rounded-[20px] border border-emerald-100 bg-emerald-50/70 p-4 sm:rounded-2xl">
+                <div className="min-w-0 space-y-4">
+                  <div className="min-w-0 rounded-[20px] border border-emerald-100 bg-emerald-50/70 p-4 sm:rounded-2xl">
                     <p className="text-sm font-medium leading-6 text-emerald-900">{result.message}</p>
                     {usageSummary && (
                       <p className="mt-2 text-xs leading-5 text-emerald-700">{usageSummary}</p>
@@ -313,7 +313,7 @@ export const TtsPage: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="rounded-[20px] border border-slate-200 bg-white p-4 text-xs leading-5 text-slate-600 sm:rounded-2xl">
+                  <div className="min-w-0 rounded-[20px] border border-slate-200 bg-white p-4 text-xs leading-5 text-slate-600 sm:rounded-2xl">
                     <div className={studioEyebrowClassName}>Generated Text</div>
                     <p className="mt-2 break-words text-sm leading-6 text-slate-800">
                       {result.text || "未返回生成文本"}
@@ -329,14 +329,14 @@ export const TtsPage: React.FC = () => {
                         {formatAudioSize(result.audioSize)}
                       </span>
                       {result.audioFileId && (
-                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-semibold text-slate-600">
+                        <span className="max-w-full break-all rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 font-semibold text-slate-600">
                           Mongo ID: {result.audioFileId}
                         </span>
                       )}
                     </div>
                   </div>
 
-                  <div className="rounded-[20px] border border-slate-200 bg-slate-50 p-3 sm:rounded-2xl">
+                  <div className="min-w-0 rounded-[20px] border border-slate-200 bg-slate-50 p-3 sm:rounded-2xl">
                     <audio
                       controls
                       preload="none"
@@ -350,7 +350,7 @@ export const TtsPage: React.FC = () => {
                     </audio>
                   </div>
 
-                  <div className="flex flex-col gap-2 sm:flex-row">
+                  <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
                     <motion.button
                       type="button"
                       onClick={togglePlayPause}
