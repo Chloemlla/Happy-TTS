@@ -296,7 +296,7 @@ jobs:
   type-check:
     name: type-check
     runs-on: ubuntu-latest
-    needs: [node-verify, rust-verify, type-check-backend, type-check-frontend, type-check-rust]
+    needs: [type-check-backend, type-check-frontend, type-check-rust]
     if: always()
     steps:
       - name: Check type-check-backend result
