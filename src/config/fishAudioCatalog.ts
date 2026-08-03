@@ -156,8 +156,8 @@ export function formatFishAudioCatalogCurl(
   if (!request) return "";
   const headers = Object.entries(request.headers)
     .map(([name, value]) => {
-      const safeValue = name === "authorization" ? "Bearer ***" : value;
-      return `  -H \"${name}: ${safeValue.replace(/\"/g, '\\\"')}\" ^`;
+      const safeValue = name === "authorization" ? "Bearer ***" : value.replace(/[\\"$!`]/g, "\\$&").replace(/\n/g, "\\n");
+      return `  -H \"${name}: ${safeValue}\" ^`;
     })
     .join("\n");
   return `curl \"${request.url}\" ^\n${headers}`;
