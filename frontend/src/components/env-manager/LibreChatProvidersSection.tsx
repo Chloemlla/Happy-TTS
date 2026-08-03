@@ -69,7 +69,7 @@ export default function LibreChatProvidersSection({
   onDelete
 }: LibreChatProvidersSectionProps) {
   return (
-    <CollapsibleSection title="LibreChat 提供者配置" description="管理 LibreChat 多提供者 Base URL、API Key、模型和权重。" sectionKey="providers" isOpen={isOpen} onToggle={onToggle} prefersReducedMotion={prefersReducedMotion} headerRight={
+    <CollapsibleSection title="LibreChat 提供者配置" description="管理 LibreChat 多提供者 Base URL、API Key、模型和权重。用于 AI 聊天后端路由，将用户请求分发到不同 AI 提供商（OpenAI、Claude 等）。" sectionKey="providers" isOpen={isOpen} onToggle={onToggle} prefersReducedMotion={prefersReducedMotion} headerRight={
               <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
                 <input
                   value={providerFilterGroup}

@@ -38,7 +38,7 @@ export default function GithubBillingConfigSection({
   onDelete
 }: GithubBillingConfigSectionProps) {
   return (
-    <CollapsibleSection title="GitHub Billing 配置设置" description="管理 GitHub Billing curl 配置和账单数据读取参数。" sectionKey="githubBilling" isOpen={isOpen} onToggle={onToggle} prefersReducedMotion={prefersReducedMotion} headerRight={
+    <CollapsibleSection title="GitHub Billing 配置设置" description="管理 GitHub Billing curl 配置和账单数据读取参数。用于 GitHub Actions 用量监控与费用分析，后端按周期抓取 GitHub API 账单数据。" sectionKey="githubBilling" isOpen={isOpen} onToggle={onToggle} prefersReducedMotion={prefersReducedMotion} headerRight={
               <m.button onClick={(e) => { e.stopPropagation(); onRefresh(); }} disabled={loading} className={REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
                 <FaSync className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> 刷新
               </m.button>

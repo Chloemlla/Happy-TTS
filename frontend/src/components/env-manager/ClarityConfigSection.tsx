@@ -36,7 +36,7 @@ export default function ClarityConfigSection({
   onDelete
 }: ClarityConfigSectionProps) {
   return (
-    <CollapsibleSection title="Microsoft Clarity 配置设置" description="管理 Microsoft Clarity Project ID 和启用状态。" sectionKey="clarity" isOpen={isOpen} onToggle={onToggle} prefersReducedMotion={prefersReducedMotion} headerRight={
+    <CollapsibleSection title="Microsoft Clarity 配置设置" description="管理 Microsoft Clarity Project ID 和启用状态。用于前端用户行为分析（会话回放、热力图），不需要后端参与。" sectionKey="clarity" isOpen={isOpen} onToggle={onToggle} prefersReducedMotion={prefersReducedMotion} headerRight={
               <m.button onClick={(e) => { e.stopPropagation(); onRefresh(); }} disabled={loading} className={REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
                 <FaSync className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> 刷新
               </m.button>

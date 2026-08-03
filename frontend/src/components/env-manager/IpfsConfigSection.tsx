@@ -56,7 +56,7 @@ export default function IpfsConfigSection({
   onTest
 }: IpfsConfigSectionProps) {
   return (
-    <CollapsibleSection title="IPFS 配置设置" description="管理 IPFS 上传、User-Agent 和图片床默认参数。" sectionKey="ipfs" isOpen={isOpen} onToggle={onToggle} prefersReducedMotion={prefersReducedMotion} headerRight={
+    <CollapsibleSection title="IPFS 配置设置" description="管理 IPFS 文件上传配置和图片床参数。用于用户头像、TTS 音频封面等文件的外部存储，后端通过 IPFS / 图床 API 上传并获取访问 URL。" sectionKey="ipfs" isOpen={isOpen} onToggle={onToggle} prefersReducedMotion={prefersReducedMotion} headerRight={
               <m.button onClick={(e) => { e.stopPropagation(); onRefresh(); }} disabled={loading} className={REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
                 <FaSync className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> 刷新
               </m.button>

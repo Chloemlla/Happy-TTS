@@ -2373,7 +2373,7 @@ const EnvManager: React.FC = () => {
 
         <SecretKeySection
           title="短链 AES_KEY 设置"
-          description="管理短链 AES_KEY，用于短链数据加密解密。"
+          description="管理短链 AES_KEY。用于短链接 ID 加密解密，防止短链 ID 被枚举遍历。"
           sectionKey="shortaes"
           isOpen={isSectionOpen('shortaes')}
           onToggle={toggleSection}
@@ -2394,7 +2394,7 @@ const EnvManager: React.FC = () => {
 
         <SecretKeySection
           title="Webhook 密钥设置"
-          description="管理 Webhook 路由密钥和签名密钥。"
+          description="管理 Webhook 路由密钥和签名密钥。用于接收外部服务（GitHub、支付回调等）的 webhook 请求，验证请求来源合法性。"
           sectionKey="webhook"
           isOpen={isSectionOpen('webhook')}
           onToggle={toggleSection}

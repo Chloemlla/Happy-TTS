@@ -256,7 +256,7 @@ export default function TtsProviderConfigSection({
   return (
     <CollapsibleSection
       title="TTS 提供商与模型"
-      description="选择当前语音提供商、默认模型，并配置 Fish Audio 的服务地址与参考音色。"
+      description="选择当前语音提供商、默认模型，并配置 Fish Audio 的服务地址与参考音色。影响所有 TTS 语音合成请求的默认路由。"
       sectionKey="ttsProvider"
       isOpen={isOpen}
       onToggle={() => setIsOpen((value) => !value)}
