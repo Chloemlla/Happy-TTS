@@ -1757,4 +1757,41 @@ export const adminController = {
       return res.status(500).json({ success: false, error: "删除 Webhook 密钥失败" });
     }
   },
+
+  async getBilibiliSyncRecords(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      const { BilibiliSyncModel } = await import("../models/bilibiliSyncModel");
+      const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string, 10) || 20));
+      const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
+      const skip = (page - 1) * limit;
+
+      const filter: Record<string, unknown> = {};
+      if (search) {
+        filter.$or = [
+          { userId: { $regex: search, $options: "i" } },
+          { bilibiliUid: { $regex: search, $options: "i" } },
+        ];
+      }
+
+      const [records, total] = await Promise.all([
+        BilibiliSyncModel.find(filter)
+          .sort({ updatedAt: -1 })
+          .skip(skip)
+          .limit(limit)
+          .lean(),
+        BilibiliSyncModel.countDocuments(filter),
+      ]);
+
+      return res.json({
+        success: true,
+        data: records,
+        pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+      });
+    } catch (error) {
+      logger.error("[AdminController] 获取 Bilibili 同步记录失败", error);
+      return res.status(500).json({ success: false, error: "获取 Bilibili 同步记录失败" });
+    }
+  },
 };

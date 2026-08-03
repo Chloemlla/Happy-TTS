@@ -69,6 +69,7 @@ export const ADMIN_MODULE_LOADERS = {
   'email-traceability': () => import('@/components/EmailTraceability'),
   'tts-history': () => import('@/components/TtsGenerationManager'),
   system: () => import('@/components/SystemManager'),
+  'bilibili-sync': () => import('@/components/BilibiliSyncAdmin'),
 } as const;
 
 export type AdminModuleKey = keyof typeof ADMIN_MODULE_LOADERS;

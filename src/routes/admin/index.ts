@@ -89,4 +89,7 @@ router.use(profileRouter);
 router.use(broadcastRouter);
 router.use(registrationInvitesRouter);
 
+// Bilibili Sync 管理（PiliPlus 配置数据）
+router.get("/bilibili-sync", (req, res) => adminController.getBilibiliSyncRecords(req, res));
+
 export default router;

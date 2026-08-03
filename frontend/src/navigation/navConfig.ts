@@ -324,6 +324,11 @@ export function getAdminNavGroups(): NavGroup[] {
           url: '/admin/webhookevents',
           icon: FaExchangeAlt as IconType,
         },
+        {
+          title: 'PiliPlus 设置同步',
+          url: '/admin/bilibili-sync',
+          icon: FaDatabase as IconType,
+        },
       ],
     },
     {
@@ -480,6 +485,7 @@ export const ADMIN_TAB_TO_PATH: Record<string, string> = {
   logshare: '/admin/logshare',
   fbiwanted: '/admin/fbiwanted',
   webhookevents: '/admin/webhookevents',
+  'bilibili-sync': '/admin/bilibili-sync',
   'data-collection': '/admin/data-collection',
   'github-billing-cache': '/admin/github-billing-cache',
   'ip-ban': '/admin/ip-ban',
