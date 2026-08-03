@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   FaAngleLeft,
   FaAngleRight,
-  FaBilibili,
   FaCheck,
   FaChevronDown,
   FaChevronUp,
@@ -18,6 +17,7 @@ import {
   FaShieldAlt,
   FaTimes,
   FaUser,
+  FaUserTag,
 } from 'react-icons/fa';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -213,7 +213,7 @@ const BilibiliSyncAdmin: React.FC = () => {
               label="已绑定 UID"
               value={stats.bound}
               detail={`${stats.total > 0 ? ((stats.bound / stats.total) * 100).toFixed(0) : 0}% 绑定率`}
-              icon={FaBilibili}
+              icon={FaUserTag}
             />
             <InfoMetricCard
               label="有搜索记录"
@@ -579,7 +579,7 @@ const BilibiliSyncAdmin: React.FC = () => {
                   凭据有效 {stats.active}/{stats.total}
                 </span>
                 <span className="flex items-center gap-1">
-                  <FaBilibili className="size-2.5" />
+                  <FaUserTag className="size-2.5" />
                   已绑定 {stats.bound}/{stats.total}
                 </span>
               </div>

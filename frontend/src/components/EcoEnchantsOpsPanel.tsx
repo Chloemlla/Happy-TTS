@@ -508,13 +508,14 @@ function InstanceDetailSection({
       {/* Instance metrics */}
       {instance && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <InfoMetricCard label="平台" value={`${instance.platform} ${instance.minecraftVersion}`} />
-          <InfoMetricCard label="版本" value={instance.version} />
+          <InfoMetricCard label="平台" value={`${instance.platform} ${instance.minecraftVersion}`} icon={FaServer} />
+          <InfoMetricCard label="版本" value={instance.version} icon={FaHistory} />
           <InfoMetricCard
             label="最后在线"
             value={instance.lastSeenAt ? new Date(instance.lastSeenAt).toLocaleString() : "-"}
+            icon={FaHistory}
           />
-          <InfoMetricCard label="策略版本" value={instance.policyVersion || "-"} />
+          <InfoMetricCard label="策略版本" value={instance.policyVersion || "-"} icon={FaShieldAlt} />
         </div>
       )}
 
@@ -800,7 +801,7 @@ function OpsAuditLogsSection({
               <InfoBadge tone={log.result === "success" ? "emerald" : "rose"}>{log.result}</InfoBadge>
               <span className="font-medium text-slate-900">{log.action}</span>
               <span className="text-xs text-slate-500">
-                {log.actorType}:{log.actorId}
+                {log.actorType}
               </span>
               {log.instanceId && (
                 <span className="font-mono text-xs text-slate-400">{log.instanceId.slice(0, 12)}...</span>
@@ -935,6 +936,7 @@ export function EcoEnchantsOpsPanel() {
   return (
     <div className="space-y-6">
       <InfoQueryHero
+        eyebrow="EcoEnchants"
         title="EcoEnchants 远程运维"
         description="管理已注册的 Minecraft 服务器实例，执行远程命令、文件操作和备份恢复。"
         icon={FaTerminal}
