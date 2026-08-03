@@ -444,11 +444,6 @@ export function getAdminNavGroups(): NavGroup[] {
           icon: FaSearch as IconType,
         },
         {
-          title: 'Rust 压测',
-          url: '/admin/rust-benchmark',
-          icon: FaFlask as IconType,
-        },
-        {
           title: '系统管理',
           url: '/admin/system',
           icon: FaBars as IconType,
@@ -496,7 +491,6 @@ export const ADMIN_TAB_TO_PATH: Record<string, string> = {
   'audit-log': '/admin/audit-log',
   'translation-audit': '/admin/translation-audit',
   'tts-history': '/admin/tts-history',
-  'rust-benchmark': '/admin/rust-benchmark',
   system: '/admin/system',
   store: '/admin/store',
   resources: '/admin/store/resources',

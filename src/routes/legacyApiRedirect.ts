@@ -72,7 +72,6 @@ const frontendOnlyAuthPathPrefixes = [
 const frontendRoutesWithLegacyApiCollision = new Set<string>([
   "/admin",
   "/admin/lottery",
-  "/admin/rust-benchmark",
   "/admin/store",
   "/admin/store/cdks",
   "/admin/store/resources",

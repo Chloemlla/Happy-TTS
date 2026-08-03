@@ -133,7 +133,6 @@ const NexAISecurityDashboard = React.lazy(() => import('./components/NexAISecuri
 // Artifact 分享页面懒加载
 const ArtifactSharePage = React.lazy(() => import('./components/ArtifactSharePage'));
 const TicketSystem = React.lazy(() => import('./components/TicketSystem'));
-const RustBenchmarkDashboard = React.lazy(() => import('./components/RustBenchmarkDashboard'));
 
 // SmartHumanCheckTestPage 已抽取到 components/SmartHumanCheckTestPage.tsx
 
@@ -695,7 +694,6 @@ const App: React.FC = () => {
         {/* Static admin routes first (higher specificity than /admin/:module) */}
         <Route path="/admin/lottery" element={renderAdminRoute(<LotteryAdmin />)} />
         <Route path="/admin/users" element={renderAdminRoute(<UserManagement />)} />
-        <Route path="/admin/rust-benchmark" element={renderAdminRoute(<RustBenchmarkDashboard />)} />
         <Route path="/admin/store" element={renderAdminRoute(<AdminStoreDashboard />)} />
         <Route path="/admin/store/resources" element={renderAdminRoute(<ResourceStoreManager />)} />
         <Route path="/admin/store/cdks" element={renderAdminRoute(<CDKStoreManager />)} />

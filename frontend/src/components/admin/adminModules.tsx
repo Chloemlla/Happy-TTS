@@ -68,7 +68,6 @@ export const ADMIN_MODULE_LOADERS = {
   'translation-audit': () => import('@/components/TranslationAuditViewer'),
   'email-traceability': () => import('@/components/EmailTraceability'),
   'tts-history': () => import('@/components/TtsGenerationManager'),
-  'rust-benchmark': () => import('@/components/RustBenchmarkDashboard'),
   system: () => import('@/components/SystemManager'),
 } as const;
 

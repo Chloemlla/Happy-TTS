@@ -9,7 +9,6 @@ const ACCEPTED_STATUS_STATES = new Set(["SUCCESS"]);
 // Administrators should still configure these as required status checks in GitHub settings.
 const BASELINE_REQUIRED_CHECKS = [
   "Node verification",
-  "Rust verification",
 ];
 
 function assert(condition, message) {

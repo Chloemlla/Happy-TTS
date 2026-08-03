@@ -32,8 +32,7 @@ export interface WsServerMessage {
     | "fingerprint:ack"
     | "ticket:update"
     | "ticket:process"
-    | "ticket:ai_response"
-    | "rust-benchmark:update";
+    | "ticket:ai_response";
   data?: any;
   timestamp: number;
 }
