@@ -269,9 +269,9 @@ export function registerSecurityMiddleware(app: Express): void {
   }
 
   app.use(globalCors);
-  // CSP is nonce-based in production-compatible mode:
-  // - no script unsafe-eval / unsafe-inline
-  // - style elements require nonce; style attributes keep unsafe-inline for React/Swagger
+  // CSP: script-src uses nonce; style-src-elem uses unsafe-inline for
+  // framer-motion compatibility (dynamic <style> elements without nonces).
+  // style-src-attr keeps unsafe-inline for React/Swagger style props.
   app.use((req, res, next) => {
     res.locals.cspSurface = resolveCspSurface(req.path);
     ensureCspNonce(res);

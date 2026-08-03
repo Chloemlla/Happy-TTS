@@ -123,20 +123,6 @@ function nonceSource(_req: Request, res: Response): string {
   return `'nonce-${ensureCspNonce(res)}'`;
 }
 
-/**
- * Style elements:
- * - SPA: unsafe-inline — framer-motion injects <style> elements dynamically
- *   without nonces, and CSP ignores 'unsafe-inline' when a nonce is also present.
- *   Using unsafe-inline keeps animation libraries working while script security
- *   is still enforced via nonce.
- * - docs (/api-docs): unsafe-inline — Swagger UI injects styles without nonces.
- *   CSP ignores 'unsafe-inline' when a nonce is also present in the same directive,
- *   so only one can be active at a time.
- */
-function styleElementSource(_req: Request, res: Response): string {
-  return "'unsafe-inline'";
-}
-
 function buildConnectSrc(): string[] {
   if (isNonProductionRuntime()) {
     return [...PRODUCTION_CONNECT_HOSTS, ...DEVELOPMENT_CONNECT_HOSTS];
