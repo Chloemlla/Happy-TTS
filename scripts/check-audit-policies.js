@@ -207,27 +207,6 @@ if (!fs.existsSync(autoMergePath)) {
   }
 }
 
-// 6) Rust toolchain must be pinned
-const rustToolchainPath = path.join(root, "rust-toolchain.toml");
-if (!fs.existsSync(rustToolchainPath)) {
-  findings.push({
-    rule: "rust-toolchain-pinned",
-    file: "rust-toolchain.toml",
-    line: 1,
-    detail: "rust-toolchain.toml is required",
-  });
-} else {
-  const toolchain = read(rustToolchainPath);
-  if (!/channel\s*=\s*["']1\.89\.0["']/.test(toolchain)) {
-    findings.push({
-      rule: "rust-toolchain-pinned",
-      file: "rust-toolchain.toml",
-      line: 1,
-      detail: "channel must be pinned to 1.89.0",
-    });
-  }
-}
-
 // 7) Frontend runtime dependency denylist
 const frontendPkgPath = path.join(root, "frontend", "package.json");
 const deny = [

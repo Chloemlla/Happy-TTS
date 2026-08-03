@@ -54,11 +54,6 @@ jobs:
           node --version
           npm --version
 
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # pin stable action + channel from rust-toolchain.toml
-        with:
-          toolchain: "1.89.0"
-
       - name: Run fix script
         if: inputs.action != 'repair-lockfiles'
         env:
@@ -101,8 +96,8 @@ jobs:
             git commit -m "fix: repair pnpm lockfiles to match current package.json"
             TITLE="fix: repair pnpm lockfiles to match current package.json"
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            git commit -m "chore: upgrade all npm and Rust dependencies"
-            TITLE="chore: upgrade all npm and Rust dependencies"
+            git commit -m "chore: upgrade all npm dependencies"
+            TITLE="chore: upgrade all npm dependencies"
           else
             git commit -m "fix: auto-fix Dependabot and CodeQL security alerts"
             TITLE="fix: auto-fix Dependabot and CodeQL security alerts"

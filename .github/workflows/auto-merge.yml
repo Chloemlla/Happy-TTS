@@ -3,7 +3,7 @@ name: Auto Merge After Required Checks
 on:
   workflow_run:
     workflows:
-      - "Node and Rust Verification"
+      - "Node Verification"
       - "Docker"
       - "CodeQL"
     types: [completed]
