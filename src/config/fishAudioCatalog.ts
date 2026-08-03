@@ -11,6 +11,7 @@ export interface FishAudioCatalogConfig {
 const MAX_CURL_LENGTH = 32_768;
 const ALLOWED_HEADER_PATTERN = /^(accept|accept-language|cache-control|origin|pragma|priority|referer|user-agent|authorization|sec-ch-ua|sec-ch-ua-mobile|sec-ch-ua-platform|sec-fetch-dest|sec-fetch-mode|sec-fetch-site|x-fish-amp-device-id|x-fish-amp-session-id|x-team-id|x-workspace-id)$/i;
 const TRUSTED_HOSTS = new Set(["api.fish.audio"]);
+const TRUSTED_AUDIO_HOSTS = new Set(["storage.fish.audio", "cdn.fish.audio", "audio.fish.audio", "fish.audio"]);
 
 function tokenizeCurl(value: string): string[] {
   const normalized = value
@@ -170,4 +171,34 @@ export function normalizeFishAudioCatalogConfig(value: unknown): FishAudioCatalo
     modelRequest: normalizeFishAudioCatalogRequest(raw.modelRequest),
     defaultVoicesRequest: normalizeFishAudioCatalogRequest(raw.defaultVoicesRequest),
   };
+}
+
+/**
+ * 验证 Fish Audio 音频代理 URL 是否合法（只允许受信任的域名）。
+ */
+export function validateFishAudioProxyUrl(value: string): string | undefined {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== "https:") return undefined;
+    const hostname = parsed.hostname.toLowerCase();
+    if (TRUSTED_AUDIO_HOSTS.has(hostname)) return parsed.toString();
+    if (hostname.endsWith(".fish.audio")) return parsed.toString();
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * 对 Fish Audio 音色请求 URL 应用分页参数。
+ * 将 URL 中的 page_number 替换为指定值，若无则追加。
+ */
+export function applyCatalogPageNumber(url: string, page: number): string {
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set("page_number", String(page));
+    return parsed.toString();
+  } catch {
+    return url;
+  }
 }

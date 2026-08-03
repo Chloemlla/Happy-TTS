@@ -198,14 +198,17 @@ export const TtsPage: React.FC = () => {
     );
 
   return (
-    <div className={studioPageClassName} style={{ fontFamily: studioPageFont }}>
-      <div className="mx-auto max-w-7xl min-w-0 space-y-5 sm:space-y-8">
+    <div
+      className={cn(studioPageClassName, "min-w-0 max-w-full overflow-x-hidden")}
+      style={{ fontFamily: studioPageFont }}
+    >
+      <div className="mx-auto w-full max-w-7xl min-w-0 space-y-5 sm:space-y-8">
         {/* Hero */}
         <motion.div
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45 }}
-          className={cn("relative overflow-hidden", studioHeroCardClassName)}
+          className={cn("relative w-full min-w-0 max-w-full overflow-hidden", studioHeroCardClassName)}
         >
           <div className={cn(studioAccentBlobBlueClassName, "-right-12 top-0")} aria-hidden />
           <div className={cn(studioAccentBlobSkyClassName, "-left-10 bottom-0")} aria-hidden />
@@ -258,15 +261,15 @@ export const TtsPage: React.FC = () => {
           </div>
         </motion.div>
 
-        <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="grid w-full min-w-0 max-w-full gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
           {/* Form */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.05 }}
-            className={studioMainSurfaceClassName}
+            className={cn(studioMainSurfaceClassName, "w-full max-w-full")}
           >
-            <div className="rounded-[22px] border border-slate-200 bg-white/80 p-4 sm:p-6">
+            <div className="min-w-0 max-w-full overflow-hidden rounded-[22px] border border-slate-200 bg-white/80 p-4 sm:p-6">
               <TtsForm
                 loading={loading}
                 error={error}
@@ -285,7 +288,7 @@ export const TtsPage: React.FC = () => {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 12, scale: 0.98 }}
                 transition={{ duration: 0.45 }}
-                className={cn(studioPanelClassName, "xl:sticky xl:top-6")}
+                className={cn(studioPanelClassName, "w-full min-w-0 max-w-full xl:sticky xl:top-6")}
               >
                 <div className="mb-4 flex items-center gap-3">
                   <div className={studioStrongBadgeClassName}>
@@ -337,7 +340,7 @@ export const TtsPage: React.FC = () => {
                     <audio
                       controls
                       preload="none"
-                      className="w-full"
+                      className="w-full max-w-full"
                       onPlay={() => setIsPlaying(true)}
                       onPause={() => setIsPlaying(false)}
                       onEnded={() => setIsPlaying(false)}

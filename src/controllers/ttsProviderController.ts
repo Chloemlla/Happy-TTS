@@ -1,9 +1,13 @@
 import type { Request, Response } from "express";
 import { config } from "../config/config";
 import { buildTtsProviderPublicConfig } from "../config/ttsProviderConfig";
+import {
+  applyCatalogPageNumber,
+  validateFishAudioProxyUrl,
+  type FishAudioCatalogRequest,
+} from "../config/fishAudioCatalog";
 import { RuntimeConfigService } from "../services/runtimeConfigService";
 import logger from "../utils/logger";
-import type { FishAudioCatalogRequest } from "../config/fishAudioCatalog";
 
 const FISH_CATALOG_TIMEOUT_MS = 20_000;
 
@@ -63,8 +67,9 @@ function normalizeCatalogResponse(payload: unknown): { items: FishAudioCatalogIt
   };
 }
 
-async function fetchFishCatalog(request: FishAudioCatalogRequest): Promise<{ items: FishAudioCatalogItem[]; hasMore: boolean }> {
-  const response = await fetch(request.url, {
+async function fetchFishCatalog(request: FishAudioCatalogRequest, page?: number): Promise<{ items: FishAudioCatalogItem[]; hasMore: boolean }> {
+  const url = page !== undefined ? applyCatalogPageNumber(request.url, page) : request.url;
+  const response = await fetch(url, {
     method: "GET",
     headers: { Accept: "application/json", ...request.headers },
     signal: AbortSignal.timeout(FISH_CATALOG_TIMEOUT_MS),
@@ -124,17 +129,83 @@ export const ttsProviderController = {
         return res.status(400).json({ success: false, error: "Fish Audio 音色来源无效" });
       }
       const runtimeConfig = await RuntimeConfigService.getRawTtsProviderConfig();
-      if (runtimeConfig.provider !== "fish") return res.json({ success: true, items: [], hasMore: false });
+      if (runtimeConfig.provider !== "fish") return res.json({ success: true, items: [], hasMore: false, page: 1 });
       const source = sourceName === "default-voices"
         ? runtimeConfig.fish.catalog?.defaultVoicesRequest
         : runtimeConfig.fish.catalog?.modelRequest;
-      if (!source) return res.json({ success: true, items: [], hasMore: false });
-      return res.json({ success: true, ...await fetchFishCatalog(source) });
+      if (!source) return res.json({ success: true, items: [], hasMore: false, page: 1 });
+
+      const rawPage = typeof req.query.page === "string" ? parseInt(req.query.page, 10) : 1;
+      const page = Number.isFinite(rawPage) && rawPage >= 1 ? rawPage : 1;
+
+      const result = await fetchFishCatalog(source, page);
+      return res.json({ success: true, ...result, page });
     } catch (error) {
       logger.warn("[TTS] Fish catalog request failed", {
         error: error instanceof Error ? error.message.replace(/Bearer\s+\S+/gi, "Bearer ***") : "unknown",
       });
       return res.status(502).json({ success: false, error: "Fish Audio 音色列表暂时不可用" });
+    }
+  },
+
+  async getFishAudioSample(req: Request, res: Response) {
+    try {
+      const audioUrl = typeof req.query.url === "string" ? req.query.url.trim() : "";
+      if (!audioUrl) {
+        return res.status(400).json({ success: false, error: "缺少音频 URL 参数" });
+      }
+
+      const safeUrl = validateFishAudioProxyUrl(audioUrl);
+      if (!safeUrl) {
+        return res.status(400).json({ success: false, error: "不支持的音频 URL" });
+      }
+
+      const runtimeConfig = await RuntimeConfigService.getRawTtsProviderConfig();
+      const modelRequest = runtimeConfig.fish.catalog?.modelRequest;
+      const headers: Record<string, string> = {
+        Accept: "audio/*, */*",
+        ...(modelRequest?.headers?.authorization ? { authorization: modelRequest.headers.authorization } : {}),
+      };
+
+      const response = await fetch(safeUrl, {
+        method: "GET",
+        headers,
+        signal: AbortSignal.timeout(FISH_CATALOG_TIMEOUT_MS),
+      });
+
+      if (!response.ok) {
+        return res.status(502).json({ success: false, error: "获取音频样本失败" });
+      }
+
+      const contentType = response.headers.get("content-type") || "audio/wav";
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      res.setHeader("X-Content-Type-Options", "nosniff");
+
+      if (response.body) {
+        const reader = response.body.getReader();
+        const pump = async (): Promise<void> => {
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) { res.end(); return; }
+              res.write(value);
+            }
+          } catch (streamError) {
+            if (!res.headersSent) res.status(502).end();
+          }
+        };
+        await pump();
+      } else {
+        res.end();
+      }
+    } catch (error) {
+      logger.warn("[TTS] Fish audio sample proxy failed", {
+        error: error instanceof Error ? error.message : "unknown",
+      });
+      if (!res.headersSent) {
+        res.status(502).json({ success: false, error: "获取音频样本失败" });
+      }
     }
   },
 };

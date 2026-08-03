@@ -108,6 +108,7 @@ router.post("/generate", ttsSubmissionLimiter, ttsApiKeyAuth, TtsController.subm
 router.post("/jobs", ttsSubmissionLimiter, ttsApiKeyAuth, TtsController.submitJob);
 router.get("/provider-config", ttsConfigReadLimiter, ttsProviderController.getPublicConfig);
 router.get("/fish-catalog", ttsConfigReadLimiter, ttsProviderController.getFishCatalog);
+router.get("/fish-audio-sample", ttsConfigReadLimiter, ttsProviderController.getFishAudioSample);
 router.get("/assets/:fileName", ttsAssetLimiter, TtsController.getAudioAsset);
 router.get("/jobs/:taskId", ttsJobReadLimiter, ttsApiKeyAuth, TtsController.getJobStatus);
 router.get("/jobs/:taskId/result", ttsJobReadLimiter, ttsApiKeyAuth, TtsController.getJobResult);
