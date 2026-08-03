@@ -261,7 +261,7 @@ export const TtsPage: React.FC = () => {
           </div>
         </motion.div>
 
-        <div className="grid w-full min-w-0 max-w-full gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,360px)]">
+        <div className="grid w-full min-w-0 max-w-full gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] xl:grid-cols-[minmax(0,1fr)_minmax(380px,480px)]">
           {/* Form */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
@@ -288,7 +288,7 @@ export const TtsPage: React.FC = () => {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 12, scale: 0.98 }}
                 transition={{ duration: 0.45 }}
-                className={cn(studioPanelClassName, "w-full min-w-0 max-w-full xl:sticky xl:top-6")}
+                className={cn(studioPanelClassName, "w-full min-w-0 lg:sticky lg:top-6")}
               >
                 <div className="mb-4 flex items-center gap-3">
                   <div className={studioStrongBadgeClassName}>
