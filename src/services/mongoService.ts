@@ -142,8 +142,12 @@ export const connectMongo = async () => {
         port: mongoose.connection.port,
       });
       try {
-        const { RuntimeConfigService } = await import("./runtimeConfigService.js");
-        await RuntimeConfigService.initialize(true);
+        const runtimeConfigModule = await import("./runtimeConfigService.js");
+        const RuntimeConfigService =
+          runtimeConfigModule.RuntimeConfigService ?? runtimeConfigModule.default?.RuntimeConfigService;
+        if (RuntimeConfigService?.initialize) {
+          await RuntimeConfigService.initialize(true);
+        }
       } catch (runtimeConfigError) {
         logger.warn("[MongoDB] Runtime config initialization failed", {
           error: runtimeConfigError instanceof Error ? runtimeConfigError.message : String(runtimeConfigError),

@@ -1,4 +1,6 @@
 // 共享的类型定义
+import { getUserById } from "../userService";
+
 export interface GenerationRecord {
   userId: string;
   text: string;
@@ -13,7 +15,6 @@ export interface GenerationRecord {
 
 // 共享的工具函数
 export async function isAdminUser(userId: string): Promise<boolean> {
-  const { getUserById } = await import("../userService.js");
   const user = await getUserById(userId);
   return !!(user && user.role === "admin");
 }

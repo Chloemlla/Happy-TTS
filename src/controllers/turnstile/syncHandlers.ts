@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { requireAdmin } from "./_helpers";
+import { schedulerService } from "../../services/schedulerService";
 
 function countMongoToRedis(result?: { synced: number; merged: number }): number {
   return (result?.synced || 0) + (result?.merged || 0);
@@ -13,7 +14,6 @@ export async function syncIpBans(req: Request, res: Response) {
   try {
     if (!requireAdmin(req, res)) return;
 
-    const { schedulerService } = await import("../../services/schedulerService.js");
     const result = await schedulerService.manualSync();
 
     if (result.success) {
@@ -44,7 +44,6 @@ export async function getSyncStatus(req: Request, res: Response) {
   try {
     if (!requireAdmin(req, res)) return;
 
-    const { schedulerService } = await import("../../services/schedulerService.js");
     const status = schedulerService.getStatus();
     const ipBanSyncStatus = status.ipBanSyncStatus;
     const errors = status.lastSyncError ? [status.lastSyncError] : [];

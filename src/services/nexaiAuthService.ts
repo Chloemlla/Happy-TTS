@@ -376,7 +376,8 @@ export class NexaiAuthService {
     let googlePayload: any;
     try {
       // 动态导入 google-auth-library（可能未安装时优雅降级）
-      const { OAuth2Client } = await import("google-auth-library");
+      const googleAuthModule = await import("google-auth-library");
+      const OAuth2Client = googleAuthModule.OAuth2Client ?? googleAuthModule.default?.OAuth2Client;
       const client = new OAuth2Client(googleClientId);
       const ticket = await client.verifyIdToken({
         idToken: data.idToken,
@@ -1142,7 +1143,8 @@ export class NexaiAuthService {
 
     let googlePayload: any;
     try {
-      const { OAuth2Client } = await import("google-auth-library");
+      const googleAuthModule = await import("google-auth-library");
+      const OAuth2Client = googleAuthModule.OAuth2Client ?? googleAuthModule.default?.OAuth2Client;
       const client = new OAuth2Client(googleClientId);
       const ticket = await client.verifyIdToken({
         idToken,

@@ -1,5 +1,12 @@
 import logger from "./logger";
-import { getUserAuthByEmail, getUserAuthByUsername, verifyAndMigrateUserPassword } from "../services/userService";
+import {
+  getUserAuthByEmail,
+  getUserAuthByUsername,
+  incrementUserDailyUsageAtomic,
+  verifyAndMigrateUserPassword,
+} from "../services/userService";
+import { sendEmail } from "../services/emailSender";
+import { generateUsageAlertEmailHtml } from "../templates/emailTemplates";
 import { getUserStorageProvider } from "./userStorageProvider";
 import type { User } from "./userStorageTypes";
 import { userValidationService } from "./userValidationService";
@@ -38,8 +45,6 @@ const maybeSendUsageAlert = async (user: User, dailyUsage: number): Promise<void
   }
 
   try {
-    const { sendEmail } = await import("../services/emailSender.js");
-    const { generateUsageAlertEmailHtml } = await import("../templates/emailTemplates.js");
     const time = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
     const emailHtml = generateUsageAlertEmailHtml(user.username, `${usagePercent}%`, dailyUsage, DAILY_LIMIT, time);
     sendEmail({
@@ -190,7 +195,6 @@ export const userRepository = {
     const user = await getUserById(userId);
     if (!user) return false;
     if (user.role === "admin") return true;
-    const { incrementUserDailyUsageAtomic } = await import("../services/userService.js");
     const result = await incrementUserDailyUsageAtomic(userId, DAILY_LIMIT);
     if (!result.success || !result.user) {
       return false;

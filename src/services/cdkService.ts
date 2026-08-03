@@ -7,6 +7,9 @@ import ResourceModel from "../models/resourceModel";
 import logger from "../utils/logger";
 import { ResourceService } from "./resourceService";
 import { TransactionService } from "./transactionService";
+import { UserStorage } from "../utils/userStorage";
+import { sendEmail } from "./emailSender";
+import { generateCDKActivatedEmailHtml } from "../templates/emailTemplates";
 
 // 性能监控接口
 interface PerformanceStats {
@@ -495,10 +498,6 @@ export class CDKService {
       // 发送邮件通知
       if (userInfo?.userId) {
         try {
-          const { UserStorage } = await import("../utils/userStorage.js");
-          const { sendEmail } = await import("./emailSender.js");
-          const { generateCDKActivatedEmailHtml } = await import("../templates/emailTemplates.js");
-
           const user = await UserStorage.getUserById(userInfo.userId);
           if (user?.email) {
             const time = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
