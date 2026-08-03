@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate } from "react-router-dom";
 import getApiBaseUrl from "../api";
 import { useAuth } from "../hooks/useAuth";
+import { useAuthProviderStore } from "../stores/authProviderStore";
 import type { User } from "../types/auth";
 import { queuePostRedirectNotification, useNotification } from "./Notification";
 import { cn } from "../utils/cn";
@@ -25,11 +26,6 @@ interface GoogleAuthButtonProps {
   label: string;
   description?: string;
   className?: string;
-}
-
-interface GoogleAuthConfigResponse {
-  enabled?: boolean;
-  clientId?: string;
 }
 
 interface GoogleBindSessionResponse {
@@ -109,9 +105,7 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
   const notifiedLoadFailureRef = useRef(false);
   const authenticatingRef = useRef(false);
   const navigate = useNavigate();
-  const [enabled, setEnabled] = useState(false);
-  const [clientId, setClientId] = useState("");
-  const [loading, setLoading] = useState(true);
+  const { google: config, loading } = useAuthProviderStore();
   const [scriptLoadFailed, setScriptLoadFailed] = useState(false);
   const [authenticating, setAuthenticating] = useState(false);
   const { loginWithToken } = useAuth();
@@ -188,40 +182,7 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
   );
 
   useEffect(() => {
-    let cancelled = false;
-
-    const loadConfig = async () => {
-      try {
-        const response = await fetch(`${getApiBaseUrl()}/api/auth/google/config`, {
-          credentials: "include",
-        });
-        const data = (await response.json()) as GoogleAuthConfigResponse;
-
-        if (!cancelled) {
-          setEnabled(Boolean(response.ok && data?.enabled && data?.clientId));
-          setClientId(data?.clientId || "");
-        }
-      } catch {
-        if (!cancelled) {
-          setEnabled(false);
-          setClientId("");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void loadConfig();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (loading || !enabled || !clientId || !buttonRef.current) {
+    if (loading || !config.enabled || !config.clientId || !buttonRef.current) {
       return;
     }
 
@@ -234,9 +195,9 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
           return;
         }
 
-        if (initializedClientIdRef.current !== clientId) {
+        if (initializedClientIdRef.current !== config.clientId) {
           window.google.accounts.id.initialize({
-            client_id: clientId,
+            client_id: config.clientId,
             callback: handleCredentialResponse,
             // GSI Web Sign-In defaults for SPA: popup credential flow + verified email
             auto_select: false,
@@ -246,7 +207,7 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
             use_fedcm_for_prompt: true,
             locale: "zh-CN",
           });
-          initializedClientIdRef.current = clientId;
+          initializedClientIdRef.current = config.clientId;
         }
 
         buttonRef.current.innerHTML = "";
@@ -279,9 +240,9 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [buttonText, clientId, enabled, handleCredentialResponse, intent, loading, setNotification]);
+  }, [buttonText, config.clientId, config.enabled, handleCredentialResponse, intent, loading, setNotification]);
 
-  if (loading || !enabled) {
+  if (loading || !config.enabled) {
     return null;
   }
 

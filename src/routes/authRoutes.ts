@@ -140,6 +140,7 @@ router.post("/register", authRegisterEndpointLimiter, registerLimiter, validateA
  *         description: 登录成功
  */
 router.post("/login", authLoginEndpointLimiter, loginLimiter, validateAuthInput, AuthController.login);
+router.get("/providers/public-config", authReadLimiter, AuthController.getAuthProvidersPublicConfig);
 router.get("/google/config", authReadLimiter, AuthController.getGoogleAuthConfig);
 router.post("/google", authExternalLoginLimiter, loginLimiter, AuthController.googleAuth);
 router.post("/google/bind-session", authExternalLoginLimiter, AuthController.googleBindSession);

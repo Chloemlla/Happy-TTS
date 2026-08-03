@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import getApiBaseUrl from "../api";
+import { useAuthProviderStore } from "../stores/authProviderStore";
 import { cn } from "../utils/cn";
 import { authElevatedPanelClassName } from "./authStudioTheme";
 
@@ -8,10 +9,6 @@ interface LinuxDoAuthButtonProps {
   label: string;
   description?: string;
   className?: string;
-}
-
-interface LinuxDoConfigResponse {
-  enabled?: boolean;
 }
 
 const LINUXDO_ICON_URL =
@@ -23,44 +20,13 @@ const LinuxDoAuthButton: React.FC<LinuxDoAuthButtonProps> = ({
   description,
   className = "",
 }) => {
-  const [enabled, setEnabled] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const { linuxdo: config, loading } = useAuthProviderStore();
   const startUrl = useMemo(
     () => `${getApiBaseUrl()}/api/auth/linuxdo/start?intent=${intent}`,
     [intent],
   );
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadConfig = async () => {
-      try {
-        const response = await fetch(`${getApiBaseUrl()}/api/auth/linuxdo/config`, {
-          credentials: "same-origin",
-        });
-        const data = (await response.json()) as LinuxDoConfigResponse;
-        if (!cancelled) {
-          setEnabled(Boolean(response.ok && data?.enabled));
-        }
-      } catch {
-        if (!cancelled) {
-          setEnabled(false);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    void loadConfig();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (loading || !enabled) {
+  if (loading || !config.enabled) {
     return null;
   }
 

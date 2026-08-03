@@ -8,6 +8,7 @@ import {
   startGoogleBindSession,
   verifyGoogleIdToken,
 } from "../services/googleAuthService";
+import { getLinuxDoConfigSummary, isLinuxDoAuthEnabled } from "../services/linuxDoAuthService";
 import { bindProviderIdentityToUser } from "../services/accountIdentityService";
 import {
   confirmProviderBindSession,
@@ -122,6 +123,13 @@ export class AuthController {
         ? "synapse-android"
         : "web";
     res.json(getGoogleAuthConfigSummary(target));
+  }
+
+  public static getAuthProvidersPublicConfig(_req: Request, res: Response) {
+    res.json({
+      google: getGoogleAuthConfigSummary("web"),
+      linuxdo: getLinuxDoConfigSummary(),
+    });
   }
 
   public static async googleAuth(req: Request, res: Response) {

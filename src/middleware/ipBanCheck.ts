@@ -123,6 +123,8 @@ const WHITELIST_PATHS = [
   "/api/turnstile/public-config",
   "/api/turnstile/hcaptcha-verify",
   "/api/turnstile/secure-captcha-config",
+  // 第三方登录配置端点 - 启动时需立即可用
+  "/api/auth/providers/public-config",
   // 指纹相关端点（包括认证和非认证）
   "/api/turnstile/fingerprint/report",
   "/api/turnstile/fingerprint/status",
