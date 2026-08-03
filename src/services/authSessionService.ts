@@ -7,6 +7,7 @@ import { getCachedIpLocation, lookupIpLocation } from "./ipTelemetryService";
 import { signLoginToken } from "../utils/authToken";
 import logger from "../utils/logger";
 import { type User } from "../utils/userStorage";
+import { revokeClientLoginTokensByHashes } from "./mobileLoginService.js";
 
 export interface AuthSessionMetadata {
   deviceId?: string;
@@ -362,8 +363,7 @@ export async function revokeAuthDevice(userId: string, deviceKey: string, curren
     await OAuthTokenModel.updateMany({ userId, tokenId: { $in: oauthTokenIds } }, { $set: { revokedAt: now, updatedAt: now } });
   }
   if (clientTokenHashes.length) {
-    const mobileLoginService = await import("./mobileLoginService.js");
-    await mobileLoginService.revokeClientLoginTokensByHashes({ userId, tokenHashes: clientTokenHashes });
+    await revokeClientLoginTokensByHashes({ userId, tokenHashes: clientTokenHashes });
   }
   return { revoked: Number(result.modifiedCount || 0) };
 }

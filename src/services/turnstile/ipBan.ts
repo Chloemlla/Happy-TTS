@@ -1,6 +1,8 @@
 import { IpBanModel } from "../../models/ipBanModel";
 import logger from "../../utils/logger";
 import { isConnected, mongoose } from "../mongoService";
+import { redisService } from "../redisService";
+import { clearIPBanCache } from "../../middleware/ipBanCheck";
 import { BAN_DURATION, MAX_VIOLATIONS } from "./constants";
 import { sanitizeString, validateIpAddress } from "./validators";
 
@@ -219,7 +221,6 @@ export async function manualBanIp(
     }
 
     try {
-      const { redisService } = await import("../redisService.js");
       if (redisService?.isAvailable()) {
         await redisService.banIP(validatedIp, sanitizedReason, validDuration, {
           fingerprint: fingerprint ? sanitizeString(fingerprint, 200) || undefined : undefined,
@@ -232,7 +233,6 @@ export async function manualBanIp(
     }
 
     try {
-      const { clearIPBanCache } = await import("../../middleware/ipBanCheck.js");
       if (clearIPBanCache) {
         clearIPBanCache(validatedIp);
       }
@@ -267,7 +267,6 @@ export async function unbanIp(ipAddress: string): Promise<boolean> {
     mongoDeleted = mongoResult.deletedCount > 0;
 
     try {
-      const { redisService } = await import("../redisService.js");
       if (redisService?.isAvailable()) {
         redisDeleted = await redisService.unbanIP(validatedIp);
       }
@@ -276,7 +275,6 @@ export async function unbanIp(ipAddress: string): Promise<boolean> {
     }
 
     try {
-      const { clearIPBanCache } = await import("../../middleware/ipBanCheck.js");
       if (clearIPBanCache) {
         clearIPBanCache(validatedIp);
       }

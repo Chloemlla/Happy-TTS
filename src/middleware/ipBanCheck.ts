@@ -3,6 +3,7 @@ import type { NextFunction, Request, Response } from "express";
 import { LRUCache } from "lru-cache";
 import { config } from "../config/config";
 import { IpBanModel } from "../models/ipBanModel";
+import { redisService } from "../services/redisService.js";
 import { securityBypassPolicy } from "../security/securityPolicy";
 import logger from "../utils/logger";
 import { createLimiter } from "./routeLimiters";
@@ -87,10 +88,6 @@ let redisFailureCount = 0;
 let redisLastFailureTime = 0;
 const REDIS_FAILURE_THRESHOLD = 5; // 连续失败5次后跳过Redis
 const REDIS_COOLDOWN_MS = 60000; // 冷却时间1分钟
-
-// Redis服务懒加载缓存
-let redisServiceCache: any = null;
-let redisServiceLoadPromise: Promise<any> | null = null;
 
 // IP 封禁检查速率限制器 - 防止恶意 IP 频繁查询封禁状态
 const ipBanCheckLimiter = createLimiter({
@@ -477,34 +474,6 @@ function recordRedisFailure(): void {
   }
 }
 
-/**
- * 懒加载Redis服务（避免启动时阻塞）
- */
-async function getRedisService(): Promise<any> {
-  if (redisServiceCache) {
-    return redisServiceCache;
-  }
-
-  // 如果正在加载，等待加载完成
-  if (redisServiceLoadPromise) {
-    return redisServiceLoadPromise;
-  }
-
-  // 开始加载
-  redisServiceLoadPromise = import("../services/redisService.js")
-    .then((module) => {
-      redisServiceCache = module.redisService;
-      redisServiceLoadPromise = null;
-      return redisServiceCache;
-    })
-    .catch((error) => {
-      redisServiceLoadPromise = null;
-      throw error;
-    });
-
-  return redisServiceLoadPromise;
-}
-
 // CIDR 封禁列表缓存（避免每次请求都做 $regex 全表扫描）
 let cachedCIDRBans: any[] | null = null;
 let cidrBansCacheTime = 0;
@@ -554,8 +523,8 @@ async function parallelBanCheck(normalizedIP: string): Promise<{
   // Redis查询（精确匹配）
   if (config.ipBanStorage === "redis" && !shouldSkipRedis()) {
     promises.push(
-      getRedisService()
-        .then((redisService) => redisService.checkIPBan(normalizedIP))
+      Promise.resolve(redisService)
+        .then((service) => service?.checkIPBan?.(normalizedIP))
         .then((result) => ({ result, source: "redis" }))
         .catch((error) => {
           recordRedisFailure();
