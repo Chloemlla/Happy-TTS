@@ -31,3 +31,11 @@ export const GOOGLE_WEB_CLIENT_ID_PATTERN = /^[\w-]+\.apps\.googleusercontent\.c
 export function getAuthHeaders(): Record<string, string> {
   return {};
 }
+
+/**
+ * 包装 fetch，自动携带 credentials: 'include' 以发送 cookie 认证。
+ * env-manager 所有 API 调用都应使用此函数而非原始 fetch。
+ */
+export function authFetch(url: string, init?: RequestInit): Promise<Response> {
+  return fetch(url, { ...init, credentials: 'include' });
+}

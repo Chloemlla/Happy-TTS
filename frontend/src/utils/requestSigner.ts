@@ -91,5 +91,5 @@ export async function signedFetch(input: RequestInfo | URL, init: RequestInit = 
     resolveRequestPath(input),
   );
   Object.entries(signHeaders).forEach(([k, v]) => headers.set(k, v));
-  return fetch(input, { ...init, headers });
+  return fetch(input, { ...init, headers, credentials: 'include' });
 }

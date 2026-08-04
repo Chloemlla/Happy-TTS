@@ -3,7 +3,7 @@ import { m, useReducedMotion } from 'framer-motion';
 import { FaKey, FaSync } from 'react-icons/fa';
 import { useNotification } from '../Notification';
 import CollapsibleSection from './CollapsibleSection';
-import { API_URL, getAuthHeaders } from './api';
+import { API_URL, getAuthHeaders, authFetch } from './api';
 
 const REFRESH_BUTTON_CLASS =
   'inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60';
@@ -107,7 +107,7 @@ export default function EcoEnchantsTokenSection({
   const fetchValues = useCallback(async () => {
     setFetching(true);
     try {
-      const res = await fetch(API_URL, { headers: getAuthHeaders() });
+      const res = await authFetch(API_URL, { headers: getAuthHeaders() });
       const data = await res.json().catch(() => ({}));
       const next: Record<string, string> = {};
       if (res.ok && data) {
@@ -156,7 +156,7 @@ export default function EcoEnchantsTokenSection({
       }
       setSavingKey(key);
       try {
-        const res = await fetch(API_URL, {
+        const res = await authFetch(API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify({ key, value }),
@@ -188,7 +188,7 @@ export default function EcoEnchantsTokenSection({
       if (!window.confirm(`确定删除环境变量「${key}」？对应授权/令牌能力可能立即失效。`)) return;
       setDeletingKey(key);
       try {
-        const res = await fetch(`${API_URL}/${encodeURIComponent(key)}`, {
+        const res = await authFetch(`${API_URL}/${encodeURIComponent(key)}`, {
           method: 'DELETE',
           headers: { ...getAuthHeaders() },
         });

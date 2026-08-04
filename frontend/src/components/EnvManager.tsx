@@ -27,7 +27,8 @@ import {
   TTS_API,
   TURNSTILE_CONFIG_API,
   WEBHOOK_SECRET_API,
-  getAuthHeaders
+  getAuthHeaders,
+  authFetch,
 } from './env-manager/api';
 import SynapseAndroidConfigSection from './env-manager/SynapseAndroidConfigSection';
 import NexaiSigningConfigSection from './env-manager/NexaiSigningConfigSection';
@@ -285,7 +286,7 @@ const EnvManager: React.FC = () => {
   const fetchConfigurationIssues = useCallback(async () => {
     setConfigurationStatusLoading(true);
     try {
-      const response = await fetch(CONFIGURATION_NOTICE_API, {
+      const response = await authFetch(CONFIGURATION_NOTICE_API, {
         credentials: 'include',
         headers: getAuthHeaders(),
       });
@@ -564,7 +565,7 @@ const EnvManager: React.FC = () => {
   const fetchEnvs = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(API_URL, { headers: getAuthHeaders() });
+      const res = await authFetch(API_URL, { headers: getAuthHeaders() });
       const data = await res.json();
       if (!res.ok) {
         switch (data.error) {
@@ -640,7 +641,7 @@ const EnvManager: React.FC = () => {
       return;
     }
     try {
-      const res = await fetch(API_URL, {
+      const res = await authFetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ key, value, desc: form.desc || '' }),
@@ -662,7 +663,7 @@ const EnvManager: React.FC = () => {
   const handleDeleteEnvVar = useCallback(async (key: string) => {
     if (!window.confirm(`确定删除环境变量「${key}」？`)) return;
     try {
-      const res = await fetch(API_URL, {
+      const res = await authFetch(API_URL, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ key }),
@@ -682,7 +683,7 @@ const EnvManager: React.FC = () => {
   const fetchOutemailSettings = useCallback(async () => {
     setSettingsLoading(true);
     try {
-      const res = await fetch(OUTEMAIL_API, { headers: { ...getAuthHeaders() } });
+      const res = await authFetch(OUTEMAIL_API, { headers: { ...getAuthHeaders() } });
       const data = await res.json();
       if (!res.ok) {
         setNotification({ message: data.error || '获取对外邮件设置失败', type: 'error' });
@@ -712,7 +713,7 @@ const EnvManager: React.FC = () => {
     }
     setSettingsSaving(true);
     try {
-      const res = await fetch(OUTEMAIL_API, {
+      const res = await authFetch(OUTEMAIL_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ domain, code, apiKey })
@@ -738,7 +739,7 @@ const EnvManager: React.FC = () => {
     if (!window.confirm(`确定删除 OutEmail 域名配置「${domain}」？此操作不可撤销。`)) return;
     setSettingsDeletingDomain(domain);
     try {
-      const res = await fetch(OUTEMAIL_API, {
+      const res = await authFetch(OUTEMAIL_API, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ domain })
@@ -760,7 +761,7 @@ const EnvManager: React.FC = () => {
   const fetchEmailSystemConfig = useCallback(async () => {
     setEmailSystemLoading(true);
     try {
-      const res = await fetch(EMAIL_SYSTEM_API, { headers: { ...getAuthHeaders() } });
+      const res = await authFetch(EMAIL_SYSTEM_API, { headers: { ...getAuthHeaders() } });
       const data = await res.json();
       if (!res.ok) {
         setNotification({ message: data.error || '获取邮件系统配置失败', type: 'error' });
@@ -783,7 +784,7 @@ const EnvManager: React.FC = () => {
     if (emailSystemSaving) return;
     setEmailSystemSaving(true);
     try {
-      const res = await fetch(EMAIL_SYSTEM_API, {
+      const res = await authFetch(EMAIL_SYSTEM_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(config),
@@ -807,7 +808,7 @@ const EnvManager: React.FC = () => {
     if (!window.confirm('确定重置邮件系统配置为默认值？此操作不可撤销。')) return;
     setEmailSystemDeleting(true);
     try {
-      const res = await fetch(EMAIL_SYSTEM_API, {
+      const res = await authFetch(EMAIL_SYSTEM_API, {
         method: 'DELETE',
         headers: { ...getAuthHeaders() },
       });
@@ -828,7 +829,7 @@ const EnvManager: React.FC = () => {
   const fetchModlistSetting = useCallback(async () => {
     setModLoading(true);
     try {
-      const res = await fetch(MODLIST_API, { headers: { ...getAuthHeaders() } });
+      const res = await authFetch(MODLIST_API, { headers: { ...getAuthHeaders() } });
       const data = await res.json();
       if (!res.ok) {
         setNotification({ message: data.error || '获取修改码失败', type: 'error' });
@@ -856,7 +857,7 @@ const EnvManager: React.FC = () => {
     }
     setModSaving(true);
     try {
-      const res = await fetch(MODLIST_API, {
+      const res = await authFetch(MODLIST_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ code })
@@ -881,7 +882,7 @@ const EnvManager: React.FC = () => {
     if (!window.confirm('确定删除当前修改码配置？删除后相关功能将回退到默认/环境变量。')) return;
     setModDeleting(true);
     try {
-      const res = await fetch(MODLIST_API, {
+      const res = await authFetch(MODLIST_API, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }
       });
@@ -902,7 +903,7 @@ const EnvManager: React.FC = () => {
   const fetchTtsSetting = useCallback(async () => {
     setTtsLoading(true);
     try {
-      const res = await fetch(TTS_API, { headers: { ...getAuthHeaders() } });
+      const res = await authFetch(TTS_API, { headers: { ...getAuthHeaders() } });
       const data = await res.json();
       if (!res.ok) {
         setNotification({ message: data.error || '获取生成码失败', type: 'error' });
@@ -930,7 +931,7 @@ const EnvManager: React.FC = () => {
     }
     setTtsSaving(true);
     try {
-      const res = await fetch(TTS_API, {
+      const res = await authFetch(TTS_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ code })
@@ -955,7 +956,7 @@ const EnvManager: React.FC = () => {
     if (!window.confirm('确定删除当前 TTS 生成码配置？删除后相关功能将回退到默认/环境变量。')) return;
     setTtsDeleting(true);
     try {
-      const res = await fetch(TTS_API, {
+      const res = await authFetch(TTS_API, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }
       });
@@ -977,8 +978,8 @@ const EnvManager: React.FC = () => {
     setGoogleClientIdsLoading(true);
     try {
       const [googleRes, nexaiRes] = await Promise.all([
-        fetch(GOOGLE_AUTH_API, { headers: { ...getAuthHeaders() } }),
-        fetch(NEXAI_SETTING_API, { headers: { ...getAuthHeaders() } }),
+        authFetch(GOOGLE_AUTH_API, { headers: { ...getAuthHeaders() } }),
+        authFetch(NEXAI_SETTING_API, { headers: { ...getAuthHeaders() } }),
       ]);
 
       let googleClientId = '';
@@ -1043,18 +1044,18 @@ const EnvManager: React.FC = () => {
     try {
       // Form is source of truth: empty input clears the corresponding runtime value.
       const googleTask = googleClientId
-        ? fetch(GOOGLE_AUTH_API, {
+        ? authFetch(GOOGLE_AUTH_API, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
             body: JSON.stringify({ clientId: googleClientId }),
           })
-        : fetch(GOOGLE_AUTH_API, {
+        : authFetch(GOOGLE_AUTH_API, {
             method: 'DELETE',
             headers: { ...getAuthHeaders() },
           });
 
       // Preserve other NexAI fields when updating/clearing only google.clientId.
-      const nexaiGetRes = await fetch(NEXAI_SETTING_API, { headers: { ...getAuthHeaders() } });
+      const nexaiGetRes = await authFetch(NEXAI_SETTING_API, { headers: { ...getAuthHeaders() } });
       let nexaiPayload: Record<string, unknown> = {
         google: { clientId: nexaiGoogleClientId },
       };
@@ -1072,7 +1073,7 @@ const EnvManager: React.FC = () => {
         };
       }
 
-      const nexaiTask = fetch(NEXAI_SETTING_API, {
+      const nexaiTask = authFetch(NEXAI_SETTING_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(nexaiPayload),
@@ -1111,7 +1112,7 @@ const EnvManager: React.FC = () => {
     setGoogleClientIdsDeleting(true);
     try {
       // Reset main-site Google Auth; clear only NexAI google.clientId while preserving other NexAI fields.
-      const nexaiRes = await fetch(NEXAI_SETTING_API, { headers: { ...getAuthHeaders() } });
+      const nexaiRes = await authFetch(NEXAI_SETTING_API, { headers: { ...getAuthHeaders() } });
       let nexaiPayload: Record<string, unknown> = {
         google: { clientId: '' },
       };
@@ -1130,11 +1131,11 @@ const EnvManager: React.FC = () => {
       }
 
       const [googleDelRes, nexaiSaveRes] = await Promise.all([
-        fetch(GOOGLE_AUTH_API, {
+        authFetch(GOOGLE_AUTH_API, {
           method: 'DELETE',
           headers: { ...getAuthHeaders() },
         }),
-        fetch(NEXAI_SETTING_API, {
+        authFetch(NEXAI_SETTING_API, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify(nexaiPayload),
@@ -1169,7 +1170,7 @@ const EnvManager: React.FC = () => {
   const fetchSynapseAndroidSetting = useCallback(async () => {
     setSynapseAndroidLoading(true);
     try {
-      const res = await fetch(SYNAPSE_ANDROID_API, { headers: { ...getAuthHeaders() } });
+      const res = await authFetch(SYNAPSE_ANDROID_API, { headers: { ...getAuthHeaders() } });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setNotification({ message: data.error || '获取 Synapse Android / assetlinks 配置失败', type: 'error' });
@@ -1227,7 +1228,7 @@ const EnvManager: React.FC = () => {
 
     setSynapseAndroidSaving(true);
     try {
-      const res = await fetch(SYNAPSE_ANDROID_API, {
+      const res = await authFetch(SYNAPSE_ANDROID_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
@@ -1270,7 +1271,7 @@ const EnvManager: React.FC = () => {
     if (!window.confirm('确定重置 Synapse Android / assetlinks 配置为默认值？')) return;
     setSynapseAndroidDeleting(true);
     try {
-      const res = await fetch(SYNAPSE_ANDROID_API, {
+      const res = await authFetch(SYNAPSE_ANDROID_API, {
         method: 'DELETE',
         headers: { ...getAuthHeaders() },
       });
@@ -1294,7 +1295,7 @@ const EnvManager: React.FC = () => {
   const fetchNexaiSigningSetting = useCallback(async () => {
     setNexaiSigningLoading(true);
     try {
-      const res = await fetch(NEXAI_SIGNING_API, { headers: { ...getAuthHeaders() } });
+      const res = await authFetch(NEXAI_SIGNING_API, { headers: { ...getAuthHeaders() } });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setNotification({ message: data.error || '获取 NexAI 请求签名配置失败', type: 'error' });
@@ -1342,7 +1343,7 @@ const EnvManager: React.FC = () => {
       if (nexaiSigningAppSignSecretPrevInput.trim()) {
         payload.appSignSecretPrev = nexaiSigningAppSignSecretPrevInput.trim();
       }
-      const res = await fetch(NEXAI_SIGNING_API, {
+      const res = await authFetch(NEXAI_SIGNING_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(payload),
@@ -1377,7 +1378,7 @@ const EnvManager: React.FC = () => {
     if (!window.confirm('确定重置 NexAI 请求签名配置为默认值（soft 模式，并清除已保存的应用签名密钥）？')) return;
     setNexaiSigningDeleting(true);
     try {
-      const res = await fetch(NEXAI_SIGNING_API, {
+      const res = await authFetch(NEXAI_SIGNING_API, {
         method: 'DELETE',
         headers: { ...getAuthHeaders() },
       });
@@ -1403,7 +1404,7 @@ const EnvManager: React.FC = () => {
   const fetchShortAes = useCallback(async () => {
     setShortAesLoading(true);
     try {
-      const res = await fetch(SHORTURL_AES_API, { headers: { ...getAuthHeaders() } });
+      const res = await authFetch(SHORTURL_AES_API, { headers: { ...getAuthHeaders() } });
       const data = await res.json();
       if (!res.ok || !data.success) {
         setNotification({ message: data.error || '获取 AES_KEY 失败', type: 'error' });
@@ -1475,7 +1476,7 @@ const EnvManager: React.FC = () => {
     setWebhookLoading(true);
     try {
       const key = webhookKeyInput.trim().toUpperCase() || 'DEFAULT';
-      const res = await fetch(`${WEBHOOK_SECRET_API}?key=${encodeURIComponent(key)}`, { headers: { ...getAuthHeaders() } });
+      const res = await authFetch(`${WEBHOOK_SECRET_API}?key=${encodeURIComponent(key)}`, { headers: { ...getAuthHeaders() } });
       const data = await res.json();
       if (!res.ok || !data.success) {
         setNotification({ message: data.error || '获取 Webhook 密钥失败', type: 'error' });
@@ -1500,7 +1501,7 @@ const EnvManager: React.FC = () => {
     }
     setWebhookSaving(true);
     try {
-      const res = await fetch(WEBHOOK_SECRET_API, {
+      const res = await authFetch(WEBHOOK_SECRET_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ key, secret })
@@ -1526,7 +1527,7 @@ const EnvManager: React.FC = () => {
     if (!window.confirm(`确定删除 Webhook 密钥「${key}」？相关回调签名校验将失败。`)) return;
     setWebhookDeleting(true);
     try {
-      const res = await fetch(WEBHOOK_SECRET_API, {
+      const res = await authFetch(WEBHOOK_SECRET_API, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ key })
@@ -1550,7 +1551,7 @@ const EnvManager: React.FC = () => {
     setProvidersLoading(true);
     try {
       const url = providerFilterGroup ? `${LIBRECHAT_PROVIDERS_API}?group=${encodeURIComponent(providerFilterGroup)}` : LIBRECHAT_PROVIDERS_API;
-      const res = await fetch(url, { headers: { ...getAuthHeaders() } });
+      const res = await authFetch(url, { headers: { ...getAuthHeaders() } });
       const data = await res.json();
       if (!res.ok || !data.success) {
         setNotification({ message: data.error || '获取提供者失败', type: 'error' });
@@ -1592,7 +1593,7 @@ const EnvManager: React.FC = () => {
       try {
         const body: any = { baseUrl, apiKey, model, group, enabled, weight };
         if (providerId) body.id = providerId;
-        const res = await fetch(LIBRECHAT_PROVIDERS_API, {
+        const res = await authFetch(LIBRECHAT_PROVIDERS_API, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify(body)
@@ -1618,7 +1619,7 @@ const EnvManager: React.FC = () => {
     if (!window.confirm(`确定删除 LibreChat 提供商「${id}」？此操作不可撤销。`)) return;
     setProviderDeletingId(id);
     try {
-      const res = await fetch(`${LIBRECHAT_PROVIDERS_API}/${id}`, {
+      const res = await authFetch(`${LIBRECHAT_PROVIDERS_API}/${id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }
       });
@@ -1650,7 +1651,7 @@ const EnvManager: React.FC = () => {
   const fetchIpfsConfig = useCallback(async () => {
     setIpfsConfigLoading(true);
     try {
-      const res = await fetch(IPFS_CONFIG_API, { headers: { ...getAuthHeaders() } });
+      const res = await authFetch(IPFS_CONFIG_API, { headers: { ...getAuthHeaders() } });
       const data = await res.json();
       if (!res.ok || !data.success) {
         setNotification({ message: data.error || '获取IPFS配置失败', type: 'error' });
@@ -1686,7 +1687,7 @@ const EnvManager: React.FC = () => {
     }
     setIpfsConfigSaving(true);
     try {
-      const res = await fetch(IPFS_CONFIG_API, {
+      const res = await authFetch(IPFS_CONFIG_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
@@ -1722,7 +1723,7 @@ const EnvManager: React.FC = () => {
     if (ipfsConfigTesting) return;
     setIpfsConfigTesting(true);
     try {
-      const res = await fetch(`${IPFS_CONFIG_API}/test`, {
+      const res = await authFetch(`${IPFS_CONFIG_API}/test`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ target })
@@ -1744,7 +1745,7 @@ const EnvManager: React.FC = () => {
   const fetchTurnstileConfig = useCallback(async () => {
     setTurnstileConfigLoading(true);
     try {
-      const res = await fetch(TURNSTILE_CONFIG_API, { headers: { ...getAuthHeaders() } });
+      const res = await authFetch(TURNSTILE_CONFIG_API, { headers: { ...getAuthHeaders() } });
       const data = await res.json();
       if (!res.ok) {
         // 处理认证错误
@@ -1779,7 +1780,7 @@ const EnvManager: React.FC = () => {
     }
     setTurnstileConfigSaving(true);
     try {
-      const res = await fetch(TURNSTILE_CONFIG_API, {
+      const res = await authFetch(TURNSTILE_CONFIG_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ key, value })
@@ -1808,7 +1809,7 @@ const EnvManager: React.FC = () => {
     if (!window.confirm(`确定删除 Turnstile 配置「${key}」？人机验证可能立即失效。`)) return;
     setTurnstileConfigDeleting(true);
     try {
-      const res = await fetch(`${TURNSTILE_CONFIG_API}/${key}`, {
+      const res = await authFetch(`${TURNSTILE_CONFIG_API}/${key}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }
       });
@@ -1830,7 +1831,7 @@ const EnvManager: React.FC = () => {
   const fetchHcaptchaConfig = useCallback(async () => {
     setHcaptchaConfigLoading(true);
     try {
-      const res = await fetch(HCAPTCHA_CONFIG_API, { headers: { ...getAuthHeaders() } });
+      const res = await authFetch(HCAPTCHA_CONFIG_API, { headers: { ...getAuthHeaders() } });
       const data = await res.json();
       if (!res.ok) {
         // 处理认证错误
@@ -1865,7 +1866,7 @@ const EnvManager: React.FC = () => {
     }
     setHcaptchaConfigSaving(true);
     try {
-      const res = await fetch(HCAPTCHA_CONFIG_API, {
+      const res = await authFetch(HCAPTCHA_CONFIG_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ key, value })
@@ -1894,7 +1895,7 @@ const EnvManager: React.FC = () => {
     if (!window.confirm(`确定删除 hCaptcha 配置「${key}」？人机验证可能立即失效。`)) return;
     setHcaptchaConfigDeleting(true);
     try {
-      const res = await fetch(`${HCAPTCHA_CONFIG_API}/${key}`, {
+      const res = await authFetch(`${HCAPTCHA_CONFIG_API}/${key}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }
       });
@@ -1916,7 +1917,7 @@ const EnvManager: React.FC = () => {
   const fetchClarityConfig = useCallback(async () => {
     setClarityConfigLoading(true);
     try {
-      const res = await fetch(CLARITY_CONFIG_API, { headers: { ...getAuthHeaders() } });
+      const res = await authFetch(CLARITY_CONFIG_API, { headers: { ...getAuthHeaders() } });
       const data = await res.json();
       if (!res.ok) {
         if (res.status !== 404) {
@@ -1960,7 +1961,7 @@ const EnvManager: React.FC = () => {
 
     setClarityConfigSaving(true);
     try {
-      const res = await fetch(CLARITY_CONFIG_API, {
+      const res = await authFetch(CLARITY_CONFIG_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ projectId: value })
@@ -1991,7 +1992,7 @@ const EnvManager: React.FC = () => {
     if (!window.confirm('确定删除 Microsoft Clarity 配置？')) return;
     setClarityConfigDeleting(true);
     try {
-      const res = await fetch(CLARITY_CONFIG_API, {
+      const res = await authFetch(CLARITY_CONFIG_API, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }
       });
@@ -2019,7 +2020,7 @@ const EnvManager: React.FC = () => {
   const fetchGithubBillingConfig = useCallback(async () => {
     setGithubBillingConfigLoading(true);
     try {
-      const res = await fetch(GITHUB_BILLING_MULTI_CONFIG_API, { headers: { ...getAuthHeaders() } });
+      const res = await authFetch(GITHUB_BILLING_MULTI_CONFIG_API, { headers: { ...getAuthHeaders() } });
       const data = await res.json();
       if (!res.ok) {
         if (res.status === 404) {
@@ -2086,7 +2087,7 @@ const EnvManager: React.FC = () => {
 
     setGithubBillingConfigSaving(true);
     try {
-      const res = await fetch(`${GITHUB_BILLING_MULTI_CONFIG_API}/${selectedConfigKey}`, {
+      const res = await authFetch(`${GITHUB_BILLING_MULTI_CONFIG_API}/${selectedConfigKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ curlCommand })
@@ -2111,7 +2112,7 @@ const EnvManager: React.FC = () => {
     if (!window.confirm(`确定删除 GitHub Billing 配置「${configKey}」？`)) return;
     setGithubBillingConfigSaving(true);
     try {
-      const res = await fetch(`${GITHUB_BILLING_MULTI_CONFIG_API}/${configKey}`, {
+      const res = await authFetch(`${GITHUB_BILLING_MULTI_CONFIG_API}/${configKey}`, {
         method: 'DELETE',
         headers: { ...getAuthHeaders() }
       });

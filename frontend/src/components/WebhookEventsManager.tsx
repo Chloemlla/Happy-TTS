@@ -124,6 +124,10 @@ function authHeaders(json = false): HeadersInit {
   return headers;
 }
 
+function apiFetch(url: string, init?: RequestInit): Promise<Response> {
+  return fetch(url, { ...init, credentials: 'include' });
+}
+
 async function parseApiResponse(res: Response) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok || data.success === false) {
@@ -246,12 +250,12 @@ const WebhookEventsManager: React.FC = () => {
   const testPath = buildPublicWebhookPath('generic', testSource);
 
   const fetchStats = useCallback(async () => {
-    const data = await parseApiResponse(await fetch(apiUrl('/stats'), { headers: authHeaders() }));
+    const data = await parseApiResponse(await apiFetch(apiUrl('/stats'), { headers: authHeaders() }));
     setStats({ ...defaultStats, ...(data.stats || {}) });
   }, []);
 
   const fetchGroups = useCallback(async () => {
-    const data = await parseApiResponse(await fetch(apiUrl('/groups'), { headers: authHeaders() }));
+    const data = await parseApiResponse(await apiFetch(apiUrl('/groups'), { headers: authHeaders() }));
     setGroups(data.groups || []);
   }, []);
 
@@ -287,7 +291,7 @@ const WebhookEventsManager: React.FC = () => {
         if (eventId.trim()) params.set('eventId', eventId.trim());
         if (search.trim()) params.set('q', search.trim());
 
-        const data = await parseApiResponse(await fetch(`${apiUrl()}?${params.toString()}`, { headers: authHeaders() }));
+        const data = await parseApiResponse(await apiFetch(`${apiUrl()}?${params.toString()}`, { headers: authHeaders() }));
         setItems(data.items || []);
         setTotal(data.total || 0);
         setPage(data.page || nextPage);
@@ -334,7 +338,7 @@ const WebhookEventsManager: React.FC = () => {
     try {
       setActionLoading('secret-load');
       const key = secretKeyInput.trim().toUpperCase() || 'DEFAULT';
-      const data = await parseApiResponse(await fetch(secretUrl(key), { headers: authHeaders() }));
+      const data = await parseApiResponse(await apiFetch(secretUrl(key), { headers: authHeaders() }));
       setSecretSetting({
         key: data.key || key,
         secret: data.secret ?? null,
@@ -357,7 +361,7 @@ const WebhookEventsManager: React.FC = () => {
     try {
       setActionLoading('secret-save');
       await parseApiResponse(
-        await fetch(secretUrl(), {
+        await apiFetch(secretUrl(), {
           method: 'POST',
           headers: authHeaders(true),
           body: JSON.stringify({ key, secret }),
@@ -379,7 +383,7 @@ const WebhookEventsManager: React.FC = () => {
     try {
       setActionLoading('secret-delete');
       await parseApiResponse(
-        await fetch(secretUrl(), {
+        await apiFetch(secretUrl(), {
           method: 'DELETE',
           headers: authHeaders(true),
           body: JSON.stringify({ key }),
@@ -407,7 +411,7 @@ const WebhookEventsManager: React.FC = () => {
       setActionLoading('test-send');
       if (testMode === 'public') {
         await parseApiResponse(
-          await fetch(`${getApiBaseUrl()}${testPath}`, {
+          await apiFetch(`${getApiBaseUrl()}${testPath}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
@@ -415,7 +419,7 @@ const WebhookEventsManager: React.FC = () => {
         );
       } else {
         await parseApiResponse(
-          await fetch(apiUrl('/test'), {
+          await apiFetch(apiUrl('/test'), {
             method: 'POST',
             headers: authHeaders(true),
             body: JSON.stringify({
@@ -441,7 +445,7 @@ const WebhookEventsManager: React.FC = () => {
       try {
         setActionLoading(`delete-${id}`);
         await parseApiResponse(
-          await fetch(apiUrl(`/${id}`), {
+          await apiFetch(apiUrl(`/${id}`), {
             method: 'DELETE',
             headers: authHeaders(),
           }),
@@ -464,7 +468,7 @@ const WebhookEventsManager: React.FC = () => {
       try {
         setActionLoading(`replay-${id}`);
         await parseApiResponse(
-          await fetch(apiUrl(`/${id}/replay`), {
+          await apiFetch(apiUrl(`/${id}/replay`), {
             method: 'POST',
             headers: authHeaders(true),
             body: JSON.stringify({ status: 'replayed', note: 'admin replay' }),
@@ -486,7 +490,7 @@ const WebhookEventsManager: React.FC = () => {
       try {
         setActionLoading(`status-${id}`);
         const data = await parseApiResponse(
-          await fetch(apiUrl(`/${id}/status`), {
+          await apiFetch(apiUrl(`/${id}/status`), {
             method: 'PATCH',
             headers: authHeaders(true),
             body: JSON.stringify({ status }),
@@ -513,7 +517,7 @@ const WebhookEventsManager: React.FC = () => {
       try {
         setActionLoading('bulk-status');
         await parseApiResponse(
-          await fetch(apiUrl('/bulk-status'), {
+          await apiFetch(apiUrl('/bulk-status'), {
             method: 'POST',
             headers: authHeaders(true),
             body: JSON.stringify({ ids: selectedIds, status }),
@@ -539,7 +543,7 @@ const WebhookEventsManager: React.FC = () => {
     try {
       setActionLoading('bulk-delete');
       await parseApiResponse(
-        await fetch(apiUrl('/bulk-delete'), {
+        await apiFetch(apiUrl('/bulk-delete'), {
           method: 'POST',
           headers: authHeaders(true),
           body: JSON.stringify({ ids: selectedIds }),
@@ -601,12 +605,12 @@ const WebhookEventsManager: React.FC = () => {
       setActionLoading('save-event');
       const res =
         editMode === 'create'
-          ? await fetch(apiUrl(), {
+          ? await apiFetch(apiUrl(), {
               method: 'POST',
               headers: authHeaders(true),
               body: JSON.stringify(payload),
             })
-          : await fetch(apiUrl(`/${editing._id}`), {
+          : await apiFetch(apiUrl(`/${editing._id}`), {
               method: 'PUT',
               headers: authHeaders(true),
               body: JSON.stringify(payload),
