@@ -29,7 +29,6 @@ import {
   WEBHOOK_SECRET_API,
   getAuthHeaders
 } from './env-manager/api';
-import EnvRow from './env-manager/EnvRow';
 import SynapseAndroidConfigSection from './env-manager/SynapseAndroidConfigSection';
 import NexaiSigningConfigSection from './env-manager/NexaiSigningConfigSection';
 import GoogleClientIdsSection from './env-manager/GoogleClientIdsSection';
@@ -84,6 +83,10 @@ import {
   FaInfoCircle,
   FaCheckCircle,
   FaChevronDown,
+  FaEdit,
+  FaTrash,
+  FaCheck,
+  FaTimes,
 } from 'react-icons/fa';
 
 export { handleSourceClick, handleSourceModalClose };
@@ -617,6 +620,64 @@ const EnvManager: React.FC = () => {
       setLoading(false);
     }
   }, [setNotification]);
+
+  const handleStartEdit = useCallback((item: EnvItem) => {
+    setEditingKey(item.key);
+    setForm({ key: item.key, value: item.value, desc: item.desc });
+  }, []);
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingKey(null);
+    setForm({});
+  }, []);
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!form.key) return;
+    const key = form.key;
+    const value = (form.value || '').trim();
+    if (!value) {
+      setNotification({ message: 'value 不能为空', type: 'error' });
+      return;
+    }
+    try {
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ key, value, desc: form.desc || '' }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setNotification({ message: data.error || '保存失败', type: 'error' });
+        return;
+      }
+      setNotification({ message: `${key} 已保存`, type: 'success' });
+      setEditingKey(null);
+      setForm({});
+      await fetchEnvs();
+    } catch (e) {
+      setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
+    }
+  }, [form, fetchEnvs, setNotification]);
+
+  const handleDeleteEnvVar = useCallback(async (key: string) => {
+    if (!window.confirm(`确定删除环境变量「${key}」？`)) return;
+    try {
+      const res = await fetch(API_URL, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ key }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setNotification({ message: data.error || '删除失败', type: 'error' });
+        return;
+      }
+      setNotification({ message: `${key} 已删除`, type: 'success' });
+      await fetchEnvs();
+    } catch (e) {
+      setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
+    }
+  }, [fetchEnvs, setNotification]);
 
   const fetchOutemailSettings = useCallback(async () => {
     setSettingsLoading(true);
@@ -2335,12 +2396,56 @@ const EnvManager: React.FC = () => {
                                 </button>
                               )}
                               <div className="flex-1 min-w-0">
-                                <div className="text-sm sm:text-base font-semibold text-gray-900 tracking-wide break-words">
-                                  {item.key.split(':').pop() || item.key}
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="text-sm sm:text-base font-semibold text-gray-900 tracking-wide break-words">
+                                    {item.key.split(':').pop() || item.key}
+                                  </div>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                      onClick={() => handleStartEdit(item)}
+                                      className="p-1.5 text-gray-400 hover:text-indigo-600 transition rounded hover:bg-indigo-50"
+                                      title="编辑"
+                                    >
+                                      <FaEdit className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteEnvVar(item.key)}
+                                      className="p-1.5 text-gray-400 hover:text-red-600 transition rounded hover:bg-red-50"
+                                      title="删除"
+                                    >
+                                      <FaTrash className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
                                 </div>
-                                <div className="mt-2 px-2 sm:px-3 py-2 bg-gray-50 rounded-lg font-mono text-xs sm:text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
-                                  {item.value}
-                                </div>
+                                {editingKey === item.key ? (
+                                  <div className="mt-2 space-y-2">
+                                    <input
+                                      value={form.value || ''}
+                                      onChange={(e) => setForm((prev) => ({ ...prev, value: e.target.value }))}
+                                      className="w-full px-3 py-2 border border-indigo-300 rounded-lg font-mono text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                      autoComplete="off"
+                                      spellCheck={false}
+                                    />
+                                    <div className="flex items-center gap-2 justify-end">
+                                      <button
+                                        onClick={handleCancelEdit}
+                                        className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
+                                      >
+                                        <FaTimes className="w-3 h-3 inline mr-1" />取消
+                                      </button>
+                                      <button
+                                        onClick={handleSaveEdit}
+                                        className="px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition"
+                                      >
+                                        <FaCheck className="w-3 h-3 inline mr-1" />保存
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="mt-2 px-2 sm:px-3 py-2 bg-gray-50 rounded-lg font-mono text-xs sm:text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
+                                    {item.value}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </m.div>
@@ -2351,18 +2456,79 @@ const EnvManager: React.FC = () => {
                         <thead>
                           <tr className="bg-gray-50 border-b border-gray-200">
                             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[200px] w-1/3">变量名</th>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[300px] w-2/3">值</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[300px] w-1/2">值</th>
+                            <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 w-[120px]">操作</th>
                           </tr>
                         </thead>
                         <tbody>
                           {envs.map((item, idx) => (
-                            <EnvRow
+                            <tr
                               key={item.key}
-                              item={item}
-                              idx={idx}
-                              prefersReducedMotion={!!prefersReducedMotion}
-                              onSourceClick={handleSourceClickWrapper}
-                            />
+                              className={`border-b border-gray-100 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+                            >
+                              <td className="px-4 py-3 font-mono text-sm font-medium text-gray-900 align-top">
+                                <div className="break-words whitespace-normal leading-relaxed flex items-start gap-1">
+                                  {item.source && (
+                                    <button
+                                      onClick={() => handleSourceClickWrapper(item.source!)}
+                                      className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 mt-0.5 flex-shrink-0 hover:text-blue-600 transition-colors cursor-pointer"
+                                    >
+                                      <FaInfoCircle />
+                                    </button>
+                                  )}
+                                  <span>{item.key.split(':').pop() || item.key}</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 font-mono text-sm text-gray-700 align-top">
+                                {editingKey === item.key ? (
+                                  <div className="flex items-center gap-2">
+                                    <input
+                                      value={form.value || ''}
+                                      onChange={(e) => setForm((prev) => ({ ...prev, value: e.target.value }))}
+                                      className="flex-1 px-3 py-2 border border-indigo-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                                      autoComplete="off"
+                                      spellCheck={false}
+                                    />
+                                    <button
+                                      onClick={handleSaveEdit}
+                                      className="p-2 text-indigo-600 hover:text-indigo-800 transition rounded hover:bg-indigo-50"
+                                      title="保存"
+                                    >
+                                      <FaCheck className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      onClick={handleCancelEdit}
+                                      className="p-2 text-gray-400 hover:text-gray-600 transition rounded hover:bg-gray-100"
+                                      title="取消"
+                                    >
+                                      <FaTimes className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="break-words whitespace-pre-wrap leading-relaxed">
+                                    {item.value}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 align-top">
+                                <div className="flex items-center justify-center gap-1">
+                                  <button
+                                    onClick={() => handleStartEdit(item)}
+                                    className="p-1.5 text-gray-400 hover:text-indigo-600 transition rounded hover:bg-indigo-50"
+                                    title="编辑"
+                                  >
+                                    <FaEdit className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteEnvVar(item.key)}
+                                    className="p-1.5 text-gray-400 hover:text-red-600 transition rounded hover:bg-red-50"
+                                    title="删除"
+                                  >
+                                    <FaTrash className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
                           ))}
                         </tbody>
                       </table>
