@@ -3,10 +3,28 @@
 // must be validated and consumed through src/config/config.ts, not ad-hoc process.env defaults.
 
 import path from "node:path";
+import fs from "node:fs";
 import dotenv from "dotenv";
 
 // 加载环境变量
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+
+// 加载运行时配置（通过管理后台写入的 env.admin.json），覆盖 .env 默认值
+const adminEnvPath = path.resolve(__dirname, "../../data/env.admin.json");
+if (fs.existsSync(adminEnvPath)) {
+  try {
+    const adminEnvs: Array<{ key: string; value: string }> = JSON.parse(
+      fs.readFileSync(adminEnvPath, "utf-8"),
+    );
+    for (const entry of adminEnvs) {
+      if (entry.key && entry.value !== undefined) {
+        process.env[entry.key] = entry.value;
+      }
+    }
+  } catch {
+    // env.admin.json 损坏时静默忽略，不阻塞启动
+  }
+}
 
 // 设置默认值
 const rpOriginDefault = "https://tts.chloemlla.com";

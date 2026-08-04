@@ -1121,6 +1121,7 @@ export const adminController = {
         envs.push({ key, value: nextValue, desc, updatedAt: now });
       }
       writeEnvFile(envs);
+      process.env[key] = nextValue;
       logger.info(`[环境变量] 管理员${req.user.username} 设置/更新 key=${key}`);
       res.json({ success: true, envs });
     } catch (_e) {
@@ -1139,6 +1140,7 @@ export const adminController = {
       if (idx === -1) return res.status(404).json({ error: "key不存在" });
       envs.splice(idx, 1);
       writeEnvFile(envs);
+      delete process.env[key];
       logger.info(`[环境变量] 管理员${req.user.username} 删除 key=${key}`);
       res.json({ success: true, envs });
     } catch (_e) {
