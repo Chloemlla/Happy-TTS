@@ -1809,7 +1809,7 @@ export const adminController = {
       const doc = await BilibiliSyncModel.findOne({ userId }).select("searchRecords").lean();
       if (!doc) return res.json({ success: true, data: [], pagination: { page, limit, total: 0, totalPages: 0 } });
 
-      const records = (doc.searchRecords || []) as Array<Record<string, unknown>>;
+      const records = doc.searchRecords || [];
       const total = records.length;
       const sorted = [...records].sort(
         (a, b) => new Date((b.serverUpdatedAt as Date) || 0).getTime() - new Date((a.serverUpdatedAt as Date) || 0).getTime(),
