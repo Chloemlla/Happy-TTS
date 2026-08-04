@@ -114,7 +114,7 @@ export interface ApiResponse<T = unknown> {
 
 export const fetchProfile = async (): Promise<UserProfileData | null> => {
   try {
-    const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile`);
+    const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile`, { credentials: 'include' });
 
     if (!res.ok) {
       if (res.status === 401) throw new Error('Authentication expired');
@@ -225,6 +225,7 @@ export const verifyIdentity = async (data: {
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
     body: JSON.stringify(data),
   });
 
@@ -239,6 +240,7 @@ export const sendEmailCode = async (verificationToken: string, newEmail: string)
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
     body: JSON.stringify({ verificationToken, newEmail }),
   });
 
@@ -260,6 +262,7 @@ export const updateProfile = async (data: {
     headers: {
       'Content-Type': 'application/json',
     },
+    credentials: 'include',
     body: JSON.stringify(data),
   });
 
@@ -277,6 +280,7 @@ export const getAuthHeaders = (): HeadersInit => {
 export const fetchLinkedAccounts = async (): Promise<LinkedAccount[]> => {
   const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile/linked-accounts`, {
     headers: getAuthHeaders(),
+    credentials: 'include',
   });
 
   const result = await res.json();
@@ -291,6 +295,7 @@ export const startLinkedAccountBind = async (
   const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile/linked-accounts/${provider}/start`, {
     method: 'POST',
     headers: getAuthHeaders(),
+    credentials: 'include',
     body: JSON.stringify({ verificationToken }),
   });
 
@@ -313,6 +318,7 @@ export const bindGoogleAccount = async (
   const res = await fetch(`${getApiBaseUrl()}/api/auth/google/bind`, {
     method: 'POST',
     headers: getAuthHeaders(),
+    credentials: 'include',
     body: JSON.stringify({ idToken, verificationToken }),
   });
 
@@ -328,6 +334,7 @@ export const unlinkLinkedAccount = async (
   const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile/linked-accounts/${provider}/unlink`, {
     method: 'POST',
     headers: getAuthHeaders(),
+    credentials: 'include',
     body: JSON.stringify({ verificationToken }),
   });
 
@@ -342,6 +349,7 @@ export const fetchAccountMergePreview = async (
   const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile/account-merge/preview`, {
     method: 'POST',
     headers: getAuthHeaders(),
+    credentials: 'include',
     body: JSON.stringify({ mergeToken }),
   });
 
@@ -360,6 +368,7 @@ export const confirmAccountMerge = async (data: {
   const res = await fetch(`${getApiBaseUrl()}/api/admin/user/profile/account-merge/confirm`, {
     method: 'POST',
     headers: getAuthHeaders(),
+    credentials: 'include',
     body: JSON.stringify(data),
   });
 

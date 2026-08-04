@@ -307,7 +307,7 @@ const RuntimeConfigSections: React.FC = () => {
   const fetchIpqsSetting = useCallback(async () => {
     setIpqsLoading(true);
     try {
-      const res = await fetch(IPQS_API);
+      const res = await fetch(IPQS_API, { credentials: 'include' });
       if (!res.ok) {
         await handleRequestError(res, '获取 IPQS 配置失败');
         return;
@@ -345,7 +345,7 @@ const RuntimeConfigSections: React.FC = () => {
   const fetchLinuxDoSetting = useCallback(async () => {
     setLinuxdoLoading(true);
     try {
-      const res = await fetch(LINUXDO_API);
+      const res = await fetch(LINUXDO_API, { credentials: 'include' });
       if (!res.ok) {
         await handleRequestError(res, '获取 LinuxDo 配置失败');
         return;
@@ -382,7 +382,7 @@ const RuntimeConfigSections: React.FC = () => {
   const fetchNexaiSetting = useCallback(async () => {
     setNexaiLoading(true);
     try {
-      const res = await fetch(NEXAI_API);
+      const res = await fetch(NEXAI_API, { credentials: 'include' });
       if (!res.ok) {
         await handleRequestError(res, '获取 NexAI 配置失败');
         return;
@@ -416,7 +416,7 @@ const RuntimeConfigSections: React.FC = () => {
   const fetchGoogleAuthSetting = useCallback(async () => {
     setGoogleAuthLoading(true);
     try {
-      const res = await fetch(GOOGLE_AUTH_API);
+      const res = await fetch(GOOGLE_AUTH_API, { credentials: 'include' });
       if (!res.ok) {
         await handleRequestError(res, '获取 Google Auth 配置失败');
         return;
@@ -444,7 +444,7 @@ const RuntimeConfigSections: React.FC = () => {
   const fetchDeepLXSetting = useCallback(async () => {
     setDeeplxLoading(true);
     try {
-      const res = await fetch(DEEPLX_API);
+      const res = await fetch(DEEPLX_API, { credentials: 'include' });
       if (!res.ok) {
         await handleRequestError(res, '获取 DeepLX 配置失败');
         return;
@@ -473,7 +473,7 @@ const RuntimeConfigSections: React.FC = () => {
   const fetchAdminSecuritySetting = useCallback(async () => {
     setAdminSecurityLoading(true);
     try {
-      const res = await fetch(ADMIN_SECURITY_API);
+      const res = await fetch(ADMIN_SECURITY_API, { credentials: 'include' });
       if (!res.ok) {
         await handleRequestError(res, '获取管理员安全配置失败');
         return;
@@ -537,6 +537,7 @@ const RuntimeConfigSections: React.FC = () => {
       const res = await fetch(IPQS_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
@@ -561,6 +562,7 @@ const RuntimeConfigSections: React.FC = () => {
     try {
       const res = await fetch(IPQS_API, {
         method: 'DELETE',
+        credentials: 'include',
       });
       if (!res.ok) {
         await handleRequestError(res, '删除 IPQS 配置失败');
@@ -588,6 +590,7 @@ const RuntimeConfigSections: React.FC = () => {
       const res = await fetch(LINUXDO_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
@@ -612,6 +615,7 @@ const RuntimeConfigSections: React.FC = () => {
     try {
       const res = await fetch(LINUXDO_API, {
         method: 'DELETE',
+        credentials: 'include',
       });
       if (!res.ok) {
         await handleRequestError(res, '删除 LinuxDo 配置失败');
@@ -635,6 +639,7 @@ const RuntimeConfigSections: React.FC = () => {
       const res = await fetch(GOOGLE_AUTH_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(googleAuthForm),
       });
       if (!res.ok) {
@@ -659,6 +664,7 @@ const RuntimeConfigSections: React.FC = () => {
     try {
       const res = await fetch(GOOGLE_AUTH_API, {
         method: 'DELETE',
+        credentials: 'include',
       });
       if (!res.ok) {
         await handleRequestError(res, '删除 Google Auth 配置失败');
@@ -694,6 +700,7 @@ const RuntimeConfigSections: React.FC = () => {
       const res = await fetch(GOOGLE_AUTH_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(parsed),
       });
       if (!res.ok) {
@@ -726,6 +733,7 @@ const RuntimeConfigSections: React.FC = () => {
       const res = await fetch(DEEPLX_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
@@ -750,6 +758,7 @@ const RuntimeConfigSections: React.FC = () => {
     try {
       const res = await fetch(DEEPLX_API, {
         method: 'DELETE',
+        credentials: 'include',
       });
       if (!res.ok) {
         await handleRequestError(res, '删除 DeepLX 配置失败');
@@ -793,6 +802,7 @@ const RuntimeConfigSections: React.FC = () => {
       const res = await fetch(NEXAI_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
@@ -824,6 +834,7 @@ const RuntimeConfigSections: React.FC = () => {
     try {
       const res = await fetch(NEXAI_API, {
         method: 'DELETE',
+        credentials: 'include',
       });
       if (!res.ok) {
         await handleRequestError(res, '删除 NexAI 配置失败');
@@ -860,6 +871,7 @@ const RuntimeConfigSections: React.FC = () => {
       const res = await fetch(ADMIN_SECURITY_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
@@ -892,6 +904,7 @@ const RuntimeConfigSections: React.FC = () => {
     try {
       const res = await fetch(ADMIN_SECURITY_API, {
         method: 'DELETE',
+        credentials: 'include',
       });
       if (!res.ok) {
         await handleRequestError(res, '删除管理员安全配置失败');

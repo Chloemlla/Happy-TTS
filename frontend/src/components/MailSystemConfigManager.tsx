@@ -169,7 +169,7 @@ const MailSystemConfigManager: React.FC = () => {
   const loadSetting = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch(MAIL_SYSTEM_API);
+      const response = await fetch(MAIL_SYSTEM_API, { credentials: 'include' });
       const data = (await response.json().catch(() => null)) as MailSystemResponse | null;
       if (!response.ok || !data?.success) {
         throw new Error(data?.error || '获取邮件系统配置失败');
@@ -226,6 +226,7 @@ const MailSystemConfigManager: React.FC = () => {
       const response = await fetch(MAIL_SYSTEM_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
       const data = (await response.json().catch(() => null)) as MailSystemResponse | null;
@@ -253,6 +254,7 @@ const MailSystemConfigManager: React.FC = () => {
     try {
       const response = await fetch(MAIL_SYSTEM_API, {
         method: 'DELETE',
+        credentials: 'include',
       });
       const data = (await response.json().catch(() => null)) as MailSystemResponse | null;
       if (!response.ok || !data?.success) {

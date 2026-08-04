@@ -513,6 +513,7 @@ const UserProfile: React.FC = () => {
       const res = await fetch(`${getApiBaseUrl()}/api/admin/user/avatar`, {
         method: 'POST',
         body: formData,
+        credentials: 'include',
       });
 
       const result = await res.json();

@@ -97,7 +97,7 @@ const SUB_TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
 // ========== 工具函数 ==========
 
 const api = (path: string, opts?: RequestInit) =>
-  fetch(`${getApiBaseUrl()}${path}`, { headers: { 'Content-Type': 'application/json' }, ...opts });
+  fetch(`${getApiBaseUrl()}${path}`, { headers: { 'Content-Type': 'application/json' }, credentials: 'include', ...opts });
 
 const parseUserIds = (value: string) =>
   Array.from(new Set(value.split(/[\s,;，；]+/).map(item => item.trim()).filter(Boolean))).slice(0, 100);

@@ -56,7 +56,7 @@ export const useFingerprintRequest = () => {
           'Content-Type': 'application/json',
           'X-Requested-With': 'XMLHttpRequest'
         },
-        credentials: 'same-origin'
+        credentials: 'include'
       });
 
       if (!response.ok) {
@@ -128,7 +128,7 @@ export const useFingerprintRequest = () => {
           'Content-Type': 'application/json',
           'X-Requested-With': 'XMLHttpRequest'
         },
-        credentials: 'same-origin'
+        credentials: 'include'
       });
 
       if (!response.ok) {

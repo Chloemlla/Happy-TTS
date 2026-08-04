@@ -43,7 +43,8 @@ const ShortUrlMigrationManager: React.FC = () => {
       const response = await fetch(`${getApiBaseUrl()}/api/admin/shortlinks/migration-stats`, {
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        credentials: 'include'
       });
 
       if (!response.ok) {
@@ -73,7 +74,8 @@ const ShortUrlMigrationManager: React.FC = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        credentials: 'include'
       });
 
       if (!response.ok) {

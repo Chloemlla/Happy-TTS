@@ -93,7 +93,7 @@ const ShortLinkManager: React.FC = () => {
   const fetchLinks = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/admin/shortlinks?search=${encodeURIComponent(search)}&page=${page}&pageSize=${PAGE_SIZE}`);
+      const res = await fetch(`${getApiBaseUrl()}/api/admin/shortlinks?search=${encodeURIComponent(search)}&page=${page}&pageSize=${PAGE_SIZE}`, { credentials: 'include' });
       const data = await res.json();
 
       const nextTotal = data.total || 0;
@@ -120,6 +120,7 @@ const ShortLinkManager: React.FC = () => {
     try {
       const res = await fetch(`${getApiBaseUrl()}/api/admin/shortlinks/${id}`, {
         method: 'DELETE',
+        credentials: 'include',
       });
       if (!res.ok) {
         let message = '删除失败';
@@ -318,6 +319,7 @@ const ShortLinkManager: React.FC = () => {
           headers: {
             'Content-Type': 'application/json'
           },
+          credentials: 'include',
           body: JSON.stringify({ ids: selectedArray })
         });
         const data = await response.json();
@@ -362,7 +364,8 @@ const ShortLinkManager: React.FC = () => {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json'
-        }
+        },
+        credentials: 'include'
       });
       if (!response.ok) {
         if (response.status === 404) {

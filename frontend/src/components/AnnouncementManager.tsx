@@ -33,7 +33,7 @@ const AnnouncementManager: React.FC = () => {
   const fetchAnnouncement = async () => {
     setLoading(true);
     try {
-      const res = await fetch(API_URL);
+      const res = await fetch(API_URL, { credentials: 'include' });
       const data = await res.json();
       if (!res.ok) {
         switch (data.error) {
@@ -86,6 +86,7 @@ const AnnouncementManager: React.FC = () => {
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ content, format }),
       });
       const data = await res.json();
@@ -134,6 +135,7 @@ const AnnouncementManager: React.FC = () => {
     try {
       const res = await fetch(API_URL, {
         method: 'DELETE',
+        credentials: 'include',
       });
       const data = await res.json();
       if (!res.ok) {

@@ -148,7 +148,7 @@ interface ApiResult<T> {
 const apiJson = async <T,>(path: string, opts?: RequestInit): Promise<ApiResult<T>> => {
   const headers = new Headers(opts?.headers);
   headers.set('Content-Type', 'application/json');
-  const res = await fetch(`${getApiBaseUrl()}${path}`, { ...opts, headers });
+  const res = await fetch(`${getApiBaseUrl()}${path}`, { ...opts, headers, credentials: 'include' });
   const data = (await res.json().catch(() => ({}))) as ApiResult<T>;
   if (!res.ok) {
     throw new Error(data.error || data.message || `请求失败 (${res.status})`);
