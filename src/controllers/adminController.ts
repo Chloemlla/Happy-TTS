@@ -8,6 +8,7 @@ import { sendEmail } from "../services/emailSender";
 import { mongoose } from "../services/mongoService";
 import { RuntimeConfigService } from "../services/runtimeConfigService";
 import { TranslationLogService } from "../services/translationLogService";
+import { BilibiliSyncModel } from "../models/bilibiliSyncModel";
 import { validateGenerationCodeStrength } from "../utils/generationCodePolicy";
 import logger from "../utils/logger";
 import { getRevealUserPasswordResult } from "../services/userService";
@@ -1761,7 +1762,6 @@ export const adminController = {
   async getBilibiliSyncRecords(req: Request, res: Response) {
     try {
       if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
-      const { BilibiliSyncModel } = await import("../models/bilibiliSyncModel.js");
       const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
       const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string, 10) || 20));
       const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
@@ -1798,7 +1798,6 @@ export const adminController = {
   async getBilibiliSearchRecords(req: Request, res: Response) {
     try {
       if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
-      const { BilibiliSyncModel } = await import("../models/bilibiliSyncModel.js");
       const { userId } = req.params;
       if (!userId) return res.status(400).json({ error: "缺少 userId 参数" });
 
