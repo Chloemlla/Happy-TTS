@@ -178,3 +178,5 @@ _audit_scan6.py
 .tmp_live_index.html
 .tmp_live_js/
 .claude/
+.codex/
+.trellis/

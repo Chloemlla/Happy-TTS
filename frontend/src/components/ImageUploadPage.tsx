@@ -522,6 +522,7 @@ const ImageUploadPage: React.FC = () => {
       const res = await fetch(uploadUrl, {
         method: 'POST',
         body: formData,
+        credentials: 'include',
       });
       console.log('[图片上传] 响应状态:', res.status);
       const result = await res.json();

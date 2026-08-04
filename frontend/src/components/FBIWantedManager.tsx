@@ -104,7 +104,8 @@ const FBIWantedManager: React.FC = () => {
             const response = await fetch(`${getApiBaseUrl()}/api/fbi-wanted?${params}`, {
                 headers: {
                     'Content-Type': 'application/json'
-                }
+                },
+                credentials: 'include'
             });
 
             if (response.ok) {
@@ -131,7 +132,8 @@ const FBIWantedManager: React.FC = () => {
             const response = await fetch(`${getApiBaseUrl()}/api/fbi-wanted/statistics`, {
                 headers: {
                     'Content-Type': 'application/json'
-                }
+                },
+                credentials: 'include'
             });
 
             if (response.ok) {
@@ -187,6 +189,7 @@ const FBIWantedManager: React.FC = () => {
                 headers: {
                     'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify(dataToSubmit)
             });
 
@@ -238,6 +241,7 @@ const FBIWantedManager: React.FC = () => {
                 headers: {
                     'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify(dataToSubmit)
             });
 
@@ -283,6 +287,7 @@ const FBIWantedManager: React.FC = () => {
                 headers: {
                     'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify({ filter })
             });
 
@@ -311,7 +316,8 @@ const FBIWantedManager: React.FC = () => {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json'
-                }
+                },
+                credentials: 'include'
             });
 
             if (response.ok) {
@@ -370,7 +376,8 @@ const FBIWantedManager: React.FC = () => {
 
             const response = await fetch(`${getApiBaseUrl()}/api/ipfs/upload`, {
                 method: 'POST',
-                body: formData
+                body: formData,
+                credentials: 'include'
             });
 
             const result = await response.json();

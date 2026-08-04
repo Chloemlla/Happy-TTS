@@ -209,7 +209,8 @@ export const getClientIP = async (): Promise<string> => {
       method: 'GET',
       headers: {
         'Accept': 'application/json'
-      }
+      },
+      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -412,7 +413,7 @@ export const reportFingerprintOnce = async (forceReport: boolean = false): Promi
         'Content-Type': 'application/json',
         'X-Requested-With': 'XMLHttpRequest'
       },
-      credentials: 'same-origin',
+      credentials: 'include',
       body: JSON.stringify(requestPayload)
     });
 
@@ -472,6 +473,7 @@ export const reportTempFingerprint = async (
       headers: {
         'Content-Type': 'application/json'
       },
+      credentials: 'include',
       body: JSON.stringify({ 
         fingerprint,
         userAgent: navigator.userAgent,
@@ -528,6 +530,7 @@ export const verifyTempFingerprint = async (fingerprint: string, cfToken: string
       headers: {
         'Content-Type': 'application/json'
       },
+      credentials: 'include',
       body: JSON.stringify({ 
         fingerprint, 
         cfToken,
@@ -581,7 +584,8 @@ export const checkTempFingerprintStatus = async (fingerprint: string): Promise<{
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -621,6 +625,7 @@ export const verifyAccessToken = async (token: string, fingerprint: string): Pro
       headers: {
         'Content-Type': 'application/json'
       },
+      credentials: 'include',
       body: JSON.stringify({ 
         token, 
         fingerprint,
@@ -669,7 +674,8 @@ export const checkAccessToken = async (fingerprint: string): Promise<boolean> =>
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      credentials: 'include',
     });
 
     if (!response.ok) {

@@ -37,7 +37,7 @@ interface AuthProvidersPublicConfigResponse {
 const fetchWithTimeout = (url: string, ms = 5000): Promise<Response> => {
   const ctrl = new AbortController();
   const id = setTimeout(() => ctrl.abort(), ms);
-  return fetch(url, { signal: ctrl.signal, credentials: "same-origin" }).finally(() => clearTimeout(id));
+  return fetch(url, { signal: ctrl.signal, credentials: "include" }).finally(() => clearTimeout(id));
 };
 
 export const useAuthProviderStore = create<AuthProviderState>()((set) => {

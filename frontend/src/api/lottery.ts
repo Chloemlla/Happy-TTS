@@ -30,6 +30,7 @@ async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T
   const response = await fetch(url, {
     ...options,
     headers,
+    credentials: 'include',
   });
 
   // 新增：检查响应类型，防止解析 HTML

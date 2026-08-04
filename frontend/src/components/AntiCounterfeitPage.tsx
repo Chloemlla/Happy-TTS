@@ -48,7 +48,7 @@ const AntiCounterfeitPage: React.FC = () => {
           'Content-Type': 'application/json',
           'X-Requested-With': 'XMLHttpRequest',
         },
-        credentials: 'same-origin',
+        credentials: 'include',
         body: JSON.stringify(params),
       });
 

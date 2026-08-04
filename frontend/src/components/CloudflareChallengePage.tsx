@@ -28,7 +28,7 @@ const CloudflareChallengePage: React.FC = () => {
           'X-Requested-With': 'XMLHttpRequest',
         },
         body: JSON.stringify({ token }),
-        credentials: 'same-origin',
+        credentials: 'include',
       });
 
       const data = await response.json().catch(() => ({}));

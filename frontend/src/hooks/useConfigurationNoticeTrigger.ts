@@ -31,7 +31,7 @@ export function useConfigurationNoticeTrigger(): void {
 
     void fetch(`${getApiBaseUrl()}/api/health/frontend-visit`, {
       method: 'POST',
-      credentials: 'same-origin',
+      credentials: 'include',
       headers: {
         'X-Requested-With': 'XMLHttpRequest',
       },

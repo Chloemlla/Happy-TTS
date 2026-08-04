@@ -138,7 +138,7 @@ export const ForgotPasswordPage: React.FC = () => {
                     clientIP: clientIP,
                     turnstileToken: turnstileConfig.siteKey ? turnstileToken : undefined
                 }),
-                credentials: 'same-origin'
+                credentials: 'include'
             });
 
             const data = await response.json();

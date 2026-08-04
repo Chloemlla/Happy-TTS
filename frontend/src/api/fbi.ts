@@ -28,6 +28,7 @@ class FBIWantedAPI {
     const response = await fetch(`${API_BASE}${endpoint}`, {
       ...options,
       headers,
+      credentials: 'include',
     });
 
     if (!response.ok) {
@@ -193,6 +194,7 @@ class FBIWantedAPI {
     const response = await fetch(`${API_BASE}/api/fbi-wanted/${id}/photo`, {
       method: 'PATCH',
       body: formData,
+      credentials: 'include',
     });
 
     if (!response.ok) {

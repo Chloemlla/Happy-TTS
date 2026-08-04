@@ -282,7 +282,8 @@ const GitHubBillingDashboard: React.FC = () => {
         : `${getApiBaseUrl()}/api/github-billing/usage`;
 
       const res = await fetch(url, {
-        headers
+        headers,
+        credentials: 'include',
       });
       const data = await res.json();
       if (!res.ok) {
@@ -344,7 +345,8 @@ const GitHubBillingDashboard: React.FC = () => {
 
       const res = await fetch(url, {
         method: 'DELETE',
-        headers
+        headers,
+        credentials: 'include',
       });
       const data = await res.json();
       if (!res.ok) {
@@ -385,7 +387,7 @@ const GitHubBillingDashboard: React.FC = () => {
       setTimeout(async () => {
         try {
           setCustomersLoading(true);
-          const res = await fetch(`${getApiBaseUrl()}/api/github-billing/customers`);
+          const res = await fetch(`${getApiBaseUrl()}/api/github-billing/customers`, { credentials: 'include' });
           const data = await res.json();
 
           if (res.ok && data.success && data.data?.length > 0) {

@@ -233,7 +233,8 @@ class TurnstileAPI {
   // IP 封禁管理
   async getIPBanStats(): Promise<IPBanStats> {
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/ip-ban-stats`, {
-      headers: this.getAuthHeaders()
+      headers: this.getAuthHeaders(),
+      credentials: 'include'
     });
     if (!response.ok) throw new Error('获取IP封禁统计失败');
     const result = await response.json();
@@ -244,6 +245,7 @@ class TurnstileAPI {
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/ban-ip`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
+      credentials: 'include',
       body: JSON.stringify({ ipAddress, reason, durationMinutes })
     });
     if (!response.ok) throw new Error('封禁IP失败');
@@ -254,6 +256,7 @@ class TurnstileAPI {
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/unban-ip`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
+      credentials: 'include',
       body: JSON.stringify({ ipAddress })
     });
     if (!response.ok) throw new Error('解封IP失败');
@@ -264,6 +267,7 @@ class TurnstileAPI {
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/ban-ips`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
+      credentials: 'include',
       body: JSON.stringify({ ipAddresses, reason, durationMinutes })
     });
     if (!response.ok) throw new Error('批量封禁IP失败');
@@ -274,6 +278,7 @@ class TurnstileAPI {
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/unban-ips`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
+      credentials: 'include',
       body: JSON.stringify({ ipAddresses })
     });
     if (!response.ok) throw new Error('批量解封IP失败');
@@ -282,7 +287,8 @@ class TurnstileAPI {
 
   async getIPBanList(page: number = 1, pageSize: number = 20): Promise<IPBanListResponse> {
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/ip-ban-list?page=${page}&pageSize=${pageSize}`, {
-      headers: this.getAuthHeaders()
+      headers: this.getAuthHeaders(),
+      credentials: 'include'
     });
     if (!response.ok) throw new Error('获取IP封禁列表失败');
     const result = await response.json();
@@ -292,7 +298,8 @@ class TurnstileAPI {
   // 指纹管理
   async getFingerprintStats(): Promise<FingerprintStats> {
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/fingerprint-stats`, {
-      headers: this.getAuthHeaders()
+      headers: this.getAuthHeaders(),
+      credentials: 'include'
     });
     if (!response.ok) throw new Error('获取指纹统计失败');
     const result = await response.json();
@@ -302,7 +309,8 @@ class TurnstileAPI {
   async cleanupExpiredFingerprints(): Promise<{ success: boolean; message: string; cleanedCount: number }> {
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/cleanup-expired-fingerprints`, {
       method: 'POST',
-      headers: this.getAuthHeaders()
+      headers: this.getAuthHeaders(),
+      credentials: 'include'
     });
     if (!response.ok) throw new Error('清理过期指纹失败');
     return response.json();
@@ -311,7 +319,8 @@ class TurnstileAPI {
   // 调度器管理
   async getSchedulerStatus(): Promise<SchedulerStatus> {
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/scheduler-status`, {
-      headers: this.getAuthHeaders()
+      headers: this.getAuthHeaders(),
+      credentials: 'include'
     });
     const result = await readJsonResponse<{ status?: SchedulerStatus; data?: SchedulerStatus }>(
       response,
@@ -323,7 +332,8 @@ class TurnstileAPI {
   async startScheduler(): Promise<{ success: boolean; message: string }> {
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/scheduler/start`, {
       method: 'POST',
-      headers: this.getAuthHeaders()
+      headers: this.getAuthHeaders(),
+      credentials: 'include'
     });
     return readJsonResponse<{ success: boolean; message: string }>(response, '启动调度器失败');
   }
@@ -331,7 +341,8 @@ class TurnstileAPI {
   async stopScheduler(): Promise<{ success: boolean; message: string }> {
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/scheduler/stop`, {
       method: 'POST',
-      headers: this.getAuthHeaders()
+      headers: this.getAuthHeaders(),
+      credentials: 'include'
     });
     return readJsonResponse<{ success: boolean; message: string }>(response, '停止调度器失败');
   }
@@ -339,7 +350,8 @@ class TurnstileAPI {
   async manualCleanup(): Promise<{ success: boolean; message: string; cleanedCount: number; details?: CleanupDetails }> {
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/manual-cleanup`, {
       method: 'POST',
-      headers: this.getAuthHeaders()
+      headers: this.getAuthHeaders(),
+      credentials: 'include'
     });
     const result = await readJsonResponse<{
       success: boolean;
@@ -366,7 +378,8 @@ class TurnstileAPI {
   }> {
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/sync-ipbans`, {
       method: 'POST',
-      headers: this.getAuthHeaders()
+      headers: this.getAuthHeaders(),
+      credentials: 'include'
     });
     const result = await readJsonResponse<any>(response, '同步IP封禁失败');
     return {
@@ -380,7 +393,8 @@ class TurnstileAPI {
 
   async getSyncStatus(): Promise<SyncStatus> {
     const response = await fetch(`${getApiBaseUrl()}/api/turnstile/sync-status`, {
-      headers: this.getAuthHeaders()
+      headers: this.getAuthHeaders(),
+      credentials: 'include'
     });
     const result = await readJsonResponse<{ data?: SyncStatus; status?: SyncStatus }>(
       response,

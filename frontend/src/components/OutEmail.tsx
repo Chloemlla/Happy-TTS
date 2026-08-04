@@ -51,7 +51,7 @@ const OutEmail: React.FC = () => {
     if (!user || user.role !== 'admin') return;
     const loadStatus = async () => {
       try {
-        const res = await fetch(getApiBaseUrl() + '/api/outemail/status');
+        const res = await fetch(getApiBaseUrl() + '/api/outemail/status', { credentials: 'include' });
         if (!res.ok) throw new Error('获取服务状态失败');
         let data: any;
         try { data = await res.json(); } catch { throw new Error('服务状态响应解析失败'); }
@@ -178,6 +178,7 @@ const OutEmail: React.FC = () => {
         const res = await fetch(getApiBaseUrl() + '/api/outemail/batch-send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({ messages, code: codeTrimmed, from, displayName: displayNameTrimmed, domain })
         });
         if (!res.ok) {
@@ -215,6 +216,7 @@ const OutEmail: React.FC = () => {
         const res = await fetch(getApiBaseUrl() + '/api/outemail/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify({ to: toTrimmed, subject: subjectTrimmed, content: contentTrimmed, code: codeTrimmed, from, displayName: displayNameTrimmed, domain, ...(attachments.length ? { attachments } : {}) })
         });
         if (!res.ok) {

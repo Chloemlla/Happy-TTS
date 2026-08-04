@@ -7,7 +7,7 @@ export async function fetchWithFallback(input: string, init?: RequestInit) {
   const canonicalInput = canonicalizeBackendApiUrl(input);
   let url = canonicalInput.startsWith('http') ? canonicalInput : apiUrl.replace(/\/$/, '') + (canonicalInput.startsWith('/') ? canonicalInput : '/' + canonicalInput);
   try {
-    const res = await fetch(url, init);
+    const res = await fetch(url, { ...init, credentials: 'include' });
     if (!res.ok) throw new Error('Primary API failed');
     const contentType = res.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {

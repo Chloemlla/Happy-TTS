@@ -76,7 +76,7 @@ const GitHubBillingCacheManager: React.FC = () => {
         setLoading(true);
         setLoadingStage('customers');
         try {
-            const res = await fetch(`${getApiBaseUrl()}/api/github-billing/customers`);
+            const res = await fetch(`${getApiBaseUrl()}/api/github-billing/customers`, { credentials: 'include' });
             const data = await res.json();
 
             if (res.ok && data.success) {
@@ -105,7 +105,8 @@ const GitHubBillingCacheManager: React.FC = () => {
         try {
             const headers = await getAdminTurnstileAuthHeaders();
             const response = await fetch(`${getApiBaseUrl()}/api/github-billing/cache/metrics`, {
-                headers
+                headers,
+                credentials: 'include',
             });
 
             if (!response.ok) {
@@ -143,7 +144,8 @@ const GitHubBillingCacheManager: React.FC = () => {
             const headers = await getAdminTurnstileAuthHeaders();
             const res = await fetch(`${getApiBaseUrl()}/api/github-billing/cache/${customerId}`, {
                 method: 'DELETE',
-                headers
+                headers,
+                credentials: 'include',
             });
 
             const data = await res.json();
@@ -173,7 +175,8 @@ const GitHubBillingCacheManager: React.FC = () => {
             const headers = await getAdminTurnstileAuthHeaders();
             const res = await fetch(`${getApiBaseUrl()}/api/github-billing/cache/expired`, {
                 method: 'DELETE',
-                headers
+                headers,
+                credentials: 'include',
             });
 
             const data = await res.json();

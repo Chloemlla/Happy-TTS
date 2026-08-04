@@ -343,7 +343,8 @@ function GenerateCDKModal({ isOpen, onClose, onSuccess }: GenerateCDKModalProps)
                             method: 'POST',
                             headers: {
                               'Content-Type': 'application/json'
-                            }
+                            },
+                            credentials: 'include',
                           });
                           if (response.ok) {
                             fetchResources(); // 重新获取资源列表

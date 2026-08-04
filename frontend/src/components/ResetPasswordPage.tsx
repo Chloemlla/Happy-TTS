@@ -92,7 +92,7 @@ export const ResetPasswordPage: React.FC = () => {
             const response = await fetch(getApiBaseUrl() + '/api/auth/reset-password', {
                 method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                 body: JSON.stringify({ email: sanitizedEmail, code: sanitizedCode, newPassword, turnstileToken: turnstileConfig.siteKey ? turnstileToken : undefined, clientIP, deviceName, fingerprint }),
-                credentials: 'same-origin'
+                credentials: 'include'
             });
             const data = await response.json();
             if (response.ok && data.success) {

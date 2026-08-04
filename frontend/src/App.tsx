@@ -1053,7 +1053,7 @@ const App: React.FC = () => {
             'Content-Type': 'application/json',
             'X-Requested-With': 'XMLHttpRequest'
           },
-          credentials: 'same-origin'
+          credentials: 'include'
         });
 
         if (response.ok) {
@@ -1142,7 +1142,7 @@ const App: React.FC = () => {
             'Content-Type': 'application/json',
             'X-Requested-With': 'XMLHttpRequest'
           },
-          credentials: 'same-origin'
+          credentials: 'include'
         });
 
         if (response.ok) {

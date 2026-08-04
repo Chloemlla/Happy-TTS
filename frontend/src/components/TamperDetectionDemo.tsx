@@ -253,6 +253,7 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
     try {
       const response = await fetch(`${getApiBaseUrl()}/api/tamper/admin/summary?limit=20`, {
         headers: getAuthHeaders(),
+        credentials: 'include',
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.success) {

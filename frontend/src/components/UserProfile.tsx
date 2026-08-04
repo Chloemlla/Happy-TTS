@@ -295,7 +295,7 @@ const UserProfile: React.FC = () => {
 
   const fetchTotpStatus = useCallback(async () => {
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/totp/status`);
+      const res = await fetch(`${getApiBaseUrl()}/api/totp/status`, { credentials: 'include' });
 
       if (!res.ok) {
         console.warn('[UserProfile] Failed to fetch TOTP status:', res.status);

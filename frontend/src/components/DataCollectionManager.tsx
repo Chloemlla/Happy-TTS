@@ -214,6 +214,7 @@ const DataCollectionManager: React.FC = () => {
             const res = await fetch(`${base}/api/data-collection/admin`, {
                 method: 'POST',
                 headers: buildHeaders(),
+                credentials: 'include',
                 body: JSON.stringify(payload),
             });
             if (res.status === 401) {
@@ -249,6 +250,7 @@ const DataCollectionManager: React.FC = () => {
             if (end) params.set('end', new Date(end).toISOString());
             const res = await fetch(`${base}/api/data-collection/admin?${params.toString()}`, {
                 headers: buildHeaders(),
+                credentials: 'include',
                 signal: aborter.signal,
             });
             if (res.status === 401) {
@@ -273,6 +275,7 @@ const DataCollectionManager: React.FC = () => {
         try {
             const res = await fetch(`${base}/api/data-collection/admin/stats`, {
                 headers: buildHeaders(),
+                credentials: 'include',
                 signal: aborter.signal,
             });
             if (res.status === 401) {
@@ -326,6 +329,7 @@ const DataCollectionManager: React.FC = () => {
             const res = await fetch(`${base}/api/data-collection/admin/${id}`, {
                 method: 'DELETE',
                 headers: buildHeaders(),
+                credentials: 'include',
             });
             if (res.status === 401) {
                 setNotification({ type: 'error', message: '未授权或登录已过期，请重新登录' });
@@ -352,6 +356,7 @@ const DataCollectionManager: React.FC = () => {
             const res = await fetch(`${base}/api/data-collection/admin/delete-batch`, {
                 method: 'POST',
                 headers: buildHeaders(),
+                credentials: 'include',
                 body: JSON.stringify({ ids }),
             });
             if (res.status === 401) {
@@ -393,7 +398,7 @@ const DataCollectionManager: React.FC = () => {
         const results: any[] = [];
         for (const id of ids) {
             try {
-                const res = await fetch(`${base}/api/data-collection/admin/${id}`, { headers: buildHeaders() });
+                const res = await fetch(`${base}/api/data-collection/admin/${id}`, { headers: buildHeaders(), credentials: 'include' });
                 const data = await res.json();
                 if (res.ok && data?.success !== false && data?.data) results.push(data.data);
                 else results.push({ _id: id, error: data?.message || 'not_ok' });
@@ -642,6 +647,7 @@ const DataCollectionManager: React.FC = () => {
                                 const res = await fetch(`${base}/api/data-collection/admin/all`, {
                                     method: 'DELETE',
                                     headers: buildHeaders(),
+                                    credentials: 'include',
                                     body: JSON.stringify({ confirm: true })
                                 });
                                 const data = await res.json();

@@ -43,7 +43,7 @@ const SmartHumanCheckTestPage: React.FC = () => {
           'Content-Type': 'application/json',
           'X-Requested-With': 'XMLHttpRequest'
         },
-        credentials: 'same-origin'
+        credentials: 'include'
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
@@ -83,7 +83,7 @@ const SmartHumanCheckTestPage: React.FC = () => {
           'Content-Type': 'application/json',
           'X-Requested-With': 'XMLHttpRequest'
         },
-        credentials: 'same-origin',
+        credentials: 'include',
         body: JSON.stringify({ token: t, ...(nonceAction ? { action: nonceAction } : {}) })
       });
       const data = await res.json().catch(() => ({}));
