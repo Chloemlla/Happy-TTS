@@ -28,6 +28,14 @@ const SECRET_FIELDS: SecretField[] = [
     placeholder: '请输入至少 16 位的随机字符串',
   },
   {
+    key: 'BILIBILI_COOKIE_ENCRYPTION_KEY',
+    altKeys: [],
+    label: 'Bilibili Cookie 加密密钥',
+    description:
+      '用于 AES-256-GCM 加密 Bilibili 账号 Cookie 的独立密钥，与 PASSWORD_ENCRYPTION_KEY 隔离。对应环境变量 BILIBILI_COOKIE_ENCRYPTION_KEY。',
+    placeholder: '请输入至少 32 位的随机字符串',
+  },
+  {
     key: 'PASSWORD_ENCRYPTION_KEY',
     altKeys: [],
     label: '密码加密密钥',
@@ -229,7 +237,7 @@ export default function SecuritySecretSection({
   return (
     <CollapsibleSection
       title="安全密钥隔离与数据采集加密"
-      description="配置数据采集加密密钥（DATA_COLLECTION_RAW_SECRET、PASSWORD_ENCRYPTION_KEY）与安全密钥隔离（POLICY_SECRET_SALT、VERIFICATION_TOKEN_SECRET、TTS_ASSET_ACCESS_SECRET、LEGACY_API_CHOICE_SECRET）。保存后写入运行时配置（环境变量）并立即生效。"
+      description="配置数据采集加密密钥（DATA_COLLECTION_RAW_SECRET）、Bilibili Cookie 加密密钥（BILIBILI_COOKIE_ENCRYPTION_KEY）、密码加密密钥（PASSWORD_ENCRYPTION_KEY）与安全密钥隔离（POLICY_SECRET_SALT、VERIFICATION_TOKEN_SECRET、TTS_ASSET_ACCESS_SECRET、LEGACY_API_CHOICE_SECRET）。保存后写入运行时配置（环境变量）并立即生效。"
       sectionKey={SECTION_KEY}
       isOpen={isOpen}
       onToggle={onToggle}
@@ -254,8 +262,9 @@ export default function SecuritySecretSection({
           <FaLock className="mt-0.5 shrink-0 text-indigo-700" />
           <div>
             <p>
-              以下密钥用于数据采集加密与安全密钥隔离：{' '}
+              以下密钥用于数据采集加密、Bilibili 凭证加密与安全密钥隔离：{' '}
               <code className="rounded bg-white/80 px-1">DATA_COLLECTION_RAW_SECRET</code>（数据加密）、{' '}
+              <code className="rounded bg-white/80 px-1">BILIBILI_COOKIE_ENCRYPTION_KEY</code>（Bilibili Cookie 加密）、{' '}
               <code className="rounded bg-white/80 px-1">PASSWORD_ENCRYPTION_KEY</code>（密码加密），以及密钥隔离所需的{' '}
               <code className="rounded bg-white/80 px-1">POLICY_SECRET_SALT</code>、
               <code className="rounded bg-white/80 px-1">VERIFICATION_TOKEN_SECRET</code>、
