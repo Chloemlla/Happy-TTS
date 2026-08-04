@@ -1,5 +1,6 @@
 import express from "express";
 import { batchSearchRecords, bindUid, getSearchChanges, getSettings, getUid, putSettings, unbindUid } from "../controllers/bilibiliSyncController";
+import { listAccounts, pruneAccounts, removeAccount, upsertAccount } from "../controllers/bilibiliAccountController";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { oauthTokenAuth } from "../middleware/oauthTokenAuth";
 import { bilibiliSyncLimiter } from "../middleware/routeLimiters";
@@ -15,5 +16,9 @@ router.get("/settings", getSettings);
 router.put("/settings", putSettings);
 router.post("/search-records/batch", batchSearchRecords);
 router.get("/search-records/changes", getSearchChanges);
+router.get("/accounts", listAccounts);
+router.post("/accounts/upsert", upsertAccount);
+router.delete("/accounts/:uid", removeAccount);
+router.post("/accounts/prune", pruneAccounts);
 
 export default router;

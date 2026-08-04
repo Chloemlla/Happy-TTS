@@ -72,7 +72,7 @@ function credentialKey(): Buffer {
   return crypto.createHash("sha256").update(process.env.BILIBILI_COOKIE_ENCRYPTION_KEY || process.env.PASSWORD_ENCRYPTION_KEY || process.env.AES_KEY || config.jwtSecret).digest();
 }
 
-function encryptCredential(cookie: string): { credentialCiphertext: string; credentialIv: string; credentialTag: string; credentialKeyVersion: string } {
+export function encryptCredential(cookie: string): { credentialCiphertext: string; credentialIv: string; credentialTag: string; credentialKeyVersion: string } {
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv(CREDENTIAL_ALGO, credentialKey(), iv);
   const ciphertext = Buffer.concat([cipher.update(cookie, "utf8"), cipher.final()]);
@@ -93,7 +93,7 @@ function decryptCredential(doc: BilibiliSyncDoc): string {
   return Buffer.concat([decipher.update(Buffer.from(doc.credentialCiphertext, "base64")), decipher.final()]).toString("utf8");
 }
 
-async function verifyBilibiliCookie(cookie: string, expectedUid: string): Promise<void> {
+export async function verifyBilibiliCookie(cookie: string, expectedUid: string): Promise<void> {
   if (!cookie.trim() || cookie.length > 8192) throw new BilibiliSyncError("Bilibili 登录凭据无效", "BILIBILI_COOKIE_INVALID", 401);
   try {
     const response = await axios.get("https://api.bilibili.com/x/web-interface/nav", {
@@ -125,7 +125,7 @@ async function requireActiveCredential(userId: string): Promise<BilibiliSyncDoc>
   }
 }
 
-function normalizeUid(value: unknown): string {
+export function normalizeUid(value: unknown): string {
   if (typeof value !== "string") {
     throw new BilibiliSyncError("Bilibili UID 必须是数字字符串", "BILIBILI_UID_INVALID");
   }
