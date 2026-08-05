@@ -267,7 +267,6 @@ export const ForgotPasswordPage: React.FC = () => {
                                                     onVerify={handleTurnstileVerify}
                                                     onExpire={handleTurnstileExpire}
                                                     onError={handleTurnstileError}
-                                                    theme="light"
                                                     size="normal"
                                                 />
                                                 {turnstileVerified && <p className="mt-2 text-xs text-emerald-600" role="status" aria-live="polite">人机验证通过</p>}

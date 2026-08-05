@@ -208,7 +208,6 @@ const HCaptchaVerificationPageFrame: React.FC<HCaptchaVerificationPageFrameProps
                 onVerify={handleCaptchaVerify}
                 onExpire={handleCaptchaExpire}
                 onError={handleCaptchaError}
-                theme="light"
                 size="normal"
               />
             </m.div>

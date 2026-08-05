@@ -788,7 +788,6 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
               onVerify={handleTurnstileVerify}
               onExpire={handleTurnstileExpire}
               onError={handleTurnstileError}
-              theme="light"
               size={isNarrowViewport ? "compact" : "normal"}
             />
 

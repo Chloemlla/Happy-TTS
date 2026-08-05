@@ -215,7 +215,6 @@ const LotteryRoundCard: React.FC<{
                   onVerify={onTurnstileVerify || (() => {})}
                   onExpire={onTurnstileExpire || (() => {})}
                   onError={onTurnstileError || (() => {})}
-                  theme="light"
                   size="normal"
                 />
               </div>

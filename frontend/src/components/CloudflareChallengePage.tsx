@@ -81,7 +81,6 @@ const CloudflareChallengePage: React.FC = () => {
                     onVerify={verifyToken}
                     onExpire={handleExpire}
                     onError={handleError}
-                    theme="light"
                     size="normal"
                   />
                 )}

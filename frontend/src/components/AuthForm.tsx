@@ -717,7 +717,6 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                                     onVerify={handleTurnstileVerify}
                                     onExpire={handleTurnstileExpire}
                                     onError={handleTurnstileError}
-                                    theme="light"
                                     size="normal"
                                 />
                                 <div className="mt-2 text-sm">

@@ -645,7 +645,6 @@ export default function ResourceStoreList() {
                     }}
                     onExpire={() => resetTurnstile("验证已过期，请重新完成")}
                     onError={() => resetTurnstile("验证失败，请重试")}
-                    theme="light"
                     size="normal"
                   />
                 </div>

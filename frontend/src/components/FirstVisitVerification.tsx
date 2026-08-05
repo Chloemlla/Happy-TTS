@@ -341,7 +341,6 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                             onVerify={handleHCaptchaVerify}
                             onExpire={handleHCaptchaExpire}
                             onError={handleHCaptchaError}
-                            theme="light"
                             size="normal"
                           />
                         )}

@@ -1169,7 +1169,6 @@ const ImageUploadPage: React.FC = () => {
                   onVerify={handleTurnstileVerify}
                   onExpire={handleTurnstileExpire}
                   onError={handleTurnstileError}
-                  theme="light"
                   size="normal"
                 />
 
