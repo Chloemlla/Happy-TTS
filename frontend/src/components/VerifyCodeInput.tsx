@@ -99,7 +99,7 @@ export const VerifyCodeInput: React.FC<VerifyCodeInputProps> = ({
             inputMode="text"
             autoComplete="one-time-code"
             maxLength={1}
-            className={BOX_STYLE + (error ? ' border-red-400 dark:border-red-500' : '') + ' ' + inputClassName}
+            className={BOX_STYLE + (error ? ' border-red-400' : '') + ' ' + inputClassName}
             value={values[idx]}
             onChange={(e) => handleChange(idx, e.target.value)}
             onKeyDown={(e) => handleKeyDown(idx, e)}

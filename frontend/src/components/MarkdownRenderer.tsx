@@ -33,7 +33,6 @@ export type MarkdownReaderControls = {
 
 interface MarkdownRendererProps {
   content: string;
-  isDark?: boolean;
   className?: string;
   onCodeCopy?: (success: boolean) => void;
   onContentCopy?: (success: boolean, content: string) => void;
@@ -204,7 +203,6 @@ const MarkdownImage: React.FC<MarkdownImageProps & {
 
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   content,
-  isDark,
   className,
   onCodeCopy,
   onContentCopy,
@@ -409,7 +407,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 
   const rendererClassName = `markdown-renderer ${
     density === 'compact' ? 'markdown-renderer-compact' : ''
-  } prose max-w-none break-words ${isDark ? 'markdown-renderer-dark prose-invert' : ''} ${className || ''}`;
+  } prose max-w-none break-words ${className || ''}`;
 
   const markdownNode = (
     <div className={rendererClassName}>
@@ -439,7 +437,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     : undefined;
 
   const wrappedContent = readerControls ? (
-    <div className={`markdown-reader ${isDark ? 'markdown-reader-dark' : ''}`}>
+    <div className="markdown-reader">
       <div className="markdown-reader-toolbar" aria-label="Markdown reading controls">
         {readerControls.showCopy && (
           <button

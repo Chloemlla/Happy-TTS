@@ -829,7 +829,6 @@ const TicketSystem: React.FC = () => {
                                   ) : (
                                     <MarkdownRenderer
                                       content={msg.content}
-                                      isDark={isMe}
                                       density="compact"
                                       controls={CHAT_MARKDOWN_CONTROLS}
                                       onContentCopy={(success) => notifyMarkdownCopy(success, true)}

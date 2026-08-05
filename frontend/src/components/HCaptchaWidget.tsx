@@ -5,7 +5,6 @@ interface HCaptchaWidgetProps {
   onVerify: (token: string) => void;
   onExpire?: () => void;
   onError?: (error: any) => void;
-  theme?: 'light' | 'dark';
   size?: 'normal' | 'compact' | 'invisible';
   tabIndex?: number;
   'aria-label'?: string;
@@ -37,7 +36,6 @@ const HCaptchaWidget = ({
   onVerify,
   onExpire,
   onError,
-  theme = 'light',
   size = 'normal',
   tabIndex,
   'aria-label': ariaLabel = 'hCaptcha 人机验证',
@@ -55,7 +53,6 @@ const HCaptchaWidget = ({
     try {
       const widgetId = window.hcaptcha.render(containerRef.current, {
         sitekey: siteKey,
-        theme,
         size,
         tabindex: tabIndex,
         callback: (token: string) => {
@@ -75,7 +72,7 @@ const HCaptchaWidget = ({
       console.error('Failed to render hCaptcha widget:', error);
       onError?.(error);
     }
-  }, [siteKey, theme, size, tabIndex, onVerify, onExpire, onError]);
+  }, [siteKey, size, tabIndex, onVerify, onExpire, onError]);
 
   const loadHCaptchaScript = useCallback(() => {
     if (isLoadingRef.current || window.hcaptcha) {

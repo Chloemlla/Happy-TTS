@@ -735,7 +735,7 @@ const WebhookEventsManager: React.FC = () => {
               value={testPayload}
               onChange={(event) => setTestPayload(event.target.value)}
               spellCheck={false}
-              className="w-full min-h-56 px-3 py-2 rounded-lg bg-slate-950 text-slate-100 border border-slate-800 font-mono text-xs"
+              className="w-full min-h-56 px-3 py-2 rounded-lg bg-white text-slate-800 border border-slate-200 font-mono text-xs"
             />
           </div>
           <div className="mt-3 text-xs text-[#023047]/60 break-all">POST {toAbsoluteUrl(testPath)}</div>
@@ -1147,7 +1147,7 @@ const WebhookEventsManager: React.FC = () => {
                     <RotateCcw className="w-4 h-4" /> 重放
                   </button>
                 </div>
-                <pre className="text-xs bg-slate-950 text-slate-100 p-3 rounded-lg overflow-auto max-h-[50vh]">{JSON.stringify(selected, null, 2)}</pre>
+                <pre className="text-xs bg-white text-slate-800 border border-slate-200 p-3 rounded-lg overflow-auto max-h-[50vh]">{JSON.stringify(selected, null, 2)}</pre>
               </div>
             </Modal>
           )}
@@ -1241,14 +1241,14 @@ function EndpointBox({ label, value, onCopy }: { label: string; value: string; o
 
 function CodeBlock({ title, value, onCopy }: { title: string; value: string; onCopy: () => void }) {
   return (
-    <div className="rounded-lg border border-slate-800 bg-slate-950 overflow-hidden">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800">
-        <div className="text-xs text-slate-300">{title}</div>
-        <button onClick={onCopy} className="p-1.5 rounded-md hover:bg-slate-800 text-slate-200" title="复制">
+    <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-200">
+        <div className="text-xs text-slate-500">{title}</div>
+        <button onClick={onCopy} className="p-1.5 rounded-md hover:bg-slate-50 text-slate-500" title="复制">
           <Copy className="w-4 h-4" />
         </button>
       </div>
-      <pre className="p-3 overflow-auto text-xs text-slate-100 whitespace-pre-wrap break-all">{value}</pre>
+      <pre className="p-3 overflow-auto text-xs text-slate-800 whitespace-pre-wrap break-all">{value}</pre>
     </div>
   );
 }

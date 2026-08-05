@@ -4,7 +4,6 @@ import { api } from './api';
 export interface HCaptchaConfig {
   siteKey: string;
   enabled: boolean;
-  theme?: 'light' | 'dark';
   size?: 'normal' | 'compact' | 'invisible';
 }
 

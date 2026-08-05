@@ -11,14 +11,6 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-
-/* 深色模式基础背景与文字颜色（Tailwind 使用 class 策略）*/
-.dark body {
-  background-color: #0b1220; /* slate-950-ish */
-  color: #e5e7eb; /* gray-200 */
-}
-
-/* 自定义Toast样式 */
 .custom-toast {
   background: transparent !important;
   box-shadow: none !important;
@@ -606,20 +598,6 @@ html {
   overflow-wrap: anywhere;
 }
 
-.markdown-renderer.markdown-renderer-dark {
-  --md-text: #e5e7eb;
-  --md-muted: #a1a1aa;
-  --md-border: #30363d;
-  --md-soft-border: #21262d;
-  --md-bg: #0d1117;
-  --md-soft-bg: #161b22;
-  --md-code-bg: #161b22;
-  --md-link: #79c0ff;
-  --md-quote: #c9d1d9;
-  --md-quote-line: #484f58;
-  color: var(--md-text);
-}
-
 .markdown-renderer.markdown-renderer-compact {
   font-size: 14px;
   line-height: 1.62;
@@ -686,14 +664,6 @@ html {
   --md-reader-control-text: #475569;
   --md-reader-control-hover: #f1f5f9;
   --md-reader-fade: linear-gradient(to bottom, rgba(255, 255, 255, 0), #ffffff 88%);
-}
-
-.markdown-reader.markdown-reader-dark {
-  --md-reader-control-bg: rgba(15, 23, 42, 0.76);
-  --md-reader-control-border: rgba(148, 163, 184, 0.26);
-  --md-reader-control-text: #cbd5e1;
-  --md-reader-control-hover: rgba(30, 41, 59, 0.9);
-  --md-reader-fade: linear-gradient(to bottom, rgba(15, 23, 42, 0), #0f172a 88%);
 }
 
 .markdown-reader-toolbar {
@@ -899,10 +869,6 @@ html {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 0.88em;
   padding: 0.12em 0.38em;
-}
-
-.markdown-renderer.markdown-renderer-dark code:not(pre code) {
-  color: #ff7b72;
 }
 
 .markdown-renderer pre,

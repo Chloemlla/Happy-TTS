@@ -5,13 +5,11 @@ interface TurnstileWidgetProps {
   onVerify: (token: string) => void;
   onExpire: () => void;
   onError: () => void;
-  theme?: 'light' | 'dark';
   size?: 'normal' | 'compact';
 }
 
 interface TurnstileRenderOptions {
   sitekey: string;
-  theme?: 'light' | 'dark';
   size?: 'normal' | 'compact';
   language?: string;
   callback?: (token: string) => void;
@@ -200,7 +198,6 @@ export const TurnstileWidget: React.FC<TurnstileWidgetProps> = ({
   onVerify,
   onExpire,
   onError,
-  theme = 'light',
   size = 'normal',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -240,7 +237,6 @@ export const TurnstileWidget: React.FC<TurnstileWidgetProps> = ({
 
       debugTurnstile('Turnstile render options', {
         sitekey: maskSiteKey(cleanSiteKey),
-        theme,
         size,
         callback: typeof onVerify,
         'expired-callback': typeof onExpire,
@@ -250,7 +246,6 @@ export const TurnstileWidget: React.FC<TurnstileWidgetProps> = ({
       // 传递完整的配置，包括回调函数
       widgetIdRef.current = window.turnstile.render(containerRef.current, {
         sitekey: cleanSiteKey,
-        theme,
         size,
         callback: (token: string) => {
           debugTurnstile('Turnstile callback triggered', { tokenLength: token.length });
@@ -274,7 +269,7 @@ export const TurnstileWidget: React.FC<TurnstileWidgetProps> = ({
       console.error('Turnstile render error:', error);
       onError();
     }
-  }, [siteKey, theme, size]); // 移除回调函数依赖，避免无限循环
+  }, [siteKey, size]); // 移除回调函数依赖，避免无限循环
 
   useEffect(() => {
     let mounted = true;

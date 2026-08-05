@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Search, Moon, Sun, User, Heart, Star, MessageCircle, Share2,
+import {
+  Search, User, Heart, Star, MessageCircle, Share2,
   MapPin, Coffee, Utensils, Shirt, Camera, Home as HomeIcon,
   Video, Plus, MessageSquare, ShoppingBag, Sparkles, TrendingUp
 } from 'lucide-react';
@@ -20,7 +20,6 @@ interface CardData {
 
 // 小红书风格展示页面
 const XiaohongshuDemo: React.FC = () => {
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [activeCategory, setActiveCategory] = useState('all');
   const [showModal, setShowModal] = useState(false);
   const [selectedCard, setSelectedCard] = useState<CardData | null>(null);
@@ -444,11 +443,6 @@ const XiaohongshuDemo: React.FC = () => {
     setDisplayCount(12);
   }, [activeCategory, searchQuery]);
 
-  // 切换主题
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  };
-
   // 打开详情
   const openModal = (card: CardData) => {
     setSelectedCard(card);
@@ -492,25 +486,25 @@ const XiaohongshuDemo: React.FC = () => {
   };
 
   return (
-    <div 
-      className={`min-h-screen ${theme === 'dark' ? 'bg-[#111827]' : 'bg-slate-50'} transition-colors duration-300`}
+    <div
+      className="min-h-screen bg-slate-50"
       style={{
         ['--primary-color' as any]: '#FF2442',
         ['--primary-hover' as any]: '#FF507A',
-        ['--bg-color' as any]: theme === 'dark' ? '#111827' : '#FFFFFF',
-        ['--secondary-bg' as any]: theme === 'dark' ? '#1F2937' : '#F8FAFC',
-        ['--text-primary' as any]: theme === 'dark' ? '#EFEFEF' : '#333333',
-        ['--text-secondary' as any]: theme === 'dark' ? '#AAAAAA' : '#666666',
-        ['--text-light' as any]: theme === 'dark' ? '#777777' : '#999999',
-        ['--border-color' as any]: theme === 'dark' ? '#334155' : '#E2E8F0',
-        ['--shadow' as any]: theme === 'dark' ? '0 18px 60px rgba(0,0,0,0.22)' : '0 18px 60px rgba(15,23,42,0.06)',
-        ['--shadow-hover' as any]: theme === 'dark' ? '0 22px 70px rgba(0,0,0,0.34)' : '0 22px 70px rgba(15,23,42,0.1)',
+        ['--bg-color' as any]: '#FFFFFF',
+        ['--secondary-bg' as any]: '#F8FAFC',
+        ['--text-primary' as any]: '#333333',
+        ['--text-secondary' as any]: '#666666',
+        ['--text-light' as any]: '#999999',
+        ['--border-color' as any]: '#E2E8F0',
+        ['--shadow' as any]: '0 18px 60px rgba(15,23,42,0.06)',
+        ['--shadow-hover' as any]: '0 22px 70px rgba(15,23,42,0.1)',
       }}
     >
       {/* 顶部导航栏 */}
       <header className="fixed top-0 left-0 right-0 z-[1000] h-[60px] px-5 border-b shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl"
         style={{
-          backgroundColor: theme === 'dark' ? 'rgba(17,24,39,0.88)' : 'rgba(255,255,255,0.88)',
+          backgroundColor: 'rgba(255,255,255,0.88)',
           borderBottomColor: 'var(--border-color)'
         }}>
         <div className="h-full flex items-center justify-between">
@@ -571,15 +565,6 @@ const XiaohongshuDemo: React.FC = () => {
 
           {/* 用户操作区 */}
           <div className="flex items-center gap-4">
-            {/* 主题切换按钮 */}
-            <button
-              onClick={toggleTheme}
-              className="w-9 h-9 rounded-2xl border flex items-center justify-center transition-all duration-300 hover:border-slate-300 hover:bg-white"
-              style={{ backgroundColor: 'var(--secondary-bg)', borderColor: 'var(--border-color)' }}
-            >
-              {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-            </button>
-
             {/* 用户头像 */}
             <div className="w-9 h-9 rounded-2xl border flex items-center justify-center cursor-pointer transition-transform duration-300 hover:scale-105"
               style={{ backgroundColor: 'var(--secondary-bg)', borderColor: 'var(--border-color)' }}>
@@ -592,7 +577,7 @@ const XiaohongshuDemo: React.FC = () => {
       {/* 分类标签栏 */}
       <div className="fixed top-[60px] left-0 right-0 z-[999] h-[50px] overflow-x-auto overflow-y-hidden no-scrollbar"
         style={{
-          backgroundColor: theme === 'dark' ? 'rgba(17,24,39,0.88)' : 'rgba(255,255,255,0.82)',
+          backgroundColor: 'rgba(255,255,255,0.82)',
           borderBottom: '1px solid var(--border-color)'
         }}>
         <div className="flex items-center gap-8 px-5 h-full min-w-max">
@@ -719,7 +704,7 @@ const XiaohongshuDemo: React.FC = () => {
       {/* 底部导航栏 (仅移动端) */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-[1000] h-[60px] flex items-center justify-around pb-safe"
         style={{
-          backgroundColor: theme === 'dark' ? 'rgba(17,24,39,0.88)' : 'rgba(255,255,255,0.88)',
+          backgroundColor: 'rgba(255,255,255,0.88)',
           borderTop: '1px solid var(--border-color)'
         }}>
           {bottomNavItems.map(item => (
