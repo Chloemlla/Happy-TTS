@@ -21,6 +21,13 @@ import {
   type TranslationTraceUser,
   type TranslationPenaltyAction,
 } from '../api/translationAudit';
+import {
+  logSharePanelClass,
+  logShareTileClass,
+  logShareInputClass,
+  logSharePrimaryButtonClass,
+  logShareSecondaryButtonClass,
+} from './LogShareStyleScaffold';
 
 const PAGE_SIZE = 20;
 
@@ -108,16 +115,12 @@ const TranslationAuditViewer: React.FC = () => {
   }, [setNotification]);
 
   const applyPenalty = useCallback(async (action: TranslationPenaltyAction) => {
-    if (!selectedUser) {
-      return;
-    }
+    if (!selectedUser) return;
 
     let until: string | undefined;
     if (action === 'LIMIT_TRANSLATION') {
       const hoursText = window.prompt('限制翻译权限多少小时？', '24');
-      if (!hoursText) {
-        return;
-      }
+      if (!hoursText) return;
       const hours = Number(hoursText);
       if (!Number.isFinite(hours) || hours <= 0) {
         setNotification({ message: '请输入有效小时数', type: 'error' });
@@ -134,9 +137,7 @@ const TranslationAuditViewer: React.FC = () => {
       CLEAR_TRANSLATION_RESTRICTIONS: `确定清除用户「${selectedUser.id}」的翻译限制？`,
     };
     const confirmMessage = confirmMessages[action];
-    if (confirmMessage && !window.confirm(confirmMessage)) {
-      return;
-    }
+    if (confirmMessage && !window.confirm(confirmMessage)) return;
 
     setPenaltyLoading(true);
     try {
@@ -161,119 +162,137 @@ const TranslationAuditViewer: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+      {/* Stats row */}
       {stats ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatCard label="总翻译数" value={stats.total} />
-          <StatCard label="近24小时" value={stats.last24h} />
-          <StatCard
-            label="高频用户"
-            value={stats.topUsers[0]?.count || 0}
-            caption={stats.topUsers[0]?.userId || '暂无'}
-          />
-          <StatCard
-            label="列表页数"
-            value={totalPages}
-            caption={`${page}/${totalPages}`}
-          />
+          <div className={`${logShareTileClass} p-4`}>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">总翻译数</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-950">{stats.total.toLocaleString()}</p>
+          </div>
+          <div className={`${logShareTileClass} p-4`}>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">近24小时</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-950">{stats.last24h.toLocaleString()}</p>
+          </div>
+          <div className={`${logShareTileClass} p-4`}>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">高频用户</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-950">{stats.topUsers[0]?.count.toLocaleString() || '0'}</p>
+            <p className="mt-2 text-xs leading-5 text-slate-500">{stats.topUsers[0]?.userId || '暂无'}</p>
+          </div>
+          <div className={`${logShareTileClass} p-4`}>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">列表页数</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-950">{totalPages.toLocaleString()}</p>
+            <p className="mt-2 text-xs leading-5 text-slate-500">{page}/{totalPages}</p>
+          </div>
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-0 flex-1">
-          <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            value={filters.keyword}
-            onChange={(event) => setFilters((prev) => ({ ...prev, keyword: event.target.value }))}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                setPage(1);
-                void fetchLogs(1);
-              }
+      {/* Search & filter bar */}
+      <div className={logSharePanelClass}>
+        <div className="flex flex-wrap items-center gap-2 px-5 py-4">
+          <div className="relative min-w-0 flex-1">
+            <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              value={filters.keyword}
+              onChange={(event) => setFilters((prev) => ({ ...prev, keyword: event.target.value }))}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  setPage(1);
+                  void fetchLogs(1);
+                }
+              }}
+              placeholder="搜索原文、译文或用户 ID"
+              className={`${logShareInputClass} pl-9`}
+            />
+          </div>
+          <button
+            onClick={() => setShowFilters((prev) => !prev)}
+            className={`${logShareSecondaryButtonClass} ${showFilters ? 'bg-slate-200 text-slate-800' : ''}`}
+          >
+            <FaFilter />筛选
+          </button>
+          <button
+            onClick={() => {
+              setPage(1);
+              void fetchLogs(1);
+              void fetchStats();
             }}
-            placeholder="搜索原文、译文或用户 ID"
-            className="w-full rounded-lg border px-9 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-300"
-          />
+            className={logSharePrimaryButtonClass}
+          >
+            搜索
+          </button>
+          <button
+            onClick={() => {
+              void fetchLogs(page);
+              void fetchStats();
+            }}
+            className={logShareSecondaryButtonClass}
+          >
+            <FaSync className={loading ? 'animate-spin' : ''} />
+          </button>
         </div>
-        <button
-          onClick={() => setShowFilters((prev) => !prev)}
-          className={`rounded-lg px-3 py-2 text-sm transition ${showFilters ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-        >
-          <span className="inline-flex items-center gap-1"><FaFilter />筛选</span>
-        </button>
-        <button
-          onClick={() => {
-            setPage(1);
-            void fetchLogs(1);
-            void fetchStats();
-          }}
-          className="rounded-lg bg-blue-500 px-4 py-2 text-sm text-white transition hover:bg-blue-600"
-        >
-          搜索
-        </button>
-        <button
-          onClick={() => {
-            void fetchLogs(page);
-            void fetchStats();
-          }}
-          className="rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-600 transition hover:bg-gray-200"
-        >
-          <FaSync className={loading ? 'animate-spin' : ''} />
-        </button>
+
+        <AnimatePresence initial={false}>
+          {showFilters ? (
+            <motion.div
+              key="filters"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="grid gap-3 border-t border-slate-100 px-5 py-4 sm:grid-cols-3">
+                <input
+                  value={filters.userId}
+                  onChange={(event) => setFilters((prev) => ({ ...prev, userId: event.target.value }))}
+                  placeholder="按 userId 精确筛选"
+                  className={logShareInputClass}
+                />
+                <input
+                  type="date"
+                  value={filters.startDate}
+                  onChange={(event) => setFilters((prev) => ({ ...prev, startDate: event.target.value }))}
+                  className={logShareInputClass}
+                />
+                <input
+                  type="date"
+                  value={filters.endDate}
+                  onChange={(event) => setFilters((prev) => ({ ...prev, endDate: event.target.value }))}
+                  className={logShareInputClass}
+                />
+              </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </div>
 
-      {showFilters ? (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          className="grid gap-3 rounded-lg bg-gray-50 p-3 sm:grid-cols-3"
-        >
-          <input
-            value={filters.userId}
-            onChange={(event) => setFilters((prev) => ({ ...prev, userId: event.target.value }))}
-            placeholder="按 userId 精确筛选"
-            className="rounded-lg border px-3 py-2 text-sm"
-          />
-          <input
-            type="date"
-            value={filters.startDate}
-            onChange={(event) => setFilters((prev) => ({ ...prev, startDate: event.target.value }))}
-            className="rounded-lg border px-3 py-2 text-sm"
-          />
-          <input
-            type="date"
-            value={filters.endDate}
-            onChange={(event) => setFilters((prev) => ({ ...prev, endDate: event.target.value }))}
-            className="rounded-lg border px-3 py-2 text-sm"
-          />
-        </motion.div>
-      ) : null}
-
-      <div className="overflow-hidden rounded-lg border bg-white">
+      {/* Log list */}
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
         {loading && logs.length === 0 ? (
-          <div className="p-8 text-center text-gray-400">加载中...</div>
+          <div className="p-8 text-center text-slate-400">加载中...</div>
         ) : logs.length === 0 ? (
-          <div className="p-8 text-center text-gray-400">暂无翻译日志</div>
+          <div className="p-8 text-center text-slate-400">暂无翻译日志</div>
         ) : (
-          <div className="divide-y">
+          <div className="divide-y divide-slate-100">
             {logs.map((log) => (
               <button
                 key={log._id}
                 type="button"
                 onClick={() => void openTrace(log)}
-                className="w-full px-4 py-3 text-left transition hover:bg-gray-50"
+                className="w-full px-5 py-4 text-left transition hover:bg-slate-50/60"
               >
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium text-gray-900">
+                    <div className="truncate text-sm font-medium text-slate-900">
                       {log.input_text}
                     </div>
-                    <div className="mt-1 truncate text-sm text-gray-500">
+                    <div className="mt-1 truncate text-sm text-slate-500">
                       {log.output_text || '无译文输出'}
                     </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
-                    <span>{log.userId}</span>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                    <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono">{log.userId}</span>
                     <span>{log.ip_address}</span>
                     <span>{new Date(log.timestamp).toLocaleString()}</span>
                   </div>
@@ -284,27 +303,29 @@ const TranslationAuditViewer: React.FC = () => {
         )}
       </div>
 
+      {/* Pagination */}
       <div className="flex items-center justify-between text-sm">
-        <span className="text-gray-500">共 {total} 条记录</span>
+        <span className="text-slate-500">共 {total} 条记录</span>
         <div className="flex items-center gap-2">
           <button
             disabled={page <= 1}
             onClick={() => setPage((prev) => prev - 1)}
-            className="rounded border px-2 py-1 disabled:opacity-40"
+            className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-1.5 text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
           >
             <FaChevronLeft />
           </button>
-          <span className="text-gray-500">{page} / {totalPages}</span>
+          <span className="text-slate-500">{page} / {totalPages}</span>
           <button
             disabled={page >= totalPages}
             onClick={() => setPage((prev) => prev + 1)}
-            className="rounded border px-2 py-1 disabled:opacity-40"
+            className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-1.5 text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
           >
             <FaChevronRight />
           </button>
         </div>
       </div>
 
+      {/* Trace modal */}
       <AnimatePresence>
         {selectedLog ? (
           <motion.div
@@ -318,29 +339,29 @@ const TranslationAuditViewer: React.FC = () => {
             }}
           >
             <motion.div
-              className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-2xl bg-white p-6 shadow-2xl"
+              className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-[26px] border border-white/70 bg-white/90 p-6 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] backdrop-blur-xl sm:p-8"
               initial={{ opacity: 0, y: 20, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.98 }}
               onClick={(event) => event.stopPropagation()}
             >
-              <div className="mb-4 flex items-start justify-between gap-4">
+              <div className="mb-6 flex items-start justify-between gap-4">
                 <div>
-                  <div className="text-xs uppercase tracking-[0.18em] text-gray-400">Translation Trace</div>
-                  <h3 className="mt-2 text-xl font-semibold text-gray-900">翻译日志溯源</h3>
+                  <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Translation Trace</div>
+                  <h3 className="mt-2 text-xl font-semibold text-slate-900">翻译日志溯源</h3>
                 </div>
                 <button
                   onClick={() => {
                     setSelectedLogId(null);
                     setSelectedUser(null);
                   }}
-                  className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-500"
+                  className={logShareSecondaryButtonClass}
                 >
                   关闭
                 </button>
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-[1.2fr,0.8fr]">
+              <div className="grid gap-5 lg:grid-cols-[1.2fr,0.8fr]">
                 <div className="space-y-4">
                   <DetailCard title="原文" value={selectedLog.input_text} />
                   <DetailCard title="译文" value={selectedLog.output_text || '无'} />
@@ -352,30 +373,30 @@ const TranslationAuditViewer: React.FC = () => {
                 </div>
 
                 <div className="space-y-4">
-                  <div className="rounded-xl border bg-gray-50 p-4">
-                    <div className="text-sm font-semibold text-gray-900">关联用户</div>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                    <div className="text-sm font-semibold text-slate-900">关联用户</div>
                     {userLoading ? (
-                      <div className="mt-3 text-sm text-gray-400">正在获取用户信息...</div>
+                      <div className="mt-3 text-sm text-slate-400">正在获取用户信息...</div>
                     ) : selectedUser ? (
-                      <div className="mt-3 space-y-2 text-sm text-gray-600">
-                        <div><span className="text-gray-400">ID:</span> {selectedUser.id}</div>
-                        <div><span className="text-gray-400">用户名:</span> {selectedUser.username}</div>
-                        <div><span className="text-gray-400">邮箱:</span> {selectedUser.email}</div>
-                        <div><span className="text-gray-400">角色:</span> {selectedUser.role}</div>
-                        <div><span className="text-gray-400">账户状态:</span> {selectedUser.accountStatus || 'active'}</div>
-                        <div><span className="text-gray-400">页面访问:</span> {selectedUser.isTranslationEnabled === false ? '已停用' : '正常'}</div>
+                      <div className="mt-3 space-y-2 text-sm text-slate-600">
+                        <div><span className="text-slate-400">ID:</span> {selectedUser.id}</div>
+                        <div><span className="text-slate-400">用户名:</span> {selectedUser.username}</div>
+                        <div><span className="text-slate-400">邮箱:</span> {selectedUser.email}</div>
+                        <div><span className="text-slate-400">角色:</span> {selectedUser.role}</div>
+                        <div><span className="text-slate-400">账户状态:</span> {selectedUser.accountStatus || 'active'}</div>
+                        <div><span className="text-slate-400">页面访问:</span> {selectedUser.isTranslationEnabled === false ? '已停用' : '正常'}</div>
                         <div>
-                          <span className="text-gray-400">翻译限制至:</span>{' '}
+                          <span className="text-slate-400">翻译限制至:</span>{' '}
                           {selectedUser.translationAccessUntil || '-'}
                         </div>
                       </div>
                     ) : (
-                      <div className="mt-3 text-sm text-gray-400">未获取到用户信息</div>
+                      <div className="mt-3 text-sm text-slate-400">未获取到用户信息</div>
                     )}
                   </div>
 
-                  <div className="rounded-xl border bg-white p-4">
-                    <div className="mb-3 text-sm font-semibold text-gray-900">惩戒操作</div>
+                  <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+                    <div className="mb-3 text-sm font-semibold text-slate-900">惩戒操作</div>
                     <div className="grid gap-2">
                       <PenaltyButton
                         icon={<FaBan />}
@@ -420,18 +441,10 @@ const TranslationAuditViewer: React.FC = () => {
   );
 };
 
-const StatCard: React.FC<{ label: string; value: number; caption?: string }> = ({ label, value, caption }) => (
-  <div className="rounded-xl border bg-white p-3 text-center">
-    <div className="text-xl font-bold text-gray-900">{value.toLocaleString()}</div>
-    <div className="mt-1 text-xs text-gray-500">{label}</div>
-    {caption ? <div className="mt-1 truncate text-[11px] text-gray-400">{caption}</div> : null}
-  </div>
-);
-
 const DetailCard: React.FC<{ title: string; value: string; code?: boolean }> = ({ title, value, code }) => (
-  <div className="rounded-xl border bg-gray-50 p-4">
-    <div className="mb-2 text-sm font-semibold text-gray-900">{title}</div>
-    <pre className={`${code ? 'font-mono text-xs' : 'text-sm'} whitespace-pre-wrap break-all text-gray-600`}>
+  <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+    <div className="mb-2 text-sm font-semibold text-slate-900">{title}</div>
+    <pre className={`${code ? 'font-mono text-xs' : 'text-sm'} whitespace-pre-wrap break-all text-slate-600`}>
       {value}
     </pre>
   </div>
@@ -447,7 +460,7 @@ const PenaltyButton: React.FC<{
   <button
     onClick={onClick}
     disabled={disabled}
-    className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
+    className={`flex items-center gap-2 rounded-2xl px-3 py-2 text-sm font-medium transition ${
       danger
         ? 'bg-rose-50 text-rose-700 hover:bg-rose-100'
         : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
