@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { adminOnly } from "../middleware/adminOnly";
 import { apiKeyAuth } from "../middleware/apiKeyAuth";
-import { authMiddleware } from "../middleware/auth";
+import { authMiddlewareV2 as authMiddleware } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { statusLimiter } from "../middleware/routeLimiters";
 import { profilingService } from "../services/profilingService";

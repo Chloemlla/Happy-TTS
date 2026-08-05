@@ -1,25 +1,27 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
-import { requireAuth, deviceSecurity, plusEntitlement } from "../../middleware/lumen/index.js";
+import { requireAuth, requireDeviceSecurity, requirePlusEntitlement } from "../../middleware/lumen/index.js";
 import { syncService } from "../../services/lumen/index.js";
 
 const router = Router();
 
-router.get("/changes", requireAuth, deviceSecurity, plusEntitlement, async (req: Request, res: Response, next: NextFunction) => {
+router.get("/changes", requireAuth, requireDeviceSecurity, requirePlusEntitlement, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { since } = req.query;
-    const user = (req as any).user;
-    const result = await syncService.changesSince(user.id, since as string);
+    const userId = req.lumenUserId;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const result = await syncService.changesSince(userId, since as string);
     res.json(result);
   } catch (error) {
     next(error);
   }
 });
 
-router.post("/push", requireAuth, deviceSecurity, plusEntitlement, async (req: Request, res: Response, next: NextFunction) => {
+router.post("/push", requireAuth, requireDeviceSecurity, requirePlusEntitlement, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { changes, cursor, deviceInstallationId } = req.body;
-    const user = (req as any).user;
-    const result = await syncService.pushChanges(user.id, changes, cursor, deviceInstallationId);
+    const userId = req.lumenUserId;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const result = await syncService.pushChanges(userId, changes, cursor, deviceInstallationId);
     res.json(result);
   } catch (error) {
     next(error);

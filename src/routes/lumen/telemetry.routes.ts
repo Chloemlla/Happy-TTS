@@ -6,9 +6,10 @@ const router = Router();
 
 router.post("/", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const user = (req as any).user;
+    const userId = req.lumenUserId;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
     const payload = req.body;
-    const result = await telemetryService.recordTelemetryUpload(user.id, payload);
+    const result = await telemetryService.recordTelemetryUpload(userId, payload);
     res.json(result);
   } catch (error) {
     next(error);

@@ -78,8 +78,9 @@ router.get("/openapi.json", (_req: Request, res: Response, next: NextFunction) =
 
 router.get("/config/feature-flags", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const user = (req as any).user;
-    const result = await configService.getFeatureFlags(user.id);
+    const userId = req.lumenUserId;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const result = await configService.getFeatureFlags(userId);
     res.json(result);
   } catch (error) {
     next(error);
@@ -89,8 +90,9 @@ router.get("/config/feature-flags", requireAuth, async (req: Request, res: Respo
 router.get("/config/sync", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { cursor, version, channel } = req.query;
-    const user = (req as any).user;
-    const result = await configService.getConfigSync(user.id, {
+    const userId = req.lumenUserId;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const result = await configService.getConfigSync(userId, {
       cursor: cursor as string | undefined,
       version: version as string | undefined,
       channel: channel as string | undefined,

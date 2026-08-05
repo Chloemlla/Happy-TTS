@@ -1,17 +1,18 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
-import { requireAuth, deviceSecurity } from "../../middleware/lumen/index.js";
+import { requireAuth, requireDeviceSecurity } from "../../middleware/lumen/index.js";
 import { privilegedControlService } from "../../services/lumen/index.js";
 
 const MAX_FRAME_BYTE_SIZE = 2.8 * 1024 * 1024; // 2.8 MB
 
 const router = Router();
 
-router.get("/policy", requireAuth, deviceSecurity, async (req: Request, res: Response, next: NextFunction) => {
+router.get("/policy", requireAuth, requireDeviceSecurity, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { deviceInstallationId } = req.query;
-    const user = (req as any).user;
+    const userId = req.lumenUserId;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
     const result = await privilegedControlService.getDeviceControlPolicy(
-      user.id,
+      userId,
       deviceInstallationId as string,
     );
     res.json(result);
@@ -20,27 +21,29 @@ router.get("/policy", requireAuth, deviceSecurity, async (req: Request, res: Res
   }
 });
 
-router.post("/vision/sessions", requireAuth, deviceSecurity, async (req: Request, res: Response, next: NextFunction) => {
+router.post("/vision/sessions", requireAuth, requireDeviceSecurity, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const user = (req as any).user;
-    const result = await privilegedControlService.startVisionSession(user.id, req.body);
+    const userId = req.lumenUserId;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const result = await privilegedControlService.startVisionSession(userId, req.body);
     res.json(result);
   } catch (error) {
     next(error);
   }
 });
 
-router.post("/vision/heartbeat", requireAuth, deviceSecurity, async (req: Request, res: Response, next: NextFunction) => {
+router.post("/vision/heartbeat", requireAuth, requireDeviceSecurity, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const user = (req as any).user;
-    const result = await privilegedControlService.heartbeatVisionSession(user.id, req.body);
+    const userId = req.lumenUserId;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const result = await privilegedControlService.heartbeatVisionSession(userId, req.body);
     res.json(result);
   } catch (error) {
     next(error);
   }
 });
 
-router.post("/vision/frames", requireAuth, deviceSecurity, async (req: Request, res: Response, next: NextFunction) => {
+router.post("/vision/frames", requireAuth, requireDeviceSecurity, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { frame } = req.body;
     if (!frame || typeof frame !== "object") {
@@ -65,22 +68,23 @@ router.post("/vision/frames", requireAuth, deviceSecurity, async (req: Request, 
       return;
     }
     if (encoding !== "base64") {
-      res.status(400).json({ error: "frame.encoding must be \"base64\"" });
+      res.status(400).json({ error: 'frame.encoding must be "base64"' });
       return;
     }
     if (byteSize > MAX_FRAME_BYTE_SIZE) {
       res.status(413).json({ error: `frame.byteSize exceeds maximum of ${MAX_FRAME_BYTE_SIZE} bytes` });
       return;
     }
-    const user = (req as any).user;
-    const result = await privilegedControlService.uploadVisionFrame(user.id, req.body, "default");
+    const userId = req.lumenUserId;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const result = await privilegedControlService.uploadVisionFrame(userId, req.body, "default");
     res.json(result);
   } catch (error) {
     next(error);
   }
 });
 
-router.post("/vision/surface-frames", requireAuth, deviceSecurity, async (req: Request, res: Response, next: NextFunction) => {
+router.post("/vision/surface-frames", requireAuth, requireDeviceSecurity, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { frame } = req.body;
     if (!frame || typeof frame !== "object") {
@@ -105,25 +109,27 @@ router.post("/vision/surface-frames", requireAuth, deviceSecurity, async (req: R
       return;
     }
     if (encoding !== "base64") {
-      res.status(400).json({ error: "frame.encoding must be \"base64\"" });
+      res.status(400).json({ error: 'frame.encoding must be "base64"' });
       return;
     }
     if (byteSize > MAX_FRAME_BYTE_SIZE) {
       res.status(413).json({ error: `frame.byteSize exceeds maximum of ${MAX_FRAME_BYTE_SIZE} bytes` });
       return;
     }
-    const user = (req as any).user;
-    const result = await privilegedControlService.uploadVisionFrame(user.id, req.body, "surface");
+    const userId = req.lumenUserId;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const result = await privilegedControlService.uploadVisionFrame(userId, req.body, "surface");
     res.json(result);
   } catch (error) {
     next(error);
   }
 });
 
-router.post("/lifecycle/events", requireAuth, deviceSecurity, async (req: Request, res: Response, next: NextFunction) => {
+router.post("/lifecycle/events", requireAuth, requireDeviceSecurity, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const user = (req as any).user;
-    const result = await privilegedControlService.recordLifecycleEvent(user.id, req.body);
+    const userId = req.lumenUserId;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const result = await privilegedControlService.recordLifecycleEvent(userId, req.body);
     res.json(result);
   } catch (error) {
     next(error);

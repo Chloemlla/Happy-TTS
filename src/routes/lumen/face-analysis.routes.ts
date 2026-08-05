@@ -1,12 +1,12 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
-import { requireAuth, deviceSecurity } from "../../middleware/lumen/index.js";
+import { requireAuth, requireDeviceSecurity } from "../../middleware/lumen/index.js";
 import { faceAnalysisService } from "../../services/lumen/index.js";
 
 const MAX_FRAME_BYTE_SIZE = 2.8 * 1024 * 1024; // 2.8 MB
 
 const router = Router();
 
-router.post("/frames", requireAuth, deviceSecurity, async (req: Request, res: Response, next: NextFunction) => {
+router.post("/frames", requireAuth, requireDeviceSecurity, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { deviceInstallationId, capturedAt, frame, faces, processingMetrics } = req.body;
 
@@ -44,7 +44,7 @@ router.post("/frames", requireAuth, deviceSecurity, async (req: Request, res: Re
       return;
     }
     if (encoding !== "base64") {
-      res.status(400).json({ error: "frame.encoding must be \"base64\"" });
+      res.status(400).json({ error: 'frame.encoding must be "base64"' });
       return;
     }
 
@@ -54,8 +54,9 @@ router.post("/frames", requireAuth, deviceSecurity, async (req: Request, res: Re
       return;
     }
 
-    const user = (req as any).user;
-    const result = await faceAnalysisService.recordFaceAnalysisFrame(user.id, {
+    const userId = req.lumenUserId;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const result = await faceAnalysisService.recordFaceAnalysisFrame(userId, {
       deviceInstallationId,
       capturedAt,
       frame,

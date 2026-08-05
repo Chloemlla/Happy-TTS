@@ -23,6 +23,10 @@ declare global {
 /**
  * V1 auth middleware: Bearer-header JWT authentication.
  * Reads the token from the `Authorization: Bearer <token>` header only.
+ *
+ * @deprecated Use authMiddlewareV2 instead, which supports both Bearer header
+ * and cookie-based authentication (synapse_token HttpOnly cookie). V1 is kept
+ * only for backward compatibility. New routes must use authMiddlewareV2.
  */
 export const authMiddleware = async (req: Request & { user?: any }, res: Response, next: NextFunction) => {
   try {

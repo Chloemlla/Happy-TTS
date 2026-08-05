@@ -6,8 +6,9 @@ const router = Router();
 
 router.get("/", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const user = (req as any).user;
-    const result = await entitlementsService.listEntitlements(user.id);
+    const userId = req.lumenUserId;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const result = await entitlementsService.listEntitlements(userId);
     res.json(result);
   } catch (error) {
     next(error);

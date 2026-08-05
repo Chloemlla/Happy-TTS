@@ -116,8 +116,8 @@ export const useAuth = () => {
         setSavedAccounts(updated);
     }, [loadSavedAccounts]);
 
-    // 恢复原始代码的 getUserById
-    const getUserById = useCallback(async (userId: string): Promise<User> => {
+    // 获取当前登录用户信息
+    const getCurrentUser = useCallback(async (): Promise<User> => {
         try {
             const response = await api.get<User>(`/api/auth/me`);
             return response.data;
@@ -290,7 +290,7 @@ export const useAuth = () => {
             });
 
             if (response.data.verified) {
-                const userData = await getUserById(userId);
+                const userData = await getCurrentUser();
                 setUser(userData);
                 saveAccount(userData);
                 setPendingTOTP(null);

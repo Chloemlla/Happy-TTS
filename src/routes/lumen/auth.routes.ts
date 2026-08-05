@@ -1,6 +1,5 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { authService } from "../../services/lumen/index.js";
-import { rateLimiter } from "../../middleware/lumen/index.js";
 
 const router = Router();
 
