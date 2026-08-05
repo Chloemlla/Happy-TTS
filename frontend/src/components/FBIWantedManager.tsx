@@ -157,7 +157,7 @@ const FBIWantedManager: React.FC = () => {
             case 'MEDIUM': return 'text-yellow-600 bg-yellow-100';
             case 'HIGH': return 'text-orange-600 bg-orange-100';
             case 'EXTREME': return 'text-red-600 bg-red-100';
-            default: return 'text-gray-600 bg-gray-100';
+            default: return 'text-slate-600 bg-slate-100';
         }
     };
 
@@ -166,9 +166,9 @@ const FBIWantedManager: React.FC = () => {
         switch (status) {
             case 'ACTIVE': return 'text-red-600 bg-red-100';
             case 'CAPTURED': return 'text-green-600 bg-green-100';
-            case 'DECEASED': return 'text-gray-600 bg-gray-100';
-            case 'REMOVED': return 'text-blue-600 bg-blue-100';
-            default: return 'text-gray-600 bg-gray-100';
+            case 'DECEASED': return 'text-slate-600 bg-slate-100';
+            case 'REMOVED': return 'text-blue-600 bg-slate-100';
+            default: return 'text-slate-600 bg-slate-100';
         }
     };
 
@@ -407,8 +407,8 @@ const FBIWantedManager: React.FC = () => {
 
         if (!src || error) {
             return (
-                <div className="w-full h-48 bg-gray-100 rounded-lg flex items-center justify-center">
-                    <FaUser className="text-4xl text-gray-400" />
+                <div className="w-full h-48 bg-slate-100 rounded-2xl flex items-center justify-center">
+                    <FaUser className="text-4xl text-slate-400" />
                 </div>
             );
         }
@@ -417,7 +417,7 @@ const FBIWantedManager: React.FC = () => {
             <img
                 src={src}
                 alt={alt}
-                className="w-full h-48 object-cover rounded-lg"
+                className="w-full h-48 object-cover rounded-2xl"
                 onError={() => setError(true)}
             />
         );
@@ -432,7 +432,7 @@ const FBIWantedManager: React.FC = () => {
     ), [prefersReducedMotion]);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10 py-8 px-4 rounded-lg">
+        <div className="min-h-screen bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10 py-8 px-4 rounded-2xl">
             <div className="max-w-7xl mx-auto px-4 space-y-8">
                 {/* 标题和统计信息部分 */}
                 <motion.div
@@ -467,7 +467,7 @@ const FBIWantedManager: React.FC = () => {
                     {statistics && (
                         <div className="p-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                                <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+                                <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
                                     <div className="flex items-center gap-2 mb-2">
                                         <FaExclamationTriangle className="text-red-600" />
                                         <h3 className="text-red-700 font-semibold">在逃通缉犯</h3>
@@ -475,7 +475,7 @@ const FBIWantedManager: React.FC = () => {
                                     <p className="text-2xl font-bold text-red-600">{statistics.active}</p>
                                 </div>
 
-                                <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                                <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
                                     <div className="flex items-center gap-2 mb-2">
                                         <FaShieldAlt className="text-green-600" />
                                         <h3 className="text-green-700 font-semibold">已抓获</h3>
@@ -483,7 +483,7 @@ const FBIWantedManager: React.FC = () => {
                                     <p className="text-2xl font-bold text-green-600">{statistics.captured}</p>
                                 </div>
 
-                                <div className="bg-[#8ECAE6]/10 border border-[#8ECAE6]/30 rounded-xl p-4">
+                                <div className="bg-[#8ECAE6]/10 border border-[#8ECAE6]/30 rounded-2xl p-4">
                                     <div className="flex items-center gap-2 mb-2">
                                         <FaUserSecret className="text-[#219EBC]" />
                                         <h3 className="text-[#023047] font-semibold">总计</h3>
@@ -491,7 +491,7 @@ const FBIWantedManager: React.FC = () => {
                                     <p className="text-2xl font-bold text-[#023047]">{statistics.total}</p>
                                 </div>
 
-                                <div className="bg-[#8ECAE6]/15 border border-[#8ECAE6]/30 rounded-xl p-4">
+                                <div className="bg-[#8ECAE6]/15 border border-[#8ECAE6]/30 rounded-2xl p-4">
                                     <div className="flex items-center gap-2 mb-2">
                                         <FaExclamationTriangle className="text-[#219EBC]" />
                                         <h3 className="text-[#023047] font-semibold">极度危险</h3>
@@ -515,20 +515,20 @@ const FBIWantedManager: React.FC = () => {
                     <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
                         <div className="flex flex-col sm:flex-row gap-4 flex-1">
                             <div className="relative flex-1">
-                                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
                                 <input
                                     type="text"
                                     placeholder="搜索通缉犯姓名、FBI编号或罪名..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 border border-[#8ECAE6]/30 rounded-xl focus:ring-2 focus:ring-[#FFB703] text-[#023047] focus:border-transparent"
+                                    className="w-full pl-10 pr-4 py-3 border border-[#8ECAE6]/30 rounded-2xl focus:ring-2 focus:ring-[#FFB703] text-[#023047] focus:border-transparent"
                                 />
                             </div>
 
                             <select
                                 value={statusFilter}
                                 onChange={(e) => setStatusFilter(e.target.value)}
-                                className="px-4 py-3 border border-[#8ECAE6]/30 rounded-xl focus:ring-2 focus:ring-[#FFB703] text-[#023047] focus:border-transparent"
+                                className="px-4 py-3 border border-[#8ECAE6]/30 rounded-2xl focus:ring-2 focus:ring-[#FFB703] text-[#023047] focus:border-transparent"
                             >
                                 <option value="ALL">所有状态</option>
                                 <option value="ACTIVE">在逃</option>
@@ -540,7 +540,7 @@ const FBIWantedManager: React.FC = () => {
                             <select
                                 value={dangerFilter}
                                 onChange={(e) => setDangerFilter(e.target.value)}
-                                className="px-4 py-3 border border-[#8ECAE6]/30 rounded-xl focus:ring-2 focus:ring-[#FFB703] text-[#023047] focus:border-transparent"
+                                className="px-4 py-3 border border-[#8ECAE6]/30 rounded-2xl focus:ring-2 focus:ring-[#FFB703] text-[#023047] focus:border-transparent"
                             >
                                 <option value="ALL">所有危险等级</option>
                                 <option value="LOW">低危险</option>
@@ -553,7 +553,7 @@ const FBIWantedManager: React.FC = () => {
                         <div className="flex flex-col sm:flex-row gap-4">
                             <motion.button
                                 onClick={() => handleBatchDelete({ status: 'DECEASED' }, '确定要删除所有已死亡的通缉犯记录吗？此操作不可逆！')}
-                                className="flex items-center justify-center gap-2 px-4 py-3 bg-[#FB8500] text-white rounded-xl hover:bg-[#FB8500]/80 transition-all duration-200 font-semibold"
+                                className="flex items-center justify-center gap-2 px-4 py-3 bg-[#FB8500] text-white rounded-2xl hover:bg-[#FB8500]/80 transition-all duration-200 font-semibold"
                                 whileHover={hoverScale(1.02)}
                                 whileTap={tapScale(0.98)}
                             >
@@ -562,7 +562,7 @@ const FBIWantedManager: React.FC = () => {
                             </motion.button>
                             <motion.button
                                 onClick={() => handleBatchDelete({}, '警告：确定要删除所有的通缉犯记录吗？此操作将清空数据库，不可逆！')}
-                                className="flex items-center justify-center gap-2 px-4 py-3 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all duration-200 font-semibold"
+                                className="flex items-center justify-center gap-2 px-4 py-3 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition-all duration-200 font-semibold"
                                 whileHover={hoverScale(1.02)}
                                 whileTap={tapScale(0.98)}
                             >
@@ -571,7 +571,7 @@ const FBIWantedManager: React.FC = () => {
                             </motion.button>
                             <motion.button
                                 onClick={() => setShowCreateModal(true)}
-                                className="flex items-center justify-center gap-2 px-6 py-3 bg-[#FFB703] text-[#023047] rounded-xl hover:bg-[#FB8500] transition-all duration-200 font-semibold"
+                                className="flex items-center justify-center gap-2 px-6 py-3 bg-[#FFB703] text-[#023047] rounded-2xl hover:bg-[#FB8500] transition-all duration-200 font-semibold"
                                 whileHover={hoverScale(1.02)}
                                 whileTap={tapScale(0.98)}
                             >
@@ -755,7 +755,7 @@ const FBIWantedManager: React.FC = () => {
                                                 setShowCreateModal(false);
                                                 setFormData({});
                                             }}
-                                            className="text-white hover:text-gray-200 transition-colors"
+                                            className="text-white hover:text-slate-200 transition-colors"
                                         >
                                             <FaTimes size={24} />
                                         </button>
@@ -765,99 +765,99 @@ const FBIWantedManager: React.FC = () => {
                                 <div className="p-6 space-y-4">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">姓名 *</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">姓名 *</label>
                                             <input
                                                 type="text"
                                                 value={formData.name || ''}
                                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="输入通缉犯姓名"
                                             />
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">年龄</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">年龄</label>
                                             <input
                                                 type="number"
                                                 value={formData.age || ''}
                                                 onChange={(e) => setFormData({ ...formData, age: parseInt(e.target.value) || 0 })}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="输入年龄"
                                             />
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">身高</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">身高</label>
                                             <input
                                                 type="text"
                                                 value={formData.height || ''}
                                                 onChange={(e) => setFormData({ ...formData, height: e.target.value })}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="例如：180cm 或 未知"
                                             />
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">体重</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">体重</label>
                                             <input
                                                 type="text"
                                                 value={formData.weight || ''}
                                                 onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="例如：75kg 或 未知"
                                             />
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">眼睛颜色</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">眼睛颜色</label>
                                             <input
                                                 type="text"
                                                 value={formData.eyes || ''}
                                                 onChange={(e) => setFormData({ ...formData, eyes: e.target.value })}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="例如：棕色/蓝色/未知"
                                             />
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">头发颜色</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">头发颜色</label>
                                             <input
                                                 type="text"
                                                 value={formData.hair || ''}
                                                 onChange={(e) => setFormData({ ...formData, hair: e.target.value })}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="例如：黑色/金色/未知"
                                             />
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">种族</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">种族</label>
                                             <input
                                                 type="text"
                                                 value={formData.race || ''}
                                                 onChange={(e) => setFormData({ ...formData, race: e.target.value })}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="例如：亚洲人/白人/未知"
                                             />
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">国籍</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">国籍</label>
                                             <input
                                                 type="text"
                                                 value={formData.nationality || ''}
                                                 onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="例如：中国/美国/未知"
                                             />
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">危险等级 *</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">危险等级 *</label>
                                             <select
                                                 value={formData.dangerLevel || 'LOW'}
                                                 onChange={(e) => setFormData({ ...formData, dangerLevel: e.target.value as any })}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                             >
                                                 <option value="LOW">低危险</option>
                                                 <option value="MEDIUM">中等危险</option>
@@ -867,11 +867,11 @@ const FBIWantedManager: React.FC = () => {
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">状态</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">状态</label>
                                             <select
                                                 value={formData.status || 'ACTIVE'}
                                                 onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                             >
                                                 <option value="ACTIVE">在逃</option>
                                                 <option value="CAPTURED">已抓获</option>
@@ -881,19 +881,19 @@ const FBIWantedManager: React.FC = () => {
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">奖金 ($)</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">奖金 ($)</label>
                                             <input
                                                 type="number"
                                                 value={formData.reward || ''}
                                                 onChange={(e) => setFormData({ ...formData, reward: parseInt(e.target.value) || 0 })}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="输入奖金金额"
                                             />
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">罪名</label>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">罪名</label>
                                         <input
                                             type="text"
                                             value={formData.charges?.join(', ') || ''}
@@ -904,18 +904,18 @@ const FBIWantedManager: React.FC = () => {
                                                     .map(s => s.trim())
                                                     .filter(s => s.length > 0)
                                             })}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                             placeholder="输入罪名，多个罪名用逗号分隔"
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">描述</label>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">描述</label>
                                         <textarea
                                             value={formData.description || ''}
                                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                             rows={3}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                             placeholder="输入详细描述"
                                         />
                                     </div>
@@ -932,13 +932,13 @@ const FBIWantedManager: React.FC = () => {
                                     />
                                 </div>
 
-                                <div className="px-6 py-4 bg-gray-50 rounded-b-2xl flex justify-end space-x-3">
+                                <div className="px-6 py-4 bg-slate-50/80 rounded-b-2xl flex justify-end space-x-3">
                                     <button
                                         onClick={() => {
                                             setShowCreateModal(false);
                                             resetForm();
                                         }}
-                                        className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                                        className="px-4 py-2 text-slate-600 hover:text-slate-800 transition-colors"
                                     >
                                         取消
                                     </button>
@@ -950,7 +950,7 @@ const FBIWantedManager: React.FC = () => {
                                             !(formData.charges && formData.charges.length > 0) ||
                                             !(typeof formData.reward === 'number' && formData.reward >= 0)
                                         }
-                                        className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2"
+                                        className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2"
                                     >
                                         {loading ? <FaSpinner className="animate-spin" /> : <FaSave />}
                                         {loading ? '创建中...' : '创建'}
@@ -987,7 +987,7 @@ const FBIWantedManager: React.FC = () => {
                                                 setSelectedWanted(null);
                                                 setFormData({});
                                             }}
-                                            className="text-white hover:text-gray-200 transition-colors"
+                                            className="text-white hover:text-slate-200 transition-colors"
                                         >
                                             <FaTimes size={24} />
                                         </button>
@@ -997,33 +997,33 @@ const FBIWantedManager: React.FC = () => {
                                 <div className="p-6 space-y-4">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">姓名 *</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">姓名 *</label>
                                             <input
                                                 type="text"
                                                 value={formData.name || ''}
                                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="输入通缉犯姓名"
                                             />
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">年龄</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">年龄</label>
                                             <input
                                                 type="number"
                                                 value={formData.age || ''}
                                                 onChange={(e) => setFormData({ ...formData, age: parseInt(e.target.value) || 0 })}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="输入年龄"
                                             />
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">危险等级 *</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">危险等级 *</label>
                                             <select
                                                 value={formData.dangerLevel || 'LOW'}
                                                 onChange={(e) => setFormData({ ...formData, dangerLevel: e.target.value as any })}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                             >
                                                 <option value="LOW">低危险</option>
                                                 <option value="MEDIUM">中等危险</option>
@@ -1033,11 +1033,11 @@ const FBIWantedManager: React.FC = () => {
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">状态</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">状态</label>
                                             <select
                                                 value={formData.status || 'ACTIVE'}
                                                 onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                             >
                                                 <option value="ACTIVE">在逃</option>
                                                 <option value="CAPTURED">已抓获</option>
@@ -1047,55 +1047,55 @@ const FBIWantedManager: React.FC = () => {
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">奖金 ($)</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">奖金 ($)</label>
                                             <input
                                                 type="number"
                                                 value={formData.reward || ''}
                                                 onChange={(e) => setFormData({ ...formData, reward: parseInt(e.target.value) || 0 })}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="输入奖金金额"
                                             />
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">罪名</label>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">罪名</label>
                                         <input
                                             type="text"
                                             value={formData.charges?.join(', ') || ''}
                                             onChange={(e) => setFormData({ ...formData, charges: e.target.value.split(',').map(s => s.trim()) })}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                             placeholder="输入罪名，多个罪名用逗号分隔"
                                         />
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">描述</label>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">描述</label>
                                         <textarea
                                             value={formData.description || ''}
                                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                             rows={3}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                            className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                             placeholder="输入详细描述"
                                         />
                                     </div>
                                 </div>
 
-                                <div className="px-6 py-4 bg-gray-50 rounded-b-2xl flex justify-end space-x-3">
+                                <div className="px-6 py-4 bg-slate-50/80 rounded-b-2xl flex justify-end space-x-3">
                                     <button
                                         onClick={() => {
                                             setShowEditModal(false);
                                             setSelectedWanted(null);
                                             setFormData({});
                                         }}
-                                        className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                                        className="px-4 py-2 text-slate-600 hover:text-slate-800 transition-colors"
                                     >
                                         取消
                                     </button>
                                     <button
                                         onClick={handleUpdateWanted}
                                         disabled={loading || !formData.name || !formData.fbiNumber}
-                                        className="px-6 py-2 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-lg hover:from-green-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2"
+                                        className="px-6 py-2 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-2xl hover:from-green-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2"
                                     >
                                         {loading ? <FaSpinner className="animate-spin" /> : <FaSave />}
                                         {loading ? '更新中...' : '更新'}
@@ -1131,7 +1131,7 @@ const FBIWantedManager: React.FC = () => {
                                                 setShowViewModal(false);
                                                 setSelectedWanted(null);
                                             }}
-                                            className="text-white hover:text-gray-200 transition-colors"
+                                            className="text-white hover:text-slate-200 transition-colors"
                                         >
                                             <FaTimes size={24} />
                                         </button>
@@ -1141,76 +1141,76 @@ const FBIWantedManager: React.FC = () => {
                                 <div className="p-6 space-y-4">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">姓名</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">姓名</label>
                                             <p className="text-lg font-semibold">{selectedWanted?.name}</p>
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">FBI编号</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">FBI编号</label>
                                             <p className="text-lg">{selectedWanted?.fbiNumber}</p>
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">年龄</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">年龄</label>
                                             <p className="text-lg">{selectedWanted?.age || '未知'}</p>
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">身高</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">身高</label>
                                             <p className="text-lg">{selectedWanted?.height || '未知'}</p>
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">体重</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">体重</label>
                                             <p className="text-lg">{selectedWanted?.weight || '未知'}</p>
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">眼睛颜色</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">眼睛颜色</label>
                                             <p className="text-lg">{selectedWanted?.eyes || '未知'}</p>
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">头发颜色</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">头发颜色</label>
                                             <p className="text-lg">{selectedWanted?.hair || '未知'}</p>
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">种族</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">种族</label>
                                             <p className="text-lg">{selectedWanted?.race || '未知'}</p>
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">国籍</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">国籍</label>
                                             <p className="text-lg">{selectedWanted?.nationality || '未知'}</p>
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">危险等级</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">危险等级</label>
                                             <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getDangerLevelColor(selectedWanted?.dangerLevel || '')}`}>
                                                 {selectedWanted?.dangerLevel}
                                             </span>
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">状态</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">状态</label>
                                             <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${getStatusColor(selectedWanted?.status || '')}`}>
                                                 {selectedWanted?.status}
                                             </span>
                                         </div>
 
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">奖金</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">奖金</label>
                                             <p className="text-lg font-semibold text-green-600">${(selectedWanted?.reward || 0).toLocaleString()}</p>
                                         </div>
                                     </div>
 
                                     {selectedWanted?.charges && selectedWanted.charges.length > 0 && (
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">罪名</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">罪名</label>
                                             <div className="flex flex-wrap gap-2">
                                                 {selectedWanted.charges.map((charge, index) => (
-                                                    <span key={index} className="px-2 py-1 bg-red-100 text-red-800 rounded-lg text-sm">
+                                                    <span key={index} className="px-2 py-1 bg-red-100 text-red-800 rounded-2xl text-sm">
                                                         {charge}
                                                     </span>
                                                 ))}
@@ -1220,50 +1220,50 @@ const FBIWantedManager: React.FC = () => {
 
                                     {selectedWanted?.description && (
                                         <div className="mt-4 pt-4 border-t">
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">描述</label>
-                                            <p className="text-gray-800 bg-gray-50 p-3 rounded-lg">{selectedWanted.description}</p>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">描述</label>
+                                            <p className="text-slate-800 bg-slate-50/80 p-3 rounded-2xl">{selectedWanted.description}</p>
                                         </div>
                                     )}
 
                                     <div className="mt-4 pt-4 border-t grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">FBI 编号</label>
-                                            <p className="text-gray-800 font-mono bg-gray-100 p-2 rounded">{selectedWanted?.fbiNumber}</p>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">FBI 编号</label>
+                                            <p className="text-slate-800 font-mono bg-slate-100 p-2 rounded">{selectedWanted?.fbiNumber}</p>
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">NCIC 编号</label>
-                                            <p className="text-gray-800 font-mono bg-gray-100 p-2 rounded">{selectedWanted?.ncicNumber || 'N/A'}</p>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">NCIC 编号</label>
+                                            <p className="text-slate-800 font-mono bg-slate-100 p-2 rounded">{selectedWanted?.ncicNumber || 'N/A'}</p>
                                         </div>
                                     </div>
 
                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">身高</label>
-                                            <p className="text-gray-800">{selectedWanted?.height || '未知'}</p>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">身高</label>
+                                            <p className="text-slate-800">{selectedWanted?.height || '未知'}</p>
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">体重</label>
-                                            <p className="text-gray-800">{selectedWanted?.weight || '未知'}</p>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">体重</label>
+                                            <p className="text-slate-800">{selectedWanted?.weight || '未知'}</p>
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">眼睛颜色</label>
-                                            <p className="text-gray-800">{selectedWanted?.eyes || '未知'}</p>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">眼睛颜色</label>
+                                            <p className="text-slate-800">{selectedWanted?.eyes || '未知'}</p>
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">头发颜色</label>
-                                            <p className="text-gray-800">{selectedWanted?.hair || '未知'}</p>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">头发颜色</label>
+                                            <p className="text-slate-800">{selectedWanted?.hair || '未知'}</p>
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">种族</label>
-                                            <p className="text-gray-800">{selectedWanted?.race || '未知'}</p>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">种族</label>
+                                            <p className="text-slate-800">{selectedWanted?.race || '未知'}</p>
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">国籍</label>
-                                            <p className="text-gray-800">{selectedWanted?.nationality || '未知'}</p>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">国籍</label>
+                                            <p className="text-slate-800">{selectedWanted?.nationality || '未知'}</p>
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-slate-600">
                                         <div>
                                             <label className="block font-medium mb-1">添加时间</label>
                                             <p>{new Date(selectedWanted?.dateAdded || '').toLocaleString()}</p>
@@ -1276,13 +1276,13 @@ const FBIWantedManager: React.FC = () => {
                                     </div>
                                 </div>
 
-                                <div className="px-6 py-4 bg-gray-50 rounded-b-2xl flex justify-end">
+                                <div className="px-6 py-4 bg-slate-50/80 rounded-b-2xl flex justify-end">
                                     <button
                                         onClick={() => {
                                             setShowViewModal(false);
                                             setSelectedWanted(null);
                                         }}
-                                        className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                                        className="px-6 py-2 bg-slate-600 text-white rounded-2xl hover:bg-slate-700 transition-colors"
                                     >
                                         关闭
                                     </button>

@@ -79,7 +79,7 @@ const TigerAdventure: React.FC = () => {
         <div className="absolute inset-0">
           {/* 会议室背景 */}
           <motion.div
-            className="absolute inset-0 bg-gradient-to-b from-gray-800 to-gray-900"
+            className="absolute inset-0 bg-gradient-to-b from-slate-800 to-slate-900"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 2 }}
@@ -185,9 +185,9 @@ const TigerAdventure: React.FC = () => {
                 default: { duration: 2, delay: 0.8 + i * 0.2, repeat: Infinity, repeatType: "reverse" }
               }}
             >
-              <div className="w-full h-1 bg-gray-400 mt-1"></div>
-              <div className="w-3/4 h-1 bg-gray-400 mt-1 mx-auto"></div>
-              <div className="w-1/2 h-1 bg-gray-400 mt-1 mx-auto"></div>
+              <div className="w-full h-1 bg-slate-400 mt-1"></div>
+              <div className="w-3/4 h-1 bg-slate-400 mt-1 mx-auto"></div>
+              <div className="w-1/2 h-1 bg-slate-400 mt-1 mx-auto"></div>
             </motion.div>
           ))}
           {/* 阴影效果 */}
@@ -232,7 +232,7 @@ const TigerAdventure: React.FC = () => {
           {[...Array(5)].map((_, i) => (
             <motion.div
               key={i}
-              className="absolute w-6 h-12 sm:w-8 sm:h-16 bg-gray-700 rounded-t-lg shadow-lg"
+              className="absolute w-6 h-12 sm:w-8 sm:h-16 bg-slate-700 rounded-t-lg shadow-lg"
               style={{
                 left: `${20 + i * 15}%`,
                 bottom: '20%'
@@ -436,7 +436,7 @@ const TigerAdventure: React.FC = () => {
         <div className="absolute inset-0">
           {/* 夜晚背景 */}
           <motion.div
-            className="absolute inset-0 bg-gradient-to-b from-gray-900 to-black"
+            className="absolute inset-0 bg-gradient-to-b from-slate-900 to-black"
             initial={{ opacity: 0, scaleX: 0 }}
             animate={{ opacity: 1, scaleX: 1 }}
             transition={{ 
@@ -445,7 +445,7 @@ const TigerAdventure: React.FC = () => {
             }}
           />
           <motion.div 
-            className="absolute top-1/2 left-1/4 w-8 h-1 bg-gray-400 transform -translate-y-1/2 rotate-12"
+            className="absolute top-1/2 left-1/4 w-8 h-1 bg-slate-400 transform -translate-y-1/2 rotate-12"
             initial={{ scaleX: 0 }}
             animate={{ scaleX: 1 }}
             transition={{ duration: 0.3, delay: 0.3 }}
@@ -473,7 +473,7 @@ const TigerAdventure: React.FC = () => {
           ))}
           {/* 月亮 */}
           <motion.div
-            className="absolute w-10 h-10 sm:w-12 sm:h-12 bg-gray-300 rounded-full"
+            className="absolute w-10 h-10 sm:w-12 sm:h-12 bg-slate-300 rounded-full"
             style={{ right: '10%', top: '10%' }}
             animate={{
               opacity: [0.5, 1, 0.5]
@@ -650,7 +650,7 @@ const TigerAdventure: React.FC = () => {
           {[...Array(8)].map((_, i) => (
             <motion.div
               key={i}
-              className="absolute w-6 h-6 bg-gray-600 rounded-full opacity-60"
+              className="absolute w-6 h-6 bg-slate-600 rounded-full opacity-60"
               style={{
                 left: `${40 + i * 3}%`,
                 top: '65%'
@@ -685,7 +685,7 @@ const TigerAdventure: React.FC = () => {
           {[...Array(15)].map((_, i) => (
             <motion.div
               key={i}
-              className="absolute w-2 h-2 bg-gray-500 rounded-full"
+              className="absolute w-2 h-2 bg-slate-500 rounded-full"
               style={{
                 left: '50%',
                 top: '70%'
@@ -721,7 +721,7 @@ const TigerAdventure: React.FC = () => {
         <div className="absolute inset-0">
           {/* 历史背景 */}
           <motion.div
-            className="absolute inset-0 bg-gradient-to-b from-gray-800 to-black"
+            className="absolute inset-0 bg-gradient-to-b from-slate-800 to-black"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ 
@@ -732,7 +732,7 @@ const TigerAdventure: React.FC = () => {
           {[...Array(12)].map((_, i) => (
             <motion.div
               key={i}
-              className="absolute w-6 h-6 bg-gray-700 rounded shadow-lg"
+              className="absolute w-6 h-6 bg-slate-700 rounded shadow-lg"
               style={{
                 left: `${20 + (i % 4) * 20}%`,
                 top: `${30 + Math.floor(i / 4) * 15}%`
@@ -751,13 +751,13 @@ const TigerAdventure: React.FC = () => {
               }}
             >
               <motion.div 
-                className="w-full h-1 bg-gray-500 mt-1"
+                className="w-full h-1 bg-slate-500 mt-1"
                 initial={{ scaleX: 0 }}
                 animate={{ scaleX: 1 }}
                 transition={{ duration: 0.3, delay: 0.5 + i * 0.1 }}
               />
               <motion.div 
-                className="w-2/3 h-1 bg-gray-500 mt-1 mx-auto"
+                className="w-2/3 h-1 bg-slate-500 mt-1 mx-auto"
                 initial={{ scaleX: 0 }}
                 animate={{ scaleX: 1 }}
                 transition={{ duration: 0.3, delay: 0.6 + i * 0.1 }}
@@ -894,7 +894,7 @@ const TigerAdventure: React.FC = () => {
               九·一三事件
             </motion.div>
             <motion.div 
-              className="text-gray-300 text-base sm:text-lg"
+              className="text-slate-300 text-base sm:text-lg"
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ duration: 0.5, delay: 1.7 }}
@@ -906,7 +906,7 @@ const TigerAdventure: React.FC = () => {
           {[...Array(6)].map((_, i) => (
             <motion.div
               key={i}
-              className="absolute w-12 h-12 bg-gray-600 rounded-full opacity-40"
+              className="absolute w-12 h-12 bg-slate-600 rounded-full opacity-40"
               style={{
                 left: `${30 + i * 8}%`,
                 top: `${60 + i * 3}%`
@@ -995,7 +995,7 @@ const TigerAdventure: React.FC = () => {
               历史教训
             </motion.div>
             <motion.div 
-              className="text-gray-400 text-xs sm:text-sm max-w-md px-4 drop-shadow-lg bg-black/30 rounded-lg py-2"
+              className="text-slate-400 text-xs sm:text-sm max-w-md px-4 drop-shadow-lg bg-black/30 rounded-lg py-2"
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ duration: 0.5, delay: 3.7 }}

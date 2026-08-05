@@ -183,7 +183,7 @@ const AnnouncementManager: React.FC = () => {
         transition={{ duration: 0.6 }}
       >
         <motion.div 
-          className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6 border border-red-100"
+          className="bg-gradient-to-r from-red-50 to-pink-50 rounded-2xl p-6 border border-red-100"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
@@ -192,7 +192,7 @@ const AnnouncementManager: React.FC = () => {
             🔒
             访问被拒绝
           </h2>
-          <div className="text-gray-600 space-y-2">
+          <div className="text-slate-600 space-y-2">
             <p>你不是管理员，禁止访问！请用管理员账号登录后再来。</p>
             <div className="text-sm text-red-500 italic">
               公告管理仅限管理员使用
@@ -212,20 +212,20 @@ const AnnouncementManager: React.FC = () => {
     >
       {/* 标题和说明 */}
       <motion.div 
-        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
+        className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl p-6 border border-slate-200"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
-          <FaBullhorn className="text-2xl text-blue-600" />
+        <h2 className="text-2xl font-bold text-slate-800 mb-3 flex items-center gap-2">
+          <FaBullhorn className="text-2xl text-slate-600" />
           公告管理
         </h2>
-        <div className="text-gray-600 space-y-2">
+        <div className="text-slate-600 space-y-2">
           <p>管理系统公告内容，支持 Markdown 和 HTML 格式。</p>
           <div className="flex items-start gap-2 text-sm">
             <div>
-              <p className="font-semibold text-blue-700">功能说明：</p>
+              <p className="font-semibold text-slate-800">功能说明：</p>
               <ul className="list-disc list-inside space-y-1 mt-1">
                 <li>支持 Markdown 和 HTML 格式</li>
                 <li>实时预览公告效果</li>
@@ -239,20 +239,20 @@ const AnnouncementManager: React.FC = () => {
 
       {/* 公告内容卡片 */}
       <motion.div 
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+        className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <FaEdit className="text-lg text-blue-500" />
+          <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+            <FaEdit className="text-lg text-slate-500" />
             公告内容
           </h3>
           <motion.button
             onClick={fetchAnnouncement}
             disabled={loading}
-            className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+            className="px-3 py-2 bg-slate-500 text-white rounded-2xl hover:bg-slate-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
             whileTap={{ scale: 0.95 }}
           >
             <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -263,8 +263,8 @@ const AnnouncementManager: React.FC = () => {
         </div>
 
         {loading ? (
-          <div className="text-center py-8 text-gray-500">
-            <svg className="animate-spin h-8 w-8 mx-auto mb-4 text-blue-500" fill="none" viewBox="0 0 24 24">
+          <div className="text-center py-8 text-slate-500">
+            <svg className="animate-spin h-8 w-8 mx-auto mb-4 text-slate-500" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
@@ -282,11 +282,11 @@ const AnnouncementManager: React.FC = () => {
                 className="space-y-4"
               >
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
                     公告内容
                   </label>
                   <textarea
-                    className="w-full h-40 border-2 border-gray-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                    className="w-full h-40 border-2 border-slate-200 rounded-2xl p-3 focus:outline-none focus:ring-2 focus:ring-slate-400 transition-all"
                     value={content}
                     onChange={e => setContent(e.target.value)}
                     placeholder="请输入公告内容"
@@ -294,7 +294,7 @@ const AnnouncementManager: React.FC = () => {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
                     格式选择
                   </label>
                   <div className="flex items-center space-x-6">
@@ -303,7 +303,7 @@ const AnnouncementManager: React.FC = () => {
                         type="radio"
                         checked={format === 'markdown'}
                         onChange={() => setFormat('markdown')}
-                        className="mr-2 text-blue-500"
+                        className="mr-2 text-slate-500"
                       />
                       <span className="text-sm">Markdown</span>
                     </label>
@@ -312,7 +312,7 @@ const AnnouncementManager: React.FC = () => {
                         type="radio"
                         checked={format === 'html'}
                         onChange={() => setFormat('html')}
-                        className="mr-2 text-blue-500"
+                        className="mr-2 text-slate-500"
                       />
                       <span className="text-sm">HTML</span>
                     </label>
@@ -321,7 +321,7 @@ const AnnouncementManager: React.FC = () => {
                 
                 <div className="flex space-x-3">
                   <motion.button
-                    className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 font-medium"
+                    className="px-6 py-3 bg-slate-500 text-white rounded-2xl hover:bg-slate-600 transition disabled:opacity-50 font-medium"
                     onClick={saveAnnouncement}
                     disabled={!content.trim() || saving || deleting}
                     whileTap={{ scale: 0.95 }}
@@ -329,7 +329,7 @@ const AnnouncementManager: React.FC = () => {
                     {saving ? '保存中...' : '保存'}
                   </motion.button>
                   <motion.button
-                    className="px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium disabled:opacity-50"
+                    className="px-6 py-3 bg-slate-500 text-white rounded-2xl hover:bg-slate-600 transition font-medium disabled:opacity-50"
                     onClick={() => setEditing(false)}
                     disabled={saving || deleting}
                     whileTap={{ scale: 0.95 }}
@@ -337,7 +337,7 @@ const AnnouncementManager: React.FC = () => {
                     取消
                   </motion.button>
                   <motion.button
-                    className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium disabled:opacity-50"
+                    className="px-6 py-3 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition font-medium disabled:opacity-50"
                     onClick={deleteAnnouncement}
                     disabled={saving || deleting}
                     whileTap={{ scale: 0.95 }}
@@ -356,10 +356,10 @@ const AnnouncementManager: React.FC = () => {
                 className="space-y-4"
               >
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
                     公告预览
                   </label>
-                  <div className="border-2 border-gray-200 rounded-lg p-4 min-h-[120px] bg-gray-50">
+                  <div className="border-2 border-slate-200 rounded-2xl p-4 min-h-[120px] bg-slate-50/80">
                     {content ? (
                       format === 'markdown' ? (
                         <MarkdownRenderer content={content} density="compact" />
@@ -370,8 +370,8 @@ const AnnouncementManager: React.FC = () => {
                         />
                       )
                     ) : (
-                      <div className="text-gray-400 text-center py-8">
-                        <svg className="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="text-slate-400 text-center py-8">
+                        <svg className="w-12 h-12 mx-auto mb-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                         暂无公告内容
@@ -382,7 +382,7 @@ const AnnouncementManager: React.FC = () => {
                 
                 <div className="flex space-x-3">
                   <motion.button
-                    className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium"
+                    className="px-6 py-3 bg-slate-500 text-white rounded-2xl hover:bg-slate-600 transition font-medium"
                     onClick={() => setEditing(true)}
                     whileTap={{ scale: 0.95 }}
                   >
@@ -390,7 +390,7 @@ const AnnouncementManager: React.FC = () => {
                   </motion.button>
                   {content && (
                     <motion.button
-                      className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium disabled:opacity-50"
+                      className="px-6 py-3 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition font-medium disabled:opacity-50"
                       onClick={deleteAnnouncement}
                       disabled={deleting}
                       whileTap={{ scale: 0.95 }}

@@ -229,7 +229,7 @@ const LibreChatAdminPage: React.FC = () => {
     >
       {/* 标题和说明 */}
       <motion.div
-        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
+        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
@@ -238,7 +238,7 @@ const LibreChatAdminPage: React.FC = () => {
           <FaEnvelope className="text-blue-500" />
           LibreChat 管理
         </h2>
-        <div className="text-gray-600 space-y-2">
+        <div className="text-slate-600 space-y-2">
           <p>管理 LibreChat 用户聊天历史，包括查看、搜索和删除用户对话记录。</p>
           <div className="flex items-start gap-2 text-sm">
             <div>
@@ -258,25 +258,25 @@ const LibreChatAdminPage: React.FC = () => {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Left: Users list */}
         <motion.div
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
           {/* 危险操作提示 */}
-          <div className="mb-4 p-3 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm">
+          <div className="mb-4 p-3 rounded-2xl border border-red-200 bg-red-50 text-red-700 text-sm">
             危险操作提示：点击 “删除全部” 将清空所有用户的聊天历史（无需选择）。
           </div>
 
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
               <FaUsers className="text-lg text-blue-500" />
               用户列表
             </h3>
             <div className="flex items-center gap-3">
-              <div className="text-sm text-gray-500">共 {total} 条</div>
+              <div className="text-sm text-slate-500">共 {total} 条</div>
               <motion.button
-                className="px-3 py-1 bg-gray-100 hover:bg-gray-200 border rounded text-sm transition"
+                className="px-3 py-1 bg-slate-100 hover:bg-slate-200 border rounded text-sm transition"
                 onClick={() => { fetchUsers(page, true); setNotification({ type: 'info', message: '已刷新列表' }); }}
                 disabled={loading || actionLoading}
                 whileTap={{ scale: 0.95 }}
@@ -326,17 +326,17 @@ const LibreChatAdminPage: React.FC = () => {
               <div className="flex-1">
                 <div className="relative">
                   <input
-                    className="w-full px-4 py-2 pl-10 pr-10 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                    className="w-full px-4 py-2 pl-10 pr-10 border-2 border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
                     placeholder="搜索 userId (支持模糊)"
                     value={kw}
                     onChange={(e) => setKw(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') onSearch(); }}
                     onBlur={() => kw.trim() && onSearch()}
                   />
-                  <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                  <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
                   {kw && (
                     <button
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-blue-600 transition-colors"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-blue-600 transition-colors"
                       onClick={async () => {
                         try {
                           await navigator.clipboard.writeText(kw);
@@ -353,14 +353,14 @@ const LibreChatAdminPage: React.FC = () => {
                 </div>
               </div>
               <motion.button
-                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium flex items-center gap-2"
+                className="px-6 py-2 bg-blue-500 text-white rounded-2xl hover:bg-blue-600 transition font-medium flex items-center gap-2"
                 onClick={onSearch}
                 disabled={loading || actionLoading}
                 whileTap={{ scale: 0.95 }}
               >
                 {loading ? '搜索中...' : '搜索'}
               </motion.button>
-              <label className="flex items-center gap-2 text-sm text-gray-700 select-none">
+              <label className="flex items-center gap-2 text-sm text-slate-700 select-none">
                 <input
                   type="checkbox"
                   className="w-4 h-4"
@@ -371,7 +371,7 @@ const LibreChatAdminPage: React.FC = () => {
                 显示已删除
               </label>
               <motion.button
-                className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-medium flex items-center gap-2"
+                className="px-6 py-2 bg-red-600 text-white rounded-2xl hover:bg-red-700 transition font-medium flex items-center gap-2"
                 onClick={handleDeleteAll}
                 disabled={loading || actionLoading}
                 title="删除所有用户历史（无需选择）"
@@ -385,7 +385,7 @@ const LibreChatAdminPage: React.FC = () => {
             
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">每页</span>
+                <span className="text-sm text-slate-500">每页</span>
                 <select
                   className="border rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                   value={limit}
@@ -395,7 +395,7 @@ const LibreChatAdminPage: React.FC = () => {
                   {PAGE_SIZES.map(ps => <option key={ps} value={ps}>{ps}</option>)}
                 </select>
               </div>
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-slate-500">
                 第 {page}/{totalPages} 页
               </div>
             </div>
@@ -411,14 +411,14 @@ const LibreChatAdminPage: React.FC = () => {
           ) : (
             <div className="space-y-3">
               {users.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <FaUsers className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <div className="text-center py-8 text-slate-500">
+                  <FaUsers className="w-12 h-12 mx-auto mb-4 text-slate-300" />
                   暂无用户数据
                 </div>
               ) : (
                 <>
                   {/* 全选和批量删除 */}
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                  <div className="flex items-center justify-between p-3 bg-slate-50/80 rounded-2xl border">
                     <div className="flex items-center gap-3">
                       <label className="flex items-center gap-2 cursor-pointer">
                         <input
@@ -428,7 +428,7 @@ const LibreChatAdminPage: React.FC = () => {
                           onChange={toggleSelectAll}
                           disabled={actionLoading}
                         />
-                        <span className="text-sm font-medium text-gray-700">全选</span>
+                        <span className="text-sm font-medium text-slate-700">全选</span>
                       </label>
                       {selectedUserIds.length > 0 && (
                         <span className="text-sm text-blue-600">已选择 {selectedUserIds.length} 个用户</span>
@@ -467,7 +467,7 @@ const LibreChatAdminPage: React.FC = () => {
                   {users.map((u, idx) => (
                     <motion.div
                       key={u.userId}
-                      className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                      className="p-4 border border-slate-200 rounded-2xl hover:bg-slate-50/80 transition-colors"
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.3, delay: 0.1 * idx }}
@@ -485,11 +485,11 @@ const LibreChatAdminPage: React.FC = () => {
                           <div className="flex-1 min-w-0 max-w-full">
                             <div className="flex items-center gap-2 mb-2">
                               <FaUser className="text-blue-500 flex-shrink-0" />
-                              <span className="font-medium text-gray-800 truncate max-w-32" title={u.userId}>
+                              <span className="font-medium text-slate-800 truncate max-w-32" title={u.userId}>
                                 {u.userId.length > 24 ? `${u.userId.slice(0, 20)}...${u.userId.slice(-4)}` : u.userId}
                               </span>
                               <button
-                                className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                                className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
                                 onClick={async () => {
                                   try {
                                     await navigator.clipboard.writeText(u.userId);
@@ -503,7 +503,7 @@ const LibreChatAdminPage: React.FC = () => {
                                 <FaCopy className="w-3 h-3" />
                               </button>
                             </div>
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-gray-600">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-slate-600">
                               <div className="flex items-center gap-1">
                                 <FaComments className="text-green-500" />
                                 <span>{u.total} 条消息</span>
@@ -545,9 +545,9 @@ const LibreChatAdminPage: React.FC = () => {
 
           {/* 分页控制 */}
           {users.length > 0 && (
-            <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-200">
+            <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-200">
               <motion.button
-                className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition flex items-center gap-2"
+                className="px-4 py-2 border border-slate-300 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50/80 transition flex items-center gap-2"
                 disabled={page <= 1 || actionLoading}
                 onClick={async () => { await fetchUsers(page - 1); setNotification({ type: 'info', message: `已切换到第 ${page - 1} 页` }); }}
                 whileTap={{ scale: 0.95 }}
@@ -556,7 +556,7 @@ const LibreChatAdminPage: React.FC = () => {
                 上一页
               </motion.button>
               <motion.button
-                className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition flex items-center gap-2"
+                className="px-4 py-2 border border-slate-300 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50/80 transition flex items-center gap-2"
                 disabled={page >= totalPages || actionLoading}
                 onClick={async () => { await fetchUsers(page + 1); setNotification({ type: 'info', message: `已切换到第 ${page + 1} 页` }); }}
                 whileTap={{ scale: 0.95 }}
@@ -570,13 +570,13 @@ const LibreChatAdminPage: React.FC = () => {
 
         {/* Right: Selected user's history */}
         <motion.div
-          className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+          className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
         >
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
               <FaHistory className="text-lg text-blue-500" />
               用户历史
             </h3>
@@ -603,12 +603,12 @@ const LibreChatAdminPage: React.FC = () => {
               </motion.button>
             )}
             {selectedUser && (
-              <div className="flex items-center gap-2 text-sm text-gray-500 truncate max-w-48">
+              <div className="flex items-center gap-2 text-sm text-slate-500 truncate max-w-48">
                 <span title={selectedUser.userId}>
                   {selectedUser.userId.length > 24 ? `${selectedUser.userId.slice(0, 20)}...${selectedUser.userId.slice(-4)}` : selectedUser.userId} · 共 {hTotal} 条
                 </span>
                 <button
-                  className="p-1 text-gray-400 hover:text-blue-600 transition-colors flex-shrink-0"
+                  className="p-1 text-slate-400 hover:text-blue-600 transition-colors flex-shrink-0"
                   onClick={async () => {
                     try {
                       await navigator.clipboard.writeText(selectedUser.userId);
@@ -626,8 +626,8 @@ const LibreChatAdminPage: React.FC = () => {
           </div>
 
           {!selectedUser ? (
-            <div className="text-center py-12 text-gray-500">
-              <FaHistory className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+            <div className="text-center py-12 text-slate-500">
+              <FaHistory className="w-12 h-12 mx-auto mb-4 text-slate-300" />
               <p>请选择左侧用户以查看详情</p>
             </div>
           ) : (
@@ -635,7 +635,7 @@ const LibreChatAdminPage: React.FC = () => {
               {/* 分页控制 */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">每页</span>
+                  <span className="text-sm text-slate-500">每页</span>
                   <select
                     className="border rounded px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     value={hLimit}
@@ -645,7 +645,7 @@ const LibreChatAdminPage: React.FC = () => {
                     {PAGE_SIZES.map(ps => <option key={ps} value={ps}>{ps}</option>)}
                   </select>
                 </div>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-slate-500">
                   第 {hPage}/{hTotalPages} 页
                 </div>
               </div>
@@ -659,20 +659,20 @@ const LibreChatAdminPage: React.FC = () => {
                     className="py-4"
                   />
                 ) : history.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <FaComments className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                  <div className="text-center py-8 text-slate-500">
+                    <FaComments className="w-8 h-8 mx-auto mb-2 text-slate-300" />
                     暂无消息
                   </div>
                 ) : (
                   history.map((m, idx) => (
                     <motion.div
                       key={m.id}
-                      className="p-4 border border-gray-200 rounded-lg"
+                      className="p-4 border border-slate-200 rounded-2xl"
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: 0.05 * idx }}
                     >
-                      <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                      <div className="flex items-center justify-between text-xs text-slate-500 mb-2">
                         <div className="flex items-center gap-2 min-w-0 flex-1 max-w-full">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 ${
                             m.role === 'user' 
@@ -684,11 +684,11 @@ const LibreChatAdminPage: React.FC = () => {
                           <span className="truncate max-w-32">{formatTs(m.timestamp)}</span>
                         </div>
                         <div className="flex items-center gap-1 ml-2 flex-shrink-0">
-                          <span className="font-mono text-[10px] text-gray-400 truncate max-w-28" title={m.id}>
+                          <span className="font-mono text-[10px] text-slate-400 truncate max-w-28" title={m.id}>
                             {m.id.length > 16 ? `${m.id.slice(0, 12)}...${m.id.slice(-4)}` : m.id}
                           </span>
                           <button
-                            className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
+                            className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
                             onClick={async () => {
                               try {
                                 await navigator.clipboard.writeText(m.id);
@@ -714,7 +714,7 @@ const LibreChatAdminPage: React.FC = () => {
                             defaultExpanded: false,
                             collapsedHeight: 300,
                           }}
-                          className="bg-gray-50 p-3 rounded-sm border"
+                          className="bg-slate-50/80 p-3 rounded-sm border"
                           onContentCopy={(success) => {
                             setNotification({ type: success ? 'success' : 'error', message: success ? '消息内容已复制' : '复制失败' });
                           }}
@@ -737,9 +737,9 @@ const LibreChatAdminPage: React.FC = () => {
 
               {/* 历史记录分页控制 */}
               {history.length > 0 && (
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-200">
                   <motion.button
-                    className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition flex items-center gap-2"
+                    className="px-4 py-2 border border-slate-300 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50/80 transition flex items-center gap-2"
                     disabled={hPage <= 1 || actionLoading}
                     onClick={async () => { await fetchHistory(selectedUser.userId, hPage - 1); setNotification({ type: 'info', message: `已切换到第 ${hPage - 1} 页` }); }}
                     whileTap={{ scale: 0.95 }}
@@ -748,7 +748,7 @@ const LibreChatAdminPage: React.FC = () => {
                     上一页
                   </motion.button>
                   <motion.button
-                    className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 transition flex items-center gap-2"
+                    className="px-4 py-2 border border-slate-300 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50/80 transition flex items-center gap-2"
                     disabled={hPage >= hTotalPages || actionLoading}
                     onClick={async () => { await fetchHistory(selectedUser.userId, hPage + 1); setNotification({ type: 'info', message: `已切换到第 ${hPage + 1} 页` }); }}
                     whileTap={{ scale: 0.95 }}

@@ -599,12 +599,12 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
 
     return (
         <div className="w-full min-h-screen flex items-center justify-center py-8 px-2">
-            <div className="max-w-md w-full space-y-6 p-8 bg-white rounded-3xl shadow-2xl border border-blue-100 mx-auto animate-fade-in">
+            <div className="max-w-md w-full space-y-6 p-8 bg-white/90 rounded-3xl shadow-2xl border border-blue-100 mx-auto animate-fade-in">
                 <div>
                     <h2 className="text-center text-4xl font-extrabold text-indigo-700 mb-2 drop-shadow-lg tracking-wide">
                         {isLogin ? '登录' : '注册'}
                     </h2>
-                    <div className="text-center text-gray-500 text-base mb-4">
+                    <div className="text-center text-slate-500 text-base mb-4">
                         欢迎使用 Synapse
                     </div>
                 </div>
@@ -617,7 +617,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                                 name="username"
                                 type="text"
                                 required
-                                className="appearance-none rounded-xl relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:z-10 sm:text-base bg-white mb-3 transition-all duration-200"
+                                className="appearance-none rounded-xl relative block w-full px-4 py-3 border border-slate-300 placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:z-10 sm:text-base bg-white mb-3 transition-all duration-200"
                                 placeholder="用户名 (3-20个字符，只允许字母、数字、下划线)"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
@@ -633,7 +633,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                                     name="email"
                                     type="email"
                                     required
-                                    className="appearance-none rounded-xl relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:z-10 sm:text-base bg-white mb-3 transition-all duration-200"
+                                    className="appearance-none rounded-xl relative block w-full px-4 py-3 border border-slate-300 placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:z-10 sm:text-base bg-white mb-3 transition-all duration-200"
                                     placeholder="邮箱"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
@@ -647,7 +647,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                                 name="password"
                                 type="password"
                                 required
-                                className="appearance-none rounded-xl relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:z-10 sm:text-base bg-white mb-3 transition-all duration-200"
+                                className="appearance-none rounded-xl relative block w-full px-4 py-3 border border-slate-300 placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:z-10 sm:text-base bg-white mb-3 transition-all duration-200"
                                 placeholder={isLogin ? "请输入密码" : "密码 (至少8位，包含大小写字母、数字和特殊字符)"}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
@@ -655,7 +655,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                             />
                             {!isLogin && password && (
                                 <div className="relative">
-                                    <div className="mt-1 p-2 text-sm text-gray-600 bg-gray-50 rounded border border-gray-200 break-words">
+                                    <div className="mt-1 p-2 text-sm text-slate-600 bg-slate-50/80 rounded border border-slate-200 break-words">
                                         <div className="mb-1">密码强度：
                                             <span className={`font-medium ${passwordStrength.score >= 4 ? 'text-green-600' :
                                                 passwordStrength.score >= 3 ? 'text-blue-600' :
@@ -670,7 +670,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                                             </span>
                                         </div>
                                         {passwordStrength.feedback && !!username && !!email && (
-                                            <div className="text-xs text-gray-500">
+                                            <div className="text-xs text-slate-500">
                                                 {passwordStrength.feedback}
                                             </div>
                                         )}
@@ -686,7 +686,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                                     name="confirmPassword"
                                     type="password"
                                     required
-                                    className="appearance-none rounded-xl relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:z-10 sm:text-base bg-white mb-3 transition-all duration-200"
+                                    className="appearance-none rounded-xl relative block w-full px-4 py-3 border border-slate-300 placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:z-10 sm:text-base bg-white mb-3 transition-all duration-200"
                                     placeholder="确认密码"
                                     value={confirmPassword}
                                     onChange={(e) => setConfirmPassword(e.target.value)}
@@ -700,7 +700,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                                     id="invitationCode"
                                     name="invitationCode"
                                     type="text"
-                                    className="appearance-none rounded-xl relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:z-10 sm:text-base bg-white mb-3 transition-all duration-200 uppercase"
+                                    className="appearance-none rounded-xl relative block w-full px-4 py-3 border border-slate-300 placeholder-slate-400 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 focus:z-10 sm:text-base bg-white mb-3 transition-all duration-200 uppercase"
                                     placeholder="邀请码（如站点要求）"
                                     value={invitationCode}
                                     onChange={(e) => setInvitationCode(e.target.value.toUpperCase())}
@@ -724,7 +724,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                                     {turnstileVerified ? (
                                         <span className="text-green-600 font-medium">人机验证通过</span>
                                     ) : (
-                                        <span className="text-gray-500">请完成人机验证</span>
+                                        <span className="text-slate-500">请完成人机验证</span>
                                     )}
                                 </div>
                                 {turnstileError && (
@@ -743,10 +743,10 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                             type="checkbox"
                             checked={agreed}
                             onChange={e => setAgreed(e.target.checked)}
-                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-slate-300 rounded"
                             required
                         />
-                        <label htmlFor="agree" className="ml-2 block text-sm text-gray-700">
+                        <label htmlFor="agree" className="ml-2 block text-sm text-slate-700">
                             我已阅读并同意
                             <Link to="/policy" className="text-blue-600 hover:underline ml-1" target="_blank">
                                 服务条款与隐私政策
@@ -878,7 +878,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                         transition={{ duration: 0.3 }}
                     >
                         <motion.div
-                            className="bg-white rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden"
+                            className="bg-white/90 rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden"
                             initial={{ scale: 0.9, opacity: 0, y: 50 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.9, opacity: 0, y: 50 }}
@@ -895,10 +895,10 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                                         </svg>
                                     </div>
-                                    <h3 className="text-2xl font-bold text-gray-900 mb-2">创建账户</h3>
-                                    <p className="text-gray-600 leading-relaxed">
+                                    <h3 className="text-2xl font-bold text-slate-900 mb-2">创建账户</h3>
+                                    <p className="text-slate-600 leading-relaxed">
                                         请输入发送到 <br />
-                                        <span className="font-semibold text-gray-900">{pendingEmail}</span> <br />
+                                        <span className="font-semibold text-slate-900">{pendingEmail}</span> <br />
                                         的验证码
                                     </p>
                                 </div>
@@ -907,7 +907,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                                 <div className="mb-8">
                                     <VerifyCodeInput
                                         length={8}
-                                        inputClassName="w-12 h-12 text-center text-xl font-bold border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-gray-50 focus:bg-white"
+                                        inputClassName="w-12 h-12 text-center text-xl font-bold border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-slate-50/80 focus:bg-white"
                                         onComplete={async (code) => {
                                             setVerifyCode(code);
                                             // 自动触发验证
@@ -925,7 +925,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                                     <button
                                         className={`w-full py-4 px-6 rounded-2xl font-semibold text-lg transition-all duration-200 ${verifyCode.length === 8 && !verifyLoading
                                             ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
-                                            : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                            : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                             }`}
                                         onClick={() => handleVerifyCode()}
                                         disabled={verifyLoading || verifyCode.length !== 8}
@@ -940,8 +940,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
 
                                     <button
                                         className={`w-full py-3 px-6 rounded-2xl font-medium transition-all duration-200 ${verifyResendTimer > 0
-                                            ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
-                                            : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                                            ? 'bg-slate-50/80 text-slate-400 cursor-not-allowed'
+                                            : 'bg-slate-50/80 text-slate-700 hover:bg-slate-100'
                                             }`}
                                         onClick={handleResendVerifyCode}
                                         disabled={verifyLoading || verifyResendTimer > 0}
@@ -952,7 +952,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
 
                                 {/* 底部提示 */}
                                 <div className="mt-6 text-center">
-                                    <p className="text-sm text-gray-500">
+                                    <p className="text-sm text-slate-500">
                                         没有收到验证码？请检查垃圾邮件文件夹
                                     </p>
                                     <button

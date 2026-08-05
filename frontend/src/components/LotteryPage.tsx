@@ -348,8 +348,8 @@ const LeaderboardCard: React.FC<{ leaderboard: any[] }> = ({ leaderboard }) => {
           >
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-xs ${
               index === 0 ? 'bg-yellow-500' : 
-              index === 1 ? 'bg-gray-400' : 
-              index === 2 ? 'bg-orange-500' : 'bg-blue-500'
+              index === 1 ? 'bg-slate-400' :
+              index === 2 ? 'bg-orange-500' : 'bg-slate-500'
             }`}>
               {index === 0 ? <FaCrown className="w-3 h-3" /> : 
                index === 1 ? <FaMedal className="w-3 h-3" /> : 

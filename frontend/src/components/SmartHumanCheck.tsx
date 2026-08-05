@@ -582,7 +582,7 @@ function SliderBase({ onComplete, disabled, hintMode }: SliderBaseProps) {
     <div className={`w-full select-none ${disabled ? 'opacity-50' : ''}`}>
       <div
         ref={trackRef}
-        className="relative bg-gray-200 rounded-full overflow-hidden"
+        className="relative bg-slate-200 rounded-full overflow-hidden"
         style={{ height: `${trackH}px` }}
       >
         <div
@@ -592,7 +592,7 @@ function SliderBase({ onComplete, disabled, hintMode }: SliderBaseProps) {
         <div
           role="button"
           aria-label="slider-handle"
-          className={`absolute rounded-full bg-white shadow-md border border-gray-300 flex items-center justify-center cursor-pointer`}
+          className={`absolute rounded-full bg-white/90 shadow-md border border-slate-300 flex items-center justify-center cursor-pointer`}
           style={{
             width: `${knobSize}px`,
             height: `${knobSize}px`,
@@ -611,11 +611,11 @@ function SliderBase({ onComplete, disabled, hintMode }: SliderBaseProps) {
           {done ? '✓' : '≡'}
         </div>
         {done ? (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-sm text-gray-600">
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-sm text-slate-600">
             验证成功
           </div>
         ) : hintMode === 'inline' ? (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-sm text-gray-600">
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-sm text-slate-600">
             按住滑块拖动完成验证
           </div>
         ) : null}
@@ -1176,7 +1176,7 @@ const SmartHumanCheckBase: React.FC<SmartHumanCheckBaseProps> = ({
               aria-label="我不是机器人"
             />
             <span
-              className={`flex h-7 w-7 shrink-0 items-center justify-center border bg-white transition-colors ${
+              className={`flex h-7 w-7 shrink-0 items-center justify-center border bg-white/90 transition-colors ${
                 sliderOk
                   ? 'border-[#2f7d32] bg-[#2f7d32] text-white'
                   : checked
@@ -1206,7 +1206,7 @@ const SmartHumanCheckBase: React.FC<SmartHumanCheckBaseProps> = ({
         </div>
 
         {(challengeOpen || error || sliderOk) && (
-          <div className="border-t border-[#dfdfdf] bg-white px-3 py-3">
+          <div className="border-t border-[#dfdfdf] bg-white/90 px-3 py-3">
             {challengeOpen && (
               <div className="space-y-2">
                 {isMinimal && (

@@ -236,7 +236,7 @@ function OpsInstancesSection({
           type="button"
           onClick={onRefresh}
           disabled={loading}
-          className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <FaRedo className={loading ? "animate-spin" : ""} />
           刷新
@@ -292,7 +292,7 @@ function OpsInstancesSection({
                   </span>
                 )}
                 {inst.capabilities.backupArchive && (
-                  <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-600">
                     备份
                   </span>
                 )}
@@ -495,7 +495,7 @@ function InstanceDetailSection({
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200"
+          className="inline-flex items-center gap-2 rounded-2xl bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-200"
         >
           ← 返回列表
         </button>
@@ -520,7 +520,7 @@ function InstanceDetailSection({
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
+      <div className="flex gap-1 rounded-2xl bg-slate-100 p-1">
         {([
           { key: "jobs" as const, label: "任务", icon: FaClipboardList },
           { key: "files" as const, label: "文件操作", icon: FaFolderOpen },
@@ -533,9 +533,9 @@ function InstanceDetailSection({
               setActiveTab(tab.key);
               if (tab.key === "backups") fetchBackups();
             }}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition ${
+            className={`flex flex-1 items-center justify-center gap-2 rounded-2xl px-3 py-2 text-sm font-medium transition ${
               activeTab === tab.key
-                ? "bg-white text-slate-900 shadow-sm"
+                ? "bg-white/80 backdrop-blur-xl text-slate-900 shadow-sm"
                 : "text-slate-500 hover:text-slate-700"
             }`}
           >
@@ -580,7 +580,7 @@ function InstanceDetailSection({
                   type="button"
                   onClick={handleCreateJob}
                   disabled={creatingJob}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
                 >
                   <FaPlus />
                   {creatingJob ? "创建中..." : "创建任务"}
@@ -617,7 +617,7 @@ function InstanceDetailSection({
                     )}
                   </div>
                   {job.error && (
-                    <div className="mt-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                    <div className="mt-2 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                       [{job.error.code}] {job.error.message}
                     </div>
                   )}
@@ -631,7 +631,7 @@ function InstanceDetailSection({
       {/* Files Tab */}
       {activeTab === "files" && (
         <div className="space-y-4">
-          <div className="rounded-2xl border border-slate-200 bg-white p-5">
+          <div className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-xl p-5">
             <span className={labelClass}>读取文件</span>
             <div className="mt-3 flex gap-2">
               <input
@@ -645,20 +645,20 @@ function InstanceDetailSection({
                 type="button"
                 onClick={handleFileRead}
                 disabled={fileOpsLoading || !fileReadPath.trim()}
-                className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:opacity-60"
+                className="inline-flex shrink-0 items-center gap-2 rounded-2xl bg-slate-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-700 disabled:opacity-60"
               >
                 <FaDownload />
                 读取
               </button>
             </div>
             {fileResult && (
-              <pre className="mt-3 max-h-64 overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+              <pre className="mt-3 max-h-64 overflow-auto rounded-2xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
                 {fileResult}
               </pre>
             )}
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5">
+          <div className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-xl p-5">
             <span className={labelClass}>写入文件</span>
             <div className="mt-3 space-y-3">
               <input
@@ -679,7 +679,7 @@ function InstanceDetailSection({
                 type="button"
                 onClick={handleFileWrite}
                 disabled={fileOpsLoading || !fileWritePath.trim() || !fileWriteContent.trim()}
-                className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-60"
               >
                 <FaSave />
                 写入
@@ -687,7 +687,7 @@ function InstanceDetailSection({
             </div>
           </div>
 
-          <div className="rounded-2xl border border-red-200 bg-white p-5">
+          <div className="rounded-2xl border border-red-200 bg-white/80 backdrop-blur-xl p-5">
             <span className={`${labelClass} text-red-600`}>删除文件</span>
             <div className="mt-3 flex gap-2">
               <input
@@ -701,7 +701,7 @@ function InstanceDetailSection({
                 type="button"
                 onClick={handleFileDelete}
                 disabled={fileOpsLoading || !fileDeletePath.trim()}
-                className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-60"
+                className="inline-flex shrink-0 items-center gap-2 rounded-2xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-60"
               >
                 <FaTrash />
                 删除
@@ -718,7 +718,7 @@ function InstanceDetailSection({
             <button
               type="button"
               onClick={handleCreateBackup}
-              className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700"
+              className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700"
             >
               <FaPlus />
               创建备份
@@ -746,7 +746,7 @@ function InstanceDetailSection({
                     type="button"
                     onClick={() => handleRestoreBackup(bk.backupId)}
                     disabled={restoringId === bk.backupId}
-                    className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-amber-700 disabled:opacity-60"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-amber-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-amber-700 disabled:opacity-60"
                   >
                     <FaUndo />
                     {restoringId === bk.backupId ? "恢复中..." : "恢复"}
@@ -782,7 +782,7 @@ function OpsAuditLogsSection({
           type="button"
           onClick={onRefresh}
           disabled={loading}
-          className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
         >
           <FaRedo className={loading ? "animate-spin" : ""} />
           刷新
@@ -839,7 +839,7 @@ function OpsCommandPoliciesSection({
           type="button"
           onClick={onRefresh}
           disabled={loading}
-          className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
+          className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
         >
           <FaRedo className={loading ? "animate-spin" : ""} />
           刷新

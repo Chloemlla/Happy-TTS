@@ -121,7 +121,7 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ audioUrl, onClose })
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="relative z-30 w-full bg-white/95 backdrop-blur-sm rounded-xl shadow-lg border border-gray-100 overflow-hidden mt-6"
+                className="relative z-30 w-full bg-white/90 backdrop-blur-sm rounded-xl shadow-lg border border-slate-100 overflow-hidden mt-6"
             >
                 <div className="p-4 bg-gradient-to-r from-indigo-500 to-purple-500">
                     <div className="flex justify-between items-center">
@@ -129,7 +129,7 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ audioUrl, onClose })
                         {onClose && (
                             <button
                                 onClick={onClose}
-                                className="text-white hover:text-gray-200 transition-colors"
+                                className="text-white hover:text-slate-200 transition-colors"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -139,7 +139,7 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ audioUrl, onClose })
                     </div>
                 </div>
 
-                <div className="relative p-4 bg-white">
+                <div className="relative p-4 bg-white/90">
                     <div className="flex flex-col space-y-4">
                         <div className="flex items-center space-x-4">
                             <button
@@ -170,17 +170,17 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ audioUrl, onClose })
                                     onMouseUp={handleSeekEnd}
                                     onTouchStart={handleSeekStart}
                                     onTouchEnd={handleSeekEnd}
-                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer"
                                 />
                             </div>
 
-                            <div className="text-sm text-gray-600 whitespace-nowrap">
+                            <div className="text-sm text-slate-600 whitespace-nowrap">
                                 {formatTime(currentTime)} / {formatTime(duration)}
                             </div>
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-sm text-gray-600">播放速度:</span>
+                            <span className="text-sm text-slate-600">播放速度:</span>
                             <div className="flex flex-wrap gap-2">
                                 {[0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
                                     <button
@@ -189,7 +189,7 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ audioUrl, onClose })
                                         className={`px-2 py-1 rounded text-sm ${
                                             playbackRate === rate
                                                 ? 'bg-indigo-600 text-white'
-                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                         }`}
                                     >
                                         {rate}x

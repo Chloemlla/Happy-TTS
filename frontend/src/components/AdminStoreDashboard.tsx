@@ -65,7 +65,7 @@ export default function AdminStoreDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
+        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100"
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-blue-700 flex items-center gap-2">
@@ -75,14 +75,14 @@ export default function AdminStoreDashboard() {
           <motion.button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+            className="px-3 py-2 bg-blue-500 text-white rounded-2xl hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
             whileTap={{ scale: 0.95 }}
           >
             <FaCog className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             刷新
           </motion.button>
         </div>
-        <div className="text-gray-600 space-y-2">
+        <div className="text-slate-600 space-y-2">
           <p>欢迎来到资源商店管理仪表板，这里提供完整的资源商店管理功能，包括资源管理、CDK管理和数据统计。</p>
           <div className="flex items-start gap-2 text-sm">
             <FaInfoCircle className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
@@ -106,7 +106,7 @@ export default function AdminStoreDashboard() {
         className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4"
       >
         <motion.div 
-          className="bg-white overflow-hidden shadow rounded-lg border border-gray-200"
+          className="bg-white/80 overflow-hidden shadow rounded-2xl border border-slate-200 backdrop-blur-xl"
           whileHover={{ scale: 1.02 }}
           transition={{ duration: 0.2 }}
         >
@@ -116,10 +116,10 @@ export default function AdminStoreDashboard() {
                 <FaBox className="h-8 w-8 text-blue-600" />
               </div>
               <div className="ml-4">
-                <dt className="text-sm font-medium text-gray-500 truncate">
+                <dt className="text-sm font-medium text-slate-500 truncate">
                   总资源数量
                 </dt>
-                <dd className="mt-1 text-3xl font-semibold text-gray-900">
+                <dd className="mt-1 text-3xl font-semibold text-slate-900">
                   {stats?.resources.total ?? '-'}
                 </dd>
               </div>
@@ -128,7 +128,7 @@ export default function AdminStoreDashboard() {
         </motion.div>
 
         <motion.div 
-          className="bg-white overflow-hidden shadow rounded-lg border border-gray-200"
+          className="bg-white/80 overflow-hidden shadow rounded-2xl border border-slate-200 backdrop-blur-xl"
           whileHover={{ scale: 1.02 }}
           transition={{ duration: 0.2 }}
         >
@@ -138,10 +138,10 @@ export default function AdminStoreDashboard() {
                 <FaKey className="h-8 w-8 text-purple-600" />
               </div>
               <div className="ml-4">
-                <dt className="text-sm font-medium text-gray-500 truncate">
+                <dt className="text-sm font-medium text-slate-500 truncate">
                   总CDK数量
                 </dt>
-                <dd className="mt-1 text-3xl font-semibold text-gray-900">
+                <dd className="mt-1 text-3xl font-semibold text-slate-900">
                   {stats?.cdks.total ?? '-'}
                 </dd>
               </div>
@@ -150,7 +150,7 @@ export default function AdminStoreDashboard() {
         </motion.div>
 
         <motion.div 
-          className="bg-white overflow-hidden shadow rounded-lg border border-gray-200"
+          className="bg-white/80 overflow-hidden shadow rounded-2xl border border-slate-200 backdrop-blur-xl"
           whileHover={{ scale: 1.02 }}
           transition={{ duration: 0.2 }}
         >
@@ -160,7 +160,7 @@ export default function AdminStoreDashboard() {
                 <FaUsers className="h-8 w-8 text-red-600" />
               </div>
               <div className="ml-4">
-                <dt className="text-sm font-medium text-gray-500 truncate">
+                <dt className="text-sm font-medium text-slate-500 truncate">
                   已使用CDK
                 </dt>
                 <dd className="mt-1 text-3xl font-semibold text-red-600">
@@ -172,7 +172,7 @@ export default function AdminStoreDashboard() {
         </motion.div>
 
         <motion.div 
-          className="bg-white overflow-hidden shadow rounded-lg border border-gray-200"
+          className="bg-white/80 overflow-hidden shadow rounded-2xl border border-slate-200 backdrop-blur-xl"
           whileHover={{ scale: 1.02 }}
           transition={{ duration: 0.2 }}
         >
@@ -182,7 +182,7 @@ export default function AdminStoreDashboard() {
                 <FaDownload className="h-8 w-8 text-green-600" />
               </div>
               <div className="ml-4">
-                <dt className="text-sm font-medium text-gray-500 truncate">
+                <dt className="text-sm font-medium text-slate-500 truncate">
                   可用CDK
                 </dt>
                 <dd className="mt-1 text-3xl font-semibold text-green-600">
@@ -206,20 +206,20 @@ export default function AdminStoreDashboard() {
         >
           <Link
             to="/admin/store/resources"
-            className="bg-white overflow-hidden shadow rounded-lg p-6 hover:bg-gray-50 transition-all duration-200 border border-gray-200 block"
+            className="bg-white/80 overflow-hidden shadow rounded-2xl p-6 hover:bg-slate-50/80 transition-all duration-200 border border-slate-200 backdrop-blur-xl block"
           >
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <FaBox className="h-8 w-8 text-green-600" />
               </div>
               <div className="ml-4 flex-1">
-                <h3 className="text-lg font-medium text-gray-900">资源管理</h3>
-                <p className="mt-1 text-sm text-gray-500">
+                <h3 className="text-lg font-medium text-slate-900">资源管理</h3>
+                <p className="mt-1 text-sm text-slate-500">
                   管理资源列表，添加、编辑或删除资源
                 </p>
               </div>
               <div className="flex-shrink-0">
-                <FaArrowRight className="h-5 w-5 text-gray-400" />
+                <FaArrowRight className="h-5 w-5 text-slate-400" />
               </div>
             </div>
           </Link>
@@ -231,20 +231,20 @@ export default function AdminStoreDashboard() {
         >
           <Link
             to="/admin/store/cdks"
-            className="bg-white overflow-hidden shadow rounded-lg p-6 hover:bg-gray-50 transition-all duration-200 border border-gray-200 block"
+            className="bg-white/80 overflow-hidden shadow rounded-2xl p-6 hover:bg-slate-50/80 transition-all duration-200 border border-slate-200 backdrop-blur-xl block"
           >
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <FaKey className="h-8 w-8 text-purple-600" />
               </div>
               <div className="ml-4 flex-1">
-                <h3 className="text-lg font-medium text-gray-900">CDK管理</h3>
-                <p className="mt-1 text-sm text-gray-500">
+                <h3 className="text-lg font-medium text-slate-900">CDK管理</h3>
+                <p className="mt-1 text-sm text-slate-500">
                   管理CDK，生成新的CDK或查看使用情况
                 </p>
               </div>
               <div className="flex-shrink-0">
-                <FaArrowRight className="h-5 w-5 text-gray-400" />
+                <FaArrowRight className="h-5 w-5 text-slate-400" />
               </div>
             </div>
           </Link>
@@ -255,7 +255,7 @@ export default function AdminStoreDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-lg p-6 border border-indigo-200"
+        className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-2xl p-6 border border-indigo-200"
       >
         <h2 className="text-lg font-medium text-indigo-900 mb-4 flex items-center gap-2">
           <FaChartBar className="w-5 h-5" />

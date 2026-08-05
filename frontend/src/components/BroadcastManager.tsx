@@ -54,7 +54,7 @@ interface BroadcastLogItem {
 // ========== 常量 ==========
 
 const LEVEL_OPTIONS: { value: BroadcastLevel; label: string; color: string; emoji: string }[] = [
-  { value: 'info', label: '通知', color: 'bg-blue-100 text-blue-700 border-blue-300', emoji: 'ℹ️' },
+  { value: 'info', label: '通知', color: 'bg-slate-100 text-slate-700 border-slate-300', emoji: 'ℹ️' },
   { value: 'warn', label: '警告', color: 'bg-yellow-100 text-yellow-700 border-yellow-300', emoji: '⚠️' },
   { value: 'error', label: '紧急', color: 'bg-red-100 text-red-700 border-red-300', emoji: '🚨' },
 ];
@@ -322,12 +322,12 @@ const BroadcastManager: React.FC = () => {
     <div className="space-y-5">
       {/* 消息级别 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">消息级别</label>
+        <label className="block text-sm font-medium text-slate-700 mb-2">消息级别</label>
         <div className="flex gap-3">
           {LEVEL_OPTIONS.map(opt => (
             <motion.button key={opt.value} onClick={() => setLevel(opt.value)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
-                level === opt.value ? `${opt.color} border-current shadow-sm` : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+              className={`flex items-center gap-2 px-4 py-2 rounded-2xl border text-sm font-medium transition-all ${
+                level === opt.value ? `${opt.color} border-current shadow-sm` : 'bg-slate-50/80 text-slate-500 border-slate-200 hover:bg-slate-100'
               }`} whileTap={{ scale: 0.96 }}>
               <span>{opt.emoji}</span><span>{opt.label}</span>
             </motion.button>
@@ -337,14 +337,14 @@ const BroadcastManager: React.FC = () => {
 
       {/* 推送范围 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">推送范围</label>
+        <label className="block text-sm font-medium text-slate-700 mb-2">推送范围</label>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {AUDIENCE_OPTIONS.map(opt => (
             <motion.button key={opt.value} onClick={() => setBroadcastAudience(opt.value)}
-              className={`text-left px-4 py-3 rounded-lg border transition-all ${
+              className={`text-left px-4 py-3 rounded-2xl border transition-all ${
                 broadcastAudience === opt.value
-                  ? 'bg-sky-50 text-sky-700 border-sky-300 shadow-sm'
-                  : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                  ? 'bg-slate-100 text-slate-800 border-slate-300 shadow-sm'
+                  : 'bg-slate-50/80 text-slate-600 border-slate-200 hover:bg-slate-100'
               }`} whileTap={{ scale: 0.97 }}>
               <div className="flex items-center gap-2 text-sm font-semibold">
                 {opt.icon}
@@ -359,12 +359,12 @@ const BroadcastManager: React.FC = () => {
             <input value={broadcastChannel} onChange={e => setBroadcastChannel(e.target.value)}
               placeholder="例如 user:用户ID、admin:ops 或自定义频道"
               maxLength={120}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" />
+              className="w-full px-4 py-2 border border-slate-300 bg-white/80 rounded-2xl focus:ring-2 focus:ring-slate-300 focus:border-slate-400 text-sm" />
             {availableChannels.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {availableChannels.slice(0, 8).map(item => (
                   <button key={item.channel} onClick={() => setBroadcastChannel(item.channel)}
-                    className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 text-xs hover:bg-blue-100 transition">
+                    className="px-2.5 py-1 rounded-full bg-slate-50/80 text-slate-600 text-xs hover:bg-slate-100 transition">
                     {item.channel} · {item.connections}
                   </button>
                 ))}
@@ -377,10 +377,10 @@ const BroadcastManager: React.FC = () => {
       {/* 消息输入 */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label className="block text-sm font-medium text-gray-700">广播内容</label>
+          <label className="block text-sm font-medium text-slate-700">广播内容</label>
           <button onClick={() => setKeepBroadcastInput(!keepBroadcastInput)}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-              keepBroadcastInput ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-2xl text-xs font-medium transition-colors ${
+              keepBroadcastInput ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
             }`}
             title={keepBroadcastInput ? '发送后保留输入内容（点击切换）' : '发送后清空输入内容（点击切换）'}>
             {keepBroadcastInput ? <FaLock className="w-3 h-3" /> : <FaLockOpen className="w-3 h-3" />}
@@ -389,31 +389,31 @@ const BroadcastManager: React.FC = () => {
         </div>
         <textarea value={message} onChange={e => setMessage(e.target.value)}
           placeholder="输入要推送的消息..." rows={4} maxLength={1000}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm" />
-        <div className="flex justify-between mt-1 text-xs text-gray-400">
+          className="w-full px-4 py-3 border border-slate-300 bg-white/80 rounded-2xl focus:ring-2 focus:ring-slate-300 focus:border-slate-400 resize-none text-sm" />
+        <div className="flex justify-between mt-1 text-xs text-slate-400">
           <span>{broadcastDisplay === 'modal' ? '弹窗可选择 Markdown / HTML' : '通知条按纯文本展示'}</span><span>{message.length}/1000</span>
         </div>
       </div>
 
       {/* 展示时长 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">展示时长：{broadcastDuration} 秒</label>
+        <label className="block text-sm font-medium text-slate-700 mb-2">展示时长：{broadcastDuration} 秒</label>
         <input type="range" min={1} max={30} step={1} value={broadcastDuration}
           onChange={e => setBroadcastDuration(Number(e.target.value))}
-          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-        <div className="flex justify-between mt-1 text-xs text-gray-400">
+          className="w-full h-2 bg-slate-200 rounded-2xl appearance-none cursor-pointer accent-slate-600" />
+        <div className="flex justify-between mt-1 text-xs text-slate-400">
           <span>1秒</span><span>30秒</span>
         </div>
       </div>
 
       {/* 展示方式 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">展示方式</label>
+        <label className="block text-sm font-medium text-slate-700 mb-2">展示方式</label>
         <div className="flex gap-3">
           {(['toast', 'modal'] as const).map(d => (
             <motion.button key={d} onClick={() => setBroadcastDisplay(d)}
-              className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
-                broadcastDisplay === d ? 'bg-blue-100 text-blue-700 border-blue-300 shadow-sm' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+              className={`px-4 py-2 rounded-2xl border text-sm font-medium transition-all ${
+                broadcastDisplay === d ? 'bg-slate-100 text-slate-700 border-slate-300 shadow-sm' : 'bg-slate-50/80 text-slate-500 border-slate-200 hover:bg-slate-100'
               }`} whileTap={{ scale: 0.96 }}>
               {d === 'toast' ? '🔔 通知条' : '📋 弹窗'}
             </motion.button>
@@ -425,12 +425,12 @@ const BroadcastManager: React.FC = () => {
       {broadcastDisplay === 'modal' && (
         <>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">内容格式</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">内容格式</label>
             <div className="flex gap-3">
               {([['text', '纯文本'], ['markdown', 'Markdown'], ['html', 'HTML']] as const).map(([f, label]) => (
                 <motion.button key={f} onClick={() => setBroadcastFormat(f)}
-                  className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
-                    broadcastFormat === f ? 'bg-purple-100 text-purple-700 border-purple-300 shadow-sm' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+                  className={`px-4 py-2 rounded-2xl border text-sm font-medium transition-all ${
+                    broadcastFormat === f ? 'bg-purple-100 text-purple-700 border-purple-300 shadow-sm' : 'bg-slate-50/80 text-slate-500 border-slate-200 hover:bg-slate-100'
                   }`} whileTap={{ scale: 0.96 }}>
                   {label}
                 </motion.button>
@@ -438,17 +438,17 @@ const BroadcastManager: React.FC = () => {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">弹窗标题（可选）</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">弹窗标题（可选）</label>
             <input value={broadcastTitle} onChange={e => setBroadcastTitle(e.target.value)}
               placeholder="留空则使用默认标题" maxLength={200}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" />
+              className="w-full px-4 py-2 border border-slate-300 bg-white/80 rounded-2xl focus:ring-2 focus:ring-slate-300 focus:border-slate-400 text-sm" />
           </div>
         </>
       )}
 
       {/* 预览 */}
       {message.trim() && (
-        <div className={`p-4 rounded-lg border ${selectedLevel.color}`}>
+        <div className={`p-4 rounded-2xl border ${selectedLevel.color}`}>
           <div className="text-xs font-medium mb-1 opacity-70">预览</div>
           <div className="text-sm">{selectedLevel.emoji} {message.trim()}</div>
         </div>
@@ -456,9 +456,9 @@ const BroadcastManager: React.FC = () => {
 
       {/* 发送 */}
       <motion.button onClick={handleBroadcast} disabled={sending || !message.trim()}
-        className={`flex items-center justify-center gap-2 w-full px-6 py-3 rounded-lg font-semibold text-white transition-all ${
-          sending || !message.trim() ? 'bg-gray-300 cursor-not-allowed'
-            : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl'
+        className={`flex items-center justify-center gap-2 w-full px-6 py-3 rounded-2xl font-semibold text-white transition-all ${
+          sending || !message.trim() ? 'bg-slate-300 cursor-not-allowed'
+            : 'bg-gradient-to-r from-slate-900 to-slate-700 hover:from-slate-800 hover:to-slate-600 shadow-lg hover:shadow-xl'
         }`} whileHover={!sending && message.trim() ? { scale: 1.02 } : {}} whileTap={!sending && message.trim() ? { scale: 0.98 } : {}}>
         {sending ? (<><div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" /><span>发送中...</span></>)
           : (<><FaPaperPlane /><span>发送广播</span></>)}
@@ -466,7 +466,7 @@ const BroadcastManager: React.FC = () => {
 
       {lastResult && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg text-sm">
+          className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-2xl text-sm">
           <FaUsers className="text-green-600" />
           <span className="text-green-700">上次广播于 {lastResult.time}，范围 {lastResult.audience}，送达 {lastResult.connections} 个在线连接</span>
         </motion.div>
@@ -477,23 +477,23 @@ const BroadcastManager: React.FC = () => {
   const renderDirect = () => (
     <div className="space-y-5">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">目标用户 ID</label>
+        <label className="block text-sm font-medium text-slate-700 mb-2">目标用户 ID</label>
         <textarea value={directUserIds} onChange={e => setDirectUserIds(e.target.value)}
           placeholder="支持多个用户 ID，用逗号、空格或换行分隔"
           rows={2} maxLength={2000}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm" />
-        <div className="flex justify-between mt-1 text-xs text-gray-400">
+          className="w-full px-4 py-3 border border-slate-300 bg-white/80 rounded-2xl focus:ring-2 focus:ring-slate-300 focus:border-slate-400 resize-none text-sm" />
+        <div className="flex justify-between mt-1 text-xs text-slate-400">
           <span>已识别 {directTargetUserIds.length} 个用户</span>
           <span>最多发送 100 个目标用户</span>
         </div>
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">消息级别</label>
+        <label className="block text-sm font-medium text-slate-700 mb-2">消息级别</label>
         <div className="flex gap-3">
           {LEVEL_OPTIONS.map(opt => (
             <motion.button key={opt.value} onClick={() => setDirectLevel(opt.value)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
-                directLevel === opt.value ? `${opt.color} border-current shadow-sm` : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+              className={`flex items-center gap-2 px-4 py-2 rounded-2xl border text-sm font-medium transition-all ${
+                directLevel === opt.value ? `${opt.color} border-current shadow-sm` : 'bg-slate-50/80 text-slate-500 border-slate-200 hover:bg-slate-100'
               }`} whileTap={{ scale: 0.96 }}>
               <span>{opt.emoji}</span><span>{opt.label}</span>
             </motion.button>
@@ -502,10 +502,10 @@ const BroadcastManager: React.FC = () => {
       </div>
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label className="block text-sm font-medium text-gray-700">消息内容</label>
+          <label className="block text-sm font-medium text-slate-700">消息内容</label>
           <button onClick={() => setKeepDirectInput(!keepDirectInput)}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
-              keepDirectInput ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-2xl text-xs font-medium transition-colors ${
+              keepDirectInput ? 'bg-amber-100 text-amber-700 hover:bg-amber-200' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
             }`}
             title={keepDirectInput ? '发送后保留输入内容（点击切换）' : '发送后清空输入内容（点击切换）'}>
             {keepDirectInput ? <FaLock className="w-3 h-3" /> : <FaLockOpen className="w-3 h-3" />}
@@ -514,30 +514,30 @@ const BroadcastManager: React.FC = () => {
         </div>
         <textarea value={directMessage} onChange={e => setDirectMessage(e.target.value)}
           placeholder="输入要推送给目标用户的消息..." rows={3} maxLength={1000}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm" />
-        <div className="flex justify-between mt-1 text-xs text-gray-400">
+          className="w-full px-4 py-3 border border-slate-300 bg-white/80 rounded-2xl focus:ring-2 focus:ring-slate-300 focus:border-slate-400 resize-none text-sm" />
+        <div className="flex justify-between mt-1 text-xs text-slate-400">
           <span>{directDisplay === 'modal' ? '弹窗可选择 Markdown / HTML' : '通知条按纯文本展示'}</span>
           <span>{directMessage.length}/1000</span>
         </div>
       </div>
       {/* 展示时长 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">展示时长：{directDuration} 秒</label>
+        <label className="block text-sm font-medium text-slate-700 mb-2">展示时长：{directDuration} 秒</label>
         <input type="range" min={1} max={30} step={1} value={directDuration}
           onChange={e => setDirectDuration(Number(e.target.value))}
-          className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
-        <div className="flex justify-between mt-1 text-xs text-gray-400">
+          className="w-full h-2 bg-slate-200 rounded-2xl appearance-none cursor-pointer accent-slate-600" />
+        <div className="flex justify-between mt-1 text-xs text-slate-400">
           <span>1秒</span><span>30秒</span>
         </div>
       </div>
       {/* 展示方式 */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">展示方式</label>
+        <label className="block text-sm font-medium text-slate-700 mb-2">展示方式</label>
         <div className="flex gap-3">
           {(['toast', 'modal'] as const).map(d => (
             <motion.button key={d} onClick={() => setDirectDisplay(d)}
-              className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
-                directDisplay === d ? 'bg-blue-100 text-blue-700 border-blue-300 shadow-sm' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+              className={`px-4 py-2 rounded-2xl border text-sm font-medium transition-all ${
+                directDisplay === d ? 'bg-slate-100 text-slate-700 border-slate-300 shadow-sm' : 'bg-slate-50/80 text-slate-500 border-slate-200 hover:bg-slate-100'
               }`} whileTap={{ scale: 0.96 }}>
               {d === 'toast' ? '🔔 通知条' : '📋 弹窗'}
             </motion.button>
@@ -547,12 +547,12 @@ const BroadcastManager: React.FC = () => {
       {directDisplay === 'modal' && (
         <>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">内容格式</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">内容格式</label>
             <div className="flex gap-3">
               {([['text', '纯文本'], ['markdown', 'Markdown'], ['html', 'HTML']] as const).map(([f, label]) => (
                 <motion.button key={f} onClick={() => setDirectFormat(f)}
-                  className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all ${
-                    directFormat === f ? 'bg-purple-100 text-purple-700 border-purple-300 shadow-sm' : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+                  className={`px-4 py-2 rounded-2xl border text-sm font-medium transition-all ${
+                    directFormat === f ? 'bg-purple-100 text-purple-700 border-purple-300 shadow-sm' : 'bg-slate-50/80 text-slate-500 border-slate-200 hover:bg-slate-100'
                   }`} whileTap={{ scale: 0.96 }}>
                   {label}
                 </motion.button>
@@ -560,16 +560,16 @@ const BroadcastManager: React.FC = () => {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">弹窗标题（可选）</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">弹窗标题（可选）</label>
             <input value={directTitle} onChange={e => setDirectTitle(e.target.value)}
               placeholder="留空则使用默认标题" maxLength={200}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm" />
+              className="w-full px-4 py-2 border border-slate-300 bg-white/80 rounded-2xl focus:ring-2 focus:ring-slate-300 focus:border-slate-400 text-sm" />
           </div>
         </>
       )}
       <motion.button onClick={handleDirectPush} disabled={directSending || directTargetUserIds.length === 0 || !directMessage.trim()}
-        className={`flex items-center justify-center gap-2 w-full px-6 py-3 rounded-lg font-semibold text-white transition-all ${
-          directSending || directTargetUserIds.length === 0 || !directMessage.trim() ? 'bg-gray-300 cursor-not-allowed'
+        className={`flex items-center justify-center gap-2 w-full px-6 py-3 rounded-2xl font-semibold text-white transition-all ${
+          directSending || directTargetUserIds.length === 0 || !directMessage.trim() ? 'bg-slate-300 cursor-not-allowed'
             : 'bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 shadow-lg'
         }`} whileHover={!directSending && directTargetUserIds.length > 0 && directMessage.trim() ? { scale: 1.02 } : {}} whileTap={!directSending && directTargetUserIds.length > 0 && directMessage.trim() ? { scale: 0.98 } : {}}>
         {directSending ? (<><div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" /><span>推送中...</span></>)
@@ -592,12 +592,12 @@ const BroadcastManager: React.FC = () => {
     return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-gray-600">
+        <div className="flex items-center gap-2 text-sm text-slate-600">
           <FaPlug className="text-green-500" />
-          <span>当前在线 <span className="font-bold text-gray-800">{clientsTotal}</span> 个连接</span>
+          <span>当前在线 <span className="font-bold text-slate-800">{clientsTotal}</span> 个连接</span>
         </div>
         <motion.button onClick={fetchClients} disabled={loadingClients}
-          className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+          className="flex items-center gap-1 px-3 py-1.5 text-sm bg-slate-100 hover:bg-slate-200 rounded-2xl transition"
           whileTap={{ scale: 0.95 }}>
           <FaSyncAlt className={loadingClients ? 'animate-spin' : ''} /><span>刷新</span>
         </motion.button>
@@ -608,9 +608,9 @@ const BroadcastManager: React.FC = () => {
           { label: '总连接', value: stats.total, tone: 'text-slate-700 bg-slate-50 border-slate-200' },
           { label: '已登录', value: stats.authenticated, tone: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
           { label: '管理员', value: stats.admins, tone: 'text-amber-700 bg-amber-50 border-amber-200' },
-          { label: '匿名', value: stats.anonymous, tone: 'text-gray-600 bg-gray-50 border-gray-200' },
+          { label: '匿名', value: stats.anonymous, tone: 'text-slate-600 bg-slate-50/80 border-slate-200' },
         ].map(item => (
-          <div key={item.label} className={`px-4 py-3 rounded-lg border ${item.tone}`}>
+          <div key={item.label} className={`px-4 py-3 rounded-2xl border ${item.tone}`}>
             <div className="text-xs opacity-70">{item.label}</div>
             <div className="mt-1 text-xl font-semibold">{item.value}</div>
           </div>
@@ -619,12 +619,12 @@ const BroadcastManager: React.FC = () => {
 
       {stats.channels.length > 0 && (
         <div>
-          <div className="text-sm font-medium text-gray-700 mb-2">频道分布</div>
+          <div className="text-sm font-medium text-slate-700 mb-2">频道分布</div>
           <div className="flex flex-wrap gap-2">
             {stats.channels.slice(0, 12).map(item => (
               <button key={item.channel}
                 onClick={() => { setBroadcastAudience('channel'); setBroadcastChannel(item.channel); setActiveTab('broadcast'); }}
-                className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 text-xs hover:bg-blue-100 transition">
+                className="px-2.5 py-1 rounded-full bg-slate-50/80 text-slate-600 text-xs hover:bg-slate-100 transition">
                 {item.channel} · {item.connections}
               </button>
             ))}
@@ -633,17 +633,17 @@ const BroadcastManager: React.FC = () => {
       )}
 
       {loadingClients && clients.length === 0 ? (
-        <div className="text-center py-10 text-gray-400">加载中...</div>
+        <div className="text-center py-10 text-slate-400">加载中...</div>
       ) : clients.length === 0 ? (
-        <div className="text-center py-10 text-gray-400">暂无在线用户</div>
+        <div className="text-center py-10 text-slate-400">暂无在线用户</div>
       ) : (
-        <div className="divide-y divide-gray-100 border border-gray-200 rounded-lg overflow-hidden">
+        <div className="divide-y divide-slate-100 border border-slate-200 bg-white/80 backdrop-blur-xl rounded-2xl overflow-hidden">
           {clients.map((c, i) => (
-            <div key={i} className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition">
+            <div key={i} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50/80 transition">
               <div className="flex items-center gap-3">
-                <div className={`w-2 h-2 rounded-full ${c.userId ? 'bg-green-500' : 'bg-gray-400'}`} />
+                <div className={`w-2 h-2 rounded-full ${c.userId ? 'bg-green-500' : 'bg-slate-400'}`} />
                 <div>
-                  <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
+                  <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
                     <span>{c.userId || '匿名用户'}</span>
                     {c.isAdmin && (
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-xs">
@@ -654,11 +654,11 @@ const BroadcastManager: React.FC = () => {
                   {c.channels.length > 0 && (
                     <div className="flex gap-1 mt-1 flex-wrap">
                       {c.channels.map(ch => (
-                        <span key={ch} className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">{ch}</span>
+                        <span key={ch} className="px-1.5 py-0.5 bg-slate-50/80 text-slate-600 rounded text-xs">{ch}</span>
                       ))}
                     </div>
                   )}
-                  <div className="mt-1 text-xs text-gray-400">
+                  <div className="mt-1 text-xs text-slate-400">
                     已连接 {formatRelativeDuration(c.connectedSince)}
                     {c.lastPing ? ` · 心跳 ${formatRelativeDuration(c.lastPing)} 前` : ''}
                   </div>
@@ -668,7 +668,7 @@ const BroadcastManager: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <motion.button
                     onClick={() => { setDirectUserIds(c.userId!); setActiveTab('direct'); }}
-                    className="px-2 py-1 text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 rounded transition"
+                    className="px-2 py-1 text-xs bg-slate-50/80 text-slate-600 hover:bg-slate-100 rounded transition"
                     whileTap={{ scale: 0.95 }} title="定向推送">
                     <FaPaperPlane />
                   </motion.button>
@@ -695,32 +695,32 @@ const BroadcastManager: React.FC = () => {
           {HISTORY_FILTER_OPTIONS.map(item => (
             <button key={item.value}
               onClick={() => setHistoryAudienceFilter(item.value)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition ${
+              className={`px-3 py-1.5 rounded-2xl text-xs font-medium whitespace-nowrap transition ${
                 historyAudienceFilter === item.value
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}>
               {item.label}
             </button>
           ))}
         </div>
         <motion.button onClick={fetchHistory} disabled={loadingHistory}
-          className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+          className="flex items-center gap-1 px-3 py-1.5 text-sm bg-slate-100 hover:bg-slate-200 rounded-2xl transition"
           whileTap={{ scale: 0.95 }}>
           <FaSyncAlt className={loadingHistory ? 'animate-spin' : ''} /><span>刷新</span>
         </motion.button>
       </div>
 
       {loadingHistory && history.length === 0 ? (
-        <div className="text-center py-10 text-gray-400">加载中...</div>
+        <div className="text-center py-10 text-slate-400">加载中...</div>
       ) : history.length === 0 ? (
-        <div className="text-center py-10 text-gray-400">暂无广播记录</div>
+        <div className="text-center py-10 text-slate-400">暂无广播记录</div>
       ) : (
-        <div className="divide-y divide-gray-100 border border-gray-200 rounded-lg overflow-hidden">
+        <div className="divide-y divide-slate-100 border border-slate-200 bg-white/80 backdrop-blur-xl rounded-2xl overflow-hidden">
           {history.map(log => {
             const lvl = LEVEL_OPTIONS.find(l => l.value === log.level) || LEVEL_OPTIONS[0];
             return (
-              <div key={log._id} className="px-4 py-3 hover:bg-gray-50 transition">
+              <div key={log._id} className="px-4 py-3 hover:bg-slate-50/80 transition">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
@@ -730,21 +730,21 @@ const BroadcastManager: React.FC = () => {
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-slate-100 text-slate-600">
                         {getAudienceLabel(log.audience)}
                       </span>
-                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-gray-100 text-gray-500">
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-slate-100 text-slate-500">
                         {log.display === 'modal' ? '弹窗' : '通知条'} · {formatDuration(log.duration)}
                       </span>
-                      <span className="text-xs text-gray-400">by {log.admin}</span>
+                      <span className="text-xs text-slate-400">by {log.admin}</span>
                     </div>
-                    {log.title && <div className="text-sm font-medium text-gray-700 mb-1">{log.title}</div>}
-                    <p className="text-sm text-gray-800 break-all">{log.message}</p>
-                    <div className="mt-1 text-xs text-gray-400">
+                    {log.title && <div className="text-sm font-medium text-slate-700 mb-1">{log.title}</div>}
+                    <p className="text-sm text-slate-800 break-all">{log.message}</p>
+                    <div className="mt-1 text-xs text-slate-400">
                       目标：{getTargetSummary(log)}
                       {log.format && log.display === 'modal' ? ` · ${log.format}` : ''}
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <div className="text-xs text-gray-400">{new Date(log.createdAt).toLocaleString()}</div>
-                    <div className="text-xs text-gray-400 mt-0.5">{log.connections} 连接</div>
+                    <div className="text-xs text-slate-400">{new Date(log.createdAt).toLocaleString()}</div>
+                    <div className="text-xs text-slate-400 mt-0.5">{log.connections} 连接</div>
                   </div>
                 </div>
               </div>
@@ -761,15 +761,15 @@ const BroadcastManager: React.FC = () => {
         const lvl = LEVEL_OPTIONS.find(l => l.value === tpl.level) || LEVEL_OPTIONS[0];
         return (
           <motion.button key={i} onClick={() => applyTemplate(tpl)}
-            className="text-left p-4 border border-gray-200 rounded-lg hover:border-blue-300 hover:shadow-md transition group"
+            className="text-left p-4 border border-slate-200 bg-white/80 backdrop-blur-xl rounded-2xl hover:border-slate-300 hover:shadow-md transition group"
             whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
             <div className="flex items-center gap-2 mb-2">
               <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs ${lvl.color}`}>
                 {lvl.emoji} {lvl.label}
               </span>
-              <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600 transition">{tpl.label}</span>
+              <span className="text-sm font-medium text-slate-700 group-hover:text-slate-600 transition">{tpl.label}</span>
             </div>
-            <p className="text-xs text-gray-500 line-clamp-2">{tpl.message}</p>
+            <p className="text-xs text-slate-500 line-clamp-2">{tpl.message}</p>
           </motion.button>
         );
       })}
@@ -782,19 +782,19 @@ const BroadcastManager: React.FC = () => {
     <div className="space-y-6">
       {/* 标题 */}
       <div className="flex items-center gap-3">
-        <FaBullhorn className="text-2xl text-blue-600" />
-        <h2 className="text-xl font-bold text-gray-800">WebSocket 广播管理</h2>
+        <FaBullhorn className="text-2xl text-slate-600" />
+        <h2 className="text-xl font-bold text-slate-800">WebSocket 广播管理</h2>
       </div>
-      <p className="text-sm text-gray-500">管理 WebSocket 广播推送、在线用户、定向消息和历史记录。</p>
+      <p className="text-sm text-slate-500">管理 WebSocket 广播推送、在线用户、定向消息和历史记录。</p>
 
       {/* 子 Tab */}
       <div className="flex gap-2 overflow-x-auto pb-1">
         {SUB_TABS.map(t => (
           <motion.button key={t.key} onClick={() => setActiveTab(t.key)}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl text-sm font-medium whitespace-nowrap transition-all ${
               activeTab === t.key
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                ? 'bg-slate-900 text-white shadow-md'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`} whileTap={{ scale: 0.96 }}>
             {t.icon}<span>{t.label}</span>
           </motion.button>

@@ -137,38 +137,38 @@ const CreateRoundForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => 
 
   return (
     <motion.div
-      className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+      className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
     >
-      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+      <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
         🎯
         创建抽奖轮次
       </h3>
       
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <label className="block text-sm font-semibold text-slate-700 mb-2">
             轮次名称
           </label>
           <input
             type="text"
             value={formData.name}
             onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-            className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+            className="w-full px-3 py-2 border-2 border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-slate-300 transition-all"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <label className="block text-sm font-semibold text-slate-700 mb-2">
             描述
           </label>
           <textarea
             value={formData.description}
             onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-            className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+            className="w-full px-3 py-2 border-2 border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-slate-300 transition-all"
             rows={3}
             required
           />
@@ -176,26 +176,26 @@ const CreateRoundForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => 
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-slate-700 mb-2">
               开始时间
             </label>
             <input
               type="datetime-local"
               value={formData.startTime}
               onChange={(e) => setFormData(prev => ({ ...prev, startTime: e.target.value }))}
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+              className="w-full px-3 py-2 border-2 border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-slate-300 transition-all"
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
+            <label className="block text-sm font-semibold text-slate-700 mb-2">
               结束时间
             </label>
             <input
               type="datetime-local"
               value={formData.endTime}
               onChange={(e) => setFormData(prev => ({ ...prev, endTime: e.target.value }))}
-              className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+              className="w-full px-3 py-2 border-2 border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-slate-300 transition-all"
               required
             />
           </div>
@@ -203,13 +203,13 @@ const CreateRoundForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => 
 
         <div>
           <div className="flex justify-between items-center mb-3">
-            <label className="block text-sm font-semibold text-gray-700">
+            <label className="block text-sm font-semibold text-slate-700">
               奖品列表
             </label>
             <motion.button
               type="button"
               onClick={addPrize}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium"
+              className="px-4 py-2 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition font-medium"
               whileTap={{ scale: 0.95 }}
             >
               添加奖品
@@ -220,13 +220,13 @@ const CreateRoundForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => 
             {formData.prizes.map((prize, index) => (
               <motion.div 
                 key={prize.id} 
-                className="border-2 border-gray-200 rounded-lg p-4 bg-gray-50"
+                className="border-2 border-slate-200 rounded-2xl p-4 bg-slate-50/80"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
               >
                 <div className="flex justify-between items-center mb-3">
-                  <h4 className="font-medium text-gray-800">奖品 {index + 1}</h4>
+                  <h4 className="font-medium text-slate-800">奖品 {index + 1}</h4>
                   <motion.button
                     type="button"
                     onClick={() => removePrize(index)}
@@ -239,44 +239,44 @@ const CreateRoundForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => 
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">名称</label>
+                    <label className="block text-sm text-slate-600 mb-1">名称</label>
                     <input
                       type="text"
                       value={prize.name}
                       onChange={(e) => updatePrize(index, 'name', e.target.value)}
-                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-slate-300"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">描述</label>
+                    <label className="block text-sm text-slate-600 mb-1">描述</label>
                     <input
                       type="text"
                       value={prize.description}
                       onChange={(e) => updatePrize(index, 'description', e.target.value)}
-                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-slate-300"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">价值 (¥)</label>
+                    <label className="block text-sm text-slate-600 mb-1">价值 (¥)</label>
                     <input
                       type="number"
                       value={prize.value}
                       onChange={(e) => updatePrize(index, 'value', parseFloat(e.target.value) || 0)}
-                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-slate-300"
                       min="0"
                       step="0.01"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">概率 (0-1)</label>
+                    <label className="block text-sm text-slate-600 mb-1">概率 (0-1)</label>
                     <input
                       type="number"
                       value={prize.probability}
                       onChange={(e) => updatePrize(index, 'probability', parseFloat(e.target.value) || 0)}
-                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-slate-300"
                       min="0"
                       max="1"
                       step="0.01"
@@ -284,22 +284,22 @@ const CreateRoundForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => 
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">数量</label>
+                    <label className="block text-sm text-slate-600 mb-1">数量</label>
                     <input
                       type="number"
                       value={prize.quantity}
                       onChange={(e) => updatePrize(index, 'quantity', parseInt(e.target.value) || 1)}
-                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-slate-300"
                       min="1"
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">稀有度</label>
+                    <label className="block text-sm text-slate-600 mb-1">稀有度</label>
                     <select
                       value={prize.category}
                       onChange={(e) => updatePrize(index, 'category', e.target.value)}
-                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      className="w-full px-2 py-1 border border-slate-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-slate-300"
                     >
                       <option value="common">普通</option>
                       <option value="rare">稀有</option>
@@ -316,7 +316,7 @@ const CreateRoundForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => 
         <motion.button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue-500 text-white py-3 px-4 rounded-lg hover:bg-blue-600 disabled:bg-gray-400 transition font-medium"
+          className="w-full bg-slate-900 text-white py-3 px-4 rounded-2xl hover:bg-slate-800 disabled:bg-slate-400 transition font-medium"
           whileTap={{ scale: 0.95 }}
         >
           {loading ? '创建中...' : '创建轮次'}
@@ -366,13 +366,13 @@ const RoundManagement: React.FC<{ rounds: LotteryRound[]; onRefresh: () => void 
 
   return (
     <motion.div
-      className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+      className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
     >
-      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-        <FaChartBar className="text-lg text-blue-500" />
+      <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+        <FaChartBar className="text-lg text-slate-500" />
         轮次管理
       </h3>
       
@@ -380,15 +380,15 @@ const RoundManagement: React.FC<{ rounds: LotteryRound[]; onRefresh: () => void 
         {safeRounds.map((round) => (
           <motion.div 
             key={round.id} 
-            className="border-2 border-gray-200 rounded-lg p-4 bg-gray-50"
+            className="border-2 border-slate-200 rounded-2xl p-4 bg-slate-50/80"
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
           >
             <div className="flex justify-between items-start mb-3">
               <div>
-                <h4 className="font-bold text-lg text-gray-800">{round.name}</h4>
-                <p className="text-gray-600 text-sm">{round.description}</p>
+                <h4 className="font-bold text-lg text-slate-800">{round.name}</h4>
+                <p className="text-slate-600 text-sm">{round.description}</p>
               </div>
               <div className={`px-2 py-1 rounded-full text-xs font-medium ${
                 round.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
@@ -397,7 +397,7 @@ const RoundManagement: React.FC<{ rounds: LotteryRound[]; onRefresh: () => void 
               </div>
             </div>
             
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-gray-600 mb-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-slate-600 mb-3">
               <div>参与: {round.participants.length}</div>
               <div>中奖: {round.winners.length}</div>
               <div>奖品: {round.prizes.length}</div>
@@ -408,7 +408,7 @@ const RoundManagement: React.FC<{ rounds: LotteryRound[]; onRefresh: () => void 
               <motion.button
                 onClick={() => handleToggleStatus(round.id, round.isActive)}
                 disabled={loading === round.id}
-                className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400 text-sm font-medium"
+                className="px-3 py-1 bg-slate-900 text-white rounded hover:bg-slate-800 disabled:bg-slate-400 text-sm font-medium"
                 whileTap={{ scale: 0.95 }}
               >
                 {loading === round.id ? '处理中...' : (round.isActive ? '停用' : '启用')}
@@ -416,7 +416,7 @@ const RoundManagement: React.FC<{ rounds: LotteryRound[]; onRefresh: () => void 
               <motion.button
                 onClick={() => handleResetRound(round.id)}
                 disabled={loading === round.id}
-                className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 disabled:bg-gray-400 text-sm font-medium"
+                className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 disabled:bg-slate-400 text-sm font-medium"
                 whileTap={{ scale: 0.95 }}
               >
                 {loading === round.id ? '处理中...' : '重置'}
@@ -426,8 +426,8 @@ const RoundManagement: React.FC<{ rounds: LotteryRound[]; onRefresh: () => void 
         ))}
         
         {safeRounds.length === 0 && (
-          <div className="text-center text-gray-500 py-8">
-            <svg className="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="text-center text-slate-500 py-8">
+            <svg className="w-12 h-12 mx-auto mb-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
             暂无抽奖轮次
@@ -455,7 +455,7 @@ const LotteryAdmin: React.FC = () => {
         transition={{ duration: 0.6 }}
       >
         <motion.div 
-          className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6 border border-red-100"
+          className="bg-gradient-to-r from-red-50 to-pink-50 rounded-2xl p-6 border border-red-100"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
@@ -464,7 +464,7 @@ const LotteryAdmin: React.FC = () => {
             🔒
             访问被拒绝
           </h2>
-          <div className="text-gray-600 space-y-2">
+          <div className="text-slate-600 space-y-2">
             <p>你不是管理员，禁止访问！请用管理员账号登录后再来。</p>
             <div className="text-sm text-red-500 italic">
               抽奖管理仅限管理员使用
@@ -496,20 +496,20 @@ const LotteryAdmin: React.FC = () => {
     >
       {/* 标题和说明 */}
       <motion.div 
-        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
+        className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl p-6 border border-slate-200"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
-          <FaDice className="text-2xl text-blue-600" />
+        <h2 className="text-2xl font-bold text-slate-700 mb-3 flex items-center gap-2">
+          <FaDice className="text-2xl text-slate-600" />
           抽奖管理
         </h2>
-        <div className="text-gray-600 space-y-2">
+        <div className="text-slate-600 space-y-2">
           <p>管理抽奖轮次和奖品，包括创建、编辑、删除轮次和奖品管理。</p>
           <div className="flex items-start gap-2 text-sm">
             <div>
-              <p className="font-semibold text-blue-700">功能说明：</p>
+              <p className="font-semibold text-slate-700">功能说明：</p>
               <ul className="list-disc list-inside space-y-1 mt-1">
                 <li>创建新的抽奖轮次</li>
                 <li>管理轮次状态和奖品</li>
@@ -524,20 +524,20 @@ const LotteryAdmin: React.FC = () => {
 
       {/* 标签页切换 */}
       <motion.div 
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+        className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <FaList className="text-lg text-blue-500" />
+          <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+            <FaList className="text-lg text-slate-500" />
             功能面板
           </h3>
           {activeTab === 'manage' && (
             <motion.button
               onClick={handleDeleteAllRounds}
-              className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition font-medium"
+              className="px-4 py-2 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition font-medium"
               whileTap={{ scale: 0.95 }}
             >
               删除所有轮次
@@ -546,13 +546,13 @@ const LotteryAdmin: React.FC = () => {
         </div>
 
         <div className="flex justify-center mb-6">
-          <div className="bg-gray-100 rounded-lg p-1">
+          <div className="bg-slate-100 rounded-2xl p-1">
             <motion.button
               onClick={() => setActiveTab('create')}
               className={`px-6 py-2 rounded-md transition-colors font-medium ${
                 activeTab === 'create'
-                  ? 'bg-blue-500 text-white'
-                  : 'text-gray-600 hover:text-gray-800'
+                  ? 'bg-slate-900 text-white'
+                  : 'text-slate-600 hover:text-slate-800'
               }`}
               whileTap={{ scale: 0.95 }}
             >
@@ -562,8 +562,8 @@ const LotteryAdmin: React.FC = () => {
               onClick={() => setActiveTab('manage')}
               className={`px-6 py-2 rounded-md transition-colors font-medium ${
                 activeTab === 'manage'
-                  ? 'bg-blue-500 text-white'
-                  : 'text-gray-600 hover:text-gray-800'
+                  ? 'bg-slate-900 text-white'
+                  : 'text-slate-600 hover:text-slate-800'
               }`}
               whileTap={{ scale: 0.95 }}
             >

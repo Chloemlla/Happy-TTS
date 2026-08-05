@@ -807,48 +807,48 @@ return finalRandom < 0.5 ? 'heads' : 'tails';`}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <h5 className="font-medium mb-1 flex items-center gap-2">
-                          <FaShieldAlt className="text-gray-600" />
+                          <FaShieldAlt className="text-slate-600" />
                           随机数质量:
                         </h5>
                         <ul className="list-disc list-inside space-y-1 text-xs">
                           <li className="flex items-center gap-1">
-                            <FaShieldAlt className="text-gray-500" />
+                            <FaShieldAlt className="text-slate-500" />
                             加密API: 密码学安全级别
                           </li>
                           <li className="flex items-center gap-1">
-                            <FaRandom className="text-gray-500" />
+                            <FaRandom className="text-slate-500" />
                             多重组合: 高随机性
                           </li>
                           <li className="flex items-center gap-1">
-                            <FaClock className="text-gray-500" />
+                            <FaClock className="text-slate-500" />
                             时间熵: 基于系统时间
                           </li>
                           <li className="flex items-center gap-1">
-                            <FaMousePointer className="text-gray-500" />
+                            <FaMousePointer className="text-slate-500" />
                             用户熵: 基于用户交互
                           </li>
                         </ul>
                       </div>
                       <div>
                         <h5 className="font-medium mb-1 flex items-center gap-2">
-                          <FaCog className="text-gray-600" />
+                          <FaCog className="text-slate-600" />
                           性能特点:
                         </h5>
                         <ul className="list-disc list-inside space-y-1 text-xs">
                           <li className="flex items-center gap-1">
-                            <FaShieldAlt className="text-gray-500" />
+                            <FaShieldAlt className="text-slate-500" />
                             加密API: 硬件加速
                           </li>
                           <li className="flex items-center gap-1">
-                            <FaCalculator className="text-gray-500" />
+                            <FaCalculator className="text-slate-500" />
                             多重组合: 计算开销小
                           </li>
                           <li className="flex items-center gap-1">
-                            <FaPlay className="text-gray-500" />
+                            <FaPlay className="text-slate-500" />
                             实时生成: 无延迟
                           </li>
                           <li className="flex items-center gap-1">
-                            <FaCheckCircle className="text-gray-500" />
+                            <FaCheckCircle className="text-slate-500" />
                             浏览器兼容: 广泛支持
                           </li>
                         </ul>

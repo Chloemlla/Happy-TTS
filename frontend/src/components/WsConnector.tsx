@@ -154,12 +154,12 @@ export default function WsConnector() {
         className={`w-10 h-10 rounded-full shadow-lg flex items-center justify-center transition-colors ${
           connected
             ? 'bg-green-500'
-            : 'bg-gray-400'
+            : 'bg-slate-400'
         }`}
         title={connected ? 'WebSocket 已连接' : 'WebSocket 未连接'}
         aria-label={connected ? 'WebSocket 已连接' : 'WebSocket 未连接'}
       >
-        <div className={`w-3 h-3 rounded-full ${connected ? 'bg-white animate-pulse' : 'bg-gray-200'}`} />
+        <div className={`w-3 h-3 rounded-full ${connected ? 'bg-white/90 animate-pulse' : 'bg-slate-200'}`} />
       </div>
     </div>
   );

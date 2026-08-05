@@ -208,7 +208,7 @@ export const UnifiedLoadingSpinner: React.FC<{
   };
 
   return (
-    <div className={`text-center py-8 text-gray-500 ${className}`}>
+    <div className={`text-center py-8 text-slate-500 ${className}`}>
       <svg 
         className={`animate-spin ${sizeClasses[size]} mx-auto mb-4 text-blue-500`} 
         fill="none" 
@@ -237,9 +237,9 @@ export const UnifiedLoadingSpinner: React.FC<{
 export const SkeletonLoader: React.FC = () => {
   return (
     <div className="animate-pulse">
-      <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
-      <div className="h-4 bg-gray-200 rounded w-1/2 mb-4"></div>
-      <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+      <div className="h-4 bg-slate-200 rounded w-3/4 mb-4"></div>
+      <div className="h-4 bg-slate-200 rounded w-1/2 mb-4"></div>
+      <div className="h-4 bg-slate-200 rounded w-5/6"></div>
     </div>
   );
 }; 

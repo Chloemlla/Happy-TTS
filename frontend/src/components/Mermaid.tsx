@@ -121,7 +121,7 @@ const Mermaid: React.FC<MermaidProps> = ({ code }) => {
 
     const container = document.createElement('div');
     container.className =
-      'max-h-[95%] max-w-[95%] overflow-auto rounded-lg bg-white p-4 shadow-2xl';
+      'max-h-[95%] max-w-[95%] overflow-auto rounded-lg bg-white/90 p-4 shadow-2xl';
     container.innerHTML = svg;
 
     modal.appendChild(container);
@@ -147,9 +147,9 @@ const Mermaid: React.FC<MermaidProps> = ({ code }) => {
 
   if (isRendering) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-8">
+      <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-gray-200 bg-slate-50 p-8">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-        <span className="text-sm text-gray-500">正在渲染图表...</span>
+        <span className="text-sm text-slate-500">正在渲染图表...</span>
       </div>
     );
   }
@@ -176,14 +176,14 @@ const Mermaid: React.FC<MermaidProps> = ({ code }) => {
 
   return (
     <div
-      className="group relative my-4 cursor-zoom-in overflow-hidden rounded-xl border border-gray-100 bg-white p-4 shadow-sm"
+      className="group relative my-4 cursor-zoom-in overflow-hidden rounded-xl border border-gray-100 bg-white/90 p-4 shadow-sm"
       onClick={handleZoom}
     >
       <div
         className="mermaid-svg flex max-h-[600px] justify-center overflow-auto"
         dangerouslySetInnerHTML={{ __html: svg }}
       />
-      <div className="pointer-events-none absolute right-2 top-2 rounded border border-gray-100 bg-white/90 px-2 py-1 text-[10px] font-medium text-gray-500 opacity-0 shadow-sm backdrop-blur transition-opacity group-hover:opacity-100">
+      <div className="pointer-events-none absolute right-2 top-2 rounded border border-gray-100 bg-white/90 px-2 py-1 text-[10px] font-medium text-slate-500 opacity-0 shadow-sm backdrop-blur transition-opacity group-hover:opacity-100">
         点击放大
       </div>
     </div>

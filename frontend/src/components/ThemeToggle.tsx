@@ -17,7 +17,7 @@ export const ThemeToggle: React.FC = () => {
     <button
       onClick={onClick}
       aria-label={isDark ? '切换到浅色模式' : '切换到深色模式'}
-      className="fixed bottom-4 right-4 z-[1000] inline-flex items-center gap-2 px-3 py-2 rounded-full shadow-lg border border-white/30 bg-white/80 backdrop-blur dark:bg-gray-800/80 dark:border-gray-700 text-gray-700 dark:text-gray-100 hover:shadow-xl transition-all"
+      className="fixed bottom-4 right-4 z-[1000] inline-flex items-center gap-2 px-3 py-2 rounded-full shadow-lg border border-white/30 bg-white/90 backdrop-blur dark:bg-slate-800/80 dark:border-gray-700 text-slate-700 dark:text-slate-100 hover:shadow-xl transition-all"
       title={isDark ? '切换到浅色模式' : '切换到深色模式'}
     >
       {isDark ? <FaSun className="w-4 h-4" /> : <FaMoon className="w-4 h-4" />}

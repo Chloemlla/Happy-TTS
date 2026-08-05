@@ -170,12 +170,12 @@ const PromptModal: React.FC<PromptModalProps> = ({
           }}
         >
           <motion.div
-            className={`bg-white shadow-sm border border-gray-200 relative ${
-              isMobile 
-                ? `w-full h-full rounded-lg p-3 ${isExpanded ? '' : 'max-h-[95vh] overflow-y-auto'}` 
+            className={`bg-white/80 backdrop-blur-xl shadow-sm border border-gray-200 relative ${
+              isMobile
+                ? `w-full h-full rounded-2xl p-3 ${isExpanded ? '' : 'max-h-[95vh] overflow-y-auto'}`
                 : isTablet
-                ? `rounded-xl p-4 mx-3 ${isExpanded ? 'w-[92vw] h-[85vh]' : 'max-w-3xl w-[88vw]'}`
-                : `rounded-xl p-6 mx-4 ${isExpanded ? 'w-[95vw] h-[90vh]' : 'max-w-2xl w-[90vw]'}`
+                ? `rounded-2xl p-4 mx-3 ${isExpanded ? 'w-[92vw] h-[85vh]' : 'max-w-3xl w-[88vw]'}`
+                : `rounded-2xl p-6 mx-4 ${isExpanded ? 'w-[95vw] h-[90vh]' : 'max-w-2xl w-[90vw]'}`
             }`}
             initial={{ 
               opacity: 0, 
@@ -201,7 +201,7 @@ const PromptModal: React.FC<PromptModalProps> = ({
             <div className={`flex items-center justify-between ${isMobile ? 'mb-3' : 'mb-4'}`}>
               <div className={`flex items-center ${isMobile ? 'gap-2' : 'gap-3'}`}>
                 <FaEdit className={`text-blue-500 ${isMobile ? 'w-5 h-5' : 'w-6 h-6'}`} />
-                <h2 className={`font-semibold text-gray-800 ${isMobile ? 'text-base' : 'text-lg'}`}>
+                <h2 className={`font-semibold text-slate-800 ${isMobile ? 'text-base' : 'text-lg'}`}>
                   {title || '输入内容'}
                 </h2>
               </div>
@@ -210,7 +210,7 @@ const PromptModal: React.FC<PromptModalProps> = ({
                   <>
                     <button
                       onClick={copyToClipboard}
-                      className={`text-gray-500 hover:text-gray-700 transition-colors touch-manipulation ${
+                      className={`text-slate-500 hover:text-slate-700 transition-colors touch-manipulation ${
                         isMobile ? 'p-1.5 min-w-[36px] min-h-[36px]' : 'p-2'
                       }`}
                       title="复制内容"
@@ -219,7 +219,7 @@ const PromptModal: React.FC<PromptModalProps> = ({
                     </button>
                     <button
                       onClick={() => setIsExpanded(!isExpanded)}
-                      className={`text-gray-500 hover:text-gray-700 transition-colors touch-manipulation ${
+                      className={`text-slate-500 hover:text-slate-700 transition-colors touch-manipulation ${
                         isMobile ? 'p-1.5 min-w-[36px] min-h-[36px]' : 'p-2'
                       }`}
                       title={isExpanded ? '收起' : '展开'}
@@ -230,7 +230,7 @@ const PromptModal: React.FC<PromptModalProps> = ({
                 )}
                 <button
                   onClick={onClose}
-                  className={`text-gray-400 hover:text-gray-600 transition-colors touch-manipulation ${
+                  className={`text-slate-400 hover:text-slate-600 transition-colors touch-manipulation ${
                     isMobile ? 'p-1.5 min-w-[36px] min-h-[36px]' : 'p-2'
                   }`}
                 >
@@ -240,7 +240,7 @@ const PromptModal: React.FC<PromptModalProps> = ({
             </div>
             
             {message && (
-              <div className={`text-gray-700 leading-relaxed ${isMobile ? 'mb-3 text-sm' : 'mb-4'}`}>
+              <div className={`text-slate-700 leading-relaxed ${isMobile ? 'mb-3 text-sm' : 'mb-4'}`}>
                 {message}
               </div>
             )}
@@ -253,7 +253,7 @@ const PromptModal: React.FC<PromptModalProps> = ({
                   onKeyDown={handleKeyDown}
                   placeholder={placeholder}
                   maxLength={maxLength}
-                  className={`w-full border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all resize-none font-mono bg-gray-50 text-gray-900 ${
+                  className={`w-full border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all resize-none font-mono bg-slate-50/80 text-slate-900 ${
                     isExpanded 
                       ? isMobile 
                         ? 'h-[calc(100vh-180px)]' 
@@ -285,7 +285,7 @@ const PromptModal: React.FC<PromptModalProps> = ({
                   onKeyDown={handleKeyDown}
                   placeholder={placeholder}
                   maxLength={maxLength}
-                  className="w-full border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all resize-none font-mono"
+                  className="w-full border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all resize-none font-mono"
                   rows={isMobile ? 3 : 4}
                   autoFocus
                   spellCheck={false}
@@ -306,7 +306,7 @@ const PromptModal: React.FC<PromptModalProps> = ({
                   onKeyDown={handleKeyDown}
                   placeholder={placeholder}
                   maxLength={maxLength}
-                  className="w-full border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+                  className="w-full border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
                   autoFocus
                   style={{
                     padding: isMobile ? '12px' : '16px',
@@ -320,7 +320,7 @@ const PromptModal: React.FC<PromptModalProps> = ({
               )}
               
               {maxLength && (
-                <div className={`text-gray-400 text-right ${isMobile ? 'text-xs mt-1' : 'text-xs mt-2'}`}>
+                <div className={`text-slate-400 text-right ${isMobile ? 'text-xs mt-1' : 'text-xs mt-2'}`}>
                   {value.length}/{maxLength}
                 </div>
               )}
@@ -329,7 +329,7 @@ const PromptModal: React.FC<PromptModalProps> = ({
             <div className={`flex justify-center ${isMobile ? 'gap-2' : 'gap-3'}`}>
               <motion.button
                 onClick={onClose}
-                className={`border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2 touch-manipulation ${
+                className={`border border-gray-300 text-slate-700 rounded-2xl hover:bg-slate-50/80 transition-colors font-medium flex items-center gap-2 touch-manipulation ${
                   isMobile ? 'px-4 py-2.5 text-sm min-h-[44px]' : 'px-6 py-3'
                 }`}
                 whileTap={{ scale: 0.95 }}
@@ -340,7 +340,7 @@ const PromptModal: React.FC<PromptModalProps> = ({
               <motion.button
                 onClick={handleConfirm}
                 disabled={!value.trim()}
-                className={`bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation ${
+                className={`bg-emerald-500 text-white rounded-2xl hover:bg-emerald-600 transition-colors font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation ${
                   isMobile ? 'px-4 py-2.5 text-sm min-h-[44px]' : 'px-6 py-3'
                 }`}
                 whileTap={{ scale: 0.95 }}

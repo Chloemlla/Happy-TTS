@@ -47,7 +47,7 @@ const AnnouncementModal: React.FC<AnnouncementModalProps> = ({
           onClick={() => handleClose(onClose)}
         >
           <motion.div
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-8 relative animate-bounceIn"
+            className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-8 relative animate-bounceIn"
             initial={{ scale: 0.95, y: 40, opacity: 0 }}
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.95, y: 40, opacity: 0 }}
@@ -66,25 +66,25 @@ const AnnouncementModal: React.FC<AnnouncementModalProps> = ({
                   <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(content) }} />
                 )
               ) : (
-                <span className="text-gray-400">暂无公告内容</span>
+                <span className="text-slate-400">暂无公告内容</span>
               )}
             </div>
             <div className="flex flex-col sm:flex-row gap-3 mt-6">
               <button
-                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold shadow hover:bg-indigo-700 transition"
+                className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-2xl font-semibold shadow hover:bg-indigo-700 transition"
                 onClick={e => { e.stopPropagation(); handleClose(onCloseToday); }}
               >今日不再提示</button>
               <button
-                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-semibold shadow hover:bg-gray-200 transition"
+                className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 rounded-2xl font-semibold shadow hover:bg-slate-200 transition"
                 onClick={e => { e.stopPropagation(); handleClose(onClose); }}
               >关闭</button>
               <button
-                className="flex-1 px-4 py-2 bg-gray-300 text-gray-700 rounded-lg font-semibold shadow hover:bg-gray-400 transition"
+                className="flex-1 px-4 py-2 bg-slate-300 text-slate-700 rounded-2xl font-semibold shadow hover:bg-slate-400 transition"
                 onClick={e => { e.stopPropagation(); handleClose(onCloseForever); }}
               >永久不再提示</button>
             </div>
             <button
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
               onClick={e => { e.stopPropagation(); handleClose(onClose); }}
               aria-label="关闭公告"
             >

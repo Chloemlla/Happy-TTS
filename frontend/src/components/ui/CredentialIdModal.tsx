@@ -23,7 +23,7 @@ export function renderCredentialIdModal({ open, credentialId, onClose }: { open:
           onClick={onClose}
         >
           <motion.div
-            className="bg-white rounded-lg shadow-lg p-4 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto"
+            className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg p-4 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto"
             initial={{ scale: 0.92, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.92, opacity: 0 }}
@@ -37,7 +37,7 @@ export function renderCredentialIdModal({ open, credentialId, onClose }: { open:
               transition={{ duration: 0.28 }}
             >
               <div className="font-bold text-lg mb-2">验证器 CredentialID</div>
-              <div className="break-all text-sm bg-gray-100 p-2 rounded select-all mb-4">{credentialId}</div>
+              <div className="break-all text-sm bg-slate-100 p-2 rounded select-all mb-4">{credentialId}</div>
               <div className="flex justify-center gap-3">
                 <motion.button
                   className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 font-semibold"
@@ -48,7 +48,7 @@ export function renderCredentialIdModal({ open, credentialId, onClose }: { open:
                   关闭
                 </motion.button>
                 <motion.button
-                  className="px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 font-semibold"
+                  className="px-4 py-2 bg-emerald-100 text-emerald-700 rounded hover:bg-emerald-200 font-semibold"
                   whileTap={{ scale: 0.96 }}
                   whileHover={{ scale: 1.04 }}
                   onClick={handleCopy}

@@ -336,30 +336,30 @@ export const UserFormSection: React.FC<UserFormSectionProps> = ({
   children,
   collapsed = false,
   onToggle,
-  contentClassName = 'px-4 pb-4 pt-2 grid grid-cols-1 md:grid-cols-2 gap-4 bg-white border-t border-gray-100',
+  contentClassName = 'px-4 pb-4 pt-2 grid grid-cols-1 md:grid-cols-2 gap-4 bg-white/80 backdrop-blur-xl border-t border-slate-100',
 }) => {
   const headerContent = (
-    <span className="flex items-center gap-2 font-semibold text-gray-700 text-sm">
+    <span className="flex items-center gap-2 font-semibold text-slate-700 text-sm">
       {icon}
       {title}
     </span>
   );
 
   return (
-    <div className="border border-gray-200 rounded-lg overflow-hidden">
+    <div className="border border-slate-200 rounded-2xl overflow-hidden">
       {onToggle ? (
         <button
           type="button"
-          className="w-full flex items-center justify-between px-4 py-3 bg-white hover:bg-gray-50 transition-colors"
+          className="w-full flex items-center justify-between px-4 py-3 bg-white/80 backdrop-blur-xl hover:bg-slate-50/80 transition-colors"
           onClick={onToggle}
         >
           {headerContent}
           {collapsed
-            ? <FaChevronDown className="text-gray-400 text-xs" />
-            : <FaChevronUp className="text-gray-400 text-xs" />}
+            ? <FaChevronDown className="text-slate-400 text-xs" />
+            : <FaChevronUp className="text-slate-400 text-xs" />}
         </button>
       ) : (
-        <div className="w-full flex items-center justify-between px-4 py-3 bg-white">
+        <div className="w-full flex items-center justify-between px-4 py-3 bg-white/80 backdrop-blur-xl">
           {headerContent}
         </div>
       )}
@@ -393,9 +393,9 @@ export const UserTextField: React.FC<UserTextFieldProps> = ({
   hint,
 }) => (
   <div>
-    <label className="block text-sm font-semibold text-gray-600 mb-1">
+    <label className="block text-sm font-semibold text-slate-600 mb-1">
       {label}
-      {hint && <span className="ml-1 text-xs font-normal text-gray-400">{hint}</span>}
+      {hint && <span className="ml-1 text-xs font-normal text-slate-400">{hint}</span>}
     </label>
     <input
       type={type}
@@ -403,7 +403,7 @@ export const UserTextField: React.FC<UserTextFieldProps> = ({
       value={String(value ?? '')}
       onChange={onChange}
       placeholder={placeholder}
-      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm"
+      className="w-full px-3 py-2 border-2 border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm"
     />
   </div>
 );
@@ -416,12 +416,12 @@ export const UserSelectField: React.FC<UserSelectFieldProps> = ({
   options,
 }) => (
   <div>
-    <label className="block text-sm font-semibold text-gray-600 mb-1">{label}</label>
+    <label className="block text-sm font-semibold text-slate-600 mb-1">{label}</label>
     <select
       name={String(name)}
       value={value}
       onChange={onChange}
-      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all appearance-none bg-white text-sm"
+      className="w-full px-3 py-2 border-2 border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all appearance-none bg-white text-sm"
     >
       {options.map(option => (
         <option key={option.value} value={option.value}>{option.label}</option>
@@ -438,9 +438,9 @@ export const UserCheckboxField: React.FC<UserCheckboxFieldProps> = ({
   hint,
 }) => (
   <div>
-    <label className="block text-sm font-semibold text-gray-600 mb-1">
+    <label className="block text-sm font-semibold text-slate-600 mb-1">
       {label}
-      {hint && <span className="ml-1 text-xs font-normal text-gray-400">{hint}</span>}
+      {hint && <span className="ml-1 text-xs font-normal text-slate-400">{hint}</span>}
     </label>
     <label className="flex items-center gap-2 cursor-pointer select-none">
       <input
@@ -450,7 +450,7 @@ export const UserCheckboxField: React.FC<UserCheckboxFieldProps> = ({
         onChange={onChange}
         className="w-4 h-4 rounded"
       />
-      <span className="text-sm text-gray-600">{checked ? '是' : '否'}</span>
+      <span className="text-sm text-slate-600">{checked ? '是' : '否'}</span>
     </label>
   </div>
 );
@@ -561,10 +561,10 @@ const SecuritySection: React.FC<{
     icon={<FaShieldAlt className="text-green-500" />}
     collapsed={collapsed}
     onToggle={onToggle}
-    contentClassName="px-4 pb-4 pt-2 bg-white border-t border-gray-100 space-y-5"
+    contentClassName="px-4 pb-4 pt-2 bg-white/80 backdrop-blur-xl border-t border-slate-100 space-y-5"
   >
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div className="md:col-span-2 text-xs font-semibold uppercase tracking-wide text-gray-400">TOTP 两步验证</div>
+      <div className="md:col-span-2 text-xs font-semibold uppercase tracking-wide text-slate-400">TOTP 两步验证</div>
       <UserCheckboxField
         label="启用 TOTP"
         name="totpEnabled"
@@ -580,8 +580,8 @@ const SecuritySection: React.FC<{
       />
     </div>
 
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-gray-100 pt-5">
-      <div className="md:col-span-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Passkey 配置</div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-100 pt-5">
+      <div className="md:col-span-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Passkey 配置</div>
       <UserCheckboxField
         label="启用 Passkey"
         name="passkeyEnabled"
@@ -723,14 +723,14 @@ const BackupCodesSection: React.FC<{
     icon={<FaKey className="text-orange-500" />}
     collapsed={collapsed}
     onToggle={onToggle}
-    contentClassName="px-4 pb-4 pt-2 bg-white border-t border-gray-100"
+    contentClassName="px-4 pb-4 pt-2 bg-white/80 backdrop-blur-xl border-t border-slate-100"
   >
-    <label className="block text-sm font-semibold text-gray-600 mb-1">
+    <label className="block text-sm font-semibold text-slate-600 mb-1">
       备份码（每行一个）
     </label>
     <textarea
       rows={4}
-      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm font-mono"
+      className="w-full px-3 py-2 border-2 border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all text-sm font-mono"
       value={backupCodes.join('\n')}
       onChange={event => onChange(event.target.value)}
       placeholder="每行一个备份码"
@@ -760,7 +760,7 @@ export const UserFormScaffold: React.FC<{
   children,
 }) => (
   <form onSubmit={onSubmit} className="space-y-4">
-    <h4 className="text-base font-semibold text-gray-700 mb-4 flex items-center gap-2">
+    <h4 className="text-base font-semibold text-slate-700 mb-4 flex items-center gap-2">
       {icon}
       {title}
     </h4>
@@ -771,7 +771,7 @@ export const UserFormScaffold: React.FC<{
       <motion.button
         type="submit"
         disabled={loading}
-        className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium flex items-center gap-2 disabled:opacity-60"
+        className="px-6 py-2 bg-emerald-500 text-white rounded-2xl hover:bg-emerald-600 transition font-medium flex items-center gap-2 disabled:opacity-60"
         whileHover={hoverScale(1.02)}
         whileTap={tapScale(0.95)}
       >
@@ -780,7 +780,7 @@ export const UserFormScaffold: React.FC<{
       </motion.button>
       <motion.button
         type="button"
-        className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition font-medium flex items-center gap-2"
+        className="px-6 py-2 bg-slate-500 text-white rounded-2xl hover:bg-slate-600 transition font-medium flex items-center gap-2"
         onClick={onCancel}
         whileHover={hoverScale(1.02)}
         whileTap={tapScale(0.95)}
@@ -909,4 +909,3 @@ export const TABLE_COLUMNS = [
   { key: 'ticketStatus', label: '工单状态' },
   { key: 'translation', label: '翻译权限' },
 ];
-

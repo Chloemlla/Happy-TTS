@@ -323,7 +323,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 
       return (
         <div className="group relative my-4 overflow-hidden rounded-md border border-gray-700/50 shadow-lg">
-          <div className="flex items-center justify-between border-b border-gray-700/30 bg-gray-800 px-4 py-2 font-mono text-[10px] text-gray-400">
+          <div className="flex items-center justify-between border-b border-gray-700/30 bg-slate-800 px-4 py-2 font-mono text-[10px] text-slate-400">
             <span className="font-bold uppercase tracking-wider">{languageLabel}</span>
             <div className="flex gap-1.5">
               <span className="h-2 w-2 rounded-full bg-red-500/50" />
@@ -337,7 +337,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               style={vscDarkPlus}
               language={language}
               PreTag="div"
-              className="!m-0 !bg-gray-900 !p-4"
+              className="!m-0 !bg-slate-900 !p-4"
               customStyle={{
                 fontSize: '12px',
                 lineHeight: '1.6',
@@ -348,7 +348,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
             </SyntaxHighlighter>
           ) : (
             <pre
-              className="m-0 overflow-x-auto bg-gray-900 p-4 text-xs leading-relaxed text-gray-100"
+              className="m-0 overflow-x-auto bg-slate-900 p-4 text-xs leading-relaxed text-slate-100"
               style={{ fontFamily: CODE_FONT_FAMILY }}
             >
               <code {...props}>{rawCode}</code>

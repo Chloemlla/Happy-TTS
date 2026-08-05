@@ -92,7 +92,7 @@ const Footer: React.FC = () => {
   }, []);
 
   return (
-    <footer className="text-center text-gray-500 mt-8 mb-2 text-sm select-none flex flex-col items-center gap-1">
+    <footer className="text-center text-slate-500 mt-8 mb-2 text-sm select-none flex flex-col items-center gap-1">
       <div>
         Copyright ©{year} Synapse. All rights reserved.
       </div>
@@ -105,7 +105,7 @@ const Footer: React.FC = () => {
           {uptime.days} 天 {uptime.hours} 小时 {uptime.minutes} 分钟 {uptime.seconds} 秒
         </span>
       </div>
-      <div className="mt-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded text-blue-700 text-xs max-w-xs">
+      <div className="mt-1 px-2 py-1 bg-slate-50 border border-blue-200 rounded text-blue-700 text-xs max-w-xs">
         <FaGlobe className="inline mr-1" /> 您的网络信息：
         {ipLoading ? (
           <span className="font-mono font-bold text-blue-800">获取中...</span>

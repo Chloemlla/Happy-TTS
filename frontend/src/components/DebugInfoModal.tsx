@@ -57,7 +57,7 @@ export const DebugInfoModal: React.FC<DebugInfoModalProps> = ({ isOpen, onClose,
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ scale: 0.9, opacity: 0, y: 50 }}
                     transition={{ duration: 0.4, type: "spring", stiffness: 300, damping: 25 }}
-                    className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl mx-auto my-8 max-h-[90vh] overflow-hidden"
+                    className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-4xl mx-auto my-8 max-h-[90vh] overflow-hidden"
                     onClick={(e) => e.stopPropagation()}
                 >
                     {/* 标题栏 */}
@@ -80,7 +80,7 @@ export const DebugInfoModal: React.FC<DebugInfoModalProps> = ({ isOpen, onClose,
                             </div>
                             <button
                                 onClick={onClose}
-                                className="text-white hover:text-gray-200 transition-colors"
+                                className="text-white hover:text-slate-200 transition-colors"
                             >
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -98,27 +98,27 @@ export const DebugInfoModal: React.FC<DebugInfoModalProps> = ({ isOpen, onClose,
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ duration: 0.3, delay: index * 0.1 }}
-                                    className="bg-gray-50 rounded-lg p-4 border-l-4 border-blue-500"
+                                    className="bg-slate-50/80 rounded-2xl p-4 border-l-4 border-blue-500"
                                 >
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
                                             <div className="flex items-center space-x-2 mb-2">
-                                                <span className="text-sm font-medium text-gray-500">
+                                                <span className="text-sm font-medium text-slate-500">
                                                     {new Date(info.timestamp).toLocaleTimeString()}
                                                 </span>
-                                                <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded">
+                                                <span className="px-2 py-1 bg-slate-100 text-slate-800 text-xs font-medium rounded">
                                                     {info.action}
                                                 </span>
                                             </div>
-                                            <div className="text-sm text-gray-700 space-y-1">
+                                            <div className="text-sm text-slate-700 space-y-1">
                                                 {Object.entries(info).map(([key, value]) => {
                                                     if (key === 'action' || key === 'timestamp') return null;
                                                     return (
                                                         <div key={key} className="flex">
-                                                            <span className="font-medium text-gray-600 w-24 flex-shrink-0">
+                                                            <span className="font-medium text-slate-600 w-24 flex-shrink-0">
                                                                 {key}:
                                                             </span>
-                                                            <span className="text-gray-800 break-all">
+                                                            <span className="text-slate-800 break-all">
                                                                 {typeof value === 'object' 
                                                                     ? JSON.stringify(value, null, 2)
                                                                     : String(value)
@@ -136,9 +136,9 @@ export const DebugInfoModal: React.FC<DebugInfoModalProps> = ({ isOpen, onClose,
                     </div>
 
                     {/* 底部操作栏 */}
-                    <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
+                    <div className="bg-slate-50/80 px-6 py-4 border-t border-slate-200">
                         <div className="flex items-center justify-between">
-                            <div className="text-sm text-gray-600">
+                            <div className="text-sm text-slate-600">
                                 共 {debugInfos.length} 条调试信息
                             </div>
                             <div className="flex space-x-3">
@@ -146,10 +146,10 @@ export const DebugInfoModal: React.FC<DebugInfoModalProps> = ({ isOpen, onClose,
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                     onClick={copyToClipboard}
-                                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                                        copied 
-                                            ? 'bg-green-500 text-white' 
-                                            : 'bg-blue-500 text-white hover:bg-blue-600'
+                                    className={`px-4 py-2 rounded-2xl font-medium transition-colors ${
+                                        copied
+                                            ? 'bg-emerald-500 text-white'
+                                            : 'bg-emerald-500 text-white hover:bg-emerald-600'
                                     }`}
                                 >
                                     {copied ? '已复制!' : '复制调试信息'}
@@ -158,7 +158,7 @@ export const DebugInfoModal: React.FC<DebugInfoModalProps> = ({ isOpen, onClose,
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                     onClick={onClose}
-                                    className="px-4 py-2 bg-gray-500 text-white rounded-lg font-medium hover:bg-gray-600 transition-colors"
+                                    className="px-4 py-2 bg-slate-500 text-white rounded-2xl font-medium hover:bg-slate-600 transition-colors"
                                 >
                                     关闭
                                 </motion.button>

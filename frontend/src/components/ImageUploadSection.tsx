@@ -54,8 +54,8 @@ const ImagePreview: React.FC<{ src?: string; alt?: string }> = ({ src, alt = '�
 
   if (!safeSrc || error) {
     return (
-      <div className="w-full h-48 bg-gray-100 rounded-lg flex items-center justify-center">
-        <FaUser className="text-4xl text-gray-400" />
+      <div className="w-full h-48 bg-slate-100 rounded-lg flex items-center justify-center">
+        <FaUser className="text-4xl text-slate-400" />
       </div>
     );
   }
@@ -83,7 +83,7 @@ const ImageUploadSection: React.FC<ImageUploadSectionProps> = ({
 
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">通缉犯照片</label>
+      <label className="block text-sm font-medium text-slate-700 mb-2">通缉犯照片</label>
       <div className="space-y-4">
         {/* 图片预览 */}
         <div className="w-full">
@@ -103,7 +103,7 @@ const ImageUploadSection: React.FC<ImageUploadSectionProps> = ({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50"
           >
             <FaUpload />
             {loading ? '上传中...' : '上传图片'}
@@ -119,13 +119,13 @@ const ImageUploadSection: React.FC<ImageUploadSectionProps> = ({
                 onUrlChange(normalized);
                 onPreviewChange(normalized);
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
               placeholder="或输入图片URL"
             />
           </div>
         </div>
 
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-slate-500">
           支持 JPEG, PNG, WebP, GIF 格式，最大 5MB
         </p>
       </div>

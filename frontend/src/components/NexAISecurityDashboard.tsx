@@ -132,11 +132,11 @@ const NexAISecurityDashboard: React.FC = () => {
   const getRiskLevelColor = (level: string) => {
     switch (level) {
       case 'SAFE': return 'text-green-600 bg-green-100';
-      case 'LOW': return 'text-blue-600 bg-blue-100';
+      case 'LOW': return 'text-blue-600 bg-slate-100';
       case 'MEDIUM': return 'text-yellow-600 bg-yellow-100';
       case 'HIGH': return 'text-orange-600 bg-orange-100';
       case 'CRITICAL': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
+      default: return 'text-slate-600 bg-slate-100';
     }
   };
 
@@ -199,15 +199,15 @@ const NexAISecurityDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-white/80 backdrop-blur-xl p-6">
       <div className="max-w-7xl mx-auto">
         {/* 页面标题 */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
             <FaShieldAlt className="w-8 h-8 text-indigo-600" />
             NexAI 安全监控中心
           </h1>
-          <p className="mt-2 text-gray-600">实时监控设备安全状态、风险评估和异常行为</p>
+          <p className="mt-2 text-slate-600">实时监控设备安全状态、风险评估和异常行为</p>
         </div>
 
         {/* 时间范围选择器 */}
@@ -216,10 +216,10 @@ const NexAISecurityDashboard: React.FC = () => {
             <button
               key={range}
               onClick={() => setTimeRange(range)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`px-4 py-2 rounded-2xl font-medium transition-colors ${
                 timeRange === range
                   ? 'bg-indigo-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200 shadow-sm'
+                  : 'bg-white/80 backdrop-blur-xl text-slate-700 hover:bg-slate-100 border border-slate-200 shadow-sm'
               }`}
             >
               {range === '1h' && '最近1小时'}
@@ -232,41 +232,41 @@ const NexAISecurityDashboard: React.FC = () => {
 
         {/* 统计卡片 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-slate-100 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">总设备数</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{stats?.totalDevices || 0}</p>
+                <p className="text-sm font-medium text-slate-600">总设备数</p>
+                <p className="text-3xl font-bold text-slate-900 mt-2">{stats?.totalDevices || 0}</p>
               </div>
               <FaMobileAlt className="w-10 h-10 text-indigo-600 opacity-80" />
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-slate-100 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">高风险设备</p>
+                <p className="text-sm font-medium text-slate-600">高风险设备</p>
                 <p className="text-3xl font-bold text-orange-600 mt-2">{stats?.highRiskDevices || 0}</p>
               </div>
               <FaExclamationTriangle className="w-10 h-10 text-orange-600 opacity-80" />
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-slate-100 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">已攻破设备</p>
+                <p className="text-sm font-medium text-slate-600">已攻破设备</p>
                 <p className="text-3xl font-bold text-red-600 mt-2">{stats?.compromisedDevices || 0}</p>
               </div>
               <FaShieldAlt className="w-10 h-10 text-red-600 opacity-80" />
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6">
+          <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-slate-100 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">安全事件</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{stats?.totalEvents || 0}</p>
+                <p className="text-sm font-medium text-slate-600">安全事件</p>
+                <p className="text-3xl font-bold text-slate-900 mt-2">{stats?.totalEvents || 0}</p>
               </div>
               <FaChartBar className="w-10 h-10 text-indigo-600 opacity-80" />
             </div>
@@ -274,15 +274,15 @@ const NexAISecurityDashboard: React.FC = () => {
         </div>
 
         {/* 标签页导航 */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 mb-6 overflow-hidden">
-          <div className="border-b border-gray-200">
+        <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-slate-100 mb-6 overflow-hidden">
+          <div className="border-b border-slate-200">
             <nav className="flex -mb-px">
               <button
                 onClick={() => setSelectedTab('overview')}
                 className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
                   selectedTab === 'overview'
                     ? 'border-indigo-600 text-indigo-600 bg-indigo-50/30'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
                 }`}
               >
                 <FaChartBar className="w-4 h-4" /> 概览
@@ -292,7 +292,7 @@ const NexAISecurityDashboard: React.FC = () => {
                 className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
                   selectedTab === 'devices'
                     ? 'border-indigo-600 text-indigo-600 bg-indigo-50/30'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
                 }`}
               >
                 <FaMobileAlt className="w-4 h-4" /> 设备管理
@@ -302,7 +302,7 @@ const NexAISecurityDashboard: React.FC = () => {
                 className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
                   selectedTab === 'events'
                     ? 'border-indigo-600 text-indigo-600 bg-indigo-50/30'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
                 }`}
               >
                 <FaClock className="w-4 h-4" /> 安全事件
@@ -315,8 +315,8 @@ const NexAISecurityDashboard: React.FC = () => {
             <div className="p-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* 风险分布饼图 */}
-                <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-100">
+                  <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
                     <FaShieldAlt className="text-indigo-600" /> 风险等级分布
                   </h3>
                   <div className="h-64">
@@ -336,8 +336,8 @@ const NexAISecurityDashboard: React.FC = () => {
                 </div>
 
                 {/* 事件类型分布柱状图 */}
-                <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <div className="bg-slate-50/80 rounded-2xl p-6 border border-slate-100">
+                  <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
                     <FaChartBar className="text-indigo-600" /> 安全事件类型分布
                   </h3>
                   <div className="h-64">
@@ -364,28 +364,28 @@ const NexAISecurityDashboard: React.FC = () => {
 
               {/* 高风险设备列表 */}
               <div className="mt-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
                   <FaExclamationTriangle className="text-orange-600" /> 高风险设备 Top 10
                 </h3>
-                <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                  <table className="min-w-full divide-y divide-slate-200">
+                    <thead className="bg-slate-50/80">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">设备指纹</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">风险评分</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">风险等级</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">状态</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">最后活跃</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">设备指纹</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">风险评分</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">风险等级</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">状态</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">最后活跃</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white/80 backdrop-blur-xl divide-y divide-slate-200">
                       {stats?.topRiskyDevices && stats.topRiskyDevices.length > 0 ? (
                         stats.topRiskyDevices.map((device) => (
-                          <tr key={device._id} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-600">
+                          <tr key={device._id} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-slate-600">
                               {device.deviceFingerprint.substring(0, 12)}...
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">
                               {device.riskScore}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
@@ -402,14 +402,14 @@ const NexAISecurityDashboard: React.FC = () => {
                                 </span>
                               )}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                               {new Date(device.lastSeen).toLocaleString('zh-CN')}
                             </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={5} className="px-6 py-12 text-center text-sm text-gray-500 bg-gray-50/50">
+                          <td colSpan={5} className="px-6 py-12 text-center text-sm text-slate-500 bg-slate-50/50">
                             暂无高风险设备数据
                           </td>
                         </tr>
@@ -427,19 +427,19 @@ const NexAISecurityDashboard: React.FC = () => {
               {/* 搜索和筛选 */}
               <div className="mb-6 flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-1">
-                  <FaFilter className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <FaFilter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                   <input
                     type="text"
                     placeholder="搜索设备指纹、用户ID..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none bg-white shadow-sm"
+                    className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none bg-white/80 backdrop-blur-xl shadow-sm"
                   />
                 </div>
                 <select
                   value={filterRiskLevel}
                   onChange={(e) => setFilterRiskLevel(e.target.value)}
-                  className="px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none bg-white shadow-sm font-medium"
+                  className="px-4 py-2.5 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none bg-white/80 backdrop-blur-xl shadow-sm font-medium"
                 >
                   <option value="all">所有风险等级</option>
                   <option value="SAFE">安全</option>
@@ -451,33 +451,33 @@ const NexAISecurityDashboard: React.FC = () => {
               </div>
 
               {/* 设备列表 */}
-              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+              <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                  <table className="min-w-full divide-y divide-slate-200">
+                    <thead className="bg-slate-50/80">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">设备指纹</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">用户ID</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">风险状态</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">环境特征</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">请求数</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">活跃时间</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">设备指纹</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">用户ID</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">风险状态</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">环境特征</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">请求数</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">活跃时间</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white/80 backdrop-blur-xl divide-y divide-slate-200">
                       {devices && devices.length > 0 ? (
                         devices.map((device) => (
-                          <tr key={device._id} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-600">
+                          <tr key={device._id} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-slate-600">
                               {device.deviceFingerprint.substring(0, 12)}...
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
                               {device.userId || '游客'}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex flex-col gap-1">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-sm font-bold text-gray-900">{device.riskScore}</span>
+                                  <span className="text-sm font-bold text-slate-900">{device.riskScore}</span>
                                   {getRiskLevelBadge(device.riskLevel)}
                                 </div>
                               </div>
@@ -494,24 +494,24 @@ const NexAISecurityDashboard: React.FC = () => {
                                   <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-yellow-100 text-yellow-700 border border-yellow-200">模拟器</span>
                                 )}
                                 {device.isVpn && (
-                                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200">VPN</span>
+                                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-blue-700 border border-blue-200">VPN</span>
                                 )}
                                 {!device.signatureValid && (
                                   <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-red-100 text-red-700 border border-red-200">签名错</span>
                                 )}
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
                               {device.requestCount}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                               {new Date(device.lastSeen).toLocaleString('zh-CN')}
                             </td>
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-500 bg-gray-50/50">
+                          <td colSpan={6} className="px-6 py-12 text-center text-sm text-slate-500 bg-slate-50/50">
                             未找到符合条件的设备
                           </td>
                         </tr>
@@ -530,11 +530,11 @@ const NexAISecurityDashboard: React.FC = () => {
                 {events && events.length > 0 ? (
                   events.map((event) => {
                     const getSeverityColor = (riskScore?: number) => {
-                      if (!riskScore) return 'bg-gray-100 text-gray-700 border-gray-200';
+                      if (!riskScore) return 'bg-slate-100 text-slate-700 border-slate-200';
                       if (riskScore >= 80) return 'bg-red-50 text-red-700 border-red-200';
                       if (riskScore >= 50) return 'bg-orange-50 text-orange-700 border-orange-200';
                       if (riskScore >= 30) return 'bg-yellow-50 text-yellow-700 border-yellow-200';
-                      return 'bg-blue-50 text-blue-700 border-blue-200';
+                      return 'bg-slate-50/80 text-blue-700 border-blue-200';
                     };
 
                     const getEventTypeLabel = (type: string) => {
@@ -565,11 +565,11 @@ const NexAISecurityDashboard: React.FC = () => {
                     };
 
                     return (
-                      <div key={event._id} className={`bg-white rounded-xl p-4 border transition-all hover:shadow-md ${getSeverityColor(event.riskScore)}`}>
+                      <div key={event._id} className={`bg-white/80 backdrop-blur-xl rounded-2xl p-4 border transition-all hover:shadow-md ${getSeverityColor(event.riskScore)}`}>
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
-                              <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold uppercase tracking-wider">
+                              <span className="px-2.5 py-0.5 rounded-2xl text-xs font-bold uppercase tracking-wider">
                                 {getEventTypeLabel(event.eventType)}
                               </span>
                               <span className="text-xs font-medium opacity-60 flex items-center gap-1">
@@ -597,7 +597,7 @@ const NexAISecurityDashboard: React.FC = () => {
                     );
                   })
                 ) : (
-                  <div className="text-center py-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200 text-gray-400">
+                  <div className="text-center py-20 bg-slate-50/80 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400">
                     <FaShieldAlt className="w-12 h-12 mx-auto mb-4 opacity-20" />
                     <p className="text-sm font-medium">当前未记录任何安全事件</p>
                   </div>

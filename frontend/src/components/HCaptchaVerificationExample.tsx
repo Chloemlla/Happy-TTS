@@ -71,26 +71,26 @@ const HCaptchaVerificationExample: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
       <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md"
+        className="bg-white/90 rounded-2xl shadow-xl p-8 w-full max-w-md"
       >
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-gradient-to-r from-slate-500 to-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">hCaptcha 验证示例</h1>
-          <p className="text-gray-600">点击下方按钮体验 hCaptcha 验证功能</p>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">hCaptcha 验证示例</h1>
+          <p className="text-slate-600">点击下方按钮体验 hCaptcha 验证功能</p>
         </div>
 
         <div className="space-y-4">
           <button
             onClick={startVerification}
-            className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
+            className="w-full px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-medium transition-colors"
           >
             开始验证
           </button>
@@ -122,9 +122,9 @@ const HCaptchaVerificationExample: React.FC = () => {
         </div>
 
         {/* 使用说明 */}
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <h3 className="font-semibold text-gray-900 mb-3">使用说明</h3>
-          <div className="text-sm text-gray-600 space-y-2">
+        <div className="mt-8 pt-6 border-t border-slate-200">
+          <h3 className="font-semibold text-slate-900 mb-3">使用说明</h3>
+          <div className="text-sm text-slate-600 space-y-2">
             <p>• 点击"开始验证"按钮启动 hCaptcha 验证</p>
             <p>• 完成验证后会显示后端返回的验证结果</p>
             <p>• 支持自定义验证成功和失败的回调处理</p>

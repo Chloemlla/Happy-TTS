@@ -177,8 +177,8 @@ const CommandManager: React.FC = () => {
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
         <FaSpaceShuttle style={{ fontSize: 120, lineHeight: 1 }} className="text-blue-500" />
         <div className="text-3xl font-bold mt-6 mb-2 text-rose-600 drop-shadow-lg">你不是管理员，禁止访问！</div>
-        <div className="text-lg text-gray-500 mb-8">请用管理员账号登录后再来玩哦~<br/><span className="text-rose-400">（火箭发射中心需要管理员权限）</span></div>
-        <div className="text-base text-gray-400 italic mt-4">仅限管理员使用，命令控制台仅供娱乐。</div>
+        <div className="text-lg text-slate-500 mb-8">请用管理员账号登录后再来玩哦~<br/><span className="text-rose-400">（火箭发射中心需要管理员权限）</span></div>
+        <div className="text-base text-slate-400 italic mt-4">仅限管理员使用，命令控制台仅供娱乐。</div>
       </div>
     );
   }
@@ -561,7 +561,7 @@ const CommandManager: React.FC = () => {
       case 'excellent':
         return 'bg-green-100 border-green-300 text-green-800';
       case 'good':
-        return 'bg-blue-100 border-blue-300 text-blue-800';
+        return 'bg-emerald-100 border-emerald-300 text-emerald-800';
       case 'warning':
         return 'bg-yellow-100 border-yellow-300 text-yellow-800';
       case 'critical':
@@ -569,7 +569,7 @@ const CommandManager: React.FC = () => {
       case 'danger':
         return 'bg-red-100 border-red-300 text-red-800';
       default:
-        return 'bg-gray-100 border-gray-300 text-gray-800';
+        return 'bg-slate-100 border-slate-300 text-slate-800';
     }
   };
 
@@ -753,7 +753,7 @@ const CommandManager: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* 标题和说明 */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-blue-700 flex items-center gap-2">
             <FaTerminal className="w-6 h-6" />
@@ -761,13 +761,13 @@ const CommandManager: React.FC = () => {
           </h2>
           <Link 
             to="/"
-            className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium flex items-center gap-2"
+            className="px-3 py-2 bg-slate-600 text-white rounded-2xl hover:bg-slate-700 transition text-sm font-medium flex items-center gap-2"
           >
             <FaArrowLeft className="w-4 h-4" />
             返回主页
           </Link>
         </div>
-        <div className="text-gray-600 space-y-2">
+        <div className="text-slate-600 space-y-2">
           <p>此功能用于执行系统命令和管理命令队列，支持实时命令执行、队列管理和执行历史查看。</p>
           <div className="flex items-start gap-2 text-sm">
             <FaInfoCircle className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
@@ -788,9 +788,9 @@ const CommandManager: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+        className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
       >
-        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+        <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <FaPlay className="w-5 h-5 text-green-500" />
           命令执行
         </h3>
@@ -798,21 +798,21 @@ const CommandManager: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* 命令输入 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
               命令输入
             </label>
             <textarea
               value={command}
               onChange={(e) => setCommand(e.target.value)}
               placeholder="输入要执行的命令..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+              className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
               rows={3}
             />
           </div>
 
           {/* 管理员密码 */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
               管理员密码
             </label>
             <div className="relative">
@@ -821,12 +821,12 @@ const CommandManager: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="输入管理员密码"
-                className="w-full px-3 py-2 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-3 py-2 pr-12 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1.5 rounded-full hover:bg-gray-100 transition-colors duration-200 flex items-center justify-center w-8 h-8"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition-colors duration-200 flex items-center justify-center w-8 h-8"
               >
                 {showPassword ? (
                   <FaEyeSlash className="w-4 h-4" />
@@ -835,7 +835,7 @@ const CommandManager: React.FC = () => {
                 )}
               </button>
             </div>
-            <div className="mt-1 text-xs text-gray-500 flex items-center gap-1">
+            <div className="mt-1 text-xs text-slate-500 flex items-center gap-1">
               <FaInfoCircle className="text-blue-500" />
               可在 EnvManager 的管理员安全配置中修改
             </div>
@@ -847,9 +847,9 @@ const CommandManager: React.FC = () => {
           <motion.button
             onClick={executeCommand}
             disabled={isExecuting}
-            className={`flex-1 py-3 px-6 rounded-lg font-semibold text-white transition-all duration-200 ${
+            className={`flex-1 py-3 px-6 rounded-2xl font-semibold text-white transition-all duration-200 ${
               isExecuting
-                ? 'bg-gray-400 cursor-not-allowed'
+                ? 'bg-slate-400 cursor-not-allowed'
                 : 'bg-gradient-to-r from-indigo-500 to-blue-600 hover:from-indigo-600 hover:to-blue-700 shadow-lg hover:shadow-xl'
             }`}
             whileHover={!isExecuting ? { scale: 1.02 } : {}}
@@ -870,7 +870,7 @@ const CommandManager: React.FC = () => {
           
           <motion.button
             onClick={addToQueue}
-            className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl flex items-center justify-center"
+            className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl hover:from-green-600 hover:to-emerald-700 transition-all duration-200 font-semibold shadow-lg hover:shadow-xl flex items-center justify-center"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -883,17 +883,17 @@ const CommandManager: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+        className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
             <FaServer className="w-5 h-5 text-blue-500" />
             服务器状态
           </h3>
           <div className="flex gap-2">
             <motion.button
               onClick={() => fetchServerStatus()}
-              className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium flex items-center gap-2"
+              className="px-3 py-2 bg-slate-600 text-white rounded-2xl hover:bg-slate-700 transition text-sm font-medium flex items-center gap-2"
               whileTap={{ scale: 0.95 }}
             >
               <FaSync className="w-4 h-4" />
@@ -901,10 +901,10 @@ const CommandManager: React.FC = () => {
             </motion.button>
             <motion.button
               onClick={() => setAutoRefresh(!autoRefresh)}
-              className={`px-3 py-2 rounded-lg transition text-sm font-medium flex items-center gap-2 ${
+              className={`px-3 py-2 rounded-2xl transition text-sm font-medium flex items-center gap-2 ${
                 autoRefresh 
                   ? 'bg-green-500 text-white hover:bg-green-600' 
-                  : 'bg-gray-500 text-white hover:bg-gray-600'
+                  : 'bg-slate-500 text-white hover:bg-slate-600'
               }`}
               whileTap={{ scale: 0.95 }}
             >
@@ -913,10 +913,10 @@ const CommandManager: React.FC = () => {
             </motion.button>
             <motion.button
               onClick={() => setShowCharts(!showCharts)}
-              className={`px-3 py-2 rounded-lg transition text-sm font-medium flex items-center gap-2 ${
+              className={`px-3 py-2 rounded-2xl transition text-sm font-medium flex items-center gap-2 ${
                 showCharts 
                   ? 'bg-purple-500 text-white hover:bg-purple-600' 
-                  : 'bg-gray-500 text-white hover:bg-gray-600'
+                  : 'bg-slate-500 text-white hover:bg-slate-600'
               }`}
               whileTap={{ scale: 0.95 }}
             >
@@ -929,7 +929,7 @@ const CommandManager: React.FC = () => {
         {serverStatus ? (
           <div className="space-y-4">
             {/* 系统信息摘要 */}
-            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg p-4 text-white">
+            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-4 text-white">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-lg font-semibold flex items-center gap-2">
                   <FaServer className="w-5 h-5" />
@@ -961,27 +961,27 @@ const CommandManager: React.FC = () => {
 
             {/* 基础状态信息 */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-blue-50 rounded-lg p-4 text-center">
+              <div className="bg-slate-50/80 rounded-2xl p-4 text-center">
                 <div className="text-2xl font-bold text-blue-700">{formatUptime(serverStatus.uptime)}</div>
-                <div className="text-sm text-gray-600">运行时间</div>
+                <div className="text-sm text-slate-600">运行时间</div>
               </div>
-              <div className="bg-green-50 rounded-lg p-4 text-center">
+              <div className="bg-green-50 rounded-2xl p-4 text-center">
                 <div className="text-2xl font-bold text-green-700">{serverStatus.platform}</div>
-                <div className="text-sm text-gray-600">平台</div>
+                <div className="text-sm text-slate-600">平台</div>
               </div>
-              <div className="bg-purple-50 rounded-lg p-4 text-center">
+              <div className="bg-purple-50 rounded-2xl p-4 text-center">
                 <div className="text-2xl font-bold text-purple-700">{formatMemory(serverStatus.memory_usage.heapUsed)}</div>
-                <div className="text-sm text-gray-600">内存使用</div>
+                <div className="text-sm text-slate-600">内存使用</div>
               </div>
-              <div className="bg-orange-50 rounded-lg p-4 text-center">
+              <div className="bg-orange-50 rounded-2xl p-4 text-center">
                 <div className="text-2xl font-bold text-orange-700">{serverStatus.cpu_usage_percent.toFixed(1)}%</div>
-                <div className="text-sm text-gray-600">CPU使用率</div>
+                <div className="text-sm text-slate-600">CPU使用率</div>
               </div>
             </div>
 
             {/* 架构和版本信息 */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-indigo-50 rounded-lg p-4">
+              <div className="bg-indigo-50 rounded-2xl p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-indigo-700">系统架构</span>
                   <span className="text-xs text-indigo-500">Architecture</span>
@@ -990,7 +990,7 @@ const CommandManager: React.FC = () => {
                 <div className="text-xs text-indigo-600 mt-1">处理器架构</div>
               </div>
               
-              <div className="bg-teal-50 rounded-lg p-4">
+              <div className="bg-teal-50 rounded-2xl p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-teal-700">Node.js版本</span>
                   <span className="text-xs text-teal-500">Version</span>
@@ -999,7 +999,7 @@ const CommandManager: React.FC = () => {
                 <div className="text-xs text-teal-600 mt-1">运行时版本</div>
               </div>
               
-              <div className="bg-cyan-50 rounded-lg p-4">
+              <div className="bg-cyan-50 rounded-2xl p-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-cyan-700">运行平台</span>
                   <span className="text-xs text-cyan-500">Platform</span>
@@ -1013,7 +1013,7 @@ const CommandManager: React.FC = () => {
             {(serverStatus.pid || serverStatus.startTime) && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {serverStatus.pid && (
-                  <div className="bg-yellow-50 rounded-lg p-4">
+                  <div className="bg-yellow-50 rounded-2xl p-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium text-yellow-700">进程ID</span>
                       <span className="text-xs text-yellow-500">PID</span>
@@ -1024,7 +1024,7 @@ const CommandManager: React.FC = () => {
                 )}
                 
                 {serverStatus.startTime && (
-                  <div className="bg-pink-50 rounded-lg p-4">
+                  <div className="bg-pink-50 rounded-2xl p-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium text-pink-700">启动时间</span>
                       <span className="text-xs text-pink-500">Start Time</span>
@@ -1040,34 +1040,34 @@ const CommandManager: React.FC = () => {
 
             {/* 详细版本信息 */}
             {serverStatus.versions && (
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                  <FaInfoCircle className="w-4 h-4 text-gray-500" />
+              <div className="bg-slate-50/80 rounded-2xl p-4">
+                <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                  <FaInfoCircle className="w-4 h-4 text-slate-500" />
                   详细版本信息
                 </h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                  <div className="bg-white rounded-lg p-3 border border-gray-200">
-                    <div className="text-xs font-medium text-gray-600 mb-1">V8引擎</div>
+                  <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 border border-slate-200">
+                    <div className="text-xs font-medium text-slate-600 mb-1">V8引擎</div>
                     <div className="text-sm font-bold text-blue-600">{serverStatus.versions.v8}</div>
                   </div>
-                  <div className="bg-white rounded-lg p-3 border border-gray-200">
-                    <div className="text-xs font-medium text-gray-600 mb-1">libuv</div>
+                  <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 border border-slate-200">
+                    <div className="text-xs font-medium text-slate-600 mb-1">libuv</div>
                     <div className="text-sm font-bold text-green-600">{serverStatus.versions.uv}</div>
                   </div>
-                  <div className="bg-white rounded-lg p-3 border border-gray-200">
-                    <div className="text-xs font-medium text-gray-600 mb-1">OpenSSL</div>
+                  <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 border border-slate-200">
+                    <div className="text-xs font-medium text-slate-600 mb-1">OpenSSL</div>
                     <div className="text-sm font-bold text-purple-600">{serverStatus.versions.openssl}</div>
                   </div>
-                  <div className="bg-white rounded-lg p-3 border border-gray-200">
-                    <div className="text-xs font-medium text-gray-600 mb-1">zlib</div>
+                  <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 border border-slate-200">
+                    <div className="text-xs font-medium text-slate-600 mb-1">zlib</div>
                     <div className="text-sm font-bold text-orange-600">{serverStatus.versions.zlib}</div>
                   </div>
-                  <div className="bg-white rounded-lg p-3 border border-gray-200">
-                    <div className="text-xs font-medium text-gray-600 mb-1">HTTP/2</div>
+                  <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 border border-slate-200">
+                    <div className="text-xs font-medium text-slate-600 mb-1">HTTP/2</div>
                     <div className="text-sm font-bold text-red-600">{serverStatus.versions.nghttp2}</div>
                   </div>
-                  <div className="bg-white rounded-lg p-3 border border-gray-200">
-                    <div className="text-xs font-medium text-gray-600 mb-1">ICU</div>
+                  <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 border border-slate-200">
+                    <div className="text-xs font-medium text-slate-600 mb-1">ICU</div>
                     <div className="text-sm font-bold text-indigo-600">{serverStatus.versions.icu}</div>
                   </div>
                 </div>
@@ -1075,58 +1075,58 @@ const CommandManager: React.FC = () => {
             )}
 
             {/* 详细内存信息 */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                <FaServer className="w-4 h-4 text-gray-500" />
+            <div className="bg-slate-50/80 rounded-2xl p-4">
+              <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                <FaServer className="w-4 h-4 text-slate-500" />
                 详细内存使用情况
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white rounded-lg p-3 border border-gray-200">
+                <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 border border-slate-200">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-gray-600">堆内存使用</span>
-                    <span className="text-xs text-gray-500">Heap Used</span>
+                    <span className="text-xs font-medium text-slate-600">堆内存使用</span>
+                    <span className="text-xs text-slate-500">Heap Used</span>
                   </div>
                   <div className="text-lg font-bold text-blue-600">{formatMemory(serverStatus.memory_usage.heapUsed)}</div>
-                  <div className="text-xs text-gray-500 mt-1">已分配堆内存</div>
+                  <div className="text-xs text-slate-500 mt-1">已分配堆内存</div>
                 </div>
                 
-                <div className="bg-white rounded-lg p-3 border border-gray-200">
+                <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 border border-slate-200">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-gray-600">堆内存总量</span>
-                    <span className="text-xs text-gray-500">Heap Total</span>
+                    <span className="text-xs font-medium text-slate-600">堆内存总量</span>
+                    <span className="text-xs text-slate-500">Heap Total</span>
                   </div>
                   <div className="text-lg font-bold text-green-600">{formatMemory(serverStatus.memory_usage.heapTotal)}</div>
-                  <div className="text-xs text-gray-500 mt-1">总堆内存大小</div>
+                  <div className="text-xs text-slate-500 mt-1">总堆内存大小</div>
                 </div>
                 
-                <div className="bg-white rounded-lg p-3 border border-gray-200">
+                <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 border border-slate-200">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-gray-600">RSS内存</span>
-                    <span className="text-xs text-gray-500">RSS</span>
+                    <span className="text-xs font-medium text-slate-600">RSS内存</span>
+                    <span className="text-xs text-slate-500">RSS</span>
                   </div>
                   <div className="text-lg font-bold text-purple-600">{formatMemory(serverStatus.memory_usage.rss)}</div>
-                  <div className="text-xs text-gray-500 mt-1">常驻集大小</div>
+                  <div className="text-xs text-slate-500 mt-1">常驻集大小</div>
                 </div>
                 
-                <div className="bg-white rounded-lg p-3 border border-gray-200">
+                <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 border border-slate-200">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-gray-600">外部内存</span>
-                    <span className="text-xs text-gray-500">External</span>
+                    <span className="text-xs font-medium text-slate-600">外部内存</span>
+                    <span className="text-xs text-slate-500">External</span>
                   </div>
                   <div className="text-lg font-bold text-orange-600">{formatMemory(serverStatus.memory_usage.external)}</div>
-                  <div className="text-xs text-gray-500 mt-1">外部内存使用</div>
+                  <div className="text-xs text-slate-500 mt-1">外部内存使用</div>
                 </div>
               </div>
               
               {/* 内存使用率进度条 */}
               <div className="mt-4">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-700">堆内存使用率</span>
-                  <span className="text-sm text-gray-600">
+                  <span className="text-sm font-medium text-slate-700">堆内存使用率</span>
+                  <span className="text-sm text-slate-600">
                     {((serverStatus.memory_usage.heapUsed / serverStatus.memory_usage.heapTotal) * 100).toFixed(1)}%
                   </span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full bg-slate-200 rounded-full h-2">
                   <div
                     className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
                     style={{ 
@@ -1134,7 +1134,7 @@ const CommandManager: React.FC = () => {
                     }}
                   ></div>
                 </div>
-                <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <div className="flex justify-between text-xs text-slate-500 mt-1">
                   <span>0 MB</span>
                   <span>{formatMemory(serverStatus.memory_usage.heapTotal)}</span>
                 </div>
@@ -1142,20 +1142,20 @@ const CommandManager: React.FC = () => {
             </div>
 
             {/* 系统资源概览 */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 border border-blue-200">
               <h4 className="text-sm font-semibold text-blue-700 mb-3 flex items-center gap-2">
                 <FaServer className="w-4 h-4 text-blue-500" />
                 系统资源概览
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white rounded-lg p-3 border border-blue-200">
+                <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 border border-blue-200">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">堆内存使用率</span>
+                    <span className="text-sm font-medium text-slate-700">堆内存使用率</span>
                     <span className={`text-sm font-bold ${getMemoryStatusColor((serverStatus.memory_usage.heapUsed / serverStatus.memory_usage.heapTotal) * 100)}`}>
                       {formatMemory(serverStatus.memory_usage.heapUsed)} / {formatMemory(serverStatus.memory_usage.heapTotal)}
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 mb-1">
+                  <div className="w-full bg-slate-200 rounded-full h-2 mb-1">
                     <div
                       className={`h-2 rounded-full transition-all duration-300 ${
                         (serverStatus.memory_usage.heapUsed / serverStatus.memory_usage.heapTotal) * 100 < 50 ? 'bg-green-500' :
@@ -1166,22 +1166,22 @@ const CommandManager: React.FC = () => {
                       }}
                     ></div>
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-slate-500">
                     {formatMemory(serverStatus.memory_usage.heapUsed)} / {formatMemory(serverStatus.memory_usage.heapTotal)}
                   </div>
-                  <div className="text-xs text-gray-400 mt-1">
+                  <div className="text-xs text-slate-400 mt-1">
                     可用: {formatMemory(serverStatus.memory_usage.heapUsed)}
                   </div>
                 </div>
                 
-                <div className="bg-white rounded-lg p-3 border border-blue-200">
+                <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 border border-blue-200">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">CPU使用率</span>
+                    <span className="text-sm font-medium text-slate-700">CPU使用率</span>
                     <span className={`text-sm font-bold ${getCPUStatusColor(serverStatus.cpu_usage_percent)}`}>
                       {serverStatus.cpu_usage_percent.toFixed(1)}%
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 mb-1">
+                  <div className="w-full bg-slate-200 rounded-full h-2 mb-1">
                     <div
                       className={`h-2 rounded-full transition-all duration-300 ${
                         serverStatus.cpu_usage_percent < 30 ? 'bg-green-500' :
@@ -1192,22 +1192,22 @@ const CommandManager: React.FC = () => {
                       }}
                     ></div>
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-slate-500">
                     当前CPU负载
                   </div>
-                  <div className="text-xs text-gray-400 mt-1">
+                  <div className="text-xs text-slate-400 mt-1">
                     架构: {serverStatus.arch}
                   </div>
                 </div>
                 
-                <div className="bg-white rounded-lg p-3 border border-blue-200">
+                <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 border border-blue-200">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">RSS内存</span>
+                    <span className="text-sm font-medium text-slate-700">RSS内存</span>
                     <span className="text-sm font-bold text-purple-600">
                       {formatMemory(serverStatus.memory_usage.rss)}
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2 mb-1">
+                  <div className="w-full bg-slate-200 rounded-full h-2 mb-1">
                     <div
                       className="bg-purple-500 h-2 rounded-full transition-all duration-300"
                       style={{ 
@@ -1215,10 +1215,10 @@ const CommandManager: React.FC = () => {
                       }}
                     ></div>
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-slate-500">
                     常驻内存使用
                   </div>
-                  <div className="text-xs text-gray-400 mt-1">
+                  <div className="text-xs text-slate-400 mt-1">
                     外部: {formatMemory(serverStatus.memory_usage.external)}
                   </div>
                 </div>
@@ -1229,22 +1229,22 @@ const CommandManager: React.FC = () => {
             {serverStatus && (
               <div className="space-y-4">
                 {/* 分析状态指示器 */}
-                <div className="bg-white rounded-lg p-3 border border-gray-200">
+                <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 border border-slate-200">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className={`w-3 h-3 rounded-full ${
-                        autoRefresh ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+                        autoRefresh ? 'bg-green-500 animate-pulse' : 'bg-slate-400'
                       }`}></div>
-                      <span className="text-sm font-medium text-gray-700">
+                      <span className="text-sm font-medium text-slate-700">
                         {autoRefresh ? '实时监控中' : '静态分析'}
                       </span>
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-slate-500">
                       {lastUpdateTime && `最后更新: ${lastUpdateTime.toLocaleTimeString('zh-CN')}`}
                     </div>
                   </div>
                   {autoRefresh && (
-                    <div className="mt-2 text-xs text-gray-600 flex items-center gap-1">
+                    <div className="mt-2 text-xs text-slate-600 flex items-center gap-1">
                       <FaInfoCircle className="text-blue-500" />
                       每6秒自动刷新一次，实时监控系统资源使用情况
                     </div>
@@ -1253,13 +1253,13 @@ const CommandManager: React.FC = () => {
 
                 {/* 资源使用趋势图表 */}
                 {showCharts && (
-                  <Suspense fallback={<div className="h-80 flex items-center justify-center text-gray-400">图表加载中...</div>}>
+                  <Suspense fallback={<div className="h-80 flex items-center justify-center text-slate-400">图表加载中...</div>}>
                     <ResourceTrendChart resourceHistory={resourceHistory} autoRefresh={autoRefresh} />
                   </Suspense>
                 )}
 
                 {/* 内存使用分析 */}
-                <div className={`rounded-lg p-4 border ${getStatusLevelStyle(analyzeMemoryUsage(serverStatus.memory_usage).level)}`}>
+                <div className={`rounded-2xl p-4 border ${getStatusLevelStyle(analyzeMemoryUsage(serverStatus.memory_usage).level)}`}>
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-lg font-semibold flex items-center gap-2">
                       <span className="text-2xl">{getStatusLevelIcon(analyzeMemoryUsage(serverStatus.memory_usage).level)}</span>
@@ -1283,7 +1283,7 @@ const CommandManager: React.FC = () => {
                     </div>
                   </div>
                   
-                  <div className="bg-white bg-opacity-50 rounded-lg p-3">
+                  <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-3">
                     <h5 className="text-sm font-semibold mb-2 flex items-center gap-1">
                       <FaInfoCircle className="text-blue-500" />
                       优化建议
@@ -1300,7 +1300,7 @@ const CommandManager: React.FC = () => {
                 </div>
 
                 {/* CPU使用分析 */}
-                <div className={`rounded-lg p-4 border ${getStatusLevelStyle(analyzeCPUUsage(serverStatus.cpu_usage_percent).level)}`}>
+                <div className={`rounded-2xl p-4 border ${getStatusLevelStyle(analyzeCPUUsage(serverStatus.cpu_usage_percent).level)}`}>
                   <div className="flex items-center justify-between mb-3">
                     <h4 className="text-lg font-semibold flex items-center gap-2">
                       <span className="text-2xl">{getStatusLevelIcon(analyzeCPUUsage(serverStatus.cpu_usage_percent).level)}</span>
@@ -1323,7 +1323,7 @@ const CommandManager: React.FC = () => {
                     </div>
                   </div>
                   
-                  <div className="bg-white bg-opacity-50 rounded-lg p-3">
+                  <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-3">
                     <h5 className="text-sm font-semibold mb-2 flex items-center gap-1">
                       <FaInfoCircle className="text-blue-500" />
                       优化建议
@@ -1340,15 +1340,15 @@ const CommandManager: React.FC = () => {
                 </div>
 
                 {/* 系统健康度评估 */}
-                <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-lg p-4 border border-gray-200">
-                  <h4 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-2xl p-4 border border-slate-200">
+                  <h4 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
                     <FaChartLine className="text-lg text-blue-500" />
                     系统健康度评估
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-white rounded-lg p-3 border border-gray-200">
+                    <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 border border-slate-200">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-gray-700">内存健康度</span>
+                        <span className="text-sm font-medium text-slate-700">内存健康度</span>
                         <span className={`text-sm font-bold ${getMemoryStatusColor((serverStatus.memory_usage.heapUsed / serverStatus.memory_usage.heapTotal) * 100)}`}>
                           {analyzeMemoryUsage(serverStatus.memory_usage).level === 'excellent' ? '优秀' :
                            analyzeMemoryUsage(serverStatus.memory_usage).level === 'good' ? '良好' :
@@ -1356,11 +1356,11 @@ const CommandManager: React.FC = () => {
                            analyzeMemoryUsage(serverStatus.memory_usage).level === 'critical' ? '警告' : '危险'}
                         </span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="w-full bg-slate-200 rounded-full h-2">
                         <div
                           className={`h-2 rounded-full transition-all duration-300 ${
                             analyzeMemoryUsage(serverStatus.memory_usage).level === 'excellent' ? 'bg-green-500' :
-                            analyzeMemoryUsage(serverStatus.memory_usage).level === 'good' ? 'bg-blue-500' :
+                            analyzeMemoryUsage(serverStatus.memory_usage).level === 'good' ? 'bg-emerald-500' :
                             analyzeMemoryUsage(serverStatus.memory_usage).level === 'warning' ? 'bg-yellow-500' :
                             analyzeMemoryUsage(serverStatus.memory_usage).level === 'critical' ? 'bg-orange-500' : 'bg-red-500'
                           }`}
@@ -1371,9 +1371,9 @@ const CommandManager: React.FC = () => {
                       </div>
                     </div>
                     
-                    <div className="bg-white rounded-lg p-3 border border-gray-200">
+                    <div className="bg-white/80 backdrop-blur-xl rounded-2xl p-3 border border-slate-200">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-gray-700">CPU健康度</span>
+                        <span className="text-sm font-medium text-slate-700">CPU健康度</span>
                         <span className={`text-sm font-bold ${getCPUStatusColor(serverStatus.cpu_usage_percent)}`}>
                           {analyzeCPUUsage(serverStatus.cpu_usage_percent).level === 'excellent' ? '优秀' :
                            analyzeCPUUsage(serverStatus.cpu_usage_percent).level === 'good' ? '良好' :
@@ -1381,11 +1381,11 @@ const CommandManager: React.FC = () => {
                            analyzeCPUUsage(serverStatus.cpu_usage_percent).level === 'critical' ? '警告' : '危险'}
                         </span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="w-full bg-slate-200 rounded-full h-2">
                         <div
                           className={`h-2 rounded-full transition-all duration-300 ${
                             analyzeCPUUsage(serverStatus.cpu_usage_percent).level === 'excellent' ? 'bg-green-500' :
-                            analyzeCPUUsage(serverStatus.cpu_usage_percent).level === 'good' ? 'bg-blue-500' :
+                            analyzeCPUUsage(serverStatus.cpu_usage_percent).level === 'good' ? 'bg-emerald-500' :
                             analyzeCPUUsage(serverStatus.cpu_usage_percent).level === 'warning' ? 'bg-yellow-500' :
                             analyzeCPUUsage(serverStatus.cpu_usage_percent).level === 'critical' ? 'bg-orange-500' : 'bg-red-500'
                           }`}
@@ -1397,7 +1397,7 @@ const CommandManager: React.FC = () => {
                     </div>
                   </div>
                   
-                  <div className="mt-3 text-sm text-gray-600">
+                  <div className="mt-3 text-sm text-slate-600">
                     <p className="font-medium mb-1">📈 系统状态总结:</p>
                     <p>
                       {analyzeMemoryUsage(serverStatus.memory_usage).level === 'excellent' && analyzeCPUUsage(serverStatus.cpu_usage_percent).level === 'excellent' 
@@ -1410,7 +1410,7 @@ const CommandManager: React.FC = () => {
                     
                     {/* 趋势分析 */}
                     {resourceHistory.length >= 2 && (
-                      <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="mt-3 p-3 bg-slate-50/80 rounded-2xl border border-blue-200">
                         <h5 className="text-sm font-semibold text-blue-700 mb-2 flex items-center gap-1">
                           <FaChartLine className="text-sm text-blue-600" />
                           趋势分析
@@ -1422,7 +1422,7 @@ const CommandManager: React.FC = () => {
                               <span>内存变化:</span>
                               <span className={`font-medium ${
                                 analyzeResourceTrend(resourceHistory).memoryTrend === 'increasing' ? 'text-red-600' :
-                                analyzeResourceTrend(resourceHistory).memoryTrend === 'decreasing' ? 'text-green-600' : 'text-gray-600'
+                                analyzeResourceTrend(resourceHistory).memoryTrend === 'decreasing' ? 'text-green-600' : 'text-slate-600'
                               }`}>
                                 {analyzeResourceTrend(resourceHistory).memoryChange}%
                               </span>
@@ -1431,7 +1431,7 @@ const CommandManager: React.FC = () => {
                               <span>CPU变化:</span>
                               <span className={`font-medium ${
                                 analyzeResourceTrend(resourceHistory).cpuTrend === 'increasing' ? 'text-red-600' :
-                                analyzeResourceTrend(resourceHistory).cpuTrend === 'decreasing' ? 'text-green-600' : 'text-gray-600'
+                                analyzeResourceTrend(resourceHistory).cpuTrend === 'decreasing' ? 'text-green-600' : 'text-slate-600'
                               }`}>
                                 {analyzeResourceTrend(resourceHistory).cpuChange}%
                               </span>
@@ -1446,7 +1446,7 @@ const CommandManager: React.FC = () => {
             )}
           </div>
         ) : (
-          <div className="bg-gray-50 rounded-lg p-4 text-center text-gray-500">
+          <div className="bg-slate-50/80 rounded-2xl p-4 text-center text-slate-500">
             点击刷新获取服务器状态
           </div>
         )}
@@ -1456,10 +1456,10 @@ const CommandManager: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+        className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
             <FaList className="w-5 h-5 text-green-500" />
             命令队列
           </h3>
@@ -1468,7 +1468,7 @@ const CommandManager: React.FC = () => {
               <motion.button
                 onClick={loadCommandQueue}
                 disabled={isLoadingQueue}
-                className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+                className="px-3 py-2 bg-slate-600 text-white rounded-2xl hover:bg-slate-700 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
                 whileTap={{ scale: 0.95 }}
               >
                 <FaSync className={`w-4 h-4 ${isLoadingQueue ? 'animate-spin' : ''}`} />
@@ -1477,7 +1477,7 @@ const CommandManager: React.FC = () => {
             )}
             <motion.button
               onClick={getNextCommand}
-              className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition text-sm font-medium flex items-center gap-2"
+              className="px-3 py-2 bg-green-500 text-white rounded-2xl hover:bg-green-600 transition text-sm font-medium flex items-center gap-2"
               whileTap={{ scale: 0.95 }}
             >
               <FaEye className="w-4 h-4" />
@@ -1487,8 +1487,8 @@ const CommandManager: React.FC = () => {
         </div>
         
         {!queueLoaded ? (
-          <div className="text-center text-gray-500 py-8">
-            <FaList className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+          <div className="text-center text-slate-500 py-8">
+            <FaList className="w-12 h-12 mx-auto mb-3 text-slate-300" />
             <p>点击"加载队列"查看命令队列</p>
           </div>
         ) : commandQueue.length > 0 ? (
@@ -1496,9 +1496,9 @@ const CommandManager: React.FC = () => {
             {commandQueue.map((cmd, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between bg-gray-50 rounded-lg p-3 gap-3"
+                className="flex items-center justify-between bg-slate-50/80 rounded-2xl p-3 gap-3"
               >
-                <span className="font-mono text-sm text-gray-700 break-all flex-1">{cmd.command}</span>
+                <span className="font-mono text-sm text-slate-700 break-all flex-1">{cmd.command}</span>
                 <motion.button
                   onClick={() => removeCommand(cmd.commandId)}
                   className="text-red-500 hover:text-red-700 transition-colors p-2 rounded-full hover:bg-red-50 flex items-center justify-center"
@@ -1511,8 +1511,8 @@ const CommandManager: React.FC = () => {
             ))}
           </div>
         ) : (
-          <div className="text-center text-gray-500 py-8">
-            <FaList className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+          <div className="text-center text-slate-500 py-8">
+            <FaList className="w-12 h-12 mx-auto mb-3 text-slate-300" />
             <p>命令队列为空</p>
           </div>
         )}
@@ -1522,10 +1522,10 @@ const CommandManager: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
+        className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
             <FaHistory className="w-5 h-5 text-blue-500" />
             执行历史
           </h3>
@@ -1534,7 +1534,7 @@ const CommandManager: React.FC = () => {
               <motion.button
                 onClick={loadExecutionHistory}
                 disabled={isLoadingHistory}
-                className="px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+                className="px-3 py-2 bg-slate-600 text-white rounded-2xl hover:bg-slate-700 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
                 whileTap={{ scale: 0.95 }}
               >
                 <FaSync className={`w-4 h-4 ${isLoadingHistory ? 'animate-spin' : ''}`} />
@@ -1544,7 +1544,7 @@ const CommandManager: React.FC = () => {
             {historyLoaded && commandHistory.length > 0 && (
               <motion.button
                 onClick={clearHistory}
-                className="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition text-sm font-medium flex items-center gap-2"
+                className="px-3 py-2 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition text-sm font-medium flex items-center gap-2"
                 whileTap={{ scale: 0.95 }}
               >
                 <FaTrash className="w-4 h-4" />
@@ -1556,8 +1556,8 @@ const CommandManager: React.FC = () => {
         
         <AnimatePresence>
           {!historyLoaded ? (
-            <div className="text-center text-gray-500 py-8">
-              <FaHistory className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <div className="text-center text-slate-500 py-8">
+              <FaHistory className="w-12 h-12 mx-auto mb-3 text-slate-300" />
               <p>点击"加载历史"查看执行历史</p>
             </div>
           ) : commandHistory.length > 0 ? (
@@ -1565,7 +1565,7 @@ const CommandManager: React.FC = () => {
               {commandHistory.map((item) => (
                 <div
                   key={item.historyId}
-                  className={`border rounded-lg p-4 ${
+                  className={`border rounded-2xl p-4 ${
                     item.status === 'success' 
                       ? 'border-green-200 bg-green-50' 
                       : 'border-red-200 bg-red-50'
@@ -1586,11 +1586,11 @@ const CommandManager: React.FC = () => {
                       }`}>
                         {item.status === 'success' ? '成功' : '失败'}
                       </span>
-                      <span className="text-xs text-gray-500">{item.executedAt}</span>
+                      <span className="text-xs text-slate-500">{item.executedAt}</span>
                     </div>
                   </div>
-                  <div className="bg-white rounded p-3 border">
-                    <pre className="text-sm text-gray-700 whitespace-pre-wrap overflow-x-auto">
+                  <div className="bg-white/80 backdrop-blur-xl rounded p-3 border">
+                    <pre className="text-sm text-slate-700 whitespace-pre-wrap overflow-x-auto">
                       {item.result}
                     </pre>
                   </div>
@@ -1598,8 +1598,8 @@ const CommandManager: React.FC = () => {
               ))}
             </div>
           ) : (
-            <div className="text-center text-gray-500 py-8">
-              <FaHistory className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <div className="text-center text-slate-500 py-8">
+              <FaHistory className="w-12 h-12 mx-auto mb-3 text-slate-300" />
               <p>暂无执行历史</p>
             </div>
           )}

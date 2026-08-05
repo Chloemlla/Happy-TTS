@@ -29,16 +29,16 @@ export function LibreChatRealtimeDialog() {
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="w-full max-w-2xl bg-white rounded-xl p-6 shadow-sm border border-gray-200 relative"
+                        className="w-full max-w-2xl bg-white/90 rounded-xl p-6 shadow-sm border border-slate-200 relative"
                     >
                         <div className="flex items-center mb-4 pr-10">
-                            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-                                <FaPaperPlane className="text-blue-500" />
+                            <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                                <FaPaperPlane className="text-slate-500" />
                                 实时对话（支持上下文）
                             </h3>
                             <button
                                 onClick={actions.closeRealtimeDialog}
-                                className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-100 bg-white transition-colors"
+                                className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 hover:bg-slate-100 bg-white/90 transition-colors"
                                 aria-label="关闭"
                                 title="关闭"
                             >
@@ -49,14 +49,14 @@ export function LibreChatRealtimeDialog() {
                         <div className="space-y-4">
                             <div className="grid gap-3 sm:grid-cols-3">
                                 <input
-                                    className="border-2 border-gray-200 rounded-lg px-4 py-3 w-full focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                                    className="border-2 border-slate-200 rounded-lg px-4 py-3 w-full focus:outline-none focus:ring-2 focus:ring-slate-300 transition-all"
                                     aria-label="LibreChat Token"
                                     placeholder="请输入 Token"
                                     value={state.token}
                                     onChange={(e) => actions.setToken(e.target.value)}
                                 />
                                 <textarea
-                                    className="min-h-[96px] resize-y border-2 border-gray-200 rounded-lg px-4 py-3 w-full sm:col-span-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                                    className="min-h-[96px] resize-y border-2 border-slate-200 rounded-lg px-4 py-3 w-full sm:col-span-2 focus:outline-none focus:ring-2 focus:ring-slate-300 transition-all"
                                     aria-label="实时对话消息"
                                     placeholder="请输入消息（支持上下文）"
                                     value={state.rtMessage}
@@ -73,7 +73,7 @@ export function LibreChatRealtimeDialog() {
                             </div>
 
                             <div className="flex items-center justify-between">
-                                <div className="text-xs text-gray-400">{state.rtMessage.length}/{state.MAX_MESSAGE_LEN}</div>
+                                <div className="text-xs text-slate-400">{state.rtMessage.length}/{state.MAX_MESSAGE_LEN}</div>
                                 {state.rtError && <div className="text-red-500 text-sm">{state.rtError}</div>}
                             </div>
 
@@ -81,7 +81,7 @@ export function LibreChatRealtimeDialog() {
                                 <motion.button
                                     onClick={actions.handleRealtimeSend}
                                     disabled={!state.rtCanSend}
-                                    className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition disabled:cursor-not-allowed disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+                                    className="px-6 py-3 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition disabled:cursor-not-allowed disabled:opacity-50 text-sm font-medium flex items-center gap-2"
                                     whileTap={{ scale: 0.95 }}
                                 >
                                     <FaPaperPlane className="w-4 h-4" />
@@ -95,13 +95,13 @@ export function LibreChatRealtimeDialog() {
                                         {state.rtHistory.map((m, idx: number) => (
                                             <motion.div
                                                 key={idx}
-                                                className="p-4 border border-gray-200 rounded-lg bg-white"
+                                                className="p-4 border border-slate-200 rounded-lg bg-white/90"
                                                 initial={{ opacity: 0, y: 10 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                             >
                                                 <div className="flex items-center gap-3 mb-3">
                                                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${m.role === 'user'
-                                                        ? 'bg-blue-500'
+                                                        ? 'bg-slate-500'
                                                         : 'bg-green-500'
                                                         }`}>
                                                         {m.role === 'user' ? (
@@ -112,7 +112,7 @@ export function LibreChatRealtimeDialog() {
                                                     </div>
                                                     <div className="flex flex-col">
                                                         <span className={`text-sm font-medium ${m.role === 'user'
-                                                            ? 'text-blue-700'
+                                                            ? 'text-slate-700'
                                                             : 'text-green-700'
                                                             }`}>
                                                             {m.role === 'user' ? '用户' : '助手'}
@@ -132,7 +132,7 @@ export function LibreChatRealtimeDialog() {
                                     </div>
                                 ) : state.rtStreaming || state.rtStreamContent ? (
                                     <motion.div
-                                        className="p-4 border border-gray-200 rounded-lg bg-white"
+                                        className="p-4 border border-slate-200 rounded-lg bg-white/90"
                                         initial={{ opacity: 0, y: 10 }}
                                         animate={{ opacity: 1, y: 0 }}
                                     >
@@ -158,8 +158,8 @@ export function LibreChatRealtimeDialog() {
                                         />
                                     </motion.div>
                                 ) : (
-                                    <div className="text-center py-8 text-gray-500">
-                                        <FaPaperPlane className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                                    <div className="text-center py-8 text-slate-500">
+                                        <FaPaperPlane className="w-8 h-8 mx-auto mb-2 text-slate-300" />
                                         输入内容并点击发送以开始单次对话
                                     </div>
                                 )}

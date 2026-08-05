@@ -78,13 +78,13 @@ export const EmailVerifyPage: React.FC = () => {
                         <FaVolumeUp className="h-10 w-10 text-blue-600" />
                         <h1 className="text-3xl font-bold text-blue-600">Synapse</h1>
                     </div>
-                    <p className="text-gray-600">邮箱验证</p>
+                    <p className="text-slate-600">邮箱验证</p>
                 </div>
 
                 {/* Card */}
-                <div className="bg-white rounded-2xl shadow-xl border border-gray-100 px-8 py-12 hover:shadow-2xl transition-all duration-300">
+                <div className="bg-white/90 rounded-2xl shadow-xl border border-slate-100 px-8 py-12 hover:shadow-2xl transition-all duration-300">
                     {user && (
-                        <div className="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-xl flex items-start gap-3 text-left animate-fadeIn">
+                        <div className="mb-6 p-4 bg-slate-50 border border-slate-100 rounded-xl flex items-start gap-3 text-left animate-fadeIn">
                             <FaInfoCircle className="text-blue-500 mt-1 flex-shrink-0" />
                             <div>
                                 <p className="text-xs font-bold text-blue-700">您当前登录为 {user.username}</p>
@@ -95,16 +95,16 @@ export const EmailVerifyPage: React.FC = () => {
                     {loading ? (
                         <div className="text-center py-8">
                             <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                            <h3 className="text-xl font-semibold text-gray-900 mb-2">验证中...</h3>
-                            <p className="text-gray-600">请稍候，正在验证您的邮箱</p>
+                            <h3 className="text-xl font-semibold text-slate-900 mb-2">验证中...</h3>
+                            <p className="text-slate-600">请稍候，正在验证您的邮箱</p>
                         </div>
                     ) : success ? (
                         <div className="text-center py-4">
                             <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
                                 <FaCheckCircle className="text-green-600 text-5xl" />
                             </div>
-                            <h3 className="text-2xl font-bold text-gray-900 mb-4">验证成功！</h3>
-                            <p className="text-gray-600 mb-6">您的邮箱已成功验证，账户创建完成</p>
+                            <h3 className="text-2xl font-bold text-slate-900 mb-4">验证成功！</h3>
+                            <p className="text-slate-600 mb-6">您的邮箱已成功验证，账户创建完成</p>
 
                             <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-6 rounded-r-lg text-left">
                                 <div className="flex items-start">
@@ -130,8 +130,8 @@ export const EmailVerifyPage: React.FC = () => {
                             <div className="w-20 h-20 bg-gradient-to-br from-red-100 to-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
                                 <FaTimesCircle className="text-red-600 text-5xl" />
                             </div>
-                            <h3 className="text-2xl font-bold text-gray-900 mb-4">验证失败</h3>
-                            <p className="text-gray-600 mb-6">{error}</p>
+                            <h3 className="text-2xl font-bold text-slate-900 mb-4">验证失败</h3>
+                            <p className="text-slate-600 mb-6">{error}</p>
 
                             <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-r-lg text-left">
                                 <div className="flex items-start">
@@ -159,7 +159,7 @@ export const EmailVerifyPage: React.FC = () => {
                                 </Link>
                                 <Link
                                     to="/login"
-                                    className="block w-full py-3 px-4 text-center border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+                                    className="block w-full py-3 px-4 text-center border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 bg-white/90 hover:bg-slate-50/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
                                 >
                                     返回登录
                                 </Link>
@@ -170,7 +170,7 @@ export const EmailVerifyPage: React.FC = () => {
 
                 {/* Back to Home */}
                 <div className="mt-6 text-center">
-                    <Link to="/" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                    <Link to="/" className="text-sm text-slate-600 hover:text-slate-900 transition-colors">
                         返回首页
                     </Link>
                 </div>
