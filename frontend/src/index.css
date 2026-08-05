@@ -251,7 +251,7 @@ body {
   box-shadow: 0 0 0 2px #cbd5e1 !important;
 }
 
-.logshare-admin-surface :where(button, a)[class*="bg-"]:not([class*="bg-white"]):not([class*="bg-transparent"]):not([class*="bg-rose"]):not([class*="bg-red"]):not([class*="bg-amber"]):not([class*="bg-yellow"]) {
+.logshare-admin-surface :where(button, a)[class*="bg-"]:not([class*="hover:bg-"]):not([class*="bg-white"]):not([class*="bg-transparent"]):not([class*="bg-rose"]):not([class*="bg-red"]):not([class*="bg-amber"]):not([class*="bg-yellow"]) {
   border-color: #0f172a !important;
   border-radius: 1rem !important;
   background-color: #0f172a !important;
