@@ -1,57 +1,39 @@
 import React, {
-  useEffect, useState, useMemo, useCallback, startTransition
+  useEffect, useState, useCallback, startTransition
 } from 'react';
 import { LazyMotion, domAnimation, m, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
-import { signedFetch } from '../utils/requestSigner';
 import { useSearchParams } from 'react-router-dom';
-import RuntimeConfigSections from './RuntimeConfigSections';
 import {
   API_URL,
-  CLARITY_CONFIG_API,
+  MODLIST_API, TTS_API, SHORTURL_AES_API, WEBHOOK_SECRET_API,
   CONFIGURATION_NOTICE_API,
-  GITHUB_BILLING_MULTI_CONFIG_API,
-  GOOGLE_AUTH_API,
-  GOOGLE_WEB_CLIENT_ID_PATTERN,
-  HCAPTCHA_CONFIG_API,
-  IPFS_CONFIG_API,
-  LIBRECHAT_PROVIDERS_API,
-  MODLIST_API,
-  NEXAI_SETTING_API,
-  NEXAI_SIGNING_API,
-  OUTEMAIL_API,
-  EMAIL_SYSTEM_API,
-  SHORTURL_AES_API,
-  SYNAPSE_ANDROID_API,
-  TTS_API,
-  TURNSTILE_CONFIG_API,
-  WEBHOOK_SECRET_API,
   getAuthHeaders,
   authFetch,
 } from './env-manager/api';
-import SynapseAndroidConfigSection from './env-manager/SynapseAndroidConfigSection';
-import NexaiSigningConfigSection from './env-manager/NexaiSigningConfigSection';
-import GoogleClientIdsSection from './env-manager/GoogleClientIdsSection';
-import CodeSettingSection from './env-manager/CodeSettingSection';
-import OutemailSettingsSection from './env-manager/OutemailSettingsSection';
-import EmailSystemSettingsSection from './env-manager/EmailSystemSettingsSection';
-import SecretKeySection from './env-manager/SecretKeySection';
-import IpfsConfigSection from './env-manager/IpfsConfigSection';
-import TurnstileConfigSection from './env-manager/TurnstileConfigSection';
-import HcaptchaConfigSection from './env-manager/HcaptchaConfigSection';
-import ClarityConfigSection from './env-manager/ClarityConfigSection';
-import GithubBillingConfigSection from './env-manager/GithubBillingConfigSection';
-import LibreChatProvidersSection from './env-manager/LibreChatProvidersSection';
+import SelfContainedTurnstileConfigSection from './env-manager/SelfContainedTurnstileConfigSection';
+import SelfContainedHcaptchaConfigSection from './env-manager/SelfContainedHcaptchaConfigSection';
+import SelfContainedClarityConfigSection from './env-manager/SelfContainedClarityConfigSection';
+import SelfContainedGithubBillingConfigSection from './env-manager/SelfContainedGithubBillingConfigSection';
+import SelfContainedIpfsConfigSection from './env-manager/SelfContainedIpfsConfigSection';
+import SelfContainedEmailSystemSettingsSection from './env-manager/SelfContainedEmailSystemSettingsSection';
+import SelfContainedOutemailSettingsSection from './env-manager/SelfContainedOutemailSettingsSection';
+import SelfContainedGoogleClientIdsSection from './env-manager/SelfContainedGoogleClientIdsSection';
+import SelfContainedSynapseAndroidConfigSection from './env-manager/SelfContainedSynapseAndroidConfigSection';
+import SelfContainedNexaiSigningConfigSection from './env-manager/SelfContainedNexaiSigningConfigSection';
+import SelfContainedLibreChatProvidersSection from './env-manager/SelfContainedLibreChatProvidersSection';
+import SelfContainedCodeSettingSection from './env-manager/SelfContainedCodeSettingSection';
+import SelfContainedSecretKeySection from './env-manager/SelfContainedSecretKeySection';
+import SelfContainedEcoEnchantsTokenSection from './env-manager/SelfContainedEcoEnchantsTokenSection';
+import SelfContainedEcoEnchantsWebhookSection from './env-manager/SelfContainedEcoEnchantsWebhookSection';
+import SelfContainedSecuritySecretSection from './env-manager/SelfContainedSecuritySecretSection';
 import TtsProviderConfigSection from './env-manager/TtsProviderConfigSection';
-import EcoEnchantsTokenSection from './env-manager/EcoEnchantsTokenSection';
-import EcoEnchantsWebhookSection from './env-manager/EcoEnchantsWebhookSection';
-import SecuritySecretSection from './env-manager/SecuritySecretSection';
-import { DURATION_03, DURATION_06, ENTER_ANIMATE, ENTER_INITIAL, NO_DURATION } from './env-manager/motion';
+import RuntimeConfigSections from './RuntimeConfigSections';
 import {
-  getEnvSource,
   handleSourceClick,
-  handleSourceModalClose
+  handleSourceModalClose,
+  getEnvSource,
 } from './env-manager/utils';
 import {
   getConfigurationSectionKey,
@@ -61,221 +43,83 @@ import {
   type ConfigurationNoticeIssue,
   type ConfigurationNoticeWorkflow,
 } from './env-manager/configurationNotice';
-import type {
-  ChatProviderItem,
-  ClarityConfigSetting,
-  EnvItem,
-  HCaptchaConfigSetting,
-  IPFSConfigSetting,
-  ModlistSettingItem,
-  MultiGitHubBillingConfig,
-  OutemailSettingItem,
-  EmailSystemConfigItem,
-  ShortAesSetting,
-  TtsSettingItem,
-  TurnstileConfigSetting,
-  WebhookSecretSetting
-} from './env-manager/types';
+import type { EnvItem } from './env-manager/types';
 import {
-  FaCog,
-  FaLock,
-  FaList,
-  FaSync,
-  FaInfoCircle,
-  FaCheckCircle,
-  FaChevronDown,
-  FaEdit,
-  FaTrash,
-  FaCheck,
-  FaTimes,
+  FaCog, FaLock, FaList, FaSync, FaInfoCircle, FaCheckCircle, FaChevronDown, FaEdit, FaTrash, FaCheck, FaTimes,
 } from 'react-icons/fa';
+import { DURATION_06, DURATION_03, ENTER_ANIMATE, ENTER_INITIAL, NO_DURATION } from './env-manager/motion';
 
 export { handleSourceClick, handleSourceModalClose };
 
 const ENV_MANAGER_LIGHT_THEME_CSS = `
 .env-manager-ui,
-.env-manager-ui * {
-  color-scheme: light;
-}
-
-.env-manager-ui {
-  background: transparent;
-  color: #374151;
-}
-
-.dark .env-manager-ui {
-  color: #374151 !important;
-}
-
-.env-manager-ui .bg-white {
-  background-color: #ffffff !important;
-}
-
-.env-manager-ui .bg-gray-50 {
-  background-color: #f9fafb !important;
-}
-
-.env-manager-ui .bg-gray-100 {
-  background-color: #f3f4f6 !important;
-}
-
-.env-manager-ui .bg-slate-50 {
-  background-color: #f8fafc !important;
-}
-
-.env-manager-ui .bg-slate-100 {
-  background-color: #f1f5f9 !important;
-}
-
-.env-manager-ui .bg-slate-200 {
-  background-color: #e2e8f0 !important;
-}
-
-.env-manager-ui .bg-blue-50 {
-  background-color: #eff6ff !important;
-}
-
-.env-manager-ui .bg-blue-100 {
-  background-color: #dbeafe !important;
-}
-
-.env-manager-ui .bg-indigo-50 {
-  background-color: #eef2ff !important;
-}
-
-.env-manager-ui .bg-green-50 {
-  background-color: #f0fdf4 !important;
-}
-
-.env-manager-ui .bg-emerald-50 {
-  background-color: #ecfdf5 !important;
-}
-
-.env-manager-ui .bg-red-50 {
-  background-color: #fef2f2 !important;
-}
-
-.env-manager-ui .bg-pink-50 {
-  background-color: #fdf2f8 !important;
-}
-
-.env-manager-ui .text-gray-900 {
-  color: #111827 !important;
-}
-
-.env-manager-ui .text-gray-800 {
-  color: #1f2937 !important;
-}
-
-.env-manager-ui .text-gray-700 {
-  color: #374151 !important;
-}
-
-.env-manager-ui .text-gray-600 {
-  color: #4b5563 !important;
-}
-
-.env-manager-ui .text-gray-500 {
-  color: #6b7280 !important;
-}
-
-.env-manager-ui .text-gray-400 {
-  color: #9ca3af !important;
-}
-
-.env-manager-ui .text-slate-800 {
-  color: #1e293b !important;
-}
-
-.env-manager-ui .text-slate-500 {
-  color: #64748b !important;
-}
-
-.env-manager-ui .text-slate-400 {
-  color: #94a3b8 !important;
-}
-
-.env-manager-ui .text-blue-700 {
-  color: #1d4ed8 !important;
-}
-
-.env-manager-ui .text-blue-600 {
-  color: #2563eb !important;
-}
-
-.env-manager-ui .text-red-700 {
-  color: #b91c1c !important;
-}
-
-.env-manager-ui .text-red-600 {
-  color: #dc2626 !important;
-}
-
-.env-manager-ui .text-red-500 {
-  color: #ef4444 !important;
-}
-
-.env-manager-ui .env-manager-title-panel {
-  background: linear-gradient(90deg, #eff6ff 0%, #eef2ff 100%) !important;
-  border-color: #dbeafe !important;
-  color: #4b5563 !important;
-}
-
-.env-manager-ui .env-manager-title {
-  background: transparent !important;
-  color: #1d4ed8 !important;
-}
-
-.env-manager-ui .env-manager-title-icon {
-  color: #2563eb !important;
-}
-
-.env-manager-ui .env-manager-title-panel p,
-.env-manager-ui .env-manager-title-panel li {
-  color: #4b5563 !important;
-}
-
-.env-manager-ui .env-manager-title-panel .env-manager-title-label {
-  color: #1d4ed8 !important;
-}
-
+.env-manager-ui * { color-scheme: light; }
+.env-manager-ui { background: transparent; color: #374151; }
+.dark .env-manager-ui { color: #374151 !important; }
+.env-manager-ui .bg-white { background-color: #ffffff !important; }
+.env-manager-ui .bg-gray-50 { background-color: #f9fafb !important; }
+.env-manager-ui .bg-gray-100 { background-color: #f3f4f6 !important; }
+.env-manager-ui .bg-slate-50 { background-color: #f8fafc !important; }
+.env-manager-ui .bg-slate-100 { background-color: #f1f5f9 !important; }
+.env-manager-ui .bg-slate-200 { background-color: #e2e8f0 !important; }
+.env-manager-ui .bg-blue-50 { background-color: #eff6ff !important; }
+.env-manager-ui .bg-blue-100 { background-color: #dbeafe !important; }
+.env-manager-ui .bg-indigo-50 { background-color: #eef2ff !important; }
+.env-manager-ui .bg-green-50 { background-color: #f0fdf4 !important; }
+.env-manager-ui .bg-emerald-50 { background-color: #ecfdf5 !important; }
+.env-manager-ui .bg-red-50 { background-color: #fef2f2 !important; }
+.env-manager-ui .bg-pink-50 { background-color: #fdf2f8 !important; }
+.env-manager-ui .text-gray-900 { color: #111827 !important; }
+.env-manager-ui .text-gray-800 { color: #1f2937 !important; }
+.env-manager-ui .text-gray-700 { color: #374151 !important; }
+.env-manager-ui .text-gray-600 { color: #4b5563 !important; }
+.env-manager-ui .text-gray-500 { color: #6b7280 !important; }
+.env-manager-ui .text-gray-400 { color: #9ca3af !important; }
+.env-manager-ui .text-slate-800 { color: #1e293b !important; }
+.env-manager-ui .text-slate-500 { color: #64748b !important; }
+.env-manager-ui .text-slate-400 { color: #94a3b8 !important; }
+.env-manager-ui .text-blue-700 { color: #1d4ed8 !important; }
+.env-manager-ui .text-blue-600 { color: #2563eb !important; }
+.env-manager-ui .text-red-700 { color: #b91c1c !important; }
+.env-manager-ui .text-red-600 { color: #dc2626 !important; }
+.env-manager-ui .text-red-500 { color: #ef4444 !important; }
+.env-manager-ui .env-manager-title-panel { background: linear-gradient(90deg, #eff6ff 0%, #eef2ff 100%) !important; border-color: #dbeafe !important; color: #4b5563 !important; }
+.env-manager-ui .env-manager-title { background: transparent !important; color: #1d4ed8 !important; }
+.env-manager-ui .env-manager-title-icon { color: #2563eb !important; }
+.env-manager-ui .env-manager-title-panel p, .env-manager-ui .env-manager-title-panel li { color: #4b5563 !important; }
+.env-manager-ui .env-manager-title-panel .env-manager-title-label { color: #1d4ed8 !important; }
 .env-manager-ui input:not([type="checkbox"]):not([type="radio"]),
 .env-manager-ui textarea,
-.env-manager-ui select {
-  background-color: #ffffff;
-  color: #111827;
-  color-scheme: light;
-}
-
+.env-manager-ui select { background-color: #ffffff; color: #111827; color-scheme: light; }
 .env-manager-ui input:not([type="checkbox"]):not([type="radio"])::placeholder,
-.env-manager-ui textarea::placeholder {
-  color: #9ca3af;
-  opacity: 1;
-}
-
-.env-manager-ui select option {
-  background-color: #ffffff;
-  color: #111827;
-}
+.env-manager-ui textarea::placeholder { color: #9ca3af; opacity: 1; }
+.env-manager-ui select option { background-color: #ffffff; color: #111827; }
 `;
 
 const ENV_MANAGER_REFRESH_BUTTON_CLASS =
   'inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60';
-
 const ENV_MANAGER_TOGGLE_BUTTON_CLASS =
   'inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-800 transition hover:bg-slate-200';
 
 const EnvManager: React.FC = () => {
   const { user } = useAuth();
+  const { setNotification } = useNotification();
+  const prefersReducedMotion = useReducedMotion();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const trans06 = React.useMemo(() => (prefersReducedMotion ? NO_DURATION : DURATION_06), [prefersReducedMotion]);
+  const trans03 = React.useMemo(() => (prefersReducedMotion ? NO_DURATION : DURATION_03), [prefersReducedMotion]);
+  const modalTrans = React.useMemo(() => (prefersReducedMotion ? NO_DURATION : { duration: 0.1 }), [prefersReducedMotion]);
+
+  // Env vars state
   const [envs, setEnvs] = useState<EnvItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<EnvItem>>({});
   const [showSourceModal, setShowSourceModal] = useState(false);
   const [selectedSource, setSelectedSource] = useState<string>('');
-  const { setNotification } = useNotification();
-  const prefersReducedMotion = useReducedMotion();
-  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Configuration workflow state
   const [configurationWorkflow, setConfigurationWorkflow] = useState<ConfigurationNoticeWorkflow | null>(
     () => readConfigurationWorkflow(),
   );
@@ -283,331 +127,39 @@ const EnvManager: React.FC = () => {
   const [configurationStatusLoading, setConfigurationStatusLoading] = useState(false);
   const [configurationStatusFetched, setConfigurationStatusFetched] = useState(false);
 
-  const fetchConfigurationIssues = useCallback(async () => {
-    setConfigurationStatusLoading(true);
-    try {
-      const response = await authFetch(CONFIGURATION_NOTICE_API, {
-        credentials: 'include',
-        headers: getAuthHeaders(),
-      });
-      const payload: unknown = await response.json().catch(() => null);
-      if (!response.ok || !payload || typeof payload !== 'object' || Array.isArray(payload)) return;
-      const rawIssues = (payload as Record<string, unknown>).issues;
-      const issues = Array.isArray(rawIssues)
-        ? rawIssues.filter(isConfigurationNoticeIssue)
-        : [];
-      setConfigurationIssues(issues);
-      setConfigurationStatusFetched(true);
-    } catch {
-      // Configuration progress is auxiliary and must not block EnvManager.
-    } finally {
-      setConfigurationStatusLoading(false);
-    }
-  }, []);
-
-  const configurationTargetIssueId = searchParams.get('configIssue');
-
-  useEffect(() => {
-    if (!configurationWorkflow && !configurationTargetIssueId) return;
-    void fetchConfigurationIssues();
-    const timer = window.setInterval(() => {
-      void fetchConfigurationIssues();
-    }, 3000);
-    return () => window.clearInterval(timer);
-  }, [configurationTargetIssueId, configurationWorkflow, fetchConfigurationIssues]);
-
-  useEffect(() => {
-    if (!configurationTargetIssueId) return;
-    const sectionKey = getConfigurationSectionKey(configurationTargetIssueId);
-    if (sectionKey !== 'envs' && sectionKey !== 'ipqs' && sectionKey !== 'linuxdo' && sectionKey !== 'googleAuth' && sectionKey !== 'deeplx' && sectionKey !== 'nexai' && sectionKey !== 'adminSecurity' && sectionKey !== 'ecoEnchantsToken' && sectionKey !== 'ecoEnchantsWebhook' && sectionKey !== 'securitySecrets') {
-      setExpandedSections((previous) => {
-        if (previous.has(sectionKey)) return previous;
-        const next = new Set(previous);
-        next.add(sectionKey);
-        return next;
-      });
-    }
-
-    const scrollTimer = window.setTimeout(() => {
-      document.querySelector(`[data-env-section="${sectionKey}"]`)?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      });
-    }, 250);
-    return () => window.clearTimeout(scrollTimer);
-  }, [configurationTargetIssueId]);
-
-  useEffect(() => {
-    if (!configurationWorkflow || configurationStatusLoading || !configurationStatusFetched) return;
-    const ignoredIds = new Set(configurationWorkflow.ignoredIds);
-    const pendingIssues = configurationWorkflow.issues.filter(
-      (issue) => !ignoredIds.has(issue.id) && configurationIssues.some((current) => current.id === issue.id),
-    );
-    const currentTargetStillPending = configurationTargetIssueId
-      ? pendingIssues.some((issue) => issue.id === configurationTargetIssueId)
-      : false;
-
-    if (pendingIssues.length === 0) {
-      if (configurationTargetIssueId) {
-        setSearchParams((previous) => {
-          const next = new URLSearchParams(previous);
-          next.delete('configIssue');
-          return next;
-        }, { replace: true });
-      }
-      return;
-    }
-
-    if (!currentTargetStillPending) {
-      const nextIssue = pendingIssues[0];
-      setSearchParams((previous) => {
-        const next = new URLSearchParams(previous);
-        next.set('configIssue', nextIssue.id);
-        return next;
-      }, { replace: true });
-    }
-  }, [configurationIssues, configurationStatusFetched, configurationStatusLoading, configurationTargetIssueId, configurationWorkflow, setSearchParams]);
-
-  const ignoreConfigurationIssue = useCallback((issueId: string) => {
-    if (!configurationWorkflow) return;
-    const ignoredIds = Array.from(new Set([...configurationWorkflow.ignoredIds, issueId]));
-    const nextWorkflow = { ...configurationWorkflow, ignoredIds };
-    writeConfigurationWorkflow(nextWorkflow);
-    setConfigurationWorkflow(nextWorkflow);
-  }, [configurationWorkflow]);
-
-  // 基于窗口宽度的移动端检测（随页面缩放实时更新，带防抖）
+  // Mobile detection
   const [isMobile, setIsMobile] = useState<boolean>(false);
   useEffect(() => {
-    const checkIsMobile = () => {
-      try {
-        setIsMobile(window.innerWidth <= 768);
-      } catch (_) {
-        setIsMobile(false);
-      }
-    };
+    const checkIsMobile = () => { try { setIsMobile(window.innerWidth <= 768); } catch { setIsMobile(false); } };
     checkIsMobile();
     let timer: ReturnType<typeof setTimeout>;
-    const debouncedCheck = () => {
-      clearTimeout(timer);
-      timer = setTimeout(checkIsMobile, 150);
-    };
+    const debouncedCheck = () => { clearTimeout(timer); timer = setTimeout(checkIsMobile, 150); };
     window.addEventListener('resize', debouncedCheck);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('resize', debouncedCheck);
-    };
+    return () => { clearTimeout(timer); window.removeEventListener('resize', debouncedCheck); };
   }, []);
 
-  // OutEmail Settings
-  const [outemailSettings, setOutemailSettings] = useState<OutemailSettingItem[]>([]);
-  const [settingsLoading, setSettingsLoading] = useState(false);
-  const [settingDomain, setSettingDomain] = useState('');
-  const [settingCode, setSettingCode] = useState('');
-  const [settingApiKey, setSettingApiKey] = useState('');
-  const [settingsSaving, setSettingsSaving] = useState(false);
-  const [settingsDeletingDomain, setSettingsDeletingDomain] = useState<string | null>(null);
+  // Env table collapsed state (kept for lazy-loading the envs data)
+  const [envSectionExpanded, setEnvSectionExpanded] = useState(false);
+  const envFetchedRef = React.useRef(false);
 
-  // Email System Settings
-  const [emailSystemConfig, setEmailSystemConfig] = useState<EmailSystemConfigItem | null>(null);
-  const [emailSystemLoading, setEmailSystemLoading] = useState(false);
-  const [emailSystemSaving, setEmailSystemSaving] = useState(false);
-  const [emailSystemDeleting, setEmailSystemDeleting] = useState(false);
-
-  // Modlist MODIFY_CODE Setting
-  const [modSetting, setModSetting] = useState<ModlistSettingItem | null>(null);
-  const [modLoading, setModLoading] = useState(false);
-  const [modCodeInput, setModCodeInput] = useState('');
-  const [modSaving, setModSaving] = useState(false);
-  const [modDeleting, setModDeleting] = useState(false);
-
-  // TTS GENERATION_CODE Setting
-  const [ttsSetting, setTtsSetting] = useState<TtsSettingItem | null>(null);
-  const [ttsLoading, setTtsLoading] = useState(false);
-  const [ttsCodeInput, setTtsCodeInput] = useState('');
-  const [ttsSaving, setTtsSaving] = useState(false);
-  const [ttsDeleting, setTtsDeleting] = useState(false);
-
-  // Google / NexAI Client ID (runtime config backed, env-var named)
-  const [googleClientIdsLoading, setGoogleClientIdsLoading] = useState(false);
-  const [googleClientIdsSaving, setGoogleClientIdsSaving] = useState(false);
-  const [googleClientIdsDeleting, setGoogleClientIdsDeleting] = useState(false);
-  const [googleClientIdInput, setGoogleClientIdInput] = useState('');
-  const [nexaiGoogleClientIdInput, setNexaiGoogleClientIdInput] = useState('');
-  const [googleClientIdCurrent, setGoogleClientIdCurrent] = useState('');
-  const [nexaiGoogleClientIdCurrent, setNexaiGoogleClientIdCurrent] = useState('');
-  const [googleClientIdsUpdatedAt, setGoogleClientIdsUpdatedAt] = useState<string | undefined>(undefined);
-  // Synapse Android / Digital Asset Links (runtime config)
-  const [synapseAndroidLoading, setSynapseAndroidLoading] = useState(false);
-  const [synapseAndroidSaving, setSynapseAndroidSaving] = useState(false);
-  const [synapseAndroidDeleting, setSynapseAndroidDeleting] = useState(false);
-  const [synapseAndroidPackageInput, setSynapseAndroidPackageInput] = useState('com.synapse.mobile');
-  const [synapseAndroidFingerprintsInput, setSynapseAndroidFingerprintsInput] = useState('');
-  const [synapseAndroidGoogleClientIdInput, setSynapseAndroidGoogleClientIdInput] = useState('');
-  const [synapseAndroidDisabled, setSynapseAndroidDisabled] = useState(false);
-  const [synapseAndroidCurrentPackage, setSynapseAndroidCurrentPackage] = useState('');
-  const [synapseAndroidCurrentFingerprints, setSynapseAndroidCurrentFingerprints] = useState<string[]>([]);
-  const [synapseAndroidCurrentGoogleClientId, setSynapseAndroidCurrentGoogleClientId] = useState('');
-  const [synapseAndroidUpdatedAt, setSynapseAndroidUpdatedAt] = useState<string | undefined>(undefined);
-
-  // NexAI request-signature middleware config (NEXAI_REQUEST_SIGNING / NEXAI_APP_SIGN_SECRET(_PREV) / NEXAI_SIG_MAX_DRIFT_MS)
-  const [nexaiSigningLoading, setNexaiSigningLoading] = useState(false);
-  const [nexaiSigningSaving, setNexaiSigningSaving] = useState(false);
-  const [nexaiSigningDeleting, setNexaiSigningDeleting] = useState(false);
-  const [nexaiSigningModeInput, setNexaiSigningModeInput] = useState<'off' | 'soft' | 'enforce'>('soft');
-  const [nexaiSigningAppSignSecretInput, setNexaiSigningAppSignSecretInput] = useState('');
-  const [nexaiSigningAppSignSecretPrevInput, setNexaiSigningAppSignSecretPrevInput] = useState('');
-  const [nexaiSigningMaxDriftMsInput, setNexaiSigningMaxDriftMsInput] = useState('300000');
-  const [nexaiSigningCurrentAppSignSecret, setNexaiSigningCurrentAppSignSecret] = useState('');
-  const [nexaiSigningCurrentAppSignSecretPrev, setNexaiSigningCurrentAppSignSecretPrev] = useState('');
-  const [nexaiSigningUpdatedAt, setNexaiSigningUpdatedAt] = useState<string | undefined>(undefined);
-
-
-  // ShortURL AES_KEY Setting
-  const [shortAesSetting, setShortAesSetting] = useState<ShortAesSetting | null>(null);
-  const [shortAesLoading, setShortAesLoading] = useState(false);
-  const [shortAesInput, setShortAesInput] = useState('');
-  const [shortAesSaving, setShortAesSaving] = useState(false);
-  const [shortAesDeleting, setShortAesDeleting] = useState(false);
-
-  // Webhook Secret Setting
-  const [webhookKeyInput, setWebhookKeyInput] = useState('');
-  const [webhookSecretInput, setWebhookSecretInput] = useState('');
-  const [webhookSetting, setWebhookSetting] = useState<WebhookSecretSetting | null>(null);
-  const [webhookLoading, setWebhookLoading] = useState(false);
-  const [webhookSaving, setWebhookSaving] = useState(false);
-  const [webhookDeleting, setWebhookDeleting] = useState(false);
-
-  // LibreChat Providers
-  const [providers, setProviders] = useState<ChatProviderItem[]>([]);
-  const [providersLoading, setProvidersLoading] = useState(false);
-  const [providerSaving, setProviderSaving] = useState(false);
-  const [providerDeletingId, setProviderDeletingId] = useState<string | null>(null);
-  const [providerFilterGroup, setProviderFilterGroup] = useState('');
-  // 表单
-  const [providerId, setProviderId] = useState<string | null>(null);
-  const [providerBaseUrl, setProviderBaseUrl] = useState('');
-  const [providerApiKey, setProviderApiKey] = useState('');
-  const [providerModel, setProviderModel] = useState('');
-  const [providerGroup, setProviderGroup] = useState('');
-  const [providerEnabled, setProviderEnabled] = useState(true);
-  const [providerWeight, setProviderWeight] = useState<number>(1);
-
-  // IPFS Config Setting
-  const [ipfsConfig, setIpfsConfig] = useState<IPFSConfigSetting | null>(null);
-  const [ipfsConfigLoading, setIpfsConfigLoading] = useState(false);
-  const [ipfsConfigSaving, setIpfsConfigSaving] = useState(false);
-  const [ipfsConfigTesting, setIpfsConfigTesting] = useState(false);
-  const [ipfsUploadUrlInput, setIpfsUploadUrlInput] = useState('');
-  const [ipfsUserAgentInput, setIpfsUserAgentInput] = useState('');
-  const [imageBedApiUrlInput, setImageBedApiUrlInput] = useState('');
-  const [imageBedCdnDomainInput, setImageBedCdnDomainInput] = useState('');
-  const [imageBedStorageDestinationInput, setImageBedStorageDestinationInput] = useState('');
-  const [imageBedOutputFormatInput, setImageBedOutputFormatInput] = useState('');
-
-  // Turnstile Config Setting
-  const [turnstileConfig, setTurnstileConfig] = useState<TurnstileConfigSetting | null>(null);
-  const [turnstileConfigLoading, setTurnstileConfigLoading] = useState(false);
-  const [turnstileConfigSaving, setTurnstileConfigSaving] = useState(false);
-  const [turnstileConfigDeleting, setTurnstileConfigDeleting] = useState(false);
-  const [turnstileSiteKeyInput, setTurnstileSiteKeyInput] = useState('');
-  const [turnstileSecretKeyInput, setTurnstileSecretKeyInput] = useState('');
-
-  // hCaptcha Config Setting
-  const [hcaptchaConfig, setHcaptchaConfig] = useState<HCaptchaConfigSetting | null>(null);
-  const [hcaptchaConfigLoading, setHcaptchaConfigLoading] = useState(false);
-  const [hcaptchaConfigSaving, setHcaptchaConfigSaving] = useState(false);
-  const [hcaptchaConfigDeleting, setHcaptchaConfigDeleting] = useState(false);
-  const [hcaptchaSiteKeyInput, setHcaptchaSiteKeyInput] = useState('');
-  const [hcaptchaSecretKeyInput, setHcaptchaSecretKeyInput] = useState('');
-
-  // Clarity Config Setting
-  const [clarityConfig, setClarityConfig] = useState<ClarityConfigSetting | null>(null);
-  const [clarityConfigLoading, setClarityConfigLoading] = useState(false);
-  const [clarityConfigSaving, setClarityConfigSaving] = useState(false);
-  const [clarityConfigDeleting, setClarityConfigDeleting] = useState(false);
-  const [clarityProjectIdInput, setClarityProjectIdInput] = useState('');
-
-  // GitHub Billing Config Setting (Multi-Config)
-  const [multiGithubBillingConfig, setMultiGithubBillingConfig] = useState<MultiGitHubBillingConfig | null>(null);
-  const [githubBillingConfigLoading, setGithubBillingConfigLoading] = useState(false);
-  const [githubBillingConfigSaving, setGithubBillingConfigSaving] = useState(false);
-  const [githubBillingCurlInput, setGithubBillingCurlInput] = useState('');
-  const [selectedConfigKey, setSelectedConfigKey] = useState<'config1' | 'config2' | 'config3'>('config1');
-  const [showConfigSelector, setShowConfigSelector] = useState(false);
-
-  const trans06 = useMemo(() => (prefersReducedMotion ? NO_DURATION : DURATION_06), [prefersReducedMotion]);
-  const trans03 = useMemo(() => (prefersReducedMotion ? NO_DURATION : DURATION_03), [prefersReducedMotion]);
-  const modalTrans = useMemo(() => (prefersReducedMotion ? NO_DURATION : { duration: 0.1 }), [prefersReducedMotion]);
-
-  // ========== 性能优化：按需展开 & 懒加载数据 ==========
-  // 追踪已展开的区块，只有展开时才渲染内容和拉取数据
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(() => new Set());
-  // 追踪已经拉取过数据的区块，避免重复请求
-  const fetchedSectionsRef = React.useRef<Set<string>>(new Set());
-
-  const toggleSection = useCallback((key: string) => {
-    startTransition(() => {
-      setExpandedSections(prev => {
-        const next = new Set(prev);
-        if (next.has(key)) {
-          next.delete(key);
-        } else {
-          next.add(key);
-        }
-        return next;
-      });
-    });
-  }, []);
-
-  const isSectionOpen = useCallback((key: string) => expandedSections.has(key), [expandedSections]);
-
+  // Env fetch
   const fetchEnvs = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await authFetch(API_URL, { headers: getAuthHeaders() });
+      const res = await authFetch(API_URL, { headers: { ...getAuthHeaders() } });
       const data = await res.json();
       if (!res.ok) {
-        switch (data.error) {
-          case '未携带Token，请先登录':
-            setNotification({ message: '请先登录后再操作', type: 'error' });
-            break;
-          case 'Token格式错误，需以Bearer开头':
-          case 'Token为空':
-          case '无效的认证令牌':
-          case '认证令牌已过期':
-            setNotification({ message: '登录状态已失效，请重新登录', type: 'error' });
-            break;
-          case '用户不存在':
-            setNotification({ message: '用户不存在，请重新登录', type: 'error' });
-            break;
-          case '需要管理员权限':
-          case '无权限':
-            setNotification({ message: '需要管理员权限', type: 'error' });
-            break;
-          default:
-            setNotification({ message: data.error || '获取失败', type: 'error' });
-        }
-        setLoading(false);
+        const msg = data?.error || '获取失败';
+        if (msg.includes('Token') || msg.includes('令牌')) setNotification({ message: '登录状态已失效，请重新登录', type: 'error' });
+        else if (msg.includes('权限') || msg.includes('管理员')) setNotification({ message: '需要管理员权限', type: 'error' });
+        else setNotification({ message: msg, type: 'error' });
         return;
       }
-
       if (data.success) {
         let envArr: EnvItem[] = [];
-
-        // 兼容未加密格式（Cookie 会话下后端直接返回明文）
-        if (Array.isArray(data.envs)) {
-          envArr = data.envs;
-        } else if (data.envs && typeof data.envs === 'object') {
-          envArr = Object.entries(data.envs).map(([key, value]) => ({ key, value: String(value) }));
-        }
-
-        // 为环境变量添加数据来源信息
-        envArr = envArr.map(item => {
-          const source = getEnvSource(item.key);
-          return { ...item, source };
-        });
-
+        if (Array.isArray(data.envs)) envArr = data.envs;
+        else if (data.envs && typeof data.envs === 'object') envArr = Object.entries(data.envs).map(([key, value]) => ({ key, value: String(value) }));
+        envArr = envArr.map(item => ({ ...item, source: getEnvSource(item.key) }));
         setEnvs(envArr.map(item => {
           const rawKey = item.key.includes(':') ? item.key.split(':').pop() : item.key;
           return rawKey === 'USER_STORAGE_MODE' ? { ...item, value: 'mongo' } : item;
@@ -616,12 +168,19 @@ const EnvManager: React.FC = () => {
         setNotification({ message: data.error || '获取失败', type: 'error' });
       }
     } catch (e) {
-      setNotification({ message: '获取失败：' + (e instanceof Error ? e.message : (e && e.toString ? e.toString() : '未知错误')), type: 'error' });
-    } finally {
-      setLoading(false);
-    }
+      setNotification({ message: '获取失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
+    } finally { setLoading(false); }
   }, [setNotification]);
 
+  // Lazy fetch when env section is expanded
+  useEffect(() => {
+    if (envSectionExpanded && !envFetchedRef.current) {
+      envFetchedRef.current = true;
+      fetchEnvs();
+    }
+  }, [envSectionExpanded, fetchEnvs]);
+
+  // Env CRUD handlers
   const handleStartEdit = useCallback((item: EnvItem) => {
     setEditingKey(item.key);
     setForm({ key: item.key, value: item.value, desc: item.desc });
@@ -636,1570 +195,110 @@ const EnvManager: React.FC = () => {
     if (!form.key) return;
     const key = form.key;
     const value = (form.value || '').trim();
-    if (!value) {
-      setNotification({ message: 'value 不能为空', type: 'error' });
-      return;
-    }
+    if (!value) { setNotification({ message: 'value 不能为空', type: 'error' }); return; }
     try {
-      const res = await authFetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ key, value, desc: form.desc || '' }),
-      });
+      const res = await authFetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ key, value, desc: form.desc || '' }) });
       const data = await res.json();
-      if (!res.ok) {
-        setNotification({ message: data.error || '保存失败', type: 'error' });
-        return;
-      }
+      if (!res.ok) { setNotification({ message: data.error || '保存失败', type: 'error' }); return; }
       setNotification({ message: `${key} 已保存`, type: 'success' });
-      setEditingKey(null);
-      setForm({});
+      setEditingKey(null); setForm({});
       await fetchEnvs();
-    } catch (e) {
-      setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    }
+    } catch (e) { setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
   }, [form, fetchEnvs, setNotification]);
 
   const handleDeleteEnvVar = useCallback(async (key: string) => {
     if (!window.confirm(`确定删除环境变量「${key}」？`)) return;
     try {
-      const res = await authFetch(API_URL, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ key }),
-      });
+      const res = await authFetch(API_URL, { method: 'DELETE', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ key }) });
       const data = await res.json();
-      if (!res.ok) {
-        setNotification({ message: data.error || '删除失败', type: 'error' });
-        return;
-      }
+      if (!res.ok) { setNotification({ message: data.error || '删除失败', type: 'error' }); return; }
       setNotification({ message: `${key} 已删除`, type: 'success' });
       await fetchEnvs();
-    } catch (e) {
-      setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    }
+    } catch (e) { setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
   }, [fetchEnvs, setNotification]);
 
-  const fetchOutemailSettings = useCallback(async () => {
-    setSettingsLoading(true);
+  // Configuration workflow
+  const fetchConfigurationIssues = useCallback(async () => {
+    setConfigurationStatusLoading(true);
     try {
-      const res = await authFetch(OUTEMAIL_API, { headers: { ...getAuthHeaders() } });
-      const data = await res.json();
-      if (!res.ok) {
-        setNotification({ message: data.error || '获取对外邮件设置失败', type: 'error' });
-        setSettingsLoading(false);
-        return;
-      }
-      if (data && data.success && Array.isArray(data.settings)) {
-        setOutemailSettings(data.settings as OutemailSettingItem[]);
-      } else {
-        setOutemailSettings([]);
-      }
-    } catch (e) {
-      setNotification({ message: '获取对外邮件设置失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setSettingsLoading(false);
-    }
-  }, [setNotification]);
-
-  const handleSaveSetting = useCallback(async () => {
-    if (settingsSaving) return;
-    const domain = settingDomain.trim();
-    const code = settingCode.trim();
-    const apiKey = settingApiKey.trim();
-    if (!code && !apiKey) {
-      setNotification({ message: '请填写校验码或外部 API Key', type: 'error' });
-      return;
-    }
-    setSettingsSaving(true);
-    try {
-      const res = await authFetch(OUTEMAIL_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ domain, code, apiKey })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '保存失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: '保存成功', type: 'success' });
-      setSettingCode('');
-      setSettingApiKey('');
-      await fetchOutemailSettings();
-    } catch (e) {
-      setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setSettingsSaving(false);
-    }
-  }, [settingsSaving, settingDomain, settingCode, settingApiKey, fetchOutemailSettings, setNotification]);
-
-  const handleDeleteSetting = useCallback(async (domain: string) => {
-    if (settingsDeletingDomain) return;
-    if (!window.confirm(`确定删除 OutEmail 域名配置「${domain}」？此操作不可撤销。`)) return;
-    setSettingsDeletingDomain(domain);
-    try {
-      const res = await authFetch(OUTEMAIL_API, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ domain })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '删除失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: '删除成功', type: 'success' });
-      await fetchOutemailSettings();
-    } catch (e) {
-      setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setSettingsDeletingDomain(null);
-    }
-  }, [settingsDeletingDomain, setNotification, fetchOutemailSettings]);
-
-  const fetchEmailSystemConfig = useCallback(async () => {
-    setEmailSystemLoading(true);
-    try {
-      const res = await authFetch(EMAIL_SYSTEM_API, { headers: { ...getAuthHeaders() } });
-      const data = await res.json();
-      if (!res.ok) {
-        setNotification({ message: data.error || '获取邮件系统配置失败', type: 'error' });
-        setEmailSystemLoading(false);
-        return;
-      }
-      if (data?.success && data?.setting?.config) {
-        setEmailSystemConfig({ ...data.setting.config, updatedAt: data.setting.updatedAt });
-      } else {
-        setEmailSystemConfig(null);
-      }
-    } catch (e) {
-      setNotification({ message: '获取邮件系统配置失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setEmailSystemLoading(false);
-    }
-  }, [setNotification]);
-
-  const handleSaveEmailSystem = useCallback(async (config: Partial<EmailSystemConfigItem>) => {
-    if (emailSystemSaving) return;
-    setEmailSystemSaving(true);
-    try {
-      const res = await authFetch(EMAIL_SYSTEM_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify(config),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '保存邮件系统配置失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: '保存成功', type: 'success' });
-      await fetchEmailSystemConfig();
-    } catch (e) {
-      setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setEmailSystemSaving(false);
-    }
-  }, [emailSystemSaving, fetchEmailSystemConfig, setNotification]);
-
-  const handleDeleteEmailSystem = useCallback(async () => {
-    if (emailSystemDeleting) return;
-    if (!window.confirm('确定重置邮件系统配置为默认值？此操作不可撤销。')) return;
-    setEmailSystemDeleting(true);
-    try {
-      const res = await authFetch(EMAIL_SYSTEM_API, {
-        method: 'DELETE',
-        headers: { ...getAuthHeaders() },
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '重置失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: '重置成功', type: 'success' });
-      await fetchEmailSystemConfig();
-    } catch (e) {
-      setNotification({ message: '重置失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setEmailSystemDeleting(false);
-    }
-  }, [emailSystemDeleting, fetchEmailSystemConfig, setNotification]);
-
-  const fetchModlistSetting = useCallback(async () => {
-    setModLoading(true);
-    try {
-      const res = await authFetch(MODLIST_API, { headers: { ...getAuthHeaders() } });
-      const data = await res.json();
-      if (!res.ok) {
-        setNotification({ message: data.error || '获取修改码失败', type: 'error' });
-        setModLoading(false);
-        return;
-      }
-      if (data && data.success) {
-        setModSetting(data.setting || null);
-      } else {
-        setModSetting(null);
-      }
-    } catch (e) {
-      setNotification({ message: '获取修改码失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setModLoading(false);
-    }
-  }, [setNotification]);
-
-  const handleSaveModCode = useCallback(async () => {
-    if (modSaving) return;
-    const code = modCodeInput.trim();
-    if (!code) {
-      setNotification({ message: '请填写修改码', type: 'error' });
-      return;
-    }
-    setModSaving(true);
-    try {
-      const res = await authFetch(MODLIST_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ code })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '保存失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: '保存成功', type: 'success' });
-      setModCodeInput('');
-      await fetchModlistSetting();
-    } catch (e) {
-      setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setModSaving(false);
-    }
-  }, [modSaving, modCodeInput, fetchModlistSetting, setNotification]);
-
-  const handleDeleteModCode = useCallback(async () => {
-    if (modDeleting) return;
-    if (!window.confirm('确定删除当前修改码配置？删除后相关功能将回退到默认/环境变量。')) return;
-    setModDeleting(true);
-    try {
-      const res = await authFetch(MODLIST_API, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '删除失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: '删除成功', type: 'success' });
-      await fetchModlistSetting();
-    } catch (e) {
-      setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setModDeleting(false);
-    }
-  }, [modDeleting, fetchModlistSetting, setNotification]);
-
-  const fetchTtsSetting = useCallback(async () => {
-    setTtsLoading(true);
-    try {
-      const res = await authFetch(TTS_API, { headers: { ...getAuthHeaders() } });
-      const data = await res.json();
-      if (!res.ok) {
-        setNotification({ message: data.error || '获取生成码失败', type: 'error' });
-        setTtsLoading(false);
-        return;
-      }
-      if (data && data.success) {
-        setTtsSetting(data.setting || null);
-      } else {
-        setTtsSetting(null);
-      }
-    } catch (e) {
-      setNotification({ message: '获取生成码失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setTtsLoading(false);
-    }
-  }, [setNotification]);
-
-  const handleSaveTtsCode = useCallback(async () => {
-    if (ttsSaving) return;
-    const code = ttsCodeInput.trim();
-    if (!code) {
-      setNotification({ message: '请填写生成码', type: 'error' });
-      return;
-    }
-    setTtsSaving(true);
-    try {
-      const res = await authFetch(TTS_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ code })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '保存失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: '保存成功', type: 'success' });
-      setTtsCodeInput('');
-      await fetchTtsSetting();
-    } catch (e) {
-      setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setTtsSaving(false);
-    }
-  }, [ttsSaving, ttsCodeInput, fetchTtsSetting, setNotification]);
-
-  const handleDeleteTtsCode = useCallback(async () => {
-    if (ttsDeleting) return;
-    if (!window.confirm('确定删除当前 TTS 生成码配置？删除后相关功能将回退到默认/环境变量。')) return;
-    setTtsDeleting(true);
-    try {
-      const res = await authFetch(TTS_API, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '删除失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: '删除成功', type: 'success' });
-      await fetchTtsSetting();
-    } catch (e) {
-      setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setTtsDeleting(false);
-    }
-  }, [ttsDeleting, fetchTtsSetting, setNotification]);
-
-  const fetchGoogleClientIds = useCallback(async () => {
-    setGoogleClientIdsLoading(true);
-    try {
-      const [googleRes, nexaiRes] = await Promise.all([
-        authFetch(GOOGLE_AUTH_API, { headers: { ...getAuthHeaders() } }),
-        authFetch(NEXAI_SETTING_API, { headers: { ...getAuthHeaders() } }),
-      ]);
-
-      let googleClientId = '';
-      let nexaiGoogleClientId = '';
-      let updatedAt: string | undefined;
-
-      if (googleRes.ok) {
-        const googleData = await googleRes.json();
-        googleClientId = String(googleData?.setting?.config?.clientId || '').trim();
-        updatedAt = googleData?.setting?.updatedAt || updatedAt;
-      } else {
-        const googleData = await googleRes.json().catch(() => ({}));
-        setNotification({ message: googleData.error || '获取 GOOGLE_CLIENT_ID 失败', type: 'error' });
-      }
-
-      if (nexaiRes.ok) {
-        const nexaiData = await nexaiRes.json();
-        nexaiGoogleClientId = String(nexaiData?.setting?.config?.google?.clientId || '').trim();
-        updatedAt = nexaiData?.setting?.updatedAt || updatedAt;
-      } else {
-        const nexaiData = await nexaiRes.json().catch(() => ({}));
-        setNotification({ message: nexaiData.error || '获取 NEXAI_GOOGLE_CLIENT_ID 失败', type: 'error' });
-      }
-
-      setGoogleClientIdCurrent(googleClientId);
-      setNexaiGoogleClientIdCurrent(nexaiGoogleClientId);
-      setGoogleClientIdInput(googleClientId);
-      setNexaiGoogleClientIdInput(nexaiGoogleClientId);
-      setGoogleClientIdsUpdatedAt(updatedAt);
-    } catch (e) {
-      setNotification({
-        message: '获取 Google Client ID 失败：' + (e instanceof Error ? e.message : '未知错误'),
-        type: 'error',
-      });
-    } finally {
-      setGoogleClientIdsLoading(false);
-    }
-  }, [setNotification]);
-
-  const handleSaveGoogleClientIds = useCallback(async () => {
-    if (googleClientIdsSaving) return;
-
-    const googleClientId = googleClientIdInput.trim();
-    const nexaiGoogleClientId = nexaiGoogleClientIdInput.trim();
-
-    if (googleClientId && !GOOGLE_WEB_CLIENT_ID_PATTERN.test(googleClientId)) {
-      setNotification({
-        message: 'GOOGLE_CLIENT_ID 格式无效，需为 xxx.apps.googleusercontent.com',
-        type: 'error',
-      });
-      return;
-    }
-    if (nexaiGoogleClientId && !GOOGLE_WEB_CLIENT_ID_PATTERN.test(nexaiGoogleClientId)) {
-      setNotification({
-        message: 'NEXAI_GOOGLE_CLIENT_ID 格式无效，需为 xxx.apps.googleusercontent.com',
-        type: 'error',
-      });
-      return;
-    }
-
-    setGoogleClientIdsSaving(true);
-    try {
-      // Form is source of truth: empty input clears the corresponding runtime value.
-      const googleTask = googleClientId
-        ? authFetch(GOOGLE_AUTH_API, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-            body: JSON.stringify({ clientId: googleClientId }),
-          })
-        : authFetch(GOOGLE_AUTH_API, {
-            method: 'DELETE',
-            headers: { ...getAuthHeaders() },
-          });
-
-      // Preserve other NexAI fields when updating/clearing only google.clientId.
-      const nexaiGetRes = await authFetch(NEXAI_SETTING_API, { headers: { ...getAuthHeaders() } });
-      let nexaiPayload: Record<string, unknown> = {
-        google: { clientId: nexaiGoogleClientId },
-      };
-      if (nexaiGetRes.ok) {
-        const nexaiData = await nexaiGetRes.json();
-        const cfg = nexaiData?.setting?.config || {};
-        nexaiPayload = {
-          jwtExpiresIn: cfg.jwtExpiresIn,
-          refreshExpiresIn: cfg.refreshExpiresIn,
-          frontendUrl: cfg.frontendUrl,
-          google: { clientId: nexaiGoogleClientId },
-          github: {
-            clientId: cfg.github?.clientId || '',
-          },
-        };
-      }
-
-      const nexaiTask = authFetch(NEXAI_SETTING_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify(nexaiPayload),
-      });
-
-      const results = await Promise.all([googleTask, nexaiTask]);
-      for (const res of results) {
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          setNotification({ message: data.error || '保存 Google Client ID 失败', type: 'error' });
-          return;
-        }
-      }
-
-      setNotification({ message: 'Google Client ID 已保存并立即生效', type: 'success' });
-      await fetchGoogleClientIds();
-    } catch (e) {
-      setNotification({
-        message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'),
-        type: 'error',
-      });
-    } finally {
-      setGoogleClientIdsSaving(false);
-    }
-  }, [
-    fetchGoogleClientIds,
-    googleClientIdInput,
-    googleClientIdsSaving,
-    nexaiGoogleClientIdInput,
-    setNotification,
-  ]);
-
-  const handleDeleteGoogleClientIds = useCallback(async () => {
-    if (googleClientIdsDeleting) return;
-    if (!window.confirm('确定重置 Google Client ID 配置？主站与 NexAI 的 Google 登录可能立即失效。')) return;
-    setGoogleClientIdsDeleting(true);
-    try {
-      // Reset main-site Google Auth; clear only NexAI google.clientId while preserving other NexAI fields.
-      const nexaiRes = await authFetch(NEXAI_SETTING_API, { headers: { ...getAuthHeaders() } });
-      let nexaiPayload: Record<string, unknown> = {
-        google: { clientId: '' },
-      };
-      if (nexaiRes.ok) {
-        const nexaiData = await nexaiRes.json();
-        const cfg = nexaiData?.setting?.config || {};
-        nexaiPayload = {
-          jwtExpiresIn: cfg.jwtExpiresIn,
-          refreshExpiresIn: cfg.refreshExpiresIn,
-          frontendUrl: cfg.frontendUrl,
-          google: { clientId: '' },
-          github: {
-            clientId: cfg.github?.clientId || '',
-          },
-        };
-      }
-
-      const [googleDelRes, nexaiSaveRes] = await Promise.all([
-        authFetch(GOOGLE_AUTH_API, {
-          method: 'DELETE',
-          headers: { ...getAuthHeaders() },
-        }),
-        authFetch(NEXAI_SETTING_API, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-          body: JSON.stringify(nexaiPayload),
-        }),
-      ]);
-
-      if (!googleDelRes.ok) {
-        const data = await googleDelRes.json().catch(() => ({}));
-        setNotification({ message: data.error || '重置 GOOGLE_CLIENT_ID 失败', type: 'error' });
-        return;
-      }
-      if (!nexaiSaveRes.ok) {
-        const data = await nexaiSaveRes.json().catch(() => ({}));
-        setNotification({ message: data.error || '重置 NEXAI_GOOGLE_CLIENT_ID 失败', type: 'error' });
-        return;
-      }
-
-      setNotification({ message: 'Google Client ID 已重置', type: 'success' });
-      setGoogleClientIdInput('');
-      setNexaiGoogleClientIdInput('');
-      await fetchGoogleClientIds();
-    } catch (e) {
-      setNotification({
-        message: '重置失败：' + (e instanceof Error ? e.message : '未知错误'),
-        type: 'error',
-      });
-    } finally {
-      setGoogleClientIdsDeleting(false);
-    }
-  }, [fetchGoogleClientIds, googleClientIdsDeleting, setNotification]);
-
-  const fetchSynapseAndroidSetting = useCallback(async () => {
-    setSynapseAndroidLoading(true);
-    try {
-      const res = await authFetch(SYNAPSE_ANDROID_API, { headers: { ...getAuthHeaders() } });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setNotification({ message: data.error || '获取 Synapse Android / assetlinks 配置失败', type: 'error' });
-        return;
-      }
-      const cfg = data?.setting?.config || {};
-      const packageName = String(cfg.packageName || 'com.synapse.mobile').trim() || 'com.synapse.mobile';
-      const fingerprints = Array.isArray(cfg.sha256CertFingerprints)
-        ? cfg.sha256CertFingerprints.map((item: unknown) => String(item || '').trim()).filter(Boolean)
-        : [];
-      const googleClientId = String(cfg.googleClientId || '').trim();
-      const disabled = cfg.disabled === true;
-      setSynapseAndroidPackageInput(packageName);
-      setSynapseAndroidFingerprintsInput(fingerprints.join('\n'));
-      setSynapseAndroidGoogleClientIdInput(googleClientId);
-      setSynapseAndroidDisabled(disabled);
-      setSynapseAndroidCurrentPackage(packageName);
-      setSynapseAndroidCurrentFingerprints(fingerprints);
-      setSynapseAndroidCurrentGoogleClientId(googleClientId);
-      setSynapseAndroidUpdatedAt(data?.setting?.updatedAt);
-    } catch (e) {
-      setNotification({
-        message: '获取 Synapse Android / assetlinks 配置失败：' + (e instanceof Error ? e.message : '未知错误'),
-        type: 'error',
-      });
-    } finally {
-      setSynapseAndroidLoading(false);
-    }
-  }, [setNotification]);
-
-  const handleSaveSynapseAndroidSetting = useCallback(async () => {
-    if (synapseAndroidSaving) return;
-    const packageName = synapseAndroidPackageInput.trim() || 'com.synapse.mobile';
-    const fingerprints = synapseAndroidFingerprintsInput
-      .split(/[\n,]+/)
-      .map((item) => item.trim())
-      .filter(Boolean);
-    const googleClientId = synapseAndroidGoogleClientIdInput.trim();
-
-    if (!/^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$/.test(packageName)) {
-      setNotification({ message: 'ANDROID_PACKAGE_NAME 格式无效', type: 'error' });
-      return;
-    }
-    if (fingerprints.length === 0) {
-      setNotification({ message: '至少填写一个 SHA-256 证书指纹', type: 'error' });
-      return;
-    }
-    if (googleClientId && !GOOGLE_WEB_CLIENT_ID_PATTERN.test(googleClientId)) {
-      setNotification({
-        message: 'SYNAPSE_ANDROID_GOOGLE_CLIENT_ID 格式无效，需为 xxx.apps.googleusercontent.com',
-        type: 'error',
-      });
-      return;
-    }
-
-    setSynapseAndroidSaving(true);
-    try {
-      const res = await authFetch(SYNAPSE_ANDROID_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({
-          packageName,
-          sha256CertFingerprints: fingerprints,
-          googleClientId,
-          disabled: synapseAndroidDisabled,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setNotification({ message: data.error || '保存 Synapse Android / assetlinks 配置失败', type: 'error' });
-        return;
-      }
-      setNotification({
-        message: 'Synapse Android / assetlinks 配置已保存；/.well-known/assetlinks.json 立即生效',
-        type: 'success',
-      });
-      await fetchSynapseAndroidSetting();
-    } catch (e) {
-      setNotification({
-        message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'),
-        type: 'error',
-      });
-    } finally {
-      setSynapseAndroidSaving(false);
-    }
-  }, [
-    fetchSynapseAndroidSetting,
-    setNotification,
-    synapseAndroidDisabled,
-    synapseAndroidFingerprintsInput,
-    synapseAndroidGoogleClientIdInput,
-    synapseAndroidPackageInput,
-    synapseAndroidSaving,
-  ]);
-
-  const handleDeleteSynapseAndroidSetting = useCallback(async () => {
-    if (synapseAndroidDeleting) return;
-    if (!window.confirm('确定重置 Synapse Android / assetlinks 配置为默认值？')) return;
-    setSynapseAndroidDeleting(true);
-    try {
-      const res = await authFetch(SYNAPSE_ANDROID_API, {
-        method: 'DELETE',
-        headers: { ...getAuthHeaders() },
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setNotification({ message: data.error || '重置 Synapse Android / assetlinks 配置失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: '已重置为默认 Synapse Android / assetlinks 配置', type: 'success' });
-      await fetchSynapseAndroidSetting();
-    } catch (e) {
-      setNotification({
-        message: '重置失败：' + (e instanceof Error ? e.message : '未知错误'),
-        type: 'error',
-      });
-    } finally {
-      setSynapseAndroidDeleting(false);
-    }
-  }, [fetchSynapseAndroidSetting, setNotification, synapseAndroidDeleting]);
-
-  const fetchNexaiSigningSetting = useCallback(async () => {
-    setNexaiSigningLoading(true);
-    try {
-      const res = await authFetch(NEXAI_SIGNING_API, { headers: { ...getAuthHeaders() } });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setNotification({ message: data.error || '获取 NexAI 请求签名配置失败', type: 'error' });
-        return;
-      }
-      const cfg = data?.setting?.config || {};
-      const mode = ['off', 'soft', 'enforce'].includes(cfg.mode) ? cfg.mode : 'soft';
-      const maxDriftMsNum = Number(cfg.maxDriftMs);
-      setNexaiSigningModeInput(mode);
-      setNexaiSigningMaxDriftMsInput(Number.isFinite(maxDriftMsNum) ? String(maxDriftMsNum) : '300000');
-      setNexaiSigningAppSignSecretInput('');
-      setNexaiSigningAppSignSecretPrevInput('');
-      setNexaiSigningCurrentAppSignSecret(cfg.hasAppSignSecret ? (cfg.appSignSecret || '已设置') : '未设置');
-      setNexaiSigningCurrentAppSignSecretPrev(
-        cfg.hasAppSignSecretPrev ? (cfg.appSignSecretPrev || '已设置') : '未设置',
-      );
-      setNexaiSigningUpdatedAt(data?.setting?.updatedAt);
-    } catch (e) {
-      setNotification({
-        message: '获取 NexAI 请求签名配置失败：' + (e instanceof Error ? e.message : '未知错误'),
-        type: 'error',
-      });
-    } finally {
-      setNexaiSigningLoading(false);
-    }
-  }, [setNotification]);
-
-  const handleSaveNexaiSigningSetting = useCallback(async () => {
-    if (nexaiSigningSaving) return;
-    const maxDriftMsNum = Number(nexaiSigningMaxDriftMsInput);
-    if (!Number.isFinite(maxDriftMsNum) || maxDriftMsNum < 1000) {
-      setNotification({ message: 'NEXAI_SIG_MAX_DRIFT_MS 必须是一个不小于 1000 的数字（毫秒）', type: 'error' });
-      return;
-    }
-
-    setNexaiSigningSaving(true);
-    try {
-      const payload: Record<string, unknown> = {
-        mode: nexaiSigningModeInput,
-        maxDriftMs: maxDriftMsNum,
-      };
-      if (nexaiSigningAppSignSecretInput.trim()) {
-        payload.appSignSecret = nexaiSigningAppSignSecretInput.trim();
-      }
-      if (nexaiSigningAppSignSecretPrevInput.trim()) {
-        payload.appSignSecretPrev = nexaiSigningAppSignSecretPrevInput.trim();
-      }
-      const res = await authFetch(NEXAI_SIGNING_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setNotification({ message: data.error || '保存 NexAI 请求签名配置失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: 'NexAI 请求签名配置已保存', type: 'success' });
-      await fetchNexaiSigningSetting();
-    } catch (e) {
-      setNotification({
-        message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'),
-        type: 'error',
-      });
-    } finally {
-      setNexaiSigningSaving(false);
-    }
-  }, [
-    fetchNexaiSigningSetting,
-    nexaiSigningAppSignSecretInput,
-    nexaiSigningAppSignSecretPrevInput,
-    nexaiSigningMaxDriftMsInput,
-    nexaiSigningModeInput,
-    nexaiSigningSaving,
-    setNotification,
-  ]);
-
-  const handleDeleteNexaiSigningSetting = useCallback(async () => {
-    if (nexaiSigningDeleting) return;
-    if (!window.confirm('确定重置 NexAI 请求签名配置为默认值（soft 模式，并清除已保存的应用签名密钥）？')) return;
-    setNexaiSigningDeleting(true);
-    try {
-      const res = await authFetch(NEXAI_SIGNING_API, {
-        method: 'DELETE',
-        headers: { ...getAuthHeaders() },
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setNotification({ message: data.error || '重置 NexAI 请求签名配置失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: '已重置为默认 NexAI 请求签名配置', type: 'success' });
-      await fetchNexaiSigningSetting();
-    } catch (e) {
-      setNotification({
-        message: '重置失败：' + (e instanceof Error ? e.message : '未知错误'),
-        type: 'error',
-      });
-    } finally {
-      setNexaiSigningDeleting(false);
-    }
-  }, [fetchNexaiSigningSetting, nexaiSigningDeleting, setNotification]);
-
-
-  // ShortURL AES_KEY handlers
-  const fetchShortAes = useCallback(async () => {
-    setShortAesLoading(true);
-    try {
-      const res = await authFetch(SHORTURL_AES_API, { headers: { ...getAuthHeaders() } });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '获取 AES_KEY 失败', type: 'error' });
-        setShortAesLoading(false);
-        return;
-      }
-      setShortAesSetting({ aesKey: data.aesKey ?? null, updatedAt: data.updatedAt });
-    } catch (e) {
-      setNotification({ message: '获取 AES_KEY 失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setShortAesLoading(false);
-    }
-  }, [setNotification]);
-
-  const handleSaveShortAes = useCallback(async () => {
-    if (shortAesSaving) return;
-    const value = shortAesInput.trim();
-    if (!value) {
-      setNotification({ message: '请填写 AES_KEY', type: 'error' });
-      return;
-    }
-    setShortAesSaving(true);
-    try {
-      const res = await signedFetch(SHORTURL_AES_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ value })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '保存失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: '保存成功', type: 'success' });
-      setShortAesInput('');
-      await fetchShortAes();
-    } catch (e) {
-      setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setShortAesSaving(false);
-    }
-  }, [shortAesSaving, shortAesInput, fetchShortAes, setNotification]);
-
-  const handleDeleteShortAes = useCallback(async () => {
-    if (shortAesDeleting) return;
-    if (!window.confirm('确定删除短链 AES 密钥配置？现有加密短链可能无法解密。')) return;
-    setShortAesDeleting(true);
-    try {
-      const res = await signedFetch(SHORTURL_AES_API, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '删除失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: '删除成功', type: 'success' });
-      await fetchShortAes();
-    } catch (e) {
-      setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setShortAesDeleting(false);
-    }
-  }, [shortAesDeleting, fetchShortAes, setNotification]);
-
-  // Webhook Secret handlers
-  const fetchWebhookSecret = useCallback(async () => {
-    setWebhookLoading(true);
-    try {
-      const key = webhookKeyInput.trim().toUpperCase() || 'DEFAULT';
-      const res = await authFetch(`${WEBHOOK_SECRET_API}?key=${encodeURIComponent(key)}`, { headers: { ...getAuthHeaders() } });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '获取 Webhook 密钥失败', type: 'error' });
-        setWebhookLoading(false);
-        return;
-      }
-      setWebhookSetting({ key: data.key || key, secret: data.secret ?? null, updatedAt: data.updatedAt });
-    } catch (e) {
-      setNotification({ message: '获取 Webhook 密钥失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setWebhookLoading(false);
-    }
-  }, [webhookKeyInput, setNotification]);
-
-  const handleSaveWebhookSecret = useCallback(async () => {
-    if (webhookSaving) return;
-    const key = webhookKeyInput.trim().toUpperCase() || 'DEFAULT';
-    const secret = webhookSecretInput.trim();
-    if (!secret) {
-      setNotification({ message: '请填写 Webhook 密钥', type: 'error' });
-      return;
-    }
-    setWebhookSaving(true);
-    try {
-      const res = await authFetch(WEBHOOK_SECRET_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ key, secret })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '保存失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: '保存成功', type: 'success' });
-      setWebhookSecretInput('');
-      await fetchWebhookSecret();
-    } catch (e) {
-      setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setWebhookSaving(false);
-    }
-  }, [webhookSaving, webhookKeyInput, webhookSecretInput, fetchWebhookSecret, setNotification]);
-
-  const handleDeleteWebhookSecret = useCallback(async () => {
-    if (webhookDeleting) return;
-    const key = webhookKeyInput.trim().toUpperCase() || 'DEFAULT';
-    if (!window.confirm(`确定删除 Webhook 密钥「${key}」？相关回调签名校验将失败。`)) return;
-    setWebhookDeleting(true);
-    try {
-      const res = await authFetch(WEBHOOK_SECRET_API, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ key })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '删除失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: '删除成功', type: 'success' });
-      await fetchWebhookSecret();
-    } catch (e) {
-      setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setWebhookDeleting(false);
-    }
-  }, [webhookDeleting, webhookKeyInput, fetchWebhookSecret, setNotification]);
-
-  // Providers handlers
-  const fetchProviders = useCallback(async () => {
-    setProvidersLoading(true);
-    try {
-      const url = providerFilterGroup ? `${LIBRECHAT_PROVIDERS_API}?group=${encodeURIComponent(providerFilterGroup)}` : LIBRECHAT_PROVIDERS_API;
-      const res = await authFetch(url, { headers: { ...getAuthHeaders() } });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '获取提供者失败', type: 'error' });
-        setProvidersLoading(false);
-        return;
-      }
-      setProviders(Array.isArray(data.providers) ? data.providers : []);
-    } catch (e) {
-      setNotification({ message: '获取提供者失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setProvidersLoading(false);
-    }
-  }, [providerFilterGroup, setNotification]);
-
-  const resetProviderForm = useCallback(() => {
-    setProviderId(null);
-    setProviderBaseUrl('');
-    setProviderApiKey('');
-    setProviderModel('');
-    setProviderGroup('');
-    setProviderEnabled(true);
-    setProviderWeight(1);
+      const res = await authFetch(CONFIGURATION_NOTICE_API, { credentials: 'include', headers: { ...getAuthHeaders() } });
+      const payload: unknown = await res.json().catch(() => null);
+      if (!res.ok || !payload || typeof payload !== 'object' || Array.isArray(payload)) return;
+      const rawIssues = (payload as Record<string, unknown>).issues;
+      setConfigurationIssues(Array.isArray(rawIssues) ? rawIssues.filter(isConfigurationNoticeIssue) : []);
+      setConfigurationStatusFetched(true);
+    } catch { /* auxiliary fetch */ }
+    finally { setConfigurationStatusLoading(false); }
   }, []);
 
-  const handleSaveProvider = useCallback(() => {
-    if (providerSaving) return;
-    const baseUrl = providerBaseUrl.trim();
-    const apiKey = providerApiKey.trim();
-    const model = providerModel.trim();
-    const group = providerGroup.trim();
-    const enabled = !!providerEnabled;
-    const weight = Math.max(1, Math.min(10, Number(providerWeight || 1)));
-    if (!baseUrl || !apiKey || !model) {
-      setNotification({ message: '请填写 baseUrl / apiKey / model', type: 'error' });
-      return;
-    }
-    setProviderSaving(true);
-    (async () => {
-      try {
-        const body: any = { baseUrl, apiKey, model, group, enabled, weight };
-        if (providerId) body.id = providerId;
-        const res = await authFetch(LIBRECHAT_PROVIDERS_API, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-          body: JSON.stringify(body)
-        });
-        const data = await res.json();
-        if (!res.ok || !data.success) {
-          setNotification({ message: data.error || '保存失败', type: 'error' });
-          return;
-        }
-        setNotification({ message: '保存成功', type: 'success' });
-        resetProviderForm();
-        await fetchProviders();
-      } catch (e) {
-        setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-      } finally {
-        setProviderSaving(false);
-      }
-    })();
-  }, [providerSaving, providerId, providerBaseUrl, providerApiKey, providerModel, providerGroup, providerEnabled, providerWeight, fetchProviders, resetProviderForm, setNotification]);
+  const configurationTargetIssueId = searchParams.get('configIssue');
 
-  const handleDeleteProvider = useCallback(async (id: string) => {
-    if (providerDeletingId) return;
-    if (!window.confirm(`确定删除 LibreChat 提供商「${id}」？此操作不可撤销。`)) return;
-    setProviderDeletingId(id);
-    try {
-      const res = await authFetch(`${LIBRECHAT_PROVIDERS_API}/${id}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '删除失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: '删除成功', type: 'success' });
-      await fetchProviders();
-    } catch (e) {
-      setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setProviderDeletingId(null);
-    }
-  }, [providerDeletingId, fetchProviders, setNotification]);
-
-  const handleEditProvider = useCallback((p: ChatProviderItem) => {
-    setProviderId(p.id);
-    setProviderBaseUrl(p.baseUrl);
-    setProviderApiKey(''); // 不回显明文
-    setProviderModel(p.model);
-    setProviderGroup(p.group || '');
-    setProviderEnabled(!!p.enabled);
-    setProviderWeight(Number(p.weight || 1));
-  }, []);
-
-  // IPFS Config handlers
-  const fetchIpfsConfig = useCallback(async () => {
-    setIpfsConfigLoading(true);
-    try {
-      const res = await authFetch(IPFS_CONFIG_API, { headers: { ...getAuthHeaders() } });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '获取IPFS配置失败', type: 'error' });
-        setIpfsConfigLoading(false);
-        return;
-      }
-      setIpfsConfig({
-        ipfsUploadUrl: data.data.ipfsUploadUrl,
-        ipfsUa: data.data.ipfsUa,
-        imageBedApiUrl: data.data.imageBedApiUrl,
-        imageBedCdnDomain: data.data.imageBedCdnDomain,
-        imageBedStorageDestination: data.data.imageBedStorageDestination,
-        imageBedOutputFormat: data.data.imageBedOutputFormat,
-      });
-    } catch (e) {
-      setNotification({ message: '获取IPFS配置失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setIpfsConfigLoading(false);
-    }
-  }, [setNotification]);
-
-  const handleSaveIpfsConfig = useCallback(async () => {
-    if (ipfsConfigSaving) return;
-    const url = ipfsUploadUrlInput.trim();
-    const ua = ipfsUserAgentInput.trim();
-    const ibApi = imageBedApiUrlInput.trim();
-    const ibCdn = imageBedCdnDomainInput.trim();
-    const ibStorage = imageBedStorageDestinationInput.trim();
-    const ibFormat = imageBedOutputFormatInput.trim();
-    if (!url && !ua && !ibApi && !ibCdn && !ibStorage && !ibFormat) {
-      setNotification({ message: '请至少填写一个 IPFS / ImageBed 配置项', type: 'error' });
-      return;
-    }
-    setIpfsConfigSaving(true);
-    try {
-      const res = await authFetch(IPFS_CONFIG_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({
-          ...(url ? { ipfsUploadUrl: url } : {}),
-          ...(ua ? { ipfsUa: ua } : {}),
-          ...(ibApi ? { imageBedApiUrl: ibApi } : {}),
-          ...(ibCdn ? { imageBedCdnDomain: ibCdn } : {}),
-          ...(ibStorage ? { imageBedStorageDestination: ibStorage } : {}),
-          ...(ibFormat ? { imageBedOutputFormat: ibFormat } : {}),
-        })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '保存失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: '保存成功', type: 'success' });
-      setIpfsUploadUrlInput('');
-      setIpfsUserAgentInput('');
-      setImageBedApiUrlInput('');
-      setImageBedCdnDomainInput('');
-      setImageBedStorageDestinationInput('');
-      setImageBedOutputFormatInput('');
-      await fetchIpfsConfig();
-    } catch (e) {
-      setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setIpfsConfigSaving(false);
-    }
-  }, [ipfsConfigSaving, ipfsUploadUrlInput, ipfsUserAgentInput, imageBedApiUrlInput, imageBedCdnDomainInput, imageBedStorageDestinationInput, imageBedOutputFormatInput, fetchIpfsConfig, setNotification]);
-
-  const handleTestIpfsConfig = useCallback(async (target: 'imagebed' | 'ipfs' = 'imagebed') => {
-    if (ipfsConfigTesting) return;
-    setIpfsConfigTesting(true);
-    try {
-      const res = await authFetch(`${IPFS_CONFIG_API}/test`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ target })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '测试失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: data.message || '测试成功', type: 'success' });
-    } catch (e) {
-      setNotification({ message: '测试失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setIpfsConfigTesting(false);
-    }
-  }, [ipfsConfigTesting, setNotification]);
-
-  // Turnstile Config handlers
-  const fetchTurnstileConfig = useCallback(async () => {
-    setTurnstileConfigLoading(true);
-    try {
-      const res = await authFetch(TURNSTILE_CONFIG_API, { headers: { ...getAuthHeaders() } });
-      const data = await res.json();
-      if (!res.ok) {
-        // 处理认证错误
-        if (res.status === 401) {
-          setNotification({ message: '登录状态已失效，请重新登录', type: 'error' });
-        } else {
-          setNotification({ message: data.error || '获取Turnstile配置失败', type: 'error' });
-        }
-        setTurnstileConfigLoading(false);
-        return;
-      }
-      // Turnstile配置API直接返回配置数据，不包含success字段
-      setTurnstileConfig({
-        enabled: data.enabled || false,
-        siteKey: data.siteKey || null,
-        secretKey: data.secretKey || null,
-        updatedAt: data.updatedAt
-      });
-    } catch (e) {
-      setNotification({ message: '获取Turnstile配置失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setTurnstileConfigLoading(false);
-    }
-  }, [setNotification]);
-
-  const handleSaveTurnstileConfig = useCallback(async (key: 'TURNSTILE_SECRET_KEY' | 'TURNSTILE_SITE_KEY') => {
-    if (turnstileConfigSaving) return;
-    const value = key === 'TURNSTILE_SECRET_KEY' ? turnstileSecretKeyInput.trim() : turnstileSiteKeyInput.trim();
-    if (!value) {
-      setNotification({ message: `请填写${key === 'TURNSTILE_SECRET_KEY' ? 'Secret Key' : 'Site Key'}`, type: 'error' });
-      return;
-    }
-    setTurnstileConfigSaving(true);
-    try {
-      const res = await authFetch(TURNSTILE_CONFIG_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ key, value })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '保存失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: '保存成功', type: 'success' });
-      if (key === 'TURNSTILE_SECRET_KEY') {
-        setTurnstileSecretKeyInput('');
-      } else {
-        setTurnstileSiteKeyInput('');
-      }
-      await fetchTurnstileConfig();
-    } catch (e) {
-      setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setTurnstileConfigSaving(false);
-    }
-  }, [turnstileConfigSaving, turnstileSecretKeyInput, turnstileSiteKeyInput, fetchTurnstileConfig, setNotification]);
-
-  const handleDeleteTurnstileConfig = useCallback(async (key: 'TURNSTILE_SECRET_KEY' | 'TURNSTILE_SITE_KEY') => {
-    if (turnstileConfigDeleting) return;
-    if (!window.confirm(`确定删除 Turnstile 配置「${key}」？人机验证可能立即失效。`)) return;
-    setTurnstileConfigDeleting(true);
-    try {
-      const res = await authFetch(`${TURNSTILE_CONFIG_API}/${key}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '删除失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: '删除成功', type: 'success' });
-      await fetchTurnstileConfig();
-    } catch (e) {
-      setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setTurnstileConfigDeleting(false);
-    }
-  }, [turnstileConfigDeleting, fetchTurnstileConfig, setNotification]);
-
-  // hCaptcha Config handlers
-  const fetchHcaptchaConfig = useCallback(async () => {
-    setHcaptchaConfigLoading(true);
-    try {
-      const res = await authFetch(HCAPTCHA_CONFIG_API, { headers: { ...getAuthHeaders() } });
-      const data = await res.json();
-      if (!res.ok) {
-        // 处理认证错误
-        if (res.status === 401) {
-          setNotification({ message: '登录状态已失效，请重新登录', type: 'error' });
-        } else {
-          setNotification({ message: data.error || '获取hCaptcha配置失败', type: 'error' });
-        }
-        setHcaptchaConfigLoading(false);
-        return;
-      }
-      // hCaptcha配置API直接返回配置数据，不包含success字段
-      setHcaptchaConfig({
-        enabled: data.enabled || false,
-        siteKey: data.siteKey || null,
-        secretKey: data.secretKey || null,
-        updatedAt: data.updatedAt
-      });
-    } catch (e) {
-      setNotification({ message: '获取hCaptcha配置失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setHcaptchaConfigLoading(false);
-    }
-  }, [setNotification]);
-
-  const handleSaveHcaptchaConfig = useCallback(async (key: 'HCAPTCHA_SECRET_KEY' | 'HCAPTCHA_SITE_KEY') => {
-    if (hcaptchaConfigSaving) return;
-    const value = key === 'HCAPTCHA_SECRET_KEY' ? hcaptchaSecretKeyInput.trim() : hcaptchaSiteKeyInput.trim();
-    if (!value) {
-      setNotification({ message: `请填写${key === 'HCAPTCHA_SECRET_KEY' ? 'Secret Key' : 'Site Key'}`, type: 'error' });
-      return;
-    }
-    setHcaptchaConfigSaving(true);
-    try {
-      const res = await authFetch(HCAPTCHA_CONFIG_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ key, value })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '保存失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: '保存成功', type: 'success' });
-      if (key === 'HCAPTCHA_SECRET_KEY') {
-        setHcaptchaSecretKeyInput('');
-      } else {
-        setHcaptchaSiteKeyInput('');
-      }
-      await fetchHcaptchaConfig();
-    } catch (e) {
-      setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setHcaptchaConfigSaving(false);
-    }
-  }, [hcaptchaConfigSaving, hcaptchaSecretKeyInput, hcaptchaSiteKeyInput, fetchHcaptchaConfig, setNotification]);
-
-  const handleDeleteHcaptchaConfig = useCallback(async (key: 'HCAPTCHA_SECRET_KEY' | 'HCAPTCHA_SITE_KEY') => {
-    if (hcaptchaConfigDeleting) return;
-    if (!window.confirm(`确定删除 hCaptcha 配置「${key}」？人机验证可能立即失效。`)) return;
-    setHcaptchaConfigDeleting(true);
-    try {
-      const res = await authFetch(`${HCAPTCHA_CONFIG_API}/${key}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '删除失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: '删除成功', type: 'success' });
-      await fetchHcaptchaConfig();
-    } catch (e) {
-      setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setHcaptchaConfigDeleting(false);
-    }
-  }, [hcaptchaConfigDeleting, fetchHcaptchaConfig, setNotification]);
-
-  // Clarity Config handlers
-  const fetchClarityConfig = useCallback(async () => {
-    setClarityConfigLoading(true);
-    try {
-      const res = await authFetch(CLARITY_CONFIG_API, { headers: { ...getAuthHeaders() } });
-      const data = await res.json();
-      if (!res.ok) {
-        if (res.status !== 404) {
-          setNotification({ message: data.error || '获取Clarity配置失败', type: 'error' });
-        }
-        setClarityConfigLoading(false);
-        return;
-      }
-      // Clarity配置API直接返回配置数据
-      setClarityConfig({
-        enabled: data.enabled || false,
-        projectId: data.projectId || null,
-        updatedAt: data.updatedAt
-      });
-    } catch (e) {
-      setNotification({ message: '获取Clarity配置失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setClarityConfigLoading(false);
-    }
-  }, [setNotification]);
-
-  const handleSaveClarityConfig = useCallback(async () => {
-    if (clarityConfigSaving) return;
-    const value = clarityProjectIdInput.trim().toLowerCase();
-
-    // 前端格式验证
-    if (!value) {
-      setNotification({ message: '请填写 Clarity Project ID', type: 'error' });
-      return;
-    }
-
-    // 验证格式：10位小写字母数字组合
-    const clarityIdPattern = /^[a-z0-9]{10}$/;
-    if (!clarityIdPattern.test(value)) {
-      setNotification({
-        message: 'Project ID 格式无效，应为10位小写字母数字组合（例如：t1dkcavsyz）',
-        type: 'error'
-      });
-      return;
-    }
-
-    setClarityConfigSaving(true);
-    try {
-      const res = await authFetch(CLARITY_CONFIG_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ projectId: value })
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        // 显示详细的错误信息
-        const errorMsg = data.error || data.message || '保存失败';
-        const errorCode = data.code;
-        const fullMessage = errorCode ? `${errorMsg} (${errorCode})` : errorMsg;
-        setNotification({ message: fullMessage, type: 'error' });
-        return;
-      }
-
-      setNotification({ message: '保存成功', type: 'success' });
-      setClarityProjectIdInput('');
-      await fetchClarityConfig();
-    } catch (e) {
-      setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setClarityConfigSaving(false);
-    }
-  }, [clarityConfigSaving, clarityProjectIdInput, fetchClarityConfig, setNotification]);
-
-  const handleDeleteClarityConfig = useCallback(async () => {
-    if (clarityConfigDeleting) return;
-    if (!window.confirm('确定删除 Microsoft Clarity 配置？')) return;
-    setClarityConfigDeleting(true);
-    try {
-      const res = await authFetch(CLARITY_CONFIG_API, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        // 显示详细的错误信息
-        const errorMsg = data.error || data.message || '删除失败';
-        const errorCode = data.code;
-        const fullMessage = errorCode ? `${errorMsg} (${errorCode})` : errorMsg;
-        setNotification({ message: fullMessage, type: 'error' });
-        return;
-      }
-
-      setNotification({ message: '删除成功', type: 'success' });
-      await fetchClarityConfig();
-    } catch (e) {
-      setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setClarityConfigDeleting(false);
-    }
-  }, [clarityConfigDeleting, fetchClarityConfig, setNotification]);
-
-  // GitHub Billing Multi-Config handlers
-  const fetchGithubBillingConfig = useCallback(async () => {
-    setGithubBillingConfigLoading(true);
-    try {
-      const res = await authFetch(GITHUB_BILLING_MULTI_CONFIG_API, { headers: { ...getAuthHeaders() } });
-      const data = await res.json();
-      if (!res.ok) {
-        if (res.status === 404) {
-          // 没有配置时设置为空
-          setMultiGithubBillingConfig(null);
-        } else {
-          setNotification({ message: data.error || '获取 GitHub Billing 配置失败', type: 'error' });
-        }
-        setGithubBillingConfigLoading(false);
-        return;
-      }
-      if (data && data.success) {
-        setMultiGithubBillingConfig(data.data || null);
-      } else {
-        setMultiGithubBillingConfig(null);
-      }
-    } catch (e) {
-      setNotification({ message: '获取 GitHub Billing 配置失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setGithubBillingConfigLoading(false);
-    }
-  }, [setNotification]);
-
-  const handleSaveGithubBillingConfig = useCallback(async () => {
-    if (githubBillingConfigSaving) return;
-    const curlCommand = githubBillingCurlInput.trim();
-    if (!curlCommand) {
-      setNotification({ message: '请填写 curl 命令', type: 'error' });
-      return;
-    }
-
-    // 安全的 GitHub URL 验证
-    try {
-      // 从 curl 命令中提取 URL（匹配引号内的 URL 或空格后的第一个 URL）
-      const urlMatch = curlCommand.match(/(?:['"])(https?:\/\/[^\s'"]+)(?:['"])|(?:\s)(https?:\/\/[^\s'"]+)/);
-      if (!urlMatch) {
-        setNotification({ message: '无法从 curl 命令中提取有效的 URL', type: 'error' });
-        return;
-      }
-
-      const url = new URL(urlMatch[1] || urlMatch[2]);
-
-      // 严格验证主机名：必须是 github.com 或其子域名
-      const hostname = url.hostname.toLowerCase();
-      const isValidGithubDomain = hostname === 'github.com' || hostname.endsWith('.github.com');
-
-      // 验证协议必须是 https
-      const isSecureProtocol = url.protocol === 'https:';
-
-      if (!isValidGithubDomain || !isSecureProtocol) {
-        setNotification({
-          message: '请提供有效的 GitHub API curl 命令（必须使用 https://github.com 或其子域名）',
-          type: 'error'
-        });
-        return;
-      }
-    } catch (e) {
-      setNotification({
-        message: '无效的 curl 命令格式，请确保包含有效的 GitHub API URL',
-        type: 'error'
-      });
-      return;
-    }
-
-    setGithubBillingConfigSaving(true);
-    try {
-      const res = await authFetch(`${GITHUB_BILLING_MULTI_CONFIG_API}/${selectedConfigKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ curlCommand })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '保存失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: `配置 ${selectedConfigKey} 保存成功`, type: 'success' });
-      setGithubBillingCurlInput('');
-      await fetchGithubBillingConfig();
-    } catch (e) {
-      setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setGithubBillingConfigSaving(false);
-    }
-  }, [githubBillingConfigSaving, githubBillingCurlInput, selectedConfigKey, fetchGithubBillingConfig, setNotification]);
-
-  const handleDeleteGithubBillingConfig = useCallback(async (configKey: 'config1' | 'config2' | 'config3') => {
-    if (githubBillingConfigSaving) return;
-    if (!window.confirm(`确定删除 GitHub Billing 配置「${configKey}」？`)) return;
-    setGithubBillingConfigSaving(true);
-    try {
-      const res = await authFetch(`${GITHUB_BILLING_MULTI_CONFIG_API}/${configKey}`, {
-        method: 'DELETE',
-        headers: { ...getAuthHeaders() }
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        setNotification({ message: data.error || '删除失败', type: 'error' });
-        return;
-      }
-      setNotification({ message: `配置 ${configKey} 删除成功`, type: 'success' });
-      await fetchGithubBillingConfig();
-    } catch (e) {
-      setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
-    } finally {
-      setGithubBillingConfigSaving(false);
-    }
-  }, [githubBillingConfigSaving, fetchGithubBillingConfig, setNotification]);
-
-  // 懒加载：仅在区块首次展开时拉取数据，避免页面初始化时多个 API 并发请求
   useEffect(() => {
-    const lazyMap: Record<string, () => Promise<void> | void> = {
-      envs: fetchEnvs,
-      emailSystem: fetchEmailSystemConfig,
-      outemail: fetchOutemailSettings,
-      modlist: fetchModlistSetting,
-      tts: fetchTtsSetting,
-      googleClientIds: fetchGoogleClientIds,
-      synapseAndroid: fetchSynapseAndroidSetting,
-      nexaiSigning: fetchNexaiSigningSetting,
-      shortaes: fetchShortAes,
-      webhook: fetchWebhookSecret,
-      providers: fetchProviders,
-      ipfs: fetchIpfsConfig,
-      turnstile: fetchTurnstileConfig,
-      hcaptcha: fetchHcaptchaConfig,
-      clarity: fetchClarityConfig,
-      githubBilling: fetchGithubBillingConfig,
-    };
-    for (const key of expandedSections) {
-      if (lazyMap[key] && !fetchedSectionsRef.current.has(key)) {
-        fetchedSectionsRef.current.add(key);
-        lazyMap[key]();
-      }
-    }
-  }, [expandedSections, fetchEnvs, fetchEmailSystemConfig, fetchOutemailSettings, fetchModlistSetting, fetchTtsSetting, fetchGoogleClientIds, fetchSynapseAndroidSetting, fetchNexaiSigningSetting, fetchShortAes, fetchWebhookSecret, fetchProviders, fetchIpfsConfig, fetchTurnstileConfig, fetchHcaptchaConfig, fetchClarityConfig, fetchGithubBillingConfig]);
+    if (!configurationWorkflow && !configurationTargetIssueId) return;
+    void fetchConfigurationIssues();
+    const timer = window.setInterval(() => { void fetchConfigurationIssues(); }, 3000);
+    return () => window.clearInterval(timer);
+  }, [configurationTargetIssueId, configurationWorkflow, fetchConfigurationIssues]);
 
-  // 使用公共方法处理数据来源点击
+  useEffect(() => {
+    if (!configurationTargetIssueId) return;
+    const scrollTimer = window.setTimeout(() => {
+      document.querySelector(`[data-env-section="${getConfigurationSectionKey(configurationTargetIssueId)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 250);
+    return () => window.clearTimeout(scrollTimer);
+  }, [configurationTargetIssueId]);
+
+  useEffect(() => {
+    if (!configurationWorkflow || configurationStatusLoading || !configurationStatusFetched) return;
+    const ignoredIds = new Set(configurationWorkflow.ignoredIds);
+    const pendingIssues = configurationWorkflow.issues.filter(
+      (issue) => !ignoredIds.has(issue.id) && configurationIssues.some((current) => current.id === issue.id),
+    );
+    const currentTargetStillPending = configurationTargetIssueId
+      ? pendingIssues.some((issue) => issue.id === configurationTargetIssueId) : false;
+    if (pendingIssues.length === 0) {
+      if (configurationTargetIssueId) setSearchParams((prev) => { const n = new URLSearchParams(prev); n.delete('configIssue'); return n; }, { replace: true });
+      return;
+    }
+    if (!currentTargetStillPending) {
+      const nextIssue = pendingIssues[0];
+      setSearchParams((prev) => { const n = new URLSearchParams(prev); n.set('configIssue', nextIssue.id); return n; }, { replace: true });
+    }
+  }, [configurationIssues, configurationStatusFetched, configurationStatusLoading, configurationTargetIssueId, configurationWorkflow, setSearchParams]);
+
+  const ignoreConfigurationIssue = useCallback((issueId: string) => {
+    if (!configurationWorkflow) return;
+    const ignoredIds = Array.from(new Set([...configurationWorkflow.ignoredIds, issueId]));
+    const nextWorkflow = { ...configurationWorkflow, ignoredIds };
+    writeConfigurationWorkflow(nextWorkflow);
+    setConfigurationWorkflow(nextWorkflow);
+  }, [configurationWorkflow]);
+
+  // Source modal handlers
   const handleSourceClickWrapper = useCallback((source: string) => {
     handleSourceClick(source, setSelectedSource, setShowSourceModal);
   }, []);
-
-  // 使用公共方法处理弹窗关闭
   const handleSourceModalCloseWrapper = useCallback(() => {
     handleSourceModalClose(setShowSourceModal);
   }, []);
 
-  const isEnvSectionOpen = isSectionOpen('envs');
-  const isEnvCollapsed = !isEnvSectionOpen;
-  const isEnvLoading = loading || (isEnvSectionOpen && !fetchedSectionsRef.current.has('envs'));
   const configurationCurrentIds = new Set(configurationIssues.map((issue) => issue.id));
   const configurationProgressItems = configurationWorkflow?.issues.filter(
     (issue) => !configurationWorkflow.ignoredIds.includes(issue.id),
   ) || [];
-  const configurationNextIssue = configurationProgressItems.find(
-    (issue) => configurationCurrentIds.has(issue.id),
-  );
+  const configurationNextIssue = configurationProgressItems.find((issue) => configurationCurrentIds.has(issue.id));
 
-  // 管理员校验
+  // Admin check
   if (!user || user.role !== 'admin') {
     return (
       <LazyMotion features={domAnimation}>
         <m.div className="env-manager-ui space-y-6">
           <style>{ENV_MANAGER_LIGHT_THEME_CSS}</style>
-          <m.div
-            className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6 border border-red-100"
-            initial={ENTER_INITIAL}
-            animate={ENTER_ANIMATE}
-            transition={trans06}
-          >
-            <h2 className="text-2xl font-bold text-red-700 mb-3 flex items-center gap-2">
-              <FaLock className="text-2xl text-red-600" />
-              访问被拒绝
-            </h2>
+          <m.div className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6 border border-red-100" initial={ENTER_INITIAL} animate={ENTER_ANIMATE} transition={trans06}>
+            <h2 className="text-2xl font-bold text-red-700 mb-3 flex items-center gap-2"><FaLock className="text-2xl text-red-600" />访问被拒绝</h2>
             <div className="text-gray-600 space-y-2">
               <p>你不是管理员，禁止访问！请用管理员账号登录后再来。</p>
-              <div className="text-sm text-red-500 italic">
-                环境变量管理仅限管理员使用
-              </div>
+              <div className="text-sm text-red-500 italic">环境变量管理仅限管理员使用</div>
             </div>
           </m.div>
         </m.div>
@@ -2211,16 +310,11 @@ const EnvManager: React.FC = () => {
     <LazyMotion features={domAnimation}>
       <div className="relative env-manager-ui space-y-6">
         <style>{ENV_MANAGER_LIGHT_THEME_CSS}</style>
-        {/* 标题和说明 */}
-        <m.div
-          className="env-manager-title-panel bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-6 border border-blue-100"
-          initial={ENTER_INITIAL}
-          animate={ENTER_ANIMATE}
-          transition={trans06}
-        >
+
+        {/* Header */}
+        <m.div className="env-manager-title-panel bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 sm:p-6 border border-blue-100" initial={ENTER_INITIAL} animate={ENTER_ANIMATE} transition={trans06}>
           <h2 className="env-manager-title text-xl sm:text-2xl font-bold text-blue-700 mb-2 sm:mb-3 flex items-center gap-2">
-            <FaCog className="env-manager-title-icon text-xl sm:text-2xl text-blue-600" />
-            环境变量管理
+            <FaCog className="env-manager-title-icon text-xl sm:text-2xl text-blue-600" />环境变量管理
           </h2>
           <div className="text-gray-600 space-y-2">
             <p className="text-sm sm:text-base">查看系统环境变量配置，支持加密存储和传输。</p>
@@ -2238,37 +332,17 @@ const EnvManager: React.FC = () => {
           </div>
         </m.div>
 
+        {/* Configuration Workflow */}
         {configurationWorkflow && configurationProgressItems.length > 0 && (
-          <m.section
-            className="rounded-2xl border border-amber-200 bg-amber-50 shadow-sm"
-            initial={ENTER_INITIAL}
-            animate={ENTER_ANIMATE}
-            transition={trans06}
-          >
+          <m.section className="rounded-2xl border border-amber-200 bg-amber-50 shadow-sm" initial={ENTER_INITIAL} animate={ENTER_ANIMATE} transition={trans06}>
             <div className="flex flex-col gap-3 border-b border-amber-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-amber-900">服务配置处理进度</h3>
                 <p className="mt-1 text-sm text-amber-800">
-                  {configurationNextIssue
-                    ? `当前处理：${configurationNextIssue.label}`
-                    : configurationStatusFetched
-                      ? '全部配置已完成'
-                      : '正在检查配置状态...'}
+                  {configurationNextIssue ? `当前处理：${configurationNextIssue.label}` : configurationStatusFetched ? '全部配置已完成' : '正在检查配置状态...'}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!configurationNextIssue) return;
-                  setSearchParams((previous) => {
-                    const next = new URLSearchParams(previous);
-                    next.set('configIssue', configurationNextIssue.id);
-                    return next;
-                  }, { replace: true });
-                }}
-                disabled={!configurationNextIssue}
-                className="inline-flex items-center justify-center rounded-lg bg-amber-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
-              >
+              <button type="button" onClick={() => { if (!configurationNextIssue) return; setSearchParams((prev) => { const n = new URLSearchParams(prev); n.set('configIssue', configurationNextIssue.id); return n; }, { replace: true }); }} disabled={!configurationNextIssue} className="inline-flex items-center justify-center rounded-lg bg-amber-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50">
                 {configurationNextIssue ? '处理下一项' : '已完成'}
               </button>
             </div>
@@ -2276,21 +350,10 @@ const EnvManager: React.FC = () => {
               {configurationProgressItems.map((issue) => {
                 const resolved = !configurationCurrentIds.has(issue.id);
                 return (
-                  <div
-                    key={issue.id}
-                    className={`flex items-center gap-3 rounded-lg border px-3 py-2 text-sm ${resolved ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-white text-amber-900'}`}
-                  >
+                  <div key={issue.id} className={`flex items-center gap-3 rounded-lg border px-3 py-2 text-sm ${resolved ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-white text-amber-900'}`}>
                     {resolved ? <FaCheckCircle className="shrink-0" /> : <FaInfoCircle className="shrink-0" />}
                     <span className="min-w-0 flex-1 break-words">{issue.label}</span>
-                    {!resolved && (
-                      <button
-                        type="button"
-                        onClick={() => ignoreConfigurationIssue(issue.id)}
-                        className="shrink-0 text-xs text-gray-500 underline hover:text-gray-800"
-                      >
-                        忽略
-                      </button>
-                    )}
+                    {!resolved && <button type="button" onClick={() => ignoreConfigurationIssue(issue.id)} className="shrink-0 text-xs text-gray-500 underline hover:text-gray-800">忽略</button>}
                   </div>
                 );
               })}
@@ -2298,73 +361,35 @@ const EnvManager: React.FC = () => {
           </m.section>
         )}
 
-        {/* 环境变量表格 */}
-        <m.section
-          data-env-section="envs"
-          className="rounded-2xl border border-slate-200 bg-white shadow-sm"
-          initial={ENTER_INITIAL}
-          animate={ENTER_ANIMATE}
-          transition={trans06}
-        >
+        {/* Env Vars Table */}
+        <m.section data-env-section="envs" className="rounded-2xl border border-slate-200 bg-white shadow-sm" initial={ENTER_INITIAL} animate={ENTER_ANIMATE} transition={trans06}>
           <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="text-lg font-semibold text-slate-800">环境变量列表</h3>
               <p className="mt-1 text-sm text-slate-500">查看系统环境变量配置，支持加密传输、自动解密和数据来源标记。</p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <m.button
-                onClick={() => {
-                  fetchedSectionsRef.current.add('envs');
-                  fetchEnvs();
-                }}
-                disabled={isEnvLoading}
-                className={ENV_MANAGER_REFRESH_BUTTON_CLASS}
-                whileTap={{ scale: 0.95 }}
-              >
-                <FaSync className={`w-4 h-4 ${isEnvLoading ? 'animate-spin' : ''}`} />
-                刷新
+              <m.button onClick={() => { envFetchedRef.current = true; fetchEnvs(); }} disabled={loading} className={ENV_MANAGER_REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
+                <FaSync className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />刷新
               </m.button>
-              <m.button
-                onClick={() => toggleSection('envs')}
-                className={ENV_MANAGER_TOGGLE_BUTTON_CLASS}
-                whileTap={{ scale: 0.95 }}
-              >
-                <m.span
-                  animate={{ rotate: isEnvCollapsed ? -90 : 0 }}
-                  transition={prefersReducedMotion ? NO_DURATION : { duration: 0.2 }}
-                  className="inline-flex"
-                >
-                  <FaChevronDown className="w-4 h-4" />
-                </m.span>
-                {isEnvCollapsed ? '展开' : '收起'}
+              <m.button onClick={() => { startTransition(() => setEnvSectionExpanded((v) => !v)); }} className={ENV_MANAGER_TOGGLE_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
+                <m.span animate={{ rotate: envSectionExpanded ? 0 : -90 }} transition={prefersReducedMotion ? NO_DURATION : { duration: 0.2 }} className="inline-flex"><FaChevronDown className="w-4 h-4" /></m.span>
+                {envSectionExpanded ? '收起' : '展开'}
               </m.button>
             </div>
           </div>
-
           <AnimatePresence initial={false}>
-            {!isEnvCollapsed && (
-              <m.div
-                key="env-list-wrap"
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25 }}
-                className="space-y-4 px-5 py-5"
-              >
-                {/* 数据来源图例 */}
+            {envSectionExpanded && (
+              <m.div key="env-list-wrap" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25 }} className="space-y-4 px-5 py-5">
                 <div className="p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
                   <div className="flex items-start gap-2 sm:gap-3 text-sm sm:text-base text-blue-700">
                     <FaInfoCircle className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0 mt-0.5 sm:mt-0" />
                     <span className="font-medium leading-relaxed">带蓝色感叹号图标的变量表示有明确的数据来源信息</span>
                   </div>
                 </div>
-
-                {isEnvLoading ? (
+                {loading ? (
                   <div className="text-center py-6 sm:py-8 text-gray-500">
-                    <svg className="animate-spin h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-3 sm:mb-4 text-blue-500" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
+                    <svg className="animate-spin h-6 w-6 sm:h-8 sm:w-8 mx-auto mb-3 sm:mb-4 text-blue-500" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                     <span className="text-sm sm:text-base">加载中...</span>
                   </div>
                 ) : envs.length === 0 ? (
@@ -2377,75 +402,27 @@ const EnvManager: React.FC = () => {
                     {isMobile ? (
                       <div className="space-y-3 p-2">
                         {envs.map((item, idx) => (
-                          <m.div
-                            key={item.key}
-                            className={`rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 shadow-sm hover:shadow transition ${idx % 2 === 0 ? '' : ''}`}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25, delay: idx * 0.02 }}
-                          >
+                          <m.div key={item.key} className={`rounded-2xl border border-gray-200 bg-white p-3 sm:p-4 shadow-sm hover:shadow transition ${idx % 2 === 0 ? '' : ''}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25, delay: idx * 0.02 }}>
                             <div className="flex items-start gap-2 sm:gap-3">
-                              {item.source && (
-                                <button
-                                  onClick={() => handleSourceClickWrapper(item.source!)}
-                                  className="flex-shrink-0 focus:outline-none self-center"
-                                  aria-label="数据来源"
-                                >
-                                  <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
-                                    <FaInfoCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
-                                  </span>
-                                </button>
-                              )}
+                              {item.source && <button onClick={() => handleSourceClickWrapper(item.source!)} className="flex-shrink-0 focus:outline-none self-center" aria-label="数据来源"><span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center"><FaInfoCircle className="w-2.5 h-2.5 sm:w-3 sm:h-3" /></span></button>}
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between gap-2">
-                                  <div className="text-sm sm:text-base font-semibold text-gray-900 tracking-wide break-words">
-                                    {item.key.split(':').pop() || item.key}
-                                  </div>
+                                  <div className="text-sm sm:text-base font-semibold text-gray-900 tracking-wide break-words">{item.key.split(':').pop() || item.key}</div>
                                   <div className="flex items-center gap-1 shrink-0">
-                                    <button
-                                      onClick={() => handleStartEdit(item)}
-                                      className="p-1.5 text-gray-400 hover:text-indigo-600 transition rounded hover:bg-indigo-50"
-                                      title="编辑"
-                                    >
-                                      <FaEdit className="w-3.5 h-3.5" />
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteEnvVar(item.key)}
-                                      className="p-1.5 text-gray-400 hover:text-red-600 transition rounded hover:bg-red-50"
-                                      title="删除"
-                                    >
-                                      <FaTrash className="w-3.5 h-3.5" />
-                                    </button>
+                                    <button onClick={() => handleStartEdit(item)} className="p-1.5 text-gray-400 hover:text-indigo-600 transition rounded hover:bg-indigo-50" title="编辑"><FaEdit className="w-3.5 h-3.5" /></button>
+                                    <button onClick={() => handleDeleteEnvVar(item.key)} className="p-1.5 text-gray-400 hover:text-red-600 transition rounded hover:bg-red-50" title="删除"><FaTrash className="w-3.5 h-3.5" /></button>
                                   </div>
                                 </div>
                                 {editingKey === item.key ? (
                                   <div className="mt-2 space-y-2">
-                                    <input
-                                      value={form.value || ''}
-                                      onChange={(e) => setForm((prev) => ({ ...prev, value: e.target.value }))}
-                                      className="w-full px-3 py-2 border border-indigo-300 rounded-lg font-mono text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                                      autoComplete="off"
-                                      spellCheck={false}
-                                    />
+                                    <input value={form.value || ''} onChange={(e) => setForm((prev) => ({ ...prev, value: e.target.value }))} className="w-full px-3 py-2 border border-indigo-300 rounded-lg font-mono text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" autoComplete="off" spellCheck={false} />
                                     <div className="flex items-center gap-2 justify-end">
-                                      <button
-                                        onClick={handleCancelEdit}
-                                        className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
-                                      >
-                                        <FaTimes className="w-3 h-3 inline mr-1" />取消
-                                      </button>
-                                      <button
-                                        onClick={handleSaveEdit}
-                                        className="px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition"
-                                      >
-                                        <FaCheck className="w-3 h-3 inline mr-1" />保存
-                                      </button>
+                                      <button onClick={handleCancelEdit} className="px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition"><FaTimes className="w-3 h-3 inline mr-1" />取消</button>
+                                      <button onClick={handleSaveEdit} className="px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition"><FaCheck className="w-3 h-3 inline mr-1" />保存</button>
                                     </div>
                                   </div>
                                 ) : (
-                                  <div className="mt-2 px-2 sm:px-3 py-2 bg-gray-50 rounded-lg font-mono text-xs sm:text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed">
-                                    {item.value}
-                                  </div>
+                                  <div className="mt-2 px-2 sm:px-3 py-2 bg-gray-50 rounded-lg font-mono text-xs sm:text-sm text-gray-800 whitespace-pre-wrap break-words leading-relaxed">{item.value}</div>
                                 )}
                               </div>
                             </div>
@@ -2454,79 +431,33 @@ const EnvManager: React.FC = () => {
                       </div>
                     ) : (
                       <table className="min-w-full">
-                        <thead>
-                          <tr className="bg-gray-50 border-b border-gray-200">
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[200px] w-1/3">变量名</th>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[300px] w-1/2">值</th>
-                            <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 w-[120px]">操作</th>
-                          </tr>
-                        </thead>
+                        <thead><tr className="bg-gray-50 border-b border-gray-200">
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[200px] w-1/3">变量名</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[300px] w-1/2">值</th>
+                          <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 w-[120px]">操作</th>
+                        </tr></thead>
                         <tbody>
                           {envs.map((item, idx) => (
-                            <tr
-                              key={item.key}
-                              className={`border-b border-gray-100 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
-                            >
+                            <tr key={item.key} className={`border-b border-gray-100 last:border-b-0 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
                               <td className="px-4 py-3 font-mono text-sm font-medium text-gray-900 align-top">
                                 <div className="break-words whitespace-normal leading-relaxed flex items-start gap-1">
-                                  {item.source && (
-                                    <button
-                                      onClick={() => handleSourceClickWrapper(item.source!)}
-                                      className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 mt-0.5 flex-shrink-0 hover:text-blue-600 transition-colors cursor-pointer"
-                                    >
-                                      <FaInfoCircle />
-                                    </button>
-                                  )}
+                                  {item.source && <button onClick={() => handleSourceClickWrapper(item.source!)} className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 mt-0.5 flex-shrink-0 hover:text-blue-600 transition-colors cursor-pointer"><FaInfoCircle /></button>}
                                   <span>{item.key.split(':').pop() || item.key}</span>
                                 </div>
                               </td>
                               <td className="px-4 py-3 font-mono text-sm text-gray-700 align-top">
                                 {editingKey === item.key ? (
                                   <div className="flex items-center gap-2">
-                                    <input
-                                      value={form.value || ''}
-                                      onChange={(e) => setForm((prev) => ({ ...prev, value: e.target.value }))}
-                                      className="flex-1 px-3 py-2 border border-indigo-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                                      autoComplete="off"
-                                      spellCheck={false}
-                                    />
-                                    <button
-                                      onClick={handleSaveEdit}
-                                      className="p-2 text-indigo-600 hover:text-indigo-800 transition rounded hover:bg-indigo-50"
-                                      title="保存"
-                                    >
-                                      <FaCheck className="w-4 h-4" />
-                                    </button>
-                                    <button
-                                      onClick={handleCancelEdit}
-                                      className="p-2 text-gray-400 hover:text-gray-600 transition rounded hover:bg-gray-100"
-                                      title="取消"
-                                    >
-                                      <FaTimes className="w-4 h-4" />
-                                    </button>
+                                    <input value={form.value || ''} onChange={(e) => setForm((prev) => ({ ...prev, value: e.target.value }))} className="flex-1 px-3 py-2 border border-indigo-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" autoComplete="off" spellCheck={false} />
+                                    <button onClick={handleSaveEdit} className="p-2 text-indigo-600 hover:text-indigo-800 transition rounded hover:bg-indigo-50" title="保存"><FaCheck className="w-4 h-4" /></button>
+                                    <button onClick={handleCancelEdit} className="p-2 text-gray-400 hover:text-gray-600 transition rounded hover:bg-gray-100" title="取消"><FaTimes className="w-4 h-4" /></button>
                                   </div>
-                                ) : (
-                                  <div className="break-words whitespace-pre-wrap leading-relaxed">
-                                    {item.value}
-                                  </div>
-                                )}
+                                ) : <div className="break-words whitespace-pre-wrap leading-relaxed">{item.value}</div>}
                               </td>
                               <td className="px-4 py-3 align-top">
                                 <div className="flex items-center justify-center gap-1">
-                                  <button
-                                    onClick={() => handleStartEdit(item)}
-                                    className="p-1.5 text-gray-400 hover:text-indigo-600 transition rounded hover:bg-indigo-50"
-                                    title="编辑"
-                                  >
-                                    <FaEdit className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteEnvVar(item.key)}
-                                    className="p-1.5 text-gray-400 hover:text-red-600 transition rounded hover:bg-red-50"
-                                    title="删除"
-                                  >
-                                    <FaTrash className="w-3.5 h-3.5" />
-                                  </button>
+                                  <button onClick={() => handleStartEdit(item)} className="p-1.5 text-gray-400 hover:text-indigo-600 transition rounded hover:bg-indigo-50" title="编辑"><FaEdit className="w-3.5 h-3.5" /></button>
+                                  <button onClick={() => handleDeleteEnvVar(item.key)} className="p-1.5 text-gray-400 hover:text-red-600 transition rounded hover:bg-red-50" title="删除"><FaTrash className="w-3.5 h-3.5" /></button>
                                 </div>
                               </td>
                             </tr>
@@ -2536,35 +467,22 @@ const EnvManager: React.FC = () => {
                     )}
                   </div>
                 )}
-
-                {/* 统计信息 */}
-                {!isEnvLoading && envs.length > 0 && (
-                  <m.div
-                    initial={ENTER_INITIAL}
-                    animate={ENTER_ANIMATE}
-                    transition={trans03}
-                    className="mt-6 pt-4 border-t border-gray-200"
-                  >
+                {!loading && envs.length > 0 && (
+                  <m.div initial={ENTER_INITIAL} animate={ENTER_ANIMATE} transition={trans03} className="mt-6 pt-4 border-t border-gray-200">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
                           <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                          <span className="text-sm font-semibold text-blue-700">
-                            总计 {envs.length} 个环境变量
-                          </span>
+                          <span className="text-sm font-semibold text-blue-700">总计 {envs.length} 个环境变量</span>
                         </div>
                         <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg">
                           <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                          <span className="text-xs sm:text-sm font-medium text-green-700">
-                            数据正常
-                          </span>
+                          <span className="text-xs sm:text-sm font-medium text-green-700">数据正常</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 rounded-lg">
                         <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                        <span className="text-xs sm:text-sm text-gray-600">
-                          最后更新: {new Date().toLocaleString()}
-                        </span>
+                        <span className="text-xs sm:text-sm text-gray-600">最后更新: {new Date().toLocaleString()}</span>
                       </div>
                     </div>
                   </m.div>
@@ -2574,383 +492,48 @@ const EnvManager: React.FC = () => {
           </AnimatePresence>
         </m.section>
 
-        <EmailSystemSettingsSection
-          isOpen={isSectionOpen('emailSystem')}
-          onToggle={toggleSection}
-          prefersReducedMotion={prefersReducedMotion}
-          loading={emailSystemLoading}
-          saving={emailSystemSaving}
-          deleting={emailSystemDeleting}
-          config={emailSystemConfig}
-          onRefresh={fetchEmailSystemConfig}
-          onSave={handleSaveEmailSystem}
-          onDelete={handleDeleteEmailSystem}
-        />
-
-        <OutemailSettingsSection
-          isOpen={isSectionOpen('outemail')}
-          onToggle={toggleSection}
-          prefersReducedMotion={prefersReducedMotion}
-          loading={settingsLoading}
-          saving={settingsSaving}
-          deletingDomain={settingsDeletingDomain}
-          domain={settingDomain}
-          code={settingCode}
-          apiKey={settingApiKey}
-          settings={outemailSettings}
-          onDomainChange={setSettingDomain}
-          onCodeChange={setSettingCode}
-          onApiKeyChange={setSettingApiKey}
-          onRefresh={fetchOutemailSettings}
-          onSave={handleSaveSetting}
-          onDelete={handleDeleteSetting}
-        />
-
-        {/* MOD 列表修改码设置 */}
-        <CodeSettingSection
-          title="MOD 列表修改码设置"
-          description="管理 MOD 列表修改码，用于保护列表编辑入口。"
-          sectionKey="modlist"
-          isOpen={isSectionOpen('modlist')}
-          onToggle={toggleSection}
-          prefersReducedMotion={prefersReducedMotion}
-          loading={modLoading}
-          saving={modSaving}
-          deleting={modDeleting}
-          inputLabel="修改码"
-          inputValue={modCodeInput}
-          inputPlaceholder="请输入修改码（仅用于校验，不会回显明文）"
-          currentValue={modSetting?.code}
-          updatedAt={modSetting?.updatedAt}
-          onInputChange={setModCodeInput}
-          onRefresh={fetchModlistSetting}
-          onSave={handleSaveModCode}
-          onDelete={handleDeleteModCode}
-        />
-
-        {/* TTS 生成码设置 */}
-        <CodeSettingSection
-          title="TTS 生成码设置"
-          description="管理 TTS 生成码，用于限制语音生成入口。"
-          sectionKey="tts"
-          isOpen={isSectionOpen('tts')}
-          onToggle={toggleSection}
-          prefersReducedMotion={prefersReducedMotion}
-          loading={ttsLoading}
-          saving={ttsSaving}
-          deleting={ttsDeleting}
-          inputLabel="生成码"
-          inputValue={ttsCodeInput}
-          inputPlaceholder="请输入生成码（仅用于校验，不会回显明文）"
-          currentValue={ttsSetting?.code}
-          updatedAt={ttsSetting?.updatedAt}
-          onInputChange={setTtsCodeInput}
-          onRefresh={fetchTtsSetting}
-          onSave={handleSaveTtsCode}
-          onDelete={handleDeleteTtsCode}
-        />
-
-        <TtsProviderConfigSection prefersReducedMotion={prefersReducedMotion} />
-
-        <GoogleClientIdsSection
-          isOpen={isSectionOpen('googleClientIds')}
-          onToggle={toggleSection}
-          prefersReducedMotion={prefersReducedMotion}
-          loading={googleClientIdsLoading}
-          saving={googleClientIdsSaving}
-          deleting={googleClientIdsDeleting}
-          googleClientIdInput={googleClientIdInput}
-          nexaiGoogleClientIdInput={nexaiGoogleClientIdInput}
-          googleClientIdCurrent={googleClientIdCurrent}
-          nexaiGoogleClientIdCurrent={nexaiGoogleClientIdCurrent}
-          updatedAt={googleClientIdsUpdatedAt}
-          onGoogleClientIdInputChange={setGoogleClientIdInput}
-          onNexaiGoogleClientIdInputChange={setNexaiGoogleClientIdInput}
-          onRefresh={fetchGoogleClientIds}
-          onSave={handleSaveGoogleClientIds}
-          onReset={handleDeleteGoogleClientIds}
-        />
-
-        <SynapseAndroidConfigSection
-          isOpen={isSectionOpen('synapseAndroid')}
-          onToggle={toggleSection}
-          prefersReducedMotion={prefersReducedMotion}
-          loading={synapseAndroidLoading}
-          saving={synapseAndroidSaving}
-          deleting={synapseAndroidDeleting}
-          packageInput={synapseAndroidPackageInput}
-          fingerprintsInput={synapseAndroidFingerprintsInput}
-          googleClientIdInput={synapseAndroidGoogleClientIdInput}
-          disabled={synapseAndroidDisabled}
-          currentPackage={synapseAndroidCurrentPackage}
-          currentFingerprints={synapseAndroidCurrentFingerprints}
-          currentGoogleClientId={synapseAndroidCurrentGoogleClientId}
-          updatedAt={synapseAndroidUpdatedAt}
-          onPackageInputChange={setSynapseAndroidPackageInput}
-          onFingerprintsInputChange={setSynapseAndroidFingerprintsInput}
-          onGoogleClientIdInputChange={setSynapseAndroidGoogleClientIdInput}
-          onDisabledChange={setSynapseAndroidDisabled}
-          onRefresh={fetchSynapseAndroidSetting}
-          onSave={handleSaveSynapseAndroidSetting}
-          onReset={handleDeleteSynapseAndroidSetting}
-        />
-
-        <NexaiSigningConfigSection
-          isOpen={isSectionOpen('nexaiSigning')}
-          onToggle={toggleSection}
-          prefersReducedMotion={prefersReducedMotion}
-          loading={nexaiSigningLoading}
-          saving={nexaiSigningSaving}
-          deleting={nexaiSigningDeleting}
-          modeInput={nexaiSigningModeInput}
-          appSignSecretInput={nexaiSigningAppSignSecretInput}
-          appSignSecretPrevInput={nexaiSigningAppSignSecretPrevInput}
-          maxDriftMsInput={nexaiSigningMaxDriftMsInput}
-          currentAppSignSecret={nexaiSigningCurrentAppSignSecret}
-          currentAppSignSecretPrev={nexaiSigningCurrentAppSignSecretPrev}
-          updatedAt={nexaiSigningUpdatedAt}
-          onModeInputChange={setNexaiSigningModeInput}
-          onAppSignSecretInputChange={setNexaiSigningAppSignSecretInput}
-          onAppSignSecretPrevInputChange={setNexaiSigningAppSignSecretPrevInput}
-          onMaxDriftMsInputChange={setNexaiSigningMaxDriftMsInput}
-          onRefresh={fetchNexaiSigningSetting}
-          onSave={handleSaveNexaiSigningSetting}
-          onReset={handleDeleteNexaiSigningSetting}
-        />
-
+        {/* Self-contained sections */}
+        <SelfContainedEmailSystemSettingsSection prefersReducedMotion={prefersReducedMotion} />
+        <SelfContainedOutemailSettingsSection prefersReducedMotion={prefersReducedMotion} />
+        <SelfContainedCodeSettingSection title="MOD 列表修改码设置" description="管理 MOD 列表修改码，用于保护列表编辑入口。" sectionKey="modlist" apiUrl={MODLIST_API} inputLabel="修改码" inputPlaceholder="请输入修改码（仅用于校验，不会回显明文）" prefersReducedMotion={prefersReducedMotion} />
+        <SelfContainedCodeSettingSection title="TTS 生成码设置" description="管理 TTS 生成码，用于限制语音生成入口。" sectionKey="tts" apiUrl={TTS_API} inputLabel="生成码" inputPlaceholder="请输入生成码（仅用于校验，不会回显明文）" prefersReducedMotion={prefersReducedMotion} />
+        <TtsProviderConfigSection />
+        <SelfContainedGoogleClientIdsSection prefersReducedMotion={prefersReducedMotion} />
+        <SelfContainedSynapseAndroidConfigSection prefersReducedMotion={prefersReducedMotion} />
+        <SelfContainedNexaiSigningConfigSection prefersReducedMotion={prefersReducedMotion} />
         <RuntimeConfigSections />
+        <SelfContainedSecretKeySection title="短链 AES_KEY 设置" description="管理短链 AES_KEY。用于短链接 ID 加密解密，防止短链 ID 被枚举遍历。" sectionKey="shortaes" apiUrl={SHORTURL_AES_API} inputLabel="AES_KEY" inputPlaceholder="请输入 AES_KEY（仅用于加解密，不会回显明文）" useSignedRequest prefersReducedMotion={prefersReducedMotion} />
+        <SelfContainedSecretKeySection title="Webhook 密钥设置" description="管理 Webhook 路由密钥和签名密钥。用于接收外部服务 webhook 请求，验证请求来源合法性。" sectionKey="webhook" apiUrl={WEBHOOK_SECRET_API} inputLabel="密钥 Secret" inputPlaceholder="请输入 Webhook 密钥（支持 Base64 或明文，不回显明文）" extraField={{ label: 'Route Key（可选，默认 DEFAULT）', placeholder: '例如：ORDER、PAY 等，留空为 DEFAULT' }} prefersReducedMotion={prefersReducedMotion} />
+        <SelfContainedIpfsConfigSection prefersReducedMotion={prefersReducedMotion} />
+        <SelfContainedTurnstileConfigSection prefersReducedMotion={prefersReducedMotion} />
+        <SelfContainedHcaptchaConfigSection prefersReducedMotion={prefersReducedMotion} />
+        <SelfContainedClarityConfigSection prefersReducedMotion={prefersReducedMotion} />
+        <SelfContainedGithubBillingConfigSection prefersReducedMotion={prefersReducedMotion} />
+        <SelfContainedEcoEnchantsTokenSection />
+        <SelfContainedEcoEnchantsWebhookSection />
+        <SelfContainedSecuritySecretSection />
+        <SelfContainedLibreChatProvidersSection prefersReducedMotion={prefersReducedMotion} />
 
-        <SecretKeySection
-          title="短链 AES_KEY 设置"
-          description="管理短链 AES_KEY。用于短链接 ID 加密解密，防止短链 ID 被枚举遍历。"
-          sectionKey="shortaes"
-          isOpen={isSectionOpen('shortaes')}
-          onToggle={toggleSection}
-          prefersReducedMotion={prefersReducedMotion}
-          loading={shortAesLoading}
-          saving={shortAesSaving}
-          deleting={shortAesDeleting}
-          inputLabel="AES_KEY"
-          inputValue={shortAesInput}
-          inputPlaceholder="请输入 AES_KEY（仅用于加解密，不会回显明文）"
-          currentValue={shortAesSetting?.aesKey ?? undefined}
-          updatedAt={shortAesSetting?.updatedAt}
-          onInputChange={setShortAesInput}
-          onRefresh={fetchShortAes}
-          onSave={handleSaveShortAes}
-          onDelete={handleDeleteShortAes}
-        />
-
-        <SecretKeySection
-          title="Webhook 密钥设置"
-          description="管理 Webhook 路由密钥和签名密钥。用于接收外部服务（GitHub、支付回调等）的 webhook 请求，验证请求来源合法性。"
-          sectionKey="webhook"
-          isOpen={isSectionOpen('webhook')}
-          onToggle={toggleSection}
-          prefersReducedMotion={prefersReducedMotion}
-          loading={webhookLoading}
-          saving={webhookSaving}
-          deleting={webhookDeleting}
-          inputLabel="密钥 Secret"
-          inputValue={webhookSecretInput}
-          inputPlaceholder="请输入 Webhook 密钥（支持 Base64 或明文，不回显明文）"
-          currentValue={webhookSetting ? `${webhookSetting.key || 'DEFAULT'} / ${webhookSetting.secret || '未设置'}` : undefined}
-          updatedAt={webhookSetting?.updatedAt}
-          onInputChange={setWebhookSecretInput}
-          onRefresh={fetchWebhookSecret}
-          onSave={handleSaveWebhookSecret}
-          onDelete={handleDeleteWebhookSecret}
-          extraField={{
-            label: 'Route Key（可选，默认 DEFAULT）',
-            value: webhookKeyInput,
-            placeholder: '例如：ORDER、PAY 等，留空为 DEFAULT',
-            onChange: setWebhookKeyInput,
-          }}
-        />
-
-        <IpfsConfigSection
-          isOpen={isSectionOpen('ipfs')}
-          onToggle={toggleSection}
-          prefersReducedMotion={prefersReducedMotion}
-          loading={ipfsConfigLoading}
-          saving={ipfsConfigSaving}
-          testing={ipfsConfigTesting}
-          ipfsConfig={ipfsConfig}
-          ipfsUploadUrlInput={ipfsUploadUrlInput}
-          ipfsUserAgentInput={ipfsUserAgentInput}
-          imageBedApiUrlInput={imageBedApiUrlInput}
-          imageBedCdnDomainInput={imageBedCdnDomainInput}
-          imageBedStorageDestinationInput={imageBedStorageDestinationInput}
-          imageBedOutputFormatInput={imageBedOutputFormatInput}
-          onIpfsUploadUrlChange={setIpfsUploadUrlInput}
-          onIpfsUserAgentChange={setIpfsUserAgentInput}
-          onImageBedApiUrlChange={setImageBedApiUrlInput}
-          onImageBedCdnDomainChange={setImageBedCdnDomainInput}
-          onImageBedStorageDestinationChange={setImageBedStorageDestinationInput}
-          onImageBedOutputFormatChange={setImageBedOutputFormatInput}
-          onRefresh={fetchIpfsConfig}
-          onSave={handleSaveIpfsConfig}
-          onTest={handleTestIpfsConfig}
-        />
-
-        <TurnstileConfigSection
-          isOpen={isSectionOpen('turnstile')}
-          onToggle={toggleSection}
-          prefersReducedMotion={prefersReducedMotion}
-          loading={turnstileConfigLoading}
-          saving={turnstileConfigSaving}
-          deleting={turnstileConfigDeleting}
-          config={turnstileConfig}
-          siteKeyInput={turnstileSiteKeyInput}
-          secretKeyInput={turnstileSecretKeyInput}
-          onSiteKeyChange={setTurnstileSiteKeyInput}
-          onSecretKeyChange={setTurnstileSecretKeyInput}
-          onRefresh={fetchTurnstileConfig}
-          onSave={handleSaveTurnstileConfig}
-          onDelete={handleDeleteTurnstileConfig}
-        />
-
-        <HcaptchaConfigSection
-          isOpen={isSectionOpen('hcaptcha')}
-          onToggle={toggleSection}
-          prefersReducedMotion={prefersReducedMotion}
-          loading={hcaptchaConfigLoading}
-          saving={hcaptchaConfigSaving}
-          deleting={hcaptchaConfigDeleting}
-          config={hcaptchaConfig}
-          siteKeyInput={hcaptchaSiteKeyInput}
-          secretKeyInput={hcaptchaSecretKeyInput}
-          onSiteKeyChange={setHcaptchaSiteKeyInput}
-          onSecretKeyChange={setHcaptchaSecretKeyInput}
-          onRefresh={fetchHcaptchaConfig}
-          onSave={handleSaveHcaptchaConfig}
-          onDelete={handleDeleteHcaptchaConfig}
-        />
-
-        <ClarityConfigSection
-          isOpen={isSectionOpen('clarity')}
-          onToggle={toggleSection}
-          prefersReducedMotion={prefersReducedMotion}
-          loading={clarityConfigLoading}
-          saving={clarityConfigSaving}
-          deleting={clarityConfigDeleting}
-          config={clarityConfig}
-          projectIdInput={clarityProjectIdInput}
-          onProjectIdChange={setClarityProjectIdInput}
-          onRefresh={fetchClarityConfig}
-          onSave={handleSaveClarityConfig}
-          onDelete={handleDeleteClarityConfig}
-        />
-
-        <GithubBillingConfigSection
-          isOpen={isSectionOpen('githubBilling')}
-          onToggle={toggleSection}
-          prefersReducedMotion={prefersReducedMotion}
-          loading={githubBillingConfigLoading}
-          saving={githubBillingConfigSaving}
-          curlInput={githubBillingCurlInput}
-          selectedConfigKey={selectedConfigKey}
-          multiConfig={multiGithubBillingConfig}
-          onCurlInputChange={setGithubBillingCurlInput}
-          onSelectedConfigKeyChange={setSelectedConfigKey}
-          onRefresh={fetchGithubBillingConfig}
-          onSave={handleSaveGithubBillingConfig}
-          onDelete={() => handleDeleteGithubBillingConfig(selectedConfigKey)}
-        />
-
-        <EcoEnchantsTokenSection
-          isOpen={isSectionOpen('ecoEnchantsToken')}
-          onToggle={toggleSection}
-          loading={false}
-          onRefresh={() => {}}
-        />
-
-        <EcoEnchantsWebhookSection
-          isOpen={isSectionOpen('ecoEnchantsWebhook')}
-          onToggle={toggleSection}
-          loading={false}
-          onRefresh={() => {}}
-        />
-
-        <SecuritySecretSection
-          isOpen={isSectionOpen('securitySecrets')}
-          onToggle={toggleSection}
-          loading={false}
-          onRefresh={() => {}}
-        />
-
-        <LibreChatProvidersSection
-          isOpen={isSectionOpen('providers')}
-          onToggle={toggleSection}
-          prefersReducedMotion={prefersReducedMotion}
-          isMobile={isMobile}
-          loading={providersLoading}
-          saving={providerSaving}
-          deletingId={providerDeletingId}
-          providers={providers}
-          providerId={providerId}
-          providerFilterGroup={providerFilterGroup}
-          providerBaseUrl={providerBaseUrl}
-          providerApiKey={providerApiKey}
-          providerModel={providerModel}
-          providerGroup={providerGroup}
-          providerEnabled={providerEnabled}
-          providerWeight={providerWeight}
-          onFilterGroupChange={setProviderFilterGroup}
-          onBaseUrlChange={setProviderBaseUrl}
-          onApiKeyChange={setProviderApiKey}
-          onModelChange={setProviderModel}
-          onGroupChange={setProviderGroup}
-          onEnabledChange={setProviderEnabled}
-          onWeightChange={setProviderWeight}
-          onRefresh={fetchProviders}
-          onSave={handleSaveProvider}
-          onReset={resetProviderForm}
-          onEdit={handleEditProvider}
-          onDelete={handleDeleteProvider}
-        />
-
-        {/* 数据来源弹窗（相对于当前屏幕居中） */}
+        {/* Source Modal */}
         <AnimatePresence>
           {showSourceModal && (
-            <m.div
-              className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-[9999]"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={modalTrans}
-              onClick={handleSourceModalCloseWrapper}
-              data-source-modal
-            >
-              <m.div
-                className="bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-8 w-full max-w-md mx-4 relative z-[10000] border border-gray-100"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={modalTrans}
-                onClick={(e) => e.stopPropagation()}
-              >
+            <m.div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-[9999]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={modalTrans} onClick={handleSourceModalCloseWrapper} data-source-modal>
+              <m.div className="bg-white rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-8 w-full max-w-md mx-4 relative z-[10000] border border-gray-100" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={modalTrans} onClick={(e) => e.stopPropagation()}>
                 <div className="text-center">
                   <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <FaInfoCircle className="w-8 h-8 text-blue-500" />
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2">数据来源</h3>
                   <p className="text-gray-600 mb-6">{selectedSource}</p>
-                  <button
-                    onClick={handleSourceModalCloseWrapper}
-                    className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
-                  >
-                    确定
-                  </button>
+                  <button onClick={handleSourceModalCloseWrapper} className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium">确定</button>
                 </div>
               </m.div>
             </m.div>
           )}
         </AnimatePresence>
-
       </div>
     </LazyMotion>
   );
 };
 
-export default EnvManager; 
+export default EnvManager;
