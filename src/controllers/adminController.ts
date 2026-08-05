@@ -165,6 +165,20 @@ export const adminController = {
         return res.status(400).json({ error: "非法的用户 ID" });
       }
 
+      // 处理公共翻译 API 产生的伪用户 ID
+      if (req.params.id === "public-api") {
+        return res.json({
+          success: true,
+          user: {
+            id: "public-api",
+            username: "公共翻译 API",
+            email: "",
+            role: "public",
+            createdAt: new Date(0).toISOString(),
+          },
+        });
+      }
+
       const user = await UserStorage.getUserById(req.params.id);
       if (!user) {
         return res.status(404).json({ error: "用户不存在" });
@@ -676,6 +690,10 @@ export const adminController = {
     try {
       if (!isValidUserId(req.params.id)) {
         return res.status(400).json({ error: "非法的用户 ID" });
+      }
+
+      if (req.params.id === "public-api") {
+        return res.status(400).json({ error: "公共翻译 API 用户不可执行惩戒操作" });
       }
 
       const targetUser = await UserStorage.getUserById(req.params.id);
