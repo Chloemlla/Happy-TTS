@@ -12,7 +12,7 @@ const entryMaxGzipBytes = Number(process.env.FRONTEND_ENTRY_MAX_GZIP_KB || 220) 
 const chunkMaxGzipBytes = Number(process.env.FRONTEND_CHUNK_MAX_GZIP_KB || 1800) * 1024;
 // Provider-management UI intentionally grew the production surface; retain a
 // narrow, deterministic margin above the measured post-obfuscation baseline.
-const totalMaxGzipBytes = Number(process.env.FRONTEND_TOTAL_MAX_GZIP_KB || 4530) * 1024;
+const totalMaxGzipBytes = Number(process.env.FRONTEND_TOTAL_MAX_GZIP_KB || 4600) * 1024;
 // Require isolation for heavy deps that actually split. code-highlight may fold into other chunks depending on imports.
 const heavyChunkNames = ["documents", "pdf", "diagrams", "charts", "fingerprint"];
 
