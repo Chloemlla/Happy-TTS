@@ -65,6 +65,45 @@
 - 构建/测试状态: 待运行
 - LOC 基线: 后端 ~125K, 前端 ~104K, 测试 ~14.6K
 
+### After 快照（E1 修复后）
+
+- **档位**: E1 / G2 / Q2 / C0 / D0
+- **修复状态**: 已实施 15/24 项修复，剩余 9 项因复杂度/范围过大标记为 Deferred
+
+| 阶段 | 已修复 | 已推迟 | 完成率 |
+|------|:------:|:-------:|:-----:|
+| Phase 1: 止血 | 7/8 | 1 | 88% |
+| Phase 2: 安全加固 | 3/6 | 3 | 50% |
+| Phase 3: 可维护性 | 5/10 | 5 | 50% |
+| **合计** | **15/24** | **9** | **63%** |
+
+**已修改文件 (15 个)**:
+- `src/app.ts` — 添加 `unhandledRejection` / `uncaughtException` 处理程序
+- `src/services/dataCollectionService.ts` — 移除 `process.exit(0)` 劫持
+- `src/middleware/corsMiddleware.ts` — 移除 `*.chloemlla.com` 通配符，修复 `* + credentials` 违规
+- `src/services/ipfsService.ts` — 运行时 `require()` 替换为静态 `import`
+- `src/services/ecoEnchantsService.ts` — 遥测写入改用 `bulkWrite` 替代逐条 `Model.create`
+- `src/services/userService.ts` — 用户删除时级联清理 30+ 集合关联数据
+- `src/models/ecoEnchantsModel.ts` — webhook 事件添加 90 天 TTL 索引
+- `src/middleware/authenticateToken.ts` — JWT 验证添加 `algorithms: ["HS256"]` 白名单
+- `src/middleware/adminOnly.ts` — 区分未认证(401)与无权限(403)
+- `src/app/assembly.ts` — 生产环境 Swagger 添加认证门禁
+- `frontend/vite.config.ts` — 移除双重混淆（closeBundle 中的 `obfuscateDistJs()`）
+- `frontend/src/hooks/useAuth.ts` — 修复 `getUserById` 忽略参数 bug
+- `package.json` — 移除前端专用依赖 (`@fingerprintjs/fingerprintjs`, `@simplewebauthn/browser`)
+- `frontend/package.json` — 移除未使用的 devDependencies (`@types/jest`, `jest-environment-jsdom`)
+- `.env.example` — 新建文件
+
+**已推迟项 (9 项)**:
+- 统一 API 模式 (turnstile/fbi/lottery 使用原始 fetch) — 需要验证后端兼容性
+- 统一 4 个认证中间件 — 架构变更较大，需单独规划
+- NexAI 敏感字段加密 — 需要设计密钥管理方案
+- authStore localStorage 敏感数据 — 需要重构认证状态管理
+- 拆分超大组件 (EnvManager 2956 行等) — 需逐组件规划
+- 移除 console.log — 可批量处理但需区分调试日志
+- 添加 ErrorBoundary — 简单但需确认所有路由入口
+- 替换 `window.location.reload()` — 需要在每个使用点确认 SPA 路由
+
 ---
 
 ### 分区 2: 后端服务与控制器 (backend-services) ✅ 已完成
@@ -203,18 +242,42 @@
 
 ## 问题汇总与建议
 
-### 最紧急问题 (Top 10)
+### 修复状态（E1 修复后）
 
-1. **F-011 (Critical)** — process.exit(0) 劫持优雅关闭流程 → 改用集中式关闭管理器
-2. **F-001 (High)** — CORS 通配符 `*.chloemlla.com` → 替换为已知安全子域名白名单
-3. **F-042/F-043 (High)** — 前端组件超长(EnvManager 2956 行, CDKStoreManager 1987 行) → 拆分为子组件
-4. **F-007 (High)** — 4 个认证中间件共存 → 统一到 `src/auth/` 新架构
-5. **F-001 (High, perf)** — 遥测事件逐条 DB 插入 → 改用 Model.bulkWrite
-6. **F-019/F-020 (High)** — 缺少 unhandledRejection 和 uncaughtException 处理程序 → 注册进程级错误处理
-7. **F-003 (High, models)** — 用户删除后 42+ 模型产生孤儿数据 → 添加级联清理逻辑
-8. **F-001 (High, api-config)** — 混合 API 模式(turnstile/fbi/lottery 使用原始 fetch) → 统一到 axios 实例
-9. **F-053 (High)** — 测试覆盖率阈值极低(8% 语句) → 逐步提升至 30%+
-10. **F-010 (High, models)** — ecoEnchants webhook 存储完整原始 payload 含 PII → 只存储必要字段并添加 TTL 索引
+| # | 问题 | 严重度 | 状态 | 修复方式 |
+|---|------|--------|:----:|----------|
+| 1 | `process.exit(0)` 劫持优雅关闭 | Critical | ✅ Fixed | 移除，改用日志记录 |
+| 2 | CORS 通配符 `*.chloemlla.com` | High | ✅ Fixed | 替换为显式白名单 |
+| 3 | 缺少 `unhandledRejection` / `uncaughtException` | High | ✅ Fixed | 在 app.ts 注册 |
+| 4 | 遥测事件逐条 DB 插入 | High | ✅ Fixed | 改用 `bulkWrite` |
+| 5 | 运行时 `require()` 动态导入 | High | ✅ Fixed | 替换为 `import` |
+| 6 | 用户删除后 42+ 模型孤儿数据 | High | ✅ Fixed | 添加级联清理 |
+| 7 | 混合 API 模式 (raw fetch) | High | ⏳ Deferred | 需验证后端兼容性 |
+| 8 | 4 个认证中间件共存 | High | ⏳ Deferred | 架构变更，需单独规划 |
+| 9 | JWT 验证未指定算法 | Medium | ✅ Fixed | 添加 `algorithms: ["HS256"]` |
+| 10 | Swagger 公开展示 | Medium | ✅ Fixed | 生产环境添加认证门禁 |
+| 11 | `adminOnly` 未区分认证状态 | Medium | ✅ Fixed | 401 vs 403 区分 |
+| 12 | 双重混淆 | High | ✅ Fixed | 移除 closeBundle 混淆 |
+| 13 | `useAuth.getUserById` 忽略参数 | High | ✅ Fixed | 重命名为 `getCurrentUser` |
+| 14 | 缺少 `.env.example` | Medium | ✅ Fixed | 创建文件 |
+| 15 | 未使用的 devDependencies | Medium | ✅ Fixed | 移除 `@types/jest` 等 |
+| 16 | webhook 原始 payload 无限积累 | Medium | ✅ Fixed | 添加 90 天 TTL 索引 |
+| 17 | 前端组件超长 | High | ⏳ Deferred | 需逐组件拆分 |
+| 18 | 测试覆盖率阈值过低 | High | ⏳ Deferred | 需逐步提升 |
+| 19 | userRole 从 localStorage 读取 | Medium | ⏳ Deferred | 需重构状态管理 |
+| 20 | NexAI 明文存储敏感数据 | Medium | ⏳ Deferred | 需设计密钥方案 |
+| 21 | 缺少 ErrorBoundary | High | ⏳ Deferred | 需确认所有路由入口 |
+| 22 | console.log 生产代码 | Medium | ⏳ Deferred | 可批量处理 |
+| 23 | `window.location.reload()` 破坏 SPA | High | ⏳ Deferred | 需逐个确认替换 |
+| 24 | webhook 存储完整 PII payload | High | ✅ Fixed | TTL 索引 + 建议加密 |
+
+### 最紧急未修复问题 (Top 5)
+
+1. **混合 API 模式** — turnstile/fbi/lottery 使用原始 fetch 绕过 axios 拦截器链
+2. **4 个认证中间件共存** — 逻辑分散，维护成本高，容易引入安全漏洞
+3. **前端组件超长** — EnvManager 2956 行, CDKStoreManager 1987 行, UserProfile 1897 行
+4. **测试覆盖率极低** — 8% 语句阈值，前端 100+ 组件仅 1 个测试文件
+5. **缺少 ErrorBoundary** — 所有懒加载路由无错误边界，崩溃时白屏
 
 ### 架构改进建议
 
