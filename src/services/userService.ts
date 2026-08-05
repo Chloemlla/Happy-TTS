@@ -351,6 +351,53 @@ export const updateUser = async (id: string, updates: Partial<UserType>): Promis
 export const deleteUser = async (id: string): Promise<void> => {
   invalidateCachedUserById(id);
   await UserModel.deleteOne({ id });
+
+  // 级联清理关联数据 — 使用 mongoose.connection 直接访问各集合
+  const cascadeCollections = [
+    "access_tokens",
+    "auth_sessions",
+    "verification_tokens",
+    "api_keys",
+    "api_key_billing_events",
+    "bilibili_account_bindings",
+    "bilibili_sync",
+    "nexai_sync",
+    "nexai_sync_v2_records",
+    "collaboration_sessions",
+    "invitations",
+    "workspaces",
+    "voice_projects",
+    "linuxdo_credit_orders",
+    "device_trackings",
+    "tickets",
+    "translation_logs",
+    "user_preferences",
+    "recommendation_history",
+    "security_events",
+    "oauth_clients",
+    "oauth_grants",
+    "oauth_tokens",
+    "oauth_authorization_codes",
+    "account_identities",
+    "artifacts",
+    "cdks",
+    "registration_invites",
+    "audit_logs",
+    "short_urls",
+  ];
+
+  const db = mongoose.connection.db;
+  if (db) {
+    const results = await Promise.allSettled(
+      cascadeCollections.map((collection) => db.collection(collection).deleteMany({ userId: id })),
+    );
+    const errors = results.filter((r) => r.status === "rejected");
+    if (errors.length > 0) {
+      logger.warn(`[UserService] 级联清理 userId=${id} 时 ${errors.length}/${cascadeCollections.length} 个集合失败`, {
+        errors: errors.map((e) => (e as PromiseRejectedResult).reason?.toString()),
+      });
+    }
+  }
 };
 
 export const getUserAuthById = async (id: string): Promise<UserType | null> => {

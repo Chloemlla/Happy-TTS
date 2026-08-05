@@ -598,6 +598,7 @@ addIndex(ReleaseBuildSchema, { productId: 1, channel: 1, releasedAt: -1 });
 addIndex(IdempotencyRecordSchema, { scope: 1, key: 1 }, { unique: true });
 addIndex(IdempotencyRecordSchema, { createdAt: 1 }, { expireAfterSeconds: 24 * 60 * 60 });
 addIndex(WebhookEventSchema, { provider: 1, eventId: 1 }, { unique: true });
+addIndex(WebhookEventSchema, { receivedAt: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 }); // 90 天 TTL，防止原始 payload 无限累积
 addIndex(TelemetryEventSchema, { productId: 1, installationIdHash: 1, eventId: 1 }, { unique: true });
 addIndex(TelemetryEventSchema, { activationId: 1, timestamp: -1 });
 addIndex(TelemetryEventSchema, { category: 1, timestamp: -1 });

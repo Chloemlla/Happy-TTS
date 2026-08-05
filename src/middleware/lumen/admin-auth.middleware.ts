@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import { lumenConfig } from "../../config/lumen.js";
-import { AdminSessionModel } from "../../models/lumen/index.js";
+import { AdminSession } from "../../models/lumen/index.js";
 
 /**
  * Admin authentication middleware.
@@ -58,7 +58,7 @@ export function requireAdmin(): (req: Request, res: Response, next: NextFunction
       }
 
       // 2. Try admin session document
-      const session = await AdminSessionModel.findById(token).exec();
+      const session = await AdminSession.findById(token).exec();
 
       if (!session) {
         res.status(401).json({ error: "Unauthorized", reasonCode: "admin_session_not_found" });
@@ -66,13 +66,13 @@ export function requireAdmin(): (req: Request, res: Response, next: NextFunction
       }
 
       if (session.expiresAt && session.expiresAt <= new Date()) {
-        await AdminSessionModel.deleteOne({ _id: token }).exec();
+        await AdminSession.deleteOne({ _id: token }).exec();
         res.status(401).json({ error: "Unauthorized", reasonCode: "admin_session_expired" });
         return;
       }
 
       // Bump lastUsedAt
-      AdminSessionModel.updateOne({ _id: token }, { $set: { lastUsedAt: new Date() } }).exec().catch(() => {
+      AdminSession.updateOne({ _id: token }, { $set: { lastUsedAt: new Date() } }).exec().catch(() => {
         /* non-critical */
       });
 

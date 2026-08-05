@@ -8,6 +8,8 @@ import { sanitizeSvgContent, validateSvgContent } from "../utils/svgSecurity";
 import { shortUrlMigrationService } from "./shortUrlMigrationService";
 import { ShortUrlService } from "./shortUrlService";
 import { TurnstileService } from "./turnstileService";
+import FormData from "form-data";
+import axios from "axios";
 
 // IPFS服务设置（支持从 MongoDB 读取配置，优先于环境变量�?
 interface IPFSSettingDoc {
@@ -477,7 +479,7 @@ export class IPFSService {
     const storageDestination = options?.storageDestination || (await getImageBedDefaultStorage()) || undefined;
     const outputFormat = options?.outputFormat || (await getImageBedDefaultOutputFormat()) || undefined;
 
-    const formData = new (require("form-data"))();
+    const formData = new FormData();
     // 注意：ImageBed API 字段名为 image
     formData.append("image", fileBuffer, { filename, contentType: mimetype });
     if (outputFormat) formData.append("outputFormat", outputFormat);
@@ -513,7 +515,7 @@ export class IPFSService {
 
     let response: any;
     try {
-      response = await require("axios").post(apiUrl, formData, {
+      response = await axios.post(apiUrl, formData, {
         headers: { ...formData.getHeaders() },
         timeout: 60000,
         maxContentLength: Infinity,
@@ -612,7 +614,7 @@ export class IPFSService {
     logger.info(`[IPFS] 使用备用方案上传: ${normalizedFilename}`);
 
     try {
-      const formData = new (require("form-data"))();
+      const formData = new FormData();
       formData.append("file", fileBuffer, {
         filename: normalizedFilename,
         contentType: mimetype,
@@ -692,7 +694,7 @@ export class IPFSService {
           ipfsUrlObj.hostname === "ipfs-relay.crossbell.io" || ipfsUrlObj.hostname.endsWith(".ipfs-relay.crossbell.io");
 
         // 创建FormData
-        const formData = new (require("form-data"))();
+        const formData = new FormData();
 
         // �?ipfs-relay.crossbell.io 使用特殊的格�?
         if (isCrossbellRelay) {

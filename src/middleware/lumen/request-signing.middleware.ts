@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import { lumenConfig } from "../../config/lumen.js";
-import { ApiNonceModel } from "../../models/lumen/index.js";
+import { ApiNonce } from "../../models/lumen/index.js";
 
 /**
  * Request-signing middleware for Project Lumen.
@@ -132,29 +132,29 @@ export function verifyRequestSignature(): (req: Request, res: Response, next: Ne
       const tsMs = tsNum < 1e12 ? tsNum * 1000 : tsNum;
       const drift = Math.abs(Date.now() - tsMs);
       if (drift > skewSeconds * 1000) {
-        res.status(401).json({
-          error: "Unauthorized",
-          reasonCode: "request_expired",
-          message: `Timestamp is outside the allowed skew window of ${skewSeconds}s`,
+        res.status(403).json({
+          error: "Forbidden",
+          reasonCode: "REQUEST_SIGNATURE_TIMESTAMP_OUT_OF_WINDOW",
+          message: `Request signing timestamp is outside the accepted clock-skew window of ${skewSeconds}s`,
         });
         return;
       }
 
       // --- Nonce reuse check ---
       if (nonce.length < MIN_NONCE_LENGTH) {
-        res.status(401).json({
-          error: "Unauthorized",
-          reasonCode: "invalid_nonce",
+        res.status(403).json({
+          error: "Forbidden",
+          reasonCode: "REQUEST_SIGNATURE_NONCE_INVALID",
           message: `Nonce must be at least ${MIN_NONCE_LENGTH} characters`,
         });
         return;
       }
 
-      const existingNonce = await ApiNonceModel.findById(nonce).exec();
+      const existingNonce = await ApiNonce.findById(nonce).exec();
       if (existingNonce) {
-        res.status(401).json({
-          error: "Unauthorized",
-          reasonCode: "nonce_reused",
+        res.status(403).json({
+          error: "Forbidden",
+          reasonCode: "REQUEST_SIGNATURE_NONCE_REUSED",
           message: "Nonce has already been used",
         });
         return;
@@ -173,23 +173,25 @@ export function verifyRequestSignature(): (req: Request, res: Response, next: Ne
       const expectedSignature = hmacSha256Hex(lumenConfig.requestSigningSecret, canonical);
 
       if (!constantTimeEqual(expectedSignature, signature)) {
-        res.status(401).json({
-          error: "Unauthorized",
-          reasonCode: "invalid_signature",
-          message: "Request signature does not match",
+        res.status(403).json({
+          error: "Forbidden",
+          reasonCode: "REQUEST_SIGNATURE_INVALID",
+          message: "Request signature did not match the backend signing secret and canonical payload.",
         });
         return;
       }
 
       // --- Store nonce with TTL to prevent replay ---
       const ttlSeconds = Math.max(skewSeconds, 3600); // At least 1 hour
-      await ApiNonceModel.create({
-        _id: nonce,
-        createdAt: new Date(),
-        expiresAt: new Date(Date.now() + ttlSeconds * 1000),
-      }).catch(() => {
+      try {
+        await ApiNonce.create({
+          _id: nonce,
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + ttlSeconds * 1000),
+        });
+      } catch {
         /* non-critical: race with duplicate insert */
-      });
+      }
 
       next();
     } catch (error) {

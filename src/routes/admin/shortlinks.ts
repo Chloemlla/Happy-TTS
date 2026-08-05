@@ -5,6 +5,7 @@ import { authenticateToken } from "../../middleware/authenticateToken";
 import { replayProtection } from "../../middleware/replayProtection";
 import logger from "../../utils/logger";
 import { createUrlSafeRandomId } from "../../utils/randomId";
+import { getTokenFromRequest } from "../../utils/authCookie";
 
 const router = express.Router();
 
@@ -25,17 +26,11 @@ router.get("/shortlinks", authenticateToken, async (req, res) => {
 
     console.log("✅ [ShortLinkManager] 权限检查通过");
 
-    // 获取管理员token作为加密密钥
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith("Bearer ")) {
-      console.log("❌ [ShortLinkManager] Token格式错误：未携带Token或格式不正确");
-      return res.status(401).json({ error: "未携带Token，请先登录" });
-    }
-
-    const token = authHeader.substring(7); // 移除 'Bearer ' 前缀
+    // 获取管理员token作为加密密钥（优先从 Authorization header，其次从 cookie）
+    const token = getTokenFromRequest(req);
     if (!token) {
       console.log("❌ [ShortLinkManager] Token为空");
-      return res.status(401).json({ error: "Token为空" });
+      return res.status(401).json({ error: "未携带Token，请先登录" });
     }
 
     console.log("✅ [ShortLinkManager] Token获取成功，长度:", token.length);

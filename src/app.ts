@@ -14,6 +14,23 @@ import { startServer } from "./app/startup";
 import logger from "./utils/logger";
 import lumenRouter from "./routes/lumen/index.js";
 
+// 进程级错误处理 — 防止未处理异常/拒绝静默吞没
+process.on("unhandledRejection", (reason) => {
+  logger.error("[进程] 未处理的 Promise rejection", {
+    reason: reason instanceof Error ? reason.message : String(reason),
+    stack: reason instanceof Error ? reason.stack : undefined,
+  });
+});
+
+process.on("uncaughtException", (error) => {
+  logger.error("[进程] 未捕获的异常", {
+    error: error.message,
+    stack: error.stack,
+  });
+  // 未捕获异常后进程状态不可信，安全退出
+  process.exit(1);
+});
+
 const app = express();
 profilingService.start();
 

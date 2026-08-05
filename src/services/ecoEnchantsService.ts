@@ -1150,33 +1150,52 @@ export class EcoEnchantsService {
     let duplicateEvents = 0;
     const receivedAt = new Date();
 
-    for (const event of validEvents) {
+    // 批量写入 — 替代逐条 await Model.create()
+    if (validEvents.length > 0) {
+      const bulkOps = validEvents.map((event) => ({
+        insertOne: {
+          document: {
+            telemetryEventId: `tel_${uuidv4()}`,
+            productId,
+            licenseId: tokenPayload.licenseId,
+            activationId: tokenPayload.activationId,
+            installationIdHash,
+            eventId: event.eventId,
+            category: event.category,
+            timestamp: event.timestamp,
+            plugin,
+            server,
+            batch,
+            payload: event.payload,
+            requestId: context.requestId,
+            idempotencyKey,
+            receivedAt,
+            sensitiveRetentionUntil: getTelemetrySensitiveRetentionUntil(event.payload),
+          },
+        },
+      }));
+
       try {
-        await EcoEnchantsTelemetryEventModel.create({
-          telemetryEventId: `tel_${uuidv4()}`,
-          productId,
-          licenseId: tokenPayload.licenseId,
-          activationId: tokenPayload.activationId,
-          installationIdHash,
-          eventId: event.eventId,
-          category: event.category,
-          timestamp: event.timestamp,
-          plugin,
-          server,
-          batch,
-          payload: event.payload,
-          requestId: context.requestId,
-          idempotencyKey,
-          receivedAt,
-          sensitiveRetentionUntil: getTelemetrySensitiveRetentionUntil(event.payload),
-        });
-        acceptedEvents += 1;
-      } catch (error) {
-        if (isDuplicateKeyError(error)) {
-          duplicateEvents += 1;
-          continue;
+        const result = await EcoEnchantsTelemetryEventModel.bulkWrite(bulkOps, { ordered: false });
+        acceptedEvents = (result.insertedCount ?? 0) + (result.upsertedCount ?? 0);
+        // 通过 writeErrors 统计重复键冲突
+        if (result.result?.writeErrors) {
+          duplicateEvents = result.result.writeErrors.length;
         }
-        throw error;
+      } catch (error) {
+        // bulkWrite 在 ordered:false 时，部分失败不会抛异常（写错误在 result 中）
+        // 但网络错误/连接错误仍会抛出
+        if (error instanceof Error && "writeErrors" in error) {
+          const writeError = error as { writeErrors?: Array<unknown>; result?: { nInserted?: number } };
+          if (writeError.writeErrors) {
+            acceptedEvents = writeError.result?.nInserted ?? 0;
+            duplicateEvents = writeError.writeErrors.length;
+          } else {
+            throw error;
+          }
+        } else {
+          throw error;
+        }
       }
     }
 

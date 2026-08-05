@@ -1,10 +1,11 @@
 import type { NextFunction, Request, Response } from "express";
-import { EntitlementModel } from "../../models/lumen/index.js";
+import { Entitlement } from "../../models/lumen/index.js";
 
 /**
  * Tier hierarchy (higher index = higher tier).
+ * FREE=0, PRO=1, PLUS=2, TEAM=3
  */
-const TIER_ORDER = ["FREE", "PLUS", "PRO"] as const;
+const TIER_ORDER = ["FREE", "PRO", "PLUS", "TEAM"] as const;
 type Tier = (typeof TIER_ORDER)[number];
 
 function tierIndex(tier: string): number {
@@ -16,14 +17,9 @@ function tierIndex(tier: string): number {
  * Resolve the highest active entitlement tier for a user.
  */
 async function resolveHighestTier(userId: string): Promise<Tier | null> {
-  const entitlements = await EntitlementModel.find({
+  const entitlements = await Entitlement.find({
     userId,
-    active: true,
-    $or: [
-      { expiresAt: { $exists: false } },
-      { expiresAt: null },
-      { expiresAt: { $gt: new Date() } },
-    ],
+    status: "active",
   })
     .sort({ expiresAt: -1 })
     .lean()
@@ -68,7 +64,7 @@ export function requirePlusEntitlement(): (req: Request, res: Response, next: Ne
         res.status(403).json({
           error: "Forbidden",
           reasonCode: "commercial_plus_required",
-          message: "A commercial PLUS subscription (or higher) is required",
+          message: "Project Lumen Commercial Edition Plus entitlement is required for cloud sync and backup.",
         });
         return;
       }

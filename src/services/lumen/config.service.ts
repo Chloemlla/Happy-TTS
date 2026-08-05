@@ -1,53 +1,191 @@
 import { AdminTemplate, AdminSecurityAllowlist, DeviceControlPolicy } from "../../models/lumen/index.js";
 
-// ── Static feature flags ────────────────────────────────────────────────
-const STATIC_FEATURE_FLAGS = [
-  { key: "sync", enabled: true, description: "Cloud sync of app data" },
-  { key: "backups", enabled: true, description: "Cloud backup and restore" },
-  { key: "telemetry", enabled: true, description: "Usage telemetry collection" },
-  { key: "face_analysis", enabled: true, description: "Face analysis and distance estimation" },
-  { key: "silent_vision", enabled: false, description: "Silent vision mode (behind entitlement)" },
-  { key: "lifecycle_management", enabled: true, description: "Process lifecycle management" },
-  { key: "device_security", enabled: true, description: "Device security evidence attestation" },
-  { key: "release_updates", enabled: true, description: "Over-the-air update checks" },
-  { key: "admin_dashboard", enabled: true, description: "Web admin dashboard" },
-];
+// ── Constants ─────────────────────────────────────────────────────────────
+const CONFIG_STATIC_CURSOR = 3;
+const DEFAULT_CHANNEL = "stable";
+
+// ── Feature flag payloads ─────────────────────────────────────────────────
+function featureFlagPayload(updatedAt: number) {
+  return [
+    {
+      key: "cloud_sync",
+      enabled: true,
+      payload: { scope: ["settings", "stats", "templates", "goals", "plans"] },
+      updatedAt,
+      version: CONFIG_STATIC_CURSOR,
+    },
+    {
+      key: "remote_entitlements",
+      enabled: true,
+      payload: { source: "server" },
+      updatedAt,
+      version: CONFIG_STATIC_CURSOR,
+    },
+    {
+      key: "telemetry_upload",
+      enabled: true,
+      payload: { requiresConsent: true, rateLimitPerMinute: 12 },
+      updatedAt,
+      version: CONFIG_STATIC_CURSOR,
+    },
+    {
+      key: "face_analysis_upload",
+      enabled: true,
+      payload: {
+        status: "active",
+        endpoint: "/v1/face-analysis/frames",
+        requiresExplicitConsent: true,
+      },
+      updatedAt,
+      version: CONFIG_STATIC_CURSOR,
+    },
+    {
+      key: "privileged_silent_vision",
+      enabled: false,
+      payload: {
+        status: "opt_in",
+        exclusiveAccess: false,
+        noSurfacePreview: false,
+        analyzerOnly: true,
+        requiresExplicitConsent: true,
+        endpoint: "/v1/device-control/vision",
+      },
+      updatedAt,
+      version: CONFIG_STATIC_CURSOR,
+    },
+    {
+      key: "enforced_lifecycle_lock",
+      enabled: false,
+      payload: {
+        status: "opt_in",
+        selfHealOnKill: false,
+        interceptUserStop: false,
+        antiUninstallIntent: false,
+        reportEvents: true,
+        endpoint: "/v1/device-control/lifecycle",
+      },
+      updatedAt,
+      version: CONFIG_STATIC_CURSOR,
+    },
+  ];
+}
+
+function remotePolicyPayload(updatedAt: number) {
+  return [
+    {
+      key: "release_manifest",
+      enabled: true,
+      payload: {
+        endpoint: "/v1/releases/check",
+        fullApkFallbackRequired: true,
+        patchesOptional: true,
+      },
+      updatedAt,
+      version: CONFIG_STATIC_CURSOR,
+    },
+    {
+      key: "config_sync",
+      enabled: true,
+      payload: {
+        endpoint: "/v1/config/sync",
+        collections: ["templates", "featureFlags", "policies"],
+      },
+      updatedAt,
+      version: CONFIG_STATIC_CURSOR,
+    },
+    {
+      key: "privileged_silent_vision",
+      enabled: false,
+      payload: {
+        exclusiveAccess: false,
+        noSurfacePreview: false,
+        analyzerOnly: true,
+        requiresExplicitConsent: true,
+        maxFps: 2,
+        maxSessionMinutes: 120,
+        frameUploadEnabled: false,
+        surfaceAnalysisUploadEnabled: false,
+        endpointPrefix: "/v1/device-control",
+      },
+      updatedAt,
+      version: CONFIG_STATIC_CURSOR,
+    },
+    {
+      key: "enforced_lifecycle_lock",
+      enabled: false,
+      payload: {
+        enforceKeepalive: false,
+        selfHealOnKill: false,
+        interceptUserStop: false,
+        antiUninstallIntent: false,
+        restartDelayMs: 0,
+        maxRestartBurst: 3,
+        reportEvents: true,
+        endpointPrefix: "/v1/device-control",
+      },
+      updatedAt,
+      version: CONFIG_STATIC_CURSOR,
+    },
+  ];
+}
 
 // ── Public API ──────────────────────────────────────────────────────────
 
 /**
- * Get the static list of feature flags.
+ * Get feature flags with detailed payloads.
  * Accepts an optional userId (ignored — flags are global).
  */
-export async function getFeatureFlags(_userId?: string): Promise<Array<{ key: string; enabled: boolean; description: string }>> {
-  return STATIC_FEATURE_FLAGS;
+export async function getFeatureFlags() {
+  return featureFlagPayload(CONFIG_STATIC_CURSOR);
 }
 
 /**
- * Get the full config sync payload.
- * Accepts an optional userId (ignored — config is global).
+ * Get the full config sync payload with cursor-based filtering
+ * and remote policies.
  */
 export async function getConfigSync(
   _userId?: string,
   options?: { cursor?: string; version?: string; channel?: string },
 ) {
-  const cursor = options?.cursor;
-  const version = options?.version;
-  const channel = options?.channel;
-  const [templates, policies, allowlist] = await Promise.all([
-    AdminTemplate.find().sort({ updatedAt: -1 }).lean().exec(),
-    DeviceControlPolicy.find({ scope: "global" }).lean().exec(),
-    AdminSecurityAllowlist.find().sort({ updatedAt: -1 }).lean().exec(),
-  ]);
+  const cursor = options?.cursor ? parseInt(options.cursor, 10) : 0;
+  const requestedCursor = Math.max(cursor, 0);
+  let nextCursor = requestedCursor;
 
-  const featureFlags = await getFeatureFlags();
+  // Flags and policies are only returned when cursor < CONFIG_STATIC_CURSOR.
+  const flags = requestedCursor < CONFIG_STATIC_CURSOR
+    ? featureFlagPayload(CONFIG_STATIC_CURSOR)
+    : [];
+  const policies = requestedCursor < CONFIG_STATIC_CURSOR
+    ? remotePolicyPayload(CONFIG_STATIC_CURSOR)
+    : [];
+
+  if (requestedCursor < CONFIG_STATIC_CURSOR) {
+    nextCursor = Math.max(nextCursor, CONFIG_STATIC_CURSOR);
+  }
+
+  const version = options?.version || "1";
+  const channel = options?.channel || DEFAULT_CHANNEL;
+
+  // Fetch templates filtered by updatedAt > cursor.
+  const templates = await AdminTemplate.find(
+    requestedCursor > 0 ? { updatedAt: { $gt: requestedCursor } } : {},
+  )
+    .sort({ updatedAt: -1 })
+    .lean()
+    .exec();
+
+  for (const t of templates) {
+    if (t.updatedAt > nextCursor) {
+      nextCursor = t.updatedAt;
+    }
+  }
 
   return {
-    schemaVersion: version || "1.0",
-    cursor: cursor || "0",
+    schemaVersion: Math.max(parseInt(version, 10) || 1, 1),
+    cursor: nextCursor,
     serverTime: new Date().toISOString(),
-    channel: channel || "stable",
-    featureFlags,
+    channel,
+    featureFlags: flags,
     templates: templates.map((t) => ({
       id: t._id,
       name: t.name,
@@ -55,14 +193,9 @@ export async function getConfigSync(
       countdownStyle: t.countdownStyle,
       color: t.color,
       locales: t.locales,
-      layout: t.layoutJson,
+      layoutJson: t.layoutJson,
       updatedAt: t.updatedAt,
     })),
-    policies: policies.map((p) => ({
-      scope: p.scope,
-      silentVision: p.silentVision,
-      lifecycleLock: p.lifecycleLock,
-      updatedAt: p.updatedAt,
-    })),
+    policies,
   };
 }

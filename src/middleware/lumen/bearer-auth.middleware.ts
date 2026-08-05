@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { SessionModel } from "../../models/lumen/index.js";
+import { Session } from "../../models/lumen/index.js";
 
 /**
  * Middleware that extracts a Bearer token from the Authorization header,

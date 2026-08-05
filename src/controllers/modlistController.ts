@@ -9,6 +9,7 @@ import {
   updateMod as updateModStorage,
 } from "../services/modlistStorage";
 import { mongoose } from "../services/mongoService";
+import { getTokenFromRequest } from "../utils/authCookie";
 
 // 使用 MongoDB 存储和读取修改码（MODIFY_CODE），不再读取环境变量
 const ModlistSettingSchema = new mongoose.Schema(
@@ -50,18 +51,11 @@ export const getModList = async (req: Request, res: Response) => {
     if (req.user && req.user.role === "admin") {
       console.log("✅ [ModList] 管理员用户，返回加密数据");
 
-      // 获取管理员token作为加密密钥
-      const authHeader = req.headers.authorization;
-      if (!authHeader?.startsWith("Bearer ")) {
-        console.log("❌ [ModList] Token格式错误：未携带Token或格式不正确");
-        res.status(401).json({ error: "未携带Token，请先登录" });
-        return;
-      }
-
-      const token = authHeader.substring(7); // 移除 'Bearer ' 前缀
+      // 获取管理员token作为加密密钥（优先从 Authorization header，其次从 cookie）
+      const token = getTokenFromRequest(req);
       if (!token) {
         console.log("❌ [ModList] Token为空");
-        res.status(401).json({ error: "Token为空" });
+        res.status(401).json({ error: "未携带Token，请先登录" });
         return;
       }
 

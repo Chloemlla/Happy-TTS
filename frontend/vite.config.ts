@@ -525,7 +525,6 @@ export default defineConfig(({ mode, command }) => {
       apply: "build",
       enforce: "post",
       closeBundle() {
-        obfuscateDistJs();
         escapeUnicodeInDistJs();
         generateSitemapXml();
         obfuscateEmailsInDist(base);

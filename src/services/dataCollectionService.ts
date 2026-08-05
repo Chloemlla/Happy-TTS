@@ -244,7 +244,8 @@ class DataCollectionService {
       // 输出最终统计
       logger.info("[DataCollection] Final performance stats:", this.getPerformanceStats());
 
-      process.exit(0);
+      // 优雅关闭完成，不调用 process.exit(0) — 由上层关闭管理器负责
+      logger.info("[DataCollection] Graceful shutdown complete");
     };
 
     process.on("SIGTERM", gracefulShutdown);

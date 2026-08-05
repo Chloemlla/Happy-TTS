@@ -11,6 +11,7 @@ import { IPFSService } from "../services/ipfsService";
 import { connectMongo, mongoose } from "../services/mongoService";
 import { isAdminOperationPasswordValid } from "../utils/adminOperationPassword";
 import { firstString } from "../utils/httpParam";
+import { getTokenFromRequest } from "../utils/authCookie";
 import logger from "../utils/logger";
 import { type User, UserStorage } from "../utils/userStorage";
 
@@ -335,9 +336,8 @@ router.get("/sharelog/all", logLimiter, authenticateToken, async (req, res) => {
       ...localLogs,
     ];
 
-    // 使用管理员token加密数据
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.split(" ")[1];
+    // 使用管理员token加密数据（优先从 Authorization header，其次从 cookie）
+    const token = getTokenFromRequest(req);
     if (!token) {
       logger.warn(`获取日志列表 | IP:${ip} | 结果:失败 | 原因:缺少认证令牌`);
       return res.status(401).json({ error: "缺少认证令牌" });

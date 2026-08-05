@@ -2,19 +2,27 @@ import { mongoose } from "../../services/mongoService";
 
 export interface ISilentVision {
   enabled: boolean;
-  requiresExplicitConsent: boolean;
   exclusiveAccess: boolean;
   noSurfacePreview: boolean;
   analyzerOnly: boolean;
+  requiresExplicitConsent: boolean;
+  maxFps: number;
+  maxSessionMinutes: number;
   frameUploadEnabled: boolean;
   surfaceAnalysisUploadEnabled: boolean;
-  maxSessionMinutes: number;
+  endpointPrefix: string;
 }
 
 export interface ILifecycleLock {
   enabled: boolean;
-  allowedProcesses: string[];
-  enforcementLevel: string;
+  enforceKeepalive: boolean;
+  selfHealOnKill: boolean;
+  interceptUserStop: boolean;
+  antiUninstallIntent: boolean;
+  restartDelayMs: number;
+  maxRestartBurst: number;
+  reportEvents: boolean;
+  endpointPrefix: string;
 }
 
 export interface IDeviceControlPolicy {
@@ -31,13 +39,15 @@ export interface IDeviceControlPolicy {
 const SilentVisionSchema = new mongoose.Schema<ISilentVision>(
   {
     enabled: { type: Boolean },
-    requiresExplicitConsent: { type: Boolean },
     exclusiveAccess: { type: Boolean },
     noSurfacePreview: { type: Boolean },
     analyzerOnly: { type: Boolean },
+    requiresExplicitConsent: { type: Boolean },
+    maxFps: { type: Number },
+    maxSessionMinutes: { type: Number },
     frameUploadEnabled: { type: Boolean },
     surfaceAnalysisUploadEnabled: { type: Boolean },
-    maxSessionMinutes: { type: Number },
+    endpointPrefix: { type: String },
   },
   { _id: false },
 );
@@ -45,8 +55,14 @@ const SilentVisionSchema = new mongoose.Schema<ISilentVision>(
 const LifecycleLockSchema = new mongoose.Schema<ILifecycleLock>(
   {
     enabled: { type: Boolean },
-    allowedProcesses: [{ type: String }],
-    enforcementLevel: { type: String },
+    enforceKeepalive: { type: Boolean },
+    selfHealOnKill: { type: Boolean },
+    interceptUserStop: { type: Boolean },
+    antiUninstallIntent: { type: Boolean },
+    restartDelayMs: { type: Number },
+    maxRestartBurst: { type: Number },
+    reportEvents: { type: Boolean },
+    endpointPrefix: { type: String },
   },
   { _id: false },
 );

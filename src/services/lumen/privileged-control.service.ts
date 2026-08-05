@@ -15,19 +15,27 @@ import logger from "../../utils/logger.js";
 
 const DEFAULT_SILENT_VISION: ISilentVision = {
   enabled: false,
-  requiresExplicitConsent: true,
   exclusiveAccess: false,
   noSurfacePreview: false,
   analyzerOnly: true,
+  requiresExplicitConsent: true,
+  maxFps: 2,
+  maxSessionMinutes: 120,
   frameUploadEnabled: false,
   surfaceAnalysisUploadEnabled: false,
-  maxSessionMinutes: 30,
+  endpointPrefix: "/v1/device-control",
 };
 
 const DEFAULT_LIFECYCLE_LOCK: ILifecycleLock = {
   enabled: false,
-  allowedProcesses: [],
-  enforcementLevel: "warn",
+  enforceKeepalive: false,
+  selfHealOnKill: false,
+  interceptUserStop: false,
+  antiUninstallIntent: false,
+  restartDelayMs: 0,
+  maxRestartBurst: 3,
+  reportEvents: true,
+  endpointPrefix: "/v1/device-control",
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────
@@ -446,10 +454,10 @@ export async function recordLifecycleEvent(
 
   // Check lifecycle lock policy.
   const policy = await getDeviceControlPolicy(userId, request.deviceInstallationId);
-  if (policy.lifecycleLock.enabled && policy.lifecycleLock.enforcementLevel === "strict") {
-    const allowed = policy.lifecycleLock.allowedProcesses;
-    if (allowed.length > 0 && request.processName && !allowed.includes(request.processName)) {
-      logger.warn("[Lumen PrivilegedControl] Lifecycle policy violation", {
+  if (policy.lifecycleLock.enabled && policy.lifecycleLock.reportEvents) {
+    // Log lifecycle events when reporting is enabled.
+    if (request.processName) {
+      logger.debug("[Lumen PrivilegedControl] Lifecycle event", {
         userId,
         processName: request.processName,
         eventType: request.eventType,

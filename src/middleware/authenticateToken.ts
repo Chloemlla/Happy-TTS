@@ -26,7 +26,7 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
 
     let userId: string;
     try {
-      const decoded = jwt.verify(token, config.jwtSecret) as JwtUserPayload;
+      const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] }) as JwtUserPayload;
       if (!decoded.userId) {
         return res.status(401).json({ error: "Token 无 userId" });
       }

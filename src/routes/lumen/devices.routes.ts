@@ -1,11 +1,17 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
+import { User } from "../../models/lumen/index.js";
 import { requireAuth } from "../../middleware/lumen/index.js";
 
 const router = Router();
 
 router.post("/register", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const user = (req as any).user;
+    const userId = req.lumenUserId;
+    if (!userId) {
+      res.status(401).json({ error: "Unauthorized", reasonCode: "auth_required" });
+      return;
+    }
+
     const {
       deviceInstallationId,
       deviceFingerprint,
@@ -17,38 +23,58 @@ router.post("/register", requireAuth, async (req: Request, res: Response, next: 
 
     // Validate required field
     if (!deviceInstallationId || typeof deviceInstallationId !== "string" || deviceInstallationId.trim().length === 0) {
-      res.status(400).json({ error: "deviceInstallationId is required and must be a non-empty string" });
+      res.status(400).json({ error: "Bad Request", reasonCode: "device_installation_id_required", message: "deviceInstallationId is required and must be a non-empty string" });
       return;
     }
 
-    // Normalize deviceInstallationId
     const normalizedDeviceId = deviceInstallationId.trim();
-
-    // Validate optional fields
     const normalizedFingerprint = deviceFingerprint && typeof deviceFingerprint === "string"
       ? deviceFingerprint.trim()
       : undefined;
-
     const normalizedModel = model && typeof model === "string"
       ? model.trim()
       : undefined;
-
     const normalizedVersionCode = versionCode && typeof versionCode === "number"
       ? versionCode
       : undefined;
 
-    // Update user with device registration info
-    // This is a placeholder — the actual service call would go here
-    const response = {
-      id: user.id,
+    // Build update document matching Rust UserRecord fields.
+    const update: Record<string, unknown> = {
       deviceInstallationId: normalizedDeviceId,
-      deviceFingerprint: normalizedFingerprint || null,
-      model: normalizedModel || null,
-      versionCode: normalizedVersionCode || null,
-      registeredAt: new Date().toISOString(),
+      updatedAt: Date.now(),
     };
 
-    res.json(response);
+    if (normalizedFingerprint) {
+      update.deviceFingerprint = normalizedFingerprint;
+    }
+    if (normalizedModel) {
+      update.deviceAssetModel = normalizedModel;
+    }
+    if (normalizedVersionCode) {
+      update.deviceAssetVersionCode = normalizedVersionCode;
+    }
+    if (localSecurityConfig && typeof localSecurityConfig === "string") {
+      update.deviceAssetSecurityConfig = localSecurityConfig.trim();
+    }
+    if (securityEvidence && typeof securityEvidence === "object") {
+      update.deviceSecurityEvidence = securityEvidence;
+    }
+
+    const user = await User.findByIdAndUpdate(userId, { $set: update }, { new: true }).lean().exec();
+
+    if (!user) {
+      res.status(404).json({ error: "Not Found", reasonCode: "user_not_found" });
+      return;
+    }
+
+    res.json({
+      id: user._id,
+      deviceInstallationId: user.deviceInstallationId,
+      deviceFingerprint: user.deviceFingerprint || null,
+      model: user.deviceAssetModel || null,
+      versionCode: user.deviceAssetVersionCode || null,
+      registeredAt: new Date().toISOString(),
+    });
   } catch (error) {
     next(error);
   }

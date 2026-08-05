@@ -1,11 +1,10 @@
 import cors from "cors";
 import type { NextFunction, Request, Response } from "express";
 
-// 允许的域名
+// 允许的域名（白名单，不使用通配符）
 const allowedOrigins = [
   "https://tts.chloemlla.com",
   "https://chloemlla.com",
-  "https://*.chloemlla.com",
   ...(process.env.NODE_ENV === "development" || process.env.NODE_ENV === "dev"
     ? [
         "http://192.168.10.7:3001",
@@ -72,11 +71,11 @@ function matchesOriginPattern(origin: string, pattern: string): boolean {
   return regex.test(origin);
 }
 
-/** 判断 origin 是否在白名单内（含 *.chloemlla.com 通配） */
+/** 判断 origin 是否在白名单内（仅允许已知安全域名） */
 export function isOriginAllowed(origin: string | undefined): boolean {
   if (!origin) return true; // 无 origin（curl/postman）放行
-  if (/^https:\/\/([a-zA-Z0-9-]+\.)*hapxs\.com$/.test(origin)) return true;
-  if (/^https:\/\/([a-zA-Z0-9-]+\.)*chloemlla\.com$/.test(origin)) return true;
+  if (/^https:\/\/tts\.chloemlla\.com$/.test(origin)) return true;
+  if (/^https:\/\/chloemlla\.com$/.test(origin)) return true;
   return allowedOrigins.some((allowedOrigin) => matchesOriginPattern(origin, allowedOrigin));
 }
 
@@ -117,19 +116,17 @@ export function corsHeadersMiddleware(req: Request, res: Response, next: NextFun
   next();
 }
 
-// ============ 路由级 CORS：完全开放（origin: *） ============
+// ============ 路由级 CORS：完全开放（origin: *，无凭据 — 遵循 CORS 规范） ============
 export function openCorsPreflightHandler(_req: Request, res: Response) {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", CORS_METHODS);
   res.header("Access-Control-Allow-Headers", CORS_ALLOWED_HEADERS.join(", "));
-  res.header("Access-Control-Allow-Credentials", "true");
   res.header("Access-Control-Max-Age", "86400");
   res.status(200).end();
 }
 
 export function openCorsHeadersMiddleware(_req: Request, res: Response, next: NextFunction) {
   res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Credentials", "true");
   res.header("Access-Control-Expose-Headers", CORS_EXPOSED_HEADERS.join(", "));
   next();
 }
