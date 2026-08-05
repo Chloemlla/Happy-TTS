@@ -16,7 +16,26 @@ import {
   FaList,
   FaSearch,
   FaSyncAlt,
+  FaUsers,
+  FaUserShield,
+  FaStar,
+  FaBan,
+  FaChartLine,
+  FaFingerprint,
+  FaLanguage,
+  FaLock,
+  FaEye,
 } from 'react-icons/fa';
+
+import {
+  InfoPanel,
+  InfoSectionTitle,
+  InfoMetricCard,
+  logShareInputClass,
+  logSharePrimaryButtonClass,
+  logShareSecondaryButtonClass,
+  logShareDangerButtonClass,
+} from './LogShareStyleScaffold';
 
 import {
   ACCOUNT_STATUS_FILTER_OPTIONS,
@@ -58,8 +77,6 @@ import {
   type RevealPasswordMethod,
   type RevealPasswordState as ModalRevealPasswordState,
 } from './user-management/RevealPasswordModal';
-
-
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
   if (typeof error === 'object' && error !== null) {
@@ -124,10 +141,8 @@ interface User {
   latestFingerprint?: FingerprintRecord | null;
   lastLoginIp?: string;
   lastLoginAt?: string;
-  // 工单违规处罚相关
   ticketViolationCount?: number;
   ticketBannedUntil?: string;
-  // 翻译权限与账户状态
   isTranslationEnabled?: boolean;
   translationAccessUntil?: string;
   accountStatus?: 'active' | 'suspended';
@@ -197,6 +212,15 @@ const emptyRevealPasswordState: RevealPasswordState = {
 const ROW_INITIAL = { opacity: 0, x: -20 } as const;
 const ROW_ANIMATE = { opacity: 1, x: 0 } as const;
 
+const cardClass =
+  'rounded-[26px] border border-white/70 bg-white/82 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl';
+
+const glassInputClass =
+  'w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300';
+
+const glassSelectClass =
+  'w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm text-slate-900 transition focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300';
+
 const UserManagement: React.FC = () => {
   const { user } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
@@ -221,11 +245,11 @@ const UserManagement: React.FC = () => {
   const navigate = useNavigate();
   const { setNotification } = useNotification();
   const prefersReducedMotion = useReducedMotion();
-  const hoverScale = React.useCallback((scale: number, enabled: boolean = true) => (
-    enabled && !prefersReducedMotion ? { scale } : undefined
+  const hoverScale = React.useCallback((_scale?: number, enabled: boolean = true) => (
+    enabled && !prefersReducedMotion ? { scale: 1.01 } : undefined
   ), [prefersReducedMotion]);
-  const tapScale = React.useCallback((scale: number, enabled: boolean = true) => (
-    enabled && !prefersReducedMotion ? { scale } : undefined
+  const tapScale = React.useCallback((_scale?: number, enabled: boolean = true) => (
+    enabled && !prefersReducedMotion ? { scale: 0.97 } : undefined
   ), [prefersReducedMotion]);
   const selectedUserIdSet = useMemo(() => new Set(selectedUserIds), [selectedUserIds]);
   const currentPageUserIds = useMemo(() => users.map(item => item.id), [users]);
@@ -291,7 +315,6 @@ const UserManagement: React.FC = () => {
     });
   }, [currentPageUserIds]);
 
-  // 获取工单封禁剩余时间描述
   const getBanRemainingText = (bannedUntil?: string) => {
     if (!bannedUntil) return null;
     const banTime = new Date(bannedUntil);
@@ -300,7 +323,7 @@ const UserManagement: React.FC = () => {
 
     const diffMs = banTime.getTime() - now.getTime();
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    
+
     if (diffHours > 24 * 365) return '永久封禁';
     if (diffHours >= 1) return `剩余 ${diffHours} 小时`;
     const diffMins = Math.ceil(diffMs / (1000 * 60));
@@ -317,12 +340,12 @@ const UserManagement: React.FC = () => {
   const getTranslationStatus = (u: User) => {
     const limitedUntil = getFutureRemainingText(u.translationAccessUntil);
     if (u.isTranslationEnabled === false) {
-      return { label: '已停用', className: 'bg-gray-100 text-gray-600' };
+      return { label: '已停用', className: 'bg-slate-100 text-slate-600' };
     }
     if (limitedUntil) {
-      return { label: `限制至 ${limitedUntil}`, className: 'bg-orange-100 text-orange-700' };
+      return { label: `限制至 ${limitedUntil}`, className: 'bg-amber-50 text-amber-700' };
     }
-    return { label: '正常', className: 'bg-green-100 text-green-700' };
+    return { label: '正常', className: 'bg-emerald-50 text-emerald-700' };
   };
 
   const applyUserListPayload = useCallback((payload: User[] | UserListEnvelope, showTip: boolean) => {
@@ -352,7 +375,6 @@ const UserManagement: React.FC = () => {
     }
   }, [activeFilters.pageSize, setNotification]);
 
-  // 获取用户列表
   const fetchUsers = useCallback(async (showTip: boolean = false) => {
     setLoading(true);
     setError('');
@@ -383,7 +405,6 @@ const UserManagement: React.FC = () => {
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
-  // 表单变更 — 支持 checkbox 和 number
   const handleChange: UserFormChangeHandler = (e) => {
     const target = e.target as HTMLInputElement;
     const name = target.name as keyof User;
@@ -400,7 +421,6 @@ const UserManagement: React.FC = () => {
     }));
   }, []);
 
-  // 添加或编辑用户
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const username = String(form.username || '').trim();
@@ -429,7 +449,6 @@ const UserManagement: React.FC = () => {
     try {
       const method = editingUser ? 'put' : 'post';
       const url = editingUser ? `/api/admin/users/${editingUser.id}` : '/api/admin/users';
-      // 构建提交数据，过滤掉空字符串密码（编辑时）
       const submitData: Partial<User> & Record<string, unknown> = {
         ...form,
         username,
@@ -438,7 +457,6 @@ const UserManagement: React.FC = () => {
       if (editingUser && !submitData.password) {
         delete submitData.password;
       }
-      // 移除只读/不必要字段
       delete submitData.fingerprints;
       delete submitData.passkeyCredentials;
       await api.request({ url, method, data: submitData });
@@ -453,7 +471,6 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  // 删除用户
   const handleDelete = useCallback(async (id: string) => {
     if (!window.confirm('确定要删除该用户吗？')) return;
     setLoading(true);
@@ -643,13 +660,13 @@ const UserManagement: React.FC = () => {
   }, [revealPasswordState, revealPasswordWithToken, setNotification, user?.username]);
 
   const statCards = useMemo(() => [
-    { label: '总用户', value: stats.total, tone: 'bg-blue-50 text-blue-700 border-blue-100' },
-    { label: '管理员', value: stats.admins, tone: 'bg-red-50 text-red-700 border-red-100' },
-    { label: '信用者', value: stats.trusted, tone: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
-    { label: '封停账户', value: stats.suspended, tone: 'bg-gray-50 text-gray-700 border-gray-200' },
-    { label: '今日用量', value: stats.totalDailyUsage, tone: 'bg-cyan-50 text-cyan-700 border-cyan-100' },
-    { label: '需指纹', value: stats.fingerprintRequired, tone: 'bg-orange-50 text-orange-700 border-orange-100' },
-    { label: '翻译受限', value: stats.translationDisabled + stats.translationLimited, tone: 'bg-purple-50 text-purple-700 border-purple-100' },
+    { label: '总用户', value: stats.total, icon: FaUsers, tone: 'slate' as const },
+    { label: '管理员', value: stats.admins, icon: FaUserShield, tone: 'rose' as const },
+    { label: '信用者', value: stats.trusted, icon: FaStar, tone: 'emerald' as const },
+    { label: '封停账户', value: stats.suspended, icon: FaBan, tone: 'slate' as const },
+    { label: '今日用量', value: stats.totalDailyUsage, icon: FaChartLine, tone: 'slate' as const },
+    { label: '需指纹', value: stats.fingerprintRequired, icon: FaFingerprint, tone: 'amber' as const },
+    { label: '翻译受限', value: stats.translationDisabled + stats.translationLimited, icon: FaLanguage, tone: 'violet' as const },
   ], [stats]);
 
   const hasActiveFilters = useMemo(() => (
@@ -667,6 +684,8 @@ const UserManagement: React.FC = () => {
   const rangeStart = pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.pageSize + 1;
   const rangeEnd = Math.min(pagination.total, pagination.page * pagination.pageSize);
 
+  const glassCheckbox = 'w-4 h-4 rounded border-slate-300 text-slate-700 focus:ring-slate-400';
+
   if (!user || user.role !== 'admin') {
     return (
       <motion.div
@@ -675,798 +694,804 @@ const UserManagement: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <motion.div
-          className="bg-gradient-to-r from-red-50 to-pink-50 rounded-xl p-6 border border-red-100"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          <h2 className="text-2xl font-bold text-red-700 mb-3 flex items-center gap-2">
-            🔒
-            访问被拒绝
-          </h2>
-          <div className="text-gray-600 space-y-2">
-            <p>你不是管理员，禁止访问！请用管理员账号登录后再来。</p>
-            <div className="text-sm text-red-500 italic">
-              用户管理仅限管理员使用
+        <div className={cardClass}>
+          <div className="p-5 sm:p-7">
+            <h2 className="text-xl font-semibold text-slate-900 mb-3 flex items-center gap-2">
+              <FaLock className="text-rose-500" />
+              访问被拒绝
+            </h2>
+            <div className="text-slate-600 space-y-2">
+              <p>你不是管理员，禁止访问！请用管理员账号登录后再来。</p>
+              <div className="text-sm text-rose-500 italic">
+                用户管理仅限管理员使用
+              </div>
             </div>
           </div>
-        </motion.div>
+        </div>
       </motion.div>
     );
   }
 
   return (
-    <motion.div
-      className="space-y-6"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
-    >
-      {/* 标题和说明 */}
+    <section className="mx-auto max-w-6xl px-4 py-10 text-slate-900 sm:py-12">
       <motion.div
-        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100"
+        className="space-y-6"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
-          👥
-          用户管理
-        </h2>
-        <div className="text-gray-600 space-y-2">
-          <p>管理系统用户账户，支持查看与修改 user_datas 集合的所有字段。</p>
-          <div className="flex items-start gap-2 text-sm">
-            <div>
-              <p className="font-semibold text-blue-700">功能说明：</p>
-              <ul className="list-disc list-inside space-y-1 mt-1">
-                <li>按角色、账户状态、安全状态、工单状态和翻译权限筛选用户</li>
-                <li>添加 / 编辑 / 删除用户，支持分页排序和批量运营动作</li>
-                <li>直接修改 dailyUsage、requireFingerprint、翻译权限与账户状态等运营字段</li>
-                <li>管理用户指纹记录（查看 / 删除 / 清空）</li>
-                <li>列表轻量加载，完整指纹详情按需读取</li>
-              </ul>
-            </div>
+        {/* 标题和说明 */}
+        <InfoPanel>
+          <InfoSectionTitle
+            title="用户管理"
+            description="管理系统用户账户，支持查看与修改 user_datas 集合的所有字段。"
+            icon={FaUsers}
+            action={
+              <motion.button
+                onClick={openCreate}
+                className={logSharePrimaryButtonClass}
+                whileHover={hoverScale()}
+                whileTap={tapScale()}
+              >
+                <FaUserPlus className="text-sm" />
+                添加用户
+              </motion.button>
+            }
+          />
+          <div className="space-y-2 text-sm leading-6 text-slate-600">
+            <p className="font-semibold text-slate-700">功能说明：</p>
+            <ul className="list-disc list-inside space-y-1">
+              <li>按角色、账户状态、安全状态、工单状态和翻译权限筛选用户</li>
+              <li>添加 / 编辑 / 删除用户，支持分页排序和批量运营动作</li>
+              <li>直接修改 dailyUsage、requireFingerprint、翻译权限与账户状态等运营字段</li>
+              <li>管理用户指纹记录（查看 / 删除 / 清空）</li>
+              <li>列表轻量加载，完整指纹详情按需读取</li>
+            </ul>
           </div>
-        </div>
-      </motion.div>
+        </InfoPanel>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
-        {statCards.map(item => (
-          <div key={item.label} className={`rounded-lg border px-4 py-3 ${item.tone}`}>
-            <div className="text-xs font-semibold text-current/70">{item.label}</div>
-            <div className="mt-1 text-2xl font-bold">{item.value}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* 错误提示 */}
-      <AnimatePresence>
-        {error && (
-          <motion.div
-            className="bg-red-50 border border-red-200 rounded-xl p-4"
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.3 }}
-          >
-            <div className="flex items-center gap-2 text-red-700">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="font-medium">{error}</span>
-            </div>
-            {error.includes('认证失败') && (
-              <div className="mt-3">
-                <motion.button
-                  onClick={() => navigate('/welcome')}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
-                  whileHover={hoverScale(1.02)}
-                  whileTap={tapScale(0.95)}
-                >
-                  重新登录
-                </motion.button>
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* 用户列表 + 添加按钮 */}
-      <motion.div
-        className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <FaList className="text-lg text-blue-500" />
-            用户列表
-            <span className="text-sm font-normal text-gray-500">
-              {rangeStart}-{rangeEnd} / {pagination.total}
-            </span>
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            <motion.button
-              onClick={() => fetchUsers(true)}
-              className="px-3 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium flex items-center gap-2 border border-gray-200"
-              whileHover={hoverScale(1.02)}
-              whileTap={tapScale(0.95)}
-            >
-              <FaSyncAlt className="text-xs" />
-              刷新
-            </motion.button>
-            <motion.button
-              onClick={openCreate}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition font-medium flex items-center gap-2"
-              whileHover={hoverScale(1.02)}
-              whileTap={tapScale(0.95)}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              添加用户
-            </motion.button>
-          </div>
+        {/* 统计卡片 */}
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-3">
+          {statCards.map(item => (
+            <InfoMetricCard
+              key={item.label}
+              label={item.label}
+              value={item.value}
+              icon={item.icon}
+              tone={item.tone}
+            />
+          ))}
         </div>
 
-        <div className="mb-4 space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-            <div className="relative">
-              <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
-              <input
-                value={pendingFilters.keyword}
-                onChange={e => updatePendingFilter('keyword', e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') applyFilters();
-                }}
-                placeholder="搜索用户名、邮箱、ID、IP"
-                className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 text-sm bg-white"
-              />
-            </div>
-            <select
-              value={pendingFilters.role}
-              onChange={e => updatePendingFilter('role', e.target.value as UserListRoleFilter)}
-              className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              {ROLE_FILTER_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
-            <select
-              value={pendingFilters.accountStatus}
-              onChange={e => updatePendingFilter('accountStatus', e.target.value as UserListAccountStatusFilter)}
-              className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              {ACCOUNT_STATUS_FILTER_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
-            <select
-              value={pendingFilters.security}
-              onChange={e => updatePendingFilter('security', e.target.value as UserListSecurityFilter)}
-              className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              {SECURITY_FILTER_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
-            <select
-              value={pendingFilters.ticket}
-              onChange={e => updatePendingFilter('ticket', e.target.value as UserListTicketFilter)}
-              className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              {TICKET_FILTER_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
-            <select
-              value={pendingFilters.translation}
-              onChange={e => updatePendingFilter('translation', e.target.value as UserListTranslationFilter)}
-              className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              {TRANSLATION_FILTER_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
-            <div className="grid grid-cols-2 gap-2">
-              <select
-                value={pendingFilters.sortBy}
-                onChange={e => updatePendingFilter('sortBy', e.target.value)}
-                className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-              >
-                {SORT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
-              <select
-                value={pendingFilters.sortOrder}
-                onChange={e => updatePendingFilter('sortOrder', e.target.value as UserListSortOrder)}
-                className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-              >
-                <option value="desc">降序</option>
-                <option value="asc">升序</option>
-              </select>
-            </div>
-            <select
-              value={pendingFilters.pageSize}
-              onChange={e => updatePendingFilter('pageSize', Number(e.target.value))}
-              className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              {PAGE_SIZE_OPTIONS.map(size => <option key={size} value={size}>每页 {size} 条</option>)}
-            </select>
-          </div>
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="text-xs text-gray-500">
-              当前筛选 {filteredStats.total} 个用户，管理员 {filteredStats.admins} 个，信用者 {filteredStats.trusted} 个，封停 {filteredStats.suspended} 个
-              {hasActiveFilters ? '，已启用筛选' : ''}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <motion.button
-                type="button"
-                onClick={applyFilters}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition text-sm font-medium"
-                whileHover={hoverScale(1.02)}
-                whileTap={tapScale(0.95)}
-              >
-                应用筛选
-              </motion.button>
-              <motion.button
-                type="button"
-                onClick={resetFilters}
-                className="px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition text-sm font-medium border border-gray-200"
-                whileHover={hoverScale(1.02)}
-                whileTap={tapScale(0.95)}
-              >
-                重置
-              </motion.button>
-            </div>
-          </div>
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-t border-gray-200 pt-3">
-            <div className="text-sm text-gray-600">已选择 {selectedUserIds.length} 个用户</div>
-            <div className="flex flex-wrap gap-2">
-              <select
-                value={bulkAction}
-                onChange={e => setBulkAction(e.target.value as BulkUserAction | '')}
-                className="px-3 py-2 border border-gray-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 min-w-[180px]"
-              >
-                <option value="">选择批量操作</option>
-                {BULK_ACTION_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-              </select>
-              <motion.button
-                type="button"
-                onClick={handleBulkAction}
-                disabled={selectedUserIds.length === 0 || !bulkAction || loading}
-                className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition text-sm font-medium disabled:opacity-50"
-                whileHover={hoverScale(1.02, selectedUserIds.length > 0 && Boolean(bulkAction) && !loading)}
-                whileTap={tapScale(0.95, selectedUserIds.length > 0 && Boolean(bulkAction) && !loading)}
-              >
-                执行
-              </motion.button>
-            </div>
-          </div>
-        </div>
-
-        {/* 添加/编辑用户表单 */}
+        {/* 错误提示 */}
         <AnimatePresence>
-          {showForm && (
+          {error && (
             <motion.div
-              className="mb-6 bg-gray-50 p-4 rounded-lg border border-gray-200"
-              initial={{ opacity: 0, height: 0, scale: 0.95 }}
-              animate={{ opacity: 1, height: 'auto', scale: 1 }}
-              exit={{ opacity: 0, height: 0, scale: 0.95 }}
+              className={`${cardClass} p-4`}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.3 }}
             >
-              {editingUser ? (
-                <EditUserForm
-                  username={editingUser.username}
-                  form={form}
-                  loading={loading}
-                  onSubmit={handleSubmit}
-                  onCancel={closeForm}
-                  onFieldChange={handleChange}
-                  onBackupCodesChange={handleBackupCodesChange}
-                  collapsedSections={collapsedSections}
-                  onToggleSection={toggleSection}
-                  hoverScale={hoverScale}
-                  tapScale={tapScale}
-                />
-              ) : (
-                <CreateUserForm
-                  form={form}
-                  loading={loading}
-                  onSubmit={handleSubmit}
-                  onCancel={closeForm}
-                  onFieldChange={handleChange}
-                  onBackupCodesChange={handleBackupCodesChange}
-                  collapsedSections={collapsedSections}
-                  onToggleSection={toggleSection}
-                  hoverScale={hoverScale}
-                  tapScale={tapScale}
-                />
+              <div className="flex items-center gap-2 text-rose-700">
+                <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="font-medium">{error}</span>
+              </div>
+              {error.includes('认证失败') && (
+                <div className="mt-3">
+                  <motion.button
+                    onClick={() => navigate('/welcome')}
+                    className={logSharePrimaryButtonClass}
+                    whileHover={hoverScale()}
+                    whileTap={tapScale()}
+                  >
+                    重新登录
+                  </motion.button>
+                </div>
               )}
             </motion.div>
           )}
         </AnimatePresence>
 
         {/* 用户列表 */}
-        {loading ? (
-          <div className="text-center py-8 text-gray-500">
-            <svg className="animate-spin h-8 w-8 mx-auto mb-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            加载中...
+        <InfoPanel>
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between mb-4">
+            <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
+              <FaList className="text-lg text-slate-500" />
+              用户列表
+              <span className="text-sm font-normal text-slate-500">
+                {rangeStart}-{rangeEnd} / {pagination.total}
+              </span>
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              <motion.button
+                onClick={() => fetchUsers(true)}
+                className={logShareSecondaryButtonClass}
+                whileHover={hoverScale()}
+                whileTap={tapScale()}
+              >
+                <FaSyncAlt className="text-xs" />
+                刷新
+              </motion.button>
+              <motion.button
+                onClick={openCreate}
+                className={logSharePrimaryButtonClass}
+                whileHover={hoverScale()}
+                whileTap={tapScale()}
+              >
+                <FaUserPlus className="text-sm" />
+                添加用户
+              </motion.button>
+            </div>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border border-gray-200 rounded-lg overflow-hidden text-sm">
-              <thead>
-                <tr className="bg-gray-50 text-gray-700">
-                  <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
-                    <input
-                      type="checkbox"
-                      checked={allCurrentPageSelected}
-                      onChange={() => toggleCurrentPageSelection()}
-                      className="w-4 h-4 rounded"
-                      aria-label="选择当前页用户"
-                    />
-                  </th>
-                  {TABLE_COLUMNS.map(col => (
-                    <th key={col.key} className="px-4 py-3 text-left font-semibold whitespace-nowrap">{col.label}</th>
-                  ))}
-                  <th className="px-4 py-3 text-left font-semibold">指纹</th>
-                  <th className="px-4 py-3 text-left font-semibold">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((u, idx) => (
-                  <motion.tr
-                    key={u.id}
-                    className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
-                    initial={ROW_INITIAL}
-                    animate={ROW_ANIMATE}
-                    transition={{ duration: 0.3, delay: 0.05 * idx }}
-                    whileHover={{ backgroundColor: '#f0f9ff' }}
-                  >
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedUserIdSet.has(u.id)}
-                        onChange={() => toggleUserSelection(u.id)}
-                        className="w-4 h-4 rounded"
-                        aria-label={`选择用户 ${u.username}`}
-                      />
-                    </td>
-                    <td className="px-4 py-3 font-medium">
-                      <div>{u.username}</div>
-                      <div className="text-[11px] text-gray-400 font-normal">ID {u.id}</div>
-                      {u.authProvider && u.authProvider !== 'local' && (
-                        <div className="text-[11px] text-indigo-500 font-normal">{u.authProvider}</div>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">
-                      <div>{u.email}</div>
-                      {u.lastLoginIp && <div className="text-[11px] text-gray-400">IP {u.lastLoginIp}</div>}
-                    </td>
-                    <td className="px-4 py-3">
-                      {u.role === 'admin' ? (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">管理员</span>
-                      ) : u.role === 'trusted' ? (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">信用者</span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">普通用户</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      {u.accountStatus === 'suspended' ? (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-700">封停</span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">正常</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 text-xs">{u.createdAt ? new Date(u.createdAt).toLocaleString() : '-'}</td>
-                    <td className="px-4 py-3 text-gray-600">{u.dailyUsage ?? 0}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col gap-1">
-                        {u.totpEnabled
-                          ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">TOTP</span>
-                          : null}
-                        {u.passkeyEnabled
-                          ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">Passkey</span>
-                          : null}
-                        {u.requireFingerprint
-                          ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">需指纹</span>
-                          : null}
-                        {!u.totpEnabled && !u.passkeyEnabled && !u.requireFingerprint && (
-                          <span className="text-gray-400 text-xs">-</span>
-                        )}
-                      </div>
-                    </td>
-                    {/* 工单状态列 */}
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col gap-1">
-                        {u.ticketViolationCount && u.ticketViolationCount > 0 ? (
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${u.ticketViolationCount >= 3 ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
-                            违规: {u.ticketViolationCount} 次
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">
-                            正常
-                          </span>
-                        )}
-                        {getBanRemainingText(u.ticketBannedUntil) && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-medium bg-red-50 text-red-600 border border-red-100 italic">
-                            🚫 {getBanRemainingText(u.ticketBannedUntil)}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {(() => {
-                        const translationStatus = getTranslationStatus(u);
-                        return (
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${translationStatus.className}`}>
-                            {translationStatus.label}
-                          </span>
-                        );
-                      })()}
-                    </td>
-                    {/* 指纹列 */}
-                    <td className="px-4 py-3 text-gray-600 text-xs">
-                      {(() => {
-                        const latestFingerprint = getLatestFingerprint(u.fingerprints) || u.latestFingerprint || null;
-                        const fingerprintCount = getUserFingerprintCount(u);
 
-                        if (fingerprintCount > 0) {
-                          return (
-                            <div className="space-y-1">
-                              {latestFingerprint ? (
-                                <>
-                                  <div>
-                                    最新: <span className="font-mono" title={latestFingerprint.id}>{latestFingerprint.id.slice(0, 12)}{latestFingerprint.id.length > 12 ? '…' : ''}</span>
-                                  </div>
-                                  <div className="text-[10px] text-gray-500">
-                                    {new Date(latestFingerprint.ts).toLocaleString()} · {fingerprintCount} 条
-                                  </div>
-                                </>
-                              ) : (
-                                <div className="text-[10px] text-gray-500">已有 {fingerprintCount} 条记录</div>
-                              )}
-                              <motion.button
-                                className="text-blue-600 hover:underline text-[11px]"
-                                onClick={() => openFp(u)}
-                                whileHover={hoverScale(1.02)}
-                                whileTap={tapScale(0.95)}
-                              >查看全部</motion.button>
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <div className="space-y-1">
-                            {fpRequireMap[u.id] ? (
-                              <>
-                                <div className="text-blue-600 text-[12px]">已在预约列表</div>
-                                <div className="text-[10px] text-gray-500">上次预约：{new Date(fpRequireMap[u.id]).toLocaleString()}</div>
-                                <motion.button
-                                  className="text-blue-600 hover:underline text-[11px]"
-                                  onClick={async () => {
-                                    try {
-                                      await api.post(`/api/admin/users/${u.id}/fingerprint/require`, { require: true });
-                                      setFpRequireMap(prev => ({ ...prev, [u.id]: Date.now() }));
-                                      setNotification({ type: 'success', message: '已再次请求该用户下次上报指纹' });
-                                    } catch (e: unknown) {
-                                      setNotification({ type: 'error', message: getErrorMessage(e, '请求失败') });
-                                    }
-                                  }}
-                                  whileHover={hoverScale(1.02)}
-                                  whileTap={tapScale(0.95)}
-                                >再次请求</motion.button>
-                              </>
-                            ) : (
-                              <>
-                                <span className="text-gray-400">暂无</span>
-                                <motion.button
-                                  className="text-blue-600 hover:underline text-[11px] block"
-                                  onClick={async () => {
-                                    try {
-                                      await api.post(`/api/admin/users/${u.id}/fingerprint/require`, { require: true });
-                                      setFpRequireMap(prev => ({ ...prev, [u.id]: Date.now() }));
-                                      setNotification({ type: 'success', message: '已请求该用户下次上报指纹' });
-                                    } catch (e: unknown) {
-                                      setNotification({ type: 'error', message: getErrorMessage(e, '请求失败') });
-                                    }
-                                  }}
-                                  whileHover={hoverScale(1.02)}
-                                  whileTap={tapScale(0.95)}
-                                >请求上报</motion.button>
-                              </>
-                            )}
-                          </div>
-                        );
-                      })()}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <motion.button
-                          className="px-3 py-1 bg-indigo-500 text-white rounded text-sm hover:bg-indigo-600 transition"
-                          onClick={() => openRevealPassword(u)}
-                          whileHover={hoverScale(1.02)}
-                          whileTap={tapScale(0.95)}
-                        >
-                          查看密码
-                        </motion.button>
-                        <motion.button
-                          className="px-3 py-1 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600 transition"
-                          onClick={() => openEdit(u)}
-                          whileHover={hoverScale(1.02)}
-                          whileTap={tapScale(0.95)}
-                        >
-                          编辑
-                        </motion.button>
-                        <motion.button
-                          className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition"
-                          onClick={() => handleDelete(u.id)}
-                          whileHover={hoverScale(1.02)}
-                          whileTap={tapScale(0.95)}
-                        >
-                          删除
-                        </motion.button>
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
-            {users.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
-                <svg className="w-12 h-12 mx-auto mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                </svg>
-                暂无用户数据
+          {/* 筛选栏 */}
+          <div className={`mb-4 space-y-3 ${cardClass} p-4`}>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+              <div className="relative">
+                <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
+                <input
+                  value={pendingFilters.keyword}
+                  onChange={e => updatePendingFilter('keyword', e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') applyFilters();
+                  }}
+                  placeholder="搜索用户名、邮箱、ID、IP"
+                  className={`${glassInputClass} pl-10`}
+                />
               </div>
-            )}
-            <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between text-sm text-gray-600">
-              <div>第 {pagination.page} / {pagination.totalPages} 页，当前显示 {rangeStart}-{rangeEnd} 条</div>
-              <div className="flex items-center gap-2">
+              <select
+                value={pendingFilters.role}
+                onChange={e => updatePendingFilter('role', e.target.value as UserListRoleFilter)}
+                className={glassSelectClass}
+              >
+                {ROLE_FILTER_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+              <select
+                value={pendingFilters.accountStatus}
+                onChange={e => updatePendingFilter('accountStatus', e.target.value as UserListAccountStatusFilter)}
+                className={glassSelectClass}
+              >
+                {ACCOUNT_STATUS_FILTER_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+              <select
+                value={pendingFilters.security}
+                onChange={e => updatePendingFilter('security', e.target.value as UserListSecurityFilter)}
+                className={glassSelectClass}
+              >
+                {SECURITY_FILTER_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+              <select
+                value={pendingFilters.ticket}
+                onChange={e => updatePendingFilter('ticket', e.target.value as UserListTicketFilter)}
+                className={glassSelectClass}
+              >
+                {TICKET_FILTER_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+              <select
+                value={pendingFilters.translation}
+                onChange={e => updatePendingFilter('translation', e.target.value as UserListTranslationFilter)}
+                className={glassSelectClass}
+              >
+                {TRANSLATION_FILTER_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={pendingFilters.sortBy}
+                  onChange={e => updatePendingFilter('sortBy', e.target.value)}
+                  className={glassSelectClass}
+                >
+                  {SORT_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+                <select
+                  value={pendingFilters.sortOrder}
+                  onChange={e => updatePendingFilter('sortOrder', e.target.value as UserListSortOrder)}
+                  className={glassSelectClass}
+                >
+                  <option value="desc">降序</option>
+                  <option value="asc">升序</option>
+                </select>
+              </div>
+              <select
+                value={pendingFilters.pageSize}
+                onChange={e => updatePendingFilter('pageSize', Number(e.target.value))}
+                className={glassSelectClass}
+              >
+                {PAGE_SIZE_OPTIONS.map(size => <option key={size} value={size}>每页 {size} 条</option>)}
+              </select>
+            </div>
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="text-xs text-slate-500">
+                当前筛选 {filteredStats.total} 个用户，管理员 {filteredStats.admins} 个，信用者 {filteredStats.trusted} 个，封停 {filteredStats.suspended} 个
+                {hasActiveFilters ? '，已启用筛选' : ''}
+              </div>
+              <div className="flex flex-wrap gap-2">
                 <motion.button
                   type="button"
-                  onClick={() => setPage(1)}
-                  disabled={pagination.page <= 1}
-                  className="px-3 py-1.5 rounded border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50"
-                  whileHover={hoverScale(1.02, pagination.page > 1)}
-                  whileTap={tapScale(0.95, pagination.page > 1)}
+                  onClick={applyFilters}
+                  className={logSharePrimaryButtonClass}
+                  whileHover={hoverScale()}
+                  whileTap={tapScale()}
                 >
-                  首页
+                  应用筛选
                 </motion.button>
                 <motion.button
                   type="button"
-                  onClick={() => setPage(pagination.page - 1)}
-                  disabled={pagination.page <= 1}
-                  className="px-3 py-1.5 rounded border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50"
-                  whileHover={hoverScale(1.02, pagination.page > 1)}
-                  whileTap={tapScale(0.95, pagination.page > 1)}
+                  onClick={resetFilters}
+                  className={logShareSecondaryButtonClass}
+                  whileHover={hoverScale()}
+                  whileTap={tapScale()}
                 >
-                  上一页
+                  重置
                 </motion.button>
+              </div>
+            </div>
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-t border-slate-200 pt-3">
+              <div className="text-sm text-slate-600">已选择 {selectedUserIds.length} 个用户</div>
+              <div className="flex flex-wrap gap-2">
+                <select
+                  value={bulkAction}
+                  onChange={e => setBulkAction(e.target.value as BulkUserAction | '')}
+                  className={glassSelectClass}
+                >
+                  <option value="">选择批量操作</option>
+                  {BULK_ACTION_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
                 <motion.button
                   type="button"
-                  onClick={() => setPage(pagination.page + 1)}
-                  disabled={pagination.page >= pagination.totalPages}
-                  className="px-3 py-1.5 rounded border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50"
-                  whileHover={hoverScale(1.02, pagination.page < pagination.totalPages)}
-                  whileTap={tapScale(0.95, pagination.page < pagination.totalPages)}
+                  onClick={handleBulkAction}
+                  disabled={selectedUserIds.length === 0 || !bulkAction || loading}
+                  className={logSharePrimaryButtonClass}
+                  whileHover={hoverScale(undefined, selectedUserIds.length > 0 && Boolean(bulkAction) && !loading)}
+                  whileTap={tapScale(undefined, selectedUserIds.length > 0 && Boolean(bulkAction) && !loading)}
                 >
-                  下一页
-                </motion.button>
-                <motion.button
-                  type="button"
-                  onClick={() => setPage(pagination.totalPages)}
-                  disabled={pagination.page >= pagination.totalPages}
-                  className="px-3 py-1.5 rounded border border-gray-200 bg-white hover:bg-gray-50 disabled:opacity-50"
-                  whileHover={hoverScale(1.02, pagination.page < pagination.totalPages)}
-                  whileTap={tapScale(0.95, pagination.page < pagination.totalPages)}
-                >
-                  尾页
+                  执行
                 </motion.button>
               </div>
             </div>
           </div>
-        )}
-      </motion.div>
 
-      {/* 指纹详情弹窗 */}
-      {ReactDOM.createPortal(
-        <AnimatePresence>
-          {revealPasswordState.open && revealPasswordState.targetUser && (
-            <RevealPasswordModal
-              state={revealPasswordState}
-              adminUsername={user?.username}
-              hoverScale={hoverScale}
-              tapScale={tapScale}
-              onClose={closeRevealPassword}
-              onChange={(patch: Partial<ModalRevealPasswordState>) => setRevealPasswordState(prev => ({ ...prev, ...patch }))}
-              onVerify={handleVerifyRevealPassword}
-            />
-          )}
-        </AnimatePresence>,
-        document.body
-      )}
-
-      {/* 指纹详情弹窗 */}
-      {ReactDOM.createPortal(
-        <AnimatePresence>
-          {showFpModal && fpUser && (
-            <motion.div
-              className="fixed inset-0 bg-black/40 flex items-center justify-center z-[9999] p-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
+          {/* 添加/编辑用户表单 */}
+          <AnimatePresence>
+            {showForm && (
               <motion.div
-                className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6"
-                initial={{ scale: 0.95, y: 20, opacity: 0 }}
-                animate={{ scale: 1, y: 0, opacity: 1 }}
-                exit={{ scale: 0.95, y: 20, opacity: 0 }}
+                className={`mb-6 ${cardClass} p-4`}
+                initial={{ opacity: 0, height: 0, scale: 0.95 }}
+                animate={{ opacity: 1, height: 'auto', scale: 1 }}
+                exit={{ opacity: 0, height: 0, scale: 0.95 }}
+                transition={{ duration: 0.3 }}
               >
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-800">指纹详情 - {fpUser.username}</h3>
-                  <div className="flex items-center gap-2">
-                    <motion.button
-                      className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-                      onClick={async () => {
-                        if (!fpUser) return;
-                        try {
-                          await api.post(`/api/admin/users/${fpUser.id}/fingerprint/require`, { require: true });
-                          setFpRequireMap(prev => ({ ...prev, [fpUser.id]: Date.now() }));
-                          setNotification({ type: 'success', message: '已请求该用户下次上报指纹' });
-                        } catch (e: unknown) {
-                          setNotification({ type: 'error', message: getErrorMessage(e, '请求失败') });
-                        }
-                      }}
-                      whileHover={hoverScale(1.02)}
-                      whileTap={tapScale(0.95)}
-                    >请求下次上报</motion.button>
-                    <motion.button
-                      className="px-3 py-1 text-sm bg-red-600 text-white rounded hover:bg-red-700"
-                      onClick={async () => {
-                        if (!fpUser) return;
-                        if (!window.confirm('确定要清空该用户的全部指纹记录吗？此操作不可撤销')) return;
-                        try {
-                          const res = await api.delete(`/api/admin/users/${fpUser.id}/fingerprints`);
-                          const next = res?.data?.fingerprints || [];
-                          setFpUser({ ...fpUser, fingerprints: next });
-                          setUsers(prev => prev.map(u => u.id === fpUser.id ? { ...u, ...buildFingerprintListPatch(next) } : u));
-                          setNotification({ type: 'success', message: '已清空全部指纹记录' });
-                        } catch (e: unknown) {
-                          setNotification({ type: 'error', message: getErrorMessage(e, '清空指纹失败') });
-                        }
-                      }}
-                      whileHover={hoverScale(1.02)}
-                      whileTap={tapScale(0.95)}
-                    >清空全部</motion.button>
-                    <motion.button className="text-gray-500 hover:text-gray-700" onClick={() => setShowFpModal(false)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.95)}>✕</motion.button>
-                  </div>
-                </div>
-                {fpLoading ? (
-                  <div className="py-8 text-center text-sm text-gray-500">
-                    <FaSyncAlt className="mx-auto mb-2 animate-spin text-blue-500" />
-                    正在加载指纹详情...
-                  </div>
-                ) : fpUser.fingerprints && fpUser.fingerprints.length > 0 ? (
-                  <div className="max-h-96 overflow-auto space-y-3">
-                    {fpUser.fingerprints.map((fp, i) => (
-                      <div key={i} className="p-3 border border-gray-200 rounded-lg">
-                        <div className="text-xs text-gray-500 mb-1">{new Date(fp.ts).toLocaleString()} · IP {fp.ip || '-'} </div>
-                        <div className="font-mono break-all text-sm">{fp.id}</div>
-                        {fp.ua && <div className="text-[11px] text-gray-500 mt-1 break-all">{fp.ua}</div>}
-                        {fp.deviceInfo && (
-                          <div className="mt-2 p-2 bg-gray-50 rounded text-xs">
-                            <div className="font-medium text-gray-700 mb-1">设备特征:</div>
-                            <div className="grid grid-cols-2 gap-1 text-gray-600">
-                              {fp.deviceInfo?.screen && (
-                                <div>屏幕: {fp.deviceInfo.screen.w}×{fp.deviceInfo.screen.h}</div>
-                              )}
-                              {fp.deviceInfo?.timezone?.tz && (
-                                <div>时区: {fp.deviceInfo.timezone.tz}</div>
-                              )}
-                              {fp.deviceInfo?.navigator?.userAgent && (
-                                <div className="col-span-2 truncate">
-                                  浏览器: {fp.deviceInfo.navigator.userAgent.split(' ').slice(-2).join(' ')}
-                                </div>
+                {editingUser ? (
+                  <EditUserForm
+                    username={editingUser.username}
+                    form={form}
+                    loading={loading}
+                    onSubmit={handleSubmit}
+                    onCancel={closeForm}
+                    onFieldChange={handleChange}
+                    onBackupCodesChange={handleBackupCodesChange}
+                    collapsedSections={collapsedSections}
+                    onToggleSection={toggleSection}
+                    hoverScale={hoverScale}
+                    tapScale={tapScale}
+                  />
+                ) : (
+                  <CreateUserForm
+                    form={form}
+                    loading={loading}
+                    onSubmit={handleSubmit}
+                    onCancel={closeForm}
+                    onFieldChange={handleChange}
+                    onBackupCodesChange={handleBackupCodesChange}
+                    collapsedSections={collapsedSections}
+                    onToggleSection={toggleSection}
+                    hoverScale={hoverScale}
+                    tapScale={tapScale}
+                  />
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* 用户表格 */}
+          {loading ? (
+            <div className="text-center py-8 text-slate-500">
+              <FaSyncAlt className="animate-spin h-8 w-8 mx-auto mb-4 text-slate-500" />
+              加载中...
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-600">
+                    <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={allCurrentPageSelected}
+                        onChange={() => toggleCurrentPageSelection()}
+                        className={glassCheckbox}
+                        aria-label="选择当前页用户"
+                      />
+                    </th>
+                    {TABLE_COLUMNS.map(col => (
+                      <th key={col.key} className="px-4 py-3 text-left font-semibold whitespace-nowrap">{col.label}</th>
+                    ))}
+                    <th className="px-4 py-3 text-left font-semibold">指纹</th>
+                    <th className="px-4 py-3 text-left font-semibold">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((u, idx) => (
+                    <motion.tr
+                      key={u.id}
+                      className="border-b border-slate-100 transition-colors hover:bg-slate-50/60"
+                      initial={ROW_INITIAL}
+                      animate={ROW_ANIMATE}
+                      transition={{ duration: 0.3, delay: 0.05 * idx }}
+                    >
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedUserIdSet.has(u.id)}
+                          onChange={() => toggleUserSelection(u.id)}
+                          className={glassCheckbox}
+                          aria-label={`选择用户 ${u.username}`}
+                        />
+                      </td>
+                      <td className="px-4 py-3 font-medium">
+                        <div>{u.username}</div>
+                        <div className="text-[11px] text-slate-400 font-normal">ID {u.id}</div>
+                        {u.authProvider && u.authProvider !== 'local' && (
+                          <div className="text-[11px] text-slate-500 font-normal">{u.authProvider}</div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600">
+                        <div>{u.email}</div>
+                        {u.lastLoginIp && <div className="text-[11px] text-slate-400">IP {u.lastLoginIp}</div>}
+                      </td>
+                      <td className="px-4 py-3">
+                        {u.role === 'admin' ? (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">管理员</span>
+                        ) : u.role === 'trusted' ? (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">信用者</span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">普通用户</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {u.accountStatus === 'suspended' ? (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">封停</span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">正常</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 text-xs">{u.createdAt ? new Date(u.createdAt).toLocaleString() : '-'}</td>
+                      <td className="px-4 py-3 text-slate-600">{u.dailyUsage ?? 0}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-1">
+                          {u.totpEnabled
+                            ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">TOTP</span>
+                            : null}
+                          {u.passkeyEnabled
+                            ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">Passkey</span>
+                            : null}
+                          {u.requireFingerprint
+                            ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">需指纹</span>
+                            : null}
+                          {!u.totpEnabled && !u.passkeyEnabled && !u.requireFingerprint && (
+                            <span className="text-slate-400 text-xs">-</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col gap-1">
+                          {u.ticketViolationCount && u.ticketViolationCount > 0 ? (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${u.ticketViolationCount >= 3 ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
+                              违规: {u.ticketViolationCount} 次
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              正常
+                            </span>
+                          )}
+                          {getBanRemainingText(u.ticketBannedUntil) && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-medium bg-rose-50 text-rose-600 border border-rose-200 italic">
+                              {getBanRemainingText(u.ticketBannedUntil)}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {(() => {
+                          const translationStatus = getTranslationStatus(u);
+                          return (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${translationStatus.className} border`}>
+                              {translationStatus.label}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                      {/* 指纹列 */}
+                      <td className="px-4 py-3 text-slate-600 text-xs">
+                        {(() => {
+                          const latestFingerprint = getLatestFingerprint(u.fingerprints) || u.latestFingerprint || null;
+                          const fingerprintCount = getUserFingerprintCount(u);
+
+                          if (fingerprintCount > 0) {
+                            return (
+                              <div className="space-y-1">
+                                {latestFingerprint ? (
+                                  <>
+                                    <div>
+                                      最新: <span className="font-mono" title={latestFingerprint.id}>{latestFingerprint.id.slice(0, 12)}{latestFingerprint.id.length > 12 ? '…' : ''}</span>
+                                    </div>
+                                    <div className="text-[10px] text-slate-500">
+                                      {new Date(latestFingerprint.ts).toLocaleString()} · {fingerprintCount} 条
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="text-[10px] text-slate-500">已有 {fingerprintCount} 条记录</div>
+                                )}
+                                <motion.button
+                                  className="text-slate-600 hover:underline text-[11px]"
+                                  onClick={() => openFp(u)}
+                                  whileHover={hoverScale()}
+                                  whileTap={tapScale()}
+                                >查看全部</motion.button>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="space-y-1">
+                              {fpRequireMap[u.id] ? (
+                                <>
+                                  <div className="text-slate-600 text-[12px]">已在预约列表</div>
+                                  <div className="text-[10px] text-slate-500">上次预约：{new Date(fpRequireMap[u.id]).toLocaleString()}</div>
+                                  <motion.button
+                                    className="text-slate-600 hover:underline text-[11px]"
+                                    onClick={async () => {
+                                      try {
+                                        await api.post(`/api/admin/users/${u.id}/fingerprint/require`, { require: true });
+                                        setFpRequireMap(prev => ({ ...prev, [u.id]: Date.now() }));
+                                        setNotification({ type: 'success', message: '已再次请求该用户下次上报指纹' });
+                                      } catch (e: unknown) {
+                                        setNotification({ type: 'error', message: getErrorMessage(e, '请求失败') });
+                                      }
+                                    }}
+                                    whileHover={hoverScale()}
+                                    whileTap={tapScale()}
+                                  >再次请求</motion.button>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="text-slate-400">暂无</span>
+                                  <motion.button
+                                    className="text-slate-600 hover:underline text-[11px] block"
+                                    onClick={async () => {
+                                      try {
+                                        await api.post(`/api/admin/users/${u.id}/fingerprint/require`, { require: true });
+                                        setFpRequireMap(prev => ({ ...prev, [u.id]: Date.now() }));
+                                        setNotification({ type: 'success', message: '已请求该用户下次上报指纹' });
+                                      } catch (e: unknown) {
+                                        setNotification({ type: 'error', message: getErrorMessage(e, '请求失败') });
+                                      }
+                                    }}
+                                    whileHover={hoverScale()}
+                                    whileTap={tapScale()}
+                                  >请求上报</motion.button>
+                                </>
                               )}
                             </div>
-                            <details className="mt-1">
-                              <summary className="cursor-pointer text-blue-600 hover:text-blue-800">详细信息</summary>
-                              <pre className="mt-1 text-xs bg-white p-1 rounded border overflow-auto max-h-32">
-                                {JSON.stringify(fp.deviceInfo, null, 2)}
-                              </pre>
-                            </details>
-                          </div>
-                        )}
-                        <div className="mt-2">
+                          );
+                        })()}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2">
                           <motion.button
-                            className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
-                            onClick={async () => {
-                              try {
-                                await navigator.clipboard?.writeText(fp.id);
-                                setNotification({ type: 'success', message: '指纹ID已复制到剪贴板' });
-                              } catch {
-                                setNotification({ type: 'error', message: '复制失败，请手动复制' });
-                              }
-                            }}
-                            whileHover={hoverScale(1.02)}
-                            whileTap={tapScale(0.95)}
-                          >复制ID</motion.button>
+                            className={logShareSecondaryButtonClass}
+                            onClick={() => openRevealPassword(u)}
+                            whileHover={hoverScale()}
+                            whileTap={tapScale()}
+                          >
+                            <FaEye className="text-xs" />
+                            查看密码
+                          </motion.button>
                           <motion.button
-                            className="ml-2 px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
-                            onClick={async () => {
-                              if (!fpUser) return;
-                              if (!window.confirm('确定要删除该指纹记录吗？')) return;
-                              try {
-                                const res = await api.delete(`/api/admin/users/${fpUser.id}/fingerprints/${encodeURIComponent(fp.id)}`, {
-                                  params: { ts: fp.ts }
-                                });
-                                const next = res?.data?.fingerprints || [];
-                                setFpUser({ ...fpUser, fingerprints: next });
-                                setUsers(prev => prev.map(u => u.id === fpUser.id ? { ...u, ...buildFingerprintListPatch(next) } : u));
-                                setNotification({ type: 'success', message: '已删除指纹记录' });
-                              } catch (e: unknown) {
-                                setNotification({ type: 'error', message: getErrorMessage(e, '删除指纹失败') });
-                              }
-                            }}
-                            whileHover={hoverScale(1.02)}
-                            whileTap={tapScale(0.95)}
-                          >删除</motion.button>
+                            className={logShareSecondaryButtonClass}
+                            onClick={() => openEdit(u)}
+                            whileHover={hoverScale()}
+                            whileTap={tapScale()}
+                          >
+                            <FaEdit className="text-xs" />
+                            编辑
+                          </motion.button>
+                          <motion.button
+                            className={logShareDangerButtonClass}
+                            onClick={() => handleDelete(u.id)}
+                            whileHover={hoverScale()}
+                            whileTap={tapScale()}
+                          >
+                            <FaTrash className="text-xs" />
+                            删除
+                          </motion.button>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8 text-gray-500 text-sm">
-                    暂无指纹记录
-                  </div>
-                )}
-                {fpRequireMap[fpUser.id] ? (
-                  <div className="mt-2">
-                    <div className="text-blue-600 text-sm">已在预约列表</div>
-                    <div className="text-[12px] text-gray-500">上次预约：{new Date(fpRequireMap[fpUser.id]).toLocaleString()}</div>
-                    <motion.button
-                      className="mt-2 text-blue-600 hover:underline text-[12px]"
-                      onClick={async () => {
-                        if (!fpUser) return;
-                        try {
-                          const r = await api.post(`/api/admin/users/${fpUser.id}/fingerprint/require`, { require: true });
-                          const ts = Number(r?.data?.requireFingerprintAt || Date.now());
-                          setFpRequireMap(prev => ({ ...prev, [fpUser.id]: ts }));
-                          setNotification({ type: 'success', message: `已再次请求该用户下次上报指纹` });
-                        } catch (e: unknown) {
-                          setNotification({ type: 'error', message: getErrorMessage(e, '请求失败') });
-                        }
-                      }}
-                      whileHover={hoverScale(1.02)}
-                      whileTap={tapScale(0.95)}
-                    >再次请求</motion.button>
-                  </div>
-                ) : (
-                  <div className="mt-2">
-                    <motion.button
-                      className="text-blue-600 hover:underline text-[12px]"
-                      onClick={async () => {
-                        if (!fpUser) return;
-                        try {
-                          const r = await api.post(`/api/admin/users/${fpUser.id}/fingerprint/require`, { require: true });
-                          const ts = Number(r?.data?.requireFingerprintAt || Date.now());
-                          setFpRequireMap(prev => ({ ...prev, [fpUser.id]: ts }));
-                          setNotification({ type: 'success', message: `已请求该用户下次上报指纹` });
-                        } catch (e: unknown) {
-                          setNotification({ type: 'error', message: getErrorMessage(e, '请求失败') });
-                        }
-                      }}
-                      whileHover={hoverScale(1.02)}
-                      whileTap={tapScale(0.95)}
-                    >请求上报</motion.button>
-                  </div>
-                )}
-                <div className="mt-4 text-right">
-                  <motion.button className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600" onClick={() => setShowFpModal(false)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.95)}>关闭</motion.button>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+              {users.length === 0 && (
+                <div className="text-center py-8 text-slate-500">
+                  <FaUsers className="w-12 h-12 mx-auto mb-4 text-slate-300" />
+                  暂无用户数据
                 </div>
-              </motion.div>
-            </motion.div>
+              )}
+              {/* 分页 */}
+              <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between text-sm text-slate-600">
+                <div>第 {pagination.page} / {pagination.totalPages} 页，当前显示 {rangeStart}-{rangeEnd} 条</div>
+                <div className="flex items-center gap-2">
+                  <motion.button
+                    type="button"
+                    onClick={() => setPage(1)}
+                    disabled={pagination.page <= 1}
+                    className={logShareSecondaryButtonClass}
+                    whileHover={hoverScale(undefined, pagination.page > 1)}
+                    whileTap={tapScale(undefined, pagination.page > 1)}
+                  >
+                    首页
+                  </motion.button>
+                  <motion.button
+                    type="button"
+                    onClick={() => setPage(pagination.page - 1)}
+                    disabled={pagination.page <= 1}
+                    className={logShareSecondaryButtonClass}
+                    whileHover={hoverScale(undefined, pagination.page > 1)}
+                    whileTap={tapScale(undefined, pagination.page > 1)}
+                  >
+                    上一页
+                  </motion.button>
+                  <motion.button
+                    type="button"
+                    onClick={() => setPage(pagination.page + 1)}
+                    disabled={pagination.page >= pagination.totalPages}
+                    className={logShareSecondaryButtonClass}
+                    whileHover={hoverScale(undefined, pagination.page < pagination.totalPages)}
+                    whileTap={tapScale(undefined, pagination.page < pagination.totalPages)}
+                  >
+                    下一页
+                  </motion.button>
+                  <motion.button
+                    type="button"
+                    onClick={() => setPage(pagination.totalPages)}
+                    disabled={pagination.page >= pagination.totalPages}
+                    className={logShareSecondaryButtonClass}
+                    whileHover={hoverScale(undefined, pagination.page < pagination.totalPages)}
+                    whileTap={tapScale(undefined, pagination.page < pagination.totalPages)}
+                  >
+                    尾页
+                  </motion.button>
+                </div>
+              </div>
+            </div>
           )}
-        </AnimatePresence>
-        , document.body)}
-    </motion.div>
+        </InfoPanel>
+
+        {/* 查看密码弹窗 */}
+        {ReactDOM.createPortal(
+          <AnimatePresence>
+            {revealPasswordState.open && revealPasswordState.targetUser && (
+              <RevealPasswordModal
+                state={revealPasswordState}
+                adminUsername={user?.username}
+                hoverScale={hoverScale}
+                tapScale={tapScale}
+                onClose={closeRevealPassword}
+                onChange={(patch: Partial<ModalRevealPasswordState>) => setRevealPasswordState(prev => ({ ...prev, ...patch }))}
+                onVerify={handleVerifyRevealPassword}
+              />
+            )}
+          </AnimatePresence>,
+          document.body
+        )}
+
+        {/* 指纹详情弹窗 */}
+        {ReactDOM.createPortal(
+          <AnimatePresence>
+            {showFpModal && fpUser && (
+              <motion.div
+                className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-[9999] p-4"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <motion.div
+                  className="w-full max-w-2xl rounded-[26px] border border-white/70 bg-white/82 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl p-5 sm:p-7"
+                  initial={{ scale: 0.95, y: 20, opacity: 0 }}
+                  animate={{ scale: 1, y: 0, opacity: 1 }}
+                  exit={{ scale: 0.95, y: 20, opacity: 0 }}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-slate-900">指纹详情 - {fpUser.username}</h3>
+                    <div className="flex items-center gap-2">
+                      <motion.button
+                        className={logShareSecondaryButtonClass}
+                        onClick={async () => {
+                          if (!fpUser) return;
+                          try {
+                            await api.post(`/api/admin/users/${fpUser.id}/fingerprint/require`, { require: true });
+                            setFpRequireMap(prev => ({ ...prev, [fpUser.id]: Date.now() }));
+                            setNotification({ type: 'success', message: '已请求该用户下次上报指纹' });
+                          } catch (e: unknown) {
+                            setNotification({ type: 'error', message: getErrorMessage(e, '请求失败') });
+                          }
+                        }}
+                        whileHover={hoverScale()}
+                        whileTap={tapScale()}
+                      >请求下次上报</motion.button>
+                      <motion.button
+                        className={logShareDangerButtonClass}
+                        onClick={async () => {
+                          if (!fpUser) return;
+                          if (!window.confirm('确定要清空该用户的全部指纹记录吗？此操作不可撤销')) return;
+                          try {
+                            const res = await api.delete(`/api/admin/users/${fpUser.id}/fingerprints`);
+                            const next = res?.data?.fingerprints || [];
+                            setFpUser({ ...fpUser, fingerprints: next });
+                            setUsers(prev => prev.map(u => u.id === fpUser.id ? { ...u, ...buildFingerprintListPatch(next) } : u));
+                            setNotification({ type: 'success', message: '已清空全部指纹记录' });
+                          } catch (e: unknown) {
+                            setNotification({ type: 'error', message: getErrorMessage(e, '清空指纹失败') });
+                          }
+                        }}
+                        whileHover={hoverScale()}
+                        whileTap={tapScale()}
+                      >清空全部</motion.button>
+                      <motion.button className="text-slate-500 hover:text-slate-700 p-1" onClick={() => setShowFpModal(false)} whileHover={hoverScale()} whileTap={tapScale()}>
+                        <FaTimes />
+                      </motion.button>
+                    </div>
+                  </div>
+                  {fpLoading ? (
+                    <div className="py-8 text-center text-sm text-slate-500">
+                      <FaSyncAlt className="mx-auto mb-2 animate-spin text-slate-500" />
+                      正在加载指纹详情...
+                    </div>
+                  ) : fpUser.fingerprints && fpUser.fingerprints.length > 0 ? (
+                    <div className="max-h-96 overflow-auto space-y-3">
+                      {fpUser.fingerprints.map((fp, i) => (
+                        <div key={i} className="p-4 rounded-[22px] border border-slate-200 bg-white/80 shadow-sm backdrop-blur-xl">
+                          <div className="text-xs text-slate-500 mb-1">{new Date(fp.ts).toLocaleString()} · IP {fp.ip || '-'} </div>
+                          <div className="font-mono break-all text-sm">{fp.id}</div>
+                          {fp.ua && <div className="text-[11px] text-slate-500 mt-1 break-all">{fp.ua}</div>}
+                          {fp.deviceInfo && (
+                            <div className="mt-2 p-3 rounded-2xl border border-slate-200 bg-slate-50/60 text-xs">
+                              <div className="font-medium text-slate-700 mb-1">设备特征:</div>
+                              <div className="grid grid-cols-2 gap-1 text-slate-600">
+                                {fp.deviceInfo?.screen && (
+                                  <div>屏幕: {fp.deviceInfo.screen.w}×{fp.deviceInfo.screen.h}</div>
+                                )}
+                                {fp.deviceInfo?.timezone?.tz && (
+                                  <div>时区: {fp.deviceInfo.timezone.tz}</div>
+                                )}
+                                {fp.deviceInfo?.navigator?.userAgent && (
+                                  <div className="col-span-2 truncate">
+                                    浏览器: {fp.deviceInfo.navigator.userAgent.split(' ').slice(-2).join(' ')}
+                                  </div>
+                                )}
+                              </div>
+                              <details className="mt-1">
+                                <summary className="cursor-pointer text-slate-600 hover:text-slate-800">详细信息</summary>
+                                <pre className="mt-1 text-xs bg-white p-2 rounded border overflow-auto max-h-32">
+                                  {JSON.stringify(fp.deviceInfo, null, 2)}
+                                </pre>
+                              </details>
+                            </div>
+                          )}
+                          <div className="mt-2 flex gap-2">
+                            <motion.button
+                              className={logShareSecondaryButtonClass}
+                              onClick={async () => {
+                                try {
+                                  await navigator.clipboard?.writeText(fp.id);
+                                  setNotification({ type: 'success', message: '指纹ID已复制到剪贴板' });
+                                } catch {
+                                  setNotification({ type: 'error', message: '复制失败，请手动复制' });
+                                }
+                              }}
+                              whileHover={hoverScale()}
+                              whileTap={tapScale()}
+                            >复制ID</motion.button>
+                            <motion.button
+                              className={logShareDangerButtonClass}
+                              onClick={async () => {
+                                if (!fpUser) return;
+                                if (!window.confirm('确定要删除该指纹记录吗？')) return;
+                                try {
+                                  const res = await api.delete(`/api/admin/users/${fpUser.id}/fingerprints/${encodeURIComponent(fp.id)}`, {
+                                    params: { ts: fp.ts },
+                                  });
+                                  const next = res?.data?.fingerprints || [];
+                                  setFpUser({ ...fpUser, fingerprints: next });
+                                  setUsers(prev => prev.map(u => u.id === fpUser.id ? { ...u, ...buildFingerprintListPatch(next) } : u));
+                                  setNotification({ type: 'success', message: '已删除指纹记录' });
+                                } catch (e: unknown) {
+                                  setNotification({ type: 'error', message: getErrorMessage(e, '删除指纹失败') });
+                                }
+                              }}
+                              whileHover={hoverScale()}
+                              whileTap={tapScale()}
+                            >删除</motion.button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-slate-500 text-sm">
+                      暂无指纹记录
+                    </div>
+                  )}
+                  {fpRequireMap[fpUser.id] ? (
+                    <div className="mt-2">
+                      <div className="text-slate-600 text-sm">已在预约列表</div>
+                      <div className="text-[12px] text-slate-500">上次预约：{new Date(fpRequireMap[fpUser.id]).toLocaleString()}</div>
+                      <motion.button
+                        className="text-slate-600 hover:underline text-[12px]"
+                        onClick={async () => {
+                          if (!fpUser) return;
+                          try {
+                            const r = await api.post(`/api/admin/users/${fpUser.id}/fingerprint/require`, { require: true });
+                            const ts = Number(r?.data?.requireFingerprintAt || Date.now());
+                            setFpRequireMap(prev => ({ ...prev, [fpUser.id]: ts }));
+                            setNotification({ type: 'success', message: `已再次请求该用户下次上报指纹` });
+                          } catch (e: unknown) {
+                            setNotification({ type: 'error', message: getErrorMessage(e, '请求失败') });
+                          }
+                        }}
+                        whileHover={hoverScale()}
+                        whileTap={tapScale()}
+                      >再次请求</motion.button>
+                    </div>
+                  ) : (
+                    <div className="mt-2">
+                      <motion.button
+                        className="text-slate-600 hover:underline text-[12px]"
+                        onClick={async () => {
+                          if (!fpUser) return;
+                          try {
+                            const r = await api.post(`/api/admin/users/${fpUser.id}/fingerprint/require`, { require: true });
+                            const ts = Number(r?.data?.requireFingerprintAt || Date.now());
+                            setFpRequireMap(prev => ({ ...prev, [fpUser.id]: ts }));
+                            setNotification({ type: 'success', message: `已请求该用户下次上报指纹` });
+                          } catch (e: unknown) {
+                            setNotification({ type: 'error', message: getErrorMessage(e, '请求失败') });
+                          }
+                        }}
+                        whileHover={hoverScale()}
+                        whileTap={tapScale()}
+                      >请求上报</motion.button>
+                    </div>
+                  )}
+                  <div className="mt-4 text-right">
+                    <motion.button
+                      className={logShareSecondaryButtonClass}
+                      onClick={() => setShowFpModal(false)}
+                      whileHover={hoverScale()}
+                      whileTap={tapScale()}
+                    >
+                      关闭
+                    </motion.button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>,
+          document.body
+        )}
+      </motion.div>
+    </section>
   );
 };
 
