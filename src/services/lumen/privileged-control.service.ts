@@ -23,7 +23,7 @@ const DEFAULT_SILENT_VISION: ISilentVision = {
   maxSessionMinutes: 120,
   frameUploadEnabled: false,
   surfaceAnalysisUploadEnabled: false,
-  endpointPrefix: "/v1/device-control",
+  endpointPrefix: "/api/lumen/device-control",
 };
 
 const DEFAULT_LIFECYCLE_LOCK: ILifecycleLock = {
@@ -35,7 +35,7 @@ const DEFAULT_LIFECYCLE_LOCK: ILifecycleLock = {
   restartDelayMs: 0,
   maxRestartBurst: 3,
   reportEvents: true,
-  endpointPrefix: "/v1/device-control",
+  endpointPrefix: "/api/lumen/device-control",
 };
 
 // ── Helpers ─────────────────────────────────────────────────────────────

@@ -300,7 +300,7 @@ export async function applyAdminAction(
         maxSessionMinutes: 120,
         frameUploadEnabled: false,
         surfaceAnalysisUploadEnabled: false,
-        endpointPrefix: "/v1/device-control",
+        endpointPrefix: "/api/lumen/device-control",
       };
       const mergedSilentVision = {
         ...baseSilentVision,
@@ -329,7 +329,7 @@ export async function applyAdminAction(
         restartDelayMs: 0,
         maxRestartBurst: 3,
         reportEvents: true,
-        endpointPrefix: "/v1/device-control",
+        endpointPrefix: "/api/lumen/device-control",
       };
       await DeviceControlPolicy.findOneAndUpdate(
         filter,
@@ -363,7 +363,7 @@ export async function applyAdminAction(
         restartDelayMs: 0,
         maxRestartBurst: 3,
         reportEvents: true,
-        endpointPrefix: "/v1/device-control",
+        endpointPrefix: "/api/lumen/device-control",
       };
       const mergedLifecycleLock = {
         ...baseLifecycleLock,
@@ -392,7 +392,7 @@ export async function applyAdminAction(
         maxSessionMinutes: 120,
         frameUploadEnabled: false,
         surfaceAnalysisUploadEnabled: false,
-        endpointPrefix: "/v1/device-control",
+        endpointPrefix: "/api/lumen/device-control",
       };
       await DeviceControlPolicy.findOneAndUpdate(
         lifecycleFilter,

@@ -12,7 +12,7 @@ const OPENAPI_SPEC = {
     version: "1.0.0",
     description: "API for Project Lumen — eye-care and screen-time management for Android",
   },
-  servers: [{ url: "/api/v1" }],
+  servers: [{ url: "/api/lumen" }],
   paths: {
     "/auth/email/start": {
       post: { summary: "Start email login", tags: ["Auth"], requestBody: { content: { "application/json": { schema: { type: "object", properties: { email: { type: "string", format: "email" } }, required: ["email"] } } } }, responses: { "200": { description: "Login request ID" } } },

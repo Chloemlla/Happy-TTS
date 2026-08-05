@@ -30,13 +30,10 @@ v1Router.use("/device-control", privilegedControlRoutes);
 v1Router.use("/admin", adminRoutes);
 v1Router.use("/", platformRoutes);
 
-// Mount the v1 router at /api/v1
-router.use("/api/v1", v1Router);
+// Mount the v1 router at /api/lumen
+router.use("/api/lumen", v1Router);
 
 // Mount health routes at /api/health
 router.use("/api/health", healthRoutes);
-
-// Mirror /api/v1/* at /v1/* (legacy compatibility)
-router.use("/v1", v1Router);
 
 export default router;

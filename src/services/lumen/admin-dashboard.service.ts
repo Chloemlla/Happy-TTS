@@ -154,9 +154,9 @@ export async function adminDashboardSnapshot() {
       { key: "cloud_sync", enabled: true, payload: { scope: ["settings", "stats", "templates", "goals", "plans"] } },
       { key: "remote_entitlements", enabled: true, payload: { source: "server" } },
       { key: "telemetry_upload", enabled: true, payload: { requiresConsent: true, rateLimitPerMinute: 12 } },
-      { key: "face_analysis_upload", enabled: true, payload: { status: "active", endpoint: "/v1/face-analysis/frames", requiresExplicitConsent: true } },
-      { key: "privileged_silent_vision", enabled: false, payload: { status: "opt_in", exclusiveAccess: false, noSurfacePreview: false, analyzerOnly: true, requiresExplicitConsent: true, endpoint: "/v1/device-control/vision" } },
-      { key: "enforced_lifecycle_lock", enabled: false, payload: { status: "opt_in", selfHealOnKill: false, interceptUserStop: false, antiUninstallIntent: false, reportEvents: true, endpoint: "/v1/device-control/lifecycle" } },
+      { key: "face_analysis_upload", enabled: true, payload: { status: "active", endpoint: "/api/lumen/face-analysis/frames", requiresExplicitConsent: true } },
+      { key: "privileged_silent_vision", enabled: false, payload: { status: "opt_in", exclusiveAccess: false, noSurfacePreview: false, analyzerOnly: true, requiresExplicitConsent: true, endpoint: "/api/lumen/device-control/vision" } },
+      { key: "enforced_lifecycle_lock", enabled: false, payload: { status: "opt_in", selfHealOnKill: false, interceptUserStop: false, antiUninstallIntent: false, reportEvents: true, endpoint: "/api/lumen/device-control/lifecycle" } },
     ],
     entitlements: entitlements.map((e) => ({
       id: e._id,
