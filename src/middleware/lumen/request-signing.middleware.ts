@@ -68,7 +68,16 @@ function getRawBodyString(req: Request): string {
 }
 
 function buildCanonical(bodySha256: string, method: string, nonce: string, path: string, query: string, timestamp: string): string {
-  return [bodySha256, method, nonce, path, query, timestamp].join("\n");
+  const values: Array<{ key: string; value: string }> = [
+    { key: "bodySha256", value: bodySha256 },
+    { key: "method", value: method },
+    { key: "nonce", value: nonce },
+    { key: "path", value: path },
+    { key: "query", value: query },
+    { key: "timestamp", value: timestamp },
+  ];
+  values.sort((a, b) => a.key.localeCompare(b.key));
+  return values.map((v) => `${v.key}=${v.value}`).join("\n");
 }
 
 function sortQueryString(queryString: string): string {
@@ -99,9 +108,9 @@ export function verifyRequestSignature(): (req: Request, res: Response, next: Ne
       const signature = headerString(req.headers["x-lumen-signature"]).toLowerCase();
 
       if (!timestamp || !nonce || !signature) {
-        res.status(401).json({
-          error: "Unauthorized",
-          reasonCode: "missing_request_signature",
+        res.status(403).json({
+          error: "Forbidden",
+          reasonCode: "REQUEST_SIGNATURE_TIMESTAMP_MISSING",
           message: "Missing required signature headers (x-lumen-timestamp, x-lumen-nonce, x-lumen-signature)",
         });
         return;
@@ -110,10 +119,10 @@ export function verifyRequestSignature(): (req: Request, res: Response, next: Ne
       // --- Timestamp skew check ---
       const tsNum = Number(timestamp);
       if (!Number.isFinite(tsNum)) {
-        res.status(401).json({
-          error: "Unauthorized",
-          reasonCode: "invalid_timestamp",
-          message: "x-lumen-timestamp must be a number",
+        res.status(403).json({
+          error: "Forbidden",
+          reasonCode: "REQUEST_SIGNATURE_TIMESTAMP_INVALID",
+          message: "X-Lumen-Timestamp must be a Unix seconds value.",
         });
         return;
       }

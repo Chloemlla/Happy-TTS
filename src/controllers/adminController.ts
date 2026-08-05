@@ -12,6 +12,7 @@ import { BilibiliSyncModel } from "../models/bilibiliSyncModel";
 import { validateGenerationCodeStrength } from "../utils/generationCodePolicy";
 import logger from "../utils/logger";
 import { getRevealUserPasswordResult } from "../services/userService";
+import { getTokenFromRequest } from "../utils/authCookie";
 import { buildAccountSecuritySummary } from "../services/accountSecuritySummaryService";
 import { type User, UserStorage } from "../utils/userStorage";
 import { isUserStorageModeKey, USER_STORAGE_MODE } from "../utils/userStorageMode";
@@ -799,17 +800,11 @@ export const adminController = {
 
       logger.info("✅ [EnvManager] 权限检查通过");
 
-      // 获取管理员token作为加密密钥
-      const authHeader = req.headers.authorization;
-      if (!authHeader?.startsWith("Bearer ")) {
-        logger.info("❌ [EnvManager] Token格式错误：未携带Token或格式不正确");
-        return res.status(401).json({ error: "未携带Token，请先登录" });
-      }
-
-      const token = authHeader.substring(7); // 移除 'Bearer ' 前缀
+      // 获取管理员token作为加密密钥（优先从 Authorization header，其次从 cookie）
+      const token = getTokenFromRequest(req);
       if (!token) {
         logger.info("❌ [EnvManager] Token为空");
-        return res.status(401).json({ error: "Token为空" });
+        return res.status(401).json({ error: "未携带Token，请先登录" });
       }
 
       logger.info("✅ [EnvManager] Token获取成功，长度:", token.length);
