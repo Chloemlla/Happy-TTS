@@ -1,0 +1,30 @@
+import { Router, type Request, type Response, type NextFunction } from "express";
+import { requireAuth } from "../../middleware/lumen/index.js";
+import { telemetryService } from "../../services/lumen/index.js";
+
+const router = Router();
+
+router.post("/", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = (req as any).user;
+    const payload = req.body;
+    const result = await telemetryService.recordTelemetryUpload(user.id, payload);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/debug/latest", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { deviceInstallationId } = req.query;
+    const result = await telemetryService.latestTelemetryDebugItems(
+      deviceInstallationId as string | undefined,
+    );
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+export default router;

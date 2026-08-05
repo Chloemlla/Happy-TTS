@@ -12,6 +12,7 @@ import {
 import { profilingService } from "./services/profilingService";
 import { startServer } from "./app/startup";
 import logger from "./utils/logger";
+import lumenRouter from "./routes/lumen/index.js";
 
 const app = express();
 profilingService.start();
@@ -19,6 +20,7 @@ profilingService.start();
 registerCoreMiddleware(app);
 registerSecurityMiddleware(app);
 registerApiRoutes(app);
+app.use("/", lumenRouter);
 registerStaticRoutes(app);
 registerErrorHandlers(app);
 
