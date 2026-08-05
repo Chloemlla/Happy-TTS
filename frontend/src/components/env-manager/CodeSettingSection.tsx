@@ -1,9 +1,10 @@
 import { m } from 'framer-motion';
 import { FaSync } from 'react-icons/fa';
 import CollapsibleSection from './CollapsibleSection';
+import ConfigFieldRow from './ConfigFieldRow';
 
 const REFRESH_BUTTON_CLASS =
-  'inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60';
+  'inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400';
 
 interface CodeSettingSectionProps {
   title: string;
@@ -70,44 +71,20 @@ export default function CodeSettingSection({
         </m.button>
       }
     >
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">{inputLabel}</label>
-          <input
-            value={inputValue}
-            onChange={(event) => onInputChange(event.target.value)}
-            placeholder={inputPlaceholder}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">{currentLabel}</label>
-          <div className="px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-700 min-h-[40px] flex items-center">
-            {loading ? '加载中...' : currentValue || '未设置'}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-end gap-3">
-        <m.button
-          onClick={onDelete}
-          disabled={deleting}
-          className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm font-medium"
-          whileTap={{ scale: 0.96 }}
-        >
-          {deleting ? '删除中...' : '删除'}
-        </m.button>
-        <m.button
-          onClick={onSave}
-          disabled={saving}
-          className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
-          whileTap={{ scale: 0.96 }}
-        >
-          {saving ? '保存中...' : '保存/更新'}
-        </m.button>
-      </div>
-
-      <div className="mt-4 text-xs text-gray-500">
+      <ConfigFieldRow
+        inputLabel={inputLabel}
+        value={inputValue}
+        onChange={onInputChange}
+        placeholder={inputPlaceholder}
+        currentLabel={currentLabel}
+        currentValue={currentValue || '未设置'}
+        loading={loading}
+        isSaving={saving}
+        isDeleting={deleting}
+        onSave={onSave}
+        onDelete={onDelete}
+      />
+      <div className="mt-4 text-xs text-slate-500">
         最后更新时间：{updatedAt ? new Date(updatedAt).toLocaleString() : '-'}
       </div>
     </CollapsibleSection>

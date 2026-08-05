@@ -4,9 +4,11 @@ import { FaLock, FaSync } from 'react-icons/fa';
 import { useNotification } from '../Notification';
 import CollapsibleSection from './CollapsibleSection';
 import { API_URL, getAuthHeaders, authFetch } from './api';
+import ConfigFieldRow from './ConfigFieldRow';
+import InfoBox from './InfoBox';
 
 const REFRESH_BUTTON_CLASS =
-  'inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60';
+  'inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400';
 
 const SECTION_KEY = 'securitySecrets';
 
@@ -77,7 +79,6 @@ const SECRET_FIELDS: SecretField[] = [
   },
 ];
 
-// 后端返回的 key 可能带前缀（如 `.env:KEY`、`APP:KEY`），只取最后一个冒号之后的部分进行匹配。
 function normalizeEnvKey(rawKey: string): string {
   const parts = rawKey.split(':');
   return parts.length > 1 ? parts[parts.length - 1] : rawKey;
@@ -257,82 +258,49 @@ export default function SecuritySecretSection({
         </m.button>
       }
     >
-      <div className="rounded-xl border border-indigo-100 bg-indigo-50/70 px-4 py-3 text-xs leading-5 text-indigo-900">
-        <div className="flex items-start gap-2">
-          <FaLock className="mt-0.5 shrink-0 text-indigo-700" />
-          <div>
-            <p>
-              以下密钥用于数据采集加密、Bilibili 凭证加密与安全密钥隔离：{' '}
-              <code className="rounded bg-white/80 px-1">DATA_COLLECTION_RAW_SECRET</code>（数据加密）、{' '}
-              <code className="rounded bg-white/80 px-1">BILIBILI_COOKIE_ENCRYPTION_KEY</code>（Bilibili Cookie 加密）、{' '}
-              <code className="rounded bg-white/80 px-1">PASSWORD_ENCRYPTION_KEY</code>（密码加密），以及密钥隔离所需的{' '}
-              <code className="rounded bg-white/80 px-1">POLICY_SECRET_SALT</code>、
-              <code className="rounded bg-white/80 px-1">VERIFICATION_TOKEN_SECRET</code>、
-              <code className="rounded bg-white/80 px-1">TTS_ASSET_ACCESS_SECRET</code>、
-              <code className="rounded bg-white/80 px-1">LEGACY_API_CHOICE_SECRET</code>。
-            </p>
-            <p className="mt-1">
-              保存的密钥会覆盖进程环境 / <code className="rounded bg-white/80 px-1">.env</code> 中的同名启动默认值并立即生效。
-              建议为每个用途使用独立、足够随机的密钥，避免跨模块复用。
-            </p>
-          </div>
-        </div>
-      </div>
+      <InfoBox icon={<FaLock />}>
+        <p>
+          以下密钥用于数据采集加密、Bilibili 凭证加密与安全密钥隔离：{' '}
+          <code className="rounded bg-white/80 px-1">DATA_COLLECTION_RAW_SECRET</code>（数据加密）、{' '}
+          <code className="rounded bg-white/80 px-1">BILIBILI_COOKIE_ENCRYPTION_KEY</code>（Bilibili Cookie 加密）、{' '}
+          <code className="rounded bg-white/80 px-1">PASSWORD_ENCRYPTION_KEY</code>（密码加密），以及密钥隔离所需的{' '}
+          <code className="rounded bg-white/80 px-1">POLICY_SECRET_SALT</code>、
+          <code className="rounded bg-white/80 px-1">VERIFICATION_TOKEN_SECRET</code>、
+          <code className="rounded bg-white/80 px-1">TTS_ASSET_ACCESS_SECRET</code>、
+          <code className="rounded bg-white/80 px-1">LEGACY_API_CHOICE_SECRET</code>。
+        </p>
+        <p className="mt-1">
+          保存的密钥会覆盖进程环境 / <code className="rounded bg-white/80 px-1">.env</code> 中的同名启动默认值并立即生效。
+          建议为每个用途使用独立、足够随机的密钥，避免跨模块复用。
+        </p>
+      </InfoBox>
 
       <div className="space-y-4">
         {SECRET_FIELDS.map((field) => (
-          <div key={field.key} className="rounded-xl border border-slate-200 p-4">
+          <div key={field.key} className="rounded-2xl border border-slate-200 bg-white/80 p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h4 className="text-sm font-semibold text-gray-700">{field.label}</h4>
+              <h4 className="text-sm font-semibold text-slate-700">{field.label}</h4>
               <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-600">
                 {field.key}
               </code>
             </div>
-            <p className="mt-1 text-xs text-gray-500">{field.description}</p>
+            <p className="mt-1 mb-3 text-xs text-slate-500">{field.description}</p>
 
-            <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div className="md:col-span-2">
-                <label className="mb-1 block text-sm font-medium text-gray-700">新值</label>
-                <input
-                  type="password"
-                  value={inputs[field.key] || ''}
-                  onChange={(event) =>
-                    setInputs((prev) => ({ ...prev, [field.key]: event.target.value }))
-                  }
-                  placeholder={field.placeholder}
-                  autoComplete="off"
-                  spellCheck={false}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400 sm:text-base"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">当前配置（脱敏）</label>
-                <div className="flex min-h-[40px] items-center rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-sm text-gray-700">
-                  {fetching ? '加载中...' : maskSecret(current[field.key] || '')}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-3 flex items-center justify-end gap-3">
-              <m.button
-                type="button"
-                onClick={() => handleDelete(field.key)}
-                disabled={busy}
-                className="rounded-lg bg-red-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-red-600 disabled:opacity-50 sm:px-4"
-                whileTap={{ scale: 0.96 }}
-              >
-                {deletingKey === field.key ? '删除中...' : '删除'}
-              </m.button>
-              <m.button
-                type="button"
-                onClick={() => handleSave(field.key)}
-                disabled={busy}
-                className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50 sm:px-4"
-                whileTap={{ scale: 0.96 }}
-              >
-                {savingKey === field.key ? '保存中...' : '保存/更新'}
-              </m.button>
-            </div>
+            <ConfigFieldRow
+              inputLabel="新值"
+              value={inputs[field.key] || ''}
+              onChange={(v) => setInputs((prev) => ({ ...prev, [field.key]: v }))}
+              placeholder={field.placeholder}
+              currentLabel="当前配置（脱敏）"
+              currentValue={maskSecret(current[field.key] || '')}
+              loading={fetching}
+              isSaving={savingKey === field.key}
+              isDeleting={deletingKey === field.key}
+              busy={busy}
+              onSave={() => handleSave(field.key)}
+              onDelete={() => handleDelete(field.key)}
+              isPassword
+            />
           </div>
         ))}
       </div>

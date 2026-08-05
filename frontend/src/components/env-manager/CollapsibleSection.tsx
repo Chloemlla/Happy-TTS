@@ -2,6 +2,7 @@ import React from 'react';
 import { m } from 'framer-motion';
 import { FaChevronDown } from 'react-icons/fa';
 import { DURATION_06, ENTER_ANIMATE, ENTER_INITIAL, NO_DURATION } from './motion';
+import { logShareSecondaryButtonClass } from '../LogShareStyleScaffold';
 
 interface CollapsibleSectionProps {
   title: string;
@@ -20,7 +21,7 @@ const CollapsibleSection = React.memo(function CollapsibleSection({
   return (
     <m.section
       data-env-section={sectionKey}
-      className="rounded-2xl border border-slate-200 bg-white shadow-sm"
+      className="rounded-2xl border border-slate-200 bg-white/80 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl"
       initial={ENTER_INITIAL}
       animate={ENTER_ANIMATE}
       transition={prefersReducedMotion ? NO_DURATION : DURATION_06}
@@ -35,7 +36,7 @@ const CollapsibleSection = React.memo(function CollapsibleSection({
           <button
             type="button"
             onClick={() => onToggle(sectionKey)}
-            className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-800 transition hover:bg-slate-200"
+            className={logShareSecondaryButtonClass}
           >
             <FaChevronDown className={`transition-transform ${isOpen ? '' : '-rotate-90'}`} />
             {isOpen ? '收起' : '展开'}

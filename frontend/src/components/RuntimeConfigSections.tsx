@@ -4,6 +4,12 @@ import { useSearchParams } from 'react-router-dom';
 import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
 import { getConfigurationSectionKey } from './env-manager/configurationNotice';
+import {
+  logSharePrimaryButtonClass,
+  logShareSecondaryButtonClass,
+  logShareDangerButtonClass,
+  logShareInputClass,
+} from './LogShareStyleScaffold';
 
 
 const IPQS_API = getApiBaseUrl() + '/api/admin/ipqs/setting';
@@ -122,7 +128,7 @@ function SectionCard(props: {
   const { sectionKey, title, description, isOpen, loading, onToggle, onRefresh, children } = props;
 
   return (
-    <section data-env-section={sectionKey} className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <section data-env-section={sectionKey} className="rounded-2xl border border-slate-200 bg-white/80 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
       <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-slate-800">{title}</h3>
@@ -133,7 +139,7 @@ function SectionCard(props: {
             type="button"
             onClick={onRefresh}
             disabled={loading}
-            className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className={logSharePrimaryButtonClass}
           >
             <FaSync className={loading ? 'animate-spin' : ''} />
             刷新
@@ -141,7 +147,7 @@ function SectionCard(props: {
           <button
             type="button"
             onClick={onToggle}
-            className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-800 transition hover:bg-slate-200"
+            className={logShareSecondaryButtonClass}
           >
             <FaChevronDown className={`transition-transform ${isOpen ? '' : '-rotate-90'}`} />
             {isOpen ? '收起' : '展开'}
@@ -949,7 +955,7 @@ const RuntimeConfigSections: React.FC = () => {
               value={adminOperationPasswordInput}
               onChange={(e) => setAdminOperationPasswordInput(e.target.value)}
               placeholder="用于 LogShare、CommandManager，留空表示保持现有"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
           <div>
@@ -959,7 +965,7 @@ const RuntimeConfigSections: React.FC = () => {
               value={serverStatusPasswordInput}
               onChange={(e) => setServerStatusPasswordInput(e.target.value)}
               placeholder="用于服务器状态接口，留空表示保持现有"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
           <div>
@@ -969,7 +975,7 @@ const RuntimeConfigSections: React.FC = () => {
               value={publicShortUrlPasswordInput}
               onChange={(e) => setPublicShortUrlPasswordInput(e.target.value)}
               placeholder="用于匿名公共短链创建，留空表示保持现有"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
           <label className="flex items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-700">
@@ -989,7 +995,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={deleteAdminSecuritySetting}
               disabled={adminSecurityDeleting}
-              className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-700 disabled:opacity-60"
+              className={logShareDangerButtonClass}
             >
               {adminSecurityDeleting ? '重置中...' : '重置'}
             </button>
@@ -997,7 +1003,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={saveAdminSecuritySetting}
               disabled={adminSecuritySaving}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+              className={logSharePrimaryButtonClass}
             >
               {adminSecuritySaving ? '保存中...' : '保存'}
             </button>
@@ -1022,7 +1028,7 @@ const RuntimeConfigSections: React.FC = () => {
               onChange={(e) => setIpqsApiKeysInput(e.target.value)}
               rows={4}
               placeholder="每行一个，或用逗号分隔"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none ring-0 transition focus:border-slate-500"
+              className={logShareInputClass}
             />
             <div className="mt-2 text-xs text-slate-500">
               已配置 {ipqsSetting?.config.apiKeyCount || 0} 个：
@@ -1036,7 +1042,7 @@ const RuntimeConfigSections: React.FC = () => {
               value={ipqsForm.scamalyticsUser}
               onChange={(e) => setIpqsForm((prev) => ({ ...prev, scamalyticsUser: e.target.value }))}
               placeholder="留空表示使用默认用户名"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
           <div>
@@ -1047,7 +1053,7 @@ const RuntimeConfigSections: React.FC = () => {
               max={3}
               value={ipqsForm.strictness}
               onChange={(e) => setIpqsForm((prev) => ({ ...prev, strictness: Number(e.target.value) || 0 }))}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
           <div>
@@ -1057,7 +1063,7 @@ const RuntimeConfigSections: React.FC = () => {
               min={1}
               value={ipqsForm.tokenTtlMinutes}
               onChange={(e) => setIpqsForm((prev) => ({ ...prev, tokenTtlMinutes: Number(e.target.value) || 1 }))}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
           <div>
@@ -1067,7 +1073,7 @@ const RuntimeConfigSections: React.FC = () => {
               min={1000}
               value={ipqsForm.timeoutMs}
               onChange={(e) => setIpqsForm((prev) => ({ ...prev, timeoutMs: Number(e.target.value) || 1000 }))}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
           <div>
@@ -1077,7 +1083,7 @@ const RuntimeConfigSections: React.FC = () => {
               min={1}
               value={ipqsForm.monthlyQuotaPerKey}
               onChange={(e) => setIpqsForm((prev) => ({ ...prev, monthlyQuotaPerKey: Number(e.target.value) || 1 }))}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
           <div>
@@ -1088,7 +1094,7 @@ const RuntimeConfigSections: React.FC = () => {
               max={100}
               value={ipqsForm.challengeFraudScore}
               onChange={(e) => setIpqsForm((prev) => ({ ...prev, challengeFraudScore: Number(e.target.value) || 0 }))}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
         </div>
@@ -1118,7 +1124,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={deleteIpqsSetting}
               disabled={ipqsDeleting}
-              className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-700 disabled:opacity-60"
+              className={logShareDangerButtonClass}
             >
               {ipqsDeleting ? '重置中...' : '重置'}
             </button>
@@ -1126,7 +1132,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={saveIpqsSetting}
               disabled={ipqsSaving}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+              className={logSharePrimaryButtonClass}
             >
               {ipqsSaving ? '保存中...' : '保存'}
             </button>
@@ -1149,7 +1155,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={linuxdoForm.clientId}
               onChange={(e) => setLinuxdoForm((prev) => ({ ...prev, clientId: e.target.value }))}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
           <div>
@@ -1158,7 +1164,7 @@ const RuntimeConfigSections: React.FC = () => {
               value={linuxdoSecretInput}
               onChange={(e) => setLinuxdoSecretInput(e.target.value)}
               placeholder="留空表示保持现有 Client Secret"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
           <div>
@@ -1166,7 +1172,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={linuxdoForm.discoveryUrl}
               onChange={(e) => setLinuxdoForm((prev) => ({ ...prev, discoveryUrl: e.target.value }))}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
           <div>
@@ -1174,7 +1180,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={linuxdoForm.scopes}
               onChange={(e) => setLinuxdoForm((prev) => ({ ...prev, scopes: e.target.value }))}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
           <div>
@@ -1182,7 +1188,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={linuxdoForm.authorizationEndpoint}
               onChange={(e) => setLinuxdoForm((prev) => ({ ...prev, authorizationEndpoint: e.target.value }))}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
           <div>
@@ -1190,7 +1196,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={linuxdoForm.tokenEndpoint}
               onChange={(e) => setLinuxdoForm((prev) => ({ ...prev, tokenEndpoint: e.target.value }))}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
           <div>
@@ -1198,7 +1204,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={linuxdoForm.userEndpoint}
               onChange={(e) => setLinuxdoForm((prev) => ({ ...prev, userEndpoint: e.target.value }))}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
           <div>
@@ -1206,7 +1212,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={linuxdoForm.forumBaseUrl}
               onChange={(e) => setLinuxdoForm((prev) => ({ ...prev, forumBaseUrl: e.target.value }))}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
           <div>
@@ -1214,7 +1220,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={linuxdoForm.callbackUrl}
               onChange={(e) => setLinuxdoForm((prev) => ({ ...prev, callbackUrl: e.target.value }))}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
             <p className="mt-1 text-xs text-slate-500">
               OAuth 服务端回调（redirect_uri），应为 <code>/api/auth/linuxdo/callback</code>。
@@ -1225,7 +1231,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={linuxdoForm.frontendCallbackUrl}
               onChange={(e) => setLinuxdoForm((prev) => ({ ...prev, frontendCallbackUrl: e.target.value }))}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
             <p className="mt-1 text-xs text-slate-500">
               浏览器完成页，必须是 SPA 路径 <code>/auth/linuxdo/callback</code>。不要填后端
@@ -1241,7 +1247,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={deleteLinuxDoSetting}
               disabled={linuxdoDeleting}
-              className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-700 disabled:opacity-60"
+              className={logShareDangerButtonClass}
             >
               {linuxdoDeleting ? '重置中...' : '重置'}
             </button>
@@ -1249,7 +1255,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={saveLinuxDoSetting}
               disabled={linuxdoSaving}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+              className={logSharePrimaryButtonClass}
             >
               {linuxdoSaving ? '保存中...' : '保存'}
             </button>
@@ -1274,7 +1280,7 @@ const RuntimeConfigSections: React.FC = () => {
           className="hidden"
         />
 
-        <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-4">
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-5 py-4">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <div className="text-sm font-medium text-slate-800">导入 Google OAuth JSON</div>
@@ -1286,7 +1292,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={() => googleAuthImportInputRef.current?.click()}
               disabled={googleAuthImporting}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className={logSharePrimaryButtonClass}
             >
               <FaUpload />
               {googleAuthImporting ? '导入中...' : '导入 JSON'}
@@ -1301,7 +1307,7 @@ const RuntimeConfigSections: React.FC = () => {
               value={googleAuthForm.clientId}
               onChange={(e) => setGoogleAuthForm((prev) => ({ ...prev, clientId: e.target.value }))}
               placeholder="GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
               autoComplete="off"
               spellCheck={false}
             />
@@ -1318,7 +1324,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={deleteGoogleAuthSetting}
               disabled={googleAuthDeleting || googleAuthImporting}
-              className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-700 disabled:opacity-60"
+              className={logShareDangerButtonClass}
             >
               {googleAuthDeleting ? '重置中...' : '重置'}
             </button>
@@ -1326,7 +1332,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={saveGoogleAuthSetting}
               disabled={googleAuthSaving || googleAuthImporting}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+              className={logSharePrimaryButtonClass}
             >
               {googleAuthSaving ? '保存中...' : '保存'}
             </button>
@@ -1350,7 +1356,7 @@ const RuntimeConfigSections: React.FC = () => {
               value={deeplxForm.baseUrl}
               onChange={(e) => setDeeplxForm((prev) => ({ ...prev, baseUrl: e.target.value }))}
               placeholder="https://api.deeplx.org"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
           <div>
@@ -1359,12 +1365,12 @@ const RuntimeConfigSections: React.FC = () => {
               value={deeplxApiKeyInput}
               onChange={(e) => setDeeplxApiKeyInput(e.target.value)}
               placeholder="留空表示保持现有 API Key"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
           <div className="md:col-span-2">
             <FieldLabel label="请求地址预览" />
-            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-3 font-mono text-sm text-slate-700 break-all">
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-3 font-mono text-sm text-slate-700 break-all">
               {deeplxRequestUrlPreview}
             </div>
           </div>
@@ -1377,7 +1383,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={deleteDeepLXSetting}
               disabled={deeplxDeleting}
-              className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-700 disabled:opacity-60"
+              className={logShareDangerButtonClass}
             >
               {deeplxDeleting ? '重置中...' : '重置'}
             </button>
@@ -1385,7 +1391,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={saveDeepLXSetting}
               disabled={deeplxSaving}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+              className={logSharePrimaryButtonClass}
             >
               {deeplxSaving ? '保存中...' : '保存'}
             </button>
@@ -1409,7 +1415,7 @@ const RuntimeConfigSections: React.FC = () => {
               value={nexaiJwtSecretInput}
               onChange={(e) => setNexaiJwtSecretInput(e.target.value)}
               placeholder="留空表示保持现有 JWT Secret"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
           <div>
@@ -1417,7 +1423,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={nexaiForm.frontendUrl}
               onChange={(e) => setNexaiForm((prev) => ({ ...prev, frontendUrl: e.target.value }))}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
           <div>
@@ -1425,7 +1431,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={nexaiForm.jwtExpiresIn}
               onChange={(e) => setNexaiForm((prev) => ({ ...prev, jwtExpiresIn: e.target.value }))}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
           <div>
@@ -1433,7 +1439,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={nexaiForm.refreshExpiresIn}
               onChange={(e) => setNexaiForm((prev) => ({ ...prev, refreshExpiresIn: e.target.value }))}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
           <div>
@@ -1442,7 +1448,7 @@ const RuntimeConfigSections: React.FC = () => {
               value={nexaiForm.googleClientId}
               onChange={(e) => setNexaiForm((prev) => ({ ...prev, googleClientId: e.target.value }))}
               placeholder="NEXAI_GOOGLE_CLIENT_ID=xxxx.apps.googleusercontent.com"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
               autoComplete="off"
               spellCheck={false}
             />
@@ -1455,7 +1461,7 @@ const RuntimeConfigSections: React.FC = () => {
             <input
               value={nexaiForm.githubClientId}
               onChange={(e) => setNexaiForm((prev) => ({ ...prev, githubClientId: e.target.value }))}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
           <div className="md:col-span-2">
@@ -1464,7 +1470,7 @@ const RuntimeConfigSections: React.FC = () => {
               value={nexaiGithubSecretInput}
               onChange={(e) => setNexaiGithubSecretInput(e.target.value)}
               placeholder="留空表示保持现有 GitHub Client Secret"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-800"
+              className={logShareInputClass}
             />
           </div>
         </div>
@@ -1476,7 +1482,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={deleteNexaiSetting}
               disabled={nexaiDeleting}
-              className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-rose-700 disabled:opacity-60"
+              className={logShareDangerButtonClass}
             >
               {nexaiDeleting ? '重置中...' : '重置'}
             </button>
@@ -1484,7 +1490,7 @@ const RuntimeConfigSections: React.FC = () => {
               type="button"
               onClick={saveNexaiSetting}
               disabled={nexaiSaving}
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+              className={logSharePrimaryButtonClass}
             >
               {nexaiSaving ? '保存中...' : '保存'}
             </button>
