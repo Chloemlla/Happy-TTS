@@ -82,7 +82,7 @@ router.get("/config/feature-flags", requireAuth, async (req: Request, res: Respo
   try {
     const userId = req.lumenUserId;
     if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
-    const result = await configService.getFeatureFlags(userId);
+    const result = await configService.getFeatureFlags();
     res.json(result);
   } catch (error) {
     next(error);

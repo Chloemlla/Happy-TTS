@@ -11,6 +11,7 @@ const TIER_RANK: Record<string, number> = {
   PRO: 1,
   PLUS: 2,
   TEAM: 3,
+  DEVELOPER: 4,
 };
 
 function tierRank(tier: string): number {

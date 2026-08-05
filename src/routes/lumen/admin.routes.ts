@@ -51,6 +51,7 @@ router.post("/actions", requireAdmin, requireAdminActionOperator, async (req: Re
   try {
     const { action, payload } = req.body;
     const operator = req.lumenAdminOperator;
+    if (!operator) { res.status(401).json({ error: "Unauthorized" }); return; }
     const result = await adminService.applyAdminAction(operator, action, payload);
     res.json(result);
   } catch (error) {

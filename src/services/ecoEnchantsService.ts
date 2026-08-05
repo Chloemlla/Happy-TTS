@@ -1179,8 +1179,9 @@ export class EcoEnchantsService {
         const result = await EcoEnchantsTelemetryEventModel.bulkWrite(bulkOps, { ordered: false });
         acceptedEvents = (result.insertedCount ?? 0) + (result.upsertedCount ?? 0);
         // 通过 writeErrors 统计重复键冲突
-        if (result.result?.writeErrors) {
-          duplicateEvents = result.result.writeErrors.length;
+        const writeErrors = (result as unknown as { writeErrors?: Array<unknown> }).writeErrors;
+        if (writeErrors && writeErrors.length > 0) {
+          duplicateEvents = writeErrors.length;
         }
       } catch (error) {
         // bulkWrite 在 ordered:false 时，部分失败不会抛异常（写错误在 result 中）

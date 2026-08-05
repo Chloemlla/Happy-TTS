@@ -26,7 +26,7 @@ export function requireAuth(): (req: Request, res: Response, next: NextFunction)
 
       const token = parts[1].trim();
 
-      const session = await SessionModel.findById(token).exec();
+      const session = await Session.findById(token).exec();
 
       if (!session) {
         res.status(401).json({ error: "Unauthorized", reasonCode: "session_not_found" });
@@ -34,13 +34,13 @@ export function requireAuth(): (req: Request, res: Response, next: NextFunction)
       }
 
       if (session.expiresAt && session.expiresAt <= new Date()) {
-        await SessionModel.deleteOne({ _id: token }).exec();
+        await Session.deleteOne({ _id: token }).exec();
         res.status(401).json({ error: "Unauthorized", reasonCode: "session_expired" });
         return;
       }
 
       // Bump lastUsedAt without blocking the response.
-      SessionModel.updateOne({ _id: token }, { $set: { lastUsedAt: new Date() } }).exec().catch(() => {
+      Session.updateOne({ _id: token }, { $set: { lastUsedAt: new Date() } }).exec().catch(() => {
         /* non-critical */
       });
 

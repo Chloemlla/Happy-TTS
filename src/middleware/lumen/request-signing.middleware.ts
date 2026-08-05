@@ -186,7 +186,7 @@ export function verifyRequestSignature(): (req: Request, res: Response, next: Ne
       try {
         await ApiNonce.create({
           _id: nonce,
-          createdAt: new Date(),
+          createdAt: Date.now(),
           expiresAt: new Date(Date.now() + ttlSeconds * 1000),
         });
       } catch {

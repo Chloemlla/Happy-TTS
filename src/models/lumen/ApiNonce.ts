@@ -2,12 +2,14 @@ import { mongoose } from "../../services/mongoService";
 
 export interface IApiNonce {
   _id: string;
+  createdAt: number;
   expiresAt: Date;
 }
 
 const ApiNonceSchema = new mongoose.Schema<IApiNonce>(
   {
     _id: { type: String },
+    createdAt: { type: Number },
     expiresAt: { type: Date, required: true },
   },
   { strict: true, timestamps: false, collection: "api_nonces" },

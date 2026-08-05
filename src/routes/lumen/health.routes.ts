@@ -1,5 +1,5 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
-import { config } from "../../config/config";
+import { lumenConfig } from "../../config/lumen";
 
 const router = Router();
 
@@ -8,7 +8,7 @@ router.get("/", (_req: Request, res: Response, next: NextFunction) => {
     res.json({
       status: "ok",
       service: "project-lumen-api",
-      version: config.appVersion || "0.0.0",
+      version: lumenConfig.appVersion || "0.0.0",
     });
   } catch (error) {
     next(error);

@@ -8,6 +8,7 @@ router.post("/google/verify", requireAuth, requireDeviceSecurity, async (req: Re
   try {
     const { productId, purchaseToken, deviceInstallationId } = req.body;
     const userId = req.lumenUserId;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
     const result = await entitlementsService.verifyGooglePurchase(
       userId,
       productId,

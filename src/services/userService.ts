@@ -1,6 +1,7 @@
 import validator from "validator";
 import type { User as UserType } from "../utils/userStorageTypes";
 import { mongoose } from "./mongoService";
+import logger from "../utils/logger";
 import {
   canDecryptPassword,
   decryptStoredPassword,

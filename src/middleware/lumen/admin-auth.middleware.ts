@@ -78,7 +78,7 @@ export function requireAdmin(): (req: Request, res: Response, next: NextFunction
         /* non-critical */
       });
 
-      req.lumenAdminOperator = session.operatorId || session.userId || "admin";
+      req.lumenAdminOperator = session.username || "admin";
       req.lumenAdminRole = session.role || "admin";
       req.lumenAdminUsername = session.username || req.lumenAdminOperator;
       req.lumenAdminCreatedAt = typeof session.createdAt === "number" ? session.createdAt : undefined;

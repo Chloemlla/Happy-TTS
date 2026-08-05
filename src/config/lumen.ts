@@ -21,6 +21,7 @@ export const lumenConfig = {
   databaseName: process.env.LUMEN_DATABASE_NAME || "project_lumen",
 
   adminPassword: process.env.LUMEN_ADMIN_PASSWORD || "change-me",
+  adminUsername: process.env.LUMEN_ADMIN_USERNAME || "admin",
   adminAutomationToken: process.env.LUMEN_ADMIN_AUTOMATION_TOKEN || "",
 
   requestSigningSecret: process.env.LUMEN_REQUEST_SIGNING_SECRET || "project-lumen-local-request-signing-key",

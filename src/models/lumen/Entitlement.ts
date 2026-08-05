@@ -1,6 +1,6 @@
 import { mongoose } from "../../services/mongoService";
 
-export type EntitlementTier = "FREE" | "PRO" | "PLUS" | "TEAM";
+export type EntitlementTier = "FREE" | "PRO" | "PLUS" | "TEAM" | "DEVELOPER";
 export type EntitlementStatus = "active" | "pending" | "expired" | "revoked" | "cancelled";
 
 export interface IEntitlement {
@@ -24,7 +24,7 @@ const EntitlementSchema = new mongoose.Schema<IEntitlement>(
     source: { type: String },
     productId: { type: String },
     purchaseToken: { type: String },
-    tier: { type: String, enum: ["FREE", "PRO", "PLUS", "TEAM"] },
+    tier: { type: String, enum: ["FREE", "PRO", "PLUS", "TEAM", "DEVELOPER"] },
     status: { type: String, enum: ["active", "pending", "expired", "revoked", "cancelled"] },
     purchasedAt: { type: Number },
     expiresAt: { type: Number },

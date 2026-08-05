@@ -10,6 +10,7 @@ const TIER_RANK: Record<string, number> = {
   PRO: 1,
   PLUS: 2,
   TEAM: 3,
+  DEVELOPER: 4,
 };
 
 function resolveTierRank(tier: string): number {
@@ -162,4 +163,4 @@ export async function verifyGooglePurchase(
   };
 }
 
-export { tierForProduct, resolveActiveTier, resolveTierRank };
+export { tierForProduct, resolveActiveTier, resolveTierRank, resolveTierRank as tierRank };
