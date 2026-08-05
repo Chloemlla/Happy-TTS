@@ -49,6 +49,6 @@ export async function recordFaceAnalysisFrame(
   return {
     accepted: true,
     id: doc._id,
-    receivedAt: new Date(now).toISOString(),
+    receivedAt: now,
   };
 }

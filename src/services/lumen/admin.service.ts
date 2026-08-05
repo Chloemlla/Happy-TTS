@@ -64,8 +64,8 @@ export async function createAdminSession(username: string, password: string) {
     accessToken,
     refreshToken,
     tokenType: "Bearer" as const,
-    expiresAt: expiresAt.toISOString(),
-    refreshExpiresAt: refreshExpiresAt.toISOString(),
+    expiresAt: expiresAt.getTime(),
+    refreshExpiresAt: refreshExpiresAt.getTime(),
     operator: {
       id: accessToken,
       username,
@@ -116,8 +116,8 @@ export async function refreshAdminSession(refreshToken: string) {
     accessToken,
     refreshToken: newRefreshToken,
     tokenType: "Bearer" as const,
-    expiresAt: expiresAt.toISOString(),
-    refreshExpiresAt: refreshExpiresAt.toISOString(),
+    expiresAt: expiresAt.getTime(),
+    refreshExpiresAt: refreshExpiresAt.getTime(),
     operator: {
       id: accessToken,
       username: oldSession.username,
@@ -427,7 +427,7 @@ export async function applyAdminAction(
   return {
     accepted: true,
     action,
-    recordedAt: new Date(now).toISOString(),
+    recordedAt: now,
   };
 }
 

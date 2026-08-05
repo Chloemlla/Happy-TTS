@@ -52,6 +52,8 @@ export function requireAdmin(): (req: Request, res: Response, next: NextFunction
         if (constantTimeEqual(token, lumenConfig.adminAutomationToken)) {
           req.lumenAdminOperator = "automation";
           req.lumenAdminRole = "admin";
+          req.lumenAdminUsername = "automation";
+          req.lumenAdminCreatedAt = Date.now();
           next();
           return;
         }
@@ -78,6 +80,8 @@ export function requireAdmin(): (req: Request, res: Response, next: NextFunction
 
       req.lumenAdminOperator = session.operatorId || session.userId || "admin";
       req.lumenAdminRole = session.role || "admin";
+      req.lumenAdminUsername = session.username || req.lumenAdminOperator;
+      req.lumenAdminCreatedAt = typeof session.createdAt === "number" ? session.createdAt : undefined;
       next();
     } catch (error) {
       next(error);

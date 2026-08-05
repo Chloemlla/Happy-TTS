@@ -134,9 +134,13 @@ function remotePolicyPayload(updatedAt: number) {
 /**
  * Get feature flags with detailed payloads.
  * Accepts an optional userId (ignored — flags are global).
+ * Returns { fetchedAt, flags } matching Rust format.
  */
 export async function getFeatureFlags() {
-  return featureFlagPayload(CONFIG_STATIC_CURSOR);
+  return {
+    fetchedAt: Date.now(),
+    flags: featureFlagPayload(CONFIG_STATIC_CURSOR),
+  };
 }
 
 /**
@@ -183,7 +187,7 @@ export async function getConfigSync(
   return {
     schemaVersion: Math.max(parseInt(version, 10) || 1, 1),
     cursor: nextCursor,
-    serverTime: new Date().toISOString(),
+    serverTime: Date.now(),
     channel,
     featureFlags: flags,
     templates: templates.map((t) => ({

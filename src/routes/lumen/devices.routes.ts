@@ -73,7 +73,7 @@ router.post("/register", requireAuth, async (req: Request, res: Response, next: 
       deviceFingerprint: user.deviceFingerprint || null,
       model: user.deviceAssetModel || null,
       versionCode: user.deviceAssetVersionCode || null,
-      registeredAt: new Date().toISOString(),
+      registeredAt: Date.now(),
     });
   } catch (error) {
     next(error);

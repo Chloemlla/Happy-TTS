@@ -19,7 +19,10 @@ router.post("/", requireAuth, async (req: Request, res: Response, next: NextFunc
 router.get("/debug/latest", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { deviceInstallationId } = req.query;
+    const userId = req.lumenUserId;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
     const result = await telemetryService.latestTelemetryDebugItems(
+      userId,
       deviceInstallationId as string | undefined,
     );
     res.json(result);

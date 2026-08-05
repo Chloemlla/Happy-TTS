@@ -132,17 +132,19 @@ export async function recordTelemetryUpload(
   return {
     accepted: true,
     id: doc._id,
-    receivedAt: new Date(now).toISOString(),
+    receivedAt: now,
   };
 }
 
 /**
- * Get the latest 20 telemetry debug items for a user or device.
+ * Get the latest 20 telemetry debug items for a user.
+ * Filters by userId for security, and optionally by deviceInstallationId.
  */
 export async function latestTelemetryDebugItems(
+  userId: string,
   deviceInstallationId?: string,
 ) {
-  const filter: Record<string, unknown> = {};
+  const filter: Record<string, unknown> = { userId };
   if (deviceInstallationId) {
     filter.deviceInstallationId = deviceInstallationId;
   }
@@ -156,7 +158,7 @@ export async function latestTelemetryDebugItems(
   return items.map((item) => ({
     id: item._id,
     deviceInstallationId: item.deviceInstallationId,
-    receivedAt: new Date(item.receivedAt).toISOString(),
+    receivedAt: item.receivedAt,
     payload: item.payload,
   }));
 }

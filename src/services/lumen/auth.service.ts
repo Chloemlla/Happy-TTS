@@ -83,7 +83,7 @@ export async function startEmailLogin(email: string) {
 
   return {
     requestId,
-    expiresAt: new Date(expiresAt).toISOString(),
+    expiresAt,
     delivery,
     ...(devCode ? { devCode } : {}),
   };
@@ -219,8 +219,8 @@ export async function createSessionResponse(
     accessToken,
     refreshToken,
     tokenType: "Bearer" as const,
-    expiresAt: expiresAt.toISOString(),
-    refreshExpiresAt: refreshExpiresAt.toISOString(),
+    expiresAt: expiresAt.getTime(),
+    refreshExpiresAt: refreshExpiresAt.getTime(),
   };
 }
 

@@ -21,7 +21,7 @@ router.get("/", requireAuth, async (req: Request, res: Response, next: NextFunct
     res.json({
       id: user._id,
       email: user.email,
-      createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : null,
+      createdAt: user.createdAt || null,
       deviceInstallationId: user.deviceInstallationId,
     });
   } catch (error) {

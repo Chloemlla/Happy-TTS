@@ -9,6 +9,8 @@ declare global {
       lumenSession?: ISession;
       lumenAdminOperator?: string;
       lumenAdminRole?: string;
+      lumenAdminUsername?: string;
+      lumenAdminCreatedAt?: number;
       lumenSecurityEvidence?: {
         status: string;
         verified: boolean;

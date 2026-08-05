@@ -18,24 +18,31 @@ function resolveTierRank(tier: string): number {
 
 /**
  * Map a product ID to its entitlement tier.
+ * Uses substring matching, matching the Rust backend's `contains()` logic.
  */
 function tierForProduct(productId: string): EntitlementTier {
   const lower = productId.toLowerCase();
-  if (lower === "team") return "TEAM";
-  if (lower === "plus" || lower === "monthly" || lower === "yearly") return "PLUS";
-  if (lower === "pro") return "PRO";
+  if (lower.includes("team")) return "TEAM";
+  if (lower.includes("plus") || lower.includes("monthly") || lower.includes("yearly")) return "PLUS";
+  if (lower.includes("pro")) return "PRO";
   return "FREE";
 }
 
 /**
- * Given a list of entitlements, resolve the highest active tier.
+ * Given a list of entitlements, resolve the highest active, non-expired tier.
+ * Matches the Rust backend's expiry check: expiresAt <= 0 means no expiry.
  */
-function resolveActiveTier(entitlements: Array<{ tier: string; status: string }>): EntitlementTier {
+function resolveActiveTier(
+  entitlements: Array<{ tier: string; status: string; expiresAt?: number }>,
+  now: number = Date.now(),
+): EntitlementTier {
   let highest: EntitlementTier = "FREE";
   let highestRank = 0;
 
   for (const e of entitlements) {
     if (e.status !== "active") continue;
+    // Expired if expiresAt > 0 and expiresAt <= now.
+    if (e.expiresAt && e.expiresAt > 0 && e.expiresAt <= now) continue;
     const rank = resolveTierRank(e.tier);
     if (rank > highestRank) {
       highestRank = rank;
@@ -53,16 +60,17 @@ function resolveActiveTier(entitlements: Array<{ tier: string; status: string }>
  * Returns the resolved active tier and the entitlement records.
  */
 export async function listEntitlements(userId: string) {
+  const now = Date.now();
   const entitlements = await Entitlement.find({ userId })
     .sort({ purchasedAt: -1 })
     .lean()
     .exec();
 
-  const tier = resolveActiveTier(entitlements);
+  const tier = resolveActiveTier(entitlements, now);
 
   return {
     tier,
-    syncedAt: new Date().toISOString(),
+    syncedAt: now,
     entitlements: entitlements.map((e) => ({
       id: e._id,
       source: e.source,
@@ -122,7 +130,7 @@ export async function verifyGooglePurchase(
     tier,
     status,
     purchasedAt: now,
-    expiresAt: now + 365 * 24 * 60 * 60 * 1000, // 1 year default
+    expiresAt: 0, // 0 = no expiry; Rust default
     lastVerifiedAt: now,
     rawPayloadJson: JSON.stringify({
       deviceInstallationId,
@@ -141,7 +149,7 @@ export async function verifyGooglePurchase(
   return {
     status,
     tier: accept ? tier : "FREE",
-    verifiedAt: new Date(now).toISOString(),
+    verifiedAt: now,
     entitlement: {
       id: entitlement._id,
       source: entitlement.source,

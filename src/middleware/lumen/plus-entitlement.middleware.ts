@@ -15,13 +15,14 @@ function tierIndex(tier: string): number {
 
 /**
  * Resolve the highest active entitlement tier for a user.
+ * Also checks expiry: expiresAt <= 0 or expiresAt > now means not expired.
  */
 async function resolveHighestTier(userId: string): Promise<Tier | null> {
+  const now = Date.now();
   const entitlements = await Entitlement.find({
     userId,
     status: "active",
   })
-    .sort({ expiresAt: -1 })
     .lean()
     .exec();
 
@@ -31,6 +32,8 @@ async function resolveHighestTier(userId: string): Promise<Tier | null> {
   let highestIdx = -1;
 
   for (const e of entitlements) {
+    // Skip expired entitlements (expiresAt > 0 and <= now).
+    if (e.expiresAt && e.expiresAt > 0 && e.expiresAt <= now) continue;
     const idx = tierIndex(e.tier);
     if (idx > highestIdx) {
       highestIdx = idx;

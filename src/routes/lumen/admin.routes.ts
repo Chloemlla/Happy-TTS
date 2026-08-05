@@ -26,12 +26,12 @@ router.post("/auth/refresh", async (req: Request, res: Response, next: NextFunct
 
 router.get("/me", requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const operator = (req as any).operator;
+    const operator = req.lumenAdminOperator;
     res.json({
-      id: operator.id,
-      username: operator.username,
-      role: operator.role,
-      createdAt: operator.createdAt,
+      id: operator,
+      username: req.lumenAdminUsername,
+      role: req.lumenAdminRole,
+      createdAt: req.lumenAdminCreatedAt,
     });
   } catch (error) {
     next(error);
@@ -50,8 +50,8 @@ router.get("/dashboard", requireAdmin, async (req: Request, res: Response, next:
 router.post("/actions", requireAdmin, requireAdminActionOperator, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { action, payload } = req.body;
-    const operator = (req as any).operator;
-    const result = await adminService.applyAdminAction(operator.id, action, payload);
+    const operator = req.lumenAdminOperator;
+    const result = await adminService.applyAdminAction(operator, action, payload);
     res.json(result);
   } catch (error) {
     next(error);

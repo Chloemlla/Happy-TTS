@@ -39,8 +39,10 @@ const OPENAPI_SPEC = {
       post: { summary: "Push sync changes", tags: ["Sync"], security: [{ bearerAuth: [] }], responses: { "200": { description: "Sync result" } } },
     },
     "/backups": {
-      post: { summary: "Save backup", tags: ["Backups"], security: [{ bearerAuth: [] }], responses: { "200": { description: "Backup saved" } } },
-      get: { summary: "Get latest backup", tags: ["Backups"], security: [{ bearerAuth: [] }], responses: { "200": { description: "Latest backup" } } },
+      post: { summary: "Upload a full JSON cloud backup", tags: ["Backups"], security: [{ bearerAuth: [] }], responses: { "200": { description: "Backup saved" } } },
+    },
+    "/backups/latest": {
+      get: { summary: "Fetch latest JSON cloud backup", tags: ["Backups"], security: [{ bearerAuth: [] }], responses: { "200": { description: "Latest backup" } } },
     },
     "/telemetry": {
       post: { summary: "Upload telemetry", tags: ["Telemetry"], security: [{ bearerAuth: [] }], responses: { "200": { description: "Telemetry recorded" } } },

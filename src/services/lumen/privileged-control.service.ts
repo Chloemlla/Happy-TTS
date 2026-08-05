@@ -233,8 +233,8 @@ export async function startVisionSession(
   return {
     accepted: true,
     sessionId: session._id,
-    startedAt: new Date(session.startedAt).toISOString(),
-    expiresAt: new Date(session.expiresAt).toISOString(),
+    startedAt: session.startedAt,
+    expiresAt: session.expiresAt,
     policy: {
       silentVision: policy.silentVision,
     },
@@ -299,7 +299,7 @@ export async function heartbeatVisionSession(
     accepted: true,
     sessionId: session._id,
     continueStream,
-    receivedAt: new Date(now).toISOString(),
+    receivedAt: now,
   };
 }
 
@@ -410,7 +410,7 @@ export async function uploadVisionFrame(
     sessionId: request.sessionId,
     pipeline,
     surfaceAttached,
-    receivedAt: new Date(now).toISOString(),
+    receivedAt: now,
   };
 }
 
@@ -483,7 +483,7 @@ export async function recordLifecycleEvent(
   return {
     accepted: true,
     id: event._id,
-    receivedAt: new Date(now).toISOString(),
+    receivedAt: now,
     policy: {
       lifecycleLock: policy.lifecycleLock,
     },

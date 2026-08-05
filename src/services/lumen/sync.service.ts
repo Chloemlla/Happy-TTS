@@ -132,6 +132,6 @@ export async function changesSince(userId: string, since: string) {
       updatedAt: c.change.updatedAt,
     })),
     nextCursor,
-    serverTime: new Date().toISOString(),
+    serverTime: Date.now(),
   };
 }
