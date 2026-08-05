@@ -73,13 +73,13 @@ export const authMiddleware = async (req: Request & { user?: any }, res: Respons
 };
 
 /**
- * Admin guard that first authenticates the request (V1 authMiddleware) and then
+ * Admin guard that first authenticates the request (V2 authMiddleware) and then
  * verifies the authenticated user has the `admin` role.
  */
 export const authenticateAdmin = async (req: Request & { user?: any }, res: Response, next: NextFunction) => {
   try {
     if (!req.user) {
-      await authMiddleware(req, res, () => undefined);
+      await authMiddlewareV2(req, res, () => undefined);
       if (!req.user) {
         return;
       }
