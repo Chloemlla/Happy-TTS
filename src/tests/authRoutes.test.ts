@@ -6,6 +6,7 @@ jest.mock("../controllers/authController", () => ({
   AuthController: {
     register: jest.fn(mockNoopHandler),
     login: jest.fn(mockNoopHandler),
+    getAuthProvidersPublicConfig: jest.fn(mockNoopHandler),
     getGoogleAuthConfig: jest.fn(mockNoopHandler),
     googleAuth: jest.fn(mockNoopHandler),
     googleBindSession: jest.fn(mockNoopHandler),

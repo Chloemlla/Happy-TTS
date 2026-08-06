@@ -37,6 +37,7 @@ jest.mock("../models/ecoEnchantsModel", () => ({
   },
   EcoEnchantsTelemetryEventModel: {
     create: jest.fn(),
+    bulkWrite: jest.fn(),
   },
   EcoEnchantsWebhookEventModel: {
     findOne: jest.fn(),
@@ -274,9 +275,11 @@ describe("EcoEnchantsService.reportRuntimeTelemetryEvents", () => {
     mockedReleaseBuildModel.findOne.mockResolvedValue({ buildId: "build_test" } as any);
     mockedActivationModel.findOne.mockResolvedValue(activation);
     mockedActivationModel.countDocuments.mockResolvedValue(1);
-    mockedTelemetryEventModel.create
-      .mockResolvedValueOnce({ telemetryEventId: "tel_1" } as any)
-      .mockRejectedValueOnce({ code: 11000 });
+    mockedTelemetryEventModel.bulkWrite.mockResolvedValue({
+      insertedCount: 1,
+      upsertedCount: 0,
+      writeErrors: [{ index: 1, code: 11000 }],
+    } as any);
 
     const verifyResult = (await EcoEnchantsService.verifyLicense(baseVerifyRequest, {
       requestId: "req_verify",
@@ -332,16 +335,21 @@ describe("EcoEnchantsService.reportRuntimeTelemetryEvents", () => {
       eventId: "evt_bad",
       code: "invalid_timestamp",
     });
-    expect(mockedTelemetryEventModel.create).toHaveBeenCalledTimes(2);
-    expect(mockedTelemetryEventModel.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        productId: "ecoenchants",
-        licenseId: "lic_test",
-        activationId: "act_test",
-        eventId: "evt_1",
-        idempotencyKey: "batch-id",
-      }),
-    );
+    expect(mockedTelemetryEventModel.bulkWrite).toHaveBeenCalledTimes(1);
+    const [bulkOps, bulkOptions] = mockedTelemetryEventModel.bulkWrite.mock.calls[0] as [
+      Array<{ insertOne: { document: Record<string, unknown> } }>,
+      { ordered: boolean },
+    ];
+    expect(bulkOptions).toEqual({ ordered: false });
+    expect(bulkOps).toHaveLength(2);
+    const documents = bulkOps.map((op) => op.insertOne.document);
+    expect(documents[0]).toMatchObject({
+      productId: "ecoenchants",
+      licenseId: "lic_test",
+      activationId: "act_test",
+      eventId: "evt_1",
+      idempotencyKey: "batch-id",
+    });
   });
 });
 

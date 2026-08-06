@@ -17,6 +17,7 @@ jest.mock("../services/mongoService", () => ({
 
 jest.mock("../middleware/routeLimiters", () => ({
   createLimiter: jest.fn(() => (_req, _res, next) => next()),
+  adminLimiter: (_req, _res, next) => next(),
 }));
 
 jest.mock("../services/wsService", () => ({

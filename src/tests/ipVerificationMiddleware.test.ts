@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextFunction, Request, Response } from "express";
 
 const mockVerifyRequestToken = jest.fn();
@@ -7,6 +8,10 @@ jest.mock("../config/config", () => ({
     ipqs: {
       enabled: true,
     },
+  },
+  // logger 初始化依赖 compileTimeConfig.logsDir
+  compileTimeConfig: {
+    logsDir: path.join(process.cwd(), "logs"),
   },
 }));
 

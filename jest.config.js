@@ -16,6 +16,9 @@ module.exports = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@frontend/(.*)$': '<rootDir>/frontend/src/$1',
+    // jest 30 的 unrs-resolver 不把相对导入的 `.js` 后缀映射到 `.ts` 源文件，
+    // 剥离后缀让 jest 按 moduleFileExtensions 找到对应的 `.ts`。
+    '^(\\.{1,2}/.*)\\.js$': '$1',
   },
   testPathIgnorePatterns: [
     '[\\\\/]frontend[\\\\/]src[\\\\/].*\\.(test|spec)\\.(ts|tsx|js|jsx)$',
