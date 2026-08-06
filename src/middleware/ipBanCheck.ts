@@ -139,7 +139,7 @@ const WHITELIST_PATHS = [
  * 使用 ipUtils 统一实现，优先信任 Express 的 req.ip（由 trust proxy 配置解析）
  */
 function getClientIPFromRequest(req: Request): string {
-  return normalizeIP(getClientIPFromRequest(req));
+  return normalizeIP(getClientIP(req));
 }
 
 /**
