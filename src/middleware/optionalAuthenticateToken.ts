@@ -21,7 +21,7 @@ export const optionalAuthenticateToken = async (req: Request, _res: Response, ne
     }
     let userId: string | undefined;
     try {
-      const decoded: any = jwt.verify(token, config.jwtSecret);
+      const decoded: any = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] });
       userId = decoded.userId;
     } catch {
       // Token 无效则忽略，继续匿名

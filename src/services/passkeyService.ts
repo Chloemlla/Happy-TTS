@@ -86,7 +86,7 @@ function isSyntheticTestAuthenticationResponse(response: any): boolean {
     process.env.NODE_ENV === "test" &&
     // Double-check that we're actually running in a test environment, not just
     // a misconfigured production deployment with NODE_ENV accidentally set to "test".
-    typeof jest !== "undefined" &&
+    typeof (globalThis as any)?.jest !== "undefined" &&
     response?.response?.authenticatorData === "test-data" &&
     response?.response?.clientDataJSON === "test-data" &&
     response?.response?.signature === "test-signature"
@@ -814,7 +814,7 @@ export class PasskeyService {
 
     // 验证生成的token
     try {
-      const decoded = jwt.verify(token, config.jwtSecret) as any;
+      const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] }) as any;
       if (decoded.userId !== user.id || decoded.username !== user.username) {
         logger.error("[Passkey] Token验证失败：用户信息不匹配", {
           userId: user.id,

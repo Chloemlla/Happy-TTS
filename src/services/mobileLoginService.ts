@@ -425,7 +425,7 @@ export async function resolveUserFromBearerToken(authHeader: unknown): Promise<U
   }
   const token = authHeader.substring(7);
   try {
-    const decoded = jwt.verify(token, config.jwtSecret) as { userId?: string; sub?: string };
+    const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] }) as { userId?: string; sub?: string };
     const userId = decoded.userId || decoded.sub;
     if (!userId) return null;
     await assertActiveAuthSession(userId, token);

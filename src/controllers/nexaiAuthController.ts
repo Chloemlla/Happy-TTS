@@ -6,6 +6,7 @@ import type { Request, Response } from "express";
 import { config } from "../config/config";
 import { NexaiUserModel } from "../models/nexaiUserModel";
 import { NexaiAuthService } from "../services/nexaiAuthService";
+import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
 
 /** 安全的用户信息响应（去除敏感字段） */
@@ -22,7 +23,7 @@ export class NexaiAuthController {
   static async register(req: Request, res: Response) {
     try {
       const { username, email, password, displayName } = req.body;
-      const ip = req.ip || (req.headers["x-real-ip"] as string) || "unknown";
+      const ip = getClientIP(req);
 
       const result = await NexaiAuthService.register({
         username,
@@ -61,7 +62,7 @@ export class NexaiAuthController {
   static async login(req: Request, res: Response) {
     try {
       const { identifier, username, email, password } = req.body;
-      const ip = req.ip || (req.headers["x-real-ip"] as string) || "unknown";
+      const ip = getClientIP(req);
 
       // 兼容 identifier 或 username/email 字段
       const loginIdentifier = identifier || username || email;
@@ -104,7 +105,7 @@ export class NexaiAuthController {
         });
       }
 
-      const ip = req.ip || (req.headers["x-real-ip"] as string) || "unknown";
+      const ip = getClientIP(req);
       const result = await NexaiAuthService.googleAuth({ idToken, ip });
 
       res.json({
@@ -140,7 +141,7 @@ export class NexaiAuthController {
         });
       }
 
-      const ip = req.ip || (req.headers["x-real-ip"] as string) || "unknown";
+      const ip = getClientIP(req);
       const result = await NexaiAuthService.githubAuth({ code, ip });
 
       res.json({
@@ -176,7 +177,7 @@ export class NexaiAuthController {
         });
       }
 
-      const ip = req.ip || (req.headers["x-real-ip"] as string) || "unknown";
+      const ip = getClientIP(req);
       const result = await NexaiAuthService.githubAuth({ code, ip });
 
       // 重定向回前端，携带 token 参数
@@ -237,7 +238,7 @@ export class NexaiAuthController {
         });
       }
 
-      const ip = req.ip || (req.headers["x-real-ip"] as string) || "unknown";
+      const ip = getClientIP(req);
       const result = await NexaiAuthService.refreshAccessToken({
         refreshToken,
         ip,
@@ -598,7 +599,7 @@ export class NexaiAuthController {
         return res.status(400).json({ success: false, error: "参数不完整" });
       }
 
-      const ip = req.ip || (req.headers["x-real-ip"] as string) || "unknown";
+      const ip = getClientIP(req);
 
       // 由于 options 阶段我们已把 challenge 保存到特定的用户上，
       // 此时应该使用 identifier 获取 userID（避免安全风险，建议传 userID 此处简化）
@@ -669,7 +670,7 @@ export class NexaiAuthController {
         return res.status(400).json({ success: false, error: "参数不完整" });
       }
 
-      const ip = req.ip || (req.headers["x-real-ip"] as string) || "unknown";
+      const ip = getClientIP(req);
       const result = await NexaiAuthService.verifyDiscoverablePasskeyAuthentication(response, challenge, ip);
 
       res.json({

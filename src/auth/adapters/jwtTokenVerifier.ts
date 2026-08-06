@@ -19,7 +19,7 @@ export class JwtTokenVerifier implements TokenVerifier {
 
   async verify(token: string): Promise<TokenPayload> {
     try {
-      const decoded = jwt.verify(token, this.config.secret) as TokenPayload;
+      const decoded = jwt.verify(token, this.config.secret, { algorithms: ["HS256"] }) as TokenPayload;
       return decoded;
     } catch (error) {
       if (error instanceof jwt.JsonWebTokenError) {

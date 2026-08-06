@@ -11,6 +11,7 @@ import {
   recordSecurityEvent,
   trackDevice,
 } from "../services/nexaiSecurityService";
+import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
 
 const ALLOWED_SECURITY_EVENT_TYPES = new Set([
@@ -80,7 +81,7 @@ export async function reportSecurityEvent(req: Request, res: Response): Promise<
     }
 
     const userId = getRequestUserId(req);
-    const ipAddress = (req.ip || req.headers["x-forwarded-for"] || req.socket.remoteAddress) as string;
+    const ipAddress = getClientIP(req);
     const userAgent = req.headers["user-agent"] || "";
 
     // Record the security event. Client headers are telemetry only.
@@ -247,7 +248,7 @@ export async function trackDeviceManually(req: Request, res: Response): Promise<
       return;
     }
 
-    const ipAddress = (req.ip || req.headers["x-forwarded-for"] || req.socket.remoteAddress) as string;
+    const ipAddress = getClientIP(req);
     const userAgent = req.headers["user-agent"] || "";
 
     await trackDevice(userId, headers, ipAddress, userAgent);

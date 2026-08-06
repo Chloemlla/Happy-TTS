@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { isIP } from "node:net";
 import type { Request, Response } from "express";
 import { connectMongo, mongoose } from "../services/mongoService";
+import { getClientIP } from "../utils/ipUtils";
 import SmartHumanCheckService from "../services/smartHumanCheckService";
 import logger from "../utils/logger";
 
@@ -18,7 +19,7 @@ function clampPowDifficulty(value: number): number {
 }
 
 function getClientIp(req: Request): string {
-  return (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "unknown";
+  return getClientIP(req);
 }
 
 function getRequestOrigin(req: Request): string | undefined {

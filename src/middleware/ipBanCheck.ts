@@ -5,6 +5,7 @@ import { config } from "../config/config";
 import { IpBanModel } from "../models/ipBanModel";
 import { redisService } from "../services/redisService.js";
 import { securityBypassPolicy } from "../security/securityPolicy";
+import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
 import { createLimiter } from "./routeLimiters";
 
@@ -95,9 +96,9 @@ const ipBanCheckLimiter = createLimiter({
   profile: "global",
   category: "global",
   skipFailedRequests: true,
-  keyGenerator: (req: Request) => getClientIP(req),
+  keyGenerator: (req: Request) => getClientIPFromRequest(req),
   handler: (req: Request, res: Response) => {
-    const clientIP = getClientIP(req);
+    const clientIP = getClientIPFromRequest(req);
     logger.warn(`⚠️ IP 封禁检查速率限制触发: ${clientIP}`);
     res.status(429).json({
       error: "请求过于频繁，请稍后再试",
@@ -135,34 +136,10 @@ const WHITELIST_PATHS = [
 
 /**
  * 安全地获取客户端真实IP地址
- * 考虑代理、负载均衡器和header伪造的情况
+ * 使用 ipUtils 统一实现，优先信任 Express 的 req.ip（由 trust proxy 配置解析）
  */
-function getClientIP(req: Request): string {
-  // 如果Express配置了trust proxy，优先使用req.ip（最可靠）
-  if (req.app.get("trust proxy") && req.ip) {
-    return normalizeIP(req.ip);
-  }
-
-  // 从x-forwarded-for获取第一个IP（最左边是真实客户端IP）
-  const forwarded = req.headers["x-forwarded-for"];
-  if (forwarded) {
-    const ips = (Array.isArray(forwarded) ? forwarded[0] : forwarded)
-      .split(",")
-      .map((ip) => ip.trim())
-      .filter((ip) => ip);
-    if (ips.length > 0) {
-      return normalizeIP(ips[0]);
-    }
-  }
-
-  // 备选方案：x-real-ip header
-  const realIP = req.headers["x-real-ip"];
-  if (realIP && typeof realIP === "string") {
-    return normalizeIP(realIP);
-  }
-
-  // 最后使用socket地址
-  return normalizeIP(req.socket.remoteAddress || "unknown");
+function getClientIPFromRequest(req: Request): string {
+  return normalizeIP(getClientIPFromRequest(req));
 }
 
 /**
@@ -699,7 +676,7 @@ export const ipBanCheckMiddleware = async (req: Request, res: Response, next: Ne
     }
 
     // 获取并规范化客户端IP（带缓存优化）
-    const normalizedIP = getClientIP(req);
+    const normalizedIP = getClientIPFromRequest(req);
 
     // 快速路径2：检查内存缓存
     const cached = banCache.get(normalizedIP);
@@ -800,7 +777,7 @@ export const ipBanCheckMiddleware = async (req: Request, res: Response, next: Ne
     next();
   } catch (error) {
     // 区分错误类型进行处理
-    const normalizedIP = getClientIP(req);
+    const normalizedIP = getClientIPFromRequest(req);
 
     if (error instanceof Error) {
       // 数据库连接错误 - 这是严重问题

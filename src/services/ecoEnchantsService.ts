@@ -243,7 +243,7 @@ function createEcoEnchantsRuntimeActivationSession(params: {
 }
 
 export function verifyEcoEnchantsRuntimeActivationToken(token: string): EcoEnchantsRuntimeActivationTokenPayload {
-  const decoded = jwt.verify(token, getRuntimeActivationTokenSecret()) as Partial<EcoEnchantsRuntimeActivationTokenPayload>;
+  const decoded = jwt.verify(token, getRuntimeActivationTokenSecret(), { algorithms: ["HS256"] }) as Partial<EcoEnchantsRuntimeActivationTokenPayload>;
   if (
     decoded.scope !== "runtime.telemetry" ||
     typeof decoded.productId !== "string" ||
@@ -545,7 +545,7 @@ function appendSignedDownloadParams(downloadUrl: string, expiresAt: Date, build:
 
 export function verifyEcoEnchantsDownloadToken(token: string): { customerId?: string; licenseId?: string; productId?: string } {
   const secret = process.env.ECOENCHANTS_DOWNLOAD_TOKEN_SECRET || config.jwtSecret;
-  const decoded = jwt.verify(token, secret) as any;
+  const decoded = jwt.verify(token, secret, { algorithms: ["HS256"] }) as any;
   return {
     customerId: typeof decoded.customerId === "string" ? decoded.customerId : undefined,
     licenseId: typeof decoded.licenseId === "string" ? decoded.licenseId : undefined,

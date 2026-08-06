@@ -30,10 +30,7 @@ function getBearerToken(req: Request): string | null {
 }
 
 function resolveIp(req: Request): string {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (Array.isArray(forwarded) && forwarded.length > 0) return forwarded[0].split(",")[0].trim();
-  if (typeof forwarded === "string" && forwarded.trim()) return forwarded.split(",")[0].trim();
-  return req.ip || req.socket.remoteAddress || "unknown";
+  return getClientIP(req);
 }
 
 function checkTokenRateLimit(tokenId: string, maxPerMinute: number): boolean {

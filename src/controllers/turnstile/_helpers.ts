@@ -1,14 +1,8 @@
 import type { Request, Response } from "express";
+import { getClientIP } from "../../utils/ipUtils";
 
 export function getClientIp(req: Request): string {
-  const ip =
-    req.ip ||
-    req.socket.remoteAddress ||
-    (Array.isArray(req.headers["x-forwarded-for"])
-      ? req.headers["x-forwarded-for"][0]
-      : req.headers["x-forwarded-for"]) ||
-    "unknown";
-  return typeof ip === "string" ? ip : "unknown";
+  return getClientIP(req);
 }
 
 export function requireAdmin(req: Request, res: Response): boolean {

@@ -2,6 +2,7 @@ import express, { type Request } from "express";
 import { createLimiter } from "../middleware/rateLimiter";
 import { getOutEmailServiceStatus, resolveOutEmailDomain } from "../services/emailService";
 import { getOutEmailAuthStatus, getOutEmailQuota, sendOutEmail, sendOutEmailBatch, getOutEmailRecords, getOutEmailRecordById } from "../services/outEmailService";
+import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
 
 const router = express.Router();
@@ -121,7 +122,7 @@ router.post("/send", outEmailLimiter, async (req, res) => {
 
     if (typeof to === "string") {
       if (!isValidEmail(to)) return res.status(400).json({ error: "收件人邮箱格式无效" });
-      const ip = String(req.ip || req.headers["x-real-ip"] || "");
+      const ip = getClientIP(req);
       // 附件校验（可选）
       let safeAttachments: any[] | undefined;
       if (attachments && Array.isArray(attachments)) {
@@ -157,7 +158,7 @@ router.post("/send", outEmailLimiter, async (req, res) => {
     if (Array.isArray(to) && typeof to[0] === "string") {
       const first = to[0];
       if (!isValidEmail(first)) return res.status(400).json({ error: "收件人邮箱格式无效" });
-      const ip = String(req.ip || req.headers["x-real-ip"] || "");
+      const ip = getClientIP(req);
       let safeAttachments: any[] | undefined;
       if (attachments && Array.isArray(attachments)) {
         safeAttachments = attachments
@@ -215,7 +216,7 @@ router.post("/batch-send", outEmailLimiter, async (req, res) => {
       }));
     if (!normalized.length) return res.status(400).json({ error: "消息列表无有效项" });
 
-    const ip = String(req.ip || req.headers["x-real-ip"] || "");
+    const ip = getClientIP(req);
     const result = await sendOutEmailBatch({
       messages: normalized,
       code: auth.code,

@@ -123,7 +123,7 @@ function getRefreshTokenExpiry(): number {
 
 /** 验证 JWT Token */
 function verifyAccessToken(token: string): any {
-  return jwt.verify(token, getNexaiJwtSecret());
+  return jwt.verify(token, getNexaiJwtSecret(), { algorithms: ["HS256"] });
 }
 
 /** 合并 authProvider */
@@ -1366,7 +1366,7 @@ export class NexaiAuthService {
 
     let decoded: any;
     try {
-      decoded = jwt.verify(data.token, getNexaiJwtSecret());
+      decoded = jwt.verify(data.token, getNexaiJwtSecret(), { algorithms: ["HS256"] });
     } catch (_) {
       throw Object.assign(new Error("重置链接已过期或无效"), { statusCode: 400 });
     }

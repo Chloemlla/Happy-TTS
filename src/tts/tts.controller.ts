@@ -13,6 +13,7 @@ import { TtsQueue } from "./tts.queue";
 import { ttsAssetAccessService } from "./tts.assetAccess";
 import { type TtsNextAction, ttsStorage } from "./tts.storage";
 import { signContent } from "../utils/sign";
+import { getClientIP } from "../utils/ipUtils";
 
 export class TtsController {
   private static readonly submissionPipeline = new TtsSubmissionPipeline();
@@ -22,15 +23,7 @@ export class TtsController {
   });
 
   private static getClientIp(req: Request): string {
-    const ip =
-      (req.headers["x-forwarded-for"] as string)?.split(",")[0] ||
-      (req.headers["x-real-ip"] as string) ||
-      req.ip ||
-      req.connection.remoteAddress ||
-      req.socket.remoteAddress ||
-      "unknown";
-
-    return ip.replace(/^::ffff:/, "");
+    return getClientIP(req);
   }
 
   private static async resolveCurrentUser(req: Request): Promise<User | null> {
@@ -64,7 +57,7 @@ export class TtsController {
 
     let decoded: jwt.JwtPayload | string;
     try {
-      decoded = jwt.verify(token, config.jwtSecret);
+      decoded = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] });
     } catch {
       throw new TtsRequestError(401, "登录状态已失效，请重新登录", "TTS_AUTH_INVALID");
     }

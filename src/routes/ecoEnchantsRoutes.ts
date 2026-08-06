@@ -223,7 +223,7 @@ async function authenticateEcoCustomer(req: Request, res: Response, next: NextFu
       return;
     }
 
-    const decoded = jwt.verify(jwtToken, config.jwtSecret) as any;
+    const decoded = jwt.verify(jwtToken, config.jwtSecret, { algorithms: ["HS256"] }) as any;
     const userId = decoded.userId || decoded.sub;
     if (!userId) {
       sendAuthError(res, req, 401, "unauthorized", "Token does not contain a user ID.");

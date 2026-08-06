@@ -728,13 +728,7 @@ router.post("/user/avatar", authMiddleware, upload.single("avatar"), async (req,
     let result;
     try {
       console.log(`[avatar upload] 开始上传头像: ${req.file.originalname}, 大小: ${req.file.size} bytes`);
-      const clientIp =
-        (req.headers["x-forwarded-for"] as string)?.split(",")[0] ||
-        (req.headers["x-real-ip"] as string) ||
-        req.ip ||
-        (req.connection as any).remoteAddress ||
-        (req.socket as any).remoteAddress ||
-        "unknown";
+      const clientIp = getClientIP(req);
       result = await IPFSService.uploadFile(
         req.file.buffer,
         req.file.originalname,
@@ -819,8 +813,7 @@ router.post("/user/fingerprint", authMiddleware, async (req, res) => {
     }
 
     const ua = req.headers["user-agent"] || "";
-    const ip =
-      (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.socket?.remoteAddress || req.ip || "";
+    const ip = getClientIP(req);
     const ts = Date.now();
 
     const fingerprintRecord = { id, ts, ua: String(ua), ip: String(ip) };
@@ -861,8 +854,7 @@ router.get("/user/fingerprint/status", authMiddleware, async (req, res) => {
     const count = Array.isArray(fps) ? fps.length : 0;
     const lastTs = count > 0 && fps[0] && typeof fps[0].ts === "number" ? fps[0].ts : 0;
     const lastIp = count > 0 && fps[0] && typeof fps[0].ip === "string" ? fps[0].ip : "";
-    const currentIp =
-      (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.socket?.remoteAddress || req.ip || "";
+    const currentIp = getClientIP(req);
     const ipChanged = !!(lastIp && currentIp && lastIp !== currentIp);
 
     const lastUa = count > 0 && fps[0] && typeof fps[0].ua === "string" ? fps[0].ua : "";

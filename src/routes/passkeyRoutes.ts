@@ -64,7 +64,7 @@ router.post("/register/start", passkeyAuthLimiter, authenticateToken, async (req
   try {
     const userId = (req as any).user?.id;
     const { credentialName, clientOrigin } = req.body;
-    const ip = req.headers["x-real-ip"] || req.ip || "unknown";
+    const ip = getClientIP(req);
     logger.info("[Passkey] /register/start 收到请求", {
       userId,
       credentialName,
@@ -249,7 +249,7 @@ router.post("/register/finish", passkeyAuthLimiter, authenticateToken, async (re
 router.post("/authenticate/start/discoverable", passkeyAuthLimiter, async (req, res) => {
   try {
     const { clientOrigin } = req.body;
-    const ip = req.headers["x-real-ip"] || req.ip || "unknown";
+    const ip = getClientIP(req);
 
     logger.info("[Passkey] /authenticate/start/discoverable 收到请求（无需用户名）", { clientOrigin, ip });
 
@@ -282,7 +282,7 @@ router.post("/authenticate/start/discoverable", passkeyAuthLimiter, async (req, 
 router.post("/authenticate/start", passkeyAuthLimiter, async (req, res) => {
   try {
     const { username, clientOrigin } = req.body;
-    const ip = req.headers["x-real-ip"] || req.ip || "unknown";
+    const ip = getClientIP(req);
 
     logger.info("[Passkey] /authenticate/start 收到请求", { username, clientOrigin, ip, headers: req.headers });
 
@@ -453,7 +453,7 @@ router.post("/authenticate/finish/discoverable", passkeyAuthLimiter, async (req,
     try {
       const jwt = require("jsonwebtoken");
       const config = require("../config/config").config;
-      const decoded = jwt.verify(token, config.jwtSecret);
+      const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] });
 
       if (decoded.userId !== matchedUser.id || decoded.username !== matchedUser.username) {
         logger.error("[Passkey] Discoverable Token生成错误：用户信息不匹配", {
@@ -571,7 +571,7 @@ router.post("/authenticate/finish", passkeyAuthLimiter, async (req, res) => {
     try {
       const jwt = require("jsonwebtoken");
       const config = require("../config/config").config;
-      const decoded = jwt.verify(token, config.jwtSecret);
+      const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] });
 
       if (decoded.userId !== user.id || decoded.username !== user.username) {
         logger.error("[Passkey] Token生成错误：用户信息不匹配", {

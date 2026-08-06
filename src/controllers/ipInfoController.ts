@@ -7,24 +7,16 @@ import {
   recordClientReportedIp,
 } from "../services/ipTelemetryService";
 import { getIPInfo } from "../services/ip";
+import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
 
-function firstHeaderValue(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
-}
-
 function resolveRequestIp(req: Request): string | null {
-  return (
-    normalizeIpAddress(firstHeaderValue(req.headers["x-forwarded-for"])) ||
-    normalizeIpAddress(firstHeaderValue(req.headers["x-real-ip"])) ||
-    normalizeIpAddress(req.ip) ||
-    normalizeIpAddress(req.socket.remoteAddress)
-  );
+  return normalizeIpAddress(getClientIP(req));
 }
 
 export class IpInfoController {
   static async queryIpInfo(req: Request, res: Response): Promise<void> {
-    const ip = normalizeIpAddress(firstHeaderValue(req.headers["x-real-ip"])) || normalizeIpAddress(req.ip) || "127.0.0.1";
+    const ip = normalizeIpAddress(getClientIP(req)) || "127.0.0.1";
 
     try {
       logger.info("收到IP信息查询请求", {

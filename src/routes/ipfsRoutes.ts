@@ -7,6 +7,7 @@ import { authenticateAdmin } from "../middleware/auth";
 import { connectMongo } from "../services/mongoService";
 import logger from "../utils/logger";
 import { createLimiter } from "../middleware/routeLimiters";
+import { getClientIP } from "../utils/ipUtils";
 
 const router = express.Router();
 const ipfsApiKeyAuth = apiKeyAuth("ipfs");
@@ -250,7 +251,7 @@ router.post("/settings/test", authenticateAdmin, IPFSController.testConfig);
 // 短链跳转路由 - 必须放在最后，避免与其他路由冲突
 router.get("/:code", shortlinkLimiter, async (req, res) => {
   const code = req.params.code;
-  const ip = req.headers["x-forwarded-for"] || req.connection.remoteAddress;
+  const ip = getClientIP(req);
   if (!code) {
     logger.warn("[ShortLink] 缺少短链码", { ip, code });
     return res.status(400).send("缺少短链码");

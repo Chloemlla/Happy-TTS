@@ -39,7 +39,7 @@ export async function resolveWebSocketIdentity(req: IncomingMessage): Promise<We
   const credentialSource = cookieToken ? "cookie" : "legacy_query";
 
   try {
-    const decoded = jwt.verify(token, config.jwtSecret) as WebSocketJwtPayload | string;
+    const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] }) as WebSocketJwtPayload | string;
     if (!decoded || typeof decoded === "string") return null;
 
     const claimedId = decoded.userId || decoded.id;

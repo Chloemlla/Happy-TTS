@@ -65,7 +65,7 @@ export function createEcoEnchantsOpsActivationSession(params: {
 }
 
 export function verifyEcoEnchantsOpsActivationToken(token: string): EcoEnchantsOpsActivationTokenPayload {
-  const decoded = jwt.verify(token, getOpsTokenSecret()) as Partial<EcoEnchantsOpsActivationTokenPayload>;
+  const decoded = jwt.verify(token, getOpsTokenSecret(), { algorithms: ["HS256"] }) as Partial<EcoEnchantsOpsActivationTokenPayload>;
   if (
     decoded.scope !== "ops.register" ||
     typeof decoded.productId !== "string" ||
@@ -107,7 +107,7 @@ export function createEcoEnchantsRpcSessionToken(params: {
 }
 
 export function verifyEcoEnchantsRpcSessionToken(token: string): EcoEnchantsRpcSessionTokenPayload {
-  const decoded = jwt.verify(token, getOpsTokenSecret()) as Partial<EcoEnchantsRpcSessionTokenPayload>;
+  const decoded = jwt.verify(token, getOpsTokenSecret(), { algorithms: ["HS256"] }) as Partial<EcoEnchantsRpcSessionTokenPayload>;
   if (
     decoded.scope !== "ops.rpc" ||
     typeof decoded.productId !== "string" ||

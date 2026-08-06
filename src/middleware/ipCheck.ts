@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { config } from "../config/config";
 import { getIPInfo, isIPAllowed } from "../services/ip";
+import { extractRealIP } from "../utils/ipUtils";
 import { logger } from "../services/logger";
 
 /**
@@ -23,45 +24,9 @@ function isValidIP(ip: string): boolean {
   return false;
 }
 
-/**
- * 从请求中提取真实IP地址
- */
-function extractRealIP(req: Request): string | undefined {
-  // 检查X-Forwarded-For头
-  const xForwardedFor = req.headers["x-forwarded-for"];
-  if (xForwardedFor) {
-    const ips = Array.isArray(xForwardedFor) ? xForwardedFor[0] : xForwardedFor;
-    const firstIP = ips.split(",")[0].trim();
-    if (isValidIP(firstIP)) {
-      return firstIP;
-    }
-  }
-
-  // 检查X-Real-IP头
-  const xRealIP = req.headers["x-real-ip"];
-  if (xRealIP) {
-    const realIP = Array.isArray(xRealIP) ? xRealIP[0] : xRealIP;
-    if (isValidIP(realIP)) {
-      return realIP;
-    }
-  }
-
-  // 使用Express的ip属性
-  if (req.ip && isValidIP(req.ip)) {
-    return req.ip;
-  }
-
-  // 使用socket的remoteAddress
-  if (req.socket.remoteAddress && isValidIP(req.socket.remoteAddress)) {
-    return req.socket.remoteAddress;
-  }
-
-  return undefined;
-}
-
 export async function ipCheckMiddleware(req: Request, res: Response, next: NextFunction) {
   try {
-    // 提取真实IP地址
+    // 提取真实IP地址（使用 ipUtils 统一实现，优先信任 req.ip 而非 X-Forwarded-For）
     const realIP = extractRealIP(req);
 
     // 记录IP访问日志

@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { isValidObjectId, Types } from "mongoose";
 import FBIWantedModel from "../models/fbiWantedModel";
 import { IPFSService } from "../services/ipfsService";
+import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
 import {
   sanitizeInput,
@@ -135,13 +136,7 @@ export const fbiWantedController = {
       }
 
       // 上传到 IPFS（仅允许图片，大小上限在服务内校验）
-      const clientIp =
-        (req.headers["x-forwarded-for"] as string)?.split(",")[0] ||
-        (req.headers["x-real-ip"] as string) ||
-        req.ip ||
-        (req.connection as any).remoteAddress ||
-        (req.socket as any).remoteAddress ||
-        "unknown";
+      const clientIp = getClientIP(req);
       const uploadRes = await IPFSService.uploadFile(
         file.buffer,
         file.originalname || "avatar.jpg",

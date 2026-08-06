@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { SocialService } from "../services/socialService";
+import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
 
 export class SocialController {
@@ -89,14 +90,6 @@ export class SocialController {
    * 获取客户端IP地址
    */
   private static getClientIp(req: Request): string {
-    const ip =
-      (req.headers["x-forwarded-for"] as string)?.split(",")[0] ||
-      (req.headers["x-real-ip"] as string) ||
-      req.ip ||
-      req.connection.remoteAddress ||
-      req.socket.remoteAddress ||
-      "unknown";
-
-    return ip.replace(/^::ffff:/, "");
+    return getClientIP(req);
   }
 }

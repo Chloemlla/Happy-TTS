@@ -5,6 +5,7 @@
 import type { Request, Response } from "express";
 import { ArtifactService } from "../services/artifactService";
 import { firstString, firstStringOr } from "../utils/httpParam";
+import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
 
 function optionalNumber(value: unknown): number | undefined {
@@ -331,7 +332,7 @@ export class ArtifactController {
         return res.status(400).json({ success: false, error: "invalid_short_id" });
       }
 
-      const ipAddress = req.ip || (req.headers["x-real-ip"] as string);
+      const ipAddress = getClientIP(req);
       const userAgent = user_agent || (req.headers["user-agent"] as string);
 
       await ArtifactService.recordView(shortId, {

@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { config } from "../config/config";
 import { shouldBypassSecurityComponent } from "../security/securityPolicy";
+import { getClientIP } from "../utils/ipUtils";
 import IpVerificationService from "../services/ipVerificationService";
 
 function shouldSkipVerificationEnforcement(req: Request): boolean {
@@ -18,10 +19,7 @@ function shouldSkipVerificationEnforcement(req: Request): boolean {
 }
 
 function resolveIpAddress(req: Request): string {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (Array.isArray(forwarded) && forwarded.length > 0) return forwarded[0].split(",")[0].trim();
-  if (typeof forwarded === "string" && forwarded.trim()) return forwarded.split(",")[0].trim();
-  return req.ip || req.socket.remoteAddress || "unknown";
+  return getClientIP(req);
 }
 
 export async function ipVerificationMiddleware(req: Request, res: Response, next: NextFunction) {

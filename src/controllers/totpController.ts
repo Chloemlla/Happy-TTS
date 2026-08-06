@@ -28,7 +28,7 @@ export class TOTPController {
     }
 
     try {
-      const decoded = jwt.verify(rawPendingToken, config.jwtSecret) as any;
+      const decoded = jwt.verify(rawPendingToken, config.jwtSecret, { algorithms: ["HS256"] }) as any;
       if (decoded?.purpose !== "2fa_pending") {
         return { valid: false, status: 401, error: "二次验证临时令牌无效" };
       }

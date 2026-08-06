@@ -1,6 +1,7 @@
 import express from "express";
 import IpVerificationService from "../services/ipVerificationService";
 import { createLimiter } from "../middleware/routeLimiters";
+import { getClientIP } from "../utils/ipUtils";
 
 const router = express.Router();
 
@@ -12,10 +13,7 @@ const sessionLimiter = createLimiter({
 });
 
 function resolveIpAddress(req: express.Request): string {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (Array.isArray(forwarded) && forwarded.length > 0) return forwarded[0].split(",")[0].trim();
-  if (typeof forwarded === "string" && forwarded.trim()) return forwarded.split(",")[0].trim();
-  return req.ip || req.socket.remoteAddress || "unknown";
+  return getClientIP(req);
 }
 
 router.post("/session", sessionLimiter, async (req, res) => {

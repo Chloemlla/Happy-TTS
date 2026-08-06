@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { recordUsage, validateApiKey } from "../services/apiKeyService";
+import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
 import { UserStorage } from "../utils/userStorage";
 import { attachApiKeyBillingFinalizer, preauthorizeApiKeyBilling } from "../services/apiKeyBillingService";
@@ -55,7 +56,7 @@ export function apiKeyAuth(requiredPermission: string) {
       attachApiKeyBillingFinalizer(billingContext, res);
 
       // 记录使用
-      const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.ip || "";
+      const ip = getClientIP(req);
       recordUsage(doc.keyId, ip).catch(() => {}); // fire-and-forget
 
       // 注入用户信息，使下游中间件/控制器可用
