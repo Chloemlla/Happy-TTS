@@ -196,7 +196,21 @@ const getFrontendFallbackHtml = (expected: string, nonce?: string) => {
 function parseTrustProxySetting(): boolean | number | string | string[] {
   const raw = process.env.TRUST_PROXY?.trim();
   if (!raw) {
-    return 1;
+    // 默认不信任任何代理：trust proxy 未显式配置时，req.ip === socket.remoteAddress，
+    // 客户端无法通过伪造 X-Forwarded-For 控制 req.ip（影响 IP 封禁、限流、用量统计）。
+    // 若部署在反向代理之后，请显式设置 TRUST_PROXY（如 TRUST_PROXY=true 或代理跳数）。
+    if (process.env.NODE_ENV === "production") {
+      // 在 assembly 顶层避免重复输出
+      const key = "TRUST_PROXY_UNSET_WARNED";
+      if (!(globalThis as any)[key]) {
+        (globalThis as any)[key] = true;
+        console.warn(
+          "[assembly] WARNING: TRUST_PROXY is not set, defaulting to no trust. " +
+            "If this server runs behind a reverse proxy, set TRUST_PROXY explicitly so req.ip reflects the real client.",
+        );
+      }
+    }
+    return false;
   }
 
   const normalized = raw.toLowerCase();

@@ -213,8 +213,8 @@ export class TOTPService {
         let attempts = 0;
         const maxAttempts = 100;
         do {
-          const bytes = crypto.randomBytes(8);
-          code = Array.from(bytes, (b) => chars[b % chars.length]).join("");
+          // 使用 crypto.randomInt 均匀采样，消除取模偏差（256 % 36 = 4，直接取模会使 A-D 略多出现）
+          code = Array.from({ length: 8 }, () => chars[crypto.randomInt(chars.length)]).join("");
           attempts++;
           if (attempts > maxAttempts) {
             throw new Error("无法生成唯一的备用恢复码");

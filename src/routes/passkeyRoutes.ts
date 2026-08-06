@@ -7,6 +7,7 @@ import { PasskeyDataRepairService } from "../services/passkeyDataRepairService";
 import { PasskeyService, SINGLE_PASSKEY_ERROR_MESSAGE } from "../services/passkeyService";
 import { generatePasskeyAddedEmailHtml, generatePasskeyRemovedEmailHtml } from "../templates/emailTemplates";
 import { getClientIP } from "../utils/ipUtils";
+import { sanitizeLogValue } from "../utils/requestLogSanitizer";
 import { getAuthSessionMetadata } from "../services/authSessionService";
 import logger from "../utils/logger";
 import { PasskeyCredentialIdFixer } from "../utils/passkeyCredentialIdFixer";
@@ -70,34 +71,41 @@ router.post("/register/start", passkeyAuthLimiter, authenticateToken, async (req
       credentialName,
       clientOrigin,
       ip,
-      headers: req.headers,
+      headers: sanitizeLogValue(req.headers),
     });
 
     if (!credentialName || typeof credentialName !== "string") {
-      logger.warn("[Passkey] credentialName 缺失或类型错误", { userId, credentialName, body: req.body });
+      logger.warn("[Passkey] credentialName 缺失或类型错误", {
+        userId,
+        credentialName,
+        body: sanitizeLogValue(req.body),
+      });
       return res.status(400).json({
         error: "认证器名称是必需的",
-        details: { credentialName, type: typeof credentialName, body: req.body },
+        details: { credentialName, type: typeof credentialName, body: sanitizeLogValue(req.body) },
       });
     }
     if (!userId || typeof userId !== "string") {
-      logger.error("[Passkey] userId 缺失或类型错误", { userId, headers: req.headers });
-      return res.status(401).json({ error: "用户未登录或 userId 异常", details: { userId, headers: req.headers } });
+      logger.error("[Passkey] userId 缺失或类型错误", { userId, headers: sanitizeLogValue(req.headers) });
+      return res.status(401).json({
+        error: "用户未登录或 userId 异常",
+        details: { userId, headers: sanitizeLogValue(req.headers) },
+      });
     }
 
     const user = await UserStorage.getUserById(userId);
-    logger.info("[Passkey] /register/start 获取用户", { userId, user });
+    logger.info("[Passkey] /register/start 获取用户", { userId, user: sanitizeLogValue(user) });
     if (!user) {
       logger.warn("[Passkey] 用户不存在", { userId });
       return res.status(404).json({ error: "用户不存在", details: { userId } });
     }
     if (!user.id || typeof user.id !== "string") {
-      logger.error("[Passkey] user.id 缺失或类型错误", { user });
-      return res.status(500).json({ error: "用户ID异常", details: { user } });
+      logger.error("[Passkey] user.id 缺失或类型错误", { user: sanitizeLogValue(user) });
+      return res.status(500).json({ error: "用户ID异常", details: { user: sanitizeLogValue(user) } });
     }
     if (!user.username || typeof user.username !== "string") {
-      logger.error("[Passkey] user.username 缺失或类型错误", { user });
-      return res.status(500).json({ error: "用户名异常", details: { user } });
+      logger.error("[Passkey] user.username 缺失或类型错误", { user: sanitizeLogValue(user) });
+      return res.status(500).json({ error: "用户名异常", details: { user: sanitizeLogValue(user) } });
     }
 
     if ((user.passkeyCredentials || []).length > 0) {
@@ -157,8 +165,8 @@ router.post("/register/start", passkeyAuthLimiter, authenticateToken, async (req
   } catch (error) {
     logger.error("生成 Passkey 注册选项失败", {
       error: error instanceof Error ? error.stack : error,
-      body: req.body,
-      headers: req.headers,
+      body: sanitizeLogValue(req.body),
+      headers: sanitizeLogValue(req.headers),
     });
     res
       .status(500)
@@ -284,10 +292,15 @@ router.post("/authenticate/start", passkeyAuthLimiter, async (req, res) => {
     const { username, clientOrigin } = req.body;
     const ip = getClientIP(req);
 
-    logger.info("[Passkey] /authenticate/start 收到请求", { username, clientOrigin, ip, headers: req.headers });
+    logger.info("[Passkey] /authenticate/start 收到请求", {
+      username,
+      clientOrigin,
+      ip,
+      headers: sanitizeLogValue(req.headers),
+    });
 
     if (!username) {
-      logger.warn("[Passkey] 用户名缺失", { body: req.body });
+      logger.warn("[Passkey] 用户名缺失", { body: sanitizeLogValue(req.body) });
       return res.status(400).json({ error: "用户名是必需的" });
     }
 
@@ -320,7 +333,6 @@ router.post("/authenticate/start", passkeyAuthLimiter, async (req, res) => {
       userId: user.id,
       challenge: `${options.challenge?.substring(0, 20)}...`,
       allowCredentialsCount: options.allowCredentials?.length || 0,
-      fullOptions: JSON.stringify(options, null, 2),
     });
 
     // 保存 challenge 到用户数据中
@@ -333,7 +345,7 @@ router.post("/authenticate/start", passkeyAuthLimiter, async (req, res) => {
     logger.error("[Passkey] 生成认证选项失败", {
       error: error.message,
       stack: error.stack,
-      body: req.body,
+      body: sanitizeLogValue(req.body),
       username: req.body.username,
     });
 
@@ -345,7 +357,7 @@ router.post("/authenticate/start", passkeyAuthLimiter, async (req, res) => {
 // 完成认证（Discoverable Credentials - 无需用户名）
 router.post("/authenticate/finish/discoverable", passkeyAuthLimiter, async (req, res) => {
   try {
-    const { response, challenge, challengeId, clientOrigin } = req.body;
+    const { response, challengeId, clientOrigin } = req.body;
 
     if (!response) {
       return res.status(400).json({ error: "响应是必需的" });
@@ -361,18 +373,15 @@ router.post("/authenticate/finish/discoverable", passkeyAuthLimiter, async (req,
       discoverableChallengeStore.delete(challengeId);
     }
 
-    // 回退到客户端提交的 challenge（兼容旧客户端）
+    // 不再回退到客户端提交的 challenge：强制使用服务端签发的 challengeId，
+    // 避免客户端控制 expectedChallenge 导致认证响应重放。
     if (!expectedChallenge) {
-      expectedChallenge = challenge;
-    }
-
-    if (!expectedChallenge) {
-      return res.status(400).json({ error: "缺少 challenge 参数" });
+      return res.status(400).json({ error: "challengeId 无效或已过期，请重新发起认证" });
     }
 
     logger.info("[Passkey] /authenticate/finish/discoverable 收到请求", {
       hasResponse: !!response,
-      hasChallenge: !!challenge,
+      hasChallenge: !!challengeId,
       responseKeys: Object.keys(response),
       credentialId: `${response.id?.substring(0, 20)}...`,
     });

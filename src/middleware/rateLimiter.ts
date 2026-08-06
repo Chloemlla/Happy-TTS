@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import rateLimit from "express-rate-limit";
 import { config } from "../config/config";
+import { sanitizeLogValue } from "../utils/requestLogSanitizer";
 import logger from "../utils/logger";
 
 // IP白名单配置
@@ -62,7 +63,7 @@ export const createLimiter = (options: {
         route: routeName,
         method: req.method,
         url: req.url,
-        headers: req.headers,
+        headers: sanitizeLogValue(req.headers),
         timestamp: new Date().toISOString(),
       });
       res.status(429).json(payload);
