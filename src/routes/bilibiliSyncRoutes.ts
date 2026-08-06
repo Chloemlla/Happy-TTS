@@ -7,7 +7,7 @@ import { bilibiliSyncLimiter } from "../middleware/routeLimiters";
 
 const router = express.Router();
 
-router.use(oauthTokenAuth("bilibili:sync", { optional: true }), bilibiliSyncLimiter, authenticateToken);
+router.use(bilibiliSyncLimiter, oauthTokenAuth("bilibili:sync", { optional: true }), authenticateToken);
 
 router.get("/uid", getUid);
 router.post("/uid", bindUid);

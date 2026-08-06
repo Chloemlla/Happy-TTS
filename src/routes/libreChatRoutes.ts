@@ -21,7 +21,7 @@ const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 
-router.use(optionalAuthenticateToken, libreChatLimiter);
+router.use(libreChatLimiter, optionalAuthenticateToken);
 
 function sendLibreChatError(
   res: Response,

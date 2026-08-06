@@ -16,8 +16,8 @@ const DELIVERY_CLAIM_TTL_MS = 30_000;
 
 function buildFingerprint(issues: MissingConfigurationIssue[]): string {
   // codeql[js/insufficient-password-hash] — HMAC-SHA256 for fingerprint, not password hashing
-  return crypto
-    .createHmac("sha256", "configuration-notice-fingerprint-v1")
+  const hmac = crypto.createHmac("sha256", "configuration-notice-fingerprint-v1");
+  return hmac
     .update(
       issues
         .map((item) => `${item.id}:${[...item.settingNames].sort().join(",")}`)

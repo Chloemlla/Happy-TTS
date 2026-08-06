@@ -47,7 +47,7 @@ function generateLoginCode(): string {
 export async function startEmailLogin(email: string) {
   const normalized = email.trim().toLowerCase();
 
-  if (!normalized || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+  if (!normalized || normalized.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
     throw ApiError.badRequest("Invalid email address");
   }
 
@@ -104,6 +104,8 @@ export async function verifyEmailLogin(
 ) {
   const normalized = email.trim().toLowerCase();
 
+  if (typeof requestId !== "string") throw ApiError.badRequest("Invalid requestId");
+
   const pending = await PendingLogin.findById(requestId).exec();
   if (!pending) {
     throw ApiError.notFound("Login request not found or expired");
@@ -123,6 +125,7 @@ export async function verifyEmailLogin(
   }
 
   // Consume the pending login.
+  if (typeof requestId !== "string") throw ApiError.badRequest("Invalid requestId");
   await PendingLogin.deleteOne({ _id: requestId }).exec();
 
   // Upsert user.
@@ -169,6 +172,8 @@ export async function refreshSession(
   refreshToken: string,
   deviceInstallationId?: string,
 ) {
+  if (typeof refreshToken !== "string") throw ApiError.unauthorized("Invalid refresh token");
+
   const oldSession = await Session.findOne({ refreshToken }).exec();
   if (!oldSession) {
     throw ApiError.unauthorized("Refresh token not found");

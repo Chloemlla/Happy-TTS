@@ -169,8 +169,7 @@ export const ttsProviderController = {
         ...(authorization ? { authorization } : {}),
       };
 
-      // codeql[js/request-forgery] — safeUrl validated by validateFishAudioProxyUrl()
-      // (TRUSTED_AUDIO_HOSTS + *.fish.audio, https only)
+      // codeql[js/request-forgery] — safeUrl validated by validateFishAudioProxyUrl() against allowed hosts
       const response = await fetch(safeUrl, {
         method: "GET",
         headers,

@@ -163,7 +163,8 @@ function toBillingEventView(doc: ApiKeyBillingEventDoc): ApiKeyBillingEventView 
 
 function createOperationId(parts: Array<string | null | undefined>): string {
   // codeql[js/insufficient-password-hash] — HMAC-SHA256 for operation ID, not password hashing
-  return crypto.createHmac("sha256", "operation-id-v1").update(parts.map((part) => part || "-").join("")).digest("hex");
+  const hmac = crypto.createHmac("sha256", "operation-id-v1");
+  return hmac.update(parts.map((part) => part || "-").join("")).digest("hex");
 }
 
 function contextFromEvent(event: ApiKeyBillingEventDoc): ApiKeyBillingContext {

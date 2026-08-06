@@ -13,6 +13,7 @@ import { profilingService } from "./services/profilingService";
 import { startServer } from "./app/startup";
 import logger from "./utils/logger";
 import lumenRouter from "./routes/lumen/index.js";
+import { lumenLimiter } from "./middleware/routeLimiters";
 
 // 进程级错误处理 — 防止未处理异常/拒绝静默吞没
 process.on("unhandledRejection", (reason) => {
@@ -37,7 +38,7 @@ profilingService.start();
 registerCoreMiddleware(app);
 registerSecurityMiddleware(app);
 registerApiRoutes(app);
-app.use("/", lumenRouter);
+app.use("/", lumenLimiter, lumenRouter);
 registerStaticRoutes(app);
 registerErrorHandlers(app);
 

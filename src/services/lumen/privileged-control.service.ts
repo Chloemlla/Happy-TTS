@@ -65,6 +65,9 @@ export async function getDeviceControlPolicy(
 
   // 1. Device-level (most specific).
   if (deviceInstallationId) {
+    if (typeof deviceInstallationId !== "string") {
+      throw ApiError.badRequest("Invalid deviceInstallationId");
+    }
     policy = await DeviceControlPolicy.findOne({
       scope: "device",
       deviceInstallationId,
@@ -255,8 +258,8 @@ export async function heartbeatVisionSession(
     framesUploaded?: number;
   },
 ) {
-  if (!request.sessionId) {
-    throw ApiError.badRequest("sessionId is required");
+  if (!request.sessionId || typeof request.sessionId !== "string") {
+    throw ApiError.badRequest("sessionId is required and must be a string");
   }
 
   const session = await VisionStreamSession.findById(request.sessionId).exec();
@@ -322,8 +325,8 @@ export async function uploadVisionFrame(
   },
   pipeline: string = "default",
 ) {
-  if (!request.sessionId) {
-    throw ApiError.badRequest("sessionId is required");
+  if (!request.sessionId || typeof request.sessionId !== "string") {
+    throw ApiError.badRequest("sessionId is required and must be a string");
   }
 
   if (!request.frame || typeof request.frame !== "object") {

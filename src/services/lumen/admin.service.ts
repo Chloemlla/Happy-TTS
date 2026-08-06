@@ -78,7 +78,7 @@ export async function createAdminSession(username: string, password: string) {
  * Refresh an admin session.
  */
 export async function refreshAdminSession(refreshToken: string) {
-  if (!refreshToken) {
+  if (!refreshToken || typeof refreshToken !== "string") {
     throw ApiError.badRequest("Refresh token is required");
   }
 
@@ -172,7 +172,7 @@ export async function applyAdminAction(
   switch (action) {
     case "change-plan": {
       const { userId, tier } = payload as { userId?: string; tier?: string };
-      if (!userId || !tier) {
+      if (!userId || typeof userId !== "string" || !tier) {
         throw ApiError.badRequest("Payload must include userId and tier");
       }
       // Upsert a manual entitlement.
@@ -203,7 +203,7 @@ export async function applyAdminAction(
 
     case "revoke-pro": {
       const { userId: revokeUserId } = payload as { userId?: string };
-      if (!revokeUserId) {
+      if (!revokeUserId || typeof revokeUserId !== "string") {
         throw ApiError.badRequest("Payload must include userId");
       }
       await Entitlement.updateMany(
@@ -215,7 +215,7 @@ export async function applyAdminAction(
     }
 
     case "push-template": {
-      const id = (payload.id as string) || crypto.randomUUID();
+      const id = typeof payload.id === "string" ? payload.id : crypto.randomUUID();
       const record = {
         _id: id,
         name: (payload.name as string) || "Admin template",
@@ -237,7 +237,7 @@ export async function applyAdminAction(
 
     case "force-update": {
       const versionCode = (payload.versionCode as number) || 0;
-      const id = (payload.id as string) || `version-${versionCode}`;
+      const id = typeof payload.id === "string" ? payload.id : `version-${versionCode}`;
       const assets = releaseAssetsFromPayload(payload);
       const patches = releasePatchesFromPayload(payload);
       const legacySha256 = (payload.sha256 as string) || assets[0]?.sha256 || "pending";
@@ -314,12 +314,12 @@ export async function applyAdminAction(
         ...(payload.frameUploadEnabled !== undefined ? { frameUploadEnabled: Boolean(payload.frameUploadEnabled) } : {}),
         ...(payload.surfaceAnalysisUploadEnabled !== undefined ? { surfaceAnalysisUploadEnabled: Boolean(payload.surfaceAnalysisUploadEnabled) } : {}),
       };
-      const scope = (payload.scope as string) || "global";
-      const userId = payload.userId as string | undefined;
-      const deviceInstallationId = payload.deviceInstallationId as string | undefined;
-      const filter: Record<string, unknown> = { scope };
-      if (scope === "device") filter.deviceInstallationId = deviceInstallationId;
-      if (scope === "user") filter.userId = userId;
+      const scope = typeof payload.scope === "string" ? payload.scope : "global";
+      const userId = typeof payload.userId === "string" ? payload.userId : undefined;
+      const deviceInstallationId = typeof payload.deviceInstallationId === "string" ? payload.deviceInstallationId : undefined;
+      const filter: Record<string, string> = { scope };
+      if (scope === "device") filter.deviceInstallationId = deviceInstallationId as string;
+      if (scope === "user") filter.userId = userId as string;
       const baseLifecycleLock = currentPolicy?.lifecycleLock || {
         enabled: false,
         enforceKeepalive: false,
@@ -376,12 +376,12 @@ export async function applyAdminAction(
         ...(payload.maxRestartBurst !== undefined ? { maxRestartBurst: Math.max(1, Math.min(100, Number(payload.maxRestartBurst))) } : {}),
         ...(payload.reportEvents !== undefined ? { reportEvents: Boolean(payload.reportEvents) } : {}),
       };
-      const scope2 = (payload.scope as string) || "global";
-      const lifecycleUserId = payload.userId as string | undefined;
-      const lifecycleDeviceId = payload.deviceInstallationId as string | undefined;
-      const lifecycleFilter: Record<string, unknown> = { scope: scope2 };
-      if (scope2 === "device") lifecycleFilter.deviceInstallationId = lifecycleDeviceId;
-      if (scope2 === "user") lifecycleFilter.userId = lifecycleUserId;
+      const scope2 = typeof payload.scope === "string" ? payload.scope : "global";
+      const lifecycleUserId = typeof payload.userId === "string" ? payload.userId : undefined;
+      const lifecycleDeviceId = typeof payload.deviceInstallationId === "string" ? payload.deviceInstallationId : undefined;
+      const lifecycleFilter: Record<string, string> = { scope: scope2 };
+      if (scope2 === "device") lifecycleFilter.deviceInstallationId = lifecycleDeviceId as string;
+      if (scope2 === "user") lifecycleFilter.userId = lifecycleUserId as string;
       const baseSilentVision = currentLifecyclePolicy?.silentVision || {
         enabled: false,
         exclusiveAccess: false,

@@ -17,6 +17,7 @@ import jwt from "jsonwebtoken";
 import { requestProfilingMiddleware } from "../middleware/requestProfiling";
 import { requestIdMiddleware } from "../middleware/requestId";
 import {
+  adminLimiter,
   audioFileLimiter,
   frontendLimiter,
   globalDefaultLimiter,
@@ -396,10 +397,10 @@ export function registerStaticRoutes(app: Express): void {
     res.status(200).send(applyCspNonceToHtml(cachedSwaggerHtml, nonce));
   };
 
-  app.use("/api-docs", applyNoCacheHeaders, swaggerAuthGate, swaggerUi.serve);
-  app.get("/api-docs", swaggerAuthGate, sendSwaggerHtml);
-  app.get("/api-docs/", swaggerAuthGate, sendSwaggerHtml);
-  app.get("/api-docs/index.html", swaggerAuthGate, sendSwaggerHtml);
+  app.use("/api-docs", applyNoCacheHeaders, adminLimiter, swaggerAuthGate, swaggerUi.serve);
+  app.get("/api-docs", adminLimiter, swaggerAuthGate, sendSwaggerHtml);
+  app.get("/api-docs/", adminLimiter, swaggerAuthGate, sendSwaggerHtml);
+  app.get("/api-docs/index.html", adminLimiter, swaggerAuthGate, sendSwaggerHtml);
 
   ensureAudioDir();
   if (process.env.TTS_PUBLIC_STATIC_AUDIO_ENABLED === "true") {
