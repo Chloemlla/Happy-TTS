@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { NetworkService } from "../services/networkService";
 import { getClientIP } from "../utils/ipUtils";
+import { validatePublicHost, validatePublicUrl } from "../utils/ssrfGuard";
 import logger from "../utils/logger";
 
 export class NetworkController {
@@ -32,6 +33,12 @@ export class NetworkController {
           success: false,
           error: "端口参数必须是1-65535之间的数字",
         });
+      }
+
+      // 防止间接SSRF：拒绝指向内网/保留地址的目标
+      const hostCheck = await validatePublicHost(address);
+      if (!hostCheck.ok) {
+        return res.status(400).json({ success: false, error: hostCheck.error });
       }
 
       const result = await NetworkService.tcpPing(address, Number(port));
@@ -85,6 +92,12 @@ export class NetworkController {
         });
       }
 
+      // 防止间接SSRF：拒绝指向内网/保留地址的 URL
+      const urlCheck = await validatePublicUrl(url);
+      if (!urlCheck.ok) {
+        return res.status(400).json({ success: false, error: urlCheck.error });
+      }
+
       const result = await NetworkService.ping(url);
 
       if (result.success) {
@@ -136,6 +149,12 @@ export class NetworkController {
         });
       }
 
+      // 防止间接SSRF：拒绝指向内网/保留地址的 URL
+      const urlCheck = await validatePublicUrl(url);
+      if (!urlCheck.ok) {
+        return res.status(400).json({ success: false, error: urlCheck.error });
+      }
+
       const result = await NetworkService.speedTest(url);
 
       if (result.success) {
@@ -185,6 +204,12 @@ export class NetworkController {
           success: false,
           error: "地址参数不能为空",
         });
+      }
+
+      // 防止间接SSRF：拒绝指向内网/保留地址的目标
+      const hostCheck = await validatePublicHost(address);
+      if (!hostCheck.ok) {
+        return res.status(400).json({ success: false, error: hostCheck.error });
       }
 
       const result = await NetworkService.portScan(address);
@@ -579,6 +604,12 @@ export class NetworkController {
           success: false,
           error: "URL参数不能为空",
         });
+      }
+
+      // 防止间接SSRF：拒绝指向内网/保留地址的 URL
+      const urlCheck = await validatePublicUrl(url);
+      if (!urlCheck.ok) {
+        return res.status(400).json({ success: false, error: urlCheck.error });
       }
 
       // 验证return参数
