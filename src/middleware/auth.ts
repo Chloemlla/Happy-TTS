@@ -21,55 +21,18 @@ declare global {
 }
 
 /**
- * V1 auth middleware: Bearer-header JWT authentication.
- * Reads the token from the `Authorization: Bearer <token>` header only.
+ * V1 auth middleware — unified to delegate to authMiddlewareV2.
  *
- * @deprecated Use authMiddlewareV2 instead, which supports both Bearer header
- * and cookie-based authentication (synapse_token HttpOnly cookie). V1 is kept
- * only for backward compatibility. New routes must use authMiddlewareV2.
+ * V1 historically read only the `Authorization: Bearer <token>` header while V2
+ * also accepted the `synapse_token` HttpOnly cookie and enforced both `disabled`
+ * and `suspended` account states. Keeping two parallel JWT verification paths
+ * risks drift (e.g. one enforcing session checks and the other not). V2 is a
+ * strict superset of V1's checks, so V1 now delegates to a single enforcement
+ * path. Kept for backward compatibility with existing call sites; new routes
+ * must use authMiddlewareV2 directly.
  */
-export const authMiddleware = async (req: Request & { user?: any }, res: Response, next: NextFunction) => {
-  try {
-    if (((req as any).apiKey || (req as any).oauthToken) && req.user) {
-      return next();
-    }
-
-    const authHeader = req.headers.authorization || "";
-    const [type, token] = authHeader.split(" ");
-
-    if (type !== "Bearer" || !token) {
-      return res.status(401).json({ error: "未提供认证信息" });
-    }
-
-    const decoded: any = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] });
-    const userId = decoded.userId || decoded.sub;
-    if (!userId) {
-      return res.status(401).json({ error: "认证失败" });
-    }
-
-    const user = await UserStorage.getUserById(userId);
-    if (!user) {
-      return res.status(401).json({ error: "用户不存在" });
-    }
-    if ((user as any).accountStatus === "suspended") {
-      return res.status(403).json({ error: "账户已被封停", code: "ACCOUNT_SUSPENDED", supportEmail: "support@chloemlla.com" });
-    }
-
-    await assertActiveAuthSession(user.id, token);
-    await touchAuthSession(user.id, token, {
-      ipAddress: getClientIP(req),
-      userAgent: String(req.headers["user-agent"] || "unknown"),
-    });
-
-    req.user = user;
-    next();
-  } catch (error) {
-    logger.warn("认证失败", {
-      ip: req.ip,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return res.status(401).json({ error: "认证失败" });
-  }
+export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
+  await authMiddlewareV2(req, res, next);
 };
 
 /**

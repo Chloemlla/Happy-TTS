@@ -15,6 +15,25 @@ jest.mock("../config/config", () => ({
   },
 }));
 
+// 真实 securityPolicy 会拉起整张路由图（routes/index → 全部 route modules），
+// 导致测试套件在模块加载时初始化 rate limiter / logger 失败。这里用与
+// ipVerification 相同的 bypass 路径列表做替身，仅隔离被测中间件。
+jest.mock("../security/securityPolicy", () => ({
+  shouldBypassSecurityComponent: jest.fn((_component: string, url: string) => {
+    const pathname = String(url || "").split("?")[0];
+    return (
+      pathname === "/api/ip-verification" ||
+      pathname === "/api/turnstile" ||
+      pathname === "/api/human-check" ||
+      pathname === "/api/status" ||
+      pathname === "/api/frontend-config" ||
+      pathname.startsWith("/api/auth/linuxdo/") ||
+      pathname.startsWith("/api/oauth") ||
+      pathname.startsWith("/api/tts/assets")
+    );
+  }),
+}));
+
 jest.mock("../services/ipVerificationService", () => ({
   __esModule: true,
   default: {
@@ -40,6 +59,23 @@ describe("ipVerificationMiddleware", () => {
       method: "GET",
       originalUrl: "/api/tts/generate",
       headers: { origin: "https://tts.chloemlla.com" },
+      ip: "203.0.113.10",
+      socket: { remoteAddress: "203.0.113.10" },
+    } as unknown as Request;
+    const res = createResponse();
+    const next = jest.fn() as unknown as NextFunction;
+
+    await ipVerificationMiddleware(req, res, next);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("rejects non-browser (scripted) requests that omit browser headers", async () => {
+    const req = {
+      method: "GET",
+      originalUrl: "/api/tts/generate",
+      headers: {}, // curl/scripts omit Origin, Sec-Fetch-Mode and x-fingerprint
       ip: "203.0.113.10",
       socket: { remoteAddress: "203.0.113.10" },
     } as unknown as Request;

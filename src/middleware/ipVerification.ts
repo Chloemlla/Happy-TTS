@@ -12,10 +12,10 @@ function shouldSkipVerificationEnforcement(req: Request): boolean {
   const originalUrl = req.originalUrl || req.url || "";
   if (shouldBypassSecurityComponent("ipVerification", originalUrl)) return true;
 
-  const browserLike =
-    Boolean(req.headers.origin) || Boolean(req.headers["sec-fetch-mode"]) || Boolean(req.headers["x-fingerprint"]);
-
-  return !browserLike;
+  // 不再以浏览器特征头豁免非浏览器请求：脚本客户端可以轻易省略
+  // Origin/Sec-Fetch-Mode/x-fingerprint 从而绕过 IP 验证。功能一旦启用，
+  // 除显式 bypass 路径外，所有请求都必须携带有效的验证令牌。
+  return false;
 }
 
 function resolveIpAddress(req: Request): string {

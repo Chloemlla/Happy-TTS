@@ -183,7 +183,7 @@ export function buildRuntimeConfigDefaults(options: {
       monthlyQuotaPerKey: 5000,
       challengeFraudScore: 75,
       tokenTtlMinutes: 40,
-      failOpen: true,
+      failOpen: false,
     },
     linuxdo: {
       clientId: "",

@@ -200,6 +200,26 @@ const signSecretKey = parsedEnv.SIGN_SECRET_KEY || "";
 const adminPassword = parsedEnv.ADMIN_PASSWORD || "";
 const adminOperationPassword = parsedEnv.ADMIN_OPERATION_PASSWORD || adminPassword;
 const serverPassword = parsedEnv.SERVER_PASSWORD || "";
+// Weak/default admin credentials are a common root cause of admin account
+// takeover. Known defaults and short passwords are trivially guessed.
+if (process.env.NODE_ENV === "production") {
+  const weakAdminPassword =
+    !adminOperationPassword ||
+    adminOperationPassword.length < 12 ||
+    /^(admin|admin123|123456|password|passw0rd)$/i.test(adminOperationPassword);
+  if (weakAdminPassword) {
+    console.warn(
+      "[config] WARNING: ADMIN_PASSWORD is missing, a known default, or shorter than 12 characters. " +
+        "The admin account is at risk of brute-force takeover. Set a long unique ADMIN_PASSWORD " +
+        "(and ADMIN_OPERATION_PASSWORD) in production.",
+    );
+  }
+  if (parsedEnv.ADMIN_USERNAME === "admin") {
+    console.warn(
+      "[config] WARNING: ADMIN_USERNAME is the default 'admin'. Consider setting a non-default admin username.",
+    );
+  }
+}
 const publicShortUrlEnabled = parsedEnv.PUBLIC_SHORT_URL_ENABLED === true;
 const publicShortUrlPassword = parsedEnv.PUBLIC_SHORT_URL_PASSWORD;
 const emailRuntimeDefaults: EmailRuntimeConfig = {
