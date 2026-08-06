@@ -103,54 +103,11 @@ export const authenticateAdmin = async (req: Request & { user?: any }, res: Resp
   }
 };
 
-// 登录尝试记录
-const loginAttempts = new Map<string, { count: number; lastAttempt: number; blockedUntil?: number }>();
-
-// 检查登录尝试限制
-const checkLoginAttempts = (identifier: string): boolean => {
-  const attempts = loginAttempts.get(identifier);
-  if (!attempts) return true;
-
-  const now = Date.now();
-
-  // 检查是否被阻止
-  if (attempts.blockedUntil && now < attempts.blockedUntil) {
-    return false;
-  }
-
-  // 重置超过15分钟的尝试记录
-  if (now - attempts.lastAttempt > 15 * 60 * 1000) {
-    loginAttempts.delete(identifier);
-    return true;
-  }
-
-  return attempts.count < 5;
-};
-
-// 记录登录尝试
-const recordLoginAttempt = (identifier: string, success: boolean) => {
-  const attempts = loginAttempts.get(identifier) || { count: 0, lastAttempt: 0 };
-
-  if (success) {
-    loginAttempts.delete(identifier);
-  } else {
-    attempts.count++;
-    attempts.lastAttempt = Date.now();
-
-    // 超过5次失败，阻止15分钟
-    if (attempts.count >= 5) {
-      attempts.blockedUntil = Date.now() + 15 * 60 * 1000;
-    }
-
-    loginAttempts.set(identifier, attempts);
-  }
-};
-
 /**
  * V2 auth middleware: Cookie/Bearer-aware JWT authentication.
  * Reads the token from the `Authorization: Bearer <token>` header or the
- * `synapse_token` HttpOnly cookie, tracks login attempts, and checks both
- * `disabled` and `suspended` account states.
+ * `synapse_token` HttpOnly cookie and checks both `disabled` and `suspended`
+ * account states. (Login attempt lockout lives in authController, keyed by ip:identifier.)
  */
 export const authMiddlewareV2 = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -235,5 +192,3 @@ export const adminAuthMiddleware = (req: Request, res: Response, next: NextFunct
 
   next();
 };
-
-export { checkLoginAttempts, recordLoginAttempt };
