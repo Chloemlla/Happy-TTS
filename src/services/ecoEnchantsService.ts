@@ -136,12 +136,19 @@ function serviceError(
 }
 
 function getLicensePepper(): string {
-  return (
+  const envSecret =
     process.env.ECOENCHANTS_LICENSE_PEPPER ||
     process.env.LICENSE_KEY_PEPPER ||
-    process.env.JWT_SECRET ||
-    config.jwtSecret ||
-    "ecoenchants-development-pepper"
+    process.env.JWT_SECRET;
+  if (envSecret) {
+    return envSecret;
+  }
+  // config.jwtSecret may be set (e.g. via env) even if direct env vars are absent
+  if (config.jwtSecret) {
+    return config.jwtSecret;
+  }
+  throw new Error(
+    "[EcoEnchants] Missing required license pepper. Set ECOENCHANTS_LICENSE_PEPPER, LICENSE_KEY_PEPPER, or JWT_SECRET.",
   );
 }
 

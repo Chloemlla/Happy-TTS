@@ -596,8 +596,8 @@ export class AuthController {
 
       logger.info("开始用户认证", logDetails);
 
-      // 检查登录尝试限制
-      const attemptKey = identifier.toLowerCase();
+      // 检查登录尝试限制（按 IP+用户名 键控，防止攻击者锁定任意已知用户）
+      const attemptKey = `${ip}:${identifier.toLowerCase()}`;
       const attempts = loginAttempts.get(attemptKey) || { count: 0, lastAttempt: 0 };
       if (attempts.lockedUntil && Date.now() >= attempts.lockedUntil) {
         attempts.count = 0;
@@ -778,7 +778,7 @@ export class AuthController {
         return res.status(403).json({ error: "账户已被封停", code: "ACCOUNT_SUSPENDED", supportEmail: "support@chloemlla.com" });
       }
       const remainingUsage = await UserStorage.getRemainingUsage(user.id);
-      // 不返回avatarBase64
+      // 不返回avatarBase64和敏感认证凭据
       const {
         password: _password,
         passwordHash: _passwordHash,
@@ -786,6 +786,14 @@ export class AuthController {
         passwordIv: _passwordIv,
         passwordTag: _passwordTag,
         passwordKeyVersion: _passwordKeyVersion,
+        totpSecret: _totpSecret,
+        backupCodes: _backupCodes,
+        passkeyCredentials: _passkeyCredentials,
+        pendingChallenge: _pendingChallenge,
+        currentChallenge: _currentChallenge,
+        passkeyVerified: _passkeyVerified,
+        token: _token,
+        tokenExpiresAt: _tokenExpiresAt,
         ...userWithoutPassword
       } = user as any;
       res.json({

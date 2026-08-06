@@ -592,6 +592,15 @@ export class NetworkController {
       if (result.success) {
         // 如果请求返回类型是302，直接重定向
         if (returnValue === "302" && result.data && typeof result.data === "string") {
+          // 验证第三方返回的 URL 协议，防止开放重定向
+          try {
+            const redirectUrl = new URL(result.data);
+            if (redirectUrl.protocol !== "http:" && redirectUrl.protocol !== "https:") {
+              return res.status(400).json({ error: "不允许的重定向协议" });
+            }
+          } catch {
+            return res.status(400).json({ error: "无效的重定向地址" });
+          }
           return res.redirect(result.data);
         }
 

@@ -89,7 +89,9 @@ const authCacheBypassPaths = [
 ];
 
 const isLocalIp = (req: Request, _res: Response, next: NextFunction) => {
-  const ip = req.ip || req.socket.remoteAddress || "unknown";
+  // Use req.socket.remoteAddress (TCP-level connection IP) instead of req.ip
+  // which can be spoofed via X-Forwarded-For when trust proxy is enabled.
+  const ip = req.socket.remoteAddress || req.ip || "unknown";
   if (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "dev") {
     req.isLocalIp = false;
   } else {

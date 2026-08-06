@@ -79,7 +79,15 @@ export async function ipCheckMiddleware(req: Request, res: Response, next: NextF
 
     // 如果没有IP信息
     if (!realIP) {
-      logger.error("无法确定客户端IP", { headers: req.headers });
+      const sanitizedHeaders: Record<string, string> = {};
+      for (const [key, value] of Object.entries(req.headers)) {
+        if (key.toLowerCase() === "authorization") {
+          sanitizedHeaders[key] = "[REDACTED]";
+        } else {
+          sanitizedHeaders[key] = String(value);
+        }
+      }
+      logger.error("无法确定客户端IP", { headers: sanitizedHeaders });
       return res.status(400).json({ error: "无法确定客户端IP" });
     }
 

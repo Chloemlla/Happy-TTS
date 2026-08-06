@@ -30,7 +30,6 @@ import { mongoose } from "./mongoService";
 
 const FALLBACK_BASE_URL = "https://tts.chloemlla.com";
 const FALLBACK_FRONTEND_URL = "https://tts.chloemlla.com";
-const FALLBACK_JWT_SECRET = "yb56beb12b35ab636b66c4f9fc168646785a8e85a";
 const DURATION_PATTERN = /^\d+[smhd]$/i;
 const RESEND_API_KEY_PATTERN = /^re_\w{8,}/;
 const DOMAIN_PATTERN = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i;
@@ -39,9 +38,9 @@ const TRUSTED_DEEPLX_BASE_URL = "https://api.deeplx.org";
 let runtimeConfigDefaults: RuntimeConfigDefaults = buildRuntimeConfigDefaults({
   baseUrl: FALLBACK_BASE_URL,
   frontendBaseUrl: FALLBACK_FRONTEND_URL,
-  jwtSecret: FALLBACK_JWT_SECRET,
-  adminPassword: "admin",
-  serverStatusPassword: "wmy",
+  jwtSecret: "",
+  adminPassword: "",
+  serverStatusPassword: "",
   publicShortUrlEnabled: false,
   publicShortUrlPassword: "",
   generationCode: "",

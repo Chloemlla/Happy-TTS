@@ -41,7 +41,7 @@ export const authMiddleware = async (req: Request & { user?: any }, res: Respons
       return res.status(401).json({ error: "未提供认证信息" });
     }
 
-    const decoded: any = jwt.verify(token, config.jwtSecret);
+    const decoded: any = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] });
     const userId = decoded.userId || decoded.sub;
     if (!userId) {
       return res.status(401).json({ error: "认证失败" });
@@ -165,7 +165,7 @@ export const authMiddlewareV2 = async (req: Request, res: Response, next: NextFu
     }
 
     // 验证JWT令牌
-    const decoded = jwt.verify(token, config.jwtSecret) as any;
+    const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] }) as any;
 
     // 检查令牌是否过期
     if (decoded.exp && Date.now() >= decoded.exp * 1000) {

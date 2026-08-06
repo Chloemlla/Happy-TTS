@@ -22,46 +22,29 @@ export function isValidIP(ip: string): boolean {
 
 /**
  * 从请求中提取真实IP地址
+ *
+ * 优先使用 Express 的 req.ip（由 trust proxy 配置解析代理链），
+ * 仅在 req.ip 不可用时回退到 socket.remoteAddress。
+ * 不信任客户端直接设置的 X-Forwarded-For 等头部，避免 IP 伪造。
  */
 export function extractRealIP(req: Request): string | undefined {
-  // 检查X-Forwarded-For头（代理/负载均衡器）
-  const xForwardedFor = req.headers["x-forwarded-for"];
-  if (xForwardedFor) {
-    const ips = Array.isArray(xForwardedFor) ? xForwardedFor[0] : xForwardedFor;
-    const firstIP = ips.split(",")[0].trim();
-    if (isValidIP(firstIP)) {
-      return firstIP;
-    }
+  // Express req.ip 已根据 trust proxy 配置解析了代理链。
+  // 当 trust proxy 未启用时，req.ip === req.socket.remoteAddress（TCP 层真实 IP）。
+  if (req.ip && isValidIP(req.ip)) {
+    return req.ip.replace(/^::ffff:/, "");
   }
 
-  // 检查X-Real-IP头（Nginx代理）
-  const xRealIP = req.headers["x-real-ip"];
-  if (xRealIP && typeof xRealIP === "string" && isValidIP(xRealIP)) {
-    return xRealIP;
-  }
-
-  // 检查CF-Connecting-IP头（Cloudflare）
+  // 仅在 req.ip 不可用时，检查受信任的反向代理头部（Cloudflare 等）。
+  // 注意：CF-Connecting-IP 由 Cloudflare 边缘设置，仅当请求经过 CF 时可信。
   const cfConnectingIP = req.headers["cf-connecting-ip"];
   if (cfConnectingIP && typeof cfConnectingIP === "string" && isValidIP(cfConnectingIP)) {
     return cfConnectingIP;
   }
 
-  // 检查X-Client-IP头
-  const xClientIP = req.headers["x-client-ip"];
-  if (xClientIP && typeof xClientIP === "string" && isValidIP(xClientIP)) {
-    return xClientIP;
-  }
-
-  // 检查X-Cluster-Client-IP头
-  const xClusterClientIP = req.headers["x-cluster-client-ip"];
-  if (xClusterClientIP && typeof xClusterClientIP === "string" && isValidIP(xClusterClientIP)) {
-    return xClusterClientIP;
-  }
-
   // 最后使用连接的远程地址
-  const remoteAddress = req.connection?.remoteAddress || req.socket?.remoteAddress;
+  const remoteAddress = req.socket?.remoteAddress;
   if (remoteAddress && isValidIP(remoteAddress)) {
-    return remoteAddress.replace(/^::ffff:/, ""); // 移除IPv6前缀
+    return remoteAddress.replace(/^::ffff:/, "");
   }
 
   return undefined;

@@ -84,6 +84,10 @@ const UserModel = mongoose.models.User || mongoose.model("User", userSchema);
 
 const PUBLIC_USER_SELECT =
   "id username email role avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil isTranslationEnabled translationAccessUntil accountStatus dailyUsage lastUsageDate createdAt token tokenExpiresAt";
+
+// 安全的公开用户字段选择（排除敏感认证凭据），用于 /api/user/me 等普通用户 API
+const PUBLIC_USER_SAFE_SELECT =
+  "id username email role avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpEnabled passkeyEnabled requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil isTranslationEnabled translationAccessUntil accountStatus dailyUsage lastUsageDate createdAt";
 const AUTH_USER_SELECT =
   `${PUBLIC_USER_SELECT} password passwordHash passwordCiphertext passwordIv passwordTag passwordKeyVersion passwordWrappedDek passwordDekId`;
 const ADMIN_USER_LIST_PROJECT = {

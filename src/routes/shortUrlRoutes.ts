@@ -8,6 +8,18 @@ import { mongoose } from "../services/mongoService";
 import { ShortUrlService } from "../services/shortUrlService";
 import { config } from "../config/config";
 
+// 允许的 URL 协议白名单（防止 javascript:/data:/file: 等协议导致的开放重定向）
+const ALLOWED_URL_PROTOCOLS = ["http:", "https:"];
+
+function isValidRedirectTarget(target: string): boolean {
+  try {
+    const url = new URL(target);
+    return ALLOWED_URL_PROTOCOLS.includes(url.protocol);
+  } catch {
+    return false;
+  }
+}
+
 const router = Router();
 const redirectRouter = Router();
 const shortUrlApiKeyAuth = apiKeyAuth("shorturl");
@@ -205,6 +217,11 @@ router.post("/public/create", publicCreateLimiter, async (req: any, res: any) =>
       new URL(trimmedTarget);
     } catch {
       return res.status(400).json({ error: "目标地址必须是有效的URL格式" });
+    }
+
+    // 验证URL协议（防止 javascript:/data:/file: 等协议的开放重定向）
+    if (!isValidRedirectTarget(trimmedTarget)) {
+      return res.status(400).json({ error: "目标地址仅支持 http 和 https 协议" });
     }
 
     let code: string;

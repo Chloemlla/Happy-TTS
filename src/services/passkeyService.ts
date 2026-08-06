@@ -84,6 +84,9 @@ const isOriginAllowed = (clientOrigin: string): boolean => {
 function isSyntheticTestAuthenticationResponse(response: any): boolean {
   return (
     process.env.NODE_ENV === "test" &&
+    // Double-check that we're actually running in a test environment, not just
+    // a misconfigured production deployment with NODE_ENV accidentally set to "test".
+    typeof jest !== "undefined" &&
     response?.response?.authenticatorData === "test-data" &&
     response?.response?.clientDataJSON === "test-data" &&
     response?.response?.signature === "test-signature"

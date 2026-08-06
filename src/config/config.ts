@@ -191,6 +191,11 @@ const frontendBaseUrl = parsedEnv.FRONTEND_URL || "https://tts.chloemlla.com";
 const openaiApiKey = parsedEnv.OPENAI_KEY || parsedEnv.OPENAI_API_KEY;
 const jwtSecretConfigured = Boolean(parsedEnv.JWT_SECRET);
 const jwtSecret = parsedEnv.JWT_SECRET || generateEphemeralSecret();
+// Warn if JWT_SECRET is not explicitly configured — an ephemeral secret means
+// all existing tokens (sessions, API keys) become invalid on next restart.
+if (!jwtSecretConfigured && process.env.NODE_ENV === "production") {
+  console.warn("[config] WARNING: JWT_SECRET is not set. Using ephemeral secret — all sessions will be invalidated on restart. Set JWT_SECRET in production.");
+}
 const signSecretKey = parsedEnv.SIGN_SECRET_KEY || "";
 const adminPassword = parsedEnv.ADMIN_PASSWORD || "";
 const adminOperationPassword = parsedEnv.ADMIN_OPERATION_PASSWORD || adminPassword;

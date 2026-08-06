@@ -2,6 +2,18 @@ import type { Request, Response } from "express";
 import { ShortUrlService } from "../services/shortUrlService";
 import logger from "../utils/logger";
 
+// 允许的 URL 协议白名单
+const ALLOWED_URL_PROTOCOLS = ["http:", "https:"];
+
+function isValidRedirectTarget(target: string): boolean {
+  try {
+    const url = new URL(target);
+    return ALLOWED_URL_PROTOCOLS.includes(url.protocol);
+  } catch {
+    return false;
+  }
+}
+
 export class ShortUrlController {
   /**
    * 重定向到目标URL
@@ -33,6 +45,12 @@ export class ShortUrlController {
       }
 
       logger.info("短链重定向成功", { code: trimmedCode, target: shortUrl.target });
+
+      if (!isValidRedirectTarget(shortUrl.target)) {
+        logger.warn("短链目标URL协议不允许，拒绝重定向", { code: trimmedCode, target: shortUrl.target });
+        return res.status(400).json({ error: "目标URL协议不允许" });
+      }
+
       res.redirect(shortUrl.target);
     } catch (error) {
       logger.error("短链重定向失败:", error);

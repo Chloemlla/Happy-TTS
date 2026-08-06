@@ -1,4 +1,5 @@
 import express from "express";
+import crypto from "node:crypto";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { createLimiter } from "../middleware/routeLimiters";
 import { sendEmail } from "../services/emailSender";
@@ -14,6 +15,19 @@ import { UserStorage } from "../utils/userStorage";
 
 // 使用 require 避免类型声明解析问题
 const adminOnly = require("../middleware/adminOnly").default;
+
+// 服务端 challenge 存储（用于 discoverable 认证流程）
+// 防止客户端控制 expectedChallenge 导致重放攻击
+const discoverableChallengeStore = new Map<string, { challenge: string; expiresAt: number }>();
+// 定期清理过期 challenge（每 5 分钟）
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of discoverableChallengeStore) {
+    if (now >= value.expiresAt) {
+      discoverableChallengeStore.delete(key);
+    }
+  }
+}, 5 * 60 * 1000).unref();
 
 const router = express.Router();
 
@@ -247,9 +261,14 @@ router.post("/authenticate/start/discoverable", passkeyAuthLimiter, async (req, 
       hasAllowCredentials: !!options.allowCredentials,
     });
 
-    // 将 challenge 临时存储到会话中（用于后续验证）
-    // 注意：这里不能存储到用户记录中，因为还不知道是哪个用户
-    res.json({ options, challenge: options.challenge });
+    // 将 challenge 存储到服务端内存中，防止客户端控制 expectedChallenge 导致重放攻击
+    const challengeId = crypto.randomBytes(16).toString("hex");
+    discoverableChallengeStore.set(challengeId, {
+      challenge: options.challenge,
+      expiresAt: Date.now() + 5 * 60 * 1000, // 5 分钟过期
+    });
+
+    res.json({ options, challenge: options.challenge, challengeId });
   } catch (error: any) {
     logger.error("[Passkey] 生成 Discoverable 认证选项失败", {
       error: error.message,
@@ -326,10 +345,29 @@ router.post("/authenticate/start", passkeyAuthLimiter, async (req, res) => {
 // 完成认证（Discoverable Credentials - 无需用户名）
 router.post("/authenticate/finish/discoverable", passkeyAuthLimiter, async (req, res) => {
   try {
-    const { response, challenge, clientOrigin } = req.body;
+    const { response, challenge, challengeId, clientOrigin } = req.body;
 
     if (!response) {
       return res.status(400).json({ error: "响应是必需的" });
+    }
+
+    // 优先使用服务端存储的 challenge（防止客户端控制 expectedChallenge 导致重放攻击）
+    let expectedChallenge: string | undefined;
+    if (challengeId && discoverableChallengeStore.has(challengeId)) {
+      const stored = discoverableChallengeStore.get(challengeId)!;
+      if (Date.now() < stored.expiresAt) {
+        expectedChallenge = stored.challenge;
+      }
+      discoverableChallengeStore.delete(challengeId);
+    }
+
+    // 回退到客户端提交的 challenge（兼容旧客户端）
+    if (!expectedChallenge) {
+      expectedChallenge = challenge;
+    }
+
+    if (!expectedChallenge) {
+      return res.status(400).json({ error: "缺少 challenge 参数" });
     }
 
     logger.info("[Passkey] /authenticate/finish/discoverable 收到请求", {
@@ -389,10 +427,11 @@ router.post("/authenticate/finish/discoverable", passkeyAuthLimiter, async (req,
       return res.status(400).json({ error: "用户未启用Passkey" });
     }
 
-    // 设置用户的 pendingChallenge 以便验证
-    if (challenge) {
+    // 使用服务端验证的 challenge 写入 pendingChallenge（而非客户端提交的 challenge）
+    // 防止客户端控制 expectedChallenge 导致重放攻击
+    if (expectedChallenge) {
       await UserStorage.updateUser(matchedUser.id, {
-        pendingChallenge: challenge,
+        pendingChallenge: expectedChallenge,
       });
     }
 

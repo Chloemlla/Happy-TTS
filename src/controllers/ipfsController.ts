@@ -2,6 +2,7 @@ import axios from "axios";
 import type { Request, Response } from "express";
 import { IPFSService } from "../services/ipfsService";
 import { TransactionService } from "../services/transactionService";
+import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
 
 export class IPFSController {
@@ -385,18 +386,10 @@ export class IPFSController {
   }
 
   /**
-   * 获取客户端IP地址
+   * 获取客户端IP地址（使用 ipUtils 统一实现）
    */
   private static getClientIp(req: Request): string {
-    const ip =
-      (req.headers["x-forwarded-for"] as string)?.split(",")[0] ||
-      (req.headers["x-real-ip"] as string) ||
-      req.ip ||
-      req.connection.remoteAddress ||
-      req.socket.remoteAddress ||
-      "unknown";
-
-    return ip.replace(/^::ffff:/, "");
+    return getClientIP(req);
   }
 
   private static maskLogValue(value: string): string {

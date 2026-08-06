@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import QRCode from "qrcode";
 import speakeasy from "speakeasy";
 import logger from "../utils/logger";
@@ -212,7 +213,8 @@ export class TOTPService {
         let attempts = 0;
         const maxAttempts = 100;
         do {
-          code = Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+          const bytes = crypto.randomBytes(8);
+          code = Array.from(bytes, (b) => chars[b % chars.length]).join("");
           attempts++;
           if (attempts > maxAttempts) {
             throw new Error("无法生成唯一的备用恢复码");
