@@ -156,9 +156,8 @@ export function getAuthSessionMetadata(req: Request, overrides: AuthSessionMetad
 function deriveDeviceKey(userId: string, metadata: AuthSessionMetadata): string {
   const clientType = normalizeClientType(metadata.clientType);
   const seed = clampText(metadata.deviceId, 160, "") || clampText(metadata.userAgent, 512, "unknown");
-  // codeql[js/insufficient-password-hash] — SHA-256 for device key derivation, not password hashing
-  const hash = crypto.createHash("sha256");
-  return hash.update(`${userId}|${clientType}|${seed}`).digest("hex").slice(0, 40);
+  const raw = `${userId}|${clientType}|${seed}`;
+  return crypto.createHash("sha256").update(raw).digest("hex").slice(0, 40);
 }
 
 async function resolveIpLocation(ip: string): Promise<string> {

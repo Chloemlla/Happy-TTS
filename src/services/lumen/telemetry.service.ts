@@ -145,8 +145,8 @@ export async function latestTelemetryDebugItems(
   deviceInstallationId?: string,
 ) {
   if (typeof userId !== "string") throw new Error("Invalid userId");
-  const filter: Record<string, unknown> = { userId };
-  if (deviceInstallationId) {
+  const filter: Record<string, unknown> = { userId: String(userId) };
+  if (typeof deviceInstallationId === "string") {
     filter.deviceInstallationId = deviceInstallationId;
   }
 

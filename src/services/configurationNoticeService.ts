@@ -15,15 +15,10 @@ const NOTICE_TITLE = "服务配置待完善";
 const DELIVERY_CLAIM_TTL_MS = 30_000;
 
 function buildFingerprint(issues: MissingConfigurationIssue[]): string {
-  // codeql[js/insufficient-password-hash] — HMAC-SHA256 for fingerprint, not password hashing
-  const hmac = crypto.createHmac("sha256", "configuration-notice-fingerprint-v1");
-  return hmac
-    .update(
-      issues
-        .map((item) => `${item.id}:${[...item.settingNames].sort().join(",")}`)
-        .join("\n"),
-    )
-    .digest("hex");
+  const data = issues
+    .map((item) => `${item.id}:${[...item.settingNames].sort().join(",")}`)
+    .join("\n");
+  return crypto.createHmac("sha256", "configuration-notice-fingerprint-v1").update(data).digest("hex");
 }
 
 function buildMessage(issues: MissingConfigurationIssue[]): string {

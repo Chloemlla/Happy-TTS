@@ -321,9 +321,8 @@ export async function updateBilibiliSettings(
   await ensureDocument(userId);
 
   const safeVersion: number = baseVersion;
-  if (typeof userId !== "string") throw new Error("Invalid userId");
   const updated = await BilibiliSyncModel.findOneAndUpdate(
-    { userId, settingsVersion: safeVersion },
+    { userId: String(userId), settingsVersion: safeVersion },
     { $set: { settings, settingsUpdatedAt: now }, $inc: { settingsVersion: 1 } },
     { returnDocument: "after" },
   ).lean<BilibiliSyncDoc | null>();
