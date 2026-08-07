@@ -22,6 +22,8 @@ import { cn } from "../utils/cn";
 import { SimpleLoadingSpinner } from "./LoadingSpinner";
 import { InfoSectionTitle } from "./LogShareStyleScaffold";
 import { useNotification } from "./Notification";
+import { useAuth } from "../hooks/useAuth";
+import { isSuperAdmin } from "../utils/rbac";
 
 type ReviewFilter = TtsHistoryReviewStatus | "all";
 type ScopeFilter = "all" | "user" | "anonymous";
@@ -104,6 +106,8 @@ const buildDownloadUrl = (audioUrl: string) => {
 
 const TtsGenerationManager: React.FC = () => {
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const [records, setRecords] = useState<TtsHistoryRecord[]>([]);
   const [drafts, setDrafts] = useState<Record<string, ReviewDraft>>({});
   const [loading, setLoading] = useState(false);
@@ -479,38 +483,42 @@ const TtsGenerationManager: React.FC = () => {
                       />
                     </label>
                     <div className="space-y-2">
-                      <label className="block">
-                        <span className="mb-1 block text-xs font-semibold text-slate-500">人工审核</span>
-                        <select
-                          value={draft.reviewStatus}
-                          onChange={(event) => updateDraft(record.id, { reviewStatus: event.target.value as TtsHistoryReviewStatus })}
-                          className={fieldClassName}
-                        >
-                          {REVIEW_STATUS_OPTIONS.filter((option) => option.value !== "all").map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => void saveReview(record)}
-                        disabled={isSaving}
-                        className={primaryButtonClassName}
-                      >
-                        {isSaving ? <SimpleLoadingSpinner size={0.45} /> : <FaSave />}
-                        保存
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void saveReview(record, { reviewStatus: "fixed" })}
-                        disabled={isSaving}
-                        className={secondaryButtonClassName}
-                      >
-                        <FaCheckCircle />
-                        修复完成
-                      </button>
+                      {canWrite && (
+                        <>
+                          <label className="block">
+                            <span className="mb-1 block text-xs font-semibold text-slate-500">人工审核</span>
+                            <select
+                              value={draft.reviewStatus}
+                              onChange={(event) => updateDraft(record.id, { reviewStatus: event.target.value as TtsHistoryReviewStatus })}
+                              className={fieldClassName}
+                            >
+                              {REVIEW_STATUS_OPTIONS.filter((option) => option.value !== "all").map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => void saveReview(record)}
+                            disabled={isSaving}
+                            className={primaryButtonClassName}
+                          >
+                            {isSaving ? <SimpleLoadingSpinner size={0.45} /> : <FaSave />}
+                            保存
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void saveReview(record, { reviewStatus: "fixed" })}
+                            disabled={isSaving}
+                            className={secondaryButtonClassName}
+                          >
+                            <FaCheckCircle />
+                            修复完成
+                          </button>
+                        </>
+                      )}
                       {(record.reviewedBy || record.reviewedAt || record.fixedAt) && (
                         <div className="text-xs leading-5 text-slate-500">
                           {record.reviewedBy ? `处理人：${record.reviewedBy}` : ""}

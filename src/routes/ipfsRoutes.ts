@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import multer from "multer";
 import { IPFSController } from "../controllers/ipfsController";
 import { apiKeyAuth } from "../middleware/apiKeyAuth";
-import { authenticateAdmin } from "../middleware/auth";
+import { authenticateAdmin, authenticateSuperAdmin } from "../middleware/auth";
 import { connectMongo } from "../services/mongoService";
 import logger from "../utils/logger";
 import { createLimiter } from "../middleware/routeLimiters";
@@ -217,7 +217,7 @@ router.get("/settings", authenticateAdmin, IPFSController.getConfig);
  *       500:
  *         description: 服务器错误
  */
-router.post("/settings", authenticateAdmin, IPFSController.setConfig);
+router.post("/settings", authenticateSuperAdmin, IPFSController.setConfig);
 
 /**
  * @openapi
@@ -246,7 +246,7 @@ router.post("/settings", authenticateAdmin, IPFSController.setConfig);
  *       500:
  *         description: 服务器错误
  */
-router.post("/settings/test", authenticateAdmin, IPFSController.testConfig);
+router.post("/settings/test", authenticateSuperAdmin, IPFSController.testConfig);
 
 // 短链跳转路由 - 必须放在最后，避免与其他路由冲突
 router.get("/:code", shortlinkLimiter, async (req, res) => {
