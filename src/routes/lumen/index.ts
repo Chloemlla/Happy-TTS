@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { lumenLimiter } from "../../middleware/routeLimiters.js";
 import healthRoutes from "./health.routes.js";
 import authRoutes from "./auth.routes.js";
 import meRoutes from "./me.routes.js";
@@ -30,8 +31,9 @@ v1Router.use("/device-control", privilegedControlRoutes);
 v1Router.use("/admin", adminRoutes);
 v1Router.use("/", platformRoutes);
 
-// Mount the v1 router at /api/lumen
-router.use("/api/lumen", v1Router);
+// Mount the v1 router at /api/lumen, with the Lumen rate limiter scoped to it
+// so non-Lumen routes on the host (TTS, static, etc.) are not throttled by it.
+router.use("/api/lumen", lumenLimiter, v1Router);
 
 // Mount health routes at /api/health
 router.use("/api/health", healthRoutes);
