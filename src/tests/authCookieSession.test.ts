@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import request from "supertest";
 import { config } from "../config/config";
 import { AuthController } from "../controllers/authController";
-import { authMiddlewareV2 as authMiddleware } from "../middleware/auth";
+import { authMiddlewareV2 as authMiddleware, isAdminRole } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { meEndpointLimiter, adminLimiter } from "../middleware/routeLimiters";
 import { AUTH_COOKIE_NAME, setAuthSessionCookie } from "../utils/authCookie";
@@ -29,7 +29,7 @@ describe("HttpOnly cookie session auth", () => {
   app.get("/api/auth/me", authenticateToken, meEndpointLimiter, AuthController.getCurrentUser);
   app.post("/api/auth/session", authenticateToken, meEndpointLimiter, AuthController.establishSession);
   app.post("/api/admin/verify-access", authMiddleware, adminLimiter, (req, res) => {
-    if (req.user?.role !== "admin") {
+    if (!isAdminRole(req.user?.role)) {
       return res.status(403).json({ success: false });
     }
     return res.json({ success: true, userId: req.user.id });

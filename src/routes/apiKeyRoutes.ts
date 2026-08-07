@@ -30,6 +30,13 @@ async function findVisibleKey(user: any, keyId: string) {
   return keys.find((key) => key.keyId === keyId) || null;
 }
 
+// 写操作(改/吊销/启停/删除)跨用户可见性仅限 superadmin;所有者仍可操作自己的 Key。
+async function findVisibleKeyForWrite(req: Request, keyId: string) {
+  const user = (req as any).user;
+  const keys = isSuperAdmin(req) ? await listAllKeys() : await listUserKeys(user.id);
+  return keys.find((key) => key.keyId === keyId) || null;
+}
+
 // 所有路由都需要 JWT 认证
 router.use(authMiddleware);
 router.use(apiKeyManagementLimiter);
@@ -182,14 +189,13 @@ router.put(
   }),
   async (req: Request, res: Response) => {
   try {
-    const user = (req as any).user;
     const keyId = firstString(req.params.keyId);
     const { name, permissions, rateLimit, enabled, expiresInDays, billingEnabled, billingMode } = req.body;
     if (!keyId) return res.status(400).json({ error: "无效的 Key ID" });
 
     // 先查找确认所有权
-    const isAdmin = isAdminRole(user.role);
-    const target = await findVisibleKey(user, keyId);
+    const isAdmin = isSuperAdmin(req);
+    const target = await findVisibleKeyForWrite(req, keyId);
     if (!target) return res.status(404).json({ error: "API Key 不存在" });
 
     const updates: any = {};
@@ -243,7 +249,7 @@ router.post(
     const user = (req as any).user;
     const keyId = firstString(req.params.keyId);
     if (!keyId) return res.status(400).json({ error: "无效的 Key ID" });
-    const allKeys = isAdminRole(user.role) ? await listAllKeys() : await listUserKeys(user.id);
+    const allKeys = isSuperAdmin(req) ? await listAllKeys() : await listUserKeys(user.id);
     if (!allKeys.find((k) => k.keyId === keyId)) return res.status(404).json({ error: "API Key 不存在" });
 
     await revokeKey(keyId);
@@ -267,7 +273,7 @@ router.post(
     const user = (req as any).user;
     const keyId = firstString(req.params.keyId);
     if (!keyId) return res.status(400).json({ error: "无效的 Key ID" });
-    const allKeys = isAdminRole(user.role) ? await listAllKeys() : await listUserKeys(user.id);
+    const allKeys = isSuperAdmin(req) ? await listAllKeys() : await listUserKeys(user.id);
     if (!allKeys.find((k) => k.keyId === keyId)) return res.status(404).json({ error: "API Key 不存在" });
 
     await enableKey(keyId);
@@ -291,7 +297,7 @@ router.delete(
     const user = (req as any).user;
     const keyId = firstString(req.params.keyId);
     if (!keyId) return res.status(400).json({ error: "无效的 Key ID" });
-    const allKeys = isAdminRole(user.role) ? await listAllKeys() : await listUserKeys(user.id);
+    const allKeys = isSuperAdmin(req) ? await listAllKeys() : await listUserKeys(user.id);
     if (!allKeys.find((k) => k.keyId === keyId)) return res.status(404).json({ error: "API Key 不存在" });
 
     await deleteKey(keyId);

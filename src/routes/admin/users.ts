@@ -235,9 +235,11 @@ router.put(
   authenticateSuperAdmin,
   auditLog({
     module: "user",
-    action: "user.update",
+    action: (req) =>
+      req.body?.role && req.body.role !== (req as any).__targetOldRole ? "user.role.change" : "user.update",
     extractTarget: (req) => ({ targetId: req.params.id }),
-    extractDetail: (req) => (req.body?.role ? { newRole: req.body.role } : undefined),
+    extractDetail: (req) =>
+      req.body?.role ? { oldRole: (req as any).__targetOldRole, newRole: req.body.role } : undefined,
   }),
   adminController.updateUser,
 );

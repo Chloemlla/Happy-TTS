@@ -437,7 +437,7 @@ export function validateAndSanitizeUserUpdates(body: Record<string, unknown>): P
   // role: 枚举限制
   if (body.role !== undefined) {
     if (!isUserRole(body.role)) {
-      throw new Error("role 值非法，只允许 user、admin 或 trusted");
+      throw new Error("role 值非法，只允许 user、admin、superadmin 或 trusted");
     }
     out.role = body.role;
   }

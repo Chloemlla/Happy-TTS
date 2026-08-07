@@ -143,6 +143,14 @@ async function listLumenConfigDocs(): Promise<Array<{ key: string; value: string
 }
 
 // XSS 过滤简单实现
+
+/** 目标是否为唯一的超级管理员(降级/封停/删除会锁死系统)。 */
+async function isLastSuperadmin(targetUser: { role?: string }): Promise<boolean> {
+  if (targetUser.role !== "superadmin") return false;
+  const allUsers = await UserStorage.getAllUsers();
+  return allUsers.filter((u) => u.role === "superadmin").length <= 1;
+}
+
 export const adminController = {
   getUsers: async (req: Request, res: Response) => {
     try {
@@ -259,6 +267,9 @@ export const adminController = {
       if (!user) {
         return res.status(404).json({ error: "用户不存在" });
       }
+
+      // 供 PUT /api/admin/users/:id 的审计中间件读取旧角色(role.change 审计用)
+      (req as any).__targetOldRole = user.role;
 
       // 禁止管理员修改自身角色（防止意外降权/误操作锁死系统）
       if (req.user?.id === user.id && req.body.role !== undefined && req.body.role !== user.role) {
@@ -506,6 +517,15 @@ export const adminController = {
         map[u.id] = u;
         return map;
       }, {});
+
+      // 禁止批量封停最后一个超级管理员(防止锁死系统)
+      if (action === "suspend") {
+        const allUsers = await UserStorage.getAllUsers();
+        const superadminCount = allUsers.filter((u) => u.role === "superadmin").length;
+        if (superadminCount <= 1 && userIds.some((id) => targetUsers[id]?.role === "superadmin")) {
+          return res.status(409).json({ error: "无法封停最后一个超级管理员" });
+        }
+      }
 
       const now = Date.now();
       const bulkOps: Array<{ updateOne: { filter: Record<string, unknown>; update: Record<string, unknown> } }> = [];
@@ -758,6 +778,9 @@ export const adminController = {
       }
 
       if (action === "SUSPEND_ACCOUNT") {
+        if (await isLastSuperadmin(targetUser)) {
+          return res.status(409).json({ error: "无法封停最后一个超级管理员" });
+        }
         await UserStorage.updateUser(targetUser.id, {
           accountStatus: "suspended",
         });
@@ -767,6 +790,9 @@ export const adminController = {
       if (action === "DELETE_USER") {
         if (req.user?.id === targetUser.id) {
           return res.status(403).json({ error: "不允许删除自身账户" });
+        }
+        if (await isLastSuperadmin(targetUser)) {
+          return res.status(409).json({ error: "无法删除最后一个超级管理员" });
         }
         await UserStorage.deleteUser(targetUser.id);
         return res.json({ success: true, message: "用户已删除" });

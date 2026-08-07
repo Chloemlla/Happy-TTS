@@ -19,7 +19,8 @@ import { firstString } from "../utils/httpParam";
 
 export interface AuditLogOptions {
   module: IAuditLog["module"];
-  action: string;
+  /** 固定动作名,或根据请求动态决定(如 role 变更时切换动作) */
+  action: string | ((req: Request) => string);
   /** 从请求中提取操作目标信息 */
   extractTarget?: (req: Request) => { targetId?: string | string[]; targetName?: string | string[] };
   /** 从请求中提取额外详情 */
@@ -60,6 +61,7 @@ export function auditLog(options: AuditLogOptions) {
 
       const target = extractTarget ? extractTarget(req) : {};
       const detail = extractDetail ? extractDetail(req) : {};
+      const actionName = typeof action === "function" ? action(req) : action;
 
       // 脱敏与截断处理函数
       const sanitizePayload = (obj: any): any => {
@@ -93,7 +95,7 @@ export function auditLog(options: AuditLogOptions) {
         userId: user?.id || user?._id || "unknown",
         username: user?.username || user?.name || "unknown",
         role: user?.role || "unknown",
-        action,
+        action: actionName,
         module,
         targetId: firstString(target.targetId),
         targetName: firstString(target.targetName),
