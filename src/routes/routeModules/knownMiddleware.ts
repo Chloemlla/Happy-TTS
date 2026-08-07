@@ -2,7 +2,7 @@ import type { RequestHandler } from "express";
 import { adminOnly } from "../../middleware/adminOnly";
 import { authenticateToken } from "../../middleware/authenticateToken";
 import { authenticateAdmin, authMiddleware } from "../../middleware/auth";
-import { adminAuthMiddleware, authMiddlewareV2 } from "../../middleware/auth";
+import { adminAuthMiddleware, authMiddlewareV2, authenticateSuperAdmin } from "../../middleware/auth";
 import { nexaiRequestSignature } from "../../middleware/nexaiRequestSignature";
 import {
   adminLimiter,
@@ -82,6 +82,7 @@ export const knownAuthMiddleware = new Map<RequestHandler, string>([
   [authMiddlewareV2, "authMiddleware"],
   [adminAuthMiddleware, "adminAuthMiddleware"],
   [authenticateAdmin, "authenticateAdmin"],
+  [authenticateSuperAdmin, "authenticateSuperAdmin"],
   [adminOnly, "adminOnly"],
   [nexaiRequestSignature, "nexaiRequestSignature"],
 ]);
@@ -98,6 +99,7 @@ export const knownAuthHandlerNames = new Set([
   "authMiddleware",
   "adminAuthMiddleware",
   "authenticateAdmin",
+  "authenticateSuperAdmin",
   "adminOnly",
   "nexaiAuthRequired",
   "nexaiAuthOptional",

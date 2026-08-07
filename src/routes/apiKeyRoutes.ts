@@ -1,5 +1,6 @@
 import { type Request, type Response, Router } from "express";
-import { authMiddlewareV2 as authMiddleware } from "../middleware/auth";
+import { authMiddlewareV2 as authMiddleware, isAdminRole, isSuperAdmin } from "../middleware/auth";
+import { auditLog } from "../middleware/auditLog";
 import { firstString } from "../utils/httpParam";
 import {
   createApiKey,
@@ -25,7 +26,7 @@ const apiKeyManagementLimiter = createLimiter({
 });
 
 async function findVisibleKey(user: any, keyId: string) {
-  const keys = user.role === "admin" ? await listAllKeys() : await listUserKeys(user.id);
+  const keys = isAdminRole(user.role) ? await listAllKeys() : await listUserKeys(user.id);
   return keys.find((key) => key.keyId === keyId) || null;
 }
 
@@ -36,7 +37,7 @@ router.use(apiKeyManagementLimiter);
 /** 获取可用权限列表 */
 router.get("/permissions", (req: Request, res: Response) => {
   const user = (req as any).user;
-  const permissionDetails = getApiKeyPermissionDefinitions(user?.role === "admin");
+  const permissionDetails = getApiKeyPermissionDefinitions(isAdminRole(user?.role));
   res.json({
     success: true,
     permissions: permissionDetails.map((permission) => permission.key),
@@ -47,7 +48,7 @@ router.get("/permissions", (req: Request, res: Response) => {
 /** 获取 API Key 计费价格表 */
 router.get("/billing/rates", (req: Request, res: Response) => {
   const user = (req as any).user;
-  const rates = getApiKeyPermissionDefinitions(user?.role === "admin").map((permission) => ({
+  const rates = getApiKeyPermissionDefinitions(isAdminRole(user?.role)).map((permission) => ({
     permission: permission.key,
     label: permission.label,
     costCredits: permission.costCredits,
@@ -57,7 +58,10 @@ router.get("/billing/rates", (req: Request, res: Response) => {
 });
 
 /** 创建 API Key（任何已登录用户） */
-router.post("/", async (req: Request, res: Response) => {
+router.post(
+  "/",
+  auditLog({ module: "apikey", action: "apikey.create" }),
+  async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const { name, permissions, rateLimit, expiresInDays, billingMode, billingEnabled, balanceCredits } = req.body;
@@ -66,7 +70,7 @@ router.post("/", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "名称不能为空且不超过50字符" });
     }
 
-    const isAdmin = user.role === "admin";
+    const isAdmin = isAdminRole(user.role);
     const perms = normalizeApiKeyPermissions(permissions, { isAdmin });
 
     const result = await createApiKey({
@@ -104,7 +108,7 @@ router.get("/mine", async (req: Request, res: Response) => {
 router.get("/all", async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    if (user.role !== "admin") return res.status(403).json({ error: "需要管理员权限" });
+    if (!isAdminRole(user.role)) return res.status(403).json({ error: "需要管理员权限" });
     const keys = await listAllKeys();
     return res.json({ success: true, keys });
   } catch (err) {
@@ -134,10 +138,17 @@ router.get("/:keyId/billing/events", async (req: Request, res: Response) => {
 });
 
 /** 调整 Key 余额（管理员） */
-router.post("/:keyId/billing/adjust", async (req: Request, res: Response) => {
+router.post(
+  "/:keyId/billing/adjust",
+  auditLog({
+    module: "apikey",
+    action: "apikey.billing.adjust",
+    extractTarget: (req) => ({ targetId: req.params.keyId }),
+  }),
+  async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    if (user.role !== "admin") return res.status(403).json({ error: "需要管理员权限" });
+    if (!isSuperAdmin(req)) return res.status(403).json({ error: "需要管理员权限" });
 
     const keyId = firstString(req.params.keyId);
     if (!keyId) return res.status(400).json({ error: "无效的 Key ID" });
@@ -162,7 +173,14 @@ router.post("/:keyId/billing/adjust", async (req: Request, res: Response) => {
 });
 
 /** 更新 Key（所有者或管理员） */
-router.put("/:keyId", async (req: Request, res: Response) => {
+router.put(
+  "/:keyId",
+  auditLog({
+    module: "apikey",
+    action: "apikey.update",
+    extractTarget: (req) => ({ targetId: req.params.keyId }),
+  }),
+  async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const keyId = firstString(req.params.keyId);
@@ -170,7 +188,7 @@ router.put("/:keyId", async (req: Request, res: Response) => {
     if (!keyId) return res.status(400).json({ error: "无效的 Key ID" });
 
     // 先查找确认所有权
-    const isAdmin = user.role === "admin";
+    const isAdmin = isAdminRole(user.role);
     const target = await findVisibleKey(user, keyId);
     if (!target) return res.status(404).json({ error: "API Key 不存在" });
 
@@ -213,12 +231,19 @@ router.put("/:keyId", async (req: Request, res: Response) => {
 });
 
 /** 吊销 Key */
-router.post("/:keyId/revoke", async (req: Request, res: Response) => {
+router.post(
+  "/:keyId/revoke",
+  auditLog({
+    module: "apikey",
+    action: "apikey.revoke",
+    extractTarget: (req) => ({ targetId: req.params.keyId }),
+  }),
+  async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const keyId = firstString(req.params.keyId);
     if (!keyId) return res.status(400).json({ error: "无效的 Key ID" });
-    const allKeys = user.role === "admin" ? await listAllKeys() : await listUserKeys(user.id);
+    const allKeys = isAdminRole(user.role) ? await listAllKeys() : await listUserKeys(user.id);
     if (!allKeys.find((k) => k.keyId === keyId)) return res.status(404).json({ error: "API Key 不存在" });
 
     await revokeKey(keyId);
@@ -230,12 +255,19 @@ router.post("/:keyId/revoke", async (req: Request, res: Response) => {
 });
 
 /** 启用 Key */
-router.post("/:keyId/enable", async (req: Request, res: Response) => {
+router.post(
+  "/:keyId/enable",
+  auditLog({
+    module: "apikey",
+    action: "apikey.enable",
+    extractTarget: (req) => ({ targetId: req.params.keyId }),
+  }),
+  async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const keyId = firstString(req.params.keyId);
     if (!keyId) return res.status(400).json({ error: "无效的 Key ID" });
-    const allKeys = user.role === "admin" ? await listAllKeys() : await listUserKeys(user.id);
+    const allKeys = isAdminRole(user.role) ? await listAllKeys() : await listUserKeys(user.id);
     if (!allKeys.find((k) => k.keyId === keyId)) return res.status(404).json({ error: "API Key 不存在" });
 
     await enableKey(keyId);
@@ -247,12 +279,19 @@ router.post("/:keyId/enable", async (req: Request, res: Response) => {
 });
 
 /** 删除 Key（永久） */
-router.delete("/:keyId", async (req: Request, res: Response) => {
+router.delete(
+  "/:keyId",
+  auditLog({
+    module: "apikey",
+    action: "apikey.delete",
+    extractTarget: (req) => ({ targetId: req.params.keyId }),
+  }),
+  async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
     const keyId = firstString(req.params.keyId);
     if (!keyId) return res.status(400).json({ error: "无效的 Key ID" });
-    const allKeys = user.role === "admin" ? await listAllKeys() : await listUserKeys(user.id);
+    const allKeys = isAdminRole(user.role) ? await listAllKeys() : await listUserKeys(user.id);
     if (!allKeys.find((k) => k.keyId === keyId)) return res.status(404).json({ error: "API Key 不存在" });
 
     await deleteKey(keyId);

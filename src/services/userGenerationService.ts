@@ -72,5 +72,5 @@ export async function addGenerationRecord(record: GenerationRecord): Promise<any
 import { getUserById } from "../services/userService";
 export async function isAdminUser(userId: string): Promise<boolean> {
   const user = await getUserById(userId);
-  return !!(user && user.role === "admin");
+  return !!(user && (user.role === "admin" || user.role === "superadmin"));
 }

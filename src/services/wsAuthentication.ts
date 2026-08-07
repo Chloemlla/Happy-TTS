@@ -56,7 +56,7 @@ export async function resolveWebSocketIdentity(req: IncomingMessage): Promise<We
 
     return {
       userId: user.id,
-      isAdmin: user.role === "admin",
+      isAdmin: user.role === "admin" || user.role === "superadmin",
     };
   } catch (_error) {
     logger.warn("[WS] 拒绝无效认证凭证", { credentialSource });

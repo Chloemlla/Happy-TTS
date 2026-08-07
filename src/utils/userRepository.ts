@@ -35,7 +35,7 @@ const updateUser = async (userId: string, updates: Partial<User>): Promise<User 
   getUserStorageProvider().updateUser(userId, updates);
 
 const maybeSendUsageAlert = async (user: User, dailyUsage: number): Promise<void> => {
-  if (!user.email || user.role === "admin") {
+  if (!user.email || user.role === "admin" || user.role === "superadmin") {
     return;
   }
 
@@ -176,7 +176,7 @@ export const userRepository = {
   async getRemainingUsage(userId: string): Promise<number> {
     const user = await getUserById(userId);
     if (!user) return 0;
-    if (user.role === "admin") return Infinity;
+    if (user.role === "admin" || user.role === "superadmin") return Infinity;
 
     const today = new Date().toISOString().split("T")[0];
     let lastUsageDate = "";
@@ -194,7 +194,7 @@ export const userRepository = {
   async incrementUsage(userId: string): Promise<boolean> {
     const user = await getUserById(userId);
     if (!user) return false;
-    if (user.role === "admin") return true;
+    if (user.role === "admin" || user.role === "superadmin") return true;
     const result = await incrementUserDailyUsageAtomic(userId, DAILY_LIMIT);
     if (!result.success || !result.user) {
       return false;

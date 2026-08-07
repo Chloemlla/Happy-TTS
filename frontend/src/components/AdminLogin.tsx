@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { isAdminRole } from '../utils/rbac';
 
 export default function AdminLogin() {
   const [username, setUsername] = useState('');
@@ -10,7 +11,7 @@ export default function AdminLogin() {
   const navigate = useNavigate();
 
   // 如果已经登录且是管理员，直接跳转到管理页面
-  if (user?.role === 'admin') {
+  if (isAdminRole(user?.role)) {
     navigate('/admin');
     return null;
   }
@@ -21,9 +22,9 @@ export default function AdminLogin() {
 
     try {
       const result = await login(username, password);
-      
+
       // 检查是否是管理员
-      if (result && result.user && result.user.role !== 'admin') {
+      if (result && result.user && !isAdminRole(result.user.role)) {
         setError('权限不足：非管理员账号');
         return;
       }

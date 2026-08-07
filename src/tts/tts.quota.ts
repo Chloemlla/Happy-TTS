@@ -67,7 +67,7 @@ export class MongoQuotaLedger implements QuotaLedger {
       return { user: null, remainingToday: 0, reservedToday: 0, consumedToday: 0 };
     }
 
-    if (user.role === "admin") {
+    if (user.role === "admin" || user.role === "superadmin") {
       return { user, remainingToday: null, reservedToday: null, consumedToday: null };
     }
 
@@ -93,7 +93,7 @@ export class MongoQuotaLedger implements QuotaLedger {
       return { success: false, snapshot };
     }
 
-    if (snapshot.user.role === "admin") {
+    if (snapshot.user.role === "admin" || snapshot.user.role === "superadmin") {
       return { success: true, snapshot };
     }
 
@@ -158,7 +158,7 @@ export class MongoQuotaLedger implements QuotaLedger {
 
   public async confirm(userId: string, taskId: string): Promise<TtsUsageSnapshot> {
     const snapshot = await this.buildSnapshot(userId);
-    if (!snapshot.user || snapshot.user.role === "admin") {
+    if (!snapshot.user || snapshot.user.role === "admin" || snapshot.user.role === "superadmin") {
       return snapshot;
     }
 
@@ -173,7 +173,7 @@ export class MongoQuotaLedger implements QuotaLedger {
 
   public async release(userId: string, taskId: string): Promise<TtsUsageSnapshot> {
     const snapshot = await this.buildSnapshot(userId);
-    if (!snapshot.user || snapshot.user.role === "admin") {
+    if (!snapshot.user || snapshot.user.role === "admin" || snapshot.user.role === "superadmin") {
       return snapshot;
     }
 

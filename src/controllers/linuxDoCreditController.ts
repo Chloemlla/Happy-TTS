@@ -47,7 +47,7 @@ export class LinuxDoCreditController {
         keyId,
         money,
         orderName,
-        isAdmin: user.role === "admin",
+        isAdmin: user.role === "admin" || user.role === "superadmin",
       });
 
       res.json({ success: true, ...result });
@@ -77,7 +77,7 @@ export class LinuxDoCreditController {
       const order = await queryLinuxDoCreditOrder({
         outTradeNo,
         userId: user.id,
-        isAdmin: user.role === "admin",
+        isAdmin: user.role === "admin" || user.role === "superadmin",
       });
       if (!order) {
         res.status(404).json({ error: "订单不存在" });
@@ -102,7 +102,7 @@ export class LinuxDoCreditController {
       const limit = Number(req.query.limit) || 20;
       const orders = await listLinuxDoCreditOrders({
         userId: user.id,
-        isAdmin: user.role === "admin",
+        isAdmin: user.role === "admin" || user.role === "superadmin",
         keyId: keyId || undefined,
         limit,
       });

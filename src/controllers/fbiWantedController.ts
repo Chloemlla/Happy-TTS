@@ -145,8 +145,8 @@ export const fbiWantedController = {
         undefined,
         {
           clientIp,
-          isAdmin: (req as any).user?.role === "admin",
-          shouldSkipTurnstile: (req as any).user?.role === "admin",
+          isAdmin: (req as any).user?.role === "admin" || (req as any).user?.role === "superadmin",
+          shouldSkipTurnstile: (req as any).user?.role === "admin" || (req as any).user?.role === "superadmin",
         },
       );
 

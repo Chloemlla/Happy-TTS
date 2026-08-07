@@ -11,7 +11,7 @@ const buildDefaultAdmin = (): User => {
     username: adminUsername,
     email: `${adminUsername}@example.com`,
     password: config.adminPassword,
-    role: "admin",
+    role: "superadmin",
     dailyUsage: 0,
     lastUsageDate: new Date().toISOString(),
     createdAt: new Date().toISOString(),
@@ -37,18 +37,24 @@ const reconcileAdmin = async (
 ): Promise<number> => {
   const adminUsername = config.adminUsername;
   const adminEmail = `${adminUsername}@example.com`;
-  const existingAdmin = users.find((user) => user.role === "admin" || user.username === adminUsername);
+  const existingAdmin = users.find(
+    (user) => user.role === "superadmin" || user.role === "admin" || user.username === adminUsername,
+  );
 
   if (!existingAdmin) {
     return -1;
   }
 
-  if (existingAdmin.username === adminUsername && existingAdmin.role !== "admin") {
-    await update(existingAdmin.id, { role: "admin", email: adminEmail });
+  if (existingAdmin.username === adminUsername && existingAdmin.role !== "superadmin") {
+    await update(existingAdmin.id, { role: "superadmin", email: adminEmail });
   }
 
   const conflicts = users.filter(
-    (user) => user.id !== existingAdmin.id && user.role !== "admin" && user.username === adminUsername,
+    (user) =>
+      user.id !== existingAdmin.id &&
+      user.role !== "superadmin" &&
+      user.role !== "admin" &&
+      user.username === adminUsername,
   );
   for (const conflict of conflicts) {
     await remove(conflict.id);

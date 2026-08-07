@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotification } from './Notification';
 import { getApiBaseUrl } from '../api/api';
+import { useAuth } from '../hooks/useAuth';
+import { isSuperAdmin } from '../utils/rbac';
 import {
   FaBan,
   FaCheck,
@@ -186,6 +188,9 @@ const normalizePermissionSelection = (current: string[], permission: string) => 
 
 const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ initialView = 'keys' }) => {
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  // Only superadmins may create/revoke/adjust API keys; regular admins get read-only access.
+  const canWrite = isSuperAdmin(user?.role);
   const [view, setView] = useState<ManagerView>(initialView);
   const [keys, setKeys] = useState<ApiKeyItem[]>([]);
   const [permissionDetails, setPermissionDetails] = useState<PermissionDetail[]>([]);
@@ -660,14 +665,16 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ initialView = 'keys' }) =
             <FaSyncAlt className={loading ? 'animate-spin' : ''} />
             <span>刷新</span>
           </motion.button>
-          <motion.button
-            onClick={() => { setShowCreate(!showCreate); setRevealedKey(null); }}
-            className="flex items-center gap-1 px-3 py-1.5 text-sm bg-amber-500 text-white hover:bg-amber-600 rounded-2xl transition"
-            whileTap={{ scale: 0.95 }}
-          >
-            <FaPlus />
-            <span>创建</span>
-          </motion.button>
+          {canWrite && (
+            <motion.button
+              onClick={() => { setShowCreate(!showCreate); setRevealedKey(null); }}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm bg-amber-500 text-white hover:bg-amber-600 rounded-2xl transition"
+              whileTap={{ scale: 0.95 }}
+            >
+              <FaPlus />
+              <span>创建</span>
+            </motion.button>
+          )}
         </div>
       </div>
 
@@ -959,7 +966,7 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ initialView = 'keys' }) =
                   <FaTimes />
                 </button>
               </div>
-              {canManageAll && (
+              {canManageAll && canWrite && (
                 <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-[160px_1fr_auto]">
                   <input
                     type="number"
@@ -1172,10 +1179,12 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ initialView = 'keys' }) =
                       </div>
                     </div>
                     <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
-                      <motion.button onClick={() => startEdit(key)} title="编辑" className="rounded p-2 text-sky-600 transition hover:bg-sky-50 sm:p-1.5" whileTap={{ scale: 0.9 }}>
-                        <FaEdit />
-                      </motion.button>
-                      {(key.billingMode || 'metered') === 'prepaid' && (
+                      {canWrite && (
+                        <motion.button onClick={() => startEdit(key)} title="编辑" className="rounded p-2 text-sky-600 transition hover:bg-sky-50 sm:p-1.5" whileTap={{ scale: 0.9 }}>
+                          <FaEdit />
+                        </motion.button>
+                      )}
+                      {canWrite && (key.billingMode || 'metered') === 'prepaid' && (
                         <motion.button onClick={() => openRecharge(key)} title="LINUX DO Credit 充值" className="rounded p-2 text-indigo-600 transition hover:bg-indigo-50 sm:p-1.5" whileTap={{ scale: 0.9 }}>
                           <FaCreditCard />
                         </motion.button>
@@ -1183,7 +1192,7 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ initialView = 'keys' }) =
                       <motion.button onClick={() => { setView('billing'); fetchBillingEvents(key); }} title="计费流水" className="rounded p-2 text-emerald-600 transition hover:bg-emerald-50 sm:p-1.5" whileTap={{ scale: 0.9 }}>
                         <FaReceipt />
                       </motion.button>
-                      {key.enabled ? (
+                      {canWrite && (key.enabled ? (
                         <motion.button onClick={() => handleRevoke(key.keyId)} title="吊销" className="rounded p-2 text-yellow-600 transition hover:bg-yellow-50 sm:p-1.5" whileTap={{ scale: 0.9 }}>
                           <FaBan />
                         </motion.button>
@@ -1191,10 +1200,12 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ initialView = 'keys' }) =
                         <motion.button onClick={() => handleEnable(key.keyId)} title="启用" className="rounded p-2 text-green-600 transition hover:bg-green-50 sm:p-1.5" whileTap={{ scale: 0.9 }}>
                           <FaCheck />
                         </motion.button>
+                      ))}
+                      {canWrite && (
+                        <motion.button onClick={() => handleDelete(key.keyId)} title="永久删除" className="rounded p-2 text-red-500 transition hover:bg-red-50 sm:p-1.5" whileTap={{ scale: 0.9 }}>
+                          <FaTrash />
+                        </motion.button>
                       )}
-                      <motion.button onClick={() => handleDelete(key.keyId)} title="永久删除" className="rounded p-2 text-red-500 transition hover:bg-red-50 sm:p-1.5" whileTap={{ scale: 0.9 }}>
-                        <FaTrash />
-                      </motion.button>
                     </div>
                   </div>
                 )}

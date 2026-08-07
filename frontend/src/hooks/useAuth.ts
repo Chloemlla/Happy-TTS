@@ -12,6 +12,7 @@ import {
     ACCOUNTS_KEY as ACCOUNTS_KEY_CONST,
 } from '../utils/authSession';
 import { maybeEmitPenaltyAppealFromError } from '../utils/penaltyAppeal';
+import { isAdminRole } from '../utils/rbac';
 
 export type { AuthRequestError, LoginResult };
 
@@ -157,7 +158,7 @@ export const useAuth = () => {
                 saveAccount(data, existing?.token);
 
                 // 恢复原始重定向逻辑
-                if (data.role === 'admin' && !isAdminCheckedRef.current) {
+                if (isAdminRole(data.role) && !isAdminCheckedRef.current) {
                     console.log('检测到管理员用户，当前路径:', locationPathRef.current);
                     setIsAdminChecked(true);
                     const excludedPaths = ['/policy', '/welcome', '/admin/users', '/admin/store', '/admin/resources', '/admin/cdks'];

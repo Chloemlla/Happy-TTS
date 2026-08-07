@@ -1,6 +1,7 @@
 import { type Request, type Response, Router } from "express";
-import { authenticateAdmin } from "../middleware/auth";
+import { authenticateAdmin, authenticateSuperAdmin } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
+import { auditLog } from "../middleware/auditLog";
 import { dataCollectionLimiter } from "../middleware/routeLimiters";
 import { dataCollectionService } from "../services/dataCollectionService";
 import { firstString } from "../utils/httpParam";
@@ -10,6 +11,9 @@ const router = Router();
 
 // Admin-only guard
 const guard = [dataCollectionLimiter, authenticateToken, authenticateAdmin] as const;
+
+// Super-admin-only guard for write operations
+const superAdminGuard = [dataCollectionLimiter, authenticateToken, authenticateSuperAdmin] as const;
 
 // GET /api/data-collection/admin/stats
 router.get("/stats", ...guard, async (_req: Request, res: Response) => {
@@ -43,7 +47,15 @@ router.get("/", ...guard, async (req: Request, res: Response) => {
 });
 
 // POST /api/data-collection/admin
-router.post("/", ...guard, async (req: Request, res: Response) => {
+router.post(
+  "/",
+  ...superAdminGuard,
+  auditLog({
+    module: "dataCollection",
+    action: "dataCollection.create",
+    extractDetail: (req) => ({ userId: req.body?.userId, action: req.body?.action }),
+  }),
+  async (req: Request, res: Response) => {
   try {
     const { userId, action, timestamp, details } = (req.body || {}) as any;
     const payload = {
@@ -91,7 +103,15 @@ router.get("/:id/raw", ...guard, async (req: Request, res: Response) => {
 });
 
 // DELETE /api/data-collection/admin/:id
-router.delete("/:id", ...guard, async (req: Request, res: Response, next) => {
+router.delete(
+  "/:id",
+  ...superAdminGuard,
+  auditLog({
+    module: "dataCollection",
+    action: "dataCollection.delete",
+    extractTarget: (req) => ({ targetId: req.params.id }),
+  }),
+  async (req: Request, res: Response, next) => {
   try {
     const id = firstString(req.params.id);
     if (!id) return res.status(400).json({ success: false, message: "Invalid id" });
@@ -105,7 +125,15 @@ router.delete("/:id", ...guard, async (req: Request, res: Response, next) => {
 });
 
 // POST /api/data-collection/admin/delete-batch
-router.post("/delete-batch", ...guard, async (req: Request, res: Response) => {
+router.post(
+  "/delete-batch",
+  ...superAdminGuard,
+  auditLog({
+    module: "dataCollection",
+    action: "dataCollection.deleteBatch",
+    extractDetail: (req) => ({ count: Array.isArray(req.body?.ids) ? req.body.ids.length : 0 }),
+  }),
+  async (req: Request, res: Response) => {
   try {
     const { ids } = (req.body || {}) as { ids?: string[] };
     if (!Array.isArray(ids) || ids.length === 0) {
@@ -120,7 +148,11 @@ router.post("/delete-batch", ...guard, async (req: Request, res: Response) => {
 });
 
 // DELETE /api/data-collection/admin/all
-router.delete("/all", ...guard, async (req: Request, res: Response) => {
+router.delete(
+  "/all",
+  ...superAdminGuard,
+  auditLog({ module: "dataCollection", action: "dataCollection.deleteAll" }),
+  async (req: Request, res: Response) => {
   try {
     const { confirm } = (req.body || {}) as { confirm?: boolean };
     const { statusCode, body } = await dataCollectionService.deleteAllAction({ confirm });

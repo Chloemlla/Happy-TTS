@@ -1,6 +1,7 @@
 import * as crypto from "node:crypto";
 import express from "express";
 import { auditLog } from "../../middleware/auditLog";
+import { isAdminRole, isSuperAdmin } from "../../middleware/auth";
 import { authenticateToken } from "../../middleware/authenticateToken";
 import { replayProtection } from "../../middleware/replayProtection";
 import logger from "../../utils/logger";
@@ -19,7 +20,7 @@ router.get("/shortlinks", authenticateToken, async (req, res) => {
     console.log("   请求IP:", req.ip);
 
     // 检查管理员权限
-    if (!req.user || req.user.role !== "admin") {
+    if (!req.user || !isAdminRole(req.user.role)) {
       console.log("❌ [ShortLinkManager] 权限检查失败：非管理员用户");
       return res.status(403).json({ error: "需要管理员权限" });
     }
@@ -119,7 +120,7 @@ router.get("/shortlinks", authenticateToken, async (req, res) => {
 router.delete("/shortlinks/:id", authenticateToken, async (req, res) => {
   try {
     // 检查管理员权限
-    if (!req.user || req.user.role !== "admin") {
+    if (!req.user || !isSuperAdmin(req)) {
       return res.status(403).json({ error: "需要管理员权限" });
     }
 
@@ -163,7 +164,7 @@ router.post("/shortlinks/batch-delete", authenticateToken, async (req, res) => {
     }
 
     // 检查管理员权限
-    if (!req.user || req.user.role !== "admin") {
+    if (!req.user || !isSuperAdmin(req)) {
       return res.status(403).json({ error: "需要管理员权限" });
     }
 
@@ -231,7 +232,7 @@ router.post(
   async (req, res) => {
     try {
       // 检查管理员权限
-      if (!req.user || req.user.role !== "admin") {
+      if (!req.user || !isSuperAdmin(req)) {
         return res.status(403).json({ error: "需要管理员权限" });
       }
 
@@ -328,7 +329,7 @@ router.post("/shortlinks/migrate", authenticateToken, async (req, res) => {
     console.log("   请求IP:", req.ip);
 
     // 检查管理员权限
-    if (!req.user || req.user.role !== "admin") {
+    if (!req.user || !isSuperAdmin(req)) {
       console.log("❌ [ShortUrlMigration] 权限检查失败：非管理员用户");
       return res.status(403).json({ error: "需要管理员权限" });
     }
@@ -364,7 +365,7 @@ router.get("/shortlinks/migration-stats", authenticateToken, async (req, res) =>
     console.log("   用户角色:", req.user?.role);
 
     // 检查管理员权限
-    if (!req.user || req.user.role !== "admin") {
+    if (!req.user || !isAdminRole(req.user.role)) {
       console.log("❌ [ShortUrlMigration] 权限检查失败：非管理员用户");
       return res.status(403).json({ error: "需要管理员权限" });
     }

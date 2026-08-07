@@ -1,5 +1,6 @@
 import type { ElementType } from 'react';
 import type { IconType } from 'react-icons';
+import type { NavVisibilityContext } from '@/navigation/navConfig';
 
 /**
  * Base navigation item shared fields.
@@ -17,9 +18,10 @@ type BaseNavItem = {
   matchChildren?: boolean;
   /**
    * Minimum role required to see this item. Synapse roles are string
-   * enums (`'admin' | 'user'`); use `'admin'` to hide from non-admins.
+   * enums (`'admin' | 'superadmin' | 'user'`); use `'admin'` to hide from
+   * non-admins and `'superadmin'` to hide from read-only admins.
    */
-  requiredRole?: 'admin' | 'user';
+  requiredRole?: 'admin' | 'superadmin' | 'user';
 };
 
 /**
@@ -72,7 +74,7 @@ export type SidebarView = {
   id: string;
   pathPattern: RegExp;
   parent: SidebarViewParent;
-  getNavGroups: () => NavGroup[];
+  getNavGroups: (ctx: NavVisibilityContext) => NavGroup[];
 };
 
 /**

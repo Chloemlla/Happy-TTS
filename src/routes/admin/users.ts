@@ -2,6 +2,7 @@ import * as crypto from "node:crypto";
 import express from "express";
 import type { Request, Response } from "express";
 import { adminController } from "../../controllers/adminController";
+import { authenticateSuperAdmin, isSuperAdmin } from "../../middleware/auth";
 import { auditLog } from "../../middleware/auditLog";
 import { createLimiter } from "../../middleware/routeLimiters";
 import { replayProtection } from "../../middleware/replayProtection";
@@ -47,7 +48,15 @@ function applyNoCacheHeaders(res: any) {
 }
 
 // 管理员清空指定用户的全部指纹记录（需管理员权限）
-router.delete("/users/:id/fingerprints", async (req, res) => {
+router.delete(
+  "/users/:id/fingerprints",
+  authenticateSuperAdmin,
+  auditLog({
+    module: "user",
+    action: "user.fingerprint.clear",
+    extractTarget: (req) => ({ targetId: req.params.id }),
+  }),
+  async (req, res) => {
   try {
     const userId = req.params.id;
     if (!userId) return res.status(400).json({ error: "缺少用户ID" });
@@ -77,6 +86,7 @@ router.get("/users", adminController.getUsers);
 router.get("/users/:id", adminController.getUser);
 router.post(
   "/users/:id/reveal-password",
+  authenticateSuperAdmin,
   replayProtection(),
   revealPasswordLimiter,
   auditLog({
@@ -128,6 +138,7 @@ router.post(
  */
 router.post(
   "/users",
+  authenticateSuperAdmin,
   auditLog({
     module: "user",
     action: "user.create",
@@ -138,6 +149,7 @@ router.post(
 
 router.post(
   "/users/bulk-action",
+  authenticateSuperAdmin,
   auditLog({
     module: "user",
     action: "user.bulkAction",
@@ -150,7 +162,16 @@ router.post(
 );
 
 // 管理员设置指定用户下次需要上报指纹（一次性或开关）
-router.post("/users/:id/fingerprint/require", async (req, res) => {
+router.post(
+  "/users/:id/fingerprint/require",
+  authenticateSuperAdmin,
+  auditLog({
+    module: "user",
+    action: "user.fingerprint.require",
+    extractTarget: (req) => ({ targetId: req.params.id }),
+    extractDetail: (req) => ({ require: !!req.body?.requireFlag }),
+  }),
+  async (req, res) => {
   try {
     const userId = req.params.id;
     if (!userId) return res.status(400).json({ error: "缺少用户ID" });
@@ -211,7 +232,13 @@ router.post("/users/:id/fingerprint/require", async (req, res) => {
  */
 router.put(
   "/users/:id",
-  auditLog({ module: "user", action: "user.update", extractTarget: (req) => ({ targetId: req.params.id }) }),
+  authenticateSuperAdmin,
+  auditLog({
+    module: "user",
+    action: "user.update",
+    extractTarget: (req) => ({ targetId: req.params.id }),
+    extractDetail: (req) => (req.body?.role ? { newRole: req.body.role } : undefined),
+  }),
   adminController.updateUser,
 );
 
@@ -232,6 +259,7 @@ router.put(
  */
 router.delete(
   "/users/:id",
+  authenticateSuperAdmin,
   auditLog({ module: "user", action: "user.delete", extractTarget: (req) => ({ targetId: req.params.id }) }),
   adminController.deleteUser,
 );
@@ -240,6 +268,7 @@ router.get("/translation-logs", adminController.getTranslationLogs);
 router.get("/translation-logs/stats", adminController.getTranslationLogStats);
 router.post(
   "/users/:id/translation-penalty",
+  authenticateSuperAdmin,
   auditLog({
     module: "user",
     action: "user.translationPenalty",
@@ -271,6 +300,7 @@ router.post(
  */
 router.post(
   "/announcement",
+  authenticateSuperAdmin,
   auditLog({ module: "announcement", action: "announcement.update" }),
   adminController.setAnnouncement,
 );
@@ -286,6 +316,7 @@ router.post(
  */
 router.delete(
   "/announcement",
+  authenticateSuperAdmin,
   auditLog({ module: "announcement", action: "announcement.delete" }),
   adminController.deleteAnnouncements,
 );
@@ -293,7 +324,7 @@ router.delete(
 router.post("/users/:id/reveal-password/verify", async (req, res) => {
   try {
     const user = req.user;
-    if (!user || user.role !== "admin") return res.status(403).json({ error: "需要管理员权限" });
+    if (!user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要管理员权限" });
     const targetUserId = Array.isArray(req.params.id) ? req.params.id[0] || "" : req.params.id || "";
     if (!targetUserId) return res.status(400).json({ error: "缺少用户ID" });
 
@@ -387,7 +418,15 @@ router.get("/users/:id/fingerprint/require/status", async (req, res) => {
 });
 
 // 管理员删除指定用户的一条指纹记录（需管理员权限）
-router.delete("/users/:id/fingerprints/:fpId", async (req, res) => {
+router.delete(
+  "/users/:id/fingerprints/:fpId",
+  authenticateSuperAdmin,
+  auditLog({
+    module: "user",
+    action: "user.fingerprint.delete",
+    extractTarget: (req) => ({ targetId: req.params.id }),
+  }),
+  async (req, res) => {
   try {
     // adminAuthMiddleware 已在上方全局应用，此处为管理员接口
     const userId = req.params.id;

@@ -1,12 +1,13 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { isAdminRole } from '../utils/rbac';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
 
 // 受保护的路由组件
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
-  if (!user || user.role !== 'admin') {
+  if (!user || !isAdminRole(user.role)) {
     return <Navigate to="/admin/login" />;
   }
   return <>{children}</>;

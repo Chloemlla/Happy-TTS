@@ -7,6 +7,19 @@ import { UserStorage } from "../utils/userStorage";
 import { assertActiveAuthSession, touchAuthSession } from "../services/authSessionService";
 import { getClientIP } from "../utils/ipUtils";
 
+// 管理员角色集合：admin（只读业务）与 superadmin（系统级写操作）均视为管理员
+export const ADMIN_ROLES = new Set(["admin", "superadmin"]);
+
+/** 任意管理员角色（admin 或 superadmin）。用于只读端点与 OAuth 管理例外。 */
+export function isAdminRole(role?: string | null): boolean {
+  return typeof role === "string" && ADMIN_ROLES.has(role);
+}
+
+/** 仅超级管理员。用于系统变更与所有写操作（OAuth 管理例外除外）。 */
+export function isSuperAdmin(req: Request): boolean {
+  return (req as any).user?.role === "superadmin";
+}
+
 // 扩展Request类型以包含用户信息
 declare global {
   namespace Express {
@@ -49,7 +62,7 @@ export const authenticateAdmin = async (req: Request & { user?: any }, res: Resp
     }
 
     const user = req.user;
-    if (!user?.role || user.role !== "admin") {
+    if (!isAdminRole(user?.role)) {
       logger.warn("管理员认证失败：非管理员用户", {
         userId: user?.id,
         username: user?.username,
@@ -62,6 +75,39 @@ export const authenticateAdmin = async (req: Request & { user?: any }, res: Resp
     next();
   } catch (error) {
     logger.error("管理员认证过程中发生错误:", error);
+    return res.status(401).json({ message: "认证失败，请重新登录" });
+  }
+};
+
+/**
+ * Super-admin guard: authenticates the request (V2) then verifies the user
+ * holds the `superadmin` role. Required for all system changes and write
+ * operations (the OAuth management endpoints are the documented exception,
+ * gated by `authenticateAdmin` instead).
+ */
+export const authenticateSuperAdmin = async (req: Request & { user?: any }, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user) {
+      await authMiddlewareV2(req, res, () => undefined);
+      if (!req.user) {
+        return;
+      }
+    }
+
+    const user = req.user;
+    if (user?.role !== "superadmin") {
+      logger.warn("超级管理员认证失败：非超级管理员用户", {
+        userId: user?.id,
+        username: user?.username,
+        role: user?.role,
+        ip: req.ip,
+      });
+      return res.status(403).json({ message: "权限不足，仅限超级管理员访问" });
+    }
+
+    next();
+  } catch (error) {
+    logger.error("超级管理员认证过程中发生错误:", error);
     return res.status(401).json({ message: "认证失败，请重新登录" });
   }
 };
@@ -145,7 +191,7 @@ export const adminAuthMiddleware = (req: Request, res: Response, next: NextFunct
     return res.status(401).json({ error: "未认证" });
   }
 
-  if (req.user.role !== "admin") {
+  if (!isAdminRole(req.user.role)) {
     safeLog("warn", "非管理员尝试访问管理员功能", {
       username: req.user.username,
       path: req.path,

@@ -9,7 +9,7 @@ import {
   initializeTestResources,
   updateResource,
 } from "../controllers/resourceController";
-import { authenticateAdmin } from "../middleware/auth";
+import { authenticateAdmin, authenticateSuperAdmin } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { resourceLimiter } from "../middleware/rateLimiter";
 
@@ -21,18 +21,18 @@ router.get("/categories", resourceLimiter.getCategories, getCategories);
 
 // 管理员API - 需要认证和速率限制（具体路由必须在参数路由之前）
 router.get("/resources/stats", resourceLimiter.stats, authenticateToken, authenticateAdmin, getResourceStats);
-router.post("/resources", resourceLimiter.create, authenticateToken, authenticateAdmin, createResource);
+router.post("/resources", resourceLimiter.create, authenticateToken, authenticateSuperAdmin, createResource);
 router.post(
   "/resources/init-test",
   resourceLimiter.initTest,
   authenticateToken,
-  authenticateAdmin,
+  authenticateSuperAdmin,
   initializeTestResources,
 );
 
 // 参数路由放在最后 - 需要速率限制
 router.get("/resources/:id", resourceLimiter.getById, getResourceById);
-router.put("/resources/:id", resourceLimiter.update, authenticateToken, authenticateAdmin, updateResource);
-router.delete("/resources/:id", resourceLimiter.delete, authenticateToken, authenticateAdmin, deleteResource);
+router.put("/resources/:id", resourceLimiter.update, authenticateToken, authenticateSuperAdmin, updateResource);
+router.delete("/resources/:id", resourceLimiter.delete, authenticateToken, authenticateSuperAdmin, deleteResource);
 
 export default router;

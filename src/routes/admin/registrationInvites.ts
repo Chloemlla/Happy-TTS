@@ -1,4 +1,5 @@
 import express from "express";
+import { authenticateSuperAdmin } from "../../middleware/auth";
 import {
   createRegistrationInvite,
   deleteRegistrationInvite,
@@ -17,7 +18,7 @@ router.get("/registration-invites", async (_req, res) => {
   }
 });
 
-router.post("/registration-invites", async (req: any, res) => {
+router.post("/registration-invites", authenticateSuperAdmin, async (req: any, res) => {
   try {
     const invite = await createRegistrationInvite(req.body || {}, {
       id: req.user?.id,
@@ -29,7 +30,7 @@ router.post("/registration-invites", async (req: any, res) => {
   }
 });
 
-router.patch("/registration-invites/:id", async (req, res) => {
+router.patch("/registration-invites/:id", authenticateSuperAdmin, async (req, res) => {
   try {
     const invite = await updateRegistrationInvite(req.params.id, req.body || {});
     if (!invite) {
@@ -41,7 +42,7 @@ router.patch("/registration-invites/:id", async (req, res) => {
   }
 });
 
-router.delete("/registration-invites/:id", async (req, res) => {
+router.delete("/registration-invites/:id", authenticateSuperAdmin, async (req, res) => {
   try {
     const deleted = await deleteRegistrationInvite(req.params.id);
     if (!deleted) {

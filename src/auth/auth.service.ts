@@ -73,21 +73,39 @@ export class AuthService {
   }
 
   /**
-   * Verify that the user holds the admin role.
+   * Verify that the user holds an admin-tier role (admin or superadmin).
    *
    * @throws AuthError when the user is not an admin
    */
   requireAdmin(user: AuthUser): void {
-    if (user.role !== "admin") {
+    if (user.role !== "admin" && user.role !== "superadmin") {
       throw AuthError.forbidden("FORBIDDEN", "权限不足，仅限管理员访问");
     }
   }
 
   /**
-   * Check whether the user is an admin (no throw).
+   * Check whether the user is an admin (admin or superadmin). No throw.
    */
   isAdmin(user: AuthUser): boolean {
-    return user.role === "admin";
+    return user.role === "admin" || user.role === "superadmin";
+  }
+
+  /**
+   * Verify that the user holds the superadmin role.
+   *
+   * @throws AuthError when the user is not a superadmin
+   */
+  requireSuperAdmin(user: AuthUser): void {
+    if (user.role !== "superadmin") {
+      throw AuthError.forbidden("FORBIDDEN", "权限不足，仅限超级管理员访问");
+    }
+  }
+
+  /**
+   * Check whether the user is a superadmin. No throw.
+   */
+  isSuperAdmin(user: AuthUser): boolean {
+    return user.role === "superadmin";
   }
 
   /**

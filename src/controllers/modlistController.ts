@@ -48,7 +48,7 @@ export const getModList = async (req: Request, res: Response) => {
     console.log("📊 [ModList] 获取到MOD数量:", mods.length);
 
     // 检查是否为管理员用户
-    if (req.user && req.user.role === "admin") {
+    if (req.user && (req.user.role === "admin" || req.user.role === "superadmin")) {
       console.log("✅ [ModList] 管理员用户，返回加密数据");
 
       // 获取管理员token作为加密密钥（优先从 Authorization header，其次从 cookie）

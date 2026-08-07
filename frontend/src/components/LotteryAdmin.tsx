@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
+import { isAdminRole } from '../utils/rbac';
 import { useLottery } from '../hooks/useLottery';
 import { LotteryPrize, LotteryRound } from '../types/lottery';
 import * as lotteryApi from '../api/lottery';
@@ -446,7 +447,7 @@ const LotteryAdmin: React.FC = () => {
   const { setNotification } = useNotification();
 
   // 检查管理员权限
-  if (!user || user.role !== 'admin') {
+  if (!user || !isAdminRole(user.role)) {
     return (
       <motion.div 
         className="space-y-6"

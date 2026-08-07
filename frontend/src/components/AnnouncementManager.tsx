@@ -5,6 +5,7 @@ import MarkdownRenderer from './MarkdownRenderer';
 import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
+import { isAdminRole } from '../utils/rbac';
 import {
   FaBullhorn, 
   FaEdit, 
@@ -174,7 +175,7 @@ const AnnouncementManager: React.FC = () => {
     }
   };
 
-  if (!user || user.role !== 'admin') {
+  if (!user || !isAdminRole(user.role)) {
     return (
       <motion.div 
         className="space-y-6"

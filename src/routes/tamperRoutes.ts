@@ -1,5 +1,6 @@
 import { type NextFunction, type Request, type Response, Router } from "express";
 import adminOnly from "../middleware/adminOnly";
+import { authenticateSuperAdmin } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { replayProtection } from "../middleware/replayProtection";
 import { tamperService } from "../services/tamperService";
@@ -278,7 +279,7 @@ router.get("/admin/blocked", authenticateToken, adminOnly, async (_req, res) => 
   }
 });
 
-router.post("/admin/blocked", authenticateToken, adminOnly, replayProtection(), async (req, res) => {
+router.post("/admin/blocked", authenticateToken, authenticateSuperAdmin, replayProtection(), async (req, res) => {
   try {
     const ip = typeof req.body?.ip === "string" ? req.body.ip : "";
     const reason = typeof req.body?.reason === "string" ? req.body.reason : "管理员手动封禁";
@@ -291,7 +292,7 @@ router.post("/admin/blocked", authenticateToken, adminOnly, replayProtection(), 
   }
 });
 
-router.delete("/admin/blocked/:ip", authenticateToken, adminOnly, replayProtection(), async (req, res) => {
+router.delete("/admin/blocked/:ip", authenticateToken, authenticateSuperAdmin, replayProtection(), async (req, res) => {
   try {
     const ipParam = req.params.ip;
     const ip = Array.isArray(ipParam) ? ipParam[0] ?? "" : ipParam;

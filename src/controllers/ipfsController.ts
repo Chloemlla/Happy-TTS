@@ -1,5 +1,6 @@
 import axios from "axios";
 import type { Request, Response } from "express";
+import { isAdminRole } from "../middleware/auth";
 import { IPFSService } from "../services/ipfsService";
 import { TransactionService } from "../services/transactionService";
 import { getClientIP } from "../utils/ipUtils";
@@ -33,7 +34,7 @@ export class IPFSController {
         const shortLinkFlag = req.body && req.body.source === "imgupload";
         const userId = (req as any).user?.id || "admin";
         const username = (req as any).user?.username || "admin";
-        const isAdmin = (req as any).user?.role === "admin";
+        const isAdmin = isAdminRole((req as any).user?.role);
         const authenticatedByApiKey = Boolean((req as any).apiKey);
         const authenticatedByOAuth = Boolean((req as any).oauthToken);
         const authenticatedByApiCredential = authenticatedByApiKey || authenticatedByOAuth;

@@ -1,6 +1,7 @@
 import express from "express";
 import { SmartHumanCheckController } from "../controllers/humanCheckController";
 import adminOnly from "../middleware/adminOnly";
+import { authenticateSuperAdmin } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { createLimiter } from "../middleware/routeLimiters";
 
@@ -60,11 +61,11 @@ router.post("/verify", verifyLimiter, SmartHumanCheckController.verifyToken);
 router.get("/stats", adminLimiter, authenticateToken, adminOnly, SmartHumanCheckController.getStats);
 
 // 管理端：查询溯源记录（需要管理员权限）
-router.get("/traces", adminLimiter, authenticateToken, SmartHumanCheckController.listTraces);
-router.get("/trace/:id", adminLimiter, authenticateToken, SmartHumanCheckController.getTrace);
+router.get("/traces", adminLimiter, authenticateToken, adminOnly, SmartHumanCheckController.listTraces);
+router.get("/trace/:id", adminLimiter, authenticateToken, adminOnly, SmartHumanCheckController.getTrace);
 
 // 管理端：删除溯源记录（需要管理员权限）
-router.delete("/traces", adminLimiter, authenticateToken, SmartHumanCheckController.deleteTraces);
-router.delete("/trace/:id", adminLimiter, authenticateToken, SmartHumanCheckController.deleteTrace);
+router.delete("/traces", adminLimiter, authenticateToken, authenticateSuperAdmin, SmartHumanCheckController.deleteTraces);
+router.delete("/trace/:id", adminLimiter, authenticateToken, authenticateSuperAdmin, SmartHumanCheckController.deleteTrace);
 
 export default router;

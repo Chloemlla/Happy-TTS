@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { isAdminRole } from '../utils/rbac';
 import type { AuthRequestError } from '../hooks/useAuth';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import DOMPurify from 'dompurify';
@@ -226,7 +227,7 @@ export const LoginPage: React.FC = () => {
                 }
                 return;
             }
-            if (postLoginRedirect?.startsWith('/admin') && result.user?.role !== 'admin') {
+            if (postLoginRedirect?.startsWith('/admin') && !isAdminRole(result.user?.role)) {
                 setNotification({ message: '当前账号没有管理员权限，已返回首页', type: 'warning' });
                 navigate('/', { replace: true });
                 return;

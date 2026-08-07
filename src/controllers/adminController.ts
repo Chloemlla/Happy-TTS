@@ -15,6 +15,7 @@ import { validateGenerationCodeStrength } from "../utils/generationCodePolicy";
 import logger from "../utils/logger";
 import { getRevealUserPasswordResult } from "../services/userService";
 import { getTokenFromRequest } from "../utils/authCookie";
+import { isAdminRole, isSuperAdmin } from "../middleware/auth";
 import { buildAccountSecuritySummary } from "../services/accountSecuritySummaryService";
 import { type User, UserStorage } from "../utils/userStorage";
 import { isUserStorageModeKey, USER_STORAGE_MODE } from "../utils/userStorageMode";
@@ -145,8 +146,8 @@ async function listLumenConfigDocs(): Promise<Array<{ key: string; value: string
 export const adminController = {
   getUsers: async (req: Request, res: Response) => {
     try {
-      if (!req.user || req.user.role !== "admin") {
-        return res.status(403).json({ error: "需要管理员权限" });
+      if (!req.user || !isAdminRole(req.user.role)) {
+        return res.status(403).json({ error: "无权限" });
       }
 
       const includeFingerprints = isTruthyQueryFlag(req.query.includeFingerprints);
@@ -272,6 +273,20 @@ export const adminController = {
         return res.status(400).json({
           error: validationError instanceof Error ? validationError.message : "字段校验失败",
         });
+      }
+
+      // 禁止降级最后一个超级管理员（防止锁死系统）
+      // 触发场景：将 superadmin 改为更低角色，或封停/禁用 superadmin
+      if (user.role === "superadmin") {
+        const isDemotion = updates.role !== undefined && updates.role !== "superadmin";
+        const isLockout = updates.accountStatus === "suspended";
+        if (isDemotion || isLockout) {
+          const allUsers = await UserStorage.getAllUsers();
+          const superadminCount = allUsers.filter((u) => u.role === "superadmin").length;
+          if (superadminCount <= 1) {
+            return res.status(409).json({ error: "无法降级或封停最后一个超级管理员" });
+          }
+        }
       }
 
       // 密码单独处理：仅在传入非空字符串时才更新
@@ -455,8 +470,8 @@ export const adminController = {
 
   bulkUpdateUsers: async (req: Request, res: Response) => {
     try {
-      if (!req.user || req.user.role !== "admin") {
-        return res.status(403).json({ error: "需要管理员权限" });
+      if (!req.user || !isSuperAdmin(req)) {
+        return res.status(403).json({ error: "需要超级管理员权限" });
       }
 
       const action = typeof req.body?.action === "string" ? req.body.action.trim() : "";
@@ -595,6 +610,15 @@ export const adminController = {
         return res.status(403).json({ error: "不允许删除自身账户" });
       }
 
+      // 禁止删除最后一个超级管理员（防止锁死系统）
+      if (user.role === "superadmin") {
+        const allUsers = await UserStorage.getAllUsers();
+        const superadminCount = allUsers.filter((u) => u.role === "superadmin").length;
+        if (superadminCount <= 1) {
+          return res.status(409).json({ error: "无法删除最后一个超级管理员" });
+        }
+      }
+
       await UserStorage.deleteUser(user.id);
 
       // 发送账号删除通知
@@ -625,8 +649,8 @@ export const adminController = {
         return res.status(400).json({ error: "非法的用户 ID" });
       }
 
-      if (!req.user || req.user.role !== "admin") {
-        return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) {
+        return res.status(403).json({ error: "需要超级管理员权限" });
       }
 
       const result = await getRevealUserPasswordResult(req.params.id);
@@ -779,7 +803,7 @@ export const adminController = {
   // 设置/更新公告（仅管理员）
   async setAnnouncement(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       const { content, format } = req.body;
       if (typeof content !== "string" || !content.trim() || content.length > 2000)
         return res.status(400).json({ error: "公告内容不能为空且不超过2000字" });
@@ -803,7 +827,7 @@ export const adminController = {
   // 删除所有公告（仅管理员）
   async deleteAnnouncements(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       await ensureMongoAnnouncementCollection();
       await AnnouncementModel.deleteMany({});
@@ -823,9 +847,9 @@ export const adminController = {
       logger.info("   请求IP:", req.ip);
 
       // 检查管理员权限
-      if (!req.user || req.user.role !== "admin") {
+      if (!req.user || !isAdminRole(req.user.role)) {
         logger.info("❌ [EnvManager] 权限检查失败：非管理员用户");
-        return res.status(403).json({ error: "需要管理员权限" });
+        return res.status(403).json({ error: "无权限" });
       }
 
       logger.info("✅ [EnvManager] 权限检查通过");
@@ -1127,7 +1151,7 @@ export const adminController = {
   // 新增/更新环境变量（仅管理员）
   async setEnv(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       const { key, value, desc } = req.body;
       if (typeof key !== "string" || !key.trim() || key.length > 64 || /[<>\s]/.test(key))
         return res.status(400).json({ error: "key不能为空，不能包含空格/<>，且不超过64字" });
@@ -1157,7 +1181,7 @@ export const adminController = {
   // 删除环境变量（仅管理员）
   async deleteEnv(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       const { key } = req.body;
       if (typeof key !== "string" || !key.trim()) return res.status(400).json({ error: "key不能为空" });
       const envs = readEnvFile();
@@ -1176,7 +1200,7 @@ export const adminController = {
   // ========== Project Lumen 配置管理（仅管理员）===========
   async getLumenConfig(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const items = await listLumenConfigDocs();
       const target = getGithubTarget();
@@ -1192,7 +1216,7 @@ export const adminController = {
 
   async setLumenConfig(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const { key, value, desc } = req.body;
       if (typeof key !== "string" || !key.trim() || key.length > 64 || /[<>\s]/.test(key))
@@ -1216,7 +1240,7 @@ export const adminController = {
 
   async deleteLumenConfig(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const key = req.params.key || req.body.key;
       if (typeof key !== "string" || !key.trim()) return res.status(400).json({ error: "key 不能为空" });
@@ -1231,7 +1255,7 @@ export const adminController = {
 
   async syncLumenConfigGithub(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       const target = getGithubTarget();
       if (!target.configured) {
         return res.status(400).json({
@@ -1279,7 +1303,7 @@ export const adminController = {
   // ========== OutEmail 设置管理（仅管理员）===========
   async getOutemailSettings(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const list = await OutEmailSettingModel.find({}).sort({ updatedAt: -1 }).lean();
       // 返回时对鉴权密钥做部分脱敏显示
@@ -1299,7 +1323,7 @@ export const adminController = {
 
   async setOutemailSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const { domain, code, apiKey } = req.body || {};
       const safeDomain = normalizeOutEmailDomain(domain);
@@ -1341,7 +1365,7 @@ export const adminController = {
 
   async deleteOutemailSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const { domain } = req.body || {};
       const safeDomain = normalizeOutEmailDomain(domain);
@@ -1355,7 +1379,7 @@ export const adminController = {
   // ========== Modlist MODIFY_CODE 设置管理（仅管理员）===========
   async getModlistSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const doc = await ModlistSettingModel.findOne({ key: "MODIFY_CODE" }).lean();
       const setting = doc
@@ -1375,7 +1399,7 @@ export const adminController = {
 
   async setModlistSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const { code } = req.body || {};
       if (typeof code !== "string" || code.trim().length < 1 || code.length > 256) {
@@ -1395,7 +1419,7 @@ export const adminController = {
 
   async deleteModlistSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       await ModlistSettingModel.deleteOne({ key: "MODIFY_CODE" });
       return res.json({ success: true });
@@ -1407,7 +1431,7 @@ export const adminController = {
   // ========== TTS GENERATION_CODE 设置管理（仅管理员）===========
   async getTtsSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const result = await RuntimeConfigService.getTtsSetting();
       const setting = result.setting
@@ -1424,7 +1448,7 @@ export const adminController = {
 
   async setTtsSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const { code } = req.body || {};
       if (typeof code !== "string" || code.trim().length < 1 || code.length > 256) {
@@ -1447,7 +1471,7 @@ export const adminController = {
 
   async deleteTtsSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       await RuntimeConfigService.deleteTtsSetting();
       return res.json({ success: true });
@@ -1459,7 +1483,7 @@ export const adminController = {
   // ========== Backend email system runtime config management (admin) ===========
   async getEmailSystemSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const result = await RuntimeConfigService.getEmailSetting();
       const emailStatus = await EmailService.getServiceStatus();
@@ -1483,7 +1507,7 @@ export const adminController = {
 
   async setEmailSystemSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const result = await RuntimeConfigService.setEmailSetting(req.body || {});
       const emailStatus = await EmailService.getServiceStatus();
@@ -1507,7 +1531,7 @@ export const adminController = {
 
   async deleteEmailSystemSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       await RuntimeConfigService.deleteEmailSetting();
       const emailStatus = await EmailService.getServiceStatus();
@@ -1528,7 +1552,7 @@ export const adminController = {
   // ========== Webhook Secret 设置管理（仅管理员）===========
   async getIpqsSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "鏃犳潈闄?" });
+      if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
       const result = await RuntimeConfigService.getIpqsSetting();
       return res.json({ success: true, ...result });
@@ -1542,7 +1566,7 @@ export const adminController = {
 
   async setIpqsSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "鏃犳潈闄?" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
       const result = await RuntimeConfigService.setIpqsSetting(req.body || {});
       return res.json({ success: true, setting: result });
@@ -1556,7 +1580,7 @@ export const adminController = {
 
   async deleteIpqsSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "鏃犳潈闄?" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
       await RuntimeConfigService.deleteIpqsSetting();
       return res.json({ success: true });
@@ -1567,7 +1591,7 @@ export const adminController = {
 
   async getLinuxDoSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "鏃犳潈闄?" });
+      if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
       const result = await RuntimeConfigService.getLinuxDoSetting();
       return res.json({ success: true, ...result });
@@ -1581,7 +1605,7 @@ export const adminController = {
 
   async setLinuxDoSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "鏃犳潈闄?" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
       const result = await RuntimeConfigService.setLinuxDoSetting(req.body || {});
       return res.json({ success: true, setting: result });
@@ -1595,7 +1619,7 @@ export const adminController = {
 
   async deleteLinuxDoSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "鏃犳潈闄?" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
       await RuntimeConfigService.deleteLinuxDoSetting();
       return res.json({ success: true });
@@ -1606,7 +1630,7 @@ export const adminController = {
 
   async getGoogleAuthSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "鏃犳潈闄?" });
+      if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
       const result = await RuntimeConfigService.getGoogleAuthSetting();
       return res.json({ success: true, ...result });
@@ -1620,7 +1644,7 @@ export const adminController = {
 
   async setGoogleAuthSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "鏃犳潈闄?" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
       const result = await RuntimeConfigService.setGoogleAuthSetting(req.body || {});
       return res.json({ success: true, setting: result });
@@ -1634,7 +1658,7 @@ export const adminController = {
 
   async deleteGoogleAuthSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "鏃犳潈闄?" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
       await RuntimeConfigService.deleteGoogleAuthSetting();
       return res.json({ success: true });
@@ -1645,7 +1669,7 @@ export const adminController = {
 
   async getSynapseAndroidSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const result = await RuntimeConfigService.getSynapseAndroidSetting();
       return res.json({ success: true, ...result });
@@ -1659,7 +1683,7 @@ export const adminController = {
 
   async setSynapseAndroidSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const result = await RuntimeConfigService.setSynapseAndroidSetting(req.body || {});
       return res.json({ success: true, setting: result });
@@ -1673,7 +1697,7 @@ export const adminController = {
 
   async deleteSynapseAndroidSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       await RuntimeConfigService.deleteSynapseAndroidSetting();
       return res.json({ success: true });
@@ -1684,7 +1708,7 @@ export const adminController = {
 
   async getDeepLXSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "鏃犳潈闄?" });
+      if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
       const result = await RuntimeConfigService.getDeepLXSetting();
       return res.json({ success: true, ...result });
@@ -1698,7 +1722,7 @@ export const adminController = {
 
   async setDeepLXSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "鏃犳潈闄?" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
       const result = await RuntimeConfigService.setDeepLXSetting(req.body || {});
       return res.json({ success: true, setting: result });
@@ -1712,7 +1736,7 @@ export const adminController = {
 
   async deleteDeepLXSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "鏃犳潈闄?" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
       await RuntimeConfigService.deleteDeepLXSetting();
       return res.json({ success: true });
@@ -1723,7 +1747,7 @@ export const adminController = {
 
   async getNexaiSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "鏃犳潈闄?" });
+      if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
       const result = await RuntimeConfigService.getNexaiSetting();
       return res.json({ success: true, ...result });
@@ -1737,7 +1761,7 @@ export const adminController = {
 
   async setNexaiSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "鏃犳潈闄?" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
       const result = await RuntimeConfigService.setNexaiSetting(req.body || {});
       return res.json({ success: true, setting: result });
@@ -1751,7 +1775,7 @@ export const adminController = {
 
   async deleteNexaiSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "鏃犳潈闄?" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
       await RuntimeConfigService.deleteNexaiSetting();
       return res.json({ success: true });
@@ -1763,7 +1787,7 @@ export const adminController = {
   // NexAI 请求签名中间件配置；保存后当前服务进程立即使用新的运行时配置。
   async getNexaiSigningSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const result = await RuntimeConfigService.getNexaiSigningSetting();
       return res.json({ success: true, ...result });
@@ -1777,7 +1801,7 @@ export const adminController = {
 
   async setNexaiSigningSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const result = await RuntimeConfigService.setNexaiSigningSetting(req.body || {});
       return res.json({ success: true, setting: result });
@@ -1791,7 +1815,7 @@ export const adminController = {
 
   async deleteNexaiSigningSetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       await RuntimeConfigService.deleteNexaiSigningSetting();
       return res.json({ success: true });
@@ -1802,7 +1826,7 @@ export const adminController = {
 
   async getAdminSecuritySetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const result = await RuntimeConfigService.getAdminSecuritySetting();
       return res.json({ success: true, ...result });
@@ -1816,7 +1840,7 @@ export const adminController = {
 
   async setAdminSecuritySetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const result = await RuntimeConfigService.setAdminSecuritySetting(req.body || {});
       return res.json({ success: true, setting: result });
@@ -1830,7 +1854,7 @@ export const adminController = {
 
   async deleteAdminSecuritySetting(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       await RuntimeConfigService.deleteAdminSecuritySetting();
       return res.json({ success: true });
@@ -1841,7 +1865,7 @@ export const adminController = {
 
   async getWebhookSecret(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const routeKey =
         typeof req.query.key === "string" && req.query.key ? String(req.query.key).trim().toUpperCase() : "DEFAULT";
@@ -1857,7 +1881,7 @@ export const adminController = {
 
   async setWebhookSecret(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const { key, secret } = req.body || {};
       const routeKey = typeof key === "string" && key ? String(key).trim().toUpperCase() : "DEFAULT";
@@ -1878,7 +1902,7 @@ export const adminController = {
 
   async deleteWebhookSecret(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const { key } = req.body || {};
       const routeKey = typeof key === "string" && key ? String(key).trim().toUpperCase() : "DEFAULT";
@@ -1891,7 +1915,7 @@ export const adminController = {
 
   async getBilibiliSyncRecords(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
       const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
       const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string, 10) || 20));
       const search = typeof req.query.search === "string" ? req.query.search.trim() : "";
@@ -1927,7 +1951,7 @@ export const adminController = {
 
   async getBilibiliSearchRecords(req: Request, res: Response) {
     try {
-      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
       const { userId } = req.params;
       if (!userId) return res.status(400).json({ error: "缺少 userId 参数" });
 

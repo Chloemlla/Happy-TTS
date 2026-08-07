@@ -1,6 +1,7 @@
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 import { ticketController } from "../controllers/ticketController";
+import { authenticateSuperAdmin, isAdminRole } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { ticketAdminLimiter, ticketReadLimiter, ticketWriteLimiter } from "../middleware/routeLimiters";
 
@@ -11,7 +12,7 @@ router.use(authenticateToken);
 
 // 管理员接口 (在 controller 内部已有角色检查，但为了安全建议在此处也加上)
 const adminOnly = (req: Request, res: Response, next: NextFunction) => {
-  if (req.user && req.user.role === "admin") {
+  if (req.user && isAdminRole(req.user.role)) {
     next();
   } else {
     res.status(403).json({ error: "需要管理员权限" });
@@ -19,9 +20,9 @@ const adminOnly = (req: Request, res: Response, next: NextFunction) => {
 };
 
 router.get("/admin/all", ticketAdminLimiter, adminOnly, ticketController.getAllTickets);
-router.patch("/admin/:id/status", ticketAdminLimiter, adminOnly, ticketController.updateTicketStatus);
-router.put("/admin/:id/messages/:messageIndex", ticketAdminLimiter, adminOnly, ticketController.adminEditMessage);
-router.delete("/admin/:id/messages/:messageIndex", ticketAdminLimiter, adminOnly, ticketController.adminDeleteMessage);
+router.patch("/admin/:id/status", ticketAdminLimiter, authenticateSuperAdmin, ticketController.updateTicketStatus);
+router.put("/admin/:id/messages/:messageIndex", ticketAdminLimiter, authenticateSuperAdmin, ticketController.adminEditMessage);
+router.delete("/admin/:id/messages/:messageIndex", ticketAdminLimiter, authenticateSuperAdmin, ticketController.adminDeleteMessage);
 
 // 用户接口
 router.post("/", ticketWriteLimiter, ticketController.createTicket);

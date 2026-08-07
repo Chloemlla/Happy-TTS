@@ -20,6 +20,7 @@ import {
   FaUserTag,
 } from 'react-icons/fa';
 import { useAuth } from '@/hooks/useAuth';
+import { isAdminRole } from '@/utils/rbac';
 import {
   InfoBadge,
   InfoMetricCard,
@@ -184,7 +185,7 @@ const BilibiliSyncAdmin: React.FC = () => {
   const rangeStart = pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1;
   const rangeEnd = Math.min(pagination.page * pagination.limit, pagination.total);
 
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = isAdminRole(user?.role);
 
   return (
     <div className="space-y-6">

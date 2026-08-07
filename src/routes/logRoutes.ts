@@ -5,6 +5,7 @@ import express from "express";
 import { createLimiter } from "../middleware/routeLimiters";
 import multer from "multer";
 import * as tar from "tar";
+import { isAdminRole, isSuperAdmin } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
 import ArchiveModel from "../models/archiveModel";
 import { IPFSService } from "../services/ipfsService";
@@ -142,13 +143,13 @@ async function checkAdminPassword(password: string) {
   }
 
   let users = await UserStorage.getAllUsers();
-  let admin = users.find((u) => u.role === "admin");
+  let admin = users.find((u) => u.role === "admin" || u.role === "superadmin");
   if (!admin || !hasPasswordMaterial(admin)) {
     try {
       const userService = await import("../services/userService.js");
       if (typeof userService.getAllUsersAuth === "function") {
         users = await userService.getAllUsersAuth();
-        admin = users.find((u) => u.role === "admin");
+        admin = users.find((u) => u.role === "admin" || u.role === "superadmin");
       }
     } catch (error) {
       logger.warn("[LogShare] 读取管理员认证用户失败", { error });
@@ -293,7 +294,7 @@ router.get("/sharelog/all", logLimiter, authenticateToken, async (req, res) => {
 
   try {
     // 检查管理员权限
-    if (!(req as any).user || (req as any).user.role !== "admin") {
+    if (!isAdminRole((req as any).user?.role)) {
       logger.warn(`获取日志列表 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
       return res.status(403).json({ error: "需要管理员权限" });
     }
@@ -448,7 +449,7 @@ router.delete("/sharelog/:id", logLimiter, authenticateToken, async (req, res) =
       return res.status(400).json({ error: "无效的文件ID格式" });
     }
 
-    if (!(req as any).user || (req as any).user.role !== "admin") {
+    if (!isSuperAdmin(req)) {
       logger.warn(`删除日志 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
       return res.status(403).json({ error: "需要管理员权限" });
     }
@@ -506,7 +507,7 @@ router.post("/sharelog/delete-batch", logLimiter, authenticateToken, async (req,
   const ip = req.ip;
   const ids: string[] = Array.isArray(req.body.ids) ? req.body.ids : [];
   try {
-    if (!(req as any).user || (req as any).user.role !== "admin") {
+    if (!isSuperAdmin(req)) {
       logger.warn(`批量删除 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
       return res.status(403).json({ error: "需要管理员权限" });
     }
@@ -569,7 +570,7 @@ router.post("/sharelog/delete-batch", logLimiter, authenticateToken, async (req,
 router.delete("/sharelog/all", logLimiter, authenticateToken, async (req, res) => {
   const ip = req.ip;
   try {
-    if (!(req as any).user || (req as any).user.role !== "admin") {
+    if (!isSuperAdmin(req)) {
       logger.warn(`全部删除 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
       return res.status(403).json({ error: "需要管理员权限" });
     }
@@ -629,7 +630,7 @@ router.put("/sharelog/:id", logLimiter, authenticateToken, async (req, res) => {
       return res.status(400).json({ error: "无效的文件ID格式" });
     }
 
-    if (!(req as any).user || (req as any).user.role !== "admin") {
+    if (!isSuperAdmin(req)) {
       logger.warn(`修改日志 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
       return res.status(403).json({ error: "需要管理员权限" });
     }
@@ -664,7 +665,7 @@ router.post("/logs/archive", logLimiter, authenticateToken, async (req, res) => 
   const { archiveName, includePattern, excludePattern } = req.body || {};
 
   try {
-    if (!(req as any).user || (req as any).user.role !== "admin") {
+    if (!isSuperAdmin(req)) {
       logger.warn(`归档日志 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
       return res.status(403).json({ error: "需要管理员权限" });
     }
@@ -1028,7 +1029,7 @@ router.get("/logs/archives", logLimiter, authenticateToken, async (req, res) => 
 
   try {
     // 检查管理员权限
-    if (!(req as any).user || (req as any).user.role !== "admin") {
+    if (!isAdminRole((req as any).user?.role)) {
       logger.warn(`获取归档列表 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
       return res.status(403).json({ error: "需要管理员权限" });
     }
@@ -1055,7 +1056,7 @@ router.delete("/logs/archives/:archiveName", logLimiter, authenticateToken, asyn
     if (!archiveName) {
       return res.status(400).json({ error: "无效的归档名称格式" });
     }
-    if (!(req as any).user || (req as any).user.role !== "admin") {
+    if (!isSuperAdmin(req)) {
       logger.warn(`删除归档 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
       return res.status(403).json({ error: "需要管理员权限" });
     }

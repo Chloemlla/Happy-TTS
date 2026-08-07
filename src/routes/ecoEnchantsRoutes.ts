@@ -4,6 +4,7 @@ import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { config } from "../config/config";
 import { EcoEnchantsController } from "../controllers/ecoEnchantsController";
+import { isSuperAdmin } from "../middleware/auth";
 import { createLimiter } from "../middleware/routeLimiters";
 import {
   ECO_ENCHANTS_PRODUCT_ID,
@@ -271,7 +272,7 @@ async function authenticateEcoDownload(req: Request, res: Response, next: NextFu
 
 function requireEcoAdmin(req: Request, res: Response, next: NextFunction): void {
   const user = (req as any).user;
-  if (!user || user.role !== "admin") {
+  if (!user || !isSuperAdmin(req)) {
     sendAuthError(res, req, 403, "admin_required", "Admin role is required.");
     return;
   }

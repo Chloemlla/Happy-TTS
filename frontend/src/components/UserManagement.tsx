@@ -7,6 +7,7 @@ import { getSignHeaders } from '../utils/requestSigner';
 
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { isAdminRole } from '../utils/rbac';
 import { useNotification } from './Notification';
 import {
   FaUserPlus,
@@ -686,7 +687,7 @@ const UserManagement: React.FC = () => {
 
   const glassCheckbox = 'w-4 h-4 rounded border-slate-300 text-slate-700 focus:ring-slate-400';
 
-  if (!user || user.role !== 'admin') {
+  if (!user || !isAdminRole(user.role)) {
     return (
       <motion.div
         className="space-y-6"
@@ -1052,7 +1053,9 @@ const UserManagement: React.FC = () => {
                         {u.lastLoginIp && <div className="text-[11px] text-slate-400">IP {u.lastLoginIp}</div>}
                       </td>
                       <td className="px-4 py-3">
-                        {u.role === 'admin' ? (
+                        {u.role === 'superadmin' ? (
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">超级管理员</span>
+                        ) : u.role === 'admin' ? (
                           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">管理员</span>
                         ) : u.role === 'trusted' ? (
                           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">信用者</span>

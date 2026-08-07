@@ -1,6 +1,6 @@
 import express from "express";
 import { adminController } from "../../controllers/adminController";
-import { authMiddlewareV2 as authMiddleware } from "../../middleware/auth";
+import { authMiddlewareV2 as authMiddleware, isAdminRole } from "../../middleware/auth";
 import { UserStorage } from "../../utils/userStorage";
 import broadcastRouter from "./broadcast";
 import configRouter from "./config";
@@ -33,7 +33,7 @@ const adminAuthMiddleware = (req: any, res: any, next: any) => {
     return next();
   }
 
-  if (!req.user || req.user.role !== "admin") {
+  if (!req.user || !isAdminRole(req.user.role)) {
     return res.status(403).json({ error: "需要管理员权限" });
   }
   next();

@@ -1,11 +1,12 @@
 import express from "express";
-import { authenticateAdmin } from "../middleware/auth";
+import { authenticateAdmin, authenticateSuperAdmin } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { adminLimiter } from "../middleware/routeLimiters";
 import { MarkdownArticleService, createArticleSlug } from "../services/markdownArticleService";
 
 const router = express.Router();
 const adminGuards = [adminLimiter, authenticateToken, authenticateAdmin] as const;
+const superAdminGuards = [adminLimiter, authenticateToken, authenticateSuperAdmin] as const;
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "请求处理失败";
@@ -45,7 +46,7 @@ router.get("/admin/:id", ...adminGuards, async (req, res) => {
   }
 });
 
-router.post("/", ...adminGuards, async (req, res) => {
+router.post("/", ...superAdminGuards, async (req, res) => {
   try {
     const user = (req as any).user;
     const article = await MarkdownArticleService.create({
@@ -63,7 +64,7 @@ router.post("/", ...adminGuards, async (req, res) => {
   }
 });
 
-router.put("/admin/:id", ...adminGuards, async (req, res) => {
+router.put("/admin/:id", ...superAdminGuards, async (req, res) => {
   try {
     const article = await MarkdownArticleService.update(getParam(req.params.id), {
       title: req.body?.title,
@@ -83,7 +84,7 @@ router.put("/admin/:id", ...adminGuards, async (req, res) => {
   }
 });
 
-router.patch("/admin/:id/status", ...adminGuards, async (req, res) => {
+router.patch("/admin/:id/status", ...superAdminGuards, async (req, res) => {
   try {
     const status = req.body?.status === "published" ? "published" : "draft";
     const article = await MarkdownArticleService.setStatus(getParam(req.params.id), status);
@@ -96,7 +97,7 @@ router.patch("/admin/:id/status", ...adminGuards, async (req, res) => {
   }
 });
 
-router.delete("/admin/:id", ...adminGuards, async (req, res) => {
+router.delete("/admin/:id", ...superAdminGuards, async (req, res) => {
   try {
     const deleted = await MarkdownArticleService.delete(getParam(req.params.id));
     if (!deleted) {

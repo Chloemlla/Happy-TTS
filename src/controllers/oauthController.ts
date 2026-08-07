@@ -40,7 +40,7 @@ function getPublicBaseUrl(req: Request): string {
 
 function getAdminUser(req: Request): any | null {
   const user = (req as any).user;
-  return user?.role === "admin" ? user : null;
+  return user?.role === "admin" || user?.role === "superadmin" ? user : null;
 }
 
 function getOAuthAuthorizingUser(req: Request): any | null {

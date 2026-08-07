@@ -17,6 +17,7 @@ import {
 } from 'react-icons/fa';
 import getApiBaseUrl from '../api';
 import { useAuth } from '../hooks/useAuth';
+import { isAdminRole, isSuperAdmin } from '../utils/rbac';
 import {
   getMobileAdminNavGroups,
   getMobileRootNavGroups,
@@ -65,7 +66,7 @@ const ACCOUNT_LIST_ID = 'mobile-nav-account-list';
 
 const cn = (...classes: Array<string | false | null | undefined>) => classes.filter(Boolean).join(' ');
 
-const getRoleLabel = (role: string) => (role === 'admin' ? '管理员' : '用户');
+const getRoleLabel = (role: string) => (role === 'superadmin' ? '超级管理员' : role === 'admin' ? '管理员' : '用户');
 
 const Avatar: React.FC<{
   src?: string;
@@ -183,30 +184,31 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
   }, [user?.avatarUrl, user?.id]);
 
   const canUseTranslation = user?.isTranslationEnabled !== false;
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = isAdminRole(user?.role);
+  const isSuperAdmin = isSuperAdmin(user?.role);
 
   // Page IA from navConfig SSOT (accountOnly skips — AppSidebar owns desktop nav).
   const menuGroups = useMemo<NavGroup[]>(() => {
     if (accountOnly) return [];
-    return getMobileRootNavGroups({ isAdmin, canUseTranslation }).map((group) => ({
+    return getMobileRootNavGroups({ isAdmin, isSuperAdmin, canUseTranslation }).map((group) => ({
       id: group.id || group.title,
       title: group.title,
       items: group.items
         .map(toMobileNavItem)
         .filter((item): item is NavItem => item !== null),
     })).filter((g) => g.items.length > 0);
-  }, [accountOnly, canUseTranslation, isAdmin]);
+  }, [accountOnly, canUseTranslation, isAdmin, isSuperAdmin]);
 
   const adminGroups = useMemo<NavGroup[]>(() => {
     if (accountOnly || !isAdmin) return [];
-    return getMobileAdminNavGroups().map((group) => ({
+    return getMobileAdminNavGroups({ isAdmin, isSuperAdmin, canUseTranslation }).map((group) => ({
       id: group.id || group.title,
       title: group.title,
       items: group.items
         .map(toMobileNavItem)
         .filter((item): item is NavItem => item !== null),
     })).filter((g) => g.items.length > 0);
-  }, [accountOnly, isAdmin]);
+  }, [accountOnly, isAdmin, isSuperAdmin, canUseTranslation]);
 
   const accountsForDisplay = useMemo(() => {
     if (!user) return savedAccounts;

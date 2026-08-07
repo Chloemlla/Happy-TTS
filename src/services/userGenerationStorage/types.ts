@@ -16,5 +16,5 @@ export interface GenerationRecord {
 // 共享的工具函数
 export async function isAdminUser(userId: string): Promise<boolean> {
   const user = await getUserById(userId);
-  return !!(user && user.role === "admin");
+  return !!(user && (user.role === "admin" || user.role === "superadmin"));
 }

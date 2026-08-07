@@ -1,5 +1,6 @@
 import { type Request, type Response, Router } from "express";
-import { authenticateAdmin } from "../middleware/auth";
+import { authenticateAdmin, authenticateSuperAdmin } from "../middleware/auth";
+import { auditLog } from "../middleware/auditLog";
 import { createLimiter } from "../middleware/routeLimiters";
 import { WebhookEventService } from "../services/webhookEventService";
 import { firstString, firstStringOr } from "../utils/httpParam";
@@ -73,7 +74,12 @@ router.get("/groups", webhookEventReadLimiter, authenticateAdmin, async (_req: R
 });
 
 // Create a test generic webhook event through the same normalization path as /api/webhooks/generic
-router.post("/test", webhookEventWriteLimiter, authenticateAdmin, async (req: Request, res: Response) => {
+router.post(
+  "/test",
+  webhookEventWriteLimiter,
+  authenticateSuperAdmin,
+  auditLog({ module: "webhookEvent", action: "webhookEvent.test" }),
+  async (req: Request, res: Response) => {
   try {
     const { source, routeKey, payload, status } = req.body || {};
     const selectedSource = firstString(source) || firstString(routeKey) || "generic-test";
@@ -87,7 +93,12 @@ router.post("/test", webhookEventWriteLimiter, authenticateAdmin, async (req: Re
 });
 
 // Bulk status update
-router.post("/bulk-status", webhookEventWriteLimiter, authenticateAdmin, async (req: Request, res: Response) => {
+router.post(
+  "/bulk-status",
+  webhookEventWriteLimiter,
+  authenticateSuperAdmin,
+  auditLog({ module: "webhookEvent", action: "webhookEvent.bulkStatus" }),
+  async (req: Request, res: Response) => {
   try {
     const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter((id: unknown): id is string => typeof id === "string") : [];
     const status = firstString(req.body?.status);
@@ -100,7 +111,16 @@ router.post("/bulk-status", webhookEventWriteLimiter, authenticateAdmin, async (
 });
 
 // Bulk delete
-router.post("/bulk-delete", webhookEventWriteLimiter, authenticateAdmin, async (req: Request, res: Response) => {
+router.post(
+  "/bulk-delete",
+  webhookEventWriteLimiter,
+  authenticateSuperAdmin,
+  auditLog({
+    module: "webhookEvent",
+    action: "webhookEvent.bulkDelete",
+    extractDetail: (req) => ({ count: Array.isArray(req.body?.ids) ? req.body.ids.length : 0 }),
+  }),
+  async (req: Request, res: Response) => {
   try {
     const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter((id: unknown): id is string => typeof id === "string") : [];
     const result = await WebhookEventService.bulkRemove(ids);
@@ -124,7 +144,16 @@ router.get("/:id", webhookEventReadLimiter, authenticateAdmin, async (req: Reque
 });
 
 // Update status only
-router.patch("/:id/status", webhookEventWriteLimiter, authenticateAdmin, async (req: Request, res: Response) => {
+router.patch(
+  "/:id/status",
+  webhookEventWriteLimiter,
+  authenticateSuperAdmin,
+  auditLog({
+    module: "webhookEvent",
+    action: "webhookEvent.updateStatus",
+    extractTarget: (req) => ({ targetId: req.params.id }),
+  }),
+  async (req: Request, res: Response) => {
   try {
     const id = firstString(req.params.id);
     const status = firstString(req.body?.status);
@@ -139,7 +168,16 @@ router.patch("/:id/status", webhookEventWriteLimiter, authenticateAdmin, async (
 });
 
 // Replay a stored event into a new record for re-processing/auditing
-router.post("/:id/replay", webhookEventWriteLimiter, authenticateAdmin, async (req: Request, res: Response) => {
+router.post(
+  "/:id/replay",
+  webhookEventWriteLimiter,
+  authenticateSuperAdmin,
+  auditLog({
+    module: "webhookEvent",
+    action: "webhookEvent.replay",
+    extractTarget: (req) => ({ targetId: req.params.id }),
+  }),
+  async (req: Request, res: Response) => {
   try {
     const id = firstString(req.params.id);
     if (!id) return res.status(400).json({ success: false, error: "Invalid ID" });
@@ -155,7 +193,12 @@ router.post("/:id/replay", webhookEventWriteLimiter, authenticateAdmin, async (r
 });
 
 // Create (manual add)
-router.post("/", webhookEventWriteLimiter, authenticateAdmin, async (req: Request, res: Response) => {
+router.post(
+  "/",
+  webhookEventWriteLimiter,
+  authenticateSuperAdmin,
+  auditLog({ module: "webhookEvent", action: "webhookEvent.create" }),
+  async (req: Request, res: Response) => {
   try {
     const created = await WebhookEventService.create(req.body);
     res.json({ success: true, item: created });
@@ -165,7 +208,16 @@ router.post("/", webhookEventWriteLimiter, authenticateAdmin, async (req: Reques
 });
 
 // Update
-router.put("/:id", webhookEventWriteLimiter, authenticateAdmin, async (req: Request, res: Response) => {
+router.put(
+  "/:id",
+  webhookEventWriteLimiter,
+  authenticateSuperAdmin,
+  auditLog({
+    module: "webhookEvent",
+    action: "webhookEvent.update",
+    extractTarget: (req) => ({ targetId: req.params.id }),
+  }),
+  async (req: Request, res: Response) => {
   try {
     const id = firstString(req.params.id);
     if (!id) return res.status(400).json({ success: false, error: "Invalid ID" });
@@ -178,7 +230,16 @@ router.put("/:id", webhookEventWriteLimiter, authenticateAdmin, async (req: Requ
 });
 
 // Delete
-router.delete("/:id", webhookEventWriteLimiter, authenticateAdmin, async (req: Request, res: Response) => {
+router.delete(
+  "/:id",
+  webhookEventWriteLimiter,
+  authenticateSuperAdmin,
+  auditLog({
+    module: "webhookEvent",
+    action: "webhookEvent.delete",
+    extractTarget: (req) => ({ targetId: req.params.id }),
+  }),
+  async (req: Request, res: Response) => {
   try {
     const id = firstString(req.params.id);
     if (!id) return res.status(400).json({ success: false, error: "Invalid ID" });

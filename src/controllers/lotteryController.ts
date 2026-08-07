@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { isAdminRole, isSuperAdmin } from "../middleware/auth";
 import { type LotteryPrize, lotteryService } from "../services/lotteryService";
 import { firstString, firstStringOr } from "../utils/httpParam";
 import logger from "../utils/logger";
@@ -102,7 +103,7 @@ export class LotteryController {
       console.log("📊 [Lottery] 获取到抽奖轮次数量:", rounds.length);
 
       // 检查是否为管理员用户
-      if (req.user && req.user.role === "admin") {
+      if (req.user && isAdminRole(req.user.role)) {
         // Cookie 会话认证：管理员直接返回明文数据
         // 前端已移除 AES 解密逻辑，不再依赖 Bearer token 作为加密密钥
         console.log("✅ [Lottery] 管理员用户，返回明文数据");
@@ -301,7 +302,7 @@ export class LotteryController {
       }
 
       // 检查管理员权限
-      if (req.user?.role !== "admin") {
+      if (!isSuperAdmin(req)) {
         res.status(403).json({
           success: false,
           error: "权限不足",
@@ -335,7 +336,7 @@ export class LotteryController {
       }
 
       // 检查管理员权限
-      if (req.user?.role !== "admin") {
+      if (!isSuperAdmin(req)) {
         res.status(403).json({
           success: false,
           error: "权限不足",
@@ -362,7 +363,7 @@ export class LotteryController {
   public async deleteAllRounds(req: Request, res: Response): Promise<void> {
     try {
       // 仅管理员可操作
-      if (req.user?.role !== "admin") {
+      if (!isSuperAdmin(req)) {
         res.status(403).json({ success: false, error: "权限不足" });
         return;
       }

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotification } from './Notification';
 import { getApiBaseUrl } from '../api/api';
+import { useAuth } from '../hooks/useAuth';
+import { isSuperAdmin } from '../utils/rbac';
 import {
   FaBullhorn, FaPaperPlane, FaUsers, FaHistory,
   FaUserSlash, FaClipboardList, FaSyncAlt, FaUserAlt,
@@ -146,6 +148,9 @@ const formatRelativeDuration = (timestamp?: number) => {
 const BroadcastManager: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabKey>('broadcast');
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  // Only superadmins may push broadcasts; regular admins get read-only access.
+  const canWrite = isSuperAdmin(user?.role);
 
   // --- 全体广播 ---
   const [message, setMessage] = useState('');
@@ -455,14 +460,16 @@ const BroadcastManager: React.FC = () => {
       )}
 
       {/* 发送 */}
-      <motion.button onClick={handleBroadcast} disabled={sending || !message.trim()}
-        className={`flex items-center justify-center gap-2 w-full px-6 py-3 rounded-2xl font-semibold text-white transition-all ${
-          sending || !message.trim() ? 'bg-slate-300 cursor-not-allowed'
-            : 'bg-gradient-to-r from-slate-900 to-slate-700 hover:from-slate-800 hover:to-slate-600 shadow-lg hover:shadow-xl'
-        }`} whileHover={!sending && message.trim() ? { scale: 1.02 } : {}} whileTap={!sending && message.trim() ? { scale: 0.98 } : {}}>
-        {sending ? (<><div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" /><span>发送中...</span></>)
-          : (<><FaPaperPlane /><span>发送广播</span></>)}
-      </motion.button>
+      {canWrite && (
+        <motion.button onClick={handleBroadcast} disabled={sending || !message.trim()}
+          className={`flex items-center justify-center gap-2 w-full px-6 py-3 rounded-2xl font-semibold text-white transition-all ${
+            sending || !message.trim() ? 'bg-slate-300 cursor-not-allowed'
+              : 'bg-gradient-to-r from-slate-900 to-slate-700 hover:from-slate-800 hover:to-slate-600 shadow-lg hover:shadow-xl'
+          }`} whileHover={!sending && message.trim() ? { scale: 1.02 } : {}} whileTap={!sending && message.trim() ? { scale: 0.98 } : {}}>
+          {sending ? (<><div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" /><span>发送中...</span></>)
+            : (<><FaPaperPlane /><span>发送广播</span></>)}
+        </motion.button>
+      )}
 
       {lastResult && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -567,14 +574,16 @@ const BroadcastManager: React.FC = () => {
           </div>
         </>
       )}
-      <motion.button onClick={handleDirectPush} disabled={directSending || directTargetUserIds.length === 0 || !directMessage.trim()}
-        className={`flex items-center justify-center gap-2 w-full px-6 py-3 rounded-2xl font-semibold text-white transition-all ${
-          directSending || directTargetUserIds.length === 0 || !directMessage.trim() ? 'bg-slate-300 cursor-not-allowed'
-            : 'bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 shadow-lg'
-        }`} whileHover={!directSending && directTargetUserIds.length > 0 && directMessage.trim() ? { scale: 1.02 } : {}} whileTap={!directSending && directTargetUserIds.length > 0 && directMessage.trim() ? { scale: 0.98 } : {}}>
-        {directSending ? (<><div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" /><span>推送中...</span></>)
-          : (<><FaPaperPlane /><span>发送定向推送</span></>)}
-      </motion.button>
+      {canWrite && (
+        <motion.button onClick={handleDirectPush} disabled={directSending || directTargetUserIds.length === 0 || !directMessage.trim()}
+          className={`flex items-center justify-center gap-2 w-full px-6 py-3 rounded-2xl font-semibold text-white transition-all ${
+            directSending || directTargetUserIds.length === 0 || !directMessage.trim() ? 'bg-slate-300 cursor-not-allowed'
+              : 'bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 shadow-lg'
+          }`} whileHover={!directSending && directTargetUserIds.length > 0 && directMessage.trim() ? { scale: 1.02 } : {}} whileTap={!directSending && directTargetUserIds.length > 0 && directMessage.trim() ? { scale: 0.98 } : {}}>
+          {directSending ? (<><div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" /><span>推送中...</span></>)
+            : (<><FaPaperPlane /><span>发送定向推送</span></>)}
+        </motion.button>
+      )}
     </div>
   );
 
@@ -672,12 +681,14 @@ const BroadcastManager: React.FC = () => {
                     whileTap={{ scale: 0.95 }} title="定向推送">
                     <FaPaperPlane />
                   </motion.button>
-                  <motion.button onClick={() => handleKick(c.userId!)}
-                    disabled={kickingUser === c.userId}
-                    className="px-2 py-1 text-xs bg-red-50 text-red-600 hover:bg-red-100 rounded transition disabled:opacity-50"
-                    whileTap={{ scale: 0.95 }} title="强制下线">
-                    {kickingUser === c.userId ? <div className="animate-spin rounded-full h-3 w-3 border border-red-600 border-t-transparent" /> : <FaUserSlash />}
-                  </motion.button>
+                  {canWrite && (
+                    <motion.button onClick={() => handleKick(c.userId!)}
+                      disabled={kickingUser === c.userId}
+                      className="px-2 py-1 text-xs bg-red-50 text-red-600 hover:bg-red-100 rounded transition disabled:opacity-50"
+                      whileTap={{ scale: 0.95 }} title="强制下线">
+                      {kickingUser === c.userId ? <div className="animate-spin rounded-full h-3 w-3 border border-red-600 border-t-transparent" /> : <FaUserSlash />}
+                    </motion.button>
+                  )}
                 </div>
               )}
             </div>

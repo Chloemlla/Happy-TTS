@@ -11,6 +11,7 @@ import {
 } from '@/components/LogShareStyleScaffold';
 import { getAdminNavGroups } from '@/navigation/navConfig';
 import { useAuth } from '@/hooks/useAuth';
+import { isAdminRole, isSuperAdmin } from '@/utils/rbac';
 import { cn } from '@/lib/utils';
 
 import {
@@ -24,7 +25,11 @@ import {
  */
 export const AdminHub: React.FC = () => {
   const { user } = useAuth();
-  const groups = getAdminNavGroups().filter((g) => g.id !== 'admin-hub');
+  const groups = getAdminNavGroups({
+    isAdmin: isAdminRole(user?.role),
+    isSuperAdmin: isSuperAdmin(user?.role),
+    canUseTranslation: user?.isTranslationEnabled !== false,
+  }).filter((g) => g.id !== 'admin-hub');
   const totalModules = groups.reduce((sum, g) => sum + g.items.length, 0);
 
   return (

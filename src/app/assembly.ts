@@ -14,6 +14,8 @@ import {
 } from "../middleware/corsMiddleware";
 import { passkeyErrorHandler } from "../middleware/passkeyAutoFix";
 import jwt from "jsonwebtoken";
+import { isAdminRole } from "../middleware/auth";
+import { UserStorage } from "../utils/userStorage";
 import { requestProfilingMiddleware } from "../middleware/requestProfiling";
 import { requestIdMiddleware } from "../middleware/requestId";
 import {
@@ -391,15 +393,17 @@ export function registerStaticRoutes(app: Express): void {
   // is injected, avoiding an expensive re-render on every /api-docs request.
   const cachedSwaggerHtml = generateSwaggerHtml(swaggerDocForHtml, swaggerSetupOptions);
 
-  // 生产环境 Swagger 认证门禁 — 需要有效 JWT 且角色为 admin
-  const swaggerAuthGate = (req: Request, res: Response, next: NextFunction) => {
+  // 生产环境 Swagger 认证门禁 — 需要有效 JWT 且用户角色为 admin/superadmin
+  const swaggerAuthGate = async (req: Request, res: Response, next: NextFunction) => {
     if (process.env.NODE_ENV !== "production") return next();
     const authHeader = req.headers.authorization;
     const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
     if (!token) return res.status(401).json({ error: "需要登录才能访问 API 文档" });
     try {
-      const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] }) as { role?: string };
-      if (decoded.role !== "admin") return res.status(403).json({ error: "需要管理员权限" });
+      // JWT 载荷不包含 role，需按 userId 查询数据库获取最新角色
+      const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] }) as { userId?: string };
+      const user = decoded.userId ? await UserStorage.getUserById(decoded.userId) : null;
+      if (!user || !isAdminRole(user.role)) return res.status(403).json({ error: "需要管理员权限" });
       next();
     } catch {
       return res.status(401).json({ error: "Token 无效或已过期" });

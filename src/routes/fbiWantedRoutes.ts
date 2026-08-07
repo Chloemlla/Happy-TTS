@@ -1,7 +1,7 @@
 import express from "express";
 import multer from "multer";
 import { fbiWantedController } from "../controllers/fbiWantedController";
-import { authenticateAdmin } from "../middleware/auth";
+import { authenticateAdmin, authenticateSuperAdmin } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { createLimiter } from "../middleware/rateLimiter";
 
@@ -56,19 +56,19 @@ const uploadPhotoLimiter = createLimiter({
 router.get("/", adminLimiter, authenticateToken, authenticateAdmin, fbiWantedController.getAllWanted);
 router.get("/statistics", adminLimiter, authenticateToken, authenticateAdmin, fbiWantedController.getStatistics);
 router.get("/:id", adminLimiter, authenticateToken, authenticateAdmin, fbiWantedController.getWantedById);
-router.post("/", adminLimiter, authenticateToken, authenticateAdmin, fbiWantedController.createWanted);
-router.put("/:id", adminLimiter, authenticateToken, authenticateAdmin, fbiWantedController.updateWanted);
-router.patch("/:id/status", adminLimiter, authenticateToken, authenticateAdmin, fbiWantedController.updateWantedStatus);
+router.post("/", adminLimiter, authenticateToken, authenticateSuperAdmin, fbiWantedController.createWanted);
+router.put("/:id", adminLimiter, authenticateToken, authenticateSuperAdmin, fbiWantedController.updateWanted);
+router.patch("/:id/status", adminLimiter, authenticateToken, authenticateSuperAdmin, fbiWantedController.updateWantedStatus);
 router.patch(
   "/:id/photo",
   uploadPhotoLimiter,
   authenticateToken,
-  authenticateAdmin,
+  authenticateSuperAdmin,
   upload.single("photo"),
   fbiWantedController.updateWantedPhoto,
 );
-router.delete("/multiple", adminLimiter, authenticateToken, authenticateAdmin, fbiWantedController.deleteMultiple);
-router.delete("/:id", adminLimiter, authenticateToken, authenticateAdmin, fbiWantedController.deleteWanted);
-router.post("/batch-delete", adminLimiter, authenticateToken, authenticateAdmin, fbiWantedController.batchDeleteWanted);
+router.delete("/multiple", adminLimiter, authenticateToken, authenticateSuperAdmin, fbiWantedController.deleteMultiple);
+router.delete("/:id", adminLimiter, authenticateToken, authenticateSuperAdmin, fbiWantedController.deleteWanted);
+router.post("/batch-delete", adminLimiter, authenticateToken, authenticateSuperAdmin, fbiWantedController.batchDeleteWanted);
 
 export default router;

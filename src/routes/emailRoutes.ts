@@ -1,6 +1,6 @@
 import express from "express";
 import { EmailController } from "../controllers/emailController";
-import { authMiddlewareV2 as authMiddleware } from "../middleware/auth";
+import { authenticateSuperAdmin, authMiddlewareV2 as authMiddleware, isAdminRole } from "../middleware/auth";
 import { createLimiter } from "../middleware/rateLimiter";
 import { domainExemptionService } from "../services/domainExemptionService";
 import logger from "../utils/logger";
@@ -9,7 +9,7 @@ const router = express.Router();
 
 // 管理员权限检查中间件
 const adminAuthMiddleware = (req: any, res: any, next: any) => {
-  if (!req.user || req.user.role !== "admin") {
+  if (!req.user || !isAdminRole(req.user.role)) {
     logger.warn("邮件发送权限检查失败：非管理员用户", {
       userId: req.user?.id,
       username: req.user?.username,
@@ -116,7 +116,7 @@ router.use(adminAuthMiddleware);
  *       500:
  *         description: 服务器错误
  */
-router.post("/send", emailSendLimiter, EmailController.sendEmail);
+router.post("/send", emailSendLimiter, authenticateSuperAdmin, EmailController.sendEmail);
 
 /**
  * @openapi
@@ -172,7 +172,7 @@ router.post("/send", emailSendLimiter, EmailController.sendEmail);
  *       500:
  *         description: 服务器错误
  */
-router.post("/batch-send", emailSendLimiter, EmailController.sendEmailBatch);
+router.post("/batch-send", emailSendLimiter, authenticateSuperAdmin, EmailController.sendEmailBatch);
 
 /**
  * @openapi
@@ -226,7 +226,7 @@ router.post("/batch-send", emailSendLimiter, EmailController.sendEmailBatch);
  *       500:
  *         description: 服务器错误
  */
-router.post("/send-simple", emailSendLimiter, EmailController.sendSimpleEmail);
+router.post("/send-simple", emailSendLimiter, authenticateSuperAdmin, EmailController.sendSimpleEmail);
 
 /**
  * @openapi
@@ -280,7 +280,7 @@ router.post("/send-simple", emailSendLimiter, EmailController.sendSimpleEmail);
  *       500:
  *         description: 服务器错误
  */
-router.post("/send-markdown", emailSendLimiter, EmailController.sendMarkdownEmail);
+router.post("/send-markdown", emailSendLimiter, authenticateSuperAdmin, EmailController.sendMarkdownEmail);
 
 /**
  * @openapi
@@ -371,7 +371,7 @@ router.get("/status", statusQueryLimiter, EmailController.getServiceStatus);
  *       500:
  *         description: 服务器错误
  */
-router.post("/validate-sender-domain", emailValidationLimiter, EmailController.validateSenderDomain);
+router.post("/validate-sender-domain", emailValidationLimiter, authenticateSuperAdmin, EmailController.validateSenderDomain);
 
 /**
  * @openapi
@@ -430,7 +430,7 @@ router.post("/validate-sender-domain", emailValidationLimiter, EmailController.v
  *       500:
  *         description: 服务器错误
  */
-router.post("/validate", emailValidationLimiter, EmailController.validateEmails);
+router.post("/validate", emailValidationLimiter, authenticateSuperAdmin, EmailController.validateEmails);
 
 /**
  * @openapi
@@ -580,7 +580,7 @@ router.post(
   "/check-domain-exemption",
   domainExemptionLimiter,
   authMiddleware,
-  adminAuthMiddleware,
+  authenticateSuperAdmin,
   async (req, res) => {
     try {
       const { domain } = req.body;
@@ -676,7 +676,7 @@ router.post(
   "/check-recipient-whitelist",
   domainExemptionLimiter,
   authMiddleware,
-  adminAuthMiddleware,
+  authenticateSuperAdmin,
   async (req, res) => {
     try {
       const { domain } = req.body;

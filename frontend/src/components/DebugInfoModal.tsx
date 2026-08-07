@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { isAdminRole } from '../utils/rbac';
 
 interface DebugInfo {
     action: string;
@@ -18,7 +19,7 @@ export const DebugInfoModal: React.FC<DebugInfoModalProps> = ({ isOpen, onClose,
     const [copied, setCopied] = useState(false);
 
     // 检查用户是否为管理员
-    const isAdmin = userRole === 'admin' || userRole === 'administrator';
+    const isAdmin = isAdminRole(userRole) || userRole === 'administrator';
 
     const copyToClipboard = async () => {
         try {

@@ -6,6 +6,7 @@ import CryptoJS from "crypto-js";
 import { FaCode, FaEdit, FaEye, FaList, FaPlus, FaSyncAlt, FaTrash } from "react-icons/fa";
 import { api } from "../api/api";
 import { useAuth } from "../hooks/useAuth";
+import { isAdminRole } from "../utils/rbac";
 import { useNotification } from "./Notification";
 
 
@@ -254,7 +255,7 @@ const ModListEditor: React.FC = () => {
   const [showExampleModal, setShowExampleModal] = useState(false);
   const [showBatchAddModal, setShowBatchAddModal] = useState(false);
 
-  const isAdmin = user?.role === "admin";
+  const isAdmin = isAdminRole(user?.role);
 
   const notify = (type: "success" | "error" | "info" | "warning", message: string) => {
     setNotification({ type, message });

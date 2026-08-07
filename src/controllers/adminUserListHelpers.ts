@@ -34,7 +34,7 @@ export function isValidUserId(id: unknown): id is string {
 }
 
 // 合法 role 枚举
-const VALID_ROLES = new Set<User["role"]>(["user", "admin", "trusted"]);
+const VALID_ROLES = new Set<User["role"]>(["user", "admin", "superadmin", "trusted"]);
 const VALID_ACCOUNT_STATUSES = new Set<NonNullable<User["accountStatus"]>>(["active", "suspended"]);
 
 export function isUserRole(value: unknown): value is User["role"] {
@@ -112,7 +112,7 @@ export function sanitizeAdminUserForList(user: AdminUserRecord, includeFingerpri
   } as AdminUserListItem;
 }
 
-type AdminUserListRoleFilter = "all" | "user" | "admin" | "trusted";
+type AdminUserListRoleFilter = "all" | "user" | "admin" | "superadmin" | "trusted";
 type AdminUserListAccountStatusFilter = "all" | "active" | "suspended";
 type AdminUserListSecurityFilter = "all" | "totp" | "passkey" | "fingerprintRequired" | "noMfa";
 type AdminUserListTicketFilter = "all" | "normal" | "violated" | "banned";
@@ -181,7 +181,7 @@ export function parseAdminUserListQuery(query: Request["query"]): AdminUserListQ
   const sortBy = getFirstQueryValue(query.sortBy);
   return {
     keyword: getFirstQueryValue(query.keyword).slice(0, 100).toLowerCase(),
-    role: normalizeEnumQuery(getFirstQueryValue(query.role), ["all", "user", "admin", "trusted"] as const, "all"),
+    role: normalizeEnumQuery(getFirstQueryValue(query.role), ["all", "user", "admin", "superadmin", "trusted"] as const, "all"),
     accountStatus: normalizeEnumQuery(
       getFirstQueryValue(query.accountStatus),
       ["all", "active", "suspended"] as const,
@@ -302,6 +302,7 @@ export function buildAdminUserListStats(users: AdminUserRecord[]) {
     (acc, user) => {
       acc.total += 1;
       if (user?.role === "admin") acc.admins += 1;
+      else if (user?.role === "superadmin") acc.superadmins += 1;
       else if (user?.role === "trusted") acc.trusted += 1;
       else acc.users += 1;
       if (getNormalizedAccountStatus(user) === "suspended") acc.suspended += 1;
@@ -321,6 +322,7 @@ export function buildAdminUserListStats(users: AdminUserRecord[]) {
       total: 0,
       users: 0,
       admins: 0,
+      superadmins: 0,
       trusted: 0,
       active: 0,
       suspended: 0,

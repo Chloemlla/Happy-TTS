@@ -1409,7 +1409,7 @@ async function updateUserToken(userId: string, token: string, expiresInMs = 2 * 
 export async function isAdminToken(token: string | undefined): Promise<boolean> {
   if (!token) return false;
   const user = await UserStorage.getUserByToken(token);
-  if (!user || user.role !== "admin") return false;
+  if (!user || (user.role !== "admin" && user.role !== "superadmin")) return false;
   if (!user.tokenExpiresAt || Date.now() > user.tokenExpiresAt) return false;
   return true;
 }

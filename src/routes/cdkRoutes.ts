@@ -15,7 +15,7 @@ import {
   updateCDK,
 } from "../controllers/cdkController";
 import { auditLog } from "../middleware/auditLog";
-import { authenticateAdmin } from "../middleware/auth";
+import { authenticateAdmin, authenticateSuperAdmin } from "../middleware/auth";
 
 const router = Router();
 
@@ -29,7 +29,7 @@ router.get("/stats", authenticateAdmin, getCDKStats);
 router.get("/total-count", authenticateAdmin, getTotalCDKCount);
 router.post(
   "/generate",
-  authenticateAdmin,
+  authenticateSuperAdmin,
   auditLog({
     module: "cdk",
     action: "cdk.generate",
@@ -39,25 +39,25 @@ router.post(
 );
 router.put(
   "/:id",
-  authenticateAdmin,
+  authenticateSuperAdmin,
   auditLog({ module: "cdk", action: "cdk.update", extractTarget: (req) => ({ targetId: req.params.id }) }),
   updateCDK,
 );
-router.delete("/all", authenticateAdmin, auditLog({ module: "cdk", action: "cdk.deleteAll" }), deleteAllCDKs);
-router.delete("/unused", authenticateAdmin, auditLog({ module: "cdk", action: "cdk.deleteUnused" }), deleteUnusedCDKs);
+router.delete("/all", authenticateSuperAdmin, auditLog({ module: "cdk", action: "cdk.deleteAll" }), deleteAllCDKs);
+router.delete("/unused", authenticateSuperAdmin, auditLog({ module: "cdk", action: "cdk.deleteUnused" }), deleteUnusedCDKs);
 router.delete(
   "/:id",
-  authenticateAdmin,
+  authenticateSuperAdmin,
   auditLog({ module: "cdk", action: "cdk.delete", extractTarget: (req) => ({ targetId: req.params.id }) }),
   deleteCDK,
 );
 router.post(
   "/batch-delete",
-  authenticateAdmin,
+  authenticateSuperAdmin,
   auditLog({ module: "cdk", action: "cdk.batchDelete", extractDetail: (req) => ({ count: req.body.ids?.length }) }),
   batchDeleteCDKs,
 );
-router.post("/ks/import", authenticateAdmin, auditLog({ module: "cdk", action: "cdk.import" }), importCDKs);
+router.post("/ks/import", authenticateSuperAdmin, auditLog({ module: "cdk", action: "cdk.import" }), importCDKs);
 router.get("/export", authenticateAdmin, exportCDKs);
 
 export default router;

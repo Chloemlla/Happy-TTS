@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { isIP } from "node:net";
 import type { Request, Response } from "express";
+import { isAdminRole, isSuperAdmin } from "../middleware/auth";
 import { connectMongo } from "../services/mongoService";
 import { getTraceModel as getTurnstileTraceModel } from "../services/turnstile/models";
 import { getClientIP } from "../utils/ipUtils";
@@ -224,7 +225,7 @@ export class SmartHumanCheckController {
   static async listTraces(req: Request, res: Response) {
     try {
       // 权限校验：仅管理员
-      if (!req.user || req.user.role !== "admin") {
+      if (!isAdminRole(req.user?.role)) {
         return res.status(403).json({ error: "需要管理员权限" });
       }
       const page = Math.max(1, Number(req.query.page || 1));
@@ -280,7 +281,7 @@ export class SmartHumanCheckController {
   static async getTrace(req: Request, res: Response) {
     try {
       // 权限校验：仅管理员
-      if (!req.user || req.user.role !== "admin") {
+      if (!isAdminRole(req.user?.role)) {
         return res.status(403).json({ error: "需要管理员权限" });
       }
       const { id } = req.params;
@@ -298,8 +299,8 @@ export class SmartHumanCheckController {
   /** DELETE /trace/:id - 删除单条溯源记录（管理员） */
   static async deleteTrace(req: Request, res: Response) {
     try {
-      // 权限校验：仅管理员
-      if (!req.user || req.user.role !== "admin") {
+      // 权限校验：仅超级管理员
+      if (!isSuperAdmin(req)) {
         return res.status(403).json({ error: "需要管理员权限" });
       }
       const { id } = req.params;
@@ -320,8 +321,8 @@ export class SmartHumanCheckController {
   /** DELETE /traces - 批量删除溯源记录（管理员） body: { ids: string[] } */
   static async deleteTraces(req: Request, res: Response) {
     try {
-      // 权限校验：仅管理员
-      if (!req.user || req.user.role !== "admin") {
+      // 权限校验：仅超级管理员
+      if (!isSuperAdmin(req)) {
         return res.status(403).json({ error: "需要管理员权限" });
       }
       const ids = (req.body?.ids || []) as string[];

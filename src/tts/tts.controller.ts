@@ -185,13 +185,13 @@ export class TtsController {
       if (!currentUser) {
         throw new TtsRequestError(401, "请登录后查询该任务", "TTS_JOB_AUTH_REQUIRED");
       }
-      if (currentUser.role !== "admin" && currentUser.id !== job.userId) {
+      if (currentUser.role !== "admin" && currentUser.role !== "superadmin" && currentUser.id !== job.userId) {
         throw new TtsRequestError(403, "无权访问该任务", "TTS_JOB_FORBIDDEN");
       }
       return;
     }
 
-    if (currentUser?.role === "admin") {
+    if (currentUser?.role === "admin" || currentUser?.role === "superadmin") {
       return;
     }
 

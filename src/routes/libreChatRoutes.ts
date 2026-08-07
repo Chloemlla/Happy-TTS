@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express";
-import { authenticateAdmin } from "../middleware/auth";
+import { authenticateAdmin, authenticateSuperAdmin } from "../middleware/auth";
+import { auditLog } from "../middleware/auditLog";
 import { optionalAuthenticateToken } from "../middleware/optionalAuthenticateToken";
 import { libreChatLimiter } from "../middleware/routeLimiters";
 import { libreChatService } from "../services/libreChatService";
@@ -626,7 +627,15 @@ router.get("/admin/users/:userId/history", authenticateAdmin, async (req, res) =
 });
 
 // 删除指定用户全部历史
-router.delete("/admin/users/:userId", authenticateAdmin, async (req, res, next) => {
+router.delete(
+  "/admin/users/:userId",
+  authenticateSuperAdmin,
+  auditLog({
+    module: "libreChat",
+    action: "libreChat.deleteUser",
+    extractTarget: (req) => ({ targetId: req.params.userId }),
+  }),
+  async (req, res, next) => {
   try {
     const { userId } = req.params as { userId: string };
     if (userId === "all") return next();
@@ -639,7 +648,15 @@ router.delete("/admin/users/:userId", authenticateAdmin, async (req, res, next) 
 });
 
 // 批量删除多个用户全部历史
-router.delete("/admin/users", authenticateAdmin, async (req, res) => {
+router.delete(
+  "/admin/users",
+  authenticateSuperAdmin,
+  auditLog({
+    module: "libreChat",
+    action: "libreChat.batchDeleteUsers",
+    extractDetail: (req) => ({ count: Array.isArray(req.body?.userIds) ? req.body.userIds.length : 0 }),
+  }),
+  async (req, res) => {
   try {
     const { userIds } = req.body as { userIds: string[] };
     if (!Array.isArray(userIds) || userIds.length === 0) {
@@ -654,7 +671,11 @@ router.delete("/admin/users", authenticateAdmin, async (req, res) => {
 });
 
 // 删除所有用户历史（危险操作）
-router.delete("/admin/users/all", authenticateAdmin, async (req, res) => {
+router.delete(
+  "/admin/users/all",
+  authenticateSuperAdmin,
+  auditLog({ module: "libreChat", action: "libreChat.deleteAllUsers" }),
+  async (req, res) => {
   try {
     const { confirm } = req.body as { confirm: boolean };
     const { statusCode, body } = await libreChatService.adminDeleteAllUsersAction({ confirm });
@@ -692,7 +713,15 @@ router.get("/admin/providers", authenticateAdmin, async (req, res) => {
 });
 
 // 新增或更新（带 id 则更新，不带则创建）。自动标准化 baseUrl 去尾斜杠
-router.post("/admin/providers", authenticateAdmin, async (req, res) => {
+router.post(
+  "/admin/providers",
+  authenticateSuperAdmin,
+  auditLog({
+    module: "libreChat",
+    action: "libreChat.provider.upsert",
+    extractDetail: (req) => ({ baseUrl: req.body?.baseUrl, model: req.body?.model, group: req.body?.group }),
+  }),
+  async (req, res) => {
   try {
     const { id, baseUrl, apiKey, model, group, enabled, weight } = req.body || {};
     const ChatProviderModel = (mongoose.models.ChatProvider as any) || mongoose.model("ChatProvider");
@@ -743,7 +772,15 @@ router.post("/admin/providers", authenticateAdmin, async (req, res) => {
 });
 
 // 删除提供者
-router.delete("/admin/providers/:id", authenticateAdmin, async (req, res) => {
+router.delete(
+  "/admin/providers/:id",
+  authenticateSuperAdmin,
+  auditLog({
+    module: "libreChat",
+    action: "libreChat.provider.delete",
+    extractTarget: (req) => ({ targetId: req.params.id }),
+  }),
+  async (req, res) => {
   try {
     const { id } = req.params as any;
     if (!id || typeof id !== "string" || !/^[0-9a-fA-F]{24}$/.test(id)) {

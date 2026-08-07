@@ -86,7 +86,7 @@ export class TtsSubmissionPipeline {
       };
     }
 
-    if (currentUser.role === "admin") {
+    if (currentUser.role === "admin" || currentUser.role === "superadmin") {
       return {
         authenticated: true,
         isAdmin: true,
@@ -204,7 +204,7 @@ export class TtsSubmissionPipeline {
       return;
     }
 
-    if (context.currentUser?.role === "admin") {
+    if (context.currentUser?.role === "admin" || context.currentUser?.role === "superadmin") {
       return;
     }
 
@@ -347,7 +347,8 @@ export class TtsSubmissionPipeline {
         ? context.input.fingerprint.trim()
         : "unknown";
     const userId = context.currentUser?.id;
-    const isAdmin = context.currentUser?.role === "admin";
+    const isAdmin =
+      context.currentUser?.role === "admin" || context.currentUser?.role === "superadmin";
 
     this.validateContentShape(requestPayload.text);
     if (

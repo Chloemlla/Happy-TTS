@@ -218,7 +218,10 @@ function buildRiskItems(sourceUser: User, targetUser: User, mergeItems: AccountM
     });
   }
 
-  if (["admin", "trusted"].includes(sourceUser.role) || ["admin", "trusted"].includes(targetUser.role)) {
+  if (
+    ["admin", "superadmin", "trusted"].includes(sourceUser.role) ||
+    ["admin", "superadmin", "trusted"].includes(targetUser.role)
+  ) {
     risks.push({
       key: "privilegedRole",
       label: "管理员/可信用户角色",

@@ -1,7 +1,7 @@
 import express from "express";
 import multer from "multer";
 import validator from "validator";
-import { authMiddlewareV2 as authMiddleware } from "../../middleware/auth";
+import { authMiddlewareV2 as authMiddleware, isAdminRole } from "../../middleware/auth";
 import {
   isAccountIdentityProvider,
   listLinkedAccounts,
@@ -80,7 +80,7 @@ router.post("/verify-access", async (req, res) => {
     }
 
     // 检查用户角色
-    if (req.user.role !== "admin") {
+    if (!isAdminRole(req.user.role)) {
       console.log("❌ [AdminAccess] 权限验证失败：非管理员用户", {
         userId: req.user.id,
         role: req.user.role,
@@ -737,8 +737,8 @@ router.post("/user/avatar", authMiddleware, upload.single("avatar"), async (req,
         undefined,
         {
           clientIp,
-          isAdmin: (req as any).user?.role === "admin",
-          shouldSkipTurnstile: (req as any).user?.role === "admin",
+          isAdmin: isAdminRole((req as any).user?.role),
+          shouldSkipTurnstile: isAdminRole((req as any).user?.role),
         },
       );
       if (!result?.web2url) {

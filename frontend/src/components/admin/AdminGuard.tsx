@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom';
 
 import { getApiBaseUrl } from '@/api/api';
 import { useAuth } from '@/hooks/useAuth';
+import { isAdminRole } from '@/utils/rbac';
 import { SimpleLoadingSpinner } from '@/components/LoadingSpinner';
 import {
   InfoPanel,
@@ -63,7 +64,7 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
           return;
         }
 
-        if (user.role !== 'admin') {
+        if (!isAdminRole(user.role)) {
           setIsLoading(true);
           setNotification({
             message: '权限不足，仅限管理员访问',
@@ -234,7 +235,7 @@ export const RequireAdmin: React.FC<{ children: React.ReactNode }> = ({
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to='/login' replace />;
-  if (user.role !== 'admin') return <Navigate to='/' replace />;
+  if (!isAdminRole(user.role)) return <Navigate to='/' replace />;
   return <AdminGuard>{children}</AdminGuard>;
 };
 

@@ -21,6 +21,7 @@ import {
 import MarkdownRenderer from './MarkdownRenderer';
 import getApiBaseUrl from '../api';
 import { useAuth } from '../hooks/useAuth';
+import { isAdminRole } from '../utils/rbac';
 import type { AiErrorDetails } from '../types/aiDiagnostics';
 import { parseAiErrorDetails } from '../utils/aiDiagnostics';
 import { AiErrorDetailsPanel } from './AiErrorDetailsPanel';
@@ -244,7 +245,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
 
 const LibreChatPage: React.FC = () => {
   const { user } = useAuth();
-  const isAdmin = user?.role?.toLowerCase().trim() === 'admin';
+  const isAdmin = isAdminRole(user?.role);
   const { setNotification } = useNotification();
 
   // 为 LibreChat 页面添加豁免标记，避免完整性检查器误报

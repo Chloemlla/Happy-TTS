@@ -56,6 +56,7 @@ const buildLoginPath = (pathname: string, search: string) =>
 
 const formatUserRole = (role: string) => {
   const map: Record<string, string> = {
+    superadmin: "超级管理员",
     admin: "管理员",
     trusted: "信用者",
     user: "普通用户",
@@ -64,7 +65,7 @@ const formatUserRole = (role: string) => {
 };
 
 const getRoleBadgeClass = (role: string) => {
-  if (role === "admin") return "border-red-200 bg-red-50 text-red-700";
+  if (role === "superadmin" || role === "admin") return "border-red-200 bg-red-50 text-red-700";
   if (role === "trusted")
     return "border-emerald-200 bg-emerald-50 text-emerald-700";
   return "border-slate-200 bg-slate-50 text-slate-600";

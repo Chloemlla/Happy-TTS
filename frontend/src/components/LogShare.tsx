@@ -5,6 +5,7 @@ import axios from 'axios';
 import { useNotification } from './Notification';
 import getApiBaseUrl from '../api';
 import { useAuth } from '../hooks/useAuth';
+import { isAdminRole } from '../utils/rbac';
 import { useLocation } from 'react-router-dom';
 import CryptoJS from 'crypto-js';
 import {
@@ -437,7 +438,7 @@ const LogShare: React.FC = React.memo(() => {
 
   // 管理员校验后自动弹窗输入密码
   useEffect(() => {
-    if (user && user.role === 'admin' && autoQueryId) {
+    if (user && isAdminRole(user.role) && autoQueryId) {
       setShowPwdModal(true);
     }
   }, [user, autoQueryId]);
@@ -744,7 +745,7 @@ const LogShare: React.FC = React.memo(() => {
   }, [success, setNotification]);
 
   // 管理员校验
-  if (!user || user.role !== 'admin') {
+  if (!user || !isAdminRole(user.role)) {
     return (
       <section className="mx-auto max-w-6xl px-4 py-10 sm:py-12">
         <motion.div

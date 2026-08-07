@@ -22,7 +22,7 @@ const userSchema = new mongoose.Schema(
     passwordKeyVersion: { type: String, default: "v1" },
     passwordWrappedDek: { type: String },
     passwordDekId: { type: String },
-    role: { type: String, enum: ["user", "admin", "trusted"], default: "user" },
+    role: { type: String, enum: ["user", "admin", "superadmin", "trusted"], default: "user" },
     dailyUsage: { type: Number, default: 0 },
     lastUsageDate: { type: String },
     createdAt: { type: String },
@@ -535,7 +535,7 @@ export const incrementUserDailyUsageAtomic = async (
     return { success: false, user: null };
   }
 
-  if ((doc as any).role === "admin") {
+  if ((doc as any).role === "admin" || (doc as any).role === "superadmin") {
     return { success: true, user: removeAvatarBase64(doc) as unknown as UserType };
   }
 

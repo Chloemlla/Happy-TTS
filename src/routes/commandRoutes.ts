@@ -1,4 +1,5 @@
 import { type RequestHandler, Router } from "express";
+import { isSuperAdmin } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { commandLimiter } from "../middleware/routeLimiters";
 import { commandService } from "../services/commandService";
@@ -9,7 +10,7 @@ import logger from "../utils/logger";
 const router = Router();
 
 const ensureAdmin = (req: any, res: any): boolean => {
-  if (!req.user || req.user.role !== "admin") {
+  if (!isSuperAdmin(req)) {
     res.status(403).json({ error: "需要管理员权限" });
     return false;
   }
@@ -86,7 +87,7 @@ router.post("/y", commandLimiter, authenticateToken, async (req, res) => {
  */
 router.get("/q", commandLimiter, authenticateToken, async (req, res) => {
   try {
-    if (!req.user || req.user.role !== "admin") {
+    if (!isSuperAdmin(req)) {
       return res.status(403).json({ error: "需要管理员权限" });
     }
 
@@ -266,7 +267,7 @@ router.post("/status", (req, res) => {
  */
 router.get("/history", commandLimiter, authenticateToken, async (req, res) => {
   try {
-    if (!req.user || req.user.role !== "admin") {
+    if (!isSuperAdmin(req)) {
       return res.status(403).json({ error: "需要管理员权限" });
     }
 
@@ -317,7 +318,7 @@ router.post("/clear-history", commandLimiter, authenticateToken, async (req, res
       return res.status(403).json({ error: "密码错误" });
     }
 
-    if (!req.user || req.user.role !== "admin") {
+    if (!isSuperAdmin(req)) {
       return res.status(403).json({ error: "需要管理员权限" });
     }
 
@@ -361,7 +362,7 @@ router.post("/clear-queue", commandLimiter, authenticateToken, async (req, res) 
       return res.status(403).json({ error: "密码错误" });
     }
 
-    if (!req.user || req.user.role !== "admin") {
+    if (!isSuperAdmin(req)) {
       return res.status(403).json({ error: "需要管理员权限" });
     }
 

@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { isAdminRole } from "./auth";
 
 export function adminOnly(req: Request, res: Response, next: NextFunction) {
   try {
@@ -6,7 +7,7 @@ export function adminOnly(req: Request, res: Response, next: NextFunction) {
     if (!user) {
       return res.status(401).json({ error: "需要先登录" });
     }
-    if (user.role !== "admin") {
+    if (!isAdminRole(user.role)) {
       return res.status(403).json({ error: "需要管理员权限" });
     }
     next();

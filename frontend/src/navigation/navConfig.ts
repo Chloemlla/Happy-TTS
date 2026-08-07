@@ -44,6 +44,7 @@ import type { NavGroup, NavItem } from '@/layout/types';
 
 export type NavVisibilityContext = {
   isAdmin: boolean;
+  isSuperAdmin: boolean;
   canUseTranslation: boolean;
 };
 
@@ -53,6 +54,7 @@ function filterByVisibility(
 ): NavItem[] {
   return items.filter((item) => {
     if (item.requiredRole === 'admin' && !ctx.isAdmin) return false;
+    if (item.requiredRole === 'superadmin' && !ctx.isSuperAdmin) return false;
     // Translation-gated items use a sentinel url check below via id/url.
     if ('url' in item && item.url === '/translate' && !ctx.canUseTranslation) {
       return false;
@@ -250,223 +252,267 @@ export function getRootNavGroups(ctx: NavVisibilityContext): NavGroup[] {
  * Admin drill-in sidebar groups + AdminHub cards.
  * Each item points at `/admin/<module>` or a dedicated admin route.
  */
-export function getAdminNavGroups(): NavGroup[] {
+export function getAdminNavGroups(ctx: NavVisibilityContext): NavGroup[] {
   return [
     {
       id: 'admin-hub',
       title: '总览',
-      items: [
-        {
-          title: '管理总览',
-          url: '/admin',
-          icon: FaUserShield as IconType,
-          // exact match only — children must not keep this lit
-        },
-      ],
+      items: filterByVisibility(
+        [
+          {
+            title: '管理总览',
+            url: '/admin',
+            icon: FaUserShield as IconType,
+            // exact match only — children must not keep this lit
+          },
+        ],
+        ctx,
+      ),
     },
     {
       id: 'admin-identity',
       title: '身份与权限',
-      items: [
-        { title: '用户管理', url: '/admin/users', icon: FaUserShield as IconType },
-        {
-          title: '注册邀请码',
-          url: '/admin/registration-invites',
-          icon: FaList as IconType,
-        },
-        {
-          title: 'API Key 管理',
-          url: '/admin/apikeys',
-          icon: FaDatabase as IconType,
-        },
-        {
-          title: 'API Key 计费',
-          url: '/admin/apikey-billing',
-          icon: FaDollarSign as IconType,
-        },
-        {
-          title: '操作审计',
-          url: '/admin/audit-log',
-          icon: FaFileAlt as IconType,
-        },
-        {
-          title: '翻译审计',
-          url: '/admin/translation-audit',
-          icon: FaLanguage as IconType,
-        },
-        {
-          title: 'TTS 生成记录',
-          url: '/admin/tts-history',
-          icon: FaVolumeUp as IconType,
-        },
-      ],
+      items: filterByVisibility(
+        [
+          {
+            title: '用户管理',
+            url: '/admin/users',
+            icon: FaUserShield as IconType,
+            requiredRole: 'admin',
+          },
+          {
+            title: '注册邀请码',
+            url: '/admin/registration-invites',
+            icon: FaList as IconType,
+          },
+          {
+            title: 'API Key 管理',
+            url: '/admin/apikeys',
+            icon: FaDatabase as IconType,
+            requiredRole: 'admin',
+          },
+          {
+            title: 'API Key 计费',
+            url: '/admin/apikey-billing',
+            icon: FaDollarSign as IconType,
+          },
+          {
+            title: '操作审计',
+            url: '/admin/audit-log',
+            icon: FaFileAlt as IconType,
+            requiredRole: 'admin',
+          },
+          {
+            title: '翻译审计',
+            url: '/admin/translation-audit',
+            icon: FaLanguage as IconType,
+            requiredRole: 'admin',
+          },
+          {
+            title: 'TTS 生成记录',
+            url: '/admin/tts-history',
+            icon: FaVolumeUp as IconType,
+            requiredRole: 'admin',
+          },
+        ],
+        ctx,
+      ),
     },
     {
       id: 'admin-integration',
       title: '第三方接入',
-      items: [
-        {
-          title: 'OAuth 接入',
-          url: '/admin/oauth',
-          icon: FaLink as IconType,
-        },
-        {
-          title: 'LibreChat 管理',
-          url: '/admin/librechat',
-          icon: FaComments as IconType,
-        },
-        {
-          title: 'EcoEnchants 授权',
-          url: '/admin/ecoenchants',
-          icon: FaShieldAlt as IconType,
-        },
-        {
-          title: 'EcoEnchants 远程运维',
-          url: '/admin/ecoenchants-ops',
-          icon: FaTerminal as IconType,
-        },
-        {
-          title: 'Webhook 事件',
-          url: '/admin/webhookevents',
-          icon: FaExchangeAlt as IconType,
-        },
-        {
-          title: 'PiliPlus 设置同步',
-          url: '/admin/bilibili-sync',
-          icon: FaDatabase as IconType,
-        },
-      ],
+      items: filterByVisibility(
+        [
+          {
+            title: 'OAuth 接入',
+            url: '/admin/oauth',
+            icon: FaLink as IconType,
+            requiredRole: 'admin',
+          },
+          {
+            title: 'LibreChat 管理',
+            url: '/admin/librechat',
+            icon: FaComments as IconType,
+          },
+          {
+            title: 'EcoEnchants 授权',
+            url: '/admin/ecoenchants',
+            icon: FaShieldAlt as IconType,
+          },
+          {
+            title: 'EcoEnchants 远程运维',
+            url: '/admin/ecoenchants-ops',
+            icon: FaTerminal as IconType,
+          },
+          {
+            title: 'Webhook 事件',
+            url: '/admin/webhookevents',
+            icon: FaExchangeAlt as IconType,
+          },
+          {
+            title: 'PiliPlus 设置同步',
+            url: '/admin/bilibili-sync',
+            icon: FaDatabase as IconType,
+          },
+        ],
+        ctx,
+      ),
     },
     {
       id: 'admin-operations',
       title: '运营与内容',
-      items: [
-        {
-          title: '公告管理',
-          url: '/admin/announcement',
-          icon: FaFileAlt as IconType,
-        },
-        {
-          title: 'Markdown 文章',
-          url: '/admin/markdown-articles',
-          icon: FaBook as IconType,
-        },
-        { title: '抽奖管理', url: '/admin/lottery', icon: FaGift as IconType },
-        {
-          title: '外部邮件',
-          url: '/admin/outemail',
-          icon: FaEnvelope as IconType,
-        },
-        {
-          title: '短链管理',
-          url: '/admin/shortlink',
-          icon: FaLink as IconType,
-        },
-        {
-          title: '短链迁移',
-          url: '/admin/shorturlmigration',
-          icon: FaExchangeAlt as IconType,
-        },
-        {
-          title: '命令管理',
-          url: '/admin/command',
-          icon: FaBars as IconType,
-        },
-        {
-          title: '日志分享',
-          url: '/admin/logshare',
-          icon: FaShareAlt as IconType,
-        },
-        {
-          title: 'FBI 通缉犯管理',
-          url: '/admin/fbiwanted',
-          icon: FaSearch as IconType,
-        },
-        {
-          title: '广播推送',
-          url: '/admin/broadcast',
-          icon: FaPaperPlane as IconType,
-        },
-        {
-          title: '商店管理',
-          url: '/admin/store',
-          icon: FaStore as IconType,
-          matchChildren: true,
-        },
-        {
-          title: '资源管理',
-          url: '/admin/store/resources',
-          icon: FaDatabase as IconType,
-        },
-        {
-          title: 'CDK 管理',
-          url: '/admin/store/cdks',
-          icon: FaList as IconType,
-        },
-        {
-          title: '邮件发送',
-          url: '/email-sender',
-          icon: FaPaperPlane as IconType,
-        },
-        {
-          title: '安全监控',
-          url: '/nexai-security',
-          icon: FaShieldAlt as IconType,
-        },
-      ],
+      items: filterByVisibility(
+        [
+          {
+            title: '公告管理',
+            url: '/admin/announcement',
+            icon: FaFileAlt as IconType,
+          },
+          {
+            title: 'Markdown 文章',
+            url: '/admin/markdown-articles',
+            icon: FaBook as IconType,
+            requiredRole: 'superadmin',
+          },
+          {
+            title: '抽奖管理',
+            url: '/admin/lottery',
+            icon: FaGift as IconType,
+            requiredRole: 'superadmin',
+          },
+          {
+            title: '外部邮件',
+            url: '/admin/outemail',
+            icon: FaEnvelope as IconType,
+          },
+          {
+            title: '短链管理',
+            url: '/admin/shortlink',
+            icon: FaLink as IconType,
+            requiredRole: 'superadmin',
+          },
+          {
+            title: '短链迁移',
+            url: '/admin/shorturlmigration',
+            icon: FaExchangeAlt as IconType,
+            requiredRole: 'superadmin',
+          },
+          {
+            title: '命令管理',
+            url: '/admin/command',
+            icon: FaBars as IconType,
+            requiredRole: 'superadmin',
+          },
+          {
+            title: '日志分享',
+            url: '/admin/logshare',
+            icon: FaShareAlt as IconType,
+          },
+          {
+            title: 'FBI 通缉犯管理',
+            url: '/admin/fbiwanted',
+            icon: FaSearch as IconType,
+            requiredRole: 'superadmin',
+          },
+          {
+            title: '广播推送',
+            url: '/admin/broadcast',
+            icon: FaPaperPlane as IconType,
+            requiredRole: 'superadmin',
+          },
+          {
+            title: '商店管理',
+            url: '/admin/store',
+            icon: FaStore as IconType,
+            matchChildren: true,
+          },
+          {
+            title: '资源管理',
+            url: '/admin/store/resources',
+            icon: FaDatabase as IconType,
+          },
+          {
+            title: 'CDK 管理',
+            url: '/admin/store/cdks',
+            icon: FaList as IconType,
+            requiredRole: 'superadmin',
+          },
+          {
+            title: '邮件发送',
+            url: '/email-sender',
+            icon: FaPaperPlane as IconType,
+            requiredRole: 'superadmin',
+          },
+          {
+            title: '安全监控',
+            url: '/nexai-security',
+            icon: FaShieldAlt as IconType,
+          },
+        ],
+        ctx,
+      ),
     },
     {
       id: 'admin-security',
       title: '安全与系统',
-      items: [
-        {
-          title: '环境变量',
-          url: '/admin/env',
-          icon: FaDatabase as IconType,
-        },
-        {
-          title: '邮件系统配置',
-          url: '/admin/mail-system',
-          icon: FaEnvelope as IconType,
-        },
-        {
-          title: '人机验证日志',
-          url: '/admin/humancheck',
-          icon: FaBug as IconType,
-        },
-        {
-          title: '数据收集管理',
-          url: '/admin/data-collection',
-          icon: FaChartBar as IconType,
-        },
-        {
-          title: 'GitHub 账单缓存',
-          url: '/admin/github-billing-cache',
-          icon: FaDollarSign as IconType,
-        },
-        {
-          title: 'IP 封禁管理',
-          url: '/admin/ip-ban',
-          icon: FaShieldAlt as IconType,
-        },
-        {
-          title: '指纹管理',
-          url: '/admin/fingerprint',
-          icon: FaSearch as IconType,
-        },
-        {
-          title: '系统管理',
-          url: '/admin/system',
-          icon: FaBars as IconType,
-        },
-        {
-          title: '篡改检测',
-          url: '/tamper-detection-demo',
-          icon: FaBug as IconType,
-        },
-      ],
+      items: filterByVisibility(
+        [
+          {
+            title: '环境变量',
+            url: '/admin/env',
+            icon: FaDatabase as IconType,
+            requiredRole: 'superadmin',
+          },
+          {
+            title: '邮件系统配置',
+            url: '/admin/mail-system',
+            icon: FaEnvelope as IconType,
+            requiredRole: 'superadmin',
+          },
+          {
+            title: '人机验证日志',
+            url: '/admin/humancheck',
+            icon: FaBug as IconType,
+          },
+          {
+            title: '数据收集管理',
+            url: '/admin/data-collection',
+            icon: FaChartBar as IconType,
+            requiredRole: 'admin',
+          },
+          {
+            title: 'GitHub 账单缓存',
+            url: '/admin/github-billing-cache',
+            icon: FaDollarSign as IconType,
+          },
+          {
+            title: 'IP 封禁管理',
+            url: '/admin/ip-ban',
+            icon: FaShieldAlt as IconType,
+            requiredRole: 'superadmin',
+          },
+          {
+            title: '指纹管理',
+            url: '/admin/fingerprint',
+            icon: FaSearch as IconType,
+            requiredRole: 'superadmin',
+          },
+          {
+            title: '系统管理',
+            url: '/admin/system',
+            icon: FaBars as IconType,
+            requiredRole: 'superadmin',
+          },
+          {
+            title: '篡改检测',
+            url: '/tamper-detection-demo',
+            icon: FaBug as IconType,
+          },
+        ],
+        ctx,
+      ),
     },
-  ];
+  ].filter((g) => g.items.length > 0);
 }
 
 /**
@@ -526,42 +572,57 @@ export function getMobileRootNavGroups(ctx: NavVisibilityContext): NavGroup[] {
  * Full module catalog lives on AdminHub / desktop drill-in; dumping ~35
  * min-h-12 rows into the phone overlay is unusable.
  */
-export function getMobileAdminNavGroups(): NavGroup[] {
+export function getMobileAdminNavGroups(ctx: NavVisibilityContext): NavGroup[] {
   return [
     {
       id: 'admin-mobile',
       title: '管理',
-      items: [
-        {
-          title: '管理总览',
-          url: '/admin',
-          icon: FaUserShield as IconType,
-          matchChildren: true,
-        },
-        { title: '用户管理', url: '/admin/users', icon: FaUserShield as IconType },
-        {
-          title: '商店管理',
-          url: '/admin/store',
-          icon: FaStore as IconType,
-          matchChildren: true,
-        },
-        { title: '抽奖管理', url: '/admin/lottery', icon: FaGift as IconType },
-        {
-          title: '邮件发送',
-          url: '/email-sender',
-          icon: FaPaperPlane as IconType,
-        },
-        {
-          title: '安全监控',
-          url: '/nexai-security',
-          icon: FaShieldAlt as IconType,
-        },
-        {
-          title: '系统管理',
-          url: '/admin/system',
-          icon: FaBars as IconType,
-        },
-      ],
+      items: filterByVisibility(
+        [
+          {
+            title: '管理总览',
+            url: '/admin',
+            icon: FaUserShield as IconType,
+            matchChildren: true,
+          },
+          {
+            title: '用户管理',
+            url: '/admin/users',
+            icon: FaUserShield as IconType,
+            requiredRole: 'admin',
+          },
+          {
+            title: '商店管理',
+            url: '/admin/store',
+            icon: FaStore as IconType,
+            matchChildren: true,
+          },
+          {
+            title: '抽奖管理',
+            url: '/admin/lottery',
+            icon: FaGift as IconType,
+            requiredRole: 'superadmin',
+          },
+          {
+            title: '邮件发送',
+            url: '/email-sender',
+            icon: FaPaperPlane as IconType,
+            requiredRole: 'superadmin',
+          },
+          {
+            title: '安全监控',
+            url: '/nexai-security',
+            icon: FaShieldAlt as IconType,
+          },
+          {
+            title: '系统管理',
+            url: '/admin/system',
+            icon: FaBars as IconType,
+            requiredRole: 'superadmin',
+          },
+        ],
+        ctx,
+      ),
     },
-  ];
+  ].filter((g) => g.items.length > 0);
 }

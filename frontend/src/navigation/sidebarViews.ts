@@ -1,4 +1,5 @@
 import { getAdminNavGroups } from './navConfig';
+import type { NavVisibilityContext } from './navConfig';
 import type { SidebarView } from '@/layout/types';
 
 /**
@@ -24,7 +25,7 @@ export const ADMIN_VIEW: SidebarView = {
     to: '/',
     label: '返回主导航',
   },
-  getNavGroups: () => getAdminNavGroups(),
+  getNavGroups: (ctx: NavVisibilityContext) => getAdminNavGroups(ctx),
 };
 
 const SIDEBAR_VIEWS: readonly SidebarView[] = [ADMIN_VIEW];

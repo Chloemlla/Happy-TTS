@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useAuth } from "../hooks/useAuth";
+import { isAdminRole } from "../utils/rbac";
 import { ticketApi, ITicket } from "../api/ticketApi";
 import { useNotification } from "./Notification";
 import { useWebSocket, WsServerMessage } from "../hooks/useWebSocket";
@@ -75,7 +76,7 @@ function getApiErrorResponse(error: unknown): ApiErrorResponse | null {
 
 const TicketSystem: React.FC = () => {
   const { user } = useAuth();
-  const isAdmin = user?.role?.toLowerCase().trim() === "admin";
+  const isAdmin = isAdminRole(user?.role);
   const { setNotification } = useNotification();
   const [tickets, setTickets] = useState<ITicket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<ITicket | null>(null);

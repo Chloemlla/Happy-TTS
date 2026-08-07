@@ -469,7 +469,7 @@ export function toOAuthGrantView(grant: OAuthGrantDoc, client?: OAuthClientDoc |
 }
 
 export function canAuthorizeOAuth(user: Pick<User, "role"> | null | undefined): boolean {
-  return Boolean(user && (user.role === "admin" || user.role === "trusted"));
+  return Boolean(user && (user.role === "admin" || user.role === "superadmin" || user.role === "trusted"));
 }
 
 function assertOAuthAuthorizingUser(user: Pick<User, "role"> | null | undefined): void {
@@ -576,7 +576,7 @@ function appendRedirectParams(redirectUri: string, params: Record<string, string
 }
 
 export function buildOAuthIdentityClaims(user: Pick<User, "role">): Record<string, unknown> {
-  const isAdmin = user.role === "admin";
+  const isAdmin = user.role === "admin" || user.role === "superadmin";
   const isTrusted = user.role === "trusted";
 
   return {

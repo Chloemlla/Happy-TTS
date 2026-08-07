@@ -6,6 +6,7 @@ import { FaEnvelope, FaShieldAlt, FaInfoCircle, FaExclamationTriangle, FaCheckCi
 import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
+import { isAdminRole } from '../utils/rbac';
 
 const OutEmail: React.FC = () => {
   const { user } = useAuth();
@@ -48,7 +49,7 @@ const OutEmail: React.FC = () => {
   useEffect(() => { /* no-op */ }, []);
 
   useEffect(() => {
-    if (!user || user.role !== 'admin') return;
+    if (!user || !isAdminRole(user.role)) return;
     const loadStatus = async () => {
       try {
         const res = await fetch(getApiBaseUrl() + '/api/outemail/status', { credentials: 'include' });
@@ -248,7 +249,7 @@ const OutEmail: React.FC = () => {
     }
   };
 
-  if (!user || user.role !== 'admin') {
+  if (!user || !isAdminRole(user.role)) {
     return (
       <section className="mx-auto max-w-2xl px-4 py-16">
         <div className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-10 text-center shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl">

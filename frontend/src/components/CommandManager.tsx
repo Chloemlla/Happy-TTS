@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { useNotification } from './Notification';
 import { api } from '../api/index';
 import { useAuth } from '../hooks/useAuth';
+import { isAdminRole } from '../utils/rbac';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -172,7 +173,7 @@ const CommandManager: React.FC = () => {
   }, [autoRefresh, password]);
 
   // 检查管理员权限
-  if (!user || user.role !== 'admin') {
+  if (!user || !isAdminRole(user.role)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
         <FaSpaceShuttle style={{ fontSize: 120, lineHeight: 1 }} className="text-blue-500" />
