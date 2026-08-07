@@ -1,5 +1,6 @@
 import express from "express";
 import { authenticateSuperAdmin } from "../../middleware/auth";
+import { firstString } from "../../utils/httpParam";
 import {
   createRegistrationInvite,
   deleteRegistrationInvite,
@@ -32,7 +33,9 @@ router.post("/registration-invites", authenticateSuperAdmin, async (req: any, re
 
 router.patch("/registration-invites/:id", authenticateSuperAdmin, async (req, res) => {
   try {
-    const invite = await updateRegistrationInvite(req.params.id, req.body || {});
+    const id = firstString(req.params.id);
+    if (!id) return res.status(400).json({ error: "邀请码不存在" });
+    const invite = await updateRegistrationInvite(id, req.body || {});
     if (!invite) {
       return res.status(404).json({ error: "邀请码不存在" });
     }
@@ -44,7 +47,9 @@ router.patch("/registration-invites/:id", authenticateSuperAdmin, async (req, re
 
 router.delete("/registration-invites/:id", authenticateSuperAdmin, async (req, res) => {
   try {
-    const deleted = await deleteRegistrationInvite(req.params.id);
+    const id = firstString(req.params.id);
+    if (!id) return res.status(400).json({ error: "邀请码不存在" });
+    const deleted = await deleteRegistrationInvite(id);
     if (!deleted) {
       return res.status(404).json({ error: "邀请码不存在" });
     }

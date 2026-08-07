@@ -51,7 +51,7 @@ router.post(
   "/",
   ...superAdminGuard,
   auditLog({
-    module: "dataCollection",
+    module: "user",
     action: "dataCollection.create",
     extractDetail: (req) => ({ userId: req.body?.userId, action: req.body?.action }),
   }),
@@ -107,7 +107,7 @@ router.delete(
   "/:id",
   ...superAdminGuard,
   auditLog({
-    module: "dataCollection",
+    module: "user",
     action: "dataCollection.delete",
     extractTarget: (req) => ({ targetId: req.params.id }),
   }),
@@ -129,7 +129,7 @@ router.post(
   "/delete-batch",
   ...superAdminGuard,
   auditLog({
-    module: "dataCollection",
+    module: "user",
     action: "dataCollection.deleteBatch",
     extractDetail: (req) => ({ count: Array.isArray(req.body?.ids) ? req.body.ids.length : 0 }),
   }),
@@ -151,7 +151,7 @@ router.post(
 router.delete(
   "/all",
   ...superAdminGuard,
-  auditLog({ module: "dataCollection", action: "dataCollection.deleteAll" }),
+  auditLog({ module: "user", action: "dataCollection.deleteAll" }),
   async (req: Request, res: Response) => {
   try {
     const { confirm } = (req.body || {}) as { confirm?: boolean };

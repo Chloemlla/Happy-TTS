@@ -17,7 +17,7 @@ import {
 } from 'react-icons/fa';
 import getApiBaseUrl from '../api';
 import { useAuth } from '../hooks/useAuth';
-import { isAdminRole, isSuperAdmin } from '../utils/rbac';
+import { isAdminRole, isSuperAdmin as isSuperAdminRole } from '../utils/rbac';
 import {
   getMobileAdminNavGroups,
   getMobileRootNavGroups,
@@ -185,7 +185,7 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
 
   const canUseTranslation = user?.isTranslationEnabled !== false;
   const isAdmin = isAdminRole(user?.role);
-  const isSuperAdmin = isSuperAdmin(user?.role);
+  const isSuperAdmin = isSuperAdminRole(user?.role);
 
   // Page IA from navConfig SSOT (accountOnly skips — AppSidebar owns desktop nav).
   const menuGroups = useMemo<NavGroup[]>(() => {

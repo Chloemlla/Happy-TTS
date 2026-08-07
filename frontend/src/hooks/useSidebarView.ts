@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 
 import type { NavGroup, ResolvedSidebarView } from '@/layout/types';
 import { useAuth } from '@/hooks/useAuth';
-import { isAdminRole, isSuperAdmin } from '@/utils/rbac';
+import { isAdminRole, isSuperAdmin as isSuperAdminRole } from '@/utils/rbac';
 
 import { getRootNavGroups } from '@/navigation/navConfig';
 import { resolveSidebarView } from '@/navigation/sidebarViews';
@@ -23,7 +23,7 @@ export function useSidebarView(): ResolvedSidebarView {
   const { user } = useAuth();
 
   const isAdmin = isAdminRole(user?.role);
-  const isSuperAdmin = isSuperAdmin(user?.role);
+  const isSuperAdmin = isSuperAdminRole(user?.role);
   const canUseTranslation = user?.isTranslationEnabled !== false;
 
   const rootNavGroups = useMemo<NavGroup[]>(

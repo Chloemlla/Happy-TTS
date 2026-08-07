@@ -60,7 +60,7 @@ router.get("/billing/rates", (req: Request, res: Response) => {
 /** 创建 API Key（任何已登录用户） */
 router.post(
   "/",
-  auditLog({ module: "apikey", action: "apikey.create" }),
+  auditLog({ module: "api", action: "apikey.create" }),
   async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
@@ -141,7 +141,7 @@ router.get("/:keyId/billing/events", async (req: Request, res: Response) => {
 router.post(
   "/:keyId/billing/adjust",
   auditLog({
-    module: "apikey",
+    module: "api",
     action: "apikey.billing.adjust",
     extractTarget: (req) => ({ targetId: req.params.keyId }),
   }),
@@ -176,7 +176,7 @@ router.post(
 router.put(
   "/:keyId",
   auditLog({
-    module: "apikey",
+    module: "api",
     action: "apikey.update",
     extractTarget: (req) => ({ targetId: req.params.keyId }),
   }),
@@ -234,7 +234,7 @@ router.put(
 router.post(
   "/:keyId/revoke",
   auditLog({
-    module: "apikey",
+    module: "api",
     action: "apikey.revoke",
     extractTarget: (req) => ({ targetId: req.params.keyId }),
   }),
@@ -258,7 +258,7 @@ router.post(
 router.post(
   "/:keyId/enable",
   auditLog({
-    module: "apikey",
+    module: "api",
     action: "apikey.enable",
     extractTarget: (req) => ({ targetId: req.params.keyId }),
   }),
@@ -282,7 +282,7 @@ router.post(
 router.delete(
   "/:keyId",
   auditLog({
-    module: "apikey",
+    module: "api",
     action: "apikey.delete",
     extractTarget: (req) => ({ targetId: req.params.keyId }),
   }),
