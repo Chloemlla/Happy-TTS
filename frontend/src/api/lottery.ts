@@ -7,7 +7,6 @@ import {
   LotteryApiResponse 
 } from '../types/lottery';
 import getApiBaseUrl, { getApiBaseUrl as namedGetApiBaseUrl } from '../api';
-import { isAdminRole } from '../utils/rbac';
 
 
 // 修正API_BASE，确保所有请求都指向 /api/lottery
@@ -76,16 +75,11 @@ export async function getRoundDetails(roundId: string): Promise<LotteryRound> {
 // 参与抽奖
 export async function participateInLottery(roundId: string, cfToken?: string): Promise<LotteryWinner> {
   const body: any = {};
-  
-  // 如果不是管理员且提供了cfToken，添加到请求体
-  const userRole = localStorage.getItem('userRole');
-  const isAdmin = isAdminRole(userRole) || userRole === 'administrator';
-  
-  if (!isAdmin && cfToken) {
+
+  if (cfToken) {
     body.cfToken = cfToken;
-    body.userRole = userRole || 'user';
   }
-  
+
   return apiRequest<LotteryWinner>(`/rounds/${roundId}/participate`, {
     method: 'POST',
     body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined,

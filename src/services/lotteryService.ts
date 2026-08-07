@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import path from "node:path";
+import { isAdminRole } from "../middleware/auth";
 import { logger } from "./logger";
 import { addRound, getAllRounds, getUserRecord } from "./lotteryStorage";
 
@@ -194,7 +195,7 @@ class LotteryService {
     }
 
     // Turnstile 验证（非管理员用户）
-    const isAdmin = userRole === "admin" || userRole === "administrator";
+    const isAdmin = isAdminRole(userRole);
     if (!isAdmin && process.env.TURNSTILE_SECRET_KEY) {
       if (!cfToken) {
         logger.warn("非管理员用户缺少 Turnstile token，拒绝参与抽奖", { userId, userRole });

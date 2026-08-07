@@ -10,6 +10,7 @@ import { TransactionService } from "./transactionService";
 import { UserStorage } from "../utils/userStorage";
 import { sendEmail } from "./emailSender";
 import { generateCDKActivatedEmailHtml } from "../templates/emailTemplates";
+import { isAdminRole } from "../middleware/auth";
 
 // 性能监控接口
 interface PerformanceStats {
@@ -370,7 +371,7 @@ export class CDKService {
       }
 
       // Turnstile 验证（非管理员用户）
-      const isAdmin = userRole === "admin" || userRole === "administrator";
+      const isAdmin = isAdminRole(userRole);
       if (!isAdmin && process.env.TURNSTILE_SECRET_KEY) {
         if (!cfToken) {
           logger.warn("非管理员用户缺少 Turnstile token，拒绝CDK兑换", { userId: userInfo?.userId, userRole });

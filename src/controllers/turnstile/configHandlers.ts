@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { isAdminRole } from "../../middleware/auth";
 import { TurnstileService } from "../../services/turnstileService";
 import { firstString } from "../../utils/httpParam";
 import { getClientIp, requireAdmin } from "./_helpers";
@@ -7,8 +8,7 @@ export async function getTurnstileConfig(req: Request, res: Response) {
   try {
     const config = await TurnstileService.getConfig();
 
-    const userRole = (req as any).user?.role;
-    const isAdmin = userRole === "admin" || userRole === "administrator";
+    const isAdmin = isAdminRole((req as any).user?.role);
 
     const maskedSecretKey =
       config.secretKey && config.secretKey.length > 8

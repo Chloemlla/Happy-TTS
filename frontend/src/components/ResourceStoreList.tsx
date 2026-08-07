@@ -217,9 +217,11 @@ export default function ResourceStoreList() {
         forceRedeem,
       };
 
+      if (user?.role) {
+        requestParams.userRole = user.role;
+      }
       if (!isAdmin && !!turnstileConfig.siteKey && turnstileToken) {
         requestParams.cfToken = turnstileToken;
-        requestParams.userRole = localStorage.getItem("userRole") || "user";
       }
 
       const result = await cdksApi.redeemCDK(requestParams);

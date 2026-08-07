@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { isAdminRole } from "../../middleware/auth";
 import { getClientIP } from "../../utils/ipUtils";
 
 export function getClientIp(req: Request): string {
@@ -6,8 +7,7 @@ export function getClientIp(req: Request): string {
 }
 
 export function requireAdmin(req: Request, res: Response): boolean {
-  const userRole = (req as any).user?.role;
-  const isAdmin = userRole === "admin" || userRole === "administrator";
+  const isAdmin = isAdminRole((req as any).user?.role);
 
   if (!isAdmin) {
     res.status(403).json({ success: false, error: "权限不足" });

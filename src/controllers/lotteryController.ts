@@ -151,7 +151,7 @@ export class LotteryController {
   public async participateInLottery(req: Request, res: Response): Promise<void> {
     try {
       const roundId = firstString(req.params.roundId);
-      const { cfToken, userRole } = req.body;
+      const { cfToken } = req.body;
       const userId = req.user?.id;
 
       if (!roundId) {
@@ -173,7 +173,7 @@ export class LotteryController {
         return;
       }
 
-      const winner = await lotteryService.participateInLottery(roundId, userId, username, cfToken, userRole);
+      const winner = await lotteryService.participateInLottery(roundId, userId, username, cfToken, req.user?.role);
 
       res.json({
         success: true,

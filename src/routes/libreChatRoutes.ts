@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { authenticateAdmin, authenticateSuperAdmin } from "../middleware/auth";
+import { authenticateAdmin, authenticateSuperAdmin, isAdminRole } from "../middleware/auth";
 import { auditLog } from "../middleware/auditLog";
 import { optionalAuthenticateToken } from "../middleware/optionalAuthenticateToken";
 import { libreChatLimiter } from "../middleware/routeLimiters";
@@ -58,8 +58,7 @@ function normalizePagination(pageValue: unknown, limitValue: unknown): { page: n
 }
 
 function isAdminRequest(req: any): boolean {
-  const role = req?.user?.role;
-  return typeof role === "string" && role.toLowerCase().trim() === "admin";
+  return isAdminRole(req?.user?.role);
 }
 
 async function requireLibreChatIdentity(req: Request, res: Response): Promise<LibreChatIdentity | null> {
