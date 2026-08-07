@@ -9,6 +9,7 @@ import { mongoose } from "../services/mongoService";
 import { wsService } from "../services/wsService";
 import { UserModel } from "../services/userService";
 import * as emailTemplates from "../templates/emailTemplates";
+import { isAdminRole } from "../middleware/auth";
 import { firstString } from "../utils/httpParam";
 import logger from "../utils/logger";
 import { toTicketView } from "../utils/ticketView";
@@ -244,7 +245,7 @@ export const ticketController = {
       if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: "无效的工单ID" });
       const ticket = (await TicketModel.findById(id)) as ITicket | null;
       if (!ticket) return res.status(404).json({ error: "工单不存在" });
-      const isAdmin = user.role?.toLowerCase().trim() === "admin";
+      const isAdmin = isAdminRole(user.role);
       if (ticket.userId !== user.id && !isAdmin) return res.status(403).json({ error: "无权访问此工单" });
       res.json(toTicketView(ticket, isAdmin));
     } catch (error) {
@@ -267,7 +268,7 @@ export const ticketController = {
       const ticket = await TicketModel.findById(id);
       if (!ticket) return res.status(404).json({ error: "工单不存在" });
 
-      const isAdmin = userObj.role?.toLowerCase().trim() === "admin";
+      const isAdmin = isAdminRole(userObj.role);
       if (ticket.userId !== userObj.id && !isAdmin) return res.status(403).json({ error: "无权回复此工单" });
 
       if (!isAdmin) {
