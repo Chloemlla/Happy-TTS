@@ -9,6 +9,7 @@ type LimiterCategory =
   | "register"
   | "tts"
   | "tts-history"
+  | "tts-jobs"
   | "admin"
   | "verification"
   | "command"

@@ -39,6 +39,7 @@ export interface IAuditLog {
     | "ipban"
     | "env"
     | "announcement"
+    | "lumen-config"
     | "other";
   /** 操作目标标识（如被操作的用户ID、CDK ID等） */
   targetId?: string;
