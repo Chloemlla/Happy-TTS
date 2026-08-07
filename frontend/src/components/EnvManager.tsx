@@ -28,6 +28,7 @@ import SelfContainedSecretKeySection from './env-manager/SelfContainedSecretKeyS
 import SelfContainedEcoEnchantsTokenSection from './env-manager/SelfContainedEcoEnchantsTokenSection';
 import SelfContainedEcoEnchantsWebhookSection from './env-manager/SelfContainedEcoEnchantsWebhookSection';
 import SelfContainedSecuritySecretSection from './env-manager/SelfContainedSecuritySecretSection';
+import SelfContainedProjectLumenConfigSection from './env-manager/SelfContainedProjectLumenConfigSection';
 import TtsProviderConfigSection from './env-manager/TtsProviderConfigSection';
 import RuntimeConfigSections from './RuntimeConfigSections';
 import {
@@ -469,6 +470,7 @@ const EnvManager: React.FC = () => {
         <SelfContainedEcoEnchantsTokenSection />
         <SelfContainedEcoEnchantsWebhookSection />
         <SelfContainedSecuritySecretSection />
+        <SelfContainedProjectLumenConfigSection />
         <SelfContainedLibreChatProvidersSection prefersReducedMotion={prefersReducedMotion} />
 
         {/* Source Modal */}

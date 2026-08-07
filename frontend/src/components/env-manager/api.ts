@@ -26,6 +26,8 @@ export const SYNAPSE_ANDROID_API = `${API_BASE_URL}/api/admin/synapse-android/se
 export const ECOENCHANTS_TOKEN_API = `${API_BASE_URL}/api/admin/envs`;
 export const ECOENCHANTS_WEBHOOK_API = `${API_BASE_URL}/api/admin/envs`;
 export const SECURITY_SECRET_API = `${API_BASE_URL}/api/admin/envs`;
+export const LUMEN_CONFIG_API = `${API_BASE_URL}/api/admin/lumen-config`;
+export const LUMEN_CONFIG_SYNC_API = `${API_BASE_URL}/api/admin/lumen-config/sync-github`;
 export const GOOGLE_WEB_CLIENT_ID_PATTERN = /^[\w-]+\.apps\.googleusercontent\.com$/i;
 
 export function getAuthHeaders(): Record<string, string> {

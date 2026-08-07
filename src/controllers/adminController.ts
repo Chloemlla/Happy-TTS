@@ -8,7 +8,9 @@ import { sendEmail } from "../services/emailSender";
 import { mongoose } from "../services/mongoService";
 import { RuntimeConfigService } from "../services/runtimeConfigService";
 import { TranslationLogService } from "../services/translationLogService";
+import { getGithubTarget, pushRepoSecret } from "../services/githubSecretService";
 import { BilibiliSyncModel } from "../models/bilibiliSyncModel";
+import { ProjectLumenConfigModel } from "../models/projectLumenConfigModel";
 import { validateGenerationCodeStrength } from "../utils/generationCodePolicy";
 import logger from "../utils/logger";
 import { getRevealUserPasswordResult } from "../services/userService";
@@ -128,6 +130,16 @@ const WebhookSecretSchema = new mongoose.Schema(
   { collection: "webhook_settings" },
 );
 const WebhookSecretModel = mongoose.models.WebhookSecret || mongoose.model("WebhookSecret", WebhookSecretSchema);
+
+async function listLumenConfigDocs(): Promise<Array<{ key: string; value: string; desc?: string; updatedAt?: string }>> {
+  const docs = await ProjectLumenConfigModel.find({}).sort({ key: 1 }).lean();
+  return docs.map((d) => ({
+    key: d.key,
+    value: d.value,
+    desc: (d as any).desc || undefined,
+    updatedAt: d.updatedAt ? d.updatedAt.toISOString() : undefined,
+  }));
+}
 
 // XSS 过滤简单实现
 export const adminController = {
@@ -1158,6 +1170,109 @@ export const adminController = {
       res.json({ success: true, envs });
     } catch (_e) {
       res.status(500).json({ success: false, error: "删除环境变量失败" });
+    }
+  },
+
+  // ========== Project Lumen 配置管理（仅管理员）===========
+  async getLumenConfig(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      const items = await listLumenConfigDocs();
+      const target = getGithubTarget();
+      return res.json({
+        success: true,
+        items,
+        github: { owner: target.owner, repo: target.repo, tokenConfigured: Boolean(target.token) },
+      });
+    } catch (_e) {
+      return res.status(500).json({ success: false, error: "获取 Lumen 配置失败" });
+    }
+  },
+
+  async setLumenConfig(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      const { key, value, desc } = req.body;
+      if (typeof key !== "string" || !key.trim() || key.length > 64 || /[<>\s]/.test(key))
+        return res.status(400).json({ error: "key 不能为空，不能包含空格/<>，且不超过 64 字" });
+      if (typeof value !== "string" || !value.trim() || value.length > 2_000_000)
+        return res.status(400).json({ error: "value 不能为空且不超过 2,000,000 字" });
+      const safeDesc = typeof desc === "string" ? sanitizeInput(desc).slice(0, 500) : "";
+      const now = new Date();
+      await ProjectLumenConfigModel.findOneAndUpdate(
+        { key },
+        { value, desc: safeDesc, updatedAt: now },
+        { upsert: true },
+      );
+      logger.info(`[环境变量] 管理员${req.user.username} 设置/更新 key=${key}`);
+      const items = await listLumenConfigDocs();
+      return res.json({ success: true, items });
+    } catch (_e) {
+      return res.status(500).json({ success: false, error: "保存 Lumen 配置失败" });
+    }
+  },
+
+  async deleteLumenConfig(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      const key = req.params.key || req.body.key;
+      if (typeof key !== "string" || !key.trim()) return res.status(400).json({ error: "key 不能为空" });
+      await ProjectLumenConfigModel.deleteOne({ key });
+      logger.info(`[环境变量] 管理员${req.user.username} 删除 key=${key}`);
+      const items = await listLumenConfigDocs();
+      return res.json({ success: true, items });
+    } catch (_e) {
+      return res.status(500).json({ success: false, error: "删除 Lumen 配置失败" });
+    }
+  },
+
+  async syncLumenConfigGithub(req: Request, res: Response) {
+    try {
+      if (!req.user || req.user.role !== "admin") return res.status(403).json({ error: "无权限" });
+      const target = getGithubTarget();
+      if (!target.configured) {
+        return res.status(400).json({
+          error:
+            "请先在服务端配置 PROJECT_LUMEN_GITHUB_OWNER / PROJECT_LUMEN_GITHUB_REPO / PROJECT_LUMEN_GITHUB_TOKEN（token 需具备该仓库 Actions secrets 写入权限）",
+        });
+      }
+      const keysToSync: string[] | undefined = Array.isArray(req.body?.keys) ? req.body.keys : undefined;
+      let docs: Array<{ key: string; value: string }>;
+      if (keysToSync) {
+        docs = await ProjectLumenConfigModel.find({ key: { $in: keysToSync } })
+          .select("key value")
+          .lean();
+      } else {
+        docs = await ProjectLumenConfigModel.find({})
+          .select("key value")
+          .lean();
+      }
+      const results: Array<{ key: string; ok: boolean; status?: number; error?: string }> = [];
+      for (const doc of docs) {
+        if (!doc.value) {
+          results.push({ key: doc.key, ok: false, error: "值为空，跳过" });
+          continue;
+        }
+        try {
+          const { status } = await pushRepoSecret(target, doc.key, doc.value);
+          results.push({ key: doc.key, ok: true, status });
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          const statusMatch = msg.match(/\((\d+)\)/);
+          const status = statusMatch ? parseInt(statusMatch[1], 10) : undefined;
+          results.push({ key: doc.key, ok: false, status, error: msg });
+        }
+      }
+      const okCount = results.filter((r) => r.ok).length;
+      logger.info(
+        `[环境变量] 管理员${req.user.username} 同步 GitHub secrets: 共 ${results.length} 个，成功 ${okCount} 个`,
+      );
+      return res.json({ success: true, total: results.length, okCount, results });
+    } catch (_e) {
+      return res.status(500).json({ success: false, error: "同步 GitHub secrets 失败" });
     }
   },
 

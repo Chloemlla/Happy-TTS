@@ -154,4 +154,27 @@ router.get("/webhook/secret", adminController.getWebhookSecret);
 router.post("/webhook/secret", adminController.setWebhookSecret);
 router.delete("/webhook/secret", adminController.deleteWebhookSecret);
 
+// Project Lumen config management (admin)
+router.get("/lumen-config", adminController.getLumenConfig);
+router.post(
+  "/lumen-config",
+  auditLog({ module: "lumen-config", action: "lumen-config.set", extractDetail: (req) => ({ key: req.body.key }) }),
+  adminController.setLumenConfig,
+);
+router.delete(
+  "/lumen-config",
+  auditLog({ module: "lumen-config", action: "lumen-config.delete", extractDetail: (req) => ({ key: req.body.key }) }),
+  adminController.deleteLumenConfig,
+);
+router.delete(
+  "/lumen-config/:key",
+  auditLog({ module: "lumen-config", action: "lumen-config.delete", extractDetail: (req) => ({ key: req.params.key }) }),
+  adminController.deleteLumenConfig,
+);
+router.post(
+  "/lumen-config/sync-github",
+  auditLog({ module: "lumen-config", action: "lumen-config.sync-github", extractDetail: () => ({}) }),
+  adminController.syncLumenConfigGithub,
+);
+
 export default router;
