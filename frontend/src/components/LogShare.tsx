@@ -5,7 +5,7 @@ import axios from 'axios';
 import { useNotification } from './Notification';
 import getApiBaseUrl from '../api';
 import { useAuth } from '../hooks/useAuth';
-import { isAdminRole } from '../utils/rbac';
+import { isAdminRole, isSuperAdmin } from '../utils/rbac';
 import { useLocation } from 'react-router-dom';
 import CryptoJS from 'crypto-js';
 import {
@@ -190,6 +190,7 @@ const dangerButtonClass =
 
 const LogShare: React.FC = React.memo(() => {
   const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const location = useLocation();
   const [adminPassword, setAdminPassword] = useState('');
   const [logContent, setLogContent] = useState('');
@@ -1053,7 +1054,7 @@ const LogShare: React.FC = React.memo(() => {
                   {isLoadingAllLogs ? '加载中...' : '查看所有日志'}
                 </motion.button>
 
-                {allLogs.length > 0 && (
+                {canWrite && allLogs.length > 0 && (
                   <>
                     <motion.button
                       onClick={handleBatchDelete}
@@ -1082,15 +1083,17 @@ const LogShare: React.FC = React.memo(() => {
                   className="overflow-hidden rounded-[26px] border border-slate-200 bg-white/80 backdrop-blur-xl"
                 >
                   <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 px-4 py-3">
-                    <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
-                        checked={selectedIds.length === allLogs.length && allLogs.length > 0}
-                        onChange={selectAll}
-                      />
-                      全选（已选 {selectedIds.length}）
-                    </label>
+                    {canWrite && (
+                      <label className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+                          checked={selectedIds.length === allLogs.length && allLogs.length > 0}
+                          onChange={selectAll}
+                        />
+                        全选（已选 {selectedIds.length}）
+                      </label>
+                    )}
                     <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">{allLogs.length} 条</span>
                   </div>
                   <div className="max-h-[60vh] overflow-y-auto">
@@ -1103,12 +1106,14 @@ const LogShare: React.FC = React.memo(() => {
                         className={`border-b border-slate-100/70 px-4 py-3 transition hover:bg-slate-50/50 ${selectedLogIndex === index ? 'bg-slate-50' : ''}`}
                       >
                         <div className="flex items-start gap-3">
-                          <input
-                            type="checkbox"
-                            className="mt-1.5 h-4 w-4 shrink-0 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
-                            checked={selectedIds.includes(log.id)}
-                            onChange={() => toggleSelect(log.id)}
-                          />
+                          {canWrite && (
+                            <input
+                              type="checkbox"
+                              className="mt-1.5 h-4 w-4 shrink-0 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+                              checked={selectedIds.includes(log.id)}
+                              onChange={() => toggleSelect(log.id)}
+                            />
+                          )}
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
                               <div
@@ -1133,20 +1138,24 @@ const LogShare: React.FC = React.memo(() => {
                               >
                                 查看
                               </button>
-                              <button
-                                className="rounded-xl border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
-                                onClick={() => openEdit(log)}
-                                aria-label="编辑"
-                              >
-                                编辑
-                              </button>
-                              <button
-                                className="rounded-xl border border-rose-200 bg-rose-50/80 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
-                                onClick={() => handleDeleteOne(log.id)}
-                                aria-label="删除"
-                              >
-                                删除
-                              </button>
+                              {canWrite && (
+                                <button
+                                  className="rounded-xl border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
+                                  onClick={() => openEdit(log)}
+                                  aria-label="编辑"
+                                >
+                                  编辑
+                                </button>
+                              )}
+                              {canWrite && (
+                                <button
+                                  className="rounded-xl border border-rose-200 bg-rose-50/80 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
+                                  onClick={() => handleDeleteOne(log.id)}
+                                  aria-label="删除"
+                                >
+                                  删除
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1591,14 +1600,16 @@ const LogShare: React.FC = React.memo(() => {
                           )}
                         </div>
                       </div>
-                      <motion.button
-                        onClick={() => handleDeleteArchive(archive.archiveName)}
-                        className="inline-flex items-center justify-center rounded-xl border border-rose-200 bg-rose-50/80 px-2.5 py-2 text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
-                        whileTap={{ scale: 0.95 }}
-                        aria-label="删除归档"
-                      >
-                        <FaTrash className="text-xs" />
-                      </motion.button>
+                      {canWrite && (
+                        <motion.button
+                          onClick={() => handleDeleteArchive(archive.archiveName)}
+                          className="inline-flex items-center justify-center rounded-xl border border-rose-200 bg-rose-50/80 px-2.5 py-2 text-rose-700 transition hover:border-rose-300 hover:bg-rose-100"
+                          whileTap={{ scale: 0.95 }}
+                          aria-label="删除归档"
+                        >
+                          <FaTrash className="text-xs" />
+                        </motion.button>
+                      )}
                     </div>
                   </motion.div>
                 ))
@@ -1691,26 +1702,28 @@ const LogShare: React.FC = React.memo(() => {
                     >
                       取消
                     </button>
-                    <button
-                      className={primaryButtonClass}
-                      onClick={handleCreateArchive}
-                      disabled={archiveLoading || !adminPassword}
-                    >
-                      {archiveLoading ? (
-                        <>
-                          <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          创建中...
-                        </>
-                      ) : (
-                        <>
-                          <FaCompress className="text-xs" />
-                          创建归档
-                        </>
-                      )}
-                    </button>
+                    {canWrite && (
+                      <button
+                        className={primaryButtonClass}
+                        onClick={handleCreateArchive}
+                        disabled={archiveLoading || !adminPassword}
+                      >
+                        {archiveLoading ? (
+                          <>
+                            <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            创建中...
+                          </>
+                        ) : (
+                          <>
+                            <FaCompress className="text-xs" />
+                            创建归档
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </motion.div>
               </motion.div>
@@ -1777,12 +1790,14 @@ const LogShare: React.FC = React.memo(() => {
                     >
                       取消
                     </button>
-                    <button
-                      className={primaryButtonClass}
-                      onClick={handleEditSave}
-                    >
-                      保存
-                    </button>
+                    {canWrite && (
+                      <button
+                        className={primaryButtonClass}
+                        onClick={handleEditSave}
+                      >
+                        保存
+                      </button>
+                    )}
                   </div>
                 </motion.div>
               </motion.div>

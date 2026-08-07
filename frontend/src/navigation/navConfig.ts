@@ -338,11 +338,13 @@ export function getAdminNavGroups(ctx: NavVisibilityContext): NavGroup[] {
             title: 'EcoEnchants 授权',
             url: '/admin/ecoenchants',
             icon: FaShieldAlt as IconType,
+            requiredRole: 'superadmin',
           },
           {
             title: 'EcoEnchants 远程运维',
             url: '/admin/ecoenchants-ops',
             icon: FaTerminal as IconType,
+            requiredRole: 'superadmin',
           },
           {
             title: 'Webhook 事件',
