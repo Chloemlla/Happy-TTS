@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { getApiBaseUrl } from '../api/api';
 import { useNotification } from './Notification';
+import { useAuth } from '../hooks/useAuth';
+import { isSuperAdmin } from '../utils/rbac';
 
 
 interface WebhookEventItem {
@@ -195,6 +197,8 @@ function statusClass(status?: string) {
 
 const WebhookEventsManager: React.FC = () => {
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const prefersReducedMotion = useReducedMotion();
   const hoverScale = useCallback(
     (scale: number, enabled = true) => (enabled && !prefersReducedMotion ? { scale } : undefined),
@@ -774,6 +778,7 @@ const WebhookEventsManager: React.FC = () => {
               >
                 <RefreshCw className="w-4 h-4" /> 读取
               </button>
+              {canWrite && (
               <button
                 onClick={handleSaveSecret}
                 disabled={actionLoading === 'secret-save'}
@@ -781,6 +786,8 @@ const WebhookEventsManager: React.FC = () => {
               >
                 <Save className="w-4 h-4" /> 保存
               </button>
+              )}
+              {canWrite && (
               <button
                 onClick={handleDeleteSecret}
                 disabled={actionLoading === 'secret-delete'}
@@ -788,6 +795,7 @@ const WebhookEventsManager: React.FC = () => {
               >
                 <Trash2 className="w-4 h-4" /> 删除
               </button>
+              )}
             </div>
           </div>
           <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
@@ -875,9 +883,11 @@ const WebhookEventsManager: React.FC = () => {
             <PanelButton icon={<Clipboard className="w-4 h-4" />} active={activePanel === 'usage'} onClick={() => setActivePanel('usage')}>
               使用
             </PanelButton>
+            {canWrite && (
             <PanelButton icon={<Play className="w-4 h-4" />} active={activePanel === 'test'} onClick={() => setActivePanel('test')}>
               测试
             </PanelButton>
+            )}
             <PanelButton icon={<KeyRound className="w-4 h-4" />} active={activePanel === 'secrets'} onClick={() => setActivePanel('secrets')}>
               密钥
             </PanelButton>
@@ -892,6 +902,7 @@ const WebhookEventsManager: React.FC = () => {
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> 刷新
             </motion.button>
+            {canWrite && (
             <motion.button
               onClick={openCreate}
               className="px-3 py-2 rounded-lg bg-[#FFB703] text-[#023047] hover:bg-[#FB8500] text-sm font-semibold inline-flex items-center gap-2"
@@ -900,6 +911,7 @@ const WebhookEventsManager: React.FC = () => {
             >
               <Plus className="w-4 h-4" /> 新增
             </motion.button>
+            )}
           </div>
         </div>
         <div className="mt-3">{renderPanel()}</div>
@@ -975,12 +987,15 @@ const WebhookEventsManager: React.FC = () => {
       <div className="bg-white/80 backdrop-blur-sm border border-[#8ECAE6]/30 rounded-2xl shadow-xl overflow-hidden">
         <div className="p-3 border-b border-[#8ECAE6]/20 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2 text-sm text-[#023047]/70">
+            {canWrite && (
             <button onClick={togglePageSelection} className="px-3 py-2 rounded-lg border border-[#8ECAE6]/40 hover:bg-[#8ECAE6]/10 inline-flex items-center gap-2">
               {allPageSelected ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />} 当前页
             </button>
+            )}
             <span>已选 {selectedIds.length} 条</span>
           </div>
           <div className="flex flex-wrap gap-2">
+            {canWrite && (
             <select
               onChange={(event) => {
                 if (event.target.value) void handleBulkStatus(event.target.value);
@@ -995,6 +1010,8 @@ const WebhookEventsManager: React.FC = () => {
                 <option key={status} value={status}>{status}</option>
               ))}
             </select>
+            )}
+            {canWrite && (
             <button
               onClick={handleBulkDelete}
               disabled={selectedIds.length === 0 || actionLoading === 'bulk-delete'}
@@ -1002,6 +1019,7 @@ const WebhookEventsManager: React.FC = () => {
             >
               <Trash2 className="w-4 h-4" /> 批量删除
             </button>
+            )}
             <select
               value={pageSize}
               onChange={(event) => fetchList(1, Number(event.target.value))}
@@ -1027,6 +1045,7 @@ const WebhookEventsManager: React.FC = () => {
               onDelete={() => handleDelete(item._id)}
               onStatusChange={(status) => handleStatusChange(item._id, status)}
               actionLoading={actionLoading}
+              canWrite={canWrite}
             />
           ))}
           {!loading && items.length === 0 && <div className="p-6 text-center text-[#023047]/40">暂无数据</div>}
@@ -1050,9 +1069,11 @@ const WebhookEventsManager: React.FC = () => {
               {items.map((item) => (
                 <tr key={item._id} className="border-t border-[#8ECAE6]/20 hover:bg-[#8ECAE6]/10">
                   <td className="p-3">
+                    {canWrite && (
                     <button onClick={() => toggleOne(item._id)} className="text-[#023047]/70 hover:text-[#023047]" aria-label="选择事件">
                       {selectedSet.has(item._id) ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
                     </button>
+                    )}
                   </td>
                   <td className="p-3 text-[#023047]">
                     <div className="font-medium truncate">{item.provider || '-'}</div>
@@ -1065,6 +1086,7 @@ const WebhookEventsManager: React.FC = () => {
                     <div className="text-xs text-[#023047]/50 truncate">{item.renderedContent || stringifyJson(item.to) || ''}</div>
                   </td>
                   <td className="p-3">
+                    {canWrite ? (
                     <select
                       value={item.status || ''}
                       onChange={(event) => handleStatusChange(item._id, event.target.value)}
@@ -1076,14 +1098,17 @@ const WebhookEventsManager: React.FC = () => {
                       ))}
                       {item.status && !STATUS_OPTIONS.includes(item.status) && <option value={item.status}>{item.status}</option>}
                     </select>
+                    ) : (
+                      <span className={`inline-flex px-2 py-1 rounded-md border text-xs ${statusClass(item.status)}`}>{item.status || '-'}</span>
+                    )}
                   </td>
                   <td className="p-3 text-[#023047]/70 whitespace-nowrap">{formatDate(item.receivedAt)}</td>
                   <td className="p-3">
                     <div className="flex flex-wrap items-center gap-2">
                       <IconButton title="详情" onClick={() => setSelected(item)}><Eye className="w-4 h-4" /></IconButton>
-                      <IconButton title="编辑" onClick={() => openEdit(item)} tone="warning"><Pencil className="w-4 h-4" /></IconButton>
-                      <IconButton title="重放" onClick={() => handleReplay(item._id)}><RotateCcw className="w-4 h-4" /></IconButton>
-                      <IconButton title="删除" onClick={() => handleDelete(item._id)} tone="danger"><Trash2 className="w-4 h-4" /></IconButton>
+                      {canWrite && (<IconButton title="编辑" onClick={() => openEdit(item)} tone="warning"><Pencil className="w-4 h-4" /></IconButton>)}
+                      {canWrite && (<IconButton title="重放" onClick={() => handleReplay(item._id)}><RotateCcw className="w-4 h-4" /></IconButton>)}
+                      {canWrite && (<IconButton title="删除" onClick={() => handleDelete(item._id)} tone="danger"><Trash2 className="w-4 h-4" /></IconButton>)}
                     </div>
                   </td>
                 </tr>
@@ -1143,9 +1168,11 @@ const WebhookEventsManager: React.FC = () => {
                   <button onClick={() => copyText(JSON.stringify(selected, null, 2), '事件 JSON 已复制')} className="px-3 py-2 rounded-lg border border-[#8ECAE6]/40 text-[#023047] hover:bg-[#8ECAE6]/10 text-sm inline-flex items-center gap-2">
                     <Copy className="w-4 h-4" /> 复制 JSON
                   </button>
+                  {canWrite && (
                   <button onClick={() => handleReplay(selected._id)} className="px-3 py-2 rounded-lg border border-[#8ECAE6]/40 text-[#023047] hover:bg-[#8ECAE6]/10 text-sm inline-flex items-center gap-2">
                     <RotateCcw className="w-4 h-4" /> 重放
                   </button>
+                  )}
                 </div>
                 <pre className="text-xs bg-white text-slate-800 border border-slate-200 p-3 rounded-lg overflow-auto max-h-[50vh]">{JSON.stringify(selected, null, 2)}</pre>
               </div>
@@ -1186,6 +1213,7 @@ const WebhookEventsManager: React.FC = () => {
                   <button onClick={closeEdit} className="px-3 py-2 rounded-lg border border-[#8ECAE6]/40 text-[#023047] hover:bg-[#8ECAE6]/10 text-sm">
                     取消
                   </button>
+                  {canWrite && (
                   <button
                     onClick={handleSave}
                     disabled={actionLoading === 'save-event'}
@@ -1193,6 +1221,7 @@ const WebhookEventsManager: React.FC = () => {
                   >
                     <Save className="w-4 h-4" /> {actionLoading === 'save-event' ? '保存中' : '保存'}
                   </button>
+                  )}
                 </div>
               </div>
             </Modal>
@@ -1290,6 +1319,7 @@ function EventCard({
   onReplay,
   onDelete,
   onStatusChange,
+  canWrite,
 }: {
   item: WebhookEventItem;
   checked: boolean;
@@ -1300,13 +1330,16 @@ function EventCard({
   onReplay: () => void;
   onDelete: () => void;
   onStatusChange: (status: string) => void;
+  canWrite: boolean;
 }) {
   return (
     <div className="p-4">
       <div className="flex items-start gap-3">
+        {canWrite && (
         <button onClick={onCheck} className="mt-1 text-[#023047]/70" aria-label="选择事件">
           {checked ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
         </button>
+        )}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-[#219EBC]/15 text-[#219EBC]">{item.type || '未分类'}</span>
@@ -1321,6 +1354,7 @@ function EventCard({
         </div>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2">
+        {canWrite ? (
         <select value={item.status || ''} onChange={(event) => onStatusChange(event.target.value)} className={`px-2 py-2 rounded-lg border text-xs ${statusClass(item.status)}`}>
           <option value="">未设置</option>
           {STATUS_OPTIONS.map((status) => (
@@ -1328,11 +1362,14 @@ function EventCard({
           ))}
           {item.status && !STATUS_OPTIONS.includes(item.status) && <option value={item.status}>{item.status}</option>}
         </select>
+        ) : (
+          <span className={`inline-flex items-center px-2 py-2 rounded-lg border text-xs ${statusClass(item.status)}`}>{item.status || '-'}</span>
+        )}
         <div className="grid grid-cols-4 gap-2">
           <IconButton title="详情" onClick={onDetail}><Eye className="w-4 h-4" /></IconButton>
-          <IconButton title="编辑" onClick={onEdit} tone="warning"><Pencil className="w-4 h-4" /></IconButton>
-          <IconButton title="重放" onClick={onReplay}><RotateCcw className="w-4 h-4" /></IconButton>
-          <IconButton title="删除" onClick={onDelete} tone="danger"><Trash2 className="w-4 h-4" /></IconButton>
+          {canWrite && (<IconButton title="编辑" onClick={onEdit} tone="warning"><Pencil className="w-4 h-4" /></IconButton>)}
+          {canWrite && (<IconButton title="重放" onClick={onReplay}><RotateCcw className="w-4 h-4" /></IconButton>)}
+          {canWrite && (<IconButton title="删除" onClick={onDelete} tone="danger"><Trash2 className="w-4 h-4" /></IconButton>)}
         </div>
       </div>
     </div>

@@ -65,6 +65,7 @@ const AdminModulePage = React.lazy(() =>
   import('./components/admin/AdminHub').then((m) => ({ default: m.AdminModulePage })),
 );
 const AdminGuard = React.lazy(() => import('./components/admin/AdminGuard'));
+const SuperAdminGuard = React.lazy(() => import('./components/admin/SuperAdminGuard'));
 const OutEmail = React.lazy(() => import('./components/OutEmail'));
 const LotteryPage = React.lazy(() => import('./components/LotteryPage'));
 const LotteryAdmin = React.lazy(() => import('./components/LotteryAdmin'));
@@ -693,11 +694,11 @@ const App: React.FC = () => {
         <Route path="/lottery" element={renderAnimatedRoute(<LotteryPage />)} />
         <Route path="/anti-counterfeit" element={renderAnimatedRoute(<AntiCounterfeitPage />)} />
         {/* Static admin routes first (higher specificity than /admin/:module) */}
-        <Route path="/admin/lottery" element={renderAdminRoute(<LotteryAdmin />)} />
+        <Route path="/admin/lottery" element={renderAdminRoute(<SuperAdminGuard><LotteryAdmin /></SuperAdminGuard>)} />
         <Route path="/admin/users" element={renderAdminRoute(<UserManagement />)} />
         <Route path="/admin/store" element={renderAdminRoute(<AdminStoreDashboard />)} />
         <Route path="/admin/store/resources" element={renderAdminRoute(<ResourceStoreManager />)} />
-        <Route path="/admin/store/cdks" element={renderAdminRoute(<CDKStoreManager />)} />
+        <Route path="/admin/store/cdks" element={renderAdminRoute(<SuperAdminGuard><CDKStoreManager /></SuperAdminGuard>)} />
         {/* Admin hub + dynamic module routes (drill-in sidebar) */}
         <Route path="/admin" element={renderAdminRoute(<AdminDashboard />)} />
         <Route path="/admin/:module" element={renderAdminRoute(<AdminModulePage />)} />
@@ -707,7 +708,7 @@ const App: React.FC = () => {
         <Route path="/case-converter" element={renderAnimatedRoute(<CaseConverter />)} />
         <Route path="/word-count" element={renderAnimatedRoute(<WordCountPageSimple />)} />
         <Route path="/age-calculator" element={renderAnimatedRoute(<AgeCalculatorPage />)} />
-        <Route path="/email-sender" element={renderAdminRoute(<EmailSender />)} />
+        <Route path="/email-sender" element={renderAdminRoute(<SuperAdminGuard><EmailSender /></SuperAdminGuard>)} />
         <Route path="/profile" element={renderAnimatedRoute(<UserProfile />)} />
         <Route path="/outemail" element={renderAnimatedRoute(<OutEmail />)} />
         <Route path="/support" element={renderAnimatedRoute(<TicketSystem />)} />

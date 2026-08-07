@@ -516,6 +516,29 @@ export function getAdminNavGroups(ctx: NavVisibilityContext): NavGroup[] {
 }
 
 /**
+ * URLs whose NavItem is `requiredRole: 'superadmin'` (SSOT from
+ * getAdminNavGroups). Used to gate direct-URL access to module pages:
+ * the hub/sidebar already hide these for plain admins, but a deep link
+ * would otherwise still render them.
+ */
+export function getSuperAdminOnlyPaths(): Set<string> {
+  const fullCtx: NavVisibilityContext = {
+    isAdmin: true,
+    isSuperAdmin: true,
+    canUseTranslation: true,
+  };
+  const paths = new Set<string>();
+  for (const group of getAdminNavGroups(fullCtx)) {
+    for (const item of group.items) {
+      if ('url' in item && item.url && item.requiredRole === 'superadmin') {
+        paths.add(item.url);
+      }
+    }
+  }
+  return paths;
+}
+
+/**
  * Map of legacy AdminDashboard `?tab=` keys → `/admin/<module>` paths.
  * Used by PR3 redirects so old deep links keep working.
  */

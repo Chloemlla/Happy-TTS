@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { FaCopy, FaPlus, FaSyncAlt, FaTicketAlt, FaTrash } from "react-icons/fa";
 import { api } from "../api/api";
 import { useNotification } from "./Notification";
+import { useAuth } from "../hooks/useAuth";
+import { isSuperAdmin } from "../utils/rbac";
 
 interface RegistrationInvite {
   id: string;
@@ -56,6 +58,8 @@ const buildInviteDraft = (invite: RegistrationInvite): InviteEditDraft => ({
 
 const RegistrationInviteManager: React.FC = () => {
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const [invites, setInvites] = useState<RegistrationInvite[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -230,58 +234,60 @@ const RegistrationInviteManager: React.FC = () => {
         </div>
       </div>
 
-      <form onSubmit={createInvite} className="rounded-lg border border-slate-200 bg-white p-4">
-        <div className="grid gap-3 lg:grid-cols-[1fr_1.4fr_0.7fr_1fr_auto] lg:items-end">
-          <label className="block">
-            <span className="text-xs font-semibold text-slate-600">邀请码</span>
-            <input
-              className={`${inputClass} mt-1 font-mono uppercase`}
-              value={form.code}
-              maxLength={32}
-              placeholder="留空自动生成"
-              onChange={(event) => setForm((current) => ({ ...current, code: event.target.value.toUpperCase() }))}
-            />
-          </label>
-          <label className="block">
-            <span className="text-xs font-semibold text-slate-600">备注</span>
-            <input
-              className={`${inputClass} mt-1`}
-              value={form.note}
-              maxLength={200}
-              placeholder="用途或发放对象"
-              onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))}
-            />
-          </label>
-          <label className="block">
-            <span className="text-xs font-semibold text-slate-600">次数</span>
-            <input
-              className={`${inputClass} mt-1`}
-              type="number"
-              min={1}
-              max={10000}
-              value={form.maxUses}
-              onChange={(event) => setForm((current) => ({ ...current, maxUses: event.target.value }))}
-            />
-          </label>
-          <label className="block">
-            <span className="text-xs font-semibold text-slate-600">过期时间</span>
-            <input
-              className={`${inputClass} mt-1`}
-              type="datetime-local"
-              value={form.expiresAt}
-              onChange={(event) => setForm((current) => ({ ...current, expiresAt: event.target.value }))}
-            />
-          </label>
-          <button
-            type="submit"
-            disabled={saving}
-            className={`${buttonClass} bg-slate-900 text-white hover:bg-slate-800`}
-          >
-            <FaPlus />
-            创建
-          </button>
-        </div>
-      </form>
+      {canWrite && (
+        <form onSubmit={createInvite} className="rounded-lg border border-slate-200 bg-white p-4">
+          <div className="grid gap-3 lg:grid-cols-[1fr_1.4fr_0.7fr_1fr_auto] lg:items-end">
+            <label className="block">
+              <span className="text-xs font-semibold text-slate-600">邀请码</span>
+              <input
+                className={`${inputClass} mt-1 font-mono uppercase`}
+                value={form.code}
+                maxLength={32}
+                placeholder="留空自动生成"
+                onChange={(event) => setForm((current) => ({ ...current, code: event.target.value.toUpperCase() }))}
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-semibold text-slate-600">备注</span>
+              <input
+                className={`${inputClass} mt-1`}
+                value={form.note}
+                maxLength={200}
+                placeholder="用途或发放对象"
+                onChange={(event) => setForm((current) => ({ ...current, note: event.target.value }))}
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-semibold text-slate-600">次数</span>
+              <input
+                className={`${inputClass} mt-1`}
+                type="number"
+                min={1}
+                max={10000}
+                value={form.maxUses}
+                onChange={(event) => setForm((current) => ({ ...current, maxUses: event.target.value }))}
+              />
+            </label>
+            <label className="block">
+              <span className="text-xs font-semibold text-slate-600">过期时间</span>
+              <input
+                className={`${inputClass} mt-1`}
+                type="datetime-local"
+                value={form.expiresAt}
+                onChange={(event) => setForm((current) => ({ ...current, expiresAt: event.target.value }))}
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={saving}
+              className={`${buttonClass} bg-slate-900 text-white hover:bg-slate-800`}
+            >
+              <FaPlus />
+              创建
+            </button>
+          </div>
+        </form>
+      )}
 
       <div className="space-y-3">
         {loading && <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm text-slate-600">正在加载...</div>}
@@ -323,7 +329,7 @@ const RegistrationInviteManager: React.FC = () => {
                 </div>
               </div>
 
-              {(() => {
+              {canWrite && (() => {
                 const draft = editDrafts[invite.id] || buildInviteDraft(invite);
                 const isUpdating = updatingId === invite.id;
                 const dirty = isInviteDraftDirty(invite);
@@ -374,7 +380,7 @@ const RegistrationInviteManager: React.FC = () => {
                     </button>
                   </div>
                 );
-              })()}
+              })()})}
             </div>
 
             {invite.usedBy.length > 0 && (

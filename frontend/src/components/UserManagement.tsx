@@ -7,7 +7,7 @@ import { getSignHeaders } from '../utils/requestSigner';
 
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { isAdminRole } from '../utils/rbac';
+import { isAdminRole, isSuperAdmin } from '../utils/rbac';
 import { useNotification } from './Notification';
 import {
   FaUserPlus,
@@ -224,6 +224,7 @@ const glassSelectClass =
 
 const UserManagement: React.FC = () => {
   const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -727,7 +728,7 @@ const UserManagement: React.FC = () => {
             title="用户管理"
             description="管理系统用户账户，支持查看与修改 user_datas 集合的所有字段。"
             icon={FaUsers}
-            action={
+            action={canWrite ? (
               <motion.button
                 onClick={openCreate}
                 className={logSharePrimaryButtonClass}
@@ -737,7 +738,7 @@ const UserManagement: React.FC = () => {
                 <FaUserPlus className="text-sm" />
                 添加用户
               </motion.button>
-            }
+            ) : undefined}
           />
           <div className="space-y-2 text-sm leading-6 text-slate-600">
             <p className="font-semibold text-slate-700">功能说明：</p>
@@ -816,15 +817,17 @@ const UserManagement: React.FC = () => {
                 <FaSyncAlt className="text-xs" />
                 刷新
               </motion.button>
-              <motion.button
-                onClick={openCreate}
-                className={logSharePrimaryButtonClass}
-                whileHover={hoverScale()}
-                whileTap={tapScale()}
-              >
-                <FaUserPlus className="text-sm" />
-                添加用户
-              </motion.button>
+              {canWrite && (
+                <motion.button
+                  onClick={openCreate}
+                  className={logSharePrimaryButtonClass}
+                  whileHover={hoverScale()}
+                  whileTap={tapScale()}
+                >
+                  <FaUserPlus className="text-sm" />
+                  添加用户
+                </motion.button>
+              )}
             </div>
           </div>
 
@@ -931,6 +934,7 @@ const UserManagement: React.FC = () => {
             </div>
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between border-t border-slate-200 pt-3">
               <div className="text-sm text-slate-600">已选择 {selectedUserIds.length} 个用户</div>
+              {canWrite && (
               <div className="flex flex-wrap gap-2">
                 <select
                   value={bulkAction}
@@ -951,6 +955,7 @@ const UserManagement: React.FC = () => {
                   执行
                 </motion.button>
               </div>
+              )}
             </div>
           </div>
 
@@ -1008,6 +1013,7 @@ const UserManagement: React.FC = () => {
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-600">
                     <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
+                      {canWrite && (
                       <input
                         type="checkbox"
                         checked={allCurrentPageSelected}
@@ -1015,6 +1021,7 @@ const UserManagement: React.FC = () => {
                         className={glassCheckbox}
                         aria-label="选择当前页用户"
                       />
+                      )}
                     </th>
                     {TABLE_COLUMNS.map(col => (
                       <th key={col.key} className="px-4 py-3 text-left font-semibold whitespace-nowrap">{col.label}</th>
@@ -1033,6 +1040,7 @@ const UserManagement: React.FC = () => {
                       transition={{ duration: 0.3, delay: 0.05 * idx }}
                     >
                       <td className="px-4 py-3">
+                        {canWrite && (
                         <input
                           type="checkbox"
                           checked={selectedUserIdSet.has(u.id)}
@@ -1040,6 +1048,7 @@ const UserManagement: React.FC = () => {
                           className={glassCheckbox}
                           aria-label={`选择用户 ${u.username}`}
                         />
+                        )}
                       </td>
                       <td className="px-4 py-3 font-medium">
                         <div>{u.username}</div>
@@ -1153,6 +1162,7 @@ const UserManagement: React.FC = () => {
                                 <>
                                   <div className="text-slate-600 text-[12px]">已在预约列表</div>
                                   <div className="text-[10px] text-slate-500">上次预约：{new Date(fpRequireMap[u.id]).toLocaleString()}</div>
+                                  {canWrite && (
                                   <motion.button
                                     className="text-slate-600 hover:underline text-[11px]"
                                     onClick={async () => {
@@ -1167,10 +1177,12 @@ const UserManagement: React.FC = () => {
                                     whileHover={hoverScale()}
                                     whileTap={tapScale()}
                                   >再次请求</motion.button>
+                                  )}
                                 </>
                               ) : (
                                 <>
                                   <span className="text-slate-400">暂无</span>
+                                  {canWrite && (
                                   <motion.button
                                     className="text-slate-600 hover:underline text-[11px] block"
                                     onClick={async () => {
@@ -1185,6 +1197,7 @@ const UserManagement: React.FC = () => {
                                     whileHover={hoverScale()}
                                     whileTap={tapScale()}
                                   >请求上报</motion.button>
+                                  )}
                                 </>
                               )}
                             </div>
@@ -1192,6 +1205,7 @@ const UserManagement: React.FC = () => {
                         })()}
                       </td>
                       <td className="px-4 py-3">
+                        {canWrite ? (
                         <div className="flex gap-2">
                           <motion.button
                             className={logShareSecondaryButtonClass}
@@ -1221,6 +1235,9 @@ const UserManagement: React.FC = () => {
                             删除
                           </motion.button>
                         </div>
+                        ) : (
+                          <span className="text-slate-400 text-xs">-</span>
+                        )}
                       </td>
                     </motion.tr>
                   ))}
@@ -1319,6 +1336,7 @@ const UserManagement: React.FC = () => {
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-slate-900">指纹详情 - {fpUser.username}</h3>
                     <div className="flex items-center gap-2">
+                      {canWrite && (
                       <motion.button
                         className={logShareSecondaryButtonClass}
                         onClick={async () => {
@@ -1334,6 +1352,8 @@ const UserManagement: React.FC = () => {
                         whileHover={hoverScale()}
                         whileTap={tapScale()}
                       >请求下次上报</motion.button>
+                      )}
+                      {canWrite && (
                       <motion.button
                         className={logShareDangerButtonClass}
                         onClick={async () => {
@@ -1352,6 +1372,7 @@ const UserManagement: React.FC = () => {
                         whileHover={hoverScale()}
                         whileTap={tapScale()}
                       >清空全部</motion.button>
+                      )}
                       <motion.button className="text-slate-500 hover:text-slate-700 p-1" onClick={() => setShowFpModal(false)} whileHover={hoverScale()} whileTap={tapScale()}>
                         <FaTimes />
                       </motion.button>
@@ -1407,6 +1428,7 @@ const UserManagement: React.FC = () => {
                               whileHover={hoverScale()}
                               whileTap={tapScale()}
                             >复制ID</motion.button>
+                            {canWrite && (
                             <motion.button
                               className={logShareDangerButtonClass}
                               onClick={async () => {
@@ -1427,6 +1449,7 @@ const UserManagement: React.FC = () => {
                               whileHover={hoverScale()}
                               whileTap={tapScale()}
                             >删除</motion.button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -1440,6 +1463,7 @@ const UserManagement: React.FC = () => {
                     <div className="mt-2">
                       <div className="text-slate-600 text-sm">已在预约列表</div>
                       <div className="text-[12px] text-slate-500">上次预约：{new Date(fpRequireMap[fpUser.id]).toLocaleString()}</div>
+                      {canWrite && (
                       <motion.button
                         className="text-slate-600 hover:underline text-[12px]"
                         onClick={async () => {
@@ -1456,9 +1480,11 @@ const UserManagement: React.FC = () => {
                         whileHover={hoverScale()}
                         whileTap={tapScale()}
                       >再次请求</motion.button>
+                      )}
                     </div>
                   ) : (
                     <div className="mt-2">
+                      {canWrite && (
                       <motion.button
                         className="text-slate-600 hover:underline text-[12px]"
                         onClick={async () => {
@@ -1475,6 +1501,7 @@ const UserManagement: React.FC = () => {
                         whileHover={hoverScale()}
                         whileTap={tapScale()}
                       >请求上报</motion.button>
+                      )}
                     </div>
                   )}
                   <div className="mt-4 text-right">

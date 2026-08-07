@@ -4,6 +4,8 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { getApiBaseUrl } from '../api/api';
 import { FaChartBar, FaSync, FaSearch, FaRedo, FaTrash, FaEye, FaTimes, FaPlus, FaClipboard, FaCopy, FaListAlt, FaClock } from 'react-icons/fa';
 import { useNotification } from './Notification';
+import { useAuth } from '../hooks/useAuth';
+import { isSuperAdmin } from '../utils/rbac';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import jsonLang from 'react-syntax-highlighter/dist/esm/languages/prism/json';
@@ -38,8 +40,8 @@ const jsonPretty = (obj: any) => {
 };
 
 // Memoized desktop row
-const DataRow = React.memo(({ item, checked, onToggle, onView, onDelete, openDetail }: {
-    item: Item; checked: boolean; onToggle: (id: string) => void; onView: (it: Item) => void; onDelete: (id: string) => void; openDetail: (item: Item) => void;
+const DataRow = React.memo(({ item, checked, onToggle, onView, onDelete, openDetail, canWrite }: {
+    item: Item; checked: boolean; onToggle: (id: string) => void; onView: (it: Item) => void; onDelete: (id: string) => void; openDetail: (item: Item) => void; canWrite: boolean;
 }) => {
     const { setNotification } = useNotification();
     const prefersReducedMotion = useReducedMotion();
@@ -82,9 +84,11 @@ const DataRow = React.memo(({ item, checked, onToggle, onView, onDelete, openDet
                     <motion.button className={logShareSecondaryButtonClass} onClick={() => openDetail(item)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                         <FaEye className="w-3.5 h-3.5" /> 查看
                     </motion.button>
+                    {canWrite && (
                     <motion.button className={logShareDangerButtonClass} onClick={() => onDelete(item._id)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                         删除
                     </motion.button>
+                    )}
                 </div>
             </td>
         </tr>
@@ -92,8 +96,8 @@ const DataRow = React.memo(({ item, checked, onToggle, onView, onDelete, openDet
 });
 
 // Memoized mobile card
-const DataCard = React.memo(({ item, checked, onToggle, onView, onDelete, openDetail }: {
-    item: Item; checked: boolean; onToggle: (id: string) => void; onView: (it: Item) => void; onDelete: (id: string) => void; openDetail: (item: Item) => void;
+const DataCard = React.memo(({ item, checked, onToggle, onView, onDelete, openDetail, canWrite }: {
+    item: Item; checked: boolean; onToggle: (id: string) => void; onView: (it: Item) => void; onDelete: (id: string) => void; openDetail: (item: Item) => void; canWrite: boolean;
 }) => {
     const { setNotification } = useNotification();
     const prefersReducedMotion = useReducedMotion();
@@ -141,9 +145,11 @@ const DataCard = React.memo(({ item, checked, onToggle, onView, onDelete, openDe
                 <motion.button className={logShareSecondaryButtonClass} onClick={() => openDetail(item)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                     <FaEye className="w-3.5 h-3.5" /> 查看
                 </motion.button>
+                {canWrite && (
                 <motion.button className={logShareDangerButtonClass} onClick={() => onDelete(item._id)} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                     删除
                 </motion.button>
+                )}
             </div>
         </div>
     );
@@ -173,6 +179,8 @@ const DataCollectionManager: React.FC = () => {
     const [newDetailsRaw, setNewDetailsRaw] = useState(''); // string or JSON text
     const base = getApiBaseUrl();
     const { setNotification } = useNotification();
+    const { user } = useAuth();
+    const canWrite = isSuperAdmin(user?.role);
     const prefersReducedMotion = useReducedMotion();
     const hoverScale = React.useCallback((scale: number, enabled: boolean = true) => (
         enabled && !prefersReducedMotion ? { scale } : undefined
@@ -624,9 +632,11 @@ const DataCollectionManager: React.FC = () => {
                             <motion.button onClick={fetchStats} className={logShareSecondaryButtonClass} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                                 <FaSync className="w-4 h-4" /> 刷新统计
                             </motion.button>
+                            {canWrite && (
                             <motion.button onClick={openCreate} className={logShareSecondaryButtonClass} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                                 <FaPlus className="w-4 h-4" /> 新增记录
                             </motion.button>
+                            )}
                         </div>
                     }
                 />
@@ -640,6 +650,7 @@ const DataCollectionManager: React.FC = () => {
                     <motion.button onClick={copySelectedLogs} disabled={batchLoading || selected.size === 0} className={logShareSecondaryButtonClass} whileHover={hoverScale(1.02, !(batchLoading || selected.size === 0))} whileTap={tapScale(0.98, !(batchLoading || selected.size === 0))}>
                       <FaClipboard className="w-4 h-4" /> 一键复制日志
                     </motion.button>
+                    {canWrite && (
                     <motion.button
                         onClick={async () => {
                             if (!confirm('确认删除全部数据收集记录？该操作不可恢复。')) return;
@@ -666,6 +677,7 @@ const DataCollectionManager: React.FC = () => {
                     >
                         <FaTrash className="w-4 h-4" /> 删除全部
                     </motion.button>
+                    )}
                 </div>
             </InfoPanel>
 
@@ -708,9 +720,11 @@ const DataCollectionManager: React.FC = () => {
                         </motion.button>
                     </div>
                     <div className="sm:ml-auto flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+                        {canWrite && (
                         <motion.button className={`${logShareDangerButtonClass} w-full sm:w-auto`} onClick={deleteBatch} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                             <FaTrash className="w-4 h-4" /> 批量删除
                         </motion.button>
+                        )}
                     </div>
                 </div>
             </InfoPanel>
@@ -732,7 +746,7 @@ const DataCollectionManager: React.FC = () => {
                 {/* Mobile Cards */}
                 <div className="block md:hidden divide-y divide-slate-100">
                     {deferredItems.map(item => (
-                        <DataCard key={item._id} item={item} checked={selected.has(item._id)} onToggle={toggleOne} onView={onView} onDelete={deleteOne} openDetail={openDetail} />
+                        <DataCard key={item._id} item={item} checked={selected.has(item._id)} onToggle={toggleOne} onView={onView} onDelete={deleteOne} openDetail={openDetail} canWrite={canWrite} />
                     ))}
                     {deferredItems.length === 0 && (
                         <div className="p-6 text-center text-slate-400">{loading ? '加载中…' : '暂无数据'}</div>
@@ -754,7 +768,7 @@ const DataCollectionManager: React.FC = () => {
                         </thead>
                         <tbody>
                             {deferredItems.map(item => (
-                                <DataRow key={item._id} item={item} checked={selected.has(item._id)} onToggle={toggleOne} onView={onView} onDelete={deleteOne} openDetail={openDetail} />
+                                <DataRow key={item._id} item={item} checked={selected.has(item._id)} onToggle={toggleOne} onView={onView} onDelete={deleteOne} openDetail={openDetail} canWrite={canWrite} />
                             ))}
                             {deferredItems.length === 0 && (
                                 <tr><td className="p-6 text-center text-slate-400" colSpan={6}>{loading ? '加载中…' : '暂无数据'}</td></tr>
@@ -999,9 +1013,11 @@ const DataCollectionManager: React.FC = () => {
                             </div>
                         </div>
                         <div className="flex items-center justify-end gap-2 mt-3">
+                            {canWrite && (
                             <motion.button className={logShareSecondaryButtonClass} onClick={handleCreate} whileHover={hoverScale(1.02)} whileTap={tapScale(0.98)}>
                                 <FaPlus className="w-4 h-4" /> 创建
                             </motion.button>
+                            )}
                         </div>
                     </motion.div>
                 </motion.div>

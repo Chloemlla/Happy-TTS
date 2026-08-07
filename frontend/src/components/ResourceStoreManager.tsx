@@ -4,6 +4,8 @@ import { FaPlus, FaEdit, FaTrash, FaSearch, FaSync, FaInfoCircle, FaExclamationT
 import { Link } from 'react-router-dom';
 import { resourcesApi, Resource } from '../api/resources';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
+import { useAuth } from '../hooks/useAuth';
+import { isSuperAdmin } from '../utils/rbac';
 
 interface AddResourceModalProps {
   isOpen: boolean;
@@ -420,6 +422,8 @@ function EditResourceModal({ isOpen, onClose, onSuccess, resource }: EditResourc
 }
 
 export default function ResourceStoreManager() {
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -619,6 +623,7 @@ export default function ResourceStoreManager() {
             <FaPlus className="w-5 h-5 text-green-500" />
             添加资源
           </h3>
+          {canWrite && (
           <motion.button
             onClick={() => setShowAddModal(true)}
             className="px-4 py-2 bg-gradient-to-r from-green-500 to-blue-600 text-white rounded-2xl hover:from-green-600 hover:to-blue-700 transition-all duration-200 font-medium flex items-center gap-2"
@@ -628,6 +633,7 @@ export default function ResourceStoreManager() {
             <FaPlus className="w-4 h-4" />
             添加资源
           </motion.button>
+          )}
         </div>
       </motion.div>
 
@@ -723,8 +729,9 @@ export default function ResourceStoreManager() {
                       </span>
                     </td>
                     <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                      {canWrite && (
                       <div className="flex gap-2 justify-center">
-                        <motion.button 
+                        <motion.button
                           onClick={() => handleEdit(resource)}
                           className="text-indigo-600 hover:text-indigo-900 bg-indigo-100 hover:bg-indigo-200 rounded-2xl px-3 py-1 transition-all duration-150"
                           whileHover={{ scale: 1.05 }}
@@ -732,7 +739,7 @@ export default function ResourceStoreManager() {
                         >
                           编辑
                         </motion.button>
-                        <motion.button 
+                        <motion.button
                           onClick={() => handleDelete(resource)}
                           className="text-red-600 hover:text-red-900 bg-red-100 hover:bg-red-200 rounded-2xl px-3 py-1 transition-all duration-150"
                           whileHover={{ scale: 1.05 }}
@@ -741,6 +748,7 @@ export default function ResourceStoreManager() {
                           删除
                         </motion.button>
                       </div>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -821,8 +829,9 @@ export default function ResourceStoreManager() {
                       </>
                     )}
                   </span>
+                  {canWrite && (
                   <div className="flex gap-2">
-                    <motion.button 
+                    <motion.button
                       onClick={() => handleEdit(resource)}
                       className="text-indigo-600 hover:text-indigo-900 bg-indigo-100 hover:bg-indigo-200 rounded-2xl px-3 py-1 text-sm transition-all duration-150 whitespace-nowrap"
                       whileHover={{ scale: 1.05 }}
@@ -830,7 +839,7 @@ export default function ResourceStoreManager() {
                     >
                       编辑
                     </motion.button>
-                    <motion.button 
+                    <motion.button
                       onClick={() => handleDelete(resource)}
                       className="text-red-600 hover:text-red-900 bg-red-100 hover:bg-red-200 rounded-2xl px-3 py-1 text-sm transition-all duration-150 whitespace-nowrap"
                       whileHover={{ scale: 1.05 }}
@@ -839,6 +848,7 @@ export default function ResourceStoreManager() {
                       删除
                     </motion.button>
                   </div>
+                  )}
                 </div>
               </motion.div>
             ))

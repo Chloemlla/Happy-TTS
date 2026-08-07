@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom';
 import { getApiBaseUrl } from '../api/api';
 import { motion } from 'framer-motion';
 import { useNotification } from './Notification';
+import { useAuth } from '../hooks/useAuth';
+import { isSuperAdmin } from '../utils/rbac';
 import { FaListAlt, FaSync, FaSearch, FaEye, FaTimes, FaTrash, FaCopy, FaClipboard } from 'react-icons/fa';
 import { handleSourceClick, handleSourceModalClose } from './EnvManager';
 import {
@@ -149,6 +151,8 @@ const SmartHumanCheckTraces: React.FC = () => {
   const [batchLoading, setBatchLoading] = useState(false);
   const [batchView, setBatchView] = useState<null | { ids: string[]; items: any[] }>(null);
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   // Zoom and auto-fit
   const [zoom, setZoom] = useState<number>(1);
   const [autoFit] = useState<boolean>(false);
@@ -600,9 +604,11 @@ const SmartHumanCheckTraces: React.FC = () => {
             <button onClick={copySelectedLogs} disabled={!selectedIds.length || batchLoading} className={logShareSecondaryButtonClass}>
               <FaClipboard className="w-4 h-4" /> 一键复制日志
             </button>
+            {canWrite && (
             <button onClick={deleteSelected} disabled={!selectedIds.length || batchLoading} className={logShareDangerButtonClass}>
               <FaTrash className="w-4 h-4" /> 删除
             </button>
+            )}
           </div>
         </div>
         {/* Mobile Cards */}

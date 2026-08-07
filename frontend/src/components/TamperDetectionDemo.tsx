@@ -23,6 +23,8 @@ import {
 import { getApiBaseUrl } from '../api/api';
 import { integrityChecker } from '../utils/integrityCheck';
 import { signedFetch } from '../utils/requestSigner';
+import { useAuth } from '../hooks/useAuth';
+import { isSuperAdmin } from '../utils/rbac';
 
 
 interface TamperDetectionDemoProps {
@@ -231,6 +233,8 @@ const StatusPill: React.FC<{
 };
 
 export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ className }) => {
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [checkResult, setCheckResult] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -624,9 +628,11 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
                     className="mt-2 w-full rounded-2xl border border-slate-200 bg-white/80 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
                   />
                 </label>
+                {canWrite && (
                 <ActionButton icon={Ban} variant="danger" className="w-full" onClick={() => void handleManualBlock()}>
                   封禁 IP
                 </ActionButton>
+                )}
               </div>
             </section>
 
@@ -642,9 +648,11 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
                           <p className="mt-1 text-sm leading-6 text-slate-500">{item.reason}</p>
                           <p className="mt-2 text-xs text-slate-400">到期：{formatDate(item.expiresAt)}</p>
                         </div>
+                        {canWrite && (
                         <ActionButton icon={Unlock} variant="secondary" className="px-3" onClick={() => void handleUnblockIP(item.ip)}>
                           解封
                         </ActionButton>
+                        )}
                       </div>
                     </div>
                   ))
@@ -750,6 +758,7 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
 
           <section className={panelClass}>
             <SectionTitle title="检测器控制" description="暂停、恢复、禁用或重新初始化前端检测器。" icon={TerminalSquare} tone="slate" />
+            {canWrite && (
             <div className="grid grid-cols-2 gap-2">
               <ActionButton icon={Pause} tone="amber" onClick={() => handleControl('pause')}>
                 暂停
@@ -764,6 +773,8 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
                 重初始化
               </ActionButton>
             </div>
+            )}
+            {canWrite && (
             <div className="mt-4 grid grid-cols-1 gap-2">
               <ActionButton icon={RotateCcw} tone="sky" onClick={() => handleRecovery('soft')}>
                 软恢复
@@ -775,10 +786,12 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
                 重捕获基准
               </ActionButton>
             </div>
+            )}
           </section>
 
           <section className={panelClass}>
             <SectionTitle title="测试上报" description="模拟不同篡改类型，验证签名上报与后端处置链路。" icon={Zap} tone="amber" />
+            {canWrite && (
             <div className="grid grid-cols-2 gap-2">
               <ActionButton icon={ShieldAlert} tone="amber" onClick={() => handleSimulate('dom')}>
                 DOM 篡改
@@ -793,9 +806,12 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
                 脚本注入
               </ActionButton>
             </div>
+            )}
+            {canWrite && (
             <ActionButton icon={FileWarning} variant="secondary" className="mt-2 w-full" onClick={() => void handleReportTampering()}>
               手动报告篡改
             </ActionButton>
+            )}
           </section>
         </div>
       </div>

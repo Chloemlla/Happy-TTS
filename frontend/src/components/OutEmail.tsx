@@ -6,10 +6,11 @@ import { FaEnvelope, FaShieldAlt, FaInfoCircle, FaExclamationTriangle, FaCheckCi
 import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
-import { isAdminRole } from '../utils/rbac';
+import { isAdminRole, isSuperAdmin } from '../utils/rbac';
 
 const OutEmail: React.FC = () => {
   const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const [to, setTo] = useState('');
   const [subject, setSubject] = useState('');
   const [content, setContent] = useState('');
@@ -530,6 +531,7 @@ const OutEmail: React.FC = () => {
               >
                 {domains.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
+              {canWrite && (
               <motion.button
                 onClick={checkDomainExemption}
                 disabled={checkingExemption || !selectedDomain}
@@ -543,6 +545,7 @@ const OutEmail: React.FC = () => {
                 )}
                 {checkingExemption ? '检查中…' : '豁免检查'}
               </motion.button>
+              )}
             </div>
 
             {domainExemptionStatus && (
@@ -637,7 +640,7 @@ const OutEmail: React.FC = () => {
         <div className="mt-7">
           <motion.button
             onClick={handleSend}
-            disabled={loading}
+            disabled={!canWrite || loading}
             className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
             whileHover={!loading ? { scale: 1.005 } : {}}
             whileTap={!loading ? { scale: 0.995 } : {}}

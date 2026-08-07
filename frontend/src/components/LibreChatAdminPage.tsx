@@ -4,6 +4,8 @@ import { listUsers, getUserHistory, deleteUser, batchDeleteUsers, deleteAllUsers
 import { AiErrorDetailsPanel } from './AiErrorDetailsPanel';
 import { useNotification } from './Notification';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
+import { useAuth } from '../hooks/useAuth';
+import { isSuperAdmin } from '../utils/rbac';
 import {
   FaUsers,
   FaSearch,
@@ -51,6 +53,8 @@ function getApiErrorMessage(error: unknown, fallback: string): string {
 
 const LibreChatAdminPage: React.FC = () => {
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   
   // Users list state
   const [kw, setKw] = useState('');
@@ -303,7 +307,7 @@ const LibreChatAdminPage: React.FC = () => {
                   复制全部
                 </motion.button>
               )}
-              {selectedUserIds.length > 0 && (
+              {canWrite && selectedUserIds.length > 0 && (
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-blue-600">已选择 {selectedUserIds.length} 个用户</span>
                   <motion.button
@@ -370,6 +374,7 @@ const LibreChatAdminPage: React.FC = () => {
                 />
                 显示已删除
               </label>
+              {canWrite && (
               <motion.button
                 className="px-6 py-2 bg-red-600 text-white rounded-2xl hover:bg-red-700 transition font-medium flex items-center gap-2"
                 onClick={handleDeleteAll}
@@ -381,6 +386,7 @@ const LibreChatAdminPage: React.FC = () => {
                 {actionLoading ? '处理中...' : '删除全部'}
                 <span className="text-[10px] opacity-80">(无需选择)</span>
               </motion.button>
+              )}
             </div>
             
             <div className="flex items-center justify-between">
@@ -418,6 +424,7 @@ const LibreChatAdminPage: React.FC = () => {
               ) : (
                 <>
                   {/* 全选和批量删除 */}
+                  {canWrite && (
                   <div className="flex items-center justify-between p-3 bg-slate-50/80 rounded-2xl border">
                     <div className="flex items-center gap-3">
                       <label className="flex items-center gap-2 cursor-pointer">
@@ -464,6 +471,7 @@ const LibreChatAdminPage: React.FC = () => {
                       </motion.button>
                     </div>
                   </div>
+                  )}
                   {users.map((u, idx) => (
                     <motion.div
                       key={u.userId}
@@ -475,6 +483,7 @@ const LibreChatAdminPage: React.FC = () => {
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center gap-3 min-w-0">
                         <div className="flex items-center gap-3">
+                          {canWrite && (
                           <input
                             type="checkbox"
                             className="w-4 h-4"
@@ -482,6 +491,7 @@ const LibreChatAdminPage: React.FC = () => {
                             onChange={() => toggleSelectUser(u.userId)}
                             disabled={actionLoading}
                           />
+                          )}
                           <div className="flex-1 min-w-0 max-w-full">
                             <div className="flex items-center gap-2 mb-2">
                               <FaUser className="text-blue-500 flex-shrink-0" />
@@ -525,6 +535,7 @@ const LibreChatAdminPage: React.FC = () => {
                             <FaEye className="text-xs" />
                             查看
                           </motion.button>
+                          {canWrite && (
                           <motion.button
                             className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition flex items-center gap-1"
                             onClick={() => onDeleteUser(u)}
@@ -534,6 +545,7 @@ const LibreChatAdminPage: React.FC = () => {
                             <FaTrash className="text-xs" />
                             删除
                           </motion.button>
+                          )}
                         </div>
                       </div>
                     </motion.div>

@@ -9,7 +9,7 @@ import {
   InfoQueryShell,
   InfoSectionTitle,
 } from '@/components/LogShareStyleScaffold';
-import { getAdminNavGroups } from '@/navigation/navConfig';
+import { getAdminNavGroups, getSuperAdminOnlyPaths } from '@/navigation/navConfig';
 import { useAuth } from '@/hooks/useAuth';
 import { isAdminRole, isSuperAdmin } from '@/utils/rbac';
 import { cn } from '@/lib/utils';
@@ -19,6 +19,7 @@ import {
   isAdminModuleKey,
   wrapAdminModule,
 } from './adminModules';
+import { SuperAdminGuard } from './SuperAdminGuard';
 
 /**
  * `/admin` index — module hub with grouped cards linking into drill-in routes.
@@ -102,6 +103,7 @@ export const AdminHub: React.FC = () => {
  */
 export const AdminModulePage: React.FC = () => {
   const { module } = useParams<{ module: string }>();
+  const { user } = useAuth();
 
   if (!module || !isAdminModuleKey(module)) {
     return (
@@ -130,6 +132,14 @@ export const AdminModulePage: React.FC = () => {
   }
 
   const Component = AdminModuleComponents[module];
+
+  // Superadmin-only modules (per navConfig) are hidden from the hub for
+  // plain admins; also block deep links so they never render the UI.
+  const isSuperAdminOnly = getSuperAdminOnlyPaths().has(`/admin/${module}`);
+  if (isSuperAdminOnly && !isSuperAdmin(user?.role)) {
+    return <SuperAdminGuard />;
+  }
+
   return (
     <InfoQueryShell className='logshare-admin-surface'>
       <div className='min-h-[400px] rounded-[26px] border border-slate-200/90 bg-white/70 p-3 shadow-[0_18px_50px_-36px_rgba(15,23,42,0.35)] sm:p-5'>

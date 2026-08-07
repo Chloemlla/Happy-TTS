@@ -5,7 +5,7 @@ import MarkdownRenderer from './MarkdownRenderer';
 import getApiBaseUrl from '../api';
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
-import { isAdminRole } from '../utils/rbac';
+import { isAdminRole, isSuperAdmin } from '../utils/rbac';
 import {
   FaBullhorn, 
   FaEdit, 
@@ -22,6 +22,7 @@ const API_URL = getApiBaseUrl() + '/api/admin/announcement';
 
 const AnnouncementManager: React.FC = () => {
   const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const [content, setContent] = useState('');
   const [format, setFormat] = useState<'markdown' | 'html'>('markdown');
   const [loading, setLoading] = useState(true);
@@ -324,7 +325,7 @@ const AnnouncementManager: React.FC = () => {
                   <motion.button
                     className="px-6 py-3 bg-slate-500 text-white rounded-2xl hover:bg-slate-600 transition disabled:opacity-50 font-medium"
                     onClick={saveAnnouncement}
-                    disabled={!content.trim() || saving || deleting}
+                    disabled={!canWrite || !content.trim() || saving || deleting}
                     whileTap={{ scale: 0.95 }}
                   >
                     {saving ? '保存中...' : '保存'}
@@ -382,6 +383,7 @@ const AnnouncementManager: React.FC = () => {
                 </div>
                 
                 <div className="flex space-x-3">
+                  {canWrite && (
                   <motion.button
                     className="px-6 py-3 bg-slate-500 text-white rounded-2xl hover:bg-slate-600 transition font-medium"
                     onClick={() => setEditing(true)}
@@ -389,7 +391,8 @@ const AnnouncementManager: React.FC = () => {
                   >
                     编辑公告
                   </motion.button>
-                  {content && (
+                  )}
+                  {canWrite && content && (
                     <motion.button
                       className="px-6 py-3 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition font-medium disabled:opacity-50"
                       onClick={deleteAnnouncement}
