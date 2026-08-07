@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { requireAdmin } from "./_helpers";
+import { requireAdmin, requireSuperAdmin } from "./_helpers";
 import { schedulerService } from "../../services/schedulerService";
 
 function countMongoToRedis(result?: { synced: number; merged: number }): number {
@@ -12,7 +12,7 @@ function countRedisToMongo(result?: { synced: number; updated: number }): number
 
 export async function syncIpBans(req: Request, res: Response) {
   try {
-    if (!requireAdmin(req, res)) return;
+    if (!requireSuperAdmin(req, res)) return;
 
     const result = await schedulerService.manualSync();
 

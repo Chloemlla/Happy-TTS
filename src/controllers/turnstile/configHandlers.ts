@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { isAdminRole } from "../../middleware/auth";
 import { TurnstileService } from "../../services/turnstileService";
 import { firstString } from "../../utils/httpParam";
-import { getClientIp, requireAdmin } from "./_helpers";
+import { getClientIp, requireSuperAdmin } from "./_helpers";
 
 export async function getTurnstileConfig(req: Request, res: Response) {
   try {
@@ -210,7 +210,7 @@ export async function secureCaptchaConfig(req: Request, res: Response) {
 
 export async function updateTurnstileConfig(req: Request, res: Response) {
   try {
-    if (!requireAdmin(req, res)) return;
+    if (!requireSuperAdmin(req, res)) return;
 
     const { key, value } = req.body;
 
@@ -233,7 +233,7 @@ export async function updateTurnstileConfig(req: Request, res: Response) {
 
 export async function deleteTurnstileConfig(req: Request, res: Response) {
   try {
-    if (!requireAdmin(req, res)) return;
+    if (!requireSuperAdmin(req, res)) return;
 
     const key = firstString(req.params.key);
 

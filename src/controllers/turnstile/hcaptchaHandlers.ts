@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { config } from "../../config/config";
 import { TurnstileService } from "../../services/turnstileService";
 import { firstString } from "../../utils/httpParam";
-import { getClientIp, requireAdmin } from "./_helpers";
+import { getClientIp, requireAdmin, requireSuperAdmin } from "./_helpers";
 
 export async function getHCaptchaConfig(req: Request, res: Response) {
   try {
@@ -23,7 +23,7 @@ export async function getHCaptchaConfig(req: Request, res: Response) {
 
 export async function updateHCaptchaConfig(req: Request, res: Response) {
   try {
-    if (!requireAdmin(req, res)) return;
+    if (!requireSuperAdmin(req, res)) return;
 
     const { key, value } = req.body;
 
@@ -49,7 +49,7 @@ export async function updateHCaptchaConfig(req: Request, res: Response) {
 
 export async function deleteHCaptchaConfig(req: Request, res: Response) {
   try {
-    if (!requireAdmin(req, res)) return;
+    if (!requireSuperAdmin(req, res)) return;
 
     const key = firstString(req.params.key);
 

@@ -1,10 +1,10 @@
 import type { Request, Response } from "express";
 import { TurnstileService } from "../../services/turnstileService";
-import { isValidIpOrCidr, requireAdmin, validateBanDuration } from "./_helpers";
+import { isValidIpOrCidr, requireSuperAdmin, validateBanDuration } from "./_helpers";
 
 export async function banIp(req: Request, res: Response) {
   try {
-    if (!requireAdmin(req, res)) return;
+    if (!requireSuperAdmin(req, res)) return;
 
     const { ipAddress, reason, durationMinutes, fingerprint, userAgent } = req.body;
 
@@ -54,7 +54,7 @@ export async function banIp(req: Request, res: Response) {
 
 export async function unbanIp(req: Request, res: Response) {
   try {
-    if (!requireAdmin(req, res)) return;
+    if (!requireSuperAdmin(req, res)) return;
 
     const { ipAddress } = req.body;
 
@@ -84,7 +84,7 @@ export async function unbanIp(req: Request, res: Response) {
 
 export async function batchBanIps(req: Request, res: Response) {
   try {
-    if (!requireAdmin(req, res)) return;
+    if (!requireSuperAdmin(req, res)) return;
 
     const { ipAddresses, reason, durationMinutes } = req.body;
 
@@ -155,7 +155,7 @@ export async function batchBanIps(req: Request, res: Response) {
 
 export async function batchUnbanIps(req: Request, res: Response) {
   try {
-    if (!requireAdmin(req, res)) return;
+    if (!requireSuperAdmin(req, res)) return;
 
     const { ipAddresses } = req.body;
 

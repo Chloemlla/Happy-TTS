@@ -1,5 +1,5 @@
 import type { Request, Response } from "express";
-import { isAdminRole } from "../../middleware/auth";
+import { isAdminRole, isSuperAdmin } from "../../middleware/auth";
 import { getClientIP } from "../../utils/ipUtils";
 
 export function getClientIp(req: Request): string {
@@ -10,6 +10,14 @@ export function requireAdmin(req: Request, res: Response): boolean {
   const isAdmin = isAdminRole((req as any).user?.role);
 
   if (!isAdmin) {
+    res.status(403).json({ success: false, error: "权限不足" });
+    return false;
+  }
+  return true;
+}
+
+export function requireSuperAdmin(req: Request, res: Response): boolean {
+  if (!isSuperAdmin(req)) {
     res.status(403).json({ success: false, error: "权限不足" });
     return false;
   }

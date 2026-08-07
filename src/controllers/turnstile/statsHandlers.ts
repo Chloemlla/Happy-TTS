@@ -1,10 +1,10 @@
 import type { Request, Response } from "express";
 import { TurnstileService } from "../../services/turnstileService";
-import { requireAdmin } from "./_helpers";
+import { requireAdmin, requireSuperAdmin } from "./_helpers";
 
 export async function cleanupExpiredFingerprints(req: Request, res: Response) {
   try {
-    if (!requireAdmin(req, res)) return;
+    if (!requireSuperAdmin(req, res)) return;
 
     const deletedCount = await TurnstileService.cleanupExpiredFingerprints();
 

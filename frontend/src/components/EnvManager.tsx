@@ -4,7 +4,7 @@ import React, {
 import { LazyMotion, domAnimation, m, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
-import { isAdminRole } from '../utils/rbac';
+import { isSuperAdmin } from '../utils/rbac';
 import { useSearchParams } from 'react-router-dom';
 import {
   API_URL,
@@ -250,8 +250,8 @@ const EnvManager: React.FC = () => {
   ) || [];
   const configurationNextIssue = configurationProgressItems.find((issue) => configurationCurrentIds.has(issue.id));
 
-  // Admin check
-  if (!user || !isAdminRole(user.role)) {
+  // Superadmin check
+  if (!user || !isSuperAdmin(user.role)) {
     return (
       <LazyMotion features={domAnimation}>
         <div className="space-y-6">

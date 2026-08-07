@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { useNotification } from './Notification';
 import getApiBaseUrl from '../api';
 import { useAuth } from '../hooks/useAuth';
-import { isAdminRole } from '../utils/rbac';
+import { isSuperAdmin } from '../utils/rbac';
 import { signedFetch } from '../utils/requestSigner';
 import CryptoJS from 'crypto-js';
 
@@ -547,7 +547,7 @@ const ShortLinkManager: React.FC = () => {
     return pages;
   };
 
-  if (!user || !isAdminRole(user.role)) {
+  if (!user || !isSuperAdmin(user.role)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
         <span style={{ fontSize: 120, lineHeight: 1 }}>🤡</span>

@@ -1,6 +1,6 @@
 import type { Request, Response } from "express";
 import { schedulerService } from "../../services/schedulerService";
-import { requireAdmin } from "./_helpers";
+import { requireAdmin, requireSuperAdmin } from "./_helpers";
 
 export async function getSchedulerStatus(req: Request, res: Response) {
   try {
@@ -16,7 +16,7 @@ export async function getSchedulerStatus(req: Request, res: Response) {
 
 export async function manualCleanup(req: Request, res: Response) {
   try {
-    if (!requireAdmin(req, res)) return;
+    if (!requireSuperAdmin(req, res)) return;
 
     const result = await schedulerService.manualCleanup();
 
@@ -38,7 +38,7 @@ export async function manualCleanup(req: Request, res: Response) {
 
 export async function startScheduler(req: Request, res: Response) {
   try {
-    if (!requireAdmin(req, res)) return;
+    if (!requireSuperAdmin(req, res)) return;
 
     schedulerService.start();
     res.json({ success: true, message: "定时任务已启动" });
@@ -50,7 +50,7 @@ export async function startScheduler(req: Request, res: Response) {
 
 export async function stopScheduler(req: Request, res: Response) {
   try {
-    if (!requireAdmin(req, res)) return;
+    if (!requireSuperAdmin(req, res)) return;
 
     schedulerService.stop();
     res.json({ success: true, message: "定时任务已停止" });
