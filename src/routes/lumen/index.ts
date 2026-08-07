@@ -35,7 +35,8 @@ v1Router.use("/", platformRoutes);
 // so non-Lumen routes on the host (TTS, static, etc.) are not throttled by it.
 router.use("/api/lumen", lumenLimiter, v1Router);
 
-// Mount health routes at /api/health
-router.use("/api/health", healthRoutes);
+// Mount lumen health at a path that doesn't collide with the canonical
+// /api/health (mounted earlier by the pre-parser phase) so this router is reachable.
+router.use("/api/lumen/health", healthRoutes);
 
 export default router;

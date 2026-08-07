@@ -4,6 +4,7 @@ import { LRUCache } from "lru-cache";
 import { config } from "../config/config";
 import { IpBanModel } from "../models/ipBanModel";
 import { redisService } from "../services/redisService.js";
+import { MAX_VIOLATIONS } from "../services/turnstile/constants";
 import { securityBypassPolicy } from "../security/securityPolicy";
 import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
@@ -91,11 +92,20 @@ const REDIS_FAILURE_THRESHOLD = 5; // 连续失败5次后跳过Redis
 const REDIS_COOLDOWN_MS = 60000; // 冷却时间1分钟
 
 // IP 封禁检查速率限制器 - 防止恶意 IP 频繁查询封禁状态
+// 仅对非白名单路径计数，避免健康探针/静态资源等正常流量被误限
 const ipBanCheckLimiter = createLimiter({
   name: "ipBanCheck",
   profile: "global",
   category: "global",
   skipFailedRequests: true,
+  skip: (req: Request) => {
+    if (isWhitelistedPath(req.path)) return true;
+    // 静态资源与文档不参与封禁查询限流
+    if (req.path.startsWith("/static") || req.path.startsWith("/assets") || req.path.startsWith("/api-docs")) {
+      return true;
+    }
+    return false;
+  },
   keyGenerator: (req: Request) => getClientIPFromRequest(req),
   handler: (req: Request, res: Response) => {
     const clientIP = getClientIPFromRequest(req);
@@ -517,6 +527,7 @@ async function parallelBanCheck(normalizedIP: string): Promise<{
     IpBanModel.findOne({
       ipAddress: normalizedIP,
       expiresAt: { $gt: new Date() },
+      violationCount: { $gte: MAX_VIOLATIONS },
     })
       .select("reason expiresAt")
       .lean() // 使用lean()提高查询性能

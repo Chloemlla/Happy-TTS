@@ -62,14 +62,14 @@ export async function ipCheckMiddleware(req: Request, res: Response, next: NextF
       return res.status(400).json({ error: "无效的IP地址" });
     }
 
-    // 检查是否为本地IP
+    // 检查是否为本地IP（172.16.0.0/12 才是私网段，公共 172.x 不应放行）
     const isLocalIP =
       realIP === "127.0.0.1" ||
       realIP === "::1" ||
       realIP === "localhost" ||
       realIP.startsWith("192.168.") ||
       realIP.startsWith("10.") ||
-      realIP.startsWith("172.");
+      /^172\.(1[6-9]|2[0-9]|3[01])\./.test(realIP);
 
     // 检查是否在白名单中
     const isWhitelisted = config.localIps.includes(realIP);

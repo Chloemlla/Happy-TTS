@@ -25,7 +25,7 @@ const AdminSessionSchema = new mongoose.Schema<IAdminSession>(
   { strict: true, timestamps: false, collection: "admin_sessions" },
 );
 
-AdminSessionSchema.index({ refreshToken: 1 });
+AdminSessionSchema.index({ refreshExpiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const AdminSession =
   (mongoose.models.AdminSession as mongoose.Model<IAdminSession>) ||

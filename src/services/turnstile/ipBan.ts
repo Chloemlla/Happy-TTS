@@ -3,7 +3,7 @@ import logger from "../../utils/logger";
 import { isConnected, mongoose } from "../mongoService";
 import { redisService } from "../redisService";
 import { clearIPBanCache } from "../../middleware/ipBanCheck";
-import { BAN_DURATION, MAX_VIOLATIONS } from "./constants";
+import { BAN_DURATION, MAX_VIOLATIONS, VIOLATION_COOLDOWN } from "./constants";
 import { sanitizeString, validateIpAddress } from "./validators";
 
 export async function isIpBanned(
@@ -22,6 +22,7 @@ export async function isIpBanned(
     const banDoc = await IpBanModel.findOne({
       ipAddress: validatedIp,
       expiresAt: { $gt: new Date() },
+      violationCount: { $gte: MAX_VIOLATIONS },
     })
       .lean()
       .exec();
@@ -68,19 +69,24 @@ export async function recordViolation(
 
       if (banDoc.violationCount >= MAX_VIOLATIONS) {
         banDoc.expiresAt = new Date(Date.now() + BAN_DURATION);
+      } else {
+        // 未达阈值：刷新冷却时间，保留计数但不封禁
+        banDoc.expiresAt = new Date(Date.now() + VIOLATION_COOLDOWN);
       }
 
       await banDoc.save();
 
+      const banned = banDoc.violationCount >= MAX_VIOLATIONS;
       logger.warn(`IP ${validatedIp} 违规次数增加到 ${banDoc.violationCount}`, {
         reason,
         fingerprint: `${fingerprint?.substring(0, 8)}...`,
-        banned: banDoc.violationCount >= MAX_VIOLATIONS,
+        banned,
       });
 
-      return banDoc.violationCount >= MAX_VIOLATIONS;
+      return banned;
     } else {
-      const expiresAt = new Date(Date.now() + BAN_DURATION);
+      // 首次违规：仅记录并设冷却，不立即封禁
+      const expiresAt = new Date(Date.now() + VIOLATION_COOLDOWN);
       await IpBanModel.create({
         ipAddress: validatedIp,
         reason,
@@ -90,12 +96,12 @@ export async function recordViolation(
         userAgent,
       });
 
-      logger.warn(`IP ${validatedIp} 首次违规，已封禁60分钟`, {
+      logger.warn(`IP ${validatedIp} 首次违规，记录并冷却 ${VIOLATION_COOLDOWN / 1000}s`, {
         reason,
         fingerprint: `${fingerprint?.substring(0, 8)}...`,
       });
 
-      return true;
+      return false;
     }
   } catch (error) {
     logger.error("记录违规失败", error);
@@ -187,6 +193,8 @@ export async function manualBanIp(
       bannedAt = existingBan.bannedAt;
       existingBan.expiresAt = expiresAt;
       existingBan.reason = sanitizedReason;
+      // 手动封禁强制达到阈值，确保 isIpBanned 立即命中
+      existingBan.violationCount = MAX_VIOLATIONS;
 
       if (fingerprint) {
         const sanitizedFingerprint = sanitizeString(fingerprint, 200);
@@ -208,7 +216,7 @@ export async function manualBanIp(
       const banRecord = new IpBanModel({
         ipAddress: validatedIp,
         reason: sanitizedReason,
-        violationCount: 1,
+        violationCount: MAX_VIOLATIONS,
         bannedAt: now,
         expiresAt,
         fingerprint: fingerprint ? sanitizeString(fingerprint, 200) : undefined,

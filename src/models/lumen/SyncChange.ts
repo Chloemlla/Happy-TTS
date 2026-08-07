@@ -3,7 +3,7 @@ import { mongoose } from "../../services/mongoService.js";
 export interface ISyncChange {
   _id: string;
   userId: string;
-  cursor: string;
+  cursor: number;
   change: {
     collection: string;
     operation: string;
@@ -18,7 +18,7 @@ const SyncChangeSchema = new mongoose.Schema<ISyncChange>(
   {
     _id: { type: String },
     userId: { type: String, required: true },
-    cursor: { type: String, unique: true },
+    cursor: { type: Number, unique: true },
     change: {
       type: new mongoose.Schema(
         {

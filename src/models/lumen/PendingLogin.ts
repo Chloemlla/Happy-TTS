@@ -5,6 +5,7 @@ export interface IPendingLogin {
   email: string;
   code: string;
   expiresAt: Date;
+  attempts: number;
 }
 
 const PendingLoginSchema = new mongoose.Schema<IPendingLogin>(
@@ -13,6 +14,7 @@ const PendingLoginSchema = new mongoose.Schema<IPendingLogin>(
     email: { type: String, required: true },
     code: { type: String, required: true },
     expiresAt: { type: Date, required: true },
+    attempts: { type: Number, default: 0 },
   },
   { strict: true, timestamps: false, collection: "login_requests" },
 );

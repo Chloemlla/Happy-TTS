@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import logger from "../../utils/logger";
-import { connectMongo } from "../mongoService";
+import { connectMongo, mongoose } from "../mongoService";
 import { getTraceModel } from "./models";
 
 export function generateUniqueTraceId(): string {
@@ -11,7 +11,9 @@ export function generateUniqueTraceId(): string {
 
 export async function persistTurnstileTrace(traceData: any): Promise<void> {
   try {
-    await connectMongo();
+    if (mongoose.connection.readyState !== 1) {
+      await connectMongo();
+    }
     const TraceModel = getTraceModel();
 
     const existingTrace = await TraceModel.findOne({ traceId: traceData.traceId });

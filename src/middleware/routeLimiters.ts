@@ -26,6 +26,7 @@ type RateProfileName =
   | "authRead"
   | "ttsGenerate"
   | "ttsHistory"
+  | "ttsJobs"
   | "admin"
   | "verification"
   | "sensitive"
@@ -89,6 +90,7 @@ const RATE_PROFILES: Record<RateProfileName, RateProfile> = {
   authRead: { windowMs: 5 * 60_000, max: 300 },
   ttsGenerate: { windowMs: 60_000, max: 10 },
   ttsHistory: { windowMs: 60_000, max: 20 },
+  ttsJobs: { windowMs: 60_000, max: 60 },
   admin: { windowMs: 60_000, max: 50 },
   verification: { windowMs: 5 * 60_000, max: 20 },
   sensitive: { windowMs: 60_000, max: 10 },
@@ -278,6 +280,11 @@ const LIMITER_DEFINITIONS = {
   ttsHistory: {
     profile: "ttsHistory",
     category: "tts-history",
+    message: "请求过于频繁，请稍后再试",
+  },
+  ttsJobs: {
+    profile: "ttsJobs",
+    category: "tts-jobs",
     message: "请求过于频繁，请稍后再试",
   },
   admin: {
@@ -540,6 +547,7 @@ export const authLimiter = limiterFromDefinition("auth");
 export const meEndpointLimiter = limiterFromDefinition("me");
 export const ttsLimiter = limiterFromDefinition("ttsGenerate");
 export const historyLimiter = limiterFromDefinition("ttsHistory");
+export const jobsLimiter = limiterFromDefinition("ttsJobs");
 export const adminLimiter = limiterFromDefinition("admin");
 export const frontendLimiter = limiterFromDefinition("frontend");
 export const totpLimiter = limiterFromDefinition("totp");

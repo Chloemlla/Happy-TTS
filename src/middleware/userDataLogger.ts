@@ -62,11 +62,11 @@ const readUserData = async (): Promise<UserDataStore> => {
   return { users: [] };
 };
 
-// 写入数据
-const writeUserData = async (data: UserDataStore) => {
+// 追加一条用户数据（Mongo 用原子 $push，避免并发覆盖）
+const writeUserData = async (userData: UserData) => {
   try {
     if (mongoose.connection.readyState === 1) {
-      await UserDataModel.findOneAndUpdate({}, data, { upsert: true });
+      await UserDataModel.updateOne({}, { $push: { users: userData } }, { upsert: true });
       return;
     }
   } catch (error) {
@@ -75,7 +75,9 @@ const writeUserData = async (data: UserDataStore) => {
   // 本地文件兜底
   try {
     await ensureDataDir();
-    await fs.promises.writeFile(USER_DATA_FILE, JSON.stringify(data, null, 2));
+    const store = await readUserData();
+    store.users.push(userData);
+    await fs.promises.writeFile(USER_DATA_FILE, JSON.stringify(store, null, 2));
   } catch (error) {
     logger.error("写入用户数据文件失败:", error);
   }
@@ -101,14 +103,7 @@ export const logUserData = (req: Request, res: Response, next: NextFunction) => 
             userAgent: req.get("user-agent"),
           };
 
-          // 读取现有数据
-          const store = await readUserData();
-
-          // 添加新用户数据
-          store.users.push(userData);
-
-          // 写入文件
-          await writeUserData(store);
+          await writeUserData(userData);
         } catch (error) {
           logger.error("记录用户数据失败:", error);
         }

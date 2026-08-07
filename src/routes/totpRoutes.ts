@@ -1,4 +1,4 @@
-import { type RequestHandler, Router } from "express";
+import { Router } from "express";
 import { TOTPController } from "../controllers/totpController";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { totpLimiter } from "../middleware/routeLimiters";
@@ -81,15 +81,5 @@ router.get("/backup-codes", authenticateToken, totpLimiter, TOTPController.getBa
  *         description: 重新生成备用恢复码
  */
 router.post("/regenerate-backup-codes", authenticateToken, totpLimiter, TOTPController.regenerateBackupCodes);
-
-let totpStatusHandler: RequestHandler | undefined = undefined;
-for (const r of router.stack) {
-  if (r.route && r.route.path === "/status" && (r.route as any).methods?.get) {
-    totpStatusHandler = r.route.stack[r.route.stack.length - 1].handle;
-    break;
-  }
-}
-
-export { totpStatusHandler };
 
 export default router;

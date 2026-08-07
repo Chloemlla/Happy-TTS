@@ -54,3 +54,54 @@ export async function updateMod(id: string, name: string, hash?: string, md5?: s
   const mod = (after as any[])[0];
   return formatModForOutput(mod, { withHash: true, withMd5: true });
 }
+
+export async function deleteMod(id: string) {
+  const conn = await getConn();
+  const [rows] = await conn.execute(`SELECT * FROM ${TABLE} WHERE id=?`, [id]);
+  if ((rows as any[]).length === 0) {
+    await conn.end();
+    throw new Error("未找到MOD");
+  }
+  await conn.execute(`DELETE FROM ${TABLE} WHERE id=?`, [id]);
+  await conn.end();
+  return { success: true };
+}
+
+export async function batchAddMods(mods: Array<{ name: string; hash?: string; md5?: string }>) {
+  const conn = await getConn();
+  const added: any[] = [];
+  try {
+    for (const mod of mods) {
+      if (!mod.name) continue;
+      const [rows] = await conn.execute(`SELECT * FROM ${TABLE} WHERE name=?`, [mod.name]);
+      if ((rows as any[]).length > 0) continue;
+      const id = Date.now().toString() + Math.floor(Math.random() * 10000);
+      await conn.execute(`INSERT INTO ${TABLE} (id, name, hash, md5) VALUES (?, ?, ?, ?)`, [
+        id,
+        mod.name,
+        mod.hash || null,
+        mod.md5 || null,
+      ]);
+      added.push({ id, name: mod.name, hash: mod.hash, md5: mod.md5 });
+    }
+    return added;
+  } finally {
+    await conn.end();
+  }
+}
+
+export async function batchDeleteMods(ids: string[]) {
+  const conn = await getConn();
+  let count = 0;
+  try {
+    for (const id of ids) {
+      const [rows] = await conn.execute(`SELECT * FROM ${TABLE} WHERE id=?`, [id]);
+      if ((rows as any[]).length === 0) continue;
+      await conn.execute(`DELETE FROM ${TABLE} WHERE id=?`, [id]);
+      count++;
+    }
+    return { deleted: count };
+  } finally {
+    await conn.end();
+  }
+}

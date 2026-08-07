@@ -8,6 +8,7 @@ import {
   deeplxPublicLimiter,
   historyLimiter,
   ipfsLimiter,
+  jobsLimiter,
   libreChatLimiter,
   lifeLimiter,
   mediaLimiter,
@@ -63,7 +64,7 @@ export const routeLimiterModules: RouteModule[] = [
   {
     name: "tts-jobs-limiter",
     path: "/api/tts/jobs",
-    router: historyLimiter,
+    router: jobsLimiter,
     requiresAuth: "mixed",
     rateLimited: true,
     isPublic: "mixed",

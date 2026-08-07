@@ -1,4 +1,3 @@
-import type { RequestHandler } from "express";
 import type { RouteModule } from "../index";
 import { adminOnly } from "../../middleware/adminOnly";
 import { authenticateToken } from "../../middleware/authenticateToken";
@@ -18,7 +17,7 @@ import shortUrlRoutes, { shortUrlRedirectRoutes } from "../shortUrlRoutes";
 import statusRouter from "../status";
 import tamperRoutes from "../tamperRoutes";
 import ticketRoutes from "../ticketRoutes";
-import totpRoutes, { totpStatusHandler } from "../totpRoutes";
+import totpRoutes from "../totpRoutes";
 import turnstileRoutes from "../turnstileRoutes";
 
 export const preTamperRouteModules: RouteModule[] = [
@@ -200,25 +199,6 @@ export const preTamperRouteModules: RouteModule[] = [
     requiresAuth: "mixed",
     rateLimited: true,
     isPublic: "mixed",
-  },
-  {
-    name: "totp-status-route",
-    path: "/api/totp/status",
-    router: totpStatusHandler as RequestHandler,
-    middlewares: [authenticateToken],
-    requiresAuth: true,
-    rateLimited: true,
-    isPublic: false,
-    authPolicy: {
-      mode: "mount",
-      handlers: ["authenticateToken"],
-      note: "The status endpoint is mounted with an explicit JWT guard.",
-    },
-    rateLimitPolicy: {
-      mode: "route-module",
-      limiters: ["totp-limiter"],
-      note: "Covered by the dedicated /api/totp limiter module.",
-    },
   },
   {
     name: "admin-routes",

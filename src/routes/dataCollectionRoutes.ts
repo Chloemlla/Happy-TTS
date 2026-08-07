@@ -1,5 +1,6 @@
 import express, { Router } from "express";
 import { dataCollectionService } from "../services/dataCollectionService";
+import { dataCollectionLimiter } from "../middleware/routeLimiters";
 import logger from "../utils/logger";
 
 const router = Router();
@@ -23,7 +24,8 @@ const router = Router();
 // 为该端点单独接管解析器：统一使用文本解析，后续尝试解析 JSON
 router.use("/collect_data", express.text({ type: "*/*", limit: "5mb" }));
 
-router.all("/collect_data", async (req, res) => {
+// 在 router 内部挂限流器，避免被 pre-parser 阶段的同名挂载遮蔽而绕过
+router.all("/collect_data", dataCollectionLimiter, async (req, res) => {
   try {
     const now = new Date();
     let payload: any = {};

@@ -55,7 +55,7 @@ export async function pushChanges(
   const docs: Array<{
     _id: string;
     userId: string;
-    cursor: string;
+    cursor: number;
     change: {
       collection: string;
       operation: string;
@@ -68,7 +68,7 @@ export async function pushChanges(
 
   for (let i = 0; i < changes.length; i++) {
     const ch = changes[i];
-    const cursorValue = String(startCursor + i);
+    const cursorValue = startCursor + i;
 
     docs.push({
       _id: crypto.randomUUID(),
@@ -110,7 +110,7 @@ export async function changesSince(userId: string, since: string) {
 
   const changes = await SyncChange.find({
     userId,
-    cursor: { $gt: String(sinceNum) },
+    cursor: { $gt: sinceNum },
   })
     .sort({ cursor: 1 })
     .limit(500)
@@ -118,12 +118,12 @@ export async function changesSince(userId: string, since: string) {
     .exec();
 
   const nextCursor = changes.length > 0
-    ? changes[changes.length - 1].cursor
+    ? String(changes[changes.length - 1].cursor)
     : String(sinceNum);
 
   return {
     changes: changes.map((c) => ({
-      cursor: c.cursor,
+      cursor: String(c.cursor),
       collection: c.change.collection,
       operation: c.change.operation,
       remoteId: c.change.remoteId,

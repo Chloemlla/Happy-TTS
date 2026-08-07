@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
 import { isIP } from "node:net";
 import type { Request, Response } from "express";
-import { connectMongo, mongoose } from "../services/mongoService";
+import { connectMongo } from "../services/mongoService";
+import { getTraceModel as getTurnstileTraceModel } from "../services/turnstile/models";
 import { getClientIP } from "../utils/ipUtils";
 import SmartHumanCheckService from "../services/smartHumanCheckService";
 import logger from "../utils/logger";
@@ -56,32 +57,9 @@ function getPowDifficulty(req: Request): number {
 }
 
 export class SmartHumanCheckController {
-  /** 获取/复用 SHC 溯源模型 */
+  /** 获取/复用 SHC 溯源模型（与 turnstile 服务共享同一 schema，避免同名不同 schema 的模型冲突） */
   private static getTraceModel() {
-    const schema = new mongoose.Schema(
-      {
-        traceId: { type: String, required: true, unique: true },
-        time: { type: Date, default: Date.now },
-        ip: String,
-        ua: String,
-        success: Boolean,
-        reason: String,
-        errorCode: String,
-        errorMessage: String,
-        score: Number,
-        thresholdBase: Number,
-        thresholdUsed: Number,
-        passRateIp: Number,
-        passRateUa: Number,
-        policy: String,
-        riskLevel: String,
-        riskScore: Number,
-        riskReasons: [String],
-        challengeRequired: Boolean,
-      },
-      { collection: "shc_traces", timestamps: false },
-    );
-    return mongoose.models.SHCTrace || mongoose.model("SHCTrace", schema);
+    return getTurnstileTraceModel();
   }
   /**
    * GET /nonce - 发放一次性 nonce（短时有效）

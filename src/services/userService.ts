@@ -76,6 +76,7 @@ const userSchema = new mongoose.Schema(
     isTranslationEnabled: { type: Boolean, default: true },
     translationAccessUntil: { type: String },
     accountStatus: { type: String, enum: ["active", "suspended"], default: "active" },
+    disabled: { type: Boolean, default: false },
   },
   { collection: "user_datas" },
 );

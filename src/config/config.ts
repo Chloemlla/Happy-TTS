@@ -446,14 +446,6 @@ export const config = {
   signSecretKey: startupConfig.signSecretKey,
   jwtExpiresIn: startupConfig.jwtExpiresIn,
   bcryptSaltRounds: startupConfig.bcryptSaltRounds,
-  loginRateLimit: {
-    windowMs: 15 * 60 * 1000,
-    max: 5,
-  },
-  registerRateLimit: {
-    windowMs: 60 * 60 * 1000,
-    max: 3,
-  },
   turnstile: startupConfig.turnstile,
   redis: startupConfig.redis,
   ipBanStorage: startupConfig.ipBanStorage,

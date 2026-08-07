@@ -8,6 +8,7 @@ export interface ISession {
   lastUsedAt?: Date;
   createdAt: number;
   expiresAt: Date;
+  refreshExpiresAt: Date;
 }
 
 const SessionSchema = new mongoose.Schema<ISession>(
@@ -19,12 +20,13 @@ const SessionSchema = new mongoose.Schema<ISession>(
     lastUsedAt: { type: Date },
     createdAt: { type: Number },
     expiresAt: { type: Date, required: true },
+    refreshExpiresAt: { type: Date, required: true },
   },
   { strict: true, timestamps: false, collection: "sessions" },
 );
 
 SessionSchema.index({ refreshToken: 1 }, { unique: true, sparse: true });
-SessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+SessionSchema.index({ refreshExpiresAt: 1 }, { expireAfterSeconds: 0 });
 SessionSchema.index({ userId: 1 });
 
 const Session =

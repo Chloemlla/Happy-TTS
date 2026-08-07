@@ -3,7 +3,7 @@ import logger from "../utils/logger";
 import { startupConfig } from "../config/config";
 import { createUrlSafeRandomId } from "../utils/randomId";
 
-import mongoose from "mongoose";
+import { connectMongo, mongoose } from "./mongoService";
 import { sanitizeSvgContent, validateSvgContent } from "../utils/svgSecurity";
 import { shortUrlMigrationService } from "./shortUrlMigrationService";
 import { ShortUrlService } from "./shortUrlService";
@@ -232,10 +232,10 @@ export interface ImageBedUploadOptions {
   passwordQuestion?: string;
 }
 
-// 确保 mongoose 连接已建�?
+// 确保通过共享 mongoService 单例建立连接（避免直连绕过连接池与配置）
 async function ensureMongoConnected() {
   if (mongoose.connection.readyState !== 1) {
-    await mongoose.connect(process.env.MONGO_URI || "mongodb://localhost:27017/tts");
+    await connectMongo();
   }
 }
 

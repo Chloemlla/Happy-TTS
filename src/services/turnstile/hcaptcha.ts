@@ -115,6 +115,35 @@ export async function verifyHCaptchaToken(token: string, remoteIp?: string, site
 
     recordVerificationOutcome(remoteIp || "unknown", undefined, true, now);
 
+    // hCaptcha Enterprise 返回 score (0-1)，低于阈值视为机器人，拒绝放行
+    const HCAPTCHA_SCORE_THRESHOLD = 0.5;
+    if (typeof result.score === "number" && result.score < HCAPTCHA_SCORE_THRESHOLD) {
+      logger.warn("hCaptcha 验证通过但 score 过低，拒绝", {
+        remoteIp,
+        score: result.score,
+        scoreReason: result.score_reason,
+        traceId,
+      });
+
+      await persistTurnstileTrace({
+        traceId,
+        time: now,
+        ip: remoteIp || "unknown",
+        ua: undefined,
+        success: false,
+        reason: "low_score",
+        errorCode: "LOW_SCORE",
+        errorMessage: `hCaptcha score 过低: ${result.score}`,
+        fingerprint: undefined,
+        riskLevel: "HIGH",
+        riskScore: Math.round((1 - result.score) * 100),
+        riskReasons: result.score_reason || ["low_score"],
+        verificationMethod: "hcaptcha",
+      });
+
+      return false;
+    }
+
     logger.info("hCaptcha 验证成功", {
       remoteIp,
       timestamp: result.challenge_ts,

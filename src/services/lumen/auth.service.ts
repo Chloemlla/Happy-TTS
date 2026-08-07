@@ -36,7 +36,8 @@ function generateLoginCode(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
 }
 
-// ── Public API ──────────────────────────────────────────────────────────
+// 单个登录请求最多允许尝试验证码的次数，超过即作废
+const MAX_VERIFY_ATTEMPTS = 5;
 
 /**
  * Start an email-based login flow.
@@ -120,6 +121,13 @@ export async function verifyEmailLogin(
     if (!lumenConfig.outemailApiKey && code === lumenConfig.devLoginCode) {
       // Accept dev code
     } else {
+      // 递增尝试次数，超过上限则作废该请求，防止验证码被暴力枚举
+      const attempts = (pending.attempts || 0) + 1;
+      if (attempts >= MAX_VERIFY_ATTEMPTS) {
+        await PendingLogin.deleteOne({ _id: requestId }).exec();
+        throw ApiError.forbidden("Too many failed attempts", "too_many_attempts");
+      }
+      await PendingLogin.updateOne({ _id: requestId }, { $inc: { attempts: 1 } }).exec();
       throw ApiError.forbidden("Invalid code", "invalid_login_code");
     }
   }
@@ -179,7 +187,7 @@ export async function refreshSession(
     throw ApiError.unauthorized("Refresh token not found");
   }
 
-  if (oldSession.expiresAt <= new Date()) {
+  if (oldSession.refreshExpiresAt <= new Date()) {
     await Session.deleteOne({ _id: oldSession._id }).exec();
     throw ApiError.unauthorized("Refresh token expired");
   }
@@ -219,6 +227,7 @@ export async function createSessionResponse(
     deviceInstallationId,
     createdAt: now,
     expiresAt,
+    refreshExpiresAt,
   });
 
   return {
