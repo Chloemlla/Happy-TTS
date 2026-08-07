@@ -78,7 +78,7 @@ router.post(
   "/test",
   webhookEventWriteLimiter,
   authenticateSuperAdmin,
-  auditLog({ module: "webhookEvent", action: "webhookEvent.test" }),
+  auditLog({ module: "network", action: "webhookEvent.test" }),
   async (req: Request, res: Response) => {
   try {
     const { source, routeKey, payload, status } = req.body || {};
@@ -97,7 +97,7 @@ router.post(
   "/bulk-status",
   webhookEventWriteLimiter,
   authenticateSuperAdmin,
-  auditLog({ module: "webhookEvent", action: "webhookEvent.bulkStatus" }),
+  auditLog({ module: "network", action: "webhookEvent.bulkStatus" }),
   async (req: Request, res: Response) => {
   try {
     const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter((id: unknown): id is string => typeof id === "string") : [];
@@ -116,7 +116,7 @@ router.post(
   webhookEventWriteLimiter,
   authenticateSuperAdmin,
   auditLog({
-    module: "webhookEvent",
+    module: "network",
     action: "webhookEvent.bulkDelete",
     extractDetail: (req) => ({ count: Array.isArray(req.body?.ids) ? req.body.ids.length : 0 }),
   }),
@@ -149,7 +149,7 @@ router.patch(
   webhookEventWriteLimiter,
   authenticateSuperAdmin,
   auditLog({
-    module: "webhookEvent",
+    module: "network",
     action: "webhookEvent.updateStatus",
     extractTarget: (req) => ({ targetId: req.params.id }),
   }),
@@ -173,7 +173,7 @@ router.post(
   webhookEventWriteLimiter,
   authenticateSuperAdmin,
   auditLog({
-    module: "webhookEvent",
+    module: "network",
     action: "webhookEvent.replay",
     extractTarget: (req) => ({ targetId: req.params.id }),
   }),
@@ -197,7 +197,7 @@ router.post(
   "/",
   webhookEventWriteLimiter,
   authenticateSuperAdmin,
-  auditLog({ module: "webhookEvent", action: "webhookEvent.create" }),
+  auditLog({ module: "network", action: "webhookEvent.create" }),
   async (req: Request, res: Response) => {
   try {
     const created = await WebhookEventService.create(req.body);
@@ -213,7 +213,7 @@ router.put(
   webhookEventWriteLimiter,
   authenticateSuperAdmin,
   auditLog({
-    module: "webhookEvent",
+    module: "network",
     action: "webhookEvent.update",
     extractTarget: (req) => ({ targetId: req.params.id }),
   }),
@@ -235,7 +235,7 @@ router.delete(
   webhookEventWriteLimiter,
   authenticateSuperAdmin,
   auditLog({
-    module: "webhookEvent",
+    module: "network",
     action: "webhookEvent.delete",
     extractTarget: (req) => ({ targetId: req.params.id }),
   }),

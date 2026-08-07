@@ -631,7 +631,7 @@ router.delete(
   "/admin/users/:userId",
   authenticateSuperAdmin,
   auditLog({
-    module: "libreChat",
+    module: "api",
     action: "libreChat.deleteUser",
     extractTarget: (req) => ({ targetId: req.params.userId }),
   }),
@@ -652,7 +652,7 @@ router.delete(
   "/admin/users",
   authenticateSuperAdmin,
   auditLog({
-    module: "libreChat",
+    module: "api",
     action: "libreChat.batchDeleteUsers",
     extractDetail: (req) => ({ count: Array.isArray(req.body?.userIds) ? req.body.userIds.length : 0 }),
   }),
@@ -674,7 +674,7 @@ router.delete(
 router.delete(
   "/admin/users/all",
   authenticateSuperAdmin,
-  auditLog({ module: "libreChat", action: "libreChat.deleteAllUsers" }),
+  auditLog({ module: "api", action: "libreChat.deleteAllUsers" }),
   async (req, res) => {
   try {
     const { confirm } = req.body as { confirm: boolean };
@@ -717,7 +717,7 @@ router.post(
   "/admin/providers",
   authenticateSuperAdmin,
   auditLog({
-    module: "libreChat",
+    module: "api",
     action: "libreChat.provider.upsert",
     extractDetail: (req) => ({ baseUrl: req.body?.baseUrl, model: req.body?.model, group: req.body?.group }),
   }),
@@ -776,7 +776,7 @@ router.delete(
   "/admin/providers/:id",
   authenticateSuperAdmin,
   auditLog({
-    module: "libreChat",
+    module: "api",
     action: "libreChat.provider.delete",
     extractTarget: (req) => ({ targetId: req.params.id }),
   }),
