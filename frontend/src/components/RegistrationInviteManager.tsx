@@ -380,7 +380,7 @@ const RegistrationInviteManager: React.FC = () => {
                     </button>
                   </div>
                 );
-              })()})}
+              })()}
             </div>
 
             {invite.usedBy.length > 0 && (
