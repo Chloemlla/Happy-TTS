@@ -233,7 +233,7 @@ Synapse 是一个综合性 Web 应用平台，围绕文本转语音核心功能�
 | 用户管理 | 用户列表、角色分配、封禁/解封 | `UserManagement.tsx` |
 | 公告管理 | 系统公告发布与管理（支持 Markdown/HTML） | `AnnouncementManager.tsx` |
 | IP 封禁管理 | IP/CIDR 封禁规则管理 | `IPBanManager.tsx` |
-| 环境变量管理 | 运行时环境变量查看与修改 | `EnvManager.tsx` |
+| 环境变量管理 | 运行时环境变量查看与修改；含 Project Lumen 配置区（保管库 + 一键同步到 GitHub Actions Secrets） | `EnvManager.tsx` |
 | 命令执行 | 远程命令执行控制台 | `CommandManager.tsx` |
 | 调试控制台 | 系统调试与诊断工具 | `DebugInfoModal.tsx` |
 | 数据收集管理 | 采集数据查看与管理 | `DataCollectionManager.tsx` |
@@ -691,6 +691,15 @@ OPENAPI_JSON_PATH=                 # OpenAPI JSON 输出路径（默认 openapi.
 VITE_API_URL=                      # 前端 API 地址（BASE_URL 未设置时作为后备）
 PUBLIC_SHORT_URL_ENABLED=          # 启用公共短链接（true/false）
 PUBLIC_SHORT_URL_PASSWORD=         # 公共短链接创建密码
+
+# ==================== Project Lumen GitHub Secret Sync（可选） ====================
+# env-manager 的「Project Lumen 配置」区可将 13 个密钥/配置项同步到
+# Project-Lumen 仓库的 GitHub Actions Secrets（Sealed Box 加密写入）。
+# Token 需具备目标仓库 Actions secrets 写入权限（classic token 需 repo 权限，
+# 或 fine-grained token 需 Secrets: write）。
+PROJECT_LUMEN_GITHUB_OWNER=        # 目标仓库 Owner（如 Chloemlla）
+PROJECT_LUMEN_GITHUB_REPO=         # 目标仓库名（如 Project-Lumen）
+PROJECT_LUMEN_GITHUB_TOKEN=        # 具备 Actions secrets 写入权限的 PAT
 ```
 
 ### 前端环境变量（`frontend/.env`）
@@ -1572,6 +1581,13 @@ docker-compose up -d
 - 删除 `test-data/`、`logs/`、`outputs/` 目录
 - 更新 README 项目结构
 
+#### 08-06 ~ 08-07
+- 新增 env-manager「Project Lumen 配置」区：MongoDB 保管库（`project_lumen_config` 集合）可保存 Project-Lumen 客户端构建与 CI 的 13 个密钥/配置项（不受 1024 字符限制，可容纳 base64 keystore），并按 key 增删改查
+- 新增一键「同步全部到 GitHub」：基于 libsodium Sealed Box 加密，调用 GitHub Actions Secrets REST API，把保管库中的值批量写入目标仓库 secrets，并逐 key 展示同步结果
+- 同步目标通过 `PROJECT_LUMEN_GITHUB_OWNER / PROJECT_LUMEN_GITHUB_REPO / PROJECT_LUMEN_GITHUB_TOKEN` 配置（已写入 `.env.example`）
+- 移除 keystore 签名 4 字段（`KEYSTORE_BASE64 / KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD`），签名材料改由线下单独管理
+- 新增依赖 `libsodium-wrappers`（注意：需在部署环境重新生成 `pnpm-lock.yaml`，否则 `--frozen-lockfile` 工作流会因锁文件未同步而失败）
+
 ---
 
 ## 📝 许可证
@@ -1594,4 +1610,4 @@ docker-compose up -d
 
 ---
 
-**版本**: 2026-08-03
+**版本**: 2026-08-07
