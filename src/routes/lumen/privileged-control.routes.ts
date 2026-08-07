@@ -6,7 +6,7 @@ const MAX_FRAME_BYTE_SIZE = 2.8 * 1024 * 1024; // 2.8 MB
 
 const router = Router();
 
-router.get("/policy", requireAuth, requireDeviceSecurity, async (req: Request, res: Response, next: NextFunction) => {
+router.get("/policy", requireAuth(), requireDeviceSecurity(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { deviceInstallationId } = req.query;
     const userId = req.lumenUserId;
@@ -21,7 +21,7 @@ router.get("/policy", requireAuth, requireDeviceSecurity, async (req: Request, r
   }
 });
 
-router.post("/vision/sessions", requireAuth, requireDeviceSecurity, async (req: Request, res: Response, next: NextFunction) => {
+router.post("/vision/sessions", requireAuth(), requireDeviceSecurity(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.lumenUserId;
     if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
@@ -32,7 +32,7 @@ router.post("/vision/sessions", requireAuth, requireDeviceSecurity, async (req: 
   }
 });
 
-router.post("/vision/heartbeat", requireAuth, requireDeviceSecurity, async (req: Request, res: Response, next: NextFunction) => {
+router.post("/vision/heartbeat", requireAuth(), requireDeviceSecurity(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.lumenUserId;
     if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
@@ -43,7 +43,7 @@ router.post("/vision/heartbeat", requireAuth, requireDeviceSecurity, async (req:
   }
 });
 
-router.post("/vision/frames", requireAuth, requireDeviceSecurity, async (req: Request, res: Response, next: NextFunction) => {
+router.post("/vision/frames", requireAuth(), requireDeviceSecurity(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { frame } = req.body;
     if (!frame || typeof frame !== "object") {
@@ -84,7 +84,7 @@ router.post("/vision/frames", requireAuth, requireDeviceSecurity, async (req: Re
   }
 });
 
-router.post("/vision/surface-frames", requireAuth, requireDeviceSecurity, async (req: Request, res: Response, next: NextFunction) => {
+router.post("/vision/surface-frames", requireAuth(), requireDeviceSecurity(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { frame } = req.body;
     if (!frame || typeof frame !== "object") {
@@ -125,7 +125,7 @@ router.post("/vision/surface-frames", requireAuth, requireDeviceSecurity, async 
   }
 });
 
-router.post("/lifecycle/events", requireAuth, requireDeviceSecurity, async (req: Request, res: Response, next: NextFunction) => {
+router.post("/lifecycle/events", requireAuth(), requireDeviceSecurity(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.lumenUserId;
     if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }

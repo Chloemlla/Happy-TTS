@@ -4,7 +4,7 @@ import { entitlementsService } from "../../services/lumen/index.js";
 
 const router = Router();
 
-router.get("/", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+router.get("/", requireAuth(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.lumenUserId;
     if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }

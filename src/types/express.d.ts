@@ -1,6 +1,4 @@
-import type { IUser } from "../models/lumen/User";
-import type { ISession } from "../models/lumen/Session";
-import type { IAdminSession } from "../models/lumen/AdminSession";
+import type { ISession } from "../models/lumen/Session.js";
 
 declare global {
   namespace Express {

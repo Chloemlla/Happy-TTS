@@ -4,7 +4,7 @@ import { User } from "../../models/lumen/index.js";
 
 const router = Router();
 
-router.get("/", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+router.get("/", requireAuth(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.lumenUserId;
     if (!userId) {

@@ -1,4 +1,4 @@
-import { mongoose } from "../../services/mongoService";
+import { mongoose } from "../../services/mongoService.js";
 
 export type EntitlementTier = "FREE" | "PRO" | "PLUS" | "TEAM" | "DEVELOPER";
 export type EntitlementStatus = "active" | "pending" | "expired" | "revoked" | "cancelled";

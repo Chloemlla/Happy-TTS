@@ -4,7 +4,7 @@ import { telemetryService } from "../../services/lumen/index.js";
 
 const router = Router();
 
-router.post("/", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+router.post("/", requireAuth(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.lumenUserId;
     if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
@@ -16,7 +16,7 @@ router.post("/", requireAuth, async (req: Request, res: Response, next: NextFunc
   }
 });
 
-router.get("/debug/latest", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+router.get("/debug/latest", requireAuth(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { deviceInstallationId } = req.query;
     const userId = req.lumenUserId;

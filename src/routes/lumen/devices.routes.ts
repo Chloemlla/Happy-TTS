@@ -4,7 +4,7 @@ import { requireAuth } from "../../middleware/lumen/index.js";
 
 const router = Router();
 
-router.post("/register", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+router.post("/register", requireAuth(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.lumenUserId;
     if (!userId) {

@@ -4,7 +4,7 @@ import { entitlementsService } from "../../services/lumen/index.js";
 
 const router = Router();
 
-router.post("/google/verify", requireAuth, requireDeviceSecurity, async (req: Request, res: Response, next: NextFunction) => {
+router.post("/google/verify", requireAuth(), requireDeviceSecurity(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { productId, purchaseToken, deviceInstallationId } = req.body;
     const userId = req.lumenUserId;

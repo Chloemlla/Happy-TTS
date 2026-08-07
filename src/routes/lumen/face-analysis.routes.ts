@@ -6,7 +6,7 @@ const MAX_FRAME_BYTE_SIZE = 2.8 * 1024 * 1024; // 2.8 MB
 
 const router = Router();
 
-router.post("/frames", requireAuth, requireDeviceSecurity, async (req: Request, res: Response, next: NextFunction) => {
+router.post("/frames", requireAuth(), requireDeviceSecurity(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { deviceInstallationId, capturedAt, frame, faces, processingMetrics } = req.body;
 

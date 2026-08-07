@@ -1,4 +1,4 @@
-import { mongoose } from "../../services/mongoService";
+import { mongoose } from "../../services/mongoService.js";
 
 export interface IAdminSyncMetric {
   _id: string;

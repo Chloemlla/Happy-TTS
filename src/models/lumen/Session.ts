@@ -1,10 +1,11 @@
-import { mongoose } from "../../services/mongoService";
+import { mongoose } from "../../services/mongoService.js";
 
 export interface ISession {
   _id: string;
   refreshToken?: string;
   userId: string;
   deviceInstallationId?: string;
+  lastUsedAt?: Date;
   createdAt: number;
   expiresAt: Date;
 }
@@ -15,6 +16,7 @@ const SessionSchema = new mongoose.Schema<ISession>(
     refreshToken: { type: String, unique: true, sparse: true },
     userId: { type: String, required: true },
     deviceInstallationId: { type: String },
+    lastUsedAt: { type: Date },
     createdAt: { type: Number },
     expiresAt: { type: Date, required: true },
   },

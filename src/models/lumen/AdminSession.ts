@@ -1,10 +1,11 @@
-import { mongoose } from "../../services/mongoService";
+import { mongoose } from "../../services/mongoService.js";
 
 export interface IAdminSession {
   _id: string;
   refreshToken: string;
   username: string;
   role: string;
+  lastUsedAt?: Date;
   expiresAt: Date;
   refreshExpiresAt: Date;
   createdAt: number;
@@ -16,6 +17,7 @@ const AdminSessionSchema = new mongoose.Schema<IAdminSession>(
     refreshToken: { type: String, required: true, unique: true },
     username: { type: String },
     role: { type: String },
+    lastUsedAt: { type: Date },
     expiresAt: { type: Date },
     refreshExpiresAt: { type: Date },
     createdAt: { type: Number },

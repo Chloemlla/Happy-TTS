@@ -4,7 +4,7 @@ import { backupsService } from "../../services/lumen/index.js";
 
 const router = Router();
 
-router.post("/", requireAuth, requireDeviceSecurity, requirePlusEntitlement, async (req: Request, res: Response, next: NextFunction) => {
+router.post("/", requireAuth(), requireDeviceSecurity(), requirePlusEntitlement(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { deviceInstallationId, schemaVersion, exportedAt, backup } = req.body;
     const userId = req.lumenUserId;
@@ -21,7 +21,7 @@ router.post("/", requireAuth, requireDeviceSecurity, requirePlusEntitlement, asy
   }
 });
 
-router.get("/latest", requireAuth, requireDeviceSecurity, requirePlusEntitlement, async (req: Request, res: Response, next: NextFunction) => {
+router.get("/latest", requireAuth(), requireDeviceSecurity(), requirePlusEntitlement(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.lumenUserId;
     if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }

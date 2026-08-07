@@ -1,4 +1,4 @@
-import { mongoose } from "../../services/mongoService";
+import { mongoose } from "../../services/mongoService.js";
 
 export interface IApiNonce {
   _id: string;

@@ -1,5 +1,5 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
-import { lumenConfig } from "../../config/lumen";
+import { lumenConfig } from "../../config/lumen.js";
 
 const router = Router();
 

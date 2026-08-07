@@ -78,7 +78,7 @@ router.get("/openapi.json", (_req: Request, res: Response, next: NextFunction) =
   }
 });
 
-router.get("/config/feature-flags", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+router.get("/config/feature-flags", requireAuth(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.lumenUserId;
     if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
@@ -89,7 +89,7 @@ router.get("/config/feature-flags", requireAuth, async (req: Request, res: Respo
   }
 });
 
-router.get("/config/sync", requireAuth, async (req: Request, res: Response, next: NextFunction) => {
+router.get("/config/sync", requireAuth(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { cursor, version, channel } = req.query;
     const userId = req.lumenUserId;

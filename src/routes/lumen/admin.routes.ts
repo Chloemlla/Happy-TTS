@@ -24,7 +24,7 @@ router.post("/auth/refresh", async (req: Request, res: Response, next: NextFunct
   }
 });
 
-router.get("/me", requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+router.get("/me", requireAdmin(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const operator = req.lumenAdminOperator;
     res.json({
@@ -38,7 +38,7 @@ router.get("/me", requireAdmin, async (req: Request, res: Response, next: NextFu
   }
 });
 
-router.get("/dashboard", requireAdmin, async (req: Request, res: Response, next: NextFunction) => {
+router.get("/dashboard", requireAdmin(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const result = await adminDashboardService.adminDashboardSnapshot();
     res.json(result);
@@ -47,7 +47,7 @@ router.get("/dashboard", requireAdmin, async (req: Request, res: Response, next:
   }
 });
 
-router.post("/actions", requireAdmin, requireAdminActionOperator, async (req: Request, res: Response, next: NextFunction) => {
+router.post("/actions", requireAdmin(), requireAdminActionOperator(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { action, payload } = req.body;
     const operator = req.lumenAdminOperator;

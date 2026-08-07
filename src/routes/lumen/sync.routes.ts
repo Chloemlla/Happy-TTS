@@ -4,7 +4,7 @@ import { syncService } from "../../services/lumen/index.js";
 
 const router = Router();
 
-router.get("/changes", requireAuth, requireDeviceSecurity, requirePlusEntitlement, async (req: Request, res: Response, next: NextFunction) => {
+router.get("/changes", requireAuth(), requireDeviceSecurity(), requirePlusEntitlement(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { since } = req.query;
     const userId = req.lumenUserId;
@@ -16,7 +16,7 @@ router.get("/changes", requireAuth, requireDeviceSecurity, requirePlusEntitlemen
   }
 });
 
-router.post("/push", requireAuth, requireDeviceSecurity, requirePlusEntitlement, async (req: Request, res: Response, next: NextFunction) => {
+router.post("/push", requireAuth(), requireDeviceSecurity(), requirePlusEntitlement(), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { changes, cursor, deviceInstallationId } = req.body;
     const userId = req.lumenUserId;

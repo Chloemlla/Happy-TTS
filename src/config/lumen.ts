@@ -16,10 +16,6 @@ function intFromEnv(value: string | undefined, fallback: number, max?: number): 
 }
 
 export const lumenConfig = {
-  bindAddress: process.env.LUMEN_BIND_ADDRESS || "0.0.0.0:3001",
-  mongodbUri: process.env.LUMEN_MONGODB_URI || "mongodb://localhost:27017",
-  databaseName: process.env.LUMEN_DATABASE_NAME || "project_lumen",
-
   adminPassword: process.env.LUMEN_ADMIN_PASSWORD || "change-me",
   adminUsername: process.env.LUMEN_ADMIN_USERNAME || "admin",
   adminAutomationToken: process.env.LUMEN_ADMIN_AUTOMATION_TOKEN || "",

@@ -1,4 +1,4 @@
-import { mongoose } from "../../services/mongoService";
+import { mongoose } from "../../services/mongoService.js";
 
 export interface IDeviceSecurityEvidence {
   status: string;
@@ -67,7 +67,7 @@ const UserSchema = new mongoose.Schema<IUser>(
 UserSchema.index({ email: 1 }, { unique: true, sparse: true });
 
 const User =
-  (mongoose.models.User as mongoose.Model<IUser>) ||
-  mongoose.model<IUser>("User", UserSchema);
+  (mongoose.models.LumenUser as mongoose.Model<IUser>) ||
+  mongoose.model<IUser>("LumenUser", UserSchema);
 
 export { User, UserSchema };
