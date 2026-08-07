@@ -41,6 +41,8 @@ import {
 } from "./studioTheme";
 import { TurnstileWidget } from "./TurnstileWidget";
 import { useTurnstileConfig } from "../hooks/useTurnstileConfig";
+import { useAuth } from "../hooks/useAuth";
+import { isAdminRole } from "../utils/rbac";
 
 function formatRedeemedDate(value: Date | string): string {
   return new Date(value).toLocaleDateString("zh-CN", {
@@ -105,10 +107,8 @@ export default function ResourceStoreList() {
   const [turnstileError, setTurnstileError] = useState("");
   const [turnstileKey, setTurnstileKey] = useState("turnstile-initial");
 
-  const isAdmin = useMemo(() => {
-    const userRole = localStorage.getItem("userRole");
-    return userRole === "admin" || userRole === "administrator";
-  }, []);
+  const { user } = useAuth();
+  const isAdmin = useMemo(() => isAdminRole(user?.role), [user]);
 
   const fetchResources = async () => {
     try {

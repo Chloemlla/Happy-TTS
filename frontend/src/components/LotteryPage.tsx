@@ -6,6 +6,7 @@ import { LotteryRound, LotteryWinner } from '../types/lottery';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { useNotification } from './Notification';
+import { isAdminRole } from '../utils/rbac';
 import getApiBaseUrl, { getApiBaseUrl as namedGetApiBaseUrl } from '../api';
 import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
@@ -452,11 +453,8 @@ const LotteryPage: React.FC = () => {
   const [turnstileError, setTurnstileError] = useState<string>('');
   const [turnstileKey, setTurnstileKey] = useState<string>('');
 
-  // 检查是否为管理员
-  const isAdmin = useMemo(() => {
-    const userRole = localStorage.getItem('userRole');
-    return userRole === 'admin' || userRole === 'administrator';
-  }, []);
+  // 检查是否为管理员（superadmin 同样视为管理员）
+  const isAdmin = useMemo(() => isAdminRole(user?.role), [user]);
 
   // Turnstile 回调函数
   const handleTurnstileVerify = (token: string) => {
