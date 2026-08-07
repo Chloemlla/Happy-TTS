@@ -4,6 +4,8 @@ import { getFingerprint, getAccessToken } from '../utils/fingerprint';
 import { useNotification } from '../components/Notification';
 import { getApiBaseUrl } from '../api/api';
 import { isFirstVisitVerificationEnabled } from '../utils/firstVisitVerificationConfig';
+import { useAuth } from '../hooks/useAuth';
+import { isSuperAdmin } from '../utils/rbac';
 import {
     InfoMetricCard,
     InfoPanel,
@@ -44,6 +46,8 @@ const GitHubBillingCacheManager: React.FC = () => {
     const [clearingExpired, setClearingExpired] = useState(false);
     const [loadingStage, setLoadingStage] = useState<'idle' | 'customers' | 'metrics' | 'complete'>('idle');
     const { setNotification } = useNotification();
+    const { user } = useAuth();
+    const canWrite = isSuperAdmin(user?.role);
 
     // 获取管理员和Turnstile认证头部
     const getAdminTurnstileAuthHeaders = async () => {
@@ -294,14 +298,16 @@ const GitHubBillingCacheManager: React.FC = () => {
             <InfoPanel>
                 <InfoSectionTitle eyebrow="Cache Actions" title="缓存管理操作" icon={FaTrash} />
                 <div className="flex flex-col sm:flex-row gap-4">
-                    <button
-                        onClick={clearExpiredCache}
-                        disabled={clearingExpired}
-                        className={logShareDangerButtonClass}
-                    >
-                        <FaClock className={`w-4 h-4 ${clearingExpired ? 'animate-spin' : ''}`} />
-                        {clearingExpired ? '清理中' : '清理过期缓存'}
-                    </button>
+                    {canWrite && (
+                        <button
+                            onClick={clearExpiredCache}
+                            disabled={clearingExpired}
+                            className={logShareDangerButtonClass}
+                        >
+                            <FaClock className={`w-4 h-4 ${clearingExpired ? 'animate-spin' : ''}`} />
+                            {clearingExpired ? '清理中' : '清理过期缓存'}
+                        </button>
+                    )}
                 </div>
             </InfoPanel>
 
@@ -329,14 +335,16 @@ const GitHubBillingCacheManager: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    <button
-                                        onClick={() => clearCustomerCache(customer.customerId)}
-                                        disabled={clearingCache === customer.customerId}
-                                        className={logShareDangerButtonClass}
-                                    >
-                                        <FaTrash className={`w-3 h-3 ${clearingCache === customer.customerId ? 'animate-spin' : ''}`} />
-                                        {clearingCache === customer.customerId ? '清除中' : '清除'}
-                                    </button>
+                                    {canWrite && (
+                                        <button
+                                            onClick={() => clearCustomerCache(customer.customerId)}
+                                            disabled={clearingCache === customer.customerId}
+                                            className={logShareDangerButtonClass}
+                                        >
+                                            <FaTrash className={`w-3 h-3 ${clearingCache === customer.customerId ? 'animate-spin' : ''}`} />
+                                            {clearingCache === customer.customerId ? '清除中' : '清除'}
+                                        </button>
+                                    )}
                                 </div>
                             ))}
                         </div>

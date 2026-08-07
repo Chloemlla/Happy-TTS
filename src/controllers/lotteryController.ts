@@ -35,6 +35,10 @@ export class LotteryController {
   public async createLotteryRound(req: Request, res: Response): Promise<void> {
     logger.info("收到创建轮次请求", req.body);
     try {
+      if (!isSuperAdmin(req)) {
+        res.status(403).json({ success: false, error: "权限不足" });
+        return;
+      }
       let { name, description, startTime, endTime, prizes } = req.body;
       // WAF校验
       if (!wafCheck(name, 64) || !wafCheck(description, 256)) {

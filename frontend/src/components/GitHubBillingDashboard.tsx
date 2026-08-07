@@ -5,6 +5,8 @@ import { useNotification } from './Notification';
 import { getApiBaseUrl } from '../api/api';
 import { getFingerprint, getAccessToken } from '../utils/fingerprint';
 import { isFirstVisitVerificationEnabled } from '../utils/firstVisitVerificationConfig';
+import { useAuth } from '../hooks/useAuth';
+import { isSuperAdmin } from '../utils/rbac';
 
 // 动画配置
 const ENTER_INITIAL = { opacity: 0, y: 20 };
@@ -109,6 +111,8 @@ interface CachedCustomer {
 }
 
 const GitHubBillingDashboard: React.FC = () => {
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const { setNotification } = useNotification();
   const [billingData, setBillingData] = useState<BillingUsageData | null>(null);
   const [cachedCustomers, setCachedCustomers] = useState<CachedCustomer[]>([]);
@@ -451,15 +455,17 @@ const GitHubBillingDashboard: React.FC = () => {
                 <FaSync className={`text-xs ${loading ? 'animate-spin' : ''}`} />
                 {loading ? '刷新中...' : '强制刷新'}
               </m.button>
-              <m.button
-                onClick={() => clearCache()}
-                disabled={clearingCache}
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
-                whileTap={{ scale: 0.97 }}
-              >
-                <FaTrash className="text-xs" />
-                {clearingCache ? '清除中...' : '清除过期缓存'}
-              </m.button>
+              {canWrite && (
+                <m.button
+                  onClick={() => clearCache()}
+                  disabled={clearingCache}
+                  className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                  whileTap={{ scale: 0.97 }}
+                >
+                  <FaTrash className="text-xs" />
+                  {clearingCache ? '清除中...' : '清除过期缓存'}
+                </m.button>
+              )}
             </div>
           </div>
         </m.div>
@@ -873,14 +879,16 @@ const GitHubBillingDashboard: React.FC = () => {
                               >
                                 查看
                               </m.button>
-                              <m.button
-                                onClick={() => clearCache(customer.customerId)}
-                                disabled={clearingCache}
-                                className="rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 transition hover:border-slate-300 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
-                                whileTap={{ scale: 0.95 }}
-                              >
-                                清除
-                              </m.button>
+                              {canWrite && (
+                                <m.button
+                                  onClick={() => clearCache(customer.customerId)}
+                                  disabled={clearingCache}
+                                  className="rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 transition hover:border-slate-300 hover:text-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                  whileTap={{ scale: 0.95 }}
+                                >
+                                  清除
+                                </m.button>
+                              )}
                             </div>
                           </td>
                         </tr>

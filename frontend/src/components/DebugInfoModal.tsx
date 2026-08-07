@@ -19,7 +19,7 @@ export const DebugInfoModal: React.FC<DebugInfoModalProps> = ({ isOpen, onClose,
     const [copied, setCopied] = useState(false);
 
     // 检查用户是否为管理员
-    const isAdmin = isAdminRole(userRole) || userRole === 'administrator';
+    const isAdmin = isAdminRole(userRole);
 
     const copyToClipboard = async () => {
         try {

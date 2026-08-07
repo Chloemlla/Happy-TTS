@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../hooks/useAuth';
-import { isAdminRole } from '../utils/rbac';
+import { isSuperAdmin } from '../utils/rbac';
 import { useLottery } from '../hooks/useLottery';
 import { LotteryPrize, LotteryRound } from '../types/lottery';
 import * as lotteryApi from '../api/lottery';
@@ -446,8 +446,8 @@ const LotteryAdmin: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'create' | 'manage'>('create');
   const { setNotification } = useNotification();
 
-  // 检查管理员权限
-  if (!user || !isAdminRole(user.role)) {
+  // 检查超级管理员权限
+  if (!user || !isSuperAdmin(user.role)) {
     return (
       <motion.div 
         className="space-y-6"
