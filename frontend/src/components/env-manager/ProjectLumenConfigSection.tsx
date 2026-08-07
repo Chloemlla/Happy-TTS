@@ -21,30 +21,6 @@ interface LumenSecretField {
 
 const SECRET_FIELDS: LumenSecretField[] = [
   {
-    key: 'KEYSTORE_BASE64',
-    label: '签名 keystore（base64）',
-    description: 'Android 签名文件 .jks 的 Base64 编码内容，用于 CI 构建时对 APK 进行签名。对应 GitHub Actions Secret KEYSTORE_BASE64。',
-    placeholder: '粘贴完整 .jks 文件的 base64 内容（可能很长）',
-  },
-  {
-    key: 'KEYSTORE_PASSWORD',
-    label: 'keystore 密码',
-    description: '用于解锁 keystore 文件的密码。对应 GitHub Actions Secret KEYSTORE_PASSWORD。',
-    placeholder: '输入 keystore 密码',
-  },
-  {
-    key: 'KEY_ALIAS',
-    label: '签名别名',
-    description: 'keystore 中用于签名的密钥别名。对应 GitHub Actions Secret KEY_ALIAS。',
-    placeholder: '输入签名别名',
-  },
-  {
-    key: 'KEY_PASSWORD',
-    label: '签名密钥密码',
-    description: '签名私钥的密码，与 keystore 密码不同。对应 GitHub Actions Secret KEY_PASSWORD。',
-    placeholder: '输入签名私钥密码',
-  },
-  {
     key: 'PROJECT_LUMEN_API_BASE_URL',
     label: '客户端 API 地址',
     description: 'Project-Lumen Android 客户端连接的 API 基础地址。对应 GitHub Actions Secret PROJECT_LUMEN_API_BASE_URL。',
@@ -321,7 +297,7 @@ export default function ProjectLumenConfigSection({
   return (
     <CollapsibleSection
       title="Project Lumen 配置"
-      description="管理 Project-Lumen Android 客户端构建与 CI 所需的 17 个密钥/配置项，支持保存到本服务保管库并同步到 GitHub Actions Secrets。"
+      description="管理 Project-Lumen Android 客户端构建与 CI 所需的 13 个密钥/配置项，支持保存到本服务保管库并同步到 GitHub Actions Secrets。"
       sectionKey={SECTION_KEY}
       isOpen={isOpen}
       onToggle={onToggle}
@@ -343,7 +319,7 @@ export default function ProjectLumenConfigSection({
     >
       <InfoBox icon={<FaLock />}>
         <p>
-          以下 17 个配置项是 Project-Lumen 的 Android 客户端构建与 CI 密钥。保存后存放在本服务（env-manager 保管库），
+          以下 13 个配置项是 Project-Lumen 的 Android 客户端构建与 CI 密钥。保存后存放在本服务（env-manager 保管库），
           可通过「同步到 GitHub」写入 Project-Lumen 仓库的 GitHub Actions Secrets，CI 即可读取。
         </p>
         <p className="mt-1">
