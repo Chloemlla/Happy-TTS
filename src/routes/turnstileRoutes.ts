@@ -210,7 +210,7 @@ router.post(
   "/config",
   authenticateToken,
   configLimiter,
-  auditLog({ module: "turnstile", action: "turnstile.configUpdate" }),
+  auditLog({ module: "system", action: "system.turnstileConfigUpdate" }),
   updateTurnstileConfig,
 );
 
@@ -230,7 +230,7 @@ router.delete(
   "/config/:key",
   authenticateToken,
   configLimiter,
-  auditLog({ module: "turnstile", action: "turnstile.configDelete", extractDetail: (req) => ({ key: req.params.key }) }),
+  auditLog({ module: "system", action: "system.turnstileConfigDelete", extractDetail: (req) => ({ key: req.params.key }) }),
   deleteTurnstileConfig,
 );
 
@@ -262,7 +262,7 @@ router.post(
   "/hcaptcha-config",
   authenticateToken,
   configLimiter,
-  auditLog({ module: "turnstile", action: "turnstile.hcaptchaConfigUpdate" }),
+  auditLog({ module: "system", action: "system.hcaptchaConfigUpdate" }),
   updateHCaptchaConfig,
 );
 
@@ -281,7 +281,7 @@ router.delete(
   "/hcaptcha-config/:key",
   authenticateToken,
   configLimiter,
-  auditLog({ module: "turnstile", action: "turnstile.hcaptchaConfigDelete", extractDetail: (req) => ({ key: req.params.key }) }),
+  auditLog({ module: "system", action: "system.hcaptchaConfigDelete", extractDetail: (req) => ({ key: req.params.key }) }),
   deleteHCaptchaConfig,
 );
 
