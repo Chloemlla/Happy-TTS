@@ -30,10 +30,16 @@ jobs:
 
       - name: Generate route audit
         # ts-node 10.9.2 与 typescript 7.0.2 不兼容（ts.sys 缺失），改用 tsx
-        # 临时运行（pnpm dlx 不写入 lockfile）。结构违规仍使生成器非 0 退出，
-        # 产物继续上传供人工审查。
+        # 临时运行（pnpm dlx 不写入 lockfile）。config.ts 在非 test 环境要求
+        # MONGO_URI，故注入与 Jest setup 一致的最小测试环境变量（不连接数据库）。
         continue-on-error: true
         run: pnpm dlx tsx scripts/generate-route-audit.ts
+        env:
+          NODE_ENV: test
+          MONGO_URI: mongodb://127.0.0.1:27017/tts-test
+          USER_STORAGE_MODE: mongo
+          JWT_SECRET: test-jwt-secret
+          ADMIN_PASSWORD: admin123
 
       - name: Generate OpenAPI spec
         run: pnpm run generate:openapi
