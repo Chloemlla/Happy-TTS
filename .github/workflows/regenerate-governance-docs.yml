@@ -1,0 +1,45 @@
+name: Regenerate Governance Docs
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    name: Generate governance docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 11.11.0
+
+      - name: Install dependencies
+        # 跳过依赖安装脚本，与 Node Verification 保持一致
+        run: pnpm install --ignore-scripts
+
+      - name: Generate route audit
+        # 结构违规使生成器以非 0 退出；产物仍应上传供人工审查
+        continue-on-error: true
+        run: pnpm run generate:route-audit
+
+      - name: Generate OpenAPI spec
+        run: pnpm run generate:openapi
+
+      - name: Upload generated docs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: governance-docs
+          path: |
+            docs/generated/
+            openapi.json
