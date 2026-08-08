@@ -135,8 +135,9 @@ describe("oauthService", () => {
     });
   });
 
-  it("allows administrators and trusted users to authorize OAuth clients", () => {
+  it("allows administrators, superadmins and trusted users to authorize OAuth clients", () => {
     expect(canAuthorizeOAuth({ role: "admin" } as any)).toBe(true);
+    expect(canAuthorizeOAuth({ role: "superadmin" } as any)).toBe(true);
     expect(canAuthorizeOAuth({ role: "trusted" } as any)).toBe(true);
     expect(canAuthorizeOAuth({ role: "user" } as any)).toBe(false);
     expect(canAuthorizeOAuth(null)).toBe(false);
