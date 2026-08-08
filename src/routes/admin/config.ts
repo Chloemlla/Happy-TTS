@@ -42,7 +42,7 @@ router.get("/envs", adminController.getEnvs);
 router.post(
   "/envs",
   authenticateSuperAdmin,
-  auditLog({ module: "env", action: "env.set", extractDetail: (req) => ({ key: req.body.key }) }),
+  auditLog({ module: "env", action: "env.set", captureBody: false, extractDetail: (req) => ({ key: req.body.key }) }),
   adminController.setEnv,
 );
 

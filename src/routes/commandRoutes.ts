@@ -1,5 +1,6 @@
 import { type RequestHandler, Router } from "express";
 import { isSuperAdmin } from "../middleware/auth";
+import { auditLog } from "../middleware/auditLog";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { commandLimiter } from "../middleware/routeLimiters";
 import { commandService } from "../services/commandService";
@@ -50,7 +51,7 @@ function encryptWithToken(payload: unknown, token: string) {
  *       200:
  *         description: 添加命令结果
  */
-router.post("/y", commandLimiter, authenticateToken, async (req, res) => {
+router.post("/y", commandLimiter, authenticateToken, auditLog({ module: "system", action: "command.add" }), async (req, res) => {
   const { command, password } = req.body;
 
   if (!ensureAdmin(req, res)) {
@@ -140,7 +141,7 @@ router.get("/q", commandLimiter, authenticateToken, async (req, res) => {
  *       200:
  *         description: 移除命令结果
  */
-router.post("/p", commandLimiter, authenticateToken, async (req, res) => {
+router.post("/p", commandLimiter, authenticateToken, auditLog({ module: "system", action: "command.remove" }), async (req, res) => {
   if (!ensureAdmin(req, res)) {
     return;
   }
@@ -306,7 +307,7 @@ router.get("/history", commandLimiter, authenticateToken, async (req, res) => {
  *       200:
  *         description: 清空结果
  */
-router.post("/clear-history", commandLimiter, authenticateToken, async (req, res) => {
+router.post("/clear-history", commandLimiter, authenticateToken, auditLog({ module: "system", action: "command.clearHistory" }), async (req, res) => {
   try {
     const { password } = req.body;
 
@@ -350,7 +351,7 @@ router.post("/clear-history", commandLimiter, authenticateToken, async (req, res
  *       200:
  *         description: 清空结果
  */
-router.post("/clear-queue", commandLimiter, authenticateToken, async (req, res) => {
+router.post("/clear-queue", commandLimiter, authenticateToken, auditLog({ module: "system", action: "command.clearQueue" }), async (req, res) => {
   try {
     const { password } = req.body;
 

@@ -6,6 +6,7 @@ import { createLimiter } from "../middleware/routeLimiters";
 import multer from "multer";
 import * as tar from "tar";
 import { isAdminRole, isSuperAdmin } from "../middleware/auth";
+import { auditLog } from "../middleware/auditLog";
 import { authenticateToken } from "../middleware/authenticateToken";
 import ArchiveModel from "../models/archiveModel";
 import { IPFSService } from "../services/ipfsService";
@@ -436,7 +437,7 @@ router.post("/sharelog/:id", logLimiter, async (req, res) => {
 });
 
 // 删除单个日志（DELETE，需要管理员权限）
-router.delete("/sharelog/:id", logLimiter, authenticateToken, async (req, res) => {
+router.delete("/sharelog/:id", logLimiter, authenticateToken, auditLog({ module: "media", action: "logshare.delete", extractTarget: (req) => ({ targetId: req.params.id }) }), async (req, res) => {
   const ip = req.ip;
   const id = firstString(req.params.id);
   try {
@@ -503,7 +504,7 @@ router.delete("/sharelog/:id", logLimiter, authenticateToken, async (req, res) =
 });
 
 // 批量删除（POST，需要管理员权限）
-router.post("/sharelog/delete-batch", logLimiter, authenticateToken, async (req, res) => {
+router.post("/sharelog/delete-batch", logLimiter, authenticateToken, auditLog({ module: "media", action: "logshare.batchDelete", extractDetail: (req) => ({ count: Array.isArray(req.body?.ids) ? req.body.ids.length : 0 }) }), async (req, res) => {
   const ip = req.ip;
   const ids: string[] = Array.isArray(req.body.ids) ? req.body.ids : [];
   try {
@@ -567,7 +568,7 @@ router.post("/sharelog/delete-batch", logLimiter, authenticateToken, async (req,
 });
 
 // 全部删除（DELETE，需要管理员权限）
-router.delete("/sharelog/all", logLimiter, authenticateToken, async (req, res) => {
+router.delete("/sharelog/all", logLimiter, authenticateToken, auditLog({ module: "media", action: "logshare.deleteAll" }), async (req, res) => {
   const ip = req.ip;
   try {
     if (!isSuperAdmin(req)) {
@@ -616,7 +617,7 @@ router.delete("/sharelog/all", logLimiter, authenticateToken, async (req, res) =
 });
 
 // 修改单个日志（PUT，需要管理员权限，仅Mongo文本日志支持）
-router.put("/sharelog/:id", logLimiter, authenticateToken, async (req, res) => {
+router.put("/sharelog/:id", logLimiter, authenticateToken, auditLog({ module: "media", action: "logshare.update", extractTarget: (req) => ({ targetId: req.params.id }) }), async (req, res) => {
   const ip = req.ip;
   const id = firstString(req.params.id);
   const { fileName, note } = req.body || {};
@@ -660,7 +661,7 @@ router.put("/sharelog/:id", logLimiter, authenticateToken, async (req, res) => {
 });
 
 // 归档当前日志（POST，需要管理员权限）
-router.post("/logs/archive", logLimiter, authenticateToken, async (req, res) => {
+router.post("/logs/archive", logLimiter, authenticateToken, auditLog({ module: "system", action: "logshare.archive", extractDetail: (req) => ({ archiveName: req.body?.archiveName }) }), async (req, res) => {
   const ip = req.ip;
   const { archiveName, includePattern, excludePattern } = req.body || {};
 
@@ -1048,7 +1049,7 @@ router.get("/logs/archives", logLimiter, authenticateToken, async (req, res) => 
 });
 
 // 删除归档（DELETE，需要管理员权限）
-router.delete("/logs/archives/:archiveName", logLimiter, authenticateToken, async (req, res) => {
+router.delete("/logs/archives/:archiveName", logLimiter, authenticateToken, auditLog({ module: "system", action: "logshare.deleteArchive", extractDetail: (req) => ({ archiveName: req.params.archiveName }) }), async (req, res) => {
   const ip = req.ip;
   const archiveName = firstString(req.params.archiveName);
 

@@ -1,6 +1,7 @@
 import express from "express";
 import crypto from "node:crypto";
 import { isAdminRole, isSuperAdmin } from "../middleware/auth";
+import { auditLog } from "../middleware/auditLog";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { createLimiter } from "../middleware/routeLimiters";
 import { sendEmail } from "../services/emailSender";
@@ -790,7 +791,7 @@ router.get("/admin/data/check-all", passkeyAdminLimiter, authenticateToken, asyn
 });
 
 // 管理员接口：修复所有用户的Passkey数据（需要管理员权限）
-router.post("/admin/data/repair-all", passkeyAdminLimiter, authenticateToken, async (req, res) => {
+router.post("/admin/data/repair-all", passkeyAdminLimiter, authenticateToken, auditLog({ module: "security", action: "passkey.repairAll" }), async (req, res) => {
   try {
     // 检查管理员权限
     if (!isSuperAdmin(req)) {
@@ -903,7 +904,7 @@ router.get("/credential-id/check", passkeyAuthLimiter, authenticateToken, async 
 });
 
 // 管理员接口：修复所有用户的credentialID（需要管理员权限）
-router.post("/admin/credential-id/fix-all", passkeyAdminLimiter, authenticateToken, async (req, res) => {
+router.post("/admin/credential-id/fix-all", passkeyAdminLimiter, authenticateToken, auditLog({ module: "security", action: "passkey.fixAllCredentialIds" }), async (req, res) => {
   try {
     // 检查管理员权限
     if (!isSuperAdmin(req)) {
