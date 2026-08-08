@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { ShortUrlController } from "../controllers/shortUrlController";
 import { apiKeyAuth } from "../middleware/apiKeyAuth";
-import { adminAuthMiddleware, authMiddlewareV2 as authMiddleware } from "../middleware/auth";
+import { adminAuthMiddleware, authenticateSuperAdmin, authMiddlewareV2 as authMiddleware } from "../middleware/auth";
 import { createLimiter } from "../middleware/routeLimiters";
 import { replayProtection } from "../middleware/replayProtection";
 import { mongoose } from "../services/mongoService";
@@ -87,7 +87,7 @@ router.get("/admin/export", authMiddleware, adminAuthMiddleware, adminLimiter, S
 router.delete(
   "/admin/deleteall",
   authMiddleware,
-  adminAuthMiddleware,
+  authenticateSuperAdmin,
   adminLimiter,
   replayGuard,
   ShortUrlController.deleteAllShortUrls,
@@ -97,7 +97,7 @@ router.delete(
 router.post(
   "/admin/import",
   authMiddleware,
-  adminAuthMiddleware,
+  authenticateSuperAdmin,
   adminLimiter,
   replayGuard,
   ShortUrlController.importShortUrls,
@@ -141,7 +141,7 @@ router.get(
 router.post(
   "/admin/aes-key",
   authMiddleware,
-  adminAuthMiddleware,
+  authenticateSuperAdmin,
   adminSensitiveLimiter,
   adminWriteLimiter,
   adminLimiter,
@@ -169,7 +169,7 @@ router.post(
 router.delete(
   "/admin/aes-key",
   authMiddleware,
-  adminAuthMiddleware,
+  authenticateSuperAdmin,
   adminSensitiveLimiter,
   adminWriteLimiter,
   adminLimiter,
