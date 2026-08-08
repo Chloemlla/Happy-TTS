@@ -6,7 +6,7 @@ import CryptoJS from "crypto-js";
 import { FaCode, FaEdit, FaEye, FaList, FaPlus, FaSyncAlt, FaTrash } from "react-icons/fa";
 import { api } from "../api/api";
 import { useAuth } from "../hooks/useAuth";
-import { isAdminRole } from "../utils/rbac";
+import { isAdminRole, isSuperAdmin } from "../utils/rbac";
 import { useNotification } from "./Notification";
 
 
@@ -256,6 +256,7 @@ const ModListEditor: React.FC = () => {
   const [showBatchAddModal, setShowBatchAddModal] = useState(false);
 
   const isAdmin = isAdminRole(user?.role);
+  const canWrite = isSuperAdmin(user?.role);
 
   const notify = (type: "success" | "error" | "info" | "warning", message: string) => {
     setNotification({ type, message });
@@ -346,6 +347,7 @@ const ModListEditor: React.FC = () => {
   };
 
   const handleSubmitAdd = async () => {
+    if (!canWrite) return;
     if (!draft.name.trim() || !draft.hash.trim() || !modifyCode.trim()) {
       notify("error", "新增时必须填写名称、Hash 和修改码");
       return;
@@ -373,6 +375,7 @@ const ModListEditor: React.FC = () => {
   };
 
   const handleSubmitEdit = async () => {
+    if (!canWrite) return;
     if (!selectedMod?.id || !draft.name.trim() || !modifyCode.trim()) {
       notify("error", "编辑时必须填写名称和修改码");
       return;
@@ -400,6 +403,7 @@ const ModListEditor: React.FC = () => {
   };
 
   const handleSubmitDelete = async () => {
+    if (!canWrite) return;
     if (!selectedMod?.id || !deleteCode.trim()) {
       notify("error", "删除前必须输入修改码");
       return;
@@ -423,6 +427,7 @@ const ModListEditor: React.FC = () => {
   };
 
   const handleSubmitBatchDelete = async () => {
+    if (!canWrite) return;
     if (!selectedCount) {
       notify("error", "请先选择要删除的模组");
       return;
@@ -450,6 +455,7 @@ const ModListEditor: React.FC = () => {
   };
 
   const handleSubmitBatchAdd = async () => {
+    if (!canWrite) return;
     let payload: Array<Pick<ModItem, "name" | "hash" | "md5">>;
 
     try {
@@ -660,23 +666,27 @@ const ModListEditor: React.FC = () => {
                     <p className="mt-1 text-sm text-[#023047]/62">直接对应后端单条与批量写接口。</p>
                   </div>
                   <div className="flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      onClick={handleOpenAdd}
-                      className="inline-flex items-center gap-2 rounded-2xl bg-[#219EBC] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#1A87A0]"
-                    >
-                      <FaPlus className="h-3.5 w-3.5" />
-                      新增模组
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowBatchDeleteModal(true)}
-                      disabled={!selectedCount}
-                      className="inline-flex items-center gap-2 rounded-2xl bg-[#FB8500] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#df7600] disabled:cursor-not-allowed disabled:opacity-45"
-                    >
-                      <FaTrash className="h-3.5 w-3.5" />
-                      批量删除
-                    </button>
+                    {canWrite && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={handleOpenAdd}
+                          className="inline-flex items-center gap-2 rounded-2xl bg-[#219EBC] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#1A87A0]"
+                        >
+                          <FaPlus className="h-3.5 w-3.5" />
+                          新增模组
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowBatchDeleteModal(true)}
+                          disabled={!selectedCount}
+                          className="inline-flex items-center gap-2 rounded-2xl bg-[#FB8500] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#df7600] disabled:cursor-not-allowed disabled:opacity-45"
+                        >
+                          <FaTrash className="h-3.5 w-3.5" />
+                          批量删除
+                        </button>
+                      </>
+                    )}
                     <button
                       type="button"
                       onClick={() => setSelectedIds(filteredMods.map((mod) => mod.id))}
@@ -724,22 +734,26 @@ const ModListEditor: React.FC = () => {
                       <div className="break-all text-[#023047]/72">{mod.hash || "-"}</div>
                       <div className="break-all text-[#023047]/72">{mod.md5 || "-"}</div>
                       <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(mod)}
-                          className="inline-flex items-center gap-1 rounded-xl border border-[#FFB703]/40 px-3 py-2 text-xs font-medium text-[#9A6700] transition hover:bg-[#FFB703]/10"
-                        >
-                          <FaEdit className="h-3 w-3" />
-                          编辑
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenDelete(mod)}
-                          className="inline-flex items-center gap-1 rounded-xl border border-[#FB8500]/40 px-3 py-2 text-xs font-medium text-[#B45309] transition hover:bg-[#FB8500]/10"
-                        >
-                          <FaTrash className="h-3 w-3" />
-                          删除
-                        </button>
+                        {canWrite && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(mod)}
+                              className="inline-flex items-center gap-1 rounded-xl border border-[#FFB703]/40 px-3 py-2 text-xs font-medium text-[#9A6700] transition hover:bg-[#FFB703]/10"
+                            >
+                              <FaEdit className="h-3 w-3" />
+                              编辑
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenDelete(mod)}
+                              className="inline-flex items-center gap-1 rounded-xl border border-[#FB8500]/40 px-3 py-2 text-xs font-medium text-[#B45309] transition hover:bg-[#FB8500]/10"
+                            >
+                              <FaTrash className="h-3 w-3" />
+                              删除
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))
@@ -755,13 +769,15 @@ const ModListEditor: React.FC = () => {
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setJsonEditable((current) => !current)}
-                      className="rounded-2xl border border-[#8ECAE6]/40 px-4 py-3 text-sm font-medium text-[#023047] transition hover:bg-[#EAF6FB]"
-                    >
-                      {jsonEditable ? "取消编辑" : "启用编辑"}
-                    </button>
+                    {canWrite && (
+                      <button
+                        type="button"
+                        onClick={() => setJsonEditable((current) => !current)}
+                        className="rounded-2xl border border-[#8ECAE6]/40 px-4 py-3 text-sm font-medium text-[#023047] transition hover:bg-[#EAF6FB]"
+                      >
+                        {jsonEditable ? "取消编辑" : "启用编辑"}
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setShowExampleModal(true)}
@@ -769,15 +785,17 @@ const ModListEditor: React.FC = () => {
                     >
                       查看示例
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowBatchAddModal(true)}
-                      disabled={!jsonEditable}
-                      className="inline-flex items-center gap-2 rounded-2xl bg-[#219EBC] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#1A87A0] disabled:cursor-not-allowed disabled:opacity-45"
-                    >
-                      <FaPlus className="h-3.5 w-3.5" />
-                      批量新增
-                    </button>
+                    {canWrite && (
+                      <button
+                        type="button"
+                        onClick={() => setShowBatchAddModal(true)}
+                        disabled={!jsonEditable}
+                        className="inline-flex items-center gap-2 rounded-2xl bg-[#219EBC] px-4 py-3 text-sm font-medium text-white transition hover:bg-[#1A87A0] disabled:cursor-not-allowed disabled:opacity-45"
+                      >
+                        <FaPlus className="h-3.5 w-3.5" />
+                        批量新增
+                      </button>
+                    )}
                   </div>
                 </div>
 

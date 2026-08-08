@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useAuth } from "../hooks/useAuth";
-import { isAdminRole } from "../utils/rbac";
+import { isAdminRole, isSuperAdmin } from "../utils/rbac";
 import { ticketApi, ITicket } from "../api/ticketApi";
 import { useNotification } from "./Notification";
 import { useWebSocket, WsServerMessage } from "../hooks/useWebSocket";
@@ -77,6 +77,7 @@ function getApiErrorResponse(error: unknown): ApiErrorResponse | null {
 const TicketSystem: React.FC = () => {
   const { user } = useAuth();
   const isAdmin = isAdminRole(user?.role);
+  const canWrite = isSuperAdmin(user?.role);
   const { setNotification } = useNotification();
   const [tickets, setTickets] = useState<ITicket[]>([]);
   const [selectedTicket, setSelectedTicket] = useState<ITicket | null>(null);
@@ -178,6 +179,7 @@ const TicketSystem: React.FC = () => {
   useWebSocket({ onMessage });
 
   const handleAdminEdit = async (ticketId: string, idx: number) => {
+    if (!canWrite) return;
     if (!editValue.trim()) return;
     setIsUpdating(true);
     try {
@@ -194,6 +196,7 @@ const TicketSystem: React.FC = () => {
   };
 
   const handleAdminDelete = async (ticketId: string, idx: number) => {
+    if (!canWrite) return;
     if (!window.confirm("确定要删除这条消息吗？此操作不可撤销。")) return;
     try {
       const updated = await ticketApi.adminDeleteMessage(ticketId, idx);
@@ -350,6 +353,7 @@ const TicketSystem: React.FC = () => {
   };
 
   const handleUpdateStatus = async (id: string, status: string) => {
+    if (!canWrite) return;
     try {
       const updated = await ticketApi.updateStatus(id, status);
       if (selectedTicket?._id === id) setSelectedTicket(updated);
@@ -745,7 +749,7 @@ const TicketSystem: React.FC = () => {
                           </div>
                         </div>
                         <div className="flex items-center gap-3 w-full sm:w-auto">
-                          {isAdmin ? (
+                          {canWrite ? (
                             <select
                               className={cn(studioFieldClassName, "py-2 text-xs sm:w-auto")}
                               value={selectedTicket.status}
@@ -842,7 +846,7 @@ const TicketSystem: React.FC = () => {
                                     <AiErrorDetailsPanel diagnostics={msg.aiErrorDetails} />
                                   )}
 
-                                  {isAdmin && editingIdx !== idx && (
+                                  {canWrite && editingIdx !== idx && (
                                     <div className={`absolute -bottom-6 ${isMe ? 'left-0' : 'right-0'} opacity-0 group-hover:opacity-100 transition-opacity flex gap-2`}>
                                       <button
                                         onClick={() => {

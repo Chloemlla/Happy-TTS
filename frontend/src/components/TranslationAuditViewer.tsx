@@ -13,6 +13,8 @@ import {
   FaUserSlash,
 } from 'react-icons/fa';
 import { useNotification } from './Notification';
+import { useAuth } from '../hooks/useAuth';
+import { isSuperAdmin } from '../utils/rbac';
 import {
   translationAuditApi,
   type TranslationLogEntry,
@@ -33,6 +35,8 @@ const PAGE_SIZE = 20;
 
 const TranslationAuditViewer: React.FC = () => {
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const [logs, setLogs] = useState<TranslationLogEntry[]>([]);
   const [stats, setStats] = useState<TranslationLogStats | null>(null);
   const [filters, setFilters] = useState<TranslationLogQuery>({
@@ -115,6 +119,7 @@ const TranslationAuditViewer: React.FC = () => {
   }, [setNotification]);
 
   const applyPenalty = useCallback(async (action: TranslationPenaltyAction) => {
+    if (!canWrite) return;
     if (!selectedUser) return;
 
     let until: string | undefined;
@@ -157,7 +162,7 @@ const TranslationAuditViewer: React.FC = () => {
     } finally {
       setPenaltyLoading(false);
     }
-  }, [selectedLog, selectedUser, setNotification]);
+  }, [canWrite, selectedLog, selectedUser, setNotification]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -395,42 +400,44 @@ const TranslationAuditViewer: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
-                    <div className="mb-3 text-sm font-semibold text-slate-900">惩戒操作</div>
-                    <div className="grid gap-2">
-                      <PenaltyButton
-                        icon={<FaBan />}
-                        label="等级 1：限制翻译"
-                        onClick={() => void applyPenalty('LIMIT_TRANSLATION')}
-                        disabled={!selectedUser || penaltyLoading}
-                      />
-                      <PenaltyButton
-                        icon={<FaShieldAlt />}
-                        label="等级 2：停用页面"
-                        onClick={() => void applyPenalty('REVOKE_PAGE_ACCESS')}
-                        disabled={!selectedUser || penaltyLoading}
-                      />
-                      <PenaltyButton
-                        icon={<FaUserSlash />}
-                        label="等级 3：封停账户"
-                        onClick={() => void applyPenalty('SUSPEND_ACCOUNT')}
-                        disabled={!selectedUser || penaltyLoading}
-                      />
-                      <PenaltyButton
-                        icon={<FaTrash />}
-                        label="等级 4：删除用户"
-                        danger
-                        onClick={() => void applyPenalty('DELETE_USER')}
-                        disabled={!selectedUser || penaltyLoading}
-                      />
-                      <PenaltyButton
-                        icon={<FaGavel />}
-                        label="清除翻译限制"
-                        onClick={() => void applyPenalty('CLEAR_TRANSLATION_RESTRICTIONS')}
-                        disabled={!selectedUser || penaltyLoading}
-                      />
+                  {canWrite && (
+                    <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+                      <div className="mb-3 text-sm font-semibold text-slate-900">惩戒操作</div>
+                      <div className="grid gap-2">
+                        <PenaltyButton
+                          icon={<FaBan />}
+                          label="等级 1：限制翻译"
+                          onClick={() => void applyPenalty('LIMIT_TRANSLATION')}
+                          disabled={!selectedUser || penaltyLoading}
+                        />
+                        <PenaltyButton
+                          icon={<FaShieldAlt />}
+                          label="等级 2：停用页面"
+                          onClick={() => void applyPenalty('REVOKE_PAGE_ACCESS')}
+                          disabled={!selectedUser || penaltyLoading}
+                        />
+                        <PenaltyButton
+                          icon={<FaUserSlash />}
+                          label="等级 3：封停账户"
+                          onClick={() => void applyPenalty('SUSPEND_ACCOUNT')}
+                          disabled={!selectedUser || penaltyLoading}
+                        />
+                        <PenaltyButton
+                          icon={<FaTrash />}
+                          label="等级 4：删除用户"
+                          danger
+                          onClick={() => void applyPenalty('DELETE_USER')}
+                          disabled={!selectedUser || penaltyLoading}
+                        />
+                        <PenaltyButton
+                          icon={<FaGavel />}
+                          label="清除翻译限制"
+                          onClick={() => void applyPenalty('CLEAR_TRANSLATION_RESTRICTIONS')}
+                          disabled={!selectedUser || penaltyLoading}
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </motion.div>
