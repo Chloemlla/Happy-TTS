@@ -29,9 +29,11 @@ jobs:
         run: pnpm install --ignore-scripts
 
       - name: Generate route audit
-        # 结构违规使生成器以非 0 退出；产物仍应上传供人工审查
+        # ts-node 10.9.2 与 typescript 7.0.2 不兼容（ts.sys 缺失），改用 tsx
+        # 临时运行（pnpm dlx 不写入 lockfile）。结构违规仍使生成器非 0 退出，
+        # 产物继续上传供人工审查。
         continue-on-error: true
-        run: pnpm run generate:route-audit
+        run: pnpm dlx tsx scripts/generate-route-audit.ts
 
       - name: Generate OpenAPI spec
         run: pnpm run generate:openapi
