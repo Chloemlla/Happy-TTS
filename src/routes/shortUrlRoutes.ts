@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { ShortUrlController } from "../controllers/shortUrlController";
 import { apiKeyAuth } from "../middleware/apiKeyAuth";
+import { auditLog } from "../middleware/auditLog";
 import { adminAuthMiddleware, authenticateSuperAdmin, authMiddlewareV2 as authMiddleware } from "../middleware/auth";
 import { createLimiter } from "../middleware/routeLimiters";
 import { replayProtection } from "../middleware/replayProtection";
@@ -90,6 +91,7 @@ router.delete(
   authenticateSuperAdmin,
   adminLimiter,
   replayGuard,
+  auditLog({ module: "shorturl", action: "shorturl.deleteAll" }),
   ShortUrlController.deleteAllShortUrls,
 );
 
@@ -100,6 +102,7 @@ router.post(
   authenticateSuperAdmin,
   adminLimiter,
   replayGuard,
+  auditLog({ module: "shorturl", action: "shorturl.import", extractDetail: (req) => ({ count: Array.isArray((req as any).body?.items) ? (req as any).body.items.length : undefined }) }),
   ShortUrlController.importShortUrls,
 );
 
@@ -146,6 +149,7 @@ router.post(
   adminWriteLimiter,
   adminLimiter,
   replayGuard,
+  auditLog({ module: "shorturl", action: "shorturl.aesKeySet" }),
   async (req, res) => {
     try {
       const { value } = req.body || {};
@@ -174,6 +178,7 @@ router.delete(
   adminWriteLimiter,
   adminLimiter,
   replayGuard,
+  auditLog({ module: "shorturl", action: "shorturl.aesKeyDelete" }),
   async (_req, res) => {
     try {
       await ShortUrlSettingModel.deleteOne({ key: "AES_KEY" });

@@ -1,4 +1,5 @@
 import express from "express";
+import { auditLog } from "../middleware/auditLog";
 import { authenticateAdmin, authenticateSuperAdmin } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { adminLimiter } from "../middleware/routeLimiters";
@@ -46,7 +47,7 @@ router.get("/admin/:id", ...adminGuards, async (req, res) => {
   }
 });
 
-router.post("/", ...superAdminGuards, async (req, res) => {
+router.post("/", ...superAdminGuards, auditLog({ module: "other", action: "markdown.article.create" }), async (req, res) => {
   try {
     const user = (req as any).user;
     const article = await MarkdownArticleService.create({
@@ -64,7 +65,11 @@ router.post("/", ...superAdminGuards, async (req, res) => {
   }
 });
 
-router.put("/admin/:id", ...superAdminGuards, async (req, res) => {
+router.put(
+  "/admin/:id",
+  ...superAdminGuards,
+  auditLog({ module: "other", action: "markdown.article.update", extractTarget: (req) => ({ targetId: getParam(req.params.id) }) }),
+  async (req, res) => {
   try {
     const article = await MarkdownArticleService.update(getParam(req.params.id), {
       title: req.body?.title,
@@ -84,7 +89,11 @@ router.put("/admin/:id", ...superAdminGuards, async (req, res) => {
   }
 });
 
-router.patch("/admin/:id/status", ...superAdminGuards, async (req, res) => {
+router.patch(
+  "/admin/:id/status",
+  ...superAdminGuards,
+  auditLog({ module: "other", action: "markdown.article.statusChange", extractTarget: (req) => ({ targetId: getParam(req.params.id) }), extractDetail: (req) => ({ status: req.body?.status }) }),
+  async (req, res) => {
   try {
     const status = req.body?.status === "published" ? "published" : "draft";
     const article = await MarkdownArticleService.setStatus(getParam(req.params.id), status);
@@ -97,7 +106,11 @@ router.patch("/admin/:id/status", ...superAdminGuards, async (req, res) => {
   }
 });
 
-router.delete("/admin/:id", ...superAdminGuards, async (req, res) => {
+router.delete(
+  "/admin/:id",
+  ...superAdminGuards,
+  auditLog({ module: "other", action: "markdown.article.delete", extractTarget: (req) => ({ targetId: getParam(req.params.id) }) }),
+  async (req, res) => {
   try {
     const deleted = await MarkdownArticleService.delete(getParam(req.params.id));
     if (!deleted) {

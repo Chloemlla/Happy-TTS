@@ -1,4 +1,5 @@
 import express from "express";
+import { auditLog } from "../../middleware/auditLog";
 import { authenticateSuperAdmin } from "../../middleware/auth";
 import { getBroadcastLogModel } from "../../models/broadcastLogModel";
 import { wsService } from "../../services/wsService";
@@ -237,15 +238,25 @@ async function handleBroadcastRequest(req: any, res: any, fallbackAudience: Broa
 }
 
 // WebSocket 广播接口（管理员向指定范围推送消息）
-router.post("/broadcast", authenticateSuperAdmin, async (req, res) => {
-  return handleBroadcastRequest(req, res, "all");
-});
+router.post(
+  "/broadcast",
+  authenticateSuperAdmin,
+  auditLog({ module: "announcement", action: "announcement.broadcast", extractDetail: (req) => ({ audience: (req as any).body?.audience, level: (req as any).body?.level }) }),
+  async (req, res) => {
+    return handleBroadcastRequest(req, res, "all");
+  },
+);
 
 // 定向用户推送（兼容旧前端，同时支持 userIds / targetUserIds 批量推送）
-router.post("/broadcast/user", authenticateSuperAdmin, async (req, res) => {
-  req.body = { ...req.body, audience: "users" };
-  return handleBroadcastRequest(req, res, "users");
-});
+router.post(
+  "/broadcast/user",
+  authenticateSuperAdmin,
+  auditLog({ module: "announcement", action: "announcement.broadcastUser", extractDetail: (req) => ({ targetUserIds: (req as any).body?.targetUserIds ?? (req as any).body?.userIds ?? (req as any).body?.userId }) }),
+  async (req, res) => {
+    req.body = { ...req.body, audience: "users" };
+    return handleBroadcastRequest(req, res, "users");
+  },
+);
 
 // 广播历史记录
 router.get("/broadcast/history", async (req, res) => {
@@ -282,7 +293,11 @@ router.get("/ws/clients", async (_req, res) => {
 });
 
 // 强制断开用户连接
-router.post("/ws/kick", authenticateSuperAdmin, async (req, res) => {
+router.post(
+  "/ws/kick",
+  authenticateSuperAdmin,
+  auditLog({ module: "system", action: "system.kickUser", extractDetail: (req) => ({ userId: (req as any).body?.userId }) }),
+  async (req, res) => {
   try {
     const { userId } = req.body;
     if (!userId || typeof userId !== "string") {

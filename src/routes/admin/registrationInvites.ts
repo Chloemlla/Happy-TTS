@@ -1,4 +1,5 @@
 import express from "express";
+import { auditLog } from "../../middleware/auditLog";
 import { authenticateSuperAdmin } from "../../middleware/auth";
 import { firstString } from "../../utils/httpParam";
 import {
@@ -19,7 +20,11 @@ router.get("/registration-invites", async (_req, res) => {
   }
 });
 
-router.post("/registration-invites", authenticateSuperAdmin, async (req: any, res) => {
+router.post(
+  "/registration-invites",
+  authenticateSuperAdmin,
+  auditLog({ module: "user", action: "invite.create", extractDetail: (req) => ({ count: (req as any).body?.count ?? 1 }) }),
+  async (req: any, res) => {
   try {
     const invite = await createRegistrationInvite(req.body || {}, {
       id: req.user?.id,
@@ -31,7 +36,11 @@ router.post("/registration-invites", authenticateSuperAdmin, async (req: any, re
   }
 });
 
-router.patch("/registration-invites/:id", authenticateSuperAdmin, async (req, res) => {
+router.patch(
+  "/registration-invites/:id",
+  authenticateSuperAdmin,
+  auditLog({ module: "user", action: "invite.update", extractTarget: (req) => ({ targetId: firstString(req.params.id) }) }),
+  async (req, res) => {
   try {
     const id = firstString(req.params.id);
     if (!id) return res.status(400).json({ error: "邀请码不存在" });
@@ -45,7 +54,11 @@ router.patch("/registration-invites/:id", authenticateSuperAdmin, async (req, re
   }
 });
 
-router.delete("/registration-invites/:id", authenticateSuperAdmin, async (req, res) => {
+router.delete(
+  "/registration-invites/:id",
+  authenticateSuperAdmin,
+  auditLog({ module: "user", action: "invite.delete", extractTarget: (req) => ({ targetId: firstString(req.params.id) }) }),
+  async (req, res) => {
   try {
     const id = firstString(req.params.id);
     if (!id) return res.status(400).json({ error: "邀请码不存在" });

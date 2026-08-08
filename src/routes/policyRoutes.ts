@@ -8,6 +8,7 @@ import {
   verifyPolicyConsent,
 } from "../controllers/policyController";
 import { adminOnly } from "../middleware/adminOnly";
+import { auditLog } from "../middleware/auditLog";
 import { authenticateSuperAdmin } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { createLimiter } from "../middleware/routeLimiters";
@@ -360,6 +361,13 @@ router.get("/admin/stats", adminRateLimit, authenticateToken, adminOnly, getPoli
  *       500:
  *         description: 服务器内部错误
  */
-router.post("/admin/cleanup", adminRateLimit, authenticateToken, authenticateSuperAdmin, cleanExpiredConsents);
+router.post(
+  "/admin/cleanup",
+  adminRateLimit,
+  authenticateToken,
+  authenticateSuperAdmin,
+  auditLog({ module: "policy", action: "policy.cleanup" }),
+  cleanExpiredConsents,
+);
 
 export default router;
