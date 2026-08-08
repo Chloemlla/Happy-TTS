@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-04-28T17:30:09.279Z",
+  "generatedAt": "2026-08-08T08:43:23.930Z",
   "totals": {
-    "routes": 65,
+    "routes": 85,
     "violations": 0
   },
   "violations": [],
@@ -13,7 +13,18 @@
       "kind": "limiter",
       "requiresAuth": "mixed",
       "rateLimited": true,
-      "isPublic": "mixed"
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "matchedLimiterModules": [
+        "auth-limiter",
+        "auth-me-limiter"
+      ]
     },
     {
       "name": "auth-me-limiter",
@@ -23,13 +34,24 @@
       "requiresAuth": true,
       "rateLimited": true,
       "isPublic": false,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "mount",
         "limiters": [
           "meEndpointLimiter"
         ],
         "note": "Dedicated limiter mount for the authenticated /auth/me endpoint"
-      }
+      },
+      "matchedLimiterModules": [
+        "auth-limiter",
+        "auth-me-limiter"
+      ]
     },
     {
       "name": "tts-generate-limiter",
@@ -38,7 +60,17 @@
       "kind": "limiter",
       "requiresAuth": "mixed",
       "rateLimited": true,
-      "isPublic": "mixed"
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "matchedLimiterModules": [
+        "tts-generate-limiter"
+      ]
     },
     {
       "name": "tts-history-limiter",
@@ -47,7 +79,17 @@
       "kind": "limiter",
       "requiresAuth": "mixed",
       "rateLimited": true,
-      "isPublic": "mixed"
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "matchedLimiterModules": [
+        "tts-history-limiter"
+      ]
     },
     {
       "name": "tts-jobs-limiter",
@@ -56,7 +98,17 @@
       "kind": "limiter",
       "requiresAuth": "mixed",
       "rateLimited": true,
-      "isPublic": "mixed"
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "matchedLimiterModules": [
+        "tts-jobs-limiter"
+      ]
     },
     {
       "name": "totp-limiter",
@@ -65,7 +117,17 @@
       "kind": "limiter",
       "requiresAuth": "mixed",
       "rateLimited": true,
-      "isPublic": "mixed"
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "matchedLimiterModules": [
+        "totp-limiter"
+      ]
     },
     {
       "name": "passkey-limiter",
@@ -74,7 +136,17 @@
       "kind": "limiter",
       "requiresAuth": "mixed",
       "rateLimited": true,
-      "isPublic": "mixed"
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "matchedLimiterModules": [
+        "passkey-limiter"
+      ]
     },
     {
       "name": "tamper-limiter",
@@ -83,7 +155,17 @@
       "kind": "limiter",
       "requiresAuth": false,
       "rateLimited": true,
-      "isPublic": true
+      "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "matchedLimiterModules": [
+        "tamper-limiter"
+      ]
     },
     {
       "name": "command-limiter",
@@ -92,7 +174,17 @@
       "kind": "limiter",
       "requiresAuth": "mixed",
       "rateLimited": true,
-      "isPublic": "mixed"
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "matchedLimiterModules": [
+        "command-limiter"
+      ]
     },
     {
       "name": "libre-chat-limiter",
@@ -101,7 +193,17 @@
       "kind": "limiter",
       "requiresAuth": "mixed",
       "rateLimited": true,
-      "isPublic": "mixed"
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "matchedLimiterModules": [
+        "libre-chat-limiter"
+      ]
     },
     {
       "name": "data-collection-limiter",
@@ -110,7 +212,17 @@
       "kind": "limiter",
       "requiresAuth": false,
       "rateLimited": true,
-      "isPublic": true
+      "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "matchedLimiterModules": [
+        "data-collection-limiter"
+      ]
     },
     {
       "name": "ipfs-limiter",
@@ -119,7 +231,17 @@
       "kind": "limiter",
       "requiresAuth": "mixed",
       "rateLimited": true,
-      "isPublic": "mixed"
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "matchedLimiterModules": [
+        "ipfs-limiter"
+      ]
     },
     {
       "name": "network-limiter",
@@ -128,7 +250,17 @@
       "kind": "limiter",
       "requiresAuth": false,
       "rateLimited": true,
-      "isPublic": true
+      "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "matchedLimiterModules": [
+        "network-limiter"
+      ]
     },
     {
       "name": "data-process-limiter",
@@ -137,7 +269,17 @@
       "kind": "limiter",
       "requiresAuth": false,
       "rateLimited": true,
-      "isPublic": true
+      "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "matchedLimiterModules": [
+        "data-process-limiter"
+      ]
     },
     {
       "name": "deeplx-limiter",
@@ -146,7 +288,36 @@
       "kind": "limiter",
       "requiresAuth": false,
       "rateLimited": true,
-      "isPublic": true
+      "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "matchedLimiterModules": [
+        "deeplx-limiter"
+      ]
+    },
+    {
+      "name": "deeplx-public-limiter",
+      "path": "/api/public/deeplx",
+      "phase": "route-limiters",
+      "kind": "limiter",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "matchedLimiterModules": [
+        "deeplx-public-limiter"
+      ]
     },
     {
       "name": "media-limiter",
@@ -155,7 +326,17 @@
       "kind": "limiter",
       "requiresAuth": false,
       "rateLimited": true,
-      "isPublic": true
+      "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "matchedLimiterModules": [
+        "media-limiter"
+      ]
     },
     {
       "name": "social-limiter",
@@ -164,7 +345,17 @@
       "kind": "limiter",
       "requiresAuth": false,
       "rateLimited": true,
-      "isPublic": true
+      "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "matchedLimiterModules": [
+        "social-limiter"
+      ]
     },
     {
       "name": "life-limiter",
@@ -173,7 +364,17 @@
       "kind": "limiter",
       "requiresAuth": false,
       "rateLimited": true,
-      "isPublic": true
+      "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "matchedLimiterModules": [
+        "life-limiter"
+      ]
     },
     {
       "name": "status-limiter",
@@ -182,7 +383,80 @@
       "kind": "limiter",
       "requiresAuth": "mixed",
       "rateLimited": true,
-      "isPublic": "mixed"
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "matchedLimiterModules": [
+        "status-limiter"
+      ]
+    },
+    {
+      "name": "oauth-limiter",
+      "path": "/api/oauth",
+      "phase": "route-limiters",
+      "kind": "limiter",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "matchedLimiterModules": [
+        "oauth-limiter"
+      ]
+    },
+    {
+      "name": "health-route",
+      "path": "/health",
+      "phase": "pre-parser",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": false,
+      "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": false,
+        "coverage": "not-applicable",
+        "adaptationStatus": "not-applicable",
+        "source": "not-applicable",
+        "note": "Non-API route; global API audit coverage is not applicable."
+      },
+      "securityBypass": {
+        "ipBan": {
+          "value": true,
+          "reason": "Liveness/readiness probes must remain available while ban infrastructure is active."
+        }
+      }
+    },
+    {
+      "name": "api-health-route",
+      "path": "/api/health",
+      "phase": "pre-parser",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": false,
+      "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "securityBypass": {
+        "ipBan": {
+          "value": true,
+          "reason": "Canonical API health checks must remain available while ban infrastructure is active."
+        }
+      }
     },
     {
       "name": "webhook-routes",
@@ -192,12 +466,48 @@
       "requiresAuth": false,
       "rateLimited": true,
       "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "route",
         "limiters": [
           "webhookLimiter"
         ],
         "note": "Webhook routes apply a dedicated route-level limiter inside the router."
+      },
+      "securityBypass": {
+        "waf": {
+          "value": true,
+          "reason": "Webhook signature verification requires raw payload compatibility before WAF normalization."
+        }
+      }
+    },
+    {
+      "name": "ecoenchants-webhook-routes",
+      "path": "/api/ecoenchants/v1/webhooks",
+      "phase": "pre-parser",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "rateLimitPolicy": {
+        "mode": "route",
+        "limiters": [
+          "ecoenchantsWebhook"
+        ],
+        "note": "Payment and marketplace webhooks apply a route-level limiter and verify provider signatures from raw payloads."
       },
       "securityBypass": {
         "waf": {
@@ -214,10 +524,17 @@
       "requiresAuth": false,
       "rateLimited": true,
       "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "route-module",
         "limiters": [
-          "dataCollectionLimiter"
+          "data-collection-limiter"
         ],
         "note": "Ingress is protected by the dedicated /api/data-collection limiter mount."
       },
@@ -226,7 +543,10 @@
           "value": true,
           "reason": "Telemetry ingestion accepts browser-originated payloads that the WAF would over-block."
         }
-      }
+      },
+      "matchedLimiterModules": [
+        "data-collection-limiter"
+      ]
     },
     {
       "name": "root-data-collection-routes",
@@ -236,10 +556,17 @@
       "requiresAuth": false,
       "rateLimited": true,
       "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "route-module",
         "limiters": [
-          "dataCollectionLimiter"
+          "data-collection-limiter"
         ],
         "note": "The root /api mount shares the same data-collection limiter coverage."
       },
@@ -247,6 +574,51 @@
         "waf": {
           "value": "mixed",
           "reason": "Only the data-collection branch under /api should bypass WAF; sibling routes remain protected."
+        }
+      },
+      "matchedLimiterModules": [
+        "auth-limiter",
+        "auth-me-limiter",
+        "tts-generate-limiter",
+        "tts-history-limiter",
+        "tts-jobs-limiter",
+        "totp-limiter",
+        "passkey-limiter",
+        "tamper-limiter",
+        "command-limiter",
+        "libre-chat-limiter",
+        "data-collection-limiter",
+        "ipfs-limiter",
+        "network-limiter",
+        "data-process-limiter",
+        "deeplx-limiter",
+        "deeplx-public-limiter",
+        "media-limiter",
+        "social-limiter",
+        "life-limiter",
+        "status-limiter",
+        "oauth-limiter"
+      ]
+    },
+    {
+      "name": "legacy-status-route",
+      "path": "/status",
+      "phase": "pre-parser",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": false,
+      "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": false,
+        "coverage": "not-applicable",
+        "adaptationStatus": "not-applicable",
+        "source": "not-applicable",
+        "note": "Non-API route; global API audit coverage is not applicable."
+      },
+      "securityBypass": {
+        "ipBan": {
+          "value": true,
+          "reason": "Legacy /status redirect must remain reachable while IP ban infrastructure is active."
         }
       }
     },
@@ -257,7 +629,14 @@
       "kind": "route",
       "requiresAuth": "mixed",
       "rateLimited": "mixed",
-      "isPublic": "mixed"
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      }
     },
     {
       "name": "outemail-routes",
@@ -267,6 +646,13 @@
       "requiresAuth": false,
       "rateLimited": true,
       "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "route",
         "limiters": [
@@ -284,6 +670,13 @@
       "requiresAuth": "mixed",
       "rateLimited": true,
       "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "route-module",
         "limiters": [
@@ -292,7 +685,18 @@
           "tts-jobs-limiter"
         ],
         "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
-      }
+      },
+      "securityBypass": {
+        "ipVerification": {
+          "value": "mixed",
+          "reason": "Only the /assets subtree (browser audio streaming with scoped, expiring asset tokens) bypasses IP verification; generation and job endpoints remain gated."
+        }
+      },
+      "matchedLimiterModules": [
+        "tts-generate-limiter",
+        "tts-history-limiter",
+        "tts-jobs-limiter"
+      ]
     },
     {
       "name": "librechat-compat-routes",
@@ -302,12 +706,160 @@
       "requiresAuth": "mixed",
       "rateLimited": true,
       "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "mount",
         "limiters": [
           "libreChatLimiter"
         ],
         "note": "Inferred from mounted limiter middleware declared on the route module."
+      },
+      "mountMiddlewareNames": [
+        "libreChatLimiter"
+      ]
+    },
+    {
+      "name": "frontend-config-route",
+      "path": "/api/frontend-config",
+      "phase": "pre-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "rateLimitPolicy": {
+        "mode": "route",
+        "limiters": [
+          "statusLimiter"
+        ],
+        "note": "Frontend bootstrap config is protected by a route-level status limiter."
+      },
+      "securityBypass": {
+        "ipVerification": {
+          "value": true,
+          "reason": "Frontend boot config must be reachable before IP verification can initialize."
+        },
+        "tamperProtection": {
+          "value": true,
+          "reason": "Frontend boot config is mounted before tamper protection so first-visit clients can initialize."
+        }
+      }
+    },
+    {
+      "name": "auth-logout-route",
+      "path": "/api/auth/logout",
+      "phase": "pre-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "rateLimitPolicy": {
+        "mode": "route-module",
+        "limiters": [
+          "auth-limiter"
+        ],
+        "note": "Logout remains covered by the /api/auth limiter mounted earlier in the registry pipeline."
+      },
+      "securityBypass": {
+        "ipVerification": {
+          "value": true,
+          "reason": "Logout must remain callable to clear local auth state even before IP verification completes."
+        },
+        "tamperProtection": {
+          "value": true,
+          "reason": "Logout is mounted before tamper protection to preserve the historical early-exit behavior."
+        }
+      },
+      "matchedLimiterModules": [
+        "auth-limiter"
+      ]
+    },
+    {
+      "name": "short-url-non-api-routes",
+      "path": "/s",
+      "phase": "pre-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": false,
+        "coverage": "not-applicable",
+        "adaptationStatus": "not-applicable",
+        "source": "not-applicable",
+        "note": "Non-API route; global API audit coverage is not applicable."
+      },
+      "rateLimitPolicy": {
+        "mode": "route",
+        "limiters": [
+          "redirectLimiter"
+        ],
+        "note": "The non-API /s mount is limited to public short-link redirects; management APIs live under /api/shorturl."
+      },
+      "securityBypass": {
+        "ipVerification": {
+          "value": true,
+          "reason": "Public short URL resolution must be reachable before browser verification bootstraps."
+        },
+        "tamperProtection": {
+          "value": true,
+          "reason": "Public short URL redirects execute before tamper protection to preserve shared-link behavior."
+        }
+      }
+    },
+    {
+      "name": "short-url-api-routes",
+      "path": "/api/shorturl",
+      "phase": "pre-tamper",
+      "kind": "route",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "rateLimitPolicy": {
+        "mode": "route",
+        "limiters": [
+          "redirectLimiter",
+          "userManageLimiter",
+          "adminLimiter",
+          "publicCreateLimiter"
+        ],
+        "note": "The short URL router applies dedicated route-level limiters for redirect, user, admin, and public-create flows."
+      },
+      "securityBypass": {
+        "ipVerification": {
+          "value": true,
+          "reason": "Short URL public and compatibility flows are mounted before IP verification by design."
+        },
+        "tamperProtection": {
+          "value": true,
+          "reason": "The /api/shorturl compatibility mount historically executes before tamper protection."
+        }
       }
     },
     {
@@ -316,8 +868,22 @@
       "phase": "pre-tamper",
       "kind": "route",
       "requiresAuth": false,
-      "rateLimited": false,
+      "rateLimited": true,
       "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "rateLimitPolicy": {
+        "mode": "route",
+        "limiters": [
+          "sessionLimiter"
+        ],
+        "note": "IP verification session and completion endpoints apply a route-level session limiter."
+      },
       "securityBypass": {
         "ipVerification": {
           "value": true,
@@ -332,7 +898,37 @@
       "kind": "middleware",
       "requiresAuth": false,
       "rateLimited": false,
-      "isPublic": "mixed"
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "matchedLimiterModules": [
+        "auth-limiter",
+        "auth-me-limiter",
+        "tts-generate-limiter",
+        "tts-history-limiter",
+        "tts-jobs-limiter",
+        "totp-limiter",
+        "passkey-limiter",
+        "tamper-limiter",
+        "command-limiter",
+        "libre-chat-limiter",
+        "data-collection-limiter",
+        "ipfs-limiter",
+        "network-limiter",
+        "data-process-limiter",
+        "deeplx-limiter",
+        "deeplx-public-limiter",
+        "media-limiter",
+        "social-limiter",
+        "life-limiter",
+        "status-limiter",
+        "oauth-limiter"
+      ]
     },
     {
       "name": "auth-routes",
@@ -342,6 +938,13 @@
       "requiresAuth": "mixed",
       "rateLimited": true,
       "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "route-module",
         "limiters": [
@@ -358,7 +961,57 @@
           "value": "mixed",
           "reason": "Third-party callback and bootstrap branches must remain reachable before verification completes."
         }
-      }
+      },
+      "matchedLimiterModules": [
+        "auth-limiter",
+        "auth-me-limiter"
+      ]
+    },
+    {
+      "name": "oauth-routes",
+      "path": "/api/oauth",
+      "phase": "pre-tamper",
+      "kind": "route",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "authPolicy": {
+        "mode": "route",
+        "handlers": [
+          "authMiddleware",
+          "adminAuthMiddleware",
+          "oauthTokenAuth",
+          "client_secret_basic"
+        ],
+        "note": "Authorization and client/grant management require Synapse admin JWT; userinfo requires OAuth Bearer; token/introspection/revocation authenticate OAuth clients."
+      },
+      "rateLimitPolicy": {
+        "mode": "route-module",
+        "limiters": [
+          "oauth-limiter"
+        ],
+        "note": "OAuth endpoints are covered by the dedicated /api/oauth limiter module."
+      },
+      "securityBypass": {
+        "ipVerification": {
+          "value": true,
+          "reason": "OAuth token and authorization endpoints must be callable by third-party clients outside browser IP-verification bootstrap."
+        },
+        "tamperProtection": {
+          "value": true,
+          "reason": "OAuth endpoints are mounted before tamper protection so external server-to-server token flows are not blocked by browser tamper state."
+        }
+      },
+      "matchedLimiterModules": [
+        "oauth-limiter"
+      ]
     },
     {
       "name": "totp-routes",
@@ -368,36 +1021,23 @@
       "requiresAuth": "mixed",
       "rateLimited": true,
       "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "route-module",
         "limiters": [
           "totp-limiter"
         ],
         "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
-      }
-    },
-    {
-      "name": "totp-status-route",
-      "path": "/api/totp/status",
-      "phase": "pre-tamper",
-      "kind": "route",
-      "requiresAuth": true,
-      "rateLimited": true,
-      "isPublic": false,
-      "authPolicy": {
-        "mode": "mount",
-        "handlers": [
-          "authenticateToken"
-        ],
-        "note": "The status endpoint is mounted with an explicit JWT guard."
       },
-      "rateLimitPolicy": {
-        "mode": "route-module",
-        "limiters": [
-          "totpLimiter"
-        ],
-        "note": "Covered by the dedicated /api/totp limiter module."
-      }
+      "matchedLimiterModules": [
+        "totp-limiter"
+      ]
     },
     {
       "name": "admin-routes",
@@ -407,6 +1047,13 @@
       "requiresAuth": true,
       "rateLimited": true,
       "isPublic": false,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "authPolicy": {
         "mode": "router",
         "handlers": [
@@ -421,7 +1068,10 @@
           "adminLimiter"
         ],
         "note": "Admin ingress is rate-limited both at mount and within the router for sensitive subflows."
-      }
+      },
+      "mountMiddlewareNames": [
+        "adminLimiter"
+      ]
     },
     {
       "name": "admin-audit-log-routes",
@@ -431,12 +1081,20 @@
       "requiresAuth": true,
       "rateLimited": true,
       "isPublic": false,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "authPolicy": {
-        "mode": "mount",
+        "mode": "mixed",
         "handlers": [
-          "authenticateToken"
+          "authenticateToken",
+          "authenticateAdmin"
         ],
-        "note": "Audit log ingress is guarded at mount; downstream admin logic remains inside the route implementation."
+        "note": "Audit log ingress is JWT-guarded at mount and enforces administrator role checks inside the router."
       },
       "rateLimitPolicy": {
         "mode": "mount",
@@ -444,7 +1102,11 @@
           "adminLimiter"
         ],
         "note": "Audit log access reuses the stricter admin mount limiter."
-      }
+      },
+      "mountMiddlewareNames": [
+        "adminLimiter",
+        "authenticateToken"
+      ]
     },
     {
       "name": "api-key-routes",
@@ -452,14 +1114,28 @@
       "phase": "pre-tamper",
       "kind": "route",
       "requiresAuth": true,
-      "rateLimited": false,
+      "rateLimited": true,
       "isPublic": false,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "authPolicy": {
         "mode": "router",
         "handlers": [
           "authMiddleware"
         ],
         "note": "API key management is fully protected by router-level JWT authentication."
+      },
+      "rateLimitPolicy": {
+        "mode": "router",
+        "limiters": [
+          "apiKeyManagementLimiter"
+        ],
+        "note": "API key routes apply a router-wide management limiter after authentication."
       }
     },
     {
@@ -470,6 +1146,13 @@
       "requiresAuth": "mixed",
       "rateLimited": true,
       "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "route-module",
         "limiters": [
@@ -486,7 +1169,10 @@
           "value": true,
           "reason": "Operational status must be reachable before user-facing verification bootstraps."
         }
-      }
+      },
+      "matchedLimiterModules": [
+        "status-limiter"
+      ]
     },
     {
       "name": "turnstile-routes",
@@ -496,12 +1182,23 @@
       "requiresAuth": "mixed",
       "rateLimited": true,
       "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
-        "mode": "route-module",
+        "mode": "route",
         "limiters": [
-          "passkeyLimiter"
+          "publicLimiter",
+          "fingerprintLimiter",
+          "authenticatedFingerprintLimiter",
+          "adminLimiter",
+          "configLimiter"
         ],
-        "note": "Passkey endpoints are covered by the dedicated /api/passkey limiter mount."
+        "note": "Turnstile endpoints apply dedicated route-level limiters for public, fingerprint, administrative, and configuration flows."
       },
       "securityBypass": {
         "ipVerification": {
@@ -518,6 +1215,13 @@
       "requiresAuth": "mixed",
       "rateLimited": true,
       "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "route",
         "limiters": [
@@ -532,16 +1236,34 @@
       "path": "/api/tamper",
       "phase": "pre-tamper",
       "kind": "route",
-      "requiresAuth": false,
+      "requiresAuth": "mixed",
       "rateLimited": true,
-      "isPublic": true,
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "authPolicy": {
+        "mode": "route",
+        "handlers": [
+          "authenticateToken",
+          "adminOnly"
+        ],
+        "note": "Public clients may submit signed tamper reports; administrative summary and blocklist actions require JWT admin checks inside the router."
+      },
       "rateLimitPolicy": {
         "mode": "route-module",
         "limiters": [
           "tamper-limiter"
         ],
         "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
-      }
+      },
+      "matchedLimiterModules": [
+        "tamper-limiter"
+      ]
     },
     {
       "name": "ticket-routes",
@@ -549,14 +1271,30 @@
       "phase": "pre-tamper",
       "kind": "route",
       "requiresAuth": true,
-      "rateLimited": false,
+      "rateLimited": true,
       "isPublic": false,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "authPolicy": {
         "mode": "router",
         "handlers": [
           "authenticateToken"
         ],
         "note": "Ticket routes apply a router-wide JWT guard before all ticket handlers."
+      },
+      "rateLimitPolicy": {
+        "mode": "route",
+        "limiters": [
+          "ticketReadLimiter",
+          "ticketWriteLimiter",
+          "ticketAdminLimiter"
+        ],
+        "note": "Ticket routes apply separate read, write, and admin route-level limiters inside the router."
       }
     },
     {
@@ -567,13 +1305,23 @@
       "requiresAuth": "mixed",
       "rateLimited": true,
       "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "route-module",
         "limiters": [
           "command-limiter"
         ],
         "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
-      }
+      },
+      "matchedLimiterModules": [
+        "command-limiter"
+      ]
     },
     {
       "name": "libre-chat-routes",
@@ -583,37 +1331,62 @@
       "requiresAuth": "mixed",
       "rateLimited": true,
       "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "route-module",
         "limiters": [
           "libre-chat-limiter"
         ],
         "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
-      }
+      },
+      "matchedLimiterModules": [
+        "libre-chat-limiter"
+      ]
     },
     {
       "name": "human-check-routes",
       "path": "/api/human-check",
       "phase": "post-tamper",
       "kind": "route",
-      "requiresAuth": false,
-      "rateLimited": false,
-      "isPublic": true,
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "authPolicy": {
+        "mode": "route",
+        "handlers": [
+          "authenticateToken",
+          "adminOnly"
+        ],
+        "note": "Public nonce and verification endpoints are open; statistics and trace administration require JWT admin checks."
+      },
+      "rateLimitPolicy": {
+        "mode": "route",
+        "limiters": [
+          "humanCheckLimiter",
+          "verifyLimiter",
+          "adminLimiter"
+        ],
+        "note": "Human-check routes apply separate bootstrap, verification, and admin route-level limiters."
+      },
       "securityBypass": {
         "ipVerification": {
           "value": true,
           "reason": "Human-check bootstrap must be callable before IP verification has established trust."
         }
       }
-    },
-    {
-      "name": "debug-console-routes",
-      "path": "/api/debug-console",
-      "phase": "post-tamper",
-      "kind": "route",
-      "requiresAuth": "mixed",
-      "rateLimited": false,
-      "isPublic": "mixed"
     },
     {
       "name": "data-collection-admin-routes",
@@ -623,6 +1396,13 @@
       "requiresAuth": true,
       "rateLimited": true,
       "isPublic": false,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "authPolicy": {
         "mode": "route",
         "handlers": [
@@ -637,7 +1417,10 @@
           "dataCollectionLimiter"
         ],
         "note": "The admin data-collection router rate-limits each route through its shared guard tuple."
-      }
+      },
+      "matchedLimiterModules": [
+        "data-collection-limiter"
+      ]
     },
     {
       "name": "ipfs-routes",
@@ -647,13 +1430,23 @@
       "requiresAuth": "mixed",
       "rateLimited": true,
       "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "route-module",
         "limiters": [
           "ipfs-limiter"
         ],
         "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
-      }
+      },
+      "matchedLimiterModules": [
+        "ipfs-limiter"
+      ]
     },
     {
       "name": "network-routes",
@@ -663,13 +1456,23 @@
       "requiresAuth": false,
       "rateLimited": true,
       "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "route-module",
         "limiters": [
           "network-limiter"
         ],
         "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
-      }
+      },
+      "matchedLimiterModules": [
+        "network-limiter"
+      ]
     },
     {
       "name": "data-process-routes",
@@ -679,38 +1482,113 @@
       "requiresAuth": false,
       "rateLimited": true,
       "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "route-module",
         "limiters": [
           "data-process-limiter"
         ],
         "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
-      }
+      },
+      "matchedLimiterModules": [
+        "data-process-limiter"
+      ]
     },
     {
       "name": "deeplx-routes",
       "path": "/api/deeplx",
       "phase": "post-tamper",
       "kind": "route",
-      "requiresAuth": false,
+      "requiresAuth": true,
       "rateLimited": true,
-      "isPublic": true,
+      "isPublic": false,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "authPolicy": {
+        "mode": "router",
+        "handlers": [
+          "authenticateToken"
+        ],
+        "note": "DeepLX page APIs use a router-wide JWT guard before exposing config or translation actions."
+      },
       "rateLimitPolicy": {
         "mode": "route-module",
         "limiters": [
           "deeplx-limiter"
         ],
         "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
-      }
+      },
+      "matchedLimiterModules": [
+        "deeplx-limiter"
+      ]
+    },
+    {
+      "name": "deeplx-public-routes",
+      "path": "/api/public/deeplx",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "rateLimitPolicy": {
+        "mode": "route-module",
+        "limiters": [
+          "deeplx-public-limiter"
+        ],
+        "note": "Public translation API is protected by a dedicated loose limiter."
+      },
+      "matchedLimiterModules": [
+        "deeplx-public-limiter"
+      ]
     },
     {
       "name": "lottery-routes",
       "path": "/api/lottery",
       "phase": "post-tamper",
       "kind": "route",
-      "requiresAuth": false,
-      "rateLimited": false,
-      "isPublic": true
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "authPolicy": {
+        "mode": "route",
+        "handlers": [
+          "authenticateToken"
+        ],
+        "note": "Public lottery read endpoints are open; user participation and administrative mutation routes require JWT authentication."
+      },
+      "rateLimitPolicy": {
+        "mode": "route",
+        "limiters": [
+          "lotteryLimiter",
+          "participationLimiter"
+        ],
+        "note": "Lottery routes apply general lottery and stricter participation route-level limiters."
+      }
     },
     {
       "name": "media-routes",
@@ -720,13 +1598,58 @@
       "requiresAuth": false,
       "rateLimited": true,
       "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "route-module",
         "limiters": [
           "media-limiter"
         ],
         "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
-      }
+      },
+      "matchedLimiterModules": [
+        "media-limiter"
+      ]
+    },
+    {
+      "name": "markdown-article-routes",
+      "path": "/api/articles",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "authPolicy": {
+        "mode": "route",
+        "handlers": [
+          "authenticateToken",
+          "authenticateAdmin"
+        ],
+        "note": "Public article reads are open; article creation, updates, publishing, and deletion require administrator JWT checks inside the router."
+      },
+      "rateLimitPolicy": {
+        "mode": "mixed",
+        "limiters": [
+          "statusLimiter",
+          "adminLimiter"
+        ],
+        "note": "Public article reads use the status limiter at mount; administrator mutations apply the stricter admin limiter inside the router."
+      },
+      "mountMiddlewareNames": [
+        "statusLimiter"
+      ]
     },
     {
       "name": "social-routes",
@@ -736,13 +1659,23 @@
       "requiresAuth": false,
       "rateLimited": true,
       "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "route-module",
         "limiters": [
           "social-limiter"
         ],
         "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
-      }
+      },
+      "matchedLimiterModules": [
+        "social-limiter"
+      ]
     },
     {
       "name": "life-routes",
@@ -752,22 +1685,76 @@
       "requiresAuth": false,
       "rateLimited": true,
       "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "route-module",
         "limiters": [
           "life-limiter"
         ],
         "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
-      }
+      },
+      "matchedLimiterModules": [
+        "life-limiter"
+      ]
     },
     {
       "name": "log-routes",
       "path": "/api",
       "phase": "post-tamper",
       "kind": "route",
-      "requiresAuth": false,
-      "rateLimited": false,
-      "isPublic": true
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "authPolicy": {
+        "mode": "route",
+        "handlers": [
+          "authenticateToken"
+        ],
+        "note": "Share upload/query flows use an admin operation password; list/delete/archive administration requires JWT admin checks inside the router."
+      },
+      "rateLimitPolicy": {
+        "mode": "route",
+        "limiters": [
+          "logLimiter"
+        ],
+        "note": "LogShare upload, query, list, delete, and archive routes share a dedicated route-level limiter."
+      },
+      "matchedLimiterModules": [
+        "auth-limiter",
+        "auth-me-limiter",
+        "tts-generate-limiter",
+        "tts-history-limiter",
+        "tts-jobs-limiter",
+        "totp-limiter",
+        "passkey-limiter",
+        "tamper-limiter",
+        "command-limiter",
+        "libre-chat-limiter",
+        "data-collection-limiter",
+        "ipfs-limiter",
+        "network-limiter",
+        "data-process-limiter",
+        "deeplx-limiter",
+        "deeplx-public-limiter",
+        "media-limiter",
+        "social-limiter",
+        "life-limiter",
+        "status-limiter",
+        "oauth-limiter"
+      ]
     },
     {
       "name": "passkey-routes",
@@ -777,13 +1764,23 @@
       "requiresAuth": "mixed",
       "rateLimited": true,
       "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "route-module",
         "limiters": [
           "passkey-limiter"
         ],
         "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
-      }
+      },
+      "matchedLimiterModules": [
+        "passkey-limiter"
+      ]
     },
     {
       "name": "miniapi-routes",
@@ -793,13 +1790,23 @@
       "requiresAuth": false,
       "rateLimited": true,
       "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "mount",
         "limiters": [
           "miniapiLimiter"
         ],
         "note": "Inferred from mounted limiter middleware declared on the route module."
-      }
+      },
+      "mountMiddlewareNames": [
+        "miniapiLimiter"
+      ]
     },
     {
       "name": "anta-routes",
@@ -809,13 +1816,23 @@
       "requiresAuth": false,
       "rateLimited": true,
       "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "mount",
         "limiters": [
           "antaLimiter"
         ],
         "note": "Inferred from mounted limiter middleware declared on the route module."
-      }
+      },
+      "mountMiddlewareNames": [
+        "antaLimiter"
+      ]
     },
     {
       "name": "modlist-routes",
@@ -825,22 +1842,53 @@
       "requiresAuth": false,
       "rateLimited": true,
       "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "mount",
         "limiters": [
           "modlistMountLimiter"
         ],
         "note": "Inferred from mounted limiter middleware declared on the route module."
-      }
+      },
+      "mountMiddlewareNames": [
+        "modlistMountLimiter"
+      ]
     },
     {
       "name": "image-data-routes",
       "path": "/api/image-data",
       "phase": "post-tamper",
       "kind": "route",
-      "requiresAuth": false,
-      "rateLimited": false,
-      "isPublic": true
+      "requiresAuth": true,
+      "rateLimited": true,
+      "isPublic": false,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "authPolicy": {
+        "mode": "route",
+        "handlers": [
+          "authenticateToken"
+        ],
+        "note": "Every image-data route composes JWT authentication directly at route level."
+      },
+      "rateLimitPolicy": {
+        "mode": "route",
+        "limiters": [
+          "imageDataLimiter"
+        ],
+        "note": "Image-data validation, metadata lookup, and recording routes share a dedicated route-level limiter."
+      }
     },
     {
       "name": "resource-routes",
@@ -850,6 +1898,13 @@
       "requiresAuth": "mixed",
       "rateLimited": true,
       "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "route-module",
         "limiters": [
@@ -868,13 +1923,38 @@
           "network-limiter",
           "data-process-limiter",
           "deeplx-limiter",
+          "deeplx-public-limiter",
           "media-limiter",
           "social-limiter",
           "life-limiter",
-          "status-limiter"
+          "status-limiter",
+          "oauth-limiter"
         ],
         "note": "Inferred from dedicated limiter modules mounted earlier in the registry pipeline."
-      }
+      },
+      "matchedLimiterModules": [
+        "auth-limiter",
+        "auth-me-limiter",
+        "tts-generate-limiter",
+        "tts-history-limiter",
+        "tts-jobs-limiter",
+        "totp-limiter",
+        "passkey-limiter",
+        "tamper-limiter",
+        "command-limiter",
+        "libre-chat-limiter",
+        "data-collection-limiter",
+        "ipfs-limiter",
+        "network-limiter",
+        "data-process-limiter",
+        "deeplx-limiter",
+        "deeplx-public-limiter",
+        "media-limiter",
+        "social-limiter",
+        "life-limiter",
+        "status-limiter",
+        "oauth-limiter"
+      ]
     },
     {
       "name": "cdk-routes",
@@ -884,13 +1964,23 @@
       "requiresAuth": "mixed",
       "rateLimited": true,
       "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "mount",
         "limiters": [
           "cdkMountLimiter"
         ],
         "note": "Inferred from mounted limiter middleware declared on the route module."
-      }
+      },
+      "mountMiddlewareNames": [
+        "cdkMountLimiter"
+      ]
     },
     {
       "name": "webhook-event-routes",
@@ -900,6 +1990,13 @@
       "requiresAuth": true,
       "rateLimited": true,
       "isPublic": false,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "authPolicy": {
         "mode": "mount",
         "handlers": [
@@ -913,16 +2010,44 @@
           "adminLimiter"
         ],
         "note": "Webhook event administration is protected by the admin mount limiter."
-      }
+      },
+      "mountMiddlewareNames": [
+        "authenticateToken",
+        "adminLimiter"
+      ]
     },
     {
       "name": "fbi-wanted-routes",
       "path": "/api/fbi-wanted",
       "phase": "post-tamper",
       "kind": "route",
-      "requiresAuth": false,
-      "rateLimited": false,
-      "isPublic": true
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "authPolicy": {
+        "mode": "route",
+        "handlers": [
+          "authenticateToken",
+          "authenticateAdmin"
+        ],
+        "note": "Public wanted-list reads use /public routes; administrative list and mutation routes require JWT admin checks."
+      },
+      "rateLimitPolicy": {
+        "mode": "route",
+        "limiters": [
+          "publicLimiter",
+          "adminLimiter",
+          "uploadPhotoLimiter"
+        ],
+        "note": "FBI wanted routes apply separate public, admin, and photo-upload route-level limiters."
+      }
     },
     {
       "name": "github-billing-routes",
@@ -932,12 +2057,96 @@
       "requiresAuth": false,
       "rateLimited": true,
       "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
         "mode": "mount",
         "limiters": [
           "githubBillingLimiter"
         ],
         "note": "Inferred from mounted limiter middleware declared on the route module."
+      },
+      "mountMiddlewareNames": [
+        "githubBillingLimiter"
+      ]
+    },
+    {
+      "name": "linuxdo-credit-routes",
+      "path": "/api/linuxdo-credit",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "authPolicy": {
+        "mode": "route",
+        "handlers": [
+          "authMiddleware"
+        ],
+        "note": "Notify endpoints are public for merchant callbacks; recharge/order APIs require JWT."
+      },
+      "rateLimitPolicy": {
+        "mode": "router",
+        "limiters": [
+          "linuxdo-credit-notify",
+          "linuxdo-credit-recharge",
+          "linuxdo-credit-read"
+        ],
+        "note": "LINUX DO Credit routes apply route-level limiters inside the router."
+      }
+    },
+    {
+      "name": "ecoenchants-routes",
+      "path": "/api/ecoenchants",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": "mixed",
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "authPolicy": {
+        "mode": "route",
+        "handlers": [
+          "authenticateEcoCustomer",
+          "requireEcoAdmin",
+          "verifyEcoEnchantsDownloadToken"
+        ],
+        "note": "Public license boot endpoints are open; ops registration enforces signed activation tokens; customer, download, and admin branches enforce EcoEnchants-specific JWT/admin/download-token guards."
+      },
+      "rateLimitPolicy": {
+        "mode": "route",
+        "limiters": [
+          "ecoenchantsLicenseVerify",
+          "ecoenchantsLicenseActivate",
+          "ecoenchantsLicenseDeactivate",
+          "ecoenchantsTelemetryEvents",
+          "ecoenchantsCustomerIp",
+          "ecoenchantsCustomer",
+          "ecoenchantsDownloadIp",
+          "ecoenchantsDownload",
+          "ecoenchantsAdminIp",
+          "ecoenchantsAdmin",
+          "ecoenchantsOpsRegister"
+        ],
+        "note": "The EcoEnchants router applies dedicated route-level IP and authenticated-subject limiters for license, telemetry, customer, download, admin, and ops-registration flows."
       }
     },
     {
@@ -946,8 +2155,74 @@
       "phase": "post-tamper",
       "kind": "route",
       "requiresAuth": "mixed",
-      "rateLimited": false,
-      "isPublic": "mixed"
+      "rateLimited": true,
+      "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "authPolicy": {
+        "mode": "route",
+        "handlers": [
+          "nexaiAuthRequired",
+          "nexaiAuthOptional"
+        ],
+        "note": "Public auth and artifact view routes are open or optional; profile, sync, and artifact management routes require NexAI authentication."
+      },
+      "rateLimitPolicy": {
+        "mode": "route",
+        "limiters": [
+          "nexaiAuthLimiter",
+          "nexaiLoginLimiter",
+          "nexaiRegisterLimiter",
+          "nexaiOAuthLimiter",
+          "nexaiRefreshLimiter",
+          "nexaiProfileLimiter",
+          "nexaiSyncLimiter",
+          "artifactCreateLimiter",
+          "artifactViewLimiter",
+          "artifactManageLimiter",
+          "releaseManifestLimiter"
+        ],
+        "note": "NexAI routes apply dedicated route-level limiters for auth, OAuth, refresh, profile, sync, release manifests, and artifact flows."
+      },
+      "mountMiddlewareNames": [
+        "nexaiRequestSignature"
+      ]
+    },
+    {
+      "name": "bilibili-sync-routes",
+      "path": "/api/bilibili-sync",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": true,
+      "rateLimited": true,
+      "isPublic": false,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "authPolicy": {
+        "mode": "router",
+        "handlers": [
+          "oauthTokenAuth",
+          "authenticateToken"
+        ],
+        "note": "Bilibili UID binding and sync routes accept the existing account JWT or a scoped OAuth access token and derive user scope from the authenticated request."
+      },
+      "rateLimitPolicy": {
+        "mode": "router",
+        "limiters": [
+          "bilibiliSyncLimiter"
+        ],
+        "note": "All Bilibili binding and sync operations share the authenticated sync limiter."
+      }
     },
     {
       "name": "nexai-security-routes",
@@ -957,12 +2232,247 @@
       "requiresAuth": "mixed",
       "rateLimited": true,
       "isPublic": "mixed",
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
       "rateLimitPolicy": {
-        "mode": "mount",
+        "mode": "mixed",
         "limiters": [
-          "nexaiSecurityLimiter"
+          "nexaiSecurityLimiter",
+          "nexaiSecurityReportLimiter",
+          "nexaiSecurityStatusLimiter",
+          "nexaiSecurityAuthLimiter",
+          "nexaiSecurityAdminLimiter"
         ],
-        "note": "Inferred from mounted limiter middleware declared on the route module."
+        "note": "NexAI security routes keep the mount limiter and add route-level createLimiter handlers for CodeQL-visible coverage on auth and admin endpoints."
+      },
+      "mountMiddlewareNames": [
+        "nexaiRequestSignature",
+        "nexaiSecurityLimiter"
+      ]
+    },
+    {
+      "name": "diagnostics-routes",
+      "path": "/api",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "rateLimitPolicy": {
+        "mode": "route",
+        "limiters": [
+          "integrityLimiter",
+          "docsTimeoutLimiter",
+          "serverStatusLimiter"
+        ],
+        "note": "Diagnostics and operational endpoints apply dedicated route-level limiters."
+      },
+      "matchedLimiterModules": [
+        "auth-limiter",
+        "auth-me-limiter",
+        "tts-generate-limiter",
+        "tts-history-limiter",
+        "tts-jobs-limiter",
+        "totp-limiter",
+        "passkey-limiter",
+        "tamper-limiter",
+        "command-limiter",
+        "libre-chat-limiter",
+        "data-collection-limiter",
+        "ipfs-limiter",
+        "network-limiter",
+        "data-process-limiter",
+        "deeplx-limiter",
+        "deeplx-public-limiter",
+        "media-limiter",
+        "social-limiter",
+        "life-limiter",
+        "status-limiter",
+        "oauth-limiter"
+      ]
+    },
+    {
+      "name": "ip-info-routes",
+      "path": "/api",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "rateLimitPolicy": {
+        "mode": "route",
+        "limiters": [
+          "ipQueryLimiter",
+          "ipReportLimiter",
+          "ipLocationLimiter"
+        ],
+        "note": "IP query, report, and location endpoints apply dedicated route-level limiters."
+      },
+      "matchedLimiterModules": [
+        "auth-limiter",
+        "auth-me-limiter",
+        "tts-generate-limiter",
+        "tts-history-limiter",
+        "tts-jobs-limiter",
+        "totp-limiter",
+        "passkey-limiter",
+        "tamper-limiter",
+        "command-limiter",
+        "libre-chat-limiter",
+        "data-collection-limiter",
+        "ipfs-limiter",
+        "network-limiter",
+        "data-process-limiter",
+        "deeplx-limiter",
+        "deeplx-public-limiter",
+        "media-limiter",
+        "social-limiter",
+        "life-limiter",
+        "status-limiter",
+        "oauth-limiter"
+      ]
+    },
+    {
+      "name": "librechat-compat-api-routes",
+      "path": "/api",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "rateLimitPolicy": {
+        "mode": "route",
+        "limiters": [
+          "lcCompatLimiter"
+        ],
+        "note": "LibreChat compatibility endpoints apply their dedicated route-level limiter."
+      },
+      "matchedLimiterModules": [
+        "auth-limiter",
+        "auth-me-limiter",
+        "tts-generate-limiter",
+        "tts-history-limiter",
+        "tts-jobs-limiter",
+        "totp-limiter",
+        "passkey-limiter",
+        "tamper-limiter",
+        "command-limiter",
+        "libre-chat-limiter",
+        "data-collection-limiter",
+        "ipfs-limiter",
+        "network-limiter",
+        "data-process-limiter",
+        "deeplx-limiter",
+        "deeplx-public-limiter",
+        "media-limiter",
+        "social-limiter",
+        "life-limiter",
+        "status-limiter",
+        "oauth-limiter"
+      ]
+    },
+    {
+      "name": "openapi-json-routes",
+      "path": "/api",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": true,
+      "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": true,
+        "coverage": "all-api-routes",
+        "adaptationStatus": "completed",
+        "source": "AuditLogService.globalAuditMiddleware",
+        "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "rateLimitPolicy": {
+        "mode": "route",
+        "limiters": [
+          "openapiLimiter"
+        ],
+        "note": "OpenAPI JSON endpoints apply the dedicated route-level OpenAPI limiter."
+      },
+      "matchedLimiterModules": [
+        "auth-limiter",
+        "auth-me-limiter",
+        "tts-generate-limiter",
+        "tts-history-limiter",
+        "tts-jobs-limiter",
+        "totp-limiter",
+        "passkey-limiter",
+        "tamper-limiter",
+        "command-limiter",
+        "libre-chat-limiter",
+        "data-collection-limiter",
+        "ipfs-limiter",
+        "network-limiter",
+        "data-process-limiter",
+        "deeplx-limiter",
+        "deeplx-public-limiter",
+        "media-limiter",
+        "social-limiter",
+        "life-limiter",
+        "status-limiter",
+        "oauth-limiter"
+      ]
+    },
+    {
+      "name": "assetlinks-route",
+      "path": "/.well-known/assetlinks.json",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": false,
+      "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": false,
+        "coverage": "not-applicable",
+        "adaptationStatus": "not-applicable",
+        "source": "not-applicable",
+        "note": "Non-API route; global API audit coverage is not applicable."
+      }
+    },
+    {
+      "name": "favicon-route",
+      "path": "/favicon.ico",
+      "phase": "post-tamper",
+      "kind": "route",
+      "requiresAuth": false,
+      "rateLimited": false,
+      "isPublic": true,
+      "auditLogPolicy": {
+        "enabled": false,
+        "coverage": "not-applicable",
+        "adaptationStatus": "not-applicable",
+        "source": "not-applicable",
+        "note": "Non-API route; global API audit coverage is not applicable."
       }
     }
   ]
