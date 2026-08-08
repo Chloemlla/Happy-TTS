@@ -117,7 +117,7 @@ router.get("/shortlinks", authenticateToken, async (req, res) => {
   }
 });
 
-router.delete("/shortlinks/:id", authenticateToken, async (req, res) => {
+router.delete("/shortlinks/:id", authenticateToken, auditLog({ module: "shorturl", action: "shorturl.delete", extractTarget: (req) => ({ targetId: req.params.id }) }), async (req, res) => {
   try {
     // 检查管理员权限
     if (!req.user || !isSuperAdmin(req)) {
@@ -154,7 +154,7 @@ router.delete("/shortlinks/:id", authenticateToken, async (req, res) => {
 });
 
 // 批量删除短链
-router.post("/shortlinks/batch-delete", authenticateToken, async (req, res) => {
+router.post("/shortlinks/batch-delete", authenticateToken, auditLog({ module: "shorturl", action: "shorturl.batchDelete", extractDetail: (req) => ({ count: Array.isArray(req.body?.ids) ? req.body.ids.length : 0 }) }), async (req, res) => {
   try {
     const { ids } = req.body;
 
@@ -320,7 +320,7 @@ router.post(
 );
 
 // 短链迁移管理API
-router.post("/shortlinks/migrate", authenticateToken, async (req, res) => {
+router.post("/shortlinks/migrate", authenticateToken, auditLog({ module: "shorturl", action: "shorturl.migrate" }), async (req, res) => {
   try {
     console.log("🔐 [ShortUrlMigration] 开始处理短链迁移请求...");
     console.log("   用户ID:", req.user?.id);

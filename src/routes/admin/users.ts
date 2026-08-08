@@ -323,7 +323,16 @@ router.delete(
   adminController.deleteAnnouncements,
 );
 
-router.post("/users/:id/reveal-password/verify", async (req, res) => {
+router.post(
+  "/users/:id/reveal-password/verify",
+  auditLog({
+    module: "user",
+    action: "user.revealPasswordVerify",
+    captureBody: false,
+    extractTarget: (req) => ({ targetId: req.params.id }),
+    extractDetail: (req) => ({ method: req.body?.method }),
+  }),
+  async (req, res) => {
   try {
     const user = req.user;
     if (!user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要管理员权限" });
