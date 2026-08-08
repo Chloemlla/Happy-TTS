@@ -1,5 +1,6 @@
 import express from "express";
 import { auditLog } from "../middleware/auditLog";
+import { authenticateAdmin, authenticateSuperAdmin } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
 import {
   checkAccessToken,
@@ -58,18 +59,18 @@ router.get("/temp-fingerprint/:fingerprint", fingerprintLimiter, checkTempFinger
 // 统计与清理（管理员）
 router.post(
   "/cleanup-expired-fingerprints",
-  authenticateToken,
+  authenticateSuperAdmin,
   adminLimiter,
   auditLog({ module: "system", action: "system.fingerprintCleanup" }),
   cleanupExpiredFingerprints,
 );
-router.get("/fingerprint-stats", authenticateToken, adminLimiter, getFingerprintStats);
-router.get("/ip-ban-stats", authenticateToken, adminLimiter, getIpBanStats);
+router.get("/fingerprint-stats", authenticateAdmin, adminLimiter, getFingerprintStats);
+router.get("/ip-ban-stats", authenticateAdmin, adminLimiter, getIpBanStats);
 
 // IP 封禁管理（管理员）
 router.post(
   "/ban-ip",
-  authenticateToken,
+  authenticateSuperAdmin,
   adminLimiter,
   auditLog({
     module: "ipban",
@@ -80,14 +81,14 @@ router.post(
 );
 router.post(
   "/unban-ip",
-  authenticateToken,
+  authenticateSuperAdmin,
   adminLimiter,
   auditLog({ module: "ipban", action: "ipban.unban", extractDetail: (req) => ({ ipAddress: req.body.ipAddress }) }),
   unbanIp,
 );
 router.post(
   "/ban-ips",
-  authenticateToken,
+  authenticateSuperAdmin,
   adminLimiter,
   auditLog({
     module: "ipban",
@@ -98,7 +99,7 @@ router.post(
 );
 router.post(
   "/unban-ips",
-  authenticateToken,
+  authenticateSuperAdmin,
   adminLimiter,
   auditLog({
     module: "ipban",
@@ -109,24 +110,24 @@ router.post(
 );
 
 // 调度器（管理员）
-router.get("/scheduler-status", authenticateToken, adminLimiter, getSchedulerStatus);
+router.get("/scheduler-status", authenticateAdmin, adminLimiter, getSchedulerStatus);
 router.post(
   "/manual-cleanup",
-  authenticateToken,
+  authenticateSuperAdmin,
   adminLimiter,
   auditLog({ module: "system", action: "system.manualCleanup" }),
   manualCleanup,
 );
 router.post(
   "/scheduler/start",
-  authenticateToken,
+  authenticateSuperAdmin,
   adminLimiter,
   auditLog({ module: "system", action: "system.schedulerStart" }),
   startScheduler,
 );
 router.post(
   "/scheduler/stop",
-  authenticateToken,
+  authenticateSuperAdmin,
   adminLimiter,
   auditLog({ module: "system", action: "system.schedulerStop" }),
   stopScheduler,
@@ -199,7 +200,7 @@ router.post("/secure-captcha-config", publicLimiter, secureCaptchaConfig);
  * /api/turnstile/config:
  *   post:
  *     summary: 更新Turnstile配置
- *     description: 更新Turnstile配置信息（需要管理员权限）
+ *     description: 更新Turnstile配置信息（需要超级管理员权限）
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -208,7 +209,7 @@ router.post("/secure-captcha-config", publicLimiter, secureCaptchaConfig);
  */
 router.post(
   "/config",
-  authenticateToken,
+  authenticateSuperAdmin,
   configLimiter,
   auditLog({ module: "system", action: "system.turnstileConfigUpdate" }),
   updateTurnstileConfig,
@@ -219,7 +220,7 @@ router.post(
  * /api/turnstile/config/{key}:
  *   delete:
  *     summary: 删除Turnstile配置
- *     description: 删除指定的Turnstile配置（需要管理员权限）
+ *     description: 删除指定的Turnstile配置（需要超级管理员权限）
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -228,7 +229,7 @@ router.post(
  */
 router.delete(
   "/config/:key",
-  authenticateToken,
+  authenticateSuperAdmin,
   configLimiter,
   auditLog({ module: "system", action: "system.turnstileConfigDelete", extractDetail: (req) => ({ key: req.params.key }) }),
   deleteTurnstileConfig,
@@ -245,7 +246,7 @@ router.delete(
  *       200:
  *         description: 获取成功
  */
-router.get("/hcaptcha-config", authenticateToken, configLimiter, getHCaptchaConfig);
+router.get("/hcaptcha-config", authenticateAdmin, configLimiter, getHCaptchaConfig);
 
 /**
  * @openapi
@@ -260,7 +261,7 @@ router.get("/hcaptcha-config", authenticateToken, configLimiter, getHCaptchaConf
  */
 router.post(
   "/hcaptcha-config",
-  authenticateToken,
+  authenticateSuperAdmin,
   configLimiter,
   auditLog({ module: "system", action: "system.hcaptchaConfigUpdate" }),
   updateHCaptchaConfig,
@@ -279,7 +280,7 @@ router.post(
  */
 router.delete(
   "/hcaptcha-config/:key",
-  authenticateToken,
+  authenticateSuperAdmin,
   configLimiter,
   auditLog({ module: "system", action: "system.hcaptchaConfigDelete", extractDetail: (req) => ({ key: req.params.key }) }),
   deleteHCaptchaConfig,
@@ -299,11 +300,11 @@ router.post("/hcaptcha-verify", publicLimiter, verifyHCaptcha);
 // IP 封禁同步（管理员）
 router.post(
   "/sync-ipbans",
-  authenticateToken,
+  authenticateSuperAdmin,
   adminLimiter,
   auditLog({ module: "ipban", action: "ipban.sync" }),
   syncIpBans,
 );
-router.get("/sync-status", authenticateToken, adminLimiter, getSyncStatus);
+router.get("/sync-status", authenticateAdmin, adminLimiter, getSyncStatus);
 
 export default router;
