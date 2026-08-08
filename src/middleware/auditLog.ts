@@ -25,6 +25,8 @@ export interface AuditLogOptions {
   extractTarget?: (req: Request) => { targetId?: string | string[]; targetName?: string | string[] };
   /** 从请求中提取额外详情 */
   extractDetail?: (req: Request) => Record<string, any> | undefined;
+  /** 为 false 时不将请求体写入审计（密钥等敏感写入使用） */
+  captureBody?: boolean;
 }
 
 const SENSITIVE_AUDIT_FIELDS = [
@@ -42,7 +44,7 @@ const SENSITIVE_AUDIT_FIELDS = [
 ];
 
 export function auditLog(options: AuditLogOptions) {
-  const { module, action, extractTarget, extractDetail } = options;
+  const { module, action, extractTarget, extractDetail, captureBody } = options;
 
   return (req: Request, res: Response, next: NextFunction) => {
     (req as any).__routeAuditEnabled = true;
@@ -104,7 +106,8 @@ export function auditLog(options: AuditLogOptions) {
         detail: {
           ...detail,
           durationMs: Date.now() - startTime,
-          reqBody: Object.keys(req.body || {}).length ? sanitizePayload(req.body) : undefined,
+          reqBody:
+            captureBody === false ? undefined : Object.keys(req.body || {}).length ? sanitizePayload(req.body) : undefined,
           resBody: resBody !== undefined ? sanitizePayload(resBody) : undefined,
         },
         ip: req.ip || (req as any).connection?.remoteAddress || "unknown",

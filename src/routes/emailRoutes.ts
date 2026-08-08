@@ -1,5 +1,6 @@
 import express from "express";
 import { EmailController } from "../controllers/emailController";
+import { auditLog } from "../middleware/auditLog";
 import { authenticateSuperAdmin, authMiddlewareV2 as authMiddleware, isAdminRole } from "../middleware/auth";
 import { createLimiter } from "../middleware/rateLimiter";
 import { domainExemptionService } from "../services/domainExemptionService";
@@ -116,7 +117,13 @@ router.use(adminAuthMiddleware);
  *       500:
  *         description: 服务器错误
  */
-router.post("/send", emailSendLimiter, authenticateSuperAdmin, EmailController.sendEmail);
+router.post(
+  "/send",
+  emailSendLimiter,
+  authenticateSuperAdmin,
+  auditLog({ module: "email", action: "email.send", extractDetail: (req) => ({ to: (req as any).body?.to, subject: (req as any).body?.subject }) }),
+  EmailController.sendEmail,
+);
 
 /**
  * @openapi
@@ -172,7 +179,13 @@ router.post("/send", emailSendLimiter, authenticateSuperAdmin, EmailController.s
  *       500:
  *         description: 服务器错误
  */
-router.post("/batch-send", emailSendLimiter, authenticateSuperAdmin, EmailController.sendEmailBatch);
+router.post(
+  "/batch-send",
+  emailSendLimiter,
+  authenticateSuperAdmin,
+  auditLog({ module: "email", action: "email.batchSend", extractDetail: (req) => ({ recipientCount: Array.isArray((req as any).body?.to) ? (req as any).body.to.length : undefined, subject: (req as any).body?.subject }) }),
+  EmailController.sendEmailBatch,
+);
 
 /**
  * @openapi
@@ -226,7 +239,13 @@ router.post("/batch-send", emailSendLimiter, authenticateSuperAdmin, EmailContro
  *       500:
  *         description: 服务器错误
  */
-router.post("/send-simple", emailSendLimiter, authenticateSuperAdmin, EmailController.sendSimpleEmail);
+router.post(
+  "/send-simple",
+  emailSendLimiter,
+  authenticateSuperAdmin,
+  auditLog({ module: "email", action: "email.sendSimple", extractDetail: (req) => ({ to: (req as any).body?.to, subject: (req as any).body?.subject }) }),
+  EmailController.sendSimpleEmail,
+);
 
 /**
  * @openapi
@@ -280,7 +299,13 @@ router.post("/send-simple", emailSendLimiter, authenticateSuperAdmin, EmailContr
  *       500:
  *         description: 服务器错误
  */
-router.post("/send-markdown", emailSendLimiter, authenticateSuperAdmin, EmailController.sendMarkdownEmail);
+router.post(
+  "/send-markdown",
+  emailSendLimiter,
+  authenticateSuperAdmin,
+  auditLog({ module: "email", action: "email.sendMarkdown", extractDetail: (req) => ({ to: (req as any).body?.to, subject: (req as any).body?.subject }) }),
+  EmailController.sendMarkdownEmail,
+);
 
 /**
  * @openapi
@@ -371,7 +396,13 @@ router.get("/status", statusQueryLimiter, EmailController.getServiceStatus);
  *       500:
  *         description: 服务器错误
  */
-router.post("/validate-sender-domain", emailValidationLimiter, authenticateSuperAdmin, EmailController.validateSenderDomain);
+router.post(
+  "/validate-sender-domain",
+  emailValidationLimiter,
+  authenticateSuperAdmin,
+  auditLog({ module: "email", action: "email.validateSenderDomain", extractDetail: (req) => ({ email: (req as any).body?.email }) }),
+  EmailController.validateSenderDomain,
+);
 
 /**
  * @openapi
@@ -430,7 +461,13 @@ router.post("/validate-sender-domain", emailValidationLimiter, authenticateSuper
  *       500:
  *         description: 服务器错误
  */
-router.post("/validate", emailValidationLimiter, authenticateSuperAdmin, EmailController.validateEmails);
+router.post(
+  "/validate",
+  emailValidationLimiter,
+  authenticateSuperAdmin,
+  auditLog({ module: "email", action: "email.validate", extractDetail: (req) => ({ emailCount: Array.isArray((req as any).body?.emails) ? (req as any).body.emails.length : undefined }) }),
+  EmailController.validateEmails,
+);
 
 /**
  * @openapi
@@ -581,6 +618,7 @@ router.post(
   domainExemptionLimiter,
   authMiddleware,
   authenticateSuperAdmin,
+  auditLog({ module: "email", action: "email.checkDomainExemption", extractDetail: (req) => ({ domain: (req as any).body?.domain }) }),
   async (req, res) => {
     try {
       const { domain } = req.body;
@@ -677,6 +715,7 @@ router.post(
   domainExemptionLimiter,
   authMiddleware,
   authenticateSuperAdmin,
+  auditLog({ module: "email", action: "email.checkRecipientWhitelist", extractDetail: (req) => ({ domain: (req as any).body?.domain }) }),
   async (req, res) => {
     try {
       const { domain } = req.body;

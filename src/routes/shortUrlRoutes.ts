@@ -149,7 +149,7 @@ router.post(
   adminWriteLimiter,
   adminLimiter,
   replayGuard,
-  auditLog({ module: "shorturl", action: "shorturl.aesKeySet" }),
+  auditLog({ module: "shorturl", action: "shorturl.aesKeySet", captureBody: false }),
   async (req, res) => {
     try {
       const { value } = req.body || {};

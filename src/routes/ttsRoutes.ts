@@ -2,6 +2,7 @@ import express from "express";
 import { TtsController } from "../controllers/ttsController";
 import { ttsProviderController } from "../controllers/ttsProviderController";
 import { apiKeyAuth } from "../middleware/apiKeyAuth";
+import { auditLog } from "../middleware/auditLog";
 import { authenticateAdmin, authenticateSuperAdmin } from "../middleware/auth";
 import {
   adminLimiter,
@@ -113,7 +114,14 @@ router.get("/assets/:fileName", ttsAssetLimiter, TtsController.getAudioAsset);
 router.get("/jobs/:taskId", ttsJobReadLimiter, ttsApiKeyAuth, TtsController.getJobStatus);
 router.get("/jobs/:taskId/result", ttsJobReadLimiter, ttsApiKeyAuth, TtsController.getJobResult);
 router.get("/admin/history", ttsAdminOperationLimiter, adminLimiter, authenticateAdmin, TtsController.getAllGenerations);
-router.patch("/admin/history/:recordId/review", ttsAdminOperationLimiter, adminLimiter, authenticateSuperAdmin, TtsController.updateGenerationReview);
+router.patch(
+  "/admin/history/:recordId/review",
+  ttsAdminOperationLimiter,
+  adminLimiter,
+  authenticateSuperAdmin,
+  auditLog({ module: "tts", action: "tts.recordReview", extractTarget: (req) => ({ targetId: req.params.recordId }) }),
+  TtsController.updateGenerationReview,
+);
 
 /**
  * @openapi
@@ -232,7 +240,7 @@ router.get("/clarity/config", ttsConfigReadLimiter, async (_req, res) => {
  *                 message:
  *                   type: string
  */
-router.post("/clarity/config", ttsConfigWriteLimiter, authenticateSuperAdmin, async (req, res) => {
+router.post("/clarity/config", ttsConfigWriteLimiter, authenticateSuperAdmin, auditLog({ module: "tts", action: "tts.clarityConfigSet" }), async (req, res) => {
   try {
     const { projectId } = req.body;
 
@@ -293,7 +301,7 @@ router.post("/clarity/config", ttsConfigWriteLimiter, authenticateSuperAdmin, as
  *                 message:
  *                   type: string
  */
-router.delete("/clarity/config", ttsConfigWriteLimiter, authenticateSuperAdmin, async (req, res) => {
+router.delete("/clarity/config", ttsConfigWriteLimiter, authenticateSuperAdmin, auditLog({ module: "tts", action: "tts.clarityConfigDelete" }), async (req, res) => {
   try {
     // 获取请求元数据（可选）
     const metadata = {

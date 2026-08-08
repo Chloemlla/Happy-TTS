@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import multer from "multer";
 import { IPFSController } from "../controllers/ipfsController";
 import { apiKeyAuth } from "../middleware/apiKeyAuth";
+import { auditLog } from "../middleware/auditLog";
 import { authenticateAdmin, authenticateSuperAdmin } from "../middleware/auth";
 import { connectMongo } from "../services/mongoService";
 import logger from "../utils/logger";
@@ -217,7 +218,12 @@ router.get("/settings", authenticateAdmin, IPFSController.getConfig);
  *       500:
  *         description: 服务器错误
  */
-router.post("/settings", authenticateSuperAdmin, IPFSController.setConfig);
+router.post(
+  "/settings",
+  authenticateSuperAdmin,
+  auditLog({ module: "ipfs", action: "ipfs.settings.set" }),
+  IPFSController.setConfig,
+);
 
 /**
  * @openapi
@@ -246,7 +252,12 @@ router.post("/settings", authenticateSuperAdmin, IPFSController.setConfig);
  *       500:
  *         description: 服务器错误
  */
-router.post("/settings/test", authenticateSuperAdmin, IPFSController.testConfig);
+router.post(
+  "/settings/test",
+  authenticateSuperAdmin,
+  auditLog({ module: "ipfs", action: "ipfs.settings.test" }),
+  IPFSController.testConfig,
+);
 
 // 短链跳转路由 - 必须放在最后，避免与其他路由冲突
 router.get("/:code", shortlinkLimiter, async (req, res) => {

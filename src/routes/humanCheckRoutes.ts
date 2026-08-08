@@ -1,6 +1,7 @@
 import express from "express";
 import { SmartHumanCheckController } from "../controllers/humanCheckController";
 import adminOnly from "../middleware/adminOnly";
+import { auditLog } from "../middleware/auditLog";
 import { authenticateSuperAdmin } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { createLimiter } from "../middleware/routeLimiters";
@@ -65,7 +66,21 @@ router.get("/traces", adminLimiter, authenticateToken, adminOnly, SmartHumanChec
 router.get("/trace/:id", adminLimiter, authenticateToken, adminOnly, SmartHumanCheckController.getTrace);
 
 // 管理端：删除溯源记录（需要管理员权限）
-router.delete("/traces", adminLimiter, authenticateToken, authenticateSuperAdmin, SmartHumanCheckController.deleteTraces);
-router.delete("/trace/:id", adminLimiter, authenticateToken, authenticateSuperAdmin, SmartHumanCheckController.deleteTrace);
+router.delete(
+  "/traces",
+  adminLimiter,
+  authenticateToken,
+  authenticateSuperAdmin,
+  auditLog({ module: "other", action: "humanCheck.traceDelete", extractDetail: (req) => ({ count: (req as any).body?.ids ? (req as any).body.ids.length : undefined }) }),
+  SmartHumanCheckController.deleteTraces,
+);
+router.delete(
+  "/trace/:id",
+  adminLimiter,
+  authenticateToken,
+  authenticateSuperAdmin,
+  auditLog({ module: "other", action: "humanCheck.traceDeleteOne", extractTarget: (req) => ({ targetId: req.params.id }) }),
+  SmartHumanCheckController.deleteTrace,
+);
 
 export default router;

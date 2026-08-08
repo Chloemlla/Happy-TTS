@@ -1,6 +1,7 @@
 import express from "express";
 import multer from "multer";
 import { fbiWantedController } from "../controllers/fbiWantedController";
+import { auditLog } from "../middleware/auditLog";
 import { authenticateAdmin, authenticateSuperAdmin } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { createLimiter } from "../middleware/rateLimiter";
@@ -56,19 +57,62 @@ const uploadPhotoLimiter = createLimiter({
 router.get("/", adminLimiter, authenticateToken, authenticateAdmin, fbiWantedController.getAllWanted);
 router.get("/statistics", adminLimiter, authenticateToken, authenticateAdmin, fbiWantedController.getStatistics);
 router.get("/:id", adminLimiter, authenticateToken, authenticateAdmin, fbiWantedController.getWantedById);
-router.post("/", adminLimiter, authenticateToken, authenticateSuperAdmin, fbiWantedController.createWanted);
-router.put("/:id", adminLimiter, authenticateToken, authenticateSuperAdmin, fbiWantedController.updateWanted);
-router.patch("/:id/status", adminLimiter, authenticateToken, authenticateSuperAdmin, fbiWantedController.updateWantedStatus);
+router.post(
+  "/",
+  adminLimiter,
+  authenticateToken,
+  authenticateSuperAdmin,
+  auditLog({ module: "other", action: "fbi.create" }),
+  fbiWantedController.createWanted,
+);
+router.put(
+  "/:id",
+  adminLimiter,
+  authenticateToken,
+  authenticateSuperAdmin,
+  auditLog({ module: "other", action: "fbi.update", extractTarget: (req) => ({ targetId: req.params.id }) }),
+  fbiWantedController.updateWanted,
+);
+router.patch(
+  "/:id/status",
+  adminLimiter,
+  authenticateToken,
+  authenticateSuperAdmin,
+  auditLog({ module: "other", action: "fbi.statusChange", extractTarget: (req) => ({ targetId: req.params.id }) }),
+  fbiWantedController.updateWantedStatus,
+);
 router.patch(
   "/:id/photo",
   uploadPhotoLimiter,
   authenticateToken,
   authenticateSuperAdmin,
+  auditLog({ module: "other", action: "fbi.photoUpdate", extractTarget: (req) => ({ targetId: req.params.id }) }),
   upload.single("photo"),
   fbiWantedController.updateWantedPhoto,
 );
-router.delete("/multiple", adminLimiter, authenticateToken, authenticateSuperAdmin, fbiWantedController.deleteMultiple);
-router.delete("/:id", adminLimiter, authenticateToken, authenticateSuperAdmin, fbiWantedController.deleteWanted);
-router.post("/batch-delete", adminLimiter, authenticateToken, authenticateSuperAdmin, fbiWantedController.batchDeleteWanted);
+router.delete(
+  "/multiple",
+  adminLimiter,
+  authenticateToken,
+  authenticateSuperAdmin,
+  auditLog({ module: "other", action: "fbi.deleteMultiple" }),
+  fbiWantedController.deleteMultiple,
+);
+router.delete(
+  "/:id",
+  adminLimiter,
+  authenticateToken,
+  authenticateSuperAdmin,
+  auditLog({ module: "other", action: "fbi.delete", extractTarget: (req) => ({ targetId: req.params.id }) }),
+  fbiWantedController.deleteWanted,
+);
+router.post(
+  "/batch-delete",
+  adminLimiter,
+  authenticateToken,
+  authenticateSuperAdmin,
+  auditLog({ module: "other", action: "fbi.batchDelete" }),
+  fbiWantedController.batchDeleteWanted,
+);
 
 export default router;

@@ -98,18 +98,48 @@ router.post(
 
 // OutEmail settings management (admin)
 router.get("/outemail/settings", adminController.getOutemailSettings);
-router.post("/outemail/settings", authenticateSuperAdmin, adminController.setOutemailSetting);
-router.delete("/outemail/settings", authenticateSuperAdmin, adminController.deleteOutemailSetting);
+router.post(
+  "/outemail/settings",
+  authenticateSuperAdmin,
+  auditLog({ module: "email", action: "email.outemail.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.setOutemailSetting,
+);
+router.delete(
+  "/outemail/settings",
+  authenticateSuperAdmin,
+  auditLog({ module: "email", action: "email.outemail.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.deleteOutemailSetting,
+);
 
 // Modlist MODIFY_CODE management (admin)
 router.get("/modlist/setting", adminController.getModlistSetting);
-router.post("/modlist/setting", authenticateSuperAdmin, adminController.setModlistSetting);
-router.delete("/modlist/setting", authenticateSuperAdmin, adminController.deleteModlistSetting);
+router.post(
+  "/modlist/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.modlist.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.setModlistSetting,
+);
+router.delete(
+  "/modlist/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.modlist.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.deleteModlistSetting,
+);
 
 // TTS GENERATION_CODE management (admin)
 router.get("/tts/setting", adminController.getTtsSetting);
-router.post("/tts/setting", authenticateSuperAdmin, adminController.setTtsSetting);
-router.delete("/tts/setting", authenticateSuperAdmin, adminController.deleteTtsSetting);
+router.post(
+  "/tts/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "tts", action: "tts.setting.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.setTtsSetting,
+);
+router.delete(
+  "/tts/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "tts", action: "tts.setting.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.deleteTtsSetting,
+);
 router.get("/tts/provider", ttsProviderController.getAdminConfig);
 router.put(
   "/tts/provider",
@@ -124,40 +154,140 @@ router.put(
 
 // Backend email system management (admin)
 router.get("/email-system/setting", adminController.getEmailSystemSetting);
-router.post("/email-system/setting", authenticateSuperAdmin, adminController.setEmailSystemSetting);
-router.delete("/email-system/setting", authenticateSuperAdmin, adminController.deleteEmailSystemSetting);
+router.post(
+  "/email-system/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "email", action: "email.system.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.setEmailSystemSetting,
+);
+router.delete(
+  "/email-system/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "email", action: "email.system.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.deleteEmailSystemSetting,
+);
 
 // Runtime config management (admin)
 router.get("/ipqs/setting", adminController.getIpqsSetting);
-router.post("/ipqs/setting", authenticateSuperAdmin, adminController.setIpqsSetting);
-router.delete("/ipqs/setting", authenticateSuperAdmin, adminController.deleteIpqsSetting);
+router.post(
+  "/ipqs/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.ipqs.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.setIpqsSetting,
+);
+router.delete(
+  "/ipqs/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.ipqs.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.deleteIpqsSetting,
+);
 router.get("/linuxdo/setting", adminController.getLinuxDoSetting);
-router.post("/linuxdo/setting", authenticateSuperAdmin, adminController.setLinuxDoSetting);
-router.delete("/linuxdo/setting", authenticateSuperAdmin, adminController.deleteLinuxDoSetting);
+router.post(
+  "/linuxdo/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.linuxdo.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.setLinuxDoSetting,
+);
+router.delete(
+  "/linuxdo/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.linuxdo.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.deleteLinuxDoSetting,
+);
 router.get("/google-auth/setting", adminController.getGoogleAuthSetting);
-router.post("/google-auth/setting", authenticateSuperAdmin, adminController.setGoogleAuthSetting);
-router.delete("/google-auth/setting", authenticateSuperAdmin, adminController.deleteGoogleAuthSetting);
+router.post(
+  "/google-auth/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.google-auth.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.setGoogleAuthSetting,
+);
+router.delete(
+  "/google-auth/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.google-auth.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.deleteGoogleAuthSetting,
+);
 router.get("/synapse-android/setting", adminController.getSynapseAndroidSetting);
-router.post("/synapse-android/setting", authenticateSuperAdmin, adminController.setSynapseAndroidSetting);
-router.delete("/synapse-android/setting", authenticateSuperAdmin, adminController.deleteSynapseAndroidSetting);
+router.post(
+  "/synapse-android/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.synapse-android.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.setSynapseAndroidSetting,
+);
+router.delete(
+  "/synapse-android/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.synapse-android.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.deleteSynapseAndroidSetting,
+);
 router.get("/deeplx/setting", adminController.getDeepLXSetting);
-router.post("/deeplx/setting", authenticateSuperAdmin, adminController.setDeepLXSetting);
-router.delete("/deeplx/setting", authenticateSuperAdmin, adminController.deleteDeepLXSetting);
+router.post(
+  "/deeplx/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.deeplx.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.setDeepLXSetting,
+);
+router.delete(
+  "/deeplx/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.deeplx.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.deleteDeepLXSetting,
+);
 router.get("/nexai/setting", adminController.getNexaiSetting);
-router.post("/nexai/setting", authenticateSuperAdmin, adminController.setNexaiSetting);
-router.delete("/nexai/setting", authenticateSuperAdmin, adminController.deleteNexaiSetting);
+router.post(
+  "/nexai/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.nexai.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.setNexaiSetting,
+);
+router.delete(
+  "/nexai/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.nexai.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.deleteNexaiSetting,
+);
 // NexAI request-signature middleware config (NEXAI_REQUEST_SIGNING / NEXAI_APP_SIGN_SECRET(_PREV) / NEXAI_SIG_MAX_DRIFT_MS)
 router.get("/nexai-signing/setting", adminController.getNexaiSigningSetting);
-router.post("/nexai-signing/setting", authenticateSuperAdmin, adminController.setNexaiSigningSetting);
-router.delete("/nexai-signing/setting", authenticateSuperAdmin, adminController.deleteNexaiSigningSetting);
+router.post(
+  "/nexai-signing/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.nexai-signing.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.setNexaiSigningSetting,
+);
+router.delete(
+  "/nexai-signing/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.nexai-signing.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.deleteNexaiSigningSetting,
+);
 router.get("/admin-security/setting", adminController.getAdminSecuritySetting);
-router.post("/admin-security/setting", authenticateSuperAdmin, adminController.setAdminSecuritySetting);
-router.delete("/admin-security/setting", authenticateSuperAdmin, adminController.deleteAdminSecuritySetting);
+router.post(
+  "/admin-security/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "security", action: "security.admin-security.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.setAdminSecuritySetting,
+);
+router.delete(
+  "/admin-security/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "security", action: "security.admin-security.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+  adminController.deleteAdminSecuritySetting,
+);
 
 // Webhook Secret management (admin)
 router.get("/webhook/secret", adminController.getWebhookSecret);
-router.post("/webhook/secret", authenticateSuperAdmin, adminController.setWebhookSecret);
-router.delete("/webhook/secret", authenticateSuperAdmin, adminController.deleteWebhookSecret);
+router.post(
+  "/webhook/secret",
+  authenticateSuperAdmin,
+  auditLog({ module: "security", action: "security.webhook-secret.set", captureBody: false }),
+  adminController.setWebhookSecret,
+);
+router.delete(
+  "/webhook/secret",
+  authenticateSuperAdmin,
+  auditLog({ module: "security", action: "security.webhook-secret.delete" }),
+  adminController.deleteWebhookSecret,
+);
 
 // Project Lumen config management (admin)
 router.get("/lumen-config", adminController.getLumenConfig);

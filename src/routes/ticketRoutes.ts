@@ -1,6 +1,7 @@
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 import { ticketController } from "../controllers/ticketController";
+import { auditLog } from "../middleware/auditLog";
 import { authenticateSuperAdmin, isAdminRole } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { ticketAdminLimiter, ticketReadLimiter, ticketWriteLimiter } from "../middleware/routeLimiters";
@@ -20,9 +21,27 @@ const adminOnly = (req: Request, res: Response, next: NextFunction) => {
 };
 
 router.get("/admin/all", ticketAdminLimiter, adminOnly, ticketController.getAllTickets);
-router.patch("/admin/:id/status", ticketAdminLimiter, authenticateSuperAdmin, ticketController.updateTicketStatus);
-router.put("/admin/:id/messages/:messageIndex", ticketAdminLimiter, authenticateSuperAdmin, ticketController.adminEditMessage);
-router.delete("/admin/:id/messages/:messageIndex", ticketAdminLimiter, authenticateSuperAdmin, ticketController.adminDeleteMessage);
+router.patch(
+  "/admin/:id/status",
+  ticketAdminLimiter,
+  authenticateSuperAdmin,
+  auditLog({ module: "other", action: "ticket.statusChange", extractTarget: (req) => ({ targetId: req.params.id }) }),
+  ticketController.updateTicketStatus,
+);
+router.put(
+  "/admin/:id/messages/:messageIndex",
+  ticketAdminLimiter,
+  authenticateSuperAdmin,
+  auditLog({ module: "other", action: "ticket.messageEdit", extractTarget: (req) => ({ targetId: req.params.id }), extractDetail: (req) => ({ messageIndex: req.params.messageIndex }) }),
+  ticketController.adminEditMessage,
+);
+router.delete(
+  "/admin/:id/messages/:messageIndex",
+  ticketAdminLimiter,
+  authenticateSuperAdmin,
+  auditLog({ module: "other", action: "ticket.messageDelete", extractTarget: (req) => ({ targetId: req.params.id }), extractDetail: (req) => ({ messageIndex: req.params.messageIndex }) }),
+  ticketController.adminDeleteMessage,
+);
 
 // 用户接口
 router.post("/", ticketWriteLimiter, ticketController.createTicket);
