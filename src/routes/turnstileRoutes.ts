@@ -56,7 +56,13 @@ router.get("/check-access-token/:fingerprint", fingerprintLimiter, checkAccessTo
 router.get("/temp-fingerprint/:fingerprint", fingerprintLimiter, checkTempFingerprintStatus);
 
 // 统计与清理（管理员）
-router.post("/cleanup-expired-fingerprints", authenticateToken, adminLimiter, cleanupExpiredFingerprints);
+router.post(
+  "/cleanup-expired-fingerprints",
+  authenticateToken,
+  adminLimiter,
+  auditLog({ module: "system", action: "system.fingerprintCleanup" }),
+  cleanupExpiredFingerprints,
+);
 router.get("/fingerprint-stats", authenticateToken, adminLimiter, getFingerprintStats);
 router.get("/ip-ban-stats", authenticateToken, adminLimiter, getIpBanStats);
 
@@ -200,7 +206,13 @@ router.post("/secure-captcha-config", publicLimiter, secureCaptchaConfig);
  *       200:
  *         description: 更新成功
  */
-router.post("/config", authenticateToken, configLimiter, updateTurnstileConfig);
+router.post(
+  "/config",
+  authenticateToken,
+  configLimiter,
+  auditLog({ module: "turnstile", action: "turnstile.configUpdate" }),
+  updateTurnstileConfig,
+);
 
 /**
  * @openapi
@@ -214,7 +226,13 @@ router.post("/config", authenticateToken, configLimiter, updateTurnstileConfig);
  *       200:
  *         description: 删除成功
  */
-router.delete("/config/:key", authenticateToken, configLimiter, deleteTurnstileConfig);
+router.delete(
+  "/config/:key",
+  authenticateToken,
+  configLimiter,
+  auditLog({ module: "turnstile", action: "turnstile.configDelete", extractDetail: (req) => ({ key: req.params.key }) }),
+  deleteTurnstileConfig,
+);
 
 /**
  * @openapi
@@ -240,7 +258,13 @@ router.get("/hcaptcha-config", authenticateToken, configLimiter, getHCaptchaConf
  *       200:
  *         description: 更新成功
  */
-router.post("/hcaptcha-config", authenticateToken, configLimiter, updateHCaptchaConfig);
+router.post(
+  "/hcaptcha-config",
+  authenticateToken,
+  configLimiter,
+  auditLog({ module: "turnstile", action: "turnstile.hcaptchaConfigUpdate" }),
+  updateHCaptchaConfig,
+);
 
 /**
  * @openapi
@@ -253,7 +277,13 @@ router.post("/hcaptcha-config", authenticateToken, configLimiter, updateHCaptcha
  *       200:
  *         description: 删除成功
  */
-router.delete("/hcaptcha-config/:key", authenticateToken, configLimiter, deleteHCaptchaConfig);
+router.delete(
+  "/hcaptcha-config/:key",
+  authenticateToken,
+  configLimiter,
+  auditLog({ module: "turnstile", action: "turnstile.hcaptchaConfigDelete", extractDetail: (req) => ({ key: req.params.key }) }),
+  deleteHCaptchaConfig,
+);
 
 /**
  * @openapi
