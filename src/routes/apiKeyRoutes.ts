@@ -1,5 +1,5 @@
 import { type Request, type Response, Router } from "express";
-import { authMiddlewareV2 as authMiddleware, isAdminRole, isSuperAdmin } from "../middleware/auth";
+import { authMiddlewareV2 as authMiddleware, authenticateSuperAdmin, isAdminRole, isSuperAdmin } from "../middleware/auth";
 import { auditLog } from "../middleware/auditLog";
 import { firstString } from "../utils/httpParam";
 import {
@@ -64,9 +64,10 @@ router.get("/billing/rates", (req: Request, res: Response) => {
   res.json({ success: true, unit: "credits", billableStatus: "2xx-3xx", rates });
 });
 
-/** 创建 API Key（任何已登录用户） */
+/** 创建 API Key（仅超级管理员） */
 router.post(
   "/",
+  authenticateSuperAdmin,
   auditLog({ module: "api", action: "apikey.create" }),
   async (req: Request, res: Response) => {
   try {
@@ -144,9 +145,10 @@ router.get("/:keyId/billing/events", async (req: Request, res: Response) => {
   }
 });
 
-/** 调整 Key 余额（管理员） */
+/** 调整 Key 余额（仅超级管理员） */
 router.post(
   "/:keyId/billing/adjust",
+  authenticateSuperAdmin,
   auditLog({
     module: "api",
     action: "apikey.billing.adjust",
@@ -155,7 +157,6 @@ router.post(
   async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    if (!isSuperAdmin(req)) return res.status(403).json({ error: "需要管理员权限" });
 
     const keyId = firstString(req.params.keyId);
     if (!keyId) return res.status(400).json({ error: "无效的 Key ID" });
@@ -179,9 +180,10 @@ router.post(
   }
 });
 
-/** 更新 Key（所有者或管理员） */
+/** 更新 Key（仅超级管理员） */
 router.put(
   "/:keyId",
+  authenticateSuperAdmin,
   auditLog({
     module: "api",
     action: "apikey.update",
@@ -236,9 +238,10 @@ router.put(
   }
 });
 
-/** 吊销 Key */
+/** 吊销 Key（仅超级管理员） */
 router.post(
   "/:keyId/revoke",
+  authenticateSuperAdmin,
   auditLog({
     module: "api",
     action: "apikey.revoke",
@@ -246,10 +249,9 @@ router.post(
   }),
   async (req: Request, res: Response) => {
   try {
-    const user = (req as any).user;
     const keyId = firstString(req.params.keyId);
     if (!keyId) return res.status(400).json({ error: "无效的 Key ID" });
-    const allKeys = isSuperAdmin(req) ? await listAllKeys() : await listUserKeys(user.id);
+    const allKeys = await listAllKeys();
     if (!allKeys.find((k) => k.keyId === keyId)) return res.status(404).json({ error: "API Key 不存在" });
 
     await revokeKey(keyId);
@@ -260,9 +262,10 @@ router.post(
   }
 });
 
-/** 启用 Key */
+/** 启用 Key（仅超级管理员） */
 router.post(
   "/:keyId/enable",
+  authenticateSuperAdmin,
   auditLog({
     module: "api",
     action: "apikey.enable",
@@ -270,10 +273,9 @@ router.post(
   }),
   async (req: Request, res: Response) => {
   try {
-    const user = (req as any).user;
     const keyId = firstString(req.params.keyId);
     if (!keyId) return res.status(400).json({ error: "无效的 Key ID" });
-    const allKeys = isSuperAdmin(req) ? await listAllKeys() : await listUserKeys(user.id);
+    const allKeys = await listAllKeys();
     if (!allKeys.find((k) => k.keyId === keyId)) return res.status(404).json({ error: "API Key 不存在" });
 
     await enableKey(keyId);
@@ -284,9 +286,10 @@ router.post(
   }
 });
 
-/** 删除 Key（永久） */
+/** 删除 Key（仅超级管理员，永久） */
 router.delete(
   "/:keyId",
+  authenticateSuperAdmin,
   auditLog({
     module: "api",
     action: "apikey.delete",
@@ -294,10 +297,9 @@ router.delete(
   }),
   async (req: Request, res: Response) => {
   try {
-    const user = (req as any).user;
     const keyId = firstString(req.params.keyId);
     if (!keyId) return res.status(400).json({ error: "无效的 Key ID" });
-    const allKeys = isSuperAdmin(req) ? await listAllKeys() : await listUserKeys(user.id);
+    const allKeys = await listAllKeys();
     if (!allKeys.find((k) => k.keyId === keyId)) return res.status(404).json({ error: "API Key 不存在" });
 
     await deleteKey(keyId);

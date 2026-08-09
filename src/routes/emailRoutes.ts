@@ -547,7 +547,7 @@ router.get("/quota", authMiddleware, adminAuthMiddleware, EmailController.getQuo
  *       500:
  *         description: 服务器错误
  */
-router.get("/domains", authMiddleware, EmailController.getDomains);
+router.get("/domains", authMiddleware, adminAuthMiddleware, EmailController.getDomains);
 
 /**
  * @openapi
