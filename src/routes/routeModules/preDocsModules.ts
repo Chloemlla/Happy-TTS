@@ -11,6 +11,11 @@ export const preDocsRouteModules: RouteModule[] = [
     requiresAuth: "mixed",
     rateLimited: true,
     isPublic: "mixed",
+    authPolicy: {
+      mode: "mixed",
+      handlers: ["authenticateAdmin", "authenticateSuperAdmin"],
+      note: "TTS generation is gated by API-key auth; admin history reads are admin-level and clarity config writes are gated to superadmin inside the router.",
+    },
     securityBypass: {
       ipVerification: {
         value: "mixed",
@@ -27,5 +32,10 @@ export const preDocsRouteModules: RouteModule[] = [
     requiresAuth: "mixed",
     rateLimited: true,
     isPublic: "mixed",
+    authPolicy: {
+      mode: "mixed",
+      handlers: ["authenticateAdmin", "authenticateSuperAdmin"],
+      note: "LibreChat compatibility APIs are mixed; admin users/providers reads are admin-level and user/provider mutations are gated to superadmin inside the router.",
+    },
   },
 ];

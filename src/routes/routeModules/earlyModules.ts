@@ -10,6 +10,11 @@ export const earlyRouteModules: RouteModule[] = [
     requiresAuth: "mixed",
     rateLimited: "mixed",
     isPublic: "mixed",
+    authPolicy: {
+      mode: "mixed",
+      handlers: ["authMiddleware", "adminAuthMiddleware", "authenticateSuperAdmin"],
+      note: "Admin reads (status, quota, domains) require JWT plus an admin-role check at mount; send and domain-management writes are gated to superadmin at route level.",
+    },
   },
   {
     name: "outemail-routes",

@@ -67,6 +67,11 @@ export const postTamperRouteModules: RouteModule[] = [
     requiresAuth: "mixed",
     rateLimited: true,
     isPublic: "mixed",
+    authPolicy: {
+      mode: "mixed",
+      handlers: ["authenticateToken", "authenticateSuperAdmin"],
+      note: "System command operations require JWT authentication and are gated to superadmin inside the router.",
+    },
   },
   {
     name: "libre-chat-routes",
@@ -75,6 +80,11 @@ export const postTamperRouteModules: RouteModule[] = [
     requiresAuth: "mixed",
     rateLimited: true,
     isPublic: "mixed",
+    authPolicy: {
+      mode: "mixed",
+      handlers: ["authenticateAdmin", "authenticateSuperAdmin"],
+      note: "LibreChat user-facing APIs are mixed; admin users/providers reads are admin-level while user and provider mutations (including delete-all) are gated to superadmin inside the router.",
+    },
   },
   {
     name: "human-check-routes",
@@ -84,9 +94,9 @@ export const postTamperRouteModules: RouteModule[] = [
     rateLimited: true,
     isPublic: "mixed",
     authPolicy: {
-      mode: "route",
-      handlers: ["authenticateToken", "adminOnly"],
-      note: "Public nonce and verification endpoints are open; statistics and trace administration require JWT admin checks.",
+      mode: "mixed",
+      handlers: ["authenticateToken", "adminOnly", "authenticateSuperAdmin"],
+      note: "Public nonce and verification endpoints are open; statistics and trace reads are admin-level and trace deletion is gated to superadmin.",
     },
     rateLimitPolicy: {
       mode: "route",
@@ -108,9 +118,9 @@ export const postTamperRouteModules: RouteModule[] = [
     rateLimited: true,
     isPublic: false,
     authPolicy: {
-      mode: "route",
-      handlers: ["authenticateToken", "authenticateAdmin"],
-      note: "Every admin route composes the guard tuple directly at route level.",
+      mode: "mixed",
+      handlers: ["authenticateToken", "authenticateAdmin", "authenticateSuperAdmin"],
+      note: "Admin reads (stats, list, raw) are admin-level; creation, deletion, batch-delete, and clear-all writes are gated to superadmin at route level.",
     },
     rateLimitPolicy: {
       mode: "route",
@@ -125,6 +135,11 @@ export const postTamperRouteModules: RouteModule[] = [
     requiresAuth: "mixed",
     rateLimited: true,
     isPublic: "mixed",
+    authPolicy: {
+      mode: "mixed",
+      handlers: ["authenticateAdmin", "authenticateSuperAdmin"],
+      note: "Public upload/download flows are open; settings reads are admin-level and settings writes are gated to superadmin inside the router.",
+    },
   },
   {
     name: "network-routes",
@@ -176,9 +191,9 @@ export const postTamperRouteModules: RouteModule[] = [
     rateLimited: true,
     isPublic: "mixed",
     authPolicy: {
-      mode: "route",
-      handlers: ["authenticateToken"],
-      note: "Public lottery read endpoints are open; user participation and administrative mutation routes require JWT authentication.",
+      mode: "mixed",
+      handlers: ["authenticateToken", "authenticateSuperAdmin"],
+      note: "Public lottery read endpoints are open; user participation requires JWT; administrative round creation is gated to superadmin in the controller.",
     },
     rateLimitPolicy: {
       mode: "route",
@@ -203,9 +218,9 @@ export const postTamperRouteModules: RouteModule[] = [
     rateLimited: true,
     isPublic: "mixed",
     authPolicy: {
-      mode: "route",
-      handlers: ["authenticateToken", "authenticateAdmin"],
-      note: "Public article reads are open; article creation, updates, publishing, and deletion require administrator JWT checks inside the router.",
+      mode: "mixed",
+      handlers: ["authenticateToken", "authenticateAdmin", "authenticateSuperAdmin"],
+      note: "Public article reads are open; article creation, updates, publishing, and deletion are gated to superadmin inside the router.",
     },
     rateLimitPolicy: {
       mode: "mixed",
@@ -237,9 +252,9 @@ export const postTamperRouteModules: RouteModule[] = [
     rateLimited: true,
     isPublic: "mixed",
     authPolicy: {
-      mode: "route",
-      handlers: ["authenticateToken"],
-      note: "Share upload/query flows use an admin operation password; list/delete/archive administration requires JWT admin checks inside the router.",
+      mode: "mixed",
+      handlers: ["authenticateToken", "authenticateSuperAdmin"],
+      note: "Share upload/query flows use an admin operation password; list/delete/archive administration is gated to superadmin inside the router.",
     },
     rateLimitPolicy: {
       mode: "route",
@@ -255,6 +270,11 @@ export const postTamperRouteModules: RouteModule[] = [
     requiresAuth: "mixed",
     rateLimited: true,
     isPublic: "mixed",
+    authPolicy: {
+      mode: "mixed",
+      handlers: ["authenticateToken", "authenticateSuperAdmin"],
+      note: "User passkey credential flows require JWT; bulk repair and credential-ID fix administration is gated to superadmin inside the router.",
+    },
   },
   {
     name: "miniapi-routes",
@@ -308,6 +328,11 @@ export const postTamperRouteModules: RouteModule[] = [
     requiresAuth: "mixed",
     rateLimited: true,
     isPublic: "mixed",
+    authPolicy: {
+      mode: "mixed",
+      handlers: ["authenticateToken", "authenticateAdmin", "authenticateSuperAdmin"],
+      note: "Public resource reads are open; stats reads are admin-level and resource CRUD is gated to superadmin at route level.",
+    },
   },
   {
     name: "cdk-routes",
@@ -317,6 +342,11 @@ export const postTamperRouteModules: RouteModule[] = [
     requiresAuth: "mixed",
     rateLimited: true,
     isPublic: "mixed",
+    authPolicy: {
+      mode: "mixed",
+      handlers: ["authenticateAdmin", "authenticateSuperAdmin"],
+      note: "CDK listing/stats/export reads are admin-level; create, update, batch-delete, delete-all, and KS import writes are gated to superadmin at route level.",
+    },
   },
   {
     name: "webhook-event-routes",
@@ -327,9 +357,9 @@ export const postTamperRouteModules: RouteModule[] = [
     rateLimited: true,
     isPublic: false,
     authPolicy: {
-      mode: "mount",
-      handlers: ["authenticateToken"],
-      note: "JWT authentication is enforced at mount; route handlers add admin authorization checks.",
+      mode: "mixed",
+      handlers: ["authenticateToken", "authenticateAdmin", "authenticateSuperAdmin"],
+      note: "JWT authentication is enforced at mount; event reads are admin-level and bulk-status, bulk-delete, replay, create, update, and delete writes are gated to superadmin at route level.",
     },
     rateLimitPolicy: {
       mode: "mount",
@@ -345,9 +375,9 @@ export const postTamperRouteModules: RouteModule[] = [
     rateLimited: true,
     isPublic: "mixed",
     authPolicy: {
-      mode: "route",
-      handlers: ["authenticateToken", "authenticateAdmin"],
-      note: "Public wanted-list reads use /public routes; administrative list and mutation routes require JWT admin checks.",
+      mode: "mixed",
+      handlers: ["authenticateToken", "authenticateAdmin", "authenticateSuperAdmin"],
+      note: "Public wanted-list reads use /public routes; admin list reads are admin-level and CRUD/photo mutations are gated to superadmin at route level.",
     },
     rateLimitPolicy: {
       mode: "route",
@@ -360,9 +390,14 @@ export const postTamperRouteModules: RouteModule[] = [
     path: "/api/github-billing",
     router: githubBillingRoutes,
     middlewares: [githubBillingLimiter],
-    requiresAuth: false,
+    requiresAuth: "mixed",
     rateLimited: true,
-    isPublic: true,
+    isPublic: "mixed",
+    authPolicy: {
+      mode: "mixed",
+      handlers: ["authenticateToken", "authenticateAdmin", "authenticateSuperAdmin"],
+      note: "Billing usage lookup is open or API-key gated; config reads are admin-level and config/system writes are gated to superadmin at route level.",
+    },
   },
   {
     name: "linuxdo-credit-routes",

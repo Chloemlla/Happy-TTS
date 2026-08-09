@@ -102,6 +102,11 @@ export const preTamperRouteModules: RouteModule[] = [
       limiters: ["redirectLimiter", "userManageLimiter", "adminLimiter", "publicCreateLimiter"],
       note: "The short URL router applies dedicated route-level limiters for redirect, user, admin, and public-create flows.",
     },
+    authPolicy: {
+      mode: "mixed",
+      handlers: ["authMiddleware", "adminAuthMiddleware", "authenticateSuperAdmin"],
+      note: "Public and user self-service short-link flows use JWT; admin listing/export reads are admin-level; creation, batch-delete, and migration writes are gated to superadmin inside the router.",
+    },
     securityBypass: {
       ipVerification: {
         value: true,
@@ -209,9 +214,9 @@ export const preTamperRouteModules: RouteModule[] = [
     rateLimited: true,
     isPublic: false,
     authPolicy: {
-      mode: "router",
-      handlers: ["authMiddleware", "adminAuthMiddleware"],
-      note: "Admin routes enforce authentication and role checks inside the router before handler dispatch.",
+      mode: "mixed",
+      handlers: ["authMiddleware", "adminAuthMiddleware", "authenticateSuperAdmin"],
+      note: "Admin ingress enforces authentication and admin-role checks at mount; read endpoints are admin-level while user/config/announcement writes are gated to superadmin inside the router.",
     },
     rateLimitPolicy: {
       mode: "mixed",
@@ -246,9 +251,9 @@ export const preTamperRouteModules: RouteModule[] = [
     rateLimited: true,
     isPublic: false,
     authPolicy: {
-      mode: "router",
-      handlers: ["authMiddleware"],
-      note: "API key management is fully protected by router-level JWT authentication.",
+      mode: "mixed",
+      handlers: ["authMiddleware", "authenticateSuperAdmin"],
+      note: "API key reads (permissions, rates, listing) are admin-level; creation, adjustment, revocation, enable, and deletion are gated to superadmin inside the router.",
     },
     rateLimitPolicy: {
       mode: "router",
@@ -286,6 +291,11 @@ export const preTamperRouteModules: RouteModule[] = [
       limiters: ["publicLimiter", "fingerprintLimiter", "authenticatedFingerprintLimiter", "adminLimiter", "configLimiter"],
       note: "Turnstile endpoints apply dedicated route-level limiters for public, fingerprint, administrative, and configuration flows.",
     },
+    authPolicy: {
+      mode: "mixed",
+      handlers: ["authenticateAdmin", "authenticateSuperAdmin"],
+      note: "Bootstrap and verify endpoints are public; admin stats reads (fingerprint, IP-ban, scheduler) are admin-level; IP-ban and config writes are gated to superadmin inside the router.",
+    },
     securityBypass: {
       ipVerification: {
         value: true,
@@ -305,6 +315,11 @@ export const preTamperRouteModules: RouteModule[] = [
       limiters: ["policyRateLimit", "adminRateLimit"],
       note: "Policy routes enforce separate public and admin rate-limiters at route level.",
     },
+    authPolicy: {
+      mode: "mixed",
+      handlers: ["authenticateToken", "adminOnly", "authenticateSuperAdmin"],
+      note: "Public policy reads are open; admin stats are admin-level; the admin cleanup mutation is gated to superadmin inside the router.",
+    },
   },
   {
     name: "tamper-routes",
@@ -314,9 +329,9 @@ export const preTamperRouteModules: RouteModule[] = [
     rateLimited: true,
     isPublic: "mixed",
     authPolicy: {
-      mode: "route",
-      handlers: ["authenticateToken", "adminOnly"],
-      note: "Public clients may submit signed tamper reports; administrative summary and blocklist actions require JWT admin checks inside the router.",
+      mode: "mixed",
+      handlers: ["authenticateToken", "adminOnly", "authenticateSuperAdmin"],
+      note: "Public clients may submit signed tamper reports; administrative summary reads are admin-level and blocklist mutations are gated to superadmin inside the router.",
     },
   },
   {
@@ -327,9 +342,9 @@ export const preTamperRouteModules: RouteModule[] = [
     rateLimited: true,
     isPublic: false,
     authPolicy: {
-      mode: "router",
-      handlers: ["authenticateToken"],
-      note: "Ticket routes apply a router-wide JWT guard before all ticket handlers.",
+      mode: "mixed",
+      handlers: ["authenticateToken", "adminOnly", "authenticateSuperAdmin"],
+      note: "All ticket routes apply a router-wide JWT guard; admin listing reads are admin-level and status/message mutations are gated to superadmin inside the router.",
     },
     rateLimitPolicy: {
       mode: "route",
