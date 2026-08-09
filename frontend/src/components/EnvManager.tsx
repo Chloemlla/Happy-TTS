@@ -36,6 +36,7 @@ import {
   handleSourceClick,
   handleSourceModalClose,
   getEnvSource,
+  decryptAES256,
 } from './env-manager/utils';
 import {
   getConfigurationSectionKey,
@@ -119,8 +120,25 @@ const EnvManager: React.FC = () => {
       }
       if (data.success) {
         let envArr: EnvItem[] = [];
-        if (Array.isArray(data.envs)) envArr = data.envs;
-        else if (data.envs && typeof data.envs === 'object') envArr = Object.entries(data.envs).map(([key, value]) => ({ key, value: String(value) }));
+        // 后端对管理员返回 AES-256-CBC 加密载荷 {data, iv}，密钥由登录用户 id 派生
+        if (typeof data.data === 'string' && data.data && typeof data.iv === 'string' && data.iv) {
+          if (!user?.id) {
+            setNotification({ message: '缺少用户标识，无法解密数据', type: 'error' });
+            return;
+          }
+          const decryptedJson = decryptAES256(data.data, data.iv, user.id);
+          const decryptedData = JSON.parse(decryptedJson);
+          if (Array.isArray(decryptedData)) {
+            envArr = decryptedData;
+          } else {
+            setNotification({ message: '解密数据格式错误', type: 'error' });
+            return;
+          }
+        } else if (Array.isArray(data.envs)) {
+          envArr = data.envs;
+        } else if (data.envs && typeof data.envs === 'object') {
+          envArr = Object.entries(data.envs).map(([key, value]) => ({ key, value: String(value) }));
+        }
         envArr = envArr.map(item => ({ ...item, source: getEnvSource(item.key) }));
         setEnvs(envArr.map(item => {
           const rawKey = item.key.includes(':') ? item.key.split(':').pop() : item.key;
@@ -132,7 +150,7 @@ const EnvManager: React.FC = () => {
     } catch (e) {
       setNotification({ message: '获取失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
     } finally { setLoading(false); }
-  }, [setNotification]);
+  }, [setNotification, user?.id]);
 
   // Lazy fetch when env section is expanded
   useEffect(() => {

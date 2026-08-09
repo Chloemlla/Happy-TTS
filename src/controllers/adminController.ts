@@ -14,7 +14,6 @@ import { ProjectLumenConfigModel } from "../models/projectLumenConfigModel";
 import { validateGenerationCodeStrength } from "../utils/generationCodePolicy";
 import logger from "../utils/logger";
 import { getRevealUserPasswordResult } from "../services/userService";
-import { getTokenFromRequest } from "../utils/authCookie";
 import { isAdminRole, isSuperAdmin } from "../middleware/auth";
 import { buildAccountSecuritySummary } from "../services/accountSecuritySummaryService";
 import { type User, UserStorage } from "../utils/userStorage";
@@ -880,14 +879,14 @@ export const adminController = {
 
       logger.info("✅ [EnvManager] 权限检查通过");
 
-      // 获取管理员token作为加密密钥（优先从 Authorization header，其次从 cookie）
-      const token = getTokenFromRequest(req);
-      if (!token) {
-        logger.info("❌ [EnvManager] Token为空");
-        return res.status(401).json({ error: "未携带Token，请先登录" });
+      // 加密密钥由登录用户 id 派生（前端经 useAuth 持有同一 id，可自行解密；HttpOnly 会话中 JS 读不到 token）
+      const userId = req.user?.id;
+      if (!userId) {
+        logger.info("❌ [EnvManager] 用户标识为空");
+        return res.status(401).json({ error: "未认证，请先登录" });
       }
 
-      logger.info("✅ [EnvManager] Token获取成功，长度:", token.length);
+      logger.info("✅ [EnvManager] 用户标识获取成功，长度:", userId.length);
 
       // 收集所有环境变量
       let allEnvs: Record<string, any> = {};
@@ -1118,7 +1117,7 @@ export const adminController = {
 
       // 生成密钥
       logger.info("   生成密钥...");
-      const key = crypto.createHash("sha256").update(token).digest();
+      const key = crypto.createHash("sha256").update(userId).digest();
       logger.info("   密钥生成完成，长度:", key.length);
 
       // 生成IV
