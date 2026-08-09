@@ -81,7 +81,7 @@ export type MotionScaleHandler = (scale: number, enabled?: boolean) => { scale: 
 export type CollapsibleSectionKey = 'token' | 'security' | 'fingerprint' | 'backupCodes';
 export type CollapsedSectionState = Record<CollapsibleSectionKey, boolean>;
 
-export type UserListRoleFilter = 'all' | 'user' | 'admin' | 'trusted';
+export type UserListRoleFilter = 'all' | 'user' | 'admin' | 'superadmin' | 'trusted';
 export type UserListAccountStatusFilter = 'all' | 'active' | 'suspended';
 export type UserListSecurityFilter = 'all' | 'totp' | 'passkey' | 'fingerprintRequired' | 'noMfa';
 export type UserListTicketFilter = 'all' | 'normal' | 'violated' | 'banned';
@@ -122,6 +122,7 @@ export interface UserListStats {
   total: number;
   users: number;
   admins: number;
+  superadmins: number;
   trusted: number;
   active: number;
   suspended: number;
@@ -188,6 +189,7 @@ const ROLE_OPTIONS = [
   { value: 'user', label: '普通用户' },
   { value: 'trusted', label: '信用者' },
   { value: 'admin', label: '管理员' },
+  { value: 'superadmin', label: '超级管理员' },
 ];
 
 const ACCOUNT_STATUS_OPTIONS = [
@@ -225,6 +227,7 @@ export const DEFAULT_STATS: UserListStats = {
   total: 0,
   users: 0,
   admins: 0,
+  superadmins: 0,
   trusted: 0,
   active: 0,
   suspended: 0,
@@ -241,6 +244,7 @@ export const DEFAULT_STATS: UserListStats = {
 
 export const ROLE_FILTER_OPTIONS: Array<{ value: UserListRoleFilter; label: string }> = [
   { value: 'all', label: '全部角色' },
+  { value: 'superadmin', label: '超级管理员' },
   { value: 'admin', label: '管理员' },
   { value: 'trusted', label: '信用者' },
   { value: 'user', label: '普通用户' },

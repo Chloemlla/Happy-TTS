@@ -22,6 +22,7 @@ import {
   FaStar,
   FaBan,
   FaChartLine,
+  FaCrown,
   FaFingerprint,
   FaLanguage,
   FaLock,
@@ -446,6 +447,25 @@ const UserManagement: React.FC = () => {
       setNotification({ type: 'error', message });
       return;
     }
+    // 防锁死：禁止修改自身角色（后端 403 镜像）
+    if (editingUser && editingUser.username === user?.username && form.role !== editingUser.role) {
+      const message = '不允许修改自身角色';
+      setError(message);
+      setNotification({ type: 'error', message });
+      return;
+    }
+    // 防锁死：禁止降级最后一个超级管理员（后端 409 镜像）
+    if (
+      editingUser &&
+      editingUser.role === 'superadmin' &&
+      form.role !== 'superadmin' &&
+      stats.superadmins <= 1
+    ) {
+      const message = '无法降级最后一个超级管理员';
+      setError(message);
+      setNotification({ type: 'error', message });
+      return;
+    }
     setLoading(true);
     setError('');
     try {
@@ -501,6 +521,20 @@ const UserManagement: React.FC = () => {
       return;
     }
 
+    // 防锁死：批量封停不得覆盖自己或最后一个超级管理员（后端 409 镜像）
+    if (bulkAction === 'suspend') {
+      const selectedUsers = users.filter(u => selectedUserIds.includes(u.id));
+      const selectedSuperAdmins = selectedUsers.filter(u => u.role === 'superadmin').length;
+      if (selectedSuperAdmins > 0 && stats.superadmins <= selectedSuperAdmins) {
+        setNotification({ type: 'error', message: '无法封停最后一个超级管理员' });
+        return;
+      }
+      if (selectedUsers.some(u => u.username === user?.username)) {
+        setNotification({ type: 'error', message: '不能封停自己' });
+        return;
+      }
+    }
+
     if (!window.confirm(`${actionMeta.confirm}\n\n已选择 ${selectedUserIds.length} 个用户。`)) {
       return;
     }
@@ -527,7 +561,7 @@ const UserManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [bulkAction, fetchUsers, selectedUserIds, setNotification]);
+  }, [bulkAction, fetchUsers, selectedUserIds, setNotification, stats, user, users]);
 
   const openEdit = useCallback((u: User) => {
     setEditingUser(u);
@@ -663,6 +697,7 @@ const UserManagement: React.FC = () => {
 
   const statCards = useMemo(() => [
     { label: '总用户', value: stats.total, icon: FaUsers, tone: 'slate' as const },
+    { label: '超级管理员', value: stats.superadmins, icon: FaCrown, tone: 'rose' as const },
     { label: '管理员', value: stats.admins, icon: FaUserShield, tone: 'rose' as const },
     { label: '信用者', value: stats.trusted, icon: FaStar, tone: 'emerald' as const },
     { label: '封停账户', value: stats.suspended, icon: FaBan, tone: 'slate' as const },
@@ -670,6 +705,16 @@ const UserManagement: React.FC = () => {
     { label: '需指纹', value: stats.fingerprintRequired, icon: FaFingerprint, tone: 'amber' as const },
     { label: '翻译受限', value: stats.translationDisabled + stats.translationLimited, icon: FaLanguage, tone: 'violet' as const },
   ], [stats]);
+
+  // 防锁死：不能删除自己或最后一个超级管理员（后端 403/409 镜像）
+  const canDeleteUser = (u: User): boolean => (
+    u.username !== user?.username && !(u.role === 'superadmin' && stats.superadmins <= 1)
+  );
+  const deleteDisabledReason = (u: User): string | undefined => {
+    if (u.username === user?.username) return '不能删除自己';
+    if (u.role === 'superadmin' && stats.superadmins <= 1) return '无法删除最后一个超级管理员';
+    return undefined;
+  };
 
   const hasActiveFilters = useMemo(() => (
     activeFilters.keyword !== DEFAULT_USER_LIST_FILTERS.keyword ||
@@ -753,7 +798,7 @@ const UserManagement: React.FC = () => {
         </InfoPanel>
 
         {/* 统计卡片 */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
           {statCards.map(item => (
             <InfoMetricCard
               key={item.label}
@@ -908,7 +953,7 @@ const UserManagement: React.FC = () => {
             </div>
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="text-xs text-slate-500">
-                当前筛选 {filteredStats.total} 个用户，管理员 {filteredStats.admins} 个，信用者 {filteredStats.trusted} 个，封停 {filteredStats.suspended} 个
+                当前筛选 {filteredStats.total} 个用户，超级管理员 {filteredStats.superadmins} 个，管理员 {filteredStats.admins} 个，信用者 {filteredStats.trusted} 个，封停 {filteredStats.suspended} 个
                 {hasActiveFilters ? '，已启用筛选' : ''}
               </div>
               <div className="flex flex-wrap gap-2">
@@ -1226,10 +1271,12 @@ const UserManagement: React.FC = () => {
                             编辑
                           </motion.button>
                           <motion.button
-                            className={logShareDangerButtonClass}
+                            className={`${logShareDangerButtonClass} disabled:opacity-50 disabled:cursor-not-allowed`}
                             onClick={() => handleDelete(u.id)}
-                            whileHover={hoverScale()}
-                            whileTap={tapScale()}
+                            disabled={!canDeleteUser(u)}
+                            title={deleteDisabledReason(u)}
+                            whileHover={hoverScale(undefined, canDeleteUser(u))}
+                            whileTap={tapScale(undefined, canDeleteUser(u))}
                           >
                             <FaTrash className="text-xs" />
                             删除
