@@ -1,6 +1,6 @@
 # 双层管理员权限架构(admin / superadmin)
 
-> **状态**: 已实现并合并至 `main`(commit `9ca8a27f`/`3bf4a4c4`/`4abc6a13`)。角色分层、守卫、迁移脚本、前端分层、审计补缺全部落地;远程 CI(type-check/build/lint)验证通过中。本文为原始设计方案存档。
+> **状态**: 已实现并合并至 `main`(commit `3bf4a4c4`/`4abc6a13`/`b473774b` 起)。角色分层、守卫、迁移脚本、前端分层、审计补缺全部落地;远程 CI(type-check/build/lint)验证通过。**2026-08-09 逐节核对 `main` 代码,§1–§7 全部落地、无未完成项**(详见下方「落地核对」)。本文为原始设计方案存档 + 落地核对记录。
 
 ## Context
 
@@ -14,6 +14,78 @@
 已确认决策:① 三级角色(不做可配置权限矩阵);② 禁止 superadmin 自降级;③ 所有现有 admin 迁移为 superadmin;④ admin 纯只读(仅 OAuth 管理例外);⑤ OAuth 管理归 admin+superadmin。
 
 JWT 不携带 role(维持现状),`authMiddlewareV2` 每次从 DB 实时查 role,角色变更即时生效。
+
+---
+
+## 落地核对(2026-08-09)
+
+逐节对照 `main` 上当前代码,§1–§7 全部落地。下表为证据(文件:行)与相对设计的差异说明。
+
+### §1 角色模型扩展 — ✓ 全部落地
+
+| 文件 | 行 | 证据 |
+|---|---|---|
+| `src/utils/userStorageTypes.ts` | 18 | ✓ `role: "user" \| "admin" \| "superadmin" \| "trusted"` |
+| `src/services/userService.ts` | 25 | ✓ Mongoose `enum` 含 `"superadmin"` |
+| `src/controllers/adminUserListHelpers.ts` | 37 | ✓ `VALID_ROLES` 含 `"superadmin"`(role 写入校验唯一 chokepoint) |
+| 同上 | 115 / 184 / 304-306 | ✓ 角色过滤类型、`normalizeEnumQuery` 枚举、stats 分桶均含 `superadmin` |
+
+### §2 中间件分层 — ✓ 全部落地
+
+- `src/middleware/auth.ts`: `ADMIN_ROLES`(11)、`isAdminRole`(14)、`isSuperAdmin(req)`(19)、`authenticateAdmin`(55,读/业务守卫)、`authenticateSuperAdmin`(88,写/系统守卫)、`adminAuthMiddleware`(189,委托 `isAdminRole`)。
+- `src/middleware/adminOnly.ts:10` 委托 `isAdminRole`。
+- `src/routes/admin/index.ts:36` 本地挂载守卫改 `!isAdminRole`,`userSelfServicePaths` 自助旁路保留(17-34)。
+- `src/auth/auth.service.ts`: `requireAdmin`/`isAdmin`(80/89)接受 `{admin,superadmin}`;新增 `requireSuperAdmin`/`isSuperAdmin`(98/107)。
+- `src/routes/routeModules/knownMiddleware.ts`: `knownAuthMiddleware`(85)与 `knownAuthHandlerNames`(102)均含 `authenticateSuperAdmin`,治理生成器不报错。
+
+### §3 路由逐条再分类 — ✓ 全部落地
+
+- **`/api/admin/*`**: `users.ts` 写路由全部 `authenticateSuperAdmin`(create/update/delete/bulk/fingerprint/reveal-password/penalty/announcement),读路由 admin;`config.ts` 全部 `POST/PUT/DELETE`(envs、各 setting、tts provider、lumen sync)加 `authenticateSuperAdmin`,读路由 admin;`shortlinks.ts` 写路由用内联 `isSuperAdmin`(123/167/235/332,等效),读用 `isAdminRole`;`broadcast.ts`/`registrationInvites.ts` 写用 `authenticateSuperAdmin`;`profile.ts:83` `verify-access` 改 `isAdminRole`;bilibili-sync 读路由挂载在 admin 守卫下。
+- **独立模块**: dataCollectionAdmin(`superAdminGuard` 元组)、webhookEvent、cdk、apiKey、policy(`GET /admin/stats`=adminOnly,`POST /admin/cleanup`=superadmin)、tamper(封禁写=superadmin)、ticket(`GET /admin/all`=adminOnly,状态/消息写=superadmin)、libreChat(admin 读 + 删除/Provider 写=superadmin)、markdownArticle、fbiWanted、resource、humanCheck、email(`/send`/`/batch-send` 等=superadmin,`/quota`/`/domains` 读=adminAuthMiddleware)均完成拆分。
+- **OAuth 例外**: `oauthRoutes.ts` 读写均保持 `adminAuthMiddleware`(已委托 `isAdminRole` → admin+superadmin),符合设计;token/authorize 等用户侧端点不变。
+- `auditLogRoutes.ts` 全 GET,路由级 `authenticateAdmin`(9);`status.ts` `/profiling` 用 `adminOnly`(49)。
+
+> **超计划覆盖**(同一批次补齐,非 §3 逐条列举): turnstile、ipfs、githubBilling、lottery、ecoEnchants、LogShare、tts provider、command、passkey admin、logRoutes、shortUrlRoutes、health 读路由,均补 superadmin 守卫或 `isSuperAdmin` 内联检查。
+> `POST /api/server_status`(`diagnosticsRoutes.ts:11`)用 `SERVER_PASSWORD` 独立鉴权(`diagnosticsController.ts:37`),非角色门,符合 CLAUDE.md 文档行为。
+
+### §3C 辅助角色检查 — ✓ 全部落地
+
+- `oauthService.ts:471-472` `canAuthorizeOAuth` 加 `superadmin`;`:579` 管理标志接受双角色。
+- `oauthController.ts:41-43` `getAdminUser` 接受双角色。
+- `ipfsController.ts:37` 改 `isAdminRole`。
+- `accountMergeService.ts:221-224` 合并阻止列表含 `superadmin`。
+- `userRepository.ts:38/179/197` 用量限额豁免/告警跳过含 `superadmin`。
+- `assembly.ts:397-411` **Swagger 门潜在 bug 已修**: 不再读 JWT 内 role,改为按 `decoded.userId` 查 DB 取实时 role 后 `isAdminRole` 判定。
+
+### §4 防锁死守卫 — ✓ 全部落地(比设计更强)
+
+- `adminController.ts:275-277` 自降级 → 403「不允许修改自身角色」(覆盖 superadmin→admin/user)。
+- `:289-301` 降级/封停最后一个 superadmin → 409「无法降级或封停最后一个超级管理员」。
+- `:521-526` 批量封停含最后超管 → 409;`:633-638` 删除最后超管 → 409;`:782/:795` 其余封停/删除路径 → 409。
+- 辅助函数 `:149-151`(判定目标是否为最后超管)。
+- 会话即时失效: `UserStorage.updateUser` 在 role 变更时 emit,`authMiddlewareV2` 实时读 DB,降级下个请求即失权(设计 §4C,无改动)。
+
+### §5 迁移 + Bootstrap — ✓ 落地(**有实现差异**)
+
+- **差异**: 迁移脚本为 `scripts/migrations/migrate-admin-to-superadmin.js`(**JS**,非计划中的 `.ts`;`e636f12b` 为可在生产容器运行改为纯 Node + mongodb 驱动,直接操作 `user_datas` 集合)。幂等(重复执行 matched=0)、支持 `--dry-run`、打印 `{total, upgraded, matched, skipped}` JSON。`package.json:41` 脚本 `migrate:admin-to-superadmin` → `node scripts/migrations/migrate-admin-to-superadmin.js`。
+- `userBootstrapService.ts`: `buildDefaultAdmin` role=`"superadmin"`(14);`reconcileAdmin` 对 username 匹配的既有 admin 重提升为 `superadmin`(48-50),冲突过滤排除 `admin`/`superadmin`(52-58)。
+
+### §6 前端分层 — ✓ 全部落地(UX only,后端守卫为准)
+
+- `frontend/src/utils/rbac.ts`: `isAdminRole`(admin|superadmin)/`isSuperAdmin`;`frontend/src/hooks/useRBAC.ts`: `useIsAdmin`/`useIsSuperAdmin`。
+- `frontend/src/hooks/useSidebarView.ts:25-26` 与 `frontend/src/hooks/useAuth.ts:161` 改用 rbac helper,并传 `isSuperAdmin` 给导航上下文。
+- `frontend/src/navigation/navConfig.ts`: `NavVisibilityContext` 加 `isSuperAdmin`(45-49);`filterByVisibility` 支持 `requiredRole: 'superadmin'`(56-57);管理导航项逐个标注 `requiredRole`(环境变量/邮件/IP 封禁/广播/CDK/抽奖/FBI/Markdown/短链/命令等=superadmin,审计/翻译审计/用户列表/apikey 读=admin),并导出 superadmin URL 集合(521+)。
+- 25+ 管理组件用 `isSuperAdmin` 门控写控件:BroadcastManager、AnnouncementManager、ApiKeyManager、EnvManager、UserManagement、WebhookEventsManager、LotteryAdmin、ShortLinkManager、DataCollectionManager、TicketSystem、TamperDetectionDemo、LibreChatAdminPage 等。
+
+### §7 审计日志 — ✓ 全部落地
+
+- 基础设施: `auditLog.ts:99` 记 `role`,superadmin 操作自动以 `role:"superadmin"` 落库。
+- 补缺全部就位: 指纹清理/require、dataCollection `delete-all`/`delete-batch`、webhookEvent 全部写、apiKey create/update/revoke/enable/delete/billing.adjust、libreChat 删除/Provider 写,均挂 `auditLog`。
+- role 变更审计: `admin/users.ts:236-243` action 动态 `user.role.change` + `extractDetail:{oldRole,newRole}`(旧角色经 `adminController.ts:272` 的 `__targetOldRole` 注入);最后超管 409 拒绝经审计链记 failure。
+
+### 生成产物 — ✓ 已重生成
+
+- `docs/generated/route-audit.json`、`route-governance.md`、`cross-layer-compliance.md` 均含 `authenticateSuperAdmin`(各 24 处),由 CI `chore(docs)` 提交生成(`2dd9d413`/`e381eb41`),`authPolicy.handlers` 反映读=admin / 写=superadmin 拆分。
 
 ---
 
