@@ -33,6 +33,16 @@ import {
 
 const PAGE_SIZE = 20;
 
+/** 优先展示后端返回的具体错误（如 400 的 { error }），否则退回通用文案 */
+function getBackendErrorMessage(error: unknown, fallback: string): string {
+  if (error && typeof error === 'object') {
+    const data = (error as { response?: { data?: { error?: unknown } } }).response?.data;
+    if (typeof data?.error === 'string' && data.error.trim()) return data.error;
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
+}
+
 const TranslationAuditViewer: React.FC = () => {
   const { setNotification } = useNotification();
   const { user } = useAuth();
@@ -72,7 +82,7 @@ const TranslationAuditViewer: React.FC = () => {
       setTotal(response.total);
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '获取翻译日志失败',
+        message: getBackendErrorMessage(error, '获取翻译日志失败'),
         type: 'error',
       });
     } finally {
@@ -86,7 +96,7 @@ const TranslationAuditViewer: React.FC = () => {
       setStats(response);
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '获取翻译统计失败',
+        message: getBackendErrorMessage(error, '获取翻译统计失败'),
         type: 'error',
       });
     }
@@ -110,7 +120,7 @@ const TranslationAuditViewer: React.FC = () => {
     } catch (error) {
       setSelectedUser(null);
       setNotification({
-        message: error instanceof Error ? error.message : '获取用户信息失败',
+        message: getBackendErrorMessage(error, '获取用户信息失败'),
         type: 'error',
       });
     } finally {
@@ -156,7 +166,7 @@ const TranslationAuditViewer: React.FC = () => {
       }
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '执行惩戒失败',
+        message: getBackendErrorMessage(error, '执行惩戒失败'),
         type: 'error',
       });
     } finally {
