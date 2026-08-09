@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { useNotification } from '../Notification';
+import { useAuth } from '../../hooks/useAuth';
+import { isSuperAdmin } from '../../utils/rbac';
 import GithubBillingConfigSection from './GithubBillingConfigSection';
 import { GITHUB_BILLING_MULTI_CONFIG_API, getAuthHeaders, authFetch } from './api';
 import type { MultiGitHubBillingConfig } from './types';
@@ -11,6 +13,8 @@ interface SelfContainedGithubBillingConfigSectionProps {
 
 export default function SelfContainedGithubBillingConfigSection({ prefersReducedMotion: reducedMotionProp }: SelfContainedGithubBillingConfigSectionProps) {
   const prefersReducedMotion = useReducedMotion() ?? reducedMotionProp;
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const { setNotification } = useNotification();
   const [isOpen, setIsOpen] = useState(false);
   const fetchedRef = useRef(false);
@@ -41,6 +45,7 @@ export default function SelfContainedGithubBillingConfigSection({ prefersReduced
   }, [isOpen, fetchConfig]);
 
   const handleSave = useCallback(async () => {
+    if (!canWrite) return;
     if (saving) return;
     const curlCommand = curlInput.trim();
     if (!curlCommand) { setNotification({ message: '请填写 curl 命令', type: 'error' }); return; }
@@ -65,9 +70,10 @@ export default function SelfContainedGithubBillingConfigSection({ prefersReduced
       await fetchConfig();
     } catch (e) { setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setSaving(false); }
-  }, [saving, curlInput, selectedConfigKey, fetchConfig, setNotification]);
+  }, [canWrite, saving, curlInput, selectedConfigKey, fetchConfig, setNotification]);
 
   const handleDelete = useCallback(async () => {
+    if (!canWrite) return;
     if (saving) return;
     if (!window.confirm(`确定删除 GitHub Billing 配置「${selectedConfigKey}」？`)) return;
     setSaving(true);
@@ -79,11 +85,12 @@ export default function SelfContainedGithubBillingConfigSection({ prefersReduced
       await fetchConfig();
     } catch (e) { setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setSaving(false); }
-  }, [saving, selectedConfigKey, fetchConfig, setNotification]);
+  }, [canWrite, saving, selectedConfigKey, fetchConfig, setNotification]);
 
   return (
     <GithubBillingConfigSection
       isOpen={isOpen} onToggle={() => setIsOpen((v) => !v)} prefersReducedMotion={prefersReducedMotion}
+      disabled={!canWrite}
       loading={loading} saving={saving} curlInput={curlInput}
       selectedConfigKey={selectedConfigKey} multiConfig={multiConfig}
       onCurlInputChange={setCurlInput} onSelectedConfigKeyChange={setSelectedConfigKey}

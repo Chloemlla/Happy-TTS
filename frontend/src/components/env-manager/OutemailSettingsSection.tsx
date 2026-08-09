@@ -10,6 +10,7 @@ export interface OutemailSettingsSectionProps {
   isOpen: boolean;
   onToggle: (key: string) => void;
   prefersReducedMotion?: boolean | null;
+  disabled?: boolean;
   loading: boolean;
   saving: boolean;
   deletingDomain: string | null;
@@ -29,6 +30,7 @@ export default function OutemailSettingsSection({
   isOpen,
   onToggle,
   prefersReducedMotion,
+  disabled = false,
   loading,
   saving,
   deletingDomain,
@@ -43,6 +45,8 @@ export default function OutemailSettingsSection({
   onSave,
   onDelete,
 }: OutemailSettingsSectionProps) {
+  const isDisabled = saving || disabled;
+
   return (
     <CollapsibleSection
       title="对外邮件 API 鉴权设置"
@@ -71,6 +75,7 @@ export default function OutemailSettingsSection({
           <input
             value={domain}
             onChange={(e) => onDomainChange(e.target.value)}
+            disabled={disabled}
             placeholder="例如: chloemlla.com 或 留空"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
           />
@@ -80,6 +85,7 @@ export default function OutemailSettingsSection({
           <input
             value={code}
             onChange={(e) => onCodeChange(e.target.value)}
+            disabled={disabled}
             placeholder="请输入鉴权码"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
           />
@@ -89,6 +95,7 @@ export default function OutemailSettingsSection({
           <input
             value={apiKey}
             onChange={(e) => onApiKeyChange(e.target.value)}
+            disabled={disabled}
             placeholder="可选 API Key"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
           />
@@ -98,8 +105,8 @@ export default function OutemailSettingsSection({
       <div className="flex items-center justify-end gap-3 mb-4">
         <m.button
           onClick={onSave}
-          disabled={saving}
-          className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
+          disabled={isDisabled}
+          className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
           whileTap={{ scale: 0.96 }}
         >
           {saving ? '保存中...' : '保存/更新'}
@@ -136,8 +143,8 @@ export default function OutemailSettingsSection({
                     <td className="px-4 py-3 text-right">
                       <m.button
                         onClick={() => onDelete(s.domain || '')}
-                        disabled={deletingDomain === (s.domain || '')}
-                        className="px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm"
+                        disabled={deletingDomain === (s.domain || '') || disabled}
+                        className="px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm"
                         whileTap={{ scale: 0.95 }}
                       >
                         {deletingDomain === (s.domain || '') ? '删除中...' : '删除'}

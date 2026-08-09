@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { m, useReducedMotion } from 'framer-motion';
 import { FaKey, FaSync } from 'react-icons/fa';
 import { useNotification } from '../Notification';
+import { useAuth } from '../../hooks/useAuth';
+import { isSuperAdmin } from '../../utils/rbac';
 import CollapsibleSection from './CollapsibleSection';
 import { API_URL, getAuthHeaders, authFetch } from './api';
 import ConfigFieldRow from './ConfigFieldRow';
@@ -87,6 +89,7 @@ export interface EcoEnchantsTokenSectionProps {
   onToggle: (key: string) => void;
   loading: boolean;
   onRefresh: () => void;
+  disabled?: boolean;
 }
 
 export default function EcoEnchantsTokenSection({
@@ -94,9 +97,12 @@ export default function EcoEnchantsTokenSection({
   onToggle,
   loading,
   onRefresh,
+  disabled = false,
 }: EcoEnchantsTokenSectionProps) {
   const prefersReducedMotion = useReducedMotion();
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
 
   const [inputs, setInputs] = useState<Record<string, string>>({});
   const [current, setCurrent] = useState<Record<string, string>>({});
@@ -149,6 +155,7 @@ export default function EcoEnchantsTokenSection({
 
   const handleSave = useCallback(
     async (key: string) => {
+      if (!canWrite) return;
       if (savingKey) return;
       const value = (inputs[key] || '').trim();
       if (!value) {
@@ -180,11 +187,12 @@ export default function EcoEnchantsTokenSection({
         setSavingKey(null);
       }
     },
-    [inputs, savingKey, fetchValues, onRefresh, setNotification],
+    [canWrite, inputs, savingKey, fetchValues, onRefresh, setNotification],
   );
 
   const handleDelete = useCallback(
     async (key: string) => {
+      if (!canWrite) return;
       if (deletingKey) return;
       if (!window.confirm(`确定删除环境变量「${key}」？对应授权/令牌能力可能立即失效。`)) return;
       setDeletingKey(key);
@@ -211,7 +219,7 @@ export default function EcoEnchantsTokenSection({
         setDeletingKey(null);
       }
     },
-    [deletingKey, fetchValues, onRefresh, setNotification],
+    [canWrite, deletingKey, fetchValues, onRefresh, setNotification],
   );
 
   const refreshing = fetching || loading;
@@ -279,6 +287,7 @@ export default function EcoEnchantsTokenSection({
               onSave={() => handleSave(field.key)}
               onDelete={() => handleDelete(field.key)}
               isPassword
+              readOnly={disabled}
             />
           </div>
         ))}

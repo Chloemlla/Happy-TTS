@@ -6,6 +6,7 @@ interface NexaiSigningConfigSectionProps {
   isOpen: boolean;
   onToggle: (key: string) => void;
   prefersReducedMotion?: boolean | null;
+  disabled?: boolean;
   loading: boolean;
   saving: boolean;
   deleting: boolean;
@@ -32,6 +33,7 @@ export default function NexaiSigningConfigSection({
   isOpen,
   onToggle,
   prefersReducedMotion,
+  disabled = false,
   loading,
   saving,
   deleting,
@@ -50,6 +52,8 @@ export default function NexaiSigningConfigSection({
   onSave,
   onReset,
 }: NexaiSigningConfigSectionProps) {
+  const isDisabled = saving || deleting || disabled;
+
   return (
     <CollapsibleSection
       title="NexAI 请求签名中间件配置"
@@ -87,6 +91,7 @@ export default function NexaiSigningConfigSection({
           <select
             value={modeInput}
             onChange={(event) => onModeInputChange(event.target.value as 'off' | 'soft' | 'enforce')}
+            disabled={disabled}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 sm:text-base"
           >
             <option value="off">off（关闭签名校验）</option>
@@ -102,6 +107,7 @@ export default function NexaiSigningConfigSection({
             step={1000}
             value={maxDriftMsInput}
             onChange={(event) => onMaxDriftMsInputChange(event.target.value)}
+            disabled={disabled}
             placeholder="300000"
             autoComplete="off"
             spellCheck={false}
@@ -119,6 +125,7 @@ export default function NexaiSigningConfigSection({
           <input
             value={appSignSecretInput}
             onChange={(event) => onAppSignSecretInputChange(event.target.value)}
+            disabled={disabled}
             placeholder="请输入应用签名密钥（仅用于 HMAC 校验，不会回显明文，留空表示保持现有）"
             autoComplete="off"
             spellCheck={false}
@@ -133,6 +140,7 @@ export default function NexaiSigningConfigSection({
           <input
             value={appSignSecretPrevInput}
             onChange={(event) => onAppSignSecretPrevInputChange(event.target.value)}
+            disabled={disabled}
             placeholder="轮换期间的旧密钥，留空表示保持现有"
             autoComplete="off"
             spellCheck={false}
@@ -147,16 +155,16 @@ export default function NexaiSigningConfigSection({
       <div className="flex items-center justify-end gap-3">
         <m.button
           onClick={onReset}
-          disabled={deleting || saving}
-          className="rounded-lg bg-red-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-red-600 disabled:opacity-50 sm:px-4"
+          disabled={isDisabled}
+          className="rounded-lg bg-red-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-red-600 disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed sm:px-4"
           whileTap={{ scale: 0.96 }}
         >
           {deleting ? '重置中...' : '重置'}
         </m.button>
         <m.button
           onClick={onSave}
-          disabled={saving || deleting}
-          className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50 sm:px-4"
+          disabled={isDisabled}
+          className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed sm:px-4"
           whileTap={{ scale: 0.96 }}
         >
           {saving ? '保存中...' : '保存/更新'}

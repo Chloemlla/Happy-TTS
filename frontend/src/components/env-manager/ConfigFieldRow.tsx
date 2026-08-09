@@ -23,6 +23,8 @@ interface ConfigFieldRowProps {
   extraField?: React.ReactNode;
   /** When true, render current value as an inline bar instead of a column */
   inlineCurrent?: boolean;
+  /** When true, disable the input and save/delete buttons (read-only view for non-writer roles) */
+  readOnly?: boolean;
 }
 
 const ConfigFieldRow: React.FC<ConfigFieldRowProps> = ({
@@ -41,8 +43,9 @@ const ConfigFieldRow: React.FC<ConfigFieldRowProps> = ({
   isPassword = false,
   extraField,
   inlineCurrent = false,
+  readOnly = false,
 }) => {
-  const disabled = busy;
+  const disabled = busy || readOnly;
 
   if (inlineCurrent) {
     return (
@@ -58,6 +61,8 @@ const ConfigFieldRow: React.FC<ConfigFieldRowProps> = ({
             className={logShareInputClass}
             autoComplete="off"
             spellCheck={false}
+            disabled={disabled}
+            readOnly={readOnly}
           />
         </div>
         <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-xs text-slate-600">
@@ -101,6 +106,8 @@ const ConfigFieldRow: React.FC<ConfigFieldRowProps> = ({
             className={logShareInputClass}
             autoComplete="off"
             spellCheck={false}
+            disabled={disabled}
+            readOnly={readOnly}
           />
         </div>
         <div>

@@ -4,6 +4,8 @@ import { useNotification } from '../Notification';
 import TurnstileConfigSection from './TurnstileConfigSection';
 import { TURNSTILE_CONFIG_API, getAuthHeaders, authFetch } from './api';
 import type { TurnstileConfigSetting } from './types';
+import { useAuth } from '../../hooks/useAuth';
+import { isSuperAdmin } from '../../utils/rbac';
 
 interface SelfContainedTurnstileConfigSectionProps {
   prefersReducedMotion?: boolean | null;
@@ -12,6 +14,8 @@ interface SelfContainedTurnstileConfigSectionProps {
 export default function SelfContainedTurnstileConfigSection({ prefersReducedMotion: reducedMotionProp }: SelfContainedTurnstileConfigSectionProps) {
   const prefersReducedMotion = useReducedMotion() ?? reducedMotionProp;
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const [isOpen, setIsOpen] = useState(false);
   const fetchedRef = useRef(false);
 
@@ -45,6 +49,7 @@ export default function SelfContainedTurnstileConfigSection({ prefersReducedMoti
   }, [isOpen, fetchConfig]);
 
   const handleSave = useCallback(async (key: 'TURNSTILE_SECRET_KEY' | 'TURNSTILE_SITE_KEY') => {
+    if (!canWrite) return;
     if (saving) return;
     const value = key === 'TURNSTILE_SECRET_KEY' ? secretKeyInput.trim() : siteKeyInput.trim();
     if (!value) { setNotification({ message: `请填写${key === 'TURNSTILE_SECRET_KEY' ? 'Secret Key' : 'Site Key'}`, type: 'error' }); return; }
@@ -58,9 +63,10 @@ export default function SelfContainedTurnstileConfigSection({ prefersReducedMoti
       await fetchConfig();
     } catch (e) { setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setSaving(false); }
-  }, [saving, secretKeyInput, siteKeyInput, fetchConfig, setNotification]);
+  }, [canWrite, saving, secretKeyInput, siteKeyInput, fetchConfig, setNotification]);
 
   const handleDelete = useCallback(async (key: 'TURNSTILE_SECRET_KEY' | 'TURNSTILE_SITE_KEY') => {
+    if (!canWrite) return;
     if (deleting) return;
     if (!window.confirm(`确定删除 Turnstile 配置「${key}」？`)) return;
     setDeleting(true);
@@ -72,12 +78,12 @@ export default function SelfContainedTurnstileConfigSection({ prefersReducedMoti
       await fetchConfig();
     } catch (e) { setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setDeleting(false); }
-  }, [deleting, fetchConfig, setNotification]);
+  }, [canWrite, deleting, fetchConfig, setNotification]);
 
   return (
     <TurnstileConfigSection
       isOpen={isOpen} onToggle={() => setIsOpen((v) => !v)} prefersReducedMotion={prefersReducedMotion}
-      loading={loading} saving={saving} deleting={deleting} config={config}
+      loading={loading} saving={saving} deleting={deleting} disabled={!canWrite} config={config}
       siteKeyInput={siteKeyInput} secretKeyInput={secretKeyInput}
       onSiteKeyChange={setSiteKeyInput} onSecretKeyChange={setSecretKeyInput}
       onRefresh={fetchConfig} onSave={handleSave} onDelete={handleDelete}

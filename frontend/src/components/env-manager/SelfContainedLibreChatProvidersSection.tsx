@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { useNotification } from '../Notification';
+import { useAuth } from '../../hooks/useAuth';
+import { isSuperAdmin } from '../../utils/rbac';
 import LibreChatProvidersSection from './LibreChatProvidersSection';
 import { LIBRECHAT_PROVIDERS_API, getAuthHeaders, authFetch } from './api';
 import type { ChatProviderItem } from './types';
@@ -11,6 +13,8 @@ interface SelfContainedLibreChatProvidersSectionProps {
 
 export default function SelfContainedLibreChatProvidersSection({ prefersReducedMotion: reducedMotionProp }: SelfContainedLibreChatProvidersSectionProps) {
   const prefersReducedMotion = useReducedMotion() ?? reducedMotionProp;
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const { setNotification } = useNotification();
   const [isOpen, setIsOpen] = useState(false);
   const fetchedRef = useRef(false);
@@ -60,6 +64,7 @@ export default function SelfContainedLibreChatProvidersSection({ prefersReducedM
   }, []);
 
   const handleSave = useCallback(() => {
+    if (!canWrite) return;
     if (saving) return;
     const baseUrl = providerBaseUrl.trim(), apiKey = providerApiKey.trim(), model = providerModel.trim(), group = providerGroup.trim();
     const enabled = !!providerEnabled, weight = Math.max(1, Math.min(10, Number(providerWeight || 1)));
@@ -77,9 +82,10 @@ export default function SelfContainedLibreChatProvidersSection({ prefersReducedM
       } catch (e) { setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
       finally { setSaving(false); }
     })();
-  }, [saving, providerId, providerBaseUrl, providerApiKey, providerModel, providerGroup, providerEnabled, providerWeight, fetchProviders, resetForm, setNotification]);
+  }, [canWrite, saving, providerId, providerBaseUrl, providerApiKey, providerModel, providerGroup, providerEnabled, providerWeight, fetchProviders, resetForm, setNotification]);
 
   const handleDelete = useCallback(async (id: string) => {
+    if (!canWrite) return;
     if (deletingId) return;
     if (!window.confirm(`确定删除 LibreChat 提供商「${id}」？`)) return;
     setDeletingId(id);
@@ -91,17 +97,19 @@ export default function SelfContainedLibreChatProvidersSection({ prefersReducedM
       await fetchProviders();
     } catch (e) { setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setDeletingId(null); }
-  }, [deletingId, fetchProviders, setNotification]);
+  }, [canWrite, deletingId, fetchProviders, setNotification]);
 
   const handleEdit = useCallback((p: ChatProviderItem) => {
+    if (!canWrite) return;
     setProviderId(p.id); setProviderBaseUrl(p.baseUrl); setProviderApiKey('');
     setProviderModel(p.model); setProviderGroup(p.group || '');
     setProviderEnabled(!!p.enabled); setProviderWeight(Number(p.weight || 1));
-  }, []);
+  }, [canWrite]);
 
   return (
     <LibreChatProvidersSection
       isOpen={isOpen} onToggle={() => setIsOpen((v) => !v)} prefersReducedMotion={prefersReducedMotion} isMobile={isMobile}
+      disabled={!canWrite}
       loading={loading} saving={saving} deletingId={deletingId}
       providers={providers} providerId={providerId} providerFilterGroup={providerFilterGroup}
       providerBaseUrl={providerBaseUrl} providerApiKey={providerApiKey} providerModel={providerModel}

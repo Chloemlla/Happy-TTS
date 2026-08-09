@@ -14,6 +14,7 @@ export interface TurnstileConfigSectionProps {
   loading: boolean;
   saving: boolean;
   deleting: boolean;
+  disabled?: boolean;
   config: TurnstileConfigSetting | null;
   siteKeyInput: string;
   secretKeyInput: string;
@@ -31,6 +32,7 @@ export default function TurnstileConfigSection({
   loading,
   saving,
   deleting,
+  disabled = false,
   config,
   siteKeyInput,
   secretKeyInput,
@@ -59,6 +61,7 @@ export default function TurnstileConfigSection({
                     loading={loading}
                     isSaving={saving}
                     isDeleting={deleting}
+                    readOnly={disabled}
                     onSave={() => onSave('TURNSTILE_SITE_KEY')}
                     onDelete={() => onDelete('TURNSTILE_SITE_KEY')}
                   />
@@ -76,6 +79,7 @@ export default function TurnstileConfigSection({
                     loading={loading}
                     isSaving={saving}
                     isDeleting={deleting}
+                    readOnly={disabled}
                     isPassword
                     onSave={() => onSave('TURNSTILE_SECRET_KEY')}
                     onDelete={() => onDelete('TURNSTILE_SECRET_KEY')}

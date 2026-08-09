@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { useNotification } from '../Notification';
+import { useAuth } from '../../hooks/useAuth';
+import { isSuperAdmin } from '../../utils/rbac';
 import IpfsConfigSection from './IpfsConfigSection';
 import { IPFS_CONFIG_API, getAuthHeaders, authFetch } from './api';
 import type { IPFSConfigSetting } from './types';
@@ -11,6 +13,8 @@ interface SelfContainedIpfsConfigSectionProps {
 
 export default function SelfContainedIpfsConfigSection({ prefersReducedMotion: reducedMotionProp }: SelfContainedIpfsConfigSectionProps) {
   const prefersReducedMotion = useReducedMotion() ?? reducedMotionProp;
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const { setNotification } = useNotification();
   const [isOpen, setIsOpen] = useState(false);
   const fetchedRef = useRef(false);
@@ -43,6 +47,7 @@ export default function SelfContainedIpfsConfigSection({ prefersReducedMotion: r
   }, [isOpen, fetchConfig]);
 
   const handleSave = useCallback(async () => {
+    if (!canWrite) return;
     if (saving) return;
     const url = ipfsUploadUrlInput.trim(), ua = ipfsUserAgentInput.trim(), ibApi = imageBedApiUrlInput.trim(), ibCdn = imageBedCdnDomainInput.trim(), ibStorage = imageBedStorageDestinationInput.trim(), ibFormat = imageBedOutputFormatInput.trim();
     if (!url && !ua && !ibApi && !ibCdn && !ibStorage && !ibFormat) { setNotification({ message: '请至少填写一个配置项', type: 'error' }); return; }
@@ -56,9 +61,10 @@ export default function SelfContainedIpfsConfigSection({ prefersReducedMotion: r
       await fetchConfig();
     } catch (e) { setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setSaving(false); }
-  }, [saving, ipfsUploadUrlInput, ipfsUserAgentInput, imageBedApiUrlInput, imageBedCdnDomainInput, imageBedStorageDestinationInput, imageBedOutputFormatInput, fetchConfig, setNotification]);
+  }, [canWrite, saving, ipfsUploadUrlInput, ipfsUserAgentInput, imageBedApiUrlInput, imageBedCdnDomainInput, imageBedStorageDestinationInput, imageBedOutputFormatInput, fetchConfig, setNotification]);
 
   const handleTest = useCallback(async (target: 'imagebed' | 'ipfs') => {
+    if (!canWrite) return;
     if (testing) return;
     setTesting(true);
     try {
@@ -68,11 +74,12 @@ export default function SelfContainedIpfsConfigSection({ prefersReducedMotion: r
       setNotification({ message: data.message || '测试成功', type: 'success' });
     } catch (e) { setNotification({ message: '测试失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setTesting(false); }
-  }, [testing, setNotification]);
+  }, [canWrite, testing, setNotification]);
 
   return (
     <IpfsConfigSection
       isOpen={isOpen} onToggle={() => setIsOpen((v) => !v)} prefersReducedMotion={prefersReducedMotion}
+      disabled={!canWrite}
       loading={loading} saving={saving} testing={testing} ipfsConfig={ipfsConfig}
       ipfsUploadUrlInput={ipfsUploadUrlInput} ipfsUserAgentInput={ipfsUserAgentInput}
       imageBedApiUrlInput={imageBedApiUrlInput} imageBedCdnDomainInput={imageBedCdnDomainInput}

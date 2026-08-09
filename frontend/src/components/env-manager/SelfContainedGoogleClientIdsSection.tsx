@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { useNotification } from '../Notification';
+import { useAuth } from '../../hooks/useAuth';
+import { isSuperAdmin } from '../../utils/rbac';
 import GoogleClientIdsSection from './GoogleClientIdsSection';
 import { GOOGLE_AUTH_API, NEXAI_SETTING_API, GOOGLE_WEB_CLIENT_ID_PATTERN, getAuthHeaders, authFetch } from './api';
 
@@ -10,6 +12,8 @@ interface SelfContainedGoogleClientIdsSectionProps {
 
 export default function SelfContainedGoogleClientIdsSection({ prefersReducedMotion: reducedMotionProp }: SelfContainedGoogleClientIdsSectionProps) {
   const prefersReducedMotion = useReducedMotion() ?? reducedMotionProp;
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const { setNotification } = useNotification();
   const [isOpen, setIsOpen] = useState(false);
   const fetchedRef = useRef(false);
@@ -48,6 +52,7 @@ export default function SelfContainedGoogleClientIdsSection({ prefersReducedMoti
   }, [isOpen, fetchConfig]);
 
   const handleSave = useCallback(async () => {
+    if (!canWrite) return;
     if (saving) return;
     const gId = googleClientIdInput.trim(), nId = nexaiGoogleClientIdInput.trim();
     if (gId && !GOOGLE_WEB_CLIENT_ID_PATTERN.test(gId)) { setNotification({ message: 'GOOGLE_CLIENT_ID 格式无效', type: 'error' }); return; }
@@ -65,9 +70,10 @@ export default function SelfContainedGoogleClientIdsSection({ prefersReducedMoti
       await fetchConfig();
     } catch (e) { setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setSaving(false); }
-  }, [saving, googleClientIdInput, nexaiGoogleClientIdInput, fetchConfig, setNotification]);
+  }, [canWrite, saving, googleClientIdInput, nexaiGoogleClientIdInput, fetchConfig, setNotification]);
 
   const handleReset = useCallback(async () => {
+    if (!canWrite) return;
     if (deleting) return;
     if (!window.confirm('确定重置 Google Client ID 配置？')) return;
     setDeleting(true);
@@ -86,11 +92,12 @@ export default function SelfContainedGoogleClientIdsSection({ prefersReducedMoti
       await fetchConfig();
     } catch (e) { setNotification({ message: '重置失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setDeleting(false); }
-  }, [deleting, fetchConfig, setNotification]);
+  }, [canWrite, deleting, fetchConfig, setNotification]);
 
   return (
     <GoogleClientIdsSection
       isOpen={isOpen} onToggle={() => setIsOpen((v) => !v)} prefersReducedMotion={prefersReducedMotion}
+      disabled={!canWrite}
       loading={loading} saving={saving} deleting={deleting}
       googleClientIdInput={googleClientIdInput} nexaiGoogleClientIdInput={nexaiGoogleClientIdInput}
       googleClientIdCurrent={googleClientIdCurrent} nexaiGoogleClientIdCurrent={nexaiGoogleClientIdCurrent}

@@ -21,6 +21,7 @@ export interface HcaptchaConfigSectionProps {
   onRefresh: () => void;
   onSave: (key: 'HCAPTCHA_SECRET_KEY' | 'HCAPTCHA_SITE_KEY') => void;
   onDelete: (key: 'HCAPTCHA_SECRET_KEY' | 'HCAPTCHA_SITE_KEY') => void;
+  disabled?: boolean;
 }
 
 export default function HcaptchaConfigSection({
@@ -37,8 +38,10 @@ export default function HcaptchaConfigSection({
   onSecretKeyChange,
   onRefresh,
   onSave,
-  onDelete
+  onDelete,
+  disabled = false,
 }: HcaptchaConfigSectionProps) {
+  const isDisabled = saving || deleting || disabled;
   return (
     <CollapsibleSection title="hCaptcha 配置设置" description="管理 hCaptcha Site Key 和 Secret Key。用于前端人机验证（登录、注册等），保护后端接口免受自动化攻击。" sectionKey="hcaptcha" isOpen={isOpen} onToggle={onToggle} prefersReducedMotion={prefersReducedMotion} headerRight={
               <m.button onClick={(e) => { e.stopPropagation(); onRefresh(); }} disabled={loading} className={REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
@@ -54,6 +57,7 @@ export default function HcaptchaConfigSection({
                     <input
                       value={siteKeyInput}
                       onChange={(e) => onSiteKeyChange(e.target.value)}
+                      disabled={disabled}
                       placeholder="请输入 hCaptcha Site Key（例如：10000000-ffff-ffff-ffff-000000000001）"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
                     />
@@ -69,16 +73,16 @@ export default function HcaptchaConfigSection({
                 <div className="flex items-center justify-end gap-3">
                   <m.button
                     onClick={() => onDelete('HCAPTCHA_SITE_KEY')}
-                    disabled={deleting}
-                    className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm font-medium"
+                    disabled={isDisabled}
+                    className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
                     whileTap={{ scale: 0.96 }}
                   >
                     {deleting ? '删除中...' : '删除'}
                   </m.button>
                   <m.button
                     onClick={() => onSave('HCAPTCHA_SITE_KEY')}
-                    disabled={saving}
-                    className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
+                    disabled={isDisabled}
+                    className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
                     whileTap={{ scale: 0.96 }}
                   >
                     {saving ? '保存中...' : '保存/更新'}
@@ -95,6 +99,7 @@ export default function HcaptchaConfigSection({
                     <input
                       value={secretKeyInput}
                       onChange={(e) => onSecretKeyChange(e.target.value)}
+                      disabled={disabled}
                       placeholder="请输入 hCaptcha Secret Key（仅用于后端验证，不回显明文）"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
                     />
@@ -110,16 +115,16 @@ export default function HcaptchaConfigSection({
                 <div className="flex items-center justify-end gap-3">
                   <m.button
                     onClick={() => onDelete('HCAPTCHA_SECRET_KEY')}
-                    disabled={deleting}
-                    className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm font-medium"
+                    disabled={isDisabled}
+                    className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
                     whileTap={{ scale: 0.96 }}
                   >
                     {deleting ? '删除中...' : '删除'}
                   </m.button>
                   <m.button
                     onClick={() => onSave('HCAPTCHA_SECRET_KEY')}
-                    disabled={saving}
-                    className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
+                    disabled={isDisabled}
+                    className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
                     whileTap={{ scale: 0.96 }}
                   >
                     {saving ? '保存中...' : '保存/更新'}

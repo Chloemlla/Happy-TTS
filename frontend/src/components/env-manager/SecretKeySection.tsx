@@ -17,6 +17,7 @@ interface SecretKeySectionProps {
   loading: boolean;
   saving: boolean;
   deleting: boolean;
+  disabled?: boolean;
   inputLabel: string;
   inputValue: string;
   inputPlaceholder: string;
@@ -45,6 +46,7 @@ export default function SecretKeySection({
   loading,
   saving,
   deleting,
+  disabled = false,
   inputLabel,
   inputValue,
   inputPlaceholder,
@@ -57,6 +59,7 @@ export default function SecretKeySection({
   onDelete,
   extraField,
 }: SecretKeySectionProps) {
+  const isDisabled = loading || saving || deleting || disabled;
   const extraFieldNode = extraField ? (
     <div>
       <label className="block text-sm font-medium text-slate-700 mb-1">{extraField.label}</label>
@@ -65,6 +68,7 @@ export default function SecretKeySection({
         onChange={(event) => extraField.onChange(event.target.value)}
         placeholder={extraField.placeholder}
         className={logShareInputClass}
+        disabled={isDisabled}
       />
     </div>
   ) : undefined;
@@ -101,6 +105,7 @@ export default function SecretKeySection({
         loading={loading}
         isSaving={saving}
         isDeleting={deleting}
+        readOnly={disabled}
         onSave={onSave}
         onDelete={onDelete}
         isPassword

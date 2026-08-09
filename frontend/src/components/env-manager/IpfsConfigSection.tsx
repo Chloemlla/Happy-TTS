@@ -29,6 +29,7 @@ export interface IpfsConfigSectionProps {
   onRefresh: () => void;
   onSave: () => void;
   onTest: (target: 'imagebed' | 'ipfs') => void;
+  disabled?: boolean;
 }
 
 export default function IpfsConfigSection({
@@ -53,8 +54,10 @@ export default function IpfsConfigSection({
   onImageBedOutputFormatChange,
   onRefresh,
   onSave,
-  onTest
+  onTest,
+  disabled = false,
 }: IpfsConfigSectionProps) {
+  const isDisabled = saving || disabled;
   return (
     <CollapsibleSection title="IPFS 配置设置" description="管理 IPFS 文件上传配置和图片床参数。用于用户头像、TTS 音频封面等文件的外部存储，后端通过 IPFS / 图床 API 上传并获取访问 URL。" sectionKey="ipfs" isOpen={isOpen} onToggle={onToggle} prefersReducedMotion={prefersReducedMotion} headerRight={
               <m.button onClick={(e) => { e.stopPropagation(); onRefresh(); }} disabled={loading} className={REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
@@ -67,6 +70,7 @@ export default function IpfsConfigSection({
                   <input
                     value={ipfsUploadUrlInput}
                     onChange={(e) => onIpfsUploadUrlChange(e.target.value)}
+                    disabled={disabled}
                     placeholder="例如：https://ipfs.openai.com/api/v0/add"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
                   />
@@ -85,6 +89,7 @@ export default function IpfsConfigSection({
                   <input
                     value={ipfsUserAgentInput}
                     onChange={(e) => onIpfsUserAgentChange(e.target.value)}
+                    disabled={disabled}
                     placeholder="例如：Synapse-IPFS-Uploader/1.0 (+https://example.com)"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
                   />
@@ -100,24 +105,24 @@ export default function IpfsConfigSection({
               <div className="flex items-center justify-end gap-3">
                 <m.button
                   onClick={() => onTest('imagebed')}
-                  disabled={testing}
-                  className="px-3 sm:px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition disabled:opacity-50 text-sm font-medium"
+                  disabled={testing || disabled}
+                  className="px-3 sm:px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
                   whileTap={{ scale: 0.96 }}
                 >
                   {testing ? '测试中...' : '测试 ImageBed'}
                 </m.button>
                 <m.button
                   onClick={() => onTest('ipfs')}
-                  disabled={testing || !ipfsConfig?.ipfsUploadUrl}
-                  className="px-3 sm:px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition disabled:opacity-50 text-sm font-medium"
+                  disabled={testing || disabled || !ipfsConfig?.ipfsUploadUrl}
+                  className="px-3 sm:px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
                   whileTap={{ scale: 0.96 }}
                 >
                   {testing ? '测试中...' : '测试 IPFS'}
                 </m.button>
                 <m.button
                   onClick={onSave}
-                  disabled={saving}
-                  className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
+                  disabled={isDisabled}
+                  className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
                   whileTap={{ scale: 0.96 }}
                 >
                   {saving ? '保存中...' : '保存/更新'}
@@ -134,6 +139,7 @@ export default function IpfsConfigSection({
                     <input
                       value={imageBedApiUrlInput}
                       onChange={(e) => onImageBedApiUrlChange(e.target.value)}
+                      disabled={disabled}
                       placeholder="默认：https://img.scdn.io/api/v1.php"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
                     />
@@ -152,6 +158,7 @@ export default function IpfsConfigSection({
                     <input
                       value={imageBedCdnDomainInput}
                       onChange={(e) => onImageBedCdnDomainChange(e.target.value)}
+                      disabled={disabled}
                       placeholder="例如：img.scdn.io"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
                     />
@@ -162,6 +169,7 @@ export default function IpfsConfigSection({
                     <select
                       value={imageBedStorageDestinationInput}
                       onChange={(e) => onImageBedStorageDestinationChange(e.target.value)}
+                      disabled={disabled}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base bg-white"
                     >
                       <option value="">不变更</option>
@@ -176,6 +184,7 @@ export default function IpfsConfigSection({
                     <select
                       value={imageBedOutputFormatInput}
                       onChange={(e) => onImageBedOutputFormatChange(e.target.value)}
+                      disabled={disabled}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base bg-white"
                     >
                       <option value="">不变更</option>

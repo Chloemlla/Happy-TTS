@@ -20,6 +20,7 @@ export interface GithubBillingConfigSectionProps {
   onRefresh: () => void;
   onSave: () => void;
   onDelete: () => void;
+  disabled?: boolean;
 }
 
 export default function GithubBillingConfigSection({
@@ -35,8 +36,10 @@ export default function GithubBillingConfigSection({
   onSelectedConfigKeyChange,
   onRefresh,
   onSave,
-  onDelete
+  onDelete,
+  disabled = false,
 }: GithubBillingConfigSectionProps) {
+  const isDisabled = saving || disabled;
   return (
     <CollapsibleSection title="GitHub Billing 配置设置" description="管理 GitHub Billing curl 配置和账单数据读取参数。用于 GitHub Actions 用量监控与费用分析，后端按周期抓取 GitHub API 账单数据。" sectionKey="githubBilling" isOpen={isOpen} onToggle={onToggle} prefersReducedMotion={prefersReducedMotion} headerRight={
               <m.button onClick={(e) => { e.stopPropagation(); onRefresh(); }} disabled={loading} className={REFRESH_BUTTON_CLASS} whileTap={{ scale: 0.95 }}>
@@ -52,6 +55,7 @@ export default function GithubBillingConfigSection({
                     <textarea
                       value={curlInput}
                       onChange={(e) => onCurlInputChange(e.target.value)}
+                      disabled={disabled}
                       placeholder="请粘贴从浏览器开发者工具复制的 GitHub Billing curl 命令..."
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base min-h-[120px] font-mono"
                       rows={6}
@@ -65,8 +69,8 @@ export default function GithubBillingConfigSection({
                 <div className="flex items-center justify-end gap-3">
                   <m.button
                     onClick={onSave}
-                    disabled={saving}
-                    className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
+                    disabled={isDisabled}
+                    className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
                     whileTap={{ scale: 0.96 }}
                   >
                     {saving ? '保存中...' : '保存/更新'}

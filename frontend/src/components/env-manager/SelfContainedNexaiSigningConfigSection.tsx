@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
+import { useAuth } from '../../hooks/useAuth';
+import { isSuperAdmin } from '../../utils/rbac';
 import { useNotification } from '../Notification';
 import NexaiSigningConfigSection from './NexaiSigningConfigSection';
 import { NEXAI_SIGNING_API, getAuthHeaders, authFetch } from './api';
@@ -11,6 +13,8 @@ interface SelfContainedNexaiSigningConfigSectionProps {
 export default function SelfContainedNexaiSigningConfigSection({ prefersReducedMotion: reducedMotionProp }: SelfContainedNexaiSigningConfigSectionProps) {
   const prefersReducedMotion = useReducedMotion() ?? reducedMotionProp;
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const [isOpen, setIsOpen] = useState(false);
   const fetchedRef = useRef(false);
 
@@ -50,6 +54,7 @@ export default function SelfContainedNexaiSigningConfigSection({ prefersReducedM
   }, [isOpen, fetchConfig]);
 
   const handleSave = useCallback(async () => {
+    if (!canWrite) return;
     if (saving) return;
     const maxDriftNum = Number(maxDriftMsInput);
     if (!Number.isFinite(maxDriftNum) || maxDriftNum < 1000) { setNotification({ message: 'NEXAI_SIG_MAX_DRIFT_MS 必须是一个不小于 1000 的数字', type: 'error' }); return; }
@@ -65,9 +70,10 @@ export default function SelfContainedNexaiSigningConfigSection({ prefersReducedM
       await fetchConfig();
     } catch (e) { setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setSaving(false); }
-  }, [saving, modeInput, appSignSecretInput, appSignSecretPrevInput, maxDriftMsInput, fetchConfig, setNotification]);
+  }, [canWrite, saving, modeInput, appSignSecretInput, appSignSecretPrevInput, maxDriftMsInput, fetchConfig, setNotification]);
 
   const handleReset = useCallback(async () => {
+    if (!canWrite) return;
     if (deleting) return;
     if (!window.confirm('确定重置 NexAI 请求签名配置为默认值？')) return;
     setDeleting(true);
@@ -79,12 +85,12 @@ export default function SelfContainedNexaiSigningConfigSection({ prefersReducedM
       await fetchConfig();
     } catch (e) { setNotification({ message: '重置失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setDeleting(false); }
-  }, [deleting, fetchConfig, setNotification]);
+  }, [canWrite, deleting, fetchConfig, setNotification]);
 
   return (
     <NexaiSigningConfigSection
       isOpen={isOpen} onToggle={() => setIsOpen((v) => !v)} prefersReducedMotion={prefersReducedMotion}
-      loading={loading} saving={saving} deleting={deleting}
+      loading={loading} saving={saving} deleting={deleting} disabled={!canWrite}
       modeInput={modeInput} appSignSecretInput={appSignSecretInput} appSignSecretPrevInput={appSignSecretPrevInput} maxDriftMsInput={maxDriftMsInput}
       currentAppSignSecret={currentAppSignSecret} currentAppSignSecretPrev={currentAppSignSecretPrev} updatedAt={updatedAt}
       onModeInputChange={setModeInput} onAppSignSecretInputChange={setAppSignSecretInput} onAppSignSecretPrevInputChange={setAppSignSecretPrevInput} onMaxDriftMsInputChange={setMaxDriftMsInput}

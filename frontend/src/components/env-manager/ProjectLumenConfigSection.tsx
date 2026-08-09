@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { m, useReducedMotion } from 'framer-motion';
 import { FaLock, FaSync, FaInfoCircle, FaCheck, FaTimes } from 'react-icons/fa';
+import { useAuth } from '../../hooks/useAuth';
+import { isSuperAdmin } from '../../utils/rbac';
 import { useNotification } from '../Notification';
 import CollapsibleSection from './CollapsibleSection';
 import { LUMEN_CONFIG_API, LUMEN_CONFIG_SYNC_API, getAuthHeaders, authFetch } from './api';
@@ -128,6 +130,7 @@ export interface ProjectLumenConfigSectionProps {
   onToggle: (key: string) => void;
   loading: boolean;
   onRefresh: () => void;
+  disabled?: boolean;
 }
 
 export default function ProjectLumenConfigSection({
@@ -135,9 +138,12 @@ export default function ProjectLumenConfigSection({
   onToggle,
   loading,
   onRefresh,
+  disabled = false,
 }: ProjectLumenConfigSectionProps) {
   const prefersReducedMotion = useReducedMotion();
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
 
   const [inputs, setInputs] = useState<Record<string, string>>({});
   const [current, setCurrent] = useState<Record<string, string>>({});
@@ -192,6 +198,7 @@ export default function ProjectLumenConfigSection({
 
   const handleSave = useCallback(
     async (key: string) => {
+      if (!canWrite) return;
       if (savingKey) return;
       const value = (inputs[key] || '').trim();
       if (!value) {
@@ -223,11 +230,12 @@ export default function ProjectLumenConfigSection({
         setSavingKey(null);
       }
     },
-    [inputs, savingKey, fetchValues, onRefresh, setNotification],
+    [canWrite, inputs, savingKey, fetchValues, onRefresh, setNotification],
   );
 
   const handleDelete = useCallback(
     async (key: string) => {
+      if (!canWrite) return;
       if (deletingKey) return;
       if (!window.confirm(`确定删除 Project-Lumen 配置「${key}」？`)) return;
       setDeletingKey(key);
@@ -254,10 +262,11 @@ export default function ProjectLumenConfigSection({
         setDeletingKey(null);
       }
     },
-    [deletingKey, fetchValues, onRefresh, setNotification],
+    [canWrite, deletingKey, fetchValues, onRefresh, setNotification],
   );
 
   const handleSync = useCallback(async () => {
+    if (!canWrite) return;
     if (syncingRef.current) return;
     syncingRef.current = true;
     setSyncing(true);
@@ -289,10 +298,11 @@ export default function ProjectLumenConfigSection({
       syncingRef.current = false;
       setSyncing(false);
     }
-  }, [setNotification]);
+  }, [canWrite, setNotification]);
 
   const refreshing = fetching || loading;
   const busy = savingKey !== null || deletingKey !== null;
+  const isDisabled = busy || disabled;
 
   return (
     <CollapsibleSection
@@ -369,8 +379,8 @@ export default function ProjectLumenConfigSection({
         <m.button
           type="button"
           onClick={handleSync}
-          disabled={syncing}
-          className={REFRESH_BUTTON_CLASS}
+          disabled={isDisabled || syncing}
+          className={`${REFRESH_BUTTON_CLASS} disabled:opacity-40`}
           whileTap={{ scale: 0.95 }}
         >
           <FaSync className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} /> 同步全部到 GitHub
@@ -420,6 +430,7 @@ export default function ProjectLumenConfigSection({
               busy={busy}
               onSave={() => handleSave(field.key)}
               onDelete={() => handleDelete(field.key)}
+              readOnly={disabled}
               isPassword
             />
           </div>

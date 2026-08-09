@@ -36,6 +36,7 @@ export interface LibreChatProvidersSectionProps {
   onReset: () => void;
   onEdit: (provider: ChatProviderItem) => void;
   onDelete: (id: string) => void;
+  disabled?: boolean;
 }
 
 export default function LibreChatProvidersSection({
@@ -66,8 +67,10 @@ export default function LibreChatProvidersSection({
   onSave,
   onReset,
   onEdit,
-  onDelete
+  onDelete,
+  disabled = false,
 }: LibreChatProvidersSectionProps) {
+  const isDisabled = saving || disabled;
   return (
     <CollapsibleSection title="LibreChat 提供者配置" description="管理 LibreChat 多提供者 Base URL、API Key、模型和权重。用于 AI 聊天后端路由，将用户请求分发到不同 AI 提供商（OpenAI、Claude 等）。" sectionKey="providers" isOpen={isOpen} onToggle={onToggle} prefersReducedMotion={prefersReducedMotion} headerRight={
               <div className="flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
@@ -94,6 +97,7 @@ export default function LibreChatProvidersSection({
                   <input
                     value={providerBaseUrl}
                     onChange={(e) => onBaseUrlChange(e.target.value)}
+                    disabled={disabled}
                     placeholder="https://your-openai-compatible.example"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
                   />
@@ -103,6 +107,7 @@ export default function LibreChatProvidersSection({
                   <input
                     value={providerApiKey}
                     onChange={(e) => onApiKeyChange(e.target.value)}
+                    disabled={disabled}
                     placeholder="re_xxx 或 sk-xxx"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
                   />
@@ -112,6 +117,7 @@ export default function LibreChatProvidersSection({
                   <input
                     value={providerModel}
                     onChange={(e) => onModelChange(e.target.value)}
+                    disabled={disabled}
                     placeholder="gpt-4o-mini / gpt-oss-120b 等"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
                   />
@@ -121,6 +127,7 @@ export default function LibreChatProvidersSection({
                   <input
                     value={providerGroup}
                     onChange={(e) => onGroupChange(e.target.value)}
+                    disabled={disabled}
                     placeholder="自定义分组名，用于归类"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
                   />
@@ -131,6 +138,7 @@ export default function LibreChatProvidersSection({
                     type="checkbox"
                     checked={providerEnabled}
                     onChange={(e) => onEnabledChange(e.target.checked)}
+                    disabled={disabled}
                     className="h-4 w-4"
                   />
                 </div>
@@ -140,6 +148,7 @@ export default function LibreChatProvidersSection({
                     type="number"
                     value={providerWeight}
                     onChange={(e) => onWeightChange(Math.max(1, Math.min(10, Number(e.target.value || 1))))}
+                    disabled={disabled}
                     min={1}
                     max={10}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
@@ -157,8 +166,8 @@ export default function LibreChatProvidersSection({
                 </m.button>
                 <m.button
                   onClick={onSave}
-                  disabled={saving}
-                  className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
+                  disabled={isDisabled}
+                  className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
                   whileTap={{ scale: 0.96 }}
                 >
                   {saving ? '保存中...' : (providerId ? '更新' : '新增')}
@@ -193,15 +202,16 @@ export default function LibreChatProvidersSection({
                           <div className="mt-2 flex items-center justify-end gap-2">
                             <m.button
                               onClick={() => onEdit(p)}
-                              className="px-2 sm:px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-sm"
+                              disabled={disabled}
+                              className="px-2 sm:px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition disabled:opacity-40 disabled:cursor-not-allowed text-sm"
                               whileTap={{ scale: 0.95 }}
                             >
                               编辑
                             </m.button>
                             <m.button
                               onClick={() => onDelete(p.id)}
-                              disabled={deletingId === p.id}
-                              className="px-2 sm:px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm"
+                              disabled={deletingId === p.id || disabled}
+                              className="px-2 sm:px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm"
                               whileTap={{ scale: 0.95 }}
                             >
                               {deletingId === p.id ? '删除中...' : '删除'}
@@ -244,15 +254,16 @@ export default function LibreChatProvidersSection({
                               <div className="flex items-center justify-end gap-2">
                                 <m.button
                                   onClick={() => onEdit(p)}
-                                  className="px-2 sm:px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-sm"
+                                  disabled={disabled}
+                                  className="px-2 sm:px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition disabled:opacity-40 disabled:cursor-not-allowed text-sm"
                                   whileTap={{ scale: 0.95 }}
                                 >
                                   编辑
                                 </m.button>
                                 <m.button
                                   onClick={() => onDelete(p.id)}
-                                  disabled={deletingId === p.id}
-                                  className="px-2 sm:px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm"
+                                  disabled={deletingId === p.id || disabled}
+                                  className="px-2 sm:px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm"
                                   whileTap={{ scale: 0.95 }}
                                 >
                                   {deletingId === p.id ? '删除中...' : '删除'}

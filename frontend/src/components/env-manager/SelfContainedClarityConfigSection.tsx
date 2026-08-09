@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { useNotification } from '../Notification';
+import { useAuth } from '../../hooks/useAuth';
+import { isSuperAdmin } from '../../utils/rbac';
 import ClarityConfigSection from './ClarityConfigSection';
 import { CLARITY_CONFIG_API, getAuthHeaders, authFetch } from './api';
 import type { ClarityConfigSetting } from './types';
@@ -12,6 +14,8 @@ interface SelfContainedClarityConfigSectionProps {
 export default function SelfContainedClarityConfigSection({ prefersReducedMotion: reducedMotionProp }: SelfContainedClarityConfigSectionProps) {
   const prefersReducedMotion = useReducedMotion() ?? reducedMotionProp;
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const [isOpen, setIsOpen] = useState(false);
   const fetchedRef = useRef(false);
 
@@ -41,6 +45,7 @@ export default function SelfContainedClarityConfigSection({ prefersReducedMotion
   }, [isOpen, fetchConfig]);
 
   const handleSave = useCallback(async () => {
+    if (!canWrite) return;
     if (saving) return;
     const value = projectIdInput.trim().toLowerCase();
     if (!value) { setNotification({ message: '请填写 Clarity Project ID', type: 'error' }); return; }
@@ -56,9 +61,10 @@ export default function SelfContainedClarityConfigSection({ prefersReducedMotion
       await fetchConfig();
     } catch (e) { setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setSaving(false); }
-  }, [saving, projectIdInput, fetchConfig, setNotification]);
+  }, [canWrite, saving, projectIdInput, fetchConfig, setNotification]);
 
   const handleDelete = useCallback(async () => {
+    if (!canWrite) return;
     if (deleting) return;
     if (!window.confirm('确定删除 Microsoft Clarity 配置？')) return;
     setDeleting(true);
@@ -70,12 +76,12 @@ export default function SelfContainedClarityConfigSection({ prefersReducedMotion
       await fetchConfig();
     } catch (e) { setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setDeleting(false); }
-  }, [deleting, fetchConfig, setNotification]);
+  }, [canWrite, deleting, fetchConfig, setNotification]);
 
   return (
     <ClarityConfigSection
       isOpen={isOpen} onToggle={() => setIsOpen((v) => !v)} prefersReducedMotion={prefersReducedMotion}
-      loading={loading} saving={saving} deleting={deleting} config={config}
+      loading={loading} saving={saving} deleting={deleting} config={config} disabled={!canWrite}
       projectIdInput={projectIdInput} onProjectIdChange={setProjectIdInput}
       onRefresh={fetchConfig} onSave={handleSave} onDelete={handleDelete}
     />

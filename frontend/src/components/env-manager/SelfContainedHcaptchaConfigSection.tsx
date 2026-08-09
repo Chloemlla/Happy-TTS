@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { useNotification } from '../Notification';
+import { useAuth } from '../../hooks/useAuth';
+import { isSuperAdmin } from '../../utils/rbac';
 import HcaptchaConfigSection from './HcaptchaConfigSection';
 import { HCAPTCHA_CONFIG_API, getAuthHeaders, authFetch } from './api';
 import type { HCaptchaConfigSetting } from './types';
@@ -11,6 +13,8 @@ interface SelfContainedHcaptchaConfigSectionProps {
 
 export default function SelfContainedHcaptchaConfigSection({ prefersReducedMotion: reducedMotionProp }: SelfContainedHcaptchaConfigSectionProps) {
   const prefersReducedMotion = useReducedMotion() ?? reducedMotionProp;
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const { setNotification } = useNotification();
   const [isOpen, setIsOpen] = useState(false);
   const fetchedRef = useRef(false);
@@ -43,6 +47,7 @@ export default function SelfContainedHcaptchaConfigSection({ prefersReducedMotio
   }, [isOpen, fetchConfig]);
 
   const handleSave = useCallback(async (key: 'HCAPTCHA_SECRET_KEY' | 'HCAPTCHA_SITE_KEY') => {
+    if (!canWrite) return;
     if (saving) return;
     const value = key === 'HCAPTCHA_SECRET_KEY' ? secretKeyInput.trim() : siteKeyInput.trim();
     if (!value) { setNotification({ message: `请填写${key === 'HCAPTCHA_SECRET_KEY' ? 'Secret Key' : 'Site Key'}`, type: 'error' }); return; }
@@ -56,9 +61,10 @@ export default function SelfContainedHcaptchaConfigSection({ prefersReducedMotio
       await fetchConfig();
     } catch (e) { setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setSaving(false); }
-  }, [saving, secretKeyInput, siteKeyInput, fetchConfig, setNotification]);
+  }, [canWrite, saving, secretKeyInput, siteKeyInput, fetchConfig, setNotification]);
 
   const handleDelete = useCallback(async (key: 'HCAPTCHA_SECRET_KEY' | 'HCAPTCHA_SITE_KEY') => {
+    if (!canWrite) return;
     if (deleting) return;
     if (!window.confirm(`确定删除 hCaptcha 配置「${key}」？`)) return;
     setDeleting(true);
@@ -70,11 +76,12 @@ export default function SelfContainedHcaptchaConfigSection({ prefersReducedMotio
       await fetchConfig();
     } catch (e) { setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setDeleting(false); }
-  }, [deleting, fetchConfig, setNotification]);
+  }, [canWrite, deleting, fetchConfig, setNotification]);
 
   return (
     <HcaptchaConfigSection
       isOpen={isOpen} onToggle={() => setIsOpen((v) => !v)} prefersReducedMotion={prefersReducedMotion}
+      disabled={!canWrite}
       loading={loading} saving={saving} deleting={deleting} config={config}
       siteKeyInput={siteKeyInput} secretKeyInput={secretKeyInput}
       onSiteKeyChange={setSiteKeyInput} onSecretKeyChange={setSecretKeyInput}

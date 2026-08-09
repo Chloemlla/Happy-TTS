@@ -19,6 +19,7 @@ export interface ClarityConfigSectionProps {
   onRefresh: () => void;
   onSave: () => void;
   onDelete: () => void;
+  disabled?: boolean;
 }
 
 export default function ClarityConfigSection({
@@ -33,7 +34,8 @@ export default function ClarityConfigSection({
   onProjectIdChange,
   onRefresh,
   onSave,
-  onDelete
+  onDelete,
+  disabled = false,
 }: ClarityConfigSectionProps) {
   return (
     <CollapsibleSection title="Microsoft Clarity 配置设置" description="管理 Microsoft Clarity Project ID 和启用状态。用于前端用户行为分析（会话回放、热力图），不需要后端参与。" sectionKey="clarity" isOpen={isOpen} onToggle={onToggle} prefersReducedMotion={prefersReducedMotion} headerRight={
@@ -55,6 +57,7 @@ export default function ClarityConfigSection({
                       onChange={(e) => onProjectIdChange(e.target.value.toLowerCase())}
                       placeholder="例如：t1dkcavsyz（10位小写字母数字）"
                       maxLength={10}
+                      disabled={disabled}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base font-mono"
                     />
                     <div className="mt-1 text-xs text-gray-500">
@@ -72,16 +75,16 @@ export default function ClarityConfigSection({
                 <div className="flex items-center justify-end gap-3">
                   <m.button
                     onClick={onDelete}
-                    disabled={deleting}
-                    className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm font-medium"
+                    disabled={deleting || disabled}
+                    className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
                     whileTap={{ scale: 0.96 }}
                   >
                     {deleting ? '删除中...' : '删除'}
                   </m.button>
                   <m.button
                     onClick={onSave}
-                    disabled={saving}
-                    className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
+                    disabled={saving || disabled}
+                    className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
                     whileTap={{ scale: 0.96 }}
                   >
                     {saving ? '保存中...' : '保存/更新'}

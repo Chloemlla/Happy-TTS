@@ -18,6 +18,7 @@ export interface EmailSystemSettingsSectionProps {
   onRefresh: () => void;
   onSave: (config: Partial<EmailSystemConfigItem>) => void;
   onDelete: () => void;
+  disabled?: boolean;
 }
 
 export default function EmailSystemSettingsSection({
@@ -31,6 +32,7 @@ export default function EmailSystemSettingsSection({
   onRefresh,
   onSave,
   onDelete,
+  disabled = false,
 }: EmailSystemSettingsSectionProps) {
   const [enabled, setEnabled] = useState(config?.enabled ?? false);
   const [resendDomain, setResendDomain] = useState(config?.resendDomain ?? '');
@@ -105,6 +107,7 @@ export default function EmailSystemSettingsSection({
                   type="checkbox"
                   checked={enabled}
                   onChange={(e) => setEnabled(e.target.checked)}
+                  disabled={disabled}
                   className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                 />
               </div>
@@ -114,6 +117,7 @@ export default function EmailSystemSettingsSection({
                   value={resendApiKey}
                   onChange={(e) => setResendApiKey(e.target.value)}
                   placeholder="re_... 留空保留原值"
+                  disabled={disabled}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
                 />
               </div>
@@ -123,6 +127,7 @@ export default function EmailSystemSettingsSection({
                   value={resendDomain}
                   onChange={(e) => setResendDomain(e.target.value)}
                   placeholder="例如: 951100.xyz"
+                  disabled={disabled}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
                 />
               </div>
@@ -134,6 +139,7 @@ export default function EmailSystemSettingsSection({
                   max={1000000}
                   value={quotaTotal}
                   onChange={(e) => setQuotaTotal(Number(e.target.value))}
+                  disabled={disabled}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
                 />
               </div>
@@ -150,6 +156,7 @@ export default function EmailSystemSettingsSection({
                   type="checkbox"
                   checked={outemailEnabled}
                   onChange={(e) => setOutemailEnabled(e.target.checked)}
+                  disabled={disabled}
                   className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                 />
               </div>
@@ -159,6 +166,7 @@ export default function EmailSystemSettingsSection({
                   value={outemailApiKey}
                   onChange={(e) => setOutemailApiKey(e.target.value)}
                   placeholder="re_... 留空保留原值"
+                  disabled={disabled}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
                 />
               </div>
@@ -168,6 +176,7 @@ export default function EmailSystemSettingsSection({
                   value={outemailDomain}
                   onChange={(e) => setOutemailDomain(e.target.value)}
                   placeholder="例如: chloemlla.com"
+                  disabled={disabled}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
                 />
               </div>
@@ -177,6 +186,7 @@ export default function EmailSystemSettingsSection({
                   value={outemailCode}
                   onChange={(e) => setOutemailCode(e.target.value)}
                   placeholder="留空保留原值"
+                  disabled={disabled}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
                 />
               </div>
@@ -188,6 +198,7 @@ export default function EmailSystemSettingsSection({
                   max={1000000}
                   value={outemailQuotaTotal}
                   onChange={(e) => setOutemailQuotaTotal(Number(e.target.value))}
+                  disabled={disabled}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
                 />
               </div>
@@ -203,16 +214,16 @@ export default function EmailSystemSettingsSection({
             )}
             <m.button
               onClick={handleSave}
-              disabled={saving}
-              className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 text-sm font-medium"
+              disabled={saving || disabled}
+              className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
               whileTap={{ scale: 0.96 }}
             >
               {saving ? '保存中...' : '保存'}
             </m.button>
             <m.button
               onClick={onDelete}
-              disabled={deleting}
-              className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 text-sm font-medium"
+              disabled={deleting || disabled}
+              className="px-3 sm:px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
               whileTap={{ scale: 0.95 }}
             >
               {deleting ? '重置中...' : '重置为默认'}

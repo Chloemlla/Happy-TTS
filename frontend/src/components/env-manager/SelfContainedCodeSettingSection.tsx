@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { useNotification } from '../Notification';
+import { useAuth } from '../../hooks/useAuth';
+import { isSuperAdmin } from '../../utils/rbac';
 import CodeSettingSection from './CodeSettingSection';
 import { authFetch, getAuthHeaders } from './api';
 
@@ -19,6 +21,8 @@ export default function SelfContainedCodeSettingSection({
 }: SelfContainedCodeSettingSectionProps) {
   const prefersReducedMotion = useReducedMotion() ?? reducedMotionProp;
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const [isOpen, setIsOpen] = useState(false);
   const fetchedRef = useRef(false);
 
@@ -47,6 +51,7 @@ export default function SelfContainedCodeSettingSection({
   }, [isOpen, fetchSetting]);
 
   const handleSave = useCallback(async () => {
+    if (!canWrite) return;
     if (saving) return;
     const code = inputValue.trim();
     if (!code) { setNotification({ message: `请填写${inputLabel}`, type: 'error' }); return; }
@@ -59,9 +64,10 @@ export default function SelfContainedCodeSettingSection({
       setInputValue(''); await fetchSetting();
     } catch (e) { setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setSaving(false); }
-  }, [saving, inputValue, apiUrl, inputLabel, fetchSetting, setNotification]);
+  }, [canWrite, saving, inputValue, apiUrl, inputLabel, fetchSetting, setNotification]);
 
   const handleDelete = useCallback(async () => {
+    if (!canWrite) return;
     if (deleting) return;
     if (!window.confirm(`确定删除当前${inputLabel}配置？`)) return;
     setDeleting(true);
@@ -73,13 +79,13 @@ export default function SelfContainedCodeSettingSection({
       await fetchSetting();
     } catch (e) { setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setDeleting(false); }
-  }, [deleting, apiUrl, inputLabel, fetchSetting, setNotification]);
+  }, [canWrite, deleting, apiUrl, inputLabel, fetchSetting, setNotification]);
 
   return (
     <CodeSettingSection
       title={title} description={description} sectionKey={sectionKey}
       isOpen={isOpen} onToggle={() => setIsOpen((v) => !v)} prefersReducedMotion={prefersReducedMotion}
-      loading={loading} saving={saving} deleting={deleting}
+      loading={loading} saving={saving} deleting={deleting} disabled={!canWrite}
       inputLabel={inputLabel} inputValue={inputValue} inputPlaceholder={inputPlaceholder}
       currentValue={currentValue} updatedAt={updatedAt}
       onInputChange={setInputValue} onRefresh={fetchSetting} onSave={handleSave} onDelete={handleDelete}

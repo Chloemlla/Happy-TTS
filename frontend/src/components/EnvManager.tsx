@@ -4,7 +4,7 @@ import React, {
 import { LazyMotion, domAnimation, m, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
-import { isSuperAdmin } from '../utils/rbac';
+import { isSuperAdmin, isAdminRole } from '../utils/rbac';
 import { useSearchParams } from 'react-router-dom';
 import {
   API_URL,
@@ -66,6 +66,7 @@ export { handleSourceClick, handleSourceModalClose };
 
 const EnvManager: React.FC = () => {
   const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const { setNotification } = useNotification();
   const prefersReducedMotion = useReducedMotion();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -162,9 +163,10 @@ const EnvManager: React.FC = () => {
 
   // Env CRUD handlers
   const handleStartEdit = useCallback((item: EnvItem) => {
+    if (!canWrite) return;
     setEditingKey(item.key);
     setForm({ key: item.key, value: item.value, desc: item.desc });
-  }, []);
+  }, [canWrite]);
 
   const handleCancelEdit = useCallback(() => {
     setEditingKey(null);
@@ -172,6 +174,7 @@ const EnvManager: React.FC = () => {
   }, []);
 
   const handleSaveEdit = useCallback(async () => {
+    if (!canWrite) return;
     if (!form.key) return;
     const key = form.key;
     const value = (form.value || '').trim();
@@ -184,9 +187,10 @@ const EnvManager: React.FC = () => {
       setEditingKey(null); setForm({});
       await fetchEnvs();
     } catch (e) { setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
-  }, [form, fetchEnvs, setNotification]);
+  }, [canWrite, form, fetchEnvs, setNotification]);
 
   const handleDeleteEnvVar = useCallback(async (key: string) => {
+    if (!canWrite) return;
     if (!window.confirm(`确定删除环境变量「${key}」？`)) return;
     try {
       const res = await authFetch(API_URL, { method: 'DELETE', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify({ key }) });
@@ -195,7 +199,7 @@ const EnvManager: React.FC = () => {
       setNotification({ message: `${key} 已删除`, type: 'success' });
       await fetchEnvs();
     } catch (e) { setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
-  }, [fetchEnvs, setNotification]);
+  }, [canWrite, fetchEnvs, setNotification]);
 
   // Configuration workflow
   const fetchConfigurationIssues = useCallback(async () => {
@@ -268,8 +272,8 @@ const EnvManager: React.FC = () => {
   ) || [];
   const configurationNextIssue = configurationProgressItems.find((issue) => configurationCurrentIds.has(issue.id));
 
-  // Superadmin check
-  if (!user || !isSuperAdmin(user.role)) {
+  // Admin check: admin 可只读查看，写操作由 canWrite（superadmin）门控
+  if (!user || !isAdminRole(user.role)) {
     return (
       <LazyMotion features={domAnimation}>
         <div className="space-y-6">
@@ -386,8 +390,8 @@ const EnvManager: React.FC = () => {
                                 <div className="flex items-center justify-between gap-2">
                                   <div className="text-sm sm:text-base font-semibold text-slate-900 tracking-wide break-words">{item.key.split(':').pop() || item.key}</div>
                                   <div className="flex items-center gap-1 shrink-0">
-                                    <button onClick={() => handleStartEdit(item)} className="p-1.5 text-slate-400 hover:text-slate-900 transition rounded hover:bg-slate-100" title="编辑"><FaEdit className="w-3.5 h-3.5" /></button>
-                                    <button onClick={() => handleDeleteEnvVar(item.key)} className="p-1.5 text-slate-400 hover:text-rose-600 transition rounded hover:bg-rose-50" title="删除"><FaTrash className="w-3.5 h-3.5" /></button>
+                                    <button onClick={() => handleStartEdit(item)} disabled={!canWrite} className="p-1.5 text-slate-400 hover:text-slate-900 transition rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed" title="编辑"><FaEdit className="w-3.5 h-3.5" /></button>
+                                    <button onClick={() => handleDeleteEnvVar(item.key)} disabled={!canWrite} className="p-1.5 text-slate-400 hover:text-rose-600 transition rounded hover:bg-rose-50 disabled:opacity-40 disabled:cursor-not-allowed" title="删除"><FaTrash className="w-3.5 h-3.5" /></button>
                                   </div>
                                 </div>
                                 {editingKey === item.key ? (
@@ -433,8 +437,8 @@ const EnvManager: React.FC = () => {
                               </td>
                               <td className="px-4 py-3 align-top">
                                 <div className="flex items-center justify-center gap-1">
-                                  <button onClick={() => handleStartEdit(item)} className="p-1.5 text-slate-400 hover:text-slate-900 transition rounded hover:bg-slate-100" title="编辑"><FaEdit className="w-3.5 h-3.5" /></button>
-                                  <button onClick={() => handleDeleteEnvVar(item.key)} className="p-1.5 text-slate-400 hover:text-rose-600 transition rounded hover:bg-rose-50" title="删除"><FaTrash className="w-3.5 h-3.5" /></button>
+                                  <button onClick={() => handleStartEdit(item)} disabled={!canWrite} className="p-1.5 text-slate-400 hover:text-slate-900 transition rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed" title="编辑"><FaEdit className="w-3.5 h-3.5" /></button>
+                                  <button onClick={() => handleDeleteEnvVar(item.key)} disabled={!canWrite} className="p-1.5 text-slate-400 hover:text-rose-600 transition rounded hover:bg-rose-50 disabled:opacity-40 disabled:cursor-not-allowed" title="删除"><FaTrash className="w-3.5 h-3.5" /></button>
                                 </div>
                               </td>
                             </tr>

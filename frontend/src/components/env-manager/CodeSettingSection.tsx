@@ -26,6 +26,7 @@ interface CodeSettingSectionProps {
   onRefresh: () => void;
   onSave: () => void;
   onDelete: () => void;
+  disabled?: boolean;
 }
 
 export default function CodeSettingSection({
@@ -48,6 +49,7 @@ export default function CodeSettingSection({
   onRefresh,
   onSave,
   onDelete,
+  disabled = false,
 }: CodeSettingSectionProps) {
   return (
     <CollapsibleSection
@@ -83,6 +85,7 @@ export default function CodeSettingSection({
         isDeleting={deleting}
         onSave={onSave}
         onDelete={onDelete}
+        readOnly={disabled}
       />
       <div className="mt-4 text-xs text-slate-500">
         最后更新时间：{updatedAt ? new Date(updatedAt).toLocaleString() : '-'}

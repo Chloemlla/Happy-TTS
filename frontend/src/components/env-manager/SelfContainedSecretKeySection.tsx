@@ -4,6 +4,8 @@ import { useNotification } from '../Notification';
 import SecretKeySection from './SecretKeySection';
 import { authFetch, getAuthHeaders } from './api';
 import { signedFetch } from '../../utils/requestSigner';
+import { useAuth } from '../../hooks/useAuth';
+import { isSuperAdmin } from '../../utils/rbac';
 
 interface SelfContainedSecretKeySectionProps {
   title: string;
@@ -26,6 +28,8 @@ export default function SelfContainedSecretKeySection({
 }: SelfContainedSecretKeySectionProps) {
   const prefersReducedMotion = useReducedMotion() ?? reducedMotionProp;
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const [isOpen, setIsOpen] = useState(false);
   const fetchedRef = useRef(false);
 
@@ -61,6 +65,7 @@ export default function SelfContainedSecretKeySection({
   }, [isOpen, doFetch]);
 
   const handleSave = useCallback(async () => {
+    if (!canWrite) return;
     if (saving) return;
     const value = inputValue.trim();
     if (!value) { setNotification({ message: `请填写${inputLabel}`, type: 'error' }); return; }
@@ -77,9 +82,10 @@ export default function SelfContainedSecretKeySection({
       setInputValue(''); await doFetch();
     } catch (e) { setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setSaving(false); }
-  }, [saving, inputValue, inputLabel, apiUrl, useSignedRequest, extraField, extraFieldValue, doFetch, setNotification]);
+  }, [canWrite, saving, inputValue, inputLabel, apiUrl, useSignedRequest, extraField, extraFieldValue, doFetch, setNotification]);
 
   const handleDelete = useCallback(async () => {
+    if (!canWrite) return;
     if (deleting) return;
     if (!window.confirm('确定删除此配置？')) return;
     setDeleting(true);
@@ -93,13 +99,13 @@ export default function SelfContainedSecretKeySection({
       await doFetch();
     } catch (e) { setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setDeleting(false); }
-  }, [deleting, apiUrl, useSignedRequest, extraField, extraFieldValue, doFetch, setNotification]);
+  }, [canWrite, deleting, apiUrl, useSignedRequest, extraField, extraFieldValue, doFetch, setNotification]);
 
   return (
     <SecretKeySection
       title={title} description={description} sectionKey={sectionKey}
       isOpen={isOpen} onToggle={() => setIsOpen((v) => !v)} prefersReducedMotion={prefersReducedMotion}
-      loading={loading} saving={saving} deleting={deleting}
+      loading={loading} saving={saving} deleting={deleting} disabled={!canWrite}
       inputLabel={inputLabel} inputValue={inputValue} inputPlaceholder={inputPlaceholder}
       currentLabel={currentLabel} currentValue={currentValue} updatedAt={updatedAt}
       onInputChange={setInputValue} onRefresh={doFetch} onSave={handleSave} onDelete={handleDelete}

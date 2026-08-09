@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
+import { useAuth } from '../../hooks/useAuth';
+import { isSuperAdmin } from '../../utils/rbac';
 import { useNotification } from '../Notification';
 import SynapseAndroidConfigSection from './SynapseAndroidConfigSection';
 import { SYNAPSE_ANDROID_API, GOOGLE_WEB_CLIENT_ID_PATTERN, getAuthHeaders, authFetch } from './api';
@@ -11,6 +13,8 @@ interface SelfContainedSynapseAndroidConfigSectionProps {
 export default function SelfContainedSynapseAndroidConfigSection({ prefersReducedMotion: reducedMotionProp }: SelfContainedSynapseAndroidConfigSectionProps) {
   const prefersReducedMotion = useReducedMotion() ?? reducedMotionProp;
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const [isOpen, setIsOpen] = useState(false);
   const fetchedRef = useRef(false);
 
@@ -50,6 +54,7 @@ export default function SelfContainedSynapseAndroidConfigSection({ prefersReduce
   }, [isOpen, fetchConfig]);
 
   const handleSave = useCallback(async () => {
+    if (!canWrite) return;
     if (saving) return;
     const pkg = packageInput.trim() || 'com.synapse.mobile';
     const fps = fingerprintsInput.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
@@ -66,9 +71,10 @@ export default function SelfContainedSynapseAndroidConfigSection({ prefersReduce
       await fetchConfig();
     } catch (e) { setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setSaving(false); }
-  }, [saving, packageInput, fingerprintsInput, googleClientIdInput, disabled, fetchConfig, setNotification]);
+  }, [canWrite, saving, packageInput, fingerprintsInput, googleClientIdInput, disabled, fetchConfig, setNotification]);
 
   const handleReset = useCallback(async () => {
+    if (!canWrite) return;
     if (deleting) return;
     if (!window.confirm('确定重置 Synapse Android 配置为默认值？')) return;
     setDeleting(true);
@@ -80,12 +86,12 @@ export default function SelfContainedSynapseAndroidConfigSection({ prefersReduce
       await fetchConfig();
     } catch (e) { setNotification({ message: '重置失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setDeleting(false); }
-  }, [deleting, fetchConfig, setNotification]);
+  }, [canWrite, deleting, fetchConfig, setNotification]);
 
   return (
     <SynapseAndroidConfigSection
       isOpen={isOpen} onToggle={() => setIsOpen((v) => !v)} prefersReducedMotion={prefersReducedMotion}
-      loading={loading} saving={saving} deleting={deleting}
+      loading={loading} saving={saving} deleting={deleting} readOnly={!canWrite}
       packageInput={packageInput} fingerprintsInput={fingerprintsInput} googleClientIdInput={googleClientIdInput} disabled={disabled}
       currentPackage={currentPackage} currentFingerprints={currentFingerprints} currentGoogleClientId={currentGoogleClientId} updatedAt={updatedAt}
       onPackageInputChange={setPackageInput} onFingerprintsInputChange={setFingerprintsInput} onGoogleClientIdInputChange={setGoogleClientIdInput} onDisabledChange={setDisabled}

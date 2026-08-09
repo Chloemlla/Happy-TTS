@@ -22,6 +22,7 @@ interface GoogleClientIdsSectionProps {
   onRefresh: () => void;
   onSave: () => void;
   onReset: () => void;
+  disabled?: boolean;
 }
 
 export default function GoogleClientIdsSection({
@@ -41,7 +42,9 @@ export default function GoogleClientIdsSection({
   onRefresh,
   onSave,
   onReset,
+  disabled = false,
 }: GoogleClientIdsSectionProps) {
+  const isDisabled = saving || deleting || disabled;
   return (
     <CollapsibleSection
       title="Google / NexAI Client ID 环境变量"
@@ -81,6 +84,7 @@ export default function GoogleClientIdsSection({
           <input
             value={googleClientIdInput}
             onChange={(event) => onGoogleClientIdInputChange(event.target.value)}
+            disabled={disabled}
             placeholder="xxxx.apps.googleusercontent.com"
             autoComplete="off"
             spellCheck={false}
@@ -96,6 +100,7 @@ export default function GoogleClientIdsSection({
           <input
             value={nexaiGoogleClientIdInput}
             onChange={(event) => onNexaiGoogleClientIdInputChange(event.target.value)}
+            disabled={disabled}
             placeholder="xxxx.apps.googleusercontent.com"
             autoComplete="off"
             spellCheck={false}
@@ -113,16 +118,16 @@ export default function GoogleClientIdsSection({
       <div className="flex items-center justify-end gap-3">
         <m.button
           onClick={onReset}
-          disabled={deleting || saving}
-          className="rounded-lg bg-red-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-red-600 disabled:opacity-50 sm:px-4"
+          disabled={isDisabled}
+          className="rounded-lg bg-red-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-red-600 disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed sm:px-4"
           whileTap={{ scale: 0.96 }}
         >
           {deleting ? '重置中...' : '重置'}
         </m.button>
         <m.button
           onClick={onSave}
-          disabled={saving || deleting}
-          className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50 sm:px-4"
+          disabled={isDisabled}
+          className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed sm:px-4"
           whileTap={{ scale: 0.96 }}
         >
           {saving ? '保存中...' : '保存/更新'}

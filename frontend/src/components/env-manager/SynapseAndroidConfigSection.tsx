@@ -6,6 +6,7 @@ interface SynapseAndroidConfigSectionProps {
   isOpen: boolean;
   onToggle: (key: string) => void;
   prefersReducedMotion?: boolean | null;
+  readOnly?: boolean;
   loading: boolean;
   saving: boolean;
   deleting: boolean;
@@ -33,6 +34,7 @@ export default function SynapseAndroidConfigSection({
   isOpen,
   onToggle,
   prefersReducedMotion,
+  readOnly = false,
   loading,
   saving,
   deleting,
@@ -52,6 +54,8 @@ export default function SynapseAndroidConfigSection({
   onSave,
   onReset,
 }: SynapseAndroidConfigSectionProps) {
+  const isDisabled = saving || deleting || readOnly;
+
   return (
     <CollapsibleSection
       title="Synapse Android / assetlinks 配置"
@@ -95,6 +99,7 @@ export default function SynapseAndroidConfigSection({
           <input
             value={packageInput}
             onChange={(event) => onPackageInputChange(event.target.value)}
+            disabled={readOnly}
             placeholder="com.synapse.mobile"
             autoComplete="off"
             spellCheck={false}
@@ -111,6 +116,7 @@ export default function SynapseAndroidConfigSection({
           <input
             value={googleClientIdInput}
             onChange={(event) => onGoogleClientIdInputChange(event.target.value)}
+            disabled={readOnly}
             placeholder="xxxx.apps.googleusercontent.com"
             autoComplete="off"
             spellCheck={false}
@@ -130,6 +136,7 @@ export default function SynapseAndroidConfigSection({
         <textarea
           value={fingerprintsInput}
           onChange={(event) => onFingerprintsInputChange(event.target.value)}
+          disabled={readOnly}
           placeholder="E9:D8:5A:D2:52:C3:8D:86:C6:E4:B2:A8:C0:49:B8:B5:A9:FA:79:AC:6E:BB:11:8C:94:0A:83:03:B6:96:39:98"
           rows={4}
           spellCheck={false}
@@ -150,6 +157,7 @@ export default function SynapseAndroidConfigSection({
           type="checkbox"
           checked={disabled}
           onChange={(event) => onDisabledChange(event.target.checked)}
+          disabled={readOnly}
           className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
         />
         <span>
@@ -163,16 +171,16 @@ export default function SynapseAndroidConfigSection({
       <div className="flex items-center justify-end gap-3">
         <m.button
           onClick={onReset}
-          disabled={deleting || saving}
-          className="rounded-lg bg-red-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-red-600 disabled:opacity-50 sm:px-4"
+          disabled={isDisabled}
+          className="rounded-lg bg-red-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-red-600 disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed sm:px-4"
           whileTap={{ scale: 0.96 }}
         >
           {deleting ? '重置中...' : '重置'}
         </m.button>
         <m.button
           onClick={onSave}
-          disabled={saving || deleting}
-          className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50 sm:px-4"
+          disabled={isDisabled}
+          className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed sm:px-4"
           whileTap={{ scale: 0.96 }}
         >
           {saving ? '保存中...' : '保存/更新'}

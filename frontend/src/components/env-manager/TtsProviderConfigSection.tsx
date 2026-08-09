@@ -18,6 +18,8 @@ import {
   logSharePrimaryButtonClass,
   logShareInputClass,
 } from '../LogShareStyleScaffold';
+import { useAuth } from '../../hooks/useAuth';
+import { isSuperAdmin } from '../../utils/rbac';
 
 const REFRESH_BUTTON_CLASS =
   'inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400';
@@ -133,6 +135,8 @@ export default function TtsProviderConfigSection({
   prefersReducedMotion,
   client = defaultClient,
 }: TtsProviderConfigSectionProps) {
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const [isOpen, setIsOpen] = useState(false);
   const hasRequestedLoad = useRef(false);
   const [loading, setLoading] = useState(false);
@@ -195,6 +199,7 @@ export default function TtsProviderConfigSection({
   };
 
   const handleSave = async () => {
+    if (!canWrite) return;
     if (saving) return;
     const baseUrl = fishBaseUrl.trim();
     const model = defaultModel.trim();
@@ -286,7 +291,7 @@ export default function TtsProviderConfigSection({
             value={provider}
             onChange={(event) => handleProviderChange(event.target.value === 'fish' ? 'fish' : 'openai')}
             className={`${logShareInputClass} mt-1`}
-            disabled={loading || saving}
+            disabled={loading || saving || !canWrite}
           >
             <option value="openai">OpenAI</option>
             <option value="fish">Fish Audio</option>
@@ -299,7 +304,7 @@ export default function TtsProviderConfigSection({
             value={defaultModel}
             onChange={(event) => setDefaultModel(event.target.value)}
             className={`${logShareInputClass} mt-1 font-mono`}
-            disabled={loading || saving}
+            disabled={loading || saving || !canWrite}
           />
           <datalist id="tts-provider-model-options">
             {modelOptions.map((model) => <option key={model} value={model} />)}
@@ -311,32 +316,32 @@ export default function TtsProviderConfigSection({
         <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
           <label className="block text-sm font-medium text-slate-700">
             Fish Audio Base URL
-            <input value={fishBaseUrl} onChange={(event) => setFishBaseUrl(event.target.value)} className={`${logShareInputClass} mt-1 font-mono`} disabled={loading || saving} />
+            <input value={fishBaseUrl} onChange={(event) => setFishBaseUrl(event.target.value)} className={`${logShareInputClass} mt-1 font-mono`} disabled={loading || saving || !canWrite} />
           </label>
           <label className="block text-sm font-medium text-slate-700">
             Reference ID（管理员配置音色）
-            <input value={fishReferenceId} onChange={(event) => setFishReferenceId(event.target.value)} className={`${logShareInputClass} mt-1 font-mono`} disabled={loading || saving} placeholder="可留空；请求将不指定 reference_id" />
+            <input value={fishReferenceId} onChange={(event) => setFishReferenceId(event.target.value)} className={`${logShareInputClass} mt-1 font-mono`} disabled={loading || saving || !canWrite} placeholder="可留空；请求将不指定 reference_id" />
           </label>
           <label className="block text-sm font-medium text-slate-700">
             API Key
-            <input type="password" value={fishApiKey} onChange={(event) => setFishApiKey(event.target.value)} className={`${logShareInputClass} mt-1 font-mono`} disabled={loading || saving} autoComplete="new-password" placeholder={apiKeyConfigured ? '已配置；留空保留现有密钥' : '请输入 Fish Audio API Key'} />
+            <input type="password" value={fishApiKey} onChange={(event) => setFishApiKey(event.target.value)} className={`${logShareInputClass} mt-1 font-mono`} disabled={loading || saving || !canWrite} autoComplete="new-password" placeholder={apiKeyConfigured ? '已配置；留空保留现有密钥' : '请输入 Fish Audio API Key'} />
             <span className="mt-1 block text-xs text-slate-500">{apiKeyConfigured ? '服务器已保存 API Key。空值不会覆盖现有密钥。' : '尚未配置 API Key。'}</span>
           </label>
           <label className="block text-sm font-medium text-slate-700">
             Fish Audio 模型库请求 curl
-            <textarea value={fishModelCurl} onChange={(event) => setFishModelCurl(event.target.value)} className={`${logShareInputClass} mt-1 min-h-32 font-mono text-xs`} disabled={loading || saving} placeholder="粘贴 GET /model/web 的 Windows curl 命令" />
+            <textarea value={fishModelCurl} onChange={(event) => setFishModelCurl(event.target.value)} className={`${logShareInputClass} mt-1 min-h-32 font-mono text-xs`} disabled={loading || saving || !canWrite} placeholder="粘贴 GET /model/web 的 Windows curl 命令" />
             <span className="mt-1 block text-xs text-slate-500">保存后后台代发请求；Authorization 在页面回显时会隐藏。</span>
           </label>
           <label className="block text-sm font-medium text-slate-700">
             Fish Audio 默认音色请求 curl
-            <textarea value={fishDefaultVoicesCurl} onChange={(event) => setFishDefaultVoicesCurl(event.target.value)} className={`${logShareInputClass} mt-1 min-h-32 font-mono text-xs`} disabled={loading || saving} placeholder="粘贴 GET /model/default-voices 的 Windows curl 命令" />
+            <textarea value={fishDefaultVoicesCurl} onChange={(event) => setFishDefaultVoicesCurl(event.target.value)} className={`${logShareInputClass} mt-1 min-h-32 font-mono text-xs`} disabled={loading || saving || !canWrite} placeholder="粘贴 GET /model/default-voices 的 Windows curl 命令" />
           </label>
         </div>
       ) : null}
 
       <div className="flex flex-col gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-xs text-slate-500">{updatedAt ? `上次更新：${new Date(updatedAt).toLocaleString()}` : '尚无更新时间'}</div>
-        <m.button type="button" onClick={() => void handleSave()} disabled={loading || saving} className={logSharePrimaryButtonClass} whileTap={{ scale: 0.97 }}>
+        <m.button type="button" onClick={() => void handleSave()} disabled={loading || saving || !canWrite} className={`${logSharePrimaryButtonClass} disabled:opacity-40 disabled:cursor-not-allowed`} whileTap={{ scale: 0.97 }}>
           {saving ? '保存中...' : '保存配置'}
         </m.button>
       </div>

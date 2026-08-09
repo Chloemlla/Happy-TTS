@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
+import { useAuth } from '../../hooks/useAuth';
+import { isSuperAdmin } from '../../utils/rbac';
 import { useNotification } from '../Notification';
 import OutemailSettingsSection from './OutemailSettingsSection';
 import { OUTEMAIL_API, getAuthHeaders, authFetch } from './api';
@@ -12,6 +14,8 @@ interface SelfContainedOutemailSettingsSectionProps {
 export default function SelfContainedOutemailSettingsSection({ prefersReducedMotion: reducedMotionProp }: SelfContainedOutemailSettingsSectionProps) {
   const prefersReducedMotion = useReducedMotion() ?? reducedMotionProp;
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const [isOpen, setIsOpen] = useState(false);
   const fetchedRef = useRef(false);
 
@@ -40,6 +44,7 @@ export default function SelfContainedOutemailSettingsSection({ prefersReducedMot
   }, [isOpen, fetchSettings]);
 
   const handleSave = useCallback(async () => {
+    if (!canWrite) return;
     if (saving) return;
     const d = domain.trim(), c = code.trim(), ak = apiKey.trim();
     if (!c && !ak) { setNotification({ message: '请填写校验码或外部 API Key', type: 'error' }); return; }
@@ -53,9 +58,10 @@ export default function SelfContainedOutemailSettingsSection({ prefersReducedMot
       await fetchSettings();
     } catch (e) { setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setSaving(false); }
-  }, [saving, domain, code, apiKey, fetchSettings, setNotification]);
+  }, [canWrite, saving, domain, code, apiKey, fetchSettings, setNotification]);
 
   const handleDelete = useCallback(async (delDomain: string) => {
+    if (!canWrite) return;
     if (deletingDomain) return;
     if (!window.confirm(`确定删除 OutEmail 域名配置「${delDomain}」？`)) return;
     setDeletingDomain(delDomain);
@@ -67,12 +73,12 @@ export default function SelfContainedOutemailSettingsSection({ prefersReducedMot
       await fetchSettings();
     } catch (e) { setNotification({ message: '删除失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setDeletingDomain(null); }
-  }, [deletingDomain, fetchSettings, setNotification]);
+  }, [canWrite, deletingDomain, fetchSettings, setNotification]);
 
   return (
     <OutemailSettingsSection
       isOpen={isOpen} onToggle={() => setIsOpen((v) => !v)} prefersReducedMotion={prefersReducedMotion}
-      loading={loading} saving={saving} deletingDomain={deletingDomain}
+      loading={loading} saving={saving} deletingDomain={deletingDomain} disabled={!canWrite}
       domain={domain} code={code} apiKey={apiKey} settings={settings}
       onDomainChange={setDomain} onCodeChange={setCode} onApiKeyChange={setApiKey}
       onRefresh={fetchSettings} onSave={handleSave} onDelete={handleDelete}
