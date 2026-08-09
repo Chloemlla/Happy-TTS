@@ -223,7 +223,6 @@ export default function FingerprintManager() {
   }, [keyword]);
 
   const handleCleanup = useCallback(async () => {
-    if (!canWrite) return;
     if (!window.confirm('确定要清理所有过期的临时指纹数据吗？此操作不可撤销。')) return;
     setCleaning(true);
     try {
@@ -238,7 +237,7 @@ export default function FingerprintManager() {
     } finally {
       setCleaning(false);
     }
-  }, [canWrite, fetchDashboard, setNotification]);
+  }, [fetchDashboard, setNotification]);
 
   const updateUserRequirement = useCallback((userId: string, requireFingerprint: boolean, requireFingerprintAt: number) => {
     const patchUser = (user: FingerprintUser): FingerprintUser => user.id === userId
@@ -263,7 +262,6 @@ export default function FingerprintManager() {
   }, []);
 
   const requestUserFingerprint = useCallback(async (userId: string) => {
-    if (!canWrite) return;
     setActionUserId(userId);
     try {
       const response = await api.post<FingerprintRequirementResponse>(`/api/admin/users/${userId}/fingerprint/require`, {
@@ -277,7 +275,7 @@ export default function FingerprintManager() {
     } finally {
       setActionUserId(null);
     }
-  }, [canWrite, setNotification, updateUserRequirement]);
+  }, [setNotification, updateUserRequirement]);
 
   const clearUserFingerprints = useCallback(async (userId: string) => {
     if (!canWrite) return;
