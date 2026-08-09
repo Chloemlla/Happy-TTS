@@ -1,6 +1,6 @@
 # Cross-Layer Compliance Report
 
-Generated: 2026-08-08T08:43:23.942Z
+Generated: 2026-08-09T03:33:21.872Z
 
 ## Summary
 
@@ -11,43 +11,44 @@ Generated: 2026-08-08T08:43:23.942Z
 | Other violations | 0 |
 | Auth-required routes | 10 |
 | Rate-limited routes | 78 |
-| Public routes | 37 |
-| Mixed auth routes | 37 |
+| Public routes | 36 |
+| Mixed auth routes | 38 |
 
 ## Auth Middleware Compliance
 
 | Module | Phase | requiresAuth | Auth Mode | Declared Handlers | Mount Middleware | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| email-routes | early | mixed | none | - | - | ⚠️ Mixed |
-| tts-routes | pre-docs | mixed | none | - | - | ⚠️ Mixed |
-| librechat-compat-routes | pre-docs | mixed | none | - | libreChatLimiter | ⚠️ Mixed |
-| short-url-api-routes | pre-tamper | mixed | none | - | - | ⚠️ Mixed |
+| email-routes | early | mixed | mixed | authMiddleware, adminAuthMiddleware, authenticateSuperAdmin | - | ⚠️ Mixed |
+| tts-routes | pre-docs | mixed | mixed | authenticateAdmin, authenticateSuperAdmin | - | ⚠️ Mixed |
+| librechat-compat-routes | pre-docs | mixed | mixed | authenticateAdmin, authenticateSuperAdmin | libreChatLimiter | ⚠️ Mixed |
+| short-url-api-routes | pre-tamper | mixed | mixed | authMiddleware, adminAuthMiddleware, authenticateSuperAdmin | - | ⚠️ Mixed |
 | auth-routes | pre-tamper | mixed | none | - | - | ⚠️ Mixed |
 | oauth-routes | pre-tamper | mixed | route | authMiddleware, adminAuthMiddleware, oauthTokenAuth, client_secret_basic | - | ⚠️ Mixed |
 | totp-routes | pre-tamper | mixed | none | - | - | ⚠️ Mixed |
-| admin-routes | pre-tamper | true | router | authMiddleware, adminAuthMiddleware | adminLimiter | ✅ Compliant |
+| admin-routes | pre-tamper | true | mixed | authMiddleware, adminAuthMiddleware, authenticateSuperAdmin | adminLimiter | ✅ Compliant |
 | admin-audit-log-routes | pre-tamper | true | mixed | authenticateToken, authenticateAdmin | adminLimiter, authenticateToken | ✅ Compliant |
-| api-key-routes | pre-tamper | true | router | authMiddleware | - | ✅ Compliant |
+| api-key-routes | pre-tamper | true | mixed | authMiddleware, authenticateSuperAdmin | - | ✅ Compliant |
 | status-routes | pre-tamper | mixed | none | - | - | ⚠️ Mixed |
-| turnstile-routes | pre-tamper | mixed | none | - | - | ⚠️ Mixed |
-| policy-routes | pre-tamper | mixed | none | - | - | ⚠️ Mixed |
-| tamper-routes | pre-tamper | mixed | route | authenticateToken, adminOnly | - | ⚠️ Mixed |
-| ticket-routes | pre-tamper | true | router | authenticateToken | - | ✅ Compliant |
-| command-routes | post-tamper | mixed | none | - | - | ⚠️ Mixed |
-| libre-chat-routes | post-tamper | mixed | none | - | - | ⚠️ Mixed |
-| human-check-routes | post-tamper | mixed | route | authenticateToken, adminOnly | - | ⚠️ Mixed |
-| data-collection-admin-routes | post-tamper | true | route | authenticateToken, authenticateAdmin | - | ✅ Compliant |
-| ipfs-routes | post-tamper | mixed | none | - | - | ⚠️ Mixed |
+| turnstile-routes | pre-tamper | mixed | mixed | authenticateAdmin, authenticateSuperAdmin | - | ⚠️ Mixed |
+| policy-routes | pre-tamper | mixed | mixed | authenticateToken, adminOnly, authenticateSuperAdmin | - | ⚠️ Mixed |
+| tamper-routes | pre-tamper | mixed | mixed | authenticateToken, adminOnly, authenticateSuperAdmin | - | ⚠️ Mixed |
+| ticket-routes | pre-tamper | true | mixed | authenticateToken, adminOnly, authenticateSuperAdmin | - | ✅ Compliant |
+| command-routes | post-tamper | mixed | mixed | authenticateToken, authenticateSuperAdmin | - | ⚠️ Mixed |
+| libre-chat-routes | post-tamper | mixed | mixed | authenticateAdmin, authenticateSuperAdmin | - | ⚠️ Mixed |
+| human-check-routes | post-tamper | mixed | mixed | authenticateToken, adminOnly, authenticateSuperAdmin | - | ⚠️ Mixed |
+| data-collection-admin-routes | post-tamper | true | mixed | authenticateToken, authenticateAdmin, authenticateSuperAdmin | - | ✅ Compliant |
+| ipfs-routes | post-tamper | mixed | mixed | authenticateAdmin, authenticateSuperAdmin | - | ⚠️ Mixed |
 | deeplx-routes | post-tamper | true | router | authenticateToken | - | ✅ Compliant |
-| lottery-routes | post-tamper | mixed | route | authenticateToken | - | ⚠️ Mixed |
-| markdown-article-routes | post-tamper | mixed | route | authenticateToken, authenticateAdmin | statusLimiter | ⚠️ Mixed |
-| log-routes | post-tamper | mixed | route | authenticateToken | - | ⚠️ Mixed |
-| passkey-routes | post-tamper | mixed | none | - | - | ⚠️ Mixed |
+| lottery-routes | post-tamper | mixed | mixed | authenticateToken, authenticateSuperAdmin | - | ⚠️ Mixed |
+| markdown-article-routes | post-tamper | mixed | mixed | authenticateToken, authenticateAdmin, authenticateSuperAdmin | statusLimiter | ⚠️ Mixed |
+| log-routes | post-tamper | mixed | mixed | authenticateToken, authenticateSuperAdmin | - | ⚠️ Mixed |
+| passkey-routes | post-tamper | mixed | mixed | authenticateToken, authenticateSuperAdmin | - | ⚠️ Mixed |
 | image-data-routes | post-tamper | true | route | authenticateToken | - | ✅ Compliant |
-| resource-routes | post-tamper | mixed | none | - | - | ⚠️ Mixed |
-| cdk-routes | post-tamper | mixed | none | - | cdkMountLimiter | ⚠️ Mixed |
-| webhook-event-routes | post-tamper | true | mount | authenticateToken | authenticateToken, adminLimiter | ✅ Compliant |
-| fbi-wanted-routes | post-tamper | mixed | route | authenticateToken, authenticateAdmin | - | ⚠️ Mixed |
+| resource-routes | post-tamper | mixed | mixed | authenticateToken, authenticateAdmin, authenticateSuperAdmin | - | ⚠️ Mixed |
+| cdk-routes | post-tamper | mixed | mixed | authenticateAdmin, authenticateSuperAdmin | cdkMountLimiter | ⚠️ Mixed |
+| webhook-event-routes | post-tamper | true | mixed | authenticateToken, authenticateAdmin, authenticateSuperAdmin | authenticateToken, adminLimiter | ✅ Compliant |
+| fbi-wanted-routes | post-tamper | mixed | mixed | authenticateToken, authenticateAdmin, authenticateSuperAdmin | - | ⚠️ Mixed |
+| github-billing-routes | post-tamper | mixed | mixed | authenticateToken, authenticateAdmin, authenticateSuperAdmin | githubBillingLimiter | ⚠️ Mixed |
 | linuxdo-credit-routes | post-tamper | mixed | route | authMiddleware | - | ⚠️ Mixed |
 | ecoenchants-routes | post-tamper | mixed | route | authenticateEcoCustomer, requireEcoAdmin, verifyEcoEnchantsDownloadToken | - | ⚠️ Mixed |
 | nexai-routes | post-tamper | mixed | route | nexaiAuthRequired, nexaiAuthOptional | nexaiRequestSignature | ⚠️ Mixed |

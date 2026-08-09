@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-08T08:43:23.930Z",
+  "generatedAt": "2026-08-09T03:33:21.854Z",
   "totals": {
     "routes": 85,
     "violations": 0
@@ -636,6 +636,15 @@
         "adaptationStatus": "completed",
         "source": "AuditLogService.globalAuditMiddleware",
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "authPolicy": {
+        "mode": "mixed",
+        "handlers": [
+          "authMiddleware",
+          "adminAuthMiddleware",
+          "authenticateSuperAdmin"
+        ],
+        "note": "Admin reads (status, quota, domains) require JWT plus an admin-role check at mount; send and domain-management writes are gated to superadmin at route level."
       }
     },
     {
@@ -677,6 +686,14 @@
         "source": "AuditLogService.globalAuditMiddleware",
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
       },
+      "authPolicy": {
+        "mode": "mixed",
+        "handlers": [
+          "authenticateAdmin",
+          "authenticateSuperAdmin"
+        ],
+        "note": "TTS generation is gated by API-key auth; admin history reads are admin-level and clarity config writes are gated to superadmin inside the router."
+      },
       "rateLimitPolicy": {
         "mode": "route-module",
         "limiters": [
@@ -712,6 +729,14 @@
         "adaptationStatus": "completed",
         "source": "AuditLogService.globalAuditMiddleware",
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "authPolicy": {
+        "mode": "mixed",
+        "handlers": [
+          "authenticateAdmin",
+          "authenticateSuperAdmin"
+        ],
+        "note": "LibreChat compatibility APIs are mixed; admin users/providers reads are admin-level and user/provider mutations are gated to superadmin inside the router."
       },
       "rateLimitPolicy": {
         "mode": "mount",
@@ -840,6 +865,15 @@
         "adaptationStatus": "completed",
         "source": "AuditLogService.globalAuditMiddleware",
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "authPolicy": {
+        "mode": "mixed",
+        "handlers": [
+          "authMiddleware",
+          "adminAuthMiddleware",
+          "authenticateSuperAdmin"
+        ],
+        "note": "Public and user self-service short-link flows use JWT; admin listing/export reads are admin-level; creation, batch-delete, and migration writes are gated to superadmin inside the router."
       },
       "rateLimitPolicy": {
         "mode": "route",
@@ -1055,12 +1089,13 @@
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
       },
       "authPolicy": {
-        "mode": "router",
+        "mode": "mixed",
         "handlers": [
           "authMiddleware",
-          "adminAuthMiddleware"
+          "adminAuthMiddleware",
+          "authenticateSuperAdmin"
         ],
-        "note": "Admin routes enforce authentication and role checks inside the router before handler dispatch."
+        "note": "Admin ingress enforces authentication and admin-role checks at mount; read endpoints are admin-level while user/config/announcement writes are gated to superadmin inside the router."
       },
       "rateLimitPolicy": {
         "mode": "mixed",
@@ -1124,11 +1159,12 @@
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
       },
       "authPolicy": {
-        "mode": "router",
+        "mode": "mixed",
         "handlers": [
-          "authMiddleware"
+          "authMiddleware",
+          "authenticateSuperAdmin"
         ],
-        "note": "API key management is fully protected by router-level JWT authentication."
+        "note": "API key reads (permissions, rates, listing) are admin-level; creation, adjustment, revocation, enable, and deletion are gated to superadmin inside the router."
       },
       "rateLimitPolicy": {
         "mode": "router",
@@ -1189,6 +1225,14 @@
         "source": "AuditLogService.globalAuditMiddleware",
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
       },
+      "authPolicy": {
+        "mode": "mixed",
+        "handlers": [
+          "authenticateAdmin",
+          "authenticateSuperAdmin"
+        ],
+        "note": "Bootstrap and verify endpoints are public; admin stats reads (fingerprint, IP-ban, scheduler) are admin-level; IP-ban and config writes are gated to superadmin inside the router."
+      },
       "rateLimitPolicy": {
         "mode": "route",
         "limiters": [
@@ -1222,6 +1266,15 @@
         "source": "AuditLogService.globalAuditMiddleware",
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
       },
+      "authPolicy": {
+        "mode": "mixed",
+        "handlers": [
+          "authenticateToken",
+          "adminOnly",
+          "authenticateSuperAdmin"
+        ],
+        "note": "Public policy reads are open; admin stats are admin-level; the admin cleanup mutation is gated to superadmin inside the router."
+      },
       "rateLimitPolicy": {
         "mode": "route",
         "limiters": [
@@ -1247,12 +1300,13 @@
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
       },
       "authPolicy": {
-        "mode": "route",
+        "mode": "mixed",
         "handlers": [
           "authenticateToken",
-          "adminOnly"
+          "adminOnly",
+          "authenticateSuperAdmin"
         ],
-        "note": "Public clients may submit signed tamper reports; administrative summary and blocklist actions require JWT admin checks inside the router."
+        "note": "Public clients may submit signed tamper reports; administrative summary reads are admin-level and blocklist mutations are gated to superadmin inside the router."
       },
       "rateLimitPolicy": {
         "mode": "route-module",
@@ -1281,11 +1335,13 @@
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
       },
       "authPolicy": {
-        "mode": "router",
+        "mode": "mixed",
         "handlers": [
-          "authenticateToken"
+          "authenticateToken",
+          "adminOnly",
+          "authenticateSuperAdmin"
         ],
-        "note": "Ticket routes apply a router-wide JWT guard before all ticket handlers."
+        "note": "All ticket routes apply a router-wide JWT guard; admin listing reads are admin-level and status/message mutations are gated to superadmin inside the router."
       },
       "rateLimitPolicy": {
         "mode": "route",
@@ -1312,6 +1368,14 @@
         "source": "AuditLogService.globalAuditMiddleware",
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
       },
+      "authPolicy": {
+        "mode": "mixed",
+        "handlers": [
+          "authenticateToken",
+          "authenticateSuperAdmin"
+        ],
+        "note": "System command operations require JWT authentication and are gated to superadmin inside the router."
+      },
       "rateLimitPolicy": {
         "mode": "route-module",
         "limiters": [
@@ -1337,6 +1401,14 @@
         "adaptationStatus": "completed",
         "source": "AuditLogService.globalAuditMiddleware",
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "authPolicy": {
+        "mode": "mixed",
+        "handlers": [
+          "authenticateAdmin",
+          "authenticateSuperAdmin"
+        ],
+        "note": "LibreChat user-facing APIs are mixed; admin users/providers reads are admin-level while user and provider mutations (including delete-all) are gated to superadmin inside the router."
       },
       "rateLimitPolicy": {
         "mode": "route-module",
@@ -1365,12 +1437,13 @@
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
       },
       "authPolicy": {
-        "mode": "route",
+        "mode": "mixed",
         "handlers": [
           "authenticateToken",
-          "adminOnly"
+          "adminOnly",
+          "authenticateSuperAdmin"
         ],
-        "note": "Public nonce and verification endpoints are open; statistics and trace administration require JWT admin checks."
+        "note": "Public nonce and verification endpoints are open; statistics and trace reads are admin-level and trace deletion is gated to superadmin."
       },
       "rateLimitPolicy": {
         "mode": "route",
@@ -1404,12 +1477,13 @@
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
       },
       "authPolicy": {
-        "mode": "route",
+        "mode": "mixed",
         "handlers": [
           "authenticateToken",
-          "authenticateAdmin"
+          "authenticateAdmin",
+          "authenticateSuperAdmin"
         ],
-        "note": "Every admin route composes the guard tuple directly at route level."
+        "note": "Admin reads (stats, list, raw) are admin-level; creation, deletion, batch-delete, and clear-all writes are gated to superadmin at route level."
       },
       "rateLimitPolicy": {
         "mode": "route",
@@ -1436,6 +1510,14 @@
         "adaptationStatus": "completed",
         "source": "AuditLogService.globalAuditMiddleware",
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "authPolicy": {
+        "mode": "mixed",
+        "handlers": [
+          "authenticateAdmin",
+          "authenticateSuperAdmin"
+        ],
+        "note": "Public upload/download flows are open; settings reads are admin-level and settings writes are gated to superadmin inside the router."
       },
       "rateLimitPolicy": {
         "mode": "route-module",
@@ -1575,11 +1657,12 @@
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
       },
       "authPolicy": {
-        "mode": "route",
+        "mode": "mixed",
         "handlers": [
-          "authenticateToken"
+          "authenticateToken",
+          "authenticateSuperAdmin"
         ],
-        "note": "Public lottery read endpoints are open; user participation and administrative mutation routes require JWT authentication."
+        "note": "Public lottery read endpoints are open; user participation requires JWT; administrative round creation is gated to superadmin in the controller."
       },
       "rateLimitPolicy": {
         "mode": "route",
@@ -1632,12 +1715,13 @@
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
       },
       "authPolicy": {
-        "mode": "route",
+        "mode": "mixed",
         "handlers": [
           "authenticateToken",
-          "authenticateAdmin"
+          "authenticateAdmin",
+          "authenticateSuperAdmin"
         ],
-        "note": "Public article reads are open; article creation, updates, publishing, and deletion require administrator JWT checks inside the router."
+        "note": "Public article reads are open; article creation, updates, publishing, and deletion are gated to superadmin inside the router."
       },
       "rateLimitPolicy": {
         "mode": "mixed",
@@ -1719,11 +1803,12 @@
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
       },
       "authPolicy": {
-        "mode": "route",
+        "mode": "mixed",
         "handlers": [
-          "authenticateToken"
+          "authenticateToken",
+          "authenticateSuperAdmin"
         ],
-        "note": "Share upload/query flows use an admin operation password; list/delete/archive administration requires JWT admin checks inside the router."
+        "note": "Share upload/query flows use an admin operation password; list/delete/archive administration is gated to superadmin inside the router."
       },
       "rateLimitPolicy": {
         "mode": "route",
@@ -1770,6 +1855,14 @@
         "adaptationStatus": "completed",
         "source": "AuditLogService.globalAuditMiddleware",
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "authPolicy": {
+        "mode": "mixed",
+        "handlers": [
+          "authenticateToken",
+          "authenticateSuperAdmin"
+        ],
+        "note": "User passkey credential flows require JWT; bulk repair and credential-ID fix administration is gated to superadmin inside the router."
       },
       "rateLimitPolicy": {
         "mode": "route-module",
@@ -1905,6 +1998,15 @@
         "source": "AuditLogService.globalAuditMiddleware",
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
       },
+      "authPolicy": {
+        "mode": "mixed",
+        "handlers": [
+          "authenticateToken",
+          "authenticateAdmin",
+          "authenticateSuperAdmin"
+        ],
+        "note": "Public resource reads are open; stats reads are admin-level and resource CRUD is gated to superadmin at route level."
+      },
       "rateLimitPolicy": {
         "mode": "route-module",
         "limiters": [
@@ -1971,6 +2073,14 @@
         "source": "AuditLogService.globalAuditMiddleware",
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
       },
+      "authPolicy": {
+        "mode": "mixed",
+        "handlers": [
+          "authenticateAdmin",
+          "authenticateSuperAdmin"
+        ],
+        "note": "CDK listing/stats/export reads are admin-level; create, update, batch-delete, delete-all, and KS import writes are gated to superadmin at route level."
+      },
       "rateLimitPolicy": {
         "mode": "mount",
         "limiters": [
@@ -1998,11 +2108,13 @@
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
       },
       "authPolicy": {
-        "mode": "mount",
+        "mode": "mixed",
         "handlers": [
-          "authenticateToken"
+          "authenticateToken",
+          "authenticateAdmin",
+          "authenticateSuperAdmin"
         ],
-        "note": "JWT authentication is enforced at mount; route handlers add admin authorization checks."
+        "note": "JWT authentication is enforced at mount; event reads are admin-level and bulk-status, bulk-delete, replay, create, update, and delete writes are gated to superadmin at route level."
       },
       "rateLimitPolicy": {
         "mode": "mount",
@@ -2032,12 +2144,13 @@
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
       },
       "authPolicy": {
-        "mode": "route",
+        "mode": "mixed",
         "handlers": [
           "authenticateToken",
-          "authenticateAdmin"
+          "authenticateAdmin",
+          "authenticateSuperAdmin"
         ],
-        "note": "Public wanted-list reads use /public routes; administrative list and mutation routes require JWT admin checks."
+        "note": "Public wanted-list reads use /public routes; admin list reads are admin-level and CRUD/photo mutations are gated to superadmin at route level."
       },
       "rateLimitPolicy": {
         "mode": "route",
@@ -2054,15 +2167,24 @@
       "path": "/api/github-billing",
       "phase": "post-tamper",
       "kind": "route",
-      "requiresAuth": false,
+      "requiresAuth": "mixed",
       "rateLimited": true,
-      "isPublic": true,
+      "isPublic": "mixed",
       "auditLogPolicy": {
         "enabled": true,
         "coverage": "all-api-routes",
         "adaptationStatus": "completed",
         "source": "AuditLogService.globalAuditMiddleware",
         "note": "Covered by the global audit middleware mounted in the preBodyParser security phase before API route modules."
+      },
+      "authPolicy": {
+        "mode": "mixed",
+        "handlers": [
+          "authenticateToken",
+          "authenticateAdmin",
+          "authenticateSuperAdmin"
+        ],
+        "note": "Billing usage lookup is open or API-key gated; config reads are admin-level and config/system writes are gated to superadmin at route level."
       },
       "rateLimitPolicy": {
         "mode": "mount",
