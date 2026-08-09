@@ -8,6 +8,8 @@ import {
 } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { turnstileApi, IPBanStats } from '../api/turnstile';
+import { useAuth } from '../hooks/useAuth';
+import { isSuperAdmin } from '../utils/rbac';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
 import { useNotification } from './Notification';
 import {
@@ -25,6 +27,7 @@ interface BanIPModalProps {
   onClose: () => void;
   onSuccess: () => void;
   mode: 'single' | 'batch';
+  canWrite: boolean;
 }
 
 interface UnbanIPModalProps {
@@ -32,6 +35,7 @@ interface UnbanIPModalProps {
   onClose: () => void;
   onSuccess: () => void;
   mode: 'single' | 'batch';
+  canWrite: boolean;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -49,7 +53,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return typeof error.message === 'string' ? error.message : fallback;
 }
 
-function BanIPModal({ isOpen, onClose, onSuccess, mode }: BanIPModalProps) {
+function BanIPModal({ isOpen, onClose, onSuccess, mode, canWrite }: BanIPModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
@@ -74,6 +78,7 @@ function BanIPModal({ isOpen, onClose, onSuccess, mode }: BanIPModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canWrite) return;
     setError('');
 
     if (mode === 'single') {
@@ -148,6 +153,7 @@ function BanIPModal({ isOpen, onClose, onSuccess, mode }: BanIPModalProps) {
                   <input
                     type="text"
                     required
+                    disabled={!canWrite}
                     className={`${logShareInputClass} mt-1`}
                     value={formData.ipAddress}
                     onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
@@ -161,6 +167,7 @@ function BanIPModal({ isOpen, onClose, onSuccess, mode }: BanIPModalProps) {
                   <textarea
                     required
                     rows={6}
+                    disabled={!canWrite}
                     className={`${logShareInputClass} mt-1`}
                     value={formData.ipAddresses}
                     onChange={(e) => setFormData({ ...formData, ipAddresses: e.target.value })}
@@ -175,6 +182,7 @@ function BanIPModal({ isOpen, onClose, onSuccess, mode }: BanIPModalProps) {
                 <textarea
                   required
                   rows={3}
+                  disabled={!canWrite}
                   className={`${logShareInputClass} mt-1`}
                   value={formData.reason}
                   onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
@@ -189,6 +197,7 @@ function BanIPModal({ isOpen, onClose, onSuccess, mode }: BanIPModalProps) {
                   min="1"
                   max="1440"
                   required
+                  disabled={!canWrite}
                   className={`${logShareInputClass} mt-1`}
                   value={formData.durationMinutes}
                   onChange={(e) => setFormData({ ...formData, durationMinutes: parseInt(e.target.value) || 60 })}
@@ -212,7 +221,7 @@ function BanIPModal({ isOpen, onClose, onSuccess, mode }: BanIPModalProps) {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || !canWrite}
                   className={logShareDangerButtonClass}
                 >
                   {loading ? '处理中...' : (mode === 'single' ? '封禁IP' : '批量封禁')}
@@ -226,7 +235,7 @@ function BanIPModal({ isOpen, onClose, onSuccess, mode }: BanIPModalProps) {
   , document.body);
 }
 
-function UnbanIPModal({ isOpen, onClose, onSuccess, mode }: UnbanIPModalProps) {
+function UnbanIPModal({ isOpen, onClose, onSuccess, mode, canWrite }: UnbanIPModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
@@ -247,6 +256,7 @@ function UnbanIPModal({ isOpen, onClose, onSuccess, mode }: UnbanIPModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canWrite) return;
     setError('');
 
     if (mode === 'single') {
@@ -321,6 +331,7 @@ function UnbanIPModal({ isOpen, onClose, onSuccess, mode }: UnbanIPModalProps) {
                   <input
                     type="text"
                     required
+                    disabled={!canWrite}
                     className={`${logShareInputClass} mt-1`}
                     value={formData.ipAddress}
                     onChange={(e) => setFormData({ ...formData, ipAddress: e.target.value })}
@@ -334,6 +345,7 @@ function UnbanIPModal({ isOpen, onClose, onSuccess, mode }: UnbanIPModalProps) {
                   <textarea
                     required
                     rows={6}
+                    disabled={!canWrite}
                     className={`${logShareInputClass} mt-1`}
                     value={formData.ipAddresses}
                     onChange={(e) => setFormData({ ...formData, ipAddresses: e.target.value })}
@@ -364,7 +376,7 @@ function UnbanIPModal({ isOpen, onClose, onSuccess, mode }: UnbanIPModalProps) {
                 </button>
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || !canWrite}
                   className={logShareSecondaryButtonClass}
                 >
                   {loading ? <UnifiedLoadingSpinner size="sm" /> : <FaUnlock />}
@@ -388,6 +400,8 @@ export default function IPBanManager() {
   const [banMode, setBanMode] = useState<'single' | 'batch'>('single');
   const [unbanMode, setUnbanMode] = useState<'single' | 'batch'>('single');
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
 
   const fetchStats = async () => {
     try {
@@ -467,9 +481,10 @@ export default function IPBanManager() {
                 setBanMode('single');
                 setShowBanModal(true);
               }}
+              disabled={!canWrite}
               className={logShareDangerButtonClass}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: canWrite ? 1.02 : 1 }}
+              whileTap={{ scale: canWrite ? 0.98 : 1 }}
             >
               <FaBan className="w-4 h-4" />
               单个封禁
@@ -480,9 +495,10 @@ export default function IPBanManager() {
                 setBanMode('batch');
                 setShowBanModal(true);
               }}
+              disabled={!canWrite}
               className={logShareDangerButtonClass}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: canWrite ? 1.02 : 1 }}
+              whileTap={{ scale: canWrite ? 0.98 : 1 }}
             >
               <FaList className="w-4 h-4" />
               批量封禁
@@ -493,9 +509,10 @@ export default function IPBanManager() {
                 setUnbanMode('single');
                 setShowUnbanModal(true);
               }}
+              disabled={!canWrite}
               className={logShareSecondaryButtonClass}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: canWrite ? 1.02 : 1 }}
+              whileTap={{ scale: canWrite ? 0.98 : 1 }}
             >
               <FaUnlock className="w-4 h-4" />
               单个解封
@@ -506,9 +523,10 @@ export default function IPBanManager() {
                 setUnbanMode('batch');
                 setShowUnbanModal(true);
               }}
+              disabled={!canWrite}
               className={logShareSecondaryButtonClass}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: canWrite ? 1.02 : 1 }}
+              whileTap={{ scale: canWrite ? 0.98 : 1 }}
             >
               <FaUnlock className="w-4 h-4" />
               批量解封
@@ -534,13 +552,15 @@ export default function IPBanManager() {
         onClose={() => setShowBanModal(false)}
         onSuccess={handleRefresh}
         mode={banMode}
+        canWrite={canWrite}
       />
-      
+
       <UnbanIPModal
         isOpen={showUnbanModal}
         onClose={() => setShowUnbanModal(false)}
         onSuccess={handleRefresh}
         mode={unbanMode}
+        canWrite={canWrite}
       />
     </div>
   );

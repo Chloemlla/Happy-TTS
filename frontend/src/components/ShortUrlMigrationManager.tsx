@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FaSync, FaChartBar, FaExclamationTriangle, FaCheckCircle, FaInfoCircle } from 'react-icons/fa';
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
+import { isSuperAdmin } from '../utils/rbac';
 import { getApiBaseUrl } from '../api/api';
 
 
@@ -30,6 +31,7 @@ interface MigrationResult {
 const ShortUrlMigrationManager: React.FC = () => {
   const { setNotification } = useNotification();
   const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const [stats, setStats] = useState<MigrationStats | null>(null);
   const [migrationResult, setMigrationResult] = useState<MigrationResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -64,6 +66,8 @@ const ShortUrlMigrationManager: React.FC = () => {
 
   // 执行迁移
   const executeMigration = async () => {
+    if (!canWrite) return;
+
     if (!window.confirm('确定要执行短链迁移吗？这将把所有的 ipfs.crossbell.io 域名替换为 ipfs.chloemlla.com')) {
       return;
     }
@@ -264,8 +268,8 @@ const ShortUrlMigrationManager: React.FC = () => {
           <div className="flex gap-4">
             <motion.button
               onClick={executeMigration}
-              disabled={migrating || (stats?.oldDomainRecords === 0)}
-              className="px-6 py-3 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition disabled:opacity-50 font-medium flex items-center gap-2"
+              disabled={migrating || (stats?.oldDomainRecords === 0) || !canWrite}
+              className="px-6 py-3 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center gap-2"
               whileTap={{ scale: 0.95 }}
             >
               <FaSync className={`w-4 h-4 ${migrating ? 'animate-spin' : ''}`} />

@@ -9,6 +9,8 @@ import { Link } from 'react-router-dom';
 import { turnstileApi, type SchedulerStatus, type SyncDirectionResult, type SyncStatus, type SystemCapability } from '../api/turnstile';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
 import { useNotification } from './Notification';
+import { useAuth } from '../hooks/useAuth';
+import { isSuperAdmin } from '../utils/rbac';
 import {
   InfoBadge,
   InfoMetricCard,
@@ -84,6 +86,8 @@ export default function SystemManager() {
   const [cleaning, setCleaning] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
 
   const fetchSchedulerStatus = async () => {
     try {
@@ -126,6 +130,7 @@ export default function SystemManager() {
   };
 
   const handleStartScheduler = async () => {
+    if (!canWrite) return;
     if (!window.confirm('确定启动调度器？将恢复所有定时任务。')) return;
     setStarting(true);
     try {
@@ -148,6 +153,7 @@ export default function SystemManager() {
   };
 
   const handleStopScheduler = async () => {
+    if (!canWrite) return;
     if (window.confirm('确定要停止调度器吗？这将暂停所有定时任务。')) {
       setStopping(true);
       try {
@@ -171,6 +177,7 @@ export default function SystemManager() {
   };
 
   const handleManualCleanup = async () => {
+    if (!canWrite) return;
     if (window.confirm('确定要执行手动清理吗？此操作将清理所有过期数据。')) {
       setCleaning(true);
       try {
@@ -194,6 +201,7 @@ export default function SystemManager() {
   };
 
   const handleSyncIPBans = async () => {
+    if (!canWrite) return;
     if (!window.confirm('确定立即同步 IP 封禁数据（MongoDB ↔ Redis）？')) return;
     setSyncing(true);
     try {
@@ -358,10 +366,10 @@ export default function SystemManager() {
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
             <motion.button
               onClick={handleStartScheduler}
-              disabled={starting || schedulerStatus.isRunning}
-              className={`${logShareSecondaryButtonClass} flex-1`}
-              whileHover={{ scale: starting || schedulerStatus.isRunning ? 1 : 1.02 }}
-              whileTap={{ scale: starting || schedulerStatus.isRunning ? 1 : 0.98 }}
+              disabled={!canWrite || starting || schedulerStatus.isRunning}
+              className={`${logShareSecondaryButtonClass} flex-1 disabled:opacity-50 disabled:cursor-not-allowed`}
+              whileHover={{ scale: !canWrite || starting || schedulerStatus.isRunning ? 1 : 1.02 }}
+              whileTap={{ scale: !canWrite || starting || schedulerStatus.isRunning ? 1 : 0.98 }}
             >
               {starting ? (
                 <UnifiedLoadingSpinner size="sm" />
@@ -373,10 +381,10 @@ export default function SystemManager() {
 
             <motion.button
               onClick={handleStopScheduler}
-              disabled={stopping || !schedulerStatus.isRunning}
-              className={`${logShareDangerButtonClass} flex-1`}
-              whileHover={{ scale: stopping || !schedulerStatus.isRunning ? 1 : 1.02 }}
-              whileTap={{ scale: stopping || !schedulerStatus.isRunning ? 1 : 0.98 }}
+              disabled={!canWrite || stopping || !schedulerStatus.isRunning}
+              className={`${logShareDangerButtonClass} flex-1 disabled:opacity-50 disabled:cursor-not-allowed`}
+              whileHover={{ scale: !canWrite || stopping || !schedulerStatus.isRunning ? 1 : 1.02 }}
+              whileTap={{ scale: !canWrite || stopping || !schedulerStatus.isRunning ? 1 : 0.98 }}
             >
               {stopping ? (
                 <UnifiedLoadingSpinner size="sm" />
@@ -388,10 +396,10 @@ export default function SystemManager() {
 
             <motion.button
               onClick={handleManualCleanup}
-              disabled={cleaning}
-              className={`${logShareSecondaryButtonClass} flex-1`}
-              whileHover={{ scale: cleaning ? 1 : 1.02 }}
-              whileTap={{ scale: cleaning ? 1 : 0.98 }}
+              disabled={!canWrite || cleaning}
+              className={`${logShareSecondaryButtonClass} flex-1 disabled:opacity-50 disabled:cursor-not-allowed`}
+              whileHover={{ scale: !canWrite || cleaning ? 1 : 1.02 }}
+              whileTap={{ scale: !canWrite || cleaning ? 1 : 0.98 }}
             >
               {cleaning ? (
                 <UnifiedLoadingSpinner size="sm" />
@@ -465,10 +473,10 @@ export default function SystemManager() {
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
             <motion.button
               onClick={handleSyncIPBans}
-              disabled={syncing || !syncStatus.redisAvailable}
-              className={`${logShareSecondaryButtonClass} flex-1`}
-              whileHover={{ scale: syncing || !syncStatus.redisAvailable ? 1 : 1.02 }}
-              whileTap={{ scale: syncing || !syncStatus.redisAvailable ? 1 : 0.98 }}
+              disabled={!canWrite || syncing || !syncStatus.redisAvailable}
+              className={`${logShareSecondaryButtonClass} flex-1 disabled:opacity-50 disabled:cursor-not-allowed`}
+              whileHover={{ scale: !canWrite || syncing || !syncStatus.redisAvailable ? 1 : 1.02 }}
+              whileTap={{ scale: !canWrite || syncing || !syncStatus.redisAvailable ? 1 : 0.98 }}
             >
               {syncing ? (
                 <UnifiedLoadingSpinner size="sm" />

@@ -4,6 +4,8 @@ import { FaRegFileAlt } from 'react-icons/fa';
 import { markdownArticleApi, type MarkdownArticle, type MarkdownArticleSummary } from '../api/markdownArticles';
 import MarkdownRenderer, { copyTextToClipboard } from './MarkdownRenderer';
 import { useNotification } from './Notification';
+import { useAuth } from '../hooks/useAuth';
+import { isSuperAdmin } from '../utils/rbac';
 import {
   InfoBadge,
   InfoPanel,
@@ -98,6 +100,8 @@ const MarkdownArticleManager: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'draft' | 'published'>('all');
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
 
   const publicUrl = useMemo(() => getPublicUrl(current.slug), [current.slug]);
   const wordCount = useMemo(() => current.content.trim().length, [current.content]);
@@ -173,6 +177,7 @@ const MarkdownArticleManager: React.FC = () => {
   };
 
   const resetEditor = () => {
+    if (!canWrite) return;
     setCurrent({ ...emptyArticle, content: starterMarkdown });
     setIsPreview(true);
     localStorage.removeItem(localDraftKey);
@@ -192,6 +197,7 @@ const MarkdownArticleManager: React.FC = () => {
   };
 
   const insertSnippet = (text: string) => {
+    if (!canWrite) return;
     const textarea = editorRef.current;
     if (!textarea) {
       updateField('content', `${current.content}${text}`);
@@ -210,6 +216,7 @@ const MarkdownArticleManager: React.FC = () => {
   };
 
   const saveArticle = async (status: 'draft' | 'published' = current.status) => {
+    if (!canWrite) return;
     if (!current.title.trim() || !current.content.trim()) {
       setNotification({ type: 'warning', message: '标题和 Markdown 内容不能为空' });
       return;
@@ -252,6 +259,7 @@ const MarkdownArticleManager: React.FC = () => {
   }, [current, isSaving]);
 
   const togglePublish = async (article: MarkdownArticleSummary) => {
+    if (!canWrite) return;
     setIsSaving(true);
     try {
       const nextStatus = article.status === 'published' ? 'draft' : 'published';
@@ -267,6 +275,7 @@ const MarkdownArticleManager: React.FC = () => {
   };
 
   const deleteArticle = async (article: MarkdownArticleSummary) => {
+    if (!canWrite) return;
     if (!window.confirm(`确认删除「${article.title}」？`)) return;
     setIsSaving(true);
     try {
@@ -294,7 +303,7 @@ const MarkdownArticleManager: React.FC = () => {
         description="编辑 Markdown 原文，实时预览完整语法效果，并发布生成对外查看链接。"
         icon={FaRegFileAlt}
         action={
-          <button type="button" className={logShareSecondaryButtonClass} onClick={resetEditor}>
+          <button type="button" className={logShareSecondaryButtonClass} onClick={resetEditor} disabled={!canWrite}>
             <Plus className="h-4 w-4" />
             新建文章
           </button>
@@ -358,17 +367,17 @@ const MarkdownArticleManager: React.FC = () => {
                   </InfoBadge>
                   <button
                     type="button"
-                    className="rounded-xl border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-slate-900"
+                    className="rounded-xl border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => void togglePublish(article)}
-                    disabled={isSaving}
+                    disabled={isSaving || !canWrite}
                   >
                     {article.status === 'published' ? '下线' : '发布'}
                   </button>
                   <button
                     type="button"
-                    className="rounded-xl border border-rose-200 px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                    className="rounded-xl border border-rose-200 px-2.5 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => void deleteArticle(article)}
-                    disabled={isSaving}
+                    disabled={isSaving || !canWrite}
                     title="删除文章"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -389,6 +398,7 @@ const MarkdownArticleManager: React.FC = () => {
                   value={current.title}
                   onChange={(event) => handleTitleChange(event.target.value)}
                   placeholder="输入文章标题"
+                  disabled={!canWrite}
                 />
               </label>
               <label className="block">
@@ -398,6 +408,7 @@ const MarkdownArticleManager: React.FC = () => {
                   value={current.slug}
                   onChange={(event) => updateField('slug', slugify(event.target.value))}
                   placeholder="article-slug"
+                  disabled={!canWrite}
                 />
               </label>
             </div>
@@ -408,14 +419,15 @@ const MarkdownArticleManager: React.FC = () => {
                 value={current.excerpt}
                 onChange={(event) => updateField('excerpt', event.target.value)}
                 placeholder="可选，用于文章列表和分享预览"
+                disabled={!canWrite}
               />
             </label>
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              <button type="button" className={logSharePrimaryButtonClass} onClick={() => void saveArticle('draft')} disabled={isSaving}>
+              <button type="button" className={logSharePrimaryButtonClass} onClick={() => void saveArticle('draft')} disabled={isSaving || !canWrite}>
                 <Save className="h-4 w-4" />
                 保存草稿
               </button>
-              <button type="button" className={logSharePrimaryButtonClass} onClick={() => void saveArticle('published')} disabled={isSaving}>
+              <button type="button" className={logSharePrimaryButtonClass} onClick={() => void saveArticle('published')} disabled={isSaving || !canWrite}>
                 <Send className="h-4 w-4" />
                 发布文章
               </button>
@@ -434,7 +446,7 @@ const MarkdownArticleManager: React.FC = () => {
                 </a>
               )}
               {current.id && (
-                <button type="button" className={logShareDangerButtonClass} onClick={() => void deleteArticle(current)} disabled={isSaving}>
+                <button type="button" className={logShareDangerButtonClass} onClick={() => void deleteArticle(current)} disabled={isSaving || !canWrite}>
                   <Trash2 className="h-4 w-4" />
                   删除
                 </button>
@@ -457,8 +469,9 @@ const MarkdownArticleManager: React.FC = () => {
                     <button
                       key={snippet.label}
                       type="button"
-                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900"
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
                       onClick={() => insertSnippet(snippet.text)}
+                      disabled={!canWrite}
                     >
                       <Icon className="h-3.5 w-3.5" />
                       {snippet.label}
@@ -468,10 +481,11 @@ const MarkdownArticleManager: React.FC = () => {
               </div>
               <textarea
                 ref={editorRef}
-                className="min-h-[620px] w-full resize-y rounded-2xl border border-slate-200 bg-slate-950 p-4 font-mono text-sm leading-6 text-slate-100 outline-none focus:ring-2 focus:ring-slate-300"
+                className="min-h-[620px] w-full resize-y rounded-2xl border border-slate-200 bg-slate-950 p-4 font-mono text-sm leading-6 text-slate-100 outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50"
                 value={current.content}
                 onChange={(event) => updateField('content', event.target.value)}
                 spellCheck={false}
+                disabled={!canWrite}
               />
             </InfoPanel>
             {isPreview && (

@@ -14,6 +14,8 @@ import {
 } from "react-icons/fa";
 import type { IconType } from "react-icons";
 import api from "../api/api";
+import { useAuth } from "../hooks/useAuth";
+import { isSuperAdmin } from "../utils/rbac";
 import { useNotification } from "./Notification";
 import {
   InfoBadge,
@@ -149,7 +151,8 @@ const Field: React.FC<{
   placeholder?: string;
   type?: string;
   required?: boolean;
-}> = ({ label, value, onChange, placeholder, type = "text", required }) => (
+  disabled?: boolean;
+}> = ({ label, value, onChange, placeholder, type = "text", required, disabled }) => (
   <label className="block space-y-2">
     <span className={labelClass}>{label}</span>
     <input
@@ -159,6 +162,7 @@ const Field: React.FC<{
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
       required={required}
+      disabled={disabled}
     />
   </label>
 );
@@ -170,7 +174,8 @@ const TextAreaField: React.FC<{
   placeholder?: string;
   rows?: number;
   required?: boolean;
-}> = ({ label, value, onChange, placeholder, rows = 3, required }) => (
+  disabled?: boolean;
+}> = ({ label, value, onChange, placeholder, rows = 3, required, disabled }) => (
   <label className="block space-y-2">
     <span className={labelClass}>{label}</span>
     <textarea
@@ -180,6 +185,7 @@ const TextAreaField: React.FC<{
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
       required={required}
+      disabled={disabled}
     />
   </label>
 );
@@ -189,13 +195,15 @@ const SelectField: React.FC<{
   value: string;
   onChange: (value: string) => void;
   options: Array<{ label: string; value: string }>;
-}> = ({ label, value, onChange, options }) => (
+  disabled?: boolean;
+}> = ({ label, value, onChange, options, disabled }) => (
   <label className="block space-y-2">
     <span className={labelClass}>{label}</span>
     <select
       className={inputClass}
       value={value}
       onChange={(event) => onChange(event.target.value)}
+      disabled={disabled}
     >
       {options.map((option) => (
         <option key={option.value} value={option.value}>
@@ -226,6 +234,8 @@ const SectionShell: React.FC<{
 
 const EcoEnchantsAdminPage: React.FC = () => {
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const [health, setHealth] = useState<EcoHealth | null>(null);
   const [policy, setPolicy] = useState<EcoProductPolicy | null>(null);
   const [auditLogs, setAuditLogs] = useState<EcoAuditLog[]>([]);
@@ -363,6 +373,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
 
   const createProduct = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!canWrite) return;
     await runSubmit(
       "product",
       async () => {
@@ -391,6 +402,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
 
   const createPlan = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!canWrite) return;
     await runSubmit(
       "plan",
       async () => {
@@ -420,6 +432,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
 
   const createRelease = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!canWrite) return;
     await runSubmit(
       "release",
       async () => {
@@ -447,6 +460,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
 
   const createLicense = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!canWrite) return;
     await runSubmit(
       "license",
       async () => {
@@ -482,6 +496,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
 
   const updateLicense = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!canWrite) return;
     await runSubmit(
       "license-update",
       async () => {
@@ -512,6 +527,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
 
   const revokeLicense = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!canWrite) return;
     const licenseId = revokeLicenseId.trim();
     if (!licenseId) {
       setNotification({ message: "请输入要吊销的授权 ID", type: "warning" });
@@ -638,6 +654,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                   onChange={(value) =>
                     setProductForm((prev) => ({ ...prev, productId: value }))
                   }
+                  disabled={!canWrite}
                   required
                 />
                 <Field
@@ -646,6 +663,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                   onChange={(value) =>
                     setProductForm((prev) => ({ ...prev, name: value }))
                   }
+                  disabled={!canWrite}
                   required
                 />
                 <Field
@@ -657,6 +675,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                       latestVersion: value,
                     }))
                   }
+                  disabled={!canWrite}
                 />
                 <Field
                   label="最低支持版本"
@@ -667,6 +686,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                       minimumSupportedVersion: value,
                     }))
                   }
+                  disabled={!canWrite}
                 />
                 <Field
                   label="推荐 Java"
@@ -678,6 +698,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                       recommendedJava: value,
                     }))
                   }
+                  disabled={!canWrite}
                 />
                 <Field
                   label="支持平台"
@@ -689,6 +710,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                     }))
                   }
                   placeholder="Paper,Folia"
+                  disabled={!canWrite}
                 />
                 <div className="md:col-span-2">
                   <TextAreaField
@@ -698,12 +720,13 @@ const EcoEnchantsAdminPage: React.FC = () => {
                       setProductForm((prev) => ({ ...prev, notices: value }))
                     }
                     placeholder="逗号分隔"
+                    disabled={!canWrite}
                   />
                 </div>
                 <div className="md:col-span-2">
                   <InfoPrimaryButton
                     type="submit"
-                    disabled={submitting === "product"}
+                    disabled={!canWrite || submitting === "product"}
                   >
                     <FaPlus />
                     {submitting === "product" ? "提交中..." : "创建产品"}
@@ -724,6 +747,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                   onChange={(value) =>
                     setPlanForm((prev) => ({ ...prev, productId: value }))
                   }
+                  disabled={!canWrite}
                   required
                 />
                 <Field
@@ -732,6 +756,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                   onChange={(value) =>
                     setPlanForm((prev) => ({ ...prev, planId: value }))
                   }
+                  disabled={!canWrite}
                   required
                 />
                 <Field
@@ -740,6 +765,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                   onChange={(value) =>
                     setPlanForm((prev) => ({ ...prev, name: value }))
                   }
+                  disabled={!canWrite}
                   required
                 />
                 <Field
@@ -749,6 +775,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                   onChange={(value) =>
                     setPlanForm((prev) => ({ ...prev, maxActivations: value }))
                   }
+                  disabled={!canWrite}
                 />
                 <Field
                   label="有效天数"
@@ -757,6 +784,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                   onChange={(value) =>
                     setPlanForm((prev) => ({ ...prev, durationDays: value }))
                   }
+                  disabled={!canWrite}
                 />
                 <Field
                   label="价格分"
@@ -765,6 +793,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                   onChange={(value) =>
                     setPlanForm((prev) => ({ ...prev, priceCents: value }))
                   }
+                  disabled={!canWrite}
                 />
                 <Field
                   label="币种"
@@ -772,6 +801,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                   onChange={(value) =>
                     setPlanForm((prev) => ({ ...prev, currency: value }))
                   }
+                  disabled={!canWrite}
                 />
                 <Field
                   label="特性"
@@ -780,11 +810,12 @@ const EcoEnchantsAdminPage: React.FC = () => {
                     setPlanForm((prev) => ({ ...prev, features: value }))
                   }
                   placeholder="逗号分隔"
+                  disabled={!canWrite}
                 />
                 <div className="md:col-span-2">
                   <InfoPrimaryButton
                     type="submit"
-                    disabled={submitting === "plan"}
+                    disabled={!canWrite || submitting === "plan"}
                   >
                     <FaPlus />
                     {submitting === "plan" ? "提交中..." : "创建套餐"}
@@ -809,6 +840,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                 onChange={(value) =>
                   setReleaseForm((prev) => ({ ...prev, productId: value }))
                 }
+                disabled={!canWrite}
                 required
               />
               <Field
@@ -821,6 +853,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                     fileName: `EcoEnchants-${value}.jar`,
                   }))
                 }
+                disabled={!canWrite}
                 required
               />
               <Field
@@ -829,6 +862,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                 onChange={(value) =>
                   setReleaseForm((prev) => ({ ...prev, channel: value }))
                 }
+                disabled={!canWrite}
                 required
               />
               <div className="md:col-span-2 xl:col-span-3">
@@ -839,6 +873,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                     setReleaseForm((prev) => ({ ...prev, sha256: value }))
                   }
                   placeholder="64 位十六进制摘要"
+                  disabled={!canWrite}
                   required
                 />
               </div>
@@ -848,6 +883,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                 onChange={(value) =>
                   setReleaseForm((prev) => ({ ...prev, fileName: value }))
                 }
+                disabled={!canWrite}
                 required
               />
               <div className="md:col-span-2">
@@ -857,6 +893,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                   onChange={(value) =>
                     setReleaseForm((prev) => ({ ...prev, downloadUrl: value }))
                   }
+                  disabled={!canWrite}
                   required
                 />
               </div>
@@ -868,13 +905,14 @@ const EcoEnchantsAdminPage: React.FC = () => {
                     setReleaseForm((prev) => ({ ...prev, signature: value }))
                   }
                   rows={4}
+                  disabled={!canWrite}
                   required
                 />
               </div>
               <div className="md:col-span-2 xl:col-span-3">
                 <InfoPrimaryButton
                   type="submit"
-                  disabled={submitting === "release"}
+                  disabled={!canWrite || submitting === "release"}
                 >
                   <FaCloudUploadAlt />
                   {submitting === "release" ? "提交中..." : "登记发布版本"}
@@ -899,6 +937,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                   onChange={(value) =>
                     setLicenseForm((prev) => ({ ...prev, customerId: value }))
                   }
+                  disabled={!canWrite}
                   required
                 />
                 <Field
@@ -907,6 +946,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                   onChange={(value) =>
                     setLicenseForm((prev) => ({ ...prev, planId: value }))
                   }
+                  disabled={!canWrite}
                   required
                 />
                 <SelectField
@@ -918,6 +958,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                       status: value as LicenseStatus,
                     }))
                   }
+                  disabled={!canWrite}
                   options={statusOptions.map((value) => ({
                     label: value,
                     value,
@@ -933,6 +974,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                       maxActivations: value,
                     }))
                   }
+                  disabled={!canWrite}
                 />
                 <Field
                   label="到期时间"
@@ -941,6 +983,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                   onChange={(value) =>
                     setLicenseForm((prev) => ({ ...prev, expiresAt: value }))
                   }
+                  disabled={!canWrite}
                 />
                 <Field
                   label="Product ID"
@@ -948,11 +991,12 @@ const EcoEnchantsAdminPage: React.FC = () => {
                   onChange={(value) =>
                     setLicenseForm((prev) => ({ ...prev, productId: value }))
                   }
+                  disabled={!canWrite}
                 />
                 <div className="md:col-span-2">
                   <InfoPrimaryButton
                     type="submit"
-                    disabled={submitting === "license"}
+                    disabled={!canWrite || submitting === "license"}
                   >
                     <FaKey />
                     {submitting === "license" ? "提交中..." : "创建授权"}
@@ -997,6 +1041,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                       licenseId: value,
                     }))
                   }
+                  disabled={!canWrite}
                   required
                 />
                 <SelectField
@@ -1008,6 +1053,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                       status: value as LicenseStatus,
                     }))
                   }
+                  disabled={!canWrite}
                   options={statusOptions.map((value) => ({
                     label: value,
                     value,
@@ -1023,6 +1069,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                       maxActivations: value,
                     }))
                   }
+                  disabled={!canWrite}
                 />
                 <Field
                   label="到期时间"
@@ -1034,6 +1081,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                       expiresAt: value,
                     }))
                   }
+                  disabled={!canWrite}
                 />
                 <Field
                   label="Plan ID"
@@ -1041,6 +1089,7 @@ const EcoEnchantsAdminPage: React.FC = () => {
                   onChange={(value) =>
                     setLicenseUpdateForm((prev) => ({ ...prev, planId: value }))
                   }
+                  disabled={!canWrite}
                 />
                 <Field
                   label="Customer ID"
@@ -1051,11 +1100,12 @@ const EcoEnchantsAdminPage: React.FC = () => {
                       customerId: value,
                     }))
                   }
+                  disabled={!canWrite}
                 />
                 <div className="md:col-span-2">
                   <InfoPrimaryButton
                     type="submit"
-                    disabled={submitting === "license-update"}
+                    disabled={!canWrite || submitting === "license-update"}
                   >
                     <FaRedo />
                     {submitting === "license-update" ? "提交中..." : "更新授权"}
@@ -1072,12 +1122,13 @@ const EcoEnchantsAdminPage: React.FC = () => {
                   value={revokeLicenseId}
                   onChange={(event) => setRevokeLicenseId(event.target.value)}
                   placeholder="License ID"
+                  disabled={!canWrite}
                   required
                 />
                 <button
                   type="submit"
                   className={logShareDangerButtonClass}
-                  disabled={submitting === "license-revoke"}
+                  disabled={!canWrite || submitting === "license-revoke"}
                 >
                   <FaBan />
                   {submitting === "license-revoke" ? "吊销中..." : "吊销授权"}

@@ -6,6 +6,8 @@ import { useNotification } from './Notification';
 import getApiBaseUrl from '../api';
 import { openDB } from 'idb';
 import ImageUploadSection from './ImageUploadSection';
+import { useAuth } from '../hooks/useAuth';
+import { isSuperAdmin } from '../utils/rbac';
 
 
 // 通缉犯接口定义
@@ -61,6 +63,8 @@ interface Statistics {
 
 const FBIWantedManager: React.FC = () => {
     const { setNotification } = useNotification();
+    const { user } = useAuth();
+    const canWrite = isSuperAdmin(user?.role);
 
     // 图片上传限制
     const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -174,6 +178,7 @@ const FBIWantedManager: React.FC = () => {
 
     // 创建通缉犯
     const handleCreateWanted = async () => {
+        if (!canWrite) return;
         try {
             setLoading(true);
             const dataToSubmit = {
@@ -221,7 +226,7 @@ const FBIWantedManager: React.FC = () => {
 
     // 更新通缉犯
     const handleUpdateWanted = async () => {
-        if (!selectedWanted) return;
+        if (!canWrite || !selectedWanted) return;
 
         try {
             setLoading(true);
@@ -276,6 +281,7 @@ const FBIWantedManager: React.FC = () => {
 
     // 根据条件批量删除
     const handleBatchDelete = async (filter: object, confirmationMessage: string) => {
+        if (!canWrite) return;
         if (!confirm(confirmationMessage)) {
             return;
         }
@@ -310,6 +316,7 @@ const FBIWantedManager: React.FC = () => {
 
     // 删除通缉犯
     const handleDeleteWanted = async (id: string) => {
+        if (!canWrite) return;
         try {
             setLoading(true);
             const response = await fetch(`${getApiBaseUrl()}/api/fbi-wanted/${id}`, {
@@ -354,6 +361,7 @@ const FBIWantedManager: React.FC = () => {
 
     // 处理图片上传
     const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+        if (!canWrite) return;
         const file = e.target.files?.[0];
         if (!file) return;
 
@@ -553,7 +561,8 @@ const FBIWantedManager: React.FC = () => {
                         <div className="flex flex-col sm:flex-row gap-4">
                             <motion.button
                                 onClick={() => handleBatchDelete({ status: 'DECEASED' }, '确定要删除所有已死亡的通缉犯记录吗？此操作不可逆！')}
-                                className="flex items-center justify-center gap-2 px-4 py-3 bg-[#FB8500] text-white rounded-2xl hover:bg-[#FB8500]/80 transition-all duration-200 font-semibold"
+                                disabled={!canWrite}
+                                className="flex items-center justify-center gap-2 px-4 py-3 bg-[#FB8500] text-white rounded-2xl hover:bg-[#FB8500]/80 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                                 whileHover={hoverScale(1.02)}
                                 whileTap={tapScale(0.98)}
                             >
@@ -562,7 +571,8 @@ const FBIWantedManager: React.FC = () => {
                             </motion.button>
                             <motion.button
                                 onClick={() => handleBatchDelete({}, '警告：确定要删除所有的通缉犯记录吗？此操作将清空数据库，不可逆！')}
-                                className="flex items-center justify-center gap-2 px-4 py-3 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition-all duration-200 font-semibold"
+                                disabled={!canWrite}
+                                className="flex items-center justify-center gap-2 px-4 py-3 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                                 whileHover={hoverScale(1.02)}
                                 whileTap={tapScale(0.98)}
                             >
@@ -571,7 +581,8 @@ const FBIWantedManager: React.FC = () => {
                             </motion.button>
                             <motion.button
                                 onClick={() => setShowCreateModal(true)}
-                                className="flex items-center justify-center gap-2 px-6 py-3 bg-[#FFB703] text-[#023047] rounded-2xl hover:bg-[#FB8500] transition-all duration-200 font-semibold"
+                                disabled={!canWrite}
+                                className="flex items-center justify-center gap-2 px-6 py-3 bg-[#FFB703] text-[#023047] rounded-2xl hover:bg-[#FB8500] transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                                 whileHover={hoverScale(1.02)}
                                 whileTap={tapScale(0.98)}
                             >
@@ -676,7 +687,8 @@ const FBIWantedManager: React.FC = () => {
                                                             setFormData(wanted);
                                                             setShowEditModal(true);
                                                         }}
-                                                        className="text-[#FFB703] hover:text-[#023047] transition-colors"
+                                                        disabled={!canWrite}
+                                                        className="text-[#FFB703] hover:text-[#023047] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                                         whileHover={hoverScale(1.1)}
                                                         whileTap={tapScale(0.95)}
                                                     >
@@ -688,7 +700,8 @@ const FBIWantedManager: React.FC = () => {
                                                                 handleDeleteWanted(wanted._id);
                                                             }
                                                         }}
-                                                        className="text-red-600 hover:text-red-900 transition-colors"
+                                                        disabled={!canWrite}
+                                                        className="text-red-600 hover:text-red-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                                         whileHover={hoverScale(1.1)}
                                                         whileTap={tapScale(0.95)}
                                                     >
@@ -770,6 +783,7 @@ const FBIWantedManager: React.FC = () => {
                                                 type="text"
                                                 value={formData.name || ''}
                                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                                disabled={!canWrite}
                                                 className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="输入通缉犯姓名"
                                             />
@@ -781,6 +795,7 @@ const FBIWantedManager: React.FC = () => {
                                                 type="number"
                                                 value={formData.age || ''}
                                                 onChange={(e) => setFormData({ ...formData, age: parseInt(e.target.value) || 0 })}
+                                                disabled={!canWrite}
                                                 className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="输入年龄"
                                             />
@@ -792,6 +807,7 @@ const FBIWantedManager: React.FC = () => {
                                                 type="text"
                                                 value={formData.height || ''}
                                                 onChange={(e) => setFormData({ ...formData, height: e.target.value })}
+                                                disabled={!canWrite}
                                                 className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="例如：180cm 或 未知"
                                             />
@@ -803,6 +819,7 @@ const FBIWantedManager: React.FC = () => {
                                                 type="text"
                                                 value={formData.weight || ''}
                                                 onChange={(e) => setFormData({ ...formData, weight: e.target.value })}
+                                                disabled={!canWrite}
                                                 className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="例如：75kg 或 未知"
                                             />
@@ -814,6 +831,7 @@ const FBIWantedManager: React.FC = () => {
                                                 type="text"
                                                 value={formData.eyes || ''}
                                                 onChange={(e) => setFormData({ ...formData, eyes: e.target.value })}
+                                                disabled={!canWrite}
                                                 className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="例如：棕色/蓝色/未知"
                                             />
@@ -825,6 +843,7 @@ const FBIWantedManager: React.FC = () => {
                                                 type="text"
                                                 value={formData.hair || ''}
                                                 onChange={(e) => setFormData({ ...formData, hair: e.target.value })}
+                                                disabled={!canWrite}
                                                 className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="例如：黑色/金色/未知"
                                             />
@@ -836,6 +855,7 @@ const FBIWantedManager: React.FC = () => {
                                                 type="text"
                                                 value={formData.race || ''}
                                                 onChange={(e) => setFormData({ ...formData, race: e.target.value })}
+                                                disabled={!canWrite}
                                                 className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="例如：亚洲人/白人/未知"
                                             />
@@ -847,6 +867,7 @@ const FBIWantedManager: React.FC = () => {
                                                 type="text"
                                                 value={formData.nationality || ''}
                                                 onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
+                                                disabled={!canWrite}
                                                 className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="例如：中国/美国/未知"
                                             />
@@ -857,6 +878,7 @@ const FBIWantedManager: React.FC = () => {
                                             <select
                                                 value={formData.dangerLevel || 'LOW'}
                                                 onChange={(e) => setFormData({ ...formData, dangerLevel: e.target.value as any })}
+                                                disabled={!canWrite}
                                                 className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                             >
                                                 <option value="LOW">低危险</option>
@@ -871,6 +893,7 @@ const FBIWantedManager: React.FC = () => {
                                             <select
                                                 value={formData.status || 'ACTIVE'}
                                                 onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                                                disabled={!canWrite}
                                                 className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                             >
                                                 <option value="ACTIVE">在逃</option>
@@ -886,6 +909,7 @@ const FBIWantedManager: React.FC = () => {
                                                 type="number"
                                                 value={formData.reward || ''}
                                                 onChange={(e) => setFormData({ ...formData, reward: parseInt(e.target.value) || 0 })}
+                                                disabled={!canWrite}
                                                 className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="输入奖金金额"
                                             />
@@ -904,6 +928,7 @@ const FBIWantedManager: React.FC = () => {
                                                     .map(s => s.trim())
                                                     .filter(s => s.length > 0)
                                             })}
+                                            disabled={!canWrite}
                                             className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                             placeholder="输入罪名，多个罪名用逗号分隔"
                                         />
@@ -914,6 +939,7 @@ const FBIWantedManager: React.FC = () => {
                                         <textarea
                                             value={formData.description || ''}
                                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                            disabled={!canWrite}
                                             rows={3}
                                             className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                             placeholder="输入详细描述"
@@ -945,6 +971,7 @@ const FBIWantedManager: React.FC = () => {
                                     <button
                                         onClick={handleCreateWanted}
                                         disabled={
+                                            !canWrite ||
                                             loading ||
                                             !formData.name ||
                                             !(formData.charges && formData.charges.length > 0) ||
@@ -1002,6 +1029,7 @@ const FBIWantedManager: React.FC = () => {
                                                 type="text"
                                                 value={formData.name || ''}
                                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                                disabled={!canWrite}
                                                 className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="输入通缉犯姓名"
                                             />
@@ -1013,6 +1041,7 @@ const FBIWantedManager: React.FC = () => {
                                                 type="number"
                                                 value={formData.age || ''}
                                                 onChange={(e) => setFormData({ ...formData, age: parseInt(e.target.value) || 0 })}
+                                                disabled={!canWrite}
                                                 className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="输入年龄"
                                             />
@@ -1023,6 +1052,7 @@ const FBIWantedManager: React.FC = () => {
                                             <select
                                                 value={formData.dangerLevel || 'LOW'}
                                                 onChange={(e) => setFormData({ ...formData, dangerLevel: e.target.value as any })}
+                                                disabled={!canWrite}
                                                 className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                             >
                                                 <option value="LOW">低危险</option>
@@ -1037,6 +1067,7 @@ const FBIWantedManager: React.FC = () => {
                                             <select
                                                 value={formData.status || 'ACTIVE'}
                                                 onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                                                disabled={!canWrite}
                                                 className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                             >
                                                 <option value="ACTIVE">在逃</option>
@@ -1052,6 +1083,7 @@ const FBIWantedManager: React.FC = () => {
                                                 type="number"
                                                 value={formData.reward || ''}
                                                 onChange={(e) => setFormData({ ...formData, reward: parseInt(e.target.value) || 0 })}
+                                                disabled={!canWrite}
                                                 className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                                 placeholder="输入奖金金额"
                                             />
@@ -1064,6 +1096,7 @@ const FBIWantedManager: React.FC = () => {
                                             type="text"
                                             value={formData.charges?.join(', ') || ''}
                                             onChange={(e) => setFormData({ ...formData, charges: e.target.value.split(',').map(s => s.trim()) })}
+                                            disabled={!canWrite}
                                             className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                             placeholder="输入罪名，多个罪名用逗号分隔"
                                         />
@@ -1074,6 +1107,7 @@ const FBIWantedManager: React.FC = () => {
                                         <textarea
                                             value={formData.description || ''}
                                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                            disabled={!canWrite}
                                             rows={3}
                                             className="w-full px-3 py-2 border border-slate-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                             placeholder="输入详细描述"
@@ -1094,7 +1128,7 @@ const FBIWantedManager: React.FC = () => {
                                     </button>
                                     <button
                                         onClick={handleUpdateWanted}
-                                        disabled={loading || !formData.name || !formData.fbiNumber}
+                                        disabled={!canWrite || loading || !formData.name || !formData.fbiNumber}
                                         className="px-6 py-2 bg-gradient-to-r from-green-600 to-blue-600 text-white rounded-2xl hover:from-green-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center gap-2"
                                     >
                                         {loading ? <FaSpinner className="animate-spin" /> : <FaSave />}

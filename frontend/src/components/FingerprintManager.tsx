@@ -19,6 +19,8 @@ import {
 import { Link } from 'react-router-dom';
 import { api } from '../api/api';
 import { turnstileApi, type FingerprintStats } from '../api/turnstile';
+import { useAuth } from '../hooks/useAuth';
+import { isSuperAdmin } from '../utils/rbac';
 import { useNotification } from './Notification';
 import {
   InfoBadge,
@@ -127,6 +129,8 @@ export default function FingerprintManager() {
   const [actionUserId, setActionUserId] = useState<string | null>(null);
   const [deletingFingerprintKey, setDeletingFingerprintKey] = useState<string | null>(null);
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
 
   const applyUserPayload = useCallback((payload: UserListEnvelope | FingerprintUser[]) => {
     const envelope = Array.isArray(payload) ? null : payload;
@@ -219,6 +223,7 @@ export default function FingerprintManager() {
   }, [keyword]);
 
   const handleCleanup = useCallback(async () => {
+    if (!canWrite) return;
     if (!window.confirm('确定要清理所有过期的临时指纹数据吗？此操作不可撤销。')) return;
     setCleaning(true);
     try {
@@ -233,7 +238,7 @@ export default function FingerprintManager() {
     } finally {
       setCleaning(false);
     }
-  }, [fetchDashboard, setNotification]);
+  }, [canWrite, fetchDashboard, setNotification]);
 
   const updateUserRequirement = useCallback((userId: string, requireFingerprint: boolean, requireFingerprintAt: number) => {
     const patchUser = (user: FingerprintUser): FingerprintUser => user.id === userId
@@ -258,6 +263,7 @@ export default function FingerprintManager() {
   }, []);
 
   const requestUserFingerprint = useCallback(async (userId: string) => {
+    if (!canWrite) return;
     setActionUserId(userId);
     try {
       const response = await api.post<FingerprintRequirementResponse>(`/api/admin/users/${userId}/fingerprint/require`, {
@@ -271,9 +277,10 @@ export default function FingerprintManager() {
     } finally {
       setActionUserId(null);
     }
-  }, [setNotification, updateUserRequirement]);
+  }, [canWrite, setNotification, updateUserRequirement]);
 
   const clearUserFingerprints = useCallback(async (userId: string) => {
+    if (!canWrite) return;
     if (!window.confirm('确定要清空该用户的全部指纹记录吗？此操作不可撤销。')) return;
     setActionUserId(userId);
     try {
@@ -285,9 +292,10 @@ export default function FingerprintManager() {
     } finally {
       setActionUserId(null);
     }
-  }, [setNotification, updateUserFingerprints]);
+  }, [canWrite, setNotification, updateUserFingerprints]);
 
   const deleteUserFingerprint = useCallback(async (userId: string, record: FingerprintRecord, key: string) => {
+    if (!canWrite) return;
     if (!window.confirm('确定要删除该指纹记录吗？')) return;
     setDeletingFingerprintKey(key);
     try {
@@ -302,7 +310,7 @@ export default function FingerprintManager() {
     } finally {
       setDeletingFingerprintKey(null);
     }
-  }, [setNotification, updateUserFingerprints]);
+  }, [canWrite, setNotification, updateUserFingerprints]);
 
   const copyText = useCallback(async (value: string, successMessage: string) => {
     try {
@@ -411,7 +419,7 @@ export default function FingerprintManager() {
               <button
                 type="button"
                 onClick={handleCleanup}
-                disabled={cleaning || (tempStats?.expired || 0) <= 0}
+                disabled={!canWrite || cleaning || (tempStats?.expired || 0) <= 0}
                 className={logShareDangerButtonClass}
               >
                 <FaTrash className={`text-xs ${cleaning ? 'animate-spin' : ''}`} />
@@ -483,7 +491,7 @@ export default function FingerprintManager() {
                           <button
                             type="button"
                             onClick={() => void requestUserFingerprint(user.id)}
-                            disabled={actionUserId === user.id}
+                            disabled={!canWrite || actionUserId === user.id}
                             className={logShareSecondaryButtonClass}
                           >
                             <FaUserShield className="text-xs" />
@@ -558,7 +566,7 @@ export default function FingerprintManager() {
                   <button
                     type="button"
                     onClick={() => void requestUserFingerprint(selectedUser.id)}
-                    disabled={actionUserId === selectedUser.id}
+                    disabled={!canWrite || actionUserId === selectedUser.id}
                     className={logShareSecondaryButtonClass}
                   >
                     <FaUserShield className="text-xs" />
@@ -567,7 +575,7 @@ export default function FingerprintManager() {
                   <button
                     type="button"
                     onClick={() => void clearUserFingerprints(selectedUser.id)}
-                    disabled={actionUserId === selectedUser.id || selectedFingerprints.length === 0}
+                    disabled={!canWrite || actionUserId === selectedUser.id || selectedFingerprints.length === 0}
                     className={logShareDangerButtonClass}
                   >
                     <FaTrash className="text-xs" />
@@ -627,7 +635,7 @@ export default function FingerprintManager() {
                           <button
                             type="button"
                             onClick={() => void deleteUserFingerprint(selectedUser.id, record, recordKey)}
-                            disabled={deletingFingerprintKey === recordKey}
+                            disabled={!canWrite || deletingFingerprintKey === recordKey}
                             className={logShareDangerButtonClass}
                           >
                             <FaTrash className="text-xs" />

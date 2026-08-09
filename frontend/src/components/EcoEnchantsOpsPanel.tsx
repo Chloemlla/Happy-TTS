@@ -20,6 +20,8 @@ import {
 } from "react-icons/fa";
 import type { IconType } from "react-icons";
 import api from "../api/api";
+import { useAuth } from "../hooks/useAuth";
+import { isSuperAdmin } from "../utils/rbac";
 import { useNotification } from "./Notification";
 import {
   InfoBadge,
@@ -178,13 +180,15 @@ const SelectField: React.FC<{
   value: string;
   onChange: (value: string) => void;
   options: Array<{ label: string; value: string }>;
-}> = ({ label, value, onChange, options }) => (
+  disabled?: boolean;
+}> = ({ label, value, onChange, options, disabled }) => (
   <label className="block space-y-2">
     <span className={labelClass}>{label}</span>
     <select
-      className={inputClass}
+      className={`${inputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
       value={value}
       onChange={(event) => onChange(event.target.value)}
+      disabled={disabled}
     >
       {options.map((option) => (
         <option key={option.value} value={option.value}>
@@ -315,6 +319,8 @@ function InstanceDetailSection({
   onBack: () => void;
 }) {
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const [instance, setInstance] = useState<OpsInstance | null>(null);
   const [jobs, setJobs] = useState<OpsJob[]>([]);
   const [loading, setLoading] = useState(false);
@@ -384,6 +390,7 @@ function InstanceDetailSection({
 
   /* File handlers */
   const handleFileRead = useCallback(async () => {
+    if (!canWrite) return;
     if (!fileReadPath.trim()) return;
     setFileOpsLoading(true);
     setFileResult(null);
@@ -401,9 +408,10 @@ function InstanceDetailSection({
     } finally {
       setFileOpsLoading(false);
     }
-  }, [instanceId, fileReadPath, setNotification]);
+  }, [canWrite, instanceId, fileReadPath, setNotification]);
 
   const handleFileWrite = useCallback(async () => {
+    if (!canWrite) return;
     if (!fileWritePath.trim() || !fileWriteContent.trim()) return;
     setFileOpsLoading(true);
     try {
@@ -419,9 +427,10 @@ function InstanceDetailSection({
     } finally {
       setFileOpsLoading(false);
     }
-  }, [instanceId, fileWritePath, fileWriteContent, setNotification]);
+  }, [canWrite, instanceId, fileWritePath, fileWriteContent, setNotification]);
 
   const handleFileDelete = useCallback(async () => {
+    if (!canWrite) return;
     if (!fileDeletePath.trim()) return;
     if (!window.confirm(`确定删除远程文件「${fileDeletePath}」？`)) return;
     setFileOpsLoading(true);
@@ -436,9 +445,10 @@ function InstanceDetailSection({
     } finally {
       setFileOpsLoading(false);
     }
-  }, [instanceId, fileDeletePath, setNotification]);
+  }, [canWrite, instanceId, fileDeletePath, setNotification]);
 
   const handleCreateBackup = useCallback(async () => {
+    if (!canWrite) return;
     try {
       await api.post(`${API_BASE}/ops/instances/${instanceId}/backups`);
       setNotification({ message: "备份创建请求已发送", type: "success" });
@@ -446,10 +456,11 @@ function InstanceDetailSection({
     } catch (e) {
       setNotification({ message: getErrorMessage(e, "创建备份失败"), type: "error" });
     }
-  }, [instanceId, fetchBackups, setNotification]);
+  }, [canWrite, instanceId, fetchBackups, setNotification]);
 
   const handleRestoreBackup = useCallback(
     async (backupId: string) => {
+      if (!canWrite) return;
       if (!window.confirm(`确定恢复备份「${backupId.slice(0, 16)}...」？此操作不可撤销。`)) return;
       setRestoringId(backupId);
       try {
@@ -461,10 +472,11 @@ function InstanceDetailSection({
         setRestoringId(null);
       }
     },
-    [instanceId, setNotification],
+    [canWrite, instanceId, setNotification],
   );
 
   const handleCreateJob = useCallback(async () => {
+    if (!canWrite) return;
     setCreatingJob(true);
     try {
       await api.post(`${API_BASE}/ops/instances/${instanceId}/jobs`, {
@@ -478,7 +490,7 @@ function InstanceDetailSection({
     } finally {
       setCreatingJob(false);
     }
-  }, [instanceId, createJobMethod, createJobCommandId, fetchJobs, setNotification]);
+  }, [canWrite, instanceId, createJobMethod, createJobCommandId, fetchJobs, setNotification]);
 
   if (loading && !instance) {
     return (
@@ -556,6 +568,7 @@ function InstanceDetailSection({
                 label="Method"
                 value={createJobMethod}
                 onChange={setCreateJobMethod}
+                disabled={!canWrite}
                 options={[
                   { label: "ops.command.runManaged", value: "ops.command.runManaged" },
                   { label: "ops.diagnostics.snapshot", value: "ops.diagnostics.snapshot" },
@@ -570,6 +583,7 @@ function InstanceDetailSection({
                 label="Command ID"
                 value={createJobCommandId}
                 onChange={setCreateJobCommandId}
+                disabled={!canWrite}
                 options={[
                   { label: "ecoenchants.reload", value: "ecoenchants.reload" },
                   { label: "ecoenchants.services.status", value: "ecoenchants.services.status" },
@@ -579,8 +593,8 @@ function InstanceDetailSection({
                 <button
                   type="button"
                   onClick={handleCreateJob}
-                  disabled={creatingJob}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60"
+                  disabled={creatingJob || !canWrite}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <FaPlus />
                   {creatingJob ? "创建中..." : "创建任务"}
@@ -639,13 +653,14 @@ function InstanceDetailSection({
                 value={fileReadPath}
                 onChange={(e) => setFileReadPath(e.target.value)}
                 placeholder="远程文件路径，如 /server/plugins/config.yml"
-                className={inputClass}
+                disabled={!canWrite}
+                className={`${inputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
               />
               <button
                 type="button"
                 onClick={handleFileRead}
-                disabled={fileOpsLoading || !fileReadPath.trim()}
-                className="inline-flex shrink-0 items-center gap-2 rounded-2xl bg-slate-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-700 disabled:opacity-60"
+                disabled={fileOpsLoading || !fileReadPath.trim() || !canWrite}
+                className="inline-flex shrink-0 items-center gap-2 rounded-2xl bg-slate-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-700 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <FaDownload />
                 读取
@@ -666,20 +681,22 @@ function InstanceDetailSection({
                 value={fileWritePath}
                 onChange={(e) => setFileWritePath(e.target.value)}
                 placeholder="远程文件路径"
-                className={inputClass}
+                disabled={!canWrite}
+                className={`${inputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
               />
               <textarea
                 value={fileWriteContent}
                 onChange={(e) => setFileWriteContent(e.target.value)}
                 rows={4}
                 placeholder="文件内容..."
-                className={`${inputClass} font-mono`}
+                disabled={!canWrite}
+                className={`${inputClass} font-mono disabled:opacity-50 disabled:cursor-not-allowed`}
               />
               <button
                 type="button"
                 onClick={handleFileWrite}
-                disabled={fileOpsLoading || !fileWritePath.trim() || !fileWriteContent.trim()}
-                className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                disabled={fileOpsLoading || !fileWritePath.trim() || !fileWriteContent.trim() || !canWrite}
+                className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <FaSave />
                 写入
@@ -695,13 +712,14 @@ function InstanceDetailSection({
                 value={fileDeletePath}
                 onChange={(e) => setFileDeletePath(e.target.value)}
                 placeholder="远程文件路径"
-                className={inputClass}
+                disabled={!canWrite}
+                className={`${inputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
               />
               <button
                 type="button"
                 onClick={handleFileDelete}
-                disabled={fileOpsLoading || !fileDeletePath.trim()}
-                className="inline-flex shrink-0 items-center gap-2 rounded-2xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-60"
+                disabled={fileOpsLoading || !fileDeletePath.trim() || !canWrite}
+                className="inline-flex shrink-0 items-center gap-2 rounded-2xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <FaTrash />
                 删除
@@ -718,7 +736,8 @@ function InstanceDetailSection({
             <button
               type="button"
               onClick={handleCreateBackup}
-              className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700"
+              disabled={!canWrite}
+              className="inline-flex items-center gap-2 rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <FaPlus />
               创建备份
@@ -745,8 +764,8 @@ function InstanceDetailSection({
                   <button
                     type="button"
                     onClick={() => handleRestoreBackup(bk.backupId)}
-                    disabled={restoringId === bk.backupId}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-amber-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-amber-700 disabled:opacity-60"
+                    disabled={restoringId === bk.backupId || !canWrite}
+                    className="inline-flex items-center gap-2 rounded-2xl bg-amber-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-amber-700 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     <FaUndo />
                     {restoringId === bk.backupId ? "恢复中..." : "恢复"}

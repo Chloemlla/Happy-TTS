@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { FaRedo, FaSave, FaSync, FaTrash } from 'react-icons/fa';
 import { getApiBaseUrl } from '../api/api';
+import { useAuth } from '../hooks/useAuth';
+import { isSuperAdmin } from '../utils/rbac';
 import { SimpleLoadingSpinner } from './LoadingSpinner';
 import { useNotification } from './Notification';
 import {
@@ -129,16 +131,18 @@ function FieldLabel(props: { label: string; hint?: string }) {
 function ToggleField(props: {
   label: string;
   checked: boolean;
+  disabled?: boolean;
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-4 rounded-[22px] border border-white/70 bg-white/88 px-4 py-3 shadow-[0_12px_36px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+    <label className={`flex items-center justify-between gap-4 rounded-[22px] border border-white/70 bg-white/88 px-4 py-3 shadow-[0_12px_36px_rgba(15,23,42,0.06)] backdrop-blur-xl ${props.disabled ? 'opacity-60' : 'cursor-pointer'}`}>
       <span className="text-sm font-semibold text-slate-700">{props.label}</span>
       <input
         type="checkbox"
         checked={props.checked}
+        disabled={props.disabled}
         onChange={(event) => props.onChange(event.target.checked)}
-        className="h-5 w-5 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
+        className="h-5 w-5 rounded border-slate-300 text-slate-900 focus:ring-slate-400 disabled:cursor-not-allowed"
       />
     </label>
   );
@@ -154,6 +158,8 @@ function UpdatedAt(props: { value?: string }) {
 
 const MailSystemConfigManager: React.FC = () => {
   const { setNotification } = useNotification();
+  const { user } = useAuth();
+  const canWrite = isSuperAdmin(user?.role);
   const [setting, setSetting] = useState<MailSystemSetting | null>(null);
   const [form, setForm] = useState<MailSystemForm>(defaultForm);
   const [resendApiKey, setResendApiKey] = useState('');
@@ -221,6 +227,7 @@ const MailSystemConfigManager: React.FC = () => {
 
   const saveSetting = useCallback(async () => {
     if (saving) return;
+    if (!canWrite) return;
     setSaving(true);
     try {
       const response = await fetch(MAIL_SYSTEM_API, {
@@ -243,10 +250,11 @@ const MailSystemConfigManager: React.FC = () => {
     } finally {
       setSaving(false);
     }
-  }, [loadSetting, payload, saving, setNotification]);
+  }, [canWrite, loadSetting, payload, saving, setNotification]);
 
   const resetSetting = useCallback(async () => {
     if (resetting) return;
+    if (!canWrite) return;
     const confirmed = window.confirm('确定要重置邮件系统配置为环境变量默认值吗？');
     if (!confirmed) return;
 
@@ -270,7 +278,7 @@ const MailSystemConfigManager: React.FC = () => {
     } finally {
       setResetting(false);
     }
-  }, [loadSetting, resetting, setNotification]);
+  }, [canWrite, loadSetting, resetting, setNotification]);
 
   if (loading) {
     return <MailLoadingShell />;
@@ -299,7 +307,7 @@ const MailSystemConfigManager: React.FC = () => {
             <motion.button
               type="button"
               onClick={resetSetting}
-              disabled={saving || resetting}
+              disabled={saving || resetting || !canWrite}
               className={logShareDangerButtonClass}
               whileTap={{ scale: 0.97 }}
             >
@@ -309,7 +317,7 @@ const MailSystemConfigManager: React.FC = () => {
             <motion.button
               type="button"
               onClick={saveSetting}
-              disabled={saving || resetting}
+              disabled={saving || resetting || !canWrite}
               className={logSharePrimaryButtonClass}
               whileTap={{ scale: 0.97 }}
             >
@@ -344,6 +352,7 @@ const MailSystemConfigManager: React.FC = () => {
               <ToggleField
                 label="启用主邮件服务"
                 checked={form.enabled}
+                disabled={!canWrite}
                 onChange={(checked) => setForm((prev) => ({ ...prev, enabled: checked }))}
               />
               <div>
@@ -352,7 +361,8 @@ const MailSystemConfigManager: React.FC = () => {
                   value={form.resendDomain}
                   onChange={(event) => setForm((prev) => ({ ...prev, resendDomain: event.target.value }))}
                   placeholder="example.com"
-                  className={logShareInputClass}
+                  disabled={!canWrite}
+                  className={`${logShareInputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
                 />
               </div>
               <div>
@@ -362,7 +372,8 @@ const MailSystemConfigManager: React.FC = () => {
                   value={resendApiKey}
                   onChange={(event) => setResendApiKey(event.target.value)}
                   placeholder="留空表示保留现有 API Key"
-                  className={logShareInputClass}
+                  disabled={!canWrite}
+                  className={`${logShareInputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
                 />
               </div>
               <div>
@@ -372,7 +383,8 @@ const MailSystemConfigManager: React.FC = () => {
                   min={1}
                   value={form.quotaTotal}
                   onChange={(event) => setForm((prev) => ({ ...prev, quotaTotal: Number(event.target.value) || 1 }))}
-                  className={logShareInputClass}
+                  disabled={!canWrite}
+                  className={`${logShareInputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
                 />
               </div>
             </div>
@@ -390,6 +402,7 @@ const MailSystemConfigManager: React.FC = () => {
               <ToggleField
                 label="启用对外邮件服务"
                 checked={form.outemailEnabled}
+                disabled={!canWrite}
                 onChange={(checked) => setForm((prev) => ({ ...prev, outemailEnabled: checked }))}
               />
               <div>
@@ -398,7 +411,8 @@ const MailSystemConfigManager: React.FC = () => {
                   value={form.outemailDomain}
                   onChange={(event) => setForm((prev) => ({ ...prev, outemailDomain: event.target.value }))}
                   placeholder="example.com"
-                  className={logShareInputClass}
+                  disabled={!canWrite}
+                  className={`${logShareInputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
                 />
               </div>
               <div>
@@ -408,7 +422,8 @@ const MailSystemConfigManager: React.FC = () => {
                   value={outemailApiKey}
                   onChange={(event) => setOutemailApiKey(event.target.value)}
                   placeholder="留空表示保留现有 API Key"
-                  className={logShareInputClass}
+                  disabled={!canWrite}
+                  className={`${logShareInputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
                 />
               </div>
               <div>
@@ -418,7 +433,8 @@ const MailSystemConfigManager: React.FC = () => {
                   value={outemailCode}
                   onChange={(event) => setOutemailCode(event.target.value)}
                   placeholder="留空表示保留现有校验码"
-                  className={logShareInputClass}
+                  disabled={!canWrite}
+                  className={`${logShareInputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
                 />
               </div>
               <div>
@@ -428,7 +444,8 @@ const MailSystemConfigManager: React.FC = () => {
                   min={1}
                   value={form.outemailQuotaTotal}
                   onChange={(event) => setForm((prev) => ({ ...prev, outemailQuotaTotal: Number(event.target.value) || 1 }))}
-                  className={logShareInputClass}
+                  disabled={!canWrite}
+                  className={`${logShareInputClass} disabled:opacity-50 disabled:cursor-not-allowed`}
                 />
               </div>
             </div>
