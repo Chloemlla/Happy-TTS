@@ -66,6 +66,7 @@ export const ADMIN_MODULE_LOADERS = {
       },
     })),
   'audit-log': () => import('@/components/AuditLogViewer'),
+  'crash-reports': () => import('@/components/admin/CrashReportManager'),
   'translation-audit': () => import('@/components/TranslationAuditViewer'),
   'email-traceability': () => import('@/components/EmailTraceability'),
   'tts-history': () => import('@/components/TtsGenerationManager'),

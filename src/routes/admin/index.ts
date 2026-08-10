@@ -4,6 +4,7 @@ import { authMiddlewareV2 as authMiddleware, isAdminRole } from "../../middlewar
 import { UserStorage } from "../../utils/userStorage";
 import broadcastRouter from "./broadcast";
 import configRouter from "./config";
+import crashReportsRouter from "./crashReports";
 import profileRouter from "./profile";
 import registrationInvitesRouter from "./registrationInvites";
 import shortlinksRouter from "./shortlinks";
@@ -88,6 +89,7 @@ router.use(shortlinksRouter);
 router.use(profileRouter);
 router.use(broadcastRouter);
 router.use(registrationInvitesRouter);
+router.use(crashReportsRouter);
 
 // Bilibili Sync 管理（PiliPlus 配置数据）
 router.get("/bilibili-sync", (req, res) => adminController.getBilibiliSyncRecords(req, res));

@@ -483,6 +483,12 @@ export function getAdminNavGroups(ctx: NavVisibilityContext): NavGroup[] {
             requiredRole: 'admin',
           },
           {
+            title: '崩溃报告',
+            url: '/admin/crash-reports',
+            icon: FaBug as IconType,
+            requiredRole: 'admin',
+          },
+          {
             title: 'GitHub 账单缓存',
             url: '/admin/github-billing-cache',
             icon: FaDollarSign as IconType,
@@ -565,6 +571,7 @@ export const ADMIN_TAB_TO_PATH: Record<string, string> = {
   webhookevents: '/admin/webhookevents',
   'bilibili-sync': '/admin/bilibili-sync',
   'data-collection': '/admin/data-collection',
+  'crash-reports': '/admin/crash-reports',
   'github-billing-cache': '/admin/github-billing-cache',
   'ip-ban': '/admin/ip-ban',
   fingerprint: '/admin/fingerprint',
