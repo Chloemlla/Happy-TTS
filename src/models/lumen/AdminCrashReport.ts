@@ -8,6 +8,7 @@ export interface IAdminCrashReport {
   affectedUsers: number;
   risk: string;
   cleanStack: string[];
+  devices: string[];
   lastSeenAt: number;
 }
 
@@ -20,6 +21,7 @@ const AdminCrashReportSchema = new mongoose.Schema<IAdminCrashReport>(
     affectedUsers: { type: Number },
     risk: { type: String },
     cleanStack: [{ type: String }],
+    devices: { type: [String], default: [] },
     lastSeenAt: { type: Number },
   },
   { strict: true, timestamps: false, collection: "admin_crash_reports" },

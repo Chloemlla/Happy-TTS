@@ -1,0 +1,66 @@
+import { mongoose } from "../../services/mongoService.js";
+
+export interface ICrashReport {
+  _id: string;
+  userId: string;
+  deviceInstallationId: string;
+  reportId: string;
+  packageName: string;
+  versionCode: number;
+  crashedAtMillis: number;
+  crashedAtText: string;
+  exceptionType: string;
+  rootCause: string;
+  threadName: string;
+  processName: string;
+  systemInfo: string;
+  stackTrace: string;
+  recentEvents: string[];
+  kind: string;
+  durationMillis: number;
+  authorName: string;
+  authorUrl: string;
+  authorFingerprint: string;
+  groupKey: string;
+  cleanStack: string[];
+  receivedAt: number;
+}
+
+const CrashReportSchema = new mongoose.Schema<ICrashReport>(
+  {
+    _id: { type: String },
+    userId: { type: String },
+    deviceInstallationId: { type: String },
+    reportId: { type: String },
+    packageName: { type: String },
+    versionCode: { type: Number },
+    crashedAtMillis: { type: Number },
+    crashedAtText: { type: String },
+    exceptionType: { type: String },
+    rootCause: { type: String },
+    threadName: { type: String },
+    processName: { type: String },
+    systemInfo: { type: String },
+    stackTrace: { type: String },
+    recentEvents: [{ type: String }],
+    kind: { type: String },
+    durationMillis: { type: Number },
+    authorName: { type: String },
+    authorUrl: { type: String },
+    authorFingerprint: { type: String },
+    groupKey: { type: String },
+    cleanStack: [{ type: String }],
+    receivedAt: { type: Number },
+  },
+  { strict: true, timestamps: false, collection: "crash_reports" },
+);
+
+CrashReportSchema.index({ userId: 1, reportId: 1 });
+CrashReportSchema.index({ userId: 1, receivedAt: -1 });
+CrashReportSchema.index({ groupKey: 1 });
+
+const CrashReport =
+  (mongoose.models.CrashReport as mongoose.Model<ICrashReport>) ||
+  mongoose.model<ICrashReport>("CrashReport", CrashReportSchema);
+
+export { CrashReport, CrashReportSchema };

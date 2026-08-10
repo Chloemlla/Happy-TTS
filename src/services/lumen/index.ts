@@ -26,6 +26,9 @@ export { saveBackup, latestBackup } from "./backups.service.js";
 // Telemetry
 export { recordTelemetryUpload, latestTelemetryDebugItems, sanitizeTelemetryUpload } from "./telemetry.service.js";
 
+// Crash Reports
+export { recordCrashReport } from "./crash.service.js";
+
 // Face Analysis
 export { recordFaceAnalysisFrame } from "./face-analysis.service.js";
 
@@ -68,6 +71,7 @@ import * as entitlementsService from "./entitlements.service.js";
 import * as syncService from "./sync.service.js";
 import * as backupsService from "./backups.service.js";
 import * as telemetryService from "./telemetry.service.js";
+import * as crashService from "./crash.service.js";
 import * as faceAnalysisService from "./face-analysis.service.js";
 import * as privilegedControlService from "./privileged-control.service.js";
 import * as configService from "./config.service.js";
@@ -81,6 +85,7 @@ export {
   syncService,
   backupsService,
   telemetryService,
+  crashService,
   faceAnalysisService,
   privilegedControlService,
   configService,

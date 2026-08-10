@@ -22,3 +22,4 @@ export { VisionStreamFrame, VisionStreamFrameSchema, type IVisionStreamFrame } f
 export { LifecycleEvent, LifecycleEventSchema, type ILifecycleEvent } from "./LifecycleEvent.js";
 export { FaceAnalysisFrame, FaceAnalysisFrameSchema, type IFaceAnalysisFrame } from "./FaceAnalysisFrame.js";
 export { TelemetryUpload, TelemetryUploadSchema, type ITelemetryUpload } from "./TelemetryUpload.js";
+export { CrashReport, CrashReportSchema, type ICrashReport } from "./CrashReport.js";
