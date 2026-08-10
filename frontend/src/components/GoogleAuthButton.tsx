@@ -6,6 +6,7 @@ import { useAuthProviderStore } from "../stores/authProviderStore";
 import type { User } from "../types/auth";
 import { queuePostRedirectNotification, useNotification } from "./Notification";
 import { cn } from "../utils/cn";
+import { getBackendErrorMessage } from "../utils/backendError";
 import { authElevatedPanelClassName } from "./authStudioTheme";
 
 declare global {
@@ -173,7 +174,7 @@ const GoogleAuthButton: React.FC<GoogleAuthButtonProps> = ({
         authenticatingRef.current = false;
         setAuthenticating(false);
         setNotification({
-          message: error instanceof Error ? error.message : "Google 登录失败",
+          message: getBackendErrorMessage(error, "Google 登录失败"),
           type: "error",
         });
       }

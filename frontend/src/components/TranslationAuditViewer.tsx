@@ -15,6 +15,7 @@ import {
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
+import { getBackendErrorMessage } from '../utils/backendError';
 import {
   translationAuditApi,
   type TranslationLogEntry,
@@ -32,16 +33,6 @@ import {
 } from './LogShareStyleScaffold';
 
 const PAGE_SIZE = 20;
-
-/** 优先展示后端返回的具体错误（如 400 的 { error }），否则退回通用文案 */
-function getBackendErrorMessage(error: unknown, fallback: string): string {
-  if (error && typeof error === 'object') {
-    const data = (error as { response?: { data?: { error?: unknown } } }).response?.data;
-    if (typeof data?.error === 'string' && data.error.trim()) return data.error;
-  }
-  if (error instanceof Error && error.message) return error.message;
-  return fallback;
-}
 
 const TranslationAuditViewer: React.FC = () => {
   const { setNotification } = useNotification();

@@ -11,6 +11,7 @@ import {
   FaTimes,
 } from 'react-icons/fa';
 import { useNotification } from './Notification';
+import { getBackendErrorMessage } from '../utils/backendError';
 import {
   auditLogApi,
   type AuditLogEntry,
@@ -104,7 +105,7 @@ const AuditLogViewer: React.FC = () => {
       setExpandedId((current) => (response.logs.some((log) => log._id === current) ? current : null));
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '获取审计日志失败',
+        message: getBackendErrorMessage(error, '获取审计日志失败'),
         type: 'error',
       });
     } finally {
@@ -118,7 +119,7 @@ const AuditLogViewer: React.FC = () => {
       setStats(response);
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '获取审计统计失败',
+        message: getBackendErrorMessage(error, '获取审计统计失败'),
         type: 'error',
       });
     }
@@ -232,7 +233,7 @@ const AuditLogViewer: React.FC = () => {
       });
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '导出审计日志失败',
+        message: getBackendErrorMessage(error, '导出审计日志失败'),
         type: 'error',
       });
     } finally {

@@ -32,6 +32,7 @@ import PromptModal from './PromptModal';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
 import { LibreChatContext, LibreChatContextValue } from './LibreChatContext';
 import { LibreChatRealtimeDialog } from './LibreChatRealtimeDialog';
+import { getBackendErrorMessage } from '../utils/backendError';
 import {
   InfoBadge,
   InfoPanel,
@@ -240,7 +241,7 @@ async function readLibreChatError(response: Response, fallback: string): Promise
 }
 
 function getErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message ? error.message : fallback;
+  return getBackendErrorMessage(error, fallback);
 }
 
 const LibreChatPage: React.FC = () => {

@@ -17,6 +17,7 @@ import {
   authSecondaryButtonClassName,
 } from './authStudioTheme';
 import { useNotification } from './Notification';
+import { getBackendErrorMessage } from '../utils/backendError';
 
 interface MobileLoginPanelProps {
   disabled?: boolean;
@@ -33,12 +34,7 @@ const statusText: Record<MobileLoginChallengeStatus, string> = {
 };
 
 function getErrorMessage(error: unknown, fallback: string): string {
-  if (typeof error === 'object' && error !== null && 'response' in error) {
-    const response = (error as { response?: { data?: { error?: string } } }).response;
-    if (response?.data?.error) return response.data.error;
-  }
-  if (error instanceof Error && error.message) return error.message;
-  return fallback;
+  return getBackendErrorMessage(error, fallback);
 }
 
 export const MobileLoginPanel: React.FC<MobileLoginPanelProps> = ({ disabled, loginWithToken, onSuccess }) => {

@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { cdksApi, CDK } from '../api/cdks';
 import { resourcesApi, Resource } from '../api/resources';
 import { getApiBaseUrl } from '../api/api';
+import { getBackendErrorMessage } from '../utils/backendError';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
 import { useNotification } from './Notification';
 
@@ -886,7 +887,7 @@ export default function CDKStoreManager() {
       } catch (error) {
         console.error('批量删除CDK失败:', error);
         setNotification({
-          message: `批量删除失败：${error instanceof Error ? error.message : '请重试'}`,
+          message: `批量删除失败：${getBackendErrorMessage(error, '请重试')}`,
           type: 'error'
         });
       } finally {
@@ -930,7 +931,7 @@ export default function CDKStoreManager() {
     } catch (error) {
       console.error('删除所有CDK失败:', error);
       setNotification({
-        message: `删除所有CDK失败：${error instanceof Error ? error.message : '请重试'}`,
+        message: `删除所有CDK失败：${getBackendErrorMessage(error, '请重试')}`,
         type: 'error'
       });
     } finally {
@@ -977,7 +978,7 @@ export default function CDKStoreManager() {
     } catch (error) {
       console.error('删除所有未使用CDK失败:', error);
       setNotification({
-        message: `删除所有未使用CDK失败：${error instanceof Error ? error.message : '请重试'}`,
+        message: `删除所有未使用CDK失败：${getBackendErrorMessage(error, '请重试')}`,
         type: 'error'
       });
     } finally {

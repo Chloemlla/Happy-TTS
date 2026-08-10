@@ -6,6 +6,7 @@ import { getApiBaseUrl } from '../api/api';
 import { isFirstVisitVerificationEnabled } from '../utils/firstVisitVerificationConfig';
 import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
+import { getBackendErrorMessage } from '../utils/backendError';
 import {
     InfoMetricCard,
     InfoPanel,
@@ -94,7 +95,7 @@ const GitHubBillingCacheManager: React.FC = () => {
             }
         } catch (error) {
             setNotification({
-                message: '获取缓存列表失败：' + (error instanceof Error ? error.message : '未知错误'),
+                message: '获取缓存列表失败：' + getBackendErrorMessage(error, '未知错误'),
                 type: 'error'
             });
         } finally {
@@ -132,7 +133,7 @@ const GitHubBillingCacheManager: React.FC = () => {
         } catch (error) {
             console.error('获取缓存性能指标失败:', error);
             setNotification({
-                message: '获取缓存性能指标失败：' + (error instanceof Error ? error.message : '未知错误'),
+                message: '获取缓存性能指标失败：' + getBackendErrorMessage(error, '未知错误'),
                 type: 'error'
             });
         } finally {
@@ -163,7 +164,7 @@ const GitHubBillingCacheManager: React.FC = () => {
             }
         } catch (error) {
             setNotification({
-                message: '清除缓存失败：' + (error instanceof Error ? error.message : '未知错误'),
+                message: '清除缓存失败：' + getBackendErrorMessage(error, '未知错误'),
                 type: 'error'
             });
         } finally {
@@ -194,7 +195,7 @@ const GitHubBillingCacheManager: React.FC = () => {
             }
         } catch (error) {
             setNotification({
-                message: '清除过期缓存失败：' + (error instanceof Error ? error.message : '未知错误'),
+                message: '清除过期缓存失败：' + getBackendErrorMessage(error, '未知错误'),
                 type: 'error'
             });
         } finally {

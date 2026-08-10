@@ -7,6 +7,7 @@ import { LotteryPrize, LotteryRound } from '../types/lottery';
 import * as lotteryApi from '../api/lottery';
 import getApiBaseUrl, { getApiBaseUrl as namedGetApiBaseUrl } from '../api';
 import { useNotification } from './Notification';
+import { getBackendErrorMessage } from '../utils/backendError';
 import { AnimatePresence } from 'framer-motion';
 import { deleteAllRounds } from '../api/lottery';
 import CryptoJS from 'crypto-js';
@@ -130,7 +131,7 @@ const CreateRoundForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => 
       }
       onSuccess();
     } catch (error) {
-      setNotification({ message: error instanceof Error ? error.message : '创建失败', type: 'error' });
+      setNotification({ message: getBackendErrorMessage(error, '创建失败'), type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -346,7 +347,7 @@ const RoundManagement: React.FC<{ rounds: LotteryRound[]; onRefresh: () => void 
       setNotification({ message: '轮次重置成功', type: 'success' });
       onRefresh();
     } catch (error) {
-      setNotification({ message: error instanceof Error ? error.message : '重置失败', type: 'error' });
+      setNotification({ message: getBackendErrorMessage(error, '重置失败'), type: 'error' });
     } finally {
       setLoading(null);
     }
@@ -359,7 +360,7 @@ const RoundManagement: React.FC<{ rounds: LotteryRound[]; onRefresh: () => void 
       setNotification({ message: '状态更新成功', type: 'success' });
       onRefresh();
     } catch (error) {
-      setNotification({ message: error instanceof Error ? error.message : '更新失败', type: 'error' });
+      setNotification({ message: getBackendErrorMessage(error, '更新失败'), type: 'error' });
     } finally {
       setLoading(null);
     }

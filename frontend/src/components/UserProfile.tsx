@@ -10,6 +10,7 @@ import { openDB } from 'idb';
 import { FaUser, FaUserCircle, FaShieldAlt, FaLock, FaEnvelope, FaCamera, FaSave, FaKey, FaCheckCircle, FaClock, FaExclamationCircle, FaGlobe, FaHistory, FaLink, FaUndoAlt, FaGoogle, FaSyncAlt, FaUnlink, FaExternalLinkAlt } from 'react-icons/fa';
 import { cn } from '../utils/cn';
 import { useAuthStore } from '../stores/authStore';
+import { getBackendErrorMessage } from '../utils/backendError';
 import { PenaltyAppealActions } from './PenaltyAppealActions';
 import {
   studioAccentBlobBlueClassName,
@@ -187,7 +188,7 @@ const UserProfile: React.FC = () => {
 
       if (!background) {
         setPageLoading(false);
-        const errorMessage = error instanceof Error ? error.message : '未知错误';
+        const errorMessage = getBackendErrorMessage(error, '未知错误');
         setLoadError(`加载失败：${errorMessage}`);
         return null;
       }
@@ -213,7 +214,7 @@ const UserProfile: React.FC = () => {
     } catch (error) {
       console.warn('[UserProfile] Failed to fetch device sessions:', error);
       if (!background) {
-        setDeviceSessionsError(error instanceof Error ? error.message : '获取设备会话失败');
+        setDeviceSessionsError(getBackendErrorMessage(error, '获取设备会话失败'));
       }
       return [];
     } finally {
@@ -247,7 +248,7 @@ const UserProfile: React.FC = () => {
       console.warn('[UserProfile] Failed to fetch linked accounts:', error);
       if (!background) {
         setNotification({
-          message: error instanceof Error ? error.message : '获取第三方账号失败',
+          message: getBackendErrorMessage(error, '获取第三方账号失败'),
           type: 'error',
         });
       }
@@ -284,7 +285,7 @@ const UserProfile: React.FC = () => {
         window.history.replaceState(null, '', nextUrl);
       } catch (error) {
         setNotification({
-          message: error instanceof Error ? error.message : '获取合并预览失败',
+          message: getBackendErrorMessage(error, '获取合并预览失败'),
           type: 'error',
         });
       }
@@ -634,7 +635,7 @@ const UserProfile: React.FC = () => {
     } catch (error) {
       console.error('[UserProfile] Device session logout error:', error);
       setNotification({
-        message: error instanceof Error ? error.message : '退出设备会话失败',
+        message: getBackendErrorMessage(error, '退出设备会话失败'),
         type: 'error',
       });
     } finally {
@@ -661,7 +662,7 @@ const UserProfile: React.FC = () => {
       setShowVerificationModal(false);
     } catch (error) {
       console.error('[UserProfile] Password verification error:', error);
-      const errorMessage = error instanceof Error ? error.message : '密码验证失败';
+      const errorMessage = getBackendErrorMessage(error, '密码验证失败');
       setNotification({ message: errorMessage, type: 'error' });
     } finally {
       setSubmitting(false);
@@ -688,7 +689,7 @@ const UserProfile: React.FC = () => {
       setNotification({ message: '验证码已发送到新邮箱', type: 'success' });
     } catch (error) {
       console.error('[UserProfile] Send email code error:', error);
-      const errorMessage = error instanceof Error ? error.message : '验证码发送失败';
+      const errorMessage = getBackendErrorMessage(error, '验证码发送失败');
       setNotification({ message: errorMessage, type: 'error' });
     } finally {
       setSubmitting(false);
@@ -760,7 +761,7 @@ const UserProfile: React.FC = () => {
       resetVerificationState();
     } catch (error) {
       console.error('[UserProfile] Update error:', error);
-      const errorMessage = error instanceof Error ? error.message : '更新失败';
+      const errorMessage = getBackendErrorMessage(error, '更新失败');
       setNotification({ message: errorMessage, type: 'error' });
     } finally {
       setSubmitting(false);
@@ -793,7 +794,7 @@ const UserProfile: React.FC = () => {
       setShowVerificationModal(false);
     } catch (error) {
       console.error('[UserProfile] TOTP verification error:', error);
-      const errorMessage = error instanceof Error ? error.message : '验证失败';
+      const errorMessage = getBackendErrorMessage(error, '验证失败');
       setNotification({ message: errorMessage, type: 'error' });
     } finally {
       setSubmitting(false);
@@ -819,7 +820,7 @@ const UserProfile: React.FC = () => {
       setShowVerificationModal(false);
     } catch (error) {
       console.error('[UserProfile] Passkey verification error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Passkey 验证失败';
+      const errorMessage = getBackendErrorMessage(error, 'Passkey 验证失败');
       setNotification({ message: errorMessage, type: 'error' });
     } finally {
       setSubmitting(false);
@@ -857,7 +858,7 @@ const UserProfile: React.FC = () => {
       await loadLinkedAccounts({ background: true });
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : 'Google 绑定失败',
+        message: getBackendErrorMessage(error, 'Google 绑定失败'),
         type: 'error',
       });
     } finally {
@@ -908,7 +909,7 @@ const UserProfile: React.FC = () => {
       } catch (error) {
         setGoogleBindActive(false);
         setNotification({
-          message: error instanceof Error ? error.message : '无法加载 Google 绑定模块',
+          message: getBackendErrorMessage(error, '无法加载 Google 绑定模块'),
           type: 'error',
         });
       }
@@ -947,7 +948,7 @@ const UserProfile: React.FC = () => {
       throw new Error('第三方账号绑定响应无效');
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '启动第三方账号绑定失败',
+        message: getBackendErrorMessage(error, '启动第三方账号绑定失败'),
         type: 'error',
       });
     } finally {
@@ -970,7 +971,7 @@ const UserProfile: React.FC = () => {
       await loadProfile({ background: true });
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '解绑第三方账号失败',
+        message: getBackendErrorMessage(error, '解绑第三方账号失败'),
         type: 'error',
       });
     } finally {
@@ -993,7 +994,7 @@ const UserProfile: React.FC = () => {
       setShowMergeModal(true);
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '获取合并预览失败',
+        message: getBackendErrorMessage(error, '获取合并预览失败'),
         type: 'error',
       });
     } finally {
@@ -1039,7 +1040,7 @@ const UserProfile: React.FC = () => {
       await loadLinkedAccounts({ background: true });
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '确认账号合并失败',
+        message: getBackendErrorMessage(error, '确认账号合并失败'),
         type: 'error',
       });
     } finally {

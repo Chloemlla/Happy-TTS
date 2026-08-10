@@ -10,6 +10,7 @@ import {
   FaTrash,
   FaVolumeUp,
 } from 'react-icons/fa';
+import { getBackendErrorMessage } from '../utils/backendError';
 import {
   fetchDeepLXConfig,
   translateWithDeepLX,
@@ -156,7 +157,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
             endpointPath: 'https://api.deeplx.org/<api-key>/translate',
           });
           setNotification({
-            message: error instanceof Error ? error.message : '获取 DeepLX 配置失败',
+            message: getBackendErrorMessage(error, '获取 DeepLX 配置失败'),
             type: 'error',
           });
         }
@@ -240,7 +241,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
       }
 
       setNotification({
-        message: error instanceof Error ? error.message : 'DeepLX 翻译失败',
+        message: getBackendErrorMessage(error, 'DeepLX 翻译失败'),
         type: 'error',
       });
     } finally {

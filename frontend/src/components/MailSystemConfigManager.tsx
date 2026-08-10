@@ -4,6 +4,7 @@ import { FaRedo, FaSave, FaSync, FaTrash } from 'react-icons/fa';
 import { getApiBaseUrl } from '../api/api';
 import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
+import { getBackendErrorMessage } from '../utils/backendError';
 import { SimpleLoadingSpinner } from './LoadingSpinner';
 import { useNotification } from './Notification';
 import {
@@ -201,7 +202,7 @@ const MailSystemConfigManager: React.FC = () => {
       setOutemailCode('');
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '获取邮件系统配置失败',
+        message: getBackendErrorMessage(error, '获取邮件系统配置失败'),
         type: 'error',
       });
     } finally {
@@ -244,7 +245,7 @@ const MailSystemConfigManager: React.FC = () => {
       await loadSetting();
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '保存邮件系统配置失败',
+        message: getBackendErrorMessage(error, '保存邮件系统配置失败'),
         type: 'error',
       });
     } finally {
@@ -272,7 +273,7 @@ const MailSystemConfigManager: React.FC = () => {
       await loadSetting();
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '重置邮件系统配置失败',
+        message: getBackendErrorMessage(error, '重置邮件系统配置失败'),
         type: 'error',
       });
     } finally {

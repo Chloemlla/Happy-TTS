@@ -7,6 +7,7 @@ import getApiBaseUrl from '../api';
 import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
 import { signedFetch } from '../utils/requestSigner';
+import { getBackendErrorMessage } from '../utils/backendError';
 import CryptoJS from 'crypto-js';
 
 
@@ -337,7 +338,7 @@ const ShortLinkManager: React.FC = () => {
       } catch (error) {
         console.error('批量删除短链失败:', error);
         setNotification({
-          message: `批量删除失败：${error instanceof Error ? error.message : '请重试'}`,
+          message: `批量删除失败：${getBackendErrorMessage(error, '请重试')}`,
           type: 'error'
         });
       } finally {

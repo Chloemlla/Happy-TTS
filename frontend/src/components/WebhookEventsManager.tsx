@@ -27,6 +27,8 @@ import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
 
+import { getBackendErrorMessage } from '../utils/backendError';
+
 
 interface WebhookEventItem {
   _id: string;
@@ -301,7 +303,7 @@ const WebhookEventsManager: React.FC = () => {
         setPage(data.page || nextPage);
         setPageSize(data.pageSize || nextPageSize);
       } catch (error) {
-        setNotification({ type: 'error', message: error instanceof Error ? error.message : '获取列表失败' });
+        setNotification({ type: 'error', message: getBackendErrorMessage(error, '获取列表失败') });
       } finally {
         setLoading(false);
       }
@@ -314,7 +316,7 @@ const WebhookEventsManager: React.FC = () => {
       try {
         await Promise.all([fetchGroups(), fetchStats(), fetchList(nextPage, nextPageSize)]);
       } catch (error) {
-        setNotification({ type: 'error', message: error instanceof Error ? error.message : '刷新失败' });
+        setNotification({ type: 'error', message: getBackendErrorMessage(error, '刷新失败') });
       }
     },
     [fetchGroups, fetchList, fetchStats, page, pageSize, setNotification],
@@ -349,7 +351,7 @@ const WebhookEventsManager: React.FC = () => {
         updatedAt: data.updatedAt ?? null,
       });
     } catch (error) {
-      setNotification({ type: 'error', message: error instanceof Error ? error.message : '获取密钥失败' });
+      setNotification({ type: 'error', message: getBackendErrorMessage(error, '获取密钥失败') });
     } finally {
       setActionLoading(null);
     }
@@ -375,7 +377,7 @@ const WebhookEventsManager: React.FC = () => {
       notifySuccess('密钥已保存');
       await handleFetchSecret();
     } catch (error) {
-      setNotification({ type: 'error', message: error instanceof Error ? error.message : '保存密钥失败' });
+      setNotification({ type: 'error', message: getBackendErrorMessage(error, '保存密钥失败') });
     } finally {
       setActionLoading(null);
     }
@@ -396,7 +398,7 @@ const WebhookEventsManager: React.FC = () => {
       setSecretSetting({ key, secret: null, updatedAt: null });
       notifySuccess('密钥已删除');
     } catch (error) {
-      setNotification({ type: 'error', message: error instanceof Error ? error.message : '删除密钥失败' });
+      setNotification({ type: 'error', message: getBackendErrorMessage(error, '删除密钥失败') });
     } finally {
       setActionLoading(null);
     }
@@ -437,7 +439,7 @@ const WebhookEventsManager: React.FC = () => {
       notifySuccess('测试事件已写入');
       await refreshAll(1, pageSize);
     } catch (error) {
-      setNotification({ type: 'error', message: error instanceof Error ? error.message : '测试发送失败' });
+      setNotification({ type: 'error', message: getBackendErrorMessage(error, '测试发送失败') });
     } finally {
       setActionLoading(null);
     }
@@ -458,7 +460,7 @@ const WebhookEventsManager: React.FC = () => {
         notifySuccess('删除成功');
         await refreshAll(page, pageSize);
       } catch (error) {
-        setNotification({ type: 'error', message: error instanceof Error ? error.message : '删除失败' });
+        setNotification({ type: 'error', message: getBackendErrorMessage(error, '删除失败') });
       } finally {
         setActionLoading(null);
       }
@@ -481,7 +483,7 @@ const WebhookEventsManager: React.FC = () => {
         notifySuccess('事件已重放');
         await refreshAll(1, pageSize);
       } catch (error) {
-        setNotification({ type: 'error', message: error instanceof Error ? error.message : '重放失败' });
+        setNotification({ type: 'error', message: getBackendErrorMessage(error, '重放失败') });
       } finally {
         setActionLoading(null);
       }
@@ -504,7 +506,7 @@ const WebhookEventsManager: React.FC = () => {
         notifySuccess('状态已更新');
         await fetchStats();
       } catch (error) {
-        setNotification({ type: 'error', message: error instanceof Error ? error.message : '更新状态失败' });
+        setNotification({ type: 'error', message: getBackendErrorMessage(error, '更新状态失败') });
       } finally {
         setActionLoading(null);
       }
@@ -530,7 +532,7 @@ const WebhookEventsManager: React.FC = () => {
         notifySuccess('批量状态已更新');
         await refreshAll(page, pageSize);
       } catch (error) {
-        setNotification({ type: 'error', message: error instanceof Error ? error.message : '批量更新失败' });
+        setNotification({ type: 'error', message: getBackendErrorMessage(error, '批量更新失败') });
       } finally {
         setActionLoading(null);
       }
@@ -557,7 +559,7 @@ const WebhookEventsManager: React.FC = () => {
       notifySuccess('批量删除成功');
       await refreshAll(page, pageSize);
     } catch (error) {
-      setNotification({ type: 'error', message: error instanceof Error ? error.message : '批量删除失败' });
+      setNotification({ type: 'error', message: getBackendErrorMessage(error, '批量删除失败') });
     } finally {
       setActionLoading(null);
     }
@@ -624,7 +626,7 @@ const WebhookEventsManager: React.FC = () => {
       closeEdit();
       await refreshAll(editMode === 'create' ? 1 : page, pageSize);
     } catch (error) {
-      setNotification({ type: 'error', message: error instanceof Error ? error.message : '保存失败' });
+      setNotification({ type: 'error', message: getBackendErrorMessage(error, '保存失败') });
     } finally {
       setActionLoading(null);
     }

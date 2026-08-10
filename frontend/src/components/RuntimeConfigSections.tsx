@@ -12,6 +12,7 @@ import {
 } from './LogShareStyleScaffold';
 import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
+import { getBackendErrorMessage } from '../utils/backendError';
 
 
 const IPQS_API = getApiBaseUrl() + '/api/admin/ipqs/setting';
@@ -344,7 +345,7 @@ const RuntimeConfigSections: React.FC = () => {
       setIpqsApiKeysInput('');
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '获取 IPQS 配置失败',
+        message: getBackendErrorMessage(error, '获取 IPQS 配置失败'),
         type: 'error',
       });
     } finally {
@@ -381,7 +382,7 @@ const RuntimeConfigSections: React.FC = () => {
       setLinuxdoSecretInput('');
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '获取 LinuxDo 配置失败',
+        message: getBackendErrorMessage(error, '获取 LinuxDo 配置失败'),
         type: 'error',
       });
     } finally {
@@ -415,7 +416,7 @@ const RuntimeConfigSections: React.FC = () => {
       setNexaiGithubSecretInput('');
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '获取 NexAI 配置失败',
+        message: getBackendErrorMessage(error, '获取 NexAI 配置失败'),
         type: 'error',
       });
     } finally {
@@ -443,7 +444,7 @@ const RuntimeConfigSections: React.FC = () => {
       });
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '获取 Google Auth 配置失败',
+        message: getBackendErrorMessage(error, '获取 Google Auth 配置失败'),
         type: 'error',
       });
     } finally {
@@ -472,7 +473,7 @@ const RuntimeConfigSections: React.FC = () => {
       setDeeplxApiKeyInput('');
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '获取 DeepLX 配置失败',
+        message: getBackendErrorMessage(error, '获取 DeepLX 配置失败'),
         type: 'error',
       });
     } finally {
@@ -503,7 +504,7 @@ const RuntimeConfigSections: React.FC = () => {
       setPublicShortUrlPasswordInput('');
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '获取管理员安全配置失败',
+        message: getBackendErrorMessage(error, '获取管理员安全配置失败'),
         type: 'error',
       });
     } finally {
@@ -559,7 +560,7 @@ const RuntimeConfigSections: React.FC = () => {
       await fetchIpqsSetting();
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '保存 IPQS 配置失败',
+        message: getBackendErrorMessage(error, '保存 IPQS 配置失败'),
         type: 'error',
       });
     } finally {
@@ -584,7 +585,7 @@ const RuntimeConfigSections: React.FC = () => {
       await fetchIpqsSetting();
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '删除 IPQS 配置失败',
+        message: getBackendErrorMessage(error, '删除 IPQS 配置失败'),
         type: 'error',
       });
     } finally {
@@ -614,7 +615,7 @@ const RuntimeConfigSections: React.FC = () => {
       await fetchLinuxDoSetting();
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '保存 LinuxDo 配置失败',
+        message: getBackendErrorMessage(error, '保存 LinuxDo 配置失败'),
         type: 'error',
       });
     } finally {
@@ -639,7 +640,7 @@ const RuntimeConfigSections: React.FC = () => {
       await fetchLinuxDoSetting();
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '删除 LinuxDo 配置失败',
+        message: getBackendErrorMessage(error, '删除 LinuxDo 配置失败'),
         type: 'error',
       });
     } finally {
@@ -665,7 +666,7 @@ const RuntimeConfigSections: React.FC = () => {
       await fetchGoogleAuthSetting();
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '保存 Google Auth 配置失败',
+        message: getBackendErrorMessage(error, '保存 Google Auth 配置失败'),
         type: 'error',
       });
     } finally {
@@ -690,7 +691,7 @@ const RuntimeConfigSections: React.FC = () => {
       await fetchGoogleAuthSetting();
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '删除 Google Auth 配置失败',
+        message: getBackendErrorMessage(error, '删除 Google Auth 配置失败'),
         type: 'error',
       });
     } finally {
@@ -729,7 +730,7 @@ const RuntimeConfigSections: React.FC = () => {
       await fetchGoogleAuthSetting();
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '导入 Google Auth JSON 失败',
+        message: getBackendErrorMessage(error, '导入 Google Auth JSON 失败'),
         type: 'error',
       });
     } finally {
@@ -762,7 +763,7 @@ const RuntimeConfigSections: React.FC = () => {
       await fetchDeepLXSetting();
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '保存 DeepLX 配置失败',
+        message: getBackendErrorMessage(error, '保存 DeepLX 配置失败'),
         type: 'error',
       });
     } finally {
@@ -787,7 +788,7 @@ const RuntimeConfigSections: React.FC = () => {
       await fetchDeepLXSetting();
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '删除 DeepLX 配置失败',
+        message: getBackendErrorMessage(error, '删除 DeepLX 配置失败'),
         type: 'error',
       });
     } finally {
@@ -833,7 +834,7 @@ const RuntimeConfigSections: React.FC = () => {
       await fetchNexaiSetting();
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '保存 NexAI 配置失败',
+        message: getBackendErrorMessage(error, '保存 NexAI 配置失败'),
         type: 'error',
       });
     } finally {
@@ -866,7 +867,7 @@ const RuntimeConfigSections: React.FC = () => {
       await fetchNexaiSetting();
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '删除 NexAI 配置失败',
+        message: getBackendErrorMessage(error, '删除 NexAI 配置失败'),
         type: 'error',
       });
     } finally {
@@ -905,7 +906,7 @@ const RuntimeConfigSections: React.FC = () => {
       await fetchAdminSecuritySetting();
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '保存管理员安全配置失败',
+        message: getBackendErrorMessage(error, '保存管理员安全配置失败'),
         type: 'error',
       });
     } finally {
@@ -939,7 +940,7 @@ const RuntimeConfigSections: React.FC = () => {
       await fetchAdminSecuritySetting();
     } catch (error) {
       setNotification({
-        message: error instanceof Error ? error.message : '删除管理员安全配置失败',
+        message: getBackendErrorMessage(error, '删除管理员安全配置失败'),
         type: 'error',
       });
     } finally {

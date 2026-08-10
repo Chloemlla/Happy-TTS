@@ -8,6 +8,7 @@ import {
 import { Link } from 'react-router-dom';
 import { turnstileApi, type SchedulerStatus, type SyncDirectionResult, type SyncStatus, type SystemCapability } from '../api/turnstile';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
+import { getBackendErrorMessage } from '../utils/backendError';
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
@@ -142,7 +143,7 @@ export default function SystemManager() {
       await fetchSchedulerStatus();
     } catch (error: unknown) {
       console.error('启动调度器失败:', error);
-      const msg = error instanceof Error ? error.message : '启动调度器失败';
+      const msg = getBackendErrorMessage(error, '启动调度器失败');
       setNotification({
         message: msg,
         type: 'error'
@@ -165,7 +166,7 @@ export default function SystemManager() {
         await fetchSchedulerStatus();
       } catch (error: unknown) {
         console.error('停止调度器失败:', error);
-        const msg = error instanceof Error ? error.message : '停止调度器失败';
+        const msg = getBackendErrorMessage(error, '停止调度器失败');
         setNotification({
           message: msg,
           type: 'error'
@@ -189,7 +190,7 @@ export default function SystemManager() {
         await fetchSchedulerStatus();
       } catch (error: unknown) {
         console.error('手动清理失败:', error);
-        const msg = error instanceof Error ? error.message : '手动清理失败';
+        const msg = getBackendErrorMessage(error, '手动清理失败');
         setNotification({
           message: msg,
           type: 'error'
@@ -213,7 +214,7 @@ export default function SystemManager() {
       await Promise.all([fetchSchedulerStatus(), fetchSyncStatus()]);
     } catch (error: unknown) {
       console.error('同步IP封禁失败:', error);
-      const msg = error instanceof Error ? error.message : '同步IP封禁失败';
+      const msg = getBackendErrorMessage(error, '同步IP封禁失败');
       setNotification({
         message: msg,
         type: 'error'

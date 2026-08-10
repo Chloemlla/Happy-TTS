@@ -1,3 +1,4 @@
+import { getBackendErrorMessage } from '../../utils/backendError';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { m, useReducedMotion } from 'framer-motion';
 import { FaKey, FaSync } from 'react-icons/fa';
@@ -78,10 +79,6 @@ function maskSecret(value: string): string {
   if (!value) return '未设置';
   if (value.length <= 8) return '已设置';
   return `${value.slice(0, 2)}***${value.slice(-4)}`;
-}
-
-function extractErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
 }
 
 export interface EcoEnchantsTokenSectionProps {
@@ -180,7 +177,7 @@ export default function EcoEnchantsTokenSection({
         onRefresh();
       } catch (error) {
         setNotification({
-          message: `保存 ${key} 失败：${extractErrorMessage(error, '未知错误')}`,
+          message: `保存 ${key} 失败：${getBackendErrorMessage(error, '未知错误')}`,
           type: 'error',
         });
       } finally {
@@ -212,7 +209,7 @@ export default function EcoEnchantsTokenSection({
         onRefresh();
       } catch (error) {
         setNotification({
-          message: `删除 ${key} 失败：${extractErrorMessage(error, '未知错误')}`,
+          message: `删除 ${key} 失败：${getBackendErrorMessage(error, '未知错误')}`,
           type: 'error',
         });
       } finally {

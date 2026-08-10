@@ -25,6 +25,7 @@ import { integrityChecker } from '../utils/integrityCheck';
 import { signedFetch } from '../utils/requestSigner';
 import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
+import { getBackendErrorMessage } from '../utils/backendError';
 
 
 interface TamperDetectionDemoProps {
@@ -265,7 +266,7 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
       }
       setServerSummary(data.data);
     } catch (error) {
-      setServerError(error instanceof Error ? error.message : String(error));
+      setServerError(getBackendErrorMessage(error, String(error)));
     } finally {
       setServerLoading(false);
     }
@@ -283,7 +284,7 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
       }
       await loadServerSummary();
     } catch (error) {
-      alert(error instanceof Error ? error.message : String(error));
+      alert(getBackendErrorMessage(error, String(error)));
     }
   };
 
@@ -312,7 +313,7 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
       setManualBlockIP('');
       await loadServerSummary();
     } catch (error) {
-      alert(error instanceof Error ? error.message : String(error));
+      alert(getBackendErrorMessage(error, String(error)));
     }
   };
 
