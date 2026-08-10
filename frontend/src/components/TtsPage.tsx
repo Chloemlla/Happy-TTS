@@ -202,7 +202,7 @@ export const TtsPage: React.FC = () => {
       className={cn(studioPageClassName, "min-w-0 max-w-full overflow-x-hidden")}
       style={{ fontFamily: studioPageFont }}
     >
-      <div className="mx-auto w-full max-w-7xl min-w-0 space-y-5 sm:space-y-8">
+      <div className="mx-auto w-full max-w-full min-w-0 space-y-5 sm:space-y-8 lg:max-w-7xl">
         {/* Hero */}
         <motion.div
           initial={{ opacity: 0, y: 18 }}
@@ -350,7 +350,7 @@ export const TtsPage: React.FC = () => {
                     </audio>
                   </div>
 
-                  <div className="flex min-w-0 flex-col gap-2 sm:flex-row">
+                  <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:gap-3">
                     <motion.button
                       type="button"
                       onClick={togglePlayPause}

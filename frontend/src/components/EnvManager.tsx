@@ -316,7 +316,7 @@ const EnvManager: React.FC = () => {
         {/* Configuration Workflow */}
         {configurationWorkflow && configurationProgressItems.length > 0 && (
           <m.section className="rounded-2xl border border-amber-200 bg-amber-50/80 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl" initial={ENTER_INITIAL} animate={ENTER_ANIMATE} transition={trans06}>
-            <div className="flex flex-col gap-3 border-b border-amber-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 border-b border-amber-200 px-4 py-3 sm:px-5 sm:py-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-amber-900">服务配置处理进度</h3>
                 <p className="mt-1 text-sm text-amber-800">
@@ -327,7 +327,7 @@ const EnvManager: React.FC = () => {
                 {configurationNextIssue ? '处理下一项' : '已完成'}
               </button>
             </div>
-            <div className="grid gap-2 px-5 py-4 md:grid-cols-2">
+            <div className="grid gap-2 px-4 py-3 sm:px-5 sm:py-4 md:grid-cols-2">
               {configurationProgressItems.map((issue) => {
                 const resolved = !configurationCurrentIds.has(issue.id);
                 return (
@@ -344,7 +344,7 @@ const EnvManager: React.FC = () => {
 
         {/* Env Vars Table */}
         <m.section data-env-section="envs" className={logSharePanelClass} initial={ENTER_INITIAL} animate={ENTER_ANIMATE} transition={trans06}>
-          <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 sm:px-5 sm:py-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="text-lg font-semibold text-slate-800">环境变量列表</h3>
               <p className="mt-1 text-sm text-slate-500">查看系统环境变量配置，支持加密传输、自动解密和数据来源标记。</p>
@@ -361,7 +361,7 @@ const EnvManager: React.FC = () => {
           </div>
           <AnimatePresence initial={false}>
             {envSectionExpanded && (
-              <m.div key="env-list-wrap" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25 }} className="space-y-4 px-5 py-5">
+              <m.div key="env-list-wrap" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25 }} className="space-y-4 px-4 py-4 sm:px-5 sm:py-5">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                   <div className="flex items-start gap-3 text-sm text-slate-700">
                     <FaInfoCircle className="w-4 h-4 text-slate-500 flex-shrink-0 mt-0.5" />
@@ -500,7 +500,7 @@ const EnvManager: React.FC = () => {
         <AnimatePresence>
           {showSourceModal && (
             <m.div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-[9999]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={modalTrans} onClick={handleSourceModalCloseWrapper} data-source-modal>
-              <m.div className="rounded-[26px] border border-white/70 bg-white/90 backdrop-blur-xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-8 w-full max-w-md mx-4 relative z-[10000]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={modalTrans} onClick={(e) => e.stopPropagation()}>
+              <m.div className="rounded-[26px] border border-white/70 bg-white/90 backdrop-blur-xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-6 sm:p-8 w-full max-w-md mx-4 relative z-[10000]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={modalTrans} onClick={(e) => e.stopPropagation()}>
                 <div className="text-center">
                   <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <FaInfoCircle className="w-8 h-8 text-slate-600" />

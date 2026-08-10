@@ -678,7 +678,7 @@ const SmartHumanCheckTraces: React.FC = () => {
       {/* 详情弹窗 — Portal 到 body */}
       {ReactDOM.createPortal(selected && (
         <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-        <div className={`${logSharePanelClass} max-w-3xl w-[95vw] p-4 sm:p-6`} data-source-modal="trace-detail">
+        <div className={`${logSharePanelClass} max-w-3xl w-[95vw] p-4 sm:p-6 overflow-y-auto max-h-[90vh]`} data-source-modal="trace-detail">
           <div className="flex items-center justify-between mb-3">
             <div className="font-semibold text-slate-900">日志详情</div>
             <div className="flex items-center gap-2">
@@ -726,7 +726,7 @@ const SmartHumanCheckTraces: React.FC = () => {
       {/* 批量合并查看弹窗 — Portal 到 body */}
       {ReactDOM.createPortal(batchView && (
         <motion.div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999]" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <div className={`${logSharePanelClass} max-w-5xl w-[95vw] p-4 sm:p-6`} data-source-modal="batch-trace-detail">
+          <div className={`${logSharePanelClass} max-w-5xl w-[95vw] p-4 sm:p-6 overflow-y-auto max-h-[90vh]`} data-source-modal="batch-trace-detail">
             <div className="flex items-center justify-between mb-3">
               <div className="font-semibold text-slate-900">合并日志（{batchView.ids.length} 条）</div>
               <div className="flex items-center gap-2">

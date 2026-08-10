@@ -287,7 +287,7 @@ const TtsGenerationManager: React.FC = () => {
           </button>
         </div>
 
-        <form onSubmit={applyFilters} className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_170px_150px_auto]">
+        <form onSubmit={applyFilters} className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_170px_150px_auto]">
           <label className="block">
             <span className="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Search</span>
             <div className="relative">
@@ -342,7 +342,7 @@ const TtsGenerationManager: React.FC = () => {
             </select>
           </label>
           <div className="flex items-end">
-            <button type="submit" className={primaryButtonClassName}>
+            <button type="submit" className={cn(primaryButtonClassName, "w-full sm:w-auto")}>
               <FaSearch />
               查询
             </button>
@@ -388,7 +388,7 @@ const TtsGenerationManager: React.FC = () => {
               const isSaving = savingId === record.id;
 
               return (
-                <article key={record.id} className="rounded-[22px] border border-slate-200 bg-slate-50/70 p-4">
+                <article key={record.id} className="rounded-[22px] border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
                   <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
                     <div className="min-w-0 space-y-2">
                       <div className="flex flex-wrap items-center gap-2">
@@ -411,7 +411,7 @@ const TtsGenerationManager: React.FC = () => {
                         </span>
                       </div>
                       <h3 className="break-all text-base font-semibold text-slate-900">{record.fileName}</h3>
-                      <div className="grid gap-2 text-xs leading-5 text-slate-500 md:grid-cols-2 xl:grid-cols-4">
+                      <div className="grid min-w-0 grid-cols-1 gap-2 text-xs leading-5 text-slate-500 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-4">
                         <div>用户：{record.userId || "-"}</div>
                         <div>生成：{formatDateTime(record.createdAt)}</div>
                         <div>模型：{record.model}</div>
@@ -421,7 +421,7 @@ const TtsGenerationManager: React.FC = () => {
                         <div>大小：{formatAudioSize(record.audioSize)}</div>
                         <div className="break-all">音频ID：{record.audioFileId || "-"}</div>
                       </div>
-                      <div className="break-words rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-xs leading-5 text-slate-500">
+                      <div className="max-w-full break-words rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-xs leading-5 text-slate-500">
                         {record.text || "[redacted]"}
                       </div>
                     </div>
@@ -457,7 +457,7 @@ const TtsGenerationManager: React.FC = () => {
                     </div>
                   )}
 
-                  <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_220px] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_220px]">
+                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_220px] xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_220px]">
                     <label className="block">
                       <span className="mb-1 flex items-center gap-2 text-xs font-semibold text-slate-500">
                         <FaCommentDots className="text-slate-400" />

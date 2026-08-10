@@ -140,7 +140,7 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
                 >
                     <motion.div
                         key="fingerprint-modal-content"
-                        className="bg-white/90 rounded-2xl shadow-2xl w-full max-w-md p-6 relative"
+                        className="bg-white/90 rounded-2xl shadow-2xl w-full max-w-md p-4 sm:p-6 relative"
                         initial={{ scale: 0.9, y: 20, opacity: 0 }}
                         animate={{ scale: 1, y: 0, opacity: 1 }}
                         exit={{ scale: 0.9, y: 20, opacity: 0 }}
@@ -161,7 +161,7 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
                         {/* 头部图标和标题 */}
                         <div className="flex items-center justify-center mb-6">
                             <motion.div
-                                className={`w-16 h-16 rounded-full flex items-center justify-center ${isSubmitted
+                                className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center ${isSubmitted
                                         ? 'bg-green-100 text-green-600'
                                         : 'bg-slate-100 text-slate-600'
                                     }`}
@@ -169,18 +169,18 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
                                 transition={{ duration: 1, repeat: isSubmitting ? Infinity : 0, ease: "linear" }}
                             >
                                 {isSubmitted ? (
-                                    <FaCheck className="w-8 h-8" />
+                                    <FaCheck className="w-6 h-6 sm:w-8 sm:h-8" />
                                 ) : isSubmitting ? (
-                                    <FaSync className="w-8 h-8" />
+                                    <FaSync className="w-6 h-6 sm:w-8 sm:h-8" />
                                 ) : (
-                                    <FaFingerprint className="w-8 h-8" />
+                                    <FaFingerprint className="w-6 h-6 sm:w-8 sm:h-8" />
                                 )}
                             </motion.div>
                         </div>
 
                         {/* 标题和描述 */}
                         <div className="text-center mb-6">
-                            <h3 className="text-xl font-semibold text-slate-800 mb-2">
+                            <h3 className="text-lg sm:text-xl font-semibold text-slate-800 mb-2">
                                 {isSubmitted ? '指纹上报成功' : '指纹上报请求'}
                             </h3>
                             <p className="text-slate-600 text-sm leading-relaxed">

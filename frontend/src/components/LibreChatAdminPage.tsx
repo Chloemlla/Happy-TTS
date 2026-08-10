@@ -277,7 +277,7 @@ const LibreChatAdminPage: React.FC = () => {
               <FaUsers className="text-lg text-blue-500" />
               用户列表
             </h3>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <div className="text-sm text-slate-500">共 {total} 条</div>
               <motion.button
                 className="px-3 py-1 bg-slate-100 hover:bg-slate-200 border rounded text-sm transition"

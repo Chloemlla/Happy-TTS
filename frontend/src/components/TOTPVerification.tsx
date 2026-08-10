@@ -144,7 +144,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
               transition={{ duration: 0.5, delay: 0.1 }}
             >
               <div className="flex flex-col items-center">
-                <div className={cn(authSoftBadgeClassName, 'mx-auto mb-4 h-16 w-16')}>
+                <div className={cn(authSoftBadgeClassName, 'mx-auto mb-4 h-14 w-14 sm:h-16 sm:w-16')}>
                   <motion.div
                     initial={{ opacity: 0, rotate: -180 }}
                     animate={{ opacity: 1, rotate: 0 }}
@@ -161,14 +161,14 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
 
             {/* 切换按钮 */}
             <motion.div
-              className="flex mb-6"
+              className="flex mb-6 w-full"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.5 }}
             >
               <motion.button
                 onClick={() => setUseBackupCode(false)}
-                className={`flex-1 py-2 px-4 rounded-l-lg text-sm font-medium transition-all duration-200 ${!useBackupCode
+                className={`flex-1 py-2 px-3 sm:px-4 rounded-l-lg text-xs sm:text-sm font-medium transition-all duration-200 ${!useBackupCode
                     ? 'bg-slate-900 text-white shadow-sm'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
@@ -179,7 +179,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
               </motion.button>
               <motion.button
                 onClick={() => setUseBackupCode(true)}
-                className={`flex-1 py-2 px-4 rounded-r-lg text-sm font-medium transition-all duration-200 ${useBackupCode
+                className={`flex-1 py-2 px-3 sm:px-4 rounded-r-lg text-xs sm:text-sm font-medium transition-all duration-200 ${useBackupCode
                     ? 'bg-slate-900 text-white shadow-sm'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
@@ -279,7 +279,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
 
               {/* 操作按钮 */}
               <motion.div
-                className="flex space-x-3"
+                className="flex flex-col gap-3 sm:flex-row sm:space-x-3"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.9 }}

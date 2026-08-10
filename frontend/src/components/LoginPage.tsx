@@ -422,14 +422,13 @@ export const LoginPage: React.FC = () => {
                                         <div className="min-w-0 flex-1">
                                             <h3 className="text-sm font-semibold text-slate-900">通行密钥</h3>
                                             <p className="mt-1 text-xs leading-5 text-slate-600">使用生物识别或设备认证完成无密码登录。</p>
-                                            <div className="mt-3 grid grid-cols-3 gap-2">
+                                            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
                                                 {[{ Icon: FaShieldAlt, label: '安全', sub: '防钓鱼' }, { Icon: FaBolt, label: '快速', sub: '一键登录' }, { Icon: FaMobileAlt, label: '简单', sub: '无需密码' }].map(({ Icon, label, sub }) => (
                                                     <div key={label} className="rounded-2xl border border-slate-200 bg-white/80 p-2 text-center">
                                                         <Icon className="mx-auto mb-1 h-4 w-4 text-slate-500" />
                                                         <span className="block text-xs font-medium text-slate-900">{label}</span>
                                                         <span className="block text-[10px] text-slate-500">{sub}</span>
-                                                    </div>
-                                                ))}
+                                                    </div>))}
                                             </div>
                                             <button type="button" onClick={() => setShowPasskeyHelp(!showPasskeyHelp)} className="mt-3 flex items-center gap-1.5 text-xs font-medium text-slate-500 transition hover:text-slate-900">
                                                 <FaQuestionCircle className="h-3 w-3" /><span>{showPasskeyHelp ? '隐藏' : '显示'}详细指南</span>

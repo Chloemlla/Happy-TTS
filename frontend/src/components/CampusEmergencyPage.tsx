@@ -177,7 +177,7 @@ const CampusEmergencyPage: React.FC = () => {
           />
         </div>
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.05fr_0.95fr]">
           <div className="space-y-6">
             <InfoPanel>
               <InfoSectionTitle

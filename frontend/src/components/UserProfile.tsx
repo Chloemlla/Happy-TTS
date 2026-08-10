@@ -1283,7 +1283,7 @@ const UserProfile: React.FC = () => {
             </div>
 
             <div className="w-full lg:w-auto">
-              <div className="grid gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-4">
+              <div className="grid min-w-0 gap-2 sm:grid-cols-2 sm:gap-3 xl:grid-cols-4">
                 {statusCards.map((item) => (
                   <div
                     key={item.label}
@@ -1317,7 +1317,7 @@ const UserProfile: React.FC = () => {
           </div>
         </m.div>
 
-        <div className="grid gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="grid min-w-0 gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
           {/* ── Main form ── */}
           <m.div
             initial={{ opacity: 0, y: 24 }}
@@ -1327,7 +1327,7 @@ const UserProfile: React.FC = () => {
           >
             {/* Avatar section */}
             <div className="mb-6 flex flex-col items-center">
-              <div className="relative mb-4 h-24 w-24 overflow-hidden rounded-full bg-slate-200 shadow-lg ring-4 ring-white">
+              <div className="relative mb-4 h-20 w-20 sm:h-24 sm:w-24 overflow-hidden rounded-full bg-slate-200 shadow-lg ring-4 ring-white">
                 <Avatar src={avatarImg || profile?.avatarUrl} />
                 <label className="absolute inset-0 flex cursor-pointer items-center justify-center bg-black/50 opacity-0 transition hover:opacity-100">
                   <FaCamera className="text-xl text-white" />
@@ -1636,7 +1636,7 @@ const UserProfile: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 text-center">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-900 text-white">
+              <div className="mx-auto mb-4 flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-slate-900 text-white">
                 <FaShieldAlt className="text-2xl" />
               </div>
               <h3 className="text-xl font-semibold text-slate-900" style={{ fontFamily: displayFont }}>
@@ -1649,7 +1649,7 @@ const UserProfile: React.FC = () => {
               {/* Password */}
               <div className="rounded-[22px] border border-slate-200 p-4 transition hover:border-slate-300">
                 <div className="mb-3 flex items-center gap-3">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100">
+                  <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-slate-100">
                     <FaLock className="text-sm text-slate-600" />
                   </div>
                   <div>
@@ -1680,7 +1680,7 @@ const UserProfile: React.FC = () => {
               {totpStatus?.enabled && (
                 <div className="rounded-[22px] border border-slate-200 p-4 transition hover:border-slate-300">
                   <div className="mb-3 flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-100">
+                    <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-sky-100">
                       <FaShieldAlt className="text-sm text-sky-600" />
                     </div>
                     <div>
@@ -1710,7 +1710,7 @@ const UserProfile: React.FC = () => {
               {totpStatus?.hasPasskey && (
                 <div className="rounded-[22px] border border-slate-200 p-4 transition hover:border-emerald-300/50">
                   <div className="mb-3 flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100">
+                    <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-emerald-100">
                       <FaLock className="text-sm text-emerald-600" />
                     </div>
                     <div>
@@ -1756,7 +1756,7 @@ const UserProfile: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-5 flex items-start gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+              <div className="flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
                 <FaExclamationCircle />
               </div>
               <div className="min-w-0">
@@ -1769,7 +1769,7 @@ const UserProfile: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid min-w-0 gap-3 sm:grid-cols-2">
               <div className="rounded-[20px] border border-slate-200 bg-slate-50/80 p-3.5">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">源账号</div>
                 <div className="mt-2 text-sm font-semibold text-slate-900">{mergePreview.sourceAccount.username}</div>
@@ -1790,7 +1790,7 @@ const UserProfile: React.FC = () => {
 
             <div className="mt-5">
               <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">迁移项目</div>
-              <div className="grid max-h-56 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+              <div className="grid min-w-0 max-h-56 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
                 {mergePreview.mergeItems.map((item) => (
                   <div
                     key={item.key}

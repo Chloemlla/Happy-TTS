@@ -184,13 +184,13 @@ export const ResetPasswordLinkPage: React.FC = () => {
 
                             {verifying ? (
                                 <div className="py-8 text-center">
-                                    <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900"></div>
+                                    <div className="mx-auto mb-5 h-10 w-10 sm:h-12 sm:w-12 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900"></div>
                                     <h3 className="text-xl font-semibold text-slate-900">验证中</h3>
                                     <p className="mt-2 text-sm text-slate-600">正在验证重置链接</p>
                                 </div>
                             ) : !tokenValid ? (
                                 <div className="py-4 text-center">
-                                    <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-100">
+                                    <div className="mx-auto mb-5 flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-rose-100">
                                         <FaTimesCircle className="h-8 w-8 text-rose-500" />
                                     </div>
                                     <h3 className="text-2xl font-semibold text-slate-900">链接无效</h3>
@@ -206,7 +206,7 @@ export const ResetPasswordLinkPage: React.FC = () => {
                                 </div>
                             ) : success ? (
                                 <div className="py-4 text-center">
-                                    <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100">
+                                    <div className="mx-auto mb-5 flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-emerald-100">
                                         <FaCheckCircle className="h-8 w-8 text-emerald-600" />
                                     </div>
                                     <h3 className="text-2xl font-semibold text-slate-900">密码重置成功</h3>

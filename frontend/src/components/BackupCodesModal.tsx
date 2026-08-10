@@ -192,7 +192,7 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
             <div className="max-h-[82vh] overflow-y-auto overscroll-contain pr-1">
               <div className="mb-5 flex items-start justify-between gap-4">
                 <div className="flex min-w-0 gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white">
+                  <div className="flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white">
                     <FaShieldAlt />
                   </div>
                   <div className="min-w-0">
@@ -216,7 +216,7 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
 
               {loading ? (
                 <div className="flex items-center justify-center py-12">
-                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-slate-900" />
+                  <div className="h-6 w-6 sm:h-8 sm:w-8 animate-spin rounded-full border-2 border-slate-200 border-t-slate-900" />
                 </div>
               ) : error ? (
                 <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
@@ -235,7 +235,7 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
                   <div className="min-h-[236px] rounded-[24px] border border-slate-200 bg-white/90 p-4">
                     {!showCodes ? (
                       <div className="flex min-h-[204px] flex-col items-center justify-center py-6 text-center">
-                        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+                        <div className="mx-auto mb-3 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
                           <FaShieldAlt />
                         </div>
                         <p className="text-sm text-slate-500">
@@ -243,7 +243,7 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
                         </p>
                       </div>
                     ) : (
-                      <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="grid min-w-0 gap-2 sm:grid-cols-2">
                         {backupCodes.map((code, index) => (
                           <div
                             key={code}
@@ -259,7 +259,7 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
                     )}
                   </div>
 
-                  <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="grid min-w-0 gap-2 sm:grid-cols-2">
                     <button
                       type="button"
                       onClick={() => setShowCodes((shown) => !shown)}
@@ -318,7 +318,7 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
                     onClick={(event) => event.stopPropagation()}
                   >
                     <div className="mb-3 flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
+                      <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
                         <FaExclamationTriangle />
                       </div>
                       <h3 className="text-lg font-semibold text-slate-900">重新生成恢复码</h3>

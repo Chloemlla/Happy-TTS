@@ -137,7 +137,7 @@ export const InfoMetricCard: React.FC<{
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
-          <div className="mt-2 text-2xl font-semibold text-slate-950">{value}</div>
+          <div className="mt-2 text-xl font-semibold text-slate-950 sm:text-2xl">{value}</div>
           {detail && <p className="mt-2 text-xs leading-5 text-slate-500">{detail}</p>}
         </div>
         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[18px] ring-1 ${classes.icon}`}>

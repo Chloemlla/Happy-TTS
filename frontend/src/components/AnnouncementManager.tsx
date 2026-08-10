@@ -321,9 +321,9 @@ const AnnouncementManager: React.FC = () => {
                   </div>
                 </div>
                 
-                <div className="flex space-x-3">
+                <div className="flex flex-col sm:flex-row gap-3 sm:space-x-3">
                   <motion.button
-                    className="px-6 py-3 bg-slate-500 text-white rounded-2xl hover:bg-slate-600 transition disabled:opacity-50 font-medium"
+                    className="w-full sm:w-auto px-6 py-3 bg-slate-500 text-white rounded-2xl hover:bg-slate-600 transition disabled:opacity-50 font-medium"
                     onClick={saveAnnouncement}
                     disabled={!canWrite || !content.trim() || saving || deleting}
                     whileTap={{ scale: 0.95 }}
@@ -331,7 +331,7 @@ const AnnouncementManager: React.FC = () => {
                     {saving ? '保存中...' : '保存'}
                   </motion.button>
                   <motion.button
-                    className="px-6 py-3 bg-slate-500 text-white rounded-2xl hover:bg-slate-600 transition font-medium disabled:opacity-50"
+                    className="w-full sm:w-auto px-6 py-3 bg-slate-500 text-white rounded-2xl hover:bg-slate-600 transition font-medium disabled:opacity-50"
                     onClick={() => setEditing(false)}
                     disabled={saving || deleting}
                     whileTap={{ scale: 0.95 }}
@@ -339,7 +339,7 @@ const AnnouncementManager: React.FC = () => {
                     取消
                   </motion.button>
                   <motion.button
-                    className="px-6 py-3 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition font-medium disabled:opacity-50"
+                    className="w-full sm:w-auto px-6 py-3 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition font-medium disabled:opacity-50"
                     onClick={deleteAnnouncement}
                     disabled={saving || deleting}
                     whileTap={{ scale: 0.95 }}
@@ -382,10 +382,10 @@ const AnnouncementManager: React.FC = () => {
                   </div>
                 </div>
                 
-                <div className="flex space-x-3">
+                <div className="flex flex-col sm:flex-row gap-3 sm:space-x-3">
                   {canWrite && (
                   <motion.button
-                    className="px-6 py-3 bg-slate-500 text-white rounded-2xl hover:bg-slate-600 transition font-medium"
+                    className="w-full sm:w-auto px-6 py-3 bg-slate-500 text-white rounded-2xl hover:bg-slate-600 transition font-medium"
                     onClick={() => setEditing(true)}
                     whileTap={{ scale: 0.95 }}
                   >
@@ -394,7 +394,7 @@ const AnnouncementManager: React.FC = () => {
                   )}
                   {canWrite && content && (
                     <motion.button
-                      className="px-6 py-3 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition font-medium disabled:opacity-50"
+                      className="w-full sm:w-auto px-6 py-3 bg-red-500 text-white rounded-2xl hover:bg-red-600 transition font-medium disabled:opacity-50"
                       onClick={deleteAnnouncement}
                       disabled={deleting}
                       whileTap={{ scale: 0.95 }}

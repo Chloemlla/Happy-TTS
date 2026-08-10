@@ -1135,7 +1135,7 @@ const ImageUploadPage: React.FC = () => {
                 initial={{ opacity: 0, scale: 0.97 }}
                 animate={{ opacity: 1, scale: 1 }}
               >
-                <img src={sanitizeImageUrl(previewUrl)} alt="预览" className="h-32 w-32 rounded-2xl border border-slate-200 object-contain sm:h-48 sm:w-48" />
+                <img src={sanitizeImageUrl(previewUrl)} alt="预览" className="h-24 w-24 rounded-2xl border border-slate-200 object-contain sm:h-32 sm:w-32 md:h-48 md:w-48" />
                 <div className="mt-3 text-center text-xs text-slate-600 sm:text-sm">
                   {sanitizeDisplayText(file.name)} ({(file.size / 1024).toFixed(1)} KB)
                 </div>
@@ -1373,7 +1373,7 @@ const ImageUploadPage: React.FC = () => {
               <AnimatePresence>
                 {showExportMenu && (
                   <motion.div
-                    className="absolute right-0 top-full z-10 mt-2 min-w-[220px] rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-[0_18px_60px_rgba(15,23,42,0.12)] backdrop-blur-xl"
+                    className="absolute right-0 top-full z-10 mt-2 min-w-[220px] rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-[0_18px_60px_rgba(15,23,42,0.12)] backdrop-blur-xl sm:right-0"
                     initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
@@ -1481,7 +1481,7 @@ const ImageUploadPage: React.FC = () => {
                 <img
                   src={safeWeb2Url}
                   alt={displayFileName}
-                  className="mb-2 h-32 w-full rounded-2xl border border-slate-200 object-cover sm:h-40"
+                  className="mb-2 h-24 w-full rounded-2xl border border-slate-200 object-cover sm:h-32 md:h-40"
                   loading="lazy"
                 />
                 <div className="mb-1 break-all text-[11px] text-slate-500">CID: {displayCid}</div>

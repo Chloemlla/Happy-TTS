@@ -598,8 +598,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
     };
 
     return (
-        <div className="w-full min-h-screen flex items-center justify-center py-8 px-2">
-            <div className="max-w-md w-full space-y-6 p-8 bg-white/90 rounded-3xl shadow-2xl border border-blue-100 mx-auto animate-fade-in">
+        <div className="w-full min-w-0 min-h-screen flex items-center justify-center py-6 px-2 sm:py-8">
+            <div className="max-w-md w-full min-w-0 space-y-5 sm:space-y-6 px-4 py-6 sm:p-8 bg-white/90 rounded-3xl shadow-2xl border border-blue-100 mx-auto animate-fade-in">
                 <div>
                     <h2 className="text-center text-4xl font-extrabold text-indigo-700 mb-2 drop-shadow-lg tracking-wide">
                         {isLogin ? '登录' : '注册'}
@@ -886,10 +886,10 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                             {/* 顶部装饰条 */}
                             <div className="h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
 
-                            <div className="p-8">
+                            <div className="p-4 sm:p-6 md:p-8">
                                 {/* 标题区域 */}
                                 <div className="text-center mb-8">
-                                    <div className="w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                         <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                                         </svg>

@@ -96,16 +96,16 @@ const Footer: React.FC = () => {
       <div>
         Copyright ©{year} Synapse. All rights reserved.
       </div>
-      <div className="mt-1 px-2 py-1 bg-yellow-50 border border-yellow-200 rounded text-yellow-700 text-xs max-w-xs">
+      <div className="mt-1 w-full max-w-xs px-2 py-1 bg-yellow-50 border border-yellow-200 rounded text-yellow-700 text-xs">
         <FaExclamationTriangle className="inline mr-1" /> 本站为个人独立开发项目，与 OpenAI 官方无任何隶属或合作关系。请勿将本站内容视为 OpenAI 官方服务。
       </div>
-      <div className="mt-1 px-2 py-1 bg-green-50 border border-green-200 rounded text-green-700 text-xs max-w-xs">
+      <div className="mt-1 w-full max-w-xs px-2 py-1 bg-green-50 border border-green-200 rounded text-green-700 text-xs">
         <FaRocket className="inline mr-1" /> 自 2025年6月15日 9:30 以来，本站已稳定运行{' '}
         <span className="font-bold text-green-800">
           {uptime.days} 天 {uptime.hours} 小时 {uptime.minutes} 分钟 {uptime.seconds} 秒
         </span>
       </div>
-      <div className="mt-1 px-2 py-1 bg-slate-50 border border-blue-200 rounded text-blue-700 text-xs max-w-xs">
+      <div className="mt-1 w-full max-w-xs px-2 py-1 bg-slate-50 border border-blue-200 rounded text-blue-700 text-xs">
         <FaGlobe className="inline mr-1" /> 您的网络信息：
         {ipLoading ? (
           <span className="font-mono font-bold text-blue-800">获取中...</span>

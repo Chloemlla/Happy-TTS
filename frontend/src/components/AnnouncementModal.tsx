@@ -47,7 +47,7 @@ const AnnouncementModal: React.FC<AnnouncementModalProps> = ({
           onClick={() => handleClose(onClose)}
         >
           <motion.div
-            className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-8 relative animate-bounceIn"
+            className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-8 relative animate-bounceIn max-h-[90vh] overflow-y-auto"
             initial={{ scale: 0.95, y: 40, opacity: 0 }}
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.95, y: 40, opacity: 0 }}

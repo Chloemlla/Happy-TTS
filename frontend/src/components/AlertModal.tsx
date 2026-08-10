@@ -49,7 +49,7 @@ const AlertModal: React.FC<AlertModalProps> = ({ open, onClose, title, message, 
       onClick={onClose}
     >
           <motion.div
-            className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 max-w-md w-[90vw] mx-4 relative"
+            className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 w-full max-w-md mx-4 relative max-h-[90vh] overflow-y-auto"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}

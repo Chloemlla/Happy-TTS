@@ -77,8 +77,8 @@ const AdminDashboard: React.FC = () => {
       <AdminHub />
 
       {/* 邮件溯源看板 */}
-      <div className="rounded-2xl border border-slate-200/90 bg-white/90 p-5 shadow-sm">
-        <div className="mb-4 flex items-center gap-3">
+      <div className="rounded-2xl border border-slate-200/90 bg-white/90 p-4 sm:p-5 shadow-sm">
+        <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
           <div className="flex size-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
             <FaDatabase className="size-4" />
           </div>

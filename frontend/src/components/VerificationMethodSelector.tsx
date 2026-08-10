@@ -188,7 +188,7 @@ const VerificationMethodSelector: React.FC<VerificationMethodSelectorProps> = ({
                             exit="exit"
                         >
                             {/* 可滚动的内容容器 */}
-                            <div className="p-6 max-h-[90vh] overflow-y-auto">
+                            <div className="p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
                                 {/* 标题 */}
                                 <motion.div
                                     className="text-center mb-6"
@@ -197,7 +197,7 @@ const VerificationMethodSelector: React.FC<VerificationMethodSelectorProps> = ({
                                     transition={{ duration: 0.5, delay: 0.1 }}
                                 >
                                     <div className="flex flex-col items-center">
-                                        <div className={cn(authSoftBadgeClassName, 'mx-auto mb-4 h-16 w-16')}>
+                                        <div className={cn(authSoftBadgeClassName, 'mx-auto mb-4 h-14 w-14 sm:h-16 sm:w-16')}>
                                             <motion.div
                                                 initial={{ opacity: 0, rotate: -180 }}
                                                 animate={{ opacity: 1, rotate: 0 }}
@@ -228,7 +228,7 @@ const VerificationMethodSelector: React.FC<VerificationMethodSelectorProps> = ({
                                         animate={{ opacity: 1, y: 0 }}
                                         transition={{ delay: 0.2 }}
                                     >
-                                        <div className={cn(authSoftBadgeClassName, 'mx-auto mb-6 h-16 w-16')}>
+                                        <div className={cn(authSoftBadgeClassName, 'mx-auto mb-6 h-14 w-14 sm:h-16 sm:w-16')}>
                                             <svg className="h-8 w-8 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
                                             </svg>
@@ -258,11 +258,11 @@ const VerificationMethodSelector: React.FC<VerificationMethodSelectorProps> = ({
                                             <div className={cn(authInfoPanelClassName, 'relative transition hover:border-slate-300 hover:bg-white')}>
                                                 <div className="flex items-center space-x-4">
                                                     <motion.div
-                                                        className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-sm"
+                                                        className="flex h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-sm"
                                                         whileHover={{ rotate: 5, scale: 1.1 }}
                                                         transition={{ type: "spring" as const, stiffness: 400 }}
                                                     >
-                                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 0112 2.944a6 6 0 0118 0z" />
                                                         </svg>
                                                     </motion.div>
@@ -313,11 +313,11 @@ const VerificationMethodSelector: React.FC<VerificationMethodSelectorProps> = ({
                                             <div className={cn(authInfoPanelClassName, 'relative transition hover:border-slate-300 hover:bg-white')}>
                                                 <div className="flex items-center space-x-4">
                                                     <motion.div
-                                                        className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-sm"
+                                                        className="flex h-10 w-10 sm:h-12 sm:w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-sm"
                                                         whileHover={{ rotate: -5, scale: 1.1 }}
                                                         transition={{ type: "spring" as const, stiffness: 400 }}
                                                     >
-                                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                         </svg>
                                                     </motion.div>
@@ -396,7 +396,7 @@ const VerificationMethodSelector: React.FC<VerificationMethodSelectorProps> = ({
 
                                 {/* 底部按钮 */}
                                 <motion.div
-                                    className="flex space-x-3 mt-6"
+                                    className="flex flex-col gap-3 sm:flex-row sm:space-x-3 mt-6"
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.5, delay: 0.9 }}

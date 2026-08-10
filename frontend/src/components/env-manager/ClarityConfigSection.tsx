@@ -93,7 +93,7 @@ export default function ClarityConfigSection({
               </div>
 
               {/* 状态信息 */}
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg sm:p-4">
                 <div className="flex items-center gap-2 text-sm text-blue-700">
                   <div className={`w-2 h-2 rounded-full ${config?.enabled ? 'bg-green-500' : 'bg-red-500'}`}></div>
                   <span className="font-medium">

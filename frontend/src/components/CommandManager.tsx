@@ -754,15 +754,15 @@ const CommandManager: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* 标题和说明 */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-blue-700 flex items-center gap-2">
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 sm:p-6 border border-blue-100">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+          <h2 className="text-xl sm:text-2xl font-bold text-blue-700 flex items-center gap-2">
             <FaTerminal className="w-6 h-6" />
             命令执行管理
           </h2>
-          <Link 
+          <Link
             to="/"
-            className="px-3 py-2 bg-slate-600 text-white rounded-2xl hover:bg-slate-700 transition text-sm font-medium flex items-center gap-2"
+            className="w-full sm:w-auto px-3 py-2 bg-slate-600 text-white rounded-2xl hover:bg-slate-700 transition text-sm font-medium flex items-center gap-2 justify-center"
           >
             <FaArrowLeft className="w-4 h-4" />
             返回主页
@@ -789,7 +789,7 @@ const CommandManager: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
+        className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
       >
         <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <FaPlay className="w-5 h-5 text-green-500" />
@@ -884,14 +884,14 @@ const CommandManager: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
+        className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
       >
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
           <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
             <FaServer className="w-5 h-5 text-blue-500" />
             服务器状态
           </h3>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <motion.button
               onClick={() => fetchServerStatus()}
               className="px-3 py-2 bg-slate-600 text-white rounded-2xl hover:bg-slate-700 transition text-sm font-medium flex items-center gap-2"
@@ -1457,7 +1457,7 @@ const CommandManager: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
+        className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
@@ -1523,7 +1523,7 @@ const CommandManager: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
+        className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">

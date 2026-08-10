@@ -261,7 +261,7 @@ function WelcomePageComponent(): React.ReactElement<any> {
             </div>
           </m.section>
 
-          <div className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] xl:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
+          <div className="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] xl:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
             <m.section
               className={studioMainSurfaceClassName}
               initial="hidden"
@@ -286,7 +286,7 @@ function WelcomePageComponent(): React.ReactElement<any> {
                 <AnimatePresence>
                   {savedAccounts.length > 0 ? (
                     <m.div
-                      className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-2"
+                      className="mt-5 grid min-w-0 grid-cols-1 gap-3 lg:grid-cols-2"
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
@@ -375,7 +375,7 @@ function WelcomePageComponent(): React.ReactElement<any> {
             whileInView="visible"
             viewport={VIEWPORT_20}
             variants={listVariants}
-            className="grid grid-cols-1 gap-4 md:grid-cols-3"
+            className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-3"
           >
             {FEATURES.map((item) => (
               <FeatureCard

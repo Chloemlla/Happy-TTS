@@ -388,7 +388,7 @@ export default function ProjectLumenConfigSection({
       </div>
 
       {syncResults && syncResults.length > 0 && (
-        <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 space-y-2">
+        <div className="rounded-2xl border border-slate-200 bg-white/80 p-3 sm:p-4 space-y-2">
           <h4 className="text-sm font-semibold text-slate-700">同步结果</h4>
           {syncResults.map((r) => (
             <div key={r.key} className="flex items-center gap-2 text-sm">
@@ -408,7 +408,7 @@ export default function ProjectLumenConfigSection({
 
       <div className="space-y-4">
         {SECRET_FIELDS.map((field) => (
-          <div key={field.key} className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+          <div key={field.key} className="rounded-2xl border border-slate-200 bg-white/80 p-3 sm:p-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h4 className="text-sm font-semibold text-slate-700">{field.label}</h4>
               <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-xs text-slate-600">

@@ -1666,7 +1666,7 @@ const LibreChatPage: React.FC = () => {
                 className="py-8"
               />
             ) : (
-              <div className="max-h-[60vh] overflow-auto pr-1">
+              <div className="max-h-[60vh] overflow-auto pr-1 min-w-0">
                 {streaming && (
                   <motion.div
                     className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
@@ -1785,7 +1785,7 @@ const LibreChatPage: React.FC = () => {
             )}
             {/* 分页控制 */}
             {history && history.history.length > 0 && (
-              <div className="mt-6 flex items-center justify-between border-t border-white/70 pt-4">
+              <div className="mt-6 flex flex-col items-center gap-2 sm:flex-row sm:justify-between border-t border-white/70 pt-4">
                 <motion.button
                   className={libreGhostButtonClass}
                   disabled={page <= 1}

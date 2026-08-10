@@ -211,7 +211,7 @@ const SmartHumanCheckTestPage: React.FC = () => {
           )}
         />
         <textarea
-          className={`${logShareInputClass} h-40 font-mono text-xs`}
+          className={`${logShareInputClass} h-32 sm:h-40 font-mono text-xs`}
           readOnly
           value={token}
           placeholder="验证通过后，这里会显示生成的 token（Base64）"

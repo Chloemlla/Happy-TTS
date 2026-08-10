@@ -108,8 +108,8 @@ const ShortUrlMigrationManager: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* 标题和说明 */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
-        <h2 className="text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 sm:p-6 border border-blue-100">
+        <h2 className="text-xl sm:text-2xl font-bold text-blue-700 mb-3 flex items-center gap-2">
           <FaSync className="w-6 h-6" />
           短链域名迁移管理
         </h2>
@@ -134,7 +134,7 @@ const ShortUrlMigrationManager: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
+        className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
@@ -239,7 +239,7 @@ const ShortUrlMigrationManager: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
+        className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
       >
         <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <FaExclamationTriangle className="w-5 h-5 text-orange-500" />
@@ -265,7 +265,7 @@ const ShortUrlMigrationManager: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <motion.button
               onClick={executeMigration}
               disabled={migrating || (stats?.oldDomainRecords === 0) || !canWrite}
@@ -293,7 +293,7 @@ const ShortUrlMigrationManager: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-green-200"
+            className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-green-200"
           >
             <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
               <FaCheckCircle className="w-5 h-5 text-green-500" />

@@ -46,12 +46,12 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, queryCount, is
       <InfoPanel className={isVerified ? 'border-emerald-100' : 'border-rose-100'}>
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex gap-4">
-            <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-[24px] ring-1 ${isVerified ? 'bg-emerald-50 text-emerald-700 ring-emerald-100' : 'bg-rose-50 text-rose-700 ring-rose-100'}`}>
+            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[24px] ring-1 sm:h-14 sm:w-14 ${isVerified ? 'bg-emerald-50 text-emerald-700 ring-emerald-100' : 'bg-rose-50 text-rose-700 ring-rose-100'}`}>
               {isVerified ? <FaCheckCircle className="h-6 w-6" /> : <FaExclamationTriangle className="h-6 w-6" />}
             </div>
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Verification Result</p>
-              <h2 className="mt-2 text-2xl font-semibold text-slate-950">{isVerified ? '验证成功' : '验证失败'}</h2>
+              <h2 className="mt-2 text-xl font-semibold text-slate-950 sm:text-2xl">{isVerified ? '验证成功' : '验证失败'}</h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 {isVerified ? '该产品已返回安踏官方数据。' : '该产品验证失败，请谨慎购买并联系官方渠道。'}
               </p>
@@ -81,7 +81,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, queryCount, is
           {productFields.map((field) => {
             const Icon = field.icon;
             return (
-              <div key={field.label} className="rounded-[22px] border border-slate-200 bg-white/80 p-4">
+              <div key={field.label} className="rounded-[22px] border border-slate-200 bg-white/80 p-3 sm:p-4">
                 <div className="flex items-start gap-3">
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[18px] bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
                     <Icon className="h-4 w-4" />

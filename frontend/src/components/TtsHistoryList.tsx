@@ -185,7 +185,7 @@ const TtsHistoryListInner: React.FC<TtsHistoryListProps> = ({
                         {formatAudioSize(record.audioSize)}
                         {record.audioFileId ? ` · ${record.audioFileId}` : ""}
                       </div>
-                      <div className="mt-2 break-words rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-xs leading-5 text-slate-500">
+                      <div className="mt-2 max-w-full break-words rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-xs leading-5 text-slate-500">
                         {record.text || "[redacted]"}
                       </div>
                     </div>

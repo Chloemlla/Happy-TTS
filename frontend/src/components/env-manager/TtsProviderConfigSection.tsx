@@ -313,7 +313,7 @@ export default function TtsProviderConfigSection({
       </div>
 
       {provider === 'fish' ? (
-        <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/50 p-4">
+        <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/50 p-3 sm:p-4">
           <label className="block text-sm font-medium text-slate-700">
             Fish Audio Base URL
             <input value={fishBaseUrl} onChange={(event) => setFishBaseUrl(event.target.value)} className={`${logShareInputClass} mt-1 font-mono`} disabled={loading || saving || !canWrite} />

@@ -134,7 +134,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
             <div className="max-h-[82vh] overflow-y-auto overscroll-contain pr-1">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div className="flex min-w-0 gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white">
+                <div className="flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white">
                   <FaQrcode />
                 </div>
                 <div className="min-w-0">
@@ -175,7 +175,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
 
                 {setupData ? (
                   <>
-                    <div className="grid gap-4 md:grid-cols-[220px,minmax(0,1fr)]">
+                    <div className="grid min-w-0 gap-4 md:grid-cols-[220px,minmax(0,1fr)]">
                       <div className="rounded-[24px] border border-slate-200 bg-white p-4 text-center">
                         <QRCodeSVG
                           value={setupData.otpauthUrl}
@@ -234,7 +234,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
-                                className="mt-3 grid gap-2 overflow-hidden sm:grid-cols-2"
+                                className="mt-3 grid min-w-0 gap-2 overflow-hidden sm:grid-cols-2"
                               >
                                 {setupData.backupCodes.map((code, index) => (
                                   <code

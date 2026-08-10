@@ -268,7 +268,7 @@ const ProviderBindPage: React.FC = () => {
   const renderLoading = () => (
     <div className={authCardClassName}>
       <div className={cn(authCardBodyClassName, "text-center")}>
-        <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900" />
+        <div className="mx-auto mb-5 h-10 w-10 sm:h-12 sm:w-12 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900" />
         <h1 className="text-2xl font-semibold text-slate-900">正在登录</h1>
         <p className="mt-3 text-sm leading-6 text-slate-600">
           正在读取第三方登录资料。如果没有自动跳转，请返回登录页重试。
@@ -284,7 +284,7 @@ const ProviderBindPage: React.FC = () => {
   const renderError = () => (
     <div className={authCardClassName}>
       <div className={cn(authCardBodyClassName, "text-center")}>
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+        <div className="mx-auto flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-rose-50 text-rose-600">
           <FaLock className="h-5 w-5" />
         </div>
         <h1 className="mt-5 text-2xl font-semibold text-slate-900">无法继续绑定</h1>
@@ -318,17 +318,17 @@ const ProviderBindPage: React.FC = () => {
         <form className={authCardClassName} onSubmit={handleSubmit}>
           <div className={authCardBodyClassName}>
             <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-center gap-3">
                   {session.avatarUrl ? (
                     <img
                       src={session.avatarUrl}
                       alt={`${session.providerLabel} 头像`}
-                      className="h-14 w-14 rounded-full border border-slate-200 object-cover"
+                      className="h-12 w-12 sm:h-14 sm:w-14 rounded-full border border-slate-200 object-cover"
                       referrerPolicy="no-referrer"
                     />
                   ) : (
-                    <div className="flex h-14 w-14 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500">
+                    <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500">
                       <FaUser className="h-5 w-5" />
                     </div>
                   )}

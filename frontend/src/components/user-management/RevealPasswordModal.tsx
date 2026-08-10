@@ -137,10 +137,10 @@ export function RevealPasswordModal({
             </div>
           ) : null}
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <motion.button
               type="button"
-              className="px-4 py-2 bg-indigo-500 text-white rounded-2xl hover:bg-indigo-600 transition font-medium disabled:opacity-60"
+              className="w-full sm:w-auto px-4 py-2 bg-indigo-500 text-white rounded-2xl hover:bg-indigo-600 transition font-medium disabled:opacity-60"
               onClick={onVerify}
               disabled={state.loading}
               whileHover={hoverScale?.(1.02)}
@@ -150,7 +150,7 @@ export function RevealPasswordModal({
             </motion.button>
             <motion.button
               type="button"
-              className="px-4 py-2 bg-slate-500 text-white rounded-2xl hover:bg-slate-600 transition font-medium"
+              className="w-full sm:w-auto px-4 py-2 bg-slate-500 text-white rounded-2xl hover:bg-slate-600 transition font-medium"
               onClick={onClose}
               whileHover={hoverScale?.(1.02)}
               whileTap={tapScale?.(0.95)}

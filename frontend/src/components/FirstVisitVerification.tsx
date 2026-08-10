@@ -208,12 +208,12 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#f6f8fb] p-4">
         <div className="w-full max-w-xl rounded-[28px] border border-[#d6dbe5] bg-white px-8 py-10 shadow-[0_40px_90px_rgba(26,32,44,0.08)]">
           <div className="mb-8 flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[#ffd6c2] bg-[#fff4ef] text-sm font-semibold text-[#f48120]">
+            <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full border border-[#ffd6c2] bg-[#fff4ef] text-sm font-semibold text-[#f48120]">
               !
             </div>
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#f48120]">Security Check</p>
-              <h1 className="text-2xl font-semibold text-[#1d2735]">Access temporarily restricted</h1>
+              <h1 className="text-xl sm:text-2xl font-semibold text-[#1d2735]">Access temporarily restricted</h1>
             </div>
           </div>
 
@@ -259,19 +259,19 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
           className="w-full max-w-[820px] rounded-[32px] border border-[#dde3ec] bg-white/95 shadow-[0_45px_120px_rgba(15,23,42,0.08)] backdrop-blur"
         >
           <div className="grid gap-0 md:grid-cols-[1.18fr_0.82fr]">
-            <div className="border-b border-[#edf1f5] px-8 py-8 md:border-b-0 md:border-r md:px-10 md:py-10">
+            <div className="border-b border-[#edf1f5] px-4 py-6 md:border-b-0 md:border-r md:px-10 md:py-10">
               <div className="mb-8 flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full border border-[#ffd6c2] bg-[#fff4ef] text-sm font-semibold text-[#f48120]">
+                <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-full border border-[#ffd6c2] bg-[#fff4ef] text-sm font-semibold text-[#f48120]">
                   CF
                 </div>
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#f48120]">Traffic Review</p>
-                  <h1 className="text-[28px] font-semibold tracking-[-0.03em] text-[#1d2735]">Checking your browser</h1>
+                  <h1 className="text-2xl sm:text-[28px] font-semibold tracking-[-0.03em] text-[#1d2735]">Checking your browser</h1>
                 </div>
               </div>
 
               <div className="mb-8 flex items-center gap-4 rounded-[24px] border border-[#eceff4] bg-[#fbfcfe] px-5 py-4">
-                <div className="relative h-11 w-11">
+                <div className="relative h-9 w-9 sm:h-11 sm:w-11">
                   <span className="absolute inset-0 rounded-full border-2 border-[#f4c7aa]/80" />
                   <motion.span
                     className="absolute inset-0 rounded-full border-2 border-t-[#f48120] border-r-transparent border-b-transparent border-l-transparent"
@@ -391,7 +391,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
               </div>
             </div>
 
-            <div className="px-8 py-8 md:px-9 md:py-10">
+            <div className="px-4 py-6 md:px-9 md:py-10">
               <div className="rounded-[26px] border border-[#eceff4] bg-[#fbfcfe] px-5 py-5">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#7f8a98]">Session Context</p>
 

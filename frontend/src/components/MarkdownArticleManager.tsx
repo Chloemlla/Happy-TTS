@@ -310,7 +310,7 @@ const MarkdownArticleManager: React.FC = () => {
         }
       />
 
-      <div className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
+      <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
         <InfoPanel compact>
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
@@ -350,7 +350,7 @@ const MarkdownArticleManager: React.FC = () => {
               </button>
             ))}
           </div>
-          <div className="max-h-[680px] space-y-2 overflow-y-auto pr-1">
+          <div className="max-h-[400px] space-y-2 overflow-y-auto pr-1 sm:max-h-[680px]">
             {isLoading && <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">正在加载...</div>}
             {!isLoading && filteredArticles.length === 0 && (
               <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">没有匹配的文章。</div>
@@ -390,7 +390,7 @@ const MarkdownArticleManager: React.FC = () => {
 
         <div className="space-y-5">
           <InfoPanel>
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_260px]">
               <label className="block">
                 <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">标题</span>
                 <input
@@ -481,7 +481,7 @@ const MarkdownArticleManager: React.FC = () => {
               </div>
               <textarea
                 ref={editorRef}
-                className="min-h-[620px] w-full resize-y rounded-2xl border border-slate-200 bg-slate-950 p-4 font-mono text-sm leading-6 text-slate-100 outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50"
+                className="min-h-[400px] w-full resize-y rounded-2xl border border-slate-200 bg-slate-950 p-4 font-mono text-sm leading-6 text-slate-100 outline-none focus:ring-2 focus:ring-slate-300 disabled:opacity-50 sm:min-h-[620px]"
                 value={current.content}
                 onChange={(event) => updateField('content', event.target.value)}
                 spellCheck={false}
@@ -490,7 +490,7 @@ const MarkdownArticleManager: React.FC = () => {
             </InfoPanel>
             {isPreview && (
               <InfoPanel compact>
-                <div className="min-h-[620px] overflow-x-auto rounded-2xl bg-white p-5">
+                <div className="min-h-[400px] overflow-x-auto rounded-2xl bg-white p-5 sm:min-h-[620px]">
                   <MarkdownRenderer content={current.content || ''} />
                 </div>
               </InfoPanel>

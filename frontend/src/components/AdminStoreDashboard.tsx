@@ -65,17 +65,17 @@ export default function AdminStoreDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100"
+        className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-4 sm:p-6 border border-blue-100"
       >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-blue-700 flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+          <h2 className="text-xl sm:text-2xl font-bold text-blue-700 flex items-center gap-2">
             <FaStore className="w-6 h-6" />
             资源商店管理
           </h2>
           <motion.button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="px-3 py-2 bg-blue-500 text-white rounded-2xl hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+            className="w-full sm:w-auto px-3 py-2 bg-blue-500 text-white rounded-2xl hover:bg-blue-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2 justify-center"
             whileTap={{ scale: 0.95 }}
           >
             <FaCog className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
@@ -255,7 +255,7 @@ export default function AdminStoreDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-2xl p-6 border border-indigo-200"
+        className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-2xl p-4 sm:p-6 border border-indigo-200"
       >
         <h2 className="text-lg font-medium text-indigo-900 mb-4 flex items-center gap-2">
           <FaChartBar className="w-5 h-5" />

@@ -127,7 +127,7 @@ const DeviceSessionsPanel: React.FC<DeviceSessionsPanelProps> = ({
                 <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div className="flex min-w-0 items-start gap-3">
                     <div className={cn(
-                      'flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl',
+                      'flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-2xl',
                       session.isCurrent ? 'bg-emerald-100 text-emerald-700' : 'bg-white text-slate-500',
                     )}>
                       <DeviceIcon />
@@ -171,7 +171,7 @@ const DeviceSessionsPanel: React.FC<DeviceSessionsPanelProps> = ({
                   )}
                 </div>
 
-                <div className="mt-3 grid gap-2 border-t border-slate-200/80 pt-3 text-xs text-slate-600 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="mt-3 grid min-w-0 gap-2 border-t border-slate-200/80 pt-3 text-xs text-slate-600 sm:grid-cols-2 xl:grid-cols-4">
                   <div className="min-w-0">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">最近活动</div>
                     <div className="mt-1 flex min-w-0 items-start gap-1.5 break-words">

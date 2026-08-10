@@ -75,7 +75,7 @@ const HCaptchaVerificationExample: React.FC = () => {
       <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/90 rounded-2xl shadow-xl p-8 w-full max-w-md"
+        className="bg-white/90 rounded-2xl shadow-xl p-4 sm:p-8 w-full max-w-md"
       >
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-gradient-to-r from-slate-500 to-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">

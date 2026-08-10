@@ -199,7 +199,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white">
+            <div className="flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white">
               {totpEnabled ? <FaCheckCircle /> : <FaShieldAlt />}
             </div>
             <div className="min-w-0">
@@ -224,7 +224,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
           </span>
         </div>
 
-        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        <div className="mt-4 grid min-w-0 gap-2 sm:grid-cols-3">
           {summaryItems.map((item) => (
             <div
               key={item.label}
@@ -259,7 +259,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
       >
         <div className="rounded-[24px] border border-slate-200 bg-white/90 p-4 shadow-sm">
           <div className="flex gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-500">
+            <div className="flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-500">
               <FaLock />
             </div>
             <div className="min-w-0 flex-1">
@@ -319,7 +319,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
 
         <div className="rounded-[24px] border border-slate-200 bg-white/90 p-4 shadow-sm">
           <div className="flex gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-500">
+            <div className="flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-500">
               <FaKey />
             </div>
             <div className="min-w-0 flex-1">

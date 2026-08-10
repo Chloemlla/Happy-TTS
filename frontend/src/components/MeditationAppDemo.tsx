@@ -355,7 +355,7 @@ const MeditationAppDemo: React.FC = () => {
         </div>
 
         {/* 手机屏幕网格 - 使用Activity包裹每个屏幕 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10">
           {/* 第1屏: 首页 */}
           <Activity mode={activeScreen === 0 ? 'visible' : 'hidden'}>
             <div className="flex flex-col items-center">

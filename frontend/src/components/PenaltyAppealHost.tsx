@@ -62,7 +62,7 @@ export const PenaltyAppealHost: React.FC = () => {
           onClick={() => setPayload(null)}
         >
           <motion.div
-            className={cn(studioModalCardClassName, 'max-w-xl')}
+            className={cn(studioModalCardClassName, 'max-w-xl max-h-[90vh] overflow-y-auto')}
             initial={{ opacity: 0, y: 16, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.98 }}

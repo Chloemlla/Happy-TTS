@@ -181,14 +181,14 @@ const HCaptchaVerificationPageFrame: React.FC<HCaptchaVerificationPageFrameProps
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-            className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[24px] border border-slate-200 bg-slate-50 text-slate-600"
+            className="mx-auto mb-4 flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-[24px] border border-slate-200 bg-slate-50 text-slate-600"
           >
-            <FaShieldAlt className="text-2xl" />
+            <FaShieldAlt className="text-xl sm:text-2xl" />
           </m.div>
           <div className="mb-3 flex justify-center">
             <InfoBadge>hCaptcha</InfoBadge>
           </div>
-          <h1 className="text-2xl font-semibold text-slate-900 mb-2">{title}</h1>
+          <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 mb-2">{title}</h1>
           <p className="text-sm leading-6 text-slate-600">{description}</p>
         </div>
 

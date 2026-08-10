@@ -82,7 +82,7 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
             >
               <div className="flex justify-center mb-4">
                 <motion.div
-                  className={cn(authSoftBadgeClassName, 'h-16 w-16')}
+                  className={cn(authSoftBadgeClassName, 'h-14 w-14 sm:h-16 sm:w-16')}
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ delay: 0.2, type: "spring", damping: 15 }}
@@ -105,7 +105,7 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
               transition={{ delay: 0.3 }}
             >
               <div className="flex items-center">
-                <div className="mr-3 flex h-8 w-8 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50">
+                <div className="mr-3 flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50">
                   <span className="text-sm font-semibold text-slate-600">
                     {username.charAt(0).toUpperCase()}
                   </span>
@@ -208,7 +208,7 @@ const PasskeyVerifyModal: React.FC<PasskeyVerifyModalProps> = ({ open, username,
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.2 }}
               >
-                <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100">
+                <div className="mb-2 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-emerald-100">
                   <FaShieldAlt className="h-7 w-7 text-emerald-600" />
                 </div>
                 <div className={authSuccessPanelClassName}>认证成功，已安全登录！</div>

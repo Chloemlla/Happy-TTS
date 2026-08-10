@@ -23,7 +23,7 @@ const CDKStoreManager = React.lazy(() => import('./CDKStoreManager'));
 
 // 简单加载组件
 const SimpleLoadingSpinner = () => (
-  <div className="flex items-center justify-center min-h-screen">
+  <div className="flex min-w-0 items-center justify-center min-h-screen">
     <UnifiedLoadingSpinner size="lg" text="加载中..." />
   </div>
 );

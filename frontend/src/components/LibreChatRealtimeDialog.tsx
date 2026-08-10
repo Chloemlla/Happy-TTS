@@ -29,7 +29,7 @@ export function LibreChatRealtimeDialog() {
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="w-full max-w-2xl bg-white/90 rounded-xl p-6 shadow-sm border border-slate-200 relative"
+                        className="w-full max-w-2xl bg-white/90 rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200 relative max-h-[90vh] overflow-y-auto"
                     >
                         <div className="flex items-center mb-4 pr-10">
                             <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">

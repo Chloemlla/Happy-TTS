@@ -138,7 +138,7 @@ const CreateRoundForm: React.FC<{ onSuccess: () => void }> = ({ onSuccess }) => 
 
   return (
     <motion.div
-      className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
+      className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
@@ -367,7 +367,7 @@ const RoundManagement: React.FC<{ rounds: LotteryRound[]; onRefresh: () => void 
 
   return (
     <motion.div
-      className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
+      className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
@@ -456,7 +456,7 @@ const LotteryAdmin: React.FC = () => {
         transition={{ duration: 0.6 }}
       >
         <motion.div 
-          className="bg-gradient-to-r from-red-50 to-pink-50 rounded-2xl p-6 border border-red-100"
+          className="bg-gradient-to-r from-red-50 to-pink-50 rounded-2xl p-4 sm:p-6 border border-red-100"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
@@ -497,7 +497,7 @@ const LotteryAdmin: React.FC = () => {
     >
       {/* 标题和说明 */}
       <motion.div 
-        className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl p-6 border border-slate-200"
+        className="bg-gradient-to-r from-slate-50 to-slate-100 rounded-2xl p-4 sm:p-6 border border-slate-200"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
@@ -525,7 +525,7 @@ const LotteryAdmin: React.FC = () => {
 
       {/* 标签页切换 */}
       <motion.div 
-        className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
+        className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}

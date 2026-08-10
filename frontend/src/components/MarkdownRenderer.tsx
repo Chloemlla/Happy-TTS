@@ -321,9 +321,9 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
 
       return (
         <div className="group relative my-4 overflow-hidden rounded-md border border-gray-700/50 shadow-lg">
-          <div className="flex items-center justify-between border-b border-gray-700/30 bg-slate-800 px-4 py-2 font-mono text-[10px] text-slate-400">
-            <span className="font-bold uppercase tracking-wider">{languageLabel}</span>
-            <div className="flex gap-1.5">
+          <div className="flex items-center justify-between border-b border-gray-700/30 bg-slate-800 px-3 py-2 font-mono text-[10px] text-slate-400 sm:px-4">
+            <span className="truncate font-bold uppercase tracking-wider">{languageLabel}</span>
+            <div className="flex shrink-0 gap-1.5">
               <span className="h-2 w-2 rounded-full bg-red-500/50" />
               <span className="h-2 w-2 rounded-full bg-yellow-500/50" />
               <span className="h-2 w-2 rounded-full bg-green-500/50" />

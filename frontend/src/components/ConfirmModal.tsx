@@ -57,7 +57,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
           onClick={onClose}
         >
           <motion.div
-            className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-slate-200 p-6 max-w-md w-[90vw] mx-4 relative"
+            className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-slate-200 p-6 w-full max-w-md mx-4 relative max-h-[90vh] overflow-y-auto"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -73,7 +73,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
             <div className="text-slate-700 mb-6 text-center leading-relaxed">
               {message}
             </div>
-            <div className="flex gap-3 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <motion.button
                 onClick={onClose}
                 className="px-6 py-3 border border-slate-300 text-slate-700 rounded-2xl hover:bg-slate-50/80 transition-colors font-medium flex items-center gap-2"

@@ -618,7 +618,7 @@ const ShortLinkManager: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-[#8ECAE6]/30"
+        className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-xl border border-[#8ECAE6]/30"
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-[#023047] flex items-center gap-2 font-songti">
@@ -650,7 +650,7 @@ const ShortLinkManager: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-[#8ECAE6]/30"
+        className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-xl border border-[#8ECAE6]/30"
       >
         <h3 className="text-lg font-semibold text-[#023047] mb-4 flex items-center gap-2 font-songti">
           <FaPlus className="w-5 h-5 text-[#FFB703]" />
@@ -926,7 +926,7 @@ const ShortLinkManager: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-[#8ECAE6]/30"
+        className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-xl border border-[#8ECAE6]/30"
       >
         <h3 className="text-lg font-semibold text-[#023047] mb-4 flex items-center gap-2 font-songti">
           <FaLink className="w-5 h-5 text-[#FFB703]" />
@@ -1176,7 +1176,7 @@ const ShortLinkManager: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-xl border border-[#8ECAE6]/30"
+          className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 sm:p-6 shadow-xl border border-[#8ECAE6]/30"
         >
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-2">
             <div className="flex items-center gap-1">

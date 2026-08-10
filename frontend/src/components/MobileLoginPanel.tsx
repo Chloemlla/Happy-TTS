@@ -153,8 +153,8 @@ export const MobileLoginPanel: React.FC<MobileLoginPanelProps> = ({ disabled, lo
             </div>
           </>
         ) : (
-          <div className="flex h-44 w-44 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-slate-400">
-            <FaQrcode className="h-12 w-12" />
+          <div className="flex h-36 w-36 sm:h-44 sm:w-44 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white text-slate-400">
+            <FaQrcode className="h-10 w-10 sm:h-12 sm:w-12" />
           </div>
         )}
         <button

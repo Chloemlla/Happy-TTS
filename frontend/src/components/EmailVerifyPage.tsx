@@ -70,19 +70,19 @@ export const EmailVerifyPage: React.FC = () => {
     }, [searchParams, navigate, setNotification]);
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 py-12 px-6 animate-gradient py-8 rounded-3xl">
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 px-4 sm:py-12 sm:px-6 animate-gradient rounded-3xl">
             <div className="w-full max-w-md">
                 {/* Header */}
                 <div className="mb-8 text-center animate-slideInUp">
                     <div className="mb-4 inline-flex items-center gap-3">
-                        <FaVolumeUp className="h-10 w-10 text-blue-600" />
-                        <h1 className="text-3xl font-bold text-blue-600">Synapse</h1>
+                        <FaVolumeUp className="h-8 w-8 sm:h-10 sm:w-10 text-blue-600" />
+                        <h1 className="text-2xl sm:text-3xl font-bold text-blue-600">Synapse</h1>
                     </div>
                     <p className="text-slate-600">邮箱验证</p>
                 </div>
 
                 {/* Card */}
-                <div className="bg-white/90 rounded-2xl shadow-xl border border-slate-100 px-8 py-12 hover:shadow-2xl transition-all duration-300">
+                <div className="bg-white/90 rounded-2xl shadow-xl border border-slate-100 px-4 py-6 sm:px-8 sm:py-12 hover:shadow-2xl transition-all duration-300">
                     {user && (
                         <div className="mb-6 p-4 bg-slate-50 border border-slate-100 rounded-xl flex items-start gap-3 text-left animate-fadeIn">
                             <FaInfoCircle className="text-blue-500 mt-1 flex-shrink-0" />
@@ -94,14 +94,14 @@ export const EmailVerifyPage: React.FC = () => {
                     )}
                     {loading ? (
                         <div className="text-center py-8">
-                            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                            <div className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                             <h3 className="text-xl font-semibold text-slate-900 mb-2">验证中...</h3>
                             <p className="text-slate-600">请稍候，正在验证您的邮箱</p>
                         </div>
                     ) : success ? (
                         <div className="text-center py-4">
-                            <div className="w-20 h-20 bg-gradient-to-br from-green-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <FaCheckCircle className="text-green-600 text-5xl" />
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-green-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <FaCheckCircle className="text-green-600 text-4xl sm:text-5xl" />
                             </div>
                             <h3 className="text-2xl font-bold text-slate-900 mb-4">验证成功！</h3>
                             <p className="text-slate-600 mb-6">您的邮箱已成功验证，账户创建完成</p>
@@ -127,8 +127,8 @@ export const EmailVerifyPage: React.FC = () => {
                         </div>
                     ) : (
                         <div className="text-center py-4">
-                            <div className="w-20 h-20 bg-gradient-to-br from-red-100 to-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <FaTimesCircle className="text-red-600 text-5xl" />
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-red-100 to-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <FaTimesCircle className="text-red-600 text-4xl sm:text-5xl" />
                             </div>
                             <h3 className="text-2xl font-bold text-slate-900 mb-4">验证失败</h3>
                             <p className="text-slate-600 mb-6">{error}</p>

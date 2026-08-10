@@ -85,7 +85,7 @@ export default function ResourceStoreDetail() {
         <div className={cn(studioAccentBlobBlueClassName, '-right-12 top-0')} aria-hidden />
         <div className={cn(studioAccentBlobSkyClassName, '-left-10 bottom-0')} aria-hidden />
 
-        <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+        <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-8 lg:items-start">
           <div className="min-w-0">
             <div className="relative overflow-hidden rounded-[26px] border border-slate-200 bg-slate-100 shadow-sm">
               <img
@@ -111,7 +111,7 @@ export default function ResourceStoreDetail() {
               {resource.description}
             </p>
 
-            <div className="mt-7 rounded-[22px] border border-slate-200 bg-slate-50/80 px-5 py-4">
+            <div className="mt-7 rounded-[22px] border border-slate-200 bg-slate-50/80 px-4 py-4 sm:px-5">
               <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
                 Price
               </div>
@@ -120,7 +120,7 @@ export default function ResourceStoreDetail() {
               </div>
             </div>
 
-            <div className="mt-5 rounded-[22px] border border-amber-200/70 bg-amber-50/80 px-5 py-4">
+            <div className="mt-5 rounded-[22px] border border-amber-200/70 bg-amber-50/80 px-4 py-4 sm:px-5">
               <div className="flex items-start gap-3">
                 <FaInfoCircle className="mt-1 shrink-0 text-amber-600" />
                 <div>
@@ -132,7 +132,7 @@ export default function ResourceStoreDetail() {
               </div>
             </div>
 
-            <div className="mt-5 grid gap-2 rounded-[22px] border border-slate-200 bg-white/80 px-5 py-4 text-xs leading-6 text-slate-500">
+            <div className="mt-5 grid gap-2 rounded-[22px] border border-slate-200 bg-white/80 px-4 py-4 text-xs leading-6 text-slate-500 sm:px-5">
               <p>创建时间: {new Date(resource.createdAt).toLocaleDateString()}</p>
               <p>更新时间: {new Date(resource.updatedAt).toLocaleDateString()}</p>
             </div>

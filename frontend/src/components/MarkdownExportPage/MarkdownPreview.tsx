@@ -19,7 +19,7 @@ const MarkdownPreview: React.FC<Props> = ({ html, isKatexLoaded, previewRef }) =
       <div className="p-4">
         <div
           ref={previewRef}
-          className="h-96 overflow-y-auto border border-gray-300 rounded-xl p-4 bg-white prose prose-sm max-w-none"
+          className="h-64 overflow-y-auto border border-gray-300 rounded-xl p-4 bg-white prose prose-sm max-w-none sm:h-96"
           style={{
             fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
           } as React.CSSProperties}

@@ -63,25 +63,25 @@ export const DebugInfoModal: React.FC<DebugInfoModalProps> = ({ isOpen, onClose,
                 >
                     {/* 标题栏 */}
                     <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white p-6">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-3 min-w-0">
                                 <motion.div
                                     animate={{ rotate: 360 }}
                                     transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                                    className="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center"
+                                    className="w-8 h-8 shrink-0 bg-white bg-opacity-20 rounded-full flex items-center justify-center"
                                 >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                 </motion.div>
-                                <div>
-                                    <h2 className="text-2xl font-bold">Passkey 调试信息 (管理员专用)</h2>
-                                    <p className="text-sm opacity-90">请将此信息提供给管理员进行问题诊断</p>
+                                <div className="min-w-0">
+                                    <h2 className="text-xl sm:text-2xl font-bold">Passkey 调试信息 (管理员专用)</h2>
+                                    <p className="text-xs sm:text-sm opacity-90">请将此信息提供给管理员进行问题诊断</p>
                                 </div>
                             </div>
                             <button
                                 onClick={onClose}
-                                className="text-white hover:text-slate-200 transition-colors"
+                                className="shrink-0 text-white hover:text-slate-200 transition-colors"
                             >
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -138,33 +138,33 @@ export const DebugInfoModal: React.FC<DebugInfoModalProps> = ({ isOpen, onClose,
 
                     {/* 底部操作栏 */}
                     <div className="bg-slate-50/80 px-6 py-4 border-t border-slate-200">
-                        <div className="flex items-center justify-between">
-                            <div className="text-sm text-slate-600">
-                                共 {debugInfos.length} 条调试信息
-                            </div>
-                            <div className="flex space-x-3">
-                                <motion.button
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    onClick={copyToClipboard}
-                                    className={`px-4 py-2 rounded-2xl font-medium transition-colors ${
-                                        copied
-                                            ? 'bg-emerald-500 text-white'
-                                            : 'bg-emerald-500 text-white hover:bg-emerald-600'
-                                    }`}
-                                >
-                                    {copied ? '已复制!' : '复制调试信息'}
-                                </motion.button>
-                                <motion.button
-                                    whileHover={{ scale: 1.05 }}
-                                    whileTap={{ scale: 0.95 }}
-                                    onClick={onClose}
-                                    className="px-4 py-2 bg-slate-500 text-white rounded-2xl font-medium hover:bg-slate-600 transition-colors"
-                                >
-                                    关闭
-                                </motion.button>
-                            </div>
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+                        <div className="text-sm text-slate-600">
+                            共 {debugInfos.length} 条调试信息
                         </div>
+                        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={copyToClipboard}
+                                className={`px-4 py-2 rounded-2xl font-medium transition-colors w-full sm:w-auto ${
+                                    copied
+                                        ? 'bg-emerald-500 text-white'
+                                        : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                                }`}
+                            >
+                                {copied ? '已复制!' : '复制调试信息'}
+                            </motion.button>
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={onClose}
+                                className="px-4 py-2 bg-slate-500 text-white rounded-2xl font-medium hover:bg-slate-600 transition-colors w-full sm:w-auto"
+                            >
+                                关闭
+                            </motion.button>
+                        </div>
+                    </div>
                     </div>
                 </motion.div>
             </motion.div>

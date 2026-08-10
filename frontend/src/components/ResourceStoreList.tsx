@@ -296,7 +296,7 @@ export default function ResourceStoreList() {
       transition={{ delay: index * 0.04 }}
       className="overflow-hidden rounded-[24px] border border-slate-200 bg-white/90 shadow-sm transition hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(15,23,42,0.12)]"
     >
-      <div className="relative h-48 overflow-hidden bg-slate-100">
+      <div className="relative h-36 overflow-hidden bg-slate-100 sm:h-48">
         <img
           src={resource.imageUrl || "/placeholder.jpg"}
           alt={resource.title}
@@ -306,7 +306,7 @@ export default function ResourceStoreList() {
           {resource.category}
         </span>
       </div>
-      <div className="space-y-4 p-5">
+      <div className="space-y-4 p-4 sm:p-5">
         <div>
           <h3 className="line-clamp-1 text-lg font-semibold text-slate-900">
             {resource.title}
@@ -346,7 +346,7 @@ export default function ResourceStoreList() {
       transition={{ delay: index * 0.04 }}
       className="overflow-hidden rounded-[24px] border border-slate-200 bg-white/90 shadow-sm transition hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(15,23,42,0.12)]"
     >
-      <div className="relative h-48 overflow-hidden bg-slate-100">
+      <div className="relative h-36 overflow-hidden bg-slate-100 sm:h-48">
         <img
           src={resource.imageUrl || "/placeholder.jpg"}
           alt={resource.title}
@@ -360,7 +360,7 @@ export default function ResourceStoreList() {
           Owned
         </span>
       </div>
-      <div className="space-y-4 p-5">
+      <div className="space-y-4 p-4 sm:p-5">
         <div>
           <h3 className="line-clamp-1 text-lg font-semibold text-slate-900">
             {resource.title}

@@ -1077,7 +1077,7 @@ const TigerAdventure: React.FC = () => {
           />
 
           <InfoPanel>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-3 md:gap-4">
               {scenes.slice(0, 3).map((scene, index) => (
                 <motion.div
                   key={scene.id}

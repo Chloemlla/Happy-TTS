@@ -80,7 +80,7 @@ export default function GithubBillingConfigSection({
 
               {/* 当前配置状态 */}
               {multiConfig && multiConfig[selectedConfigKey] && (
-                <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                <div className="mb-4 p-3 bg-gray-50 border border-gray-200 rounded-lg sm:p-4">
                   <h5 className="text-sm font-semibold text-gray-700 mb-2">当前配置信息 ({selectedConfigKey})</h5>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                     <div>
@@ -114,7 +114,7 @@ export default function GithubBillingConfigSection({
               )}
 
               {/* 状态信息 */}
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg sm:p-4">
                 <div className="flex items-center gap-2 text-sm text-blue-700">
                   <div className={`w-2 h-2 rounded-full ${multiConfig && multiConfig[selectedConfigKey] ? 'bg-green-500' : 'bg-red-500'}`}></div>
                   <span className="font-medium">

@@ -53,7 +53,7 @@ const BlockchainDisplay: React.FC<{ data: any }> = React.memo(({ data }) => (
       icon={FaLink}
       tone="sky"
     />
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
       <div className={`${lotteryTileClass} p-4 text-center`}>
         <div className="text-2xl font-semibold text-slate-950">{data.height.toLocaleString()}</div>
         <div className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">区块高度</div>
@@ -545,7 +545,7 @@ const LotteryPage: React.FC = () => {
         {/* 统计信息 */}
         {statistics && <StatisticsCard stats={statistics} />}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* 用户记录 */}
           <div className="lg:col-span-1">
             {user ? (

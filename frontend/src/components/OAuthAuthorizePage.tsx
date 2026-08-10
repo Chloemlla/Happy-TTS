@@ -268,7 +268,7 @@ const OAuthAuthorizePage: React.FC = () => {
                 OAuth Authorization
               </div>
               <div className="flex min-w-0 items-start gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 text-slate-500">
+                <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 text-slate-500">
                   {preview.client.logoUrl ? (
                     <img
                       src={preview.client.logoUrl}
@@ -293,7 +293,7 @@ const OAuthAuthorizePage: React.FC = () => {
               </div>
             </div>
             <div className="w-full lg:w-auto">
-              <div className="grid gap-2 sm:grid-cols-3 sm:gap-3">
+              <div className="grid min-w-0 gap-2 sm:grid-cols-3 sm:gap-3">
                 {statusCards.map((item) => (
                   <div
                     key={item.label}
@@ -315,7 +315,7 @@ const OAuthAuthorizePage: React.FC = () => {
           </div>
         </motion.div>
 
-        <div className="grid gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)] xl:grid-cols-[minmax(0,1fr)_minmax(0,400px)]">
+        <div className="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)] xl:grid-cols-[minmax(0,1fr)_minmax(0,400px)]">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
@@ -345,7 +345,7 @@ const OAuthAuthorizePage: React.FC = () => {
                 ) : null}
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid min-w-0 gap-4 lg:grid-cols-2">
                 <div className="min-w-0 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
                   <div className="mb-3 flex items-center gap-3">
                     <div className={studioStrongBadgeClassName}>
@@ -448,7 +448,7 @@ const OAuthAuthorizePage: React.FC = () => {
                   </span>
                 </div>
                 {identityScopes.length > 0 ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="grid min-w-0 gap-3 sm:grid-cols-2">
                     {identityScopes.map((scope) => (
                       <div
                         key={scope.key}
@@ -485,7 +485,7 @@ const OAuthAuthorizePage: React.FC = () => {
                       {apiScopes.length} Items
                     </span>
                   </div>
-                  <div className="grid gap-3">
+                  <div className="grid min-w-0 gap-3">
                     {apiScopes.map((scope) => (
                       <div
                         key={scope.key}
@@ -535,7 +535,7 @@ const OAuthAuthorizePage: React.FC = () => {
               className={studioPanelClassName}
             >
               <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 text-white">
+                <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-2xl bg-slate-900 text-white">
                   <FaCheck />
                 </div>
                 <div>
@@ -589,7 +589,7 @@ const OAuthAuthorizePage: React.FC = () => {
               className={studioPanelClassName}
             >
               <div className="mb-4 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 text-white">
+                <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-2xl bg-slate-900 text-white">
                   <FaInfoCircle />
                 </div>
                 <div>

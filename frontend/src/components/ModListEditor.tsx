@@ -547,28 +547,30 @@ const ModListEditor: React.FC = () => {
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-[28px] border border-[#8ECAE6]/35">
-              <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,2fr)] gap-4 bg-[#EAF6FB] px-5 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-[#023047]/65">
-                <div>名称</div>
-                <div>Hash</div>
-                <div>MD5</div>
+            <div className="overflow-x-auto rounded-[28px] border border-[#8ECAE6]/35">
+              <div className="min-w-[500px]">
+                <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,2fr)] gap-4 bg-[#EAF6FB] px-5 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-[#023047]/65">
+                  <div>名称</div>
+                  <div>Hash</div>
+                  <div>MD5</div>
+                </div>
+                {loading ? (
+                  <div className="px-5 py-10 text-center text-sm text-[#023047]/60">加载中…</div>
+                ) : filteredMods.length === 0 ? (
+                  <div className="px-5 py-10 text-center text-sm text-[#023047]/60">没有匹配的模组</div>
+                ) : (
+                  filteredMods.map((mod) => (
+                    <div
+                      key={mod.id}
+                      className="grid grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,2fr)] gap-4 border-t border-[#8ECAE6]/25 px-5 py-4 text-sm text-[#023047]"
+                    >
+                      <div className="break-all font-medium">{mod.name}</div>
+                      <div className="break-all text-[#023047]/72">{mod.hash || "-"}</div>
+                      <div className="break-all text-[#023047]/72">{mod.md5 || "-"}</div>
+                    </div>
+                  ))
+                )}
               </div>
-              {loading ? (
-                <div className="px-5 py-10 text-center text-sm text-[#023047]/60">加载中…</div>
-              ) : filteredMods.length === 0 ? (
-                <div className="px-5 py-10 text-center text-sm text-[#023047]/60">没有匹配的模组</div>
-              ) : (
-                filteredMods.map((mod) => (
-                  <div
-                    key={mod.id}
-                    className="grid grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,2fr)] gap-4 border-t border-[#8ECAE6]/25 px-5 py-4 text-sm text-[#023047]"
-                  >
-                    <div className="break-all font-medium">{mod.name}</div>
-                    <div className="break-all text-[#023047]/72">{mod.hash || "-"}</div>
-                    <div className="break-all text-[#023047]/72">{mod.md5 || "-"}</div>
-                  </div>
-                ))
-              )}
             </div>
           </section>
         </div>
@@ -704,13 +706,15 @@ const ModListEditor: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-[56px_minmax(0,1.4fr)_minmax(0,1.3fr)_minmax(0,1.2fr)_144px] gap-4 bg-[#EAF6FB] px-6 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-[#023047]/65">
-                  <div>选中</div>
-                  <div>名称</div>
-                  <div>Hash</div>
-                  <div>MD5</div>
-                  <div>操作</div>
-                </div>
+                <div className="overflow-x-auto">
+                <div className="min-w-[600px]">
+                  <div className="grid grid-cols-[56px_minmax(0,1.4fr)_minmax(0,1.3fr)_minmax(0,1.2fr)_144px] gap-4 bg-[#EAF6FB] px-6 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-[#023047]/65">
+                    <div>选中</div>
+                    <div>名称</div>
+                    <div>Hash</div>
+                    <div>MD5</div>
+                    <div>操作</div>
+                  </div>
 
                 {loading ? (
                   <div className="px-6 py-12 text-center text-sm text-[#023047]/60">加载中…</div>
@@ -758,6 +762,8 @@ const ModListEditor: React.FC = () => {
                     </div>
                   ))
                 )}
+              </div>
+            </div>
               </section>
             ) : (
               <section className="rounded-[32px] border border-[#8ECAE6]/30 bg-white/94 p-6 shadow-[0_20px_60px_rgba(2,48,71,0.08)]">

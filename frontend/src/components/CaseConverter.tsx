@@ -1358,7 +1358,7 @@ const CaseConverter: React.FC<CaseConverterProps> = React.memo(() => {
               {isEnglish ? 'Conversion Functions' : '转换功能'}
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
               {Object.entries(t.functions).map(([key, label], index) => {
                 const IconComponent = functionIcons[key as keyof typeof functionIcons];
                 return (

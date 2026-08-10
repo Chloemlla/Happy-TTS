@@ -26,7 +26,7 @@ const CollapsibleSection = React.memo(function CollapsibleSection({
       animate={ENTER_ANIMATE}
       transition={prefersReducedMotion ? NO_DURATION : DURATION_06}
     >
-      <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 border-b border-slate-100 px-4 py-3 sm:px-5 sm:py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-slate-800">{title}</h3>
           {description ? <p className="mt-1 text-sm text-slate-500">{description}</p> : null}
@@ -44,7 +44,7 @@ const CollapsibleSection = React.memo(function CollapsibleSection({
         </div>
       </div>
       {isOpen && (
-        <div className="space-y-4 px-5 py-5">
+        <div className="space-y-4 px-4 py-4 sm:px-5 sm:py-5">
           {children}
         </div>
       )}

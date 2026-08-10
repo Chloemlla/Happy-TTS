@@ -752,19 +752,19 @@ const GitHubBillingDashboard: React.FC = () => {
                 <div className="mt-3 grid grid-cols-2 gap-4 md:grid-cols-4">
                   <div className="relative overflow-hidden rounded-[20px] border border-white/70 bg-white/82 p-4 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">Actions</div>
-                    <div className="mt-2 text-lg font-semibold text-slate-900">{billingData.usage_breakdown.actions}</div>
+                    <div className="mt-2 text-base font-semibold text-slate-900 sm:text-lg">{billingData.usage_breakdown.actions}</div>
                   </div>
                   <div className="relative overflow-hidden rounded-[20px] border border-white/70 bg-white/82 p-4 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">Packages</div>
-                    <div className="mt-2 text-lg font-semibold text-slate-900">{billingData.usage_breakdown.packages}</div>
+                    <div className="mt-2 text-base font-semibold text-slate-900 sm:text-lg">{billingData.usage_breakdown.packages}</div>
                   </div>
                   <div className="relative overflow-hidden rounded-[20px] border border-white/70 bg-white/82 p-4 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">Codespaces</div>
-                    <div className="mt-2 text-lg font-semibold text-slate-900">{billingData.usage_breakdown.codespaces}</div>
+                    <div className="mt-2 text-base font-semibold text-slate-900 sm:text-lg">{billingData.usage_breakdown.codespaces}</div>
                   </div>
                   <div className="relative overflow-hidden rounded-[20px] border border-white/70 bg-white/82 p-4 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">Copilot</div>
-                    <div className="mt-2 text-lg font-semibold text-slate-900">{billingData.usage_breakdown.copilot}</div>
+                    <div className="mt-2 text-base font-semibold text-slate-900 sm:text-lg">{billingData.usage_breakdown.copilot}</div>
                   </div>
                 </div>
                 {billingData.billing_cycle && (

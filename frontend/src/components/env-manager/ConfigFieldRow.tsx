@@ -65,7 +65,7 @@ const ConfigFieldRow: React.FC<ConfigFieldRowProps> = ({
             readOnly={readOnly}
           />
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-xs text-slate-600">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-600 sm:px-4 sm:py-3">
           {currentLabel}：{loading ? '加载中...' : currentValue || '未设置'}
         </div>
         <div className="flex items-center justify-end gap-3">
@@ -112,7 +112,7 @@ const ConfigFieldRow: React.FC<ConfigFieldRowProps> = ({
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">{currentLabel}</label>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-600 min-h-[48px] flex items-center">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-sm text-slate-600 min-h-[48px] flex items-center sm:px-4 sm:py-3">
             {loading ? '加载中...' : currentValue || '未设置'}
           </div>
         </div>

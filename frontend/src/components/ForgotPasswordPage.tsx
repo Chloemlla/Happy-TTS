@@ -179,7 +179,7 @@ export const ForgotPasswordPage: React.FC = () => {
                             {success ? (
                                 <>
                                     <div className="text-center">
-                                        <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100">
+                                        <div className="mx-auto mb-5 flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-emerald-100">
                                             <FaCheckCircle className="h-8 w-8 text-emerald-600" />
                                         </div>
                                         <div className={authEyebrowClassName}>Reset Link Sent</div>

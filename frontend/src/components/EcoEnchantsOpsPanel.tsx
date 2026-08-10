@@ -647,7 +647,7 @@ function InstanceDetailSection({
         <div className="space-y-4">
           <div className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-xl p-5">
             <span className={labelClass}>读取文件</span>
-            <div className="mt-3 flex gap-2">
+            <div className="mt-3 flex flex-col sm:flex-row gap-2">
               <input
                 type="text"
                 value={fileReadPath}
@@ -706,7 +706,7 @@ function InstanceDetailSection({
 
           <div className="rounded-2xl border border-red-200 bg-white/80 backdrop-blur-xl p-5">
             <span className={`${labelClass} text-red-600`}>删除文件</span>
-            <div className="mt-3 flex gap-2">
+            <div className="mt-3 flex flex-col sm:flex-row gap-2">
               <input
                 type="text"
                 value={fileDeletePath}

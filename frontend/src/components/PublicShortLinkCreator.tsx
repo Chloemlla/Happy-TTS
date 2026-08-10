@@ -175,7 +175,7 @@ const PublicShortLinkCreator: React.FC = () => {
               <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-emerald-600">
                 创建成功
               </div>
-              <div className="mt-3 flex items-center gap-2">
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
                 <input
                   type="text"
                   readOnly

@@ -149,7 +149,7 @@ function BroadcastModalView({ title, content, format = 'text', level = 'info', i
         onClick={onClose}
       >
         <motion.div
-          className={`bg-white rounded-2xl shadow-2xl border ${cfg.border} max-w-lg w-[92vw] mx-4 overflow-hidden`}
+          className={`bg-white rounded-2xl shadow-2xl border ${cfg.border} w-full max-w-lg mx-4 overflow-hidden max-h-[90vh]`}
           initial={{ opacity: 0, scale: 0.92, y: 30 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.92, y: 30 }}

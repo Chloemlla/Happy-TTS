@@ -548,16 +548,16 @@ export default function ResourceStoreManager() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-green-50 to-blue-50 rounded-2xl p-6 border border-green-100"
+        className="bg-gradient-to-r from-green-50 to-blue-50 rounded-2xl p-4 sm:p-6 border border-green-100"
       >
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-green-700 flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+          <h2 className="text-xl sm:text-2xl font-bold text-green-700 flex items-center gap-2">
             <FaBox className="w-6 h-6" />
             资源管理
           </h2>
-          <Link 
+          <Link
             to="/admin/store"
-            className="px-3 py-2 bg-green-500 text-white rounded-2xl hover:bg-green-600 transition text-sm font-medium flex items-center gap-2"
+            className="w-full sm:w-auto px-3 py-2 bg-green-500 text-white rounded-2xl hover:bg-green-600 transition text-sm font-medium flex items-center gap-2 justify-center"
           >
             <FaArrowLeft className="w-4 h-4" />
             返回仪表板
@@ -584,9 +584,9 @@ export default function ResourceStoreManager() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
+        className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
       >
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
           <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
             <FaSearch className="w-5 h-5 text-green-500" />
             搜索和刷新
@@ -594,7 +594,7 @@ export default function ResourceStoreManager() {
           <motion.button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="px-3 py-2 bg-green-500 text-white rounded-2xl hover:bg-green-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2"
+            className="w-full sm:w-auto px-3 py-2 bg-green-500 text-white rounded-2xl hover:bg-green-600 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2 justify-center"
             whileTap={{ scale: 0.95 }}
           >
             <FaSync className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
@@ -616,9 +616,9 @@ export default function ResourceStoreManager() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
+        className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
       >
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <h3 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
             <FaPlus className="w-5 h-5 text-green-500" />
             添加资源
@@ -626,7 +626,7 @@ export default function ResourceStoreManager() {
           {canWrite && (
           <motion.button
             onClick={() => setShowAddModal(true)}
-            className="px-4 py-2 bg-gradient-to-r from-green-500 to-blue-600 text-white rounded-2xl hover:from-green-600 hover:to-blue-700 transition-all duration-200 font-medium flex items-center gap-2"
+            className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-green-500 to-blue-600 text-white rounded-2xl hover:from-green-600 hover:to-blue-700 transition-all duration-200 font-medium flex items-center gap-2 justify-center"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
           >
@@ -641,11 +641,14 @@ export default function ResourceStoreManager() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
+        className="bg-white/80 backdrop-blur-xl rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200"
       >
         <h3 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <FaList className="w-5 h-5 text-indigo-500" />
           资源列表
+          <span className="text-sm font-normal text-slate-500">
+            {totalItems > 0 && `共 ${totalItems} 个`}
+          </span>
         </h3>
 
         {/* 桌面端表格视图 */}

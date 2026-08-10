@@ -1101,7 +1101,7 @@ export default function CDKStoreManager() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-6 border border-purple-100"
+        className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl p-4 sm:p-6 border border-purple-100"
       >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
           <h2 className="text-xl sm:text-2xl font-bold text-purple-700 flex items-center gap-2">
@@ -1139,7 +1139,7 @@ export default function CDKStoreManager() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 rounded-2xl p-6 shadow-sm border border-slate-200 backdrop-blur-xl"
+        className="bg-white/80 rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 backdrop-blur-xl"
       >
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <h3 className="text-base sm:text-lg font-semibold text-slate-800 flex items-center gap-2">
@@ -1171,7 +1171,7 @@ export default function CDKStoreManager() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 rounded-2xl p-6 shadow-sm border border-slate-200 backdrop-blur-xl"
+        className="bg-white/80 rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 backdrop-blur-xl"
       >
         <div className="space-y-4">
           <h3 className="text-base sm:text-lg font-semibold text-slate-800 flex items-center gap-2">
@@ -1380,7 +1380,7 @@ export default function CDKStoreManager() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 rounded-2xl p-6 shadow-sm border border-slate-200 backdrop-blur-xl"
+        className="bg-white/80 rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 backdrop-blur-xl"
       >
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
           <h3 className="text-base sm:text-lg font-semibold text-slate-800 flex items-center gap-2">

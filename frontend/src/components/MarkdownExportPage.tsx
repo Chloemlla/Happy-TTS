@@ -392,7 +392,7 @@ const MarkdownExportPage: React.FC = () => {
                 <textarea
                   value={markdownContent}
                   onChange={(event) => setMarkdownContent(event.target.value)}
-                  className="h-96 w-full resize-none rounded-2xl border border-slate-200 bg-white/80 p-4 font-mono text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  className="h-64 w-full resize-none rounded-2xl border border-slate-200 bg-white/80 p-4 font-mono text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300 sm:h-96"
                   placeholder="在这里输入 Markdown 内容..."
                 />
               </div>
@@ -408,7 +408,7 @@ const MarkdownExportPage: React.FC = () => {
               <div className="p-4">
                 <div
                   ref={previewRef}
-                  className="h-96 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4"
+                  className="h-64 overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 sm:h-96"
                   style={{
                     fontFamily:
                       'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',

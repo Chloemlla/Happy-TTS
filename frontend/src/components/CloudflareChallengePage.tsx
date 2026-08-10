@@ -51,17 +51,17 @@ const CloudflareChallengePage: React.FC = () => {
   return (
     <section className="mx-auto flex min-h-[62vh] max-w-xl items-center px-4 py-10">
       <div className="w-full overflow-hidden rounded-2xl border border-slate-200 bg-white/90 shadow-xl shadow-slate-200/60 backdrop-blur">
-        <div className="border-b border-slate-200 bg-slate-950 px-6 py-5 text-white">
+        <div className="border-b border-slate-200 bg-slate-950 px-4 py-4 sm:px-6 sm:py-5 text-white">
           <div className="flex items-center gap-3">
-            <FaShieldAlt className="h-6 w-6 text-[#8ECAE6]" />
+            <FaShieldAlt className="h-5 w-5 sm:h-6 sm:w-6 text-[#8ECAE6]" />
             <div>
-              <h1 className="text-xl font-semibold">Cloudflare 人机验证</h1>
+              <h1 className="text-lg sm:text-xl font-semibold">Cloudflare 人机验证</h1>
               <p className="mt-1 text-xs text-slate-300">Synapse 安全检查</p>
             </div>
           </div>
         </div>
 
-        <div className="space-y-5 px-6 py-7">
+        <div className="space-y-5 px-4 py-5 sm:px-6 sm:py-7">
           {configLoading ? (
             <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
               正在加载验证组件...

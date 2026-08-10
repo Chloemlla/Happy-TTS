@@ -10,7 +10,7 @@ interface VerifyCodeInputProps {
 }
 
 const BOX_STYLE =
-  'w-12 h-14 sm:w-14 sm:h-16 mx-1 rounded-xl border-2 border-blue-400 bg-white text-blue-700 text-2xl sm:text-3xl text-center font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-500 placeholder-blue-200 transition-all duration-150 flex-1 min-w-0 shadow-none';
+  'w-10 h-12 sm:w-14 sm:h-16 mx-0.5 sm:mx-1 rounded-xl border-2 border-blue-400 bg-white text-blue-700 text-lg sm:text-3xl text-center font-mono font-bold focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-500 placeholder-blue-200 transition-all duration-150 flex-1 min-w-0 shadow-none';
 
 export const VerifyCodeInput: React.FC<VerifyCodeInputProps> = ({
   length = 8,
@@ -90,7 +90,7 @@ export const VerifyCodeInput: React.FC<VerifyCodeInputProps> = ({
 
   return (
     <div className="flex flex-col items-center">
-      <div className="flex justify-center mb-4 w-full max-w-md gap-2">
+      <div className="flex justify-center mb-4 w-full max-w-md gap-1 sm:gap-2">
         {Array.from({ length }).map((_, idx) => (
           <motion.input
             key={idx}

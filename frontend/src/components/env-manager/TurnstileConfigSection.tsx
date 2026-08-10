@@ -87,7 +87,7 @@ export default function TurnstileConfigSection({
                 </div>
 
                 {/* 状态信息 */}
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 sm:p-4">
                   <div className="flex items-center gap-2 text-sm text-slate-700">
                     <div className={`w-2 h-2 rounded-full ${config?.enabled ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
                     <span className="font-medium">

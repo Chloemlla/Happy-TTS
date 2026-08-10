@@ -333,7 +333,7 @@ const FinanceAppDemo: React.FC = () => {
       />
 
       <InfoPanel className="overflow-visible">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-10">
           {/* 第1屏: 首页 (Bento网格) */}
           <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-slate-700 mb-4">首页 - Bento网格布局</h3>

@@ -760,7 +760,7 @@ const UserManagement: React.FC = () => {
   }
 
   return (
-    <section className="mx-auto max-w-6xl px-4 py-10 text-slate-900 sm:py-12">
+    <section className="mx-auto max-w-6xl px-4 py-6 text-slate-900 sm:py-12">
       <motion.div
         className="space-y-6"
         initial={{ opacity: 0, y: 20 }}
@@ -1054,10 +1054,10 @@ const UserManagement: React.FC = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[800px] text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-600">
-                    <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
+                    <th className="px-2 sm:px-4 py-3 text-left font-semibold whitespace-nowrap">
                       {canWrite && (
                       <input
                         type="checkbox"
@@ -1069,10 +1069,10 @@ const UserManagement: React.FC = () => {
                       )}
                     </th>
                     {TABLE_COLUMNS.map(col => (
-                      <th key={col.key} className="px-4 py-3 text-left font-semibold whitespace-nowrap">{col.label}</th>
+                      <th key={col.key} className="px-2 sm:px-4 py-3 text-left font-semibold whitespace-nowrap">{col.label}</th>
                     ))}
-                    <th className="px-4 py-3 text-left font-semibold">指纹</th>
-                    <th className="px-4 py-3 text-left font-semibold">操作</th>
+                    <th className="px-2 sm:px-4 py-3 text-left font-semibold">指纹</th>
+                    <th className="px-2 sm:px-4 py-3 text-left font-semibold">操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1084,7 +1084,7 @@ const UserManagement: React.FC = () => {
                       animate={ROW_ANIMATE}
                       transition={{ duration: 0.3, delay: 0.05 * idx }}
                     >
-                      <td className="px-4 py-3">
+                      <td className="px-2 sm:px-4 py-3">
                         {canWrite && (
                         <input
                           type="checkbox"
@@ -1095,18 +1095,18 @@ const UserManagement: React.FC = () => {
                         />
                         )}
                       </td>
-                      <td className="px-4 py-3 font-medium">
+                      <td className="px-2 sm:px-4 py-3 font-medium">
                         <div>{u.username}</div>
                         <div className="text-[11px] text-slate-400 font-normal">ID {u.id}</div>
                         {u.authProvider && u.authProvider !== 'local' && (
                           <div className="text-[11px] text-slate-500 font-normal">{u.authProvider}</div>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className="px-2 sm:px-4 py-3 text-slate-600">
                         <div>{u.email}</div>
                         {u.lastLoginIp && <div className="text-[11px] text-slate-400">IP {u.lastLoginIp}</div>}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 sm:px-4 py-3">
                         {u.role === 'superadmin' ? (
                           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-rose-50 text-rose-700 border border-rose-200">超级管理员</span>
                         ) : u.role === 'admin' ? (
@@ -1117,16 +1117,16 @@ const UserManagement: React.FC = () => {
                           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">普通用户</span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 sm:px-4 py-3">
                         {u.accountStatus === 'suspended' ? (
                           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">封停</span>
                         ) : (
                           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">正常</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-600 text-xs">{u.createdAt ? new Date(u.createdAt).toLocaleString() : '-'}</td>
-                      <td className="px-4 py-3 text-slate-600">{u.dailyUsage ?? 0}</td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 sm:px-4 py-3 text-slate-600 text-xs">{u.createdAt ? new Date(u.createdAt).toLocaleString() : '-'}</td>
+                      <td className="px-2 sm:px-4 py-3 text-slate-600">{u.dailyUsage ?? 0}</td>
+                      <td className="px-2 sm:px-4 py-3">
                         <div className="flex flex-col gap-1">
                           {u.totpEnabled
                             ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">TOTP</span>
@@ -1142,7 +1142,7 @@ const UserManagement: React.FC = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 sm:px-4 py-3">
                         <div className="flex flex-col gap-1">
                           {u.ticketViolationCount && u.ticketViolationCount > 0 ? (
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${u.ticketViolationCount >= 3 ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-amber-50 text-amber-700 border border-amber-200'}`}>
@@ -1160,7 +1160,7 @@ const UserManagement: React.FC = () => {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 sm:px-4 py-3">
                         {(() => {
                           const translationStatus = getTranslationStatus(u);
                           return (
@@ -1171,7 +1171,7 @@ const UserManagement: React.FC = () => {
                         })()}
                       </td>
                       {/* 指纹列 */}
-                      <td className="px-4 py-3 text-slate-600 text-xs">
+                      <td className="px-2 sm:px-4 py-3 text-slate-600 text-xs">
                         {(() => {
                           const latestFingerprint = getLatestFingerprint(u.fingerprints) || u.latestFingerprint || null;
                           const fingerprintCount = getUserFingerprintCount(u);
@@ -1249,9 +1249,9 @@ const UserManagement: React.FC = () => {
                           );
                         })()}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 sm:px-4 py-3">
                         {canWrite ? (
-                        <div className="flex gap-2">
+                        <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
                           <motion.button
                             className={logShareSecondaryButtonClass}
                             onClick={() => openRevealPassword(u)}

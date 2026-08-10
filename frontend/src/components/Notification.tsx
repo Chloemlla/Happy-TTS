@@ -251,7 +251,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return (
         <NotificationContext.Provider value={{ setNotification }}>
             {children}
-            <div className="fixed top-4 right-4 z-[9999] space-y-3">
+            <div className="fixed top-4 right-4 z-[9999] space-y-3 max-sm:left-4 max-sm:right-4 max-sm:top-2">
                 <AnimatePresence mode="popLayout">
                     {notifications.map((notification, index) => (
                         <NotificationCard
@@ -375,7 +375,7 @@ const NotificationCard = React.memo(({
                 y: -24,
                 transition: { duration: 0.18, ease: [0.4, 0, 0.2, 1] }
             }}
-            className={`bg-white/90 text-gray-800 px-3 sm:px-4 py-2 sm:py-3 rounded-lg shadow-lg backdrop-blur-sm border flex flex-col items-stretch min-w-[200px] max-w-sm cursor-pointer select-none ${notification.isPaused ? 'ring-2 ring-blue-200' : ''
+            className={`bg-white/90 text-gray-800 px-3 sm:px-4 py-2 sm:py-3 rounded-lg shadow-lg backdrop-blur-sm border flex flex-col items-stretch w-full max-w-sm cursor-pointer select-none ${notification.isPaused ? 'ring-2 ring-blue-200' : ''
                 } ${notification.isFaded ? 'shadow-md' : 'shadow-lg'
                 }`}
             style={{ gap: 8 }}

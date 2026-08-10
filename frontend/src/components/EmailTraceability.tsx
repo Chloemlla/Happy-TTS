@@ -281,33 +281,33 @@ const EmailTraceability: React.FC = () => {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/50">
-                  <th className="px-4 py-3 font-semibold text-slate-500">发送时间</th>
-                  <th className="px-4 py-3 font-semibold text-slate-500">收件人</th>
-                  <th className="px-4 py-3 font-semibold text-slate-500">主题</th>
-                  <th className="px-4 py-3 font-semibold text-slate-500">内容摘要</th>
-                  <th className="px-4 py-3 font-semibold text-slate-500">来源 IP</th>
-                  <th className="px-4 py-3 font-semibold text-slate-500">操作</th>
+                  <th className="px-3 sm:px-4 py-3 font-semibold text-slate-500">发送时间</th>
+                  <th className="px-3 sm:px-4 py-3 font-semibold text-slate-500">收件人</th>
+                  <th className="px-3 sm:px-4 py-3 font-semibold text-slate-500">主题</th>
+                  <th className="px-3 sm:px-4 py-3 font-semibold text-slate-500">内容摘要</th>
+                  <th className="px-3 sm:px-4 py-3 font-semibold text-slate-500">来源 IP</th>
+                  <th className="px-3 sm:px-4 py-3 font-semibold text-slate-500">操作</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {records.map((rec, i) => (
                   <tr key={rec._id || i} className="hover:bg-slate-50/50">
-                    <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                    <td className="whitespace-nowrap px-3 sm:px-4 py-3 text-slate-600">
                       {formatDateTime(rec.sentAt)}
                     </td>
-                    <td className="max-w-[200px] truncate px-4 py-3 font-medium text-slate-800">
+                    <td className="max-w-[120px] sm:max-w-[200px] truncate px-3 sm:px-4 py-3 font-medium text-slate-800">
                       {rec.to}
                     </td>
-                    <td className="max-w-[200px] truncate px-4 py-3 text-slate-600">
+                    <td className="max-w-[120px] sm:max-w-[200px] truncate px-3 sm:px-4 py-3 text-slate-600">
                       {rec.subject}
                     </td>
-                    <td className="max-w-[250px] truncate px-4 py-3 text-slate-500">
+                    <td className="max-w-[150px] sm:max-w-[250px] truncate px-3 sm:px-4 py-3 text-slate-500">
                       {rec.content}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-400">
+                    <td className="whitespace-nowrap px-3 sm:px-4 py-3 font-mono text-xs text-slate-400">
                       {rec.ip || "-"}
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3">
+                    <td className="whitespace-nowrap px-3 sm:px-4 py-3">
                       <button
                         onClick={() => handleViewDetail(rec._id)}
                         className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-100"
@@ -325,7 +325,7 @@ const EmailTraceability: React.FC = () => {
 
         {/* 分页 */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3">
+          <div className="flex items-center justify-between border-t border-slate-100 px-3 sm:px-4 py-3">
             <span className="text-xs text-slate-400">
               共 {total} 条记录
             </span>
@@ -375,7 +375,7 @@ const EmailTraceability: React.FC = () => {
             onClick={(e) => e.stopPropagation()}
           >
             {/* 弹窗头部 */}
-            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+            <div className="flex items-center justify-between border-b border-slate-100 px-4 sm:px-6 py-4">
               <div className="flex items-center gap-3">
                 <div className="flex size-8 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
                   <FaEnvelope className="size-3.5" />
@@ -394,7 +394,7 @@ const EmailTraceability: React.FC = () => {
             </div>
 
             {/* 弹窗内容 */}
-            <div className="flex-1 overflow-y-auto px-6 py-4">
+            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4">
               {detailLoading ? (
                 <div className="flex items-center justify-center py-16">
                   <div className="size-8 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-500" />

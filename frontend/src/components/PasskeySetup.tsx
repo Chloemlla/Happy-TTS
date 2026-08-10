@@ -193,7 +193,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose, onChanged }
       >
         <div className="mb-4 flex items-start justify-between gap-4">
           <div className="flex min-w-0 gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white">
+            <div className="flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white">
               <FaKey />
             </div>
             <div className="min-w-0">
@@ -270,7 +270,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose, onChanged }
 
           {!hasCredential && !isLoading ? (
             <div className="rounded-[22px] border border-dashed border-slate-200 bg-white/70 px-4 py-8 text-center">
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
+              <div className="mx-auto mb-3 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
                 <FaKey />
               </div>
               <div className="text-sm font-semibold text-slate-900">还没有 Passkey</div>
@@ -280,7 +280,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose, onChanged }
 
           {isLoading && !hasCredential ? (
             <div className="flex items-center justify-center py-8">
-              <div className="h-7 w-7 animate-spin rounded-full border-2 border-slate-200 border-t-slate-900" />
+              <div className="h-5 w-5 sm:h-7 sm:w-7 animate-spin rounded-full border-2 border-slate-200 border-t-slate-900" />
             </div>
           ) : null}
 
@@ -314,7 +314,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose, onChanged }
               onClick={(event) => event.stopPropagation()}
             >
               <div className="mb-3 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
+                <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
                   <FaExclamationTriangle />
                 </div>
                 <h3 className="text-lg font-semibold text-slate-900">删除 Passkey</h3>
@@ -368,7 +368,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose, onChanged }
               onClick={(event) => event.stopPropagation()}
             >
               <div className="mb-4 flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white">
+                <div className="flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-white">
                   <FaKey />
                 </div>
                 <div>

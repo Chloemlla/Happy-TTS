@@ -515,7 +515,7 @@ const XiaohongshuDemo: React.FC = () => {
           </div>
 
           {/* 搜索框 */}
-          <div className="flex-1 max-w-[500px] relative mx-5">
+          <div className="flex-1 max-w-[500px] relative mx-5 min-w-0">
             <div className="h-10 px-4 rounded-full flex items-center gap-2 transition-all duration-300"
               style={{ backgroundColor: 'var(--secondary-bg)' }}
               onFocus={() => setShowSearchSuggestions(true)}>

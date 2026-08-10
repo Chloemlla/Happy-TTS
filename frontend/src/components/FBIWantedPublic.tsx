@@ -529,7 +529,7 @@ const FBIWantedPublic: React.FC = () => {
             onClick={() => setShowDisclaimer(false)}
           >
             <motion.div
-              className="w-full max-w-xl rounded-[32px] border border-white/70 bg-white/95 p-6 shadow-[0_28px_90px_rgba(15,23,42,0.2)] backdrop-blur-xl"
+              className="w-full max-w-xl rounded-[32px] border border-white/70 bg-white/95 p-6 shadow-[0_28px_90px_rgba(15,23,42,0.2)] backdrop-blur-xl max-h-[90vh] overflow-y-auto"
               initial={{ scale: 0.96, y: 16, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.96, y: 16, opacity: 0 }}

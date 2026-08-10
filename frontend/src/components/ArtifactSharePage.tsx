@@ -338,14 +338,14 @@ const ArtifactSharePage: React.FC = () => {
             srcDoc={artifact.content}
             sandbox="allow-scripts allow-forms allow-modals allow-popups allow-downloads"
             referrerPolicy="no-referrer"
-            className="h-[72vh] min-h-[560px] w-full border-0 bg-white"
+            className="h-[72vh] min-h-[300px] w-full border-0 bg-white sm:min-h-[560px]"
           />
         );
 
       case 'svg':
         return (
           <div
-            className="flex min-h-[560px] w-full items-center justify-center bg-white p-4 [&>svg]:max-h-[520px] [&>svg]:max-w-full"
+            className="flex min-h-[300px] w-full items-center justify-center bg-white p-4 sm:min-h-[560px] [&>svg]:max-h-[520px] [&>svg]:max-w-full"
             dangerouslySetInnerHTML={{
               __html: DOMPurify.sanitize(artifact.content, { USE_PROFILES: { svg: true, svgFilters: true } }),
             }}

@@ -319,7 +319,7 @@ const WordCountPageSimple: React.FC = () => {
                     <AnimatePresence>
                         {(stats.totalChars > 0 || isCalculating) && (
                             <motion.div
-                                className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4"
+                                className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
                                 initial={{ opacity: 0, y: 12 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -8 }}

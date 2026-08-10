@@ -557,7 +557,7 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
             <section className={panelClass}>
               <SectionTitle title="最近篡改事件" description="后端记录的最新事件，包含签名状态、严重级别和来源 IP。" icon={FileWarning} tone="amber" />
               <div className="overflow-hidden rounded-2xl border border-slate-200/70">
-                <div className="grid grid-cols-[1.2fr_1fr_1fr_0.8fr] bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                <div className="hidden sm:grid sm:grid-cols-[1.2fr_1fr_1fr_0.8fr] bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
                   <span>事件</span>
                   <span>来源</span>
                   <span>时间</span>
@@ -566,7 +566,7 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
                 <div className="divide-y divide-slate-200/70 bg-white/70">
                   {(serverSummary?.recentEvents ?? []).length > 0 ? (
                     serverSummary!.recentEvents.map((event) => (
-                      <div key={event.id || `${event.timestamp}-${event.ip}-${event.elementId}`} className="grid gap-3 px-4 py-3 text-sm text-slate-700 md:grid-cols-[1.2fr_1fr_1fr_0.8fr]">
+                      <div key={event.id || `${event.timestamp}-${event.ip}-${event.elementId}`} className="flex flex-col gap-2 px-4 py-3 text-sm text-slate-700 sm:grid sm:grid-cols-[1.2fr_1fr_1fr_0.8fr]">
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="font-semibold text-slate-950">{resolveEventType(event)}</span>

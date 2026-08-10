@@ -54,7 +54,7 @@ const ImagePreview: React.FC<{ src?: string; alt?: string }> = ({ src, alt = 'é€
 
   if (!safeSrc || error) {
     return (
-      <div className="w-full h-48 bg-slate-100 rounded-lg flex items-center justify-center">
+      <div className="w-full h-40 sm:h-48 bg-slate-100 rounded-lg flex items-center justify-center">
         <FaUser className="text-4xl text-slate-400" />
       </div>
     );
@@ -64,7 +64,7 @@ const ImagePreview: React.FC<{ src?: string; alt?: string }> = ({ src, alt = 'é€
     <img
       src={safeSrc}
       alt={alt}
-      className="w-full h-48 object-cover rounded-lg"
+      className="w-full h-40 sm:h-48 object-cover rounded-lg"
       onError={() => setError(true)}
     />
   );

@@ -229,7 +229,7 @@ const MarkdownArticlePage: React.FC = () => {
             暂无已发布文章。
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {articles.map((item) => (
               <Link
                 key={item.id}
