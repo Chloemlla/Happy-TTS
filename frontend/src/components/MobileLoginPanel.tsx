@@ -10,6 +10,7 @@ import {
 } from '../api/mobileLogin';
 import type { User } from '../types/auth';
 import { cn } from '../utils/cn';
+import { checkSynapseClientAvailable } from '../utils/synapseDetect';
 import {
   authElevatedPanelClassName,
   authInfoPanelClassName,
@@ -46,6 +47,7 @@ export const MobileLoginPanel: React.FC<MobileLoginPanelProps> = ({ disabled, lo
   const [clientDeviceId, setClientDeviceId] = React.useState('');
   const [tokenLoading, setTokenLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [synapseDetected, setSynapseDetected] = React.useState<boolean | null>(null);
 
   const startChallenge = React.useCallback(async () => {
     setChallengeLoading(true);
@@ -62,6 +64,10 @@ export const MobileLoginPanel: React.FC<MobileLoginPanelProps> = ({ disabled, lo
       setChallengeLoading(false);
     }
   }, [setNotification]);
+
+  React.useEffect(() => {
+    checkSynapseClientAvailable().then(setSynapseDetected);
+  }, []);
 
   React.useEffect(() => {
     if (!challenge || challengeStatus === 'approved' || challengeStatus === 'consumed' || challengeStatus === 'expired') {
@@ -128,8 +134,49 @@ export const MobileLoginPanel: React.FC<MobileLoginPanelProps> = ({ disabled, lo
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-semibold text-slate-900">安卓客户端登录</h3>
           <p className="mt-1 text-xs leading-5 text-slate-600">扫码确认，或粘贴客户端令牌继续。</p>
+          <a
+            href="https://github.com/Chloemlla/Synapse-Client/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-1 inline-block text-xs text-emerald-600 hover:text-emerald-700 underline"
+          >
+            下载 Synapse-Client →
+          </a>
         </div>
       </div>
+      {synapseDetected !== null && (
+        <div
+          className={cn(
+            'flex items-center gap-2 rounded-2xl px-3 py-2 text-xs leading-5',
+            synapseDetected
+              ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border border-amber-200 bg-amber-50 text-amber-700',
+          )}
+        >
+          {synapseDetected ? (
+            <span className="flex items-center gap-1.5">
+              <svg className="h-3.5 w-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+              已检测到 Synapse-Client
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5">
+              <svg className="h-3.5 w-3.5 text-amber-500" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+              </svg>
+              <a
+                href="https://github.com/Chloemlla/Synapse-Client/releases/latest"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-amber-700 hover:text-amber-800 underline"
+              >
+                未检测到 Synapse-Client，请下载安装 →
+              </a>
+            </span>
+          )}
+        </div>
+      )}
 
       {error && (
         <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs leading-5 text-rose-700">
@@ -199,3 +246,5 @@ export const MobileLoginPanel: React.FC<MobileLoginPanelProps> = ({ disabled, lo
 };
 
 export default MobileLoginPanel;
+
+
