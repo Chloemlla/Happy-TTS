@@ -1,48 +1,75 @@
-const STORAGE_KEY = 'synapse_checking';
+const SESSION_FLAG = 'synapse_checking';
+const CACHE_KEY = 'synapse_detected';
+const CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 天
+
+interface CacheEntry {
+  result: boolean;
+  timestamp: number;
+}
 
 /**
- * Check if the synapse:// custom URL scheme is available on this device.
+ * 智能检测 Synapse-Client 是否可用。
  *
- * Uses a two-phase approach:
- * 1. On first call, navigates to synapse://ping via window.location.href.
- *    If the app is installed, Chrome opens it and the page navigates away;
- *    when the user returns, the page reloads and phase 2 detects the flag.
- * 2. If the app is not installed, the page stays and a timeout resolves false.
+ * 策略（按优先级）：
+ * 1. localStorage 缓存 —— 上次检测结果缓存 7 天，避免重复跳转
+ * 2. sessionStorage 回访 —— 从 synapse://ping 返回后自动识别
+ * 3. 主动检测 —— 弹窗/跳转触发，用户需交互确认
  *
- * On non-Android devices, always returns false.
+ * 非 Android 设备始终返回 false。
  */
 export async function checkSynapseClientAvailable(): Promise<boolean> {
   const isAndroid = /android/i.test(navigator.userAgent);
   if (!isAndroid) return false;
 
-  // Phase 2: returning from the app after a detection attempt
-  const wasChecking = sessionStorage.getItem(STORAGE_KEY);
+  // 1. 检查 localStorage 缓存
+  const cached = readCache();
+  if (cached !== null) return cached;
+
+  // 2. 检查 sessionStorage 回访标记
+  const wasChecking = sessionStorage.getItem(SESSION_FLAG);
   if (wasChecking) {
-    sessionStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem(SESSION_FLAG);
+    writeCache(true);
     return true;
   }
 
-  // Phase 1: start detection
-  sessionStorage.setItem(STORAGE_KEY, 'true');
+  // 3. 无缓存，无回访 → 返回 null，由调用方决定是否主动检测
+  return false;
+}
 
-  // Navigate to the custom scheme to trigger the app
+/**
+ * 执行主动检测（会跳转或打开弹窗）。
+ * 调用方应在用户交互时（如点击按钮）调用此方法。
+ */
+export function triggerSynapseDetection(): void {
+  const isAndroid = /android/i.test(navigator.userAgent);
+  if (!isAndroid) return;
+
+  // 标记检测状态，以便回访时识别
+  sessionStorage.setItem(SESSION_FLAG, 'true');
   window.location.href = 'synapse://ping';
+}
 
-  // If the app is not installed, the page stays visible
-  return new Promise<boolean>((resolve) => {
-    const timer = setTimeout(() => {
-      sessionStorage.removeItem(STORAGE_KEY);
-      resolve(false);
-    }, 1500);
+function readCache(): boolean | null {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const entry: CacheEntry = JSON.parse(raw);
+    if (Date.now() - entry.timestamp > CACHE_TTL) {
+      localStorage.removeItem(CACHE_KEY);
+      return null;
+    }
+    return entry.result;
+  } catch {
+    return null;
+  }
+}
 
-    // If the app opens, the page loses visibility
-    const onVisibilityChange = () => {
-      if (document.hidden) {
-        clearTimeout(timer);
-        // Don't resolve here — page will navigate away.
-        // On return, phase 2 will detect the flag.
-      }
-    };
-    document.addEventListener('visibilitychange', onVisibilityChange, { once: true });
-  });
+function writeCache(result: boolean): void {
+  try {
+    const entry: CacheEntry = { result, timestamp: Date.now() };
+    localStorage.setItem(CACHE_KEY, JSON.stringify(entry));
+  } catch {
+    // 无痕模式可能抛异常
+  }
 }

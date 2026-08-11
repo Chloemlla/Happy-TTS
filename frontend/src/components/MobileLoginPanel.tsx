@@ -161,17 +161,26 @@ export const MobileLoginPanel: React.FC<MobileLoginPanelProps> = ({ disabled, lo
               已检测到 Synapse-Client
             </span>
           ) : (
-            <span className="flex items-center gap-1.5">
-              <svg className="h-3.5 w-3.5 text-amber-500" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+            <span className="flex items-center gap-2">
+              <svg className="h-3.5 w-3.5 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
               </svg>
+              <span>未检测到</span>
+              <button
+                type="button"
+                onClick={triggerSynapseDetection}
+                className="text-amber-700 hover:text-amber-800 underline font-medium"
+              >
+                检测
+              </button>
+              <span className="text-amber-500">·</span>
               <a
                 href="https://github.com/Chloemlla/Synapse-Client/releases/latest"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-amber-700 hover:text-amber-800 underline"
               >
-                未检测到 Synapse-Client，请下载安装 →
+                下载 →
               </a>
             </span>
           )}
