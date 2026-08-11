@@ -66,7 +66,10 @@ export const MobileLoginPanel: React.FC<MobileLoginPanelProps> = ({ disabled, lo
   }, [setNotification]);
 
   React.useEffect(() => {
-    checkSynapseClientAvailable().then(setSynapseDetected);
+    const check = () => checkSynapseClientAvailable().then(setSynapseDetected);
+    check();
+    window.addEventListener('focus', check);
+    return () => window.removeEventListener('focus', check);
   }, []);
 
   React.useEffect(() => {

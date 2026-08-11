@@ -38,7 +38,10 @@ export async function checkSynapseClientAvailable(): Promise<boolean> {
 }
 
 /**
- * 执行主动检测（会跳转或打开弹窗）。
+ * 执行主动检测。用 `window.open` 在新标签页打开 synapse://ping，
+ * 原始页面不受影响。如果安装了客户端，新标签页会立即拉起 app；
+ * 否则新标签页显示错误页面，用户可关闭。
+ *
  * 调用方应在用户交互时（如点击按钮）调用此方法。
  */
 export function triggerSynapseDetection(): void {
@@ -47,7 +50,7 @@ export function triggerSynapseDetection(): void {
 
   // 标记检测状态，以便回访时识别
   sessionStorage.setItem(SESSION_FLAG, 'true');
-  window.location.href = 'synapse://ping';
+  window.open('synapse://ping', '_blank');
 }
 
 function readCache(): boolean | null {
