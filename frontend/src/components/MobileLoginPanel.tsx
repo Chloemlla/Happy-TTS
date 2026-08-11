@@ -10,7 +10,7 @@ import {
 } from '../api/mobileLogin';
 import type { User } from '../types/auth';
 import { cn } from '../utils/cn';
-import { checkSynapseClientAvailable } from '../utils/synapseDetect';
+import { checkSynapseClientAvailable, triggerSynapseDetection } from '../utils/synapseDetect';
 import {
   authElevatedPanelClassName,
   authInfoPanelClassName,
