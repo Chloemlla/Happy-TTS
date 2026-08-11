@@ -26,6 +26,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      - name: Install compatible TypeScript for ts-jest
+        run: pnpm add --save-dev typescript@~5.7.0
+
       - name: Start MongoDB for live-ish suite
         shell: bash
         run: |
