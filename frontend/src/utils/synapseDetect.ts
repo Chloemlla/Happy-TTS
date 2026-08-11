@@ -1,58 +1,48 @@
+const STORAGE_KEY = 'synapse_checking';
+
 /**
  * Check if the synapse:// custom URL scheme is available on this device.
- * Works on Android via the blur/focus timeout pattern:
- * 1. Try to navigate to synapse://ping
- * 2. If the page loses focus within a short timeout, the scheme was handled
- * 3. If not, the scheme is not available
+ *
+ * Uses a two-phase approach:
+ * 1. On first call, navigates to synapse://ping via window.location.href.
+ *    If the app is installed, Chrome opens it and the page navigates away;
+ *    when the user returns, the page reloads and phase 2 detects the flag.
+ * 2. If the app is not installed, the page stays and a timeout resolves false.
  *
  * On non-Android devices, always returns false.
  */
 export async function checkSynapseClientAvailable(): Promise<boolean> {
-  // Only attempt on Android
   const isAndroid = /android/i.test(navigator.userAgent);
   if (!isAndroid) return false;
 
-  // Use the blur/focus timeout pattern
-  return new Promise((resolve) => {
-    const TIMEOUT_MS = 800;
-    let handled = false;
-    let timer: ReturnType<typeof setTimeout>;
+  // Phase 2: returning from the app after a detection attempt
+  const wasChecking = sessionStorage.getItem(STORAGE_KEY);
+  if (wasChecking) {
+    sessionStorage.removeItem(STORAGE_KEY);
+    return true;
+  }
 
-    const onBlur = () => {
-      handled = true;
-      clearTimeout(timer);
-      resolve(true);
-    };
+  // Phase 1: start detection
+  sessionStorage.setItem(STORAGE_KEY, 'true');
 
-    window.addEventListener('blur', onBlur, { once: true });
+  // Navigate to the custom scheme to trigger the app
+  window.location.href = 'synapse://ping';
 
-    // Create an invisible iframe to trigger the custom scheme
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = 'synapse://ping';
-    document.body.appendChild(iframe);
+  // If the app is not installed, the page stays visible
+  return new Promise<boolean>((resolve) => {
+    const timer = setTimeout(() => {
+      sessionStorage.removeItem(STORAGE_KEY);
+      resolve(false);
+    }, 1500);
 
-    // Fallback: also try window.location as a secondary trigger
-    // (some browsers need this for custom schemes)
-    timer = setTimeout(() => {
-      window.removeEventListener('blur', onBlur);
-      if (!handled) {
-        // Try one more time with a different approach
-        const link = document.createElement('a');
-        link.style.display = 'none';
-        link.href = 'synapse://ping';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        // Final timeout
-        setTimeout(() => {
-          document.body.removeChild(iframe);
-          resolve(false);
-        }, TIMEOUT_MS);
-      } else {
-        document.body.removeChild(iframe);
+    // If the app opens, the page loses visibility
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        clearTimeout(timer);
+        // Don't resolve here — page will navigate away.
+        // On return, phase 2 will detect the flag.
       }
-    }, TIMEOUT_MS);
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange, { once: true });
   });
 }
