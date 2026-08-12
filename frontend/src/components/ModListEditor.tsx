@@ -151,7 +151,7 @@ function Modal({
         onClick={onClose}
       >
         <motion.div
-          className="w-full max-w-2xl rounded-[28px] border border-white/20 bg-white p-6 shadow-[0_25px_80px_rgba(2,48,71,0.22)]"
+          className="w-full max-w-2xl rounded-[28px] border border-white/20 bg-white p-6 shadow-[0_25px_80px_rgba(2,48,71,0.22)] max-h-[90vh] overflow-y-auto overscroll-contain"
           initial={{ opacity: 0, y: 18, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 18, scale: 0.98 }}

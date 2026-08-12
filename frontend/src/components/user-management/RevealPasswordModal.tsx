@@ -49,7 +49,7 @@ export function RevealPasswordModal({
       exit={{ opacity: 0 }}
     >
       <motion.div
-        className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-lg p-6"
+        className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto overscroll-contain"
         initial={{ scale: 0.95, y: 20, opacity: 0 }}
         animate={{ scale: 1, y: 0, opacity: 1 }}
         exit={{ scale: 0.95, y: 20, opacity: 0 }}

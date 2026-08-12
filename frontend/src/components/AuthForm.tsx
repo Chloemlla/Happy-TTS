@@ -877,7 +877,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                         transition={{ duration: 0.3 }}
                     >
                         <motion.div
-                            className="bg-white/90 rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden"
+                            className="bg-white/90 rounded-3xl shadow-2xl w-full max-w-md relative overflow-y-auto max-h-[90vh] overscroll-contain"
                             initial={{ scale: 0.9, opacity: 0, y: 50 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.9, opacity: 0, y: 50 }}

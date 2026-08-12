@@ -381,7 +381,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
               initial={{ opacity: 0, scale: 0.96, y: 18 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 18 }}
-              className={`${studioModalCardClassName} max-w-md`}
+              className={`${studioModalCardClassName} max-w-md max-h-[90vh] overflow-y-auto overscroll-contain`}
               onClick={(event) => event.stopPropagation()}
             >
               <h3 className="text-xl font-semibold text-slate-900">
@@ -460,7 +460,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
               initial={{ opacity: 0, scale: 0.96, y: 18 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 18 }}
-              className={`${studioModalCardClassName} max-w-4xl`}
+              className={`${studioModalCardClassName} max-w-4xl max-h-[90vh] overflow-y-auto overscroll-contain`}
               onClick={(event) => event.stopPropagation()}
             >
               <div className="max-h-[80vh] overflow-y-auto overscroll-contain pr-1">

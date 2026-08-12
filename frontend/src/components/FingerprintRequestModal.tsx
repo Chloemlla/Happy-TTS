@@ -140,7 +140,7 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
                 >
                     <motion.div
                         key="fingerprint-modal-content"
-                        className="bg-white/90 rounded-2xl shadow-2xl w-full max-w-md p-4 sm:p-6 relative"
+                        className="bg-white/90 rounded-2xl shadow-2xl w-full max-w-md p-4 sm:p-6 relative max-h-[90vh] overflow-y-auto overscroll-contain"
                         initial={{ scale: 0.9, y: 20, opacity: 0 }}
                         animate={{ scale: 1, y: 0, opacity: 1 }}
                         exit={{ scale: 0.9, y: 20, opacity: 0 }}

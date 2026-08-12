@@ -185,7 +185,7 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
             initial={{ opacity: 0, scale: 0.96, y: 18 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 18 }}
-            className={`${studioModalCardClassName} max-w-2xl`}
+            className={`${studioModalCardClassName} max-w-2xl max-h-[90vh] overflow-y-auto overscroll-contain`}
             style={{ fontFamily: studioPageFont }}
             onClick={(event) => event.stopPropagation()}
           >
@@ -314,7 +314,7 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
                     initial={{ opacity: 0, scale: 0.96, y: 18 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.96, y: 18 }}
-                    className={`${studioModalCardClassName} max-w-md`}
+                    className={`${studioModalCardClassName} max-w-md max-h-[90vh] overflow-y-auto overscroll-contain`}
                     onClick={(event) => event.stopPropagation()}
                   >
                     <div className="mb-3 flex items-center gap-3">

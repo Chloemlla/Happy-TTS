@@ -131,7 +131,7 @@ const TOTPVerification: React.FC<TOTPVerificationProps> = ({
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 50 }}
           transition={{ duration: 0.4, type: "spring", stiffness: 300, damping: 25 }}
-          className={authModalCardClassName}
+          className={`${authModalCardClassName} max-h-[90vh] overflow-y-auto overscroll-contain`}
           onClick={(e) => e.stopPropagation()}
         >
           {/* 可滚动的内容容器 */}

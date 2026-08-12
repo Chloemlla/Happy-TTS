@@ -1753,7 +1753,7 @@ const UserProfile: React.FC = () => {
           <m.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className={cn(studioModalCardClassName, 'max-w-2xl p-5 sm:p-7')}
+            className={cn(studioModalCardClassName, 'max-w-2xl p-5 sm:p-7 max-h-[90vh] overflow-y-auto overscroll-contain')}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-5 flex items-start gap-3">

@@ -360,7 +360,7 @@ export const RegisterPage: React.FC = () => {
                 <AnimatePresence>
                     {showEmailVerify && (
                         <m.div className={authModalOverlayClassName} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} role="dialog" aria-modal="true" aria-labelledby="verify-email-title" aria-describedby="verify-email-description">
-                            <m.div className={authModalCardClassName}
+                            <m.div className={`${authModalCardClassName} max-h-[90vh] overflow-y-auto overscroll-contain`}
                                 initial={{ scale: 0.95, opacity: 0, y: 24 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 24 }} transition={{ duration: 0.3, type: 'spring', damping: 25, stiffness: 300 }}>
                                 <div className="text-center">
                                     <div className="mx-auto mb-5 flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-emerald-100">

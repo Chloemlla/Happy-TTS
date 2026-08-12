@@ -294,7 +294,7 @@ const ProductQueryForm: React.FC<ProductQueryFormProps> = ({
             onClick={() => setShowImportDialog(false)}
           >
             <motion.div
-              className="w-full max-w-lg rounded-[32px] border border-white/70 bg-white/95 p-5 shadow-[0_28px_90px_rgba(15,23,42,0.22)] backdrop-blur-xl sm:p-6"
+              className="w-full max-w-lg rounded-[32px] border border-white/70 bg-white/95 p-5 shadow-[0_28px_90px_rgba(15,23,42,0.22)] backdrop-blur-xl sm:p-6 max-h-[90vh] overflow-y-auto overscroll-contain"
               initial={{ opacity: 0, scale: 0.96, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 16 }}

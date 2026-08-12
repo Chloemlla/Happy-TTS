@@ -411,7 +411,7 @@ const WinnerModal: React.FC<{
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.8, opacity: 0 }}
-          className="w-full max-w-md rounded-[28px] border border-white/70 bg-white/90 p-8 text-center shadow-[0_24px_80px_rgba(15,23,42,0.18)] backdrop-blur-xl"
+          className="w-full max-w-md rounded-[28px] border border-white/70 bg-white/90 p-8 text-center shadow-[0_24px_80px_rgba(15,23,42,0.18)] backdrop-blur-xl max-h-[90vh] overflow-y-auto overscroll-contain"
           onClick={(e) => e.stopPropagation()}
         >
           <FaGift className="text-6xl mb-4 text-yellow-500" />

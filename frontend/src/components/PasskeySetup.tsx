@@ -310,7 +310,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose, onChanged }
               initial={{ opacity: 0, scale: 0.96, y: 18 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 18 }}
-              className={`${studioModalCardClassName} max-w-md`}
+              className={`${studioModalCardClassName} max-w-md max-h-[90vh] overflow-y-auto overscroll-contain`}
               onClick={(event) => event.stopPropagation()}
             >
               <div className="mb-3 flex items-center gap-3">
@@ -364,7 +364,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose, onChanged }
               initial={{ opacity: 0, scale: 0.96, y: 18 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 18 }}
-              className={`${studioModalCardClassName} max-w-md`}
+              className={`${studioModalCardClassName} max-w-md max-h-[90vh] overflow-y-auto overscroll-contain`}
               onClick={(event) => event.stopPropagation()}
             >
               <div className="mb-4 flex items-start gap-3">

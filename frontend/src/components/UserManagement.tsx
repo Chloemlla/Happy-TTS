@@ -1375,7 +1375,7 @@ const UserManagement: React.FC = () => {
                 exit={{ opacity: 0 }}
               >
                 <motion.div
-                  className="w-full max-w-2xl rounded-[26px] border border-white/70 bg-white/82 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl p-5 sm:p-7"
+                  className="w-full max-w-2xl rounded-[26px] border border-white/70 bg-white/82 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl p-5 sm:p-7 max-h-[90vh] overflow-y-auto overscroll-contain"
                   initial={{ scale: 0.95, y: 20, opacity: 0 }}
                   animate={{ scale: 1, y: 0, opacity: 1 }}
                   exit={{ scale: 0.95, y: 20, opacity: 0 }}

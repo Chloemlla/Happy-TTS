@@ -127,7 +127,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
             initial={{ opacity: 0, scale: 0.96, y: 18 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 18 }}
-            className={`${studioModalCardClassName} my-8 max-w-2xl`}
+            className={`${studioModalCardClassName} my-8 max-w-2xl max-h-[90vh] overflow-y-auto overscroll-contain`}
             style={{ fontFamily: studioPageFont }}
             onClick={(event) => event.stopPropagation()}
           >

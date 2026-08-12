@@ -786,7 +786,7 @@ const LogShare: React.FC = React.memo(() => {
             transition={{ duration: 0.2 }}
           >
             <motion.div
-              className="relative w-full max-w-sm overflow-hidden rounded-[28px] border border-white/70 bg-white/95 p-8 shadow-[0_28px_110px_rgba(15,23,42,0.18)] backdrop-blur-xl"
+              className="relative w-full max-w-sm overflow-y-auto max-h-[90vh] overscroll-contain rounded-[28px] border border-white/70 bg-white/95 p-8 shadow-[0_28px_110px_rgba(15,23,42,0.18)] backdrop-blur-xl"
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -1628,7 +1628,7 @@ const LogShare: React.FC = React.memo(() => {
                 exit={{ opacity: 0 }}
               >
                 <motion.div
-                  className="relative w-full max-w-lg overflow-hidden rounded-[28px] border border-white/70 bg-white/95 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.18)] backdrop-blur-xl sm:p-8"
+                  className="relative w-full max-w-lg overflow-y-auto max-h-[90vh] overscroll-contain rounded-[28px] border border-white/70 bg-white/95 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.18)] backdrop-blur-xl sm:p-8"
                   initial={{ scale: 0.95, y: 20, opacity: 0 }}
                   animate={{ scale: 1, y: 0, opacity: 1 }}
                   exit={{ scale: 0.95, y: 20, opacity: 0 }}
@@ -1742,7 +1742,7 @@ const LogShare: React.FC = React.memo(() => {
                 exit={{ opacity: 0 }}
               >
                 <motion.div
-                  className="relative w-full max-w-lg overflow-hidden rounded-[28px] border border-white/70 bg-white/95 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.18)] backdrop-blur-xl sm:p-8"
+                  className="relative w-full max-w-lg overflow-y-auto max-h-[90vh] overscroll-contain rounded-[28px] border border-white/70 bg-white/95 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.18)] backdrop-blur-xl sm:p-8"
                   initial={{ scale: 0.95, y: 20, opacity: 0 }}
                   animate={{ scale: 1, y: 0, opacity: 1 }}
                   exit={{ scale: 0.95, y: 20, opacity: 0 }}

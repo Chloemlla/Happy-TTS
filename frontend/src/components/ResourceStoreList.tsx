@@ -761,7 +761,7 @@ export default function ResourceStoreList() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className={cn(studioModalCardClassName, "max-w-md")}
+              className={cn(studioModalCardClassName, "max-w-md max-h-[90vh] overflow-y-auto overscroll-contain")}
               onClick={(event) => event.stopPropagation()}
             >
               <div className="flex items-start gap-3">
