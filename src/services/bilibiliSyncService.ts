@@ -68,13 +68,49 @@ function sanitizeSettingValue(value: unknown): unknown {
   );
 }
 
-function credentialKey(): Buffer {
-  return crypto.createHash("sha256").update(process.env.BILIBILI_COOKIE_ENCRYPTION_KEY || process.env.PASSWORD_ENCRYPTION_KEY || process.env.AES_KEY || config.jwtSecret).digest();
+function credentialKeySources(): string[] {
+  return [
+    process.env.BILIBILI_COOKIE_ENCRYPTION_KEY,
+    process.env.PASSWORD_ENCRYPTION_KEY,
+    process.env.AES_KEY,
+    config.jwtSecret,
+  ].filter((source): source is string => Boolean(source));
+}
+
+function deriveCredentialKey(source: string): Buffer {
+  return crypto.createHash("sha256").update(source).digest();
+}
+
+/**
+ * Preferred key for new encryptions: derived from the first configured source.
+ */
+function preferredCredentialKey(): Buffer {
+  return deriveCredentialKey(credentialKeySources()[0]);
+}
+
+/**
+ * Every key that could have encrypted a stored credential, preferred first,
+ * deduplicated. Reads try each in turn so credentials written before the
+ * dedicated BILIBILI_COOKIE_ENCRYPTION_KEY was introduced (i.e. derived from
+ * PASSWORD_ENCRYPTION_KEY / AES_KEY / JWT_SECRET) can still be decrypted
+ * instead of being invalidated immediately.
+ */
+function credentialKeys(): Buffer[] {
+  const seen = new Set<string>();
+  const keys: Buffer[] = [];
+  for (const source of credentialKeySources()) {
+    const derived = deriveCredentialKey(source);
+    const fingerprint = derived.toString("hex");
+    if (seen.has(fingerprint)) continue;
+    seen.add(fingerprint);
+    keys.push(derived);
+  }
+  return keys;
 }
 
 export function encryptCredential(cookie: string): { credentialCiphertext: string; credentialIv: string; credentialTag: string; credentialKeyVersion: string } {
   const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv(CREDENTIAL_ALGO, credentialKey(), iv);
+  const cipher = crypto.createCipheriv(CREDENTIAL_ALGO, preferredCredentialKey(), iv);
   const ciphertext = Buffer.concat([cipher.update(cookie, "utf8"), cipher.final()]);
   return {
     credentialCiphertext: ciphertext.toString("base64"),
@@ -88,9 +124,19 @@ function decryptCredential(doc: BilibiliSyncDoc): string {
   if (doc.credentialKeyVersion !== CREDENTIAL_KEY_VERSION || !doc.credentialCiphertext || !doc.credentialIv || !doc.credentialTag) {
     throw new BilibiliSyncError("Bilibili 凭据不可用", "BILIBILI_CREDENTIAL_INVALID", 403);
   }
-  const decipher = crypto.createDecipheriv(CREDENTIAL_ALGO, credentialKey(), Buffer.from(doc.credentialIv, "base64"));
-  decipher.setAuthTag(Buffer.from(doc.credentialTag, "base64"));
-  return Buffer.concat([decipher.update(Buffer.from(doc.credentialCiphertext, "base64")), decipher.final()]).toString("utf8");
+  const iv = Buffer.from(doc.credentialIv, "base64");
+  const tag = Buffer.from(doc.credentialTag, "base64");
+  const ciphertext = Buffer.from(doc.credentialCiphertext, "base64");
+  for (const key of credentialKeys()) {
+    try {
+      const decipher = crypto.createDecipheriv(CREDENTIAL_ALGO, key, iv);
+      decipher.setAuthTag(tag);
+      return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
+    } catch {
+      // 密钥不匹配，继续尝试下一个候选密钥。
+    }
+  }
+  throw new BilibiliSyncError("Bilibili 凭据不可用", "BILIBILI_CREDENTIAL_INVALID", 403);
 }
 
 export async function verifyBilibiliCookie(cookie: string, expectedUid: string): Promise<void> {

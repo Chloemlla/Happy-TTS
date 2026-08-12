@@ -22,6 +22,7 @@ jest.mock("../models/bilibiliSyncModel", () => ({
 
 const {
   bindBilibiliUid,
+  encryptCredential,
   getBilibiliSearchChanges,
   updateBilibiliSettings,
   upsertBilibiliSearchRecords,
@@ -105,6 +106,64 @@ describe("bilibiliSyncService", () => {
     await expect(updateBilibiliSettings("user-1", { theme: "dark" }, 0, true)).rejects.toMatchObject({
       code: "BILIBILI_CREDENTIAL_INVALID",
     });
+  });
+
+  it("recovers credentials encrypted under a previous fallback key", async () => {
+    const originalBilibiliKey = process.env.BILIBILI_COOKIE_ENCRYPTION_KEY;
+    const originalPasswordKey = process.env.PASSWORD_ENCRYPTION_KEY;
+    try {
+      // Simulate the old deployment where the dedicated cookie key was not set,
+      // so the credential was derived from PASSWORD_ENCRYPTION_KEY.
+      delete process.env.BILIBILI_COOKIE_ENCRYPTION_KEY;
+      process.env.PASSWORD_ENCRYPTION_KEY = "old-password-key";
+      const credential = encryptCredential("SESSDATA=old; bili_jct=old");
+
+      // The dedicated key is introduced afterwards; decryption must still fall
+      // back to the previous key instead of invalidating the credential.
+      process.env.BILIBILI_COOKIE_ENCRYPTION_KEY = "brand-new-cookie-key";
+      mockFindOne.mockReturnValue(queryResult(syncDoc({ ...credential, credentialStatus: "active" })));
+
+      await expect(updateBilibiliSettings("user-1", { theme: "dark" }, 0, true)).resolves.toBeDefined();
+      expect(mockUpdateOne).toHaveBeenCalledWith(
+        { userId: "user-1" },
+        expect.objectContaining({ $set: expect.objectContaining({ credentialLastCheckedAt: expect.any(Date) }) }),
+      );
+    } finally {
+      if (originalBilibiliKey === undefined) delete process.env.BILIBILI_COOKIE_ENCRYPTION_KEY;
+      else process.env.BILIBILI_COOKIE_ENCRYPTION_KEY = originalBilibiliKey;
+      if (originalPasswordKey === undefined) delete process.env.PASSWORD_ENCRYPTION_KEY;
+      else process.env.PASSWORD_ENCRYPTION_KEY = originalPasswordKey;
+    }
+  });
+
+  it("invalidates the credential only when no candidate key can decrypt it", async () => {
+    const originalBilibiliKey = process.env.BILIBILI_COOKIE_ENCRYPTION_KEY;
+    const originalPasswordKey = process.env.PASSWORD_ENCRYPTION_KEY;
+    const originalAesKey = process.env.AES_KEY;
+    try {
+      process.env.BILIBILI_COOKIE_ENCRYPTION_KEY = "key-used-at-write-time";
+      const credential = encryptCredential("SESSDATA=temp; bili_jct=temp");
+
+      process.env.BILIBILI_COOKIE_ENCRYPTION_KEY = "a-different-key";
+      process.env.PASSWORD_ENCRYPTION_KEY = "another-key";
+      process.env.AES_KEY = "yet-another-key";
+      mockFindOne.mockReturnValue(queryResult(syncDoc({ ...credential, credentialStatus: "active" })));
+
+      await expect(updateBilibiliSettings("user-1", { theme: "dark" }, 0, true)).rejects.toMatchObject({
+        code: "BILIBILI_CREDENTIAL_INVALID",
+      });
+      expect(mockUpdateOne).toHaveBeenCalledWith(
+        { userId: "user-1" },
+        expect.objectContaining({ $set: expect.objectContaining({ credentialStatus: "invalid" }) }),
+      );
+    } finally {
+      if (originalBilibiliKey === undefined) delete process.env.BILIBILI_COOKIE_ENCRYPTION_KEY;
+      else process.env.BILIBILI_COOKIE_ENCRYPTION_KEY = originalBilibiliKey;
+      if (originalPasswordKey === undefined) delete process.env.PASSWORD_ENCRYPTION_KEY;
+      else process.env.PASSWORD_ENCRYPTION_KEY = originalPasswordKey;
+      if (originalAesKey === undefined) delete process.env.AES_KEY;
+      else process.env.AES_KEY = originalAesKey;
+    }
   });
 
   it("deduplicates batch records and preserves tombstones in incremental changes", async () => {
