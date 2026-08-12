@@ -471,6 +471,53 @@ export const adminController = {
         }
       }
 
+      // 账号停用/恢复状态变更通知（独立于通用变更邮件，仅修改 accountStatus 时也会触发）
+      const statusChangedToSuspended = updates.accountStatus === "suspended" && user.accountStatus !== "suspended";
+      const statusChangedToActive = updates.accountStatus === "active" && user.accountStatus === "suspended";
+      if ((statusChangedToSuspended || statusChangedToActive) && user.email) {
+        try {
+          const { generateAccountSuspendedEmailHtml, generateAccountRestoredEmailHtml } = require(
+            "../templates/emailTemplates",
+          );
+          const { getClientIP } = require("../utils/ipUtils");
+          const changeTime = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+          const clientIP = getClientIP(req);
+          const deviceName = req.headers["user-agent"] || "未知设备";
+
+          if (statusChangedToSuspended) {
+            const emailHtml = generateAccountSuspendedEmailHtml(
+              user.username,
+              "由管理员根据平台规则执行",
+              changeTime,
+              clientIP,
+              deviceName,
+            );
+            sendEmail({
+              to: user.email,
+              subject: "Synapse 账号已被停用通知",
+              html: emailHtml,
+              logTag: "账号停用通知",
+              checkQuota: false,
+            }).catch((e) => {
+              logger.warn(`[管理员修改用户] 停用通知邮件发送失败: ${user.email}`, e);
+            });
+          } else {
+            const emailHtml = generateAccountRestoredEmailHtml(user.username, changeTime);
+            sendEmail({
+              to: user.email,
+              subject: "Synapse 账号已恢复使用通知",
+              html: emailHtml,
+              logTag: "账号恢复通知",
+              checkQuota: false,
+            }).catch((e) => {
+              logger.warn(`[管理员修改用户] 恢复通知邮件发送失败: ${user.email}`, e);
+            });
+          }
+        } catch (notifyError) {
+          logger.warn("[管理员修改用户] 发送账号状态变更通知失败:", notifyError);
+        }
+      }
+
       res.json(updatedUser);
     } catch (error) {
       logger.error("更新用户失败:", error);
@@ -586,6 +633,57 @@ export const adminController = {
           wsService.notifyFingerprintRequired(id, requireFingerprint);
         } catch (notifyError) {
           logger.warn("[管理员批量用户操作] 指纹 WebSocket 通知失败:", notifyError);
+        }
+      }
+
+      // 批量封停/解封后发送账号状态通知邮件（仅成功处理且带邮箱的用户，fire-and-forget）
+      if (action === "suspend" || action === "activate") {
+        try {
+          const { generateAccountSuspendedEmailHtml, generateAccountRestoredEmailHtml } = require(
+            "../templates/emailTemplates",
+          );
+          const { getClientIP } = require("../utils/ipUtils");
+          const changeTime = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+          const clientIP = getClientIP(req);
+          const deviceName = req.headers["user-agent"] || "未知设备";
+
+          for (const resultItem of results) {
+            if (!resultItem.success) continue;
+            const targetUser = targetUsers[resultItem.id as string];
+            if (!targetUser || !targetUser.email) continue;
+
+            if (action === "suspend") {
+              const emailHtml = generateAccountSuspendedEmailHtml(
+                targetUser.username,
+                "由管理员根据平台规则执行",
+                changeTime,
+                clientIP,
+                deviceName,
+              );
+              sendEmail({
+                to: targetUser.email,
+                subject: "Synapse 账号已被停用通知",
+                html: emailHtml,
+                logTag: "账号停用通知",
+                checkQuota: false,
+              }).catch((e) => {
+                logger.warn(`[管理员批量操作] 停用通知邮件发送失败: ${targetUser.email}`, e);
+              });
+            } else {
+              const emailHtml = generateAccountRestoredEmailHtml(targetUser.username, changeTime);
+              sendEmail({
+                to: targetUser.email,
+                subject: "Synapse 账号已恢复使用通知",
+                html: emailHtml,
+                logTag: "账号恢复通知",
+                checkQuota: false,
+              }).catch((e) => {
+                logger.warn(`[管理员批量操作] 恢复通知邮件发送失败: ${targetUser.email}`, e);
+              });
+            }
+          }
+        } catch (notifyError) {
+          logger.warn("[管理员批量用户操作] 发送账号状态通知邮件失败:", notifyError);
         }
       }
 

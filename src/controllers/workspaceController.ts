@@ -6,9 +6,12 @@
  */
 
 import type { Request, Response } from "express";
+import InvitationModel from "../models/invitationModel";
+import { sendEmail } from "../services/emailSender";
 import { WorkspaceError, WorkspaceErrorCodes, workspaceService } from "../services/workspaceService";
 import { firstString } from "../utils/httpParam";
 import logger from "../utils/logger";
+import { UserStorage } from "../utils/userStorage";
 
 export class WorkspaceController {
   /**
@@ -188,6 +191,49 @@ export class WorkspaceController {
         safeRole as "editor" | "viewer",
       );
 
+      // 发送工作空间邀请通知邮件（异步发送，不影响主流程）
+      void (async () => {
+        try {
+          const { generateWorkspaceInviteEmailHtml } = require("../templates/emailTemplates");
+
+          // 解析工作空间名称
+          let workspaceName = "工作空间";
+          const workspace = await workspaceService.getWorkspace(id);
+          if (workspace?.name) {
+            workspaceName = workspace.name;
+          }
+
+          // 解析邀请者名称
+          let inviterName = (req as any).user?.username;
+          if (!inviterName) {
+            const inviterUser = await UserStorage.getUserById(userId);
+            inviterName = inviterUser?.username || "工作空间成员";
+          }
+
+          const expiresAtStr = new Date(invitation.expiresAt).toLocaleString("zh-CN", {
+            timeZone: "Asia/Shanghai",
+          });
+
+          const emailHtml = generateWorkspaceInviteEmailHtml(
+            email.toLowerCase().trim(),
+            inviterName,
+            workspaceName,
+            safeRole,
+            expiresAtStr,
+          );
+
+          await sendEmail({
+            to: email.toLowerCase().trim(),
+            subject: "您收到了一个工作空间邀请",
+            html: emailHtml,
+            logTag: "工作空间邀请通知",
+            checkQuota: false,
+          });
+        } catch (e) {
+          logger.warn("[WorkspaceController] 发送工作空间邀请邮件失败:", e);
+        }
+      })();
+
       res.status(201).json({
         success: true,
         data: invitation,
@@ -229,6 +275,47 @@ export class WorkspaceController {
       }
 
       const member = await workspaceService.acceptInvitation(id, userId);
+
+      // 通知邀请者（异步发送，不影响主流程）
+      void (async () => {
+        try {
+          const { generateWorkspaceInviteAcceptedEmailHtml } = require("../templates/emailTemplates");
+
+          const inviterId = member?.invitedBy;
+          if (!inviterId) return;
+
+          const inviter = await UserStorage.getUserById(inviterId);
+          if (!inviter?.email) return;
+
+          // 解析工作空间名称
+          let workspaceName = "工作空间";
+          const invitationDoc = await InvitationModel.findOne({ id });
+          if (invitationDoc?.workspaceId) {
+            const workspace = await workspaceService.getWorkspace(invitationDoc.workspaceId);
+            if (workspace?.name) {
+              workspaceName = workspace.name;
+            }
+          }
+
+          const inviteeName = (req as any).user?.username || "工作空间成员";
+
+          const emailHtml = generateWorkspaceInviteAcceptedEmailHtml(
+            inviter.username || "工作空间成员",
+            inviteeName,
+            workspaceName,
+          );
+
+          await sendEmail({
+            to: inviter.email,
+            subject: "您的工作空间邀请已被接受",
+            html: emailHtml,
+            logTag: "工作空间邀请被接受通知",
+            checkQuota: false,
+          });
+        } catch (e) {
+          logger.warn("[WorkspaceController] 发送工作空间邀请被接受通知邮件失败:", e);
+        }
+      })();
 
       res.json({
         success: true,

@@ -15,6 +15,8 @@ import {
 } from "../services/apiKeyService";
 import { adjustApiKeyBalance, listApiKeyBillingEvents } from "../services/apiKeyBillingService";
 import { createLimiter } from "../middleware/routeLimiters";
+import { sendEmail } from "../services/emailSender";
+import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
 
 const router = Router();
@@ -92,6 +94,35 @@ router.post(
       billingMode: isAdmin && billingMode === "prepaid" ? "prepaid" : "metered",
       balanceCredits: isAdmin ? Math.min(Math.max(Number(balanceCredits) || 0, 0), 1_000_000) : 0,
     });
+
+    // 异步发送“新 API Key 已创建”通知邮件，非阻塞且失败不影响主流程。
+    if (user.email) {
+      const createdKeyName = name.trim();
+      const createdTime = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+      const createdIp = getClientIP(req) || "管理后台";
+      const device = req.headers["user-agent"] || "未知设备";
+      try {
+        const { generateApiKeyCreatedEmailHtml } = require("../templates/emailTemplates");
+        const emailHtml = generateApiKeyCreatedEmailHtml(
+          user.username || user.email || "用户",
+          createdKeyName,
+          createdTime,
+          createdIp,
+          device,
+        );
+        sendEmail({
+          to: user.email,
+          subject: "Synapse 新的 API Key 已创建",
+          html: emailHtml,
+          logTag: "API Key 创建通知",
+          checkQuota: false,
+        }).catch((e) => {
+          logger.warn(`[API Key 创建通知] 邮件发送失败: ${user.email}`, e);
+        });
+      } catch (notifyError) {
+        logger.warn("[API Key 创建通知] 通知邮件生成失败:", notifyError);
+      }
+    }
 
     return res.json({ success: true, ...result, message: "请妥善保存此密钥，它不会再次显示" });
   } catch (err) {

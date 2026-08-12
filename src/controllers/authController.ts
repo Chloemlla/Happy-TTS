@@ -24,6 +24,7 @@ import {
 import type { AuthenticatedRequest } from "../types/authRequest";
 import {
   generateAccountLockedEmailHtml,
+  generateLoginFailureAlertEmailHtml,
   generateLoginIpChangedEmailHtml,
   generatePasswordChangedEmailHtml,
   generatePasswordResetLinkEmailHtml,
@@ -46,6 +47,8 @@ import {
 
 // 登录失败尝试次数限制
 const LOGIN_ATTEMPT_LIMIT = 5;
+// 多次登录失败预警阈值（低于锁定阈值）
+const LOGIN_FAILURE_ALERT_THRESHOLD = 3;
 const LOGIN_LOCKOUT_DURATION = 15 * 60 * 1000; // 15分钟
 const loginAttempts = new Map<string, { count: number; lastAttempt: number; lockedUntil?: number }>();
 
@@ -622,6 +625,35 @@ export class AuthController {
         // 记录失败尝试
         attempts.count += 1;
         attempts.lastAttempt = Date.now();
+
+        // 多次登录失败预警：达到预警阈值时发送提醒邮件（每个锁定窗口仅在 count 恰为阈值时触发一次，且不与锁定邮件同时发送）
+        if (attempts.count === LOGIN_FAILURE_ALERT_THRESHOLD) {
+          const targetUser =
+            (await UserStorage.getUserByUsername(identifier)) || (await UserStorage.getUserByEmail(identifier));
+          if (targetUser?.email) {
+            try {
+              const time = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+              const alertEmailHtml = generateLoginFailureAlertEmailHtml(
+                targetUser.username,
+                attempts.count,
+                LOGIN_ATTEMPT_LIMIT,
+                time,
+                ip,
+                req.headers["user-agent"] || "未知设备"
+              );
+              sendEmail({
+                to: targetUser.email,
+                subject: "Synapse 登录安全提醒：检测到多次登录失败",
+                html: alertEmailHtml,
+                logTag: "登录失败提醒",
+                checkQuota: false,
+              }).catch((e) => logger.warn(`[登录失败提醒] 邮件发送失败: ${targetUser.email}`, e));
+            } catch (notifyErr) {
+              logger.warn("[登录失败提醒] 发送通知邮件失败:", notifyErr);
+            }
+          }
+        }
+
         if (attempts.count >= LOGIN_ATTEMPT_LIMIT) {
           attempts.lockedUntil = Date.now() + LOGIN_LOCKOUT_DURATION;
           loginAttempts.set(attemptKey, attempts);

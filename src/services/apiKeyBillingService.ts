@@ -9,8 +9,10 @@ import {
   type ApiKeyBillingMode,
 } from "../models/apiKeyBillingModel";
 import { API_KEY_PERMISSION_DEFINITIONS } from "./apiKeyService";
+import { sendEmail } from "./emailSender";
 import { mongoose } from "./mongoService";
 import logger from "../utils/logger";
+import { userRepository } from "../utils/userRepository";
 
 interface ApiKeyBillingContext {
   operationId: string;
@@ -47,6 +49,8 @@ const RECONCILIATION_INTERVAL_MS = Math.max(
   Number(process.env.API_KEY_BILLING_RECONCILIATION_INTERVAL_MS) || 60_000,
   10_000,
 );
+/** 预付费余额低于该阈值时，仅在首次跨过阈值的扣费时触发一次低余额提醒邮件。 */
+const LOW_BALANCE_THRESHOLD = 100;
 const TRANSACTION_OPTIONS = {
   readPreference: "primary" as const,
   readConcern: { level: "snapshot" as const },
@@ -66,6 +70,52 @@ function normalizeBillingMode(value: unknown): ApiKeyBillingMode {
 
 function isBillingEnabled(doc: Partial<ApiKeyDoc>): boolean {
   return doc.billingEnabled !== false;
+}
+
+/**
+ * 预付费余额跨过低阈值时（扣费前 >= 阈值，扣费后 < 阈值）异步发送低余额提醒邮件。
+ * 纯通知逻辑：失败仅告警，绝不抛出、绝不阻塞计费主流程。
+ */
+function maybeSendApiKeyLowBalanceEmail(params: {
+  keyDoc: ApiKeyDoc;
+  balanceBefore: number;
+  balanceAfter: number;
+  costCredits: number;
+}): void {
+  const { keyDoc, balanceBefore, balanceAfter, costCredits } = params;
+  if (balanceBefore < LOW_BALANCE_THRESHOLD || balanceAfter >= LOW_BALANCE_THRESHOLD) {
+    return;
+  }
+  if (!keyDoc.userId) return;
+
+  void (async () => {
+    try {
+      const owner = await userRepository.getUserById(keyDoc.userId);
+      const ownerEmail = owner?.email;
+      if (!ownerEmail) return;
+
+      const { generateApiKeyBalanceLowEmailHtml } = require("../templates/emailTemplates");
+      const costPerRequest = costCredits > 0 ? `约 ${costCredits} credits/次` : "单次调用实时扣费";
+      const emailHtml = generateApiKeyBalanceLowEmailHtml(
+        owner.username || "用户",
+        keyDoc.name || keyDoc.keyId,
+        String(balanceAfter),
+        costPerRequest,
+      );
+      await sendEmail({
+        to: ownerEmail,
+        subject: "Synapse API Key 余额不足提醒",
+        html: emailHtml,
+        logTag: "API Key 余额不足提醒",
+        checkQuota: false,
+      });
+    } catch (error) {
+      logger.warn("[API Key 余额不足提醒] 通知邮件发送失败", {
+        keyId: keyDoc.keyId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  })();
 }
 
 function billingError(message: string, statusCode: number, code: string): Error {
@@ -230,6 +280,12 @@ export async function preauthorizeApiKeyBilling(
         throw billingError("API Key 余额不足", 402, "API_KEY_BALANCE_INSUFFICIENT");
       }
       balanceAfterReservation = roundCredits(updated.balanceCredits);
+      maybeSendApiKeyLowBalanceEmail({
+        keyDoc: updated,
+        balanceBefore: roundCredits(balanceAfterReservation + costCredits),
+        balanceAfter: balanceAfterReservation,
+        costCredits,
+      });
       await injectBillingFault("preauthorize.afterBalanceUpdate");
     }
 
