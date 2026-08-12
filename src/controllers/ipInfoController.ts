@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import {
   cacheIpLocation,
   getCachedIpLocation,
+  isMeaningfulLocation,
   lookupIpLocation,
   normalizeIpAddress,
   recordClientReportedIp,
@@ -106,7 +107,9 @@ export class IpInfoController {
     }
 
     const locationInfo = await lookupIpLocation(ip);
-    await cacheIpLocation(ip, locationInfo);
+    if (isMeaningfulLocation(locationInfo)) {
+      await cacheIpLocation(ip, locationInfo);
+    }
     res.json({
       ip,
       location: locationInfo,

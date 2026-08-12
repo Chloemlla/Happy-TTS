@@ -39,6 +39,10 @@ const getDeviceIcon = (session: UserDeviceSession) => {
 
 const displayValue = (value?: string | null): string => value || '未记录';
 
+const FAILED_LOCATION_SENTINELS = new Set(['未知', '未找到位置', '获取位置时出错']);
+const displayLocation = (value?: string | null): string =>
+  value && !FAILED_LOCATION_SENTINELS.has(value.trim()) ? value : '未知';
+
 const DeviceSessionsPanel: React.FC<DeviceSessionsPanelProps> = ({
   sessions,
   loading,
@@ -190,7 +194,7 @@ const DeviceSessionsPanel: React.FC<DeviceSessionsPanelProps> = ({
                     <div className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">IP 属地</div>
                     <div className="mt-1 flex min-w-0 items-start gap-1.5 break-words font-medium">
                       <FaMapMarkerAlt className="mt-0.5 shrink-0 text-slate-400" />
-                      <span>{displayValue(session.ipLocation)}</span>
+                      <span>{displayLocation(session.ipLocation)}</span>
                     </div>
                   </div>
                 </div>

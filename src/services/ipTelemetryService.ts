@@ -35,6 +35,14 @@ export interface IpLocationCacheRecord {
   cachedAt: string;
 }
 
+/** Location values that indicate a failed/meaningless lookup and must not be shown or cached. */
+const FAILED_LOCATION_SENTINELS = new Set(["未知", "未找到位置", "获取位置时出错"]);
+
+export function isMeaningfulLocation(location: string): boolean {
+  const trimmed = location.trim();
+  return trimmed.length > 0 && !FAILED_LOCATION_SENTINELS.has(trimmed);
+}
+
 let ipLocationCache: { mtimeMs: number; records: Map<string, IpLocationCacheRecord> } | null = null;
 
 async function ensureDataDirectory(): Promise<void> {
@@ -79,7 +87,7 @@ async function readIpLocationCache(): Promise<Map<string, IpLocationCacheRecord>
 
       try {
         const record = JSON.parse(line) as IpLocationCacheRecord;
-        if (normalizeIpAddress(record.ip) && typeof record.location === "string") {
+        if (normalizeIpAddress(record.ip) && isMeaningfulLocation(record.location)) {
           records.set(record.ip, record);
         }
       } catch (error) {
@@ -118,34 +126,84 @@ export async function cacheIpLocation(ip: string, location: string): Promise<IpL
   return record;
 }
 
+interface IpLocationProvider {
+  name: string;
+  url: (ip: string) => string;
+  parse: (data: unknown) => string | null;
+}
+
+/** Normalize an IPv4-mapped IPv6 form (::ffff:1.2.3.4) to plain IPv4 for lookup APIs. */
+function formatIpLookupTarget(ip: string): string {
+  return ip.replace(/^::ffff:/i, "");
+}
+
+// Trusted third-party IP geolocation providers, tried in order. Each must embed
+// only a validated IP (never a hostname), so requests cannot be redirected to
+// arbitrary hosts (SSRF hardening).
+const IP_LOCATION_PROVIDERS: IpLocationProvider[] = [
+  {
+    name: "api.vore.top",
+    url: (ip) => `https://api.vore.top/api/IPdata?ip=${encodeURIComponent(ip)}`,
+    parse: (data) => {
+      const d = data as IpLocationApiResponse;
+      if (d?.code === 200 && d.ipdata) {
+        const info = d.ipdata;
+        return `${info.info1 || ""}, ${info.info2 || ""}, ${info.info3 || ""} 运营商: ${info.isp || ""}`.trim();
+      }
+      return null;
+    },
+  },
+  {
+    name: "ip-api.com",
+    url: (ip) => `http://ip-api.com/json/${encodeURIComponent(ip)}?lang=zh-CN&fields=status,country,regionName,city,isp`,
+    parse: (data) => {
+      const d = data as { status?: string; country?: string; regionName?: string; city?: string; isp?: string };
+      if (d?.status === "success") {
+        return [d.country, d.regionName, d.city].filter(Boolean).join(", ") || null;
+      }
+      return null;
+    },
+  },
+  {
+    name: "ipapi.co",
+    url: (ip) => `https://ipapi.co/${encodeURIComponent(ip)}/json/`,
+    parse: (data) => {
+      const d = data as { error?: boolean; country_name?: string; region?: string; city?: string };
+      if (d?.error) return null;
+      return [d.country_name, d.region, d.city].filter(Boolean).join(", ") || null;
+    },
+  },
+];
+
 export async function lookupIpLocation(ip: string, timeoutMs = IP_LOCATION_TIMEOUT_MS): Promise<string> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const validIp = normalizeIpAddress(ip);
+  if (!validIp) return "未知";
 
-  try {
-    const response = await fetch(`https://api.vore.top/api/IPdata?ip=${encodeURIComponent(ip)}`, {
-      signal: controller.signal,
-    });
-    if (!response.ok) {
-      return "未找到位置";
+  const targetIp = formatIpLookupTarget(validIp);
+
+  for (const provider of IP_LOCATION_PROVIDERS) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const response = await fetch(provider.url(targetIp), { signal: controller.signal });
+      if (!response.ok) continue;
+      const data = (await response.json()) as unknown;
+      const location = provider.parse(data);
+      if (location) return location;
+    } catch (error) {
+      logger.warn("[IPLocation] Provider lookup failed", {
+        provider: provider.name,
+        ip: targetIp,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      clearTimeout(timeout);
     }
-
-    const data = (await response.json()) as IpLocationApiResponse;
-    if (data.code === 200 && data.ipdata) {
-      const info = data.ipdata;
-      return `${info.info1 || ""}, ${info.info2 || ""}, ${info.info3 || ""} 运营商: ${info.isp || ""}`.trim();
-    }
-
-    return "未找到位置";
-  } catch (error) {
-    logger.warn("[IPLocation] Remote lookup failed", {
-      ip,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return "获取位置时出错";
-  } finally {
-    clearTimeout(timeout);
   }
+
+  logger.warn("[IPLocation] All IP location providers failed", { ip: targetIp });
+  return "未知";
 }
 
 export async function recordClientReportedIp(record: ClientReportedIpRecord): Promise<void> {
