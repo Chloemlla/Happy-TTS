@@ -11,16 +11,22 @@ const DEFAULT_LIMIT = 25;
 /**
  * GET /crash-reports
  * List aggregated crash groups (admin_crash_reports), sorted by lastSeenAt desc.
- * Query params: limit (default 25, max 100), offset (default 0).
+ * Query params: limit (default 25, max 100), offset (default 0),
+ * source (optional: "sdk" = anonymous lumen-crash-core ingest, "app" = Lumen app auth reports).
  */
 router.get("/crash-reports", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const rawLimit = Number(req.query.limit);
     const rawOffset = Number(req.query.offset);
+    const rawSource =
+      typeof req.query.source === "string" ? req.query.source.trim().toLowerCase() : "";
 
     if ((req.query.limit !== undefined && !Number.isFinite(rawLimit)) ||
         (req.query.offset !== undefined && !Number.isFinite(rawOffset))) {
       throw ApiError.badRequest("limit 和 offset 必须为数字");
+    }
+    if (rawSource && rawSource !== "sdk" && rawSource !== "app") {
+      throw ApiError.badRequest('source 必须为 "sdk" 或 "app"');
     }
 
     const limit = Math.min(
@@ -29,13 +35,22 @@ router.get("/crash-reports", async (req: Request, res: Response, next: NextFunct
     );
     const offset = Math.max(Number.isFinite(rawOffset) ? rawOffset : 0, 0);
 
+    // A crash group can mix anonymous and authenticated reports, so a source
+    // filter selects the groups that contain at least one matching report.
+    const filter: Record<string, unknown> = {};
+    if (rawSource) {
+      const userIdMatcher = rawSource === "sdk" ? { $regex: "^sdk:" } : { $not: /^sdk:/ };
+      const groupKeys = await CrashReport.distinct("groupKey", { userId: userIdMatcher });
+      filter.groupKey = { $in: groupKeys };
+    }
+
     const [groups, total] = await Promise.all([
-      AdminCrashReport.find()
+      AdminCrashReport.find(filter)
         .sort({ lastSeenAt: -1 })
         .skip(offset)
         .limit(limit)
         .lean(),
-      AdminCrashReport.countDocuments(),
+      AdminCrashReport.countDocuments(filter),
     ]);
 
     const mapped = groups.map((g) => ({

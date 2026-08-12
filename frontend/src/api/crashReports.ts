@@ -50,6 +50,7 @@ export interface GroupReportsResponse {
 interface ListGroupsParams {
   limit?: number;
   offset?: number;
+  source?: 'sdk' | 'app';
 }
 
 const BASE = () => `${getApiBaseUrl()}/api/admin/crash-reports`;
@@ -59,6 +60,7 @@ export const crashReportsApi = {
     const qs = new URLSearchParams();
     if (params.limit !== undefined) qs.set('limit', String(params.limit));
     if (params.offset !== undefined) qs.set('offset', String(params.offset));
+    if (params.source) qs.set('source', params.source);
     const query = qs.toString();
     const res = await api.get(`${BASE()}${query ? `?${query}` : ''}`);
     return res.data;

@@ -40,6 +40,16 @@ const formatTime = (iso: string | null) => {
   return date.toLocaleString('zh-CN', { hour12: false });
 };
 
+const SOURCE_TABS = [
+  { key: '', label: '全部来源' },
+  { key: 'sdk', label: '匿名 SDK' },
+  { key: 'app', label: 'Lumen 应用' },
+] as const;
+
+type SourceFilter = '' | 'sdk' | 'app';
+
+const isAnonymousSdkReport = (userId?: string) => !!userId && userId.startsWith('sdk:');
+
 const CrashReportManager: React.FC = () => {
   const { setNotification } = useNotification();
 
@@ -47,6 +57,7 @@ const CrashReportManager: React.FC = () => {
   const [groups, setGroups] = useState<CrashGroup[]>([]);
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
+  const [source, setSource] = useState<SourceFilter>('');
   const [loading, setLoading] = useState(false);
   const [expandedGroupKey, setExpandedGroupKey] = useState<string | null>(null);
 
@@ -59,10 +70,14 @@ const CrashReportManager: React.FC = () => {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
 
-  const fetchGroups = useCallback(async (currentOffset: number) => {
+  const fetchGroups = useCallback(async (currentOffset: number, currentSource: SourceFilter) => {
     setLoading(true);
     try {
-      const response = await crashReportsApi.listGroups({ limit: PAGE_SIZE, offset: currentOffset });
+      const response = await crashReportsApi.listGroups({
+        limit: PAGE_SIZE,
+        offset: currentOffset,
+        source: currentSource === '' ? undefined : currentSource,
+      });
       setGroups(response.groups);
       setTotal(response.total);
     } catch (error) {
@@ -91,14 +106,19 @@ const CrashReportManager: React.FC = () => {
   }, [setNotification]);
 
   useEffect(() => {
-    void fetchGroups(offset);
-  }, [fetchGroups, offset]);
+    void fetchGroups(offset, source);
+  }, [fetchGroups, offset, source]);
+
+  const changeSource = (next: SourceFilter) => {
+    setSource(next);
+    setOffset(0);
+  };
 
   const refresh = () => {
     if (detailGroupKey) {
       void fetchGroupReports(detailGroupKey);
     } else {
-      void fetchGroups(offset);
+      void fetchGroups(offset, source);
     }
   };
 
@@ -165,6 +185,15 @@ const CrashReportManager: React.FC = () => {
                           <span className="rounded bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700">
                             {report.exceptionType || 'Unknown'}
                           </span>
+                          {isAnonymousSdkReport(report.userId) ? (
+                            <span className="rounded bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">
+                              匿名 SDK
+                            </span>
+                          ) : report.userId ? (
+                            <span className="rounded bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-700">
+                              Lumen 应用
+                            </span>
+                          ) : null}
                           {report.kind ? (
                             <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
                               {report.kind}
@@ -193,6 +222,7 @@ const CrashReportManager: React.FC = () => {
                     >
                       <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2 xl:grid-cols-3">
                         <DetailField label="报告 ID" value={report.reportId} />
+                        <DetailField label="来源用户 ID" value={report.userId} />
                         <DetailField label="异常类型" value={report.exceptionType} />
                         <DetailField label="种类" value={report.kind} />
                         <DetailField label="线程" value={report.threadName} />
@@ -248,7 +278,7 @@ const CrashReportManager: React.FC = () => {
       <InfoQueryHero
         eyebrow="崩溃报告"
         title="Lumen 崩溃报告"
-        description="查看来自 Lumen 应用的崩溃报告聚合数据，点击分组查看详细报告。"
+        description="查看 Lumen 应用与匿名 crash-sdk 通道（/api/crash-sdk/v1/crash-report）的崩溃报告聚合数据，点击分组查看详细报告。"
         icon={FaBug}
         actions={
           <InfoPrimaryButton onClick={refresh}>
@@ -256,6 +286,26 @@ const CrashReportManager: React.FC = () => {
           </InfoPrimaryButton>
         }
       />
+
+      <div className="mt-6 flex flex-wrap items-center gap-2">
+        {SOURCE_TABS.map((tab) => {
+          const active = source === tab.key;
+          return (
+            <button
+              key={tab.key || 'all'}
+              type="button"
+              onClick={() => changeSource(tab.key)}
+              className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition ${
+                active
+                  ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
+                  : 'border-slate-200 bg-white/80 text-slate-600 hover:border-slate-300'
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
 
       <div className="mt-8 space-y-4">
         {loading ? (
