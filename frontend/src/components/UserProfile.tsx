@@ -1633,7 +1633,7 @@ const UserProfile: React.FC = () => {
           <m.div
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            className={cn(studioModalCardClassName, 'm-4 max-w-md')}
+            className={cn(studioModalCardClassName, 'm-4 max-w-md max-h-[90vh] overflow-y-auto overscroll-contain')}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-6 text-center">
