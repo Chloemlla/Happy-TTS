@@ -52,6 +52,11 @@ export const securityBypassPolicy: Record<SecurityComponent, SecurityBypassRule[
       value: "/api/tts/assets",
       note: "Browser audio requests are independently authorized by a scoped, expiring TTS asset token",
     },
+    {
+      match: "prefix",
+      value: "/api/crash-sdk",
+      note: "Anonymous crash-report ingest from the lumen-crash-core SDK; devices have no browser IP-verification context",
+    },
   ],
   tamperProtection: [],
   replayProtection: [],

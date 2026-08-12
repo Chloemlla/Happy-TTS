@@ -463,6 +463,11 @@ const LIMITER_DEFINITIONS = {
     category: "public-api",
     message: "Lumen 请求过于频繁，请稍后再试",
   },
+  crashSdk: {
+    profile: "standard",
+    category: "public-api",
+    message: "崩溃上报过于频繁，请稍后再试",
+  },
   root: {
     profile: "burst",
     category: "public-api",
@@ -583,6 +588,7 @@ export const integrityLimiter = limiterFromDefinition("integrity");
 export const nexaiSecurityLimiter = limiterFromDefinition("nexaisecurity");
 export const bilibiliSyncLimiter = limiterFromDefinition("bilibiliSync");
 export const lumenLimiter = limiterFromDefinition("lumen");
+export const crashSdkLimiter = limiterFromDefinition("crashSdk");
 export const rootLimiter = limiterFromDefinition("root");
 export const lcCompatLimiter = limiterFromDefinition("lccompat");
 export const ipQueryLimiter = limiterFromDefinition("ipquery");
