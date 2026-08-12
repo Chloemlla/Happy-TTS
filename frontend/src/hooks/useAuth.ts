@@ -400,6 +400,25 @@ export const useAuth = () => {
         } catch (e) {}
     };
 
+    // 2FA 完成后的会话刷新：login() 在需要二次验证时会提前返回而不写入 store，
+    // 此时 HttpOnly Cookie 已建立，需重新拉取用户信息，否则 AdminRoute 会因
+    // user 为空把管理员弹回 /login。
+    const refreshUser = useCallback(async (): Promise<User | null> => {
+        try {
+            const response = await api.get<User>('/api/auth/me');
+            if (response.data) {
+                setUser(response.data);
+                const accounts = loadSavedAccounts();
+                const existing = accounts.find(a => a.user.id === response.data.id);
+                saveAccount(response.data, existing?.token);
+                return response.data;
+            }
+            return null;
+        } catch {
+            return null;
+        }
+    }, [loadSavedAccounts, saveAccount, setUser]);
+
     return {
         user,
         isAuthenticated,
@@ -420,6 +439,7 @@ export const useAuth = () => {
         logoutAll,
         removeAccountFromList,
         api,
-        updateUserAvatar
+        updateUserAvatar,
+        refreshUser
     };
 };

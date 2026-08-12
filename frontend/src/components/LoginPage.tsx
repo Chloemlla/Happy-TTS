@@ -104,7 +104,7 @@ const buildLoginAttemptStatus = (error: AuthRequestError): LoginAttemptStatus | 
 };
 
 export const LoginPage: React.FC = () => {
-    const { user, login, loginWithToken, pending2FA, setPending2FA } = useAuth();
+    const { user, login, loginWithToken, pending2FA, setPending2FA, refreshUser } = useAuth();
     const { setNotification } = useNotification();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -185,6 +185,14 @@ export const LoginPage: React.FC = () => {
     }, []);
 
     useEffect(() => { if (turnstileToken) setError(null); }, [turnstileToken]);
+
+    // 已认证的管理员停留在 /login?redirectTo=/admin 时直接进入管理后台，
+    // 覆盖 2FA/Passkey 登录成功后刷新、或登录成功后被弹回登录页等场景。
+    useEffect(() => {
+        if (user && isAdminRole(user.role) && postLoginRedirect?.startsWith('/admin')) {
+            navigate(postLoginRedirect, { replace: true });
+        }
+    }, [user, postLoginRedirect, navigate]);
 
     const handleTurnstileVerify = (token: string) => { setTurnstileToken(token); setTurnstileVerified(true); setTurnstileError(false); };
     const handleTurnstileExpire = () => { setTurnstileToken(''); setTurnstileVerified(false); setTurnstileError(false); };
@@ -476,7 +484,7 @@ export const LoginPage: React.FC = () => {
                 </div>
 
                 <PasskeyVerifyModal open={showPasskeyVerification || false} username={username} onSuccess={() => { setShowPasskeyVerification(false); setPending2FA(null); setPendingVerificationData(null); completeLogin(); }} onClose={() => { setShowPasskeyVerification(false); setPending2FA(null); setPendingVerificationData(null); }} />
-                {showTOTPVerification && (<TOTPVerification isOpen={showTOTPVerification} onClose={() => { setShowTOTPVerification(false); setPending2FA(null); setPendingVerificationData(null); }} onSuccess={() => { setShowTOTPVerification(false); setPending2FA(null); setPendingVerificationData(null); completeLogin(); }} userId={pending2FA?.userId || ''} token={pendingToken || ''} />)}
+                {showTOTPVerification && (<TOTPVerification isOpen={showTOTPVerification} onClose={() => { setShowTOTPVerification(false); setPending2FA(null); setPendingVerificationData(null); }} onSuccess={async () => { setShowTOTPVerification(false); setPending2FA(null); setPendingVerificationData(null); await refreshUser(); completeLogin(); }} userId={pending2FA?.userId || ''} token={pendingToken || ''} />)}
                 {showVerificationSelector && pendingVerificationData && (<VerificationMethodSelector isOpen={showVerificationSelector} onClose={handleVerificationSelectorClose} onSelectMethod={handleVerificationMethodSelect} username={pendingVerificationData.username} loading={loading} availableMethods={pendingVerificationData.twoFactorType?.map((type: string) => type === 'Passkey' ? 'passkey' : type === 'TOTP' ? 'totp' : null).filter(Boolean) as ('passkey' | 'totp')[] || []} />)}
             </div>
         </LazyMotion>
