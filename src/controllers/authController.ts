@@ -756,10 +756,17 @@ export class AuthController {
             html: emailHtml,
             logTag: "异地登录提醒",
             checkQuota: true,
-          }).catch((e) => {
-            logger.warn(`[异地登录] 提醒邮件发送失败: ${user.email}`, e);
-          });
-          logger.info(`[异地登录] 已发送提醒邮件至 ${user.email}，上次IP=${lastIp}，本次IP=${ip}`);
+          })
+            .then((result) => {
+              if (result.success) {
+                logger.info(`[异地登录] 已发送提醒邮件至 ${user.email}，上次IP=${lastIp}，本次IP=${ip}`);
+              } else {
+                logger.warn(`[异地登录] 提醒邮件发送失败: ${user.email} - ${result.error}`);
+              }
+            })
+            .catch((e) => {
+              logger.warn(`[异地登录] 提醒邮件发送异常: ${user.email}`, e);
+            });
         } catch (notifyErr) {
           logger.warn("[异地登录] 发送提醒邮件失败:", notifyErr);
         }
@@ -977,10 +984,17 @@ export class AuthController {
               html: emailHtml,
               logTag: "异地登录提醒(Passkey)",
               checkQuota: true,
-            }).catch((e) => {
-              logger.warn(`[异地登录] Passkey路径提醒邮件发送失败: ${user.email}`, e);
-            });
-            logger.info(`[异地登录] Passkey路径已发送提醒邮件至 ${user.email}，上次IP=${lastIp}，本次IP=${ip}`);
+            })
+              .then((result) => {
+                if (result.success) {
+                  logger.info(`[异地登录] Passkey路径已发送提醒邮件至 ${user.email}，上次IP=${lastIp}，本次IP=${ip}`);
+                } else {
+                  logger.warn(`[异地登录] Passkey路径提醒邮件发送失败: ${user.email} - ${result.error}`);
+                }
+              })
+              .catch((e) => {
+                logger.warn(`[异地登录] Passkey路径提醒邮件发送异常: ${user.email}`, e);
+              });
           } catch (notifyErr) {
             logger.warn("[异地登录] Passkey路径发送提醒邮件失败:", notifyErr);
           }

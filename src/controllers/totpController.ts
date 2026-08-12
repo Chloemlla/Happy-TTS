@@ -5,6 +5,7 @@ import { sendEmail } from "../services/emailSender";
 import { TOTPService } from "../services/totpService";
 import {
   generateBackupCodeUsedEmailHtml,
+  generateLoginIpChangedEmailHtml,
   generateTOTPDisabledEmailHtml,
   generateTOTPEnabledEmailHtml,
 } from "../templates/emailTemplates";
@@ -431,8 +432,46 @@ export class TOTPController {
         tokenExpiresAt: undefined,
       } as any);
 
+      // 异地登录检测：比较当前IP与上次登录IP
+      const ip = getClientIP(req);
+      const lastIp = user.lastLoginIp;
+      if (lastIp && lastIp !== "unknown" && ip !== "unknown" && lastIp !== ip && user.email) {
+        try {
+          const loginTime = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
+          const userAgent = req.headers["user-agent"] || "unknown";
+          const emailHtml = generateLoginIpChangedEmailHtml(user.username, ip, lastIp, loginTime, userAgent);
+          sendEmail({
+            to: user.email,
+            subject: "Synapse 异地登录安全提醒",
+            html: emailHtml,
+            logTag: "异地登录提醒(TOTP)",
+            checkQuota: true,
+          })
+            .then((result) => {
+              if (result.success) {
+                logger.info(`[异地登录] TOTP路径已发送提醒邮件至 ${user.email}，上次IP=${lastIp}，本次IP=${ip}`);
+              } else {
+                logger.warn(`[异地登录] TOTP路径提醒邮件发送失败: ${user.email} - ${result.error}`);
+              }
+            })
+            .catch((e) => {
+              logger.warn(`[异地登录] TOTP路径提醒邮件发送异常: ${user.email}`, e);
+            });
+        } catch (notifyErr) {
+          logger.warn("[异地登录] TOTP路径发送提醒邮件失败:", notifyErr);
+        }
+      }
+
+      // 更新上次登录IP和时间
+      UserStorage.updateUser(user.id, {
+        lastLoginIp: ip,
+        lastLoginAt: new Date().toISOString(),
+      } as any).catch((e) => {
+        logger.warn("[登录] TOTP路径更新lastLoginIp失败:", e);
+      });
+
       // 生成JWT token
-      const jwtToken = await issueTrackedLoginToken(user, getAuthSessionMetadata(req, { ipAddress: getClientIP(req) }));
+      const jwtToken = await issueTrackedLoginToken(user, getAuthSessionMetadata(req, { ipAddress: ip }));
 
       logger.info("TOTP验证成功，生成JWT token", {
         userId: user.id,
