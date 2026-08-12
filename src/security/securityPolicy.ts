@@ -38,6 +38,11 @@ export const securityBypassPolicy: Record<SecurityComponent, SecurityBypassRule[
     { match: "exact", value: "/api/auth/register", note: "Authentication payload compatibility" },
     { match: "prefix", value: "/api/ecoenchants/v1/webhooks", note: "Raw EcoEnchants marketplace/payment webhook verification" },
     { match: "prefix", value: "/api/data-collection", note: "Accept non-JSON/browser telemetry payloads" },
+    {
+      match: "prefix",
+      value: "/api/crash-sdk",
+      note: "Anonymous crash-report ingest from the lumen-crash-core SDK; crash payloads contain braces/semicolons",
+    },
   ],
   ipVerification: [
     { match: "prefix", value: "/api/ip-verification", note: "Verification bootstrap endpoint" },
