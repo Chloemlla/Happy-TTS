@@ -206,7 +206,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
   if (banState.isBanned) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#f6f8fb] p-4">
-        <div className="w-full max-w-xl rounded-[28px] border border-[#d6dbe5] bg-white px-8 py-10 shadow-[0_40px_90px_rgba(26,32,44,0.08)]">
+        <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto overscroll-contain rounded-[28px] border border-[#d6dbe5] bg-white px-8 py-10 shadow-[0_40px_90px_rgba(26,32,44,0.08)]">
           <div className="mb-8 flex items-center gap-3">
             <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full border border-[#ffd6c2] bg-[#fff4ef] text-sm font-semibold text-[#f48120]">
               !
@@ -256,7 +256,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: 'easeOut' }}
-          className="w-full max-w-[820px] rounded-[32px] border border-[#dde3ec] bg-white/95 shadow-[0_45px_120px_rgba(15,23,42,0.08)] backdrop-blur"
+          className="w-full max-w-[820px] max-h-[90vh] overflow-y-auto overscroll-contain rounded-[32px] border border-[#dde3ec] bg-white/95 shadow-[0_45px_120px_rgba(15,23,42,0.08)] backdrop-blur"
         >
           <div className="grid gap-0 md:grid-cols-[1.18fr_0.82fr]">
             <div className="border-b border-[#edf1f5] px-4 py-6 md:border-b-0 md:border-r md:px-10 md:py-10">

@@ -71,7 +71,7 @@ export const EmailVerifyPage: React.FC = () => {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50 py-8 px-4 sm:py-12 sm:px-6 animate-gradient rounded-3xl">
-            <div className="w-full max-w-md">
+            <div className="w-full max-w-md min-w-0">
                 {/* Header */}
                 <div className="mb-8 text-center animate-slideInUp">
                     <div className="mb-4 inline-flex items-center gap-3">

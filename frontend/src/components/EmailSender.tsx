@@ -638,7 +638,7 @@ const EmailSender: React.FC = () => {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:min-w-[420px]">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:min-w-[420px] lg:max-w-full">
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
                   内部发信

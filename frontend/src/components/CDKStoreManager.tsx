@@ -1839,7 +1839,7 @@ export default function CDKStoreManager() {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white/80 rounded-2xl shadow-2xl max-w-md w-full p-6 backdrop-blur-xl"
+              className="bg-white/80 rounded-2xl shadow-2xl max-w-md w-full p-6 backdrop-blur-xl max-h-[90vh] overflow-y-auto overscroll-contain"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center gap-3 mb-4">
@@ -1919,7 +1919,7 @@ export default function CDKStoreManager() {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white/80 rounded-2xl shadow-2xl max-w-md w-full p-6 backdrop-blur-xl"
+              className="bg-white/80 rounded-2xl shadow-2xl max-w-md w-full p-6 backdrop-blur-xl max-h-[90vh] overflow-y-auto overscroll-contain"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center gap-3 mb-4">

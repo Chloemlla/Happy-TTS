@@ -208,7 +208,7 @@ export const RegisterPage: React.FC = () => {
     return (
         <LazyMotion features={domAnimation}>
             <div className={authPageShellClassName} style={{ fontFamily: studioPageFont }}>
-                <div className={authFrameClassName}>
+                <div className={cn(authFrameClassName, 'min-w-0')}>
                     <m.div className={authBrandBlockClassName} variants={effectiveCardVariants} initial="hidden" animate="visible" transition={{ duration: 0.5 }}>
                         <div className={authBrandPillClassName}>
                             <FaVolumeUp />

@@ -166,7 +166,7 @@ export const LinuxDoAuthCallbackPage: React.FC = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10 py-8 px-4 sm:px-6">
-      <div className="w-full max-w-md rounded-2xl border border-[#8ECAE6]/30 bg-white/85 p-4 sm:p-6 md:p-8 text-center shadow-xl backdrop-blur-sm">
+      <div className="w-full max-w-md min-w-0 rounded-2xl border border-[#8ECAE6]/30 bg-white/85 p-4 sm:p-6 md:p-8 text-center shadow-xl backdrop-blur-sm">
         <div className="mx-auto mb-5 h-10 w-10 sm:h-12 sm:w-12 animate-spin rounded-full border-4 border-[#8ECAE6]/40 border-t-[#219EBC]" />
         <h1 className="text-2xl font-bold text-[#023047]">正在登录 Linux.do</h1>
         <p className="mt-3 text-sm text-[#023047]/70">{status}</p>

@@ -306,7 +306,7 @@ const ProviderBindPage: React.FC = () => {
 
   return (
     <main className={cn(studioPageFont, authPageShellClassName)}>
-      <section className={authWideFrameClassName}>
+      <section className={cn(authWideFrameClassName, 'min-w-0')}>
         <div className={authBrandBlockClassName}>
           <div className={authBrandPillClassName}>{session.providerLabel} 登录</div>
           <h1 className={authBrandTitleClassName}>绑定已有账号</h1>

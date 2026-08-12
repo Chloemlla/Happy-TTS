@@ -959,7 +959,7 @@ const LogShare: React.FC = React.memo(() => {
                     exit={{ opacity: 0, y: -4 }}
                     transition={{ duration: 0.2 }}
                   >
-                    <span>已选择文件: <span className="font-medium text-slate-900">{file.name}</span></span>
+                    <span className="min-w-0 truncate">已选择文件: <span className="font-medium text-slate-900">{file.name}</span></span>
                     <button
                       className="text-rose-500 hover:text-rose-700"
                       onClick={() => { setFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
@@ -999,7 +999,7 @@ const LogShare: React.FC = React.memo(() => {
                     <div className="flex flex-wrap items-center gap-2">
                       <FaCheck className="text-[10px]" />
                       <span className="font-semibold">上传成功，访问链接：</span>
-                      <a href={uploadResult.link} className="underline" target="_blank" rel="noopener noreferrer">
+                      <a href={uploadResult.link} className="min-w-0 break-all underline" target="_blank" rel="noopener noreferrer">
                         {uploadResult.link}
                       </a>
                       <span className="text-emerald-600">({uploadResult.ext})</span>
