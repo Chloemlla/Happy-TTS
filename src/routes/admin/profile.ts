@@ -657,9 +657,17 @@ router.post("/user/profile", authMiddleware, async (req, res) => {
           html: oldEmailHtml,
           logTag: "用户自助修改邮箱-旧邮箱通知",
           checkQuota: true,
-        }).catch((notifyError) => {
-          logger.warn("[AdminRoutes] 旧邮箱通知发送失败", notifyError);
-        });
+        })
+          .then((result) => {
+            if (result.success) {
+              logger.info(`[用户自助修改邮箱-旧邮箱通知] 成功发送到 ${dbUser.email}`);
+            } else {
+              logger.warn(`[用户自助修改邮箱-旧邮箱通知] 发送失败: ${dbUser.email} - ${result.error}`);
+            }
+          })
+          .catch((e) => {
+            logger.warn(`[用户自助修改邮箱-旧邮箱通知] 发送异常: ${dbUser.email}`, e);
+          });
       }
 
       const newEmailHtml = generateEmailChangeNewNoticeHtml(
@@ -675,9 +683,17 @@ router.post("/user/profile", authMiddleware, async (req, res) => {
         html: newEmailHtml,
         logTag: "用户自助修改邮箱-新邮箱通知",
         checkQuota: true,
-      }).catch((notifyError) => {
-        logger.warn("[AdminRoutes] 新邮箱通知发送失败", notifyError);
-      });
+      })
+        .then((result) => {
+          if (result.success) {
+            logger.info(`[用户自助修改邮箱-新邮箱通知] 成功发送到 ${rawEmail}`);
+          } else {
+            logger.warn(`[用户自助修改邮箱-新邮箱通知] 发送失败: ${rawEmail} - ${result.error}`);
+          }
+        })
+        .catch((e) => {
+          logger.warn(`[用户自助修改邮箱-新邮箱通知] 发送异常: ${rawEmail}`, e);
+        });
     }
 
     const {

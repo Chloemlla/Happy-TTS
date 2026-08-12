@@ -116,9 +116,17 @@ router.post(
           html: emailHtml,
           logTag: "API Key 创建通知",
           checkQuota: true,
-        }).catch((e) => {
-          logger.warn(`[API Key 创建通知] 邮件发送失败: ${user.email}`, e);
-        });
+        })
+          .then((result) => {
+            if (result.success) {
+              logger.info(`[API Key 创建通知] 成功发送到 ${user.email}`);
+            } else {
+              logger.warn(`[API Key 创建通知] 发送失败: ${user.email} - ${result.error}`);
+            }
+          })
+          .catch((e) => {
+            logger.warn(`[API Key 创建通知] 发送异常: ${user.email}`, e);
+          });
       } catch (notifyError) {
         logger.warn("[API Key 创建通知] 通知邮件生成失败:", notifyError);
       }

@@ -516,7 +516,17 @@ export class CDKService {
               html: emailHtml,
               logTag: "CDK兑换通知",
               checkQuota: true,
-            }).catch((e: unknown) => logger.warn(`[CDK兑换通知] 邮件发送失败: ${user.email}`, e));
+            })
+              .then((result) => {
+                if (result.success) {
+                  logger.info(`[CDK兑换通知] 成功发送到 ${user.email}`);
+                } else {
+                  logger.warn(`[CDK兑换通知] 发送失败: ${user.email} - ${result.error}`);
+                }
+              })
+              .catch((e: unknown) => {
+                logger.warn(`[CDK兑换通知] 发送异常: ${user.email}`, e);
+              });
           }
         } catch (notifyErr) {
           logger.warn("[CDK兑换通知] 发送通知邮件失败:", notifyErr);

@@ -220,7 +220,17 @@ router.post("/register/finish", passkeyAuthLimiter, authenticateToken, async (re
           html: emailHtml,
           logTag: "Passkey添加通知",
           checkQuota: true,
-        }).catch((e) => logger.warn(`[Passkey添加通知] 邮件发送失败: ${updatedUser.email}`, e));
+        })
+          .then((result) => {
+            if (result.success) {
+              logger.info(`[Passkey添加通知] 成功发送到 ${updatedUser.email}`);
+            } else {
+              logger.warn(`[Passkey添加通知] 发送失败: ${updatedUser.email} - ${result.error}`);
+            }
+          })
+          .catch((e) => {
+            logger.warn(`[Passkey添加通知] 发送异常: ${updatedUser.email}`, e);
+          });
       } catch (notifyErr) {
         logger.warn("[Passkey添加通知] 发送通知邮件失败:", notifyErr);
       }
@@ -691,7 +701,17 @@ router.delete("/credentials/:credentialId", passkeyAuthLimiter, authenticateToke
           html: emailHtml,
           logTag: "Passkey移除通知",
           checkQuota: true,
-        }).catch((e) => logger.warn(`[Passkey移除通知] 邮件发送失败: ${user.email}`, e));
+        })
+          .then((result) => {
+            if (result.success) {
+              logger.info(`[Passkey移除通知] 成功发送到 ${user.email}`);
+            } else {
+              logger.warn(`[Passkey移除通知] 发送失败: ${user.email} - ${result.error}`);
+            }
+          })
+          .catch((e) => {
+            logger.warn(`[Passkey移除通知] 发送异常: ${user.email}`, e);
+          });
       } catch (notifyErr) {
         logger.warn("[Passkey移除通知] 发送通知邮件失败:", notifyErr);
       }

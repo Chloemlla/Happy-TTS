@@ -193,6 +193,7 @@ export class WorkspaceController {
 
       // 发送工作空间邀请通知邮件（异步发送，不影响主流程）
       void (async () => {
+        let emailHtml = "";
         try {
           const { generateWorkspaceInviteEmailHtml } = require("../templates/emailTemplates");
 
@@ -214,24 +215,35 @@ export class WorkspaceController {
             timeZone: "Asia/Shanghai",
           });
 
-          const emailHtml = generateWorkspaceInviteEmailHtml(
+          emailHtml = generateWorkspaceInviteEmailHtml(
             email.toLowerCase().trim(),
             inviterName,
             workspaceName,
             safeRole,
             expiresAtStr,
           );
-
-          await sendEmail({
-            to: email.toLowerCase().trim(),
-            subject: "您收到了一个工作空间邀请",
-            html: emailHtml,
-            logTag: "工作空间邀请通知",
-            checkQuota: true,
-          });
         } catch (e) {
           logger.warn("[WorkspaceController] 发送工作空间邀请邮件失败:", e);
+          return;
         }
+
+        sendEmail({
+          to: email.toLowerCase().trim(),
+          subject: "您收到了一个工作空间邀请",
+          html: emailHtml,
+          logTag: "工作空间邀请通知",
+          checkQuota: true,
+        })
+          .then((result) => {
+            if (result.success) {
+              logger.info(`[工作空间邀请通知] 成功发送到 ${email.toLowerCase().trim()}`);
+            } else {
+              logger.warn(`[工作空间邀请通知] 发送失败: ${email.toLowerCase().trim()} - ${result.error}`);
+            }
+          })
+          .catch((e) => {
+            logger.warn(`[工作空间邀请通知] 发送异常: ${email.toLowerCase().trim()}`, e);
+          });
       })();
 
       res.status(201).json({
@@ -278,6 +290,8 @@ export class WorkspaceController {
 
       // 通知邀请者（异步发送，不影响主流程）
       void (async () => {
+        let toEmail = "";
+        let emailHtml = "";
         try {
           const { generateWorkspaceInviteAcceptedEmailHtml } = require("../templates/emailTemplates");
 
@@ -299,22 +313,34 @@ export class WorkspaceController {
 
           const inviteeName = (req as any).user?.username || "工作空间成员";
 
-          const emailHtml = generateWorkspaceInviteAcceptedEmailHtml(
+          toEmail = inviter.email;
+          emailHtml = generateWorkspaceInviteAcceptedEmailHtml(
             inviter.username || "工作空间成员",
             inviteeName,
             workspaceName,
           );
-
-          await sendEmail({
-            to: inviter.email,
-            subject: "您的工作空间邀请已被接受",
-            html: emailHtml,
-            logTag: "工作空间邀请被接受通知",
-            checkQuota: true,
-          });
         } catch (e) {
           logger.warn("[WorkspaceController] 发送工作空间邀请被接受通知邮件失败:", e);
+          return;
         }
+
+        sendEmail({
+          to: toEmail,
+          subject: "您的工作空间邀请已被接受",
+          html: emailHtml,
+          logTag: "工作空间邀请被接受通知",
+          checkQuota: true,
+        })
+          .then((result) => {
+            if (result.success) {
+              logger.info(`[工作空间邀请被接受通知] 成功发送到 ${toEmail}`);
+            } else {
+              logger.warn(`[工作空间邀请被接受通知] 发送失败: ${toEmail} - ${result.error}`);
+            }
+          })
+          .catch((e) => {
+            logger.warn(`[工作空间邀请被接受通知] 发送异常: ${toEmail}`, e);
+          });
       })();
 
       res.json({

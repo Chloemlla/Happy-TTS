@@ -490,9 +490,17 @@ export class AuthController {
         html: welcomeHtml,
         logTag: "欢迎邮件",
         checkQuota: true,
-      }).catch((e) => {
-        logger.warn(`[欢迎邮件] 发送失败: ${regInfo.email}`, e);
-      });
+      })
+        .then((result) => {
+          if (result.success) {
+            logger.info(`[欢迎邮件] 已发送至 ${regInfo.email}`);
+          } else {
+            logger.warn(`[欢迎邮件] 发送失败: ${regInfo.email} - ${result.error}`);
+          }
+        })
+        .catch((e) => {
+          logger.warn(`[欢迎邮件] 发送异常: ${regInfo.email}`, e);
+        });
       res.json({ success: true });
     } catch (_error) {
       res.status(500).json({ error: "邮箱验证失败" });
@@ -647,7 +655,17 @@ export class AuthController {
                 html: alertEmailHtml,
                 logTag: "登录失败提醒",
                 checkQuota: true,
-              }).catch((e) => logger.warn(`[登录失败提醒] 邮件发送失败: ${targetUser.email}`, e));
+              })
+                .then((result) => {
+                  if (result.success) {
+                    logger.info(`[登录失败提醒] 已发送至 ${targetUser.email}`);
+                  } else {
+                    logger.warn(`[登录失败提醒] 邮件发送失败: ${targetUser.email} - ${result.error}`);
+                  }
+                })
+                .catch((e) => {
+                  logger.warn(`[登录失败提醒] 邮件发送异常: ${targetUser.email}`, e);
+                });
             } catch (notifyErr) {
               logger.warn("[登录失败提醒] 发送通知邮件失败:", notifyErr);
             }
@@ -671,7 +689,17 @@ export class AuthController {
                 html: lockEmailHtml,
                 logTag: "账号锁定提醒",
                 checkQuota: true,
-              }).catch((e) => logger.warn(`[账号锁定提醒] 邮件发送失败: ${targetUser.email}`, e));
+              })
+                .then((result) => {
+                  if (result.success) {
+                    logger.info(`[账号锁定提醒] 已发送至 ${targetUser.email}`);
+                  } else {
+                    logger.warn(`[账号锁定提醒] 邮件发送失败: ${targetUser.email} - ${result.error}`);
+                  }
+                })
+                .catch((e) => {
+                  logger.warn(`[账号锁定提醒] 邮件发送异常: ${targetUser.email}`, e);
+                });
             } catch (notifyErr) {
               logger.warn("[账号锁定提醒] 发送通知邮件失败:", notifyErr);
             }
@@ -1172,9 +1200,17 @@ export class AuthController {
               html: emailHtml,
               logTag: "密码变更通知",
               checkQuota: true,
-            }).catch((e) => {
-              logger.warn(`[密码变更通知] 邮件发送失败: ${result.email}`, e);
-            });
+            })
+              .then((sendResult) => {
+                if (sendResult.success) {
+                  logger.info(`[密码变更通知] 已发送至 ${result.email}`);
+                } else {
+                  logger.warn(`[密码变更通知] 邮件发送失败: ${result.email} - ${sendResult.error}`);
+                }
+              })
+              .catch((e) => {
+                logger.warn(`[密码变更通知] 邮件发送异常: ${result.email}`, e);
+              });
           }
         } catch (notifyError) {
           logger.warn("[密码变更通知] 发送通知邮件失败:", notifyError);
@@ -1327,9 +1363,17 @@ export class AuthController {
           html: notifyHtml,
           logTag: "密码重置成功通知",
           checkQuota: true,
-        }).catch((e) => {
-          logger.warn(`[密码重置成功通知] 邮件发送失败: ${email}`, e);
-        });
+        })
+          .then((result) => {
+            if (result.success) {
+              logger.info(`[密码重置成功通知] 已发送至 ${email}`);
+            } else {
+              logger.warn(`[密码重置成功通知] 邮件发送失败: ${email} - ${result.error}`);
+            }
+          })
+          .catch((e) => {
+            logger.warn(`[密码重置成功通知] 邮件发送异常: ${email}`, e);
+          });
       } catch (notifyError) {
         logger.warn("[密码重置成功通知] 发送通知邮件失败:", notifyError);
       }

@@ -397,9 +397,17 @@ export const adminController = {
             html: emailHtml,
             logTag: "管理员修改用户信息通知",
             checkQuota: true,
-          }).catch((e) => {
-            logger.warn(`[管理员修改用户] 通知邮件发送失败: ${user.email}`, e);
-          });
+          })
+            .then((result) => {
+              if (result.success) {
+                logger.info(`[管理员修改用户] 通知邮件成功发送到: ${user.email}`);
+              } else {
+                logger.warn(`[管理员修改用户] 通知邮件发送失败: ${user.email} - ${result.error}`);
+              }
+            })
+            .catch((e) => {
+              logger.warn(`[管理员修改用户] 通知邮件发送异常: ${user.email}`, e);
+            });
 
           // 2. 针对特定字段变更发送专门模板通知
           // 2.1 角色变更通知
@@ -418,7 +426,17 @@ export const adminController = {
               html: roleEmailHtml,
               logTag: "角色变更专门通知",
               checkQuota: true,
-            }).catch(() => {});
+            })
+              .then((result) => {
+                if (result.success) {
+                  logger.info(`[角色变更专门通知] 成功发送到: ${user.email}`);
+                } else {
+                  logger.warn(`[角色变更专门通知] 发送失败: ${user.email} - ${result.error}`);
+                }
+              })
+              .catch((e) => {
+                logger.warn(`[角色变更专门通知] 发送异常: ${user.email}`, e);
+              });
           }
 
           // 2.2 邮箱变更通知 (旧邮箱和新邮箱)
@@ -440,9 +458,17 @@ export const adminController = {
               html: oldEmailHtml,
               logTag: "邮箱变更安全通知(旧邮箱)",
               checkQuota: true,
-            }).catch((e) => {
-              logger.warn(`[管理员修改用户] 旧邮箱安全通知发送失败: ${emailChange.oldValue}`, e);
-            });
+            })
+              .then((result) => {
+                if (result.success) {
+                  logger.info(`[管理员修改用户] 旧邮箱安全通知成功发送到: ${emailChange.oldValue}`);
+                } else {
+                  logger.warn(`[管理员修改用户] 旧邮箱安全通知发送失败: ${emailChange.oldValue} - ${result.error}`);
+                }
+              })
+              .catch((e) => {
+                logger.warn(`[管理员修改用户] 旧邮箱安全通知发送异常: ${emailChange.oldValue}`, e);
+              });
 
             // 通知新邮箱
             const newEmailHtml = generateEmailChangeNewNoticeHtml(
@@ -458,9 +484,17 @@ export const adminController = {
               html: newEmailHtml,
               logTag: "新邮箱绑定通知",
               checkQuota: true,
-            }).catch((e) => {
-              logger.warn(`[管理员修改用户] 新邮箱通知发送失败: ${emailChange.newValue}`, e);
-            });
+            })
+              .then((result) => {
+                if (result.success) {
+                  logger.info(`[管理员修改用户] 新邮箱通知成功发送到: ${emailChange.newValue}`);
+                } else {
+                  logger.warn(`[管理员修改用户] 新邮箱通知发送失败: ${emailChange.newValue} - ${result.error}`);
+                }
+              })
+              .catch((e) => {
+                logger.warn(`[管理员修改用户] 新邮箱通知发送异常: ${emailChange.newValue}`, e);
+              });
           }
 
           logger.info(
@@ -498,9 +532,17 @@ export const adminController = {
               html: emailHtml,
               logTag: "账号停用通知",
               checkQuota: true,
-            }).catch((e) => {
-              logger.warn(`[管理员修改用户] 停用通知邮件发送失败: ${user.email}`, e);
-            });
+            })
+              .then((result) => {
+                if (result.success) {
+                  logger.info(`[管理员修改用户] 停用通知邮件成功发送到: ${user.email}`);
+                } else {
+                  logger.warn(`[管理员修改用户] 停用通知邮件发送失败: ${user.email} - ${result.error}`);
+                }
+              })
+              .catch((e) => {
+                logger.warn(`[管理员修改用户] 停用通知邮件发送异常: ${user.email}`, e);
+              });
           } else {
             const emailHtml = generateAccountRestoredEmailHtml(user.username, changeTime);
             sendEmail({
@@ -509,9 +551,17 @@ export const adminController = {
               html: emailHtml,
               logTag: "账号恢复通知",
               checkQuota: true,
-            }).catch((e) => {
-              logger.warn(`[管理员修改用户] 恢复通知邮件发送失败: ${user.email}`, e);
-            });
+            })
+              .then((result) => {
+                if (result.success) {
+                  logger.info(`[管理员修改用户] 恢复通知邮件成功发送到: ${user.email}`);
+                } else {
+                  logger.warn(`[管理员修改用户] 恢复通知邮件发送失败: ${user.email} - ${result.error}`);
+                }
+              })
+              .catch((e) => {
+                logger.warn(`[管理员修改用户] 恢复通知邮件发送异常: ${user.email}`, e);
+              });
           }
         } catch (notifyError) {
           logger.warn("[管理员修改用户] 发送账号状态变更通知失败:", notifyError);
@@ -666,9 +716,17 @@ export const adminController = {
                 html: emailHtml,
                 logTag: "账号停用通知",
                 checkQuota: true,
-              }).catch((e) => {
-                logger.warn(`[管理员批量操作] 停用通知邮件发送失败: ${targetUser.email}`, e);
-              });
+              })
+                .then((result) => {
+                  if (result.success) {
+                    logger.info(`[管理员批量操作] 停用通知邮件成功发送到: ${targetUser.email}`);
+                  } else {
+                    logger.warn(`[管理员批量操作] 停用通知邮件发送失败: ${targetUser.email} - ${result.error}`);
+                  }
+                })
+                .catch((e) => {
+                  logger.warn(`[管理员批量操作] 停用通知邮件发送异常: ${targetUser.email}`, e);
+                });
             } else {
               const emailHtml = generateAccountRestoredEmailHtml(targetUser.username, changeTime);
               sendEmail({
@@ -677,9 +735,17 @@ export const adminController = {
                 html: emailHtml,
                 logTag: "账号恢复通知",
                 checkQuota: true,
-              }).catch((e) => {
-                logger.warn(`[管理员批量操作] 恢复通知邮件发送失败: ${targetUser.email}`, e);
-              });
+              })
+                .then((result) => {
+                  if (result.success) {
+                    logger.info(`[管理员批量操作] 恢复通知邮件成功发送到: ${targetUser.email}`);
+                  } else {
+                    logger.warn(`[管理员批量操作] 恢复通知邮件发送失败: ${targetUser.email} - ${result.error}`);
+                  }
+                })
+                .catch((e) => {
+                  logger.warn(`[管理员批量操作] 恢复通知邮件发送异常: ${targetUser.email}`, e);
+                });
             }
           }
         } catch (notifyError) {
@@ -749,7 +815,17 @@ export const adminController = {
           html: emailHtml,
           logTag: "账户删除通知",
           checkQuota: true,
-        }).catch(() => {});
+        })
+          .then((result) => {
+            if (result.success) {
+              logger.info(`[账户删除通知] 成功发送到: ${user.email}`);
+            } else {
+              logger.warn(`[账户删除通知] 发送失败: ${user.email} - ${result.error}`);
+            }
+          })
+          .catch((e) => {
+            logger.warn(`[账户删除通知] 发送异常: ${user.email}`, e);
+          });
       }
 
       const deletedUser = stripSensitiveUserFields(user);

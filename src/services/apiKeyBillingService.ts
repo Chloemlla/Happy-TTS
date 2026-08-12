@@ -102,13 +102,20 @@ function maybeSendApiKeyLowBalanceEmail(params: {
         String(balanceAfter),
         costPerRequest,
       );
-      await sendEmail({
+      const result = await sendEmail({
         to: ownerEmail,
         subject: "Synapse API Key 余额不足提醒",
         html: emailHtml,
         logTag: "API Key 余额不足提醒",
         checkQuota: true,
       });
+      if (!result.success) {
+        logger.warn("[API Key 余额不足提醒] 发送失败", {
+          keyId: keyDoc.keyId,
+          email: ownerEmail,
+          error: result.error,
+        });
+      }
     } catch (error) {
       logger.warn("[API Key 余额不足提醒] 通知邮件发送失败", {
         keyId: keyDoc.keyId,

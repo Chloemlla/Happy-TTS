@@ -269,7 +269,17 @@ export class TOTPController {
           html: emailHtml,
           logTag: "TOTP启用通知",
           checkQuota: true,
-        }).catch((e) => logger.warn(`[TOTP启用通知] 邮件发送失败: ${currentUser.email}`, e));
+        })
+          .then((result) => {
+            if (result.success) {
+              logger.info(`[TOTP启用通知] 已发送通知邮件至 ${currentUser.email}`);
+            } else {
+              logger.warn(`[TOTP启用通知] 邮件发送失败: ${currentUser.email} - ${result.error}`);
+            }
+          })
+          .catch((e) => {
+            logger.warn(`[TOTP启用通知] 邮件发送异常: ${currentUser.email}`, e);
+          });
       } catch (notifyErr) {
         logger.warn("[TOTP启用通知] 发送通知邮件失败:", notifyErr);
       }
@@ -376,7 +386,17 @@ export class TOTPController {
               html: emailHtml,
               logTag: "恢复码使用通知",
               checkQuota: true,
-            }).catch((e) => logger.warn(`[恢复码使用通知] 邮件发送失败: ${user.email}`, e));
+            })
+              .then((result) => {
+                if (result.success) {
+                  logger.info(`[恢复码使用通知] 已发送通知邮件至 ${user.email}`);
+                } else {
+                  logger.warn(`[恢复码使用通知] 邮件发送失败: ${user.email} - ${result.error}`);
+                }
+              })
+              .catch((e) => {
+                logger.warn(`[恢复码使用通知] 邮件发送异常: ${user.email}`, e);
+              });
           } catch (notifyErr) {
             logger.warn("[恢复码使用通知] 发送通知邮件失败:", notifyErr);
           }
@@ -564,7 +584,17 @@ export class TOTPController {
           html: emailHtml,
           logTag: "TOTP禁用通知",
           checkQuota: true,
-        }).catch((e) => logger.warn(`[TOTP禁用通知] 邮件发送失败: ${user.email}`, e));
+        })
+          .then((result) => {
+            if (result.success) {
+              logger.info(`[TOTP禁用通知] 已发送通知邮件至 ${user.email}`);
+            } else {
+              logger.warn(`[TOTP禁用通知] 邮件发送失败: ${user.email} - ${result.error}`);
+            }
+          })
+          .catch((e) => {
+            logger.warn(`[TOTP禁用通知] 邮件发送异常: ${user.email}`, e);
+          });
       } catch (notifyErr) {
         logger.warn("[TOTP禁用通知] 发送通知邮件失败:", notifyErr);
       }
