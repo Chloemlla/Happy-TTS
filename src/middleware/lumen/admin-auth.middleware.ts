@@ -15,6 +15,18 @@ import { AdminSession } from "../../models/lumen/index.js";
  * On success, sets `req.lumenAdminOperator` and `req.lumenAdminRole`.
  */
 
+/**
+ * Resolves the automation token lazily at request time.
+ *
+ * The env vault (`setEnv` / `data/env.admin.json`) writes directly to
+ * `process.env` at runtime, so reading it here — rather than only trusting the
+ * value captured at module load in `lumenConfig` — lets an admin rotate the
+ * token through the env-manager UI without restarting the process.
+ */
+function currentAutomationToken(): string {
+  return process.env.LUMEN_ADMIN_AUTOMATION_TOKEN || lumenConfig.adminAutomationToken || "";
+}
+
 function constantTimeEqual(a: string, b: string): boolean {
   try {
     const ba = Buffer.from(a, "utf8");
@@ -48,8 +60,9 @@ export function requireAdmin(): (req: Request, res: Response, next: NextFunction
       }
 
       // 1. Try automation token
-      if (lumenConfig.adminAutomationToken) {
-        if (constantTimeEqual(token, lumenConfig.adminAutomationToken)) {
+      const automationToken = currentAutomationToken();
+      if (automationToken) {
+        if (constantTimeEqual(token, automationToken)) {
           req.lumenAdminOperator = "automation";
           req.lumenAdminRole = "admin";
           req.lumenAdminUsername = "automation";

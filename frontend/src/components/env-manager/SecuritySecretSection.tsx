@@ -80,6 +80,14 @@ const SECRET_FIELDS: SecretField[] = [
       '用于在密钥隔离机制下切换/访问旧版 API 的授权密钥。对应环境变量 LEGACY_API_CHOICE_SECRET。',
     placeholder: '请输入旧版 API 授权密钥',
   },
+  {
+    key: 'LUMEN_ADMIN_AUTOMATION_TOKEN',
+    altKeys: [],
+    label: 'Lumen 发布自动化令牌',
+    description:
+      'Lumen 客户端 CI 同步发布清单到 /api/lumen/admin/actions 时使用的 Bearer 令牌。对应环境变量 LUMEN_ADMIN_AUTOMATION_TOKEN，保存后立即生效，无需重启后端。',
+    placeholder: '请输入与 PROJECT_LUMEN_ADMIN_TOKEN 相同的随机令牌',
+  },
 ];
 
 function normalizeEnvKey(rawKey: string): string {
@@ -243,7 +251,7 @@ export default function SecuritySecretSection({
   return (
     <CollapsibleSection
       title="安全密钥隔离与数据采集加密"
-      description="配置数据采集加密密钥（DATA_COLLECTION_RAW_SECRET）、Bilibili Cookie 加密密钥（BILIBILI_COOKIE_ENCRYPTION_KEY）、密码加密密钥（PASSWORD_ENCRYPTION_KEY）与安全密钥隔离（POLICY_SECRET_SALT、VERIFICATION_TOKEN_SECRET、TTS_ASSET_ACCESS_SECRET、LEGACY_API_CHOICE_SECRET）。保存后写入运行时配置（环境变量）并立即生效。"
+      description="配置数据采集加密密钥（DATA_COLLECTION_RAW_SECRET）、Bilibili Cookie 加密密钥（BILIBILI_COOKIE_ENCRYPTION_KEY）、密码加密密钥（PASSWORD_ENCRYPTION_KEY）、安全密钥隔离（POLICY_SECRET_SALT、VERIFICATION_TOKEN_SECRET、TTS_ASSET_ACCESS_SECRET、LEGACY_API_CHOICE_SECRET）与 Lumen 发布自动化令牌（LUMEN_ADMIN_AUTOMATION_TOKEN）。保存后写入运行时配置（环境变量）并立即生效。"
       sectionKey={SECTION_KEY}
       isOpen={isOpen}
       onToggle={onToggle}
@@ -272,7 +280,8 @@ export default function SecuritySecretSection({
           <code className="rounded bg-white/80 px-1">POLICY_SECRET_SALT</code>、
           <code className="rounded bg-white/80 px-1">VERIFICATION_TOKEN_SECRET</code>、
           <code className="rounded bg-white/80 px-1">TTS_ASSET_ACCESS_SECRET</code>、
-          <code className="rounded bg-white/80 px-1">LEGACY_API_CHOICE_SECRET</code>。
+          <code className="rounded bg-white/80 px-1">LEGACY_API_CHOICE_SECRET</code>，以及 Lumen 发布自动化令牌{' '}
+          <code className="rounded bg-white/80 px-1">LUMEN_ADMIN_AUTOMATION_TOKEN</code>。
         </p>
         <p className="mt-1">
           保存的密钥会覆盖进程环境 / <code className="rounded bg-white/80 px-1">.env</code> 中的同名启动默认值并立即生效。
