@@ -656,7 +656,7 @@ router.post("/user/profile", authMiddleware, async (req, res) => {
           subject: "Synapse 账户邮箱已更改",
           html: oldEmailHtml,
           logTag: "用户自助修改邮箱-旧邮箱通知",
-          checkQuota: false,
+          checkQuota: true,
         }).catch((notifyError) => {
           logger.warn("[AdminRoutes] 旧邮箱通知发送失败", notifyError);
         });
@@ -674,7 +674,7 @@ router.post("/user/profile", authMiddleware, async (req, res) => {
         subject: "Synapse 新邮箱绑定成功",
         html: newEmailHtml,
         logTag: "用户自助修改邮箱-新邮箱通知",
-        checkQuota: false,
+        checkQuota: true,
       }).catch((notifyError) => {
         logger.warn("[AdminRoutes] 新邮箱通知发送失败", notifyError);
       });

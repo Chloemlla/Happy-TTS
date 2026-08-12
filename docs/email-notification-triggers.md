@@ -9,7 +9,7 @@
 1. `RESEND_API_KEY` 已配置；未配置时发送失败并记录日志，**不阻塞业务主流程**。
 2. 收件人邮箱通过 `isValidEmail` 校验（含域名 allowlist：gmail.com、qq.com、chloemlla.com 等）。
 3. 用户存在 `email` 字段（多数通知类场景仅在有邮箱时才发送）。
-4. 配额：验证码类场景 `checkQuota: true`（受 `email_quotas` 每日限额约束）；业务通知类场景多为 `checkQuota: false`，不受配额限制。
+4. 配额：所有邮件（验证码类与全部通知类场景）均以 `checkQuota: true` 计入 `email_quotas` 每日限额。达到每日上限后 `sendEmail` 返回 `{ success: false, error: "验证码发送次数已达上限，请明日再试" }` 且不发送。
 
 统一发送入口：`src/services/emailSender.ts` 的 `sendEmail({ to, subject, html, logTag, checkQuota })`，内建「配额检查 → 发送 → 配额递增 → 日志」。
 

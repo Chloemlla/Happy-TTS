@@ -396,7 +396,7 @@ export const adminController = {
             subject,
             html: emailHtml,
             logTag: "管理员修改用户信息通知",
-            checkQuota: false,
+            checkQuota: true,
           }).catch((e) => {
             logger.warn(`[管理员修改用户] 通知邮件发送失败: ${user.email}`, e);
           });
@@ -417,7 +417,7 @@ export const adminController = {
               subject: "Synapse 账户权限变更通知",
               html: roleEmailHtml,
               logTag: "角色变更专门通知",
-              checkQuota: false,
+              checkQuota: true,
             }).catch(() => {});
           }
 
@@ -439,7 +439,7 @@ export const adminController = {
               subject: "Synapse 账户邮箱地址变更安全通知",
               html: oldEmailHtml,
               logTag: "邮箱变更安全通知(旧邮箱)",
-              checkQuota: false,
+              checkQuota: true,
             }).catch((e) => {
               logger.warn(`[管理员修改用户] 旧邮箱安全通知发送失败: ${emailChange.oldValue}`, e);
             });
@@ -457,7 +457,7 @@ export const adminController = {
               subject: "Synapse 账户邮箱绑定成功通知",
               html: newEmailHtml,
               logTag: "新邮箱绑定通知",
-              checkQuota: false,
+              checkQuota: true,
             }).catch((e) => {
               logger.warn(`[管理员修改用户] 新邮箱通知发送失败: ${emailChange.newValue}`, e);
             });
@@ -497,7 +497,7 @@ export const adminController = {
               subject: "Synapse 账号已被停用通知",
               html: emailHtml,
               logTag: "账号停用通知",
-              checkQuota: false,
+              checkQuota: true,
             }).catch((e) => {
               logger.warn(`[管理员修改用户] 停用通知邮件发送失败: ${user.email}`, e);
             });
@@ -508,7 +508,7 @@ export const adminController = {
               subject: "Synapse 账号已恢复使用通知",
               html: emailHtml,
               logTag: "账号恢复通知",
-              checkQuota: false,
+              checkQuota: true,
             }).catch((e) => {
               logger.warn(`[管理员修改用户] 恢复通知邮件发送失败: ${user.email}`, e);
             });
@@ -665,7 +665,7 @@ export const adminController = {
                 subject: "Synapse 账号已被停用通知",
                 html: emailHtml,
                 logTag: "账号停用通知",
-                checkQuota: false,
+                checkQuota: true,
               }).catch((e) => {
                 logger.warn(`[管理员批量操作] 停用通知邮件发送失败: ${targetUser.email}`, e);
               });
@@ -676,7 +676,7 @@ export const adminController = {
                 subject: "Synapse 账号已恢复使用通知",
                 html: emailHtml,
                 logTag: "账号恢复通知",
-                checkQuota: false,
+                checkQuota: true,
               }).catch((e) => {
                 logger.warn(`[管理员批量操作] 恢复通知邮件发送失败: ${targetUser.email}`, e);
               });
@@ -748,7 +748,7 @@ export const adminController = {
           subject: "Synapse 账户注销成功通知",
           html: emailHtml,
           logTag: "账户删除通知",
-          checkQuota: false,
+          checkQuota: true,
         }).catch(() => {});
       }
 

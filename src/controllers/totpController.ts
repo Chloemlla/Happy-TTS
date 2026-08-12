@@ -267,7 +267,7 @@ export class TOTPController {
           subject: "Synapse 两步验证 (TOTP) 已启用",
           html: emailHtml,
           logTag: "TOTP启用通知",
-          checkQuota: false,
+          checkQuota: true,
         }).catch((e) => logger.warn(`[TOTP启用通知] 邮件发送失败: ${currentUser.email}`, e));
       } catch (notifyErr) {
         logger.warn("[TOTP启用通知] 发送通知邮件失败:", notifyErr);
@@ -374,7 +374,7 @@ export class TOTPController {
               subject: "Synapse 备用恢复码已使用通知",
               html: emailHtml,
               logTag: "恢复码使用通知",
-              checkQuota: false,
+              checkQuota: true,
             }).catch((e) => logger.warn(`[恢复码使用通知] 邮件发送失败: ${user.email}`, e));
           } catch (notifyErr) {
             logger.warn("[恢复码使用通知] 发送通知邮件失败:", notifyErr);
@@ -524,7 +524,7 @@ export class TOTPController {
           subject: "Synapse 两步验证 (TOTP) 已禁用",
           html: emailHtml,
           logTag: "TOTP禁用通知",
-          checkQuota: false,
+          checkQuota: true,
         }).catch((e) => logger.warn(`[TOTP禁用通知] 邮件发送失败: ${user.email}`, e));
       } catch (notifyErr) {
         logger.warn("[TOTP禁用通知] 发送通知邮件失败:", notifyErr);

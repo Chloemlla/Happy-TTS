@@ -219,7 +219,7 @@ router.post("/register/finish", passkeyAuthLimiter, authenticateToken, async (re
           subject: "Synapse 已成功添加 Passkey",
           html: emailHtml,
           logTag: "Passkey添加通知",
-          checkQuota: false,
+          checkQuota: true,
         }).catch((e) => logger.warn(`[Passkey添加通知] 邮件发送失败: ${updatedUser.email}`, e));
       } catch (notifyErr) {
         logger.warn("[Passkey添加通知] 发送通知邮件失败:", notifyErr);
@@ -690,7 +690,7 @@ router.delete("/credentials/:credentialId", passkeyAuthLimiter, authenticateToke
           subject: "Synapse Passkey 已移除",
           html: emailHtml,
           logTag: "Passkey移除通知",
-          checkQuota: false,
+          checkQuota: true,
         }).catch((e) => logger.warn(`[Passkey移除通知] 邮件发送失败: ${user.email}`, e));
       } catch (notifyErr) {
         logger.warn("[Passkey移除通知] 发送通知邮件失败:", notifyErr);

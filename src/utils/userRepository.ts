@@ -52,7 +52,7 @@ const maybeSendUsageAlert = async (user: User, dailyUsage: number): Promise<void
       subject: `Synapse 每日用量警报 (${usagePercent}%)`,
       html: emailHtml,
       logTag: "用量警报通知",
-      checkQuota: false,
+      checkQuota: true,
     }).catch((error: unknown) => logger.warn(`[用量警报通知] 邮件发送失败: ${user.email}`, error));
   } catch (error) {
     logger.warn("[用量警报通知] 发送通知邮件失败:", error);

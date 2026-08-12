@@ -107,7 +107,7 @@ function maybeSendApiKeyLowBalanceEmail(params: {
         subject: "Synapse API Key 余额不足提醒",
         html: emailHtml,
         logTag: "API Key 余额不足提醒",
-        checkQuota: false,
+        checkQuota: true,
       });
     } catch (error) {
       logger.warn("[API Key 余额不足提醒] 通知邮件发送失败", {

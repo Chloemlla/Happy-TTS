@@ -489,7 +489,7 @@ export class AuthController {
         subject: "欢迎加入 Synapse",
         html: welcomeHtml,
         logTag: "欢迎邮件",
-        checkQuota: false,
+        checkQuota: true,
       }).catch((e) => {
         logger.warn(`[欢迎邮件] 发送失败: ${regInfo.email}`, e);
       });
@@ -646,7 +646,7 @@ export class AuthController {
                 subject: "Synapse 登录安全提醒：检测到多次登录失败",
                 html: alertEmailHtml,
                 logTag: "登录失败提醒",
-                checkQuota: false,
+                checkQuota: true,
               }).catch((e) => logger.warn(`[登录失败提醒] 邮件发送失败: ${targetUser.email}`, e));
             } catch (notifyErr) {
               logger.warn("[登录失败提醒] 发送通知邮件失败:", notifyErr);
@@ -670,7 +670,7 @@ export class AuthController {
                 subject: "Synapse 账号登录安全警报",
                 html: lockEmailHtml,
                 logTag: "账号锁定提醒",
-                checkQuota: false,
+                checkQuota: true,
               }).catch((e) => logger.warn(`[账号锁定提醒] 邮件发送失败: ${targetUser.email}`, e));
             } catch (notifyErr) {
               logger.warn("[账号锁定提醒] 发送通知邮件失败:", notifyErr);
@@ -755,7 +755,7 @@ export class AuthController {
             subject: "Synapse 异地登录安全提醒",
             html: emailHtml,
             logTag: "异地登录提醒",
-            checkQuota: false,
+            checkQuota: true,
           }).catch((e) => {
             logger.warn(`[异地登录] 提醒邮件发送失败: ${user.email}`, e);
           });
@@ -976,7 +976,7 @@ export class AuthController {
               subject: "Synapse 异地登录安全提醒",
               html: emailHtml,
               logTag: "异地登录提醒(Passkey)",
-              checkQuota: false,
+              checkQuota: true,
             }).catch((e) => {
               logger.warn(`[异地登录] Passkey路径提醒邮件发送失败: ${user.email}`, e);
             });
@@ -1157,7 +1157,7 @@ export class AuthController {
               subject: "Synapse 账号密码变更通知",
               html: emailHtml,
               logTag: "密码变更通知",
-              checkQuota: false,
+              checkQuota: true,
             }).catch((e) => {
               logger.warn(`[密码变更通知] 邮件发送失败: ${result.email}`, e);
             });
@@ -1312,7 +1312,7 @@ export class AuthController {
           subject: "Synapse 密码重置成功通知",
           html: notifyHtml,
           logTag: "密码重置成功通知",
-          checkQuota: false,
+          checkQuota: true,
         }).catch((e) => {
           logger.warn(`[密码重置成功通知] 邮件发送失败: ${email}`, e);
         });

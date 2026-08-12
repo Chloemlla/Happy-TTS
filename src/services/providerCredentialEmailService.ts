@@ -40,7 +40,7 @@ export async function sendProviderGeneratedPasswordEmail(params: {
       subject: "Synapse 账号密码凭据",
       html,
       logTag: "第三方注册密码凭据",
-      checkQuota: false,
+      checkQuota: true,
     });
 
     if (!result.success) {

@@ -115,7 +115,7 @@ router.post(
           subject: "Synapse 新的 API Key 已创建",
           html: emailHtml,
           logTag: "API Key 创建通知",
-          checkQuota: false,
+          checkQuota: true,
         }).catch((e) => {
           logger.warn(`[API Key 创建通知] 邮件发送失败: ${user.email}`, e);
         });

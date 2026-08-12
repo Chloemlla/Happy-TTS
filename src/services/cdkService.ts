@@ -515,7 +515,7 @@ export class CDKService {
               subject: "Synapse 兑换码使用成功通知",
               html: emailHtml,
               logTag: "CDK兑换通知",
-              checkQuota: false,
+              checkQuota: true,
             }).catch((e: unknown) => logger.warn(`[CDK兑换通知] 邮件发送失败: ${user.email}`, e));
           }
         } catch (notifyErr) {
