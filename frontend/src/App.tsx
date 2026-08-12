@@ -1539,7 +1539,7 @@ const App: React.FC = () => {
                   ref={mainRef}
                   tabIndex={-1}
                   role="main"
-                  className="max-w-7xl mx-auto py-6 focus:outline-none sm:px-6 lg:px-8 relative z-10"
+                  className="mx-auto w-full max-w-7xl px-4 py-6 focus:outline-none sm:px-6 lg:px-8 relative z-10"
                 >
                   <Suspense fallback={<RouteLoadingShell />}>
                     <AnimatePresence mode="wait">
