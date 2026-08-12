@@ -164,8 +164,8 @@ export const LoginPage: React.FC = () => {
     const loginTokenRef = React.useRef<string | null>(null);
 
     const adminLoginRequested = React.useMemo(() => {
-        return postLoginRedirect?.startsWith('/admin') || username.trim().toLowerCase() === 'admin';
-    }, [postLoginRedirect, username]);
+        return postLoginRedirect?.startsWith('/admin');
+    }, [postLoginRedirect]);
     const completeLogin = React.useCallback(() => {
         // If an external redirect_uri was provided, send the token back to the calling app
         if (redirectUri && loginTokenRef.current) {
