@@ -1,6 +1,5 @@
 import type { IncomingHttpHeaders } from "node:http";
 import mongoose, { Schema } from "mongoose";
-import { Webhook as SvixWebhook } from "svix";
 
 // WebhookEvent document interface
 interface WebhookEventDoc {
@@ -471,8 +470,10 @@ export async function getResendSecret(routeKey?: string): Promise<string> {
 
 /**
  * 使用提供的密钥执行 Svix 验证
+ *
+ * svix 2.x 是纯 ESM 包，后端编译产物是 CommonJS，只能动态 import。
  */
-export function verifyResendPayload(payload: string, headers: IncomingHttpHeaders, rawSecret: string) {
+export async function verifyResendPayload(payload: string, headers: IncomingHttpHeaders, rawSecret: string) {
   // Resend 文档要求：先 base64 解码（若解码失败则按明文处理）
   let secret: string;
   try {
@@ -488,12 +489,13 @@ export function verifyResendPayload(payload: string, headers: IncomingHttpHeader
   if (!svixHeaders["svix-id"] || !svixHeaders["svix-timestamp"] || !svixHeaders["svix-signature"]) {
     throw new Error("缺少 Svix 签名头");
   }
-  const wh = new SvixWebhook(secret);
+  const { Webhook } = await import("svix");
+  const wh = new Webhook(secret);
   return wh.verify(payload, svixHeaders as any);
 }
 
 /**
- * 兼容旧用法：仅从 ENV 中解析（同步），不走 DB
+ * 兼容旧用法：仅从 ENV 中解析密钥，不走 DB
  */
 export function verifyResendWebhook(payload: string, headers: IncomingHttpHeaders, key?: string) {
   // 支持多路由多密钥：优先使用 DB（webhook_settings），回退到 RESEND_WEBHOOK_SECRET_<KEY> / WEBHOOK_SECRET_<KEY>

@@ -17,7 +17,7 @@ export class WebhookController {
       let event: any;
       try {
         const secret = await getResendSecret(routeKey);
-        event = verifyResendPayload(payload, req.headers, secret);
+        event = await verifyResendPayload(payload, req.headers, secret);
       } catch (e) {
         logger.warn("[ResendWebhook] 签名验证失败", { error: e instanceof Error ? e.message : String(e) });
         return res.status(400).json({ error: "Invalid webhook signature" });
