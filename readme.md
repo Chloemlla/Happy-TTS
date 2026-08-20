@@ -825,7 +825,7 @@ VITE_OUTEMAIL_ENABLED=true                      # 是否启用外部邮件功能
 | GET | `/api/cdict/languages` | 上游支持的语言列表 |
 | GET | `/api/cdict/tts` | 单词/短语朗读，`source=engine` 走在线合成、`source=youdao` 走词典静态音频，返回音频字节 |
 | GET | `/api/cdict/donate` | 赞赏渠道与说明文案（`{ notice, channels: [{ id, name, hint }] }`），关闭或无可用渠道时返回 404 |
-| GET | `/api/cdict/donate/:channel` | 指定渠道的收款码图片字节，优先取管理端配置的 https 直链（缓存 10 分钟），取不到回落到 `src/assets/donation/<id>.(png\|jpg)` |
+| GET | `/api/cdict/donate/:channel` | 指定渠道的收款码图片字节，优先取管理端配置的外部图床 https 直链（缓存 10 分钟），取不到回落到 `src/assets/donation/<id>.(png\|jpg)`；直链拒绝本站地址、本接口自身与内网地址，出站请求带 `x-cdict-donate-proxy` 标记以阻断跳转回环 |
 
 赞赏配置存在 `runtime_config_settings` 的 `CDICT_DONATION` 键，由超级管理员在 env-manager 的「CDict 赞赏码配置」分区维护：
 

@@ -88,6 +88,7 @@ export default function SelfContainedCDictDonationConfigSection({ prefersReduced
       if (!CHANNEL_ID_PATTERN.test(channel.id)) { setNotification({ message: `渠道 id "${channel.id || '空'}" 不合法，只允许小写字母、数字和连字符`, type: 'error' }); return; }
       if (!channel.name) { setNotification({ message: `渠道 ${channel.id} 缺少显示名称`, type: 'error' }); return; }
       if (channel.imageUrl && !/^https:\/\//i.test(channel.imageUrl)) { setNotification({ message: `渠道 ${channel.id} 的图片地址必须是 https 直链`, type: 'error' }); return; }
+      if (channel.imageUrl && /\/api\/cdict\/donate(\/|$)/i.test(channel.imageUrl)) { setNotification({ message: `渠道 ${channel.id} 的图片地址不能填赞赏码接口自身，否则服务端会自己代理自己；留空即用内置图片`, type: 'error' }); return; }
     }
     const ids = new Set(payloadChannels.map((channel) => channel.id));
     if (ids.size !== payloadChannels.length) { setNotification({ message: '渠道 id 不能重复', type: 'error' }); return; }

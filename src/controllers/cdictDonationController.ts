@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import logger from "../utils/logger";
 import {
+  DONATE_LOOP_HEADER,
   deleteDonationSetting,
   getDonationImage,
   getDonationSetting,
@@ -48,8 +49,10 @@ export class CDictDonationController {
   /** GET /api/cdict/donate/:channel —— 收款码图片字节。 */
   public static async image(req: Request, res: Response): Promise<void> {
     const channelId = String(req.params.channel || "");
+    // 带着回环标记进来说明是本服务出站取图被绕回了自己，这一层只许读内置图片。
+    const allowRemote = !req.headers[DONATE_LOOP_HEADER];
     try {
-      const image = await getDonationImage(channelId);
+      const image = await getDonationImage(channelId, allowRemote);
       if (!image) {
         fail(res, 404, "该赞赏渠道当前没有可用的收款码");
         return;

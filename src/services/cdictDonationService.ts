@@ -13,6 +13,9 @@ import { mongoose } from "./mongoService";
  */
 
 const CONFIG_KEY = "CDICT_DONATION";
+const DONATE_ROUTE_PREFIX = "/api/cdict/donate";
+/** 出站请求带上这个标记；本接口收到带标记的请求就只回内置图片，杜绝跳转绕回来形成递归。 */
+export const DONATE_LOOP_HEADER = "x-cdict-donate-proxy";
 const ASSET_DIR_CANDIDATES = [
   path.join(__dirname, "..", "assets", "donation"),
   path.join(process.cwd(), "src", "assets", "donation"),
@@ -63,6 +66,23 @@ const DEFAULT_CONFIG: CDictDonationConfig = {
 
 const remoteCache = new Map<string, { image: CDictDonationImage; expiresAt: number }>();
 
+const LOOPBACK_HOSTS = /^(localhost|0\.0\.0\.0|::1|\[::1\])$/i;
+const PRIVATE_IPV4 = /^(10\.|127\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
+
+/** 本部署自身的域名，用来拒绝"把图片地址填成本站地址"导致的自我代理。 */
+function ownHostnames(): Set<string> {
+  const hosts = new Set<string>(["tts.chloemlla.com"]);
+  for (const raw of [process.env.VITE_API_URL, process.env.BASE_URL, process.env.FRONTEND_URL]) {
+    if (!raw) continue;
+    try {
+      hosts.add(new URL(raw).hostname.toLowerCase());
+    } catch {
+      // 环境变量配错就当没配，不影响赞赏码。
+    }
+  }
+  return hosts;
+}
+
 function cloneDefaults(): CDictDonationConfig {
   return {
     enabled: DEFAULT_CONFIG.enabled,
@@ -82,7 +102,7 @@ function asBoolean(value: unknown, fallback: boolean): boolean {
   return fallback;
 }
 
-/** 只接受 https 直链，避免把内网地址或 data: 塞进配置后由服务端代取。 */
+/** 只接受指向外部图床的 https 直链：本站地址、本接口自身与内网地址都拒掉，避免服务端自我代理。 */
 function normalizeImageUrl(value: unknown): string {
   const raw = asString(value, "", 512);
   if (!raw) return "";
@@ -94,6 +114,16 @@ function normalizeImageUrl(value: unknown): string {
   }
   if (parsed.protocol !== "https:") {
     throw new Error("图片地址必须使用 https");
+  }
+  const host = parsed.hostname.toLowerCase();
+  if (LOOPBACK_HOSTS.test(host) || PRIVATE_IPV4.test(host)) {
+    throw new Error("图片地址不能指向本机或内网");
+  }
+  if (parsed.pathname.toLowerCase().startsWith(DONATE_ROUTE_PREFIX)) {
+    throw new Error("图片地址不能填赞赏码接口自身，否则服务端会自己代理自己");
+  }
+  if (ownHostnames().has(host)) {
+    throw new Error("图片地址不能指向本站；留空即使用服务端内置图片，填写时请给图床直链");
   }
   return parsed.toString();
 }
@@ -235,6 +265,7 @@ async function fetchRemoteImage(url: string): Promise<CDictDonationImage> {
     maxContentLength: MAX_IMAGE_BYTES,
     maxRedirects: 2,
     validateStatus: () => true,
+    headers: { [DONATE_LOOP_HEADER]: "1" },
   });
   if (response.status < 200 || response.status >= 300) {
     throw new Error(`图片源返回 ${response.status}`);
@@ -255,15 +286,21 @@ async function fetchRemoteImage(url: string): Promise<CDictDonationImage> {
 /**
  * 取某个渠道的收款码字节：优先后台配置的远端图片，取不到则回落到服务端内置图片；
  * 两者都没有时返回 null，由控制器给出 404。
+ *
+ * [allowRemote] 为 false 时只读内置图片——请求带着 [DONATE_LOOP_HEADER] 进来，说明是本服务
+ * 出站取图被跳转绕回了自己，此时绝不能再发一次出站请求。
  */
-export async function getDonationImage(channelId: string): Promise<CDictDonationImage | null> {
+export async function getDonationImage(
+  channelId: string,
+  allowRemote = true,
+): Promise<CDictDonationImage | null> {
   const id = channelId.trim().toLowerCase();
   if (!CHANNEL_ID.test(id)) return null;
   const config = await getPublicDonationConfig();
   if (!config.enabled) return null;
   const channel = config.channels.find((item) => item.id === id);
   if (!channel) return null;
-  if (channel.imageUrl) {
+  if (channel.imageUrl && allowRemote) {
     try {
       return await fetchRemoteImage(channel.imageUrl);
     } catch (error) {

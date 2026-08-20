@@ -91,6 +91,11 @@ export default function CDictDonationConfigSection({
           ；填写后必须是 https 直链，由服务端代取并缓存 10 分钟，取不到时自动回落到内置图片。
         </p>
         <p className="mt-1">渠道 id 只允许小写字母、数字和连字符，最多 8 个渠道；客户端按 id 请求图片。</p>
+        <p className="mt-1">
+          图片地址必须是外部图床直链，不能填本站地址或
+          <code className="mx-1 rounded bg-white/80 px-1">/api/cdict/donate/…</code>
+          本身——那会让服务端自己代理自己。想用本站图片就把地址留空。
+        </p>
       </div>
 
       <label className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700">
