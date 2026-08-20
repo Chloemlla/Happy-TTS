@@ -18,7 +18,7 @@ const BlockedIPSchema = new mongoose.Schema(
 );
 const BlockedIPModel = mongoose.models.BlockedIP || mongoose.model("BlockedIP", BlockedIPSchema);
 
-interface TamperEvent {
+export interface TamperEvent {
   id?: string;
   // 基础信息
   elementId?: string;
@@ -166,9 +166,11 @@ class TamperService {
   }
 
   private async removeBlockedIP(ip: string): Promise<void> {
+    // 运行时兜底：调用方来自 HTTP 层，非字符串一律拒绝，避免查询对象注入
+    if (typeof ip !== "string") return;
     try {
       if (mongoose.connection.readyState === 1) {
-        await BlockedIPModel.deleteOne({ ip });
+        await BlockedIPModel.deleteOne({ ip: { $eq: ip } });
         return;
       }
     } catch (error) {

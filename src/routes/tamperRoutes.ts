@@ -5,7 +5,7 @@ import { authenticateSuperAdmin } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { replayProtection } from "../middleware/replayProtection";
 import { createLimiter } from "../middleware/routeLimiters";
-import { tamperService } from "../services/tamperService";
+import { type TamperEvent, tamperService } from "../services/tamperService";
 import logger from "../utils/logger";
 
 const router = Router();
@@ -21,6 +21,15 @@ function boundedNumber(value: unknown, fallback: number, min: number, max: numbe
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.min(max, Math.max(min, Math.floor(parsed)));
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+function optionalRecord(value: unknown): Record<string, unknown> | undefined {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
+  return value as Record<string, unknown>;
 }
 
 /**
@@ -222,22 +231,32 @@ router.post("/report-tampering", async (req, res) => {
       return res.status(400).json({ error: "无效的请求数据" });
     }
 
-    const tamperEvent = {
-      ...req.body,
-      ip: req.ip || req.connection.remoteAddress || "unknown",
-      userAgent: req.headers["user-agent"] || req.body.userAgent,
-      // 确保必要字段存在
-      elementId: req.body.elementId || "unknown-element",
-      timestamp: req.body.timestamp || new Date().toISOString(),
-      url: req.body.url || "unknown-url",
+    const body = req.body as Record<string, unknown>;
+    const clientIp = req.ip || req.connection.remoteAddress || "unknown";
+    // 逐字段白名单取值，不再展开 req.body：避免客户端注入任意键（含 ip/id）流入存储与数据库查询
+    const tamperEvent: TamperEvent = {
+      ip: clientIp,
+      userAgent: req.headers["user-agent"] || optionalString(body.userAgent),
+      elementId: optionalString(body.elementId) || "unknown-element",
+      timestamp: optionalString(body.timestamp) || new Date().toISOString(),
+      url: optionalString(body.url) || "unknown-url",
+      eventType: optionalString(body.eventType),
+      tamperType: optionalString(body.tamperType) as TamperEvent["tamperType"],
+      detectionMethod: optionalString(body.detectionMethod),
+      originalContent: optionalString(body.originalContent),
+      tamperContent: optionalString(body.tamperContent),
+      filePath: optionalString(body.filePath),
+      checksum: optionalString(body.checksum),
+      attempts: Number.isFinite(Number(body.attempts)) ? Number(body.attempts) : undefined,
+      additionalInfo: optionalRecord(body.additionalInfo),
       signed: Boolean(req.headers["x-signature"]),
     };
 
     const storedEvent = await tamperService.recordTamperEvent(tamperEvent);
 
     // 检查是否需要立即返回封禁响应
-    if (tamperService.isIPBlocked(tamperEvent.ip)) {
-      const details = tamperService.getBlockDetails(tamperEvent.ip);
+    if (tamperService.isIPBlocked(clientIp)) {
+      const details = tamperService.getBlockDetails(clientIp);
       return res.status(403).json({
         error: "您的访问已被临时封禁",
         reason: details?.reason,
