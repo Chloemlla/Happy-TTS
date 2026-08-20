@@ -82,7 +82,10 @@ export async function recordCrashReport(
     .slice(0, STACK_LINES)
     .map((l) => l.slice(0, LINE_MAX_LENGTH));
   const cleanStackJoined = cleanStackLines.join("\n").toLowerCase();
-  const versionCode = request.versionCode ?? 0;
+  // versionCode 来自客户端 JSON，可能是对象/数组等查询操作符，必须先归一化为有限整数
+  const versionCode = Number.isFinite(Number(request.versionCode))
+    ? Math.trunc(Number(request.versionCode))
+    : 0;
   const groupKey = crypto
     .createHash("sha256")
     .update(cleanStackJoined + "|" + versionCode)
@@ -119,7 +122,7 @@ export async function recordCrashReport(
 
   // ── Update AdminCrashReport aggregation ───────────────────────────────
   const updated = await AdminCrashReport.findOneAndUpdate(
-    { groupKey, versionCode },
+    { groupKey: { $eq: groupKey }, versionCode: { $eq: versionCode } },
     {
       $inc: { count: 1 },
       $addToSet: { devices: request.deviceInstallationId },

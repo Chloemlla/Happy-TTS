@@ -59,19 +59,19 @@ router.get("/temp-fingerprint/:fingerprint", fingerprintLimiter, checkTempFinger
 // 统计与清理（管理员）
 router.post(
   "/cleanup-expired-fingerprints",
-  authenticateSuperAdmin,
   adminLimiter,
+  authenticateSuperAdmin,
   auditLog({ module: "system", action: "system.fingerprintCleanup" }),
   cleanupExpiredFingerprints,
 );
-router.get("/fingerprint-stats", authenticateAdmin, adminLimiter, getFingerprintStats);
-router.get("/ip-ban-stats", authenticateAdmin, adminLimiter, getIpBanStats);
+router.get("/fingerprint-stats", adminLimiter, authenticateAdmin, getFingerprintStats);
+router.get("/ip-ban-stats", adminLimiter, authenticateAdmin, getIpBanStats);
 
 // IP 封禁管理（管理员）
 router.post(
   "/ban-ip",
-  authenticateSuperAdmin,
   adminLimiter,
+  authenticateSuperAdmin,
   auditLog({
     module: "ipban",
     action: "ipban.ban",
@@ -81,15 +81,15 @@ router.post(
 );
 router.post(
   "/unban-ip",
-  authenticateSuperAdmin,
   adminLimiter,
+  authenticateSuperAdmin,
   auditLog({ module: "ipban", action: "ipban.unban", extractDetail: (req) => ({ ipAddress: req.body.ipAddress }) }),
   unbanIp,
 );
 router.post(
   "/ban-ips",
-  authenticateSuperAdmin,
   adminLimiter,
+  authenticateSuperAdmin,
   auditLog({
     module: "ipban",
     action: "ipban.batchBan",
@@ -99,8 +99,8 @@ router.post(
 );
 router.post(
   "/unban-ips",
-  authenticateSuperAdmin,
   adminLimiter,
+  authenticateSuperAdmin,
   auditLog({
     module: "ipban",
     action: "ipban.batchUnban",
@@ -110,25 +110,25 @@ router.post(
 );
 
 // 调度器（管理员）
-router.get("/scheduler-status", authenticateAdmin, adminLimiter, getSchedulerStatus);
+router.get("/scheduler-status", adminLimiter, authenticateAdmin, getSchedulerStatus);
 router.post(
   "/manual-cleanup",
-  authenticateSuperAdmin,
   adminLimiter,
+  authenticateSuperAdmin,
   auditLog({ module: "system", action: "system.manualCleanup" }),
   manualCleanup,
 );
 router.post(
   "/scheduler/start",
-  authenticateSuperAdmin,
   adminLimiter,
+  authenticateSuperAdmin,
   auditLog({ module: "system", action: "system.schedulerStart" }),
   startScheduler,
 );
 router.post(
   "/scheduler/stop",
-  authenticateSuperAdmin,
   adminLimiter,
+  authenticateSuperAdmin,
   auditLog({ module: "system", action: "system.schedulerStop" }),
   stopScheduler,
 );
@@ -209,8 +209,8 @@ router.post("/secure-captcha-config", publicLimiter, secureCaptchaConfig);
  */
 router.post(
   "/config",
-  authenticateSuperAdmin,
   configLimiter,
+  authenticateSuperAdmin,
   auditLog({ module: "system", action: "system.turnstileConfigUpdate" }),
   updateTurnstileConfig,
 );
@@ -229,8 +229,8 @@ router.post(
  */
 router.delete(
   "/config/:key",
-  authenticateSuperAdmin,
   configLimiter,
+  authenticateSuperAdmin,
   auditLog({ module: "system", action: "system.turnstileConfigDelete", extractDetail: (req) => ({ key: req.params.key }) }),
   deleteTurnstileConfig,
 );
@@ -246,7 +246,7 @@ router.delete(
  *       200:
  *         description: 获取成功
  */
-router.get("/hcaptcha-config", authenticateAdmin, configLimiter, getHCaptchaConfig);
+router.get("/hcaptcha-config", configLimiter, authenticateAdmin, getHCaptchaConfig);
 
 /**
  * @openapi
@@ -261,8 +261,8 @@ router.get("/hcaptcha-config", authenticateAdmin, configLimiter, getHCaptchaConf
  */
 router.post(
   "/hcaptcha-config",
-  authenticateSuperAdmin,
   configLimiter,
+  authenticateSuperAdmin,
   auditLog({ module: "system", action: "system.hcaptchaConfigUpdate" }),
   updateHCaptchaConfig,
 );
@@ -280,8 +280,8 @@ router.post(
  */
 router.delete(
   "/hcaptcha-config/:key",
-  authenticateSuperAdmin,
   configLimiter,
+  authenticateSuperAdmin,
   auditLog({ module: "system", action: "system.hcaptchaConfigDelete", extractDetail: (req) => ({ key: req.params.key }) }),
   deleteHCaptchaConfig,
 );
@@ -300,11 +300,11 @@ router.post("/hcaptcha-verify", publicLimiter, verifyHCaptcha);
 // IP 封禁同步（管理员）
 router.post(
   "/sync-ipbans",
-  authenticateSuperAdmin,
   adminLimiter,
+  authenticateSuperAdmin,
   auditLog({ module: "ipban", action: "ipban.sync" }),
   syncIpBans,
 );
-router.get("/sync-status", authenticateAdmin, adminLimiter, getSyncStatus);
+router.get("/sync-status", adminLimiter, authenticateAdmin, getSyncStatus);
 
 export default router;

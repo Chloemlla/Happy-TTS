@@ -47,10 +47,13 @@ const isSafeImageUrl = (url?: string) => {
   }
 };
 
+// HTML 元字符在 URL 中必须是百分号编码形式，这里统一转义，避免渲染层被误解释
+const escapeUrlMetachars = (url: string) => url.replace(/["'<>]/g, encodeURIComponent);
+
 // 图片预览组件
 const ImagePreview: React.FC<{ src?: string; alt?: string }> = ({ src, alt = '通缉犯照片' }) => {
   const [error, setError] = useState(false);
-  const safeSrc = isSafeImageUrl(src) ? src : undefined;
+  const safeSrc = src && isSafeImageUrl(src) ? escapeUrlMetachars(src) : undefined;
 
   if (!safeSrc || error) {
     return (

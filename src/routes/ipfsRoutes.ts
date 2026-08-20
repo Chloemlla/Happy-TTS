@@ -49,6 +49,14 @@ const shortlinkLimiter = createLimiter({
   message: "访问过于频繁，请稍后再试",
 });
 
+// IPFS 配置读写限速（管理员）
+const settingsLimiter = createLimiter({
+  name: "ipfsSettings",
+  profile: "admin",
+  category: "admin",
+  message: "IPFS 配置操作过于频繁，请稍后再试",
+});
+
 /**
  * @openapi
  * /api/ipfs/upload:
@@ -164,7 +172,7 @@ router.post("/upload", ipfsApiKeyAuth, uploadLimiter, upload.single("file"), IPF
  *       500:
  *         description: 服务器错误
  */
-router.get("/settings", authenticateAdmin, IPFSController.getConfig);
+router.get("/settings", settingsLimiter, authenticateAdmin, IPFSController.getConfig);
 
 /**
  * @openapi
@@ -220,6 +228,7 @@ router.get("/settings", authenticateAdmin, IPFSController.getConfig);
  */
 router.post(
   "/settings",
+  settingsLimiter,
   authenticateSuperAdmin,
   auditLog({ module: "ipfs", action: "ipfs.settings.set" }),
   IPFSController.setConfig,
@@ -254,6 +263,7 @@ router.post(
  */
 router.post(
   "/settings/test",
+  settingsLimiter,
   authenticateSuperAdmin,
   auditLog({ module: "ipfs", action: "ipfs.settings.test" }),
   IPFSController.testConfig,

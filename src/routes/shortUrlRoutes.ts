@@ -87,9 +87,9 @@ router.get("/admin/export", authMiddleware, adminAuthMiddleware, adminLimiter, S
 // 管理员功能：删除所有短链数据
 router.delete(
   "/admin/deleteall",
+  adminLimiter,
   authMiddleware,
   authenticateSuperAdmin,
-  adminLimiter,
   replayGuard,
   auditLog({ module: "shorturl", action: "shorturl.deleteAll" }),
   ShortUrlController.deleteAllShortUrls,
@@ -98,9 +98,9 @@ router.delete(
 // 管理员功能：导入短链数据
 router.post(
   "/admin/import",
+  adminLimiter,
   authMiddleware,
   authenticateSuperAdmin,
-  adminLimiter,
   replayGuard,
   auditLog({ module: "shorturl", action: "shorturl.import", extractDetail: (req) => ({ count: Array.isArray((req as any).body?.items) ? (req as any).body.items.length : undefined }) }),
   ShortUrlController.importShortUrls,
@@ -143,11 +143,11 @@ router.get(
 // 设置/更新 AES_KEY
 router.post(
   "/admin/aes-key",
-  authMiddleware,
-  authenticateSuperAdmin,
   adminSensitiveLimiter,
   adminWriteLimiter,
   adminLimiter,
+  authMiddleware,
+  authenticateSuperAdmin,
   replayGuard,
   auditLog({ module: "shorturl", action: "shorturl.aesKeySet", captureBody: false }),
   async (req, res) => {
@@ -172,11 +172,11 @@ router.post(
 // 删除 AES_KEY（恢复为仅环境变量或无加密）
 router.delete(
   "/admin/aes-key",
-  authMiddleware,
-  authenticateSuperAdmin,
   adminSensitiveLimiter,
   adminWriteLimiter,
   adminLimiter,
+  authMiddleware,
+  authenticateSuperAdmin,
   replayGuard,
   auditLog({ module: "shorturl", action: "shorturl.aesKeyDelete" }),
   async (_req, res) => {

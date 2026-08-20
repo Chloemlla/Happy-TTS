@@ -16,19 +16,29 @@ import {
 } from "../controllers/cdkController";
 import { auditLog } from "../middleware/auditLog";
 import { authenticateAdmin, authenticateSuperAdmin } from "../middleware/auth";
+import { createLimiter } from "../middleware/routeLimiters";
 
 const router = Router();
+
+// CDK 管理接口限速（在鉴权之前执行，避免未授权请求打到数据库）
+const cdkAdminLimiter = createLimiter({
+  name: "cdkAdmin",
+  profile: "admin",
+  category: "admin",
+  message: "CDK 管理操作过于频繁，请稍后再试",
+});
 
 // 公共API
 router.post("/redeem", redeemCDK);
 router.get("/redeemed", getUserRedeemedResources);
 
 // 管理员API
-router.get("/", authenticateAdmin, getCDKs);
-router.get("/stats", authenticateAdmin, getCDKStats);
-router.get("/total-count", authenticateAdmin, getTotalCDKCount);
+router.get("/", cdkAdminLimiter, authenticateAdmin, getCDKs);
+router.get("/stats", cdkAdminLimiter, authenticateAdmin, getCDKStats);
+router.get("/total-count", cdkAdminLimiter, authenticateAdmin, getTotalCDKCount);
 router.post(
   "/generate",
+  cdkAdminLimiter,
   authenticateSuperAdmin,
   auditLog({
     module: "cdk",
@@ -39,25 +49,28 @@ router.post(
 );
 router.put(
   "/:id",
+  cdkAdminLimiter,
   authenticateSuperAdmin,
   auditLog({ module: "cdk", action: "cdk.update", extractTarget: (req) => ({ targetId: req.params.id }) }),
   updateCDK,
 );
-router.delete("/all", authenticateSuperAdmin, auditLog({ module: "cdk", action: "cdk.deleteAll" }), deleteAllCDKs);
-router.delete("/unused", authenticateSuperAdmin, auditLog({ module: "cdk", action: "cdk.deleteUnused" }), deleteUnusedCDKs);
+router.delete("/all", cdkAdminLimiter, authenticateSuperAdmin, auditLog({ module: "cdk", action: "cdk.deleteAll" }), deleteAllCDKs);
+router.delete("/unused", cdkAdminLimiter, authenticateSuperAdmin, auditLog({ module: "cdk", action: "cdk.deleteUnused" }), deleteUnusedCDKs);
 router.delete(
   "/:id",
+  cdkAdminLimiter,
   authenticateSuperAdmin,
   auditLog({ module: "cdk", action: "cdk.delete", extractTarget: (req) => ({ targetId: req.params.id }) }),
   deleteCDK,
 );
 router.post(
   "/batch-delete",
+  cdkAdminLimiter,
   authenticateSuperAdmin,
   auditLog({ module: "cdk", action: "cdk.batchDelete", extractDetail: (req) => ({ count: req.body.ids?.length }) }),
   batchDeleteCDKs,
 );
-router.post("/ks/import", authenticateSuperAdmin, auditLog({ module: "cdk", action: "cdk.import" }), importCDKs);
-router.get("/export", authenticateAdmin, exportCDKs);
+router.post("/ks/import", cdkAdminLimiter, authenticateSuperAdmin, auditLog({ module: "cdk", action: "cdk.import" }), importCDKs);
+router.get("/export", cdkAdminLimiter, authenticateAdmin, exportCDKs);
 
 export default router;

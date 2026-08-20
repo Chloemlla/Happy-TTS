@@ -4,10 +4,18 @@ import { auditLog } from "../middleware/auditLog";
 import { authenticateSuperAdmin } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { replayProtection } from "../middleware/replayProtection";
+import { createLimiter } from "../middleware/routeLimiters";
 import { tamperService } from "../services/tamperService";
 import logger from "../utils/logger";
 
 const router = Router();
+
+const tamperAdminLimiter = createLimiter({
+  name: "tamperAdmin",
+  profile: "admin",
+  category: "admin",
+  message: "防篡改管理操作过于频繁，请稍后再试",
+});
 
 function boundedNumber(value: unknown, fallback: number, min: number, max: number): number {
   const parsed = Number(value);
@@ -280,7 +288,7 @@ router.get("/admin/blocked", authenticateToken, adminOnly, async (_req, res) => 
   }
 });
 
-router.post("/admin/blocked", authenticateToken, authenticateSuperAdmin, replayProtection(), auditLog({ module: "security", action: "security.tamperBlock", extractDetail: (req) => ({ ip: (req as any).body?.ip, reason: (req as any).body?.reason }) }), async (req, res) => {
+router.post("/admin/blocked", tamperAdminLimiter, authenticateToken, authenticateSuperAdmin, replayProtection(), auditLog({ module: "security", action: "security.tamperBlock", extractDetail: (req) => ({ ip: (req as any).body?.ip, reason: (req as any).body?.reason }) }), async (req, res) => {
   try {
     const ip = typeof req.body?.ip === "string" ? req.body.ip : "";
     const reason = typeof req.body?.reason === "string" ? req.body.reason : "管理员手动封禁";
@@ -293,7 +301,7 @@ router.post("/admin/blocked", authenticateToken, authenticateSuperAdmin, replayP
   }
 });
 
-router.delete("/admin/blocked/:ip", authenticateToken, authenticateSuperAdmin, replayProtection(), auditLog({ module: "security", action: "security.tamperUnblock", extractTarget: (req) => ({ targetId: req.params.ip }) }), async (req, res) => {
+router.delete("/admin/blocked/:ip", tamperAdminLimiter, authenticateToken, authenticateSuperAdmin, replayProtection(), auditLog({ module: "security", action: "security.tamperUnblock", extractTarget: (req) => ({ targetId: req.params.ip }) }), async (req, res) => {
   try {
     const ipParam = req.params.ip;
     const ip = Array.isArray(ipParam) ? ipParam[0] ?? "" : ipParam;
