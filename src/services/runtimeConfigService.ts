@@ -617,6 +617,9 @@ export class RuntimeConfigService {
     if (!loadedKeys.has("NEXAI_SIGNING")) {
       runtimeConfigCache.nexaiSigning = cloneRuntimeConfigDefaults(defaults).nexaiSigning;
     }
+    // CDict signing is env-only (no NEXAI_SIGNING-style Mongo doc), so it always
+    // tracks the configured defaults.
+    runtimeConfigCache.cdictSigning = cloneRuntimeConfigDefaults(defaults).cdictSigning;
   }
 
   static getCachedConfig(): RuntimeConfigDefaults {

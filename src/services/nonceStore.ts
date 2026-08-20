@@ -27,6 +27,7 @@ export interface NonceStoreConfig {
   namespace?: string; // 本地单例命名空间，避免不同业务共享 TTL
   redisPrefix?: string; // Redis key 前缀
   redisEnabled?: boolean; // 是否允许异步 Redis backing store
+  sharedClaimsRequired?: boolean; // 原子申领是否必须使用共享存储
 }
 
 const createNonceRedisClient = (url: string) => createClient({ url });
@@ -91,12 +92,14 @@ class RedisNonceClientFactory {
 
 export class NonceStore {
   private store = new Map<string, NonceRecord>();
+  private claimedNonces = new Map<string, number>();
   private cleanupTimer?: NodeJS.Timeout;
   private readonly maxSize: number;
   private readonly cleanupInterval: number;
   private readonly ttlMs: number;
   private readonly redisPrefix: string;
   private readonly redisEnabled: boolean;
+  private readonly sharedClaimsRequired: boolean;
   private readonly consumedMarkerTtlMs: number;
 
   constructor(config: NonceStoreConfig = {}) {
@@ -105,6 +108,7 @@ export class NonceStore {
     this.ttlMs = config.ttlMs || 5 * 60 * 1000; // 5 minutes
     this.redisPrefix = config.redisPrefix || "nonce";
     this.redisEnabled = config.redisEnabled !== false;
+    this.sharedClaimsRequired = config.sharedClaimsRequired === true;
     this.consumedMarkerTtlMs = Math.max(this.ttlMs, 60 * 1000);
 
     this.startCleanupTimer();
@@ -272,6 +276,69 @@ export class NonceStore {
     }
   }
 
+  async claimNonceAsync(
+    nonceId: string,
+    ttlMs: number,
+    clientIp?: string,
+    userAgent?: string,
+  ): Promise<{ success: boolean; reason?: string; record?: NonceRecord }> {
+    if (!nonceId || typeof nonceId !== "string") {
+      return { success: false, reason: "invalid_nonce_id" };
+    }
+    if (!Number.isFinite(ttlMs) || ttlMs <= 0) {
+      return { success: false, reason: "invalid_nonce_ttl" };
+    }
+
+    const now = Date.now();
+    const effectiveTtlMs = Math.max(1_000, Math.round(ttlMs));
+    const record: NonceRecord = {
+      id: nonceId,
+      issuedAt: now,
+      consumedAt: now,
+      clientIp,
+      userAgent,
+    };
+    const redisConfigured =
+      this.redisEnabled &&
+      Boolean(process.env.REDIS_URL) &&
+      process.env.SMART_HUMAN_CHECK_NONCE_STORE !== "memory";
+
+    if (redisConfigured) {
+      const client = await RedisNonceClientFactory.getClient();
+      if (!client) return { success: false, reason: "nonce_store_unavailable" };
+      try {
+        const result = await client.set(this.consumedRedisKey(nonceId), JSON.stringify(record), {
+          PX: effectiveTtlMs,
+          NX: true,
+        });
+        return result === "OK"
+          ? { success: true, record }
+          : { success: false, reason: "nonce_already_consumed" };
+      } catch (error) {
+        logger.warn("[NonceStore][Redis] atomic nonce claim failed", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        return { success: false, reason: "nonce_store_unavailable" };
+      }
+    }
+
+    if (this.sharedClaimsRequired) {
+      return { success: false, reason: "nonce_store_unavailable" };
+    }
+
+    this.cleanupClaimedNonces(now);
+    const existingExpiry = this.claimedNonces.get(nonceId);
+    if (existingExpiry && existingExpiry > now) {
+      return { success: false, reason: "nonce_already_consumed" };
+    }
+    if (this.claimedNonces.size >= this.maxSize) {
+      return { success: false, reason: "nonce_store_capacity" };
+    }
+
+    this.claimedNonces.set(nonceId, now + effectiveTtlMs);
+    return { success: true, record };
+  }
+
   /**
    * 检查 nonce 是否存在且有效
    */
@@ -295,7 +362,7 @@ export class NonceStore {
    */
   cleanup(): number {
     const now = Date.now();
-    let cleanedCount = 0;
+    let cleanedCount = this.cleanupClaimedNonces(now);
 
     for (const [nonceId, record] of this.store.entries()) {
       if (now - record.issuedAt > this.ttlMs) {
@@ -474,7 +541,19 @@ export class NonceStore {
       this.cleanupTimer = undefined;
     }
     this.store.clear();
+    this.claimedNonces.clear();
     logger.debug("[NonceStore] 已销毁存储和清理定时器");
+  }
+
+  private cleanupClaimedNonces(now: number): number {
+    let cleanedCount = 0;
+    for (const [nonceId, expiresAt] of this.claimedNonces.entries()) {
+      if (expiresAt <= now) {
+        this.claimedNonces.delete(nonceId);
+        cleanedCount++;
+      }
+    }
+    return cleanedCount;
   }
 
   private activeRedisKey(nonceId: string): string {

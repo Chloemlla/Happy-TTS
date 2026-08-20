@@ -89,6 +89,55 @@ describe("NonceStore", () => {
     }, 7000);
   });
 
+  describe("atomic claim", () => {
+    it("should reject a repeated claim", async () => {
+      const localStore = new NonceStore({ maxSize: 2, ttlMs: 60_000, redisEnabled: false });
+      try {
+        expect((await localStore.claimNonceAsync("claim-1", 60_000)).success).toBe(true);
+        expect(await localStore.claimNonceAsync("claim-1", 60_000)).toMatchObject({
+          success: false,
+          reason: "nonce_already_consumed",
+        });
+      } finally {
+        localStore.destroy();
+      }
+    });
+
+    it("should reject local claims when shared storage is required", async () => {
+      const sharedStore = new NonceStore({
+        ttlMs: 60_000,
+        redisEnabled: false,
+        sharedClaimsRequired: true,
+      });
+      try {
+        expect(await sharedStore.claimNonceAsync("claim-1", 60_000)).toMatchObject({
+          success: false,
+          reason: "nonce_store_unavailable",
+        });
+      } finally {
+        sharedStore.destroy();
+      }
+    });
+
+    it("should fail closed at capacity without evicting live claims", async () => {
+      const localStore = new NonceStore({ maxSize: 2, ttlMs: 60_000, redisEnabled: false });
+      try {
+        expect((await localStore.claimNonceAsync("claim-1", 60_000)).success).toBe(true);
+        expect((await localStore.claimNonceAsync("claim-2", 60_000)).success).toBe(true);
+        expect(await localStore.claimNonceAsync("claim-3", 60_000)).toMatchObject({
+          success: false,
+          reason: "nonce_store_capacity",
+        });
+        expect(await localStore.claimNonceAsync("claim-1", 60_000)).toMatchObject({
+          success: false,
+          reason: "nonce_already_consumed",
+        });
+      } finally {
+        localStore.destroy();
+      }
+    });
+  });
+
   describe("cleanup", () => {
     it("should clean up expired nonces", (done) => {
       const nonceId1 = "test-nonce-cleanup-1";

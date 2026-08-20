@@ -14,6 +14,7 @@ import {
   type LinuxDoCreditRuntimeConfig,
   type NexaiRuntimeConfig,
   type NexaiSigningRuntimeConfig,
+  type CdictSigningRuntimeConfig,
   type TtsRuntimeConfig,
 } from "./runtimeConfigDefaults";
 import type { TtsProviderRuntimeConfig } from "./ttsProviderConfig";
@@ -81,6 +82,12 @@ const envSchema = z
     NEXAI_APP_SIGN_SECRET: optionalTrimmedString,
     NEXAI_APP_SIGN_SECRET_PREV: optionalTrimmedString,
     NEXAI_SIG_MAX_DRIFT_MS: optionalTrimmedString,
+    // CDict official-client signature middleware. Same loose-string treatment as NexAI:
+    // a malformed value degrades to the safe default instead of crashing startup.
+    CDICT_REQUEST_SIGNING: optionalTrimmedString,
+    CDICT_APP_SIGN_SECRET: optionalTrimmedString,
+    CDICT_APP_SIGN_SECRET_PREV: optionalTrimmedString,
+    CDICT_SIG_MAX_DRIFT_MS: optionalTrimmedString,
     OPENAI_API_KEY: optionalTrimmedString,
     OPENAI_KEY: optionalTrimmedString,
     OPENAI_BASE_URL: z.string().url().optional(),
@@ -308,6 +315,22 @@ runtimeDefaults.nexaiSigning = {
   maxDriftMs: ((): number => {
     const n = Number(parsedEnv.NEXAI_SIG_MAX_DRIFT_MS);
     return Number.isFinite(n) && n > 0 ? Math.round(n) : runtimeDefaults.nexaiSigning.maxDriftMs;
+  })(),
+};
+
+// CDict official-client signature secrets come from env only; the middleware treats an
+// unset secret as "nobody is trusted" and every client keeps the baseline IP tier.
+runtimeDefaults.cdictSigning = {
+  ...runtimeDefaults.cdictSigning,
+  mode: ((): CdictSigningRuntimeConfig["mode"] => {
+    const raw = (parsedEnv.CDICT_REQUEST_SIGNING || "").toLowerCase();
+    return raw === "off" || raw === "soft" || raw === "enforce" ? raw : runtimeDefaults.cdictSigning.mode;
+  })(),
+  appSignSecret: parsedEnv.CDICT_APP_SIGN_SECRET || "",
+  appSignSecretPrev: parsedEnv.CDICT_APP_SIGN_SECRET_PREV || "",
+  maxDriftMs: ((): number => {
+    const n = Number(parsedEnv.CDICT_SIG_MAX_DRIFT_MS);
+    return Number.isFinite(n) && n > 0 ? Math.round(n) : runtimeDefaults.cdictSigning.maxDriftMs;
   })(),
 };
 

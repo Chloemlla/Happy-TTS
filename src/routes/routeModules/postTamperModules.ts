@@ -193,8 +193,14 @@ export const postTamperRouteModules: RouteModule[] = [
     isPublic: true,
     rateLimitPolicy: {
       mode: "route-module",
-      limiters: ["cdict-limiter"],
-      note: "CDict client proxy (translation, language list, speech) is public and protected by a dedicated limiter; upstream credentials stay server-side.",
+      limiters: [
+        "cdict-ingress-limiter",
+        "cdict-limiter",
+        "cdict-trusted-limiter",
+        "cdict-trusted-upstream-limiter",
+        "cdict-trusted-upstream-ip-limiter",
+      ],
+      note: "CDict client proxy (translation, language list, speech) is public; a high per-IP ingress ceiling protects signature classification, unsigned traffic uses the baseline per-IP limiter, and verified official clients move to per-install buckets with extra ceilings on routes that spend upstream credentials.",
     },
     securityBypass: {
       waf: {

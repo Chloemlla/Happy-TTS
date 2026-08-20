@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import rateLimit, { type RateLimitRequestHandler } from "express-rate-limit";
 import { createSharedRateLimitStore } from "../services/sharedRateLimitStore";
 import logger from "../utils/logger";
+import { isTrustedCdictClient } from "./nexaiRequestSignature";
 
 type LimiterCategory =
   | "auth"
@@ -118,6 +119,26 @@ const skipLocalAndAuthSpecific = (req: Request): boolean => {
   }
   return isLocalRequest(req);
 };
+
+/**
+ * CDict tiering: an unsigned request stays on the baseline IP bucket, a request
+ * with a verified cdict-sig-v1 signature moves to its own per-install bucket so
+ * that users behind one carrier/campus NAT no longer share a quota.
+ */
+const cdictInstallKey = (req: Request): string => `install:${req.cdictClient?.installId || "unknown"}`;
+
+const skipUnlessTrustedCdict = (req: Request): boolean => isLocalRequest(req) || !isTrustedCdictClient(req);
+
+const skipTrustedCdict = (req: Request): boolean => isLocalRequest(req) || isTrustedCdictClient(req);
+
+/** The two CDict routes that spend server-held upstream credentials. */
+const isCdictUpstreamPath = (req: Request): boolean => {
+  const path = req.originalUrl?.split("?")[0] || "";
+  return path === "/api/cdict/translate" || path === "/api/cdict/tts";
+};
+
+const skipUnlessTrustedCdictUpstream = (req: Request): boolean =>
+  skipUnlessTrustedCdict(req) || !isCdictUpstreamPath(req);
 
 const skipPrivateIpReport = (req: Request): boolean => {
   const ip = req.ip || req.socket?.remoteAddress || "";
@@ -442,10 +463,41 @@ const LIMITER_DEFINITIONS = {
     max: 300,
     message: "公共翻译 API 请求过于频繁，请稍后再试",
   },
+  cdictIngress: {
+    profile: "burst",
+    category: "public-api",
+    max: 1200,
+    message: "CDict 请求过于频繁，请稍后再试",
+    skip: isLocalRequest,
+  },
   cdict: {
     profile: "relaxed",
     category: "public-api",
     message: "CDict 请求过于频繁，请稍后再试",
+    skip: skipTrustedCdict,
+  },
+  cdictTrusted: {
+    profile: "relaxed",
+    category: "public-api",
+    max: 180,
+    message: "CDict 请求过于频繁，请稍后再试",
+    keyGenerator: cdictInstallKey,
+    skip: skipUnlessTrustedCdict,
+  },
+  cdictTrustedUpstream: {
+    profile: "relaxed",
+    category: "public-api",
+    max: 120,
+    message: "翻译/朗读请求过于频繁，请稍后再试",
+    keyGenerator: cdictInstallKey,
+    skip: skipUnlessTrustedCdictUpstream,
+  },
+  cdictTrustedUpstreamIp: {
+    profile: "relaxed",
+    category: "public-api",
+    max: 600,
+    message: "翻译/朗读请求过于频繁，请稍后再试",
+    skip: skipUnlessTrustedCdictUpstream,
   },
   integrity: {
     profile: "sensitive",
@@ -589,7 +641,11 @@ export const githubBillingLimiter = limiterFromDefinition("ghbilling");
 export const linuxDoCreditLimiter = limiterFromDefinition("linuxdocredit");
 export const deeplxLimiter = limiterFromDefinition("deeplx");
 export const deeplxPublicLimiter = limiterFromDefinition("deeplxPublic");
+export const cdictIngressLimiter = limiterFromDefinition("cdictIngress");
 export const cdictLimiter = limiterFromDefinition("cdict");
+export const cdictTrustedLimiter = limiterFromDefinition("cdictTrusted");
+export const cdictTrustedUpstreamLimiter = limiterFromDefinition("cdictTrustedUpstream");
+export const cdictTrustedUpstreamIpLimiter = limiterFromDefinition("cdictTrustedUpstreamIp");
 export const integrityLimiter = limiterFromDefinition("integrity");
 export const nexaiSecurityLimiter = limiterFromDefinition("nexaisecurity");
 export const bilibiliSyncLimiter = limiterFromDefinition("bilibiliSync");

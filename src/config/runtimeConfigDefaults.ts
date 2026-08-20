@@ -116,6 +116,18 @@ export interface NexaiSigningRuntimeConfig {
   maxDriftMs: number;
 }
 
+/**
+ * Settings consumed by the CDict official-client signature middleware. Unlike
+ * NexAI signing this never gates access — it only decides which rate-limit tier
+ * a request lands in, so `soft` is the safe default for a public API.
+ */
+export interface CdictSigningRuntimeConfig {
+  mode: "off" | "soft" | "enforce";
+  appSignSecret: string;
+  appSignSecretPrev: string;
+  maxDriftMs: number;
+}
+
 export interface RuntimeConfigDefaults {
   ipqs: IpqsRuntimeConfig;
   linuxdo: LinuxDoRuntimeConfig;
@@ -129,6 +141,7 @@ export interface RuntimeConfigDefaults {
   adminSecurity: AdminSecurityRuntimeConfig;
   synapseAndroid: SynapseAndroidRuntimeConfig;
   nexaiSigning: NexaiSigningRuntimeConfig;
+  cdictSigning: CdictSigningRuntimeConfig;
 }
 
 export function buildRuntimeConfigDefaults(options: {
@@ -266,6 +279,12 @@ export function buildRuntimeConfigDefaults(options: {
       appSignSecretPrev: "",
       maxDriftMs: 5 * 60 * 1000,
     },
+    cdictSigning: {
+      mode: "soft",
+      appSignSecret: "",
+      appSignSecretPrev: "",
+      maxDriftMs: 5 * 60 * 1000,
+    },
   };
 }
 
@@ -327,6 +346,9 @@ export function cloneRuntimeConfigDefaults(config: RuntimeConfigDefaults): Runti
     },
     nexaiSigning: {
       ...config.nexaiSigning,
+    },
+    cdictSigning: {
+      ...config.cdictSigning,
     },
   };
 }

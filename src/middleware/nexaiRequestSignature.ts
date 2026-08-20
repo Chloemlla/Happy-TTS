@@ -3,7 +3,7 @@ import type { NextFunction, Request, Response } from "express";
 import logger from "../utils/logger";
 import { getNonceStore } from "../services/nonceStore";
 import { RuntimeConfigService } from "../services/runtimeConfigService";
-import type { NexaiSigningRuntimeConfig } from "../config/runtimeConfigDefaults";
+import type { CdictSigningRuntimeConfig, NexaiSigningRuntimeConfig } from "../config/runtimeConfigDefaults";
 
 type SigningMode = "off" | "soft" | "enforce";
 
@@ -24,13 +24,22 @@ declare global {
         ok: boolean;
         keyType?: "token" | "app";
       };
+      cdictClient?: {
+        trusted: boolean;
+        installId?: string;
+        keyType?: "app" | "appPrev";
+        reason?: string;
+      };
     }
   }
 }
 
 const SIG_VERSION = "2";
+const CDICT_SIG_VERSION = "1";
 const DEFAULT_MAX_DRIFT_MS = 5 * 60 * 1000;
 const MIN_NONCE_LENGTH = 16;
+const MAX_NONCE_LENGTH = 128;
+const CDICT_INSTALL_ID_PATTERN = /^[A-Za-z0-9_-]{8,64}$/;
 
 function getSigningConfig(): NexaiSigningRuntimeConfig {
   return RuntimeConfigService.getCachedConfig().nexaiSigning;
@@ -55,6 +64,10 @@ function getBearerToken(req: Request): string | null {
 function getSignaturePath(req: Request): string {
   const originalPath = req.originalUrl?.split("?")[0];
   return originalPath || req.path || "/";
+}
+
+function getCdictSignatureTarget(req: Request): string {
+  return req.originalUrl || req.url || req.path || "/";
 }
 
 function getRawBodyString(req: Request): string {
@@ -161,15 +174,121 @@ const nonceStore = getNonceStore({
   redisPrefix: "nexai-sig-nonce:",
 });
 
+const cdictNonceStore = getNonceStore({
+  namespace: "cdict-sig-v1",
+  maxSize: 100_000,
+  ttlMs: 24 * 60 * 60 * 1000,
+  redisPrefix: "cdict-sig-nonce:",
+  sharedClaimsRequired: !["development", "test"].includes(process.env.NODE_ENV || ""),
+});
+
+function getCdictSigningConfig(): CdictSigningRuntimeConfig {
+  return RuntimeConfigService.getCachedConfig().cdictSigning;
+}
+
+function verifyCdictRequest(req: Request, res: Response, next: NextFunction, requestTarget: string): void {
+  const config = getCdictSigningConfig();
+  const untrusted = (reason: string): void => {
+    req.cdictClient = { trusted: false, reason };
+    next();
+  };
+
+  if (config.mode === "off") return untrusted("signing_off");
+
+  const version = headerString(req.headers["x-cdict-sig-version"]);
+  const ts = headerString(req.headers["x-cdict-ts"]);
+  const nonce = headerString(req.headers["x-cdict-nonce"]);
+  const installId = headerString(req.headers["x-cdict-install"]);
+  const signature = headerString(req.headers["x-cdict-sig"]).toLowerCase();
+
+  if (!ts && !nonce && !installId && !signature) return untrusted("unsigned");
+
+  const reject = (code: string, reason: string): void => {
+    logger.warn("[CDict Sig]", { code, path: requestTarget, ip: req.ip, mode: config.mode });
+    if (config.mode !== "enforce") return untrusted(reason);
+    res.status(403).json({ success: false, error: "请求签名无效", code });
+  };
+
+  const secrets = [config.appSignSecret, config.appSignSecretPrev]
+    .map((value, index) => ({
+      key: value.trim(),
+      keyType: index === 0 ? ("app" as const) : ("appPrev" as const),
+    }))
+    .filter((candidate) => candidate.key.length > 0);
+  if (secrets.length === 0) return untrusted("no_server_secret");
+
+  if (!ts || !nonce || !installId || !signature) return reject("CDICT_SIG_MISSING", "sig_incomplete");
+  if (version && version !== CDICT_SIG_VERSION) return reject("CDICT_SIG_VERSION", "sig_version");
+  if (!CDICT_INSTALL_ID_PATTERN.test(installId)) return reject("CDICT_SIG_INSTALL", "install_invalid");
+  if (nonce.length < MIN_NONCE_LENGTH || nonce.length > MAX_NONCE_LENGTH) {
+    return reject("CDICT_SIG_NONCE", "nonce_invalid");
+  }
+
+  const tsNum = Number(ts);
+  if (!Number.isFinite(tsNum)) return reject("CDICT_SIG_EXPIRED", "ts_invalid");
+  const tsMs = tsNum < 1e12 ? tsNum * 1000 : tsNum;
+  const maxDrift = config.maxDriftMs > 0 ? config.maxDriftMs : DEFAULT_MAX_DRIFT_MS;
+  const now = Date.now();
+  if (Math.abs(now - tsMs) > maxDrift) return reject("CDICT_SIG_EXPIRED", "ts_drift");
+  const nonceTtlMs = maxDrift + Math.max(0, tsMs - now);
+
+  const canonical = [
+    String(Math.trunc(tsNum)),
+    nonce,
+    installId,
+    req.method.toUpperCase(),
+    requestTarget,
+    getRawBodyString(req),
+  ].join("\n");
+  const matched = secrets.find((candidate) => safeEqualHex(hmacHex(candidate.key, canonical), signature));
+  if (!matched) return reject("CDICT_SIG_INVALID", "hmac_mismatch");
+
+  void cdictNonceStore
+    .claimNonceAsync(
+      nonce,
+      nonceTtlMs,
+      req.ip,
+      req.headers["user-agent"] as string | undefined,
+    )
+    .then((claimed) => {
+      if (!claimed.success) {
+        const isReplay = claimed.reason === "nonce_already_consumed";
+        return reject(
+          isReplay ? "CDICT_SIG_REPLAY" : "CDICT_SIG_NONCE_STORE",
+          isReplay ? "nonce_replay" : claimed.reason || "nonce_store_unavailable",
+        );
+      }
+
+      req.cdictClient = { trusted: true, installId, keyType: matched.keyType };
+      res.setHeader("X-CDict-Sig-Result", "ok");
+      next();
+    })
+    .catch((error) => {
+      logger.error("[CDict Sig] nonce claim failed", {
+        error: error instanceof Error ? error.message : String(error),
+        path: requestTarget,
+      });
+      reject("CDICT_SIG_NONCE_STORE", "nonce_store_unavailable");
+    });
+}
+
+export function isTrustedCdictClient(req: Request): boolean {
+  return req.cdictClient?.trusted === true && Boolean(req.cdictClient.installId);
+}
+
 /**
  * NexAI request signature middleware (nexai-sig-v2).
  * B: HMAC key = Bearer access token when present.
  * C: HMAC key = NEXAI_APP_SIGN_SECRET for gated anonymous routes.
  */
 export function nexaiRequestSignature(req: Request, res: Response, next: NextFunction): void {
+  const path = getSignaturePath(req);
+  if (path === "/api/cdict" || path.startsWith("/api/cdict/")) {
+    return verifyCdictRequest(req, res, next, getCdictSignatureTarget(req));
+  }
+
   const signingConfig = getSigningConfig();
   const mode = signingConfig.mode;
-  const path = getSignaturePath(req);
 
   if (mode === "off" || isSignatureExempt(req.method, path)) {
     req.nexaiSig = { mode, ok: true };

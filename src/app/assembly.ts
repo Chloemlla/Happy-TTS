@@ -231,15 +231,24 @@ export function registerCoreMiddleware(app: Express): void {
   app.use(express.json({
     limit: "10mb",
     verify: (req, _res, buf) => {
-      // Preserve raw bytes only for NexAI request signature (nexai-sig-v2).
+      // Preserve raw bytes only for the signed surfaces (nexai-sig-v2 / cdict-sig-v1).
       // Copying the buffer for every request wastes CPU and memory; all other
       // routes only need the parsed JSON body. req.url is path + optional query.
-      if (req.url?.startsWith("/api/nexai")) {
+      if (req.url?.startsWith("/api/nexai") || req.url?.startsWith("/api/cdict")) {
         (req as any).rawBody = Buffer.from(buf);
       }
     },
   }));
-  app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+  app.use(express.urlencoded({
+    extended: true,
+    limit: "10mb",
+    verify: (req, _res, buf) => {
+      // /api/cdict/translate also accepts form-urlencoded and cdict-sig-v1 signs raw bytes.
+      if (req.url?.startsWith("/api/cdict")) {
+        (req as any).rawBody = Buffer.from(buf);
+      }
+    },
+  }));
 }
 
 export function registerSecurityMiddleware(app: Express): void {
