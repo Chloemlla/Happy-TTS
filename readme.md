@@ -51,7 +51,7 @@
 
 ## 🎯 项目概述
 
-Synapse 是一个综合性 Web 应用平台，围绕文本转语音核心功能，扩展出完整的用户体系、安全防护、资源管理、数据分析等企业级能力。平台采用前后端分离架构，后端提供 42 个路由模块、50+ 个服务模块，前端包含 100+ 个 React 组件，覆盖认证、工具、商店、游戏、查询、管理等多个业务领域。
+Synapse 是一个综合性 Web 应用平台，围绕文本转语音核心功能，扩展出完整的用户体系、安全防护、资源管理、数据分析等企业级能力。平台采用前后端分离架构，后端提供 43 个路由模块、50+ 个服务模块，前端包含 100+ 个 React 组件，覆盖认证、工具、商店、游戏、查询、管理等多个业务领域。
 
 ### 亮点特性
 
@@ -357,7 +357,7 @@ Synapse/
 │   │   ├── fbiWantedController.ts    # FBI 查询控制器
 │   │   ├── lotteryController.ts      # 抽奖控制器
 │   │   └── ...                       # 更多控制器
-│   ├── routes/                       # API 路由（42 个路由文件）
+│   ├── routes/                       # API 路由（43 个路由文件）
 │   │   ├── authRoutes.ts             # 认证路由
 │   │   ├── ttsRoutes.ts              # TTS 路由
 │   │   ├── adminRoutes.ts            # 管理路由
@@ -818,6 +818,13 @@ VITE_OUTEMAIL_ENABLED=true                      # 是否启用外部邮件功能
 | DELETE | `/api/admin/users/:id` | 删除用户 |
 | GET | `/api/admin/announcement` | 获取系统公告 |
 
+#### CDict 客户端代理 (`/api/cdict`)
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/cdict/translate` | 文本翻译（表单或 JSON：`text` / `from` / `to`），上游凭据与签名由服务端代持 |
+| GET | `/api/cdict/languages` | 上游支持的语言列表 |
+| GET | `/api/cdict/tts` | 单词/短语朗读，`source=engine` 走在线合成、`source=youdao` 走词典静态音频，返回音频字节 |
+
 #### 其他常用端点
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -827,7 +834,7 @@ VITE_OUTEMAIL_ENABLED=true                      # 是否启用外部邮件功能
 | POST | `/server_status` | 服务器状态（需密码） |
 | GET | `/api/frontend-config` | 前端配置 |
 
-### 完整路由模块列表（42 个）
+### 完整路由模块列表（43 个）
 
 | 路由文件 | 挂载路径 | 功能 |
 |---------|---------|------|
@@ -873,6 +880,7 @@ VITE_OUTEMAIL_ENABLED=true                      # 是否启用外部邮件功能
 | `workspaceRoutes` | `/api/workspaces` | 工作区管理 |
 | `webhookRoutes` | `/api/webhooks` | Webhook 接收 |
 | `webhookEventRoutes` | `/api/webhook-events` | Webhook 事件管理 |
+| `cdictRoutes` | `/api/cdict` | CDict 客户端代理（翻译 / 语言列表 / 朗读） |
 
 ---
 

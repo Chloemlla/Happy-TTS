@@ -442,6 +442,11 @@ const LIMITER_DEFINITIONS = {
     max: 300,
     message: "公共翻译 API 请求过于频繁，请稍后再试",
   },
+  cdict: {
+    profile: "relaxed",
+    category: "public-api",
+    message: "CDict 请求过于频繁，请稍后再试",
+  },
   integrity: {
     profile: "sensitive",
     category: "public-api",
@@ -584,6 +589,7 @@ export const githubBillingLimiter = limiterFromDefinition("ghbilling");
 export const linuxDoCreditLimiter = limiterFromDefinition("linuxdocredit");
 export const deeplxLimiter = limiterFromDefinition("deeplx");
 export const deeplxPublicLimiter = limiterFromDefinition("deeplxPublic");
+export const cdictLimiter = limiterFromDefinition("cdict");
 export const integrityLimiter = limiterFromDefinition("integrity");
 export const nexaiSecurityLimiter = limiterFromDefinition("nexaisecurity");
 export const bilibiliSyncLimiter = limiterFromDefinition("bilibiliSync");

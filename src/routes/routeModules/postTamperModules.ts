@@ -16,6 +16,7 @@ import {
 import logger from "../../utils/logger";
 import antaRoutes from "../antaRoutes";
 import bilibiliSyncRoutes from "../bilibiliSyncRoutes";
+import cdictRoutes from "../cdictRoutes";
 import cdkRoutes from "../cdkRoutes";
 import commandRoutes from "../commandRoutes";
 import compatRoutes from "../compatRoutes";
@@ -181,6 +182,26 @@ export const postTamperRouteModules: RouteModule[] = [
       mode: "route-module",
       limiters: ["deeplx-public-limiter"],
       note: "Public translation API is protected by a dedicated loose limiter.",
+    },
+  },
+  {
+    name: "cdict-routes",
+    path: "/api/cdict",
+    router: cdictRoutes,
+    requiresAuth: false,
+    rateLimited: true,
+    isPublic: true,
+    rateLimitPolicy: {
+      mode: "route-module",
+      limiters: ["cdict-limiter"],
+      note: "CDict client proxy (translation, language list, speech) is public and protected by a dedicated limiter; upstream credentials stay server-side.",
+    },
+    securityBypass: {
+      waf: {
+        value: true,
+        reason:
+          "Arbitrary user text submitted for translation or speech legitimately contains semicolons, braces, backslashes, and angle brackets; the payload is forwarded to the upstream gateway and never interpreted locally.",
+      },
     },
   },
   {
@@ -559,9 +580,14 @@ export const postTamperRouteModules: RouteModule[] = [
     name: "openapi-json-routes",
     path: "/api",
     router: openapiJsonRoutes,
-    requiresAuth: false,
+    requiresAuth: true,
     rateLimited: true,
-    isPublic: true,
+    isPublic: false,
+    authPolicy: {
+      mode: "router",
+      handlers: ["authenticateToken", "adminOnly"],
+      note: "OpenAPI spec endpoints share the API docs gate: admin session (cookie or bearer) in production.",
+    },
     rateLimitPolicy: {
       mode: "route",
       limiters: ["openapiLimiter"],

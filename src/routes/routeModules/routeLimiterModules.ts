@@ -1,6 +1,7 @@
 import type { RouteModule } from "../index";
 import {
   authLimiter,
+  cdictLimiter,
   commandLimiter,
   dataCollectionLimiter,
   dataProcessLimiter,
@@ -153,6 +154,14 @@ export const routeLimiterModules: RouteModule[] = [
     name: "deeplx-public-limiter",
     path: "/api/public/deeplx",
     router: deeplxPublicLimiter,
+    requiresAuth: false,
+    rateLimited: true,
+    isPublic: true,
+  },
+  {
+    name: "cdict-limiter",
+    path: "/api/cdict",
+    router: cdictLimiter,
     requiresAuth: false,
     rateLimited: true,
     isPublic: true,
