@@ -43,6 +43,26 @@ const MANUAL_CHUNKS: Record<string, string[]> = {
   swagger: ["swagger-ui-react"],
 };
 
+// swagger-client 仍在 `import jsYaml from 'js-yaml'`，而仓库级 pnpm override 把
+// js-yaml 锁到 5.x —— 5.x 只有命名导出，rolldown 会因缺少 default 直接构建失败。
+// 这里把裸 `js-yaml` 换成一个补齐默认导出的虚拟模块（从引用方解析真实包路径）。
+const JS_YAML_DEFAULT_PREFIX = "\0js-yaml-default:";
+
+const jsYamlDefaultInteropPlugin = {
+  name: "js-yaml-default-interop",
+  enforce: "pre" as const,
+  async resolveId(this: any, source: string, importer: string | undefined) {
+    if (source !== "js-yaml" || !importer) return null;
+    const resolved = await this.resolve("js-yaml/browser", importer, { skipSelf: true });
+    return resolved ? `${JS_YAML_DEFAULT_PREFIX}${resolved.id}` : null;
+  },
+  load(id: string) {
+    if (!id.startsWith(JS_YAML_DEFAULT_PREFIX)) return null;
+    const target = JSON.stringify(id.slice(JS_YAML_DEFAULT_PREFIX.length));
+    return `import * as jsYaml from ${target};\nexport * from ${target};\nexport default jsYaml;\n`;
+  },
+};
+
 function getManualChunk(id: string): string | undefined {
   // Normalize Windows paths so node_modules matching is reliable.
   const normalized = id.replace(/\\/g, "/");
@@ -204,6 +224,7 @@ export default defineConfig(({ mode, command }) => {
     base,
     plugins: [
       react(),
+      jsYamlDefaultInteropPlugin,
       // 自动多语言翻译插件（默认使用 Google 翻译）
       // vitePluginsAutoI18n({
       //   enabled: false,
