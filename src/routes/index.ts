@@ -678,7 +678,9 @@ export function validateRouteGovernance(): RouteGovernanceViolation[] {
       }
     }
 
-    if (isConcreteRoute && record.isPublic === false) {
+    // 挂载在共享 /api 前缀上的模块只处理自己声明的子路径，与开放 CORS 例外的前缀重叠不构成冲突；
+    // 只有作用域等于或落在例外之内的私有模块才会真正拦截这些例外路径。
+    if (isConcreteRoute && record.isPublic === false && normalizeScopedPath(record.path) !== API_ROUTE_PREFIX) {
       for (const exception of openCorsExceptions) {
         if (pathScopesOverlap(record.path, exception.path)) {
           violations.push({
