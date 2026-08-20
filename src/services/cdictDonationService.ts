@@ -1,21 +1,21 @@
-import axios from "axios";
 import fs from "node:fs";
 import path from "node:path";
 import logger from "../utils/logger";
+import { CDictDonationClaimModel } from "../models/cdictDonationClaimModel";
 import { RuntimeConfigModel } from "../models/runtimeConfigModel";
 import { mongoose } from "./mongoService";
 
 /**
  * CDict 赞赏码配置与图片来源。
  *
- * 客户端安装包内不内置任何收款信息，每次都向 /api/cdict/donate 拉取渠道列表与图片字节，
+ * 客户端安装包内不内置任何收款信息，每次都向 /api/cdict/donate 拉取渠道列表与图片地址，
  * 因此运营方可以在后台随时改图、改文案、临时下线，不需要发版。
+ *
+ * 图片本身不经过本服务：后台填了地址就 302 到那个地址，服务端不下载、不缓存、不改写字节。
  */
 
 const CONFIG_KEY = "CDICT_DONATION";
 const DONATE_ROUTE_PREFIX = "/api/cdict/donate";
-/** 出站请求带上这个标记；本接口收到带标记的请求就只回内置图片，杜绝跳转绕回来形成递归。 */
-export const DONATE_LOOP_HEADER = "x-cdict-donate-proxy";
 const ASSET_DIR_CANDIDATES = [
   path.join(__dirname, "..", "assets", "donation"),
   path.join(process.cwd(), "src", "assets", "donation"),
@@ -23,10 +23,10 @@ const ASSET_DIR_CANDIDATES = [
 ];
 const ASSET_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp"];
 const CHANNEL_ID = /^[a-z0-9-]{1,32}$/;
+const TRANSACTION_ID = /^[A-Za-z0-9_-]{6,64}$/;
 const MAX_CHANNELS = 8;
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-const REMOTE_TIMEOUT_MS = 8000;
-const REMOTE_CACHE_TTL_MS = 10 * 60 * 1000;
+const MAX_SUPPORTERS = 500;
+const MAX_CLAIMS = 500;
 
 const CONTENT_TYPES: Record<string, string> = {
   ".png": "image/png",
@@ -40,7 +40,7 @@ export interface CDictDonationChannel {
   name: string;
   hint: string;
   enabled: boolean;
-  /** 远端图片地址；留空表示使用服务端内置的 assets/donation/<id>.<ext>。 */
+  /** 收款码图片地址；客户端会被 302 直接指到这里。留空表示使用服务端内置的 assets/donation/<id>.<ext>。 */
   imageUrl: string;
 }
 
@@ -48,12 +48,19 @@ export interface CDictDonationConfig {
   enabled: boolean;
   notice: string;
   channels: CDictDonationChannel[];
+  /** 鸣谢名单：核实转账备注后由运营方在后台补充，客户端赞赏页实时显示。 */
+  supporters: string[];
 }
 
 export interface CDictDonationImage {
   contentType: string;
   data: Buffer;
 }
+
+/** 收款码来源：后台填了地址就让客户端直接去那个地址取，否则回服务端内置图片的字节。 */
+export type CDictDonationImageSource =
+  | { kind: "redirect"; url: string }
+  | { kind: "bundled"; image: CDictDonationImage };
 
 const DEFAULT_CONFIG: CDictDonationConfig = {
   enabled: true,
@@ -62,14 +69,13 @@ const DEFAULT_CONFIG: CDictDonationConfig = {
     { id: "alipay", name: "支付宝", hint: "打开支付宝扫一扫", enabled: true, imageUrl: "" },
     { id: "wechat", name: "微信", hint: "打开微信扫一扫", enabled: true, imageUrl: "" },
   ],
+  supporters: [],
 };
-
-const remoteCache = new Map<string, { image: CDictDonationImage; expiresAt: number }>();
 
 const LOOPBACK_HOSTS = /^(localhost|0\.0\.0\.0|::1|\[::1\])$/i;
 const PRIVATE_IPV4 = /^(10\.|127\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
 
-/** 本部署自身的域名，用来拒绝"把图片地址填成本站地址"导致的自我代理。 */
+/** 本部署自身的域名，用来拒绝"把图片地址填成本站地址"导致的跳转自环。 */
 function ownHostnames(): Set<string> {
   const hosts = new Set<string>(["tts.chloemlla.com"]);
   for (const raw of [process.env.VITE_API_URL, process.env.BASE_URL, process.env.FRONTEND_URL]) {
@@ -88,7 +94,23 @@ function cloneDefaults(): CDictDonationConfig {
     enabled: DEFAULT_CONFIG.enabled,
     notice: DEFAULT_CONFIG.notice,
     channels: DEFAULT_CONFIG.channels.map((channel) => ({ ...channel })),
+    supporters: [...DEFAULT_CONFIG.supporters],
   };
+}
+
+/** 鸣谢名单：去空、去重、限长，顺序按后台填写的顺序保留。 */
+function normalizeSupporters(value: unknown): string[] {
+  const raw = Array.isArray(value) ? value : [];
+  const names: string[] = [];
+  const seen = new Set<string>();
+  for (const item of raw) {
+    const name = asString(item, "", 32);
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    names.push(name);
+    if (names.length >= MAX_SUPPORTERS) break;
+  }
+  return names;
 }
 
 function asString(value: unknown, fallback: string, maxLength: number): string {
@@ -102,7 +124,7 @@ function asBoolean(value: unknown, fallback: boolean): boolean {
   return fallback;
 }
 
-/** 只接受指向外部图床的 https 直链：本站地址、本接口自身与内网地址都拒掉，避免服务端自我代理。 */
+/** 只接受指向外部图床的 https 直链：本站地址、本接口自身与内网地址都拒掉，避免 302 跳回自己形成死循环。 */
 function normalizeImageUrl(value: unknown): string {
   const raw = asString(value, "", 512);
   if (!raw) return "";
@@ -120,7 +142,7 @@ function normalizeImageUrl(value: unknown): string {
     throw new Error("图片地址不能指向本机或内网");
   }
   if (parsed.pathname.toLowerCase().startsWith(DONATE_ROUTE_PREFIX)) {
-    throw new Error("图片地址不能填赞赏码接口自身，否则服务端会自己代理自己");
+    throw new Error("图片地址不能填赞赏码接口自身，否则跳转会绕回本接口形成死循环");
   }
   if (ownHostnames().has(host)) {
     throw new Error("图片地址不能指向本站；留空即使用服务端内置图片，填写时请给图床直链");
@@ -169,6 +191,7 @@ function normalizeStored(value: unknown): CDictDonationConfig {
     enabled: asBoolean(obj.enabled, DEFAULT_CONFIG.enabled),
     notice: asString(obj.notice, DEFAULT_CONFIG.notice, 200) || DEFAULT_CONFIG.notice,
     channels: channels.length > 0 ? channels : cloneDefaults().channels,
+    supporters: normalizeSupporters(obj.supporters),
   };
 }
 
@@ -226,6 +249,7 @@ export async function setDonationSetting(input: unknown): Promise<{ updatedAt: s
     enabled: asBoolean(obj.enabled, DEFAULT_CONFIG.enabled),
     notice: asString(obj.notice, DEFAULT_CONFIG.notice, 200) || DEFAULT_CONFIG.notice,
     channels,
+    supporters: normalizeSupporters(obj.supporters),
   };
 
   const now = new Date();
@@ -234,13 +258,11 @@ export async function setDonationSetting(input: unknown): Promise<{ updatedAt: s
     { value: config, updatedAt: now },
     { upsert: true, returnDocument: "after" },
   ).exec();
-  remoteCache.clear();
   return { updatedAt: now.toISOString() };
 }
 
 export async function deleteDonationSetting(): Promise<void> {
   await RuntimeConfigModel.deleteOne({ key: CONFIG_KEY }).exec();
-  remoteCache.clear();
 }
 
 /** 内置图片：按渠道 id 找 assets/donation/<id>.<ext>，id 已限定字符集，不可能越出目录。 */
@@ -255,60 +277,79 @@ function readBundledImage(channelId: string): CDictDonationImage | null {
   return null;
 }
 
-async function fetchRemoteImage(url: string): Promise<CDictDonationImage> {
-  const cached = remoteCache.get(url);
-  if (cached && cached.expiresAt > Date.now()) return cached.image;
-
-  const response = await axios.get<ArrayBuffer>(url, {
-    responseType: "arraybuffer",
-    timeout: REMOTE_TIMEOUT_MS,
-    maxContentLength: MAX_IMAGE_BYTES,
-    maxRedirects: 2,
-    validateStatus: () => true,
-    headers: { [DONATE_LOOP_HEADER]: "1" },
-  });
-  if (response.status < 200 || response.status >= 300) {
-    throw new Error(`图片源返回 ${response.status}`);
-  }
-  const contentType = String(response.headers["content-type"] || "").split(";")[0].trim().toLowerCase();
-  if (!contentType.startsWith("image/")) {
-    throw new Error(`图片源返回了非图片内容（${contentType || "未知类型"}）`);
-  }
-  const data = Buffer.from(response.data);
-  if (data.length === 0) {
-    throw new Error("图片源返回空内容");
-  }
-  const image: CDictDonationImage = { contentType, data };
-  remoteCache.set(url, { image, expiresAt: Date.now() + REMOTE_CACHE_TTL_MS });
-  return image;
-}
-
 /**
- * 取某个渠道的收款码字节：优先后台配置的远端图片，取不到则回落到服务端内置图片；
- * 两者都没有时返回 null，由控制器给出 404。
+ * 解析某个渠道的收款码来源。
  *
- * [allowRemote] 为 false 时只读内置图片——请求带着 [DONATE_LOOP_HEADER] 进来，说明是本服务
- * 出站取图被跳转绕回了自己，此时绝不能再发一次出站请求。
+ * 填了图片地址就回 redirect，让客户端直接去后台填的那个地址取图——服务端不下载、不缓存、
+ * 不改写，改地址立刻生效。地址留空才回服务端内置图片的字节。两者都没有时返回 null，控制器给 404。
  */
-export async function getDonationImage(
-  channelId: string,
-  allowRemote = true,
-): Promise<CDictDonationImage | null> {
+export async function resolveDonationImage(channelId: string): Promise<CDictDonationImageSource | null> {
   const id = channelId.trim().toLowerCase();
   if (!CHANNEL_ID.test(id)) return null;
   const config = await getPublicDonationConfig();
   if (!config.enabled) return null;
   const channel = config.channels.find((item) => item.id === id);
   if (!channel) return null;
-  if (channel.imageUrl && allowRemote) {
-    try {
-      return await fetchRemoteImage(channel.imageUrl);
-    } catch (error) {
-      logger.warn("[CDict] 远端赞赏码拉取失败，回落到内置图片", {
-        channel: id,
-        message: error instanceof Error ? error.message : "未知错误",
-      });
-    }
+  if (channel.imageUrl) return { kind: "redirect", url: channel.imageUrl };
+  const image = readBundledImage(id);
+  return image ? { kind: "bundled", image } : null;
+}
+
+export interface CDictDonationClaim {
+  id: string;
+  transactionId: string;
+  displayName: string;
+  createdAt?: string;
+}
+
+/**
+ * 提交署名申请：只接受交易号与想展示的称呼，两项都由提交者自己填写。
+ *
+ * 同一个交易号重复提交视为幂等，不报错也不覆盖已有记录——客户端可能因为超时重试。
+ */
+export async function submitDonationClaim(input: unknown): Promise<{ duplicated: boolean }> {
+  const obj = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
+  const transactionId = asString(obj.transactionId, "", 64);
+  const displayName = asString(obj.displayName, "", 32);
+  if (!TRANSACTION_ID.test(transactionId)) {
+    throw new Error("交易号不合法：请填写 6-64 位的字母、数字、连字符或下划线");
   }
-  return readBundledImage(id);
+  if (!displayName) {
+    throw new Error("请填写希望展示在鸣谢名单中的称呼");
+  }
+  if (mongoose.connection.readyState !== 1) {
+    throw new Error("服务暂时不可用，请稍后再试");
+  }
+  const existing = await CDictDonationClaimModel.findOne({ transactionId }).lean().exec();
+  if (existing) return { duplicated: true };
+  const pending = await CDictDonationClaimModel.estimatedDocumentCount().exec();
+  if (pending >= MAX_CLAIMS) {
+    throw new Error("待核实的署名申请过多，请稍后再试");
+  }
+  await CDictDonationClaimModel.create({ transactionId, displayName, createdAt: new Date() });
+  return { duplicated: false };
+}
+
+/** 后台：待核实的署名申请，新的在前。 */
+export async function listDonationClaims(): Promise<CDictDonationClaim[]> {
+  if (mongoose.connection.readyState !== 1) return [];
+  const docs = await CDictDonationClaimModel.find({})
+    .sort({ createdAt: -1 })
+    .limit(MAX_CLAIMS)
+    .lean()
+    .exec();
+  return docs.map((doc) => ({
+    id: String((doc as { _id?: unknown })._id ?? ""),
+    transactionId: String(doc.transactionId ?? ""),
+    displayName: String(doc.displayName ?? ""),
+    createdAt: doc.createdAt instanceof Date ? doc.createdAt.toISOString() : undefined,
+  }));
+}
+
+/** 后台：核实完（无论是否加入名单）就删掉这条申请。 */
+export async function deleteDonationClaim(id: string): Promise<void> {
+  if (!mongoose.isValidObjectId(id)) {
+    throw new Error("申请 id 不合法");
+  }
+  await CDictDonationClaimModel.deleteOne({ _id: id }).exec();
 }

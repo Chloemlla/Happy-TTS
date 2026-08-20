@@ -24,6 +24,7 @@ export const NEXAI_SETTING_API = `${API_BASE_URL}/api/admin/nexai/setting`;
 export const NEXAI_SIGNING_API = `${API_BASE_URL}/api/admin/nexai-signing/setting`;
 export const SYNAPSE_ANDROID_API = `${API_BASE_URL}/api/admin/synapse-android/setting`;
 export const CDICT_DONATION_API = `${API_BASE_URL}/api/admin/cdict-donation/setting`;
+export const CDICT_DONATION_CLAIMS_API = `${API_BASE_URL}/api/admin/cdict-donation/claims`;
 export const CDICT_DONATE_PUBLIC_API = `${API_BASE_URL}/api/cdict/donate`;
 export const ECOENCHANTS_TOKEN_API = `${API_BASE_URL}/api/admin/envs`;
 export const ECOENCHANTS_WEBHOOK_API = `${API_BASE_URL}/api/admin/envs`;

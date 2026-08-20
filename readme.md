@@ -824,16 +824,19 @@ VITE_OUTEMAIL_ENABLED=true                      # 是否启用外部邮件功能
 | POST | `/api/cdict/translate` | 文本翻译（表单或 JSON：`text` / `from` / `to`），上游凭据与签名由服务端代持 |
 | GET | `/api/cdict/languages` | 上游支持的语言列表 |
 | GET | `/api/cdict/tts` | 单词/短语朗读，`source=engine` 走在线合成、`source=youdao` 走词典静态音频，返回音频字节 |
-| GET | `/api/cdict/donate` | 赞赏渠道与说明文案（`{ notice, channels: [{ id, name, hint }] }`），关闭或无可用渠道时返回 404 |
-| GET | `/api/cdict/donate/:channel` | 指定渠道的收款码图片字节，优先取管理端配置的外部图床 https 直链（缓存 10 分钟），取不到回落到 `src/assets/donation/<id>.(png\|jpg)`；直链拒绝本站地址、本接口自身与内网地址，出站请求带 `x-cdict-donate-proxy` 标记以阻断跳转回环 |
+| GET | `/api/cdict/donate` | 赞赏渠道、说明文案与鸣谢名单（`{ notice, channels: [{ id, name, hint }], supporters: [] }`），关闭或无可用渠道时返回 404 |
+| GET | `/api/cdict/donate/:channel` | 指定渠道的收款码：管理端填了图片地址就 302 跳到那个地址（原样下发，服务端不下载也不缓存图片字节，改地址即时生效）；地址留空时直接返回 `src/assets/donation/<id>.(png\|jpg)` 的字节。地址只接受外部图床 https 直链，本站地址、本接口自身与内网地址一律拒绝，避免跳转绕回本接口 |
+| POST | `/api/cdict/donate/claim` | 提交赞赏署名申请（`transactionId` + `displayName`），开发者核实交易号后加入鸣谢名单；只落库这两项，不记录 IP 或设备信息，同一交易号幂等，单独限流每 IP 每小时 10 次 |
 
-赞赏配置存在 `runtime_config_settings` 的 `CDICT_DONATION` 键，由超级管理员在 env-manager 的「CDict 赞赏码配置」分区维护：
+赞赏配置存在 `runtime_config_settings` 的 `CDICT_DONATION` 键（含渠道、文案与鸣谢名单），署名申请存在 `cdict_donation_claims` 集合，均由超级管理员在 env-manager 的「CDict 赞赏码配置」分区维护：
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | GET | `/api/admin/cdict-donation/setting` | 读取当前赞赏配置 |
 | POST | `/api/admin/cdict-donation/setting` | 覆盖写入（超级管理员，带审计日志） |
 | DELETE | `/api/admin/cdict-donation/setting` | 重置为内置默认（超级管理员，带审计日志） |
+| GET | `/api/admin/cdict-donation/claims` | 读取待核实的署名申请 |
+| DELETE | `/api/admin/cdict-donation/claims/:id` | 核实后删除该申请（超级管理员，带审计日志） |
 
 #### 其他常用端点
 | 方法 | 路径 | 说明 |

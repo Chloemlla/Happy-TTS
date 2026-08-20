@@ -234,6 +234,13 @@ router.delete(
   auditLog({ module: "config", action: "config.cdict-donation.delete" }),
   CDictDonationController.deleteSetting,
 );
+router.get("/cdict-donation/claims", CDictDonationController.getClaims);
+router.delete(
+  "/cdict-donation/claims/:id",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.cdict-donation.claim.delete" }),
+  CDictDonationController.deleteClaim,
+);
 router.get("/deeplx/setting", adminController.getDeepLXSetting);
 router.post(
   "/deeplx/setting",

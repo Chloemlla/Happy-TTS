@@ -1,8 +1,18 @@
 import express from "express";
 import { CDictController } from "../controllers/cdictController";
 import { CDictDonationController } from "../controllers/cdictDonationController";
+import { createLimiter } from "../middleware/routeLimiters";
 
 const router = express.Router();
+
+/** 署名申请是写操作，单独收紧到每 IP 每小时 10 次，避免有人拿它刷库。 */
+const donationClaimLimiter = createLimiter({
+  name: "cdictDonationClaim",
+  category: "public-api",
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: "署名提交过于频繁，请稍后再试",
+});
 
 /**
  * @openapi
@@ -126,10 +136,10 @@ router.get("/tts", CDictController.tts);
  *     tags:
  *       - CDict
  *     summary: CDict 赞赏渠道列表
- *     description: 客户端每次进入赞赏页都实时拉取；安装包内不内置任何收款信息。
+ *     description: 客户端每次进入赞赏页都实时拉取；安装包内不内置任何收款信息。同时返回后台维护的鸣谢名单。
  *     responses:
  *       200:
- *         description: 渠道列表与说明文案
+ *         description: 渠道列表、说明文案与鸣谢名单
  *       404:
  *         description: 赞赏功能未开启
  *       502:
@@ -139,11 +149,48 @@ router.get("/donate", CDictDonationController.channels);
 
 /**
  * @openapi
+ * /api/cdict/donate/claim:
+ *   post:
+ *     tags:
+ *       - CDict
+ *     summary: 提交赞赏署名申请
+ *     description: 赞赏者提交交易号与希望展示的称呼，开发者核实后加入鸣谢名单。只落库这两项，不记录 IP 或设备信息；同一交易号重复提交是幂等的。
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - transactionId
+ *               - displayName
+ *             properties:
+ *               transactionId:
+ *                 type: string
+ *                 description: 支付宝 / 微信的交易号（订单号）
+ *                 pattern: '^[A-Za-z0-9_-]{6,64}$'
+ *               displayName:
+ *                 type: string
+ *                 maxLength: 32
+ *                 description: 希望展示在鸣谢名单中的称呼
+ *     responses:
+ *       200:
+ *         description: 已提交（`duplicated` 为 true 表示该交易号此前已提交过）
+ *       400:
+ *         description: 参数不合法
+ *       429:
+ *         description: 提交过于频繁
+ */
+router.post("/donate/claim", donationClaimLimiter, CDictDonationController.claim);
+
+/**
+ * @openapi
  * /api/cdict/donate/{channel}:
  *   get:
  *     tags:
  *       - CDict
  *     summary: CDict 收款码图片
+ *     description: 管理端填了图片地址时 302 跳到该地址（服务端不下载、不缓存图片字节）；地址留空时返回服务端内置图片。
  *     parameters:
  *       - in: path
  *         name: channel
@@ -154,12 +201,14 @@ router.get("/donate", CDictDonationController.channels);
  *           example: alipay
  *     responses:
  *       200:
- *         description: 收款码图片字节
+ *         description: 服务端内置收款码图片字节（管理端未填图片地址时）
  *         content:
  *           image/png:
  *             schema:
  *               type: string
  *               format: binary
+ *       302:
+ *         description: 跳转到管理端配置的收款码图片地址
  *       404:
  *         description: 渠道不存在或没有可用图片
  *       502:

@@ -3,8 +3,8 @@ import { useReducedMotion } from 'framer-motion';
 import { useAuth } from '../../hooks/useAuth';
 import { isSuperAdmin } from '../../utils/rbac';
 import { useNotification } from '../Notification';
-import CDictDonationConfigSection, { type CDictDonationChannelDraft } from './CDictDonationConfigSection';
-import { CDICT_DONATION_API, CDICT_DONATE_PUBLIC_API, getAuthHeaders, authFetch } from './api';
+import CDictDonationConfigSection, { type CDictDonationChannelDraft, type CDictDonationClaimItem } from './CDictDonationConfigSection';
+import { CDICT_DONATION_API, CDICT_DONATION_CLAIMS_API, CDICT_DONATE_PUBLIC_API, getAuthHeaders, authFetch } from './api';
 
 interface SelfContainedCDictDonationConfigSectionProps {
   prefersReducedMotion?: boolean | null;
@@ -12,6 +12,7 @@ interface SelfContainedCDictDonationConfigSectionProps {
 
 const CHANNEL_ID_PATTERN = /^[a-z0-9-]{1,32}$/;
 const MAX_CHANNELS = 8;
+const MAX_SUPPORTERS = 500;
 
 const EMPTY_CHANNEL: CDictDonationChannelDraft = { id: '', name: '', hint: '', enabled: true, imageUrl: '' };
 
@@ -24,6 +25,19 @@ function toDraft(raw: unknown): CDictDonationChannelDraft {
     enabled: obj.enabled !== false,
     imageUrl: String(obj.imageUrl || ''),
   };
+}
+
+/** 名单在后台按行编辑，落库时转成数组：去空、去重、限行数。 */
+function parseSupporters(text: string): string[] {
+  const names: string[] = [];
+  const seen = new Set<string>();
+  for (const line of text.split('\n')) {
+    const name = line.trim().slice(0, 32);
+    if (!name || seen.has(name)) continue;
+    seen.add(name);
+    names.push(name);
+  }
+  return names;
 }
 
 export default function SelfContainedCDictDonationConfigSection({ prefersReducedMotion: reducedMotionProp }: SelfContainedCDictDonationConfigSectionProps) {
@@ -40,6 +54,8 @@ export default function SelfContainedCDictDonationConfigSection({ prefersReduced
   const [enabled, setEnabled] = useState(true);
   const [notice, setNotice] = useState('');
   const [channels, setChannels] = useState<CDictDonationChannelDraft[]>([{ ...EMPTY_CHANNEL }]);
+  const [supportersText, setSupportersText] = useState('');
+  const [claims, setClaims] = useState<CDictDonationClaimItem[]>([]);
   const [updatedAt, setUpdatedAt] = useState<string | undefined>();
 
   const fetchConfig = useCallback(async () => {
@@ -53,15 +69,60 @@ export default function SelfContainedCDictDonationConfigSection({ prefersReduced
       setEnabled(cfg.enabled !== false);
       setNotice(String(cfg.notice || ''));
       setChannels(list.length > 0 ? list : [{ ...EMPTY_CHANNEL }]);
+      setSupportersText(Array.isArray(cfg.supporters) ? cfg.supporters.map((item: unknown) => String(item ?? '')).join('\n') : '');
       setUpdatedAt(data?.setting?.updatedAt);
     } catch (e) {
       setNotification({ message: '获取 CDict 赞赏配置失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
     } finally { setLoading(false); }
   }, [setNotification]);
 
+  const fetchClaims = useCallback(async () => {
+    try {
+      const res = await authFetch(CDICT_DONATION_CLAIMS_API, { headers: { ...getAuthHeaders() } });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return;
+      setClaims(Array.isArray(data?.claims) ? data.claims : []);
+    } catch {
+      // 申请列表拉不到不影响配置本身，静默即可。
+    }
+  }, []);
+
   useEffect(() => {
-    if (isOpen && !fetchedRef.current) { fetchedRef.current = true; fetchConfig(); }
-  }, [isOpen, fetchConfig]);
+    if (isOpen && !fetchedRef.current) { fetchedRef.current = true; fetchConfig(); fetchClaims(); }
+  }, [isOpen, fetchConfig, fetchClaims]);
+
+  const removeClaim = useCallback(async (claim: CDictDonationClaimItem): Promise<boolean> => {
+    try {
+      const res = await authFetch(`${CDICT_DONATION_CLAIMS_API}/${encodeURIComponent(claim.id)}`, {
+        method: 'DELETE',
+        headers: { ...getAuthHeaders() },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setNotification({ message: data.error || '删除申请失败', type: 'error' }); return false; }
+      setClaims((prev) => prev.filter((item) => item.id !== claim.id));
+      return true;
+    } catch (e) {
+      setNotification({ message: '删除申请失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
+      return false;
+    }
+  }, [setNotification]);
+
+  /** 加入名单：把称呼追加到名单草稿并删掉这条申请；名单本身仍要点保存才生效。 */
+  const handleClaimAccept = useCallback(async (claim: CDictDonationClaimItem) => {
+    if (!canWrite) return;
+    if (!(await removeClaim(claim))) return;
+    setSupportersText((prev) => {
+      const lines = prev.split('\n').map((line) => line.trim()).filter(Boolean);
+      if (lines.includes(claim.displayName)) return prev;
+      return [...lines, claim.displayName].join('\n');
+    });
+    setNotification({ message: `已把「${claim.displayName}」加入名单草稿，记得点保存`, type: 'success' });
+  }, [canWrite, removeClaim, setNotification]);
+
+  const handleClaimDelete = useCallback(async (claim: CDictDonationClaimItem) => {
+    if (!canWrite) return;
+    await removeClaim(claim);
+  }, [canWrite, removeClaim]);
 
   const handleChannelChange = useCallback((index: number, patch: Partial<CDictDonationChannelDraft>) => {
     setChannels((prev) => prev.map((channel, i) => (i === index ? { ...channel, ...patch } : channel)));
@@ -88,16 +149,18 @@ export default function SelfContainedCDictDonationConfigSection({ prefersReduced
       if (!CHANNEL_ID_PATTERN.test(channel.id)) { setNotification({ message: `渠道 id "${channel.id || '空'}" 不合法，只允许小写字母、数字和连字符`, type: 'error' }); return; }
       if (!channel.name) { setNotification({ message: `渠道 ${channel.id} 缺少显示名称`, type: 'error' }); return; }
       if (channel.imageUrl && !/^https:\/\//i.test(channel.imageUrl)) { setNotification({ message: `渠道 ${channel.id} 的图片地址必须是 https 直链`, type: 'error' }); return; }
-      if (channel.imageUrl && /\/api\/cdict\/donate(\/|$)/i.test(channel.imageUrl)) { setNotification({ message: `渠道 ${channel.id} 的图片地址不能填赞赏码接口自身，否则服务端会自己代理自己；留空即用内置图片`, type: 'error' }); return; }
+      if (channel.imageUrl && /\/api\/cdict\/donate(\/|$)/i.test(channel.imageUrl)) { setNotification({ message: `渠道 ${channel.id} 的图片地址不能填赞赏码接口自身，否则跳转会绕回本接口；留空即用内置图片`, type: 'error' }); return; }
     }
     const ids = new Set(payloadChannels.map((channel) => channel.id));
     if (ids.size !== payloadChannels.length) { setNotification({ message: '渠道 id 不能重复', type: 'error' }); return; }
+    const supporters = parseSupporters(supportersText);
+    if (supporters.length > MAX_SUPPORTERS) { setNotification({ message: `鸣谢名单最多 ${MAX_SUPPORTERS} 行`, type: 'error' }); return; }
     setSaving(true);
     try {
       const res = await authFetch(CDICT_DONATION_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ enabled, notice: notice.trim(), channels: payloadChannels }),
+        body: JSON.stringify({ enabled, notice: notice.trim(), channels: payloadChannels, supporters }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setNotification({ message: data.error || '保存失败', type: 'error' }); return; }
@@ -105,7 +168,7 @@ export default function SelfContainedCDictDonationConfigSection({ prefersReduced
       await fetchConfig();
     } catch (e) { setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
     finally { setSaving(false); }
-  }, [canWrite, saving, channels, enabled, notice, fetchConfig, setNotification]);
+  }, [canWrite, saving, channels, enabled, notice, supportersText, fetchConfig, setNotification]);
 
   const handleReset = useCallback(async () => {
     if (!canWrite || deleting) return;
@@ -125,11 +188,12 @@ export default function SelfContainedCDictDonationConfigSection({ prefersReduced
     <CDictDonationConfigSection
       isOpen={isOpen} onToggle={() => setIsOpen((v) => !v)} prefersReducedMotion={prefersReducedMotion}
       loading={loading} saving={saving} deleting={deleting} readOnly={!canWrite}
-      enabled={enabled} notice={notice} channels={channels}
+      enabled={enabled} notice={notice} channels={channels} supportersText={supportersText} claims={claims}
       previewBaseUrl={CDICT_DONATE_PUBLIC_API} updatedAt={updatedAt}
-      onEnabledChange={setEnabled} onNoticeChange={setNotice}
+      onEnabledChange={setEnabled} onNoticeChange={setNotice} onSupportersTextChange={setSupportersText}
+      onClaimAccept={handleClaimAccept} onClaimDelete={handleClaimDelete}
       onChannelChange={handleChannelChange} onChannelRemove={handleChannelRemove} onChannelAdd={handleChannelAdd}
-      onRefresh={fetchConfig} onSave={handleSave} onReset={handleReset}
+      onRefresh={() => { fetchConfig(); fetchClaims(); }} onSave={handleSave} onReset={handleReset}
     />
   );
 }

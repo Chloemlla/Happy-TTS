@@ -10,6 +10,13 @@ export interface CDictDonationChannelDraft {
   imageUrl: string;
 }
 
+export interface CDictDonationClaimItem {
+  id: string;
+  transactionId: string;
+  displayName: string;
+  createdAt?: string;
+}
+
 interface CDictDonationConfigSectionProps {
   isOpen: boolean;
   onToggle: (key: string) => void;
@@ -21,10 +28,15 @@ interface CDictDonationConfigSectionProps {
   enabled: boolean;
   notice: string;
   channels: CDictDonationChannelDraft[];
+  supportersText: string;
+  claims: CDictDonationClaimItem[];
   previewBaseUrl: string;
   updatedAt?: string;
   onEnabledChange: (value: boolean) => void;
   onNoticeChange: (value: string) => void;
+  onSupportersTextChange: (value: string) => void;
+  onClaimAccept: (claim: CDictDonationClaimItem) => void;
+  onClaimDelete: (claim: CDictDonationClaimItem) => void;
   onChannelChange: (index: number, patch: Partial<CDictDonationChannelDraft>) => void;
   onChannelRemove: (index: number) => void;
   onChannelAdd: () => void;
@@ -49,10 +61,15 @@ export default function CDictDonationConfigSection({
   enabled,
   notice,
   channels,
+  supportersText,
+  claims,
   previewBaseUrl,
   updatedAt,
   onEnabledChange,
   onNoticeChange,
+  onSupportersTextChange,
+  onClaimAccept,
+  onClaimDelete,
   onChannelChange,
   onChannelRemove,
   onChannelAdd,
@@ -65,7 +82,7 @@ export default function CDictDonationConfigSection({
   return (
     <CollapsibleSection
       title="CDict 赞赏码配置"
-      description="配置 CDict 客户端赞赏页的说明文案与收款渠道。客户端每次打开赞赏页都实时拉取 /api/cdict/donate，安装包内不内置任何收款信息，改图改文案无需发版。"
+      description="配置 CDict 客户端赞赏页的说明文案、收款渠道与鸣谢名单。客户端每次打开赞赏页都实时拉取 /api/cdict/donate，安装包内不内置任何收款信息；收款码图片走 302 跳到这里填的地址，改图改文案改名单都无需发版。"
       sectionKey="cdictDonation"
       isOpen={isOpen}
       onToggle={onToggle}
@@ -86,15 +103,20 @@ export default function CDictDonationConfigSection({
     >
       <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-xs leading-5 text-emerald-900">
         <p>
-          图片地址留空时，服务端使用内置资源
+          填了图片地址，客户端访问
+          <code className="mx-1 rounded bg-white/80 px-1">/api/cdict/donate/&lt;渠道 id&gt;</code>
+          时会被 302 跳到这里填的地址本身——服务端不下载、不缓存、不改写图片，改地址即时生效。
+        </p>
+        <p className="mt-1">
+          地址留空时才由服务端直接返回内置资源
           <code className="mx-1 rounded bg-white/80 px-1">src/assets/donation/&lt;渠道 id&gt;.(png|jpg)</code>
-          ；填写后必须是 https 直链，由服务端代取并缓存 10 分钟，取不到时自动回落到内置图片。
+          的字节。
         </p>
         <p className="mt-1">渠道 id 只允许小写字母、数字和连字符，最多 8 个渠道；客户端按 id 请求图片。</p>
         <p className="mt-1">
-          图片地址必须是外部图床直链，不能填本站地址或
+          图片地址必须是外部图床 https 直链，不能填本站地址或
           <code className="mx-1 rounded bg-white/80 px-1">/api/cdict/donate/…</code>
-          本身——那会让服务端自己代理自己。想用本站图片就把地址留空。
+          本身——那会让跳转绕回本接口。想用本站图片就把地址留空。
         </p>
       </div>
 
@@ -124,6 +146,64 @@ export default function CDictDonationConfigSection({
           maxLength={200}
           className={INPUT_CLASS}
         />
+      </div>
+
+      <div>
+        <label className="mb-1 block text-sm font-medium text-gray-700">鸣谢名单（每行一个名字，最多 500 行）</label>
+        <textarea
+          value={supportersText}
+          onChange={(event) => onSupportersTextChange(event.target.value)}
+          disabled={readOnly}
+          rows={5}
+          placeholder={'核实转账备注后把名字加到这里\n每行一个，单个名字最多 32 字'}
+          className={`${INPUT_CLASS} font-mono text-xs`}
+        />
+        <p className="mt-1 text-xs text-gray-500">
+          保存后客户端赞赏页的鸣谢名单实时更新，不需要发版；名字会公开展示，请只填赞赏者要求展示的称呼。
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-gray-200 bg-white px-4 py-3">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <span className="text-sm font-medium text-gray-700">待核实的署名申请（{claims.length}）</span>
+          <span className="text-xs text-gray-500">核对交易号后「加入名单」，再点上方保存</span>
+        </div>
+        {claims.length === 0 ? (
+          <p className="text-xs text-gray-500">暂无待核实的申请。</p>
+        ) : (
+          <ul className="space-y-2">
+            {claims.map((claim) => (
+              <li key={claim.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2">
+                <span className="text-xs text-gray-700">
+                  <code className="rounded bg-white px-1 font-mono">{claim.transactionId}</code>
+                  <span className="mx-2">→</span>
+                  <span className="font-medium">{claim.displayName}</span>
+                  {claim.createdAt ? (
+                    <span className="ml-2 text-gray-400">{new Date(claim.createdAt).toLocaleString()}</span>
+                  ) : null}
+                </span>
+                <span className="flex items-center gap-2">
+                  <m.button
+                    onClick={() => onClaimAccept(claim)}
+                    disabled={isDisabled}
+                    className="rounded-lg border border-emerald-300 px-2 py-1 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    whileTap={{ scale: 0.96 }}
+                  >
+                    加入名单
+                  </m.button>
+                  <m.button
+                    onClick={() => onClaimDelete(claim)}
+                    disabled={isDisabled}
+                    className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    whileTap={{ scale: 0.96 }}
+                  >
+                    <FaTrash className="h-3 w-3" /> 删除
+                  </m.button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className="space-y-3">

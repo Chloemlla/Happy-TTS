@@ -1,19 +1,22 @@
 import type { Request, Response } from "express";
 import logger from "../utils/logger";
 import {
-  DONATE_LOOP_HEADER,
+  deleteDonationClaim,
   deleteDonationSetting,
-  getDonationImage,
   getDonationSetting,
   getPublicDonationConfig,
+  listDonationClaims,
+  resolveDonationImage,
   setDonationSetting,
+  submitDonationClaim,
 } from "../services/cdictDonationService";
 
 /**
  * CDict 赞赏码控制器。
  *
- * 公开接口给客户端用：只回渠道文案与图片字节，图片来源（后台配置的远端地址或服务端内置文件）
- * 完全不暴露给客户端。管理接口给 env-manager 后台用，写操作由超管鉴权中间件把关。
+ * 公开接口给客户端用：回渠道文案，以及收款码图片的 302 跳转——后台填的图片地址原样下发，
+ * 服务端不下载也不缓存图片；只有地址留空时才回服务端内置文件的字节。
+ * 管理接口给 env-manager 后台用，写操作由超管鉴权中间件把关。
  */
 
 function fail(res: Response, status: number, message: string): void {
@@ -38,6 +41,7 @@ export class CDictDonationController {
           name: channel.name,
           hint: channel.hint,
         })),
+        supporters: config.supporters,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "赞赏配置读取失败";
@@ -46,24 +50,70 @@ export class CDictDonationController {
     }
   }
 
-  /** GET /api/cdict/donate/:channel —— 收款码图片字节。 */
+  /**
+   * GET /api/cdict/donate/:channel —— 收款码。
+   *
+   * 后台填了图片地址就 302 到那个地址，客户端自己去图床取图；地址留空时才直接吐内置图片的字节。
+   */
   public static async image(req: Request, res: Response): Promise<void> {
     const channelId = String(req.params.channel || "");
-    // 带着回环标记进来说明是本服务出站取图被绕回了自己，这一层只许读内置图片。
-    const allowRemote = !req.headers[DONATE_LOOP_HEADER];
     try {
-      const image = await getDonationImage(channelId, allowRemote);
-      if (!image) {
+      const resolved = await resolveDonationImage(channelId);
+      if (!resolved) {
         fail(res, 404, "该赞赏渠道当前没有可用的收款码");
         return;
       }
-      res.setHeader("Content-Type", image.contentType);
+      if (resolved.kind === "redirect") {
+        res.setHeader("Cache-Control", "public, max-age=300");
+        res.redirect(302, resolved.url);
+        return;
+      }
+      res.setHeader("Content-Type", resolved.image.contentType);
       res.setHeader("Cache-Control", "public, max-age=3600");
-      res.status(200).send(image.data);
+      res.status(200).send(resolved.image.data);
     } catch (error) {
       const message = error instanceof Error ? error.message : "收款码获取失败";
       logger.warn("[CDict] 收款码获取失败", { channel: channelId, message });
       fail(res, 502, message);
+    }
+  }
+
+  /**
+   * POST /api/cdict/donate/claim —— 提交署名申请（交易号 + 想展示的称呼）。
+   *
+   * 只落库这两项，由开发者在后台核对交易号后决定是否加入鸣谢名单；重复提交同一交易号是幂等的。
+   */
+  public static async claim(req: Request, res: Response): Promise<void> {
+    try {
+      const result = await submitDonationClaim(req.body || {});
+      res.json({
+        success: true,
+        duplicated: result.duplicated,
+        message: result.duplicated
+          ? "这个交易号已经提交过了，正在等待核实"
+          : "已提交，开发者核实后会把你的名字加入鸣谢名单",
+      });
+    } catch (error) {
+      fail(res, 400, error instanceof Error ? error.message : "提交失败");
+    }
+  }
+
+  /** GET /api/admin/cdict-donation/claims —— 后台读取待核实的署名申请。 */
+  public static async getClaims(_req: Request, res: Response): Promise<void> {
+    try {
+      res.json({ success: true, claims: await listDonationClaims() });
+    } catch (error) {
+      fail(res, 500, error instanceof Error ? error.message : "读取署名申请失败");
+    }
+  }
+
+  /** DELETE /api/admin/cdict-donation/claims/:id —— 核实完删除该申请。 */
+  public static async deleteClaim(req: Request, res: Response): Promise<void> {
+    try {
+      await deleteDonationClaim(String(req.params.id || ""));
+      res.json({ success: true });
+    } catch (error) {
+      fail(res, 400, error instanceof Error ? error.message : "删除署名申请失败");
     }
   }
 
