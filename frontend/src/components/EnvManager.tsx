@@ -22,6 +22,7 @@ import SelfContainedEmailSystemSettingsSection from './env-manager/SelfContained
 import SelfContainedOutemailSettingsSection from './env-manager/SelfContainedOutemailSettingsSection';
 import SelfContainedGoogleClientIdsSection from './env-manager/SelfContainedGoogleClientIdsSection';
 import SelfContainedSynapseAndroidConfigSection from './env-manager/SelfContainedSynapseAndroidConfigSection';
+import SelfContainedCDictDonationConfigSection from './env-manager/SelfContainedCDictDonationConfigSection';
 import SelfContainedNexaiSigningConfigSection from './env-manager/SelfContainedNexaiSigningConfigSection';
 import SelfContainedLibreChatProvidersSection from './env-manager/SelfContainedLibreChatProvidersSection';
 import SelfContainedCodeSettingSection from './env-manager/SelfContainedCodeSettingSection';
@@ -481,6 +482,7 @@ const EnvManager: React.FC = () => {
         <TtsProviderConfigSection />
         <SelfContainedGoogleClientIdsSection prefersReducedMotion={prefersReducedMotion} />
         <SelfContainedSynapseAndroidConfigSection prefersReducedMotion={prefersReducedMotion} />
+        <SelfContainedCDictDonationConfigSection prefersReducedMotion={prefersReducedMotion} />
         <SelfContainedNexaiSigningConfigSection prefersReducedMotion={prefersReducedMotion} />
         <RuntimeConfigSections />
         <SelfContainedSecretKeySection title="短链 AES_KEY 设置" description="管理短链 AES_KEY。用于短链接 ID 加密解密，防止短链 ID 被枚举遍历。" sectionKey="shortaes" apiUrl={SHORTURL_AES_API} inputLabel="AES_KEY" inputPlaceholder="请输入 AES_KEY（仅用于加解密，不会回显明文）" useSignedRequest prefersReducedMotion={prefersReducedMotion} />

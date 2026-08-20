@@ -1,5 +1,6 @@
 import express from "express";
 import { adminController } from "../../controllers/adminController";
+import { CDictDonationController } from "../../controllers/cdictDonationController";
 import { ttsProviderController } from "../../controllers/ttsProviderController";
 import { authenticateSuperAdmin } from "../../middleware/auth";
 import { auditLog } from "../../middleware/auditLog";
@@ -219,6 +220,19 @@ router.delete(
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.synapse-android.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
   adminController.deleteSynapseAndroidSetting,
+);
+router.get("/cdict-donation/setting", CDictDonationController.getSetting);
+router.post(
+  "/cdict-donation/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.cdict-donation.set" }),
+  CDictDonationController.setSetting,
+);
+router.delete(
+  "/cdict-donation/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.cdict-donation.delete" }),
+  CDictDonationController.deleteSetting,
 );
 router.get("/deeplx/setting", adminController.getDeepLXSetting);
 router.post(

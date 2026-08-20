@@ -824,6 +824,16 @@ VITE_OUTEMAIL_ENABLED=true                      # 是否启用外部邮件功能
 | POST | `/api/cdict/translate` | 文本翻译（表单或 JSON：`text` / `from` / `to`），上游凭据与签名由服务端代持 |
 | GET | `/api/cdict/languages` | 上游支持的语言列表 |
 | GET | `/api/cdict/tts` | 单词/短语朗读，`source=engine` 走在线合成、`source=youdao` 走词典静态音频，返回音频字节 |
+| GET | `/api/cdict/donate` | 赞赏渠道与说明文案（`{ notice, channels: [{ id, name, hint }] }`），关闭或无可用渠道时返回 404 |
+| GET | `/api/cdict/donate/:channel` | 指定渠道的收款码图片字节，优先取管理端配置的 https 直链（缓存 10 分钟），取不到回落到 `src/assets/donation/<id>.(png\|jpg)` |
+
+赞赏配置存在 `runtime_config_settings` 的 `CDICT_DONATION` 键，由超级管理员在 env-manager 的「CDict 赞赏码配置」分区维护：
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/admin/cdict-donation/setting` | 读取当前赞赏配置 |
+| POST | `/api/admin/cdict-donation/setting` | 覆盖写入（超级管理员，带审计日志） |
+| DELETE | `/api/admin/cdict-donation/setting` | 重置为内置默认（超级管理员，带审计日志） |
 
 #### 其他常用端点
 | 方法 | 路径 | 说明 |
@@ -880,7 +890,7 @@ VITE_OUTEMAIL_ENABLED=true                      # 是否启用外部邮件功能
 | `workspaceRoutes` | `/api/workspaces` | 工作区管理 |
 | `webhookRoutes` | `/api/webhooks` | Webhook 接收 |
 | `webhookEventRoutes` | `/api/webhook-events` | Webhook 事件管理 |
-| `cdictRoutes` | `/api/cdict` | CDict 客户端代理（翻译 / 语言列表 / 朗读） |
+| `cdictRoutes` | `/api/cdict` | CDict 客户端代理（翻译 / 语言列表 / 朗读 / 赞赏码） |
 
 ---
 

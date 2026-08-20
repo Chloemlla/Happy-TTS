@@ -1,5 +1,6 @@
 import express from "express";
 import { CDictController } from "../controllers/cdictController";
+import { CDictDonationController } from "../controllers/cdictDonationController";
 
 const router = express.Router();
 
@@ -117,5 +118,53 @@ router.get("/languages", CDictController.languages);
  *         description: 上游语音失败
  */
 router.get("/tts", CDictController.tts);
+
+/**
+ * @openapi
+ * /api/cdict/donate:
+ *   get:
+ *     tags:
+ *       - CDict
+ *     summary: CDict 赞赏渠道列表
+ *     description: 客户端每次进入赞赏页都实时拉取；安装包内不内置任何收款信息。
+ *     responses:
+ *       200:
+ *         description: 渠道列表与说明文案
+ *       404:
+ *         description: 赞赏功能未开启
+ *       502:
+ *         description: 配置读取失败
+ */
+router.get("/donate", CDictDonationController.channels);
+
+/**
+ * @openapi
+ * /api/cdict/donate/{channel}:
+ *   get:
+ *     tags:
+ *       - CDict
+ *     summary: CDict 收款码图片
+ *     parameters:
+ *       - in: path
+ *         name: channel
+ *         required: true
+ *         schema:
+ *           type: string
+ *           pattern: '^[a-z0-9-]{1,32}$'
+ *           example: alipay
+ *     responses:
+ *       200:
+ *         description: 收款码图片字节
+ *         content:
+ *           image/png:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       404:
+ *         description: 渠道不存在或没有可用图片
+ *       502:
+ *         description: 图片获取失败
+ */
+router.get("/donate/:channel", CDictDonationController.image);
 
 export default router;
