@@ -25,18 +25,61 @@ const IPFSSettingSchema = new mongoose.Schema<IPFSSettingDoc>(
   },
   { collection: "shorturl_settings" },
 );
+// shorturl_settings 被多个 schema 共用，历史数据可能存在重复 key，
+// 这里只需要支撑 { key: { $in: [...] } } 批量查询，不能声明 unique。
+IPFSSettingSchema.index({ key: 1 });
 const IPFSSettingModel =
   (mongoose.models.IPFSSetting as mongoose.Model<IPFSSettingDoc>) ||
   mongoose.model<IPFSSettingDoc>("IPFSSetting", IPFSSettingSchema);
 
+const IPFS_SETTING_KEYS = [
+  "IPFS_UPLOAD_URL",
+  "IPFS_UA",
+  "IPFS_BYPASS_UA_KEYWORD",
+  "IPFS_ALLOW_ALL_FILE_TYPES",
+  "IPFS_DEV_SKIP_TURNSTILE",
+  "IMAGE_BED_API_URL",
+  "IMAGE_BED_CDN_DOMAIN",
+  "IMAGE_BED_STORAGE_DESTINATION",
+  "IMAGE_BED_OUTPUT_FORMAT",
+] as const;
+type IPFSSettingKey = (typeof IPFS_SETTING_KEYS)[number];
+
+let ipfsSettingsCache: { values: Map<string, string>; timestamp: number } | null = null;
+const IPFS_SETTINGS_CACHE_TTL = 60000; // 1分钟
+
+function invalidateIPFSSettingsCache(): void {
+  ipfsSettingsCache = null;
+}
+
+// 一次批量读取全部设置键，未命中时返回 null，由各 getter 保留自己的回退逻辑
+async function getIPFSSettingValue(key: IPFSSettingKey): Promise<string | null> {
+  if (mongoose.connection.readyState !== 1) {
+    return null;
+  }
+  const now = Date.now();
+  if (ipfsSettingsCache && now - ipfsSettingsCache.timestamp < IPFS_SETTINGS_CACHE_TTL) {
+    return ipfsSettingsCache.values.get(key) ?? null;
+  }
+  const docs = await IPFSSettingModel.find({ key: { $in: [...IPFS_SETTING_KEYS] } })
+    .lean()
+    .exec();
+  const values = new Map<string, string>();
+  for (const doc of docs) {
+    if (doc && typeof doc.value === "string") {
+      values.set(doc.key, doc.value);
+    }
+  }
+  ipfsSettingsCache = { values, timestamp: now };
+  return values.get(key) ?? null;
+}
+
 async function getIPFSUploadURL(): Promise<string> {
   try {
-    if (mongoose.connection.readyState === 1) {
-      const doc = await IPFSSettingModel.findOne({ key: "IPFS_UPLOAD_URL" }).lean().exec();
-      if (doc && typeof doc.value === "string" && doc.value.trim().length > 0) {
-        logger.info("[IPFS] 从MongoDB读取到IPFS_UPLOAD_URL配置:", doc.value);
-        return doc.value.trim();
-      }
+    const value = await getIPFSSettingValue("IPFS_UPLOAD_URL");
+    if (value !== null && value.trim().length > 0) {
+      logger.info("[IPFS] 从MongoDB读取到IPFS_UPLOAD_URL配置:", value);
+      return value.trim();
     }
   } catch (e) {
     logger.error("[IPFS] 读取IPFS_UPLOAD_URL配置失败", e);
@@ -54,12 +97,10 @@ async function getIPFSUploadURL(): Promise<string> {
 
 async function getIPFSUserAgent(): Promise<string> {
   try {
-    if (mongoose.connection.readyState === 1) {
-      const doc = await IPFSSettingModel.findOne({ key: "IPFS_UA" }).lean().exec();
-      if (doc && typeof doc.value === "string" && doc.value.trim().length > 0) {
-        logger.info("[IPFS] 从MongoDB读取到IPFS_UA配置:", doc.value);
-        return doc.value.trim();
-      }
+    const value = await getIPFSSettingValue("IPFS_UA");
+    if (value !== null && value.trim().length > 0) {
+      logger.info("[IPFS] 从MongoDB读取到IPFS_UA配置:", value);
+      return value.trim();
     }
   } catch (e) {
     logger.error("[IPFS] 读取IPFS_UA配置失败", e);
@@ -76,12 +117,10 @@ async function getIPFSUserAgent(): Promise<string> {
 
 async function getBypassUAKeyword(): Promise<string | null> {
   try {
-    if (mongoose.connection.readyState === 1) {
-      const doc = await IPFSSettingModel.findOne({ key: "IPFS_BYPASS_UA_KEYWORD" }).lean().exec();
-      if (doc && typeof doc.value === "string" && doc.value.trim().length > 0) {
-        logger.info("[IPFS] 从MongoDB读取到IPFS_BYPASS_UA_KEYWORD配置:", doc.value);
-        return doc.value.trim();
-      }
+    const value = await getIPFSSettingValue("IPFS_BYPASS_UA_KEYWORD");
+    if (value !== null && value.trim().length > 0) {
+      logger.info("[IPFS] 从MongoDB读取到IPFS_BYPASS_UA_KEYWORD配置:", value);
+      return value.trim();
     }
   } catch (e) {
     logger.error("[IPFS] 读取IPFS_BYPASS_UA_KEYWORD配置失败", e);
@@ -96,14 +135,12 @@ async function getBypassUAKeyword(): Promise<string | null> {
 
 async function getAllowAllFileTypes(): Promise<boolean> {
   try {
-    if (mongoose.connection.readyState === 1) {
-      const doc = await IPFSSettingModel.findOne({ key: "IPFS_ALLOW_ALL_FILE_TYPES" }).lean().exec();
-      if (doc && typeof doc.value === "string") {
-        const value = doc.value.trim().toLowerCase();
-        const result = value === "true" || value === "1";
-        logger.info("[IPFS] 从MongoDB读取到IPFS_ALLOW_ALL_FILE_TYPES配置:", result);
-        return result;
-      }
+    const value = await getIPFSSettingValue("IPFS_ALLOW_ALL_FILE_TYPES");
+    if (value !== null) {
+      const normalized = value.trim().toLowerCase();
+      const result = normalized === "true" || normalized === "1";
+      logger.info("[IPFS] 从MongoDB读取到IPFS_ALLOW_ALL_FILE_TYPES配置:", result);
+      return result;
     }
   } catch (e) {
     logger.error("[IPFS] 读取IPFS_ALLOW_ALL_FILE_TYPES配置失败", e);
@@ -118,11 +155,9 @@ async function getAllowAllFileTypes(): Promise<boolean> {
 
 async function getImageBedApiUrl(): Promise<string> {
   try {
-    if (mongoose.connection.readyState === 1) {
-      const doc = await IPFSSettingModel.findOne({ key: "IMAGE_BED_API_URL" }).lean().exec();
-      if (doc && typeof doc.value === "string" && doc.value.trim().length > 0) {
-        return doc.value.trim();
-      }
+    const value = await getIPFSSettingValue("IMAGE_BED_API_URL");
+    if (value !== null && value.trim().length > 0) {
+      return value.trim();
     }
   } catch (e) {
     logger.error("[ImageBed] 读取IMAGE_BED_API_URL配置失败", e);
@@ -132,11 +167,9 @@ async function getImageBedApiUrl(): Promise<string> {
 
 async function getImageBedDefaultCdn(): Promise<string | null> {
   try {
-    if (mongoose.connection.readyState === 1) {
-      const doc = await IPFSSettingModel.findOne({ key: "IMAGE_BED_CDN_DOMAIN" }).lean().exec();
-      if (doc && typeof doc.value === "string" && doc.value.trim().length > 0) {
-        return doc.value.trim();
-      }
+    const value = await getIPFSSettingValue("IMAGE_BED_CDN_DOMAIN");
+    if (value !== null && value.trim().length > 0) {
+      return value.trim();
     }
   } catch (e) {
     logger.error("[ImageBed] 读取IMAGE_BED_CDN_DOMAIN配置失败", e);
@@ -146,11 +179,9 @@ async function getImageBedDefaultCdn(): Promise<string | null> {
 
 async function getImageBedDefaultStorage(): Promise<string | null> {
   try {
-    if (mongoose.connection.readyState === 1) {
-      const doc = await IPFSSettingModel.findOne({ key: "IMAGE_BED_STORAGE_DESTINATION" }).lean().exec();
-      if (doc && typeof doc.value === "string" && doc.value.trim().length > 0) {
-        return doc.value.trim();
-      }
+    const value = await getIPFSSettingValue("IMAGE_BED_STORAGE_DESTINATION");
+    if (value !== null && value.trim().length > 0) {
+      return value.trim();
     }
   } catch (e) {
     logger.error("[ImageBed] 读取IMAGE_BED_STORAGE_DESTINATION配置失败", e);
@@ -160,11 +191,9 @@ async function getImageBedDefaultStorage(): Promise<string | null> {
 
 async function getImageBedDefaultOutputFormat(): Promise<string | null> {
   try {
-    if (mongoose.connection.readyState === 1) {
-      const doc = await IPFSSettingModel.findOne({ key: "IMAGE_BED_OUTPUT_FORMAT" }).lean().exec();
-      if (doc && typeof doc.value === "string" && doc.value.trim().length > 0) {
-        return doc.value.trim();
-      }
+    const value = await getIPFSSettingValue("IMAGE_BED_OUTPUT_FORMAT");
+    if (value !== null && value.trim().length > 0) {
+      return value.trim();
     }
   } catch (e) {
     logger.error("[ImageBed] 读取IMAGE_BED_OUTPUT_FORMAT配置失败", e);
@@ -174,14 +203,12 @@ async function getImageBedDefaultOutputFormat(): Promise<string | null> {
 
 async function getDevSkipTurnstile(): Promise<boolean> {
   try {
-    if (mongoose.connection.readyState === 1) {
-      const doc = await IPFSSettingModel.findOne({ key: "IPFS_DEV_SKIP_TURNSTILE" }).lean().exec();
-      if (doc && typeof doc.value === "string") {
-        const value = doc.value.trim().toLowerCase();
-        const result = value === "true" || value === "1";
-        logger.info("[IPFS] 从MongoDB读取到IPFS_DEV_SKIP_TURNSTILE配置:", result);
-        return result;
-      }
+    const value = await getIPFSSettingValue("IPFS_DEV_SKIP_TURNSTILE");
+    if (value !== null) {
+      const normalized = value.trim().toLowerCase();
+      const result = normalized === "true" || normalized === "1";
+      logger.info("[IPFS] 从MongoDB读取到IPFS_DEV_SKIP_TURNSTILE配置:", result);
+      return result;
     }
   } catch (e) {
     logger.error("[IPFS] 读取IPFS_DEV_SKIP_TURNSTILE配置失败", e);
@@ -1139,6 +1166,7 @@ export class IPFSService {
         },
         { upsert: true, returnDocument: "after" },
       );
+      invalidateIPFSSettingsCache();
 
       logger.info("[IPFS] IPFS_UPLOAD_URL配置已更�?", trimmedUrl);
       return true;
@@ -1177,6 +1205,7 @@ export class IPFSService {
         },
         { upsert: true, returnDocument: "after" },
       );
+      invalidateIPFSSettingsCache();
 
       logger.info("[IPFS] IPFS_UA 配置已更�?", trimmedUA);
       return true;
@@ -1237,6 +1266,7 @@ export class IPFSService {
         },
         { upsert: true, returnDocument: "after" },
       );
+      invalidateIPFSSettingsCache();
 
       logger.info("[IPFS] IPFS_BYPASS_UA_KEYWORD 配置已更�?", trimmedKeyword);
       return true;
@@ -1266,6 +1296,7 @@ export class IPFSService {
         },
         { upsert: true, returnDocument: "after" },
       );
+      invalidateIPFSSettingsCache();
 
       logger.info("[IPFS] IPFS_ALLOW_ALL_FILE_TYPES 配置已更�?", allowAll);
       return true;
@@ -1311,6 +1342,7 @@ export class IPFSService {
         },
         { upsert: true, returnDocument: "after" },
       );
+      invalidateIPFSSettingsCache();
 
       logger.info("[IPFS] IPFS_DEV_SKIP_TURNSTILE 配置已更�?", skipTurnstile);
       return true;
@@ -1363,6 +1395,7 @@ export class IPFSService {
       { key: "IMAGE_BED_API_URL", value: trimmed, updatedAt: new Date() },
       { upsert: true, returnDocument: "after" },
     );
+    invalidateIPFSSettingsCache();
     logger.info("[ImageBed] IMAGE_BED_API_URL 配置已更新", trimmed);
     return true;
   }
@@ -1377,6 +1410,7 @@ export class IPFSService {
       { key: "IMAGE_BED_CDN_DOMAIN", value: domain.trim(), updatedAt: new Date() },
       { upsert: true, returnDocument: "after" },
     );
+    invalidateIPFSSettingsCache();
     return true;
   }
 
@@ -1394,6 +1428,7 @@ export class IPFSService {
       { key: "IMAGE_BED_STORAGE_DESTINATION", value: v, updatedAt: new Date() },
       { upsert: true, returnDocument: "after" },
     );
+    invalidateIPFSSettingsCache();
     return true;
   }
 
@@ -1411,6 +1446,7 @@ export class IPFSService {
       { key: "IMAGE_BED_OUTPUT_FORMAT", value: v, updatedAt: new Date() },
       { upsert: true, returnDocument: "after" },
     );
+    invalidateIPFSSettingsCache();
     return true;
   }
 

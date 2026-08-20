@@ -9,11 +9,10 @@ import {
 } from "../services/policyConsentService";
 import { TurnstileService } from "../services/turnstileService";
 import type { User } from "../utils/userStorage";
-import { UserStorage } from "../utils/userStorage";
 import { TtsRequestError } from "./tts.errors";
 import { generationHistoryStore } from "./tts.history";
-import type { GenerationHistoryStore, QuotaLedger, TtsSettingsStore, TtsUsageSnapshot } from "./tts.ports";
-import { quotaLedger } from "./tts.quota";
+import type { GenerationHistoryStore, QuotaLedger, TtsSettingsStore } from "./tts.ports";
+import { buildUsageSummaryFromSnapshot, quotaLedger } from "./tts.quota";
 import { ttsSettingsStore } from "./tts.settings";
 import type { TtsGovernanceSummary, TtsJobRequestPayload, TtsUsageSummary } from "./tts.storage";
 import { TtsService } from "./tts.service";
@@ -74,47 +73,9 @@ export class TtsSubmissionPipeline {
     private readonly ledger: QuotaLedger = quotaLedger,
   ) {}
 
-  private buildUsageSummaryFromSnapshot(currentUser: User | null, snapshot: TtsUsageSnapshot | null): TtsUsageSummary {
-    if (!currentUser) {
-      return {
-        authenticated: false,
-        isAdmin: false,
-        dailyLimit: null,
-        usedToday: null,
-        remainingToday: null,
-        reservedToday: null,
-      };
-    }
-
-    if (currentUser.role === "admin" || currentUser.role === "superadmin") {
-      return {
-        authenticated: true,
-        isAdmin: true,
-        dailyLimit: null,
-        usedToday: null,
-        remainingToday: null,
-        reservedToday: null,
-      };
-    }
-
-    const dailyLimit = UserStorage.getDailyLimit();
-    const reservedToday = snapshot?.reservedToday ?? 0;
-    const consumedToday = snapshot?.consumedToday ?? 0;
-    const remainingToday = snapshot?.remainingToday ?? Math.max(0, dailyLimit - reservedToday - consumedToday);
-
-    return {
-      authenticated: true,
-      isAdmin: false,
-      dailyLimit,
-      usedToday: consumedToday,
-      remainingToday,
-      reservedToday,
-    };
-  }
-
   public async buildUsageSummaryByUserId(userId?: string, isAdmin?: boolean): Promise<TtsUsageSummary> {
     if (!userId) {
-      return this.buildUsageSummaryFromSnapshot(null, null);
+      return buildUsageSummaryFromSnapshot(null, null);
     }
 
     if (isAdmin) {
@@ -129,7 +90,7 @@ export class TtsSubmissionPipeline {
     }
 
     const snapshot = await this.ledger.getUsageSnapshot(userId);
-    return this.buildUsageSummaryFromSnapshot(snapshot.user, snapshot);
+    return buildUsageSummaryFromSnapshot(snapshot.user, snapshot);
   }
 
   private buildRequestPayload(input: TtsSubmissionInput): TtsJobRequestPayload {
@@ -389,7 +350,7 @@ export class TtsSubmissionPipeline {
 
     if (userId && !isAdmin) {
       const snapshot = await this.ledger.getUsageSnapshot(userId);
-      const usageSummary = this.buildUsageSummaryFromSnapshot(context.currentUser, snapshot);
+      const usageSummary = buildUsageSummaryFromSnapshot(context.currentUser, snapshot);
       if ((snapshot.remainingToday || 0) <= 0) {
         throw new TtsRequestError(429, "您今日的使用次数已达上限", "TTS_USAGE_LIMIT_REACHED");
       }
@@ -448,7 +409,7 @@ export class TtsSubmissionPipeline {
         fingerprint,
         userId,
         isAdmin,
-        usageSummary: this.buildUsageSummaryFromSnapshot(context.currentUser, reservation.snapshot),
+        usageSummary: buildUsageSummaryFromSnapshot(context.currentUser, reservation.snapshot),
         governance,
       };
     }
@@ -480,7 +441,7 @@ export class TtsSubmissionPipeline {
       fingerprint,
       userId,
       isAdmin,
-      usageSummary: this.buildUsageSummaryFromSnapshot(context.currentUser, null),
+      usageSummary: buildUsageSummaryFromSnapshot(context.currentUser, null),
       governance,
     };
   }

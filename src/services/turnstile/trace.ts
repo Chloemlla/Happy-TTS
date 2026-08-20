@@ -16,23 +16,21 @@ export async function persistTurnstileTrace(traceData: any): Promise<void> {
     }
     const TraceModel = getTraceModel();
 
-    const existingTrace = await TraceModel.findOne({ traceId: traceData.traceId });
-    if (existingTrace) {
-      await TraceModel.updateOne(
-        { traceId: traceData.traceId },
-        {
+    const result = await TraceModel.updateOne(
+      { traceId: traceData.traceId },
+      {
+        $set: {
           ...traceData,
           verificationMethod: traceData.verificationMethod || "turnstile",
-          time: new Date(),
+          time: traceData.time || new Date(),
         },
-      );
-      logger.info("[Turnstile] 更新现有溯源信息", { traceId: traceData.traceId });
-    } else {
-      await TraceModel.create({
-        ...traceData,
-        verificationMethod: traceData.verificationMethod || "turnstile",
-      });
+      },
+      { upsert: true },
+    );
+    if (result?.upsertedCount) {
       logger.info("[Turnstile] 创建新溯源信息", { traceId: traceData.traceId });
+    } else {
+      logger.info("[Turnstile] 更新现有溯源信息", { traceId: traceData.traceId });
     }
   } catch (error) {
     if (error && typeof error === "object" && "code" in error && (error as any).code === 11000) {

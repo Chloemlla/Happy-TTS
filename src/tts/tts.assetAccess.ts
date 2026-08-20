@@ -185,12 +185,21 @@ export class TtsAssetAccessService {
     const safeFileName = this.sanitizeFileName(fileName);
     const filePath = this.resolveAudioPath(safeFileName);
 
-    if (fs.existsSync(filePath)) {
+    if (await this.isReadable(filePath)) {
       return true;
     }
 
     await ttsAudioAssetStore.restoreAudioAssetToDisk(safeFileName, this.audioDir);
-    return fs.existsSync(filePath);
+    return this.isReadable(filePath);
+  }
+
+  private async isReadable(filePath: string): Promise<boolean> {
+    try {
+      await fs.promises.access(filePath, fs.constants.R_OK);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   public async serveAsset(context: AssetRequestContext): Promise<void> {
@@ -222,8 +231,8 @@ export class TtsAssetAccessService {
       return;
     }
 
-    const metadata = await ttsAudioAssetStore.getAudioAssetMetadata(safeFileName);
-    const watermarkId = claims.watermarkId || metadata?.watermarkId;
+    const watermarkId =
+      claims.watermarkId || (await ttsAudioAssetStore.getAudioAssetMetadata(safeFileName))?.watermarkId;
 
     context.res.setHeader("Content-Type", resolveMimeType(safeFileName));
     context.res.setHeader("Cache-Control", "private, no-store");

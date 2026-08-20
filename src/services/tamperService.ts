@@ -68,7 +68,14 @@ class TamperService {
   private readonly BLOCKED_IPS_PATH = join(this.DATA_DIR, "blocked-ips.json");
   private readonly MAX_EVENTS = resolveMaxEvents();
   private readonly MAX_CONTENT_LENGTH = 2000;
+  private readonly FLUSH_DELAY_MS = 1000;
   private blockedIPs: Map<string, BlockedIP> = new Map();
+  private events: TamperEvent[] | null = null;
+  private eventsLoading: Promise<void> | null = null;
+  private ipEventTimes: Map<string, number[]> = new Map();
+  private eventsDirty = false;
+  private flushTimer: NodeJS.Timeout | null = null;
+  private writeQueue: Promise<void> = Promise.resolve();
 
   private constructor() {
     this.initializeDataDirectory();
@@ -124,28 +131,7 @@ class TamperService {
     }
   }
 
-  private async saveBlockedIPs(): Promise<void> {
-    try {
-      if (mongoose.connection.readyState === 1) {
-        const blockedList = Array.from(this.blockedIPs.values());
-        // 先清空再批量插入
-        await BlockedIPModel.deleteMany({});
-        if (blockedList.length > 0) {
-          await BlockedIPModel.insertMany(
-            blockedList.map((item) => ({
-              ip: item.ip,
-              reason: item.reason,
-              blockedAt: new Date(item.timestamp),
-              expiresAt: new Date(item.expiresAt),
-            })),
-          );
-        }
-        return;
-      }
-    } catch (error) {
-      logger.error("MongoDB 保存 Blocked IPs 失败，降级为本地文件:", error);
-    }
-    // 本地文件兜底
+  private async writeBlockedIPsFile(): Promise<void> {
     try {
       if (!existsSync(this.DATA_DIR)) {
         await mkdir(this.DATA_DIR, { recursive: true });
@@ -155,6 +141,52 @@ class TamperService {
     } catch (error) {
       logger.error("保存封禁 IP 失败:", error);
     }
+  }
+
+  private async persistBlockedIP(blocked: BlockedIP): Promise<void> {
+    try {
+      if (mongoose.connection.readyState === 1) {
+        await BlockedIPModel.updateOne(
+          { ip: blocked.ip },
+          {
+            $set: {
+              reason: blocked.reason,
+              blockedAt: new Date(blocked.timestamp),
+              expiresAt: new Date(blocked.expiresAt),
+            },
+          },
+          { upsert: true },
+        );
+        return;
+      }
+    } catch (error) {
+      logger.error("MongoDB 保存 Blocked IP 失败，降级为本地文件:", error);
+    }
+    await this.writeBlockedIPsFile();
+  }
+
+  private async removeBlockedIP(ip: string): Promise<void> {
+    try {
+      if (mongoose.connection.readyState === 1) {
+        await BlockedIPModel.deleteOne({ ip });
+        return;
+      }
+    } catch (error) {
+      logger.error("MongoDB 删除 Blocked IP 失败，降级为本地文件:", error);
+    }
+    await this.writeBlockedIPsFile();
+  }
+
+  private async sweepExpiredBlockedIPs(removedIps: string[], now: Date): Promise<void> {
+    try {
+      if (mongoose.connection.readyState === 1) {
+        await BlockedIPModel.deleteMany({ $or: [{ ip: { $in: removedIps } }, { expiresAt: { $lte: now } }] });
+        return;
+      }
+    } catch (error) {
+      logger.error("MongoDB 清理过期 Blocked IPs 失败，降级为本地文件:", error);
+    }
+    await this.writeBlockedIPsFile();
   }
 
   private sanitizeString(value: unknown, maxLength = 500): string | undefined {
@@ -227,43 +259,113 @@ class TamperService {
     return normalized;
   }
 
-  private async readTamperEvents(): Promise<TamperEvent[]> {
+  private async loadTamperEvents(): Promise<void> {
+    let retained: TamperEvent[] = [];
     try {
-      const data = await readFile(this.TAMPER_LOG_PATH, "utf-8");
-      const parsed = JSON.parse(data);
-      return Array.isArray(parsed) ? parsed : [];
+      const parsed = JSON.parse(await readFile(this.TAMPER_LOG_PATH, "utf-8"));
+      if (Array.isArray(parsed)) retained = parsed.slice(-this.MAX_EVENTS);
     } catch (_error) {
-      return [];
+      retained = [];
     }
+    this.events = retained;
+    this.ipEventTimes = new Map();
+    for (const event of retained) {
+      this.trackIpEvent(event.ip, event.timestamp);
+    }
+  }
+
+  private async ensureEventsLoaded(): Promise<TamperEvent[]> {
+    if (this.events) return this.events;
+    if (!this.eventsLoading) {
+      this.eventsLoading = this.loadTamperEvents();
+    }
+    await this.eventsLoading;
+    return this.events ?? [];
+  }
+
+  private trackIpEvent(ip: string | undefined, timestamp: string): void {
+    if (!ip) return;
+    const time = new Date(timestamp).getTime();
+    if (!Number.isFinite(time)) return;
+    const times = this.ipEventTimes.get(ip);
+    if (times) times.push(time);
+    else this.ipEventTimes.set(ip, [time]);
+  }
+
+  // 事件被环形窗口淘汰时，只有仍留在队首的那一条才是它对应的时间戳（更早的已被时间裁剪掉）
+  private untrackIpEvent(ip: string | undefined, timestamp: string): void {
+    if (!ip) return;
+    const times = this.ipEventTimes.get(ip);
+    if (!times || times.length === 0) return;
+    if (times[0] !== new Date(timestamp).getTime()) return;
+    times.shift();
+    if (times.length === 0) this.ipEventTimes.delete(ip);
+  }
+
+  private countRecentIpEvents(ip: string, after: number): number {
+    const times = this.ipEventTimes.get(ip);
+    if (!times) return 0;
+    while (times.length > 0 && times[0] <= after) times.shift();
+    if (times.length === 0) {
+      this.ipEventTimes.delete(ip);
+      return 0;
+    }
+    return times.length;
+  }
+
+  private async readTamperEvents(): Promise<TamperEvent[]> {
+    const events = await this.ensureEventsLoaded();
+    return events.slice();
   }
 
   private async writeTamperEvents(events: TamperEvent[]): Promise<void> {
     if (!existsSync(this.DATA_DIR)) {
       await mkdir(this.DATA_DIR, { recursive: true });
     }
-    await writeFile(this.TAMPER_LOG_PATH, JSON.stringify(events.slice(-this.MAX_EVENTS), null, 2));
+    await writeFile(this.TAMPER_LOG_PATH, JSON.stringify(events.slice(-this.MAX_EVENTS)));
+  }
+
+  private scheduleEventsFlush(): void {
+    if (this.flushTimer) return;
+    const timer = setTimeout(() => {
+      this.flushTimer = null;
+      this.flushPendingEvents().catch((error) => logger.error("刷新篡改事件失败:", error));
+    }, this.FLUSH_DELAY_MS);
+    timer.unref();
+    this.flushTimer = timer;
+  }
+
+  public async flushPendingEvents(): Promise<void> {
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+    if (!this.eventsDirty || !this.events) return;
+    this.eventsDirty = false;
+    const snapshot = this.events.slice();
+    this.writeQueue = this.writeQueue.catch(() => {}).then(() => this.writeTamperEvents(snapshot));
+    await this.writeQueue;
   }
 
   public async recordTamperEvent(event: TamperEvent): Promise<TamperEvent> {
     try {
-      // 确保目录存在
-      if (!existsSync(this.DATA_DIR)) {
-        await mkdir(this.DATA_DIR, { recursive: true });
-      }
-
-      const events = await this.readTamperEvents();
+      const events = await this.ensureEventsLoaded();
       const normalized = this.normalizeTamperEvent(event);
 
-      // 添加新事件
       events.push(normalized);
-
-      // 保存事件
-      const retainedEvents = events.slice(-this.MAX_EVENTS);
-      await this.writeTamperEvents(retainedEvents);
+      this.trackIpEvent(normalized.ip, normalized.timestamp);
+      while (events.length > this.MAX_EVENTS) {
+        const evicted = events.shift();
+        if (evicted) this.untrackIpEvent(evicted.ip, evicted.timestamp);
+      }
+      this.eventsDirty = true;
 
       // 检查是否需要阻止 IP
-      if (normalized.ip) {
-        await this.checkAndBlockIP(normalized.ip, retainedEvents);
+      const blocked = normalized.ip ? await this.checkAndBlockIP(normalized.ip) : false;
+      if (blocked) {
+        await this.flushPendingEvents();
+      } else {
+        this.scheduleEventsFlush();
       }
 
       return normalized;
@@ -273,24 +375,23 @@ class TamperService {
     }
   }
 
-  private async checkAndBlockIP(ip: string, events: TamperEvent[]): Promise<void> {
-    // 获取最近 1 小时内该 IP 的篡改次数
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    const recentEvents = events.filter((e) => e.ip === ip && new Date(e.timestamp) > oneHourAgo);
-
+  private async checkAndBlockIP(ip: string): Promise<boolean> {
     // 如果 1 小时内篡改次数超过 10 次，封禁 24 小时
-    if (recentEvents.length >= 10) {
-      const blockExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
-      this.blockedIPs.set(ip, {
-        ip,
-        reason: "频繁篡改页面内容",
-        timestamp: new Date().toISOString(),
-        expiresAt: blockExpiry.toISOString(),
-      });
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    if (this.countRecentIpEvents(ip, oneHourAgo) < 10) return false;
 
-      await this.saveBlockedIPs();
-      logger.warn(`IP ${ip} 因篡改行为被封禁`);
-    }
+    const blockExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const blockedIP: BlockedIP = {
+      ip,
+      reason: "频繁篡改页面内容",
+      timestamp: new Date().toISOString(),
+      expiresAt: blockExpiry.toISOString(),
+    };
+    this.blockedIPs.set(ip, blockedIP);
+
+    await this.persistBlockedIP(blockedIP);
+    logger.warn(`IP ${ip} 因篡改行为被封禁`);
+    return true;
   }
 
   public isIPBlocked(ip: string): boolean {
@@ -300,7 +401,7 @@ class TamperService {
     // 检查封禁是否过期
     if (new Date(blockedIP.expiresAt) < new Date()) {
       this.blockedIPs.delete(ip);
-      this.saveBlockedIPs().catch(logger.error);
+      this.removeBlockedIP(ip).catch(logger.error);
       return false;
     }
 
@@ -355,31 +456,31 @@ class TamperService {
     };
 
     this.blockedIPs.set(normalizedIp, blockedIP);
-    await this.saveBlockedIPs();
+    await this.persistBlockedIP(blockedIP);
     return blockedIP;
   }
 
   public async unblockIP(ip: string): Promise<boolean> {
     const existed = this.blockedIPs.delete(ip);
     if (existed) {
-      await this.saveBlockedIPs();
+      await this.removeBlockedIP(ip);
     }
     return existed;
   }
 
   public async clearExpiredBlockedIPs(): Promise<number> {
     const now = Date.now();
-    let removed = 0;
+    const removedIps: string[] = [];
     for (const [ip, details] of this.blockedIPs.entries()) {
       if (new Date(details.expiresAt).getTime() <= now) {
         this.blockedIPs.delete(ip);
-        removed++;
+        removedIps.push(ip);
       }
     }
-    if (removed > 0) {
-      await this.saveBlockedIPs();
+    if (removedIps.length > 0) {
+      await this.sweepExpiredBlockedIPs(removedIps, new Date(now));
     }
-    return removed;
+    return removedIps.length;
   }
 
   public async getSummary(limit = 20): Promise<{
@@ -436,3 +537,11 @@ class TamperService {
 }
 
 export const tamperService = TamperService.getInstance();
+
+// 进程退出前落盘缓冲中的篡改事件（不负责退出进程，交由其他优雅关闭钩子）
+const flushTamperEventsOnExit = (): void => {
+  tamperService.flushPendingEvents().catch(() => {});
+};
+process.once("beforeExit", flushTamperEventsOnExit);
+process.once("SIGINT", flushTamperEventsOnExit);
+process.once("SIGTERM", flushTamperEventsOnExit);

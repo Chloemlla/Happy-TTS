@@ -38,6 +38,8 @@ const nexaiUserSchema = new mongoose.Schema(
 
     // Token 管理
     refreshToken: { type: String }, // 哈希后存储
+    // HMAC 派生的索引列，仅用于收敛候选集，不参与鉴权判定；select:false 避免随用户文档返回
+    refreshTokenLookup: { type: String, select: false },
     refreshTokenExpiresAt: { type: Number },
 
     // 登录记录
@@ -67,6 +69,7 @@ const nexaiUserSchema = new mongoose.Schema(
 // 索引优化
 nexaiUserSchema.index({ email: 1, authProvider: 1 });
 nexaiUserSchema.index({ "passkeys.id": 1 });
+nexaiUserSchema.index({ refreshTokenLookup: 1 }, { sparse: true });
 
 export const NexaiUserModel = mongoose.models.NexaiUser || mongoose.model("NexaiUser", nexaiUserSchema);
 
@@ -89,6 +92,7 @@ export interface INexaiUser {
   emailVerified: boolean;
   role: "user" | "admin";
   refreshToken?: string;
+  refreshTokenLookup?: string;
   refreshTokenExpiresAt?: number;
   lastLoginAt?: Date;
   lastLoginIp?: string;

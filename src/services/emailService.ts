@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import dayjs from "dayjs";
 import { Resend } from "resend";
+import type { EmailRuntimeConfig } from "../config/runtimeConfigDefaults";
 import { logger } from "./logger";
 import { mongoose } from "./mongoService";
 import { RuntimeConfigService } from "./runtimeConfigService";
@@ -16,6 +17,8 @@ const EmailQuotaSchema = new mongoose.Schema(
   },
   { collection: "email_quotas" },
 );
+// 非唯一索引：历史集合可能已存在重复 (userId, domain)，唯一索引会让线上建索引失败
+EmailQuotaSchema.index({ userId: 1, domain: 1 });
 const EmailQuotaModel = mongoose.models.EmailQuota || mongoose.model("EmailQuota", EmailQuotaSchema);
 
 const FALLBACK_RESEND_DOMAIN = process.env.RESEND_DOMAIN || "chloemlla.com";
@@ -46,6 +49,8 @@ export const DEFAULT_EMAIL_FROM = `noreply@${FALLBACK_RESEND_DOMAIN}`;
 
 const _EMAIL_QUOTA_TOTAL = Number(process.env.RESEND_QUOTA_TOTAL) || 100;
 const RESEND_API_KEY_PATTERN = /^re_\w{8,}/;
+// BSON 可表示的最远日期，用于让无法解析的 resetAt 判定为“未过期”，与 dayjs Invalid Date 的 isBefore=false 一致
+const NEVER_EXPIRES_AT = new Date(8640000000000000);
 
 export interface EmailQuotaInfo {
   used: number;
@@ -159,6 +164,36 @@ function escapeRegExp(str: string) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+const ALLOWED_RECIPIENT_DOMAINS = [
+  "gmail.com",
+  "outlook.com",
+  "qq.com",
+  "163.com",
+  "126.com",
+  "hotmail.com",
+  "yahoo.com",
+  "icloud.com",
+  "foxmail.com",
+  "protonmail.com",
+  "sina.com",
+  "sohu.com",
+  "yeah.net",
+  "vip.qq.com",
+  "aliyun.com",
+  "139.com",
+  "189.cn",
+  "21cn.com",
+  "tom.com",
+  "263.net",
+  "me.com",
+  "live.com",
+  "msn.com",
+  "ymail.com",
+  "aol.com",
+  "chloemlla.com",
+];
+const ALLOWED_RECIPIENT_PATTERN = new RegExp(`^[\\w.-]+@(${ALLOWED_RECIPIENT_DOMAINS.map(escapeRegExp).join("|")})$`);
+
 function pushDomainConfig(map: Record<string, string>, domain?: string, key?: string) {
   const safeDomain = normalizeDomain(domain);
   const safeKey = String(key || "").trim();
@@ -179,9 +214,18 @@ function getEmailRuntimeConfig() {
   return RuntimeConfigService.getCachedConfig().email;
 }
 
+// 每次配置写入都会替换整个 email 配置对象，故用对象引用做缓存键即可在配置变更时自动失效
+let quotaMapCacheKey: EmailRuntimeConfig | null = null;
+let quotaMapCache: Record<string, number> | null = null;
+let apiKeyMapCacheKey: EmailRuntimeConfig | null = null;
+let apiKeyMapCache: Record<string, string> | null = null;
+const resendClientCache = new Map<string, Resend>();
+
 function buildDomainQuotaMap(): Record<string, number> {
-  const map: Record<string, number> = {};
   const runtimeEmail = getEmailRuntimeConfig();
+  if (quotaMapCache && quotaMapCacheKey === runtimeEmail) return quotaMapCache;
+
+  const map: Record<string, number> = {};
   if (runtimeEmail.enabled) {
     let idx = 1;
     while (true) {
@@ -197,12 +241,16 @@ function buildDomainQuotaMap(): Record<string, number> {
     pushDomainQuota(map, runtimeEmail.outemailDomain, runtimeEmail.outemailQuotaTotal);
   }
 
+  quotaMapCacheKey = runtimeEmail;
+  quotaMapCache = map;
   return map;
 }
 
 function buildDomainApiKeyMap(): Record<string, string> {
-  const map: Record<string, string> = {};
   const runtimeEmail = getEmailRuntimeConfig();
+  if (apiKeyMapCache && apiKeyMapCacheKey === runtimeEmail) return apiKeyMapCache;
+
+  const map: Record<string, string> = {};
   if (runtimeEmail.enabled) {
     let resendIdx = 1;
     while (true) {
@@ -228,6 +276,8 @@ function buildDomainApiKeyMap(): Record<string, string> {
     pushDomainConfig(map, runtimeEmail.outemailDomain, runtimeEmail.outemailApiKey);
   }
 
+  apiKeyMapCacheKey = runtimeEmail;
+  apiKeyMapCache = map;
   return map;
 }
 
@@ -278,7 +328,12 @@ export function getAllSenderDomains(): string[] {
 function getResendInstanceByDomain(domain: string) {
   const key = buildDomainApiKeyMap()[normalizeDomain(domain)];
   if (!key) throw new Error(`未配置该域名(${domain})的API key`);
-  return new Resend(key);
+  let client = resendClientCache.get(key);
+  if (!client) {
+    client = new Resend(key);
+    resendClientCache.set(key, client);
+  }
+  return client;
 }
 
 function getServiceAvailabilityError(domain?: string): string | undefined {
@@ -335,19 +390,31 @@ export async function addEmailUsage(userId: string, count = 1, domain?: string) 
     if (mongoose.connection.readyState === 1) {
       const safeUserId = typeof userId === "string" ? userId : "";
       const safeDomain = typeof domain === "string" ? normalizeDomain(domain) : "default";
-      let quota = await EmailQuotaModel.findOne({ userId: safeUserId, domain: safeDomain });
       const now = dayjs();
-      if (!quota?.resetAt || dayjs(quota.resetAt).isBefore(now)) {
-        const resetAt = now.add(1, "day").startOf("day").toISOString();
-        quota = await EmailQuotaModel.findOneAndUpdate(
-          { userId: safeUserId, domain: safeDomain },
-          { used: count, resetAt },
-          { upsert: true, returnDocument: "after" },
-        );
-      } else {
-        quota.used = (quota.used || 0) + count;
-        await quota.save();
-      }
+      const resetAt = now.add(1, "day").startOf("day").toISOString();
+      const windowExpired = {
+        $or: [
+          { $eq: ["$resetAt", ""] },
+          {
+            $lt: [
+              { $convert: { input: "$resetAt", to: "date", onNull: new Date(0), onError: NEVER_EXPIRES_AT } },
+              now.toDate(),
+            ],
+          },
+        ],
+      };
+      await EmailQuotaModel.updateOne(
+        { userId: safeUserId, domain: safeDomain },
+        [
+          {
+            $set: {
+              used: { $cond: [windowExpired, count, { $add: [{ $ifNull: ["$used", 0] }, count] }] },
+              resetAt: { $cond: [windowExpired, resetAt, "$resetAt"] },
+            },
+          },
+        ],
+        { upsert: true },
+      );
       return;
     }
   } catch {
@@ -615,39 +682,7 @@ export class EmailService {
   }
 
   static isValidEmail(email: string): boolean {
-    const allowedDomains = [
-      "gmail.com",
-      "outlook.com",
-      "qq.com",
-      "163.com",
-      "126.com",
-      "hotmail.com",
-      "yahoo.com",
-      "icloud.com",
-      "foxmail.com",
-      "protonmail.com",
-      "sina.com",
-      "sohu.com",
-      "yeah.net",
-      "vip.qq.com",
-      "aliyun.com",
-      "139.com",
-      "189.cn",
-      "21cn.com",
-      "tom.com",
-      "263.net",
-      "me.com",
-      "live.com",
-      "msn.com",
-      "hotmail.com",
-      "ymail.com",
-      "aol.com",
-      "chloemlla.com",
-    ];
-    const emailRegex = new RegExp(`^[\\w.-]+@(${allowedDomains.map(escapeRegExp).join("|")})$`);
-    if (!emailRegex.test(email)) return false;
-    const domain = email.split("@")[1].toLowerCase();
-    return allowedDomains.some((allowedDomain) => domain === allowedDomain);
+    return ALLOWED_RECIPIENT_PATTERN.test(email);
   }
 
   static isValidSenderDomain(email: string): boolean {

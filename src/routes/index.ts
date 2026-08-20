@@ -535,39 +535,38 @@ function routeScopeCoversPath(modulePath: string, requestPath: string): boolean 
   return scope === requestPath || requestPath.startsWith(`${scope}/`);
 }
 
+// `component|scope` → declaring entry, built once; first module of a shared scope wins (was strict-greater length).
+const routeBypassScopeMap = new Map<string, RouteSecurityBypassEntry>();
+for (const routeModule of allRouteModules) {
+  if (!routeModule.securityBypass) continue;
+  const scope = normalizeScopedPath(routeModule.path);
+  for (const [component, entry] of Object.entries(routeModule.securityBypass)) {
+    if (!entry || entry.value === undefined) continue;
+    const key = `${component}|${scope}`;
+    if (!routeBypassScopeMap.has(key)) routeBypassScopeMap.set(key, entry);
+  }
+}
+
 /**
- * Resolve the route-module security bypass flag for a request path and
- * component.
+ * Resolve the route-module security bypass flag for a request path and component.
  *
- * Route modules are the authoritative source for security bypass declarations.
- * Returns the securityBypass value of the most specific route module whose
- * scope covers `path` and that declares the given component. Returns
- * `undefined` when no covering route module declares the component, so the
- * caller can fall back to the deprecated static policy.
+ * Returns the securityBypass value of the most specific route module whose scope
+ * covers `path` and that declares the given component. Returns `undefined` when
+ * no covering route module declares the component, so the caller can fall back
+ * to the deprecated static policy.
  */
 export function getRouteBypassForPath(path: string, component: SecurityComponent): RouteMetaFlag | undefined {
   const requestPath = normalizeRequestPathForBypass(path);
-  if (!requestPath) {
-    return undefined;
+  if (!requestPath) return undefined;
+  let scope = requestPath;
+  while (scope) {
+    const entry = routeBypassScopeMap.get(`${component}|${scope}`);
+    if (entry) return entry.value;
+    const slash = scope.lastIndexOf("/");
+    if (slash <= 0) break;
+    scope = scope.slice(0, slash);
   }
-
-  let bestMatch: { entry: RouteSecurityBypassEntry; scopeLength: number } | undefined;
-
-  for (const module of allRouteModules) {
-    const entry = module.securityBypass?.[component];
-    if (!entry || entry.value === undefined) {
-      continue;
-    }
-    if (!routeScopeCoversPath(module.path, requestPath)) {
-      continue;
-    }
-    const scopeLength = normalizeScopedPath(module.path).length;
-    if (!bestMatch || scopeLength > bestMatch.scopeLength) {
-      bestMatch = { entry, scopeLength };
-    }
-  }
-
-  return bestMatch?.entry.value;
+  return undefined;
 }
 
 /**

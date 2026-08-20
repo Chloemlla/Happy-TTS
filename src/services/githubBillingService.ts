@@ -229,6 +229,9 @@ const GitHubBillingCacheSchema = new mongoose.Schema<GitHubBillingCacheDoc>(
   { collection: "github_billing_cache" },
 );
 
+GitHubBillingCacheSchema.index({ expiresAt: 1 });
+GitHubBillingCacheSchema.index({ lastAccessed: 1, accessCount: 1 });
+
 const GitHubBillingCacheModel =
   (mongoose.models.GitHubBillingCache as mongoose.Model<GitHubBillingCacheDoc>) ||
   mongoose.model<GitHubBillingCacheDoc>("GitHubBillingCache", GitHubBillingCacheSchema);
@@ -248,9 +251,14 @@ const GitHubBillingLogSchema = new mongoose.Schema<GitHubBillingLogDoc>(
   { collection: "github_billing_logs" },
 );
 
+// 90 天 TTL，与 translationLogModel / auditLogModel 的日志保留期一致
+GitHubBillingLogSchema.index({ timestamp: 1 }, { expireAfterSeconds: 90 * 24 * 60 * 60 });
+
 const GitHubBillingLogModel =
   (mongoose.models.GitHubBillingLog as mongoose.Model<GitHubBillingLogDoc>) ||
   mongoose.model<GitHubBillingLogDoc>("GitHubBillingLog", GitHubBillingLogSchema);
+
+const CACHE_LIMIT_SWEEP_INTERVAL_MS = 5 * 60 * 1000;
 
 export class GitHubBillingService {
   /**
@@ -750,6 +758,12 @@ export class GitHubBillingService {
     try {
       const MAX_CACHE_SIZE = 1000; // 最大缓存条目数
 
+      // 先用 O(1) 的元数据估算做触发判断，避免每次都全集合计数
+      const estimatedCount = await GitHubBillingCacheModel.estimatedDocumentCount();
+      if (estimatedCount <= MAX_CACHE_SIZE) {
+        return;
+      }
+
       const totalCount = await GitHubBillingCacheModel.countDocuments();
 
       if (totalCount > MAX_CACHE_SIZE) {
@@ -774,6 +788,21 @@ export class GitHubBillingService {
     }
   }
 
+  private static cacheLimitSweeper: ReturnType<typeof setInterval> | null = null;
+
+  private static startCacheLimitSweeper(): void {
+    if (GitHubBillingService.cacheLimitSweeper) {
+      return;
+    }
+    GitHubBillingService.cacheLimitSweeper = setInterval(() => {
+      if (mongoose.connection.readyState !== 1) {
+        return;
+      }
+      void GitHubBillingService.enforceCacheLimit();
+    }, CACHE_LIMIT_SWEEP_INTERVAL_MS);
+    GitHubBillingService.cacheLimitSweeper.unref?.();
+  }
+
   /**
    * 缓存 GitHub Billing 数据（增强版）
    */
@@ -783,45 +812,29 @@ export class GitHubBillingService {
         return;
       }
 
-      // 执行缓存大小限制
-      await GitHubBillingService.enforceCacheLimit();
+      // 缓存上限改为后台定时淘汰，不再阻塞写入路径
+      GitHubBillingService.startCacheLimitSweeper();
 
       const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000);
       const now = new Date();
 
-      const existingEntry = await GitHubBillingCacheModel.findOne({ customerId });
-
-      if (existingEntry) {
-        // 更新现有条目，保留 accessCount
-        await GitHubBillingCacheModel.findOneAndUpdate(
-          { customerId },
-          {
-            $set: {
-              data,
-              lastUpdated: now,
-              expiresAt,
-              lastAccessed: now,
-            },
+      await GitHubBillingCacheModel.findOneAndUpdate(
+        { customerId },
+        {
+          $set: {
+            data,
+            lastUpdated: now,
+            expiresAt,
+            lastAccessed: now,
           },
-        );
-      } else {
-        // 创建新条目
-        await GitHubBillingCacheModel.findOneAndUpdate(
-          { customerId },
-          {
-            $set: {
-              data,
-              lastUpdated: now,
-              expiresAt,
-              lastAccessed: now,
-              createdAt: now,
-              accessCount: 0,
-              priority: "medium",
-            },
+          $setOnInsert: {
+            createdAt: now,
+            accessCount: 0,
+            priority: "medium",
           },
-          { upsert: true },
-        );
-      }
+        },
+        { upsert: true },
+      );
 
       logger.info(`GitHub Billing 数据已缓存，客户ID: ${customerId}, 过期时间: ${expiresAt}`);
     } catch (error) {
@@ -948,14 +961,14 @@ export class GitHubBillingService {
       await GitHubBillingService.recordCacheMetrics(targetCustomerId, true);
       const duration = Date.now() - startTime;
 
-      // 记录缓存命中到数据库
-      await GitHubBillingService.logApiActivity({
+      // 日志写入内部已吞掉异常且无下游依赖，不阻塞响应
+      GitHubBillingService.logApiActivity({
         customerId: targetCustomerId,
         action: "cache_hit",
         duration: duration,
         success: true,
         dataSize: JSON.stringify(cached).length,
-      });
+      }).catch(() => undefined);
 
       logger.info(`[GitHub Billing API] 缓存命中 - 客户ID: ${targetCustomerId}, 耗时: ${duration}ms`);
       return cached;
@@ -963,11 +976,11 @@ export class GitHubBillingService {
 
     // 记录缓存未命中
     await GitHubBillingService.recordCacheMetrics(targetCustomerId, false);
-    await GitHubBillingService.logApiActivity({
+    GitHubBillingService.logApiActivity({
       customerId: targetCustomerId,
       action: "cache_miss",
       success: true,
-    });
+    }).catch(() => undefined);
 
     logger.info(`[GitHub Billing API] 缓存未命中，发起API请求 - 客户ID: ${targetCustomerId}`);
 
@@ -1036,7 +1049,7 @@ export class GitHubBillingService {
       const dataSize = JSON.stringify(billingData).length;
 
       // 记录成功的API请求到数据库
-      await GitHubBillingService.logApiActivity({
+      GitHubBillingService.logApiActivity({
         customerId: targetCustomerId,
         action: "fetch",
         duration: apiDuration,
@@ -1044,7 +1057,7 @@ export class GitHubBillingService {
         dataSize: dataSize,
         requestUrl: requestUrl,
         statusCode: response.status,
-      });
+      }).catch(() => undefined);
 
       logger.info(
         `[GitHub Billing API] 请求成功 - 客户ID: ${targetCustomerId}, API耗时: ${apiDuration}ms, 数据大小: ${dataSize} bytes`,
@@ -1217,7 +1230,7 @@ export class GitHubBillingService {
         logger.info(`  - 访问次数: ${item.accessCount || 0}`);
         logger.info(`  - 创建时间: ${item.createdAt?.toISOString() || "未知"}`);
         logger.info(`  - 计费金额: $${billableAmount}`);
-        logger.info(`  - 数据结构:`, JSON.stringify(item.data, null, 2));
+        logger.info(`  - 数据大小: ${item.data ? JSON.stringify(item.data).length : 0} bytes`);
 
         const result = {
           customerId: item.customerId,

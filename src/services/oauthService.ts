@@ -1277,6 +1277,21 @@ export async function validateOAuthAccessToken(plainToken: string, requiredScope
   };
 }
 
+// 客户端 lastUsedAt 只用于管理台展示，热路径上按 60s 节流，避免每次校验 token 都写一次客户端文档
+const CLIENT_LAST_USED_THROTTLE_MS = 60_000;
+const CLIENT_LAST_USED_MAX_KEYS = 2000;
+const clientLastUsedWrites = new Map<string, number>();
+
+function shouldPersistClientLastUsed(clientId: string, nowMs: number): boolean {
+  const previous = clientLastUsedWrites.get(clientId);
+  if (previous !== undefined && nowMs - previous < CLIENT_LAST_USED_THROTTLE_MS) return false;
+  if (!clientLastUsedWrites.has(clientId) && clientLastUsedWrites.size >= CLIENT_LAST_USED_MAX_KEYS) {
+    clientLastUsedWrites.clear();
+  }
+  clientLastUsedWrites.set(clientId, nowMs);
+  return true;
+}
+
 export async function recordOAuthTokenUsage(context: OAuthAccessContext, ip: string): Promise<void> {
   const now = new Date();
   await Promise.all([
@@ -1285,7 +1300,9 @@ export async function recordOAuthTokenUsage(context: OAuthAccessContext, ip: str
       { $set: { lastUsedAt: now, lastUsedIp: ip, updatedAt: now }, $inc: { usageCount: 1 } },
     ),
     OAuthGrantModel.updateOne({ grantId: context.grant.grantId }, { $set: { lastUsedAt: now, updatedAt: now } }),
-    OAuthClientModel.updateOne({ clientId: context.client.clientId }, { $set: { lastUsedAt: now, updatedAt: now } }),
+    shouldPersistClientLastUsed(context.client.clientId, now.getTime())
+      ? OAuthClientModel.updateOne({ clientId: context.client.clientId }, { $set: { lastUsedAt: now, updatedAt: now } })
+      : Promise.resolve(),
   ]);
 }
 
@@ -1361,10 +1378,9 @@ export async function listOAuthGrants(): Promise<OAuthGrantView[]> {
   const clientIds = Array.from(new Set(grants.map((grant) => grant.clientId)));
   const userIds = Array.from(new Set(grants.map((grant) => grant.userId)));
   const clientDocsPromise = OAuthClientModel.find({ clientId: { $in: clientIds } }).lean() as Promise<OAuthClientDoc[]>;
-  const usersPromise = Promise.all(userIds.map((userId) => UserStorage.getUserById(userId))) as Promise<Array<User | null>>;
   const [clientDocs, users] = await Promise.all([
     clientDocsPromise,
-    usersPromise,
+    UserStorage.getUsersByIds(userIds),
   ]);
   const clientMap = new Map(clientDocs.map((client) => [client.clientId, client]));
   const userMap = new Map(users.filter((user): user is User => Boolean(user)).map((user) => [user.id, user]));

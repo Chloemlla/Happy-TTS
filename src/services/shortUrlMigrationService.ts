@@ -15,9 +15,13 @@ const ShortUrlSchema = new mongoose.Schema(
 
 const ShortUrlModel = mongoose.models.ShortUrl || mongoose.model("ShortUrl", ShortUrlSchema);
 
+const OLD_DOMAIN_SOURCE = "ipfs\\.crossbell\\.io";
+// String.replace 在调用前后会重置 lastIndex，因此这个全局正则可以跨调用安全复用
+const OLD_DOMAIN_REPLACE_REGEX = new RegExp(OLD_DOMAIN_SOURCE, "gi");
+
 class ShortUrlMigrationService {
   private static instance: ShortUrlMigrationService;
-  private readonly OLD_DOMAIN = "ipfs\\.crossbell\\.io";
+  private readonly OLD_DOMAIN = OLD_DOMAIN_SOURCE;
   private readonly OLD_DOMAIN_LITERAL = "ipfs.crossbell.io";
   private readonly NEW_DOMAIN = "ipfs.chloemlla.com";
 
@@ -58,32 +62,53 @@ class ShortUrlMigrationService {
 
       logger.info(`[ShortUrlMigration] 找到 ${oldDomainRecords.length} 条包含旧域名的记录`);
 
-      const fixedUrls: Array<{ code: string; oldTarget: string; newTarget: string }> = [];
-      let totalFixed = 0;
+      const candidates: Array<{ id: unknown; code: string; oldTarget: string; newTarget: string }> = [];
 
       for (const record of oldDomainRecords) {
         const oldTarget = record.target;
-        const newTarget = oldTarget.replace(new RegExp(this.OLD_DOMAIN, "gi"), this.NEW_DOMAIN);
+        const newTarget = oldTarget.replace(OLD_DOMAIN_REPLACE_REGEX, this.NEW_DOMAIN);
 
         if (oldTarget !== newTarget) {
-          try {
-            await ShortUrlModel.updateOne({ _id: record._id }, { $set: { target: newTarget } });
+          candidates.push({ id: record._id, code: record.code, oldTarget, newTarget });
+        }
+      }
 
-            fixedUrls.push({
-              code: record.code,
-              oldTarget,
-              newTarget,
-            });
+      const failedIndexes = new Set<number>();
+      if (candidates.length > 0) {
+        const bulkOps = candidates.map((item) => ({
+          updateOne: { filter: { _id: item.id }, update: { $set: { target: item.newTarget } } },
+        }));
 
-            totalFixed++;
-            logger.info(`[ShortUrlMigration] 已修正短链: ${record.code}`, {
-              oldTarget,
-              newTarget,
-            });
-          } catch (error) {
-            logger.error(`[ShortUrlMigration] 修正短链失败: ${record.code}`, error);
+        try {
+          await ShortUrlModel.bulkWrite(bulkOps, { ordered: false });
+        } catch (error) {
+          const writeErrors = (error as { writeErrors?: Array<any> })?.writeErrors;
+          if (!writeErrors) {
+            logger.error("[ShortUrlMigration] 批量修正短链失败", error);
+            candidates.forEach((_, index) => failedIndexes.add(index));
+          } else {
+            for (const writeError of writeErrors) {
+              const detail = writeError?.err ?? writeError;
+              const failedIndex = typeof detail?.index === "number" ? detail.index : -1;
+              failedIndexes.add(failedIndex);
+              logger.error(
+                `[ShortUrlMigration] 修正短链失败: ${candidates[failedIndex]?.code}`,
+                detail?.errmsg ?? detail,
+              );
+            }
           }
         }
+      }
+
+      const fixedUrls = candidates
+        .filter((_, index) => !failedIndexes.has(index))
+        .map(({ code, oldTarget, newTarget }) => ({ code, oldTarget, newTarget }));
+      const totalFixed = fixedUrls.length;
+
+      if (totalFixed > 0) {
+        logger.info(`[ShortUrlMigration] 已批量修正 ${totalFixed} 条短链`, {
+          codes: fixedUrls.slice(0, 20).map((item) => item.code),
+        });
       }
 
       logger.info(`[ShortUrlMigration] 检测完成，共修正 ${totalFixed} 条记录`);
@@ -104,7 +129,7 @@ class ShortUrlMigrationService {
    */
   fixTargetUrlBeforeSave(target: string): string {
     if (target.includes(this.OLD_DOMAIN_LITERAL)) {
-      const fixedTarget = target.replace(new RegExp(this.OLD_DOMAIN, "gi"), this.NEW_DOMAIN);
+      const fixedTarget = target.replace(OLD_DOMAIN_REPLACE_REGEX, this.NEW_DOMAIN);
 
       logger.info("[ShortUrlMigration] 自动修正新短链目标URL", {
         original: target,
@@ -128,13 +153,24 @@ class ShortUrlMigrationService {
     otherDomains: Array<{ domain: string; count: number }>;
   }> {
     try {
-      const totalRecords = await ShortUrlModel.countDocuments();
-      const oldDomainRecords = await ShortUrlModel.countDocuments({
-        target: { $regex: this.OLD_DOMAIN, $options: "i" },
-      });
-      const newDomainRecords = await ShortUrlModel.countDocuments({
-        target: { $regex: this.escapeRegex(this.NEW_DOMAIN), $options: "i" },
-      });
+      // 单次聚合完成三项计数，避免三次全表 countDocuments
+      const countFacet = (await ShortUrlModel.aggregate([
+        {
+          $facet: {
+            total: [{ $count: "count" }],
+            oldDomain: [{ $match: { target: { $regex: this.OLD_DOMAIN, $options: "i" } } }, { $count: "count" }],
+            newDomain: [
+              { $match: { target: { $regex: this.escapeRegex(this.NEW_DOMAIN), $options: "i" } } },
+              { $count: "count" },
+            ],
+          },
+        },
+      ] as any[])) as Array<Record<string, Array<{ count?: number }>>>;
+      const readCount = (key: string): number => countFacet?.[0]?.[key]?.[0]?.count ?? 0;
+
+      const totalRecords = readCount("total");
+      const oldDomainRecords = readCount("oldDomain");
+      const newDomainRecords = readCount("newDomain");
       const otherDomainRecords = totalRecords - oldDomainRecords - newDomainRecords;
 
       // 获取其他域名的详细信息

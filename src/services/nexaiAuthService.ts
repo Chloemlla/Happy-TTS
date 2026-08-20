@@ -107,6 +107,11 @@ function generateRefreshToken(): string {
   return `${uuidv4()}-${uuidv4()}`;
 }
 
+/** Refresh Token 的确定性查找值：只用于把候选集收敛到单条，最终仍由 bcrypt.compare 判定 */
+function computeRefreshTokenLookup(refreshToken: string): string {
+  return crypto.createHmac("sha256", getNexaiJwtSecret()).update(refreshToken).digest("hex");
+}
+
 function generateSystemPassword(): string {
   return crypto.randomBytes(32).toString("hex");
 }
@@ -289,6 +294,7 @@ export class NexaiAuthService {
       emailVerified: false,
       role: "user",
       refreshToken: hashedRefreshToken,
+      refreshTokenLookup: computeRefreshTokenLookup(refreshToken),
       refreshTokenExpiresAt: getRefreshTokenExpiry(),
       lastLoginAt: new Date(),
       lastLoginIp: data.ip || "",
@@ -347,6 +353,7 @@ export class NexaiAuthService {
       {
         $set: {
           refreshToken: hashedRefreshToken,
+          refreshTokenLookup: computeRefreshTokenLookup(refreshToken),
           refreshTokenExpiresAt: getRefreshTokenExpiry(),
           lastLoginAt: new Date(),
           lastLoginIp: data.ip || "",
@@ -448,6 +455,7 @@ export class NexaiAuthService {
           emailVerified,
           role: "user",
           refreshToken: hashedRefreshToken,
+          refreshTokenLookup: computeRefreshTokenLookup(refreshToken),
           refreshTokenExpiresAt: getRefreshTokenExpiry(),
           lastLoginAt: new Date(),
           lastLoginIp: data.ip || "",
@@ -483,6 +491,7 @@ export class NexaiAuthService {
       {
         $set: {
           refreshToken: hashedRefreshToken,
+          refreshTokenLookup: computeRefreshTokenLookup(refreshToken),
           refreshTokenExpiresAt: getRefreshTokenExpiry(),
           lastLoginAt: new Date(),
           lastLoginIp: data.ip || "",
@@ -626,6 +635,7 @@ export class NexaiAuthService {
           emailVerified: !!githubEmail,
           role: "user",
           refreshToken: hashedRefreshToken,
+          refreshTokenLookup: computeRefreshTokenLookup(refreshToken),
           refreshTokenExpiresAt: getRefreshTokenExpiry(),
           lastLoginAt: new Date(),
           lastLoginIp: data.ip || "",
@@ -661,6 +671,7 @@ export class NexaiAuthService {
       {
         $set: {
           refreshToken: hashedRefreshToken,
+          refreshTokenLookup: computeRefreshTokenLookup(refreshToken),
           refreshTokenExpiresAt: getRefreshTokenExpiry(),
           lastLoginAt: new Date(),
           lastLoginIp: data.ip || "",
@@ -891,6 +902,7 @@ export class NexaiAuthService {
         {
           $set: {
             refreshToken: hashedRefreshToken,
+            refreshTokenLookup: computeRefreshTokenLookup(refreshToken),
             refreshTokenExpiresAt: getRefreshTokenExpiry(),
             lastLoginAt: new Date(),
             lastLoginIp: ip || "",
@@ -984,6 +996,7 @@ export class NexaiAuthService {
       {
         $set: {
           refreshToken: hashedRefreshToken,
+          refreshTokenLookup: computeRefreshTokenLookup(refreshToken),
           refreshTokenExpiresAt: getRefreshTokenExpiry(),
           lastLoginAt: new Date(),
           lastLoginIp: ip || "",
@@ -1035,19 +1048,32 @@ export class NexaiAuthService {
       throw Object.assign(new Error("缺少 refreshToken"), { statusCode: 400 });
     }
 
-    // 查找所有可能的用户（refreshToken 是哈希存储的，需要逐个比较）
-    // 优化：实际生产中应使用 token 前缀索引或 Redis 缓存
-    const users = (await NexaiUserModel.find({
-      refreshToken: { $exists: true, $ne: null },
-      refreshTokenExpiresAt: { $gt: Date.now() },
-    }).lean()) as INexaiUser[];
-
-    let matchedUser: INexaiUser | null = null;
-    for (const user of users) {
-      if (user.refreshToken && (await bcrypt.compare(data.refreshToken, user.refreshToken))) {
-        matchedUser = user;
-        break;
+    // refreshTokenLookup 是 HMAC 索引列，只负责把候选集收敛为单条；是否放行仍由 bcrypt.compare 决定
+    const matchByBcrypt = async (candidates: INexaiUser[]): Promise<INexaiUser | null> => {
+      for (const candidate of candidates) {
+        if (candidate.refreshToken && (await bcrypt.compare(data.refreshToken, candidate.refreshToken))) {
+          return candidate;
+        }
       }
+      return null;
+    };
+
+    let matchedUser = await matchByBcrypt(
+      (await NexaiUserModel.find({
+        refreshTokenLookup: computeRefreshTokenLookup(data.refreshToken),
+        refreshTokenExpiresAt: { $gt: Date.now() },
+      }).lean()) as INexaiUser[],
+    );
+
+    if (!matchedUser) {
+      // 兼容本次变更前写入、尚未轮换的旧文档；随着 token 轮换该候选集会收敛为空
+      matchedUser = await matchByBcrypt(
+        (await NexaiUserModel.find({
+          refreshToken: { $exists: true, $ne: null },
+          refreshTokenLookup: { $exists: false },
+          refreshTokenExpiresAt: { $gt: Date.now() },
+        }).lean()) as INexaiUser[],
+      );
     }
 
     if (!matchedUser) {
@@ -1063,6 +1089,7 @@ export class NexaiAuthService {
       {
         $set: {
           refreshToken: hashedRefreshToken,
+          refreshTokenLookup: computeRefreshTokenLookup(newRefreshToken),
           refreshTokenExpiresAt: getRefreshTokenExpiry(),
         },
       },
@@ -1329,7 +1356,10 @@ export class NexaiAuthService {
 
   // ---------- 登出 ----------
   static async logout(userId: string): Promise<void> {
-    await NexaiUserModel.findOneAndUpdate({ id: userId }, { $unset: { refreshToken: "", refreshTokenExpiresAt: "" } });
+    await NexaiUserModel.findOneAndUpdate(
+      { id: userId },
+      { $unset: { refreshToken: "", refreshTokenLookup: "", refreshTokenExpiresAt: "" } },
+    );
     logger.info("[NexAI] 用户登出", { userId });
   }
 

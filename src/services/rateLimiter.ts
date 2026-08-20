@@ -67,11 +67,15 @@ export class RateLimiter {
     }
   }
 
-  private async saveData() {
+  // 只写入受影响的 IP：单次请求不应该重写全部 IP 的记录。
+  private async saveData(ip?: string) {
     try {
       if (mongoose.connection.readyState === 1) {
-        for (const ip of Object.keys(this.data)) {
-          await RateLimitModel.findOneAndUpdate({ ip }, this.data[ip], { upsert: true });
+        const targets = ip === undefined ? Object.keys(this.data) : [ip];
+        for (const target of targets) {
+          const entry = this.data[target];
+          if (!entry) continue;
+          await RateLimitModel.findOneAndUpdate({ ip: target }, entry, { upsert: true });
         }
         return;
       }
@@ -84,22 +88,30 @@ export class RateLimiter {
       if (!existsSync(dir)) {
         mkdirSync(dir, { recursive: true });
       }
-      writeFileSync(this.dataFile, JSON.stringify(this.data, null, 2));
+      writeFileSync(this.dataFile, JSON.stringify(this.data));
     } catch (error) {
       logger.error("保存速率限制数据失败", error);
     }
   }
 
+  // 时间戳按追加顺序单调递增，过期项必然是前缀，原地 splice 即可。
+  private static pruneBefore(timestamps: number[], cutoff: number) {
+    let expired = 0;
+    while (expired < timestamps.length && timestamps[expired] <= cutoff) {
+      expired++;
+    }
+    if (expired > 0) {
+      timestamps.splice(0, expired);
+    }
+  }
+
   private cleanupOldTimestamps(ip: string) {
     const now = Date.now();
-    const minuteAgo = now - 60000;
-    const hourAgo = now - 3600000;
-    const dayAgo = now - 86400000;
-
-    if (this.data[ip]) {
-      this.data[ip].minute = this.data[ip].minute.filter((t) => t > minuteAgo);
-      this.data[ip].hour = this.data[ip].hour.filter((t) => t > hourAgo);
-      this.data[ip].day = this.data[ip].day.filter((t) => t > dayAgo);
+    const entry = this.data[ip];
+    if (entry) {
+      RateLimiter.pruneBefore(entry.minute, now - 60000);
+      RateLimiter.pruneBefore(entry.hour, now - 3600000);
+      RateLimiter.pruneBefore(entry.day, now - 86400000);
     }
   }
 
@@ -119,7 +131,7 @@ export class RateLimiter {
     this.data[ip].hour.push(now);
     this.data[ip].day.push(now);
 
-    await this.saveData();
+    await this.saveData(ip);
 
     return (
       this.data[ip].minute.length > MAX_REQUESTS_PER_MINUTE ||

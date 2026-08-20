@@ -61,6 +61,22 @@ let runtimeConfigCache: RuntimeConfigDefaults = cloneRuntimeConfigDefaults(runti
 const loadedKeys = new Set<RuntimeConfigKey>();
 let initialized = false;
 
+const HOT_CONFIG_CACHE_TTL_MS = 10_000;
+const hotConfigCacheExpiry = new Map<RuntimeConfigKey, number>();
+
+function isHotCacheFresh(key: RuntimeConfigKey): boolean {
+  const expiresAt = hotConfigCacheExpiry.get(key);
+  return expiresAt !== undefined && expiresAt > Date.now();
+}
+
+function markHotCacheFresh(key: RuntimeConfigKey): void {
+  hotConfigCacheExpiry.set(key, Date.now() + HOT_CONFIG_CACHE_TTL_MS);
+}
+
+function invalidateHotCache(key: RuntimeConfigKey): void {
+  hotConfigCacheExpiry.delete(key);
+}
+
 function asObject(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 }
@@ -566,6 +582,7 @@ function applyCacheForKey(key: RuntimeConfigKey, value: unknown): void {
 export class RuntimeConfigService {
   static configureDefaults(defaults: RuntimeConfigDefaults): void {
     runtimeConfigDefaults = cloneRuntimeConfigDefaults(defaults);
+    hotConfigCacheExpiry.clear();
 
     if (!loadedKeys.has("IPQS")) {
       runtimeConfigCache.ipqs = cloneRuntimeConfigDefaults(defaults).ipqs;
@@ -637,6 +654,7 @@ export class RuntimeConfigService {
     }
 
     runtimeConfigCache = nextCache;
+    hotConfigCacheExpiry.clear();
     initialized = true;
     logger.info("[RuntimeConfig] Loaded runtime config from MongoDB", {
       loadedKeys: Array.from(loadedKeys),
@@ -1227,9 +1245,12 @@ export class RuntimeConfigService {
   }
 
   static async getRawTtsConfig(): Promise<TtsRuntimeConfig> {
+    if (isHotCacheFresh("TTS")) return runtimeConfigCache.tts;
+
     const doc = await readRuntimeConfigDoc("TTS");
     const config = doc ? normalizeStoredTtsConfig(doc.value) : runtimeConfigDefaults.tts;
     runtimeConfigCache.tts = config;
+    markHotCacheFresh("TTS");
     return config;
   }
 
@@ -1261,6 +1282,7 @@ export class RuntimeConfigService {
 
     runtimeConfigCache.tts = nextConfig;
     loadedKeys.add("TTS");
+    invalidateHotCache("TTS");
     initialized = true;
 
     return { updatedAt: now.toISOString() };
@@ -1270,9 +1292,12 @@ export class RuntimeConfigService {
     await RuntimeConfigModel.deleteOne({ key: "TTS" }).exec();
     runtimeConfigCache.tts = cloneRuntimeConfigDefaults(runtimeConfigDefaults).tts;
     loadedKeys.delete("TTS");
+    invalidateHotCache("TTS");
   }
 
   static async getRawTtsProviderConfig(): Promise<TtsProviderRuntimeConfig> {
+    if (isHotCacheFresh("TTS_PROVIDER")) return runtimeConfigCache.ttsProvider;
+
     const doc = await readRuntimeConfigDoc("TTS_PROVIDER", {
       fallbackOnError: () =>
         loadedKeys.has("TTS_PROVIDER")
@@ -1283,6 +1308,7 @@ export class RuntimeConfigService {
       ? normalizeStoredTtsProviderConfig(doc.value)
       : cloneRuntimeConfigDefaults(runtimeConfigDefaults).ttsProvider;
     runtimeConfigCache.ttsProvider = config;
+    markHotCacheFresh("TTS_PROVIDER");
     return config;
   }
 
@@ -1343,6 +1369,7 @@ export class RuntimeConfigService {
 
     runtimeConfigCache.ttsProvider = nextConfig;
     loadedKeys.add("TTS_PROVIDER");
+    invalidateHotCache("TTS_PROVIDER");
     initialized = true;
     return { updatedAt: now.toISOString() };
   }

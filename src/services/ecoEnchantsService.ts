@@ -333,11 +333,37 @@ function parseTelemetryTimestamp(value: unknown): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+const TELEMETRY_SENSITIVE_MARKERS = [
+  "raw-network",
+  "rawnetwork",
+  "raw_ip",
+  "rawip",
+  "raw-text",
+  "rawtext",
+  "captureraw",
+];
+
+function containsTelemetrySensitiveMarker(text: string): boolean {
+  const lowered = text.toLowerCase();
+  return TELEMETRY_SENSITIVE_MARKERS.some((marker) => lowered.includes(marker));
+}
+
+// 遍历键名与字符串值即可判定，避免为每条事件（单批最多 5000 条）序列化整个 payload。
+function hasTelemetrySensitiveMarker(value: unknown): boolean {
+  if (typeof value === "string") return containsTelemetrySensitiveMarker(value);
+  if (Array.isArray(value)) return value.some((item) => hasTelemetrySensitiveMarker(item));
+  if (value === null || typeof value !== "object") return false;
+  for (const [key, entryValue] of Object.entries(value as Record<string, unknown>)) {
+    // 键名先判：值为 undefined 时键本身仍然是敏感标记的载体，不能连带跳过。
+    if (containsTelemetrySensitiveMarker(key)) return true;
+    if (entryValue === undefined) continue;
+    if (hasTelemetrySensitiveMarker(entryValue)) return true;
+  }
+  return false;
+}
+
 function getTelemetrySensitiveRetentionUntil(payload: Record<string, unknown>): Date | undefined {
-  const raw = stableStringify(payload).toLowerCase();
-  const hasRawNetwork = raw.includes("raw-network") || raw.includes("rawnetwork") || raw.includes("raw_ip") || raw.includes("rawip");
-  const hasRawText = raw.includes("raw-text") || raw.includes("rawtext") || raw.includes("captureraw");
-  if (!hasRawNetwork && !hasRawText) return undefined;
+  if (!hasTelemetrySensitiveMarker(payload)) return undefined;
   return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 }
 
@@ -717,10 +743,15 @@ export class EcoEnchantsService {
     const requestId = context.requestId;
     const now = new Date();
 
-    const license = await EcoEnchantsLicenseModel.findOne({
-      productId,
-      keyHash: hashLicenseKey(licenseKey),
-    });
+    const [licenseResult, buildResult] = await Promise.allSettled([
+      EcoEnchantsLicenseModel.findOne({
+        productId,
+        keyHash: hashLicenseKey(licenseKey),
+      }),
+      EcoEnchantsService.verifyBuildFingerprint(productId, request.plugin),
+    ]);
+    if (licenseResult.status === "rejected") throw licenseResult.reason;
+    const license = licenseResult.value;
 
     if (!license) {
       return {
@@ -749,8 +780,8 @@ export class EcoEnchantsService {
       };
     }
 
-    const buildStatus = await EcoEnchantsService.verifyBuildFingerprint(productId, request.plugin);
-    if (buildStatus === "tampered") {
+    if (buildResult.status === "rejected") throw buildResult.reason;
+    if (buildResult.value === "tampered") {
       await EcoEnchantsService.recordRiskEvent({
         productId,
         licenseId: license.licenseId,
@@ -959,25 +990,18 @@ export class EcoEnchantsService {
       };
     }
 
-    const activeCount = await EcoEnchantsActivationModel.countDocuments({
-      licenseId: license.licenseId,
-      status: "active",
-    });
-
-    if (!existing && activeCount >= license.maxActivations) {
-      return {
-        status: "denied",
-        responseStatus: "activation_limit_exceeded",
-        message: "Activation limit exceeded.",
-      };
-    }
-
-    if (existing && existing.status !== "active" && activeCount >= license.maxActivations) {
-      return {
-        status: "denied",
-        responseStatus: "activation_limit_exceeded",
-        message: "Activation limit exceeded.",
-      };
+    if (!existing || existing.status !== "active") {
+      const activeCount = await EcoEnchantsActivationModel.countDocuments({
+        licenseId: license.licenseId,
+        status: "active",
+      });
+      if (activeCount >= license.maxActivations) {
+        return {
+          status: "denied",
+          responseStatus: "activation_limit_exceeded",
+          message: "Activation limit exceeded.",
+        };
+      }
     }
 
     const patch = {
@@ -1439,9 +1463,9 @@ export class EcoEnchantsService {
   }
 
   static async listCustomerLicenses(customerId: string, requestId: string) {
-    const licenses = await EcoEnchantsLicenseModel.find({ customerId, productId: ECO_ENCHANTS_PRODUCT_ID }).sort({
-      createdAt: -1,
-    });
+    const licenses = await EcoEnchantsLicenseModel.find({ customerId, productId: ECO_ENCHANTS_PRODUCT_ID })
+      .sort({ createdAt: -1 })
+      .lean<IEcoEnchantsLicense[]>();
     return {
       requestId,
       licenses: licenses.map(getLicenseSummary),
@@ -1449,9 +1473,15 @@ export class EcoEnchantsService {
   }
 
   static async getCustomerLicense(customerId: string, licenseId: string, requestId: string) {
-    const license = await EcoEnchantsLicenseModel.findOne({ customerId, licenseId, productId: ECO_ENCHANTS_PRODUCT_ID });
+    const license = await EcoEnchantsLicenseModel.findOne({
+      customerId,
+      licenseId,
+      productId: ECO_ENCHANTS_PRODUCT_ID,
+    }).lean<IEcoEnchantsLicense | null>();
     if (!license) throw serviceError(404, "license_not_found", "License was not found.");
-    const activations = await EcoEnchantsActivationModel.find({ licenseId }).sort({ lastSeenAt: -1 });
+    const activations = await EcoEnchantsActivationModel.find({ licenseId })
+      .sort({ lastSeenAt: -1 })
+      .lean<IEcoEnchantsActivation[]>();
     return {
       requestId,
       license: getLicenseSummary(license),
@@ -1527,7 +1557,9 @@ export class EcoEnchantsService {
     const builds = await EcoEnchantsReleaseBuildModel.find({
       productId: ECO_ENCHANTS_PRODUCT_ID,
       isActive: true,
-    }).sort({ releasedAt: -1 });
+    })
+      .sort({ releasedAt: -1 })
+      .lean();
 
     return {
       requestId,
@@ -1583,7 +1615,11 @@ export class EcoEnchantsService {
     if (params.result) filter.result = params.result;
 
     const [logs, total] = await Promise.all([
-      EcoEnchantsAuditLogModel.find(filter).sort({ createdAt: -1 }).skip((page - 1) * pageSize).limit(pageSize),
+      EcoEnchantsAuditLogModel.find(filter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * pageSize)
+        .limit(pageSize)
+        .lean(),
       EcoEnchantsAuditLogModel.countDocuments(filter),
     ]);
 
@@ -1606,7 +1642,11 @@ export class EcoEnchantsService {
     if (params.type) filter.type = params.type;
 
     const [riskEvents, total] = await Promise.all([
-      EcoEnchantsRiskEventModel.find(filter).sort({ createdAt: -1 }).skip((page - 1) * pageSize).limit(pageSize),
+      EcoEnchantsRiskEventModel.find(filter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * pageSize)
+        .limit(pageSize)
+        .lean(),
       EcoEnchantsRiskEventModel.countDocuments(filter),
     ]);
 

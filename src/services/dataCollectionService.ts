@@ -85,6 +85,7 @@ const DataCollectionSchema = new mongoose.Schema(
 );
 
 // 复合索引优化常用查询
+DataCollectionSchema.index({ timestamp: -1 });
 DataCollectionSchema.index({ userId: 1, timestamp: -1 });
 DataCollectionSchema.index({ action: 1, timestamp: -1 });
 DataCollectionSchema.index({ riskLevel: 1, timestamp: -1 });
@@ -265,11 +266,12 @@ class DataCollectionService {
 
     this.isProcessingBatch = true;
     const startTime = Date.now();
+    let batch: BatchWriteItem[] = [];
 
     try {
       // 取出批量数据
       const batchSize = Math.min(this.BATCH_SIZE, this.writeQueue.length);
-      const batch = this.writeQueue.splice(0, batchSize);
+      batch = this.writeQueue.splice(0, batchSize);
 
       if (batch.length === 0) {
         this.isProcessingBatch = false;
@@ -303,17 +305,14 @@ class DataCollectionService {
       this.recordError("Batch processing failed", error);
 
       // 重试机制：将失败的项目重新加入队列（增加重试计数）
-      const batchSize = Math.min(this.BATCH_SIZE, this.writeQueue.length);
-      const failedBatch = this.writeQueue.splice(0, batchSize);
-
-      const retryItems = failedBatch
+      const retryItems = batch
         .filter((item) => item.retryCount < this.MAX_RETRY_COUNT)
         .map((item) => {
           this.stats.retryCount++;
           return { ...item, retryCount: item.retryCount + 1 };
         });
 
-      const failedItems = failedBatch.filter((item) => item.retryCount >= this.MAX_RETRY_COUNT);
+      const failedItems = batch.filter((item) => item.retryCount >= this.MAX_RETRY_COUNT);
       if (failedItems.length > 0) {
         this.stats.failedRetries += failedItems.length;
         logger.error(`[DataCollection] ${failedItems.length} items exceeded max retry count and were dropped`);
@@ -869,14 +868,34 @@ class DataCollectionService {
   }
 
   // =============== 智能分析与优化 ===============
+  // 稳定序列化：逐层按键名排序（数组顺序保留），深度上限与 clampDetails 一致
+  private canonicalize(value: any, depth = 0): string {
+    if (depth > DataCollectionService.MAX_DEPTH) return '"[Truncated: depth limit]"';
+    if (value === null || typeof value !== "object") {
+      const s = JSON.stringify(value);
+      return typeof s === "string" ? s : "null";
+    }
+    if (Array.isArray(value)) {
+      return `[${value.map((v) => this.canonicalize(v, depth + 1)).join(",")}]`;
+    }
+    const parts: string[] = [];
+    for (const k of Object.keys(value).sort()) {
+      if (typeof value[k] === "undefined") continue;
+      parts.push(`${JSON.stringify(k)}:${this.canonicalize(value[k], depth + 1)}`);
+    }
+    return `{${parts.join(",")}}`;
+  }
+
   private computeHash(obj: any): string {
-    const s = JSON.stringify(obj, Object.keys(obj).sort());
+    const s = this.canonicalize(obj);
     return crypto.createHash("sha256").update(s).digest("hex");
   }
 
+  // Map 保持插入顺序且写入时间单调递增，因此遇到第一个未过期项即可停止
   private cleanupDedupeCache(now: number) {
-    for (const [h, t] of this.hashSeenAt.entries()) {
-      if (now - t > this.dedupeTTLms) this.hashSeenAt.delete(h);
+    for (const [h, t] of this.hashSeenAt) {
+      if (now - t <= this.dedupeTTLms) break;
+      this.hashSeenAt.delete(h);
     }
   }
 
@@ -1019,6 +1038,8 @@ class DataCollectionService {
       this.stats.dedupeHits++;
     }
 
+    // 先删后插：保证条目移动到插入顺序末尾，使 cleanupDedupeCache 的前缀扫描成立
+    this.hashSeenAt.delete(hash);
     this.hashSeenAt.set(hash, now);
 
     const risk = await this.evaluateRisk({ details: redacted });

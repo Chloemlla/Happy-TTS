@@ -114,6 +114,12 @@ const DEFAULT_LOCAL_RULES: LocalRule[] = [
   },
 ];
 
+const CUSTOM_BLOCK_CONFIDENCE = 0.95;
+const COMPACT_STRIP_PATTERN = /[\s\p{P}\p{S}_-]+/gu;
+
+let customBlockTermsSource: string | undefined;
+let customBlockTerms: string[] = [];
+
 function parseBooleanEnv(name: string, fallback: boolean): boolean {
   const raw = process.env[name];
   if (raw === undefined) return fallback;
@@ -140,8 +146,8 @@ function normalizeForMatching(text: string): string {
     .toLowerCase();
 }
 
-function compactForMatching(text: string): string {
-  return normalizeForMatching(text).replace(/[\s\p{P}\p{S}_-]+/gu, "");
+function compactForMatching(normalized: string): string {
+  return normalized.replace(COMPACT_STRIP_PATTERN, "");
 }
 
 function hashVariant(value: string): string {
@@ -155,32 +161,26 @@ function previewVariant(value: string): string {
   return `${normalized.slice(0, 6)}...${normalized.slice(-4)}`;
 }
 
-function buildCustomBlockRules(): LocalRule[] {
-  const terms = parseCsvEnv("CONTENT_SAFETY_CUSTOM_BLOCKLIST");
-  if (!terms.length) return [];
-
-  return terms.map((term, index) => ({
-    id: `custom-block-${index + 1}`,
-    category: "custom_blocklist",
-    severity: "block",
-    confidence: 0.95,
-    patterns: [new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i")],
-  }));
+// Kept as an ordered list, not a Set: the rule id of a custom hit is derived from the term's position.
+function getCustomBlockTerms(): string[] {
+  const raw = process.env.CONTENT_SAFETY_CUSTOM_BLOCKLIST || "";
+  if (raw !== customBlockTermsSource) {
+    customBlockTermsSource = raw;
+    customBlockTerms = parseCsvEnv("CONTENT_SAFETY_CUSTOM_BLOCKLIST").map((term) => term.toLowerCase());
+  }
+  return customBlockTerms;
 }
 
 function evaluateLocalRules(text: string): ContentSafetyFinding[] {
   const normalized = normalizeForMatching(text);
-  const compacted = compactForMatching(text);
-  const target = `${normalized}\n${compacted}`;
-  const rules = [...DEFAULT_LOCAL_RULES, ...buildCustomBlockRules()];
+  const target = `${normalized}\n${compactForMatching(normalized)}`;
   const findings: ContentSafetyFinding[] = [];
 
-  for (const rule of rules) {
+  for (const rule of DEFAULT_LOCAL_RULES) {
     for (const pattern of rule.patterns) {
-      const match = target.match(pattern);
-      if (!match) continue;
+      if (!pattern.test(target)) continue;
 
-      const variant = match[0] || rule.id;
+      const variant = target.match(pattern)?.[0] || rule.id;
       findings.push({
         source: "local",
         category: rule.category,
@@ -192,6 +192,22 @@ function evaluateLocalRules(text: string): ContentSafetyFinding[] {
       });
       break;
     }
+  }
+
+  const customTerms = getCustomBlockTerms();
+  for (let index = 0; index < customTerms.length; index += 1) {
+    const term = customTerms[index];
+    if (!target.includes(term)) continue;
+
+    findings.push({
+      source: "local",
+      category: "custom_blocklist",
+      severity: "block",
+      confidence: CUSTOM_BLOCK_CONFIDENCE,
+      ruleId: `custom-block-${index + 1}`,
+      variantHash: hashVariant(term),
+      variantPreview: previewVariant(term),
+    });
   }
 
   return findings;

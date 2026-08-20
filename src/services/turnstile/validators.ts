@@ -1,3 +1,5 @@
+const DANGEROUS_PATTERNS = [/[<>{}]/g, /javascript:/gi, /data:/gi, /vbscript:/gi, /on\w+\s*=/gi];
+
 export const sanitizeString = (input: string, maxLength: number = 1500): string | null => {
   if (!input || typeof input !== "string") {
     return null;
@@ -5,10 +7,8 @@ export const sanitizeString = (input: string, maxLength: number = 1500): string 
 
   const sanitized = input.trim().substring(0, maxLength);
 
-  const dangerousPatterns = [/[<>{}]/g, /javascript:/gi, /data:/gi, /vbscript:/gi, /on\w+\s*=/gi];
-
   let cleaned = sanitized;
-  dangerousPatterns.forEach((pattern) => {
+  DANGEROUS_PATTERNS.forEach((pattern) => {
     cleaned = cleaned.replace(pattern, "");
   });
 

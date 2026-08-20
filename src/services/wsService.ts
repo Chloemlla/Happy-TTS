@@ -74,6 +74,8 @@ function generateFingerprintHash(userId: string, enabled: boolean, ts: number): 
 class WsService {
   private wss: WebSocketServer | null = null;
   private clients = new Map<WebSocket, WsClient>();
+  private clientsByUserId = new Map<string, Set<WsClient>>();
+  private clientsByChannel = new Map<string, Set<WsClient>>();
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private server: HttpServer | null = null;
   private upgradeHandler: ((req: IncomingMessage, socket: Socket, head: Buffer) => void) | null = null;
@@ -128,7 +130,7 @@ class WsService {
         if (now - client.lastPing > 60_000) {
           logger.debug("[WS] 心跳超时，断开连接", { userId: client.userId });
           ws.terminate();
-          this.clients.delete(ws);
+          this.removeClient(ws);
         }
       }
     }, 30_000);
@@ -198,14 +200,15 @@ class WsService {
       connectedAt: Date.now(),
       lastPing: Date.now(),
     };
-    this.clients.set(ws, client);
-
-    logger.info("[WS] 新连接", { userId, isAdmin, total: this.clients.size });
 
     // 如果有 userId，自动订阅用户频道
     if (userId) {
       client.channels.add(`user:${userId}`);
     }
+
+    this.registerClient(client);
+
+    logger.info("[WS] 新连接", { userId, isAdmin, total: this.clients.size });
 
     if (isAdmin) {
       void this.sendPendingConfigurationNotice(ws);
@@ -221,16 +224,59 @@ class WsService {
     });
 
     ws.on("close", () => {
-      this.clients.delete(ws);
+      this.removeClient(ws);
       logger.debug("[WS] 连接关闭", { userId, total: this.clients.size });
     });
 
     ws.on("error", (err: Error) => {
       logger.error("[WS] 连接错误", { userId, error: err.message });
-      this.clients.delete(ws);
+      this.removeClient(ws);
       // 出错后强制关闭底层连接，避免半开 socket 泄漏。
       ws.terminate();
     });
+  }
+
+  // ========== 连接索引 ==========
+
+  private registerClient(client: WsClient): void {
+    this.clients.set(client.ws, client);
+    if (client.userId) {
+      const bucket = this.clientsByUserId.get(client.userId);
+      if (bucket) bucket.add(client);
+      else this.clientsByUserId.set(client.userId, new Set([client]));
+    }
+    for (const channel of client.channels) {
+      this.indexChannel(client, channel);
+    }
+  }
+
+  private removeClient(ws: WebSocket): void {
+    const client = this.clients.get(ws);
+    this.clients.delete(ws);
+    if (!client) return;
+    if (client.userId) {
+      const bucket = this.clientsByUserId.get(client.userId);
+      if (bucket) {
+        bucket.delete(client);
+        if (bucket.size === 0) this.clientsByUserId.delete(client.userId);
+      }
+    }
+    for (const channel of client.channels) {
+      this.unindexChannel(client, channel);
+    }
+  }
+
+  private indexChannel(client: WsClient, channel: string): void {
+    const bucket = this.clientsByChannel.get(channel);
+    if (bucket) bucket.add(client);
+    else this.clientsByChannel.set(channel, new Set([client]));
+  }
+
+  private unindexChannel(client: WsClient, channel: string): void {
+    const bucket = this.clientsByChannel.get(channel);
+    if (!bucket) return;
+    bucket.delete(client);
+    if (bucket.size === 0) this.clientsByChannel.delete(channel);
   }
 
   private async sendPendingConfigurationNotice(ws: WebSocket): Promise<void> {
@@ -293,12 +339,14 @@ class WsService {
           // 管理员频道只允许管理员订阅
           if (msg.channel.startsWith("admin:") && !client.isAdmin) break;
           client.channels.add(msg.channel);
+          this.indexChannel(client, msg.channel);
         }
         break;
 
       case "unsubscribe":
         if (msg.channel) {
           client.channels.delete(msg.channel);
+          this.unindexChannel(client, msg.channel);
         }
         break;
 
@@ -319,12 +367,16 @@ class WsService {
 
   // ========== 发送方法 ==========
 
-  private send(ws: WebSocket, msg: WsServerMessage): boolean {
+  private sendRaw(ws: WebSocket, payload: string): boolean {
     if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(msg));
+      ws.send(payload);
       return true;
     }
     return false;
+  }
+
+  private send(ws: WebSocket, msg: WsServerMessage): boolean {
+    return this.sendRaw(ws, JSON.stringify(msg));
   }
 
   /** 发送给指定用户 */
@@ -338,10 +390,13 @@ class WsService {
     if (targetIds.size === 0) return 0;
 
     const fullMsg: WsServerMessage = { ...msg, timestamp: Date.now() };
+    const payload = JSON.stringify(fullMsg);
     let sent = 0;
-    for (const [, client] of this.clients) {
-      if (client.userId && targetIds.has(client.userId) && this.send(client.ws, fullMsg)) {
-        sent++;
+    for (const userId of targetIds) {
+      const bucket = this.clientsByUserId.get(userId);
+      if (!bucket) continue;
+      for (const client of bucket) {
+        if (this.sendRaw(client.ws, payload)) sent++;
       }
     }
     return sent;
@@ -349,12 +404,14 @@ class WsService {
 
   /** 发送给订阅了某频道的所有客户端 */
   sendToChannel(channel: string, msg: Omit<WsServerMessage, "timestamp">): number {
+    const bucket = this.clientsByChannel.get(channel);
+    if (!bucket) return 0;
+
     const fullMsg: WsServerMessage = { ...msg, timestamp: Date.now() };
+    const payload = JSON.stringify(fullMsg);
     let sent = 0;
-    for (const [, client] of this.clients) {
-      if (client.channels.has(channel)) {
-        if (this.send(client.ws, fullMsg)) sent++;
-      }
+    for (const client of bucket) {
+      if (this.sendRaw(client.ws, payload)) sent++;
     }
     return sent;
   }
@@ -362,9 +419,10 @@ class WsService {
   /** 广播给所有已连接客户端 */
   broadcast(msg: Omit<WsServerMessage, "timestamp">): number {
     const fullMsg: WsServerMessage = { ...msg, timestamp: Date.now() };
+    const payload = JSON.stringify(fullMsg);
     let sent = 0;
-    for (const [, client] of this.clients) {
-      if (this.send(client.ws, fullMsg)) sent++;
+    for (const [ws] of this.clients) {
+      if (this.sendRaw(ws, payload)) sent++;
     }
     return sent;
   }
@@ -372,10 +430,11 @@ class WsService {
   /** 广播给所有管理员 */
   broadcastToAdmins(msg: Omit<WsServerMessage, "timestamp">): number {
     const fullMsg: WsServerMessage = { ...msg, timestamp: Date.now() };
+    const payload = JSON.stringify(fullMsg);
     let sent = 0;
-    for (const [, client] of this.clients) {
+    for (const [ws, client] of this.clients) {
       if (client.isAdmin) {
-        if (this.send(client.ws, fullMsg)) sent++;
+        if (this.sendRaw(ws, payload)) sent++;
       }
     }
     return sent;
@@ -384,9 +443,10 @@ class WsService {
   /** 广播给所有已认证用户 */
   broadcastToAuthenticatedUsers(msg: Omit<WsServerMessage, "timestamp">): number {
     const fullMsg: WsServerMessage = { ...msg, timestamp: Date.now() };
+    const payload = JSON.stringify(fullMsg);
     let sent = 0;
-    for (const [, client] of this.clients) {
-      if (client.userId && this.send(client.ws, fullMsg)) {
+    for (const [ws, client] of this.clients) {
+      if (client.userId && this.sendRaw(ws, payload)) {
         sent++;
       }
     }
@@ -396,9 +456,10 @@ class WsService {
   /** 广播给所有匿名连接 */
   broadcastToAnonymous(msg: Omit<WsServerMessage, "timestamp">): number {
     const fullMsg: WsServerMessage = { ...msg, timestamp: Date.now() };
+    const payload = JSON.stringify(fullMsg);
     let sent = 0;
-    for (const [, client] of this.clients) {
-      if (!client.userId && this.send(client.ws, fullMsg)) {
+    for (const [ws, client] of this.clients) {
+      if (!client.userId && this.sendRaw(ws, payload)) {
         sent++;
       }
     }
@@ -530,15 +591,16 @@ class WsService {
    * @param ticket 完整的工单数据或更新的部分
    */
   notifyTicketUpdate(userId: string, ticket: any) {
+    const view = toTicketView(ticket, false);
     // 发送给工单拥有者
     this.sendToUser(userId, {
       type: "ticket:update",
-      data: toTicketView(ticket, false),
+      data: view,
     });
     // 广播给所有管理员，以便实时查看处理进度
     this.broadcastToAdmins({
       type: "ticket:update",
-      data: toTicketView(ticket, false),
+      data: view,
     });
   }
 
@@ -630,29 +692,34 @@ class WsService {
 
   /** 强制断开指定用户的所有连接 */
   kickUser(userId: string): number {
+    const bucket = this.clientsByUserId.get(userId);
+    if (!bucket) return 0;
+
+    const fullMsg: WsServerMessage = {
+      type: "notification",
+      data: { message: "您已被管理员强制下线", level: "error" },
+      timestamp: Date.now(),
+    };
+    const payload = JSON.stringify(fullMsg);
     let kicked = 0;
-    for (const [ws, client] of this.clients) {
-      if (client.userId === userId) {
-        this.send(ws, {
-          type: "notification",
-          data: { message: "您已被管理员强制下线", level: "error" },
-          timestamp: Date.now(),
-        });
-        ws.close(4001, "Kicked by admin");
-        this.clients.delete(ws);
-        kicked++;
-      }
+    for (const client of Array.from(bucket)) {
+      this.sendRaw(client.ws, payload);
+      client.ws.close(4001, "Kicked by admin");
+      this.removeClient(client.ws);
+      kicked++;
     }
     return kicked;
   }
 
   /** 用户角色、状态或存在性变化后，旧连接不得继续沿用缓存权限。 */
   invalidateUserAuthority(userId: string): number {
+    const bucket = this.clientsByUserId.get(userId);
+    if (!bucket) return 0;
+
     let closed = 0;
-    for (const [ws, client] of this.clients) {
-      if (client.userId !== userId) continue;
-      ws.close(4003, "Authority changed");
-      this.clients.delete(ws);
+    for (const client of Array.from(bucket)) {
+      client.ws.close(4003, "Authority changed");
+      this.removeClient(client.ws);
       closed++;
     }
     return closed;
@@ -682,6 +749,8 @@ class WsService {
     }
     EcoEnchantsOpsService.closeRpcWebSocket();
     this.clients.clear();
+    this.clientsByUserId.clear();
+    this.clientsByChannel.clear();
     this.pendingUpgradeAuth = new WeakMap<IncomingMessage, WebSocketIdentity>();
   }
 }

@@ -249,6 +249,23 @@ export class ClarityService {
   private static readonly rateLimiter = new Map<string, { count: number; resetTime: number }>();
   private static readonly RATE_LIMIT_WINDOW = 60000; // 1分钟窗口
   private static readonly RATE_LIMIT_MAX_REQUESTS = 20; // 每分钟最多20次配置更新
+  private static rateLimiterSweepTimer: ReturnType<typeof setInterval> | null = null;
+
+  /**
+   * 定期清理已过期的限流窗口，避免 Map 随用户数无界增长。
+   * 清理周期等于限流窗口，条目只会在无法再影响判定之后被删除。
+   */
+  private static ensureRateLimiterSweep(): void {
+    if (ClarityService.rateLimiterSweepTimer) return;
+    const timer = setInterval(() => {
+      const now = Date.now();
+      for (const [key, limiter] of ClarityService.rateLimiter) {
+        if (now >= limiter.resetTime) ClarityService.rateLimiter.delete(key);
+      }
+    }, ClarityService.RATE_LIMIT_WINDOW);
+    if (timer && typeof timer === "object" && "unref" in timer) timer.unref();
+    ClarityService.rateLimiterSweepTimer = timer;
+  }
 
   // =============== 断路器模式 ===============
   private static circuitBreakerState: "CLOSED" | "OPEN" | "HALF_OPEN" = "CLOSED";
@@ -290,6 +307,7 @@ export class ClarityService {
    * 限流检查
    */
   private static checkRateLimit(userId: string): boolean {
+    ClarityService.ensureRateLimiterSweep();
     const now = Date.now();
     const key = `rate_limit_${userId}`;
 

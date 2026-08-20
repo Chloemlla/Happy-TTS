@@ -31,8 +31,11 @@ const serviceStats: IPServiceStats = {
   lastResetTime: new Date(),
 };
 
-const responseTimes: number[] = [];
 const MAX_RESPONSE_TIME_SAMPLES = 100;
+const responseTimes: number[] = new Array(MAX_RESPONSE_TIME_SAMPLES);
+let responseTimeIndex = 0;
+let responseTimeCount = 0;
+let responseTimeSum = 0;
 
 // MongoDB IP信息 Schema - 优化版本
 const IPInfoSchema = new mongoose.Schema(
@@ -555,11 +558,9 @@ async function saveIPInfoToLocal(info: IPInfo): Promise<void> {
 }
 
 // 从本地获取 IP 信息 - 优化版本
-function getIPInfoFromLocal(ip: string): IPInfo | null {
-  const info = LOCAL_CACHE[ip];
+async function getIPInfoFromLocal(ip: string): Promise<IPInfo | null> {
+  const info: IPInfo | null = LOCAL_CACHE[ip] || (await queryIPFromMongoDB(ip));
   if (!info) {
-    // 如果本地缓存没有，尝试从MongoDB查询
-    queryIPFromMongoDB(ip);
     return null;
   }
 
@@ -573,8 +574,8 @@ function getIPInfoFromLocal(ip: string): IPInfo | null {
   return null;
 }
 
-// 异步从MongoDB查询单个IP（不阻塞主流程）
-async function queryIPFromMongoDB(ip: string): Promise<void> {
+// 从MongoDB查询单个IP，命中时回填本地缓存
+async function queryIPFromMongoDB(ip: string): Promise<IPInfo | null> {
   try {
     if (mongoose.connection.readyState === 1) {
       const doc = await IPInfoModel.findOne(
@@ -583,7 +584,7 @@ async function queryIPFromMongoDB(ip: string): Promise<void> {
       ).lean();
 
       if (doc) {
-        LOCAL_CACHE[ip] = {
+        const info: IPInfo = {
           ip: (doc as any).ip as string,
           country: (doc as any).country as string,
           region: (doc as any).region as string,
@@ -594,6 +595,7 @@ async function queryIPFromMongoDB(ip: string): Promise<void> {
               ? (doc as any).timestamp.getTime()
               : ((doc as any).timestamp as number),
         };
+        LOCAL_CACHE[ip] = info;
 
         // 更新查询统计（异步执行，不等待结果）
         IPInfoModel.updateOne(
@@ -608,12 +610,15 @@ async function queryIPFromMongoDB(ip: string): Promise<void> {
           .catch((err) => {
             logger.log("更新IP查询统计失败:", { ip, error: err.message });
           });
+
+        return info;
       }
     }
   } catch (error) {
     // 静默处理错误，不影响主流程
     logger.log("异步MongoDB查询失败:", { ip, error: error instanceof Error ? error.message : String(error) });
   }
+  return null;
 }
 
 // 初始化本地存储
@@ -621,20 +626,11 @@ initializeLocalStorage();
 
 // 优化内存缓存管理
 function setIpCache(ip: string, value: { info: IPInfo; timestamp: number }) {
-  // LRU缓存清理策略
+  // Map保持插入顺序，写入前先delete使队首恒为最久未刷新的条目，等价于原O(n)扫描的淘汰目标
+  ipCache.delete(ip);
   if (ipCache.size >= MAX_CACHE_SIZE) {
-    // 找到最旧的条目并删除
-    let oldestKey = "";
-    let oldestTime = Date.now();
-
-    for (const [key, val] of ipCache.entries()) {
-      if (val.timestamp < oldestTime) {
-        oldestTime = val.timestamp;
-        oldestKey = key;
-      }
-    }
-
-    if (oldestKey) {
+    const oldestKey = ipCache.keys().next().value;
+    if (oldestKey !== undefined) {
       ipCache.delete(oldestKey);
     }
   }
@@ -672,13 +668,17 @@ cacheCleanupInterval.unref?.();
 
 // 性能监控函数
 function recordResponseTime(time: number): void {
-  responseTimes.push(time);
-  if (responseTimes.length > MAX_RESPONSE_TIME_SAMPLES) {
-    responseTimes.shift();
+  // 定长环形缓冲区 + running sum，避免每次查询都shift和全量reduce
+  if (responseTimeCount === MAX_RESPONSE_TIME_SAMPLES) {
+    responseTimeSum -= responseTimes[responseTimeIndex];
+  } else {
+    responseTimeCount++;
   }
+  responseTimes[responseTimeIndex] = time;
+  responseTimeSum += time;
+  responseTimeIndex = (responseTimeIndex + 1) % MAX_RESPONSE_TIME_SAMPLES;
 
-  // 计算平均响应时间
-  serviceStats.avgResponseTime = responseTimes.reduce((sum, time) => sum + time, 0) / responseTimes.length;
+  serviceStats.avgResponseTime = responseTimeSum / responseTimeCount;
 }
 
 function incrementStat(statName: keyof IPServiceStats, value: number = 1): void {
@@ -714,7 +714,9 @@ function resetIPServiceStats(): void {
     }
   });
   serviceStats.lastResetTime = new Date();
-  responseTimes.length = 0;
+  responseTimeIndex = 0;
+  responseTimeCount = 0;
+  responseTimeSum = 0;
   logger.log("IP服务统计信息已重置");
 }
 
@@ -735,6 +737,45 @@ const statsInterval = setInterval(() => {
   }
 }, 600000); // 10分钟输出一次统计
 statsInterval.unref?.();
+
+// 同IP并发查询的单飞去重：覆盖MongoDB回落与外部抓取整条冷路径
+const inFlightLookups = new Map<string, Promise<IPInfo>>();
+
+function resolveIPInfoDeduped(ip: string): Promise<IPInfo> {
+  const existing = inFlightLookups.get(ip);
+  if (existing) {
+    return existing;
+  }
+
+  const task = (async () => {
+    // 检查本地存储/MongoDB
+    const localInfo = await getIPInfoFromLocal(ip);
+    if (localInfo) {
+      incrementStat("mongoHits");
+      setIpCache(ip, { info: localInfo, timestamp: Date.now() });
+      logger.log("使用本地存储的IP信息", { ip });
+      return localInfo;
+    }
+
+    // 调用外部API
+    logger.log("开始查询外部API获取IP信息", { ip });
+    return await withConcurrencyLimit(async () => {
+      return await withRetry(async () => {
+        const info = await tryAllProviders(ip);
+        incrementStat("apiCalls");
+        setIpCache(ip, { info, timestamp: Date.now() });
+        await saveIPInfoToLocal(info);
+        logger.log("成功获取IP信息", { ip, info });
+        return info;
+      });
+    });
+  })().finally(() => {
+    inFlightLookups.delete(ip);
+  });
+
+  inFlightLookups.set(ip, task);
+  return task;
+}
 
 export async function getIPInfo(ip: string): Promise<IPInfo> {
   const startTime = Date.now();
@@ -773,29 +814,7 @@ export async function getIPInfo(ip: string): Promise<IPInfo> {
           return cached.info;
         }
 
-        // 检查本地存储/MongoDB
-        const localInfo = getIPInfoFromLocal(ip);
-        if (localInfo) {
-          incrementStat("mongoHits");
-          setIpCache(ip, { info: localInfo, timestamp: Date.now() });
-          logger.log("使用本地存储的IP信息", { ip });
-          return localInfo;
-        }
-
-        // 调用外部API
-        logger.log("开始查询外部API获取IP信息", { ip });
-        const result = await withConcurrencyLimit(async () => {
-          return await withRetry(async () => {
-            const info = await tryAllProviders(ip);
-            incrementStat("apiCalls");
-            setIpCache(ip, { info, timestamp: Date.now() });
-            await saveIPInfoToLocal(info);
-            logger.log("成功获取IP信息", { ip, info });
-            return info;
-          });
-        });
-
-        return result;
+        return await resolveIPInfoDeduped(ip);
       } catch (error) {
         lastError = error;
         incrementStat("errors");

@@ -1,5 +1,6 @@
 import logger from "./logger";
 import {
+  getPrimaryAdminAuthUser,
   getUserAuthByEmail,
   getUserAuthByUsername,
   incrementUserDailyUsageAtomic,
@@ -84,6 +85,10 @@ export const userRepository = {
       return provider.getAdminUserList(opts);
     }
     return provider.getAllUsers();
+  },
+
+  async getPrimaryAdminAuthUser() {
+    return getPrimaryAdminAuthUser();
   },
 
   async createUser(username: string, email: string, password: string): Promise<User | null> {

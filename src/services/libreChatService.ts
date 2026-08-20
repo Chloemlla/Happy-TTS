@@ -131,6 +131,7 @@ class LibreChatService {
 
   // 新增：SSE 连接管理
   private sseClients: Map<string, SSEClient> = new Map();
+  private readonly sseClientsByOwner = new Map<string, Set<SSEClient>>();
   private sseCleanupInterval: NodeJS.Timeout | null = null;
   private readonly MAX_SSE_CLIENTS = 1000; // 限制最大 SSE 连接数
 
@@ -347,6 +348,14 @@ class LibreChatService {
     return this.chatHistory.filter((message) => messageBelongsToOwner(message, ownerKey));
   }
 
+  private countMemoryMessages(ownerKey: string): number {
+    let count = 0;
+    for (const message of this.chatHistory) {
+      if (messageBelongsToOwner(message, ownerKey)) count += 1;
+    }
+    return count;
+  }
+
   private mergeOwnerMessages(ownerKey: string, ...sources: ChatMessage[][]): ChatMessage[] {
     const merged = new Map<string, ChatMessage>();
     for (const message of normalizeChatHistory(sources.flat())) {
@@ -557,7 +566,7 @@ class LibreChatService {
         await this.saveChatHistory();
       }
 
-      return this.getMemoryMessages(ownerKey).length;
+      return this.countMemoryMessages(ownerKey);
     });
   }
 
@@ -815,6 +824,19 @@ class LibreChatService {
     this.sseCleanupInterval.unref?.();
   }
 
+  private indexSSEClient(client: SSEClient): void {
+    const owned = this.sseClientsByOwner.get(client.ownerKey);
+    if (owned) owned.add(client);
+    else this.sseClientsByOwner.set(client.ownerKey, new Set([client]));
+  }
+
+  private unindexSSEClient(client: SSEClient): void {
+    const owned = this.sseClientsByOwner.get(client.ownerKey);
+    if (!owned) return;
+    owned.delete(client);
+    if (owned.size === 0) this.sseClientsByOwner.delete(client.ownerKey);
+  }
+
   /**
    * 注册SSE客户端连接
    */
@@ -834,12 +856,14 @@ class LibreChatService {
     res.write(`data: ${JSON.stringify({ type: "connected", clientId, timestamp: Date.now() })}\n\n`);
 
     // 存储客户端信息
-    this.sseClients.set(clientId, {
+    const client: SSEClient = {
       id: clientId,
       ownerKey,
       res,
       lastPing: Date.now(),
-    });
+    };
+    this.sseClients.set(clientId, client);
+    this.indexSSEClient(client);
 
     logger.info("注册SSE客户端", { clientId, ownerKey });
     return clientId;
@@ -857,6 +881,7 @@ class LibreChatService {
         logger.warn(`关闭SSE连接时出错: ${clientId}`, error);
       }
       this.sseClients.delete(clientId);
+      this.unindexSSEClient(client);
       logger.info(`移除SSE客户端: ${clientId}`);
     }
   }
@@ -865,7 +890,7 @@ class LibreChatService {
    * 向指定用户发送SSE通知
    */
   private sendSSENotification(ownerKey: string, eventType: string, data: any): void {
-    const targetClients = Array.from(this.sseClients.values()).filter((client) => client.ownerKey === ownerKey);
+    const targetClients = [...(this.sseClientsByOwner.get(ownerKey) ?? [])];
 
     if (targetClients.length === 0) {
       logger.debug("未找到匹配的SSE客户端", { ownerKey });
@@ -885,6 +910,7 @@ class LibreChatService {
       } catch (error) {
         logger.warn(`发送SSE消息失败: ${client.id}`, error);
         this.sseClients.delete(client.id);
+        this.unindexSSEClient(client);
       }
     });
 
@@ -1577,6 +1603,7 @@ class LibreChatService {
       }
     }
     this.sseClients.clear();
+    this.sseClientsByOwner.clear();
     this.isRunning = false;
   }
 }

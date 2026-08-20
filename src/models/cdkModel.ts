@@ -43,5 +43,6 @@ CDKSchema.index({ resourceId: 1, createdAt: -1 }); // 按资源和时间查询
 CDKSchema.index({ isUsed: 1, createdAt: -1 }); // 按使用状态和时间查询
 CDKSchema.index({ "usedBy.userId": 1, isUsed: 1 }); // 查询用户已兑换的CDK
 CDKSchema.index({ expiresAt: 1, isUsed: 1 }); // 查询过期和未使用的CDK
+CDKSchema.index({ usedIp: 1, usedAt: -1 }); // 按兑换IP查询已兑换记录
 
 export default mongoose.models.CDK || mongoose.model<ICDK>("CDK", CDKSchema);

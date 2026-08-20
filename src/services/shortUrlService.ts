@@ -10,29 +10,6 @@ import { mongoose } from "./mongoService";
 // 定义短链数据的精简类型
 type ShortUrlData = Pick<IShortUrl, "code" | "target" | "userId" | "username" | "createdAt">;
 
-// 自定义并发限制器类
-class ConcurrencyLimiter {
-  private queue: Array<() => void> = [];
-  private running = 0;
-
-  constructor(private limit: number) {}
-
-  async run<T>(fn: () => Promise<T>): Promise<T> {
-    while (this.running >= this.limit) {
-      await new Promise<void>((resolve) => this.queue.push(resolve));
-    }
-
-    this.running++;
-    try {
-      return await fn();
-    } finally {
-      this.running--;
-      const resolve = this.queue.shift();
-      if (resolve) resolve();
-    }
-  }
-}
-
 // 短链服务设置（支持从 MongoDB 读取 AES_KEY，优先于环境变量）
 interface ShortUrlSettingDoc {
   key: string;
@@ -103,6 +80,26 @@ export class ShortUrlService {
     return key;
   }
 
+  // 一次 $in 查询探测整批候选码，返回第一个未被占用的候选（保持候选顺序）
+  private static async pickFreeCode(
+    candidates: string[],
+    session: any,
+  ): Promise<{ code: string; index: number } | null> {
+    const rows = (await ShortUrlModel.find({ code: { $in: candidates } })
+      .select("code")
+      .session(session)
+      .lean()
+      .exec()) as Array<Pick<IShortUrl, "code">>;
+    const taken = new Set(rows.map((row) => row.code));
+
+    for (let i = 0; i < candidates.length; i++) {
+      if (!taken.has(candidates[i])) {
+        return { code: candidates[i], index: i };
+      }
+    }
+    return null;
+  }
+
   /**
    * 生成唯一的短链代码 - 多种去重策略
    * 策略1: 基础 nanoid 重试（6位）
@@ -111,42 +108,19 @@ export class ShortUrlService {
    * 策略4: 使用哈希算法
    */
   private static async generateUniqueCode(target: string, userId: string, session: any): Promise<string> {
-    // 策略1: 基础 nanoid(6) 重试
-    const baseLength = 6;
-    const baseRetries = 5;
+    // 策略1-3: 6/7/8 位候选码，每级 5 个候选合并为一次批量探测
+    const lengthTiers = [
+      { strategy: 1, length: 6, retries: 5 },
+      { strategy: 2, length: 7, retries: 5 },
+      { strategy: 3, length: 8, retries: 5 },
+    ];
 
-    for (let i = 0; i < baseRetries; i++) {
-      const code = createUrlSafeRandomId(baseLength);
-      const existing = await ShortUrlModel.findOne({ code }).session(session);
-      if (!existing) {
-        logger.debug(`[短链服务] 策略1成功: nanoid(${baseLength}), 重试${i}次`);
-        return code;
-      }
-    }
-
-    // 策略2: 增加代码长度到 7 位
-    const mediumLength = 7;
-    const mediumRetries = 5;
-
-    for (let i = 0; i < mediumRetries; i++) {
-      const code = createUrlSafeRandomId(mediumLength);
-      const existing = await ShortUrlModel.findOne({ code }).session(session);
-      if (!existing) {
-        logger.debug(`[短链服务] 策略2成功: nanoid(${mediumLength}), 重试${i}次`);
-        return code;
-      }
-    }
-
-    // 策略3: 增加到 8 位
-    const longLength = 8;
-    const longRetries = 5;
-
-    for (let i = 0; i < longRetries; i++) {
-      const code = createUrlSafeRandomId(longLength);
-      const existing = await ShortUrlModel.findOne({ code }).session(session);
-      if (!existing) {
-        logger.debug(`[短链服务] 策略3成功: nanoid(${longLength}), 重试${i}次`);
-        return code;
+    for (const tier of lengthTiers) {
+      const candidates = Array.from({ length: tier.retries }, () => createUrlSafeRandomId(tier.length));
+      const picked = await ShortUrlService.pickFreeCode(candidates, session);
+      if (picked) {
+        logger.debug(`[短链服务] 策略${tier.strategy}成功: nanoid(${tier.length}), 重试${picked.index}次`);
+        return picked.code;
       }
     }
 
@@ -154,14 +128,12 @@ export class ShortUrlService {
     const timestamp = Date.now();
     const timeCode = (timestamp % 1000000).toString(36); // 6位时间戳
 
-    for (let i = 0; i < 3; i++) {
-      const randomPart = createUrlSafeRandomId(4);
-      const code = `${randomPart}${timeCode}`; // 总长度约10位
-      const existing = await ShortUrlModel.findOne({ code }).session(session);
-      if (!existing) {
-        logger.debug(`[短链服务] 策略4成功: 时间戳后缀, 重试${i}次`);
-        return code;
-      }
+    // 总长度约10位
+    const timeCandidates = Array.from({ length: 3 }, () => `${createUrlSafeRandomId(4)}${timeCode}`);
+    const timePicked = await ShortUrlService.pickFreeCode(timeCandidates, session);
+    if (timePicked) {
+      logger.debug(`[短链服务] 策略4成功: 时间戳后缀, 重试${timePicked.index}次`);
+      return timePicked.code;
     }
 
     // 策略5: 使用 CSPRNG 生成候选码，避免把目标地址或用户标识放入哈希输入
@@ -796,7 +768,7 @@ export class ShortUrlService {
   }
 
   /**
-   * 异步并发处理多个链接 - 使用自定义并发限制器
+   * 批量处理导入链接 - 校验后一次性批量写入
    */
   private static async processLinksAsync(links: any[]): Promise<{
     importedCount: number;
@@ -809,48 +781,71 @@ export class ShortUrlService {
       throw new Error(`导入数量过大（${links.length}），请分批导入，单次最多5000条`);
     }
 
-    const concurrencyLimit = 10; // 并发限制为10
-    const limiter = new ConcurrencyLimiter(concurrencyLimit);
     const errors: string[] = [];
     let importedCount = 0;
     let skippedCount = 0;
     let errorCount = 0;
 
-    // 使用并发限制器处理所有链接
-    const promises = links.map((linkData, index) =>
-      limiter.run(async () => {
-        try {
-          const result = await ShortUrlService.processImportLinkAsync(linkData);
+    const recordFailure = (code: string, message: string) => {
+      logger.warn(`导入链接失败 ${code}: ${message}`);
+      errors.push(message);
+      errorCount++;
+    };
 
-          // 记录进度（每100条）
-          if ((index + 1) % 100 === 0) {
-            logger.info(`导入进度: ${index + 1}/${links.length}`);
-          }
-
-          return result;
-        } catch (error) {
-          return {
-            skipped: false,
-            error: `短链码 ${linkData.code}: ${error instanceof Error ? error.message : String(error)}`,
-          };
-        }
-      }),
-    );
-
-    // 等待所有任务完成
-    const results = await Promise.all(promises);
-
-    // 统计结果
-    results.forEach((result) => {
-      if (result.error) {
-        errors.push(result.error);
-        errorCount++;
-      } else if (result.skipped) {
-        skippedCount++;
-      } else {
-        importedCount++;
+    // 1) 按输入顺序校验，收集待写入文档
+    const candidates: ShortUrlData[] = [];
+    for (const linkData of links) {
+      const validated = ShortUrlService.validateImportLink(linkData);
+      if (validated.error || !validated.doc) {
+        recordFailure(String(linkData?.code ?? "unknown"), validated.error ?? "短链数据无效");
+        continue;
       }
-    });
+      candidates.push(validated.doc);
+    }
+
+    if (candidates.length > 0) {
+      // 2) 一次 $in 查询构建已存在集合，替代逐条 findOne
+      const existingRows = (await ShortUrlModel.find({ code: { $in: candidates.map((doc) => doc.code) } })
+        .select("code")
+        .lean()
+        .exec()) as Array<Pick<IShortUrl, "code">>;
+      const takenCodes = new Set(existingRows.map((row) => row.code));
+
+      const docs: ShortUrlData[] = [];
+      for (const doc of candidates) {
+        if (takenCodes.has(doc.code)) {
+          logger.info(`跳过重复短链: ${doc.code}`);
+          skippedCount++;
+          continue;
+        }
+        takenCodes.add(doc.code);
+        docs.push(doc);
+      }
+
+      if (docs.length > 0) {
+        try {
+          const inserted = await ShortUrlModel.insertMany(docs, { ordered: false });
+          importedCount += inserted.length;
+        } catch (error) {
+          // ordered:false 下部分失败不抛异常语义：写错误随异常的 writeErrors 返回，索引对应 docs 顺序
+          const writeErrors = (error as { writeErrors?: Array<any> })?.writeErrors;
+          if (!writeErrors) {
+            throw error;
+          }
+          importedCount += docs.length - writeErrors.length;
+          for (const writeError of writeErrors) {
+            const detail = writeError?.err ?? writeError;
+            const failedCode = docs[detail?.index]?.code ?? "unknown";
+            if (detail?.code === 11000) {
+              logger.info(`跳过重复短链: ${failedCode}`);
+              skippedCount++;
+            } else {
+              recordFailure(failedCode, detail?.errmsg || detail?.message || "写入短链失败");
+            }
+          }
+        }
+      }
+    }
 
     return {
       importedCount,
@@ -861,9 +856,9 @@ export class ShortUrlService {
   }
 
   /**
-   * 处理单个导入链接 - 异步版本
+   * 校验单个导入链接，返回待写入文档或错误信息
    */
-  private static async processImportLinkAsync(linkData: any): Promise<{ skipped: boolean; error?: string }> {
+  private static validateImportLink(linkData: any): { doc?: ShortUrlData; error?: string } {
     try {
       // 验证必需字段
       if (!linkData.code || !linkData.target) {
@@ -922,31 +917,17 @@ export class ShortUrlService {
         validUsername = trimmedUsername;
       }
 
-      // 使用lean()检查是否已存在，减少内存占用
-      const existing = (await ShortUrlModel.findOne({ code: trimmedCode }).lean().exec()) as Pick<
-        IShortUrl,
-        "code"
-      > | null;
-      if (existing) {
-        logger.info(`跳过重复短链: ${trimmedCode}`);
-        return { skipped: true };
-      }
-
-      // 创建新的短链记录
-      await ShortUrlModel.create({
-        code: trimmedCode,
-        target: trimmedTarget,
-        userId: validUserId,
-        username: validUsername,
-        createdAt: new Date(),
-      });
-
-      logger.debug(`成功导入短链: ${trimmedCode}`);
-      return { skipped: false };
+      return {
+        doc: {
+          code: trimmedCode,
+          target: trimmedTarget,
+          userId: validUserId,
+          username: validUsername,
+          createdAt: new Date(),
+        },
+      };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.warn(`导入链接失败 ${linkData.code}: ${errorMessage}`);
-      return { skipped: false, error: errorMessage };
+      return { error: error instanceof Error ? error.message : String(error) };
     }
   }
 }

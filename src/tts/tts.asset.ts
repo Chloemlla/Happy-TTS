@@ -190,6 +190,62 @@ export class TtsAudioAssetStore {
     }
   }
 
+  public async getAudioAssetMetadataBatch(fileNames: string[]): Promise<Map<string, TtsAudioAssetMetadata>> {
+    const metadataByFileName = new Map<string, TtsAudioAssetMetadata>();
+    if (fileNames.length === 0 || mongoose.connection.readyState !== 1) {
+      return metadataByFileName;
+    }
+
+    try {
+      const assets = (await TtsAudioAssetModel.find({ fileName: { $in: fileNames } })
+        .select("-audioData")
+        .lean()
+        .exec()) as any[];
+      for (const asset of assets) {
+        const metadata = this.mapMetadata(asset);
+        if (metadata?.fileName) {
+          metadataByFileName.set(metadata.fileName, metadata);
+        }
+      }
+    } catch (error) {
+      logger.warn("TTS audio metadata batch read failed", { error, total: fileNames.length });
+    }
+
+    return metadataByFileName;
+  }
+
+  public async resolveAvailableAssets(fileNames: string[], outputDir: string): Promise<Set<string>> {
+    const available = new Set<string>();
+    const candidates = [...new Set(fileNames.filter((fileName) => typeof fileName === "string" && fileName))];
+    if (candidates.length === 0) {
+      return available;
+    }
+
+    const metadataByFileName = await this.getAudioAssetMetadataBatch(candidates);
+    await Promise.all(
+      candidates.map(async (fileName) => {
+        if (metadataByFileName.has(fileName) || (await this.isAssetOnDisk(fileName, outputDir))) {
+          available.add(fileName);
+        }
+      }),
+    );
+
+    return available;
+  }
+
+  private async isAssetOnDisk(fileName: string, outputDir: string): Promise<boolean> {
+    if (path.basename(fileName) !== fileName) {
+      return false;
+    }
+
+    try {
+      await fs.promises.access(path.join(path.resolve(outputDir), fileName), fs.constants.R_OK);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   public async restoreAudioAssetToDisk(fileName: string, outputDir: string) {
     if (mongoose.connection.readyState !== 1) {
       return false;

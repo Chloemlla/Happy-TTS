@@ -89,35 +89,38 @@ export async function getHCaptchaKey(keyName: "HCAPTCHA_SECRET_KEY" | "HCAPTCHA_
   return envKey && envKey.length > 0 ? envKey : null;
 }
 
+const SHCTraceSchema = new mongoose.Schema(
+  {
+    traceId: { type: String, required: true, unique: true },
+    time: { type: Date, default: Date.now },
+    ip: String,
+    ua: String,
+    success: Boolean,
+    reason: String,
+    errorCode: String,
+    errorMessage: String,
+    score: Number,
+    thresholdBase: Number,
+    thresholdUsed: Number,
+    passRateIp: Number,
+    passRateUa: Number,
+    policy: String,
+    riskLevel: String,
+    riskScore: Number,
+    riskReasons: [String],
+    challengeRequired: Boolean,
+    verificationMethod: { type: String, default: "turnstile" },
+    fingerprint: String,
+    violationCount: Number,
+    banned: Boolean,
+    banExpiresAt: Date,
+    cfErrorCodes: [String],
+  },
+  { collection: "shc_traces", timestamps: false },
+);
+
+const SHCTraceModel = mongoose.models.SHCTrace || mongoose.model("SHCTrace", SHCTraceSchema);
+
 export function getTraceModel() {
-  const schema = new mongoose.Schema(
-    {
-      traceId: { type: String, required: true, unique: true },
-      time: { type: Date, default: Date.now },
-      ip: String,
-      ua: String,
-      success: Boolean,
-      reason: String,
-      errorCode: String,
-      errorMessage: String,
-      score: Number,
-      thresholdBase: Number,
-      thresholdUsed: Number,
-      passRateIp: Number,
-      passRateUa: Number,
-      policy: String,
-      riskLevel: String,
-      riskScore: Number,
-      riskReasons: [String],
-      challengeRequired: Boolean,
-      verificationMethod: { type: String, default: "turnstile" },
-      fingerprint: String,
-      violationCount: Number,
-      banned: Boolean,
-      banExpiresAt: Date,
-      cfErrorCodes: [String],
-    },
-    { collection: "shc_traces", timestamps: false },
-  );
-  return mongoose.models.SHCTrace || mongoose.model("SHCTrace", schema);
+  return SHCTraceModel;
 }

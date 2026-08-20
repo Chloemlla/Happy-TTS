@@ -148,6 +148,7 @@ const EPHEMERAL_SMART_HUMAN_CHECK_SECRET = crypto.randomBytes(32).toString("base
 const MAX_PAYLOAD_BYTES = 8 * 1024; // 8 KB 上限，避免被塞入巨型 st
 const MAX_POW_DIFFICULTY = 24;
 const POW_HARD_TIMEOUT_MS = 2_500;
+const MAX_TRACKED_KEYS = 20_000;
 
 const ERROR_CODES = {
   MISSING_NONCE: { code: "MISSING_NONCE", message: "缺少验证码", retryable: true },
@@ -581,6 +582,11 @@ export class SmartHumanCheckService {
     this.patternBanThresholds.set("nonce_invalid", 8);
     this.patternBanThresholds.set("bad_binding", 4);
     this.patternBanThresholds.set("payload_too_large", 4);
+
+    const windows = [this.rlWindowMs, this.abuseWindowMs, this.patternWindowMs, this.prWindowMs, this.banDurationMs];
+    // 扫描周期取所有裁剪窗口的最大值：删键前其条目必然已整整超出对应判定窗口
+    const sweepTimer = setInterval(() => this.sweepStaleBuckets(Date.now()), Math.max(60_000, ...windows));
+    sweepTimer.unref?.();
   }
 
   // ---------- 公共 API ----------
@@ -1014,40 +1020,39 @@ export class SmartHumanCheckService {
     windowMs: number,
     now: number,
   ): boolean {
-    const arr = bucket.get(ip) || [];
-    const cutoff = now - windowMs;
-    const fresh = arr.filter((t) => t > cutoff);
+    const fresh = touchBucket(bucket, ip);
+    pruneExpiredOrdered(fresh, now - windowMs);
     fresh.push(now);
-    bucket.set(ip, fresh);
+    capKeys(bucket, ip);
     return fresh.length > limit;
   }
 
   private recordAbuse(ip: string, now: number) {
     const banUntil = this.bannedUntilByIp.get(ip) || 0;
     if (banUntil > now) return;
-    const arr = this.abuseTimestampsByIp.get(ip) || [];
-    const cutoff = now - this.abuseWindowMs;
-    const fresh = arr.filter((t) => t > cutoff);
+    const fresh = touchBucket(this.abuseTimestampsByIp, ip);
+    pruneExpired(fresh, now - this.abuseWindowMs);
     fresh.push(now);
-    this.abuseTimestampsByIp.set(ip, fresh);
+    capKeys(this.abuseTimestampsByIp, ip);
     if (fresh.length >= this.abuseThreshold) {
       const until = now + this.banDurationMs;
       this.bannedUntilByIp.set(ip, until);
+      capKeys(this.bannedUntilByIp, ip);
       logger.warn("[SmartHumanCheck] IP 因滥用被临时封禁", { ip, until });
     }
   }
 
   private recordPattern(ip: string, pattern: string, now: number) {
     const key = pattern + "|" + ip;
-    const arr = this.patternTimestampsByKey.get(key) || [];
-    const cutoff = now - this.patternWindowMs;
-    const fresh = arr.filter((t) => t > cutoff);
+    const fresh = touchBucket(this.patternTimestampsByKey, key);
+    pruneExpired(fresh, now - this.patternWindowMs);
     fresh.push(now);
-    this.patternTimestampsByKey.set(key, fresh);
+    capKeys(this.patternTimestampsByKey, key);
     const threshold = this.patternBanThresholds.get(pattern) || 0;
     if (threshold > 0 && fresh.length >= threshold) {
       const until = now + this.banDurationMs;
       this.bannedUntilByIp.set(ip, until);
+      capKeys(this.bannedUntilByIp, ip);
       logger.warn("[SmartHumanCheck] IP 因异常模式被临时封禁", { ip, pattern, until, count: fresh.length });
     }
   }
@@ -1108,6 +1113,20 @@ export class SmartHumanCheckService {
     used = Math.max(base, Math.min(0.98, used));
     return { used, passRateIp: ipStat.rate, passRateUa: uaStat.rate, policy: policies.join(",") };
   }
+
+  private sweepStaleBuckets(now: number) {
+    pruneBucketMap(this.issueTimestampsByIp, now - this.rlWindowMs);
+    pruneBucketMap(this.verifyTimestampsByIp, now - this.rlWindowMs);
+    pruneBucketMap(this.abuseTimestampsByIp, now - this.abuseWindowMs);
+    pruneBucketMap(this.patternTimestampsByKey, now - this.patternWindowMs);
+    pruneBucketMap(this.prAllByIp, now - this.prWindowMs);
+    pruneBucketMap(this.prSuccessByIp, now - this.prWindowMs);
+    pruneBucketMap(this.prAllByUa, now - this.prWindowMs);
+    pruneBucketMap(this.prSuccessByUa, now - this.prWindowMs);
+    for (const [ip, until] of this.bannedUntilByIp) {
+      if (until <= now) this.bannedUntilByIp.delete(ip);
+    }
+  }
 }
 
 // ----------------------- 内部辅助 -----------------------
@@ -1137,12 +1156,61 @@ interface SubmitEnvelopePlain {
   pow?: { nonce: string };
 }
 
+function pruneExpired(arr: number[], cutoff: number): number[] {
+  let write = 0;
+  for (let i = 0; i < arr.length; i++) {
+    if (arr[i] > cutoff) arr[write++] = arr[i];
+  }
+  arr.length = write;
+  return arr;
+}
+
+/** 仅用于「捕获 now 与 push 之间无 await」因而严格有序的桶：过期项必为前缀，二分后一次 splice */
+function pruneExpiredOrdered(arr: number[], cutoff: number): number[] {
+  let lo = 0;
+  let hi = arr.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (arr[mid] > cutoff) hi = mid;
+    else lo = mid + 1;
+  }
+  if (lo > 0) arr.splice(0, lo);
+  return arr;
+}
+
+function pruneBucketMap(bucket: Map<string, number[]>, cutoff: number) {
+  for (const [key, arr] of bucket) {
+    if (pruneExpired(arr, cutoff).length === 0) bucket.delete(key);
+  }
+}
+
+/** 取桶并重新插入到 Map 尾部，使插入序等价于 LRU 序 */
+function touchBucket(bucket: Map<string, number[]>, key: string): number[] {
+  const existing = bucket.get(key);
+  if (existing) {
+    bucket.delete(key);
+    bucket.set(key, existing);
+    return existing;
+  }
+  const created: number[] = [];
+  bucket.set(key, created);
+  return created;
+}
+
+/** 键数超上限时淘汰最久未使用的键；当前请求者的键永不淘汰 */
+function capKeys<T>(bucket: Map<string, T>, keepKey: string, max = MAX_TRACKED_KEYS) {
+  if (bucket.size <= max) return;
+  for (const key of bucket.keys()) {
+    if (bucket.size <= max) break;
+    if (key !== keepKey) bucket.delete(key);
+  }
+}
+
 function pushAndPrune(bucket: Map<string, number[]>, key: string, ts: number, windowMs: number) {
-  const arr = bucket.get(key) || [];
-  const cutoff = ts - windowMs;
-  const fresh = arr.filter((t) => t > cutoff);
-  fresh.push(ts);
-  bucket.set(key, fresh);
+  const arr = touchBucket(bucket, key);
+  pruneExpired(arr, ts - windowMs);
+  arr.push(ts);
+  capKeys(bucket, key);
 }
 
 function getPassRate(
@@ -1152,8 +1220,9 @@ function getPassRate(
   now: number,
   windowMs: number,
 ): { rate?: number; total: number } {
-  const all = (allMap.get(key) || []).filter((t) => t > now - windowMs);
-  const ok = (okMap.get(key) || []).filter((t) => t > now - windowMs);
+  const cutoff = now - windowMs;
+  const all = pruneExpired(allMap.get(key) || [], cutoff);
+  const ok = pruneExpired(okMap.get(key) || [], cutoff);
   if (all.length === 0) return { total: 0 };
   return { rate: ok.length / all.length, total: all.length };
 }

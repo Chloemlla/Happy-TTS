@@ -81,6 +81,8 @@ const userSchema = new mongoose.Schema(
   { collection: "user_datas" },
 );
 
+userSchema.index({ role: 1, createdAt: 1 });
+
 const UserModel = mongoose.models.User || mongoose.model("User", userSchema);
 
 const PUBLIC_USER_SELECT =
@@ -275,6 +277,13 @@ export const getUserByEmailCaseInsensitive = async (email: string): Promise<User
   if (typeof email !== "string") return null;
   const safeEmail = email.trim();
   if (!safeEmail || !validator.isEmail(safeEmail)) return null;
+
+  // 精确匹配走 email 唯一索引；只有大小写不一致的历史数据才落到不可走索引的正则查询
+  const exact = await UserModel.findOne({ email: safeEmail })
+    .select(PUBLIC_USER_SELECT)
+    .lean();
+  if (exact) return removeAvatarBase64(exact) as unknown as UserType;
+
   const escaped = safeEmail.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, (ch) => `\\${ch}`);
   const doc = await UserModel.findOne({ email: new RegExp(`^${escaped}$`, "i") })
     .select(PUBLIC_USER_SELECT)
@@ -346,7 +355,9 @@ export const updateUser = async (id: string, updates: Partial<UserType>): Promis
     console.log("[updateUser] 更新条件:", { id }, "更新内容:", updateOps);
   }
   invalidateCachedUserById(id);
-  const doc = await UserModel.findOneAndUpdate({ id }, updateOps, { returnDocument: "after" }).lean();
+  const doc = await UserModel.findOneAndUpdate({ id }, updateOps, { returnDocument: "after" })
+    .select(PUBLIC_USER_SELECT)
+    .lean();
 
   if (process.env.USER_SERVICE_DEBUG_LOGS === "true") {
     console.log("[updateUser] 更新后文档:", removeAvatarBase64(doc));
@@ -427,6 +438,16 @@ export const getUserAuthByEmail = async (email: string): Promise<UserType | null
   const safeEmail = email.trim();
   if (!validator.isEmail(safeEmail)) return null;
   const doc = await UserModel.findOne({ email: safeEmail }).select(AUTH_USER_SELECT).lean();
+  return doc ? (removeAvatarBase64(doc) as unknown as UserType) : null;
+};
+
+export const getPrimaryAdminAuthUser = async () => {
+  // 按 createdAt 升序取最早的管理员，与旧的“getAllUsers() 里第一个 admin”保持一致，
+  // 并且完全走 { role: 1, createdAt: 1 } 索引。
+  const doc = await UserModel.findOne({ role: { $in: ["admin", "superadmin"] } })
+    .sort({ createdAt: 1 })
+    .select(AUTH_USER_SELECT)
+    .lean();
   return doc ? (removeAvatarBase64(doc) as unknown as UserType) : null;
 };
 
@@ -526,9 +547,7 @@ export const incrementUserDailyUsageAtomic = async (
   const now = new Date().toISOString();
 
   const doc = await UserModel.findOne({ id })
-    .select(
-      "id username email role password avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil isTranslationEnabled translationAccessUntil accountStatus dailyUsage lastUsageDate",
-    )
+    .select("id role lastUsageDate dailyUsage")
     .lean();
 
   if (!doc) {
@@ -551,7 +570,9 @@ export const incrementUserDailyUsageAtomic = async (
       ? { $inc: { dailyUsage: 1 }, $set: { lastUsageDate: now } }
       : { $set: { dailyUsage: 1, lastUsageDate: now } };
 
-  const updated = await UserModel.findOneAndUpdate(query, update, { returnDocument: "after" }).lean();
+  const updated = await UserModel.findOneAndUpdate(query, update, { returnDocument: "after" })
+    .select(PUBLIC_USER_SELECT)
+    .lean();
   const user = updated ? setCachedUserById(removeAvatarBase64(updated) as unknown as UserType) : null;
   return {
     success: Boolean(updated),

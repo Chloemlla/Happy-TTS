@@ -1,6 +1,8 @@
 import { mongoose } from "../services/mongoService";
+import type { User } from "../utils/userStorage";
 import { UserStorage } from "../utils/userStorage";
 import type { QuotaLedger, TtsQuotaReservation, TtsUsageSnapshot } from "./tts.ports";
+import type { TtsUsageSummary } from "./tts.storage";
 
 const DAILY_LIMIT = 5;
 
@@ -26,6 +28,44 @@ const TtsQuotaReservationModel =
 
 function getUsageDay(date = new Date()): string {
   return date.toISOString().split("T")[0];
+}
+
+export function buildUsageSummaryFromSnapshot(user: User | null, snapshot: TtsUsageSnapshot | null): TtsUsageSummary {
+  if (!user) {
+    return {
+      authenticated: false,
+      isAdmin: false,
+      dailyLimit: null,
+      usedToday: null,
+      remainingToday: null,
+      reservedToday: null,
+    };
+  }
+
+  if (user.role === "admin" || user.role === "superadmin") {
+    return {
+      authenticated: true,
+      isAdmin: true,
+      dailyLimit: null,
+      usedToday: null,
+      remainingToday: null,
+      reservedToday: null,
+    };
+  }
+
+  const dailyLimit = UserStorage.getDailyLimit();
+  const reservedToday = snapshot?.reservedToday ?? 0;
+  const consumedToday = snapshot?.consumedToday ?? 0;
+  const remainingToday = snapshot?.remainingToday ?? Math.max(0, dailyLimit - reservedToday - consumedToday);
+
+  return {
+    authenticated: true,
+    isAdmin: false,
+    dailyLimit,
+    usedToday: consumedToday,
+    remainingToday,
+    reservedToday,
+  };
 }
 
 export class MongoQuotaLedger implements QuotaLedger {
@@ -61,8 +101,7 @@ export class MongoQuotaLedger implements QuotaLedger {
     };
   }
 
-  private async buildSnapshot(userId: string): Promise<TtsUsageSnapshot> {
-    const user = await UserStorage.getUserById(userId);
+  private async buildSnapshotForUser(userId: string, user: User | null): Promise<TtsUsageSnapshot> {
     if (!user) {
       return { user: null, remainingToday: 0, reservedToday: 0, consumedToday: 0 };
     }
@@ -84,25 +123,20 @@ export class MongoQuotaLedger implements QuotaLedger {
   }
 
   public async getUsageSnapshot(userId: string): Promise<TtsUsageSnapshot> {
-    return this.buildSnapshot(userId);
+    return this.buildSnapshotForUser(userId, await UserStorage.getUserById(userId));
   }
 
   public async reserve(userId: string, taskId: string): Promise<{ success: boolean; snapshot: TtsUsageSnapshot }> {
-    const snapshot = await this.buildSnapshot(userId);
-    if (!snapshot.user) {
-      return { success: false, snapshot };
+    const user = await UserStorage.getUserById(userId);
+    if (!user) {
+      return { success: false, snapshot: await this.buildSnapshotForUser(userId, null) };
     }
 
-    if (snapshot.user.role === "admin" || snapshot.user.role === "superadmin") {
-      return { success: true, snapshot };
+    if (user.role === "admin" || user.role === "superadmin") {
+      return { success: true, snapshot: await this.buildSnapshotForUser(userId, user) };
     }
 
     const usageDay = getUsageDay();
-    const existing = await TtsQuotaReservationModel.findOne({ taskId }).lean().exec();
-    if (existing) {
-      return { success: true, snapshot: await this.buildSnapshot(userId) };
-    }
-
     const session = await mongoose.startSession();
     try {
       let reserved = false;
@@ -149,7 +183,7 @@ export class MongoQuotaLedger implements QuotaLedger {
 
       return {
         success: reserved,
-        snapshot: await this.buildSnapshot(userId),
+        snapshot: await this.buildSnapshotForUser(userId, user),
       };
     } finally {
       await session.endSession();
@@ -157,9 +191,9 @@ export class MongoQuotaLedger implements QuotaLedger {
   }
 
   public async confirm(userId: string, taskId: string): Promise<TtsUsageSnapshot> {
-    const snapshot = await this.buildSnapshot(userId);
-    if (!snapshot.user || snapshot.user.role === "admin" || snapshot.user.role === "superadmin") {
-      return snapshot;
+    const user = await UserStorage.getUserById(userId);
+    if (!user || user.role === "admin" || user.role === "superadmin") {
+      return this.buildSnapshotForUser(userId, user);
     }
 
     await TtsQuotaReservationModel.findOneAndUpdate(
@@ -168,13 +202,13 @@ export class MongoQuotaLedger implements QuotaLedger {
       { returnDocument: "after" },
     ).exec();
 
-    return this.buildSnapshot(userId);
+    return this.buildSnapshotForUser(userId, user);
   }
 
   public async release(userId: string, taskId: string): Promise<TtsUsageSnapshot> {
-    const snapshot = await this.buildSnapshot(userId);
-    if (!snapshot.user || snapshot.user.role === "admin" || snapshot.user.role === "superadmin") {
-      return snapshot;
+    const user = await UserStorage.getUserById(userId);
+    if (!user || user.role === "admin" || user.role === "superadmin") {
+      return this.buildSnapshotForUser(userId, user);
     }
 
     await TtsQuotaReservationModel.findOneAndUpdate(
@@ -183,7 +217,7 @@ export class MongoQuotaLedger implements QuotaLedger {
       { returnDocument: "after" },
     ).exec();
 
-    return this.buildSnapshot(userId);
+    return this.buildSnapshotForUser(userId, user);
   }
 }
 

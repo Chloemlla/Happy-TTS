@@ -517,19 +517,20 @@ async function mergeWorkspaces(sourceUserId: string, targetUserId: string, sessi
     .session(session)
     .lean();
 
-  for (const workspace of workspaces as any[]) {
-    await WorkspaceModel.updateOne(
-      { _id: workspace._id },
-      {
+  const ops = (workspaces as any[]).map((workspace) => ({
+    updateOne: {
+      filter: { _id: workspace._id },
+      update: {
         $set: {
           creatorId: workspace.creatorId === sourceUserId ? targetUserId : workspace.creatorId,
           members: mergeWorkspaceMembers(workspace.members || [], sourceUserId, targetUserId),
           updatedAt: new Date(),
         },
       },
-      { session },
-    );
-  }
+    },
+  }));
+  if (ops.length === 0) return;
+  await WorkspaceModel.bulkWrite(ops as any, { session, ordered: true });
 }
 
 async function transferSourceIdentities(sourceUserId: string, targetUserId: string, session: any): Promise<void> {

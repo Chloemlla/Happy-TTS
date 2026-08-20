@@ -32,6 +32,7 @@ export interface TtsGeneratedSpeechResult {
   audioUrl: string;
   isDuplicate: boolean;
   outputFormat: OutputFormat;
+  contentHash: string;
   provider: string;
   providerModel: string;
   providerVoice: string;
@@ -291,7 +292,13 @@ export class TtsService {
     const fileName = `${safeContentHash}.${safeOutputFormat}`;
     const safeFileName = this.validateFileName(fileName);
     const filePath = path.join(this.outputDir, safeFileName);
-    if (fs.existsSync(filePath)) {
+    let existsOnDisk = true;
+    try {
+      await fs.promises.access(filePath, fs.constants.F_OK);
+    } catch {
+      existsOnDisk = false;
+    }
+    if (existsOnDisk) {
       return safeFileName;
     }
 
@@ -449,6 +456,7 @@ export class TtsService {
           audioUrl: this.buildAudioUrl(existingFile),
           isDuplicate: true,
           outputFormat: safeOutputFormat,
+          contentHash,
           provider: "cache",
           providerModel: providerExecution.model,
           providerVoice: providerExecution.voice,
@@ -512,6 +520,7 @@ export class TtsService {
         audioUrl: this.buildAudioUrl(safeFileName),
         isDuplicate: false,
         outputFormat: safeOutputFormat,
+        contentHash,
         provider: response.provider,
         providerModel: response.providerModel,
         providerVoice: response.providerVoice,

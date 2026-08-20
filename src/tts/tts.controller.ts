@@ -11,6 +11,7 @@ import type { TtsHistoryRecord, TtsHistoryReviewStatus } from "./tts.ports";
 import { TtsSubmissionPipeline } from "./tts.pipeline";
 import { TtsQueue } from "./tts.queue";
 import { ttsAssetAccessService } from "./tts.assetAccess";
+import { ttsAudioAssetStore } from "./tts.asset";
 import { type TtsNextAction, ttsStorage } from "./tts.storage";
 import { signContent } from "../utils/sign";
 import { getClientIP } from "../utils/ipUtils";
@@ -134,13 +135,12 @@ export class TtsController {
     return typeof raw === "string" && raw.trim() ? raw.trim() : undefined;
   }
 
-  private static async serializeHistoryRecord(record: TtsHistoryRecord) {
+  private static serializeHistoryRecord(record: TtsHistoryRecord, assetAvailable: boolean) {
     let audioUrl = "";
     let signature = "";
 
-    try {
-      const assetAvailable = await ttsAssetAccessService.ensureAssetAvailable(record.fileName);
-      if (assetAvailable) {
+    if (assetAvailable) {
+      try {
         audioUrl = ttsAssetAccessService.buildAccessUrl({
           fileName: record.fileName,
           userId: record.userId,
@@ -149,17 +149,17 @@ export class TtsController {
           allowShare: process.env.TTS_ASSET_SHARE_ENABLED === "true",
         });
         signature = signContent(audioUrl);
-      } else {
-        logger.warn("TTS 历史音频资产不可用，已隐藏访问地址", {
+      } catch (error) {
+        logger.warn("构建 TTS 历史音频访问地址失败", {
           recordId: record.id,
           fileName: record.fileName,
+          error: error instanceof Error ? error.message : String(error),
         });
       }
-    } catch (error) {
-      logger.warn("构建 TTS 历史音频访问地址失败", {
+    } else {
+      logger.warn("TTS 历史音频资产不可用，已隐藏访问地址", {
         recordId: record.id,
         fileName: record.fileName,
-        error: error instanceof Error ? error.message : String(error),
       });
     }
 
@@ -173,6 +173,16 @@ export class TtsController {
         canShare: process.env.TTS_ASSET_SHARE_ENABLED === "true",
       },
     };
+  }
+
+  private static async serializeHistoryRecords(records: TtsHistoryRecord[]) {
+    const availableFileNames = await ttsAudioAssetStore.resolveAvailableAssets(
+      records.map((record) => record.fileName),
+      config.audioDir,
+    );
+    return records.map((record) =>
+      TtsController.serializeHistoryRecord(record, availableFileNames.has(record.fileName)),
+    );
   }
 
   private static async assertCanAccessJob(req: Request, job: Awaited<ReturnType<typeof ttsStorage.getJob>>) {
@@ -557,7 +567,7 @@ export class TtsController {
         fingerprint,
         limit,
       });
-      res.json(await Promise.all(records.map((record) => TtsController.serializeHistoryRecord(record))));
+      res.json(await TtsController.serializeHistoryRecords(records));
     } catch (error) {
       if (error instanceof TtsRequestError) {
         return res.status(error.statusCode).json({
@@ -588,7 +598,7 @@ export class TtsController {
 
       res.json({
         ...result,
-        records: await Promise.all(result.records.map((record) => TtsController.serializeHistoryRecord(record))),
+        records: await TtsController.serializeHistoryRecords(result.records),
       });
     } catch (error) {
       logger.error("获取全部 TTS 生成历史失败:", error);
@@ -626,7 +636,7 @@ export class TtsController {
 
       return res.json({
         success: true,
-        record: await TtsController.serializeHistoryRecord(record),
+        record: (await TtsController.serializeHistoryRecords([record]))[0],
       });
     } catch (error) {
       logger.error("更新 TTS 生成历史人工审核信息失败:", error);

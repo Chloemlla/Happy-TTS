@@ -64,14 +64,6 @@ export class CDKService {
   private readonly RATE_LIMIT_WINDOW = 60000; // 1分钟窗口
   private readonly RATE_LIMIT_MAX_REQUESTS = 50; // 每分钟最多50次CDK兑换请求
 
-  // 验证缓存
-  private readonly validationCache = new Map<string, { valid: boolean; data?: any; timestamp: number }>();
-  private readonly VALIDATION_CACHE_TTL = 300000; // 5分钟
-
-  // CDK代码缓存（防止重复查询）
-  private readonly cdkCache = new Map<string, { exists: boolean; timestamp: number }>();
-  private readonly CDK_CACHE_TTL = 60000; // 1分钟
-
   // 断路器模式
   private circuitBreakerState: "CLOSED" | "OPEN" | "HALF_OPEN" = "CLOSED";
   private circuitBreakerFailureCount = 0;
@@ -147,9 +139,7 @@ export class CDKService {
   private startCacheCleanup() {
     const interval = setInterval(
       () => {
-        this.cleanupValidationCache();
         this.cleanupRateLimiter();
-        this.cleanupCDKCache();
       },
       5 * 60 * 1000,
     ); // 5分钟
@@ -193,38 +183,6 @@ export class CDKService {
 
     if (cleaned > 0) {
       logger.debug(`[CDKService] Cleaned ${cleaned} expired rate limiters`);
-    }
-  }
-
-  private cleanupValidationCache(): void {
-    const now = Date.now();
-    let cleaned = 0;
-
-    for (const [key, cache] of this.validationCache.entries()) {
-      if (now - cache.timestamp >= this.VALIDATION_CACHE_TTL) {
-        this.validationCache.delete(key);
-        cleaned++;
-      }
-    }
-
-    if (cleaned > 0) {
-      logger.debug(`[CDKService] Cleaned ${cleaned} expired validation cache entries`);
-    }
-  }
-
-  private cleanupCDKCache(): void {
-    const now = Date.now();
-    let cleaned = 0;
-
-    for (const [key, cache] of this.cdkCache.entries()) {
-      if (now - cache.timestamp >= this.CDK_CACHE_TTL) {
-        this.cdkCache.delete(key);
-        cleaned++;
-      }
-    }
-
-    if (cleaned > 0) {
-      logger.debug(`[CDKService] Cleaned ${cleaned} expired CDK cache entries`);
     }
   }
 
@@ -536,7 +494,6 @@ export class CDKService {
       // 记录成功统计
       this.stats.successfulRedemptions++;
       this.recordCircuitBreakerSuccess();
-      this.updateResponseTime(Date.now() - startTime);
 
       return {
         resource,
@@ -807,22 +764,34 @@ export class CDKService {
   async getUserRedeemedResources(userIp: string) {
     try {
       // 查找该IP地址兑换过的CDK
-      const redeemedCDKs = await CDKModel.find({
-        isUsed: true,
-        usedIp: userIp,
-      }).sort({ usedAt: -1 });
+      const redeemedCDKs = await CDKModel.find({ isUsed: true, usedIp: userIp })
+        .select("code resourceId usedAt")
+        .sort({ usedAt: -1 })
+        .lean();
 
       if (redeemedCDKs.length === 0) {
         return { resources: [], total: 0 };
       }
 
+      // 按资源分组（保持 usedAt 倒序，首元素即最近一次兑换），避免与资源列表的嵌套遍历
+      const cdksByResourceId = new Map<string, any[]>();
+      for (const cdk of redeemedCDKs) {
+        const group = cdksByResourceId.get(cdk.resourceId);
+        if (group) {
+          group.push(cdk);
+        } else {
+          cdksByResourceId.set(cdk.resourceId, [cdk]);
+        }
+      }
+
       // 获取资源详情
-      const resourceIds = [...new Set(redeemedCDKs.map((cdk) => cdk.resourceId))];
-      const resources = await ResourceModel.find({ _id: { $in: resourceIds } });
+      const resources = await ResourceModel.find({ _id: { $in: [...cdksByResourceId.keys()] } })
+        .select("title description downloadUrl price category imageUrl")
+        .lean();
 
       // 合并CDK信息和资源信息
       const result = resources.map((resource: any) => {
-        const relatedCDKs = redeemedCDKs.filter((cdk) => cdk.resourceId === resource._id.toString());
+        const relatedCDKs = cdksByResourceId.get(resource._id.toString()) ?? [];
         const latestRedemption = relatedCDKs[0]; // 已按时间排序
 
         return {
@@ -942,7 +911,7 @@ export class CDKService {
   }
 
   /**
-   * 异步并发处理多个CDK
+   * 批量导入CDK：本地校验 + 批量查询 + insertMany，避免逐行数据库往返
    */
   private async processCDKsAsync(items: any[]): Promise<{
     importedCount: number;
@@ -950,67 +919,23 @@ export class CDKService {
     errorCount: number;
     errors: string[];
   }> {
-    const batchSize = 10;
     const errors: string[] = [];
     let importedCount = 0;
     let skippedCount = 0;
     let errorCount = 0;
 
-    for (let i = 0; i < items.length; i += batchSize) {
-      const batch = items.slice(i, i + batchSize);
-
-      const batchPromises = batch.map(async (item) => {
-        try {
-          const result = await this.processImportCDKAsync(item);
-          return result;
-        } catch (error) {
-          return {
-            skipped: false,
-            error: `CDK ${item.code}: ${error instanceof Error ? error.message : String(error)}`,
-          };
-        }
-      });
-
-      const batchResults = await Promise.all(batchPromises);
-
-      batchResults.forEach((r) => {
-        if (r.error) {
-          errors.push(r.error);
-          errorCount++;
-        } else if (r.skipped) {
-          skippedCount++;
-        } else {
-          importedCount++;
-        }
-      });
-
-      logger.info(`处理CDK批次 ${Math.floor(i / batchSize) + 1}/${Math.ceil(items.length / batchSize)}`, {
-        batchSize: batch.length,
-        processed: i + batch.length,
-        total: items.length,
-      });
-    }
-
-    return {
-      importedCount,
-      skippedCount,
-      errorCount,
-      errors: errors.slice(0, 10),
+    const recordFailure = (code: unknown, message: string) => {
+      logger.warn(`导入CDK失败 ${code}: ${message}`);
+      errors.push(message);
+      errorCount++;
     };
-  }
 
-  /**
-   * 处理单个导入CDK - 异步版本
-   */
-  private async processImportCDKAsync(item: any): Promise<{ skipped: boolean; error?: string }> {
-    return new Promise(async (resolve) => {
+    const candidates: Array<{ code: string; resourceId: string; expiresAt?: Date }> = [];
+    for (const item of items) {
       try {
-        // 必需字段
         if (!item.code || !item.resourceId) {
           throw new Error("缺少必需的CDK代码或资源ID");
         }
-
-        // 过滤无效值
         if (
           item.code === "undefined" ||
           item.resourceId === "undefined" ||
@@ -1022,22 +947,13 @@ export class CDKService {
 
         const code = String(item.code).trim();
         const resourceId = String(item.resourceId).trim();
-
-        // 验证代码格式：16位大写字母数字
         if (!/^[A-Z0-9]{16}$/.test(code)) {
           throw new Error("无效的CDK代码格式");
         }
-
-        // 验证资源ID
         if (!mongoose.isValidObjectId(resourceId)) {
           throw new Error("无效的资源ID");
         }
-        const resourceExists = await ResourceModel.exists({ _id: new mongoose.Types.ObjectId(resourceId) });
-        if (!resourceExists) {
-          throw new Error("资源不存在");
-        }
 
-        // 过期时间（可选）
         let expiresAt: Date | undefined;
         if (item.expiresAt) {
           const d = new Date(String(item.expiresAt));
@@ -1050,32 +966,81 @@ export class CDKService {
           expiresAt = d;
         }
 
-        // 重复检查
-        const existing = await CDKModel.findOne({ code });
-        if (existing) {
-          logger.info(`跳过重复CDK: ${code}`);
-          resolve({ skipped: true });
-          return;
-        }
-
-        // 创建
-        const doc: Partial<ICDK> = {
-          code,
-          resourceId,
-          isUsed: false,
-          createdAt: new Date(),
-        } as any;
-        if (expiresAt) (doc as any).expiresAt = expiresAt;
-
-        await CDKModel.create(doc);
-        logger.debug(`成功导入CDK: ${code}`);
-        resolve({ skipped: false });
+        candidates.push({ code, resourceId, expiresAt });
       } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        logger.warn(`导入CDK失败 ${item.code}: ${msg}`);
-        resolve({ skipped: false, error: msg });
+        recordFailure(item.code, error instanceof Error ? error.message : String(error));
       }
+    }
+
+    if (candidates.length === 0) {
+      return { importedCount, skippedCount, errorCount, errors: errors.slice(0, 10) };
+    }
+
+    // 两次批量查询替代逐行的 exists + findOne
+    const [existingResources, existingCDKs] = await Promise.all([
+      ResourceModel.find({ _id: { $in: [...new Set(candidates.map((c) => c.resourceId))] } }).select("_id").lean(),
+      CDKModel.find({ code: { $in: candidates.map((c) => c.code) } }).select("code").lean(),
+    ]);
+    const knownResourceIds = new Set(existingResources.map((r: any) => String(r._id).toLowerCase()));
+    const takenCodes = new Set(existingCDKs.map((c: any) => c.code));
+
+    const docs: Array<Partial<ICDK>> = [];
+    const docCodes: string[] = [];
+    for (const candidate of candidates) {
+      if (!knownResourceIds.has(candidate.resourceId.toLowerCase())) {
+        recordFailure(candidate.code, "资源不存在");
+        continue;
+      }
+      if (takenCodes.has(candidate.code)) {
+        logger.info(`跳过重复CDK: ${candidate.code}`);
+        skippedCount++;
+        continue;
+      }
+      takenCodes.add(candidate.code);
+
+      const doc: Partial<ICDK> = {
+        code: candidate.code,
+        resourceId: candidate.resourceId,
+        isUsed: false,
+        createdAt: new Date(),
+      };
+      if (candidate.expiresAt) doc.expiresAt = candidate.expiresAt;
+      docs.push(doc);
+      docCodes.push(candidate.code);
+    }
+
+    if (docs.length > 0) {
+      try {
+        const inserted = await CDKModel.insertMany(docs, { ordered: false });
+        importedCount += Array.isArray(inserted) ? inserted.length : docs.length;
+      } catch (error) {
+        // ordered:false 下部分失败不抛异常语义：写错误随异常的 writeErrors 返回，索引对应 docs 顺序
+        const writeErrors = (error as { writeErrors?: Array<any> })?.writeErrors;
+        if (!writeErrors) {
+          throw error;
+        }
+        importedCount += docs.length - writeErrors.length;
+        for (const writeError of writeErrors) {
+          const detail = writeError?.err ?? writeError;
+          const failedCode = docCodes[detail?.index] ?? "unknown";
+          if (detail?.code === 11000) {
+            logger.info(`跳过重复CDK: ${failedCode}`);
+            skippedCount++;
+          } else {
+            recordFailure(failedCode, detail?.errmsg || detail?.message || "写入CDK失败");
+          }
+        }
+      }
+    }
+
+    logger.info("批量导入CDK处理完成", {
+      total: items.length,
+      importedCount,
+      skippedCount,
+      errorCount,
     });
+
+    return { importedCount, skippedCount, errorCount, errors: errors.slice(0, 10) };
   }
 
   /**

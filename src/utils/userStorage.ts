@@ -43,6 +43,10 @@ export class UserStorage {
     return userRepository.getAdminUserList(opts);
   }
 
+  public static async getPrimaryAdminAuthUser() {
+    return userRepository.getPrimaryAdminAuthUser();
+  }
+
   public static async createUser(username: string, email: string, password: string): Promise<User | null> {
     const errors = this.validateUserInput(username, password, email, true);
     if (errors.length > 0) {

@@ -98,6 +98,10 @@ const SENSITIVE_AUDIT_FIELDS = [
   "refresh_token",
   "access_token",
 ];
+// Underscores stripped once here; key matching stays substring-based.
+const NORMALIZED_SENSITIVE_AUDIT_FIELDS = Array.from(
+  new Set(SENSITIVE_AUDIT_FIELDS.map((field) => field.replace(/_/g, ""))),
+);
 
 function shouldCapturePayload(result: "success" | "failure"): boolean {
   if (!AUDIT_LOG_CAPTURE_PAYLOADS) {
@@ -125,7 +129,7 @@ function sanitizePayload(obj: any): any {
     if (!node || typeof node !== "object") return;
     for (const key of Object.keys(node)) {
       const normalizedKey = key.toLowerCase().replace(/[\s-]/g, "");
-      if (SENSITIVE_AUDIT_FIELDS.some((field) => normalizedKey.includes(field.replace(/_/g, "")))) {
+      if (NORMALIZED_SENSITIVE_AUDIT_FIELDS.some((field) => normalizedKey.includes(field))) {
         node[key] = "[REDACTED]";
       } else if (typeof node[key] === "string" && node[key].length > AUDIT_PAYLOAD_STRING_LIMIT) {
         node[key] = `${node[key].substring(0, AUDIT_PAYLOAD_STRING_LIMIT)}...[truncated]`;

@@ -33,6 +33,7 @@ type RpcConnection = {
   instanceId: string;
   keyId: string;
   connectedAt: Date;
+  lastSeenWrittenAtMs: number;
   supportedMethods: Set<string>;
 };
 
@@ -85,6 +86,7 @@ const MAX_FILE_READ_BYTES = 1024 * 1024;
 const MAX_FILE_WRITE_BYTES = 10 * 1024 * 1024;
 const MAX_JOB_OUTPUT_BYTES = 64 * 1024;
 const MAX_ACTIVE_JOBS_PER_INSTANCE = 2;
+const RPC_LAST_SEEN_WRITE_INTERVAL_MS = 30 * 1000;
 
 const ALLOWED_MOUNTS = new Set(["server-root", "plugin-data", "config", "logs", "backups"]);
 const REDACTION_POLICIES = new Set(["logs-default", "config-default", "players-debug"]);
@@ -122,6 +124,8 @@ const BLOCKED_WRITE_BASENAMES = new Set([
 ]);
 const PROTECTED_DELETE_ROOTS = new Set(["world", "world_nether", "world_the_end", "plugins", "backups"]);
 const QUEUED_JOB_STATUSES = ["queued", "dispatched", "acknowledged", "running"] as const satisfies readonly EcoEnchantsOpsJobStatus[];
+
+let defaultCommandPoliciesSeeded = false;
 
 function opsError(statusCode: number, code: string, message: string, retryAfterSeconds: number | null = null) {
   return new EcoEnchantsServiceError(statusCode, code, message, retryAfterSeconds);
@@ -757,7 +761,7 @@ export class EcoEnchantsOpsService {
   }
 
   static async listBackups(params: { requestId: string; instanceId: string }) {
-    const backups = await EcoEnchantsOpsBackupModel.find({ instanceId: params.instanceId }).sort({ createdAt: -1 }).limit(100);
+    const backups = await EcoEnchantsOpsBackupModel.find({ instanceId: params.instanceId }).sort({ createdAt: -1 }).limit(100).lean();
     return {
       requestId: params.requestId,
       backups: backups.map((backup) => ({
@@ -795,7 +799,7 @@ export class EcoEnchantsOpsService {
 
   static async listCommandPolicies(params: { requestId: string }) {
     await EcoEnchantsOpsService.ensureDefaultCommandPolicies();
-    const policies = await EcoEnchantsOpsCommandPolicyModel.find({}).sort({ commandId: 1 });
+    const policies = await EcoEnchantsOpsCommandPolicyModel.find({}).sort({ commandId: 1 }).lean();
     return { requestId: params.requestId, policies };
   }
 
@@ -853,7 +857,7 @@ export class EcoEnchantsOpsService {
       if (params.to) (filter.createdAt as any).$lte = new Date(params.to);
     }
     const [logs, total] = await Promise.all([
-      EcoEnchantsOpsAuditLogModel.find(filter).sort({ createdAt: -1 }).skip((page - 1) * pageSize).limit(pageSize),
+      EcoEnchantsOpsAuditLogModel.find(filter).sort({ createdAt: -1 }).skip((page - 1) * pageSize).limit(pageSize).lean(),
       EcoEnchantsOpsAuditLogModel.countDocuments(filter),
     ]);
     return { requestId: params.requestId, logs, total, page, pageSize };
@@ -915,12 +919,11 @@ export class EcoEnchantsOpsService {
       result: "success",
       detail: { instanceId: params.instanceId, riskLevel: params.riskLevel },
     });
-    await EcoEnchantsOpsService.tryDispatchJob(job);
-    const refreshed = await EcoEnchantsOpsJobModel.findOne({ jobId: job.jobId });
+    const dispatched = await EcoEnchantsOpsService.tryDispatchJob(job);
     return {
       requestId: params.context.requestId,
       jobId: job.jobId,
-      status: refreshed?.status || job.status,
+      status: dispatched ? "dispatched" : job.status,
       createdAt: toIso(job.createdAt),
     };
   }
@@ -959,10 +962,10 @@ export class EcoEnchantsOpsService {
     }
   }
 
-  private static async tryDispatchJob(job: IEcoEnchantsOpsJob): Promise<void> {
+  private static async tryDispatchJob(job: IEcoEnchantsOpsJob): Promise<boolean> {
     const connection = EcoEnchantsOpsService.rpcConnections.get(job.instanceId);
-    if (!connection || connection.ws.readyState !== WebSocket.OPEN) return;
-    if (connection.supportedMethods.size && !connection.supportedMethods.has(job.method)) return;
+    if (!connection || connection.ws.readyState !== WebSocket.OPEN) return false;
+    if (connection.supportedMethods.size && !connection.supportedMethods.has(job.method)) return false;
 
     const now = new Date();
     const envelope = {
@@ -975,10 +978,11 @@ export class EcoEnchantsOpsService {
       params: job.params,
     };
     connection.ws.send(JSON.stringify(envelope));
-    await EcoEnchantsOpsJobModel.updateOne(
+    const result = await EcoEnchantsOpsJobModel.updateOne(
       { jobId: job.jobId, status: "queued" },
       { $set: { status: "dispatched", issuedAt: now, dispatchedAt: now } },
     );
+    return result.matchedCount > 0;
   }
 
   private static async dispatchPendingJobs(instanceId: string): Promise<void> {
@@ -1043,6 +1047,7 @@ export class EcoEnchantsOpsService {
         instanceId: instance.instanceId,
         keyId: payload.keyId,
         connectedAt: new Date(),
+        lastSeenWrittenAtMs: Date.now(),
         supportedMethods: new Set(instance.supportedMethods || []),
       };
       EcoEnchantsOpsService.rpcConnections.set(instance.instanceId, connection);
@@ -1083,7 +1088,14 @@ export class EcoEnchantsOpsService {
       return;
     }
     const now = new Date();
-    await EcoEnchantsOpsInstanceModel.updateOne({ instanceId: connection.instanceId }, { $set: { lastSeenAt: now, status: "online" } });
+    const nowMs = now.getTime();
+    if (message.type !== "rpc.hello" && nowMs - connection.lastSeenWrittenAtMs >= RPC_LAST_SEEN_WRITE_INTERVAL_MS) {
+      connection.lastSeenWrittenAtMs = nowMs;
+      await EcoEnchantsOpsInstanceModel.updateOne(
+        { instanceId: connection.instanceId },
+        { $set: { lastSeenAt: now, status: "online" } },
+      );
+    }
 
     if (message.type === "ping") {
       connection.ws.send(JSON.stringify({ type: "pong", timestamp: now.toISOString() }));
@@ -1093,6 +1105,7 @@ export class EcoEnchantsOpsService {
     if (message.type === "rpc.hello") {
       const supportedMethods = Array.isArray(message.supportedMethods) ? message.supportedMethods.map(String).slice(0, 50) : [];
       connection.supportedMethods = new Set(supportedMethods);
+      connection.lastSeenWrittenAtMs = nowMs;
       await EcoEnchantsOpsInstanceModel.updateOne(
         { instanceId: connection.instanceId },
         {
@@ -1108,37 +1121,38 @@ export class EcoEnchantsOpsService {
       return;
     }
 
-    if (!message.jobId) return;
-    const job = await EcoEnchantsOpsJobModel.findOne({ jobId: message.jobId, instanceId: connection.instanceId });
-    if (!job) return;
+    const jobId = message.jobId;
+    if (!jobId) return;
 
     if (message.type === "rpc.ack") {
       await EcoEnchantsOpsJobModel.updateOne(
-        { jobId: job.jobId },
+        { jobId, instanceId: connection.instanceId },
         { $set: { status: "acknowledged", acknowledgedAt: now, startedAt: now } },
       );
       return;
     }
 
     if (message.type === "rpc.progress") {
-      await EcoEnchantsOpsJobModel.updateOne(
-        { jobId: job.jobId },
-        {
-          $set: {
-            status: message.status === "running" ? "running" : job.status === "queued" ? "running" : job.status,
-            startedAt: job.startedAt || now,
-            output: message.output || { progress: message.progress || {} },
-          },
-        },
+      const job = await EcoEnchantsOpsJobModel.findOneAndUpdate(
+        { jobId, instanceId: connection.instanceId },
+        { $set: { output: message.output || { progress: message.progress || {} } }, $min: { startedAt: now } },
       );
+      if (!job) return;
+      const nextStatus = message.status === "running" || job.status === "queued" ? "running" : job.status;
+      if (nextStatus !== job.status) {
+        await EcoEnchantsOpsJobModel.updateOne(
+          { jobId, instanceId: connection.instanceId },
+          { $set: { status: nextStatus } },
+        );
+      }
       return;
     }
 
     if (message.type === "rpc.result") {
       const finalStatus = message.status === "succeeded" ? "succeeded" : message.status === "canceled" ? "canceled" : "failed";
       const completedAt = message.completedAt ? new Date(message.completedAt) : now;
-      await EcoEnchantsOpsJobModel.updateOne(
-        { jobId: job.jobId },
+      const job = await EcoEnchantsOpsJobModel.findOneAndUpdate(
+        { jobId, instanceId: connection.instanceId },
         {
           $set: {
             status: finalStatus,
@@ -1149,6 +1163,7 @@ export class EcoEnchantsOpsService {
           },
         },
       );
+      if (!job) return;
       await EcoEnchantsOpsService.updateBackupFromJobResult(job, message.result || {}, finalStatus);
       await EcoEnchantsOpsService.logOpsAudit({
         context: {
@@ -1190,6 +1205,7 @@ export class EcoEnchantsOpsService {
   }
 
   private static async ensureDefaultCommandPolicies(): Promise<void> {
+    if (defaultCommandPoliciesSeeded) return;
     await EcoEnchantsOpsCommandPolicyModel.updateOne(
       { commandId: "ecoenchants.reload" },
       {
@@ -1214,6 +1230,7 @@ export class EcoEnchantsOpsService {
       },
       { upsert: true },
     );
+    defaultCommandPoliciesSeeded = true;
   }
 
   private static async logOpsAudit(params: {
@@ -1229,7 +1246,7 @@ export class EcoEnchantsOpsService {
     afterSha256?: string;
   }): Promise<void> {
     try {
-      const previous = await EcoEnchantsOpsAuditLogModel.findOne({}).sort({ createdAt: -1 });
+      const previous = await EcoEnchantsOpsAuditLogModel.findOne({}).sort({ createdAt: -1 }).select("entryHash").lean();
       const actorType: "admin" | "license" | "system" =
         params.context.actorType === "license" ? "license" : params.context.actorType === "system" ? "system" : "admin";
       const base = {

@@ -2,7 +2,7 @@ import { wsService } from "../services/wsService";
 import logger from "../utils/logger";
 import { generationHistoryStore, redactTtsTextForStorage } from "./tts.history";
 import type { GenerationHistoryStore, QuotaLedger } from "./tts.ports";
-import { quotaLedger } from "./tts.quota";
+import { buildUsageSummaryFromSnapshot, quotaLedger } from "./tts.quota";
 import { TtsService } from "./tts.service";
 import { type TtsJobRecord, type TtsNextAction, ttsStorage } from "./tts.storage";
 
@@ -112,15 +112,6 @@ export class TtsQueue {
         policyVersion: job.governance?.policyVersion,
       });
 
-      const contentHash = this.ttsService.generateContentHash({
-        text: effectiveRequest.text,
-        voice: effectiveRequest.voice,
-        model: effectiveRequest.model,
-        speed: effectiveRequest.speed,
-        outputFormat: effectiveRequest.outputFormat,
-        providerExecution,
-      });
-
       await this.historyStore.addRecord({
         scope: job.userId ? "user" : "anonymous",
         userId: job.userId,
@@ -131,7 +122,7 @@ export class TtsQueue {
         model: effectiveRequest.model,
         outputFormat: effectiveRequest.outputFormat,
         speed: effectiveRequest.speed,
-        contentHash,
+        contentHash: result.contentHash,
         fileName: result.fileName,
         audioUrl: result.audioUrl,
         audioFileId: result.audioFileId,
@@ -144,11 +135,14 @@ export class TtsQueue {
         createdAt: new Date().toISOString(),
       });
 
+      let usage: TtsJobRecord["usage"];
       if (job.userId && !job.isAdmin) {
-        await this.ledger.confirm(job.userId, job.taskId);
+        const snapshot = await this.ledger.confirm(job.userId, job.taskId);
+        usage = buildUsageSummaryFromSnapshot(snapshot.user, snapshot);
+      } else {
+        usage = await this.callbacks.buildUsageSummary(job.userId, job.isAdmin);
       }
 
-      const usage = await this.callbacks.buildUsageSummary(job.userId, job.isAdmin);
       const nextAction = this.callbacks.buildNextAction(
         "play_or_download",
         "播放或下载音频",
@@ -208,8 +202,8 @@ export class TtsQueue {
 
       let usage = job.usage;
       if (job.userId && !job.isAdmin) {
-        await this.ledger.release(job.userId, job.taskId);
-        usage = await this.callbacks.buildUsageSummary(job.userId, job.isAdmin);
+        const snapshot = await this.ledger.release(job.userId, job.taskId);
+        usage = buildUsageSummaryFromSnapshot(snapshot.user, snapshot);
       }
 
       const nextAction = this.callbacks.buildNextAction("retry", "稍后重试", "生成失败，请稍后重试。");

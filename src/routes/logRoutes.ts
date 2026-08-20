@@ -82,6 +82,7 @@ const ARCHIVE_DIR = path.join(DATA_DIR, "archives");
 const TEXT_LOG_EXTENSIONS = new Set([".txt", ".log", ".json", ".md", ".xml", ".csv"]);
 const LOGSHARE_ENCRYPTION_VERSION = 2;
 const LOGSHARE_KDF_ITERATIONS = 120000;
+const SHARELOG_LIST_LIMIT = 5000;
 
 interface LogShareEncryptedPayload {
   version: typeof LOGSHARE_ENCRYPTION_VERSION;
@@ -143,22 +144,11 @@ async function checkAdminPassword(password: string) {
     return true;
   }
 
-  let users = await UserStorage.getAllUsers();
-  let admin = users.find((u) => u.role === "admin" || u.role === "superadmin");
+  const admin = await UserStorage.getPrimaryAdminAuthUser();
   if (!admin || !hasPasswordMaterial(admin)) {
-    try {
-      const userService = await import("../services/userService.js");
-      if (typeof userService.getAllUsersAuth === "function") {
-        users = await userService.getAllUsersAuth();
-        admin = users.find((u) => u.role === "admin" || u.role === "superadmin");
-      }
-    } catch (error) {
-      logger.warn("[LogShare] 读取管理员认证用户失败", { error });
-    }
-  }
-
-  if (!admin) {
-    logger.warn("[LogShare] 管理员密码校验失败", { reason: "admin-user-not-found" });
+    logger.warn("[LogShare] 管理员密码校验失败", {
+      reason: admin ? "admin-password-material-missing" : "admin-user-not-found",
+    });
     return false;
   }
 
@@ -178,23 +168,25 @@ function hasPasswordMaterial(user: User): boolean {
   );
 }
 
-// 复用的 Mongo 模型获取器
+// 复用的 Mongo 模型（模块级单例，避免重复编译 Schema）
+const LogShareSchema = new mongoose.Schema(
+  {
+    fileId: { type: String, required: true, unique: true },
+    ext: String,
+    content: String,
+    fileName: String,
+    mimeType: String,
+    fileSize: Number,
+    note: String,
+    createdAt: { type: Date, default: Date.now },
+  },
+  { collection: "logshare_files" },
+);
+const LogShareFileModel: mongoose.Model<any> =
+  mongoose.models.LogShareFile || mongoose.model("LogShareFile", LogShareSchema);
+
 function getLogShareModel() {
-  const LogShareSchema = new mongoose.Schema(
-    {
-      fileId: { type: String, required: true, unique: true },
-      ext: String,
-      content: String,
-      fileName: String,
-      mimeType: String,
-      fileSize: Number,
-      note: String,
-      createdAt: { type: Date, default: Date.now },
-    },
-    { collection: "logshare_files" },
-  );
-  // 复用已存在的模型，避免重复编译
-  return mongoose.models.LogShareFile || mongoose.model("LogShareFile", LogShareSchema);
+  return LogShareFileModel;
 }
 
 // AES-256-GCM encryption with per-payload PBKDF2 salt and authentication tag.
@@ -302,30 +294,28 @@ router.get("/sharelog/all", logLimiter, authenticateToken, async (req, res) => {
 
     await connectMongo();
     const LogShareModel = getLogShareModel();
-    const mongoLogs = await LogShareModel.find({}, { fileId: 1, ext: 1, createdAt: 1, content: 1 }).sort({
-      createdAt: -1,
-    });
+    const mongoLogs = await LogShareModel.aggregate([
+      { $sort: { createdAt: -1 } },
+      { $limit: SHARELOG_LIST_LIMIT },
+      { $project: { _id: 0, fileId: 1, ext: 1, createdAt: 1, size: { $strLenCP: { $ifNull: ["$content", ""] } } } },
+    ]);
 
     // 获取本地文件系统中的非文本类型日志
     const localFiles = await fs.promises.readdir(SHARELOGS_DIR);
-    const localLogs = localFiles
-      .filter((file) => {
-        const ext = path.extname(file).toLowerCase();
-        return ![".txt", ".log", ".json", ".md"].includes(ext);
-      })
-      .map((file) => {
-        const fileId = path.basename(file, path.extname(file));
-        const ext = path.extname(file);
-        const filePath = path.join(SHARELOGS_DIR, file);
-        const stats = fs.statSync(filePath);
-        return {
-          id: fileId,
-          ext: ext,
-          uploadTime: stats.mtime.toISOString(),
-          size: stats.size,
-        };
-      })
-      .sort((a, b) => new Date(b.uploadTime).getTime() - new Date(a.uploadTime).getTime());
+    const localEntries = await Promise.all(
+      localFiles
+        .filter((file) => ![".txt", ".log", ".json", ".md"].includes(path.extname(file).toLowerCase()))
+        .map(async (file) => {
+          const stats = await fs.promises.stat(path.join(SHARELOGS_DIR, file));
+          return {
+            id: path.basename(file, path.extname(file)),
+            ext: path.extname(file),
+            uploadTime: stats.mtime.toISOString(),
+            size: stats.size,
+          };
+        }),
+    );
+    const localLogs = localEntries.sort((a, b) => new Date(b.uploadTime).getTime() - new Date(a.uploadTime).getTime());
 
     // 合并MongoDB和本地文件
     const allLogs = [
@@ -333,7 +323,7 @@ router.get("/sharelog/all", logLimiter, authenticateToken, async (req, res) => {
         id: log.fileId,
         ext: log.ext,
         uploadTime: log.createdAt.toISOString(),
-        size: log.content ? log.content.length : 0,
+        size: log.size,
       })),
       ...localLogs,
     ];
@@ -692,10 +682,16 @@ router.post("/logs/archive", logLimiter, authenticateToken, auditLog({ module: "
     const archiveSubDir = path.join(ARCHIVE_DIR, finalArchiveName);
     await fs.promises.mkdir(archiveSubDir, { recursive: true });
 
+    const includeRegex = includePattern ? new RegExp(sanitizeRegexPattern(includePattern), "i") : null;
+    const excludeRegex = excludePattern ? new RegExp(sanitizeRegexPattern(excludePattern), "i") : null;
+
     // 获取数据库中的所有日志
     await connectMongo();
     const LogShareModel = getLogShareModel();
-    const mongoLogs = await LogShareModel.find({}).sort({ createdAt: -1 });
+    const mongoLogCursor = LogShareModel.find({}, { fileId: 1, ext: 1, content: 1 })
+      .sort({ createdAt: -1 })
+      .lean()
+      .cursor();
 
     // 获取日志目录中的所有文件
     const logFiles = await fs.promises.readdir(logDir);
@@ -705,23 +701,12 @@ router.post("/logs/archive", logLimiter, authenticateToken, auditLog({ module: "
     await fs.promises.mkdir(tempDbLogsDir, { recursive: true });
 
     const dbLogFiles = [];
-    for (const log of mongoLogs) {
+    for await (const log of mongoLogCursor) {
       const fileName = `${log.fileId}${log.ext || ".txt"}`;
       const tempFilePath = path.join(tempDbLogsDir, fileName);
 
-      // 应用包含模式
-      if (includePattern) {
-        const sanitizedPattern = sanitizeRegexPattern(includePattern);
-        const regex = new RegExp(sanitizedPattern, "i");
-        if (!regex.test(fileName)) continue;
-      }
-
-      // 应用排除模式
-      if (excludePattern) {
-        const sanitizedPattern = sanitizeRegexPattern(excludePattern);
-        const regex = new RegExp(sanitizedPattern, "i");
-        if (regex.test(fileName)) continue;
-      }
+      if (includeRegex && !includeRegex.test(fileName)) continue;
+      if (excludeRegex && excludeRegex.test(fileName)) continue;
 
       // 写入数据库日志内容到临时文件
       await fs.promises.writeFile(tempFilePath, log.content || "", "utf-8");
@@ -735,26 +720,16 @@ router.post("/logs/archive", logLimiter, authenticateToken, auditLog({ module: "
 
       // 只处理文件，不处理目录
       if (!stats.isFile()) return false;
-
-      // 应用包含模式
-      if (includePattern) {
-        const sanitizedPattern = sanitizeRegexPattern(includePattern);
-        const regex = new RegExp(sanitizedPattern, "i");
-        if (!regex.test(file)) return false;
-      }
-
-      // 应用排除模式
-      if (excludePattern) {
-        const sanitizedPattern = sanitizeRegexPattern(excludePattern);
-        const regex = new RegExp(sanitizedPattern, "i");
-        if (regex.test(file)) return false;
-      }
+      if (includeRegex && !includeRegex.test(file)) return false;
+      if (excludeRegex && excludeRegex.test(file)) return false;
 
       return true;
     });
 
     // 合并数据库日志文件和文件系统日志文件
     const allFilesToArchive = [...dbLogFiles, ...filesToArchive];
+    const dbLogFileSet = new Set(dbLogFiles);
+    const archiveFileSet = new Set(allFilesToArchive);
 
     if (allFilesToArchive.length === 0) {
       logger.warn(`归档日志 | IP:${ip} | 结果:失败 | 原因:没有匹配的日志文件`);
@@ -768,7 +743,7 @@ router.post("/logs/archive", logLimiter, authenticateToken, auditLog({ module: "
     for (const file of allFilesToArchive) {
       try {
         // 判断是数据库日志还是文件系统日志
-        const isDbLog = dbLogFiles.includes(file);
+        const isDbLog = dbLogFileSet.has(file);
         const sourcePath = isDbLog ? path.join(tempDbLogsDir, file) : path.join(logDir, file);
 
         // 获取原文件信息
@@ -797,7 +772,7 @@ router.post("/logs/archive", logLimiter, authenticateToken, auditLog({ module: "
 
     // 添加数据库日志文件
     for (const file of dbLogFiles) {
-      if (allFilesToArchive.includes(file)) {
+      if (archiveFileSet.has(file)) {
         const sourcePath = path.join(tempDbLogsDir, file);
         const destPath = path.join(archiveSubDir, "database-logs", file);
         const destDir = path.dirname(destPath);
@@ -815,7 +790,7 @@ router.post("/logs/archive", logLimiter, authenticateToken, auditLog({ module: "
 
     // 添加文件系统日志文件
     for (const file of filesToArchive) {
-      if (allFilesToArchive.includes(file)) {
+      if (archiveFileSet.has(file)) {
         const sourcePath = path.join(logDir, file);
         const destPath = path.join(archiveSubDir, "filesystem-logs", file);
         const destDir = path.dirname(destPath);
