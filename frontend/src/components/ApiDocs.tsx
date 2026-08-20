@@ -1,107 +1,172 @@
-import React, { useEffect } from 'react';
+import React, { Suspense, lazy, useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   FaBook,
-  FaCloud,
   FaExternalLinkAlt,
-  FaFileAlt,
-  FaNetworkWired,
-  FaShieldAlt,
+  FaLock,
+  FaRedo,
+  FaUserShield,
 } from 'react-icons/fa';
+import 'swagger-ui-react/swagger-ui.css';
+import { api } from '../api/api';
+import { getBackendErrorMessage } from '../utils/backendError';
 import {
   InfoBadge,
-  InfoMetricCard,
   InfoPanel,
+  InfoPrimaryButton,
   InfoQueryHero,
   InfoQueryShell,
   InfoSectionTitle,
 } from './InfoQueryScaffold';
 
-const API_DOCS_URL = 'https://tts.chloemlla.com/api-docs/';
+const SwaggerUI = lazy(() => import('swagger-ui-react'));
 
-const normalizePath = (pathname: string) => pathname.replace(/\/+$/, '');
+const SPEC_URL = '/api/openapi.json';
+
+type SpecDocument = Record<string, unknown>;
+
+type DocsState =
+  | { status: 'loading' }
+  | { status: 'ready'; spec: SpecDocument }
+  | { status: 'unauthorized' }
+  | { status: 'forbidden' }
+  | { status: 'error'; message: string };
+
+const parseSpec = (data: unknown): SpecDocument => {
+  if (typeof data === 'string') return JSON.parse(data) as SpecDocument;
+  return (data || {}) as SpecDocument;
+};
+
+const responseStatusOf = (error: unknown): number | undefined =>
+  (error as { response?: { status?: number } } | undefined)?.response?.status;
+
+const ApiDocsBody: React.FC<{ state: DocsState; onRetry: () => void }> = ({ state, onRetry }) => {
+  if (state.status === 'loading') {
+    return (
+      <InfoPanel>
+        <InfoSectionTitle title="正在加载接口清单" description="从 /api/openapi.json 读取 OpenAPI 文档…" icon={FaBook} tone="sky" />
+        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+          <div className="h-full w-1/3 animate-pulse rounded-full bg-sky-500" />
+        </div>
+      </InfoPanel>
+    );
+  }
+
+  if (state.status === 'unauthorized') {
+    return (
+      <InfoPanel>
+        <InfoSectionTitle
+          title="需要登录"
+          description="API 文档仅对已登录的管理员开放，登录后回到本页即可查看。"
+          icon={FaLock}
+          tone="amber"
+        />
+        <Link
+          to="/login"
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+        >
+          去登录
+        </Link>
+      </InfoPanel>
+    );
+  }
+
+  if (state.status === 'forbidden') {
+    return (
+      <InfoPanel>
+        <InfoSectionTitle
+          title="需要管理员权限"
+          description="当前账号已登录，但接口清单只对 admin / superadmin 角色可见。"
+          icon={FaUserShield}
+          tone="rose"
+        />
+      </InfoPanel>
+    );
+  }
+
+  if (state.status === 'error') {
+    return (
+      <InfoPanel>
+        <InfoSectionTitle title="加载失败" description={state.message} icon={FaRedo} tone="rose" />
+        <InfoPrimaryButton tone="slate" onClick={onRetry}>
+          <FaRedo className="text-xs" />
+          重试
+        </InfoPrimaryButton>
+      </InfoPanel>
+    );
+  }
+
+  return (
+    <InfoPanel>
+      <Suspense fallback={<p className="text-sm text-slate-500">正在初始化 Swagger UI…</p>}>
+        <SwaggerUI spec={state.spec} docExpansion="none" defaultModelsExpandDepth={-1} />
+      </Suspense>
+    </InfoPanel>
+  );
+};
 
 const ApiDocs: React.FC = () => {
-  useEffect(() => {
-    const targetUrl = new URL(API_DOCS_URL);
+  const [state, setState] = useState<DocsState>({ status: 'loading' });
 
-    if (
-      window.location.origin !== targetUrl.origin
-      || normalizePath(window.location.pathname) !== normalizePath(targetUrl.pathname)
-    ) {
-      window.location.replace(API_DOCS_URL);
+  const loadSpec = useCallback(async () => {
+    setState({ status: 'loading' });
+    try {
+      const response = await api.get(SPEC_URL);
+      setState({ status: 'ready', spec: parseSpec(response.data) });
+    } catch (error) {
+      const status = responseStatusOf(error);
+      if (status === 401) {
+        setState({ status: 'unauthorized' });
+        return;
+      }
+      if (status === 403) {
+        setState({ status: 'forbidden' });
+        return;
+      }
+      setState({ status: 'error', message: getBackendErrorMessage(error, '无法加载 API 文档') });
     }
   }, []);
 
+  useEffect(() => {
+    void loadSpec();
+  }, [loadSpec]);
+
+  const pathCount = state.status === 'ready'
+    ? Object.keys((state.spec.paths as Record<string, unknown>) || {}).length
+    : 0;
+
   return (
-    <InfoQueryShell maxWidthClassName="max-w-6xl">
+    <InfoQueryShell maxWidthClassName="max-w-7xl">
       <div className="space-y-6">
         <InfoQueryHero
           eyebrow="API Reference"
           title="API 文档"
-          description="Synapse 的接口文档入口会自动跳转到官方 Swagger 页面。若浏览器阻止跳转，可从这里直接打开文档端点。"
+          description="Synapse 的 OpenAPI 文档直接在站内渲染，鉴权与 /api/openapi.json 一致：需要管理员会话。"
           icon={FaBook}
           tone="sky"
           meta={(
             <>
               <InfoBadge tone="sky">Swagger UI</InfoBadge>
-              <InfoBadge tone="slate">官方端点</InfoBadge>
-              <InfoBadge tone="emerald">自动跳转</InfoBadge>
+              <InfoBadge tone="slate">OpenAPI 3.0</InfoBadge>
+              {state.status === 'ready' && (
+                <InfoBadge tone="emerald">{pathCount} 个路径</InfoBadge>
+              )}
             </>
           )}
           actions={(
             <a
-              href={API_DOCS_URL}
+              href={SPEC_URL}
+              target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
             >
               <FaExternalLinkAlt className="text-xs" />
-              打开文档
+              原始 openapi.json
             </a>
           )}
         />
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <InfoMetricCard
-            label="文档类型"
-            value="OpenAPI"
-            detail="接口、参数与响应结构"
-            icon={FaFileAlt}
-            tone="sky"
-          />
-          <InfoMetricCard
-            label="访问方式"
-            value="HTTPS"
-            detail="跳转到官方 API 文档域名"
-            icon={FaShieldAlt}
-            tone="emerald"
-          />
-          <InfoMetricCard
-            label="状态"
-            value="Redirect"
-            detail="页面加载后自动前往文档"
-            icon={FaNetworkWired}
-            tone="slate"
-          />
-        </div>
-
-        <InfoPanel>
-          <InfoSectionTitle
-            title="文档端点"
-            description="当前页面保留为应用内导航入口，实际内容由官方文档服务承载。"
-            icon={FaCloud}
-            tone="sky"
-          />
-          <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-            <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Endpoint</div>
-            <a
-              href={API_DOCS_URL}
-              rel="noopener noreferrer"
-              className="mt-2 block break-all font-mono text-sm font-semibold text-slate-900 underline-offset-4 hover:underline"
-            >
-              {API_DOCS_URL}
-            </a>
-          </div>
-        </InfoPanel>
+        <ApiDocsBody state={state} onRetry={loadSpec} />
       </div>
     </InfoQueryShell>
   );

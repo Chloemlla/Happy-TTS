@@ -39,6 +39,8 @@ const MANUAL_CHUNKS: Record<string, string[]> = {
   diagrams: ["mermaid", "katex"],
   charts: ["chart.js", "react-chartjs-2"],
   toast: ["react-toastify"],
+  // Swagger UI is only reachable from the admin-only /api-docs route.
+  swagger: ["swagger-ui-react"],
 };
 
 function getManualChunk(id: string): string | undefined {

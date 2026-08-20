@@ -192,7 +192,7 @@ export function getRootNavGroups(ctx: NavVisibilityContext): NavGroup[] {
             url: '/campus-emergency',
             icon: FaExclamationTriangle as IconType,
           },
-          { title: 'API 文档', url: '/api-docs', icon: FaBook as IconType },
+          { title: 'API 文档', url: '/api-docs', icon: FaBook as IconType, requiredRole: 'admin' },
           { title: '服务条款', url: '/policy', icon: FaGavel as IconType },
         ],
         ctx,

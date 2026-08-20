@@ -2,8 +2,6 @@ import fs from "node:fs";
 import path, { join } from "node:path";
 import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import helmet from "helmet";
-import swaggerJSDoc from "swagger-jsdoc";
-import swaggerUi from "swagger-ui-express";
 import { config, startupConfig } from "../config/config";
 import {
   corsHeadersMiddleware,
@@ -13,13 +11,9 @@ import {
   openCorsPreflightHandler,
 } from "../middleware/corsMiddleware";
 import { passkeyErrorHandler } from "../middleware/passkeyAutoFix";
-import jwt from "jsonwebtoken";
-import { isAdminRole } from "../middleware/auth";
-import { UserStorage } from "../utils/userStorage";
 import { requestProfilingMiddleware } from "../middleware/requestProfiling";
 import { requestIdMiddleware } from "../middleware/requestId";
 import {
-  adminLimiter,
   audioFileLimiter,
   frontendLimiter,
   globalDefaultLimiter,
@@ -40,7 +34,6 @@ import {
   routeLimiterModules,
 } from "../routes";
 import { legacyApiRedirectMiddleware } from "../routes/legacyApiRedirect";
-import { sendFaviconIfExists } from "../routes/siteMetadataRoutes";
 import {
   applyCspNonceToHtml,
   buildHelmetCspDirectives,
@@ -48,7 +41,6 @@ import {
   resolveCspSurface,
 } from "../security/contentSecurityPolicy";
 import { registerSecurityPipeline } from "../security/securityPipeline";
-import { readOpenapiJsonSync, shouldServeSwaggerFromJsonUrl } from "../services/openapiDocumentService";
 import logger from "../utils/logger";
 import { sanitizeLogValue } from "../utils/requestLogSanitizer";
 import cloudflareChallengeRoutes from "../routes/cloudflareChallengeRoutes";
@@ -114,35 +106,6 @@ const requestLogger = (req: Request, _res: Response, next: NextFunction) => {
   }
   next();
 };
-
-const swaggerOptions = {
-  definition: {
-    openapi: "3.0.0",
-    info: {
-      title: "Synapse API 文档",
-      version: "1.0.0",
-      description: "基于 OpenAPI 3.0 的接口文档",
-    },
-  },
-  apis: [path.join(process.cwd(), "src/routes/*.ts"), path.join(process.cwd(), "dist/routes/*.js")],
-};
-
-const swaggerSpec = swaggerJSDoc(swaggerOptions);
-
-const swaggerCustomCss = `
-  .swagger-ui .topbar .link img,
-  .swagger-ui .topbar .link svg { display: none !important; }
-  .swagger-ui .topbar .link {
-    background: linear-gradient(135deg, #0f172a, #1d4ed8);
-    border-radius: 8px;
-    height: 50px;
-    padding-left: 16px;
-    padding-right: 16px;
-    color: #fff !important;
-    display: inline-flex;
-    align-items: center;
-  }
-`;
 
 const frontendCandidates = [
   process.env.FRONTEND_DIST_DIR && path.resolve(process.env.FRONTEND_DIST_DIR),
@@ -353,75 +316,6 @@ export function registerApiRoutes(app: Express): void {
 export function registerStaticRoutes(app: Express): void {
   app.use("/cdn-cgi", cloudflareChallengeRoutes);
 
-  let swaggerUiSpec: any = swaggerSpec;
-  try {
-    const json = readOpenapiJsonSync();
-    swaggerUiSpec = JSON.parse(json);
-    const pathsCount = swaggerUiSpec?.paths ? Object.keys(swaggerUiSpec.paths).length : 0;
-    logger.info(`[Swagger] 为 UI 加载预先生成的 openapi.json，路径数=${pathsCount}`);
-  } catch (error) {
-    logger.warn(
-      `[Swagger] Falling back to swagger-jsdoc generated spec. Reason: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-
-  const preferSwaggerUrl = shouldServeSwaggerFromJsonUrl();
-
-  app.get("/api-docs/favicon-32x32.png", sendFaviconIfExists);
-  app.get("/api-docs/favicon-16x16.png", sendFaviconIfExists);
-
-  // Serve Swagger assets via swagger-ui-express, but render HTML ourselves so
-  // per-request CSP nonces can be injected into inline <style>/<script> tags.
-  const swaggerSetupOptions = preferSwaggerUrl
-    ? {
-        swaggerUrl: "/api/openapi.json",
-        customSiteTitle: "Synapse API",
-        customCss: swaggerCustomCss,
-      }
-    : {
-        customSiteTitle: "Synapse API",
-        customCss: swaggerCustomCss,
-      };
-  const swaggerDocForHtml = preferSwaggerUrl ? undefined : swaggerUiSpec;
-  // generateHTML also seeds swagger-ui-init.js content used by swaggerUi.serve.
-  const generateSwaggerHtml = (
-    swaggerUi as typeof swaggerUi & {
-      generateHTML: (doc: unknown, opts?: Record<string, unknown>) => string;
-    }
-  ).generateHTML;
-  // Pre-render the Swagger HTML once at startup; per-request only the CSP nonce
-  // is injected, avoiding an expensive re-render on every /api-docs request.
-  const cachedSwaggerHtml = generateSwaggerHtml(swaggerDocForHtml, swaggerSetupOptions);
-
-  // 生产环境 Swagger 认证门禁 — 需要有效 JWT 且用户角色为 admin/superadmin
-  const swaggerAuthGate = async (req: Request, res: Response, next: NextFunction) => {
-    if (process.env.NODE_ENV !== "production") return next();
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-    if (!token) return res.status(401).json({ error: "需要登录才能访问 API 文档" });
-    try {
-      // JWT 载荷不包含 role，需按 userId 查询数据库获取最新角色
-      const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] }) as { userId?: string };
-      const user = decoded.userId ? await UserStorage.getUserById(decoded.userId) : null;
-      if (!user || !isAdminRole(user.role)) return res.status(403).json({ error: "需要管理员权限" });
-      next();
-    } catch {
-      return res.status(401).json({ error: "Token 无效或已过期" });
-    }
-  };
-
-  const sendSwaggerHtml = (req: Request, res: Response) => {
-    const nonce = ensureCspNonce(res);
-    res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-    res.set("Content-Type", "text/html; charset=utf-8");
-    res.status(200).send(applyCspNonceToHtml(cachedSwaggerHtml, nonce));
-  };
-
-  app.use("/api-docs", applyNoCacheHeaders, adminLimiter, swaggerAuthGate, swaggerUi.serve);
-  app.get("/api-docs", adminLimiter, swaggerAuthGate, sendSwaggerHtml);
-  app.get("/api-docs/", adminLimiter, swaggerAuthGate, sendSwaggerHtml);
-  app.get("/api-docs/index.html", adminLimiter, swaggerAuthGate, sendSwaggerHtml);
-
   ensureAudioDir();
   if (process.env.TTS_PUBLIC_STATIC_AUDIO_ENABLED === "true") {
     app.use(
@@ -481,7 +375,9 @@ export function registerStaticRoutes(app: Express): void {
       res.status(200).send(applyCspNonceToHtml(cachedIndexHtml, nonce));
     };
     app.get("/", rootLimiter, sendIndexHtml);
-    app.get(/^\/(?!\.well-known(?:\/|$)|api|api-docs|docs(?:\/|$)|static|assets(?:\/|$)|openapi)(.*)/, frontendLimiter, sendIndexHtml);
+    // /api-docs is an SPA route (embedded Swagger UI); only /api itself and the
+    // raw spec paths stay backend-owned.
+    app.get(/^\/(?!\.well-known(?:\/|$)|api(?:\/|$)|docs(?:\/|$)|static|assets(?:\/|$)|openapi)(.*)/, frontendLimiter, sendIndexHtml);
     return;
   }
 
