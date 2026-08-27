@@ -60,6 +60,7 @@ export interface GroupQueryState {
   source: SourceFilter;
   risk: RiskFilter;
   search: string;
+  device: string;
   sort: CrashGroupSort;
   order: SortOrder;
 }
@@ -70,6 +71,7 @@ export const INITIAL_GROUP_QUERY: GroupQueryState = {
   source: '',
   risk: '',
   search: '',
+  device: '',
   sort: 'lastSeenAt',
   order: 'desc',
 };

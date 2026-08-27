@@ -59,6 +59,7 @@ export interface ListGroupsParams {
   risk?: 'high' | 'medium' | 'low';
   versionCode?: number;
   search?: string;
+  device?: string;
   sort?: CrashGroupSort;
   order?: 'asc' | 'desc';
 }
@@ -66,6 +67,7 @@ export interface ListGroupsParams {
 export interface GroupReportsParams {
   limit?: number;
   offset?: number;
+  device?: string;
 }
 
 const BASE = () => `${getApiBaseUrl()}/api/admin/crash-reports`;

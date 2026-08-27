@@ -46,9 +46,11 @@ interface Props {
   loading: boolean;
   loadingMore: boolean;
   lastUpdatedAt: number | null;
+  deviceFilter: string;
   searchInputRef: React.RefObject<HTMLInputElement | null>;
   onBack: () => void;
   onRefresh: () => void;
+  onFilterDevice: (deviceInstallationId: string) => void;
   onLoadMore: () => void;
 }
 
@@ -80,9 +82,11 @@ const CrashGroupDetailView: React.FC<Props> = ({
   loading,
   loadingMore,
   lastUpdatedAt,
+  deviceFilter,
   searchInputRef,
   onBack,
   onRefresh,
+  onFilterDevice,
   onLoadMore,
 }) => {
   const [search, setSearch] = useState('');
@@ -131,6 +135,7 @@ const CrashGroupDetailView: React.FC<Props> = ({
         meta={
           <>
             <InfoBadge>{lastUpdatedAt ? `更新于 ${formatRelativeTime(lastUpdatedAt)}` : '尚未加载'}</InfoBadge>
+            {deviceFilter ? <InfoBadge>仅设备 {shortKey(deviceFilter, 16)}</InfoBadge> : null}
             <InfoBadge>匿名 SDK {summary.sdkCount} 条</InfoBadge>
             <InfoBadge>Lumen 应用 {summary.appCount} 条</InfoBadge>
           </>
@@ -240,7 +245,7 @@ const CrashGroupDetailView: React.FC<Props> = ({
         ) : visible.length === 0 ? (
           <InfoPanel>
             <div className="p-8 text-center text-slate-400">
-              {search ? '没有匹配的崩溃报告' : '暂无崩溃报告'}
+              {search ? '没有匹配的崩溃报告' : deviceFilter ? '该设备在此崩溃组下没有报告' : '暂无崩溃报告'}
             </div>
           </InfoPanel>
         ) : (
@@ -250,6 +255,7 @@ const CrashGroupDetailView: React.FC<Props> = ({
               report={report}
               expanded={expandedIds.has(report.reportId)}
               onToggle={() => toggleExpanded(report.reportId)}
+              onFilterDevice={onFilterDevice}
             />
           ))
         )}
@@ -276,7 +282,8 @@ const ReportCard: React.FC<{
   report: FullCrashReport;
   expanded: boolean;
   onToggle: () => void;
-}> = ({ report, expanded, onToggle }) => {
+  onFilterDevice: (deviceInstallationId: string) => void;
+}> = ({ report, expanded, onToggle, onFilterDevice }) => {
   const crashedAt = report.crashedAtText || formatTime(report.crashedAtMillis);
   const recentEvents = report.recentEvents ?? [];
 
@@ -348,7 +355,24 @@ const ReportCard: React.FC<{
             <DetailField label="版本号" value={String(report.versionCode)} />
             <DetailField
               label="设备 ID"
-              value={report.deviceInstallationId}
+              value={
+                report.deviceInstallationId ? (
+                  <>
+                    {report.deviceInstallationId}
+                    <button
+                      type="button"
+                      onClick={() => onFilterDevice(report.deviceInstallationId)}
+                      title="按此设备筛选全部崩溃组"
+                      className="ml-2 inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white/80 px-2 py-0.5 text-[11px] font-semibold text-slate-600 transition hover:border-indigo-200 hover:text-indigo-700"
+                    >
+                      <FaMobileAlt className="h-2.5 w-2.5" />
+                      只看此设备
+                    </button>
+                  </>
+                ) : (
+                  ''
+                )
+              }
               copyValue={report.deviceInstallationId}
             />
             <DetailField label="作者" value={report.authorName} />

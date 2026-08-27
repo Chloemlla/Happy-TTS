@@ -4,8 +4,10 @@ import type { PipelineStage } from "mongoose";
 import { ApiError } from "../../services/lumen/errors.js";
 import { AdminCrashReport, CrashReport } from "../../models/lumen/index.js";
 import {
+  buildDeviceMatcher,
   buildGroupFilter,
   buildGroupSort,
+  intersectGroupKeys,
   parseGroupQuery,
   parseReportQuery,
 } from "./crashReportQuery.js";
@@ -53,33 +55,45 @@ const RISK_WEIGHT_STAGE: PipelineStage = {
   },
 };
 
+/** $group avoids distinct()'s 16MB single-document ceiling. */
+const resolveGroupKeys = async (match: Record<string, unknown>): Promise<string[]> => {
+  const rows = await CrashReport.aggregate<{ _id: string | null }>([
+    { $match: match },
+    { $group: { _id: "$groupKey" } },
+  ]).exec();
+  return rows
+    .map((row) => row._id)
+    .filter((key): key is string => typeof key === "string" && key.length > 0);
+};
+
 /**
  * GET /crash-reports
  * List aggregated crash groups (admin_crash_reports).
  * Query params: limit (default 25, max 100), offset, source ("sdk" = anonymous
  * lumen-crash-core ingest, "app" = Lumen app auth reports), risk, versionCode,
- * search (groupKey / clean stack), sort, order.
+ * search (groupKey / clean stack), device (deviceInstallationId or its prefix),
+ * sort, order.
  */
 router.get("/crash-reports", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const query = parseGroupQuery(req.query as Record<string, unknown>);
 
-    // A crash group can mix anonymous and authenticated reports, so a source
-    // filter selects the groups that contain at least one matching report.
-    // $group avoids distinct()'s 16MB single-document ceiling.
+    // A crash group can mix anonymous and authenticated reports and spans many
+    // devices, so source/device filters select the groups that contain at least
+    // one matching report. Both constraints narrow the same key set.
     let groupKeys: string[] | undefined;
     if (query.source) {
       const userIdMatcher = query.source === "sdk" ? { $regex: "^sdk:" } : { $not: /^sdk:/ };
-      const keyRows = await CrashReport.aggregate<{ _id: string | null }>([
-        { $match: { userId: userIdMatcher } },
-        { $group: { _id: "$groupKey" } },
-      ]).exec();
-      groupKeys = keyRows
-        .map((row) => row._id)
-        .filter((key): key is string => typeof key === "string" && key.length > 0);
-      if (groupKeys.length === 0) {
-        return res.json({ success: true, groups: [], total: 0 });
-      }
+      groupKeys = await resolveGroupKeys({ userId: userIdMatcher });
+    }
+    if (query.device) {
+      groupKeys = intersectGroupKeys(
+        groupKeys,
+        await resolveGroupKeys({ deviceInstallationId: buildDeviceMatcher(query.device) }),
+      );
+    }
+    if (groupKeys && groupKeys.length === 0) {
+      return res.json({ success: true, groups: [], total: 0 });
     }
 
     const pipeline: PipelineStage[] = [
@@ -117,7 +131,7 @@ router.get("/crash-reports", async (req: Request, res: Response, next: NextFunct
 /**
  * GET /crash-reports/:groupKey
  * Page through the individual crash reports of a group, newest first.
- * Query params: limit (default 50, max 200), offset.
+ * Query params: limit (default 50, max 200), offset, device.
  */
 router.get("/crash-reports/:groupKey", async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -127,15 +141,18 @@ router.get("/crash-reports/:groupKey", async (req: Request, res: Response, next:
       throw ApiError.badRequest("缺少 groupKey 参数");
     }
 
-    const { limit, offset } = parseReportQuery(req.query as Record<string, unknown>);
+    const { limit, offset, device } = parseReportQuery(req.query as Record<string, unknown>);
+    const filter: Record<string, unknown> = { groupKey };
+    if (device) filter.deviceInstallationId = buildDeviceMatcher(device);
+
     const [reports, total] = await Promise.all([
-      CrashReport.find({ groupKey })
+      CrashReport.find(filter)
         .sort({ crashedAtMillis: -1 })
         .skip(offset)
         .limit(limit)
         .lean()
         .exec(),
-      CrashReport.countDocuments({ groupKey }).exec(),
+      CrashReport.countDocuments(filter).exec(),
     ]);
 
     return res.json({ success: true, reports, total, limit, offset });

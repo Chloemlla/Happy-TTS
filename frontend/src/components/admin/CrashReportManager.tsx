@@ -33,6 +33,8 @@ const CrashReportManager: React.FC = () => {
   const groupRequestRef = useRef(0);
   const reportRequestRef = useRef(0);
 
+  const deviceFilter = query.device.trim();
+
   const loadGroups = useCallback(async () => {
     const requestId = ++groupRequestRef.current;
     setLoading(true);
@@ -43,6 +45,7 @@ const CrashReportManager: React.FC = () => {
         source: query.source || undefined,
         risk: query.risk || undefined,
         search: query.search || undefined,
+        device: query.device.trim() || undefined,
         sort: query.sort,
         order: query.order,
       });
@@ -64,7 +67,11 @@ const CrashReportManager: React.FC = () => {
       if (mode === 'append') setReportLoadingMore(true);
       else setReportLoading(true);
       try {
-        const res = await crashReportsApi.getGroupReports(groupKey, { limit: REPORT_PAGE_SIZE, offset });
+        const res = await crashReportsApi.getGroupReports(groupKey, {
+          limit: REPORT_PAGE_SIZE,
+          offset,
+          device: deviceFilter || undefined,
+        });
         if (requestId !== reportRequestRef.current) return;
         const incoming = res.reports ?? [];
         setReports((current) => (mode === 'append' ? [...current, ...incoming] : incoming));
@@ -80,7 +87,7 @@ const CrashReportManager: React.FC = () => {
         }
       }
     },
-    [setNotification],
+    [deviceFilter, setNotification],
   );
 
   useEffect(() => {
@@ -131,6 +138,11 @@ const CrashReportManager: React.FC = () => {
     setQuery((current) => ({ ...current, ...patch }));
   }, []);
 
+  const onFilterDevice = useCallback((device: string) => {
+    setQuery((current) => ({ ...current, device, offset: 0 }));
+    setSelectedGroup(null);
+  }, []);
+
   if (selectedGroup) {
     return (
       <CrashGroupDetailView
@@ -140,9 +152,11 @@ const CrashReportManager: React.FC = () => {
         loading={reportLoading}
         loadingMore={reportLoadingMore}
         lastUpdatedAt={reportUpdatedAt}
+        deviceFilter={deviceFilter}
         searchInputRef={searchInputRef}
         onBack={() => setSelectedGroup(null)}
         onRefresh={refresh}
+        onFilterDevice={onFilterDevice}
         onLoadMore={() => void loadReports(selectedGroup, reports.length, 'append')}
       />
     );

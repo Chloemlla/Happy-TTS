@@ -62,6 +62,8 @@ CrashReportSchema.index({ groupKey: 1 });
 CrashReportSchema.index({ userId: 1, deviceInstallationId: 1, receivedAt: -1 });
 // Admin group drill-down pages reports newest-first within one group.
 CrashReportSchema.index({ groupKey: 1, crashedAtMillis: -1 });
+// Admin device-ID filtering resolves the matching groupKey set from the index alone.
+CrashReportSchema.index({ deviceInstallationId: 1, groupKey: 1 });
 
 const CrashReport =
   (mongoose.models.CrashReport as mongoose.Model<ICrashReport>) ||

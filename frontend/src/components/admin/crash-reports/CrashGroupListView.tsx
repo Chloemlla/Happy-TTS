@@ -11,6 +11,7 @@ import {
   FaClock,
   FaExclamationTriangle,
   FaLayerGroup,
+  FaMobileAlt,
   FaSortAmountDown,
   FaSortAmountUp,
   FaSync,
@@ -68,6 +69,7 @@ const CrashGroupListView: React.FC<Props> = ({
   onOpenGroup,
 }) => {
   const [draftSearch, setDraftSearch] = useState(query.search);
+  const [draftDevice, setDraftDevice] = useState(query.device);
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() => new Set());
 
   useEffect(() => setDraftSearch(query.search), [query.search]);
@@ -77,6 +79,14 @@ const CrashGroupListView: React.FC<Props> = ({
     const timer = window.setTimeout(() => onQueryChange({ search: draftSearch, offset: 0 }), 400);
     return () => window.clearTimeout(timer);
   }, [draftSearch, query.search, onQueryChange]);
+
+  useEffect(() => setDraftDevice(query.device), [query.device]);
+
+  useEffect(() => {
+    if (draftDevice === query.device) return;
+    const timer = window.setTimeout(() => onQueryChange({ device: draftDevice, offset: 0 }), 400);
+    return () => window.clearTimeout(timer);
+  }, [draftDevice, query.device, onQueryChange]);
 
   const stats = useMemo(() => {
     let crashes = 0;
@@ -148,29 +158,77 @@ const CrashGroupListView: React.FC<Props> = ({
       </div>
 
       <InfoPanel className="mt-6" compact>
-        <div className="relative">
-          <input
-            ref={searchInputRef}
-            value={draftSearch}
-            onChange={(event) => setDraftSearch(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') onQueryChange({ search: draftSearch, offset: 0 });
-              if (event.key === 'Escape') setDraftSearch('');
-            }}
-            placeholder="搜索 groupKey 或堆栈内容（回车立即查询）"
-            className={logShareInputClass}
-          />
-          {draftSearch ? (
-            <button
-              type="button"
-              onClick={() => setDraftSearch('')}
-              title="清空搜索"
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
-            >
-              <FaTimes />
-            </button>
-          ) : null}
+        <div className="flex flex-col gap-3 lg:flex-row">
+          <div className="relative flex-1">
+            <input
+              ref={searchInputRef}
+              value={draftSearch}
+              onChange={(event) => setDraftSearch(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') onQueryChange({ search: draftSearch, offset: 0 });
+                if (event.key === 'Escape') setDraftSearch('');
+              }}
+              placeholder="搜索 groupKey 或堆栈内容（回车立即查询）"
+              className={logShareInputClass}
+            />
+            {draftSearch ? (
+              <button
+                type="button"
+                onClick={() => setDraftSearch('')}
+                title="清空搜索"
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              >
+                <FaTimes />
+              </button>
+            ) : null}
+          </div>
+          <div className="relative lg:w-80">
+            <input
+              value={draftDevice}
+              onChange={(event) => setDraftDevice(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') onQueryChange({ device: draftDevice, offset: 0 });
+                if (event.key === 'Escape') setDraftDevice('');
+              }}
+              placeholder="按设备 ID 筛选（支持前缀）"
+              aria-label="按设备 ID 筛选"
+              className={`${logShareInputClass} ${
+                query.device ? 'border-indigo-300 bg-indigo-50/60' : ''
+              }`}
+            />
+            {draftDevice ? (
+              <button
+                type="button"
+                onClick={() => setDraftDevice('')}
+                title="清空设备筛选"
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              >
+                <FaTimes />
+              </button>
+            ) : null}
+          </div>
         </div>
+
+        {query.device ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+              <FaMobileAlt />
+              <span className="font-mono" title={query.device}>
+                {shortKey(query.device, 20)}
+              </span>
+              <span className="font-normal text-indigo-500">命中 {total.toLocaleString()} 个崩溃组</span>
+              <button
+                type="button"
+                onClick={() => onQueryChange({ device: '', offset: 0 })}
+                title="清除设备筛选"
+                aria-label="清除设备筛选"
+                className="rounded-lg p-0.5 transition hover:bg-indigo-100"
+              >
+                <FaTimes />
+              </button>
+            </span>
+          </div>
+        ) : null}
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {SOURCE_TABS.map((tab) => (
@@ -254,7 +312,9 @@ const CrashGroupListView: React.FC<Props> = ({
         ) : groups.length === 0 ? (
           <InfoPanel>
             <div className="p-8 text-center text-slate-400">
-              {query.search || query.risk || query.source ? '当前筛选条件下没有崩溃组' : '暂无崩溃报告'}
+              {query.search || query.risk || query.source || query.device
+                ? '当前筛选条件下没有崩溃组'
+                : '暂无崩溃报告'}
             </div>
           </InfoPanel>
         ) : (

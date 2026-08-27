@@ -9,6 +9,7 @@ export const DEFAULT_LIMIT = 25;
 export const MAX_REPORT_LIMIT = 200;
 export const DEFAULT_REPORT_LIMIT = 50;
 export const MAX_SEARCH_LENGTH = 120;
+export const MAX_DEVICE_LENGTH = 128;
 
 const GROUP_SORT_KEYS: readonly GroupSortKey[] = [
   "lastSeenAt",
@@ -26,6 +27,7 @@ export interface ParsedGroupQuery {
   risk: CrashRisk | "";
   versionCode: number | null;
   search: string;
+  device: string;
   sort: GroupSortKey;
   order: 1 | -1;
 }
@@ -33,6 +35,7 @@ export interface ParsedGroupQuery {
 export interface ParsedReportQuery {
   limit: number;
   offset: number;
+  device: string;
 }
 
 /** Search terms reach Mongo as a regex, so every metacharacter must be inert. */
@@ -69,6 +72,7 @@ export function parseGroupQuery(query: Record<string, unknown>): ParsedGroupQuer
   }
 
   const search = readString(query.search).slice(0, MAX_SEARCH_LENGTH);
+  const device = readString(query.device).slice(0, MAX_DEVICE_LENGTH);
 
   let versionCode: number | null = null;
   if (query.versionCode !== undefined && readString(query.versionCode) !== "") {
@@ -84,6 +88,7 @@ export function parseGroupQuery(query: Record<string, unknown>): ParsedGroupQuer
     risk: risk as CrashRisk | "",
     versionCode,
     search,
+    device,
     sort: sort as GroupSortKey,
     order: order === "asc" ? 1 : -1,
   };
@@ -93,12 +98,38 @@ export function parseReportQuery(query: Record<string, unknown>): ParsedReportQu
   return {
     limit: readBoundedInt(query.limit, DEFAULT_REPORT_LIMIT, 1, MAX_REPORT_LIMIT, "limit"),
     offset: readBoundedInt(query.offset, 0, 0, Number.MAX_SAFE_INTEGER, "offset"),
+    device: readString(query.device).slice(0, MAX_DEVICE_LENGTH),
   };
 }
 
+/** SDK device IDs are 32-hex, app ones are UUIDs; anything else is a fragment. */
+const FULL_DEVICE_ID =
+  /^(?:[0-9a-f]{32}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
+
 /**
- * Group-level filter. `groupKeys` is only supplied when a source filter needs
- * the pre-resolved key set, so the common unfiltered path stays index-only.
+ * Equality for a complete lowercase ID so the deviceInstallationId index does a
+ * point lookup; otherwise a prefix-anchored regex, which still bounds the scan.
+ */
+export function buildDeviceMatcher(device: string): string | { $regex: string; $options: string } {
+  if (FULL_DEVICE_ID.test(device)) return device;
+  return { $regex: `^${escapeRegex(device)}`, $options: "i" };
+}
+
+/** Independent group-key constraints must AND; an absent set means "no constraint". */
+export function intersectGroupKeys(
+  left: string[] | undefined,
+  right: string[] | undefined,
+): string[] | undefined {
+  if (!left) return right;
+  if (!right) return left;
+  const allowed = new Set(right);
+  return left.filter((key) => allowed.has(key));
+}
+
+/**
+ * Group-level filter. `groupKeys` is only supplied when a source or device
+ * filter needs the pre-resolved key set, so the common unfiltered path stays
+ * index-only.
  */
 export function buildGroupFilter(
   parsed: ParsedGroupQuery,
