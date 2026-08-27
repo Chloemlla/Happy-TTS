@@ -62,7 +62,11 @@ export async function recordCrashReport(
   }
 
   // ── Idempotency: already ingested? ────────────────────────────────────
-  const existing = await CrashReport.findOne({ userId, reportId: request.reportId }).exec();
+  // Only receivedAt is needed, so avoid pulling the stack trace payload back.
+  const existing = await CrashReport.findOne({ userId, reportId: request.reportId })
+    .select({ receivedAt: 1 })
+    .lean()
+    .exec();
   if (existing) {
     return {
       accepted: true,
@@ -142,10 +146,14 @@ export async function recordCrashReport(
   if (count >= 50 || affectedUsers >= 20) risk = "high";
   else if (count >= 10 || affectedUsers >= 5) risk = "medium";
 
-  await AdminCrashReport.updateOne(
-    { _id: updated!._id },
-    { $set: { affectedUsers, risk } },
-  ).exec();
+  // Repeat crashes from an already-known device leave both fields unchanged,
+  // so the follow-up write is only worth issuing when something moved.
+  if (updated!.affectedUsers !== affectedUsers || updated!.risk !== risk) {
+    await AdminCrashReport.updateOne(
+      { _id: updated!._id },
+      { $set: { affectedUsers, risk } },
+    ).exec();
+  }
 
   return {
     accepted: true,

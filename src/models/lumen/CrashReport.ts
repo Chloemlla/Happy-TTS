@@ -58,6 +58,10 @@ const CrashReportSchema = new mongoose.Schema<ICrashReport>(
 CrashReportSchema.index({ userId: 1, reportId: 1 });
 CrashReportSchema.index({ userId: 1, receivedAt: -1 });
 CrashReportSchema.index({ groupKey: 1 });
+// Ingest rate limiting counts per user+device inside a time window.
+CrashReportSchema.index({ userId: 1, deviceInstallationId: 1, receivedAt: -1 });
+// Admin group drill-down pages reports newest-first within one group.
+CrashReportSchema.index({ groupKey: 1, crashedAtMillis: -1 });
 
 const CrashReport =
   (mongoose.models.CrashReport as mongoose.Model<ICrashReport>) ||

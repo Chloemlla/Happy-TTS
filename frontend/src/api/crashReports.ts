@@ -45,29 +45,52 @@ export interface FullCrashReport {
 export interface GroupReportsResponse {
   success: boolean;
   reports: FullCrashReport[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
-interface ListGroupsParams {
+export type CrashGroupSort = 'lastSeenAt' | 'count' | 'affectedUsers' | 'versionCode' | 'risk';
+
+export interface ListGroupsParams {
   limit?: number;
   offset?: number;
   source?: 'sdk' | 'app';
+  risk?: 'high' | 'medium' | 'low';
+  versionCode?: number;
+  search?: string;
+  sort?: CrashGroupSort;
+  order?: 'asc' | 'desc';
+}
+
+export interface GroupReportsParams {
+  limit?: number;
+  offset?: number;
 }
 
 const BASE = () => `${getApiBaseUrl()}/api/admin/crash-reports`;
 
+const toQuery = (params: Record<string, string | number | undefined>): string => {
+  const search = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === '') continue;
+    search.set(key, String(value));
+  }
+  const query = search.toString();
+  return query ? `?${query}` : '';
+};
+
 export const crashReportsApi = {
   listGroups: async (params: ListGroupsParams = {}): Promise<ListGroupsResponse> => {
-    const qs = new URLSearchParams();
-    if (params.limit !== undefined) qs.set('limit', String(params.limit));
-    if (params.offset !== undefined) qs.set('offset', String(params.offset));
-    if (params.source) qs.set('source', params.source);
-    const query = qs.toString();
-    const res = await api.get(`${BASE()}${query ? `?${query}` : ''}`);
+    const res = await api.get(`${BASE()}${toQuery({ ...params })}`);
     return res.data;
   },
 
-  getGroupReports: async (groupKey: string): Promise<GroupReportsResponse> => {
-    const res = await api.get(`${BASE()}/${encodeURIComponent(groupKey)}`);
+  getGroupReports: async (
+    groupKey: string,
+    params: GroupReportsParams = {},
+  ): Promise<GroupReportsResponse> => {
+    const res = await api.get(`${BASE()}/${encodeURIComponent(groupKey)}${toQuery({ ...params })}`);
     return res.data;
   },
 };

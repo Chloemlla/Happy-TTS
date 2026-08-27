@@ -1,447 +1,167 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import {
-  FaArrowLeft,
-  FaBug,
-  FaChevronDown,
-  FaChevronLeft,
-  FaChevronRight,
-  FaChevronUp,
-  FaClock,
-  FaSync,
-} from 'react-icons/fa';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { crashReportsApi, type CrashGroup, type FullCrashReport } from '@/api/crashReports';
 import { useNotification } from '@/components/Notification';
 import { getBackendErrorMessage } from '@/utils/backendError';
-import {
-  crashReportsApi,
-  type CrashGroup,
-  type FullCrashReport,
-} from '@/api/crashReports';
-import {
-  InfoBadge,
-  InfoPanel,
-  InfoPrimaryButton,
-  InfoQueryHero,
-  InfoQueryShell,
-} from '@/components/LogShareStyleScaffold';
+import CrashGroupDetailView from './crash-reports/CrashGroupDetailView';
+import CrashGroupListView from './crash-reports/CrashGroupListView';
+import { INITIAL_GROUP_QUERY, REPORT_PAGE_SIZE, type GroupQueryState } from './crash-reports/constants';
 
-const PAGE_SIZE = 25;
-
-const RISK_CONFIG: Record<string, { label: string; dotClass: string; badgeClass: string }> = {
-  high: { label: '高危', dotClass: 'bg-red-500', badgeClass: 'bg-red-50 text-red-700 border-red-200' },
-  medium: { label: '中危', dotClass: 'bg-amber-500', badgeClass: 'bg-amber-50 text-amber-700 border-amber-200' },
-  low: { label: '低危', dotClass: 'bg-emerald-500', badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+const isTypingTarget = (target: EventTarget | null): boolean => {
+  if (!(target instanceof HTMLElement)) return false;
+  const tag = target.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
 };
-
-const formatTime = (iso: string | null) => {
-  if (!iso) return '-';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleString('zh-CN', { hour12: false });
-};
-
-const SOURCE_TABS = [
-  { key: '', label: '全部来源' },
-  { key: 'sdk', label: '匿名 SDK' },
-  { key: 'app', label: 'Lumen 应用' },
-] as const;
-
-type SourceFilter = '' | 'sdk' | 'app';
-
-const isAnonymousSdkReport = (userId?: string) => !!userId && userId.startsWith('sdk:');
 
 const CrashReportManager: React.FC = () => {
   const { setNotification } = useNotification();
 
-  // List view state
+  const [query, setQuery] = useState<GroupQueryState>(INITIAL_GROUP_QUERY);
   const [groups, setGroups] = useState<CrashGroup[]>([]);
   const [total, setTotal] = useState(0);
-  const [offset, setOffset] = useState(0);
-  const [source, setSource] = useState<SourceFilter>('');
-  const [loading, setLoading] = useState(false);
-  const [expandedGroupKey, setExpandedGroupKey] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
+  const [autoRefreshMs, setAutoRefreshMs] = useState(0);
 
-  // Detail view state
-  const [detailGroupKey, setDetailGroupKey] = useState<string | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [reports, setReports] = useState<FullCrashReport[]>([]);
-  const [loadingReports, setLoadingReports] = useState(false);
-  const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
+  const [reportTotal, setReportTotal] = useState(0);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportLoadingMore, setReportLoadingMore] = useState(false);
+  const [reportUpdatedAt, setReportUpdatedAt] = useState<number | null>(null);
 
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const currentPage = Math.floor(offset / PAGE_SIZE) + 1;
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const groupRequestRef = useRef(0);
+  const reportRequestRef = useRef(0);
 
-  const fetchGroups = useCallback(async (currentOffset: number, currentSource: SourceFilter) => {
+  const loadGroups = useCallback(async () => {
+    const requestId = ++groupRequestRef.current;
     setLoading(true);
     try {
-      const response = await crashReportsApi.listGroups({
-        limit: PAGE_SIZE,
-        offset: currentOffset,
-        source: currentSource === '' ? undefined : currentSource,
+      const res = await crashReportsApi.listGroups({
+        limit: query.pageSize,
+        offset: query.offset,
+        source: query.source || undefined,
+        risk: query.risk || undefined,
+        search: query.search || undefined,
+        sort: query.sort,
+        order: query.order,
       });
-      setGroups(response.groups);
-      setTotal(response.total);
+      if (requestId !== groupRequestRef.current) return;
+      setGroups(res.groups ?? []);
+      setTotal(res.total ?? 0);
+      setLastUpdatedAt(Date.now());
     } catch (error) {
-      setNotification({
-        message: getBackendErrorMessage(error, '获取崩溃报告列表失败'),
-        type: 'error',
-      });
+      if (requestId !== groupRequestRef.current) return;
+      setNotification({ message: getBackendErrorMessage(error, '加载崩溃组失败'), type: 'error' });
     } finally {
-      setLoading(false);
+      if (requestId === groupRequestRef.current) setLoading(false);
     }
-  }, [setNotification]);
+  }, [query, setNotification]);
 
-  const fetchGroupReports = useCallback(async (groupKey: string) => {
-    setLoadingReports(true);
-    try {
-      const response = await crashReportsApi.getGroupReports(groupKey);
-      setReports(response.reports);
-    } catch (error) {
-      setNotification({
-        message: getBackendErrorMessage(error, '获取崩溃报告详情失败'),
-        type: 'error',
-      });
-    } finally {
-      setLoadingReports(false);
-    }
-  }, [setNotification]);
+  const loadReports = useCallback(
+    async (groupKey: string, offset: number, mode: 'replace' | 'append') => {
+      const requestId = ++reportRequestRef.current;
+      if (mode === 'append') setReportLoadingMore(true);
+      else setReportLoading(true);
+      try {
+        const res = await crashReportsApi.getGroupReports(groupKey, { limit: REPORT_PAGE_SIZE, offset });
+        if (requestId !== reportRequestRef.current) return;
+        const incoming = res.reports ?? [];
+        setReports((current) => (mode === 'append' ? [...current, ...incoming] : incoming));
+        setReportTotal(res.total ?? incoming.length);
+        setReportUpdatedAt(Date.now());
+      } catch (error) {
+        if (requestId !== reportRequestRef.current) return;
+        setNotification({ message: getBackendErrorMessage(error, '加载崩溃报告失败'), type: 'error' });
+      } finally {
+        if (requestId === reportRequestRef.current) {
+          setReportLoading(false);
+          setReportLoadingMore(false);
+        }
+      }
+    },
+    [setNotification],
+  );
 
   useEffect(() => {
-    void fetchGroups(offset, source);
-  }, [fetchGroups, offset, source]);
+    void loadGroups();
+  }, [loadGroups]);
 
-  const changeSource = (next: SourceFilter) => {
-    setSource(next);
-    setOffset(0);
-  };
-
-  const refresh = () => {
-    if (detailGroupKey) {
-      void fetchGroupReports(detailGroupKey);
-    } else {
-      void fetchGroups(offset, source);
-    }
-  };
-
-  const goToDetail = (groupKey: string) => {
-    setDetailGroupKey(groupKey);
-    setExpandedReportId(null);
-    void fetchGroupReports(groupKey);
-  };
-
-  const goBackToList = () => {
-    setDetailGroupKey(null);
+  useEffect(() => {
+    if (!selectedGroup) return;
     setReports([]);
-    setExpandedReportId(null);
-  };
+    setReportTotal(0);
+    void loadReports(selectedGroup, 0, 'replace');
+  }, [selectedGroup, loadReports]);
 
-  // ── Detail view ──
-  if (detailGroupKey) {
+  const refresh = useCallback(() => {
+    if (selectedGroup) void loadReports(selectedGroup, 0, 'replace');
+    else void loadGroups();
+  }, [selectedGroup, loadGroups, loadReports]);
+
+  useEffect(() => {
+    if (autoRefreshMs <= 0) return;
+    const timer = window.setInterval(refresh, autoRefreshMs);
+    return () => window.clearInterval(timer);
+  }, [autoRefreshMs, refresh]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.key === 'Escape' && selectedGroup && !isTypingTarget(event.target)) {
+        setSelectedGroup(null);
+        return;
+      }
+      if (isTypingTarget(event.target)) return;
+      if (event.key === '/') {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+      if (event.key === 'r' || event.key === 'R') {
+        event.preventDefault();
+        refresh();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [refresh, selectedGroup]);
+
+  const onQueryChange = useCallback((patch: Partial<GroupQueryState>) => {
+    setQuery((current) => ({ ...current, ...patch }));
+  }, []);
+
+  if (selectedGroup) {
     return (
-      <InfoQueryShell>
-        <div className="mb-6">
-          <button
-            type="button"
-            onClick={goBackToList}
-            className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
-          >
-            <FaArrowLeft /> 返回崩溃组列表
-          </button>
-        </div>
-
-        <InfoQueryHero
-          eyebrow="崩溃报告详情"
-          title={`崩溃组: ${detailGroupKey.slice(0, 32)}...`}
-          description={`共 ${reports.length} 条崩溃报告`}
-          icon={FaBug}
-          actions={
-            <InfoPrimaryButton onClick={refresh}>
-              <FaSync className={loadingReports ? 'animate-spin' : ''} /> 刷新
-            </InfoPrimaryButton>
-          }
-        />
-
-        <div className="mt-8 space-y-4">
-          {loadingReports ? (
-            <InfoPanel>
-              <div className="p-8 text-center text-slate-400">加载中...</div>
-            </InfoPanel>
-          ) : reports.length === 0 ? (
-            <InfoPanel>
-              <div className="p-8 text-center text-slate-400">暂无崩溃报告</div>
-            </InfoPanel>
-          ) : (
-            reports.map((report) => {
-              const expanded = expandedReportId === report.reportId;
-              return (
-                <InfoPanel key={report.reportId} compact>
-                  <button
-                    type="button"
-                    onClick={() => setExpandedReportId(expanded ? null : report.reportId)}
-                    className="w-full text-left"
-                  >
-                    <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex min-w-0 flex-wrap items-center gap-2">
-                          <span className="rounded bg-rose-50 px-2 py-0.5 text-xs font-semibold text-rose-700">
-                            {report.exceptionType || 'Unknown'}
-                          </span>
-                          {isAnonymousSdkReport(report.userId) ? (
-                            <span className="rounded bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">
-                              匿名 SDK
-                            </span>
-                          ) : report.userId ? (
-                            <span className="rounded bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-700">
-                              Lumen 应用
-                            </span>
-                          ) : null}
-                          {report.kind ? (
-                            <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-                              {report.kind}
-                            </span>
-                          ) : null}
-                          <span className="text-xs text-slate-400">
-                            <FaClock className="mr-1 inline" />
-                            {report.crashedAtText || formatTime(new Date(report.crashedAtMillis).toISOString())}
-                          </span>
-                        </div>
-                        <div className="mt-1 text-sm font-medium text-slate-800">
-                          {report.rootCause || '未知原因'}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 text-slate-400">
-                        {expanded ? <FaChevronUp /> : <FaChevronDown />}
-                      </div>
-                    </div>
-                  </button>
-
-                  {expanded ? (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      className="mt-4 space-y-3 border-t border-slate-100 pt-4 text-xs"
-                    >
-                      <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2 xl:grid-cols-3">
-                        <DetailField label="报告 ID" value={report.reportId} />
-                        <DetailField label="来源用户 ID" value={report.userId} />
-                        <DetailField label="异常类型" value={report.exceptionType} />
-                        <DetailField label="种类" value={report.kind} />
-                        <DetailField label="线程" value={report.threadName} />
-                        <DetailField label="进程" value={report.processName} />
-                        <DetailField label="包名" value={report.packageName} />
-                        <DetailField label="版本号" value={String(report.versionCode)} />
-                        <DetailField label="设备 ID" value={report.deviceInstallationId} />
-                        <DetailField label="作者" value={report.authorName} />
-                        <DetailField label="作者指纹" value={report.authorFingerprint} />
-                        <DetailField label="耗时" value={report.durationMillis ? `${report.durationMillis}ms` : '-'} />
-                        <DetailField label="崩溃时间" value={report.crashedAtText} />
-                      </div>
-
-                      {report.rootCause ? (
-                        <div>
-                          <span className="text-slate-500">根因：</span>
-                          <span className="text-slate-700">{report.rootCause}</span>
-                        </div>
-                      ) : null}
-
-                      {report.stackTrace ? (
-                        <CollapsibleBlock label="堆栈跟踪" value={report.stackTrace} />
-                      ) : null}
-
-                      {report.systemInfo ? (
-                        <CollapsibleBlock label="系统信息" value={report.systemInfo} />
-                      ) : null}
-
-                      {report.recentEvents && report.recentEvents.length > 0 ? (
-                        <div>
-                          <span className="text-slate-500">最近事件：</span>
-                          <ul className="mt-1 list-inside list-disc space-y-0.5 text-slate-600">
-                            {report.recentEvents.map((event, i) => (
-                              <li key={i} className="break-all">{event}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      ) : null}
-                    </motion.div>
-                  ) : null}
-                </InfoPanel>
-              );
-            })
-          )}
-        </div>
-      </InfoQueryShell>
+      <CrashGroupDetailView
+        groupKey={selectedGroup}
+        reports={reports}
+        total={reportTotal}
+        loading={reportLoading}
+        loadingMore={reportLoadingMore}
+        lastUpdatedAt={reportUpdatedAt}
+        searchInputRef={searchInputRef}
+        onBack={() => setSelectedGroup(null)}
+        onRefresh={refresh}
+        onLoadMore={() => void loadReports(selectedGroup, reports.length, 'append')}
+      />
     );
   }
 
-  // ── List view ──
   return (
-    <InfoQueryShell>
-      <InfoQueryHero
-        eyebrow="崩溃报告"
-        title="Lumen 崩溃报告"
-        description="查看 Lumen 应用与匿名 crash-sdk 通道（/api/crash-sdk/v1/crash-report）的崩溃报告聚合数据，点击分组查看详细报告。"
-        icon={FaBug}
-        actions={
-          <InfoPrimaryButton onClick={refresh}>
-            <FaSync className={loading ? 'animate-spin' : ''} /> 刷新
-          </InfoPrimaryButton>
-        }
-      />
-
-      <div className="mt-6 flex flex-wrap items-center gap-2">
-        {SOURCE_TABS.map((tab) => {
-          const active = source === tab.key;
-          return (
-            <button
-              key={tab.key || 'all'}
-              type="button"
-              onClick={() => changeSource(tab.key)}
-              className={`rounded-full border px-4 py-1.5 text-xs font-semibold transition ${
-                active
-                  ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
-                  : 'border-slate-200 bg-white/80 text-slate-600 hover:border-slate-300'
-              }`}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="mt-8 space-y-4">
-        {loading ? (
-          <InfoPanel>
-            <div className="p-8 text-center text-slate-400">加载中...</div>
-          </InfoPanel>
-        ) : groups.length === 0 ? (
-          <InfoPanel>
-            <div className="p-8 text-center text-slate-400">暂无崩溃报告</div>
-          </InfoPanel>
-        ) : (
-          groups.map((group) => {
-            const riskConfig = RISK_CONFIG[group.risk] || RISK_CONFIG.low;
-            const expanded = expandedGroupKey === group.groupKey;
-
-            return (
-              <InfoPanel key={group.groupKey} compact>
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      <span className={`flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${riskConfig.badgeClass}`}>
-                        <span className={`h-2 w-2 rounded-full ${riskConfig.dotClass}`} />
-                        {riskConfig.label}
-                      </span>
-                      <InfoBadge>{group.count} 次</InfoBadge>
-                      <InfoBadge>{group.affectedUsers} 用户</InfoBadge>
-                      <span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-                        v{group.versionCode}
-                      </span>
-                    </div>
-                    <div className="mt-2 text-xs text-slate-400">
-                      <FaClock className="mr-1 inline" />
-                      {formatTime(group.lastSeenAt)}
-                    </div>
-                  </div>
-                  <div className="flex flex-shrink-0 items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => goToDetail(group.groupKey)}
-                      className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
-                    >
-                      查看详情
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setExpandedGroupKey(expanded ? null : group.groupKey)}
-                      className="rounded-2xl border border-slate-200 bg-white/80 px-2 py-1.5 text-xs text-slate-500 transition hover:border-slate-300"
-                    >
-                      {expanded ? <FaChevronUp /> : <FaChevronDown />}
-                    </button>
-                  </div>
-                </div>
-
-                {expanded ? (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    className="mt-4 border-t border-slate-100 pt-4"
-                  >
-                    {group.cleanStack && group.cleanStack.length > 0 ? (
-                      <div>
-                        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                          堆栈摘要
-                        </span>
-                        <pre className="mt-2 max-h-48 overflow-x-auto whitespace-pre-wrap break-all rounded-2xl border border-slate-200 bg-white/80 p-3 text-xs backdrop-blur-xl">
-                          {group.cleanStack.join('\n')}
-                        </pre>
-                      </div>
-                    ) : (
-                      <div className="text-xs text-slate-400">无堆栈摘要</div>
-                    )}
-                  </motion.div>
-                ) : null}
-              </InfoPanel>
-            );
-          })
-        )}
-      </div>
-
-      {total > PAGE_SIZE ? (
-        <div className="mt-6 flex flex-col items-center justify-between gap-2 text-xs text-slate-500 sm:flex-row sm:text-sm">
-          <span>
-            共 {total.toLocaleString()} 个崩溃组，第 {currentPage}/{totalPages} 页
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              disabled={offset <= 0}
-              onClick={() => setOffset((current) => Math.max(0, current - PAGE_SIZE))}
-              className="rounded-2xl border border-slate-200 bg-white/80 px-2 py-1 transition hover:bg-slate-100 disabled:opacity-40"
-            >
-              <FaChevronLeft />
-            </button>
-            <button
-              type="button"
-              disabled={offset + PAGE_SIZE >= total}
-              onClick={() => setOffset((current) => current + PAGE_SIZE)}
-              className="rounded-2xl border border-slate-200 bg-white/80 px-2 py-1 transition hover:bg-slate-100 disabled:opacity-40"
-            >
-              <FaChevronRight />
-            </button>
-          </div>
-        </div>
-      ) : null}
-    </InfoQueryShell>
-  );
-};
-
-const DetailField: React.FC<{ label: string; value?: React.ReactNode }> = ({ label, value }) => {
-  if (value === undefined || value === null || value === '') return null;
-  return (
-    <div className="min-w-0">
-      <span className="text-slate-500">{label}：</span>
-      <span className="break-all text-slate-700">{value}</span>
-    </div>
-  );
-};
-
-const CollapsibleBlock: React.FC<{ label: string; value: string }> = ({ label, value }) => {
-  const [open, setOpen] = useState(false);
-  return (
-    <div>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1 text-slate-500 transition hover:text-slate-700"
-      >
-        {open ? <FaChevronUp /> : <FaChevronDown />}
-        {label}
-      </button>
-      {open ? (
-        <pre className="mt-1 max-h-64 overflow-x-auto whitespace-pre-wrap break-all rounded-2xl border border-slate-200 bg-white/80 p-3 text-xs backdrop-blur-xl">
-          {value}
-        </pre>
-      ) : null}
-    </div>
+    <CrashGroupListView
+      groups={groups}
+      total={total}
+      loading={loading}
+      query={query}
+      autoRefreshMs={autoRefreshMs}
+      lastUpdatedAt={lastUpdatedAt}
+      searchInputRef={searchInputRef}
+      onQueryChange={onQueryChange}
+      onAutoRefreshChange={setAutoRefreshMs}
+      onRefresh={refresh}
+      onOpenGroup={setSelectedGroup}
+    />
   );
 };
 

@@ -28,6 +28,13 @@ const AdminCrashReportSchema = new mongoose.Schema<IAdminCrashReport>(
 );
 
 AdminCrashReportSchema.index({ lastSeenAt: 1 });
+// Admin list sorts/filters: risk + recency, and the count/user/version orderings.
+AdminCrashReportSchema.index({ risk: 1, lastSeenAt: -1 });
+AdminCrashReportSchema.index({ count: -1, lastSeenAt: -1 });
+AdminCrashReportSchema.index({ affectedUsers: -1, lastSeenAt: -1 });
+AdminCrashReportSchema.index({ versionCode: 1, lastSeenAt: -1 });
+// Ingest upserts one aggregate row per (groupKey, versionCode).
+AdminCrashReportSchema.index({ groupKey: 1, versionCode: 1 });
 
 const AdminCrashReport =
   (mongoose.models.AdminCrashReport as mongoose.Model<IAdminCrashReport>) ||
