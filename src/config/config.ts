@@ -251,7 +251,7 @@ export const compileTimeConfig = Object.freeze({
   audioDir: path.join(process.cwd(), "finish"),
   dataDir: path.join(process.cwd(), "data"),
   logsDir: path.join(process.cwd(), "logs"),
-  runtimeMutableKeys: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "TTS_PROVIDER", "EMAIL", "ADMIN_SECURITY", "SYNAPSE_ANDROID", "NEXAI_SIGNING"] as const,
+  runtimeMutableKeys: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "TTS_PROVIDER", "EMAIL", "ADMIN_SECURITY", "SYNAPSE_ANDROID", "NEXAI_SIGNING", "CDICT_SIGNING"] as const,
 });
 
 const runtimeDefaults = buildRuntimeConfigDefaults({
@@ -318,8 +318,8 @@ runtimeDefaults.nexaiSigning = {
   })(),
 };
 
-// CDict official-client signature secrets come from env only; the middleware treats an
-// unset secret as "nobody is trusted" and every client keeps the baseline IP tier.
+// CDict official-client signature defaults come from env; a stored CDICT_SIGNING doc
+// overrides them at runtime. Without a secret, every client keeps the baseline IP tier.
 runtimeDefaults.cdictSigning = {
   ...runtimeDefaults.cdictSigning,
   mode: ((): CdictSigningRuntimeConfig["mode"] => {
@@ -437,6 +437,9 @@ export const runtimeMutableConfig = {
   },
   get nexaiSigning(): NexaiSigningRuntimeConfig {
     return RuntimeConfigService.getCachedConfig().nexaiSigning;
+  },
+  get cdictSigning(): CdictSigningRuntimeConfig {
+    return RuntimeConfigService.getCachedConfig().cdictSigning;
   },
   get tts(): TtsRuntimeConfig {
     return RuntimeConfigService.getCachedConfig().tts;

@@ -2,6 +2,7 @@ import {
   buildRuntimeConfigDefaults,
   cloneRuntimeConfigDefaults,
   type AdminSecurityRuntimeConfig,
+  type CdictSigningRuntimeConfig,
   type DeepLXRuntimeConfig,
   type EmailRuntimeConfig,
   type GoogleAuthRuntimeConfig,
@@ -499,15 +500,13 @@ function normalizeStoredSynapseAndroidConfig(
   };
 }
 
-const NEXAI_SIGNING_MODES = ["off", "soft", "enforce"] as const;
+const SIGNING_MODES = ["off", "soft", "enforce"] as const;
+type SigningMode = (typeof SIGNING_MODES)[number];
 
-function normalizeNexaiSigningMode(
-  value: unknown,
-  fallback: NexaiSigningRuntimeConfig["mode"],
-): NexaiSigningRuntimeConfig["mode"] {
+function normalizeSigningMode(value: unknown, fallback: SigningMode): SigningMode {
   const candidate = typeof value === "string" ? value.trim().toLowerCase() : "";
-  return (NEXAI_SIGNING_MODES as readonly string[]).includes(candidate)
-    ? (candidate as NexaiSigningRuntimeConfig["mode"])
+  return (SIGNING_MODES as readonly string[]).includes(candidate)
+    ? (candidate as SigningMode)
     : fallback;
 }
 
@@ -518,7 +517,21 @@ function normalizeStoredNexaiSigningConfig(
   const raw = asObject(value);
 
   return {
-    mode: normalizeNexaiSigningMode(raw.mode, defaults.mode),
+    mode: normalizeSigningMode(raw.mode, defaults.mode),
+    appSignSecret: normalizeOptionalString(raw.appSignSecret, defaults.appSignSecret, 1024),
+    appSignSecretPrev: normalizeOptionalString(raw.appSignSecretPrev, defaults.appSignSecretPrev, 1024),
+    maxDriftMs: normalizeInteger(raw.maxDriftMs, defaults.maxDriftMs, 1000, 24 * 60 * 60 * 1000),
+  };
+}
+
+function normalizeStoredCdictSigningConfig(
+  value: unknown,
+  defaults = runtimeConfigDefaults.cdictSigning,
+): CdictSigningRuntimeConfig {
+  const raw = asObject(value);
+
+  return {
+    mode: normalizeSigningMode(raw.mode, defaults.mode),
     appSignSecret: normalizeOptionalString(raw.appSignSecret, defaults.appSignSecret, 1024),
     appSignSecretPrev: normalizeOptionalString(raw.appSignSecretPrev, defaults.appSignSecretPrev, 1024),
     maxDriftMs: normalizeInteger(raw.maxDriftMs, defaults.maxDriftMs, 1000, 24 * 60 * 60 * 1000),
@@ -576,6 +589,11 @@ function applyCacheForKey(key: RuntimeConfigKey, value: unknown): void {
     return;
   }
 
+  if (key === "CDICT_SIGNING") {
+    runtimeConfigCache.cdictSigning = normalizeStoredCdictSigningConfig(value);
+    return;
+  }
+
   runtimeConfigCache.nexai = normalizeStoredNexaiConfig(value);
 }
 
@@ -617,9 +635,9 @@ export class RuntimeConfigService {
     if (!loadedKeys.has("NEXAI_SIGNING")) {
       runtimeConfigCache.nexaiSigning = cloneRuntimeConfigDefaults(defaults).nexaiSigning;
     }
-    // CDict signing is env-only (no NEXAI_SIGNING-style Mongo doc), so it always
-    // tracks the configured defaults.
-    runtimeConfigCache.cdictSigning = cloneRuntimeConfigDefaults(defaults).cdictSigning;
+    if (!loadedKeys.has("CDICT_SIGNING")) {
+      runtimeConfigCache.cdictSigning = cloneRuntimeConfigDefaults(defaults).cdictSigning;
+    }
   }
 
   static getCachedConfig(): RuntimeConfigDefaults {
@@ -631,7 +649,7 @@ export class RuntimeConfigService {
     if (initialized && !force) return;
 
     const docs = await RuntimeConfigModel.find({
-      key: { $in: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "TTS_PROVIDER", "EMAIL", "ADMIN_SECURITY", "SYNAPSE_ANDROID", "NEXAI_SIGNING"] },
+      key: { $in: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "TTS_PROVIDER", "EMAIL", "ADMIN_SECURITY", "SYNAPSE_ANDROID", "NEXAI_SIGNING", "CDICT_SIGNING"] },
     })
       .lean()
       .exec();
@@ -653,6 +671,7 @@ export class RuntimeConfigService {
       nextCache.adminSecurity = runtimeConfigCache.adminSecurity;
       nextCache.synapseAndroid = runtimeConfigCache.synapseAndroid;
       nextCache.nexaiSigning = runtimeConfigCache.nexaiSigning;
+      nextCache.cdictSigning = runtimeConfigCache.cdictSigning;
       loadedKeys.add(doc.key as RuntimeConfigKey);
     }
 
@@ -1027,7 +1046,7 @@ export class RuntimeConfigService {
       : runtimeConfigCache.nexaiSigning;
     const obj = asObject(input);
 
-    const nextMode = hasOwnKey(obj, "mode") ? normalizeNexaiSigningMode(obj.mode, current.mode) : current.mode;
+    const nextMode = hasOwnKey(obj, "mode") ? normalizeSigningMode(obj.mode, current.mode) : current.mode;
 
     // Secret fields: leaving the field blank preserves the currently stored secret,
     // matching the SecretKeySection UX convention used elsewhere in this admin UI.
@@ -1070,6 +1089,106 @@ export class RuntimeConfigService {
     await RuntimeConfigModel.deleteOne({ key: "NEXAI_SIGNING" }).exec();
     runtimeConfigCache.nexaiSigning = cloneRuntimeConfigDefaults(runtimeConfigDefaults).nexaiSigning;
     loadedKeys.delete("NEXAI_SIGNING");
+  }
+
+  static async getCdictSigningSetting(): Promise<{
+    setting: {
+      config: {
+        mode: CdictSigningRuntimeConfig["mode"];
+        appSignSecret: string;
+        appSignSecretPrev: string;
+        hasAppSignSecret: boolean;
+        hasAppSignSecretPrev: boolean;
+        maxDriftMs: number;
+      };
+      updatedAt?: string;
+    };
+  }> {
+    const doc = await readRuntimeConfigDoc("CDICT_SIGNING");
+    const config = doc ? normalizeStoredCdictSigningConfig(doc.value) : runtimeConfigDefaults.cdictSigning;
+    runtimeConfigCache.cdictSigning = config;
+
+    return {
+      setting: {
+        config: {
+          mode: config.mode,
+          appSignSecret: maskSecret(config.appSignSecret),
+          appSignSecretPrev: maskSecret(config.appSignSecretPrev),
+          hasAppSignSecret: config.appSignSecret.length > 0,
+          hasAppSignSecretPrev: config.appSignSecretPrev.length > 0,
+          maxDriftMs: config.maxDriftMs,
+        },
+        updatedAt: doc?.updatedAt?.toISOString(),
+      },
+    };
+  }
+
+  static async setCdictSigningSetting(
+    input: Partial<CdictSigningRuntimeConfig> | Record<string, unknown>,
+  ): Promise<{ updatedAt: string }> {
+    const currentDoc = await readRuntimeConfigDoc("CDICT_SIGNING");
+    const current = currentDoc
+      ? normalizeStoredCdictSigningConfig(currentDoc.value)
+      : runtimeConfigCache.cdictSigning;
+    const obj = asObject(input);
+
+    let nextMode = current.mode;
+    if (hasOwnKey(obj, "mode")) {
+      const candidate = typeof obj.mode === "string" ? obj.mode.trim().toLowerCase() : "";
+      if (!(SIGNING_MODES as readonly string[]).includes(candidate)) {
+        throw new Error("CDICT_REQUEST_SIGNING 必须是 off、soft 或 enforce");
+      }
+      nextMode = candidate as CdictSigningRuntimeConfig["mode"];
+    }
+
+    const updateSecret = (key: "appSignSecret" | "appSignSecretPrev", currentValue: string): string => {
+      if (!hasOwnKey(obj, key)) return currentValue;
+      if (typeof obj[key] !== "string") throw new Error(`${key} 必须是字符串`);
+      const value = obj[key].trim();
+      if (!value) return currentValue;
+      if (value.length < 32) throw new Error(`${key} 至少需要 32 个字符`);
+      return value.slice(0, 1024);
+    };
+
+    const nextAppSignSecret = updateSecret("appSignSecret", current.appSignSecret);
+    const nextAppSignSecretPrev = obj.clearAppSignSecretPrev === true
+      ? ""
+      : updateSecret("appSignSecretPrev", current.appSignSecretPrev);
+
+    let nextMaxDriftMs = current.maxDriftMs;
+    if (hasOwnKey(obj, "maxDriftMs")) {
+      const value = Number(obj.maxDriftMs);
+      if (!Number.isInteger(value) || value < 1000 || value > 24 * 60 * 60 * 1000) {
+        throw new Error("CDICT_SIG_MAX_DRIFT_MS 必须是 1000 到 86400000 之间的整数");
+      }
+      nextMaxDriftMs = value;
+    }
+
+    const nextConfig: CdictSigningRuntimeConfig = {
+      mode: nextMode,
+      appSignSecret: nextAppSignSecret,
+      appSignSecretPrev: nextAppSignSecretPrev,
+      maxDriftMs: nextMaxDriftMs,
+    };
+
+    const now = new Date();
+    await RuntimeConfigModel.findOneAndUpdate(
+      { key: "CDICT_SIGNING" },
+      { value: nextConfig, updatedAt: now },
+      { upsert: true, returnDocument: "after" },
+    ).exec();
+
+    runtimeConfigCache.cdictSigning = nextConfig;
+    loadedKeys.add("CDICT_SIGNING");
+    initialized = true;
+
+    return { updatedAt: now.toISOString() };
+  }
+
+  static async deleteCdictSigningSetting(): Promise<void> {
+    await RuntimeConfigModel.deleteOne({ key: "CDICT_SIGNING" }).exec();
+    runtimeConfigCache.cdictSigning = cloneRuntimeConfigDefaults(runtimeConfigDefaults).cdictSigning;
+    loadedKeys.delete("CDICT_SIGNING");
   }
 
   static async getDeepLXSetting(): Promise<{

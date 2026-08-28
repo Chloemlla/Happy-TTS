@@ -727,6 +727,7 @@ VITE_OUTEMAIL_ENABLED=true                      # 是否启用外部邮件功能
 | DEEPLX | 管理后台 → DeepLX | DeepLX 翻译配置 |
 | NEXAI | 管理后台 → NexAI | NexAI 平台配置 |
 | NEXAI_SIGNING | 管理后台 → NexAI Signing | NexAI 请求签名配置 |
+| CDICT_SIGNING | 管理后台 → CDict 官方客户端请求配置 | CDict 官方客户端的独立请求额度识别参数 |
 | TTS | 管理后台 → TTS | TTS 服务配置（模型、队列、配额等） |
 | TTS_PROVIDER | 管理后台 → TTS Provider | TTS 提供商配置（Fish Audio 等） |
 | EMAIL | 管理后台 → Email | 邮件服务配置 |

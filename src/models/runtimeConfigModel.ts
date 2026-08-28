@@ -12,6 +12,7 @@ export const RUNTIME_CONFIG_KEYS = [
   "ADMIN_SECURITY",
   "SYNAPSE_ANDROID",
   "NEXAI_SIGNING",
+  "CDICT_SIGNING",
   "CDICT_DONATION",
 ] as const;
 

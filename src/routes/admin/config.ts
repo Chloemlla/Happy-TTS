@@ -281,6 +281,19 @@ router.delete(
   auditLog({ module: "config", action: "config.nexai-signing.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
   adminController.deleteNexaiSigningSetting,
 );
+router.get("/cdict-signing/setting", adminController.getCdictSigningSetting);
+router.post(
+  "/cdict-signing/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.cdict-signing.set", captureBody: false }),
+  adminController.setCdictSigningSetting,
+);
+router.delete(
+  "/cdict-signing/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.cdict-signing.delete" }),
+  adminController.deleteCdictSigningSetting,
+);
 router.get("/admin-security/setting", adminController.getAdminSecuritySetting);
 router.post(
   "/admin-security/setting",

@@ -118,6 +118,8 @@ export interface NexaiSigningConfigSetting {
   updatedAt?: string;
 }
 
+export type CDictSigningConfigSetting = NexaiSigningConfigSetting;
+
 export interface TtsProviderAdminConfig {
   provider: TtsProviderId;
   defaultModel: string;
