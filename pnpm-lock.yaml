@@ -115,8 +115,8 @@ importers:
         specifier: ^18.0.11
         version: 18.0.11
       mongodb:
-        specifier: ^7.6.0
-        version: 7.6.0(socks@2.8.9)
+        specifier: ^7.5.0
+        version: 7.5.0(socks@2.8.9)
       mongodb-connection-string-url:
         specifier: ^7.0.2
         version: 7.0.2
