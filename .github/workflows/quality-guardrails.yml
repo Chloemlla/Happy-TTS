@@ -111,7 +111,7 @@ jobs:
       - name: Start MongoDB replica set
         shell: bash
         run: |
-          docker run -d --name mongo-rs -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all
+          docker run -d --name mongo-rs -p 27017:27017 mongo:8 --replSet rs0 --bind_ip_all
           for attempt in $(seq 1 30); do
             if docker exec mongo-rs mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' | grep -q 1; then
               break

@@ -32,7 +32,7 @@ jobs:
       - name: Start MongoDB for live-ish suite
         shell: bash
         run: |
-          docker run -d --name mongo-nightly -p 27017:27017 mongo:7
+          docker run -d --name mongo-nightly -p 27017:27017 mongo:8
           for attempt in $(seq 1 30); do
             if docker exec mongo-nightly mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' | grep -q 1; then
               exit 0
