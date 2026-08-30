@@ -1,7 +1,7 @@
 # ============================================
 # Stage 1: Frontend Build
 # ============================================
-FROM node:24.3.0-alpine AS frontend-builder
+FROM node:24.20.0-alpine AS frontend-builder
 
 RUN apk add --no-cache tzdata && \
     cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
@@ -55,7 +55,7 @@ RUN touch dist/favicon.ico
 # ============================================
 # Stage 2: Backend Build
 # ============================================
-FROM node:24.3.0-alpine AS backend-builder
+FROM node:24.20.0-alpine AS backend-builder
 
 RUN apk add --no-cache tzdata && \
     cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
@@ -82,7 +82,7 @@ RUN pnpm run generate:openapi
 # ============================================
 # Stage 3: Production Runtime
 # ============================================
-FROM node:24.3.0-alpine
+FROM node:24.20.0-alpine
 
 RUN apk add --no-cache tzdata && \
     cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
