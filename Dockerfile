@@ -106,7 +106,21 @@ WORKDIR /app
 # 携带 Go stdlib/golang.org/x/text 的 11 个扫描 CVE，而运行时 dist/app.js 并不需要它）。
 # --ignore-scripts 保持原生模块不构建（与先前一致，应用在部署中已验证可正常运行）。
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-RUN pnpm install --prod --frozen-lockfile --ignore-scripts
+RUN pnpm install --prod --frozen-lockfile --ignore-scripts && \
+    # 运行时直接 `node dist/app.js` 启动，不需要任何包管理器。node 基础镜像自带的
+    # npm CLI 捆绑 undici@6.27.0 / ip-address@10.2.0 / brace-expansion@5.0.7 /
+    # tar@7.5.19（镜像扫描 high/medium CVE），corepack/pnpm 亦仅安装期需要；
+    # 一并移除，杜绝该部分 CVE 随构建重新引入。
+    rm -rf /usr/local/lib/node_modules/npm \
+           /usr/local/lib/node_modules/corepack \
+           /usr/local/bin/npm \
+           /usr/local/bin/npx \
+           /usr/local/bin/corepack \
+           /usr/local/bin/pnpm \
+           /usr/local/bin/pnpx \
+           /usr/local/bin/yarn \
+           /usr/local/bin/yarnpkg \
+           /root/.cache/node/corepack
 
 # 从构建阶段复制产物
 COPY --from=backend-builder /app/dist-obfuscated ./dist
