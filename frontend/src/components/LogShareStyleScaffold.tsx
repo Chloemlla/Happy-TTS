@@ -128,7 +128,7 @@ export const InfoSectionTitle: React.FC<{
     <div>
       {(Icon || eyebrow) && (
         <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
-          {Icon && <Icon className="text-slate-500" />}
+          {Icon && <Icon className="text-slate-500 h-4 w-4" />}
           {eyebrow && <span>{eyebrow}</span>}
         </div>
       )}
