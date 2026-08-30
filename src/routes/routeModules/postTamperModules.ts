@@ -18,6 +18,7 @@ import antaRoutes from "../antaRoutes";
 import bilibiliSyncRoutes from "../bilibiliSyncRoutes";
 import cdictRoutes from "../cdictRoutes";
 import cdkRoutes from "../cdkRoutes";
+import coinFlipRoutes from "../coinFlipRoutes";
 import commandRoutes from "../commandRoutes";
 import compatRoutes from "../compatRoutes";
 import dataCollectionAdminRoutes from "../dataCollectionAdminRoutes";
@@ -226,6 +227,24 @@ export const postTamperRouteModules: RouteModule[] = [
       mode: "route",
       limiters: ["lotteryLimiter", "participationLimiter"],
       note: "Lottery routes apply general lottery and stricter participation route-level limiters.",
+    },
+  },
+  {
+    name: "coin-flip-routes",
+    path: "/api/coin-flip",
+    router: coinFlipRoutes,
+    requiresAuth: "mixed",
+    rateLimited: true,
+    isPublic: "mixed",
+    authPolicy: {
+      mode: "mixed",
+      handlers: ["authenticateAdmin", "optionalAuthenticateToken"],
+      note: "Coin flip and result lookup are public (optional auth to record the user); admin list/statistics require authenticateAdmin.",
+    },
+    rateLimitPolicy: {
+      mode: "route",
+      limiters: ["coinFlipLimiter", "coinFlipAdminLimiter"],
+      note: "Coin flip routes apply public flip and stricter admin route-level limiters.",
     },
   },
   {

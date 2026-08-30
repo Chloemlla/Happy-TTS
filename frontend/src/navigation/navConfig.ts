@@ -6,6 +6,7 @@ import {
   FaBug,
   FaChartBar,
   FaComments,
+  FaCoins,
   FaDatabase,
   FaDollarSign,
   FaEnvelope,
@@ -383,6 +384,12 @@ export function getAdminNavGroups(ctx: NavVisibilityContext): NavGroup[] {
             requiredRole: 'superadmin',
           },
           {
+            title: '硬币翻转记录',
+            url: '/admin/coin-flip',
+            icon: FaCoins as IconType,
+            requiredRole: 'admin',
+          },
+          {
             title: '外部邮件',
             url: '/admin/outemail',
             icon: FaEnvelope as IconType,
@@ -634,6 +641,12 @@ export function getMobileAdminNavGroups(ctx: NavVisibilityContext): NavGroup[] {
             url: '/admin/lottery',
             icon: FaGift as IconType,
             requiredRole: 'superadmin',
+          },
+          {
+            title: '硬币翻转记录',
+            url: '/admin/coin-flip',
+            icon: FaCoins as IconType,
+            requiredRole: 'admin',
           },
           {
             title: '邮件发送',

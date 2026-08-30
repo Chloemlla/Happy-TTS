@@ -14,6 +14,7 @@ import {
   FaEye,
   FaEyeSlash,
   FaCode,
+  FaCopy,
   FaShieldAlt,
   FaRandom,
   FaClock,
@@ -37,6 +38,7 @@ import {
   logShareSecondaryButtonClass,
   logShareTileClass
 } from './LogShareStyleScaffold';
+import { coinFlipApi } from '../api/coinFlip';
 
 const coinPanelClass = logSharePanelClass;
 const coinTileClass = logShareTileClass;
@@ -66,6 +68,8 @@ const CoinFlip: React.FC = () => {
   const [skipAnimation, setSkipAnimation] = useState(false);
   const [animationTimeout, setAnimationTimeout] = useState<NodeJS.Timeout | null>(null);
   const [shakeInterval, setShakeInterval] = useState<NodeJS.Timeout | null>(null);
+  const [resultId, setResultId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // 从localStorage加载统计数据
   useEffect(() => {
@@ -99,6 +103,8 @@ const CoinFlip: React.FC = () => {
     if (result && !isFlipping) {
       resultTimeout = setTimeout(() => {
         setResult(null);
+        setResultId(null);
+        setCopied(false);
       }, 3000);
     }
 
@@ -314,8 +320,35 @@ const CoinFlip: React.FC = () => {
     return result;
   };
 
+  // 抛硬币并获取唯一结果 ID：优先后端生成，失败时回退本地随机
+  const doBackendFlip = async (): Promise<{ result: 'heads' | 'tails'; resultId: string | null }> => {
+    try {
+      const record = await coinFlipApi.flip();
+      return { result: record.result, resultId: record.resultId };
+    } catch (error) {
+      console.log('后端抛硬币失败，回退本地随机:', error);
+      return { result: generateRandomResult(), resultId: null };
+    }
+  };
+
+  // 完成一次抛硬币：统一更新结果、唯一 ID、音效与本地统计
+  const completeFlip = (result: 'heads' | 'tails', newResultId: string | null) => {
+    setResult(result);
+    setResultId(newResultId);
+    setIsFlipping(false);
+    playSound('result');
+
+    const newStats = {
+      ...stats,
+      [result]: stats[result] + 1,
+      total: stats.total + 1
+    };
+    setStats(newStats);
+    saveStats(newStats);
+  };
+
   // 跳过动画
-  const skipAnimationHandler = () => {
+  const skipAnimationHandler = async () => {
     if (!isFlipping) return;
 
     // 清除定时器
@@ -326,20 +359,9 @@ const CoinFlip: React.FC = () => {
       clearInterval(shakeInterval);
     }
 
-    // 立即生成结果
-    const newResult = generateRandomResult();
-    setResult(newResult);
-    setIsFlipping(false);
-    playSound('result');
-
-    // 更新统计数据
-    const newStats = {
-      ...stats,
-      [newResult]: stats[newResult] + 1,
-      total: stats.total + 1
-    };
-    setStats(newStats);
-    saveStats(newStats);
+    // 立即生成结果（优先后端，失败回退本地）
+    const record = await doBackendFlip();
+    completeFlip(record.result, record.resultId);
   };
 
   // 抛硬币
@@ -353,6 +375,8 @@ const CoinFlip: React.FC = () => {
 
     setIsFlipping(true);
     setResult(null);
+    setResultId(null);
+    setCopied(false);
     playSound('flip');
 
     // 在动画过程中播放摇动音效
@@ -363,22 +387,11 @@ const CoinFlip: React.FC = () => {
     }, 400); // 每400ms播放一次摇动音效
     setShakeInterval(interval);
 
-    // 模拟抛硬币动画
-    const timeout = setTimeout(() => {
+    // 动画结束后生成结果（优先后端，失败回退本地）
+    const timeout = setTimeout(async () => {
       clearInterval(interval);
-      const newResult = generateRandomResult();
-      setResult(newResult);
-      setIsFlipping(false);
-      playSound('result');
-
-      // 更新统计数据
-      const newStats = {
-        ...stats,
-        [newResult]: stats[newResult] + 1,
-        total: stats.total + 1
-      };
-      setStats(newStats);
-      saveStats(newStats);
+      const record = await doBackendFlip();
+      completeFlip(record.result, record.resultId);
     }, skipAnimation ? 100 : 2000); // 如果跳过动画，只等待100ms
 
     setAnimationTimeout(timeout);
@@ -431,6 +444,18 @@ const CoinFlip: React.FC = () => {
       }
     };
     reader.readAsText(file);
+  };
+
+  // 复制唯一结果 ID
+  const copyResultId = async () => {
+    if (!resultId) return;
+    try {
+      await navigator.clipboard.writeText(resultId);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.log('复制结果 ID 失败:', error);
+    }
   };
 
   return (
@@ -529,6 +554,21 @@ const CoinFlip: React.FC = () => {
                     )}
                     结果: {result === 'heads' ? '正面' : '反面'}
                   </div>
+                  {resultId && (
+                    <button
+                      onClick={copyResultId}
+                      title="点击复制结果 ID"
+                      className="mt-3 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 font-mono text-xs text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+                    >
+                      <FaCopy className="text-slate-400" />
+                      ID: {resultId}
+                      {copied ? (
+                        <FaCheckCircle className="text-emerald-500" />
+                      ) : (
+                        <FaInfoCircle className="text-slate-400" />
+                      )}
+                    </button>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>

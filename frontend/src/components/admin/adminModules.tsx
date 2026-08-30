@@ -44,6 +44,7 @@ export const ADMIN_MODULE_LOADERS = {
   env: () => import('@/components/EnvManager'),
   'mail-system': () => import('@/components/MailSystemConfigManager'),
   lottery: () => import('@/components/LotteryAdmin'),
+  'coin-flip': () => import('@/components/admin/CoinFlipAdmin'),
   outemail: () => import('@/components/OutEmail'),
   shortlink: () => import('@/components/ShortLinkManager'),
   shorturlmigration: () => import('@/components/ShortUrlMigrationManager'),

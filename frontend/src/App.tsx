@@ -757,6 +757,7 @@ const App: React.FC = () => {
       '/lottery': 'Synapse - 抽奖系统',
       '/anti-counterfeit': 'Synapse - 安踏防伪查询',
       '/admin/lottery': 'Synapse - 抽奖管理',
+      '/admin/coin-flip': 'Synapse - 硬币翻转记录',
       '/admin/users': 'Synapse - 用户管理',
       '/admin': 'Synapse - 管理后台',
       '/github-billing': 'Synapse - GitHub账单查询',
