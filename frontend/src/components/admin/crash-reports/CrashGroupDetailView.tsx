@@ -320,7 +320,7 @@ const ReportCard: React.FC<{
             getValue={() => buildReportText(report)}
             label="一键复制完整报告"
             message="已复制完整崩溃报告"
-            className="border-slate-900 bg-slate-900 text-white hover:border-slate-800 hover:text-white"
+            className="!border-slate-900 !bg-slate-900 !text-white hover:!border-slate-800 hover:!text-white"
           />
           <CopyButton getValue={() => stringifyJson(report)} label="复制 JSON" message="已复制报告 JSON" />
           <DownloadButton
