@@ -702,6 +702,32 @@ PROJECT_LUMEN_GITHUB_REPO=         # 目标仓库名（如 Project-Lumen）
 PROJECT_LUMEN_GITHUB_TOKEN=        # 具备 Actions secrets 写入权限的 PAT
 ```
 
+### IP 与反向代理配置详解
+
+与客户端 IP 识别、IP 封禁和访问控制相关的环境变量如下：
+
+| 变量 | 说明 | 默认值 | 影响范围 |
+|------|------|--------|---------|
+| `TRUST_PROXY` | Express `trust proxy` 设置，决定 `req.ip` 的解析方式。**不设置时不信任任何代理**，`req.ip` 取 TCP 层真实 IP（`socket.remoteAddress`），客户端无法伪造 `X-Forwarded-For` 绕过封禁/限流。部署在 Nginx、Cloudflare 等反向代理后时**必须显式设置**，否则取到的是代理地址 | 不设置 = 不信任 | IP 封禁、限流、用量统计、审计日志中的客户端 IP 识别 |
+| `IP_WHITELIST` | IP 白名单（逗号分隔）。非空时，IP 检查中间件（`src/middleware/ipCheck.ts`）只放行名单内的 IP，其余返回 403；本地/内网 IP（127.0.0.1、`10.x`、`192.168.x`、`172.16-31.x` 等）始终放行 | 空 = 不过滤 | `ipCheckMiddleware` 访问控制 |
+| `PORT` | 后端监听端口，绑定 `::`（IPv6 双栈，监听所有网卡）。**没有** `HOST`/`BIND` 监听地址变量 | 3000 | 服务监听地址 |
+| `REDIS_URL` | 设置后 IP 封禁存储于 Redis，否则存 MongoDB；同时启用限流与缓存加速 | 空 | IP 封禁存储、限流、缓存 |
+| `MONGO_PROXY_URL` | MongoDB 连接的 socks/http 代理地址 | 空 | MongoDB 连接通道 |
+
+**`TRUST_PROXY` 取值说明**：
+
+| 取值 | 效果 |
+|------|------|
+| 不设置 | `false`，不信任任何代理（生产环境会打印 WARNING 提示） |
+| `false` / `0` / `no` / `off` | 关闭 |
+| `true` / `yes` / `on` | 信任所有代理（直接采用 XFF） |
+| 整数（如 `1`） | 信任 N 跳反向代理 |
+| 逗号分隔的 IP 列表 | 只信任列出的代理 IP |
+| 单个 IP | 只信任该代理 IP |
+
+> [!NOTE]
+> 名字带 "IP" 但**与 IP 地址无关**的变量：`IPFS_UPLOAD_URL`、`IPFS_UA` 等属于 **IPFS（星际文件系统）** 图床上传配置；`EXEMPTED_DOMAINS`、`INTERNAL_DOMAINS` 是域名豁免/内部域名列表；`ALLOWED_ORIGINS` 是 CORS 来源白名单。它们不影响客户端 IP 识别。
+
 ### 前端环境变量（`frontend/.env`）
 
 前端编译时注入，构建后无法修改，需在构建前正确配置。
