@@ -84,7 +84,10 @@ RUN pnpm run generate:openapi
 # ============================================
 FROM node:24.20.0-alpine
 
-RUN apk add --no-cache tzdata && \
+# apk upgrade：基础镜像（node:24.20.0-alpine）构建后 Alpine 仓库可能已发布更新补丁
+# （如 openssl 3.5.8-r0），显式升级可消除镜像扫描中残留的 OS 包 CVE。
+RUN apk upgrade --no-cache && \
+    apk add --no-cache tzdata && \
     cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
     echo "Asia/Shanghai" > /etc/timezone && \
     apk del tzdata
@@ -99,10 +102,11 @@ RUN corepack enable && corepack prepare pnpm@11.11.0 --activate
 
 WORKDIR /app
 
-# 安装生产依赖
+# 安装生产依赖。--prod 排除 devDependencies（typescript 7.x = typescript-go 原生二进制，
+# 携带 Go stdlib/golang.org/x/text 的 11 个扫描 CVE，而运行时 dist/app.js 并不需要它）。
+# --ignore-scripts 保持原生模块不构建（与先前一致，应用在部署中已验证可正常运行）。
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
-# 替换原本的 RUN pnpm config set ignore-scripts false && pnpm install --prod --frozen-lockfile
-RUN pnpm install --frozen-lockfile --ignore-scripts
+RUN pnpm install --prod --frozen-lockfile --ignore-scripts
 
 # 从构建阶段复制产物
 COPY --from=backend-builder /app/dist-obfuscated ./dist
