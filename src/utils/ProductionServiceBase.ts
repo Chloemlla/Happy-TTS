@@ -519,13 +519,12 @@ export abstract class ProductionServiceBase {
    * 执行带超时保护的MongoDB查询
    */
   protected async executeQuery<T>(query: Promise<T>, queryName: string = "Query"): Promise<T> {
-    const _timeout = this.config.performance?.queryTimeout || 5000;
-    const operationTimeout = this.config.performance?.operationTimeout || 10000;
+    const queryTimeout = this.config.performance?.queryTimeout || 5000;
 
     return await Promise.race([
       query,
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(`${queryName} timeout after ${operationTimeout}ms`)), operationTimeout),
+        setTimeout(() => reject(new Error(`${queryName} timeout after ${queryTimeout}ms`)), queryTimeout),
       ),
     ]);
   }

@@ -28,14 +28,14 @@ export interface IpqsLookupLogDoc {
 
 const IpqsLookupLogSchema = new mongoose.Schema<IpqsLookupLogDoc>(
   {
-    monthKey: { type: String, required: true, index: true },
-    apiKeySlot: { type: Number, required: true, index: true },
+    monthKey: { type: String, required: true },
+    apiKeySlot: { type: Number, required: true },
     apiKeyHash: { type: String, required: true },
-    ipAddress: { type: String, required: true, index: true },
-    fingerprint: { type: String, default: undefined, index: true },
+    ipAddress: { type: String, required: true },
+    fingerprint: { type: String, default: undefined },
     userAgent: { type: String, default: undefined },
     userLanguage: { type: String, default: undefined },
-    requestId: { type: String, default: undefined, index: true },
+    requestId: { type: String, default: undefined },
     success: { type: Boolean, required: true, default: false },
     decision: {
       type: String,
@@ -54,7 +54,7 @@ const IpqsLookupLogSchema = new mongoose.Schema<IpqsLookupLogDoc>(
     strictness: { type: Number, default: undefined },
     rawResponse: { type: mongoose.Schema.Types.Mixed, default: undefined },
     errorMessage: { type: String, default: undefined },
-    createdAt: { type: Date, default: Date.now, index: true },
+    createdAt: { type: Date, default: Date.now },
   },
   {
     collection: "ipqs_lookup_logs",
@@ -62,7 +62,10 @@ const IpqsLookupLogSchema = new mongoose.Schema<IpqsLookupLogDoc>(
   },
 );
 
-IpqsLookupLogSchema.index({ monthKey: 1, apiKeySlot: 1, createdAt: -1 });
+// This collection is write-only (grep confirms no find/aggregate consumers anywhere in
+// the repo). The previous 7 indexes were pure write amplification — drop them. Existing
+// deployments must run syncIndexes()/dropIndex() once to physically remove them.
+// A retention TTL is deferred until the owner decides the retention period.
 
 export const IpqsLookupLogModel =
   (mongoose.models.IpqsLookupLog as mongoose.Model<IpqsLookupLogDoc>) ||

@@ -94,6 +94,8 @@ ArchiveSchema.index({ createdAt: -1 });
 ArchiveSchema.index({ createdBy: 1 });
 ArchiveSchema.index({ "ipfsUpload.uploadResults.ipfsCid": 1 });
 
-const ArchiveModel = mongoose.model<IArchive>("Archive", ArchiveSchema);
+const ArchiveModel =
+  (mongoose.models.Archive as mongoose.Model<IArchive>) ||
+  mongoose.model<IArchive>("Archive", ArchiveSchema);
 
 export default ArchiveModel;

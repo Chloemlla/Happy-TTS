@@ -60,6 +60,11 @@ const ticketSchema = new mongoose.Schema(
   },
 );
 
+// Serves `find({ userId }).sort({ updatedAt: -1 })` — ticket list queries sort by
+// updatedAt; without this the sort falls back to an in-memory sort that can exceed
+// MongoDB's 32MB in-memory sort limit on large ticket histories.
+ticketSchema.index({ userId: 1, updatedAt: -1 });
+
 export const TicketModel = mongoose.models.Ticket || mongoose.model("Ticket", ticketSchema);
 
 export interface ITicketAiProviderFailure {

@@ -3,8 +3,6 @@ name: Docker
 on:
   pull_request:
     branches: [main, master]
-    paths-ignore:
-      - ".github/**"
   push:
     branches: [main, master, dev]
     paths-ignore:
@@ -65,7 +63,6 @@ jobs:
       (
         github.actor == 'SynapticArch' ||
         github.actor == 'actions-user' ||
-        github.actor == 'Chloemlla' ||
         github.actor == 'Chloemlla'
       ) &&
       !contains(github.event.head_commit.message || '', 'npm(deps):')
@@ -139,8 +136,8 @@ jobs:
             type=registry,ref=happyclo/tts-node:cache
           cache-to: |
             type=local,dest=/tmp/.buildx-cache-new,mode=max
-            type=gha,mode=max
-            type=registry,ref=happyclo/tts-node:cache,mode=max
+            type=gha,mode=min
+            type=registry,ref=happyclo/tts-node:cache,mode=min
           tags: ${{ steps.tags.outputs.tags }}
 
       - name: Move cache
@@ -156,7 +153,6 @@ jobs:
       (
         github.actor == 'SynapticArch' ||
         github.actor == 'actions-user' ||
-        github.actor == 'Chloemlla' ||
         github.actor == 'Chloemlla'
       ) &&
       needs['publish-amd64'].result == 'success'
@@ -196,4 +192,5 @@ jobs:
           CONTAINER_NAMES: ${{ secrets.CONTAINER_NAMES }}
           IMAGE_URL: happyclo/tts-node:${{ steps.meta.outputs.short_sha }}-amd64
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          SERVER_HOST_KEY_SHA256: ${{ secrets.SERVER_HOST_KEY_SHA256 }}
         run: node scripts/deploy_image.js

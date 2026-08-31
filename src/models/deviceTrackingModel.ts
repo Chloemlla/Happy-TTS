@@ -64,4 +64,11 @@ const deviceTrackingSchema = new Schema<IDeviceTracking>(
 // Compound index for user-device uniqueness
 deviceTrackingSchema.index({ userId: 1, deviceFingerprint: 1 }, { unique: true });
 
-export const DeviceTracking = mongoose.model<IDeviceTracking>("DeviceTracking", deviceTrackingSchema);
+// The security panel issues countDocuments({ riskLevel }) / countDocuments({ isCompromised })
+// on every open; these two indexes keep those from degrading into full collection scans.
+deviceTrackingSchema.index({ riskLevel: 1 });
+deviceTrackingSchema.index({ isCompromised: 1 });
+
+export const DeviceTracking =
+  (mongoose.models.DeviceTracking as mongoose.Model<IDeviceTracking>) ||
+  mongoose.model<IDeviceTracking>("DeviceTracking", deviceTrackingSchema);

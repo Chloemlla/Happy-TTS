@@ -41,8 +41,12 @@ const validatePassword = (
   if (/[A-Z]/.test(password)) score += 1;
   if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) score += 1;
 
-  const commonPatterns = [/^123/, /password/i, /qwerty/i, /abc/i, new RegExp(username, "i")];
-  if (commonPatterns.some((pattern) => pattern.test(password))) {
+  const commonPatterns = [/^123/, /password/i, /qwerty/i, /abc/i];
+  const usernameLower = username.toLowerCase();
+  if (
+    commonPatterns.some((pattern) => pattern.test(password)) ||
+    (usernameLower.length > 0 && password.toLowerCase().includes(usernameLower))
+  ) {
     score = 0;
   }
 
@@ -104,37 +108,19 @@ export const userValidationService = {
     if (!sanitizedUsername) {
       errors.push({ field: "username", message: "用户名不能为空" });
     }
-    if (!password) {
-      errors.push({ field: "password", message: "密码不能为空" });
-    }
 
     if (sanitizedUsername) {
-      if (process.env.NODE_ENV === "test") {
-        if (sanitizedUsername.length < 1) {
-          errors.push({ field: "username", message: "用户名不能为空" });
-        }
-      } else {
-        errors.push(...validateUsername(sanitizedUsername));
-      }
+      errors.push(...validateUsername(sanitizedUsername));
     }
 
-    if (process.env.NODE_ENV === "test") {
-      if (!password) {
-        errors.push({ field: "password", message: "密码不能为空" });
-      }
+    if (!password) {
+      errors.push({ field: "password", message: "密码不能为空" });
     } else {
       errors.push(...validatePassword(password, sanitizedUsername, isRegistration));
     }
 
     if (isRegistration && sanitizedEmail) {
-      if (process.env.NODE_ENV === "test") {
-        const emailRegex = /^[^@]+@[^@]+\.[^@]+$/;
-        if (!emailRegex.test(sanitizedEmail)) {
-          errors.push({ field: "email", message: "邮箱格式不正确" });
-        }
-      } else {
-        errors.push(...validateEmail(sanitizedEmail));
-      }
+      errors.push(...validateEmail(sanitizedEmail));
     }
 
     return errors;
@@ -145,10 +131,6 @@ export const userValidationService = {
       return false;
     }
 
-    if (await verifyPasswordHash(user.passwordHash, password)) {
-      return true;
-    }
-
-    return Boolean(user.password) && user.password === password;
+    return verifyPasswordHash(user.passwordHash, password);
   },
 };

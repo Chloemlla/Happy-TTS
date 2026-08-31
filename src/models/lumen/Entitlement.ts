@@ -37,6 +37,13 @@ const EntitlementSchema = new mongoose.Schema<IEntitlement>(
 EntitlementSchema.index({ userId: 1 });
 EntitlementSchema.index({ userId: 1, tier: 1 });
 EntitlementSchema.index({ status: 1, expiresAt: 1 });
+// Payment callbacks retry naturally; the same purchaseToken must not create duplicate
+// entitlements. Sparse so legacy rows without a token stay indexable.
+// PRECONDITION: de-duplicate existing purchaseToken rows before this index is built,
+// otherwise the unique index creation fails on first sync (mongoose only logs it).
+EntitlementSchema.index({ purchaseToken: 1 }, { unique: true, sparse: true });
+// Admin dashboard sorts entitlements by purchasedAt.
+EntitlementSchema.index({ purchasedAt: -1 });
 
 const Entitlement =
   (mongoose.models.Entitlement as mongoose.Model<IEntitlement>) ||

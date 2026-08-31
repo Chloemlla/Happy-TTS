@@ -1,12 +1,6 @@
 import speakeasy from "speakeasy";
 import logger from "./logger";
 
-// 确保时区设置为上海
-if (process.env.TZ !== "Asia/Shanghai") {
-  process.env.TZ = "Asia/Shanghai";
-  logger.info("TOTP调试工具时区已设置为上海");
-}
-
 // 辅助函数：base32解码
 function base32Decode(str: string): Buffer {
   // 移除填充字符

@@ -59,20 +59,16 @@ export interface ProtectedPasswordPayload {
 
 export async function protectPassword(userId: string, password: string): Promise<ProtectedPasswordPayload> {
   const passwordHash = await bcrypt.hash(password, config.bcryptSaltRounds);
-  const dek = crypto.randomBytes(32);
-  const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv(PASSWORD_ALGO, dek, iv);
-  const ciphertext = Buffer.concat([cipher.update(password, "utf8"), cipher.final()]);
-  const tag = cipher.getAuthTag();
-
+  // 不再把明文密码可逆加密入库，只保留单向 bcrypt 哈希。密文字段置空以保持
+  // ProtectedPasswordPayload 契约不变（历史遗留数据的解密走 decryptStoredPassword，不依赖新写入）。
   return {
     passwordHash,
-    passwordCiphertext: ciphertext.toString("base64"),
-    passwordIv: iv.toString("base64"),
-    passwordTag: tag.toString("base64"),
+    passwordCiphertext: "",
+    passwordIv: "",
+    passwordTag: "",
     passwordKeyVersion: PASSWORD_KEY_VERSION,
-    passwordWrappedDek: wrapDek(dek),
-    passwordDekId: `user:${userId}:${Date.now()}`,
+    passwordWrappedDek: "",
+    passwordDekId: "",
   };
 }
 

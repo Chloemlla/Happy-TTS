@@ -52,7 +52,7 @@ const searchRecordSchema = new mongoose.Schema<BilibiliSearchRecord>(
 const bilibiliSyncSchema = new mongoose.Schema<BilibiliSyncDoc>(
   {
     userId: { type: String, required: true, unique: true, index: true },
-    bilibiliUid: { type: String, index: true, sparse: true },
+    bilibiliUid: { type: String },
     uidBoundAt: { type: Date, default: null },
     settings: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
     settingsVersion: { type: Number, required: true, default: 0 },

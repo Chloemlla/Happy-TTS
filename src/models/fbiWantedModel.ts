@@ -79,9 +79,8 @@ const FBIWantedSchema: Schema<IFBIWanted> = new Schema<IFBIWanted>(
 
 // ===== 索引配置（优化查询性能） =====
 
-// 单字段索引
-FBIWantedSchema.index({ isActive: 1 });
-FBIWantedSchema.index({ status: 1 });
+// 单字段索引（isActive / status 的单字段索引由下方以它们为前缀的复合索引覆盖，
+// 属于纯写放大，不再单独声明）
 FBIWantedSchema.index({ dangerLevel: 1 });
 FBIWantedSchema.index({ dateAdded: -1 });
 

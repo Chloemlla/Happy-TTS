@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   app:
     image: happyclo/tts-node:latest
@@ -7,8 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
-      - "3001:3001"
+      - "127.0.0.1:3000:3000"
     environment:
       - NODE_ENV=production
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -21,10 +18,20 @@ services:
     volumes:
       - ./data:/app/data
     restart: unless-stopped
+    mem_limit: 2g
+    cpus: 2.0
+    healthcheck:
+      test: ["CMD", "node", "-e", "const p=process.env.PORT||3000;fetch('http://127.0.0.1:'+p+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
 
 networks:
   default:
     enable_ipv6: true
-
-volumes:
-  static:

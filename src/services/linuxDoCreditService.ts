@@ -63,6 +63,12 @@ function creditConfig() {
   return config.linuxdoCredit;
 }
 
+// ldc 回调验签用的平台公钥。直接读 env 而不进 config.linuxdoCredit，是为了避免与并行修改
+// src/config/** 的作业冲突；后续可并入 LinuxDoCreditRuntimeConfig。
+function ldcNotifyPublicKey(): string {
+  return (process.env.LINUXDO_CREDIT_PLATFORM_PUBLIC_KEY || "").replace(/\\n/g, "\n").trim();
+}
+
 function roundMoney(value: number): number {
   return Math.round((Number(value) || 0) * 100) / 100;
 }
@@ -109,6 +115,19 @@ export function verifyEpayNotify(params: Record<string, string>, secret: string)
   const right = Buffer.from(String(provided).toLowerCase());
   if (left.length !== right.length) return false;
   return crypto.timingSafeEqual(left, right);
+}
+
+// ldc 协议的回调签名是 Ed25519：与下单签名同构（sortAndJoin + secret 作为载荷），但用平台公钥验证。
+export function verifyLdcNotify(params: Record<string, string>, secret: string, publicKeyPem: string): boolean {
+  const provided = params.sign;
+  if (!provided) return false;
+  try {
+    const payload = `${sortAndJoin(params)}${secret}`;
+    const key = crypto.createPublicKey(publicKeyPem);
+    return crypto.verify(null, Buffer.from(payload, "utf8"), key, Buffer.from(provided, "base64"));
+  } catch {
+    return false;
+  }
 }
 
 function toOrderView(doc: LinuxDoCreditOrderDoc): LinuxDoCreditOrderView {
@@ -396,17 +415,12 @@ export async function handleLinuxDoCreditNotify(
   }
 
   const pid = params.pid || params.client_id;
-  if (pid && pid !== cfg.pid) {
-    logger.warn("[LinuxDoCredit] notify pid mismatch", { pid });
+  if (!pid || pid !== cfg.pid) {
+    logger.warn("[LinuxDoCredit] notify pid missing or mismatch", { pid });
     return { ok: false, message: "pid mismatch" };
   }
 
-  if (params.sign && !verifyEpayNotify(params, cfg.key)) {
-    logger.warn("[LinuxDoCredit] notify signature invalid", { outTradeNo: params.out_trade_no });
-    return { ok: false, message: "bad sign" };
-  }
-
-  if (params.trade_status && params.trade_status !== "TRADE_SUCCESS") {
+  if (params.trade_status !== "TRADE_SUCCESS") {
     return { ok: false, message: "trade not success" };
   }
 
@@ -425,20 +439,33 @@ export async function handleLinuxDoCreditNotify(
     return { ok: true, message: "already paid" };
   }
 
-  if (params.money != null && params.money !== "") {
-    const notifiedMoney = roundMoney(Number(params.money));
-    if (Number.isFinite(notifiedMoney) && Math.abs(notifiedMoney - order.money) > 0.001) {
-      logger.error("[LinuxDoCredit] notify money mismatch", {
-        outTradeNo,
-        expected: order.money,
-        got: notifiedMoney,
-      });
-      await LinuxDoCreditOrderModel.updateOne(
-        { outTradeNo },
-        { $set: { failReason: `money mismatch: expected ${order.money}, got ${notifiedMoney}`, notifyPayload: params } },
-      );
-      return { ok: false, message: "money mismatch" };
-    }
+  // 验签按下单时记录的协议分派，缺签名一律拒绝。ldc 协议需要平台公钥，未配置时 fail-closed，
+  // 由 syncOrderFromRemote 主动轮询兜底入账。
+  const signatureValid =
+    order.protocol === "ldc"
+      ? Boolean(ldcNotifyPublicKey()) && verifyLdcNotify(params, cfg.key, ldcNotifyPublicKey())
+      : verifyEpayNotify(params, cfg.key);
+  if (!signatureValid) {
+    logger.warn("[LinuxDoCredit] notify signature invalid", { outTradeNo, protocol: order.protocol });
+    await LinuxDoCreditOrderModel.updateOne(
+      { outTradeNo },
+      { $set: { failReason: `notify signature rejected (protocol=${order.protocol})` } },
+    );
+    return { ok: false, message: "bad sign" };
+  }
+
+  const notifiedMoney = roundMoney(Number(params.money));
+  if (!Number.isFinite(notifiedMoney) || Math.abs(notifiedMoney - order.money) > 0.001) {
+    logger.error("[LinuxDoCredit] notify money mismatch", {
+      outTradeNo,
+      expected: order.money,
+      got: params.money,
+    });
+    await LinuxDoCreditOrderModel.updateOne(
+      { outTradeNo },
+      { $set: { failReason: `money mismatch: expected ${order.money}, got ${params.money}`, notifyPayload: params } },
+    );
+    return { ok: false, message: "money mismatch" };
   }
 
   await LinuxDoCreditOrderModel.updateOne({ outTradeNo }, { $set: { notifyPayload: params } });

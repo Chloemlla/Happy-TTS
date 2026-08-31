@@ -113,23 +113,17 @@ export async function listAllIndexes(): Promise<any[]> {
 export async function rebuildIndexes(): Promise<void> {
   try {
     logger.info(`\n${"=".repeat(60)}`);
-    logger.info("开始重建FBI Wanted索引...");
+    logger.info("开始同步FBI Wanted索引...");
     logger.info("=".repeat(60));
 
-    // 删除旧索引（除了_id）
-    const indexes = await FBIWantedModel.collection.indexes();
-    for (const index of indexes) {
-      if (index.name && index.name !== "_id_") {
-        logger.info(`删除索引: ${index.name}`);
-        await FBIWantedModel.collection.dropIndex(index.name);
-      }
-    }
-
-    // 触发索引重建
-    logger.info("\n重新创建索引...");
+    // syncIndexes() reconciles the schema's index set against the database: it creates
+    // missing indexes and drops indexes no longer declared. The previous implementation
+    // dropped every non-_id index first, leaving a window (potentially minutes on a large
+    // collection) with no unique constraint where concurrent writes could insert
+    // duplicates, and rebuilding could fail if duplicates had already appeared.
     await FBIWantedModel.syncIndexes();
 
-    logger.info("\n✅ FBI Wanted索引重建完成");
+    logger.info("\n✅ FBI Wanted索引同步完成");
   } catch (error) {
     logger.error("重建索引失败:", error);
     throw error;

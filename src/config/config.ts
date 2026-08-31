@@ -189,6 +189,32 @@ const envSchema = z
       });
     }
 
+    // Production must not start with an ephemeral JWT secret (all sessions die on
+    // restart, G8-02 ciphertexts become undecryptable) or a weak/absent admin password.
+    // AGENTS.md promises these fail at startup — enforce it instead of warning.
+    if (env.NODE_ENV === "production") {
+      const jwtSecret = env.JWT_SECRET;
+      if (!jwtSecret || jwtSecret.length < 32) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["JWT_SECRET"],
+          message: "JWT_SECRET must be set to at least 32 characters in production",
+        });
+      }
+      const adminPassword = env.ADMIN_PASSWORD || "";
+      const weakAdminPassword =
+        !adminPassword ||
+        adminPassword.length < 12 ||
+        /^(admin|admin123|123456|password|passw0rd)$/i.test(adminPassword);
+      if (weakAdminPassword) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["ADMIN_PASSWORD"],
+          message:
+            "ADMIN_PASSWORD must be set to a strong value (>=12 chars, not a known default) in production",
+        });
+      }
+    }
   });
 
 const parsedEnv = envSchema.parse(process.env);
@@ -198,11 +224,6 @@ const frontendBaseUrl = parsedEnv.FRONTEND_URL || "https://tts.chloemlla.com";
 const openaiApiKey = parsedEnv.OPENAI_KEY || parsedEnv.OPENAI_API_KEY;
 const jwtSecretConfigured = Boolean(parsedEnv.JWT_SECRET);
 const jwtSecret = parsedEnv.JWT_SECRET || generateEphemeralSecret();
-// Warn if JWT_SECRET is not explicitly configured — an ephemeral secret means
-// all existing tokens (sessions, API keys) become invalid on next restart.
-if (!jwtSecretConfigured && process.env.NODE_ENV === "production") {
-  console.warn("[config] WARNING: JWT_SECRET is not set. Using ephemeral secret — all sessions will be invalidated on restart. Set JWT_SECRET in production.");
-}
 const signSecretKey = parsedEnv.SIGN_SECRET_KEY || "";
 const adminPassword = parsedEnv.ADMIN_PASSWORD || "";
 const adminOperationPassword = parsedEnv.ADMIN_OPERATION_PASSWORD || adminPassword;

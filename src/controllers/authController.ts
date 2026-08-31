@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import type { Request, Response } from "express";
 import { VerificationTokenType, verificationTokenStorage } from "../models/verificationTokenModel";
 import { sendEmail } from "../services/emailSender";
@@ -526,10 +527,7 @@ export class AuthController {
       }
 
       // 生成8位数字验证码
-      let code = "";
-      for (let i = 0; i < 8; i++) {
-        code += Math.floor(Math.random() * 10);
-      }
+      const code = crypto.randomInt(0, 100_000_000).toString().padStart(8, "0");
 
       // 重新发码时重置失败计数
       emailCodeMap.set(email, { code, time: now, regInfo: entry.regInfo, attempts: 0 });

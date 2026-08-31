@@ -15,12 +15,21 @@ function intFromEnv(value: string | undefined, fallback: number, max?: number): 
   return parsed;
 }
 
+// Production hardening: dangerous defaults (a known admin password, a hardcoded
+// request-signing key, an empty outemail key that silently enables the dev login
+// code, and the universal "000000" dev code) must never hold in production.
+// Mirrors the fail-fast style of src/config/config.ts for ADMIN_PASSWORD / JWT_SECRET.
+const isProduction = process.env.NODE_ENV === "production";
+
+const devLoginCode = process.env.LUMEN_DEV_LOGIN_CODE || "";
+
 export const lumenConfig = {
-  adminPassword: process.env.LUMEN_ADMIN_PASSWORD || "change-me",
+  adminPassword: process.env.LUMEN_ADMIN_PASSWORD || (isProduction ? "" : "change-me"),
   adminUsername: process.env.LUMEN_ADMIN_USERNAME || "admin",
   adminAutomationToken: process.env.LUMEN_ADMIN_AUTOMATION_TOKEN || "",
 
-  requestSigningSecret: process.env.LUMEN_REQUEST_SIGNING_SECRET || "project-lumen-local-request-signing-key",
+  requestSigningSecret:
+    process.env.LUMEN_REQUEST_SIGNING_SECRET || (isProduction ? "" : "project-lumen-local-request-signing-key"),
   requireRequestSigning: boolFromEnv(process.env.LUMEN_REQUIRE_REQUEST_SIGNING, false),
 
   acceptUnverifiedPurchases: boolFromEnv(process.env.LUMEN_ACCEPT_UNVERIFIED_PURCHASES, false),
@@ -39,7 +48,8 @@ export const lumenConfig = {
   accessTokenTtlSeconds: intFromEnv(process.env.LUMEN_ACCESS_TOKEN_TTL_SECONDS, 7200, 7200),
   refreshTokenTtlSeconds: intFromEnv(process.env.LUMEN_REFRESH_TOKEN_TTL_SECONDS, 2592000, 2592000),
 
-  devLoginCode: process.env.LUMEN_DEV_LOGIN_CODE || "000000",
+  // In production this resolves to "" so `code === lumenConfig.devLoginCode` can never match.
+  devLoginCode: isProduction ? "" : devLoginCode,
 
   requestTimestampSkewSeconds: intFromEnv(process.env.LUMEN_REQUEST_TIMESTAMP_SKEW_SECONDS, 300, 300),
 
@@ -51,5 +61,32 @@ export const lumenConfig = {
   outemailTimeoutSeconds: intFromEnv(process.env.LUMEN_OUTEMAIL_TIMEOUT_SECONDS, 10),
   outemailBaseUrl: process.env.LUMEN_OUTEMAIL_BASE_URL || "https://tts.chloemlla.com",
 } as const;
+
+if (isProduction) {
+  const problems: string[] = [];
+  if (!process.env.LUMEN_ADMIN_PASSWORD || lumenConfig.adminPassword.length < 12) {
+    problems.push(
+      "LUMEN_ADMIN_PASSWORD must be set to a strong value (>=12 chars) in production",
+    );
+  }
+  if (!process.env.LUMEN_REQUEST_SIGNING_SECRET || lumenConfig.requestSigningSecret.length < 32) {
+    problems.push(
+      "LUMEN_REQUEST_SIGNING_SECRET must be set (>=32 chars) in production",
+    );
+  }
+  if (process.env.LUMEN_DEV_LOGIN_CODE !== undefined && process.env.LUMEN_DEV_LOGIN_CODE !== "") {
+    problems.push("LUMEN_DEV_LOGIN_CODE must not be set in production");
+  }
+  if (!process.env.LUMEN_OUTEMAIL_API_KEY) {
+    problems.push(
+      "LUMEN_OUTEMAIL_API_KEY must be set in production (an empty value enables the dev login code path)",
+    );
+  }
+  if (problems.length > 0) {
+    throw new Error(
+      "[lumen] Insecure production configuration:\n- " + problems.join("\n- "),
+    );
+  }
+}
 
 export type LumenConfig = typeof lumenConfig;

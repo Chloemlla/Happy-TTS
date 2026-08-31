@@ -20,7 +20,7 @@ interface PendingEmailChangeChallenge {
   attempts: number;
 }
 
-const PROFILE_VERIFICATION_TTL_MS = 10 * 60 * 1000;
+const PROFILE_VERIFICATION_TTL_MS = 5 * 60 * 1000;
 const EMAIL_CHANGE_CODE_TTL_MS = 10 * 60 * 1000;
 const EMAIL_CHANGE_RESEND_INTERVAL_MS = 60 * 1000;
 const MAX_EMAIL_CHANGE_ATTEMPTS = 5;
@@ -51,7 +51,7 @@ function generateVerificationToken(): string {
 function generateEmailCode(length = 6): string {
   let code = "";
   for (let index = 0; index < length; index += 1) {
-    code += Math.floor(Math.random() * 10).toString();
+    code += crypto.randomInt(0, 10).toString();
   }
   return code;
 }
@@ -90,6 +90,16 @@ export function validateProfileVerificationSession(userId: string, token: string
     return null;
   }
 
+  return session;
+}
+
+// 一次性消费：敏感操作放行后立即作废令牌，避免同一次身份验证被反复兑换成多个敏感操作授权。
+export function consumeProfileVerificationSession(userId: string, token: string): ProfileVerificationSession | null {
+  const session = validateProfileVerificationSession(userId, token);
+  if (!session) {
+    return null;
+  }
+  profileVerificationSessions.delete(token);
   return session;
 }
 

@@ -340,13 +340,9 @@ export default defineConfig(({ mode, command }) => {
             // }
           }
           : undefined,
-      allowedHosts: [
-        "18.217.88.110",
-        "tts.chloemlla.com",
-        "localhost",
-        "127.0.0.1",
-        "192.168.137.1",
-      ],
+      allowedHosts: process.env.VITE_DEV_ALLOWED_HOSTS
+        ? process.env.VITE_DEV_ALLOWED_HOSTS.split(",").map((h) => h.trim()).filter(Boolean)
+        : ["localhost", "127.0.0.1"],
     },
     resolve: {
       alias: {

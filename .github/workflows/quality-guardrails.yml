@@ -3,14 +3,8 @@ name: Quality Guardrails
 on:
   push:
     branches: [main, develop]
-    paths-ignore:
-      - .github/workflows/**
-      - "!.github/workflows/quality-guardrails.yml"
   pull_request:
     branches: [main, develop]
-    paths-ignore:
-      - .github/workflows/**
-      - "!.github/workflows/quality-guardrails.yml"
   workflow_dispatch:
 
 jobs:

@@ -38,12 +38,11 @@ function loadTemplate(templateFileName: string): string {
  * @returns 替换后的 HTML 字符串
  */
 function renderTemplate(template: string, variables: Record<string, string>): string {
-  let html = template;
-  for (const [key, value] of Object.entries(variables)) {
-    const placeholder = `{{${key}}}`;
-    html = html.split(placeholder).join(value);
-  }
-  return html;
+  // Single-pass replacement: a value containing {{otherKey}} must not be re-expanded
+  // by a later iteration (that would let user-controlled input inject template output).
+  return template.replace(/\{\{(\w+)\}\}/g, (match, key: string) =>
+    Object.prototype.hasOwnProperty.call(variables, key) ? variables[key] : match,
+  );
 }
 
 export function escapeHtml(value: string): string {
@@ -404,7 +403,7 @@ export function generatePasskeyAddedEmailHtml(
   return generateSecurityNoticeHtml(
     username,
     "新 Passkey 已添加",
-    `您的账号已成功添加新的 Passkey 凭证：<strong>${name}</strong>。`,
+    `您的账号已成功添加新的 Passkey 凭证：<strong>${escapeHtml(name)}</strong>。`,
     time,
     ip,
     device,
@@ -434,7 +433,7 @@ export function generateAccountLockedEmailHtml(
   return generateSecurityNoticeHtml(
     username,
     "账号因异常尝试被锁定",
-    `您的账号在短时间内出现了多次失败的验证尝试，出于安全考虑，系统已暂时锁定您的账号验证功能 <strong>${duration}</strong>。`,
+    `您的账号在短时间内出现了多次失败的验证尝试，出于安全考虑，系统已暂时锁定您的账号验证功能 <strong>${escapeHtml(duration)}</strong>。`,
     time,
     ip,
     device,
@@ -475,7 +474,7 @@ export function generateCDKActivatedEmailHtml(
   return generateSecurityNoticeHtml(
     username,
     "礼品卡/兑换码使用成功",
-    `您已成功兑换了以下资源：<strong>${info}</strong>。<br/>兑换码：<code>${cdk}</code>`,
+    `您已成功兑换了以下资源：<strong>${escapeHtml(info)}</strong>。<br/>兑换码：<code>${escapeHtml(cdk)}</code>`,
     time,
     ip,
     device,
@@ -513,7 +512,7 @@ export function generateEmailChangeOldNoticeHtml(
   return generateSecurityNoticeHtml(
     username,
     "账户邮箱已更改",
-    `您的 Synapse 账户邮箱已从当前地址更改为 <strong>${newEmail}</strong>。此后，所有系统通知将发送至新邮箱。`,
+    `您的 Synapse 账户邮箱已从当前地址更改为 <strong>${escapeHtml(newEmail)}</strong>。此后，所有系统通知将发送至新邮箱。`,
     time,
     ip,
     device,
@@ -532,7 +531,7 @@ export function generateEmailChangeNewNoticeHtml(
   return generateSecurityNoticeHtml(
     username,
     "账户邮箱绑定成功",
-    `您的 Synapse 账户已成功绑定至此邮箱地址（原邮箱：${oldEmail}）。您现在可以使用此邮箱进行登录和接收通知。`,
+    `您的 Synapse 账户已成功绑定至此邮箱地址（原邮箱：${escapeHtml(oldEmail)}）。您现在可以使用此邮箱进行登录和接收通知。`,
     time,
     ip,
     device,
@@ -552,7 +551,7 @@ export function generateRoleChangedEmailHtml(
   return generateSecurityNoticeHtml(
     username,
     "账户权限已变更",
-    `您的账户权限级别已更新为：<strong>${roleName}</strong>。这可能会影响您访问特定功能或管理面板的权限。`,
+    `您的账户权限级别已更新为：<strong>${escapeHtml(roleName)}</strong>。这可能会影响您访问特定功能或管理面板的权限。`,
     time,
     ip,
     device,
@@ -602,7 +601,7 @@ export function generateResourceExpiryWarningEmailHtml(
   return generateSecurityNoticeHtml(
     username,
     title,
-    `您的资源 <strong>${resourceName}</strong> 即将到期。<br/>到期时间：${expiryDate}<br/>剩余时间：<strong>${daysLeft} 天</strong>`,
+    `您的资源 <strong>${escapeHtml(resourceName)}</strong> 即将到期。<br/>到期时间：${escapeHtml(expiryDate)}<br/>剩余时间：<strong>${daysLeft} 天</strong>`,
     new Date().toLocaleString(),
     "系统自动检测",
     "N/A",
@@ -617,7 +616,7 @@ export function generateFeedbackRepliedEmailHtml(
   replyContent: string,
   time: string,
 ): string {
-  const description = `您提交的工单/反馈 <strong>「${ticketTitle}」</strong> 已收到新的回复：<br/><br/><div style="padding: 12px; background: #fff; border-left: 4px solid #4F46E5; font-style: italic;">${replyContent}</div>`;
+  const description = `您提交的工单/反馈 <strong>「${escapeHtml(ticketTitle)}」</strong> 已收到新的回复：<br/><br/><div style="padding: 12px; background: #fff; border-left: 4px solid #4F46E5; font-style: italic;">${escapeHtml(replyContent)}</div>`;
   return generateSecurityNoticeHtml(
     username,
     "收到新的回复通知",
@@ -643,7 +642,7 @@ export function generateTicketCreatedEmailHtml(
       : priority === "medium"
         ? "[一般] "
         : "[低] ";
-  const description = `用户 <strong>${userName}</strong> 提交了一个新的工单：<br/><br/>标题：${priorityText}<strong>${ticketTitle}</strong>`;
+  const description = `用户 <strong>${escapeHtml(userName)}</strong> 提交了一个新的工单：<br/><br/>标题：${priorityText}<strong>${escapeHtml(ticketTitle)}</strong>`;
   return generateSecurityNoticeHtml(
     adminName,
     "收到新的支持工单",
@@ -668,8 +667,8 @@ export function generateTicketStatusChangedEmailHtml(
     resolved: "已解决",
     closed: "已关闭",
   };
-  const statusText = statusMap[newStatus] || newStatus;
-  const description = `您的工单 <strong>「${ticketTitle}」</strong> 状态已更新为：<strong>${statusText}</strong>。`;
+  const statusText = statusMap[newStatus] || escapeHtml(newStatus);
+  const description = `您的工单 <strong>「${escapeHtml(ticketTitle)}」</strong> 状态已更新为：<strong>${statusText}</strong>。`;
   return generateSecurityNoticeHtml(
     username,
     "工单处理状态更新",
@@ -690,8 +689,8 @@ export function generateTicketViolationWarningEmailHtml(
 ): string {
   const description = `我们在您的工单互动中检测到了不当言论：<br/><br/>
         <div style="padding: 12px; background: #fff; border-left: 4px solid #f9ab00; margin-bottom: 8px;">
-            <strong>提交内容：</strong> ${content}<br/>
-            <strong>违规判定：</strong> <span style="color: #d93025;">${reason}</span>
+            <strong>提交内容：</strong> ${escapeHtml(content)}<br/>
+            <strong>违规判定：</strong> <span style="color: #d93025;">${escapeHtml(reason)}</span>
         </div>
         请注意：维护和谐的沟通环境是每位用户的责任。`;
   return generateSecurityNoticeHtml(
@@ -715,8 +714,8 @@ export function generateTicketBannedEmailHtml(
 ): string {
   const description = `由于您多次违反社区准则，您的工单支持权限已被暂时限制。<br/><br/>
         <strong>累计违规：</strong> ${count} 次<br/>
-        <strong>本次违规原因：</strong> <span style="color: #d93025;">${reason}</span><br/>
-        <strong>封禁有效期：</strong> <strong style="color: #d93025;">${remaining}</strong>`;
+        <strong>本次违规原因：</strong> <span style="color: #d93025;">${escapeHtml(reason)}</span><br/>
+        <strong>封禁有效期：</strong> <strong style="color: #d93025;">${escapeHtml(remaining)}</strong>`;
   return generateSecurityNoticeHtml(
     username,
     "🚫 工单访问权限已封禁",

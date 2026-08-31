@@ -1,4 +1,5 @@
-import { type Document, type Model, model, Schema } from "mongoose";
+import { type Document, type Model, Schema } from "mongoose";
+import { mongoose } from "../services/mongoService";
 
 // 隐私政策同意记录接口
 export interface IPolicyConsent extends Document {
@@ -148,4 +149,9 @@ policyConsentSchema.statics.getStats = function (startDate?: Date, endDate?: Dat
   ]);
 };
 
-export const PolicyConsent = model<IPolicyConsent, IPolicyConsentModel>("PolicyConsent", policyConsentSchema);
+const createPolicyConsentModel = () =>
+  mongoose.model<IPolicyConsent, IPolicyConsentModel>("PolicyConsent", policyConsentSchema);
+
+export const PolicyConsent =
+  (mongoose.models.PolicyConsent as ReturnType<typeof createPolicyConsentModel>) ||
+  createPolicyConsentModel();

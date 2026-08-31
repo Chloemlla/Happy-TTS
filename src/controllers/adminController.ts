@@ -13,7 +13,6 @@ import { BilibiliSyncModel } from "../models/bilibiliSyncModel";
 import { ProjectLumenConfigModel } from "../models/projectLumenConfigModel";
 import { validateGenerationCodeStrength } from "../utils/generationCodePolicy";
 import logger from "../utils/logger";
-import { getRevealUserPasswordResult } from "../services/userService";
 import { isAdminRole, isSuperAdmin } from "../middleware/auth";
 import { buildAccountSecuritySummary } from "../services/accountSecuritySummaryService";
 import { type User, UserStorage } from "../utils/userStorage";
@@ -833,49 +832,6 @@ export const adminController = {
     } catch (error) {
       logger.error("删除用户失败:", error);
       res.status(500).json({ error: "删除用户失败" });
-    }
-  },
-
-  revealUserPassword: async (req: Request, res: Response) => {
-    try {
-      if (!isValidUserId(req.params.id)) {
-        return res.status(400).json({ error: "非法的用户 ID" });
-      }
-
-      if (!req.user || !isSuperAdmin(req)) {
-        return res.status(403).json({ error: "需要超级管理员权限" });
-      }
-
-      const result = await getRevealUserPasswordResult(req.params.id);
-      if (result.status === "not_found") {
-        return res.status(404).json({ error: "用户不存在" });
-      }
-      if (result.status === "not_revealable") {
-        return res.status(409).json({
-          error: "该用户密码不可查看，请通过重置密码处理",
-          errorCode: "PASSWORD_NOT_REVEALABLE",
-          reason: result.reason,
-        });
-      }
-
-      logger.warn("[Admin] 管理员查看用户密码", {
-        adminId: req.user.id,
-        adminUsername: req.user.username,
-        targetUserId: req.params.id,
-        timestamp: new Date().toISOString(),
-      });
-
-      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-      res.setHeader("Pragma", "no-cache");
-      res.setHeader("Expires", "0");
-
-      return res.json({
-        success: true,
-        password: result.password,
-      });
-    } catch (error) {
-      logger.error("查看用户密码失败:", error);
-      return res.status(500).json({ error: "查看用户密码失败" });
     }
   },
 

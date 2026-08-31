@@ -20,6 +20,9 @@ const FaceAnalysisFrameSchema = new mongoose.Schema<IFaceAnalysisFrame>(
 );
 
 FaceAnalysisFrameSchema.index({ userId: 1, receivedAt: 1 });
+// Admin dashboard lists frames globally newest-first (`sort({ receivedAt: -1 })` without a
+// userId filter); the compound index above is unreachable without its leading userId key.
+FaceAnalysisFrameSchema.index({ receivedAt: -1 });
 
 const FaceAnalysisFrame =
   (mongoose.models.FaceAnalysisFrame as mongoose.Model<IFaceAnalysisFrame>) ||

@@ -126,15 +126,42 @@ export class NonceStore {
     if (this.store.size >= this.maxSize) {
       this.cleanup();
 
-      // 如果清理后仍然满了，删除最旧的项
+      // 如果清理后仍然满了，按安全优先级淘汰：先淘汰已过消费标记 TTL 的已消费条目
+      // （已无防重放价值），再淘汰从未被消费的条目；绝不淘汰仍在防重放窗口内的已
+      // 消费标记——否则攻击者灌满存储即可把目标 nonce 挤出 Map 后重放成功。
       if (this.store.size >= this.maxSize) {
-        const oldestKey = this.store.keys().next().value;
-        if (oldestKey) {
-          this.store.delete(oldestKey);
-          logger.debug("[NonceStore] 因大小限制移除最旧的 nonce", {
-            evictedNonceId: `${oldestKey.slice(0, 8)}...`,
+        const now = Date.now();
+        const markerExpired = (record: NonceRecord): boolean =>
+          Boolean(record.consumedAt) && now - (record.consumedAt as number) > this.consumedMarkerTtlMs;
+
+        let evictedKey: string | undefined;
+        for (const [key, record] of this.store.entries()) {
+          if (markerExpired(record)) {
+            evictedKey = key;
+            break;
+          }
+        }
+        if (!evictedKey) {
+          for (const [key, record] of this.store.entries()) {
+            if (!record.consumedAt) {
+              evictedKey = key;
+              break;
+            }
+          }
+        }
+
+        if (evictedKey) {
+          this.store.delete(evictedKey);
+          logger.debug("[NonceStore] 因大小限制移除 nonce", {
+            evictedNonceId: `${evictedKey.slice(0, 8)}...`,
             maxSize: this.maxSize,
           });
+        } else {
+          // 全为窗口内已消费标记：拒绝写入新 nonce（fail-closed），保住既有防重放标记。
+          logger.warn("[NonceStore] 存储已满且无可安全淘汰项，拒绝写入新 nonce（fail-closed）", {
+            maxSize: this.maxSize,
+          });
+          return;
         }
       }
     }

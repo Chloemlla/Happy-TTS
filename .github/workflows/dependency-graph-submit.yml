@@ -31,6 +31,7 @@ jobs:
           node-version: '20.x'
 
       - name: Create dependency snapshots manually
+        id: submit
         run: |
           # Create a script to submit dependencies via GitHub API
           cat > submit-deps.js << 'EOF'
@@ -145,8 +146,11 @@ jobs:
         run: |
           echo "## Dependency Graph Submission Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "All dependency snapshots have been submitted to GitHub" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Submitted manifests:" >> $GITHUB_STEP_SUMMARY
-          echo "- Root: package.json" >> $GITHUB_STEP_SUMMARY
-          echo "- Frontend: frontend/package.json" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.submit.outcome }}" = "failure" ]; then
+            echo "**Dependency snapshot submission FAILED.** See the \`Create dependency snapshots manually\` step logs." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "> 注：GitHub 已原生支持解析 pnpm-lock.yaml 生成依赖图；若本提交持续失败，可考虑删除本 workflow，依赖 GitHub 的原生解析（更准确，含传递依赖与解析后版本）。" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Dependency snapshots submitted (direct dependencies, using package.json range versions)." >> $GITHUB_STEP_SUMMARY
+            echo "> 注：提交的是 ^ 版本范围而非解析结果，GitHub 可能无法据此匹配 advisory；GitHub 对 pnpm-lock.yaml 的原生解析会更准确。" >> $GITHUB_STEP_SUMMARY
+          fi

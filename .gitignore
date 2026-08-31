@@ -35,8 +35,6 @@ service-account*.json
 skills-lock.json
 # 允许特定环境文件
 !**/pnpm-lock.yaml
-!frontend/.env
-!frontend/.env.local
 
 # 构建输出
 dist/
@@ -123,6 +121,7 @@ logs/
 # 根目录临时文件
 TODO
 worker.zip
+Synapse.zip
 *.vba
 *.user.js
 OpenAI-TTS-Gradio-*.zip

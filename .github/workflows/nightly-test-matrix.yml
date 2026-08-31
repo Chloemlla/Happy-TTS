@@ -26,19 +26,25 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
-      - name: Install compatible TypeScript for ts-jest
-        run: pnpm add --save-dev typescript@~5.7.0
-
-      - name: Start MongoDB for live-ish suite
+      - name: Start MongoDB replica set
         shell: bash
         run: |
-          docker run -d --name mongo-nightly -p 27017:27017 mongo:8
+          docker run -d --name mongo-nightly -p 27017:27017 mongo:8 --replSet rs0 --bind_ip_all
           for attempt in $(seq 1 30); do
             if docker exec mongo-nightly mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' | grep -q 1; then
+              break
+            fi
+            sleep 1
+          done
+          docker exec mongo-nightly mongosh --quiet --eval 'try { rs.initiate({_id:"rs0", members:[{_id:0, host:"127.0.0.1:27017"}]}) } catch (e) { if (!String(e.message || e).includes("already initialized")) throw e }'
+          for attempt in $(seq 1 30); do
+            if docker exec mongo-nightly mongosh --quiet --eval 'rs.isMaster().ismaster' | grep -qi true; then
               exit 0
             fi
             sleep 1
           done
+          echo "Mongo replica set did not become primary"
+          docker logs mongo-nightly || true
           exit 1
 
       - name: Run nightly MongoDB core contracts

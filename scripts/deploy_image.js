@@ -10,6 +10,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 
 const DEPLOY_LOCK_FILE = path.join(__dirname, ".deploy_image.lock");
 const DEPLOY_LOCK_WAIT_MS = 5000;
@@ -187,9 +188,6 @@ function remoteLogin(serverAddress, username, port, privateKey) {
     const { Client } = getSSH2();
     const conn = new Client();
 
-    // CI/CD 环境检测
-    const isCI = process.env.CI || process.env.GITHUB_ACTIONS;
-
     const config = {
       host: serverAddress,
       username: username,
@@ -199,17 +197,41 @@ function remoteLogin(serverAddress, username, port, privateKey) {
       keepaliveInterval: 10000,
     };
 
-    if (isCI) {
-      // CI/CD环境：自动接受未知主机密钥
-      logWarning("CI/CD环境：自动接受未知主机密钥（仅用于部署）");
-      config.hostVerifier = () => true;
-    } else {
-      // 生产环境：使用严格的策略
-      config.hostVerifier = (keyHash, callback) => {
-        // 严格验证主机密钥
-        callback(true); // 简化版本，实际应该检查 known_hosts
-      };
-    }
+    // 默认严格校验 SSH 主机密钥（与文件头“安全：默认严格 known_hosts 校验”一致）。
+    // 期望指纹由 SERVER_HOST_KEY_SHA256 提供（逗号分隔，与多服务器列表对齐），格式为
+    // `ssh-keyscan <host> | ssh-keygen -lf -` 输出的 SHA256 值（可带也可不带 "SHA256:" 前缀）。
+    // 只有显式设置 ALLOW_UNVERIFIED_SSH_HOST=true 时才放宽校验（应急 opt-out）。
+    const expectedFingerprints = (process.env.SERVER_HOST_KEY_SHA256 || "")
+      .split(",")
+      .map((fp) => fp.trim().replace(/^SHA256:/i, ""))
+      .filter(Boolean);
+    const allowUnverified = process.env.ALLOW_UNVERIFIED_SSH_HOST === "true";
+
+    config.hostVerifier = (keyHash, verify) => {
+      if (allowUnverified) {
+        logWarning("ALLOW_UNVERIFIED_SSH_HOST=true：跳过 SSH 主机密钥校验（不推荐，仅限应急）");
+        verify(true);
+        return;
+      }
+      // ssh2 未设 hostHash 时传入的是原始主机密钥字节；按 OpenSSH 惯例计算
+      // base64(sha256(key))，与 known_hosts 的 SHA256: 指纹一致。
+      const rawKey = Buffer.isBuffer(keyHash) ? keyHash : Buffer.from(String(keyHash), "utf8");
+      const actual = crypto.createHash("sha256").update(rawKey).digest("base64");
+      if (expectedFingerprints.includes(actual)) {
+        verify(true);
+        return;
+      }
+      logError(
+        `SSH 主机密钥校验失败：期望 ${
+          expectedFingerprints.length > 0
+            ? expectedFingerprints.map((fp) => `SHA256:${fp}`).join(", ")
+            : "（未配置 SERVER_HOST_KEY_SHA256）"
+        }，实际 SHA256:${actual}。` +
+          "请配置 SERVER_HOST_KEY_SHA256 secret（`ssh-keyscan <host> | ssh-keygen -lf -` 输出的 SHA256 值，多服务器用逗号分隔），" +
+          "或显式设置 ALLOW_UNVERIFIED_SSH_HOST=true 跳过（不推荐）。",
+      );
+      verify(false);
+    };
 
     conn.on("ready", () => {
       // Never log env-derived SSH usernames; they are treated as sensitive credentials.
@@ -271,7 +293,7 @@ async function pullDockerImage(ssh, imageUrl) {
 
   logInfo(`正在拉取镜像: ${imageUrl}`);
   try {
-    const result = await execSSHCommand(ssh, `docker pull ${imageUrl}`);
+    const result = await execSSHCommand(ssh, `docker pull ${shellQuote(imageUrl)}`);
     if (result.stdout) logSensitive(result.stdout);
     if (result.stderr) logSensitive(result.stderr, "ERROR");
   } catch (err) {
@@ -287,7 +309,7 @@ async function pullDockerImage(ssh, imageUrl) {
  */
 async function backupContainerSettings(ssh, containerName) {
   try {
-    const result = await execSSHCommand(ssh, `docker inspect ${containerName}`);
+    const result = await execSSHCommand(ssh, `docker inspect ${shellQuote(containerName)}`);
     const containerInfo = result.stdout;
 
     if (!containerInfo || containerInfo.trim() === "") {
@@ -388,6 +410,12 @@ function shellQuote(value) {
     return str;
   }
   return `'${str.replace(/'/g, `'\\''`)}'`;
+}
+
+// 生成 `--flag <value>` 片段，value 一律经 shellQuote 处理，避免把 docker inspect
+// 输出或容器环境变量裸拼进远程 shell（$() / 反引号 / ${} 会被展开执行）。
+function dockerRunFlag(flag, value) {
+  return `${flag} ${shellQuote(value)}`;
 }
 
 function normalizeDockerCommand(command) {
@@ -637,13 +665,13 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
     // 重命名旧容器
     await execSSHCommand(
       ssh,
-      `docker rename ${oldContainerName} ${newContainerName}`,
+      `docker rename ${shellQuote(oldContainerName)} ${shellQuote(newContainerName)}`,
     );
 
     // 获取容器配置
     const inspectResult = await execSSHCommand(
       ssh,
-      `docker inspect ${newContainerName}`,
+      `docker inspect ${shellQuote(newContainerName)}`,
     );
     let containerInfo;
     try {
@@ -654,7 +682,7 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
     }
 
     // 删除旧容器
-    await execSSHCommand(ssh, `docker rm ${newContainerName}`);
+    await execSSHCommand(ssh, `docker rm ${shellQuote(newContainerName)}`);
 
     if (!containerInfo || containerInfo.length === 0) {
       logError(`错误：未找到容器 ${oldContainerName} 的信息`);
@@ -664,23 +692,23 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
     const config = containerInfo[0].Config;
     const hostConfig = containerInfo[0].HostConfig || {};
     const networkSettings = containerInfo[0].NetworkSettings || {};
-    let createCommand = `docker run -d --name ${oldContainerName} `;
+    let createCommand = `docker run -d --name ${shellQuote(oldContainerName)} `;
 
     // === Config 部分继承 ===
 
     // 继承主机名
     if (config.Hostname) {
-      createCommand += `--hostname ${config.Hostname} `;
+      createCommand += `${dockerRunFlag("--hostname", config.Hostname)} `;
     }
 
     // 继承域名
     if (config.Domainname) {
-      createCommand += `--domainname ${config.Domainname} `;
+      createCommand += `${dockerRunFlag("--domainname", config.Domainname)} `;
     }
 
     // 继承用户设置
     if (config.User) {
-      createCommand += `--user ${config.User} `;
+      createCommand += `${dockerRunFlag("--user", config.User)} `;
     }
 
     // 继承是否分配TTY
@@ -700,7 +728,7 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
     for (const env of envVars) {
       // 跳过系统默认环境变量
       if (!env.startsWith("PATH=") && !env.startsWith("HOSTNAME=")) {
-        createCommand += `-e "${env}" `;
+        createCommand += `${dockerRunFlag("-e", env)} `;
       }
     }
 
@@ -712,7 +740,7 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
 
     // 继承工作目录
     if (config.WorkingDir) {
-      createCommand += `--workdir ${config.WorkingDir} `;
+      createCommand += `${dockerRunFlag("--workdir", config.WorkingDir)} `;
     }
 
     // 继承暴露端口（通过PortBindings处理）
@@ -725,14 +753,14 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
           !key.startsWith("org.opencontainers") &&
           !key.startsWith("maintainer")
         ) {
-          createCommand += `--label "${key}=${value}" `;
+          createCommand += `${dockerRunFlag("--label", `${key}=${value}`)} `;
         }
       }
     }
 
     // 继承停止信号
     if (config.StopSignal && config.StopSignal !== "SIGTERM") {
-      createCommand += `--stop-signal ${config.StopSignal} `;
+      createCommand += `${dockerRunFlag("--stop-signal", config.StopSignal)} `;
     }
 
     // 继承停止超时（兼容性检查）
@@ -741,7 +769,7 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
       config.StopTimeout !== 10 &&
       compatibility.supportsAdvanced
     ) {
-      createCommand += `--stop-timeout ${config.StopTimeout} `;
+      createCommand += `${dockerRunFlag("--stop-timeout", config.StopTimeout)} `;
     }
 
     // === HostConfig 部分继承 ===
@@ -753,7 +781,7 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
         const hostIp = binding.HostIp || "0.0.0.0";
         const hostPort = binding.HostPort;
         const containerPort = port.split("/")[0];
-        createCommand += `-p ${hostIp}:${hostPort}:${containerPort} `;
+        createCommand += `${dockerRunFlag("-p", `${hostIp}:${hostPort}:${containerPort}`)} `;
       }
     }
 
@@ -777,14 +805,14 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
             if (mount.BindOptions && mount.BindOptions.Propagation) {
               mountCmd += `,bind-propagation=${mount.BindOptions.Propagation}`;
             }
-            createCommand += `${mountCmd} `;
+            createCommand += `${shellQuote(mountCmd)} `;
           } else {
             // 使用传统的 -v 语法
             let mountCmd = `-v ${mount.Source}:${mount.Target}`;
             if (mount.Mode && mount.Mode !== "rw") {
               mountCmd += `:${mount.Mode}`;
             }
-            createCommand += `${mountCmd} `;
+            createCommand += `${shellQuote(mountCmd)} `;
           }
         }
       }
@@ -800,7 +828,7 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
           if (mp.Mode && mp.Mode !== "rw") {
             mountCmd += `:${mp.Mode}`;
           }
-          createCommand += `${mountCmd} `;
+          createCommand += `${shellQuote(mountCmd)} `;
           allMountTargets.add(target);
         }
       }
@@ -810,7 +838,7 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
     for (const [target, source] of Object.entries(volumes)) {
       if (!allMountTargets.has(target)) {
         logInfo(`自动补全挂载: ${source} -> ${target}`);
-        createCommand += `-v ${source}:${target} `;
+        createCommand += `${shellQuote(`-v ${source}:${target}`)} `;
         allMountTargets.add(target);
       }
     }
@@ -829,35 +857,35 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
     // 继承重启策略
     const restartPolicy = hostConfig.RestartPolicy || {};
     if (restartPolicy.Name) {
-      createCommand += `--restart ${restartPolicy.Name} `;
+      createCommand += `${dockerRunFlag("--restart", restartPolicy.Name)} `;
       if (
         restartPolicy.MaximumRetryCount &&
         restartPolicy.MaximumRetryCount > 0
       ) {
-        createCommand += `--restart-max-retries ${restartPolicy.MaximumRetryCount} `;
+        createCommand += `${dockerRunFlag("--restart-max-retries", restartPolicy.MaximumRetryCount)} `;
       }
     }
 
     // 继承资源限制
     if (hostConfig.Memory && hostConfig.Memory > 0) {
-      createCommand += `--memory ${hostConfig.Memory} `;
+      createCommand += `${dockerRunFlag("--memory", hostConfig.Memory)} `;
     }
     if (hostConfig.CpuPeriod && hostConfig.CpuPeriod > 0) {
-      createCommand += `--cpu-period ${hostConfig.CpuPeriod} `;
+      createCommand += `${dockerRunFlag("--cpu-period", hostConfig.CpuPeriod)} `;
     }
     if (hostConfig.CpuQuota && hostConfig.CpuQuota > 0) {
-      createCommand += `--cpu-quota ${hostConfig.CpuQuota} `;
+      createCommand += `${dockerRunFlag("--cpu-quota", hostConfig.CpuQuota)} `;
     }
     if (hostConfig.CpusetCpus) {
-      createCommand += `--cpuset-cpus ${hostConfig.CpusetCpus} `;
+      createCommand += `${dockerRunFlag("--cpuset-cpus", hostConfig.CpusetCpus)} `;
     }
     if (hostConfig.CpusetMems) {
-      createCommand += `--cpuset-mems ${hostConfig.CpusetMems} `;
+      createCommand += `${dockerRunFlag("--cpuset-mems", hostConfig.CpusetMems)} `;
     }
 
     // 继承IO限制
     if (hostConfig.BlkioWeight && hostConfig.BlkioWeight > 0) {
-      createCommand += `--blkio-weight ${hostConfig.BlkioWeight} `;
+      createCommand += `${dockerRunFlag("--blkio-weight", hostConfig.BlkioWeight)} `;
     }
 
     // 继承设备映射
@@ -867,11 +895,11 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
       const pathInContainer = device.PathInContainer || "";
       const cgroupPermissions = device.CgroupPermissions || "";
       if (pathOnHost && pathInContainer) {
-        createCommand += `--device ${pathOnHost}:${pathInContainer}`;
+        let deviceCmd = `--device ${pathOnHost}:${pathInContainer}`;
         if (cgroupPermissions) {
-          createCommand += `:${cgroupPermissions}`;
+          deviceCmd += `:${cgroupPermissions}`;
         }
-        createCommand += " ";
+        createCommand += `${shellQuote(deviceCmd)} `;
       }
     }
 
@@ -883,64 +911,64 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
     // 继承安全选项
     if (hostConfig.SecurityOpt && hostConfig.SecurityOpt.length > 0) {
       for (const secOpt of hostConfig.SecurityOpt) {
-        createCommand += `--security-opt ${secOpt} `;
+        createCommand += `${dockerRunFlag("--security-opt", secOpt)} `;
       }
     }
 
     // 继承能力添加/删除
     if (hostConfig.CapAdd && hostConfig.CapAdd.length > 0) {
       for (const cap of hostConfig.CapAdd) {
-        createCommand += `--cap-add ${cap} `;
+        createCommand += `${dockerRunFlag("--cap-add", cap)} `;
       }
     }
     if (hostConfig.CapDrop && hostConfig.CapDrop.length > 0) {
       for (const cap of hostConfig.CapDrop) {
-        createCommand += `--cap-drop ${cap} `;
+        createCommand += `${dockerRunFlag("--cap-drop", cap)} `;
       }
     }
 
     // 继承DNS设置
     if (hostConfig.Dns && hostConfig.Dns.length > 0) {
       for (const dns of hostConfig.Dns) {
-        createCommand += `--dns ${dns} `;
+        createCommand += `${dockerRunFlag("--dns", dns)} `;
       }
     }
     if (hostConfig.DnsSearch && hostConfig.DnsSearch.length > 0) {
       for (const dnsSearch of hostConfig.DnsSearch) {
-        createCommand += `--dns-search ${dnsSearch} `;
+        createCommand += `${dockerRunFlag("--dns-search", dnsSearch)} `;
       }
     }
     if (hostConfig.DnsOptions && hostConfig.DnsOptions.length > 0) {
       for (const dnsOpt of hostConfig.DnsOptions) {
-        createCommand += `--dns-option ${dnsOpt} `;
+        createCommand += `${dockerRunFlag("--dns-option", dnsOpt)} `;
       }
     }
 
     // 继承额外主机映射
     if (hostConfig.ExtraHosts && hostConfig.ExtraHosts.length > 0) {
       for (const host of hostConfig.ExtraHosts) {
-        createCommand += `--add-host ${host} `;
+        createCommand += `${dockerRunFlag("--add-host", host)} `;
       }
     }
 
     // 继承PID模式
     if (hostConfig.PidMode && hostConfig.PidMode !== "") {
-      createCommand += `--pid ${hostConfig.PidMode} `;
+      createCommand += `${dockerRunFlag("--pid", hostConfig.PidMode)} `;
     }
 
     // 继承IPC模式
     if (hostConfig.IpcMode && hostConfig.IpcMode !== "private") {
-      createCommand += `--ipc ${hostConfig.IpcMode} `;
+      createCommand += `${dockerRunFlag("--ipc", hostConfig.IpcMode)} `;
     }
 
     // 继承UTS模式
     if (hostConfig.UTSMode && hostConfig.UTSMode !== "") {
-      createCommand += `--uts ${hostConfig.UTSMode} `;
+      createCommand += `${dockerRunFlag("--uts", hostConfig.UTSMode)} `;
     }
 
     // 继承用户命名空间模式
     if (hostConfig.UsernsMode && hostConfig.UsernsMode !== "") {
-      createCommand += `--userns ${hostConfig.UsernsMode} `;
+      createCommand += `${dockerRunFlag("--userns", hostConfig.UsernsMode)} `;
     }
 
     // 继承只读根文件系统
@@ -950,25 +978,36 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
 
     // 继承临时文件系统
     if (hostConfig.Tmpfs) {
-      for (const [path, options] of Object.entries(hostConfig.Tmpfs)) {
-        createCommand += `--tmpfs ${path}`;
-        if (options) {
-          createCommand += `:${options}`;
-        }
-        createCommand += " ";
+      for (const [tmpfsPath, options] of Object.entries(hostConfig.Tmpfs)) {
+        const tmpfsSpec = options ? `${tmpfsPath}:${options}` : tmpfsPath;
+        createCommand += `${dockerRunFlag("--tmpfs", tmpfsSpec)} `;
       }
     }
 
     // 继承系统调用过滤
     if (hostConfig.Sysctls) {
       for (const [key, value] of Object.entries(hostConfig.Sysctls)) {
-        createCommand += `--sysctl ${key}=${value} `;
+        createCommand += `${dockerRunFlag("--sysctl", `${key}=${value}`)} `;
       }
     }
 
     // 继承运行时
     if (hostConfig.Runtime && hostConfig.Runtime !== "runc") {
-      createCommand += `--runtime ${hostConfig.Runtime} `;
+      createCommand += `${dockerRunFlag("--runtime", hostConfig.Runtime)} `;
+    }
+
+    // 继承日志驱动与日志选项（与 generateDockerRunCommand 保持一致，避免重建后静默丢回无上限的 json-file）
+    if (
+      hostConfig.LogConfig &&
+      hostConfig.LogConfig.Type &&
+      hostConfig.LogConfig.Type !== "json-file"
+    ) {
+      createCommand += `${dockerRunFlag("--log-driver", hostConfig.LogConfig.Type)} `;
+      if (hostConfig.LogConfig.Config) {
+        for (const [logKey, logValue] of Object.entries(hostConfig.LogConfig.Config)) {
+          createCommand += `${dockerRunFlag("--log-opt", `${logKey}=${logValue}`)} `;
+        }
+      }
     }
 
     // 跳过控制台大小设置 - 该参数在大多数 Docker 版本中不被支持
@@ -982,7 +1021,7 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
       hostConfig.Isolation !== "default" &&
       compatibility.isWindows
     ) {
-      createCommand += `--isolation ${hostConfig.Isolation} `;
+      createCommand += `${dockerRunFlag("--isolation", hostConfig.Isolation)} `;
     }
 
     // 等待5秒
@@ -1000,7 +1039,7 @@ async function recreateContainer(ssh, oldContainerName, newImageUrl) {
 
     if (finalExistingContainers.includes(newContainerName)) {
       logInfo(`旧容器 ${newContainerName} 存在，正在删除...`);
-      await execSSHCommand(ssh, `docker rm -f ${newContainerName}`);
+      await execSSHCommand(ssh, `docker rm -f ${shellQuote(newContainerName)}`);
     }
 
     // 再等待5秒
@@ -1290,21 +1329,21 @@ function generateDockerRunCommand(inspectData, overrideImage) {
     : "unnamed";
   const image = overrideImage || config.Image || "unknown";
 
-  let cmd = `docker run -d --name ${containerName}`;
+  let cmd = `docker run -d --name ${shellQuote(containerName)}`;
 
   // 主机名
   if (config.Hostname && config.Hostname !== containerName.slice(0, 12)) {
-    cmd += ` --hostname ${config.Hostname}`;
+    cmd += ` --hostname ${shellQuote(config.Hostname)}`;
   }
 
   // 域名
   if (config.Domainname) {
-    cmd += ` --domainname ${config.Domainname}`;
+    cmd += ` --domainname ${shellQuote(config.Domainname)}`;
   }
 
   // 用户
   if (config.User) {
-    cmd += ` --user "${config.User}"`;
+    cmd += ` --user ${shellQuote(config.User)}`;
   }
 
   // TTY / stdin
@@ -1315,7 +1354,7 @@ function generateDockerRunCommand(inspectData, overrideImage) {
   const envVars = config.Env || [];
   for (const env of envVars) {
     if (!env.startsWith("PATH=") && !env.startsWith("HOSTNAME=")) {
-      cmd += ` \\\n  -e "${env}"`;
+      cmd += ` \\\n  -e ${shellQuote(env)}`;
     }
   }
 
@@ -1327,7 +1366,7 @@ function generateDockerRunCommand(inspectData, overrideImage) {
 
   // 工作目录
   if (config.WorkingDir) {
-    cmd += ` \\\n  --workdir ${config.WorkingDir}`;
+    cmd += ` \\\n  --workdir ${shellQuote(config.WorkingDir)}`;
   }
 
   // 标签
@@ -1337,14 +1376,14 @@ function generateDockerRunCommand(inspectData, overrideImage) {
         !key.startsWith("org.opencontainers") &&
         !key.startsWith("maintainer")
       ) {
-        cmd += ` \\\n  --label "${key}=${value}"`;
+        cmd += ` \\\n  --label ${shellQuote(`${key}=${value}`)}`;
       }
     }
   }
 
   // 停止信号
   if (config.StopSignal && config.StopSignal !== "SIGTERM") {
-    cmd += ` --stop-signal ${config.StopSignal}`;
+    cmd += ` --stop-signal ${shellQuote(config.StopSignal)}`;
   }
 
   // 端口映射
@@ -1358,7 +1397,7 @@ function generateDockerRunCommand(inspectData, overrideImage) {
           : "";
       const hostPort = binding.HostPort;
       const containerPort = port; // 保留协议如 80/tcp
-      cmd += ` \\\n  -p ${hostIp}${hostPort}:${containerPort}`;
+      cmd += ` \\\n  -p ${shellQuote(`${hostIp}${hostPort}:${containerPort}`)}`;
     }
   }
 
@@ -1370,7 +1409,7 @@ function generateDockerRunCommand(inspectData, overrideImage) {
       mountTargets.add(mount.Target);
       let vol = `-v ${mount.Source}:${mount.Target}`;
       if (mount.Mode && mount.Mode !== "rw") vol += `:${mount.Mode}`;
-      cmd += ` \\\n  ${vol}`;
+      cmd += ` \\\n  ${shellQuote(vol)}`;
     }
   }
   const binds = hostConfig.Binds || [];
@@ -1380,7 +1419,7 @@ function generateDockerRunCommand(inspectData, overrideImage) {
     const target = parts.length >= 2 ? parts[1] : null;
     if (target && !mountTargets.has(target)) {
       mountTargets.add(target);
-      cmd += ` \\\n  -v ${bind}`;
+      cmd += ` \\\n  -v ${shellQuote(bind)}`;
     }
   }
 
@@ -1400,20 +1439,20 @@ function generateDockerRunCommand(inspectData, overrideImage) {
     ) {
       rp += `:${restartPolicy.MaximumRetryCount}`;
     }
-    cmd += ` \\\n  --restart ${rp}`;
+    cmd += ` \\\n  --restart ${shellQuote(rp)}`;
   }
 
   // 资源限制
   if (hostConfig.Memory && hostConfig.Memory > 0) {
-    cmd += ` --memory ${hostConfig.Memory}`;
+    cmd += ` --memory ${shellQuote(hostConfig.Memory)}`;
   }
   if (hostConfig.NanoCpus && hostConfig.NanoCpus > 0) {
-    cmd += ` --cpus ${(hostConfig.NanoCpus / 1e9).toFixed(2)}`;
+    cmd += ` --cpus ${shellQuote((hostConfig.NanoCpus / 1e9).toFixed(2))}`;
   }
-  if (hostConfig.CpusetCpus) cmd += ` --cpuset-cpus ${hostConfig.CpusetCpus}`;
-  if (hostConfig.CpusetMems) cmd += ` --cpuset-mems ${hostConfig.CpusetMems}`;
+  if (hostConfig.CpusetCpus) cmd += ` --cpuset-cpus ${shellQuote(hostConfig.CpusetCpus)}`;
+  if (hostConfig.CpusetMems) cmd += ` --cpuset-mems ${shellQuote(hostConfig.CpusetMems)}`;
   if (hostConfig.ShmSize && hostConfig.ShmSize > 67108864) {
-    cmd += ` --shm-size ${hostConfig.ShmSize}`;
+    cmd += ` --shm-size ${shellQuote(hostConfig.ShmSize)}`;
   }
 
   // 设备映射
@@ -1422,7 +1461,7 @@ function generateDockerRunCommand(inspectData, overrideImage) {
     if (device.PathOnHost && device.PathInContainer) {
       let d = `--device ${device.PathOnHost}:${device.PathInContainer}`;
       if (device.CgroupPermissions) d += `:${device.CgroupPermissions}`;
-      cmd += ` \\\n  ${d}`;
+      cmd += ` \\\n  ${shellQuote(d)}`;
     }
   }
 
@@ -1432,39 +1471,39 @@ function generateDockerRunCommand(inspectData, overrideImage) {
   // 安全选项
   if (hostConfig.SecurityOpt && hostConfig.SecurityOpt.length > 0) {
     for (const opt of hostConfig.SecurityOpt) {
-      cmd += ` --security-opt ${opt}`;
+      cmd += ` --security-opt ${shellQuote(opt)}`;
     }
   }
 
   // 能力
   if (hostConfig.CapAdd && hostConfig.CapAdd.length > 0) {
-    for (const cap of hostConfig.CapAdd) cmd += ` --cap-add ${cap}`;
+    for (const cap of hostConfig.CapAdd) cmd += ` --cap-add ${shellQuote(cap)}`;
   }
   if (hostConfig.CapDrop && hostConfig.CapDrop.length > 0) {
-    for (const cap of hostConfig.CapDrop) cmd += ` --cap-drop ${cap}`;
+    for (const cap of hostConfig.CapDrop) cmd += ` --cap-drop ${shellQuote(cap)}`;
   }
 
   // DNS
   if (hostConfig.Dns && hostConfig.Dns.length > 0) {
-    for (const dns of hostConfig.Dns) cmd += ` --dns ${dns}`;
+    for (const dns of hostConfig.Dns) cmd += ` --dns ${shellQuote(dns)}`;
   }
   if (hostConfig.DnsSearch && hostConfig.DnsSearch.length > 0) {
-    for (const ds of hostConfig.DnsSearch) cmd += ` --dns-search ${ds}`;
+    for (const ds of hostConfig.DnsSearch) cmd += ` --dns-search ${shellQuote(ds)}`;
   }
 
   // 额外主机
   if (hostConfig.ExtraHosts && hostConfig.ExtraHosts.length > 0) {
-    for (const h of hostConfig.ExtraHosts) cmd += ` \\\n  --add-host ${h}`;
+    for (const h of hostConfig.ExtraHosts) cmd += ` \\\n  --add-host ${shellQuote(h)}`;
   }
 
   // PID / IPC 模式
-  if (hostConfig.PidMode) cmd += ` --pid ${hostConfig.PidMode}`;
+  if (hostConfig.PidMode) cmd += ` --pid ${shellQuote(hostConfig.PidMode)}`;
   if (
     hostConfig.IpcMode &&
     hostConfig.IpcMode !== "private" &&
     hostConfig.IpcMode !== "shareable"
   ) {
-    cmd += ` --ipc ${hostConfig.IpcMode}`;
+    cmd += ` --ipc ${shellQuote(hostConfig.IpcMode)}`;
   }
 
   // 只读根文件系统
@@ -1473,20 +1512,20 @@ function generateDockerRunCommand(inspectData, overrideImage) {
   // tmpfs
   if (hostConfig.Tmpfs) {
     for (const [p, opts] of Object.entries(hostConfig.Tmpfs)) {
-      cmd += ` --tmpfs ${p}${opts ? ":" + opts : ""}`;
+      cmd += ` --tmpfs ${shellQuote(opts ? `${p}:${opts}` : p)}`;
     }
   }
 
   // sysctl
   if (hostConfig.Sysctls) {
     for (const [k, v] of Object.entries(hostConfig.Sysctls)) {
-      cmd += ` --sysctl ${k}=${v}`;
+      cmd += ` --sysctl ${shellQuote(`${k}=${v}`)}`;
     }
   }
 
   // 运行时
   if (hostConfig.Runtime && hostConfig.Runtime !== "runc") {
-    cmd += ` --runtime ${hostConfig.Runtime}`;
+    cmd += ` --runtime ${shellQuote(hostConfig.Runtime)}`;
   }
 
   // 日志驱动
@@ -1495,10 +1534,10 @@ function generateDockerRunCommand(inspectData, overrideImage) {
     hostConfig.LogConfig.Type &&
     hostConfig.LogConfig.Type !== "json-file"
   ) {
-    cmd += ` --log-driver ${hostConfig.LogConfig.Type}`;
+    cmd += ` --log-driver ${shellQuote(hostConfig.LogConfig.Type)}`;
     if (hostConfig.LogConfig.Config) {
       for (const [k, v] of Object.entries(hostConfig.LogConfig.Config)) {
-        cmd += ` --log-opt ${k}=${v}`;
+        cmd += ` --log-opt ${shellQuote(`${k}=${v}`)}`;
       }
     }
   }
@@ -1709,7 +1748,7 @@ async function inspectCommand() {
     ssh = await remoteLogin(serverAddress, username, port, privateKey);
 
     logInfo(`正在获取容器 ${containerName} 的 inspect 信息...`);
-    const result = await execSSHCommand(ssh, `docker inspect ${containerName}`);
+    const result = await execSSHCommand(ssh, `docker inspect ${shellQuote(containerName)}`);
 
     if (result.code !== 0 || !result.stdout.trim()) {
       logError(`docker inspect 失败: ${result.stderr || "容器不存在"}`);

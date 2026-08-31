@@ -141,5 +141,10 @@ USER nodejs
 
 EXPOSE 3000
 
+# 存活探测：/health 由 src/routes/healthRoutes.ts 提供（含 Mongo/WebSocket 状态）。
+# 端口取 PORT 环境变量，避免与部署时继承的端口不一致导致误报。
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "const p=process.env.PORT||3000;fetch('http://127.0.0.1:'+p+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
 # Node 作为主进程运行
 CMD ["node", "dist/app.js"]

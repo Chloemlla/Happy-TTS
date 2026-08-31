@@ -97,7 +97,16 @@ export const userRepository = {
     if (existUserByName || existUserByEmail) {
       return null;
     }
-    return getUserStorageProvider().createUser(buildNewUser(username, email, password));
+    try {
+      return await getUserStorageProvider().createUser(buildNewUser(username, email, password));
+    } catch (error) {
+      // Two concurrent registrations can both pass the check above and race on the
+      // DB unique index; surface the same "already exists" semantics instead of a raw E11000.
+      if (error && typeof error === "object" && "code" in error && (error as { code?: number }).code === 11000) {
+        return null;
+      }
+      throw error;
+    }
   },
 
   async authenticateUser(identifier: string, password: string): Promise<User | null> {

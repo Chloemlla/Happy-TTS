@@ -70,15 +70,23 @@ const VERIFICATION_TOKEN_PATTERN = /^[a-fA-F0-9]{64}$/;
 class VerificationTokenStorage {
   private cleanupInterval: NodeJS.Timeout | null = null;
   private readonly TOKEN_EXPIRY_MS = 10 * 60 * 1000; // 10分钟有效期
-  private readonly metadataKey = crypto
-    .createHash("sha256")
-    .update(
-      process.env.VERIFICATION_TOKEN_SECRET ||
-        process.env.JWT_SECRET ||
-        process.env.AES_KEY ||
-        config.jwtSecret,
-    )
-    .digest();
+  private _metadataKey: Buffer | null = null;
+
+  // Lazily derived so process.env values written after import (e.g. env.admin.json) are honored.
+  private get metadataKey(): Buffer {
+    if (!this._metadataKey) {
+      this._metadataKey = crypto
+        .createHash("sha256")
+        .update(
+          process.env.VERIFICATION_TOKEN_SECRET ||
+            process.env.JWT_SECRET ||
+            process.env.AES_KEY ||
+            config.jwtSecret,
+        )
+        .digest();
+    }
+    return this._metadataKey;
+  }
 
   constructor() {
     // 启动定期清理过期令牌的任务

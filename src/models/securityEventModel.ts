@@ -25,4 +25,11 @@ const securityEventSchema = new Schema<ISecurityEvent>(
   { timestamps: false },
 );
 
-export const SecurityEvent = mongoose.model<ISecurityEvent>("SecurityEvent", securityEventSchema);
+// Serves `find({ eventType }).sort({ createdAt: -1 })` — the security event list query.
+// The single-field eventType index leaves an in-memory sort behind; the compound index
+// lets MongoDB use the index for both filter and sort.
+securityEventSchema.index({ eventType: 1, createdAt: -1 });
+
+export const SecurityEvent =
+  (mongoose.models.SecurityEvent as mongoose.Model<ISecurityEvent>) ||
+  mongoose.model<ISecurityEvent>("SecurityEvent", securityEventSchema);

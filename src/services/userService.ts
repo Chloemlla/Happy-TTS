@@ -4,7 +4,6 @@ import { mongoose } from "./mongoService";
 import logger from "../utils/logger";
 import {
   canDecryptPassword,
-  decryptStoredPassword,
   protectPassword,
   verifyPasswordHash,
 } from "../utils/passwordSecurity";
@@ -500,43 +499,6 @@ export const verifyAndMigrateUserPassword = async (
   }
 
   return { valid: false, migrated: false, user: null };
-};
-
-export type RevealUserPasswordResult =
-  | { status: "ok"; password: string }
-  | { status: "not_found" }
-  | { status: "not_revealable"; reason: "decrypt_failed" | "empty_password" | "password_hash_only" | "missing_password" };
-
-export const getRevealUserPasswordResult = async (id: string): Promise<RevealUserPasswordResult> => {
-  const user = await getUserAuthById(id);
-  if (!user) {
-    return { status: "not_found" };
-  }
-
-  if (canDecryptPassword(user)) {
-    const decrypted = decryptStoredPassword(user);
-    if (typeof decrypted !== "string") {
-      return { status: "not_revealable", reason: "decrypt_failed" };
-    }
-    if (decrypted.trim().length === 0) {
-      return { status: "not_revealable", reason: "empty_password" };
-    }
-    return { status: "ok", password: decrypted };
-  }
-
-  if (typeof user.password === "string" && user.password.trim().length > 0) {
-    return { status: "ok", password: user.password };
-  }
-
-  return {
-    status: "not_revealable",
-    reason: user.passwordHash ? "password_hash_only" : "missing_password",
-  };
-};
-
-export const revealUserPassword = async (id: string): Promise<string | null> => {
-  const result = await getRevealUserPasswordResult(id);
-  return result.status === "ok" ? result.password : null;
 };
 
 export const incrementUserDailyUsageAtomic = async (

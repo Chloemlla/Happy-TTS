@@ -37,10 +37,13 @@ jobs:
         continue-on-error: true
         run: |
           set -euo pipefail
-          # Clone source and discover main package; published module paths are unstable across tags.
+          # 按 commit SHA 钉死上游（v2.2.1 → 93ab9be1…），避免 tag 被重指；浅拉取该提交。
           tmpdir="$(mktemp -d)"
-          git clone --depth 1 --branch v2.2.1 https://github.com/Done-0/fuck-u-code.git "$tmpdir/fuck-u-code"
+          git init "$tmpdir/fuck-u-code"
           cd "$tmpdir/fuck-u-code"
+          git remote add origin https://github.com/Done-0/fuck-u-code.git
+          git fetch --depth 1 origin 93ab9be138df4733585f148464351db3e57f34ba
+          git checkout FETCH_HEAD
           if [ -f go.mod ]; then
             go build -o "$HOME/go/bin/fuck-u-code" ./...
           else

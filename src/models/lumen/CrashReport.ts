@@ -55,7 +55,11 @@ const CrashReportSchema = new mongoose.Schema<ICrashReport>(
   { strict: true, timestamps: false, collection: "crash_reports" },
 );
 
-CrashReportSchema.index({ userId: 1, reportId: 1 });
+// Unique so concurrent duplicate crash reports for the same user+reportId can't
+// create multiple documents (the service uses findOne-then-create today).
+// PRECONDITION: de-duplicate existing {userId, reportId} rows before this index is
+// built, otherwise the unique index creation fails on first sync (mongoose only logs it).
+CrashReportSchema.index({ userId: 1, reportId: 1 }, { unique: true });
 CrashReportSchema.index({ userId: 1, receivedAt: -1 });
 CrashReportSchema.index({ groupKey: 1 });
 // Ingest rate limiting counts per user+device inside a time window.

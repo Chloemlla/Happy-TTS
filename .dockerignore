@@ -6,18 +6,29 @@ frontend/docs
 # 构建输出
 dist
 frontend/dist
+dist-obfuscated
 
 # 日志文件
 logs
 *.log
 npm-debug.log*
 
-# 环境文件
+# 环境文件（任意层级，含 frontend/.env 等）
+**/.env
+**/.env.*
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+frontend/.env
+frontend/.env.local
+frontend/.env.*
+
+# 敏感目录（签名密钥、运行时数据、测试数据）
+secrets/
+data/
+test-data/
 
 # 缓存目录
 .cache
@@ -40,8 +51,12 @@ Thumbs.db
 
 # 测试文件
 coverage
+frontend/coverage
 .nyc_output
+
+# 归档文件（不应进入构建上下文）
+Synapse.zip
 
 # 临时文件
 *.tmp
-*.temp 
+*.temp

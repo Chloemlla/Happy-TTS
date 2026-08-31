@@ -2,13 +2,19 @@
 "use strict";
 
 const AUTO_MERGE_LABEL = process.env.AUTO_MERGE_LABEL || "automerge";
-const ACCEPTED_CHECK_CONCLUSIONS = new Set(["SUCCESS", "NEUTRAL", "SKIPPED"]);
+const ACCEPTED_CHECK_CONCLUSIONS = new Set(["SUCCESS", "NEUTRAL"]);
 const ACCEPTED_STATUS_STATES = new Set(["SUCCESS"]);
 
 // In-repo baseline when repository rulesets/branch protection are not readable.
 // Administrators should still configure these as required status checks in GitHub settings.
 const BASELINE_REQUIRED_CHECKS = [
   "Node verification",
+  "type-check",
+  "Governance checks",
+  "Frontend bundle budget",
+  "Mongo replica integration",
+  "Browser cookie smoke",
+  "Docker Build Verification",
 ];
 
 function assert(condition, message) {
@@ -49,10 +55,17 @@ function requiredContextsFromRules(rules) {
 
 function successfulContextNames(contexts) {
   const successful = new Set();
+  const skipped = new Set();
   const incomplete = [];
 
   for (const item of contexts) {
     if (item.__typename === "CheckRun") {
+      if (item.status === "COMPLETED" && item.conclusion === "SKIPPED") {
+        // 跳过 ≠ 通过：单独记账，不进入 successful（防止 required check 被跳过时误判通过），
+        // 也不进入 incomplete（非 required 的条件性跳过 job 不应阻塞 auto-merge）。
+        skipped.add(item.name);
+        continue;
+      }
       if (item.status === "COMPLETED" && ACCEPTED_CHECK_CONCLUSIONS.has(item.conclusion)) {
         successful.add(item.name);
       } else {
@@ -70,7 +83,7 @@ function successfulContextNames(contexts) {
     }
   }
 
-  return { successful, incomplete };
+  return { successful, skipped, incomplete };
 }
 
 async function loadPullRequestState(github, owner, repo, pullNumber) {
@@ -257,7 +270,7 @@ async function evaluatePullRequest({ github, core, owner, repo, pullNumber, expe
   }
 
   const contexts = state.statusCheckRollup.contexts.nodes || [];
-  const { successful, incomplete } = successfulContextNames(contexts);
+  const { successful, skipped, incomplete } = successfulContextNames(contexts);
   if (incomplete.length > 0) {
     return softSkip(
       core,
@@ -270,6 +283,14 @@ async function evaluatePullRequest({ github, core, owner, repo, pullNumber, expe
     return softSkip(
       core,
       `PR #${pullNumber} is missing successful required checks: ${missingRequired.join(", ")}; skipping auto-merge.`
+    );
+  }
+
+  const skippedRequired = [...requiredContexts].filter((name) => skipped.has(name));
+  if (skippedRequired.length > 0) {
+    return softSkip(
+      core,
+      `PR #${pullNumber} has required checks that were skipped (skipped !== passing): ${skippedRequired.join(", ")}; skipping auto-merge.`
     );
   }
 
