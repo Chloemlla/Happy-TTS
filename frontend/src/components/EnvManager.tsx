@@ -228,7 +228,7 @@ const EnvManager: React.FC = () => {
   useEffect(() => {
     if (!configurationWorkflow && !configurationTargetIssueId) return;
     let cancelled = false;
-    let timer: ReturnType<typeof window.setTimeout>;
+    let timer: number;
     let consecutiveFailures = 0;
     const BASE_POLL_MS = 15000; // G11-08: 由 3s 提到 15s，避免高频轮询健康接口
     const MAX_POLL_MS = 120000; // 指数退避封顶 2 分钟

@@ -143,7 +143,7 @@ const EmailSender: React.FC = () => {
   // G11-10: 防双击重复提交（setState 是异步的，光靠 loading 挡不住同帧内的第二次点击）
   const sendingRef = useRef(false);
   // G11-10: 发件人域名配额查询的 300ms debounce + 结果缓存
-  const quotaDebounceRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
+  const quotaDebounceRef = useRef<number | null>(null);
   const quotaCacheRef = useRef<Record<string, number>>({});
   const QUOTA_CACHE_TTL_MS = 30000;
 
