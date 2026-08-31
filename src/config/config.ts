@@ -18,6 +18,7 @@ import {
   type TtsRuntimeConfig,
 } from "./runtimeConfigDefaults";
 import type { TtsProviderRuntimeConfig } from "./ttsProviderConfig";
+import { buildLumenConfigFromEnv } from "./lumen";
 import {
   isGenerationCodeConfigured,
   normalizeGenerationCode,
@@ -88,6 +89,32 @@ const envSchema = z
     CDICT_APP_SIGN_SECRET: optionalTrimmedString,
     CDICT_APP_SIGN_SECRET_PREV: optionalTrimmedString,
     CDICT_SIG_MAX_DRIFT_MS: optionalTrimmedString,
+    // Project Lumen server-side config. Same loose-string treatment as the signing
+    // middleware: a malformed value degrades to the safe default, not a crash.
+    LUMEN_ENABLED: stringToBoolean,
+    LUMEN_ADMIN_USERNAME: optionalTrimmedString,
+    LUMEN_ADMIN_PASSWORD: optionalTrimmedString,
+    LUMEN_ADMIN_AUTOMATION_TOKEN: optionalTrimmedString,
+    LUMEN_REQUEST_SIGNING_SECRET: optionalTrimmedString,
+    LUMEN_REQUIRE_REQUEST_SIGNING: stringToBoolean,
+    LUMEN_ACCEPT_UNVERIFIED_PURCHASES: stringToBoolean,
+    LUMEN_OUTEMAIL_API_KEY: optionalTrimmedString,
+    LUMEN_OUTEMAIL_API_URL: z.string().url().optional(),
+    LUMEN_APP_VERSION: optionalTrimmedString,
+    LUMEN_SESSION_TTL_DAYS: optionalTrimmedString,
+    LUMEN_LOGIN_CODE_TTL_SECONDS: optionalTrimmedString,
+    LUMEN_ADMIN_SESSION_TTL_SECONDS: optionalTrimmedString,
+    LUMEN_ADMIN_REFRESH_TTL_SECONDS: optionalTrimmedString,
+    LUMEN_ACCESS_TOKEN_TTL_SECONDS: optionalTrimmedString,
+    LUMEN_REFRESH_TOKEN_TTL_SECONDS: optionalTrimmedString,
+    LUMEN_DEV_LOGIN_CODE: optionalTrimmedString,
+    LUMEN_REQUEST_TIMESTAMP_SKEW_SECONDS: optionalTrimmedString,
+    LUMEN_ALLOW_PUBLIC_RELEASE_CHECK: stringToBoolean,
+    LUMEN_OUTEMAIL_FROM: optionalTrimmedString,
+    LUMEN_OUTEMAIL_DISPLAY_NAME: optionalTrimmedString,
+    LUMEN_OUTEMAIL_DOMAIN: optionalTrimmedString,
+    LUMEN_OUTEMAIL_TIMEOUT_SECONDS: optionalTrimmedString,
+    LUMEN_OUTEMAIL_BASE_URL: z.string().url().optional(),
     OPENAI_API_KEY: optionalTrimmedString,
     OPENAI_KEY: optionalTrimmedString,
     OPENAI_BASE_URL: z.string().url().optional(),
@@ -272,7 +299,7 @@ export const compileTimeConfig = Object.freeze({
   audioDir: path.join(process.cwd(), "finish"),
   dataDir: path.join(process.cwd(), "data"),
   logsDir: path.join(process.cwd(), "logs"),
-  runtimeMutableKeys: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "TTS_PROVIDER", "EMAIL", "ADMIN_SECURITY", "SYNAPSE_ANDROID", "NEXAI_SIGNING", "CDICT_SIGNING"] as const,
+  runtimeMutableKeys: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "TTS_PROVIDER", "EMAIL", "ADMIN_SECURITY", "SYNAPSE_ANDROID", "NEXAI_SIGNING", "CDICT_SIGNING", "LUMEN"] as const,
 });
 
 const runtimeDefaults = buildRuntimeConfigDefaults({
@@ -354,6 +381,10 @@ runtimeDefaults.cdictSigning = {
     return Number.isFinite(n) && n > 0 ? Math.round(n) : runtimeDefaults.cdictSigning.maxDriftMs;
   })(),
 };
+
+// Project Lumen server-side config defaults come from env; a stored LUMEN doc
+// overrides them at runtime (see src/config/lumen.ts).
+runtimeDefaults.lumen = buildLumenConfigFromEnv();
 
 RuntimeConfigService.configureDefaults(runtimeDefaults);
 

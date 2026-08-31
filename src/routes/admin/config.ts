@@ -308,6 +308,22 @@ router.delete(
   adminController.deleteAdminSecuritySetting,
 );
 
+// Project Lumen server-side runtime config (LUMEN_* variables), distinct from
+// /lumen-config which manages the client-side PROJECT_LUMEN_* build/CI vars.
+router.get("/lumen-server/setting", adminController.getLumenServerSetting);
+router.post(
+  "/lumen-server/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.lumen-server.set", captureBody: false }),
+  adminController.setLumenServerSetting,
+);
+router.delete(
+  "/lumen-server/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.lumen-server.delete" }),
+  adminController.deleteLumenServerSetting,
+);
+
 // Webhook Secret management (admin)
 router.get("/webhook/secret", adminController.getWebhookSecret);
 router.post(

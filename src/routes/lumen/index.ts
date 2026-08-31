@@ -1,4 +1,6 @@
 import { Router } from "express";
+import type { RequestHandler } from "express";
+import { isLumenEnabled } from "../../config/lumen.js";
 import { lumenLimiter } from "../../middleware/routeLimiters.js";
 import healthRoutes from "./health.routes.js";
 import authRoutes from "./auth.routes.js";
@@ -16,6 +18,22 @@ import adminRoutes from "./admin.routes.js";
 import platformRoutes from "./platform.routes.js";
 
 const router = Router();
+
+// Fail-closed gate: when Lumen is not enabled the whole subsystem returns 503.
+// Scoped to the /api/lumen prefix (the router is mounted at "/" in app.ts, so an
+// unscoped gate would block every host route). Enabled state is read per request,
+// so the admin UI can turn Lumen on without a redeploy.
+const lumenGate: RequestHandler = (_req, res, next) => {
+  if (!isLumenEnabled()) {
+    res.status(503).json({
+      error: "Lumen 未启用",
+      message: "Lumen 服务未启用，请在环境变量 LUMEN_ENABLED=true 或管理后台「Lumen 服务端配置」中启用。",
+    });
+    return;
+  }
+  next();
+};
+router.use("/api/lumen", lumenGate);
 
 // Build the /api/v1 sub-router with all versioned routes
 const v1Router = Router();

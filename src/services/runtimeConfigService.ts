@@ -8,6 +8,7 @@ import {
   type GoogleAuthRuntimeConfig,
   type IpqsRuntimeConfig,
   type LinuxDoRuntimeConfig,
+  type LumenRuntimeConfig,
   type NexaiRuntimeConfig,
   type NexaiSigningRuntimeConfig,
   type RuntimeConfigDefaults,
@@ -21,6 +22,7 @@ import {
 } from "../config/ttsProviderConfig";
 import { formatFishAudioCatalogCurl } from "../config/fishAudioCatalog";
 import { type RuntimeConfigKey, RuntimeConfigModel } from "../models/runtimeConfigModel";
+import { refreshLumenConfig } from "../config/lumen";
 import {
   assertStrongGenerationCode,
   normalizeGenerationCode,
@@ -538,6 +540,41 @@ function normalizeStoredCdictSigningConfig(
   };
 }
 
+/**
+ * Merge a stored LUMEN doc over the current (env-seeded) defaults, so fields the
+ * admin did not override keep their env/deployment values.
+ */
+function normalizeStoredLumenConfig(value: unknown, defaults: LumenRuntimeConfig): LumenRuntimeConfig {
+  const raw = asObject(value);
+
+  return {
+    enabled: normalizeBoolean(raw.enabled, defaults.enabled),
+    adminUsername: normalizeOptionalString(raw.adminUsername, defaults.adminUsername, 256),
+    adminPassword: normalizeOptionalString(raw.adminPassword, defaults.adminPassword, 1024),
+    adminAutomationToken: normalizeOptionalString(raw.adminAutomationToken, defaults.adminAutomationToken, 1024),
+    requestSigningSecret: normalizeOptionalString(raw.requestSigningSecret, defaults.requestSigningSecret, 1024),
+    requireRequestSigning: normalizeBoolean(raw.requireRequestSigning, defaults.requireRequestSigning),
+    acceptUnverifiedPurchases: normalizeBoolean(raw.acceptUnverifiedPurchases, defaults.acceptUnverifiedPurchases),
+    outemailApiKey: normalizeOptionalString(raw.outemailApiKey, defaults.outemailApiKey, 2048),
+    outemailApiUrl: normalizeUrl(raw.outemailApiUrl, defaults.outemailApiUrl),
+    appVersion: normalizeString(raw.appVersion, defaults.appVersion, 64),
+    sessionTtlDays: normalizeInteger(raw.sessionTtlDays, defaults.sessionTtlDays, 1, 3650),
+    loginCodeTtlSeconds: normalizeInteger(raw.loginCodeTtlSeconds, defaults.loginCodeTtlSeconds, 30, 86400),
+    adminSessionTtlSeconds: normalizeInteger(raw.adminSessionTtlSeconds, defaults.adminSessionTtlSeconds, 60, 86400),
+    adminRefreshTtlSeconds: normalizeInteger(raw.adminRefreshTtlSeconds, defaults.adminRefreshTtlSeconds, 60, 31536000),
+    accessTokenTtlSeconds: normalizeInteger(raw.accessTokenTtlSeconds, defaults.accessTokenTtlSeconds, 60, 7200),
+    refreshTokenTtlSeconds: normalizeInteger(raw.refreshTokenTtlSeconds, defaults.refreshTokenTtlSeconds, 60, 2592000),
+    devLoginCode: normalizeOptionalString(raw.devLoginCode, "", 256),
+    requestTimestampSkewSeconds: normalizeInteger(raw.requestTimestampSkewSeconds, defaults.requestTimestampSkewSeconds, 1, 300),
+    allowPublicReleaseCheck: normalizeBoolean(raw.allowPublicReleaseCheck, defaults.allowPublicReleaseCheck),
+    outemailFrom: normalizeOptionalString(raw.outemailFrom, defaults.outemailFrom, 256),
+    outemailDisplayName: normalizeOptionalString(raw.outemailDisplayName, defaults.outemailDisplayName, 256),
+    outemailDomain: normalizeOptionalString(raw.outemailDomain, defaults.outemailDomain, 253),
+    outemailTimeoutSeconds: normalizeInteger(raw.outemailTimeoutSeconds, defaults.outemailTimeoutSeconds, 1, 120),
+    outemailBaseUrl: normalizeUrl(raw.outemailBaseUrl, defaults.outemailBaseUrl),
+  };
+}
+
 function applyCacheForKey(key: RuntimeConfigKey, value: unknown): void {
   if (key === "IPQS") {
     runtimeConfigCache.ipqs = normalizeStoredIpqsConfig(value);
@@ -594,6 +631,13 @@ function applyCacheForKey(key: RuntimeConfigKey, value: unknown): void {
     return;
   }
 
+  if (key === "LUMEN") {
+    const config = normalizeStoredLumenConfig(value, runtimeConfigCache.lumen);
+    runtimeConfigCache.lumen = config;
+    refreshLumenConfig(config);
+    return;
+  }
+
   runtimeConfigCache.nexai = normalizeStoredNexaiConfig(value);
 }
 
@@ -638,6 +682,10 @@ export class RuntimeConfigService {
     if (!loadedKeys.has("CDICT_SIGNING")) {
       runtimeConfigCache.cdictSigning = cloneRuntimeConfigDefaults(defaults).cdictSigning;
     }
+    if (!loadedKeys.has("LUMEN")) {
+      runtimeConfigCache.lumen = cloneRuntimeConfigDefaults(defaults).lumen;
+      refreshLumenConfig(runtimeConfigCache.lumen);
+    }
   }
 
   static getCachedConfig(): RuntimeConfigDefaults {
@@ -649,7 +697,7 @@ export class RuntimeConfigService {
     if (initialized && !force) return;
 
     const docs = await RuntimeConfigModel.find({
-      key: { $in: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "TTS_PROVIDER", "EMAIL", "ADMIN_SECURITY", "SYNAPSE_ANDROID", "NEXAI_SIGNING", "CDICT_SIGNING"] },
+      key: { $in: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "TTS_PROVIDER", "EMAIL", "ADMIN_SECURITY", "SYNAPSE_ANDROID", "NEXAI_SIGNING", "CDICT_SIGNING", "LUMEN"] },
     })
       .lean()
       .exec();
@@ -672,6 +720,7 @@ export class RuntimeConfigService {
       nextCache.synapseAndroid = runtimeConfigCache.synapseAndroid;
       nextCache.nexaiSigning = runtimeConfigCache.nexaiSigning;
       nextCache.cdictSigning = runtimeConfigCache.cdictSigning;
+      nextCache.lumen = runtimeConfigCache.lumen;
       loadedKeys.add(doc.key as RuntimeConfigKey);
     }
 
@@ -1668,5 +1717,236 @@ export class RuntimeConfigService {
     await RuntimeConfigModel.deleteOne({ key: "ADMIN_SECURITY" }).exec();
     runtimeConfigCache.adminSecurity = cloneRuntimeConfigDefaults(runtimeConfigDefaults).adminSecurity;
     loadedKeys.delete("ADMIN_SECURITY");
+  }
+
+  /**
+   * Project Lumen server-side config (the LUMEN_* environment variables). The
+   * stored doc overrides the env-seeded defaults; lumenConfig in
+   * src/config/lumen.ts is hot-refreshed so the running process picks it up.
+   */
+  static async getLumenSetting(): Promise<{
+    setting: {
+      config: {
+        enabled: boolean;
+        adminUsername: string;
+        adminPassword: string;
+        hasAdminPassword: boolean;
+        adminAutomationToken: string;
+        hasAdminAutomationToken: boolean;
+        requestSigningSecret: string;
+        hasRequestSigningSecret: boolean;
+        requireRequestSigning: boolean;
+        acceptUnverifiedPurchases: boolean;
+        outemailApiKey: string;
+        hasOutemailApiKey: boolean;
+        outemailApiUrl: string;
+        appVersion: string;
+        sessionTtlDays: number;
+        loginCodeTtlSeconds: number;
+        adminSessionTtlSeconds: number;
+        adminRefreshTtlSeconds: number;
+        accessTokenTtlSeconds: number;
+        refreshTokenTtlSeconds: number;
+        devLoginCodeConfigured: boolean;
+        requestTimestampSkewSeconds: number;
+        allowPublicReleaseCheck: boolean;
+        outemailFrom: string;
+        outemailDisplayName: string;
+        outemailDomain: string;
+        outemailTimeoutSeconds: number;
+        outemailBaseUrl: string;
+      };
+      updatedAt?: string;
+    };
+  }> {
+    const doc = await readRuntimeConfigDoc("LUMEN");
+    const config = doc
+      ? normalizeStoredLumenConfig(doc.value, runtimeConfigCache.lumen)
+      : cloneRuntimeConfigDefaults(runtimeConfigCache).lumen;
+    runtimeConfigCache.lumen = config;
+    refreshLumenConfig(config);
+
+    return {
+      setting: {
+        config: {
+          enabled: config.enabled,
+          adminUsername: config.adminUsername,
+          adminPassword: maskSecret(config.adminPassword),
+          hasAdminPassword: config.adminPassword.length > 0,
+          adminAutomationToken: maskSecret(config.adminAutomationToken),
+          hasAdminAutomationToken: config.adminAutomationToken.length > 0,
+          requestSigningSecret: maskSecret(config.requestSigningSecret),
+          hasRequestSigningSecret: config.requestSigningSecret.length > 0,
+          requireRequestSigning: config.requireRequestSigning,
+          acceptUnverifiedPurchases: config.acceptUnverifiedPurchases,
+          outemailApiKey: maskSecret(config.outemailApiKey),
+          hasOutemailApiKey: config.outemailApiKey.length > 0,
+          outemailApiUrl: config.outemailApiUrl,
+          appVersion: config.appVersion,
+          sessionTtlDays: config.sessionTtlDays,
+          loginCodeTtlSeconds: config.loginCodeTtlSeconds,
+          adminSessionTtlSeconds: config.adminSessionTtlSeconds,
+          adminRefreshTtlSeconds: config.adminRefreshTtlSeconds,
+          accessTokenTtlSeconds: config.accessTokenTtlSeconds,
+          refreshTokenTtlSeconds: config.refreshTokenTtlSeconds,
+          devLoginCodeConfigured: config.devLoginCode.length > 0,
+          requestTimestampSkewSeconds: config.requestTimestampSkewSeconds,
+          allowPublicReleaseCheck: config.allowPublicReleaseCheck,
+          outemailFrom: config.outemailFrom,
+          outemailDisplayName: config.outemailDisplayName,
+          outemailDomain: config.outemailDomain,
+          outemailTimeoutSeconds: config.outemailTimeoutSeconds,
+          outemailBaseUrl: config.outemailBaseUrl,
+        },
+        updatedAt: doc?.updatedAt?.toISOString(),
+      },
+    };
+  }
+
+  static async setLumenSetting(input: unknown): Promise<{ updatedAt: string }> {
+    const obj = asObject(input);
+    const currentDoc = await readRuntimeConfigDoc("LUMEN");
+    const current = currentDoc
+      ? normalizeStoredLumenConfig(currentDoc.value, runtimeConfigCache.lumen)
+      : cloneRuntimeConfigDefaults(runtimeConfigCache).lumen;
+
+    const enabled = hasOwnKey(obj, "enabled")
+      ? normalizeBoolean(obj.enabled, current.enabled)
+      : current.enabled;
+
+    const updateSecret = (key: string, currentValue: string, minLen: number, label: string): string => {
+      if (!hasOwnKey(obj, key)) return currentValue;
+      if (typeof obj[key] !== "string") throw new Error(`${label} 必须是字符串`);
+      const value = obj[key].trim();
+      if (!value) return currentValue;
+      if (value.length < minLen) throw new Error(`${label} 至少需要 ${minLen} 个字符`);
+      return value.slice(0, 1024);
+    };
+
+    const adminPassword = updateSecret("adminPassword", current.adminPassword, 12, "LUMEN_ADMIN_PASSWORD");
+    const requestSigningSecret = updateSecret(
+      "requestSigningSecret",
+      current.requestSigningSecret,
+      32,
+      "LUMEN_REQUEST_SIGNING_SECRET",
+    );
+    const adminAutomationToken = updateSecret(
+      "adminAutomationToken",
+      current.adminAutomationToken,
+      12,
+      "LUMEN_ADMIN_AUTOMATION_TOKEN",
+    );
+    const outemailApiKey = updateSecret("outemailApiKey", current.outemailApiKey, 1, "LUMEN_OUTEMAIL_API_KEY");
+
+    let devLoginCode = current.devLoginCode;
+    if (hasOwnKey(obj, "devLoginCode")) {
+      if (typeof obj.devLoginCode !== "string") throw new Error("LUMEN_DEV_LOGIN_CODE 必须是字符串");
+      const value = obj.devLoginCode.trim();
+      if (value) {
+        if (process.env.NODE_ENV === "production") {
+          throw new Error("LUMEN_DEV_LOGIN_CODE 不允许在生产环境配置");
+        }
+        devLoginCode = value.slice(0, 256);
+      } else {
+        devLoginCode = "";
+      }
+    }
+
+    const nextConfig: LumenRuntimeConfig = {
+      enabled,
+      adminUsername: hasOwnKey(obj, "adminUsername")
+        ? normalizeOptionalString(obj.adminUsername, current.adminUsername, 256)
+        : current.adminUsername,
+      adminPassword,
+      adminAutomationToken,
+      requestSigningSecret,
+      requireRequestSigning: hasOwnKey(obj, "requireRequestSigning")
+        ? normalizeBoolean(obj.requireRequestSigning, current.requireRequestSigning)
+        : current.requireRequestSigning,
+      acceptUnverifiedPurchases: hasOwnKey(obj, "acceptUnverifiedPurchases")
+        ? normalizeBoolean(obj.acceptUnverifiedPurchases, current.acceptUnverifiedPurchases)
+        : current.acceptUnverifiedPurchases,
+      outemailApiKey,
+      outemailApiUrl: hasOwnKey(obj, "outemailApiUrl")
+        ? normalizeUrl(obj.outemailApiUrl, current.outemailApiUrl)
+        : current.outemailApiUrl,
+      appVersion: hasOwnKey(obj, "appVersion")
+        ? normalizeString(obj.appVersion, current.appVersion, 64)
+        : current.appVersion,
+      sessionTtlDays: hasOwnKey(obj, "sessionTtlDays")
+        ? normalizeInteger(obj.sessionTtlDays, current.sessionTtlDays, 1, 3650)
+        : current.sessionTtlDays,
+      loginCodeTtlSeconds: hasOwnKey(obj, "loginCodeTtlSeconds")
+        ? normalizeInteger(obj.loginCodeTtlSeconds, current.loginCodeTtlSeconds, 30, 86400)
+        : current.loginCodeTtlSeconds,
+      adminSessionTtlSeconds: hasOwnKey(obj, "adminSessionTtlSeconds")
+        ? normalizeInteger(obj.adminSessionTtlSeconds, current.adminSessionTtlSeconds, 60, 86400)
+        : current.adminSessionTtlSeconds,
+      adminRefreshTtlSeconds: hasOwnKey(obj, "adminRefreshTtlSeconds")
+        ? normalizeInteger(obj.adminRefreshTtlSeconds, current.adminRefreshTtlSeconds, 60, 31536000)
+        : current.adminRefreshTtlSeconds,
+      accessTokenTtlSeconds: hasOwnKey(obj, "accessTokenTtlSeconds")
+        ? normalizeInteger(obj.accessTokenTtlSeconds, current.accessTokenTtlSeconds, 60, 7200)
+        : current.accessTokenTtlSeconds,
+      refreshTokenTtlSeconds: hasOwnKey(obj, "refreshTokenTtlSeconds")
+        ? normalizeInteger(obj.refreshTokenTtlSeconds, current.refreshTokenTtlSeconds, 60, 2592000)
+        : current.refreshTokenTtlSeconds,
+      devLoginCode,
+      requestTimestampSkewSeconds: hasOwnKey(obj, "requestTimestampSkewSeconds")
+        ? normalizeInteger(obj.requestTimestampSkewSeconds, current.requestTimestampSkewSeconds, 1, 300)
+        : current.requestTimestampSkewSeconds,
+      allowPublicReleaseCheck: hasOwnKey(obj, "allowPublicReleaseCheck")
+        ? normalizeBoolean(obj.allowPublicReleaseCheck, current.allowPublicReleaseCheck)
+        : current.allowPublicReleaseCheck,
+      outemailFrom: hasOwnKey(obj, "outemailFrom")
+        ? normalizeOptionalString(obj.outemailFrom, current.outemailFrom, 256)
+        : current.outemailFrom,
+      outemailDisplayName: hasOwnKey(obj, "outemailDisplayName")
+        ? normalizeOptionalString(obj.outemailDisplayName, current.outemailDisplayName, 256)
+        : current.outemailDisplayName,
+      outemailDomain: hasOwnKey(obj, "outemailDomain")
+        ? normalizeOptionalString(obj.outemailDomain, current.outemailDomain, 253)
+        : current.outemailDomain,
+      outemailTimeoutSeconds: hasOwnKey(obj, "outemailTimeoutSeconds")
+        ? normalizeInteger(obj.outemailTimeoutSeconds, current.outemailTimeoutSeconds, 1, 120)
+        : current.outemailTimeoutSeconds,
+      outemailBaseUrl: hasOwnKey(obj, "outemailBaseUrl")
+        ? normalizeUrl(obj.outemailBaseUrl, current.outemailBaseUrl)
+        : current.outemailBaseUrl,
+    };
+
+    if (nextConfig.enabled) {
+      if (nextConfig.adminPassword.length < 12) {
+        throw new Error("启用 Lumen 前需配置强 LUMEN_ADMIN_PASSWORD（>=12 字符）");
+      }
+      if (nextConfig.requestSigningSecret.length < 32) {
+        throw new Error("启用 Lumen 前需配置 LUMEN_REQUEST_SIGNING_SECRET（>=32 字符）");
+      }
+      if (!nextConfig.outemailApiKey) {
+        throw new Error("启用 Lumen 前需配置 LUMEN_OUTEMAIL_API_KEY");
+      }
+    }
+
+    const now = new Date();
+    await RuntimeConfigModel.findOneAndUpdate(
+      { key: "LUMEN" },
+      { value: nextConfig, updatedAt: now },
+      { upsert: true, returnDocument: "after" },
+    ).exec();
+
+    runtimeConfigCache.lumen = nextConfig;
+    refreshLumenConfig(nextConfig);
+    loadedKeys.add("LUMEN");
+    initialized = true;
+
+    return { updatedAt: now.toISOString() };
+  }
+
+  static async deleteLumenSetting(): Promise<void> {
+    await RuntimeConfigModel.deleteOne({ key: "LUMEN" }).exec();
+    const defaults = cloneRuntimeConfigDefaults(runtimeConfigDefaults).lumen;
+    runtimeConfigCache.lumen = defaults;
+    refreshLumenConfig(defaults);
+    loadedKeys.delete("LUMEN");
   }
 }

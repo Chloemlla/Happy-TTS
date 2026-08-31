@@ -128,6 +128,39 @@ export interface CdictSigningRuntimeConfig {
   maxDriftMs: number;
 }
 
+/**
+ * Runtime-mutable settings consumed by the Project Lumen subsystem
+ * (src/config/lumen.ts). Mirror of the LUMEN_* environment variables; a stored
+ * LUMEN doc overrides the env-seeded defaults at runtime (see runtimeConfigService).
+ */
+export interface LumenRuntimeConfig {
+  /** Whether the /api/lumen routes are served. Deployment can force it via LUMEN_ENABLED. */
+  enabled: boolean;
+  adminUsername: string;
+  adminPassword: string;
+  adminAutomationToken: string;
+  requestSigningSecret: string;
+  requireRequestSigning: boolean;
+  acceptUnverifiedPurchases: boolean;
+  outemailApiKey: string;
+  outemailApiUrl: string;
+  appVersion: string;
+  sessionTtlDays: number;
+  loginCodeTtlSeconds: number;
+  adminSessionTtlSeconds: number;
+  adminRefreshTtlSeconds: number;
+  accessTokenTtlSeconds: number;
+  refreshTokenTtlSeconds: number;
+  devLoginCode: string;
+  requestTimestampSkewSeconds: number;
+  allowPublicReleaseCheck: boolean;
+  outemailFrom: string;
+  outemailDisplayName: string;
+  outemailDomain: string;
+  outemailTimeoutSeconds: number;
+  outemailBaseUrl: string;
+}
+
 export interface RuntimeConfigDefaults {
   ipqs: IpqsRuntimeConfig;
   linuxdo: LinuxDoRuntimeConfig;
@@ -142,6 +175,7 @@ export interface RuntimeConfigDefaults {
   synapseAndroid: SynapseAndroidRuntimeConfig;
   nexaiSigning: NexaiSigningRuntimeConfig;
   cdictSigning: CdictSigningRuntimeConfig;
+  lumen: LumenRuntimeConfig;
 }
 
 export function buildRuntimeConfigDefaults(options: {
@@ -285,6 +319,32 @@ export function buildRuntimeConfigDefaults(options: {
       appSignSecretPrev: "",
       maxDriftMs: 5 * 60 * 1000,
     },
+    lumen: {
+      enabled: false,
+      adminUsername: "admin",
+      adminPassword: "",
+      adminAutomationToken: "",
+      requestSigningSecret: "",
+      requireRequestSigning: false,
+      acceptUnverifiedPurchases: false,
+      outemailApiKey: "",
+      outemailApiUrl: "",
+      appVersion: "0.1.0",
+      sessionTtlDays: 90,
+      loginCodeTtlSeconds: 300,
+      adminSessionTtlSeconds: 3600,
+      adminRefreshTtlSeconds: 604800,
+      accessTokenTtlSeconds: 7200,
+      refreshTokenTtlSeconds: 2592000,
+      devLoginCode: "",
+      requestTimestampSkewSeconds: 300,
+      allowPublicReleaseCheck: true,
+      outemailFrom: "noreply",
+      outemailDisplayName: "Project Lumen",
+      outemailDomain: "",
+      outemailTimeoutSeconds: 10,
+      outemailBaseUrl: "https://tts.chloemlla.com",
+    },
   };
 }
 
@@ -349,6 +409,9 @@ export function cloneRuntimeConfigDefaults(config: RuntimeConfigDefaults): Runti
     },
     cdictSigning: {
       ...config.cdictSigning,
+    },
+    lumen: {
+      ...config.lumen,
     },
   };
 }

@@ -32,6 +32,7 @@ export const ECOENCHANTS_WEBHOOK_API = `${API_BASE_URL}/api/admin/envs`;
 export const SECURITY_SECRET_API = `${API_BASE_URL}/api/admin/envs`;
 export const LUMEN_CONFIG_API = `${API_BASE_URL}/api/admin/lumen-config`;
 export const LUMEN_CONFIG_SYNC_API = `${API_BASE_URL}/api/admin/lumen-config/sync-github`;
+export const LUMEN_SERVER_API = `${API_BASE_URL}/api/admin/lumen-server/setting`;
 export const GOOGLE_WEB_CLIENT_ID_PATTERN = /^[\w-]+\.apps\.googleusercontent\.com$/i;
 
 export function getAuthHeaders(): Record<string, string> {
