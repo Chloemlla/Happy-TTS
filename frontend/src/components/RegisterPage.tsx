@@ -8,9 +8,10 @@ import LinuxDoAuthButton from './LinuxDoAuthButton';
 import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
 import { AnimatePresence, LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion';
-import getApiBaseUrl from '../api';
+import { api } from '../api/api';
 import { FaEnvelope, FaLock, FaEye, FaEyeSlash, FaUser, FaVolumeUp, FaArrowLeft, FaUserPlus, FaCheckCircle, FaInfoCircle, FaTicketAlt } from 'react-icons/fa';
 import { getFingerprint, getClientIP } from '../utils/fingerprint';
+import { getBackendErrorMessage } from '../utils/backendError';
 import {
     authAlertClassName,
     authBackLinkClassName,
@@ -79,10 +80,6 @@ export const RegisterPage: React.FC = () => {
     const [turnstileKey, setTurnstileKey] = useState(0);
     const [showEmailVerify, setShowEmailVerify] = useState(false);
     const [pendingEmail, setPendingEmail] = useState('');
-    const [verifyCode, setVerifyCode] = useState('');
-    const [verifyError, setVerifyError] = useState('');
-    const [verifyLoading, setVerifyLoading] = useState(false);
-    const [verifyResendTimer, setVerifyResendTimer] = useState(0);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -157,8 +154,8 @@ export const RegisterPage: React.FC = () => {
             const requestBody: any = { username: sanitizedUsername, email: sanitizedEmail, password, fingerprint, clientIP };
             if (sanitizedInvitationCode) requestBody.invitationCode = sanitizedInvitationCode;
             if (turnstileConfig.siteKey && turnstileToken) requestBody.cfToken = turnstileToken;
-            const res = await fetch(getApiBaseUrl() + '/api/auth/register', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestBody) });
-            const data = await res.json();
+            const res = await api.post('/api/auth/register', requestBody);
+            const data = res.data;
             if (data && data.needVerify) {
                 setNotification({ message: data.message || '验证链接已发送到您的邮箱，请点击链接完成注册', type: 'success' });
                 setError(''); setShowEmailVerify(true); setPendingEmail(sanitizedEmail);
@@ -167,39 +164,9 @@ export const RegisterPage: React.FC = () => {
                 setError(data?.error || '注册失败'); setNotification({ message: data?.error || '注册失败', type: 'error' });
             }
         } catch (err: any) {
-            setError(err.message || '注册失败'); setNotification({ message: err.message || '注册失败', type: 'error' });
+            const msg = getBackendErrorMessage(err, '注册失败');
+            setError(msg); setNotification({ message: msg, type: 'error' });
         } finally { setLoading(false); }
-    };
-
-    useEffect(() => {
-        if (!showEmailVerify || verifyResendTimer <= 0) return;
-        const timer = setInterval(() => setVerifyResendTimer(t => t > 0 ? t - 1 : 0), 1000);
-        return () => clearInterval(timer);
-    }, [verifyResendTimer, showEmailVerify]);
-
-    const handleResendVerifyCode = async () => {
-        if (verifyResendTimer > 0) return;
-        setVerifyLoading(true); setVerifyError('');
-        try {
-            const res = await fetch(getApiBaseUrl() + '/api/auth/send-verify-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: pendingEmail }) });
-            const data = await res.json();
-            if (data && data.success) { setNotification({ message: '验证码已重新发送', type: 'success' }); setVerifyResendTimer(60); }
-            else { setVerifyError(data.error || '验证码发送失败'); setNotification({ message: data.error || '验证码发送失败', type: 'error' }); }
-        } catch (err: any) { setVerifyError(err.message || '验证码发送失败'); setNotification({ message: err.message || '验证码发送失败', type: 'error' }); }
-        finally { setVerifyLoading(false); }
-    };
-
-    const handleVerifyCode = async (code?: string) => {
-        setVerifyLoading(true); setVerifyError('');
-        const finalCode = code || verifyCode;
-        if (!/^[0-9]{8}$/.test(finalCode)) { setVerifyError('验证码必须为8位数字'); setVerifyLoading(false); return; }
-        try {
-            const res = await fetch(getApiBaseUrl() + '/api/auth/verify-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: pendingEmail, code: finalCode }) });
-            const data = await res.json();
-            if (data && data.success) { setShowEmailVerify(false); setPendingEmail(''); setVerifyCode(''); setVerifyError(''); setNotification({ message: '注册成功，请登录', type: 'success' }); navigate('/login'); }
-            else { setVerifyError(data.error || '验证码错误'); setNotification({ message: data.error || '验证码错误', type: 'error' }); }
-        } catch (err: any) { setVerifyError(err.message || '验证码校验失败'); setNotification({ message: err.message || '验证码校验失败', type: 'error' }); }
-        finally { setVerifyLoading(false); }
     };
 
     const strengthLabel = passwordStrength.score >= 4 ? '很强' : passwordStrength.score >= 3 ? '强' : passwordStrength.score >= 2 ? '中等' : '弱';
@@ -387,15 +354,9 @@ export const RegisterPage: React.FC = () => {
                                     验证链接 10 分钟内有效，请及时验证。
                                 </div>
 
-                                {verifyError && <div className={cn(authAlertClassName, 'mt-4')}>{verifyError}</div>}
-                                {verifyResendTimer > 0 && <div className={cn(authSuccessPanelClassName, 'mt-4')}>验证码已重新发送，{verifyResendTimer} 秒后可再次发送。</div>}
-
                                 <div className="mt-6 space-y-3">
                                     <button type="button" className={authPrimaryButtonClassName}
                                         onClick={() => { setShowEmailVerify(false); navigate('/login'); }}>前往登录页面</button>
-                                    <button type="button" className={authSecondaryButtonClassName} disabled={verifyLoading || verifyResendTimer > 0} onClick={() => void handleResendVerifyCode()}>
-                                        {verifyLoading ? '发送中...' : '重新发送验证邮件'}
-                                    </button>
                                     <button type="button" className={authSecondaryButtonClassName} onClick={() => setShowEmailVerify(false)} aria-label="返回修改邮箱地址">返回修改邮箱</button>
                                 </div>
                             </m.div>

@@ -4,9 +4,9 @@ import { useAuth } from '../hooks/useAuth';
 import { useNotification } from './Notification';
 import { LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion';
 import { FaVolumeUp, FaLock, FaEye, FaEyeSlash, FaCheckCircle, FaTimesCircle, FaArrowLeft, FaKey } from 'react-icons/fa';
-import getApiBaseUrl from '../api';
+import { api } from '../api/api';
 import { getFingerprint, getClientIP } from '../utils/fingerprint';
-import DOMPurify from 'dompurify';
+import { getBackendErrorMessage } from '../utils/backendError';
 import {
     authAlertClassName,
     authBackLinkClassName,
@@ -90,22 +90,19 @@ export const ResetPasswordLinkPage: React.FC = () => {
                     return;
                 }
 
-                const response = await fetch(getApiBaseUrl() + '/api/auth/validate-reset-token', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token: tokenParam, fingerprint, clientIP }),
+                const response = await api.post('/api/auth/validate-reset-token', {
+                    token: tokenParam, fingerprint, clientIP,
                 });
+                const data = response.data as { valid?: boolean; error?: string };
 
-                const data = await response.json();
-
-                if (response.ok && data.valid) {
+                if (response.status === 200 && data.valid) {
                     setTokenValid(true);
                 } else {
                     setError(data.error || '重置链接验证失败');
                     setTokenValid(false);
                 }
             } catch (err) {
-                setError('验证重置链接时发生网络错误，请刷新页面重试');
+                setError(getBackendErrorMessage(err, '验证重置链接时发生网络错误，请刷新页面重试'));
                 setTokenValid(false);
             }
 
@@ -117,32 +114,31 @@ export const ResetPasswordLinkPage: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault(); setError(null);
         if (!token) { setError('无效的重置令牌'); return; }
-        const sanitizedPassword = DOMPurify.sanitize(newPassword).trim();
-        const sanitizedConfirmPassword = DOMPurify.sanitize(confirmPassword).trim();
-        if (!sanitizedPassword || !sanitizedConfirmPassword) { setError('请填写所有字段'); return; }
-        if (sanitizedPassword !== sanitizedConfirmPassword) { setError('两次输入的密码不一致'); return; }
-        if (sanitizedPassword.length < 6) { setError('密码长度至少为6位'); return; }
+        // 密码是凭据，不能做 HTML 净化（DOMPurify 会剥离未知标签、转义 & 等，静默改写用户密码）。
+        // 只做空值/一致性校验，最小长度 8 与后端 authController（8-128）对齐。
+        if (!newPassword || !confirmPassword) { setError('请填写所有字段'); return; }
+        if (newPassword !== confirmPassword) { setError('两次输入的密码不一致'); return; }
+        if (newPassword.length < 8) { setError('密码长度至少为8位'); return; }
         setLoading(true);
         try {
             const fingerprint = await getFingerprint();
             if (!fingerprint) { setError('无法获取设备信息，请刷新页面重试'); setLoading(false); return; }
             const clientIP = await getClientIP();
             const deviceName = navigator.userAgent || 'unknown';
-            const response = await fetch(getApiBaseUrl() + '/api/auth/reset-password-link', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token, fingerprint, newPassword: sanitizedPassword, clientIP, deviceName }),
+            const response = await api.post('/api/auth/reset-password-link', {
+                token, fingerprint, newPassword, clientIP, deviceName,
             });
 
-            const data = await response.json();
-            if (response.ok && data.success) {
+            const data = response.data as { success?: boolean; message?: string; error?: string };
+            if (response.status === 200 && data.success) {
                 setSuccess(true); setNotification({ message: data.message || '密码重置成功！', type: 'success' });
                 setTimeout(() => navigate('/login'), 3000);
             } else {
                 setError(data.error || '密码重置失败，请重试'); setNotification({ message: data.error || '密码重置失败', type: 'error' });
             }
         } catch (err: any) {
-            setError('网络错误，请稍后重试'); setNotification({ message: '网络错误，请稍后重试', type: 'error' });
+            const msg = getBackendErrorMessage(err, '网络错误，请稍后重试');
+            setError(msg); setNotification({ message: msg, type: 'error' });
         } finally { setLoading(false); }
     };
 
@@ -227,9 +223,9 @@ export const ResetPasswordLinkPage: React.FC = () => {
                                             <label htmlFor="newPassword" className="mb-2 block text-sm font-medium text-slate-700">新密码</label>
                                             <div className="relative">
                                                 <FaLock className={authFieldIconClassName} />
-                                                <input id="newPassword" name="newPassword" type={showPassword ? 'text' : 'password'} required minLength={6} aria-label="新密码" aria-required="true"
+                                                <input id="newPassword" name="newPassword" type={showPassword ? 'text' : 'password'} required minLength={8} aria-label="新密码" aria-required="true"
                                                     className={authPasswordFieldClassName}
-                                                    placeholder="请输入新密码（至少6位）" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+                                                    placeholder="请输入新密码（至少8位）" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
                                                 <button type="button" className={authFieldActionClassName} onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
                                                     {showPassword ? <FaEyeSlash className="h-4 w-4" /> : <FaEye className="h-4 w-4" />}
                                                 </button>
@@ -240,7 +236,7 @@ export const ResetPasswordLinkPage: React.FC = () => {
                                             <label htmlFor="confirmPassword" className="mb-2 block text-sm font-medium text-slate-700">确认密码</label>
                                             <div className="relative">
                                                 <FaLock className={authFieldIconClassName} />
-                                                <input id="confirmPassword" name="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} required minLength={6} aria-label="确认密码" aria-required="true"
+                                                <input id="confirmPassword" name="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} required minLength={8} aria-label="确认密码" aria-required="true"
                                                     className={authPasswordFieldClassName}
                                                     placeholder="请再次输入新密码" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
                                                 <button type="button" className={authFieldActionClassName} onClick={() => setShowConfirmPassword(!showConfirmPassword)} aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}>

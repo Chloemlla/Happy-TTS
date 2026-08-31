@@ -146,15 +146,24 @@ export const LoginPage: React.FC = () => {
         if (!raw) return null;
         try {
             const parsed = new URL(raw);
-            // Only allow custom scheme URLs (e.g. piliplus://), NOT http/https
-            if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-                // Allow localhost for development use
+            const protocol = parsed.protocol;
+            // 显式拒绝可执行/数据类 scheme，杜绝 javascript: 反射 XSS
+            if (protocol === 'javascript:' || protocol === 'data:' || protocol === 'blob:' || protocol === 'vbscript:' || protocol === 'file:') {
+                return null;
+            }
+            // 只放行已登记的本地应用 scheme（与 LinuxDoAuthCallbackPage 的 synapse:// 约定一致）
+            if (protocol === 'synapse:' || protocol === 'piliplus:') {
+                return raw;
+            }
+            // http/https 仅放行 localhost（开发用途）
+            if (protocol === 'http:' || protocol === 'https:') {
                 if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname === '[::1]') {
                     return raw;
                 }
                 return null;
             }
-            return raw;
+            // 其它自定义 scheme 一律不放行，防止把会话 token 交给任意本机应用
+            return null;
         } catch {
             return null;
         }
@@ -167,9 +176,10 @@ export const LoginPage: React.FC = () => {
         return postLoginRedirect?.startsWith('/admin');
     }, [postLoginRedirect]);
     const completeLogin = React.useCallback(() => {
-        // If an external redirect_uri was provided, send the token back to the calling app
+        // If an external redirect_uri was provided, send the token back to the calling app.
+        // token 放在 fragment（#token=），避免进入外部应用的服务端访问日志与 Referer。
         if (redirectUri && loginTokenRef.current) {
-            window.location.href = `${redirectUri}?token=${encodeURIComponent(loginTokenRef.current)}`;
+            window.location.href = `${redirectUri}#token=${encodeURIComponent(loginTokenRef.current)}`;
             return;
         }
         if (postLoginRedirect) {
@@ -212,8 +222,9 @@ export const LoginPage: React.FC = () => {
             if (rememberMe) { localStorage.setItem('rememberedUsername', sanitizedUsername); }
             else { localStorage.removeItem('rememberedUsername'); }
             const result = await login(sanitizedUsername, password, turnstileConfig.siteKey ? turnstileToken : undefined);
-            // Save the token for redirect_uri callback (e.g. piliplus://)
-            if (result?.token) {
+            // 只在完整登录（无 2FA）时保存会话令牌供深链回传。
+            // 2FA 未完成时 result.token 是 5 分钟的 2fa_pending 临时令牌，不得外泄给外部应用。
+            if (result?.token && !result.requires2FA) {
                 loginTokenRef.current = result.token;
             }
             if (result && result.requires2FA && result.twoFactorType) {

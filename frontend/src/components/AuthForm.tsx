@@ -8,12 +8,12 @@ import { DebugInfoModal } from './DebugInfoModal';
 import VerificationMethodSelector from './VerificationMethodSelector';
 import PasskeyVerifyModal from './PasskeyVerifyModal';
 import { useNotification } from './Notification';
-import VerifyCodeInput from './VerifyCodeInput';
 import { AnimatePresence, motion } from 'framer-motion';
 import { NotificationData } from './Notification';
-import getApiBaseUrl from '../api';
+import { api } from '../api/api';
 import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
+import { getBackendErrorMessage } from '../utils/backendError';
 
 interface AuthFormProps {
     setNotification?: (data: NotificationData) => void;
@@ -71,10 +71,6 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
     const [pendingVerificationData, setPendingVerificationData] = useState<any>(null);
     const [showEmailVerify, setShowEmailVerify] = useState(false);
     const [pendingEmail, setPendingEmail] = useState('');
-    const [verifyCode, setVerifyCode] = useState('');
-    const [verifyError, setVerifyError] = useState('');
-    const [verifyLoading, setVerifyLoading] = useState(false);
-    const [verifyResendTimer, setVerifyResendTimer] = useState(0);
     const [turnstileToken, setTurnstileToken] = useState<string>('');
     const [turnstileVerified, setTurnstileVerified] = useState(false);
     const [turnstileError, setTurnstileError] = useState(false);
@@ -347,7 +343,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
 
 
 
-                // 注册后进入邮箱验证码界面（附带Turnstile token，仅在启用时）
+                // 注册后进入邮箱验证链接界面（附带Turnstile token，仅在启用时）
                 const requestBody: any = {
                     username: sanitizedUsername,
                     email: sanitizedEmail,
@@ -361,23 +357,19 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                     requestBody.cfToken = turnstileToken;
                 }
 
-                const res = await fetch(getApiBaseUrl() + '/api/auth/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(requestBody)
-                });
-                const data = await res.json();
+                const res = await api.post('/api/auth/register', requestBody);
+                const data = res.data;
                 if (data && data.needVerify) {
                     setShowEmailVerify(true);
                     setPendingEmail(sanitizedEmail);
-                    setNotify({ message: '验证码已发送到邮箱，请查收', type: 'info' });
+                    setNotify({ message: '验证链接已发送到邮箱，请查收', type: 'info' });
                     // 重置Turnstile token，防止复用
                     setTurnstileToken('');
                     setTurnstileVerified(false);
                     setTurnstileKey(k => k + 1);
                 } else {
-                    setError(data?.error || '注册失败，未收到验证码发送指示');
-                    setNotify({ message: data?.error || '注册失败，未收到验证码发送指示', type: 'error' });
+                    setError(data?.error || '注册失败，未收到验证链接发送指示');
+                    setNotify({ message: data?.error || '注册失败，未收到验证链接发送指示', type: 'error' });
                 }
             }
             // 登录成功后强制刷新页面，不需要回调函数
@@ -389,8 +381,9 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                 error: err.message,
                 timestamp: new Date().toISOString()
             };
-            setError(err.message || '操作失败');
-            setNotify({ message: err.message || '操作失败', type: 'error' });
+            const msg = getBackendErrorMessage(err, '操作失败');
+            setError(msg);
+            setNotify({ message: msg, type: 'error' });
         } finally {
             setLoading(false);
         }
@@ -522,79 +515,6 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
             setPendingVerificationData(null);
             setPending2FA(null); // 清除pending2FA状态，防止其他弹窗自动显示
         });
-    };
-
-    // 邮箱验证码倒计时
-    useEffect(() => {
-        if (!showEmailVerify) return;
-        if (verifyResendTimer <= 0) return;
-        const timer = setInterval(() => {
-            setVerifyResendTimer(t => t > 0 ? t - 1 : 0);
-        }, 1000);
-        return () => clearInterval(timer);
-    }, [verifyResendTimer, showEmailVerify]);
-
-    // 发送验证码（重发）
-    const handleResendVerifyCode = async () => {
-        if (verifyResendTimer > 0) return;
-        setVerifyLoading(true);
-        setVerifyError('');
-        try {
-            const res = await fetch(getApiBaseUrl() + '/api/auth/send-verify-email', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: pendingEmail })
-            });
-            const data = await res.json();
-            if (data && data.success) {
-                setNotify({ message: '验证码已重新发送', type: 'success' });
-                setVerifyResendTimer(60);
-            } else {
-                setVerifyError(data.error || '验证码发送失败');
-                setNotify({ message: data.error || '验证码发送失败', type: 'error' });
-            }
-        } catch (err: any) {
-            setVerifyError(err.message || '验证码发送失败');
-            setNotify({ message: err.message || '验证码发送失败', type: 'error' });
-        } finally {
-            setVerifyLoading(false);
-        }
-    };
-
-    const handleVerifyCode = async (code?: string) => {
-        setVerifyLoading(true);
-        setVerifyError('');
-        const finalCode = code || verifyCode;
-        if (!/^[0-9]{8}$/.test(finalCode)) {
-            setVerifyError('验证码必须为8位数字');
-            setVerifyLoading(false);
-            return;
-        }
-        try {
-            const res = await fetch(getApiBaseUrl() + '/api/auth/verify-email', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: pendingEmail, code: finalCode })
-            });
-            const data = await res.json();
-            if (data && data.success) {
-                setShowEmailVerify(false);
-                setPendingEmail('');
-                setVerifyCode('');
-                setVerifyError('');
-                setIsLogin(true);
-                setError('邮箱验证成功，请登录');
-                setNotify({ message: '邮箱验证成功，请登录', type: 'success' });
-            } else {
-                setVerifyError(data.error || '验证码错误');
-                setNotify({ message: data.error || '验证码错误', type: 'error' });
-            }
-        } catch (err: any) {
-            setVerifyError(err.message || '验证码校验失败');
-            setNotify({ message: err.message || '验证码校验失败', type: 'error' });
-        } finally {
-            setVerifyLoading(false);
-        }
     };
 
     return (
@@ -866,7 +786,8 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                 </div>
             )}
 
-            {/* 邮箱验证码弹窗 */}
+            {/* 邮箱验证链接弹窗：后端注册已改为发送验证链接（verificationTokenStorage），
+                不再生成 8 位验证码；这里只引导用户去邮箱点链接，不再渲染验证码输入框。 */}
             <AnimatePresence>
                 {showEmailVerify && (
                     <motion.div
@@ -894,70 +815,37 @@ export const AuthForm: React.FC<AuthFormProps> = ({ setNotification: propSetNoti
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                                         </svg>
                                     </div>
-                                    <h3 className="text-2xl font-bold text-slate-900 mb-2">创建账户</h3>
+                                    <h3 className="text-2xl font-bold text-slate-900 mb-2">验证邮件已发送</h3>
                                     <p className="text-slate-600 leading-relaxed">
-                                        请输入发送到 <br />
+                                        我们已向 <br />
                                         <span className="font-semibold text-slate-900">{pendingEmail}</span> <br />
-                                        的验证码
+                                        发送了验证链接，请打开邮箱点击链接完成注册。
                                     </p>
                                 </div>
 
-                                {/* 验证码输入区域 */}
-                                <div className="mb-8">
-                                    <VerifyCodeInput
-                                        length={8}
-                                        inputClassName="w-12 h-12 text-center text-xl font-bold border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-slate-50/80 focus:bg-white"
-                                        onComplete={async (code) => {
-                                            setVerifyCode(code);
-                                            // 自动触发验证
-                                            if (code.length === 8 && !verifyLoading) {
-                                                await handleVerifyCode(code);
-                                            }
-                                        }}
-                                        loading={verifyLoading}
-                                        error={verifyError}
-                                    />
+                                {/* 提示区域 */}
+                                <div className="mb-8 rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+                                    验证链接 10 分钟内有效。若未收到邮件，请检查垃圾邮件文件夹，或返回修改邮箱地址后重新提交。
                                 </div>
 
                                 {/* 按钮区域 */}
                                 <div className="space-y-3">
                                     <button
-                                        className={`w-full py-4 px-6 rounded-2xl font-semibold text-lg transition-all duration-200 ${verifyCode.length === 8 && !verifyLoading
-                                            ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5'
-                                            : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                            }`}
-                                        onClick={() => handleVerifyCode()}
-                                        disabled={verifyLoading || verifyCode.length !== 8}
+                                        className="w-full py-4 px-6 rounded-2xl font-semibold text-lg transition-all duration-200 bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                                        onClick={() => {
+                                            setShowEmailVerify(false);
+                                            setPendingEmail('');
+                                            setIsLogin(true);
+                                            setPassword('');
+                                            setConfirmPassword('');
+                                            setError(null);
+                                        }}
                                     >
-                                        {verifyLoading ? (
-                                            <div className="flex items-center justify-center space-x-2">
-                                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                                <span>验证中...</span>
-                                            </div>
-                                        ) : '创建账户'}
+                                        返回登录
                                     </button>
-
                                     <button
-                                        className={`w-full py-3 px-6 rounded-2xl font-medium transition-all duration-200 ${verifyResendTimer > 0
-                                            ? 'bg-slate-50/80 text-slate-400 cursor-not-allowed'
-                                            : 'bg-slate-50/80 text-slate-700 hover:bg-slate-100'
-                                            }`}
-                                        onClick={handleResendVerifyCode}
-                                        disabled={verifyLoading || verifyResendTimer > 0}
-                                    >
-                                        {verifyResendTimer > 0 ? `重新发送验证码 (${verifyResendTimer}s)` : '重新发送验证码'}
-                                    </button>
-                                </div>
-
-                                {/* 底部提示 */}
-                                <div className="mt-6 text-center">
-                                    <p className="text-sm text-slate-500">
-                                        没有收到验证码？请检查垃圾邮件文件夹
-                                    </p>
-                                    <button
-                                        className="mt-2 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                                        className="w-full py-3 px-6 rounded-2xl font-medium transition-all duration-200 bg-slate-50/80 text-slate-700 hover:bg-slate-100"
                                         onClick={() => setShowEmailVerify(false)}
-                                        disabled={verifyLoading}
                                     >
                                         返回修改邮箱
                                     </button>

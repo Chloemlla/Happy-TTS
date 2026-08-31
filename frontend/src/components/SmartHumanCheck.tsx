@@ -77,20 +77,22 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, maxRetries
       (richErr as any).errorMessage = message;
       if (retryAfter && !Number.isNaN(retryAfter)) (richErr as any).retryAfter = retryAfter;
       if (body?.banUntil || body?.bannedUntil) (richErr as any).banUntil = body.banUntil || body.bannedUntil;
-      // 对于 4xx 错误不重试
-      if (response.status >= 400 && response.status < 500) {
-        throw richErr;
-      }
       throw richErr;
     } catch (error) {
       lastError = error as Error;
+
+      const httpStatus = (error as any)?.httpStatus as number | undefined;
+      // 4xx 业务错误（400/403/429…）不重试，直接抛给调用方
+      if (httpStatus !== undefined && httpStatus >= 400 && httpStatus < 500) {
+        break;
+      }
 
       // 最后一次尝试失败
       if (attempt === maxRetries) {
         break;
       }
 
-      // 等待后重试
+      // 等待后重试（网络错误 / 5xx）
       const delay = getRetryDelay(attempt);
       await new Promise(resolve => setTimeout(resolve, delay));
     }
@@ -757,6 +759,15 @@ const SmartHumanCheckBase: React.FC<SmartHumanCheckBaseProps> = ({
     return Math.max(1, Math.ceil((bannedUntil - Date.now()) / 1000));
   }, [isBanned, bannedUntil, pulse]);
 
+  // G10-05：nonce 自动获取的退避控制。
+  // fetchNonce 通过 ref 调用，避免自动 effect 依赖其不稳定身份；
+  // nextAttemptAt 记录下一次自动尝试的时间戳，失败后进入指数退避，达到上限即停。
+  const fetchNonceRef = useRef<() => void>(() => {});
+  const nextAttemptAtRef = useRef(0);
+  const autoFetchTimerRef = useRef<number | null>(null);
+  const retryCountRef = useRef(0);
+  retryCountRef.current = retryCount;
+
   // 获取 nonce
   const fetchNonce = useCallback(async () => {
     if (fetchingNonce) return;
@@ -777,10 +788,12 @@ const SmartHumanCheckBase: React.FC<SmartHumanCheckBaseProps> = ({
     try {
       const response = await fetchWithRetry(`${apiBaseUrl}/nonce`, {
         method: 'GET',
+        credentials: 'include', // 显式携带会话 Cookie（/api/human-check 免 IP 验证，但不免 Cookie）
         headers:
         {
           'Content-Type': 'application/json',
         },
+        signal: AbortSignal.timeout(15000), // 后端卡住时请求自身超时，避免按钮永久转圈
       });
 
       const data = await response.json();
@@ -794,6 +807,7 @@ const SmartHumanCheckBase: React.FC<SmartHumanCheckBaseProps> = ({
         setCooldownUntil(null);
         setBannedUntil(null);
         setLastErrorCode(null);
+        nextAttemptAtRef.current = 0;
       } else {
         throw new Error(data.error || '获取验证码失败');
       }
@@ -812,6 +826,8 @@ const SmartHumanCheckBase: React.FC<SmartHumanCheckBaseProps> = ({
         setError(`请求过于频繁，请 ${Math.max(1, Math.ceil((until - Date.now()) / 1000))} 秒后重试。`);
       } else {
         setError(msg);
+        // 通用错误（5xx/网络/网关）进入指数退避，由自动 effect 在 nextAttemptAt 之后重试
+        nextAttemptAtRef.current = Date.now() + getRetryDelay(Math.min(retryCountRef.current, RETRY_CONFIG.maxRetries - 1));
       }
       onFail?.(code || msg);
       setRetryCount(prev => prev + 1);
@@ -820,12 +836,50 @@ const SmartHumanCheckBase: React.FC<SmartHumanCheckBaseProps> = ({
     }
   }, [apiBaseUrl, fetchingNonce, onFail, isBanned, cooldownActive, remainingCooldownSec]);
 
-  // 自动获取 nonce
+  // 用 ref 持有最新 fetchNonce，供自动 effect 与退避定时器调用
   useEffect(() => {
-    if (shouldManageNonce && !challengeNonce && !nonce && !fetchingNonce && !isBanned && !cooldownActive) {
-      fetchNonce();
+    fetchNonceRef.current = fetchNonce;
+  }, [fetchNonce]);
+
+  // 自动获取 nonce：只在挑战未就绪时工作；失败后按 nextAttemptAtRef 退避，
+  // 达到 maxRetries 上限即停止，等待用户点击“重试”按钮。
+  useEffect(() => {
+    const clearTimer = () => {
+      if (autoFetchTimerRef.current != null) {
+        window.clearTimeout(autoFetchTimerRef.current);
+        autoFetchTimerRef.current = null;
+      }
+    };
+
+    if (!shouldManageNonce || challengeNonce || nonce || isBanned || cooldownActive) {
+      clearTimer();
+      return clearTimer;
     }
-  }, [challengeNonce, cooldownActive, fetchNonce, fetchingNonce, isBanned, nonce, shouldManageNonce]);
+
+    const now = Date.now();
+    if (now >= nextAttemptAtRef.current) {
+      clearTimer();
+      if (retryCountRef.current >= RETRY_CONFIG.maxRetries) {
+        // 已达自动重试上限，停下等待用户手动触发
+        return clearTimer;
+      }
+      if (!fetchingNonce) {
+        fetchNonceRef.current();
+      }
+      return clearTimer;
+    }
+
+    // 退避中：等待剩余时间后重新评估（fetchNonce 内部会再次校验守卫）
+    clearTimer();
+    const wait = Math.min(nextAttemptAtRef.current - now, 30000);
+    autoFetchTimerRef.current = window.setTimeout(() => {
+      autoFetchTimerRef.current = null;
+      if (retryCountRef.current < RETRY_CONFIG.maxRetries) {
+        fetchNonceRef.current();
+      }
+    }, wait);
+    return clearTimer;
+  }, [shouldManageNonce, challengeNonce, nonce, isBanned, cooldownActive, fetchingNonce, retryCount]);
 
   // 增强的行为评分算法（0..1）
   const score = useMemo(() => {
@@ -1031,6 +1085,7 @@ const SmartHumanCheckBase: React.FC<SmartHumanCheckBaseProps> = ({
     setSubmitting(false);
     setError(null);
     setRetryCount(0);
+    nextAttemptAtRef.current = 0;
     // 重置时获取新的 nonce
     if (shouldManageNonce && !challengeNonce) {
       setNonce(null);
@@ -1248,7 +1303,7 @@ const SmartHumanCheckBase: React.FC<SmartHumanCheckBaseProps> = ({
                         ? `暂时封禁，剩余 ${remainingBanSec}s`
                         : error}
                   </span>
-                  {retryCount < RETRY_CONFIG.maxRetries && (
+                  {retryCount >= RETRY_CONFIG.maxRetries && (
                     <button
                       type="button"
                       onClick={fetchNonce}

@@ -30,6 +30,19 @@ import {
   studioStrongBadgeClassName,
 } from "./studioTheme";
 
+// OAuth 协议白名单：请求体只透传这些字段，避免把 URL 上的任意 query 参数
+// （尤其是攻击者注入的 approve=true）带进后端并覆盖用户的真实决策。
+const OAUTH_QUERY_WHITELIST = [
+  'client_id',
+  'redirect_uri',
+  'response_type',
+  'scope',
+  'state',
+  'code_challenge',
+  'code_challenge_method',
+  'nonce',
+] as const;
+
 const formatScopeCategory = (category: string) => {
   const map: Record<string, string> = {
     identity: "身份",
@@ -94,10 +107,14 @@ const OAuthAuthorizePage: React.FC = () => {
   const requestPayload = useCallback(
     (approve: boolean) => {
       const params = new URLSearchParams(location.search);
-      const payload: Record<string, unknown> = { approve };
-      params.forEach((value, key) => {
-        payload[key] = value;
-      });
+      const payload: Record<string, unknown> = {};
+      for (const key of OAUTH_QUERY_WHITELIST) {
+        const value = params.get(key);
+        if (value !== null) payload[key] = value;
+      }
+      // 用户决策最后写入，保证不会被 URL 参数覆盖：
+      // 攻击者在 authorize URL 上追加 ?approve=true 也无法把"拒绝"翻转成授权。
+      payload.approve = approve;
       return payload;
     },
     [location.search],

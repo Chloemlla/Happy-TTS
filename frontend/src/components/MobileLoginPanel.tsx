@@ -48,6 +48,15 @@ export const MobileLoginPanel: React.FC<MobileLoginPanelProps> = ({ disabled, lo
   const [tokenLoading, setTokenLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [synapseDetected, setSynapseDetected] = React.useState<boolean | null>(null);
+  const [pollingStopped, setPollingStopped] = React.useState(false);
+
+  // 最新引用：避免父组件重渲染（onSuccess/setNotification/loginWithToken 换身份）导致轮询 effect 反复重建。
+  const loginWithTokenRef = React.useRef(loginWithToken);
+  loginWithTokenRef.current = loginWithToken;
+  const onSuccessRef = React.useRef(onSuccess);
+  onSuccessRef.current = onSuccess;
+  const setNotificationRef = React.useRef(setNotification);
+  setNotificationRef.current = setNotification;
 
   const startChallenge = React.useCallback(async () => {
     setChallengeLoading(true);
@@ -56,6 +65,7 @@ export const MobileLoginPanel: React.FC<MobileLoginPanelProps> = ({ disabled, lo
       const nextChallenge = await createMobileLoginChallenge();
       setChallenge(nextChallenge);
       setChallengeStatus('pending');
+      setPollingStopped(false);
     } catch (err) {
       const message = getErrorMessage(err, '创建扫码登录二维码失败');
       setError(message);
@@ -73,36 +83,69 @@ export const MobileLoginPanel: React.FC<MobileLoginPanelProps> = ({ disabled, lo
   }, []);
 
   React.useEffect(() => {
-    if (!challenge || challengeStatus === 'approved' || challengeStatus === 'consumed' || challengeStatus === 'expired') {
-      return;
-    }
+    if (!challenge) return;
+    const sessionId = challenge.sessionId;
+    const pollToken = challenge.pollToken;
+    const expiresAt = Date.parse(challenge.expiresAt);
+    const intervalMs = Math.max(1500, challenge.pollIntervalMs || 2000);
 
     let stopped = false;
-    const intervalMs = Math.max(1500, challenge.pollIntervalMs || 2000);
+    let timer: number | undefined;
+    let failureCount = 0;
+    const maxFailures = 3; // 连续失败上限，达到即停止轮询
+
+    const stopPolling = () => {
+      if (stopped) return;
+      stopped = true;
+      if (timer != null) window.clearInterval(timer);
+    };
+
     const poll = async () => {
+      if (stopped) return;
+      // 超过二维码有效期直接进入终态，停止轮询
+      if (!Number.isNaN(expiresAt) && Date.now() > expiresAt) {
+        setChallengeStatus('expired');
+        setPollingStopped(true);
+        stopPolling();
+        return;
+      }
       try {
-        const result = await pollMobileLoginChallenge(challenge.sessionId, challenge.pollToken);
+        const result = await pollMobileLoginChallenge(sessionId, pollToken);
         if (stopped) return;
+        failureCount = 0;
         setChallengeStatus(result.status);
         if (result.status === 'approved' && result.token && result.user) {
-          await loginWithToken(result.token, result.user);
-          setNotification({ message: '扫码登录成功', type: 'success' });
-          onSuccess();
+          await loginWithTokenRef.current(result.token, result.user);
+          if (stopped) return;
+          setNotificationRef.current({ message: '扫码登录成功', type: 'success' });
+          onSuccessRef.current();
+          stopPolling();
+        } else if (result.status === 'consumed' || result.status === 'expired') {
+          setPollingStopped(true);
+          stopPolling();
         }
       } catch (err) {
         if (stopped) return;
+        failureCount += 1;
         const message = getErrorMessage(err, '扫码登录状态同步失败');
         setError(message);
+        // 连续失败 N 次即停止轮询并展示“刷新二维码”，不再无限打后端
+        if (failureCount >= maxFailures) {
+          setPollingStopped(true);
+          stopPolling();
+        }
       }
     };
 
+    timer = window.setInterval(poll, intervalMs);
     poll();
-    const timer = window.setInterval(poll, intervalMs);
     return () => {
       stopped = true;
-      window.clearInterval(timer);
+      if (timer != null) window.clearInterval(timer);
     };
-  }, [challenge, challengeStatus, loginWithToken, onSuccess, setNotification]);
+    // 只依赖二维码会话标识：父组件重渲染不会重启轮询，poll 内的状态由闭包自管理
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [challenge?.sessionId]);
 
   const handleClientTokenLogin = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -204,6 +247,9 @@ export const MobileLoginPanel: React.FC<MobileLoginPanelProps> = ({ disabled, lo
             </div>
             <div className="text-center">
               <p className="text-xs font-semibold text-slate-900">{statusText[challengeStatus]}</p>
+              {pollingStopped && (
+                <p className="mt-1 text-[11px] text-rose-600">轮询已停止，请点击「刷新二维码」重试</p>
+              )}
               <p className="mt-1 text-[11px] text-slate-500">有效期至 {new Date(challenge.expiresAt).toLocaleTimeString('zh-CN')}</p>
             </div>
           </>
