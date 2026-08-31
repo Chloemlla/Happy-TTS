@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { AdminSession, AdminActionAudit, User, Entitlement, AdminTemplate, AdminRelease, AdminSecurityAllowlist, DeviceControlPolicy } from "../../models/lumen/index.js";
+import { AdminSession, AdminActionAudit, User, Entitlement, AdminTemplate, AdminRelease, AdminSecurityAllowlist, DeviceControlPolicy, type EntitlementTier } from "../../models/lumen/index.js";
 import { lumenConfig } from "../../config/lumen.js";
 import { ApiError } from "./errors.js";
 import logger from "../../utils/logger.js";
@@ -216,7 +216,7 @@ export async function applyAdminAction(
       if (!revokeUserId || typeof revokeUserId !== "string") {
         throw ApiError.badRequest("Payload must include userId");
       }
-      const paidTiers = Object.keys(TIER_RANK).filter((t) => TIER_RANK[t] > 0);
+      const paidTiers = Object.keys(TIER_RANK).filter((t) => TIER_RANK[t] > 0) as EntitlementTier[];
       await Entitlement.updateMany(
         { userId: revokeUserId, tier: { $in: paidTiers } },
         { $set: { status: "revoked", lastVerifiedAt: now } },

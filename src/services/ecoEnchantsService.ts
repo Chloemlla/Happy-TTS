@@ -692,7 +692,7 @@ export class EcoEnchantsService {
     // key both ran the producer (double license creation / activation). Now the
     // first request claims the key with an in-progress sentinel; concurrent
     // duplicates see the sentinel and get a 409 instead of re-running.
-    const inProgressSentinel = { __idempotency_in_progress: true } as T;
+    const inProgressSentinel = { __idempotency_in_progress: true } as unknown as T;
 
     let claimed: any = null;
     try {

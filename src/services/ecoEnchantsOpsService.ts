@@ -1150,11 +1150,12 @@ export class EcoEnchantsOpsService {
         // G7-20: enforce the WS maxPayload at the application layer too (the
         // ws maxPayload applies to the whole message; this guards the string
         // length that we hand to JSON.parse).
-        if (raw.length > 512 * 1024) {
-          logger.warn("[EcoEnchantsOps] Oversized RPC message rejected", { instanceId: instance.instanceId, bytes: raw.length });
+        const rawText = raw.toString();
+        if (rawText.length > 512 * 1024) {
+          logger.warn("[EcoEnchantsOps] Oversized RPC message rejected", { instanceId: instance.instanceId, bytes: rawText.length });
           return;
         }
-        void EcoEnchantsOpsService.handleRpcMessage(connection, raw.toString());
+        void EcoEnchantsOpsService.handleRpcMessage(connection, rawText);
       });
       ws.on("close", () => {
         // Only the current connection may clear the map entry — otherwise the
