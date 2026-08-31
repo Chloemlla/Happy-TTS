@@ -99,7 +99,10 @@ export const userRepository = {
       return provider.getAdminUserListPage(query, includeFingerprints);
     }
     // 兜底：provider 不支持分页时退化为全量读取 + 内存分页（stats 为空，不影响主链路）
-    const all = await provider.getAdminUserList({ includeFingerprints });
+    const all =
+      typeof provider.getAdminUserList === "function"
+        ? await provider.getAdminUserList({ includeFingerprints })
+        : [];
     const total = all.length;
     const start = (query.page - 1) * query.pageSize;
     const users = all.slice(start, start + query.pageSize);

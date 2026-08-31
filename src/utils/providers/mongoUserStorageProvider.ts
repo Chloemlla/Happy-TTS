@@ -20,7 +20,7 @@ export const mongoUserStorageProvider: UserStorageProvider = {
   },
 
   async getAdminUserListPage(query, includeFingerprints) {
-    return userService.getAdminUserListPage(query, includeFingerprints);
+    return userService.getAdminUserListPage(query, includeFingerprints === true);
   },
 
   async getUserById(id: string) {

@@ -114,7 +114,7 @@ export function buildAdminUserMatchStage(q: AdminUserListQueryParams): Record<st
   return and.length > 0 ? { $and: and } : {};
 }
 
-export function buildAdminUserStatsGroup(nowIso: string): Record<string, unknown> {
+export function buildAdminUserStatsGroup(nowIso: string): { _id: null; [key: string]: unknown } {
   return {
     _id: null,
     total: { $sum: 1 },
