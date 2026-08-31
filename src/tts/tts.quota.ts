@@ -1,10 +1,25 @@
+import crypto from "node:crypto";
 import { mongoose } from "../services/mongoService";
+import logger from "../utils/logger";
 import type { User } from "../utils/userStorage";
 import { UserStorage } from "../utils/userStorage";
 import type { QuotaLedger, TtsQuotaReservation, TtsUsageSnapshot } from "./tts.ports";
 import type { TtsUsageSummary } from "./tts.storage";
 
-const DAILY_LIMIT = 5;
+// 匿名 TTS 每日生成次数上限（按 fingerprintHash + IP 聚合）。
+export const ANONYMOUS_DAILY_LIMIT = 20;
+const ANONYMOUS_USER_PREFIX = "anon:";
+// 过期预留清扫：超过 4 小时仍未消费/释放的预留视为悬挂，批量释放。
+const RESERVATION_STALE_MS = 4 * 60 * 60 * 1000;
+
+/** 匿名额度作用域键：对 ip::fingerprint 做单向哈希，避免明文落库。 */
+export function buildAnonymousScopeKey(ip: string, fingerprint: string): string {
+  return crypto.createHash("sha256").update(`${ip}::${fingerprint}`).digest("hex").slice(0, 24);
+}
+
+function anonUserId(scopeKey: string): string {
+  return `${ANONYMOUS_USER_PREFIX}${scopeKey}`;
+}
 
 interface TtsQuotaReservationDocument extends TtsQuotaReservation {}
 
@@ -112,7 +127,8 @@ export class MongoQuotaLedger implements QuotaLedger {
 
     const usageDay = getUsageDay();
     const { reservedToday, consumedToday } = await this.countActiveUsage(userId, usageDay);
-    const remainingToday = Math.max(0, DAILY_LIMIT - reservedToday - consumedToday);
+    const dailyLimit = UserStorage.getDailyLimit();
+    const remainingToday = Math.max(0, dailyLimit - reservedToday - consumedToday);
 
     return {
       user,
@@ -163,7 +179,8 @@ export class MongoQuotaLedger implements QuotaLedger {
           },
         ]).session(session);
 
-        if ((counts?.activeCount || 0) >= DAILY_LIMIT) {
+        const dailyLimit = UserStorage.getDailyLimit();
+        if ((counts?.activeCount || 0) >= dailyLimit) {
           return;
         }
 
@@ -219,6 +236,112 @@ export class MongoQuotaLedger implements QuotaLedger {
 
     return this.buildSnapshotForUser(userId, user);
   }
+
+  // =============== 匿名维度额度（G6-12） ===============
+
+  public async reserveAnonymous(
+    scopeKey: string,
+    taskId: string,
+  ): Promise<{ success: boolean; remainingToday: number }> {
+    const userId = anonUserId(scopeKey);
+    const usageDay = getUsageDay();
+    const activeCount = await TtsQuotaReservationModel.countDocuments({
+      userId,
+      usageDay,
+      releasedAt: { $in: [null, undefined] },
+    }).exec();
+
+    if (activeCount >= ANONYMOUS_DAILY_LIMIT) {
+      return { success: false, remainingToday: 0 };
+    }
+
+    try {
+      await TtsQuotaReservationModel.create([
+        { taskId, userId, usageDay, reservedAt: new Date().toISOString() },
+      ]);
+    } catch (error) {
+      // 同一 taskId 并发重复预留：视为已成功（幂等）。
+      if ((error as { code?: number }).code === 11000) {
+        return { success: true, remainingToday: Math.max(0, ANONYMOUS_DAILY_LIMIT - activeCount - 1) };
+      }
+      throw error;
+    }
+
+    return { success: true, remainingToday: Math.max(0, ANONYMOUS_DAILY_LIMIT - activeCount - 1) };
+  }
+
+  public async confirmAnonymous(scopeKey: string, taskId: string): Promise<void> {
+    await TtsQuotaReservationModel.findOneAndUpdate(
+      {
+        taskId,
+        userId: anonUserId(scopeKey),
+        consumedAt: { $in: [null, undefined] },
+        releasedAt: { $in: [null, undefined] },
+      },
+      { $set: { consumedAt: new Date().toISOString() } },
+    ).exec();
+  }
+
+  public async releaseAnonymous(scopeKey: string, taskId: string): Promise<void> {
+    await TtsQuotaReservationModel.findOneAndUpdate(
+      {
+        taskId,
+        userId: anonUserId(scopeKey),
+        consumedAt: { $in: [null, undefined] },
+        releasedAt: { $in: [null, undefined] },
+      },
+      { $set: { releasedAt: new Date().toISOString() } },
+    ).exec();
+  }
 }
 
 export const quotaLedger = new MongoQuotaLedger();
+
+// =============== 过期预留回收（G6-14） ===============
+
+export async function sweepExpiredReservations(limit = 500): Promise<number> {
+  const staleBefore = new Date(Date.now() - RESERVATION_STALE_MS).toISOString();
+  const stale = await TtsQuotaReservationModel.find({
+    consumedAt: { $in: [null, undefined] },
+    releasedAt: { $in: [null, undefined] },
+    reservedAt: { $lte: staleBefore },
+  })
+    .limit(Math.min(Math.max(limit, 1), 1000))
+    .select("taskId")
+    .lean()
+    .exec();
+
+  if (stale.length === 0) return 0;
+
+  const result = await TtsQuotaReservationModel.updateMany(
+    { taskId: { $in: stale.map((doc) => doc.taskId) } },
+    { $set: { releasedAt: new Date().toISOString() } },
+  ).exec();
+
+  if (result.modifiedCount > 0) {
+    logger.warn("[TTS Quota] 清理悬挂的过期额度预留", { count: result.modifiedCount });
+  }
+  return result.modifiedCount;
+}
+
+let reservationSweeperTimer: NodeJS.Timeout | null = null;
+
+export function startExpiredReservationSweeper(): void {
+  if (reservationSweeperTimer) return;
+  const run = (): void => {
+    sweepExpiredReservations().catch((error) => {
+      logger.warn("[TTS Quota] 过期预留清扫失败", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+  };
+  run();
+  reservationSweeperTimer = setInterval(run, 60 * 60 * 1000);
+  reservationSweeperTimer.unref?.();
+}
+
+export function stopExpiredReservationSweeper(): void {
+  if (!reservationSweeperTimer) return;
+  clearInterval(reservationSweeperTimer);
+  reservationSweeperTimer = null;
+}

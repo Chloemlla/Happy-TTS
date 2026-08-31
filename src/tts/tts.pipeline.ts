@@ -12,7 +12,7 @@ import type { User } from "../utils/userStorage";
 import { TtsRequestError } from "./tts.errors";
 import { generationHistoryStore } from "./tts.history";
 import type { GenerationHistoryStore, QuotaLedger, TtsSettingsStore } from "./tts.ports";
-import { buildUsageSummaryFromSnapshot, quotaLedger } from "./tts.quota";
+import { buildUsageSummaryFromSnapshot, buildAnonymousScopeKey, quotaLedger } from "./tts.quota";
 import { ttsSettingsStore } from "./tts.settings";
 import type { TtsGovernanceSummary, TtsJobRequestPayload, TtsUsageSummary } from "./tts.storage";
 import { TtsService } from "./tts.service";
@@ -432,6 +432,28 @@ export class TtsSubmissionPipeline {
         400,
         "您已经生成过相同的内容，请登录以获取更多使用次数",
         "TTS_DUPLICATE_ANONYMOUS_REQUEST",
+      );
+    }
+
+    // 匿名通道增加日额度台账（G6-12）：按 fingerprintHash + IP 聚合，
+    // 防止单个 IP 每分钟 10 次 × 全天 14400 次的无限烧钱。
+    if (!context.taskId) {
+      throw new TtsRequestError(500, "任务标识缺失", "TTS_TASK_ID_MISSING");
+    }
+    const anonymousScopeKey = buildAnonymousScopeKey(context.ip, fingerprint);
+    const anonymousReservation = await this.ledger.reserveAnonymous(anonymousScopeKey, context.taskId);
+    if (!anonymousReservation.success) {
+      await this.auditGovernanceEvent({
+        context,
+        action: "tts.anonymous.daily_limit",
+        result: "failure",
+        errorMessage: "Anonymous daily limit reached",
+        detail: { textHash: this.hashText(requestPayload.text), textLength: requestPayload.text.length },
+      });
+      throw new TtsRequestError(
+        429,
+        "匿名每日生成次数已达上限，请登录以获取更多使用次数",
+        "TTS_ANONYMOUS_DAILY_LIMIT_REACHED",
       );
     }
 

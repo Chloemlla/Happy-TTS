@@ -178,7 +178,7 @@ export async function createApiKey(opts: {
   const randomPart = crypto.randomBytes(24).toString("base64url"); // 32 字符
   const keyId = `ak_${crypto.randomBytes(4).toString("hex")}`; // ak_xxxxxxxx
   const plainKey = `${keyId}.${randomPart}`;
-  const keyHash = hashKey(plainKey);
+  const keyHash = await hashKey(plainKey);
 
   await ApiKeyModel.create({
     keyId,
@@ -197,13 +197,63 @@ export async function createApiKey(opts: {
   return { keyId, plainKey };
 }
 
+// 明文形如 `ak_xxxxxxxx.<random>`。先按 keyId 前缀定位候选文档，
+// 再对整串做一次定长哈希比较，避免"整串哈希当查询键"以及用随机 X-API-Key
+// 强制服务器为不存在的 key 付出慢哈希代价。
+const VALID_KEY_PREFIX_PATTERN = /^ak_[a-f0-9]{8}\./;
+const VALIDATE_CACHE_TTL_MS = 30_000;
+const VALIDATE_CACHE_MAX = 500;
+const validateCache = new Map<string, { doc: ApiKeyDoc | null; expiresAt: number }>();
+
+function setValidateCache(key: string, doc: ApiKeyDoc | null, now: number): void {
+  if (validateCache.size >= VALIDATE_CACHE_MAX) {
+    const oldest = validateCache.keys().next().value;
+    if (oldest !== undefined) validateCache.delete(oldest);
+  }
+  validateCache.set(key, { doc, expiresAt: now + VALIDATE_CACHE_TTL_MS });
+}
+
+function timingSafeHashEqual(computed: string, stored: string): boolean {
+  const a = Buffer.from(computed, "utf8");
+  const b = Buffer.from(stored, "utf8");
+  if (a.length !== b.length) {
+    crypto.timingSafeEqual(a, a);
+    return false;
+  }
+  return crypto.timingSafeEqual(a, b);
+}
+
 /** 验证 API Key，返回文档或 null */
 export async function validateApiKey(plainKey: string): Promise<ApiKeyDoc | null> {
-  const hash = hashKey(plainKey);
-  const doc = (await ApiKeyModel.findOne({ keyHash: hash }).lean()) as ApiKeyDoc | null;
-  if (!doc) return null;
-  if (!doc.enabled) return null;
-  if (doc.expiresAt && new Date(doc.expiresAt) < new Date()) return null;
+  const key = String(plainKey || "").trim();
+  if (!key || !VALID_KEY_PREFIX_PATTERN.test(key)) {
+    return null;
+  }
+
+  const now = Date.now();
+  const cached = validateCache.get(key);
+  if (cached && cached.expiresAt > now) {
+    return cached.doc;
+  }
+
+  const keyId = key.split(".")[0];
+  const doc = (await ApiKeyModel.findOne({ keyId }).lean()) as ApiKeyDoc | null;
+  if (!doc || !doc.enabled) {
+    setValidateCache(key, null, now);
+    return null;
+  }
+  if (doc.expiresAt && new Date(doc.expiresAt) < new Date()) {
+    setValidateCache(key, null, now);
+    return null;
+  }
+
+  const hash = await hashKey(key);
+  if (!timingSafeHashEqual(hash, doc.keyHash)) {
+    setValidateCache(key, null, now);
+    return null;
+  }
+
+  setValidateCache(key, doc, now);
   return doc;
 }
 
@@ -271,7 +321,15 @@ export async function updateKey(
   return doc ? toApiKeyView(toPlainDoc(doc as ApiKeyDoc)) : null;
 }
 
-function hashKey(plain: string): string {
-  const salt = "api-key-static-salt";
-  return crypto.scryptSync(plain, salt, 64).toString("hex");
+async function hashKey(plain: string): Promise<string> {
+  // 使用异步 scrypt，避免 scryptSync 阻塞事件循环（默认 N=16384 单次数十毫秒）。
+  return new Promise((resolve, reject) => {
+    crypto.scrypt(plain, "api-key-static-salt", 64, (error, derivedKey) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve(derivedKey.toString("hex"));
+    });
+  });
 }

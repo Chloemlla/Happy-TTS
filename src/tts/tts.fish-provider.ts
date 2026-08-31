@@ -5,6 +5,7 @@ import {
 } from "../config/ttsProviderConfig";
 import { RuntimeConfigService } from "../services/runtimeConfigService";
 import { TtsGenerationError } from "./tts.errors";
+import { assertAudioResponse } from "./tts.provider";
 import type { TtsProvider, TtsProviderRequest, TtsProviderResponse } from "./tts.ports";
 
 const FISH_AUDIO_TIMEOUT_MS = 45_000;
@@ -102,20 +103,8 @@ export class FishAudioTtsProvider implements TtsProvider {
       throw mapFishResponseError(response.status);
     }
 
-    const contentType = response.headers.get("content-type")?.toLowerCase() || "";
-    if (!contentType.startsWith("audio/")) {
-      throw new TtsGenerationError(
-        "Fish Audio 返回了非音频响应",
-        502,
-        "TTS_INVALID_PROVIDER_RESPONSE",
-        true,
-      );
-    }
-
     const audioBuffer = Buffer.from(await response.arrayBuffer());
-    if (audioBuffer.length === 0) {
-      throw new TtsGenerationError("Fish Audio 返回了空音频", 502, "TTS_EMPTY_PROVIDER_RESPONSE", true);
-    }
+    assertAudioResponse(response.headers.get("content-type"), audioBuffer, request.outputFormat);
 
     return {
       provider: this.providerId,

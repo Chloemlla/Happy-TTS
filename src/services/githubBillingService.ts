@@ -679,26 +679,41 @@ export class GitHubBillingService {
 
   /**
    * 缓存预热 - 异步刷新即将过期的缓存
+   *
+   * 修复：预热必须绕过缓存直连上游，否则 fetchBillingData 会命中同一份未过期缓存
+   * 并原样返回，导致"用旧数据续新 TTL"无限陈旧；同时加去重锁防扇出。
    */
   static async warmupCache(customerId: string): Promise<void> {
-    try {
+    const lockKey = customerId || "default";
+    const inFlight = GitHubBillingService.warmupLocks.get(lockKey);
+    if (inFlight) {
+      await inFlight;
+      return;
+    }
+
+    const task = (async () => {
       logger.info(`开始预热缓存 (客户ID: ${customerId})`);
 
-      // 获取配置并刷新数据
       const config = await GitHubBillingService.getSavedCurlConfig();
       if (!config) {
         throw new Error("未找到保存的配置");
       }
 
-      const freshData = await GitHubBillingService.fetchBillingData();
+      // 绕过缓存直连上游取真数据。
+      const freshData = await GitHubBillingService.fetchBillingData(true);
+      const targetCustomerId = config.customerId || customerId || "default";
 
-      // 计算智能TTL
-      const intelligentTTL = await GitHubBillingService.calculateIntelligentTTL(customerId);
+      const intelligentTTL = await GitHubBillingService.calculateIntelligentTTL(targetCustomerId);
+      await GitHubBillingService.cacheBillingData(targetCustomerId, freshData, intelligentTTL);
 
-      // 更新缓存
-      await GitHubBillingService.cacheBillingData(customerId, freshData, intelligentTTL);
+      logger.info(`缓存预热完成 (客户ID: ${targetCustomerId}), TTL: ${intelligentTTL}分钟`);
+    })().finally(() => {
+      GitHubBillingService.warmupLocks.delete(lockKey);
+    });
 
-      logger.info(`缓存预热完成 (客户ID: ${customerId}), TTL: ${intelligentTTL}分钟`);
+    GitHubBillingService.warmupLocks.set(lockKey, task);
+    try {
+      await task;
     } catch (error) {
       logger.error(`缓存预热失败 (客户ID: ${customerId}):`, error);
       throw error;
@@ -789,6 +804,9 @@ export class GitHubBillingService {
   }
 
   private static cacheLimitSweeper: ReturnType<typeof setInterval> | null = null;
+
+  /** 预热去重锁：同一 customerId 同时只允许一个预热在飞，避免扇出。 */
+  private static warmupLocks = new Map<string, Promise<void>>();
 
   private static startCacheLimitSweeper(): void {
     if (GitHubBillingService.cacheLimitSweeper) {
@@ -943,8 +961,9 @@ export class GitHubBillingService {
 
   /**
    * 请求 GitHub Billing 数据
+   * @param bypassCache 为 true 时跳过缓存直连上游（供预热使用）
    */
-  static async fetchBillingData(): Promise<GitHubBillingUsage> {
+  static async fetchBillingData(bypassCache = false): Promise<GitHubBillingUsage> {
     const startTime = Date.now();
     const config = await GitHubBillingService.getSavedCurlConfig();
     if (!config) {
@@ -955,8 +974,9 @@ export class GitHubBillingService {
 
     logger.info(`[GitHub Billing API] 开始获取数据 - 客户ID: ${targetCustomerId}, 时间: ${new Date().toISOString()}`);
 
-    // 检查缓存（如果有客户ID的话）
-    const cached = config.customerId ? await GitHubBillingService.getCachedBillingData(targetCustomerId) : null;
+    // 检查缓存（如果有客户ID的话）；预热/强制刷新时绕过缓存。
+    const cached =
+      !bypassCache && config.customerId ? await GitHubBillingService.getCachedBillingData(targetCustomerId) : null;
     if (cached) {
       await GitHubBillingService.recordCacheMetrics(targetCustomerId, true);
       const duration = Date.now() - startTime;
@@ -1036,6 +1056,11 @@ export class GitHubBillingService {
         const discountResponse = response.data as GitHubBillingDiscountResponse;
         billingData = GitHubBillingService.processDiscountData(discountResponse, targetCustomerId);
       } else {
+        // 传统格式：运行时结构校验，防止 HTML/垃圾被 as 断言后盲转成账单对象。
+        if (!GitHubBillingService.isLegacyBillingResponse(response.data)) {
+          logger.error(`[GitHub Billing API] 响应缺少计费字段 - 客户ID: ${targetCustomerId}`);
+          throw new Error("GitHub API 返回的数据格式无法识别或缺少计费字段");
+        }
         // 传统格式处理
         logger.info("使用传统格式处理数据");
         billingData = response.data as GitHubBillingUsage;
@@ -1425,9 +1450,14 @@ export class GitHubBillingService {
       const response = await axios({
         method: config.method as any,
         url: config.url,
-        headers: config.headers,
+        headers: {
+          ...config.headers,
+          // 补发 Cookie（curl 解析时 cookie 单独存放，不在 headers 里），
+          // 否则聚合抓取必然未鉴权（401 或跳转登录页返回 HTML）。
+          Cookie: config.cookies,
+        },
         timeout: 30000,
-        validateStatus: () => true,
+        validateStatus: (status) => status >= 200 && status < 300,
       });
 
       const apiDuration = Date.now() - startTime;
@@ -1443,6 +1473,20 @@ export class GitHubBillingService {
         throw new Error(`GitHub API 返回错误状态码: ${response.status} - ${response.statusText}`);
       }
 
+      // 显式校验 content-type 为 JSON，避免把登录页 HTML 当账单缓存。
+      const contentType = String(response.headers?.["content-type"] || "").toLowerCase();
+      if (contentType && !contentType.includes("json")) {
+        await GitHubBillingService.logApiActivity({
+          action: "fetch",
+          success: false,
+          statusCode: response.status,
+          customerId: targetCustomerId,
+          duration: apiDuration,
+          errorMessage: `非 JSON 响应 (content-type: ${contentType})`,
+        });
+        throw new Error(`GitHub API 返回非 JSON 响应 (content-type: ${contentType})`);
+      }
+
       let billingData: GitHubBillingUsage;
 
       // 检查数据格式并相应处理
@@ -1455,7 +1499,18 @@ export class GitHubBillingService {
         const discountResponse = response.data as GitHubBillingDiscountResponse;
         billingData = GitHubBillingService.processDiscountData(discountResponse, targetCustomerId);
       } else {
-        // 传统格式处理
+        // 传统格式：运行时结构校验，防止 HTML/垃圾被 as 断言后盲转成账单对象。
+        if (!GitHubBillingService.isLegacyBillingResponse(response.data)) {
+          await GitHubBillingService.logApiActivity({
+            action: "fetch",
+            success: false,
+            statusCode: response.status,
+            customerId: targetCustomerId,
+            duration: apiDuration,
+            errorMessage: "响应数据缺少计费字段",
+          });
+          throw new Error("GitHub API 返回的数据格式无法识别或缺少计费字段");
+        }
         logger.info("使用传统格式处理数据");
         billingData = response.data as GitHubBillingUsage;
 
@@ -1498,5 +1553,22 @@ export class GitHubBillingService {
       logger.error(`获取计费数据失败: ${targetCustomerId}`, error);
       throw error;
     }
+  }
+
+  /**
+   * 传统格式响应结构校验：至少包含一个可识别的数值计费字段才算合法账单对象。
+   */
+  private static isLegacyBillingResponse(data: unknown): boolean {
+    if (!data || typeof data !== "object") return false;
+    const record = data as Record<string, unknown>;
+    const numericFields = [
+      "total_usage",
+      "billable_usage",
+      "billable_amount",
+      "total_discount_amount",
+      "included_usage",
+      "total_paid_minutes_used",
+    ] as const;
+    return numericFields.some((field) => typeof record[field] === "number");
   }
 }

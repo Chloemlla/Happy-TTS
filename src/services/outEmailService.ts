@@ -34,6 +34,8 @@ const OutEmailQuotaSchema = new mongoose.Schema(
   },
   { collection: "outemail_quotas" },
 );
+// 每日一个计数文档，唯一索引避免并发 create 产生同 date 多文档导致计数分裂。
+OutEmailQuotaSchema.index({ date: 1 }, { unique: true });
 const OutEmailQuota = mongoose.models.OutEmailQuota || mongoose.model("OutEmailQuota", OutEmailQuotaSchema);
 
 interface OutEmailSettingDoc {
@@ -56,6 +58,61 @@ const OutEmailSettingSchema = new mongoose.Schema<OutEmailSettingDoc>(
 const OutEmailSetting =
   (mongoose.models.OutEmailSetting as mongoose.Model<OutEmailSettingDoc>) ||
   mongoose.model<OutEmailSettingDoc>("OutEmailSetting", OutEmailSettingSchema);
+
+// ---- G6-07 出站邮件净化辅助 ----
+// 对外邮件是带本域 DKIM/SPF 的发送通道，禁止把调用方提交的任意 HTML/富文本
+// 直接转发，也禁止未校验收件人/未净化 display-name 的地址列表注入。
+
+const BASIC_EMAIL_RE = /^[^\s@<>()]+@[^\s@<>()]+\.[^\s@<>()]+$/;
+
+function stripControlChars(value: unknown): string {
+  return String(value ?? "")
+    .replace(/[\x00-\x1f\x7f]/g, "")
+    .trim();
+}
+
+function sanitizeRecipient(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > 320 || !BASIC_EMAIL_RE.test(trimmed)) return null;
+  return trimmed;
+}
+
+function sanitizeDisplayName(name: string): string {
+  // RFC 5322 display-name 里不允许的字符直接剔除，防止回信落到攻击者邮箱。
+  return String(name || "")
+    .replace(/[<>",;:()@[\]\\]/g, "")
+    .trim();
+}
+
+function plainTextifyHtmlContent(content: unknown): { text: string; html: string } {
+  const raw = String(content ?? "");
+  const withoutScripts = raw
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "");
+  const withBreaks = withoutScripts
+    .replace(/<\/(p|div|tr|li|h[1-6])>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n");
+  const text = withBreaks
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
+  const cleanText = text
+    .replace(/[^\S\n]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  const escapedHtml = cleanText
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/\n/g, "<br>");
+  return { text: cleanText, html: escapedHtml };
+}
 
 export interface OutEmailQuotaInfo {
   used: number;
@@ -208,48 +265,73 @@ async function reserveQuota(count: number) {
   const now = dayjs();
   const date = now.format("YYYY-MM-DD");
   const minute = now.format("YYYY-MM-DD-HH-mm");
-  let quota = await OutEmailQuota.findOne({ date });
-  if (!quota) quota = await OutEmailQuota.create({ date, minute, countDay: 0, countMinute: 0 });
+  const outemailQuotaTotal = getOutEmailQuotaTotal();
 
-  const currentMinuteCount = quota.minute === minute ? quota.countMinute : 0;
+  // 幂等确保当日文档存在（$setOnInsert 并发安全，不会互相覆盖）。
+  await OutEmailQuota.findOneAndUpdate(
+    { date },
+    { $setOnInsert: { date, minute, countDay: 0, countMinute: 0 } },
+    { upsert: true },
+  ).exec();
+
+  // 同一分钟：单条原子条件自增，天然避免 findOne+save 读改写丢更新。
+  const sameMinute = await OutEmailQuota.findOneAndUpdate(
+    {
+      date,
+      minute,
+      countMinute: { $lte: 20 - count },
+      countDay: { $lte: outemailQuotaTotal - count },
+    },
+    { $inc: { countMinute: count, countDay: count } },
+    { returnDocument: "after" },
+  ).exec();
+
+  if (sameMinute) {
+    return { success: true as const };
+  }
+
+  // 跨分钟切换窗口：同样原子。
+  const crossMinute = await OutEmailQuota.findOneAndUpdate(
+    { date, minute: { $ne: minute }, countDay: { $lte: outemailQuotaTotal - count } },
+    { $set: { minute, countMinute: count }, $inc: { countDay: count } },
+    { returnDocument: "after" },
+  ).exec();
+
+  if (crossMinute) {
+    return { success: true as const };
+  }
+
+  // 两条原子路径都未命中 => 触发分钟或日额度上限，读取当前值生成提示信息。
+  const current = await OutEmailQuota.findOne({ date }).exec();
+  const currentMinuteCount = current && current.minute === minute ? current.countMinute : 0;
   if (currentMinuteCount + count > 20) {
     return {
       success: false as const,
       error: `当前一分钟可发送剩余额度不足（剩余 ${Math.max(0, 20 - currentMinuteCount)} 封）`,
     };
   }
-  const outemailQuotaTotal = getOutEmailQuotaTotal();
-  if (quota.countDay + count > outemailQuotaTotal) {
-    return {
-      success: false as const,
-      error: `今日可发送剩余额度不足（剩余 ${Math.max(0, outemailQuotaTotal - quota.countDay)} 封）`,
-    };
-  }
-
-  if (quota.minute === minute) {
-    quota.countMinute += count;
-  } else {
-    quota.minute = minute;
-    quota.countMinute = count;
-  }
-  quota.countDay += count;
-  await quota.save();
-  return { success: true as const };
+  return {
+    success: false as const,
+    error: `今日可发送剩余额度不足（剩余 ${Math.max(0, outemailQuotaTotal - (current?.countDay || 0))} 封）`,
+  };
 }
 
 function buildPublicSender(fromUser: string | undefined, displayName: string | undefined, domain: string) {
-  return EmailService.buildSenderAddress(fromUser || "noreply", domain, displayName);
+  // display-name 必须按 RFC 5322 净化后再进 replyTo / X-From-Name，防止地址列表注入。
+  const safeName = sanitizeDisplayName(String(displayName || ""));
+  return EmailService.buildSenderAddress(fromUser || "noreply", domain, safeName || undefined);
 }
 
 export async function getOutEmailQuota(): Promise<OutEmailQuotaInfo> {
   const now = dayjs();
   const date = now.format("YYYY-MM-DD");
-  let quota = await OutEmailQuota.findOne({ date });
-  if (!quota) {
-    quota = await OutEmailQuota.create({ date, minute: now.format("YYYY-MM-DD-HH-mm"), countDay: 0, countMinute: 0 });
-  }
+  const quota = await OutEmailQuota.findOneAndUpdate(
+    { date },
+    { $setOnInsert: { date, minute: now.format("YYYY-MM-DD-HH-mm"), countDay: 0, countMinute: 0 } },
+    { upsert: true, returnDocument: "after" },
+  ).exec();
   const resetAt = now.add(1, "day").startOf("day").toISOString();
-  return { used: quota.countDay || 0, total: getOutEmailQuotaTotal(), resetAt };
+  return { used: quota?.countDay || 0, total: getOutEmailQuotaTotal(), resetAt };
 }
 
 export async function getOutEmailRecords(params: {
@@ -393,15 +475,34 @@ export async function sendOutEmailBatch({
   const authResult = await ensureOutEmailAuth({ code, apiKey, domain: outemailDomain, ip });
   if (!authResult.success) return authResult;
 
+  // 逐封净化收件人 / 主题 / 内容；任一收件人无效即整体拒绝。
+  const sanitizedMessages: Array<{ to: string[]; subject: string; text: string; html: string }> = [];
+  for (const message of messages) {
+    const recipients = (Array.isArray(message.to) ? message.to : [message.to])
+      .map(sanitizeRecipient)
+      .filter((item): item is string => item !== null);
+    if (recipients.length === 0) {
+      return { success: false, error: "消息包含无效的收件人邮箱地址" };
+    }
+    const { text, html } = plainTextifyHtmlContent(message.content);
+    sanitizedMessages.push({
+      to: recipients,
+      subject: stripControlChars(message.subject) || "(无主题)",
+      text,
+      html,
+    });
+  }
+
   const quotaResult = await reserveQuota(messages.length);
   if (!quotaResult.success) return quotaResult;
 
   try {
     const sender = buildPublicSender(fromUser, displayName, outemailDomain);
-    const batch = messages.map((message) => ({
-      to: Array.isArray(message.to) ? message.to.map((item) => String(item).trim()).filter(Boolean) : [String(message.to)],
+    const batch = sanitizedMessages.map((message) => ({
+      to: message.to,
       subject: message.subject,
-      html: message.content,
+      text: message.text,
+      html: message.html,
       ...(sender.name && sender.name !== (fromUser || "")
         ? { replyTo: `${sender.name} <${sender.email}>`, headers: { "X-From-Name": sender.name } }
         : {}),
@@ -467,8 +568,9 @@ export async function sendOutEmail({
     return { success: false, error: "API密钥未配置" };
   }
 
-  if (typeof to !== "string") {
-    throw new Error("to 必须为字符串");
+  const recipient = sanitizeRecipient(to);
+  if (!recipient) {
+    return { success: false, error: "收件人邮箱地址格式无效" };
   }
 
   const authResult = await ensureOutEmailAuth({ code, apiKey, domain: outemailDomain, ip });
@@ -479,11 +581,23 @@ export async function sendOutEmail({
 
   try {
     const sender = buildPublicSender(fromUser, displayName, outemailDomain);
+    // 自定义发件前缀/display-name 会让本域 DKIM/SPF 签名名义上指向该地址，
+    // 存在仿冒（品牌/安全团队）风险，记录审计日志便于追溯。
+    if (fromUser && fromUser !== "noreply") {
+      logger.warn("[OutEmail] 使用自定义发件人发送对外邮件", {
+        fromUser,
+        displayName,
+        domain: outemailDomain,
+        ip,
+      });
+    }
+    const { text, html } = plainTextifyHtmlContent(content);
     const result = await EmailService.sendEmail({
       from: sender.email,
-      to: [to],
-      subject,
-      html: content,
+      to: [recipient],
+      subject: stripControlChars(subject) || "(无主题)",
+      text,
+      html,
       attachments: EmailService.normalizeAttachments(attachments),
       ...(sender.name && sender.name !== (fromUser || "")
         ? { replyTo: `${sender.name} <${sender.email}>`, headers: { "X-From-Name": sender.name } }
@@ -495,7 +609,7 @@ export async function sendOutEmail({
       return { success: false, error: result.error || "发送失败" };
     }
 
-    await OutEmailRecord.create({ to, subject, content, ip });
+    await OutEmailRecord.create({ to: recipient, subject, content, ip });
     return { success: true, messageId: result.messageId };
   } catch (error: any) {
     logger.error("对外邮件发送异常", { error, stack: error?.stack });

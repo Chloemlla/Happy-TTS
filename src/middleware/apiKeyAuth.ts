@@ -8,6 +8,30 @@ import { apiKeyRateLimiter, SharedRateLimitUnavailableError } from "../services/
 import { oauthTokenAuth } from "./oauthTokenAuth";
 import type { AuthenticatedRequest } from "../types/authRequest";
 
+// 验证前的按 IP 粗限流：校验 API Key 走慢哈希路径前先按 IP 掐流量，
+// 避免匿名请求用随机 X-API-Key 无限触发验证成本。
+const PRE_AUTH_WINDOW_MS = 60_000;
+const PRE_AUTH_MAX = 30;
+const PRE_AUTH_MAX_TRACKED_IPS = 5_000;
+const preAuthIpLimiter = new Map<string, { count: number; resetAt: number }>();
+
+function checkPreAuthIpLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = preAuthIpLimiter.get(ip);
+  if (!entry || now >= entry.resetAt) {
+    preAuthIpLimiter.set(ip, { count: 1, resetAt: now + PRE_AUTH_WINDOW_MS });
+    // 超限时按插入顺序淘汰最旧的一条，把内存上界钉在 PRE_AUTH_MAX_TRACKED_IPS。
+    if (preAuthIpLimiter.size > PRE_AUTH_MAX_TRACKED_IPS) {
+      const oldest = preAuthIpLimiter.keys().next().value;
+      if (oldest !== undefined) preAuthIpLimiter.delete(oldest);
+    }
+    return true;
+  }
+  if (entry.count >= PRE_AUTH_MAX) return false;
+  entry.count++;
+  return true;
+}
+
 /**
  * API Key 认证中间件工厂
  * @param requiredPermission 该路由需要的权限标识，如 'tts'
@@ -22,6 +46,12 @@ export function apiKeyAuth(requiredPermission: string) {
 
     const header = req.headers["x-api-key"] as string | undefined;
     if (!header) return oauthAuth(req, res, next); // 没有 API Key 时尝试 OAuth Bearer，仍没有则交给后续链路
+
+    // 粗 IP 限流提到验证之前：拒绝超频来源，避免每次都被迫做验证/哈希。
+    const requestIp = getClientIP(req);
+    if (!checkPreAuthIpLimit(requestIp)) {
+      return res.status(429).json({ error: "请求过于频繁，请稍后再试" });
+    }
 
     try {
       const doc = await validateApiKey(header);

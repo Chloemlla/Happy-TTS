@@ -116,6 +116,9 @@ export interface QuotaLedger {
   reserve(userId: string, taskId: string): Promise<{ success: boolean; snapshot: TtsUsageSnapshot }>;
   confirm(userId: string, taskId: string): Promise<TtsUsageSnapshot>;
   release(userId: string, taskId: string): Promise<TtsUsageSnapshot>;
+  reserveAnonymous(scopeKey: string, taskId: string): Promise<{ success: boolean; remainingToday: number }>;
+  confirmAnonymous(scopeKey: string, taskId: string): Promise<void>;
+  releaseAnonymous(scopeKey: string, taskId: string): Promise<void>;
 }
 
 export interface TtsSettingsStore {
@@ -127,11 +130,25 @@ export interface TtsJobStore {
   createJob(job: TtsJobRecord): Promise<TtsJobRecord>;
   getJob(taskId: string): Promise<TtsJobRecord | null>;
   updateJob(taskId: string, patch: Partial<TtsJobRecord>): Promise<TtsJobRecord | null>;
-  completeJob(taskId: string, result: TtsJobResult, usage?: TtsUsageSummary, nextAction?: TtsNextAction): Promise<TtsJobRecord | null>;
-  failJob(taskId: string, error: string, usage?: TtsUsageSummary, nextAction?: TtsNextAction): Promise<TtsJobRecord | null>;
+  completeJob(
+    taskId: string,
+    result: TtsJobResult,
+    usage?: TtsUsageSummary,
+    nextAction?: TtsNextAction,
+    expectedOwner?: string,
+  ): Promise<TtsJobRecord | null>;
+  failJob(
+    taskId: string,
+    error: string,
+    usage?: TtsUsageSummary,
+    nextAction?: TtsNextAction,
+    expectedOwner?: string,
+  ): Promise<TtsJobRecord | null>;
   getQueuePosition(taskId: string): Promise<number>;
   claimNextQueuedJob(workerId: string, leaseMs: number): Promise<TtsJobRecord | null>;
-  recoverStaleJobs(staleBefore: number): Promise<number>;
+  recoverStaleJobs(
+    staleBefore: number,
+  ): Promise<{ recovered: number; failed: TtsJobRecord[] }>;
 }
 
 export interface GenerationHistoryStore {
@@ -161,6 +178,11 @@ export interface GenerationHistoryStore {
     fingerprint?: string;
     limit?: number;
   }): Promise<TtsHistoryRecord[]>;
+  countRecentByContentHash(params: {
+    userId: string;
+    contentHash: string;
+    sinceIso: string;
+  }): Promise<number>;
   getAllRecords(params: {
     page?: number;
     limit?: number;

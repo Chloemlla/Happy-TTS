@@ -12,6 +12,12 @@ import { sendEmail } from "./emailSender";
 import { generateCDKActivatedEmailHtml } from "../templates/emailTemplates";
 import { isAdminRole } from "../middleware/auth";
 
+/**
+ * CDK 业务性失败（用户输入错误、无效/已使用、重复兑换、限流等）。
+ * 这类失败不视为下游故障，不计入熔断器，也不计入 failedRedemptions。
+ */
+class CdkBusinessError extends Error {}
+
 // 性能监控接口
 interface PerformanceStats {
   totalRedemptions: number;
@@ -67,6 +73,8 @@ export class CDKService {
   // 断路器模式
   private circuitBreakerState: "CLOSED" | "OPEN" | "HALF_OPEN" = "CLOSED";
   private circuitBreakerFailureCount = 0;
+  private circuitBreakerSuccessCount = 0;
+  private circuitBreakerProbeCount = 0;
   private circuitBreakerLastFailureTime = 0;
   private readonly CIRCUIT_BREAKER_THRESHOLD = 5;
   private readonly CIRCUIT_BREAKER_TIMEOUT = 60000;
@@ -197,23 +205,33 @@ export class CDKService {
       if (now - this.circuitBreakerLastFailureTime >= this.CIRCUIT_BREAKER_TIMEOUT) {
         logger.info("[CDKService] Circuit breaker transitioning to HALF_OPEN");
         this.circuitBreakerState = "HALF_OPEN";
-        this.circuitBreakerFailureCount = 0;
-        return true;
+        this.circuitBreakerSuccessCount = 0;
+        this.circuitBreakerProbeCount = 0;
+      } else {
+        return false;
       }
-      return false;
     }
 
+    // HALF_OPEN：只放行有限数量的探测请求，避免半开状态下被打满。
+    if (this.circuitBreakerProbeCount >= this.CIRCUIT_BREAKER_SUCCESS_THRESHOLD) {
+      this.circuitBreakerState = "OPEN";
+      this.circuitBreakerLastFailureTime = now;
+      this.circuitBreakerProbeCount = 0;
+      return false;
+    }
+    this.circuitBreakerProbeCount++;
     return true;
   }
 
   private recordCircuitBreakerSuccess(): void {
     if (this.circuitBreakerState === "HALF_OPEN") {
-      this.circuitBreakerFailureCount++;
-
-      if (this.circuitBreakerFailureCount >= this.CIRCUIT_BREAKER_SUCCESS_THRESHOLD) {
+      this.circuitBreakerSuccessCount++;
+      if (this.circuitBreakerSuccessCount >= this.CIRCUIT_BREAKER_SUCCESS_THRESHOLD) {
         logger.info("[CDKService] Circuit breaker closing after successful operations");
         this.circuitBreakerState = "CLOSED";
         this.circuitBreakerFailureCount = 0;
+        this.circuitBreakerSuccessCount = 0;
+        this.circuitBreakerProbeCount = 0;
       }
     } else if (this.circuitBreakerState === "CLOSED") {
       this.circuitBreakerFailureCount = 0;
@@ -233,6 +251,8 @@ export class CDKService {
       logger.warn("[CDKService] Circuit breaker reopening after failure in HALF_OPEN state");
       this.circuitBreakerState = "OPEN";
       this.circuitBreakerFailureCount = 0;
+      this.circuitBreakerSuccessCount = 0;
+      this.circuitBreakerProbeCount = 0;
     }
   }
 
@@ -291,36 +311,38 @@ export class CDKService {
     forceRedeem?: boolean,
     cfToken?: string,
     userRole?: string,
+    ip?: string,
   ) {
     const startTime = Date.now();
     this.stats.totalRedemptions++;
 
     try {
-      // 检查断路器
+      // 检查断路器。熔断打开属于系统保护状态，用户请求不算下游故障，
+      // 用 CdkBusinessError 抛出让外层不计入熔断失败计数（否则会不断重置 OPEN 计时）。
       if (!this.checkCircuitBreaker()) {
-        throw new Error("服务暂时不可用，请稍后重试");
+        throw new CdkBusinessError("服务暂时不可用，请稍后重试");
       }
 
       // 验证CDK代码格式
       if (!code || typeof code !== "string" || code.length !== 16 || !/^[A-Z0-9]{16}$/.test(code)) {
         logger.warn("[CDKService] 无效的CDK代码格式", { code });
-        throw new Error("无效的CDK代码格式");
+        throw new CdkBusinessError("无效的CDK代码格式");
       }
 
       // 限流检查
       if (userInfo && !this.checkRateLimit(userInfo.userId)) {
-        throw new Error("请求过于频繁，请稍后重试");
+        throw new CdkBusinessError("请求过于频繁，请稍后重试");
       }
 
       // 验证和清理用户信息以防止NoSQL注入
       if (userInfo) {
         if (!userInfo.userId || typeof userInfo.userId !== "string" || userInfo.userId.length > 100) {
           logger.warn("无效的用户ID格式", { userId: userInfo.userId });
-          throw new Error("无效的用户ID格式");
+          throw new CdkBusinessError("无效的用户ID格式");
         }
         if (!userInfo.username || typeof userInfo.username !== "string" || userInfo.username.length > 50) {
           logger.warn("无效的用户名格式", { username: userInfo.username });
-          throw new Error("无效的用户名格式");
+          throw new CdkBusinessError("无效的用户名格式");
         }
 
         // 清理用户输入，移除潜在的NoSQL注入字符
@@ -333,7 +355,7 @@ export class CDKService {
       if (!isAdmin && process.env.TURNSTILE_SECRET_KEY) {
         if (!cfToken) {
           logger.warn("非管理员用户缺少 Turnstile token，拒绝CDK兑换", { userId: userInfo?.userId, userRole });
-          throw new Error("需要完成人机验证才能兑换CDK");
+          throw new CdkBusinessError("需要完成人机验证才能兑换CDK");
         }
 
         try {
@@ -356,7 +378,7 @@ export class CDKService {
               userRole,
               errorCodes: verificationResult.data["error-codes"],
             });
-            throw new Error("人机验证失败，请重新验证");
+            throw new CdkBusinessError("人机验证失败，请重新验证");
           }
 
           logger.info("Turnstile 验证成功", {
@@ -365,9 +387,10 @@ export class CDKService {
             hostname: verificationResult.data.hostname,
           });
         } catch (error) {
-          if (error instanceof Error && error.message.includes("Turnstile")) {
+          if (error instanceof CdkBusinessError) {
             throw error;
           }
+          // Turnstile 服务本身不可用属于依赖故障，计入熔断。
           logger.error("Turnstile 验证请求失败", {
             userId: userInfo?.userId,
             userRole,
@@ -390,7 +413,7 @@ export class CDKService {
 
       if (!cdkToRedeem) {
         logger.warn("CDK兑换失败：无效或已使用", { code });
-        throw new Error("无效或已使用的CDK");
+        throw new CdkBusinessError("无效或已使用的CDK");
       }
 
       // 如果提供了用户信息且未强制兑换，检查用户是否已拥有该资源
@@ -405,7 +428,7 @@ export class CDKService {
         if (existingCDK) {
           // 用户已拥有该资源，返回特殊错误以触发前端确认对话框
           const resource = await this.resourceService.getResourceById(cdkToRedeem.resourceId);
-          const error = new Error("DUPLICATE_RESOURCE") as any;
+          const error = new CdkBusinessError("DUPLICATE_RESOURCE") as any;
           error.resourceTitle = resource?.title || "未知资源";
           error.resourceId = cdkToRedeem.resourceId;
           throw error;
@@ -415,7 +438,8 @@ export class CDKService {
       const updateData: any = {
         isUsed: true,
         usedAt: new Date(),
-        usedIp: "127.0.0.1", // 实际应用中需要获取真实IP
+        // 记录真实客户端 IP（由控制器 getClientIP 传入）；不再硬编码 127.0.0.1。
+        usedIp: typeof ip === "string" && ip.trim() ? ip.trim().slice(0, 64) : "unknown",
       };
 
       // 如果提供了用户信息，则记录用户信息
@@ -438,13 +462,13 @@ export class CDKService {
 
       if (!cdk) {
         logger.warn("CDK兑换失败：无效或已使用", { code });
-        throw new Error("无效或已使用的CDK");
+        throw new CdkBusinessError("无效或已使用的CDK");
       }
 
       const resource = await this.resourceService.getResourceById(cdk.resourceId);
       if (!resource) {
         logger.warn("CDK兑换失败：资源不存在", { code, resourceId: cdk.resourceId });
-        throw new Error("资源不存在");
+        throw new CdkBusinessError("资源不存在");
       }
 
       logger.info("[CDKService] CDK兑换成功", {
@@ -500,9 +524,13 @@ export class CDKService {
         cdk: cdk.toObject(),
       };
     } catch (error) {
-      this.stats.failedRedemptions++;
-      this.recordCircuitBreakerFailure();
-      this.recordError("CDK redemption failed", error);
+      // 业务性失败（无效码/已使用/重复兑换/限流/人机验证输入错误）不计入熔断，
+      // 也不计入 failedRedemptions，避免用户手滑导致全站兑换停摆或健康探针误报。
+      if (!(error instanceof CdkBusinessError)) {
+        this.stats.failedRedemptions++;
+        this.recordCircuitBreakerFailure();
+        this.recordError("CDK redemption failed", error);
+      }
 
       logger.error("[CDKService] CDK兑换失败:", error);
       throw error;
@@ -760,11 +788,11 @@ export class CDKService {
     }
   }
 
-  // 获取用户已兑换的资源
-  async getUserRedeemedResources(userIp: string) {
+  // 获取用户已兑换的资源（按 usedBy.userId 归属，不再按 IP）
+  async getUserRedeemedResources(userId: string) {
     try {
-      // 查找该IP地址兑换过的CDK
-      const redeemedCDKs = await CDKModel.find({ isUsed: true, usedIp: userIp })
+      // 查找该用户兑换过的CDK
+      const redeemedCDKs = await CDKModel.find({ isUsed: true, "usedBy.userId": userId })
         .select("code resourceId usedAt")
         .sort({ usedAt: -1 })
         .lean();
@@ -808,7 +836,7 @@ export class CDKService {
         };
       });
 
-      logger.info("获取用户已兑换资源成功", { userIp, total: result.length });
+      logger.info("获取用户已兑换资源成功", { userId, total: result.length });
       return { resources: result, total: result.length };
     } catch (error) {
       logger.error("获取用户已兑换资源失败:", error);

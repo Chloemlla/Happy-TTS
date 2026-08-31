@@ -177,6 +177,9 @@ TtsJobSchema.index({ status: 1, leaseExpiresAt: 1 });
 
 const TtsJobModel = mongoose.models.TtsJob || mongoose.model<TtsJobRecord>("TtsJob", TtsJobSchema);
 
+/** 单个任务最大处理尝试次数，超过后进入 failed（死信），不再无限重排队。 */
+export const TTS_MAX_ATTEMPTS = 3;
+
 class MongoTtsJobStore implements TtsJobStore {
   public createTaskId() {
     return `tts_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
@@ -201,8 +204,14 @@ class MongoTtsJobStore implements TtsJobStore {
       .exec()) as TtsJobRecord | null;
   }
 
-  public async completeJob(taskId: string, result: TtsJobResult, usage?: TtsUsageSummary, nextAction?: TtsNextAction) {
-    return this.updateJob(taskId, {
+  public async completeJob(
+    taskId: string,
+    result: TtsJobResult,
+    usage?: TtsUsageSummary,
+    nextAction?: TtsNextAction,
+    expectedOwner?: string,
+  ) {
+    return this.updateJobOwned(taskId, expectedOwner, {
       status: "completed",
       message: result.message,
       result,
@@ -214,8 +223,14 @@ class MongoTtsJobStore implements TtsJobStore {
     });
   }
 
-  public async failJob(taskId: string, error: string, usage?: TtsUsageSummary, nextAction?: TtsNextAction) {
-    return this.updateJob(taskId, {
+  public async failJob(
+    taskId: string,
+    error: string,
+    usage?: TtsUsageSummary,
+    nextAction?: TtsNextAction,
+    expectedOwner?: string,
+  ) {
+    return this.updateJobOwned(taskId, expectedOwner, {
       status: "failed",
       message: error,
       error,
@@ -224,6 +239,25 @@ class MongoTtsJobStore implements TtsJobStore {
       processingOwner: undefined,
       leaseExpiresAt: undefined,
     });
+  }
+
+  /** 带 owner 条件的终态写入：owner 不匹配（任务已被其他 worker 重新认领）则返回 null。 */
+  private async updateJobOwned(
+    taskId: string,
+    expectedOwner: string | undefined,
+    patch: Partial<TtsJobRecord>,
+  ): Promise<TtsJobRecord | null> {
+    const filter: Record<string, unknown> = { taskId };
+    if (expectedOwner) {
+      filter.processingOwner = expectedOwner;
+    }
+    return (await TtsJobModel.findOneAndUpdate(
+      filter,
+      { $set: { ...patch, updatedAt: new Date().toISOString() } },
+      { returnDocument: "after" },
+    )
+      .lean()
+      .exec()) as TtsJobRecord | null;
   }
 
   public async getQueuePosition(taskId: string) {
@@ -260,11 +294,38 @@ class MongoTtsJobStore implements TtsJobStore {
   }
 
   public async recoverStaleJobs(staleBefore: number) {
+    const staleFilter = {
+      status: "processing",
+      leaseExpiresAt: { $lte: new Date(staleBefore).toISOString() },
+    };
+
+    // 超过最大尝试次数的任务进入死信（failed），不再无限重试；调用方据此释放额度预留。
+    const overLimit = (await TtsJobModel.find({
+      ...staleFilter,
+      attempts: { $gte: TTS_MAX_ATTEMPTS },
+    })
+      .lean()
+      .exec()) as TtsJobRecord[];
+
+    if (overLimit.length > 0) {
+      await TtsJobModel.updateMany(
+        { taskId: { $in: overLimit.map((job) => job.taskId) } },
+        {
+          $set: {
+            status: "failed",
+            message: "任务重试次数已达上限，已终止",
+            error: "任务重试次数已达上限，已终止",
+            processingOwner: null,
+            leaseExpiresAt: null,
+            updatedAt: new Date().toISOString(),
+          },
+        },
+      ).exec();
+    }
+
+    // 未超限的恢复到 queued 继续重试。
     const result = await TtsJobModel.updateMany(
-      {
-        status: "processing",
-        leaseExpiresAt: { $lte: new Date(staleBefore).toISOString() },
-      },
+      { ...staleFilter, attempts: { $lt: TTS_MAX_ATTEMPTS } },
       {
         $set: {
           status: "queued",
@@ -276,7 +337,7 @@ class MongoTtsJobStore implements TtsJobStore {
       },
     ).exec();
 
-    return result.modifiedCount;
+    return { recovered: result.modifiedCount, failed: overLimit };
   }
 }
 

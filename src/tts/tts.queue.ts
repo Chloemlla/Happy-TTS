@@ -2,7 +2,12 @@ import { wsService } from "../services/wsService";
 import logger from "../utils/logger";
 import { generationHistoryStore, redactTtsTextForStorage } from "./tts.history";
 import type { GenerationHistoryStore, QuotaLedger } from "./tts.ports";
-import { buildUsageSummaryFromSnapshot, quotaLedger } from "./tts.quota";
+import {
+  buildAnonymousScopeKey,
+  buildUsageSummaryFromSnapshot,
+  quotaLedger,
+  startExpiredReservationSweeper,
+} from "./tts.quota";
 import { TtsService } from "./tts.service";
 import { type TtsJobRecord, type TtsNextAction, ttsStorage } from "./tts.storage";
 
@@ -13,6 +18,8 @@ interface QueueCallbacks {
 
 const PROCESSING_LEASE_MS = 15 * 60 * 1000;
 const MAX_QUEUE_CONCURRENCY = 5;
+/** 过期任务周期性回收间隔：没有新任务入队时，僵死任务也能被回收。 */
+const STALE_RECOVERY_INTERVAL_MS = 5 * 60 * 1000;
 
 function resolveQueueConcurrency(): number {
   const raw = Number(process.env.TTS_QUEUE_CONCURRENCY || "2");
@@ -33,12 +40,49 @@ export class TtsQueue {
     private readonly callbacks: QueueCallbacks,
     private readonly historyStore: GenerationHistoryStore = generationHistoryStore,
     private readonly ledger: QuotaLedger = quotaLedger,
-  ) {}
+  ) {
+    // 启动独立周期回收：即便没有新任务入队，僵死任务也会被回收，
+    // 超限任务进入死信并释放额度预留。
+    this.startStaleRecoveryTimer();
+    startExpiredReservationSweeper();
+  }
 
   public async enqueue(job: TtsJobRecord) {
     await ttsStorage.createJob(job);
     void this.drain();
     return job;
+  }
+
+  private startStaleRecoveryTimer(): void {
+    const timer = setInterval(() => {
+      void this.recoverStaleJobsAndReleaseQuota();
+    }, STALE_RECOVERY_INTERVAL_MS);
+    timer.unref?.();
+  }
+
+  private async recoverStaleJobsAndReleaseQuota(): Promise<void> {
+    try {
+      const { failed } = await ttsStorage.recoverStaleJobs(Date.now());
+      for (const job of failed) {
+        try {
+          if (job.userId && !job.isAdmin) {
+            await this.ledger.release(job.userId, job.taskId);
+          } else if (!job.userId) {
+            await this.ledger.releaseAnonymous(buildAnonymousScopeKey(job.ip, job.fingerprint), job.taskId);
+          }
+        } catch (error) {
+          logger.error("释放过期 TTS 任务额度预留失败", {
+            taskId: job.taskId,
+            userId: job.userId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+    } catch (error) {
+      logger.error("TTS 过期任务回收失败", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   private async drain() {
@@ -139,6 +183,9 @@ export class TtsQueue {
       if (job.userId && !job.isAdmin) {
         const snapshot = await this.ledger.confirm(job.userId, job.taskId);
         usage = buildUsageSummaryFromSnapshot(snapshot.user, snapshot);
+      } else if (!job.userId) {
+        await this.ledger.confirmAnonymous(buildAnonymousScopeKey(job.ip, job.fingerprint), job.taskId);
+        usage = await this.callbacks.buildUsageSummary(undefined, false);
       } else {
         usage = await this.callbacks.buildUsageSummary(job.userId, job.isAdmin);
       }
@@ -187,6 +234,7 @@ export class TtsQueue {
         },
         usage ?? undefined,
         nextAction,
+        this.workerId,
       );
 
       if (job.userId) {
@@ -204,6 +252,8 @@ export class TtsQueue {
       if (job.userId && !job.isAdmin) {
         const snapshot = await this.ledger.release(job.userId, job.taskId);
         usage = buildUsageSummaryFromSnapshot(snapshot.user, snapshot);
+      } else if (!job.userId) {
+        await this.ledger.releaseAnonymous(buildAnonymousScopeKey(job.ip, job.fingerprint), job.taskId);
       }
 
       const nextAction = this.callbacks.buildNextAction("retry", "稍后重试", "生成失败，请稍后重试。");
@@ -213,7 +263,7 @@ export class TtsQueue {
           text: redactTtsTextForStorage(job.request.text),
         },
       });
-      await ttsStorage.failJob(job.taskId, message, usage ?? undefined, nextAction);
+      await ttsStorage.failJob(job.taskId, message, usage ?? undefined, nextAction, this.workerId);
 
       if (job.userId) {
         wsService.notifyTtsError(job.userId, {

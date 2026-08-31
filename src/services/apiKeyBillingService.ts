@@ -253,8 +253,11 @@ export async function preauthorizeApiKeyBilling(
 
   const method = req.method || null;
   const route = getRequestRoute(req) || null;
+  // `req.requestId` 由客户端 X-Request-Id 头直接决定，若把它纳入 operationId，
+  // 并发下多个请求会共用同一次预留从而绕过计费。这里只把它当日志关联 id，
+  // operationId 改用服务端一次性 UUID，保证每次计费预留互相独立。
   const requestId = typeof req.requestId === "string" ? req.requestId.slice(0, 200) : crypto.randomUUID();
-  const operationId = createOperationId(["request", doc.keyId, requestId, method, route, permission]);
+  const operationId = createOperationId(["request", doc.keyId, crypto.randomUUID(), method, route, permission]);
 
   return runBillingTransaction(async (session) => {
     const existing = (await ApiKeyBillingEventModel.findOne({ operationId }).session(session).lean()) as

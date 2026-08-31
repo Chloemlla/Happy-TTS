@@ -8,9 +8,15 @@ import type {
 
 interface TtsHistoryDocument extends TtsHistoryRecord {
   duplicateScopeKey: string;
+  /** Date 型时间戳，供 TTL 索引使用。 */
+  createdAtDate?: Date;
 }
 
 const REVIEW_STATUSES: TtsHistoryReviewStatus[] = ["none", "needs_review", "in_review", "fixed", "dismissed"];
+
+// 历史记录保留期：90 天（与 translationLog/auditLog 一致）。
+const HISTORY_TTL_SECONDS = 90 * 24 * 60 * 60;
+const REDACT_TEXT_MAX_LENGTH = 64;
 
 const TtsHistorySchema = new mongoose.Schema<TtsHistoryDocument>(
   {
@@ -34,6 +40,8 @@ const TtsHistorySchema = new mongoose.Schema<TtsHistoryDocument>(
     providerModel: { type: String, required: true },
     providerVoice: { type: String, required: true },
     createdAt: { type: String, required: true, index: true },
+    // 真正的 Date 型时间戳，用于 TTL 索引（TTL 只对 Date 生效）。
+    createdAtDate: { type: Date, default: Date.now, index: true },
     adminNote: { type: String },
     adminSuggestion: { type: String },
     reviewStatus: { type: String, enum: REVIEW_STATUSES, default: "none", index: true },
@@ -48,13 +56,21 @@ const TtsHistorySchema = new mongoose.Schema<TtsHistoryDocument>(
 
 TtsHistorySchema.index({ scope: 1, userId: 1, contentHash: 1, createdAt: -1 });
 TtsHistorySchema.index({ scope: 1, duplicateScopeKey: 1, contentHash: 1, createdAt: -1 });
+TtsHistorySchema.index({ createdAtDate: 1 }, { expireAfterSeconds: HISTORY_TTL_SECONDS });
 
 const TtsHistoryModel =
   mongoose.models.TtsGenerationHistory ||
   mongoose.model<TtsHistoryDocument>("TtsGenerationHistory", TtsHistorySchema);
 
+/**
+ * 对外/落库文本脱敏：只保留前 64 个字符并附原始长度。
+ * 函数名承诺脱敏就真的要脱敏，避免"命名骗人的空实现"让后续维护者误以为已脱敏。
+ */
 export function redactTtsTextForStorage(text: string): string {
-  return String(text || "");
+  const raw = String(text || "");
+  if (!raw) return "";
+  if (raw.length <= REDACT_TEXT_MAX_LENGTH) return raw;
+  return `${raw.slice(0, REDACT_TEXT_MAX_LENGTH)}…[len=${raw.length}]`;
 }
 
 function normalizeReviewStatus(value: unknown): TtsHistoryReviewStatus {
@@ -74,7 +90,7 @@ function trimOptionalText(value: unknown, maxLength: number): string | undefined
 }
 
 function mapHistoryRecord(record: any): TtsHistoryRecord {
-  const { _id, __v, duplicateScopeKey, ...rest } = record || {};
+  const { _id, __v, duplicateScopeKey, createdAtDate, ...rest } = record || {};
   return {
     ...rest,
     id: _id ? String(_id) : rest.id,
@@ -120,7 +136,6 @@ export class MongoGenerationHistoryStore implements GenerationHistoryStore {
     const record = (await TtsHistoryModel.findOne({
       scope: "user",
       userId: params.userId,
-      text: params.text,
       voice: params.voice,
       model: params.model,
       speed: params.speed,
@@ -149,7 +164,6 @@ export class MongoGenerationHistoryStore implements GenerationHistoryStore {
     const record = (await TtsHistoryModel.findOne({
       scope: "anonymous",
       duplicateScopeKey,
-      text: params.text,
       voice: params.voice,
       model: params.model,
       speed: params.speed,
@@ -172,11 +186,26 @@ export class MongoGenerationHistoryStore implements GenerationHistoryStore {
     const created = await TtsHistoryModel.create({
       ...record,
       text: redactTtsTextForStorage(record.text),
+      createdAtDate: record.createdAt ? new Date(record.createdAt) : new Date(),
       reviewStatus: record.reviewStatus || "none",
       updatedAt: record.updatedAt || record.createdAt,
       duplicateScopeKey,
     });
     return mapHistoryRecord(created.toObject());
+  }
+
+  /** 统计某用户在同一时间窗内提交过的相同 contentHash 次数（G6-13 同用户重复判定）。 */
+  public async countRecentByContentHash(params: {
+    userId: string;
+    contentHash: string;
+    sinceIso: string;
+  }): Promise<number> {
+    return TtsHistoryModel.countDocuments({
+      scope: "user",
+      userId: params.userId,
+      contentHash: params.contentHash,
+      createdAt: { $gte: params.sinceIso },
+    }).exec();
   }
 
   public async getRecentRecords(params: {
@@ -237,10 +266,10 @@ export class MongoGenerationHistoryStore implements GenerationHistoryStore {
     const q = params.q?.trim();
     if (q) {
       const pattern = new RegExp(escapeRegExp(q), "i");
+      // 不搜索 text：文本已脱敏且该字段无索引，搜索 text 会退化为全集合扫描。
       and.push({
         $or: [
           { userId: pattern },
-          { text: pattern },
           { fileName: pattern },
           { audioFileId: pattern },
           { audioMimeType: pattern },

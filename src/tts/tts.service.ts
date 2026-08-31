@@ -9,7 +9,8 @@ import { ttsAudioPostProcessor } from "./tts.audioPostProcessor";
 import { ttsAssetAccessService } from "./tts.assetAccess";
 import { ttsAudioAssetStore, type TtsAudioAssetMetadata } from "./tts.asset";
 import { TtsGenerationError } from "./tts.errors";
-import type { TtsAudioPostProcessor, TtsProviderRequest } from "./tts.ports";
+import { generationHistoryStore } from "./tts.history";
+import type { GenerationHistoryStore, TtsAudioPostProcessor, TtsProviderRequest } from "./tts.ports";
 import { ttsProviderRouter, TtsProviderRouter } from "./tts.provider-router";
 
 dotenv.config();
@@ -43,11 +44,6 @@ export interface TtsGeneratedSpeechResult {
   audioSize: number;
 }
 
-interface UserViolation {
-  count: number;
-  lastViolation: number;
-}
-
 interface CircuitState {
   state: "CLOSED" | "OPEN" | "HALF_OPEN";
   consecutiveFailures: number;
@@ -70,17 +66,16 @@ export class TtsService {
 
   private readonly outputDir: string;
   private readonly baseUrl: string;
-  private readonly userViolations: Map<string, UserViolation>;
   private readonly violationThreshold = 3;
   private readonly violationWindow = 24 * 60 * 60 * 1000;
 
   constructor(
     private readonly providerRouter: TtsProviderRouter = ttsProviderRouter,
     private readonly audioPostProcessor: TtsAudioPostProcessor = ttsAudioPostProcessor,
+    private readonly historyStore: GenerationHistoryStore = generationHistoryStore,
   ) {
     this.outputDir = config.audioDir;
     this.baseUrl = config.baseUrl;
-    this.userViolations = new Map();
     this.ensureOutputDir();
   }
 
@@ -194,33 +189,15 @@ export class TtsService {
     });
   }
 
-  private checkUserViolation(userId: string): boolean {
-    const violation = this.userViolations.get(userId);
-    if (!violation) {
-      return false;
-    }
-
-    const now = Date.now();
-    if (now - violation.lastViolation > this.violationWindow) {
-      this.userViolations.delete(userId);
-      return false;
-    }
-
-    return violation.count >= this.violationThreshold;
-  }
-
-  private recordViolation(userId: string) {
-    const now = Date.now();
-    const violation = this.userViolations.get(userId) || { count: 0, lastViolation: now };
-
-    if (now - violation.lastViolation > this.violationWindow) {
-      violation.count = 1;
-    } else {
-      violation.count += 1;
-    }
-
-    violation.lastViolation = now;
-    this.userViolations.set(userId, violation);
+  /**
+   * 判断该用户是否在短时间窗内对相同内容（contentHash）重复提交过多次。
+   * 依据是 tts_history 里该用户自己的记录，而非全局文件缓存命中——
+   * 避免"别人合成过的文本命中全局缓存"误伤新用户。
+   */
+  private async isExcessiveDuplicateSubmissions(userId: string, contentHash: string): Promise<boolean> {
+    const sinceIso = new Date(Date.now() - this.violationWindow).toISOString();
+    const count = await this.historyStore.countRecentByContentHash({ userId, contentHash, sinceIso });
+    return count >= this.violationThreshold;
   }
 
   private assertCircuitAllowsRequest() {
@@ -410,10 +387,6 @@ export class TtsService {
       };
       const { text, model, voice, outputFormat, speed, userId, isAdmin } = normalizedRequest;
 
-      if (userId && !isAdmin && this.checkUserViolation(userId)) {
-        throw new TtsGenerationError("由于重复提交相同内容，您的账号已被临时封禁24小时", 429, "TTS_USER_BLOCKED", false);
-      }
-
       const safeOutputFormat = this.resolveOutputFormat(outputFormat);
       const contentHash = this.generateContentHash({
         text,
@@ -423,13 +396,15 @@ export class TtsService {
         outputFormat: safeOutputFormat,
         providerExecution,
       });
+
+      // 只有"同一用户短时间窗内重复提交相同内容"才构成违规；全局缓存命中不惩罚。
+      if (userId && !isAdmin && (await this.isExcessiveDuplicateSubmissions(userId, contentHash))) {
+        throw new TtsGenerationError("由于重复提交相同内容，您的账号已被临时封禁24小时", 429, "TTS_USER_BLOCKED", false);
+      }
+
       const existingFile = await this.findExistingFile(contentHash, safeOutputFormat);
 
       if (existingFile) {
-        if (userId && !isAdmin) {
-          this.recordViolation(userId);
-        }
-
         const metadata =
           (await ttsAudioAssetStore.getAudioAssetMetadata(existingFile)) ||
           (await this.buildFileOnlyAudioMetadata({

@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import mongoose from "mongoose";
 import logger from "../utils/logger";
 
@@ -152,10 +153,12 @@ export class TransactionService {
   }
 
   private static generateUniqueCode(): string {
+    // CDK 是可直接兑换付费资源的凭证，必须使用 CSPRNG（crypto.randomInt），
+    // 不能用可预测/可批量推算的 Math.random()。
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     let code = "";
     for (let i = 0; i < 16; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
+      code += chars[crypto.randomInt(0, chars.length)];
     }
     return code;
   }

@@ -16,6 +16,7 @@ import {
 } from "../controllers/cdkController";
 import { auditLog } from "../middleware/auditLog";
 import { authenticateAdmin, authenticateSuperAdmin } from "../middleware/auth";
+import { authenticateToken } from "../middleware/authenticateToken";
 import { createLimiter } from "../middleware/routeLimiters";
 
 const router = Router();
@@ -30,7 +31,8 @@ const cdkAdminLimiter = createLimiter({
 
 // 公共API
 router.post("/redeem", redeemCDK);
-router.get("/redeemed", getUserRedeemedResources);
+// 已兑换资源列表必须登录且按 req.user.id 归属，防止越权拉取他人兑换记录。
+router.get("/redeemed", authenticateToken, getUserRedeemedResources);
 
 // 管理员API
 router.get("/", cdkAdminLimiter, authenticateAdmin, getCDKs);
