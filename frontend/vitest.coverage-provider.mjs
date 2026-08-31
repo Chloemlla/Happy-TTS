@@ -27,7 +27,9 @@ async function remapCoverage(coverageMap) {
 }
 
 class ExistingIstanbulCoverageProvider extends BaseCoverageProvider {
-  name = "istanbul";
+  // 非官方标识：避免 Vitest 4 按 name 去解析官方 @vitest/coverage-istanbul 包（该包不在依赖中）。
+  // 本 provider 是仓库自带的 istanbul-lib-* 封装，解析到官方包会抛 “Cannot find package”。
+  name = "repo-istanbul";
   version = vitestVersion;
   instrumenter;
 
