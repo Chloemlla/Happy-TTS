@@ -26,7 +26,15 @@ export interface EcoEnchantsTokenSession {
 }
 
 function getOpsTokenSecret(): string {
-  return process.env.ECOENCHANTS_OPS_TOKEN_SECRET || config.jwtSecret;
+  const envSecret = process.env.ECOENCHANTS_OPS_TOKEN_SECRET;
+  if (envSecret) return envSecret;
+  // G7-57: ops tokens must not share the main-site JWT secret. In production a
+  // missing dedicated secret is a hard error; outside production we allow the
+  // JWT secret fallback for local dev convenience.
+  if (process.env.NODE_ENV !== "production" && config.jwtSecret) return config.jwtSecret;
+  throw new Error(
+    "[EcoEnchantsOps] Missing ECOENCHANTS_OPS_TOKEN_SECRET. Ops tokens must use a secret distinct from the main-site JWT secret.",
+  );
 }
 
 function expiresAtFromSeconds(seconds: number): Date {

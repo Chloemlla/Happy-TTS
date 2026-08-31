@@ -2,7 +2,8 @@ import crypto from "node:crypto";
 import path from "node:path";
 import { isAdminRole } from "../middleware/auth";
 import { logger } from "./logger";
-import { addRound, getAllRounds, getUserRecord, updateRound } from "./lotteryStorage";
+import { addRound, getAllRounds, getUserRecord, updateRound, updateUserRecord, deleteAllRounds } from "./lotteryStorage";
+import { TurnstileService } from "./turnstileService";
 
 // 抽奖相关类型定义
 export interface LotteryPrize {
@@ -60,7 +61,6 @@ export interface BlockchainData {
   height: number;
   hash: string;
   timestamp: number;
-  difficulty: number;
 }
 
 class LotteryService {
@@ -96,6 +96,10 @@ class LotteryService {
   }
 
   // 获取区块链数据
+  // G7-09: 区块链高度只作为展示用的信息源，不再参与开奖随机数。此前把公开的
+  // 区块高度 + sha256(高度) + 客户端 userId + 请求时间戳拼成种子，全部成分攻击者
+  // 已知或可枚举，开奖结果可被预测。真正的随机由服务端 CSPRNG (crypto.randomInt)
+  // 决定（见 participateInLottery）。`difficulty` 这个编造的难度字段已删除。
   public async getBlockchainData(): Promise<BlockchainData> {
     const now = Date.now();
 
@@ -106,18 +110,23 @@ class LotteryService {
 
     try {
       const height = await this.getBlockchainHeight();
-      const hash = crypto.createHash("sha256").update(height.toString()).digest("hex");
-      const difficulty = Math.random() * 1000000; // 模拟难度值
+      // 尽力取真实区块哈希；blockcypher /v1/btc/main 通常返回 hash 字段。
+      let hash = "";
+      try {
+        const response = await fetch("https://api.blockcypher.com/v1/btc/main", { signal: AbortSignal.timeout(5000) });
+        if (response.ok) {
+          const data = await response.json();
+          if (typeof data.hash === "string" && data.hash) hash = data.hash;
+        }
+      } catch {
+        // 保持回退行为
+      }
 
       this.blockchainCache = {
         height,
         hash,
         timestamp: now,
-        difficulty,
       };
-
-      // 替换原有本地读写/Map操作，全部通过lotteryStorage接口实现
-      // await this.saveData(); // 移除此行，因为不再直接保存
       return this.blockchainCache;
     } catch (error) {
       logger.error("获取区块链数据失败:", error);
@@ -202,34 +211,15 @@ class LotteryService {
         throw new Error("需要完成人机验证才能参与抽奖");
       }
 
+      // G7-09/死代码: 复用统一的 TurnstileService（DB 优先、env 兜底的密钥解析），
+      // 不再直读 process.env 重复实现 siteverify 调用。
       try {
-        // 验证 Turnstile token
-        const axios = await import("axios");
-        const verificationResult = await axios.default.post(
-          "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-          {
-            secret: process.env.TURNSTILE_SECRET_KEY,
-            response: cfToken,
-          },
-          {
-            timeout: 10000, // 10秒超时
-          },
-        );
-
-        if (!verificationResult.data.success) {
-          logger.warn("Turnstile 验证失败", {
-            userId,
-            userRole,
-            errorCodes: verificationResult.data["error-codes"],
-          });
+        const verified = await TurnstileService.verifyToken(cfToken);
+        if (!verified) {
+          logger.warn("Turnstile 验证失败", { userId, userRole });
           throw new Error("人机验证失败，请重新验证");
         }
-
-        logger.info("Turnstile 验证成功", {
-          userId,
-          userRole,
-          hostname: verificationResult.data.hostname,
-        });
+        logger.info("Turnstile 验证成功", { userId, userRole });
       } catch (error) {
         if (error instanceof Error && error.message.includes("Turnstile")) {
           throw error;
@@ -247,12 +237,12 @@ class LotteryService {
       logger.info("跳过 Turnstile 验证（管理员用户）", { userId, userRole });
     }
 
-    // 获取最新的区块链数据
-    const blockchainData = await this.getBlockchainData();
+    // G7-09: 开奖随机数必须由服务端 CSPRNG 决定，不能用公开区块高度/客户端字段/时间戳
+    // 拼种子（那些成分攻击者全部已知或可枚举）。这里直接 crypto.randomInt。
+    const randomValue = crypto.randomInt(0, 0xffffffff) / 0xffffffff;
 
-    // 生成随机种子
-    const seed = `${blockchainData.height}-${blockchainData.hash}-${userId}-${now}`;
-    const randomValue = this.generateRandomValue(seed);
+    // 获取最新的区块链数据（仅作展示信息）
+    const blockchainData = await this.getBlockchainData();
 
     // 选择奖品
     const prize = this.selectPrize(round.prizes, randomValue);
@@ -270,7 +260,8 @@ class LotteryService {
       prizeId: prize.id,
       prizeName: prize.name,
       drawTime: now,
-      transactionHash: this.generateTransactionHash(blockchainData, userId),
+      // G7-09: 本地抽奖标识，不是链上交易哈希。字段名保留以兼容旧契约，但值只是随机 ID。
+      transactionHash: `local-${crypto.randomUUID()}`,
     };
 
     // 更新轮次数据
@@ -279,21 +270,21 @@ class LotteryService {
     round.blockchainHeight = blockchainData.height;
     round.seed = blockchainData.hash;
 
-    // 更新用户记录
-    this.updateUserRecord(userId, username, winner, prize);
+    // G7-08: 把本次抽奖的所有状态变更真正落库。此前这里只改内存对象，请求一结束
+    // 全部丢弃，导致可无限抽奖、库存永不扣减、中奖记录不存在。
+    await updateRound(roundId, {
+      prizes: round.prizes,
+      participants: round.participants,
+      winners: round.winners,
+      blockchainHeight: round.blockchainHeight,
+      seed: round.seed,
+    });
 
-    // 替换原有本地读写/Map操作，全部通过lotteryStorage接口实现
-    // await this.saveData(); // 移除此行，因为不再直接保存
+    // 更新用户记录
+    await this.updateUserRecord(userId, username, winner, prize);
 
     logger.info(`用户 ${username} 在轮次 ${roundId} 中获得了 ${prize.name}`);
     return winner;
-  }
-
-  // 生成随机值
-  private generateRandomValue(seed: string): number {
-    const hash = crypto.createHash("sha256").update(seed).digest("hex");
-    const decimal = parseInt(hash.substring(0, 8), 16);
-    return decimal / 0xffffffff; // 归一化到 0-1
   }
 
   // 选择奖品
@@ -316,48 +307,33 @@ class LotteryService {
     return availablePrizes[0];
   }
 
-  // 生成交易哈希
-  private generateTransactionHash(blockchainData: BlockchainData, userId: string): string {
-    const data = `${blockchainData.height}-${blockchainData.hash}-${userId}-${Date.now()}`;
-    return crypto.createHash("sha256").update(data).digest("hex");
-  }
-
   // 更新用户记录
+  // G7-08: 恢复真实实现。此前函数体整段被注释掉，导致 getLeaderboard/getStatistics 恒为空。
   private async updateUserRecord(
     userId: string,
-    _username: string,
-    _winner: LotteryWinner,
-    _prize: LotteryPrize,
+    username: string,
+    winner: LotteryWinner,
+    prize: LotteryPrize,
   ): Promise<void> {
     const record = await getUserRecord(userId);
-    if (!record) {
-      // 替换原有本地读写/Map操作，全部通过lotteryStorage接口实现
-      // this.userRecords.set(userId, {
-      //   userId,
-      //   username,
-      //   participationCount: 0,
-      //   winCount: 0,
-      //   lastDrawTime: 0,
-      //   totalValue: 0,
-      //   history: []
-      // });
-      // await this.saveData(); // 移除此行，因为不再直接保存
-    }
-
-    // 替换原有本地读写/Map操作，全部通过lotteryStorage接口实现
-    // await updateUserRecord(userId, {
-    //   participationCount: record?.participationCount || 0 + 1,
-    //   winCount: record?.winCount || 0 + 1,
-    //   lastDrawTime: winner.drawTime,
-    //   totalValue: record?.totalValue || 0 + prize.value,
-    //   history: [...(record?.history || []), {
-    //     roundId: winner.prizeId, // 这里应该存储轮次ID，暂时用奖品ID代替
-    //     prizeId: winner.prizeId,
-    //     prizeName: winner.prizeName,
-    //     drawTime: winner.drawTime,
-    //     value: prize.value
-    //   }]
-    // });
+    await updateUserRecord(userId, {
+      userId,
+      username: username || record?.username || "",
+      participationCount: (record?.participationCount || 0) + 1,
+      winCount: (record?.winCount || 0) + 1,
+      lastDrawTime: winner.drawTime,
+      totalValue: (record?.totalValue || 0) + prize.value,
+      history: [
+        ...(record?.history || []),
+        {
+          roundId: winner.prizeId, // 兼容旧字段语义，这里实际是奖品 ID
+          prizeId: winner.prizeId,
+          prizeName: winner.prizeName,
+          drawTime: winner.drawTime,
+          value: prize.value,
+        },
+      ],
+    });
   }
 
   // 获取用户抽奖记录
@@ -459,19 +435,9 @@ class LotteryService {
 
   // 删除所有抽奖轮次
   public async deleteAllRounds(): Promise<void> {
-    if (typeof (global as any).deleteAllRounds === "function") {
-      await (global as any).deleteAllRounds();
-    } else if (typeof require !== "undefined") {
-      // 动态引入 storage 层
-      const storage = require("./lotteryStorage");
-      if (typeof storage.deleteAllRounds === "function") {
-        await storage.deleteAllRounds();
-      } else {
-        throw new Error("当前存储实现不支持批量删除");
-      }
-    } else {
-      throw new Error("无法找到 deleteAllRounds 实现");
-    }
+    // G7-08: 之前用 global 变量 + require 动态查找当逃生舱，混淆构建下脆弱。
+    // 改为顶部静态 import。
+    await deleteAllRounds();
   }
 }
 

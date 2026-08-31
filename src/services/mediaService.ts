@@ -8,7 +8,8 @@ export interface MediaResponse {
 }
 
 export class MediaService {
-  private static readonly BASE_URL = "https://v2.xxapi.cn/api";
+  // G7-48: shared upstream base URL, overridable via env.
+  private static readonly BASE_URL = (process.env.XXAPI_BASE_URL || "https://v2.xxapi.cn/api").replace(/\/+$/, "");
 
   /**
    * 网抑云音乐解析
@@ -22,9 +23,10 @@ export class MediaService {
       const response = await axios.get(`${MediaService.BASE_URL}/music163`, {
         params: { id },
         timeout: 15000, // 15秒超时
+        maxContentLength: 2 * 1024 * 1024,
       });
 
-      logger.info("网抑云音乐解析完成", { id, result: response.data });
+      logger.info("网抑云音乐解析完成", { id, status: response.status });
 
       return {
         success: true,
@@ -66,9 +68,10 @@ export class MediaService {
       const response = await axios.get(`${MediaService.BASE_URL}/pipixia`, {
         params: { url },
         timeout: 20000, // 20秒超时
+        maxContentLength: 2 * 1024 * 1024,
       });
 
-      logger.info("皮皮虾视频解析完成", { url, result: response.data });
+      logger.info("皮皮虾视频解析完成", { url, status: response.status });
 
       return {
         success: true,

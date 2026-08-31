@@ -5,6 +5,12 @@ import { isConnected, mongoose } from "../mongoService";
 import { isIpBanned } from "./ipBan";
 import { validateFingerprint, validateIpAddress } from "./validators";
 
+// G7-43: single TTL for temp fingerprints. The previous code used 5 minutes in
+// reportTempFingerprint and 24 hours in checkTempFingerprintVerificationStatus —
+// a 288x difference that made the effective lifetime depend on call order.
+const FINGERPRINT_TTL_MS = 5 * 60 * 1000;
+const MAX_FINGERPRINTS_PER_IP = 20;
+
 export async function reportTempFingerprint(
   fingerprint: string,
   ipAddress: string,
@@ -62,7 +68,18 @@ export async function reportTempFingerprint(
       return { isFirstVisit: false, verified: existingDoc.verified };
     }
 
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    // G7-43: unauthenticated creation must be rate-limited so a client cannot
+    // flood the collection with random fingerprints.
+    const recentCount = await TempFingerprintModel.countDocuments({
+      ipAddress: validatedIp,
+      createdAt: { $gte: new Date(Date.now() - FINGERPRINT_TTL_MS) },
+    }).exec();
+    if (recentCount >= MAX_FINGERPRINTS_PER_IP) {
+      logger.warn(`IP ${validatedIp} 创建临时指纹过快，已限流`, { recentCount });
+      return { isFirstVisit: false, verified: false };
+    }
+
+    const expiresAt = new Date(Date.now() + FINGERPRINT_TTL_MS);
     const isVerified = isDev && isLocalhost && enableDevAutoVerify;
 
     await TempFingerprintModel.create({
@@ -110,30 +127,13 @@ export async function checkTempFingerprintVerificationStatus(
       expiresAt: { $gt: new Date() },
     });
 
+    // G7-43: this is a read-only status check — it must not create documents.
+    // The creation path is reportTempFingerprint only; unify the TTL there.
     if (doc) {
       return { isFirstVisit: false, verified: doc.verified };
     }
 
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-    const isVerified = false;
-
-    await TempFingerprintModel.create({
-      fingerprint: validatedFingerprint,
-      ipAddress: validatedIp,
-      verified: isVerified,
-      expiresAt,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    logger.info("创建新的临时指纹记录", {
-      fingerprint: `${validatedFingerprint.substring(0, 8)}...`,
-      ipAddress: validatedIp,
-      verified: isVerified,
-      expiresAt,
-    });
-
-    return { isFirstVisit: true, verified: isVerified };
+    return { isFirstVisit: true, verified: false };
   } catch (error) {
     logger.error("临时指纹验证失败", error);
     return { isFirstVisit: false, verified: false };

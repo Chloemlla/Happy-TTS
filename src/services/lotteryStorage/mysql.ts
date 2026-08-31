@@ -4,78 +4,111 @@ import { requireMysqlUri } from "../../utils/mysqlUriPolicy";
 const ROUNDS_TABLE = "lottery_rounds";
 const USERS_TABLE = "lottery_users";
 
-async function getConn() {
-  // MYSQL_URI is mandatory when LOTTERY_STORAGE=mysql — no root/password default.
-  const conn = await mysql.createConnection(requireMysqlUri());
-  await conn.execute(`CREATE TABLE IF NOT EXISTS ${ROUNDS_TABLE} (
-    id VARCHAR(64) PRIMARY KEY,
-    data JSON
-  )`);
-  await conn.execute(`CREATE TABLE IF NOT EXISTS ${USERS_TABLE} (
-    userId VARCHAR(64) PRIMARY KEY,
-    data JSON
-  )`);
-  return conn;
+// G7-40: a single shared pool instead of a fresh connection + DDL per call.
+let pool: mysql.Pool | null = null;
+let tablesReady: Promise<void> | null = null;
+
+function getPool(): mysql.Pool {
+  if (!pool) {
+    pool = mysql.createPool({
+      uri: requireMysqlUri(),
+      connectionLimit: 10,
+      waitForConnections: true,
+      queueLimit: 0,
+    });
+  }
+  return pool;
+}
+
+function ensureTables(): Promise<void> {
+  if (!tablesReady) {
+    tablesReady = (async () => {
+      const conn = getPool();
+      await conn.query(`CREATE TABLE IF NOT EXISTS ${ROUNDS_TABLE} (
+        id VARCHAR(64) PRIMARY KEY,
+        data JSON
+      )`);
+      await conn.query(`CREATE TABLE IF NOT EXISTS ${USERS_TABLE} (
+        userId VARCHAR(64) PRIMARY KEY,
+        data JSON
+      )`);
+    })().catch((err) => {
+      tablesReady = null; // allow retry on transient failure
+      throw err;
+    });
+  }
+  return tablesReady;
+}
+
+// G7-40: mysql2 parses JSON columns into JS objects by default. `JSON.parse`
+// on an object coerces to "[object Object]" and throws. Handle both shapes.
+function parseData(value: unknown): any {
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch {
+      throw new Error("存储数据损坏（非 JSON）");
+    }
+  }
+  return value;
 }
 
 export async function getAllRounds() {
-  const conn = await getConn();
-  const [rows] = await conn.execute(`SELECT * FROM ${ROUNDS_TABLE}`);
-  await conn.end();
-  return (rows as any[]).map((r) => ({ ...JSON.parse(r.data), id: r.id }));
+  const conn = getPool();
+  await ensureTables();
+  const [rows] = await conn.query(`SELECT * FROM ${ROUNDS_TABLE}`);
+  return (rows as any[]).map((r) => ({ ...parseData(r.data), id: r.id }));
 }
 
 export async function addRound(round: any) {
-  const conn = await getConn();
-  const [rows] = await conn.execute(`SELECT * FROM ${ROUNDS_TABLE} WHERE id=?`, [round.id]);
+  const conn = getPool();
+  await ensureTables();
+  const [rows] = await conn.query(`SELECT * FROM ${ROUNDS_TABLE} WHERE id=?`, [round.id]);
   if ((rows as any[]).length > 0) {
-    await conn.end();
     throw new Error("轮次已存在");
   }
-  await conn.execute(`INSERT INTO ${ROUNDS_TABLE} (id, data) VALUES (?, ?)`, [round.id, JSON.stringify(round)]);
-  await conn.end();
+  await conn.query(`INSERT INTO ${ROUNDS_TABLE} (id, data) VALUES (?, ?)`, [round.id, JSON.stringify(round)]);
   return round;
 }
 
 export async function updateRound(id: string, data: any) {
-  const conn = await getConn();
-  const [rows] = await conn.execute(`SELECT * FROM ${ROUNDS_TABLE} WHERE id=?`, [id]);
+  const conn = getPool();
+  await ensureTables();
+  const [rows] = await conn.query(`SELECT * FROM ${ROUNDS_TABLE} WHERE id=?`, [id]);
   if ((rows as any[]).length === 0) {
-    await conn.end();
     throw new Error("未找到轮次");
   }
-  const old = JSON.parse((rows as any[])[0].data);
+  const old = parseData((rows as any[])[0].data);
   const merged = { ...old, ...data };
-  await conn.execute(`UPDATE ${ROUNDS_TABLE} SET data=? WHERE id=?`, [JSON.stringify(merged), id]);
-  await conn.end();
+  await conn.query(`UPDATE ${ROUNDS_TABLE} SET data=? WHERE id=?`, [JSON.stringify(merged), id]);
   return merged;
 }
 
 export async function deleteAllRounds() {
-  const conn = await getConn();
-  await conn.execute(`DELETE FROM ${ROUNDS_TABLE}`);
-  await conn.end();
+  const conn = getPool();
+  await ensureTables();
+  await conn.query(`DELETE FROM ${ROUNDS_TABLE}`);
 }
 
 export async function getUserRecord(userId: string) {
-  const conn = await getConn();
-  const [rows] = await conn.execute(`SELECT * FROM ${USERS_TABLE} WHERE userId=?`, [userId]);
-  await conn.end();
+  const conn = getPool();
+  await ensureTables();
+  const [rows] = await conn.query(`SELECT * FROM ${USERS_TABLE} WHERE userId=?`, [userId]);
   if ((rows as any[]).length === 0) return null;
-  return JSON.parse((rows as any[])[0].data);
+  return parseData((rows as any[])[0].data);
 }
 
 export async function updateUserRecord(userId: string, data: any) {
-  const conn = await getConn();
-  const [rows] = await conn.execute(`SELECT * FROM ${USERS_TABLE} WHERE userId=?`, [userId]);
+  const conn = getPool();
+  await ensureTables();
+  const [rows] = await conn.query(`SELECT * FROM ${USERS_TABLE} WHERE userId=?`, [userId]);
   let merged = data;
   if ((rows as any[]).length > 0) {
-    const old = JSON.parse((rows as any[])[0].data);
+    const old = parseData((rows as any[])[0].data);
     merged = { ...old, ...data };
-    await conn.execute(`UPDATE ${USERS_TABLE} SET data=? WHERE userId=?`, [JSON.stringify(merged), userId]);
+    await conn.query(`UPDATE ${USERS_TABLE} SET data=? WHERE userId=?`, [JSON.stringify(merged), userId]);
   } else {
-    await conn.execute(`INSERT INTO ${USERS_TABLE} (userId, data) VALUES (?, ?)`, [userId, JSON.stringify(data)]);
+    await conn.query(`INSERT INTO ${USERS_TABLE} (userId, data) VALUES (?, ?)`, [userId, JSON.stringify(data)]);
   }
-  await conn.end();
   return merged;
 }

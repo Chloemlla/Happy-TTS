@@ -200,9 +200,16 @@ export async function startVisionSession(
     throw ApiError.forbidden("Silent vision is not enabled", "silent_vision_disabled");
   }
 
+  // G7-05: `requiresExplicitConsent` must never be a no-op. Until a persistent
+  // consent-record store is implemented (model change, cross-group), fail
+  // closed: a policy that requires explicit consent must not be satisfiable by
+  // a bare session request. Admins enabling silent vision must explicitly turn
+  // consent off to proceed, which is a deliberate, auditable decision.
   if (policy.silentVision.requiresExplicitConsent) {
-    // In a real implementation, check for a stored consent record.
-    // For now, we assume consent is implicit from the session request.
+    throw ApiError.forbidden(
+      "Explicit user consent is required for silent vision",
+      "consent_required",
+    );
   }
 
   const now = Date.now();
@@ -347,10 +354,20 @@ export async function uploadVisionFrame(
   if (encoding !== "base64") {
     throw ApiError.badRequest('frame.encoding must be "base64"');
   }
+  if (typeof byteSize !== "number" || !Number.isFinite(byteSize) || byteSize <= 0) {
+    throw ApiError.badRequest("frame.byteSize must be a positive number");
+  }
 
+  // G7-06: validate against the *actual* decoded size, not the client-reported
+  // number. `byteSize` is client-supplied and can be anything; the real payload
+  // is what the body parser already held in memory.
   const maxBytes = 2.8 * 1024 * 1024;
-  if (byteSize > maxBytes) {
-    throw ApiError.badRequest(`frame.byteSize exceeds maximum of ${maxBytes} bytes`);
+  const actualBytes = Buffer.byteLength(dataBase64, "base64");
+  if (actualBytes > maxBytes) {
+    throw ApiError.badRequest(`frame size exceeds maximum of ${maxBytes} bytes`);
+  }
+  if (byteSize !== actualBytes) {
+    throw ApiError.badRequest("frame.byteSize does not match the actual payload size");
   }
 
   // Check session is active.
@@ -372,6 +389,11 @@ export async function uploadVisionFrame(
   }
   if (pipeline === "default" && !policy.silentVision.frameUploadEnabled) {
     throw ApiError.forbidden("Frame upload is not enabled", "frame_upload_disabled");
+  }
+  // G7-05: keep the consent gate on the upload path too — a session may not be
+  // the only path into this function, and policy can change mid-session.
+  if (policy.silentVision.requiresExplicitConsent) {
+    throw ApiError.forbidden("Explicit user consent is required for silent vision", "consent_required");
   }
 
   const now = Date.now();
@@ -409,6 +431,10 @@ export async function uploadVisionFrame(
 
   return {
     accepted: true,
+    // G7-06: the raw frame bytes are intentionally NOT persisted — the record
+    // stores metadata only. `stored:false` makes that contract explicit so
+    // clients do not assume the frame is retrievable.
+    stored: false,
     id: frame._id,
     sessionId: request.sessionId,
     pipeline,

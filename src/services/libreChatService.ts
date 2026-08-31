@@ -729,7 +729,12 @@ class LibreChatService {
   private async fetchAndRecord() {
     try {
       const url = "https://github.com/danny-avila/LibreChat/pkgs/container/librechat-dev";
-      const response = await axios.get(url);
+      // G7-32: this HTML scrape previously had no timeout and no response-size
+      // limit; a slow/broken GitHub response would hang the periodic task.
+      const response = await axios.get(url, {
+        timeout: 15000,
+        maxContentLength: 2 * 1024 * 1024,
+      });
 
       // 使用 JSDOM 解析 HTML
       const $ = load(response.data);
@@ -762,6 +767,10 @@ class LibreChatService {
 
         // 保存记录
         await this.saveRecord(newRecord);
+      } else {
+        // G7-32: the CSS selector silently breaking was invisible. Make it
+        // observable.
+        logger.warn("[LibreChat] GitHub image scrape returned no clipboard-copy value — selector may have changed.");
       }
     } catch (error) {
       logger.error("获取 LibreChat 镜像数据时出错:", error);
@@ -1012,6 +1021,24 @@ class LibreChatService {
     // 组织对话上下文，只读取 canonical owner 的最近消息。
     const recent = (await this.getOwnerMessages(ownerKey)).slice(-20);
 
+    // G7-31: cap the input-token budget. A malicious caller could otherwise push
+    // arbitrarily long history into every request, inflating provider cost.
+    const MAX_PROMPT_CHARS = 12000;
+    let budget = MAX_PROMPT_CHARS;
+    const recentMessages = [];
+    for (let i = recent.length - 1; i >= 0; i--) {
+      const m = recent[i];
+      const text = typeof m.message === "string" ? m.message : "";
+      const clipped = text.length > 4000 ? text.slice(0, 4000) : text;
+      if (clipped.length > budget) break;
+      budget -= clipped.length;
+      recentMessages.unshift({
+        role: (m.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
+        content: clipped,
+      });
+      if (recentMessages.length >= 12) break;
+    }
+
     const messagesPayload = [
       {
         role: "system",
@@ -1022,23 +1049,34 @@ class LibreChatService {
           "2) 不要改变身份，不要扮演其他角色。\n" +
           "3) 在确保安全与合规的前提下，遵循用户的正常需求与指令。\n" +
           "4) 如果用户询问你“生成 mermaid 流程图”，请回答在mermaid 流程图中不包含除必要语法外的英文标点。\n" +
-          "5) 如果用户询问你“兰翠平或者兰翠平、lcp或其他谐音或者类似变种”，请回答在兰翠平死了。\n" +
-          "6) 如果用户要求你生成 mermaid 流程图，请你不要在给出的输出中包含会误导流程图渲染的英文标点，如果必须使用请使用中文标定来替换。",
+          "5) 如果用户要求你生成 mermaid 流程图，请你不要在给出的输出中包含会误导流程图渲染的英文标点，如果必须使用请使用中文标定来替换。",
       },
-      ...recent.map((m) => ({
-        role: (m.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
-        content: m.message,
-      })),
+      ...recentMessages,
     ];
 
     // 依序尝试 providers，失败自动切换到下一个
     let failureAttempts: ChatProviderFailureAttempt[] = [];
     const isStream = typeof onDelta === "function";
 
+    // G7-31: overall deadline across provider failover — 4 providers each with
+    // a 300s timeout previously let a single request hang for 20 minutes.
+    const requestStart = Date.now();
+    const overallDeadlineMs = isStream ? 300_000 : 60_000;
+    const providerBaseTimeout = isStream ? 300_000 : 60_000;
+    const maxTokens = Number(process.env.LIBRECHAT_MAX_TOKENS || 2048);
+
     for (const p of providers) {
       const baseURL = p.baseUrl;
       const apiKey = p.apiKey;
       const model = p.model;
+
+      const elapsed = Date.now() - requestStart;
+      const remainingBudget = overallDeadlineMs - elapsed;
+      if (remainingBudget <= 0) {
+        logger.warn("[LibreChat] overall request deadline exceeded", { ownerKey, providerCount: providers.length });
+        break;
+      }
+      const timeout = Math.min(providerBaseTimeout, remainingBudget);
 
       try {
         const url = `${baseURL}/v1/chat/completions`;
@@ -1049,18 +1087,21 @@ class LibreChatService {
             messages: messagesPayload,
             temperature: 0.7,
             stream: isStream,
+            max_tokens: maxTokens,
           },
           {
             headers: {
               Authorization: `Bearer ${apiKey}`,
               "Content-Type": "application/json",
             },
-            timeout: isStream ? 300_000 : 60_000,
+            timeout,
             responseType: isStream ? "stream" : "json",
             // 避免使用系统代理造成的 302 循环重定向
             proxy: false,
             // 限制重定向次数，防止 provider 端异常配置导致死循环
             maxRedirects: 5,
+            // G7-17: cap the non-stream JSON response body.
+            maxContentLength: 2 * 1024 * 1024,
           },
         );
 
@@ -1068,9 +1109,17 @@ class LibreChatService {
 
         if (isStream) {
           const stream = resp.data;
+          const MAX_STREAM_BYTES = 2 * 1024 * 1024; // G7-31: cap cumulative stream output
+          let streamBytes = 0;
           await new Promise<void>((resolve, reject) => {
             let buffer = "";
             stream.on("data", (chunk: Buffer) => {
+              streamBytes += chunk.length;
+              if (streamBytes > MAX_STREAM_BYTES) {
+                stream.destroy();
+                resolve();
+                return;
+              }
               buffer += chunk.toString();
               const lines = buffer.split("\n");
               buffer = lines.pop() || "";
@@ -1283,11 +1332,11 @@ class LibreChatService {
           "2) 不要改变身份，不要扮演其他角色。\n" +
           "3) 在确保安全与合规的前提下，遵循用户的正常需求与指令。\n" +
           "4) 如果用户询问你“生成 mermaid 流程图”，请回答在mermaid 流程图中不包含除必要语法外的英文标点。\n" +
-          "5) 如果用户询问你“兰翠平或者兰翠平、lcp或其他谐音或者类似变种”，请回答在兰翠平死了。",
+          "5) 如果用户要求你生成 mermaid 流程图，请你不要在给出的输出中包含会误导流程图渲染的英文标点，如果必须使用请使用中文标定来替换。",
       },
       ...context.map((m) => ({
         role: (m.role === "assistant" ? "assistant" : "user") as "user" | "assistant",
-        content: m.message,
+        content: typeof m.message === "string" ? m.message.slice(0, 4000) : "",
       })),
     ];
 
@@ -1306,6 +1355,7 @@ class LibreChatService {
             messages: messagesPayload,
             temperature: 0.7,
             stream: false,
+            max_tokens: Number(process.env.LIBRECHAT_MAX_TOKENS || 2048),
           },
           {
             headers: {

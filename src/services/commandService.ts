@@ -6,7 +6,13 @@ import * as commandStorage from "./commandStorage";
 class CommandService {
   private static instance: CommandService;
 
+  // G7-39: bound accumulated child-process output so `ls -R /` cannot OOM the
+  // process by building an unbounded JS string.
+  private static readonly MAX_OUTPUT_BYTES = 1024 * 1024;
+
   // 允许执行的命令白名单
+  // G7-39: ping/nslookup/netstat/route/arp removed — they turn the server into a
+  // network probe / DNS exfil channel.
   private readonly ALLOWED_COMMANDS = new Set([
     // Linux/Unix 命令
     "ls",
@@ -27,12 +33,6 @@ class CommandService {
     "ipconfig",
     "tasklist",
     "systeminfo",
-    // 通用命令
-    "ping",
-    "nslookup",
-    "netstat",
-    "route",
-    "arp",
   ]);
 
   // 危险命令黑名单
@@ -105,26 +105,14 @@ class CommandService {
     const args = parts.slice(1);
 
     // 路径遍历检测
-    const pathTraversalPatterns = [
-      /\.\./g,
-      /\/etc\//g,
-      /\/root\//g,
-      /\/tmp\//g,
-      /\/var\//g,
-      /\/home\//g,
-      /\/usr\//g,
-      /\/bin\//g,
-      /\/sbin\//g,
-      /\/lib\//g,
-      /\/opt\//g,
-      /\/mnt\//g,
-      /\/media\//g,
-      /\/dev\//g,
-      /\/proc\//g,
-    ];
-    if (pathTraversalPatterns.some((pattern) => pattern.test(command))) {
-      console.log("❌ [CommandService] 参数包含危险字符");
-      return { isValid: false, error: "参数包含危险字符" };
+    // G7-39: the previous blacklist required a trailing slash (/etc/ matches but
+    // `ls /etc` and `ls -R /` do not). Reject absolute paths and `..` segments
+    // outright instead.
+    for (const arg of args) {
+      if (arg.startsWith("/") || arg === ".." || arg.startsWith("../") || arg.includes("/../") || arg.endsWith("/..")) {
+        console.log("❌ [CommandService] 参数包含路径遍历");
+        return { isValid: false, error: "参数包含危险字符" };
+      }
     }
 
     // 只允许白名单命令
@@ -148,247 +136,188 @@ class CommandService {
   }
 
   /**
+   * Run a child process with bounded output and a cleared timeout.
+   * G7-39: stdout/stderr are capped at MAX_OUTPUT_BYTES (killing the process on
+   * overflow) and the timeout timer is cleared on close/error.
+   */
+  private executeBounded(bin: string, args: string[]): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const child = spawn(bin, args, {
+        stdio: ["pipe", "pipe", "pipe"],
+        shell: false,
+        timeout: 30000,
+      });
+
+      let stdout = "";
+      let stderr = "";
+
+      const killTimer = setTimeout(() => {
+        child.kill("SIGTERM");
+        reject(new Error("Command execution timeout"));
+      }, 30000);
+
+      child.stdout.on("data", (data: Buffer) => {
+        stdout += data.toString();
+        if (stdout.length > CommandService.MAX_OUTPUT_BYTES) {
+          stdout = stdout.slice(0, CommandService.MAX_OUTPUT_BYTES) + "\n[output truncated]";
+          child.kill("SIGTERM");
+        }
+      });
+
+      child.stderr.on("data", (data: Buffer) => {
+        stderr += data.toString();
+        if (stderr.length > CommandService.MAX_OUTPUT_BYTES) {
+          stderr = stderr.slice(0, CommandService.MAX_OUTPUT_BYTES) + "\n[stderr truncated]";
+        }
+      });
+
+      child.on("close", (code) => {
+        clearTimeout(killTimer);
+        if (code === 0) {
+          resolve(stdout || "Command executed successfully");
+        } else {
+          reject(new Error(`Command failed with exit code ${code}: ${stderr}`));
+        }
+      });
+
+      child.on("error", (error) => {
+        clearTimeout(killTimer);
+        reject(new Error(`Command execution error: ${error.message}`));
+      });
+    });
+  }
+
+  /**
    * 安全执行命令
    */
   private async executeCommandSafely(command: string, args: string[]): Promise<string> {
-    return new Promise((resolve, reject) => {
-      console.log("🚀 [CommandService] 开始执行命令...");
-      console.log("   命令:", command);
-      console.log("   参数:", args);
-      console.log("   操作系统:", process.platform);
+    console.log("🚀 [CommandService] 开始执行命令...");
+    console.log("   命令:", command);
+    console.log("   参数:", args);
+    console.log("   操作系统:", process.platform);
 
-      // 检测操作系统
-      const isWindows = process.platform === "win32";
+    // 检测操作系统
+    const isWindows = process.platform === "win32";
 
-      // Windows系统需要特殊处理内置命令
-      if (isWindows) {
-        // Windows内置命令映射
-        const windowsBuiltinCommands: Record<string, string> = {
-          // Windows原生命令
-          dir: "cmd",
-          cd: "cmd",
-          cls: "cmd",
-          ver: "cmd",
+    // Windows系统需要特殊处理内置命令
+    if (isWindows) {
+      // Windows内置命令映射
+      const windowsBuiltinCommands: Record<string, string> = {
+        // Windows原生命令
+        dir: "cmd",
+        cd: "cmd",
+        cls: "cmd",
+        ver: "cmd",
+        hostname: "hostname",
+        ipconfig: "ipconfig",
+        tasklist: "tasklist",
+        systeminfo: "systeminfo",
+        // Linux/Unix命令映射到Windows等效命令
+        pwd: "cmd", // pwd -> cd (不带参数显示当前目录)
+        ls: "cmd", // ls -> dir
+        whoami: "whoami", // whoami在Windows上存在
+        date: "cmd", // date -> date
+        uptime: "cmd", // uptime -> systeminfo (部分信息)
+        free: "cmd", // free -> systeminfo (内存信息)
+        df: "cmd", // df -> dir (磁盘信息)
+        ps: "cmd", // ps -> tasklist
+        top: "cmd", // top -> tasklist /v
+      };
+
+      const builtinCommand = windowsBuiltinCommands[command];
+      console.log("   Windows内置命令映射:", builtinCommand);
+
+      if (builtinCommand === "cmd") {
+        // 对于cmd内置命令，使用cmd /c执行
+        console.log("   使用cmd /c执行内置命令");
+
+        // 使用硬编码命令映射，避免将用户输入传递给 spawn
+        const SAFE_COMMAND_MAP: Record<string, { cmd: string; args: string[] }> = {
+          cd: { cmd: "cd", args: [] },
+          dir: { cmd: "dir", args: [] },
+          cls: { cmd: "cls", args: [] },
+          ver: { cmd: "ver", args: [] },
+          date: { cmd: "date", args: ["/t"] },
+          systeminfo: { cmd: "systeminfo", args: [] },
+          tasklist: { cmd: "tasklist", args: [] },
+        };
+
+        // 特殊处理Linux/Unix命令映射
+        let mappedKey = command;
+        if (command === "pwd") mappedKey = "cd";
+        else if (command === "ls" || command === "df") mappedKey = "dir";
+        else if (command === "date") mappedKey = "date";
+        else if (command === "uptime" || command === "free") mappedKey = "systeminfo";
+        else if (command === "ps") mappedKey = "tasklist";
+        else if (command === "top") {
+          mappedKey = "tasklist";
+          SAFE_COMMAND_MAP.tasklist = { cmd: "tasklist", args: ["/v"] };
+        }
+
+        const safeEntry = SAFE_COMMAND_MAP[mappedKey];
+        if (!safeEntry) {
+          return Promise.reject(new Error("命令未被允许"));
+        }
+
+        return this.executeBounded("cmd", ["/c", safeEntry.cmd, ...safeEntry.args]);
+      } else {
+        // 对于其他Windows命令，使用硬编码路径映射
+        const SAFE_WIN_COMMANDS: Record<string, string> = {
           hostname: "hostname",
           ipconfig: "ipconfig",
           tasklist: "tasklist",
           systeminfo: "systeminfo",
-          // Linux/Unix命令映射到Windows等效命令
-          pwd: "cmd", // pwd -> cd (不带参数显示当前目录)
-          ls: "cmd", // ls -> dir
-          whoami: "whoami", // whoami在Windows上存在
-          date: "cmd", // date -> date
-          uptime: "cmd", // uptime -> systeminfo (部分信息)
-          free: "cmd", // free -> systeminfo (内存信息)
-          df: "cmd", // df -> dir (磁盘信息)
-          ps: "cmd", // ps -> tasklist
-          top: "cmd", // top -> tasklist /v
+          whoami: "whoami",
         };
-
-        const builtinCommand = windowsBuiltinCommands[command];
-        console.log("   Windows内置命令映射:", builtinCommand);
-
-        if (builtinCommand === "cmd") {
-          // 对于cmd内置命令，使用cmd /c执行
-          console.log("   使用cmd /c执行内置命令");
-
-          // 使用硬编码命令映射，避免将用户输入传递给 spawn
-          const SAFE_COMMAND_MAP: Record<string, { cmd: string; args: string[] }> = {
-            cd: { cmd: "cd", args: [] },
-            dir: { cmd: "dir", args: [] },
-            cls: { cmd: "cls", args: [] },
-            ver: { cmd: "ver", args: [] },
-            date: { cmd: "date", args: ["/t"] },
-            systeminfo: { cmd: "systeminfo", args: [] },
-            tasklist: { cmd: "tasklist", args: [] },
-          };
-
-          // 特殊处理Linux/Unix命令映射
-          let mappedKey = command;
-          if (command === "pwd") mappedKey = "cd";
-          else if (command === "ls" || command === "df") mappedKey = "dir";
-          else if (command === "date") mappedKey = "date";
-          else if (command === "uptime" || command === "free") mappedKey = "systeminfo";
-          else if (command === "ps") mappedKey = "tasklist";
-          else if (command === "top") {
-            mappedKey = "tasklist";
-            SAFE_COMMAND_MAP.tasklist = { cmd: "tasklist", args: ["/v"] };
-          }
-
-          const safeEntry = SAFE_COMMAND_MAP[mappedKey];
-          if (!safeEntry) {
-            return reject(new Error("命令未被允许"));
-          }
-
-          const childProcess = spawn("cmd", ["/c", safeEntry.cmd, ...safeEntry.args], {
-            stdio: ["pipe", "pipe", "pipe"],
-            shell: false,
-            timeout: 30000,
-          });
-
-          let stdout = "";
-          let stderr = "";
-
-          childProcess.stdout.on("data", (data) => {
-            stdout += data.toString();
-          });
-
-          childProcess.stderr.on("data", (data) => {
-            stderr += data.toString();
-          });
-
-          childProcess.on("close", (code) => {
-            if (code === 0) {
-              resolve(stdout || "Command executed successfully");
-            } else {
-              reject(new Error(`Command failed with exit code ${code}: ${stderr}`));
-            }
-          });
-
-          childProcess.on("error", (error) => {
-            reject(new Error(`Command execution error: ${error.message}`));
-          });
-
-          // 设置超时
-          setTimeout(() => {
-            childProcess.kill("SIGTERM");
-            reject(new Error("Command execution timeout"));
-          }, 30000);
-        } else {
-          // 对于其他Windows命令，使用硬编码路径映射
-          const SAFE_WIN_COMMANDS: Record<string, string> = {
-            hostname: "hostname",
-            ipconfig: "ipconfig",
-            tasklist: "tasklist",
-            systeminfo: "systeminfo",
-            whoami: "whoami",
-            ping: "ping",
-            nslookup: "nslookup",
-            netstat: "netstat",
-            route: "route",
-            arp: "arp",
-          };
-          const safeWinCmd = SAFE_WIN_COMMANDS[command];
-          if (!safeWinCmd) {
-            return reject(new Error("命令未被允许"));
-          }
-          // 参数仅允许安全字符
-          const safeArgs: string[] = [];
-          if (args && args.length > 0) {
-            const argPattern = /^[a-zA-Z0-9_\-./]{0,64}$/;
-            for (const arg of args) {
-              if (!argPattern.test(arg)) {
-                return reject(new Error("参数包含非法字符"));
-              }
-              safeArgs.push(arg);
-            }
-          }
-          const childProcess = spawn(safeWinCmd, safeArgs, {
-            stdio: ["pipe", "pipe", "pipe"],
-            shell: false,
-            timeout: 30000,
-          });
-
-          let stdout = "";
-          let stderr = "";
-
-          childProcess.stdout.on("data", (data) => {
-            stdout += data.toString();
-          });
-
-          childProcess.stderr.on("data", (data) => {
-            stderr += data.toString();
-          });
-
-          childProcess.on("close", (code) => {
-            if (code === 0) {
-              resolve(stdout || "Command executed successfully");
-            } else {
-              reject(new Error(`Command failed with exit code ${code}: ${stderr}`));
-            }
-          });
-
-          childProcess.on("error", (error) => {
-            reject(new Error(`Command execution error: ${error.message}`));
-          });
-
-          // 设置超时
-          setTimeout(() => {
-            childProcess.kill("SIGTERM");
-            reject(new Error("Command execution timeout"));
-          }, 30000);
-        }
-      } else {
-        // Linux/Unix系统 - 使用硬编码命令映射
-        console.log("   在Linux/Unix系统上执行命令");
-        const SAFE_UNIX_COMMANDS: Record<string, string> = {
-          ls: "/bin/ls",
-          pwd: "/bin/pwd",
-          whoami: "/usr/bin/whoami",
-          date: "/bin/date",
-          uptime: "/usr/bin/uptime",
-          free: "/usr/bin/free",
-          df: "/bin/df",
-          ps: "/bin/ps",
-          top: "/usr/bin/top",
-          hostname: "/bin/hostname",
-          ping: "/bin/ping",
-          nslookup: "/usr/bin/nslookup",
-          netstat: "/bin/netstat",
-          route: "/sbin/route",
-          arp: "/usr/sbin/arp",
-        };
-        const safeUnixCmd = SAFE_UNIX_COMMANDS[command];
-        if (!safeUnixCmd) {
-          return reject(new Error("命令未被允许"));
+        const safeWinCmd = SAFE_WIN_COMMANDS[command];
+        if (!safeWinCmd) {
+          return Promise.reject(new Error("命令未被允许"));
         }
         // 参数仅允许安全字符
-        const safeUnixArgs: string[] = [];
+        const safeArgs: string[] = [];
         if (args && args.length > 0) {
           const argPattern = /^[a-zA-Z0-9_\-./]{0,64}$/;
           for (const arg of args) {
             if (!argPattern.test(arg)) {
-              return reject(new Error("参数包含非法字符"));
+              return Promise.reject(new Error("参数包含非法字符"));
             }
-            safeUnixArgs.push(arg);
+            safeArgs.push(arg);
           }
         }
-        const childProcess = spawn(safeUnixCmd, safeUnixArgs, {
-          stdio: ["pipe", "pipe", "pipe"],
-          shell: false, // 禁用shell以避免命令注入
-          timeout: 30000,
-        });
-
-        let stdout = "";
-        let stderr = "";
-
-        childProcess.stdout.on("data", (data) => {
-          stdout += data.toString();
-        });
-
-        childProcess.stderr.on("data", (data) => {
-          stderr += data.toString();
-        });
-
-        childProcess.on("close", (code) => {
-          if (code === 0) {
-            resolve(stdout || "Command executed successfully");
-          } else {
-            reject(new Error(`Command failed with exit code ${code}: ${stderr}`));
-          }
-        });
-
-        childProcess.on("error", (error) => {
-          reject(new Error(`Command execution error: ${error.message}`));
-        });
-
-        // 设置超时
-        setTimeout(() => {
-          childProcess.kill("SIGTERM");
-          reject(new Error("Command execution timeout"));
-        }, 30000);
+        return this.executeBounded(safeWinCmd, safeArgs);
       }
-    });
+    } else {
+      // Linux/Unix系统 - 使用硬编码命令映射
+      console.log("   在Linux/Unix系统上执行命令");
+      const SAFE_UNIX_COMMANDS: Record<string, string> = {
+        ls: "/bin/ls",
+        pwd: "/bin/pwd",
+        whoami: "/usr/bin/whoami",
+        date: "/bin/date",
+        uptime: "/usr/bin/uptime",
+        free: "/usr/bin/free",
+        df: "/bin/df",
+        ps: "/bin/ps",
+        top: "/usr/bin/top",
+        hostname: "/bin/hostname",
+      };
+      const safeUnixCmd = SAFE_UNIX_COMMANDS[command];
+      if (!safeUnixCmd) {
+        return Promise.reject(new Error("命令未被允许"));
+      }
+      // 参数仅允许安全字符
+      const safeUnixArgs: string[] = [];
+      if (args && args.length > 0) {
+        const argPattern = /^[a-zA-Z0-9_\-./]{0,64}$/;
+        for (const arg of args) {
+          if (!argPattern.test(arg)) {
+            return Promise.reject(new Error("参数包含非法字符"));
+          }
+          safeUnixArgs.push(arg);
+        }
+      }
+      return this.executeBounded(safeUnixCmd, safeUnixArgs);
+    }
   }
 
   public async addCommand(
@@ -463,6 +392,10 @@ class CommandService {
 
   /**
    * 执行命令
+   * NOTE (G7-39): this method does not re-check the admin operation password —
+   * the route (src/routes/commandRoutes.ts) does not pass one. Password gating
+   * for executeCommand / clearCommandQueue / clearExecutionHistory must be
+   * enforced at the route layer (cross-group).
    */
   public async executeCommand(command: string): Promise<string> {
     const startTime = Date.now();
@@ -588,7 +521,10 @@ class CommandService {
   }
 
   private isValidPassword(password: string): boolean {
-    return isAdminOperationPasswordValid(password) || (process.env.NODE_ENV === "test" && password === "wumy");
+    // G7-39: the `NODE_ENV === "test" && password === "wumy"` hardcoded
+    // backdoor is removed. Any deployment with NODE_ENV=test would otherwise
+    // accept a universal admin password.
+    return isAdminOperationPasswordValid(password);
   }
 }
 

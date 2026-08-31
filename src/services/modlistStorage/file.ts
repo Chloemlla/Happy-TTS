@@ -1,8 +1,12 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { SerialAtomicJsonWriter } from "../librechat/atomicJsonWriter";
 import { formatModForOutput } from "./shared";
 
 const MODLIST_PATH = path.resolve(__dirname, "../../../data/modlist.json");
+
+const writer = new SerialAtomicJsonWriter();
 
 function readModList() {
   if (!fs.existsSync(MODLIST_PATH)) return [];
@@ -13,8 +17,9 @@ function readModList() {
   }
 }
 
-function writeModList(list: any[]) {
-  fs.writeFileSync(MODLIST_PATH, JSON.stringify(list, null, 2), "utf-8");
+async function writeModList(list: any[]) {
+  // G7-41: atomic temp-file + rename write (was a direct overwrite).
+  await writer.write(MODLIST_PATH, list);
 }
 
 export async function getAllMods({ withHash, withMd5 }: { withHash?: boolean; withMd5?: boolean } = {}) {
@@ -27,11 +32,13 @@ export async function addMod(mod: { name: string; hash?: string; md5?: string })
   if (list.find((m: any) => m.name === mod.name)) {
     throw new Error("MOD名已存在");
   }
-  const newMod: any = { id: Date.now().toString(), name: mod.name };
+  // G7-40: crypto.randomUUID instead of Date.now() — two adds in the same
+  // millisecond used to collide on the primary key.
+  const newMod: any = { id: `mod_${crypto.randomUUID()}`, name: mod.name };
   if (mod.hash) newMod.hash = mod.hash;
   if (mod.md5) newMod.md5 = mod.md5;
   list.push(newMod);
-  writeModList(list);
+  await writeModList(list);
   return newMod;
 }
 
@@ -48,7 +55,7 @@ export async function updateMod(id: string, name: string, hash?: string, md5?: s
     if (md5) mod.md5 = md5;
     else delete mod.md5;
   }
-  writeModList(list);
+  await writeModList(list);
   return mod;
 }
 
@@ -57,7 +64,7 @@ export async function deleteMod(id: string) {
   const idx = list.findIndex((m: any) => m.id === id);
   if (idx === -1) throw new Error("未找到MOD");
   list.splice(idx, 1);
-  writeModList(list);
+  await writeModList(list);
   return { success: true };
 }
 
@@ -66,13 +73,13 @@ export async function batchAddMods(mods: Array<{ name: string; hash?: string; md
   const added: any[] = [];
   for (const mod of mods) {
     if (!mod.name || list.find((m: any) => m.name === mod.name)) continue;
-    const newMod: any = { id: Date.now().toString() + Math.floor(Math.random() * 10000), name: mod.name };
+    const newMod: any = { id: `mod_${crypto.randomUUID()}`, name: mod.name };
     if (mod.hash) newMod.hash = mod.hash;
     if (mod.md5) newMod.md5 = mod.md5;
     list.push(newMod);
     added.push(newMod);
   }
-  writeModList(list);
+  await writeModList(list);
   return added;
 }
 
@@ -86,6 +93,6 @@ export async function batchDeleteMods(ids: string[]) {
       count++;
     }
   }
-  writeModList(list);
+  await writeModList(list);
   return { deleted: count };
 }

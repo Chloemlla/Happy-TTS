@@ -1,9 +1,13 @@
+import crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { SerialAtomicJsonWriter } from "../librechat/atomicJsonWriter";
 
 const DATA_DIR = path.join(process.cwd(), "data", "commands");
 const QUEUE_FILE = path.join(DATA_DIR, "queue.json");
 const HISTORY_FILE = path.join(DATA_DIR, "history.json");
+
+const writer = new SerialAtomicJsonWriter();
 
 // 确保数据目录存在
 function ensureDataDir() {
@@ -27,10 +31,12 @@ function readJsonFile(filePath: string, defaultValue: any = []) {
 }
 
 // 写入JSON文件
-function writeJsonFile(filePath: string, data: any) {
+// G7-41: atomic temp-file + rename write (was a direct overwrite that could
+// leave a truncated file on crash/power loss).
+async function writeJsonFile(filePath: string, data: any): Promise<void> {
   try {
     ensureDataDir();
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
+    await writer.write(filePath, data);
   } catch (error) {
     console.error(`写入文件失败: ${filePath}`, error);
     throw error;
@@ -45,7 +51,7 @@ export async function getCommandQueue() {
 
 export async function addToQueue(command: string) {
   const queue = readJsonFile(QUEUE_FILE, []);
-  const commandId = `cmd_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const commandId = `cmd_${crypto.randomUUID()}`;
 
   const newCommand = {
     commandId,
@@ -55,7 +61,7 @@ export async function addToQueue(command: string) {
   };
 
   queue.push(newCommand);
-  writeJsonFile(QUEUE_FILE, queue);
+  await writeJsonFile(QUEUE_FILE, queue);
 
   return { commandId, command };
 }
@@ -66,7 +72,7 @@ export async function removeFromQueue(commandId: string) {
   const filteredQueue = queue.filter((item: any) => item.commandId !== commandId);
 
   if (filteredQueue.length !== initialLength) {
-    writeJsonFile(QUEUE_FILE, filteredQueue);
+    await writeJsonFile(QUEUE_FILE, filteredQueue);
     return true;
   }
   return false;
@@ -75,7 +81,7 @@ export async function removeFromQueue(commandId: string) {
 export async function clearQueue() {
   const queue = readJsonFile(QUEUE_FILE, []);
   const filteredQueue = queue.filter((item: any) => item.status !== "pending");
-  writeJsonFile(QUEUE_FILE, filteredQueue);
+  await writeJsonFile(QUEUE_FILE, filteredQueue);
 }
 
 // 执行历史操作
@@ -92,7 +98,7 @@ export async function addToHistory(data: {
   errorMessage?: string;
 }) {
   const history = readJsonFile(HISTORY_FILE, []);
-  const historyId = `hist_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const historyId = `hist_${crypto.randomUUID()}`;
 
   const newHistory = {
     historyId,
@@ -111,11 +117,11 @@ export async function addToHistory(data: {
     history.splice(1000);
   }
 
-  writeJsonFile(HISTORY_FILE, history);
+  await writeJsonFile(HISTORY_FILE, history);
 
   return { historyId, command: data.command };
 }
 
 export async function clearHistory() {
-  writeJsonFile(HISTORY_FILE, []);
+  await writeJsonFile(HISTORY_FILE, []);
 }

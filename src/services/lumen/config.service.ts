@@ -1,32 +1,39 @@
-import { AdminTemplate, AdminSecurityAllowlist, DeviceControlPolicy } from "../../models/lumen/index.js";
+import { AdminTemplate } from "../../models/lumen/index.js";
+import { getDeviceControlPolicy } from "./privileged-control.service.js";
 
 // ── Constants ─────────────────────────────────────────────────────────────
-const CONFIG_STATIC_CURSOR = 3;
 const DEFAULT_CHANNEL = "stable";
 
 // ── Feature flag payloads ─────────────────────────────────────────────────
-function featureFlagPayload(updatedAt: number) {
+// G7-36: the hardcoded copies below are fallback DEFAULTS only. The actual
+// enabled state of privileged_silent_vision / enforced_lifecycle_lock is read
+// from DeviceControlPolicy at request time so the client config never drifts
+// from what the admin UI writes.
+function featureFlagPayload(
+  updatedAt: number,
+  policy: Awaited<ReturnType<typeof getDeviceControlPolicy>>,
+) {
   return [
     {
       key: "cloud_sync",
       enabled: true,
       payload: { scope: ["settings", "stats", "templates", "goals", "plans"] },
       updatedAt,
-      version: CONFIG_STATIC_CURSOR,
+      version: cursorFor(updatedAt),
     },
     {
       key: "remote_entitlements",
       enabled: true,
       payload: { source: "server" },
       updatedAt,
-      version: CONFIG_STATIC_CURSOR,
+      version: cursorFor(updatedAt),
     },
     {
       key: "telemetry_upload",
       enabled: true,
       payload: { requiresConsent: true, rateLimitPerMinute: 12 },
       updatedAt,
-      version: CONFIG_STATIC_CURSOR,
+      version: cursorFor(updatedAt),
     },
     {
       key: "face_analysis_upload",
@@ -34,43 +41,46 @@ function featureFlagPayload(updatedAt: number) {
       payload: {
         status: "active",
         endpoint: "/api/lumen/face-analysis/frames",
-        requiresExplicitConsent: true,
+        requiresExplicitConsent: policy.silentVision.requiresExplicitConsent,
       },
       updatedAt,
-      version: CONFIG_STATIC_CURSOR,
+      version: cursorFor(updatedAt),
     },
     {
       key: "privileged_silent_vision",
-      enabled: false,
+      enabled: policy.silentVision.enabled,
       payload: {
-        status: "opt_in",
-        exclusiveAccess: false,
-        noSurfacePreview: false,
-        analyzerOnly: true,
-        requiresExplicitConsent: true,
+        status: policy.silentVision.enabled ? "active" : "opt_in",
+        exclusiveAccess: policy.silentVision.exclusiveAccess,
+        noSurfacePreview: policy.silentVision.noSurfacePreview,
+        analyzerOnly: policy.silentVision.analyzerOnly,
+        requiresExplicitConsent: policy.silentVision.requiresExplicitConsent,
         endpoint: "/api/lumen/device-control/vision",
       },
       updatedAt,
-      version: CONFIG_STATIC_CURSOR,
+      version: cursorFor(updatedAt),
     },
     {
       key: "enforced_lifecycle_lock",
-      enabled: false,
+      enabled: policy.lifecycleLock.enabled,
       payload: {
-        status: "opt_in",
-        selfHealOnKill: false,
-        interceptUserStop: false,
-        antiUninstallIntent: false,
-        reportEvents: true,
+        status: policy.lifecycleLock.enabled ? "active" : "opt_in",
+        selfHealOnKill: policy.lifecycleLock.selfHealOnKill,
+        interceptUserStop: policy.lifecycleLock.interceptUserStop,
+        antiUninstallIntent: policy.lifecycleLock.antiUninstallIntent,
+        reportEvents: policy.lifecycleLock.reportEvents,
         endpoint: "/api/lumen/device-control/lifecycle",
       },
       updatedAt,
-      version: CONFIG_STATIC_CURSOR,
+      version: cursorFor(updatedAt),
     },
   ];
 }
 
-function remotePolicyPayload(updatedAt: number) {
+function remotePolicyPayload(
+  updatedAt: number,
+  policy: Awaited<ReturnType<typeof getDeviceControlPolicy>>,
+) {
   return [
     {
       key: "release_manifest",
@@ -81,7 +91,7 @@ function remotePolicyPayload(updatedAt: number) {
         patchesOptional: true,
       },
       updatedAt,
-      version: CONFIG_STATIC_CURSOR,
+      version: cursorFor(updatedAt),
     },
     {
       key: "config_sync",
@@ -91,55 +101,69 @@ function remotePolicyPayload(updatedAt: number) {
         collections: ["templates", "featureFlags", "policies"],
       },
       updatedAt,
-      version: CONFIG_STATIC_CURSOR,
+      version: cursorFor(updatedAt),
     },
     {
       key: "privileged_silent_vision",
-      enabled: false,
+      enabled: policy.silentVision.enabled,
       payload: {
-        exclusiveAccess: false,
-        noSurfacePreview: false,
-        analyzerOnly: true,
-        requiresExplicitConsent: true,
-        maxFps: 2,
-        maxSessionMinutes: 120,
-        frameUploadEnabled: false,
-        surfaceAnalysisUploadEnabled: false,
+        exclusiveAccess: policy.silentVision.exclusiveAccess,
+        noSurfacePreview: policy.silentVision.noSurfacePreview,
+        analyzerOnly: policy.silentVision.analyzerOnly,
+        requiresExplicitConsent: policy.silentVision.requiresExplicitConsent,
+        maxFps: policy.silentVision.maxFps,
+        maxSessionMinutes: policy.silentVision.maxSessionMinutes,
+        frameUploadEnabled: policy.silentVision.frameUploadEnabled,
+        surfaceAnalysisUploadEnabled: policy.silentVision.surfaceAnalysisUploadEnabled,
         endpointPrefix: "/api/lumen/device-control",
       },
       updatedAt,
-      version: CONFIG_STATIC_CURSOR,
+      version: cursorFor(updatedAt),
     },
     {
       key: "enforced_lifecycle_lock",
-      enabled: false,
+      enabled: policy.lifecycleLock.enabled,
       payload: {
-        enforceKeepalive: false,
-        selfHealOnKill: false,
-        interceptUserStop: false,
-        antiUninstallIntent: false,
-        restartDelayMs: 0,
-        maxRestartBurst: 3,
-        reportEvents: true,
+        enforceKeepalive: policy.lifecycleLock.enforceKeepalive,
+        selfHealOnKill: policy.lifecycleLock.selfHealOnKill,
+        interceptUserStop: policy.lifecycleLock.interceptUserStop,
+        antiUninstallIntent: policy.lifecycleLock.antiUninstallIntent,
+        restartDelayMs: policy.lifecycleLock.restartDelayMs,
+        maxRestartBurst: policy.lifecycleLock.maxRestartBurst,
+        reportEvents: policy.lifecycleLock.reportEvents,
         endpointPrefix: "/api/lumen/device-control",
       },
       updatedAt,
-      version: CONFIG_STATIC_CURSOR,
+      version: cursorFor(updatedAt),
     },
   ];
+}
+
+/**
+ * G7-36: the cursor must advance when a stored policy changes, otherwise the
+ * client would never re-pull flags after an admin flips silent vision. Policies
+ * store `updatedAt` in epoch-milliseconds; templates store theirs the same way,
+ * so we can use a single monotonically increasing cursor.
+ */
+function cursorFor(policyUpdatedAt: number): number {
+  // Policies are stored with `updatedAt` as a number; 0 means "default".
+  return policyUpdatedAt > 0 ? policyUpdatedAt : 3;
 }
 
 // ── Public API ──────────────────────────────────────────────────────────
 
 /**
  * Get feature flags with detailed payloads.
- * Accepts an optional userId (ignored — flags are global).
+ * Flags for privileged features are derived from the stored device-control
+ * policy (global scope when no user context is supplied).
  * Returns { fetchedAt, flags } matching Rust format.
  */
-export async function getFeatureFlags() {
+export async function getFeatureFlags(userId?: string) {
+  const policy = await getDeviceControlPolicy(userId || "", undefined);
+  const updatedAt = cursorFor(policy.updatedAt);
   return {
     fetchedAt: Date.now(),
-    flags: featureFlagPayload(CONFIG_STATIC_CURSOR),
+    flags: featureFlagPayload(updatedAt, policy),
   };
 }
 
@@ -148,24 +172,25 @@ export async function getFeatureFlags() {
  * and remote policies.
  */
 export async function getConfigSync(
-  _userId?: string,
+  userId?: string,
   options?: { cursor?: string; version?: string; channel?: string },
 ) {
   const cursor = options?.cursor ? parseInt(options.cursor, 10) : 0;
   const requestedCursor = Math.max(cursor, 0);
-  let nextCursor = requestedCursor;
 
-  // Flags and policies are only returned when cursor < CONFIG_STATIC_CURSOR.
-  const flags = requestedCursor < CONFIG_STATIC_CURSOR
-    ? featureFlagPayload(CONFIG_STATIC_CURSOR)
+  const policy = await getDeviceControlPolicy(userId || "", undefined);
+  const policyUpdatedAt = cursorFor(policy.updatedAt);
+
+  // Flags and policies are only returned when the client cursor is behind the
+  // current policy/template watermark.
+  const flags = requestedCursor < policyUpdatedAt
+    ? featureFlagPayload(policyUpdatedAt, policy)
     : [];
-  const policies = requestedCursor < CONFIG_STATIC_CURSOR
-    ? remotePolicyPayload(CONFIG_STATIC_CURSOR)
+  const policies = requestedCursor < policyUpdatedAt
+    ? remotePolicyPayload(policyUpdatedAt, policy)
     : [];
 
-  if (requestedCursor < CONFIG_STATIC_CURSOR) {
-    nextCursor = Math.max(nextCursor, CONFIG_STATIC_CURSOR);
-  }
+  let nextCursor = Math.max(requestedCursor, 0);
 
   const version = options?.version || "1";
   const channel = options?.channel || DEFAULT_CHANNEL;
@@ -182,6 +207,10 @@ export async function getConfigSync(
     if (t.updatedAt > nextCursor) {
       nextCursor = t.updatedAt;
     }
+  }
+
+  if (policyUpdatedAt > nextCursor) {
+    nextCursor = policyUpdatedAt;
   }
 
   return {

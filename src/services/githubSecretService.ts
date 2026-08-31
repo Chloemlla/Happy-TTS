@@ -47,26 +47,31 @@ export async function pushRepoSecret(
     "User-Agent": "synapse",
   };
 
-  // 1. GET public key
-  const pubKeyResp = await fetch(`${baseUrl}/public-key`, { headers });
+  // 1. GET public key (G7-54: no timeout previously — a slow GitHub API could
+  // hang the caller indefinitely).
+  const pubKeyResp = await fetch(`${baseUrl}/public-key`, {
+    headers,
+    signal: AbortSignal.timeout(15000),
+  });
   if (!pubKeyResp.ok) {
     const body = await pubKeyResp.text().catch(() => "");
-    throw new Error(`获取 GitHub public key 失败 (${pubKeyResp.status}): ${body}`);
+    throw new Error(`获取 GitHub public key 失败 (${pubKeyResp.status}): ${body.slice(0, 500)}`);
   }
   const pubKeyData = (await pubKeyResp.json()) as { key_id: string; key: string };
 
   // 2. Encrypt
   const encryptedValue = await encryptRepoSecret(value, pubKeyData.key);
 
-  // 3. PUT secret
+  // 3. PUT secret (G7-54: timeout + no upstream body in the user-visible error).
   const putResp = await fetch(`${baseUrl}/${encodeURIComponent(secretName)}`, {
     method: "PUT",
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify({ encrypted_value: encryptedValue, key_id: pubKeyData.key_id }),
+    signal: AbortSignal.timeout(15000),
   });
   if (!putResp.ok) {
     const body = await putResp.text().catch(() => "");
-    throw new Error(`推送 GitHub secret 失败 (${putResp.status}): ${body}`);
+    throw new Error(`推送 GitHub secret 失败 (${putResp.status}): ${body.slice(0, 500)}`);
   }
 
   return { status: putResp.status };

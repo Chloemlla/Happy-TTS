@@ -20,6 +20,7 @@ import {
   type IEcoEnchantsReleaseBuild,
 } from "../models/ecoEnchantsModel";
 import { createEcoEnchantsOpsActivationSession } from "./ecoEnchantsOpsTokens";
+import { TransactionService } from "./transactionService";
 import logger from "../utils/logger";
 import { uuidv4 } from "../utils/uuid";
 
@@ -138,17 +139,18 @@ function serviceError(
 function getLicensePepper(): string {
   const envSecret =
     process.env.ECOENCHANTS_LICENSE_PEPPER ||
-    process.env.LICENSE_KEY_PEPPER ||
-    process.env.JWT_SECRET;
+    process.env.LICENSE_KEY_PEPPER;
   if (envSecret) {
     return envSecret;
   }
-  // config.jwtSecret may be set (e.g. via env) even if direct env vars are absent
-  if (config.jwtSecret) {
+  // G7-57: the license pepper must never silently share the main-site JWT
+  // secret — rotating JWT_SECRET would invalidate every stored
+  // installationIdHash. Outside production we allow the dev fallback.
+  if (process.env.NODE_ENV !== "production" && config.jwtSecret) {
     return config.jwtSecret;
   }
   throw new Error(
-    "[EcoEnchants] Missing required license pepper. Set ECOENCHANTS_LICENSE_PEPPER, LICENSE_KEY_PEPPER, or JWT_SECRET.",
+    "[EcoEnchants] Missing required license pepper. Set ECOENCHANTS_LICENSE_PEPPER or LICENSE_KEY_PEPPER (production requires an explicit, non-rotatable value).",
   );
 }
 
@@ -205,7 +207,14 @@ function hashInstallationId(installationId: string): string {
 }
 
 function getRuntimeActivationTokenSecret(): string {
-  return process.env.ECOENCHANTS_ACTIVATION_TOKEN_SECRET || process.env.ECOENCHANTS_RUNTIME_TOKEN_SECRET || config.jwtSecret;
+  const envSecret = process.env.ECOENCHANTS_ACTIVATION_TOKEN_SECRET || process.env.ECOENCHANTS_RUNTIME_TOKEN_SECRET;
+  if (envSecret) return envSecret;
+  // G7-57: runtime activation tokens must not share the main-site JWT secret in
+  // production; dev fallback only outside production.
+  if (process.env.NODE_ENV !== "production" && config.jwtSecret) return config.jwtSecret;
+  throw new Error(
+    "[EcoEnchants] Missing ECOENCHANTS_ACTIVATION_TOKEN_SECRET / ECOENCHANTS_RUNTIME_TOKEN_SECRET (must be distinct from the main-site JWT secret).",
+  );
 }
 
 function getRuntimeActivationTokenTtlSeconds(): number {
@@ -498,13 +507,38 @@ function getLicenseSummary(license: IEcoEnchantsLicense) {
   };
 }
 
+/**
+ * G7-22: the previous implementation only lowercased and truncated headers, so
+ * `authorization`, `cookie`, `stripe-signature`, `x-api-key`, ... were persisted
+ * in plaintext with the webhook event. Only keep a small allowlist of
+ * non-sensitive headers; anything credential-like is dropped entirely.
+ */
+const WEBHOOK_HEADER_ALLOWLIST = new Set([
+  "content-type",
+  "user-agent",
+  "accept",
+  "accept-encoding",
+  "x-request-id",
+  "x-forwarded-for",
+  "x-forwarded-proto",
+  "x-real-ip",
+  "x-eco-installation-id",
+  "x-eco-plugin-version",
+  "x-eco-channel",
+]);
+
+const WEBHOOK_HEADER_BLOCKLIST = /^(authorization|cookie|set-cookie|.*signature.*|.*token.*|.*api[_-]?key.*|.*secret.*)$/i;
+
 function sanitizeHeaders(headers: Record<string, unknown>): Record<string, string> {
   const safe: Record<string, string> = {};
   for (const [key, value] of Object.entries(headers)) {
+    const normalizedKey = key.toLowerCase();
+    if (WEBHOOK_HEADER_BLOCKLIST.test(normalizedKey)) continue;
+    if (!WEBHOOK_HEADER_ALLOWLIST.has(normalizedKey)) continue;
     if (Array.isArray(value)) {
-      safe[key.toLowerCase()] = value.join(",");
+      safe[normalizedKey] = value.join(",").slice(0, 1000);
     } else if (typeof value === "string") {
-      safe[key.toLowerCase()] = value.slice(0, 1000);
+      safe[normalizedKey] = value.slice(0, 1000);
     }
   }
   return safe;
@@ -570,7 +604,13 @@ function appendSignedDownloadParams(downloadUrl: string, expiresAt: Date, build:
 }
 
 export function verifyEcoEnchantsDownloadToken(token: string): { customerId?: string; licenseId?: string; productId?: string } {
-  const secret = process.env.ECOENCHANTS_DOWNLOAD_TOKEN_SECRET || config.jwtSecret;
+  const envSecret = process.env.ECOENCHANTS_DOWNLOAD_TOKEN_SECRET;
+  const secret = envSecret || (process.env.NODE_ENV !== "production" ? config.jwtSecret : undefined);
+  if (!secret) {
+    throw new Error(
+      "[EcoEnchants] Missing ECOENCHANTS_DOWNLOAD_TOKEN_SECRET (must be distinct from the main-site JWT secret).",
+    );
+  }
   const decoded = jwt.verify(token, secret, { algorithms: ["HS256"] }) as any;
   return {
     customerId: typeof decoded.customerId === "string" ? decoded.customerId : undefined,
@@ -646,46 +686,57 @@ export class EcoEnchantsService {
   ): Promise<IdempotentResponse<T>> {
     const key = ensureRequiredText(params.key, "Idempotency-Key", 200);
     const bodyHash = sha256Hex(stableStringify(params.body));
-    const existing = await EcoEnchantsIdempotencyRecordModel.findOne({ scope: params.scope, key });
 
-    if (existing) {
-      if (existing.bodyHash !== bodyHash || existing.method !== params.method || existing.path !== params.path) {
-        throw serviceError(409, "idempotency_conflict", "Idempotency key was already used with a different request.");
-      }
-      return {
-        statusCode: existing.statusCode,
-        body: existing.responseBody as T,
-        replayed: true,
-      };
-    }
+    // G7-16: claim-then-execute. Previously the side effect ran BEFORE the
+    // idempotency record was created, so two concurrent requests with the same
+    // key both ran the producer (double license creation / activation). Now the
+    // first request claims the key with an in-progress sentinel; concurrent
+    // duplicates see the sentinel and get a 409 instead of re-running.
+    const inProgressSentinel = { __idempotency_in_progress: true } as T;
 
-    const produced = await producer();
+    let claimed: any = null;
     try {
-      await EcoEnchantsIdempotencyRecordModel.create({
+      claimed = await EcoEnchantsIdempotencyRecordModel.create({
         scope: params.scope,
         key,
         method: params.method,
         path: params.path,
         bodyHash,
-        statusCode: produced.statusCode,
-        responseBody: produced.body,
+        statusCode: 202,
+        responseBody: inProgressSentinel,
         createdAt: new Date(),
       });
     } catch (error) {
-      if (isDuplicateKeyError(error)) {
-        const replay = await EcoEnchantsIdempotencyRecordModel.findOne({ scope: params.scope, key });
-        if (replay) {
-          return {
-            statusCode: replay.statusCode,
-            body: replay.responseBody as T,
-            replayed: true,
-          };
-        }
+      if (!isDuplicateKeyError(error)) throw error;
+      const existing = await EcoEnchantsIdempotencyRecordModel.findOne({ scope: params.scope, key });
+      if (!existing) throw error;
+      if (existing.bodyHash !== bodyHash || existing.method !== params.method || existing.path !== params.path) {
+        throw serviceError(409, "idempotency_conflict", "Idempotency key was already used with a different request.");
       }
-      throw error;
+      const body = existing.responseBody as T;
+      if (body && (body as Record<string, unknown>).__idempotency_in_progress) {
+        // Another request is still executing. Return 409 so the client can
+        // retry with backoff (or poll) instead of us re-running the side effect.
+        throw serviceError(409, "idempotency_in_progress", "A request with this Idempotency-Key is already being processed.");
+      }
+      return {
+        statusCode: existing.statusCode,
+        body,
+        replayed: true,
+      };
     }
 
-    return { ...produced, replayed: false };
+    try {
+      const produced = await producer();
+      claimed.statusCode = produced.statusCode;
+      claimed.responseBody = produced.body;
+      await claimed.save();
+      return { ...produced, replayed: false };
+    } catch (error) {
+      // Release the claim so a retry does not see a stale in-progress record.
+      await EcoEnchantsIdempotencyRecordModel.deleteOne({ _id: claimed._id }).catch(() => undefined);
+      throw error;
+    }
   }
 
   static async logAudit(
@@ -990,20 +1041,6 @@ export class EcoEnchantsService {
       };
     }
 
-    if (!existing || existing.status !== "active") {
-      const activeCount = await EcoEnchantsActivationModel.countDocuments({
-        licenseId: license.licenseId,
-        status: "active",
-      });
-      if (activeCount >= license.maxActivations) {
-        return {
-          status: "denied",
-          responseStatus: "activation_limit_exceeded",
-          message: "Activation limit exceeded.",
-        };
-      }
-    }
-
     const patch = {
       status: "active" as const,
       name: request.server?.name || existing?.name || undefined,
@@ -1020,20 +1057,55 @@ export class EcoEnchantsService {
       deactivatedAt: undefined,
     };
 
-    if (existing) {
+    if (existing && existing.status === "active") {
       Object.assign(existing, patch);
       await existing.save();
       return { status: "active", activation: existing };
     }
 
-    const created = await EcoEnchantsActivationModel.create({
-      activationId: `act_${uuidv4()}`,
-      licenseId: license.licenseId,
-      installationIdHash,
-      ...patch,
-      createdAt: now,
-      updatedAt: now,
+    if (existing && existing.status !== "active") {
+      // Reactivating a previously deactivated activation does not increase the
+      // active count, so no quota check is needed.
+      Object.assign(existing, patch);
+      await existing.save();
+      return { status: "active", activation: existing };
+    }
+
+    // G7-30: count-then-create was racy — N simultaneous activations could all
+    // read activeCount = max-1 and all insert, exceeding maxActivations. Wrap
+    // the quota check and the insert in a transaction when supported.
+    const created = await TransactionService.executeTransaction(async (session) => {
+      const activeCount = await EcoEnchantsActivationModel.countDocuments({
+        licenseId: license.licenseId,
+        status: "active",
+      })
+        .session(session)
+        .exec();
+      if (activeCount >= license.maxActivations) return null;
+
+      const docs = await EcoEnchantsActivationModel.create(
+        [
+          {
+            activationId: `act_${uuidv4()}`,
+            licenseId: license.licenseId,
+            installationIdHash,
+            ...patch,
+            createdAt: now,
+            updatedAt: now,
+          },
+        ],
+        session ? { session } : undefined,
+      );
+      return docs[0];
     });
+
+    if (!created) {
+      return {
+        status: "denied",
+        responseStatus: "activation_limit_exceeded",
+        message: "Activation limit exceeded.",
+      };
+    }
     return { status: "active", activation: created };
   }
 
@@ -1751,10 +1823,18 @@ export class EcoEnchantsService {
       return verifyGenericHmacSignature(rawPayload, signature, secret);
     }
 
-    const secret = process.env.ECOENCHANTS_PAYPAL_WEBHOOK_SECRET || process.env.PAYPAL_WEBHOOK_SECRET;
-    const signature = cleanString(headers["paypal-transmission-sig"]) || cleanString(headers["x-paypal-signature"]);
-    if (!secret || !signature) return false;
-    return verifyGenericHmacSignature(rawPayload, signature, secret);
+    // G7-23: PayPal's `paypal-transmission-sig` is an RSA signature over
+    // transmissionId|transmissionTime|webhookId|crc32(body) verified against
+    // PayPal's certificate — NOT a shared-secret HMAC. The previous code ran it
+    // through HMAC-SHA256, which can never match an RSA signature, so every
+    // real PayPal event already failed (401). True verification requires the
+    // PayPal Verify Webhook Signature API or cert-chain verification, which is
+    // not implemented. We keep this branch fail-closed and documented rather
+    // than pretending the path works.
+    logger.warn(
+      "[EcoEnchants] PayPal webhook signature verification is not implemented (RSA cert-based). Events will be rejected.",
+    );
+    return false;
   }
 
   private static async applyWebhookBusinessRules(
@@ -1763,17 +1843,26 @@ export class EcoEnchantsService {
     payload: any,
     context: EcoEnchantsRequestContext,
   ): Promise<boolean> {
-    const lowered = type.toLowerCase();
+    // G7-24: explicit event-type classification. The previous substring
+    // matching mixed up semantically opposite events (e.g. charge.dispute.closed
+    // and charge.dispute.funds_reinstated both matched "dispute" and suspended
+    // the license; payment_intent.canceled matched "cancel" and revoked it).
+    const action = classifyWebhookEvent(type);
+    if (action === "ignore") {
+      logger.info("[EcoEnchants] Webhook event ignored", { provider, type });
+      return false;
+    }
+
     const license = await EcoEnchantsService.findLicenseFromWebhookPayload(payload);
 
-    if (lowered.includes("refund") || lowered.includes("refunded") || lowered.includes("cancel")) {
+    if (action === "revoke" || action === "suspend") {
       if (!license) return false;
-      license.status = "revoked";
+      license.status = action === "revoke" ? "revoked" : "suspended";
       await license.save();
       await EcoEnchantsService.logAudit(
         { ...context, actorType: "webhook", actorId: provider },
         {
-          action: "webhook.license.revoked",
+          action: action === "revoke" ? "webhook.license.revoked" : "webhook.license.suspended",
           targetType: "license",
           targetId: license.licenseId,
           result: "success",
@@ -1783,55 +1872,47 @@ export class EcoEnchantsService {
       return true;
     }
 
-    if (lowered.includes("dispute") || lowered.includes("chargeback")) {
-      if (!license) return false;
-      license.status = "suspended";
+    // activate
+    if (license) {
+      license.status = "valid";
       await license.save();
-      await EcoEnchantsService.logAudit(
-        { ...context, actorType: "webhook", actorId: provider },
-        {
-          action: "webhook.license.suspended",
-          targetType: "license",
-          targetId: license.licenseId,
-          result: "success",
-          detail: { provider, type },
-        },
-      );
       return true;
     }
 
-    if (lowered.includes("paid") || lowered.includes("purchase") || lowered.includes("checkout.session.completed")) {
-      if (license) {
-        license.status = "valid";
-        await license.save();
-        return true;
-      }
+    const customerId = extractNestedString(payload, [
+      "customerId",
+      "customer_id",
+      "metadata.customerId",
+      "data.object.metadata.customerId",
+    ]);
+    const planId = extractNestedString(payload, ["planId", "plan_id", "metadata.planId", "data.object.metadata.planId"]);
+    if (!customerId || !planId) return false;
 
-      const customerId = extractNestedString(payload, [
-        "customerId",
-        "customer_id",
-        "metadata.customerId",
-        "data.object.metadata.customerId",
-      ]);
-      const planId = extractNestedString(payload, ["planId", "plan_id", "metadata.planId", "data.object.metadata.planId"]);
-      if (!customerId || !planId) return false;
-
-      await EcoEnchantsService.createLicense(
-        {
-          productId: ECO_ENCHANTS_PRODUCT_ID,
-          customerId,
-          planId,
-          status: "valid",
-        },
-        { ...context, actorType: "webhook", actorId: provider },
-      );
-      return true;
-    }
-
-    return false;
+    await EcoEnchantsService.createLicense(
+      {
+        productId: ECO_ENCHANTS_PRODUCT_ID,
+        customerId,
+        planId,
+        status: "valid",
+      },
+      { ...context, actorType: "webhook", actorId: provider },
+    );
+    return true;
   }
 
   private static async findLicenseFromWebhookPayload(payload: any): Promise<IEcoEnchantsLicense | null> {
+    // G7-15: the buyer-supplied `licenseId` must never be the sole locator —
+    // a malicious buyer can put a victim's licenseId in metadata and then
+    // refund/dispute to have the victim's license revoked. The payload's
+    // customer identity must match the license's customerId.
+    const customerId = extractNestedString(payload, [
+      "customerId",
+      "customer_id",
+      "metadata.customerId",
+      "data.object.metadata.customerId",
+      "resource.metadata.customerId",
+    ]);
+
     const licenseId = extractNestedString(payload, [
       "licenseId",
       "license_id",
@@ -1840,8 +1921,11 @@ export class EcoEnchantsService {
       "resource.metadata.licenseId",
     ]);
     if (licenseId) {
-      const byId = await EcoEnchantsLicenseModel.findOne({ licenseId, productId: ECO_ENCHANTS_PRODUCT_ID });
+      const query: Record<string, unknown> = { licenseId, productId: ECO_ENCHANTS_PRODUCT_ID };
+      if (customerId) query.customerId = customerId;
+      const byId = await EcoEnchantsLicenseModel.findOne(query);
       if (byId) return byId;
+      if (customerId) return null; // licenseId belongs to someone else — do not touch it
     }
 
     const licenseKey = extractNestedString(payload, [
@@ -1853,9 +1937,51 @@ export class EcoEnchantsService {
     ]);
     if (!licenseKey) return null;
 
-    return EcoEnchantsLicenseModel.findOne({
+    const keyQuery: Record<string, unknown> = {
       productId: ECO_ENCHANTS_PRODUCT_ID,
       keyHash: hashLicenseKey(licenseKey),
-    });
+    };
+    if (customerId) keyQuery.customerId = customerId;
+    return EcoEnchantsLicenseModel.findOne(keyQuery);
   }
+}
+
+/**
+ * Classify a webhook event type into an action. Exact-match table first, then a
+ * few explicit suffix rules. Everything unlisted is ignored (no state change).
+ */
+function classifyWebhookEvent(type: string): "revoke" | "suspend" | "activate" | "ignore" {
+  const t = type.toLowerCase();
+
+  const revokeEvents = new Set([
+    "charge.refunded",
+    "purchase.refunded",
+    "purchase.cancelled",
+    "sale.refunded",
+  ]);
+  const suspendEvents = new Set([
+    "charge.dispute.created",
+    "charge.dispute.updated",
+    "purchase.disputed",
+  ]);
+  const activateEvents = new Set([
+    "checkout.session.completed",
+    "payment_intent.succeeded",
+    "customer.subscription.created",
+    "customer.subscription.updated",
+    "invoice.paid",
+    "purchase.completed",
+  ]);
+
+  if (revokeEvents.has(t)) return "revoke";
+  if (suspendEvents.has(t)) return "suspend";
+  if (activateEvents.has(t)) return "activate";
+
+  // Safe suffix rules for providers that vary the prefix.
+  if (t.endsWith(".refunded") || t.endsWith(".refund.completed")) return "revoke";
+  if (t.endsWith(".dispute.created") || t.endsWith(".dispute.updated")) return "suspend";
+  if (t.endsWith(".checkout.session.completed") || t.endsWith(".payment_intent.succeeded")) return "activate";
+
+  // Dispute terminal events (closed / funds_reinstated / won) must NOT suspend.
+  return "ignore";
 }

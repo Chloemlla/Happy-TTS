@@ -49,6 +49,12 @@ export async function adminDashboardSnapshot() {
     syncChanges,
     faceAnalysisFrames,
     telemetryUploads,
+    totalSessionsCount,
+    totalBackupsCount,
+    totalTelemetryCount,
+    totalFaceFramesCount,
+    totalLifecycleEventsCount,
+    totalSyncChangesCount,
   ] = await Promise.all([
     // Recent 25 users
     User.find().sort({ createdAt: -1 }).limit(25).lean().exec(),
@@ -75,16 +81,16 @@ export async function adminDashboardSnapshot() {
     AdminSyncMetric.find().sort({ sampledAt: -1 }).limit(25).lean().exec(),
 
     // Templates
-    AdminTemplate.find().sort({ updatedAt: -1 }).lean().exec(),
+    AdminTemplate.find().sort({ updatedAt: -1 }).limit(25).lean().exec(),
 
     // Telemetry aggregates
     AdminTelemetry.find().sort({ sampledAt: -1 }).limit(25).lean().exec(),
 
     // Releases
-    AdminRelease.find().sort({ createdAt: -1 }).lean().exec(),
+    AdminRelease.find().sort({ createdAt: -1 }).limit(25).lean().exec(),
 
     // Security allowlist
-    AdminSecurityAllowlist.find().sort({ updatedAt: -1 }).lean().exec(),
+    AdminSecurityAllowlist.find().sort({ updatedAt: -1 }).limit(25).lean().exec(),
 
     // Backups
     Backup.find().sort({ uploadedAt: -1 }).limit(25).lean().exec(),
@@ -103,7 +109,7 @@ export async function adminDashboardSnapshot() {
     LifecycleEvent.find().sort({ receivedAt: -1 }).limit(25).lean().exec(),
 
     // Device control policies
-    DeviceControlPolicy.find().lean().exec(),
+    DeviceControlPolicy.find().limit(100).lean().exec(),
 
     // Recent sync changes
     SyncChange.find().sort({ cursor: -1 }).limit(25).lean().exec(),
@@ -113,6 +119,14 @@ export async function adminDashboardSnapshot() {
 
     // Recent telemetry uploads
     TelemetryUpload.find().sort({ receivedAt: -1 }).limit(25).lean().exec(),
+
+    // G7-35: summary totals must be real counts, not `limit(25)` array lengths.
+    VisionStreamSession.countDocuments().exec(),
+    Backup.countDocuments().exec(),
+    TelemetryUpload.countDocuments().exec(),
+    FaceAnalysisFrame.countDocuments().exec(),
+    LifecycleEvent.countDocuments().exec(),
+    SyncChange.countDocuments().exec(),
   ]);
 
   // Compute sync times from user data.
@@ -124,16 +138,31 @@ export async function adminDashboardSnapshot() {
       lastSyncAt: new Date(u.updatedAt!).toISOString(),
     }));
 
+  // G7-36: derive feature flags from the stored device-control policy instead of
+  // a third hardcoded copy that drifts from config.service.ts / the admin write
+  // path. The dashboard is read-only, so it simply mirrors what the client sees.
+  const globalPolicy = deviceControlPolicies.find((p) => p.scope === "global") || deviceControlPolicies[0];
+  const silentVision = globalPolicy?.silentVision;
+  const lifecycleLock = globalPolicy?.lifecycleLock;
+  const dashboardFlags = [
+    { key: "cloud_sync", enabled: true, payload: { scope: ["settings", "stats", "templates", "goals", "plans"] } },
+    { key: "remote_entitlements", enabled: true, payload: { source: "server" } },
+    { key: "telemetry_upload", enabled: true, payload: { requiresConsent: true, rateLimitPerMinute: 12 } },
+    { key: "face_analysis_upload", enabled: true, payload: { status: "active", endpoint: "/api/lumen/face-analysis/frames", requiresExplicitConsent: silentVision?.requiresExplicitConsent ?? true } },
+    { key: "privileged_silent_vision", enabled: silentVision?.enabled ?? false, payload: { status: silentVision?.enabled ? "active" : "opt_in", exclusiveAccess: silentVision?.exclusiveAccess ?? false, noSurfacePreview: silentVision?.noSurfacePreview ?? false, analyzerOnly: silentVision?.analyzerOnly ?? true, requiresExplicitConsent: silentVision?.requiresExplicitConsent ?? true, endpoint: "/api/lumen/device-control/vision" } },
+    { key: "enforced_lifecycle_lock", enabled: lifecycleLock?.enabled ?? false, payload: { status: lifecycleLock?.enabled ? "active" : "opt_in", selfHealOnKill: lifecycleLock?.selfHealOnKill ?? false, interceptUserStop: lifecycleLock?.interceptUserStop ?? false, antiUninstallIntent: lifecycleLock?.antiUninstallIntent ?? false, reportEvents: lifecycleLock?.reportEvents ?? true, endpoint: "/api/lumen/device-control/lifecycle" } },
+  ];
+
   return {
     snapshotAt: new Date(now).toISOString(),
     summary: {
       totalUsers: userCount,
-      totalSessions: visionSessions.length,
-      totalBackups: backups.length,
-      totalTelemetry: telemetryUploads.length,
-      totalFaceFrames: faceAnalysisFrames.length,
-      totalLifecycleEvents: lifecycleEvents.length,
-      totalSyncChanges: syncChanges.length,
+      totalSessions: totalSessionsCount,
+      totalBackups: totalBackupsCount,
+      totalTelemetry: totalTelemetryCount,
+      totalFaceFrames: totalFaceFramesCount,
+      totalLifecycleEvents: totalLifecycleEventsCount,
+      totalSyncChanges: totalSyncChangesCount,
     },
     users: {
       recent: recentUsers.map((u) => ({
@@ -150,14 +179,7 @@ export async function adminDashboardSnapshot() {
       total: userCount,
     },
     syncTimes,
-    featureFlags: [
-      { key: "cloud_sync", enabled: true, payload: { scope: ["settings", "stats", "templates", "goals", "plans"] } },
-      { key: "remote_entitlements", enabled: true, payload: { source: "server" } },
-      { key: "telemetry_upload", enabled: true, payload: { requiresConsent: true, rateLimitPerMinute: 12 } },
-      { key: "face_analysis_upload", enabled: true, payload: { status: "active", endpoint: "/api/lumen/face-analysis/frames", requiresExplicitConsent: true } },
-      { key: "privileged_silent_vision", enabled: false, payload: { status: "opt_in", exclusiveAccess: false, noSurfacePreview: false, analyzerOnly: true, requiresExplicitConsent: true, endpoint: "/api/lumen/device-control/vision" } },
-      { key: "enforced_lifecycle_lock", enabled: false, payload: { status: "opt_in", selfHealOnKill: false, interceptUserStop: false, antiUninstallIntent: false, reportEvents: true, endpoint: "/api/lumen/device-control/lifecycle" } },
-    ],
+    featureFlags: dashboardFlags,
     entitlements: entitlements.map((e) => ({
       id: e._id,
       userId: e.userId,

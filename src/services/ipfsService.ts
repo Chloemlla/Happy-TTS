@@ -52,6 +52,46 @@ function invalidateIPFSSettingsCache(): void {
   ipfsSettingsCache = null;
 }
 
+/**
+ * G7-18: SSRF guard for config-driven upload URLs. Must be https and must not
+ * point at loopback/private/link-local addresses (including IPv6 and
+ * integer-form literals are handled by rejecting any literal IP that is not
+ * public). Called on read so a bad DB/env value fails loudly instead of
+ * silently POSTing user files to an internal address.
+ */
+function assertSafeUploadUrl(url: string, label: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error(`${label} 不是合法 URL`);
+  }
+  if (parsed.protocol !== "https:") {
+    throw new Error(`${label} 必须使用 https 协议`);
+  }
+  const hostname = parsed.hostname.toLowerCase();
+  const ipv4Private = /^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.|0\.|100\.(6[4-9]|[7-9]\d|1[0-1]\d|12[0-7])\.)/.test(hostname);
+  const isLiteralPrivate =
+    ipv4Private ||
+    hostname === "::1" ||
+    hostname === "::" ||
+    hostname === "0:0:0:0:0:0:0:1" ||
+    hostname === "0.0.0.0" ||
+    /^fe[89ab][0-9a-f]*:/i.test(hostname) || // link-local / ULA
+    /^fc[0-9a-f]{2}:/i.test(hostname); // ULA fc00::/7
+  if (isLiteralPrivate) {
+    throw new Error(`${label} 不允许指向内网/本机地址`);
+  }
+  if (
+    hostname === "localhost" ||
+    hostname.endsWith(".localhost") ||
+    hostname.endsWith(".local") ||
+    hostname.endsWith(".internal")
+  ) {
+    throw new Error(`${label} 不允许指向内网/本机地址`);
+  }
+}
+
 // 一次批量读取全部设置键，未命中时返回 null，由各 getter 保留自己的回退逻辑
 async function getIPFSSettingValue(key: IPFSSettingKey): Promise<string | null> {
   if (mongoose.connection.readyState !== 1) {
@@ -79,6 +119,7 @@ async function getIPFSUploadURL(): Promise<string> {
     const value = await getIPFSSettingValue("IPFS_UPLOAD_URL");
     if (value !== null && value.trim().length > 0) {
       logger.info("[IPFS] 从MongoDB读取到IPFS_UPLOAD_URL配置:", value);
+      assertSafeUploadUrl(value.trim(), "IPFS_UPLOAD_URL");
       return value.trim();
     }
   } catch (e) {
@@ -88,6 +129,7 @@ async function getIPFSUploadURL(): Promise<string> {
   // 回退：环境变量 IPFS_UPLOAD_URL
   if (startupConfig.ipfs.uploadUrl) {
     logger.info("[IPFS] 使用环境变量 IPFS_UPLOAD_URL:", startupConfig.ipfs.uploadUrl);
+    assertSafeUploadUrl(startupConfig.ipfs.uploadUrl, "IPFS_UPLOAD_URL");
     return startupConfig.ipfs.uploadUrl;
   }
 
@@ -157,12 +199,15 @@ async function getImageBedApiUrl(): Promise<string> {
   try {
     const value = await getIPFSSettingValue("IMAGE_BED_API_URL");
     if (value !== null && value.trim().length > 0) {
+      assertSafeUploadUrl(value.trim(), "IMAGE_BED_API_URL");
       return value.trim();
     }
   } catch (e) {
     logger.error("[ImageBed] 读取IMAGE_BED_API_URL配置失败", e);
   }
-  return startupConfig.imageBed.apiUrl || "https://img.scdn.io/api/v1.php";
+  const fallback = startupConfig.imageBed.apiUrl || "https://img.scdn.io/api/v1.php";
+  assertSafeUploadUrl(fallback, "IMAGE_BED_API_URL");
+  return fallback;
 }
 
 async function getImageBedDefaultCdn(): Promise<string | null> {
@@ -545,8 +590,9 @@ export class IPFSService {
       response = await axios.post(apiUrl, formData, {
         headers: { ...formData.getHeaders() },
         timeout: 60000,
-        maxContentLength: Infinity,
-        maxBodyLength: Infinity,
+        // G7-17: bounded response/request bodies instead of Infinity.
+        maxContentLength: 2 * 1024 * 1024,
+        maxBodyLength: 8 * 1024 * 1024,
         validateStatus: (s: number) => s >= 200 && s < 500, // 让上层根据 success 字段判断
       });
     } catch (err) {
@@ -652,6 +698,9 @@ export class IPFSService {
           ...formData.getHeaders(),
         },
         timeout: 45000, // 备用服务可能需要更长时�?
+        // G7-17: bounded response/request bodies.
+        maxContentLength: 8 * 1024 * 1024,
+        maxBodyLength: 8 * 1024 * 1024,
       });
 
       // 备用服务返回格式可能不同，需要适配
@@ -767,7 +816,12 @@ export class IPFSService {
         }
 
         // 发送请求到IPFS
-        const response = await require("axios").post(requestUrl, formData, requestConfig);
+        const response = await require("axios").post(requestUrl, formData, {
+          ...requestConfig,
+          // G7-17: bounded response/request bodies.
+          maxContentLength: 8 * 1024 * 1024,
+          maxBodyLength: 8 * 1024 * 1024,
+        });
 
         // 根据域名适配不同的响应格�?
         let cid: string;
@@ -1152,6 +1206,8 @@ export class IPFSService {
       } catch {
         throw new Error("IPFS上传URL格式无效");
       }
+      // G7-18: reject non-https / internal addresses at write time too.
+      assertSafeUploadUrl(trimmedUrl, "IPFS_UPLOAD_URL");
 
       // 确保MongoDB连接
       await ensureMongoConnected();
@@ -1389,6 +1445,8 @@ export class IPFSService {
     } catch {
       throw new Error("IMAGE_BED_API_URL 格式无效");
     }
+    // G7-18: reject non-https / internal addresses at write time too.
+    assertSafeUploadUrl(trimmed, "IMAGE_BED_API_URL");
     await ensureMongoConnected();
     await IPFSSettingModel.findOneAndUpdate(
       { key: "IMAGE_BED_API_URL" },

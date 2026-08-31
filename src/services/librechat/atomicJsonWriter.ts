@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, rename, unlink, writeFile } from "node:fs/promises";
+import { mkdir, open, rename, unlink } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 
 /**
@@ -17,7 +17,15 @@ export class SerialAtomicJsonWriter {
       await mkdir(directory, { recursive: true });
 
       try {
-        await writeFile(temporaryPath, payload, { encoding: "utf8", flag: "wx" });
+        // G7-55: fsync the file contents before rename so a power loss between
+        // rename and data flush cannot leave a truncated destination file.
+        const handle = await open(temporaryPath, "wx");
+        try {
+          await handle.writeFile(payload, { encoding: "utf8" });
+          await handle.sync();
+        } finally {
+          await handle.close();
+        }
         await rename(temporaryPath, filePath);
       } catch (error) {
         await unlink(temporaryPath).catch(() => undefined);

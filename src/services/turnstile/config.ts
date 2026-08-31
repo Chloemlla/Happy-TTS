@@ -11,6 +11,13 @@ export async function isEnabled(): Promise<boolean> {
   return !!secretKey && !!siteKey;
 }
 
+/** Mask a secret for display. Never returns the full value (G7-56). */
+function maskSecretKey(secretKey: string | null): string | null {
+  if (!secretKey) return null;
+  if (secretKey.length <= 8) return "***";
+  return `${secretKey.slice(0, 2)}***${secretKey.slice(-4)}`;
+}
+
 export async function getConfig(): Promise<{
   enabled: boolean;
   siteKey: string | null;
@@ -21,7 +28,10 @@ export async function getConfig(): Promise<{
     getTurnstileKey("TURNSTILE_SITE_KEY"),
   ]);
 
-  return { enabled: !!secretKey && !!siteKey, siteKey, secretKey };
+  // G7-56: never hand out the plaintext secret. The only consumer that reads
+  // `secretKey` is the admin config handler, which re-masks; masking here is
+  // idempotent for the >8-char case and safe for short values.
+  return { enabled: !!secretKey && !!siteKey, siteKey, secretKey: maskSecretKey(secretKey) };
 }
 
 export async function updateConfig(

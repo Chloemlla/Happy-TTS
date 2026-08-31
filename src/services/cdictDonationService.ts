@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import net from "node:net";
 import path from "node:path";
 import logger from "../utils/logger";
 import { CDictDonationClaimModel } from "../models/cdictDonationClaimModel";
@@ -72,9 +73,6 @@ const DEFAULT_CONFIG: CDictDonationConfig = {
   supporters: [],
 };
 
-const LOOPBACK_HOSTS = /^(localhost|0\.0\.0\.0|::1|\[::1\])$/i;
-const PRIVATE_IPV4 = /^(10\.|127\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
-
 /** 本部署自身的域名，用来拒绝"把图片地址填成本站地址"导致的跳转自环。 */
 function ownHostnames(): Set<string> {
   const hosts = new Set<string>(["tts.chloemlla.com"]);
@@ -87,6 +85,65 @@ function ownHostnames(): Set<string> {
     }
   }
   return hosts;
+}
+
+/** 是否私有/特殊用途 IPv4 地址。 */
+function isPrivateIPv4(ip: string): boolean {
+  const parts = ip.split(".").map(Number);
+  if (parts.length !== 4 || parts.some((p) => Number.isNaN(p) || p < 0 || p > 255)) return true; // 畸形当不安全
+  const [a, b] = parts;
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 100 && b >= 64 && b <= 127)
+  );
+}
+
+/**
+ * G7-58: unified "special-purpose address" check. The previous two regexes only
+ * covered dotted-decimal IPv4, missing integer-form IPv4 (2130706433), IPv6
+ * loopback/ULA/link-local, and IPv4-mapped IPv6 (::ffff:127.0.0.1).
+ */
+function isSpecialPurposeHost(hostname: string): boolean {
+  const lower = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+
+  // IPv4-mapped IPv6: ::ffff:a.b.c.d
+  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(lower);
+  if (mapped) return isPrivateIPv4(mapped[1]);
+
+  const family = net.isIP(lower);
+  if (family === 4) return isPrivateIPv4(lower);
+  if (family === 6) {
+    const v6 = lower.toLowerCase();
+    if (
+      v6 === "::1" ||
+      v6 === "::" ||
+      v6 === "0:0:0:0:0:0:0:1" ||
+      v6 === "0:0:0:0:0:0:0:0"
+    ) {
+      return true;
+    }
+    if (/^fe[89ab][0-9a-f]*:/i.test(v6)) return true; // link-local fe80::/10
+    if (/^fc[0-9a-f]{2}:/i.test(v6)) return true; // ULA fc00::/7
+    return false;
+  }
+
+  if (
+    lower === "localhost" ||
+    lower.endsWith(".localhost") ||
+    lower.endsWith(".local") ||
+    lower.endsWith(".internal")
+  ) {
+    return true;
+  }
+  // Integer-form IPv4 hostnames (e.g. 2130706433 for 127.0.0.1) parse as plain
+  // hostnames; reject all-numeric hosts to be safe.
+  if (/^\d+$/.test(lower)) return true;
+  return false;
 }
 
 function cloneDefaults(): CDictDonationConfig {
@@ -138,7 +195,7 @@ function normalizeImageUrl(value: unknown): string {
     throw new Error("图片地址必须使用 https");
   }
   const host = parsed.hostname.toLowerCase();
-  if (LOOPBACK_HOSTS.test(host) || PRIVATE_IPV4.test(host)) {
+  if (isSpecialPurposeHost(host)) {
     throw new Error("图片地址不能指向本机或内网");
   }
   if (parsed.pathname.toLowerCase().startsWith(DONATE_ROUTE_PREFIX)) {

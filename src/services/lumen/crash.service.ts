@@ -7,6 +7,11 @@ const MAX_CRASHES_PER_HOUR = 20;
 const CRASH_WINDOW_MS = 60 * 60 * 1000;
 const STACK_LINES = 12;
 const LINE_MAX_LENGTH = 200;
+const MAX_STACK_TRACE_CHARS = 64 * 1024;
+const MAX_SYSTEM_INFO_CHARS = 8 * 1024;
+const MAX_RECENT_EVENTS = 20;
+const MAX_RECENT_EVENT_CHARS = 512;
+const MAX_DEVICES_PER_GROUP = 10000;
 
 // ── Public API ──────────────────────────────────────────────────────────
 
@@ -49,11 +54,12 @@ export async function recordCrashReport(
     throw ApiError.badRequest("reportId is required");
   }
 
-  // ── Rate limit: 20 per hour per user+device ───────────────────────────
+  // ── Rate limit: 20 per hour per user ──────────────────────────────────
+  // G7-26: keyed on userId (server-authenticated), not the client-supplied
+  // deviceInstallationId which a client could rotate to reset the window.
   const windowStart = Date.now() - CRASH_WINDOW_MS;
   const recentCount = await CrashReport.countDocuments({
     userId,
-    deviceInstallationId: request.deviceInstallationId,
     receivedAt: { $gte: windowStart },
   }).exec();
 
@@ -97,7 +103,17 @@ export async function recordCrashReport(
 
   const now = Date.now();
 
-  // ── Persist the full crash report losslessly ──────────────────────────
+  // G7-26: hard limits on unbounded client fields — a single crash report must
+  // not be able to approach the 16MB BSON limit. Truncate rather than reject so
+  // the crash is still ingested for triage.
+  const persistedStackTrace = (request.stackTrace || "").slice(0, MAX_STACK_TRACE_CHARS);
+  const systemInfo = (request.systemInfo || "").slice(0, MAX_SYSTEM_INFO_CHARS);
+  const recentEvents = (request.recentEvents ?? [])
+    .filter((e): e is string => typeof e === "string")
+    .slice(0, MAX_RECENT_EVENTS)
+    .map((e) => e.slice(0, MAX_RECENT_EVENT_CHARS));
+
+  // ── Persist the crash report ──────────────────────────────────────────
   const doc = await CrashReport.create({
     _id: crypto.randomUUID(),
     userId,
@@ -111,9 +127,9 @@ export async function recordCrashReport(
     rootCause: request.rootCause ?? "",
     threadName: request.threadName ?? "",
     processName: request.processName ?? "",
-    systemInfo: request.systemInfo ?? "",
-    stackTrace,
-    recentEvents: request.recentEvents ?? [],
+    systemInfo,
+    stackTrace: persistedStackTrace,
+    recentEvents,
     kind: request.kind ?? "crash",
     durationMillis: request.durationMillis ?? 0,
     authorName: request.authorName ?? "",
@@ -125,19 +141,30 @@ export async function recordCrashReport(
   });
 
   // ── Update AdminCrashReport aggregation ───────────────────────────────
+  // G7-27: the `devices` array must not grow without bound (a single document
+  // could hit the 16MB cap and stop aggregating). Cap it, and read back only
+  // the fields needed for risk computation instead of the whole document.
   const updated = await AdminCrashReport.findOneAndUpdate(
     { groupKey: { $eq: groupKey }, versionCode: { $eq: versionCode } },
-    {
-      $inc: { count: 1 },
-      $addToSet: { devices: request.deviceInstallationId },
-      $set: {
-        groupKey,
-        versionCode,
-        cleanStack: cleanStackLines,
-        lastSeenAt: now,
+    [
+      {
+        $set: {
+          count: { $add: [{ $ifNull: ["$count", 0] }, 1] },
+          devices: {
+            $cond: [
+              { $lt: [{ $size: { $ifNull: ["$devices", []] } }, MAX_DEVICES_PER_GROUP] },
+              { $setUnion: [{ $ifNull: ["$devices", []] }, [request.deviceInstallationId]] },
+              { $ifNull: ["$devices", []] },
+            ],
+          },
+          groupKey,
+          versionCode,
+          cleanStack: cleanStackLines,
+          lastSeenAt: now,
+        },
       },
-    },
-    { upsert: true, new: true },
+    ] as any,
+    { upsert: true, new: true, projection: { _id: 1, devices: 1, count: 1 } },
   ).exec();
 
   const affectedUsers = updated!.devices.length;
@@ -146,14 +173,12 @@ export async function recordCrashReport(
   if (count >= 50 || affectedUsers >= 20) risk = "high";
   else if (count >= 10 || affectedUsers >= 5) risk = "medium";
 
-  // Repeat crashes from an already-known device leave both fields unchanged,
-  // so the follow-up write is only worth issuing when something moved.
-  if (updated!.affectedUsers !== affectedUsers || updated!.risk !== risk) {
-    await AdminCrashReport.updateOne(
-      { _id: updated!._id },
-      { $set: { affectedUsers, risk } },
-    ).exec();
-  }
+  // Persist the derived fields. (The findOneAndUpdate above only projected
+  // _id/devices/count, so the risk/affectedUsers update is issued unconditionally.)
+  await AdminCrashReport.updateOne(
+    { _id: updated!._id },
+    { $set: { affectedUsers, risk } },
+  ).exec();
 
   return {
     accepted: true,

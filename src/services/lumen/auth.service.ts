@@ -33,11 +33,39 @@ function generateRefreshToken(): string {
 }
 
 function generateLoginCode(): string {
-  return String(Math.floor(100000 + Math.random() * 900000));
+  // CSPRNG, not Math.random(): the login code is an authentication credential,
+  // and xorshift128+ output is predictable after observing a few samples.
+  return String(crypto.randomInt(100000, 1000000));
+}
+
+function constantTimeEqual(a: string, b: string): boolean {
+  try {
+    const ba = Buffer.from(a, "utf8");
+    const bb = Buffer.from(b, "utf8");
+    if (ba.length !== bb.length) return false;
+    return crypto.timingSafeEqual(ba, bb);
+  } catch {
+    return false;
+  }
 }
 
 // 单个登录请求最多允许尝试验证码的次数，超过即作废
 const MAX_VERIFY_ATTEMPTS = 5;
+
+/**
+ * Whether the dev login-code path may be active. The dev code must be
+ * explicitly enabled per environment (LUMEN_DEV_LOGIN_CODE set AND
+ * LUMEN_ALLOW_DEV_LOGIN=true) and never in production. Gating on "no outemail
+ * key" alone is unsafe: a misconfigured production box would silently expose
+ * login codes (G7-01).
+ */
+function devLoginEnabled(): boolean {
+  return (
+    process.env.NODE_ENV !== "production" &&
+    process.env.LUMEN_ALLOW_DEV_LOGIN === "true" &&
+    Boolean(lumenConfig.devLoginCode)
+  );
+}
 
 /**
  * Start an email-based login flow.
@@ -77,8 +105,8 @@ export async function startEmailLogin(email: string) {
     delivery = "failed";
   }
 
-  // If no outemail API key is configured, expose the dev code.
-  if (!lumenConfig.outemailApiKey) {
+  // Expose the dev code only under an explicit, non-production dev switch.
+  if (devLoginEnabled()) {
     devCode = lumenConfig.devLoginCode || code;
     delivery = "dev";
   }
@@ -116,9 +144,17 @@ export async function verifyEmailLogin(
     throw ApiError.badRequest("Email mismatch");
   }
 
-  if (pending.code !== code) {
-    // In dev mode, also accept the dev code.
-    if (!lumenConfig.outemailApiKey && code === lumenConfig.devLoginCode) {
+  // Explicit expiry check: Mongo's TTL monitor runs on its own schedule (up to
+  // a minute or more late), so the "5-minute expiry" promise must not depend on
+  // it. Compare here and consume the record immediately (G7-50).
+  if (pending.expiresAt <= new Date()) {
+    await PendingLogin.deleteOne({ _id: requestId }).exec();
+    throw ApiError.forbidden("Login request expired", "login_code_expired");
+  }
+
+  if (!constantTimeEqual(pending.code, code)) {
+    // In dev mode, also accept the dev code (only under the explicit dev switch).
+    if (devLoginEnabled() && constantTimeEqual(code, lumenConfig.devLoginCode)) {
       // Accept dev code
     } else {
       // 递增尝试次数，超过上限则作废该请求，防止验证码被暴力枚举

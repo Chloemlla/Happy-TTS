@@ -127,6 +127,12 @@ const QUEUED_JOB_STATUSES = ["queued", "dispatched", "acknowledged", "running"] 
 
 let defaultCommandPoliciesSeeded = false;
 
+// G7-21: serialize audit-chain writes within the process. The chain is a
+// "previous hash" linked list; without serialization two concurrent ops would
+// read the same `previous` and fork the chain. (Cross-instance forks still
+// require a monotonic `seq` unique index — model change, cross-group.)
+let auditChainQueue: Promise<void> = Promise.resolve();
+
 function opsError(statusCode: number, code: string, message: string, retryAfterSeconds: number | null = null) {
   return new EcoEnchantsServiceError(statusCode, code, message, retryAfterSeconds);
 }
@@ -153,12 +159,17 @@ function hmacHex(secret: string, value: string): string {
 }
 
 function getLicensePepper(): string {
-  return (
+  const envSecret =
     process.env.ECOENCHANTS_LICENSE_PEPPER ||
-    process.env.LICENSE_KEY_PEPPER ||
-    process.env.JWT_SECRET ||
-    config.jwtSecret ||
-    "ecoenchants-development-pepper"
+    process.env.LICENSE_KEY_PEPPER;
+  if (envSecret) return envSecret;
+  // G7-57: the pepper must not silently share the main-site JWT secret or a
+  // hardcoded dev value in production.
+  if (process.env.NODE_ENV !== "production" && (config.jwtSecret || "ecoenchants-development-pepper")) {
+    return config.jwtSecret || "ecoenchants-development-pepper";
+  }
+  throw new Error(
+    "[EcoEnchantsOps] Missing required license pepper. Set ECOENCHANTS_LICENSE_PEPPER or LICENSE_KEY_PEPPER.",
   );
 }
 
@@ -250,6 +261,32 @@ function normalizeOpsPath(value: unknown): string {
 function getLowerBasename(pathValue: string): string {
   const parts = pathValue.split("/");
   return (parts[parts.length - 1] || "").toLowerCase();
+}
+
+/**
+ * G7-20: bound the size of job output/result stored from an RPC message. The
+ * `MAX_JOB_OUTPUT_BYTES` constant existed but was never enforced on the receive
+ * side; an authenticated instance could write up to 16MB (BSON) of output into a
+ * job document. Oversized payloads are replaced with a truncation marker.
+ */
+function truncateRpcPayload(
+  value: unknown,
+  budget: number,
+): { value: unknown; truncated: boolean } {
+  if (value === undefined || value === null) return { value, truncated: false };
+  let serialized: string;
+  try {
+    serialized = JSON.stringify(value);
+  } catch {
+    return { value: { __truncated: true }, truncated: true };
+  }
+  if (Buffer.byteLength(serialized, "utf8") <= budget) {
+    return { value, truncated: false };
+  }
+  return {
+    value: { __truncated: true, preview: serialized.slice(0, budget) },
+    truncated: true,
+  };
 }
 
 function getExtension(pathValue: string): string {
@@ -449,15 +486,47 @@ function validateSimpleJsonSchema(schema: unknown, value: unknown): void {
   }
 
   const properties = isPlainObject(schema.properties) ? schema.properties : {};
+  // G7-46: reject undeclared properties. Previously any extra key/value was
+  // passed straight through into job params and forwarded to the Minecraft
+  // plugin, giving the schema zero enforcement power.
+  const declared = new Set(Object.keys(properties));
+  for (const field of Object.keys(value)) {
+    if (!declared.has(field)) {
+      throw opsError(422, "policy_rejected", `Command argument ${field} is not allowed by the command policy.`);
+    }
+  }
+
   for (const [field, fieldSchema] of Object.entries(properties)) {
     if (value[field] === undefined || !isPlainObject(fieldSchema)) continue;
     const actual = value[field];
     const expectedType = cleanString(fieldSchema.type);
-    if (expectedType && typeof actual !== expectedType) {
-      throw opsError(422, "policy_rejected", `Command argument ${field} has an invalid type.`);
+    if (expectedType) {
+      const typeOk =
+        expectedType === "integer"
+          ? typeof actual === "number" && Number.isInteger(actual)
+          : expectedType === "number"
+            ? typeof actual === "number"
+            : expectedType === "string"
+              ? typeof actual === "string"
+              : expectedType === "boolean"
+                ? typeof actual === "boolean"
+                : expectedType === "array"
+                  ? Array.isArray(actual)
+                  : expectedType === "object"
+                    ? isPlainObject(actual)
+                    : typeof actual === expectedType;
+      if (!typeOk) {
+        throw opsError(422, "policy_rejected", `Command argument ${field} has an invalid type.`);
+      }
     }
     if (Array.isArray(fieldSchema.enum) && !fieldSchema.enum.includes(actual)) {
       throw opsError(422, "policy_rejected", `Command argument ${field} is not in the allowed set.`);
+    }
+    // G7-46: reject control characters / newlines in string arguments so a
+    // malicious parameter cannot break out of the plugin's console command
+    // template into a second command.
+    if (typeof actual === "string" && /[\u0000-\u001f\u007f]/.test(actual)) {
+      throw opsError(422, "policy_rejected", `Command argument ${field} contains control characters.`);
     }
   }
 }
@@ -468,7 +537,10 @@ export class EcoEnchantsOpsService {
 
   static initRpcWebSocket(): void {
     if (EcoEnchantsOpsService.rpcWss) return;
-    EcoEnchantsOpsService.rpcWss = new WebSocketServer({ noServer: true });
+    // G7-20: bound the WS message size — the previous default (100MB) let an
+    // authenticated instance push huge messages that JSON.parse'd fully into
+    // memory and were written into job docs.
+    EcoEnchantsOpsService.rpcWss = new WebSocketServer({ noServer: true, maxPayload: 512 * 1024 });
     EcoEnchantsOpsService.rpcWss.on("connection", (ws, req) => {
       void EcoEnchantsOpsService.handleRpcConnection(ws, req);
     });
@@ -968,6 +1040,17 @@ export class EcoEnchantsOpsService {
     if (connection.supportedMethods.size && !connection.supportedMethods.has(job.method)) return false;
 
     const now = new Date();
+    // G7-19: claim-then-send. The previous order (send first, then mark) let two
+    // concurrent `rpc.hello` dispatches both `ws.send` the same job, so a
+    // reconnect could double-execute a destructive file delete/restore. Only the
+    // request that atomically flips queued→dispatched actually sends.
+    const claimed = await EcoEnchantsOpsJobModel.findOneAndUpdate(
+      { jobId: job.jobId, status: "queued" },
+      { $set: { status: "dispatched", issuedAt: now, dispatchedAt: now } },
+      { new: true },
+    );
+    if (!claimed) return false;
+
     const envelope = {
       type: "rpc.request",
       requestId: job.requestId,
@@ -978,11 +1061,7 @@ export class EcoEnchantsOpsService {
       params: job.params,
     };
     connection.ws.send(JSON.stringify(envelope));
-    const result = await EcoEnchantsOpsJobModel.updateOne(
-      { jobId: job.jobId, status: "queued" },
-      { $set: { status: "dispatched", issuedAt: now, dispatchedAt: now } },
-    );
-    return result.matchedCount > 0;
+    return true;
   }
 
   private static async dispatchPendingJobs(instanceId: string): Promise<void> {
@@ -1050,6 +1129,17 @@ export class EcoEnchantsOpsService {
         lastSeenWrittenAtMs: Date.now(),
         supportedMethods: new Set(instance.supportedMethods || []),
       };
+      // G7-20: a reconnecting instance must not leave a stale socket that later
+      // deletes the NEW connection. Close the previous one and make the close
+      // handler ownership-aware.
+      const previous = EcoEnchantsOpsService.rpcConnections.get(instance.instanceId);
+      if (previous && previous !== connection) {
+        try {
+          previous.ws.close();
+        } catch {
+          // ignore close failures
+        }
+      }
       EcoEnchantsOpsService.rpcConnections.set(instance.instanceId, connection);
       await EcoEnchantsOpsInstanceModel.updateOne(
         { instanceId: instance.instanceId },
@@ -1057,10 +1147,21 @@ export class EcoEnchantsOpsService {
       );
 
       ws.on("message", (raw) => {
+        // G7-20: enforce the WS maxPayload at the application layer too (the
+        // ws maxPayload applies to the whole message; this guards the string
+        // length that we hand to JSON.parse).
+        if (raw.length > 512 * 1024) {
+          logger.warn("[EcoEnchantsOps] Oversized RPC message rejected", { instanceId: instance.instanceId, bytes: raw.length });
+          return;
+        }
         void EcoEnchantsOpsService.handleRpcMessage(connection, raw.toString());
       });
       ws.on("close", () => {
-        EcoEnchantsOpsService.rpcConnections.delete(instance.instanceId);
+        // Only the current connection may clear the map entry — otherwise the
+        // stale socket's close event would delete the live connection.
+        if (EcoEnchantsOpsService.rpcConnections.get(instance.instanceId) === connection) {
+          EcoEnchantsOpsService.rpcConnections.delete(instance.instanceId);
+        }
         void EcoEnchantsOpsInstanceModel.updateOne(
           { instanceId: instance.instanceId, status: "online" },
           { $set: { status: "offline", disconnectedAt: new Date(), lastSeenAt: new Date() } },
@@ -1133,9 +1234,11 @@ export class EcoEnchantsOpsService {
     }
 
     if (message.type === "rpc.progress") {
+      const rawOutput = message.output || { progress: message.progress || {} };
+      const outputTrunc = truncateRpcPayload(rawOutput, MAX_JOB_OUTPUT_BYTES);
       const job = await EcoEnchantsOpsJobModel.findOneAndUpdate(
         { jobId, instanceId: connection.instanceId },
-        { $set: { output: message.output || { progress: message.progress || {} } }, $min: { startedAt: now } },
+        { $set: { output: outputTrunc.value, ...(outputTrunc.truncated ? { outputTruncated: true } : {}) }, $min: { startedAt: now } },
       );
       if (!job) return;
       const nextStatus = message.status === "running" || job.status === "queued" ? "running" : job.status;
@@ -1151,20 +1254,28 @@ export class EcoEnchantsOpsService {
     if (message.type === "rpc.result") {
       const finalStatus = message.status === "succeeded" ? "succeeded" : message.status === "canceled" ? "canceled" : "failed";
       const completedAt = message.completedAt ? new Date(message.completedAt) : now;
+      // G7-20/G7-46: enforce the output size bound on the receive side.
+      const outputBudget = MAX_JOB_OUTPUT_BYTES;
+      const resultTrunc = truncateRpcPayload(message.result || {}, outputBudget);
+      const outputTrunc = truncateRpcPayload(message.output || null, outputBudget);
+      const errorTrunc = truncateRpcPayload(message.error || null, outputBudget);
       const job = await EcoEnchantsOpsJobModel.findOneAndUpdate(
         { jobId, instanceId: connection.instanceId },
         {
           $set: {
             status: finalStatus,
-            result: message.result || {},
-            output: message.output || null,
-            error: message.error || null,
+            result: resultTrunc.value,
+            output: outputTrunc.value,
+            error: errorTrunc.value,
             completedAt,
+            ...(resultTrunc.truncated || outputTrunc.truncated || errorTrunc.truncated
+              ? { outputTruncated: true }
+              : { outputTruncated: false }),
           },
         },
       );
       if (!job) return;
-      await EcoEnchantsOpsService.updateBackupFromJobResult(job, message.result || {}, finalStatus);
+      await EcoEnchantsOpsService.updateBackupFromJobResult(job, (resultTrunc.value as Record<string, unknown>) || {}, finalStatus);
       await EcoEnchantsOpsService.logOpsAudit({
         context: {
           requestId: job.requestId,
@@ -1245,34 +1356,38 @@ export class EcoEnchantsOpsService {
     beforeSha256?: string;
     afterSha256?: string;
   }): Promise<void> {
-    try {
-      const previous = await EcoEnchantsOpsAuditLogModel.findOne({}).sort({ createdAt: -1 }).select("entryHash").lean();
-      const actorType: "admin" | "license" | "system" =
-        params.context.actorType === "license" ? "license" : params.context.actorType === "system" ? "system" : "admin";
-      const base = {
-        auditId: `aud_${uuidv4()}`,
-        requestId: params.context.requestId,
-        jobId: params.jobId,
-        instanceId: params.instanceId,
-        actorType,
-        actorId: params.context.actorId || "unknown",
-        action: params.action,
-        resource: sanitizeResource(params.resource),
-        decision: params.decision,
-        result: params.result,
-        beforeSha256: params.beforeSha256,
-        afterSha256: params.afterSha256,
-        policyVersion: params.policyVersion,
-        previousEntryHash: previous?.entryHash,
-        createdAt: new Date(),
-      };
-      const entryHash = sha256Hex(stableStringify({ ...base, previousEntryHash: previous?.entryHash || null }));
-      await EcoEnchantsOpsAuditLogModel.create({ ...base, entryHash });
-    } catch (error) {
-      logger.warn("[EcoEnchantsOps] Failed to write ops audit log", {
-        requestId: params.context.requestId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
+    const run = auditChainQueue.then(async () => {
+      try {
+        const previous = await EcoEnchantsOpsAuditLogModel.findOne({}).sort({ createdAt: -1, _id: -1 }).select("entryHash").lean();
+        const actorType: "admin" | "license" | "system" =
+          params.context.actorType === "license" ? "license" : params.context.actorType === "system" ? "system" : "admin";
+        const base = {
+          auditId: `aud_${uuidv4()}`,
+          requestId: params.context.requestId,
+          jobId: params.jobId,
+          instanceId: params.instanceId,
+          actorType,
+          actorId: params.context.actorId || "unknown",
+          action: params.action,
+          resource: sanitizeResource(params.resource),
+          decision: params.decision,
+          result: params.result,
+          beforeSha256: params.beforeSha256,
+          afterSha256: params.afterSha256,
+          policyVersion: params.policyVersion,
+          previousEntryHash: previous?.entryHash,
+          createdAt: new Date(),
+        };
+        const entryHash = sha256Hex(stableStringify({ ...base, previousEntryHash: previous?.entryHash || null }));
+        await EcoEnchantsOpsAuditLogModel.create({ ...base, entryHash });
+      } catch (error) {
+        logger.warn("[EcoEnchantsOps] Failed to write ops audit log", {
+          requestId: params.context.requestId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    });
+    auditChainQueue = run.catch(() => undefined);
+    return run;
   }
 }

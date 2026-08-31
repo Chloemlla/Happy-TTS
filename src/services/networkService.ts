@@ -10,7 +10,9 @@ export interface NetworkTestResponse {
 }
 
 export class NetworkService {
-  private static readonly BASE_URL = "https://v2.xxapi.cn/api";
+  // G7-48: single shared upstream base URL, overridable via env so a domain
+  // change does not require editing six service files.
+  private static readonly BASE_URL = (process.env.XXAPI_BASE_URL || "https://v2.xxapi.cn/api").replace(/\/+$/, "");
 
   public static async tcpPing(address: string, port: number): Promise<NetworkTestResponse> {
     return NetworkService.tcpPingViaExternalApi(address, port);
@@ -23,9 +25,10 @@ export class NetworkService {
       const response = await axios.get(`${NetworkService.BASE_URL}/tcping`, {
         params: { address, port },
         timeout: 10000,
+        maxContentLength: 2 * 1024 * 1024,
       });
 
-      logger.info("TCP连接检测完成", { address, port, result: response.data });
+      logger.info("TCP连接检测完成", { address, port, status: response.status });
 
       return {
         success: true,
@@ -66,9 +69,10 @@ export class NetworkService {
       const response = await axios.get(`${NetworkService.BASE_URL}/ping`, {
         params: { url },
         timeout: 15000,
+        maxContentLength: 2 * 1024 * 1024,
       });
 
-      logger.info("Ping检测完成", { url, result: response.data });
+      logger.info("Ping检测完成", { url, status: response.status });
 
       return {
         success: true,
@@ -109,9 +113,10 @@ export class NetworkService {
       const response = await axios.get(`${NetworkService.BASE_URL}/speed`, {
         params: { url },
         timeout: 30000,
+        maxContentLength: 2 * 1024 * 1024,
       });
 
-      logger.info("网站测速完成", { url, result: response.data });
+      logger.info("网站测速完成", { url, status: response.status });
 
       return {
         success: true,
@@ -152,9 +157,10 @@ export class NetworkService {
       const response = await axios.get(`${NetworkService.BASE_URL}/portscan`, {
         params: { address },
         timeout: 60000,
+        maxContentLength: 2 * 1024 * 1024,
       });
 
-      logger.info("端口扫描完成", { address, result: response.data });
+      logger.info("端口扫描完成", { address, status: response.status });
 
       return {
         success: true,
@@ -191,9 +197,10 @@ export class NetworkService {
       const response = await axios.get(`${NetworkService.BASE_URL}/ipv2`, {
         params: { ip, key: process.env.IP_QUERY_KEY },
         timeout: 10000,
+        maxContentLength: 2 * 1024 * 1024,
       });
 
-      logger.info("精准IP查询完成", { ip, result: response.data });
+      logger.info("精准IP查询完成", { ip, status: response.status });
 
       return {
         success: true,
@@ -230,9 +237,10 @@ export class NetworkService {
       const response = await axios.get(`${NetworkService.BASE_URL}/yiyan`, {
         params: { type },
         timeout: 8000,
+        maxContentLength: 2 * 1024 * 1024,
       });
 
-      logger.info("随机一言古诗词获取完成", { type, result: response.data });
+      logger.info("随机一言古诗词获取完成", { type, status: response.status });
 
       return {
         success: true,
@@ -268,9 +276,10 @@ export class NetworkService {
 
       const response = await axios.get(`${NetworkService.BASE_URL}/douyinhot`, {
         timeout: 15000,
+        maxContentLength: 2 * 1024 * 1024,
       });
 
-      logger.info("抖音热榜获取完成", { result: response.data });
+      logger.info("抖音热榜获取完成", { status: response.status });
 
       return {
         success: true,
@@ -514,10 +523,11 @@ export class NetworkService {
 
       const response = await axios.get(`${targetUrl}?${params.toString()}`, {
         timeout: 60000,
+        maxContentLength: 2 * 1024 * 1024,
         maxRedirects: 5,
       });
 
-      logger.info("FLAC转MP3转换完成", { url, returnType, result: response.data });
+      logger.info("FLAC转MP3转换完成", { url, returnType, status: response.status });
 
       return {
         success: true,
@@ -569,10 +579,11 @@ export class NetworkService {
 
       const response = await axios.get(`${targetUrl}?${params.toString()}`, {
         timeout: 15000,
+        maxContentLength: 2 * 1024 * 1024,
         maxRedirects: 3,
       });
 
-      logger.info("随机驾考题目获取完成", { subject, result: response.data });
+      logger.info("随机驾考题目获取完成", { subject, status: response.status });
 
       return {
         success: true,

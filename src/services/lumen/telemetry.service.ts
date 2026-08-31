@@ -9,17 +9,44 @@ const TELEMETRY_WINDOW_MS = 60 * 60 * 1000;
 const MAX_STRING_LENGTH = 500;
 const MAX_ARRAY_LENGTH = 50;
 const MAX_PAYLOAD_DEPTH = 5;
+const MAX_SERIALIZED_PAYLOAD_BYTES = 1024 * 1024; // 1MB hard cap after sanitization
 
 // ── Helpers ─────────────────────────────────────────────────────────────
+
+/**
+ * Recursively sanitize a single value.
+ * G7-49: arrays are NOT a bypass — every element is recursively run through the
+ * same string/object/array truncation as the top level.
+ */
+function sanitizeValue(value: unknown, depth: number): unknown {
+  if (typeof value === "string") {
+    return value.trim().slice(0, MAX_STRING_LENGTH);
+  }
+  if (Array.isArray(value)) {
+    return value
+      .slice(0, MAX_ARRAY_LENGTH)
+      .map((item) => sanitizeValue(item, depth + 1));
+  }
+  if (value !== null && typeof value === "object") {
+    if (depth > MAX_PAYLOAD_DEPTH) return { __truncated: true };
+    const result: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
+      result[key] = sanitizeValue(entry, depth + 1);
+    }
+    return result;
+  }
+  return value;
+}
 
 /**
  * Sanitize a telemetry upload payload.
  *
  * - Trims strings
- * - Truncates arrays to MAX_ARRAY_LENGTH
+ * - Truncates arrays to MAX_ARRAY_LENGTH AND truncates each element
  * - Validates package names (alphanumeric + dots)
  * - Clamps numeric values (0–100)
  * - Validates device fingerprints (64 hex chars)
+ * - Caps the serialized size of the whole payload (G7-49)
  */
 function sanitizeTelemetryUpload(payload: Record<string, unknown>): Record<string, unknown> {
   const sanitized: Record<string, unknown> = {};
@@ -52,37 +79,14 @@ function sanitizeTelemetryUpload(payload: Record<string, unknown>): Record<strin
       } else {
         sanitized[key] = value;
       }
-    } else if (Array.isArray(value)) {
-      sanitized[key] = value.slice(0, MAX_ARRAY_LENGTH);
     } else if (value !== null && typeof value === "object") {
-      sanitized[key] = truncateObject(value as Record<string, unknown>, 1);
+      sanitized[key] = sanitizeValue(value, 1);
     } else {
       sanitized[key] = value;
     }
   }
 
   return sanitized;
-}
-
-function truncateObject(
-  obj: Record<string, unknown>,
-  depth: number,
-): Record<string, unknown> {
-  if (depth > MAX_PAYLOAD_DEPTH) return { __truncated: true };
-
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (typeof value === "string") {
-      result[key] = value.slice(0, MAX_STRING_LENGTH);
-    } else if (Array.isArray(value)) {
-      result[key] = value.slice(0, MAX_ARRAY_LENGTH);
-    } else if (value !== null && typeof value === "object") {
-      result[key] = truncateObject(value as Record<string, unknown>, depth + 1);
-    } else {
-      result[key] = value;
-    }
-  }
-  return result;
 }
 
 // ── Public API ──────────────────────────────────────────────────────────
@@ -104,11 +108,12 @@ export async function recordTelemetryUpload(
     throw ApiError.badRequest("deviceInstallationId is required");
   }
 
-  // Rate limit: 60 per hour per user.
+  // Rate limit: 60 per hour per user. G7-26: keyed on userId (server-authenticated)
+  // instead of the client-supplied deviceInstallationId, which a client could
+  // rotate to reset the window at will.
   const windowStart = Date.now() - TELEMETRY_WINDOW_MS;
   const recentCount = await TelemetryUpload.countDocuments({
     userId,
-    deviceInstallationId: request.deviceInstallationId,
     receivedAt: { $gte: windowStart },
   }).exec();
 
@@ -119,6 +124,12 @@ export async function recordTelemetryUpload(
   const sanitizedPayload = request.payload
     ? sanitizeTelemetryUpload(request.payload as Record<string, unknown>)
     : {};
+
+  // G7-49: hard cap on the serialized payload — per-field truncation alone is
+  // not enough because array elements previously bypassed it.
+  if (JSON.stringify(sanitizedPayload).length > MAX_SERIALIZED_PAYLOAD_BYTES) {
+    throw ApiError.badRequest("Telemetry payload exceeds the maximum allowed size");
+  }
 
   const now = Date.now();
   const doc = await TelemetryUpload.create({

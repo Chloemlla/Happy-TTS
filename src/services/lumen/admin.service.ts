@@ -3,6 +3,7 @@ import { AdminSession, AdminActionAudit, User, Entitlement, AdminTemplate, Admin
 import { lumenConfig } from "../../config/lumen.js";
 import { ApiError } from "./errors.js";
 import logger from "../../utils/logger.js";
+import { TIER_RANK } from "./entitlements.service.js";
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -175,12 +176,21 @@ export async function applyAdminAction(
       if (!userId || typeof userId !== "string" || !tier) {
         throw ApiError.badRequest("Payload must include userId and tier");
       }
+      // G7-52: tier must be one of the registered tiers. A typo like "Pro" or
+      // "PROO" must fail loudly instead of silently resolving to FREE via
+      // `TIER_RANK[tier] ?? 0`.
+      const normalizedTier = String(tier).toUpperCase();
+      if (!(normalizedTier in TIER_RANK)) {
+        throw ApiError.badRequest(
+          `Invalid tier: ${tier}. Must be one of: ${Object.keys(TIER_RANK).join(", ")}`,
+        );
+      }
       // Upsert a manual entitlement.
       await Entitlement.updateOne(
         { userId, source: "admin" },
         {
           $set: {
-            tier,
+            tier: normalizedTier,
             status: "active",
             lastVerifiedAt: now,
             rawPayloadJson: JSON.stringify({ operator, action, previousTier: payload.previousTier }),
@@ -189,7 +199,7 @@ export async function applyAdminAction(
             _id: crypto.randomUUID(),
             userId,
             source: "admin",
-            productId: (payload.productId as string) || `admin_${tier.toLowerCase()}`,
+            productId: (payload.productId as string) || `admin_${normalizedTier.toLowerCase()}`,
             purchaseToken: "",
             purchasedAt: now,
             expiresAt: (payload.expiresAt as number) || 0,
@@ -197,7 +207,7 @@ export async function applyAdminAction(
         },
         { upsert: true },
       ).exec();
-      logger.info("[Lumen Admin] Plan changed", { userId, tier, operator });
+      logger.info("[Lumen Admin] Plan changed", { userId, tier: normalizedTier, operator });
       break;
     }
 
@@ -206,8 +216,9 @@ export async function applyAdminAction(
       if (!revokeUserId || typeof revokeUserId !== "string") {
         throw ApiError.badRequest("Payload must include userId");
       }
+      const paidTiers = Object.keys(TIER_RANK).filter((t) => TIER_RANK[t] > 0);
       await Entitlement.updateMany(
-        { userId: revokeUserId, tier: { $in: ["PRO", "PLUS", "TEAM", "DEVELOPER"] } },
+        { userId: revokeUserId, tier: { $in: paidTiers } },
         { $set: { status: "revoked", lastVerifiedAt: now } },
       ).exec();
       logger.info("[Lumen Admin] PRO revoked", { userId: revokeUserId, operator });
@@ -240,18 +251,32 @@ export async function applyAdminAction(
       const id = typeof payload.id === "string" ? payload.id : `version-${versionCode}`;
       const assets = releaseAssetsFromPayload(payload);
       const patches = releasePatchesFromPayload(payload);
-      const legacySha256 = (payload.sha256 as string) || assets[0]?.sha256 || "pending";
+      // G7-51: never fall back to a literal "pending" checksum — a force-update
+      // release without a verifiable SHA-256 must be rejected outright, and the
+      // release URL must pass the same GitHub-download check as assets[].
+      const legacySha256 = typeof payload.sha256 === "string" ? (payload.sha256 as string).trim().toLowerCase() : "";
+      if (legacySha256 && !isSha256Hex(legacySha256)) {
+        throw ApiError.badRequest("Release SHA256 must be a 64-character hex string.");
+      }
+      const hasAnyChecksum = Boolean(legacySha256) || assets.some((a) => Boolean(a.sha256));
+      if (!hasAnyChecksum) {
+        throw ApiError.badRequest("A release with forceUpdate enabled must include a SHA-256 checksum.");
+      }
+      const releaseUrl = (payload.releaseUrl as string) || "";
+      if (releaseUrl && !isGithubReleaseDownloadUrl(releaseUrl)) {
+        throw ApiError.badRequest("Release URL must point to a GitHub release download.");
+      }
       const record = {
         _id: id,
         versionCode,
         versionName: (payload.versionName as string) || "admin-policy",
         channel: (payload.channel as string) || "stable",
-        releaseUrl: (payload.releaseUrl as string) || "",
+        releaseUrl,
         sha256: legacySha256,
         assets,
         patches,
         rollout: (payload.rollout as string) || "blocked",
-        forceUpdate: payload.forceUpdate !== undefined ? Boolean(payload.forceUpdate) : true,
+        forceUpdate: payload.forceUpdate !== undefined ? Boolean(payload.forceUpdate) : false,
         createdAt: now,
       };
       await AdminRelease.findOneAndUpdate(

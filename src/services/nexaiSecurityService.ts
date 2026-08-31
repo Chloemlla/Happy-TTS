@@ -41,8 +41,21 @@ function parseScoreHeader(value: unknown, fallback = 0): number {
   return Math.min(1, Math.max(0, parsed));
 }
 
+const RISK_LEVELS = ["SAFE", "LOW", "MEDIUM", "HIGH", "CRITICAL"] as const;
+
+/**
+ * G7-13: risk score is a client-reported integer on a 0..100 scale. Clamp it so
+ * negative or absurd values cannot silently downgrade a device to NORMAL.
+ */
+function parseRiskScoreHeader(value: unknown): number {
+  if (typeof value !== "string" || value.trim() === "") return 0;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.min(100, Math.max(0, Math.round(parsed)));
+}
+
 export function extractSecurityHeaders(req: Request): DeviceSecurityHeaders {
-  const riskScore = parseInt(String(req.headers["x-device-risk-score"] ?? ""), 10) || 0;
+  const riskScore = parseRiskScoreHeader(req.headers["x-device-risk-score"]);
   const antiDebugScore = parseScoreHeader(req.headers["x-device-anti-debug-score"], 0);
   const isDebugger = parseFlagHeader(req.headers["x-device-debugger"]);
   const isAdbEnabled = parseFlagHeader(req.headers["x-device-adb"]);
@@ -54,12 +67,32 @@ export function extractSecurityHeaders(req: Request): DeviceSecurityHeaders {
     isTracerAttached ||
     antiDebugScore >= 0.5;
 
+  // G7-13: repeated headers arrive as string[] — never trust them as a plain
+  // string (it would corrupt the (userId, deviceFingerprint) upsert key).
+  const rawFingerprint = req.headers["x-device-fingerprint"];
+  const deviceFingerprint =
+    typeof rawFingerprint === "string" ? rawFingerprint : Array.isArray(rawFingerprint) ? rawFingerprint[0] : undefined;
+  const rawAppVersion = req.headers["x-app-version"];
+  const appVersion = typeof rawAppVersion === "string" ? rawAppVersion : Array.isArray(rawAppVersion) ? rawAppVersion[0] : undefined;
+  const rawAppBuild = req.headers["x-app-build"];
+  const appBuild = typeof rawAppBuild === "string" ? rawAppBuild : Array.isArray(rawAppBuild) ? rawAppBuild[0] : undefined;
+
+  // G7-13: riskLevel must be one of the known enums; an arbitrary string would
+  // be persisted verbatim and could reach an admin UI (stored XSS) or skew
+  // risk-level aggregations.
+  const rawRiskLevel = req.headers["x-device-risk-level"];
+  const riskLevelHeader = typeof rawRiskLevel === "string" ? rawRiskLevel : Array.isArray(rawRiskLevel) ? rawRiskLevel[0] : undefined;
+  const riskLevel =
+    riskLevelHeader && (RISK_LEVELS as readonly string[]).includes(riskLevelHeader)
+      ? (riskLevelHeader as DeviceSecurityHeaders["riskLevel"])
+      : getRiskLevelFromScore(riskScore);
+
   return {
-    deviceFingerprint: req.headers["x-device-fingerprint"] as string,
-    appVersion: req.headers["x-app-version"] as string,
-    appBuild: req.headers["x-app-build"] as string,
+    deviceFingerprint,
+    appVersion,
+    appBuild,
     riskScore,
-    riskLevel: (req.headers["x-device-risk-level"] as any) || getRiskLevelFromScore(riskScore),
+    riskLevel,
     isCompromised,
     isRoot: parseFlagHeader(req.headers["x-device-root"]),
     isDebugger,
@@ -307,11 +340,12 @@ export async function getDeviceStatus(deviceFingerprint: string): Promise<{
     let status: "normal" | "flagged" | "blocked" = "normal";
     let message = "Device is operating normally";
 
-    if (strategy === "BLOCK") {
-      status = "blocked";
-      restrictions.push("all_operations_blocked");
-      message = "Your device has been blocked due to security concerns";
-    } else if (strategy === "HONEYPOT" || strategy === "RESTRICT") {
+    // G7-13: the stored riskScore/riskLevel/signature flags below originate from
+    // client-reported HTTP headers, so they are NOT trustworthy enough to issue
+    // a hard BLOCK. Cap enforcement at "flagged/restrict" — an attacker can
+    // always send clean headers, so BLOCK based on them would be both useless
+    // and a way to (self-)DoS real users whose client misreports.
+    if (strategy === "HONEYPOT" || strategy === "RESTRICT" || strategy === "BLOCK") {
       status = "flagged";
       restrictions.push("payment_disabled", "api_rate_limited");
       message = "Your device has been flagged due to security concerns";

@@ -8,7 +8,8 @@ export interface SocialResponse {
 }
 
 export class SocialService {
-  private static readonly BASE_URL = "https://v2.xxapi.cn/api";
+  // G7-48: shared upstream base URL, overridable via env.
+  private static readonly BASE_URL = (process.env.XXAPI_BASE_URL || "https://v2.xxapi.cn/api").replace(/\/+$/, "");
 
   /**
    * 微博热搜
@@ -20,9 +21,10 @@ export class SocialService {
 
       const response = await axios.get(`${SocialService.BASE_URL}/weibohot`, {
         timeout: 10000, // 10秒超时
+        maxContentLength: 2 * 1024 * 1024,
       });
 
-      logger.info("微博热搜获取完成", { result: response.data });
+      logger.info("微博热搜获取完成", { status: response.status });
 
       return {
         success: true,
@@ -62,9 +64,10 @@ export class SocialService {
 
       const response = await axios.get(`${SocialService.BASE_URL}/baiduhot`, {
         timeout: 10000, // 10秒超时
+        maxContentLength: 2 * 1024 * 1024,
       });
 
-      logger.info("百度热搜获取完成", { result: response.data });
+      logger.info("百度热搜获取完成", { status: response.status });
 
       return {
         success: true,

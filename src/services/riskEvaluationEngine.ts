@@ -56,11 +56,19 @@ const RISK_THRESHOLDS = {
 // IP reputation cache
 const ipReputationCache = new Map<string, { reputation: number; timestamp: number }>();
 const IP_REPUTATION_TTL = 3600000; // 1 hour
+const MAX_IP_CACHE_SIZE = 5000; // G7-29: bounded cache
 
 // Device fingerprint tracking
 const deviceFingerprintHistory = new Map<string, VerificationAttempt[]>();
 const FINGERPRINT_HISTORY_TTL = 86400000; // 24 hours
 const MAX_FINGERPRINT_HISTORY = 100;
+
+// G7-29: IP -> attempts index so getRecentAttempts does not scan every
+// fingerprint key on every assessment (it used to make the hot path O(total
+// history) per call).
+const ipAttemptIndex = new Map<string, VerificationAttempt[]>();
+const MAX_IP_INDEX_HISTORY = 200;
+const MAX_IP_INDEX_KEYS = 20000;
 
 // Suspicious pattern detection
 const _suspiciousPatterns = new Map<string, { count: number; firstSeen: number; lastSeen: number }>();
@@ -81,18 +89,32 @@ export class RiskEvaluationEngine {
    * Initialize blocked IPs list
    */
   private initializeBlockedIPs(): void {
-    // Add known malicious IPs
-    this.blockedIPs.add("192.168.1.100"); // Example blocked IP
-    // Add more blocked IPs as needed
+    // G7-29: an example/placeholder IP (192.168.1.100) was previously baked into
+    // production code as a "known malicious IP". Blocked IPs should come from
+    // real threat intel, not a sample value. Kept empty by default.
+    const envBlocked = process.env.RISK_ENGINE_BLOCKED_IPS;
+    if (envBlocked) {
+      for (const ip of envBlocked.split(",")) {
+        const trimmed = ip.trim();
+        if (trimmed) this.blockedIPs.add(trimmed);
+      }
+    }
   }
 
   /**
    * Initialize trusted IPs list
    */
   private initializeTrustedIPs(): void {
-    // Add known trusted IPs
-    this.trustedIPs.add("127.0.0.1"); // Localhost
-    // Add more trusted IPs as needed
+    // G7-29: localhost was previously trusted unconditionally, which makes every
+    // request whose req.ip resolves to loopback "trusted" behind a reverse proxy.
+    // Trusted IPs are now an explicit opt-in env list only.
+    const envTrusted = process.env.RISK_ENGINE_TRUSTED_IPS;
+    if (envTrusted) {
+      for (const ip of envTrusted.split(",")) {
+        const trimmed = ip.trim();
+        if (trimmed) this.trustedIPs.add(trimmed);
+      }
+    }
   }
 
   /**
@@ -228,7 +250,11 @@ export class RiskEvaluationEngine {
         risk += 0.15;
       }
 
-      // Cache the result
+      // Cache the result (G7-29: bounded cache — evict oldest when full).
+      if (ipReputationCache.size >= MAX_IP_CACHE_SIZE) {
+        const oldestKey = ipReputationCache.keys().next().value;
+        if (oldestKey !== undefined) ipReputationCache.delete(oldestKey);
+      }
       ipReputationCache.set(ip, { reputation: risk, timestamp: Date.now() });
 
       return Math.min(risk, 1.0);
@@ -455,6 +481,22 @@ export class RiskEvaluationEngine {
     history = history.filter((entry) => entry.timestamp > cutoff);
 
     deviceFingerprintHistory.set(fingerprintKey, history);
+
+    // G7-29: maintain the IP index so getRecentAttempts is O(history for that
+    // IP) instead of O(all fingerprint histories).
+    const ipHistory = ipAttemptIndex.get(attempt.ip) || [];
+    ipHistory.push(attempt);
+    const prunedIpHistory = ipHistory
+      .filter((entry) => entry.timestamp > cutoff)
+      .slice(-MAX_IP_INDEX_HISTORY);
+    ipAttemptIndex.set(attempt.ip, prunedIpHistory);
+
+    // Bound the index size: if it exceeds the cap, drop entries for the least
+    // recently written IPs.
+    if (ipAttemptIndex.size > MAX_IP_INDEX_KEYS) {
+      const oldestIp = ipAttemptIndex.keys().next().value;
+      if (oldestIp !== undefined) ipAttemptIndex.delete(oldestIp);
+    }
   }
 
   /**
@@ -462,14 +504,10 @@ export class RiskEvaluationEngine {
    */
   private getRecentAttempts(ip: string, timeWindow: number): VerificationAttempt[] {
     const cutoff = Date.now() - timeWindow;
-    const attempts: VerificationAttempt[] = [];
-
-    // Collect attempts from all fingerprint histories
-    for (const history of deviceFingerprintHistory.values()) {
-      attempts.push(...history.filter((entry) => entry.ip === ip && entry.timestamp > cutoff));
-    }
-
-    return attempts.sort((a, b) => b.timestamp - a.timestamp);
+    const history = ipAttemptIndex.get(ip) || [];
+    return history
+      .filter((entry) => entry.timestamp > cutoff)
+      .sort((a, b) => b.timestamp - a.timestamp);
   }
 
   /**

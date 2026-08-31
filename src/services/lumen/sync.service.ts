@@ -3,12 +3,21 @@ import { Counter, SyncChange, type ISyncChange } from "../../models/lumen/index.
 import { ApiError } from "./errors.js";
 import logger from "../../utils/logger.js";
 
+// ── Constants ─────────────────────────────────────────────────────────────
+const MAX_CHANGES_PER_PUSH = 1000;
+const MAX_PAYLOAD_BYTES = 1024 * 1024; // 1MB per change payload
+const MAX_BATCH_PAYLOAD_BYTES = 8 * 1024 * 1024; // 8MB per push
+
 // ── Public API ──────────────────────────────────────────────────────────
 
 /**
  * Reserve a range of cursor values from the atomic counter.
  * Returns the starting cursor (inclusive). The caller gets `count` cursor
  * values starting from the returned number.
+ *
+ * G7-47: the counter is intentionally GLOBAL (single doc) because SyncChange
+ * carries a global unique index on `cursor`. A per-user cursor would require a
+ * model change (drop/replace the global unique index) — cross-group.
  */
 export async function reserveSyncCursors(count: number): Promise<number> {
   const result = await Counter.findByIdAndUpdate(
@@ -45,8 +54,28 @@ export async function pushChanges(
     throw ApiError.badRequest("changes must be a non-empty array");
   }
 
-  if (changes.length > 1000) {
+  if (changes.length > MAX_CHANGES_PER_PUSH) {
     throw ApiError.badRequest("Too many changes in one push (max 1000)");
+  }
+
+  // G7-47: `payload` is `unknown` and previously unbounded. A 1000-change push
+  // of multi-MB payloads would approach the BSON limit. Cap per-change and total
+  // serialized size up front.
+  let totalBytes = 0;
+  for (const ch of changes) {
+    let size: number;
+    try {
+      size = Buffer.byteLength(JSON.stringify(ch.payload ?? null), "utf8");
+    } catch {
+      throw ApiError.badRequest("change payload must be JSON-serializable");
+    }
+    if (size > MAX_PAYLOAD_BYTES) {
+      throw ApiError.badRequest("change payload exceeds the maximum allowed size (1MB)");
+    }
+    totalBytes += size;
+  }
+  if (totalBytes > MAX_BATCH_PAYLOAD_BYTES) {
+    throw ApiError.badRequest("Change batch exceeds the maximum allowed total size (8MB)");
   }
 
   const startCursor = await reserveSyncCursors(changes.length);

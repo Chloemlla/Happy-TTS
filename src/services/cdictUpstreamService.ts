@@ -17,7 +17,10 @@ const LANGUAGE_LIST_PATH = "/translation/lang/list";
 
 const TTS_URL = (process.env.VIVO_TTS_URL || "https://vivotrans.vivo.com.cn/fy/tts").trim();
 const TTS_APP_ID = (process.env.VIVO_TTS_APP_ID || "1336541186").trim();
-const TTS_APP_KEY = (process.env.VIVO_TTS_APP_KEY || "9925f42b456c96de8e424ddc7c06d5d9").trim();
+// G7-42: no hardcoded default for the signing key. A literal third-party appKey
+// in the source tree leaks into dist/ and images; if unset, TTS is disabled with
+// a clear error instead of signing with a public fallback.
+const TTS_APP_KEY = (process.env.VIVO_TTS_APP_KEY || "").trim();
 
 const YOUDAO_VOICE_URL = "https://dict.youdao.com/dictvoice";
 const UPSTREAM_TIMEOUT_MS = 20000;
@@ -140,6 +143,8 @@ export async function translateText(input: CDictTranslateInput): Promise<Record<
           "Content-Length": Buffer.byteLength(body, "utf8").toString(),
         },
         responseType: "json",
+        // G7-17: bound the response body.
+        maxContentLength: 2 * 1024 * 1024,
       },
     );
     return response.data ?? {};
@@ -156,6 +161,8 @@ export async function fetchLanguageList(): Promise<unknown> {
       timeout: UPSTREAM_TIMEOUT_MS,
       headers: { "User-Agent": UPSTREAM_USER_AGENT },
       responseType: "json",
+      // G7-17: bound the response body.
+      maxContentLength: 2 * 1024 * 1024,
     });
     return response.data ?? {};
   } catch (error) {
@@ -170,6 +177,9 @@ export async function fetchLanguageList(): Promise<unknown> {
  *   3. sign = hex(MD5(hmacHex + "&key=" + appKey))
  */
 function ttsSignature(params: string): string {
+  if (!TTS_APP_KEY) {
+    throw new Error("VIVO_TTS_APP_KEY 未配置，语音合成功能不可用");
+  }
   const hmacHex = crypto.createHmac("sha256", TTS_APP_KEY).update(params, "utf8").digest("hex");
   return crypto.createHash("md5").update(`${hmacHex}&key=${TTS_APP_KEY}`, "utf8").digest("hex");
 }
@@ -218,6 +228,8 @@ export async function synthesizeSpeech(text: string, langType: string): Promise<
         "Content-Length": Buffer.byteLength(body, "utf8").toString(),
       },
       responseType: "arraybuffer",
+      // G7-17: TTS audio is bounded (typically <1MB) — cap at 8MB.
+      maxContentLength: 8 * 1024 * 1024,
     });
   } catch (error) {
     throw new Error(extractUpstreamError(error, "上游语音合成请求失败"));
@@ -242,6 +254,8 @@ export async function fetchDictionaryVoice(text: string, type: number): Promise<
       timeout: UPSTREAM_TIMEOUT_MS,
       headers: { "User-Agent": BROWSER_USER_AGENT },
       responseType: "arraybuffer",
+      // G7-17: dictionary audio is bounded — cap at 8MB.
+      maxContentLength: 8 * 1024 * 1024,
     });
   } catch (error) {
     throw new Error(extractUpstreamError(error, "上游词典音频请求失败"));

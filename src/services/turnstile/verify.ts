@@ -157,7 +157,7 @@ export async function verifyToken(token: string, remoteIp?: string): Promise<boo
       errorCode: "NETWORK_ERROR",
       errorMessage: error instanceof Error ? error.message : "网络请求失败",
       fingerprint: undefined,
-      riskLevel: "MEDIUM",
+      riskLevel: "medium",
       riskScore: 50,
       riskReasons: ["network_error"],
     });
@@ -525,7 +525,7 @@ export async function verifyTempFingerprint(
         errorCode: "IP_BANNED",
         errorMessage: "IP地址已被封禁",
         fingerprint: validatedFingerprint,
-        riskLevel: "EXTREME",
+        riskLevel: "high",
         riskScore: 100,
         riskReasons: ["ip_banned"],
         banned: true,
@@ -548,7 +548,7 @@ export async function verifyTempFingerprint(
         errorCode: "DATABASE_UNAVAILABLE",
         errorMessage: "数据库连接不可用",
         fingerprint: validatedFingerprint,
-        riskLevel: "MEDIUM",
+        riskLevel: "medium",
         riskScore: 50,
         riskReasons: ["database_error"],
       });
@@ -574,7 +574,7 @@ export async function verifyTempFingerprint(
         errorCode: "FINGERPRINT_NOT_FOUND",
         errorMessage: "临时指纹不存在或已过期",
         fingerprint: validatedFingerprint,
-        riskLevel: "HIGH",
+        riskLevel: "high",
         riskScore: 80,
         riskReasons: ["invalid_fingerprint", "expired_fingerprint"],
       });
@@ -732,7 +732,7 @@ export async function verifyTempFingerprint(
       errorCode: "UNEXPECTED_ERROR",
       errorMessage: error instanceof Error ? error.message : "未知错误",
       fingerprint,
-      riskLevel: "MEDIUM",
+      riskLevel: "medium",
       riskScore: 50,
       riskReasons: ["unexpected_error"],
     });

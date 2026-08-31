@@ -12,14 +12,20 @@ function normalizeAbi(value: string): string {
   return value.trim().toLowerCase().replace(/-/g, "_");
 }
 
+function isSha256Hex(value: string): boolean {
+  return /^[0-9a-f]{64}$/i.test(value);
+}
+
 /**
  * Compute rollout bucket via hash-based bucketing.
- * Uses SipHash-like approach via DefaultHasher semantics.
  * Returns a value in [0, 100).
+ *
+ * NOTE (G7-34): the implementation uses md5; the comment claiming a Rust
+ * `DefaultHasher` (SipHash-1-3) port is inaccurate. Bucket assignments are NOT
+ * compatible with the Rust backend — keep this in mind if a cross-implementation
+ * consistent rollout is ever required.
  */
 function rolloutBucket(key: string, versionCode: number): number {
-  // Port of Rust's DefaultHasher (SipHash-1-3): hash key and version_code
-  // as separate typed inputs, then (finish % 10_000) / 100.
   const hash = crypto
     .createHash("md5")
     .update(`${key}\x00${versionCode}`)
@@ -41,7 +47,10 @@ function rolloutAllows(
     return false;
   }
   const percent = rolloutPercent(r);
-  if (percent === undefined) return true; // non-numeric → always eligible
+  // G7-34: a malformed/non-numeric rollout value must fail closed (exclude the
+  // device), never release to 100%. A typo like "10%%" combined with
+  // forceUpdate would otherwise push a release to every device.
+  if (percent === undefined) return false;
   if (percent <= 0) return false;
   if (percent >= 100) return true;
   if (!rolloutKey || rolloutKey.trim() === "") return false;
@@ -97,8 +106,11 @@ export async function checkRelease(options: {
   const targetChannel = normalizeChannel(requestedChannel);
 
   // Find the latest release for this channel (with fallback to default).
+  // G7-34: this is a hot, publicly reachable endpoint — only fetch the newest
+  // doc and only the fields the response needs.
   const releases = await AdminRelease.find({ channel: targetChannel })
     .sort({ versionCode: -1 })
+    .limit(1)
     .lean()
     .exec();
 
@@ -107,6 +119,7 @@ export async function checkRelease(options: {
   if (!release && requestedChannel !== "stable") {
     const fallback = await AdminRelease.find({ channel: "stable" })
       .sort({ versionCode: -1 })
+      .limit(1)
       .lean()
       .exec();
     release = fallback[0];
@@ -155,6 +168,9 @@ export async function checkRelease(options: {
   // Select the best asset for the requested ABI.
   const selectedAsset = selectReleaseAsset(release.assets, requestedAbi);
   const selectedAbi = selectedAsset ? normalizeAbi(selectedAsset.abi) : normalizeAbi(requestedAbi);
+  // G7-51: never hand the client a non-hex placeholder checksum (legacy
+  // "pending" values and malformed data must not masquerade as a real digest).
+  const releaseSha256 = isSha256Hex(release.sha256) ? release.sha256 : "";
 
   return {
     updateAvailable: true,
@@ -163,9 +179,9 @@ export async function checkRelease(options: {
     versionName: release.versionName,
     tagName: `v${release.versionName}`,
     releaseUrl: release.releaseUrl,
-    sha256: release.sha256,
+    sha256: releaseSha256,
     fullApkUrl: selectedAsset?.url || "",
-    fullApkSha256: selectedAsset?.sha256 || release.sha256,
+    fullApkSha256: selectedAsset?.sha256 || releaseSha256,
     fullApkSizeBytes: selectedAsset?.sizeBytes || 0,
     rollout: release.rollout,
     forceUpdate: release.forceUpdate,

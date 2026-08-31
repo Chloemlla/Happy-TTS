@@ -10,6 +10,7 @@ import InvitationModel, { type IInvitation } from "../models/invitationModel";
 import WorkspaceModel, { type IWorkspace } from "../models/workspaceModel";
 import type { Invitation, Workspace, WorkspaceMember, WorkspaceSettings } from "../types/workspace";
 import logger from "../utils/logger";
+import { userRepository } from "../utils/userRepository";
 
 // 默认成员限制
 const DEFAULT_MEMBER_LIMIT = 10;
@@ -250,6 +251,21 @@ export class WorkspaceService {
           `邀请已${existingInvitation.status === "accepted" ? "被接受" : existingInvitation.status === "declined" ? "被拒绝" : "过期"}`,
           WorkspaceErrorCodes.INVITATION_EXPIRED,
         );
+      }
+
+      // G7-10: the invitation's invitee email must match the accepting user.
+      // The invitation ID is a capability credential, so merely possessing it
+      // must not grant membership — the recipient's identity has to be checked.
+      if (existingInvitation.inviteeEmail) {
+        const user = await userRepository.getUserById(userId);
+        const userEmail = user?.email?.trim().toLowerCase();
+        const inviteeEmail = existingInvitation.inviteeEmail.trim().toLowerCase();
+        if (!userEmail || userEmail !== inviteeEmail) {
+          throw new WorkspaceError(
+            "该邀请不是发给当前用户的",
+            WorkspaceErrorCodes.PERMISSION_DENIED,
+          );
+        }
       }
 
       const workspace = await WorkspaceModel.findOne({ id: existingInvitation.workspaceId }).lean();

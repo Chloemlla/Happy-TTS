@@ -58,51 +58,45 @@ export async function recordViolation(
       return false;
     }
 
-    const banDoc = await IpBanModel.findOne({ ipAddress: validatedIp }).exec();
+    // G7-28: atomic increment + upsert. The previous read-modify-write
+    // (`findOne` → `+= 1` → `save()`) dropped concurrent increments, so a
+    // sustained burst of failures could keep violationCount pinned under the
+    // ban threshold. `findOneAndUpdate` with `$inc` makes every concurrent
+    // failure count.
+    const now = new Date();
+    const banDoc = await IpBanModel.findOneAndUpdate(
+      { ipAddress: validatedIp },
+      {
+        $inc: { violationCount: 1 },
+        $set: { reason },
+        $setOnInsert: {
+          ipAddress: validatedIp,
+          violationCount: 0, // $inc below makes this 1 on first insert
+          fingerprint,
+          userAgent,
+          bannedAt: now,
+          expiresAt: new Date(now.getTime() + VIOLATION_COOLDOWN),
+        },
+      },
+      { upsert: true, new: true },
+    ).exec();
 
-    if (banDoc) {
-      banDoc.violationCount += 1;
-      banDoc.reason = reason;
-      if ("updatedAt" in banDoc) {
-        (banDoc as any).updatedAt = new Date();
-      }
+    const banned = banDoc.violationCount >= MAX_VIOLATIONS;
+    const expiresAt = banned
+      ? new Date(now.getTime() + BAN_DURATION)
+      : new Date(now.getTime() + VIOLATION_COOLDOWN);
+    await IpBanModel.updateOne(
+      { ipAddress: validatedIp },
+      { $set: { expiresAt } },
+    ).exec();
 
-      if (banDoc.violationCount >= MAX_VIOLATIONS) {
-        banDoc.expiresAt = new Date(Date.now() + BAN_DURATION);
-      } else {
-        // 未达阈值：刷新冷却时间，保留计数但不封禁
-        banDoc.expiresAt = new Date(Date.now() + VIOLATION_COOLDOWN);
-      }
+    logger.warn(`IP ${validatedIp} 违规次数增加到 ${banDoc.violationCount}`, {
+      reason,
+      fingerprint: `${fingerprint?.substring(0, 8)}...`,
+      banned,
+    });
 
-      await banDoc.save();
-
-      const banned = banDoc.violationCount >= MAX_VIOLATIONS;
-      logger.warn(`IP ${validatedIp} 违规次数增加到 ${banDoc.violationCount}`, {
-        reason,
-        fingerprint: `${fingerprint?.substring(0, 8)}...`,
-        banned,
-      });
-
-      return banned;
-    } else {
-      // 首次违规：仅记录并设冷却，不立即封禁
-      const expiresAt = new Date(Date.now() + VIOLATION_COOLDOWN);
-      await IpBanModel.create({
-        ipAddress: validatedIp,
-        reason,
-        violationCount: 1,
-        expiresAt,
-        fingerprint,
-        userAgent,
-      });
-
-      logger.warn(`IP ${validatedIp} 首次违规，记录并冷却 ${VIOLATION_COOLDOWN / 1000}s`, {
-        reason,
-        fingerprint: `${fingerprint?.substring(0, 8)}...`,
-      });
-
-      return false;
-    }
+    return banned;
   } catch (error) {
     logger.error("记录违规失败", error);
     return false;

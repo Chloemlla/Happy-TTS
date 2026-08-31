@@ -1,8 +1,10 @@
+import crypto from "node:crypto";
 import {
   type INexaiEncryptedPayload,
   NexaiEncryptedSyncCounterModel,
   NexaiEncryptedSyncRecordModel,
 } from "../models/nexaiEncryptedSyncModel";
+import { TransactionService } from "./transactionService";
 import logger from "../utils/logger";
 
 const SUPPORTED_CATEGORIES = new Set([
@@ -17,6 +19,12 @@ const SUPPORTED_CATEGORIES = new Set([
 const SUPPORTED_ALGORITHMS = new Set(["XCHACHA20-POLY1305", "AES-256-GCM"]);
 const DEFAULT_MAX_RECORDS_PER_REQUEST = 1000;
 const DEFAULT_MAX_CIPHERTEXT_BYTES = 1024 * 1024;
+// G7-38: metadata is a client-controlled opaque field that used to be stored
+// verbatim with no size limit — it could bypass the ciphertext cap. Bound it.
+const MAX_METADATA_BYTES = 256 * 1024;
+// G7-38: reject client timestamps that are absurdly in the future (a clock
+// skewed / malicious device could otherwise make its writes win forever).
+const MAX_TIMESTAMP_SKEW_MS = 10 * 60 * 1000;
 
 export interface EncryptedSyncRecordInput {
   id?: unknown;
@@ -89,10 +97,32 @@ function requireString(value: unknown, field: string, maxLength = 4096): string 
 
 function normalizeTimestamp(value: unknown): string {
   const timestamp = requireString(value, "updatedAt", 64);
-  if (Number.isNaN(Date.parse(timestamp))) {
+  const parsed = Date.parse(timestamp);
+  if (Number.isNaN(parsed)) {
     throw httpError("sync v2 record updatedAt must be an ISO 8601 timestamp");
   }
+  // G7-38: bound how far in the future a client timestamp may be.
+  if (parsed > Date.now() + MAX_TIMESTAMP_SKEW_MS) {
+    throw httpError("sync v2 record updatedAt is too far in the future");
+  }
   return timestamp;
+}
+
+function normalizeMetadata(value: unknown): unknown {
+  if (value === undefined || value === null) return undefined;
+  if (Array.isArray(value) || typeof value !== "object") {
+    throw httpError("sync v2 record metadata must be an object");
+  }
+  let serialized: string;
+  try {
+    serialized = JSON.stringify(value);
+  } catch {
+    throw httpError("sync v2 record metadata must be JSON-serializable");
+  }
+  if (Buffer.byteLength(serialized, "utf8") > MAX_METADATA_BYTES) {
+    throw httpError("sync v2 record metadata is too large");
+  }
+  return value;
 }
 
 function normalizeCrypto(value: unknown): INexaiEncryptedPayload {
@@ -142,7 +172,7 @@ function normalizeRecord(input: EncryptedSyncRecordInput): NormalizedRecord {
     updatedAt: normalizeTimestamp(input.updatedAt),
     deleted: input.deleted === true,
     crypto: normalizeCrypto(input.crypto),
-    metadata: input.metadata,
+    metadata: normalizeMetadata(input.metadata),
   };
 }
 
@@ -235,13 +265,20 @@ export class NexaiEncryptedSyncService {
     const revisions = await this.allocateRevisions(userId, revisionCount);
     const revision = revisions[revisions.length - 1] ?? (await this.getCurrentRevision(userId));
 
-    await NexaiEncryptedSyncRecordModel.deleteMany({ userId });
+    const deviceId = typeof body.deviceId === "string" ? body.deviceId : undefined;
+    const snapshotId = typeof body.snapshotId === "string" && body.snapshotId.trim()
+      ? body.snapshotId.trim()
+      : `snap_${crypto.randomUUID()}`;
 
-    if (records.length > 0) {
-      const deviceId = typeof body.deviceId === "string" ? body.deviceId : undefined;
-      const snapshotId = typeof body.snapshotId === "string" ? body.snapshotId : undefined;
-      await NexaiEncryptedSyncRecordModel.insertMany(
-        records.map((record, index) => ({
+    // G7-11: the previous delete-then-insert was not atomic — if insertMany
+    // failed after deleteMany succeeded, the user's ENTIRE encrypted sync (incl.
+    // savedPasswords) was wiped. Wrap both in a transaction when supported.
+    await TransactionService.executeTransaction(async (session) => {
+      const deleteOpts = session ? { session } : {};
+      await NexaiEncryptedSyncRecordModel.deleteMany({ userId }, deleteOpts);
+
+      if (records.length > 0) {
+        const docs = records.map((record, index) => ({
           userId,
           category: record.category,
           recordId: record.recordId,
@@ -252,10 +289,13 @@ export class NexaiEncryptedSyncService {
           metadata: record.metadata,
           deviceId,
           snapshotId,
-        })),
-        { ordered: false },
-      );
-    }
+        }));
+        await NexaiEncryptedSyncRecordModel.insertMany(
+          docs,
+          session ? { ordered: false, session } : { ordered: false },
+        );
+      }
+    });
 
     logger.info("[NexAI Sync V2] snapshot stored", { userId, records: records.length, revision });
     return { serverTime: new Date().toISOString(), revision };
@@ -315,13 +355,31 @@ export class NexaiEncryptedSyncService {
     const conflicts: EncryptedSyncConflict[] = [];
     const writableRecords: NormalizedRecord[] = [];
 
-    for (const record of records) {
-      const existing = await NexaiEncryptedSyncRecordModel.findOne({
-        userId,
-        category: record.category,
-        recordId: record.recordId,
-      }).lean();
+    // G7-37: batch-load existing records in one query instead of one findOne per
+    // record (previously up to 1000 sequential round trips per sync).
+    const existingByKey = new Map<string, { updatedAt: string; revision?: number }>();
+    if (records.length > 0) {
+      const orConditions = records.map((r) => ({ category: r.category, recordId: r.recordId }));
+      // chunk $or to stay within Mongo's internal limits
+      for (let i = 0; i < orConditions.length; i += 200) {
+        const chunk = orConditions.slice(i, i + 200);
+        const existingDocs = await NexaiEncryptedSyncRecordModel.find({
+          userId,
+          $or: chunk,
+        })
+          .select({ category: 1, recordId: 1, updatedAt: 1, revision: 1 })
+          .lean();
+        for (const doc of existingDocs) {
+          existingByKey.set(`${doc.category}:${doc.recordId}`, {
+            updatedAt: doc.updatedAt,
+            revision: Number(doc.revision ?? 0),
+          });
+        }
+      }
+    }
 
+    for (const record of records) {
+      const existing = existingByKey.get(`${record.category}:${record.recordId}`);
       if (existing && compareTimestamps(existing.updatedAt, record.updatedAt) > 0) {
         if (Number(existing.revision ?? 0) > sinceRevision) {
           conflicts.push({
@@ -340,24 +398,28 @@ export class NexaiEncryptedSyncService {
     const revisions = await this.allocateRevisions(userId, writableRecords.length);
     const deviceId = typeof body.deviceId === "string" ? body.deviceId : undefined;
 
-    await Promise.all(
-      writableRecords.map((record, index) =>
-        NexaiEncryptedSyncRecordModel.updateOne(
-          { userId, category: record.category, recordId: record.recordId },
-          {
-            $set: {
-              revision: revisions[index],
-              updatedAt: record.updatedAt,
-              deleted: record.deleted,
-              crypto: record.crypto,
-              metadata: record.metadata,
-              deviceId,
+    // G7-37: single bulkWrite instead of up to 1000 concurrent updateOne ops.
+    if (writableRecords.length > 0) {
+      await NexaiEncryptedSyncRecordModel.bulkWrite(
+        writableRecords.map((record, index) => ({
+          updateOne: {
+            filter: { userId, category: record.category, recordId: record.recordId },
+            update: {
+              $set: {
+                revision: revisions[index],
+                updatedAt: record.updatedAt,
+                deleted: record.deleted,
+                crypto: record.crypto,
+                metadata: record.metadata,
+                deviceId,
+              },
             },
+            upsert: true,
           },
-          { upsert: true },
-        ),
-      ),
-    );
+        })),
+        { ordered: false },
+      );
+    }
 
     const [revision, changedRecords] = await Promise.all([
       this.getCurrentRevision(userId),
