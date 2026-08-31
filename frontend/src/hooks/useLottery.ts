@@ -159,7 +159,7 @@ export function useLottery() {
     };
 
     initializeData();
-  }, [fetchBlockchainData, fetchActiveRounds, fetchAllRounds, fetchLeaderboard, fetchStatistics]);
+  }, [fetchActiveRounds, fetchAllRounds, fetchLeaderboard, fetchStatistics]);
 
   // 当用户登录状态改变时，获取用户记录
   useEffect(() => {
