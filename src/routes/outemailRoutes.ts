@@ -4,6 +4,7 @@ import { authMiddlewareV2 as authMiddleware, adminAuthMiddleware } from "../midd
 import { getOutEmailServiceStatus, resolveOutEmailDomain } from "../services/emailService";
 import { getOutEmailAuthStatus, getOutEmailQuota, sendOutEmail, sendOutEmailBatch, getOutEmailRecords, getOutEmailRecordById } from "../services/outEmailService";
 import { getClientIP } from "../utils/ipUtils";
+import { firstString } from "../utils/httpParam";
 import logger from "../utils/logger";
 
 const router = express.Router();
@@ -260,7 +261,7 @@ router.get("/records", statusQueryLimiter, authMiddleware, adminAuthMiddleware, 
  */
 router.get("/records/:id", statusQueryLimiter, authMiddleware, adminAuthMiddleware, async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = firstString(req.params.id);
     const record = await getOutEmailRecordById(id);
     if (!record) {
       return res.status(404).json({ success: false, error: "记录不存在" });

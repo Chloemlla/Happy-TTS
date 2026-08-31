@@ -237,7 +237,7 @@ router.post("/public/create", publicCreateLimiter, async (req: any, res: any) =>
       return res.status(400).json({ error: "目标地址仅支持 http 和 https 协议" });
     }
 
-    let customCode: string | undefined;
+    let customCodeFinal: string | undefined;
     if (customCode && typeof customCode === "string") {
       const trimmedCode = customCode.trim();
       if (trimmedCode.length < 1 || trimmedCode.length > 200) {
@@ -246,12 +246,12 @@ router.post("/public/create", publicCreateLimiter, async (req: any, res: any) =>
       if (!/^[a-zA-Z0-9_-]+$/.test(trimmedCode)) {
         return res.status(400).json({ error: "自定义短链接码只能包含字母、数字、连字符和下划线" });
       }
-      customCode = trimmedCode;
+      customCodeFinal = trimmedCode;
     }
 
     // 统一走 ShortUrlService（含事务、唯一性检查与 URL 修正），不再在路由内手写 Model.create
     try {
-      const shortUrl = await ShortUrlService.createShortUrl(trimmedTarget, "public", "anonymous", { customCode });
+      const shortUrl = await ShortUrlService.createShortUrl(trimmedTarget, "public", "anonymous", { customCode: customCodeFinal });
       return res.json({ success: true, shortUrl });
     } catch (createError: any) {
       if (createError?.statusCode === 409 || createError?.message === "SHORTURL_CODE_TAKEN") {

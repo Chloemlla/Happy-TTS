@@ -4,6 +4,7 @@ import { authenticateSuperAdmin } from "../../middleware/auth";
 import { auditLog } from "../../middleware/auditLog";
 import { getUserById, updateUser } from "../../services/userService";
 import { wsService } from "../../services/wsService";
+import { firstString } from "../../utils/httpParam";
 
 const router = express.Router();
 
@@ -18,7 +19,7 @@ router.delete(
   }),
   async (req, res) => {
   try {
-    const userId = req.params.id;
+    const userId = firstString(req.params.id);
     if (!userId) return res.status(400).json({ error: "缺少用户ID" });
 
     const target = await getUserById(userId);
@@ -101,7 +102,7 @@ router.post(
   }),
   async (req, res) => {
   try {
-    const userId = req.params.id;
+    const userId = firstString(req.params.id);
     if (!userId) return res.status(400).json({ error: "缺少用户ID" });
     const { require: requireFlag } = req.body || {};
     const enabled = !!requireFlag;
@@ -252,7 +253,7 @@ router.delete(
 // 管理员查询指定用户的指纹预约状态（需管理员权限）
 router.get("/users/:id/fingerprint/require/status", async (req, res) => {
   try {
-    const userId = req.params.id;
+    const userId = firstString(req.params.id);
     if (!userId) return res.status(400).json({ error: "缺少用户ID" });
     const target = await getUserById(userId);
     if (!target) return res.status(404).json({ error: "用户不存在" });
@@ -277,7 +278,7 @@ router.delete(
   async (req, res) => {
   try {
     // adminAuthMiddleware 已在上方全局应用，此处为管理员接口
-    const userId = req.params.id;
+    const userId = firstString(req.params.id);
     const fpId = req.params.fpId;
     if (!userId || !fpId) {
       return res.status(400).json({ error: "缺少必要参数" });

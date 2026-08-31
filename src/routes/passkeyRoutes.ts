@@ -443,7 +443,7 @@ router.post("/authenticate/finish/discoverable", passkeyAuthLimiter, async (req,
 
     // 验证生成的token包含正确的用户信息
     try {
-      const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] });
+      const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] }) as { userId: string; username: string };
 
       if (decoded.userId !== matchedUser.id || decoded.username !== matchedUser.username) {
         logger.error("[Passkey] Discoverable Token生成错误：用户信息不匹配", {
@@ -559,7 +559,7 @@ router.post("/authenticate/finish", passkeyAuthLimiter, async (req, res) => {
 
     // 验证生成的token包含正确的用户信息
     try {
-      const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] });
+      const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] }) as { userId: string; username: string };
 
       if (decoded.userId !== user.id || decoded.username !== user.username) {
         logger.error("[Passkey] Token生成错误：用户信息不匹配", {

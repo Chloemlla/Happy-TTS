@@ -95,7 +95,7 @@ router.delete(
     if (req.params.customerId === "expired") {
       return res.status(400).json({ error: "customerId 不能为保留字 expired" });
     }
-    return GitHubBillingController.clearCache(req, res, next);
+    return GitHubBillingController.clearCache(req, res);
   },
 );
 router.get("/cache/metrics", ...devAdminAuth, GitHubBillingController.getCacheMetrics);
