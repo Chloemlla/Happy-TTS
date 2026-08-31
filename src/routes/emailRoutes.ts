@@ -38,7 +38,7 @@ const emailValidationLimiter = createLimiter({
   routeName: "email.validate",
 });
 
-// 服务状态查询速率限制（每管理员每分钟最多10次查询）
+// 服务状态查询速率限制（每管理员每分钟最多40次查询）
 const statusQueryLimiter = createLimiter({
   windowMs: 60 * 1000, // 1分钟
   max: 40, // 最多40次
@@ -54,10 +54,8 @@ const domainExemptionLimiter = createLimiter({
   routeName: "email.domain-exemption",
 });
 
-// 全局邮件接口速率限制（每管理员每分钟最多5次）
-router.use(emailSendLimiter);
-
-// 应用认证和管理员权限中间件
+// G3-26: 不再前置全局 emailSendLimiter（否则各端点 40/min 的专用限额永远被 20/min 卡死）；
+// 发信端点各自挂 emailSendLimiter，读/校验端点挂各自 limiter。
 router.use(authMiddleware);
 router.use(adminAuthMiddleware);
 
@@ -509,7 +507,7 @@ router.post(
  *       500:
  *         description: 服务器错误
  */
-router.get("/quota", authMiddleware, adminAuthMiddleware, EmailController.getQuota);
+router.get("/quota", statusQueryLimiter, authMiddleware, adminAuthMiddleware, EmailController.getQuota);
 
 /**
  * @openapi
@@ -547,7 +545,7 @@ router.get("/quota", authMiddleware, adminAuthMiddleware, EmailController.getQuo
  *       500:
  *         description: 服务器错误
  */
-router.get("/domains", authMiddleware, adminAuthMiddleware, EmailController.getDomains);
+router.get("/domains", statusQueryLimiter, authMiddleware, adminAuthMiddleware, EmailController.getDomains);
 
 /**
  * @openapi

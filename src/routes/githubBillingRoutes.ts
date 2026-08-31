@@ -5,7 +5,7 @@ import { authenticateAdmin, authenticateSuperAdmin } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
 import { createLimiter, githubBillingLimiter } from "../middleware/routeLimiters";
 
-// 开发环境下的管理员认证中间件（跳过Turnstile验证）
+// 管理员认证中间件（用量/配置读取要求登录 + 管理员）
 const devAdminAuth = [authenticateToken, authenticateAdmin];
 
 // 配置/系统写操作的超级管理员认证中间件
@@ -71,21 +71,14 @@ router.post(
   GitHubBillingController.testParseCurl,
 );
 
-// 数据获取路由（开发环境下跳过Turnstile验证）
-const usageAuth: any[] = [];
+// 数据获取路由（用量数据属管理数据，要求登录 + 管理员）
+const usageAuth = devAdminAuth;
 router.get("/usage", ...usageAuth, GitHubBillingController.getBillingUsage);
 
 // 聚合数据获取路由
 router.get("/aggregated-usage", ...usageAuth, GitHubBillingController.getAggregatedBillingUsage);
 
-// 管理员缓存管理路由（开发环境下不需要Turnstile验证）
-router.delete(
-  "/cache/:customerId",
-  cacheLimiter,
-  ...devSuperAdminAuth,
-  auditLog({ module: "config", action: "config.githubBilling.cacheClear", extractTarget: (req) => ({ targetId: req.params.customerId }) }),
-  GitHubBillingController.clearCache,
-);
+// 管理员缓存管理路由
 router.delete(
   "/cache/expired",
   cacheLimiter,
@@ -93,10 +86,24 @@ router.delete(
   auditLog({ module: "config", action: "config.githubBilling.cacheClearExpired" }),
   GitHubBillingController.clearExpiredCache,
 );
+router.delete(
+  "/cache/:customerId",
+  cacheLimiter,
+  ...devSuperAdminAuth,
+  auditLog({ module: "config", action: "config.githubBilling.cacheClear", extractTarget: (req) => ({ targetId: req.params.customerId }) }),
+  async (req, res, next) => {
+    if (req.params.customerId === "expired") {
+      return res.status(400).json({ error: "customerId 不能为保留字 expired" });
+    }
+    return GitHubBillingController.clearCache(req, res, next);
+  },
+);
 router.get("/cache/metrics", ...devAdminAuth, GitHubBillingController.getCacheMetrics);
 router.get("/cache/customers", ...devAdminAuth, GitHubBillingController.getCachedCustomers);
 
-// 客户列表路由（公开访问）
-router.get("/customers", GitHubBillingController.getCachedCustomers);
+// 客户列表路由（历史公开路径：308 到带鉴权的 /cache/customers，不再复制一份无鉴权实现）
+router.get("/customers", (_req, res) => {
+  res.redirect(308, "/api/github-billing/cache/customers");
+});
 
 export default router;

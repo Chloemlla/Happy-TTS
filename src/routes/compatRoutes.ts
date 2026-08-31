@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { lcCompatLimiter } from "../middleware/routeLimiters";
+import { libreChatService } from "../services/libreChatService";
 
 const router = Router();
 
 router.get("/lc", lcCompatLimiter, (_req, res) => {
   try {
-    const { libreChatService } = require("../services/libreChatService");
     const record = libreChatService.getLatestRecord();
     if (record) {
       return res.json({

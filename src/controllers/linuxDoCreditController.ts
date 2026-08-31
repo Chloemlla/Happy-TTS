@@ -115,7 +115,8 @@ export class LinuxDoCreditController {
 
   static async notify(req: Request, res: Response): Promise<void> {
     try {
-      const params = { ...req.query, ...req.body } as Record<string, unknown>;
+      // 只读 req.body，保证签名基串与校验集合一致；不再合并 query（GET 回调已移除）
+      const params = { ...req.body } as Record<string, unknown>;
       const result = await handleLinuxDoCreditNotify(params);
       if (result.ok) {
         res.status(200).type("text/plain").send("success");

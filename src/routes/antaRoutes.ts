@@ -119,23 +119,6 @@ router.get("/query/:productId", AntaController.queryProductLegacy);
 
 /**
  * @openapi
- * /api/anta/stats/{productId}:
- *   get:
- *     summary: 获取某产品的查询统计
- *     parameters:
- *       - in: path
- *         name: productId
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: 成功
- */
-router.get("/stats/:productId", AntaController.getProductStats);
-
-/**
- * @openapi
  * /api/anta/stats/top:
  *   get:
  *     summary: 获取查询次数最多的产品
@@ -150,6 +133,23 @@ router.get("/stats/:productId", AntaController.getProductStats);
  *         description: 成功
  */
 router.get("/stats/top", AntaController.getTopStats);
+
+/**
+ * @openapi
+ * /api/anta/stats/{productId}:
+ *   get:
+ *     summary: 获取某产品的查询统计
+ *     parameters:
+ *       - in: path
+ *         name: productId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: 成功
+ */
+router.get("/stats/:productId", AntaController.getProductStats);
 
 /**
  * @openapi

@@ -6,7 +6,6 @@ import { libreChatLimiter } from "../middleware/routeLimiters";
 import { libreChatService } from "../services/libreChatService";
 import { toChatMessagesView } from "../services/librechat/diagnostics";
 import { mongoose } from "../services/mongoService";
-import logger from "../utils/logger";
 import {
   ensureLibreChatGuestCookie,
   isLibreChatGuestEnabled,
@@ -565,16 +564,6 @@ router.get("/sse", async (req, res) => {
     // 注册SSE客户端
     const clientId = libreChatService.registerSSEClient(identity.ownerKey, res);
 
-    // 处理客户端断开连接
-    req.on("close", () => {
-      libreChatService.removeSSEClient(clientId);
-    });
-
-    req.on("error", (error) => {
-      logger.error("SSE连接错误:", error);
-      libreChatService.removeSSEClient(clientId);
-    });
-
     // 保持连接活跃
     const keepAliveInterval = setInterval(() => {
       try {
@@ -584,11 +573,16 @@ router.get("/sse", async (req, res) => {
         libreChatService.removeSSEClient(clientId);
       }
     }, 30000); // 每30秒发送ping
+    keepAliveInterval.unref?.();
 
-    // 清理定时器
-    req.on("close", () => {
+    // 统一在任意一侧断开时清理定时器与注册记录（req/res 都挂，防止代理断开只走 res 侧）
+    const cleanupSSE = () => {
       clearInterval(keepAliveInterval);
-    });
+      libreChatService.removeSSEClient(clientId);
+    };
+    req.on("close", cleanupSSE);
+    req.on("error", () => cleanupSSE());
+    res.on("close", cleanupSSE);
   } catch (error) {
     console.error("SSE连接错误:", error);
     res.status(500).json({ error: "SSE连接失败" });
@@ -600,8 +594,7 @@ router.get("/sse", async (req, res) => {
 router.get("/admin/users", authenticateAdmin, async (req, res) => {
   try {
     const kw = (req.query.kw as string) || "";
-    const page = parseInt((req.query.page as string) || "1", 10);
-    const limit = parseInt((req.query.limit as string) || "20", 10);
+    const { page, limit } = normalizePagination(req.query.page, req.query.limit);
     const includeDeleted = String(req.query.includeDeleted || "").toLowerCase() === "true";
     const data = await (libreChatService as any).adminListUsers(kw, page, limit, includeDeleted);
     res.json(data);
@@ -615,13 +608,28 @@ router.get("/admin/users", authenticateAdmin, async (req, res) => {
 router.get("/admin/users/:userId/history", authenticateAdmin, async (req, res) => {
   try {
     const { userId } = req.params as { userId: string };
-    const page = parseInt((req.query.page as string) || "1", 10);
-    const limit = parseInt((req.query.limit as string) || "20", 10);
+    const { page, limit } = normalizePagination(req.query.page, req.query.limit);
     const data = await libreChatService.adminGetUserHistory(userId, page, limit);
     res.json(data);
   } catch (error) {
     console.error("管理员获取用户历史错误:", error);
     res.status(500).json({ error: "获取用户历史失败" });
+  }
+});
+
+// 删除所有用户历史（危险操作）—— 必须在 /admin/users/:userId 之前注册，避免被参数路由吞掉
+router.delete(
+  "/admin/users/all",
+  authenticateSuperAdmin,
+  auditLog({ module: "api", action: "libreChat.deleteAllUsers" }),
+  async (req, res) => {
+  try {
+    const { confirm } = req.body as { confirm: boolean };
+    const { statusCode, body } = await libreChatService.adminDeleteAllUsersAction({ confirm });
+    res.status(statusCode).json(body);
+  } catch (error) {
+    console.error("管理员删除所有用户历史错误:", error);
+    res.status(500).json({ error: "删除所有用户历史失败" });
   }
 });
 
@@ -634,10 +642,12 @@ router.delete(
     action: "libreChat.deleteUser",
     extractTarget: (req) => ({ targetId: req.params.userId }),
   }),
-  async (req, res, next) => {
+  async (req, res) => {
   try {
     const { userId } = req.params as { userId: string };
-    if (userId === "all") return next();
+    if (userId === "all") {
+      return res.status(400).json({ error: "保留字 all 请使用 /admin/users/all" });
+    }
     const ret = await libreChatService.adminDeleteUser(userId);
     res.json({ message: "指定用户聊天历史已删除", ...ret });
   } catch (error) {
@@ -666,22 +676,6 @@ router.delete(
   } catch (error) {
     console.error("管理员批量删除用户历史错误:", error);
     res.status(500).json({ error: "批量删除用户历史失败" });
-  }
-});
-
-// 删除所有用户历史（危险操作）
-router.delete(
-  "/admin/users/all",
-  authenticateSuperAdmin,
-  auditLog({ module: "api", action: "libreChat.deleteAllUsers" }),
-  async (req, res) => {
-  try {
-    const { confirm } = req.body as { confirm: boolean };
-    const { statusCode, body } = await libreChatService.adminDeleteAllUsersAction({ confirm });
-    res.status(statusCode).json(body);
-  } catch (error) {
-    console.error("管理员删除所有用户历史错误:", error);
-    res.status(500).json({ error: "删除所有用户历史失败" });
   }
 });
 

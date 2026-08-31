@@ -35,9 +35,13 @@ function checkPreAuthIpLimit(ip: string): boolean {
 /**
  * API Key 认证中间件工厂
  * @param requiredPermission 该路由需要的权限标识，如 'tts'
+ * @param opts.required 无任何凭据时是否拒绝请求。默认 true（无 API Key / OAuth Bearer / JWT 会话即 401）。
+ *   只有当下游还有另一道鉴权/人机验证闸门时才应显式传 `{ required: false }`（如 IPFS 上传靠 Turnstile）。
  */
-export function apiKeyAuth(requiredPermission: string) {
-  const oauthAuth = oauthTokenAuth(requiredPermission, { optional: true });
+export function apiKeyAuth(requiredPermission: string, opts: { required?: boolean } = {}) {
+  const { required = true } = opts;
+  // 当 required 为 true 时，OAuth Bearer 缺失即 401；否则沿用历史"可选"语义放行给下游链路。
+  const oauthAuth = oauthTokenAuth(requiredPermission, { optional: !required });
 
   return async (req: Request, res: Response, next: NextFunction) => {
     const authReq = req as AuthenticatedRequest;

@@ -2,6 +2,7 @@ import axios from "axios";
 import express from "express";
 import { NetworkController } from "../controllers/networkController";
 import { apiKeyAuth } from "../middleware/apiKeyAuth";
+import { getClientIP } from "../utils/ipUtils";
 
 const router = express.Router();
 const networkApiKeyAuth = apiKeyAuth("network");
@@ -973,13 +974,27 @@ router.get("/flactomp3", NetworkController.flacToMp3);
 router.get("/jiakao", NetworkController.randomJiakao);
 
 // 新增：获取公网IP的代理接口
-router.get("/get-ip", async (_req, res) => {
+// G3-31: 加 3s 超时 + 一次退避重试 + 字段白名单，上游失败时降级返回请求方 IP 而不是 500
+router.get("/get-ip", async (req, res) => {
   try {
-    // 推荐用国内可访问的IP API
-    const response = await axios.get("https://ip.useragentinfo.com/json");
-    res.json(response.data);
+    let response: { data: Record<string, unknown> };
+    try {
+      response = await axios.get("https://ip.useragentinfo.com/json", { timeout: 3000 });
+    } catch {
+      // 一次退避重试
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      response = await axios.get("https://ip.useragentinfo.com/json", { timeout: 3000 });
+    }
+    const data = response.data || {};
+    res.json({
+      ip: typeof data.ip === "string" ? data.ip : getClientIP(req),
+      country: typeof data.country === "string" ? data.country : "",
+      province: typeof data.province === "string" ? data.province : "",
+      city: typeof data.city === "string" ? data.city : "",
+    });
   } catch (_error) {
-    res.status(500).json({ error: "Failed to fetch IP" });
+    // 降级：返回服务端视角的客户端 IP
+    res.json({ ip: getClientIP(req), country: "", province: "", city: "" });
   }
 });
 

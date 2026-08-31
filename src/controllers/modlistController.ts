@@ -31,6 +31,14 @@ async function getModifyCodeFromDb(): Promise<string | null> {
   }
 }
 
+// G3-23: 修改码比较用定时安全比较，避免短路字符串比较
+function timingSafeCodeEqual(candidate: unknown, expected: string): boolean {
+  if (typeof candidate !== "string") return false;
+  const a = Buffer.from(candidate);
+  const b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 export const getModList = async (req: Request, res: Response) => {
   try {
     console.log("🔐 [ModList] 开始处理MOD列表请求...");
@@ -163,7 +171,7 @@ export const addMod = async (req: Request, res: Response) => {
     console.log("📝 [AddMod] 请求添加MOD名称:", name);
 
     const expected = await getModifyCodeFromDb();
-    if (!expected || code !== expected) {
+    if (!expected || !timingSafeCodeEqual(code, expected)) {
       console.log("❌ [AddMod] 修改码校验失败");
       return res.status(403).json({ error: "修改码错误" });
     }
@@ -198,7 +206,7 @@ export const updateMod = async (req: Request, res: Response) => {
     console.log("📝 [UpdateMod] 请求更新MOD ID:", id, "名称:", name);
 
     const expected = await getModifyCodeFromDb();
-    if (!expected || code !== expected) {
+    if (!expected || !timingSafeCodeEqual(code, expected)) {
       console.log("❌ [UpdateMod] 修改码校验失败");
       return res.status(403).json({ error: "修改码错误" });
     }
@@ -229,7 +237,7 @@ export const deleteMod = async (req: Request, res: Response) => {
     console.log("📝 [DeleteMod] 请求删除MOD ID:", id);
 
     const expected = await getModifyCodeFromDb();
-    if (!expected || code !== expected) {
+    if (!expected || !timingSafeCodeEqual(code, expected)) {
       console.log("❌ [DeleteMod] 修改码校验失败");
       return res.status(403).json({ error: "修改码错误" });
     }
@@ -259,12 +267,16 @@ export const batchAddMods = async (req: Request, res: Response) => {
       console.log("❌ [BatchAddMods] 参数错误：不是数组格式");
       return res.status(400).json({ error: "参数必须为数组" });
     }
+    // G3-23: 单次批量添加数量上限，防止无界写放大
+    if (mods.length > 500) {
+      return res.status(400).json({ error: "单次批量添加不能超过500条" });
+    }
 
     console.log("📊 [BatchAddMods] 请求添加MOD数量:", mods.length);
 
     // 校验修改码
     const expected = await getModifyCodeFromDb();
-    if (!expected || code !== expected) {
+    if (!expected || !timingSafeCodeEqual(code, expected)) {
       console.log("❌ [BatchAddMods] 修改码校验失败");
       return res.status(403).json({ error: "修改码错误" });
     }
@@ -294,12 +306,16 @@ export const batchDeleteMods = async (req: Request, res: Response) => {
       console.log("❌ [BatchDeleteMods] 参数错误：不是数组格式");
       return res.status(400).json({ error: "参数必须为数组" });
     }
+    // G3-23: 单次批量删除数量上限
+    if (ids.length > 500) {
+      return res.status(400).json({ error: "单次批量删除不能超过500条" });
+    }
 
     console.log("📊 [BatchDeleteMods] 请求删除MOD数量:", ids.length);
 
     // 校验修改码
     const expected = await getModifyCodeFromDb();
-    if (!expected || code !== expected) {
+    if (!expected || !timingSafeCodeEqual(code, expected)) {
       console.log("❌ [BatchDeleteMods] 修改码校验失败");
       return res.status(403).json({ error: "修改码错误" });
     }

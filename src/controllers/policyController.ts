@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import type { Request, Response } from "express";
 import { PolicyConsent } from "../models/policyConsentModel";
 import {
@@ -5,9 +6,59 @@ import {
   CURRENT_POLICY_VERSION,
   verifyPolicyChecksum,
 } from "../services/policyConsentService";
+import { config } from "../config/config";
+import { parseCookieHeader } from "../utils/authCookie";
 import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
 import { uuidv4 } from "../utils/uuid";
+
+// G3-12: 把"指纹归属"变成可验证的。verify 时下发与指纹绑定的 HMAC 凭据，
+// revoke/check 必须携带该凭据（或已登录会话）才能操作，防止拿别人指纹就能撤销同意。
+const CONSENT_TOKEN_COOKIE = "policy_consent_token";
+// 用独立派生密钥签名，避免把 JWT 签名密钥直接用于 UI 状态签名
+const CONSENT_TOKEN_SECRET = crypto.createHmac("sha256", config.jwtSecret).update("policy-consent-token").digest();
+
+function buildConsentToken(fingerprint: string): string {
+  const signature = crypto.createHmac("sha256", CONSENT_TOKEN_SECRET).update(fingerprint).digest("hex");
+  return `${fingerprint}.${signature}`;
+}
+
+function verifyConsentToken(token: string | undefined, fingerprint: string): boolean {
+  if (!token || typeof token !== "string") return false;
+  const separator = token.lastIndexOf(".");
+  if (separator <= 0) return false;
+  const fp = token.slice(0, separator);
+  const sig = token.slice(separator + 1);
+  if (fp !== fingerprint) return false;
+  const expected = crypto.createHmac("sha256", CONSENT_TOKEN_SECRET).update(fingerprint).digest("hex");
+  const a = Buffer.from(sig);
+  const b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+function readConsentTokenCookie(req: Request): string | undefined {
+  const cookies = parseCookieHeader(typeof req.headers.cookie === "string" ? req.headers.cookie : undefined);
+  const fromReqCookies = (req as Request & { cookies?: Record<string, string> }).cookies?.[CONSENT_TOKEN_COOKIE];
+  return fromReqCookies || cookies[CONSENT_TOKEN_COOKIE];
+}
+
+function setConsentTokenCookie(req: Request, res: Response, fingerprint: string): void {
+  res.cookie(CONSENT_TOKEN_COOKIE, buildConsentToken(fingerprint), {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: req.secure || process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: CONSENT_VALIDITY_DAYS * 24 * 60 * 60 * 1000,
+  });
+}
+
+// 校验调用者是否持有该指纹对应的凭据（已登录会话也算）
+function assertDeviceOwnership(req: Request, res: Response, fingerprint: string): boolean {
+  if ((req as any).user?.id) return true;
+  if (verifyConsentToken(readConsentTokenCookie(req), fingerprint)) return true;
+  res.status(403).json({ success: false, error: "缺少设备凭据，无法完成操作", code: "DEVICE_CREDENTIAL_REQUIRED" });
+  return false;
+}
 
 // 当前政策版本
 
@@ -141,6 +192,9 @@ export const recordPolicyConsent = async (req: Request, res: Response): Promise<
         ip: clientIP,
       });
 
+      // 下发与指纹绑定的凭据，使后续 check/revoke 能证明设备归属
+      setConsentTokenCookie(req, res, sanitizedFingerprint);
+
       res.json({
         success: true,
         message: "Consent already recorded",
@@ -166,6 +220,9 @@ export const recordPolicyConsent = async (req: Request, res: Response): Promise<
     });
 
     await newConsent.save();
+
+    // 下发与指纹绑定的凭据，使后续 check/revoke 能证明设备归属
+    setConsentTokenCookie(req, res, sanitizedFingerprint);
 
     // 记录日志
     logger.info("Policy consent recorded successfully", {
@@ -245,6 +302,11 @@ export const verifyPolicyConsent = async (req: Request, res: Response): Promise<
       return;
     }
 
+    // G3-12: 必须持有该指纹对应的设备凭据（或已登录会话），防止查询他人同意记录
+    if (!assertDeviceOwnership(req, res, sanitizedFingerprint)) {
+      return;
+    }
+
     // 查找有效的同意记录
     const consent = await PolicyConsent.findValidConsent(sanitizedFingerprint, sanitizedVersion);
 
@@ -280,13 +342,12 @@ export const verifyPolicyConsent = async (req: Request, res: Response): Promise<
       expiresAt: consent.expiresAt,
     });
 
+    // 响应收敛，不再回 consentId/recordedAt，避免枚举用户行为侧信道
     res.json({
       success: true,
       hasValidConsent: true,
-      consentId: consent.id,
       version: consent.version,
       expiresAt: consent.expiresAt,
-      recordedAt: consent.recordedAt,
     });
   } catch (error) {
     logger.error("Error verifying policy consent", {
@@ -327,6 +388,11 @@ export const revokePolicyConsent = async (req: Request, res: Response): Promise<
         error: "Invalid fingerprint format",
         code: "INVALID_FINGERPRINT",
       });
+      return;
+    }
+
+    // G3-12: 必须持有该指纹对应的设备凭据（或已登录会话），防止撤销他人同意
+    if (!assertDeviceOwnership(req, res, sanitizedFingerprint)) {
       return;
     }
 

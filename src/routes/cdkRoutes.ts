@@ -29,8 +29,26 @@ const cdkAdminLimiter = createLimiter({
   message: "CDK 管理操作过于频繁，请稍后再试",
 });
 
-// 公共API
-router.post("/redeem", redeemCDK);
+// CDK 兑换限速（公开入口，兑换前按 IP 限流）
+const cdkRedeemLimiter = createLimiter({
+  name: "cdkRedeem",
+  profile: "sensitive",
+  category: "public-api",
+  message: "CDK 兑换过于频繁，请稍后再试",
+});
+
+// 公共API（兑换必须登录，身份与角色从 req.user 注入，避免 body 提权）
+router.post(
+  "/redeem",
+  cdkRedeemLimiter,
+  authenticateToken,
+  auditLog({
+    module: "cdk",
+    action: "cdk.redeem",
+    extractDetail: (req) => ({ code: req.body?.code }),
+  }),
+  redeemCDK,
+);
 // 已兑换资源列表必须登录且按 req.user.id 归属，防止越权拉取他人兑换记录。
 router.get("/redeemed", authenticateToken, getUserRedeemedResources);
 

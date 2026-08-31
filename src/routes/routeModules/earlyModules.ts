@@ -20,13 +20,18 @@ export const earlyRouteModules: RouteModule[] = [
     name: "outemail-routes",
     path: "/api/outemail",
     router: outemailRoutes,
-    requiresAuth: false,
+    requiresAuth: "mixed",
     rateLimited: true,
-    isPublic: true,
+    isPublic: "mixed",
     rateLimitPolicy: {
       mode: "route",
       limiters: ["outEmailLimiter", "statusQueryLimiter"],
-      note: "Public outemail endpoints apply dedicated route-level limiters for send and status flows.",
+      note: "Public outemail endpoints apply dedicated route-level limiters; records reads are admin-gated with the status limiter.",
+    },
+    authPolicy: {
+      mode: "mixed",
+      handlers: ["authMiddleware", "adminAuthMiddleware"],
+      note: "Send/quota/status/domain endpoints are public (send authenticates via API key/code); records and records/:id reads require a JWT session plus admin role.",
     },
   },
 ];

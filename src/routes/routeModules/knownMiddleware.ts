@@ -111,4 +111,5 @@ export const knownAuthHandlerNames = new Set([
   "verifyEcoEnchantsDownloadToken",
   "oauthTokenAuth",
   "client_secret_basic",
+  "apiKeyAuth",
 ]);

@@ -1,9 +1,11 @@
 import * as crypto from "node:crypto";
 import express from "express";
+import mongoose from "mongoose";
 import { auditLog } from "../../middleware/auditLog";
 import { isAdminRole, isSuperAdmin } from "../../middleware/auth";
 import { authenticateToken } from "../../middleware/authenticateToken";
 import { replayProtection } from "../../middleware/replayProtection";
+import { shortUrlMigrationService } from "../../services/shortUrlMigrationService";
 import logger from "../../utils/logger";
 import { createUrlSafeRandomId } from "../../utils/randomId";
 import { getTokenFromRequest } from "../../utils/authCookie";
@@ -41,7 +43,7 @@ router.get("/shortlinks", authenticateToken, async (req, res) => {
     const page = Math.max(1, parseInt(String(req.query.page || "1"), 10) || 1);
     const pageSize = Math.min(100, Math.max(1, parseInt(String(req.query.pageSize || "10"), 10) || 10));
 
-    const ShortUrlModel = require("mongoose").models.ShortUrl || require("mongoose").model("ShortUrl");
+    const ShortUrlModel = mongoose.models.ShortUrl || mongoose.model("ShortUrl");
 
     // 安全的查询构建
     let query: any = {};
@@ -131,7 +133,7 @@ router.delete("/shortlinks/:id", authenticateToken, auditLog({ module: "shorturl
       return res.status(400).json({ error: "无效的短链ID格式" });
     }
 
-    const ShortUrlModel = require("mongoose").models.ShortUrl || require("mongoose").model("ShortUrl");
+    const ShortUrlModel = mongoose.models.ShortUrl || mongoose.model("ShortUrl");
     const link = await ShortUrlModel.findById(id);
 
     if (!link) {
@@ -168,7 +170,7 @@ router.post("/shortlinks/batch-delete", authenticateToken, auditLog({ module: "s
       return res.status(403).json({ error: "需要管理员权限" });
     }
 
-    const ShortUrlModel = require("mongoose").models.ShortUrl || require("mongoose").model("ShortUrl");
+    const ShortUrlModel = mongoose.models.ShortUrl || mongoose.model("ShortUrl");
 
     // 验证每个ID的格式，防止NoSQL注入
     const validIds = ids.filter((id) => typeof id === "string" && id.length === 24 && /^[0-9a-fA-F]{24}$/.test(id));
@@ -256,9 +258,7 @@ router.post(
         return res.status(400).json({ error: "目标地址必须是有效的URL格式" });
       }
 
-      const mongoose = require("mongoose");
       const ShortUrlModel = mongoose.models.ShortUrl || mongoose.model("ShortUrl");
-      const { shortUrlMigrationService } = require("../../services/shortUrlMigrationService");
 
       let code: string;
 
@@ -336,8 +336,6 @@ router.post("/shortlinks/migrate", authenticateToken, auditLog({ module: "shortu
 
     console.log("✅ [ShortUrlMigration] 权限检查通过");
 
-    const { shortUrlMigrationService } = require("../../services/shortUrlMigrationService");
-
     // 执行迁移
     const result = await shortUrlMigrationService.detectAndFixOldDomainUrls();
 
@@ -371,8 +369,6 @@ router.get("/shortlinks/migration-stats", authenticateToken, async (req, res) =>
     }
 
     console.log("✅ [ShortUrlMigration] 权限检查通过");
-
-    const { shortUrlMigrationService } = require("../../services/shortUrlMigrationService");
 
     // 获取统计信息
     const stats = await shortUrlMigrationService.getMigrationStats();

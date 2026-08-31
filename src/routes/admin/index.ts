@@ -1,7 +1,7 @@
 import express from "express";
 import { adminController } from "../../controllers/adminController";
 import { authMiddlewareV2 as authMiddleware, isAdminRole } from "../../middleware/auth";
-import { UserStorage } from "../../utils/userStorage";
+import { wsService } from "../../services/wsService";
 import broadcastRouter from "./broadcast";
 import configRouter from "./config";
 import crashReportsRouter from "./crashReports";
@@ -17,19 +17,15 @@ const router = express.Router();
 const adminAuthMiddleware = (req: any, res: any, next: any) => {
   // 允许普通已登录用户访问的用户自助接口（在本路由前缀 /api/admin 下）
   // 注意：这里匹配的是路由内的路径（不含前缀），例如 '/user/profile'
-  const userSelfServicePaths = new Set<string>([
+  // 用前缀 startsWith 覆盖，避免新增自助端点时再次漏配
+  const userSelfServicePrefixes = [
     "/user/profile",
-    "/user/profile/verify",
-    "/user/profile/email/send-code",
     "/user/avatar",
-    "/user/avatar/exist",
     "/user/fingerprint",
-  ]);
+  ];
 
   if (
-    userSelfServicePaths.has(req.path) ||
-    req.path.startsWith("/user/profile/linked-accounts") ||
-    req.path.startsWith("/user/profile/account-merge")
+    userSelfServicePrefixes.some((prefix) => req.path === prefix || req.path.startsWith(`${prefix}/`))
   ) {
     return next();
   }
@@ -40,20 +36,6 @@ const adminAuthMiddleware = (req: any, res: any, next: any) => {
   next();
 };
 
-// 启动时清理用户表的 avatarBase64 字段
-(async () => {
-  try {
-    const users = await UserStorage.getAllUsers();
-    for (const user of users) {
-      if ((user as any).avatarBase64) {
-        await UserStorage.updateUser(user.id, { avatarBase64: undefined } as any);
-      }
-    }
-  } catch (e) {
-    console.warn("启动时清理avatarBase64字段失败", e);
-  }
-})();
-
 // 公告读取接口移到最前面，不加任何中间件
 router.get("/announcement", adminController.getAnnouncement);
 
@@ -63,18 +45,15 @@ router.use(adminAuthMiddleware);
 router.use(adminLimiter); // 已登录管理员不再限速
 
 // 在所有已认证/管理员路由上，若用户被标记为需要上报指纹，则通知前端（带去重 hash）
+// 复用 authMiddleware 已加载的 req.user，避免每个请求多打一次数据库
 router.use(async (req: any, res: any, next: any) => {
   try {
-    if (req.user?.id) {
-      const { getUserById } = require("../../services/userService");
-      const current = await getUserById(req.user.id);
-      if (current && (current as any).requireFingerprint) {
-        // 生成去重 hash，前端收到后通过 WS 回传确认，避免与 WS 推送双重触发
-        const { wsService } = require("../../services/wsService");
-        const hash = wsService.notifyFingerprintRequired(req.user.id, true);
-        res.setHeader("X-Require-Fingerprint", "1");
-        res.setHeader("X-Fingerprint-Hash", hash);
-      }
+    const current = req.user;
+    if (current && (current as any).requireFingerprint) {
+      // 生成去重 hash，前端收到后通过 WS 回传确认，避免与 WS 推送双重触发
+      const hash = wsService.notifyFingerprintRequired(current.id, true);
+      res.setHeader("X-Require-Fingerprint", "1");
+      res.setHeader("X-Fingerprint-Hash", hash);
     }
   } catch (_e) {
     // 静默失败，不影响主流程

@@ -7,7 +7,7 @@ import { statusLimiter } from "../middleware/routeLimiters";
 import { profilingService } from "../services/profilingService";
 
 const router = Router();
-const statusApiKeyAuth = apiKeyAuth("status");
+const statusApiKeyAuth = apiKeyAuth("status", { required: false });
 
 /**
  * @openapi

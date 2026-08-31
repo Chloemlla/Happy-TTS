@@ -180,36 +180,37 @@ router.post("/p", commandLimiter, authenticateToken, auditLog({ module: "system"
  *       500:
  *         description: 命令执行失败
  */
-router.post("/execute", commandLimiter, async (req, res) => {
-  try {
-    const { command, password } = req.body;
+router.post(
+  "/execute",
+  commandLimiter,
+  authenticateToken,
+  auditLog({
+    module: "system",
+    action: "command.execute",
+    extractDetail: (req) => ({ command: (req.body as any)?.command }),
+  }),
+  async (req, res) => {
+    try {
+      if (!ensureAdmin(req, res)) {
+        return;
+      }
 
-    if (!isAdminOperationPasswordValid(password)) {
-      logger.warn("[CommandManager] 密码验证失败", { reason: "invalid-password", path: "/execute" });
-      return res.status(403).json({ error: "密码错误" });
+      const { command, password } = req.body;
+
+      if (!isAdminOperationPasswordValid(password)) {
+        logger.warn("[CommandManager] 密码验证失败", { reason: "invalid-password", path: "/execute" });
+        return res.status(403).json({ error: "密码错误" });
+      }
+
+      // 真正的命令白名单/黑名单判定在 commandService.validateCommand，路由层不再维护子串黑名单
+      const output = await commandService.executeCommand(command);
+      return res.json({ output });
+    } catch (error) {
+      logger.error("[CommandManager] 命令执行错误", { error });
+      return res.status(500).json({ error: "命令执行失败" });
     }
-
-    const dangerousCommands = [
-      "rm -rf /",
-      "rm -rf /*",
-      "format c:",
-      "del /s /q c:\\",
-      "sudo rm -rf /",
-      "dd if=/dev/zero of=/dev/sda",
-      "mkfs.ext4 /dev/sda1",
-    ];
-
-    if (dangerousCommands.some((cmd) => command.includes(cmd))) {
-      return res.status(400).json({ error: "危险命令被拒绝" });
-    }
-
-    const output = await commandService.executeCommand(command);
-    return res.json({ output });
-  } catch (error) {
-    logger.error("[CommandManager] 命令执行错误", { error });
-    return res.status(500).json({ error: "命令执行失败" });
-  }
-});
+  },
+);
 
 /**
  * @openapi
@@ -233,22 +234,32 @@ router.post("/execute", commandLimiter, async (req, res) => {
  *       403:
  *         description: 密码错误
  */
-router.post("/status", (req, res) => {
-  try {
-    const { password } = req.body;
+router.post(
+  "/status",
+  commandLimiter,
+  authenticateToken,
+  auditLog({ module: "system", action: "command.status", captureBody: false }),
+  async (req, res) => {
+    try {
+      if (!ensureAdmin(req, res)) {
+        return;
+      }
 
-    if (!isAdminOperationPasswordValid(password)) {
-      logger.warn("[CommandManager] 密码验证失败", { reason: "invalid-password", path: "/status" });
-      return res.status(403).json({ error: "密码错误" });
+      const { password } = req.body;
+
+      if (!isAdminOperationPasswordValid(password)) {
+        logger.warn("[CommandManager] 密码验证失败", { reason: "invalid-password", path: "/status" });
+        return res.status(403).json({ error: "密码错误" });
+      }
+
+      const status = commandService.getServerStatus();
+      return res.json(status);
+    } catch (error) {
+      logger.error("[CommandManager] 获取状态错误", { error });
+      return res.status(500).json({ error: "获取服务器状态失败" });
     }
-
-    const status = commandService.getServerStatus();
-    return res.json(status);
-  } catch (error) {
-    logger.error("[CommandManager] 获取状态错误", { error });
-    return res.status(500).json({ error: "获取服务器状态失败" });
-  }
-});
+  },
+);
 
 /**
  * @openapi
@@ -378,7 +389,9 @@ router.post("/clear-queue", commandLimiter, authenticateToken, auditLog({ module
 let commandStatusHandler: RequestHandler | undefined = undefined;
 for (const r of router.stack) {
   if (r.route && r.route.path === "/status") {
-    commandStatusHandler = r.route.stack[0].handle;
+    // 路由栈最后一个 handler 才是真正的业务处理器（前面是 limiter/鉴权/审计中间件）
+    const handlers = r.route.stack.map((layer) => layer.handle);
+    commandStatusHandler = handlers[handlers.length - 1];
     break;
   }
 }

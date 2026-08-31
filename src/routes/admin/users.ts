@@ -2,6 +2,8 @@ import express from "express";
 import { adminController } from "../../controllers/adminController";
 import { authenticateSuperAdmin } from "../../middleware/auth";
 import { auditLog } from "../../middleware/auditLog";
+import { getUserById, updateUser } from "../../services/userService";
+import { wsService } from "../../services/wsService";
 
 const router = express.Router();
 
@@ -19,7 +21,6 @@ router.delete(
     const userId = req.params.id;
     if (!userId) return res.status(400).json({ error: "缺少用户ID" });
 
-    const { getUserById, updateUser } = require("../../services/userService");
     const target = await getUserById(userId);
     if (!target) return res.status(404).json({ error: "用户不存在" });
 
@@ -104,7 +105,6 @@ router.post(
     if (!userId) return res.status(400).json({ error: "缺少用户ID" });
     const { require: requireFlag } = req.body || {};
     const enabled = !!requireFlag;
-    const { getUserById, updateUser } = require("../../services/userService");
     const target = await getUserById(userId);
     if (!target) return res.status(404).json({ error: "用户不存在" });
     const updates: any = { requireFingerprint: enabled };
@@ -116,7 +116,6 @@ router.post(
     await updateUser(userId, updates as any);
 
     // 通过 WebSocket 实时推送指纹通知，带去重 hash
-    const { wsService } = require("../../services/wsService");
     const hash = wsService.notifyFingerprintRequired(userId, enabled);
 
     return res.json({
@@ -255,7 +254,6 @@ router.get("/users/:id/fingerprint/require/status", async (req, res) => {
   try {
     const userId = req.params.id;
     if (!userId) return res.status(400).json({ error: "缺少用户ID" });
-    const { getUserById } = require("../../services/userService");
     const target = await getUserById(userId);
     if (!target) return res.status(404).json({ error: "用户不存在" });
     const requireFingerprint = !!(target as any).requireFingerprint;
@@ -285,7 +283,6 @@ router.delete(
       return res.status(400).json({ error: "缺少必要参数" });
     }
 
-    const { getUserById, updateUser } = require("../../services/userService");
     const target = await getUserById(userId);
     if (!target) return res.status(404).json({ error: "用户不存在" });
 

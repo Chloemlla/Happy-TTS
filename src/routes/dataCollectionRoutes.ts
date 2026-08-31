@@ -25,7 +25,7 @@ const router = Router();
 router.use("/collect_data", express.text({ type: "*/*", limit: "5mb" }));
 
 // 在 router 内部挂限流器，避免被 pre-parser 阶段的同名挂载遮蔽而绕过
-router.all("/collect_data", dataCollectionLimiter, async (req, res) => {
+router.post("/collect_data", dataCollectionLimiter, async (req, res) => {
   try {
     const now = new Date();
     let payload: any = {};
@@ -47,6 +47,32 @@ router.all("/collect_data", dataCollectionLimiter, async (req, res) => {
       payload = { raw_data: String(req.body || "") };
     }
 
+    // G3-07: 只按白名单摘取请求头，剔除 cookie/authorization/x-api-key/x-chat-token 等敏感头
+    const HEADER_ALLOWLIST = new Set(["user-agent", "referer", "accept-language", "content-type", "accept"]);
+    const headers: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(req.headers)) {
+      if (HEADER_ALLOWLIST.has(key.toLowerCase())) {
+        headers[key.toLowerCase()] = value;
+      }
+    }
+
+    // G3-07: query 与 payload 过键名黑名单，剔除 token/password/secret/sign 等敏感字段
+    const SENSITIVE_KEY_PATTERN = /^(token|password|passwd|secret|sign|authorization|api[_-]?key|cookie|credential)$/i;
+    const sanitizeRecord = (record: unknown): unknown => {
+      if (Array.isArray(record)) {
+        return record.map((item) => sanitizeRecord(item));
+      }
+      if (record && typeof record === "object") {
+        const out: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(record as Record<string, unknown>)) {
+          if (SENSITIVE_KEY_PATTERN.test(key)) continue;
+          out[key] = sanitizeRecord(value);
+        }
+        return out;
+      }
+      return record;
+    };
+
     const data = {
       userId: (req as any).user?.id || "anonymous",
       action: (req.query.action as string) || "collect_data",
@@ -55,9 +81,9 @@ router.all("/collect_data", dataCollectionLimiter, async (req, res) => {
         request_method: req.method,
         path: req.path,
         ip: req.ip || req.socket?.remoteAddress || "unknown",
-        headers: req.headers,
-        query: req.query,
-        payload: payload ?? {},
+        headers,
+        query: sanitizeRecord({ ...(req.query as Record<string, unknown>) }),
+        payload: sanitizeRecord(payload ?? {}),
       },
     };
 

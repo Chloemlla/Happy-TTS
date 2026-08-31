@@ -2,6 +2,7 @@ import ShortUrlModel, { type IShortUrl } from "../models/shortUrlModel";
 import logger from "../utils/logger";
 import { createUrlSafeRandomId } from "../utils/randomId";
 import { TransactionService } from "./transactionService";
+import { shortUrlMigrationService } from "./shortUrlMigrationService";
 
 const crypto = require("node:crypto");
 
@@ -161,12 +162,33 @@ export class ShortUrlService {
 
   /**
    * 创建短链，使用事务和多种去重策略确保并发安全
+   * @param options.customCode 调用方指定的短链码（走同一事务与唯一性检查，防 TOCTOU）
    */
-  static async createShortUrl(target: string, userId: string, username: string): Promise<string> {
+  static async createShortUrl(
+    target: string,
+    userId: string,
+    username: string,
+    options?: { customCode?: string },
+  ): Promise<string> {
     try {
       const shortUrlData = await TransactionService.executeTransaction(async (session) => {
-        // 使用多种策略生成唯一代码
-        const code = await ShortUrlService.generateUniqueCode(target, userId, session);
+        // 统一走短链迁移修正（旧域名 → 新域名），与历史自定义码分支行为一致
+        const fixedTarget = shortUrlMigrationService.fixTargetUrlBeforeSave(target);
+
+        let code: string;
+        if (options?.customCode) {
+          code = options.customCode;
+          if (code.length > ShortUrlService.CODE_MAX_LENGTH) {
+            throw Object.assign(new Error("SHORTURL_CODE_TAKEN"), { statusCode: 409 });
+          }
+          const existing = await ShortUrlModel.findOne({ code }).session(session);
+          if (existing) {
+            throw Object.assign(new Error("SHORTURL_CODE_TAKEN"), { statusCode: 409 });
+          }
+        } else {
+          // 使用多种策略生成唯一代码
+          code = await ShortUrlService.generateUniqueCode(fixedTarget, userId, session);
+        }
 
         // 最终安全检查：创建前再次验证代码是否已存在
         const existingCode = await ShortUrlModel.findOne({ code }).session(session);
@@ -179,7 +201,7 @@ export class ShortUrlService {
           [
             {
               code,
-              target,
+              target: fixedTarget,
               userId,
               username,
             },
@@ -190,7 +212,7 @@ export class ShortUrlService {
         logger.info("[短链服务] 短链创建成功", {
           code,
           codeLength: code.length,
-          target,
+          target: fixedTarget,
           userId,
           username,
         });

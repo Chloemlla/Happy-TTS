@@ -1,5 +1,7 @@
 import express from "express";
 import crypto from "node:crypto";
+import jwt from "jsonwebtoken";
+import { config } from "../config/config";
 import { isAdminRole, isSuperAdmin } from "../middleware/auth";
 import { auditLog } from "../middleware/auditLog";
 import { authenticateToken } from "../middleware/authenticateToken";
@@ -441,8 +443,6 @@ router.post("/authenticate/finish/discoverable", passkeyAuthLimiter, async (req,
 
     // 验证生成的token包含正确的用户信息
     try {
-      const jwt = require("jsonwebtoken");
-      const config = require("../config/config").config;
       const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] });
 
       if (decoded.userId !== matchedUser.id || decoded.username !== matchedUser.username) {
@@ -559,8 +559,6 @@ router.post("/authenticate/finish", passkeyAuthLimiter, async (req, res) => {
 
     // 验证生成的token包含正确的用户信息
     try {
-      const jwt = require("jsonwebtoken");
-      const config = require("../config/config").config;
       const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] });
 
       if (decoded.userId !== user.id || decoded.username !== user.username) {
@@ -706,6 +704,7 @@ router.post("/data/repair", passkeyAuthLimiter, authenticateToken, async (req, r
 });
 
 // 管理员接口：检查所有用户的Passkey数据状态（需要管理员权限）
+// G3-17: 加分页并限制 pageSize ≤ 100，把 N+1 检查收敛到当前页
 router.get("/admin/data/check-all", passkeyAdminLimiter, authenticateToken, async (req, res) => {
   try {
     const user = (req as any).user;
@@ -715,25 +714,34 @@ router.get("/admin/data/check-all", passkeyAdminLimiter, authenticateToken, asyn
       return res.status(403).json({ error: "需要管理员权限" });
     }
 
-    const allUsers = await UserStorage.getAllUsers();
-    const results = [];
+    const page = Math.max(1, parseInt((req.query.page as string) || "1", 10) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt((req.query.pageSize as string) || "50", 10) || 50));
 
-    for (const user of allUsers) {
-      if (user.passkeyEnabled && user.passkeyCredentials && user.passkeyCredentials.length > 0) {
-        const checkResult = await PasskeyDataRepairService.checkUserPasskeyData(user.id);
-        results.push({
-          userId: user.id,
-          username: user.username,
-          ...checkResult,
-        });
-      }
+    const allUsers = await UserStorage.getAllUsers();
+    const enabledUsers = allUsers.filter(
+      (u: any) => u.passkeyEnabled && u.passkeyCredentials && u.passkeyCredentials.length > 0,
+    );
+    const usersWithPasskey = enabledUsers.length;
+    const start = (page - 1) * pageSize;
+    const pageUsers = enabledUsers.slice(start, start + pageSize);
+
+    const results = [];
+    for (const target of pageUsers) {
+      const checkResult = await PasskeyDataRepairService.checkUserPasskeyData(target.id);
+      results.push({
+        userId: target.id,
+        username: target.username,
+        ...checkResult,
+      });
     }
 
     res.json({
       success: true,
       data: {
         totalUsers: allUsers.length,
-        usersWithPasskey: results.length,
+        usersWithPasskey,
+        page,
+        pageSize,
         results,
       },
     });

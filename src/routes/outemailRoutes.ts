@@ -1,5 +1,6 @@
 import express, { type Request } from "express";
 import { createLimiter } from "../middleware/rateLimiter";
+import { authMiddlewareV2 as authMiddleware, adminAuthMiddleware } from "../middleware/auth";
 import { getOutEmailServiceStatus, resolveOutEmailDomain } from "../services/emailService";
 import { getOutEmailAuthStatus, getOutEmailQuota, sendOutEmail, sendOutEmailBatch, getOutEmailRecords, getOutEmailRecordById } from "../services/outEmailService";
 import { getClientIP } from "../utils/ipUtils";
@@ -101,7 +102,7 @@ router.get("/status", statusQueryLimiter, async (req, res) => {
  * GET /api/outemail/domain
  * 公共：获取对外发信所使用的域名
  */
-router.get("/domain", (_req, res) => {
+router.get("/domain", statusQueryLimiter, (_req, res) => {
   res.json({ success: true, domain: resolveOutEmailDomain() });
 });
 
@@ -235,9 +236,9 @@ router.post("/batch-send", outEmailLimiter, async (req, res) => {
 
 /**
  * GET /api/outemail/records
- * 查询对外邮件发送记录（溯源日志）
+ * 查询对外邮件发送记录（溯源日志，仅管理员）
  */
-router.get("/records", statusQueryLimiter, async (req, res) => {
+router.get("/records", statusQueryLimiter, authMiddleware, adminAuthMiddleware, async (req, res) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = parseInt(req.query.pageSize as string) || 20;
@@ -255,9 +256,9 @@ router.get("/records", statusQueryLimiter, async (req, res) => {
 
 /**
  * GET /api/outemail/records/:id
- * 查询单条邮件记录的完整内容
+ * 查询单条邮件记录的完整内容（仅管理员）
  */
-router.get("/records/:id", async (req, res) => {
+router.get("/records/:id", statusQueryLimiter, authMiddleware, adminAuthMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const record = await getOutEmailRecordById(id);

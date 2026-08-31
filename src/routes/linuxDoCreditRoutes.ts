@@ -28,7 +28,7 @@ const readLimiter = createLimiter({
   message: "查询过于频繁，请稍后再试",
 });
 
-router.get("/notify", notifyLimiter, LinuxDoCreditController.notify);
+// 易付通/LDC 回调用 POST（服务端已对缺失 sign 强制 fail-closed，缺签名一律拒绝）
 router.post("/notify", notifyLimiter, LinuxDoCreditController.notify);
 router.get("/config", readLimiter, authMiddleware, LinuxDoCreditController.getConfig);
 router.post("/recharge", rechargeLimiter, authMiddleware, LinuxDoCreditController.createRecharge);

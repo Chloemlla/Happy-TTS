@@ -112,6 +112,14 @@ export interface RouteModule {
   authPolicy?: RouteAuthPolicy;
   rateLimitPolicy?: RouteRateLimitPolicy;
   securityBypass?: RouteSecurityBypass;
+  /**
+   * G3-08: 开启真实栈检查。为 true 时，validateRouterMiddlewarePresence 会遍历
+   * router 的 Express 栈，逐端点核对至少命中一个已知鉴权中间件（publicEndpoints 除外）。
+   * 只对经过人工核对、确认每个端点都用标准鉴权中间件的模块开启。
+   */
+  strictStackCheck?: boolean;
+  /** strictStackCheck 下视为公开、不需要鉴权的端点路径（相对模块 path） */
+  publicEndpoints?: string[];
 }
 
 export const NON_API_ROUTE_EXEMPTION_PATHS = [
@@ -224,8 +232,8 @@ function validateAuthMiddlewarePresence(record: RouteAuditRecord, module: RouteM
     }
     case "router": {
       // For router mode, verify that the declared handlers are known middleware names.
-      // Full router-level validation requires inspecting the router's internal stack,
-      // which is done separately via validateRouterMiddlewarePresence().
+      // Real stack-level verification is performed by validateRouterMiddlewarePresence()
+      // for modules that opt in via strictStackCheck.
       const knownHandlerNames = new Set(
         Array.from(knownAuthHandlerNames).map((name) => name.toLowerCase()),
       );
@@ -402,6 +410,60 @@ function getModuleKind(module: RouteModule, defaultKind: RouteModuleKind): Route
 
 function hasNonEmptyText(value: string | undefined): boolean {
   return Boolean(value && value.trim().length > 0);
+}
+
+/**
+ * G3-08: 真实栈检查。遍历 router 的 Express 栈（含模块 mount 中间件），
+ * 对 strictStackCheck 模块逐端点核对鉴权中间件是否真的挂在 handler 链上，
+ * 而不是只校验注册表元数据里的名字。publicEndpoints 中列出的路径视为有意公开，跳过。
+ */
+export function validateRouterMiddlewarePresence(module: RouteModule): RouteGovernanceViolation[] {
+  const violations: RouteGovernanceViolation[] = [];
+  const router = (module.router as unknown) as { stack?: Array<Record<string, any>> } | undefined;
+  if (!router || !Array.isArray(router.stack)) {
+    return violations;
+  }
+
+  const publicPaths = new Set((module.publicEndpoints || []).map((p) => p.replace(/\/+$/, "") || "/"));
+  // mount 中间件先于 router 执行，也纳入全局 handler 集合
+  const globalHandlers: RequestHandler[] = [...(module.middlewares || [])];
+  const routes: Array<{ method: string; path: string; handlers: RequestHandler[] }> = [];
+
+  for (const layer of router.stack) {
+    if (!layer || typeof layer !== "object") continue;
+    if (layer.route && typeof layer.route === "object") {
+      const routePath = String(layer.route.path || "/").replace(/\/+$/, "") || "/";
+      const handlers = Array.isArray(layer.route.stack)
+        ? (layer.route.stack as Array<{ handle?: RequestHandler }>)
+            .map((l) => l.handle)
+            .filter((h): h is RequestHandler => typeof h === "function")
+        : [];
+      const methods = layer.route.methods && typeof layer.route.methods === "object"
+        ? Object.keys(layer.route.methods)
+        : [];
+      for (const method of methods) {
+        routes.push({ method: method.toUpperCase(), path: routePath, handlers: [...globalHandlers, ...handlers] });
+      }
+    } else if (typeof layer.handle === "function") {
+      globalHandlers.push(layer.handle);
+    }
+  }
+
+  const isAuthHandler = (h: RequestHandler): boolean => knownAuthMiddleware.has(h);
+
+  for (const route of routes) {
+    if (publicPaths.has(route.path)) continue;
+    if (route.handlers.some(isAuthHandler)) continue;
+    violations.push({
+      moduleName: module.name,
+      path: `${route.method} ${module.path}${route.path === "/" ? "" : route.path}`,
+      phase: "post-tamper",
+      code: "auth-middleware-not-found",
+      message: `Route module "${module.name}" endpoint ${route.method} ${module.path}${route.path === "/" ? "" : route.path} is not public but no known auth middleware is present in its Express handler stack.`,
+    });
+  }
+
+  return violations;
 }
 
 function inferRateLimitPolicy(module: RouteModule, kind: RouteModuleKind): RouteRateLimitPolicy | undefined {
@@ -703,6 +765,10 @@ export function validateRouteGovernance(): RouteGovernanceViolation[] {
           ...validateRateLimitApplied(record, module),
           ...validateMiddlewareConsistency(record, module),
         );
+        // G3-08: 显式 opt-in 的真实栈检查（只对人工核对过的模块开启）
+        if (module.strictStackCheck) {
+          violations.push(...validateRouterMiddlewarePresence(module));
+        }
       }
     }
   }

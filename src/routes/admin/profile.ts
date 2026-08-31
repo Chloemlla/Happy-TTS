@@ -34,6 +34,12 @@ import {
   revokeAuthDevice,
 } from "../../services/authSessionService";
 import { getTokenFromRequest } from "../../utils/authCookie";
+import crypto from "node:crypto";
+import { getUserAuthById, getUserById, updateUser } from "../../services/userService";
+import { TOTPService } from "../../services/totpService";
+import { PasskeyService } from "../../services/passkeyService";
+import { IPFSService } from "../../services/ipfsService";
+import { wsService } from "../../services/wsService";
 
 const router = express.Router();
 const upload = multer({
@@ -146,7 +152,6 @@ router.get("/user/profile", authMiddleware, async (req, res) => {
           avatarHash = match[1];
         } else {
           // 若URL不带hash，可用URL整体md5
-          const crypto = require("node:crypto");
           avatarHash = crypto.createHash("md5").update(avatarUrl).digest("hex");
         }
       }
@@ -219,7 +224,6 @@ router.post("/user/profile/verify", authMiddleware, async (req, res) => {
     const user = req.user;
     if (!user) return res.status(401).json({ error: "未登录" });
 
-    const { getUserAuthById } = require("../../services/userService");
     const dbUser = await getUserAuthById(user.id);
     if (!dbUser) {
       return res.status(404).json({ error: "用户不存在" });
@@ -248,7 +252,6 @@ router.post("/user/profile/verify", authMiddleware, async (req, res) => {
         return res.status(400).json({ error: "请输入 6 位 TOTP 验证码" });
       }
 
-      const { TOTPService } = require("../../services/totpService");
       // G2-13: 带 counter 重放防护（原子消费）
       const totpCheck = TOTPService.verifyTokenWithCounter(verificationCode, dbUser.totpSecret);
       let isValid = totpCheck.valid;
@@ -274,7 +277,6 @@ router.post("/user/profile/verify", authMiddleware, async (req, res) => {
         return res.status(400).json({ error: "缺少 Passkey 验证数据" });
       }
 
-      const { PasskeyService } = require("../../services/passkeyService");
       const clientOrigin = typeof req.body?.clientOrigin === "string" ? req.body.clientOrigin : undefined;
       const requestOrigin =
         clientOrigin ||
@@ -484,7 +486,6 @@ router.post("/user/profile/email/send-code", authMiddleware, async (req, res) =>
     const user = req.user;
     if (!user) return res.status(401).json({ error: "未登录" });
 
-    const { getUserAuthById } = require("../../services/userService");
     const dbUser = await getUserAuthById(user.id);
     if (!dbUser) {
       return res.status(404).json({ error: "用户不存在" });
@@ -750,7 +751,6 @@ router.post("/user/avatar", authMiddleware, upload.single("avatar"), async (req,
     }
 
     // 直接调用ipfsService上传图片
-    const { IPFSService } = require("../../services/ipfsService");
     let result;
     try {
       console.log(`[avatar upload] 开始上传头像: ${req.file.originalname}, 大小: ${req.file.size} bytes`);
@@ -844,7 +844,6 @@ router.post("/user/fingerprint", authMiddleware, async (req, res) => {
 
     const fingerprintRecord = { id, ts, ua: String(ua), ip: String(ip) };
 
-    const { updateUser, getUserById } = require("../../services/userService");
     const current = await getUserById(user.id);
     const existing = (current && (current as any).fingerprints) || [];
     // 保留最新的20条指纹记录
@@ -855,7 +854,6 @@ router.post("/user/fingerprint", authMiddleware, async (req, res) => {
 
     // 通过 WebSocket 推送指纹已上报确认
     try {
-      const { wsService } = require("../../services/wsService");
       wsService.notifyFingerprintAck(user.id);
     } catch (_wsErr) {
       // WS 推送失败不影响主流程
@@ -874,7 +872,6 @@ router.get("/user/fingerprint/status", authMiddleware, async (req, res) => {
     const user = req.user;
     if (!user) return res.status(401).json({ error: "未登录" });
 
-    const { getUserById } = require("../../services/userService");
     const current = await getUserById(user.id);
     const fps = (current && (current as any).fingerprints) || [];
     const count = Array.isArray(fps) ? fps.length : 0;
@@ -917,7 +914,6 @@ router.post("/user/fingerprint/dismiss", authMiddleware, async (req, res) => {
     const user = req.user;
     if (!user) return res.status(401).json({ error: "未登录" });
 
-    const { getUserById, updateUser } = require("../../services/userService");
     const current = await getUserById(user.id);
     if (!current) return res.status(404).json({ error: "用户不存在" });
 

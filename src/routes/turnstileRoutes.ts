@@ -25,7 +25,6 @@ import {
 import {
   deleteTurnstileConfig,
   getPublicConfig,
-  getPublicTurnstile,
   getTurnstileConfig,
   secureCaptchaConfig,
   updateTurnstileConfig,
@@ -164,12 +163,14 @@ router.get("/public-config", publicLimiter, getPublicConfig);
  * /api/turnstile/public-turnstile:
  *   get:
  *     summary: 获取公共 Turnstile 配置
- *     description: 返回 Turnstile 是否启用及站点密钥（无需鉴权）
+ *     description: 历史路径，已 308 到 /public-config
  *     responses:
  *       200:
  *         description: Turnstile 配置
  */
-router.get("/public-turnstile", publicLimiter, getPublicTurnstile);
+router.get("/public-turnstile", publicLimiter, (_req, res) => {
+  res.redirect(308, "/api/turnstile/public-config");
+});
 
 /**
  * @openapi

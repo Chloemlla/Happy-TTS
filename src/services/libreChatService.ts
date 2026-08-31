@@ -134,6 +134,7 @@ class LibreChatService {
   private readonly sseClientsByOwner = new Map<string, Set<SSEClient>>();
   private sseCleanupInterval: NodeJS.Timeout | null = null;
   private readonly MAX_SSE_CLIENTS = 1000; // 限制最大 SSE 连接数
+  private readonly MAX_SSE_CLIENTS_PER_OWNER = 10; // G3-20: 同一 ownerKey 的连接数上限
 
   private constructor() {
     this.initializationPromise = this.initializeService();
@@ -850,6 +851,15 @@ class LibreChatService {
       return "";
     }
 
+    // G3-20: 同一 ownerKey 的连接数上限，防止单账号无限开 SSE 连接
+    const owned = this.sseClientsByOwner.get(ownerKey);
+    if (owned && owned.size >= this.MAX_SSE_CLIENTS_PER_OWNER) {
+      logger.warn(`SSE per-owner 连接数已达上限 ${this.MAX_SSE_CLIENTS_PER_OWNER}，拒绝新连接`, { ownerKey });
+      res.writeHead(429, { "Content-Type": "text/plain" });
+      res.end("Too Many Connections");
+      return "";
+    }
+
     const clientId = randomUUID();
 
     // 发送初始连接消息
@@ -1385,6 +1395,10 @@ class LibreChatService {
   ): Promise<{ users: any[]; total: number }> {
     if (mongoose.connection.readyState !== 1) return { users: [], total: 0 };
 
+    // G3-16: 服务层不信任调用方，limit 收敛到 100
+    const safePage = Math.max(1, Math.floor(Number(page) || 1));
+    const safeLimit = Math.min(100, Math.max(1, Math.floor(Number(limit) || 20)));
+
     // 安全处理搜索关键词，防止 NoSQL 注入
     const sanitizedKeyword = keyword.trim().slice(0, 128);
     const q: any = {};
@@ -1397,23 +1411,57 @@ class LibreChatService {
 
     if (!includeDeleted) q.deleted = { $ne: true };
     const total = await (mongoose.models.LibreChatHistory as any).countDocuments(q);
+    // 聚合在数据库侧计算消息数与首末时间戳，避免把整个 messages 数组拉进内存
     const docs = await (mongoose.models.LibreChatHistory as any)
-      .find(q, { ownerKey: 1, userId: 1, messages: 1, updatedAt: 1, deleted: 1, deletedAt: 1 })
-      .sort({ updatedAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .lean();
-    const users = (docs || []).map((d: any) => {
-      const msgs: ChatMessage[] = Array.isArray(d.messages) ? d.messages : [];
-      const totalMsgs = msgs.length;
-      const times = msgs
-        .map((m) => m.timestamp)
-        .filter(Boolean)
-        .sort();
-      const firstTs = times[0] || null;
-      const lastTs = times[times.length - 1] || null;
-      return { userId: d.ownerKey || d.userId, total: totalMsgs, updatedAt: d.updatedAt, firstTs, lastTs };
-    });
+      .aggregate([
+        { $match: q },
+        { $sort: { updatedAt: -1 } },
+        { $skip: (safePage - 1) * safeLimit },
+        { $limit: safeLimit },
+        {
+          $addFields: {
+            ts: {
+              $cond: {
+                if: { $isArray: "$messages" },
+                then: {
+                  $filter: {
+                    input: {
+                      $map: {
+                        input: { $ifNull: ["$messages", []] },
+                        as: "m",
+                        in: { $ifNull: ["$$m.timestamp", null] },
+                      },
+                    },
+                    as: "t",
+                    cond: { $ne: ["$$t", null] },
+                  },
+                },
+                else: [],
+              },
+            },
+          },
+        },
+        {
+          $project: {
+            ownerKey: 1,
+            userId: 1,
+            updatedAt: 1,
+            deleted: 1,
+            deletedAt: 1,
+            total: { $size: { $cond: [{ $isArray: "$messages" }, { $ifNull: ["$messages", []] }, []] } },
+            firstTs: { $min: "$ts" },
+            lastTs: { $max: "$ts" },
+          },
+        },
+      ])
+      .exec();
+    const users = (docs || []).map((d: any) => ({
+      userId: d.ownerKey || d.userId,
+      total: d.total || 0,
+      updatedAt: d.updatedAt,
+      firstTs: d.firstTs || null,
+      lastTs: d.lastTs || null,
+    }));
     return { users, total };
   }
 
@@ -1422,6 +1470,9 @@ class LibreChatService {
     if (mongoose.connection.readyState !== 1) return { messages: [], total: 0 };
     const safeUserId = normalizeOwnerReference(userId);
     if (!safeUserId) return { messages: [], total: 0 };
+    // G3-16: limit 收敛到 100
+    const safePage = Math.max(1, Math.floor(Number(page) || 1));
+    const safeLimit = Math.min(100, Math.max(1, Math.floor(Number(limit) || 20)));
     const ownerFilter = isConversationOwnerKey(safeUserId) ? { ownerKey: safeUserId } : { userId: safeUserId };
     const doc = await (mongoose.models.LibreChatHistory as any)
       .findOne({ ...ownerFilter, deleted: { $ne: true } })
@@ -1434,8 +1485,8 @@ class LibreChatService {
       return view;
     });
     const total = all.length;
-    const start = (page - 1) * limit;
-    const end = start + limit;
+    const start = (safePage - 1) * safeLimit;
+    const end = start + safeLimit;
     return { messages: all.slice(start, end), total };
   }
 

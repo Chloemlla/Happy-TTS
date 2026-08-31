@@ -1,4 +1,5 @@
 import { Router } from "express";
+import crypto from "node:crypto";
 import { ShortUrlController } from "../controllers/shortUrlController";
 import { apiKeyAuth } from "../middleware/apiKeyAuth";
 import { auditLog } from "../middleware/auditLog";
@@ -21,9 +22,16 @@ function isValidRedirectTarget(target: string): boolean {
   }
 }
 
+// 定时安全字符串比较（G3-21：口令比较不得用短路 ===）
+function timingSafeStringEqual(candidate: string, expected: string): boolean {
+  const a = Buffer.from(candidate);
+  const b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 const router = Router();
 const redirectRouter = Router();
-const shortUrlApiKeyAuth = apiKeyAuth("shorturl");
+const shortUrlApiKeyAuth = apiKeyAuth("shorturl", { required: false });
 
 // 速率限制器（统一 routeLimiters）
 const redirectLimiter = createLimiter({
@@ -76,10 +84,10 @@ const publicCreateLimiter = createLimiter({
 // 防重放保护实例
 const replayGuard = replayProtection();
 
-// 用户短链管理（需要登录）
+// 用户短链管理（需要登录）—— 字面量路由在参数路由之前注册，避免被 /:code 吞掉
 router.get("/shorturls", shortUrlApiKeyAuth, authMiddleware, userManageLimiter, ShortUrlController.getUserShortUrls);
-router.delete("/shorturls/:code", shortUrlApiKeyAuth, authMiddleware, userManageLimiter, ShortUrlController.deleteShortUrl);
 router.delete("/shorturls/batch", shortUrlApiKeyAuth, authMiddleware, userManageLimiter, ShortUrlController.batchDeleteShortUrls);
+router.delete("/shorturls/:code", shortUrlApiKeyAuth, authMiddleware, userManageLimiter, ShortUrlController.deleteShortUrl);
 
 // 管理员功能：导出所有短链数据
 router.get("/admin/export", authMiddleware, adminAuthMiddleware, adminLimiter, ShortUrlController.exportAllShortUrls);
@@ -203,7 +211,7 @@ router.post("/public/create", publicCreateLimiter, async (req: any, res: any) =>
       return res.status(503).json({ error: "公共短链创建服务未正确配置" });
     }
 
-    if (!password || password !== publicShortUrlPassword) {
+    if (!password || !timingSafeStringEqual(String(password), publicShortUrlPassword)) {
       return res.status(403).json({ error: "密码错误" });
     }
 
@@ -229,8 +237,7 @@ router.post("/public/create", publicCreateLimiter, async (req: any, res: any) =>
       return res.status(400).json({ error: "目标地址仅支持 http 和 https 协议" });
     }
 
-    let code: string;
-
+    let customCode: string | undefined;
     if (customCode && typeof customCode === "string") {
       const trimmedCode = customCode.trim();
       if (trimmedCode.length < 1 || trimmedCode.length > 200) {
@@ -239,25 +246,19 @@ router.post("/public/create", publicCreateLimiter, async (req: any, res: any) =>
       if (!/^[a-zA-Z0-9_-]+$/.test(trimmedCode)) {
         return res.status(400).json({ error: "自定义短链接码只能包含字母、数字、连字符和下划线" });
       }
-      const ShortUrlModelRef = mongoose.models.ShortUrl || mongoose.model("ShortUrl");
-      const existing = await ShortUrlModelRef.findOne({ code: trimmedCode });
-      if (existing) {
-        return res.status(400).json({ error: "该短链接码已被使用" });
-      }
-      code = trimmedCode;
-    } else {
-      // 使用 ShortUrlService 创建（含事务和去重策略）
-      const shortUrl = await ShortUrlService.createShortUrl(trimmedTarget, "public", "anonymous");
-      return res.json({ success: true, shortUrl });
+      customCode = trimmedCode;
     }
 
-    // 自定义码直接创建
-    const { shortUrlMigrationService } = require("../services/shortUrlMigrationService");
-    const fixedTarget = shortUrlMigrationService.fixTargetUrlBeforeSave(trimmedTarget);
-    const ShortUrlModelRef = mongoose.models.ShortUrl || mongoose.model("ShortUrl");
-    await ShortUrlModelRef.create({ code, target: fixedTarget, userId: "public", username: "anonymous" });
-    const baseUrl = process.env.VITE_API_URL || process.env.BASE_URL || "https://tts.chloemlla.com";
-    return res.json({ success: true, shortUrl: `${baseUrl}/s/${code}` });
+    // 统一走 ShortUrlService（含事务、唯一性检查与 URL 修正），不再在路由内手写 Model.create
+    try {
+      const shortUrl = await ShortUrlService.createShortUrl(trimmedTarget, "public", "anonymous", { customCode });
+      return res.json({ success: true, shortUrl });
+    } catch (createError: any) {
+      if (createError?.statusCode === 409 || createError?.message === "SHORTURL_CODE_TAKEN") {
+        return res.status(409).json({ error: "该短链接码已被使用" });
+      }
+      throw createError;
+    }
   } catch (error: any) {
     return res.status(500).json({ error: error.message || "创建失败" });
   }

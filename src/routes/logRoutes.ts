@@ -5,7 +5,7 @@ import express from "express";
 import { createLimiter } from "../middleware/routeLimiters";
 import multer from "multer";
 import * as tar from "tar";
-import { isAdminRole, isSuperAdmin } from "../middleware/auth";
+import { isAdminRole, isSuperAdmin, authenticateSuperAdmin } from "../middleware/auth";
 import { auditLog } from "../middleware/auditLog";
 import { authenticateToken } from "../middleware/authenticateToken";
 import ArchiveModel from "../models/archiveModel";
@@ -74,6 +74,23 @@ function validateArchiveName(archiveName: string): boolean {
   return /^[a-zA-Z0-9-_]{1,100}$/.test(archiveName);
 }
 
+// G3-15: 给外部调用（IPFS 上传）加超时，避免请求无界挂起
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 const router = express.Router();
 const DATA_DIR = path.join(process.cwd(), "data");
 const SHARELOGS_DIR = path.join(DATA_DIR, "sharelogs");
@@ -83,6 +100,10 @@ const TEXT_LOG_EXTENSIONS = new Set([".txt", ".log", ".json", ".md", ".xml", ".c
 const LOGSHARE_ENCRYPTION_VERSION = 2;
 const LOGSHARE_KDF_ITERATIONS = 120000;
 const SHARELOG_LIST_LIMIT = 5000;
+// G3-15: 单次归档的日志文件数量上限，防止单请求无界放大
+const MAX_ARCHIVE_FILES = 5000;
+// 单一归档任务占位：避免匿名/重复请求并发执行全量导出+打包+IPFS 上传
+const archiveJobsInFlight = new Set<string>();
 
 interface LogShareEncryptedPayload {
   version: typeof LOGSHARE_ENCRYPTION_VERSION;
@@ -214,8 +235,8 @@ function encryptData(data: unknown, key: string): LogShareEncryptedPayload {
 }
 
 // 每次上传都会生成唯一 fileId，文件名为 `${fileId}${ext}`，所有上传结果均保留在 data/sharelogs/ 目录下，支持多次上传和历史回查。
-// 上传日志/文件（支持多种类型）
-router.post("/sharelog", logLimiter, upload.single("file"), async (req, res) => {
+// 上传日志/文件（需要登录 + 超级管理员；口令保留为二次确认；upload 在鉴权之后避免匿名内存放大）
+router.post("/sharelog", logLimiter, authenticateToken, authenticateSuperAdmin, upload.single("file"), async (req, res) => {
   const ip = req.ip;
   const adminPassword = req.body.adminPassword;
   const fileName = req.file?.originalname;
@@ -344,13 +365,81 @@ router.get("/sharelog/all", logLimiter, authenticateToken, async (req, res) => {
   }
 });
 
-// 查询日志/文件内容（POST，密码在body）
-router.post("/sharelog/:id", logLimiter, async (req, res) => {
+// 批量删除（POST，需要管理员权限）—— 必须在 /sharelog/:id 之前注册，避免被参数路由吞掉
+router.post("/sharelog/delete-batch", logLimiter, authenticateToken, auditLog({ module: "media", action: "logshare.batchDelete", extractDetail: (req) => ({ count: Array.isArray(req.body?.ids) ? req.body.ids.length : 0 }) }), async (req, res) => {
+  const ip = req.ip;
+  const ids: string[] = Array.isArray(req.body.ids) ? req.body.ids : [];
+  try {
+    if (!isSuperAdmin(req)) {
+      logger.warn(`批量删除 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
+      return res.status(403).json({ error: "需要管理员权限" });
+    }
+    if (ids.length === 0) {
+      return res.status(400).json({ error: "缺少要删除的ID列表" });
+    }
+    await connectMongo();
+    const LogShareModel = getLogShareModel();
+    const mongoResult = await LogShareModel.deleteMany({
+      fileId: { $in: ids },
+    });
+
+    let fileDeleted = 0;
+    try {
+      const files = await fs.promises.readdir(SHARELOGS_DIR);
+      for (const id of ids) {
+        // 验证每个ID格式
+        if (!validateFileId(id)) {
+          logger.warn(`批量删除 | IP:${ip} | 文件ID:${id} | 结果:跳过 | 原因:无效的文件ID格式`);
+          continue;
+        }
+
+        const fileName = files.find((f) => f.startsWith(id));
+        if (fileName) {
+          // 验证文件名安全性
+          const sanitizedFileName = sanitizeFileName(fileName);
+          if (fileName !== sanitizedFileName) {
+            logger.warn(`批量删除 | IP:${ip} | 文件ID:${id} | 文件:${fileName} | 结果:跳过 | 原因:文件名不安全`);
+            continue;
+          }
+
+          const filePath = path.join(SHARELOGS_DIR, fileName);
+          // 确保文件路径在预期目录内
+          const resolvedPath = path.resolve(filePath);
+          const resolvedSharelogsDir = path.resolve(SHARELOGS_DIR);
+          if (resolvedPath.startsWith(resolvedSharelogsDir)) {
+            await fs.promises.unlink(filePath);
+            fileDeleted++;
+          } else {
+            logger.warn(`批量删除 | IP:${ip} | 文件ID:${id} | 文件:${fileName} | 结果:跳过 | 原因:路径遍历攻击`);
+          }
+        }
+      }
+    } catch (_err) {
+      // 忽略
+    }
+    logger.info(`批量删除 | IP:${ip} | 结果:成功 | mongo:${mongoResult.deletedCount} | file:${fileDeleted}`);
+    return res.json({
+      success: true,
+      mongoDeleted: mongoResult.deletedCount,
+      fileDeleted,
+    });
+  } catch (e: any) {
+    logger.error(`批量删除 | IP:${ip} | 结果:异常 | 错误:${e?.message}`);
+    return res.status(500).json({ error: "批量删除失败" });
+  }
+});
+
+// 查询日志/文件内容（POST，需要登录 + 超级管理员；口令保留为二次确认）
+router.post("/sharelog/:id", logLimiter, authenticateToken, authenticateSuperAdmin, async (req, res) => {
   const ip = req.ip;
   const { adminPassword } = req.body;
   const id = firstString(req.params.id);
   try {
     if (!id) {
+      return res.status(400).json({ error: "无效的文件ID格式" });
+    }
+    // 字面量路由保留字，防止参数路由吞掉同前缀字面量端点
+    if (id === "delete-batch" || id === "all") {
       return res.status(400).json({ error: "无效的文件ID格式" });
     }
     // 验证文件ID格式
@@ -434,6 +523,10 @@ router.delete("/sharelog/:id", logLimiter, authenticateToken, auditLog({ module:
     if (!id) {
       return res.status(400).json({ error: "无效的文件ID格式" });
     }
+    // 字面量路由保留字，防止参数路由吞掉同前缀字面量端点
+    if (id === "all" || id === "delete-batch") {
+      return res.status(400).json({ error: "无效的文件ID格式" });
+    }
     // 验证文件ID格式
     if (!validateFileId(id)) {
       logger.warn(`删除日志 | IP:${ip} | 文件ID:${id} | 结果:失败 | 原因:无效的文件ID格式`);
@@ -493,71 +586,7 @@ router.delete("/sharelog/:id", logLimiter, authenticateToken, auditLog({ module:
   }
 });
 
-// 批量删除（POST，需要管理员权限）
-router.post("/sharelog/delete-batch", logLimiter, authenticateToken, auditLog({ module: "media", action: "logshare.batchDelete", extractDetail: (req) => ({ count: Array.isArray(req.body?.ids) ? req.body.ids.length : 0 }) }), async (req, res) => {
-  const ip = req.ip;
-  const ids: string[] = Array.isArray(req.body.ids) ? req.body.ids : [];
-  try {
-    if (!isSuperAdmin(req)) {
-      logger.warn(`批量删除 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
-      return res.status(403).json({ error: "需要管理员权限" });
-    }
-    if (ids.length === 0) {
-      return res.status(400).json({ error: "缺少要删除的ID列表" });
-    }
-    await connectMongo();
-    const LogShareModel = getLogShareModel();
-    const mongoResult = await LogShareModel.deleteMany({
-      fileId: { $in: ids },
-    });
-
-    let fileDeleted = 0;
-    try {
-      const files = await fs.promises.readdir(SHARELOGS_DIR);
-      for (const id of ids) {
-        // 验证每个ID格式
-        if (!validateFileId(id)) {
-          logger.warn(`批量删除 | IP:${ip} | 文件ID:${id} | 结果:跳过 | 原因:无效的文件ID格式`);
-          continue;
-        }
-
-        const fileName = files.find((f) => f.startsWith(id));
-        if (fileName) {
-          // 验证文件名安全性
-          const sanitizedFileName = sanitizeFileName(fileName);
-          if (fileName !== sanitizedFileName) {
-            logger.warn(`批量删除 | IP:${ip} | 文件ID:${id} | 文件:${fileName} | 结果:跳过 | 原因:文件名不安全`);
-            continue;
-          }
-
-          const filePath = path.join(SHARELOGS_DIR, fileName);
-          // 确保文件路径在预期目录内
-          const resolvedPath = path.resolve(filePath);
-          const resolvedSharelogsDir = path.resolve(SHARELOGS_DIR);
-          if (resolvedPath.startsWith(resolvedSharelogsDir)) {
-            await fs.promises.unlink(filePath);
-            fileDeleted++;
-          } else {
-            logger.warn(`批量删除 | IP:${ip} | 文件ID:${id} | 文件:${fileName} | 结果:跳过 | 原因:路径遍历攻击`);
-          }
-        }
-      }
-    } catch (_err) {
-      // 忽略
-    }
-    logger.info(`批量删除 | IP:${ip} | 结果:成功 | mongo:${mongoResult.deletedCount} | file:${fileDeleted}`);
-    return res.json({
-      success: true,
-      mongoDeleted: mongoResult.deletedCount,
-      fileDeleted,
-    });
-  } catch (e: any) {
-    logger.error(`批量删除 | IP:${ip} | 结果:异常 | 错误:${e?.message}`);
-    return res.status(500).json({ error: "批量删除失败" });
-  }
-});
-
-// 全部删除（DELETE，需要管理员权限）
+// 全部删除（DELETE，需要管理员权限）—— 必须在 /sharelog/:id 之前注册，避免被参数路由吞掉
 router.delete("/sharelog/all", logLimiter, authenticateToken, auditLog({ module: "media", action: "logshare.deleteAll" }), async (req, res) => {
   const ip = req.ip;
   try {
@@ -655,6 +684,16 @@ router.post("/logs/archive", logLimiter, authenticateToken, auditLog({ module: "
   const ip = req.ip;
   const { archiveName, includePattern, excludePattern } = req.body || {};
 
+  // G3-15: 同一归档任务的并发占位，防止重复点击/匿名并发触发多份全量导出
+  const archiveJobKey = `archive:${ip}:${String(archiveName || "default").slice(0, 100)}`;
+  if (archiveJobsInFlight.has(archiveJobKey)) {
+    return res.status(429).json({ error: "归档任务正在执行，请稍后再试" });
+  }
+  archiveJobsInFlight.add(archiveJobKey);
+  const clearArchiveJob = () => archiveJobsInFlight.delete(archiveJobKey);
+  res.on("finish", clearArchiveJob);
+  res.on("close", clearArchiveJob);
+
   try {
     if (!isSuperAdmin(req)) {
       logger.warn(`归档日志 | IP:${ip} | 结果:失败 | 原因:非管理员用户`);
@@ -690,6 +729,7 @@ router.post("/logs/archive", logLimiter, authenticateToken, auditLog({ module: "
     const LogShareModel = getLogShareModel();
     const mongoLogCursor = LogShareModel.find({}, { fileId: 1, ext: 1, content: 1 })
       .sort({ createdAt: -1 })
+      .limit(MAX_ARCHIVE_FILES)
       .lean()
       .cursor();
 
@@ -730,6 +770,12 @@ router.post("/logs/archive", logLimiter, authenticateToken, auditLog({ module: "
     const allFilesToArchive = [...dbLogFiles, ...filesToArchive];
     const dbLogFileSet = new Set(dbLogFiles);
     const archiveFileSet = new Set(allFilesToArchive);
+
+    // G3-15: 单次归档文件数上限，避免无界放大
+    if (allFilesToArchive.length > MAX_ARCHIVE_FILES) {
+      logger.warn(`归档日志 | IP:${ip} | 结果:失败 | 原因:文件数超限 ${allFilesToArchive.length} > ${MAX_ARCHIVE_FILES}`);
+      return res.status(400).json({ error: `待归档文件数超过上限（${MAX_ARCHIVE_FILES}），请分批归档` });
+    }
 
     if (allFilesToArchive.length === 0) {
       logger.warn(`归档日志 | IP:${ip} | 结果:失败 | 原因:没有匹配的日志文件`);
@@ -872,25 +918,29 @@ router.post("/logs/archive", logLimiter, authenticateToken, auditLog({ module: "
       // 读取压缩归档文件
       const compressedFileBuffer = await fs.promises.readFile(archivePath);
 
-      // 上传到IPFS
-      const ipfsResponse = await IPFSService.uploadFile(
-        compressedFileBuffer,
-        archiveFileName,
-        "application/gzip",
-        {
-          shortLink: false,
-          userId: req.user?.username || "admin",
-          username: req.user?.username || "admin",
-        },
-        undefined, // cfToken
-        {
-          clientIp: ip,
-          isAdmin: true,
-          isDev: process.env.NODE_ENV === "development",
-          shouldSkipTurnstile: true, // 管理员归档操作跳过验证
-          userAgent: req.get("User-Agent") || "Archive-Service",
-          skipFileTypeCheck: true, // 归档上传跳过文件类型检查
-        },
+      // 上传到IPFS（带 60s 超时，防止第三方挂起占住请求）
+      const ipfsResponse = await withTimeout(
+        IPFSService.uploadFile(
+          compressedFileBuffer,
+          archiveFileName,
+          "application/gzip",
+          {
+            shortLink: false,
+            userId: req.user?.username || "admin",
+            username: req.user?.username || "admin",
+          },
+          undefined, // cfToken
+          {
+            clientIp: ip,
+            isAdmin: true,
+            isDev: process.env.NODE_ENV === "development",
+            shouldSkipTurnstile: true, // 管理员归档操作跳过验证
+            userAgent: req.get("User-Agent") || "Archive-Service",
+            skipFileTypeCheck: true, // 归档上传跳过文件类型检查
+          },
+        ),
+        60_000,
+        "IPFS 上传超时",
       );
 
       ipfsResults.push({

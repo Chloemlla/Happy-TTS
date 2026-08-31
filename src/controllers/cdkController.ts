@@ -16,19 +16,18 @@ const cdkService = CDKService.getInstance();
 // CDK兑换
 export const redeemCDK = async (req: AuthRequest, res: Response) => {
   try {
-    const { code, userId, username, forceRedeem, cfToken, userRole } = req.body;
+    const { code, cfToken } = req.body;
 
-    // 构建用户信息对象
-    let userInfo: { userId: string; username: string } | undefined;
-    if (userId && username) {
-      userInfo = { userId, username };
-    } else if (req.user) {
-      // 如果请求中有用户信息，使用认证用户信息
-      userInfo = {
-        userId: req.user.id || req.user._id || "unknown",
-        username: req.user.username || req.user.name || "unknown",
-      };
+    // 身份与角色全部来自已鉴权会话，禁止从 body 读取 userId/username/userRole/forceRedeem
+    const userId = req.user?.id || req.user?._id;
+    const username = req.user?.username || req.user?.name;
+    if (!userId || !username) {
+      return res.status(401).json({ message: "请先登录" });
     }
+    const userInfo = { userId: String(userId), username: String(username) };
+    const userRole = req.user?.role || "user";
+    // forceRedeem 仅 superadmin 生效；普通用户即使传了也强制视为 false
+    const forceRedeem = req.user?.role === "superadmin" ? Boolean(req.body?.forceRedeem) : false;
 
     const result = await cdkService.redeemCDK(code, userInfo, forceRedeem, cfToken, userRole, getClientIP(req));
 

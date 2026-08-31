@@ -150,12 +150,12 @@ export function resolveLegacyApiPath(
     return null;
   }
 
-  const shortUrlApiPath = resolveLegacyShortUrlApiPath(pathname);
+  const shortUrlApiPath = resolveLegacyShortUrlApiPath(normalizedPathname);
   if (shortUrlApiPath) {
     return shortUrlApiPath;
   }
 
-  const exactReplacement = exactReplacements.get(pathname);
+  const exactReplacement = exactReplacements.get(normalizedPathname);
   if (exactReplacement) {
     return exactReplacement;
   }
@@ -165,8 +165,8 @@ export function resolveLegacyApiPath(
   }
 
   for (const replacement of prefixReplacements) {
-    if (hasPathPrefix(pathname, replacement.from)) {
-      return `${replacement.to}${pathname.slice(replacement.from.length)}`;
+    if (hasPathPrefix(normalizedPathname, replacement.from)) {
+      return `${replacement.to}${normalizedPathname.slice(replacement.from.length)}`;
     }
   }
 
@@ -286,7 +286,9 @@ function isFrontendRouteWithLegacyApiCollision(pathname: string): boolean {
 }
 
 function getChoiceStateSecret(): string {
-  return process.env.LEGACY_API_CHOICE_SECRET || config.jwtSecret;
+  // 用独立派生密钥，避免把 JWT 签名密钥直接用于纯 UI 状态签名
+  if (process.env.LEGACY_API_CHOICE_SECRET) return process.env.LEGACY_API_CHOICE_SECRET;
+  return createHmac("sha256", config.jwtSecret).update("legacy-api-choice").digest("hex");
 }
 
 function toBase64Url(value: string): string {
@@ -358,12 +360,13 @@ function getLegacyApiChoicePageLocation(req: Request, canonicalPath: string): st
 }
 
 export const legacyApiRedirectMiddleware: RequestHandler = (req, res, next) => {
-  const canonicalPath = resolveLegacyApiPath(req.path);
+  const normalizedRequestPath = normalizePathname(req.path);
+  const canonicalPath = resolveLegacyApiPath(normalizedRequestPath);
   if (!canonicalPath) {
     return next();
   }
 
-  if (isBrowserDocumentNavigation(req) && isFrontendRouteWithLegacyApiCollision(req.path)) {
+  if (isBrowserDocumentNavigation(req) && isFrontendRouteWithLegacyApiCollision(normalizedRequestPath)) {
     if (hasTransientFrontendBypass(req)) {
       clearTransientFrontendBypassCookie(res);
       return next();

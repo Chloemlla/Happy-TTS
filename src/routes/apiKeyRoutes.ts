@@ -2,6 +2,7 @@ import { type Request, type Response, Router } from "express";
 import { authMiddlewareV2 as authMiddleware, authenticateSuperAdmin, isAdminRole, isSuperAdmin } from "../middleware/auth";
 import { auditLog } from "../middleware/auditLog";
 import { firstString } from "../utils/httpParam";
+import { ApiKeyModel } from "../models/apiKeyModel";
 import {
   createApiKey,
   deleteKey,
@@ -11,11 +12,13 @@ import {
   listUserKeys,
   normalizeApiKeyPermissions,
   revokeKey,
+  toApiKeyView,
   updateKey,
 } from "../services/apiKeyService";
 import { adjustApiKeyBalance, listApiKeyBillingEvents } from "../services/apiKeyBillingService";
 import { createLimiter } from "../middleware/routeLimiters";
 import { sendEmail } from "../services/emailSender";
+import { generateApiKeyCreatedEmailHtml } from "../templates/emailTemplates";
 import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
 
@@ -27,16 +30,21 @@ const apiKeyManagementLimiter = createLimiter({
   message: "API Key 管理请求过于频繁，请稍后再试",
 });
 
+// G3-18: 用单文档查询替代 listAllKeys() 全表扫描后的 Array.find
 async function findVisibleKey(user: any, keyId: string) {
-  const keys = isAdminRole(user.role) ? await listAllKeys() : await listUserKeys(user.id);
-  return keys.find((key) => key.keyId === keyId) || null;
+  const doc = await ApiKeyModel.findOne({ keyId }).lean();
+  if (!doc) return null;
+  if (isAdminRole(user.role) || doc.userId === user.id) return toApiKeyView(doc);
+  return null;
 }
 
 // 写操作(改/吊销/启停/删除)跨用户可见性仅限 superadmin;所有者仍可操作自己的 Key。
 async function findVisibleKeyForWrite(req: Request, keyId: string) {
   const user = (req as any).user;
-  const keys = isSuperAdmin(req) ? await listAllKeys() : await listUserKeys(user.id);
-  return keys.find((key) => key.keyId === keyId) || null;
+  const doc = await ApiKeyModel.findOne({ keyId }).lean();
+  if (!doc) return null;
+  if (isSuperAdmin(req) || doc.userId === user.id) return toApiKeyView(doc);
+  return null;
 }
 
 // 所有路由都需要 JWT 认证
@@ -102,7 +110,6 @@ router.post(
       const createdIp = getClientIP(req) || "管理后台";
       const device = req.headers["user-agent"] || "未知设备";
       try {
-        const { generateApiKeyCreatedEmailHtml } = require("../templates/emailTemplates");
         const emailHtml = generateApiKeyCreatedEmailHtml(
           user.username || user.email || "用户",
           createdKeyName,
@@ -290,8 +297,8 @@ router.post(
   try {
     const keyId = firstString(req.params.keyId);
     if (!keyId) return res.status(400).json({ error: "无效的 Key ID" });
-    const allKeys = await listAllKeys();
-    if (!allKeys.find((k) => k.keyId === keyId)) return res.status(404).json({ error: "API Key 不存在" });
+    const existing = await ApiKeyModel.findOne({ keyId }).lean();
+    if (!existing) return res.status(404).json({ error: "API Key 不存在" });
 
     await revokeKey(keyId);
     return res.json({ success: true, message: "已吊销" });
@@ -314,8 +321,8 @@ router.post(
   try {
     const keyId = firstString(req.params.keyId);
     if (!keyId) return res.status(400).json({ error: "无效的 Key ID" });
-    const allKeys = await listAllKeys();
-    if (!allKeys.find((k) => k.keyId === keyId)) return res.status(404).json({ error: "API Key 不存在" });
+    const existing = await ApiKeyModel.findOne({ keyId }).lean();
+    if (!existing) return res.status(404).json({ error: "API Key 不存在" });
 
     await enableKey(keyId);
     return res.json({ success: true, message: "已启用" });
@@ -338,8 +345,8 @@ router.delete(
   try {
     const keyId = firstString(req.params.keyId);
     if (!keyId) return res.status(400).json({ error: "无效的 Key ID" });
-    const allKeys = await listAllKeys();
-    if (!allKeys.find((k) => k.keyId === keyId)) return res.status(404).json({ error: "API Key 不存在" });
+    const existing = await ApiKeyModel.findOne({ keyId }).lean();
+    if (!existing) return res.status(404).json({ error: "API Key 不存在" });
 
     await deleteKey(keyId);
     return res.json({ success: true, message: "已永久删除" });

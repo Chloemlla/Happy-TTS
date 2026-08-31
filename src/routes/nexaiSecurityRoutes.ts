@@ -94,7 +94,7 @@ router.post("/security/report", nexaiSecurityReportLimiter, nexaiAuthOptional, r
  *       500:
  *         description: Internal server error
  */
-router.get("/security/status", nexaiSecurityStatusLimiter, getSecurityStatus);
+router.get("/security/status", nexaiSecurityStatusLimiter, nexaiAuthRequired, getSecurityStatus);
 
 /**
  * @openapi

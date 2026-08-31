@@ -14,7 +14,7 @@ import { ClarityService } from "../services/clarityService";
 import { TurnstileService } from "../services/turnstileService";
 
 const router = express.Router();
-const ttsApiKeyAuth = apiKeyAuth("tts");
+const ttsApiKeyAuth = apiKeyAuth("tts", { required: false });
 const ttsSubmissionLimiter = ttsLimiter;
 const ttsJobReadLimiter = createLimiter({
   name: "ttsJobRead",

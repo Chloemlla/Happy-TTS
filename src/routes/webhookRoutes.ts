@@ -22,46 +22,13 @@ router.post(
 );
 
 // 参数化路由：/resend-:key（无需预扫描环境变量即可支持 WEBHOOK_SECRET_<KEY> 系列）
+// G3-27: 删除下面曾经重复注册的动态字面量路由——/resend-:key 已能覆盖，
+// controller 通过 req.params.key 读取对应 secret，环境变量扫描那段是死代码。
 router.post(
   "/resend-:key",
   webhookLimiter,
   express.raw({ type: "application/json" }),
   WebhookController.handleResendWebhook,
 );
-
-// 动态多路由：根据环境变量自动注册 /resend-<key>
-// 支持：RESEND_WEBHOOK_SECRET_<KEY> 或 WEBHOOK_SECRET_<KEY>
-const env = process.env;
-const keys = new Set<string>();
-for (const name of Object.keys(env)) {
-  if (!name) continue;
-  const m1 = name.match(/^RESEND_WEBHOOK_SECRET_(.+)$/i);
-  const m2 = name.match(/^WEBHOOK_SECRET_(.+)$/i);
-  const match = m1 || m2;
-  if (match && env[name] && String(env[name]).trim()) {
-    const key = match[1].toLowerCase();
-    if (key) keys.add(key);
-  }
-}
-
-for (const key of keys) {
-  // 确保键名只包含有效的URL字符，避免路由解析错误
-  const sanitizedKey = key.replace(/[^a-zA-Z0-9_-]/g, "");
-  if (!sanitizedKey) continue; // 跳过无效的键名
-
-  const path = `/resend-${sanitizedKey}`;
-  // 使用 param 形式以便 controller 读取 req.params.key
-  router.post(
-    path,
-    webhookLimiter,
-    express.raw({ type: "application/json" }),
-    // 将 key 注入到 req.params 兼容 controller（Express 路由本身无 params，这里包一层）
-    (req, _res, next) => {
-      (req as any).params = { ...(req as any).params, key: sanitizedKey };
-      next();
-    },
-    WebhookController.handleResendWebhook,
-  );
-}
 
 export default router;

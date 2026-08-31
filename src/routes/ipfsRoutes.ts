@@ -11,7 +11,7 @@ import { createLimiter } from "../middleware/routeLimiters";
 import { getClientIP } from "../utils/ipUtils";
 
 const router = express.Router();
-const ipfsApiKeyAuth = apiKeyAuth("ipfs");
+const ipfsApiKeyAuth = apiKeyAuth("ipfs", { required: false });
 
 // 配置multer中间件用于文件上传
 const upload = multer({

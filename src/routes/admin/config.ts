@@ -16,7 +16,12 @@ const router = express.Router();
  *       200:
  *         description: 环境变量列表
  */
-router.get("/envs", adminController.getEnvs);
+router.get(
+  "/envs",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.envs.read", captureBody: false }),
+  adminController.getEnvs,
+);
 
 /**
  * @openapi
@@ -350,8 +355,14 @@ router.post(
 router.delete(
   "/lumen-config",
   authenticateSuperAdmin,
-  auditLog({ module: "lumen-config", action: "lumen-config.delete", extractDetail: (req) => ({ key: req.body.key }) }),
-  adminController.deleteLumenConfig,
+  (req, res) => {
+    // G3-29: body 版删除契约收敛到 path 版，避免同一 handler 两套参数来源
+    const key = (req.body as any)?.key;
+    if (!key || typeof key !== "string") {
+      return res.status(400).json({ error: "缺少 key" });
+    }
+    res.redirect(308, `/api/admin/lumen-config/${encodeURIComponent(key)}`);
+  },
 );
 router.delete(
   "/lumen-config/:key",
