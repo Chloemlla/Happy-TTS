@@ -2,7 +2,7 @@ import React, { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   FaBook,
-  FaExternalLinkAlt,
+  FaDownload,
   FaLock,
   FaRedo,
   FaUserShield,
@@ -135,6 +135,25 @@ const ApiDocs: React.FC = () => {
     ? Object.keys((state.spec.paths as Record<string, unknown>) || {}).length
     : 0;
 
+  // G12-15：裸外链二次请求无法携带 Authorization 头，生产必然 401。
+  // 改为复用已带鉴权取回的 spec，直接触发下载。
+  const downloadSpec = () => {
+    if (state.status !== 'ready') return;
+    try {
+      const blob = new Blob([JSON.stringify(state.spec, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'openapi.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('下载 openapi.json 失败:', error);
+    }
+  };
+
   return (
     <InfoQueryShell maxWidthClassName="max-w-7xl">
       <div className="space-y-6">
@@ -154,15 +173,15 @@ const ApiDocs: React.FC = () => {
             </>
           )}
           actions={(
-            <a
-              href={SPEC_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+            <button
+              type="button"
+              onClick={downloadSpec}
+              disabled={state.status !== 'ready'}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <FaExternalLinkAlt className="text-xs" />
-              原始 openapi.json
-            </a>
+              <FaDownload className="text-xs" />
+              下载 openapi.json
+            </button>
           )}
         />
 

@@ -333,13 +333,25 @@ const ArtifactSharePage: React.FC = () => {
     switch (artifact.contentType) {
       case 'html':
         return (
-          <iframe
-            title={`${artifact.title} preview`}
-            srcDoc={artifact.content}
-            sandbox="allow-scripts allow-forms allow-modals allow-popups allow-downloads"
-            referrerPolicy="no-referrer"
-            className="h-[72vh] min-h-[300px] w-full border-0 bg-white sm:min-h-[560px]"
-          />
+          <div className="space-y-2">
+            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+              此内容由第三方提交，已在受限沙箱中展示：脚本无法访问本站 Cookie 或存储，且不允许弹窗与外部导航。
+            </div>
+            <iframe
+              title={`${artifact.title} preview`}
+              srcDoc={artifact.content}
+              ref={(el) => {
+                // G12-06：React 类型未收录 iframe 的 csp 属性，这里在挂载时用原生 API 设置，
+                // 作为 sandbox 之外的第二道防线，禁止 iframe 内脚本自由 fetch 外域。
+                if (el && el.getAttribute('csp') === null) {
+                  el.setAttribute('csp', "default-src 'none'; style-src 'unsafe-inline'; img-src data: blob:");
+                }
+              }}
+              sandbox="allow-scripts allow-forms allow-downloads"
+              referrerPolicy="no-referrer"
+              className="h-[72vh] min-h-[300px] w-full border-0 bg-white sm:min-h-[560px]"
+            />
+          </div>
         );
 
       case 'svg':

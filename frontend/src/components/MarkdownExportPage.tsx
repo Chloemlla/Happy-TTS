@@ -59,9 +59,38 @@ type RunFormatting = {
 };
 
 function replaceMathWithPlaceholders(markdown: string): string {
-  return markdown
+  // G12-09：先保护代码块/行内代码，避免其中的 $ 被误当成公式占位。
+  const protectedSpans: string[] = [];
+  const codeBlockRe = /(`{3,}[\s\S]*?`{3,}|`[^`\n]*`)/g;
+  const withoutCode = markdown.replace(codeBlockRe, (match) => {
+    protectedSpans.push(match);
+    return `\u0000CODE${protectedSpans.length - 1}\u0000`;
+  });
+
+  const withMath = withoutCode
     .replace(/\$\$([\s\S]*?)\$\$/g, (_, formula: string) => `[BLOCK_MATH]${formula.trim()}[/BLOCK_MATH]`)
-    .replace(/\$([^$\n]+)\$/g, (_, formula: string) => `[INLINE_MATH]${formula.trim()}[/INLINE_MATH]`);
+    // 行内公式：对齐 remark-math 的 nonStandard 规则——
+    // 前一个字符不能是数字/字母/$，$ 后不能紧跟空白，避免误吞货币（$5 涨到 $10）与 shell 变量（$PATH $HOME）。
+    .replace(
+      /(^|[^\d\w$])\$([^$\n\s][^$\n]*?)\$([^\d\w$]|$)/g,
+      (_match, before: string, formula: string, after: string) =>
+        `${before}[INLINE_MATH]${formula.trim()}[/INLINE_MATH]${after}`,
+    );
+
+  return withMath.replace(/\u0000CODE(\d+)\u0000/g, (_, idx: string) => protectedSpans[Number(idx)] ?? '');
+}
+
+// G12-08：等待 Markdown 渲染链路中的异步渲染（Mermaid）完成，
+// 避免 DOCX 抽取到「正在渲染图表...」占位。
+async function waitForAsyncContent(root: HTMLElement | null, timeoutMs = 5000): Promise<void> {
+  if (!root) return;
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    if (!root.textContent || !root.textContent.includes('正在渲染图表')) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
 }
 
 function topLevelText(element: Element): string {
@@ -88,6 +117,9 @@ const MarkdownExportPage: React.FC = () => {
       await new Promise<void>((resolve) =>
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
       );
+
+      // G12-08：等待 Mermaid 等异步渲染完成，避免抽取到「正在渲染图表...」占位
+      await waitForAsyncContent(docxPreviewRef.current);
 
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = docxPreviewRef.current?.innerHTML || '';

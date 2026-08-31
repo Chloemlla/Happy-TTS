@@ -5,7 +5,7 @@ import { getApiBaseUrl } from '../api/api';
 import DOMPurify from 'dompurify';
 import CryptoJS from 'crypto-js';
 import { imageDataApi } from '../api/imageData';
-import { openDB, deleteDB } from 'idb';
+import { openDB, deleteDB, type IDBPDatabase } from 'idb';
 import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
 import {
@@ -66,27 +66,27 @@ const IMAGE_DB = 'image-store';
 const IMAGE_STORE = 'images';
 
 // IndexedDB 数据库操作
-async function getImageDB() {
-  return await openDB(IMAGE_DB, 2, {
-    upgrade(db, oldVersion, newVersion) {
-      console.log(`[图片存储] 数据库升级: v${oldVersion} -> v${newVersion}`);
+// G12-11：缓存单例连接，避免批量上传 N 个文件累积 N+ 个连接
+let imageDbPromise: Promise<IDBPDatabase> | null = null;
 
-      if (oldVersion < 1) {
-        // 初始版本：创建存储对象
+function getImageDB() {
+  if (!imageDbPromise) {
+    imageDbPromise = openDB(IMAGE_DB, 2, {
+      upgrade(db, oldVersion) {
+        console.log(`[图片存储] 数据库升级: v${oldVersion}`);
+
+        // v1 与 v2 的 keyPath 都是 imageId，无需重建 store。
+        // 直接补建即可，避免 deleteObjectStore 把老用户的历史记录一起删掉（G12-11）。
         if (!db.objectStoreNames.contains(IMAGE_STORE)) {
           db.createObjectStore(IMAGE_STORE, { keyPath: 'imageId' });
         }
-      }
-
-      if (oldVersion < 2) {
-        // 版本2：确保使用 imageId 作为 keyPath
-        if (db.objectStoreNames.contains(IMAGE_STORE)) {
-          db.deleteObjectStore(IMAGE_STORE);
-        }
-        db.createObjectStore(IMAGE_STORE, { keyPath: 'imageId' });
-      }
-    },
-  });
+      },
+    }).catch((err) => {
+      imageDbPromise = null;
+      throw err;
+    });
+  }
+  return imageDbPromise;
 }
 
 // 获取存储的图片
@@ -322,6 +322,11 @@ const ImageUploadPage: React.FC = () => {
   const [showBatchList, setShowBatchList] = useState(false);
   const [batchUploadResults, setBatchUploadResults] = useState<{ [key: string]: { web2url: string, shortUrl?: string } }>({});
   const batchFileInputRef = useRef<HTMLInputElement>(null);
+  // G12-12：预览 object URL 的清理引用
+  const previewUrlRef = useRef<string | null>(null);
+  // G12-01：Turnstile 一次性 token 的 ref 版（供批量上传逐文件取新 token）
+  const turnstileTokenRef = useRef<string>('');
+  const turnstileResolveRef = useRef<((token: string) => void) | null>(null);
 
   // 新增闪烁效果状态
   const [flashingImages, setFlashingImages] = useState<Set<string>>(new Set());
@@ -357,7 +362,18 @@ const ImageUploadPage: React.FC = () => {
   const reloadImages = async () => {
     const images = await getStoredImages();
     setStoredImages(images);
+    return images;
   };
+
+  // G12-12：组件卸载时 revoke 预览 object URL
+  React.useEffect(() => {
+    return () => {
+      if (previewUrlRef.current) {
+        URL.revokeObjectURL(previewUrlRef.current);
+        previewUrlRef.current = null;
+      }
+    };
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -379,10 +395,17 @@ const ImageUploadPage: React.FC = () => {
 
     // 重置Turnstile状态
     setTurnstileToken('');
+    turnstileTokenRef.current = '';
     setTurnstileVerified(false);
     setTurnstileKey(k => k + 1);
 
+    // G12-12：先 revoke 旧预览 URL 再创建新的，避免反复挑图泄漏 blob 内存
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
     const url = URL.createObjectURL(f);
+    previewUrlRef.current = url;
     setPreviewUrl(url);
     console.log('[图片上传] 预览URL:', url);
   };
@@ -441,6 +464,11 @@ const ImageUploadPage: React.FC = () => {
 
   const handleRemove = () => {
     console.log('[图片上传] 移除文件:', file);
+    // G12-12：revoke 预览 object URL
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
     setFile(null);
     setPreviewUrl(null);
     setUploadedUrl(null);
@@ -448,6 +476,7 @@ const ImageUploadPage: React.FC = () => {
 
     // 重置Turnstile状态
     setTurnstileToken('');
+    turnstileTokenRef.current = '';
     setTurnstileVerified(false);
     setTurnstileKey(k => k + 1);
 
@@ -480,21 +509,51 @@ const ImageUploadPage: React.FC = () => {
 
   // Turnstile 验证处理函数
   const handleTurnstileVerify = (token: string) => {
+    turnstileTokenRef.current = token;
     setTurnstileToken(token);
     setTurnstileVerified(true);
     setTurnstileError(false);
+    // G12-01：唤醒等待新 token 的批量上传流程
+    turnstileResolveRef.current?.(token);
+    turnstileResolveRef.current = null;
   };
 
   const handleTurnstileExpire = () => {
+    turnstileTokenRef.current = '';
     setTurnstileToken('');
     setTurnstileVerified(false);
     setTurnstileError(false);
   };
 
   const handleTurnstileError = () => {
+    turnstileTokenRef.current = '';
     setTurnstileToken('');
     setTurnstileVerified(false);
     setTurnstileError(true);
+  };
+
+  // G12-01：重置 Turnstile 控件并等待新的「一次性」token。
+  // 后端对每个上传请求都调用 Cloudflare siteverify（token 单次有效），
+  // 所以批量场景必须逐文件取新 token；超时返回 null 由调用方标记失败。
+  const obtainFreshTurnstileToken = (): Promise<string | null> => {
+    if (!turnstileConfig.siteKey) return Promise.resolve(null);
+
+    turnstileTokenRef.current = '';
+    setTurnstileToken('');
+    setTurnstileVerified(false);
+    setTurnstileError(false);
+    setTurnstileKey(k => k + 1);
+
+    return new Promise((resolve) => {
+      const timeout = window.setTimeout(() => {
+        turnstileResolveRef.current = null;
+        resolve(null);
+      }, 30000);
+      turnstileResolveRef.current = (token) => {
+        window.clearTimeout(timeout);
+        resolve(token);
+      };
+    });
   };
 
   const handleUpload = async () => {
@@ -535,6 +594,7 @@ const ImageUploadPage: React.FC = () => {
 
         // 重置Turnstile状态
         setTurnstileToken('');
+        turnstileTokenRef.current = '';
         setTurnstileVerified(false);
         setTurnstileKey(k => k + 1);
 
@@ -616,7 +676,7 @@ const ImageUploadPage: React.FC = () => {
   const handleBatchUpload = async () => {
     if (batchFiles.length === 0) return;
 
-    // 检查Turnstile验证（批量上传只需要验证一次）
+    // 检查Turnstile验证（批量上传要求用户先完成一次验证）
     if (!!turnstileConfig.siteKey && (!turnstileVerified || !turnstileToken)) {
       setNotification({ message: '请先完成人机验证', type: 'warning' });
       return;
@@ -624,6 +684,10 @@ const ImageUploadPage: React.FC = () => {
 
     setBatchUploading(true);
     const uploadUrl = getApiBaseUrl() + '/api/ipfs/upload';
+
+    // G12-02：逐文件结果收集到局部数组，收尾统计/清理全部基于局部数据，避免读到过期闭包
+    const results: Array<{ name: string; ok: boolean }> = [];
+    const uploadResults: { [key: string]: { web2url: string; shortUrl?: string } } = {};
 
     console.log('[批量上传] 开始上传，文件数量:', batchFiles.length);
 
@@ -639,13 +703,32 @@ const ImageUploadPage: React.FC = () => {
           [fileName]: { status: 'uploading', progress: 0 }
         }));
 
+        // G12-01：每个文件都需要一个「一次性」Turnstile token（后端逐请求校验）。
+        // 第 1 个文件复用用户已完成的验证；后续文件重置控件等待新 token。
+        let token: string | null = null;
+        if (!!turnstileConfig.siteKey) {
+          if (i === 0 && turnstileVerified && turnstileTokenRef.current) {
+            token = turnstileTokenRef.current;
+          } else {
+            token = await obtainFreshTurnstileToken();
+            if (!token) {
+              const errorMsg = '人机验证失败或超时，请重试';
+              results.push({ name: fileName, ok: false });
+              setBatchProgress(prev => ({
+                ...prev,
+                [fileName]: { status: 'error', error: errorMsg }
+              }));
+              console.error(`[批量上传] 文件 ${fileName} 人机验证失败`);
+              continue;
+            }
+          }
+        }
+
         const formData = new FormData();
         formData.append('file', file);
         formData.append('source', 'batch-imgupload'); // 标记批量上传来源
-
-        // 只在第一个文件时添加 Turnstile token
-        if (!!turnstileConfig.siteKey && turnstileToken && i === 0) {
-          formData.append('cfToken', turnstileToken);
+        if (token) {
+          formData.append('cfToken', token);
         }
 
         console.log(`[批量上传] 上传文件 ${i + 1}/${batchFiles.length}:`, fileName);
@@ -653,6 +736,7 @@ const ImageUploadPage: React.FC = () => {
         const res = await fetch(uploadUrl, {
           method: 'POST',
           body: formData,
+          credentials: 'include', // G12-01：与单文件路径对齐，带登录态
         });
 
         const result = await res.json();
@@ -660,6 +744,8 @@ const ImageUploadPage: React.FC = () => {
         if (result?.data?.web2url) {
           // 上传成功
           const shortUrl = result.data.shortUrl || null;
+          results.push({ name: fileName, ok: true });
+          uploadResults[fileName] = { web2url: result.data.web2url, shortUrl: shortUrl || undefined };
           setBatchProgress(prev => ({
             ...prev,
             [fileName]: { status: 'success', progress: 100, shortUrl }
@@ -732,6 +818,7 @@ const ImageUploadPage: React.FC = () => {
         } else {
           // 上传失败
           const errorMsg = result?.error || '上传失败';
+          results.push({ name: fileName, ok: false });
           setBatchProgress(prev => ({
             ...prev,
             [fileName]: { status: 'error', error: errorMsg }
@@ -741,6 +828,7 @@ const ImageUploadPage: React.FC = () => {
       } catch (error: any) {
         // 异常处理
         const errorMsg = error?.message || '上传异常';
+        results.push({ name: fileName, ok: false });
         setBatchProgress(prev => ({
           ...prev,
           [fileName]: { status: 'error', error: errorMsg }
@@ -756,17 +844,19 @@ const ImageUploadPage: React.FC = () => {
 
     setBatchUploading(false);
 
+    // G12-02：基于局部结果统计，而非渲染期闭包里的过期 state
+    const successCount = results.filter(r => r.ok).length;
+    const errorCount = results.length - successCount;
+    const successfulFiles = batchFiles.filter(file =>
+      results.some(r => r.name === file.name && r.ok)
+    );
+
     // 重新加载图片列表，确保显示所有成功上传的文件
     try {
-      await reloadImages();
+      const freshImages = await reloadImages();
       console.log('[批量上传] 本地图片列表已重新加载');
 
       // 为成功上传的图片添加闪烁效果
-      const successfulFiles = batchFiles.filter(file => {
-        const progress = batchProgress[file.name];
-        return progress && progress.status === 'success';
-      });
-
       if (successfulFiles.length > 0) {
         // 获取新上传的图片ID用于闪烁效果
         const newImageIds = new Set<string>();
@@ -774,10 +864,10 @@ const ImageUploadPage: React.FC = () => {
         // 延迟一点时间确保图片列表已经更新
         setTimeout(() => {
           for (const file of successfulFiles) {
-            const result = batchUploadResults[file.name];
+            const result = uploadResults[file.name];
             if (result) {
               // 通过文件名和web2url来匹配新上传的图片
-              const newImage = storedImages.find(img =>
+              const newImage = freshImages.find(img =>
                 img.fileName === file.name && img.web2url === result.web2url
               );
               if (newImage) {
@@ -799,17 +889,7 @@ const ImageUploadPage: React.FC = () => {
       console.error('[批量上传] 重新加载图片列表失败:', error);
     }
 
-    // 统计上传结果
-    const successCount = Object.values(batchProgress).filter(p => p.status === 'success').length;
-    const errorCount = Object.values(batchProgress).filter(p => p.status === 'error').length;
-
     if (successCount > 0) {
-      // 获取成功上传的文件列表
-      const successfulFiles = batchFiles.filter(file => {
-        const progress = batchProgress[file.name];
-        return progress && progress.status === 'success';
-      });
-
       // 显示成功上传的文件列表
       const successfulFileNames = successfulFiles.map(file => sanitizeDisplayText(file.name)).join(', ');
 
@@ -820,17 +900,11 @@ const ImageUploadPage: React.FC = () => {
           message: `批量上传完成！所有 ${successCount} 个文件上传成功。相关信息请在页面下方的"本地存储管理"区域查看。`,
           type: 'success'
         });
-      } else if (successCount > 0) {
+      } else {
         // 部分成功
         setNotification({
           message: `批量上传完成！成功 ${successCount} 个，失败 ${errorCount} 个。成功上传的文件信息请在页面下方的"本地存储管理"区域查看。`,
           type: 'warning'
-        });
-      } else {
-        // 全部失败
-        setNotification({
-          message: `批量上传失败！所有 ${errorCount} 个文件上传失败，请检查网络连接或文件格式后重试。`,
-          type: 'error'
         });
       }
 
@@ -840,10 +914,7 @@ const ImageUploadPage: React.FC = () => {
       // 更新进度状态，只保留成功的文件
       const successfulProgress: { [key: string]: { status: 'pending' | 'uploading' | 'success' | 'error', progress?: number, error?: string } } = {};
       successfulFiles.forEach(file => {
-        const progress = batchProgress[file.name];
-        if (progress && progress.status === 'success') {
-          successfulProgress[file.name] = progress;
-        }
+        successfulProgress[file.name] = { status: 'success', progress: 100 };
       });
       setBatchProgress(successfulProgress);
 
@@ -854,11 +925,18 @@ const ImageUploadPage: React.FC = () => {
 
       // 显示成功上传的文件已添加到本地历史记录
       console.log(`[批量上传] 成功上传的文件已添加到本地历史记录：`, successfulFileNames);
+    } else {
+      // 全部失败
+      setNotification({
+        message: `批量上传失败！所有 ${errorCount} 个文件上传失败，请检查网络连接或文件格式后重试。`,
+        type: 'error'
+      });
     }
 
     // 重置 Turnstile 状态
     setTurnstileToken('');
     setTurnstileVerified(false);
+    turnstileTokenRef.current = '';
     setTurnstileKey(k => k + 1);
   };
 

@@ -9,6 +9,17 @@ interface MermaidProps {
 const SUPPORTED_MERMAID_PREFIX =
   /^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram(?:-v2)?|erDiagram|journey|gantt|pie|gitGraph|mindmap|timeline|zenuml|sankey)/i;
 
+// G12-04/G12-05：模块级只初始化一次。
+// securityLevel 用默认的 'strict'，禁用 mermaid 的 click 指令与原始 HTML 标签注入；
+// flowchart 关闭 htmlLabels，让标签输出原生 <text>，避免 DOMPurify 消毒把 foreignObject 里的文字剥掉。
+mermaid.initialize({
+  startOnLoad: false,
+  securityLevel: 'strict',
+  theme: 'default',
+  fontFamily: 'inherit',
+  flowchart: { htmlLabels: false },
+});
+
 function normalizeMermaidCode(input: string): string {
   return (input || '')
     .replace(/\r\n/g, '\n')
@@ -48,13 +59,6 @@ const Mermaid: React.FC<MermaidProps> = ({ code }) => {
       }
 
       try {
-        mermaid.initialize({
-          startOnLoad: false,
-          securityLevel: 'loose',
-          theme: 'default',
-          fontFamily: 'inherit',
-        });
-
         let renderedSvg: string | null = null;
         for (const candidate of candidates) {
           try {

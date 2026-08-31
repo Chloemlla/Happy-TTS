@@ -45,6 +45,9 @@ import {
 // 优化性能：将工具函数移到组件外部，避免每次渲染时重新创建
 const isTextExt = (ext: string) => ['.txt', '.log', '.json', '.md'].includes(ext);
 
+// G12-13：正文预览只渲染前 200KB，避免 10MB 文本塞进单个 <pre> 卡死标签页
+const MAX_LOG_PREVIEW_CHARS = 200_000;
+
 type EncryptedLogSharePayload = {
   data: string;
   iv: string;
@@ -57,7 +60,7 @@ type EncryptedLogSharePayload = {
 };
 
 type LogShareQueryResult = { content: string; ext: string; encoding?: string };
-type LogShareListItem = { id: string; ext: string; uploadTime: string; size: number };
+type LogShareListItem = { id: string; ext: string; uploadTime: string; size: number; fileName?: string; note?: string };
 type LogShareExportType = 'plain' | 'base64' | 'aes256';
 type CryptoJsWordArrayLike = {
   toString(encoder?: typeof CryptoJS.enc.Utf8): string;
@@ -94,6 +97,9 @@ const normalizeLogList = (value: unknown): LogShareListItem[] => {
       ext: typeof log.ext === 'string' ? log.ext : 'unknown',
       uploadTime: typeof log.uploadTime === 'string' ? log.uploadTime : '',
       size: Number.isFinite(Number(log.size)) ? Number(log.size) : 0,
+      // G12-14：解析后端可能返回的文件名/备注，供编辑弹窗回填
+      fileName: typeof log.fileName === 'string' ? log.fileName : undefined,
+      note: typeof log.note === 'string' ? log.note : undefined,
     }))
     .filter((log) => log.id);
 };
@@ -380,8 +386,9 @@ const LogShare: React.FC = React.memo(() => {
   const openEdit = (log: { id: string }) => {
     const existing = allLogs.find(l => l.id === log.id);
     setEditingLog({ id: log.id });
-    setEditFileName('');
-    setEditNote('');
+    // G12-14：回填现有值，而不是每次都以空值打开
+    setEditFileName(existing?.fileName ?? '');
+    setEditNote(existing?.note ?? '');
   };
   const handleEditSave = async () => {
     if (!editingLog) return;
@@ -745,33 +752,7 @@ const LogShare: React.FC = React.memo(() => {
     }
   }, [success, setNotification]);
 
-  // 管理员校验
-  if (!user || !isAdminRole(user.role)) {
-    return (
-      <section className="mx-auto max-w-6xl px-4 py-10 sm:py-12">
-        <motion.div
-          className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-        >
-          <div className="pointer-events-none absolute -right-16 top-0 h-48 w-48 rounded-full bg-[radial-gradient(circle,_rgba(244,63,94,0.18),_transparent_68%)]" />
-          <div className="pointer-events-none absolute -left-10 bottom-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(244,63,94,0.12),_transparent_70%)]" />
-          <div className="relative">
-            <div className="inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-rose-500">
-              <FaLock className="text-[10px]" /> ACCESS DENIED
-            </div>
-            <h1 className="mt-5 text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">访问被拒绝</h1>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
-              你不是管理员，禁止访问！请用管理员账号登录后再来。
-            </p>
-            <div className="mt-3 text-sm italic text-rose-500">LogShare 仅限管理员使用</div>
-          </div>
-        </motion.div>
-      </section>
-    );
-  }
-
+  // 管理员校验：路由层已由 renderAdminRoute 把关，组件不再重复守卫（G9 遗留的双份执行已收敛）
   return (
     <>
       {/* 全屏密码弹窗 — Portal 到 body */}
@@ -1098,11 +1079,8 @@ const LogShare: React.FC = React.memo(() => {
                   </div>
                   <div className="max-h-[60vh] overflow-y-auto">
                     {allLogs.map((log, index) => (
-                      <motion.div
+                      <div
                         key={log.id}
-                        initial={{ opacity: 0, y: 4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: Math.min(index * 0.03, 0.2) }}
                         className={`border-b border-slate-100/70 px-4 py-3 transition hover:bg-slate-50/50 ${selectedLogIndex === index ? 'bg-slate-50' : ''}`}
                       >
                         <div className="flex items-start gap-3">
@@ -1159,7 +1137,7 @@ const LogShare: React.FC = React.memo(() => {
                             </div>
                           </div>
                         </div>
-                      </motion.div>
+                      </div>
                     ))}
                   </div>
                 </motion.div>
@@ -1220,8 +1198,15 @@ const LogShare: React.FC = React.memo(() => {
                       <div className="space-y-3">
                         <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">文本文件预览</div>
                         <pre className="max-h-64 overflow-auto rounded-2xl border border-slate-200 bg-slate-900 p-4 font-mono text-xs leading-6 text-slate-100 whitespace-pre-wrap">
-                          {queryResult.content}
+                          {queryResult.content.length > MAX_LOG_PREVIEW_CHARS
+                            ? queryResult.content.slice(0, MAX_LOG_PREVIEW_CHARS)
+                            : queryResult.content}
                         </pre>
+                        {queryResult.content.length > MAX_LOG_PREVIEW_CHARS && (
+                          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+                            文件内容较大，仅显示前 {MAX_LOG_PREVIEW_CHARS} 字符（约 200KB）。如需完整内容请点击「下载文本文件」。
+                          </div>
+                        )}
                         <motion.button
                           className={secondaryButtonClass}
                           onClick={handleDownload}

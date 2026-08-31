@@ -22,12 +22,11 @@ import {
   logSharePrimaryButtonClass,
   logShareTileClass
 } from './LogShareStyleScaffold';
-import { 
-  FaLink, 
-  FaChartBar, 
-  FaTrophy, 
-  FaUsers, 
-  FaCrosshairs, 
+import {
+  FaChartBar,
+  FaTrophy,
+  FaUsers,
+  FaCrosshairs,
   FaDice,
   FaGift,
   FaCrown,
@@ -38,41 +37,6 @@ import {
 
 const lotteryPanelClass = logSharePanelClass;
 const lotteryTileClass = logShareTileClass;
-
-// 区块链数据展示组件
-const BlockchainDisplay: React.FC<{ data: any }> = React.memo(({ data }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.6 }}
-    className={`${lotteryPanelClass} p-5 sm:p-6`}
-  >
-    <InfoSectionTitle
-      title="区块链数据"
-      description="用于校验抽奖随机性的链上参考信息。"
-      icon={FaLink}
-      tone="sky"
-    />
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
-      <div className={`${lotteryTileClass} p-4 text-center`}>
-        <div className="text-2xl font-semibold text-slate-950">{data.height.toLocaleString()}</div>
-        <div className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">区块高度</div>
-      </div>
-      <div className={`${lotteryTileClass} p-4 text-center`}>
-        <div className="truncate font-mono text-sm font-semibold text-emerald-700">{data.hash.substring(0, 8)}...</div>
-        <div className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">区块哈希</div>
-      </div>
-      <div className={`${lotteryTileClass} p-4 text-center`}>
-        <div className="text-lg font-semibold text-violet-700">{new Date(data.timestamp).toLocaleTimeString()}</div>
-        <div className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">时间戳</div>
-      </div>
-      <div className={`${lotteryTileClass} p-4 text-center`}>
-        <div className="text-lg font-semibold text-amber-700">{data.difficulty.toFixed(2)}</div>
-        <div className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">难度值</div>
-      </div>
-    </div>
-  </motion.div>
-));
 
 // 奖品展示组件
 const PrizeDisplay: React.FC<{ prize: any }> = ({ prize }) => {
@@ -178,7 +142,7 @@ const LotteryRoundCard: React.FC<{
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="text-sm text-slate-500">
-          区块链高度: {round.blockchainHeight.toLocaleString()}
+          抽奖编号: {round.id.slice(0, 8)}...
         </div>
         {user && (
           <div className="flex flex-col gap-2">
@@ -417,10 +381,6 @@ const WinnerModal: React.FC<{
           <FaGift className="text-6xl mb-4 text-yellow-500" />
           <h2 className="mb-2 text-2xl font-semibold text-slate-950">恭喜中奖！</h2>
           <p className="mb-4 text-lg text-slate-600">{winner.prizeName}</p>
-          <div className="mb-4 rounded-2xl border border-sky-200 bg-sky-50/80 p-4">
-            <div className="text-lg font-semibold text-sky-700">交易哈希</div>
-            <div className="break-all font-mono text-sm text-sky-700">{winner.transactionHash}</div>
-          </div>
           <InfoPrimaryButton onClick={onClose} tone="sky">确定</InfoPrimaryButton>
         </motion.div>
       </motion.div>
@@ -433,7 +393,6 @@ const LotteryPage: React.FC = () => {
   const { user } = useAuth();
   const { setNotification } = useNotification();
   const {
-    blockchainData,
     activeRounds,
     userRecord,
     leaderboard,
@@ -526,21 +485,18 @@ const LotteryPage: React.FC = () => {
         >
           <InfoQueryHero
             eyebrow="Entertainment"
-            title="区块链抽奖系统"
-            description="基于区块链高度的公平透明抽奖平台，集中展示抽奖轮次、奖品、个人记录和排行榜。"
+            title="幸运抽奖"
+            description="参与抽奖轮次、查看奖品与中奖记录。中奖结果由服务端加密安全随机数产生，与区块数据无关。"
             icon={FaDice}
             tone="violet"
             meta={
               <>
-                <InfoBadge tone="sky">链上随机</InfoBadge>
+                <InfoBadge tone="sky">服务端随机</InfoBadge>
                 <InfoBadge tone="emerald">实时轮次</InfoBadge>
                 <InfoBadge tone="amber">透明记录</InfoBadge>
               </>
             }
           />
-
-        {/* 区块链数据 */}
-        {blockchainData && <BlockchainDisplay data={blockchainData} />}
 
         {/* 统计信息 */}
         {statistics && <StatisticsCard stats={statistics} />}

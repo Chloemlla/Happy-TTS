@@ -304,6 +304,16 @@ const LibreChatPage: React.FC = () => {
   // 初始化状态追踪，使用ref避免useCallback依赖项循环
   const initializingRef = useRef(false);
 
+  // G12-16：主路径假流式打字机的 interval 句柄（SSE 完成 / 卸载 / catch 统一清理）
+  const streamTimerRef = useRef<number | null>(null);
+  // G12-17：历史兜底轮询（慢速 setTimeout 链 + AbortController 串行化）
+  const historyPollAbortRef = useRef<AbortController | null>(null);
+  const historyPollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // G12-18：SSE 重连退避（3s → 6s → … 封顶 60s，超过上限后停止自动重连）
+  const sseRetryDelayRef = useRef(3000);
+  const sseRetryCountRef = useRef(0);
+  const sseRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // 自定义弹窗状态
   const [alertModal, setAlertModal] = useState<{ open: boolean; title?: string; message: string; type?: 'warning' | 'danger' | 'info' | 'success' }>({ open: false, message: '' });
   const [confirmModal, setConfirmModal] = useState<{ open: boolean; title?: string; message: string; onConfirm: () => void; type?: 'warning' | 'danger' | 'info' }>({ open: false, message: '', onConfirm: () => { } });
@@ -727,6 +737,79 @@ const LibreChatPage: React.FC = () => {
     }
   };
 
+  // G12-16：清理假流式打字机计时器
+  const stopStreamTimer = useCallback(() => {
+    if (streamTimerRef.current !== null) {
+      window.clearInterval(streamTimerRef.current);
+      streamTimerRef.current = null;
+    }
+  }, []);
+
+  // G12-17：取消历史兜底轮询（中断 in-flight 请求并清除调度）
+  const cancelHistoryPoll = useCallback(() => {
+    if (historyPollAbortRef.current) {
+      historyPollAbortRef.current.abort();
+      historyPollAbortRef.current = null;
+    }
+    if (historyPollTimeoutRef.current !== null) {
+      window.clearTimeout(historyPollTimeoutRef.current);
+      historyPollTimeoutRef.current = null;
+    }
+  }, []);
+
+  const stopStreamingSession = useCallback(() => {
+    stopStreamTimer();
+    cancelHistoryPoll();
+  }, [stopStreamTimer, cancelHistoryPoll]);
+
+  // G12-17：独立的慢速兜底轮询（间隔 2s、最多 3 次、AbortController 串行化），
+  // 用于检测后端是否已落库 assistant 回复；SSE message_completed 才是主路径。
+  const runFallbackHistoryCheck = useCallback(() => {
+    cancelHistoryPoll();
+    let attempts = 0;
+    const attemptOnce = () => {
+      if (attempts >= 3) return;
+      attempts++;
+      const controller = new AbortController();
+      historyPollAbortRef.current = controller;
+      const params = new URLSearchParams({ page: '1', limit: '10' });
+      fetch(`${apiBase}/api/librechat/history?${params.toString()}`, {
+        credentials: 'include',
+        headers: token ? { 'x-chat-token': token } : undefined,
+        signal: controller.signal,
+      })
+        .then(async (checkRes) => {
+          if (historyPollAbortRef.current !== controller) return;
+          let hasAssistantResponse = false;
+          if (checkRes.ok) {
+            const checkData: unknown = await checkRes.json();
+            const historyArr = isRecord(checkData) && Array.isArray(checkData.history) ? checkData.history : [];
+            hasAssistantResponse = historyArr.slice(0, 5).some((msg: HistoryMessage) => {
+              const role = msg.role || 'user';
+              const content = msg.message || msg.content || '';
+              return role === 'assistant' && content.trim().length > 0;
+            });
+          }
+          if (hasAssistantResponse) {
+            historyPollAbortRef.current = null;
+            stopStreamTimer();
+            setStreaming(false);
+            setStreamContent('');
+            setNotification({ type: 'info', message: '检测到已有回复，正在刷新历史记录...' });
+            fetchHistory(1);
+            return;
+          }
+          historyPollAbortRef.current = null;
+          historyPollTimeoutRef.current = window.setTimeout(attemptOnce, 2000);
+        })
+        .catch(() => {
+          if (historyPollAbortRef.current === controller) historyPollAbortRef.current = null;
+          historyPollTimeoutRef.current = window.setTimeout(attemptOnce, 2000);
+        });
+    };
+    historyPollTimeoutRef.current = window.setTimeout(attemptOnce, 2000);
+  }, [apiBase, token, cancelHistoryPoll, stopStreamTimer, setStreaming, setStreamContent, setNotification, fetchHistory]);
+
   const handleSend = async () => {
     setSendError('');
     if (sending || streaming) {
@@ -773,65 +856,16 @@ const LibreChatPage: React.FC = () => {
         setNotification({ type: 'success', message: 'AI回复已收到，正在生成...' });
       }
 
-      // 检测历史记录中是否已有助手回复的函数
-      const checkForExistingAssistantResponse = async () => {
-        try {
-          const params = new URLSearchParams({ page: '1', limit: '10' });
-          const checkRes = await fetch(`${apiBase}/api/librechat/history?${params.toString()}`, {
-            credentials: 'include',
-            headers: {
-              ...(token ? { 'x-chat-token': token } : {}),
-            },
-          });
-          if (checkRes.ok) {
-            const checkData = await checkRes.json();
-            if (checkData.history && Array.isArray(checkData.history)) {
-              // 检查最新的几条记录中是否有助手回复
-              const recentMessages = checkData.history.slice(0, 5); // 检查最新的5条
-              const hasAssistantResponse = recentMessages.some((msg: HistoryMessage) => {
-                const role = msg.role || 'user';
-                const content = msg.message || msg.content || '';
-                return role === 'assistant' && content.trim().length > 0;
-              });
-
-              if (hasAssistantResponse) {
-                return true;
-              }
-            }
-          }
-        } catch {
-          // Ignore history polling failures during optimistic streaming.
-        }
-        return false;
-      };
-
       // 智能流式展示：按字符逐步显示，但避免渲染不完整的 Mermaid 代码
       if (txt) {
         let i = 0;
-        let checkCounter = 0;
-        const startTime = Date.now();
-        const maxCheckDuration = 10000; // 最多检测10秒
-        const interval = setInterval(async () => {
-          // 每5次更新检查一次历史记录，避免过多API调用
-          // 并且只在开始后的10秒内进行检测
-          checkCounter++;
-          const elapsedTime = Date.now() - startTime;
-          if (checkCounter % 5 === 0 && elapsedTime < maxCheckDuration) {
-            const hasExistingResponse = await checkForExistingAssistantResponse();
-            if (hasExistingResponse) {
-              clearInterval(interval);
-              setStreaming(false);
-              setStreamContent('');
-              setNotification({ type: 'info', message: '检测到已有回复，正在刷新历史记录...' });
-              fetchHistory(1);
-              return;
-            }
-          }
-
+        stopStreamTimer();
+        cancelHistoryPoll();
+        const interval = window.setInterval(() => {
           i = i + Math.max(1, Math.floor(txt.length / 80)); // 自适应步长
           if (i >= txt.length) {
             setStreamContent(txt);
-            clearInterval(interval);
+            stopStreamTimer();
             setStreaming(false);
             // 完成后刷新历史，确保刷新第一页
             setNotification({ type: 'success', message: '对话完成，正在刷新历史记录...' });
@@ -870,6 +904,9 @@ const LibreChatPage: React.FC = () => {
             }
           }
         }, 30);
+        streamTimerRef.current = interval;
+        // G12-17：删除 150ms/次 的高频历史轮询，改为独立的慢速兜底（2s 间隔、最多 3 次）
+        runFallbackHistoryCheck();
       } else {
         setStreaming(false);
         setNotification({ type: 'warning', message: 'AI未返回有效回复，正在刷新历史记录...' });
@@ -880,6 +917,7 @@ const LibreChatPage: React.FC = () => {
       }
     } catch (error) {
       const errorMessage = getErrorMessage(error, '发送失败，请稍后再试');
+      stopStreamingSession();
       setSendError(errorMessage);
       setStreaming(false);
       setNotification({ type: 'error', message: errorMessage });
@@ -932,9 +970,16 @@ const LibreChatPage: React.FC = () => {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      // G12-16：清理主路径假流式计时器与历史兜底轮询
+      stopStreamingSession();
       if (rtIntervalRef.current) {
         clearInterval(rtIntervalRef.current);
         rtIntervalRef.current = null;
+      }
+      // G12-18：清理 SSE 重连计时器
+      if (sseRetryTimerRef.current !== null) {
+        clearTimeout(sseRetryTimerRef.current);
+        sseRetryTimerRef.current = null;
       }
       // 清理SSE连接
       if (sseRef.current) {
@@ -1025,38 +1070,6 @@ const LibreChatPage: React.FC = () => {
         return;
       }
 
-      // 检测历史记录中是否已有助手回复的函数（实时对话框版本）
-      const checkForExistingAssistantResponseRealtime = async () => {
-        try {
-          const params = new URLSearchParams({ page: '1', limit: '10' });
-          const checkRes = await fetch(`${apiBase}/api/librechat/history?${params.toString()}`, {
-            credentials: 'include',
-            headers: {
-              ...(token ? { 'x-chat-token': token } : {}),
-            },
-          });
-          if (checkRes.ok) {
-            const checkData = await checkRes.json();
-            if (checkData.history && Array.isArray(checkData.history)) {
-              // 检查最新的几条记录中是否有助手回复
-              const recentMessages = checkData.history.slice(0, 5); // 检查最新的5条
-              const hasAssistantResponse = recentMessages.some((msg: HistoryMessage) => {
-                const role = msg.role || 'user';
-                const content = msg.message || msg.content || '';
-                return role === 'assistant' && content.trim().length > 0;
-              });
-
-              if (hasAssistantResponse) {
-                return true;
-              }
-            }
-          }
-        } catch {
-          // Ignore history polling failures during optimistic realtime streaming.
-        }
-        return false;
-      };
-
       // 放入一个助手占位项，随着流式更新
       let assistantIndex = -1;
       setRtHistory((prev) => {
@@ -1071,35 +1084,8 @@ const LibreChatPage: React.FC = () => {
         rtIntervalRef.current = null;
       }
       let i = 0;
-      let checkCounter = 0;
-      const interval = window.setInterval(async () => {
+      const interval = window.setInterval(() => {
         try {
-          // 每5次更新检查一次历史记录，避免过多API调用
-          checkCounter++;
-          if (checkCounter % 5 === 0) {
-            const hasExistingResponse = await checkForExistingAssistantResponseRealtime();
-            if (hasExistingResponse) {
-              if (rtIntervalRef.current) {
-                clearInterval(rtIntervalRef.current);
-                rtIntervalRef.current = null;
-              }
-              setRtStreaming(false);
-              setRtSending(false);
-              setRtStreamContent('');
-              // 移除刚添加的助手占位项
-              setRtHistory((prev) => {
-                const next = [...prev];
-                if (assistantIndex >= 0 && assistantIndex < next.length) {
-                  next.splice(assistantIndex, 1);
-                }
-                return next;
-              });
-              setNotification({ type: 'info', message: '检测到已有回复，正在刷新历史记录...' });
-              fetchHistory(1);
-              return;
-            }
-          }
-
           i = i + Math.max(1, Math.floor(txt.length / 80));
           if (i >= txt.length) {
             setRtStreamContent(txt); // 兼容旧显示区域
@@ -1186,6 +1172,7 @@ const LibreChatPage: React.FC = () => {
 
   // 新增：SSE 连接管理
   const [sseConnected, setSseConnected] = useState(false);
+  const [sseRetryExhausted, setSseRetryExhausted] = useState(false);
   const sseRef = useRef<EventSource | null>(null);
 
   // 建立SSE连接
@@ -1210,6 +1197,10 @@ const LibreChatPage: React.FC = () => {
 
       eventSource.onopen = () => {
         setSseConnected(true);
+        // G12-18：成功连接后重置退避与尝试计数
+        sseRetryDelayRef.current = 3000;
+        sseRetryCountRef.current = 0;
+        setSseRetryExhausted(false);
       };
 
       eventSource.onmessage = (event) => {
@@ -1225,7 +1216,12 @@ const LibreChatPage: React.FC = () => {
               break;
 
             case 'message_completed':
-              // 立即停止流式展示并刷新历史记录
+              // G12-16：立即停止假流式打字机与历史兜底轮询，避免完成事件后打字机把面板重新点亮
+              stopStreamingSession();
+              if (rtIntervalRef.current) {
+                clearInterval(rtIntervalRef.current);
+                rtIntervalRef.current = null;
+              }
               setStreaming(false);
               setStreamContent('');
               setSending(false);
@@ -1239,7 +1235,12 @@ const LibreChatPage: React.FC = () => {
               break;
 
             case 'retry_completed':
-              // 立即停止流式展示并刷新历史记录
+              // G12-16：同上，清理假流式计时器
+              stopStreamingSession();
+              if (rtIntervalRef.current) {
+                clearInterval(rtIntervalRef.current);
+                rtIntervalRef.current = null;
+              }
               setStreaming(false);
               setStreamContent('');
               setSending(false);
@@ -1263,12 +1264,26 @@ const LibreChatPage: React.FC = () => {
       eventSource.onerror = () => {
         setSseConnected(false);
 
-        // 自动重连（延迟3秒）
-        setTimeout(() => {
-          if (sseRef.current === eventSource) {
-            connectSSE();
-          }
-        }, 3000);
+        // G12-18：EventSource 会自行重连瞬时断连；只有连接彻底关闭（CLOSED）才手工重连，
+        // 且采用指数退避（3s→6s→…封顶 60s）+ 尝试上限，避免对后端点形成 1/3s 的重连风暴。
+        if (eventSource.readyState !== EventSource.CLOSED) return;
+        if (sseRef.current === eventSource) {
+          sseRef.current = null;
+        }
+        if (sseRetryCountRef.current >= 8) {
+          setSseRetryExhausted(true);
+          return;
+        }
+        sseRetryCountRef.current++;
+        const delay = Math.min(sseRetryDelayRef.current, 60000);
+        sseRetryDelayRef.current = Math.min(sseRetryDelayRef.current * 2, 60000);
+        if (sseRetryTimerRef.current !== null) {
+          clearTimeout(sseRetryTimerRef.current);
+        }
+        sseRetryTimerRef.current = setTimeout(() => {
+          sseRetryTimerRef.current = null;
+          connectSSE();
+        }, delay);
       };
 
     } catch {
@@ -1278,6 +1293,13 @@ const LibreChatPage: React.FC = () => {
 
   // 断开SSE连接
   const disconnectSSE = useCallback(() => {
+    if (sseRetryTimerRef.current !== null) {
+      clearTimeout(sseRetryTimerRef.current);
+      sseRetryTimerRef.current = null;
+    }
+    sseRetryDelayRef.current = 3000;
+    sseRetryCountRef.current = 0;
+    setSseRetryExhausted(false);
     if (sseRef.current) {
       sseRef.current.close();
       sseRef.current = null;
@@ -1345,7 +1367,23 @@ const LibreChatPage: React.FC = () => {
           meta={
             <>
               <InfoBadge tone={guestMode ? 'slate' : 'sky'}>{guestMode ? '游客模式' : '用户模式'}</InfoBadge>
-              <InfoBadge tone={sseConnected ? 'emerald' : 'rose'}>{sseConnected ? '实时连接已建立' : '实时连接已断开'}</InfoBadge>
+              {sseRetryExhausted ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSseRetryExhausted(false);
+                    sseRetryDelayRef.current = 3000;
+                    sseRetryCountRef.current = 0;
+                    connectSSE();
+                  }}
+                  className="inline-flex items-center gap-1 rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700 transition hover:bg-rose-100"
+                >
+                  <FaRedo className="w-3 h-3" />
+                  实时连接已断开，点击重连
+                </button>
+              ) : (
+                <InfoBadge tone={sseConnected ? 'emerald' : 'rose'}>{sseConnected ? '实时连接已建立' : '实时连接已断开'}</InfoBadge>
+              )}
               <InfoBadge tone="violet">历史记录管理</InfoBadge>
             </>
           }

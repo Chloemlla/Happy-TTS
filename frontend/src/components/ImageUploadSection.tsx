@@ -117,7 +117,8 @@ const ImageUploadSection: React.FC<ImageUploadSectionProps> = ({
             <input
               type="url"
               value={photoUrl || ''}
-              onChange={(e) => {
+              onChange={(e) => onUrlChange(e.target.value)}
+              onBlur={(e) => {
                 const normalized = sanitizeImageUrl(e.target.value);
                 onUrlChange(normalized);
                 onPreviewChange(normalized);

@@ -56,6 +56,11 @@ const CHAT_MARKDOWN_CONTROLS: MarkdownReaderControls = {
   collapsedHeight: 420,
 };
 
+// G12-21：与 TTS/LibreChat 对齐的输入长度上限（前端限制，不是安全边界）
+const MAX_TICKET_TITLE_LEN = 120;
+const MAX_TICKET_DESC_LEN = 4000;
+const MAX_TICKET_REPLY_LEN = 4000;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object';
 }
@@ -103,6 +108,17 @@ const TicketSystem: React.FC = () => {
     details?: string;
   } | null>(null);
 
+  // G12-21：提交/回复 in-flight 防护，双击只触发一次
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  // G12-22：AI 流式内容累计（ref 版本，供 isFinished 收尾用，避免闭包读到过期 state）
+  const streamingAiRef = useRef<{ ticketId: string; content: string } | null>(null);
+  // G12-22：等待 ticket:update 的超时兜底
+  const aiReplyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const selectedTicketRef = useRef<ITicket | null>(null);
+  useEffect(() => {
+    selectedTicketRef.current = selectedTicket;
+  }, [selectedTicket]);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion = useReducedMotion();
   const notifyMarkdownCopy = useCallback((success: boolean, wholeMessage = false) => {
@@ -139,23 +155,68 @@ const TicketSystem: React.FC = () => {
     setSelectedTicket(prev => prev?._id === updatedTicket._id ? updatedTicket : prev);
   }, []);
 
+  // G12-22：isFinished 时把累计内容乐观追加为一条 AI 消息，等待 ticket:update 用服务端版本替换
+  const appendOptimisticAiMessage = useCallback((ticketId: string, content: string) => {
+    setSelectedTicket(prev => {
+      if (!prev || prev._id !== ticketId) return prev;
+      const alreadyExists = prev.messages.some(m => m.senderRole === 'ai' && m.content === content);
+      if (alreadyExists) return prev;
+      return {
+        ...prev,
+        messages: [...prev.messages, {
+          senderId: 'ai',
+          senderRole: 'ai' as const,
+          content,
+          isAi: true,
+          createdAt: new Date().toISOString(),
+        }],
+      };
+    });
+  }, []);
+
+  // G12-22：ticket:update 迟迟未到时主动拉取一次，避免流式回复凭空消失
+  const scheduleAiReplyRefresh = useCallback((ticketId: string) => {
+    if (aiReplyTimeoutRef.current) clearTimeout(aiReplyTimeoutRef.current);
+    aiReplyTimeoutRef.current = setTimeout(() => {
+      aiReplyTimeoutRef.current = null;
+      if (selectedTicketRef.current?._id === ticketId) {
+        void ticketApi.getTicket(ticketId)
+          .then(applyTicketUpdate)
+          .catch(() => {});
+      }
+    }, 5000);
+  }, [applyTicketUpdate]);
+
   const onMessage = useCallback((msg: WsServerMessage) => {
     if (msg.type === "ticket:ai_response") {
       const { ticketId, content, isFinished } = msg.data;
-      if (ticketId === selectedTicket?._id || (!selectedTicket && ticketId === "new")) {
+      if (ticketId === selectedTicketRef.current?._id || (!selectedTicketRef.current && ticketId === "new")) {
         if (isFinished) {
+          // G12-22：不要直接清空——把累计内容作为乐观消息写入消息流，避免整段回复凭空消失
+          const finalContent = streamingAiRef.current?.content || "";
+          if (finalContent.trim() && ticketId !== "new") {
+            appendOptimisticAiMessage(ticketId, finalContent);
+            scheduleAiReplyRefresh(ticketId);
+          }
+          streamingAiRef.current = null;
           setStreamingAiResponse(null);
         } else {
-          setStreamingAiResponse(prev => ({
+          streamingAiRef.current = {
             ticketId,
-            content: (prev && prev.ticketId === ticketId ? prev.content : "") + content
-          }));
+            content: (streamingAiRef.current && streamingAiRef.current.ticketId === ticketId ? streamingAiRef.current.content : "") + content
+          };
+          setStreamingAiResponse({ ...streamingAiRef.current });
         }
       }
     }
 
     if (msg.type === "ticket:update") {
       if (!isRecord(msg.data) || typeof msg.data._id !== "string") return;
+      // G12-22：服务端版本到达，取消超时兜底
+      if (aiReplyTimeoutRef.current) {
+        clearTimeout(aiReplyTimeoutRef.current);
+        aiReplyTimeoutRef.current = null;
+      }
       const updatedTicket = msg.data as unknown as ITicket;
       if (isAdmin) {
         void ticketApi.getTicket(updatedTicket._id)
@@ -170,11 +231,11 @@ const TicketSystem: React.FC = () => {
 
     if (msg.type === "ticket:process") {
       const { ticketId, step } = msg.data;
-      if (ticketId === "new" || ticketId === selectedTicket?._id) {
+      if (ticketId === "new" || ticketId === selectedTicketRef.current?._id) {
         setProcessingStep(step);
       }
     }
-  }, [applyTicketUpdate, isAdmin, selectedTicket?._id]);
+  }, [applyTicketUpdate, isAdmin, appendOptimisticAiMessage, scheduleAiReplyRefresh]);
 
   useWebSocket({ onMessage });
 
@@ -256,6 +317,9 @@ const TicketSystem: React.FC = () => {
 
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
+    // G12-21：in-flight 防双击，避免重复工单 + 重复 AI 审核
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
       const created = await ticketApi.createTicket(newTicket);
       setNotification({ type: 'success', message: "工单已提交" });
@@ -301,12 +365,17 @@ const TicketSystem: React.FC = () => {
       } else {
         setNotification({ type: 'error', message: "提交失败" });
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleReply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTicket || !replyContent.trim()) return;
+    // G12-21：in-flight 防双击，同一条回复不能发两次
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     try {
       const updated = await ticketApi.replyTicket(selectedTicket._id, replyContent);
       setSelectedTicket(updated);
@@ -349,6 +418,8 @@ const TicketSystem: React.FC = () => {
       } else {
         setNotification({ type: 'error', message: "发送失败" });
       }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -649,10 +720,14 @@ const TicketSystem: React.FC = () => {
                         </div>
                         <form onSubmit={handleCreateTicket} className="space-y-4 sm:space-y-5">
                           <div>
-                            <label className={cn(studioEyebrowClassName, "mb-2 block")}>工单标题</label>
+                            <div className="mb-2 flex items-center justify-between">
+                              <label className={cn(studioEyebrowClassName, "block")}>工单标题</label>
+                              <span className="text-[10px] text-slate-400">{newTicket.title.length}/{MAX_TICKET_TITLE_LEN}</span>
+                            </div>
                             <input
                               type="text"
                               required
+                              maxLength={MAX_TICKET_TITLE_LEN}
                               placeholder="请输入简明扼要的标题"
                               className={studioFieldClassName}
                               value={newTicket.title}
@@ -692,10 +767,14 @@ const TicketSystem: React.FC = () => {
                             </div>
                           </div>
                           <div>
-                            <label className={cn(studioEyebrowClassName, "mb-2 block")}>详细描述</label>
+                            <div className="mb-2 flex items-center justify-between">
+                              <label className={cn(studioEyebrowClassName, "block")}>详细描述</label>
+                              <span className="text-[10px] text-slate-400">{newTicket.description.length}/{MAX_TICKET_DESC_LEN}</span>
+                            </div>
                             <textarea
                               required
                               rows={isMobile ? 6 : 8}
+                              maxLength={MAX_TICKET_DESC_LEN}
                               placeholder="请尽可能详细地说明您遇到的问题或建议，以便我们能更快为您处理..."
                               className={studioTextareaClassName}
                               value={newTicket.description}
@@ -705,12 +784,13 @@ const TicketSystem: React.FC = () => {
                           <div className="flex flex-col gap-2 pt-2 sm:flex-row">
                             <motion.button
                               type="submit"
+                              disabled={isSubmitting}
                               className={cn(studioPrimaryButtonClassName, "flex-1")}
                               whileHover={hoverScale(1.01)}
                               whileTap={tapScale(0.99)}
                             >
                               <FiSend size={14} />
-                              提交工单
+                              {isSubmitting ? '提交中...' : '提交工单'}
                             </motion.button>
                             <motion.button
                               type="button"
@@ -945,11 +1025,12 @@ const TicketSystem: React.FC = () => {
                               placeholder={isAdmin ? "在此输入回复内容..." : "补充更多详情..."}
                               className="flex-1 px-3 sm:px-4 py-2 text-xs sm:text-sm outline-none bg-transparent placeholder:text-slate-400"
                               value={replyContent}
+                              maxLength={MAX_TICKET_REPLY_LEN}
                               onChange={e => setReplyContent(e.target.value)}
                             />
                             <motion.button
                               type="submit"
-                              disabled={!replyContent.trim()}
+                              disabled={!replyContent.trim() || isSubmitting}
                               className={cn(studioPrimaryButtonClassName, "h-9 w-9 p-0 sm:h-10 sm:w-10 sm:p-0 disabled:opacity-50")}
                               whileHover={hoverScale(1.04)}
                               whileTap={tapScale(0.96)}

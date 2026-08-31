@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTts } from "../hooks/useTts";
 import { TtsForm } from "./TTSForm";
@@ -75,6 +75,8 @@ export const TtsPage: React.FC = () => {
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   const [activeHistoryId, setActiveHistoryId] = useState<string | null>(null);
   const [historyAudioElement, setHistoryAudioElement] = useState<HTMLAudioElement | null>(null);
+  // G12-19：结果卡片里那个可见 <audio> 的 ref，替代容易过期且不随 audioUrl 更新的 new Audio()
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const noticeRef = useDomProtection("legal-notice");
 
@@ -88,6 +90,16 @@ export const TtsPage: React.FC = () => {
       historyAudioElement?.pause();
     };
   }, [audioElement, historyAudioElement]);
+
+  // G12-19：audioUrl 变化时暂停旧音频，并把 audioElement 状态同步到可见 <audio>，
+  // 供 TtsHistoryList 做互斥；避免 JS 新 Audio() 永远播上一次生成的那段。
+  useEffect(() => {
+    if (audioElement) {
+      audioElement.pause();
+      setIsPlaying(false);
+    }
+    setAudioElement(audioRef.current);
+  }, [audioUrl, result]);
 
   const handleSuccess = useCallback(() => {
     if (audioElement) {
@@ -108,22 +120,16 @@ export const TtsPage: React.FC = () => {
       setActiveHistoryId(null);
     }
 
-    if (!audioElement) {
-      const audio = new Audio(audioUrl);
-      audio.onended = () => setIsPlaying(false);
-      audio.onpause = () => setIsPlaying(false);
-      audio.onplay = () => setIsPlaying(true);
-      setAudioElement(audio);
-      void audio.play();
-      return;
-    }
+    // G12-19：直接操作可见 <audio>，删除 new Audio() 那条永不更新的支路
+    const audio = audioRef.current;
+    if (!audio) return;
 
     if (isPlaying) {
-      audioElement.pause();
+      audio.pause();
     } else {
-      void audioElement.play();
+      void audio.play().catch(() => setIsPlaying(false));
     }
-  }, [audioElement, audioUrl, historyAudioElement, isPlaying]);
+  }, [audioUrl, historyAudioElement, isPlaying]);
 
   const handleDownload = useCallback(() => {
     if (!audioUrl) return;
@@ -338,6 +344,7 @@ export const TtsPage: React.FC = () => {
 
                   <div className="min-w-0 rounded-[20px] border border-slate-200 bg-slate-50 p-3 sm:rounded-2xl">
                     <audio
+                      ref={audioRef}
                       controls
                       preload="none"
                       className="w-full max-w-full"

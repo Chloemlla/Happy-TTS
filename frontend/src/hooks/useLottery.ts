@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  BlockchainData,
   LotteryRound,
   LotteryWinner,
   UserLotteryRecord,
@@ -13,7 +12,6 @@ import getApiBaseUrl from '../api';
 
 export function useLottery() {
   const { user } = useAuth();
-  const [blockchainData, setBlockchainData] = useState<BlockchainData | null>(null);
   const [activeRounds, setActiveRounds] = useState<LotteryRound[]>([]);
   const [allRounds, setAllRounds] = useState<LotteryRound[]>([]);
   const [userRecord, setUserRecord] = useState<UserLotteryRecord | null>(null);
@@ -21,17 +19,6 @@ export function useLottery() {
   const [statistics, setStatistics] = useState<LotteryStatistics | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // 获取区块链数据
-  const fetchBlockchainData = useCallback(async () => {
-    try {
-      setError(null);
-      const data = await lotteryApi.getBlockchainData();
-      setBlockchainData(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '获取区块链数据失败');
-    }
-  }, []);
 
   // 获取活跃轮次
   const fetchActiveRounds = useCallback(async () => {
@@ -159,7 +146,6 @@ export function useLottery() {
       setLoading(true);
       try {
         await Promise.all([
-          fetchBlockchainData(),
           fetchActiveRounds(),
           fetchAllRounds(),
           fetchLeaderboard(),
@@ -180,15 +166,8 @@ export function useLottery() {
     fetchUserRecord();
   }, [fetchUserRecord]);
 
-  // 定期更新区块链数据
-  useEffect(() => {
-    const interval = setInterval(fetchBlockchainData, 30000); // 每30秒更新一次
-    return () => clearInterval(interval);
-  }, [fetchBlockchainData]);
-
   return {
     // 数据
-    blockchainData,
     activeRounds,
     allRounds,
     userRecord,
@@ -198,7 +177,6 @@ export function useLottery() {
     error,
     
     // 方法
-    fetchBlockchainData,
     fetchActiveRounds,
     fetchAllRounds,
     fetchUserRecord,

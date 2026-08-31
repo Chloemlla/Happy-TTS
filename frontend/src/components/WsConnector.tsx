@@ -3,6 +3,8 @@ import { useWsNotifications } from '../hooks/useWsNotifications';
 
 const COLLISION_INSET = 4;
 const MOBILE_VIEWPORT_WIDTH = 640;
+// G12-03：碰撞检测改为 200ms 去抖，而不是每帧（rAF）跑一次
+const CHECK_DEBOUNCE_MS = 200;
 
 function isHiddenByStyle(element: Element) {
   const style = window.getComputedStyle(element);
@@ -76,7 +78,7 @@ function getSamplePoints(rect: DOMRect) {
 export default function WsConnector() {
   const { connected } = useWsNotifications();
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const frameRef = useRef<number | null>(null);
+  const checkTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [shouldFadeOut, setShouldFadeOut] = useState(false);
 
   const checkIfCoveringPageControl = useCallback(() => {
@@ -86,9 +88,8 @@ export default function WsConnector() {
     const rect = root.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
 
-    const previousPointerEvents = root.style.pointerEvents;
-    root.style.pointerEvents = 'none';
-
+    // G12-03：根节点常驻 pointer-events-none（纯指示器），
+    // 不再临时改 root.style.pointerEvents，从根上消除「自身写 style 触发自身 observer」的自碰撞循环。
     const coveringPageControl = getSamplePoints(rect).some(([x, y]) => {
       const stack = document.elementsFromPoint(x, y);
       return stack.some((element) => {
@@ -96,17 +97,15 @@ export default function WsConnector() {
         return isImportantPageControl(element);
       });
     });
-
-    root.style.pointerEvents = previousPointerEvents;
     setShouldFadeOut((current) => (current === coveringPageControl ? current : coveringPageControl));
   }, []);
 
   const scheduleCheck = useCallback(() => {
-    if (frameRef.current !== null) return;
-    frameRef.current = window.requestAnimationFrame(() => {
-      frameRef.current = null;
+    if (checkTimerRef.current !== null) return;
+    checkTimerRef.current = setTimeout(() => {
+      checkTimerRef.current = null;
       checkIfCoveringPageControl();
-    });
+    }, CHECK_DEBOUNCE_MS);
   }, [checkIfCoveringPageControl]);
 
   useEffect(() => {
@@ -120,7 +119,7 @@ export default function WsConnector() {
       attributes: true,
       childList: true,
       subtree: true,
-      attributeFilter: ['class', 'style', 'hidden', 'aria-hidden'],
+      attributeFilter: ['class', 'hidden', 'aria-hidden'],
     });
     if (rootRef.current) resizeObserver.observe(rootRef.current);
 
@@ -130,8 +129,9 @@ export default function WsConnector() {
     viewport?.addEventListener('scroll', scheduleCheck);
 
     return () => {
-      if (frameRef.current !== null) {
-        window.cancelAnimationFrame(frameRef.current);
+      if (checkTimerRef.current !== null) {
+        clearTimeout(checkTimerRef.current);
+        checkTimerRef.current = null;
       }
       observer.disconnect();
       resizeObserver.disconnect();
@@ -145,8 +145,8 @@ export default function WsConnector() {
   return (
     <div
       ref={rootRef}
-      className={`fixed bottom-4 right-4 z-50 transition-all duration-300 max-sm:bottom-2 max-sm:right-2 ${
-        shouldFadeOut ? 'pointer-events-none scale-95 opacity-0' : 'opacity-100'
+      className={`pointer-events-none fixed bottom-4 right-4 z-50 transition-all duration-300 max-sm:bottom-2 max-sm:right-2 ${
+        shouldFadeOut ? 'scale-95 opacity-0' : 'opacity-100'
       }`}
       aria-hidden={shouldFadeOut}
     >
