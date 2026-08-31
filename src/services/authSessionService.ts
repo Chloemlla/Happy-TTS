@@ -82,7 +82,10 @@ function clampText(value: unknown, max: number, fallback: string): string {
 }
 
 export function hashAuthCredential(value: string): string {
-  return crypto.pbkdf2Sync(value, config.jwtSecret, 10000, 32, "sha256").toString("hex");
+  // G2-08: 被哈希的是 128 位以上熵的随机 JWT/opaque token，不是低熵密码，
+  // 用 HMAC-SHA256 代替同步 PBKDF2-10000，消除每请求 16-30ms 的事件循环阻塞。
+  // 与 oauthService.hashOpaqueToken 保持一致。破坏性变更：存量 auth_sessions 全部失效。
+  return crypto.createHmac("sha256", config.jwtSecret).update(value).digest("hex");
 }
 
 function normalizeClientType(value: unknown): AuthClientType {
@@ -239,6 +242,35 @@ export async function revokeAuthCredential(userId: string, credential: string): 
   );
 }
 
+/**
+ * G2-02: 撤销某用户全部有效会话（登出/改密/重置密码后调用）。
+ * 连带撤销这些会话关联的 OAuth token 与扫码登录 client-token，
+ * 复用 revokeAuthDevice 已有的连带逻辑，保证改密后旧会话整体失效。
+ */
+export async function revokeAllAuthSessions(userId: string): Promise<{ revoked: number }> {
+  const now = new Date();
+  const docs = (await AuthSessionModel.find({ userId, revokedAt: null }).lean()) as AuthSessionDoc[];
+  if (docs.length === 0) return { revoked: 0 };
+  const oauthTokenIds = docs.map((doc) => doc.oauthTokenId).filter((value): value is string => Boolean(value));
+  const clientTokenHashes = docs
+    .map((doc) => doc.clientTokenHash)
+    .filter((value): value is string => Boolean(value));
+  const result = await AuthSessionModel.updateMany(
+    { userId, revokedAt: null },
+    { $set: { revokedAt: now, updatedAt: now } },
+  );
+  if (oauthTokenIds.length) {
+    await OAuthTokenModel.updateMany(
+      { userId, tokenId: { $in: oauthTokenIds }, revokedAt: null },
+      { $set: { revokedAt: now, updatedAt: now } },
+    );
+  }
+  if (clientTokenHashes.length) {
+    await revokeClientLoginTokensByHashes({ userId, tokenHashes: clientTokenHashes });
+  }
+  return { revoked: Number(result.modifiedCount || 0) };
+}
+
 export async function revokeAuthSessionsByOauthTokenIds(tokenIds: string[]): Promise<void> {
   if (tokenIds.length === 0) return;
   await AuthSessionModel.updateMany(
@@ -255,10 +287,14 @@ export async function revokeAuthSessionsByClientTokenHashes(userId: string, toke
   );
 }
 
-export async function assertActiveAuthSession(userId: string, credential: string): Promise<AuthSessionDoc> {
+export async function assertActiveAuthSession(
+  userId: string,
+  credential: string,
+  precomputedHash?: string,
+): Promise<AuthSessionDoc> {
   const session = (await AuthSessionModel.findOne({
     userId,
-    credentialHash: hashAuthCredential(credential),
+    credentialHash: precomputedHash ?? hashAuthCredential(credential),
     revokedAt: null,
   }).lean()) as AuthSessionDoc | null;
   if (!session) {
@@ -267,10 +303,15 @@ export async function assertActiveAuthSession(userId: string, credential: string
   return session;
 }
 
-export async function touchAuthSession(userId: string, credential: string, metadata: AuthSessionMetadata = {}): Promise<void> {
+export async function touchAuthSession(
+  userId: string,
+  credential: string,
+  metadata: AuthSessionMetadata = {},
+  precomputedHash?: string,
+): Promise<void> {
   const now = new Date();
   const normalized = getAuthSessionMetadataFromInput(metadata as AuthSessionCreateInput);
-  const credentialHash = hashAuthCredential(credential);
+  const credentialHash = precomputedHash ?? hashAuthCredential(credential);
   const existing = (await AuthSessionModel.findOne({ userId, credentialHash, revokedAt: null }).lean()) as AuthSessionDoc | null;
   if (!existing) throw new AuthSessionError("会话不存在或已撤销", "SESSION_REVOKED");
   const update: Record<string, unknown> = {

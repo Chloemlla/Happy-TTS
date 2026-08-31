@@ -539,17 +539,28 @@ async function syncOrderFromRemote(order: LinuxDoCreditOrderDoc): Promise<void> 
   const cfg = creditConfig();
   if (!cfg.pid || !cfg.key) return;
 
+  // G2-36: 商户密钥按上游协议要求只能走 GET query。错误处理绝不整体序列化 axios error
+  // （其 config.url 含 key，落入日志即密钥泄露），只记 status 与 outTradeNo。
   const apiUrl = `${cfg.gatewayBase.replace(/\/+$/, "")}/api.php`;
-  const response = await axios.get(apiUrl, {
-    params: {
-      act: "order",
-      pid: cfg.pid,
-      key: cfg.key,
-      out_trade_no: order.outTradeNo,
-    },
-    timeout: 10_000,
-    validateStatus: () => true,
-  });
+  let response;
+  try {
+    response = await axios.get(apiUrl, {
+      params: {
+        act: "order",
+        pid: cfg.pid,
+        key: cfg.key,
+        out_trade_no: order.outTradeNo,
+      },
+      timeout: 10_000,
+      validateStatus: () => true,
+    });
+  } catch (error) {
+    logger.warn("[LinuxDoCredit] sync order poll failed", {
+      outTradeNo: order.outTradeNo,
+      status: (error as any)?.response?.status,
+    });
+    return;
+  }
 
   if (response.status === 404) return;
   const data = response.data as Record<string, unknown> | undefined;

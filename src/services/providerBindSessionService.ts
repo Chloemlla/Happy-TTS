@@ -12,6 +12,8 @@ import { type User, UserStorage } from "../utils/userStorage";
 import { issueTrackedLoginToken, type AuthSessionMetadata } from "./authSessionService";
 
 const BIND_SESSION_TTL_MS = 5 * 60 * 1000;
+// G2-19: 容量上限，防内存无限增长。
+const MAX_BIND_SESSIONS = 5000;
 
 interface ProviderBindSessionRecord {
   profile: AccountProviderProfile;
@@ -58,6 +60,12 @@ const providerBindSessions = new Map<string, ProviderBindSessionRecord>();
 function cleanupExpiredBindSessions(now = Date.now()): void {
   for (const [token, record] of providerBindSessions.entries()) {
     if (record.expiresAt <= now) {
+      providerBindSessions.delete(token);
+    }
+  }
+  if (providerBindSessions.size > MAX_BIND_SESSIONS) {
+    const ordered = [...providerBindSessions.entries()].sort((a, b) => a[1].expiresAt - b[1].expiresAt);
+    for (const [token] of ordered.slice(0, providerBindSessions.size - MAX_BIND_SESSIONS)) {
       providerBindSessions.delete(token);
     }
   }
@@ -247,10 +255,11 @@ export async function confirmProviderBindSession(params: {
 }
 
 export function buildProviderBindPageRedirect(frontendCallbackUrl: string, sessionToken: string): string {
+  // G2-38: sessionToken 放 URL fragment，避免进入浏览器历史 / Referer / 日志。
   const url = new URL(frontendCallbackUrl);
   url.pathname = "/auth/provider/bind";
-  url.search = new URLSearchParams({ sessionToken }).toString();
-  url.hash = "";
+  url.search = "";
+  url.hash = new URLSearchParams({ sessionToken }).toString();
   return url.toString();
 }
 

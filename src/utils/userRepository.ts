@@ -126,6 +126,30 @@ export const userRepository = {
     return getUserById(id);
   },
 
+  async getUserSecretsById(id: string): Promise<User | null> {
+    const provider = getUserStorageProvider();
+    if (typeof provider.getUserSecretsById === "function") {
+      return provider.getUserSecretsById(id);
+    }
+    return provider.getUserById(id);
+  },
+
+  async consumeTotpCounter(id: string, counter: number): Promise<boolean> {
+    const provider = getUserStorageProvider();
+    if (typeof provider.consumeTotpCounter === "function") {
+      return provider.consumeTotpCounter(id, counter);
+    }
+    return true;
+  },
+
+  async consumePendingChallenge(id: string, expectedChallenge: string): Promise<User | null> {
+    const provider = getUserStorageProvider();
+    if (typeof provider.consumePendingChallenge === "function") {
+      return provider.consumePendingChallenge(id, expectedChallenge);
+    }
+    return provider.getUserById(id);
+  },
+
   async getUserByEmail(email: string): Promise<User | null> {
     return getUserByEmail(email);
   },

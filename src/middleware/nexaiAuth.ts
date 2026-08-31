@@ -73,9 +73,9 @@ export const nexaiAuthRequired = async (req: Request, res: Response, next: NextF
       });
     }
 
-    // 验证用户是否仍然存在
+    // 验证用户是否仍然存在，并按 DB 字段注入（G2-25：不信任 token 里的旧 role）
     const user = await NexaiUserModel.findOne({ id: decoded.userId })
-      .select("id username email role authProvider")
+      .select("id username email role authProvider accountStatus tokenVersion")
       .lean();
 
     if (!user) {
@@ -86,13 +86,32 @@ export const nexaiAuthRequired = async (req: Request, res: Response, next: NextF
       });
     }
 
-    // 注入用户信息到 request
+    // G2-25: 拒绝封停账号
+    if ((user as any).accountStatus === "suspended") {
+      return sendNexaiError(res, 403, {
+        error: "账户已被封停",
+        code: "NEXAI_USER_SUSPENDED",
+        stage: "server_auth",
+      });
+    }
+
+    // G2-24: tokenVersion 不匹配（改密/重置密码后）拒绝旧 access token
+    if ((decoded.tokenVersion || 0) !== Number((user as any).tokenVersion || 0)) {
+      return sendNexaiError(res, 401, {
+        error: "Token 已失效，请重新登录",
+        code: "NEXAI_TOKEN_VERSION_MISMATCH",
+        message: "请使用 refreshToken 刷新访问令牌或重新登录",
+        stage: "server_auth",
+      });
+    }
+
+    // 注入用户信息到 request（全部取 DB 值）
     req.nexaiUser = {
-      id: decoded.userId,
-      username: decoded.username,
-      email: decoded.email,
-      role: decoded.role || "user",
-      provider: decoded.provider || "local",
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      provider: user.authProvider,
     };
 
     next();
@@ -120,13 +139,19 @@ export const nexaiAuthOptional = async (req: Request, _res: Response, next: Next
     try {
       const decoded = NexaiAuthService.verifyToken(token);
       if (decoded.userId) {
-        req.nexaiUser = {
-          id: decoded.userId,
-          username: decoded.username,
-          email: decoded.email,
-          role: decoded.role || "user",
-          provider: decoded.provider || "local",
-        };
+        // G2-25: 可选鉴权同样只信 DB 字段，并校验 tokenVersion 与账号状态。
+        const user = await NexaiUserModel.findOne({ id: decoded.userId })
+          .select("id username email role authProvider accountStatus tokenVersion")
+          .lean();
+        if (user && (user as any).accountStatus !== "suspended" && (decoded.tokenVersion || 0) === Number((user as any).tokenVersion || 0)) {
+          req.nexaiUser = {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            provider: user.authProvider,
+          };
+        }
       }
     } catch (_) {
       // Token 无效时不阻塞请求

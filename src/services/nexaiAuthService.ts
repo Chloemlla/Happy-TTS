@@ -24,16 +24,26 @@ import { getNexaiWebAuthnConfig } from "../utils/nexaiWebAuthn";
 import { uuidv4 } from "../utils/uuid";
 import { SINGLE_PASSKEY_ERROR_MESSAGE } from "./passkeyService";
 import { sendProviderGeneratedPasswordEmail } from "./providerCredentialEmailService";
+import { sendEmail } from "./emailSender";
+import { generatePasswordResetLinkEmailHtml } from "../templates/emailTemplates";
 
 export const NEXAI_PASSKEY_UNKNOWN_CREDENTIAL_CODE = "unknown_credential";
 
 /** In-memory discoverable (usernameless) challenge store with TTL. */
 const DISCOVERABLE_CHALLENGE_TTL_MS = 5 * 60 * 1000;
+// G2-19: 容量上限，防内存无限增长。
+const MAX_DISCOVERABLE_CHALLENGES = 5000;
 const discoverableChallenges = new Map<string, number>();
 
 function pruneDiscoverableChallenges(now = Date.now()): void {
   for (const [challenge, createdAt] of discoverableChallenges.entries()) {
     if (now - createdAt > DISCOVERABLE_CHALLENGE_TTL_MS) {
+      discoverableChallenges.delete(challenge);
+    }
+  }
+  if (discoverableChallenges.size > MAX_DISCOVERABLE_CHALLENGES) {
+    const ordered = [...discoverableChallenges.entries()].sort((a, b) => a[1] - b[1]);
+    for (const [challenge] of ordered.slice(0, discoverableChallenges.size - MAX_DISCOVERABLE_CHALLENGES)) {
       discoverableChallenges.delete(challenge);
     }
   }
@@ -93,9 +103,11 @@ function generateAccessToken(user: INexaiUser): string {
       userId: user.id,
       username: user.username,
       email: user.email,
-      role: user.role,
       provider: user.authProvider,
       scope: "nexai",
+      // G2-24: tokenVersion claim，改密后 $inc 使旧 access token 立即失效。
+      // G2-25: 不再在 token 里签发 role，鉴权一律读 DB 用户，避免降权后旧 token 继续生效。
+      tokenVersion: (user as any).tokenVersion || 0,
     },
     getNexaiJwtSecret(),
     { expiresIn: getNexaiJwtExpires() as jwt.SignOptions["expiresIn"] },
@@ -411,75 +423,63 @@ export class NexaiAuthService {
     let isNewUser = false;
 
     if (!user) {
-      // 查找是否有相同邮箱的用户（自动关联）
-      user = googleEmail
-        ? ((await NexaiUserModel.findOne({ email: googleEmail.toLowerCase() }).lean()) as INexaiUser | null)
-        : null;
-
-      if (user) {
-        // 自动关联 Google 账号到已有账号
-        await NexaiUserModel.findOneAndUpdate(
-          { id: user.id },
-          {
-            $set: {
-              googleId,
-              googleEmail,
-              googleAvatarUrl: googleAvatar,
-              authProvider: mergeAuthProvider(user.authProvider, "google"),
-              emailVerified: emailVerified || user.emailVerified,
-            },
-          },
-        );
-        user = (await NexaiUserModel.findOne({ id: user.id }).lean()) as INexaiUser;
-        logger.info("[NexAI] Google 账号已关联到现有用户", { userId: user?.id, googleId });
-      } else {
-        // 创建新用户
-        isNewUser = true;
-        const username = await generateUniqueUsername(googleName);
-        const systemPassword = generateSystemPassword();
-        const hashedPassword = await bcrypt.hash(systemPassword, BCRYPT_ROUNDS);
-        const refreshToken = generateRefreshToken();
-        const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
-
-        const newUser: any = {
-          id: uuidv4(),
-          username,
-          email: (googleEmail || `${googleId}@google.nexai`).toLowerCase(),
-          password: hashedPassword,
-          displayName: googleName,
-          avatarUrl: googleAvatar,
-          googleId,
-          googleEmail,
-          googleAvatarUrl: googleAvatar,
-          authProvider: "google",
-          emailVerified,
-          role: "user",
-          refreshToken: hashedRefreshToken,
-          refreshTokenLookup: computeRefreshTokenLookup(refreshToken),
-          refreshTokenExpiresAt: getRefreshTokenExpiry(),
-          lastLoginAt: new Date(),
-          lastLoginIp: data.ip || "",
-          loginCount: 1,
-        };
-
-        const doc = await NexaiUserModel.create(newUser);
-        user = doc.toObject() as INexaiUser;
-
-        logger.info("[NexAI] Google OAuth 新用户创建", { userId: user.id, username, googleId });
-        await sendProviderGeneratedPasswordEmail({
-          email: user.email,
-          username: user.username,
-          password: systemPassword,
-          providerLabel: "Google",
-        });
-
-        return {
-          user,
-          accessToken: generateAccessToken(user),
-          refreshToken,
-          isNewUser,
-        };
+      // G2-04: 未验证邮箱不再作为并号依据。邮箱已被其他用户占用时明确拒绝，
+      // 引导用户登录后通过 linkGoogle 显式绑定。
+      if (!emailVerified) {
+        throw Object.assign(new Error("Google 邮箱未验证，无法登录"), { statusCode: 401 });
       }
+      if (googleEmail) {
+        const emailTaken = await NexaiUserModel.findOne({ email: googleEmail.toLowerCase() }).lean();
+        if (emailTaken) {
+          throw Object.assign(new Error("该邮箱已注册，请先登录后绑定 Google 账号"), { statusCode: 409 });
+        }
+      }
+      // 创建新用户
+      isNewUser = true;
+      const username = await generateUniqueUsername(googleName);
+      const systemPassword = generateSystemPassword();
+      const hashedPassword = await bcrypt.hash(systemPassword, BCRYPT_ROUNDS);
+      const refreshToken = generateRefreshToken();
+      const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+
+      const newUser: any = {
+        id: uuidv4(),
+        username,
+        email: (googleEmail || `${googleId}@google.nexai`).toLowerCase(),
+        password: hashedPassword,
+        displayName: googleName,
+        avatarUrl: googleAvatar,
+        googleId,
+        googleEmail,
+        googleAvatarUrl: googleAvatar,
+        authProvider: "google",
+        emailVerified,
+        role: "user",
+        refreshToken: hashedRefreshToken,
+        refreshTokenLookup: computeRefreshTokenLookup(refreshToken),
+        refreshTokenExpiresAt: getRefreshTokenExpiry(),
+        lastLoginAt: new Date(),
+        lastLoginIp: data.ip || "",
+        loginCount: 1,
+      };
+
+      const doc = await NexaiUserModel.create(newUser);
+      user = doc.toObject() as INexaiUser;
+
+      logger.info("[NexAI] Google OAuth 新用户创建", { userId: user.id, username, googleId });
+      await sendProviderGeneratedPasswordEmail({
+        email: user.email,
+        username: user.username,
+        password: systemPassword,
+        providerLabel: "Google",
+      });
+
+      return {
+        user,
+        accessToken: generateAccessToken(user),
+        refreshToken,
+        isNewUser,
+      };
     }
 
     // 已有用户，更新登录信息
@@ -574,7 +574,7 @@ export class NexaiAuthService {
           timeout: 10000,
         });
         const primaryEmail = emailsRes.data.find((e: any) => e.primary && e.verified);
-        githubEmail = primaryEmail?.email || emailsRes.data[0]?.email || null;
+        githubEmail = primaryEmail?.email || null;
       } catch (_) {
         // 邮箱获取失败不阻塞流程
       }
@@ -590,76 +590,61 @@ export class NexaiAuthService {
     let isNewUser = false;
 
     if (!user) {
-      // 查找是否有相同邮箱的用户（自动关联）
-      user = githubEmail
-        ? ((await NexaiUserModel.findOne({ email: githubEmail.toLowerCase() }).lean()) as INexaiUser | null)
-        : null;
-
-      if (user) {
-        // 自动关联 GitHub 账号到已有账号
-        await NexaiUserModel.findOneAndUpdate(
-          { id: user.id },
-          {
-            $set: {
-              githubId,
-              githubUsername,
-              githubEmail,
-              githubAvatarUrl: githubAvatar,
-              authProvider: mergeAuthProvider(user.authProvider, "github"),
-            },
-          },
-        );
-        user = (await NexaiUserModel.findOne({ id: user.id }).lean()) as INexaiUser;
-        logger.info("[NexAI] GitHub 账号已关联到现有用户", { userId: user?.id, githubId });
-      } else {
-        // 创建新用户
-        isNewUser = true;
-        const username = await generateUniqueUsername(githubUsername || githubName);
-        const systemPassword = generateSystemPassword();
-        const hashedPassword = await bcrypt.hash(systemPassword, BCRYPT_ROUNDS);
-        const refreshToken = generateRefreshToken();
-        const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
-
-        const newUser: any = {
-          id: uuidv4(),
-          username,
-          email: (githubEmail || `${githubId}@github.nexai`).toLowerCase(),
-          password: hashedPassword,
-          displayName: githubName,
-          avatarUrl: githubAvatar,
-          githubId,
-          githubUsername,
-          githubEmail,
-          githubAvatarUrl: githubAvatar,
-          authProvider: "github",
-          emailVerified: !!githubEmail,
-          role: "user",
-          refreshToken: hashedRefreshToken,
-          refreshTokenLookup: computeRefreshTokenLookup(refreshToken),
-          refreshTokenExpiresAt: getRefreshTokenExpiry(),
-          lastLoginAt: new Date(),
-          lastLoginIp: data.ip || "",
-          loginCount: 1,
-        };
-
-        const doc = await NexaiUserModel.create(newUser);
-        user = doc.toObject() as INexaiUser;
-
-        logger.info("[NexAI] GitHub OAuth 新用户创建", { userId: user.id, username, githubId });
-        await sendProviderGeneratedPasswordEmail({
-          email: user.email,
-          username: user.username,
-          password: systemPassword,
-          providerLabel: "GitHub",
-        });
-
-        return {
-          user,
-          accessToken: generateAccessToken(user),
-          refreshToken,
-          isNewUser,
-        };
+      // G2-04: 不再按邮箱自动并号。邮箱已被其他用户占用时明确拒绝，
+      // 引导用户登录后通过 linkGithub 显式绑定。
+      if (githubEmail) {
+        const emailTaken = await NexaiUserModel.findOne({ email: githubEmail.toLowerCase() }).lean();
+        if (emailTaken) {
+          throw Object.assign(new Error("该邮箱已注册，请先登录后绑定 GitHub 账号"), { statusCode: 409 });
+        }
       }
+      // 创建新用户
+      isNewUser = true;
+      const username = await generateUniqueUsername(githubUsername || githubName);
+      const systemPassword = generateSystemPassword();
+      const hashedPassword = await bcrypt.hash(systemPassword, BCRYPT_ROUNDS);
+      const refreshToken = generateRefreshToken();
+      const hashedRefreshToken = await bcrypt.hash(refreshToken, 10);
+
+      const newUser: any = {
+        id: uuidv4(),
+        username,
+        email: (githubEmail || `${githubId}@github.nexai`).toLowerCase(),
+        password: hashedPassword,
+        displayName: githubName,
+        avatarUrl: githubAvatar,
+        githubId,
+        githubUsername,
+        githubEmail,
+        githubAvatarUrl: githubAvatar,
+        authProvider: "github",
+        emailVerified: !!githubEmail,
+        role: "user",
+        refreshToken: hashedRefreshToken,
+        refreshTokenLookup: computeRefreshTokenLookup(refreshToken),
+        refreshTokenExpiresAt: getRefreshTokenExpiry(),
+        lastLoginAt: new Date(),
+        lastLoginIp: data.ip || "",
+        loginCount: 1,
+      };
+
+      const doc = await NexaiUserModel.create(newUser);
+      user = doc.toObject() as INexaiUser;
+
+      logger.info("[NexAI] GitHub OAuth 新用户创建", { userId: user.id, username, githubId });
+      await sendProviderGeneratedPasswordEmail({
+        email: user.email,
+        username: user.username,
+        password: systemPassword,
+        providerLabel: "GitHub",
+      });
+
+      return {
+        user,
+        accessToken: generateAccessToken(user),
+        refreshToken,
+        isNewUser,
+      };
     }
 
     // 已有用户，更新登录信息
@@ -724,7 +709,7 @@ export class NexaiAuthService {
         // required improves usernameless discoverable login on Android Credential Manager
         residentKey: "required",
         requireResidentKey: true,
-        userVerification: "preferred",
+        userVerification: "required",
         authenticatorAttachment: "platform", // 优先使用设备内置，如 FaceID/TouchID/Android Passkeys
       },
     });
@@ -758,7 +743,7 @@ export class NexaiAuthService {
         expectedChallenge,
         expectedOrigin,
         expectedRPID: rpID,
-        requireUserVerification: false,
+        requireUserVerification: true,
       });
     } catch (error: any) {
       logger.error("[NexAI] Passkey 注册验证失败", { error: error.message });
@@ -795,9 +780,23 @@ export class NexaiAuthService {
     const query = validator.isEmail(identifier.trim()) ? { email: safeValue } : { username: safeValue };
     const user = (await NexaiUserModel.findOne(query).lean()) as INexaiUser;
 
-    // 即使找不到用户也返回空选项防止用户名遍历枚举攻击，但在实际应用中一般要求传入具体的标识或者由客户端提供现有的credentialID
-    // 或者是无缝登录 (autofill) - 这里为了简化，我们先要求输入 identifier 找到用户
-    if (!user) throw Object.assign(new Error("用户不存在"), { statusCode: 404 });
+    const { rpID } = NexaiAuthService.getWebAuthnConfig();
+
+    // G2-27: 用户不存在时也返回一份用随机 allowCredentials 构造的合法 options，
+    // 且不落库 challenge，避免 404/200 差异暴露用户是否存在。后续 finish 一律失败。
+    if (!user) {
+      const randomAllowCredentials = Array.from({ length: 3 }, () => ({
+        id: Buffer.from(crypto.randomBytes(32)).toString("base64url"),
+        type: "public-key" as const,
+        transports: ["internal" as AuthenticatorTransport],
+      }));
+      const decoyOptions = await generateAuthenticationOptions({
+        rpID,
+        allowCredentials: randomAllowCredentials,
+        userVerification: "required",
+      });
+      return { options: decoyOptions, userId: "" };
+    }
 
     const allowCredentials = (user.passkeys || []).map((pk) => ({
       id: normalizeBase64Url(pk.id),
@@ -805,12 +804,10 @@ export class NexaiAuthService {
       transports: pk.transports as AuthenticatorTransport[],
     }));
 
-    const { rpID } = NexaiAuthService.getWebAuthnConfig();
-
     const options = await generateAuthenticationOptions({
       rpID,
       allowCredentials,
-      userVerification: "preferred",
+      userVerification: "required",
     });
 
     // 存储 challenge
@@ -877,7 +874,7 @@ export class NexaiAuthService {
           counter: passkey.counter,
           transports: passkey.transports as AuthenticatorTransport[],
         },
-        requireUserVerification: false,
+        requireUserVerification: true,
       });
     } catch (error: any) {
       logger.error("[NexAI] Passkey 登录验证失败", { error: error.message });
@@ -972,7 +969,7 @@ export class NexaiAuthService {
           counter: passkey.counter,
           transports: passkey.transports as AuthenticatorTransport[],
         },
-        requireUserVerification: false,
+        requireUserVerification: true,
       });
     } catch (error: any) {
       logger.error("[NexAI] Discoverable Passkey 登录验证失败", { error: error.message });
@@ -1065,17 +1062,9 @@ export class NexaiAuthService {
       }).lean()) as INexaiUser[],
     );
 
-    if (!matchedUser) {
-      // 兼容本次变更前写入、尚未轮换的旧文档；随着 token 轮换该候选集会收敛为空
-      matchedUser = await matchByBcrypt(
-        (await NexaiUserModel.find({
-          refreshToken: { $exists: true, $ne: null },
-          refreshTokenLookup: { $exists: false },
-          refreshTokenExpiresAt: { $gt: Date.now() },
-        }).lean()) as INexaiUser[],
-      );
-    }
-
+    // G2-07: 已删除「refreshTokenLookup 未命中时全表 bcrypt 比对」的兜底。
+    // 该兜底会让任意伪造的 refreshToken 触发全库 N 次 bcrypt.compare，占满 libuv 线程池。
+    // 未轮换的旧文档通过一次性迁移 $unset refreshToken 强制重登，这里只走索引收敛后的单条判定。
     if (!matchedUser) {
       throw Object.assign(new Error("无效或已过期的 refreshToken"), { statusCode: 401 });
     }
@@ -1376,15 +1365,46 @@ export class NexaiAuthService {
       return { message: "如果该邮箱已注册，您将收到密码重置指引", resetToken: "" };
     }
 
-    // 生成重置 token（有效期 30 分钟）
-    const resetToken = jwt.sign({ userId: user.id, purpose: "reset-password", scope: "nexai" }, getNexaiJwtSecret(), {
-      expiresIn: "30m",
-    });
+    // G2-24: 一次性持久化重置令牌（存哈希 + 过期时间），不再用 JWT（可重放）。
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const resetTokenHash = crypto.createHash("sha256").update(resetToken).digest("hex");
+    const expiresAt = Date.now() + 30 * 60 * 1000; // 30 分钟
+
+    await NexaiUserModel.updateOne(
+      { id: user.id },
+      {
+        $set: {
+          passwordResetTokenHash: resetTokenHash,
+          passwordResetTokenExpiresAt: expiresAt,
+        },
+      },
+    );
+
+    // 真发信（复用原系统邮件通道）
+    const frontendBaseUrl = process.env.FRONTEND_URL || "https://tts.chloemlla.com";
+    const resetLink = `${frontendBaseUrl}/nexai/reset-password?token=${resetToken}`;
+    try {
+      const emailHtml = generatePasswordResetLinkEmailHtml(user.username, resetLink);
+      const result = await sendEmail({
+        to: user.email,
+        subject: "NexAI 账号密码重置",
+        html: emailHtml,
+        logTag: "NexAI 密码重置",
+      });
+      if (!result.success) {
+        logger.warn("[NexAI] 密码重置邮件发送失败", { userId: user.id, email: user.email, error: result.error });
+      }
+    } catch (error) {
+      logger.warn("[NexAI] 密码重置邮件发送异常", {
+        userId: user.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
 
     logger.info("[NexAI] 密码重置请求", { userId: user.id, email });
 
-    // TODO: 发送重置邮件（可复用原系统邮件服务）
-    return { message: "如果该邮箱已注册，您将收到密码重置指引", resetToken };
+    // G2-24: resetToken 不随响应返回（含开发环境），只存在于邮件链接里。
+    return { message: "如果该邮箱已注册，您将收到密码重置指引", resetToken: "" };
   }
 
   // ---------- 重置密码 ----------
@@ -1394,36 +1414,42 @@ export class NexaiAuthService {
       throw Object.assign(new Error(errors[0].message), { statusCode: 400 });
     }
 
-    let decoded: any;
-    try {
-      decoded = jwt.verify(data.token, getNexaiJwtSecret(), { algorithms: ["HS256"] });
-    } catch (_) {
+    if (typeof data.token !== "string" || !/^[a-f0-9]{64}$/i.test(data.token)) {
       throw Object.assign(new Error("重置链接已过期或无效"), { statusCode: 400 });
     }
 
-    if (decoded.purpose !== "reset-password" || decoded.scope !== "nexai") {
-      throw Object.assign(new Error("无效的重置令牌"), { statusCode: 400 });
+    const resetTokenHash = crypto.createHash("sha256").update(data.token).digest("hex");
+    const user = (await NexaiUserModel.findOne({
+      passwordResetTokenHash: resetTokenHash,
+      passwordResetTokenExpiresAt: { $gt: Date.now() },
+    }).lean()) as INexaiUser | null;
+
+    if (!user) {
+      throw Object.assign(new Error("重置链接已过期或无效"), { statusCode: 400 });
     }
 
     const hashedPassword = await bcrypt.hash(data.newPassword, BCRYPT_ROUNDS);
 
-    const user = (await NexaiUserModel.findOne({ id: decoded.userId }).lean()) as INexaiUser | null;
-    if (!user) {
-      throw Object.assign(new Error("用户不存在"), { statusCode: 404 });
-    }
-
-    // 更新密码并确保 authProvider 包含 local
+    // G2-24: 一次性消费令牌 + 撤销 refresh token + tokenVersion 递增使旧 access token 失效。
     await NexaiUserModel.findOneAndUpdate(
-      { id: decoded.userId },
+      { id: user.id },
       {
         $set: {
           password: hashedPassword,
           authProvider: mergeAuthProvider(user.authProvider, "local"),
         },
+        $unset: {
+          passwordResetTokenHash: "",
+          passwordResetTokenExpiresAt: "",
+          refreshToken: "",
+          refreshTokenLookup: "",
+          refreshTokenExpiresAt: "",
+        },
+        $inc: { tokenVersion: 1 },
       },
     );
 
-    logger.info("[NexAI] 密码重置成功", { userId: decoded.userId });
+    logger.info("[NexAI] 密码重置成功", { userId: user.id });
   }
 
   // ---------- 验证 Token（中间件用） ----------

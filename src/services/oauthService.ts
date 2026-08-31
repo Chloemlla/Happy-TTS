@@ -112,7 +112,7 @@ export interface OAuthAuthorizePreview {
   redirectUri: string;
   responseType: "code";
   state: string | null;
-  codeChallengeMethod: "plain" | "S256" | null;
+  codeChallengeMethod: "S256" | null;
 }
 
 export interface OAuthTokenResponse {
@@ -521,13 +521,15 @@ function assertRedirectUri(client: OAuthClientDoc, redirectUri: string): void {
   }
 }
 
-function normalizeCodeChallengeMethod(value: unknown): "plain" | "S256" | null {
+function normalizeCodeChallengeMethod(value: unknown): "S256" | null {
+  // G2-23: plain 模式下 code_challenge 即 code_verifier，任何能看到授权请求 URL 的一方
+  // 都同时拿到 verifier，PKCE 保护归零。只接受 S256（RFC 8252 要求原生 App 用 S256）。
   if (value === undefined || value === null || value === "") return null;
-  if (value === "plain" || value === "S256") return value;
-  throw new OAuthError(400, "invalid_request", "code_challenge_method 只支持 plain 或 S256");
+  if (value === "S256") return "S256";
+  throw new OAuthError(400, "invalid_request", "code_challenge_method 只支持 S256");
 }
 
-function assertPkceRequest(client: OAuthClientDoc, codeChallenge: string | undefined, method: "plain" | "S256" | null): void {
+function assertPkceRequest(client: OAuthClientDoc, codeChallenge: string | undefined, method: "S256" | null): void {
   if (!codeChallenge) {
     if (client.type === "public") {
       throw new OAuthError(400, "invalid_request", "public OAuth 客户端必须使用 PKCE");
@@ -1411,7 +1413,7 @@ export function getOAuthServerMetadata(baseUrl: string) {
     response_types_supported: ["code"],
     grant_types_supported: ["authorization_code", "refresh_token"],
     token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post", "none"],
-    code_challenge_methods_supported: ["S256", "plain"],
+    code_challenge_methods_supported: ["S256"],
     scopes_supported: OAUTH_SCOPE_DEFINITIONS.map((scope) => scope.key),
   };
 }

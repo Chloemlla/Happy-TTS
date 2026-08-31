@@ -14,10 +14,10 @@ import { createLinuxDoAuthorizationUrl, isLinuxDoAuthEnabled } from "../../servi
 import {
   clearEmailChangeChallenge,
   clearProfileVerificationSessions,
+  consumeProfileVerificationSession,
   createEmailChangeChallenge,
   createProfileVerificationSession,
   validateEmailChangeChallenge,
-  validateProfileVerificationSession,
 } from "../../services/profileUpdateVerificationService";
 import {
   generateEmailChangeNewNoticeHtml,
@@ -30,6 +30,7 @@ import { UserStorage } from "../../utils/userStorage";
 import {
   AuthSessionError,
   listAuthDevices,
+  revokeAllAuthSessions,
   revokeAuthDevice,
 } from "../../services/authSessionService";
 import { getTokenFromRequest } from "../../utils/authCookie";
@@ -196,7 +197,7 @@ router.post("/user/profile/devices/:deviceKey/revoke", authMiddleware, async (re
     const verificationToken = typeof req.body?.verificationToken === "string" ? req.body.verificationToken : "";
     if (!user || !token) return res.status(401).json({ error: "未登录" });
     if (!/^[a-f0-9]{40}$/.test(deviceKey)) return res.status(400).json({ error: "设备标识无效" });
-    if (!verificationToken || !validateProfileVerificationSession(user.id, verificationToken)) {
+    if (!verificationToken || !consumeProfileVerificationSession(user.id, verificationToken)) {
       return res.status(401).json({ error: "请先完成身份验证", code: "PROFILE_VERIFICATION_REQUIRED" });
     }
 
@@ -248,7 +249,12 @@ router.post("/user/profile/verify", authMiddleware, async (req, res) => {
       }
 
       const { TOTPService } = require("../../services/totpService");
-      const isValid = TOTPService.verifyToken(verificationCode, dbUser.totpSecret);
+      // G2-13: 带 counter 重放防护（原子消费）
+      const totpCheck = TOTPService.verifyTokenWithCounter(verificationCode, dbUser.totpSecret);
+      let isValid = totpCheck.valid;
+      if (isValid && totpCheck.counter !== null) {
+        isValid = await UserStorage.consumeTotpCounter(dbUser.id, totpCheck.counter);
+      }
 
       if (!isValid) {
         return res.status(401).json({ error: "TOTP 验证失败" });
@@ -330,7 +336,7 @@ router.post("/user/profile/linked-accounts/:provider/start", authMiddleware, asy
     }
 
     const verificationToken = typeof req.body?.verificationToken === "string" ? req.body.verificationToken : "";
-    if (!verificationToken || !validateProfileVerificationSession(user.id, verificationToken)) {
+    if (!verificationToken || !consumeProfileVerificationSession(user.id, verificationToken)) {
       return res.status(401).json({ error: "请先完成身份验证" });
     }
 
@@ -383,7 +389,7 @@ router.post("/user/profile/linked-accounts/:provider/unlink", authMiddleware, as
     }
 
     const verificationToken = typeof req.body?.verificationToken === "string" ? req.body.verificationToken : "";
-    if (!verificationToken || !validateProfileVerificationSession(dbUser.id, verificationToken)) {
+    if (!verificationToken || !consumeProfileVerificationSession(dbUser.id, verificationToken)) {
       return res.status(401).json({ error: "请先完成身份验证" });
     }
 
@@ -442,7 +448,7 @@ router.post("/user/profile/account-merge/confirm", authMiddleware, async (req, r
     if (!mergeToken) {
       return res.status(400).json({ error: "缺少合并令牌" });
     }
-    if (!verificationToken || !validateProfileVerificationSession(dbUser.id, verificationToken)) {
+    if (!verificationToken || !consumeProfileVerificationSession(dbUser.id, verificationToken)) {
       return res.status(401).json({ error: "确认合并前请先完成身份验证" });
     }
 
@@ -491,7 +497,7 @@ router.post("/user/profile/email/send-code", authMiddleware, async (req, res) =>
       return res.status(401).json({ error: "请先完成身份验证" });
     }
 
-    if (!validateProfileVerificationSession(dbUser.id, verificationToken)) {
+    if (!consumeProfileVerificationSession(dbUser.id, verificationToken)) {
       return res.status(401).json({ error: "身份验证已过期，请重新验证" });
     }
 
@@ -564,7 +570,7 @@ router.post("/user/profile", authMiddleware, async (req, res) => {
 
     let verifiedBySession = false;
     if (verificationToken) {
-      verifiedBySession = Boolean(validateProfileVerificationSession(dbUser.id, verificationToken));
+      verifiedBySession = Boolean(consumeProfileVerificationSession(dbUser.id, verificationToken));
 
       if (!verifiedBySession) {
         return res.status(401).json({ error: "身份验证已过期，请重新验证" });
@@ -624,6 +630,10 @@ router.post("/user/profile", authMiddleware, async (req, res) => {
     }
     if (wantsPasswordChange) updateData.password = newPassword;
     await UserStorage.updateUser(user.id, updateData);
+    // G2-02: 用户自助改密成功后撤销全部会话，旧 JWT 立即失效。
+    if (wantsPasswordChange) {
+      await revokeAllAuthSessions(user.id);
+    }
     const updated = await UserStorage.getUserById(user.id);
     if (!updated) {
       return res.status(500).json({ error: "更新后无法获取用户信息" });

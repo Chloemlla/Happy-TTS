@@ -3,7 +3,6 @@ import type { Request, Response } from "express";
 import { VerificationTokenType, verificationTokenStorage } from "../models/verificationTokenModel";
 import { sendEmail } from "../services/emailSender";
 import {
-  authenticateGoogleUser,
   getGoogleAuthConfigSummary,
   isGoogleAuthEnabled,
   startGoogleBindSession,
@@ -15,7 +14,7 @@ import {
   confirmProviderBindSession,
   getProviderBindSessionView,
 } from "../services/providerBindSessionService";
-import { validateProfileVerificationSession } from "../services/profileUpdateVerificationService";
+import { consumeProfileVerificationSession } from "../services/profileUpdateVerificationService";
 import { TurnstileService } from "../services/turnstileService";
 import * as VerificationService from "../services/verificationService";
 import {
@@ -43,6 +42,8 @@ import {
   getAuthSessionMetadata,
   issueTrackedLoginToken,
   listAuthDevices,
+  revokeAllAuthSessions,
+  revokeAuthCredential,
   revokeAuthDevice,
 } from "../services/authSessionService";
 
@@ -80,11 +81,58 @@ const resetPasswordCodeMap = new Map<
   { code: string; time: number; userId: string; attempts: number; fingerprint?: string; ipAddress?: string }
 >(); // email -> { code, time, userId, attempts, fingerprint, ipAddress }
 
+// G2-20: 给模块级认证状态 Map 加 TTL 清理 + 容量上限，避免攻击者用随机 identifier 持续放大内存。
+const AUTH_STATE_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+const LOGIN_ATTEMPTS_MAX_ENTRIES = 20_000;
+const CODE_MAP_MAX_ENTRIES = 5_000;
+
+function cleanupLoginAttempts(now = Date.now()): void {
+  if (loginAttempts.size <= LOGIN_ATTEMPTS_MAX_ENTRIES) {
+    // 仍然清理已过锁定期的条目
+    for (const [key, value] of loginAttempts) {
+      if (!value.lockedUntil || value.lockedUntil <= now) {
+        if (!value.lockedUntil && now - value.lastAttempt > 24 * 60 * 60 * 1000) {
+          loginAttempts.delete(key);
+        } else if (value.lockedUntil && value.lockedUntil <= now) {
+          loginAttempts.delete(key);
+        }
+      }
+    }
+    return;
+  }
+  // 超上限：整体清空（保守兜底，防止内存无限增长）
+  loginAttempts.clear();
+}
+
+function cleanupCodeMap<K>(map: Map<K, { time: number }>, maxEntries: number, ttlMs: number, now = Date.now()): void {
+  if (map.size <= maxEntries) {
+    for (const [key, value] of map) {
+      if (now - value.time > ttlMs) {
+        map.delete(key);
+      }
+    }
+    return;
+  }
+  // 超上限：先按时间排序淘汰最旧的，直到回落到上限
+  const ordered = [...map.entries()].sort((a, b) => a[1].time - b[1].time);
+  const excess = map.size - maxEntries;
+  for (const [key] of ordered.slice(0, excess)) {
+    map.delete(key);
+  }
+}
+
+setInterval(() => {
+  try {
+    cleanupLoginAttempts();
+    cleanupCodeMap(emailCodeMap, CODE_MAP_MAX_ENTRIES, 10 * 60 * 1000);
+    cleanupCodeMap(resetPasswordCodeMap, CODE_MAP_MAX_ENTRIES, 10 * 60 * 1000);
+  } catch (error) {
+    logger.warn("[Auth] 认证状态清理异常", { error: error instanceof Error ? error.message : String(error) });
+  }
+}, AUTH_STATE_CLEANUP_INTERVAL_MS).unref();
+
 // 最大验证码失败次数（防暴力枚举）
 const MAX_CODE_ATTEMPTS = 5;
-
-// 顶部 import 后添加类型声明
-type UserWithVerified = User & { verified?: boolean };
 
 // 获取前端基础URL
 function getFrontendBaseUrl(): string {
@@ -147,7 +195,9 @@ export class AuthController {
         return res.status(400).json({ error: "缺少 Google idToken" });
       }
 
-      const payload = await authenticateGoogleUser({
+      // G2-03: 未绑定的 Google 身份不再按邮箱静默并号，一律返回 requiresBinding，
+      // 由前端引导用户验密绑定后再登录。
+      const payload = await startGoogleBindSession({
         idToken,
         clientIp: getClientIP(req),
         sessionMetadata: getAuthSessionMetadata(req, { ipAddress: getClientIP(req) }),
@@ -259,7 +309,7 @@ export class AuthController {
       if (!idToken) {
         return res.status(400).json({ error: "缺少 Google idToken" });
       }
-      if (!verificationToken || !validateProfileVerificationSession(currentUser.id, verificationToken)) {
+      if (!verificationToken || !consumeProfileVerificationSession(currentUser.id, verificationToken)) {
         return res.status(401).json({ error: "请先完成身份验证" });
       }
 
@@ -296,7 +346,7 @@ export class AuthController {
 
   public static async register(req: Request, res: Response) {
     try {
-      const { username, email, password, fingerprint, clientIP, cfToken, turnstileToken, invitationCode } = req.body;
+      const { username, email, password, fingerprint, cfToken, turnstileToken, invitationCode } = req.body;
       if (!username || !email || !password) {
         return res.status(400).json({ error: "请提供所有必需的注册信息" });
       }
@@ -312,18 +362,18 @@ export class AuthController {
         return res.status(400).json({ error: "密码长度须在 8-128 字符之间" });
       }
 
-      // 获取客户端IP（优先使用前端发送的IP，否则使用后端获取的）
-      const serverIP = req.ip || req.connection.remoteAddress || "unknown";
-      const ipAddress = clientIP || serverIP;
+      // G2-16: 只信任服务端解析的 IP。客户端自报的 clientIP 不参与任何校验。
+      const ipAddress = getClientIP(req);
       const captchaToken = typeof cfToken === "string" ? cfToken : turnstileToken;
       const turnstileError = await verifyRequiredTurnstile(captchaToken, ipAddress, "注册", email);
       if (turnstileError) {
         return res.status(400).json({ error: turnstileError });
       }
 
-      // 记录IP比对情况（用于调试和安全分析）
-      if (clientIP && clientIP !== serverIP && clientIP !== "unknown" && serverIP !== "unknown") {
-        logger.info(`[注册] IP差异检测: 前端=${clientIP}, 后端=${serverIP}, email=${email}`);
+      // 仅做诊断日志：前端上报的 clientIP 不参与安全判定
+      const reportedClientIp = typeof req.body?.clientIP === "string" ? req.body.clientIP : "";
+      if (reportedClientIp && reportedClientIp !== "unknown" && reportedClientIp !== ipAddress) {
+        logger.info(`[注册] IP差异检测: 前端=${reportedClientIp}, 后端=${ipAddress}, email=${email}`);
       }
       // 禁止用户名为admin等保留字段，仅注册时校验
       if (username && ["admin", "root", "system", "test", "administrator"].includes(username.toLowerCase())) {
@@ -405,8 +455,8 @@ export class AuthController {
         return res.status(400).json({ error: "设备信息缺失" });
       }
 
-      // 获取客户端IP
-      const ipAddress = req.ip || req.connection.remoteAddress || "unknown";
+      // 获取客户端IP（G2-16：只信任服务端解析的 IP）
+      const ipAddress = getClientIP(req);
 
       // 使用验证服务验证邮箱链接
       const result = await VerificationService.verifyEmailLink(token, fingerprint, ipAddress);
@@ -1074,7 +1124,7 @@ export class AuthController {
   // 忘记密码 - 发送重置验证链接
   public static async forgotPassword(req: Request, res: Response) {
     try {
-      const { email, turnstileToken, cfToken, fingerprint, clientIP } = req.body;
+      const { email, turnstileToken, cfToken, fingerprint } = req.body;
       if (!email || !emailPattern.test(email)) {
         return res.status(400).json({ error: "邮箱格式不正确" });
       }
@@ -1083,7 +1133,7 @@ export class AuthController {
         return res.status(400).json({ error: "设备信息缺失" });
       }
 
-      const remoteIp = req.ip || req.connection.remoteAddress || "unknown";
+      const remoteIp = getClientIP(req);
       const captchaToken = typeof turnstileToken === "string" ? turnstileToken : cfToken;
       const turnstileError = await verifyRequiredTurnstile(captchaToken, remoteIp, "密码重置", email);
       if (turnstileError) {
@@ -1100,13 +1150,13 @@ export class AuthController {
         });
       }
 
-      // 获取客户端IP（优先使用前端发送的IP，否则使用后端获取的）
-      const serverIP = req.ip || req.connection.remoteAddress || "unknown";
-      const ipAddress = clientIP || serverIP;
+      // G2-16: 只信任服务端解析的 IP。客户端自报的 clientIP 不参与任何校验。
+      const ipAddress = getClientIP(req);
 
-      // 记录IP比对情况（用于调试和安全分析）
-      if (clientIP && clientIP !== serverIP && clientIP !== "unknown" && serverIP !== "unknown") {
-        logger.info(`[密码重置] IP差异检测: 前端=${clientIP}, 后端=${serverIP}, email=${email}`);
+      // 仅做诊断日志：前端上报的 clientIP 不参与安全判定
+      const reportedClientIp = typeof req.body?.clientIP === "string" ? req.body.clientIP : "";
+      if (reportedClientIp && reportedClientIp !== "unknown" && reportedClientIp !== ipAddress) {
+        logger.info(`[密码重置] IP差异检测: 前端=${reportedClientIp}, 后端=${ipAddress}, email=${email}`);
       }
 
       // 创建验证令牌
@@ -1151,7 +1201,7 @@ export class AuthController {
   // 新增：密码重置链接验证
   public static async resetPasswordLink(req: Request, res: Response) {
     try {
-      const { token, fingerprint, newPassword, clientIP, deviceName } = req.body;
+      const { token, fingerprint, newPassword, deviceName } = req.body;
 
       if (!token) {
         return res.status(400).json({ error: "验证令牌缺失" });
@@ -1170,9 +1220,8 @@ export class AuthController {
         return res.status(400).json({ error: "新密码长度须在 8-128 字符之间" });
       }
 
-      // 获取客户端IP（优先使用前端发送的IP）
-      const serverIP = req.ip || req.connection.remoteAddress || "unknown";
-      const ipAddress = clientIP || serverIP;
+      // G2-16: 只信任服务端解析的 IP。
+      const ipAddress = getClientIP(req);
       const userAgent = req.headers["user-agent"] || "unknown";
       const resolvedDeviceName = deviceName || userAgent;
 
@@ -1227,7 +1276,7 @@ export class AuthController {
   // 新增：预验证重置令牌（只读检查设备指纹和IP，不消费令牌）
   public static async validateResetToken(req: Request, res: Response) {
     try {
-      const { token, fingerprint, clientIP } = req.body;
+      const { token, fingerprint } = req.body;
 
       if (!token) {
         return res.status(400).json({ valid: false, error: "验证令牌缺失" });
@@ -1237,9 +1286,8 @@ export class AuthController {
         return res.status(400).json({ valid: false, error: "设备信息缺失" });
       }
 
-      // 获取客户端IP（优先使用前端发送的IP）
-      const serverIP = req.ip || req.connection.remoteAddress || "unknown";
-      const ipAddress = clientIP || serverIP;
+      // G2-16: 只信任服务端解析的 IP。
+      const ipAddress = getClientIP(req);
 
       // 使用验证令牌存储的 validateToken 方法进行只读检查
       const result = await verificationTokenStorage.validateToken(token, fingerprint, ipAddress);
@@ -1259,7 +1307,7 @@ export class AuthController {
   // 重置密码 - 验证码验证并更新密码（旧版）
   public static async resetPassword(req: Request, res: Response) {
     try {
-      const { email, code, newPassword, clientIP, deviceName, fingerprint: reqFingerprint } = req.body;
+      const { email, code, newPassword, deviceName, fingerprint: reqFingerprint } = req.body;
 
       if (!email || !code || !newPassword) {
         return res.status(400).json({ error: "参数缺失" });
@@ -1299,9 +1347,8 @@ export class AuthController {
         return res.status(403).json({ error: "设备验证失败，请使用发起请求时的相同设备" });
       }
 
-      // 校验IP地址（如果存储时有记录）
-      const serverIP2 = req.ip || req.connection.remoteAddress || "unknown";
-      const currentIP = clientIP || serverIP2;
+      // G2-16: 只信任服务端解析的 IP。
+      const currentIP = getClientIP(req);
       if (
         entry.ipAddress &&
         entry.ipAddress !== "unknown" &&
@@ -1333,6 +1380,8 @@ export class AuthController {
 
       // 更新密码
       await UserStorage.updateUser(user.id, { password: newPassword });
+      // G2-02: 改密后撤销全部会话（含 OAuth token 与 client-token），旧的 JWT 立即失效。
+      await revokeAllAuthSessions(user.id);
 
       // 清除验证码缓存
       resetPasswordCodeMap.delete(email);
@@ -1341,8 +1390,7 @@ export class AuthController {
 
       // 发送密码重置成功通知邮件（包含设备环境信息）
       try {
-        const serverIP = req.ip || req.connection.remoteAddress || "unknown";
-        const ipAddress = clientIP || serverIP;
+        const ipAddress = getClientIP(req);
         const userAgent = req.headers["user-agent"] || "unknown";
         const resolvedDeviceName = deviceName || userAgent;
         const resolvedFingerprint = reqFingerprint || "未提供";
@@ -1383,106 +1431,7 @@ export class AuthController {
     }
   }
 
-  // 新增 POST /api/user/verify 支持邮箱验证码、TOTP等验证方式
-  public static async verifyUser(req: Request, res: Response) {
-    try {
-      const { userId, verificationCode } = req.body;
-      if (!userId || !verificationCode) {
-        return res.status(400).json({ error: "用户ID或验证码缺失" });
-      }
-
-      const user = await UserStorage.getUserById(userId);
-      if (!user) {
-        return res.status(404).json({ error: "用户不存在" });
-      }
-
-      // 检查是否启用了TOTP或Passkey
-      const hasTOTP = !!user.totpEnabled;
-      const hasPasskey = Array.isArray(user.passkeyCredentials) && user.passkeyCredentials.length > 0;
-
-      if (!hasTOTP && !hasPasskey) {
-        return res.status(400).json({ error: "用户未启用任何二次验证" });
-      }
-
-      let verificationResult = false;
-      if (hasTOTP) {
-        // TOTP验证（不将 verificationCode 写入日志，防止 OTP 泄露）
-        if (user.totpSecret) {
-          const totp = require("otplib");
-          totp.options = {
-            digits: 6,
-            step: 30,
-            window: 1,
-          };
-          const isValid = totp.verify({
-            secret: user.totpSecret,
-            token: verificationCode,
-            encoding: "hex",
-          });
-          if (isValid) {
-            verificationResult = true;
-            logger.info(`TOTP验证成功: userId=${userId}`);
-          } else {
-            logger.warn(`TOTP验证失败: userId=${userId}`);
-          }
-        } else {
-          logger.warn(`TOTP验证失败: userId=${userId}, 用户未启用TOTP`);
-        }
-      }
-
-      if (!verificationResult && hasPasskey) {
-        // Passkey 验证：调用 PasskeyService 进行真实的密码学验证
-        try {
-          const { PasskeyService } = require("../services/passkeyService");
-          // 注意：此处 verificationCode 应为完整的 WebAuthn 响应对象（JSON 格式）
-          let passkeyResponse = verificationCode;
-          if (typeof verificationCode === "string") {
-            try {
-              passkeyResponse = JSON.parse(verificationCode);
-            } catch (_e) {
-              logger.warn("[verifyUser] verificationCode 不是有效的 JSON 字符串，尝试作为原始 ID 查找");
-            }
-          }
-
-          if (passkeyResponse && typeof passkeyResponse === "object") {
-            const clientIP = req.body.clientIP || req.ip || "unknown";
-            const verification = await PasskeyService.verifyAuthentication(user, passkeyResponse, clientIP, clientIP);
-
-            if (verification.verified) {
-              verificationResult = true;
-              logger.info(`Passkey 密码学验证成功: userId=${userId}`);
-            }
-          } else {
-            // 回退逻辑：如果不是对象，尝试进行基础 ID 匹配（仅用于向后兼容或特殊简单的验证场景）
-            const found = user.passkeyCredentials?.some(
-              (cred: any) => cred.credentialID === verificationCode || cred.id === verificationCode,
-            );
-            if (found) {
-              verificationResult = true;
-              logger.info(`Passkey 基础 ID 匹配成功: userId=${userId}`);
-            }
-          }
-        } catch (passkeyErr) {
-          logger.error(`[verifyUser] Passkey 验证异常: userId=${userId}`, passkeyErr);
-        }
-      }
-
-      if (!verificationResult) {
-        return res.status(401).json({ error: "验证码错误或用户未启用二次验证" });
-      }
-
-      // 验证通过，更新用户状态
-      await UserStorage.updateUser(userId, {
-        verified: true,
-      } as Partial<UserWithVerified>);
-      logger.info(`用户 ${userId} 验证成功`);
-      // 不返回avatarBase64
-      res.json({ success: true });
-    } catch (error) {
-      logger.error("用户验证失败:", error);
-      res.status(500).json({ error: "用户验证失败" });
-    }
-  }
+  // G2-35: 已删除 verifyUser 死代码（其 Passkey 回退分支把公开 credentialID 当认证凭据）。
 }
 
 // 辅助函数：写入token和过期时间到users.json
@@ -1493,20 +1442,23 @@ async function updateUserToken(userId: string, token: string, expiresInMs = 2 * 
   });
 }
 
-// 校验管理员token
-export async function isAdminToken(token: string | undefined): Promise<boolean> {
-  if (!token) return false;
-  const user = await UserStorage.getUserByToken(token);
-  if (!user || (user.role !== "admin" && user.role !== "superadmin")) return false;
-  if (!user.tokenExpiresAt || Date.now() > user.tokenExpiresAt) return false;
-  return true;
-}
-
 export async function logoutHandler(req: Request, res: Response) {
   try {
     clearAuthSessionCookie(req, res);
     const token = req.headers.authorization?.replace("Bearer ", "");
     if (token) {
+      try {
+        // 解码 JWT 拿 userId，随后撤销对应的 auth_sessions 会话。
+        const jwt = require("jsonwebtoken");
+        const config = require("../config/config").config;
+        const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] }) as { userId?: string };
+        if (decoded.userId) {
+          await revokeAuthCredential(decoded.userId, token);
+        }
+      } catch (_jwtError) {
+        // token 已失效时无需撤销
+      }
+      // 兼容旧的 user.token 字段
       const user = await UserStorage.getUserByToken(token);
       if (user) {
         await UserStorage.updateUser(user.id, {

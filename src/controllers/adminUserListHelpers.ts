@@ -6,6 +6,7 @@ export type AdminUserRecord = User & {
   ticketBanned?: boolean;
 };
 
+// G2-22: 敏感字段列表同步——除密码类字段外，TOTP 秘密、恢复码、challenge 也不随管理列表出参。
 type SensitiveUserFields =
   | "password"
   | "passwordHash"
@@ -14,7 +15,11 @@ type SensitiveUserFields =
   | "passwordTag"
   | "passwordKeyVersion"
   | "passwordWrappedDek"
-  | "passwordDekId";
+  | "passwordDekId"
+  | "totpSecret"
+  | "backupCodes"
+  | "pendingChallenge"
+  | "currentChallenge";
 
 export type SanitizedAdminUser = Omit<AdminUserRecord, SensitiveUserFields>;
 
@@ -60,6 +65,10 @@ export function stripSensitiveUserFields(
     passwordKeyVersion,
     passwordWrappedDek,
     passwordDekId,
+    totpSecret,
+    backupCodes,
+    pendingChallenge,
+    currentChallenge,
     ...safeUser
   } = user || {};
   return safeUser as Partial<SanitizedAdminUser>;
@@ -477,44 +486,12 @@ export function validateAndSanitizeUserUpdates(body: Record<string, unknown>): P
     out.totpEnabled = Boolean(body.totpEnabled);
   }
 
-  // totpSecret: 长度限制
-  if (body.totpSecret !== undefined) {
-    if (typeof body.totpSecret !== "string" || body.totpSecret.length > 256) {
-      throw new Error("totpSecret 格式不合法");
-    }
-    out.totpSecret = body.totpSecret.trim();
-  }
-
-  // backupCodes: 字符串数组，最多 20 条，每条最长 128 字符
-  if (body.backupCodes !== undefined) {
-    if (!Array.isArray(body.backupCodes) || body.backupCodes.length > 20) {
-      throw new Error("backupCodes 必须为不超过 20 个元素的数组");
-    }
-    for (const code of body.backupCodes) {
-      if (typeof code !== "string" || code.length > 128) {
-        throw new Error("backupCodes 中包含非法元素");
-      }
-    }
-    out.backupCodes = (body.backupCodes as string[]).map((c) => c.trim()).filter(Boolean);
-  }
+  // G2-13/G2-14/G2-22: 禁止管理员通过该接口直接写 totpSecret / backupCodes / pendingChallenge /
+  // currentChallenge——管理员可借此把用户 2FA 密钥设为已知值后冒充用户。如需清 2FA 请走批量 resetMfa。
 
   // passkeyEnabled / passkeyVerified: boolean
   if (body.passkeyEnabled !== undefined) out.passkeyEnabled = Boolean(body.passkeyEnabled);
   if (body.passkeyVerified !== undefined) out.passkeyVerified = Boolean(body.passkeyVerified);
-
-  // pendingChallenge / currentChallenge: 字符串，长度限制
-  for (const field of ["pendingChallenge", "currentChallenge"]) {
-    if (body[field] !== undefined) {
-      if (typeof body[field] !== "string" || body[field].length > 512) {
-        throw new Error(`${field} 格式不合法`);
-      }
-      if (field === "pendingChallenge") {
-        out.pendingChallenge = body[field].trim();
-      } else {
-        out.currentChallenge = body[field].trim();
-      }
-    }
-  }
 
   // avatarUrl: 只允许 http/https 或空串
   if (body.avatarUrl !== undefined) {

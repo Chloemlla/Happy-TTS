@@ -5,6 +5,7 @@ import { config } from "../config/config";
 import { AUTH_COOKIE_NAME, parseCookieHeader } from "../utils/authCookie";
 import logger from "../utils/logger";
 import { UserStorage } from "../utils/userStorage";
+import { assertActiveAuthSession } from "./authSessionService";
 
 export interface WebSocketIdentity {
   userId: string | null;
@@ -15,6 +16,7 @@ interface WebSocketJwtPayload {
   userId?: string;
   id?: string;
   username?: string;
+  purpose?: string;
 }
 
 /**
@@ -42,15 +44,26 @@ export async function resolveWebSocketIdentity(req: IncomingMessage): Promise<We
     const decoded = jwt.verify(token, config.jwtSecret, { algorithms: ["HS256"] }) as WebSocketJwtPayload | string;
     if (!decoded || typeof decoded === "string") return null;
 
+    // G2-05: 2FA 临时令牌一律拒绝——只有签名没有会话撤销/临时用途检查是 2FA 绕过。
+    if ((decoded as WebSocketJwtPayload).purpose) {
+      logger.warn("[WS] 拒绝带 purpose 的临时令牌", { credentialSource });
+      return null;
+    }
+
     const claimedId = decoded.userId || decoded.id;
-    const user = claimedId
-      ? await UserStorage.getUserById(claimedId)
-      : decoded.username
-        ? await UserStorage.getUserByUsername(decoded.username)
-        : null;
+    if (!claimedId) return null;
+    const user = await UserStorage.getUserById(claimedId);
 
     if (!user || (user as typeof user & { disabled?: boolean }).disabled || user.accountStatus === "suspended") {
       logger.warn("[WS] 拒绝无效或已停用的认证主体", { credentialSource });
+      return null;
+    }
+
+    // G2-05: 与 HTTP 鉴权保持一致，校验 auth_sessions 撤销状态；查询失败时拒绝放行。
+    try {
+      await assertActiveAuthSession(user.id, token);
+    } catch (_err) {
+      logger.warn("[WS] 拒绝已撤销/不存在的会话", { credentialSource, userId: user.id });
       return null;
     }
 

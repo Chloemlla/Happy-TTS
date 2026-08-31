@@ -1,4 +1,5 @@
 import type { User } from "../utils/userStorageTypes";
+import type { LinkedAccountView } from "./accountIdentityService";
 
 export type AccountSecurityRiskLevel = "good" | "watch" | "risk";
 export type AccountSecurityRecommendationSeverity = "info" | "warning" | "critical";
@@ -49,16 +50,19 @@ const isFutureDate = (value?: string | null): boolean => {
   return Number.isFinite(ts) && ts > Date.now();
 };
 
-const countLinkedProviders = (user: User): number => {
-  let count = 0;
-  if (user.authProvider && user.authProvider !== "local") count += 1;
-  if (user.linuxdoId) count += 1;
-  return count;
+// G2-37: 计数改为基于 account_identities 的「已绑定」数量（由调用方传入 listLinkedAccounts 结果）。
+// 若未传入（如旧的同步调用方），回退到不重复计数的保守估计：authProvider 非 local 计 1，
+// 不再单独累加 linuxdoId（避免 Linux.do 用户被重复计为 2）。
+const countLinkedProviders = (user: User, linkedAccounts?: LinkedAccountView[]): number => {
+  if (Array.isArray(linkedAccounts)) {
+    return linkedAccounts.filter((account) => account.status === "bound").length;
+  }
+  return user.authProvider && user.authProvider !== "local" ? 1 : 0;
 };
 
 const clampScore = (value: number): number => Math.max(0, Math.min(100, Math.round(value)));
 
-export function buildAccountSecuritySummary(user: User): AccountSecuritySummary {
+export function buildAccountSecuritySummary(user: User, linkedAccounts?: LinkedAccountView[]): AccountSecuritySummary {
   const totpEnabled = Boolean(user.totpEnabled);
   const passkeyEnabled = Boolean(
     user.passkeyEnabled || (Array.isArray(user.passkeyCredentials) && user.passkeyCredentials.length > 0),
@@ -127,7 +131,7 @@ export function buildAccountSecuritySummary(user: User): AccountSecuritySummary 
     });
   }
 
-  if (countLinkedProviders(user) === 0) {
+  if (countLinkedProviders(user, linkedAccounts) === 0) {
     score -= 6;
     recommendations.push({
       id: "bind-identity",
@@ -172,7 +176,7 @@ export function buildAccountSecuritySummary(user: User): AccountSecuritySummary 
     mfaEnabled,
     totpEnabled,
     passkeyEnabled,
-    linkedProviderCount: countLinkedProviders(user),
+    linkedProviderCount: countLinkedProviders(user, linkedAccounts),
     fingerprintCount,
     lastFingerprintAt: latestFingerprint?.ts ? Number(latestFingerprint.ts) : null,
     lastFingerprintIp,

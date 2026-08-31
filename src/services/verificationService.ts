@@ -13,6 +13,8 @@ import {
 import logger from "../utils/logger";
 import { UserStorage } from "../utils/userStorage";
 import { EmailService } from "./emailService";
+import { revokeAllAuthSessions } from "./authSessionService";
+import { getClientIP as resolveClientIP } from "../utils/ipUtils";
 import {
   consumeRegistrationInvite,
   validateRegistrationInviteForRegistration,
@@ -26,18 +28,11 @@ function getFrontendBaseUrl(): string {
 }
 
 /**
- * 获取客户端IP地址（优先使用前端发送的IP）
+ * G2-16: 获取客户端IP地址。只信任服务端解析的 IP（resolveClientIP(req)），
+ * 客户端自报的 IP 不参与任何安全判定。
  */
-function getClientIP(req: Request, clientIP?: string): string {
-  const serverIP = req.ip || req.connection.remoteAddress || "unknown";
-  const ipAddress = clientIP || serverIP;
-
-  // 记录IP比对情况（用于调试和安全分析）
-  if (clientIP && clientIP !== serverIP && clientIP !== "unknown" && serverIP !== "unknown") {
-    logger.info(`[IP差异检测] 前端IP=${clientIP}, 后端IP=${serverIP}`);
-  }
-
-  return ipAddress;
+function getClientIP(req: Request): string {
+  return resolveClientIP(req);
 }
 
 /**
@@ -259,6 +254,8 @@ export async function verifyPasswordResetLink(
 
     // 更新密码
     await UserStorage.updateUser(user.id, { password: newPassword });
+    // G2-02: 密码重置成功后撤销该用户全部会话（含 OAuth token 与 client-token），旧 JWT 立即失效。
+    await revokeAllAuthSessions(user.id);
     await verificationTokenStorage.deleteToken(token);
 
     logger.info(`[密码重置] 用户 ${username} (${email}) 密码重置成功`);

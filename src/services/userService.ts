@@ -30,6 +30,8 @@ const userSchema = new mongoose.Schema(
     totpSecret: String,
     totpEnabled: Boolean,
     backupCodes: [String],
+    // G2-13: TOTP 已使用的最新 counter，用于重放防护
+    lastTotpCounter: Number,
     passkeyEnabled: Boolean,
     passkeyCredentials: [
       {
@@ -42,6 +44,8 @@ const userSchema = new mongoose.Schema(
       },
     ],
     pendingChallenge: String,
+    // G2-11: passkey challenge 过期时间戳（TTL ≤ 5 分钟）
+    pendingChallengeExpiresAt: Number,
     currentChallenge: String,
     passkeyVerified: Boolean,
     avatarUrl: { type: String }, // 新增头像URL字段
@@ -84,14 +88,18 @@ userSchema.index({ role: 1, createdAt: 1 });
 
 const UserModel = mongoose.models.User || mongoose.model("User", userSchema);
 
+// G2-22: 默认公开投影不再带出 totpSecret / backupCodes 等离线 2FA 秘密。
 const PUBLIC_USER_SELECT =
-  "id username email role avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpSecret totpEnabled backupCodes passkeyEnabled passkeyCredentials pendingChallenge currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil isTranslationEnabled translationAccessUntil accountStatus dailyUsage lastUsageDate createdAt token tokenExpiresAt";
+  "id username email role avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpEnabled passkeyEnabled passkeyCredentials pendingChallenge pendingChallengeExpiresAt currentChallenge passkeyVerified requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt fingerprints lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil isTranslationEnabled translationAccessUntil accountStatus dailyUsage lastUsageDate createdAt token tokenExpiresAt lastTotpCounter";
 
 // 安全的公开用户字段选择（排除敏感认证凭据），用于 /api/user/me 等普通用户 API
 const PUBLIC_USER_SAFE_SELECT =
-  "id username email role avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpEnabled passkeyEnabled requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil isTranslationEnabled translationAccessUntil accountStatus dailyUsage lastUsageDate createdAt";
+  "id username email role avatarUrl authProvider linuxdoId linuxdoUsername linuxdoAvatarUrl totpEnabled passkeyEnabled requireFingerprint requireFingerprintAt fingerprintRequestDismissedOnce fingerprintRequestDismissedAt lastLoginIp lastLoginAt ticketViolationCount ticketBannedUntil isTranslationEnabled translationAccessUntil accountStatus dailyUsage lastUsageDate createdAt lastTotpCounter";
+
+// G2-22: 只有明确需要 2FA 秘密的调用方（totpController、passkeyService verify 等）才使用该投影。
+const USER_SECRETS_SELECT = `${PUBLIC_USER_SELECT} totpSecret backupCodes`;
 const AUTH_USER_SELECT =
-  `${PUBLIC_USER_SELECT} password passwordHash passwordCiphertext passwordIv passwordTag passwordKeyVersion passwordWrappedDek passwordDekId`;
+  `${PUBLIC_USER_SELECT} password passwordHash passwordCiphertext passwordIv passwordTag passwordKeyVersion passwordWrappedDek passwordDekId totpSecret backupCodes`;
 const ADMIN_USER_LIST_PROJECT = {
   _id: 0,
   id: 1,
@@ -198,6 +206,7 @@ function invalidateCachedUserById(id: string): void {
 }
 
 export const getAllUsers = async (): Promise<UserType[]> => {
+  // G2-22: 默认取安全投影，不携带 totpSecret/backupCodes。
   const docs = await UserModel.find().select(PUBLIC_USER_SELECT).lean();
   return docs.map(removeAvatarBase64) as unknown as UserType[];
 };
@@ -315,6 +324,9 @@ export const getUsersByIds = async (ids: string[]): Promise<UserType[]> => {
 export const bulkUpdateUsers = async (ops: Array<{ updateOne: { filter: Record<string, unknown>; update: Record<string, unknown> } }>): Promise<void> => {
   if (!ops || ops.length === 0) return;
   await UserModel.bulkWrite(ops as any);
+  // G2-31: 批量写会绕过 updateUser 的失效逻辑，直接清空整个缓存，
+  // 避免被封停/降权的账号在最长 10 秒内仍从缓存读到旧状态。
+  userByIdCache.clear();
 };
 
 export const createUser = async (user: UserType): Promise<UserType> => {
@@ -366,53 +378,62 @@ export const updateUser = async (id: string, updates: Partial<UserType>): Promis
 
 export const deleteUser = async (id: string): Promise<void> => {
   invalidateCachedUserById(id);
-  await UserModel.deleteOne({ id });
 
-  // 级联清理关联数据 — 使用 mongoose.connection 直接访问各集合
-  const cascadeCollections = [
-    "access_tokens",
-    "auth_sessions",
-    "verification_tokens",
-    "api_keys",
-    "api_key_billing_events",
-    "bilibili_account_bindings",
-    "bilibili_sync",
-    "nexai_sync",
-    "nexai_sync_v2_records",
-    "collaboration_sessions",
-    "invitations",
-    "workspaces",
-    "voice_projects",
-    "linuxdo_credit_orders",
-    "device_trackings",
-    "tickets",
-    "translation_logs",
-    "user_preferences",
-    "recommendation_history",
-    "security_events",
-    "oauth_clients",
-    "oauth_grants",
-    "oauth_tokens",
-    "oauth_authorization_codes",
-    "account_identities",
-    "artifacts",
-    "cdks",
-    "registration_invites",
-    "audit_logs",
-    "short_urls",
+  // G2-30: 级联集合及其归属字段名（逐集合修正，避免统一用 userId 导致静默失效）。
+  // audit_logs 已从级联删除中移除——删号应脱敏保留审计日志，保证可追溯。
+  const cascadeCollections: Array<{ collection: string; field: string }> = [
+    { collection: "access_tokens", field: "userId" },
+    { collection: "auth_sessions", field: "userId" },
+    { collection: "verification_tokens", field: "userId" },
+    { collection: "api_keys", field: "userId" },
+    { collection: "api_key_billing_events", field: "userId" },
+    { collection: "bilibili_account_bindings", field: "userId" },
+    { collection: "bilibili_sync", field: "userId" },
+    { collection: "nexai_sync", field: "userId" },
+    { collection: "nexai_sync_v2_records", field: "userId" },
+    { collection: "collaboration_sessions", field: "userId" },
+    { collection: "invitations", field: "userId" },
+    { collection: "workspaces", field: "creatorId" },
+    { collection: "voice_projects", field: "ownerId" },
+    { collection: "linuxdo_credit_orders", field: "userId" },
+    { collection: "device_trackings", field: "userId" },
+    { collection: "tickets", field: "userId" },
+    { collection: "translation_logs", field: "userId" },
+    { collection: "user_preferences", field: "userId" },
+    { collection: "recommendation_history", field: "userId" },
+    { collection: "security_events", field: "userId" },
+    { collection: "oauth_clients", field: "ownerUserId" },
+    { collection: "oauth_grants", field: "userId" },
+    { collection: "oauth_tokens", field: "userId" },
+    { collection: "oauth_authorization_codes", field: "userId" },
+    { collection: "account_identities", field: "userId" },
+    { collection: "artifacts", field: "userId" },
+    { collection: "cdks", field: "userId" },
+    { collection: "registration_invites", field: "userId" },
+    { collection: "short_urls", field: "userId" },
   ];
 
   const db = mongoose.connection.db;
-  if (db) {
-    const results = await Promise.allSettled(
-      cascadeCollections.map((collection) => db.collection(collection).deleteMany({ userId: id })),
-    );
-    const errors = results.filter((r) => r.status === "rejected");
-    if (errors.length > 0) {
-      logger.warn(`[UserService] 级联清理 userId=${id} 时 ${errors.length}/${cascadeCollections.length} 个集合失败`, {
-        errors: errors.map((e) => (e as PromiseRejectedResult).reason?.toString()),
-      });
-    }
+  if (!db) {
+    throw new Error("数据库连接不可用");
+  }
+
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      const results = await Promise.all(
+        cascadeCollections.map(({ collection, field }) =>
+          db.collection(collection).deleteMany({ [field]: id }, { session }),
+        ),
+      );
+      const unacknowledged = results.filter((result) => result.acknowledged === false);
+      if (unacknowledged.length > 0) {
+        throw new Error(`级联清理失败: ${unacknowledged.length} 个集合未被确认`);
+      }
+      await UserModel.deleteOne({ id }).session(session);
+    });
+  } finally {
+    await session.endSession();
   }
 };
 
@@ -421,6 +442,15 @@ export const getUserAuthById = async (id: string): Promise<UserType | null> => {
     throw new Error("非法的用户ID");
   }
   const doc = await UserModel.findOne({ id }).select(AUTH_USER_SELECT).lean();
+  return doc ? (removeAvatarBase64(doc) as unknown as UserType) : null;
+};
+
+// G2-22: 明确需要 TOTP 秘密/恢复码的调用方专用投影（totpController、passkeyService verify 等）。
+export const getUserSecretsById = async (id: string): Promise<UserType | null> => {
+  if (typeof id !== "string" || !/^[a-zA-Z0-9_-]+$/.test(id)) {
+    throw new Error("非法的用户ID");
+  }
+  const doc = await UserModel.findOne({ id }).select(USER_SECRETS_SELECT).lean();
   return doc ? (removeAvatarBase64(doc) as unknown as UserType) : null;
 };
 
@@ -460,6 +490,8 @@ export const verifyAndMigrateUserPassword = async (
     }
 
     const protectedPassword = await protectPassword(user.id, password);
+    // G2-31: 直接 findOneAndUpdate 绕过 updateUser 的失效逻辑，手动失效缓存。
+    invalidateCachedUserById(user.id);
     const updated = await UserModel.findOneAndUpdate(
       { id: user.id },
       {
@@ -480,6 +512,8 @@ export const verifyAndMigrateUserPassword = async (
 
   if (user.password && user.password === password) {
     const protectedPassword = await protectPassword(user.id, password);
+    // G2-31: 同上，手动失效缓存。
+    invalidateCachedUserById(user.id);
     const updated = await UserModel.findOneAndUpdate(
       { id: user.id },
       {
@@ -508,38 +542,73 @@ export const incrementUserDailyUsageAtomic = async (
   const today = new Date().toISOString().split("T")[0];
   const now = new Date().toISOString();
 
-  const doc = await UserModel.findOne({ id })
-    .select("id role lastUsageDate dailyUsage")
+  // G2-29: 单条 findOneAndUpdate + 聚合管道，一次完成「跨日判断 + 增量/重置 + 管理员豁免」。
+  // 管理员通过 role 条件排除在本次更新外；并发请求在同一时刻只有一个能匹配并更新。
+  const todayPrefix = new RegExp(`^${today}`);
+  const updated = await UserModel.findOneAndUpdate(
+    {
+      id,
+      role: { $nin: ["admin", "superadmin"] },
+      $or: [{ lastUsageDate: { $not: todayPrefix } }, { dailyUsage: { $lt: dailyLimit } }],
+    },
+    [
+      {
+        $set: {
+          dailyUsage: {
+            $cond: [
+              { $regexMatch: { input: { $ifNull: ["$lastUsageDate", ""] }, regex: todayPrefix } },
+              { $add: [{ $ifNull: ["$dailyUsage", 0] }, 1] },
+              1,
+            ],
+          },
+          lastUsageDate: now,
+        },
+      },
+    ],
+    { returnDocument: "after" },
+  )
+    .select(PUBLIC_USER_SELECT)
     .lean();
 
-  if (!doc) {
+  if (!updated) {
+    // 未命中更新：可能是管理员（豁免），也可能是非管理员已达当日上限。
+    const adminDoc = await UserModel.findOne({ id, role: { $in: ["admin", "superadmin"] } })
+      .select(PUBLIC_USER_SELECT)
+      .lean();
+    if (adminDoc) {
+      return { success: true, user: removeAvatarBase64(adminDoc) as unknown as UserType };
+    }
     return { success: false, user: null };
   }
 
-  if ((doc as any).role === "admin" || (doc as any).role === "superadmin") {
-    return { success: true, user: removeAvatarBase64(doc) as unknown as UserType };
-  }
-
-  const lastUsageDate = typeof (doc as any).lastUsageDate === "string" ? String((doc as any).lastUsageDate).split("T")[0] : "";
-
-  const query =
-    lastUsageDate === today
-      ? { id, dailyUsage: { $lt: dailyLimit }, lastUsageDate: { $regex: `^${today}` } }
-      : { id };
-
-  const update =
-    lastUsageDate === today
-      ? { $inc: { dailyUsage: 1 }, $set: { lastUsageDate: now } }
-      : { $set: { dailyUsage: 1, lastUsageDate: now } };
-
-  const updated = await UserModel.findOneAndUpdate(query, update, { returnDocument: "after" })
-    .select(PUBLIC_USER_SELECT)
-    .lean();
-  const user = updated ? setCachedUserById(removeAvatarBase64(updated) as unknown as UserType) : null;
+  const user = setCachedUserById(removeAvatarBase64(updated) as unknown as UserType);
   return {
     success: Boolean(updated),
     user,
   };
 };
 
+// G2-11: 原子消费 passkey challenge——只有文档里的 pendingChallenge 与预期一致时才清除并返回，
+// 否则说明 challenge 已被使用（重放），返回 null。先清后验，杜绝同一断言被并发重放两次。
+export const consumePendingChallenge = async (id: string, expectedChallenge: string): Promise<UserType | null> => {
+  const doc = await UserModel.findOneAndUpdate(
+    { id, pendingChallenge: expectedChallenge },
+    { $unset: { pendingChallenge: "", pendingChallengeExpiresAt: "" } },
+    { returnDocument: "after" },
+  )
+    .select(PUBLIC_USER_SELECT)
+    .lean();
+  return doc ? (removeAvatarBase64(doc) as unknown as UserType) : null;
+};
+
 export { UserModel };
+
+// G2-13: 原子消费 TOTP counter——只有传入的 counter 严格大于已记录值时更新成功，
+// 否则说明该 counter 已被使用（重放），返回 false。
+export const consumeTotpCounter = async (id: string, counter: number): Promise<boolean> => {
+  const result = await UserModel.updateOne(
+    { id, $or: [{ lastTotpCounter: { $exists: false } }, { lastTotpCounter: { $lt: counter } }] },
+    { $set: { lastTotpCounter: counter } },
+  );
+  return Number(result.modifiedCount || 0) > 0;
+};

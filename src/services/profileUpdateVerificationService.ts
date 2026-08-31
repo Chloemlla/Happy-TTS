@@ -24,6 +24,9 @@ const PROFILE_VERIFICATION_TTL_MS = 5 * 60 * 1000;
 const EMAIL_CHANGE_CODE_TTL_MS = 10 * 60 * 1000;
 const EMAIL_CHANGE_RESEND_INTERVAL_MS = 60 * 1000;
 const MAX_EMAIL_CHANGE_ATTEMPTS = 5;
+// G2-19: 容量上限，防内存无限增长。
+const MAX_PROFILE_VERIFICATION_SESSIONS = 5000;
+const MAX_EMAIL_CHANGE_CHALLENGES = 2000;
 
 const profileVerificationSessions = new Map<string, ProfileVerificationSession>();
 const pendingEmailChangeChallenges = new Map<string, PendingEmailChangeChallenge>();
@@ -34,11 +37,23 @@ function cleanupExpiredSessions(now = Date.now()): void {
       profileVerificationSessions.delete(token);
     }
   }
+  if (profileVerificationSessions.size > MAX_PROFILE_VERIFICATION_SESSIONS) {
+    const ordered = [...profileVerificationSessions.entries()].sort((a, b) => a[1].expiresAt - b[1].expiresAt);
+    for (const [token] of ordered.slice(0, profileVerificationSessions.size - MAX_PROFILE_VERIFICATION_SESSIONS)) {
+      profileVerificationSessions.delete(token);
+    }
+  }
 }
 
 function cleanupExpiredEmailChallenges(now = Date.now()): void {
   for (const [userId, challenge] of pendingEmailChangeChallenges.entries()) {
     if (challenge.expiresAt <= now) {
+      pendingEmailChangeChallenges.delete(userId);
+    }
+  }
+  if (pendingEmailChangeChallenges.size > MAX_EMAIL_CHANGE_CHALLENGES) {
+    const ordered = [...pendingEmailChangeChallenges.entries()].sort((a, b) => a[1].expiresAt - b[1].expiresAt);
+    for (const [userId] of ordered.slice(0, pendingEmailChangeChallenges.size - MAX_EMAIL_CHANGE_CHALLENGES)) {
       pendingEmailChangeChallenges.delete(userId);
     }
   }

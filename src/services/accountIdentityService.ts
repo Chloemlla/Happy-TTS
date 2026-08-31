@@ -544,10 +544,8 @@ export function buildProviderBindRedirect(params: {
   mergeToken?: string;
   error?: string;
 }): string {
+  // G2-38: mergeToken 放 URL fragment，避免进入浏览器历史 / Referer / 日志。
   const redirectParams = new URLSearchParams({ intent: "bind", status: params.status });
-  if (params.mergeToken) {
-    redirectParams.set("mergeToken", params.mergeToken);
-  }
   if (params.error) {
     redirectParams.set("error", params.error);
   }
@@ -557,9 +555,13 @@ export function buildProviderBindRedirect(params: {
     const redirectUrl = new URL(config.linuxdo.frontendCallbackUrl);
     redirectUrl.pathname = "/auth/linuxdo/callback";
     redirectUrl.search = redirectParams.toString();
-    redirectUrl.hash = "";
+    redirectUrl.hash = params.mergeToken
+      ? new URLSearchParams({ mergeToken: params.mergeToken }).toString()
+      : "";
     return redirectUrl.toString();
   } catch {
-    return `${config.linuxdo.frontendCallbackUrl}?${redirectParams.toString()}`;
+    return `${config.linuxdo.frontendCallbackUrl}?${redirectParams.toString()}${
+      params.mergeToken ? `#${new URLSearchParams({ mergeToken: params.mergeToken }).toString()}` : ""
+    }`;
   }
 }

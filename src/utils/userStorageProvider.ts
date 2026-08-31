@@ -7,6 +7,9 @@ export interface UserStorageProvider {
   getAllUsers(): Promise<User[]>;
   getAdminUserList?(opts?: { includeFingerprints?: boolean }): Promise<User[]>;
   getUserById(id: string): Promise<User | null>;
+  getUserSecretsById?(id: string): Promise<User | null>;
+  consumeTotpCounter?(id: string, counter: number): Promise<boolean>;
+  consumePendingChallenge?(id: string, expectedChallenge: string): Promise<User | null>;
   getUserByEmail(email: string): Promise<User | null>;
   getUserByEmailCaseInsensitive(email: string): Promise<User | null>;
   getUserByUsername(username: string): Promise<User | null>;

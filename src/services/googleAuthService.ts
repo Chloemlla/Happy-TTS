@@ -103,16 +103,6 @@ async function getAvailableGoogleUsername(baseUsername: string): Promise<string>
   return candidate;
 }
 
-async function findUserByEmail(email: string): Promise<User | null> {
-  const exactMatch = await UserStorage.getUserByEmail(email);
-  if (exactMatch) {
-    return exactMatch;
-  }
-
-  // 精确匹配未命中时，使用区分大小写的数据库查询，避免全表扫描
-  return UserStorage.getUserByEmailCaseInsensitive(email);
-}
-
 function toAuthPayload(user: User, isNewUser: boolean): GoogleAuthPayload {
   return {
     token: "",
@@ -196,31 +186,9 @@ async function upsertGoogleUser(profile: GoogleProfile): Promise<{
     return { user: updatedLinkedUser, isNewUser: false };
   }
 
-  const existingUser = await findUserByEmail(profile.email);
-  if (existingUser) {
-    if ((existingUser as any).accountStatus === "suspended") {
-      throw new Error("账户已被封停");
-    }
-    const updatedExistingUser = (await UserStorage.updateUser(existingUser.id, {
-      avatarUrl: profile.avatarUrl || existingUser.avatarUrl,
-      authProvider: existingUser.authProvider || "local",
-    })) || {
-      ...existingUser,
-      avatarUrl: profile.avatarUrl || existingUser.avatarUrl,
-      authProvider: existingUser.authProvider || "local",
-    };
-
-    await upsertIdentityForUser(updatedExistingUser, {
-      provider: "google",
-      providerUserId: profile.id,
-      providerEmail: profile.email,
-      providerUsername: profile.name,
-      avatarUrl: profile.avatarUrl,
-    });
-
-    return { user: updatedExistingUser, isNewUser: false };
-  }
-
+  // G2-03: 已删除「按邮箱静默并号」分支。未绑定身份一律走 issueProviderBindSession /
+  // startGoogleBindSession 的显式验密绑定流程，防止同邮箱的第三方身份接管本地账号。
+  // 此处只负责为全新的 Google 身份创建本地账号（测试覆盖该分支）。
   const username = await getAvailableGoogleUsername(
     sanitizeGoogleUsername(profile.name || profile.email.split("@")[0], profile.id),
   );

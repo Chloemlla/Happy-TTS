@@ -5,7 +5,7 @@ import logger from "../utils/logger";
 import type { AuthenticatedRequest } from "../types/authRequest";
 import { getTokenFromRequest } from "../utils/authCookie";
 import { UserStorage } from "../utils/userStorage";
-import { assertActiveAuthSession, touchAuthSession } from "../services/authSessionService";
+import { assertActiveAuthSession, hashAuthCredential, touchAuthSession } from "../services/authSessionService";
 import { getClientIP } from "../utils/ipUtils";
 
 type JwtUserPayload = {
@@ -42,11 +42,18 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
     if (user.accountStatus === "suspended") {
       return res.status(403).json({ error: "账户已被封停", code: "ACCOUNT_SUSPENDED", supportEmail: "support@chloemlla.com" });
     }
-    const session = await assertActiveAuthSession(userId, token);
-    await touchAuthSession(userId, token, {
-      ipAddress: getClientIP(req),
-      userAgent: String(req.headers["user-agent"] || session.userAgent),
-    });
+    // G2-08: 只计算一次凭证哈希，assert + touch 共享，避免每请求两次哈希。
+    const credentialHash = hashAuthCredential(token);
+    const session = await assertActiveAuthSession(userId, token, credentialHash);
+    await touchAuthSession(
+      userId,
+      token,
+      {
+        ipAddress: getClientIP(req),
+        userAgent: String(req.headers["user-agent"] || session.userAgent),
+      },
+      credentialHash,
+    );
     authedReq.user = user;
     authedReq.auth = { kind: "session", user };
     next();

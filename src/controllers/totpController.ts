@@ -132,11 +132,11 @@ export class TOTPController {
       // 生成备用恢复码
       const backupCodes = TOTPService.generateBackupCodes();
 
-      // 临时保存密钥到用户数据中（还未启用）
+      // G2-14: 临时保存密钥到用户数据中（还未启用），恢复码落库存哈希。
       await TOTPController.updateUserTOTP(userId, secret, false, backupCodes);
 
       // 验证保存是否成功
-      const updatedUser = await UserStorage.getUserById(userId);
+      const updatedUser = await UserStorage.getUserSecretsById(userId);
       logger.info("TOTP设置生成成功:", {
         userId,
         username: user.username,
@@ -178,8 +178,8 @@ export class TOTPController {
         return res.status(400).json({ error: "请提供验证码" });
       }
 
-      // 从数据库获取完整的用户信息，包括TOTP相关字段
-      currentUser = await UserStorage.getUserById(userId);
+      // 从数据库获取完整的用户信息，包括TOTP相关字段（G2-22：走专用 secrets 投影）
+      currentUser = await UserStorage.getUserSecretsById(userId);
       if (!currentUser) {
         logger.warn("verifyAndEnable: 用户不存在", { userId });
         return res.status(404).json({ error: "用户不存在" });
@@ -229,8 +229,15 @@ export class TOTPController {
         });
       }
 
-      // 验证令牌
-      const isValid = TOTPService.verifyToken(token, currentUser.totpSecret);
+      // 验证令牌（G2-13：带 counter 重放防护，原子消费）
+      const totpCheck = TOTPService.verifyTokenWithCounter(token, currentUser.totpSecret || "");
+      let isValid = totpCheck.valid;
+      if (isValid && totpCheck.counter !== null) {
+        isValid = await UserStorage.consumeTotpCounter(userId, totpCheck.counter);
+        if (!isValid) {
+          logger.warn("verifyAndEnable: TOTP 重放被拒绝", { userId });
+        }
+      }
       logger.info("verifyAndEnable: 验证TOTP令牌", { userId, username: currentUser.username, isValid });
 
       // 记录验证尝试
@@ -315,7 +322,7 @@ export class TOTPController {
         return res.status(pendingTokenCheck.status).json({ error: pendingTokenCheck.error });
       }
 
-      const user = await UserStorage.getUserById(userId);
+      const user = await UserStorage.getUserSecretsById(userId);
       if (!user) {
         return res.status(404).json({ error: "用户不存在" });
       }
@@ -343,28 +350,34 @@ export class TOTPController {
       let isValid = false;
 
       if (token) {
-        // 验证TOTP令牌
-        isValid = TOTPService.verifyToken(token, user.totpSecret!);
+        // 验证TOTP令牌（G2-13：带 counter 重放防护，原子消费）
+        const totpCheck = TOTPService.verifyTokenWithCounter(token, user.totpSecret || "");
+        isValid = totpCheck.valid;
+        if (isValid && totpCheck.counter !== null) {
+          isValid = await UserStorage.consumeTotpCounter(user.id, totpCheck.counter);
+          if (!isValid) {
+            logger.warn("verifyToken: TOTP 重放被拒绝", { userId });
+          }
+        }
 
         // 记录验证尝试
         TOTPController.recordTOTPAttempt(userId, isValid);
       } else if (backupCode) {
-        // 验证备用恢复码
+        // 验证备用恢复码（G2-14：恢复码为哈希存储，verifyBackupCode 返回剩余哈希数组）
         if (!user.backupCodes || user.backupCodes.length === 0) {
           return res.status(400).json({ error: "用户没有设置备用恢复码" });
         }
 
         // 记录验证前的恢复码数量
         const originalCount = user.backupCodes.length;
-        const backupCodes = [...user.backupCodes];
+        const verifyResult = await TOTPService.verifyBackupCode(backupCode, user.backupCodes);
+        isValid = verifyResult.matched;
 
-        isValid = TOTPService.verifyBackupCode(backupCode, backupCodes);
-
-        if (isValid) {
+        if (verifyResult.matched) {
           // 更新用户的备用恢复码（报废已使用的恢复码）
-          await TOTPController.updateUserBackupCodes(userId, backupCodes);
+          await TOTPController.updateUserBackupCodes(userId, verifyResult.remainingHashes);
 
-          const remainingCount = backupCodes.length;
+          const remainingCount = verifyResult.remainingHashes.length;
 
           logger.info("备用恢复码验证成功并已报废:", {
             userId,
@@ -525,8 +538,8 @@ export class TOTPController {
       const userId = jwtUser.id;
       const { token } = req.body;
 
-      // 从数据库获取完整的用户信息，包括TOTP相关字段
-      const user = await UserStorage.getUserById(userId);
+      // 从数据库获取完整的用户信息，包括TOTP相关字段（G2-22：走专用 secrets 投影）
+      const user = await UserStorage.getUserSecretsById(userId);
       if (!user) {
         return res.status(404).json({ error: "用户不存在" });
       }
@@ -545,8 +558,15 @@ export class TOTPController {
         });
       }
 
-      // 验证令牌
-      const isValid = TOTPService.verifyToken(token, user.totpSecret!);
+      // 验证令牌（G2-13：带 counter 重放防护，原子消费）
+      const totpCheck = TOTPService.verifyTokenWithCounter(token, user.totpSecret || "");
+      let isValid = totpCheck.valid;
+      if (isValid && totpCheck.counter !== null) {
+        isValid = await UserStorage.consumeTotpCounter(user.id, totpCheck.counter);
+        if (!isValid) {
+          logger.warn("disable: TOTP 重放被拒绝", { userId });
+        }
+      }
 
       // 记录验证尝试
       TOTPController.recordTOTPAttempt(userId, isValid);
@@ -619,8 +639,8 @@ export class TOTPController {
         return res.status(401).json({ error: "未授权访问" });
       }
 
-      // 从数据库获取完整的用户信息，包括TOTP相关字段
-      const user = await UserStorage.getUserById(jwtUser.id);
+      // 从数据库获取完整的用户信息，包括TOTP相关字段（G2-22：走专用 secrets 投影）
+      const user = await UserStorage.getUserSecretsById(jwtUser.id);
       if (!user) {
         return res.status(404).json({ error: "用户不存在" });
       }
@@ -637,6 +657,8 @@ export class TOTPController {
 
   /**
    * 获取备用恢复码
+   *
+   * G2-14: 恢复码落库存哈希，明文只在生成时展示一次，本接口不再回显明文。
    */
   public static async getBackupCodes(req: Request, res: Response) {
     try {
@@ -645,8 +667,8 @@ export class TOTPController {
         return res.status(401).json({ error: "未授权访问" });
       }
 
-      // 从数据库获取完整的用户信息，包括TOTP相关字段
-      const user = await UserStorage.getUserById(jwtUser.id);
+      // 从数据库获取完整的用户信息，包括TOTP相关字段（G2-22：走专用 secrets 投影）
+      const user = await UserStorage.getUserSecretsById(jwtUser.id);
       if (!user) {
         return res.status(404).json({ error: "用户不存在" });
       }
@@ -655,20 +677,21 @@ export class TOTPController {
         return res.status(400).json({ error: "TOTP未启用" });
       }
 
-      if (!user.backupCodes || user.backupCodes.length === 0) {
+      const remainingCount = Array.isArray(user.backupCodes) ? user.backupCodes.length : 0;
+      if (remainingCount === 0) {
         return res.status(404).json({ error: "没有可用的备用恢复码" });
       }
 
-      logger.info("获取备用恢复码成功:", {
+      logger.info("获取备用恢复码状态成功:", {
         userId: user.id,
         username: user.username,
-        remainingCodes: user.backupCodes.length,
+        remainingCodes: remainingCount,
       });
 
       res.json({
-        backupCodes: user.backupCodes,
-        remainingCount: user.backupCodes.length,
-        message: "备用恢复码获取成功",
+        backupCodes: [],
+        remainingCount,
+        message: "备用恢复码仅在生成时显示一次，请通过重新生成获取新的恢复码",
       });
     } catch (error) {
       logger.error("获取备用恢复码失败:", error);
@@ -688,8 +711,8 @@ export class TOTPController {
 
       const userId = jwtUser.id;
 
-      // 从数据库获取完整的用户信息，包括TOTP相关字段
-      const user = await UserStorage.getUserById(userId);
+      // 从数据库获取完整的用户信息，包括TOTP相关字段（G2-22：走专用 secrets 投影）
+      const user = await UserStorage.getUserSecretsById(userId);
       if (!user) {
         return res.status(404).json({ error: "用户不存在" });
       }
@@ -698,10 +721,8 @@ export class TOTPController {
         return res.status(400).json({ error: "TOTP未启用" });
       }
 
-      // 生成新的备用恢复码
+      // 生成新的备用恢复码（G2-14：明文只返回一次，落库存哈希）
       const newBackupCodes = TOTPService.generateBackupCodes();
-
-      // 更新用户的备用恢复码
       await TOTPController.updateUserBackupCodes(userId, newBackupCodes);
 
       logger.info("备用恢复码重新生成成功:", {
@@ -731,13 +752,38 @@ export class TOTPController {
     enabled: boolean,
     backupCodes: string[],
   ): Promise<void> {
-    await UserStorage.updateUser(userId, { totpSecret: secret, totpEnabled: enabled, backupCodes });
+    // G2-14: 恢复码以哈希落库；已哈希的条目原样保留，明文条目转为哈希。
+    // 注意：不重置 lastTotpCounter——启用流程里 verifyAndEnable 已通过 consumeTotpCounter
+    // 持久化首个 counter，这里若清零会破坏重放防护。
+    const hashedBackupCodes = await TOTPController.normalizeBackupCodesForStorage(backupCodes);
+    await UserStorage.updateUser(userId, {
+      totpSecret: secret,
+      totpEnabled: enabled,
+      backupCodes: hashedBackupCodes,
+    } as any);
   }
 
   /**
-   * 更新用户备用恢复码
+   * 更新用户备用恢复码（明文或已哈希均可，统一转为哈希落库）
    */
   private static async updateUserBackupCodes(userId: string, backupCodes: string[]): Promise<void> {
-    await UserStorage.updateUser(userId, { backupCodes });
+    const hashedBackupCodes = await TOTPController.normalizeBackupCodesForStorage(backupCodes);
+    await UserStorage.updateUser(userId, { backupCodes: hashedBackupCodes });
+  }
+
+  private static async normalizeBackupCodesForStorage(codes: string[]): Promise<string[]> {
+    if (!Array.isArray(codes)) return [];
+    const out: string[] = [];
+    for (const code of codes) {
+      if (
+        typeof code === "string" &&
+        (code.startsWith("$2a$") || code.startsWith("$2b$") || code.startsWith("$2y$"))
+      ) {
+        out.push(code);
+      } else {
+        out.push(...(await TOTPService.hashBackupCodes([code])));
+      }
+    }
+    return out;
   }
 }

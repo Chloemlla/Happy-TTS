@@ -16,17 +16,22 @@ import { PasskeyCredentialIdFixer } from "../utils/passkeyCredentialIdFixer";
 import { firstString } from "../utils/httpParam";
 import { UserStorage } from "../utils/userStorage";
 
-// 使用 require 避免类型声明解析问题
-const adminOnly = require("../middleware/adminOnly").default;
-
 // 服务端 challenge 存储（用于 discoverable 认证流程）
 // 防止客户端控制 expectedChallenge 导致重放攻击
 const discoverableChallengeStore = new Map<string, { challenge: string; expiresAt: number }>();
+// G2-19: 容量上限，防内存无限增长
+const MAX_DISCOVERABLE_CHALLENGE_KEYS = 5000;
 // 定期清理过期 challenge（每 5 分钟）
 setInterval(() => {
   const now = Date.now();
   for (const [key, value] of discoverableChallengeStore) {
     if (now >= value.expiresAt) {
+      discoverableChallengeStore.delete(key);
+    }
+  }
+  if (discoverableChallengeStore.size > MAX_DISCOVERABLE_CHALLENGE_KEYS) {
+    const ordered = [...discoverableChallengeStore.entries()].sort((a, b) => a[1].expiresAt - b[1].expiresAt);
+    for (const [key] of ordered.slice(0, discoverableChallengeStore.size - MAX_DISCOVERABLE_CHALLENGE_KEYS)) {
       discoverableChallengeStore.delete(key);
     }
   }
@@ -132,24 +137,6 @@ router.post("/register/start", passkeyAuthLimiter, authenticateToken, async (req
     }
     logger.info("[Passkey] /register/start options", { userId, options });
 
-    // 记录本次 start 的简短 payload 以便管理员调试（只包含非敏感字段）
-    try {
-      const payload = {
-        userId,
-        credentialName,
-        challenge: options.challenge,
-        excludeCount: (user.passkeyCredentials || []).length,
-      };
-      const repairService = require("../services/passkeyDataRepairService");
-      if (
-        repairService?.PasskeyDataRepairService &&
-        typeof repairService.PasskeyDataRepairService.setLastStartPayload === "function"
-      ) {
-        repairService.PasskeyDataRepairService.setLastStartPayload(payload);
-      }
-    } catch (err) {
-      logger.warn("[Passkey] 记录 start payload 失败", { err });
-    }
     if (!options) {
       logger.error("[Passkey] options 为 undefined", { userId, credentialName });
       return res.status(500).json({ error: "生成注册选项失败", details: { userId, credentialName, options } });
@@ -161,6 +148,7 @@ router.post("/register/start", passkeyAuthLimiter, authenticateToken, async (req
 
     await UserStorage.updateUser(userId, {
       pendingChallenge: options.challenge,
+      pendingChallengeExpiresAt: Date.now() + 5 * 60 * 1000,
     });
 
     res.json({ options });
@@ -234,25 +222,6 @@ router.post("/register/finish", passkeyAuthLimiter, authenticateToken, async (re
       } catch (notifyErr) {
         logger.warn("[Passkey添加通知] 发送通知邮件失败:", notifyErr);
       }
-    }
-
-    // 记录本次 finish 的简短 payload 以便管理员调试（只包含非敏感字段）
-    try {
-      const payload = {
-        userId,
-        credentialName,
-        verified: verification?.verified,
-        hasRegistrationInfo: !!verification?.registrationInfo,
-      };
-      const repairService = require("../services/passkeyDataRepairService");
-      if (
-        repairService?.PasskeyDataRepairService &&
-        typeof repairService.PasskeyDataRepairService.setLastFinishPayload === "function"
-      ) {
-        repairService.PasskeyDataRepairService.setLastFinishPayload(payload);
-      }
-    } catch (err) {
-      logger.warn("[Passkey] 记录 finish payload 失败", { err });
     }
 
     res.json({ ...verification, passkeyCredentials: updatedUser?.passkeyCredentials || [] });
@@ -347,9 +316,10 @@ router.post("/authenticate/start", passkeyAuthLimiter, async (req, res) => {
       allowCredentialsCount: options.allowCredentials?.length || 0,
     });
 
-    // 保存 challenge 到用户数据中
+    // 保存 challenge 到用户数据中（G2-11: 带过期时间）
     await UserStorage.updateUser(user.id, {
       pendingChallenge: options.challenge,
+      pendingChallengeExpiresAt: Date.now() + 5 * 60 * 1000,
     });
 
     res.json({ options });
@@ -448,16 +418,15 @@ router.post("/authenticate/finish/discoverable", passkeyAuthLimiter, async (req,
       return res.status(400).json({ error: "用户未启用Passkey" });
     }
 
-    // 使用服务端验证的 challenge 写入 pendingChallenge（而非客户端提交的 challenge）
-    // 防止客户端控制 expectedChallenge 导致重放攻击
-    if (expectedChallenge) {
-      await UserStorage.updateUser(matchedUser.id, {
-        pendingChallenge: expectedChallenge,
-      });
-    }
-
-    // 执行Passkey验证
-    const verification = await PasskeyService.verifyAuthentication(matchedUser, response, clientOrigin, clientOrigin);
+    // G2-11: 不写受害者文档。直接把服务端验证的 challenge 作为参数传入 verifyAuthentication，
+    // 避免远程覆盖其他用户进行中的登录 challenge（登录 DoS）。
+    const verification = await PasskeyService.verifyAuthentication(
+      matchedUser,
+      response,
+      clientOrigin,
+      clientOrigin,
+      expectedChallenge,
+    );
 
     if (!verification.verified) {
       logger.warn("[Passkey] Discoverable 认证失败：验证未通过", {
@@ -632,44 +601,8 @@ router.post("/authenticate/finish", passkeyAuthLimiter, async (req, res) => {
   } catch (error: any) {
     console.error("完成 Passkey 认证失败:", error);
 
-    // 如果是认证失败，尝试自动修复用户数据
-    if (
-      error?.message?.includes("验证认证响应失败") ||
-      error?.message?.includes("找不到匹配的认证器") ||
-      error?.message?.includes("Credential ID")
-    ) {
-      try {
-        logger.info("[Passkey] 路由层检测到认证失败，尝试自动修复", {
-          username: req.body.username,
-          error: error.message,
-        });
-
-        // 重新获取用户数据
-        const user = await UserStorage.getUserByUsername(req.body.username);
-        if (user) {
-          // 调用自动修复
-          await PasskeyService.autoFixUserPasskeyData(user);
-
-          logger.info("[Passkey] 路由层自动修复完成，建议用户重新尝试认证", {
-            username: req.body.username,
-            userId: user.id,
-          });
-
-          // 返回友好的错误信息，建议用户重新尝试
-          return res.status(401).json({
-            error: "认证失败，系统已自动修复数据，请重新尝试Passkey认证",
-            code: "AUTO_FIXED",
-            retry: true,
-          });
-        }
-      } catch (fixError) {
-        logger.error("[Passkey] 路由层自动修复失败:", {
-          username: req.body.username,
-          fixError: fixError instanceof Error ? fixError.message : String(fixError),
-        });
-      }
-    }
-
+    // G2-09: 认证路径绝不自动改写/删除用户凭证数据（不再调用 autoFixUserPasskeyData）。
+    // 需要修复请走显式一次性迁移流程。
     const errorMessage = error?.message || "完成 Passkey 认证失败";
     res.status(500).json({ error: errorMessage });
   }
@@ -744,29 +677,31 @@ router.get("/data/check", passkeyAuthLimiter, authenticateToken, async (req, res
 });
 
 // 修复当前用户的Passkey数据（需要认证）
+// G2-09: 改为只报告，不实际改写/删除凭证；如需真正修复走显式一次性迁移。
 router.post("/data/repair", passkeyAuthLimiter, authenticateToken, async (req, res) => {
   try {
     const userId = (req as any).user.id;
-    const result = await PasskeyDataRepairService.repairUserPasskeyData(userId);
+    const result = await PasskeyDataRepairService.checkUserPasskeyData(userId);
 
-    if (result.success) {
+    if (result.needsRepair) {
       res.json({
         success: true,
-        message: result.message,
-        repairedCredentialsCount: result.repairedCredentialsCount,
+        report: result,
+        message: "检测到需要修复的数据，已生成报告。请通过管理员显式迁移流程处理。",
       });
     } else {
-      res.status(400).json({
-        success: false,
-        error: result.message,
+      res.json({
+        success: true,
+        report: result,
+        message: "数据无需修复",
       });
     }
   } catch (error) {
-    logger.error("[Passkey] 修复用户数据失败", {
+    logger.error("[Passkey] 检查用户数据失败", {
       userId: (req as any).user.id,
       error: error instanceof Error ? error.message : String(error),
     });
-    res.status(500).json({ error: "修复数据失败" });
+    res.status(500).json({ error: "检查数据失败" });
   }
 });
 
@@ -857,24 +792,6 @@ router.post("/credential-id/fix", passkeyAuthLimiter, authenticateToken, async (
       error: error instanceof Error ? error.message : String(error),
     });
     res.status(500).json({ error: "修复credentialID失败" });
-  }
-});
-
-// 管理员调试路由：返回最近一次 start/finish 简短 payload（仅管理员）
-router.get("/admin/debug/last-payloads", passkeyAdminLimiter, authenticateToken, adminOnly, async (_req, res) => {
-  try {
-    const repairService = require("../services/passkeyDataRepairService");
-    if (
-      repairService?.PasskeyDataRepairService &&
-      typeof repairService.PasskeyDataRepairService.getLastPayloads === "function"
-    ) {
-      const payloads = repairService.PasskeyDataRepairService.getLastPayloads();
-      return res.json({ success: true, data: payloads });
-    }
-    return res.status(500).json({ success: false, error: "调试服务不可用" });
-  } catch (err) {
-    logger.error("[Passkey] 获取调试 payload 失败", { err });
-    return res.status(500).json({ success: false, error: "获取调试 payload 失败" });
   }
 });
 

@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import QRCode from "qrcode";
 import speakeasy from "speakeasy";
+import bcrypt from "bcrypt";
 import logger from "../utils/logger";
 
 // 确保时区设置为上海
@@ -140,27 +141,44 @@ export class TOTPService {
 
   /**
    * 验证TOTP令牌
+   *
+   * G2-13: 兼容包装，默认窗口收到 1（RFC 6238 建议 ±1 步）。
+   * 新代码请使用 verifyTokenWithCounter 做重放防护。
    */
-  public static verifyToken(token: string, secret: string, window: number = 2): boolean {
+  public static verifyToken(token: string, secret: string, window: number = 1): boolean {
+    const result = TOTPService.verifyTokenWithCounter(token, secret, window);
+    return result.valid;
+  }
+
+  /**
+   * 验证TOTP令牌并返回命中的 counter（用于重放防护）。
+   * 调用方应在用户文档上持久化 lastTotpCounter，并拒绝 counter <= lastTotpCounter 的复用。
+   * @returns { valid, counter } counter 为 null 表示验证失败。
+   */
+  public static verifyTokenWithCounter(
+    token: string,
+    secret: string,
+    window: number = 1,
+  ): { valid: boolean; counter: number | null } {
     try {
       // 输入验证
       if (!token || typeof token !== "string" || token.trim().length === 0) {
         logger.error("TOTP验证参数无效: token为空");
-        return false;
+        return { valid: false, counter: null };
       }
       if (!secret || typeof secret !== "string" || secret.trim().length === 0) {
         logger.error("TOTP验证参数无效: secret为空");
-        return false;
+        return { valid: false, counter: null };
       }
       // 验证token格式
       if (!/^\d{6}$/.test(token)) {
         logger.error("TOTP令牌格式错误:", { tokenLength: token.length });
-        return false;
+        return { valid: false, counter: null };
       }
       // 验证window参数
       if (typeof window !== "number" || window < 0 || window > 10) {
         logger.error("TOTP验证window参数无效:", { window });
-        return false;
+        return { valid: false, counter: null };
       }
 
       // 记录当前时间和时区信息
@@ -178,7 +196,8 @@ export class TOTPService {
         serverTime: now.getTime(),
       });
 
-      const result = speakeasy.totp.verify({
+      // verifyDelta 返回 { delta, counter }，delta 为相对当前步的偏移，counter 为绝对时间步。
+      const delta = speakeasy.totp.verifyDelta({
         secret,
         encoding: "base32",
         token,
@@ -186,17 +205,24 @@ export class TOTPService {
         step: 30,
       });
 
+      if (!delta || typeof delta !== "object") {
+        logger.info("TOTP验证结果:", { result: false, window, timeZone, currentTime, localTime });
+        return { valid: false, counter: null };
+      }
+
       logger.info("TOTP验证结果:", {
-        result,
+        result: true,
+        delta: delta.delta,
+        counter: delta.counter,
         window,
         timeZone,
         currentTime,
         localTime,
       });
-      return result;
+      return { valid: true, counter: Number(delta.counter) };
     } catch (error) {
       logger.error("验证TOTP令牌失败:", error);
-      return false;
+      return { valid: false, counter: null };
     }
   }
 
@@ -233,21 +259,28 @@ export class TOTPService {
 
   /**
    * 验证备用恢复码
+   *
+   * G2-14: 恢复码以 bcrypt 哈希数组落库。本函数返回命中的剩余哈希数组，
+   * 不修改入参，也不负责落库（调用方把 remainingHashes 写回用户文档）。
+   * 兼容旧的明文存储：非 bcrypt 前缀的条目按明文比较并照常报废。
    */
-  public static verifyBackupCode(code: string, backupCodes: string[]): boolean {
+  public static async verifyBackupCode(
+    code: string,
+    backupCodes: string[],
+  ): Promise<{ matched: boolean; remainingHashes: string[] }> {
     try {
       // 输入验证
       if (!code || typeof code !== "string" || code.trim().length === 0) {
         logger.error("备用恢复码验证参数无效: code为空");
-        return false;
+        return { matched: false, remainingHashes: backupCodes };
       }
       if (!backupCodes || !Array.isArray(backupCodes)) {
         logger.error("备用恢复码验证参数无效: backupCodes不是数组");
-        return false;
+        return { matched: false, remainingHashes: backupCodes };
       }
       if (backupCodes.length === 0) {
         logger.error("备用恢复码验证参数无效: backupCodes为空数组");
-        return false;
+        return { matched: false, remainingHashes: backupCodes };
       }
       const normalizedCode = (typeof code === "string" ? code : String(code ?? ""))
         .toUpperCase()
@@ -255,30 +288,56 @@ export class TOTPService {
       // 验证恢复码格式
       if (normalizedCode.length !== 8) {
         logger.error("备用恢复码格式错误:", { codeLength: normalizedCode.length });
-        return false;
+        return { matched: false, remainingHashes: backupCodes };
       }
       // 验证恢复码只包含字母和数字
       if (!/^[A-Z0-9]{8}$/.test(normalizedCode)) {
         logger.error("备用恢复码包含非法字符");
-        return false;
+        return { matched: false, remainingHashes: backupCodes };
       }
-      const index = backupCodes.findIndex(
-        (backupCode) =>
-          (typeof backupCode === "string" ? backupCode : String(backupCode ?? ""))
-            .toUpperCase()
-            .replace(/[^A-Z0-9]/g, "") === normalizedCode,
-      );
-      if (index !== -1) {
-        // 移除已使用的恢复码
-        backupCodes.splice(index, 1);
-        logger.info("备用恢复码验证成功:", { remainingCodes: backupCodes.length });
-        return true;
+
+      for (let index = 0; index < backupCodes.length; index += 1) {
+        const stored = backupCodes[index];
+        if (typeof stored !== "string" || stored.length === 0) continue;
+
+        let isMatch: boolean;
+        if (stored.startsWith("$2a$") || stored.startsWith("$2b$") || stored.startsWith("$2y$")) {
+          isMatch = await bcrypt.compare(normalizedCode, stored);
+        } else {
+          // 兼容旧明文条目（恒时比较，降低时序侧信道）
+          const storedNormalized = stored.toUpperCase().replace(/[^A-Z0-9]/g, "");
+          isMatch =
+            storedNormalized.length === normalizedCode.length &&
+            crypto.timingSafeEqual(Buffer.from(storedNormalized), Buffer.from(normalizedCode));
+        }
+
+        if (isMatch) {
+          const remainingHashes = [...backupCodes];
+          remainingHashes.splice(index, 1);
+          logger.info("备用恢复码验证成功:", { remainingCodes: remainingHashes.length });
+          return { matched: true, remainingHashes };
+        }
       }
       logger.warn("备用恢复码验证失败");
-      return false;
+      return { matched: false, remainingHashes: backupCodes };
     } catch (error) {
       logger.error("验证备用恢复码时发生错误:", error);
-      return false;
+      return { matched: false, remainingHashes: backupCodes };
     }
+  }
+
+  /**
+   * G2-14: 把明文恢复码转换为 bcrypt 哈希数组（落库存哈希，明文只返回给用户一次）。
+   */
+  public static async hashBackupCodes(codes: string[]): Promise<string[]> {
+    if (!Array.isArray(codes)) return [];
+    return Promise.all(
+      codes.map((code) => {
+        const normalized = String(code ?? "")
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, "");
+        return bcrypt.hash(normalized, 10);
+      }),
+    );
   }
 }

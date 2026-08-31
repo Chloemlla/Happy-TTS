@@ -23,6 +23,18 @@ export const mongoUserStorageProvider: UserStorageProvider = {
     return removeAvatarBase64(await userService.getUserById(id));
   },
 
+  async getUserSecretsById(id: string) {
+    return removeAvatarBase64(await userService.getUserSecretsById(id));
+  },
+
+  async consumeTotpCounter(id: string, counter: number) {
+    return userService.consumeTotpCounter(id, counter);
+  },
+
+  async consumePendingChallenge(id: string, expectedChallenge: string) {
+    return removeAvatarBase64(await userService.consumePendingChallenge(id, expectedChallenge));
+  },
+
   async getUserByEmail(email: string) {
     return removeAvatarBase64(await userService.getUserByEmail(email));
   },

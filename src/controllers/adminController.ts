@@ -315,6 +315,11 @@ export const adminController = {
       }
 
       const updated = await UserStorage.updateUser(user.id, updates);
+      // G2-02: 管理员改密后撤销该用户全部会话，旧 JWT 立即失效。
+      if (updates.password) {
+        const { revokeAllAuthSessions } = require("../services/authSessionService");
+        await revokeAllAuthSessions(user.id);
+      }
       const updatedUser = stripSensitiveUserFields(updated || {});
 
       // 管理员修改用户信息后，发送通知邮件给用户

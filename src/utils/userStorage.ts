@@ -87,6 +87,18 @@ export class UserStorage {
     return userRepository.getUserById(id);
   }
 
+  public static async getUserSecretsById(id: string): Promise<User | null> {
+    return userRepository.getUserSecretsById(id);
+  }
+
+  public static async consumeTotpCounter(id: string, counter: number): Promise<boolean> {
+    return userRepository.consumeTotpCounter(id, counter);
+  }
+
+  public static async consumePendingChallenge(id: string, expectedChallenge: string): Promise<User | null> {
+    return userRepository.consumePendingChallenge(id, expectedChallenge);
+  }
+
   public static async getUserByEmail(email: string): Promise<User | null> {
     return userRepository.getUserByEmail(email);
   }

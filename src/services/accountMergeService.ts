@@ -20,7 +20,8 @@ type RiskSeverity = "low" | "medium" | "high";
 export interface AccountMergeItem {
   key: string;
   label: string;
-  count: number;
+  count: number | null;
+  unknown?: boolean;
   strategy: MergeStrategy;
 }
 
@@ -81,6 +82,8 @@ export interface AccountMergeActor {
 }
 
 const MERGE_SESSION_TTL_MS = 15 * 60 * 1000;
+// G2-19: 容量上限，防内存无限增长。
+const MAX_MERGE_SESSIONS = 2000;
 const mergeSessions = new Map<string, AccountMergeSession>();
 
 const ROLE_RANK: Record<string, number> = {
@@ -92,6 +95,12 @@ const ROLE_RANK: Record<string, number> = {
 function cleanupExpiredMergeSessions(now = Date.now()): void {
   for (const [token, session] of mergeSessions.entries()) {
     if (session.expiresAt <= now) {
+      mergeSessions.delete(token);
+    }
+  }
+  if (mergeSessions.size > MAX_MERGE_SESSIONS) {
+    const ordered = [...mergeSessions.entries()].sort((a, b) => a[1].expiresAt - b[1].expiresAt);
+    for (const [token] of ordered.slice(0, mergeSessions.size - MAX_MERGE_SESSIONS)) {
       mergeSessions.delete(token);
     }
   }
@@ -111,12 +120,13 @@ function collection(name: string) {
   return mongoose.connection.collection(name);
 }
 
-async function safeCount(name: string, filter: Record<string, unknown>): Promise<number> {
+// G2-21: 统计失败返回 null（而不是假装是 0），让上游能显式暴露「无法确认数据量」。
+async function safeCount(name: string, filter: Record<string, unknown>): Promise<number | null> {
   try {
     return await collection(name).countDocuments(filter);
   } catch (error) {
     logger.warn("[AccountMerge] 统计集合失败", { name, error });
-    return 0;
+    return null;
   }
 }
 
@@ -180,7 +190,29 @@ async function buildMergeItems(sourceUserId: string): Promise<AccountMergeItem[]
     safeCount("oauthauthorizationcodes", { userId: sourceUserId }),
   ]);
 
-  return [
+  const counts = [
+    ttsJobs,
+    ttsHistory,
+    ttsAssets,
+    ttsQuotaReservations,
+    artifacts,
+    shortUrls,
+    tickets,
+    translationLogs,
+    recommendationHistory,
+    userPreferences,
+    workspaces,
+    voiceProjects,
+    versions,
+    apiKeys,
+    apiKeyBillingEvents,
+    oauthClients,
+    oauthGrants,
+    oauthTokens,
+    oauthCodes,
+  ];
+
+  const items: AccountMergeItem[] = [
     { key: "ttsJobs", label: "TTS 任务", count: ttsJobs, strategy: "auto" },
     { key: "ttsHistory", label: "TTS 历史", count: ttsHistory, strategy: "auto" },
     { key: "ttsAssets", label: "TTS 音频资产", count: ttsAssets, strategy: "auto" },
@@ -201,12 +233,32 @@ async function buildMergeItems(sourceUserId: string): Promise<AccountMergeItem[]
     { key: "oauthTokens", label: "OAuth Token", count: oauthTokens, strategy: "conservative" },
     { key: "oauthCodes", label: "OAuth 授权码", count: oauthCodes, strategy: "conservative" },
   ];
+
+  // G2-21: 透传 unknown 标记，让 buildRiskItems 能把它变成阻塞项而非静默通过。
+  return items.map((item, index) => {
+    if (counts[index] === null) {
+      return { ...item, count: null, unknown: true };
+    }
+    return item;
+  });
 }
 
 function buildRiskItems(sourceUser: User, targetUser: User, mergeItems: AccountMergeItem[]): AccountMergeRiskItem[] {
   const risks: AccountMergeRiskItem[] = [];
   const sourceStatus = (sourceUser as any).accountStatus || "active";
   const targetStatus = (targetUser as any).accountStatus || "active";
+
+  // G2-21: 任一集合统计失败（count === null）时，显式暴露为阻塞风险，禁止静默跳过高风险确认。
+  const unknownItem = mergeItems.find((item) => item.unknown);
+  if (unknownItem) {
+    risks.push({
+      key: "unknownData",
+      label: "无法确认待迁移数据量",
+      severity: "high",
+      blocking: true,
+      message: "部分集合统计数据读取失败，无法确认待迁移数据量，暂不能合并。",
+    });
+  }
 
   if (sourceStatus === "suspended" || targetStatus === "suspended") {
     risks.push({

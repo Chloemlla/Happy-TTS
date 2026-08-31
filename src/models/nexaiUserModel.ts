@@ -35,12 +35,19 @@ const nexaiUserSchema = new mongoose.Schema(
     },
     emailVerified: { type: Boolean, default: false },
     role: { type: String, enum: ["user", "admin"], default: "user" },
+    // G2-25: 账号状态，nexaiAuth 中间件据此拒绝封停账号
+    accountStatus: { type: String, enum: ["active", "suspended"], default: "active" },
 
     // Token 管理
     refreshToken: { type: String }, // 哈希后存储
     // HMAC 派生的索引列，仅用于收敛候选集，不参与鉴权判定；select:false 避免随用户文档返回
     refreshTokenLookup: { type: String, select: false },
     refreshTokenExpiresAt: { type: Number },
+    // G2-24: access token 版本号，改密/重置密码后 $inc，nexaiAuth 中间件比对 tokenVersion
+    tokenVersion: { type: Number, default: 0 },
+    // G2-24: 一次性密码重置令牌（持久化，防重放）
+    passwordResetTokenHash: { type: String, select: false },
+    passwordResetTokenExpiresAt: { type: Number },
 
     // 登录记录
     lastLoginAt: { type: Date },
@@ -91,9 +98,13 @@ export interface INexaiUser {
   authProvider: string;
   emailVerified: boolean;
   role: "user" | "admin";
+  accountStatus?: "active" | "suspended";
   refreshToken?: string;
   refreshTokenLookup?: string;
   refreshTokenExpiresAt?: number;
+  tokenVersion?: number;
+  passwordResetTokenHash?: string;
+  passwordResetTokenExpiresAt?: number;
   lastLoginAt?: Date;
   lastLoginIp?: string;
   loginCount: number;

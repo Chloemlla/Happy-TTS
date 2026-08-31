@@ -25,6 +25,9 @@ interface Authenticator {
 
 export const SINGLE_PASSKEY_ERROR_MESSAGE = "每个账号仅允许注册一个 Passkey，请先删除现有 Passkey 后再重新注册";
 
+// G2-11: challenge TTL ≤ 5 分钟
+const PASSKEY_CHALLENGE_TTL_MS = 5 * 60 * 1000;
+
 // 获取 RP ID（依赖域名）
 const getRpId = () => {
   return env.RP_ID;
@@ -98,8 +101,10 @@ const getRpOrigin = (clientOrigin?: string): string => {
   return env.RP_ORIGIN;
 };
 
-// 自动修复用户历史passkey credentialID为base64url字符串，并详细日志
-async function fixUserPasskeyCredentialIDs(user: User) {
+// 自动修复用户历史passkey credentialID为base64url字符串。
+// G2-09/G2-10: 唯一实现，只用于显式迁移/修复（PasskeyDataRepairService 复用），
+// 绝不在登录/认证读路径上调用——认证路径只跳过格式不合规的凭证并告警，不改写、不删除。
+export async function fixUserPasskeyCredentialIDs(user: User) {
   if (!user) {
     logger.warn("[Passkey自愈] 用户对象为空");
     return;
@@ -251,15 +256,13 @@ async function fixUserPasskeyCredentialIDs(user: User) {
       userId: user.id,
     });
   }
+  return changed;
 }
 
 export class PasskeyService {
   // 获取用户的认证器列表
   public static async getCredentials(userId: string): Promise<Authenticator[]> {
     const user = await UserStorage.getUserById(userId);
-    if (user) {
-      await fixUserPasskeyCredentialIDs(user);
-    }
     if (!user?.passkeyCredentials) {
       return [];
     }
@@ -268,7 +271,6 @@ export class PasskeyService {
 
   // 生成注册选项
   public static async generateRegistrationOptions(user: User, _credentialName: string, _clientOrigin?: string) {
-    await fixUserPasskeyCredentialIDs(user);
     if (!user) {
       throw new Error("generateRegistrationOptions: user 为空");
     }
@@ -330,9 +332,10 @@ export class PasskeyService {
     if (!options.challenge) {
       throw new Error("generateRegistrationOptions: options.challenge 为 undefined");
     }
-    // 存储挑战到用户记录
+    // 存储挑战到用户记录（G2-11: 带过期时间）
     await UserStorage.updateUser(user.id, {
       pendingChallenge: options.challenge,
+      pendingChallengeExpiresAt: Date.now() + PASSKEY_CHALLENGE_TTL_MS,
     });
     return options;
   }
@@ -345,7 +348,19 @@ export class PasskeyService {
     clientOrigin?: string,
     requestOrigin?: string,
   ): Promise<VerifiedRegistrationResponse> {
-    if (!user.pendingChallenge) {
+    const expectedChallenge = user.pendingChallenge;
+    if (!expectedChallenge) {
+      throw new Error("注册会话已过期");
+    }
+
+    // G2-11: challenge 过期检查
+    if (user.pendingChallengeExpiresAt && Date.now() > Number(user.pendingChallengeExpiresAt)) {
+      throw new Error("注册会话已过期");
+    }
+
+    // G2-11: 先清后验——原子消费 challenge，防止同一断言被并发重放。
+    const consumed = await UserStorage.consumePendingChallenge(user.id, expectedChallenge);
+    if (!consumed) {
       throw new Error("注册会话已过期");
     }
 
@@ -361,7 +376,7 @@ export class PasskeyService {
       const finalOrigin = getRpOrigin(clientOrigin) || requestOrigin || getRpOrigin();
       verification = await verifyRegistrationResponse({
         response,
-        expectedChallenge: user.pendingChallenge,
+        expectedChallenge,
         expectedOrigin: finalOrigin,
         expectedRPID: getRpId(),
       });
@@ -431,6 +446,7 @@ export class PasskeyService {
       passkeyEnabled: true,
       passkeyCredentials: [...(user.passkeyCredentials || []), newCredential],
       pendingChallenge: undefined,
+      pendingChallengeExpiresAt: undefined,
     });
 
     return verification;
@@ -469,7 +485,6 @@ export class PasskeyService {
       throw new Error("用户对象为空");
     }
 
-    await fixUserPasskeyCredentialIDs(user);
     const userAuthenticators = user?.passkeyCredentials || [];
 
     if (userAuthenticators.length === 0) {
@@ -567,24 +582,22 @@ export class PasskeyService {
         fullOptions: JSON.stringify(options, null, 2),
       });
 
-      // 存储挑战到用户记录
+      // 存储挑战到用户记录（G2-11: 带过期时间）
       await UserStorage.updateUser(user.id, {
         pendingChallenge: options.challenge,
+        pendingChallengeExpiresAt: Date.now() + PASSKEY_CHALLENGE_TTL_MS,
       });
 
       return options;
     } catch (err: any) {
-      // 检查input.replace is not a function等类型错误，强制修复所有credentialID
+      // 检查input.replace is not a function等类型错误：只跳过格式不合规的凭证并重试，绝不改写/删除。
       if (err?.message?.includes("replace is not a function")) {
-        logger.warn("[Passkey自愈] 捕获到input.replace类型错误，强制修复所有credentialID并重试", {
+        logger.warn("[Passkey自愈] 捕获到input.replace类型错误，过滤无效credentialID并重试", {
           userId: user.id,
           error: err.message,
         });
 
-        // 再次尝试修复
-        await fixUserPasskeyCredentialIDs(user);
-
-        // 重新获取过滤后的 credentials
+        // 重新获取过滤后的 credentials（只读过滤，不落库）
         const retryValidCredentials = user.passkeyCredentials?.filter(
           (c) =>
             c &&
@@ -644,6 +657,7 @@ export class PasskeyService {
 
         await UserStorage.updateUser(user.id, {
           pendingChallenge: options.challenge,
+          pendingChallengeExpiresAt: Date.now() + PASSKEY_CHALLENGE_TTL_MS,
         });
 
         return options;
@@ -666,10 +680,24 @@ export class PasskeyService {
     response: any,
     clientOrigin?: string,
     requestOrigin?: string,
+    expectedChallengeOverride?: string,
   ): Promise<VerifiedAuthenticationResponse> {
-    await fixUserPasskeyCredentialIDs(user);
-    if (!user.pendingChallenge) {
+    const expectedChallenge = expectedChallengeOverride ?? user.pendingChallenge;
+    if (!expectedChallenge) {
       throw new Error("认证会话已过期");
+    }
+
+    // G2-11: challenge 过期检查（使用用户文档 pendingChallenge 时；服务端 override 的 TTL 由调用方管理）
+    if (!expectedChallengeOverride && user.pendingChallengeExpiresAt && Date.now() > Number(user.pendingChallengeExpiresAt)) {
+      throw new Error("认证会话已过期");
+    }
+
+    // G2-11: 先清后验——原子消费 challenge（仅当 challenge 来自用户文档时），防止同一断言被并发重放。
+    if (!expectedChallengeOverride) {
+      const consumed = await UserStorage.consumePendingChallenge(user.id, expectedChallenge);
+      if (!consumed) {
+        throw new Error("认证会话已过期");
+      }
     }
 
     const userAuthenticators = user?.passkeyCredentials || [];
@@ -680,8 +708,13 @@ export class PasskeyService {
       throw new Error("认证响应 credentialID 格式无效");
     }
 
+    // G2-09: 只跳过格式不合规的凭证，绝不改写/删除。
     const authenticator = userAuthenticators.find(
-      (auth) => auth.credentialID === credentialId || auth.id === credentialId,
+      (auth) =>
+        auth &&
+        typeof auth.credentialID === "string" &&
+        /^[A-Za-z0-9_-]+$/.test(auth.credentialID) &&
+        (auth.credentialID === credentialId || auth.id === credentialId),
     );
 
     if (!authenticator) {
@@ -700,7 +733,7 @@ export class PasskeyService {
 
       verification = await verifyAuthenticationResponse({
         response,
-        expectedChallenge: user.pendingChallenge,
+        expectedChallenge,
         expectedOrigin: finalOrigin,
         expectedRPID: getRpId(),
         credential: {
@@ -731,6 +764,7 @@ export class PasskeyService {
     await UserStorage.updateUser(user.id, {
       passkeyCredentials: updatedCredentials,
       pendingChallenge: undefined, // 验证成功后清除挑战
+      pendingChallengeExpiresAt: undefined,
     });
 
     logger.info("[Passkey] 认证成功并更新计数器", {
@@ -746,9 +780,6 @@ export class PasskeyService {
   // 删除认证器
   public static async removeCredential(userId: string, credentialId: string): Promise<void> {
     const user = await UserStorage.getUserById(userId);
-    if (user) {
-      await fixUserPasskeyCredentialIDs(user);
-    }
     if (!user?.passkeyCredentials) {
       throw new Error("用户不存在或没有认证器");
     }

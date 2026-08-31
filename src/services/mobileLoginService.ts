@@ -1,9 +1,8 @@
 import crypto from "node:crypto";
-import fs from "node:fs";
-import path from "node:path";
 import jwt from "jsonwebtoken";
 import { config } from "../config/config";
 import { getClientIP } from "../utils/ipUtils";
+import { MobileClientTokenModel, type MobileClientTokenDoc } from "../models/mobileClientTokenModel";
 import {
   assertActiveAuthSession,
   createAuthSession,
@@ -13,14 +12,12 @@ import {
   touchAuthSession,
   type AuthSessionMetadata,
 } from "./authSessionService";
-import logger from "../utils/logger";
 import { type User, UserStorage } from "../utils/userStorage";
 import type { Request } from "express";
 
 const CHALLENGE_TTL_MS = 3 * 60 * 1000;
 const CLIENT_TOKEN_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 const MAX_CHALLENGES = 5000;
-const TOKEN_FILE = path.join(process.cwd(), "data", "mobile_login_client_tokens.json");
 
 type ChallengeStatus = "pending" | "scanned" | "approved" | "consumed" | "expired";
 
@@ -39,18 +36,6 @@ interface MobileLoginChallenge {
   browserUserAgent?: string;
   mobileIp?: string;
   mobileUserAgent?: string;
-}
-
-interface ClientTokenRecord {
-  tokenHash: string;
-  userId: string;
-  deviceId?: string;
-  deviceName?: string;
-  createdAt: number;
-  expiresAt: number;
-  lastUsedAt?: number;
-  lastUsedIp?: string;
-  revokedAt?: number;
 }
 
 export interface MobileLoginPayload {
@@ -93,45 +78,6 @@ function cleanupChallenges(): void {
   const ordered = [...challenges.entries()].sort((a, b) => a[1].createdAt - b[1].createdAt);
   for (const [sessionId] of ordered.slice(0, challenges.size - MAX_CHALLENGES)) {
     challenges.delete(sessionId);
-  }
-}
-
-function ensureTokenFile(): void {
-  const dir = path.dirname(TOKEN_FILE);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  if (!fs.existsSync(TOKEN_FILE)) {
-    fs.writeFileSync(TOKEN_FILE, "[]", "utf-8");
-  }
-}
-
-function readClientTokens(): ClientTokenRecord[] {
-  try {
-    ensureTokenFile();
-    const raw = fs.readFileSync(TOKEN_FILE, "utf-8");
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (error) {
-    logger.error("[MobileLogin] Failed to read client token store", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return [];
-  }
-}
-
-function writeClientTokens(records: ClientTokenRecord[]): void {
-  try {
-    ensureTokenFile();
-    const activeRecords = records.filter((record) => !record.revokedAt && !isExpired(record.expiresAt));
-    const tmpFile = `${TOKEN_FILE}.${process.pid}.tmp`;
-    fs.writeFileSync(tmpFile, JSON.stringify(activeRecords, null, 2), "utf-8");
-    fs.renameSync(tmpFile, TOKEN_FILE);
-  } catch (error) {
-    logger.error("[MobileLogin] Failed to write client token store", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    throw new Error("客户端令牌存储不可用");
   }
 }
 
@@ -312,27 +258,38 @@ export async function issueClientLoginToken(params: {
 
   const token = `sml_${randomToken(40)}`;
   const now = Date.now();
-  const records = readClientTokens().filter((record) => !record.revokedAt && !isExpired(record.expiresAt));
+  const expiresAt = now + CLIENT_TOKEN_TTL_MS;
   const deviceId = typeof params.deviceId === "string" ? params.deviceId.slice(0, 128) : undefined;
   const deviceName = typeof params.deviceName === "string" ? params.deviceName.slice(0, 128) : undefined;
-  const replacedTokenHashes = deviceId
-    ? records
-        .filter((record) => record.userId === params.user.id && record.deviceId === deviceId)
-        .map((record) => record.tokenHash)
-    : [];
-  const filtered = deviceId
-    ? records.filter((record) => !(record.userId === params.user.id && record.deviceId === deviceId))
-    : records;
 
-  filtered.push({
+  // G2-18: 同一设备的旧令牌先撤销，再写入新令牌（单文档原子，防止并发读改写回滚撤销）。
+  const replacedTokenHashes: string[] = [];
+  if (deviceId) {
+    const oldTokens = (await MobileClientTokenModel.find({
+      userId: params.user.id,
+      deviceId,
+      revokedAt: null,
+    })
+      .select("tokenHash")
+      .lean()) as Array<{ tokenHash: string }>;
+    replacedTokenHashes.push(...oldTokens.map((doc) => doc.tokenHash));
+    if (replacedTokenHashes.length > 0) {
+      await MobileClientTokenModel.updateMany(
+        { tokenHash: { $in: replacedTokenHashes }, revokedAt: null },
+        { $set: { revokedAt: now } },
+      );
+    }
+  }
+
+  await MobileClientTokenModel.create({
     tokenHash: hashToken(token),
     userId: params.user.id,
     deviceId,
     deviceName,
     createdAt: now,
-    expiresAt: now + CLIENT_TOKEN_TTL_MS,
+    expiresAt,
+    ttlExpireAt: new Date(expiresAt),
   });
-  writeClientTokens(filtered);
   await revokeAuthSessionsByClientTokenHashes(params.user.id, replacedTokenHashes);
   await createAuthSession({
     userId: params.user.id,
@@ -363,60 +320,54 @@ export async function exchangeClientLoginToken(params: {
   }
 
   const tokenHash = hashToken(token);
-  const records = readClientTokens();
-  const record = records.find((item) => item.tokenHash === tokenHash);
-  if (!record || record.revokedAt || isExpired(record.expiresAt)) {
-    writeClientTokens(records);
+  // G2-18: 单文档原子读取，不再全量读文件。
+  const doc = (await MobileClientTokenModel.findOne({ tokenHash }).lean()) as MobileClientTokenDoc | null;
+  if (!doc || doc.revokedAt || isExpired(doc.expiresAt)) {
     throw new Error("客户端登录令牌无效或已过期");
   }
-  if (record.deviceId && record.deviceId !== params.deviceId) {
+  if (doc.deviceId && doc.deviceId !== params.deviceId) {
     throw new Error("客户端登录令牌与设备不匹配");
   }
 
-  await assertActiveAuthSession(record.userId, token);
+  await assertActiveAuthSession(doc.userId, token);
 
-  const user = await loadActiveUser(record.userId);
+  const user = await loadActiveUser(doc.userId);
   const updatedUser = await updateLoginAudit(user, params.ip || "unknown");
-  record.lastUsedAt = Date.now();
-  record.lastUsedIp = params.ip || "unknown";
-  writeClientTokens(records);
+  const now = Date.now();
+  await MobileClientTokenModel.updateOne(
+    { tokenHash, revokedAt: null },
+    { $set: { lastUsedAt: now, lastUsedIp: params.ip || "unknown" } },
+  );
 
   const metadata = {
     ...params.metadata,
     ipAddress: params.ip || params.metadata?.ipAddress,
-    deviceId: params.deviceId || params.metadata?.deviceId || record.deviceId,
-    deviceName: params.metadata?.deviceName || record.deviceName,
+    deviceId: params.deviceId || params.metadata?.deviceId || doc.deviceId,
+    deviceName: params.metadata?.deviceName || doc.deviceName,
   };
-  await touchAuthSession(record.userId, token, metadata);
-  return toLoginPayload(updatedUser, metadata, record.tokenHash);
+  await touchAuthSession(doc.userId, token, metadata);
+  return toLoginPayload(updatedUser, metadata, doc.tokenHash);
 }
 
 export async function revokeClientLoginToken(params: { clientLoginToken: string; userId: string }) {
   const token = params.clientLoginToken.trim();
   const tokenHash = hashToken(token);
-  const records = readClientTokens();
-  let revoked = false;
-  for (const record of records) {
-    if (record.tokenHash === tokenHash && record.userId === params.userId && !record.revokedAt) {
-      record.revokedAt = Date.now();
-      revoked = true;
-    }
-  }
-  writeClientTokens(records);
+  // G2-18: 原子条件更新（tokenHash + userId + revokedAt:null），防止并发读改写回滚撤销。
+  const result = await MobileClientTokenModel.updateOne(
+    { tokenHash, userId: params.userId, revokedAt: null },
+    { $set: { revokedAt: Date.now() } },
+  );
   await revokeAuthCredential(params.userId, token);
-  return { revoked };
+  return { revoked: Number(result.modifiedCount || 0) > 0 };
 }
 
 export async function revokeClientLoginTokensByHashes(params: { userId: string; tokenHashes: string[] }): Promise<void> {
   if (params.tokenHashes.length === 0) return;
-  const tokenHashes = new Set(params.tokenHashes);
-  const records = readClientTokens();
-  for (const record of records) {
-    if (record.userId === params.userId && tokenHashes.has(record.tokenHash) && !record.revokedAt) {
-      record.revokedAt = Date.now();
-    }
-  }
-  writeClientTokens(records);
+  const tokenHashes = Array.from(new Set(params.tokenHashes));
+  await MobileClientTokenModel.updateMany(
+    { userId: params.userId, tokenHash: { $in: tokenHashes }, revokedAt: null },
+    { $set: { revokedAt: Date.now() } },
+  );
 }
 
 export async function resolveUserFromBearerToken(authHeader: unknown): Promise<User | null> {

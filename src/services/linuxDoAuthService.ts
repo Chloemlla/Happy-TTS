@@ -3,19 +3,17 @@ import axios from "axios";
 import { config } from "../config/config";
 import logger from "../utils/logger";
 import { type AuthSessionMetadata } from "./authSessionService";
-import { type User, UserStorage } from "../utils/userStorage";
+import { UserStorage } from "../utils/userStorage";
 import {
   bindProviderIdentityToUser,
   buildProviderBindRedirect,
   findUserByProviderIdentity,
-  upsertIdentityForUser,
 } from "./accountIdentityService";
 import {
   buildProviderBindPageRedirect,
   completeProviderLoginForBoundIdentity,
   issueProviderBindSession,
 } from "./providerBindSessionService";
-import { sendProviderGeneratedPasswordEmail } from "./providerCredentialEmailService";
 
 export type LinuxDoAuthIntent = "login" | "register" | "bind";
 export type LinuxDoAuthClient = "web" | "synapse-android";
@@ -91,7 +89,9 @@ const STATE_TTL_MS = 10 * 60 * 1000;
 // Keep tickets long enough for App Link failure + manual paste / custom-scheme handoff.
 const TICKET_TTL_MS = 3 * 60 * 1000;
 const DISCOVERY_TTL_MS = 60 * 60 * 1000;
-const PLACEHOLDER_EMAIL_DOMAIN = "linuxdo.oauth.local";
+// G2-19: 进程内 Map 容量上限，防攻击者用随机 state/ticket 持续放大内存。
+const MAX_OAUTH_STATES = 5000;
+const MAX_LOGIN_TICKETS = 5000;
 const TRUSTED_LINUXDO_DISCOVERY_URL = "https://connect.linux.do/.well-known/openid-configuration";
 const TRUSTED_LINUXDO_OAUTH_HOSTS = new Set(["connect.linux.do"]);
 const LINUXDO_FRONTEND_CALLBACK_PATH = "/auth/linuxdo/callback";
@@ -108,11 +108,23 @@ function cleanupExpiredStates(now = Date.now()): void {
       oauthStateStore.delete(state);
     }
   }
+  if (oauthStateStore.size > MAX_OAUTH_STATES) {
+    const ordered = [...oauthStateStore.entries()].sort((a, b) => a[1].expiresAt - b[1].expiresAt);
+    for (const [state] of ordered.slice(0, oauthStateStore.size - MAX_OAUTH_STATES)) {
+      oauthStateStore.delete(state);
+    }
+  }
 }
 
 function cleanupExpiredTickets(now = Date.now()): void {
   for (const [ticket, record] of loginTicketStore.entries()) {
     if (record.expiresAt <= now) {
+      loginTicketStore.delete(ticket);
+    }
+  }
+  if (loginTicketStore.size > MAX_LOGIN_TICKETS) {
+    const ordered = [...loginTicketStore.entries()].sort((a, b) => a[1].expiresAt - b[1].expiresAt);
+    for (const [ticket] of ordered.slice(0, loginTicketStore.size - MAX_LOGIN_TICKETS)) {
       loginTicketStore.delete(ticket);
     }
   }
@@ -266,10 +278,6 @@ export function normalizeLinuxDoProfile(rawProfile: unknown): LinuxDoNormalizedP
   };
 }
 
-function buildPlaceholderEmail(linuxdoId: string): string {
-  return `linuxdo_${linuxdoId}@${PLACEHOLDER_EMAIL_DOMAIN}`;
-}
-
 /**
  * Always return the SPA callback URL. Runtime/admin config sometimes stores the
  * backend OAuth redirect_uri under frontendCallbackUrl; sending browsers there
@@ -329,10 +337,19 @@ export function buildLinuxDoCompletionRedirect(
   params: Record<string, string | undefined | null> = {},
   client: LinuxDoAuthClient = "web",
 ): string {
-  return buildLinuxDoFrontendRedirect({
-    ...params,
+  // G2-38: 一次性 ticket 改放 URL fragment（不进 Referer、不上服务端日志），
+  // 前端 /auth/linuxdo/callback 需从 location.hash 读取 ticket。
+  const { ticket, ...queryParams } = params;
+  const redirectUrl = buildLinuxDoFrontendRedirect({
+    ...queryParams,
     client: client === "synapse-android" ? "synapse-android" : params.client ?? "web",
   });
+  if (typeof ticket === "string" && ticket.trim()) {
+    const parsed = new URL(redirectUrl);
+    parsed.hash = new URLSearchParams({ ticket }).toString();
+    return parsed.toString();
+  }
+  return redirectUrl;
 }
 
 export function buildLinuxDoFrontendRedirect(
@@ -345,23 +362,6 @@ export function buildLinuxDoFrontendRedirect(
     }
   }
   return redirectUrl.toString();
-}
-
-async function getAvailableLinuxDoUsername(baseUsername: string): Promise<string> {
-  let candidate = baseUsername;
-  let suffix = 1;
-
-  while (await UserStorage.getUserByUsername(candidate)) {
-    const suffixText = `_${suffix}`;
-    candidate = `${baseUsername.slice(0, Math.max(3, 20 - suffixText.length))}${suffixText}`;
-    suffix += 1;
-
-    if (suffix > 9999) {
-      throw new Error("无法为 Linux.do 登录分配唯一用户名");
-    }
-  }
-
-  return candidate;
 }
 
 async function fetchLinuxDoDiscoveryDocument(): Promise<ResolvedLinuxDoDiscoveryDocument> {
@@ -446,142 +446,8 @@ async function fetchLinuxDoUserProfile(accessToken: string, userinfoEndpoint: st
   return userResponse.data;
 }
 
-async function upsertLinuxDoUser(profile: LinuxDoNormalizedProfile): Promise<{
-  user: User;
-  isNewUser: boolean;
-}> {
-  const identityUser = await findUserByProviderIdentity("linuxdo", profile.id);
-  if (identityUser) {
-    if ((identityUser as any).accountStatus === "suspended") {
-      throw new Error("账户已被封停");
-    }
-    const updatedIdentityUser = (await UserStorage.updateUser(identityUser.id, {
-      linuxdoUsername: profile.username,
-      linuxdoAvatarUrl: profile.avatarUrl,
-      avatarUrl: profile.avatarUrl || identityUser.avatarUrl,
-      authProvider: identityUser.authProvider || "linuxdo",
-    })) || {
-      ...identityUser,
-      linuxdoUsername: profile.username,
-      linuxdoAvatarUrl: profile.avatarUrl,
-      avatarUrl: profile.avatarUrl || identityUser.avatarUrl,
-      authProvider: identityUser.authProvider || "linuxdo",
-    };
-
-    await upsertIdentityForUser(updatedIdentityUser, {
-      provider: "linuxdo",
-      providerUserId: profile.id,
-      providerEmail: profile.email,
-      providerUsername: profile.username,
-      avatarUrl: profile.avatarUrl,
-    });
-
-    return { user: updatedIdentityUser, isNewUser: false };
-  }
-
-  const linkedUser = await UserStorage.getUserByLinuxDoId(profile.id);
-  if (linkedUser) {
-    if ((linkedUser as any).accountStatus === "suspended") {
-      throw new Error("账户已被封停");
-    }
-    const updatedLinkedUser = (await UserStorage.updateUser(linkedUser.id, {
-      linuxdoUsername: profile.username,
-      linuxdoAvatarUrl: profile.avatarUrl,
-      avatarUrl: profile.avatarUrl || linkedUser.avatarUrl,
-      authProvider: linkedUser.authProvider || "linuxdo",
-    })) || {
-      ...linkedUser,
-      linuxdoUsername: profile.username,
-      linuxdoAvatarUrl: profile.avatarUrl,
-      avatarUrl: profile.avatarUrl || linkedUser.avatarUrl,
-      authProvider: linkedUser.authProvider || "linuxdo",
-    };
-
-    await upsertIdentityForUser(updatedLinkedUser, {
-      provider: "linuxdo",
-      providerUserId: profile.id,
-      providerEmail: profile.email,
-      providerUsername: profile.username,
-      avatarUrl: profile.avatarUrl,
-    });
-
-    return { user: updatedLinkedUser, isNewUser: false };
-  }
-
-  if (profile.email) {
-    const userWithSameEmail = await UserStorage.getUserByEmail(profile.email);
-    if (userWithSameEmail) {
-      if ((userWithSameEmail as any).accountStatus === "suspended") {
-        throw new Error("账户已被封停");
-      }
-      const updatedExistingUser = (await UserStorage.updateUser(userWithSameEmail.id, {
-        linuxdoId: profile.id,
-        linuxdoUsername: profile.username,
-        linuxdoAvatarUrl: profile.avatarUrl,
-        avatarUrl: profile.avatarUrl || userWithSameEmail.avatarUrl,
-        authProvider: userWithSameEmail.authProvider || "local",
-      })) || {
-        ...userWithSameEmail,
-        linuxdoId: profile.id,
-        linuxdoUsername: profile.username,
-        linuxdoAvatarUrl: profile.avatarUrl,
-        avatarUrl: profile.avatarUrl || userWithSameEmail.avatarUrl,
-        authProvider: userWithSameEmail.authProvider || "local",
-      };
-
-      await upsertIdentityForUser(updatedExistingUser, {
-        provider: "linuxdo",
-        providerUserId: profile.id,
-        providerEmail: profile.email,
-        providerUsername: profile.username,
-        avatarUrl: profile.avatarUrl,
-      });
-
-      return { user: updatedExistingUser, isNewUser: false };
-    }
-  }
-
-  const username = await getAvailableLinuxDoUsername(profile.username);
-  const email = profile.email || buildPlaceholderEmail(profile.id);
-  const randomPassword = crypto.randomBytes(32).toString("hex");
-
-  const createdUser = await UserStorage.createUser(username, email, randomPassword);
-  if (!createdUser) {
-    throw new Error("无法为 Linux.do 登录创建本地账号");
-  }
-
-  const finalizedUser = (await UserStorage.updateUser(createdUser.id, {
-    authProvider: "linuxdo",
-    linuxdoId: profile.id,
-    linuxdoUsername: profile.username,
-    linuxdoAvatarUrl: profile.avatarUrl,
-    avatarUrl: profile.avatarUrl,
-  })) || {
-    ...createdUser,
-    authProvider: "linuxdo" as const,
-    linuxdoId: profile.id,
-    linuxdoUsername: profile.username,
-    linuxdoAvatarUrl: profile.avatarUrl,
-    avatarUrl: profile.avatarUrl,
-  };
-
-  await upsertIdentityForUser(finalizedUser, {
-    provider: "linuxdo",
-    providerUserId: profile.id,
-    providerEmail: profile.email,
-    providerUsername: profile.username,
-    avatarUrl: profile.avatarUrl,
-  });
-
-  await sendProviderGeneratedPasswordEmail({
-    email,
-    username: finalizedUser.username,
-    password: randomPassword,
-    providerLabel: "Linux.do",
-  });
-
-  return { user: finalizedUser, isNewUser: true };
-}
+// G2-03: 已删除死代码 upsertLinuxDoUser（旧的「按邮箱静默并号」实现）。
+// Linux.do 登录已统一走 completeLinuxDoAuthorization → issueProviderBindSession 的安全绑定路径。
 
 function createLinuxDoErrorRedirect(message: string): string {
   return buildLinuxDoFrontendRedirect({ error: message });
