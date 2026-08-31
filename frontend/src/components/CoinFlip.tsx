@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FaCoins,
@@ -18,8 +18,6 @@ import {
   FaShieldAlt,
   FaRandom,
   FaClock,
-  FaMousePointer,
-  FaCalculator,
   FaInfoCircle,
   FaCheckCircle,
   FaTimesCircle,
@@ -51,6 +49,28 @@ interface CoinFlipStats {
   total: number;
 }
 
+// 记录本次结果的真实来源，供"查看算法"展示；服务端生成时前端拿不到随机值
+interface RandomTrace {
+  source: 'server' | 'crypto' | 'fallback';
+  method: string;
+  finalResult: number | null;
+  result: 'heads' | 'tails';
+  resultId?: string | null;
+}
+
+const STATS_STORAGE_KEY = 'coin-flip-stats';
+const SKIP_ANIMATION_STORAGE_KEY = 'coin-flip-skip-animation';
+
+const parseStats = (raw: unknown): CoinFlipStats | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const { heads, tails } = raw as Record<string, unknown>;
+  const valid = [heads, tails].every((value) => typeof value === 'number' && Number.isFinite(value) && value >= 0);
+  if (!valid) return null;
+  const nextHeads = Math.floor(heads as number);
+  const nextTails = Math.floor(tails as number);
+  return { heads: nextHeads, tails: nextTails, total: nextHeads + nextTails };
+};
+
 const CoinFlip: React.FC = () => {
   const [isFlipping, setIsFlipping] = useState(false);
   const [result, setResult] = useState<'heads' | 'tails' | null>(null);
@@ -59,70 +79,59 @@ const CoinFlip: React.FC = () => {
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   const [showRandomAlgorithm, setShowRandomAlgorithm] = useState(false);
-  const [lastRandomData, setLastRandomData] = useState<{
-    method: string;
-    values: number[];
-    finalResult: number;
-    result: 'heads' | 'tails';
-  } | null>(null);
+  const [lastRandomData, setLastRandomData] = useState<RandomTrace | null>(null);
   const [skipAnimation, setSkipAnimation] = useState(false);
-  const [animationTimeout, setAnimationTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [shakeInterval, setShakeInterval] = useState<NodeJS.Timeout | null>(null);
   const [resultId, setResultId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const shakeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const statsRef = useRef<CoinFlipStats>({ heads: 0, tails: 0, total: 0 });
+  // 结果请求一旦发出就置位，避免连点"跳过动画"重复抛出并重复计数
+  const settlingRef = useRef(false);
 
-  // 从localStorage加载统计数据
+  const savePreference = (key: string, value: string) => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (error) {
+      console.error('保存抛硬币偏好失败:', error);
+    }
+  };
+
+  const applyStats = (next: CoinFlipStats) => {
+    statsRef.current = next;
+    setStats(next);
+    savePreference(STATS_STORAGE_KEY, JSON.stringify(next));
+  };
+
+  const clearFlipTimers = () => {
+    if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current);
+      animationTimeoutRef.current = null;
+    }
+    if (shakeIntervalRef.current) {
+      clearInterval(shakeIntervalRef.current);
+      shakeIntervalRef.current = null;
+    }
+  };
+
+  // 从localStorage加载统计数据与快速模式偏好
   useEffect(() => {
     try {
-      const savedStats = localStorage.getItem('coin-flip-stats');
-      if (savedStats) {
-        const parsedStats = JSON.parse(savedStats);
+      const savedStats = localStorage.getItem(STATS_STORAGE_KEY);
+      const parsedStats = savedStats ? parseStats(JSON.parse(savedStats)) : null;
+      if (parsedStats) {
+        statsRef.current = parsedStats;
         setStats(parsedStats);
       }
+      setSkipAnimation(localStorage.getItem(SKIP_ANIMATION_STORAGE_KEY) === '1');
     } catch (error) {
       console.error('加载统计数据失败:', error);
     }
   }, []);
 
-  // 清理定时器
-  useEffect(() => {
-    return () => {
-      if (animationTimeout) {
-        clearTimeout(animationTimeout);
-      }
-      if (shakeInterval) {
-        clearInterval(shakeInterval);
-      }
-    };
-  }, [animationTimeout, shakeInterval]);
-
-  // 清理结果定时器
-  useEffect(() => {
-    let resultTimeout: NodeJS.Timeout | null = null;
-
-    if (result && !isFlipping) {
-      resultTimeout = setTimeout(() => {
-        setResult(null);
-        setResultId(null);
-        setCopied(false);
-      }, 3000);
-    }
-
-    return () => {
-      if (resultTimeout) {
-        clearTimeout(resultTimeout);
-      }
-    };
-  }, [result, isFlipping]);
-
-  // 保存统计数据到localStorage
-  const saveStats = (newStats: CoinFlipStats) => {
-    try {
-      localStorage.setItem('coin-flip-stats', JSON.stringify(newStats));
-    } catch (error) {
-      console.error('保存统计数据失败:', error);
-    }
-  };
+  // 卸载时清理动画定时器
+  useEffect(() => clearFlipTimers, []);
 
   // 初始化音频上下文
   const initAudioContext = () => {
@@ -270,94 +279,73 @@ const CoinFlip: React.FC = () => {
     }
   };
 
-  // 生成完全随机的结果
-  const generateRandomResult = (): 'heads' | 'tails' => {
-    let method = '';
-    let values: number[] = [];
-    let finalResult = 0;
-
-    // 尝试使用加密安全的随机数生成器
-    if (window.crypto && window.crypto.getRandomValues) {
-      try {
-        const array = new Uint32Array(1);
-        window.crypto.getRandomValues(array);
-        const cryptoRandom = array[0] / (0xffffffff + 1);
-
-        method = '加密安全随机数 (Crypto API)';
-        values = [cryptoRandom];
-        finalResult = cryptoRandom;
-
-        const result = cryptoRandom < 0.5 ? 'heads' : 'tails';
-        setLastRandomData({ method, values, finalResult, result });
-        return result;
-      } catch (error) {
-        console.log('加密随机数生成失败，使用备用方案');
-      }
+  // 本地兜底随机：优先浏览器加密安全随机数，缺失时才退回 Math.random
+  const generateLocalResult = (): 'heads' | 'tails' => {
+    if (window.crypto?.getRandomValues) {
+      const array = new Uint32Array(1);
+      window.crypto.getRandomValues(array);
+      const value = array[0] / 0x100000000;
+      const localResult = value < 0.5 ? 'heads' : 'tails';
+      setLastRandomData({
+        source: 'crypto',
+        method: '浏览器加密安全随机数 (Web Crypto API)',
+        finalResult: value,
+        result: localResult
+      });
+      return localResult;
     }
 
-    // 备用方案：使用多个随机源确保完全随机
-    const random1 = Math.random();
-    const random2 = Math.random();
-    const random3 = Math.random();
-
-    // 结合多个随机值
-    const combinedRandom = (random1 + random2 + random3) / 3;
-
-    // 使用当前时间戳作为额外随机源
-    const timeRandom = (Date.now() % 1000) / 1000;
-
-    // 使用鼠标位置（如果可用）作为额外随机源
-    const mouseRandom = ((Math.random() * 1000) % 1000) / 1000;
-
-    // 最终随机值 - 结合多个随机源
-    finalResult = (combinedRandom + timeRandom + mouseRandom) / 3;
-
-    method = '多重随机源组合';
-    values = [random1, random2, random3, timeRandom, mouseRandom, combinedRandom];
-
-    const result = finalResult < 0.5 ? 'heads' : 'tails';
-    setLastRandomData({ method, values, finalResult, result });
-    return result;
+    const value = Math.random();
+    const localResult = value < 0.5 ? 'heads' : 'tails';
+    setLastRandomData({
+      source: 'fallback',
+      method: '降级伪随机数 (Math.random，非加密安全)',
+      finalResult: value,
+      result: localResult
+    });
+    return localResult;
   };
 
   // 抛硬币并获取唯一结果 ID：优先后端生成，失败时回退本地随机
   const doBackendFlip = async (): Promise<{ result: 'heads' | 'tails'; resultId: string | null }> => {
     try {
       const record = await coinFlipApi.flip();
+      setLastRandomData({
+        source: 'server',
+        method: '服务端加密安全随机数 (Node crypto.randomInt)',
+        finalResult: null,
+        result: record.result,
+        resultId: record.resultId
+      });
       return { result: record.result, resultId: record.resultId };
     } catch (error) {
       console.log('后端抛硬币失败，回退本地随机:', error);
-      return { result: generateRandomResult(), resultId: null };
+      return { result: generateLocalResult(), resultId: null };
     }
   };
 
   // 完成一次抛硬币：统一更新结果、唯一 ID、音效与本地统计
-  const completeFlip = (result: 'heads' | 'tails', newResultId: string | null) => {
-    setResult(result);
+  const completeFlip = (flipResult: 'heads' | 'tails', newResultId: string | null) => {
+    setResult(flipResult);
     setResultId(newResultId);
     setIsFlipping(false);
+    settlingRef.current = false;
     playSound('result');
 
-    const newStats = {
-      ...stats,
-      [result]: stats[result] + 1,
-      total: stats.total + 1
-    };
-    setStats(newStats);
-    saveStats(newStats);
+    const previous = statsRef.current;
+    applyStats({
+      ...previous,
+      [flipResult]: previous[flipResult] + 1,
+      total: previous.total + 1
+    });
   };
 
   // 跳过动画
   const skipAnimationHandler = async () => {
-    if (!isFlipping) return;
+    if (!isFlipping || settlingRef.current) return;
 
-    // 清除定时器
-    if (animationTimeout) {
-      clearTimeout(animationTimeout);
-    }
-    if (shakeInterval) {
-      clearInterval(shakeInterval);
-    }
+    settlingRef.current = true;
+    clearFlipTimers();
 
     // 立即生成结果（优先后端，失败回退本地）
     const record = await doBackendFlip();
@@ -366,42 +354,36 @@ const CoinFlip: React.FC = () => {
 
   // 抛硬币
   const flipCoin = () => {
-    if (isFlipping) return;
+    if (isFlipping || settlingRef.current) return;
 
     // 确保音频上下文在用户交互时初始化
     if (audioEnabled && !audioContext) {
       initAudioContext();
     }
 
+    clearFlipTimers();
     setIsFlipping(true);
     setResult(null);
     setResultId(null);
     setCopied(false);
     playSound('flip');
 
-    // 在动画过程中播放摇动音效
-    const interval = setInterval(() => {
-      if (isFlipping) {
-        playSound('shake');
-      }
-    }, 400); // 每400ms播放一次摇动音效
-    setShakeInterval(interval);
+    // 在动画过程中播放摇动音效，定时器随动画结束一起清理
+    shakeIntervalRef.current = setInterval(() => playSound('shake'), 400);
 
     // 动画结束后生成结果（优先后端，失败回退本地）
-    const timeout = setTimeout(async () => {
-      clearInterval(interval);
+    animationTimeoutRef.current = setTimeout(async () => {
+      settlingRef.current = true;
+      clearFlipTimers();
       const record = await doBackendFlip();
       completeFlip(record.result, record.resultId);
     }, skipAnimation ? 100 : 2000); // 如果跳过动画，只等待100ms
-
-    setAnimationTimeout(timeout);
   };
 
   // 重置统计数据
   const resetStats = () => {
-    const newStats = { heads: 0, tails: 0, total: 0 };
-    setStats(newStats);
-    saveStats(newStats);
+    setImportError(null);
+    applyStats({ heads: 0, tails: 0, total: 0 });
   };
 
   // 导出统计数据
@@ -425,22 +407,24 @@ const CoinFlip: React.FC = () => {
   // 导入统计数据
   const importStats = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+    // 清空 input，保证同一个文件可以再次选择触发 onChange
+    event.target.value = '';
     if (!file) return;
 
+    setImportError(null);
     const reader = new FileReader();
+    reader.onerror = () => setImportError('读取文件失败，导入已取消。');
     reader.onload = (e) => {
       try {
-        const content = e.target?.result as string;
-        const importedStats = JSON.parse(content);
-        if (importedStats && typeof importedStats === 'object' &&
-          typeof importedStats.heads === 'number' &&
-          typeof importedStats.tails === 'number' &&
-          typeof importedStats.total === 'number') {
-          setStats(importedStats);
-          saveStats(importedStats);
+        const importedStats = parseStats(JSON.parse(String(e.target?.result ?? '')));
+        if (!importedStats) {
+          setImportError('文件内容不符合要求：需要包含 heads 与 tails 两个非负数字。');
+          return;
         }
+        applyStats(importedStats);
       } catch (error) {
         console.error('导入统计数据失败:', error);
+        setImportError('文件不是有效的 JSON，导入已取消。');
       }
     };
     reader.readAsText(file);
@@ -618,7 +602,10 @@ const CoinFlip: React.FC = () => {
                 <input
                   type="checkbox"
                   checked={skipAnimation}
-                  onChange={(e) => setSkipAnimation(e.target.checked)}
+                  onChange={(e) => {
+                    setSkipAnimation(e.target.checked);
+                    savePreference(SKIP_ANIMATION_STORAGE_KEY, e.target.checked ? '1' : '0');
+                  }}
                   className="rounded border-slate-300 text-slate-900 focus:ring-slate-400"
                 />
                 <span>默认跳过动画（快速模式）</span>
@@ -686,32 +673,45 @@ const CoinFlip: React.FC = () => {
                     随机算法详情
                   </h4>
                   <div className="space-y-3 text-sm">
-                    <div className="flex justify-between">
+                    <div className="flex justify-between gap-3">
                       <span className="text-slate-600">使用算法:</span>
-                      <span className="font-mono text-emerald-800">{lastRandomData.method}</span>
+                      <span className="font-mono text-right text-emerald-800">{lastRandomData.method}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-600">最终随机值:</span>
-                      <span className="font-mono text-emerald-800">{lastRandomData.finalResult.toFixed(6)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-600">判定结果:</span>
-                      <span className="font-mono text-emerald-800">
-                        {lastRandomData.finalResult < 0.5 ? '正面 (≤0.5)' : '反面 (>0.5)'}
+                    <div className="flex justify-between gap-3">
+                      <span className="text-slate-600">结果来源:</span>
+                      <span className="font-mono text-right text-emerald-800">
+                        {lastRandomData.source === 'server' ? '服务端生成并已入库' : '浏览器本地生成（服务端不可用）'}
                       </span>
                     </div>
-                    {lastRandomData.values.length > 1 && (
-                      <div>
-                        <span className="text-slate-600">随机源值:</span>
-                        <div className="mt-1 rounded-2xl border border-emerald-100 bg-emerald-50/80 p-3 font-mono text-xs">
-                          {lastRandomData.values.map((value, index) => (
-                            <div key={index} className="flex justify-between">
-                              <span>随机源 {index + 1}:</span>
-                              <span>{value.toFixed(6)}</span>
-                            </div>
-                          ))}
-                        </div>
+                    {lastRandomData.finalResult === null ? (
+                      <div className="flex justify-between gap-3">
+                        <span className="text-slate-600">结果 ID:</span>
+                        <span className="font-mono text-right text-emerald-800">{lastRandomData.resultId ?? '—'}</span>
                       </div>
+                    ) : (
+                      <>
+                        <div className="flex justify-between gap-3">
+                          <span className="text-slate-600">最终随机值:</span>
+                          <span className="font-mono text-emerald-800">{lastRandomData.finalResult.toFixed(6)}</span>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                          <span className="text-slate-600">判定规则:</span>
+                          <span className="font-mono text-emerald-800">
+                            {lastRandomData.finalResult < 0.5 ? '正面 (< 0.5)' : '反面 (≥ 0.5)'}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                    <div className="flex justify-between gap-3">
+                      <span className="text-slate-600">本次结果:</span>
+                      <span className="font-mono text-emerald-800">
+                        {lastRandomData.result === 'heads' ? '正面' : '反面'}
+                      </span>
+                    </div>
+                    {lastRandomData.source === 'fallback' && (
+                      <p className="rounded-2xl border border-amber-100 bg-amber-50/80 p-3 text-xs text-amber-800">
+                        当前浏览器不支持 Web Crypto API，本次结果由 Math.random() 兜底生成，不具备加密安全性。
+                      </p>
                     )}
                   </div>
                 </div>
@@ -724,32 +724,26 @@ const CoinFlip: React.FC = () => {
                   </h4>
                   <div className="space-y-3">
                     <div>
-                      <h5 className="mb-2 font-medium text-sky-800">加密安全随机数算法:</h5>
+                      <h5 className="mb-2 font-medium text-sky-800">服务端算法（默认路径）:</h5>
                       <pre className="overflow-x-auto rounded-2xl border border-sky-100 bg-sky-50/80 p-3 font-mono text-xs text-sky-900">
-                        {`// 使用 Web Crypto API
-if (window.crypto && window.crypto.getRandomValues) {
-  const array = new Uint32Array(1);
-  window.crypto.getRandomValues(array);
-  const cryptoRandom = array[0] / (0xffffffff + 1);
-  return cryptoRandom < 0.5 ? 'heads' : 'tails';
-}`}
+                        {`// Node.js crypto，结果与唯一 ID 都在服务端生成后入库
+const result = crypto.randomInt(0, 2) === 0 ? 'heads' : 'tails';
+const resultId = \`flip-\${crypto.randomBytes(8).toString('hex')}\`;`}
                       </pre>
                     </div>
                     <div>
-                      <h5 className="mb-2 font-medium text-sky-800">多重随机源组合算法:</h5>
+                      <h5 className="mb-2 font-medium text-sky-800">前端兜底算法（服务端不可用时）:</h5>
                       <pre className="overflow-x-auto rounded-2xl border border-sky-100 bg-sky-50/80 p-3 font-mono text-xs text-sky-900">
-                        {`// 组合多个随机源
-const random1 = Math.random();        // Math.random()
-const random2 = Math.random();        // Math.random()
-const random3 = Math.random();        // Math.random()
-const timeRandom = (Date.now() % 1000) / 1000;  // 时间戳
-const mouseRandom = ((Math.random() * 1000) % 1000) / 1000;  // 鼠标位置
+                        {`// 浏览器加密安全随机数
+if (window.crypto?.getRandomValues) {
+  const array = new Uint32Array(1);
+  window.crypto.getRandomValues(array);
+  const value = array[0] / 0x100000000;
+  return value < 0.5 ? 'heads' : 'tails';
+}
 
-// 计算最终随机值
-const combinedRandom = (random1 + random2 + random3) / 3;
-const finalRandom = (combinedRandom + timeRandom + mouseRandom) / 3;
-
-return finalRandom < 0.5 ? 'heads' : 'tails';`}
+// 无 Web Crypto API 的旧浏览器：退回伪随机数
+return Math.random() < 0.5 ? 'heads' : 'tails';`}
                       </pre>
                     </div>
                   </div>
@@ -765,48 +759,48 @@ return finalRandom < 0.5 ? 'heads' : 'tails';`}
                     <div>
                       <h5 className="font-medium mb-1 flex items-center gap-2">
                         <FaShieldAlt className="text-blue-600" />
-                        加密安全随机数 (Crypto API):
+                        加密安全随机数:
                       </h5>
                       <ul className="list-disc list-inside space-y-1 text-xs">
                         <li className="flex items-center gap-1">
                           <FaCog className="text-blue-500" />
-                          使用浏览器内置的 Web Crypto API
+                          服务端 crypto.randomInt(0, 2) 直接取整数，无取模偏差
                         </li>
                         <li className="flex items-center gap-1">
                           <FaShieldAlt className="text-blue-500" />
-                          生成密码学安全的随机数
+                          前端兜底走 Web Crypto API，同为密码学安全随机源
                         </li>
                         <li className="flex items-center gap-1">
                           <FaRandom className="text-blue-500" />
-                          基于硬件随机数生成器
+                          熵来自操作系统随机源，不可预测、不可复现
                         </li>
                         <li className="flex items-center gap-1">
                           <FaCheckCircle className="text-blue-500" />
-                          适用于需要高安全性的场景
+                          每次结果连同唯一 ID 一起落库，可事后核对
                         </li>
                       </ul>
                     </div>
                     <div>
                       <h5 className="font-medium mb-1 flex items-center gap-2">
                         <FaRandom className="text-purple-600" />
-                        多重随机源组合:
+                        兜底与降级:
                       </h5>
                       <ul className="list-disc list-inside space-y-1 text-xs">
                         <li className="flex items-center gap-1">
-                          <FaCalculator className="text-purple-500" />
-                          Math.random(): 伪随机数生成器
+                          <FaCog className="text-purple-500" />
+                          服务端不可达时，结果改由浏览器生成，不会入库
                         </li>
                         <li className="flex items-center gap-1">
                           <FaClock className="text-purple-500" />
-                          时间戳: 当前时间的毫秒数
+                          此时结果没有唯一 ID，界面也不会显示可复制的 ID
                         </li>
                         <li className="flex items-center gap-1">
-                          <FaMousePointer className="text-purple-500" />
-                          鼠标位置: 基于用户交互的随机性
+                          <FaInfoCircle className="text-purple-500" />
+                          仅当浏览器缺少 Web Crypto API 时才退回 Math.random()
                         </li>
                         <li className="flex items-center gap-1">
                           <FaRandom className="text-purple-500" />
-                          多重组合: 提高随机性和不可预测性
+                          发生降级时，上方"随机算法详情"会标注真实来源
                         </li>
                       </ul>
                     </div>
@@ -817,12 +811,12 @@ return finalRandom < 0.5 ? 'heads' : 'tails';`}
                       </h5>
                       <ul className="list-disc list-inside space-y-1 text-xs">
                         <li className="flex items-center gap-1">
-                          <FaCalculator className="text-green-500" />
-                          所有随机值都在 0-1 范围内
+                          <FaCog className="text-green-500" />
+                          服务端按 0 / 1 等概率取值
                         </li>
                         <li className="flex items-center gap-1">
                           <FaBullseye className="text-green-500" />
-                          0.5 作为正反面的分界线
+                          前端兜底以 0.5 为界：小于 0.5 判正面
                         </li>
                         <li className="flex items-center gap-1">
                           <FaChartBar className="text-green-500" />
@@ -837,67 +831,10 @@ return finalRandom < 0.5 ? 'heads' : 'tails';`}
                   </div>
                 </div>
 
-                {/* 技术细节 */}
                 <div className={`${coinTileClass} p-4`}>
-                  <h4 className="mb-3 flex items-center gap-2 font-semibold text-slate-900">
-                    <FaCode className="text-lg" />
-                    技术细节
-                  </h4>
-                  <div className="space-y-2 text-sm text-slate-700">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <h5 className="font-medium mb-1 flex items-center gap-2">
-                          <FaShieldAlt className="text-slate-600" />
-                          随机数质量:
-                        </h5>
-                        <ul className="list-disc list-inside space-y-1 text-xs">
-                          <li className="flex items-center gap-1">
-                            <FaShieldAlt className="text-slate-500" />
-                            加密API: 密码学安全级别
-                          </li>
-                          <li className="flex items-center gap-1">
-                            <FaRandom className="text-slate-500" />
-                            多重组合: 高随机性
-                          </li>
-                          <li className="flex items-center gap-1">
-                            <FaClock className="text-slate-500" />
-                            时间熵: 基于系统时间
-                          </li>
-                          <li className="flex items-center gap-1">
-                            <FaMousePointer className="text-slate-500" />
-                            用户熵: 基于用户交互
-                          </li>
-                        </ul>
-                      </div>
-                      <div>
-                        <h5 className="font-medium mb-1 flex items-center gap-2">
-                          <FaCog className="text-slate-600" />
-                          性能特点:
-                        </h5>
-                        <ul className="list-disc list-inside space-y-1 text-xs">
-                          <li className="flex items-center gap-1">
-                            <FaShieldAlt className="text-slate-500" />
-                            加密API: 硬件加速
-                          </li>
-                          <li className="flex items-center gap-1">
-                            <FaCalculator className="text-slate-500" />
-                            多重组合: 计算开销小
-                          </li>
-                          <li className="flex items-center gap-1">
-                            <FaPlay className="text-slate-500" />
-                            实时生成: 无延迟
-                          </li>
-                          <li className="flex items-center gap-1">
-                            <FaCheckCircle className="text-slate-500" />
-                            浏览器兼容: 广泛支持
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                    <div className="mt-3 flex items-start gap-2 rounded-2xl border border-slate-100 bg-slate-50/80 p-3 text-xs text-slate-600">
-                      <FaInfoCircle className="text-blue-500 mt-0.5 flex-shrink-0" />
-                      <p><strong>注意:</strong> 本实现使用完全透明的随机算法，所有随机数生成过程都可以在浏览器开发者工具中查看和验证。</p>
-                    </div>
+                  <div className="flex items-start gap-2 text-xs text-slate-600">
+                    <FaInfoCircle className="text-blue-500 mt-0.5 flex-shrink-0" />
+                    <p><strong>注意:</strong> 上方展示的就是本次结果的真实来源。前端兜底路径可在浏览器开发者工具中复核；服务端路径可用结果 ID 在记录中核对。</p>
                   </div>
                 </div>
               </motion.div>
@@ -959,6 +896,12 @@ return finalRandom < 0.5 ? 'heads' : 'tails';`}
                     重置统计
                   </motion.button>
                 </div>
+
+                {importError && (
+                  <p className="rounded-2xl border border-rose-200 bg-rose-50/80 p-3 text-xs text-rose-700">
+                    {importError}
+                  </p>
+                )}
               </motion.div>
             )}
           </motion.div>
