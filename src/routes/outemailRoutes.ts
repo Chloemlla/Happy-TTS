@@ -262,6 +262,9 @@ router.get("/records", statusQueryLimiter, authMiddleware, adminAuthMiddleware, 
 router.get("/records/:id", statusQueryLimiter, authMiddleware, adminAuthMiddleware, async (req, res) => {
   try {
     const id = firstString(req.params.id);
+    if (!id) {
+      return res.status(400).json({ success: false, error: "缺少记录 ID" });
+    }
     const record = await getOutEmailRecordById(id);
     if (!record) {
       return res.status(404).json({ success: false, error: "记录不存在" });
