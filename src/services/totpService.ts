@@ -210,16 +210,18 @@ export class TOTPService {
         return { valid: false, counter: null };
       }
 
+      // @types/speakeasy 只声明了 delta，运行时 verifyDelta 还返回 counter（绝对时间步）。
+      const verified = delta as { delta: number; counter: number };
       logger.info("TOTP验证结果:", {
         result: true,
-        delta: delta.delta,
-        counter: delta.counter,
+        delta: verified.delta,
+        counter: verified.counter,
         window,
         timeZone,
         currentTime,
         localTime,
       });
-      return { valid: true, counter: Number(delta.counter) };
+      return { valid: true, counter: Number(verified.counter) };
     } catch (error) {
       logger.error("验证TOTP令牌失败:", error);
       return { valid: false, counter: null };

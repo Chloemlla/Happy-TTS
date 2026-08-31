@@ -15,6 +15,7 @@ export interface MobileClientTokenDoc {
   lastUsedAt?: number;
   lastUsedIp?: string;
   revokedAt?: number;
+  ttlExpireAt?: Date;
 }
 
 const mobileClientTokenSchema = new mongoose.Schema<MobileClientTokenDoc>(

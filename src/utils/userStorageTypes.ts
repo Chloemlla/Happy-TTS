@@ -34,6 +34,7 @@ export interface User {
     createdAt: string;
   }[];
   pendingChallenge?: string;
+  pendingChallengeExpiresAt?: number;
   currentChallenge?: string;
   passkeyVerified?: boolean;
   avatarUrl?: string;
