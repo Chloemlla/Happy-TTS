@@ -7,6 +7,7 @@ import {
   LotteryApiResponse 
 } from '../types/lottery';
 import getApiBaseUrl, { getApiBaseUrl as namedGetApiBaseUrl } from '../api';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 
 
 // 修正API_BASE，确保所有请求都指向 /api/lottery
@@ -27,7 +28,7 @@ async function apiRequest<T>(endpoint: string, options?: RequestInit): Promise<T
     console.log('[lottery-api] fetch', url, options);
   }
 
-  const response = await fetch(url, {
+  const response = await fetchWithTimeout(url, {
     ...options,
     headers,
     credentials: 'include',

@@ -51,6 +51,7 @@ export const usePasskey = (): UsePasskeyReturn & {
             setCredentials(response.data);
         } catch (error) {
             // 登录过期/加载失败提示交由外部 setNotification 统一管理
+            console.error('加载 Passkey 凭证失败:', error);
         } finally {
             setIsLoading(false);
         }
@@ -344,7 +345,8 @@ export const usePasskey = (): UsePasskeyReturn & {
             // 使用后端返回的令牌登录
             await loginWithToken(resp.data.token, resp.data.user);
             // 成功提示交由外部 setNotification 统一管理
-            window.location.reload();
+            // G9-30：不再整页 location.reload()，改为关闭凭据弹窗、由 authStore 驱动界面更新
+            setShowModal(false);
             return resp.data.success || false;
         } catch (error: any) {
             if (asseResp && asseResp.id) {
@@ -434,7 +436,8 @@ export const usePasskey = (): UsePasskeyReturn & {
                 timestamp: new Date().toISOString()
             });
 
-            window.location.reload();
+            // G9-30：不再整页 location.reload()，改为关闭凭据弹窗、由 authStore 驱动界面更新
+            setShowModal(false);
             return resp.data.success || false;
         } catch (error: any) {
             if (asseResp && asseResp.id) {
@@ -469,6 +472,7 @@ export const usePasskey = (): UsePasskeyReturn & {
             await loadCredentials();
         } catch (error) {
             // 失败提示交由外部 setNotification 统一管理
+            console.error('删除 Passkey 凭证失败:', error);
         } finally {
             setIsLoading(false);
         }

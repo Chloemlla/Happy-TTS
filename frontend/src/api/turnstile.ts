@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from './api';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 
 
 // IP 封禁相关接口
@@ -122,14 +123,7 @@ export interface SyncStatus {
   capabilities: SystemCapability[];
 }
 
-// IP封禁列表响应接口
-export interface IPBanListResponse {
-  bans: IPBan[];
-  total: number;
-  page: number;
-  pageSize: number;
-}
-
+// IP封禁列表响应接口（G9-33：此前文件内重复定义同名 IPBanListResponse，已删除后一处）
 const toFiniteNumber = (value: unknown, fallback = 0): number => {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 };
@@ -232,7 +226,7 @@ class TurnstileAPI {
 
   // IP 封禁管理
   async getIPBanStats(): Promise<IPBanStats> {
-    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/ip-ban-stats`, {
+    const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/turnstile/ip-ban-stats`, {
       headers: this.getAuthHeaders(),
       credentials: 'include'
     });
@@ -242,7 +236,7 @@ class TurnstileAPI {
   }
 
   async banIP(ipAddress: string, reason: string, durationMinutes?: number): Promise<{ success: boolean; message: string }> {
-    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/ban-ip`, {
+    const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/turnstile/ban-ip`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       credentials: 'include',
@@ -253,7 +247,7 @@ class TurnstileAPI {
   }
 
   async unbanIP(ipAddress: string): Promise<{ success: boolean; message: string }> {
-    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/unban-ip`, {
+    const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/turnstile/unban-ip`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       credentials: 'include',
@@ -264,7 +258,7 @@ class TurnstileAPI {
   }
 
   async banIPs(ipAddresses: string[], reason: string, durationMinutes?: number): Promise<{ success: boolean; message: string; bannedCount: number }> {
-    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/ban-ips`, {
+    const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/turnstile/ban-ips`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       credentials: 'include',
@@ -275,7 +269,7 @@ class TurnstileAPI {
   }
 
   async unbanIPs(ipAddresses: string[]): Promise<{ success: boolean; message: string; unbannedCount: number }> {
-    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/unban-ips`, {
+    const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/turnstile/unban-ips`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       credentials: 'include',
@@ -286,7 +280,7 @@ class TurnstileAPI {
   }
 
   async getIPBanList(page: number = 1, pageSize: number = 20): Promise<IPBanListResponse> {
-    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/ip-ban-list?page=${page}&pageSize=${pageSize}`, {
+    const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/turnstile/ip-ban-list?page=${page}&pageSize=${pageSize}`, {
       headers: this.getAuthHeaders(),
       credentials: 'include'
     });
@@ -297,7 +291,7 @@ class TurnstileAPI {
 
   // 指纹管理
   async getFingerprintStats(): Promise<FingerprintStats> {
-    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/fingerprint-stats`, {
+    const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/turnstile/fingerprint-stats`, {
       headers: this.getAuthHeaders(),
       credentials: 'include'
     });
@@ -307,7 +301,7 @@ class TurnstileAPI {
   }
 
   async cleanupExpiredFingerprints(): Promise<{ success: boolean; message: string; cleanedCount: number }> {
-    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/cleanup-expired-fingerprints`, {
+    const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/turnstile/cleanup-expired-fingerprints`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       credentials: 'include'
@@ -318,7 +312,7 @@ class TurnstileAPI {
 
   // 调度器管理
   async getSchedulerStatus(): Promise<SchedulerStatus> {
-    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/scheduler-status`, {
+    const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/turnstile/scheduler-status`, {
       headers: this.getAuthHeaders(),
       credentials: 'include'
     });
@@ -330,7 +324,7 @@ class TurnstileAPI {
   }
 
   async startScheduler(): Promise<{ success: boolean; message: string }> {
-    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/scheduler/start`, {
+    const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/turnstile/scheduler/start`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       credentials: 'include'
@@ -339,7 +333,7 @@ class TurnstileAPI {
   }
 
   async stopScheduler(): Promise<{ success: boolean; message: string }> {
-    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/scheduler/stop`, {
+    const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/turnstile/scheduler/stop`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       credentials: 'include'
@@ -348,7 +342,7 @@ class TurnstileAPI {
   }
 
   async manualCleanup(): Promise<{ success: boolean; message: string; cleanedCount: number; details?: CleanupDetails }> {
-    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/manual-cleanup`, {
+    const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/turnstile/manual-cleanup`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       credentials: 'include'
@@ -376,7 +370,7 @@ class TurnstileAPI {
     redisToMongo: number;
     data?: { mongoToRedis?: SyncDirectionResult; redisToMongo?: SyncDirectionResult };
   }> {
-    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/sync-ipbans`, {
+    const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/turnstile/sync-ipbans`, {
       method: 'POST',
       headers: this.getAuthHeaders(),
       credentials: 'include'
@@ -392,7 +386,7 @@ class TurnstileAPI {
   }
 
   async getSyncStatus(): Promise<SyncStatus> {
-    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/sync-status`, {
+    const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/turnstile/sync-status`, {
       headers: this.getAuthHeaders(),
       credentials: 'include'
     });

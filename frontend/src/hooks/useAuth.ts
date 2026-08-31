@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { User } from '../types/auth';
@@ -21,7 +21,10 @@ const ACCOUNTS_KEY = ACCOUNTS_KEY_CONST;
 
 export interface SavedAccount {
     user: User;
-    /** 账号切换令牌，仅在调用 /api/auth/session 时使用，不用于常规认证检查 */
+    /**
+     * 已废弃：cookie 会话下 JS 读不到 token，writeSavedAccounts 始终不写该字段。
+     * 保留类型声明仅用于与账号切换 UI（G10）兼容，实际恒为 undefined。
+     */
     token?: string;
     lastActive: number;
 }
@@ -39,7 +42,17 @@ const toStoredAccounts = (accounts: SavedAccount[]) => (
     }))
 );
 
-const isAuthRejectionStatus = (status?: number): boolean => status === 401 || status === 403 || status === 404;
+const isAuthRejectionStatus = (status?: number): boolean => status === 401 || status === 403;
+
+// ===== 模块级节流单例（G9-03） =====
+// 最近一次 /api/auth/me 检查时间与进行中标志在全部 useAuth 实例间共享。
+// 之前节流状态存在每个 hook 实例闭包里，88 个文件数百调用点可对后端形成并发风暴；
+// 提升到模块级后，一个页面 20+ 组件同时挂载也只会发出一轮检查请求。
+const CHECK_INTERVAL = 30000;
+const ERROR_RETRY_INTERVAL = 60000;
+let moduleLastCheckRef = 0;
+let moduleLastErrorRef = 0;
+let moduleCheckingRef = false;
 
 // 创建axios实例（仅用于 auth 相关请求，cookie 自动携带认证）
 const api = axios.create({
@@ -75,14 +88,8 @@ export const useAuth = () => {
     const [lastCheckTime, setLastCheckTime] = useState(0);
     const [lastErrorTime, setLastErrorTime] = useState(0);
 
-    const checkingRef = useRef(false);
-    const lastCheckRef = useRef(0);
-    const lastErrorRef = useRef(0);
     const isAdminCheckedRef = useRef(false);
     const locationPathRef = useRef('');
-
-    const CHECK_INTERVAL = 30000;
-    const ERROR_RETRY_INTERVAL = 60000;
 
     isAdminCheckedRef.current = isAdminChecked;
     locationPathRef.current = location.pathname;
@@ -108,7 +115,7 @@ export const useAuth = () => {
         }
     }, []);
 
-    // 保存账号到列表（保留 token 用于账号切换，不用于常规认证检查）
+    // 保存账号到列表（G9-10：writeSavedAccounts 从不落 token，token 参数仅用于与账号切换 UI 类型兼容）
     const saveAccount = useCallback((user: User, token?: string) => {
         const current = loadSavedAccounts();
         const filtered = current.filter(a => a.user.id !== user.id);
@@ -128,14 +135,14 @@ export const useAuth = () => {
     }, []);
 
     const checkAuth = useCallback(async () => {
-        if (checkingRef.current) return;
+        if (moduleCheckingRef) return;
 
         const now = Date.now();
-        if (now - lastCheckRef.current < CHECK_INTERVAL || now - lastErrorRef.current < ERROR_RETRY_INTERVAL) {
+        if (now - moduleLastCheckRef < CHECK_INTERVAL || now - moduleLastErrorRef < ERROR_RETRY_INTERVAL) {
             return;
         }
 
-        checkingRef.current = true;
+        moduleCheckingRef = true;
         setIsChecking(true);
 
         try {
@@ -171,10 +178,10 @@ export const useAuth = () => {
                 console.log('认证检查返回空数据，清除用户状态');
                 setUser(null);
             }
-            lastCheckRef.current = now;
+            moduleLastCheckRef = now;
             setLastCheckTime(now);
         } catch (error: any) {
-            lastErrorRef.current = now;
+            moduleLastErrorRef = now;
             setLastErrorTime(now);
             if (error.response?.status === 429) {
                 console.warn('认证检查被限流，将在60秒后重试');
@@ -189,7 +196,7 @@ export const useAuth = () => {
             // Keep the store's auth-operation flag coherent with the app's session check.
             setIsLoading(false);
             setIsChecking(false);
-            checkingRef.current = false;
+            moduleCheckingRef = false;
         }
     }, [loadSavedAccounts, saveAccount, navigate]);
 
@@ -198,49 +205,19 @@ export const useAuth = () => {
         checkAuth();
     }, [loadSavedAccounts, checkAuth]);
 
-    const switchAccount = async (userId: string) => {
+    const switchAccount = useCallback(async (userId: string) => {
         const accounts = loadSavedAccounts();
         const target = accounts.find(a => a.user.id === userId);
         if (!target) return;
 
-        // 无 token 的 cookie 会话账号无法静默切换，需重新登录
-        if (!target.token) {
-            setUser(null);
-            navigate('/welcome');
-            return;
-        }
+        // cookie 会话下 JS 读不到 token（writeSavedAccounts 从不落 token，见 G9-10），
+        // 无法静默切换会话，统一重定向到登录页重新认证。
+        setUser(null);
+        setIsAdminChecked(false);
+        navigate('/welcome');
+    }, [loadSavedAccounts, navigate, setUser]);
 
-        setLoading(true);
-        try {
-            // 用保存的 token 调用会话转换接口，后端设置新 cookie
-            await api.post('/api/auth/session', undefined, {
-                headers: { Authorization: `Bearer ${target.token}` }
-            });
-            const response = await api.get<User>('/api/auth/me');
-            setUser(response.data);
-            saveAccount(response.data, target.token);
-            setIsAdminChecked(false);
-            navigate('/');
-        } catch (e: any) {
-            if (isAuthRejectionStatus(e.response?.status)) {
-                // token 失效，移除该账号
-                const updated = accounts.filter(a => a.user.id !== userId);
-                writeSavedAccounts(toStoredAccounts(updated));
-                setSavedAccounts(updated);
-                setUser(null);
-                navigate('/welcome');
-            } else {
-                // 网络错误，保留本地状态
-                setUser(target.user);
-                navigate('/');
-            }
-        } finally {
-            setLoading(false);
-            setIsLoading(false);
-        }
-    };
-
-    const login = async (username: string, password: string, cfToken?: string): Promise<LoginResult> => {
+    const login = useCallback(async (username: string, password: string, cfToken?: string): Promise<LoginResult> => {
         try {
             // Delegate the actual API call + auth state mutation to the Zustand store.
             const result = await storeLogin(username, password, cfToken);
@@ -254,7 +231,7 @@ export const useAuth = () => {
 
             // Browser session is HttpOnly-cookie only. Do not persist access tokens in JS storage.
             saveAccount(result.user, result.token);
-            lastCheckRef.current = Date.now();
+            moduleLastCheckRef = Date.now();
             setLastCheckTime(Date.now());
             return result;
         } catch (error: any) {
@@ -262,9 +239,9 @@ export const useAuth = () => {
             maybeEmitPenaltyAppealFromError(error, 'login');
             throw error;
         }
-    };
+    }, [saveAccount, storeLogin]);
 
-    const loginWithToken = async (token: string, user: User) => {
+    const loginWithToken = useCallback(async (token: string, user: User) => {
         if (!token) throw new Error('缺少登录令牌');
         // 将 Bearer token 转换为 cookie 会话
         await api.post('/api/auth/session', undefined, {
@@ -272,12 +249,12 @@ export const useAuth = () => {
         });
         saveAccount(user, token);
         setUser(user);
-        lastCheckRef.current = Date.now();
+        moduleLastCheckRef = Date.now();
         setLastCheckTime(Date.now());
-    };
+    }, [saveAccount, setUser]);
 
     // 恢复原始代码的精细化 verifyTOTP 错误处理
-    const verifyTOTP = async (code: string, backupCode?: string, pendingToken?: string) => {
+    const verifyTOTP = useCallback(async (code: string, backupCode?: string, pendingToken?: string) => {
         const userId = pendingTOTP?.userId || pending2FA?.userId;
         if (!userId) throw new Error('没有待验证的TOTP请求');
         if (!pendingToken) throw new Error('缺少二次验证临时令牌');
@@ -296,7 +273,7 @@ export const useAuth = () => {
                 saveAccount(userData);
                 setPendingTOTP(null);
                 setPending2FA(null);
-                lastCheckRef.current = Date.now();
+                moduleLastCheckRef = Date.now();
                 setLastCheckTime(Date.now());
                 return true;
             }
@@ -319,9 +296,9 @@ export const useAuth = () => {
                 throw new Error(errorData?.error || error.message || 'TOTP验证失败');
             }
         }
-    };
+    }, [getCurrentUser, pending2FA, pendingTOTP, saveAccount, setUser]);
 
-    const register = async (username: string, email: string, password: string) => {
+    const register = useCallback(async (username: string, email: string, password: string) => {
         try {
             const response = await api.post<{ user: User; token: string }>('/api/auth/register', {
                 username, email, password
@@ -329,19 +306,20 @@ export const useAuth = () => {
             const { user, token } = response.data;
             saveAccount(user, token);
             setUser(user);
-            lastCheckRef.current = Date.now();
+            moduleLastCheckRef = Date.now();
             setLastCheckTime(Date.now());
         } catch (error: any) {
             const msg = error.response?.data?.error || error.message || '注册失败';
             throw new Error(msg);
         }
-    };
+    }, [saveAccount, setUser]);
 
-    const logout = async () => {
+    const logout = useCallback(async () => {
         try {
             await api.post('/api/auth/logout');
-        } catch {
+        } catch (error) {
             // ignore network failures; still clear local state
+            console.warn('登出请求失败，仍会清理本地状态:', error);
         }
         const accounts = loadSavedAccounts();
         if (user) {
@@ -357,22 +335,22 @@ export const useAuth = () => {
 
         const remaining = loadSavedAccounts();
         if (remaining.length > 0) {
-            switchAccount(remaining[0].user.id);
+            void switchAccount(remaining[0].user.id);
         } else {
             navigate('/welcome');
         }
-    };
+    }, [loadSavedAccounts, navigate, storeLogout, switchAccount, user]);
 
-    const logoutAll = () => {
+    const logoutAll = useCallback(() => {
         void api.post('/api/auth/logout').catch(() => undefined);
         clearSavedAccounts();
         storeLogout();
         setSavedAccounts([]);
         setIsAdminChecked(false);
         navigate('/welcome');
-    };
+    }, [navigate, storeLogout]);
 
-    const removeAccountFromList = (userId: string) => {
+    const removeAccountFromList = useCallback((userId: string) => {
         const accounts = loadSavedAccounts();
         const updated = accounts.filter(a => a.user.id !== userId);
         writeSavedAccounts(toStoredAccounts(updated));
@@ -381,14 +359,14 @@ export const useAuth = () => {
         if (user?.id === userId) {
             setUser(null);
             if (updated.length > 0) {
-                switchAccount(updated[0].user.id);
+                void switchAccount(updated[0].user.id);
             } else {
                 navigate('/welcome');
             }
         }
-    };
+    }, [loadSavedAccounts, navigate, switchAccount, user]);
 
-    const updateUserAvatar = async () => {
+    const updateUserAvatar = useCallback(async () => {
         try {
             const response = await api.get<User>('/api/auth/me');
             if (response.data) {
@@ -397,8 +375,10 @@ export const useAuth = () => {
                 const existing = accounts.find(a => a.user.id === response.data.id);
                 saveAccount(response.data, existing?.token);
             }
-        } catch (e) {}
-    };
+        } catch (error) {
+            console.warn('刷新用户头像信息失败:', error);
+        }
+    }, [loadSavedAccounts, saveAccount, setUser]);
 
     // 2FA 完成后的会话刷新：login() 在需要二次验证时会提前返回而不写入 store，
     // 此时 HttpOnly Cookie 已建立，需重新拉取用户信息，否则 AdminRoute 会因
@@ -419,7 +399,9 @@ export const useAuth = () => {
         }
     }, [loadSavedAccounts, saveAccount, setUser]);
 
-    return {
+    // G9-32：用 useMemo 稳定返回对象，避免每个 useAuth() 调用都返回一组新函数引用，
+    // 从而让 84 个消费组件的 useMemo/useCallback 依赖数组真正生效。
+    return useMemo(() => ({
         user,
         isAuthenticated,
         savedAccounts,
@@ -441,5 +423,25 @@ export const useAuth = () => {
         api,
         updateUserAvatar,
         refreshUser
-    };
+    }), [
+        user,
+        isAuthenticated,
+        savedAccounts,
+        loading,
+        error,
+        isChecking,
+        lastCheckTime,
+        pendingTOTP,
+        pending2FA,
+        login,
+        loginWithToken,
+        verifyTOTP,
+        register,
+        switchAccount,
+        logout,
+        logoutAll,
+        removeAccountFromList,
+        updateUserAvatar,
+        refreshUser,
+    ]);
 };

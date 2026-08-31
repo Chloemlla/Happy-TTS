@@ -20,9 +20,12 @@ export const useFingerprintRequest = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // 订阅真实登录态：未登录不拉取/不轮询管理端接口（G9-06）
+  const user = useAuthStore((state) => state.user);
+
   // 检查用户是否已登录（认证由 HttpOnly Cookie 维护，无法从 JS 读取）
   const isUserLoggedIn = useCallback((): boolean => {
-    return true;
+    return Boolean(useAuthStore.getState().user);
   }, []);
 
   // 获取用户ID用于dismissal tracking
@@ -180,11 +183,11 @@ export const useFingerprintRequest = () => {
     };
 
     initializeCheck();
-  }, [isUserLoggedIn, checkFingerprintRequest]);
+  }, [isUserLoggedIn, checkFingerprintRequest, user]);
 
-  // 定期检查（每30秒）
+  // 定期检查（每30秒）——仅在登录态下轮询，登录后启动、登出即清理（G9-06）
   useEffect(() => {
-    if (!isUserLoggedIn()) {
+    if (!user) {
       return;
     }
 
@@ -198,7 +201,7 @@ export const useFingerprintRequest = () => {
     }, 30000); // 30秒检查一次
 
     return () => clearInterval(interval);
-  }, [isUserLoggedIn, checkFingerprintRequest]);
+  }, [user, checkFingerprintRequest]);
 
   // 登出时清理状态
   useEffect(() => {

@@ -3,7 +3,9 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./index.css";
-import { integrityChecker } from "./utils/integrityCheck";
+// 副作用导入：构造 integrityChecker 单例（DOM/网络完整性监控），
+// 其 fetch 补丁已收敛为仅在严格模式下 clone（G9-07）。
+import "./utils/integrityCheck";
 import {
   createClientIntegrityCheck,
   createFailedClientIntegrityCheck,
@@ -647,42 +649,13 @@ export function runDangerousExtensionCheck(): ClientIntegrityCheckResult {
   }
 }
 
-// 注释危险扩展检测相关调用，避免阻断页面渲染
-document.addEventListener("DOMContentLoaded", () => {
-  runDangerousExtensionCheck();
-  setTimeout(runDangerousExtensionCheck, 500);
-  setTimeout(runDangerousExtensionCheck, 1500);
-  setTimeout(runDangerousExtensionCheck, 3000);
+// G9-08：移除危险扩展检测的定时/观察器安装。
+// 原实现每 20s 对整棵 DOM 做全量正则扫描 + attributes MutationObserver，但扫描结果
+// 没有任何 UI/日志/上报消费方，且守卫的 4 个元素 ID（app-header/app-footer/tts-form/legal-notice）
+// 在页面中根本不存在（真实 ID 为 app-header-container/app-header-content），纯属 CPU 空转。
+// 保留 runDangerousExtensionCheck 导出供按需手动调用，不再自动安装。
 
-  // MutationObserver 监听整个 document
-  const observer = new MutationObserver(runDangerousExtensionCheck);
-  observer.observe(document, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-  });
-
-  // setInterval 定时检测，防止极端延迟注入
-  setInterval(runDangerousExtensionCheck, 20000);
-});
-
-// 初始化完整性检查
-document.addEventListener("DOMContentLoaded", () => {
-  // 记录初始状态
-  const criticalElements = [
-    "app-header",
-    "app-footer",
-    "tts-form",
-    "legal-notice",
-  ];
-
-  criticalElements.forEach((id) => {
-    const element = document.getElementById(id);
-    if (element) {
-      integrityChecker.setIntegrity(id, element.innerHTML);
-    }
-  });
-});
+// G9-28：移除对不存在的 criticalElements 的 setIntegrity 调用（死校验）。
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

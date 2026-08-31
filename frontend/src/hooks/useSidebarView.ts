@@ -24,7 +24,8 @@ export function useSidebarView(): ResolvedSidebarView {
 
   const isAdmin = isAdminRole(user?.role);
   const isSuperAdmin = isSuperAdminRole(user?.role);
-  const canUseTranslation = user?.isTranslationEnabled !== false;
+  // 契约对齐：匿名用户（user 为 null）不得显示翻译入口；只有已登录且未被禁用翻译时才可用
+  const canUseTranslation = Boolean(user) && user?.isTranslationEnabled !== false;
 
   const rootNavGroups = useMemo<NavGroup[]>(
     () =>

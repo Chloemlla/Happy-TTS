@@ -1,6 +1,27 @@
 import { openDB, deleteDB, IDBPDatabase } from 'idb';
 import CryptoJS from 'crypto-js';
 
+// G9-16：每浏览器随机生成的本地加密 master key（localStorage 持久化）。
+const MASTER_KEY_STORAGE_KEY = 'happy_tts_local_encryption_master';
+
+function getOrCreateMasterKey(): string {
+  try {
+    if (typeof window === 'undefined') {
+      return CryptoJS.lib.WordArray.random(32).toString();
+    }
+    const existing = window.localStorage.getItem(MASTER_KEY_STORAGE_KEY);
+    if (existing) return existing;
+    const buf = new Uint8Array(32);
+    crypto.getRandomValues(buf);
+    const hex = Array.from(buf, (b) => b.toString(16).padStart(2, '0')).join('');
+    window.localStorage.setItem(MASTER_KEY_STORAGE_KEY, hex);
+    return hex;
+  } catch {
+    // localStorage 不可用（隐私模式/禁用）时退回随机键，不持久化
+    return CryptoJS.lib.WordArray.random(32).toString();
+  }
+}
+
 // 存储配置接口
 export interface StorageConfig {
   dbName: string;
@@ -39,7 +60,11 @@ export class LocalStorageManager<T = any> {
 
   constructor(config: StorageConfig) {
     this.config = config;
-    this.encryptionKey = config.encryptionKey || 'default-encryption-key';
+    // G9-16：不再把硬编码字符串（'default-encryption-key'、'happy_logshare' 等）当 AES 密钥。
+    // 改为每浏览器随机生成 256-bit master key 并持久化，再按实例派生。
+    // 说明：这仍是防君子式本地混淆（能读到 localStorage 的 XSS 同样能读到 master key），
+    // 只是避免"密钥在源码里、任何懂代码的人都能解"的虚假安全感。
+    this.encryptionKey = CryptoJS.SHA256(getOrCreateMasterKey() + ':' + (config.encryptionKey || 'default')).toString();
   }
 
   // 初始化数据库
@@ -296,12 +321,14 @@ export class LocalStorageManager<T = any> {
           const newData = validData.filter((item: any) => !existingIds.has(item.id));
           const mergedData = [...existingData, ...newData];
 
-          // 保存到数据库
+          // 保存到数据库（G9-16：clear + put 放同一事务，中途失败整体回滚，不丢旧数据）
           const db = await this.initDB();
-          await db.clear(this.config.storeName);
+          const tx = db.transaction(this.config.storeName, 'readwrite');
+          await tx.store.clear();
           for (const item of mergedData) {
-            await db.put(this.config.storeName, item);
+            await tx.store.put(item);
           }
+          await tx.done;
 
           console.log(`[${this.config.dbName}] 导入成功，记录数量: ${mergedData.length}`);
           resolve(newData.length);

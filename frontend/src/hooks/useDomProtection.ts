@@ -10,9 +10,9 @@ export function useDomProtection(id: string) {
       // 开始监控
       domProtector.startMonitoring(element, id);
 
-      // 组件卸载时停止监控
+      // 组件卸载时只停止当前 id 的监控（G9-15：Map 管理多元素，避免互相干扰）
       return () => {
-        domProtector.stopMonitoring();
+        domProtector.stopMonitoring(id);
       };
     }
   }, [id]);

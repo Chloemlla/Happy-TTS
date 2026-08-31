@@ -96,6 +96,9 @@ class IntegrityChecker {
   private isInRecoveryMode = false;
   private recoveryInterval: number | null = null;
   private networkMonitorInterval: number | null = null;
+  private originalFetch: ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) | null = null;
+  private originalXHROpen: XMLHttpRequest["open"] | null = null;
+  private originalXHRSend: XMLHttpRequest["send"] | null = null;
   private originalPageContent: string = "";
   private baselineChecksum: string = "";
   private proxyDetectionEnabled = true;
@@ -420,20 +423,32 @@ class IntegrityChecker {
 
   private interceptNetworkRequests(): void {
     // 拦截fetch请求
-    const originalFetch = window.fetch;
+    this.originalFetch = window.fetch.bind(window);
+    const originalFetch = this.originalFetch;
     window.fetch = async (...args) => {
       const response = await originalFetch(...args);
 
-      // 克隆响应以便检查
-      const clonedResponse = response.clone();
-      this.analyzeResponse(clonedResponse, args[0] as string);
+      // G9-07：仅在严格模式下克隆响应做完整性分析，避免对所有响应无条件 clone()
+      // 造成大响应（导出/图片）内存翻倍；克隆失败不影响原响应。
+      if (this.enableStrictMode) {
+        try {
+          const clonedResponse = response.clone();
+          this.analyzeResponse(clonedResponse, args[0] as string);
+        } catch (e) {
+          if (this.debugMode) {
+            this.safeLog("warn", "响应克隆失败，跳过网络完整性分析", e);
+          }
+        }
+      }
 
       return response;
     };
 
     // 拦截XMLHttpRequest
-    const originalXHROpen = XMLHttpRequest.prototype.open;
-    const originalXHRSend = XMLHttpRequest.prototype.send;
+    this.originalXHROpen = XMLHttpRequest.prototype.open;
+    this.originalXHRSend = XMLHttpRequest.prototype.send;
+    const originalXHROpen = this.originalXHROpen;
+    const originalXHRSend = this.originalXHRSend;
 
     XMLHttpRequest.prototype.open = function (
       method: string,
@@ -468,6 +483,24 @@ class IntegrityChecker {
 
       return originalXHRSend.call(this, ...args);
     };
+  }
+
+  /**
+   * G9-07：撤销网络请求拦截，恢复原始 fetch / XHR，避免补丁永久生效。
+   */
+  private uninstallNetworkMonitoring(): void {
+    if (this.originalFetch) {
+      window.fetch = this.originalFetch;
+      this.originalFetch = null;
+    }
+    if (this.originalXHROpen) {
+      XMLHttpRequest.prototype.open = this.originalXHROpen;
+      this.originalXHROpen = null;
+    }
+    if (this.originalXHRSend) {
+      XMLHttpRequest.prototype.send = this.originalXHRSend;
+      this.originalXHRSend = null;
+    }
   }
 
   private analyzeResponse(response: Response, url: string): void {
@@ -2490,17 +2523,17 @@ class IntegrityChecker {
       }
     }
 
-    // 检查品牌图标
-    const brandIcon = document.querySelector("#app-brand-icon path");
+    // 检查品牌图标（G9-28：真实 DOM 是 <img id="app-brand-icon">，而非 SVG path，
+    // 旧校验期待 `#app-brand-icon path` 永远命中不了，属死校验）
+    const brandIcon = document.getElementById("app-brand-icon");
     if (brandIcon) {
-      const expectedPath =
-        "M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z";
-      const actualPath = brandIcon.getAttribute("d");
-      if (actualPath !== expectedPath) {
+      const expectedSrc = "/favicon.ico";
+      const actualSrc = brandIcon.getAttribute("src");
+      if (actualSrc !== expectedSrc) {
         if (this.debugMode) {
-          this.safeLog("warn", "🚨 品牌图标被篡改");
+          this.safeLog("warn", "🚨 品牌图标被篡改", { expectedSrc, actualSrc });
         }
-        this.handleBrandTampering("app-brand-icon", brandIcon.parentElement!);
+        this.handleBrandTampering("app-brand-icon", brandIcon);
       }
     }
 

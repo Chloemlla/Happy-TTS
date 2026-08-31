@@ -27,6 +27,9 @@ export const useFirstVisitDetection = (enabled = true): UseFirstVisitDetectionRe
   const [error, setError] = useState<string | null>(null);
   const [fingerprint, setFingerprint] = useState<string | null>(null);
   const [clientIP, setClientIP] = useState<string | null>(null);
+  const [isIpBanned, setIsIpBanned] = useState(false);
+  const [banReason, setBanReason] = useState<string | undefined>(undefined);
+  const [banExpiresAt, setBanExpiresAt] = useState<Date | undefined>(undefined);
   const refreshTimerRef = useRef<number | null>(null);
   const checkFirstVisitRef = useRef<((silent?: boolean) => Promise<void>) | null>(null);
 
@@ -56,6 +59,9 @@ export const useFirstVisitDetection = (enabled = true): UseFirstVisitDetectionRe
       setIsFirstVisit(false);
       setIsVerified(true);
       setIsLoading(false);
+      setIsIpBanned(false);
+      setBanReason(undefined);
+      setBanExpiresAt(undefined);
       clearRefreshTimer();
       return;
     }
@@ -80,6 +86,9 @@ export const useFirstVisitDetection = (enabled = true): UseFirstVisitDetectionRe
         throw new Error(session.reason || 'Failed to initialize IP verification.');
       }
 
+      setIsIpBanned(false);
+      setBanReason(undefined);
+      setBanExpiresAt(undefined);
       setIsFirstVisit(session.requiresVerification);
       setIsVerified(session.verified);
 
@@ -91,8 +100,20 @@ export const useFirstVisitDetection = (enabled = true): UseFirstVisitDetectionRe
     } catch (err) {
       console.error('IP verification bootstrap failed:', err);
       setError(err instanceof Error ? err.message : 'Verification bootstrap failed.');
-      setIsFirstVisit(false);
+
+      // G9-14：fail-closed——初始化失败时视为"未验证"，要求走验证流程，不放行。
+      // 此前 catch 里 setIsFirstVisit(false) 会让失败直接放行（对安全门禁方向反了）。
+      setIsFirstVisit(true);
       setIsVerified(false);
+
+      // 从后端 403 封禁响应中读取真实封禁信息（G9-14）
+      const banData = (err as { banData?: { reason?: string; expiresAt?: string } })?.banData;
+      if (banData) {
+        setIsIpBanned(true);
+        setBanReason(banData.reason || 'IP 已被封禁');
+        setBanExpiresAt(banData.expiresAt ? new Date(banData.expiresAt) : undefined);
+      }
+
       clearRefreshTimer();
     } finally {
       if (!silent) {
@@ -155,13 +176,13 @@ export const useFirstVisitDetection = (enabled = true): UseFirstVisitDetectionRe
       isLoading,
       error,
       fingerprint,
-      isIpBanned: false,
-      banReason: undefined,
-      banExpiresAt: undefined,
+      isIpBanned,
+      banReason,
+      banExpiresAt,
       clientIP,
       checkFirstVisit: () => checkFirstVisit(false),
       markAsVerified,
     }),
-    [checkFirstVisit, clientIP, error, fingerprint, isFirstVisit, isLoading, isVerified, markAsVerified],
+    [banExpiresAt, banReason, checkFirstVisit, clientIP, error, fingerprint, isFirstVisit, isIpBanned, isLoading, isVerified, markAsVerified],
   );
 };

@@ -1,5 +1,12 @@
 import CryptoJS from 'crypto-js';
 
+/**
+ * G9-26：注意——这里的"AES 加密"密钥由客户端已知值（fingerprint + 分钟桶）派生，
+ * 任何拿到指纹的人都能重算密钥与 hash，因此整套机制是防呆/混淆而非密码学加密。
+ * 选择结果本身不含机密信息，防御价值趋近于零。若仅为防重放，应由服务端签发一次性
+ * nonce（见 G9-26 跨组依赖，由后端配合落实）；此处保留以与后端 configHandlers 校验对齐。
+ */
+
 // CAPTCHA 验证方式枚举
 export enum CaptchaType {
   TURNSTILE = 'turnstile',

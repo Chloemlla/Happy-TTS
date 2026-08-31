@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import axios, { AxiosError, AxiosHeaders } from "axios";
 import type {
   TtsHistoryRecord,
@@ -126,6 +126,17 @@ export const useTts = () => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
 
+  // G9-12：提交防重（in-flight 锁）与可取消轮询（AbortController 联动卸载清理）
+  const generateInFlightRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = null;
+    };
+  }, []);
+
   const reset = () => {
     setError(null);
     setAudioUrl(null);
@@ -169,6 +180,16 @@ export const useTts = () => {
   }, []);
 
   const generateSpeech = async (request: TtsRequest): Promise<TtsResponse> => {
+    // G9-12：防重提交——同一 hook 实例内已有任务在跑时拒绝连点
+    if (generateInFlightRef.current) {
+      const dupError = new Error("已有语音生成任务正在进行，请稍候");
+      setError(dupError.message);
+      throw dupError;
+    }
+    generateInFlightRef.current = true;
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       setLoading(true);
       setError(null);
@@ -181,7 +202,9 @@ export const useTts = () => {
         ...(fingerprint ? { fingerprint } : {}),
       };
 
-      const submitResponse = await api.post<TtsSubmitResponse>("/api/tts/jobs", requestPayload);
+      const submitResponse = await api.post<TtsSubmitResponse>("/api/tts/jobs", requestPayload, {
+        signal: controller.signal,
+      });
 
       const submitData = submitResponse.data;
       if (!submitData?.success || !submitData.taskId) {
@@ -189,15 +212,22 @@ export const useTts = () => {
       }
 
       if (submitData.status === "queued") {
-        const pollInterval = submitData.pollAfterMs ?? 1500;
+        const basePollInterval = submitData.pollAfterMs ?? 1500;
         const maxAttempts = 120;
+        let pollInterval = basePollInterval;
         let completed = false;
 
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
           await sleep(pollInterval);
 
+          // 组件卸载后停止轮询
+          if (controller.signal.aborted) {
+            throw new Error("语音生成已取消");
+          }
+
           const statusResponse = await api.get<TtsJobStatusResponse>(`/api/tts/jobs/${submitData.taskId}`, {
             params: fingerprint ? { fingerprint } : undefined,
+            signal: controller.signal,
           });
 
           const statusData = statusResponse.data;
@@ -209,6 +239,9 @@ export const useTts = () => {
           if (statusData.status === "failed") {
             throw new Error(statusData.error || statusData.message || "语音生成失败");
           }
+
+          // 指数退避：1.5s → 2.25s → ... 封顶 10s，避免高频轮询打后端
+          pollInterval = Math.min(Math.ceil(pollInterval * 1.5), 10000);
         }
 
         if (!completed) {
@@ -218,6 +251,7 @@ export const useTts = () => {
 
       const response = await api.get<TtsResponse>(`/api/tts/jobs/${submitData.taskId}/result`, {
         params: fingerprint ? { fingerprint } : undefined,
+        signal: controller.signal,
       });
 
       const responseData = response.data;
@@ -226,18 +260,18 @@ export const useTts = () => {
       }
 
       if (!responseData.signature) {
-        throw new Error("服务器返回数据缺少签名");
+        throw new Error("服务器返回数据缺少完整性校验值");
       }
 
       try {
         const isValid = verifyContent(responseData.audioUrl, responseData.signature);
         if (!isValid) {
-          throw new Error("内容签名校验失败，数据可能被篡改");
+          throw new Error("内容完整性校验失败，数据可能被篡改");
         }
       } catch (signError) {
         const resolvedError =
-          signError instanceof Error ? signError.message : "未知签名验证错误";
-        throw new Error(`签名校验失败: ${resolvedError}`);
+          signError instanceof Error ? signError.message : "未知完整性校验错误";
+        throw new Error(`完整性校验失败: ${resolvedError}`);
       }
 
       const finalAudioUrl = resolveAudioUrl(responseData.audioUrl);
@@ -272,6 +306,10 @@ export const useTts = () => {
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
+      generateInFlightRef.current = false;
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
       setLoading(false);
     }
   };

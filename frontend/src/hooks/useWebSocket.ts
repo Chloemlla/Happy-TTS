@@ -49,6 +49,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   onMessageRef.current = onMessage;
 
   const [connected, setConnected] = useState(false);
+  // G9-29：达到最大重连次数后置位，供 UI 展示离线提示/手动重连
+  const [reconnectLimitReached, setReconnectLimitReached] = useState(false);
 
   const cleanup = useCallback(() => {
     if (pingTimerRef.current) {
@@ -72,6 +74,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       ws.onopen = () => {
         setConnected(true);
         reconnectCountRef.current = 0;
+        setReconnectLimitReached(false);
 
         // 心跳：每 25 秒发一次 ping
         pingTimerRef.current = setInterval(() => {
@@ -94,10 +97,16 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         setConnected(false);
         cleanup();
 
-        // 自动重连
+        // G9-29：指数退避重连（3000 → 6000 → … 封顶 30s），后端抖动时不形成 3s 一次的重连风暴
         if (reconnectCountRef.current < maxReconnects) {
           reconnectCountRef.current++;
-          reconnectTimerRef.current = setTimeout(connect, reconnectInterval);
+          const backoffDelay = Math.min(
+            reconnectInterval * Math.pow(2, reconnectCountRef.current - 1),
+            30000,
+          );
+          reconnectTimerRef.current = setTimeout(connect, backoffDelay);
+        } else {
+          setReconnectLimitReached(true);
         }
       };
 
@@ -111,6 +120,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
   const disconnect = useCallback(() => {
     reconnectCountRef.current = maxReconnects; // 阻止自动重连
+    setReconnectLimitReached(false);
     cleanup();
     if (wsRef.current) {
       wsRef.current.close();
@@ -142,5 +152,5 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     };
   }, [autoConnect, connect, disconnect]);
 
-  return { connected, connect, disconnect, send, subscribe, unsubscribe };
+  return { connected, reconnectLimitReached, connect, disconnect, send, subscribe, unsubscribe };
 }

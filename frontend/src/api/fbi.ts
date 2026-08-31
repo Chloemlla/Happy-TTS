@@ -5,6 +5,7 @@
 
 import { FBIWanted, FBIStatistics, FBIApiResponse, FBIPaginationParams, FBIWantedInput } from '../types/fbi';
 import getApiBaseUrl from './index';
+import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 
 
 const API_BASE = getApiBaseUrl();
@@ -25,7 +26,7 @@ class FBIWantedAPI {
       ...options.headers,
     };
 
-    const response = await fetch(`${API_BASE}${endpoint}`, {
+    const response = await fetchWithTimeout(`${API_BASE}${endpoint}`, {
       ...options,
       headers,
       credentials: 'include',
@@ -52,7 +53,7 @@ class FBIWantedAPI {
       }
     });
 
-    const response = await fetch(`${API_BASE}/api/fbi-wanted/public/list?${queryParams}`, {
+    const response = await fetchWithTimeout(`${API_BASE}/api/fbi-wanted/public/list?${queryParams}`, {
       credentials: 'omit',
       headers: {
         Accept: 'application/json',
@@ -70,7 +71,7 @@ class FBIWantedAPI {
    * 获取公开通缉犯详情
    */
   async getPublicById(id: string): Promise<FBIApiResponse<FBIWanted>> {
-    const response = await fetch(`${API_BASE}/api/fbi-wanted/public/${id}`, {
+    const response = await fetchWithTimeout(`${API_BASE}/api/fbi-wanted/public/${id}`, {
       credentials: 'omit',
       headers: {
         Accept: 'application/json',
@@ -88,7 +89,7 @@ class FBIWantedAPI {
    * 获取公开统计信息
    */
   async getPublicStatistics(): Promise<FBIApiResponse<FBIStatistics>> {
-    const response = await fetch(`${API_BASE}/api/fbi-wanted/public/statistics`, {
+    const response = await fetchWithTimeout(`${API_BASE}/api/fbi-wanted/public/statistics`, {
       credentials: 'omit',
       headers: {
         Accept: 'application/json',
@@ -191,7 +192,7 @@ class FBIWantedAPI {
     const formData = new FormData();
     formData.append('photo', file);
 
-    const response = await fetch(`${API_BASE}/api/fbi-wanted/${id}/photo`, {
+    const response = await fetchWithTimeout(`${API_BASE}/api/fbi-wanted/${id}/photo`, {
       method: 'PATCH',
       body: formData,
       credentials: 'include',

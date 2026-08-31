@@ -1,6 +1,8 @@
 import CryptoJS from 'crypto-js';
 import { getApiBaseUrl } from '../api/api';
 import { isFirstVisitVerificationEnabled } from './firstVisitVerificationConfig';
+import { useAuthStore } from '../stores/authStore';
+import { fetchWithTimeout } from './fetchWithTimeout';
 
 
 const FP_STORAGE_KEY = 'hapx_fingerprint_v2';
@@ -197,15 +199,15 @@ async function getWithFingerprintJS(timeoutMs = 1500): Promise<string | null> {
   }
 }
 
-// 检查用户是否已登录（认证由 HttpOnly Cookie 维护，服务端会拒绝未登录请求）
+// 检查用户是否已登录（G9-05：读真实登录态，认证由 HttpOnly Cookie 维护，服务端会拒绝未登录请求）
 function isUserLoggedIn(): boolean {
-  return true;
+  return Boolean(useAuthStore.getState().user);
 }
 
 // 获取客户端IP地址（增强版，支持多种响应格式）
 export const getClientIP = async (): Promise<string> => {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/api/ip`, {
+    const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/ip`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json'
@@ -242,31 +244,45 @@ export const getClientIP = async (): Promise<string> => {
   }
 };
 
+// G9-21：并发调用去重 + 首次计算尽早开始（prefetch），避免首个后端请求被
+// FingerprintJS 的 canvas/WebGL 全量采集串行阻塞。
+let fingerprintPromise: Promise<string | null> | null = null;
+
 // 生成浏览器指纹
 export const getFingerprint = async (): Promise<string | null> => {
-  try {
-    const cached = readCache();
-    if (cached) {
-      return cached;
-    }
-
-    const visitorId = await getWithFingerprintJS();
-    if (visitorId) {
-      writeCache(visitorId);
-      return visitorId;
-    }
-
-    const fallbackId = buildCompositeFingerprint();
-    if (fallbackId) {
-      writeCache(fallbackId);
-      return fallbackId;
-    }
-
-    return null;
-  } catch (error) {
-    console.error('生成指纹失败:', error);
-    return null;
+  if (fingerprintPromise) {
+    return fingerprintPromise;
   }
+
+  fingerprintPromise = (async () => {
+    try {
+      const cached = readCache();
+      if (cached) {
+        return cached;
+      }
+
+      const visitorId = await getWithFingerprintJS();
+      if (visitorId) {
+        writeCache(visitorId);
+        return visitorId;
+      }
+
+      const fallbackId = buildCompositeFingerprint();
+      if (fallbackId) {
+        writeCache(fallbackId);
+        return fallbackId;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('生成指纹失败:', error);
+      return null;
+    } finally {
+      fingerprintPromise = null;
+    }
+  })();
+
+  return fingerprintPromise;
 };
 
 // 延迟函数
@@ -276,13 +292,13 @@ const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(r
 const RETRY_DELAY = 2000; // 2秒
 const MAX_RETRIES = 1; // 最多重试1次（总共尝试2次）
 
-// 带重试的 fetch 函数
+// 带重试的 fetch 函数（G9-19：通过共享 fetchWithTimeout 统一超时兜底）
 const fetchWithRetry = async (url: string, options: RequestInit, maxRetries: number = MAX_RETRIES): Promise<Response> => {
   let lastError: Error = new Error('未知错误'); // 初始化默认错误
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const response = await fetch(url, options);
+      const response = await fetchWithTimeout(url, options);
 
       // 如果是第一次尝试成功，直接返回
       if (attempt === 0) {
@@ -308,6 +324,7 @@ const fetchWithRetry = async (url: string, options: RequestInit, maxRetries: num
       // 检查是否应该重试（网络错误或其他可重试的错误）
       const shouldRetry = (
         error instanceof TypeError || // 网络错误通常是 TypeError
+        (error instanceof Error && error.name === 'AbortError') || // 超时中止
         (error instanceof Error && error.message.includes('fetch')) ||
         (error instanceof Error && error.message.includes('network')) ||
         (error instanceof Error && error.message.includes('timeout'))
@@ -431,7 +448,7 @@ export const reportFingerprintOnce = async (forceReport: boolean = false): Promi
         fingerprint: fingerprint.substring(0, 8) + '...',
         url: apiUrl
       });
-      
+
       // 记录成功上报的时间戳
       localStorage.setItem('lastFingerprintReport', now.toString());
     } else {
@@ -443,6 +460,8 @@ export const reportFingerprintOnce = async (forceReport: boolean = false): Promi
         url: apiUrl,
         fingerprint: fingerprint.substring(0, 8) + '...'
       });
+      // G9-05：失败/被拒分支也写节流时间戳，否则匿名用户每次导航/聚焦都全量重算指纹并上报
+      localStorage.setItem('lastFingerprintReport', now.toString());
     }
   } catch (error) {
     console.error('❌ 指纹上报请求失败（包含重试）:', {
@@ -451,6 +470,12 @@ export const reportFingerprintOnce = async (forceReport: boolean = false): Promi
       url: apiUrl,
       totalAttempts: MAX_RETRIES + 1
     });
+    // G9-05：请求异常同样写时间戳，避免无意义地反复触发全量采集
+    try {
+      localStorage.setItem('lastFingerprintReport', now.toString());
+    } catch {
+      // ignore storage failures
+    }
   }
 };
 
@@ -468,7 +493,7 @@ export const reportTempFingerprint = async (
   }
 
   try {
-    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/temp-fingerprint`, {
+    const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/turnstile/temp-fingerprint`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -525,7 +550,7 @@ export const verifyTempFingerprint = async (fingerprint: string, cfToken: string
   }
 
   try {
-    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/verify-temp-fingerprint`, {
+    const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/turnstile/verify-temp-fingerprint`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -580,7 +605,7 @@ export const verifyTempFingerprint = async (fingerprint: string, cfToken: string
 // 检查临时指纹状态
 export const checkTempFingerprintStatus = async (fingerprint: string): Promise<{ exists: boolean; verified: boolean }> => {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/temp-fingerprint/${fingerprint}`, {
+    const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/turnstile/temp-fingerprint/${fingerprint}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'
@@ -620,7 +645,7 @@ export const verifyAccessToken = async (token: string, fingerprint: string): Pro
   }
 
   try {
-    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/verify-access-token`, {
+    const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/turnstile/verify-access-token`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -670,7 +695,7 @@ export const checkAccessToken = async (fingerprint: string): Promise<boolean> =>
   }
 
   try {
-    const response = await fetch(`${getApiBaseUrl()}/api/turnstile/check-access-token/${fingerprint}`, {
+    const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/turnstile/check-access-token/${fingerprint}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json'

@@ -41,7 +41,7 @@ interface AuthState {
   reset: () => void;
 }
 
-const isAuthRejectionStatus = (status?: number): boolean => status === 401 || status === 403 || status === 404;
+const isAuthRejectionStatus = (status?: number): boolean => status === 401 || status === 403;
 
 const buildAuthError = (error: any): AuthRequestError => {
   const errorData = error.response?.data || {};
@@ -124,15 +124,32 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: "auth-storage",
-      // 仅持久化用户信息，认证状态由 HttpOnly Cookie 维护
-      partialize: (state) => ({ user: state.user }),
+      // G9-09：只持久化展示用身份元数据（id/username/email/role），不把完整 user
+      // 写进 localStorage，避免客户端伪造 role 驱动权限 UI。认证态以 /auth/me 实时结果为准。
+      partialize: (state) => ({
+        user: state.user
+          ? ({
+              id: state.user.id,
+              username: state.user.username,
+              email: state.user.email,
+              role: state.user.role,
+              // 仅持久化上述非敏感展示字段；其余字段不写入 localStorage
+            } as User)
+          : null,
+      }),
       merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<{ user: User | null }>;
-        const user = p.user ?? null;
+        const p = (persisted ?? {}) as Partial<{ user: Partial<User> | null }>;
+        const persistedUser = p.user;
+        const user =
+          persistedUser && typeof persistedUser === "object" && persistedUser.id
+            ? (persistedUser as User)
+            : null;
         return {
           ...current,
           user,
-          isAuthenticated: user !== null,
+          // 持久化数据不驱动认证：isAuthenticated 必须由 /auth/me 实时判定，
+          // 持久化 user 仅用于加载期展示，避免手改 localStorage 伪造登录态。
+          isAuthenticated: false,
         };
       },
     },

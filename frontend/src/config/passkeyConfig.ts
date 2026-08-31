@@ -4,14 +4,13 @@ import { getApiBaseUrl } from "../api/api";
  * Passkey 统一配置
  * 确保所有前端都使用同一个 RP_ORIGIN 进行 Passkey 操作
  *
- * 场景：三个独立前端，一个共享后端
+ * 场景：两个前端，一个共享后端
  * - tts.chloemlla.com
  * - chloemlla.com
- * - tts.chloemlla.com
  *
  * 所有 Passkey 操作都通过 tts.chloemlla.com 进行，
  * 这样所有创建的 Passkey 都有同一个 RP_ID = tts.chloemlla.com，
- * 因此在四个域名中完全通用。
+ * 因此在各域名中完全通用。
  */
 
 /**
@@ -39,7 +38,6 @@ export const PASSKEY_API_BASE = getPasskeyApiBase();
 export const ALLOWED_FRONTEND_DOMAINS = [
   "tts.chloemlla.com",
   "chloemlla.com",
-  "tts.chloemlla.com",
 ];
 
 /**

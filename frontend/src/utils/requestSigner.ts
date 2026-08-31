@@ -50,6 +50,9 @@ export async function getSignHeaders(
 ): Promise<Record<string, string>> {
   const signingKey = resolveSigningKey(headers);
   if (!signingKey) {
+    // G9-27：cookie 会话下 JS 读不到 bearer，签名能力不可用——记录一次 warn，
+    // 避免调用方（如 UserManagement 的写操作）误以为防重放已生效。
+    console.warn('[requestSigner] 未提供 Bearer 密钥，返回空签名头：cookie 会话下防重放签名不可用，仅 Bearer/API 客户端可签名');
     return {};
   }
 

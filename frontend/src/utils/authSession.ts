@@ -15,7 +15,10 @@ export type StoredAccount = {
     email?: string;
     role?: string;
   } & Record<string, unknown>;
-  /** Only for explicit multi-account bearer injection; browser login leaves this empty. */
+  /**
+   * 已废弃（G9-10）：cookie 会话下 JS 读不到 token，writeSavedAccounts 始终不写该字段。
+   * 保留声明仅为与账号切换 UI 的类型兼容，实际恒为 undefined。
+   */
   token?: string;
   lastActive: number;
 };

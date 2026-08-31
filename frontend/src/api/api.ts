@@ -60,12 +60,23 @@ const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(r
 const RETRY_DELAY = 2000; // 2秒
 const MAX_RETRIES = 1; // 最多重试1次（总共尝试2次）
 
+/**
+ * 只有安全/幂等的 HTTP 方法才允许自动重试。
+ * POST/PATCH 非幂等：超时后自动重发会把一次兑换/参与变成两次，必须交由业务层
+ * 用幂等键去重（后端幂等键支持由后端组落实，见 G9-01 跨组依赖）。
+ */
+const isIdempotentMethod = (method?: string): boolean => {
+    const m = (method || 'get').toLowerCase();
+    return m === 'get' || m === 'head' || m === 'options' || m === 'put' || m === 'delete';
+};
+
 // 创建 axios 实例
 export const api: AxiosInstance = axios.create({
     baseURL: getApiBaseUrl(),
     headers: {
         'Content-Type': 'application/json',
     },
+    timeout: 15000, // 网络抖动兜底，避免请求无限挂起
     withCredentials: true, // 发送跨域凭据（Cookie），用于管理员会话与游客 Cookie
 });
 
@@ -167,30 +178,37 @@ api.interceptors.response.use(
             return Promise.reject(error);
         }
 
-        // 重试逻辑：只对网络错误或服务器错误进行重试
+        // 重试逻辑：只对网络错误或服务器错误重试，且只重试幂等请求。
+        // 非幂等写请求（POST/PATCH）不自动重试，避免重复扣减/重复记录；
+        // 幂等键去重由后端支持后，写请求可显式携带幂等键再放开重试。
         const shouldRetry = (
-            // 网络错误（没有响应）
-            !error.response ||
-            // 服务器错误（5xx）
-            (error.response.status >= 500 && error.response.status < 600) ||
-            // 请求超时
-            error.code === 'ECONNABORTED' ||
-            // 网络错误
-            error.code === 'NETWORK_ERROR' ||
-            error.message === 'Network Error'
+            isIdempotentMethod(originalRequest.method) &&
+            (
+                // 网络错误（没有响应）
+                !error.response ||
+                // 服务器错误（5xx）
+                (error.response.status >= 500 && error.response.status < 600) ||
+                // 请求超时
+                error.code === 'ECONNABORTED' ||
+                // 网络错误
+                error.code === 'NETWORK_ERROR' ||
+                error.message === 'Network Error'
+            )
         );
 
-        // 检查是否应该重试且还没有重试过
-        if (shouldRetry && !originalRequest._retry && !originalRequest._retryCount) {
-            originalRequest._retry = true;
-            originalRequest._retryCount = 1;
+        const retryCount = (originalRequest as { _retryCount?: number })._retryCount ?? 0;
+
+        // 检查是否应该重试且还没达到重试上限
+        if (shouldRetry && retryCount < MAX_RETRIES) {
+            (originalRequest as { _retryCount?: number })._retryCount = retryCount + 1;
 
             console.log(`🔄 API请求失败，${RETRY_DELAY / 1000}秒后重试:`, {
                 url: originalRequest.url,
                 method: originalRequest.method,
                 error: error.message,
                 status: error.response?.status,
-                attempt: 1
+                attempt: retryCount + 1,
+                maxAttempts: MAX_RETRIES + 1,
             });
 
             try {
@@ -200,7 +218,7 @@ api.interceptors.response.use(
                 console.log(`🔄 开始重试API请求:`, {
                     url: originalRequest.url,
                     method: originalRequest.method,
-                    attempt: 2
+                    attempt: retryCount + 2,
                 });
 
                 // 重新发送请求
@@ -211,7 +229,7 @@ api.interceptors.response.use(
                     method: originalRequest.method,
                     originalError: error.message,
                     retryError: retryError instanceof Error ? retryError.message : retryError,
-                    totalAttempts: 2
+                    totalAttempts: retryCount + 2,
                 });
 
                 // 重试失败，返回原始错误
@@ -220,13 +238,14 @@ api.interceptors.response.use(
         }
 
         // 不符合重试条件或已经重试过，直接返回错误
-        if (originalRequest._retryCount) {
+        const finalRetryCount = (originalRequest as { _retryCount?: number })._retryCount ?? 0;
+        if (finalRetryCount > 0) {
             console.error(`❌ API请求最终失败:`, {
                 url: originalRequest.url,
                 method: originalRequest.method,
                 error: error.message,
                 status: error.response?.status,
-                totalAttempts: originalRequest._retryCount + 1
+                totalAttempts: finalRetryCount + 1,
             });
         }
 

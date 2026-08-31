@@ -14,8 +14,8 @@ interface ProtectedText {
 class DOMProtector {
   private static instance: DOMProtector;
   private snapshots: Map<string, DOMSnapshot> = new Map();
-  private observer: MutationObserver | null = null;
-  private checkInterval: number | null = null;
+  // G9-15：用 Map 管理多元素的 observer/interval，避免单引用覆盖导致旧 observer 泄漏
+  private monitors: Map<string, { observer: MutationObserver; interval: number }> = new Map();
   private protectedTexts: ProtectedText[] = [
     { original: 'SynapticArch', pattern: /SynapticArch/gi },
     { original: 'Synapse', pattern: /Synapse/gi },
@@ -40,6 +40,8 @@ class DOMProtector {
       let hasChange = false;
 
       this.protectedTexts.forEach(({ original, pattern }) => {
+        // G9-15：/gi 正则的 test() 依赖 lastIndex，连续调用会交替漏判，先复位
+        pattern.lastIndex = 0;
         if (pattern.test(textContent)) {
           textContent = textContent.replace(pattern, original);
           hasChange = true;
@@ -112,20 +114,36 @@ class DOMProtector {
     return verifyContent(currentContent, snapshot.signature);
   }
 
-  // 恢复元素原始内容
-  public restoreElement(element: HTMLElement, id: string): void {
-    const snapshot = this.snapshots.get(id);
-    if (snapshot) {
-      element.innerHTML = snapshot.content;
+  // 恢复元素原始内容（G9-15：只修复受保护文本，避免 innerHTML 整段覆盖 React 管理的子树）
+  public restoreElement(element: HTMLElement, _id: string): void {
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, null);
+    let node: Node | null;
+    while ((node = walker.nextNode())) {
+      if (node.textContent) {
+        let text = node.textContent;
+        let hasChange = false;
+        for (const { original, pattern } of this.protectedTexts) {
+          pattern.lastIndex = 0;
+          if (pattern.test(text)) {
+            text = text.replace(pattern, original);
+            hasChange = true;
+          }
+        }
+        if (hasChange) {
+          node.textContent = text;
+        }
+      }
     }
   }
 
   // 开始监控指定元素
   public startMonitoring(element: HTMLElement, id: string): void {
+    // 先停掉旧监控，避免同 id 重复安装导致资源泄漏
+    this.stopMonitoring(id);
     this.takeSnapshot(element, id);
 
     // 设置 MutationObserver
-    this.observer = new MutationObserver((mutations) => {
+    const observer = new MutationObserver((mutations) => {
       let needsRestore = false;
 
       mutations.forEach(mutation => {
@@ -154,7 +172,7 @@ class DOMProtector {
       }
     });
 
-    this.observer.observe(element, {
+    observer.observe(element, {
       childList: true,
       subtree: true,
       attributes: true,
@@ -162,24 +180,32 @@ class DOMProtector {
     });
 
     // 设置定期检查
-    this.checkInterval = window.setInterval(() => {
+    const interval = window.setInterval(() => {
       if (!this.verifyElement(element, id)) {
         console.warn(`定期检查发现 DOM 元素 ${id} 被篡改，正在恢复...`);
         this.restoreElement(element, id);
       }
     }, 2000);
+
+    this.monitors.set(id, { observer, interval });
   }
 
-  // 停止监控
-  public stopMonitoring(): void {
-    if (this.observer) {
-      this.observer.disconnect();
-      this.observer = null;
+  // 停止监控（可指定 id；不传则全部停止）
+  public stopMonitoring(id?: string): void {
+    if (id) {
+      const monitor = this.monitors.get(id);
+      if (monitor) {
+        monitor.observer.disconnect();
+        window.clearInterval(monitor.interval);
+        this.monitors.delete(id);
+      }
+      return;
     }
-    if (this.checkInterval) {
-      clearInterval(this.checkInterval);
-      this.checkInterval = null;
-    }
+    this.monitors.forEach((monitor) => {
+      monitor.observer.disconnect();
+      window.clearInterval(monitor.interval);
+    });
+    this.monitors.clear();
   }
 
   // 添加新的受保护文本

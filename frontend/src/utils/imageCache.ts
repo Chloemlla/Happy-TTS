@@ -33,6 +33,17 @@ const MAX_CACHE_SIZE = 50 * 1024 * 1024; // 50MB总缓存大小
 class ImageCacheService {
   private db: IDBPDatabase<ImageCacheDB> | null = null;
   private initPromise: Promise<void> | null = null;
+  // G9-17：为每个 imageId 复用一个 blob URL，避免每次 get() 都 createObjectURL 造成内存泄漏。
+  // URL 生命周期与缓存项绑定：缓存项被淘汰/删除/清空时统一 revoke。
+  private blobUrls: Map<string, string> = new Map();
+
+  private revokeBlobUrl(imageId: string): void {
+    const url = this.blobUrls.get(imageId);
+    if (url) {
+      URL.revokeObjectURL(url);
+      this.blobUrls.delete(imageId);
+    }
+  }
 
   /**
    * 初始化数据库连接
@@ -101,8 +112,14 @@ class ImageCacheService {
         return null;
       }
 
-      // 返回Blob URL
-      return URL.createObjectURL(cached.blob);
+      // 返回Blob URL（G9-17：同一图片复用同一 URL，不重复 createObjectURL）
+      const existingUrl = this.blobUrls.get(imageId);
+      if (existingUrl) {
+        return existingUrl;
+      }
+      const url = URL.createObjectURL(cached.blob);
+      this.blobUrls.set(imageId, url);
+      return url;
     } catch (error) {
       console.warn('获取缓存图片失败:', error);
       return null;
@@ -141,6 +158,7 @@ class ImageCacheService {
     try {
       const db = await this.getDB();
       await db.delete(STORE_NAME, imageId);
+      this.revokeBlobUrl(imageId);
     } catch (error) {
       console.warn('删除缓存图片失败:', error);
     }
@@ -153,6 +171,8 @@ class ImageCacheService {
     try {
       const db = await this.getDB();
       await db.clear(STORE_NAME);
+      this.blobUrls.forEach((url) => URL.revokeObjectURL(url));
+      this.blobUrls.clear();
     } catch (error) {
       console.warn('清空图片缓存失败:', error);
     }
@@ -172,6 +192,7 @@ class ImageCacheService {
       for (const image of allImages) {
         if (now - image.timestamp > MAX_CACHE_AGE) {
           await db.delete(STORE_NAME, image.id);
+          this.revokeBlobUrl(image.id);
           deletedCount++;
         }
       }
@@ -203,6 +224,7 @@ class ImageCacheService {
         let freedSize = 0;
         for (const image of allImages) {
           await db.delete(STORE_NAME, image.id);
+          this.revokeBlobUrl(image.id);
           freedSize += image.size;
 
           // 释放足够的空间

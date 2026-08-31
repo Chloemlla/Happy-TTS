@@ -2,6 +2,7 @@ import { getFingerprint } from './fingerprint';
 import { canonicalizeBackendApiUrlObject } from './apiPath';
 import { isFirstVisitVerificationEnabled } from './firstVisitVerificationConfig';
 import { getApiBaseUrl } from '../api/api';
+import { fetchWithTimeout } from './fetchWithTimeout';
 
 export type IpCaptchaType = 'turnstile' | 'hcaptcha';
 
@@ -208,7 +209,7 @@ export async function initializeIpVerificationSession(existingFingerprint?: stri
 
   const fingerprint = existingFingerprint || (await getFingerprint()) || '';
 
-  const response = await fetch(`${getApiBaseUrl()}/api/ip-verification/session`, {
+  const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/ip-verification/session`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -216,6 +217,21 @@ export async function initializeIpVerificationSession(existingFingerprint?: stri
     credentials: 'include',
     body: JSON.stringify({ fingerprint }),
   });
+
+  if (!response.ok) {
+    // G9-14：后端以 403 + error=IP已被封禁 表达封禁，转成带 banData 的错误，供
+    // useFirstVisitDetection 读取真实 isIpBanned。
+    const errPayload = await response.json().catch(() => ({}));
+    if (response.status === 403 && errPayload?.error === 'IP已被封禁') {
+      const banError = new Error(`IP已被封禁: ${errPayload.reason || ''}`);
+      (banError as { banData?: { reason?: string; expiresAt?: string } }).banData = {
+        reason: errPayload.reason,
+        expiresAt: errPayload.expiresAt,
+      };
+      throw banError;
+    }
+    throw new Error(errPayload?.error || `IP verification session failed: HTTP ${response.status}`);
+  }
 
   const payload = await response.json().catch(() => ({}));
   const normalized = normalizeSessionPayload(payload, fingerprint);
@@ -248,7 +264,7 @@ export async function completeIpVerification(
 
   const fingerprint = fingerprintInput || (await getFingerprint()) || '';
 
-  const response = await fetch(`${getApiBaseUrl()}/api/ip-verification/complete`, {
+  const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/ip-verification/complete`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -314,3 +330,9 @@ export function installIpVerificationTransport(): void {
 }
 
 installIpVerificationTransport();
+
+// G9-21：模块加载即预取指纹，让 FingerprintJS 的 canvas/WebGL 采集与 React 首屏渲染并行，
+// 避免首个后端请求的拦截器里串行等待指纹计算。
+if (typeof window !== 'undefined') {
+  void getFingerprint();
+}

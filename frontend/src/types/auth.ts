@@ -3,11 +3,18 @@ export interface User {
   username: string;
   email: string;
   role: string;
-  dailyUsage: number;
-  lastUsageDate: string;
-  createdAt: string;
+  /** 由管理员接口返回，普通登录 payload 不含（契约对齐：标为可选） */
+  dailyUsage?: number;
+  /** 由管理员接口返回，普通登录 payload 不含（契约对齐：标为可选） */
+  lastUsageDate?: string;
+  /** 由管理员接口返回，普通登录 payload 不含（契约对齐：标为可选） */
+  createdAt?: string;
   remainingUsage?: number;
   totpEnabled?: boolean;
+  /**
+   * 已废弃：后端 authController 显式剥除以下敏感字段，登录/me 接口永不会返回，
+   * 仅作类型占位，勿当作真实可用字段读取。
+   */
   totpSecret?: string;
   backupCodes?: string[];
   token?: string;

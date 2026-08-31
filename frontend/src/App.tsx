@@ -7,7 +7,6 @@ import { SimpleLoadingSpinner } from './components/LoadingSpinner';
 import { NotificationProvider } from './components/Notification';
 import { BroadcastModalProvider } from './components/BroadcastModal';
 import WsConnector from './components/WsConnector';
-import ModListPage from './components/ModListPage';
 import { ToastContainer } from 'react-toastify';
 import md5 from 'md5';
 import getApiBaseUrl from './api';
@@ -19,6 +18,7 @@ import { FirstVisitVerification } from './components/FirstVisitVerification';
 import { useFingerprintRequest } from './hooks/useFingerprintRequest';
 import FingerprintRequestModal from './components/FingerprintRequestModal';
 import { setFirstVisitVerificationEnabled } from './utils/firstVisitVerificationConfig';
+import { fetchWithTimeout } from './utils/fetchWithTimeout';
 import ArticleCommandPalette from './components/ArticleCommandPalette';
 import { isAdminRole } from './utils/rbac';
 
@@ -46,7 +46,6 @@ const ProviderBindPage = React.lazy(() => import('./components/ProviderBindPage'
 const OAuthAuthorizePage = React.lazy(() => import('./components/OAuthAuthorizePage'));
 const DeepLXTranslatorPage = React.lazy(() => import('./components/DeepLXTranslatorPage').then(module => ({ default: module.DeepLXTranslatorPage })));
 const ForgotPasswordPage = React.lazy(() => import('./components/ForgotPasswordPage').then(module => ({ default: module.ForgotPasswordPage })));
-const ResetPasswordPage = React.lazy(() => import('./components/ResetPasswordPage').then(module => ({ default: module.ResetPasswordPage })));
 const EmailVerifyPage = React.lazy(() => import('./components/EmailVerifyPage').then(module => ({ default: module.EmailVerifyPage })));
 const ResetPasswordLinkPage = React.lazy(() => import('./components/ResetPasswordLinkPage').then(module => ({ default: module.ResetPasswordLinkPage })));
 const TtsPage = React.lazy(() => import('./components/TtsPage').then(module => ({ default: module.TtsPage })));
@@ -86,7 +85,6 @@ const AgeCalculatorPage = React.lazy(() => import('./components/AgeCalculatorPag
 
 // 资源商店相关组件懒加载
 const AdminStoreDashboard = React.lazy(() => import('./components/AdminStoreDashboard'));
-const ResourceStoreApp = React.lazy(() => import('./components/ResourceStoreApp'));
 const ResourceStoreDetail = React.lazy(() => import('./components/ResourceStoreDetail'));
 const ResourceStoreList = React.lazy(() => import('./components/ResourceStoreList'));
 const ResourceStoreManager = React.lazy(() => import('./components/ResourceStoreManager'));
@@ -94,6 +92,8 @@ const CDKStoreManager = React.lazy(() => import('./components/CDKStoreManager'))
 
 // FBI通缉犯相关组件懒加载
 const FBIWantedPublic = React.lazy(() => import('./components/FBIWantedPublic'));
+// 模组列表页懒加载（G9-23：与其它路由页面对齐，避免进入主 bundle）
+const ModListPage = React.lazy(() => import('./components/ModListPage'));
 // LibreChat 页面懒加载
 const LibreChatPage = React.lazy(() => import('./components/LibreChatPage'));
 
@@ -677,7 +677,7 @@ const App: React.FC = () => {
     () => (
       <>
         <Route path="/legacy-api-choice" element={renderAnimatedRoute(<LegacyApiChoicePage />)} />
-        <Route path="/api-docs" element={renderAnimatedRoute(<ApiDocs />)} />
+        <Route path="/api-docs" element={renderAdminRoute(<ApiDocs />)} />
         <Route path="/policy" element={renderAnimatedRoute(<PolicyPage />)} />
         <Route path="/fbi-wanted" element={renderAnimatedRoute(<FBIWantedPublic />)} />
         <Route path="/welcome" element={renderAnimatedRoute(<WelcomePage />)} />
@@ -712,11 +712,11 @@ const App: React.FC = () => {
         <Route path="/profile" element={renderAnimatedRoute(<UserProfile />)} />
         <Route path="/outemail" element={renderAnimatedRoute(<OutEmail />)} />
         <Route path="/support" element={renderAnimatedRoute(<TicketSystem />)} />
-        <Route path="/modlist" element={renderAnimatedRoute(<ModListPage />)} />
-        <Route path="/smart-human-check" element={renderAnimatedRoute(<SmartHumanCheckTestPage />)} />
-        <Route path="/notification-test" element={renderAnimatedRoute(<NotificationTestPage />)} />
+        <Route path="/modlist" element={renderAdminRoute(<ModListPage />)} />
+        <Route path="/smart-human-check" element={renderAdminRoute(<SmartHumanCheckTestPage />)} />
+        <Route path="/notification-test" element={renderAdminRoute(<NotificationTestPage />)} />
         <Route path="/cdn-cgi" element={renderAnimatedRoute(<CloudflareChallengePage />)} />
-        <Route path="/hcaptcha-verify" element={renderAnimatedRoute(<HCaptchaVerificationPage />)} />
+        <Route path="/hcaptcha-verify" element={renderAdminRoute(<HCaptchaVerificationPage />)} />
         <Route path="/artifacts/:shortId" element={renderAnimatedRoute(<ArtifactSharePage />)} />
         <Route path="/image-upload" element={renderAnimatedRoute(<ImageUploadPage />)} />
         <Route path="/librechat" element={renderAnimatedRoute(<LibreChatPage />)} />
@@ -727,11 +727,12 @@ const App: React.FC = () => {
         <Route path="/articles/:slug" element={renderAnimatedRoute(<MarkdownArticlePage />)} />
         <Route path="/campus-emergency" element={renderAnimatedRoute(<CampusEmergencyPage />)} />
         <Route path="/tamper-detection-demo" element={renderAdminRoute(<TamperDetectionDemo />)} />
-        <Route path="/demo" element={renderAnimatedRoute(<DemoHub />)} />
-        <Route path="/demo/xiaohongshu" element={renderAnimatedRoute(<XiaohongshuDemo />)} />
-        <Route path="/demo/meditation" element={renderAnimatedRoute(<MeditationAppDemo />)} />
-        <Route path="/demo/music" element={renderAnimatedRoute(<MusicPlayerDemo />)} />
-        <Route path="/demo/finance" element={renderAnimatedRoute(<FinanceAppDemo />)} />
+        {/* 演示中心仅对管理员开放（G9-04：navConfig 里位于 isAdmin 分支，路由表统一守卫） */}
+        <Route path="/demo" element={renderAdminRoute(<DemoHub />)} />
+        <Route path="/demo/xiaohongshu" element={renderAdminRoute(<XiaohongshuDemo />)} />
+        <Route path="/demo/meditation" element={renderAdminRoute(<MeditationAppDemo />)} />
+        <Route path="/demo/music" element={renderAdminRoute(<MusicPlayerDemo />)} />
+        <Route path="/demo/finance" element={renderAdminRoute(<FinanceAppDemo />)} />
         <Route path="/store" element={renderAnimatedRoute(<ResourceStoreList />)} />
         <Route path="/store/resources/:id" element={renderAnimatedRoute(<ResourceStoreDetail />)} />
         <Route path="/public-shortlink" element={renderAnimatedRoute(<PublicShortLinkCreator />)} />
@@ -751,8 +752,8 @@ const App: React.FC = () => {
       '/auth/linuxdo/callback': 'Synapse - Linux.do 登录',
       '/auth/provider/bind': 'Synapse - 绑定第三方登录',
       '/translate': 'Synapse - DeepLX 翻译',
-      '/tts': 'Synapse - 语音合成',
       '/policy': 'Synapse - 服务条款',
+      '/api-docs': 'Synapse - API 文档',
       '/fbi-wanted': 'Synapse - FBI通缉犯查询',
       '/lottery': 'Synapse - 抽奖系统',
       '/anti-counterfeit': 'Synapse - 安踏防伪查询',
@@ -780,6 +781,7 @@ const App: React.FC = () => {
       '/tiger-adventure': 'Synapse - 老虎冒险',
       '/coin-flip': 'Synapse - 硬币翻转',
       '/markdown-export': 'Synapse - Markdown导出',
+      '/articles': 'Synapse - Markdown 文章',
       '/campus-emergency': 'Synapse - 校园紧急情况',
       '/tamper-detection-demo': 'Synapse - 篡改检测演示',
       '/demo': 'Synapse - 演示中心',
@@ -806,11 +808,15 @@ const App: React.FC = () => {
     }
   }), []);
 
-  // 获取前端配置
+  // 获取前端配置（G9-22：带超时 + 卸载取消）
   useEffect(() => {
+    const controller = new AbortController();
     const fetchConfig = async () => {
       try {
-        const response = await fetch(`${getApiBaseUrl()}/api/frontend-config`);
+        const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/frontend-config`, {
+          credentials: 'include',
+          signal: controller.signal,
+        });
         if (response.ok) {
           const data = await response.json();
           const nextEnableFirstVisitVerification = Boolean(data.enableFirstVisitVerification ?? true);
@@ -818,6 +824,7 @@ const App: React.FC = () => {
           setEnableFirstVisitVerification(nextEnableFirstVisitVerification);
         }
       } catch (error) {
+        if (controller.signal.aborted) return;
         setFirstVisitVerificationEnabled(true);
         console.error('获取前端配置失败:', error);
         // 失败时保持默认值（启用）
@@ -826,6 +833,7 @@ const App: React.FC = () => {
       }
     };
     fetchConfig();
+    return () => controller.abort();
   }, []);
 
   // React 19 文档元数据：根据当前路由动态设置页面标题和描述
@@ -1043,20 +1051,22 @@ const App: React.FC = () => {
   // Microsoft Clarity 初始化状态
   const [clarityInitialized, setClarityInitialized] = useState(false);
 
-  // Microsoft Clarity 初始化
+  // Microsoft Clarity 初始化（G9-22：带超时 + 卸载取消）
   useEffect(() => {
+    const controller = new AbortController();
     const initializeClarity = async () => {
       if (typeof window === 'undefined') return;
 
       try {
         // 从后端获取 Clarity 配置
-        const response = await fetch(`${getApiBaseUrl()}/api/tts/clarity/config`, {
+        const response = await fetchWithTimeout(`${getApiBaseUrl()}/api/tts/clarity/config`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
             'X-Requested-With': 'XMLHttpRequest'
           },
-          credentials: 'include'
+          credentials: 'include',
+          signal: controller.signal,
         });
 
         if (response.ok) {
@@ -1071,11 +1081,13 @@ const App: React.FC = () => {
           }
         }
       } catch (error) {
+        if (controller.signal.aborted) return;
         console.warn('Failed to initialize Microsoft Clarity:', error);
       }
     };
 
     initializeClarity();
+    return () => controller.abort();
   }, []);
 
   // 用户状态变化时更新 Clarity 用户标识
@@ -1085,18 +1097,16 @@ const App: React.FC = () => {
     try {
       const c = clarityModule.default;
       if (user) {
+        // G9-20：只上报匿名 userId，不向第三方遥测传邮箱/邮箱域名等 PII。
         c.identify(
           user.id || user.username || 'unknown-user',
           undefined, // customSessionId
-          undefined, // customPageId  
-          user.username || user.email || 'Unknown User' // friendlyName
+          undefined, // customPageId
+          'Synapse User' // friendlyName：保持匿名，不传 username/email
         );
 
         c.setTag('user_role', user.role || 'user');
         c.setTag('user_status', 'logged_in');
-        if (user.email) {
-          c.setTag('user_domain', user.email.split('@')[1] || 'unknown');
-        }
       } else {
         c.identify('anonymous-user');
         c.setTag('user_status', 'anonymous');
@@ -1133,19 +1143,21 @@ const App: React.FC = () => {
   }, [location.pathname, clarityInitialized]);
 
   useEffect(() => {
+    const controller = new AbortController();
     const fetchTOTPStatus = async () => {
       if (!user) {
         setTotpStatus(null);
         return;
       }
       try {
-        const response = await fetch(getApiBaseUrl() + '/api/totp/status', {
+        const response = await fetchWithTimeout(getApiBaseUrl() + '/api/totp/status', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
             'X-Requested-With': 'XMLHttpRequest'
           },
-          credentials: 'include'
+          credentials: 'include',
+          signal: controller.signal,
         });
 
         if (response.ok) {
@@ -1160,11 +1172,13 @@ const App: React.FC = () => {
           setTotpStatus(null);
         }
       } catch (e) {
+        if (controller.signal.aborted) return;
         console.error('TOTP状态获取失败:', e);
         setTotpStatus(null);
       }
     };
     fetchTOTPStatus();
+    return () => controller.abort();
   }, [user]);
 
   const handleTOTPStatusChange = React.useCallback((status: TOTPStatus) => {
@@ -1186,18 +1200,20 @@ const App: React.FC = () => {
   // 公告hash
   const [announcementHash, setAnnouncementHash] = useState('');
 
-  // 公告弹窗关闭逻辑
+  // 公告弹窗关闭逻辑（G9-22：带超时 + 卸载取消）
   useEffect(() => {
+    const controller = new AbortController();
     // 获取公告内容
     const fetchAnnouncement = async () => {
       try {
-        const res = await fetch(getApiBaseUrl() + '/api/admin/announcement', {
+        const res = await fetchWithTimeout(getApiBaseUrl() + '/api/admin/announcement', {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
             'X-Requested-With': 'XMLHttpRequest'
           },
-          credentials: 'include'
+          credentials: 'include',
+          signal: controller.signal,
         });
 
         if (!res.ok) {
@@ -1235,12 +1251,14 @@ const App: React.FC = () => {
           setAnnouncementHash('');
         }
       } catch (error) {
+        if (controller.signal.aborted) return;
         console.error('公告获取失败:', error);
         setAnnouncement(null);
         setAnnouncementHash('');
       }
     };
     fetchAnnouncement();
+    return () => controller.abort();
   }, []);
 
   // 判断是否需要弹窗
@@ -1403,7 +1421,7 @@ const App: React.FC = () => {
             onClose={handleCloseAnnouncement}
             onCloseToday={handleCloseToday}
             onCloseForever={handleCloseForever}
-            content={announcement?.content ? DOMPurify.sanitize(announcement.content) : ''}
+            content={announcement?.content ? (announcement.format === 'html' ? DOMPurify.sanitize(announcement.content) : announcement.content) : ''}
             format={announcement?.format || 'markdown'}
             // 新增：内容区自适应高度，超出可滚动
             contentClassName="max-h-[60vh] sm:max-h-[50vh] overflow-y-auto px-2 sm:px-4"
