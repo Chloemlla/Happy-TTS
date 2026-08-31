@@ -113,11 +113,10 @@ router.get("/fish-audio-sample", ttsConfigReadLimiter, ttsProviderController.get
 router.get("/assets/:fileName", ttsAssetLimiter, TtsController.getAudioAsset);
 router.get("/jobs/:taskId", ttsJobReadLimiter, ttsApiKeyAuth, TtsController.getJobStatus);
 router.get("/jobs/:taskId/result", ttsJobReadLimiter, ttsApiKeyAuth, TtsController.getJobResult);
-router.get("/admin/history", ttsAdminOperationLimiter, adminLimiter, authenticateAdmin, TtsController.getAllGenerations);
+router.get("/admin/history", ttsAdminOperationLimiter, authenticateAdmin, TtsController.getAllGenerations);
 router.patch(
   "/admin/history/:recordId/review",
   ttsAdminOperationLimiter,
-  adminLimiter,
   authenticateSuperAdmin,
   auditLog({ module: "tts", action: "tts.recordReview", extractTarget: (req) => ({ targetId: req.params.recordId }) }),
   TtsController.updateGenerationReview,

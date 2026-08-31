@@ -221,14 +221,14 @@ export const preTamperRouteModules: RouteModule[] = [
     rateLimitPolicy: {
       mode: "mixed",
       limiters: ["adminLimiter"],
-      note: "Admin ingress is rate-limited both at mount and within the router for sensitive subflows.",
+      note: "Admin ingress is rate-limited once at mount; the router-level duplicate was removed to avoid splitting the admin quota (G11-06).",
     },
   },
   {
     name: "admin-audit-log-routes",
     path: "/api/admin/audit-logs",
     router: auditLogRoutes,
-    middlewares: [adminLimiter, authenticateToken],
+    middlewares: [authenticateToken],
     requiresAuth: true,
     rateLimited: true,
     isPublic: false,
@@ -238,9 +238,9 @@ export const preTamperRouteModules: RouteModule[] = [
       note: "Audit log ingress is JWT-guarded at mount and enforces administrator role checks inside the router.",
     },
     rateLimitPolicy: {
-      mode: "mount",
-      limiters: ["adminLimiter"],
-      note: "Audit log access reuses the stricter admin mount limiter.",
+      mode: "mixed",
+      limiters: [],
+      note: "Audit log reads are rate-limited once by the /api/admin mount limiter (adminLimiter); no module-level limiter is applied here to avoid double-counting the same instance.",
     },
   },
   {

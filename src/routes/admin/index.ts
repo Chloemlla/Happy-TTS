@@ -9,7 +9,6 @@ import profileRouter from "./profile";
 import registrationInvitesRouter from "./registrationInvites";
 import shortlinksRouter from "./shortlinks";
 import usersRouter from "./users";
-import { adminLimiter } from "../../middleware/routeLimiters";
 
 const router = express.Router();
 
@@ -42,7 +41,6 @@ router.get("/announcement", adminController.getAnnouncement);
 // 其余路由依然加auth
 router.use(authMiddleware);
 router.use(adminAuthMiddleware);
-router.use(adminLimiter); // 已登录管理员不再限速
 
 // 在所有已认证/管理员路由上，若用户被标记为需要上报指纹，则通知前端（带去重 hash）
 // 复用 authMiddleware 已加载的 req.user，避免每个请求多打一次数据库

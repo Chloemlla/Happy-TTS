@@ -2,8 +2,6 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { api } from '../api/api';
-import { getClientOrigin } from '../api/passkey';
-import { getSignHeaders } from '../utils/requestSigner';
 
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -26,7 +24,6 @@ import {
   FaFingerprint,
   FaLanguage,
   FaLock,
-  FaEye,
 } from 'react-icons/fa';
 
 import {
@@ -56,7 +53,6 @@ import {
   TRANSLATION_FILTER_OPTIONS,
   buildFingerprintListPatch,
   createDefaultCollapsedSections,
-  getAdminPasskeyAuthResponse,
   getLatestFingerprint,
   getUserFingerprintCount,
   parseBackupCodes,
@@ -74,11 +70,6 @@ import {
   type UserListTicketFilter,
   type UserListTranslationFilter,
 } from './user-management/UserFormControls';
-import {
-  RevealPasswordModal,
-  type RevealPasswordMethod,
-  type RevealPasswordState as ModalRevealPasswordState,
-} from './user-management/RevealPasswordModal';
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
   if (typeof error === 'object' && error !== null) {
@@ -101,15 +92,6 @@ interface FingerprintRecord {
   };
 }
 
-interface PasskeyCredential {
-  id: string;
-  name: string;
-  credentialID: string;
-  credentialPublicKey: string;
-  counter: number;
-  createdAt: string;
-}
-
 interface User {
   id: string;
   username: string;
@@ -119,15 +101,11 @@ interface User {
   createdAt: string;
   dailyUsage?: number;
   lastUsageDate?: string;
-  token?: string;
-  tokenExpiresAt?: number;
-  totpSecret?: string;
+  // G11-01: 列表接口不再返回会话级敏感字段（token/totpSecret/backupCodes 出参、
+  // passkeyCredentials/pendingChallenge/currentChallenge 等），类型声明同步收窄。
   totpEnabled?: boolean;
   backupCodes?: string[];
   passkeyEnabled?: boolean;
-  passkeyCredentials?: PasskeyCredential[];
-  pendingChallenge?: string;
-  currentChallenge?: string;
   passkeyVerified?: boolean;
   avatarUrl?: string;
   authProvider?: 'local' | 'linuxdo' | 'google';
@@ -150,18 +128,6 @@ interface User {
   accountStatus?: 'active' | 'suspended';
 }
 
-interface RevealPasswordState {
-  open: boolean;
-  targetUser: { id: string; username: string } | null;
-  reason: string;
-  method: RevealPasswordMethod;
-  password: string;
-  verificationCode: string;
-  verificationToken: string;
-  revealedPassword: string;
-  loading: boolean;
-}
-
 interface UserListEnvelope {
   users: User[];
   pagination: UserListPagination;
@@ -178,14 +144,9 @@ const emptyUser: User = {
   createdAt: '',
   dailyUsage: 0,
   lastUsageDate: '',
-  token: '',
-  tokenExpiresAt: 0,
-  totpSecret: '',
   totpEnabled: false,
   backupCodes: [],
   passkeyEnabled: false,
-  pendingChallenge: '',
-  currentChallenge: '',
   passkeyVerified: false,
   avatarUrl: '',
   requireFingerprint: false,
@@ -197,18 +158,6 @@ const emptyUser: User = {
   isTranslationEnabled: true,
   translationAccessUntil: '',
   accountStatus: 'active',
-};
-
-const emptyRevealPasswordState: RevealPasswordState = {
-  open: false,
-  targetUser: null,
-  reason: '',
-  method: 'password',
-  password: '',
-  verificationCode: '',
-  verificationToken: '',
-  revealedPassword: '',
-  loading: false,
 };
 
 const ROW_INITIAL = { opacity: 0, x: -20 } as const;
@@ -235,7 +184,6 @@ const UserManagement: React.FC = () => {
   const [fpUser, setFpUser] = useState<User | null>(null);
   const [showFpModal, setShowFpModal] = useState(false);
   const [fpLoading, setFpLoading] = useState(false);
-  const [revealPasswordState, setRevealPasswordState] = useState<RevealPasswordState>(emptyRevealPasswordState);
   const [fpRequireMap, setFpRequireMap] = useState<Record<string, number>>({});
   const [pendingFilters, setPendingFilters] = useState<UserListFilters>(DEFAULT_USER_LIST_FILTERS);
   const [activeFilters, setActiveFilters] = useState<UserListFilters>(DEFAULT_USER_LIST_FILTERS);
@@ -480,7 +428,6 @@ const UserManagement: React.FC = () => {
         delete submitData.password;
       }
       delete submitData.fingerprints;
-      delete submitData.passkeyCredentials;
       await api.request({ url, method, data: submitData });
       closeForm();
       setNotification({ type: 'success', message: editingUser ? '用户信息已更新' : '用户已创建' });
@@ -585,115 +532,6 @@ const UserManagement: React.FC = () => {
       setFpLoading(false);
     }
   }, [setNotification]);
-  const openRevealPassword = useCallback((u: User) => {
-    setRevealPasswordState({
-      ...emptyRevealPasswordState,
-      open: true,
-      targetUser: { id: u.id, username: u.username },
-    });
-  }, []);
-
-  const closeRevealPassword = useCallback(() => {
-    setRevealPasswordState(emptyRevealPasswordState);
-  }, []);
-
-  useEffect(() => {
-    if (!revealPasswordState.revealedPassword) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      setRevealPasswordState(prev => ({ ...prev, revealedPassword: '' }));
-    }, 30000);
-
-    return () => window.clearTimeout(timer);
-  }, [revealPasswordState.revealedPassword]);
-
-  const revealPasswordWithToken = useCallback(async (
-    targetUserId: string,
-    reason: string,
-    verificationToken: string,
-  ) => {
-    const body = {
-      reason,
-      verificationToken,
-    };
-    const bodyString = JSON.stringify(body);
-    const revealPasswordPath = `/api/admin/users/${targetUserId}/reveal-password`;
-    const headers = await getSignHeaders(bodyString, undefined, 'POST', revealPasswordPath);
-    const res = await api.post(revealPasswordPath, body, {
-      headers,
-    });
-    const password = res.data?.password;
-    if (typeof password !== 'string' || password.trim().length === 0) {
-      throw new Error('接口未返回可显示的密码');
-    }
-
-    setRevealPasswordState(prev => ({
-      ...prev,
-      verificationToken: '',
-      revealedPassword: password,
-    }));
-    setNotification({ type: 'success', message: '密码已显示，30 秒后自动隐藏' });
-  }, [setNotification]);
-
-  const handleVerifyRevealPassword = useCallback(async () => {
-    const targetUser = revealPasswordState.targetUser;
-    if (!targetUser) return;
-
-    const reason = revealPasswordState.reason.trim();
-    if (reason.length < 4 || reason.length > 200) {
-      setNotification({ type: 'error', message: '请填写查看原因（4-200字符）' });
-      return;
-    }
-
-    if (revealPasswordState.method === 'password' && !revealPasswordState.password) {
-      setNotification({ type: 'error', message: '请输入当前管理员密码' });
-      return;
-    }
-
-    if (revealPasswordState.method === 'totp' && !/^\d{6}$/.test(revealPasswordState.verificationCode.trim())) {
-      setNotification({ type: 'error', message: '请输入 6 位 TOTP 验证码' });
-      return;
-    }
-
-    setRevealPasswordState(prev => ({ ...prev, loading: true }));
-    try {
-      let payload:
-        | { method: 'password'; password: string }
-        | { method: 'totp'; verificationCode: string }
-        | { method: 'passkey'; passkeyResponse: Awaited<ReturnType<typeof getAdminPasskeyAuthResponse>>; clientOrigin: string };
-
-      if (revealPasswordState.method === 'password') {
-        payload = { method: 'password', password: revealPasswordState.password };
-      } else if (revealPasswordState.method === 'totp') {
-        payload = { method: 'totp', verificationCode: revealPasswordState.verificationCode.trim() };
-      } else {
-        if (!user?.username) {
-          throw new Error('无法获取当前管理员用户名');
-        }
-        const passkeyResponse = await getAdminPasskeyAuthResponse(user.username);
-        payload = { method: 'passkey', passkeyResponse, clientOrigin: getClientOrigin() };
-      }
-
-      const res = await api.post(`/api/admin/users/${targetUser.id}/reveal-password/verify`, payload);
-      const verificationToken = res.data?.verificationToken;
-      if (typeof verificationToken !== 'string' || !verificationToken) {
-        throw new Error('验证通过但未返回查看凭证');
-      }
-
-      setRevealPasswordState(prev => ({
-        ...prev,
-        verificationToken,
-        revealedPassword: '',
-      }));
-      await revealPasswordWithToken(targetUser.id, reason, verificationToken);
-    } catch (e: unknown) {
-      setNotification({ type: 'error', message: getErrorMessage(e, '二次验证或查看密码失败') });
-    } finally {
-      setRevealPasswordState(prev => ({ ...prev, loading: false }));
-    }
-  }, [revealPasswordState, revealPasswordWithToken, setNotification, user?.username]);
 
   const statCards = useMemo(() => [
     { label: '总用户', value: stats.total, icon: FaUsers, tone: 'slate' as const },
@@ -1254,15 +1092,6 @@ const UserManagement: React.FC = () => {
                         <div className="flex flex-col sm:flex-row gap-1 sm:gap-2">
                           <motion.button
                             className={logShareSecondaryButtonClass}
-                            onClick={() => openRevealPassword(u)}
-                            whileHover={hoverScale()}
-                            whileTap={tapScale()}
-                          >
-                            <FaEye className="text-xs" />
-                            查看密码
-                          </motion.button>
-                          <motion.button
-                            className={logShareSecondaryButtonClass}
                             onClick={() => openEdit(u)}
                             whileHover={hoverScale()}
                             whileTap={tapScale()}
@@ -1345,24 +1174,6 @@ const UserManagement: React.FC = () => {
             </div>
           )}
         </InfoPanel>
-
-        {/* 查看密码弹窗 */}
-        {ReactDOM.createPortal(
-          <AnimatePresence>
-            {revealPasswordState.open && revealPasswordState.targetUser && (
-              <RevealPasswordModal
-                state={revealPasswordState}
-                adminUsername={user?.username}
-                hoverScale={hoverScale}
-                tapScale={tapScale}
-                onClose={closeRevealPassword}
-                onChange={(patch: Partial<ModalRevealPasswordState>) => setRevealPasswordState(prev => ({ ...prev, ...patch }))}
-                onVerify={handleVerifyRevealPassword}
-              />
-            )}
-          </AnimatePresence>,
-          document.body
-        )}
 
         {/* 指纹详情弹窗 */}
         {ReactDOM.createPortal(

@@ -6,6 +6,8 @@ import { cdksApi, CDK } from '../api/cdks';
 import { resourcesApi, Resource } from '../api/resources';
 import { getApiBaseUrl } from '../api/api';
 import { getBackendErrorMessage } from '../utils/backendError';
+import { useAuth } from '../hooks/useAuth';
+import { isSuperAdmin } from '../utils/rbac';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
 import { useNotification } from './Notification';
 
@@ -669,6 +671,10 @@ function EditCDKModal({ isOpen, onClose, onSuccess, cdk }: EditCDKModalProps) {
 }
 
 export default function CDKStoreManager() {
+  const { user } = useAuth();
+  // G11-04: 后端 /api/cdks/export 目前仍只要求 admin 且无审计，明文导出整库 CDK。
+  // 前端纵深防御：导出能力只对 superadmin 开放（admin 只读可看列表，不做全量明文导出）。
+  const canExport = isSuperAdmin(user?.role);
   const [cdks, setCdks] = useState<CDK[]>([]);
   const [loading, setLoading] = useState(true);
   const [showGenerateModal, setShowGenerateModal] = useState(false);
@@ -992,6 +998,10 @@ export default function CDKStoreManager() {
 
   // 导出所有CDK（使用后端服务）
   const handleExportAll = async (resourceId?: string) => {
+    if (!canExport) {
+      setNotification({ message: '仅超级管理员可导出 CDK', type: 'error' });
+      return;
+    }
     setExportingAll(true);
     try {
       await cdksApi.exportCDKs(resourceId, 'all');
@@ -1012,6 +1022,10 @@ export default function CDKStoreManager() {
 
   // 导出未使用CDK
   const handleExportUnused = async (resourceId?: string) => {
+    if (!canExport) {
+      setNotification({ message: '仅超级管理员可导出 CDK', type: 'error' });
+      return;
+    }
     setExportingUnused(true);
     try {
       await cdksApi.exportCDKs(resourceId, 'unused');
@@ -1032,6 +1046,10 @@ export default function CDKStoreManager() {
 
   // 导出已使用CDK
   const handleExportUsed = async (resourceId?: string) => {
+    if (!canExport) {
+      setNotification({ message: '仅超级管理员可导出 CDK', type: 'error' });
+      return;
+    }
     setExportingUsed(true);
     try {
       await cdksApi.exportCDKs(resourceId, 'used');
@@ -1221,7 +1239,8 @@ export default function CDKStoreManager() {
             </motion.button>
           </div>
           
-          {/* 第二行：导出操作按钮 */}
+          {/* 第二行：导出操作按钮（G11-04：仅 superadmin 显示，避免 admin 绕过前端 SuperAdminGuard 直接导出明文 CDK） */}
+          {canExport && (
           <div className="flex flex-col sm:flex-row gap-3">
             <motion.button
               onClick={() => handleExportAll()}
@@ -1289,6 +1308,7 @@ export default function CDKStoreManager() {
               )}
             </motion.button>
           </div>
+          )}
           
           {/* 第三行：删除操作按钮 */}
           <div className="flex flex-col sm:flex-row gap-3">
@@ -1867,6 +1887,10 @@ export default function CDKStoreManager() {
                   </p>
                   <p className="text-sm text-slate-600">
                     <strong>此操作不可撤销！</strong>删除后将无法恢复任何CDK数据。
+                  </p>
+                  <p className="text-sm text-rose-700 mt-2">
+                    注意（G11-14）：已使用 CDK 的兑换记录（使用时间 / 使用者 / 使用 IP）是唯一审计痕迹，
+                    本操作会一并销毁，且单删/批删均禁止删除已使用 CDK——请确认需要彻底清空整表。
                   </p>
                 </div>
               </div>

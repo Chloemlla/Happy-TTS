@@ -703,14 +703,14 @@ const App: React.FC = () => {
         <Route path="/admin" element={renderAdminRoute(<AdminDashboard />)} />
         <Route path="/admin/:module" element={renderAdminRoute(<AdminModulePage />)} />
         <Route path="/nexai-security" element={renderAdminRoute(<NexAISecurityDashboard />)} />
-        <Route path="/github-billing" element={renderAnimatedRoute(<GitHubBillingDashboard />)} />
+        <Route path="/github-billing" element={renderAdminRoute(<GitHubBillingDashboard />)} />
         <Route path="/logshare" element={renderAnimatedRoute(<LogShare />)} />
         <Route path="/case-converter" element={renderAnimatedRoute(<CaseConverter />)} />
         <Route path="/word-count" element={renderAnimatedRoute(<WordCountPageSimple />)} />
         <Route path="/age-calculator" element={renderAnimatedRoute(<AgeCalculatorPage />)} />
         <Route path="/email-sender" element={renderAdminRoute(<SuperAdminGuard><EmailSender /></SuperAdminGuard>)} />
         <Route path="/profile" element={renderAnimatedRoute(<UserProfile />)} />
-        <Route path="/outemail" element={renderAnimatedRoute(<OutEmail />)} />
+        <Route path="/outemail" element={renderAdminRoute(<OutEmail />)} />
         <Route path="/support" element={renderAnimatedRoute(<TicketSystem />)} />
         <Route path="/modlist" element={renderAdminRoute(<ModListPage />)} />
         <Route path="/smart-human-check" element={renderAdminRoute(<SmartHumanCheckTestPage />)} />

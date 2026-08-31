@@ -7,6 +7,7 @@ import { isSuperAdmin } from '../../utils/rbac';
 import { useNotification } from '../Notification';
 import CollapsibleSection from './CollapsibleSection';
 import { API_URL, getAuthHeaders, authFetch } from './api';
+import { decryptAES256 } from './utils';
 import ConfigFieldRow from './ConfigFieldRow';
 import InfoBox from './InfoBox';
 
@@ -142,7 +143,21 @@ export default function SecuritySecretSection({
       const next: Record<string, string> = {};
       if (res.ok && data) {
         let envList: Array<{ key: string; value: unknown }> = [];
-        if (Array.isArray(data.envs)) {
+        // G11-15: GET /api/admin/envs 对管理员返回 AES-256-CBC 加密载荷 { data, iv }，
+        // 需按旧版 EnvManager 的解密逻辑还原后再匹配字段，否则当前值恒为“未设置”。
+        if (typeof data.data === 'string' && data.data && typeof data.iv === 'string' && data.iv) {
+          if (!user?.id) {
+            setNotification({ message: '缺少用户标识，无法解密数据', type: 'error' });
+            return;
+          }
+          try {
+            const decryptedJson = decryptAES256(data.data, data.iv, user.id);
+            const decryptedData = JSON.parse(decryptedJson);
+            if (Array.isArray(decryptedData)) envList = decryptedData;
+          } catch {
+            // 解密失败时保留现有展示，不阻塞保存/删除操作。
+          }
+        } else if (Array.isArray(data.envs)) {
           envList = data.envs;
         } else if (data.envs && typeof data.envs === 'object') {
           envList = Object.entries(data.envs).map(([key, value]) => ({ key, value }));
@@ -161,7 +176,7 @@ export default function SecuritySecretSection({
     } finally {
       setFetching(false);
     }
-  }, []);
+  }, [setNotification, user?.id]);
 
   useEffect(() => {
     if (isOpen && !fetchedRef.current) {
@@ -220,9 +235,11 @@ export default function SecuritySecretSection({
       if (!window.confirm(`确定删除环境变量「${key}」？对应密钥隔离/加密能力可能立即失效。`)) return;
       setDeletingKey(key);
       try {
-        const res = await authFetch(`${API_URL}/${encodeURIComponent(key)}`, {
+        // G11-15: 后端只注册 DELETE /envs（body 传 key）与 POST /envs/delete，路径式删除 404。
+        const res = await authFetch(API_URL, {
           method: 'DELETE',
-          headers: { ...getAuthHeaders() },
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({ key }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {

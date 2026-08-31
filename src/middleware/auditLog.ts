@@ -111,6 +111,8 @@ export function auditLog(options: AuditLogOptions) {
         detail: {
           ...detail,
           durationMs: Date.now() - startTime,
+          // G11-12: 路由级审计补全 statusCode，使 AuditLogViewer 的状态码筛选/统计/CSV 导出对该类写操作不再恒空。
+          statusCode: res.statusCode,
           reqBody:
             captureBody === false ? undefined : Object.keys(req.body || {}).length ? sanitizePayload(req.body) : undefined,
           resBody: resBody !== undefined ? sanitizePayload(resBody) : undefined,

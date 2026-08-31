@@ -205,26 +205,57 @@ const EnvManager: React.FC = () => {
   }, [canWrite, fetchEnvs, setNotification]);
 
   // Configuration workflow
-  const fetchConfigurationIssues = useCallback(async () => {
+  const fetchConfigurationIssues = useCallback(async (): Promise<boolean> => {
     setConfigurationStatusLoading(true);
     try {
       const res = await authFetch(CONFIGURATION_NOTICE_API, { credentials: 'include', headers: { ...getAuthHeaders() } });
       const payload: unknown = await res.json().catch(() => null);
-      if (!res.ok || !payload || typeof payload !== 'object' || Array.isArray(payload)) return;
+      if (!res.ok || !payload || typeof payload !== 'object' || Array.isArray(payload)) return false;
       const rawIssues = (payload as Record<string, unknown>).issues;
       setConfigurationIssues(Array.isArray(rawIssues) ? rawIssues.filter(isConfigurationNoticeIssue) : []);
       setConfigurationStatusFetched(true);
-    } catch { /* auxiliary fetch */ }
-    finally { setConfigurationStatusLoading(false); }
+      return true;
+    } catch {
+      // auxiliary fetch
+      return false;
+    } finally {
+      setConfigurationStatusLoading(false);
+    }
   }, []);
 
   const configurationTargetIssueId = searchParams.get('configIssue');
 
   useEffect(() => {
     if (!configurationWorkflow && !configurationTargetIssueId) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    let consecutiveFailures = 0;
+    const BASE_POLL_MS = 15000; // G11-08: 由 3s 提到 15s，避免高频轮询健康接口
+    const MAX_POLL_MS = 120000; // 指数退避封顶 2 分钟
+
+    const scheduleNext = (delayMs: number) => {
+      if (cancelled) return;
+      timer = window.setTimeout(async () => {
+        if (cancelled) return;
+        const ok = await fetchConfigurationIssues();
+        if (cancelled) return;
+        if (ok) {
+          consecutiveFailures = 0;
+          scheduleNext(BASE_POLL_MS);
+        } else {
+          consecutiveFailures += 1;
+          const backoffMs = Math.min(BASE_POLL_MS * 2 ** (consecutiveFailures - 1), MAX_POLL_MS);
+          scheduleNext(backoffMs);
+        }
+      }, delayMs);
+    };
+
     void fetchConfigurationIssues();
-    const timer = window.setInterval(() => { void fetchConfigurationIssues(); }, 3000);
-    return () => window.clearInterval(timer);
+    scheduleNext(BASE_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [configurationTargetIssueId, configurationWorkflow, fetchConfigurationIssues]);
 
   useEffect(() => {

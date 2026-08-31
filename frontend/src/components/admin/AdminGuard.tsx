@@ -4,6 +4,12 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { getApiBaseUrl } from '@/api/api';
 import { useAuth } from '@/hooks/useAuth';
 import { isAdminRole } from '@/utils/rbac';
+import {
+  hasFreshVerify,
+  rememberVerify,
+  resetAdminVerifyCache,
+  VERIFY_TTL_MS,
+} from '@/utils/adminVerifyCache';
 import { SimpleLoadingSpinner } from '@/components/LoadingSpinner';
 import {
   InfoPanel,
@@ -17,23 +23,7 @@ type AdminGuardProps = {
   children: React.ReactNode;
 };
 
-/** Soft-cache last successful verify so admin module switches don't flash full re-auth. */
-const VERIFY_TTL_MS = 5 * 60 * 1000;
-let lastVerifyUserId: string | null = null;
-let lastVerifyAt = 0;
-
-function hasFreshVerify(userId?: string | null): boolean {
-  return Boolean(
-    userId &&
-      lastVerifyUserId === userId &&
-      Date.now() - lastVerifyAt < VERIFY_TTL_MS,
-  );
-}
-
-function rememberVerify(userId: string) {
-  lastVerifyUserId = userId;
-  lastVerifyAt = Date.now();
-}
+export { resetAdminVerifyCache };
 
 /**
  * Shared admin access gate for every `/admin/*` route.
@@ -131,45 +121,72 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
     };
   }, [loading, user, navigate, setNotification]);
 
-  // Re-check every 5 minutes while authorized.
+  // Re-check periodically while authorized. On a transient network/backend
+  // failure, back off exponentially instead of silently retrying at the same
+  // cadence (G11-09); on HTTP non-2xx clear the soft-cache and bounce to login.
   useEffect(() => {
     if (!isAuthorized) return undefined;
 
-    const interval = window.setInterval(async () => {
-      try {
-        const response = await fetch(
-          `${getApiBaseUrl()}/api/admin/verify-access`,
-          {
-            method: 'POST',
-            credentials: 'include',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              userId: user?.id,
-              username: user?.username,
-              role: user?.role,
-            }),
-          },
-        );
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    let consecutiveFailures = 0;
+    const MAX_BACKOFF_MS = VERIFY_TTL_MS * 4; // 封顶 20 分钟
 
-        if (!response.ok) {
-          lastVerifyUserId = null;
-          lastVerifyAt = 0;
+    const scheduleNext = (delayMs: number) => {
+      if (cancelled) return;
+      timer = window.setTimeout(async () => {
+        if (cancelled) return;
+        try {
+          const response = await fetch(
+            `${getApiBaseUrl()}/api/admin/verify-access`,
+            {
+              method: 'POST',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                userId: user?.id,
+                username: user?.username,
+                role: user?.role,
+              }),
+            },
+          );
+
+          if (!response.ok) {
+            resetAdminVerifyCache();
+            setNotification({
+              message: '权限已失效，请重新登录',
+              type: 'warning',
+            });
+            navigate('/login');
+            return;
+          }
+
+          if (user?.id) rememberVerify(user.id);
+          consecutiveFailures = 0;
+          scheduleNext(VERIFY_TTL_MS);
+        } catch (error) {
+          console.error('[AdminGuard] 定期权限检查失败:', error);
+          consecutiveFailures += 1;
+          const backoffMs = Math.min(
+            VERIFY_TTL_MS * 2 ** (consecutiveFailures - 1),
+            MAX_BACKOFF_MS,
+          );
           setNotification({
-            message: '权限已失效，请重新登录',
+            message: '权限复查暂时失败，将自动重试',
             type: 'warning',
           });
-          navigate('/login');
-        } else if (user?.id) {
-          rememberVerify(user.id);
+          scheduleNext(backoffMs);
         }
-      } catch (error) {
-        console.error('[AdminGuard] 定期权限检查失败:', error);
-      }
-    }, VERIFY_TTL_MS);
+      }, delayMs);
+    };
 
-    return () => window.clearInterval(interval);
+    scheduleNext(VERIFY_TTL_MS);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [isAuthorized, user, navigate, setNotification]);
 
   if (loading || isLoading) {

@@ -140,6 +140,13 @@ const EmailSender: React.FC = () => {
   const { setNotification } = useNotification();
   const htmlEditorRef = useRef<HTMLTextAreaElement>(null);
 
+  // G11-10: 防双击重复提交（setState 是异步的，光靠 loading 挡不住同帧内的第二次点击）
+  const sendingRef = useRef(false);
+  // G11-10: 发件人域名配额查询的 300ms debounce + 结果缓存
+  const quotaDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const quotaCacheRef = useRef<Record<string, number>>({});
+  const QUOTA_CACHE_TTL_MS = 30000;
+
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
   const [emailMode, setEmailMode] = useState<EmailMode>("html");
   const [loading, setLoading] = useState(false);
@@ -318,10 +325,23 @@ const EmailSender: React.FC = () => {
 
   useEffect(() => {
     const domain = form.from.split("@")[1];
-    if (domain) {
-      fetchQuota(domain);
+    if (!domain) return;
+    if (quotaDebounceRef.current) {
+      window.clearTimeout(quotaDebounceRef.current);
     }
-  }, [form.from]);
+    quotaDebounceRef.current = window.setTimeout(() => {
+      const now = Date.now();
+      const lastFetched = quotaCacheRef.current[domain];
+      if (lastFetched && now - lastFetched < QUOTA_CACHE_TTL_MS) {
+        return;
+      }
+      quotaCacheRef.current[domain] = now;
+      void fetchQuota(domain);
+    }, 300);
+    return () => {
+      if (quotaDebounceRef.current) window.clearTimeout(quotaDebounceRef.current);
+    };
+  }, [form.from, fetchQuota]);
 
   const validateEmails = async (emails: string[]) => {
     try {
@@ -391,10 +411,16 @@ const EmailSender: React.FC = () => {
   };
 
   const handleSendEmail = async () => {
-    if (!(await validateForm())) return;
+    // G11-10: 先置 loading + ref 守卫，再跑可能含网络调用的 validateForm()，
+    // 消除“校验期间按钮仍可点击”导致的双击重复发送窗口。
+    if (sendingRef.current) return;
+    sendingRef.current = true;
     setLoading(true);
 
     try {
+      const valid = await validateForm();
+      if (!valid) return;
+
       const validRecipients = form.to.map((item) => item.trim()).filter(Boolean);
       let response;
 
@@ -456,6 +482,7 @@ const EmailSender: React.FC = () => {
         type: "error",
       });
     } finally {
+      sendingRef.current = false;
       setLoading(false);
     }
   };

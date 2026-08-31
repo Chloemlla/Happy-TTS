@@ -492,6 +492,11 @@ const IdentitySection: React.FC<{
       placeholder={mode === 'edit' ? '留空则不修改' : '请输入初始密码'}
       hint={mode === 'edit' ? '（留空不修改）' : undefined}
     />
+    {form.password ? (
+      <div className="md:col-span-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 leading-relaxed">
+        提示：保存后系统会把新密码以明文形式发送到用户邮箱（G11-11），请确保邮件链路安全后再操作。
+      </div>
+    ) : null}
     <UserSelectField
       label="角色"
       name="role"

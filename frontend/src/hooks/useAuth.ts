@@ -13,6 +13,7 @@ import {
 } from '../utils/authSession';
 import { maybeEmitPenaltyAppealFromError } from '../utils/penaltyAppeal';
 import { isAdminRole } from '../utils/rbac';
+import { resetAdminVerifyCache } from '../utils/adminVerifyCache';
 
 export type { AuthRequestError, LoginResult };
 
@@ -213,6 +214,7 @@ export const useAuth = () => {
         // cookie 会话下 JS 读不到 token（writeSavedAccounts 从不落 token，见 G9-10），
         // 无法静默切换会话，统一重定向到登录页重新认证。
         setUser(null);
+        resetAdminVerifyCache(); // G11-17: 切换账号视为登出，清空 AdminGuard 软缓存
         setIsAdminChecked(false);
         navigate('/welcome');
     }, [loadSavedAccounts, navigate, setUser]);
@@ -329,6 +331,7 @@ export const useAuth = () => {
         }
 
         storeLogout();
+        resetAdminVerifyCache(); // G11-17: 登出即清空 AdminGuard 软缓存，避免降权账号会话内继续吃缓存
         setPendingTOTP(null);
         setPending2FA(null);
         setIsAdminChecked(false);
@@ -343,6 +346,7 @@ export const useAuth = () => {
 
     const logoutAll = useCallback(() => {
         void api.post('/api/auth/logout').catch(() => undefined);
+        resetAdminVerifyCache(); // G11-17: 登出即清空 AdminGuard 软缓存
         clearSavedAccounts();
         storeLogout();
         setSavedAccounts([]);
