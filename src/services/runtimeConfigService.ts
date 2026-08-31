@@ -417,8 +417,32 @@ function normalizeStoredAdminSecurityConfig(
   };
 }
 
+// G5-02: DB 键名（大写）→ 运行时缓存属性（camelCase）。与 applyCacheForKey 的 case 一一对应；
+// 直接用 `runtimeConfigCache[key]` 索引会因键名大小写不同返回 undefined（且 TS2551）。
+// Partial 是因为 RuntimeConfigKey 里的 CDICT_DONATION 没有对应缓存属性（applyCacheForKey 也走 default 告警）。
+const RUNTIME_CONFIG_KEY_TO_PROP: Partial<Record<RuntimeConfigKey, keyof RuntimeConfigDefaults>> = {
+  IPQS: "ipqs",
+  LINUXDO: "linuxdo",
+  GOOGLE_AUTH: "googleAuth",
+  DEEPLX: "deeplx",
+  TTS: "tts",
+  TTS_PROVIDER: "ttsProvider",
+  EMAIL: "email",
+  ADMIN_SECURITY: "adminSecurity",
+  SYNAPSE_ANDROID: "synapseAndroid",
+  NEXAI_SIGNING: "nexaiSigning",
+  CDICT_SIGNING: "cdictSigning",
+  LUMEN: "lumen",
+  NEXAI: "nexai",
+};
+
 function getCacheValueForKey(key: RuntimeConfigKey): Record<string, unknown> {
-  return runtimeConfigCache[key] as unknown as Record<string, unknown>;
+  const prop = RUNTIME_CONFIG_KEY_TO_PROP[key];
+  if (!prop) {
+    // 未映射的 key（CDICT_DONATION）当前没有 getter 与缓存属性，视为空存储值。
+    return {};
+  }
+  return runtimeConfigCache[prop] as unknown as Record<string, unknown>;
 }
 
 async function readRuntimeConfigDoc(
