@@ -1,11 +1,13 @@
 import { mongoUserStorageProvider } from "./providers/mongoUserStorageProvider";
 import type { User } from "./userStorageTypes";
+import type { AdminUserListPageResult, AdminUserListQueryParams } from "../services/userService";
 
 export type UserStorageMode = "mongo";
 
 export interface UserStorageProvider {
   getAllUsers(): Promise<User[]>;
   getAdminUserList?(opts?: { includeFingerprints?: boolean }): Promise<User[]>;
+  getAdminUserListPage?(query: AdminUserListQueryParams, includeFingerprints?: boolean): Promise<AdminUserListPageResult>;
   getUserById(id: string): Promise<User | null>;
   getUserSecretsById?(id: string): Promise<User | null>;
   consumeTotpCounter?(id: string, counter: number): Promise<boolean>;

@@ -40,7 +40,20 @@ const printFormat = winston.format.printf(({ timestamp, level, message, ...meta 
 // 生产环境强制开启（脱敏不能由运维开关绕过）。
 const DISABLE_SENSITIVE_FILTER =
   process.env.DISABLE_SENSITIVE_FILTER === "true" && process.env.NODE_ENV !== "production";
-const sensitiveFields = ["password", "token", "secret", "key", "adminPassword", "jwt", "apiKey"];
+// G4-12: 扩充敏感键名列表——cookie/authorization/x-api-key/set-cookie 是请求头里最常见的
+// 会话凭据载体，日志脱敏必须覆盖它们。key 匹配为子串（不区分大小写）。
+const sensitiveFields = [
+  "password",
+  "token",
+  "secret",
+  "key",
+  "adminPassword",
+  "jwt",
+  "apiKey",
+  "cookie",
+  "authorization",
+  "set-cookie",
+];
 
 const maskSensitiveData = (obj: any, seen: WeakSet<object> = new WeakSet()): any => {
   // 如果环境变量设置为禁用敏感信息过滤，直接返回原始对象

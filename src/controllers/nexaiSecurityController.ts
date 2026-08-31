@@ -1,4 +1,5 @@
 import type { Request, Response } from "express";
+import { isAdminRole } from "../middleware/auth";
 import { DeviceTracking } from "../models/deviceTrackingModel";
 import { SecurityEvent } from "../models/securityEventModel";
 import {
@@ -282,7 +283,7 @@ export async function getDashboardStats(req: Request, res: Response): Promise<vo
   try {
 
     const role = req.nexaiUser?.role || (req as any).user?.role;
-    if (role !== "admin") {
+    if (!isAdminRole(role)) {
       res.status(403).json({ error: "Admin access required" });
       return;
     }
@@ -360,13 +361,14 @@ export async function getDeviceList(req: Request, res: Response): Promise<void> 
   try {
 
     const role = req.nexaiUser?.role || (req as any).user?.role;
-    if (role !== "admin") {
+    if (!isAdminRole(role)) {
       res.status(403).json({ error: "Admin access required" });
       return;
     }
 
-    const page = parseInt(req.query.page as string, 10) || 1;
-    const limit = parseInt(req.query.limit as string, 10) || 20;
+    // G4-15: limit 夹紧到 [1,100]，page 夹紧到 >=1，避免一次拉全表或负数 skip。
+    const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string, 10) || 20));
     const riskLevelParam = req.query.riskLevel;
     const searchParam = req.query.search;
 
@@ -410,13 +412,14 @@ export async function getSecurityEvents(req: Request, res: Response): Promise<vo
   try {
 
     const role = req.nexaiUser?.role || (req as any).user?.role;
-    if (role !== "admin") {
+    if (!isAdminRole(role)) {
       res.status(403).json({ error: "Admin access required" });
       return;
     }
 
-    const page = parseInt(req.query.page as string, 10) || 1;
-    const limit = parseInt(req.query.limit as string, 10) || 20;
+    // G4-15: 与设备列表一致，limit 夹紧到 [1,100]，page >= 1。
+    const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string, 10) || 20));
     const eventTypeParam = req.query.eventType;
     const deviceFingerprintParam = req.query.deviceFingerprint;
 

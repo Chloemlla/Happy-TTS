@@ -5,6 +5,7 @@
  * Requirements: 4.1, 4.2, 4.3, 4.4, 4.5
  */
 
+import crypto from "node:crypto";
 import InvitationModel, { type IInvitation } from "../models/invitationModel";
 import WorkspaceModel, { type IWorkspace } from "../models/workspaceModel";
 import type { Invitation, Workspace, WorkspaceMember, WorkspaceSettings } from "../types/workspace";
@@ -50,7 +51,8 @@ export class WorkspaceService {
    */
   private generateUniqueId(): string {
     const timestamp = Date.now().toString(36);
-    const randomPart = Math.random().toString(36).substring(2, 11);
+    // G4-09: 邀请/空间 ID 是加入凭据，改用密码学安全随机源，禁用 Math.random()
+    const randomPart = crypto.randomBytes(12).toString("base64url");
     return `ws-${timestamp}-${randomPart}`;
   }
 
@@ -60,7 +62,7 @@ export class WorkspaceService {
    */
   private generateInvitationId(): string {
     const timestamp = Date.now().toString(36);
-    const randomPart = Math.random().toString(36).substring(2, 11);
+    const randomPart = crypto.randomBytes(12).toString("base64url");
     return `inv-${timestamp}-${randomPart}`;
   }
 
@@ -238,42 +240,27 @@ export class WorkspaceService {
    */
   async acceptInvitation(invitationId: string, userId: string): Promise<WorkspaceMember> {
     try {
-      // 获取邀请
-      const invitation = await InvitationModel.findOne({ id: invitationId });
-
-      if (!invitation) {
+      // 读取邀请与工作空间做轻量前置检查（避免不必要的原子写）
+      const existingInvitation = await InvitationModel.findOne({ id: invitationId }).lean();
+      if (!existingInvitation) {
         throw new WorkspaceError(`邀请不存在: ${invitationId}`, WorkspaceErrorCodes.INVITATION_NOT_FOUND);
       }
-
-      // 检查邀请状态
-      if (invitation.status !== "pending") {
+      if (existingInvitation.status !== "pending") {
         throw new WorkspaceError(
-          `邀请已${invitation.status === "accepted" ? "被接受" : invitation.status === "declined" ? "被拒绝" : "过期"}`,
+          `邀请已${existingInvitation.status === "accepted" ? "被接受" : existingInvitation.status === "declined" ? "被拒绝" : "过期"}`,
           WorkspaceErrorCodes.INVITATION_EXPIRED,
         );
       }
 
-      // 检查邀请是否过期
-      if (new Date() > invitation.expiresAt) {
-        // 更新邀请状态为过期
-        await InvitationModel.updateOne({ id: invitationId }, { status: "expired" });
-        throw new WorkspaceError("邀请已过期", WorkspaceErrorCodes.INVITATION_EXPIRED);
-      }
-
-      // 获取工作空间
-      const workspace = await WorkspaceModel.findOne({ id: invitation.workspaceId });
-
+      const workspace = await WorkspaceModel.findOne({ id: existingInvitation.workspaceId }).lean();
       if (!workspace) {
-        throw new WorkspaceError(`工作空间不存在: ${invitation.workspaceId}`, WorkspaceErrorCodes.WORKSPACE_NOT_FOUND);
+        throw new WorkspaceError(`工作空间不存在: ${existingInvitation.workspaceId}`, WorkspaceErrorCodes.WORKSPACE_NOT_FOUND);
       }
 
-      // 检查用户是否已经是成员
       const existingMember = workspace.members.find((m: WorkspaceMember) => m.userId === userId);
       if (existingMember) {
         throw new WorkspaceError("用户已经是工作空间成员", WorkspaceErrorCodes.ALREADY_MEMBER);
       }
-
-      // 再次检查成员限制
       if (workspace.members.length >= workspace.memberLimit) {
         throw new WorkspaceError(
           `工作空间已达到成员上限 (${workspace.memberLimit})`,
@@ -281,27 +268,50 @@ export class WorkspaceService {
         );
       }
 
+      // G4-10: 原子消费邀请——只有仍为 pending 的邀请会被置为 accepted，并发重复接受只有一个成功
+      const invitation = await InvitationModel.findOneAndUpdate(
+        { id: invitationId, status: "pending" },
+        { status: "accepted" },
+        { returnDocument: "after" },
+      );
+      if (!invitation) {
+        throw new WorkspaceError("邀请已被使用或过期", WorkspaceErrorCodes.INVITATION_EXPIRED);
+      }
+
+      // 消费后再次校验过期时间（若消费瞬间恰好过期，回滚为 expired）
+      if (new Date() > invitation.expiresAt) {
+        await InvitationModel.updateOne({ id: invitationId }, { status: "expired" });
+        throw new WorkspaceError("邀请已过期", WorkspaceErrorCodes.INVITATION_EXPIRED);
+      }
+
       const now = new Date();
 
-      // 创建新成员（使用邀请中指定的角色，Requirements 4.3）
       const newMember: WorkspaceMember = {
         userId,
         role: invitation.role,
         joinedAt: now,
-        invitedBy: workspace.creatorId, // 或者可以从邀请中获取邀请者ID
+        invitedBy: workspace.creatorId,
       };
 
-      // 更新工作空间成员列表
-      await WorkspaceModel.updateOne(
-        { id: invitation.workspaceId },
+      // G4-10: 原子入组——members.userId 不存在才 push，且成员数未达上限，杜绝并发重复成员
+      const result = await WorkspaceModel.updateOne(
+        {
+          id: invitation.workspaceId,
+          "members.userId": { $ne: userId },
+          $expr: { $lt: [{ $size: { $ifNull: ["$members", []] } }, { $ifNull: ["$memberLimit", 10] }] },
+        },
         {
           $push: { members: newMember },
           $set: { updatedAt: now },
         },
       );
 
-      // 更新邀请状态
-      await InvitationModel.updateOne({ id: invitationId }, { status: "accepted" });
+      if (Number(result.modifiedCount || 0) === 0) {
+        throw new WorkspaceError(
+          "加入工作空间失败：已是成员或成员数已达上限",
+          WorkspaceErrorCodes.MEMBER_LIMIT_REACHED,
+        );
+      }
 
       logger.info(`[WorkspaceService] 用户 ${userId} 接受邀请加入工作空间 ${invitation.workspaceId}`);
 

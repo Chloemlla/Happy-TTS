@@ -19,6 +19,10 @@ export const mongoUserStorageProvider: UserStorageProvider = {
     return (await userService.getAdminUserList(opts)).map((user) => removeAvatarBase64(user));
   },
 
+  async getAdminUserListPage(query, includeFingerprints) {
+    return userService.getAdminUserListPage(query, includeFingerprints);
+  },
+
   async getUserById(id: string) {
     return removeAvatarBase64(await userService.getUserById(id));
   },

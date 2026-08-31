@@ -97,35 +97,34 @@ export class LotteryController {
   // 获取所有抽奖轮次
   public async getLotteryRounds(req: Request, res: Response): Promise<void> {
     try {
-      console.log("🔐 [Lottery] 开始处理抽奖轮次请求...");
-      console.log("   用户ID:", req.user?.id);
-      console.log("   用户名:", req.user?.username);
-      console.log("   用户角色:", req.user?.role);
-      console.log("   请求IP:", req.ip);
+      logger.debug("[Lottery] 开始处理抽奖轮次请求", {
+        userId: req.user?.id,
+        username: req.user?.username,
+        role: req.user?.role,
+        ip: req.ip,
+      });
 
       const rounds = await lotteryService.getLotteryRounds();
-      console.log("📊 [Lottery] 获取到抽奖轮次数量:", rounds.length);
+      logger.debug("[Lottery] 获取到抽奖轮次数量", { count: rounds.length });
 
       // 检查是否为管理员用户
       if (req.user && isAdminRole(req.user.role)) {
         // Cookie 会话认证：管理员直接返回明文数据
         // 前端已移除 AES 解密逻辑，不再依赖 Bearer token 作为加密密钥
-        console.log("✅ [Lottery] 管理员用户，返回明文数据");
+        logger.debug("[Lottery] 管理员用户，返回明文数据");
         res.json({
           success: true,
           data: rounds,
         });
       } else {
         // 普通用户或未登录用户，返回未加密数据
-        console.log("📝 [Lottery] 普通用户，返回未加密数据");
+        logger.debug("[Lottery] 普通用户，返回未加密数据");
         res.json({
           success: true,
           data: rounds,
         });
-        console.log("✅ [Lottery] 普通用户抽奖轮次请求处理完成");
       }
     } catch (error) {
-      console.error("❌ [Lottery] 获取抽奖轮次失败:", error);
       logger.error("获取抽奖轮次失败:", error);
       res.status(500).json({
         success: false,
@@ -339,6 +338,11 @@ export class LotteryController {
         return;
       }
 
+      if (typeof isActive !== "boolean") {
+        res.status(400).json({ success: false, message: "isActive 必须为布尔值" });
+        return;
+      }
+
       // 检查管理员权限
       if (!isSuperAdmin(req)) {
         res.status(403).json({
@@ -348,10 +352,11 @@ export class LotteryController {
         return;
       }
 
-      // 这里需要扩展lotteryService来支持更新轮次状态
-      // 暂时返回成功响应
+      // G4-22: 调用真实的状态更新实现，不再返回假成功
+      const round = await lotteryService.updateRoundStatus(roundId, isActive);
       res.json({
         success: true,
+        data: round,
         message: "轮次状态更新成功",
       });
     } catch (error) {

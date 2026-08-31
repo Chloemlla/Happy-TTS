@@ -1,7 +1,9 @@
 import type { Request, Response } from "express";
+import crypto from "node:crypto";
 import { isValidObjectId, Types } from "mongoose";
 import FBIWantedModel from "../models/fbiWantedModel";
 import { IPFSService } from "../services/ipfsService";
+import { isAdminRole } from "../middleware/auth";
 import { getClientIP } from "../utils/ipUtils";
 import logger from "../utils/logger";
 import {
@@ -22,7 +24,7 @@ function generateNCICNumber(): string {
   const chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   let result = "N"; // NCIC numbers often start with a letter
   for (let i = 0; i < 9; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+    result += chars.charAt(crypto.randomInt(0, chars.length));
   }
   return result;
 }
@@ -30,7 +32,7 @@ function generateNCICNumber(): string {
 // 生成FBI编号
 function generateFBINumber(): string {
   const timestamp = Date.now().toString().slice(-8);
-  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const random = crypto.randomBytes(3).toString("hex").toUpperCase();
   return `FBI-${timestamp}-${random}`;
 }
 
@@ -145,8 +147,8 @@ export const fbiWantedController = {
         undefined,
         {
           clientIp,
-          isAdmin: (req as any).user?.role === "admin" || (req as any).user?.role === "superadmin",
-          shouldSkipTurnstile: (req as any).user?.role === "admin" || (req as any).user?.role === "superadmin",
+          isAdmin: isAdminRole((req as any).user?.role),
+          shouldSkipTurnstile: isAdminRole((req as any).user?.role),
         },
       );
 

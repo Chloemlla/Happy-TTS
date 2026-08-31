@@ -1,8 +1,6 @@
-import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { Request, Response } from "express";
-import * as envModule from "../config/env";
 import { EmailService, getAllSenderDomains, getOutEmailServiceStatus } from "../services/emailService";
 import { sendEmail } from "../services/emailSender";
 import { mongoose } from "../services/mongoService";
@@ -19,7 +17,6 @@ import { type User, UserStorage } from "../utils/userStorage";
 import { isUserStorageModeKey, USER_STORAGE_MODE } from "../utils/userStorageMode";
 import {
   ADMIN_USER_BULK_ACTIONS,
-  buildAdminUserListEnvelope,
   getAdminUserBulkActionUpdates,
   isTruthyQueryFlag,
   isValidUserId,
@@ -34,6 +31,55 @@ import {
 const ANNOUNCEMENT_FILE = path.join(__dirname, "../../data/announcement.json");
 const ENV_FILE = path.join(__dirname, "../../data/env.admin.json");
 
+// G4-05: 可读环境变量白名单（只回显这些键，且值脱敏），防止把整个 process.env 导出。
+const ENV_READ_WHITELIST: string[] = [
+  "NODE_ENV",
+  "PORT",
+  "HOST",
+  "API_BASE_URL",
+  "FRONTEND_URL",
+  "BASE_URL",
+  "USER_STORAGE_MODE",
+  "STORAGE_MODE",
+  "LOG_LEVEL",
+  "CORS_ORIGIN",
+  "RATE_LIMIT_WINDOW",
+  "RATE_LIMIT_MAX",
+  "RESEND_DOMAIN",
+  "RESEND_QUOTA_TOTAL",
+  "OUTEMAIL_DOMAIN",
+  "OUTEMAIL_QUOTA_TOTAL",
+  "DEFAULT_TTS_PROVIDER",
+  "DEFAULT_TTS_MODEL",
+  "TTS_REQUIRE_POLICY_CONSENT",
+  "TURNSTILE_SITE_KEY",
+  "HCAPTCHA_SITE_KEY",
+  "GOOGLE_CLIENT_ID",
+  "NEXAI_GOOGLE_CLIENT_ID",
+  "NEXAI_GITHUB_CLIENT_ID",
+  "NEXAI_FRONTEND_URL",
+];
+
+// G4-06: 禁止通过运行时 envs 接口改写的键（密钥/密码/连接串/安全开关类）。
+const ENV_WRITE_BLOCKLIST: ReadonlySet<string> = new Set([
+  "JWT_SECRET",
+  "AES_KEY",
+  "ADMIN_PASSWORD",
+  "ADMIN_OPERATION_PASSWORD",
+  "SERVER_PASSWORD",
+  "PUBLIC_SHORT_URL_PASSWORD",
+  "MONGO_URI",
+  "MONGODB_URI",
+  "REDIS_URL",
+  "DATABASE_URL",
+  "DB_URI",
+  "NODE_ENV",
+  "USER_STORAGE_MODE",
+  "TURNSTILE_SECRET_KEY",
+  "HCAPTCHA_SECRET_KEY",
+  "RESEND_API_KEY",
+]);
+
 function readEnvFile() {
   if (!fs.existsSync(ENV_FILE)) return [];
   try {
@@ -42,15 +88,12 @@ function readEnvFile() {
     return [];
   }
 }
-function writeEnvFile(envs: any[]) {
-  fs.writeFileSync(ENV_FILE, JSON.stringify(envs, null, 2));
-}
 
-function normalizeEnvForFrontend(key: string, value: unknown): string {
-  if (isUserStorageModeKey(key)) {
-    return USER_STORAGE_MODE;
-  }
-  return String(value);
+// G4-06: 写盘改异步 + 先写临时文件再 rename，避免请求线程同步 IO 与半写文件。
+async function writeEnvFile(envs: any[]) {
+  const tmpPath = `${ENV_FILE}.${process.pid}.${Date.now()}.tmp`;
+  await fs.promises.writeFile(tmpPath, JSON.stringify(envs, null, 2), "utf-8");
+  await fs.promises.rename(tmpPath, ENV_FILE);
 }
 
 function normalizeOutEmailDomain(value: unknown): string {
@@ -158,16 +201,41 @@ export const adminController = {
 
       const includeFingerprints = isTruthyQueryFlag(req.query.includeFingerprints);
       const listQuery = parseAdminUserListQuery(req.query);
-      const users = await UserStorage.getAdminUserList({ includeFingerprints });
-      const usersSanitized = users.map((user) => sanitizeAdminUserForList(user, includeFingerprints));
+      // G4-19: 筛选/排序/分页下推到 aggregation，不再把整张 users 表读进内存
+      const pageResult = await UserStorage.getAdminUserListPage(listQuery, includeFingerprints);
+      const usersSanitized = pageResult.users.map((user) => sanitizeAdminUserForList(user, includeFingerprints));
+      const totalPages = Math.max(1, Math.ceil(pageResult.total / listQuery.pageSize));
+      const page = Math.min(listQuery.page, totalPages);
+
+      // G4-19: envelope 缺省时也必须分页，不能返回全量
       const responsePayload = listQuery.envelope
-        ? buildAdminUserListEnvelope(usersSanitized, listQuery)
+        ? {
+            users: usersSanitized,
+            pagination: {
+              page,
+              pageSize: listQuery.pageSize,
+              total: pageResult.total,
+              totalPages,
+            },
+            filters: {
+              keyword: listQuery.keyword,
+              role: listQuery.role,
+              accountStatus: listQuery.accountStatus,
+              security: listQuery.security,
+              ticket: listQuery.ticket,
+              translation: listQuery.translation,
+              sortBy: listQuery.sortBy,
+              sortOrder: listQuery.sortOrder,
+            },
+            stats: pageResult.stats,
+            filteredStats: pageResult.filteredStats,
+          }
         : usersSanitized;
 
       logger.info("[UserManagement] 用户列表读取完成", {
-        total: users.length,
-        page: listQuery.envelope ? listQuery.page : undefined,
-        pageSize: listQuery.envelope ? listQuery.pageSize : undefined,
+        total: pageResult.total,
+        page,
+        pageSize: listQuery.pageSize,
         includeFingerprints,
       });
 
@@ -998,300 +1066,35 @@ export const adminController = {
   },
 
   // 获取所有环境变量
+  // G4-05: 只回显白名单键，值做掩码；删除自研 AES 响应加密（密钥由 userId 派生，零安全增益），依赖 TLS。
   async getEnvs(req: Request, res: Response) {
     try {
-      logger.info("🔐 [EnvManager] 开始处理环境变量加密请求...");
-      logger.info("   用户ID:", req.user?.id);
-      logger.info("   用户名:", req.user?.username);
-      logger.info("   用户角色:", req.user?.role);
-      logger.info("   请求IP:", req.ip);
-
-      // 检查管理员权限
       if (!req.user || !isAdminRole(req.user.role)) {
-        logger.info("❌ [EnvManager] 权限检查失败：非管理员用户");
         return res.status(403).json({ error: "无权限" });
       }
 
-      logger.info("✅ [EnvManager] 权限检查通过");
+      const envs: Array<{
+        key: string;
+        value: string;
+        length: number;
+        configured: boolean;
+      }> = [];
 
-      // 加密密钥由登录用户 id 派生（前端经 useAuth 持有同一 id，可自行解密；HttpOnly 会话中 JS 读不到 token）
-      const userId = req.user?.id;
-      if (!userId) {
-        logger.info("❌ [EnvManager] 用户标识为空");
-        return res.status(401).json({ error: "未认证，请先登录" });
-      }
-
-      logger.info("✅ [EnvManager] 用户标识获取成功，长度:", userId.length);
-
-      // 收集所有环境变量
-      let allEnvs: Record<string, any> = {};
-
-      // 1. 读取本地.env文件
-      logger.info("📁 [EnvManager] 开始读取本地.env文件...");
-      const envFiles = [".env", ".env.local", ".env.development", ".env.production", ".env.test"];
-
-      for (const envFile of envFiles) {
-        const envPath = path.join(process.cwd(), envFile);
-        if (fs.existsSync(envPath)) {
-          try {
-            const envContent = fs.readFileSync(envPath, "utf-8");
-            const envLines = envContent.split("\n");
-            for (const line of envLines) {
-              const trimmedLine = line.trim();
-              if (trimmedLine && !trimmedLine.startsWith("#") && trimmedLine.includes("=")) {
-                const [key, ...valueParts] = trimmedLine.split("=");
-                const value = valueParts.join("=");
-                if (key && value !== undefined) {
-                  allEnvs[`${envFile}:${key}`] = value;
-                }
-              }
-            }
-            logger.info(`   ✅ 成功读取 ${envFile} 文件`);
-          } catch (error) {
-            logger.info(`   ❌ 读取 ${envFile} 文件失败:`, error);
-          }
-        }
-      }
-
-      // 2. 读取Docker环境变量
-      logger.info("🐳 [EnvManager] 开始读取Docker环境变量...");
-      const dockerEnvVars = [
-        "DOCKER_HOST",
-        "DOCKER_TLS_VERIFY",
-        "DOCKER_CERT_PATH",
-        "COMPOSE_PROJECT_NAME",
-        "COMPOSE_FILE",
-        "DOCKER_BUILDKIT",
-        "DOCKER_DEFAULT_PLATFORM",
-      ];
-
-      for (const dockerVar of dockerEnvVars) {
-        if (process.env[dockerVar]) {
-          allEnvs[`DOCKER:${dockerVar}`] = process.env[dockerVar];
-        }
-      }
-
-      // 3. 读取Node.js相关环境变量
-      logger.info("🟢 [EnvManager] 开始读取Node.js环境变量...");
-      const nodeEnvVars = [
-        "NODE_ENV",
-        "NODE_VERSION",
-        "NODE_PATH",
-        "NODE_OPTIONS",
-        "NPM_CONFIG_PREFIX",
-        "NPM_CONFIG_CACHE",
-        "YARN_CACHE_FOLDER",
-      ];
-
-      for (const nodeVar of nodeEnvVars) {
-        if (process.env[nodeVar]) {
-          allEnvs[`NODE:${nodeVar}`] = process.env[nodeVar];
-        }
-      }
-
-      // 4. 读取系统环境变量
-      logger.info("💻 [EnvManager] 开始读取系统环境变量...");
-      const systemEnvVars = [
-        "PATH",
-        "HOME",
-        "USER",
-        "SHELL",
-        "LANG",
-        "LC_ALL",
-        "TZ",
-        "PWD",
-        "HOSTNAME",
-        "OSTYPE",
-        "PLATFORM",
-      ];
-
-      for (const sysVar of systemEnvVars) {
-        if (process.env[sysVar]) {
-          allEnvs[`SYSTEM:${sysVar}`] = process.env[sysVar];
-        }
-      }
-
-      // 5. 读取数据库相关环境变量
-      logger.info("🗄️ [EnvManager] 开始读取数据库环境变量...");
-      const dbEnvVars = [
-        "MONGO_URI",
-        "MYSQL_URI",
-        "REDIS_URL",
-        "POSTGRES_URL",
-        "DB_HOST",
-        "DB_PORT",
-        "DB_NAME",
-        "DB_USER",
-        "DB_PASSWORD",
-      ];
-
-      for (const dbVar of dbEnvVars) {
-        if (process.env[dbVar]) {
-          // 对于包含敏感信息的变量，只显示部分内容
-          const value = process.env[dbVar];
-          if (dbVar.includes("PASSWORD") || dbVar.includes("URI") || dbVar.includes("URL")) {
-            const maskedValue = adminController.maskSensitiveValue(value);
-            allEnvs[`DB:${dbVar}`] = maskedValue;
-          } else {
-            allEnvs[`DB:${dbVar}`] = value;
-          }
-        }
-      }
-
-      // 6. 读取应用配置环境变量
-      logger.info("⚙️ [EnvManager] 开始读取应用配置环境变量...");
-      const appEnvVars = [
-        "PORT",
-        "HOST",
-        "API_BASE_URL",
-        "JWT_SECRET",
-        "ADMIN_PASSWORD",
-        "ADMIN_OPERATION_PASSWORD",
-        "SERVER_PASSWORD",
-        "PUBLIC_SHORT_URL_PASSWORD",
-        "USER_STORAGE_MODE",
-        "STORAGE_MODE",
-        "LOG_LEVEL",
-        "CORS_ORIGIN",
-        "RATE_LIMIT_WINDOW",
-        "RATE_LIMIT_MAX",
-        "GOOGLE_CLIENT_ID",
-        "NEXAI_GOOGLE_CLIENT_ID",
-        "NEXAI_GITHUB_CLIENT_ID",
-        "NEXAI_GITHUB_CLIENT_SECRET",
-        "NEXAI_FRONTEND_URL",
-        "FRONTEND_URL",
-        "BASE_URL",
-      ];
-
-      for (const appVar of appEnvVars) {
-        if (process.env[appVar]) {
-          // 对于敏感信息进行脱敏处理
-          const value = process.env[appVar];
-          if (appVar.includes("SECRET") || appVar.includes("PASSWORD") || appVar.includes("KEY")) {
-            const maskedValue = adminController.maskSensitiveValue(value);
-            allEnvs[`APP:${appVar}`] = maskedValue;
-          } else {
-            allEnvs[`APP:${appVar}`] = value;
-          }
-        }
-      }
-
-      // 7. 合并env模块的导出
-      logger.info("📦 [EnvManager] 开始合并env模块导出...");
-      if (envModule.env && typeof envModule.env === "object") {
-        allEnvs = { ...allEnvs, ...envModule.env };
-      }
-      for (const [k, v] of Object.entries(envModule)) {
-        if (k !== "env") {
-          allEnvs[`MODULE:${k}`] = v;
-        }
-      }
-
-      // 8. 读取所有process.env变量（排除已处理的）
-      logger.info("🌐 [EnvManager] 开始读取所有process.env变量...");
-      const processedKeys = new Set(
-        Object.keys(allEnvs).map((key) => {
-          const parts = key.split(":");
-          return parts.length > 1 ? parts[1] : key;
-        }),
-      );
-
-      for (const [key, value] of Object.entries(process.env)) {
-        if (!processedKeys.has(key) && value !== undefined) {
-          // 跳过一些系统内部变量
-          if (!key.startsWith("npm_") && !key.startsWith("npm_config_")) {
-            allEnvs[`ENV:${key}`] = value;
-          }
-        }
-      }
-
-      logger.info("📊 [EnvManager] 收集到环境变量数量:", Object.keys(allEnvs).length);
-
-      allEnvs["APP:USER_STORAGE_MODE"] = USER_STORAGE_MODE;
-
-      // 将环境变量转换为数组格式并按类别排序
-      const envArray = Object.entries(allEnvs)
-        .map(([key, value]) => ({
+      for (const key of ENV_READ_WHITELIST) {
+        const rawValue = process.env[key] ?? "";
+        const value = isUserStorageModeKey(key) ? USER_STORAGE_MODE : rawValue;
+        const configured = typeof rawValue === "string" && rawValue.length > 0;
+        envs.push({
           key,
-          value: normalizeEnvForFrontend(key, value),
-          category: key.split(":")[0] || "OTHER",
-        }))
-        .sort((a, b) => {
-          // 按类别排序
-          const categoryOrder = ["APP", "DB", "DOCKER", "NODE", "SYSTEM", "MODULE", "ENV"];
-          const aIndex = categoryOrder.indexOf(a.category);
-          const bIndex = categoryOrder.indexOf(b.category);
-          if (aIndex !== bIndex) {
-            return aIndex - bIndex;
-          }
-          // 同类别内按key排序
-          return a.key.localeCompare(b.key);
+          value: configured ? maskSecretForDisplay(value) : "",
+          length: configured ? value.length : 0,
+          configured,
         });
+      }
 
-      logger.info("🔄 [EnvManager] 环境变量转换为数组格式完成");
-      logger.info("   数组长度:", envArray.length);
-      logger.info(
-        "   类别统计:",
-        envArray.reduce(
-          (acc, item) => {
-            acc[item.category] = (acc[item.category] || 0) + 1;
-            return acc;
-          },
-          {} as Record<string, number>,
-        ),
-      );
-
-      // 准备加密数据
-      const jsonData = JSON.stringify(envArray);
-      logger.info("📝 [EnvManager] JSON数据准备完成，长度:", jsonData.length);
-
-      // 使用AES-256-CBC加密数据
-      logger.info("🔐 [EnvManager] 开始AES-256-CBC加密...");
-      const algorithm = "aes-256-cbc";
-
-      // 生成密钥
-      logger.info("   生成密钥...");
-      const key = crypto.createHash("sha256").update(userId).digest();
-      logger.info("   密钥生成完成，长度:", key.length);
-
-      // 生成IV
-      logger.info("   生成初始化向量(IV)...");
-      const iv = crypto.randomBytes(16);
-      logger.info("   IV生成完成，长度:", iv.length);
-      logger.info("   IV (hex):", iv.toString("hex"));
-
-      // 创建加密器
-      logger.info("   创建加密器...");
-      const cipher = crypto.createCipheriv(algorithm, key, iv);
-
-      // 执行加密
-      logger.info("   开始加密数据...");
-      let encrypted = cipher.update(jsonData, "utf8", "hex");
-      encrypted += cipher.final("hex");
-
-      logger.info("✅ [EnvManager] 加密完成");
-      logger.info("   原始数据长度:", jsonData.length);
-      logger.info("   加密后数据长度:", encrypted.length);
-      logger.info("   加密算法:", algorithm);
-      logger.info("   密钥长度:", key.length);
-      logger.info("   IV长度:", iv.length);
-
-      // 返回加密后的数据
-      const response = {
-        success: true,
-        data: encrypted,
-        iv: iv.toString("hex"),
-      };
-
-      logger.info("📤 [EnvManager] 准备返回加密数据");
-      logger.info("   响应数据大小:", JSON.stringify(response).length);
-
-      res.json(response);
-
-      logger.info("✅ [EnvManager] 环境变量加密请求处理完成");
+      logger.info("[EnvManager] 读取环境变量白名单完成", { count: envs.length });
+      res.json({ success: true, envs });
     } catch (e) {
-      logger.error("❌ [EnvManager] 获取环境变量失败:", e);
       logger.error("获取环境变量失败:", e);
       res.status(500).json({ success: false, error: "获取环境变量失败" });
     }
@@ -1309,6 +1112,7 @@ export const adminController = {
   },
 
   // 新增/更新环境变量（仅管理员）
+  // G4-06: 受保护键白名单（排除密钥/密码/连接串/安全开关），写盘异步 + 临时文件 rename。
   async setEnv(req: Request, res: Response) {
     try {
       if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
@@ -1317,21 +1121,25 @@ export const adminController = {
         return res.status(400).json({ error: "key不能为空，不能包含空格/<>，且不超过64字" });
       if (typeof value !== "string" || !value.trim() || value.length > 1024)
         return res.status(400).json({ error: "value不能为空且不超过1024字" });
-      if (isUserStorageModeKey(key) && value.trim().toLowerCase() !== USER_STORAGE_MODE) {
+      const normalizedKey = key.trim();
+      if (ENV_WRITE_BLOCKLIST.has(normalizedKey)) {
+        return res.status(400).json({ error: `key=${normalizedKey} 受保护，不能通过此接口修改` });
+      }
+      if (isUserStorageModeKey(normalizedKey) && value.trim().toLowerCase() !== USER_STORAGE_MODE) {
         return res.status(400).json({ error: "USER_STORAGE_MODE 只允许设置为 mongo" });
       }
       const envs = readEnvFile();
-      const idx = envs.findIndex((e: any) => e.key === key);
+      const idx = envs.findIndex((e: any) => e.key === normalizedKey);
       const now = new Date().toISOString();
-      const nextValue = isUserStorageModeKey(key) ? USER_STORAGE_MODE : value;
+      const nextValue = isUserStorageModeKey(normalizedKey) ? USER_STORAGE_MODE : value;
       if (idx >= 0) {
         envs[idx] = { ...envs[idx], value: nextValue, desc, updatedAt: now };
       } else {
-        envs.push({ key, value: nextValue, desc, updatedAt: now });
+        envs.push({ key: normalizedKey, value: nextValue, desc, updatedAt: now });
       }
-      writeEnvFile(envs);
-      process.env[key] = nextValue;
-      logger.info(`[环境变量] 管理员${req.user.username} 设置/更新 key=${key}`);
+      await writeEnvFile(envs);
+      process.env[normalizedKey] = nextValue;
+      logger.info(`[环境变量] 管理员${req.user.username} 设置/更新 key=${normalizedKey}`);
       res.json({ success: true, envs });
     } catch (_e) {
       res.status(500).json({ success: false, error: "保存环境变量失败" });
@@ -1339,18 +1147,23 @@ export const adminController = {
   },
 
   // 删除环境变量（仅管理员）
+  // G4-06: 受保护键不可删除。
   async deleteEnv(req: Request, res: Response) {
     try {
       if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
       const { key } = req.body;
       if (typeof key !== "string" || !key.trim()) return res.status(400).json({ error: "key不能为空" });
+      const normalizedKey = key.trim();
+      if (ENV_WRITE_BLOCKLIST.has(normalizedKey)) {
+        return res.status(400).json({ error: `key=${normalizedKey} 受保护，不能通过此接口删除` });
+      }
       const envs = readEnvFile();
-      const idx = envs.findIndex((e: any) => e.key === key);
+      const idx = envs.findIndex((e: any) => e.key === normalizedKey);
       if (idx === -1) return res.status(404).json({ error: "key不存在" });
       envs.splice(idx, 1);
-      writeEnvFile(envs);
-      delete process.env[key];
-      logger.info(`[环境变量] 管理员${req.user.username} 删除 key=${key}`);
+      await writeEnvFile(envs);
+      delete process.env[normalizedKey];
+      logger.info(`[环境变量] 管理员${req.user.username} 删除 key=${normalizedKey}`);
       res.json({ success: true, envs });
     } catch (_e) {
       res.status(500).json({ success: false, error: "删除环境变量失败" });
@@ -1713,13 +1526,13 @@ export const adminController = {
   async getIpqsSetting(req: Request, res: Response) {
     try {
       if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
-      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const result = await RuntimeConfigService.getIpqsSetting();
       return res.json({ success: true, ...result });
     } catch (error) {
       return res.status(500).json({
         success: false,
-        error: error instanceof Error ? error.message : "鑾峰彇 IPQS 閰嶇疆澶辫触",
+        error: error instanceof Error ? error.message : "获取 IPQS 配置失败",
       });
     }
   },
@@ -1727,13 +1540,13 @@ export const adminController = {
   async setIpqsSetting(req: Request, res: Response) {
     try {
       if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
-      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const result = await RuntimeConfigService.setIpqsSetting(req.body || {});
       return res.json({ success: true, setting: result });
     } catch (error) {
       return res.status(400).json({
         success: false,
-        error: error instanceof Error ? error.message : "淇濆瓨 IPQS 閰嶇疆澶辫触",
+        error: error instanceof Error ? error.message : "保存 IPQS 配置失败",
       });
     }
   },
@@ -1741,24 +1554,24 @@ export const adminController = {
   async deleteIpqsSetting(req: Request, res: Response) {
     try {
       if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
-      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       await RuntimeConfigService.deleteIpqsSetting();
       return res.json({ success: true });
     } catch (_error) {
-      return res.status(500).json({ success: false, error: "鍒犻櫎 IPQS 閰嶇疆澶辫触" });
+      return res.status(500).json({ success: false, error: "删除 IPQS 配置失败" });
     }
   },
 
   async getLinuxDoSetting(req: Request, res: Response) {
     try {
       if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
-      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const result = await RuntimeConfigService.getLinuxDoSetting();
       return res.json({ success: true, ...result });
     } catch (error) {
       return res.status(500).json({
         success: false,
-        error: error instanceof Error ? error.message : "鑾峰彇 LinuxDo 閰嶇疆澶辫触",
+        error: error instanceof Error ? error.message : "获取 LinuxDo 配置失败",
       });
     }
   },
@@ -1766,13 +1579,13 @@ export const adminController = {
   async setLinuxDoSetting(req: Request, res: Response) {
     try {
       if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
-      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const result = await RuntimeConfigService.setLinuxDoSetting(req.body || {});
       return res.json({ success: true, setting: result });
     } catch (error) {
       return res.status(400).json({
         success: false,
-        error: error instanceof Error ? error.message : "淇濆瓨 LinuxDo 閰嶇疆澶辫触",
+        error: error instanceof Error ? error.message : "保存 LinuxDo 配置失败",
       });
     }
   },
@@ -1780,24 +1593,24 @@ export const adminController = {
   async deleteLinuxDoSetting(req: Request, res: Response) {
     try {
       if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
-      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       await RuntimeConfigService.deleteLinuxDoSetting();
       return res.json({ success: true });
     } catch (_error) {
-      return res.status(500).json({ success: false, error: "鍒犻櫎 LinuxDo 閰嶇疆澶辫触" });
+      return res.status(500).json({ success: false, error: "删除 LinuxDo 配置失败" });
     }
   },
 
   async getGoogleAuthSetting(req: Request, res: Response) {
     try {
       if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
-      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const result = await RuntimeConfigService.getGoogleAuthSetting();
       return res.json({ success: true, ...result });
     } catch (error) {
       return res.status(500).json({
         success: false,
-        error: error instanceof Error ? error.message : "鑾峰彇 Google Auth 閰嶇疆澶辫触",
+        error: error instanceof Error ? error.message : "获取 Google Auth 配置失败",
       });
     }
   },
@@ -1805,13 +1618,13 @@ export const adminController = {
   async setGoogleAuthSetting(req: Request, res: Response) {
     try {
       if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
-      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const result = await RuntimeConfigService.setGoogleAuthSetting(req.body || {});
       return res.json({ success: true, setting: result });
     } catch (error) {
       return res.status(400).json({
         success: false,
-        error: error instanceof Error ? error.message : "淇濆瓨 Google Auth 閰嶇疆澶辫触",
+        error: error instanceof Error ? error.message : "保存 Google Auth 配置失败",
       });
     }
   },
@@ -1819,11 +1632,11 @@ export const adminController = {
   async deleteGoogleAuthSetting(req: Request, res: Response) {
     try {
       if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
-      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       await RuntimeConfigService.deleteGoogleAuthSetting();
       return res.json({ success: true });
     } catch (_error) {
-      return res.status(500).json({ success: false, error: "鍒犻櫎 Google Auth 閰嶇疆澶辫触" });
+      return res.status(500).json({ success: false, error: "删除 Google Auth 配置失败" });
     }
   },
 
@@ -1869,13 +1682,13 @@ export const adminController = {
   async getDeepLXSetting(req: Request, res: Response) {
     try {
       if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
-      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const result = await RuntimeConfigService.getDeepLXSetting();
       return res.json({ success: true, ...result });
     } catch (error) {
       return res.status(500).json({
         success: false,
-        error: error instanceof Error ? error.message : "鑾峰彇 DeepLX 閰嶇疆澶辫触",
+        error: error instanceof Error ? error.message : "获取 DeepLX 配置失败",
       });
     }
   },
@@ -1883,13 +1696,13 @@ export const adminController = {
   async setDeepLXSetting(req: Request, res: Response) {
     try {
       if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
-      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const result = await RuntimeConfigService.setDeepLXSetting(req.body || {});
       return res.json({ success: true, setting: result });
     } catch (error) {
       return res.status(400).json({
         success: false,
-        error: error instanceof Error ? error.message : "淇濆瓨 DeepLX 閰嶇疆澶辫触",
+        error: error instanceof Error ? error.message : "保存 DeepLX 配置失败",
       });
     }
   },
@@ -1897,24 +1710,24 @@ export const adminController = {
   async deleteDeepLXSetting(req: Request, res: Response) {
     try {
       if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
-      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       await RuntimeConfigService.deleteDeepLXSetting();
       return res.json({ success: true });
     } catch (_error) {
-      return res.status(500).json({ success: false, error: "鍒犻櫎 DeepLX 閰嶇疆澶辫触" });
+      return res.status(500).json({ success: false, error: "删除 DeepLX 配置失败" });
     }
   },
 
   async getNexaiSetting(req: Request, res: Response) {
     try {
       if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
-      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const result = await RuntimeConfigService.getNexaiSetting();
       return res.json({ success: true, ...result });
     } catch (error) {
       return res.status(500).json({
         success: false,
-        error: error instanceof Error ? error.message : "鑾峰彇 NexAI 閰嶇疆澶辫触",
+        error: error instanceof Error ? error.message : "获取 NexAI 配置失败",
       });
     }
   },
@@ -1922,13 +1735,13 @@ export const adminController = {
   async setNexaiSetting(req: Request, res: Response) {
     try {
       if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
-      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       const result = await RuntimeConfigService.setNexaiSetting(req.body || {});
       return res.json({ success: true, setting: result });
     } catch (error) {
       return res.status(400).json({
         success: false,
-        error: error instanceof Error ? error.message : "淇濆瓨 NexAI 閰嶇疆澶辫触",
+        error: error instanceof Error ? error.message : "保存 NexAI 配置失败",
       });
     }
   },
@@ -1936,11 +1749,11 @@ export const adminController = {
   async deleteNexaiSetting(req: Request, res: Response) {
     try {
       if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
-      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "鏁版嵁搴撴湭杩炴帴" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       await RuntimeConfigService.deleteNexaiSetting();
       return res.json({ success: true });
     } catch (_error) {
-      return res.status(500).json({ success: false, error: "鍒犻櫎 NexAI 閰嶇疆澶辫触" });
+      return res.status(500).json({ success: false, error: "删除 NexAI 配置失败" });
     }
   },
 

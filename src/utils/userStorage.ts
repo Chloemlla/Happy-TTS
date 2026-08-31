@@ -3,6 +3,7 @@ import { emitUserAuthorityChanged } from "./userAuthorityEvents";
 import { userBootstrapService } from "./userBootstrapService";
 import { userRepairService } from "./userRepairService";
 import { userRepository } from "./userRepository";
+import type { AdminUserListPageResult, AdminUserListQueryParams } from "../services/userService";
 import type { User, ValidationError } from "./userStorageTypes";
 import { InputValidationError, userValidationService } from "./userValidationService";
 
@@ -41,6 +42,13 @@ export class UserStorage {
 
   public static async getAdminUserList(opts: { includeFingerprints?: boolean } = {}): Promise<User[]> {
     return userRepository.getAdminUserList(opts);
+  }
+
+  public static async getAdminUserListPage(
+    query: AdminUserListQueryParams,
+    includeFingerprints: boolean,
+  ): Promise<AdminUserListPageResult> {
+    return userRepository.getAdminUserListPage(query, includeFingerprints);
   }
 
   public static async getPrimaryAdminAuthUser() {

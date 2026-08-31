@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import path from "node:path";
 import { isAdminRole } from "../middleware/auth";
 import { logger } from "./logger";
-import { addRound, getAllRounds, getUserRecord } from "./lotteryStorage";
+import { addRound, getAllRounds, getUserRecord, updateRound } from "./lotteryStorage";
 
 // 抽奖相关类型定义
 export interface LotteryPrize {
@@ -395,7 +395,26 @@ class LotteryService {
 
     // 替换原有本地读写/Map操作，全部通过lotteryStorage接口实现
     // await this.saveData(); // 移除此行，因为不再直接保存
+    await updateRound(roundId, {
+      prizes: round.prizes,
+      participants: round.participants,
+      winners: round.winners,
+    });
     logger.info(`重置抽奖轮次: ${roundId}`);
+  }
+
+  // G4-22: 补齐真实的状态更新，不再返回假的成功
+  public async updateRoundStatus(roundId: string, isActive: boolean): Promise<LotteryRound> {
+    const round = await this.getRoundDetails(roundId);
+    if (!round) {
+      throw new Error("抽奖轮次不存在");
+    }
+    if (typeof isActive !== "boolean") {
+      throw new Error("isActive 必须为布尔值");
+    }
+    const updated = await updateRound(roundId, { isActive });
+    logger.info(`更新抽奖轮次状态: ${roundId}, isActive=${isActive}`);
+    return updated;
   }
 
   // 获取统计信息

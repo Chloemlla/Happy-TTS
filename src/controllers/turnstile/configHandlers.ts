@@ -1,7 +1,9 @@
+import crypto from "node:crypto";
 import type { Request, Response } from "express";
 import { isAdminRole } from "../../middleware/auth";
 import { TurnstileService } from "../../services/turnstileService";
 import { firstString } from "../../utils/httpParam";
+import logger from "../../utils/logger";
 import { getClientIp, requireSuperAdmin } from "./_helpers";
 
 export async function getTurnstileConfig(req: Request, res: Response) {
@@ -77,76 +79,11 @@ export async function verifyTurnstileToken(req: Request, res: Response) {
   }
 }
 
-export async function secureCaptchaConfig(req: Request, res: Response) {
+export async function secureCaptchaConfig(_req: Request, res: Response) {
   try {
-    const { encryptedData, timestamp, hash, fingerprint } = req.body;
-
-    if (!encryptedData || !timestamp || !hash || !fingerprint) {
-      return res.status(400).json({ success: false, error: "请求参数不完整" });
-    }
-
-    const now = Date.now();
-    const timeDiff = now - timestamp;
-    const timeWindowMs = 2 * 60 * 1000;
-
-    console.log("=== 时间戳验证调试 ===");
-    console.log("客户端时间戳:", timestamp);
-    console.log("服务器当前时间:", now);
-    console.log("时间差 (ms):", timeDiff);
-    console.log("时间差 (分钟):", Math.round((timeDiff / 60000) * 100) / 100);
-    console.log("客户端时间 (上海):", new Date(timestamp).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" }));
-    console.log("服务器时间 (上海):", new Date(now).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" }));
-    console.log("允许的最大时间差:", timeWindowMs, "ms (2分钟)");
-    console.log("时间戳是否过期:", Math.abs(timeDiff) > timeWindowMs);
-    console.log("========================");
-
-    if (Math.abs(timeDiff) > timeWindowMs) {
-      console.log("时间戳验证失败 - 请求被拒绝");
-      return res.status(400).json({
-        success: false,
-        error: "请求已过期",
-        debug: {
-          clientTimestamp: timestamp,
-          serverTimestamp: now,
-          timeDiff,
-          timeDiffMinutes: Math.round((timeDiff / 60000) * 100) / 100,
-          clientTime: new Date(timestamp).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" }),
-          serverTime: new Date(now).toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" }),
-        },
-      });
-    }
-
-    const expectedHashData = `${encryptedData}_${timestamp}_${fingerprint}`;
-    const crypto = require("node:crypto");
-    const expectedHash = crypto.createHash("sha256").update(expectedHashData).digest("hex");
-
-    if (hash !== expectedHash) {
-      return res.status(400).json({ success: false, error: "请求完整性验证失败" });
-    }
-
-    const keyMaterial = `${fingerprint}_${Math.floor(timestamp / 60000)}`;
-    const decryptionKey = crypto.createHash("sha256").update(keyMaterial).digest("hex");
-
-    let decryptedSelection;
-    try {
-      const CryptoJS = require("crypto-js");
-      const decryptedBytes = CryptoJS.AES.decrypt(encryptedData, decryptionKey);
-      const decryptedText = decryptedBytes.toString(CryptoJS.enc.Utf8);
-
-      if (!decryptedText) {
-        throw new Error("解密结果为空");
-      }
-
-      decryptedSelection = JSON.parse(decryptedText);
-    } catch (decryptError) {
-      console.error("解密CAPTCHA选择失败:", decryptError);
-      return res.status(400).json({ success: false, error: "解密失败" });
-    }
-
-    if (decryptedSelection.timestamp !== timestamp || decryptedSelection.fingerprint !== fingerprint) {
-      return res.status(400).json({ success: false, error: "解密数据不一致" });
-    }
-
+    // G4-24: 该端点只返回验证码类型与公开 siteKey，无敏感信息。
+    // 删除自研 HMAC/AES（密钥全部由客户端值推导，零安全增益，纯安全剧场）与时间戳校验，
+    // 只保留按服务端配置随机选择验证码类型的逻辑。
     let captchaType;
     let config;
 
@@ -174,36 +111,22 @@ export async function secureCaptchaConfig(req: Request, res: Response) {
       captchaType = candidates[0].type;
       config = candidates[0].config;
     } else {
-      let index;
-      try {
-        if (typeof crypto.randomInt === "function") {
-          index = crypto.randomInt(0, candidates.length);
-        } else {
-          throw new Error("crypto.randomInt not available");
-        }
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        console.warn("crypto.randomInt failed, falling back to Math.random:", errorMessage);
-        index = Math.floor(Math.random() * candidates.length);
-      }
+      // G4-24: Node 18+ 始终提供 crypto.randomInt，删除回落到 Math.random 的永不可达死分支
+      const index = crypto.randomInt(0, candidates.length);
       captchaType = candidates[index].type;
       config = candidates[index].config;
     }
 
-    console.log("后端CAPTCHA选择:", {
+    logger.debug("后端CAPTCHA选择", {
       type: captchaType,
-      selectionMethod:
-        candidates.length > 1 ? "random" : candidates.length === 1 ? "single-available" : "fallback-disabled",
-      fingerprint: `${fingerprint.substring(0, 8)}...`,
-      timestamp: new Date(timestamp).toISOString(),
-      clientIp: req.ip || "unknown",
+      selectionMethod: candidates.length > 1 ? "random" : candidates.length === 1 ? "single-available" : "fallback-disabled",
       configEnabled: config.enabled,
       hasSiteKey: !!config.siteKey,
     });
 
     res.json({ success: true, captchaType, config });
   } catch (error) {
-    console.error("获取安全CAPTCHA配置失败:", error);
+    logger.error("获取安全CAPTCHA配置失败:", error);
     res.status(500).json({ success: false, error: "服务器内部错误" });
   }
 }

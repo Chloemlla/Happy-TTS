@@ -1,7 +1,24 @@
 import type { Request, Response } from "express";
+import type { IncomingHttpHeaders } from "node:http";
 import { config } from "../config/config";
 import { getServerStatusSnapshot, isServerStatusPasswordValid } from "../services/operationalStatusService";
 import logger from "../utils/logger";
+
+// G4-11: 日志只记录白名单请求头，禁止把整个 req.headers（含 cookie/authorization）写进日志。
+const WHITELISTED_LOG_HEADERS = ["user-agent", "referer", "content-length"] as const;
+
+function pickLogHeaders(headers: IncomingHttpHeaders): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const name of WHITELISTED_LOG_HEADERS) {
+    const value = headers[name];
+    if (typeof value === "string" && value) {
+      out[name] = value;
+    } else if (Array.isArray(value) && value.length > 0) {
+      out[name] = value.join(", ");
+    }
+  }
+  return out;
+}
 
 export class DiagnosticsController {
   static getFrontendConfig(_req: Request, res: Response): void {
@@ -27,7 +44,7 @@ export class DiagnosticsController {
       timestamp: Number.isFinite(parsedTimestamp) ? new Date(parsedTimestamp).toISOString() : undefined,
       userAgent,
       ip: req.ip,
-      headers: req.headers,
+      headers: pickLogHeaders(req.headers),
     });
 
     res.json({ success: true });

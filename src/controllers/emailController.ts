@@ -1,10 +1,11 @@
 import type { Request, Response } from "express";
 import {
-  addEmailUsage,
+  consumeEmailQuota,
   type EmailData,
   EmailService,
   getAllSenderDomains,
   getEmailQuota,
+  refundEmailQuota,
 } from "../services/emailService";
 import logger from "../utils/logger";
 
@@ -35,11 +36,11 @@ function validateSenderDomainOrRespond(from: string, req: Request, res: Response
 export class EmailController {
   /**
    * 发送邮件
-   * @param req.body { from: string, to: string[], subject: string, html: string, text?: string, skipWhitelist?: boolean }
+   * @param req.body { from: string, to: string[], subject: string, html: string, text?: string }
    */
   public static async sendEmail(req: Request, res: Response) {
     try {
-      const { from, to, subject, html, text, skipWhitelist = false } = req.body;
+      const { from, to, subject, html, text } = req.body;
       const ip = req.ip || "unknown";
       const user = (req as any).user;
 
@@ -50,7 +51,6 @@ export class EmailController {
         ip,
         userId: user?.id,
         username: user?.username,
-        skipWhitelist,
       });
 
       // 验证必填字段
@@ -68,13 +68,12 @@ export class EmailController {
       // 验证发件人域名
       if (!validateSenderDomainOrRespond(from, req, res)) return;
 
-      // 验证邮箱格式（如果跳过白名单检查，则只验证发件人邮箱）
-      const emailsToValidate = skipWhitelist ? [from] : [from, ...to];
+      // G4-16: 删除 skipWhitelist 客户端开关，收件人邮箱格式校验不可跳过
+      const emailsToValidate = [from, ...to];
       const emailValidation = EmailService.validateEmails(emailsToValidate);
       if (emailValidation.invalid.length > 0) {
         logger.warn("邮件发送失败：邮箱格式无效", {
           invalidEmails: emailValidation.invalid,
-          skipWhitelist,
           ip,
           userId: user?.id,
         });
@@ -108,10 +107,15 @@ export class EmailController {
         });
       }
 
-      // 如果不是跳过白名单检查，则验证收件人域名
-      if (!skipWhitelist) {
-        // 这里可以添加收件人域名白名单检查逻辑
-        // 暂时跳过，因为用户要求不检查
+      // G4-16: 发送前先查配额并 fail-closed（原子扣减，拿不到即超限）
+      const quotaKey = user?.id;
+      if (!quotaKey) {
+        return res.status(401).json({ success: false, error: "未登录" });
+      }
+      const quotaConsumed = await consumeEmailQuota(quotaKey, undefined, 1);
+      if (!quotaConsumed.success) {
+        logger.warn("邮件发送失败：配额已用完", { ip, userId: quotaKey });
+        return res.status(429).json({ success: false, error: "邮件配额已用完，请明日再试" });
       }
 
       // 发送邮件
@@ -126,15 +130,13 @@ export class EmailController {
       const result = await EmailService.sendEmail(emailData);
 
       if (result.success) {
-        // 邮件配额统计
-        if (user?.id) await addEmailUsage(user.id, 1);
         logger.info("邮件发送成功", {
           messageId: result.messageId,
           from,
           to,
           subject,
           ip,
-          userId: user?.id,
+          userId: quotaKey,
         });
 
         res.json({
@@ -144,13 +146,15 @@ export class EmailController {
           data: result.data,
         });
       } else {
+        // 发送失败 → 补偿回退配额
+        await refundEmailQuota(quotaKey, undefined, 1);
         logger.error("邮件发送失败", {
           error: result.error,
           from,
           to,
           subject,
           ip,
-          userId: user?.id,
+          userId: quotaKey,
         });
 
         res.status(500).json({
@@ -238,30 +242,38 @@ export class EmailController {
               .replace(/</g, "&lt;")
               .replace(/>/g, "&gt;")}</pre>`;
 
+      // G4-16: 发送前原子扣减配额（按收件人数），fail-closed
+      const quotaKey = user?.id;
+      if (!quotaKey) return res.status(401).json({ success: false, error: "未登录" });
+      const quotaConsumed = await consumeEmailQuota(quotaKey, fromDomain, validation.valid.length);
+      if (!quotaConsumed.success) {
+        return res.status(429).json({ success: false, error: "邮件配额已用完，请明日再试" });
+      }
+
       // 发送批量邮件
       const result = await EmailService.sendBatchHtmlEmails(validation.valid, subject, htmlContent, from);
 
       if (result.success) {
-        // 邮件配额统计（按收件人数计数）
-        if (user?.id) await addEmailUsage(user.id, validation.valid.length, fromDomain);
         logger.info("批量邮件发送成功", {
           ids: result.ids,
           from,
           toCount: validation.valid.length,
           subject,
           ip,
-          userId: user?.id,
+          userId: quotaKey,
         });
         return res.json({ success: true, message: "批量发送成功", ids: result.ids, data: result.data });
       }
 
+      // 发送失败 → 补偿回退配额
+      await refundEmailQuota(quotaKey, fromDomain, validation.valid.length);
       logger.error("批量邮件发送失败", {
         error: result.error,
         from,
         toCount: validation.valid.length,
         subject,
         ip,
-        userId: user?.id,
+        userId: quotaKey,
       });
       return res.status(500).json({ success: false, error: result.error || "批量发送失败" });
     } catch (error) {
@@ -279,11 +291,11 @@ export class EmailController {
 
   /**
    * 发送简单文本邮件
-   * @param req.body { to: string[], subject: string, content: string, from?: string, skipWhitelist?: boolean }
+   * @param req.body { to: string[], subject: string, content: string, from?: string }
    */
   public static async sendSimpleEmail(req: Request, res: Response) {
     try {
-      const { to, subject, content, from, skipWhitelist = false } = req.body;
+      const { to, subject, content, from } = req.body;
       const ip = req.ip || "unknown";
       const user = (req as any).user;
 
@@ -291,7 +303,6 @@ export class EmailController {
         to,
         subject,
         contentLength: content?.length,
-        skipWhitelist,
         ip,
         userId: user?.id,
         username: user?.username,
@@ -314,20 +325,18 @@ export class EmailController {
         if (!validateSenderDomainOrRespond(from, req, res)) return;
       }
 
-      // 验证邮箱格式（如果跳过白名单检查，则不验证收件人邮箱）
-      if (!skipWhitelist) {
-        const emailValidation = EmailService.validateEmails(to);
-        if (emailValidation.invalid.length > 0) {
-          logger.warn("简单邮件发送失败：邮箱格式无效", {
-            invalidEmails: emailValidation.invalid,
-            ip,
-            userId: user?.id,
-          });
-          return res.status(400).json({
-            error: "邮箱格式无效",
-            invalidEmails: emailValidation.invalid,
-          });
-        }
+      // G4-16: 收件人邮箱格式校验不可跳过（删除 skipWhitelist 开关）
+      const emailValidation = EmailService.validateEmails(to);
+      if (emailValidation.invalid.length > 0) {
+        logger.warn("简单邮件发送失败：邮箱格式无效", {
+          invalidEmails: emailValidation.invalid,
+          ip,
+          userId: user?.id,
+        });
+        return res.status(400).json({
+          error: "邮箱格式无效",
+          invalidEmails: emailValidation.invalid,
+        });
       }
 
       // 限制收件人数量
@@ -354,18 +363,24 @@ export class EmailController {
         });
       }
 
+      // G4-16: 发送前原子扣减配额，fail-closed
+      const quotaKey = user?.id;
+      if (!quotaKey) return res.status(401).json({ success: false, error: "未登录" });
+      const quotaConsumed = await consumeEmailQuota(quotaKey, undefined, 1);
+      if (!quotaConsumed.success) {
+        return res.status(429).json({ success: false, error: "邮件配额已用完，请明日再试" });
+      }
+
       // 发送邮件
       const result = await EmailService.sendSimpleEmail(to, subject, content, from);
 
       if (result.success) {
-        // 邮件配额统计
-        if (user?.id) await addEmailUsage(user.id, 1);
         logger.info("简单邮件发送成功", {
           messageId: result.messageId,
           to,
           subject,
           ip,
-          userId: user?.id,
+          userId: quotaKey,
         });
 
         res.json({
@@ -375,12 +390,14 @@ export class EmailController {
           data: result.data,
         });
       } else {
+        // 发送失败 → 补偿回退配额
+        await refundEmailQuota(quotaKey, undefined, 1);
         logger.error("简单邮件发送失败", {
           error: result.error,
           to,
           subject,
           ip,
-          userId: user?.id,
+          userId: quotaKey,
         });
 
         res.status(500).json({
@@ -406,11 +423,11 @@ export class EmailController {
 
   /**
    * 发送Markdown格式邮件
-   * @param req.body { from: string, to: string[], subject: string, markdown: string, skipWhitelist?: boolean }
+   * @param req.body { from: string, to: string[], subject: string, markdown: string }
    */
   public static async sendMarkdownEmail(req: Request, res: Response) {
     try {
-      const { from, to, subject, markdown, skipWhitelist = false } = req.body;
+      const { from, to, subject, markdown } = req.body;
       const ip = req.ip || "unknown";
       const user = (req as any).user;
 
@@ -418,7 +435,6 @@ export class EmailController {
         from,
         to,
         subject,
-        skipWhitelist,
         ip,
         userId: user?.id,
         username: user?.username,
@@ -439,13 +455,12 @@ export class EmailController {
       // 验证发件人域名
       if (!validateSenderDomainOrRespond(from, req, res)) return;
 
-      // 验证邮箱格式（如果跳过白名单检查，则只验证发件人邮箱）
-      const emailsToValidate = skipWhitelist ? [from] : [from, ...to];
+      // G4-16: 收件人邮箱格式校验不可跳过（删除 skipWhitelist 开关）
+      const emailsToValidate = [from, ...to];
       const emailValidation = EmailService.validateEmails(emailsToValidate);
       if (emailValidation.invalid.length > 0) {
         logger.warn("Markdown邮件发送失败：邮箱格式无效", {
           invalidEmails: emailValidation.invalid,
-          skipWhitelist,
           ip,
           userId: user?.id,
         });
@@ -479,19 +494,25 @@ export class EmailController {
         });
       }
 
+      // G4-16: 发送前原子扣减配额，fail-closed
+      const quotaKey = user?.id;
+      if (!quotaKey) return res.status(401).json({ success: false, error: "未登录" });
+      const quotaConsumed = await consumeEmailQuota(quotaKey, undefined, 1);
+      if (!quotaConsumed.success) {
+        return res.status(429).json({ success: false, error: "邮件配额已用完，请明日再试" });
+      }
+
       // 调用服务层处理markdown转html并发送
       const result = await EmailService.sendMarkdownEmail({ from, to, subject, markdown });
 
       if (result.success) {
-        // 邮件配额统计
-        if (user?.id) await addEmailUsage(user.id, 1);
         logger.info("Markdown邮件发送成功", {
           messageId: result.messageId,
           from,
           to,
           subject,
           ip,
-          userId: user?.id,
+          userId: quotaKey,
         });
         res.json({
           success: true,
@@ -500,13 +521,15 @@ export class EmailController {
           data: result.data,
         });
       } else {
+        // 发送失败 → 补偿回退配额
+        await refundEmailQuota(quotaKey, undefined, 1);
         logger.error("Markdown邮件发送失败", {
           error: result.error,
           from,
           to,
           subject,
           ip,
-          userId: user?.id,
+          userId: quotaKey,
         });
         res.status(500).json({
           success: false,

@@ -6,7 +6,8 @@ export type AdminUserRecord = User & {
   ticketBanned?: boolean;
 };
 
-// G2-22: 敏感字段列表同步——除密码类字段外，TOTP 秘密、恢复码、challenge 也不随管理列表出参。
+// G2-22 + G4-04: 敏感字段列表——除密码类字段外，TOTP 秘密、恢复码、challenge、登录 token、
+// passkey 凭据也不随管理列表出参。
 type SensitiveUserFields =
   | "password"
   | "passwordHash"
@@ -19,7 +20,11 @@ type SensitiveUserFields =
   | "totpSecret"
   | "backupCodes"
   | "pendingChallenge"
-  | "currentChallenge";
+  | "pendingChallengeExpiresAt"
+  | "currentChallenge"
+  | "token"
+  | "tokenExpiresAt"
+  | "passkeyCredentials";
 
 export type SanitizedAdminUser = Omit<AdminUserRecord, SensitiveUserFields>;
 
@@ -68,9 +73,17 @@ export function stripSensitiveUserFields(
     totpSecret,
     backupCodes,
     pendingChallenge,
+    pendingChallengeExpiresAt,
     currentChallenge,
+    token,
+    tokenExpiresAt,
+    passkeyCredentials,
     ...safeUser
   } = user || {};
+  // 未在 User 类型上的字段（如 TOTP counter）兜底剔除，防止经 lean 投影泄露
+  if (safeUser && typeof safeUser === "object" && "lastTotpCounter" in safeUser) {
+    delete (safeUser as Record<string, unknown>).lastTotpCounter;
+  }
   return safeUser as Partial<SanitizedAdminUser>;
 }
 

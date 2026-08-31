@@ -5,7 +5,7 @@
  * 供 authController 及其他业务调用。
  */
 
-import { addEmailUsage, EmailService, getEmailQuota } from "../services/emailService";
+import { consumeEmailQuota, EmailService, refundEmailQuota } from "../services/emailService";
 import logger from "../utils/logger";
 
 // ---------------------------------------------------------------------------
@@ -27,12 +27,21 @@ export interface SendEmailOptions {
    * @default true
    */
   checkQuota?: boolean;
+  /**
+   * G4-17: 配额记账的发起者 userId。已知登录用户时传入（与 emailController 同一套 key）；
+   * 未传时（验证码/匿名场景）按收件人邮箱独立记账（domain 命名空间 = "verification"），
+   * 避免把邮箱地址与用户 id 混在同一配额线上。
+   */
+  userId?: string;
 }
 
 export interface SendEmailResult {
   success: boolean;
   error?: string;
 }
+
+// G4-17: 验证码/匿名路径使用独立的配额命名空间，不与用户 id 路径互相污染
+const VERIFICATION_QUOTA_DOMAIN = "verification";
 
 // ---------------------------------------------------------------------------
 // Core
@@ -42,47 +51,56 @@ export interface SendEmailResult {
  * 统一发送 HTML 邮件，内建配额检查与日志。
  *
  * 流程：
- * 1. （可选）检查邮件配额
+ * 1. （可选）原子扣减配额（G4-18：findOneAndUpdate 一次性判定并扣减，配额查询异常 fail-closed）
  * 2. 调用 EmailService.sendHtmlEmail
- * 3. 成功后递增配额计数
+ * 3. 发送失败时补偿回退配额计数
  * 4. 按统一格式记录日志
  *
  * @returns `SendEmailResult`，调用方根据 `success` 决定后续响应。
  */
 export async function sendEmail(options: SendEmailOptions): Promise<SendEmailResult> {
-  const { to, subject, html, logTag, checkQuota = true } = options;
+  const { to, subject, html, logTag, checkQuota = true, userId } = options;
 
-  // 1. 配额检查
+  // 1. 配额检查（原子扣减，拿不到即超限）
   if (checkQuota) {
+    const isUserScoped = typeof userId === "string" && userId.length > 0;
+    const quotaKey = isUserScoped ? userId : to;
+    const quotaDomain = isUserScoped ? undefined : VERIFICATION_QUOTA_DOMAIN;
+
+    const consumed = await consumeEmailQuota(quotaKey, quotaDomain, 1);
+    if (!consumed.success) {
+      logger.warn(`[${logTag}] 配额已用尽: ${to}`);
+      return {
+        success: false,
+        error: "验证码发送次数已达上限，请明日再试",
+      };
+    }
+
+    // 2. 发送邮件
     try {
-      const quota = await getEmailQuota(to);
-      if (quota.used >= quota.total) {
-        logger.warn(`[${logTag}] 配额已用尽: ${to}, used=${quota.used}, total=${quota.total}`);
-        return {
-          success: false,
-          error: "验证码发送次数已达上限，请明日再试",
-        };
+      const emailResult = await EmailService.sendHtmlEmail([to], subject, html);
+
+      if (emailResult.success) {
+        logger.info(`[${logTag}] 成功发送到: ${to}`);
+        return { success: true };
       }
-    } catch (e) {
-      // 配额查询异常不阻断主流程
-      logger.warn(`[${logTag}] 配额查询异常: ${to}`, e);
+
+      // 3. 发送失败 → 补偿回退
+      await refundEmailQuota(quotaKey, quotaDomain, 1);
+      logger.error(`[${logTag}] 发送失败: ${to}, 错误: ${emailResult.error}`);
+      return { success: false, error: "邮件发送失败，请稍后重试" };
+    } catch (sendError) {
+      await refundEmailQuota(quotaKey, quotaDomain, 1);
+      logger.error(`[${logTag}] 发送异常: ${to}`, sendError);
+      return { success: false, error: "邮件发送失败，请稍后重试" };
     }
   }
 
-  // 2. 发送邮件
+  // 不计配额路径
   try {
     const emailResult = await EmailService.sendHtmlEmail([to], subject, html);
 
     if (emailResult.success) {
-      // 3. 递增配额计数
-      if (checkQuota) {
-        try {
-          await addEmailUsage(to, 1);
-        } catch (e) {
-          logger.warn(`[${logTag}] 配额递增失败`, { email: to, error: e });
-        }
-      }
-
       logger.info(`[${logTag}] 成功发送到: ${to}`);
       return { success: true };
     }

@@ -5,6 +5,9 @@ import {
   getUserAuthByUsername,
   incrementUserDailyUsageAtomic,
   verifyAndMigrateUserPassword,
+  type AdminUserListPageResult,
+  type AdminUserListQueryParams,
+  type AdminUserListStats,
 } from "../services/userService";
 import { sendEmail } from "../services/emailSender";
 import { generateUsageAlertEmailHtml } from "../templates/emailTemplates";
@@ -85,6 +88,27 @@ export const userRepository = {
       return provider.getAdminUserList(opts);
     }
     return provider.getAllUsers();
+  },
+
+  async getAdminUserListPage(
+    query: AdminUserListQueryParams,
+    includeFingerprints: boolean,
+  ): Promise<AdminUserListPageResult> {
+    const provider = getUserStorageProvider();
+    if (typeof provider.getAdminUserListPage === "function") {
+      return provider.getAdminUserListPage(query, includeFingerprints);
+    }
+    // 兜底：provider 不支持分页时退化为全量读取 + 内存分页（stats 为空，不影响主链路）
+    const all = await provider.getAdminUserList({ includeFingerprints });
+    const total = all.length;
+    const start = (query.page - 1) * query.pageSize;
+    const users = all.slice(start, start + query.pageSize);
+    const emptyStats: AdminUserListStats = {
+      total: 0, users: 0, admins: 0, superadmins: 0, trusted: 0, active: 0, suspended: 0,
+      totpEnabled: 0, passkeyEnabled: 0, fingerprintRequired: 0, withFingerprints: 0,
+      ticketViolated: 0, ticketBanned: 0, translationDisabled: 0, translationLimited: 0, totalDailyUsage: 0,
+    };
+    return { users, total, stats: emptyStats, filteredStats: emptyStats };
   },
 
   async getPrimaryAdminAuthUser() {

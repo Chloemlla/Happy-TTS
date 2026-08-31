@@ -7,6 +7,14 @@ import {
   protectPassword,
   verifyPasswordHash,
 } from "../utils/passwordSecurity";
+import {
+  buildAdminUserMatchStage,
+  buildAdminUserStatsGroup,
+  getAdminUserSortField,
+  normalizeAdminUserStats,
+  type AdminUserListQueryParams,
+  type AdminUserListPageResult,
+} from "./adminUserListAggregation";
 
 const userSchema = new mongoose.Schema(
   {
@@ -111,13 +119,8 @@ const ADMIN_USER_LIST_PROJECT = {
   linuxdoId: 1,
   linuxdoUsername: 1,
   linuxdoAvatarUrl: 1,
-  totpSecret: 1,
   totpEnabled: 1,
-  backupCodes: 1,
   passkeyEnabled: 1,
-  passkeyCredentials: 1,
-  pendingChallenge: 1,
-  currentChallenge: 1,
   passkeyVerified: 1,
   requireFingerprint: 1,
   requireFingerprintAt: 1,
@@ -133,8 +136,6 @@ const ADMIN_USER_LIST_PROJECT = {
   dailyUsage: 1,
   lastUsageDate: 1,
   createdAt: 1,
-  token: 1,
-  tokenExpiresAt: 1,
   fingerprintCount: { $size: { $ifNull: ["$fingerprints", []] } },
   latestFingerprint: {
     $let: {
@@ -218,6 +219,48 @@ export const getAdminUserList = async (opts: { includeFingerprints?: boolean } =
 
   const docs = await UserModel.aggregate([{ $project: ADMIN_USER_LIST_PROJECT }]);
   return docs.map(removeAvatarBase64) as unknown as UserType[];
+};
+
+// ========== G4-19: 管理端用户列表下推 aggregation ==========
+// 筛选/排序/分页/统计 pipeline 构建逻辑在 ./adminUserListAggregation（避免本文件超 800 行）。
+
+export type { AdminUserListQueryParams, AdminUserListPageResult, AdminUserListStats } from "./adminUserListAggregation";
+
+export const getAdminUserListPage = async (
+  query: AdminUserListQueryParams,
+  includeFingerprints: boolean,
+): Promise<AdminUserListPageResult> => {
+  const nowIso = new Date().toISOString();
+  const match = buildAdminUserMatchStage(query);
+  const sortField = getAdminUserSortField(query);
+  const sortDir = query.sortOrder === "asc" ? 1 : -1;
+  const project = includeFingerprints ? { ...ADMIN_USER_LIST_PROJECT, fingerprints: 1 } : ADMIN_USER_LIST_PROJECT;
+
+  const facetResults = await UserModel.aggregate([
+    { $match: match },
+    {
+      $facet: {
+        metadata: [{ $count: "total" }],
+        filteredStats: [{ $group: buildAdminUserStatsGroup(nowIso) }],
+        data: [
+          { $sort: { [sortField]: sortDir } },
+          { $skip: (query.page - 1) * query.pageSize },
+          { $limit: query.pageSize },
+          { $project: project },
+        ],
+      },
+    },
+  ]);
+
+  const facet = facetResults[0] || {};
+  const total = Number((facet as any).metadata?.[0]?.total || 0);
+  const filteredStats = normalizeAdminUserStats((facet as any).filteredStats?.[0]);
+  const users = ((facet as any).data || []).map(removeAvatarBase64) as unknown as UserType[];
+
+  const allStatsResults = await UserModel.aggregate([{ $group: buildAdminUserStatsGroup(nowIso) }]);
+  const stats = normalizeAdminUserStats(allStatsResults[0]);
+
+  return { users, total, stats, filteredStats };
 };
 
 export const getAllUsersAuth = async (): Promise<UserType[]> => {

@@ -4,7 +4,7 @@
  */
 import type { Request, Response } from "express";
 import type { SyncCategory } from "../models/nexaiSyncModel";
-import { NexaiSyncService } from "../services/nexaiSyncService";
+import { NexaiSyncService, NexaiSyncTooLargeError, NexaiSyncVersionConflictError } from "../services/nexaiSyncService";
 import logger from "../utils/logger";
 
 const VALID_CATEGORIES: SyncCategory[] = [
@@ -15,6 +15,44 @@ const VALID_CATEGORIES: SyncCategory[] = [
   "passwords",
   "shortUrls",
 ];
+
+// G4-20: 每个数组类别的条目数与单条体积上限（超过返回 413）
+const SYNC_ARRAY_LIMITS: Record<string, { maxItems: number; maxItemBytes: number }> = {
+  notes: { maxItems: 2000, maxItemBytes: 16 * 1024 },
+  conversations: { maxItems: 1000, maxItemBytes: 64 * 1024 },
+  translationHistory: { maxItems: 5000, maxItemBytes: 8 * 1024 },
+  savedPasswords: { maxItems: 500, maxItemBytes: 4 * 1024 },
+  shortUrls: { maxItems: 2000, maxItemBytes: 2 * 1024 },
+};
+const SYNC_MAX_SETTINGS_BYTES = 64 * 1024;
+const SYNC_MAX_PAYLOAD_BYTES = 15 * 1024 * 1024;
+
+function jsonBytes(value: unknown): number {
+  try {
+    return Buffer.byteLength(JSON.stringify(value ?? null));
+  } catch {
+    return 0;
+  }
+}
+
+function validateSyncPayload(payload: Record<string, unknown>): string | null {
+  if (jsonBytes(payload) > SYNC_MAX_PAYLOAD_BYTES) {
+    return "同步数据总体积超过上限";
+  }
+  for (const [key, limits] of Object.entries(SYNC_ARRAY_LIMITS)) {
+    const value = payload[key];
+    if (value === undefined || value === null) continue;
+    if (!Array.isArray(value)) return `${key} 必须是数组`;
+    if (value.length > limits.maxItems) return `${key} 条目数超过上限 (${limits.maxItems})`;
+    for (const item of value) {
+      if (jsonBytes(item) > limits.maxItemBytes) return `${key} 存在单条超过体积上限 (${limits.maxItemBytes} bytes)`;
+    }
+  }
+  if (payload.settings !== undefined && payload.settings !== null && jsonBytes(payload.settings) > SYNC_MAX_SETTINGS_BYTES) {
+    return "settings 体积超过上限";
+  }
+  return null;
+}
 
 function getRequiredNexaiUserId(req: Request, res: Response): string | null {
     const userId = req.nexaiUser?.id;
@@ -28,6 +66,18 @@ function getRequiredNexaiUserId(req: Request, res: Response): string | null {
         code: "NEXAI_AUTH_REQUIRED",
     });
     return null;
+}
+
+function sendSyncError(res: Response, error: unknown): boolean {
+  if (error instanceof NexaiSyncVersionConflictError) {
+    res.status(409).json({ success: false, error: error.message, code: "NEXAI_SYNC_VERSION_CONFLICT" });
+    return true;
+  }
+  if (error instanceof NexaiSyncTooLargeError) {
+    res.status(413).json({ success: false, error: error.message, code: "NEXAI_SYNC_TOO_LARGE" });
+    return true;
+  }
+  return false;
 }
 
 export class NexaiSyncController {
@@ -75,9 +125,11 @@ export class NexaiSyncController {
                 translationHistory,
                 savedPasswords,
                 shortUrls,
+                baseVersion,
             } = req.body;
 
-            const data = await NexaiSyncService.putSyncData(userId, {
+            // G4-20: 控制器层条目数/单条体积校验，超限 413
+            const validationError = validateSyncPayload({
                 settings,
                 notes,
                 conversations,
@@ -85,13 +137,44 @@ export class NexaiSyncController {
                 savedPasswords,
                 shortUrls,
             });
+            if (validationError) {
+                return res.status(413).json({
+                    success: false,
+                    error: validationError,
+                    code: "NEXAI_SYNC_TOO_LARGE",
+                });
+            }
+
+            // G4-21: PUT 必须携带 baseVersion
+            const baseVersionNum = Number(baseVersion);
+            if (!Number.isInteger(baseVersionNum) || baseVersionNum < 1) {
+                return res.status(400).json({
+                    success: false,
+                    error: "缺少有效的 baseVersion 参数",
+                    code: "NEXAI_SYNC_MISSING_BASE_VERSION",
+                });
+            }
+
+            const data = await NexaiSyncService.putSyncData(
+                userId,
+                {
+                    settings,
+                    notes,
+                    conversations,
+                    translationHistory,
+                    savedPasswords,
+                    shortUrls,
+                },
+                baseVersionNum,
+            );
 
             res.json({
                 success: true,
-                data: { lastSyncedAt: data.lastSyncedAt },
+                data: { lastSyncedAt: data.lastSyncedAt, version: data.version },
                 message: "同步数据已上传",
             });
         } catch (error) {
+            if (sendSyncError(res, error)) return;
             logger.error("[NexAI Sync] PUT /sync error:", error);
             res.status(500).json({
                 success: false,
@@ -129,6 +212,25 @@ export class NexaiSyncController {
                 });
             }
 
+            // G4-20: 局部更新同样做体积校验
+            const categoryFieldMap: Record<SyncCategory, string> = {
+                settings: "settings",
+                notes: "notes",
+                conversations: "conversations",
+                translations: "translationHistory",
+                passwords: "savedPasswords",
+                shortUrls: "shortUrls",
+            };
+            const field = categoryFieldMap[category];
+            const validationError = validateSyncPayload({ [field]: categoryData });
+            if (validationError) {
+                return res.status(413).json({
+                    success: false,
+                    error: validationError,
+                    code: "NEXAI_SYNC_TOO_LARGE",
+                });
+            }
+
             const result = await NexaiSyncService.patchSyncData(userId, category, categoryData);
 
             res.json({
@@ -137,6 +239,7 @@ export class NexaiSyncController {
                 message: `${category} 同步数据已更新`,
             });
         } catch (error) {
+            if (sendSyncError(res, error)) return;
             logger.error("[NexAI Sync] PATCH /sync/:category error:", error);
             res.status(500).json({
                 success: false,
@@ -250,6 +353,16 @@ export class NexaiSyncController {
                 });
             }
 
+            // G4-20: 增量合并同样做条目/体积校验
+            const validationError = validateSyncPayload(data as Record<string, unknown>);
+            if (validationError) {
+                return res.status(413).json({
+                    success: false,
+                    error: validationError,
+                    code: "NEXAI_SYNC_TOO_LARGE",
+                });
+            }
+
             const serverChanges = await NexaiSyncService.mergeIncrementalData(
                 userId,
                 data,
@@ -262,6 +375,7 @@ export class NexaiSyncController {
                 message: "增量同步完成",
             });
         } catch (error) {
+            if (sendSyncError(res, error)) return;
             logger.error("[NexAI Sync] POST /sync/incremental error:", error);
             res.status(500).json({
                 success: false,

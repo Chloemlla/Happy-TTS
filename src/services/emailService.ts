@@ -456,6 +456,89 @@ export async function resetEmailQuota(userId: string, domain?: string) {
   writeQuotaFile(all);
 }
 
+/**
+ * G4-18: 原子扣减邮件配额。
+ * 只有当该 key 当日配额未用尽（或窗口已过期需要重置）时才会扣减，否则返回 success:false。
+ * Mongo 不可用或查询异常时 fail-closed（不允许外发），避免配额形同虚设。
+ */
+export async function consumeEmailQuota(
+  userId: string,
+  domain?: string,
+  count = 1,
+): Promise<{ success: boolean; quotaTotal: number }> {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return { success: false, quotaTotal: 0 };
+    }
+    const safeUserId = typeof userId === "string" ? userId : "";
+    const safeDomain = typeof domain === "string" ? normalizeDomain(domain) : "default";
+    const domainQuotaMap = buildDomainQuotaMap();
+    const quotaTotal = safeDomain && domainQuotaMap[safeDomain] ? domainQuotaMap[safeDomain] : _EMAIL_QUOTA_TOTAL;
+    const now = dayjs();
+    const resetAt = now.add(1, "day").startOf("day").toISOString();
+
+    // 确保配额文档存在（首次使用），避免 findOneAndUpdate 的 upsert 与 $or 组合的歧义
+    await EmailQuotaModel.updateOne(
+      { userId: safeUserId, domain: safeDomain },
+      { $setOnInsert: { used: 0, resetAt } },
+      { upsert: true },
+    );
+
+    const windowExpired = {
+      $or: [
+        { $eq: ["$resetAt", ""] },
+        {
+          $lt: [
+            { $convert: { input: "$resetAt", to: "date", onNull: new Date(0), onError: NEVER_EXPIRES_AT } },
+            now.toDate(),
+          ],
+        },
+      ],
+    };
+
+    // 命中条件：窗口过期（重置并扣减）或未超配额（仅扣减）。
+    // 文档存在但配额用尽且窗口未过期时无分支命中 → 返回 null → 判定超限。
+    const updated = await EmailQuotaModel.findOneAndUpdate(
+      {
+        userId: safeUserId,
+        domain: safeDomain,
+        $or: [{ used: { $lt: quotaTotal } }, { $expr: windowExpired }],
+      },
+      [
+        {
+          $set: {
+            used: { $cond: [windowExpired, count, { $add: [{ $ifNull: ["$used", 0] }, count] }] },
+            resetAt: { $cond: [windowExpired, resetAt, "$resetAt"] },
+          },
+        },
+      ],
+      { returnDocument: "after" },
+    );
+
+    return { success: Boolean(updated), quotaTotal };
+  } catch {
+    // 配额查询/扣减异常 → fail-closed，禁止外发
+    return { success: false, quotaTotal: 0 };
+  }
+}
+
+/**
+ * G4-18: 发送失败时补偿回退配额计数（仅在 used > 0 时扣回，避免负值）。
+ */
+export async function refundEmailQuota(userId: string, domain?: string, count = 1): Promise<void> {
+  try {
+    if (mongoose.connection.readyState !== 1) return;
+    const safeUserId = typeof userId === "string" ? userId : "";
+    const safeDomain = typeof domain === "string" ? normalizeDomain(domain) : "default";
+    await EmailQuotaModel.updateOne(
+      { userId: safeUserId, domain: safeDomain, used: { $gt: 0 } },
+      { $inc: { used: -count } },
+    );
+  } catch {
+    // 回退失败仅影响计数，不阻断主流程
+  }
+}
+
 export class EmailService {
   static buildSenderAddress(fromPrefix?: string, domain?: string, displayName?: string) {
     const availableDomains = getAllSenderDomains();

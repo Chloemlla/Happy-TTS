@@ -46,6 +46,24 @@ mockSeedUser({
 const mockUserService = {
   getAllUsers: jest.fn(async () => Array.from(mockUsers.values()).map((user) => mockCloneUser(user))),
   getAdminUserList: jest.fn(async () => Array.from(mockUsers.values()).map((user) => mockCloneUser(user))),
+  getAdminUserListPage: jest.fn(async (query: any, _includeFingerprints: boolean) => {
+    const all = Array.from(mockUsers.values()).map((user) => mockCloneUser(user));
+    const page = Math.max(1, Number(query?.page) || 1);
+    const pageSize = Math.max(1, Math.min(100, Number(query?.pageSize) || 20));
+    const start = (page - 1) * pageSize;
+    const total = all.length;
+    const emptyStats = {
+      total: 0, users: 0, admins: 0, superadmins: 0, trusted: 0, active: 0, suspended: 0,
+      totpEnabled: 0, passkeyEnabled: 0, fingerprintRequired: 0, withFingerprints: 0,
+      ticketViolated: 0, ticketBanned: 0, translationDisabled: 0, translationLimited: 0, totalDailyUsage: 0,
+    };
+    return {
+      users: all.slice(start, start + pageSize),
+      total,
+      stats: { ...emptyStats, total },
+      filteredStats: { ...emptyStats, total },
+    };
+  }),
   getAllUsersAuth: jest.fn(async () => Array.from(mockUsers.values()).map((user) => mockCloneUser(user))),
   getUserById: jest.fn(async (id: string) => mockCloneUser(mockUsers.get(id))),
   getUserAuthById: jest.fn(async (id: string) => mockCloneUser(mockUsers.get(id))),

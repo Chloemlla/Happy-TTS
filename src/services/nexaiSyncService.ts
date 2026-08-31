@@ -12,6 +12,24 @@ import {
 } from "../models/nexaiSyncModel";
 import logger from "../utils/logger";
 
+// G4-20: 单文档近似字节数兜底（BSON 上限 16MB，留安全余量）
+export const NEXAI_SYNC_MAX_BYTES = 15 * 1024 * 1024;
+
+// G4-21: 乐观并发控制错误——全量上传版本不匹配时返回 409
+export class NexaiSyncVersionConflictError extends Error {
+  constructor() {
+    super("同步版本冲突，请先拉取最新数据");
+    this.name = "NexaiSyncVersionConflictError";
+  }
+}
+
+export class NexaiSyncTooLargeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "NexaiSyncTooLargeError";
+  }
+}
+
 const SENSITIVE_SETTINGS_FIELDS = ["apiKey", "vertexApiKey", "webdavPassword", "upstashToken"] as const;
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -92,24 +110,62 @@ export class NexaiSyncService {
   }
 
   // ---------- 全量覆盖同步数据 ----------
-  static async putSyncData(userId: string, data: Partial<Omit<INexaiSyncData, "userId">>): Promise<INexaiSyncData> {
+  static async putSyncData(
+    userId: string,
+    data: Partial<Omit<INexaiSyncData, "userId">>,
+    baseVersion?: number,
+  ): Promise<INexaiSyncData> {
     try {
       const safeData = redactLegacySyncPayload(data as unknown as Record<string, unknown>);
+      // 防止客户端通过 body 直接写入 version / lastSyncedAt（版本号只能由服务端 $inc 控制）
+      if (safeData && typeof safeData === "object" && "version" in safeData) {
+        delete (safeData as Record<string, unknown>).version;
+      }
       const update = {
         ...safeData,
         userId,
         lastSyncedAt: new Date(),
       };
 
-      const doc = await NexaiSyncModel.findOneAndUpdate(
-        { userId },
-        { $set: update },
-        { upsert: true, returnDocument: "after", lean: true },
-      );
+      // G4-20: 落库前近似字节数兜底，防止单文档超过 16MB BSON 硬墙
+      let payloadBytes = 0;
+      try {
+        payloadBytes = Buffer.byteLength(JSON.stringify(update));
+      } catch {
+        payloadBytes = 0;
+      }
+      if (payloadBytes > NEXAI_SYNC_MAX_BYTES) {
+        throw new NexaiSyncTooLargeError(`同步数据体积过大 (${payloadBytes} bytes)`);
+      }
 
-      logger.info(`[NexAI Sync] putSyncData OK for user ${userId}`);
-      return redactSyncDocumentForResponse(doc as INexaiSyncData) as INexaiSyncData;
+      // G4-21: 全量上传必须带 baseVersion，findOneAndUpdate 原子校验版本并自增
+      if (typeof baseVersion !== "number" || !Number.isInteger(baseVersion)) {
+        throw new NexaiSyncVersionConflictError();
+      }
+
+      const updated = await NexaiSyncModel.findOneAndUpdate(
+        { userId, version: baseVersion },
+        { $set: update, $inc: { version: 1 } },
+        { returnDocument: "after", lean: true },
+      );
+      if (updated) {
+        logger.info(`[NexAI Sync] putSyncData OK for user ${userId}`);
+        return redactSyncDocumentForResponse(updated as INexaiSyncData) as INexaiSyncData;
+      }
+
+      // 未命中：区分「文档不存在(首次上传)」与「版本冲突」
+      const existing = await NexaiSyncModel.findOne({ userId }).select("version").lean();
+      if (existing) {
+        throw new NexaiSyncVersionConflictError();
+      }
+      if (baseVersion !== 1) {
+        throw new NexaiSyncVersionConflictError();
+      }
+      const created = await NexaiSyncModel.create({ ...update, version: 2 });
+      logger.info(`[NexAI Sync] putSyncData created initial doc for user ${userId}`);
+      return redactSyncDocumentForResponse(created.toObject() as INexaiSyncData) as INexaiSyncData;
     } catch (error) {
+      if (error instanceof NexaiSyncVersionConflictError || error instanceof NexaiSyncTooLargeError) throw error;
       logger.error("[NexAI Sync] putSyncData error:", error);
       throw error;
     }
@@ -370,6 +426,18 @@ export class NexaiSyncService {
       }
 
       doc.lastSyncedAt = new Date();
+
+      // G4-20: 增量合并落库前同样做近似字节数兜底
+      let mergedBytes = 0;
+      try {
+        mergedBytes = Buffer.byteLength(JSON.stringify(doc.toObject ? doc.toObject() : doc));
+      } catch {
+        mergedBytes = 0;
+      }
+      if (mergedBytes > NEXAI_SYNC_MAX_BYTES) {
+        throw new NexaiSyncTooLargeError(`同步数据体积过大 (${mergedBytes} bytes)`);
+      }
+
       await doc.save();
 
       const totalIncoming =

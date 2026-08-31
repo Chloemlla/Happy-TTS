@@ -127,6 +127,8 @@ const nexaiSyncSchema = new mongoose.Schema(
     translationHistory: { type: [translationRecordSchema], default: [] },
     savedPasswords: { type: [savedPasswordSchema], default: [] },
     shortUrls: { type: [shortUrlRecordSchema], default: [] },
+    // G4-21: 乐观并发版本号，全量上传 PUT 必须携带 baseVersion，未命中即版本冲突
+    version: { type: Number, default: 1 },
     lastSyncedAt: { type: Date, default: Date.now },
   },
   {
@@ -236,6 +238,7 @@ export interface INexaiSyncData {
   translationHistory: INexaiTranslationRecord[];
   savedPasswords: INexaiSavedPassword[];
   shortUrls: INexaiShortUrlRecord[];
+  version?: number;
   lastSyncedAt: Date;
   createdAt?: Date;
   updatedAt?: Date;
