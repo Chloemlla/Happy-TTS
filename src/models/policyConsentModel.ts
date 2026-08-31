@@ -153,5 +153,5 @@ const createPolicyConsentModel = () =>
   mongoose.model<IPolicyConsent, IPolicyConsentModel>("PolicyConsent", policyConsentSchema);
 
 export const PolicyConsent =
-  (mongoose.models.PolicyConsent as ReturnType<typeof createPolicyConsentModel>) ||
+  (mongoose.models.PolicyConsent as unknown as ReturnType<typeof createPolicyConsentModel>) ||
   createPolicyConsentModel();
