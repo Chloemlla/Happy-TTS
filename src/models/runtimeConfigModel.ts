@@ -14,6 +14,7 @@ export const RUNTIME_CONFIG_KEYS = [
   "NEXAI_SIGNING",
   "CDICT_SIGNING",
   "CDICT_DONATION",
+  "LUMEN",
 ] as const;
 
 export type RuntimeConfigKey = (typeof RUNTIME_CONFIG_KEYS)[number];
