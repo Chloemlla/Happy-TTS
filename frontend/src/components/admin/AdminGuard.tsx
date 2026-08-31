@@ -128,7 +128,7 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
     if (!isAuthorized) return undefined;
 
     let cancelled = false;
-    let timer: ReturnType<typeof setTimeout>;
+    let timer: ReturnType<typeof window.setTimeout>;
     let consecutiveFailures = 0;
     const MAX_BACKOFF_MS = VERIFY_TTL_MS * 4; // 封顶 20 分钟
 

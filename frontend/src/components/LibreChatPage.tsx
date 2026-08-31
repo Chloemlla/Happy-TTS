@@ -308,7 +308,7 @@ const LibreChatPage: React.FC = () => {
   const streamTimerRef = useRef<number | null>(null);
   // G12-17：历史兜底轮询（慢速 setTimeout 链 + AbortController 串行化）
   const historyPollAbortRef = useRef<AbortController | null>(null);
-  const historyPollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const historyPollTimeoutRef = useRef<ReturnType<typeof window.setTimeout> | null>(null);
   // G12-18：SSE 重连退避（3s → 6s → … 封顶 60s，超过上限后停止自动重连）
   const sseRetryDelayRef = useRef(3000);
   const sseRetryCountRef = useRef(0);
