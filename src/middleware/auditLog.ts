@@ -41,6 +41,11 @@ const SENSITIVE_AUDIT_FIELDS = [
   "jwt",
   "refresh_token",
   "access_token",
+  "code",
+  "otp",
+  "sig",
+  "signature",
+  "key",
 ];
 
 export function auditLog(options: AuditLogOptions) {

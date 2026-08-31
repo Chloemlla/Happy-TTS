@@ -73,7 +73,24 @@ async function hasStoredLibreChatProvider(): Promise<boolean> {
   );
 }
 
+// G5-36: 探测结果进程内快照缓存（TTL 30s），避免匿名可达的 /health/frontend-visit 每次调用都跑 6 项探测查询。
+let cachedProbe: OptionalCapabilityProbeSnapshot | null = null;
+let cachedProbeAt = 0;
+const PROBE_CACHE_TTL_MS = 30_000;
+
 export async function probeOptionalCapabilities(): Promise<OptionalCapabilityProbeSnapshot> {
+  const now = Date.now();
+  if (cachedProbe && now - cachedProbeAt < PROBE_CACHE_TTL_MS) {
+    return cachedProbe;
+  }
+
+  const snapshot = await doProbeCapabilities();
+  cachedProbe = snapshot;
+  cachedProbeAt = now;
+  return snapshot;
+}
+
+async function doProbeCapabilities(): Promise<OptionalCapabilityProbeSnapshot> {
   const [
     turnstileConfig,
     hcaptchaConfig,

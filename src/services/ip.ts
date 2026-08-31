@@ -1,10 +1,11 @@
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { isIP } from "node:net";
 import { join } from "node:path";
 import axios, { type AxiosError } from "axios";
-import cheerio from "cheerio";
 import { logger } from "./logger";
 import { mongoose } from "./mongoService";
+import { registerShutdownStep, installShutdownHandlers } from "./shutdown";
 
 const IP_WHITELIST = (process.env.IP_WHITELIST || "").split(",").filter(Boolean);
 
@@ -134,24 +135,43 @@ const ipCache = new Map<string, { info: IPInfo; timestamp: number }>();
 const CACHE_TTL = 3600000; // 1小时缓存
 const MAX_CACHE_SIZE = 100; // 最大缓存条数，超出自动清理最早的key
 const MAX_CONCURRENT_REQUESTS = 50; // 降低并发请求数
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // 增加重试延迟到1秒
+const CONCURRENCY_QUEUE_LIMIT = 200; // G5-10: 并发排队上限，超出直接走兜底而非无上限忙等
 let currentRequests = 0;
+let waitingRequests = 0;
 
-// API提供商列表
+// G5-10: 外部归属地查询总预算（毫秒），超时立即返回"未知"兜底，不再三层重试叠乘。
+const TOTAL_QUERY_BUDGET_MS = 1500;
+
+// G5-10: provider 熔断——连续失败冷却 N 分钟不再尝试。
+const PROVIDER_COOLDOWN_MS = 5 * 60 * 1000;
+const providerFailureUntil = new Map<string, number>();
+
+function isProviderInCooldown(name: string): boolean {
+  const until = providerFailureUntil.get(name);
+  return until !== undefined && until > Date.now();
+}
+
+function markProviderFailure(name: string): void {
+  providerFailureUntil.set(name, Date.now() + PROVIDER_COOLDOWN_MS);
+}
+
+async function withTotalBudget<T>(promise: Promise<T>, fallback: T): Promise<T> {
+  let timer: NodeJS.Timeout | null = null;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error("IP 查询总预算超时")), TOTAL_QUERY_BUDGET_MS);
+    timer.unref?.();
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } catch {
+    return fallback;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+// API提供商列表（G5-35: 只保留 https，ip-api.com 免费版不支持 HTTPS 已移除，避免访客 IP 明文外发）
 const API_PROVIDERS: APIProvider[] = [
-  {
-    name: "ip-api",
-    url: (ip: string) => `http://ip-api.com/json/${ip}`,
-    transform: (data: any, requestedIp: string): IPInfo => ({
-      ip: data.query || requestedIp,
-      country: data.country || "未知",
-      region: data.regionName || "未知",
-      city: data.city || "未知",
-      isp: data.isp || "未知",
-    }),
-    validate: (data: any) => data && data.status !== "fail",
-  },
   {
     name: "ipapi.co",
     url: (ip: string) => `https://ipapi.co/${ip}/json/`,
@@ -178,24 +198,20 @@ const API_PROVIDERS: APIProvider[] = [
   },
 ];
 
-// 重试函数
-async function withRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): Promise<T> {
-  try {
-    return await fn();
-  } catch (error) {
-    if (retries > 0) {
-      logger.error(`IP查询失败，${RETRY_DELAY / 1000}秒后重试... 剩余重试次数: ${retries}`);
-      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
-      return withRetry(fn, retries - 1);
-    }
-    throw error;
-  }
-}
-
-// 并发控制
+// 并发控制（G5-10: 有界等待——排队超限直接抛错走兜底，不做无上限忙等）
 async function withConcurrencyLimit<T>(fn: () => Promise<T>): Promise<T> {
-  while (currentRequests >= MAX_CONCURRENT_REQUESTS) {
-    await new Promise((resolve) => setTimeout(resolve, 100));
+  if (currentRequests >= MAX_CONCURRENT_REQUESTS) {
+    if (waitingRequests >= CONCURRENCY_QUEUE_LIMIT) {
+      throw new Error("IP 查询并发排队超限");
+    }
+    waitingRequests++;
+    try {
+      while (currentRequests >= MAX_CONCURRENT_REQUESTS) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+    } finally {
+      waitingRequests--;
+    }
   }
 
   currentRequests++;
@@ -218,49 +234,15 @@ function isValidPublicIPv4(ip: string): boolean {
     ip.startsWith("192.168.") ||
     (ip.startsWith("172.") && parts[1] >= 16 && parts[1] <= 31) ||
     ip.startsWith("127.") ||
+    ip.startsWith("169.254.") || // 云元数据/链路本地
+    (ip.startsWith("100.64.") && parts[1] >= 64 && parts[1] <= 127) || // CGNAT
+    ip.startsWith("192.0.2.") || // TEST-NET-1
+    parts[0] >= 224 || // 224.0.0.0/4 组播 + 240.0.0.0/4 保留
     ip === "0.0.0.0" ||
     ip === "255.255.255.255"
   )
     return false;
   return true;
-}
-
-// 新增IP38网页解析方法
-async function queryIp38(ip: string): Promise<IPInfo> {
-  // SSRF防护：已严格校验ip为公网IPv4，禁止内网/环回/保留/0.0.0.0/255.255.255.255
-  if (!isValidPublicIPv4(ip)) {
-    throw new Error("非法IP，禁止查询内网/环回/保留/危险地址");
-  }
-  try {
-    // codeql[request-forgery]: ip已严格校验为公网IPv4
-    const url = `https://www.ip38.com/ip/${encodeURIComponent(ip)}.htm`;
-    const resp = await axios.get(url, { timeout: 8000 });
-    const html = resp.data;
-    const $ = cheerio.load(html);
-    // 解析页面结构
-    // IP: 页面h1下的 .query-box strong
-    // 结果: .query-box .result-data
-    // 兼容页面变动，优先找高亮IP和红色归属地
-    const ipText = $("h1 strong").first().text().trim() || ip;
-    let country = "未知",
-      region = "未知",
-      city = "未知",
-      isp = "未知";
-    // 解析红色归属地
-    const resultText = $(".query-box .result-data").text().replace(/\s+/g, " ").trim();
-    // 例：中国 香港 新界 荃湾区 IPXO
-    if (resultText) {
-      const parts = resultText.split(" ");
-      if (parts.length >= 1) country = parts[0];
-      if (parts.length >= 2) region = parts[1];
-      if (parts.length >= 3) city = parts[2];
-      if (parts.length >= 4) isp = parts.slice(3).join(" ");
-    }
-    return { ip: ipText, country, region, city, isp };
-  } catch (e: any) {
-    logger.error("ip38.com 网页查询失败", { ip, error: e.message });
-    throw e;
-  }
 }
 
 // 新增tool.lu/ip/ajax.html查询方法
@@ -277,6 +259,10 @@ async function queryToolLu(ip: string): Promise<IPInfo> {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       },
       timeout: 8000,
+      // G5-35: 响应体大小上限 + 禁重定向，防第三方返回超大响应/被劫持跳转。
+      maxContentLength: 256 * 1024,
+      maxBodyLength: 256 * 1024,
+      maxRedirects: 0,
     });
     const data = resp.data;
     if (data?.status && data.text) {
@@ -308,37 +294,42 @@ async function queryToolLu(ip: string): Promise<IPInfo> {
   }
 }
 
-// 优先用ip38.com网页，其次用tool.lu，再用API_PROVIDERS
+// 依次尝试 tool.lu 与 API_PROVIDERS（G5-35: 已移除 HTML 抓取分支 queryIp38）
 async function tryAllProviders(ip: string): Promise<IPInfo> {
   // SSRF防护：只允许合法公网IPv4，禁止内网/环回/保留/非法IP
   if (!isValidPublicIPv4(ip)) {
     throw new Error("非法IP，禁止查询内网/环回/保留地址");
   }
-  // 先尝试ip38网页
-  try {
-    return await queryIp38(ip);
-  } catch (_e: any) {
-    logger.error("ip38.com 查询失败，尝试tool.lu", { ip });
+  // 先尝试tool.lu
+  if (!isProviderInCooldown("tool.lu")) {
+    try {
+      return await queryToolLu(ip);
+    } catch (_e: any) {
+      markProviderFailure("tool.lu");
+      logger.error("tool.lu 查询失败，尝试备用API", { ip });
+    }
   }
-  // 再尝试tool.lu
-  try {
-    return await queryToolLu(ip);
-  } catch (_e: any) {
-    logger.error("tool.lu 查询失败，尝试备用API", { ip });
-  }
-  // 失败后fallback到原有API
+  // 失败后fallback到 API_PROVIDERS
   for (const provider of API_PROVIDERS) {
+    if (isProviderInCooldown(provider.name)) {
+      continue;
+    }
     try {
       const response = await axios.get(provider.url(ip), {
         timeout: 5000,
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         },
+        // G5-35: 响应体大小上限 + 禁重定向。
+        maxContentLength: 256 * 1024,
+        maxBodyLength: 256 * 1024,
+        maxRedirects: 0,
       });
       if (provider.validate(response.data)) {
         return provider.transform(response.data, ip);
       }
     } catch (error) {
+      markProviderFailure(provider.name);
       const axiosError = error as AxiosError;
       logger.error(`${provider.name} API查询失败: ${axiosError.message}`);
     }
@@ -365,8 +356,25 @@ interface BulkWriteItem {
 const bulkWriteQueue: BulkWriteItem[] = [];
 const BULK_WRITE_SIZE = 50; // 批量写入大小
 const BULK_WRITE_INTERVAL = 2000; // 2秒批量写入间隔
+const BULK_WRITE_MAX_QUEUE = 2000; // G5-11: 队列上界，超限丢弃最旧
 let bulkWriteTimer: NodeJS.Timeout | null = null;
 let isProcessingBulkWrite = false;
+let bulkWriteBackoffMs = BULK_WRITE_INTERVAL; // G5-11: 失败指数退避
+
+// G5-11: LOCAL_CACHE 加上界（5000），避免 IP 洪泛下线性增长 OOM。
+const MAX_LOCAL_CACHE_SIZE = 5000;
+const localCacheKeyOrder: string[] = [];
+
+function setLocalCacheEntry(ip: string, info: IPInfo): void {
+  if (!(ip in LOCAL_CACHE)) {
+    localCacheKeyOrder.push(ip);
+  }
+  LOCAL_CACHE[ip] = info;
+  if (localCacheKeyOrder.length > MAX_LOCAL_CACHE_SIZE) {
+    const oldest = localCacheKeyOrder.shift();
+    if (oldest !== undefined) delete LOCAL_CACHE[oldest];
+  }
+}
 
 // 批量写入处理函数
 async function processBulkWrite(): Promise<void> {
@@ -405,25 +413,32 @@ async function processBulkWrite(): Promise<void> {
       });
 
       incrementStat("bulkWriteCount");
+      bulkWriteBackoffMs = BULK_WRITE_INTERVAL;
 
       logger.log(`批量写入${itemsToWrite.length}条IP信息到MongoDB`);
 
       // 更新本地缓存
       itemsToWrite.forEach((item) => {
-        LOCAL_CACHE[item.ip] = {
+        setLocalCacheEntry(item.ip, {
           ip: item.ip,
           country: item.country,
           region: item.region,
           city: item.city,
           isp: item.isp,
           timestamp: item.timestamp.getTime(),
-        };
+        });
       });
     }
   } catch (error) {
     logger.error("MongoDB批量写入失败:", error);
-    // 失败的项目重新加入队列
-    bulkWriteQueue.unshift(...itemsToWrite);
+    // G5-11: 回灌改为 concat 避免 spread 撞参数上限；队列设上限，超限丢弃最旧并计数告警。
+    bulkWriteBackoffMs = Math.min(bulkWriteBackoffMs * 2, 30_000);
+    bulkWriteQueue.splice(0, 0, ...itemsToWrite);
+    if (bulkWriteQueue.length > BULK_WRITE_MAX_QUEUE) {
+      const dropped = bulkWriteQueue.length - BULK_WRITE_MAX_QUEUE;
+      bulkWriteQueue.splice(0, dropped);
+      logger.warn("[IPInfo] 批量写入队列超限，丢弃最旧 %d 条", dropped);
+    }
   } finally {
     isProcessingBulkWrite = false;
 
@@ -443,12 +458,17 @@ function scheduleBulkWrite(): void {
   bulkWriteTimer = setTimeout(async () => {
     bulkWriteTimer = null;
     await processBulkWrite();
-  }, BULK_WRITE_INTERVAL);
+  }, bulkWriteBackoffMs);
 }
 
 // 添加项目到批量写入队列
 function addToBulkWriteQueue(item: BulkWriteItem): void {
   bulkWriteQueue.push(item);
+  if (bulkWriteQueue.length > BULK_WRITE_MAX_QUEUE) {
+    const dropped = bulkWriteQueue.length - BULK_WRITE_MAX_QUEUE;
+    bulkWriteQueue.splice(0, dropped);
+    logger.warn("[IPInfo] 批量写入队列超限，丢弃最旧 %d 条", dropped);
+  }
 
   // 如果队列达到批量大小，立即处理
   if (bulkWriteQueue.length >= BULK_WRITE_SIZE) {
@@ -476,14 +496,14 @@ async function initializeLocalStorage(): Promise<void> {
         .sort({ lastQueried: -1 }); // 按最近查询时间排序，优先加载热点数据
 
       for (const doc of all) {
-        LOCAL_CACHE[doc.ip] = {
+        setLocalCacheEntry(doc.ip, {
           ip: doc.ip,
           country: doc.country,
           region: doc.region,
           city: doc.city,
           isp: doc.isp,
           timestamp: doc.timestamp instanceof Date ? doc.timestamp.getTime() : doc.timestamp,
-        };
+        });
       }
       logger.log(`从MongoDB加载${all.length}条IP记录到本地缓存`);
       return;
@@ -535,10 +555,10 @@ async function saveIPInfoToLocal(info: IPInfo): Promise<void> {
       addToBulkWriteQueue(bulkItem);
 
       // 立即更新本地缓存
-      LOCAL_CACHE[info.ip] = {
+      setLocalCacheEntry(info.ip, {
         ...info,
         timestamp: Date.now(),
-      };
+      });
 
       return;
     }
@@ -547,10 +567,10 @@ async function saveIPInfoToLocal(info: IPInfo): Promise<void> {
   }
   // 本地文件兜底
   try {
-    LOCAL_CACHE[info.ip] = {
+    setLocalCacheEntry(info.ip, {
       ...info,
       timestamp: Date.now(),
-    };
+    });
     await writeFile(IP_DATA_FILE, JSON.stringify(LOCAL_CACHE, null, 2));
   } catch (error) {
     logger.error("保存 IP 信息到本地存储失败:", error);
@@ -595,7 +615,7 @@ async function queryIPFromMongoDB(ip: string): Promise<IPInfo | null> {
               ? (doc as any).timestamp.getTime()
               : ((doc as any).timestamp as number),
         };
-        LOCAL_CACHE[ip] = info;
+        setLocalCacheEntry(ip, info);
 
         // 更新查询统计（异步执行，不等待结果）
         IPInfoModel.updateOne(
@@ -757,17 +777,15 @@ function resolveIPInfoDeduped(ip: string): Promise<IPInfo> {
       return localInfo;
     }
 
-    // 调用外部API
+    // 调用外部API（G5-10: 去掉 withRetry 嵌套重试，由 getIPInfo 的总预算兜底）
     logger.log("开始查询外部API获取IP信息", { ip });
     return await withConcurrencyLimit(async () => {
-      return await withRetry(async () => {
-        const info = await tryAllProviders(ip);
-        incrementStat("apiCalls");
-        setIpCache(ip, { info, timestamp: Date.now() });
-        await saveIPInfoToLocal(info);
-        logger.log("成功获取IP信息", { ip, info });
-        return info;
-      });
+      const info = await tryAllProviders(ip);
+      incrementStat("apiCalls");
+      setIpCache(ip, { info, timestamp: Date.now() });
+      await saveIPInfoToLocal(info);
+      logger.log("成功获取IP信息", { ip, info });
+      return info;
     });
   })().finally(() => {
     inFlightLookups.delete(ip);
@@ -777,14 +795,50 @@ function resolveIPInfoDeduped(ip: string): Promise<IPInfo> {
   return task;
 }
 
+// G5-10: 短 TTL 负缓存，避免失败 IP 反复打外部查询。
+const NEGATIVE_CACHE_TTL_MS = 60_000;
+const negativeCache = new Map<string, number>();
+
 export async function getIPInfo(ip: string): Promise<IPInfo> {
   const startTime = Date.now();
   incrementStat("totalQueries");
 
   try {
-    if (!isValidPublicIPv4(ip)) {
+    // G5-16: 先归一化（::ffff: 剥离、::1→127.0.0.1）再校验，双栈部署下 IPv6 客户端不再恒为"非法IP"。
+    let normalizedIp = (ip || "").trim();
+    if (!normalizedIp || normalizedIp === "::1" || normalizedIp === "localhost") {
+      normalizedIp = "127.0.0.1";
+    }
+    normalizedIp = normalizedIp.replace(/^::ffff:/i, "");
+
+    const ipType = isIP(normalizedIp);
+    if (ipType === 0) {
       return {
-        ip,
+        ip: normalizedIp,
+        country: "非法IP",
+        region: "非法IP",
+        city: "非法IP",
+        isp: "非法IP",
+      };
+    }
+    // 先判内网（IPv4/IPv6 都覆盖），再区分公网 IPv6 / 公网 IPv4。
+    if (isPrivateIP(normalizedIp)) {
+      logger.log("检测到内网IP，返回本地信息", { ip: normalizedIp });
+      return getPrivateIPInfo(normalizedIp);
+    }
+    // G5-16: 公网 IPv6 现有 provider 不支持，明确返回"未知"而不是"非法IP"。
+    if (ipType === 6) {
+      return {
+        ip: normalizedIp,
+        country: "未知",
+        region: "未知",
+        city: "未知",
+        isp: "未知",
+      };
+    }
+    if (!isValidPublicIPv4(normalizedIp)) {
+      return {
+        ip: normalizedIp,
         country: "非法IP",
         region: "非法IP",
         city: "非法IP",
@@ -792,52 +846,41 @@ export async function getIPInfo(ip: string): Promise<IPInfo> {
       };
     }
 
-    let lastError: any = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        // 处理特殊IP
-        if (!ip || ip === "::1" || ip === "localhost") {
-          ip = "127.0.0.1";
-        }
-        ip = ip.replace(/^::ffff:/, "");
-
-        if (isPrivateIP(ip)) {
-          logger.log("检测到内网IP，返回本地信息", { ip });
-          return getPrivateIPInfo(ip);
-        }
-
-        // 检查内存缓存
-        const cached = ipCache.get(ip);
-        if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-          incrementStat("cacheHits");
-          logger.log("使用内存缓存的IP信息", { ip });
-          return cached.info;
-        }
-
-        return await resolveIPInfoDeduped(ip);
-      } catch (error) {
-        lastError = error;
-        incrementStat("errors");
-        logger.error(`IP信息查询失败（第${attempt + 1}次），2秒后重试...`, {
-          ip,
-          error: error instanceof Error ? error.message : String(error),
-        });
-
-        if (attempt < 2) {
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-        }
-      }
+    // 检查内存缓存（含后台任务成功写入的正向结果）
+    const cached = ipCache.get(normalizedIp);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+      incrementStat("cacheHits");
+      logger.log("使用内存缓存的IP信息", { ip: normalizedIp });
+      return cached.info;
     }
 
-    // 全部失败后兜底
-    incrementStat("errors");
-    logger.error("IP信息查询连续失败，返回默认信息", {
-      ip,
-      error: lastError instanceof Error ? lastError.message : String(lastError),
-    });
+    // 负缓存命中
+    const negExpire = negativeCache.get(normalizedIp);
+    if (negExpire && negExpire > Date.now()) {
+      return {
+        ip: normalizedIp,
+        country: "未知",
+        region: "未知",
+        city: "未知",
+        isp: "未知",
+      };
+    }
 
+    // G5-10: 单次查询 + 总预算，失败立即返回"未知"并短 TTL 负缓存，不再三层嵌套重试。
+    const info = await withTotalBudget<IPInfo | null>(resolveIPInfoDeduped(normalizedIp), null);
+    if (info) {
+      return info;
+    }
+    incrementStat("errors");
+    if (negativeCache.size > 5000) {
+      const now = Date.now();
+      for (const [negKey, exp] of negativeCache) {
+        if (exp <= now) negativeCache.delete(negKey);
+      }
+    }
+    negativeCache.set(normalizedIp, Date.now() + NEGATIVE_CACHE_TTL_MS);
     return {
-      ip,
+      ip: normalizedIp,
       country: "未知",
       region: "未知",
       city: "未知",
@@ -892,10 +935,9 @@ async function gracefulShutdown(): Promise<void> {
   }
 }
 
-// 监听进程退出信号
-process.on("SIGTERM", gracefulShutdown);
-process.on("SIGINT", gracefulShutdown);
-process.on("SIGUSR2", gracefulShutdown); // nodemon重启信号
+// G5-21: 不再自行注册信号处理器（那会让进程永远不退出），交给统一关闭编排。
+registerShutdownStep("ip-graceful-shutdown", gracefulShutdown);
+installShutdownHandlers();
 
 // IP数据清理函数
 async function cleanupExpiredIPData(): Promise<number> {

@@ -67,6 +67,10 @@ const QueryHistorySchema = new mongoose.Schema<IQueryHistoryDoc>(
   },
 );
 
+// G5-18: 历史集合加 TTL 索引（30 天自动清理）与查询复合索引，避免无界增长 + sort 全扫。
+QueryHistorySchema.index({ timestamp: 1 }, { expireAfterSeconds: 30 * 24 * 60 * 60 });
+QueryHistorySchema.index({ productId: 1, timestamp: -1 });
+
 const QueryStatsModel: Model<IQueryStatsDoc> =
   (mongoose.models.AntaQueryStats as Model<IQueryStatsDoc>) ||
   mongoose.model<IQueryStatsDoc>("AntaQueryStats", QueryStatsSchema);
@@ -155,9 +159,11 @@ export class QueryStatsService {
    * 获取查询次数最多的产品
    */
   public static async getTopProducts(limit = 10): Promise<QueryStats[]> {
+    // G5-18: limit 钳制，防控制器直接透传用户参数一次捞光。
+    const safeLimit = Math.min(200, Math.max(1, Math.floor(Number(limit) || 10)));
     try {
       if ((QueryStatsService.STORAGE_MODE || "").toLowerCase() === "mongo") {
-        const docs = (await QueryStatsModel.find({}).sort({ queryCount: -1 }).limit(limit).lean()) as IQueryStatsDoc[];
+        const docs = (await QueryStatsModel.find({}).sort({ queryCount: -1 }).limit(safeLimit).lean()) as IQueryStatsDoc[];
         return docs.map(
           (d) =>
             ({
@@ -175,7 +181,7 @@ export class QueryStatsService {
         const raw = fs.readFileSync(QueryStatsService.STATS_FILE, "utf-8");
         const data = raw ? (JSON.parse(raw) as Record<string, QueryStats>) : ({} as any);
         const list = Object.values(data) as QueryStats[];
-        return list.sort((a, b) => (b.queryCount || 0) - (a.queryCount || 0)).slice(0, limit);
+        return list.sort((a, b) => (b.queryCount || 0) - (a.queryCount || 0)).slice(0, safeLimit);
       }
     } catch (error) {
       logger.error("获取安踏产品Top统计失败", { error: error instanceof Error ? error.message : String(error) });
@@ -187,6 +193,8 @@ export class QueryStatsService {
    * 获取最近的查询历史
    */
   public static async getRecentHistory(productId?: string, limit = 50): Promise<QueryHistoryRecord[]> {
+    // G5-18: limit 钳制。
+    const safeLimit = Math.min(200, Math.max(1, Math.floor(Number(limit) || 50)));
     try {
       if ((QueryStatsService.STORAGE_MODE || "").toLowerCase() === "mongo") {
         // 安全地构建查询条件，防止NoSQL注入攻击
@@ -200,7 +208,7 @@ export class QueryStatsService {
         }
         const docs = (await QueryHistoryModel.find(query)
           .sort({ timestamp: -1 })
-          .limit(limit)
+          .limit(safeLimit)
           .lean()) as IQueryHistoryDoc[];
         return docs.map(
           (d) =>
@@ -219,7 +227,7 @@ export class QueryStatsService {
         const filtered = productId ? list.filter((x) => x.productId === productId) : list;
         return filtered
           .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-          .slice(0, limit);
+          .slice(0, safeLimit);
       }
     } catch (error) {
       logger.error("获取安踏产品查询历史失败", {
@@ -314,12 +322,13 @@ export class QueryStatsService {
     officialQueryCount?: number,
   ): Promise<number> {
     const now = new Date();
-    // 构建更新操作
+    // G5-18: $push + $slice:-100 限制 ipAddresses 数组大小（与文件分支 MAX_IPS 对齐），
+    // 避免 $addToSet 让数组无界增长、$addToSet 去重成本随数组变大而升高、16MB BSON 上限后写入永久失败。
     const updateOps: any = {
       $inc: { queryCount: 1 },
       $setOnInsert: { firstQueried: now },
       $set: { lastQueried: now },
-      $addToSet: { ipAddresses: ipAddress },
+      $push: { ipAddresses: { $each: [ipAddress], $slice: -QueryStatsService.MAX_IPS } },
     };
 
     // 如果提供了官方查询次数，则更新它

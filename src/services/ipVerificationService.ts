@@ -7,9 +7,8 @@ import { type IpqsQuotaDoc, IpqsQuotaModel } from "../models/ipqsQuotaModel";
 import { IpVerificationTokenModel } from "../models/ipVerificationTokenModel";
 import logger from "../utils/logger";
 import { buildScamalyticsLookupUrl, normalizeScamalyticsUser } from "../utils/scamalytics";
-import { connectMongo, mongoose } from "./mongoService";
+import { mongoose } from "./mongoService";
 import { TurnstileService } from "./turnstileService";
-
 interface ScamalyticsResponse {
   scamalytics: {
     status: string;
@@ -103,8 +102,10 @@ function monthKey(date = new Date()): string {
 }
 
 function hashApiKey(apiKey: string): string {
+  // G5-14: 该哈希仅用于给配额/日志打"这是哪个 key"的标识，不需要口令级 KDF。
+  // 改用 HMAC-SHA256，避免 pbkdf2Sync 12 万次迭代阻塞事件循环。
   const secret = config.jwtSecret || process.env.JWT_SECRET || "ip-verification-test-secret";
-  return crypto.pbkdf2Sync(apiKey, `ipqs:${secret}`, 120_000, 16, "sha256").toString("hex");
+  return crypto.createHmac("sha256", secret).update(`ipqs:${apiKey}`).digest("hex").slice(0, 32);
 }
 
 function normalizeRiskLookupResponse(response: ScamalyticsResponse | LegacyIpRiskResponse): ScamalyticsResponse {
@@ -177,13 +178,9 @@ function toLookupLogRawResponse(response?: ScamalyticsResponse): Record<string, 
 }
 
 async function ensureMongoIfEnabled(): Promise<boolean> {
-  try {
-    await connectMongo();
-    return mongoose.connection.readyState === 1;
-  } catch (error) {
-    logger.warn("[IpVerification] MongoDB unavailable", error);
-    return false;
-  }
+  // G5-04: 纯只读探测，不再每次调用 connectMongo()（正常时避免全量配置重载，
+  // Mongo 故障时避免每请求 ~19s 阻塞与连接风暴）。建连职责交给启动流程。
+  return mongoose.connection.readyState === 1;
 }
 
 export class IpVerificationService {
@@ -192,9 +189,10 @@ export class IpVerificationService {
   }
 
   private static getApiKeys(): string[] {
+    // G5-23: 去掉 env 合并。env 值只应经由 runtimeConfigDefaults 进入（"DB 未配置时才用 env"），
+    // 否则管理员在后台删掉泄露的 key，env 里的旧 key 仍被选中，界面显示与实际不一致。
     const configuredKeys = Array.isArray(config.ipqs.apiKeys) ? config.ipqs.apiKeys : [];
-    const envKeys = [process.env.IPQS_API_KEY, process.env.SCAMALYTICS_API_KEY];
-    return Array.from(new Set([...configuredKeys, ...envKeys].map((item) => item?.trim()).filter(Boolean) as string[]));
+    return Array.from(new Set(configuredKeys.map((item) => item?.trim()).filter(Boolean) as string[]));
   }
 
   private static async getReusableToken(fingerprint: string, ipAddress: string): Promise<any | null> {
@@ -273,11 +271,18 @@ export class IpVerificationService {
     };
   }
 
-  private static async selectApiKey(month: string): Promise<{ slot: number; key: string } | null> {
+  private static async selectApiKey(
+    month: string,
+  ): Promise<
+    | { status: "ok"; slot: number; key: string }
+    | { status: "no_keys" }
+    | { status: "database_unavailable" }
+    | { status: "quota_exhausted" }
+  > {
     const apiKeys = IpVerificationService.getApiKeys();
-    if (apiKeys.length === 0) return null;
+    if (apiKeys.length === 0) return { status: "no_keys" };
 
-    if (!(await ensureMongoIfEnabled())) return null;
+    if (!(await ensureMongoIfEnabled())) return { status: "database_unavailable" };
 
     const quotaDocs = await IpqsQuotaModel.find({ monthKey: month }).lean().exec();
     const quotaMap = new Map<number, number>();
@@ -289,11 +294,11 @@ export class IpVerificationService {
     for (let index = 0; index < apiKeys.length; index += 1) {
       const usageCount = quotaMap.get(index) || 0;
       if (usageCount < config.ipqs.monthlyQuotaPerKey) {
-        return { slot: index, key: apiKeys[index] };
+        return { status: "ok", slot: index, key: apiKeys[index] };
       }
     }
 
-    return null;
+    return { status: "quota_exhausted" };
   }
 
   private static async incrementQuota(month: string, slot: number, apiKey: string): Promise<void> {
@@ -370,25 +375,44 @@ export class IpVerificationService {
     }
 
     const month = monthKey();
-    const selectedKey = await IpVerificationService.selectApiKey(month);
-    const apiKeys = IpVerificationService.getApiKeys();
+    const selected = await IpVerificationService.selectApiKey(month);
     const scamalyticsUser = normalizeScamalyticsUser(config.ipqs.scamalyticsUser);
 
-    if (!selectedKey && apiKeys.length > 0) {
+    // G5-15: 区分"未配置 key"、"配额耗尽"与"Mongo 不可用"，不再把库不可用误报成配额耗尽。
+    if (selected.status === "no_keys" || selected.status === "quota_exhausted") {
       const exhaustedDecision: LookupDecision = {
         success: config.ipqs.failOpen,
         requiresVerification: false,
         decision: config.ipqs.failOpen ? "skip" : "error",
-        reason: "ip_verification_quota_exhausted",
+        reason:
+          selected.status === "quota_exhausted" ? "ip_verification_quota_exhausted" : "ip_verification_not_configured",
         riskFlags: [],
       };
-      await IpVerificationService.logLookup(month, -1, "quota-exhausted", context, exhaustedDecision);
+      await IpVerificationService.logLookup(
+        month,
+        -1,
+        selected.status === "quota_exhausted" ? "quota-exhausted" : "not-configured",
+        context,
+        exhaustedDecision,
+      );
       return exhaustedDecision;
     }
 
-    // If no keys are configured but scamalyticsUser is, we might still want to proceed if we hardcode a key or use the one provided
-    const apiKey = selectedKey?.key || apiKeys[0] || "";
-    const slot = selectedKey?.slot ?? 0;
+    if (selected.status === "database_unavailable") {
+      const dbErrorDecision: LookupDecision = {
+        success: config.ipqs.failOpen,
+        requiresVerification: false,
+        decision: config.ipqs.failOpen ? "skip" : "error",
+        reason: "ip_verification_database_unavailable",
+        riskFlags: [],
+      };
+      await IpVerificationService.logLookup(month, -1, "database-unavailable", context, dbErrorDecision);
+      return dbErrorDecision;
+    }
+
+    // 走到这里 selected.status === "ok"
+    const apiKey = selected.key;
+    const slot = selected.slot;
     const scamalyticsUrl = buildScamalyticsLookupUrl(scamalyticsUser);
 
     try {
@@ -401,9 +425,8 @@ export class IpVerificationService {
         maxRedirects: 0,
       });
 
-      if (selectedKey) {
-        await IpVerificationService.incrementQuota(month, selectedKey.slot, selectedKey.key);
-      }
+      // G5-15: 只在上游真正返回业务响应时计入配额；网络错误/超时不计费。
+      await IpVerificationService.incrementQuota(month, slot, apiKey);
 
       const normalizedResponse = normalizeRiskLookupResponse(response.data);
       const decision = shouldRequireVerification(normalizedResponse);
@@ -420,10 +443,6 @@ export class IpVerificationService {
 
       return decision;
     } catch (error) {
-      if (selectedKey) {
-        await IpVerificationService.incrementQuota(month, selectedKey.slot, selectedKey.key);
-      }
-
       const errorMessage = error instanceof Error ? error.message : String(error);
       const failedDecision: LookupDecision = {
         success: config.ipqs.failOpen,
@@ -610,8 +629,12 @@ export class IpVerificationService {
 
     if (!doc) return false;
 
-    doc.lastValidatedAt = new Date();
-    await doc.save();
+    // G5-14: lastValidatedAt 节流更新（距上次超过 60 秒才写），避免每个受保护请求多一次 Mongo 写。
+    const lastValidatedAt = doc.lastValidatedAt ? new Date(doc.lastValidatedAt).getTime() : 0;
+    if (!lastValidatedAt || Date.now() - lastValidatedAt > 60_000) {
+      doc.lastValidatedAt = new Date();
+      await doc.save();
+    }
     return true;
   }
 }

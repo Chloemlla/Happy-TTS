@@ -2,6 +2,17 @@ import crypto from "node:crypto";
 import mongoose from "mongoose";
 import logger from "../utils/logger";
 
+// G5-12: 事务支持结果按连接生命周期缓存，连接事件触发时重算，避免每次事务多一次 ismaster/hello 往返。
+let cachedSupportsTransactions: boolean | null = null;
+
+function invalidateTransactionSupportCache(): void {
+  cachedSupportsTransactions = null;
+}
+
+mongoose.connection.on("connected", invalidateTransactionSupportCache);
+mongoose.connection.on("disconnected", invalidateTransactionSupportCache);
+mongoose.connection.on("reconnected", invalidateTransactionSupportCache);
+
 export class TransactionService {
   /**
    * 执行数据库事务
@@ -13,21 +24,20 @@ export class TransactionService {
     const supportsTransactions = await TransactionService.checkTransactionSupport();
 
     if (!supportsTransactions) {
-      // 如果不支持事务，直接执行操作而不使用session
-      logger.info("数据库不支持事务，直接执行操作");
+      // G5-12: 不静默降级——显式告警说明当前为无事务保护执行（单机 mongod 或分片环境）。
+      logger.warn(
+        "[Transaction] 数据库不支持事务（单机 mongod），当前执行无事务保护；" +
+          "多集合写操作请部署副本集以获得原子性。",
+      );
       return await callback(null);
     }
 
     const session = await mongoose.startSession();
-    session.startTransaction();
-
     try {
-      const result = await callback(session);
-      await session.commitTransaction();
-      logger.info("事务执行成功");
-      return result;
+      // G5-12: session.withTransaction 内建 TransientTransactionError /
+      // UnknownTransactionCommitResult 自动重试，取代手写 commit/abort。
+      return await session.withTransaction(async () => callback(session));
     } catch (error) {
-      await session.abortTransaction();
       logger.error("事务执行失败，已回滚:", error);
       throw error;
     } finally {
@@ -37,18 +47,25 @@ export class TransactionService {
 
   // 检查数据库是否支持事务
   private static async checkTransactionSupport(): Promise<boolean> {
+    if (cachedSupportsTransactions !== null) {
+      return cachedSupportsTransactions;
+    }
     try {
       if (!mongoose.connection.db) {
         logger.warn("数据库连接不可用，假设不支持事务");
+        cachedSupportsTransactions = false;
         return false;
       }
 
       const admin = mongoose.connection.db.admin();
-      const result = await admin.command({ ismaster: 1 });
-      // 检查是否是副本集或分片集群
-      return !!(result.setName || result.msg === "isdbgrid");
+      // G5-12: ismaster 已被 hello 取代；兼容返回 setName 的副本集与 msg==="isdbgrid" 的分片集群。
+      const result = await admin.command({ hello: 1 });
+      const supported = !!(result.setName || result.msg === "isdbgrid");
+      cachedSupportsTransactions = supported;
+      return supported;
     } catch (error) {
       logger.warn("检查事务支持失败，假设不支持事务:", error);
+      cachedSupportsTransactions = false;
       return false;
     }
   }

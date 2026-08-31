@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { isIP } from "node:net";
 import { join } from "node:path";
 import logger from "../utils/logger";
 import { mongoose } from "./mongoService";
+import { registerShutdownStep, installShutdownHandlers } from "./shutdown";
 
 // MongoDB Blocked IP Schema
 const BlockedIPSchema = new mongoose.Schema(
@@ -16,7 +17,16 @@ const BlockedIPSchema = new mongoose.Schema(
   },
   { collection: "blocked_ips" },
 );
+// G5-26: blocked_ips 集合加 TTL 索引，自动清理过期封禁。
+BlockedIPSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 const BlockedIPModel = mongoose.models.BlockedIP || mongoose.model("BlockedIP", BlockedIPSchema);
+
+/** G5-26: 原子写 JSON 文件——先写临时文件再 rename，避免整份覆盖写过程中崩溃产生损坏的 JSON。 */
+async function atomicWriteJson(filePath: string, data: unknown): Promise<void> {
+  const tempPath = `${filePath}.tmp`;
+  await writeFile(tempPath, JSON.stringify(data, null, 2));
+  await rename(tempPath, filePath);
+}
 
 export interface TamperEvent {
   id?: string;
@@ -76,9 +86,15 @@ class TamperService {
   private eventsDirty = false;
   private flushTimer: NodeJS.Timeout | null = null;
   private writeQueue: Promise<void> = Promise.resolve();
+  private blockedIPsRefreshTimer: NodeJS.Timeout | null = null;
 
   private constructor() {
     this.initializeDataDirectory();
+    // G5-26: 定期从 Mongo 刷新封禁名单内存快照（60s），避免多副本下实例 A 封的 IP 实例 B 长期不认。
+    this.blockedIPsRefreshTimer = setInterval(() => {
+      this.loadBlockedIPs().catch(() => {});
+    }, 60_000);
+    this.blockedIPsRefreshTimer.unref?.();
   }
 
   private async initializeDataDirectory(): Promise<void> {
@@ -137,7 +153,7 @@ class TamperService {
         await mkdir(this.DATA_DIR, { recursive: true });
       }
       const blockedList = Array.from(this.blockedIPs.values());
-      await writeFile(this.BLOCKED_IPS_PATH, JSON.stringify(blockedList, null, 2));
+      await atomicWriteJson(this.BLOCKED_IPS_PATH, blockedList);
     } catch (error) {
       logger.error("保存封禁 IP 失败:", error);
     }
@@ -324,7 +340,7 @@ class TamperService {
     if (!existsSync(this.DATA_DIR)) {
       await mkdir(this.DATA_DIR, { recursive: true });
     }
-    await writeFile(this.TAMPER_LOG_PATH, JSON.stringify(events.slice(-this.MAX_EVENTS)));
+    await atomicWriteJson(this.TAMPER_LOG_PATH, events.slice(-this.MAX_EVENTS));
   }
 
   private scheduleEventsFlush(): void {
@@ -540,10 +556,6 @@ class TamperService {
 
 export const tamperService = TamperService.getInstance();
 
-// 进程退出前落盘缓冲中的篡改事件（不负责退出进程，交由其他优雅关闭钩子）
-const flushTamperEventsOnExit = (): void => {
-  tamperService.flushPendingEvents().catch(() => {});
-};
-process.once("beforeExit", flushTamperEventsOnExit);
-process.once("SIGINT", flushTamperEventsOnExit);
-process.once("SIGTERM", flushTamperEventsOnExit);
+// G5-21: 不再自行注册信号处理器，交给统一关闭编排（shutdown.ts），避免进程永不退出。
+registerShutdownStep("tamper-events-flush", () => tamperService.flushPendingEvents());
+installShutdownHandlers();

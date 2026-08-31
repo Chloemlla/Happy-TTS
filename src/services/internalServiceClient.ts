@@ -58,6 +58,23 @@ export class InternalServiceClient {
   private readonly timeoutMs: number;
 
   public constructor(options: InternalServiceClientOptions) {
+    // G5-24: 校验 baseUrl 协议与主机，拒绝携带用户名密码的 URL，避免内部令牌被重定向带到第三方。
+    let parsed: URL;
+    try {
+      parsed = new URL(options.baseUrl);
+    } catch {
+      throw new Error(`InternalServiceClient: baseUrl 无效: ${options.baseUrl}`);
+    }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new Error(`InternalServiceClient: baseUrl 仅支持 http/https: ${options.baseUrl}`);
+    }
+    if (parsed.username || parsed.password) {
+      throw new Error("InternalServiceClient: baseUrl 不允许携带用户名/密码");
+    }
+    if (!parsed.hostname) {
+      throw new Error("InternalServiceClient: baseUrl 缺少主机名");
+    }
+
     this.baseUrl = options.baseUrl.replace(/\/+$/, "");
     this.internalToken = options.internalToken;
     this.timeoutMs = options.timeoutMs;
@@ -65,6 +82,7 @@ export class InternalServiceClient {
   }
 
   public async getHealth(): Promise<InternalServiceHealthResult> {
+    // G5-24: 带一次抖动重试，避免上游瞬时抖动被直接判为 unhealthy。
     try {
       const response = await this.request<InternalServiceEnvelope<unknown>>("GET", "/healthz");
       return {
@@ -72,11 +90,23 @@ export class InternalServiceClient {
         data: response.data,
         error: response.error,
       };
-    } catch (error) {
-      return {
-        healthy: false,
-        error: error instanceof Error ? error.message : "Internal service health check failed",
-      };
+    } catch (firstError) {
+      const jitterMs = Math.floor(100 + Math.random() * 200);
+      await new Promise((resolve) => setTimeout(resolve, jitterMs));
+      try {
+        const response = await this.request<InternalServiceEnvelope<unknown>>("GET", "/healthz");
+        return {
+          healthy: response.success !== false,
+          data: response.data,
+          error: response.error,
+        };
+      } catch (secondError) {
+        return {
+          healthy: false,
+          error:
+            secondError instanceof Error ? secondError.message : "Internal service health check failed",
+        };
+      }
     }
   }
 
@@ -95,6 +125,11 @@ export class InternalServiceClient {
         "X-Internal-Token": this.internalToken,
       },
       data: body,
+      // G5-24: 内部服务调用不应跟随重定向（跨主机 302 会把 X-Internal-Token 带给第三方）；
+      // 响应体设大小上限，防恶意/异常上游用超大响应打满内存。
+      maxRedirects: 0,
+      maxContentLength: 2 * 1024 * 1024,
+      maxBodyLength: 2 * 1024 * 1024,
     };
 
     try {

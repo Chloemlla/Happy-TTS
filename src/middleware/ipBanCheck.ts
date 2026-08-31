@@ -652,6 +652,23 @@ export async function warmupBanCache(): Promise<void> {
 }
 
 /**
+ * G5-05: WS upgrade 等非 Express 路径用的非阻塞封禁判定——只查内存缓存，不做 DB 查询。
+ * 这是纵深防御的一层；HTTP 全量检查仍在 ipBanCheckMiddleware 中执行。
+ */
+export function isIPBannedFromCache(ip: string): { banned: boolean; reason?: string } {
+  const normalizedIP = normalizeIP(ip);
+  const cached = banCache.get(normalizedIP);
+  if (cached?.banned && cached.expiresAt) {
+    const expiresAt = cached.expiresAt instanceof Date ? cached.expiresAt : new Date(cached.expiresAt);
+    if (expiresAt > new Date()) {
+      return { banned: true, reason: cached.reason };
+    }
+    banCache.delete(normalizedIP);
+  }
+  return { banned: false };
+}
+
+/**
  * 获取性能指标（用于监控）
  */
 export function getPerformanceMetrics(): PerformanceMetrics {

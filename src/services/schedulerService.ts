@@ -37,6 +37,8 @@ class SchedulerService {
   private syncInterval: NodeJS.Timeout | null = null;
   private isRunning = false;
   private isSyncEnabled = false;
+  private isCleanupRunning = false; // G5-19: 重入保护
+  private isSyncRunning = false; // G5-19: 重入保护
   private startedAt?: Date;
   private stoppedAt?: Date;
   private nextCleanup?: Date;
@@ -106,23 +108,42 @@ class SchedulerService {
   }
 
   private async executeCleanup(): Promise<CleanupResult> {
-    // 清理过期的临时指纹
-    const fingerprintCount = await TurnstileService.cleanupExpiredFingerprints();
+    // G5-19: 五步清理逐步兜底——单项失败不影响后续，避免"一个清理失败→另一处内存无界增长"的连锁。
+    const steps: Array<{ name: string; run: () => Promise<number> }> = [
+      { name: "fingerprints", run: () => TurnstileService.cleanupExpiredFingerprints() },
+      { name: "accessTokens", run: () => TurnstileService.cleanupExpiredAccessTokens() },
+      { name: "ipBans", run: () => TurnstileService.cleanupExpiredIpBans() },
+      { name: "ipData", run: () => cleanupExpiredIPData() },
+      { name: "billingCache", run: () => GitHubBillingService.clearExpiredCache().then(() => 0) },
+    ];
 
-    // 清理过期的访问密钥
-    const accessTokenCount = await TurnstileService.cleanupExpiredAccessTokens();
+    const results = await Promise.allSettled(steps.map((step) => step.run()));
+    const result: CleanupResult = {
+      fingerprintCount: 0,
+      accessTokenCount: 0,
+      ipBanCount: 0,
+      ipDataCount: 0,
+      totalCount: 0,
+    };
 
-    // 清理过期的IP封禁记录
-    const ipBanCount = await TurnstileService.cleanupExpiredIpBans();
+    results.forEach((settled, index) => {
+      const stepName = steps[index].name;
+      if (settled.status === "fulfilled") {
+        const value = Number(settled.value || 0);
+        if (stepName === "fingerprints") result.fingerprintCount = value;
+        else if (stepName === "accessTokens") result.accessTokenCount = value;
+        else if (stepName === "ipBans") result.ipBanCount = value;
+        else if (stepName === "ipData") result.ipDataCount = value;
+      } else {
+        logger.error(`[Scheduler] 清理步骤 ${stepName} 失败`, {
+          error: settled.reason instanceof Error ? settled.reason.message : String(settled.reason),
+        });
+      }
+    });
 
-    // 清理过期的IP信息数据
-    const ipDataCount = await cleanupExpiredIPData();
-
-    // 清理过期的GitHub Billing缓存
-    await GitHubBillingService.clearExpiredCache();
-
-    const totalCount = fingerprintCount + accessTokenCount + ipBanCount + ipDataCount;
-    return { fingerprintCount, accessTokenCount, ipBanCount, ipDataCount, totalCount };
+    result.totalCount =
+      result.fingerprintCount + result.accessTokenCount + result.ipBanCount + result.ipDataCount;
+    return result;
   }
 
   private recordCleanupSuccess(result: CleanupResult, durationMs: number): void {
@@ -142,6 +163,12 @@ class SchedulerService {
   }
 
   private async cleanupExpiredData(): Promise<CleanupResult | undefined> {
+    // G5-19: 重入保护——集合变大后单轮清理超过 5 分钟会出现多轮重叠，deleteMany 并发放大 DB 负载。
+    if (this.isCleanupRunning) {
+      logger.warn("[Scheduler] 清理任务正在进行中，跳过本轮");
+      return undefined;
+    }
+    this.isCleanupRunning = true;
     const startTime = Date.now();
     try {
       const result = await this.executeCleanup();
@@ -158,6 +185,11 @@ class SchedulerService {
       this.recordCleanupFailure(error, Date.now() - startTime);
       logger.error("定时清理任务失败", error);
     } finally {
+      this.isCleanupRunning = false;
+      // G5-19: Redis 晚启动/重启后自愈——清理轮检测到 Redis 可用但同步未启用则动态启动。
+      if (this.isRunning && !this.isSyncEnabled && ipBanSyncService.getStatus().redisAvailable) {
+        this.startIPBanSync();
+      }
       this.nextCleanup = this.isRunning ? new Date(Date.now() + this.CLEANUP_INTERVAL_MS) : undefined;
     }
   }
@@ -198,6 +230,12 @@ class SchedulerService {
    * 执行 IP 封禁同步
    */
   private async syncIPBans(): Promise<void> {
+    // G5-19: 重入保护，防止定时轮与手动同步并发。
+    if (this.isSyncRunning) {
+      logger.warn("[Scheduler] 同步任务正在进行中，跳过本轮");
+      return;
+    }
+    this.isSyncRunning = true;
     const startTime = Date.now();
     try {
       const result = await ipBanSyncService.bidirectionalSync();
@@ -218,6 +256,7 @@ class SchedulerService {
       this.recordSyncFailure(error, Date.now() - startTime);
       logger.error("❌ IP 封禁同步失败:", error);
     } finally {
+      this.isSyncRunning = false;
       this.nextSync = this.isSyncEnabled ? new Date(Date.now() + this.SYNC_INTERVAL_MS) : undefined;
     }
   }
@@ -247,6 +286,11 @@ class SchedulerService {
     redisToMongo?: SyncResult["redisToMongo"];
     error?: string;
   }> {
+    // G5-19: 手动同步与定时轮共用重入保护。
+    if (this.isSyncRunning) {
+      return { success: false, error: "同步任务正在进行中，请稍后再试" };
+    }
+    this.isSyncRunning = true;
     const startTime = Date.now();
     try {
       const result = await ipBanSyncService.bidirectionalSync();
@@ -264,6 +308,8 @@ class SchedulerService {
         success: false,
         error: errorMessage,
       };
+    } finally {
+      this.isSyncRunning = false;
     }
   }
 
@@ -360,6 +406,11 @@ class SchedulerService {
   }
 
   public async manualCleanup(): Promise<{ success: boolean; deletedCount: number; details?: CleanupResult; error?: string }> {
+    // G5-19: 手动清理与定时轮共用重入保护。
+    if (this.isCleanupRunning) {
+      return { success: false, deletedCount: 0, error: "清理任务正在进行中，请稍后再试" };
+    }
+    this.isCleanupRunning = true;
     const startTime = Date.now();
     try {
       const result = await this.executeCleanup();
@@ -382,6 +433,8 @@ class SchedulerService {
         deletedCount: 0,
         error: errorMessage,
       };
+    } finally {
+      this.isCleanupRunning = false;
     }
   }
 

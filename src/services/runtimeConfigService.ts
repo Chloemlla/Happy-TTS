@@ -65,7 +65,14 @@ const loadedKeys = new Set<RuntimeConfigKey>();
 let initialized = false;
 
 const HOT_CONFIG_CACHE_TTL_MS = 10_000;
+// G5-03: 安全相关 key（两个 signing、adminSecurity）用更短的 TTL，尽量每次读库。
+const SECURITY_CONFIG_CACHE_TTL_MS = 1_000;
+const SECURITY_CONFIG_KEYS = new Set<RuntimeConfigKey>(["NEXAI_SIGNING", "CDICT_SIGNING", "ADMIN_SECURITY"]);
 const hotConfigCacheExpiry = new Map<RuntimeConfigKey, number>();
+
+function hotCacheTtlMs(key: RuntimeConfigKey): number {
+  return SECURITY_CONFIG_KEYS.has(key) ? SECURITY_CONFIG_CACHE_TTL_MS : HOT_CONFIG_CACHE_TTL_MS;
+}
 
 function isHotCacheFresh(key: RuntimeConfigKey): boolean {
   const expiresAt = hotConfigCacheExpiry.get(key);
@@ -73,7 +80,7 @@ function isHotCacheFresh(key: RuntimeConfigKey): boolean {
 }
 
 function markHotCacheFresh(key: RuntimeConfigKey): void {
-  hotConfigCacheExpiry.set(key, Date.now() + HOT_CONFIG_CACHE_TTL_MS);
+  hotConfigCacheExpiry.set(key, Date.now() + hotCacheTtlMs(key));
 }
 
 function invalidateHotCache(key: RuntimeConfigKey): void {
@@ -410,14 +417,20 @@ function normalizeStoredAdminSecurityConfig(
   };
 }
 
+function getCacheValueForKey(key: RuntimeConfigKey): Record<string, unknown> {
+  return runtimeConfigCache[key] as unknown as Record<string, unknown>;
+}
+
 async function readRuntimeConfigDoc(
   key: RuntimeConfigKey,
   options: {
     fallbackOnError?: () => { value: Record<string, unknown>; updatedAt?: Date } | null;
   } = {},
 ): Promise<{ value: Record<string, unknown>; updatedAt?: Date } | null> {
+  // G5-02: Mongo 不可用 ≠ key 未配置。返回当前缓存值，避免 getter 落到 defaults 并写回缓存，
+  // 那会把签名强制/IP 风控/管理口令等安全开关静默重置成默认值。
   if (mongoose.connection.readyState !== 1) {
-    return options.fallbackOnError?.() ?? null;
+    return { value: getCacheValueForKey(key) };
   }
 
   try {
@@ -434,9 +447,36 @@ async function readRuntimeConfigDoc(
       error: error instanceof Error ? error.message : String(error),
       fallback: options.fallbackOnError ? "cache-or-defaults" : "none",
     });
-    if (options.fallbackOnError) return options.fallbackOnError();
-    throw error;
+    // G5-02: 读库抛错（抖动/超时）同样视为不可用，返回缓存，绝不落 defaults。
+    return { value: getCacheValueForKey(key) };
   }
+}
+
+/**
+ * G5-13: 带版本校验的写入（compare-and-swap）。
+ * 以读到的 updatedAt 作为条件，两个管理员并发保存同一 key 时后写者匹配失败返回 409 语义的错误，
+ * 避免"读-改-整体覆盖"互相吞更新（密钥类字段被覆盖回旧值尤其危险）。
+ */
+async function writeRuntimeConfigDoc(
+  key: RuntimeConfigKey,
+  nextValue: Record<string, unknown>,
+  expectedUpdatedAt?: Date,
+): Promise<{ updatedAt: Date }> {
+  const now = new Date();
+  const filter: Record<string, unknown> = { key };
+  const hasVersion = expectedUpdatedAt !== undefined;
+  if (hasVersion) filter.updatedAt = expectedUpdatedAt;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await RuntimeConfigModel.findOneAndUpdate(filter as any, { value: nextValue, updatedAt: now }, {
+    upsert: !hasVersion,
+    returnDocument: "after",
+  }).exec();
+
+  if (!result) {
+    throw new Error("配置已被其他管理员修改，请刷新后重试");
+  }
+  return { updatedAt: now };
 }
 
 
@@ -575,70 +615,92 @@ function normalizeStoredLumenConfig(value: unknown, defaults: LumenRuntimeConfig
   };
 }
 
-function applyCacheForKey(key: RuntimeConfigKey, value: unknown): void {
-  if (key === "IPQS") {
-    runtimeConfigCache.ipqs = normalizeStoredIpqsConfig(value);
-    return;
+// G5-37: 纯函数——只写传入的 target 缓存，不在遍历中改在用的 runtimeConfigCache。
+function applyCacheForKey(target: RuntimeConfigDefaults, key: RuntimeConfigKey, value: unknown): void {
+  switch (key) {
+    case "IPQS":
+      target.ipqs = normalizeStoredIpqsConfig(value);
+      return;
+    case "LINUXDO":
+      target.linuxdo = normalizeStoredLinuxDoConfig(value);
+      return;
+    case "GOOGLE_AUTH":
+      target.googleAuth = normalizeStoredGoogleAuthConfig(value);
+      return;
+    case "DEEPLX":
+      target.deeplx = normalizeStoredDeepLXConfig(value);
+      return;
+    case "TTS":
+      target.tts = normalizeStoredTtsConfig(value);
+      return;
+    case "TTS_PROVIDER":
+      target.ttsProvider = normalizeStoredTtsProviderConfig(value);
+      return;
+    case "EMAIL":
+      target.email = normalizeStoredEmailConfig(value);
+      return;
+    case "ADMIN_SECURITY":
+      target.adminSecurity = normalizeStoredAdminSecurityConfig(value);
+      return;
+    case "SYNAPSE_ANDROID":
+      target.synapseAndroid = normalizeStoredSynapseAndroidConfig(value);
+      return;
+    case "NEXAI_SIGNING":
+      target.nexaiSigning = normalizeStoredNexaiSigningConfig(value);
+      return;
+    case "CDICT_SIGNING":
+      target.cdictSigning = normalizeStoredCdictSigningConfig(value);
+      return;
+    case "LUMEN": {
+      const config = normalizeStoredLumenConfig(value, target.lumen);
+      target.lumen = config;
+      refreshLumenConfig(config);
+      return;
+    }
+    case "NEXAI":
+      target.nexai = normalizeStoredNexaiConfig(value);
+      return;
+    default:
+      // 未收录的 key 绝不当作 NEXAI 配置解析，避免新增配置项悄悄清空包含 jwtSecret 的 nexai 缓存。
+      logger.warn("[RuntimeConfig] 未知 runtime config key", { key });
   }
+}
 
-  if (key === "LINUXDO") {
-    runtimeConfigCache.linuxdo = normalizeStoredLinuxDoConfig(value);
-    return;
-  }
+// G5-37: $in 列表与 applyCacheForKey 的 case 保持同一份常量，避免两处漂移。
+const RUNTIME_CONFIG_KEYS: readonly RuntimeConfigKey[] = [
+  "IPQS",
+  "LINUXDO",
+  "GOOGLE_AUTH",
+  "DEEPLX",
+  "NEXAI",
+  "TTS",
+  "TTS_PROVIDER",
+  "EMAIL",
+  "ADMIN_SECURITY",
+  "SYNAPSE_ANDROID",
+  "NEXAI_SIGNING",
+  "CDICT_SIGNING",
+  "LUMEN",
+];
 
-  if (key === "GOOGLE_AUTH") {
-    runtimeConfigCache.googleAuth = normalizeStoredGoogleAuthConfig(value);
-    return;
-  }
+// G5-03: 周期刷新定时器——多实例部署下每个实例每 ~10s 重载一次 DB 配置，
+// 让 getCachedConfig() 在所有实例上收敛到最新值（替代 Redis pub/sub 失效通道）。
+let periodicRefreshTimer: NodeJS.Timeout | null = null;
+const PERIODIC_REFRESH_INTERVAL_MS = 10_000;
 
-  if (key === "DEEPLX") {
-    runtimeConfigCache.deeplx = normalizeStoredDeepLXConfig(value);
-    return;
-  }
-
-  if (key === "TTS") {
-    runtimeConfigCache.tts = normalizeStoredTtsConfig(value);
-    return;
-  }
-
-  if (key === "TTS_PROVIDER") {
-    runtimeConfigCache.ttsProvider = normalizeStoredTtsProviderConfig(value);
-    return;
-  }
-
-  if (key === "EMAIL") {
-    runtimeConfigCache.email = normalizeStoredEmailConfig(value);
-    return;
-  }
-
-  if (key === "ADMIN_SECURITY") {
-    runtimeConfigCache.adminSecurity = normalizeStoredAdminSecurityConfig(value);
-    return;
-  }
-
-  if (key === "SYNAPSE_ANDROID") {
-    runtimeConfigCache.synapseAndroid = normalizeStoredSynapseAndroidConfig(value);
-    return;
-  }
-
-  if (key === "NEXAI_SIGNING") {
-    runtimeConfigCache.nexaiSigning = normalizeStoredNexaiSigningConfig(value);
-    return;
-  }
-
-  if (key === "CDICT_SIGNING") {
-    runtimeConfigCache.cdictSigning = normalizeStoredCdictSigningConfig(value);
-    return;
-  }
-
-  if (key === "LUMEN") {
-    const config = normalizeStoredLumenConfig(value, runtimeConfigCache.lumen);
-    runtimeConfigCache.lumen = config;
-    refreshLumenConfig(config);
-    return;
-  }
-
-  runtimeConfigCache.nexai = normalizeStoredNexaiConfig(value);
+function ensurePeriodicRefresh(): void {
+  if (periodicRefreshTimer) return;
+  periodicRefreshTimer = setInterval(() => {
+    if (mongoose.connection.readyState === 1) {
+      // force=true: 已初始化后仍强制重载，否则 initialize(false) 会因 initialized 短路不生效。
+      RuntimeConfigService.initialize(true).catch((error) => {
+        logger.warn("[RuntimeConfig] 周期刷新失败", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    }
+  }, PERIODIC_REFRESH_INTERVAL_MS);
+  periodicRefreshTimer.unref?.();
 }
 
 export class RuntimeConfigService {
@@ -697,7 +759,7 @@ export class RuntimeConfigService {
     if (initialized && !force) return;
 
     const docs = await RuntimeConfigModel.find({
-      key: { $in: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "TTS_PROVIDER", "EMAIL", "ADMIN_SECURITY", "SYNAPSE_ANDROID", "NEXAI_SIGNING", "CDICT_SIGNING", "LUMEN"] },
+      key: { $in: [...RUNTIME_CONFIG_KEYS] },
     })
       .lean()
       .exec();
@@ -705,28 +767,18 @@ export class RuntimeConfigService {
     const nextCache = cloneRuntimeConfigDefaults(runtimeConfigDefaults);
     loadedKeys.clear();
 
+    // G5-37: 一次性原子替换 runtimeConfigCache，遍历期间读者看不到"一半新一半旧"的混合配置；
+    // 不再从旧缓存回抄（避免 DB 已删除的 key 被"复活"）。
     for (const doc of docs) {
       if (!doc?.key) continue;
-      applyCacheForKey(doc.key as RuntimeConfigKey, doc.value);
-      nextCache.ipqs = runtimeConfigCache.ipqs;
-      nextCache.linuxdo = runtimeConfigCache.linuxdo;
-      nextCache.googleAuth = runtimeConfigCache.googleAuth;
-      nextCache.deeplx = runtimeConfigCache.deeplx;
-      nextCache.nexai = runtimeConfigCache.nexai;
-      nextCache.tts = runtimeConfigCache.tts;
-      nextCache.ttsProvider = runtimeConfigCache.ttsProvider;
-      nextCache.email = runtimeConfigCache.email;
-      nextCache.adminSecurity = runtimeConfigCache.adminSecurity;
-      nextCache.synapseAndroid = runtimeConfigCache.synapseAndroid;
-      nextCache.nexaiSigning = runtimeConfigCache.nexaiSigning;
-      nextCache.cdictSigning = runtimeConfigCache.cdictSigning;
-      nextCache.lumen = runtimeConfigCache.lumen;
+      applyCacheForKey(nextCache, doc.key as RuntimeConfigKey, doc.value);
       loadedKeys.add(doc.key as RuntimeConfigKey);
     }
 
     runtimeConfigCache = nextCache;
     hotConfigCacheExpiry.clear();
     initialized = true;
+    ensurePeriodicRefresh();
     logger.info("[RuntimeConfig] Loaded runtime config from MongoDB", {
       loadedKeys: Array.from(loadedKeys),
     });
@@ -796,24 +848,25 @@ export class RuntimeConfigService {
       failOpen: normalizeBoolean(input.failOpen, current.failOpen),
     };
 
-    const now = new Date();
-    await RuntimeConfigModel.findOneAndUpdate(
-      { key: "IPQS" },
-      { value: nextConfig, updatedAt: now },
-      { upsert: true, returnDocument: "after" },
-    ).exec();
+    const { updatedAt: persistedAt } = await writeRuntimeConfigDoc(
+      "IPQS",
+      nextConfig as unknown as Record<string, unknown>,
+      currentDoc?.updatedAt,
+    );
 
     runtimeConfigCache.ipqs = nextConfig;
     loadedKeys.add("IPQS");
+    invalidateHotCache("IPQS");
     initialized = true;
 
-    return { updatedAt: now.toISOString() };
+    return { updatedAt: persistedAt.toISOString() };
   }
 
   static async deleteIpqsSetting(): Promise<void> {
     await RuntimeConfigModel.deleteOne({ key: "IPQS" }).exec();
     runtimeConfigCache.ipqs = cloneRuntimeConfigDefaults(runtimeConfigDefaults).ipqs;
     loadedKeys.delete("IPQS");
+    invalidateHotCache("IPQS");
   }
 
   static async getLinuxDoSetting(): Promise<{
@@ -870,24 +923,25 @@ export class RuntimeConfigService {
       }).frontendCallbackUrl,
     };
 
-    const now = new Date();
-    await RuntimeConfigModel.findOneAndUpdate(
-      { key: "LINUXDO" },
-      { value: nextConfig, updatedAt: now },
-      { upsert: true, returnDocument: "after" },
-    ).exec();
+    const { updatedAt: persistedAt } = await writeRuntimeConfigDoc(
+      "LINUXDO",
+      nextConfig as unknown as Record<string, unknown>,
+      currentDoc?.updatedAt,
+    );
 
     runtimeConfigCache.linuxdo = nextConfig;
     loadedKeys.add("LINUXDO");
+    invalidateHotCache("LINUXDO");
     initialized = true;
 
-    return { updatedAt: now.toISOString() };
+    return { updatedAt: persistedAt.toISOString() };
   }
 
   static async deleteLinuxDoSetting(): Promise<void> {
     await RuntimeConfigModel.deleteOne({ key: "LINUXDO" }).exec();
     runtimeConfigCache.linuxdo = cloneRuntimeConfigDefaults(runtimeConfigDefaults).linuxdo;
     loadedKeys.delete("LINUXDO");
+    invalidateHotCache("LINUXDO");
   }
 
   static async getGoogleAuthSetting(): Promise<{
@@ -936,24 +990,25 @@ export class RuntimeConfigService {
       clientId: nextClientId,
     };
 
-    const now = new Date();
-    await RuntimeConfigModel.findOneAndUpdate(
-      { key: "GOOGLE_AUTH" },
-      { value: nextConfig, updatedAt: now },
-      { upsert: true, returnDocument: "after" },
-    ).exec();
+    const { updatedAt: persistedAt } = await writeRuntimeConfigDoc(
+      "GOOGLE_AUTH",
+      nextConfig as unknown as Record<string, unknown>,
+      currentDoc?.updatedAt,
+    );
 
     runtimeConfigCache.googleAuth = nextConfig;
     loadedKeys.add("GOOGLE_AUTH");
+    invalidateHotCache("GOOGLE_AUTH");
     initialized = true;
 
-    return { updatedAt: now.toISOString() };
+    return { updatedAt: persistedAt.toISOString() };
   }
 
   static async deleteGoogleAuthSetting(): Promise<void> {
     await RuntimeConfigModel.deleteOne({ key: "GOOGLE_AUTH" }).exec();
     runtimeConfigCache.googleAuth = cloneRuntimeConfigDefaults(runtimeConfigDefaults).googleAuth;
     loadedKeys.delete("GOOGLE_AUTH");
+    invalidateHotCache("GOOGLE_AUTH");
   }
 
   static async getSynapseAndroidSetting(): Promise<{
@@ -1030,24 +1085,25 @@ export class RuntimeConfigService {
       disabled: Boolean(nextDisabled),
     };
 
-    const now = new Date();
-    await RuntimeConfigModel.findOneAndUpdate(
-      { key: "SYNAPSE_ANDROID" },
-      { value: nextConfig, updatedAt: now },
-      { upsert: true, returnDocument: "after" },
-    ).exec();
+    const { updatedAt: persistedAt } = await writeRuntimeConfigDoc(
+      "SYNAPSE_ANDROID",
+      nextConfig as unknown as Record<string, unknown>,
+      currentDoc?.updatedAt,
+    );
 
     runtimeConfigCache.synapseAndroid = nextConfig;
     loadedKeys.add("SYNAPSE_ANDROID");
+    invalidateHotCache("SYNAPSE_ANDROID");
     initialized = true;
 
-    return { updatedAt: now.toISOString() };
+    return { updatedAt: persistedAt.toISOString() };
   }
 
   static async deleteSynapseAndroidSetting(): Promise<void> {
     await RuntimeConfigModel.deleteOne({ key: "SYNAPSE_ANDROID" }).exec();
     runtimeConfigCache.synapseAndroid = cloneRuntimeConfigDefaults(runtimeConfigDefaults).synapseAndroid;
     loadedKeys.delete("SYNAPSE_ANDROID");
+    invalidateHotCache("SYNAPSE_ANDROID");
   }
 
   /**
@@ -1120,24 +1176,25 @@ export class RuntimeConfigService {
       maxDriftMs: nextMaxDriftMs,
     };
 
-    const now = new Date();
-    await RuntimeConfigModel.findOneAndUpdate(
-      { key: "NEXAI_SIGNING" },
-      { value: nextConfig, updatedAt: now },
-      { upsert: true, returnDocument: "after" },
-    ).exec();
+    const { updatedAt: persistedAt } = await writeRuntimeConfigDoc(
+      "NEXAI_SIGNING",
+      nextConfig as unknown as Record<string, unknown>,
+      currentDoc?.updatedAt,
+    );
 
     runtimeConfigCache.nexaiSigning = nextConfig;
     loadedKeys.add("NEXAI_SIGNING");
+    invalidateHotCache("NEXAI_SIGNING");
     initialized = true;
 
-    return { updatedAt: now.toISOString() };
+    return { updatedAt: persistedAt.toISOString() };
   }
 
   static async deleteNexaiSigningSetting(): Promise<void> {
     await RuntimeConfigModel.deleteOne({ key: "NEXAI_SIGNING" }).exec();
     runtimeConfigCache.nexaiSigning = cloneRuntimeConfigDefaults(runtimeConfigDefaults).nexaiSigning;
     loadedKeys.delete("NEXAI_SIGNING");
+    invalidateHotCache("NEXAI_SIGNING");
   }
 
   static async getCdictSigningSetting(): Promise<{
@@ -1220,24 +1277,25 @@ export class RuntimeConfigService {
       maxDriftMs: nextMaxDriftMs,
     };
 
-    const now = new Date();
-    await RuntimeConfigModel.findOneAndUpdate(
-      { key: "CDICT_SIGNING" },
-      { value: nextConfig, updatedAt: now },
-      { upsert: true, returnDocument: "after" },
-    ).exec();
+    const { updatedAt: persistedAt } = await writeRuntimeConfigDoc(
+      "CDICT_SIGNING",
+      nextConfig as unknown as Record<string, unknown>,
+      currentDoc?.updatedAt,
+    );
 
     runtimeConfigCache.cdictSigning = nextConfig;
     loadedKeys.add("CDICT_SIGNING");
+    invalidateHotCache("CDICT_SIGNING");
     initialized = true;
 
-    return { updatedAt: now.toISOString() };
+    return { updatedAt: persistedAt.toISOString() };
   }
 
   static async deleteCdictSigningSetting(): Promise<void> {
     await RuntimeConfigModel.deleteOne({ key: "CDICT_SIGNING" }).exec();
     runtimeConfigCache.cdictSigning = cloneRuntimeConfigDefaults(runtimeConfigDefaults).cdictSigning;
     loadedKeys.delete("CDICT_SIGNING");
+    invalidateHotCache("CDICT_SIGNING");
   }
 
   static async getDeepLXSetting(): Promise<{
@@ -1284,24 +1342,25 @@ export class RuntimeConfigService {
           : current.apiKey,
     };
 
-    const now = new Date();
-    await RuntimeConfigModel.findOneAndUpdate(
-      { key: "DEEPLX" },
-      { value: nextConfig, updatedAt: now },
-      { upsert: true, returnDocument: "after" },
-    ).exec();
+    const { updatedAt: persistedAt } = await writeRuntimeConfigDoc(
+      "DEEPLX",
+      nextConfig as unknown as Record<string, unknown>,
+      currentDoc?.updatedAt,
+    );
 
     runtimeConfigCache.deeplx = nextConfig;
     loadedKeys.add("DEEPLX");
+    invalidateHotCache("DEEPLX");
     initialized = true;
 
-    return { updatedAt: now.toISOString() };
+    return { updatedAt: persistedAt.toISOString() };
   }
 
   static async deleteDeepLXSetting(): Promise<void> {
     await RuntimeConfigModel.deleteOne({ key: "DEEPLX" }).exec();
     runtimeConfigCache.deeplx = cloneRuntimeConfigDefaults(runtimeConfigDefaults).deeplx;
     loadedKeys.delete("DEEPLX");
+    invalidateHotCache("DEEPLX");
   }
 
   static async getNexaiSetting(): Promise<{
@@ -1366,24 +1425,25 @@ export class RuntimeConfigService {
       frontendUrl: normalizeUrl(input.frontendUrl, current.frontendUrl),
     };
 
-    const now = new Date();
-    await RuntimeConfigModel.findOneAndUpdate(
-      { key: "NEXAI" },
-      { value: nextConfig, updatedAt: now },
-      { upsert: true, returnDocument: "after" },
-    ).exec();
+    const { updatedAt: persistedAt } = await writeRuntimeConfigDoc(
+      "NEXAI",
+      nextConfig as unknown as Record<string, unknown>,
+      currentDoc?.updatedAt,
+    );
 
     runtimeConfigCache.nexai = nextConfig;
     loadedKeys.add("NEXAI");
+    invalidateHotCache("NEXAI");
     initialized = true;
 
-    return { updatedAt: now.toISOString() };
+    return { updatedAt: persistedAt.toISOString() };
   }
 
   static async deleteNexaiSetting(): Promise<void> {
     await RuntimeConfigModel.deleteOne({ key: "NEXAI" }).exec();
     runtimeConfigCache.nexai = cloneRuntimeConfigDefaults(runtimeConfigDefaults).nexai;
     loadedKeys.delete("NEXAI");
+    invalidateHotCache("NEXAI");
   }
 
   static async getTtsSetting(): Promise<{
@@ -1444,19 +1504,18 @@ export class RuntimeConfigService {
       generationCode,
     };
 
-    const now = new Date();
-    await RuntimeConfigModel.findOneAndUpdate(
-      { key: "TTS" },
-      { value: nextConfig, updatedAt: now },
-      { upsert: true, returnDocument: "after" },
-    ).exec();
+    const { updatedAt: persistedAt } = await writeRuntimeConfigDoc(
+      "TTS",
+      nextConfig as unknown as Record<string, unknown>,
+      currentDoc?.updatedAt,
+    );
 
     runtimeConfigCache.tts = nextConfig;
     loadedKeys.add("TTS");
     invalidateHotCache("TTS");
     initialized = true;
 
-    return { updatedAt: now.toISOString() };
+    return { updatedAt: persistedAt.toISOString() };
   }
 
   static async deleteTtsSetting(): Promise<void> {
@@ -1531,18 +1590,17 @@ export class RuntimeConfigService {
       : runtimeConfigCache.ttsProvider;
     const nextConfig = mergeTtsProviderAdminUpdate(current, input);
 
-    const now = new Date();
-    await RuntimeConfigModel.findOneAndUpdate(
-      { key: "TTS_PROVIDER" },
-      { value: nextConfig, updatedAt: now },
-      { upsert: true, returnDocument: "after" },
-    ).exec();
+    const { updatedAt: persistedAt } = await writeRuntimeConfigDoc(
+      "TTS_PROVIDER",
+      nextConfig as unknown as Record<string, unknown>,
+      currentDoc?.updatedAt,
+    );
 
     runtimeConfigCache.ttsProvider = nextConfig;
     loadedKeys.add("TTS_PROVIDER");
     invalidateHotCache("TTS_PROVIDER");
     initialized = true;
-    return { updatedAt: now.toISOString() };
+    return { updatedAt: persistedAt.toISOString() };
   }
 
   static async getEmailSetting(): Promise<{
@@ -1620,24 +1678,25 @@ export class RuntimeConfigService {
       }
     }
 
-    const now = new Date();
-    await RuntimeConfigModel.findOneAndUpdate(
-      { key: "EMAIL" },
-      { value: nextConfig, updatedAt: now },
-      { upsert: true, returnDocument: "after" },
-    ).exec();
+    const { updatedAt: persistedAt } = await writeRuntimeConfigDoc(
+      "EMAIL",
+      nextConfig as unknown as Record<string, unknown>,
+      currentDoc?.updatedAt,
+    );
 
     runtimeConfigCache.email = nextConfig;
     loadedKeys.add("EMAIL");
+    invalidateHotCache("EMAIL");
     initialized = true;
 
-    return { updatedAt: now.toISOString() };
+    return { updatedAt: persistedAt.toISOString() };
   }
 
   static async deleteEmailSetting(): Promise<void> {
     await RuntimeConfigModel.deleteOne({ key: "EMAIL" }).exec();
     runtimeConfigCache.email = cloneRuntimeConfigDefaults(runtimeConfigDefaults).email;
     loadedKeys.delete("EMAIL");
+    invalidateHotCache("EMAIL");
   }
 
   static async getAdminSecuritySetting(): Promise<{
@@ -1699,24 +1758,25 @@ export class RuntimeConfigService {
       throw new Error("启用公共短链创建前需要配置服务密码");
     }
 
-    const now = new Date();
-    await RuntimeConfigModel.findOneAndUpdate(
-      { key: "ADMIN_SECURITY" },
-      { value: nextConfig, updatedAt: now },
-      { upsert: true, returnDocument: "after" },
-    ).exec();
+    const { updatedAt: persistedAt } = await writeRuntimeConfigDoc(
+      "ADMIN_SECURITY",
+      nextConfig as unknown as Record<string, unknown>,
+      currentDoc?.updatedAt,
+    );
 
     runtimeConfigCache.adminSecurity = nextConfig;
     loadedKeys.add("ADMIN_SECURITY");
+    invalidateHotCache("ADMIN_SECURITY");
     initialized = true;
 
-    return { updatedAt: now.toISOString() };
+    return { updatedAt: persistedAt.toISOString() };
   }
 
   static async deleteAdminSecuritySetting(): Promise<void> {
     await RuntimeConfigModel.deleteOne({ key: "ADMIN_SECURITY" }).exec();
     runtimeConfigCache.adminSecurity = cloneRuntimeConfigDefaults(runtimeConfigDefaults).adminSecurity;
     loadedKeys.delete("ADMIN_SECURITY");
+    invalidateHotCache("ADMIN_SECURITY");
   }
 
   /**
@@ -1927,19 +1987,19 @@ export class RuntimeConfigService {
       }
     }
 
-    const now = new Date();
-    await RuntimeConfigModel.findOneAndUpdate(
-      { key: "LUMEN" },
-      { value: nextConfig, updatedAt: now },
-      { upsert: true, returnDocument: "after" },
-    ).exec();
+    const { updatedAt: persistedAt } = await writeRuntimeConfigDoc(
+      "LUMEN",
+      nextConfig as unknown as Record<string, unknown>,
+      currentDoc?.updatedAt,
+    );
 
     runtimeConfigCache.lumen = nextConfig;
     refreshLumenConfig(nextConfig);
     loadedKeys.add("LUMEN");
+    invalidateHotCache("LUMEN");
     initialized = true;
 
-    return { updatedAt: now.toISOString() };
+    return { updatedAt: persistedAt.toISOString() };
   }
 
   static async deleteLumenSetting(): Promise<void> {
@@ -1948,5 +2008,6 @@ export class RuntimeConfigService {
     runtimeConfigCache.lumen = defaults;
     refreshLumenConfig(defaults);
     loadedKeys.delete("LUMEN");
+    invalidateHotCache("LUMEN");
   }
 }

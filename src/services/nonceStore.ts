@@ -115,6 +115,18 @@ export class NonceStore {
   }
 
   /**
+   * 返回该实例生效的关键配置快照，供 getNonceStore 校验命中单例时配置是否一致。
+   */
+  getEffectiveConfig(): { ttlMs: number; maxSize: number; redisEnabled: boolean; sharedClaimsRequired: boolean } {
+    return {
+      ttlMs: this.ttlMs,
+      maxSize: this.maxSize,
+      redisEnabled: this.redisEnabled,
+      sharedClaimsRequired: this.sharedClaimsRequired,
+    };
+  }
+
+  /**
    * 存储新发放的 nonce
    */
   storeNonce(nonceId: string, clientIp?: string, userAgent?: string, metadata?: Record<string, unknown>): void {
@@ -607,7 +619,28 @@ const nonceStoreInstances = new Map<string, NonceStore>();
 export function getNonceStore(config?: NonceStoreConfig): NonceStore {
   const key = config?.namespace || "default";
   const existing = nonceStoreInstances.get(key);
-  if (existing) return existing;
+  if (existing) {
+    // G5-28: 命中已有单例时必须校验关键配置一致，否则调用方以为换了一组参数生效，
+    // 实际拿到的仍是首次创建时的 ttl/maxSize/redis 配置（伪配置）。
+    const effective = existing.getEffectiveConfig();
+    const mismatches: string[] = [];
+    if (config?.ttlMs !== undefined && config.ttlMs !== effective.ttlMs) {
+      mismatches.push(`ttlMs(${config.ttlMs} != ${effective.ttlMs})`);
+    }
+    if (config?.maxSize !== undefined && config.maxSize !== effective.maxSize) {
+      mismatches.push(`maxSize(${config.maxSize} != ${effective.maxSize})`);
+    }
+    if (config?.redisEnabled !== undefined && config.redisEnabled !== effective.redisEnabled) {
+      mismatches.push(`redisEnabled(${config.redisEnabled} != ${effective.redisEnabled})`);
+    }
+    if (config?.sharedClaimsRequired !== undefined && config.sharedClaimsRequired !== effective.sharedClaimsRequired) {
+      mismatches.push(`sharedClaimsRequired(${config.sharedClaimsRequired} != ${effective.sharedClaimsRequired})`);
+    }
+    if (mismatches.length > 0) {
+      throw new Error(`NonceStore namespace "${key}" 已存在且配置不一致: ${mismatches.join(", ")}`);
+    }
+    return existing;
+  }
 
   const created = new NonceStore(config);
   nonceStoreInstances.set(key, created);

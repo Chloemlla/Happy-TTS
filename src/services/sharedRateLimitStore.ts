@@ -78,9 +78,11 @@ export class BoundedMemoryRateLimitStore implements Store {
     }
 
     if (!entry && BoundedMemoryRateLimitStore.globalHits.size >= this.maxEntries) {
-      BoundedMemoryRateLimitStore.sweepExpired(now);
-      if (BoundedMemoryRateLimitStore.globalHits.size >= this.maxEntries) {
-        this.evictEarliestExpiry();
+      // G5-09: O(1) 淘汰最旧插入项（Map 保持插入顺序），避免满载后每个新 key 触发
+      // 两轮 O(N) 全表扫描把限流器自身变成 CPU 放大器。
+      const oldestKey = BoundedMemoryRateLimitStore.globalHits.keys().next().value;
+      if (oldestKey !== undefined) {
+        BoundedMemoryRateLimitStore.globalHits.delete(oldestKey);
       }
     }
 
@@ -126,19 +128,6 @@ export class BoundedMemoryRateLimitStore implements Store {
 
   private key(key: string): string {
     return `${this.internalPrefix}:${key}`;
-  }
-
-  private evictEarliestExpiry(): void {
-    let earliestKey: string | undefined;
-    let earliestReset = Number.POSITIVE_INFINITY;
-    for (const [key, value] of BoundedMemoryRateLimitStore.globalHits.entries()) {
-      const reset = value.resetTime.getTime();
-      if (reset < earliestReset) {
-        earliestKey = key;
-        earliestReset = reset;
-      }
-    }
-    if (earliestKey) BoundedMemoryRateLimitStore.globalHits.delete(earliestKey);
   }
 }
 
@@ -432,20 +421,24 @@ export function createSharedRateLimitStore(
   windowMs: number,
   options: ResilientStoreOptions = {},
 ): Store {
-  const redisEnabled = options.redisEnabled ?? Boolean(startupConfig.redis.url);
+  const redisConfigured = Boolean(startupConfig.redis.url);
+  const redisEnabled = options.redisEnabled ?? redisConfigured;
   const redisStore = redisEnabled ? options.redisStore || new RedisRateLimitStore(prefix, windowMs) : null;
   const mongoStore = options.mongoStore || new MongoRateLimitStore(prefix, windowMs);
   const memoryStore = options.memoryStore || new BoundedMemoryRateLimitStore(prefix, windowMs);
-  // Memory is the default primary store; callers that explicitly require a shared
-  // backend (e.g. requireSharedBackend: true) opt back into Redis/Mongo.
-  const preferMemory = options.preferMemory ?? !options.requireSharedBackend;
+  // G5-08: 配了 REDIS_URL 就用 Redis 作为共享后端（多实例限流一致）；未配置才默认进程内存。
+  // 显式 requireSharedBackend 的调用方（如 API Key 配额）保持走共享后端。
+  const preferMemory = options.preferMemory ?? (options.requireSharedBackend ? false : !redisConfigured);
+  // G5-08: 配置了 Redis 但不可用时 fail-closed，而不是静默回退到进程内存（内存档多实例额度被放大）。
+  const requireSharedBackend = options.requireSharedBackend ?? redisConfigured;
+  const allowMongoFallbackAfterRedisError = options.allowMongoFallbackAfterRedisError ?? !redisConfigured;
   return new ResilientRateLimitStore(
     prefix,
     redisStore,
     mongoStore,
     memoryStore,
-    options.requireSharedBackend ?? false,
-    options.allowMongoFallbackAfterRedisError ?? true,
+    requireSharedBackend,
+    allowMongoFallbackAfterRedisError,
     preferMemory,
   );
 }

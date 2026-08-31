@@ -3,16 +3,29 @@ import type { Server as HttpServer, IncomingMessage } from "node:http";
 import type { Socket } from "node:net";
 import { URL } from "node:url";
 import { WebSocket, WebSocketServer } from "ws";
+import { isIPBannedFromCache } from "../middleware/ipBanCheck";
 import { onUserAuthorityChanged } from "../utils/userAuthorityEvents";
 import { toTicketView } from "../utils/ticketView";
 import { EcoEnchantsOpsService } from "./ecoEnchantsOpsService";
 import { resolveWebSocketIdentity, type WebSocketIdentity } from "./wsAuthentication";
+import { createSharedRateLimitStore } from "./sharedRateLimitStore";
 import {
   claimPendingConfigurationNoticeForAdminConnection,
   completeConfigurationNoticeDelivery,
   releaseConfigurationNoticeDeliveryClaim,
 } from "./configurationNoticeService";
 import logger from "../utils/logger";
+
+// G5-05: WS 加固常量
+const WS_MAX_PAYLOAD = 64 * 1024,
+  WS_MAX_TOTAL_CONNECTIONS = 1000,
+  WS_MAX_CONNECTIONS_PER_IP = 10,
+  WS_MAX_CHANNELS_PER_CLIENT = 20,
+  WS_MAX_CHANNEL_NAME_LENGTH = 128,
+  WS_UPGRADE_WINDOW_MS = 60_000,
+  WS_UPGRADE_MAX_PER_IP = 30,
+  WS_CHANNEL_PREFIX_PATTERN = /^(user:|admin:|ticket:)/;
+const wsUpgradeRateLimiter = createSharedRateLimitStore("ws-upgrade", WS_UPGRADE_WINDOW_MS, {});
 
 // ========== 类型定义 ==========
 
@@ -59,14 +72,16 @@ interface WsClient {
   channels: Set<string>;
   connectedAt: number;
   lastPing: number;
+  ip: string;
 }
 
 /**
  * 生成指纹通知的去重 hash
  * 同一事件只需处理一次，无论通过 HTTP header 还是 WS 推送到达前端
+ * G5-31: hash 不含时间戳，否则每次调用都是新 hash，去重永远失效。
  */
-function generateFingerprintHash(userId: string, enabled: boolean, ts: number): string {
-  return crypto.createHash("sha256").update(`fp:${userId}:${enabled}:${ts}`).digest("hex").substring(0, 16);
+function generateFingerprintHash(userId: string, enabled: boolean): string {
+  return crypto.createHash("sha256").update(`fp:${userId}:${enabled}`).digest("hex").substring(0, 16);
 }
 
 // ========== WebSocket 服务 ==========
@@ -76,10 +91,11 @@ class WsService {
   private clients = new Map<WebSocket, WsClient>();
   private clientsByUserId = new Map<string, Set<WsClient>>();
   private clientsByChannel = new Map<string, Set<WsClient>>();
+  private clientsByIp = new Map<string, number>(); // G5-05: 单 IP 连接数
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private server: HttpServer | null = null;
   private upgradeHandler: ((req: IncomingMessage, socket: Socket, head: Buffer) => void) | null = null;
-  private pendingUpgradeAuth = new WeakMap<IncomingMessage, WebSocketIdentity>();
+  private pendingUpgradeAuth = new WeakMap<IncomingMessage, { identity: WebSocketIdentity; ip: string }>();
   private unsubscribeAuthorityChanges: (() => void) | null = null;
 
   /**
@@ -99,19 +115,19 @@ class WsService {
     }
 
     this.server = server;
-    this.wss = new WebSocketServer({ noServer: true });
+    this.wss = new WebSocketServer({ noServer: true, maxPayload: WS_MAX_PAYLOAD });
     this.unsubscribeAuthorityChanges = onUserAuthorityChanged((userId) => {
       this.invalidateUserAuthority(userId);
     });
 
     this.wss.on("connection", (ws: WebSocket, req: IncomingMessage) => {
-      const identity = this.pendingUpgradeAuth.get(req);
+      const context = this.pendingUpgradeAuth.get(req);
       this.pendingUpgradeAuth.delete(req);
-      if (!identity) {
+      if (!context) {
         ws.close(1011, "Authentication context unavailable");
         return;
       }
-      this.handleConnection(ws, identity);
+      this.handleConnection(ws, context.identity, context.ip);
     });
     EcoEnchantsOpsService.initRpcWebSocket();
 
@@ -149,26 +165,29 @@ class WsService {
 
   private async handleUpgrade(req: IncomingMessage, socket: Socket, head: Buffer): Promise<void> {
     const pathname = this.getUpgradePathname(req);
+    const clientIp = (req.socket.remoteAddress || "unknown").replace(/^::ffff:/i, "");
+
+    // G5-05: 升级路径在 Express 中间件栈之外，先做 IP 封禁（缓存判定）+ 按 IP 频率限制。
+    if (pathname === "/ws" || EcoEnchantsOpsService.shouldHandleRpcUpgrade(pathname)) {
+      if (isIPBannedFromCache(clientIp).banned) return this.rejectUpgrade(socket, 403, "Forbidden");
+      try {
+        const r = await wsUpgradeRateLimiter.increment(clientIp);
+        if (r.totalHits > WS_UPGRADE_MAX_PER_IP) return this.rejectUpgrade(socket, 429, "Too Many Requests");
+      } catch (error) {
+        logger.warn("[WS] upgrade 限流存储不可用，放行", { error: error instanceof Error ? error.message : String(error) });
+      }
+    }
 
     if (pathname === "/ws") {
       const upgradeWss = this.wss;
-      if (!upgradeWss) {
-        this.rejectUpgrade(socket, 503, "Service Unavailable");
-        return;
-      }
+      if (!upgradeWss) return this.rejectUpgrade(socket, 503, "Service Unavailable");
 
       const identity = await resolveWebSocketIdentity(req);
-      if (!identity) {
-        this.rejectUpgrade(socket, 401, "Unauthorized");
-        return;
-      }
+      if (!identity) return this.rejectUpgrade(socket, 401, "Unauthorized");
 
-      if (this.wss !== upgradeWss || socket.destroyed) {
-        this.rejectUpgrade(socket, 503, "Service Unavailable");
-        return;
-      }
+      if (this.wss !== upgradeWss || socket.destroyed) return this.rejectUpgrade(socket, 503, "Service Unavailable");
 
-      this.pendingUpgradeAuth.set(req, identity);
+      this.pendingUpgradeAuth.set(req, { identity, ip: clientIp });
       upgradeWss.handleUpgrade(req, socket, head, (ws) => {
         upgradeWss.emit("connection", ws, req);
       });
@@ -189,8 +208,12 @@ class WsService {
     socket.destroy();
   }
 
-  private handleConnection(ws: WebSocket, identity: WebSocketIdentity) {
+  private handleConnection(ws: WebSocket, identity: WebSocketIdentity, ip: string) {
     const { userId, isAdmin } = identity;
+
+    // G5-05: 连接数上限——总连接数与同 IP 连接数。
+    if (this.clients.size >= WS_MAX_TOTAL_CONNECTIONS) return void ws.close(1013, "Server busy");
+    if ((this.clientsByIp.get(ip) || 0) >= WS_MAX_CONNECTIONS_PER_IP) return void ws.close(1008, "Too many connections");
 
     const client: WsClient = {
       ws,
@@ -199,6 +222,7 @@ class WsService {
       channels: new Set(),
       connectedAt: Date.now(),
       lastPing: Date.now(),
+      ip,
     };
 
     // 如果有 userId，自动订阅用户频道
@@ -240,6 +264,7 @@ class WsService {
 
   private registerClient(client: WsClient): void {
     this.clients.set(client.ws, client);
+    this.clientsByIp.set(client.ip, (this.clientsByIp.get(client.ip) || 0) + 1);
     if (client.userId) {
       const bucket = this.clientsByUserId.get(client.userId);
       if (bucket) bucket.add(client);
@@ -254,6 +279,9 @@ class WsService {
     const client = this.clients.get(ws);
     this.clients.delete(ws);
     if (!client) return;
+    const ipCount = this.clientsByIp.get(client.ip);
+    if (ipCount && ipCount > 1) this.clientsByIp.set(client.ip, ipCount - 1);
+    else this.clientsByIp.delete(client.ip);
     if (client.userId) {
       const bucket = this.clientsByUserId.get(client.userId);
       if (bucket) {
@@ -335,9 +363,13 @@ class WsService {
         break;
 
       case "subscribe":
-        if (msg.channel) {
+        if (msg.channel && typeof msg.channel === "string") {
+          // G5-05: 频道名白名单前缀 + 长度上限 + 每连接订阅数上限，防止 clientsByChannel 无界增长。
+          if (msg.channel.length > WS_MAX_CHANNEL_NAME_LENGTH) break;
+          if (!WS_CHANNEL_PREFIX_PATTERN.test(msg.channel)) break;
           // 管理员频道只允许管理员订阅
           if (msg.channel.startsWith("admin:") && !client.isAdmin) break;
+          if (client.channels.size >= WS_MAX_CHANNELS_PER_CLIENT) break;
           client.channels.add(msg.channel);
           this.indexChannel(client, msg.channel);
         }
@@ -369,6 +401,11 @@ class WsService {
 
   private sendRaw(ws: WebSocket, payload: string): boolean {
     if (ws.readyState === WebSocket.OPEN) {
+      // G5-05: 慢消费者出站缓冲上限，超限强制断开，防止内存无界堆积。
+      if (ws.bufferedAmount > 256 * 1024) {
+        ws.terminate();
+        return false;
+      }
       ws.send(payload);
       return true;
     }
@@ -523,7 +560,8 @@ class WsService {
    */
   notifyFingerprintRequired(userId: string, enabled: boolean): string {
     const ts = Date.now();
-    const hash = generateFingerprintHash(userId, enabled, ts);
+    // G5-31: hash 不含时间戳，去重才有效。
+    const hash = generateFingerprintHash(userId, enabled);
 
     // 如果该 hash 已被前端确认处理过，不再推送
     if (this.processedFingerprintHashes.has(hash)) {
@@ -549,8 +587,7 @@ class WsService {
    * @param userId 目标用户 ID
    */
   notifyFingerprintAck(userId: string): void {
-    const ts = Date.now();
-    const hash = generateFingerprintHash(userId, false, ts);
+    const hash = generateFingerprintHash(userId, false);
 
     this.sendToUser(userId, {
       type: "fingerprint:ack",
@@ -751,7 +788,9 @@ class WsService {
     this.clients.clear();
     this.clientsByUserId.clear();
     this.clientsByChannel.clear();
-    this.pendingUpgradeAuth = new WeakMap<IncomingMessage, WebSocketIdentity>();
+    this.clientsByIp.clear();
+    this.processedFingerprintHashes.clear();
+    this.pendingUpgradeAuth = new WeakMap<IncomingMessage, { identity: WebSocketIdentity; ip: string }>();
   }
 }
 

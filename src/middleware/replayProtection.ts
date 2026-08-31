@@ -59,7 +59,13 @@ export interface ReplayProtectionOptions {
 export function replayProtection(options: ReplayProtectionOptions = {}) {
   const { maxDriftMs = 5 * 60 * 1000, minNonceLength = 16, skipInDev = true } = options;
 
-  const nonceStore = getNonceStore({ ttlMs: maxDriftMs });
+  // G5-28: 显式 namespace，按 maxDriftMs 隔离 nonce store，避免与其它业务
+  // （SmartHumanCheck / nexai-sig）共享同一实例导致 TTL 被静默沿用。
+  const nonceStore = getNonceStore({
+    ttlMs: maxDriftMs,
+    namespace: `replay-${maxDriftMs}`,
+    sharedClaimsRequired: !["development", "test"].includes(process.env.NODE_ENV || ""),
+  });
 
   return (req: Request, res: Response, next: NextFunction) => {
     // 开发环境可选跳过

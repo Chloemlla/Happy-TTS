@@ -41,13 +41,25 @@ interface ProcessMetricsSnapshot {
 const mb = (value: number) => Math.round((value / 1024 / 1024) * 100) / 100;
 const nsToMs = (value: number) => Math.round((value / 1_000_000) * 100) / 100;
 
+// G5-32: Number(process.env.X) 统一 NaN 兜底，非法值回落默认并给出合理上下界。
+function parsePositiveInt(raw: string | undefined, fallback: number, min = 1, max = Number.MAX_SAFE_INTEGER): number {
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, Math.floor(parsed)));
+}
+
 class ProfilingService {
   private readonly enabled = process.env.PROFILING_ENABLED === "true";
-  private readonly slowRequestThresholdMs = Number(process.env.PROFILING_SLOW_REQUEST_THRESHOLD_MS || 800);
-  private readonly sampleLimit = Number(process.env.PROFILING_REQUEST_SAMPLE_LIMIT || 200);
-  private readonly routeLimit = Number(process.env.PROFILING_ROUTE_LIMIT || 50);
-  private readonly processSampleIntervalMs = Number(process.env.PROFILING_SAMPLE_INTERVAL_MS || 10_000);
-  private readonly summaryLogIntervalMs = Number(process.env.PROFILING_SUMMARY_LOG_INTERVAL_MS || 0);
+  private readonly slowRequestThresholdMs = parsePositiveInt(process.env.PROFILING_SLOW_REQUEST_THRESHOLD_MS, 800, 1, 60_000);
+  private readonly sampleLimit = parsePositiveInt(process.env.PROFILING_REQUEST_SAMPLE_LIMIT, 200, 1, 100_000);
+  private readonly routeLimit = parsePositiveInt(process.env.PROFILING_ROUTE_LIMIT, 50, 1, 100_000);
+  private readonly processSampleIntervalMs = parsePositiveInt(
+    process.env.PROFILING_SAMPLE_INTERVAL_MS,
+    10_000,
+    10,
+    60_000,
+  );
+  private readonly summaryLogIntervalMs = parsePositiveInt(process.env.PROFILING_SUMMARY_LOG_INTERVAL_MS, 0, 0, 3_600_000);
   private readonly histogram = monitorEventLoopDelay({ resolution: 20 });
   private readonly recentRequests: RequestProfileSample[] = [];
   private readonly routeAggregates = new Map<string, RouteProfileAggregate>();

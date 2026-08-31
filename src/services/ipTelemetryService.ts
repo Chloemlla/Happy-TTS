@@ -7,6 +7,15 @@ const DATA_DIR = path.join(process.cwd(), "data");
 const CLIENT_REPORTED_IP_FILE = path.join(DATA_DIR, "clientReportedIP.jsonl");
 const IP_LOCATION_CACHE_FILE = path.join(DATA_DIR, "ipLocationCache.jsonl");
 const IP_LOCATION_TIMEOUT_MS = 3000;
+// G5-17: 归属地缓存 TTL（24h），IP 换归属后不再一直返回旧值。
+const IP_LOCATION_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+// G5-17: 客户端上报文件大小上限（约 10MB）。
+const CLIENT_REPORTED_IP_MAX_BYTES = 10 * 1024 * 1024;
+
+function truncate(value: unknown, maxLength: number): string {
+  if (typeof value !== "string") return "";
+  return value.slice(0, maxLength);
+}
 
 interface IpLocationApiResponse {
   code?: number;
@@ -72,12 +81,14 @@ export function normalizeIpAddress(value: unknown): string | null {
 }
 
 async function readIpLocationCache(): Promise<Map<string, IpLocationCacheRecord>> {
+  // G5-17: 进程内缓存为权威；只在首次访问（或内存缓存被清空）时全量读文件，
+  // 不再每次写入都因 mtime 变化触发整份文件重解析。
+  if (ipLocationCache) {
+    return ipLocationCache.records;
+  }
+
   try {
     const stats = await stat(IP_LOCATION_CACHE_FILE);
-    if (ipLocationCache && ipLocationCache.mtimeMs === stats.mtimeMs) {
-      return ipLocationCache.records;
-    }
-
     const records = new Map<string, IpLocationCacheRecord>();
     const content = await readFile(IP_LOCATION_CACHE_FILE, "utf-8");
     for (const line of content.split(/\r?\n/)) {
@@ -108,7 +119,16 @@ async function readIpLocationCache(): Promise<Map<string, IpLocationCacheRecord>
 
 export async function getCachedIpLocation(ip: string): Promise<IpLocationCacheRecord | null> {
   const cache = await readIpLocationCache();
-  return cache.get(ip) || null;
+  const record = cache.get(ip);
+  if (!record) return null;
+
+  // G5-17: 缓存 TTL 校验，过期即删除并返回 null。
+  const cachedAt = new Date(record.cachedAt).getTime();
+  if (!Number.isFinite(cachedAt) || Date.now() - cachedAt > IP_LOCATION_CACHE_TTL_MS) {
+    cache.delete(ip);
+    return null;
+  }
+  return record;
 }
 
 export async function cacheIpLocation(ip: string, location: string): Promise<IpLocationCacheRecord> {
@@ -120,6 +140,7 @@ export async function cacheIpLocation(ip: string, location: string): Promise<IpL
 
   await appendJsonLine(IP_LOCATION_CACHE_FILE, record);
 
+  // G5-17: 直接更新内存缓存，不做整份文件重解析。
   const cache = await readIpLocationCache();
   cache.set(ip, record);
 
@@ -140,6 +161,7 @@ function formatIpLookupTarget(ip: string): string {
 // Trusted third-party IP geolocation providers, tried in order. Each must embed
 // only a validated IP (never a hostname), so requests cannot be redirected to
 // arbitrary hosts (SSRF hardening).
+// G5-35: 只保留 https 的 provider；ip-api.com 免费版不支持 HTTPS 已移除，避免访客 IP 明文外发。
 const IP_LOCATION_PROVIDERS: IpLocationProvider[] = [
   {
     name: "api.vore.top",
@@ -149,17 +171,6 @@ const IP_LOCATION_PROVIDERS: IpLocationProvider[] = [
       if (d?.code === 200 && d.ipdata) {
         const info = d.ipdata;
         return `${info.info1 || ""}, ${info.info2 || ""}, ${info.info3 || ""} 运营商: ${info.isp || ""}`.trim();
-      }
-      return null;
-    },
-  },
-  {
-    name: "ip-api.com",
-    url: (ip) => `http://ip-api.com/json/${encodeURIComponent(ip)}?lang=zh-CN&fields=status,country,regionName,city,isp`,
-    parse: (data) => {
-      const d = data as { status?: string; country?: string; regionName?: string; city?: string; isp?: string };
-      if (d?.status === "success") {
-        return [d.country, d.regionName, d.city].filter(Boolean).join(", ") || null;
       }
       return null;
     },
@@ -206,7 +217,42 @@ export async function lookupIpLocation(ip: string, timeoutMs = IP_LOCATION_TIMEO
   return "未知";
 }
 
+// G5-17: 客户端上报按 IP 限流（每 IP 每分钟最多 1 条），防止反复上报大 payload 写满磁盘。
+const reportIpThrottle = new Map<string, number>();
+
 export async function recordClientReportedIp(record: ClientReportedIpRecord): Promise<void> {
-  await appendJsonLine(CLIENT_REPORTED_IP_FILE, record);
+  // G5-17: 字段截断（UA ≤512、URL ≤1024）。
+  const safe: ClientReportedIpRecord = {
+    clientReportedIP: truncate(record.clientReportedIP, 64),
+    realIP: truncate(record.realIP, 64),
+    ua: truncate(record.ua, 512),
+    userAgent: truncate(record.userAgent, 512),
+    url: truncate(record.url, 1024),
+    referrer: truncate(record.referrer, 1024),
+    timestamp: truncate(record.timestamp, 80),
+    receivedAt: new Date().toISOString(),
+  };
+
+  const key = safe.clientReportedIP || safe.realIP || "unknown";
+  const now = Date.now();
+  const last = reportIpThrottle.get(key);
+  if (last && now - last < 60_000) {
+    return;
+  }
+  reportIpThrottle.set(key, now);
+  if (reportIpThrottle.size > 10_000) reportIpThrottle.clear();
+
+  // 文件大小上限：超过则丢弃新记录（低频 stat）。
+  try {
+    const stats = await stat(CLIENT_REPORTED_IP_FILE);
+    if (stats.size > CLIENT_REPORTED_IP_MAX_BYTES) {
+      logger.warn("[IPTelemetry] 客户端上报文件超过大小上限，丢弃新记录");
+      return;
+    }
+  } catch {
+    // 文件不存在则正常追加
+  }
+
+  await appendJsonLine(CLIENT_REPORTED_IP_FILE, safe);
 }
 

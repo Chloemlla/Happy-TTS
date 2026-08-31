@@ -78,30 +78,32 @@ class IpBanSyncService {
     try {
       logger.info("🔄 开始同步 MongoDB -> Redis...");
 
-      // 获取所有未过期的 MongoDB 封禁记录
-      const mongoBans = await IpBanModel.find({
-        expiresAt: { $gt: new Date() },
-      }).lean();
-
-      logger.info(`📊 MongoDB 中有 ${mongoBans.length} 条未过期的封禁记录`);
-
       // 获取所有 Redis 中的封禁记录
       const redisBans = await redisService.getAllBannedIPs();
       const redisBanMap = new Map(redisBans.map((ban) => [ban.ip, ban]));
 
       logger.info(`📊 Redis 中有 ${redisBans.length} 条封禁记录`);
 
-      // 同步每条 MongoDB 记录到 Redis
-      for (const mongoBan of mongoBans) {
+      // G5-25: Mongo 侧改为游标分批流式读取，避免整张封禁表一次性读进内存。
+      const cursor = IpBanModel.find({
+        expiresAt: { $gt: new Date() },
+      })
+        .select("ipAddress reason expiresAt fingerprint userAgent violationCount")
+        .lean()
+        .cursor();
+
+      let mongoBanCount = 0;
+      for await (const mongoBan of cursor) {
+        mongoBanCount += 1;
         try {
           const ip = mongoBan.ipAddress;
           const redisBan = redisBanMap.get(ip);
 
-          // 计算剩余封禁时长（分钟）
+          // 计算剩余封禁时长（分钟）。G5-25: 用 floor 而非 ceil，避免反向同步逐轮漂移延长封禁时间。
           const now = Date.now();
           const expiresAt = new Date(mongoBan.expiresAt).getTime();
           const remainingMs = expiresAt - now;
-          const remainingMinutes = Math.ceil(remainingMs / 1000 / 60);
+          const remainingMinutes = Math.max(1, Math.floor(remainingMs / 1000 / 60));
 
           if (remainingMinutes <= 0) {
             // 已过期，跳过
@@ -138,7 +140,9 @@ class IpBanSyncService {
       }
 
       const duration = Date.now() - startTime;
-      logger.info(`✅ 同步完成: 新增 ${synced}, 合并 ${merged}, 跳过 ${skipped}, 错误 ${errors}, 耗时 ${duration}ms`);
+      logger.info(
+        `✅ 同步完成: 新增 ${synced}, 合并 ${merged}, 跳过 ${skipped}, 错误 ${errors}, Mongo记录 ${mongoBanCount}, 耗时 ${duration}ms`,
+      );
 
       return { synced, merged, skipped, errors };
     } catch (error) {
@@ -171,11 +175,8 @@ class IpBanSyncService {
         // 合并违规次数（取较大值）
         const mergedViolationCount = Math.max(mongoBan.violationCount || 1, redisBan.violationCount || 1);
 
-        // 合并原因（如果不同，拼接）
-        let mergedReason = mongoBan.reason;
-        if (redisBan.reason && redisBan.reason !== mongoBan.reason) {
-          mergedReason = `${mongoBan.reason}; ${redisBan.reason}`;
-        }
+        // G5-25: 只保留 Mongo 侧原因，避免每次同步把原因拼接成 "A; B; A; B" 逐轮变长。
+        const mergedReason = mongoBan.reason || redisBan.reason || "自动封禁";
 
         // 更新 Redis
         await redisService.banIP(ip, mergedReason, remainingMinutes, {
@@ -207,6 +208,12 @@ class IpBanSyncService {
     errors: number;
     duration: number;
   }> {
+    // G5-25: 与 syncMongoToRedis 一样加 isSyncing 闸门，防止定时轮与手动同步并发。
+    if (this.isSyncing) {
+      logger.warn("⚠️ 反向同步正在进行中，跳过本次同步");
+      return { synced: 0, updated: 0, skipped: 0, errors: 0, duration: 0 };
+    }
+
     if (!redisService.isAvailable()) {
       logger.warn("⚠️ Redis 不可用，跳过反向同步");
       return { synced: 0, updated: 0, skipped: 0, errors: 0, duration: 0 };
@@ -218,6 +225,7 @@ class IpBanSyncService {
     let skipped = 0;
     let errors = 0;
 
+    this.isSyncing = true;
     try {
       logger.info("🔄 开始反向同步 Redis -> MongoDB...");
 
@@ -266,18 +274,21 @@ class IpBanSyncService {
               skipped++;
             }
           } else {
-            // 不存在，创建新记录
+            // G5-25: 用 updateOne + upsert 代替 insertOne，天然幂等，唯一键冲突不再让整批同步中断。
             bulkOps.push({
-              insertOne: {
-                document: {
-                  ipAddress: ip,
-                  reason: redisBan.reason,
-                  violationCount: redisBan.violationCount || 1,
-                  bannedAt: new Date(redisBan.bannedAt),
-                  expiresAt: redisExpiresAt,
-                  fingerprint: redisBan.fingerprint || "",
-                  userAgent: redisBan.userAgent || "",
+              updateOne: {
+                filter: { ipAddress: ip },
+                update: {
+                  $set: {
+                    reason: redisBan.reason,
+                    violationCount: redisBan.violationCount || 1,
+                    bannedAt: new Date(redisBan.bannedAt),
+                    expiresAt: redisExpiresAt,
+                    fingerprint: redisBan.fingerprint || "",
+                    userAgent: redisBan.userAgent || "",
+                  },
                 },
+                upsert: true,
               },
             });
             synced++;
@@ -288,9 +299,9 @@ class IpBanSyncService {
         }
       }
 
-      // 执行批量写入（一次操作）
+      // 执行批量写入（一次操作）（G5-25: ordered:false，单条唯一键冲突不影响其余操作）
       if (bulkOps.length > 0) {
-        await IpBanModel.bulkWrite(bulkOps);
+        await IpBanModel.bulkWrite(bulkOps, { ordered: false });
       }
 
       const duration = Date.now() - startTime;
@@ -302,6 +313,8 @@ class IpBanSyncService {
     } catch (error) {
       logger.error("❌ 反向同步过程失败:", error);
       return { synced, updated, skipped, errors, duration: Date.now() - startTime };
+    } finally {
+      this.isSyncing = false;
     }
   }
 

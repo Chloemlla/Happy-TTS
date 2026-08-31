@@ -1,6 +1,9 @@
+import { appendFile, mkdir } from "node:fs/promises";
+import { join } from "node:path";
 import type { NextFunction, Request, Response } from "express";
 import { AuditLogModel, type IAuditLog } from "../models/auditLogModel";
 import logger from "../utils/logger";
+import { registerShutdownStep, installShutdownHandlers } from "./shutdown";
 import {
   ALLOWED_AUDIT_MODULES,
   inferAuditModuleFromPath,
@@ -13,15 +16,30 @@ import {
 // per-request MongoDB write overhead.  Flush interval: 1s, max batch: 50.
 const AUDIT_BATCH_FLUSH_MS = 1000;
 const AUDIT_BATCH_MAX_SIZE = 50;
+const AUDIT_BATCH_MAX_RETRIES = 5;
+const AUDIT_BATCH_MAX_BUFFER = 500;
+const AUDIT_FALLBACK_FILE = join(process.cwd(), "data", "audit-fallback.jsonl");
 const auditBatchBuffer: AuditEntry[] = [];
 let auditBatchTimer: ReturnType<typeof setInterval> | null = null;
+let auditBatchRetryCount = 0;
+
+async function appendAuditFallback(entries: AuditEntry[]): Promise<void> {
+  try {
+    await mkdir(join(process.cwd(), "data"), { recursive: true });
+    const lines = entries.map((e) => `${JSON.stringify({ ...e, createdAt: new Date(), fallbackAt: new Date() })}\n`).join("");
+    await appendFile(AUDIT_FALLBACK_FILE, lines, "utf-8");
+  } catch (fallbackError) {
+    logger.error("[AuditBatch] 审计落盘兜底也失败", {
+      count: entries.length,
+      error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
+    });
+  }
+}
 
 function ensureAuditBatchFlush(): void {
   if (auditBatchTimer) return;
   auditBatchTimer = setInterval(() => {
-    flushAuditBatch().catch((err) =>
-      logger.error("[AuditBatch] 定时刷新失败", err),
-    );
+    flushAuditBatch().catch((err) => logger.error("[AuditBatch] 定时刷新失败", err));
   }, AUDIT_BATCH_FLUSH_MS);
   // Allow the Node process to exit even if the timer is still pending.
   if (auditBatchTimer && typeof auditBatchTimer === "object" && "unref" in auditBatchTimer) {
@@ -37,17 +55,48 @@ async function flushAuditBatch(): Promise<void> {
       batch.map((entry) => ({ ...entry, createdAt: new Date() })),
       { ordered: false },
     );
+    auditBatchRetryCount = 0;
   } catch (err) {
-    logger.error("[AuditBatch] 批量写入失败, 丢弃 %d 条日志", batch.length, err);
+    // G5-06: 失败不丢弃——先重试（指数退避 + 上限），超限落盘兜底，而不是静默消失。
+    logger.error("[AuditBatch] 批量写入失败", {
+      count: batch.length,
+      error: err instanceof Error ? err.message : String(err),
+      retryCount: auditBatchRetryCount,
+    });
+    if (auditBatchRetryCount >= AUDIT_BATCH_MAX_RETRIES) {
+      auditBatchRetryCount = 0;
+      await appendAuditFallback(batch);
+      return;
+    }
+    auditBatchRetryCount += 1;
+
+    // 缓冲有界：若缓冲已超上限，直接把最旧的批次落盘兜底，避免内存无界。
+    if (auditBatchBuffer.length + batch.length > AUDIT_BATCH_MAX_BUFFER) {
+      await appendAuditFallback(batch);
+      return;
+    }
+
+    // 放回缓冲头部，指数退避后重试。
+    auditBatchBuffer.unshift(...batch);
+    const backoffMs = Math.min(1_000 * 2 ** auditBatchRetryCount, 30_000);
+    const retryTimer = setTimeout(() => {
+      flushAuditBatch().catch((retryErr) =>
+        logger.error("[AuditBatch] 重试刷新失败", retryErr),
+      );
+    }, backoffMs);
+    retryTimer.unref?.();
   }
 }
 
-// Ensure flush on process exit
-process.once("beforeExit", () => {
+/** G5-06: 供统一关闭编排调用的强制冲洗（SIGTERM/SIGINT 下不丢缓冲）。 */
+export async function flushAuditBatchForShutdown(): Promise<void> {
   if (auditBatchBuffer.length > 0) {
-    flushAuditBatch().catch(() => {});
+    await flushAuditBatch();
   }
-});
+}
+
+registerShutdownStep("audit-log", flushAuditBatchForShutdown);
+installShutdownHandlers();
 
 export interface AuditEntry {
   requestId?: string;
@@ -97,6 +146,11 @@ const SENSITIVE_AUDIT_FIELDS = [
   "jwt",
   "refresh_token",
   "access_token",
+  "code",
+  "otp",
+  "sig",
+  "signature",
+  "key",
 ];
 // Underscores stripped once here; key matching stays substring-based.
 const NORMALIZED_SENSITIVE_AUDIT_FIELDS = Array.from(
@@ -146,6 +200,19 @@ function getRequestPathname(req: Request): string {
   const rawPath = req.path || req.originalUrl || req.url || "";
   const [pathname] = rawPath.split("?");
   return pathname || "/";
+}
+
+// G5-07: 中断请求的失败审计按 IP 采样，避免被用作审计文档放大。
+const closeFailureAuditThrottle = new Map<string, number>();
+const CLOSE_FAILURE_AUDIT_THROTTLE_MS = 10_000;
+
+function shouldSampleCloseFailure(ip: string): boolean {
+  const now = Date.now();
+  const last = closeFailureAuditThrottle.get(ip);
+  if (last && now - last < CLOSE_FAILURE_AUDIT_THROTTLE_MS) return false;
+  closeFailureAuditThrottle.set(ip, now);
+  if (closeFailureAuditThrottle.size > 10_000) closeFailureAuditThrottle.clear();
+  return true;
 }
 
 export interface AuditLogQueryParams {
@@ -682,13 +749,14 @@ export class AuditLogService {
           detail: {
             durationMs,
             statusCode: res.statusCode,
-            query: Object.keys(req.query).length ? req.query : undefined,
+            // G5-07: query 走与 body 相同的脱敏 + 长度上限，避免 URL 里的 token/code/口令明文落盘。
+            query: Object.keys(req.query).length ? sanitizePayload(req.query) : undefined,
             reqBody: capturePayload && Object.keys(req.body || {}).length ? sanitizePayload(req.body) : undefined,
             resBody: capturePayload && resBody !== undefined ? sanitizePayload(resBody) : undefined,
           },
           ip: req.ip || req.socket.remoteAddress || "unknown",
           userAgent: req.headers["user-agent"],
-          path: req.originalUrl || req.path,
+          path: (req.originalUrl || req.path || "").substring(0, AUDIT_PAYLOAD_STRING_LIMIT),
           method: req.method,
         };
 
@@ -717,9 +785,9 @@ export class AuditLogService {
         return originalSend(body);
       };
 
-      // 捕获请求异常终止
+      // 捕获请求异常终止（G5-07: 按 IP 采样，防放大器）
       res.on("close", () => {
-        if (!res.writableEnded) {
+        if (!res.writableEnded && shouldSampleCloseFailure(req.ip || req.socket.remoteAddress || "unknown")) {
           writeAudit("failure", "Connection closed prematurely");
         }
       });

@@ -6,38 +6,47 @@ const DEFAULT_MONGO_DB = (process.env.MONGO_DB || "tts").trim() || "tts";
 const RAW_MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI || `mongodb://localhost:27017/${DEFAULT_MONGO_DB}`;
 const MONGO_PROXY_URL = process.env.MONGO_PROXY_URL; // 代理地址（如 socks5://127.0.0.1:1080 或 http://127.0.0.1:8888）
 
-type MongoConnectOptions = mongoose.ConnectOptions & {
-  proxyAgent?: unknown;
-};
-
-interface MongoPoolStats {
-  totalConnectionCount?: number;
-  availableConnectionCount?: number;
-  checkedOutConnections?: number;
-  waitQueueSize?: number;
-  options?: {
-    maxPoolSize?: number;
-    minPoolSize?: number;
-    maxIdleTimeMS?: number;
-    maxConnecting?: number;
-  };
-}
-
-interface MongoConnectionWithPool {
-  db?: {
-    s?: {
-      topology?: {
-        s?: {
-          pool?: MongoPoolStats;
-        };
-      };
-    };
-  };
-}
+type MongoConnectOptions = mongoose.ConnectOptions;
 
 // 检查代理配置（仅警告，不阻止连接）
 if (MONGO_PROXY_URL) {
-  logger.warn("[MongoDB] 检测到代理配置，但官方不支持通过代理连接MongoDB", { proxyUrl: MONGO_PROXY_URL });
+  logger.warn("[MongoDB] 检测到代理配置，仅支持 socks5:// 协议", { proxyUrl: MONGO_PROXY_URL });
+}
+
+/**
+ * 解析 MONGO_PROXY_URL 为 node-mongodb-driver 可识别的 SOCKS5 代理选项。
+ * 驱动只支持 SOCKS5（proxyHost/proxyPort/proxyUsername/proxyPassword），
+ * 其它协议（http/https）直接视为配置错误返回 null。
+ */
+function parseMongoProxyConfig(proxyUrl: string): {
+  proxyHost: string;
+  proxyPort: number;
+  proxyUsername?: string;
+  proxyPassword?: string;
+} | null {
+  try {
+    const url = new URL(proxyUrl);
+    if (url.protocol !== "socks5:" && url.protocol !== "socks:") {
+      logger.error("[MongoDB] MONGO_PROXY_URL 仅支持 socks5:// 协议", { proxyUrl });
+      return null;
+    }
+    const port = Number(url.port || 1080);
+    if (!Number.isFinite(port) || port <= 0 || port > 65535) {
+      logger.error("[MongoDB] MONGO_PROXY_URL 端口无效", { proxyUrl });
+      return null;
+    }
+    return {
+      proxyHost: url.hostname,
+      proxyPort: port,
+      proxyUsername: url.username ? decodeURIComponent(url.username) : undefined,
+      proxyPassword: url.password ? decodeURIComponent(url.password) : undefined,
+    };
+  } catch (error) {
+    logger.error("[MongoDB] MONGO_PROXY_URL 解析失败", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
 }
 
 function maskMongoUri(uri: string): string {
@@ -118,20 +127,22 @@ export const connectMongo = async () => {
         readPreference: "primary", // 优先从主节点读取
       };
       if (MONGO_PROXY_URL) {
-        // 仅支持 http/socks5 代理，需安装 mongodb-connection-string-url 和 socks-proxy-agent/http-proxy-agent
-        const proxyUrl = MONGO_PROXY_URL;
-        if (/^socks/.test(proxyUrl)) {
-          const { SocksProxyAgent } = require("socks-proxy-agent");
-          mongooseOptions.proxyAgent = new SocksProxyAgent(proxyUrl);
-          mongooseOptions.directConnection = false;
-          logger.info("[MongoDB] 使用 SOCKS 代理", { proxyUrl });
-        } else if (/^http/.test(proxyUrl)) {
-          const { HttpProxyAgent } = require("http-proxy-agent");
-          mongooseOptions.proxyAgent = new HttpProxyAgent(proxyUrl);
-          mongooseOptions.directConnection = false;
-          logger.info("[MongoDB] 使用 HTTP 代理", { proxyUrl });
+        const proxyConfig = parseMongoProxyConfig(MONGO_PROXY_URL);
+        if (proxyConfig) {
+          const proxyOptions: mongoose.ConnectOptions = {
+            proxyHost: proxyConfig.proxyHost,
+            proxyPort: proxyConfig.proxyPort,
+            directConnection: false,
+          };
+          if (proxyConfig.proxyUsername !== undefined) proxyOptions.proxyUsername = proxyConfig.proxyUsername;
+          if (proxyConfig.proxyPassword !== undefined) proxyOptions.proxyPassword = proxyConfig.proxyPassword;
+          Object.assign(mongooseOptions, proxyOptions);
+          logger.info("[MongoDB] 使用 SOCKS5 代理", {
+            proxyHost: proxyConfig.proxyHost,
+            proxyPort: proxyConfig.proxyPort,
+          });
         } else {
-          logger.warn("[MongoDB] 未识别的代理协议", { proxyUrl });
+          throw new Error("MONGO_PROXY_URL 配置无效：仅支持 socks5:// 协议。请改用 SSH 隧道访问 MongoDB。");
         }
       }
       await mongoose.connect(uri, mongooseOptions);
@@ -146,7 +157,8 @@ export const connectMongo = async () => {
         const RuntimeConfigService =
           runtimeConfigModule.RuntimeConfigService ?? runtimeConfigModule.default?.RuntimeConfigService;
         if (RuntimeConfigService?.initialize) {
-          await RuntimeConfigService.initialize(true);
+          // G5-04: 非强制初始化（幂等），避免每次建连都全量重载配置、清空热缓存。
+          await RuntimeConfigService.initialize();
         }
       } catch (runtimeConfigError) {
         logger.warn("[MongoDB] Runtime config initialization failed", {
@@ -194,32 +206,60 @@ export const isConnected = (): boolean => {
 
 // 等待连接完成
 export const waitForConnection = async (timeoutMs: number = 10000): Promise<boolean> => {
-  const startTime = Date.now();
+  // G5-22: 只等待现有连接就绪，不再发起重连。重连由驱动拓扑监控与启动流程负责，
+  // 避免 Mongo 挂掉时请求侧各自 connectMongo() 形成连接风暴。
+  if (mongoose.connection.readyState === 1) return true;
 
-  while (mongoose.connection.readyState !== 1) {
-    if (Date.now() - startTime > timeoutMs) {
+  return new Promise<boolean>((resolve) => {
+    let settled = false;
+
+    const cleanup = () => {
+      mongoose.connection.off("connected", onConnected);
+      mongoose.connection.off("error", onFailed);
+      mongoose.connection.off("disconnected", onFailed);
+    };
+
+    const onConnected = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      clearTimeout(timer);
+      resolve(true);
+    };
+
+    const onFailed = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      clearTimeout(timer);
+      logger.error("[MongoDB] 等待连接失败", {
+        timeoutMs,
+        readyState: mongoose.connection.readyState,
+      });
+      resolve(false);
+    };
+
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      cleanup();
       logger.error("[MongoDB] 等待连接超时", {
         timeoutMs,
         readyState: mongoose.connection.readyState,
       });
-      return false;
+      resolve(false);
+    }, timeoutMs);
+    timer.unref?.();
+
+    mongoose.connection.once("connected", onConnected);
+    mongoose.connection.once("error", onFailed);
+    mongoose.connection.once("disconnected", onFailed);
+
+    // 竞态窗口内连接已就绪，立即返回
+    if (mongoose.connection.readyState === 1) {
+      onConnected();
     }
-
-    // 如果连接失败，尝试重新连接
-    if (mongoose.connection.readyState === 0) {
-      logger.info("[MongoDB] 检测到连接断开，尝试重新连接...");
-      try {
-        await connectMongo();
-      } catch (error) {
-        logger.error("[MongoDB] 重新连接失败", { error: error instanceof Error ? error.message : String(error) });
-      }
-    }
-
-    // 等待100ms后再次检查
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-
-  return true;
+  });
 };
 
 // 确保连接可用的安全执行函数
@@ -256,22 +296,17 @@ export const getPoolStats = () => {
   }
 
   try {
-    const connection = mongoose.connection as unknown as MongoConnectionWithPool;
-    const pool = connection.db?.s?.topology?.s?.pool;
-
-    if (!pool) {
-      return { error: "无法获取连接池信息" };
-    }
-
+    const connection = mongoose.connection;
+    // G5-29: 不读取驱动私有内部路径（db.s.topology.s.pool 在 driver 6.x 已不存在）。
+    // 公开 API 无法提供连接池细粒度指标，返回基础连接信息并显式标记池指标不可用，
+    // 避免 startPoolMonitoring 每 60 秒稳定打一条假的"连接池状态异常"。
     return {
-      totalConnections: pool.totalConnectionCount || 0,
-      availableConnections: pool.availableConnectionCount || 0,
-      checkedOutConnections: pool.checkedOutConnections || 0,
-      waitQueueSize: pool.waitQueueSize || 0,
-      maxPoolSize: pool.options?.maxPoolSize || 0,
-      minPoolSize: pool.options?.minPoolSize || 0,
-      maxIdleTimeMS: pool.options?.maxIdleTimeMS || 0,
-      maxConnecting: pool.options?.maxConnecting || 0,
+      connected: true,
+      readyState: connection.readyState,
+      host: connection.host,
+      port: connection.port,
+      name: connection.name,
+      poolMetricsUnavailable: true,
     };
   } catch (error) {
     return {
@@ -293,22 +328,11 @@ export const checkPoolHealth = () => {
     };
   }
 
-  const { totalConnections, availableConnections, waitQueueSize, maxPoolSize } = stats;
-
-  // 健康检查规则
-  const isHealthy =
-    totalConnections > 0 && // 有活跃连接
-    waitQueueSize < maxPoolSize * 0.8 && // 等待队列不超过80%
-    availableConnections > 0; // 有可用连接
-
+  // 连接就绪且公开信息可读即视为健康；驱动内部池指标不通过公开 API 提供。
   return {
-    healthy: isHealthy,
+    healthy: true,
     stats,
-    warnings: [
-      ...(waitQueueSize > maxPoolSize * 0.5 ? ["等待队列较大，可能存在性能瓶颈"] : []),
-      ...(availableConnections === 0 ? ["没有可用连接，可能影响性能"] : []),
-      ...(totalConnections >= maxPoolSize * 0.9 ? ["连接池接近满载"] : []),
-    ],
+    warnings: [],
   };
 };
 

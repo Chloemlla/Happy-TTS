@@ -32,12 +32,11 @@ class RedisService {
       this.client = createClient({
         url: redisUrl,
         socket: {
+          // G5-20: 去掉 10 次上限，指数退避封顶 30 秒无限重连，避免 Redis 滚动升级/
+          // 主从切换后永久放弃且没有重新初始化入口。
           reconnectStrategy: (retries) => {
-            if (retries > 10) {
-              logger.error("❌ Redis 重连次数超过限制，停止重连");
-              return new Error("Redis 重连失败");
-            }
-            return Math.min(retries * 100, 3000);
+            const delay = Math.min(100 * 2 ** Math.min(retries, 8), 30_000);
+            return delay;
           },
         },
       });
@@ -204,13 +203,36 @@ class RedisService {
     }
 
     try {
-      const keys = await this.client?.keys("ipban:*");
-      const bannedIPs = [];
-
-      for (const key of keys ?? []) {
-        const data = await this.client?.get(key);
-        if (data) {
-          bannedIPs.push(JSON.parse(data));
+      const client = this.client;
+      if (!client) return [];
+      // G5-20: 用 scanIterator + 批量 GET 代替 KEYS + N 次 GET，避免 O(N) 阻塞命令与 N+1 往返。
+      const bannedIPs: Array<{
+        ip: string;
+        reason: string;
+        bannedAt: number;
+        expiresAt: number;
+        fingerprint?: string;
+        userAgent?: string;
+        violationCount?: number;
+      }> = [];
+      const batch: string[] = [];
+      for await (const keyOrKeys of client.scanIterator({ MATCH: "ipban:*", COUNT: 100 })) {
+        const keys = Array.isArray(keyOrKeys) ? keyOrKeys : [keyOrKeys];
+        for (const key of keys) {
+          batch.push(key);
+          if (batch.length >= 100) {
+            const values = await client.mGet(batch);
+            for (const data of values ?? []) {
+              if (data) bannedIPs.push(JSON.parse(data));
+            }
+            batch.length = 0;
+          }
+        }
+      }
+      if (batch.length > 0) {
+        const values = await client.mGet(batch);
+        for (const data of values ?? []) {
+          if (data) bannedIPs.push(JSON.parse(data));
         }
       }
 
@@ -230,17 +252,30 @@ class RedisService {
     }
 
     try {
-      const keys = await this.client?.keys("ipban:*");
+      const client = this.client;
+      if (!client) return 0;
       let cleaned = 0;
-
-      for (const key of keys ?? []) {
-        const data = await this.client?.get(key);
-        if (data) {
-          const ban = JSON.parse(data);
-          if (ban.expiresAt < Date.now()) {
-            await this.client?.del(key);
+      // G5-20: 用 scanIterator 代替 KEYS 全量扫描，避免 O(N) 阻塞。
+      for await (const keyOrKeys of client.scanIterator({ MATCH: "ipban:*", COUNT: 100 })) {
+        const keys = Array.isArray(keyOrKeys) ? keyOrKeys : [keyOrKeys];
+        const values = await client.mGet(keys);
+        const toDelete: string[] = [];
+        for (let i = 0; i < keys.length; i++) {
+          const data = values?.[i];
+          if (!data) continue;
+          try {
+            const ban = JSON.parse(data);
+            if (ban.expiresAt < Date.now()) {
+              toDelete.push(keys[i]);
+              cleaned++;
+            }
+          } catch {
+            toDelete.push(keys[i]);
             cleaned++;
           }
+        }
+        if (toDelete.length > 0) {
+          await client.del(toDelete);
         }
       }
 
