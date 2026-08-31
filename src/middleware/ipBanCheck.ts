@@ -146,9 +146,16 @@ const WHITELIST_PATHS = [
 
 /**
  * 安全地获取客户端真实IP地址
- * 使用 ipUtils 统一实现，优先信任 Express 的 req.ip（由 trust proxy 配置解析）
+ * G1-05: 直接以 node:net isIP 校验 req.ip（trust proxy 未启用时 === socket.remoteAddress），
+ * 避免 ipUtils.isValidIP 的过严 IPv6 正则把原生 IPv6（压缩形式）判为非法后回退到
+ * 客户端可伪造的 CF-Connecting-IP 头，导致 IPv6 客户端可任意伪造封禁/限流判定 IP。
  */
 function getClientIPFromRequest(req: Request): string {
+  const candidate = (req.ip || req.socket?.remoteAddress || "").trim();
+  if (candidate && isIP(candidate) !== 0) {
+    return normalizeIP(candidate);
+  }
+  // 极端回退（测试桩等场景）：仍经统一工具归一化。
   return normalizeIP(getClientIP(req));
 }
 
@@ -502,7 +509,7 @@ async function getCachedCIDRBans(): Promise<any[]> {
  */
 async function parallelBanCheck(normalizedIP: string): Promise<{
   bannedInfo: { reason: string; expiresAt: Date } | null;
-  source: "redis" | "mongodb" | "none";
+  source: "redis" | "mongodb" | "none" | "unavailable";
 }> {
   const promises: Promise<any>[] = [];
   const sources: string[] = [];
@@ -563,9 +570,14 @@ async function parallelBanCheck(normalizedIP: string): Promise<{
     // 但我们需要等待所有promise，因为我们想要任何一个成功的结果
     const results = await Promise.allSettled(promises);
 
+    // G1-06: 跟踪是否至少有一个权威后端查询成功。Redis 与 Mongo 全部失败时，
+    // 返回 "unavailable" 让调用方 fail-closed，且绝不缓存"未封禁"。
+    let anySuccess = false;
+
     // 优先使用Redis结果（如果成功）
     for (const result of results) {
       if (result.status === "fulfilled" && result.value && !result.value.error) {
+        anySuccess = true;
         const { result: data, source } = result.value;
 
         if (data) {
@@ -607,6 +619,11 @@ async function parallelBanCheck(normalizedIP: string): Promise<{
         }
       }
     });
+
+    if (!anySuccess) {
+      // G1-06: 所有权威后端（Redis + Mongo）同时失败，禁止 fail-open。
+      return { bannedInfo: null, source: "unavailable" };
+    }
 
     return { bannedInfo: null, source: "none" };
   } catch (error) {
@@ -753,6 +770,31 @@ export const ipBanCheckMiddleware = async (req: Request, res: Response, next: Ne
 
     // 第二层：并行查询Redis和MongoDB（性能优化）
     const { bannedInfo, source: checkSource } = await parallelBanCheck(normalizedIP);
+
+    // G1-06: Redis 与 Mongo 权威后端同时不可用时 fail-closed（503），且不写
+    // "未封禁"缓存——否则封禁记录会因 5 分钟负缓存而在后端恢复后继续放行。
+    if (checkSource === "unavailable") {
+      const staleCache = banCache.get(normalizedIP);
+      if (staleCache?.banned && staleCache.expiresAt) {
+        const expiresAt = staleCache.expiresAt instanceof Date ? staleCache.expiresAt : new Date(staleCache.expiresAt);
+        if (expiresAt > new Date()) {
+          logger.warn(`⚠️ 封禁后端不可用，使用过期缓存拒绝可能被封禁的IP: ${normalizedIP}`);
+          res.status(403).json({
+            error: "您的IP地址已被封禁，无法访问此服务",
+            reason: staleCache.reason || "系统维护中",
+            expiresAt: staleCache.expiresAt,
+          });
+          return;
+        }
+        banCache.delete(normalizedIP);
+      }
+      logger.error(`⚠️ 封禁状态查询不可用，拒绝请求（fail-closed）: ${normalizedIP}`);
+      res.status(503).json({
+        error: "服务暂时不可用，请稍后重试",
+        retryAfter: 30,
+      });
+      return;
+    }
 
     // 如果IP被封禁，拒绝请求并缓存结果
     if (bannedInfo) {

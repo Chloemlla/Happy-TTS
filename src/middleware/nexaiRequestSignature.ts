@@ -345,21 +345,6 @@ export function nexaiRequestSignature(req: Request, res: Response, next: NextFun
     return fail(400, "NEXAI_SIG_MISSING", `nonce 长度不足（最少 ${MIN_NONCE_LENGTH} 字符）`);
   }
 
-  const consumeResult = nonceStore.consume(nonce);
-  if (!consumeResult.success) {
-    if (consumeResult.reason === "nonce_not_found") {
-      nonceStore.storeNonce(nonce, req.ip, req.headers["user-agent"] as string | undefined);
-      const retry = nonceStore.consume(nonce);
-      if (!retry.success) {
-        return fail(403, "NEXAI_SIG_REPLAY", "检测到重放请求，请重试", { reason: retry.reason });
-      }
-    } else if (consumeResult.reason === "nonce_already_consumed") {
-      return fail(403, "NEXAI_SIG_REPLAY", "检测到重放请求（nonce 已使用）");
-    } else {
-      return fail(403, "NEXAI_SIG_REPLAY", "nonce 校验失败", { reason: consumeResult.reason });
-    }
-  }
-
   const body = getRawBodyString(req);
   const canonical = buildCanonical(String(Math.trunc(tsNum)), nonce, req.method, path, body);
 
@@ -408,6 +393,23 @@ export function nexaiRequestSignature(req: Request, res: Response, next: NextFun
       reason: "hmac_mismatch",
       sigVersion: SIG_VERSION,
     });
+  }
+
+  // G1-09: 验签通过后才消费 nonce（先验签再消费），避免无效签名的请求把有效 nonce
+  // 烧掉造成拒绝服务；对合法请求的重放防护语义不变。
+  const consumeResult = nonceStore.consume(nonce);
+  if (!consumeResult.success) {
+    if (consumeResult.reason === "nonce_not_found") {
+      nonceStore.storeNonce(nonce, req.ip, req.headers["user-agent"] as string | undefined);
+      const retry = nonceStore.consume(nonce);
+      if (!retry.success) {
+        return fail(403, "NEXAI_SIG_REPLAY", "检测到重放请求，请重试", { reason: retry.reason });
+      }
+    } else if (consumeResult.reason === "nonce_already_consumed") {
+      return fail(403, "NEXAI_SIG_REPLAY", "检测到重放请求（nonce 已使用）");
+    } else {
+      return fail(403, "NEXAI_SIG_REPLAY", "nonce 校验失败", { reason: consumeResult.reason });
+    }
   }
 
   res.setHeader("X-NexAI-Sig-Result", "ok");

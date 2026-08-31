@@ -219,6 +219,38 @@ function resolveStaticDirectory(candidates: string[], requiredFiles: string[]): 
 export function registerCoreMiddleware(app: Express): void {
   app.set("trust proxy", parseTrustProxySetting());
 
+  // G1-07: 安全响应头（CSP nonce + helmet + 去 Server/X-Powered-By）提到最前，
+  // 使 pre-parser 路由（/health、/api/health、/status、/api/webhooks/*、
+  // /api/data-collection/*）以及 IP 封禁 403 / 限流 429 响应都带上安全头。
+  // globalCors 仍保持后置（registerSecurityMiddleware），避免在 open-CORS 路由
+  // 处理器（/api/turnstile/verify-token 等）之前短路预检，也避免 data-collection
+  // 被白名单外 Origin 拦截。
+  app.use((req, res, next) => {
+    res.locals.cspSurface = resolveCspSurface(req.path);
+    ensureCspNonce(res);
+    next();
+  });
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        useDefaults: false,
+        directives: buildHelmetCspDirectives(),
+      },
+      hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+      noSniff: true,
+      referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+      xssFilter: true,
+      frameguard: { action: "deny" },
+      crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+    }),
+  );
+  app.use((_req, res, next) => {
+    res.removeHeader("X-Powered-By");
+    res.removeHeader("Server");
+    next();
+  });
+
   assertAssemblyNonApiRoutePath("/s/*path");
   app.options("/s/*path", corsPreflightHandler);
   app.use("/s/*path", corsHeadersMiddleware);
@@ -231,10 +263,23 @@ export function registerCoreMiddleware(app: Express): void {
   app.use(express.json({
     limit: "10mb",
     verify: (req, _res, buf) => {
-      // Preserve raw bytes only for the signed surfaces (nexai-sig-v2 / cdict-sig-v1).
+      // G1-34: 拒绝 JSON 载荷里的 __proto__（原型污染向量）。body-parser 的
+      // JSON.parse 默认不过滤该键，后续若被 merge/assign 会污染 Object.prototype。
+      // 先做 Buffer 原生快速扫描，命中后才转字符串正则确认，避免大请求体重复转换。
+      if (buf.length > 0 && buf.includes('"__proto__"') && /"__proto__"\s*:/.test(buf.toString("utf8"))) {
+        const err: any = new Error("Prototype pollution payload rejected");
+        err.status = 400;
+        err.statusCode = 400;
+        throw err;
+      }
+      // Preserve raw bytes only for the signed surfaces (nexai-sig-v2 / cdict-sig-v1 / lumen-sig-v1).
       // Copying the buffer for every request wastes CPU and memory; all other
       // routes only need the parsed JSON body. req.url is path + optional query.
-      if (req.url?.startsWith("/api/nexai") || req.url?.startsWith("/api/cdict")) {
+      if (
+        req.url?.startsWith("/api/nexai") ||
+        req.url?.startsWith("/api/cdict") ||
+        req.url?.startsWith("/api/lumen")
+      ) {
         (req as any).rawBody = Buffer.from(buf);
       }
     },
@@ -261,36 +306,6 @@ export function registerSecurityMiddleware(app: Express): void {
   }
 
   app.use(globalCors);
-  // CSP: script-src uses nonce; style-src-elem uses unsafe-inline for
-  // framer-motion compatibility (dynamic <style> elements without nonces).
-  // style-src-attr keeps unsafe-inline for React/Swagger style props.
-  app.use((req, res, next) => {
-    res.locals.cspSurface = resolveCspSurface(req.path);
-    ensureCspNonce(res);
-    next();
-  });
-  app.use(
-    helmet({
-      contentSecurityPolicy: {
-        useDefaults: false,
-        directives: buildHelmetCspDirectives(),
-      },
-      hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
-      noSniff: true,
-      referrerPolicy: { policy: "strict-origin-when-cross-origin" },
-      xssFilter: true,
-      frameguard: { action: "deny" },
-      crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
-      crossOriginResourcePolicy: { policy: "cross-origin" },
-    }),
-  );
-
-  app.use((_req, res, next) => {
-    res.removeHeader("X-Powered-By");
-    res.removeHeader("Server");
-    next();
-  });
-
   app.use(isLocalIp);
   app.use(requestLogger);
 }

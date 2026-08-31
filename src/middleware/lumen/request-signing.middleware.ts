@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import { lumenConfig } from "../../config/lumen.js";
 import { ApiNonce } from "../../models/lumen/index.js";
+import logger from "../../utils/logger";
 
 /**
  * Request-signing middleware for Project Lumen.
@@ -182,6 +183,9 @@ export function verifyRequestSignature(): (req: Request, res: Response, next: Ne
       }
 
       // --- Store nonce with TTL to prevent replay ---
+      // G1-12: 以 `_id` 唯一索引的原子插入作为权威的 nonce 申领。前面的 findById 只是
+      // 快速路径；两个并发请求同时通过快速路径时，后插入者拿到 E11000 重复键错误，
+      // 必须按重放拒绝——否则"先查后插"的 TOCTOU 会让同一 nonce 被放行两次。
       const ttlSeconds = Math.max(skewSeconds, 3600); // At least 1 hour
       try {
         await ApiNonce.create({
@@ -189,8 +193,25 @@ export function verifyRequestSignature(): (req: Request, res: Response, next: Ne
           createdAt: Date.now(),
           expiresAt: new Date(Date.now() + ttlSeconds * 1000),
         });
-      } catch {
-        /* non-critical: race with duplicate insert */
+      } catch (error) {
+        if ((error as { code?: number })?.code === 11000) {
+          res.status(403).json({
+            error: "Forbidden",
+            reasonCode: "REQUEST_SIGNATURE_NONCE_REUSED",
+            message: "Nonce has already been used",
+          });
+          return;
+        }
+        // 存储不可用：fail-closed（无法保证防重放唯一性时不放行）。
+        logger.error("[Lumen Sig] nonce 存储失败，拒绝请求（fail-closed）", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        res.status(503).json({
+          error: "Forbidden",
+          reasonCode: "REQUEST_SIGNATURE_NONCE_STORE_UNAVAILABLE",
+          message: "Nonce store temporarily unavailable",
+        });
+        return;
       }
 
       next();

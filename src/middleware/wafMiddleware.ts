@@ -15,14 +15,25 @@ import logger from "../utils/logger";
 
 // 预编译正则（模块加载时编译一次，不在请求中重复创建）
 const DANGEROUS_CHARS = /[<>{}`;\\]/;
+// G1-01: SQL 注入检测正则去掉了 `\s+.+\s+` 这类邻接量词（对 "select"+N 个空格
+// 会触发 O(N^2) 回溯，实测单请求可达 4s），改为单词边界 + 有界中段，最坏线性。
 const SQL_INJECTION_PATTERN =
-  /\b(select\s+.+\s+from|insert\s+into|update\s+.+\s+set|delete\s+from|drop\s+(table|database)|union\s+(all\s+)?select|or\s+1\s*=\s*1|and\s+1\s*=\s*1|;\s*(drop|delete|update|insert))\b/i;
+  /\b(select\b[\s\S]{0,64}\bfrom\b|insert\s+into|update\b[\s\S]{0,64}\bset\b|delete\s+from|drop\s+(table|database)|union\s+(all\s+)?select|or\s+1\s*=\s*1|and\s+1\s*=\s*1|;\s*(drop|delete|update|insert))\b/i;
 const XSS_PATTERN =
   /<script|javascript:|on(error|load|click|mouseover)\s*=|eval\s*\(|document\.(cookie|write|location)|window\.(location|open)/i;
+// G1-19: 命令注入 / 路径穿越检测（此前只在注释里声明、代码里不存在）。仅对 URL
+// 路径与 query 生效；body 白名单字段走 relaxed 检查，避免误伤 curlCommand 等。
+// 命令注入要求"分隔符 + 知名 shell 命令"，是廉价高信号；不匹配裸 `$(...)`/`${}`，
+// 以免误伤内容字段里的模板字面量示例。
+const COMMAND_INJECTION_PATTERN =
+  /(?:;|\||&&|\n)\s*(?:rm|wget|curl|nc|bash|sh|powershell|cmd|python|perl|node|sudo|kill|mkfs|dd|chmod|chown)\b/i;
+const PATH_TRAVERSAL_PATTERN = /\.\.(?:\/|\\)/i;
 // URL 编码检测：只在包含 % 时才做 decode，避免无意义的 decode 开销
 const HAS_PERCENT = /%/;
 
 const MAX_PARAM_LENGTH = 2048;
+// G1-01: 解码后长度上限，防止 "%2525..." 层层展开把 2048 字节放大成数十 KB 再做正则。
+const MAX_DECODED_LENGTH = 4096;
 
 // body 字段白名单（动态，可由其他模块注册）
 const BODY_FIELD_WHITELIST = new Set<string>();
@@ -112,7 +123,7 @@ export function addWafWhitelist(...fields: string[]): void {
   }
 }
 
-/** URL 解码（仅在含 % 时执行，最多 3 层） */
+/** URL 解码（仅在含 % 时执行，最多 3 层，解码后长度超限即停） */
 function deepDecode(str: string): string {
   if (!HAS_PERCENT.test(str)) return str;
   let decoded = str;
@@ -120,6 +131,7 @@ function deepDecode(str: string): string {
     try {
       const next = decodeURIComponent(decoded);
       if (next === decoded) break;
+      if (next.length > MAX_DECODED_LENGTH) return decoded; // 防展开放大
       decoded = next;
     } catch {
       break;
@@ -128,33 +140,61 @@ function deepDecode(str: string): string {
   return decoded;
 }
 
-/** 检查单个字符串值是否安全 */
+/** 攻击模式集合（SQLi / XSS / 命令注入 / 路径穿越）。用于 URL 路径检查。 */
+function matchesAttackPatterns(val: string): boolean {
+  return (
+    SQL_INJECTION_PATTERN.test(val) ||
+    XSS_PATTERN.test(val) ||
+    COMMAND_INJECTION_PATTERN.test(val) ||
+    PATH_TRAVERSAL_PATTERN.test(val)
+  );
+}
+
+/** 检查单个字符串值是否安全（非白名单字段）。 */
 function isSafeValue(raw: string): boolean {
   if (raw.length > MAX_PARAM_LENGTH) return false;
   const val = deepDecode(raw);
+  // G1-19: 命令注入 / 路径穿越是廉价线性正则，不依赖危险字符门槛，先跑。
+  if (COMMAND_INJECTION_PATTERN.test(val) || PATH_TRAVERSAL_PATTERN.test(val)) return false;
   // 快速路径：先检查最廉价的危险字符，大部分正常值在这里就通过了
   if (!DANGEROUS_CHARS.test(val)) return true;
-  // 有危险字符才做更昂贵的正则匹配
-  if (SQL_INJECTION_PATTERN.test(val)) return false;
-  if (XSS_PATTERN.test(val)) return false;
+  // 有危险字符才做更昂贵的 SQLi/XSS 匹配
+  if (SQL_INJECTION_PATTERN.test(val) || XSS_PATTERN.test(val)) return false;
   // 含危险字符但不匹配攻击模式，仍然拦截
   return false;
 }
 
-/** 递归检查对象（迭代式，减少调用栈开销） */
+/**
+ * 白名单字段的宽松检查（G1-03）：跳过"含危险字符即拦截"的强门槛（否则
+ * html/markdown/message 等字段连正常尖括号都被拦），但攻击载荷仍被拦：
+ *   - 命令注入 / 路径穿越：廉价高信号，无条件拦截（防 `; rm`、`../` 等）；
+ *   - SQLi/XSS：仅在值含危险字符时检测——自然语言如 "select a from b" 无危险字符，
+ *     正常放行，不会误伤 TTS/富文本；`'; DROP`、`<script>` 等载荷仍被拦。
+ * 从而避免"字段名白名单全局绕过"——攻击者在任意接口把 payload 塞进 text/content
+ * 等字段即可整体绕过 WAF。
+ */
+function isSafeRelaxedValue(raw: string): boolean {
+  const val = deepDecode(raw);
+  if (COMMAND_INJECTION_PATTERN.test(val) || PATH_TRAVERSAL_PATTERN.test(val)) return false;
+  if (!DANGEROUS_CHARS.test(val)) return true;
+  return !(SQL_INJECTION_PATTERN.test(val) || XSS_PATTERN.test(val));
+}
+
+/** 递归检查对象（迭代式，减少调用栈开销）。白名单字段仍做攻击模式检查（relaxed）。 */
 function checkObject(obj: any): string | null {
   // 用栈代替递归，避免深层嵌套时的函数调用开销
-  const stack: Array<{ val: any; path: string; depth: number }> = [{ val: obj, path: "", depth: 0 }];
+  const stack: Array<{ val: any; path: string; depth: number; whitelisted: boolean }> = [
+    { val: obj, path: "", depth: 0, whitelisted: false },
+  ];
 
   while (stack.length > 0) {
-    const { val, path, depth } = stack.pop()!;
+    const { val, path, depth, whitelisted } = stack.pop()!;
     if (depth > 10 || val === null || val === undefined) continue;
 
-    // 白名单字段跳过
-    if (path && BODY_FIELD_WHITELIST.has(path)) continue;
-
     if (typeof val === "string") {
-      if (!isSafeValue(val)) return path || "value";
+      // G1-03: 白名单字段不再整棵跳过，改为 relaxed 检查（攻击模式仍拦截）
+      const safe = whitelisted ? isSafeRelaxedValue(val) : isSafeValue(val);
+      if (!safe) return path || "value";
       continue;
     }
 
@@ -162,20 +202,43 @@ function checkObject(obj: any): string | null {
 
     if (Array.isArray(val)) {
       for (let i = val.length - 1; i >= 0; i--) {
-        stack.push({ val: val[i], path: `${path}[${i}]`, depth: depth + 1 });
+        stack.push({ val: val[i], path: `${path}[${i}]`, depth: depth + 1, whitelisted });
       }
     } else {
       const entries = Object.entries(val);
       for (let i = entries.length - 1; i >= 0; i--) {
         const [key, v] = entries[i];
         const childPath = path ? `${path}.${key}` : key;
-        // 顶层白名单 key 直接跳过整棵子树
-        if (!path && (BODY_FIELD_WHITELIST.has(key) || WHITELIST_PREFIX_SET.has(key))) continue;
-        stack.push({ val: v, path: childPath, depth: depth + 1 });
+        // 顶层白名单 key 将其整棵子树标记为 whitelisted（仍做攻击模式检查）
+        const childWhitelisted =
+          whitelisted || (!path && (BODY_FIELD_WHITELIST.has(key) || WHITELIST_PREFIX_SET.has(key)));
+        stack.push({ val: v, path: childPath, depth: depth + 1, whitelisted: childWhitelisted });
       }
     }
   }
 
+  return null;
+}
+
+/** 检查 query 值（递归处理数组/嵌套对象；G1-08：此前数组值被整体跳过）。 */
+function findUnsafeQueryValue(val: unknown, path: string): string | null {
+  if (typeof val === "string") {
+    return isSafeValue(val) ? null : path;
+  }
+  if (Array.isArray(val)) {
+    for (let i = val.length - 1; i >= 0; i--) {
+      const bad = findUnsafeQueryValue(val[i], `${path}[${i}]`);
+      if (bad) return bad;
+    }
+    return null;
+  }
+  if (val && typeof val === "object") {
+    for (const key of Object.keys(val as Record<string, unknown>)) {
+      const bad = findUnsafeQueryValue((val as Record<string, unknown>)[key], `${path}.${key}`);
+      if (bad) return bad;
+    }
+    return null;
+  }
   return null;
 }
 
@@ -187,37 +250,34 @@ function checkObject(obj: any): string | null {
  * - 仅在含 % 时做 URL decode
  */
 export function wafMiddleware(req: Request, res: Response, next: NextFunction) {
-  const p = req.path;
-  if (p.charCodeAt(0) !== 47 || p.charCodeAt(1) !== 97 || p.charCodeAt(4) !== 47) return next(); // 快速判断非 /api/
+  const rawPath = req.path;
+  // 快速判断非 /api/（G1-02：兼容 /Api/ 等大小写变体，避免大小写绕过）
+  const c1 = rawPath.charCodeAt(1);
+  if (rawPath.charCodeAt(0) !== 47 || (c1 !== 97 && c1 !== 65) || rawPath.charCodeAt(4) !== 47) return next();
+  const p = rawPath.toLowerCase();
   if (!p.startsWith("/api/")) return next();
 
   if (isWafBypassPath(p)) return next();
+
+  // G1-19: 检查 URL 路径本身（解码后）的 SQLi/XSS/命令注入/路径穿越
+  const decodedPath = deepDecode(p);
+  if (matchesAttackPatterns(decodedPath)) {
+    logger.warn(`[WAF] 拦截可疑路径: ${rawPath}`, { ip: req.ip, path: p });
+    return res.status(400).json({ error: "路径包含非法字符" });
+  }
 
   // GET/HEAD/OPTIONS 通常无 body，只检查 query
   const method = req.method;
   const hasBody = method === "POST" || method === "PUT" || method === "PATCH";
 
-  // 检查 query 参数
+  // 检查 query 参数（G1-08：递归检查数组/嵌套对象值）
   const query = req.query;
   if (query) {
     const keys = Object.keys(query);
     for (let i = 0; i < keys.length; i++) {
-      const val = query[keys[i]];
-      if (typeof val === "string" && !isSafeValue(val)) {
-        logger.warn(`[WAF] 拦截可疑 query 参数: ${keys[i]}`, { ip: req.ip, path: p });
-        return res.status(400).json({ error: "参数包含非法字符" });
-      }
-    }
-  }
-
-  // 检查 URL 路径参数
-  const params = req.params;
-  if (params) {
-    const keys = Object.keys(params);
-    for (let i = 0; i < keys.length; i++) {
-      const val = params[keys[i]];
-      if (typeof val === "string" && !isSafeValue(val)) {
-        logger.warn(`[WAF] 拦截可疑 path 参数: ${keys[i]}`, { ip: req.ip, path: p });
+      const bad = findUnsafeQueryValue(query[keys[i]], keys[i]);
+      if (bad) {
+        logger.warn(`[WAF] 拦截可疑 query 参数: ${bad}`, { ip: req.ip, path: p });
         return res.status(400).json({ error: "参数包含非法字符" });
       }
     }

@@ -113,37 +113,12 @@ export function replayProtection(options: ReplayProtectionOptions = {}) {
       return res.status(403).json({ error: "请求已过期，请检查系统时间" });
     }
 
-    // --- 3. nonce 格式 & 去重 ---
+    // --- 3. nonce 格式校验 ---
     if (nonce.length < minNonceLength) {
       return res.status(400).json({ error: `nonce 长度不足（最少 ${minNonceLength} 字符）` });
     }
 
-    const consumeResult = nonceStore.consume(nonce);
-    if (!consumeResult.success) {
-      // nonce_not_found 说明是首次出现，先存储再消费
-      if (consumeResult.reason === "nonce_not_found") {
-        nonceStore.storeNonce(nonce, req.ip, req.headers["user-agent"]);
-        const retry = nonceStore.consume(nonce);
-        if (!retry.success) {
-          logger.warn("[ReplayProtection] nonce 消费失败", {
-            ip: req.ip,
-            path: req.path,
-            reason: retry.reason,
-          });
-          return res.status(403).json({ error: "请求签名验证失败 (nonce)" });
-        }
-      } else {
-        // nonce_already_consumed / nonce_expired
-        logger.warn("[ReplayProtection] 重放攻击检测", {
-          ip: req.ip,
-          path: req.path,
-          reason: consumeResult.reason,
-        });
-        return res.status(403).json({ error: "重复请求已被拒绝 (replay detected)" });
-      }
-    }
-
-    // --- 4. 签名校验 ---
+    // --- 4. 签名校验（G1-09：先验签再消费 nonce，避免无效签名把有效 nonce 烧掉） ---
     // payload = timestamp + nonce + method + path + rawBody(JSON.stringify for objects, '' for empty)
     const bodyStr = req.body && Object.keys(req.body).length > 0 ? JSON.stringify(req.body) : "";
     const payload = buildSignaturePayload(timestamp, nonce, req, bodyStr);
@@ -172,6 +147,32 @@ export function replayProtection(options: ReplayProtectionOptions = {}) {
         path: req.path,
       });
       return res.status(403).json({ error: "请求签名验证失败" });
+    }
+
+    // --- 5. nonce 去重（验签通过后才消费，防重放语义不变） ---
+    const consumeResult = nonceStore.consume(nonce);
+    if (!consumeResult.success) {
+      // nonce_not_found 说明是首次出现，先存储再消费
+      if (consumeResult.reason === "nonce_not_found") {
+        nonceStore.storeNonce(nonce, req.ip, req.headers["user-agent"]);
+        const retry = nonceStore.consume(nonce);
+        if (!retry.success) {
+          logger.warn("[ReplayProtection] nonce 消费失败", {
+            ip: req.ip,
+            path: req.path,
+            reason: retry.reason,
+          });
+          return res.status(403).json({ error: "请求签名验证失败 (nonce)" });
+        }
+      } else {
+        // nonce_already_consumed / nonce_expired
+        logger.warn("[ReplayProtection] 重放攻击检测", {
+          ip: req.ip,
+          path: req.path,
+          reason: consumeResult.reason,
+        });
+        return res.status(403).json({ error: "重复请求已被拒绝 (replay detected)" });
+      }
     }
 
     next();

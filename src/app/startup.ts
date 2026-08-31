@@ -8,6 +8,7 @@ import { startApiKeyBillingReconciliation } from "../services/apiKeyBillingServi
 import { connectMongo } from "../services/mongoService";
 import { schedulerService } from "../services/schedulerService";
 import { serviceRegistry } from "../services/serviceRegistry";
+import { installShutdownHandlers, registerShutdownStep } from "../services/shutdown";
 import { wsService } from "../services/wsService";
 import logger from "../utils/logger";
 import { UserStorage } from "../utils/userStorage";
@@ -173,4 +174,39 @@ export async function startServer(app: Express): Promise<void> {
     logger.info(`服务器运行在 http://[::]:${port} (IPv4/IPv6 双栈)`);
     logger.info(`生成音频目录: ${path.join(__dirname, "../finish")}`);
   });
+
+  // G1-22: 监听启动失败（端口占用等）走明确日志 + 退出，而不是未处理 error 事件崩溃。
+  server.on("error", (error: NodeJS.ErrnoException) => {
+    logger.error("[启动] HTTP 服务器监听失败", {
+      error: error?.message || String(error),
+      code: error?.code,
+    });
+    process.exit(1);
+  });
+
+  // G1-22: 接入 G5 的统一优雅关闭编排（installShutdownHandlers 幂等，ip.ts /
+  // auditLogService.ts / tamperService.ts 已在模块加载期调用过）。注册 HTTP server
+  // 与 WebSocket 的关闭步骤，SIGTERM/SIGINT 时先关连接再退出，8s 总宽限兜底。
+  registerShutdownStep(
+    "http-server-close",
+    () =>
+      new Promise<void>((resolve) => {
+        if (!server.listening) {
+          resolve();
+          return;
+        }
+        server.close(() => resolve());
+        // 空闲 keep-alive 连接会让 server.close 等待，由 shutdown 模块的 8s 总宽限兜底强制退出。
+      }),
+  );
+  registerShutdownStep("ws-service-close", () => {
+    try {
+      wsService.close();
+    } catch (error) {
+      logger.warn("[Shutdown] wsService.close 失败", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+  installShutdownHandlers();
 }
