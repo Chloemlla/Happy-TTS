@@ -23,8 +23,11 @@ export const translationAccessMiddleware = (req: Request, res: Response, next: N
     return res.status(403).json({ error: "翻译页面访问已被停用" });
   }
 
-  const accessUntil = toTimestamp(user.translationAccessUntil);
-  if (accessUntil > Date.now()) {
+  // G1-23: 字段名读起来像"授权截止"，实际语义是"限制截止"——adminController 的
+  // LIMIT_TRANSLATION 把它设为将来时间以禁用翻译，CLEAR_TRANSLATION_RESTRICTIONS 清空它。
+  // 未来时间 = 仍在惩戒期内 = 拒绝，勿按字面名字反转判断。
+  const restrictedUntil = toTimestamp(user.translationAccessUntil);
+  if (restrictedUntil > Date.now()) {
     return res.status(403).json({ error: "翻译权限受限，请稍后再试" });
   }
 

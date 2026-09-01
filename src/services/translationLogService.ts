@@ -1,5 +1,10 @@
 import { TranslationLogModel } from "../models/translationLogModel";
 
+// CJK 没有词边界，text index 只能把整段连续汉字切成一个 token，无法做子串匹配。
+const CJK_KEYWORD = /[぀-ヿ㐀-䶿一-鿿가-힯豈-﫿]/;
+// 关键词查询的单次执行上限，避免一次搜索长时间占用 CPU。
+const KEYWORD_QUERY_MAX_TIME_MS = 5000;
+
 export interface TranslationLogEntryInput {
   userId: string;
   input_text: string;
@@ -36,11 +41,16 @@ export class TranslationLogService {
     if (params.keyword && typeof params.keyword === "string") {
       const keyword = params.keyword.trim().slice(0, 100);
       if (keyword) {
-        const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        filter.$or = [
-          { input_text: { $regex: escapedKeyword, $options: "i" } },
-          { output_text: { $regex: escapedKeyword, $options: "i" } },
-        ];
+        if (CJK_KEYWORD.test(keyword)) {
+          const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          filter.$or = [
+            { input_text: { $regex: escapedKeyword, $options: "i" } },
+            { output_text: { $regex: escapedKeyword, $options: "i" } },
+          ];
+        } else {
+          // G8-26: 短语式 $text 走 text index；引号内做转义避免被解析成多词 OR。
+          filter.$text = { $search: `"${keyword.replace(/["\\]/g, " ")}"` };
+        }
       }
     }
 
@@ -63,9 +73,10 @@ export class TranslationLogService {
       }
     }
 
+    const queryOptions = filter.$or || filter.$text ? { maxTimeMS: KEYWORD_QUERY_MAX_TIME_MS } : {};
     const [logs, total] = await Promise.all([
-      TranslationLogModel.find(filter).sort({ timestamp: -1 }).skip(skip).limit(pageSize).lean(),
-      TranslationLogModel.countDocuments(filter),
+      TranslationLogModel.find(filter, null, queryOptions).sort({ timestamp: -1 }).skip(skip).limit(pageSize).lean(),
+      TranslationLogModel.countDocuments(filter, queryOptions),
     ]);
 
     return { logs, total, page, pageSize };

@@ -58,21 +58,50 @@ const ipReputationCache = new Map<string, { reputation: number; timestamp: numbe
 const IP_REPUTATION_TTL = 3600000; // 1 hour
 const MAX_IP_CACHE_SIZE = 5000; // G7-29: bounded cache
 
-// Device fingerprint tracking
-const deviceFingerprintHistory = new Map<string, VerificationAttempt[]>();
-const FINGERPRINT_HISTORY_TTL = 86400000; // 24 hours
-const MAX_FINGERPRINT_HISTORY = 100;
+const ATTEMPT_HISTORY_TTL = 86400000; // 24 hours
 
 // G7-29: IP -> attempts index so getRecentAttempts does not scan every
 // fingerprint key on every assessment (it used to make the hot path O(total
-// history) per call).
+// history) per call). The device-fingerprint keyed history that used to live
+// here was write-only and its key was client-controlled (canvasEntropy), so it
+// grew without bound and was removed instead of capped.
 const ipAttemptIndex = new Map<string, VerificationAttempt[]>();
 const MAX_IP_INDEX_HISTORY = 200;
 const MAX_IP_INDEX_KEYS = 20000;
 
-// Suspicious pattern detection
-const _suspiciousPatterns = new Map<string, { count: number; firstSeen: number; lastSeen: number }>();
-const _PATTERN_DETECTION_WINDOW = 3600000; // 1 hour
+// 过期项只在命中时才被发现，因此额外做一次限频全量清扫，避免长尾 key 常驻内存。
+const SWEEP_INTERVAL_MS = 60000;
+let lastSweepAt = 0;
+
+function pruneRecencyMap<V>(map: Map<string, V>, key: string, value: V, maxKeys: number): void {
+  // Map 的插入顺序即最近写入顺序，先删后插让淘汰真正淘汰最久未写入的 key。
+  map.delete(key);
+  map.set(key, value);
+  while (map.size > maxKeys) {
+    const oldest = map.keys().next().value;
+    if (oldest === undefined) break;
+    map.delete(oldest);
+  }
+}
+
+function sweepExpiredState(now: number): void {
+  if (now - lastSweepAt < SWEEP_INTERVAL_MS) return;
+  lastSweepAt = now;
+
+  const cutoff = now - ATTEMPT_HISTORY_TTL;
+  for (const [ip, history] of ipAttemptIndex) {
+    const kept = history.filter((entry) => entry.timestamp > cutoff);
+    if (kept.length === 0) {
+      ipAttemptIndex.delete(ip);
+    } else if (kept.length !== history.length) {
+      ipAttemptIndex.set(ip, kept);
+    }
+  }
+
+  for (const [ip, entry] of ipReputationCache) {
+    if (now - entry.timestamp >= IP_REPUTATION_TTL) ipReputationCache.delete(ip);
+  }
+}
 
 export class RiskEvaluationEngine {
   private readonly blockedIPs = new Set<string>();
@@ -463,40 +492,17 @@ export class RiskEvaluationEngine {
    * Record verification attempt for pattern analysis
    */
   private recordAttempt(attempt: VerificationAttempt): void {
-    const fingerprintKey = this.generateFingerprintKey(attempt.deviceFingerprint);
-
-    // Get existing history for this fingerprint
-    let history = deviceFingerprintHistory.get(fingerprintKey) || [];
-
-    // Add new attempt
-    history.push(attempt);
-
-    // Limit history size
-    if (history.length > MAX_FINGERPRINT_HISTORY) {
-      history = history.slice(-MAX_FINGERPRINT_HISTORY);
-    }
-
-    // Clean old entries
-    const cutoff = Date.now() - FINGERPRINT_HISTORY_TTL;
-    history = history.filter((entry) => entry.timestamp > cutoff);
-
-    deviceFingerprintHistory.set(fingerprintKey, history);
+    const now = Date.now();
+    const cutoff = now - ATTEMPT_HISTORY_TTL;
 
     // G7-29: maintain the IP index so getRecentAttempts is O(history for that
-    // IP) instead of O(all fingerprint histories).
+    // IP) instead of O(all recorded attempts).
     const ipHistory = ipAttemptIndex.get(attempt.ip) || [];
     ipHistory.push(attempt);
-    const prunedIpHistory = ipHistory
-      .filter((entry) => entry.timestamp > cutoff)
-      .slice(-MAX_IP_INDEX_HISTORY);
-    ipAttemptIndex.set(attempt.ip, prunedIpHistory);
+    const prunedIpHistory = ipHistory.filter((entry) => entry.timestamp > cutoff).slice(-MAX_IP_INDEX_HISTORY);
+    pruneRecencyMap(ipAttemptIndex, attempt.ip, prunedIpHistory, MAX_IP_INDEX_KEYS);
 
-    // Bound the index size: if it exceeds the cap, drop entries for the least
-    // recently written IPs.
-    if (ipAttemptIndex.size > MAX_IP_INDEX_KEYS) {
-      const oldestIp = ipAttemptIndex.keys().next().value;
-      if (oldestIp !== undefined) ipAttemptIndex.delete(oldestIp);
-    }
+    sweepExpiredState(now);
   }
 
   /**

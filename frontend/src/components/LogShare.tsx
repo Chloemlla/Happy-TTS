@@ -48,6 +48,10 @@ const isTextExt = (ext: string) => ['.txt', '.log', '.json', '.md'].includes(ext
 // G12-13：正文预览只渲染前 200KB，避免 10MB 文本塞进单个 <pre> 卡死标签页
 const MAX_LOG_PREVIEW_CHARS = 200_000;
 
+// G12-13：列表分页，避免 /api/sharelog/all 返回几千条时一次性挂载几千行
+const LOGS_PAGE_SIZE_OPTIONS = [20, 50, 100];
+const DEFAULT_LOGS_PAGE_SIZE = 20;
+
 type EncryptedLogSharePayload = {
   data: string;
   iv: string;
@@ -217,6 +221,9 @@ const LogShare: React.FC = React.memo(() => {
   const [showPwdModal, setShowPwdModal] = useState(false);
   const [autoQueryId, setAutoQueryId] = useState<string | null>(null);
   const [allLogs, setAllLogs] = useState<LogShareListItem[]>([]);
+  const [logsPage, setLogsPage] = useState(1);
+  const [logsPageSize, setLogsPageSize] = useState(DEFAULT_LOGS_PAGE_SIZE);
+  const [showFullLogContent, setShowFullLogContent] = useState(false);
   const [isLoadingAllLogs, setIsLoadingAllLogs] = useState(false);
   const [selectedLogIndex, setSelectedLogIndex] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -232,6 +239,12 @@ const LogShare: React.FC = React.memo(() => {
   const [includePattern, setIncludePattern] = useState('');
   const [excludePattern, setExcludePattern] = useState('');
   const [showArchiveModal, setShowArchiveModal] = useState(false);
+
+  // G12-13：分页派生值。页码只做渲染时钳制，删除后列表变短也不会停在空页
+  const logsTotalPages = Math.max(1, Math.ceil(allLogs.length / logsPageSize));
+  const logsCurrentPage = Math.min(Math.max(1, logsPage), logsTotalPages);
+  const logsStartIndex = (logsCurrentPage - 1) * logsPageSize;
+  const pagedLogs = allLogs.slice(logsStartIndex, logsStartIndex + logsPageSize);
 
   // 加载历史记录
   const loadHistory = async () => {
@@ -415,6 +428,11 @@ const LogShare: React.FC = React.memo(() => {
   useEffect(() => {
     loadHistory();
   }, []);
+
+  // G12-13：换一条日志时收起「展开全部」，否则新的大文件会直接全量渲染
+  useEffect(() => {
+    setShowFullLogContent(false);
+  }, [queryResult]);
 
   // 点击外部关闭导出菜单
   useEffect(() => {
@@ -1075,10 +1093,14 @@ const LogShare: React.FC = React.memo(() => {
                         全选（已选 {selectedIds.length}）
                       </label>
                     )}
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">{allLogs.length} 条</span>
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
+                      第 {logsStartIndex + 1}-{logsStartIndex + pagedLogs.length} 条 / 共 {allLogs.length} 条
+                    </span>
                   </div>
                   <div className="max-h-[60vh] overflow-y-auto">
-                    {allLogs.map((log, index) => (
+                    {pagedLogs.map((log, pageIndex) => {
+                      const index = logsStartIndex + pageIndex;
+                      return (
                       <div
                         key={log.id}
                         className={`border-b border-slate-100/70 px-4 py-3 transition hover:bg-slate-50/50 ${selectedLogIndex === index ? 'bg-slate-50' : ''}`}
@@ -1138,8 +1160,49 @@ const LogShare: React.FC = React.memo(() => {
                           </div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
+                  <nav
+                    className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/60 px-4 py-3"
+                    aria-label="日志列表分页"
+                  >
+                    <label className="flex items-center gap-2 text-xs font-medium text-slate-600">
+                      每页条数
+                      <select
+                        className="rounded-xl border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                        value={logsPageSize}
+                        onChange={e => { setLogsPageSize(Number(e.target.value)); setLogsPage(1); }}
+                      >
+                        {LOGS_PAGE_SIZE_OPTIONS.map(size => (
+                          <option key={size} value={size}>{size}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="rounded-xl border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+                        onClick={() => setLogsPage(Math.max(1, logsCurrentPage - 1))}
+                        disabled={logsCurrentPage <= 1}
+                        aria-label="上一页"
+                      >
+                        上一页
+                      </button>
+                      <span className="text-xs font-medium text-slate-600" aria-live="polite">
+                        第 {logsCurrentPage} / {logsTotalPages} 页
+                      </span>
+                      <button
+                        type="button"
+                        className="rounded-xl border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+                        onClick={() => setLogsPage(Math.min(logsTotalPages, logsCurrentPage + 1))}
+                        disabled={logsCurrentPage >= logsTotalPages}
+                        aria-label="下一页"
+                      >
+                        下一页
+                      </button>
+                    </div>
+                  </nav>
                 </motion.div>
               )}
 
@@ -1197,14 +1260,37 @@ const LogShare: React.FC = React.memo(() => {
                     {isTextExt(queryResult.ext) ? (
                       <div className="space-y-3">
                         <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">文本文件预览</div>
-                        <pre className="max-h-64 overflow-auto rounded-2xl border border-slate-200 bg-slate-900 p-4 font-mono text-xs leading-6 text-slate-100 whitespace-pre-wrap">
-                          {queryResult.content.length > MAX_LOG_PREVIEW_CHARS
+                        <pre
+                          id="logshare-content-preview"
+                          className="max-h-64 overflow-auto rounded-2xl border border-slate-200 bg-slate-900 p-4 font-mono text-xs leading-6 text-slate-100 whitespace-pre-wrap"
+                        >
+                          {queryResult.content.length > MAX_LOG_PREVIEW_CHARS && !showFullLogContent
                             ? queryResult.content.slice(0, MAX_LOG_PREVIEW_CHARS)
                             : queryResult.content}
                         </pre>
                         {queryResult.content.length > MAX_LOG_PREVIEW_CHARS && (
-                          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
-                            文件内容较大，仅显示前 {MAX_LOG_PREVIEW_CHARS} 字符（约 200KB）。如需完整内容请点击「下载文本文件」。
+                          <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-800">
+                            {showFullLogContent
+                              ? `已展开全部 ${queryResult.content.length} 字符，页面可能变慢。`
+                              : `文件内容较大，仅显示前 ${MAX_LOG_PREVIEW_CHARS} 字符（约 200KB），共 ${queryResult.content.length} 字符。`}
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                className="rounded-xl border border-amber-300 bg-white/70 px-3 py-1.5 font-semibold text-amber-800 transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                                onClick={() => setShowFullLogContent(prev => !prev)}
+                                aria-expanded={showFullLogContent}
+                                aria-controls="logshare-content-preview"
+                              >
+                                {showFullLogContent ? '折叠预览' : '展开全部（可能卡顿）'}
+                              </button>
+                              <button
+                                type="button"
+                                className="rounded-xl border border-amber-300 bg-white/70 px-3 py-1.5 font-semibold text-amber-800 transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
+                                onClick={handleDownload}
+                              >
+                                下载原文
+                              </button>
+                            </div>
                           </div>
                         )}
                         <motion.button

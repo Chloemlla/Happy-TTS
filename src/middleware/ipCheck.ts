@@ -29,18 +29,9 @@ export async function ipCheckMiddleware(req: Request, res: Response, next: NextF
     // 提取真实IP地址（使用 ipUtils 统一实现，优先信任 req.ip 而非 X-Forwarded-For）
     const realIP = extractRealIP(req);
 
-    // 记录IP访问日志
-    console.log(`IP访问: ${realIP || "unknown"} - ${req.method} ${req.path}`);
-
-    // 设置IP到请求对象（使用类型断言）
-    if (realIP) {
-      (req as any).ip = realIP;
-    }
-
-    // 为了测试兼容性，也设置到socket.remoteAddress
-    if (realIP) {
-      (req.socket as any).remoteAddress = realIP;
-    }
+    // G1-16: 不再把 extractRealIP 的结果写回 req.ip / socket.remoteAddress。
+    // extractRealIP 会在 req.ip 不可用时回退到客户端可伪造的 CF-Connecting-IP，
+    // 覆写后下游（封禁、限流、用量统计）都会以伪造值为准。
 
     // 如果没有IP信息
     if (!realIP) {
@@ -76,26 +67,29 @@ export async function ipCheckMiddleware(req: Request, res: Response, next: NextF
 
     // 允许本地IP和白名单IP
     if (isLocalIP || isWhitelisted) {
-      logger.log("IP访问通过", { ip: realIP, path: req.path });
       return next();
     }
 
-    // 对于其他IP，使用现有的IP检查服务
+    // G1-16: 访问控制判定（IP_WHITELIST）失败必须 fail-closed，否则白名单可被
+    // 一次异常绕过。归属地查询只用于日志富化，失败不影响放行判定。
+    let allowed: boolean;
     try {
-      const ipInfo = await getIPInfo(realIP);
-      logger.log("IP信息", { ip: realIP, ipInfo });
-
-      if (!isIPAllowed(realIP)) {
-        logger.log("IP不被允许", { ip: realIP, ipInfo });
-        return res.status(403).json({ error: "您的 IP 地址未被允许访问此服务" });
-      }
-
-      next();
+      allowed = isIPAllowed(realIP);
     } catch (error) {
-      logger.error("IP检查失败", error);
-      // 如果IP检查服务失败，默认允许访问（可以根据需要调整）
-      next();
+      logger.error("IP 白名单判定失败，拒绝请求", error);
+      return res.status(503).json({ error: "IP 检查暂时不可用，请稍后重试" });
     }
+
+    if (!allowed) {
+      logger.warn("IP不被允许", { ip: realIP });
+      return res.status(403).json({ error: "您的 IP 地址未被允许访问此服务" });
+    }
+
+    getIPInfo(realIP)
+      .then((ipInfo) => logger.log("IP信息", { ip: realIP, ipInfo }))
+      .catch((error) => logger.error("IP归属地查询失败", error));
+
+    next();
   } catch (error) {
     logger.error("IP中间件错误", error);
     return res.status(500).json({ error: "IP 检查失败" });

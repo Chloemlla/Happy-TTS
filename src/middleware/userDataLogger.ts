@@ -49,7 +49,10 @@ const readUserData = async (): Promise<UserDataStore> => {
   } catch (error) {
     logger.error("MongoDB 读取用户数据失败，降级为本地文件:", error);
   }
-  // 本地文件兜底
+  return readUserDataFromFile();
+};
+
+const readUserDataFromFile = async (): Promise<UserDataStore> => {
   try {
     await ensureDataDir();
     if (fs.existsSync(USER_DATA_FILE)) {
@@ -62,6 +65,26 @@ const readUserData = async (): Promise<UserDataStore> => {
   return { users: [] };
 };
 
+// G1-21: 本地文件兜底原本是"读整份 → push → 写整份"，两个并发注册会互相覆盖。
+// 串成单链保证进程内互斥，并用临时文件 + rename 落盘，避免写入中途崩溃留下截断的 JSON。
+let fileAppendChain: Promise<void> = Promise.resolve();
+
+const appendUserDataToFile = (userData: UserData): Promise<void> => {
+  fileAppendChain = fileAppendChain.then(async () => {
+    try {
+      await ensureDataDir();
+      const store = await readUserDataFromFile();
+      store.users.push(userData);
+      const tempFile = `${USER_DATA_FILE}.${process.pid}.tmp`;
+      await fs.promises.writeFile(tempFile, JSON.stringify(store, null, 2));
+      await fs.promises.rename(tempFile, USER_DATA_FILE);
+    } catch (error) {
+      logger.error("写入用户数据文件失败:", error);
+    }
+  });
+  return fileAppendChain;
+};
+
 // 追加一条用户数据（Mongo 用原子 $push，避免并发覆盖）
 const writeUserData = async (userData: UserData) => {
   try {
@@ -72,15 +95,7 @@ const writeUserData = async (userData: UserData) => {
   } catch (error) {
     logger.error("MongoDB 写入用户数据失败，降级为本地文件:", error);
   }
-  // 本地文件兜底
-  try {
-    await ensureDataDir();
-    const store = await readUserData();
-    store.users.push(userData);
-    await fs.promises.writeFile(USER_DATA_FILE, JSON.stringify(store, null, 2));
-  } catch (error) {
-    logger.error("写入用户数据文件失败:", error);
-  }
+  await appendUserDataToFile(userData);
 };
 
 // 用户数据记录中间件
