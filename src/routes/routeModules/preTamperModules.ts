@@ -239,8 +239,8 @@ export const preTamperRouteModules: RouteModule[] = [
     },
     rateLimitPolicy: {
       mode: "mixed",
-      limiters: [],
-      note: "Audit log reads are rate-limited once by the /api/admin mount limiter (adminLimiter); no module-level limiter is applied here to avoid double-counting the same instance.",
+      limiters: ["adminLimiter"],
+      note: "adminLimiter is inherited from the earlier /api/admin mount (Express prefix mounts run for every subpath), so it is declared here but intentionally absent from this module's own middlewares array to avoid double-counting the same instance (G11-06).",
     },
   },
   {
