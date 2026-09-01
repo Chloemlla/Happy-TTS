@@ -31,20 +31,20 @@ const metrics: PerformanceMetrics = {
   totalRequests: 0,
 };
 
-// 每5分钟重置性能指标
+// 每5分钟重置性能指标。G1-28: 默认不再输出（原来是每 5 分钟一条带 emoji 的
+// 拼接字符串，纯噪音）；需要观测时设 IP_BAN_METRICS_LOG=true，输出结构化字段。
 const metricsResetTimer = setInterval(
   () => {
-    if (metrics.totalRequests > 0) {
-      const hitRate = ((metrics.cacheHits / metrics.totalRequests) * 100).toFixed(2);
-      logger.info(
-        `📊 IP封禁检查性能指标 [5分钟]: ` +
-          `总请求=${metrics.totalRequests}, ` +
-          `缓存命中率=${hitRate}%, ` +
-          `Redis查询=${metrics.redisQueries}, ` +
-          `Mongo查询=${metrics.mongoQueries}, ` +
-          `并行查询=${metrics.parallelQueries}, ` +
-          `平均响应=${metrics.avgResponseTime.toFixed(2)}ms`,
-      );
+    if (metrics.totalRequests > 0 && process.env.IP_BAN_METRICS_LOG === "true") {
+      logger.info("IP封禁检查性能指标", {
+        windowMinutes: 5,
+        totalRequests: metrics.totalRequests,
+        cacheHitRate: Number(((metrics.cacheHits / metrics.totalRequests) * 100).toFixed(2)),
+        redisQueries: metrics.redisQueries,
+        mongoQueries: metrics.mongoQueries,
+        parallelQueries: metrics.parallelQueries,
+        avgResponseMs: Number(metrics.avgResponseTime.toFixed(2)),
+      });
     }
     // 重置计数器
     Object.keys(metrics).forEach((key) => {

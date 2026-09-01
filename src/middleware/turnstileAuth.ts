@@ -1,7 +1,12 @@
+import crypto from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import { config } from "../config/config";
 import { TurnstileService } from "../services/turnstileService";
 import logger from "../utils/logger";
+
+// G1-27: 日志里不再放 token/指纹的前 8 位。前缀是真实凭据材料，落盘后可用于
+// 关联甚至缩小枚举空间；截断摘要同样能对账，但不可反推。
+const logDigest = (value: string): string => crypto.createHash("sha256").update(value).digest("hex").slice(0, 12);
 
 interface TurnstileAuthRequest extends Request {
   turnstileAuth?: {
@@ -69,8 +74,8 @@ export const authenticateTurnstileToken = async (
     if (!isValid) {
       logger.warn("Turnstile认证失败：访问令牌无效", {
         ip: ipAddress,
-        fingerprint: `${fingerprint.substring(0, 8)}...`,
-        token: `${token.substring(0, 8)}...`,
+        fingerprintDigest: logDigest(fingerprint),
+        tokenDigest: logDigest(token),
         userAgent: req.get("User-Agent"),
       });
       res.status(401).json({
@@ -90,8 +95,8 @@ export const authenticateTurnstileToken = async (
 
     logger.info("Turnstile认证成功", {
       ip: ipAddress,
-      fingerprint: `${fingerprint.substring(0, 8)}...`,
-      token: `${token.substring(0, 8)}...`,
+      fingerprintDigest: logDigest(fingerprint),
+      tokenDigest: logDigest(token),
     });
 
     next();

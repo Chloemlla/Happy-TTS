@@ -87,6 +87,8 @@ const isLocalIp = (req: Request, _res: Response, next: NextFunction) => {
   // which can be spoofed via X-Forwarded-For when trust proxy is enabled.
   const ip = req.socket.remoteAddress || req.ip || "unknown";
   if (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "dev") {
+    // G1-33: 开发环境刻意恒 false。唯一消费者是 routeLimiters 的 isLocalRequest，
+    // 它把本地请求豁免限流；开发时保持 false 才能让本地跑出真实的限流行为。
     req.isLocalIp = false;
   } else {
     req.isLocalIp = config.localIps.includes(ip);
@@ -94,13 +96,29 @@ const isLocalIp = (req: Request, _res: Response, next: NextFunction) => {
   next();
 };
 
+// G1-26: 开发环境曾把完整 headers/body 倒进日志。即使敏感键已脱敏，剩下的
+// 字段（邮箱、昵称、地址、UA 全文）仍是 PII，且日志会落盘留存。
+const REQUEST_LOG_HEADER_ALLOWLIST = ["content-type", "content-length", "user-agent", "accept-language"] as const;
+
+const pickAllowlistedHeaders = (headers: Request["headers"]): Record<string, string> => {
+  const picked: Record<string, string> = {};
+  for (const name of REQUEST_LOG_HEADER_ALLOWLIST) {
+    const value = headers[name];
+    if (typeof value === "string") {
+      picked[name] = value;
+    }
+  }
+  return picked;
+};
+
 const requestLogger = (req: Request, _res: Response, next: NextFunction) => {
   if (process.env.NODE_ENV === "development" || process.env.VERBOSE_LOGGING === "true") {
-    logger.info(`收到请求: ${req.method} ${req.url}`, {
-      ip: req.ip,
-      headers: sanitizeLogValue(req.headers),
-      body: sanitizeLogValue(req.body),
-    });
+    // 需要整份请求体排查问题时显式开 VERBOSE_REQUEST_DUMP=true，默认不落 PII。
+    const meta: Record<string, unknown> =
+      process.env.VERBOSE_REQUEST_DUMP === "true"
+        ? { ip: req.ip, headers: sanitizeLogValue(req.headers), body: sanitizeLogValue(req.body) }
+        : { ip: req.ip, headers: pickAllowlistedHeaders(req.headers) };
+    logger.info(`收到请求: ${req.method} ${req.url}`, meta);
   } else if (process.env.ACCESS_LOG_ENABLED === "true") {
     logger.info(`${req.method} ${req.url}`, { ip: req.ip });
   }

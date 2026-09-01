@@ -3,6 +3,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import logger from "../utils/logger";
 import { mongoose } from "./mongoService";
+import { installShutdownHandlers, registerShutdownStep } from "./shutdown";
 
 // FilterQuery type definition for compatibility
 type FilterQuery<T> = {
@@ -98,6 +99,8 @@ type StorageMode = "mongo" | "file" | "both";
 
 class DataCollectionService {
   private static instance: DataCollectionService;
+  // 排空上限，压在 shutdown.ts 的 8s 总宽限之内，给强制 processBatch 留出余量。
+  private static readonly SHUTDOWN_DRAIN_MS = 5_000;
   private readonly DATA_DIR = join(process.cwd(), "data");
   private readonly TEST_DATA_DIR = join(process.cwd(), "test-data");
 
@@ -221,14 +224,12 @@ class DataCollectionService {
       logger.info("[数据收集] 开始优雅关闭");
       this.isShuttingDown = true;
 
-      // 等待批量写入完成
-      let waitCount = 0;
-      const maxWaitTime = 30000; // 最多等待30秒
-
-      while (this.writeQueue.length > 0 && waitCount < maxWaitTime) {
+      // 等待批量写入完成。原来的 `waitCount < 30000` 按每轮 +1 计，实际上限是
+      // 30000 秒而不是 30 秒；改成按绝对截止时间判断，并压到 shutdown 的总宽限内。
+      const deadline = Date.now() + DataCollectionService.SHUTDOWN_DRAIN_MS;
+      while (this.writeQueue.length > 0 && Date.now() < deadline) {
         logger.info(`[数据收集] 等待队列清空: 剩余 ${this.writeQueue.length} 项`);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        waitCount++;
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
 
       // 强制处理剩余队列
@@ -249,8 +250,10 @@ class DataCollectionService {
       logger.info("[DataCollection] Graceful shutdown complete");
     };
 
-    process.on("SIGTERM", gracefulShutdown);
-    process.on("SIGINT", gracefulShutdown);
+    // G13-15: 不再自行 process.on("SIGTERM"/"SIGINT")。shutdown.ts 的头注释明确
+    // 要求各服务只注册步骤，由它统一编排；自己挂信号会让关闭顺序失控。
+    registerShutdownStep("dataCollection.drain", gracefulShutdown);
+    installShutdownHandlers();
   }
 
   private async processBatch() {

@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import type { IAuditLog } from "../models/auditLogModel";
 import { type AuditEntry, AuditLogService } from "../services/auditLogService";
+import { isSensitiveAuditField } from "../utils/auditRedaction";
 import { firstString } from "../utils/httpParam";
 
 /**
@@ -29,24 +30,7 @@ export interface AuditLogOptions {
   captureBody?: boolean;
 }
 
-const SENSITIVE_AUDIT_FIELDS = [
-  "password",
-  "token",
-  "secret",
-  "clientsecret",
-  "client_secret",
-  "authorization",
-  "apikey",
-  "api_key",
-  "jwt",
-  "refresh_token",
-  "access_token",
-  "code",
-  "otp",
-  "sig",
-  "signature",
-  "key",
-];
+// G1-24: 判定逻辑集中在 utils/auditRedaction，避免与 auditLogService 的那份漂移。
 
 export function auditLog(options: AuditLogOptions) {
   const { module, action, extractTarget, extractDetail, captureBody } = options;
@@ -85,9 +69,7 @@ export function auditLog(options: AuditLogOptions) {
         const sanitizeNode = (node: any) => {
           if (!node || typeof node !== "object") return;
           for (const key of Object.keys(node)) {
-            const normalizedKey = key.toLowerCase().replace(/[\s-]/g, "");
-            if (SENSITIVE_AUDIT_FIELDS.some((field) => normalizedKey.includes(field.replace(/_/g, ""))))
-              node[key] = "[REDACTED]";
+            if (isSensitiveAuditField(key)) node[key] = "[REDACTED]";
             else if (typeof node[key] === "string" && node[key].length > 2000)
               node[key] = `${node[key].substring(0, 2000)}...`;
             else if (typeof node[key] === "object") sanitizeNode(node[key]);
