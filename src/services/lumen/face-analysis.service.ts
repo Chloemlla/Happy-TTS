@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { lumenTtlExpireAt } from "../../config/lumenRetention.js";
 import { FaceAnalysisFrame } from "../../models/lumen/index.js";
 import { getDeviceControlPolicy } from "./privileged-control.service.js";
 import { sanitizeTelemetryUpload } from "./telemetry.service.js";
@@ -109,6 +110,7 @@ export async function recordFaceAnalysisFrame(
     userId,
     deviceInstallationId: request.deviceInstallationId,
     receivedAt: now,
+    ttlExpireAt: lumenTtlExpireAt("faceAnalysisFrame", now),
     payload: {
       capturedAt: request.capturedAt,
       frame: {

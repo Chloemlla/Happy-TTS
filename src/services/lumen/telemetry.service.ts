@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { lumenTtlExpireAt } from "../../config/lumenRetention.js";
 import { TelemetryUpload, type ITelemetryUpload } from "../../models/lumen/index.js";
 import { ApiError } from "./errors.js";
 import logger from "../../utils/logger.js";
@@ -137,6 +138,7 @@ export async function recordTelemetryUpload(
     userId,
     deviceInstallationId: request.deviceInstallationId,
     receivedAt: now,
+    ttlExpireAt: lumenTtlExpireAt("telemetryUpload", now),
     payload: sanitizedPayload,
   });
 

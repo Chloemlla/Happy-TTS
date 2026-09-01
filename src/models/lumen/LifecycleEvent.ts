@@ -12,6 +12,8 @@ export interface ILifecycleEvent {
   clientReportedAt: number;
   receivedAt: number;
   metadata: unknown;
+  /** D3: TTL anchor. Mongo TTL needs a Date, and `receivedAt` must stay epoch millis for the SDK. */
+  ttlExpireAt?: Date;
 }
 
 const LifecycleEventSchema = new mongoose.Schema<ILifecycleEvent>(
@@ -27,12 +29,14 @@ const LifecycleEventSchema = new mongoose.Schema<ILifecycleEvent>(
     clientReportedAt: { type: Number },
     receivedAt: { type: Number },
     metadata: { type: mongoose.Schema.Types.Mixed },
+    ttlExpireAt: { type: Date },
   },
   { strict: true, timestamps: false, collection: "lifecycle_events" },
 );
 
 LifecycleEventSchema.index({ receivedAt: 1 });
 LifecycleEventSchema.index({ userId: 1 });
+LifecycleEventSchema.index({ ttlExpireAt: 1 }, { expireAfterSeconds: 0 });
 
 const LifecycleEvent =
   (mongoose.models.LifecycleEvent as mongoose.Model<ILifecycleEvent>) ||

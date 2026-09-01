@@ -11,6 +11,8 @@ export interface IVisionStreamFrame {
   pipeline: string;
   surfaceAttached: boolean;
   payload: unknown;
+  /** D3: TTL anchor. Mongo TTL needs a Date, and `receivedAt` must stay epoch millis for the SDK. */
+  ttlExpireAt?: Date;
 }
 
 const VisionStreamFrameSchema = new mongoose.Schema<IVisionStreamFrame>(
@@ -25,11 +27,13 @@ const VisionStreamFrameSchema = new mongoose.Schema<IVisionStreamFrame>(
     pipeline: { type: String },
     surfaceAttached: { type: Boolean },
     payload: { type: mongoose.Schema.Types.Mixed },
+    ttlExpireAt: { type: Date },
   },
   { strict: true, timestamps: false, collection: "vision_stream_frames" },
 );
 
 VisionStreamFrameSchema.index({ sessionId: 1 });
+VisionStreamFrameSchema.index({ ttlExpireAt: 1 }, { expireAfterSeconds: 0 });
 
 const VisionStreamFrame =
   (mongoose.models.VisionStreamFrame as mongoose.Model<IVisionStreamFrame>) ||

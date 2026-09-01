@@ -24,6 +24,8 @@ export interface ICrashReport {
   groupKey: string;
   cleanStack: string[];
   receivedAt: number;
+  /** D3: TTL anchor. Mongo TTL needs a Date, and `receivedAt` must stay epoch millis for the SDK. */
+  ttlExpireAt?: Date;
 }
 
 const CrashReportSchema = new mongoose.Schema<ICrashReport>(
@@ -51,6 +53,7 @@ const CrashReportSchema = new mongoose.Schema<ICrashReport>(
     groupKey: { type: String },
     cleanStack: [{ type: String }],
     receivedAt: { type: Number },
+    ttlExpireAt: { type: Date },
   },
   { strict: true, timestamps: false, collection: "crash_reports" },
 );
@@ -68,6 +71,7 @@ CrashReportSchema.index({ userId: 1, deviceInstallationId: 1, receivedAt: -1 });
 CrashReportSchema.index({ groupKey: 1, crashedAtMillis: -1 });
 // Admin device-ID filtering resolves the matching groupKey set from the index alone.
 CrashReportSchema.index({ deviceInstallationId: 1, groupKey: 1 });
+CrashReportSchema.index({ ttlExpireAt: 1 }, { expireAfterSeconds: 0 });
 
 const CrashReport =
   (mongoose.models.CrashReport as mongoose.Model<ICrashReport>) ||

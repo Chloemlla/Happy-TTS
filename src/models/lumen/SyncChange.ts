@@ -12,6 +12,11 @@ export interface ISyncChange {
     deviceInstallationId: string;
     updatedAt: number;
   };
+  /**
+   * D3: TTL anchor. Left unset unless LUMEN_RETENTION_SYNC_CHANGE_DAYS is configured —
+   * dropping a change a device has not pulled yet silently desyncs it.
+   */
+  ttlExpireAt?: Date;
 }
 
 const SyncChangeSchema = new mongoose.Schema<ISyncChange>(
@@ -32,12 +37,14 @@ const SyncChangeSchema = new mongoose.Schema<ISyncChange>(
         { _id: false },
       ),
     },
+    ttlExpireAt: { type: Date },
   },
   { strict: true, timestamps: false, collection: "sync_changes" },
 );
 
 SyncChangeSchema.index({ userId: 1, cursor: 1 });
 SyncChangeSchema.index({ cursor: 1 }, { unique: true });
+SyncChangeSchema.index({ ttlExpireAt: 1 }, { expireAfterSeconds: 0 });
 
 const SyncChange =
   (mongoose.models.SyncChange as mongoose.Model<ISyncChange>) ||

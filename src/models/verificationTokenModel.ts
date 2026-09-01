@@ -61,9 +61,21 @@ const VerificationTokenSchema = new mongoose.Schema<PersistedVerificationToken>(
 
 VerificationTokenSchema.index({ expiresAt: 1, used: 1 });
 
+// D3: cleanup used to depend solely on an in-process setInterval, so expired tokens
+// accumulated whenever the process was down or the timer threw. Mongo TTL needs a
+// Date and `expiresAt` is epoch millis, so ttlExpireAt carries it (same split as
+// mobileClientTokenModel). The interval below stays as the reaper for legacy rows
+// written before this field existed.
+VerificationTokenSchema.add({
+  ttlExpireAt: { type: Date },
+});
+VerificationTokenSchema.index({ ttlExpireAt: 1 }, { expireAfterSeconds: 0 });
+
+type StoredVerificationToken = PersistedVerificationToken & { ttlExpireAt?: Date };
+
 const VerificationTokenModel =
-  (mongoose.models.VerificationToken as mongoose.Model<PersistedVerificationToken>) ||
-  mongoose.model<PersistedVerificationToken>("VerificationToken", VerificationTokenSchema);
+  (mongoose.models.VerificationToken as mongoose.Model<StoredVerificationToken>) ||
+  mongoose.model<StoredVerificationToken>("VerificationToken", VerificationTokenSchema);
 
 const VERIFICATION_TOKEN_PATTERN = /^[a-fA-F0-9]{64}$/;
 
@@ -151,6 +163,7 @@ class VerificationTokenStorage {
     const plain = { ...(token as any) };
     delete plain._id;
     delete plain.__v;
+    delete plain.ttlExpireAt;
     return plain as VerificationToken;
   }
 
@@ -179,7 +192,8 @@ class VerificationTokenStorage {
       used: false,
     };
 
-    await VerificationTokenModel.create(verificationToken);
+    const persisted = { ...verificationToken, ttlExpireAt: new Date(verificationToken.expiresAt) };
+    await VerificationTokenModel.create(persisted);
 
     return this.withDecryptedMetadata(verificationToken);
   }

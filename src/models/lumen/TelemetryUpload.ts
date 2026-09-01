@@ -6,6 +6,8 @@ export interface ITelemetryUpload {
   deviceInstallationId: string;
   receivedAt: number;
   payload: unknown;
+  /** D3: TTL anchor. Mongo TTL needs a Date, and `receivedAt` must stay epoch millis for the SDK. */
+  ttlExpireAt?: Date;
 }
 
 const TelemetryUploadSchema = new mongoose.Schema<ITelemetryUpload>(
@@ -15,6 +17,7 @@ const TelemetryUploadSchema = new mongoose.Schema<ITelemetryUpload>(
     deviceInstallationId: { type: String },
     receivedAt: { type: Number },
     payload: { type: mongoose.Schema.Types.Mixed },
+    ttlExpireAt: { type: Date },
   },
   { strict: true, timestamps: false, collection: "telemetry_uploads" },
 );
@@ -22,6 +25,7 @@ const TelemetryUploadSchema = new mongoose.Schema<ITelemetryUpload>(
 TelemetryUploadSchema.index({ userId: 1, receivedAt: 1 });
 TelemetryUploadSchema.index({ receivedAt: 1 });
 TelemetryUploadSchema.index({ deviceInstallationId: 1 });
+TelemetryUploadSchema.index({ ttlExpireAt: 1 }, { expireAfterSeconds: 0 });
 
 const TelemetryUpload =
   (mongoose.models.TelemetryUpload as mongoose.Model<ITelemetryUpload>) ||

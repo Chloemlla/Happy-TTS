@@ -10,6 +10,8 @@ export interface IAdminCrashReport {
   cleanStack: string[];
   devices: string[];
   lastSeenAt: number;
+  /** D3: TTL anchor. Refreshed on every ingest upsert, so a live crash group is never reaped. */
+  ttlExpireAt?: Date;
 }
 
 const AdminCrashReportSchema = new mongoose.Schema<IAdminCrashReport>(
@@ -23,6 +25,7 @@ const AdminCrashReportSchema = new mongoose.Schema<IAdminCrashReport>(
     cleanStack: [{ type: String }],
     devices: { type: [String], default: [] },
     lastSeenAt: { type: Number },
+    ttlExpireAt: { type: Date },
   },
   { strict: true, timestamps: false, collection: "admin_crash_reports" },
 );
@@ -35,6 +38,7 @@ AdminCrashReportSchema.index({ affectedUsers: -1, lastSeenAt: -1 });
 AdminCrashReportSchema.index({ versionCode: 1, lastSeenAt: -1 });
 // Ingest upserts one aggregate row per (groupKey, versionCode).
 AdminCrashReportSchema.index({ groupKey: 1, versionCode: 1 });
+AdminCrashReportSchema.index({ ttlExpireAt: 1 }, { expireAfterSeconds: 0 });
 
 const AdminCrashReport =
   (mongoose.models.AdminCrashReport as mongoose.Model<IAdminCrashReport>) ||

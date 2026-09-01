@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { lumenTtlExpireAt } from "../../config/lumenRetention.js";
 import {
   DeviceControlPolicy,
   VisionStreamSession,
@@ -405,6 +406,7 @@ export async function uploadVisionFrame(
     sessionId: request.sessionId,
     deviceInstallationId: request.deviceInstallationId || session.deviceInstallationId,
     receivedAt: now,
+    ttlExpireAt: lumenTtlExpireAt("visionStreamFrame", now),
     exclusiveAccess: session.exclusiveAccess,
     noSurfacePreview: session.noSurfacePreview,
     pipeline,
@@ -506,6 +508,7 @@ export async function recordLifecycleEvent(
     restartCount: request.restartCount ?? 0,
     clientReportedAt: request.clientReportedAt || now,
     receivedAt: now,
+    ttlExpireAt: lumenTtlExpireAt("lifecycleEvent", now),
     metadata: request.metadata || {},
   });
 

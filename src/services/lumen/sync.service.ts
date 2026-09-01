@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { lumenTtlExpireAt } from "../../config/lumenRetention.js";
 import { Counter, SyncChange, type ISyncChange } from "../../models/lumen/index.js";
 import { ApiError } from "./errors.js";
 import logger from "../../utils/logger.js";
@@ -93,7 +94,10 @@ export async function pushChanges(
       deviceInstallationId: string;
       updatedAt: number;
     };
+    ttlExpireAt?: Date;
   }> = [];
+
+  const changeTtlExpireAt = lumenTtlExpireAt("syncChange", now);
 
   for (let i = 0; i < changes.length; i++) {
     const ch = changes[i];
@@ -111,6 +115,7 @@ export async function pushChanges(
         deviceInstallationId: ch.deviceInstallationId || deviceInstallationId || "",
         updatedAt: ch.updatedAt || now,
       },
+      ttlExpireAt: changeTtlExpireAt,
     });
   }
 

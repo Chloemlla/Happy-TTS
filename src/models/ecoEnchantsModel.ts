@@ -470,7 +470,9 @@ const TelemetryEventSchema = new Schema<IEcoEnchantsTelemetryEvent>(
     requestId: { type: String, index: true },
     idempotencyKey: { type: String, index: true },
     receivedAt: { type: Date, default: Date.now, index: true },
-    sensitiveRetentionUntil: { type: Date, index: true },
+    // G7-25: the TTL index below is this field's only consumer — `index: true` here
+    // would collide with it on the same key pattern (IndexOptionsConflict).
+    sensitiveRetentionUntil: { type: Date },
   },
   { collection: "ecoenchants_telemetry_events", timestamps: false },
 );
@@ -602,6 +604,10 @@ addIndex(WebhookEventSchema, { receivedAt: 1 }, { expireAfterSeconds: 90 * 24 * 
 addIndex(TelemetryEventSchema, { productId: 1, installationIdHash: 1, eventId: 1 }, { unique: true });
 addIndex(TelemetryEventSchema, { activationId: 1, timestamp: -1 });
 addIndex(TelemetryEventSchema, { category: 1, timestamp: -1 });
+// G7-25: `sensitiveRetentionUntil` was written and never read, so telemetry events
+// carrying a sensitive marker were kept forever. Only marked events get the field,
+// so this expires exactly those and leaves ordinary events untouched.
+addIndex(TelemetryEventSchema, { sensitiveRetentionUntil: 1 }, { expireAfterSeconds: 0 });
 addIndex(OpsInstanceSchema, { activationId: 1, productId: 1 }, { unique: true });
 addIndex(OpsInstanceSchema, { status: 1, lastSeenAt: -1 });
 addIndex(OpsJobSchema, { instanceId: 1, status: 1, createdAt: -1 });

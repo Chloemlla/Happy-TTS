@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { lumenTtlExpireAt } from "../../config/lumenRetention.js";
 import { CrashReport, AdminCrashReport } from "../../models/lumen/index.js";
 import { ApiError } from "./errors.js";
 
@@ -138,9 +139,11 @@ export async function recordCrashReport(
     groupKey,
     cleanStack: cleanStackLines,
     receivedAt: now,
+    ttlExpireAt: lumenTtlExpireAt("crashReport", now),
   });
 
   // ── Update AdminCrashReport aggregation ───────────────────────────────
+  const groupTtlExpireAt = lumenTtlExpireAt("adminCrashReport", now);
   // G7-27: the `devices` array must not grow without bound (a single document
   // could hit the 16MB cap and stop aggregating). Cap it, and read back only
   // the fields needed for risk computation instead of the whole document.
@@ -161,6 +164,8 @@ export async function recordCrashReport(
           versionCode,
           cleanStack: cleanStackLines,
           lastSeenAt: now,
+          // Refreshed on every ingest, so an actively crashing group keeps outliving its TTL.
+          ...(groupTtlExpireAt ? { ttlExpireAt: groupTtlExpireAt } : {}),
         },
       },
     ] as any,
