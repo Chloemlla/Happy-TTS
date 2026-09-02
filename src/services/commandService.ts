@@ -392,10 +392,8 @@ class CommandService {
 
   /**
    * 执行命令
-   * NOTE (G7-39): this method does not re-check the admin operation password —
-   * the route (src/routes/commandRoutes.ts) does not pass one. Password gating
-   * for executeCommand / clearCommandQueue / clearExecutionHistory must be
-   * enforced at the route layer (cross-group).
+   * 密码闸门在路由层（`src/routes/commandRoutes.ts` 的 `/execute`）：本方法不重复校验，
+   * 因此不要把它暴露给任何未经 isSuperAdmin + isAdminOperationPasswordValid 的调用方。
    */
   public async executeCommand(command: string): Promise<string> {
     const startTime = Date.now();

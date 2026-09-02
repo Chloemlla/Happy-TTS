@@ -320,6 +320,12 @@ router.get("/history", commandLimiter, authenticateToken, async (req, res) => {
  */
 router.post("/clear-history", commandLimiter, authenticateToken, auditLog({ module: "system", action: "command.clearHistory" }), async (req, res) => {
   try {
+    // 先判管理员再判操作密码：反过来的话，任何已登录的普通用户都能凭「密码错误 / 需要管理员权限」
+    // 两种 403 的差异把这个接口当成操作密码的探测口。
+    if (!ensureAdmin(req, res)) {
+      return;
+    }
+
     const { password } = req.body;
 
     if (!isAdminOperationPasswordValid(password)) {
@@ -328,10 +334,6 @@ router.post("/clear-history", commandLimiter, authenticateToken, auditLog({ modu
         path: "/clear-history",
       });
       return res.status(403).json({ error: "密码错误" });
-    }
-
-    if (!isSuperAdmin(req)) {
-      return res.status(403).json({ error: "需要管理员权限" });
     }
 
     const result = await commandService.clearExecutionHistory();
@@ -364,6 +366,10 @@ router.post("/clear-history", commandLimiter, authenticateToken, auditLog({ modu
  */
 router.post("/clear-queue", commandLimiter, authenticateToken, auditLog({ module: "system", action: "command.clearQueue" }), async (req, res) => {
   try {
+    if (!ensureAdmin(req, res)) {
+      return;
+    }
+
     const { password } = req.body;
 
     if (!isAdminOperationPasswordValid(password)) {
@@ -372,10 +378,6 @@ router.post("/clear-queue", commandLimiter, authenticateToken, auditLog({ module
         path: "/clear-queue",
       });
       return res.status(403).json({ error: "密码错误" });
-    }
-
-    if (!isSuperAdmin(req)) {
-      return res.status(403).json({ error: "需要管理员权限" });
     }
 
     const result = await commandService.clearCommandQueue();
