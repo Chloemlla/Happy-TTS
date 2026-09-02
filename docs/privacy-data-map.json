@@ -273,6 +273,31 @@
         "supported": false
       },
       "evidence": ["frontend/src/utils/fingerprint.ts"]
+    },
+    {
+      "id": "tamper-events",
+      "collection": "tamper_events",
+      "fields": ["eventId", "timestamp", "url", "ip", "userAgent", "eventType", "tamperType", "detectionMethod", "originalContent", "tamperContent", "filePath", "checksum", "severity", "additionalInfo", "expiresAt"],
+      "purpose": "Front-end tamper/injection detection and the per-IP auto-ban decision (10 events per hour)",
+      "legalBasis": "security_and_abuse_prevention",
+      "retention": {
+        "type": "ttl",
+        "ttlField": "expiresAt",
+        "expireAfterSeconds": 0,
+        "typicalLifetime": "30d, TAMPER_EVENT_RETENTION_DAYS clamps to 1-365",
+        "description": "Each document carries an absolute expiresAt written at insert; Mongo TTL reclaims it. Documents written before this field existed are never reclaimed."
+      },
+      "delete": {
+        "onUserDelete": "not_linked",
+        "automatic": "Mongo TTL on expiresAt",
+        "manual": "admin tamper-event clear API",
+        "gap": "Not keyed by user id, so an account deletion cannot cascade into events recorded for that user's IP"
+      },
+      "export": {
+        "supported": false,
+        "reason": "Security telemetry, not part of user data export"
+      },
+      "evidence": ["src/models/tamperEventModel.ts", "src/services/tamperEventStore.ts", "src/services/tamperService.ts"]
     }
   ]
 }
