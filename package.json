@@ -28,7 +28,6 @@
     "test:verbose": "jest --verbose --detectOpenHandles",
     "test:clean": "node scripts/test-cleanup.js",
     "test:auth": "jest --testPathPatterns=authController.test.ts",
-    "test:rate-limit": "jest --testPathPatterns=rateLimit.test.ts",
     "test:db-init": "node scripts/tests/test-database-init.js",
     "test:performance": "jest performance.test.ts",
     "test:concurrency": "jest concurrency.test.ts",

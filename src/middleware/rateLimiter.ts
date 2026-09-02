@@ -4,6 +4,11 @@ import { config } from "../config/config";
 import { sanitizeLogValue } from "../utils/requestLogSanitizer";
 import logger from "../utils/logger";
 
+// G1-29: 限流的规范系统是 routeLimiters.ts（profile + 共享 store + 429 指标）。
+// 这里保留第二个 createLimiter 只因为它的 429 体额外带 retryAfter/routeName/code/stage，
+// NexAI 等客户端按这些字段弹窗；直接合并会改掉这些路由的响应契约。
+// 注意：本工厂用的是 express-rate-limit 默认内存 store，多实例部署下配额是「每进程」的。
+
 // IP白名单配置
 const whitelistedIPs = new Set<string>([
   ...(config.localIps || []),
@@ -72,119 +77,6 @@ export const createLimiter = (options: {
       return req.ip || req.socket.remoteAddress || "unknown";
     },
   });
-};
-
-// Passkey相关的速率限制器
-export const passkeyLimiter = {
-  // 获取认证器列表
-  credentials: createLimiter({
-    windowMs: 1 * 60 * 1000, // 1分钟
-    max: 30,
-    routeName: "passkey.credentials",
-    message: "Passkey凭证请求过于频繁，请稍后再试",
-  }),
-
-  // 注册开始
-  registerStart: createLimiter({
-    windowMs: 5 * 60 * 1000, // 5分钟
-    max: 10,
-    routeName: "passkey.registerStart",
-    message: "Passkey注册请求过于频繁，请稍后再试",
-  }),
-
-  // 注册完成
-  registerFinish: createLimiter({
-    windowMs: 5 * 60 * 1000, // 5分钟
-    max: 10,
-    routeName: "passkey.registerFinish",
-    message: "Passkey注册完成请求过于频繁，请稍后再试",
-  }),
-
-  // 认证开始
-  authenticateStart: createLimiter({
-    windowMs: 1 * 60 * 1000, // 1分钟
-    max: 20,
-    routeName: "passkey.authenticateStart",
-    message: "Passkey认证请求过于频繁，请稍后再试",
-  }),
-
-  // 认证完成
-  authenticateFinish: createLimiter({
-    windowMs: 1 * 60 * 1000, // 1分钟
-    max: 20,
-    routeName: "passkey.authenticateFinish",
-    message: "Passkey认证完成请求过于频繁，请稍后再试",
-  }),
-
-  // 删除认证器
-  removeCredential: createLimiter({
-    windowMs: 5 * 60 * 1000, // 5分钟
-    max: 10,
-    routeName: "passkey.removeCredential",
-    message: "Passkey凭证删除请求过于频繁，请稍后再试",
-  }),
-};
-
-// TOTP相关的速率限制器
-export const totpLimiter = {
-  // 获取状态
-  status: createLimiter({
-    windowMs: 1 * 60 * 1000, // 1分钟
-    max: 30,
-    routeName: "totp.status",
-    message: "TOTP状态查询过于频繁，请稍后再试",
-  }),
-
-  // 生成设置
-  generateSetup: createLimiter({
-    windowMs: 5 * 60 * 1000, // 5分钟
-    max: 5,
-    routeName: "totp.generateSetup",
-    message: "TOTP设置生成请求过于频繁，请稍后再试",
-  }),
-
-  // 验证并启用
-  verifyAndEnable: createLimiter({
-    windowMs: 5 * 60 * 1000, // 5分钟
-    max: 10,
-    routeName: "totp.verifyAndEnable",
-    message: "TOTP验证请求过于频繁，请稍后再试",
-  }),
-
-  // 验证令牌
-  verifyToken: createLimiter({
-    windowMs: 5 * 60 * 1000, // 5分钟
-    max: 10,
-    routeName: "totp.verifyToken",
-    message: "TOTP令牌验证请求过于频繁，请稍后再试",
-  }),
-
-  // 禁用TOTP
-  disable: createLimiter({
-    windowMs: 5 * 60 * 1000, // 5分钟
-    max: 5,
-    routeName: "totp.disable",
-    message: "TOTP禁用请求过于频繁，请稍后再试",
-  }),
-};
-
-// API相关的速率限制器
-export const apiLimiter = {
-  // TTS生成
-  ttsGenerate: createLimiter({
-    windowMs: 1 * 60 * 1000, // 1分钟
-    max: 10,
-    routeName: "api.ttsGenerate",
-    message: "TTS生成请求过于频繁，请稍后再试",
-  }),
-
-  // 用户管理
-  userManagement: createLimiter({
-    windowMs: 5 * 60 * 1000, // 5分钟
-    max: 50,
-    routeName: "api.userManagement",
-    message: "用户管理操作过于频繁，请稍后再试",
-  }),
 };
 
 // 资源管理相关的速率限制器

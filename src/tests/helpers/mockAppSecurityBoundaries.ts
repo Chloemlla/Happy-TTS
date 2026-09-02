@@ -13,10 +13,6 @@ jest.mock("../../middleware/tamperProtection", () => ({
   tamperProtectionMiddleware: mockPassThrough,
 }));
 
-jest.mock("../../middleware/rateLimit", () => ({
-  rateLimitMiddleware: mockPassThrough,
-}));
-
 jest.mock("../../middleware/routeLimiters", () =>
   new Proxy(
     {
@@ -47,9 +43,6 @@ jest.mock("../../middleware/rateLimiter", () =>
       __esModule: true,
       createLimiter: () => mockPassThrough,
       resourceLimiter: mockMiddlewareGroup,
-      passkeyLimiter: mockMiddlewareGroup,
-      totpLimiter: mockMiddlewareGroup,
-      apiLimiter: mockMiddlewareGroup,
     },
     {
       get(target, property, receiver) {
@@ -61,23 +54,6 @@ jest.mock("../../middleware/rateLimiter", () =>
     },
   ),
 );
-
-jest.mock("../../services/rateLimiter", () => ({
-  rateLimiter: {
-    isRateLimited: () => false,
-    recordRequest: () => undefined,
-    reset: () => undefined,
-  },
-  RateLimiter: class {
-    isRateLimited(): boolean {
-      return false;
-    }
-
-    recordRequest(): void {}
-
-    reset(): void {}
-  },
-}));
 
 jest.mock("express-rate-limit", () => ({
   __esModule: true,

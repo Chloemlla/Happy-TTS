@@ -2,7 +2,6 @@ import type { NextFunction, Request, RequestHandler, Response } from "express";
 import type { RouteModule } from "../index";
 import { authenticateToken } from "../../middleware/authenticateToken";
 import { nexaiRequestSignature } from "../../middleware/nexaiRequestSignature";
-import { passkeyAutoFixMiddleware } from "../../middleware/passkeyAutoFix";
 import {
   adminLimiter,
   antaLimiter,
@@ -341,7 +340,6 @@ export const postTamperRouteModules: RouteModule[] = [
     name: "passkey-routes",
     path: "/api/passkey",
     router: passkeyRoutes,
-    middlewares: [passkeyAutoFixMiddleware],
     requiresAuth: "mixed",
     rateLimited: true,
     isPublic: "mixed",
