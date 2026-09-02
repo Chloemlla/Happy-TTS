@@ -16,6 +16,17 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    # 混淆产物冒烟要真正启动一次后端，而 MONGO_URI 是启动硬依赖（config.ts 无 URI 直接拒绝解析）。
+    services:
+      mongo:
+        image: mongo:8
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Checkout code
@@ -45,6 +56,20 @@ jobs:
       - name: Generate OpenAPI spec (validate swagger-jsdoc annotations)
         # openapi.json 被 .gitignore 忽略，产物不入库；在镜像构建前暴露 swagger-jsdoc 语法错误。
         run: pnpm run generate:openapi
+
+      - name: OpenAPI drift gate (documented paths vs generated spec)
+        # swagger-jsdoc 丢弃解析失败的注释块时不报错，端点会静默从 spec 里消失。
+        run: pnpm run check:openapi-drift
+
+      - name: Obfuscated artifact smoke (production boot of dist-obfuscated)
+        # 生产镜像跑的是 dist-obfuscated；混淆破坏与生产模式启动断言只在运行时暴露。
+        env:
+          SMOKE_MONGO_URI: mongodb://127.0.0.1:27017/synapse_smoke
+        run: pnpm run smoke:obfuscated
+
+      - name: Tree-shaking config drift (advisory)
+        # scripts/check-tree-shaking.js 只报告、从不失败：这里是可见性，不是门禁。
+        run: pnpm run check:tree-shaking-config
 
       - name: Run backend Jest tests with coverage
         id: backend-tests

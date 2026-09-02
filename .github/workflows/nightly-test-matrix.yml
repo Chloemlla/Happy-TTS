@@ -27,18 +27,21 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Start MongoDB replica set
+        id: mongo
         shell: bash
         run: |
           docker run -d --name mongo-nightly -p 27017:27017 mongo:8 --replSet rs0 --bind_ip_all
+          # 容器刚起时首轮探测必然 ECONNREFUSED。把重试期间的 mongosh 报错挡在日志外：
+          # 这条噪音曾被当成「runner 没有 MongoDB 服务」误判过一次真实失败的根因。
           for attempt in $(seq 1 30); do
-            if docker exec mongo-nightly mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' | grep -q 1; then
+            if docker exec mongo-nightly mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' 2>/dev/null | grep -q 1; then
               break
             fi
             sleep 1
           done
           docker exec mongo-nightly mongosh --quiet --eval 'try { rs.initiate({_id:"rs0", members:[{_id:0, host:"127.0.0.1:27017"}]}) } catch (e) { if (!String(e.message || e).includes("already initialized")) throw e }'
           for attempt in $(seq 1 30); do
-            if docker exec mongo-nightly mongosh --quiet --eval 'rs.isMaster().ismaster' | grep -qi true; then
+            if docker exec mongo-nightly mongosh --quiet --eval 'rs.isMaster().ismaster' 2>/dev/null | grep -qi true; then
               exit 0
             fi
             sleep 1
@@ -48,6 +51,7 @@ jobs:
           exit 1
 
       - name: Run nightly MongoDB core contracts
+        id: core
         env:
           NODE_ENV: test
           MONGO_URI: mongodb://127.0.0.1:27017/synapse_nightly
@@ -57,6 +61,7 @@ jobs:
         run: pnpm run test:nightly:core
 
       - name: Run external API matrix
+        id: external
         env:
           NODE_ENV: test
           MONGO_URI: mongodb://127.0.0.1:27017/synapse_nightly
@@ -65,6 +70,22 @@ jobs:
           TEST_ADMIN_PASSWORD: nightly-admin-password
           IP_QUERY_KEY: ${{ secrets.IP_QUERY_API_KEY }}
         run: pnpm run test:nightly:external
+
+      - name: Report nightly outcome
+        if: always()
+        run: |
+          {
+            echo "## Nightly slice outcomes"
+            echo ""
+            echo "- MongoDB replica set: \`${{ steps.mongo.outcome }}\`"
+            echo "- Core contracts: \`${{ steps.core.outcome }}\`"
+            echo "- External API matrix: \`${{ steps.external.outcome }}\`"
+            echo ""
+            echo "> 若测试步骤报 \`typescript ... does not expose the JavaScript compiler API required by ts-jest\`，"
+            echo "> 根因是 ts-jest@29 × typescript@7 不兼容（G13-10 / G13-11，决策项 D1），**不是** MongoDB 或本 workflow 的问题——"
+            echo "> Mongo 步骤为 success 即代表副本集已 PRIMARY，探测循环首轮的 ECONNREFUSED 只是重试噪音。"
+            echo "> 修复顺序：typescript 降到 ~5.9（或按 ts-jest 提示改用 @typescript/native + @typescript/typescript6 别名）→ 重新生成 lockfile。"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Jest artifacts on failure
         if: failure()

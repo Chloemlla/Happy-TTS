@@ -106,15 +106,17 @@ jobs:
         shell: bash
         run: |
           docker run -d --name mongo-rs -p 27017:27017 mongo:8 --replSet rs0 --bind_ip_all
+          # 容器刚起时首轮探测必然 ECONNREFUSED；重试期间的 mongosh 报错不进日志，
+          # 否则一条 MongoNetworkError 会被误读成「runner 没有 MongoDB」。
           for attempt in $(seq 1 30); do
-            if docker exec mongo-rs mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' | grep -q 1; then
+            if docker exec mongo-rs mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' 2>/dev/null | grep -q 1; then
               break
             fi
             sleep 1
           done
           docker exec mongo-rs mongosh --quiet --eval 'try { rs.initiate({_id:"rs0", members:[{_id:0, host:"127.0.0.1:27017"}]}) } catch (e) { if (!String(e.message || e).includes("already initialized")) throw e }'
           for attempt in $(seq 1 30); do
-            if docker exec mongo-rs mongosh --quiet --eval 'rs.isMaster().ismaster' | grep -qi true; then
+            if docker exec mongo-rs mongosh --quiet --eval 'rs.isMaster().ismaster' 2>/dev/null | grep -qi true; then
               exit 0
             fi
             sleep 1
