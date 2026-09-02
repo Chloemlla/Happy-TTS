@@ -4,42 +4,24 @@
  */
 
 /**
- * 安全的输入清理函数
+ * 输入归一化：截断到 maxLength、去掉控制字符、trim
+ * G8-30: 这里**不做** HTML 转义、也不删除 `script` / `javascript:` 之类的字面量。
+ * 转义后的值会原样落库（`https://a/b` 变成 `https:&#x2F;&#x2F;a&#x2F;b`、`prescription` 变成 `preion`），
+ * 而同一份数据要分别渲染成 HTML / JSON / 日志 / 邮件，各自需要不同编码。
+ * 拒绝非法值交给 validateName / validateURL 等校验器，转义交给输出点（前端 JSX 文本节点默认转义）。
  * @param str 输入字符串
  * @param maxLength 最大长度限制
- * @returns 清理后的字符串
+ * @returns 归一化后的字符串
  */
 export function sanitizeInput(str: string | undefined | null, maxLength: number = 500): string {
   if (typeof str !== "string" || !str) {
     return "";
   }
 
-  // 1. 限制长度
-  let cleaned = str.substring(0, maxLength);
-
-  // 2. 移除潜在的脚本注入（迭代替换直到完全清理）
-  const maxIterations = 10;
-  let previousCleaned = "";
-
-  for (let i = 0; i < maxIterations && cleaned !== previousCleaned; i++) {
-    previousCleaned = cleaned;
-    cleaned = cleaned.replace(/javascript:|vbscript:|data:|on\w+\s*=|script/gi, "");
-  }
-
-  // 3. 转义特殊字符
-  cleaned = cleaned
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#x27;")
-    .replace(/\//g, "&#x2F;");
-
-  // 4. 移除控制字符
-  cleaned = cleaned.replace(/[\x00-\x1F\x7F]/g, "");
-
-  // 5. trim空白字符
-  return cleaned.trim();
+  return str
+    .substring(0, maxLength)
+    .replace(/[\x00-\x1F\x7F]/g, "")
+    .trim();
 }
 
 /**

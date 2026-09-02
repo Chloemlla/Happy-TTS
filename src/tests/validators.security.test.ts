@@ -1,209 +1,171 @@
-import { sanitizeInput } from "../utils/validators";
+import { sanitizeInput, validateName, validateURL } from "../utils/validators";
 
-describe("sanitizeInput - Security Tests", () => {
-  describe("防止不完整的多字符清理漏洞", () => {
-    test("应该清理嵌套的 javascript: 协议", () => {
-      const input = "jjavascript:avascript:alert(1)";
-      const result = sanitizeInput(input);
+// G8-30 之后的三层分工，本文件逐层断言：
+//   1. sanitizeInput 只做归一化（截断 / 去控制字符 / trim）；
+//   2. 拒绝非法值由入口校验器完成（validateName / validateURL 直接 400）；
+//   3. 转义由输出点完成（HTML 走 src/utils/announcementHtml.ts 的 DOMPurify，
+//      其余走前端 JSX 文本节点的默认转义）。
+// 不要再把转义或字面量删除塞回 sanitizeInput：那样既挡不住编码变体，又会静默损坏
+// 合法数据（`https://a/b` 落库成 `https:&#x2F;&#x2F;a&#x2F;b`、`prescription` 落库成 `preion`）。
 
-      // 不应该包含任何 javascript: 字符串
-      expect(result.toLowerCase()).not.toContain("javascript:");
-    });
-
-    test("应该清理多层嵌套的危险协议", () => {
-      const input = "jjavajavascript:script:vbscript:alert(1)";
-      const result = sanitizeInput(input);
-
-      expect(result.toLowerCase()).not.toContain("javascript:");
-      expect(result.toLowerCase()).not.toContain("vbscript:");
-    });
-
-    test("应该清理嵌套的 data: URI", () => {
-      const input = "ddata:ata:text/html,<script>alert(1)</script>";
-      const result = sanitizeInput(input);
-
-      expect(result.toLowerCase()).not.toContain("data:");
-      expect(result.toLowerCase()).not.toContain("script");
-    });
-
-    test("应该清理嵌套的事件处理器", () => {
-      const input = "ononclick=click=alert(1)";
-      const result = sanitizeInput(input);
-
-      expect(result.toLowerCase()).not.toMatch(/on\w+\s*=/);
-    });
-
-    test("应该清理混合的嵌套攻击", () => {
-      const input = "<img src=x ononerror=error=javascript:alert(1)>";
-      const result = sanitizeInput(input);
-
-      expect(result).not.toContain("<");
-      expect(result).not.toContain(">");
-      expect(result.toLowerCase()).not.toContain("javascript:");
-      expect(result.toLowerCase()).not.toMatch(/on\w+\s*=/);
-    });
-
-    test("应该处理深度嵌套（最多10层）", () => {
-      const input =
-        "jjjjjjjjjjavascript:avascript:avascript:avascript:avascript:avascript:avascript:avascript:avascript:avascript:alert(1)";
-      const result = sanitizeInput(input);
-
-      // 即使嵌套很深，也应该被清理
-      expect(result.toLowerCase()).not.toContain("javascript:");
-    });
-
-    test("应该防止通过大小写混合绕过", () => {
-      const inputs = ["JaVaScRiPt:alert(1)", "VBSCRIPT:alert(1)", "DaTa:text/html,<script>", "OnClIcK=alert(1)"];
-
-      inputs.forEach((input) => {
-        const result = sanitizeInput(input);
-        expect(result.toLowerCase()).not.toContain("javascript:");
-        expect(result.toLowerCase()).not.toContain("vbscript:");
-        expect(result.toLowerCase()).not.toContain("data:");
-        expect(result.toLowerCase()).not.toMatch(/on\w+\s*=/);
-      });
-    });
-
-    test("应该转义 HTML 特殊字符", () => {
-      const input = '<script>alert("XSS");</script>';
-      const result = sanitizeInput(input);
-
-      expect(result).toContain("&lt;");
-      expect(result).toContain("&gt;");
-      expect(result).toContain("&quot;");
-      expect(result).not.toContain("<");
-      expect(result).not.toContain(">");
-    });
-
-    test("应该正确处理合法输入", () => {
-      const validInputs = ["John Doe", "FBI Most Wanted", "Dangerous criminal at large", "悬赏金额: $1,000,000"];
-
-      validInputs.forEach((input) => {
-        const result = sanitizeInput(input);
-        // 合法输入应该被转义但不应该被完全移除
-        expect(result.length).toBeGreaterThan(0);
-      });
-    });
-
-    test("应该限制最大长度", () => {
-      const longInput = "a".repeat(1000);
-      const result = sanitizeInput(longInput, 100);
-
-      expect(result.length).toBeLessThanOrEqual(100);
-    });
-
-    test("应该移除控制字符", () => {
-      const input = "test\x00\x01\x02\x1F\x7Fstring";
-      const result = sanitizeInput(input);
-
-      expect(result).toBe("teststring");
-    });
-
-    test("应该处理空字符串和 null/undefined", () => {
-      expect(sanitizeInput("")).toBe("");
-      expect(sanitizeInput(null)).toBe("");
-      expect(sanitizeInput(undefined)).toBe("");
-    });
+describe("sanitizeInput - 归一化契约", () => {
+  test("截断到 maxLength，默认 500", () => {
+    expect(sanitizeInput("a".repeat(1000), 100)).toHaveLength(100);
+    expect(sanitizeInput("a".repeat(1000))).toHaveLength(500);
   });
 
-  describe("性能测试", () => {
-    test("应该在合理时间内完成清理（即使有嵌套）", () => {
-      const input = `${"j".repeat(100) + "avascript:".repeat(50)}alert(1)`;
-      const startTime = Date.now();
-
-      sanitizeInput(input);
-
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-
-      // 应该在 100ms 内完成
-      expect(duration).toBeLessThan(100);
-    });
-
-    test("应该防止 ReDoS 攻击", () => {
-      // 构造可能导致正则表达式回溯的输入
-      const input = `on${"a".repeat(1000)}=`;
-      const startTime = Date.now();
-
-      sanitizeInput(input);
-
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-
-      // 应该快速完成，不应该有指数级回溯
-      expect(duration).toBeLessThan(100);
-    });
+  test("移除控制字符", () => {
+    expect(sanitizeInput("test\x00\x01\x02\x1F\x7Fstring")).toBe("teststring");
   });
 
-  describe("真实攻击场景", () => {
-    test("应该防止 XSS 攻击 - 图片标签", () => {
-      const attacks = [
-        "<img src=x onerror=alert(1)>",
-        '<img src="javascript:alert(1)">',
-        "<img src=x ononerror=error=alert(1)>",
-        "<img/src=x/onerror=alert(1)>",
-      ];
+  test("去掉首尾空白", () => {
+    expect(sanitizeInput("  John Doe  ")).toBe("John Doe");
+  });
 
-      attacks.forEach((attack) => {
-        const result = sanitizeInput(attack);
-        expect(result).not.toContain("<");
-        expect(result).not.toContain(">");
-        expect(result.toLowerCase()).not.toContain("javascript:");
-      });
-    });
+  test("空值与非字符串返回空串", () => {
+    expect(sanitizeInput("")).toBe("");
+    expect(sanitizeInput(null)).toBe("");
+    expect(sanitizeInput(undefined)).toBe("");
+  });
 
-    test("应该防止 XSS 攻击 - 脚本标签", () => {
-      const attacks = [
-        "<script>alert(1)</script>",
-        "<SCRIPT>alert(1)</SCRIPT>",
-        "<<script>script>alert(1)<</script>/script>",
-        "<scr<script>ipt>alert(1)</script>",
-      ];
+  test("截断先于去控制字符，长度上限按原始输入计算", () => {
+    // substring 先执行：窗口外的内容一律丢弃，被删掉的控制字符不会让窗口右移补位
+    expect(sanitizeInput(`${"a".repeat(99)}\x00bbbb`, 100)).toBe("a".repeat(99));
+  });
+});
 
-      attacks.forEach((attack) => {
-        const result = sanitizeInput(attack);
-        expect(result.toLowerCase()).not.toContain("script");
-        expect(result).not.toContain("<");
-        expect(result).not.toContain(">");
-      });
-    });
+describe("sanitizeInput - 不得破坏合法输入", () => {
+  test("URL 里的 : / ? & 原样保留", () => {
+    const url = "https://www.fbi.gov/wanted/topten/photo.jpg?v=1&size=large";
+    expect(sanitizeInput(url, 2000)).toBe(url);
+  });
 
-    test("应该防止 XSS 攻击 - 事件处理器", () => {
-      const attacks = [
-        "onclick=alert(1)",
-        "onload=alert(1)",
-        "onerror=alert(1)",
-        "onmouseover=alert(1)",
-        "ononclick=click=alert(1)",
-      ];
+  test("含 script 子串的正常单词不被截肢", () => {
+    // 旧实现 replace(/script/gi, "") 会把 prescription 变成 preion、description 变成 deion
+    expect(sanitizeInput("prescription")).toBe("prescription");
+    expect(sanitizeInput("Description of the manuscript")).toBe("Description of the manuscript");
+  });
 
-      attacks.forEach((attack) => {
-        const result = sanitizeInput(attack);
-        expect(result.toLowerCase()).not.toMatch(/on\w+\s*=/);
-      });
-    });
+  test("引号、& 与尖括号不被转义", () => {
+    expect(sanitizeInput('He said "stop" & left <fast>')).toBe('He said "stop" & left <fast>');
+  });
 
-    test("应该防止 Data URI XSS", () => {
-      const attacks = [
-        "data:text/html,<script>alert(1)</script>",
-        "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==",
-        "ddata:ata:text/html,<script>alert(1)</script>",
-      ];
+  test("中文与货币符号原样保留", () => {
+    expect(sanitizeInput("悬赏金额: $1,000,000")).toBe("悬赏金额: $1,000,000");
+  });
 
-      attacks.forEach((attack) => {
-        const result = sanitizeInput(attack);
-        expect(result.toLowerCase()).not.toContain("data:");
-        expect(result.toLowerCase()).not.toContain("script");
-      });
-    });
+  test("换行与制表符属于控制字符，会被移除", () => {
+    // \n \r \t 都落在 \x00-\x1F 内；需要保留换行的字段不要用 sanitizeInput
+    expect(sanitizeInput("line1\nline2\tend")).toBe("line1line2end");
+  });
+});
 
-    test("应该防止混合协议攻击", () => {
-      const input = "javascript:vbscript:data:alert(1)";
-      const result = sanitizeInput(input);
+describe("sanitizeInput - 危险字面量按设计原样通过", () => {
+  // 这些断言是有意为之，不是漏洞：sanitizeInput 不是 XSS 防线。
+  // 拦截见下面两个 describe，转义见输出点。
+  test("不删除 javascript: / data: / on*= / script 字面量", () => {
+    expect(sanitizeInput("javascript:alert(1)")).toBe("javascript:alert(1)");
+    expect(sanitizeInput("<script>alert(1)</script>")).toBe("<script>alert(1)</script>");
+    expect(sanitizeInput("onerror=alert(1)")).toBe("onerror=alert(1)");
+    expect(sanitizeInput("data:text/html,<script>alert(1)</script>")).toBe("data:text/html,<script>alert(1)</script>");
+  });
+});
 
-      expect(result.toLowerCase()).not.toContain("javascript:");
-      expect(result.toLowerCase()).not.toContain("vbscript:");
-      expect(result.toLowerCase()).not.toContain("data:");
-    });
+// 旧实现把这些 payload 改写后照样入库，改写还留下可绕过的残渣；现在一律在入口拒绝，
+// 调用方（fbiWantedController 的 createWanted / updateWanted）据此返回 400。
+describe("validateName - 入口拒绝危险输入", () => {
+  const attacks = [
+    "<script>alert(1)</script>",
+    "<SCRIPT>alert(1)</SCRIPT>",
+    "<<script>script>alert(1)<</script>/script>",
+    "<scr<script>ipt>alert(1)</script>",
+    "<img src=x onerror=alert(1)>",
+    "<img/src=x/onerror=alert(1)>",
+    "javascript:alert(1)",
+    "javascript:vbscript:data:alert(1)",
+    "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==",
+    "onclick=alert(1)",
+    "onload=alert(1)",
+    "onmouseover=alert(1)",
+    // 嵌套残渣型 payload：旧实现逐轮删除后可能重新拼回，现在只要出现字面量就整体拒绝
+    "jjavascript:avascript:alert(1)",
+    "jjavajavascript:script:vbscript:alert(1)",
+    "ddata:ata:text/html,<script>alert(1)</script>",
+    "ononclick=click=alert(1)",
+    "<img src=x ononerror=error=javascript:alert(1)>",
+    // 大小写混合
+    "JaVaScRiPt:alert(1)",
+    "VBSCRIPT:alert(1)",
+    "DaTa:text/html,<script>",
+    "OnClIcK=alert(1)",
+  ];
+
+  test.each(attacks)("拒绝 %s", (attack) => {
+    expect(validateName(attack).valid).toBe(false);
+  });
+
+  test("长度与类型边界", () => {
+    expect(validateName("").valid).toBe(false);
+    expect(validateName("A").valid).toBe(false);
+    expect(validateName("a".repeat(101)).valid).toBe(false);
+    expect(validateName(123).valid).toBe(false);
+    expect(validateName(null).valid).toBe(false);
+    expect(validateName(undefined).valid).toBe(false);
+  });
+
+  test("接受合法姓名，包括含 script 子串的词", () => {
+    for (const name of ["John Doe", "FBI Most Wanted", "Manuscript Thief", "José Ángel Pérez-Núñez", "张三"]) {
+      expect(validateName(name)).toEqual({ valid: true });
+    }
+  });
+});
+
+describe("validateURL - 入口拒绝危险 URL", () => {
+  test("拒绝非 http(s) 协议", () => {
+    expect(validateURL("javascript:alert(1)").valid).toBe(false);
+    expect(validateURL("vbscript:alert(1)").valid).toBe(false);
+    expect(validateURL("data:text/html,<script>alert(1)</script>").valid).toBe(false);
+    expect(validateURL("data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==").valid).toBe(false);
+    expect(validateURL("file:///etc/passwd").valid).toBe(false);
+    expect(validateURL("//evil.test/x.jpg").valid).toBe(false);
+  });
+
+  test("危险协议藏在 http(s) 之后也拒绝（纵深防御，非仅靠 new URL 的 protocol）", () => {
+    expect(validateURL("https://evil.test/#javascript:alert(1)").valid).toBe(false);
+  });
+
+  test("拒绝超长 URL 与非字符串", () => {
+    expect(validateURL(`https://a.test/${"a".repeat(2000)}`).valid).toBe(false);
+    expect(validateURL(12345).valid).toBe(false);
+  });
+
+  test("接受合法 http(s) URL", () => {
+    expect(validateURL("https://www.fbi.gov/wanted/topten/photo.jpg").valid).toBe(true);
+    expect(validateURL("http://example.test/a/b?c=d&e=f").valid).toBe(true);
+  });
+
+  test("空值默认放行，required 时拒绝", () => {
+    expect(validateURL("").valid).toBe(true);
+    expect(validateURL(undefined).valid).toBe(true);
+    expect(validateURL("", true).valid).toBe(false);
+  });
+});
+
+describe("性能 - 无灾难性回溯", () => {
+  // 上限取得很宽松：这里只为拦住指数级回溯（那会挂到 jest 超时），不做性能基准，
+  // 免得 CI 负载抖动把测试变成随机失败。
+  test("sanitizeInput 对 10 万字符输入线性完成", () => {
+    const start = Date.now();
+    sanitizeInput("a".repeat(100_000), 100_000);
+    expect(Date.now() - start).toBeLessThan(500);
+  });
+
+  test("危险模式正则的输入被长度上限锁死，构造不出回溯放大", () => {
+    const start = Date.now();
+    // 长度检查先于正则：超长输入在进正则前就被拒绝
+    expect(validateName(`on${"a".repeat(5000)}`).valid).toBe(false);
+    // 正则能看到的最坏输入只有 100 字符：on 后接大量 \w 却始终不出现 =
+    expect(validateName(`on${"a".repeat(98)}`).valid).toBe(true);
+    expect(Date.now() - start).toBeLessThan(500);
   });
 });

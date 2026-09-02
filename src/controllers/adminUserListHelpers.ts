@@ -34,10 +34,6 @@ export type AdminUserListItem = SanitizedAdminUser & {
   securitySummary: ReturnType<typeof buildAccountSecuritySummary>;
 };
 
-export function sanitizeInput(str: string) {
-  return str.replace(/[<>]/g, "");
-}
-
 // 安全校验辅助：是否为合法的用户 ID 字符串（防 NoSQL/路径注入）
 export function isValidUserId(id: unknown): id is string {
   return typeof id === "string" && /^[a-zA-Z0-9_-]+$/.test(id) && id.length > 0 && id.length <= 128;

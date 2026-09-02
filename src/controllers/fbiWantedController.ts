@@ -451,9 +451,28 @@ export const fbiWantedController = {
         if (key.startsWith("$") || key.includes(".")) continue;
         if (!allowedFields.has(key)) continue;
         switch (key) {
-          case "name":
+          // createWanted 对这两个字段走 validateName / validateURL 并直接 400；更新路径原先只靠
+          // sanitizeInput 顺手删掉 `<>` 与 `javascript:` 字面量，G8-30 把那层副作用去掉之后，
+          // 这里必须补回真正的校验，否则同一个字段建得进不去、改得进去。
+          case "name": {
+            const nameValidation = validateName(value);
+            if (!nameValidation.valid) {
+              return res.status(400).json({ success: false, message: nameValidation.error });
+            }
+            updateData.name = sanitizeInput(String(value), 100);
+            break;
+          }
+          case "photoUrl": {
+            const urlValidation = validateURL(value);
+            if (!urlValidation.valid) {
+              return res.status(400).json({ success: false, message: `头像URL无效: ${urlValidation.error}` });
+            }
+            updateData.photoUrl = sanitizeInput(String(value), 2000);
+            break;
+          }
           case "description":
-          case "photoUrl":
+            updateData.description = sanitizeInput(String(value), 2000);
+            break;
           case "fbiNumber":
           case "ncicNumber":
             updateData[key] = sanitizeInput(String(value));

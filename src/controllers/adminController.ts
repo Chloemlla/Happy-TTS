@@ -9,6 +9,7 @@ import { TranslationLogService } from "../services/translationLogService";
 import { getGithubTarget, pushRepoSecret } from "../services/githubSecretService";
 import { BilibiliSyncModel } from "../models/bilibiliSyncModel";
 import { ProjectLumenConfigModel } from "../models/projectLumenConfigModel";
+import { sanitizeAnnouncementForOutput } from "../utils/announcementHtml";
 import { validateGenerationCodeStrength } from "../utils/generationCodePolicy";
 import logger from "../utils/logger";
 import { isAdminRole, isSuperAdmin } from "../middleware/auth";
@@ -22,7 +23,6 @@ import {
   isValidUserId,
   parseAdminUserListQuery,
   sanitizeAdminUserForList,
-  sanitizeInput,
   stripSensitiveUserFields,
   validateAndSanitizeUserUpdates,
   VALID_ANNOUNCEMENT_FORMATS,
@@ -1022,7 +1022,7 @@ export const adminController = {
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       await ensureMongoAnnouncementCollection();
       const ann = await AnnouncementModel.findOne().sort({ updatedAt: -1 }).lean();
-      return res.json({ success: true, announcement: ann });
+      return res.json({ success: true, announcement: sanitizeAnnouncementForOutput(ann) });
     } catch (_e) {
       res.status(500).json({ success: false, error: "获取公告失败" });
     }
@@ -1037,16 +1037,15 @@ export const adminController = {
         return res.status(400).json({ error: "公告内容不能为空且不超过2000字" });
       // format 枚举校验：只允许 markdown 或 html
       const safeFormat = VALID_ANNOUNCEMENT_FORMATS.has(format) ? format : "markdown";
-      const safeContent = sanitizeInput(content);
       if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
       await ensureMongoAnnouncementCollection();
       const ann = await AnnouncementModel.create({
-        content: safeContent,
+        content: content.trim(),
         format: safeFormat,
         updatedAt: new Date(),
       });
       logger.info(`[公告] 管理员${req.user.username} 更新公告`);
-      return res.json({ success: true, announcement: ann });
+      return res.json({ success: true, announcement: sanitizeAnnouncementForOutput(ann.toObject()) });
     } catch (_e) {
       res.status(500).json({ success: false, error: "设置公告失败" });
     }
@@ -1196,7 +1195,7 @@ export const adminController = {
         return res.status(400).json({ error: "key 不能为空，不能包含空格/<>，且不超过 64 字" });
       if (typeof value !== "string" || !value.trim() || value.length > 2_000_000)
         return res.status(400).json({ error: "value 不能为空且不超过 2,000,000 字" });
-      const safeDesc = typeof desc === "string" ? sanitizeInput(desc).slice(0, 500) : "";
+      const safeDesc = typeof desc === "string" ? desc.trim().slice(0, 500) : "";
       const now = new Date();
       await ProjectLumenConfigModel.findOneAndUpdate(
         { key },
