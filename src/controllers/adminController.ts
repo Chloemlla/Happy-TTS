@@ -9,6 +9,7 @@ import { TranslationLogService } from "../services/translationLogService";
 import { getGithubTarget, pushRepoSecret } from "../services/githubSecretService";
 import { BilibiliSyncModel } from "../models/bilibiliSyncModel";
 import { ProjectLumenConfigModel } from "../models/projectLumenConfigModel";
+import { PROTECTED_ENV_KEYS } from "../config/protectedEnvKeys";
 import { sanitizeAnnouncementForOutput } from "../utils/announcementHtml";
 import { validateGenerationCodeStrength } from "../utils/generationCodePolicy";
 import logger from "../utils/logger";
@@ -60,25 +61,11 @@ const ENV_READ_WHITELIST: string[] = [
   "NEXAI_FRONTEND_URL",
 ];
 
-// G4-06: 禁止通过运行时 envs 接口改写的键（密钥/密码/连接串/安全开关类）。
-const ENV_WRITE_BLOCKLIST: ReadonlySet<string> = new Set([
-  "JWT_SECRET",
-  "AES_KEY",
-  "ADMIN_PASSWORD",
-  "ADMIN_OPERATION_PASSWORD",
-  "SERVER_PASSWORD",
-  "PUBLIC_SHORT_URL_PASSWORD",
-  "MONGO_URI",
-  "MONGODB_URI",
-  "REDIS_URL",
-  "DATABASE_URL",
-  "DB_URI",
-  "NODE_ENV",
-  "USER_STORAGE_MODE",
-  "TURNSTILE_SECRET_KEY",
-  "HCAPTCHA_SECRET_KEY",
-  "RESEND_API_KEY",
-]);
+// G4-06: 禁止通过运行时 envs 接口改写的键，清单见 config/protectedEnvKeys.ts。
+// 大小写归一化跟重放侧（config/env.ts）保持一致，否则写 `jwt_secret` 能过写入侧的判断。
+function isProtectedEnvKey(key: string): boolean {
+  return PROTECTED_ENV_KEYS.has(key.toUpperCase());
+}
 
 function readEnvFile() {
   if (!fs.existsSync(ENV_FILE)) return [];
@@ -1121,7 +1108,7 @@ export const adminController = {
       if (typeof value !== "string" || !value.trim() || value.length > 1024)
         return res.status(400).json({ error: "value不能为空且不超过1024字" });
       const normalizedKey = key.trim();
-      if (ENV_WRITE_BLOCKLIST.has(normalizedKey)) {
+      if (isProtectedEnvKey(normalizedKey)) {
         return res.status(400).json({ error: `key=${normalizedKey} 受保护，不能通过此接口修改` });
       }
       if (isUserStorageModeKey(normalizedKey) && value.trim().toLowerCase() !== USER_STORAGE_MODE) {
@@ -1153,7 +1140,7 @@ export const adminController = {
       const { key } = req.body;
       if (typeof key !== "string" || !key.trim()) return res.status(400).json({ error: "key不能为空" });
       const normalizedKey = key.trim();
-      if (ENV_WRITE_BLOCKLIST.has(normalizedKey)) {
+      if (isProtectedEnvKey(normalizedKey)) {
         return res.status(400).json({ error: `key=${normalizedKey} 受保护，不能通过此接口删除` });
       }
       const envs = readEnvFile();
