@@ -20,6 +20,14 @@ import {
 } from "../models/ecoEnchantsModel";
 import { EcoEnchantsService, EcoEnchantsServiceError, ECO_ENCHANTS_PRODUCT_ID, type EcoEnchantsRequestContext } from "./ecoEnchantsService";
 import {
+  assertClosedArgumentSchema,
+  assertConsoleTemplate,
+  clampInt,
+  MANAGED_COMMAND_OUTPUT_BOUNDS,
+  MANAGED_COMMAND_TIMEOUT_BOUNDS,
+  resolveManagedCommandParams,
+} from "./ecoEnchantsOpsCommandPolicy";
+import {
   createEcoEnchantsRpcSessionToken,
   hashEcoEnchantsOpsToken,
   verifyEcoEnchantsOpsActivationToken,
@@ -87,6 +95,12 @@ const MAX_FILE_WRITE_BYTES = 10 * 1024 * 1024;
 const MAX_JOB_OUTPUT_BYTES = 64 * 1024;
 const MAX_ACTIVE_JOBS_PER_INSTANCE = 2;
 const RPC_LAST_SEEN_WRITE_INTERVAL_MS = 30 * 1000;
+const DEFAULT_JOB_TTL_SECONDS = 5 * 60;
+// A managed command may not outlive its policy timeout; the extra window only covers the
+// time a queued job waits for a reconnecting instance to pick it up.
+const MANAGED_COMMAND_DISPATCH_GRACE_SECONDS = 60;
+const AUDIT_CHAIN_MAX_ATTEMPTS = 5;
+const RISK_RANK: Record<EcoEnchantsOpsRiskLevel, number> = { low: 0, medium: 1, high: 2 };
 
 const ALLOWED_MOUNTS = new Set(["server-root", "plugin-data", "config", "logs", "backups"]);
 const REDACTION_POLICIES = new Set(["logs-default", "config-default", "players-debug"]);
@@ -127,14 +141,21 @@ const QUEUED_JOB_STATUSES = ["queued", "dispatched", "acknowledged", "running"] 
 
 let defaultCommandPoliciesSeeded = false;
 
-// G7-21: serialize audit-chain writes within the process. The chain is a
-// "previous hash" linked list; without serialization two concurrent ops would
-// read the same `previous` and fork the chain. (Cross-instance forks still
-// require a monotonic `seq` unique index — model change, cross-group.)
+// G7-21: the chain is a "previous hash" linked list. Cross-process appends are made atomic
+// by the unique `seq` index (the loser of a race gets E11000 and relinks to the winner);
+// this in-process queue only keeps causal order and avoids self-inflicted retries.
 let auditChainQueue: Promise<void> = Promise.resolve();
 
 function opsError(statusCode: number, code: string, message: string, retryAfterSeconds: number | null = null) {
   return new EcoEnchantsServiceError(statusCode, code, message, retryAfterSeconds);
+}
+
+function maxRiskLevel(left: EcoEnchantsOpsRiskLevel, right: EcoEnchantsOpsRiskLevel): EcoEnchantsOpsRiskLevel {
+  return RISK_RANK[left] >= RISK_RANK[right] ? left : right;
+}
+
+function isDuplicateKeyError(error: unknown): boolean {
+  return Boolean(error && typeof error === "object" && (error as { code?: unknown }).code === 11000);
 }
 
 function cleanString(value: unknown, fallback = ""): string {
@@ -289,6 +310,16 @@ function truncateRpcPayload(
   };
 }
 
+/**
+ * G7-46: the per-command `maxOutputBytes` is snapshotted into the job params when the job is
+ * created, so the receive side enforces the policy that was in force at authorization time.
+ */
+function getJobOutputBudget(job: IEcoEnchantsOpsJob): number {
+  const declared = Number(isPlainObject(job.params) ? job.params.maxOutputBytes : undefined);
+  if (!Number.isFinite(declared) || declared < MANAGED_COMMAND_OUTPUT_BOUNDS.min) return MAX_JOB_OUTPUT_BYTES;
+  return Math.min(MANAGED_COMMAND_OUTPUT_BOUNDS.max, Math.floor(declared));
+}
+
 function getExtension(pathValue: string): string {
   const basename = getLowerBasename(pathValue);
   const dotIndex = basename.lastIndexOf(".");
@@ -379,6 +410,7 @@ function getJobSummary(job: IEcoEnchantsOpsJob) {
     output: job.output || null,
     result: job.result || null,
     error: job.error || null,
+    outputTruncated: Boolean(job.outputTruncated),
     issuedAt: toIso(job.issuedAt),
     expiresAt: toIso(job.expiresAt),
     dispatchedAt: toIso(job.dispatchedAt),
@@ -472,62 +504,6 @@ async function verifySignedRequest(params: {
   const expected = hmacHex(params.secret, payload);
   if (!timingEqual(expected, signature)) {
     throw opsError(401, "signature_invalid", "Request signature is invalid.");
-  }
-}
-
-function validateSimpleJsonSchema(schema: unknown, value: unknown): void {
-  if (!isPlainObject(schema)) return;
-  if (schema.type && schema.type !== "object") return;
-  if (!isPlainObject(value)) throw opsError(422, "policy_rejected", "Command arguments must be an object.");
-
-  const required = Array.isArray(schema.required) ? schema.required.map(String) : [];
-  for (const field of required) {
-    if (value[field] === undefined) throw opsError(422, "policy_rejected", `Command argument ${field} is required.`);
-  }
-
-  const properties = isPlainObject(schema.properties) ? schema.properties : {};
-  // G7-46: reject undeclared properties. Previously any extra key/value was
-  // passed straight through into job params and forwarded to the Minecraft
-  // plugin, giving the schema zero enforcement power.
-  const declared = new Set(Object.keys(properties));
-  for (const field of Object.keys(value)) {
-    if (!declared.has(field)) {
-      throw opsError(422, "policy_rejected", `Command argument ${field} is not allowed by the command policy.`);
-    }
-  }
-
-  for (const [field, fieldSchema] of Object.entries(properties)) {
-    if (value[field] === undefined || !isPlainObject(fieldSchema)) continue;
-    const actual = value[field];
-    const expectedType = cleanString(fieldSchema.type);
-    if (expectedType) {
-      const typeOk =
-        expectedType === "integer"
-          ? typeof actual === "number" && Number.isInteger(actual)
-          : expectedType === "number"
-            ? typeof actual === "number"
-            : expectedType === "string"
-              ? typeof actual === "string"
-              : expectedType === "boolean"
-                ? typeof actual === "boolean"
-                : expectedType === "array"
-                  ? Array.isArray(actual)
-                  : expectedType === "object"
-                    ? isPlainObject(actual)
-                    : typeof actual === expectedType;
-      if (!typeOk) {
-        throw opsError(422, "policy_rejected", `Command argument ${field} has an invalid type.`);
-      }
-    }
-    if (Array.isArray(fieldSchema.enum) && !fieldSchema.enum.includes(actual)) {
-      throw opsError(422, "policy_rejected", `Command argument ${field} is not in the allowed set.`);
-    }
-    // G7-46: reject control characters / newlines in string arguments so a
-    // malicious parameter cannot break out of the plugin's console command
-    // template into a second command.
-    if (typeof actual === "string" && /[\u0000-\u001f\u007f]/.test(actual)) {
-      throw opsError(422, "policy_rejected", `Command argument ${field} contains control characters.`);
-    }
   }
 }
 
@@ -878,15 +854,21 @@ export class EcoEnchantsOpsService {
   static async upsertCommandPolicy(body: Record<string, unknown>, context: EcoEnchantsRequestContext) {
     const commandId = requireText(body.commandId, "commandId", 120);
     if (!/^[a-z0-9_.:-]+$/i.test(commandId)) throw opsError(400, "invalid_request", "commandId contains invalid characters.");
+    // G7-46: a policy that cannot be enforced must not be storable — the schema has to be a
+    // closed object schema and the console template may only reference declared arguments.
+    const argumentSchema = isPlainObject(body.argumentSchema) ? body.argumentSchema : { type: "object", properties: {} };
+    const { properties } = assertClosedArgumentSchema(argumentSchema);
+    const minecraftConsoleTemplate = requireText(body.minecraftConsoleTemplate, "minecraftConsoleTemplate", 500);
+    assertConsoleTemplate(minecraftConsoleTemplate, properties);
     const patch = {
       description: requireText(body.description, "description", 500),
       riskLevel: normalizeRiskLevel(body.riskLevel, "medium"),
       allowedRoles: optionalStringArray(body.allowedRoles, "allowedRoles", 20),
-      argumentSchema: isPlainObject(body.argumentSchema) ? body.argumentSchema : { type: "object", properties: {} },
-      timeoutSeconds: parsePositiveInt(body.timeoutSeconds, 10, 300),
-      maxOutputBytes: parsePositiveInt(body.maxOutputBytes, MAX_JOB_OUTPUT_BYTES, 1024 * 1024),
+      argumentSchema,
+      timeoutSeconds: clampInt(body.timeoutSeconds, MANAGED_COMMAND_TIMEOUT_BOUNDS),
+      maxOutputBytes: clampInt(body.maxOutputBytes, MANAGED_COMMAND_OUTPUT_BOUNDS),
       requiresApproval: Boolean(body.requiresApproval),
-      minecraftConsoleTemplate: requireText(body.minecraftConsoleTemplate, "minecraftConsoleTemplate", 500),
+      minecraftConsoleTemplate,
       isActive: body.isActive === undefined ? true : Boolean(body.isActive),
     };
     const policy = await EcoEnchantsOpsCommandPolicyModel.findOneAndUpdate(
@@ -947,7 +929,7 @@ export class EcoEnchantsOpsService {
   }) {
     const instance = await EcoEnchantsOpsService.requireInstance(params.instanceId);
     if (instance.status === "disabled") throw opsError(403, "permission_denied", "Ops instance is disabled.");
-    await EcoEnchantsOpsService.validateJobPolicy(params.method, params.params, params.riskLevel, params.confirmRisk);
+    const decision = await EcoEnchantsOpsService.resolveJobPolicy(params.method, params.params, params.riskLevel, params.confirmRisk);
 
     const activeJobs = await EcoEnchantsOpsJobModel.countDocuments({
       instanceId: params.instanceId,
@@ -958,38 +940,47 @@ export class EcoEnchantsOpsService {
       throw opsError(409, "instance_busy", "Instance has too many active ops jobs.");
     }
 
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + decision.ttlSeconds * 1000);
     const job = await EcoEnchantsOpsJobModel.create({
       jobId: `job_${uuidv4()}`,
       requestId: params.context.requestId,
       instanceId: params.instanceId,
       method: params.method,
-      riskLevel: params.riskLevel,
+      riskLevel: decision.riskLevel,
       status: "queued",
       reason: params.reason,
-      params: params.params,
+      params: decision.params,
       actorType: "admin",
       actorId: getActorId(params.context),
       policyVersion: instance.policyVersion || POLICY_VERSION,
       expiresAt,
     });
     if (params.onCreated) await params.onCreated(job);
-    await EcoEnchantsOpsService.logOpsAudit({
+    const audited = await EcoEnchantsOpsService.logOpsAudit({
       context: params.context,
       action: params.method,
       instanceId: params.instanceId,
       jobId: job.jobId,
       decision: "allowed",
       result: "success",
-      resource: { method: params.method, riskLevel: params.riskLevel, params: params.params },
+      resource: { method: params.method, riskLevel: decision.riskLevel, params: decision.params },
       policyVersion: job.policyVersion,
     });
+    if (!audited) {
+      // G7-21: an ops job that could not be written to the audit chain is cancelled instead of
+      // dispatched — an unauditable privileged operation must not run.
+      await EcoEnchantsOpsJobModel.updateOne(
+        { jobId: job.jobId, status: "queued" },
+        { $set: { status: "canceled", completedAt: new Date() } },
+      );
+      throw opsError(503, "audit_unavailable", "Ops audit chain is unavailable; the job was canceled.");
+    }
     await EcoEnchantsService.logAudit(params.context, {
       action: params.method,
       targetType: "ecoenchants_ops_job",
       targetId: job.jobId,
       result: "success",
-      detail: { instanceId: params.instanceId, riskLevel: params.riskLevel },
+      detail: { instanceId: params.instanceId, riskLevel: decision.riskLevel },
     });
     const dispatched = await EcoEnchantsOpsService.tryDispatchJob(job);
     return {
@@ -1000,12 +991,17 @@ export class EcoEnchantsOpsService {
     };
   }
 
-  private static async validateJobPolicy(
+  /**
+   * G7-46: resolves the authoritative job parameters. For managed commands the caller only
+   * chooses `commandId` and `arguments`; risk level, console command, timeout and output
+   * budget all come from the stored policy.
+   */
+  private static async resolveJobPolicy(
     method: string,
     params: Record<string, unknown>,
     riskLevel: EcoEnchantsOpsRiskLevel,
     confirmRisk: boolean,
-  ): Promise<void> {
+  ): Promise<{ params: Record<string, unknown>; riskLevel: EcoEnchantsOpsRiskLevel; ttlSeconds: number }> {
     const allowedMethods = new Set([
       "ops.diagnostics.snapshot",
       "ops.command.runManaged",
@@ -1018,20 +1014,30 @@ export class EcoEnchantsOpsService {
     ]);
     if (!allowedMethods.has(method)) throw opsError(422, "policy_rejected", "Ops method is not allowed.");
 
+    let resolvedParams = params;
+    let resolvedRisk = riskLevel;
+    let ttlSeconds = DEFAULT_JOB_TTL_SECONDS;
+
     if (method === "ops.command.runManaged") {
       await EcoEnchantsOpsService.ensureDefaultCommandPolicies();
       const commandId = requireText(params.commandId, "commandId", 120);
       const policy = await EcoEnchantsOpsCommandPolicyModel.findOne({ commandId, isActive: true });
       if (!policy) throw opsError(422, "policy_rejected", "Command is not in the managed command whitelist.");
-      validateSimpleJsonSchema(policy.argumentSchema, params.arguments || {});
+      const resolved = resolveManagedCommandParams(policy, params);
+      resolvedParams = resolved.params;
+      // The registered risk level is authoritative: a caller must not downgrade a high-risk
+      // command to "low" and thereby skip the confirmation gate below.
+      resolvedRisk = maxRiskLevel(riskLevel, normalizeRiskLevel(policy.riskLevel, "medium"));
+      ttlSeconds = resolved.timeoutSeconds + MANAGED_COMMAND_DISPATCH_GRACE_SECONDS;
       if (policy.requiresApproval && !confirmRisk) {
         throw opsError(403, "approval_required", "This managed command requires approval confirmation.");
       }
     }
 
-    if ((riskLevel === "high" || method === "ops.file.delete" || method === "ops.backup.restore") && !confirmRisk) {
+    if ((resolvedRisk === "high" || method === "ops.file.delete" || method === "ops.backup.restore") && !confirmRisk) {
       throw opsError(403, "approval_required", "High-risk operation requires explicit confirmation.");
     }
+    return { params: resolvedParams, riskLevel: resolvedRisk, ttlSeconds };
   }
 
   private static async tryDispatchJob(job: IEcoEnchantsOpsJob): Promise<boolean> {
@@ -1235,32 +1241,31 @@ export class EcoEnchantsOpsService {
     }
 
     if (message.type === "rpc.progress") {
-      const rawOutput = message.output || { progress: message.progress || {} };
-      const outputTrunc = truncateRpcPayload(rawOutput, MAX_JOB_OUTPUT_BYTES);
-      const job = await EcoEnchantsOpsJobModel.findOneAndUpdate(
-        { jobId, instanceId: connection.instanceId },
-        { $set: { output: outputTrunc.value, ...(outputTrunc.truncated ? { outputTruncated: true } : {}) }, $min: { startedAt: now } },
-      );
+      const job = await EcoEnchantsOpsJobModel.findOne({ jobId, instanceId: connection.instanceId });
       if (!job) return;
+      const rawOutput = message.output || { progress: message.progress || {} };
+      const outputTrunc = truncateRpcPayload(rawOutput, getJobOutputBudget(job));
       const nextStatus = message.status === "running" || job.status === "queued" ? "running" : job.status;
-      if (nextStatus !== job.status) {
-        await EcoEnchantsOpsJobModel.updateOne(
-          { jobId, instanceId: connection.instanceId },
-          { $set: { status: nextStatus } },
-        );
-      }
+      await EcoEnchantsOpsJobModel.updateOne(
+        { jobId, instanceId: connection.instanceId },
+        { $set: { output: outputTrunc.value, outputTruncated: outputTrunc.truncated, status: nextStatus }, $min: { startedAt: now } },
+      );
       return;
     }
 
     if (message.type === "rpc.result") {
+      const job = await EcoEnchantsOpsJobModel.findOne({ jobId, instanceId: connection.instanceId });
+      if (!job) return;
       const finalStatus = message.status === "succeeded" ? "succeeded" : message.status === "canceled" ? "canceled" : "failed";
-      const completedAt = message.completedAt ? new Date(message.completedAt) : now;
-      // G7-20/G7-46: enforce the output size bound on the receive side.
-      const outputBudget = MAX_JOB_OUTPUT_BYTES;
+      const reported = message.completedAt ? new Date(message.completedAt) : now;
+      // A malformed client timestamp would otherwise be cast into the update and reject it.
+      const completedAt = Number.isNaN(reported.getTime()) ? now : reported;
+      // G7-20/G7-46: enforce the policy output bound on the receive side.
+      const outputBudget = getJobOutputBudget(job);
       const resultTrunc = truncateRpcPayload(message.result || {}, outputBudget);
       const outputTrunc = truncateRpcPayload(message.output || null, outputBudget);
       const errorTrunc = truncateRpcPayload(message.error || null, outputBudget);
-      const job = await EcoEnchantsOpsJobModel.findOneAndUpdate(
+      await EcoEnchantsOpsJobModel.updateOne(
         { jobId, instanceId: connection.instanceId },
         {
           $set: {
@@ -1269,13 +1274,10 @@ export class EcoEnchantsOpsService {
             output: outputTrunc.value,
             error: errorTrunc.value,
             completedAt,
-            ...(resultTrunc.truncated || outputTrunc.truncated || errorTrunc.truncated
-              ? { outputTruncated: true }
-              : { outputTruncated: false }),
+            outputTruncated: resultTrunc.truncated || outputTrunc.truncated || errorTrunc.truncated,
           },
         },
       );
-      if (!job) return;
       await EcoEnchantsOpsService.updateBackupFromJobResult(job, (resultTrunc.value as Record<string, unknown>) || {}, finalStatus);
       await EcoEnchantsOpsService.logOpsAudit({
         context: {
@@ -1356,39 +1358,81 @@ export class EcoEnchantsOpsService {
     policyVersion?: string;
     beforeSha256?: string;
     afterSha256?: string;
+  }): Promise<boolean> {
+    const run = auditChainQueue.then(() => EcoEnchantsOpsService.appendAuditEntry(params));
+    auditChainQueue = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    try {
+      await run;
+      return true;
+    } catch (error) {
+      logger.error("[EcoEnchantsOps] Ops audit chain append failed — audit gap", {
+        requestId: params.context.requestId,
+        action: params.action,
+        instanceId: params.instanceId,
+        jobId: params.jobId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return false;
+    }
+  }
+
+  private static async appendAuditEntry(params: {
+    context: EcoEnchantsRequestContext;
+    action: string;
+    instanceId?: string;
+    jobId?: string;
+    decision: "allowed" | "denied";
+    result?: "success" | "failure";
+    resource?: Record<string, unknown>;
+    policyVersion?: string;
+    beforeSha256?: string;
+    afterSha256?: string;
   }): Promise<void> {
-    const run = auditChainQueue.then(async () => {
+    const actorType: "admin" | "license" | "system" =
+      params.context.actorType === "license" ? "license" : params.context.actorType === "system" ? "system" : "admin";
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < AUDIT_CHAIN_MAX_ATTEMPTS; attempt += 1) {
+      // The `seq` index is sparse (entries written before G7-21 have no seq), so the tip must be
+      // read with a range predicate — `findOne({})` could not use the index and would fall back
+      // to a collection scan with an in-memory sort.
+      const previous = await EcoEnchantsOpsAuditLogModel.findOne({ seq: { $gte: 1 } })
+        .sort({ seq: -1 })
+        .select("seq entryHash")
+        .lean();
+      const previousSeq = Number(previous?.seq);
+      const base = {
+        auditId: `aud_${uuidv4()}`,
+        seq: Number.isFinite(previousSeq) ? Math.floor(previousSeq) + 1 : 1,
+        requestId: params.context.requestId,
+        jobId: params.jobId,
+        instanceId: params.instanceId,
+        actorType,
+        actorId: params.context.actorId || "unknown",
+        action: params.action,
+        resource: sanitizeResource(params.resource),
+        decision: params.decision,
+        result: params.result,
+        beforeSha256: params.beforeSha256,
+        afterSha256: params.afterSha256,
+        policyVersion: params.policyVersion,
+        previousEntryHash: previous?.entryHash,
+        createdAt: new Date(),
+      };
+      const entryHash = sha256Hex(stableStringify({ ...base, previousEntryHash: previous?.entryHash || null }));
       try {
-        const previous = await EcoEnchantsOpsAuditLogModel.findOne({}).sort({ createdAt: -1, _id: -1 }).select("entryHash").lean();
-        const actorType: "admin" | "license" | "system" =
-          params.context.actorType === "license" ? "license" : params.context.actorType === "system" ? "system" : "admin";
-        const base = {
-          auditId: `aud_${uuidv4()}`,
-          requestId: params.context.requestId,
-          jobId: params.jobId,
-          instanceId: params.instanceId,
-          actorType,
-          actorId: params.context.actorId || "unknown",
-          action: params.action,
-          resource: sanitizeResource(params.resource),
-          decision: params.decision,
-          result: params.result,
-          beforeSha256: params.beforeSha256,
-          afterSha256: params.afterSha256,
-          policyVersion: params.policyVersion,
-          previousEntryHash: previous?.entryHash,
-          createdAt: new Date(),
-        };
-        const entryHash = sha256Hex(stableStringify({ ...base, previousEntryHash: previous?.entryHash || null }));
         await EcoEnchantsOpsAuditLogModel.create({ ...base, entryHash });
+        return;
       } catch (error) {
-        logger.warn("[EcoEnchantsOps] Failed to write ops audit log", {
-          requestId: params.context.requestId,
-          error: error instanceof Error ? error.message : String(error),
-        });
+        // A duplicate `seq` means another process claimed this slot: re-read the tip and relink
+        // instead of writing a second entry that branches off the same predecessor.
+        if (!isDuplicateKeyError(error)) throw error;
+        lastError = error;
       }
-    });
-    auditChainQueue = run.catch(() => undefined);
-    return run;
+    }
+    throw lastError instanceof Error ? lastError : new Error("Ops audit chain append kept conflicting.");
   }
 }

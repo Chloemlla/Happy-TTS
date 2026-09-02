@@ -6,6 +6,13 @@ import { join } from "node:path";
 import logger from "../utils/logger";
 import { mongoose } from "./mongoService";
 import { registerShutdownStep, installShutdownHandlers } from "./shutdown";
+import {
+  appendTamperEvent,
+  countTamperEventsForIp,
+  flushPendingTamperEvents,
+  queryTamperEvents,
+  summarizeTamperEvents,
+} from "./tamperEventStore";
 
 // MongoDB Blocked IP Schema
 const BlockedIPSchema = new mongoose.Schema(
@@ -65,27 +72,14 @@ interface BlockedIP {
   expiresAt: string;
 }
 
-function resolveMaxEvents(): number {
-  const configured = Number(process.env.TAMPER_MAX_EVENTS);
-  if (!Number.isFinite(configured)) return 2000;
-  return Math.max(100, Math.floor(configured));
-}
+const IP_BLOCK_EVENT_THRESHOLD = 10;
 
 class TamperService {
   private static instance: TamperService;
   private readonly DATA_DIR = join(process.cwd(), "data");
-  private readonly TAMPER_LOG_PATH = join(this.DATA_DIR, "tamper-events.json");
   private readonly BLOCKED_IPS_PATH = join(this.DATA_DIR, "blocked-ips.json");
-  private readonly MAX_EVENTS = resolveMaxEvents();
   private readonly MAX_CONTENT_LENGTH = 2000;
-  private readonly FLUSH_DELAY_MS = 1000;
   private blockedIPs: Map<string, BlockedIP> = new Map();
-  private events: TamperEvent[] | null = null;
-  private eventsLoading: Promise<void> | null = null;
-  private ipEventTimes: Map<string, number[]> = new Map();
-  private eventsDirty = false;
-  private flushTimer: NodeJS.Timeout | null = null;
-  private writeQueue: Promise<void> = Promise.resolve();
   private blockedIPsRefreshTimer: NodeJS.Timeout | null = null;
 
   private constructor() {
@@ -277,115 +271,15 @@ class TamperService {
     return normalized;
   }
 
-  private async loadTamperEvents(): Promise<void> {
-    let retained: TamperEvent[] = [];
-    try {
-      const parsed = JSON.parse(await readFile(this.TAMPER_LOG_PATH, "utf-8"));
-      if (Array.isArray(parsed)) retained = parsed.slice(-this.MAX_EVENTS);
-    } catch (_error) {
-      retained = [];
-    }
-    this.events = retained;
-    this.ipEventTimes = new Map();
-    for (const event of retained) {
-      this.trackIpEvent(event.ip, event.timestamp);
-    }
-  }
-
-  private async ensureEventsLoaded(): Promise<TamperEvent[]> {
-    if (this.events) return this.events;
-    if (!this.eventsLoading) {
-      this.eventsLoading = this.loadTamperEvents();
-    }
-    await this.eventsLoading;
-    return this.events ?? [];
-  }
-
-  private trackIpEvent(ip: string | undefined, timestamp: string): void {
-    if (!ip) return;
-    const time = new Date(timestamp).getTime();
-    if (!Number.isFinite(time)) return;
-    const times = this.ipEventTimes.get(ip);
-    if (times) times.push(time);
-    else this.ipEventTimes.set(ip, [time]);
-  }
-
-  // 事件被环形窗口淘汰时，只有仍留在队首的那一条才是它对应的时间戳（更早的已被时间裁剪掉）
-  private untrackIpEvent(ip: string | undefined, timestamp: string): void {
-    if (!ip) return;
-    const times = this.ipEventTimes.get(ip);
-    if (!times || times.length === 0) return;
-    if (times[0] !== new Date(timestamp).getTime()) return;
-    times.shift();
-    if (times.length === 0) this.ipEventTimes.delete(ip);
-  }
-
-  private countRecentIpEvents(ip: string, after: number): number {
-    const times = this.ipEventTimes.get(ip);
-    if (!times) return 0;
-    while (times.length > 0 && times[0] <= after) times.shift();
-    if (times.length === 0) {
-      this.ipEventTimes.delete(ip);
-      return 0;
-    }
-    return times.length;
-  }
-
-  private async readTamperEvents(): Promise<TamperEvent[]> {
-    const events = await this.ensureEventsLoaded();
-    return events.slice();
-  }
-
-  private async writeTamperEvents(events: TamperEvent[]): Promise<void> {
-    if (!existsSync(this.DATA_DIR)) {
-      await mkdir(this.DATA_DIR, { recursive: true });
-    }
-    await atomicWriteJson(this.TAMPER_LOG_PATH, events.slice(-this.MAX_EVENTS));
-  }
-
-  private scheduleEventsFlush(): void {
-    if (this.flushTimer) return;
-    const timer = setTimeout(() => {
-      this.flushTimer = null;
-      this.flushPendingEvents().catch((error) => logger.error("刷新篡改事件失败:", error));
-    }, this.FLUSH_DELAY_MS);
-    timer.unref();
-    this.flushTimer = timer;
-  }
-
   public async flushPendingEvents(): Promise<void> {
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer);
-      this.flushTimer = null;
-    }
-    if (!this.eventsDirty || !this.events) return;
-    this.eventsDirty = false;
-    const snapshot = this.events.slice();
-    this.writeQueue = this.writeQueue.catch(() => {}).then(() => this.writeTamperEvents(snapshot));
-    await this.writeQueue;
+    await flushPendingTamperEvents();
   }
 
   public async recordTamperEvent(event: TamperEvent): Promise<TamperEvent> {
     try {
-      const events = await this.ensureEventsLoaded();
       const normalized = this.normalizeTamperEvent(event);
-
-      events.push(normalized);
-      this.trackIpEvent(normalized.ip, normalized.timestamp);
-      while (events.length > this.MAX_EVENTS) {
-        const evicted = events.shift();
-        if (evicted) this.untrackIpEvent(evicted.ip, evicted.timestamp);
-      }
-      this.eventsDirty = true;
-
-      // 检查是否需要阻止 IP
-      const blocked = normalized.ip ? await this.checkAndBlockIP(normalized.ip) : false;
-      if (blocked) {
-        await this.flushPendingEvents();
-      } else {
-        this.scheduleEventsFlush();
-      }
-
+      await appendTamperEvent(normalized);
+      if (normalized.ip) await this.checkAndBlockIP(normalized.ip);
       return normalized;
     } catch (error) {
       logger.error("记录篡改事件失败:", error);
@@ -396,7 +290,7 @@ class TamperService {
   private async checkAndBlockIP(ip: string): Promise<boolean> {
     // 如果 1 小时内篡改次数超过 10 次，封禁 24 小时
     const oneHourAgo = Date.now() - 60 * 60 * 1000;
-    if (this.countRecentIpEvents(ip, oneHourAgo) < 10) return false;
+    if ((await countTamperEventsForIp(ip, oneHourAgo)) < IP_BLOCK_EVENT_THRESHOLD) return false;
 
     const blockExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
     const blockedIP: BlockedIP = {
@@ -436,23 +330,12 @@ class TamperService {
     ip?: string;
     tamperType?: string;
   } = {}): Promise<{ total: number; items: TamperEvent[] }> {
-    const limit = Math.min(200, Math.max(1, Number(options.limit || 50)));
-    const offset = Math.max(0, Number(options.offset || 0));
-    let events = await this.readTamperEvents();
-
-    if (options.ip) {
-      events = events.filter((event) => event.ip === options.ip);
-    }
-    if (options.tamperType) {
-      events = events.filter((event) => event.tamperType === options.tamperType || event.eventType === options.tamperType);
-    }
-
-    events = events.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-
-    return {
-      total: events.length,
-      items: events.slice(offset, offset + limit),
-    };
+    return queryTamperEvents({
+      limit: Math.min(200, Math.max(1, Number(options.limit || 50))),
+      offset: Math.max(0, Number(options.offset || 0)),
+      ip: options.ip,
+      tamperType: options.tamperType,
+    });
   }
 
   public listBlockedIPs(): BlockedIP[] {
@@ -514,43 +397,9 @@ class TamperService {
   }> {
     await this.clearExpiredBlockedIPs();
 
-    const events = await this.readTamperEvents();
-    const now = Date.now();
-    const oneHourAgo = now - 60 * 60 * 1000;
-    const oneDayAgo = now - 24 * 60 * 60 * 1000;
-    const byType: Record<string, number> = {};
-    const bySeverity: Record<string, number> = {};
-    const ipCounts: Record<string, number> = {};
-
-    for (const event of events) {
-      const type = event.tamperType || event.eventType || "unknown";
-      byType[type] = (byType[type] || 0) + 1;
-      const severity = event.severity || "low";
-      bySeverity[severity] = (bySeverity[severity] || 0) + 1;
-      if (event.ip) {
-        ipCounts[event.ip] = (ipCounts[event.ip] || 0) + 1;
-      }
-    }
-
-    const recentEvents = events
-      .slice()
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-      .slice(0, Math.min(100, Math.max(1, limit)));
-
-    return {
-      totalEvents: events.length,
-      eventsLastHour: events.filter((event) => new Date(event.timestamp).getTime() >= oneHourAgo).length,
-      eventsLast24h: events.filter((event) => new Date(event.timestamp).getTime() >= oneDayAgo).length,
-      blockedCount: this.listBlockedIPs().length,
-      byType,
-      bySeverity,
-      topIPs: Object.entries(ipCounts)
-        .map(([ip, count]) => ({ ip, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10),
-      recentEvents,
-      blockedIPs: this.listBlockedIPs(),
-    };
+    const summary = await summarizeTamperEvents(Math.min(100, Math.max(1, limit)));
+    const blockedIPs = this.listBlockedIPs();
+    return { ...summary, blockedCount: blockedIPs.length, blockedIPs };
   }
 }
 

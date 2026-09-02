@@ -249,6 +249,7 @@ export interface IEcoEnchantsOpsJob extends Document {
   output?: Record<string, unknown>;
   result?: Record<string, unknown>;
   error?: Record<string, unknown>;
+  outputTruncated?: boolean;
   issuedAt?: Date;
   expiresAt: Date;
   dispatchedAt?: Date;
@@ -285,6 +286,7 @@ export interface IEcoEnchantsOpsNonce extends Document {
 
 export interface IEcoEnchantsOpsAuditLog extends Document {
   auditId: string;
+  seq?: number;
   requestId?: string;
   jobId?: string;
   instanceId?: string;
@@ -533,6 +535,9 @@ const OpsJobSchema = new Schema<IEcoEnchantsOpsJob>(
     output: { type: MixedType },
     result: { type: MixedType },
     error: { type: MixedType },
+    // G7-46: without this path the truncation marker written on the RPC receive side was
+    // silently dropped by strict mode, so a truncated result looked complete.
+    outputTruncated: { type: Boolean },
     issuedAt: { type: Date },
     expiresAt: { type: Date, required: true },
     dispatchedAt: { type: Date },
@@ -574,6 +579,7 @@ const OpsNonceSchema = new Schema<IEcoEnchantsOpsNonce>(
 const OpsAuditLogSchema = new Schema<IEcoEnchantsOpsAuditLog>(
   {
     auditId: { type: String, required: true, unique: true, index: true },
+    seq: { type: Number, min: 1 },
     requestId: { type: String, index: true },
     jobId: { type: String, index: true },
     instanceId: { type: String, index: true },
@@ -616,6 +622,10 @@ addIndex(OpsBackupSchema, { instanceId: 1, createdAt: -1 });
 addIndex(OpsNonceSchema, { keyId: 1, nonce: 1 }, { unique: true });
 addIndex(OpsNonceSchema, { expiresAt: 1 }, { expireAfterSeconds: 0 });
 addIndex(OpsAuditLogSchema, { instanceId: 1, createdAt: -1 });
+// G7-21: this unique index is what makes a chain append atomic — only one writer can claim a
+// given seq, and the loser re-reads the tip and relinks instead of forking. It must be sparse:
+// entries written before G7-21 carry no seq, and a non-sparse unique index would fail to build.
+addIndex(OpsAuditLogSchema, { seq: 1 }, { unique: true, sparse: true });
 addIndex(OpsAuditLogSchema, { action: 1, createdAt: -1 });
 addIndex(OpsAuditLogSchema, { actorId: 1, createdAt: -1 });
 addIndex(OpsAuditLogSchema, { jobId: 1, createdAt: -1 });
