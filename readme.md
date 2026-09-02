@@ -951,8 +951,7 @@ pnpm run test:ci            # CI 环境测试
 
 # ========== 代码质量 ==========
 pnpm run generate:openapi   # 生成 OpenAPI 文档
-pnpm run check:api-docs     # 检查 API 文档完整性
-pnpm run check:openapi-json # 检查 openapi.json 有效性
+pnpm run check:openapi-drift # 检查已声明的路由路径是否都进了 openapi.json
 pnpm run check:unused-deps  # 检查未使用的依赖
 pnpm run check:tree-shaking # 检查 Tree Shaking 效果
 

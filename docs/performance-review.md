@@ -21,19 +21,18 @@
 | **影响** | 每次加载用户列表都传输整个集合。几千用户 × 指纹历史 = 数十 MB/请求，CPU 密集型 JS 排序 |
 | **建议** | 将 filter/sort/pagination 下推到 Mongoose 查询，使用 `.skip().limit().countDocuments()` 并行，加复合索引 |
 
-### 2. 认证热路径 — 全表扫描 token
+### 2. 登出热路径 — token 字段无索引（原 `isAdminToken` 条目已部分修复）
 
-**调用链**: `isAdminToken` (authController.ts:1393) → `UserStorage.getAllUsers()` (userService.ts) → JS `users.find(u => u.token === token)`
+> 更新（2026-09-03）：本条原先记录的 `isAdminToken()` 已在 commit 2eef9696（G2 认证审计）中**删除**，管理员鉴权不再经过 token 反查用户表；`logoutHandler` 也已从 `getAllUsers()` 改为下推查询。原结论「每次 admin token 验证都全表扫描」**不再成立**，但 `token` 字段仍然没有索引，登出仍是一次未走索引的集合扫描。
 
 | 字段 | 内容 |
 |------|------|
-| **文件** | `src/controllers/authController.ts:1393-1399` |
-| **函数** | `isAdminToken(token)` → 行 1395 `UserStorage.getAllUsers()` → 行 1396 `users.find()` |
-| **文件2** | `src/controllers/authController.ts:1402-1409` |
-| **函数2** | `logoutHandler(req, res)` → 行 1407 `UserStorage.getAllUsers()` → 行 1408 `users.findIndex()` |
-| **问题** | `isAdminToken()` 和 `logoutHandler()` 调用 `UserStorage.getAllUsers()` 然后在 JS 中 `users.find(u => u.token === token)`。`user_datas` 的 schema 上**没有 `token` 索引** |
-| **影响** | 每次 admin token 验证和退出登录都读取整个 user 集合，O(N) 全表扫描。两个函数各扫一次（logout 扫两次） |
-| **建议** | 在 `token` 字段加索引，替换为 `UserModel.findOne({ token }).lean()` |
+| **管理员鉴权现状** | `authenticateAdmin` (`src/middleware/auth.ts:55-80`) → `authMiddlewareV2` 认证后用 `isAdminRole(req.user.role)`（`auth.ts:14-16`）判角色；已认证请求则走 `src/middleware/adminOnly.ts`。全程只按 `userId` 取用户，**无 token 反查、无全表扫描** |
+| **残留问题** | `logoutHandler` (`src/controllers/auth/sessionHandlers.ts:101-130`) 先 `jwt.verify` 取 `userId` 并 `revokeAuthCredential` 撤销 `auth_sessions` 会话，再为兼容旧的 `user.token` 字段调用 `UserStorage.getUserByToken(token)` |
+| **调用链** | `logoutHandler` → 行 118 `UserStorage.getUserByToken` → `userService.getUserByToken` (`src/services/userService.ts:347-357`) → `UserModel.findOne({ token }).select(...).lean()` |
+| **问题** | 过滤已下推到 Mongo（不再把整个集合拉进 JS 内存做 `find`），但 `userSchema` 只声明了 `{ role: 1, createdAt: 1 }` 一个索引（`userService.ts:95`），`token` 仍是无索引字段（`userService.ts:36`），该 `findOne` 是 COLLSCAN |
+| **影响** | 每次登出一次未走索引的 `user_datas` 集合扫描（原为两次全量 JS 扫描）。仅登出路径受影响，不再影响每个 admin 请求 |
+| **建议** | 原建议中「替换为 `findOne({ token })`」已完成，**「在 `token` 字段加索引」尚未完成**；建议加 sparse 索引，或彻底移除 `user.token` 兼容分支——会话状态已由 `auth_sessions` 承载 |
 
 ### 3. 审计日志统计 — 10 次全集合扫描
 

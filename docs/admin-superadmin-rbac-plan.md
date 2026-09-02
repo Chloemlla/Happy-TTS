@@ -255,7 +255,7 @@ if ("role" in updates && updates.role !== "superadmin" && user.role === "superad
 ## 8. 验证
 
 1. **类型**: `npx tsc --noEmit` 通过(注意 `User["role"]` 的 exhaustive switch 补 `superadmin` case)。
-2. **路由治理**: `npm run generate:route-audit`、`npm run check:openapi-json` 通过(2D 注册表已更新)。
+2. **路由治理**: `npm run generate:route-audit`、`npm run check:openapi-drift` 通过(2D 注册表已更新)。
 3. **构建**: `npm run build:backend`(tsc + obfuscate)。
 4. **Jest** `npm run test`: `oauthService.test.ts` 加 `superadmin`→true 用例;新增 `authenticateAdmin`/`authenticateSuperAdmin`/`isSuperAdmin`/最后超管 409/自降级 403/迁移脚本 单测。
 5. **手动**(两个种子账号):

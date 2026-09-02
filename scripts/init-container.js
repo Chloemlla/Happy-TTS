@@ -100,38 +100,29 @@ async function initializeContainer() {
         // 6. 修复credentialID不匹配
         await runScript('fix-credential-id-mismatch.js', '修复credentialID不匹配');
         
-        // 第三阶段：API文档检查（可选脚本）
-        log('=== 第三阶段：API文档检查 ===');
-        
-        // 7. 检查API文档
-        await runScript('check-api-docs.js', '检查API文档');
-        
-        // 8. 检查OpenAPI JSON
-        await runScript('check-openapi-json.js', '检查OpenAPI JSON');
-        
-        // 第四阶段：测试脚本（调试模式）
+        // 第三阶段：测试脚本（调试模式）
         if (process.env.NODE_ENV === 'development' || process.env.DEBUG === 'true') {
-            log('=== 第四阶段：调试测试 ===');
-            
-            // 9. 测试credentialID格式
+            log('=== 第三阶段：调试测试 ===');
+
+            // 7. 测试credentialID格式
             await runScript('test-credential-id-format.js', '测试credentialID格式');
-            
-            // 10. 测试credentialID修复
+
+            // 8. 测试credentialID修复
             await runScript('test-credential-id-fix.js', '测试credentialID修复');
-            
-            // 11. 测试credentialID填充
+
+            // 9. 测试credentialID填充
             await runScript('test-credential-id-padding.js', '测试credentialID填充');
-            
-            // 12. 简单credentialID测试
+
+            // 10. 简单credentialID测试
             await runScript('test-simple-credential-id.js', '简单credentialID测试');
-            
-            // 13. 实际credentialID测试
+
+            // 11. 实际credentialID测试
             await runScript('test-actual-credential-id.js', '实际credentialID测试');
-            
-            // 14. 调试credentialID
+
+            // 12. 调试credentialID
             await runScript('debug-credential-id.js', '调试credentialID');
-            
-            // 15. 测试credentialID格式修复
+
+            // 13. 测试credentialID格式修复
             await runScript('test-credential-id-format-fix.js', '测试credentialID格式修复');
         }
         

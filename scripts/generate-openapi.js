@@ -2,6 +2,10 @@ const swaggerJSDoc = require('swagger-jsdoc');
 const fs = require('fs');
 const path = require('path');
 
+// glob 在所有平台都把 `\` 当转义符，所以 path.join 拼出的 Windows 路径会 0 命中，
+// 生成一份 paths 为空的 openapi.json。glob 模式必须始终用正斜杠。
+const projectRoot = process.cwd().split(path.sep).join('/');
+
 const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
@@ -12,8 +16,8 @@ const swaggerOptions = {
     }
   },
   apis: [
-    path.join(process.cwd(), 'src/routes/**/*.ts'),
-    path.join(process.cwd(), 'dist/routes/**/*.js')
+    `${projectRoot}/src/routes/**/*.ts`,
+    `${projectRoot}/dist/routes/**/*.js`
   ],
 };
 

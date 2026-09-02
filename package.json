@@ -39,8 +39,6 @@
     "migrate:user-passwords": "ts-node --transpile-only scripts/migrations/migrate-user-passwords.ts",
     "migrate:admin-to-superadmin": "node scripts/migrations/migrate-admin-to-superadmin.js",
     "migrate:lumen-ttl": "node scripts/migrations/backfill-lumen-ttl.js",
-    "check:api-docs": "node scripts/check-api-docs.js",
-    "check:openapi-json": "node scripts/check-openapi-json.js",
     "check:openapi-drift": "node scripts/governance/check-openapi-drift.js",
     "smoke:obfuscated": "node scripts/governance/smoke-obfuscated-artifact.js",
     "analyze:bundle": "pnpm run build:backend && pnpm run analyze:size",
