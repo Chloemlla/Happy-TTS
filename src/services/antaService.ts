@@ -25,7 +25,7 @@ export interface ProductInfo {
 
 export interface AntaApiResponse {
   success: boolean;
-  data?: ProductInfo & { queryCount?: number };
+  data?: ProductInfo & { queryCount: number };
   error?: string;
 }
 

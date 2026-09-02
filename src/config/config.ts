@@ -19,6 +19,7 @@ import {
 } from "./runtimeConfigDefaults";
 import type { TtsProviderRuntimeConfig } from "./ttsProviderConfig";
 import { buildLumenConfigFromEnv } from "./lumen";
+import { applyAdminEnvOverlay } from "./env";
 import {
   isGenerationCodeConfigured,
   normalizeGenerationCode,
@@ -26,6 +27,10 @@ import {
 } from "../utils/generationCodePolicy";
 
 dotenv.config();
+
+// G8-08: 下面的 envSchema.parse 是本进程对 process.env 的第一次快照，管理后台写的
+// data/env.admin.json 必须在此之前重放，否则 config.* 永远只看到 .env 与真实环境变量。
+applyAdminEnvOverlay();
 
 function generateEphemeralSecret(): string {
   return crypto.randomBytes(48).toString("hex");
