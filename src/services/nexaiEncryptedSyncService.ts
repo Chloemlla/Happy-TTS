@@ -19,6 +19,8 @@ const SUPPORTED_CATEGORIES = new Set([
 const SUPPORTED_ALGORITHMS = new Set(["XCHACHA20-POLY1305", "AES-256-GCM"]);
 const DEFAULT_MAX_RECORDS_PER_REQUEST = 1000;
 const DEFAULT_MAX_CIPHERTEXT_BYTES = 1024 * 1024;
+// G7-37: 读路径的每页上限，既是默认页大小也是调用方能请求的上限。
+const DEFAULT_MAX_RECORDS_PER_PAGE = 2000;
 // G7-38: metadata is a client-controlled opaque field that used to be stored
 // verbatim with no size limit — it could bypass the ciphertext cap. Bound it.
 const MAX_METADATA_BYTES = 256 * 1024;
@@ -77,6 +79,22 @@ function getMaxRecordsPerRequest(): number {
 
 function getMaxCiphertextBytes(): number {
   return parsePositiveLimit(process.env.NEXAI_SYNC_V2_MAX_CIPHERTEXT_BYTES, DEFAULT_MAX_CIPHERTEXT_BYTES);
+}
+
+function getMaxRecordsPerPage(): number {
+  return Math.floor(parsePositiveLimit(process.env.NEXAI_SYNC_V2_MAX_PAGE_RECORDS, DEFAULT_MAX_RECORDS_PER_PAGE));
+}
+
+function normalizePageLimit(value: unknown): number | undefined {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw httpError("limit must be a positive integer");
+  }
+  return Math.min(parsed, getMaxRecordsPerPage());
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -206,15 +224,6 @@ function normalizeRevision(value: unknown): number {
   return parsed;
 }
 
-function compareTimestamps(left: string, right: string): number {
-  const leftMs = Date.parse(left);
-  const rightMs = Date.parse(right);
-  if (!Number.isNaN(leftMs) && !Number.isNaN(rightMs)) {
-    return leftMs - rightMs;
-  }
-  return left.localeCompare(right);
-}
-
 function serializeRecord(record: any): EncryptedSyncRecordOutput {
   return {
     id: record.recordId,
@@ -301,22 +310,51 @@ export class NexaiEncryptedSyncService {
     return { serverTime: new Date().toISOString(), revision };
   }
 
-  static async getSnapshot(userId: string): Promise<{
+  static async getSnapshot(
+    userId: string,
+    options: { cursor?: unknown; limit?: unknown } = {},
+  ): Promise<{
     schemaVersion: 2;
     serverTime: string;
     revision: number;
     records: EncryptedSyncRecordOutput[];
+    hasMore: boolean;
+    nextCursor?: number;
   }> {
-    const [revision, records] = await Promise.all([
+    const paginated = options.cursor !== undefined || options.limit !== undefined;
+    const cursor = normalizeRevision(options.cursor);
+    const pageSize = normalizePageLimit(options.limit) ?? getMaxRecordsPerPage();
+
+    const [revision, page] = await Promise.all([
       this.getCurrentRevision(userId),
-      NexaiEncryptedSyncRecordModel.find({ userId }).sort({ revision: 1 }).lean(),
+      NexaiEncryptedSyncRecordModel.find({ userId, revision: { $gt: cursor } })
+        .sort({ revision: 1 })
+        .limit(pageSize + 1)
+        .lean(),
     ]);
+
+    const hasMore = page.length > pageSize;
+
+    // G7-37: 快照读以前是无界 find()，记录多的用户能把整个进程读爆。截断后如果调用方
+    // 没有显式分页，返回半份快照比报错更危险——客户端可能拿它去做 PUT 全量覆盖，
+    // 把服务端剩下的记录删掉。所以未分页的调用宁可失败。
+    if (hasMore && !paginated) {
+      throw httpError(
+        "sync v2 snapshot exceeds one page; page with cursor/limit or use incremental sync",
+        413,
+        "NEXAI_SYNC_V2_SNAPSHOT_TOO_LARGE",
+      );
+    }
+
+    const records = (hasMore ? page.slice(0, pageSize) : page).map(serializeRecord);
 
     return {
       schemaVersion: 2,
       serverTime: new Date().toISOString(),
       revision,
-      records: records.map(serializeRecord),
+      records,
+      hasMore,
+      ...(hasMore ? { nextCursor: records[records.length - 1].revision } : {}),
     };
   }
 
@@ -349,6 +387,7 @@ export class NexaiEncryptedSyncService {
     revision: number;
     records: EncryptedSyncRecordOutput[];
     conflicts: EncryptedSyncConflict[];
+    hasMore: boolean;
   }> {
     const sinceRevision = normalizeRevision(body.sinceRevision);
     const records = normalizeRecords(body.records ?? []);
@@ -380,15 +419,17 @@ export class NexaiEncryptedSyncService {
 
     for (const record of records) {
       const existing = existingByKey.get(`${record.category}:${record.recordId}`);
-      if (existing && compareTimestamps(existing.updatedAt, record.updatedAt) > 0) {
-        if (Number(existing.revision ?? 0) > sinceRevision) {
-          conflicts.push({
-            category: record.category,
-            id: record.recordId,
-            serverUpdatedAt: existing.updatedAt,
-            clientUpdatedAt: record.updatedAt,
-          });
-        }
+      // G7-38: 冲突判定只看服务端分配的 revision，不看客户端 updatedAt——客户端时钟
+      // 不可信，时钟快的设备原先能让自己的写入永远胜出，而被判「服务端更新」的写入
+      // 在 revision <= sinceRevision 时会被静默丢弃、连冲突都不上报。
+      // existing.revision > sinceRevision 表示客户端没见过服务端当前版本，才是真冲突。
+      if (existing && Number(existing.revision ?? 0) > sinceRevision) {
+        conflicts.push({
+          category: record.category,
+          id: record.recordId,
+          serverUpdatedAt: existing.updatedAt,
+          clientUpdatedAt: record.updatedAt,
+        });
         continue;
       }
 
@@ -421,10 +462,20 @@ export class NexaiEncryptedSyncService {
       );
     }
 
-    const [revision, changedRecords] = await Promise.all([
+    const pageSize = getMaxRecordsPerPage();
+    const [counterRevision, changedPage] = await Promise.all([
       this.getCurrentRevision(userId),
-      NexaiEncryptedSyncRecordModel.find({ userId, revision: { $gt: sinceRevision } }).sort({ revision: 1 }).lean(),
+      NexaiEncryptedSyncRecordModel.find({ userId, revision: { $gt: sinceRevision } })
+        .sort({ revision: 1 })
+        .limit(pageSize + 1)
+        .lean(),
     ]);
+
+    const hasMore = changedPage.length > pageSize;
+    const changedRecords = (hasMore ? changedPage.slice(0, pageSize) : changedPage).map(serializeRecord);
+    // G7-37: 截断时 revision 必须回落到已下发的最高 revision。客户端会拿它当下一次的
+    // sinceRevision，报计数器头部就会跳过本次没下发的记录。
+    const revision = hasMore ? changedRecords[changedRecords.length - 1].revision : counterRevision;
 
     logger.info("[NexAI Sync V2] incremental sync complete", {
       userId,
@@ -433,13 +484,15 @@ export class NexaiEncryptedSyncService {
       conflicts: conflicts.length,
       sinceRevision,
       revision,
+      hasMore,
     });
 
     return {
       serverTime: new Date().toISOString(),
       revision,
-      records: changedRecords.map(serializeRecord),
+      records: changedRecords,
       conflicts,
+      hasMore,
     };
   }
 

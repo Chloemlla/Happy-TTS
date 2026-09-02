@@ -996,7 +996,13 @@ class DataCollectionService {
     details: any;
     ip?: string;
     userAgent?: string;
-  }): Promise<{ riskScore: number; riskLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"; flags: string[] }> {
+  }): Promise<{
+    riskScore: number;
+    riskLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+    flags: string[];
+    blocked: boolean;
+    reason?: string;
+  }> {
     try {
       const headers = data.details?.headers || {};
       const ua = String(data.userAgent || headers["user-agent"] || headers["User-Agent"] || "unknown");
@@ -1018,9 +1024,15 @@ class DataCollectionService {
         Number.isNaN(behaviorScore) ? 0.5 : Math.max(0, Math.min(1, behaviorScore)),
         ua,
       );
-      return { riskScore: assessed.overallRisk, riskLevel: assessed.riskLevel, flags: assessed.flags };
+      return {
+        riskScore: assessed.overallRisk,
+        riskLevel: assessed.riskLevel,
+        flags: assessed.flags,
+        blocked: assessed.blocked,
+        reason: assessed.reason,
+      };
     } catch (_e) {
-      return { riskScore: 0.5, riskLevel: "LOW", flags: ["EVAL_FALLBACK"] };
+      return { riskScore: 0.5, riskLevel: "LOW", flags: ["EVAL_FALLBACK"], blocked: false };
     }
   }
 
@@ -1047,7 +1059,23 @@ class DataCollectionService {
 
     const risk = await this.evaluateRisk({ details: redacted });
 
-    const allTags = Array.from(new Set([...(piiTags || []), ...(catTags || []), ...(risk.flags || [])]));
+    if (risk.blocked) {
+      logger.warn("[DataCollection] 风控判定为拦截", {
+        userId: data.userId,
+        action: data.action,
+        riskLevel: risk.riskLevel,
+        reason: risk.reason,
+      });
+    }
+
+    const allTags = Array.from(
+      new Set([
+        ...(piiTags || []),
+        ...(catTags || []),
+        ...(risk.flags || []),
+        ...(risk.blocked ? ["RISK_BLOCKED"] : []),
+      ]),
+    );
 
     // 可选：加密存储原始详情（仅管理员后台可解密查看）
     let encryptedRaw: { iv: string; tag: string; data: string } | undefined;
@@ -1077,6 +1105,8 @@ class DataCollectionService {
         duplicate,
         hash,
         flags: risk.flags,
+        blocked: risk.blocked,
+        blockReason: risk.reason,
       },
       hash,
       duplicate,

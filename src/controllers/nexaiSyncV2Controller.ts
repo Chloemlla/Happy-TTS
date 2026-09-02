@@ -47,7 +47,12 @@ export class NexaiSyncV2Controller {
       const userId = getRequiredNexaiUserId(req, res);
       if (!userId) return;
 
-      const data = await NexaiEncryptedSyncService.getSnapshot(userId);
+      // G7-37: cursor/limit 必须透传。服务层用「调用方是否显式分页」决定超过一页时是
+      // 报 413 还是返回本页，不透传就等于让大账号的快照读永久 413、且拿不到翻页出口。
+      const data = await NexaiEncryptedSyncService.getSnapshot(userId, {
+        cursor: req.query.cursor,
+        limit: req.query.limit,
+      });
       res.json({
         success: true,
         data,

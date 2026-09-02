@@ -730,9 +730,27 @@ router.put("/sync/v2", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncV2Controlle
  * /api/nexai/sync/v2:
  *   get:
  *     summary: 获取端到端加密同步快照
+ *     description: |
+ *       按 revision 升序分页返回。不带 cursor/limit 时返回首页，若记录数超过一页上限
+ *       （NEXAI_SYNC_V2_MAX_PAGE_RECORDS，默认 2000）则返回 413
+ *       NEXAI_SYNC_V2_SNAPSHOT_TOO_LARGE，避免调用方把半份快照当全量去覆盖。
+ *       响应含 hasMore 与 nextCursor，翻页时把 nextCursor 回传给 cursor。
  *     tags: [NexAI Sync]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: cursor
+ *         schema:
+ *           type: integer
+ *           minimum: 0
+ *         description: 只返回 revision 大于该值的记录，取上一页响应的 nextCursor
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: 本页记录数上限，超过服务端上限时按服务端上限截断
  */
 router.get("/sync/v2", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncV2Controller.getSnapshot);
 

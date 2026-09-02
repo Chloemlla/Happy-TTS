@@ -698,8 +698,11 @@ PUT /sync/v2
 #### 6.2.3 全量下载
 
 ```http
-GET /sync/v2
+GET /sync/v2?cursor=0&limit=2000
 ```
+
+按 `revision` 升序分页。`cursor` 只返回 `revision` 大于该值的记录，`limit` 超过服务端上限
+（`NEXAI_SYNC_V2_MAX_PAGE_RECORDS`，默认 2000）时按服务端上限截断。
 
 响应：
 
@@ -710,10 +713,17 @@ GET /sync/v2
     "schemaVersion": 2,
     "serverTime": "2026-05-29T14:30:01.000Z",
     "revision": 42,
-    "records": []
+    "records": [],
+    "hasMore": false,
+    "nextCursor": 42
   }
 }
 ```
+
+- `hasMore` 为 `true` 时把 `nextCursor` 回传给 `cursor` 取下一页；`hasMore` 为 `false` 时无 `nextCursor`。
+- 不带 `cursor`/`limit` 调用且记录数超过一页上限时返回 `413`、`code: "NEXAI_SYNC_V2_SNAPSHOT_TOO_LARGE"`，
+  而不是返回被截断的一页——半份快照若被客户端当作全量去 `PUT` 覆盖，会删掉服务端其余记录。
+  遇到该错误请改用分页参数或增量同步。
 
 #### 6.2.4 增量同步
 
@@ -740,10 +750,15 @@ POST /sync/v2/incremental
   "data": {
     "serverTime": "2026-05-29T14:30:01.000Z",
     "revision": 42,
-    "records": []
+    "records": [],
+    "conflicts": [],
+    "hasMore": false
   }
 }
 ```
+
+`hasMore` 为 `true` 表示本次下行记录被一页上限截断，此时 `revision` 是**已下发的最后一条记录**的
+revision（不是服务端计数器当前值）；直接把它当作下一次的 `sinceRevision` 继续调用即可，不会跳记录。
 
 #### 6.2.5 冲突策略
 
@@ -751,7 +766,15 @@ POST /sync/v2/incremental
 
 - 主键：`user_id + category + id`
 - 字段：`revision`、`updated_at`、`deleted`、`ciphertext`、`metadata`
-- 同一记录并发更新时采用 last-write-wins，但响应中返回冲突列表供客户端提示：
+- 冲突判定只看服务端分配的 `revision`，不看客户端 `updatedAt`：若服务端该记录的 `revision`
+  大于请求里的 `sinceRevision`，说明客户端没见过服务端当前版本，该记录**不写入**，改为进 `conflicts`
+  返回；否则按客户端提交的内容写入并分配新 `revision`。
+
+> 变更说明：此前的策略是按 `updatedAt` 比较的 last-write-wins。客户端时钟不可信——时钟偏快的设备
+> 能让自己的写入永远胜出；更严重的是被判「服务端更新」的写入在 `revision <= sinceRevision` 时会被
+> 静默丢弃且不上报冲突。现改为服务端权威。对客户端的影响：先拉后推（`sinceRevision` 取上次拉到的
+> `revision`）的流程不受影响；始终以 `sinceRevision: 0` 推送的客户端会对每条已存在的记录收到冲突，
+> 需要先拉取再带真实 `revision` 重推。`conflicts` 必须处理，不能忽略。
 
 ```json
 {

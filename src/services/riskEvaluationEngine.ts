@@ -1,4 +1,4 @@
-import crypto from "node:crypto";
+import { LRUCache } from "lru-cache";
 import logger from "../utils/logger";
 import { getIPInfo } from "./ip";
 
@@ -53,55 +53,21 @@ const RISK_THRESHOLDS = {
   CRITICAL: 0.95,
 };
 
-// IP reputation cache
-const ipReputationCache = new Map<string, { reputation: number; timestamp: number }>();
-const IP_REPUTATION_TTL = 3600000; // 1 hour
-const MAX_IP_CACHE_SIZE = 5000; // G7-29: bounded cache
+// G7-29: 两个进程内缓存都改成「容量 + TTL」双约束的 LRU，长跑进程里不再无界增长。
+const ipReputationCache = new LRUCache<string, number>({
+  max: 5000,
+  ttl: 3600000,
+});
 
-const ATTEMPT_HISTORY_TTL = 86400000; // 24 hours
-
-// G7-29: IP -> attempts index so getRecentAttempts does not scan every
-// fingerprint key on every assessment (it used to make the hot path O(total
-// history) per call). The device-fingerprint keyed history that used to live
-// here was write-only and its key was client-controlled (canvasEntropy), so it
-// grew without bound and was removed instead of capped.
-const ipAttemptIndex = new Map<string, VerificationAttempt[]>();
-const MAX_IP_INDEX_HISTORY = 200;
-const MAX_IP_INDEX_KEYS = 20000;
-
-// 过期项只在命中时才被发现，因此额外做一次限频全量清扫，避免长尾 key 常驻内存。
-const SWEEP_INTERVAL_MS = 60000;
-let lastSweepAt = 0;
-
-function pruneRecencyMap<V>(map: Map<string, V>, key: string, value: V, maxKeys: number): void {
-  // Map 的插入顺序即最近写入顺序，先删后插让淘汰真正淘汰最久未写入的 key。
-  map.delete(key);
-  map.set(key, value);
-  while (map.size > maxKeys) {
-    const oldest = map.keys().next().value;
-    if (oldest === undefined) break;
-    map.delete(oldest);
-  }
-}
-
-function sweepExpiredState(now: number): void {
-  if (now - lastSweepAt < SWEEP_INTERVAL_MS) return;
-  lastSweepAt = now;
-
-  const cutoff = now - ATTEMPT_HISTORY_TTL;
-  for (const [ip, history] of ipAttemptIndex) {
-    const kept = history.filter((entry) => entry.timestamp > cutoff);
-    if (kept.length === 0) {
-      ipAttemptIndex.delete(ip);
-    } else if (kept.length !== history.length) {
-      ipAttemptIndex.set(ip, kept);
-    }
-  }
-
-  for (const [ip, entry] of ipReputationCache) {
-    if (now - entry.timestamp >= IP_REPUTATION_TTL) ipReputationCache.delete(ip);
-  }
-}
+// 调用方只读「最近 N 分钟的尝试次数」，因此这里只留时间戳：原先按设备指纹（含客户端
+// 可控的 canvasEntropy）分桶存整条 VerificationAttempt，键与值都无界，且数单个 IP 的
+// 次数要扫遍所有指纹桶。
+const ATTEMPT_RETENTION_MS = 600000;
+const MAX_ATTEMPTS_PER_IP = 64;
+const ipAttemptTimestamps = new LRUCache<string, number[]>({
+  max: 20000,
+  ttl: ATTEMPT_RETENTION_MS,
+});
 
 export class RiskEvaluationEngine {
   private readonly blockedIPs = new Set<string>();
@@ -205,7 +171,7 @@ export class RiskEvaluationEngine {
     const reason = blocked ? this.getBlockReason(factors, flags) : undefined;
 
     // Store attempt for pattern analysis
-    this.recordAttempt(attempt);
+    this.recordAttempt(attempt.ip, attempt.timestamp);
 
     const result: RiskAssessmentResult = {
       overallRisk,
@@ -246,8 +212,8 @@ export class RiskEvaluationEngine {
 
     // Check IP reputation cache
     const cached = ipReputationCache.get(ip);
-    if (cached && Date.now() - cached.timestamp < IP_REPUTATION_TTL) {
-      return cached.reputation;
+    if (cached !== undefined) {
+      return cached;
     }
 
     try {
@@ -272,21 +238,17 @@ export class RiskEvaluationEngine {
       }
 
       // Check request frequency from this IP
-      const recentAttempts = this.getRecentAttempts(ip, 300000); // 5 minutes
-      if (recentAttempts.length > 10) {
+      const recentAttempts = this.countRecentAttempts(ip, 300000); // 5 minutes
+      if (recentAttempts > 10) {
         risk += 0.3;
-      } else if (recentAttempts.length > 5) {
+      } else if (recentAttempts > 5) {
         risk += 0.15;
       }
 
-      // Cache the result (G7-29: bounded cache — evict oldest when full).
-      if (ipReputationCache.size >= MAX_IP_CACHE_SIZE) {
-        const oldestKey = ipReputationCache.keys().next().value;
-        if (oldestKey !== undefined) ipReputationCache.delete(oldestKey);
-      }
-      ipReputationCache.set(ip, { reputation: risk, timestamp: Date.now() });
+      const bounded = Math.min(risk, 1.0);
+      ipReputationCache.set(ip, bounded);
 
-      return Math.min(risk, 1.0);
+      return bounded;
     } catch (error) {
       logger.error("[风险评估] 计算 IP 风险失败", { ip, error });
       return 0.5; // Default risk for errors
@@ -336,8 +298,8 @@ export class RiskEvaluationEngine {
     let risk = 0;
 
     // Check for rapid successive attempts
-    const recentAttempts = this.getRecentAttempts(ip, 60000); // 1 minute
-    if (recentAttempts.length > 5) {
+    const recentAttempts = this.countRecentAttempts(ip, 60000); // 1 minute
+    if (recentAttempts > 5) {
       risk += 0.4;
     }
 
@@ -491,36 +453,20 @@ export class RiskEvaluationEngine {
   /**
    * Record verification attempt for pattern analysis
    */
-  private recordAttempt(attempt: VerificationAttempt): void {
-    const now = Date.now();
-    const cutoff = now - ATTEMPT_HISTORY_TTL;
-
-    // G7-29: maintain the IP index so getRecentAttempts is O(history for that
-    // IP) instead of O(all recorded attempts).
-    const ipHistory = ipAttemptIndex.get(attempt.ip) || [];
-    ipHistory.push(attempt);
-    const prunedIpHistory = ipHistory.filter((entry) => entry.timestamp > cutoff).slice(-MAX_IP_INDEX_HISTORY);
-    pruneRecencyMap(ipAttemptIndex, attempt.ip, prunedIpHistory, MAX_IP_INDEX_KEYS);
-
-    sweepExpiredState(now);
+  private recordAttempt(ip: string, timestamp: number): void {
+    const cutoff = timestamp - ATTEMPT_RETENTION_MS;
+    const history = (ipAttemptTimestamps.get(ip) || []).filter((entry) => entry > cutoff);
+    history.push(timestamp);
+    ipAttemptTimestamps.set(ip, history.slice(-MAX_ATTEMPTS_PER_IP));
   }
 
   /**
-   * Get recent attempts for an IP
+   * Count recent attempts for an IP
    */
-  private getRecentAttempts(ip: string, timeWindow: number): VerificationAttempt[] {
+  private countRecentAttempts(ip: string, timeWindow: number): number {
     const cutoff = Date.now() - timeWindow;
-    const history = ipAttemptIndex.get(ip) || [];
-    return history
-      .filter((entry) => entry.timestamp > cutoff)
-      .sort((a, b) => b.timestamp - a.timestamp);
-  }
-
-  /**
-   * Generate fingerprint key for tracking
-   */
-  private generateFingerprintKey(fingerprint: DeviceFingerprint): string {
-    const key = `${fingerprint.userAgent}|${fingerprint.timezone}|${fingerprint.canvasEntropy}`;
-    return crypto.createHash("sha256").update(key).digest("hex");
+    const history = ipAttemptTimestamps.get(ip);
+    if (!history) return 0;
+    return history.filter((entry) => entry > cutoff).length;
   }
 }
