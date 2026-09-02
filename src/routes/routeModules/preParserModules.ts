@@ -99,9 +99,9 @@ export const preParserRouteModules: RouteModule[] = [
     rateLimited: true,
     isPublic: true,
     rateLimitPolicy: {
-      mode: "route-module",
-      limiters: ["data-collection-limiter"],
-      note: "The root /api mount shares the same data-collection limiter coverage.",
+      mode: "route",
+      limiters: ["dataCollectionLimiter"],
+      note: "根挂载只暴露 /api/collect_data，限流来自 dataCollectionRoutes.ts 里路由级的 dataCollectionLimiter；挂在 /api/data-collection 的限流模块管不到这条兼容路径。",
     },
     securityBypass: {
       waf: {

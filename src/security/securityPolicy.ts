@@ -12,8 +12,8 @@ export interface SecurityBypassRule {
 /**
  * @deprecated Security bypass policy is deprecated.
  *
- * RouteModule.securityBypass declarations in `src/routes/index.ts` are the
- * authoritative source of truth for security bypass behavior. This static
+ * RouteModule.securityBypass declarations in `src/routes/routeModules/*.ts` are
+ * the authoritative source of truth for security bypass behavior. This static
  * table is retained only as a legacy fallback for paths/components that do not
  * have a route module declaration (for example scoped sub-paths covered by a
  * module's `"mixed"` flag). New bypasses must be declared on the owning route
@@ -21,10 +21,20 @@ export interface SecurityBypassRule {
  *
  * Consumers that need per-request decisions should call
  * `shouldBypassSecurityComponentForRequest()` (which prefers route module
- * declarations) instead of reading this table directly. Note that
- * `src/middleware/ipBanCheck.ts` still derives its fast-path whitelist from
- * `securityBypassPolicy.ipBan`; that consumer should be migrated to the route
- * registry as part of the deprecation.
+ * declarations) instead of reading this table directly. Two consumers still read
+ * it directly and therefore do not see route module declarations at all:
+ * `src/middleware/ipBanCheck.ts` derives its fast-path whitelist from
+ * `securityBypassPolicy.ipBan`, and `src/middleware/wafMiddleware.ts` builds its
+ * static exact/prefix fallback sets from `securityBypassPolicy.waf` alongside a
+ * module-declaration map keyed on mount paths. Both should be migrated to the
+ * route registry as part of the deprecation; until then, removing a rule here is
+ * a behavior change even when a route module declares the same bypass.
+ *
+ * G1-32: `validateRouteGovernance()` compares this table against the route module
+ * declarations in both directions and reports drift as an advisory
+ * `security-bypass-inconsistency` warning (never a startup failure): a static rule
+ * that no module declaration covers, and an `ipBan` module declaration with no
+ * static rule behind it (which `ipBanCheck.ts` would silently ignore).
  */
 export const securityBypassPolicy: Record<SecurityComponent, SecurityBypassRule[]> = {
   ipBan: [
@@ -38,11 +48,6 @@ export const securityBypassPolicy: Record<SecurityComponent, SecurityBypassRule[
     { match: "exact", value: "/api/auth/register", note: "Authentication payload compatibility" },
     { match: "prefix", value: "/api/ecoenchants/v1/webhooks", note: "Raw EcoEnchants marketplace/payment webhook verification" },
     { match: "prefix", value: "/api/data-collection", note: "Accept non-JSON/browser telemetry payloads" },
-    {
-      match: "prefix",
-      value: "/api/crash-sdk",
-      note: "Anonymous crash-report ingest from the lumen-crash-core SDK; crash payloads contain braces/semicolons",
-    },
   ],
   ipVerification: [
     { match: "prefix", value: "/api/ip-verification", note: "Verification bootstrap endpoint" },
@@ -56,11 +61,6 @@ export const securityBypassPolicy: Record<SecurityComponent, SecurityBypassRule[
       match: "prefix",
       value: "/api/tts/assets",
       note: "Browser audio requests are independently authorized by a scoped, expiring TTS asset token",
-    },
-    {
-      match: "prefix",
-      value: "/api/crash-sdk",
-      note: "Anonymous crash-report ingest from the lumen-crash-core SDK; devices have no browser IP-verification context",
     },
   ],
   tamperProtection: [],
@@ -78,8 +78,8 @@ export function matchesSecurityBypassRule(pathname: string, rule: SecurityBypass
 
 /**
  * @deprecated Prefer `shouldBypassSecurityComponentForRequest()` (or the route
- * module declarations in `src/routes/index.ts`) when a `Request` object is
- * available.
+ * module declarations in `src/routes/routeModules/*.ts`) when a `Request` object
+ * is available.
  *
  * This path-based variant still consults the route module registry first
  * (RouteModule.securityBypass is the authoritative source) and falls back to

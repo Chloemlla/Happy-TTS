@@ -82,17 +82,36 @@ const authCacheBypassPaths = [
   "/api/oauth/revoke",
 ];
 
+// Node 在双栈监听下把 IPv4 连接报成 ::ffff:127.0.0.1 形态，需要先还原成裸 IPv4 再比对。
+const IPV4_MAPPED_PREFIX = "::ffff:";
+
+const isLoopbackAddress = (ip: string): boolean => ip === "::1" || ip.startsWith("127.");
+
+// 私有网段只在开发环境算本机：isLocalIp 命中即豁免限流，生产环境把同内网/同 Docker
+// 网络的来源全按本机放行等于限流整体失效。
+const isPrivateIpv4Address = (ip: string): boolean =>
+  ip.startsWith("10.") || ip.startsWith("192.168.") || /^172\.(1[6-9]|2\d|3[01])\./.test(ip);
+
 const isLocalIp = (req: Request, _res: Response, next: NextFunction) => {
-  // Use req.socket.remoteAddress (TCP-level connection IP) instead of req.ip
-  // which can be spoofed via X-Forwarded-For when trust proxy is enabled.
-  const ip = req.socket.remoteAddress || req.ip || "unknown";
-  if (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "dev") {
-    // G1-33: 开发环境刻意恒 false。唯一消费者是 routeLimiters 的 isLocalRequest，
-    // 它把本地请求豁免限流；开发时保持 false 才能让本地跑出真实的限流行为。
-    req.isLocalIp = false;
-  } else {
-    req.isLocalIp = config.localIps.includes(ip);
-  }
+  // G1-33: 原实现在 development 分支硬编码 false（开发环境等于不做本机判断），非 dev 分支
+  // 又拿 ::ffff:127.0.0.1 去比 config.localIps（127.0.0.1 / localhost / ::1），结果 IPv4
+  // 回环永不命中、IPv6 回环命中，两种回环行为相反。
+  // 只取 TCP 层地址：trust proxy 打开后 req.ip 可被 X-Forwarded-For 伪造。
+  const rawSocketIp = req.socket.remoteAddress || "";
+  const socketIp = rawSocketIp.startsWith(IPV4_MAPPED_PREFIX)
+    ? rawSocketIp.slice(IPV4_MAPPED_PREFIX.length)
+    : rawSocketIp;
+  // 带转发头的回环连接是反代转发来的远端请求，不算本机：反代与后端同机时 socket 地址恒为
+  // 回环，只看回环会把所有限流器一起豁免掉。转发头只能让结果更严格，伪造它拿不到豁免。
+  const forwarded = req.headers["x-forwarded-for"] ?? req.headers["x-real-ip"];
+  const isDevelopment = process.env.NODE_ENV === "development" || process.env.NODE_ENV === "dev";
+
+  req.isLocalIp =
+    socketIp.length > 0 &&
+    forwarded === undefined &&
+    (isLoopbackAddress(socketIp) ||
+      config.localIps.includes(socketIp) ||
+      (isDevelopment && isPrivateIpv4Address(socketIp)));
   next();
 };
 
@@ -473,8 +492,7 @@ export function registerErrorHandlers(app: Express): void {
   app.use(notFoundLimiter, (req: Request, res: Response) => {
     logger.warn(`404 Not Found: ${req.method} ${req.url}`, {
       ip: req.ip,
-      headers: sanitizeLogValue(req.headers),
-      body: sanitizeLogValue(req.body),
+      headers: pickAllowlistedHeaders(req.headers),
     });
     res.status(404).json({ error: "Not Found" });
   });

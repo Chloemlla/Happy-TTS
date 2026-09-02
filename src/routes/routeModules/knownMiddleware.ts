@@ -112,4 +112,11 @@ export const knownAuthHandlerNames = new Set([
   "oauthTokenAuth",
   "client_secret_basic",
   "apiKeyAuth",
+  // 只登记名字、不进 knownAuthMiddleware 函数表：optionalAuthenticateToken 不强制鉴权，
+  // 三个 lumen 的 requireXxx 是返回中间件的工厂。放进函数表会让 strictStackCheck 把
+  // 可选鉴权/未调用的工厂当成真实鉴权通过。
+  "optionalAuthenticateToken",
+  "requireAuth",
+  "requireAdmin",
+  "requireAdminActionOperator",
 ]);

@@ -413,6 +413,22 @@ export const postTamperRouteModules: RouteModule[] = [
       handlers: ["authenticateToken", "authenticateAdmin", "authenticateSuperAdmin"],
       note: "Public resource reads are open; stats reads are admin-level and resource CRUD is gated to superadmin at route level.",
     },
+    // G1-17: 过去没有 rateLimitPolicy，靠 /api 与全部限流模块"作用域重叠"被推断出覆盖；
+    // 真实来源是 resourceRoutes.ts 每条路由各自挂的 resourceLimiter.* 子限流器。
+    rateLimitPolicy: {
+      mode: "route",
+      limiters: [
+        "resourceLimiter.getResources",
+        "resourceLimiter.getCategories",
+        "resourceLimiter.stats",
+        "resourceLimiter.getById",
+        "resourceLimiter.create",
+        "resourceLimiter.initTest",
+        "resourceLimiter.update",
+        "resourceLimiter.delete",
+      ],
+      note: "resourceRoutes.ts 逐路由挂 resourceLimiter 分组下的独立限流器，没有统一的挂载级或模块级限流。",
+    },
   },
   {
     name: "cdk-routes",
