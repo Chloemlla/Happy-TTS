@@ -81,14 +81,17 @@ for (const file of secretFiles) {
 }
 
 // 3) LogShare must not log content previews
-const logRoutes = path.join(root, "src", "routes", "logRoutes.ts");
-if (fs.existsSync(logRoutes)) {
-  const lines = read(logRoutes).split(/\r?\n/);
+// 扫描整个 logShare 目录而不是单个文件：G3-30 把归档/存储逻辑从 logRoutes.ts 抽了出去，
+// 只盯 logRoutes.ts 会让被抽走的那部分代码静默脱离这条规则。
+const logShareSources = [path.join(root, "src", "routes", "logRoutes.ts"), ...walk(path.join(root, "src", "routes", "logShare"), (file) => file.endsWith(".ts"))];
+for (const logSource of logShareSources) {
+  if (!fs.existsSync(logSource)) continue;
+  const lines = read(logSource).split(/\r?\n/);
   lines.forEach((line, idx) => {
     if (/contentPreview|content\.slice\s*\(/.test(line)) {
       findings.push({
         rule: "no-logshare-content-preview",
-        file: path.relative(root, logRoutes),
+        file: path.relative(root, logSource),
         line: idx + 1,
         detail: line.trim().slice(0, 160),
       });
