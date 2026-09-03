@@ -20,9 +20,9 @@ import platformRoutes from "./platform.routes.js";
 const router = Router();
 
 // Fail-closed gate: when Lumen is not enabled the whole subsystem returns 503.
-// Scoped to the /api/lumen prefix (the router is mounted at "/" in app.ts, so an
-// unscoped gate would block every host route). Enabled state is read per request,
-// so the admin UI can turn Lumen on without a redeploy.
+// Scoped to the /api/lumen prefix (the registry entry in src/routes/lumenRouteModules.ts
+// mounts this router at "/", so an unscoped gate would block every host route).
+// Enabled state is read per request, so the admin UI can turn Lumen on without a redeploy.
 const lumenGate: RequestHandler = (_req, res, next) => {
   if (!isLumenEnabled()) {
     res.status(503).json({

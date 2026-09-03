@@ -558,9 +558,9 @@ export const postTamperRouteModules: RouteModule[] = [
     rateLimited: true,
     isPublic: "mixed",
     authPolicy: {
-      mode: "route",
-      handlers: ["nexaiAuthRequired", "nexaiAuthOptional"],
-      note: "Public auth and artifact view routes are open or optional; profile, sync, and artifact management routes require NexAI authentication.",
+      mode: "mixed",
+      handlers: ["nexaiRequestSignature", "nexaiAuthRequired", "nexaiAuthOptional"],
+      note: "nexaiRequestSignature is mounted for the whole /api/nexai subtree (HMAC request signing; GET exemptions for oauth-config, the GitHub OAuth callback, release manifests, and single-artifact reads). Inside the router, /auth bootstrap and artifact-view routes are open or optional while profile, sync, and artifact management routes require nexaiAuthRequired.",
     },
     rateLimitPolicy: {
       mode: "route",

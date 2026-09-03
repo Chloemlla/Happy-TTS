@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import {
   earlyRouteModules,
+  getModuleScopes,
   postTamperRouteModules,
   preDocsRouteModules,
   preParserRouteModules,
@@ -45,6 +46,9 @@ const WHITELIST_PREFIX_SET = new Set<string>();
 // 把 RouteModule.securityBypass.waf 的明确声明（true/false）预计算成 Map，
 // 避免每次请求都遍历全部路由模块。请求时按路径从深到浅逐级 Map 命中，
 // 取最具体的模块声明；"mixed" 与未声明保持原语义，落入静态策略兜底。
+// 键取 getModuleScopes 的真实治理作用域而非 mount path：两者可以不同（lumen 挂在 "/"、
+// 作用域声明为 /api/lumen），按 mount path 建表会把绕过挂到错误的前缀上，根挂载还会被
+// 规范化成空串而被整条丢掉。
 const wafModuleBypassMap = new Map<string, boolean>();
 
 for (const module of [
@@ -57,8 +61,9 @@ for (const module of [
 ]) {
   const entry = module.securityBypass?.waf;
   if (!entry || entry.value === undefined || entry.value === "mixed") continue;
-  const scope = module.path.replace(/\/\*.*$/, "").replace(/\/+$/, "");
-  if (scope) wafModuleBypassMap.set(scope, entry.value === true);
+  for (const scope of getModuleScopes(module)) {
+    wafModuleBypassMap.set(scope, entry.value === true);
+  }
 }
 
 // 遗留静态策略兜底（与 securityBypassPolicy.waf 一致），同样只构建一次。

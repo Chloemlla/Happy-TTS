@@ -125,8 +125,9 @@ export interface RouteModule {
    * G1-17: mount path 与真实作用域不一致时声明真实作用域（例如 router 自带
    * /api/lumen 前缀因而必须挂在 "/"）。治理检查的作用域重叠、限流覆盖、开放 CORS
    * 冲突判定都以此为准，避免宽 mount path 与所有作用域重叠而被"自动通过"。
-   * 注意 wafMiddleware / ipBanCheck 的绕过表按 mount path 建，所以声明了 scopes
-   * 的模块不允许再声明 value 为 true 的 securityBypass。
+   * 注意 mount path 宽于真实作用域时仍不允许声明 value 为 true 的 securityBypass
+   * （治理检查 overbroad-security-bypass：整段绕过比模块真正拥有的子树宽）；
+   * wafMiddleware 的绕过表已按 getModuleScopes 建，ipBanCheck 只读静态 securityBypassPolicy 表。
    */
   scopes?: string[];
   /**

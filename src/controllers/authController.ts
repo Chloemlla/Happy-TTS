@@ -13,7 +13,7 @@ import {
 import { register, sendVerifyEmail, verifyEmail, verifyEmailLink } from "./auth/registrationHandlers";
 import { establishSession, getCurrentUser, listSessions, revokeSessionDevice } from "./auth/sessionHandlers";
 
-export { logoutHandler, registerLogoutRoute } from "./auth/sessionHandlers";
+export { logoutHandler } from "./auth/sessionHandlers";
 
 export const AuthController = {
   getGoogleAuthConfig,

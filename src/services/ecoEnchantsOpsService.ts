@@ -1045,6 +1045,20 @@ export class EcoEnchantsOpsService {
     if (!connection || connection.ws.readyState !== WebSocket.OPEN) return false;
     if (connection.supportedMethods.size && !connection.supportedMethods.has(job.method)) return false;
 
+    // The audit entry is the dispatch permit. G7-21 cancels an unauditable job in createJob, but
+    // that cancel is itself a Mongo write that can fail, and a concurrent `rpc.hello` can reach the
+    // queued job before the audit append even returns. Checking the chain at the point of use holds
+    // in both cases: a privileged operation with no audit record never leaves the queue.
+    const auditPermit = await EcoEnchantsOpsAuditLogModel.exists({ jobId: job.jobId, decision: "allowed" });
+    if (!auditPermit) {
+      logger.error("[EcoEnchantsOps] Refused to dispatch an ops job with no audit entry", {
+        jobId: job.jobId,
+        instanceId: job.instanceId,
+        method: job.method,
+      });
+      return false;
+    }
+
     const now = new Date();
     // G7-19: claim-then-send. The previous order (send first, then mark) let two
     // concurrent `rpc.hello` dispatches both `ws.send` the same job, so a

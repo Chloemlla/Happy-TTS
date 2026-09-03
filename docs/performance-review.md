@@ -128,15 +128,18 @@
 | **问题** | 关键词搜索构建 8 字段 `$or` + 大小写不敏感 `$regex`，无法使用任何索引，强制全表扫描 |
 | **建议** | 使用前缀正则（如 `^/username/`）或文本索引，限制 regex 到单字段 |
 
-### 11. Ticket 创建 — 全表扫描获取管理员列表
+### 11. Ticket 创建 — 全表扫描获取管理员列表（已修复）
+
+> 更新（2026-09-03）：本条建议的两半都已落地——取管理员列表已下推到 Mongo 查询，`role` 索引也已存在。原结论「每次创建 ticket / 追加回复都全表扫描」**不再成立**。保留条目作为已处理记录。
 
 | 字段 | 内容 |
 |------|------|
-| **文件** | `src/controllers/ticketController.ts:201-205`（创建 ticket）和 `ticketController.ts:365`（列出 admin） |
-| **函数** | ticket 创建匿名函数（行 199-206） |
-| **代码** | 行 201 `const allUsers = await UserStorage.getAllUsers()` → 行 202-203 `allUsers.filter(u => u.role === "admin")` |
-| **问题** | 每次创建 ticket 调用 `UserStorage.getAllUsers()` 然后 JS 过滤 role === 'admin'。行 365 重复同样操作 |
-| **建议** | 替换为 `UserModel.find({ role: 'admin' }).select('email username id').lean()`，加 `role` 索引 |
+| **原问题** | 创建 ticket 与用户追加回复两处各调用一次 `UserStorage.getAllUsers()`，再在 JS 内过滤 `role === "admin"` |
+| **修复时间** | commit `cf65ea53`（2026-08-03 10:48 +0800，与本报告生成同日，故报告成稿时该修复尚未纳入） |
+| **当前实现** | `src/controllers/ticketController.ts:221`（新工单通知管理员）与 `src/controllers/ticketController.ts:385`（用户追加回复通知管理员）均为 `await UserModel.find({ role: "admin" }).select("email username id").lean()`，即原建议的写法 |
+| **验证** | `ticketController.ts` 全文已无 `getAllUsers` 调用；`UserModel` 取自 `src/services/userService.ts:97` 的共享模型（`ticketController.ts:10`），未新建连接 |
+| **索引** | `userSchema.index({ role: 1, createdAt: 1 })`（`src/services/userService.ts:95`）；`role` 是该复合索引的前缀字段，`find({ role: "admin" })` 可走索引 |
+| **残留动作** | 无 |
 
 ### 12. 批量用户更新 — N+1 顺序操作
 
@@ -158,15 +161,18 @@
 | **问题** | `reverseSyncRedisToMongo()` 循环中逐条 `findOne` + `save`/`create`，每个 IP 一到两次往返 |
 | **建议** | 使用 `bulkWrite` 批量 upsert |
 
-### 14. Google OAuth 登录 — 全表扫描兜底
+### 14. Google OAuth 登录 — 全表扫描兜底（已修复）
+
+> 更新（2026-09-03）：`findUserByEmail()` 及其 `getAllUsers()` 兜底分支已随「按邮箱静默并号」分支在 commit `2eef9696`（G2 认证审计，2026-09-01）中**整体删除**。该删除的动机是安全（防止同邮箱的第三方身份接管本地账号，见 `src/services/googleAuthService.ts:189-191`），顺带消除了本条性能问题。原结论**不再成立**。
 
 | 字段 | 内容 |
 |------|------|
-| **文件** | `src/services/googleAuthService.ts:106-117` |
-| **函数** | `findUserByEmail(email)` |
-| **代码** | 行 107 `UserStorage.getUserByEmail(email)`（精确匹配）→ 行 113 `UserStorage.getAllUsers()` → 行 114-115 `users.find()` 大小写不敏感匹配 |
-| **问题** | 精确 email 匹配失败后，调用 `getAllUsers()` 全表扫描做大小写不敏感匹配。社交登录中大小写不匹配常见 |
-| **建议** | 存储时统一小写，或使用 `findOne({ email: new RegExp('^' + escaped + '$', 'i') })` |
+| **原问题** | `findUserByEmail()` 在 `getUserByEmail()` 精确匹配失败后调用 `UserStorage.getAllUsers()`，在 JS 内做大小写不敏感匹配 |
+| **修复时间** | commit `2eef9696`（2026-09-01，与条目 2 同一次审计） |
+| **当前实现** | `upsertGoogleUser()`（`src/services/googleAuthService.ts:159-227`）只按第三方身份查找：行 163 `findUserByProviderIdentity("google", profile.id)` → `findAccountIdentity` → `UserStorage.getUserById`（`src/services/accountIdentityService.ts:330-340`）；查不到即走行 192-197 的建号流程，不再按邮箱回查 |
+| **验证** | `googleAuthService.ts` 全文已无 `getAllUsers` / `getUserByEmail` / `findUserByEmail` 调用 |
+| **索引** | 身份查找命中 `AccountIdentitySchema.index({ provider: 1, providerUserId: 1 }, { unique: true })`（`src/models/accountIdentityModel.ts:38`） |
+| **残留动作** | 无。原建议「存储时统一小写」实际也已落地：`verifyGoogleIdToken` 在 `src/services/googleAuthService.ts:142` 对 payload email 做 `.toLowerCase()` |
 
 ### 15. 翻译日志 — 无 TTL 索引 + 无法使用索引的搜索
 
@@ -320,11 +326,19 @@
 
 ## 总结
 
-| 严重程度 | 数量 | 主要领域 |
-|---------|------|---------|
-| 🔴 高 | 7 | 全表扫描、认证热路径、同步 PBKDF2、全局 DOM 观察者、入口包体积 |
-| 🟡 中 | 15 | N+1 查询、缓存缺失、Regex 搜索、内存泄漏、API 顺序请求、重渲染、列表虚拟化 |
-| 🔵 低 | 7 | 缓存缺失、WAF 开销、WebSocket、大型路由包、react-icons 桶导入 |
+> 更新（2026-09-03）：本节逐行核对后有两处需要更正——🔵 低一行的计数与正文条目数不符，🔴 高 / 🟡 中两行的数量列把已修复条目仍算作未解决。
+>
+> - 🔵 低 原记 7，与正文不符：低优先级实际只有 6 条（后端 17-20、前端 27-28），已改为 6。
+> - 🟡 中 的 15 是条目总数没错，但其中条目 11、14 已确认修复，仍未解决的是 13 条。
+> - 🔴 高 的 7 是条目总数没错，但条目 2 只剩「给 `token` 字段加索引」半个动作（原 `isAdminToken` 全表扫描结论已不成立）。
+>
+> 因此数量列拆成「条目总数」与「仍未解决」两列：条目总数 28，仍未解决 26。「最大瓶颈排序」第 6 条同样已失效，见该条下的更新说明。
+
+| 严重程度 | 条目总数 | 仍未解决 | 主要领域 |
+|---------|---------|---------|---------|
+| 🔴 高 | 7 | 7（条目 2 仅剩 `token` 索引一半） | 全表扫描、认证热路径、同步 PBKDF2、全局 DOM 观察者、入口包体积 |
+| 🟡 中 | 15 | 13（条目 11、14 已修复） | N+1 查询、缓存缺失、Regex 搜索、内存泄漏、API 顺序请求、重渲染、列表虚拟化 |
+| 🔵 低 | 6 | 6 | 缓存缺失、WAF 开销、WebSocket、大型路由包、react-icons 桶导入 |
 
 **最大瓶颈排序**:
 1. **全局 DOM 观察者** (main.tsx + WsConnector.tsx) — 双观察者持续全 DOM 序列化 + 命中测试，全应用范围卡顿
@@ -333,3 +347,5 @@
 4. **审计日志统计** (auditLogService.ts) — 10 次全集合扫描，每次仪表盘加载都触发
 5. **限流器** (sharedRateLimitStore.ts) — 无 Redis 时每次请求 MongoDB 写入
 6. **多处全表扫描** — `getAllUsers()` 在 auth/ticket/Google OAuth 中反复调用
+
+   **更新（2026-09-03）**：本条**已失效**。点名的三条路径都已改掉：`src/controllers/auth/`（条目 2，登出已改为 `findOne({ token })` 下推查询，但 `token` 无索引，仍是一次集合扫描）、`src/controllers/ticketController.ts`（条目 11）、`src/services/googleAuthService.ts`（条目 14）中均已无 `getAllUsers()` 调用。`getAllUsers()` 在别处仍有调用点（`src/controllers/adminController.ts:178`、`348`、`678`、`857`；`src/routes/passkeyRoutes.ts:377`；`src/routes/passkeyRoutes.maintenance.ts:77`；`src/routes/admin/profile.ts:48`；`src/services/passkeyDataRepairService.ts:21`），但都不是本条原指的路径，其调用频次与影响本次未评估。

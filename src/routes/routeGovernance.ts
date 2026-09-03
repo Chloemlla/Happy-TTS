@@ -254,8 +254,8 @@ function validateRouteScope(record: RouteAuditRecord, module: RouteModule): Rout
     }
   }
 
-  // wafMiddleware 与 ipBanCheck 的绕过表按 mount path 建，mount path 比真实作用域宽时，
-  // value:true 会把绕过放大到整个 mount path（/api 上的 true 等于整个 API 面停掉 WAF）。
+  // mount path 宽于真实作用域时，value:true 声明的是"整个 mount path 都绕过"，比模块真正
+  // 拥有的子树宽得多（/api 上的 true 等于整个 API 面停掉 WAF），一律判违规。
   const mountScope = normalizeScopedPath(module.path);
   const scopeNarrowsMount = record.scopes.some((scope) => scope !== mountScope);
   if (!isBroadRouteScope(mountScope) && !scopeNarrowsMount) {
@@ -282,6 +282,8 @@ function validateRouteScope(record: RouteAuditRecord, module: RouteModule): Rout
  * Validate that the module's middleware composition is consistent with its
  * declared auth and rate-limit policies. This catches cases where middleware
  * is present in the array but not declared in the policy, or vice versa.
+ *
+ * "mixed" 参与校验：它是注册表里最常见的取值，只在 true 时校验等于放过绝大多数条目。
  */
 function validateMiddlewareConsistency(record: RouteAuditRecord, module: RouteModule): RouteGovernanceViolation[] {
   const violations: RouteGovernanceViolation[] = [];
@@ -291,7 +293,7 @@ function validateMiddlewareConsistency(record: RouteAuditRecord, module: RouteMo
 
   for (const handlerName of collectMountedNames(module.middlewares, knownAuthMiddleware)) {
     if (
-      record.requiresAuth === true &&
+      record.requiresAuth !== false &&
       record.authPolicy &&
       !record.authPolicy.handlers.some((handler) => handler.toLowerCase() === handlerName.toLowerCase())
     ) {
@@ -307,7 +309,7 @@ function validateMiddlewareConsistency(record: RouteAuditRecord, module: RouteMo
 
   for (const limiterName of collectMountedNames(module.middlewares, knownMountLimiters)) {
     if (
-      record.rateLimited === true &&
+      record.rateLimited !== false &&
       record.rateLimitPolicy &&
       !record.rateLimitPolicy.limiters.some((limiter) => limiter.toLowerCase() === limiterName.toLowerCase())
     ) {

@@ -128,8 +128,3 @@ export async function logoutHandler(req: Request, res: Response) {
     res.status(500).json({ error: "登出失败" });
   }
 }
-
-// 登出接口：保留旧注册函数，路由装配改由 routes/authLogoutRoutes.ts 管理。
-export function registerLogoutRoute(app: any) {
-  app.post("/api/auth/logout", logoutHandler);
-}

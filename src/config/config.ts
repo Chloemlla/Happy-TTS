@@ -413,7 +413,7 @@ export const startupConfig = Object.freeze({
   },
   jwtExpiresIn: parsedEnv.JWT_EXPIRES_IN,
   bcryptSaltRounds: 12,
-  localIps: ["127.0.0.1", "localhost", "::1"],
+  localIps: ["127.0.0.1", "::1"],
   openai: {
     apiKey: openaiApiKey,
     baseUrl: parsedEnv.OPENAI_BASE_URL,
