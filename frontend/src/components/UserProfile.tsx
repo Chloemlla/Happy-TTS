@@ -3,7 +3,6 @@ import { startAuthentication } from '@simplewebauthn/browser';
 import { useNotification } from './Notification';
 import { m } from 'framer-motion';
 import VerifyCodeInput from './VerifyCodeInput';
-import { LoadingSpinner } from './LoadingSpinner';
 import getApiBaseUrl from '../api';
 import { passkeyApi } from '../api/passkey';
 import { openDB } from 'idb';
@@ -1242,13 +1241,7 @@ const UserProfile: React.FC = () => {
         </div>
       );
     }
-    return (
-      <div className={studioPageClassName} style={{ fontFamily: pageFont }}>
-        <div className={cn(studioHeroCardClassName, 'mx-auto max-w-3xl')}>
-          <LoadingSpinner />
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
