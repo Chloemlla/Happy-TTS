@@ -30,13 +30,13 @@ router.post("/flip", coinFlipLimiter, optionalAuthenticateToken, coinFlipControl
 router.get("/results/:resultId", coinFlipLimiter, coinFlipController.getResult.bind(coinFlipController));
 
 // 管理员接口：分页查看全部结果
-router.get("/results", authenticateAdmin, coinFlipAdminLimiter, coinFlipController.listResults.bind(coinFlipController));
+router.get("/results", coinFlipAdminLimiter, authenticateAdmin, coinFlipController.listResults.bind(coinFlipController));
 
 // 管理员接口：查看统计信息
 router.get(
   "/statistics",
-  authenticateAdmin,
   coinFlipAdminLimiter,
+  authenticateAdmin,
   coinFlipController.getStatistics.bind(coinFlipController),
 );
 

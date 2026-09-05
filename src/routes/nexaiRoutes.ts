@@ -136,29 +136,30 @@ router.get("/releases/:tag/manifest", releaseManifestLimiter, NexaiReleaseContro
 
 router.post(
   "/auth/passkey/register/options",
+  nexaiRegisterLimiter,
   nexaiAuthRequired,
   NexaiAuthController.generatePasskeyRegistrationOptions,
 );
 router.post("/auth/passkey/register/verify", nexaiAuthRequired, NexaiAuthController.verifyPasskeyRegistration);
 router.get(
   "/auth/passkey/signal/options",
-  nexaiAuthRequired,
   nexaiProfileLimiter,
+  nexaiAuthRequired,
   NexaiAuthController.getPasskeySignalOptions,
 );
-router.get("/auth/me", nexaiAuthRequired, NexaiAuthController.getCurrentUser);
-router.post("/auth/logout", nexaiAuthRequired, NexaiAuthController.logout);
+router.get("/auth/me", nexaiProfileLimiter, nexaiAuthRequired, NexaiAuthController.getCurrentUser);
+router.post("/auth/logout", nexaiAuthLimiter, nexaiAuthRequired, NexaiAuthController.logout);
 router.put("/auth/profile", nexaiAuthRequired, nexaiProfileLimiter, NexaiAuthController.updateProfile);
 router.post("/auth/link-google", nexaiAuthRequired, nexaiOAuthLimiter, NexaiAuthController.linkGoogle);
-router.post("/auth/unlink-google", nexaiAuthRequired, NexaiAuthController.unlinkGoogle);
+router.post("/auth/unlink-google", nexaiOAuthLimiter, nexaiAuthRequired, NexaiAuthController.unlinkGoogle);
 router.post("/auth/link-github", nexaiAuthRequired, nexaiOAuthLimiter, NexaiAuthController.linkGithub);
 router.post("/auth/unlink-github", nexaiAuthRequired, NexaiAuthController.unlinkGithub);
 
 // ========== 云同步端点（需要登录） ==========
 
-router.get("/sync", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncController.getSyncData);
-router.put("/sync", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncController.putSyncData);
-router.get("/sync/meta", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncController.getSyncMeta);
+router.get("/sync", nexaiSyncLimiter, nexaiAuthRequired, NexaiSyncController.getSyncData);
+router.put("/sync", nexaiSyncLimiter, nexaiAuthRequired, NexaiSyncController.putSyncData);
+router.get("/sync/meta", nexaiSyncLimiter, nexaiAuthRequired, NexaiSyncController.getSyncMeta);
 router.get("/sync/changes", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncController.getChangesSince);
 router.post("/sync/incremental", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncController.incrementalSync);
 router.patch("/sync/:category", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncController.patchSyncData);
@@ -166,9 +167,9 @@ router.delete("/sync", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncController.
 
 // ========== 加密云同步端点（需要登录） ==========
 
-router.put("/sync/v2", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncV2Controller.putSnapshot);
-router.get("/sync/v2", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncV2Controller.getSnapshot);
-router.get("/sync/v2/meta", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncV2Controller.getMeta);
+router.put("/sync/v2", nexaiSyncLimiter, nexaiAuthRequired, NexaiSyncV2Controller.putSnapshot);
+router.get("/sync/v2", nexaiSyncLimiter, nexaiAuthRequired, NexaiSyncV2Controller.getSnapshot);
+router.get("/sync/v2/meta", nexaiSyncLimiter, nexaiAuthRequired, NexaiSyncV2Controller.getMeta);
 router.post("/sync/v2/incremental", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncV2Controller.incrementalSync);
 router.delete("/sync/v2", nexaiAuthRequired, nexaiSyncLimiter, NexaiSyncV2Controller.deleteSnapshot);
 
@@ -178,7 +179,7 @@ router.post("/artifacts", nexaiAuthRequired, artifactCreateLimiter, ArtifactCont
 router.get("/artifacts/:shortId", artifactViewLimiter, nexaiAuthOptional, ArtifactController.getArtifact);
 router.patch("/artifacts/:shortId", nexaiAuthRequired, artifactManageLimiter, ArtifactController.updateArtifact);
 router.delete("/artifacts/:shortId", nexaiAuthRequired, artifactManageLimiter, ArtifactController.deleteArtifact);
-router.get("/artifacts", nexaiAuthRequired, artifactManageLimiter, ArtifactController.listArtifacts);
+router.get("/artifacts", artifactManageLimiter, nexaiAuthRequired, ArtifactController.listArtifacts);
 router.post("/artifacts/:shortId/view", artifactViewLimiter, ArtifactController.recordView);
 
 export default router;
