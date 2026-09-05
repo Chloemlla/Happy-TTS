@@ -628,6 +628,25 @@ export function generateFeedbackRepliedEmailHtml(
   );
 }
 
+/** 工单：用户追加回复通知 (发送给管理员团队) */
+export function generateUserRepliedEmailHtml(
+  userName: string,
+  ticketTitle: string,
+  replyContent: string,
+  time: string,
+): string {
+  const description = `用户 <strong>${escapeHtml(userName)}</strong> 对工单/反馈 <strong>「${escapeHtml(ticketTitle)}」</strong> 追加了新的回复：<br/><br/><div style="padding: 12px; background: #fff; border-left: 4px solid #f59e0b; font-style: italic;">${escapeHtml(replyContent)}</div>`;
+  return generateSecurityNoticeHtml(
+    "管理员",
+    "收到新的用户回复",
+    description,
+    time,
+    "系统支持中心",
+    "用户提交",
+    "请及时登录管理后台查看并回复。",
+  );
+}
+
 /** 工单：新工单创建通知 (发送给管理员) */
 export function generateTicketCreatedEmailHtml(
   adminName: string,

@@ -15,7 +15,7 @@ import {
 import MarkdownRenderer, { type MarkdownReaderControls } from './MarkdownRenderer';
 import { AiErrorDetailsPanel } from './AiErrorDetailsPanel';
 import { PenaltyAppealActions, SUPPORT_EMAIL } from './PenaltyAppealActions';
-import { emitPenaltyAppealRequired } from '../utils/penaltyAppeal';
+import { emitPenaltyAppealRequired, isTicketPermissionBanError } from '../utils/penaltyAppeal';
 import { cn } from '../utils/cn';
 import {
   studioAccentBlobBlueClassName,
@@ -43,6 +43,7 @@ type ApiErrorResponse = {
     error?: string;
     punishment?: string;
     details?: string;
+    code?: string;
   };
 };
 
@@ -75,8 +76,14 @@ function getApiErrorResponse(error: unknown): ApiErrorResponse | null {
       error: typeof data.error === 'string' ? data.error : undefined,
       punishment: typeof data.punishment === 'string' ? data.punishment : undefined,
       details: typeof data.details === 'string' ? data.details : undefined,
+      code: typeof data.code === 'string' ? data.code : undefined,
     },
   };
+}
+
+// 列表按 updatedAt 倒序：WS 到达的最新更新应沉到列表顶部，而不是呆在原位
+function compareTicketsByUpdatedDesc(a: ITicket, b: ITicket): number {
+  return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
 }
 
 const TicketSystem: React.FC = () => {
@@ -119,6 +126,11 @@ const TicketSystem: React.FC = () => {
     selectedTicketRef.current = selectedTicket;
   }, [selectedTicket]);
 
+  const adminFilterRef = useRef(adminFilter);
+  useEffect(() => {
+    adminFilterRef.current = adminFilter;
+  }, [adminFilter]);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion = useReducedMotion();
   const notifyMarkdownCopy = useCallback((success: boolean, wholeMessage = false) => {
@@ -143,13 +155,16 @@ const TicketSystem: React.FC = () => {
 
   const applyTicketUpdate = useCallback((updatedTicket: ITicket) => {
     setTickets(prev => {
-      const index = prev.findIndex(ticket => ticket._id === updatedTicket._id);
-      if (index !== -1) {
-        const next = [...prev];
-        next[index] = updatedTicket;
-        return next;
+      // 落库版本到达后先剔除旧条目再按最新位置插入，并让列表始终按 updatedAt 倒序，
+      // 避免「已解决/已关闭」等更新后仍停留在原位、与筛选结果不一致。
+      const { status: statusFilter, priority: priorityFilter } = adminFilterRef.current;
+      const passesFilter = (!statusFilter || updatedTicket.status === statusFilter)
+        && (!priorityFilter || updatedTicket.priority === priorityFilter);
+      const next = prev.filter(ticket => ticket._id !== updatedTicket._id);
+      if (!passesFilter) {
+        return next.sort(compareTicketsByUpdatedDesc);
       }
-      return [updatedTicket, ...prev];
+      return [...next, updatedTicket].sort(compareTicketsByUpdatedDesc);
     });
 
     setSelectedTicket(prev => prev?._id === updatedTicket._id ? updatedTicket : prev);
@@ -218,6 +233,17 @@ const TicketSystem: React.FC = () => {
         aiReplyTimeoutRef.current = null;
       }
       const updatedTicket = msg.data as unknown as ITicket;
+      // 服务端已把 AI 回复落库并广播：若本地仍挂着同内容的流式气泡（例如 isFinished 事件丢失），
+      // 借此机会一并清掉，避免留下永不消失的「正在输入...」
+      if (streamingAiRef.current) {
+        const aiTailPersisted = (updatedTicket.messages || []).some(
+          (m) => m.senderRole === 'ai' && m.content === streamingAiRef.current?.content,
+        );
+        if (aiTailPersisted) {
+          streamingAiRef.current = null;
+          setStreamingAiResponse(null);
+        }
+      }
       if (isAdmin) {
         void ticketApi.getTicket(updatedTicket._id)
           .then(applyTicketUpdate)
@@ -315,6 +341,54 @@ const TicketSystem: React.FC = () => {
     }
   }, [selectedTicket?.messages]);
 
+  // 统一的失败处理：403（审查违规 / 工单权限封禁）进入申诉引导，其它错误直接透出服务端文案。
+  // 创建与回复共用，避免两处 heuristic 判定与通道文案漂移（封禁时不应再引导走工单通道）。
+  const showTicketSubmitError = useCallback((apiError: ApiErrorResponse | null, fallbackMessage: string) => {
+    if (apiError?.status === 403 && apiError.data) {
+      const data = apiError.data as Record<string, unknown>;
+      const error = typeof data.error === 'string' ? data.error : '';
+      const punishment = typeof data.punishment === 'string' ? data.punishment : '';
+      const details = typeof data.details === 'string' ? data.details : '';
+      const isPermissionBan = isTicketPermissionBanError(data, error);
+      const title = error || fallbackMessage;
+      const reason = punishment || (isPermissionBan ? '工单权限当前不可用' : '内容未能通过 AI 审核');
+      setPenaltyAppeal({
+        kind: isPermissionBan ? 'ticket_permission_ban' : 'ticket_moderation',
+        title,
+        reason,
+        details: details || undefined,
+      });
+      emitPenaltyAppealRequired({
+        kind: isPermissionBan ? 'ticket_permission_ban' : 'ticket_moderation',
+        title,
+        reason,
+        details: details || undefined,
+        ticketChannelEnabled: !isPermissionBan,
+        supportEmail: SUPPORT_EMAIL,
+        source: "ticket-system",
+      });
+      setNotification({
+        type: 'error',
+        title,
+        message: reason,
+        details: [
+          ...(details ? details.split("\n") : []),
+          `申诉邮箱: ${SUPPORT_EMAIL}`,
+          isPermissionBan
+            ? "工单提交通道已被限制，请通过页面上的申诉卡片或申诉邮箱发起申诉。"
+            : "如对判定有异议，可使用页面中的“提交工单申诉”按钮。",
+        ],
+        duration: 6000,
+      });
+      return;
+    }
+    if (apiError?.data?.error) {
+      setNotification({ type: 'error', message: apiError.data.error });
+      return;
+    }
+    setNotification({ type: 'error', message: fallbackMessage });
+  }, [setPenaltyAppeal, setNotification]);
+
   const handleCreateTicket = async (e: React.FormEvent) => {
     e.preventDefault();
     // G12-21：in-flight 防双击，避免重复工单 + 重复 AI 审核
@@ -329,42 +403,7 @@ const TicketSystem: React.FC = () => {
       setSelectedTicket(created);
       fetchTickets();
     } catch (error: unknown) {
-      const apiError = getApiErrorResponse(error);
-      if (apiError?.status === 403) {
-        const data = apiError.data || {};
-        const title = data.error || "提交失败";
-        const reason = data.punishment || "您的内容未能通过 AI 审核";
-        const details = data.details;
-        const isPermissionBan = title.includes("封禁") || reason.includes("封禁");
-        setPenaltyAppeal({
-          kind: isPermissionBan ? "ticket_permission_ban" : "ticket_moderation",
-          title,
-          reason,
-          details,
-        });
-        emitPenaltyAppealRequired({
-          kind: isPermissionBan ? "ticket_permission_ban" : "ticket_moderation",
-          title,
-          reason,
-          details,
-          ticketChannelEnabled: !isPermissionBan,
-          supportEmail: SUPPORT_EMAIL,
-          source: "ticket-system",
-        });
-        setNotification({
-          type: 'error',
-          title,
-          message: reason,
-          details: [
-            ...(details ? details.split("\n") : []),
-            `申诉邮箱: ${SUPPORT_EMAIL}`,
-            "也可使用页面中的“提交工单申诉”按钮",
-          ],
-          duration: 6000
-        });
-      } else {
-        setNotification({ type: 'error', message: "提交失败" });
-      }
+      showTicketSubmitError(getApiErrorResponse(error), "提交失败");
     } finally {
       setIsSubmitting(false);
     }
@@ -382,42 +421,7 @@ const TicketSystem: React.FC = () => {
       setReplyContent("");
       setTickets(prev => prev.map(t => t._id === updated._id ? updated : t));
     } catch (error: unknown) {
-      const apiError = getApiErrorResponse(error);
-      if (apiError?.status === 403) {
-        const data = apiError.data || {};
-        const title = data.error || "发送失败";
-        const reason = data.punishment || "您的回复未能通过 AI 审核";
-        const details = data.details;
-        const isPermissionBan = title.includes("封禁") || reason.includes("封禁");
-        setPenaltyAppeal({
-          kind: isPermissionBan ? "ticket_permission_ban" : "ticket_moderation",
-          title,
-          reason,
-          details,
-        });
-        emitPenaltyAppealRequired({
-          kind: isPermissionBan ? "ticket_permission_ban" : "ticket_moderation",
-          title,
-          reason,
-          details,
-          ticketChannelEnabled: !isPermissionBan,
-          supportEmail: SUPPORT_EMAIL,
-          source: "ticket-system",
-        });
-        setNotification({
-          type: 'error',
-          title,
-          message: reason,
-          details: [
-            ...(details ? details.split("\n") : []),
-            `申诉邮箱: ${SUPPORT_EMAIL}`,
-            "也可使用页面中的“提交工单申诉”按钮",
-          ],
-          duration: 6000
-        });
-      } else {
-        setNotification({ type: 'error', message: "发送失败" });
-      }
+      showTicketSubmitError(getApiErrorResponse(error), "发送失败");
     } finally {
       setIsSubmitting(false);
     }
@@ -431,7 +435,8 @@ const TicketSystem: React.FC = () => {
       setTickets(prev => prev.map(t => t._id === updated._id ? updated : t));
       setNotification({ type: 'success', message: "工单状态已更新" });
     } catch (error) {
-      setNotification({ type: 'error', message: "更新状态失败" });
+      const apiError = getApiErrorResponse(error);
+      setNotification({ type: 'error', message: apiError?.data?.error || "更新状态失败" });
     }
   };
 
@@ -892,6 +897,7 @@ const TicketSystem: React.FC = () => {
                                       <textarea
                                         className="w-full bg-white/10 border border-white/30 rounded-[14px] p-2 text-sm focus:outline-none focus:ring-1 focus:ring-white/50 min-h-[100px] text-white placeholder:text-white/60"
                                         value={editValue}
+                                        maxLength={MAX_TICKET_REPLY_LEN}
                                         onChange={(e) => setEditValue(e.target.value)}
                                         autoFocus
                                       />
@@ -1014,7 +1020,21 @@ const TicketSystem: React.FC = () => {
                       </div>
 
                       {/* Reply form */}
-                      {selectedTicket.status !== "closed" ? (
+                      {selectedTicket.status === "closed" ? (
+                        <div className="border-t border-slate-200/80 bg-slate-50 p-4 sm:p-6 text-center shrink-0">
+                          <p className="text-xs sm:text-sm text-slate-500 font-medium flex items-center justify-center gap-2">
+                            <FiX /> {canWrite
+                              ? "此工单已关闭，可通过上方状态下拉重新开启"
+                              : "此工单已关闭，如需继续咨询请发起新工单"}
+                          </p>
+                        </div>
+                      ) : isAdmin && !canWrite ? (
+                        <div className="border-t border-slate-200/80 bg-slate-50 p-4 sm:p-6 text-center shrink-0">
+                          <p className="text-xs sm:text-sm text-slate-500 font-medium flex items-center justify-center gap-2">
+                            <FiInfo /> 只读管理员无回复权限，处理工单请使用超级管理员账号
+                          </p>
+                        </div>
+                      ) : (
                         <div className="border-t border-slate-200/80 bg-slate-50/40 p-3 sm:p-4 shrink-0">
                           <form
                             onSubmit={handleReply}
@@ -1038,12 +1058,6 @@ const TicketSystem: React.FC = () => {
                               <FiSend size={14} />
                             </motion.button>
                           </form>
-                        </div>
-                      ) : (
-                        <div className="border-t border-slate-200/80 bg-slate-50 p-4 sm:p-6 text-center shrink-0">
-                          <p className="text-xs sm:text-sm text-slate-500 font-medium flex items-center justify-center gap-2">
-                            <FiX /> 此工单已关闭，如需继续咨询请发起新工单
-                          </p>
                         </div>
                       )}
                     </motion.div>

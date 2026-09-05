@@ -466,11 +466,17 @@ class WsService {
 
   /** 广播给所有管理员 */
   broadcastToAdmins(msg: Omit<WsServerMessage, "timestamp">): number {
+    return this.broadcastToAdminsExcluding(null, msg);
+  }
+
+  /** 广播给所有管理员（排除某用户）——用于工单消息发给属主本人后又广播给管理员时，
+   *  若属主恰好也是管理员（拥有 admin 前台会话），避免同一条消息重复送达。 */
+  broadcastToAdminsExcluding(excludeUserId: string | null, msg: Omit<WsServerMessage, "timestamp">): number {
     const fullMsg: WsServerMessage = { ...msg, timestamp: Date.now() };
     const payload = JSON.stringify(fullMsg);
     let sent = 0;
     for (const [ws, client] of this.clients) {
-      if (client.isAdmin) {
+      if (client.isAdmin && client.userId !== excludeUserId) {
         if (this.sendRaw(ws, payload)) sent++;
       }
     }
@@ -634,8 +640,8 @@ class WsService {
       type: "ticket:update",
       data: view,
     });
-    // 广播给所有管理员，以便实时查看处理进度
-    this.broadcastToAdmins({
+    // 广播给所有管理员，以便实时查看处理进度（属主本人是管理员时跳过，避免重复）
+    this.broadcastToAdminsExcluding(userId, {
       type: "ticket:update",
       data: view,
     });
@@ -645,20 +651,31 @@ class WsService {
    * 通知工单处理进度（审查、AI生成等）
    */
   notifyTicketProcess(userId: string, ticketId: string, step: TicketProcessStep) {
-    this.sendToUser(userId, {
+    const payload = {
       type: "ticket:process",
       data: { ticketId, step },
-    });
+    } as const;
+    // 属主在前台实时看到进度
+    this.sendToUser(userId, payload);
+    // 管理员在打开该工单时同样需要看到审查/生成进度（属主本身是管理员则跳过）。
+    // "new" 是创建阶段的占位 id，工单尚不存在且属于用户本人的审查事件，不广播给管理员。
+    if (ticketId !== "new") {
+      this.broadcastToAdminsExcluding(userId, payload);
+    }
   }
 
   /**
    * 通知工单 AI 回复进度（流式传输）
    */
   notifyTicketAiResponse(userId: string, ticketId: string, content: string, isFinished = false) {
-    this.sendToUser(userId, {
+    const payload = {
       type: "ticket:ai_response",
       data: { ticketId, content, isFinished },
-    });
+    } as const;
+    this.sendToUser(userId, payload);
+    if (ticketId !== "new") {
+      this.broadcastToAdminsExcluding(userId, payload);
+    }
   }
 
   /** 获取当前连接数 */

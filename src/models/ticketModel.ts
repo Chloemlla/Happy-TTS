@@ -64,6 +64,10 @@ const ticketSchema = new mongoose.Schema(
 // updatedAt; without this the sort falls back to an in-memory sort that can exceed
 // MongoDB's 32MB in-memory sort limit on large ticket histories.
 ticketSchema.index({ userId: 1, updatedAt: -1 });
+// Serves the admin-wide list `find({ status?, priority? }).sort({ updatedAt: -1 })`
+// when no status/priority filter is applied — a bare updatedAt sort over the whole
+// collection needs a global index to stay within the in-memory sort limit.
+ticketSchema.index({ updatedAt: -1 });
 
 export const TicketModel = mongoose.models.Ticket || mongoose.model("Ticket", ticketSchema);
 

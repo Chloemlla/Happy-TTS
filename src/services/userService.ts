@@ -419,6 +419,23 @@ export const updateUser = async (id: string, updates: Partial<UserType>): Promis
   return doc ? setCachedUserById(removeAvatarBase64(doc) as unknown as UserType) : null;
 };
 
+/**
+ * 原子自增用户工单违规次数并返回自增后的新计数。
+ * updateUser 的 read-modify-write 在并发违规时会互相覆盖计数，这里用 $inc 一次性完成。
+ */
+export const incrementUserTicketViolationCount = async (id: string): Promise<number> => {
+  if (typeof id !== "string" || !/^[a-zA-Z0-9_-]+$/.test(id)) {
+    throw new Error("非法的用户ID");
+  }
+  invalidateCachedUserById(id);
+  const doc = await UserModel.findOneAndUpdate(
+    { id },
+    { $inc: { ticketViolationCount: 1 } },
+    { returnDocument: "after", projection: { ticketViolationCount: 1 } },
+  ).lean();
+  return Number((doc as { ticketViolationCount?: number } | null)?.ticketViolationCount ?? 1);
+};
+
 export const deleteUser = async (id: string): Promise<void> => {
   invalidateCachedUserById(id);
 

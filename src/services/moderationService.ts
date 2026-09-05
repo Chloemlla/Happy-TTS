@@ -253,13 +253,13 @@ ${delimiter}
    * 处理用户违规，应用梯度处罚并持久化到 MongoDB
    */
   public static async handleViolation(user: User, reason?: string): Promise<string> {
-    const oldCount = user.ticketViolationCount || 0;
-    const newCount = oldCount + 1;
+    // 原子自增，避免并发违规时 read-modify-write 互相覆盖计数
+    const newCount = await userService.incrementUserTicketViolationCount(user.id);
     let banDurationHours = 0;
     let punishmentMsg = "";
 
     logger.info(
-      `[Moderation] 正在处理用户违规: ${user.username} (ID: ${user.id}), 当前次数: ${oldCount}, 目标次数: ${newCount}`,
+      `[Moderation] 正在处理用户违规: ${user.username} (ID: ${user.id}), 违规后计数: ${newCount}`,
     );
 
     switch (newCount) {
@@ -280,18 +280,12 @@ ${delimiter}
         break;
     }
 
-    const updates: Partial<User> = {
-      ticketViolationCount: newCount,
-    };
-
     if (banDurationHours > 0) {
       const bannedUntil = new Date();
       bannedUntil.setHours(bannedUntil.getHours() + banDurationHours);
-      updates.ticketBannedUntil = bannedUntil.toISOString();
+      // 违规次数已在上面的 $inc 中持久化，这里只补写封禁到期时间
+      await userService.updateUser(user.id, { ticketBannedUntil: bannedUntil.toISOString() });
     }
-
-    // 持久化到用户数据
-    await userService.updateUser(user.id, updates);
 
     // 记录处罚日志
     await ModerationService.logEvent({
