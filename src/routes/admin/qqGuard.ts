@@ -196,7 +196,7 @@ router.post("/qq-guard/commands", async (req: Request, res: Response, next: Next
       payload: cleanPayload,
       createdBy: operator(req),
     });
-    if (!("ok" in result) || (result as { ok: false }).ok === false) {
+    if (!("commandId" in result)) {
       res.status(503).json({ success: false, error: "qq-guard 数据未就绪（Mongo 不可用）" });
       return;
     }
@@ -209,7 +209,7 @@ router.post("/qq-guard/commands", async (req: Request, res: Response, next: Next
         addedBy: operator(req),
       });
     }
-    res.json({ success: true, commandId: (result as { commandId: string }).commandId });
+    res.json({ success: true, commandId: result.commandId });
   } catch (error) {
     next(error);
   }

@@ -69,7 +69,7 @@ const auditSchema = new mongoose.Schema<QqGuardAuditDoc>(
     userId: { type: String, index: true },
     messageId: { type: String },
     content: { type: String },
-    verdict: { type: String, enum: QQ_GUARD_VERDICTS as string[] },
+    verdict: { type: String, enum: [...QQ_GUARD_VERDICTS] },
     reason: { type: String },
     httpCode: { type: Number },
     attempt: { type: Number },

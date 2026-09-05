@@ -7,9 +7,12 @@ import {
   QqGuardAuditModel,
   QqGuardCommandModel,
   QqGuardWhitelistModel,
+  type QqGuardAuditDoc,
   type QqGuardAuditEvent,
   type QqGuardCommandAction,
+  type QqGuardCommandDoc,
   type QqGuardVerdict,
+  type QqGuardWhitelistDoc,
 } from "../models/qqGuardModel";
 
 const SERVICE_OWNER_KEY = deriveUserOwnerKey("system:qq-guard:moderate");
@@ -280,18 +283,22 @@ export class QqGuardModerationService {
   }
 
   /** 单条 traceId 的完整时间线（按发生顺序），供面板 traceid 钻取与误判申诉核查。 */
-  static async timelineByTrace(traceId: string, limit = 300): Promise<Array<Record<string, unknown>>> {
+  static async timelineByTrace(traceId: string, limit = 300): Promise<Array<QqGuardAuditDoc>> {
     if (!dbUp()) return [];
     return QqGuardAuditModel.find({ traceId: String(traceId) })
       .sort({ createdAt: 1 })
       .limit(Math.min(limit, 500))
       .lean()
-      .exec();
+      .exec() as Promise<Array<QqGuardAuditDoc>>;
   }
 
-  static async listWhitelist(): Promise<Array<Record<string, unknown>>> {
+  static async listWhitelist(): Promise<Array<QqGuardWhitelistDoc>> {
     if (!dbUp()) return [];
-    return QqGuardWhitelistModel.find().sort({ createdAt: -1 }).limit(500).lean().exec();
+    return QqGuardWhitelistModel.find()
+      .sort({ createdAt: -1 })
+      .limit(500)
+      .lean()
+      .exec() as Promise<Array<QqGuardWhitelistDoc>>;
   }
 
   static async addWhitelist(input: {
@@ -343,13 +350,13 @@ export class QqGuardModerationService {
     return { commandId };
   }
 
-  static async listPendingCommands(limit = 10): Promise<Array<Record<string, unknown>>> {
+  static async listPendingCommands(limit = 10): Promise<Array<QqGuardCommandDoc>> {
     if (!dbUp()) return [];
     return QqGuardCommandModel.find({ status: "pending" })
       .sort({ createdAt: 1 })
       .limit(limit)
       .lean()
-      .exec();
+      .exec() as Promise<Array<QqGuardCommandDoc>>;
   }
 
   static async ackCommand(input: {
@@ -372,8 +379,12 @@ export class QqGuardModerationService {
     return { ok: Boolean(updated) };
   }
 
-  static async recentCommands(limit = 50): Promise<Array<Record<string, unknown>>> {
+  static async recentCommands(limit = 50): Promise<Array<QqGuardCommandDoc>> {
     if (!dbUp()) return [];
-    return QqGuardCommandModel.find().sort({ createdAt: -1 }).limit(limit).lean().exec();
+    return QqGuardCommandModel.find()
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean()
+      .exec() as Promise<Array<QqGuardCommandDoc>>;
   }
 }
