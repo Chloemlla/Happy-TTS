@@ -26,8 +26,11 @@ const XSS_PATTERN =
 // 路径与 query 生效；body 白名单字段走 relaxed 检查，避免误伤 curlCommand 等。
 // 命令注入要求"分隔符 + 知名 shell 命令"，是廉价高信号；不匹配裸 `$(...)`/`${}`，
 // 以免误伤内容字段里的模板字面量示例。
+// G1-20: 原 `(?:;|\||&&|\n)\s*` 中 \n 同时可作分隔符又被 \s* 吞掉，同一段换行会从
+// 多个起点重复回溯（O(N^2) ReDoS）。拆成两条线性分支，语言不变：
+//   硬分隔符(; | &&) + 任意空白，或 换行 + 非换行空白，随后紧跟知名命令。
 const COMMAND_INJECTION_PATTERN =
-  /(?:;|\||&&|\n)\s*(?:rm|wget|curl|nc|bash|sh|powershell|cmd|python|perl|node|sudo|kill|mkfs|dd|chmod|chown)\b/i;
+  /(?:(?:;|\||&&)\s*|\n[^\S\n]*)(?:rm|wget|curl|nc|bash|sh|powershell|cmd|python|perl|node|sudo|kill|mkfs|dd|chmod|chown)\b/i;
 const PATH_TRAVERSAL_PATTERN = /\.\.(?:\/|\\)/i;
 // URL 编码检测：只在包含 % 时才做 decode，避免无意义的 decode 开销
 const HAS_PERCENT = /%/;
