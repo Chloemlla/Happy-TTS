@@ -22,6 +22,8 @@ export type QqGuardAuditEvent =
   | "command";
 
 export interface QqGuardAuditDoc {
+  /** bot 每次回推生成的幂等键：唯一稀疏索引，配合 upsert 使补推重试不产生重复行。 */
+  eventId?: string;
   traceId: string;
   event: QqGuardAuditEvent;
   groupId?: string;
@@ -64,6 +66,7 @@ export interface QqGuardCommandDoc {
 const auditSchema = new mongoose.Schema<QqGuardAuditDoc>(
   {
     traceId: { type: String, required: true, index: true },
+    eventId: { type: String, index: true },
     event: { type: String, required: true, index: true },
     groupId: { type: String, index: true },
     userId: { type: String, index: true },
@@ -83,6 +86,8 @@ const auditSchema = new mongoose.Schema<QqGuardAuditDoc>(
 auditSchema.index({ createdAt: -1 });
 auditSchema.index({ groupId: 1, createdAt: -1 });
 auditSchema.index({ traceId: 1, createdAt: 1 });
+// bot 补推重试幂等：同一 eventId 只落一条。稀疏——老数据无该字段不参与唯一约束。
+auditSchema.index({ eventId: 1 }, { unique: true, sparse: true });
 
 const whitelistSchema = new mongoose.Schema<QqGuardWhitelistDoc>(
   {

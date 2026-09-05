@@ -156,27 +156,52 @@ export class QqGuardModerationService {
     }
   }
 
-  /** 落一条审计（/moderate 与 bot pushAudit 共用；Mongo 不可用静默跳过，不影响裁决主流程）。 */
-  static async recordAudit(input: {
-    traceId: string;
-    event: QqGuardAuditEvent;
-    groupId?: string;
-    userId?: string;
-    messageId?: string;
-    content?: string;
-    verdict?: QqGuardVerdict;
-    reason?: string;
-    httpCode?: number;
-    attempt?: number;
-    action?: string;
-    status?: string;
-    error?: string;
-    meta?: Record<string, unknown>;
-  }): Promise<void> {
-    if (!dbUp()) return;
+  /**
+   * 落一条审计（/moderate 与 bot pushAudit 共用）。
+   *
+   * 幂等：带 eventId（bot 每次回推的唯一键）时用 upsert，命中唯一索引即视为已落，
+   * bot 侧"响应丢失→重推"的补推重试不会产生重复行。
+   *
+   * 失败语义：默认静默（Mongo 不可用/写失败不影响裁决主流程）；
+   * opts.throwOnError=true 时抛错，供 /audit 端点转成 5xx 让 bot 感知并走补推队列。
+   */
+  static async recordAudit(
+    input: {
+      eventId?: string;
+      traceId: string;
+      event: QqGuardAuditEvent;
+      groupId?: string;
+      userId?: string;
+      messageId?: string;
+      content?: string;
+      verdict?: QqGuardVerdict;
+      reason?: string;
+      httpCode?: number;
+      attempt?: number;
+      action?: string;
+      status?: string;
+      error?: string;
+      meta?: Record<string, unknown>;
+    },
+    opts: { throwOnError?: boolean } = {},
+  ): Promise<void> {
+    if (!dbUp()) {
+      if (opts.throwOnError) throw new Error("qq_guard_audit db not available");
+      return;
+    }
+    const doc = { ...input, createdAt: new Date() };
     try {
-      await QqGuardAuditModel.create({ ...input, createdAt: new Date() });
+      if (input.eventId) {
+        await QqGuardAuditModel.updateOne(
+          { eventId: input.eventId },
+          { $setOnInsert: doc },
+          { upsert: true },
+        );
+      } else {
+        await QqGuardAuditModel.create(doc);
+      }
     } catch (err) {
+      if (opts.throwOnError) throw err;
       logger.error("[QqGuard] 审计写入失败:", err);
     }
   }

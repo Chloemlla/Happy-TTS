@@ -154,25 +154,41 @@ router.post(
     const opt = (v: unknown): string | undefined =>
       typeof v === "string" ? v.slice(0, 4000) : undefined;
     const num = (v: unknown): number | undefined => (Number.isFinite(Number(v)) ? Number(v) : undefined);
-    await QqGuardModerationService.recordAudit({
-      traceId,
-      event: event as QqGuardAuditEvent,
-      groupId: opt(body.groupId),
-      userId: opt(body.userId),
-      messageId: opt(body.messageId),
-      content: opt(body.content),
-      verdict: (["violated", "clean", "undetermined"] as string[]).includes(String(body.verdict))
-        ? (String(body.verdict) as "violated" | "clean" | "undetermined")
-        : undefined,
-      reason: opt(body.reason),
-      httpCode: num(body.httpCode),
-      attempt: num(body.attempt),
-      action: opt(body.action),
-      status: opt(body.status),
-      error: opt(body.error),
-      ...(body.meta && typeof body.meta === "object" ? { meta: body.meta as Record<string, unknown> } : {}),
-    });
-    res.json({ success: true, accepted: true, traceId });
+    const eventId = typeof body.eventId === "string" ? body.eventId.trim().slice(0, 128) : undefined;
+    // 写库失败要如实上报（5xx），bot 才能把它送进补推队列重试；不吞错。
+    try {
+      await QqGuardModerationService.recordAudit(
+        {
+          eventId,
+          traceId,
+          event: event as QqGuardAuditEvent,
+          groupId: opt(body.groupId),
+          userId: opt(body.userId),
+          messageId: opt(body.messageId),
+          content: opt(body.content),
+          verdict: (["violated", "clean", "undetermined"] as string[]).includes(String(body.verdict))
+            ? (String(body.verdict) as "violated" | "clean" | "undetermined")
+            : undefined,
+          reason: opt(body.reason),
+          httpCode: num(body.httpCode),
+          attempt: num(body.attempt),
+          action: opt(body.action),
+          status: opt(body.status),
+          error: opt(body.error),
+          ...(body.meta && typeof body.meta === "object" ? { meta: body.meta as Record<string, unknown> } : {}),
+        },
+        { throwOnError: true },
+      );
+    } catch (err) {
+      logger.error("[QqGuard] /audit 写库失败，返回 5xx 供 bot 补推", {
+        traceId,
+        event,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      res.status(500).json({ success: false, error: "audit persist failed" });
+      return;
+    }
+    res.json({ success: true, accepted: true, traceId, ...(eventId ? { eventId } : {}) });
   }),
 );
 
