@@ -3,6 +3,7 @@ import { authenticateAdmin, authenticateSuperAdmin } from "../middleware/auth";
 import { auditLog } from "../middleware/auditLog";
 import { libreChatService } from "../services/libreChatService";
 import { mongoose } from "../services/mongoService";
+import { normalizeWire } from "../services/librechat/wire";
 import { normalizePagination } from "./libreChatRoutes.shared";
 
 export function registerLibreChatAdminRoutes(router: Router): void {
@@ -109,6 +110,7 @@ export function registerLibreChatAdminRoutes(router: Router): void {
         id: String(d._id),
         baseUrl: d.baseUrl,
         model: d.model,
+        wire: normalizeWire(d.wire),
         group: d.group || "",
         enabled: d.enabled !== false,
         weight: Number(d.weight || 1),
@@ -133,11 +135,12 @@ export function registerLibreChatAdminRoutes(router: Router): void {
     }),
     async (req, res) => {
     try {
-      const { id, baseUrl, apiKey, model, group, enabled, weight } = req.body || {};
+      const { id, baseUrl, apiKey, model, group, enabled, weight, wire } = req.body || {};
       const ChatProviderModel = (mongoose.models.ChatProvider as any) || mongoose.model("ChatProvider");
       const safeBase = typeof baseUrl === "string" ? baseUrl.trim().replace(/\/$/, "") : "";
       const safeKey = typeof apiKey === "string" ? apiKey.trim() : "";
       const safeModel = typeof model === "string" ? model.trim() : "";
+      const safeWire = normalizeWire(wire);
       const safeGroup = typeof group === "string" ? group.trim() : "";
       const safeEnabled = typeof enabled === "boolean" ? enabled : true;
       const safeWeight = Number.isFinite(Number(weight)) ? Math.max(1, Math.min(10, Number(weight))) : 1;
@@ -152,6 +155,7 @@ export function registerLibreChatAdminRoutes(router: Router): void {
             baseUrl: safeBase,
             apiKey: safeKey,
             model: safeModel,
+            wire: safeWire,
             group: safeGroup,
             enabled: safeEnabled,
             weight: safeWeight,
@@ -165,6 +169,7 @@ export function registerLibreChatAdminRoutes(router: Router): void {
           baseUrl: safeBase,
           apiKey: safeKey,
           model: safeModel,
+          wire: safeWire,
           group: safeGroup,
           enabled: safeEnabled,
           weight: safeWeight,

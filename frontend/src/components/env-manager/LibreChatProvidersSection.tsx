@@ -1,8 +1,14 @@
 import { m } from 'framer-motion';
 import { FaSync } from 'react-icons/fa';
 import CollapsibleSection from './CollapsibleSection';
-import type { ChatProviderItem } from './types';
+import type { ChatProviderItem, ChatWireFormat } from './types';
 import { NO_DURATION } from './motion';
+
+const WIRE_LABELS: Record<ChatWireFormat, string> = {
+  'openai-chat': 'OpenAI Chat Completions',
+  'openai-responses': 'OpenAI Responses',
+  anthropic: 'Anthropic Messages',
+};
 
 const REFRESH_BUTTON_CLASS =
   'inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60';
@@ -21,6 +27,7 @@ export interface LibreChatProvidersSectionProps {
   providerBaseUrl: string;
   providerApiKey: string;
   providerModel: string;
+  providerWire: ChatWireFormat;
   providerGroup: string;
   providerEnabled: boolean;
   providerWeight: number;
@@ -28,6 +35,7 @@ export interface LibreChatProvidersSectionProps {
   onBaseUrlChange: (value: string) => void;
   onApiKeyChange: (value: string) => void;
   onModelChange: (value: string) => void;
+  onWireChange: (value: ChatWireFormat) => void;
   onGroupChange: (value: string) => void;
   onEnabledChange: (value: boolean) => void;
   onWeightChange: (value: number) => void;
@@ -53,6 +61,7 @@ export default function LibreChatProvidersSection({
   providerBaseUrl,
   providerApiKey,
   providerModel,
+  providerWire,
   providerGroup,
   providerEnabled,
   providerWeight,
@@ -60,6 +69,7 @@ export default function LibreChatProvidersSection({
   onBaseUrlChange,
   onApiKeyChange,
   onModelChange,
+  onWireChange,
   onGroupChange,
   onEnabledChange,
   onWeightChange,
@@ -121,6 +131,21 @@ export default function LibreChatProvidersSection({
                     placeholder="gpt-4o-mini / gpt-oss-120b 等"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">协议格式</label>
+                  <select
+                    value={providerWire}
+                    onChange={(e) => onWireChange(e.target.value as ChatWireFormat)}
+                    disabled={disabled}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base bg-white"
+                  >
+                    {Object.entries(WIRE_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Group（可选）</label>
@@ -194,6 +219,7 @@ export default function LibreChatProvidersSection({
                           <div className="text-sm text-gray-800 break-all">
                             <div className="font-semibold">{p.baseUrl}</div>
                             <div className="mt-1">Model：{p.model}</div>
+                            <div className="mt-1">格式：{WIRE_LABELS[p.wire] || p.wire}</div>
                             <div className="mt-1">Group：{p.group || '-'}</div>
                             <div className="mt-1">Enabled：{p.enabled ? '是' : '否'}｜Weight：{p.weight}</div>
                             <div className="mt-1 font-mono text-xs text-gray-700">{p.apiKey}</div>
@@ -226,6 +252,7 @@ export default function LibreChatProvidersSection({
                         <tr className="bg-gray-50 border-b border-gray-200">
                           <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Base URL</th>
                           <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Model</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">格式</th>
                           <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Group</th>
                           <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Enabled</th>
                           <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Weight</th>
@@ -245,6 +272,7 @@ export default function LibreChatProvidersSection({
                           >
                             <td className="px-4 py-3 text-sm text-gray-800 break-all">{p.baseUrl}</td>
                             <td className="px-4 py-3 text-sm text-gray-800">{p.model}</td>
+                            <td className="px-4 py-3 text-sm text-gray-800">{WIRE_LABELS[p.wire] || p.wire}</td>
                             <td className="px-4 py-3 text-sm text-gray-800">{p.group || '-'}</td>
                             <td className="px-4 py-3 text-sm text-gray-800">{p.enabled ? '是' : '否'}</td>
                             <td className="px-4 py-3 text-sm text-gray-800">{p.weight}</td>

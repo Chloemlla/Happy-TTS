@@ -4,6 +4,7 @@ interface ChatProviderDescriptor {
   baseUrl: string;
   apiKey: string;
   model: string;
+  wire?: string;
 }
 
 function redactEmbeddedSecrets(value: string, apiKey: string): string {
@@ -70,6 +71,7 @@ export function buildChatProviderFailureAttempt(
   return {
     baseUrl: sanitizeProviderBaseUrl(provider.baseUrl, provider.apiKey),
     model: provider.model,
+    ...(provider.wire ? { wire: String(provider.wire) } : {}),
     ...(status === undefined ? {} : { status }),
     ...(code ? { code: redactEmbeddedSecrets(code, provider.apiKey).slice(0, 128) } : {}),
     message: redactEmbeddedSecrets(rawMessage, provider.apiKey).slice(0, 1024),

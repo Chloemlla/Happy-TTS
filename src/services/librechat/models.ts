@@ -4,6 +4,8 @@ export interface ChatProviderDoc {
   baseUrl: string;
   apiKey: string;
   model: string;
+  /** 线格式:openai-chat | openai-responses | anthropic;缺省按 openai-chat 处理。 */
+  wire?: "openai-chat" | "openai-responses" | "anthropic";
   enabled?: boolean;
   weight?: number;
   group?: string;
@@ -64,6 +66,7 @@ const ChatProviderSchema = new mongoose.Schema(
     baseUrl: { type: String, required: true },
     apiKey: { type: String, required: true },
     model: { type: String, required: true },
+    wire: { type: String, default: "openai-chat" },
     enabled: { type: Boolean, default: true },
     weight: { type: Number, default: 1 },
     group: { type: String, default: "" },

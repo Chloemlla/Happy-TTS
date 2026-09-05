@@ -35,6 +35,13 @@ import type {
   PaginationOptions,
   SSEClient,
 } from "./librechat/types";
+import {
+  buildWireRequest,
+  extractWireText,
+  normalizeWire,
+  wireStreamEvent,
+  type ChatWireFormat,
+} from "./librechat/wire";
 
 function normalizeOwnerReference(input?: string): string {
   if (!input || typeof input !== "string") return "";
@@ -259,6 +266,7 @@ class LibreChatService {
           baseUrl: normalizeBaseUrl((d as any).baseUrl),
           apiKey: String((d as any).apiKey || ""),
           model: String((d as any).model || ""),
+          wire: normalizeWire((d as any).wire),
           enabled: (d as any).enabled !== false,
           weight: Number((d as any).weight || 1),
           group: String((d as any).group || ""),
@@ -286,7 +294,8 @@ class LibreChatService {
     const envBase = normalizeBaseUrl(process.env.CHAT_BASE_URL || "");
     const envKey = process.env.CHAT_API_KEY || "";
     const envModel = process.env.CHAT_MODEL || "gpt-oss-120b";
-    const envProvider = envBase && envKey ? [{ baseUrl: envBase, apiKey: envKey, model: envModel }] : [];
+    const envWire = normalizeWire(process.env.CHAT_WIRE);
+    const envProvider = envBase && envKey ? [{ baseUrl: envBase, apiKey: envKey, model: envModel, wire: envWire }] : [];
     // 混合顺序：可选择将 env 放前或放后
     const dbProviders = [...this.providersCache];
     // 按 weight 简单展开
@@ -295,7 +304,9 @@ class LibreChatService {
       const times = Math.min(10, Math.max(1, Number(p.weight || 1)));
       for (let i = 0; i < times; i++) weighted.push(p);
     }
-    const tryList = shuffleInPlace(weighted.map((p) => ({ baseUrl: p.baseUrl, apiKey: p.apiKey, model: p.model })));
+    const tryList = shuffleInPlace(
+      weighted.map((p) => ({ baseUrl: p.baseUrl, apiKey: p.apiKey, model: p.model, wire: normalizeWire(p.wire) })),
+    );
     return envFallbackFirst ? [...envProvider, ...tryList] : [...tryList, ...envProvider];
   }
 
@@ -971,7 +982,7 @@ class LibreChatService {
     }
 
     // 尝试加载 DB 提供者
-    let providers: { baseUrl: string; apiKey: string; model: string }[] = [];
+    let providers: { baseUrl: string; apiKey: string; model: string; wire: ChatWireFormat }[] = [];
     try {
       await this.getProvidersFresh();
       providers = this.buildProviderTryList(false);
@@ -985,7 +996,7 @@ class LibreChatService {
       const envKey = process.env.CHAT_API_KEY || "";
       const envModel = process.env.CHAT_MODEL || "gpt-oss-120b";
       if (envBase && envKey) {
-        providers = [{ baseUrl: envBase, apiKey: envKey, model: envModel }];
+        providers = [{ baseUrl: envBase, apiKey: envKey, model: envModel, wire: normalizeWire(process.env.CHAT_WIRE) }];
       }
     }
 
@@ -1079,31 +1090,32 @@ class LibreChatService {
       const timeout = Math.min(providerBaseTimeout, remainingBudget);
 
       try {
-        const url = `${baseURL}/v1/chat/completions`;
-        const resp = await axios.post(
-          url,
-          {
-            model,
-            messages: messagesPayload,
-            temperature: 0.7,
-            stream: isStream,
-            max_tokens: maxTokens,
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              "Content-Type": "application/json",
-            },
-            timeout,
-            responseType: isStream ? "stream" : "json",
-            // 避免使用系统代理造成的 302 循环重定向
-            proxy: false,
-            // 限制重定向次数，防止 provider 端异常配置导致死循环
-            maxRedirects: 5,
-            // G7-17: cap the non-stream JSON response body.
-            maxContentLength: 2 * 1024 * 1024,
-          },
-        );
+        const wire = normalizeWire(p.wire);
+        const spec = buildWireRequest({
+          baseUrl: baseURL,
+          apiKey,
+          model,
+          wire,
+          system: String(messagesPayload[0]?.content ?? ""),
+          messages: messagesPayload.slice(1).map((m) => ({
+            role: m.role === "assistant" ? "assistant" : "user",
+            content: typeof m.content === "string" ? m.content : "",
+          })),
+          temperature: 0.7,
+          stream: isStream,
+          maxTokens,
+        });
+        const resp = await axios.post(spec.url, spec.body, {
+          headers: spec.headers,
+          timeout,
+          responseType: isStream ? "stream" : "json",
+          // 避免使用系统代理造成的 302 循环重定向
+          proxy: false,
+          // 限制重定向次数，防止 provider 端异常配置导致死循环
+          maxRedirects: 5,
+          // G7-17: cap the non-stream JSON response body.
+          maxContentLength: 2 * 1024 * 1024,
+        });
 
         let aiText = "";
 
@@ -1129,11 +1141,11 @@ class LibreChatService {
                 if (!trimmed || trimmed === "data: [DONE]") continue;
                 if (trimmed.startsWith("data: ")) {
                   try {
-                    const data = JSON.parse(trimmed.slice(6));
-                    const delta = data.choices?.[0]?.delta?.content || "";
-                    if (delta) {
-                      aiText += delta;
-                      onDelta?.(delta);
+                    const parsed = JSON.parse(trimmed.slice(6));
+                    const event = wireStreamEvent(wire, parsed);
+                    if (event.kind === "text") {
+                      aiText += event.text;
+                      onDelta?.(event.text);
                     }
                   } catch (_e) {
                     // 忽略解析错误
@@ -1147,8 +1159,8 @@ class LibreChatService {
           });
           aiText = sanitizeAssistantText(aiText);
         } else {
-          // 解析 OpenAI 兼容响应并清洗 think 标签
-          const aiTextRaw = resp?.data?.choices?.[0]?.message?.content?.trim() || "（无有效回复）";
+          // 按 wire 解析并清洗 think 标签；无法解析时维持原占位文案
+          const aiTextRaw = extractWireText(wire, resp?.data)?.trim() || "（无有效回复）";
           aiText = sanitizeAssistantText(aiTextRaw);
         }
 
@@ -1305,7 +1317,7 @@ class LibreChatService {
     }
 
     // 准备 provider 列表
-    let providers: { baseUrl: string; apiKey: string; model: string }[] = [];
+    let providers: { baseUrl: string; apiKey: string; model: string; wire: ChatWireFormat }[] = [];
     try {
       await this.getProvidersFresh();
       providers = this.buildProviderTryList(false);
@@ -1317,7 +1329,7 @@ class LibreChatService {
       const envKey = process.env.CHAT_API_KEY || "";
       const envModel = process.env.CHAT_MODEL || "gpt-oss-120b";
       if (envBase && envKey) {
-        providers = [{ baseUrl: envBase, apiKey: envKey, model: envModel }];
+        providers = [{ baseUrl: envBase, apiKey: envKey, model: envModel, wire: normalizeWire(process.env.CHAT_WIRE) }];
       }
     }
 
@@ -1347,27 +1359,28 @@ class LibreChatService {
       const apiKey = p.apiKey;
       const model = p.model;
       try {
-        const url = `${baseURL}/v1/chat/completions`;
-        const resp = await axios.post(
-          url,
-          {
-            model,
-            messages: messagesPayload,
-            temperature: 0.7,
-            stream: false,
-            max_tokens: Number(process.env.LIBRECHAT_MAX_TOKENS || 2048),
-          },
-          {
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              "Content-Type": "application/json",
-            },
-            timeout: 60_000,
-            proxy: false,
-            maxRedirects: 5,
-          },
-        );
-        const aiTextRaw = resp?.data?.choices?.[0]?.message?.content?.trim() || "（无有效回复）";
+        const wire = normalizeWire(p.wire);
+        const spec = buildWireRequest({
+          baseUrl: baseURL,
+          apiKey,
+          model,
+          wire,
+          system: String(messagesPayload[0]?.content ?? ""),
+          messages: messagesPayload.slice(1).map((m) => ({
+            role: m.role === "assistant" ? "assistant" : "user",
+            content: typeof m.content === "string" ? m.content : "",
+          })),
+          temperature: 0.7,
+          stream: false,
+          maxTokens: Number(process.env.LIBRECHAT_MAX_TOKENS || 2048),
+        });
+        const resp = await axios.post(spec.url, spec.body, {
+          headers: spec.headers,
+          timeout: 60_000,
+          proxy: false,
+          maxRedirects: 5,
+        });
+        const aiTextRaw = extractWireText(wire, resp?.data)?.trim() || "（无有效回复）";
         const aiText = sanitizeAssistantText(aiTextRaw);
 
         // 覆盖原助手消息

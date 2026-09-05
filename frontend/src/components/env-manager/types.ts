@@ -27,11 +27,15 @@ export interface TtsSettingItem {
   updatedAt?: string;
 }
 
+export type ChatWireFormat = 'openai-chat' | 'openai-responses' | 'anthropic';
+
 export interface ChatProviderItem {
   id: string;
   baseUrl: string;
   apiKey: string;
   model: string;
+  /** 线格式:openai-chat(默认)/ openai-responses / anthropic。 */
+  wire: ChatWireFormat;
   group: string;
   enabled: boolean;
   weight: number;

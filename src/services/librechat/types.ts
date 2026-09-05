@@ -37,6 +37,7 @@ export interface SSEClient {
 export interface ChatProviderFailureAttempt {
   baseUrl: string;
   model: string;
+  wire?: string;
   status?: number;
   code?: string;
   message: string;

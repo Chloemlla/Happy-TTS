@@ -5,7 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { isSuperAdmin } from '../../utils/rbac';
 import LibreChatProvidersSection from './LibreChatProvidersSection';
 import { LIBRECHAT_PROVIDERS_API, getAuthHeaders, authFetch } from './api';
-import type { ChatProviderItem } from './types';
+import type { ChatProviderItem, ChatWireFormat } from './types';
 
 interface SelfContainedLibreChatProvidersSectionProps {
   prefersReducedMotion?: boolean | null;
@@ -28,6 +28,7 @@ export default function SelfContainedLibreChatProvidersSection({ prefersReducedM
   const [providerBaseUrl, setProviderBaseUrl] = useState('');
   const [providerApiKey, setProviderApiKey] = useState('');
   const [providerModel, setProviderModel] = useState('');
+  const [providerWire, setProviderWire] = useState<ChatWireFormat>('openai-chat');
   const [providerGroup, setProviderGroup] = useState('');
   const [providerEnabled, setProviderEnabled] = useState(true);
   const [providerWeight, setProviderWeight] = useState(1);
@@ -60,6 +61,7 @@ export default function SelfContainedLibreChatProvidersSection({ prefersReducedM
 
   const resetForm = useCallback(() => {
     setProviderId(null); setProviderBaseUrl(''); setProviderApiKey(''); setProviderModel('');
+    setProviderWire('openai-chat');
     setProviderGroup(''); setProviderEnabled(true); setProviderWeight(1);
   }, []);
 
@@ -72,7 +74,7 @@ export default function SelfContainedLibreChatProvidersSection({ prefersReducedM
     setSaving(true);
     (async () => {
       try {
-        const body: Record<string, unknown> = { baseUrl, apiKey, model, group, enabled, weight };
+        const body: Record<string, unknown> = { baseUrl, apiKey, model, wire: providerWire, group, enabled, weight };
         if (providerId) body.id = providerId;
         const res = await authFetch(LIBRECHAT_PROVIDERS_API, { method: 'POST', headers: { 'Content-Type': 'application/json', ...getAuthHeaders() }, body: JSON.stringify(body) });
         const data = await res.json();
@@ -82,7 +84,7 @@ export default function SelfContainedLibreChatProvidersSection({ prefersReducedM
       } catch (e) { setNotification({ message: '保存失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' }); }
       finally { setSaving(false); }
     })();
-  }, [canWrite, saving, providerId, providerBaseUrl, providerApiKey, providerModel, providerGroup, providerEnabled, providerWeight, fetchProviders, resetForm, setNotification]);
+  }, [canWrite, saving, providerId, providerBaseUrl, providerApiKey, providerModel, providerWire, providerGroup, providerEnabled, providerWeight, fetchProviders, resetForm, setNotification]);
 
   const handleDelete = useCallback(async (id: string) => {
     if (!canWrite) return;
@@ -102,7 +104,9 @@ export default function SelfContainedLibreChatProvidersSection({ prefersReducedM
   const handleEdit = useCallback((p: ChatProviderItem) => {
     if (!canWrite) return;
     setProviderId(p.id); setProviderBaseUrl(p.baseUrl); setProviderApiKey('');
-    setProviderModel(p.model); setProviderGroup(p.group || '');
+    setProviderModel(p.model);
+    setProviderWire(p.wire === 'openai-responses' || p.wire === 'anthropic' ? p.wire : 'openai-chat');
+    setProviderGroup(p.group || '');
     setProviderEnabled(!!p.enabled); setProviderWeight(Number(p.weight || 1));
   }, [canWrite]);
 
@@ -113,9 +117,11 @@ export default function SelfContainedLibreChatProvidersSection({ prefersReducedM
       loading={loading} saving={saving} deletingId={deletingId}
       providers={providers} providerId={providerId} providerFilterGroup={providerFilterGroup}
       providerBaseUrl={providerBaseUrl} providerApiKey={providerApiKey} providerModel={providerModel}
+      providerWire={providerWire}
       providerGroup={providerGroup} providerEnabled={providerEnabled} providerWeight={providerWeight}
       onFilterGroupChange={setProviderFilterGroup} onBaseUrlChange={setProviderBaseUrl} onApiKeyChange={setProviderApiKey}
-      onModelChange={setProviderModel} onGroupChange={setProviderGroup} onEnabledChange={setProviderEnabled} onWeightChange={setProviderWeight}
+      onModelChange={setProviderModel} onWireChange={setProviderWire}
+      onGroupChange={setProviderGroup} onEnabledChange={setProviderEnabled} onWeightChange={setProviderWeight}
       onRefresh={fetchProviders} onSave={handleSave} onReset={resetForm} onEdit={handleEdit} onDelete={handleDelete}
     />
   );

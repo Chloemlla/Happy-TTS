@@ -658,6 +658,7 @@ LINUXDO_CREDIT_RETURN_URL=         # 同步跳转 URL
 CHAT_BASE_URL=https://chat.example.com  # LibreChat 地址
 CHAT_API_KEY=sk-xxx                    # LibreChat API 密钥
 CHAT_MODEL=                            # 默认模型
+CHAT_WIRE=openai-chat                  # 无 DB provider 时的默认线格式:openai-chat|openai-responses|anthropic
 
 # ==================== 内容安全（可选） ====================
 CONTENT_SAFETY_ENABLED=            # 启用内容安全过滤
