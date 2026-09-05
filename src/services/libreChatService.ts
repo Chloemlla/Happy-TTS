@@ -290,7 +290,7 @@ class LibreChatService {
     return this.providersCache;
   }
 
-  private buildProviderTryList(envFallbackFirst = false): { baseUrl: string; apiKey: string; model: string }[] {
+  private buildProviderTryList(envFallbackFirst = false): { baseUrl: string; apiKey: string; model: string; wire: ChatWireFormat }[] {
     const envBase = normalizeBaseUrl(process.env.CHAT_BASE_URL || "");
     const envKey = process.env.CHAT_API_KEY || "";
     const envModel = process.env.CHAT_MODEL || "gpt-oss-120b";
