@@ -8,6 +8,7 @@ import {
   routeLimiterModules,
 } from "./routeModules";
 import { lumenRouteModules } from "./lumenRouteModules";
+import { qqGuardRouteModules } from "./qqGuardRouteModules";
 import type { SecurityComponent } from "../security/securityPolicy";
 import { AUDIT_LOG_ADAPTATION_STATUS, AUDIT_LOG_SOURCE } from "../services/auditLogMetadata";
 
@@ -261,7 +262,12 @@ export function getModuleScopes(module: Pick<RouteModule, "name" | "path" | "sco
 }
 
 // G1-18: lumen 与 crash-sdk 过去在 app.ts 里直接 app.use，绕过了注册表和治理闸门。
-export const postTamperRouteModules: RouteModule[] = [...registeredPostTamperRouteModules, ...lumenRouteModules];
+// qq-guard 控制通道同样声明为 public（HMAC 机器鉴权），并入 post-tamper 阶段统一注册。
+export const postTamperRouteModules: RouteModule[] = [
+  ...registeredPostTamperRouteModules,
+  ...lumenRouteModules,
+  ...qqGuardRouteModules,
+];
 
 export const routeModuleGroups: Array<{ phase: RouteModulePhase; kind: RouteModuleKind; modules: RouteModule[] }> = [
   { phase: "route-limiters", kind: "limiter", modules: routeLimiterModules },

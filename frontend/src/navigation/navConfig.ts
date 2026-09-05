@@ -496,6 +496,12 @@ export function getAdminNavGroups(ctx: NavVisibilityContext): NavGroup[] {
             requiredRole: 'admin',
           },
           {
+            title: 'QQ 群纪律',
+            url: '/admin/qq-guard',
+            icon: FaShieldAlt as IconType,
+            requiredRole: 'admin',
+          },
+          {
             title: 'GitHub 账单缓存',
             url: '/admin/github-billing-cache',
             icon: FaDollarSign as IconType,

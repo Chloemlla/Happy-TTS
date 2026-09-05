@@ -6,6 +6,7 @@ import broadcastRouter from "./broadcast";
 import configRouter from "./config";
 import crashReportsRouter from "./crashReports";
 import profileRouter from "./profile";
+import qqGuardRouter from "./qqGuard";
 import registrationInvitesRouter from "./registrationInvites";
 import shortlinksRouter from "./shortlinks";
 import usersRouter from "./users";
@@ -67,6 +68,7 @@ router.use(profileRouter);
 router.use(broadcastRouter);
 router.use(registrationInvitesRouter);
 router.use(crashReportsRouter);
+router.use(qqGuardRouter);
 
 // Bilibili Sync 管理（PiliPlus 配置数据）
 router.get("/bilibili-sync", (req, res) => adminController.getBilibiliSyncRecords(req, res));
