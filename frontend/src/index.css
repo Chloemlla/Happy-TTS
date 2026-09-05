@@ -754,6 +754,46 @@ html {
   padding: 0.8rem;
 }
 
+/* 深色表面（聊天我方深色气泡等）上的 markdown 反色变体：
+   覆盖 --md-* 设计 token，让正文/标题/链接/引用/表格等在深底上用浅色，避免黑底黑字 */
+.markdown-renderer.markdown-invert {
+  --md-text: #e2e8f0;
+  --md-muted: #94a3b8;
+  --md-border: #334155;
+  --md-soft-border: rgba(148, 163, 184, 0.22);
+  --md-bg: rgba(148, 163, 184, 0.06);
+  --md-soft-bg: rgba(148, 163, 184, 0.12);
+  --md-code-bg: rgba(148, 163, 184, 0.18);
+  --md-link: #7dd3fc;
+  --md-quote: #cbd5e1;
+  --md-quote-line: #64748b;
+}
+
+/* 内联代码文字色是硬编码红色，需单独反色；代码块用 vscDarkPlus/slate 深底本就适配 */
+.markdown-renderer.markdown-invert code:not(pre code) {
+  color: #fca5a5;
+}
+
+.markdown-reader.markdown-invert {
+  --md-reader-control-bg: rgba(148, 163, 184, 0.14);
+  --md-reader-control-border: rgba(148, 163, 184, 0.3);
+  --md-reader-control-text: #e2e8f0;
+  --md-reader-control-hover: rgba(148, 163, 184, 0.26);
+  --md-reader-fade: linear-gradient(to bottom, rgba(15, 23, 42, 0), #0f172a 88%);
+}
+
+.markdown-reader.markdown-invert .markdown-reader-button.is-success {
+  border-color: rgba(74, 222, 128, 0.55);
+  background: rgba(16, 185, 129, 0.16);
+  color: #86efac;
+}
+
+.markdown-reader.markdown-invert .markdown-reader-button.is-error {
+  border-color: rgba(248, 113, 113, 0.55);
+  background: rgba(239, 68, 68, 0.16);
+  color: #fca5a5;
+}
+
 .markdown-renderer :where(p, ul, ol, blockquote, pre, table, figure, .markdown-table-scroll, .katex-display) {
   margin-top: 0;
   margin-bottom: 0.95em;

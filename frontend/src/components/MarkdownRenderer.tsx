@@ -38,6 +38,8 @@ interface MarkdownRendererProps {
   onContentCopy?: (success: boolean, content: string) => void;
   density?: MarkdownDensity;
   controls?: boolean | MarkdownReaderControls;
+  /** 渲染在深色表面（如聊天我方深色气泡）时置为 true，用浅色文字 token 保证可读 */
+  invert?: boolean;
 }
 
 const CODE_FONT_FAMILY =
@@ -208,6 +210,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   onContentCopy,
   density = 'default',
   controls,
+  invert,
 }) => {
   const readerControls = resolveReaderControls(controls);
   const [displayMode, setDisplayMode] = useState<MarkdownDisplayMode>(
@@ -405,9 +408,10 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     h6: ({ node: _node, children, ...props }: MarkdownHeadingProps) => renderHeading('h6', children, props),
   };
 
+  const invertClass = invert ? ' markdown-invert' : '';
   const rendererClassName = `markdown-renderer ${
     density === 'compact' ? 'markdown-renderer-compact' : ''
-  } prose max-w-none break-words ${className || ''}`;
+  }${invertClass} prose max-w-none break-words ${className || ''}`;
 
   const markdownNode = (
     <div className={rendererClassName}>
@@ -437,7 +441,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     : undefined;
 
   const wrappedContent = readerControls ? (
-    <div className="markdown-reader">
+    <div className={`markdown-reader${invertClass}`}>
       <div className="markdown-reader-toolbar" aria-label="Markdown reading controls">
         {readerControls.showCopy && (
           <button

@@ -1028,7 +1028,7 @@ const TicketSystem: React.FC = () => {
                                       controls={CHAT_MARKDOWN_CONTROLS}
                                       onContentCopy={(success) => notifyMarkdownCopy(success, true)}
                                       onCodeCopy={(success) => notifyMarkdownCopy(success)}
-                                      className={isMe ? 'prose-code:bg-white/10 prose-code:text-white/90 prose-a:text-sky-200' : ''}
+                                      invert={isMe}
                                     />
                                   )}
 
