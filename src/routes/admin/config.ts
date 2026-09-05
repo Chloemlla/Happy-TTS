@@ -286,6 +286,20 @@ router.delete(
   auditLog({ module: "config", action: "config.nexai-signing.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
   adminController.deleteNexaiSigningSetting,
 );
+// QQ 群纪律机器人控制通道共享密钥 (QQ_GUARD_SIGNING / QQ_GUARD_BOT_TOKEN / QQ_GUARD_SHARED_SECRET)
+router.get("/qq-guard-signing/setting", adminController.getQqGuardSigningSetting);
+router.post(
+  "/qq-guard-signing/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.qq-guard-signing.set", captureBody: false }),
+  adminController.setQqGuardSigningSetting,
+);
+router.delete(
+  "/qq-guard-signing/setting",
+  authenticateSuperAdmin,
+  auditLog({ module: "config", action: "config.qq-guard-signing.delete" }),
+  adminController.deleteQqGuardSigningSetting,
+);
 router.get("/cdict-signing/setting", adminController.getCdictSigningSetting);
 router.post(
   "/cdict-signing/setting",

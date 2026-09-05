@@ -25,6 +25,7 @@ import SelfContainedSynapseAndroidConfigSection from './env-manager/SelfContaine
 import SelfContainedCDictDonationConfigSection from './env-manager/SelfContainedCDictDonationConfigSection';
 import SelfContainedCDictSigningConfigSection from './env-manager/SelfContainedCDictSigningConfigSection';
 import SelfContainedNexaiSigningConfigSection from './env-manager/SelfContainedNexaiSigningConfigSection';
+import SelfContainedQqGuardSigningConfigSection from './env-manager/SelfContainedQqGuardSigningConfigSection';
 import SelfContainedLibreChatProvidersSection from './env-manager/SelfContainedLibreChatProvidersSection';
 import SelfContainedCodeSettingSection from './env-manager/SelfContainedCodeSettingSection';
 import SelfContainedSecretKeySection from './env-manager/SelfContainedSecretKeySection';
@@ -518,6 +519,7 @@ const EnvManager: React.FC = () => {
         <SelfContainedCDictDonationConfigSection prefersReducedMotion={prefersReducedMotion} />
         <SelfContainedCDictSigningConfigSection prefersReducedMotion={prefersReducedMotion} />
         <SelfContainedNexaiSigningConfigSection prefersReducedMotion={prefersReducedMotion} />
+        <SelfContainedQqGuardSigningConfigSection prefersReducedMotion={prefersReducedMotion} />
         <RuntimeConfigSections />
         <SelfContainedSecretKeySection title="短链 AES_KEY 设置" description="管理短链 AES_KEY。用于短链接 ID 加密解密，防止短链 ID 被枚举遍历。" sectionKey="shortaes" apiUrl={SHORTURL_AES_API} inputLabel="AES_KEY" inputPlaceholder="请输入 AES_KEY（仅用于加解密，不会回显明文）" useSignedRequest prefersReducedMotion={prefersReducedMotion} />
         <SelfContainedSecretKeySection title="Webhook 密钥设置" description="管理 Webhook 路由密钥和签名密钥。用于接收外部服务 webhook 请求，验证请求来源合法性。" sectionKey="webhook" apiUrl={WEBHOOK_SECRET_API} inputLabel="密钥 Secret" inputPlaceholder="请输入 Webhook 密钥（支持 Base64 或明文，不回显明文）" extraField={{ label: 'Route Key（可选，默认 DEFAULT）', placeholder: '例如：ORDER、PAY 等，留空为 DEFAULT' }} prefersReducedMotion={prefersReducedMotion} />

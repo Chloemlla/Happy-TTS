@@ -129,6 +129,15 @@ export interface CdictSigningRuntimeConfig {
 }
 
 /**
+ * QQ 群纪律机器人 → Synapse 控制通道的共享 HMAC 密钥。
+ * Mirror of QQ_GUARD_BOT_TOKEN / QQ_GUARD_SHARED_SECRET env; a stored QQ_GUARD_SIGNING
+ * doc overrides the env-seeded default at runtime (see src/routes/qqGuardRoutes.ts).
+ */
+export interface QqGuardSigningRuntimeConfig {
+  token: string;
+}
+
+/**
  * Runtime-mutable settings consumed by the Project Lumen subsystem
  * (src/config/lumen.ts). Mirror of the LUMEN_* environment variables; a stored
  * LUMEN doc overrides the env-seeded defaults at runtime (see runtimeConfigService).
@@ -175,6 +184,7 @@ export interface RuntimeConfigDefaults {
   synapseAndroid: SynapseAndroidRuntimeConfig;
   nexaiSigning: NexaiSigningRuntimeConfig;
   cdictSigning: CdictSigningRuntimeConfig;
+  qqGuardSigning: QqGuardSigningRuntimeConfig;
   lumen: LumenRuntimeConfig;
 }
 
@@ -319,6 +329,9 @@ export function buildRuntimeConfigDefaults(options: {
       appSignSecretPrev: "",
       maxDriftMs: 5 * 60 * 1000,
     },
+    qqGuardSigning: {
+      token: "",
+    },
     lumen: {
       enabled: false,
       adminUsername: "admin",
@@ -409,6 +422,9 @@ export function cloneRuntimeConfigDefaults(config: RuntimeConfigDefaults): Runti
     },
     cdictSigning: {
       ...config.cdictSigning,
+    },
+    qqGuardSigning: {
+      ...config.qqGuardSigning,
     },
     lumen: {
       ...config.lumen,

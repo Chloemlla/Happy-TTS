@@ -304,7 +304,7 @@ export const compileTimeConfig = Object.freeze({
   audioDir: path.join(process.cwd(), "finish"),
   dataDir: path.join(process.cwd(), "data"),
   logsDir: path.join(process.cwd(), "logs"),
-  runtimeMutableKeys: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "TTS_PROVIDER", "EMAIL", "ADMIN_SECURITY", "SYNAPSE_ANDROID", "NEXAI_SIGNING", "CDICT_SIGNING", "LUMEN"] as const,
+  runtimeMutableKeys: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "TTS_PROVIDER", "EMAIL", "ADMIN_SECURITY", "SYNAPSE_ANDROID", "NEXAI_SIGNING", "CDICT_SIGNING", "QQ_GUARD_SIGNING", "LUMEN"] as const,
 });
 
 const runtimeDefaults = buildRuntimeConfigDefaults({
@@ -385,6 +385,13 @@ runtimeDefaults.cdictSigning = {
     const n = Number(parsedEnv.CDICT_SIG_MAX_DRIFT_MS);
     return Number.isFinite(n) && n > 0 ? Math.round(n) : runtimeDefaults.cdictSigning.maxDriftMs;
   })(),
+};
+
+// QQ 群纪律机器人控制通道共享密钥默认来自 env；已存 QQ_GUARD_SIGNING 文档覆盖之。
+// 用 process.env（非 parsedEnv schema）是因为这两项尚未进入 env 校验白名单。
+runtimeDefaults.qqGuardSigning = {
+  ...runtimeDefaults.qqGuardSigning,
+  token: process.env.QQ_GUARD_BOT_TOKEN || process.env.QQ_GUARD_SHARED_SECRET || "",
 };
 
 // Project Lumen server-side config defaults come from env; a stored LUMEN doc

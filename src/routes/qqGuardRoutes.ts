@@ -4,6 +4,7 @@ import { qqGuardLimiter } from "../middleware/routeLimiters";
 import { verifyQqGuardSignature, DEFAULT_MAX_DRIFT_MS } from "../middleware/qqGuardSignature";
 import { getNonceStore } from "../services/nonceStore";
 import { QqGuardModerationService } from "../services/qqGuardModerationService";
+import { RuntimeConfigService } from "../services/runtimeConfigService";
 import type { QqGuardAuditEvent } from "../models/qqGuardModel";
 import logger from "../utils/logger";
 
@@ -16,6 +17,11 @@ const ALLOWED_AUDIT_EVENTS = new Set<string>([
 ]);
 
 function readSharedSecret(): string {
+  // 运行时配置优先（Env Manager 里保存的 QQ_GUARD_SIGNING，可随时更新无需重启），
+  // 其次部署环境变量（QQ_GUARD_BOT_TOKEN / QQ_GUARD_SHARED_SECRET，已由 config.ts 种入 defaults）。
+  const runtimeToken = RuntimeConfigService.getCachedConfig().qqGuardSigning?.token;
+  const runtimeSecret = (runtimeToken || "").trim();
+  if (runtimeSecret) return runtimeSecret;
   return (process.env.QQ_GUARD_BOT_TOKEN || process.env.QQ_GUARD_SHARED_SECRET || "").trim();
 }
 

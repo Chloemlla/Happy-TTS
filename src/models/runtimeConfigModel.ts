@@ -14,6 +14,7 @@ export const RUNTIME_CONFIG_KEYS = [
   "NEXAI_SIGNING",
   "CDICT_SIGNING",
   "CDICT_DONATION",
+  "QQ_GUARD_SIGNING",
   "LUMEN",
 ] as const;
 

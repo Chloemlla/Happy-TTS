@@ -11,6 +11,7 @@ import {
   type LumenRuntimeConfig,
   type NexaiRuntimeConfig,
   type NexaiSigningRuntimeConfig,
+  type QqGuardSigningRuntimeConfig,
   type RuntimeConfigDefaults,
   type SynapseAndroidRuntimeConfig,
   type TtsRuntimeConfig,
@@ -65,9 +66,9 @@ const loadedKeys = new Set<RuntimeConfigKey>();
 let initialized = false;
 
 const HOT_CONFIG_CACHE_TTL_MS = 10_000;
-// G5-03: 安全相关 key（两个 signing、adminSecurity）用更短的 TTL，尽量每次读库。
+// G5-03: 安全相关 key（各 signing 类密钥、adminSecurity）用更短的 TTL，尽量每次读库。
 const SECURITY_CONFIG_CACHE_TTL_MS = 1_000;
-const SECURITY_CONFIG_KEYS = new Set<RuntimeConfigKey>(["NEXAI_SIGNING", "CDICT_SIGNING", "ADMIN_SECURITY"]);
+const SECURITY_CONFIG_KEYS = new Set<RuntimeConfigKey>(["NEXAI_SIGNING", "CDICT_SIGNING", "QQ_GUARD_SIGNING", "ADMIN_SECURITY"]);
 const hotConfigCacheExpiry = new Map<RuntimeConfigKey, number>();
 
 function hotCacheTtlMs(key: RuntimeConfigKey): number {
@@ -432,6 +433,7 @@ const RUNTIME_CONFIG_KEY_TO_PROP: Partial<Record<RuntimeConfigKey, keyof Runtime
   SYNAPSE_ANDROID: "synapseAndroid",
   NEXAI_SIGNING: "nexaiSigning",
   CDICT_SIGNING: "cdictSigning",
+  QQ_GUARD_SIGNING: "qqGuardSigning",
   LUMEN: "lumen",
   NEXAI: "nexai",
 };
@@ -604,6 +606,17 @@ function normalizeStoredCdictSigningConfig(
   };
 }
 
+function normalizeStoredQqGuardSigningConfig(
+  value: unknown,
+  defaults = runtimeConfigDefaults.qqGuardSigning,
+): QqGuardSigningRuntimeConfig {
+  const raw = asObject(value);
+
+  return {
+    token: normalizeOptionalString(raw.token, defaults.token, 1024),
+  };
+}
+
 /**
  * Merge a stored LUMEN doc over the current (env-seeded) defaults, so fields the
  * admin did not override keep their env/deployment values.
@@ -675,6 +688,9 @@ function applyCacheForKey(target: RuntimeConfigDefaults, key: RuntimeConfigKey, 
     case "CDICT_SIGNING":
       target.cdictSigning = normalizeStoredCdictSigningConfig(value);
       return;
+    case "QQ_GUARD_SIGNING":
+      target.qqGuardSigning = normalizeStoredQqGuardSigningConfig(value);
+      return;
     case "LUMEN": {
       const config = normalizeStoredLumenConfig(value, target.lumen);
       target.lumen = config;
@@ -704,6 +720,7 @@ const RUNTIME_CONFIG_KEYS: readonly RuntimeConfigKey[] = [
   "SYNAPSE_ANDROID",
   "NEXAI_SIGNING",
   "CDICT_SIGNING",
+  "QQ_GUARD_SIGNING",
   "LUMEN",
 ];
 
@@ -767,6 +784,9 @@ export class RuntimeConfigService {
     }
     if (!loadedKeys.has("CDICT_SIGNING")) {
       runtimeConfigCache.cdictSigning = cloneRuntimeConfigDefaults(defaults).cdictSigning;
+    }
+    if (!loadedKeys.has("QQ_GUARD_SIGNING")) {
+      runtimeConfigCache.qqGuardSigning = cloneRuntimeConfigDefaults(defaults).qqGuardSigning;
     }
     if (!loadedKeys.has("LUMEN")) {
       runtimeConfigCache.lumen = cloneRuntimeConfigDefaults(defaults).lumen;
@@ -1219,6 +1239,72 @@ export class RuntimeConfigService {
     runtimeConfigCache.nexaiSigning = cloneRuntimeConfigDefaults(runtimeConfigDefaults).nexaiSigning;
     loadedKeys.delete("NEXAI_SIGNING");
     invalidateHotCache("NEXAI_SIGNING");
+  }
+
+  /**
+   * QQ 群纪律机器人控制通道共享密钥。verifyQqGuardSignature 每次请求读内存缓存，
+   * 保存后无需重启进程即可生效；getter 永不回显明文（token 一律脱敏）。
+   */
+  static async getQqGuardSigningSetting(): Promise<{
+    setting: {
+      config: {
+        hasToken: boolean;
+        token: string;
+      };
+      updatedAt?: string;
+    };
+  }> {
+    const doc = await readRuntimeConfigDoc("QQ_GUARD_SIGNING");
+    const config = doc ? normalizeStoredQqGuardSigningConfig(doc.value) : runtimeConfigDefaults.qqGuardSigning;
+    runtimeConfigCache.qqGuardSigning = config;
+
+    return {
+      setting: {
+        config: {
+          hasToken: config.token.length > 0,
+          token: maskSecret(config.token),
+        },
+        updatedAt: doc?.updatedAt?.toISOString(),
+      },
+    };
+  }
+
+  static async setQqGuardSigningSetting(
+    input: Partial<QqGuardSigningRuntimeConfig> | Record<string, unknown>,
+  ): Promise<{ updatedAt: string }> {
+    const currentDoc = await readRuntimeConfigDoc("QQ_GUARD_SIGNING");
+    const current = currentDoc
+      ? normalizeStoredQqGuardSigningConfig(currentDoc.value)
+      : runtimeConfigCache.qqGuardSigning;
+    const obj = asObject(input);
+
+    // Secret field 留空 = 保留已存值，与 Env Manager 其它密钥段的约定一致。
+    const nextToken =
+      typeof obj.token === "string" && obj.token.trim().length > 0
+        ? obj.token.trim().slice(0, 1024)
+        : current.token;
+
+    const nextConfig: QqGuardSigningRuntimeConfig = { token: nextToken };
+
+    const { updatedAt: persistedAt } = await writeRuntimeConfigDoc(
+      "QQ_GUARD_SIGNING",
+      nextConfig as unknown as Record<string, unknown>,
+      currentDoc?.updatedAt,
+    );
+
+    runtimeConfigCache.qqGuardSigning = nextConfig;
+    loadedKeys.add("QQ_GUARD_SIGNING");
+    invalidateHotCache("QQ_GUARD_SIGNING");
+    initialized = true;
+
+    return { updatedAt: persistedAt.toISOString() };
+  }
+
+  static async deleteQqGuardSigningSetting(): Promise<void> {
+    await RuntimeConfigModel.deleteOne({ key: "QQ_GUARD_SIGNING" }).exec();
+    runtimeConfigCache.qqGuardSigning = cloneRuntimeConfigDefaults(runtimeConfigDefaults).qqGuardSigning;
+    loadedKeys.delete("QQ_GUARD_SIGNING");
+    invalidateHotCache("QQ_GUARD_SIGNING");
   }
 
   static async getCdictSigningSetting(): Promise<{
