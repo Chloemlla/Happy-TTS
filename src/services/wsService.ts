@@ -469,16 +469,12 @@ class WsService {
     return this.broadcastToAdminsExcluding(null, msg);
   }
 
-  /** 广播给所有管理员（排除某用户）——用于工单消息发给属主本人后又广播给管理员时，
-   *  若属主恰好也是管理员（拥有 admin 前台会话），避免同一条消息重复送达。 */
+  /** 广播给所有管理员，但可剔除某用户（属主本人若也是管理员，避免其收到重复广播） */
   broadcastToAdminsExcluding(excludeUserId: string | null, msg: Omit<WsServerMessage, "timestamp">): number {
-    const fullMsg: WsServerMessage = { ...msg, timestamp: Date.now() };
-    const payload = JSON.stringify(fullMsg);
+    const payload = JSON.stringify({ ...msg, timestamp: Date.now() });
     let sent = 0;
     for (const [ws, client] of this.clients) {
-      if (client.isAdmin && client.userId !== excludeUserId) {
-        if (this.sendRaw(ws, payload)) sent++;
-      }
+      if (client.isAdmin && client.userId !== excludeUserId && this.sendRaw(ws, payload)) sent++;
     }
     return sent;
   }
@@ -651,31 +647,19 @@ class WsService {
    * 通知工单处理进度（审查、AI生成等）
    */
   notifyTicketProcess(userId: string, ticketId: string, step: TicketProcessStep) {
-    const payload = {
-      type: "ticket:process",
-      data: { ticketId, step },
-    } as const;
-    // 属主在前台实时看到进度
+    const payload = { type: "ticket:process", data: { ticketId, step } } as const;
     this.sendToUser(userId, payload);
-    // 管理员在打开该工单时同样需要看到审查/生成进度（属主本身是管理员则跳过）。
-    // "new" 是创建阶段的占位 id，工单尚不存在且属于用户本人的审查事件，不广播给管理员。
-    if (ticketId !== "new") {
-      this.broadcastToAdminsExcluding(userId, payload);
-    }
+    // "new" 是创建占位 id（工单尚不存在），只发给属主本人不广播给管理员
+    if (ticketId !== "new") this.broadcastToAdminsExcluding(userId, payload);
   }
 
   /**
    * 通知工单 AI 回复进度（流式传输）
    */
   notifyTicketAiResponse(userId: string, ticketId: string, content: string, isFinished = false) {
-    const payload = {
-      type: "ticket:ai_response",
-      data: { ticketId, content, isFinished },
-    } as const;
+    const payload = { type: "ticket:ai_response", data: { ticketId, content, isFinished } } as const;
     this.sendToUser(userId, payload);
-    if (ticketId !== "new") {
-      this.broadcastToAdminsExcluding(userId, payload);
-    }
+    if (ticketId !== "new") this.broadcastToAdminsExcluding(userId, payload);
   }
 
   /** 获取当前连接数 */
