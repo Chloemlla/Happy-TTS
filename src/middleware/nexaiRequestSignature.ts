@@ -287,6 +287,14 @@ export function nexaiRequestSignature(req: Request, res: Response, next: NextFun
     return verifyCdictRequest(req, res, next, getCdictSignatureTarget(req));
   }
 
+  // /api/nexai 有两个注册表挂载点（nexai-routes 与 nexai-security-routes），本中间件在
+  // 第一个 router 未处理的请求上会跑第二遍。第二遍会把同一个 nonce 再消费一次，返回假的
+  // NEXAI_SIG_REPLAY。只在第一遍确实通过（ok === true）时短路：第一遍真失败时仍要重跑，
+  // 让真实的重放/无效签名在两遍上表现一致。
+  if (req.nexaiSig?.ok === true) {
+    return next();
+  }
+
   const signingConfig = getSigningConfig();
   const mode = signingConfig.mode;
 

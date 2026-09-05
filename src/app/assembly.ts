@@ -94,7 +94,7 @@ const isPrivateIpv4Address = (ip: string): boolean =>
 
 const isLocalIp = (req: Request, _res: Response, next: NextFunction) => {
   // G1-33: 原实现在 development 分支硬编码 false（开发环境等于不做本机判断），非 dev 分支
-  // 又拿 ::ffff:127.0.0.1 去比 config.localIps（127.0.0.1 / localhost / ::1），结果 IPv4
+  // 又拿 ::ffff:127.0.0.1 去比 config.localIps（127.0.0.1 / ::1），结果 IPv4
   // 回环永不命中、IPv6 回环命中，两种回环行为相反。
   // 只取 TCP 层地址：trust proxy 打开后 req.ip 可被 X-Forwarded-For 伪造。
   const rawSocketIp = req.socket.remoteAddress || "";

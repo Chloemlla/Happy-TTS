@@ -246,6 +246,52 @@ describe("nexaiRequestSignature (nexai-sig-v2)", () => {
     });
   });
 
+  it("is idempotent across the two /api/nexai mounts for an already-verified request", async () => {
+    const path = "/api/nexai/security/report";
+    const body = JSON.stringify({ event_type: "integrity_fail" });
+    const ts = String(Date.now());
+    const nonce = crypto.randomBytes(16).toString("hex");
+    const signature = sign(APP_SECRET, ts, nonce, "POST", path, body);
+    const req = makeReq({
+      method: "POST",
+      originalUrl: path,
+      path,
+      headers: {
+        "x-nexai-sig-version": "2",
+        "x-nexai-ts": ts,
+        "x-nexai-nonce": nonce,
+        "x-nexai-sig": signature,
+      },
+      rawBody: Buffer.from(body, "utf8"),
+      body: JSON.parse(body),
+    } as any);
+
+    const first = await run(req);
+    expect(first.nextCalled).toBe(true);
+    expect(first.headers["x-nexai-sig-result"]).toBe("ok");
+
+    // Second mount pass on the same request must not re-consume the nonce.
+    const second = await run(req);
+    expect(second.nextCalled).toBe(true);
+    expect(second.body).toBeNull();
+    expect(second.headers["x-nexai-sig-code"]).toBeUndefined();
+    expect(second.req.nexaiSig).toEqual({ mode: "enforce", ok: true, keyType: "app" });
+  });
+
+  it("re-reports a soft-mode failure on the second mount pass", async () => {
+    process.env.NEXAI_REQUEST_SIGNING = "soft";
+    const req = makeReq();
+
+    const first = await run(req);
+    expect(first.headers["x-nexai-sig-code"]).toBe("NEXAI_SIG_MISSING");
+    expect(first.req.nexaiSig).toEqual({ mode: "soft", ok: false });
+
+    const second = await run(req);
+    expect(second.nextCalled).toBe(true);
+    expect(second.headers["x-nexai-sig-result"]).toBe("fail");
+    expect(second.headers["x-nexai-sig-code"]).toBe("NEXAI_SIG_MISSING");
+  });
+
   it("accepts refreshToken-bound signatures on /auth/refresh", async () => {
     const path = "/api/nexai/auth/refresh";
     const body = JSON.stringify({ refreshToken: REFRESH_TOKEN });
