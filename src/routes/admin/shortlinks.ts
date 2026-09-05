@@ -13,6 +13,7 @@ import { getTokenFromRequest } from "../../utils/authCookie";
 const router = express.Router();
 
 // 短链管理API
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
 router.get("/shortlinks", authenticateToken, async (req, res) => {
   try {
     console.log("🔐 [ShortLinkManager] 开始处理短链列表加密请求...");
@@ -119,6 +120,7 @@ router.get("/shortlinks", authenticateToken, async (req, res) => {
   }
 });
 
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
 router.delete("/shortlinks/:id", authenticateToken, auditLog({ module: "shorturl", action: "shorturl.delete", extractTarget: (req) => ({ targetId: req.params.id }) }), async (req, res) => {
   try {
     // 检查管理员权限
@@ -156,6 +158,7 @@ router.delete("/shortlinks/:id", authenticateToken, auditLog({ module: "shorturl
 });
 
 // 批量删除短链
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
 router.post("/shortlinks/batch-delete", authenticateToken, auditLog({ module: "shorturl", action: "shorturl.batchDelete", extractDetail: (req) => ({ count: Array.isArray(req.body?.ids) ? req.body.ids.length : 0 }) }), async (req, res) => {
   try {
     const { ids } = req.body;
@@ -224,6 +227,7 @@ router.post("/shortlinks/batch-delete", authenticateToken, auditLog({ module: "s
 // 创建短链
 router.post(
   "/shortlinks",
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateToken,
   replayProtection(),
   auditLog({
@@ -231,6 +235,7 @@ router.post(
     action: "shorturl.create",
     extractDetail: (req) => ({ target: req.body.target, customCode: req.body.customCode }),
   }),
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   async (req, res) => {
     try {
       // 检查管理员权限
@@ -320,6 +325,7 @@ router.post(
 );
 
 // 短链迁移管理API
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
 router.post("/shortlinks/migrate", authenticateToken, auditLog({ module: "shorturl", action: "shorturl.migrate" }), async (req, res) => {
   try {
     console.log("🔐 [ShortUrlMigration] 开始处理短链迁移请求...");
@@ -355,6 +361,7 @@ router.post("/shortlinks/migrate", authenticateToken, auditLog({ module: "shortu
 });
 
 // 获取短链迁移统计信息
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
 router.get("/shortlinks/migration-stats", authenticateToken, async (req, res) => {
   try {
     console.log("🔐 [ShortUrlMigration] 开始处理迁移统计请求...");

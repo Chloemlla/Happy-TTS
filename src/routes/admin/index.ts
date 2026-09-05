@@ -40,6 +40,7 @@ const adminAuthMiddleware = (req: any, res: any, next: any) => {
 router.get("/announcement", adminController.getAnnouncement);
 
 // 其余路由依然加auth
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
 router.use(authMiddleware);
 router.use(adminAuthMiddleware);
 
@@ -72,6 +73,7 @@ router.use(qqGuardRouter);
 
 // Bilibili Sync 管理（PiliPlus 配置数据）
 router.get("/bilibili-sync", (req, res) => adminController.getBilibiliSyncRecords(req, res));
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
 router.get("/bilibili-sync/:userId/search-records", (req, res) => adminController.getBilibiliSearchRecords(req, res));
 
 export default router;

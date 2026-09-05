@@ -14,6 +14,7 @@ import logger from "../../utils/logger";
 import { UserStorage } from "../../utils/userStorage";
 
 export function registerProfileIdentityRoutes(router: Router): void {
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   router.get("/user/profile/linked-accounts", authMiddleware, async (req, res) => {
     try {
       const user = req.user;
@@ -32,6 +33,7 @@ export function registerProfileIdentityRoutes(router: Router): void {
     }
   });
 
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   router.post("/user/profile/linked-accounts/:provider/start", authMiddleware, async (req, res) => {
     try {
       const user = req.user;
@@ -80,6 +82,7 @@ export function registerProfileIdentityRoutes(router: Router): void {
     }
   });
 
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   router.post("/user/profile/linked-accounts/:provider/unlink", authMiddleware, async (req, res) => {
     try {
       const user = req.user;
@@ -122,6 +125,7 @@ export function registerProfileIdentityRoutes(router: Router): void {
     }
   });
 
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   router.post("/user/profile/account-merge/preview", authMiddleware, async (req, res) => {
     try {
       const user = req.user;
@@ -140,6 +144,7 @@ export function registerProfileIdentityRoutes(router: Router): void {
     }
   });
 
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   router.post("/user/profile/account-merge/confirm", authMiddleware, async (req, res) => {
     try {
       const user = req.user;

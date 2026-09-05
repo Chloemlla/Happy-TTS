@@ -18,6 +18,7 @@ const router = express.Router();
  */
 router.get(
   "/envs",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.envs.read", captureBody: false }),
   adminController.getEnvs,
@@ -47,6 +48,7 @@ router.get(
  */
 router.post(
   "/envs",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "env", action: "env.set", captureBody: false, extractDetail: (req) => ({ key: req.body.key }) }),
   adminController.setEnv,
@@ -72,6 +74,7 @@ router.post(
  */
 router.delete(
   "/envs",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "env", action: "env.delete", extractDetail: (req) => ({ key: req.body.key }) }),
   adminController.deleteEnv,
@@ -97,38 +100,49 @@ router.delete(
  */
 router.post(
   "/envs/delete",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "env", action: "env.delete", extractDetail: (req) => ({ key: req.body.key }) }),
   adminController.deleteEnv,
 );
 
 // OutEmail settings management (admin)
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
 router.get("/outemail/settings", adminController.getOutemailSettings);
 router.post(
   "/outemail/settings",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "email", action: "email.outemail.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   adminController.setOutemailSetting,
 );
 router.delete(
   "/outemail/settings",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "email", action: "email.outemail.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   adminController.deleteOutemailSetting,
 );
 
 // Modlist MODIFY_CODE management (admin)
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
 router.get("/modlist/setting", adminController.getModlistSetting);
 router.post(
   "/modlist/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.modlist.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   adminController.setModlistSetting,
 );
 router.delete(
   "/modlist/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.modlist.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   adminController.deleteModlistSetting,
 );
 
@@ -136,12 +150,14 @@ router.delete(
 router.get("/tts/setting", adminController.getTtsSetting);
 router.post(
   "/tts/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "tts", action: "tts.setting.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
   adminController.setTtsSetting,
 );
 router.delete(
   "/tts/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "tts", action: "tts.setting.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
   adminController.deleteTtsSetting,
@@ -149,6 +165,7 @@ router.delete(
 router.get("/tts/provider", ttsProviderController.getAdminConfig);
 router.put(
   "/tts/provider",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({
     module: "tts",
@@ -162,12 +179,14 @@ router.put(
 router.get("/email-system/setting", adminController.getEmailSystemSetting);
 router.post(
   "/email-system/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "email", action: "email.system.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
   adminController.setEmailSystemSetting,
 );
 router.delete(
   "/email-system/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "email", action: "email.system.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
   adminController.deleteEmailSystemSetting,
@@ -177,12 +196,14 @@ router.delete(
 router.get("/ipqs/setting", adminController.getIpqsSetting);
 router.post(
   "/ipqs/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.ipqs.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
   adminController.setIpqsSetting,
 );
 router.delete(
   "/ipqs/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.ipqs.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
   adminController.deleteIpqsSetting,
@@ -190,12 +211,14 @@ router.delete(
 router.get("/linuxdo/setting", adminController.getLinuxDoSetting);
 router.post(
   "/linuxdo/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.linuxdo.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
   adminController.setLinuxDoSetting,
 );
 router.delete(
   "/linuxdo/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.linuxdo.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
   adminController.deleteLinuxDoSetting,
@@ -203,25 +226,30 @@ router.delete(
 router.get("/google-auth/setting", adminController.getGoogleAuthSetting);
 router.post(
   "/google-auth/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.google-auth.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
   adminController.setGoogleAuthSetting,
 );
 router.delete(
   "/google-auth/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.google-auth.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   adminController.deleteGoogleAuthSetting,
 );
 router.get("/synapse-android/setting", adminController.getSynapseAndroidSetting);
 router.post(
   "/synapse-android/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.synapse-android.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
   adminController.setSynapseAndroidSetting,
 );
 router.delete(
   "/synapse-android/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.synapse-android.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
   adminController.deleteSynapseAndroidSetting,
@@ -229,12 +257,14 @@ router.delete(
 router.get("/cdict-donation/setting", CDictDonationController.getSetting);
 router.post(
   "/cdict-donation/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.cdict-donation.set" }),
   CDictDonationController.setSetting,
 );
 router.delete(
   "/cdict-donation/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.cdict-donation.delete" }),
   CDictDonationController.deleteSetting,
@@ -242,6 +272,7 @@ router.delete(
 router.get("/cdict-donation/claims", CDictDonationController.getClaims);
 router.delete(
   "/cdict-donation/claims/:id",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.cdict-donation.claim.delete" }),
   CDictDonationController.deleteClaim,
@@ -249,12 +280,14 @@ router.delete(
 router.get("/deeplx/setting", adminController.getDeepLXSetting);
 router.post(
   "/deeplx/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.deeplx.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
   adminController.setDeepLXSetting,
 );
 router.delete(
   "/deeplx/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.deeplx.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
   adminController.deleteDeepLXSetting,
@@ -262,12 +295,14 @@ router.delete(
 router.get("/nexai/setting", adminController.getNexaiSetting);
 router.post(
   "/nexai/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.nexai.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
   adminController.setNexaiSetting,
 );
 router.delete(
   "/nexai/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.nexai.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
   adminController.deleteNexaiSetting,
@@ -276,12 +311,14 @@ router.delete(
 router.get("/nexai-signing/setting", adminController.getNexaiSigningSetting);
 router.post(
   "/nexai-signing/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.nexai-signing.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
   adminController.setNexaiSigningSetting,
 );
 router.delete(
   "/nexai-signing/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.nexai-signing.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
   adminController.deleteNexaiSigningSetting,
@@ -290,12 +327,14 @@ router.delete(
 router.get("/qq-guard-signing/setting", adminController.getQqGuardSigningSetting);
 router.post(
   "/qq-guard-signing/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.qq-guard-signing.set", captureBody: false }),
   adminController.setQqGuardSigningSetting,
 );
 router.delete(
   "/qq-guard-signing/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.qq-guard-signing.delete" }),
   adminController.deleteQqGuardSigningSetting,
@@ -303,12 +342,14 @@ router.delete(
 router.get("/cdict-signing/setting", adminController.getCdictSigningSetting);
 router.post(
   "/cdict-signing/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.cdict-signing.set", captureBody: false }),
   adminController.setCdictSigningSetting,
 );
 router.delete(
   "/cdict-signing/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.cdict-signing.delete" }),
   adminController.deleteCdictSigningSetting,
@@ -316,12 +357,14 @@ router.delete(
 router.get("/admin-security/setting", adminController.getAdminSecuritySetting);
 router.post(
   "/admin-security/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "security", action: "security.admin-security.set", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
   adminController.setAdminSecuritySetting,
 );
 router.delete(
   "/admin-security/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "security", action: "security.admin-security.delete", extractDetail: (req) => ({ key: (req as any).body?.key }) }),
   adminController.deleteAdminSecuritySetting,
@@ -332,29 +375,36 @@ router.delete(
 router.get("/lumen-server/setting", adminController.getLumenServerSetting);
 router.post(
   "/lumen-server/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.lumen-server.set", captureBody: false }),
   adminController.setLumenServerSetting,
 );
 router.delete(
   "/lumen-server/setting",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "config", action: "config.lumen-server.delete" }),
   adminController.deleteLumenServerSetting,
 );
 
 // Webhook Secret management (admin)
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
 router.get("/webhook/secret", adminController.getWebhookSecret);
 router.post(
   "/webhook/secret",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "security", action: "security.webhook-secret.set", captureBody: false }),
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   adminController.setWebhookSecret,
 );
 router.delete(
   "/webhook/secret",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "security", action: "security.webhook-secret.delete" }),
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   adminController.deleteWebhookSecret,
 );
 
@@ -362,12 +412,15 @@ router.delete(
 router.get("/lumen-config", adminController.getLumenConfig);
 router.post(
   "/lumen-config",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "lumen-config", action: "lumen-config.set", extractDetail: (req) => ({ key: req.body.key }) }),
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   adminController.setLumenConfig,
 );
 router.delete(
   "/lumen-config",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   (req, res) => {
     // G3-29: body 版删除契约收敛到 path 版，避免同一 handler 两套参数来源
@@ -380,14 +433,18 @@ router.delete(
 );
 router.delete(
   "/lumen-config/:key",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "lumen-config", action: "lumen-config.delete", extractDetail: (req) => ({ key: req.params.key }) }),
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   adminController.deleteLumenConfig,
 );
 router.post(
   "/lumen-config/sync-github",
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "lumen-config", action: "lumen-config.sync-github", extractDetail: () => ({}) }),
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   adminController.syncLumenConfigGithub,
 );
 

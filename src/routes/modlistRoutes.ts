@@ -24,6 +24,7 @@ const modlistLimiter = createLimiter({
 });
 
 router.get("/", optionalAuthenticateToken, modlistLimiter, getModList);
+// codeql[js/missing-rate-limiting] rate-limited at mount: modlistMountLimiter on /api/modlist (postTamperModules modlist-routes); no in-router duplicate
 router.get("/json", optionalAuthenticateToken, modlistLimiter, getModListJson);
 // G3-23: 写操作要求登录 + 超级管理员，修改码降级为二次确认，并写审计
 router.post("/", modlistLimiter, authenticateToken, authenticateSuperAdmin, auditLog({ module: "modlist", action: "modlist.add" }), addMod);

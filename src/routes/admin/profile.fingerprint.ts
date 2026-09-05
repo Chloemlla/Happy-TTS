@@ -8,6 +8,7 @@ export function registerProfileFingerprintRoutes(router: Router): void {
   // 用户指纹信息接口（需登录）
   // 注意：此接口已废弃，请使用 /api/turnstile/fingerprint/report 接口
   // 保留此接口仅用于向后兼容，新功能请使用 turnstile 路由中的接口
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   router.post("/user/fingerprint", authMiddleware, async (req, res) => {
     try {
       const user = req.user;
@@ -47,6 +48,7 @@ export function registerProfileFingerprintRoutes(router: Router): void {
   });
 
   // 查询用户指纹状态（需登录）：返回最近一次指纹时间与总数量及IP变更情况
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   router.get("/user/fingerprint/status", authMiddleware, async (req, res) => {
     try {
       const user = req.user;
@@ -89,6 +91,7 @@ export function registerProfileFingerprintRoutes(router: Router): void {
   });
 
   // 记录用户关闭指纹请求（需登录，一生只能关闭一次）
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   router.post("/user/fingerprint/dismiss", authMiddleware, async (req, res) => {
     try {
       const user = req.user;

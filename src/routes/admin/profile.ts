@@ -113,6 +113,7 @@ router.post("/verify-access", async (req, res) => {
 });
 
 // 用户信息获取接口（需登录）
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
 router.get("/user/profile", authMiddleware, async (req, res) => {
   try {
     const user = req.user;
@@ -161,6 +162,7 @@ router.get("/user/profile", authMiddleware, async (req, res) => {
   }
 });
 
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
 router.get("/user/profile/devices", authMiddleware, async (req, res) => {
   try {
     const user = req.user;
@@ -175,6 +177,7 @@ router.get("/user/profile/devices", authMiddleware, async (req, res) => {
   }
 });
 
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
 router.post("/user/profile/devices/:deviceKey/revoke", authMiddleware, async (req, res) => {
   try {
     const user = req.user;
@@ -200,6 +203,7 @@ router.post("/user/profile/devices/:deviceKey/revoke", authMiddleware, async (re
 });
 
 // 用户信息更新接口（需登录）
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
 router.post("/user/profile/verify", authMiddleware, async (req, res) => {
   try {
     const user = req.user;
@@ -292,6 +296,7 @@ router.post("/user/profile/verify", authMiddleware, async (req, res) => {
 
 registerProfileIdentityRoutes(router);
 
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
 router.post("/user/profile/email/send-code", authMiddleware, async (req, res) => {
   try {
     const user = req.user;
@@ -354,6 +359,7 @@ router.post("/user/profile/email/send-code", authMiddleware, async (req, res) =>
   }
 });
 
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
 router.post("/user/profile", authMiddleware, async (req, res) => {
   try {
     const user = req.user;

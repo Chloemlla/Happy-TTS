@@ -10,6 +10,7 @@ import { getClientIP } from "../utils/ipUtils";
 const router = express.Router();
 const networkApiKeyAuth = apiKeyAuth("network");
 
+// codeql[js/missing-rate-limiting] rate-limited at mount: networkLimiter on /api/network (routeLimiterModules network-limiter); no in-router duplicate
 router.use(networkApiKeyAuth);
 
 router.get("/tcping", NetworkController.tcpPing);

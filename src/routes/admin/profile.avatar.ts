@@ -19,6 +19,7 @@ export function registerProfileAvatarRoutes(router: Router): void {
   });
 
   // 用户头像上传接口（支持文件上传到IPFS）
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   router.post("/user/avatar", authMiddleware, upload.single("avatar"), async (req, res) => {
     try {
       const user = req.user;
@@ -106,6 +107,7 @@ export function registerProfileAvatarRoutes(router: Router): void {
 
   // 用户头像是否存在接口（需登录）
   // 逻辑：如果数据库中 avatarUrl 字段不存在或为空，返回 hasAvatar: false，前端可回退到默认 SVG
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   router.get("/user/avatar/exist", authMiddleware, async (req, res) => {
     try {
       const user = req.user;

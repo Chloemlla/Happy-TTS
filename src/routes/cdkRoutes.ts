@@ -50,6 +50,7 @@ router.post(
   redeemCDK,
 );
 // 已兑换资源列表必须登录且按 req.user.id 归属，防止越权拉取他人兑换记录。
+// codeql[js/missing-rate-limiting] rate-limited at mount: cdkMountLimiter on /api/cdks (postTamperModules cdk-routes); no in-router duplicate
 router.get("/redeemed", authenticateToken, getUserRedeemedResources);
 
 // 管理员API

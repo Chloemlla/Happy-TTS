@@ -11,6 +11,7 @@ const router = express.Router();
 // 管理员清空指定用户的全部指纹记录（需管理员权限）
 router.delete(
   "/users/:id/fingerprints",
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({
     module: "user",
@@ -67,6 +68,7 @@ router.get("/users/:id", adminController.getUser);
  */
 router.post(
   "/users",
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({
     module: "user",
@@ -78,6 +80,7 @@ router.post(
 
 router.post(
   "/users/bulk-action",
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({
     module: "user",
@@ -93,6 +96,7 @@ router.post(
 // 管理员设置指定用户下次需要上报指纹（一次性或开关）
 router.post(
   "/users/:id/fingerprint/require",
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({
     module: "user",
@@ -159,6 +163,7 @@ router.post(
  */
 router.put(
   "/users/:id",
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({
     module: "user",
@@ -168,6 +173,7 @@ router.put(
     extractDetail: (req) =>
       req.body?.role ? { oldRole: (req as any).__targetOldRole, newRole: req.body.role } : undefined,
   }),
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   adminController.updateUser,
 );
 
@@ -188,6 +194,7 @@ router.put(
  */
 router.delete(
   "/users/:id",
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "user", action: "user.delete", extractTarget: (req) => ({ targetId: req.params.id }) }),
   adminController.deleteUser,
@@ -197,6 +204,7 @@ router.get("/translation-logs", adminController.getTranslationLogs);
 router.get("/translation-logs/stats", adminController.getTranslationLogStats);
 router.post(
   "/users/:id/translation-penalty",
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({
     module: "user",
@@ -229,6 +237,7 @@ router.post(
  */
 router.post(
   "/announcement",
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "announcement", action: "announcement.update" }),
   adminController.setAnnouncement,
@@ -245,8 +254,10 @@ router.post(
  */
 router.delete(
   "/announcement",
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "announcement", action: "announcement.delete" }),
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   adminController.deleteAnnouncements,
 );
 
@@ -269,6 +280,7 @@ router.get("/users/:id/fingerprint/require/status", async (req, res) => {
 // 管理员删除指定用户的一条指纹记录（需管理员权限）
 router.delete(
   "/users/:id/fingerprints/:fpId",
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({
     module: "user",

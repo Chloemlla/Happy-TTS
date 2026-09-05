@@ -240,6 +240,7 @@ async function handleBroadcastRequest(req: any, res: any, fallbackAudience: Broa
 // WebSocket 广播接口（管理员向指定范围推送消息）
 router.post(
   "/broadcast",
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "announcement", action: "announcement.broadcast", extractDetail: (req) => ({ audience: (req as any).body?.audience, level: (req as any).body?.level }) }),
   async (req, res) => {
@@ -250,6 +251,7 @@ router.post(
 // 定向用户推送（兼容旧前端，同时支持 userIds / targetUserIds 批量推送）
 router.post(
   "/broadcast/user",
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "announcement", action: "announcement.broadcastUser", extractDetail: (req) => ({ targetUserIds: (req as any).body?.targetUserIds ?? (req as any).body?.userIds ?? (req as any).body?.userId }) }),
   async (req, res) => {
@@ -259,6 +261,7 @@ router.post(
 );
 
 // 广播历史记录
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
 router.get("/broadcast/history", async (req, res) => {
   try {
     const BroadcastLog = getBroadcastLogModel();
@@ -295,6 +298,7 @@ router.get("/ws/clients", async (_req, res) => {
 // 强制断开用户连接
 router.post(
   "/ws/kick",
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "system", action: "system.kickUser", extractDetail: (req) => ({ userId: (req as any).body?.userId }) }),
   async (req, res) => {

@@ -22,6 +22,7 @@ router.get("/registration-invites", async (_req, res) => {
 
 router.post(
   "/registration-invites",
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "user", action: "invite.create", extractDetail: (req) => ({ count: (req as any).body?.count ?? 1 }) }),
   async (req: any, res) => {
@@ -38,6 +39,7 @@ router.post(
 
 router.patch(
   "/registration-invites/:id",
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "user", action: "invite.update", extractTarget: (req) => ({ targetId: firstString(req.params.id) }) }),
   async (req, res) => {
@@ -56,6 +58,7 @@ router.patch(
 
 router.delete(
   "/registration-invites/:id",
+  // codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
   authenticateSuperAdmin,
   auditLog({ module: "user", action: "invite.delete", extractTarget: (req) => ({ targetId: firstString(req.params.id) }) }),
   async (req, res) => {

@@ -56,6 +56,7 @@ const domainExemptionLimiter = createLimiter({
 
 // G3-26: 不再前置全局 emailSendLimiter（否则各端点 40/min 的专用限额永远被 20/min 卡死）；
 // 发信端点各自挂 emailSendLimiter，读/校验端点挂各自 limiter。
+// codeql[js/missing-rate-limiting] per-endpoint limiters apply after auth by design (G3-26); a router-wide limiter was removed to avoid throttling per-endpoint 40/min caps
 router.use(authMiddleware);
 router.use(adminAuthMiddleware);
 

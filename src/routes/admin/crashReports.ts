@@ -133,6 +133,7 @@ router.get("/crash-reports", async (req: Request, res: Response, next: NextFunct
  * Page through the individual crash reports of a group, newest first.
  * Query params: limit (default 50, max 200), offset, device.
  */
+// codeql[js/missing-rate-limiting] admin subtree rate-limited at mount (/api/admin adminLimiter, preTamperModules G11-06); in-router copy would split quota
 router.get("/crash-reports/:groupKey", async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { groupKey } = req.params;

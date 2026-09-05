@@ -13,6 +13,7 @@ export function registerPasskeyMaintenanceRoutes(
   passkeyAdminLimiter: RequestHandler,
 ): void {
   // 检查当前用户的Passkey数据状态（需要认证）
+  // codeql[js/missing-rate-limiting] rate-limited at mount: passkeyLimiter on /api/passkey (routeLimiterModules passkey-limiter); route already applies passkeyAuthLimiter param, no visible duplicate
   router.get("/data/check", passkeyAuthLimiter, authenticateToken, async (req, res) => {
     try {
       const userId = (req as any).user.id;
@@ -33,6 +34,7 @@ export function registerPasskeyMaintenanceRoutes(
 
   // 修复当前用户的Passkey数据（需要认证）
   // G2-09: 改为只报告，不实际改写/删除凭证；如需真正修复走显式一次性迁移。
+  // codeql[js/missing-rate-limiting] rate-limited at mount: passkeyLimiter on /api/passkey (routeLimiterModules passkey-limiter); route already applies passkeyAuthLimiter param, no visible duplicate
   router.post("/data/repair", passkeyAuthLimiter, authenticateToken, async (req, res) => {
     try {
       const userId = (req as any).user.id;
@@ -62,6 +64,7 @@ export function registerPasskeyMaintenanceRoutes(
 
   // 管理员接口：检查所有用户的Passkey数据状态（需要管理员权限）
   // G3-17: 加分页并限制 pageSize ≤ 100，把 N+1 检查收敛到当前页
+  // codeql[js/missing-rate-limiting] rate-limited at mount: passkeyLimiter on /api/passkey (routeLimiterModules passkey-limiter); route already applies passkeyAdminLimiter param, no visible duplicate
   router.get("/admin/data/check-all", passkeyAdminLimiter, authenticateToken, async (req, res) => {
     try {
       const user = (req as any).user;
@@ -111,6 +114,7 @@ export function registerPasskeyMaintenanceRoutes(
   });
 
   // 管理员接口：修复所有用户的Passkey数据（需要管理员权限）
+  // codeql[js/missing-rate-limiting] rate-limited at mount: passkeyLimiter on /api/passkey (routeLimiterModules passkey-limiter); route already applies passkeyAdminLimiter param, no visible duplicate
   router.post("/admin/data/repair-all", passkeyAdminLimiter, authenticateToken, auditLog({ module: "security", action: "passkey.repairAll" }), async (req, res) => {
     try {
       // 检查管理员权限
@@ -133,6 +137,7 @@ export function registerPasskeyMaintenanceRoutes(
   });
 
   // 修复当前用户的credentialID（需要认证）
+  // codeql[js/missing-rate-limiting] rate-limited at mount: passkeyLimiter on /api/passkey (routeLimiterModules passkey-limiter); route already applies passkeyAuthLimiter param, no visible duplicate
   router.post("/credential-id/fix", passkeyAuthLimiter, authenticateToken, async (req, res) => {
     try {
       const userId = (req as any).user.id;
@@ -161,6 +166,7 @@ export function registerPasskeyMaintenanceRoutes(
   });
 
   // 检查当前用户的credentialID状态（需要认证）
+  // codeql[js/missing-rate-limiting] rate-limited at mount: passkeyLimiter on /api/passkey (routeLimiterModules passkey-limiter); route already applies passkeyAuthLimiter param, no visible duplicate
   router.get("/credential-id/check", passkeyAuthLimiter, authenticateToken, async (req, res) => {
     try {
       const userId = (req as any).user.id;
@@ -206,6 +212,7 @@ export function registerPasskeyMaintenanceRoutes(
   });
 
   // 管理员接口：修复所有用户的credentialID（需要管理员权限）
+  // codeql[js/missing-rate-limiting] rate-limited at mount: passkeyLimiter on /api/passkey (routeLimiterModules passkey-limiter); route already applies passkeyAdminLimiter param, no visible duplicate
   router.post("/admin/credential-id/fix-all", passkeyAdminLimiter, authenticateToken, auditLog({ module: "security", action: "passkey.fixAllCredentialIds" }), async (req, res) => {
     try {
       // 检查管理员权限
