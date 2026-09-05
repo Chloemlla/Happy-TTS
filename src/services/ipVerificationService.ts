@@ -105,6 +105,7 @@ function hashApiKey(apiKey: string): string {
   // G5-14: 该哈希仅用于给配额/日志打"这是哪个 key"的标识，不需要口令级 KDF。
   // 改用 HMAC-SHA256，避免 pbkdf2Sync 12 万次迭代阻塞事件循环。
   const secret = config.jwtSecret || process.env.JWT_SECRET || "ip-verification-test-secret";
+  // codeql[js/insufficient-password-hash] HMAC identifier digest (server-secret keyed) of a server-generated high-entropy apiKey, not a password hash (see G5-14)
   return crypto.createHmac("sha256", secret).update(`ipqs:${apiKey}`).digest("hex").slice(0, 32);
 }
 

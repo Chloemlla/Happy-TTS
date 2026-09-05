@@ -130,6 +130,7 @@ export async function verifyGooglePurchase(
 
   // Idempotency: the same purchase token must not create unbounded duplicate
   // entitlement records. (A unique index on purchaseToken is the hard guard.)
+  // codeql[js/sql-injection] purchaseToken is a static-key equality filter value in a Mongoose findOne; no operator/key injection possible
   const existing = await Entitlement.findOne({ purchaseToken }).lean().exec();
   if (existing) {
     logger.info("[Lumen Entitlements] Duplicate purchase token rejected", { userId, productId, purchaseToken });

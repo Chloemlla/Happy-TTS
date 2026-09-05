@@ -30,6 +30,7 @@ export async function sendLoginCode(email: string, code: string): Promise<void> 
   const html = loginCodeHtmlTemplate(code);
 
   try {
+    // codeql[js/request-forgery] URL host is operator config (lumenConfig.outemailApiUrl), not request-derived; no user input reaches the request URL
     const response = await fetch(
       `${lumenConfig.outemailApiUrl}/api/outemail/send`,
       {

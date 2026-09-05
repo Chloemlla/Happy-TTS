@@ -142,6 +142,7 @@ class CommandService {
    */
   private executeBounded(bin: string, args: string[]): Promise<string> {
     return new Promise((resolve, reject) => {
+      // codeql[js/command-line-injection] bin/args pass validateCommand allowlist + arg regex; spawn uses argv array with shell:false, no shell string is built
       const child = spawn(bin, args, {
         stdio: ["pipe", "pipe", "pipe"],
         shell: false,
