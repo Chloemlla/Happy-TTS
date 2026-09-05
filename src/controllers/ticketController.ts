@@ -21,6 +21,9 @@ const aiGenerationInFlight = new Set<string>();
 /** 单次用户发言触发的 AI 应答轮次上限，防止高频发言下任务无限循环 */
 const AI_GENERATION_MAX_ROUNDS = 8;
 
+/** 面向用户的官方联系邮箱：封禁/审核/超长内容等 off-channel 兜底统一指向这里 */
+const SUPPORT_EMAIL = "support@chloemlla.com";
+
 /** 管理员团队收件人（admin 只读 + superadmin 写均需要收到新工单 / 用户追加回复邮件） */
 async function getAdminTeamEmails(): Promise<string[]> {
   const adminDocs = await UserModel.find({ role: { $in: ["admin", "superadmin"] } })
@@ -194,7 +197,11 @@ export const ticketController = {
         return res.status(400).json({ error: "标题不能超过200字" });
       }
       if (descStr.length > 4000) {
-        return res.status(400).json({ error: "描述不能超过4000字" });
+        return res.status(400).json({
+          error: `描述不能超过4000字。如需提交更长内容，请将完整内容发送至 ${SUPPORT_EMAIL}，注明您的账号与问题标题，管理员会代为处理。`,
+          code: "CONTENT_TOO_LONG",
+          supportEmail: SUPPORT_EMAIL,
+        });
       }
 
       const banStatus = ModerationService.isUserBanned(userObj);
@@ -203,7 +210,7 @@ export const ticketController = {
           error: "您的工单权限已被封禁",
           code: "TICKET_PERMISSION_BANNED",
           details: `封禁剩余时间: ${banStatus.remainingTime}`,
-          supportEmail: "support@chloemlla.com",
+          supportEmail: SUPPORT_EMAIL,
         });
       }
 
@@ -325,7 +332,13 @@ export const ticketController = {
       // G4-08: 回复内容长度上限
       const contentStr = typeof content === "string" ? content.trim() : "";
       if (!contentStr) return res.status(400).json({ error: "回复内容不能为空" });
-      if (contentStr.length > 4000) return res.status(400).json({ error: "回复内容不能超过4000字" });
+      if (contentStr.length > 4000) {
+        return res.status(400).json({
+          error: `回复内容不能超过4000字。如需补充更长内容，请将完整内容发送至 ${SUPPORT_EMAIL}，注明您的账号与工单标题，管理员会代为处理。`,
+          code: "CONTENT_TOO_LONG",
+          supportEmail: SUPPORT_EMAIL,
+        });
+      }
       if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: "无效的工单ID" });
 
       let ticket = await TicketModel.findById(id);
@@ -355,7 +368,7 @@ export const ticketController = {
         if (banStatus.isBanned) {
           return res
             .status(403)
-            .json({ error: "您的工单权限已被封禁", code: "TICKET_PERMISSION_BANNED", details: `封禁剩余时间: ${banStatus.remainingTime}`, supportEmail: "support@chloemlla.com" });
+            .json({ error: "您的工单权限已被封禁", code: "TICKET_PERMISSION_BANNED", details: `封禁剩余时间: ${banStatus.remainingTime}`, supportEmail: SUPPORT_EMAIL });
         }
 
         wsService.notifyTicketProcess(userObj.id, id, "audit_start");

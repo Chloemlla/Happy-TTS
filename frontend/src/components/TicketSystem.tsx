@@ -10,7 +10,7 @@ import {
   FiCheckCircle, FiAlertCircle, FiX, FiFilter,
   FiUser, FiChevronRight, FiSearch, FiInfo,
   FiCpu, FiCheck, FiTerminal, FiEdit2, FiTrash2,
-  FiRefreshCw,
+  FiRefreshCw, FiMail,
 } from "react-icons/fi";
 import MarkdownRenderer, { type MarkdownReaderControls } from './MarkdownRenderer';
 import { AiErrorDetailsPanel } from './AiErrorDetailsPanel';
@@ -86,6 +86,72 @@ function compareTicketsByUpdatedDesc(a: ITicket, b: ITicket): number {
   return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
 }
 
+type OverLengthDraft = { kind: "create" | "reply"; title: string; content: string } | null;
+
+/** 超长内容改走邮件：主题带工单标题，正文预填账号 + 聊天通道放不下的完整原文 */
+function buildOverLengthMailHref(draft: NonNullable<OverLengthDraft>, account: string): string {
+  const kindLabel = draft.kind === "create" ? "新建工单" : "向已有工单追加回复";
+  const subject = encodeURIComponent(`[工单内容超长] ${draft.title.slice(0, 60)}`);
+  const body = encodeURIComponent(
+    `账号：${account}\n` +
+    `类型：${kindLabel}\n` +
+    `工单标题：${draft.title || "（未填写）"}\n\n` +
+    `以下内容超过聊天通道 4000 字上限，无法通过工单提交，请代为处理：\n\n${draft.content}`,
+  );
+  return `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
+}
+
+/** 超长拦截后的 inline 引导：给出管理员邮箱，提供一键写信与复制原文 */
+function OverLengthMailNotice({ draft, account, onDismiss }: {
+  draft: NonNullable<OverLengthDraft>;
+  account: string;
+  onDismiss: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(draft.content);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  }, [draft.content]);
+  return (
+    <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3 sm:p-4 text-xs sm:text-sm text-amber-900">
+      <p className="font-semibold flex items-center gap-2">
+        <FiAlertCircle className="shrink-0" /> 内容超过 4000 字，工单通道无法提交
+      </p>
+      <p className="mt-1.5 leading-relaxed">
+        工单消息设长度上限以保证能及时处理。较长内容请直接发送至管理员邮箱{" "}
+        <span className="font-mono font-semibold break-all">{SUPPORT_EMAIL}</span>
+        ，并注明您的账号（{account || "未登录"}）与标题“{draft.title || "未填写"}”，
+        管理员收到后会将完整内容创建为工单或追加到该工单。
+      </p>
+      <div className="mt-2.5 flex flex-wrap gap-2">
+        <a
+          href={buildOverLengthMailHref(draft, account)}
+          target="_blank"
+          rel="noreferrer"
+          className={cn(studioPrimaryButtonClassName, "px-3 py-1.5 text-xs")}
+        >
+          <FiMail className="mr-1" /> 打开邮件客户端发送
+        </a>
+        <button
+          type="button"
+          onClick={() => { void handleCopy(); }}
+          className={cn(studioGhostButtonClassName, "px-3 py-1.5 text-xs")}
+        >
+          {copied ? "已复制原文" : "复制完整内容"}
+        </button>
+        <button type="button" onClick={onDismiss} className={cn(studioGhostButtonClassName, "px-3 py-1.5 text-xs")}>
+          返回编辑
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const TicketSystem: React.FC = () => {
   const { user } = useAuth();
   const isAdmin = isAdminRole(user?.role);
@@ -95,6 +161,7 @@ const TicketSystem: React.FC = () => {
   const [selectedTicket, setSelectedTicket] = useState<ITicket | null>(null);
   const [loading, setLoading] = useState(true);
   const [replyContent, setReplyContent] = useState("");
+  const [overLengthDraft, setOverLengthDraft] = useState<OverLengthDraft>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [newTicket, setNewTicket] = useState({ title: "", description: "", priority: "medium" });
   const [adminFilter, setAdminFilter] = useState({ status: "", priority: "" });
@@ -125,6 +192,11 @@ const TicketSystem: React.FC = () => {
   useEffect(() => {
     selectedTicketRef.current = selectedTicket;
   }, [selectedTicket]);
+
+  // 切换工单时丢弃上一个回复残留的超长引导，避免错位
+  useEffect(() => {
+    setOverLengthDraft(null);
+  }, [selectedTicket?._id]);
 
   const adminFilterRef = useRef(adminFilter);
   useEffect(() => {
@@ -393,6 +465,12 @@ const TicketSystem: React.FC = () => {
     e.preventDefault();
     // G12-21：in-flight 防双击，避免重复工单 + 重复 AI 审核
     if (isSubmitting) return;
+    // 超长描述聊天通道无法承载：本地拦截并引导走邮件，保留原文供用户继续编辑
+    if (newTicket.description.trim().length > MAX_TICKET_DESC_LEN) {
+      setOverLengthDraft({ kind: "create", title: newTicket.title.trim(), content: newTicket.description });
+      return;
+    }
+    setOverLengthDraft(null);
     setIsSubmitting(true);
     try {
       const created = await ticketApi.createTicket(newTicket);
@@ -403,7 +481,13 @@ const TicketSystem: React.FC = () => {
       setSelectedTicket(created);
       fetchTickets();
     } catch (error: unknown) {
-      showTicketSubmitError(getApiErrorResponse(error), "提交失败");
+      const apiError = getApiErrorResponse(error);
+      // 后端兜底的超长拦截：仍把输入框里的完整原文交给邮件引导
+      if (apiError?.data?.code === "CONTENT_TOO_LONG") {
+        setOverLengthDraft({ kind: "create", title: newTicket.title.trim(), content: newTicket.description });
+        return;
+      }
+      showTicketSubmitError(apiError, "提交失败");
     } finally {
       setIsSubmitting(false);
     }
@@ -414,6 +498,12 @@ const TicketSystem: React.FC = () => {
     if (!selectedTicket || !replyContent.trim()) return;
     // G12-21：in-flight 防双击，同一条回复不能发两次
     if (isSubmitting) return;
+    // 超长回复本地拦截并引导走邮件，保留原文供用户继续编辑
+    if (replyContent.trim().length > MAX_TICKET_REPLY_LEN) {
+      setOverLengthDraft({ kind: "reply", title: selectedTicket.title, content: replyContent });
+      return;
+    }
+    setOverLengthDraft(null);
     setIsSubmitting(true);
     try {
       const updated = await ticketApi.replyTicket(selectedTicket._id, replyContent);
@@ -421,7 +511,12 @@ const TicketSystem: React.FC = () => {
       setReplyContent("");
       setTickets(prev => prev.map(t => t._id === updated._id ? updated : t));
     } catch (error: unknown) {
-      showTicketSubmitError(getApiErrorResponse(error), "发送失败");
+      const apiError = getApiErrorResponse(error);
+      if (apiError?.data?.code === "CONTENT_TOO_LONG") {
+        setOverLengthDraft({ kind: "reply", title: selectedTicket.title, content: replyContent });
+        return;
+      }
+      showTicketSubmitError(apiError, "发送失败");
     } finally {
       setIsSubmitting(false);
     }
@@ -576,6 +671,7 @@ const TicketSystem: React.FC = () => {
                     {!isAdmin && (
                       <motion.button
                         onClick={() => {
+                          setOverLengthDraft(null);
                           setIsCreating(true);
                           if (isMobile) setShowDetailOnMobile(true);
                         }}
@@ -774,18 +870,26 @@ const TicketSystem: React.FC = () => {
                           <div>
                             <div className="mb-2 flex items-center justify-between">
                               <label className={cn(studioEyebrowClassName, "block")}>详细描述</label>
-                              <span className="text-[10px] text-slate-400">{newTicket.description.length}/{MAX_TICKET_DESC_LEN}</span>
+                              <span className={cn("text-[10px]", newTicket.description.length > MAX_TICKET_DESC_LEN ? "text-rose-500 font-semibold" : "text-slate-400")}>
+                                {newTicket.description.length}/{MAX_TICKET_DESC_LEN}
+                              </span>
                             </div>
                             <textarea
                               required
                               rows={isMobile ? 6 : 8}
-                              maxLength={MAX_TICKET_DESC_LEN}
                               placeholder="请尽可能详细地说明您遇到的问题或建议，以便我们能更快为您处理..."
                               className={studioTextareaClassName}
                               value={newTicket.description}
                               onChange={e => setNewTicket(prev => ({ ...prev, description: e.target.value }))}
                             />
                           </div>
+                          {overLengthDraft?.kind === "create" && (
+                            <OverLengthMailNotice
+                              draft={overLengthDraft}
+                              account={user?.id ?? ""}
+                              onDismiss={() => setOverLengthDraft(null)}
+                            />
+                          )}
                           <div className="flex flex-col gap-2 pt-2 sm:flex-row">
                             <motion.button
                               type="submit"
@@ -1036,6 +1140,15 @@ const TicketSystem: React.FC = () => {
                         </div>
                       ) : (
                         <div className="border-t border-slate-200/80 bg-slate-50/40 p-3 sm:p-4 shrink-0">
+                          {overLengthDraft?.kind === "reply" && (
+                            <div className="mb-2">
+                              <OverLengthMailNotice
+                                draft={overLengthDraft}
+                                account={user?.id ?? ""}
+                                onDismiss={() => setOverLengthDraft(null)}
+                              />
+                            </div>
+                          )}
                           <form
                             onSubmit={handleReply}
                             className="flex items-center gap-2 rounded-[22px] border border-slate-200 bg-white p-1.5 shadow-[0_6px_18px_rgba(15,23,42,0.04)] focus-within:border-slate-300 transition sm:rounded-full"
@@ -1045,7 +1158,6 @@ const TicketSystem: React.FC = () => {
                               placeholder={isAdmin ? "在此输入回复内容..." : "补充更多详情..."}
                               className="flex-1 px-3 sm:px-4 py-2 text-xs sm:text-sm outline-none bg-transparent placeholder:text-slate-400"
                               value={replyContent}
-                              maxLength={MAX_TICKET_REPLY_LEN}
                               onChange={e => setReplyContent(e.target.value)}
                             />
                             <motion.button
@@ -1058,6 +1170,12 @@ const TicketSystem: React.FC = () => {
                               <FiSend size={14} />
                             </motion.button>
                           </form>
+                          {replyContent.trim().length > MAX_TICKET_REPLY_LEN && overLengthDraft?.kind !== "reply" && (
+                            <p className="mt-1.5 flex items-center justify-end gap-1 pr-1 text-[11px] font-medium text-rose-500">
+                              <FiAlertCircle className="shrink-0" />
+                              已超过 {MAX_TICKET_REPLY_LEN} 字（当前 {replyContent.length} 字），点发送将引导改用邮件提交
+                            </p>
+                          )}
                         </div>
                       )}
                     </motion.div>
