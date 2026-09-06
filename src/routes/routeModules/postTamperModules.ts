@@ -39,6 +39,7 @@ import lotteryRoutes from "../lotteryRoutes";
 import libreChatRoutes from "../libreChatRoutes";
 import markdownArticleRoutes from "../markdownArticleRoutes";
 import mediaRoutes from "../mediaRoutes";
+import mediaToolRoutes from "../mediaToolRoutes";
 import miniapiRoutes from "../miniapiRoutes";
 import modlistRoutes from "../modlistRoutes";
 import networkRoutes from "../networkRoutes";
@@ -596,6 +597,25 @@ export const postTamperRouteModules: RouteModule[] = [
       mode: "router",
       limiters: ["bilibiliSyncLimiter"],
       note: "All Bilibili binding and sync operations share the authenticated sync limiter.",
+    },
+  },
+  {
+    name: "media-tool-admin-routes",
+    path: "/api/admin/media-tool",
+    router: mediaToolRoutes,
+    middlewares: [authenticateToken, adminLimiter],
+    requiresAuth: true,
+    rateLimited: true,
+    isPublic: false,
+    authPolicy: {
+      mode: "router",
+      handlers: ["authenticateToken", "authenticateAdmin", "authenticateSuperAdmin"],
+      note: "Media-tool settings/jobs/file administration: all endpoints admin-level; settings writes and job deletion are gated to superadmin at route level.",
+    },
+    rateLimitPolicy: {
+      mode: "mount",
+      limiters: ["adminLimiter"],
+      note: "Media-tool administration is protected by the admin mount limiter.",
     },
   },
   {

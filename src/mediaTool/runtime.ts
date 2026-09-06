@@ -170,6 +170,13 @@ export function makeConsoleDecoder(): TextDecoder {
   return new TextDecoder(enc ?? "utf-8");
 }
 
+/** 工作根目录解析:空→<cwd>/data/media-tool;相对→基于 cwd。HTTP 文件浏览/上传/落盘都限制在该根内。 */
+export function resolveRootDir(workDir: string): string {
+  const raw = (workDir || "").trim();
+  const resolved = raw ? (path.isAbsolute(raw) ? raw : path.resolve(process.cwd(), raw)) : path.resolve(process.cwd(), "data", "media-tool");
+  return path.normalize(resolved);
+}
+
 /** 临时目录(浏览器上传缓冲落点,随用随删)。 */
 export function tmpRoot(): string {
   return path.join(os.tmpdir(), "synapse-media-tool");

@@ -10,6 +10,8 @@
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "nodemon --watch src -e ts --exec ts-node src/app.ts",
     "dev:frontend": "cd frontend && npm run dev",
+    "media-tool:serve": "ts-node src/mediaTool/standalone.ts",
+    "media-tool:watch": "nodemon --watch src/mediaTool -e ts --exec ts-node src/mediaTool/standalone.ts",
     "build": "pnpm run build:backend && pnpm run build:frontend",
     "build:simple": "pnpm run build:backend && pnpm run build:frontend:simple",
     "build:minimal": "pnpm run build:backend && pnpm run build:frontend:minimal",
