@@ -138,8 +138,11 @@ export const userRepository = {
 
   async authenticateUser(identifier: string, password: string): Promise<User | null> {
     const sanitizedIdentifier = userValidationService.sanitizeInput(identifier);
-    const user =
-      (await getUserAuthByUsername(sanitizedIdentifier)) || (await getUserAuthByEmail(sanitizedIdentifier));
+    // 邮箱账号包含 @，而 getUserAuthByUsername 对非用户名字符串直接抛"非法的用户名"；
+    // 必须先按形态分流，否则邮箱登录会抛错而不是走邮箱查询。
+    const user = sanitizedIdentifier.includes("@")
+      ? await getUserAuthByEmail(sanitizedIdentifier)
+      : await getUserAuthByUsername(sanitizedIdentifier);
 
     if (!user) {
       return null;

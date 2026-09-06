@@ -28,6 +28,14 @@ function summarizeAuthBody(body: any) {
   };
 }
 
+// identifier 既可能是用户名也可能是邮箱。getUserByUsername 对非用户名字符串会抛
+// "非法的用户名"，必须先按形态分流再查，否则邮箱登录失败走到告警/锁定时会 500。
+async function resolveNotifyTarget(identifier: string) {
+  return identifier.includes("@")
+    ? await UserStorage.getUserByEmail(identifier)
+    : await UserStorage.getUserByUsername(identifier);
+}
+
 // 辅助函数：写入token和过期时间到users.json
 async function updateUserToken(userId: string, token: string, expiresInMs = 2 * 60 * 60 * 1000) {
   await UserStorage.updateUser(userId, {
@@ -115,8 +123,7 @@ export async function login(req: Request, res: Response) {
 
       // 多次登录失败预警：达到预警阈值时发送提醒邮件（每个锁定窗口仅在 count 恰为阈值时触发一次，且不与锁定邮件同时发送）
       if (attempts.count === LOGIN_FAILURE_ALERT_THRESHOLD) {
-        const targetUser =
-          (await UserStorage.getUserByUsername(identifier)) || (await UserStorage.getUserByEmail(identifier));
+        const targetUser = await resolveNotifyTarget(identifier);
         if (targetUser?.email) {
           try {
             const time = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
@@ -156,8 +163,7 @@ export async function login(req: Request, res: Response) {
         loginAttempts.set(attemptKey, attempts);
 
         // 发送锁定通知邮件
-        const targetUser =
-          (await UserStorage.getUserByUsername(identifier)) || (await UserStorage.getUserByEmail(identifier));
+        const targetUser = await resolveNotifyTarget(identifier);
         if (targetUser?.email) {
           try {
             const time = new Date().toLocaleString("zh-CN", { timeZone: "Asia/Shanghai" });
