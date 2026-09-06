@@ -31,8 +31,10 @@ const timestampFormat = winston.format.timestamp({
   },
 });
 const printFormat = winston.format.printf(({ timestamp, level, message, ...meta }) => {
+  // Object.entries 只取字符串键：撇掉 winston 注入的 Symbol(level)/Symbol(splat) 噪音
+  const plainMeta = Object.fromEntries(Object.entries(meta));
   const metaString =
-    meta && Object.keys(meta).length ? inspect(meta, { depth: 5, breakLength: 120, colors: false }) : "";
+    Object.keys(plainMeta).length ? inspect(plainMeta, { depth: 5, breakLength: 120, colors: false }) : "";
   return `[${timestamp}] ${level}: ${message} ${metaString}`;
 });
 
@@ -92,9 +94,13 @@ const baseFileFormat = winston.format.combine(maskMetaFormat, timestampFormat, p
 const consoleFormat = winston.format.combine(maskMetaFormat, winston.format.colorize(), timestampFormat, printFormat);
 
 // 创建 logger
+// 注意：logger 级 format 只设 identity。winston 会在 logger 级与每个 transport 级各 transform 一次，
+// 若 logger 级也套 printFormat，同一 info 会被 printf 处理两遍，第二次的 meta 里残留第一遍的
+// Symbol(message)（内含整行含真实换行），inspect 转义后表现为“同一条日志输出两份 + 字面 \n”。
+// 因此完整格式只交给各 transport 各自执行一遍。
 const logger = winston.createLogger({
   level: process.env.NODE_ENV === "production" ? "info" : "debug",
-  format: baseFileFormat,
+  format: winston.format.combine(),
   transports: [
     // 错误日志文件（按大小轮转，防止无界增长写满磁盘）
     new winston.transports.File({
