@@ -171,30 +171,32 @@ async function withTotalBudget<T>(promise: Promise<T>, fallback: T): Promise<T> 
 }
 
 // API提供商列表（G5-35: 只保留 https，ip-api.com 免费版不支持 HTTPS 已移除，避免访客 IP 明文外发）
+// 2026-09-06: ipapi.co（Cloudflare 对机房 IP 返人机挑战）与 api.vore.top（对方 Redis MISCONF）从生产机
+// 均只回 HTML，已替换为 ipwho.is / freeipapi.com（生产实测返回 JSON）。
 const API_PROVIDERS: APIProvider[] = [
   {
-    name: "ipapi.co",
-    url: (ip: string) => `https://ipapi.co/${ip}/json/`,
+    name: "ipwho.is",
+    url: (ip: string) => `https://ipwho.is/${ip}`,
     transform: (data: any, requestedIp: string): IPInfo => ({
       ip: data.ip || requestedIp,
-      country: data.country_name || "未知",
+      country: data.country || "未知",
       region: data.region || "未知",
       city: data.city || "未知",
-      isp: data.org || "未知",
+      isp: data.connection?.isp || "未知",
     }),
-    validate: (data: any) => data && !data.error,
+    validate: (data: any) => data && data.success === true,
   },
   {
-    name: "api.vore.top",
-    url: (ip: string) => `https://api.vore.top/api/IPdata?ip=${ip}`,
+    name: "freeipapi.com",
+    url: (ip: string) => `https://freeipapi.com/api/json/${ip}`,
     transform: (data: any, requestedIp: string): IPInfo => ({
-      ip: requestedIp,
-      country: data.ipdata?.info1 || "未知",
-      region: data.ipdata?.info2 || "未知",
-      city: data.ipdata?.info3 || "未知",
-      isp: data.ipdata?.isp || "未知",
+      ip: data.ipAddress || requestedIp,
+      country: data.countryName || "未知",
+      region: data.regionName || "未知",
+      city: data.cityName || "未知",
+      isp: data.asnOrganization || "未知",
     }),
-    validate: (data: any) => data && data.code === 200,
+    validate: (data: any) => data && !!data.ipAddress,
   },
 ];
 

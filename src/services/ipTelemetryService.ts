@@ -17,16 +17,6 @@ function truncate(value: unknown, maxLength: number): string {
   return value.slice(0, maxLength);
 }
 
-interface IpLocationApiResponse {
-  code?: number;
-  ipdata?: {
-    info1?: string;
-    info2?: string;
-    info3?: string;
-    isp?: string;
-  };
-}
-
 export interface ClientReportedIpRecord {
   clientReportedIP?: string;
   realIP?: string;
@@ -162,29 +152,74 @@ function formatIpLookupTarget(ip: string): string {
 // only a validated IP (never a hostname), so requests cannot be redirected to
 // arbitrary hosts (SSRF hardening).
 // G5-35: 只保留 https 的 provider；ip-api.com 免费版不支持 HTTPS 已移除，避免访客 IP 明文外发。
+// 2026-09-06: api.vore.top（对方 Redis MISCONF）与 ipapi.co（Cloudflare 对机房 IP 返人机挑战）
+// 从生产机均只回 HTML，已替换为 ipwho.is / freeipapi.com / ipapi.is（生产实测返回 JSON）。
 const IP_LOCATION_PROVIDERS: IpLocationProvider[] = [
   {
-    name: "api.vore.top",
-    url: (ip) => `https://api.vore.top/api/IPdata?ip=${encodeURIComponent(ip)}`,
+    name: "ipwho.is",
+    url: (ip) => `https://ipwho.is/${encodeURIComponent(ip)}`,
     parse: (data) => {
-      const d = data as IpLocationApiResponse;
-      if (d?.code === 200 && d.ipdata) {
-        const info = d.ipdata;
-        return `${info.info1 || ""}, ${info.info2 || ""}, ${info.info3 || ""} 运营商: ${info.isp || ""}`.trim();
-      }
-      return null;
+      const d = data as {
+        success?: boolean;
+        country?: string;
+        region?: string;
+        city?: string;
+        connection?: { isp?: string };
+      };
+      if (d?.success === false) return null;
+      if (!d?.country) return null;
+      return `${d.country}, ${d.region || ""}, ${d.city || ""} 运营商: ${d.connection?.isp || ""}`.trim();
     },
   },
   {
-    name: "ipapi.co",
-    url: (ip) => `https://ipapi.co/${encodeURIComponent(ip)}/json/`,
+    name: "freeipapi.com",
+    url: (ip) => `https://freeipapi.com/api/json/${encodeURIComponent(ip)}`,
     parse: (data) => {
-      const d = data as { error?: boolean; country_name?: string; region?: string; city?: string };
-      if (d?.error) return null;
-      return [d.country_name, d.region, d.city].filter(Boolean).join(", ") || null;
+      const d = data as {
+        ipAddress?: string;
+        countryName?: string;
+        regionName?: string | null;
+        cityName?: string;
+        asnOrganization?: string;
+      };
+      if (!d?.countryName) return null;
+      return `${d.countryName}, ${d.regionName || ""}, ${d.cityName || ""} 运营商: ${d.asnOrganization || ""}`.trim();
+    },
+  },
+  {
+    name: "ipapi.is",
+    url: (ip) => `https://api.ipapi.is/?q=${encodeURIComponent(ip)}`,
+    parse: (data) => {
+      const d = data as {
+        is_bogon?: boolean;
+        country?: string;
+        region?: string;
+        city?: string;
+        company?: string;
+      };
+      if (d?.is_bogon || !d?.country) return null;
+      return `${d.country}, ${d.region || ""}, ${d.city || ""} 运营商: ${d.company || ""}`.trim();
     },
   },
 ];
+
+// 失败冷却（5 分钟，镜像 ip.ts PROVIDER_COOLDOWN_MS）：provider 失败/非 JSON 响应后进入冷却，
+// 冷却期内直接跳过，避免死 provider 在每次 lookup 都被重试并刷 "Provider lookup failed" 告警。
+const PROVIDER_COOLDOWN_MS = 5 * 60 * 1000;
+const providerFailureUntil = new Map<string, number>();
+
+function isProviderInCooldown(name: string): boolean {
+  const until = providerFailureUntil.get(name);
+  return until !== undefined && until > Date.now();
+}
+
+function markProviderFailure(name: string): void {
+  providerFailureUntil.set(name, Date.now() + PROVIDER_COOLDOWN_MS);
+}
+
+// 全失败告警节流：高频请求下每 5 分钟最多一条，避免日志被刷屏。
+let lastAllFailedWarnAt = 0;
+const ALL_FAILED_WARN_INTERVAL_MS = 5 * 60 * 1000;
 
 export async function lookupIpLocation(ip: string, timeoutMs = IP_LOCATION_TIMEOUT_MS): Promise<string> {
   const validIp = normalizeIpAddress(ip);
@@ -193,16 +228,31 @@ export async function lookupIpLocation(ip: string, timeoutMs = IP_LOCATION_TIMEO
   const targetIp = formatIpLookupTarget(validIp);
 
   for (const provider of IP_LOCATION_PROVIDERS) {
+    if (isProviderInCooldown(provider.name)) {
+      continue;
+    }
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const response = await fetch(provider.url(targetIp), { signal: controller.signal });
-      if (!response.ok) continue;
+      if (!response.ok) {
+        markProviderFailure(provider.name);
+        continue;
+      }
+      // G5-35: 只解析 JSON 响应。HTML 错误页/人机挑战页直接判 provider 失败进入冷却，
+      // 而不是让 JSON.parse 抛 "Unexpected token '<'" 每次查询都告警。
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        markProviderFailure(provider.name);
+        continue;
+      }
       const data = (await response.json()) as unknown;
       const location = provider.parse(data);
       if (location) return location;
     } catch (error) {
+      markProviderFailure(provider.name);
       logger.warn("[IPLocation] Provider lookup failed", {
         provider: provider.name,
         ip: targetIp,
@@ -213,7 +263,11 @@ export async function lookupIpLocation(ip: string, timeoutMs = IP_LOCATION_TIMEO
     }
   }
 
-  logger.warn("[IPLocation] All IP location providers failed", { ip: targetIp });
+  const now = Date.now();
+  if (now - lastAllFailedWarnAt >= ALL_FAILED_WARN_INTERVAL_MS) {
+    lastAllFailedWarnAt = now;
+    logger.warn("[IPLocation] All IP location providers failed", { ip: targetIp });
+  }
   return "未知";
 }
 
