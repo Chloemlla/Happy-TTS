@@ -1,0 +1,176 @@
+import { execFileSync, spawnSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+export const isWindows = process.platform === "win32";
+
+/** 音频扩展名白名单(vivo LASR 一般按整段音频处理,视频容器 mp4/m4a 亦可)。 */
+export const AUDIO_EXTS = new Set([
+  ".m4a", ".mp3", ".wav", ".aac", ".amr", ".flac", ".mp4",
+  ".ogg", ".opus", ".m4b", ".3gp", ".wma", ".mka", ".ape", ".caf",
+]);
+
+export function isAudioFile(p: string): boolean {
+  return AUDIO_EXTS.has(path.extname(p).toLowerCase());
+}
+
+/** yt-dlp 落盘/可预览结果里可能出现的扩展名(用于文件浏览高亮)。 */
+export const MEDIA_EXTS = new Set([...AUDIO_EXTS, ".mkv", ".webm", ".ts"]);
+
+/** 任务被取消的哨兵异常:Job runner 捕获后把状态标成 cancelled(而非 failed)。 */
+export class CancelledError extends Error {
+  constructor(message = "任务已取消") {
+    super(message);
+    this.name = "MediaToolCancelled";
+  }
+}
+
+/** Windows 控制台代码页探测(yt-dlp 输出可能是 GBK)。reg query 失败回退 utf8。 */
+let acpEncoding: BufferEncoding | null | undefined;
+function resolveAcpEncoding(): BufferEncoding | null {
+  if (acpEncoding !== undefined) return acpEncoding;
+  if (!isWindows) {
+    acpEncoding = null;
+    return acpEncoding;
+  }
+  try {
+    const out = execFileSync(
+      "reg",
+      ["query", "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Nls\\CodePage", "/v", "ACP"],
+      { encoding: "utf8", windowsHide: true, timeout: 5000 },
+    );
+    const m = /ACP\s+REG_SZ\s+(\d+)/i.exec(out);
+    const code = m ? parseInt(m[1], 10) : 0;
+    acpEncoding = code === 936 ? "gbk" : code === 65001 ? "utf8" : null;
+  } catch {
+    acpEncoding = null;
+  }
+  return acpEncoding;
+}
+
+/** 把外部进程输出的原始字节流解码成字符串(Windows 按控制台代码页,其余按 utf8)。 */
+export function decodeSpawnBuffer(buf: Buffer): string {
+  if (buf.length === 0) return "";
+  const enc = resolveAcpEncoding();
+  if (enc && enc !== "utf8") {
+    try {
+      return new TextDecoder(enc).decode(buf);
+    } catch {
+      // TextDecoder 不认识该编码名时退回手工 iconv 式映射(gbk 由 ICU 提供)
+    }
+  }
+  return buf.toString("utf8");
+}
+
+export interface SpawnResult {
+  status: number | null;
+  stdout: string;
+  stderr: string;
+}
+
+export function runTool(bin: string, args: string[], opts: { cwd?: string; maxBuffer?: number } = {}): SpawnResult {
+  const r = spawnSync(bin, args, {
+    cwd: opts.cwd,
+    maxBuffer: opts.maxBuffer ?? 32 * 1024 * 1024,
+    encoding: "buffer",
+    windowsHide: true,
+  });
+  return {
+    status: r.status,
+    stdout: decodeSpawnBuffer(r.stdout ?? Buffer.alloc(0)),
+    stderr: decodeSpawnBuffer(r.stderr ?? Buffer.alloc(0)),
+  };
+}
+
+/** spawnSync 包裹:成功(stdout 去尾空白)否则抛错(带 stderr 摘要)。 */
+export function runToolChecked(bin: string, args: string[], opts: { cwd?: string } = {}): string {
+  const r = runTool(bin, args, opts);
+  if (r.status !== 0) {
+    throw new Error(`${path.basename(bin)} ${args[0] ?? ""} 退出码=${r.status}: ${(r.stderr || r.stdout).slice(0, 400)}`);
+  }
+  return r.stdout.trim();
+}
+
+export function ensureDir(dir: string): void {
+  if (!dir) return;
+  fs.mkdirSync(dir, { recursive: true });
+}
+
+export function statOrNull(p: string): fs.Stats | null {
+  try {
+    return fs.statSync(p);
+  } catch {
+    return null;
+  }
+}
+
+/** 检查 root 是否完全包含 target:在 root 内返回相对 posix 路径,否则 null(防目录穿越)。 */
+export function relInside(root: string, target: string): string | null {
+  const rel = path.relative(path.resolve(root), path.resolve(target));
+  if (rel === "") return "";
+  if (rel.startsWith("..") || path.isAbsolute(rel)) return null;
+  return rel.split(path.sep).join("/");
+}
+
+/** 音频时长(秒):优先 ffprobe,退回解析 m4a mvhd,再退回 0。ffprobePath 为空时直接尝试 ffprobe。 */
+export function audioDurationSec(filePath: string, ffprobePath?: string): number {
+  const bin = ffprobePath || "ffprobe";
+  try {
+    const r = runTool(bin, ["-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", filePath]);
+    const v = parseFloat(r.stdout.trim());
+    if (r.status === 0 && Number.isFinite(v) && v > 0) return Math.round(v);
+  } catch {
+    // fallthrough
+  }
+  try {
+    const buf = Buffer.alloc(1024 * 1024);
+    const fd = fs.openSync(filePath, "r");
+    const n = fs.readSync(fd, buf, 0, buf.length, 0);
+    fs.closeSync(fd);
+    const idx = buf.indexOf(Buffer.from("mvhd"), 0, n);
+    if (idx >= 0) {
+      const ver = buf[idx + 4];
+      let timescale: number;
+      let duration: number;
+      if (ver === 1) {
+        timescale = buf.readUInt32BE(idx + 24);
+        duration = Number(buf.readBigUInt64BE(idx + 28));
+      } else {
+        timescale = buf.readUInt32BE(idx + 16);
+        duration = buf.readUInt32BE(idx + 20);
+      }
+      if (timescale > 0) return Math.round(duration / timescale);
+    }
+  } catch {
+    // fallthrough
+  }
+  return 0;
+}
+
+export function fmtMs(v: number | null | undefined): string {
+  if (v == null) return "?";
+  const s = Math.floor(v / 1000);
+  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+}
+
+export function fmtSrt(v: number | null | undefined): string {
+  if (v == null) return "00:00:00,000";
+  const ms = Math.floor(v);
+  const p = (n: number, w = 2) => String(n).padStart(w, "0");
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  return `${p(h)}:${p(m)}:${p(s)},${p(ms % 1000, 3)}`;
+}
+
+/** 外部子进程 stdout 的增量解码器(配合 { stream: true } 消费)。Windows 用系统 ANSI 代码页,其余 utf-8。 */
+export function makeConsoleDecoder(): TextDecoder {
+  const enc = resolveAcpEncoding();
+  return new TextDecoder(enc ?? "utf-8");
+}
+
+/** 临时目录(浏览器上传缓冲落点,随用随删)。 */
+export function tmpRoot(): string {
+  return path.join(os.tmpdir(), "synapse-media-tool");
+}
