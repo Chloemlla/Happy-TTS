@@ -104,12 +104,16 @@ export const userValidationService = {
     const errors: ValidationError[] = [];
     const sanitizedUsername = this.sanitizeInput(username);
     const sanitizedEmail = email ? this.sanitizeInput(email) : "";
+    // 非注册场景的 identifier 可能是用户名也可能是邮箱；邮箱形态（含 @）必须跳过
+    // validateUsername（其字符集正则不接受 @/.），否则登录/绑定时邮箱被当用户名拒掉。
+    // 注册场景 username 字段不允许 @，此分支不影响注册。
+    const isEmailIdentifier = !isRegistration && sanitizedUsername.includes("@");
 
     if (!sanitizedUsername) {
       errors.push({ field: "username", message: "用户名不能为空" });
     }
 
-    if (sanitizedUsername) {
+    if (sanitizedUsername && !isEmailIdentifier) {
       errors.push(...validateUsername(sanitizedUsername));
     }
 
