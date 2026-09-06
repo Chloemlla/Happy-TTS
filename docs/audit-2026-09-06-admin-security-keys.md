@@ -2,23 +2,25 @@
 
 取证来源：生产 tts-node 容器（raksmart）`/app/data/env.admin.json` + 容器内 node 进程 `process.env` 实测（2026-09-06）。
 
-## H2 admin/env 面板 8 个安全密钥恒显“未设置”
+## H2 admin/env 面板密钥恒显“未设置”（SecuritySecret 8 + EcoEnchants 13）
 
 - 位置：`src/controllers/adminController.ts`（`ENV_READ_WHITELIST` + `getEnvs`）
 - 类型：读回显白名单缺 key → 面板无法反映已配置状态
 - 详细错误信息：
-  - 症状：安全密钥隔离与数据采集加密面板（SecuritySecretSection）全部字段显示“未设置”，即使对应环境变量已配置
+  - 症状：安全密钥隔离与数据采集加密面板（SecuritySecretSection）与 EcoEnchants 令牌 / 支付 Webhook 面板（EcoEnchantsTokenSection / EcoEnchantsWebhookSection）全部字段显示“未设置”，即使对应环境变量已配置
   - 根因取证：
     - 生产 `data/env.admin.json`（数组格式）已含 `DATA_COLLECTION_RAW_SECRET`、`BILIBILI_COOKIE_ENCRYPTION_KEY`（各 len=32，管理员此前保存过）
     - `config/env.ts` `applyAdminEnvOverlay` 重放正常：容器内 `node -e 'require("./dist/config/env.js"); ...'` 验证两 key 在应用进程 `process.env` 恢复 SAT(len=32)，消费方（dataCollectionService/bilibiliSyncService）正常工作
     - 但 `getEnvs`（adminController.ts:1056）只迭代 `ENV_READ_WHITELIST`（:36-62），该列表不含 8 个密钥 → `process.env` 有值也永不返回 → 前端 `SecuritySecretSection.fetchValues` 按 SECRET_FIELDS key 在 `data.envs` 匹配不到 → `current[key]` 恒空 → `maskSecret("")` = “未设置”
   - 其余 6 个 key（PASSWORD_ENCRYPTION_KEY 等）生产确实未配置，面板显示“未设置”属真实状态；白名单修复后能如实区分“已设置/未设置”
-- 修复：`ENV_READ_WHITELIST` 追加 8 个密钥（`DATA_COLLECTION_RAW_SECRET`、`BILIBILI_COOKIE_ENCRYPTION_KEY`、`PASSWORD_ENCRYPTION_KEY`、`POLICY_SECRET_SALT`、`VERIFICATION_TOKEN_SECRET`、`TTS_ASSET_ACCESS_SECRET`、`LEGACY_API_CHOICE_SECRET`、`LUMEN_ADMIN_AUTOMATION_TOKEN`）
+- 修复：`ENV_READ_WHITELIST` 追加 **8 个安全密钥**（`DATA_COLLECTION_RAW_SECRET`、`BILIBILI_COOKIE_ENCRYPTION_KEY`、`PASSWORD_ENCRYPTION_KEY`、`POLICY_SECRET_SALT`、`VERIFICATION_TOKEN_SECRET`、`TTS_ASSET_ACCESS_SECRET`、`LEGACY_API_CHOICE_SECRET`、`LUMEN_ADMIN_AUTOMATION_TOKEN`）与 **13 个 EcoEnchants key**（8 主 key + 5 alt 旧名：`LICENSE_KEY_PEPPER`、`ECOENCHANTS_RUNTIME_TOKEN_SECRET`、`STRIPE_WEBHOOK_SECRET`、`POLYMART_WEBHOOK_SECRET`、`PAYPAL_WEBHOOK_SECRET`）
+  - EcoEnchants 消费方（`ecoEnchantsService` / `ecoEnchantsOpsService` / `ecoEnchantsOpsTokens`）均函数内读 `process.env`，`getLicensePepper()` 等每次调用解析，无“构造捕获”，保存后已立即生效，本次仅需补读白名单
+  - 前端 `EcoEnchantsTokenSection` / `EcoEnchantsWebhookSection` 经 `matchesSecretField` 匹配主 key 与 alt 旧名，白名单需同时含两种命名，否则“用 alt 名配置”仍显示未设置（后端与 `configurationNoticeIntegrationIssues` 告警均同时支持两命名）
   - `getEnvs` 对返回值仍走 `maskSecretForDisplay` 脱敏（`ab***wxyz`），前端 `maskSecret` 重复掩码结果不变，不泄露明文；不加入 `PROTECTED_ENV_KEYS`，保留面板设置/删除能力（用户诉求即通过面板配置这些密钥）
   - 写路径（setEnv）本就正常：写 `data/env.admin.json`（数组）+ `process.env[key]=value`，重启由 `applyAdminEnvOverlay` 重放，与白名单改动独立
-- 复现条件：admin 面板打开“安全密钥隔离与数据采集加密”，任一已配置的上述 key
-- 影响面：`getEnvs` 白名单回显范围（只增不减，值脱敏）；老面板 `EnvManager.tsx` 遍历 `data.envs` 渲染，会随白名单多显示 8 行掩码值，属统一可见的期望行为
-- 测试影响：`src/tests` 无 `getEnvs`/`ENV_READ_WHITELIST` 钉住用例，未破坏
+- 复现条件：admin 面板打开“安全密钥隔离与数据采集加密”或“EcoEnchants 令牌/支付 Webhook”任一已配置的 key
+- 影响面：`getEnvs` 白名单回显范围（只增不减，值脱敏）；老面板 `EnvManager.tsx` 遍历 `data.envs` 渲染，会随白名单多显示 8+13 行掩码值，属统一可见的期望行为
+- 测试影响：`src/tests` 无 `getEnvs`/`ENV_READ_WHITELIST` 钉住用例；`ecoEnchantsService.test.ts` 仅 mock `ECOENCHANTS_ALLOW_DEVELOPMENT_BUILDS`，不触碰白名单，未破坏
 
 ## H3 三个密钥消费方“构造捕获”导致保存后不立即生效
 
