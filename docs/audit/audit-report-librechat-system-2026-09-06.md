@@ -4,7 +4,7 @@
 - 仓库:`Chloemlla/Synapse`(main)
 - 范围:前后端 LibreChat 整套系统。基线为"强制登录 + 移除游客/手动 token"改造后的状态(相关提交 `41ecbfcb`,CI 全绿基准 `de48f3c6`)
 - 方法:并行只读审计 agent + 协调者逐条对照真实代码核验(agent 报告不可信,以下 file:line 均经本人读取确认)
-- 状态:F1-F10 已修复(`cf6f067a`),F11 挂起待产品决策;去向见文末核对表
+- 状态:F1-F10 已修复(`cf6f067a`),F11 已实现(`bf18e6d3`,管理端 guest 孤儿筛选+一键清理);去向见文末核对表
 
 ---
 
@@ -130,4 +130,4 @@
 | F8 | 修复:注释改登录会话 Cookie | 已修 `cf6f067a`(api.ts:80) |
 | F9 | 修复:/librechat 改 ProtectedRoute | 已修 `cf6f067a`(App.tsx:722) |
 | F10 | 修复:限流 category 改私有类目 | 已修 `cf6f067a`(routeLimiters.ts union + category:"librechat") |
-| F11 | 挂起(产品决策,需用户确认) | 挂起:`guest:` ownerKey 历史孤儿化,①迁移/②管理端筛选+一键清理/③文档化 三选一待产品定夺 |
+| F11 | 挂起(产品决策,需用户确认) | 已实现 `bf18e6d3`(产品选「管理端筛选+一键清理」:guest 列表卡片 = 仅游客筛选,单删/全选批删/一键清理全部;服务层软删语义同单用户删除;DELETE /admin/users/guests 超管+auditLog) |
