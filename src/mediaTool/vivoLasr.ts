@@ -57,7 +57,7 @@ function javaUrlEncode(s: string | null | undefined): string {
   if (s === "") return "";
   let out = "";
   for (const ch of s) {
-    if (/[A-Za-z0-9.-*_]/.test(ch)) {
+    if (/[A-Za-z0-9._*-]/.test(ch)) {
       out += ch;
     } else {
       for (const b of Buffer.from(ch, "utf8")) {

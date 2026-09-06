@@ -20,6 +20,14 @@ export interface MediaToolJobDoc {
   cancelRequested: boolean;
 }
 
+const jobLogLineSchema = new mongoose.Schema<{ t: number; text: string }>(
+  {
+    t: { type: Number, required: true },
+    text: { type: String, required: true },
+  },
+  { _id: false },
+);
+
 const jobSchema = new mongoose.Schema<MediaToolJobDoc>(
   {
     id: { type: String, required: true, unique: true },
@@ -39,7 +47,7 @@ const jobSchema = new mongoose.Schema<MediaToolJobDoc>(
     progress: { type: Number, default: 0 },
     input: { type: mongoose.Schema.Types.Mixed, required: true },
     params: { type: mongoose.Schema.Types.Mixed },
-    logs: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    logs: { type: [jobLogLineSchema], default: [] },
     error: { type: String },
     result: { type: mongoose.Schema.Types.Mixed },
     cancelRequested: { type: Boolean, default: false },

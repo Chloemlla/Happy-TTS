@@ -27,8 +27,8 @@ export class CancelledError extends Error {
 }
 
 /** Windows 控制台代码页探测(yt-dlp 输出可能是 GBK)。reg query 失败回退 utf8。 */
-let acpEncoding: BufferEncoding | null | undefined;
-function resolveAcpEncoding(): BufferEncoding | null {
+let acpEncoding: string | null | undefined;
+function resolveAcpEncoding(): string | null {
   if (acpEncoding !== undefined) return acpEncoding;
   if (!isWindows) {
     acpEncoding = null;

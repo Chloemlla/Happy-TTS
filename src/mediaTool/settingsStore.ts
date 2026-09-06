@@ -48,7 +48,7 @@ function applyPatch(base: MediaToolSettings, patch: MediaSettingsPatch): MediaTo
       const value = patch.lasr[key];
       if (value === undefined) continue;
       if (SECRET_FIELDS.has(key) && value === SECRET_MASK) continue; // 未改动,保留旧密钥
-      (next.lasr as Record<string, unknown>)[key] = value;
+      (next.lasr as unknown as Record<string, unknown>)[key] = value;
     }
     next.lasr.concurrency = Math.max(1, next.lasr.concurrency);
   }
@@ -56,7 +56,7 @@ function applyPatch(base: MediaToolSettings, patch: MediaSettingsPatch): MediaTo
     for (const key of Object.keys(patch.bili) as Array<keyof BiliOptions>) {
       const value = patch.bili[key];
       if (value === undefined) continue;
-      (next.bili as Record<string, unknown>)[key] = value;
+      (next.bili as unknown as Record<string, unknown>)[key] = value;
     }
     next.bili.concurrency = Math.max(1, Math.min(8, next.bili.concurrency));
   }
@@ -67,7 +67,7 @@ function applyPatch(base: MediaToolSettings, patch: MediaSettingsPatch): MediaTo
 export function maskedView(settings: MediaToolSettings): MediaToolSettings {
   const copy = JSON.parse(JSON.stringify(settings)) as MediaToolSettings;
   for (const key of SECRET_FIELDS) {
-    (copy.lasr as Record<string, unknown>)[key] = SECRET_MASK;
+    (copy.lasr as unknown as Record<string, unknown>)[key] = SECRET_MASK;
   }
   return copy;
 }
@@ -82,12 +82,12 @@ export function createMongoMediaSettingsStore(): MediaSettingsStore {
       const defaults = defaultMediaToolSettings();
       const doc = await MediaToolSettingsModel.findOne({ key: KEY }).lean().exec();
       if (!doc) return defaults;
-      return mergeDefaults(doc.value as MediaToolSettings | undefined, defaults);
+      return mergeDefaults(doc.value as unknown as MediaToolSettings | undefined, defaults);
     },
     async update(patch: MediaSettingsPatch): Promise<MediaToolSettings> {
       const defaults = defaultMediaToolSettings();
       const doc = await MediaToolSettingsModel.findOne({ key: KEY }).lean().exec();
-      const current = mergeDefaults(doc?.value as MediaToolSettings | undefined, defaults);
+      const current = mergeDefaults(doc?.value as unknown as MediaToolSettings | undefined, defaults);
       const next = applyPatch(current, patch);
       await MediaToolSettingsModel.updateOne(
         { key: KEY },

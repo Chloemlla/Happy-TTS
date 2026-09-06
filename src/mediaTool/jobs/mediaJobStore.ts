@@ -24,8 +24,8 @@ export function createMongoMediaJobStore(): MediaJobStore {
     [k: string]: unknown;
   }): MediaJobRecord => {
     const rec = { ...doc } as unknown as MediaJobRecord;
-    delete (rec as Record<string, unknown>)._id;
-    delete (rec as Record<string, unknown>).__v;
+    delete (rec as unknown as Record<string, unknown>)._id;
+    delete (rec as unknown as Record<string, unknown>).__v;
     return rec;
   };
 
