@@ -20,15 +20,15 @@ function resolveSecretSalt(): string {
   return "hapxtts_secret_salt_dev_only";
 }
 
-const SECRET_SALT = resolveSecretSalt();
-
+// 惰性解析盐：模块加载时定格会让 admin/env 面板运行期保存的 POLICY_SECRET_SALT 不生效，
+// 改为每次签名时调用 resolveSecretSalt()（JWT_SECRET 派生回退不变）。
 export function generatePolicyChecksum(consent: {
   timestamp: number;
   version: string;
   fingerprint: string;
 }): string {
   const data = `${consent.timestamp}|${consent.version}|${consent.fingerprint}`;
-  return crypto.createHmac("sha256", SECRET_SALT).update(data).digest("hex");
+  return crypto.createHmac("sha256", resolveSecretSalt()).update(data).digest("hex");
 }
 
 export function verifyPolicyChecksum(

@@ -59,6 +59,15 @@ const ENV_READ_WHITELIST: string[] = [
   "NEXAI_GOOGLE_CLIENT_ID",
   "NEXAI_GITHUB_CLIENT_ID",
   "NEXAI_FRONTEND_URL",
+  // 安全密钥隔离 / 数据采集加密：白名单不含这些 key 时 getEnvs 永不返回，面板恒显“未设置”。
+  "DATA_COLLECTION_RAW_SECRET",
+  "BILIBILI_COOKIE_ENCRYPTION_KEY",
+  "PASSWORD_ENCRYPTION_KEY",
+  "POLICY_SECRET_SALT",
+  "VERIFICATION_TOKEN_SECRET",
+  "TTS_ASSET_ACCESS_SECRET",
+  "LEGACY_API_CHOICE_SECRET",
+  "LUMEN_ADMIN_AUTOMATION_TOKEN",
 ];
 
 // G4-06: 禁止通过运行时 envs 接口改写的键，清单见 config/protectedEnvKeys.ts。

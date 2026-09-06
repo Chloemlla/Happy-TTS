@@ -88,7 +88,10 @@ function resolveMimeType(fileName: string): string {
 }
 
 export class TtsAssetAccessService {
-  private readonly secret = process.env.TTS_ASSET_ACCESS_SECRET || config.jwtSecret;
+  // 运行期读 process.env：admin/env 面板保存 TTS_ASSET_ACCESS_SECRET 后立即生效，无需重启。
+  private get secret(): string {
+    return process.env.TTS_ASSET_ACCESS_SECRET || config.jwtSecret;
+  }
   private readonly audioDir = path.resolve(config.audioDir);
 
   public getDefaultTtlSeconds(): number {

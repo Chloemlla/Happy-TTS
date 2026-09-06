@@ -108,7 +108,10 @@ class DataCollectionService {
   private readonly riskEngine = new RiskEvaluationEngine();
   private readonly dedupeTTLms = 10 * 60 * 1000; // 10分钟内视为重复
   private readonly hashSeenAt = new Map<string, number>();
-  private readonly rawSecret = process.env.DATA_COLLECTION_RAW_SECRET || "";
+  // 运行期读 process.env：admin/env 面板保存 DATA_COLLECTION_RAW_SECRET 后立即生效，无需重启。
+  private get rawSecret(): string {
+    return process.env.DATA_COLLECTION_RAW_SECRET || "";
+  }
 
   // =============== 批量写入优化配置 ===============
   private readonly BATCH_SIZE = parseInt(process.env.DATA_COLLECTION_BATCH_SIZE || "50", 10);
