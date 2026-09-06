@@ -179,9 +179,11 @@ export const QqGuardManager: React.FC = () => {
             <div className="flex items-center justify-between px-5 pt-4">
               <div className="text-sm font-semibold text-slate-800">
                 待复审任务
-                <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                  AI 暂不可达，30 分钟自动重试
-                </span>
+                {pending.length > 0 && (
+                  <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                    AI 暂不可达，30 分钟自动重试
+                  </span>
+                )}
               </div>
               <button
                 onClick={() => void loadOverview()}
