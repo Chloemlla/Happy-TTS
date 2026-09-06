@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  FaAudioFile,
+  FaFileAudio,
   FaChevronRight,
   FaExclamationTriangle,
   FaFileAlt,
@@ -199,7 +199,7 @@ export const TranscribePanel: React.FC<{ target: MediaTarget; settings: MediaToo
                               {ent.text ? (
                                 <FaFileAlt className="shrink-0 text-slate-300" />
                               ) : (
-                                <FaAudioFile className="shrink-0 text-emerald-400" />
+                                <FaFileAudio className="shrink-0 text-emerald-400" />
                               )}
                               <span className="truncate">{ent.name}</span>
                             </span>
@@ -246,7 +246,7 @@ export const TranscribePanel: React.FC<{ target: MediaTarget; settings: MediaToo
             ) : (
               chosen.map((rel) => (
                 <div key={rel} className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-1.5">
-                  <FaAudioFile className="shrink-0 text-emerald-500" />
+                  <FaFileAudio className="shrink-0 text-emerald-500" />
                   <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-slate-600">{rel}</span>
                   <button
                     onClick={() => removeChosen(rel)}

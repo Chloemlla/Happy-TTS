@@ -13,17 +13,20 @@ const clone = (s: MediaToolSettings): MediaToolSettings => JSON.parse(JSON.strin
 const NumInput: React.FC<{
   value: number;
   min?: number;
+  max?: number;
   onChange: (v: number) => void;
   disabled?: boolean;
-}> = ({ value, min = 0, onChange, disabled }) => (
+}> = ({ value, min = 0, max, onChange, disabled }) => (
   <input
     type="number"
     min={min}
+    max={max}
     value={String(value)}
     disabled={disabled}
     onChange={(e) => {
       const v = Number(e.target.value);
-      onChange(Number.isFinite(v) ? Math.max(min, v) : min);
+      const clamped = max == null ? Math.max(min, v) : Math.max(min, Math.min(max, v));
+      onChange(Number.isFinite(v) ? clamped : min);
     }}
     className={inputCls}
   />

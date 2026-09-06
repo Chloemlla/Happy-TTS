@@ -157,7 +157,7 @@ export const JobsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => {
         description="本页每 2.5 秒轮询一次队列;点开任务可看实时日志与全部产物(文本可预览、媒体可下载)。"
         icon={FaHistory}
         tone="slate"
-        meta={
+        action={
           <span className="rounded-full bg-indigo-100 px-2 py-1 text-[11px] font-semibold text-indigo-700">
             {activeCount} 进行中
           </span>
