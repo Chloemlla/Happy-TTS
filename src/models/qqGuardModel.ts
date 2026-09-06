@@ -19,7 +19,9 @@ export type QqGuardAuditEvent =
   | "review_clean"
   | "review_violated"
   | "exempted"
-  | "command";
+  | "command"
+  | "bot_offline"
+  | "bot_recovered";
 
 export interface QqGuardAuditDoc {
   /** bot 每次回推生成的幂等键：唯一稀疏索引，配合 upsert 使补推重试不产生重复行。 */

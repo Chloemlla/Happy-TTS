@@ -69,6 +69,15 @@ export interface QqGuardStats {
   total: number;
 }
 
+export interface QqGuardHealth {
+  online: boolean | null;
+  latestEvent?: string;
+  latestAt?: string;
+  latestReason?: string;
+  latestMeta?: Record<string, unknown>;
+  recent?: Array<Record<string, unknown>>;
+}
+
 const BASE = () => `${getApiBaseUrl()}/api/admin/qq-guard`;
 
 const toQuery = (params: Record<string, string | number | undefined>): string => {
@@ -84,6 +93,11 @@ const toQuery = (params: Record<string, string | number | undefined>): string =>
 export const qqGuardApi = {
   stats: async (): Promise<QqGuardStats> => {
     const res = await api.get(`${BASE()}/stats`);
+    return res.data;
+  },
+
+  health: async (): Promise<QqGuardHealth> => {
+    const res = await api.get(`${BASE()}/health`);
     return res.data;
   },
 

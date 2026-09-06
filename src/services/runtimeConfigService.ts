@@ -614,6 +614,7 @@ function normalizeStoredQqGuardSigningConfig(
 
   return {
     token: normalizeOptionalString(raw.token, defaults.token, 1024),
+    alertEmails: normalizeOptionalString(raw.alertEmails, defaults.alertEmails, 2000),
   };
 }
 
@@ -1250,6 +1251,7 @@ export class RuntimeConfigService {
       config: {
         hasToken: boolean;
         token: string;
+        alertEmails: string;
       };
       updatedAt?: string;
     };
@@ -1263,6 +1265,7 @@ export class RuntimeConfigService {
         config: {
           hasToken: config.token.length > 0,
           token: maskSecret(config.token),
+          alertEmails: config.alertEmails,
         },
         updatedAt: doc?.updatedAt?.toISOString(),
       },
@@ -1284,7 +1287,12 @@ export class RuntimeConfigService {
         ? obj.token.trim().slice(0, 1024)
         : current.token;
 
-    const nextConfig: QqGuardSigningRuntimeConfig = { token: nextToken };
+    // alertEmails 独立于 token 保留式合并：显式传空串 = 清除；undefined = 保留已存值。
+    // 这样「保存密钥」与「保存邮箱」两个动作互不覆盖。
+    const nextAlertEmails =
+      typeof obj.alertEmails === "string" ? obj.alertEmails.trim().slice(0, 2000) : current.alertEmails;
+
+    const nextConfig: QqGuardSigningRuntimeConfig = { token: nextToken, alertEmails: nextAlertEmails };
 
     const { updatedAt: persistedAt } = await writeRuntimeConfigDoc(
       "QQ_GUARD_SIGNING",

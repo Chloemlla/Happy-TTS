@@ -36,6 +36,16 @@ router.get("/qq-guard/stats", async (req: Request, res: Response, next: NextFunc
   }
 });
 
+/** 机器人连接健康：由 bot_offline/bot_recovered 审计推导当前在线；无上报 → online:null。 */
+router.get("/qq-guard/health", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const health = await QqGuardModerationService.healthStatus();
+    res.json({ success: true, ...health });
+  } catch (error) {
+    next(error);
+  }
+});
+
 /** 待复审任务（undetermined 且时间线无终态）。 */
 router.get("/qq-guard/pending", async (req: Request, res: Response, next: NextFunction) => {
   try {

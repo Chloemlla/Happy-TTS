@@ -135,6 +135,8 @@ export interface CdictSigningRuntimeConfig {
  */
 export interface QqGuardSigningRuntimeConfig {
   token: string;
+  /** bot 离线/恢复告警收件邮箱（逗号分隔；空串 = 关闭邮件告警）。 */
+  alertEmails: string;
 }
 
 /**
@@ -331,6 +333,7 @@ export function buildRuntimeConfigDefaults(options: {
     },
     qqGuardSigning: {
       token: "",
+      alertEmails: "",
     },
     lumen: {
       enabled: false,

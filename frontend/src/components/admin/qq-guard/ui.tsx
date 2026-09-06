@@ -45,6 +45,8 @@ const EVENT_LABELS: Record<string, string> = {
   review_violated: '复审违规',
   exempted: '已豁免',
   command: '命令',
+  bot_offline: '机器人离线',
+  bot_recovered: '机器人恢复',
 };
 
 function badgeClass(color: string): string {
@@ -63,6 +65,8 @@ export function eventBadge(event: string, verdict?: string): EventBadgeView {
         : 'border-amber-200 bg-amber-50 text-amber-700';
   } else if (event === 'recalled' || event === 'review_violated' || event === 'violation') {
     color = 'border-rose-200 bg-rose-50 text-rose-700';
+  } else if (event === 'bot_offline') {
+    color = 'border-rose-200 bg-rose-50 text-rose-700';
   } else if (event === 'recall_failed' || event === 'dm_failed') {
     color = 'border-orange-200 bg-orange-50 text-orange-700';
   } else if (event === 'dm_sent' || event === 'dm') {
@@ -70,6 +74,8 @@ export function eventBadge(event: string, verdict?: string): EventBadgeView {
   } else if (event === 'dm_suppressed') {
     color = 'border-slate-200 bg-slate-100 text-slate-500';
   } else if (event === 'pass' || event === 'review_clean') {
+    color = 'border-emerald-200 bg-emerald-50 text-emerald-700';
+  } else if (event === 'bot_recovered') {
     color = 'border-emerald-200 bg-emerald-50 text-emerald-700';
   } else if (event === 'review_pending') {
     color = 'border-amber-200 bg-amber-50 text-amber-700';

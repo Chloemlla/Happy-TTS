@@ -14,6 +14,8 @@ import {
   type QqGuardVerdict,
   type QqGuardWhitelistDoc,
 } from "../models/qqGuardModel";
+import { EmailService } from "./emailService";
+import { RuntimeConfigService } from "./runtimeConfigService";
 
 const SERVICE_OWNER_KEY = deriveUserOwnerKey("system:qq-guard:moderate");
 
@@ -25,12 +27,28 @@ export interface QqGuardModerateResult {
 
 const RETRY_DELAYS_MS = [30 * 60 * 1000, 60 * 60 * 1000, 120 * 60 * 1000, 240 * 60 * 1000];
 
+/** 机器人连接健康审计事件（离线/恢复；同一 episode 共享 health- 前缀 traceId）。 */
+const QQ_GUARD_HEALTH_EVENTS = ["bot_offline", "bot_recovered"] as const;
+
 function newTraceId(): string {
   return `trace-${crypto.randomBytes(8).toString("hex")}`;
 }
 
 function dbUp(): boolean {
   return mongoose.connection.readyState === 1;
+}
+
+function formatMs(ms?: unknown): string {
+  if (typeof ms !== "number" || !Number.isFinite(ms)) return "未知";
+  const d = new Date(ms);
+  return Number.isNaN(d.getTime()) ? "未知" : d.toLocaleString("zh-CN", { hour12: false });
+}
+
+function humanizeMs(ms: number): string {
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 60) return `${s} 秒`;
+  const m = Math.floor(s / 60);
+  return m < 60 ? `${m} 分钟 ${s % 60} 秒` : `${Math.floor(m / 60)} 小时 ${m % 60} 分钟`;
 }
 
 /**
@@ -184,25 +202,27 @@ export class QqGuardModerationService {
       meta?: Record<string, unknown>;
     },
     opts: { throwOnError?: boolean } = {},
-  ): Promise<void> {
+  ): Promise<boolean> {
     if (!dbUp()) {
       if (opts.throwOnError) throw new Error("qq_guard_audit db not available");
-      return;
+      return false;
     }
     const doc = { ...input, createdAt: new Date() };
     try {
       if (input.eventId) {
-        await QqGuardAuditModel.updateOne(
+        const result = await QqGuardAuditModel.updateOne(
           { eventId: input.eventId },
           { $setOnInsert: doc },
           { upsert: true },
         );
-      } else {
-        await QqGuardAuditModel.create(doc);
+        return (result.upsertedCount ?? 0) > 0;
       }
+      await QqGuardAuditModel.create(doc);
+      return true;
     } catch (err) {
       if (opts.throwOnError) throw err;
       logger.error("[QqGuard] 审计写入失败:", err);
+      return false;
     }
   }
 
@@ -264,6 +284,92 @@ export class QqGuardModerationService {
       byEvent[key] = row.n;
     }
     return { byEvent, total: facet?.total?.[0]?.n ?? 0 };
+  }
+
+  /**
+   * 机器人连接健康：由最近一条 bot_offline/bot_recovered 审计推导当前在线态。
+   * 一条健康上报都没有 → online:null（面板据此显示"尚未收到上报"，提示 bot 未开 health.enabled）。
+   */
+  static async healthStatus() {
+    if (!dbUp()) return { online: null };
+    const recent = await QqGuardAuditModel.find({
+      event: { $in: [...QQ_GUARD_HEALTH_EVENTS] },
+    })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .select("traceId event reason status meta createdAt")
+      .lean()
+      .exec();
+    if (!recent || recent.length === 0) return { online: null, recent: [] };
+    const latest = recent[0];
+    return {
+      online: latest.event === "bot_recovered",
+      latestEvent: latest.event,
+      latestAt: latest.createdAt,
+      ...(latest.reason ? { latestReason: latest.reason } : {}),
+      ...(latest.meta && typeof latest.meta === "object"
+        ? { latestMeta: latest.meta as Record<string, unknown> }
+        : {}),
+      recent,
+    };
+  }
+
+  /** bot 离线/恢复 → 给 qqGuardSigning.alertEmails 里配置的收件人发邮件；未配置或全非法则不发送。 */
+  static async sendHealthAlertEmail(input: {
+    event: string;
+    traceId: string;
+    reason?: string;
+    status?: string;
+    meta?: Record<string, unknown>;
+  }): Promise<void> {
+    try {
+      const configured = (RuntimeConfigService.getCachedConfig().qqGuardSigning?.alertEmails ?? "").trim();
+      if (!configured) return;
+      const recipients = configured
+        .split(/[,，;；]/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .filter((email) => EmailService.isValidEmail(email));
+      if (recipients.length === 0) {
+        logger.warn("[QqGuard] 告警邮箱已配置但都不是受支持域名，未发送", { configured });
+        return;
+      }
+      const kind = typeof input.meta?.kind === "string" ? input.meta.kind : undefined;
+      const reasonLabel =
+        input.event === "bot_offline"
+          ? kind === "account-stuck"
+            ? "账号卡死（NapCat 离线僵态）"
+            : kind === "ws-down"
+              ? "与 NapCat 的 WebSocket 断开"
+              : input.reason || "QQ 通道断开"
+          : input.reason === "reconnected" || input.event === "bot_recovered"
+            ? "通道已恢复"
+            : input.reason || "通道已恢复";
+      const lines: string[] = [];
+      if (input.event === "bot_offline") {
+        lines.push(`检测到 QQ 机器人离线（${reasonLabel}）。`);
+        lines.push(`下线时刻：${formatMs(input.meta?.offlineAtMs)}`);
+        lines.push(`traceId：${input.traceId}`);
+        lines.push("机器人恢复在线后会补发「已恢复」邮件；可在管理面板按 traceId 核对详情。");
+      } else {
+        lines.push("QQ 机器人已恢复在线。");
+        const offlineMs = typeof input.meta?.offlineMs === "number" ? input.meta.offlineMs : undefined;
+        if (offlineMs !== undefined) lines.push(`本次下线时长：${humanizeMs(offlineMs)}`);
+        lines.push(`traceId：${input.traceId}`);
+      }
+      const subject =
+        input.event === "bot_offline"
+          ? `【QQ 机器人离线告警】${reasonLabel}`
+          : "【QQ 机器人已恢复在线】";
+      const result = await EmailService.sendSimpleEmail(recipients, subject, lines.join("\n"));
+      if (!result.success) {
+        logger.warn("[QqGuard] 告警邮件发送失败", { event: input.event, traceId: input.traceId, error: result.error });
+      } else {
+        logger.info("[QqGuard] 告警邮件已发送", { event: input.event, traceId: input.traceId, to: recipients });
+      }
+    } catch (err) {
+      logger.error("[QqGuard] 告警邮件处理异常", { error: err instanceof Error ? err.message : String(err) });
+    }
   }
 
   /**

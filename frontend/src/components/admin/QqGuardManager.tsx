@@ -11,7 +11,7 @@ import {
   FaListUl,
 } from 'react-icons/fa';
 import { qqGuardApi } from '../../api/qqGuard';
-import type { QqGuardPendingTask, QqGuardStats } from '../../api/qqGuard';
+import type { QqGuardPendingTask, QqGuardStats, QqGuardHealth } from '../../api/qqGuard';
 import { SimpleLoadingSpinner } from '../LoadingSpinner';
 import {
   InfoMetricCard,
@@ -36,6 +36,45 @@ const TABS: Array<{ key: TabKey; label: string; icon: React.ReactNode }> = [
 const tinyBtn =
   'inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50';
 
+const HEALTH_REASON: Record<string, string> = {
+  'ws-down': '与 NapCat 的 WebSocket 断开',
+  'account-stuck': '账号卡死（NapCat 离线僵态，请求超时）',
+  reconnected: '通道已恢复',
+};
+
+const healthBar = (h: QqGuardHealth | null) => {
+  if (!h || h.online === null || h.online === undefined) {
+    return (
+      <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+        <FaShieldAlt className="text-slate-400" />
+        <span>尚未收到机器人健康上报（bot 需开启 config.health.enabled）</span>
+      </div>
+    );
+  }
+  if (h.online) {
+    return (
+      <div className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+        <FaCheckCircle className="text-emerald-500" />
+        <span className="font-semibold">机器人在线</span>
+        {h.latestAt ? (
+          <span className="text-emerald-600/80">· 最近上报 {formatDateTime(h.latestAt)}</span>
+        ) : null}
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+      <FaExclamationTriangle className="text-rose-500" />
+      <span className="font-semibold">机器人当前离线（QQ 通道异常）</span>
+      {h.latestReason ? <span>· {HEALTH_REASON[h.latestReason] ?? h.latestReason}</span> : null}
+      {h.latestAt ? <span>· 离线于 {formatDateTime(h.latestAt)}</span> : null}
+      <span className="ml-auto rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-600">
+        期间入群申请无法自动处理
+      </span>
+    </div>
+  );
+};
+
 /**
  * QQ 群纪律（qq-realname-guard 远端）管理面板。
  * 待复审任务每行可：立即复审 / 豁免成员 / 手动撤回 / 打开时间线。
@@ -45,6 +84,7 @@ export const QqGuardManager: React.FC = () => {
   const [tab, setTab] = useState<TabKey>('overview');
   const [stats, setStats] = useState<QqGuardStats | null>(null);
   const [pending, setPending] = useState<QqGuardPendingTask[]>([]);
+  const [health, setHealth] = useState<QqGuardHealth | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -55,9 +95,10 @@ export const QqGuardManager: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const [s, p] = await Promise.all([qqGuardApi.stats(), qqGuardApi.pending()]);
+      const [s, p, h] = await Promise.all([qqGuardApi.stats(), qqGuardApi.pending(), qqGuardApi.health()]);
       setStats(s);
       setPending(p);
+      setHealth(h);
     } catch (err) {
       setError('总览加载失败，请稍后重试');
       console.error('加载 QQ 群纪律总览失败:', err);
@@ -157,6 +198,7 @@ export const QqGuardManager: React.FC = () => {
 
       {tab === 'overview' ? (
         <div className="space-y-5">
+          {healthBar(health)}
           <div className={cx(logSharePanelClass, 'p-5')}>
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-6">
               {cards.map((card) => (

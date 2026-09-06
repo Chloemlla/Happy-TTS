@@ -14,6 +14,7 @@ const ALLOWED_AUDIT_EVENTS = new Set<string>([
   "message", "moderate", "violation", "recalled", "recall_failed",
   "dm", "dm_sent", "dm_suppressed", "dm_failed", "pass", "review_pending",
   "review_clean", "review_violated", "exempted", "command",
+  "bot_offline", "bot_recovered",
 ]);
 
 function readSharedSecret(): string {
@@ -157,7 +158,7 @@ router.post(
     const eventId = typeof body.eventId === "string" ? body.eventId.trim().slice(0, 128) : undefined;
     // 写库失败要如实上报（5xx），bot 才能把它送进补推队列重试；不吞错。
     try {
-      await QqGuardModerationService.recordAudit(
+      const inserted = await QqGuardModerationService.recordAudit(
         {
           eventId,
           traceId,
@@ -179,6 +180,18 @@ router.post(
         },
         { throwOnError: true },
       );
+      if (inserted && (event === "bot_offline" || event === "bot_recovered")) {
+        // 邮件告警 fire-and-forget：不入 audit 送达契约（outbox 只管审计行），失败只记日志。
+        void QqGuardModerationService.sendHealthAlertEmail({
+          event,
+          traceId,
+          reason: opt(body.reason),
+          status: opt(body.status),
+          ...(body.meta && typeof body.meta === "object"
+            ? { meta: body.meta as Record<string, unknown> }
+            : {}),
+        });
+      }
     } catch (err) {
       logger.error("[QqGuard] /audit 写库失败，返回 5xx 供 bot 补推", {
         traceId,

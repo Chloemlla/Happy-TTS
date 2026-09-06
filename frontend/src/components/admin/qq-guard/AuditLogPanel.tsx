@@ -28,6 +28,8 @@ const EVENT_OPTIONS = [
   'review_violated',
   'exempted',
   'command',
+  'bot_offline',
+  'bot_recovered',
 ];
 
 interface FilterState {
