@@ -133,6 +133,34 @@ describe("legacyApiRedirectMiddleware", () => {
     expect(location.searchParams.get("state")).toBeTruthy();
   });
 
+  it("serves the SPA for browser navigation to a modern admin module page", async () => {
+    await request(createApp())
+      .get("/admin/qq-guard")
+      .set("Accept", "text/html,application/xhtml+xml")
+      .set("Sec-Fetch-Mode", "navigate")
+      .set("Sec-Fetch-Dest", "document")
+      .expect(204);
+
+    await request(createApp())
+      .get("/admin/env?tab=secrets")
+      .set("Accept", "text/html")
+      .expect(204);
+
+    await request(createApp())
+      .get("/admin/system")
+      .set("Accept", "text/html")
+      .set("Sec-Fetch-Mode", "navigate")
+      .expect(204);
+  });
+
+  it("still redirects non-document requests to modern admin module paths to the API", async () => {
+    await request(createApp())
+      .get("/admin/qq-guard")
+      .set("Accept", "application/json")
+      .expect(308)
+      .expect("Location", "/api/admin/qq-guard");
+  });
+
   it("redirects browser navigation to legacy API paths when no matching frontend page exists", async () => {
     await request(createApp())
       .get("/admin/audit-events")

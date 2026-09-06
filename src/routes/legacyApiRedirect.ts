@@ -84,6 +84,49 @@ const frontendRoutesWithLegacyApiCollision = new Set<string>([
   "/policy",
 ]);
 
+// 现代 /admin 面板的 SPA 模块页（镜像 frontend/src/components/admin/adminModules.tsx 的
+// loader key → `/admin/<key>`；除已在碰撞集里按静态路由处理的 lottery/users/store 外）。
+// 这些路径从未在非 /api 前缀下提供可书签内容，浏览器深链时不存在
+// "旧 API vs 页面"歧义，应直接交给 SPA。命中此列表的文档导航若不放行，
+// 会被下方 /admin → /api/admin 前缀映射 308 整页跳到 API 路径。
+// 新增 /admin 模块页时务必在此登记，并确保不与该列表重复。
+const frontendAdminModulePathPrefixes = [
+  "/admin/registration-invites",
+  "/admin/librechat",
+  "/admin/ecoenchants",
+  "/admin/ecoenchants-ops",
+  "/admin/announcement",
+  "/admin/markdown-articles",
+  "/admin/env",
+  "/admin/mail-system",
+  "/admin/coin-flip",
+  "/admin/outemail",
+  "/admin/shortlink",
+  "/admin/shorturlmigration",
+  "/admin/command",
+  "/admin/humancheck",
+  "/admin/logshare",
+  "/admin/media-tool",
+  "/admin/fbiwanted",
+  "/admin/webhookevents",
+  "/admin/data-collection",
+  "/admin/github-billing-cache",
+  "/admin/ip-ban",
+  "/admin/fingerprint",
+  "/admin/broadcast",
+  "/admin/oauth",
+  "/admin/apikeys",
+  "/admin/apikey-billing",
+  "/admin/audit-log",
+  "/admin/crash-reports",
+  "/admin/qq-guard",
+  "/admin/translation-audit",
+  "/admin/email-traceability",
+  "/admin/tts-history",
+  "/admin/system",
+  "/admin/bilibili-sync",
+] as const;
+
 const legacyApiChoiceCookieName = "legacyApiNavigationChoice";
 const legacyApiFrontendBypassCookieName = "legacyApiFrontendBypass";
 const legacyApiChoicePagePath = "/legacy-api-choice";
@@ -285,6 +328,10 @@ function isFrontendRouteWithLegacyApiCollision(pathname: string): boolean {
   return frontendRoutesWithLegacyApiCollision.has(pathname);
 }
 
+function isFrontendAdminModulePath(pathname: string): boolean {
+  return frontendAdminModulePathPrefixes.some((prefix) => hasPathPrefix(pathname, prefix));
+}
+
 function getChoiceStateSecret(): string {
   // 用独立派生密钥，避免把 JWT 签名密钥直接用于纯 UI 状态签名
   if (process.env.LEGACY_API_CHOICE_SECRET) return process.env.LEGACY_API_CHOICE_SECRET;
@@ -363,6 +410,11 @@ export const legacyApiRedirectMiddleware: RequestHandler = (req, res, next) => {
   const normalizedRequestPath = normalizePathname(req.path);
   const canonicalPath = resolveLegacyApiPath(normalizedRequestPath);
   if (!canonicalPath) {
+    return next();
+  }
+
+  if (isBrowserDocumentNavigation(req) && isFrontendAdminModulePath(normalizedRequestPath)) {
+    // SPA 模块页的深链：整页导航时直接放行给前端兜底，不做旧 API 重定向。
     return next();
   }
 
