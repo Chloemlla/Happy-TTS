@@ -56,3 +56,8 @@ export async function deleteAllUsers(): Promise<{ deleted: number; message: stri
     const res = await api.delete(`${BASE}/admin/users/all`, { data: { confirm: true } });
     return res.data as { deleted: number; message: string };
 }
+
+export async function deleteGuestHistories(): Promise<{ deleted: number; message: string }> {
+    const res = await api.delete(`${BASE}/admin/users/guests`);
+    return res.data as { deleted: number; message: string };
+}

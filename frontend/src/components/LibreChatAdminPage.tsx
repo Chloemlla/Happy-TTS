@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { listUsers, getUserHistory, deleteUser, batchDeleteUsers, deleteAllUsers, AdminUserSummary, AdminUserHistoryItem } from '../api/librechatAdmin';
 import { AiErrorDetailsPanel } from './AiErrorDetailsPanel';
+import LibreChatGuestCleanup from './LibreChatGuestCleanup';
 import { useNotification } from './Notification';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
 import { useAuth } from '../hooks/useAuth';
@@ -258,6 +259,8 @@ const LibreChatAdminPage: React.FC = () => {
           </div>
         </div>
       </motion.div>
+
+      <LibreChatGuestCleanup onChanged={() => void fetchUsers(1, false)} />
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Left: Users list */}

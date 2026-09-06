@@ -1586,6 +1586,36 @@ class LibreChatService {
     return { deleted };
   }
 
+  // 仅管理员使用：一键清空全部 guest 遗留历史（登录化后的孤儿，不属于任何登录账号）。
+  // 语义与 adminDeleteUser 一致（软删：messages 清空 + deleted 标记），内存副本同步清除。
+  public async adminDeleteGuestHistories(): Promise<{ deleted: number }> {
+    const mongoConnected = mongoose.connection.readyState === 1;
+    let deleted = 0;
+
+    if (mongoConnected) {
+      try {
+        // 前缀为固定字面量 "guest:"，不存在注入面。
+        const result = await (mongoose.models.LibreChatHistory as any).updateMany(
+          { ownerKey: { $regex: "^guest:" }, deleted: { $ne: true } },
+          { $set: { messages: [], deleted: true, deletedAt: new Date(), updatedAt: new Date() } },
+        );
+        deleted = Number(result?.modifiedCount || 0);
+      } catch (e) {
+        console.warn("[LibreChat] adminDeleteGuestHistories mongo delete failed, fallback to memory", e);
+      }
+    }
+
+    const guestInMemory = this.chatHistory.filter((m) => !!m.ownerKey && m.ownerKey.startsWith("guest:"));
+    if (guestInMemory.length > 0) {
+      const removedOwners = new Set(guestInMemory.map((m) => m.ownerKey as string)).size;
+      this.chatHistory = this.chatHistory.filter((m) => !m.ownerKey || !m.ownerKey.startsWith("guest:"));
+      if (!mongoConnected || deleted === 0) await this.saveChatHistory();
+      if (deleted === 0) deleted = removedOwners;
+    }
+
+    return { deleted };
+  }
+
   // 仅管理员使用：批量删除多个用户全部历史
   public async adminBatchDeleteUsers(
     userIds: string[],

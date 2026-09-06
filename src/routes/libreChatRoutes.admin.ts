@@ -51,6 +51,21 @@ export function registerLibreChatAdminRoutes(router: Router): void {
     }
   });
 
+  // 一键清理全部 guest 遗留历史（登录化后孤儿，软删语义同单用户删除）—— 须在 /admin/users/:userId 之前注册
+  router.delete(
+    "/admin/users/guests",
+    authenticateSuperAdmin,
+    auditLog({ module: "api", action: "libreChat.deleteGuestHistories" }),
+    async (req, res) => {
+    try {
+      const ret = await libreChatService.adminDeleteGuestHistories();
+      res.json({ message: `已清理 ${ret.deleted} 条 guest 遗留历史`, ...ret });
+    } catch (error) {
+      console.error("管理员清理 guest 历史错误:", error);
+      res.status(500).json({ error: "清理 guest 历史失败" });
+    }
+  });
+
   // 删除指定用户全部历史
   router.delete(
     "/admin/users/:userId",
@@ -63,8 +78,8 @@ export function registerLibreChatAdminRoutes(router: Router): void {
     async (req, res) => {
     try {
       const { userId } = req.params as { userId: string };
-      if (userId === "all") {
-        return res.status(400).json({ error: "保留字 all 请使用 /admin/users/all" });
+      if (userId === "all" || userId === "guests") {
+        return res.status(400).json({ error: `保留字 ${userId} 请使用 /admin/users/${userId}` });
       }
       const ret = await libreChatService.adminDeleteUser(userId);
       res.json({ message: "指定用户聊天历史已删除", ...ret });
