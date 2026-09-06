@@ -33,8 +33,10 @@
   - 根因：Mongo `runtime_config_settings` 的 TTS 文档存有历史遗留弱码（实测值非空但远低于 24 字符强度门槛）；`normalizeStoredTtsConfig` 对弱存储码走 `assertStrongGenerationCode` catch → warn → `generationCode = ""`。而 `ensurePeriodicRefresh` 每 10s 重新 `initialize(true)` 全量 normalize，弱码数据不修就无限刷屏
   - 同时：env `GENERATION_CODE` 配置了强码（启动时经 `normalizeGenerationCode`，config.ts:318），却被存储里的弱遗留值盖过——共享码闸门在运维已配置强码的情况下被静默关闭
   - 存储弱码不可能来自正常写入路径：`setTtsSetting` 写入时已强制强度校验，弱码只能来自早期无强校验的种子/手工数据
-- 修复：`normalizeStoredTtsConfig` 将弱/空存储值一律视为未配置，**回退到运行时默认（env `GENERATION_CODE`）**；`assertStrongGenerationCode` 仅作为最后兜底（当 env 默认本身也弱时才告警并关闭，正常配置下不可达）
-  - 行为变化说明：生产共享码闸门从"关闭"变为"以强 env 码开启"——这是恢复运维显式配置的意图，不是接受可预测码
-- 复现条件：Mongo TTS 文档含弱 `generationCode` + env 强码，且服务持续运行
+- 修复（代码 + 数据双层）：
+  - 数据：生产 Mongo TTS 文档遗留弱码 `"1145"`（2026-06-27 写入）已由数据层清空（用户确认）→ stored 空 → 回退运行时默认（env 强码），共享码闸门恢复开启
+  - 代码：`normalizeStoredTtsConfig` **保持严格校验**——弱存储码一律拒绝并关闭闸门，不回退 env（Mongo 是权威，且 env `GENERATION_CODE` 仅经 `normalizeGenerationCode` trim+截断、不保证强度）；仅新增**告警节流**（同一弱码每 5 分钟最多告警一条），消除 10s 周期刷新刷屏
+  - 不依赖 env 强度：即使未来 env 与存储均为弱码，仍 fail-closed + 节流告警，安全语义与既有设计一致
+- 复现条件：Mongo TTS 文档含弱 `generationCode` + 服务持续运行
 - 影响面：`getTtsSetting` / `initialize` / `setTtsSetting` 共享此 normalize 路径；改动只影响"存储弱码"分支
 - 测试影响：`runtimeConfigTtsProviderFallback.test.ts`（TTS_PROVIDER 回退，mock Mongo）与 `configurationNoticeIssues.test.ts`（mock runtimeMutableConfig）均不触发本路径，未破坏

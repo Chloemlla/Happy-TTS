@@ -27,7 +27,6 @@ import { refreshLumenConfig } from "../config/lumen";
 import {
   assertStrongGenerationCode,
   normalizeGenerationCode,
-  validateGenerationCodeStrength,
 } from "../utils/generationCodePolicy";
 import logger from "../utils/logger";
 import { normalizeScamalyticsUser, validateScamalyticsUser } from "../utils/scamalytics";
@@ -357,26 +356,31 @@ function normalizeStoredNexaiConfig(value: unknown, defaults = runtimeConfigDefa
   };
 }
 
+// 弱码告警节流：周期刷新每 10s 全量 normalize 会反复触发同一条告警，节流后每 5 分钟最多一条，
+// 避免日志被刷屏；安全语义不变（弱码仍被拒绝，共享码闸门保持关闭）。
+let lastWeakGenerationCodeWarnAt = 0;
+const WEAK_GENERATION_CODE_WARN_INTERVAL_MS = 5 * 60 * 1000;
+
 function normalizeStoredTtsConfig(value: unknown, defaults = runtimeConfigDefaults.tts): TtsRuntimeConfig {
   const raw = asObject(value);
-  // setTtsSetting 写入路径已强制强度校验，存储里出现弱码只可能是历史遗留。
-  // 弱/空存储值一律视为未配置并回退到运行时默认（env GENERATION_CODE，启动时已 normalize），
-  // 而不是直接关闭共享码闸门并每 10s 周期刷新刷一条告警
-  // （2026-09-06 生产：遗留弱码 "1145" 每 10s 盖过强 env 码的真实案例）。
-  const storedCode = normalizeGenerationCode(
+  // 优先使用存储值（Mongo 是权威）；未配置时回退到运行时默认（env GENERATION_CODE）。
+  // 存储值只可能来自写入路径（已强制强度校验）或历史遗留；弱值一律拒绝并关闭共享码闸门，
+  // 不因环境默认值而放宽（2026-09-06 生产遗留弱码 "1145" 由数据层清空，见 audit 文档）。
+  const candidate = normalizeGenerationCode(
     typeof raw.generationCode === "string" && raw.generationCode.trim().length > 0
       ? raw.generationCode
-      : "",
+      : defaults.generationCode,
   );
-  const storedCheck = validateGenerationCodeStrength(storedCode);
-  const candidate = storedCheck.ok ? storedCheck.code : defaults.generationCode;
   let generationCode = "";
   if (candidate) {
     try {
       generationCode = assertStrongGenerationCode(candidate, "generationCode");
     } catch {
-      // 仅当运行时默认（env）本身也是弱码时才会走到这里——正常配置下不可达。
-      logger.warn("[RuntimeConfig] Ignoring weak TTS generation code from storage/defaults");
+      const now = Date.now();
+      if (now - lastWeakGenerationCodeWarnAt >= WEAK_GENERATION_CODE_WARN_INTERVAL_MS) {
+        lastWeakGenerationCodeWarnAt = now;
+        logger.warn("[RuntimeConfig] Ignoring weak TTS generation code from storage/defaults");
+      }
       generationCode = "";
     }
   }
