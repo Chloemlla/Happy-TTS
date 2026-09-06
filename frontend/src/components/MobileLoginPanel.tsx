@@ -180,14 +180,6 @@ export const MobileLoginPanel: React.FC<MobileLoginPanelProps> = ({ disabled, lo
         <div className="min-w-0 flex-1">
           <h3 className="text-sm font-semibold text-slate-900">安卓客户端登录</h3>
           <p className="mt-1 text-xs leading-5 text-slate-600">扫码确认，或粘贴客户端令牌继续。</p>
-          <a
-            href="https://github.com/Chloemlla/Synapse-Client/releases/latest"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-1 inline-block text-xs text-emerald-600 hover:text-emerald-700 underline"
-          >
-            下载 Synapse-Client →
-          </a>
         </div>
       </div>
       {synapseDetected !== null && (
@@ -204,7 +196,7 @@ export const MobileLoginPanel: React.FC<MobileLoginPanelProps> = ({ disabled, lo
               <svg className="h-3.5 w-3.5 text-emerald-500" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
               </svg>
-              已检测到 Synapse-Client
+              支持 Synapse-Client 扫码或令牌登录
             </span>
           ) : (
             <span className="flex items-center gap-2">
