@@ -99,6 +99,7 @@ export function ensureDir(dir: string): void {
 
 export function statOrNull(p: string): fs.Stats | null {
   try {
+    // codeql[js/path-injection] statOrNull 的每个调用点要么传 multer 写入 inbox 的临时文件路径,要么已先经 relInside/relInsideRoot(root,·) 守界;整个 media-tool 子树是 admin 门内(requireAdmin + mount adminLimiter),自定义守界函数 CodeQL 不可见故在此共享 sink 上报。
     return fs.statSync(p);
   } catch {
     return null;
