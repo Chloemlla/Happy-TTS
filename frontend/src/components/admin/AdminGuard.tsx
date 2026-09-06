@@ -17,13 +17,32 @@ import {
   InfoQueryShell,
 } from '@/components/LogShareStyleScaffold';
 import { useNotification } from '@/components/Notification';
-import { FaShieldAlt } from 'react-icons/fa';
+import { FaShieldAlt, FaExclamationCircle } from 'react-icons/fa';
 
 type AdminGuardProps = {
   children: React.ReactNode;
 };
 
 export { resetAdminVerifyCache };
+
+const VERIFY_TIMEOUT_MS = 8000;
+
+async function postVerifyAccess(
+  userId?: string,
+  username?: string,
+  role?: string,
+  signal?: AbortSignal,
+): Promise<Response> {
+  return fetch(`${getApiBaseUrl()}/api/admin/verify-access`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ userId, username, role }),
+    signal,
+  });
+}
 
 /**
  * Shared admin access gate for every `/admin/*` route.
@@ -39,23 +58,27 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
   const cachedOk = hasFreshVerify(user?.id);
   const [isAuthorized, setIsAuthorized] = useState(cachedOk);
   const [isLoading, setIsLoading] = useState(!cachedOk);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+  const [retryTick, setRetryTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), VERIFY_TIMEOUT_MS);
 
     const verifyAdminAccess = async () => {
       try {
         if (loading) return;
 
         if (!user) {
-          setIsLoading(true);
+          setVerifyError(null);
           setNotification({ message: '请先登录', type: 'warning' });
           navigate('/login');
           return;
         }
 
         if (!isAdminRole(user.role)) {
-          setIsLoading(true);
+          setVerifyError(null);
           setNotification({
             message: '权限不足，仅限管理员访问',
             type: 'error',
@@ -69,57 +92,70 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
           if (!cancelled) {
             setIsAuthorized(true);
             setIsLoading(false);
+            setVerifyError(null);
           }
           return;
         }
 
         if (!cancelled) setIsLoading(true);
 
-        try {
-          const response = await fetch(
-            `${getApiBaseUrl()}/api/admin/verify-access`,
-            {
-              method: 'POST',
-              credentials: 'include',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                userId: user.id,
-                username: user.username,
-                role: user.role,
-              }),
-            },
-          );
+        const response = await postVerifyAccess(
+          user.id,
+          user.username,
+          user.role,
+          controller.signal,
+        );
+        if (cancelled) return;
 
-          if (!response.ok) throw new Error('后端权限验证失败');
-          const result = await response.json();
-          if (!result.success) throw new Error(result.message || '权限验证失败');
-
-          rememberVerify(user.id);
-          if (!cancelled) setIsAuthorized(true);
-        } catch (error) {
-          console.error('[AdminGuard] 后端权限验证失败:', error);
+        if (response.status === 401 || response.status === 403) {
+          resetAdminVerifyCache();
           setNotification({
             message: '权限验证失败，请重新登录',
             type: 'error',
           });
           navigate('/login');
+          return;
         }
+
+        if (!response.ok) {
+          setVerifyError('权限服务暂时不可用，请稍后重试');
+          return;
+        }
+
+        const result = await response.json();
+        if (!result.success) {
+          setVerifyError(result.message || '权限验证失败，请稍后重试');
+          return;
+        }
+
+        rememberVerify(user.id);
+        setVerifyError(null);
+        if (!cancelled) setIsAuthorized(true);
       } catch (error) {
-        console.error('[AdminGuard] 权限验证过程中发生错误:', error);
-        setNotification({ message: '权限验证失败', type: 'error' });
-        navigate('/');
+        if (cancelled) return;
+        if (controller.signal.aborted) {
+          console.warn('[AdminGuard] 权限验证超时:', error);
+          setVerifyError('权限验证超时，请检查网络后重试');
+          return;
+        }
+        console.error('[AdminGuard] 权限验证失败:', error);
+        setVerifyError('网络异常，无法连接权限服务');
       } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) {
+          setIsLoading(false);
+          window.clearTimeout(timer);
+        }
       }
     };
 
     void verifyAdminAccess();
+
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
+      controller.abort();
     };
-  }, [loading, user, navigate, setNotification]);
+  }, [loading, user, navigate, setNotification, retryTick]);
 
   // Re-check periodically while authorized. On a transient network/backend
   // failure, back off exponentially instead of silently retrying at the same
@@ -136,22 +172,16 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
       if (cancelled) return;
       timer = window.setTimeout(async () => {
         if (cancelled) return;
+        const controller = new AbortController();
+        const ptimer = window.setTimeout(() => controller.abort(), VERIFY_TIMEOUT_MS);
         try {
-          const response = await fetch(
-            `${getApiBaseUrl()}/api/admin/verify-access`,
-            {
-              method: 'POST',
-              credentials: 'include',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                userId: user?.id,
-                username: user?.username,
-                role: user?.role,
-              }),
-            },
+          const response = await postVerifyAccess(
+            user?.id,
+            user?.username,
+            user?.role,
+            controller.signal,
           );
+          if (cancelled) return;
 
           if (!response.ok) {
             resetAdminVerifyCache();
@@ -178,6 +208,8 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
             type: 'warning',
           });
           scheduleNext(backoffMs);
+        } finally {
+          window.clearTimeout(ptimer);
         }
       }, delayMs);
     };
@@ -204,6 +236,40 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
               <p className='mt-3 text-sm leading-7 text-slate-600'>
                 正在验证管理员权限...
               </p>
+            </div>
+          </div>
+        </InfoPanel>
+      </InfoQueryShell>
+    );
+  }
+
+  if (verifyError && !isAuthorized) {
+    return (
+      <InfoQueryShell className='logshare-admin-surface'>
+        <InfoPanel className='border-amber-100'>
+          <div className='flex min-h-[360px] items-center justify-center'>
+            <div className='max-w-md text-center'>
+              <div className='mx-auto flex h-14 w-14 items-center justify-center rounded-[26px] bg-amber-50 text-amber-700 ring-1 ring-amber-100'>
+                <FaExclamationCircle className='h-6 w-6' />
+              </div>
+              <div className='mt-5 text-sm font-semibold uppercase tracking-[0.26em] text-slate-400'>
+                Admin Access
+              </div>
+              <h2 className='mt-3 text-2xl font-semibold text-slate-900'>
+                权限验证失败
+              </h2>
+              <p className='mt-3 text-sm leading-7 text-slate-600'>
+                {verifyError}
+              </p>
+              <InfoPrimaryButton
+                className='mt-6'
+                onClick={() => {
+                  setVerifyError(null);
+                  setRetryTick((v) => v + 1);
+                }}
+              >
+                重试
+              </InfoPrimaryButton>
             </div>
           </div>
         </InfoPanel>

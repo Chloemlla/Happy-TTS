@@ -136,10 +136,16 @@ export const useAuth = () => {
     }, []);
 
     const checkAuth = useCallback(async () => {
-        if (moduleCheckingRef) return;
-
         const now = Date.now();
-        if (now - moduleLastCheckRef < CHECK_INTERVAL || now - moduleLastErrorRef < ERROR_RETRY_INTERVAL) {
+        if (moduleCheckingRef
+            || now - moduleLastCheckRef < CHECK_INTERVAL
+            || now - moduleLastErrorRef < ERROR_RETRY_INTERVAL) {
+            // 模块级检查正在执行或 30s 内刚完成：认证态已(即将)写入 store。
+            // 若不在此复位本实例 loading，节流窗口内新挂载的消费方(AdminGuard 等)会
+            // 永久卡在 "正在验证管理员权限..."——loading 只在真正发请求的 finally 里复位。
+            setLoading(false);
+            setIsChecking(false);
+            setIsLoading(false);
             return;
         }
 
