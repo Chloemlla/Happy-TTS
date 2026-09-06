@@ -32,21 +32,24 @@ export const validateFingerprint = (fingerprint: string): string | null => {
   return sanitized;
 };
 
+// captcha token 是不透明凭据：只做长度界检查并原样透传，任何截断/模式剥离
+// 都会损坏 token（hCaptcha P1_ 形态实测可超 2500 字符，siteverify 对残缺
+// token 返回 invalid-input-response）。上限 4096 仅作滥用边界。
+const TOKEN_MIN_LENGTH = 10;
+const TOKEN_MAX_LENGTH = 4096;
+
 export const validateToken = (token: string): string | null => {
   if (!token || typeof token !== "string") {
     return null;
   }
 
-  const sanitized = sanitizeString(token, 2000);
-  if (!sanitized || sanitized.length < 10) {
+  const trimmed = token.trim();
+
+  if (trimmed.length < TOKEN_MIN_LENGTH || trimmed.length > TOKEN_MAX_LENGTH) {
     return null;
   }
 
-  if (!sanitized.trim()) {
-    return null;
-  }
-
-  return sanitized;
+  return trimmed;
 };
 
 export const validateIpAddress = (ip: string): string | null => {
