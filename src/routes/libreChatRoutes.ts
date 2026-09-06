@@ -1,7 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import { isAdminRole } from "../middleware/auth";
 import { authenticateToken } from "../middleware/authenticateToken";
-import { libreChatLimiter } from "../middleware/routeLimiters";
 import { libreChatService } from "../services/libreChatService";
 import { toChatMessagesView } from "../services/librechat/diagnostics";
 import { type LibreChatIdentity, resolveLibreChatIdentity } from "./libreChatIdentity";
@@ -13,7 +12,9 @@ const router = Router();
 const MAX_MESSAGE_LEN = 4096;
 
 // LibreChat 会话只属于登录账号：Router 级强制 JWT/Cookie 登录，拒绝匿名/自选 token。
-router.use(libreChatLimiter, authenticateToken);
+// 限流不在此重复挂载：/api/libre-chat 由 routeLimiterModules 相位、/api/librechat 由
+// preDocs 模块 middlewares 各限一次；同一实例在此再执行会使每请求双计、配额减半。
+router.use(authenticateToken);
 
 function sendLibreChatError(
   res: Response,
@@ -46,6 +47,8 @@ async function requireLibreChatIdentity(req: Request, res: Response): Promise<Li
     return resolution.identity;
   }
   if (resolution.reason === "account-suspended") {
+    // 纵深防御：真实挂载下 authenticateToken 前置已对封停账号返回 403；保留此分支以防
+    // 未来某挂载不前置鉴权时仍能正确拒绝（identity 解析器语义有测试钉死）。
     sendLibreChatError(res, 403, "ACCOUNT_SUSPENDED", "账户已被封停");
   } else {
     sendLibreChatError(res, 401, "AUTH_REQUIRED", "未认证：请先登录后再使用");
@@ -58,6 +61,7 @@ async function requireLibreChatIdentity(req: Request, res: Response): Promise<Li
  * /lc:
  *   get:
  *     summary: 获取最新镜像信息
+ *     description: 登录态最新镜像完整记录：{ update_time, image_url, update_time_shanghai }（image_url 为完整镜像引用）
  *     responses:
  *       200:
  *         description: 镜像信息
@@ -67,7 +71,8 @@ router.get("/lc", (_req, res) => {
   if (record) {
     return res.json({
       update_time: record.updateTime,
-      image_name: record.imageUrl,
+      image_url: record.imageUrl,
+      update_time_shanghai: record.updateTimeShanghai,
     });
   }
   return res.status(404).json({ error: "No data available." });
@@ -131,12 +136,14 @@ router.put("/message", async (req, res) => {
  *       200:
  *         description: 镜像信息
  */
+// 内部旧别名端点：与 /lc 返回一致（完整记录）；前端现只消费 /lc，此处保留供旧引用。
 router.get("/librechat-image", (_req, res) => {
   const record = libreChatService.getLatestRecord();
   if (record) {
     return res.json({
       update_time: record.updateTime,
       image_url: record.imageUrl,
+      update_time_shanghai: record.updateTimeShanghai,
     });
   }
   return res.status(404).json({ error: "No data available." });

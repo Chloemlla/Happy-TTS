@@ -159,7 +159,7 @@ function downloadTextFile(filename: string, content: string) {
 interface LatestRecord {
   update_time?: string;
   image_url?: string;
-  image_name?: string;
+  update_time_shanghai?: string;
 }
 
 interface HistoryItem {
@@ -266,9 +266,8 @@ const LibreChatPage: React.FC = () => {
     };
   }, []);
 
-  // 作为 8192 tokens 的近似代理，前端采用同等数量的字符上限；
-  // 真正的 token 计数应在后端/模型端完成（此处仅做输入侧保护）。
-  const MAX_MESSAGE_LEN = 8192;
+  // 与后端 /api/libre-chat 上限一致（4096 字符）；真正的 token 计数在模型端完成（此处仅做输入侧保护）。
+  const MAX_MESSAGE_LEN = 4096;
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
@@ -361,16 +360,10 @@ const LibreChatPage: React.FC = () => {
   const fetchLatest = async () => {
     try {
       setLoadingLatest(true);
-      // 优先新API /lc（image_name 字段）；兼容旧API /librechat-image（image_url 字段）
+      // 登录态唯一数据源 /api/librechat/lc（返回 update_time + image_url）；无记录为 null。
       const res = await fetch(`${apiBase}/api/librechat/lc`, { credentials: 'include' });
-      if (res.ok) {
-        const data: LatestRecord = await res.json();
-        setLatest(data);
-      } else {
-        const res2 = await fetch(`${apiBase}/api/librechat/librechat-image`, { credentials: 'include' });
-        if (res2.ok) setLatest(await res2.json());
-        else setLatest(null);
-      }
+      if (res.ok) setLatest((await res.json()) as LatestRecord);
+      else setLatest(null);
     } catch (e) {
       setLatest(null);
     } finally {
@@ -1387,16 +1380,10 @@ const LibreChatPage: React.FC = () => {
                   <span>更新时间：{latest.update_time}</span>
                 </div>
               )}
-              {latest.image_name && (
-                <div className={`${libreTileClass} flex items-center gap-2 p-3 text-sm`}>
-                  <FaDownload className="text-slate-500" />
-                  <span>镜像名称：{latest.image_name}</span>
-                </div>
-              )}
               {latest.image_url && (
                 <div className={`${libreTileClass} flex items-center gap-2 p-3 text-sm`}>
-                  <FaEnvelope className="text-orange-500" />
-                  <span className="break-all">镜像地址：{latest.image_url}</span>
+                  <FaDownload className="text-slate-500" />
+                  <span className="break-all">最新镜像：{latest.image_url}</span>
                 </div>
               )}
             </div>

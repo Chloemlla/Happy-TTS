@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import type { ChatMessage } from "./types";
 
+// "guest" 与 guest ownerKey 仅供历史遗留消息迁移与所有权测试使用：运行时不再派生游客身份，
+// 不代表存在游客通道（登录化后唯一身份来源是登录账号 → "user" ownerKey）。
 export type ConversationOwnerKind = "user" | "guest";
 
 const OWNER_KEY_PATTERN = /^(user|guest):[a-f0-9]{64}$/;

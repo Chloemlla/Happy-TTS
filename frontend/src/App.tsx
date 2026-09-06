@@ -719,7 +719,7 @@ const App: React.FC = () => {
         <Route path="/hcaptcha-verify" element={renderAdminRoute(<HCaptchaVerificationPage />)} />
         <Route path="/artifacts/:shortId" element={renderAnimatedRoute(<ArtifactSharePage />)} />
         <Route path="/image-upload" element={renderAnimatedRoute(<ImageUploadPage />)} />
-        <Route path="/librechat" element={renderAnimatedRoute(<LibreChatPage />)} />
+        <Route path="/librechat" element={renderProtectedRoute(<LibreChatPage />)} />
         <Route path="/tiger-adventure" element={renderAnimatedRoute(<TigerAdventure />)} />
         <Route path="/coin-flip" element={renderAnimatedRoute(<CoinFlip />)} />
         <Route path="/markdown-export" element={renderAnimatedRoute(<MarkdownExportPage />)} />

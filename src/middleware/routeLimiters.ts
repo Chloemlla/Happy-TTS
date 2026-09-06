@@ -14,6 +14,7 @@ type LimiterCategory =
   | "admin"
   | "verification"
   | "command"
+  | "librechat"
   | "ticket"
   | "public-api"
   | "status"
@@ -358,7 +359,8 @@ const LIMITER_DEFINITIONS = {
   },
   librechat: {
     profile: "standard",
-    category: "public-api",
+    // 登录面私有接口：独立类目，避免计入公开(public-api)统计。
+    category: "librechat",
     message: "LibreChat请求过于频繁，请稍后再试",
   },
   datacollection: {

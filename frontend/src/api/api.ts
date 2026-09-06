@@ -77,7 +77,7 @@ export const api: AxiosInstance = axios.create({
         'Content-Type': 'application/json',
     },
     timeout: 15000, // 网络抖动兜底，避免请求无限挂起
-    withCredentials: true, // 发送跨域凭据（Cookie），用于管理员会话与游客 Cookie
+    withCredentials: true, // 发送跨域凭据（HttpOnly 登录会话 Cookie）
 });
 
 // 请求拦截器：仅添加 IP 验证头，认证由 HttpOnly Cookie 自动携带
