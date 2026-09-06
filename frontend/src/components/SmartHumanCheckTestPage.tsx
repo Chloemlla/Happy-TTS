@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
 import { FaClipboard, FaKey, FaRobot, FaShieldAlt } from 'react-icons/fa';
-import { LoadingSpinner } from './LoadingSpinner';
+import { SimpleLoadingSpinner } from './LoadingSpinner';
 import getApiBaseUrl from '../api';
 import {
   InfoBadge,
@@ -161,7 +161,7 @@ const SmartHumanCheckTestPage: React.FC = () => {
           description="组件完成验证后会自动触发后端校验，并刷新挑战参数避免复用。"
         />
         <div className={`${logShareTileClass} p-4`}>
-          <Suspense fallback={<div className="flex min-h-[180px] items-center justify-center"><LoadingSpinner /></div>}>
+          <Suspense fallback={<div className="flex min-h-[180px] items-center justify-center"><SimpleLoadingSpinner size={0.9} /></div>}>
             {nonce && nonceKey ? (
               <ManualNonceSmartHumanCheck
                 challengeNonce={nonce}
@@ -188,7 +188,7 @@ const SmartHumanCheckTestPage: React.FC = () => {
               />
             ) : (
               <div className="flex min-h-[180px] items-center justify-center">
-                <LoadingSpinner />
+                <SimpleLoadingSpinner size={0.9} />
               </div>
             )}
           </Suspense>

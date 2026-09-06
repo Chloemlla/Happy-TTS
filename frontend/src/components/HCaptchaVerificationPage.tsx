@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion as m, AnimatePresence } from 'framer-motion';
 import { FaShieldAlt } from 'react-icons/fa';
 import HCaptchaWidget, { HCaptchaWidgetRef } from './HCaptchaWidget';
-import { LoadingSpinner } from './LoadingSpinner';
+import { SimpleLoadingSpinner } from './LoadingSpinner';
 import { api } from '../api/api';
 import {
   InfoBadge,
@@ -222,7 +222,7 @@ const HCaptchaVerificationPageFrame: React.FC<HCaptchaVerificationPageFrameProps
                 exit={{ opacity: 0, scale: 0.8 }}
                 className="flex flex-col items-center space-y-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4"
               >
-                <LoadingSpinner />
+                <SimpleLoadingSpinner size={0.75} />
                 <p className="text-sm text-slate-600">正在验证中...</p>
               </m.div>
             )}
