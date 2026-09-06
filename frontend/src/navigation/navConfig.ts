@@ -9,6 +9,7 @@ import {
   FaCoins,
   FaDatabase,
   FaDollarSign,
+  FaDownload,
   FaEnvelope,
   FaExchangeAlt,
   FaExclamationTriangle,
@@ -372,6 +373,12 @@ export function getAdminNavGroups(ctx: NavVisibilityContext): NavGroup[] {
             icon: FaFileAlt as IconType,
           },
           {
+            title: '媒体工具',
+            url: '/admin/media-tool',
+            icon: FaDownload as IconType,
+            requiredRole: 'admin',
+          },
+          {
             title: 'Markdown 文章',
             url: '/admin/markdown-articles',
             icon: FaBook as IconType,
@@ -580,6 +587,7 @@ export const ADMIN_TAB_TO_PATH: Record<string, string> = {
   command: '/admin/command',
   humancheck: '/admin/humancheck',
   logshare: '/admin/logshare',
+  'media-tool': '/admin/media-tool',
   fbiwanted: '/admin/fbiwanted',
   webhookevents: '/admin/webhookevents',
   'bilibili-sync': '/admin/bilibili-sync',

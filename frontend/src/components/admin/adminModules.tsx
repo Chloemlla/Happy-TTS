@@ -51,6 +51,7 @@ export const ADMIN_MODULE_LOADERS = {
   command: () => import('@/components/CommandManager'),
   humancheck: () => import('@/components/SmartHumanCheckTraces'),
   logshare: () => import('@/components/LogShare'),
+  'media-tool': () => import('@/components/admin/MediaToolAdmin'),
   fbiwanted: () => import('@/components/FBIWantedManager'),
   webhookevents: () => import('@/components/WebhookEventsManager'),
   'data-collection': () => import('@/components/DataCollectionManager'),
