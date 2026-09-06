@@ -27,6 +27,7 @@ import { refreshLumenConfig } from "../config/lumen";
 import {
   assertStrongGenerationCode,
   normalizeGenerationCode,
+  validateGenerationCodeStrength,
 } from "../utils/generationCodePolicy";
 import logger from "../utils/logger";
 import { normalizeScamalyticsUser, validateScamalyticsUser } from "../utils/scamalytics";
@@ -358,19 +359,23 @@ function normalizeStoredNexaiConfig(value: unknown, defaults = runtimeConfigDefa
 
 function normalizeStoredTtsConfig(value: unknown, defaults = runtimeConfigDefaults.tts): TtsRuntimeConfig {
   const raw = asObject(value);
-  // Prefer stored value; fall back to env/runtime default. Strength is enforced on write
-  // (setTtsSetting) and env parse — weak legacy stored values are treated as unset so the
-  // shared-code gate stays closed rather than accepting a predictable code.
-  const candidate = normalizeGenerationCode(
+  // setTtsSetting 写入路径已强制强度校验，存储里出现弱码只可能是历史遗留。
+  // 弱/空存储值一律视为未配置并回退到运行时默认（env GENERATION_CODE，启动时已 normalize），
+  // 而不是直接关闭共享码闸门并每 10s 周期刷新刷一条告警
+  // （2026-09-06 生产：遗留弱码 "1145" 每 10s 盖过强 env 码的真实案例）。
+  const storedCode = normalizeGenerationCode(
     typeof raw.generationCode === "string" && raw.generationCode.trim().length > 0
       ? raw.generationCode
-      : defaults.generationCode,
+      : "",
   );
+  const storedCheck = validateGenerationCodeStrength(storedCode);
+  const candidate = storedCheck.ok ? storedCheck.code : defaults.generationCode;
   let generationCode = "";
   if (candidate) {
     try {
       generationCode = assertStrongGenerationCode(candidate, "generationCode");
     } catch {
+      // 仅当运行时默认（env）本身也是弱码时才会走到这里——正常配置下不可达。
       logger.warn("[RuntimeConfig] Ignoring weak TTS generation code from storage/defaults");
       generationCode = "";
     }
