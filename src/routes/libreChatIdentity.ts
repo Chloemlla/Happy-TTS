@@ -1,37 +1,17 @@
-import { randomBytes } from "node:crypto";
 import type { Request, Response } from "express";
-import { deriveGuestOwnerKey, deriveUserOwnerKey } from "../services/librechat/history";
+import { deriveUserOwnerKey } from "../services/librechat/history";
 import { asAuthenticatedRequest } from "../types/authRequest";
-import { getAuthCookieOptions, parseCookieHeader } from "../utils/authCookie";
-
-export const LIBRECHAT_GUEST_COOKIE = "lc_guest";
-export const LIBRECHAT_GUEST_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
-const MAX_LEGACY_TOKEN_LENGTH = 4096;
-const SERVER_GUEST_TOKEN_PATTERN = /^guest_[a-f0-9]{64}$/;
 
 export interface LibreChatIdentity {
-  kind: "user" | "guest";
+  kind: "user";
   ownerKey: string;
-  /** Raw legacy lookup value used only for one-time Mongo history migration. */
+  /** Raw user id used only for one-time Mongo history migration. */
   legacyOwnerId: string;
 }
 
 export type LibreChatIdentityResolution =
   | { ok: true; identity: LibreChatIdentity }
-  | { ok: false; reason: "invalid-token" | "auth-required" | "account-suspended" };
-
-export function isLibreChatGuestEnabled(): boolean {
-  const envFlag = String(process.env.LIBRECHAT_GUEST_ENABLED || "").toLowerCase();
-  if (process.env.NODE_ENV !== "production") return envFlag !== "false";
-  return envFlag === "true";
-}
-
-function readString(value: unknown): string | undefined {
-  const candidate = Array.isArray(value) ? value[0] : value;
-  if (typeof candidate !== "string") return undefined;
-  const normalized = candidate.trim();
-  return normalized || undefined;
-}
+  | { ok: false; reason: "account-suspended" | "auth-required" };
 
 function getAuthenticatedUser(req: Request) {
   const authedReq = asAuthenticatedRequest(req);
@@ -40,40 +20,15 @@ function getAuthenticatedUser(req: Request) {
 
 function getAuthenticatedUserId(req: Request): string | undefined {
   const user = getAuthenticatedUser(req);
-  const userId = user?.id || String((user as unknown as { _id?: unknown })?._id || "");
+  const userId = user?.id || String((user as unknown as { _id?: unknown } | undefined)?._id || "");
   return userId.trim() || undefined;
 }
 
-function getExplicitGuestCredential(req: Request): string | undefined {
-  const bodyToken = readString((req.body as { token?: unknown } | undefined)?.token);
-  const headerToken = readString(req.headers["x-chat-token"] || req.headers["x-libretoken"]);
-  return headerToken || bodyToken;
-}
-
-function getGuestCookie(req: Request): string | undefined {
-  const parsedCookies = parseCookieHeader(typeof req.headers.cookie === "string" ? req.headers.cookie : undefined);
-  const requestCookies = (req as Request & { cookies?: Record<string, string> }).cookies;
-  return readString(requestCookies?.[LIBRECHAT_GUEST_COOKIE] || parsedCookies[LIBRECHAT_GUEST_COOKIE]);
-}
-
-function setGuestCookie(req: Request, res: Response, token: string): void {
-  res.cookie(LIBRECHAT_GUEST_COOKIE, token, {
-    ...getAuthCookieOptions(req),
-    maxAge: LIBRECHAT_GUEST_MAX_AGE_MS,
-  });
-}
-
-export function ensureLibreChatGuestCookie(req: Request, res: Response): LibreChatIdentity {
-  const existing = getGuestCookie(req);
-  const token =
-    existing && SERVER_GUEST_TOKEN_PATTERN.test(existing)
-      ? existing
-      : `guest_${randomBytes(32).toString("hex")}`;
-  setGuestCookie(req, res, token);
-  return { kind: "guest", ownerKey: deriveGuestOwnerKey(token), legacyOwnerId: token };
-}
-
-export function resolveLibreChatIdentity(req: Request, res: Response): LibreChatIdentityResolution {
+/**
+ * LibreChat 聊天只归属于登录账号。Router 已通过 authenticateToken 强制登录，
+ * 这里仅把已认证用户映射到稳定的 ownerKey；客户端不再能自选身份。
+ */
+export function resolveLibreChatIdentity(req: Request, _res: Response): LibreChatIdentityResolution {
   const authenticatedUser = getAuthenticatedUser(req);
   if (authenticatedUser?.accountStatus === "suspended") {
     return { ok: false, reason: "account-suspended" };
@@ -82,38 +37,5 @@ export function resolveLibreChatIdentity(req: Request, res: Response): LibreChat
   if (userId) {
     return { ok: true, identity: { kind: "user", ownerKey: deriveUserOwnerKey(userId), legacyOwnerId: userId } };
   }
-
-  const explicitCredential = getExplicitGuestCredential(req);
-  if (explicitCredential) {
-    if (explicitCredential === "invalid-token" || explicitCredential.length > MAX_LEGACY_TOKEN_LENGTH) {
-      return { ok: false, reason: "invalid-token" };
-    }
-    return {
-      ok: true,
-      identity: {
-        kind: "guest",
-        ownerKey: deriveGuestOwnerKey(explicitCredential),
-        legacyOwnerId: explicitCredential,
-      },
-    };
-  }
-
-  const cookieCredential = getGuestCookie(req);
-  const guestEnabled = isLibreChatGuestEnabled();
-  if (guestEnabled && cookieCredential && SERVER_GUEST_TOKEN_PATTERN.test(cookieCredential)) {
-    return {
-      ok: true,
-      identity: {
-        kind: "guest",
-        ownerKey: deriveGuestOwnerKey(cookieCredential),
-        legacyOwnerId: cookieCredential,
-      },
-    };
-  }
-
-  if (!guestEnabled) {
-    return { ok: false, reason: "auth-required" };
-  }
-
-  return { ok: true, identity: ensureLibreChatGuestCookie(req, res) };
+  return { ok: false, reason: "auth-required" };
 }

@@ -12,7 +12,6 @@ export interface LibreChatRealtimeMessage {
 
 export interface LibreChatState {
     rtOpen: boolean;
-    token: string;
     rtMessage: string;
     rtSending: boolean;
     rtStreaming: boolean;
@@ -25,7 +24,6 @@ export interface LibreChatState {
 
 export interface LibreChatActions {
     closeRealtimeDialog: () => void;
-    setToken: (v: string) => void;
     onChangeRtMessage: (v: string) => void;
     handleRealtimeSend: () => void;
     setNotification: (v: NotificationData) => void;

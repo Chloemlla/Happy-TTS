@@ -29,13 +29,13 @@ export const preDocsRouteModules: RouteModule[] = [
     path: "/api/librechat",
     router: libreChatRoutes,
     middlewares: [libreChatLimiter],
-    requiresAuth: "mixed",
+    requiresAuth: true,
     rateLimited: true,
-    isPublic: "mixed",
+    isPublic: false,
     authPolicy: {
-      mode: "mixed",
-      handlers: ["authenticateAdmin", "authenticateSuperAdmin"],
-      note: "LibreChat compatibility APIs are mixed; admin users/providers reads are admin-level and user/provider mutations are gated to superadmin inside the router.",
+      mode: "router",
+      handlers: ["authenticateToken"],
+      note: "LibreChat 只属于登录账号：router 内统一 enforce JWT/Cookie 登录（authenticateToken），不再接受游客或客户端自选 token；admin 用户/提供方读写仍由 admin 子路由内的角色门控约束。",
     },
   },
 ];

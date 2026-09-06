@@ -1,22 +1,32 @@
 import { describe, expect, it, jest } from "@jest/globals";
 import type { Request, Response } from "express";
-import { deriveGuestOwnerKey, deriveUserOwnerKey } from "../services/librechat/history";
-import {
-  LIBRECHAT_GUEST_COOKIE,
-  resolveLibreChatIdentity,
-} from "../routes/libreChatIdentity";
+import { deriveUserOwnerKey } from "../services/librechat/history";
+import { resolveLibreChatIdentity } from "../routes/libreChatIdentity";
 
 function createResponse() {
   return { cookie: jest.fn() } as unknown as Response;
 }
 
+function makeSessionUser(id: string, overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id,
+    username: `user-${id}`,
+    email: `${id}@example.com`,
+    role: "user",
+    accountStatus: "active",
+    ...overrides,
+  };
+}
+
 describe("LibreChat canonical identity", () => {
-  it("prioritizes the authenticated user over a caller-supplied guest token", () => {
+  it("maps an authenticated session user to its stable user owner key", () => {
+    const user = makeSessionUser("user-123");
     const req = {
-      body: { token: "attacker-controlled-token" },
+      body: {},
       query: {},
       headers: {},
-      user: { id: "user-123" },
+      user,
+      auth: { kind: "session", user },
     } as unknown as Request;
 
     const resolution = resolveLibreChatIdentity(req, createResponse());
@@ -29,37 +39,57 @@ describe("LibreChat canonical identity", () => {
         legacyOwnerId: "user-123",
       },
     });
-    expect(resolution.ok && resolution.identity.ownerKey).not.toBe(
-      deriveGuestOwnerKey("attacker-controlled-token"),
-    );
   });
 
-  it("creates a non-empty high-entropy HttpOnly identity for a tokenless guest", () => {
-    const previous = process.env.LIBRECHAT_GUEST_ENABLED;
-    process.env.LIBRECHAT_GUEST_ENABLED = "true";
+  it("falls back to the legacy req.user when req.auth is absent", () => {
+    const user = makeSessionUser("user-456");
     const req = {
       body: {},
       query: {},
       headers: {},
-      secure: false,
-      protocol: "http",
+      user,
     } as unknown as Request;
-    const res = createResponse();
 
-    try {
-      const resolution = resolveLibreChatIdentity(req, res);
-      expect(resolution.ok).toBe(true);
-      if (!resolution.ok) throw new Error("guest identity was not created");
-      expect(resolution.identity.ownerKey).toMatch(/^guest:[a-f0-9]{64}$/);
+    const resolution = resolveLibreChatIdentity(req, createResponse());
 
-      const cookieMock = res.cookie as jest.Mock;
-      const [cookieName, rawToken, options] = cookieMock.mock.calls[0] as [string, string, Record<string, unknown>];
-      expect(cookieName).toBe(LIBRECHAT_GUEST_COOKIE);
-      expect(rawToken).toMatch(/^guest_[a-f0-9]{64}$/);
-      expect(options).toEqual(expect.objectContaining({ httpOnly: true, sameSite: "lax" }));
-    } finally {
-      if (previous === undefined) delete process.env.LIBRECHAT_GUEST_ENABLED;
-      else process.env.LIBRECHAT_GUEST_ENABLED = previous;
-    }
+    expect(resolution.ok).toBe(true);
+    if (!resolution.ok) throw new Error("expected authenticated resolution");
+    expect(resolution.identity.ownerKey).toBe(deriveUserOwnerKey("user-456"));
+    expect(resolution.identity.legacyOwnerId).toBe("user-456");
+  });
+
+  it("rejects suspended accounts even when a session is present", () => {
+    const user = makeSessionUser("user-suspended", { accountStatus: "suspended" });
+    const req = {
+      body: {},
+      query: {},
+      headers: {},
+      user,
+      auth: { kind: "session", user },
+    } as unknown as Request;
+
+    const resolution = resolveLibreChatIdentity(req, createResponse());
+
+    expect(resolution).toEqual({ ok: false, reason: "account-suspended" });
+  });
+
+  it("ignores a caller-supplied body token when no session is present (legacy path removed)", () => {
+    const req = {
+      body: { token: "attacker-controlled-token" },
+      query: {},
+      headers: {},
+    } as unknown as Request;
+
+    const resolution = resolveLibreChatIdentity(req, createResponse());
+
+    expect(resolution).toEqual({ ok: false, reason: "auth-required" });
+  });
+
+  it("returns auth-required when there are no credentials at all", () => {
+    const req = { body: {}, query: {}, headers: {} } as unknown as Request;
+
+    const resolution = resolveLibreChatIdentity(req, createResponse());
+
+    expect(resolution).toEqual({ ok: false, reason: "auth-required" });
   });
 });

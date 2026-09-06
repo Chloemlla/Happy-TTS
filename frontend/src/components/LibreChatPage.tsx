@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
-  FaTimes,
   FaPaperPlane,
   FaDownload,
   FaTrash,
@@ -10,7 +10,6 @@ import {
   FaHistory,
   FaUser,
   FaRobot,
-  FaExclamationTriangle,
   FaInfoCircle,
   FaEnvelope,
   FaChevronLeft,
@@ -129,7 +128,6 @@ function sanitizeAssistantText(text: string): string {
 
 // React 19: TypeScript 类型定义
 interface RequestBody {
-  token?: string;
   message?: string;
   messageId?: string;
 }
@@ -245,7 +243,8 @@ function getErrorMessage(error: unknown, fallback: string): string {
 }
 
 const LibreChatPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const isAdmin = isAdminRole(user?.role);
   const { setNotification } = useNotification();
 
@@ -270,7 +269,6 @@ const LibreChatPage: React.FC = () => {
   // 作为 8192 tokens 的近似代理，前端采用同等数量的字符上限；
   // 真正的 token 计数应在后端/模型端完成（此处仅做输入侧保护）。
   const MAX_MESSAGE_LEN = 8192;
-  const [token, setToken] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
@@ -320,31 +318,6 @@ const LibreChatPage: React.FC = () => {
   const [promptModal, setPromptModal] = useState<{ open: boolean; title?: string; message?: string; placeholder?: string; defaultValue?: string; codeEditor?: boolean; language?: string; maxLength?: number; onConfirm: (value: string) => void }>({ open: false, message: '', onConfirm: () => { } });
 
   const apiBase = useMemo(() => getApiBaseUrl(), []);
-  // 游客模式：当未填写本地 token 时视为游客（服务端通过 HttpOnly Cookie 维持会话）
-  const guestMode = useMemo(() => !token, [token]);
-  const [guestHintDismissed, setGuestHintDismissed] = useState<boolean>(() => localStorage.getItem('lc_guest_hint_dismissed') === '1');
-  useEffect(() => {
-    localStorage.setItem('lc_guest_hint_dismissed', guestHintDismissed ? '1' : '0');
-  }, [guestHintDismissed]);
-
-  // 游客须知面板的隐藏状态
-  const [guestNoticeDismissed, setGuestNoticeDismissed] = useState<boolean>(() => localStorage.getItem('lc_guest_notice_dismissed') === '1');
-  useEffect(() => {
-    localStorage.setItem('lc_guest_notice_dismissed', guestNoticeDismissed ? '1' : '0');
-  }, [guestNoticeDismissed]);
-
-  // 若无本地 token，则尝试申请游客 token（服务端通过 HttpOnly Cookie 下发）
-  const ensureGuestToken = async () => {
-    if (token) return;
-    try {
-      await fetch(`${apiBase}/api/librechat/guest`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-    } catch {
-      // 忽略错误：可能未启用游客模式或网络异常
-    }
-  };
 
   // 统一的页面初始化函数，避免竞态条件
   const initializePage = useCallback(async () => {
@@ -356,11 +329,6 @@ const LibreChatPage: React.FC = () => {
     try {
       initializingRef.current = true;
       setInitializing(true);
-
-      // 如果没有token，先获取游客token
-      if (!token) {
-        await ensureGuestToken();
-      }
 
       // 并行获取数据，但等待完成后再更新状态
       const results = await Promise.allSettled([
@@ -374,11 +342,7 @@ const LibreChatPage: React.FC = () => {
       // 根据结果设置通知
       const failures = results.filter(r => r.status === 'rejected');
       if (failures.length === 0) {
-        if (!token) {
-          setNotification({ type: 'info', message: '已切换到游客模式' });
-        } else {
-          setNotification({ type: 'success', message: '已切换到用户模式' });
-        }
+        setNotification({ type: 'success', message: '数据加载成功' });
       } else {
         setNotification({ type: 'warning', message: '部分数据加载失败，请刷新重试' });
       }
@@ -392,7 +356,7 @@ const LibreChatPage: React.FC = () => {
         setInitializing(false);
       }
     }
-  }, [token]);
+  }, []);
 
   const fetchLatest = async () => {
     try {
@@ -463,7 +427,7 @@ const LibreChatPage: React.FC = () => {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify(token ? { token, messageIds: selectedIds } : { messageIds: selectedIds })
+            body: JSON.stringify({ messageIds: selectedIds })
           });
           if (res.ok) {
             setSelectedIds([]);
@@ -506,7 +470,7 @@ const LibreChatPage: React.FC = () => {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify(token ? { token, messageId: id, content } : { messageId: id, content })
+            body: JSON.stringify({ messageId: id, content })
           });
           if (res.ok) {
             setNotification({ type: 'success', message: '消息修改成功' });
@@ -530,7 +494,7 @@ const LibreChatPage: React.FC = () => {
     }
     try {
       setNotification({ type: 'info', message: '正在重试AI回复...' });
-      const requestBody: RequestBody = token ? { token, messageId: id } : { messageId: id };
+      const requestBody: RequestBody = { messageId: id };
 
       const res = await fetch(`${apiBase}/api/librechat/retry`, {
         method: 'POST',
@@ -587,7 +551,6 @@ const LibreChatPage: React.FC = () => {
       const res = await fetch(`${apiBase}/api/librechat/export`, {
         method: 'GET',
         credentials: 'include',
-        headers: token ? { 'x-chat-token': token } : undefined,
       });
       if (!res.ok) {
         setNotification({ type: 'error', message: '导出失败，请稍后再试' });
@@ -647,7 +610,7 @@ const LibreChatPage: React.FC = () => {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify(token ? { token, messageIds: [id] } : { messageIds: [id] })
+            body: JSON.stringify({ messageIds: [id] })
           });
           if (res.ok) {
             setNotification({ type: 'success', message: '消息删除成功' });
@@ -710,9 +673,6 @@ const LibreChatPage: React.FC = () => {
       const url = `${apiBase}/api/librechat/history?${params.toString()}`;
       const res = await fetch(url, {
         credentials: 'include',
-        headers: {
-          ...(token ? { 'x-chat-token': token } : {}),
-        },
       });
       if (res.ok) {
         const data: unknown = await res.json();
@@ -775,7 +735,6 @@ const LibreChatPage: React.FC = () => {
       const params = new URLSearchParams({ page: '1', limit: '10' });
       fetch(`${apiBase}/api/librechat/history?${params.toString()}`, {
         credentials: 'include',
-        headers: token ? { 'x-chat-token': token } : undefined,
         signal: controller.signal,
       })
         .then(async (checkRes) => {
@@ -808,7 +767,7 @@ const LibreChatPage: React.FC = () => {
         });
     };
     historyPollTimeoutRef.current = window.setTimeout(attemptOnce, 2000);
-  }, [apiBase, token, cancelHistoryPoll, stopStreamTimer, setStreaming, setStreamContent, setNotification, fetchHistory]);
+  }, [apiBase, cancelHistoryPoll, stopStreamTimer, setStreaming, setStreamContent, setNotification, fetchHistory]);
 
   const handleSend = async () => {
     setSendError('');
@@ -837,8 +796,7 @@ const LibreChatPage: React.FC = () => {
       setNotification({ type: 'info', message: '正在发送消息...' });
 
       // 构建请求体
-      const trimmedToken = token.trim();
-      const requestBody: RequestBody = trimmedToken ? { token: trimmedToken, message: toSend } : { message: toSend };
+      const requestBody: RequestBody = { message: toSend };
 
       const res = await fetch(`${apiBase}/api/librechat/send`, {
         method: 'POST',
@@ -930,18 +888,11 @@ const LibreChatPage: React.FC = () => {
     try {
       setNotification({ type: 'info', message: '正在清除历史记录...' });
 
-      // 构建请求体，确保包含token信息
-      const requestBody: RequestBody = {};
-      const trimmedToken = token.trim();
-      if (trimmedToken) {
-        requestBody.token = trimmedToken;
-      }
-
       const res = await fetch(`${apiBase}/api/librechat/clear`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify({})
       });
 
       if (res.ok) {
@@ -963,7 +914,7 @@ const LibreChatPage: React.FC = () => {
     }
   };
 
-  // 移除重复的初始化逻辑，避免与下面的token useEffect产生冲突
+  // 移除重复的初始化逻辑，避免与下面的初始化 useEffect 产生冲突
 
   // 组件卸载时，确保清理实时流式 interval 和 SSE 连接，避免遗留计时器导致状态异常
   useEffect(() => {
@@ -989,10 +940,11 @@ const LibreChatPage: React.FC = () => {
     };
   }, []);
 
-  // token 变更时统一初始化，避免竞态条件
+  // 登录态就绪后统一初始化，避免竞态条件
   useEffect(() => {
+    if (authLoading || !isAuthenticated) return;
     initializePage();
-  }, [token, initializePage]);
+  }, [authLoading, isAuthenticated, initializePage]);
 
   // 打开/关闭单次实时对话框
   const openRealtimeDialog = () => {
@@ -1049,8 +1001,7 @@ const LibreChatPage: React.FC = () => {
       setRtHistory((prev) => [...prev, userEntry]);
       setRtMessage('');
       // 构建请求体
-      const trimmedToken = token.trim();
-      const requestBody: RequestBody = trimmedToken ? { token: trimmedToken, message: toSend } : { message: toSend };
+      const requestBody: RequestBody = { message: toSend };
 
       const res = await fetch(`${apiBase}/api/librechat/send`, {
         method: 'POST',
@@ -1181,14 +1132,6 @@ const LibreChatPage: React.FC = () => {
       sseRef.current.close();
     }
 
-    // EventSource cannot attach the legacy token header safely. Do not create
-    // a second cookie-backed identity for a manual-token conversation.
-    if (token.trim()) {
-      sseRef.current = null;
-      setSseConnected(false);
-      return;
-    }
-
     try {
       const sseUrl = `${apiBase}/api/librechat/sse`;
 
@@ -1289,7 +1232,7 @@ const LibreChatPage: React.FC = () => {
     } catch {
       setSseConnected(false);
     }
-  }, [apiBase, token]);
+  }, [apiBase]);
 
   // 断开SSE连接
   const disconnectSSE = useCallback(() => {
@@ -1307,19 +1250,52 @@ const LibreChatPage: React.FC = () => {
     }
   }, []);
 
-  // Cookie/authenticated sessions can use SSE; legacy token sessions poll.
+  // 登录用户通过 HttpOnly Cookie 会话使用 SSE 实时通道
   useEffect(() => {
-    if (guestMode) {
-      connectSSE();
-    } else {
+    if (authLoading || !isAuthenticated) {
       disconnectSSE();
+      return;
     }
+
+    connectSSE();
 
     // 组件卸载时清理连接
     return () => {
       disconnectSSE();
     };
-  }, [token, guestMode, connectSSE, disconnectSSE]);
+  }, [authLoading, isAuthenticated, connectSSE, disconnectSSE]);
+
+  // 认证加载中：不发起任何聊天/历史/SSE 请求
+  if (authLoading) {
+    return (
+      <InfoQueryShell maxWidthClassName="max-w-xl">
+        <InfoPanel className="text-center">
+          <UnifiedLoadingSpinner size="lg" />
+          <p className="mt-4 text-sm text-slate-600">正在加载登录状态...</p>
+        </InfoPanel>
+      </InfoQueryShell>
+    );
+  }
+
+  // 未登录：展示登录引导空态，不调用 LibreChat API、不连接 SSE
+  if (!isAuthenticated) {
+    return (
+      <InfoQueryShell maxWidthClassName="max-w-xl">
+        <InfoPanel className="text-center">
+          <InfoSectionTitle title="需要登录" icon={FaUser} tone="sky" />
+          <p className="mt-2 text-sm text-slate-600">请先登录后再使用 LibreChat。</p>
+          <motion.button
+            onClick={() => navigate('/welcome')}
+            className={`${librePrimaryButtonClass} mt-4`}
+            whileTap={{ scale: 0.95 }}
+          >
+            <FaUser className="w-4 h-4" />
+            前往登录
+          </motion.button>
+        </InfoPanel>
+      </InfoQueryShell>
+    );
+  }
 
   // 初始化加载指示器
   if (initializing && !latest && !history) {
@@ -1338,12 +1314,12 @@ const LibreChatPage: React.FC = () => {
 
   const contextValue: LibreChatContextValue = {
     state: {
-      rtOpen, token, rtMessage, rtSending, rtStreaming, rtError,
+      rtOpen, rtMessage, rtSending, rtStreaming, rtError,
       rtCanSend,
       rtHistory, rtStreamContent, MAX_MESSAGE_LEN
     },
     actions: {
-      closeRealtimeDialog, setToken, onChangeRtMessage, handleRealtimeSend,
+      closeRealtimeDialog, onChangeRtMessage, handleRealtimeSend,
       setNotification, sanitizeAssistantText
     },
     meta: {}
@@ -1366,7 +1342,7 @@ const LibreChatPage: React.FC = () => {
           tone="sky"
           meta={
             <>
-              <InfoBadge tone={guestMode ? 'slate' : 'sky'}>{guestMode ? '游客模式' : '用户模式'}</InfoBadge>
+              <InfoBadge tone="sky">当前账号：{user?.username || user?.email || user?.id || ''}</InfoBadge>
               {sseRetryExhausted ? (
                 <button
                   type="button"
@@ -1432,63 +1408,6 @@ const LibreChatPage: React.FC = () => {
           )}
         </motion.div>
 
-        {/* 游客须知 */}
-        <AnimatePresence>
-          {guestMode && !guestNoticeDismissed && (
-            <motion.div
-              className={`${librePanelClass} relative p-5 sm:p-6`}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <button
-                onClick={() => setGuestNoticeDismissed(true)}
-                className="absolute right-4 top-4 text-slate-400 transition-colors hover:text-slate-600"
-                title="关闭并不再提示"
-              >
-                <FaTimes className="w-5 h-5" />
-              </button>
-              <InfoSectionTitle title="使用须知（游客）" icon={FaExclamationTriangle} tone="amber" />
-              <div className="space-y-4 text-sm text-slate-700">
-                <div>
-                  <p className="mb-2 font-medium text-slate-900">1. 禁止内容范围：</p>
-                  <ul className="list-disc list-inside ml-4 space-y-1">
-                    <li>政治敏感、民族歧视内容</li>
-                    <li>色情、暴力、恐怖主义内容</li>
-                    <li>侵犯知识产权内容</li>
-                    <li>虚假信息或误导性内容</li>
-                  </ul>
-                </div>
-                <div>
-                  <p className="mb-2 font-medium text-slate-900">2. 违规处理措施：</p>
-                  <ul className="list-disc list-inside ml-4 space-y-1">
-                    <li>立即停止服务并封禁账号</li>
-                    <li>配合执法部门调查</li>
-                    <li>提供使用记录和生成内容</li>
-                    <li>保留追究法律责任权利</li>
-                  </ul>
-                </div>
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-                  <h4 className="mb-2 flex items-center gap-2 font-semibold text-slate-700">
-                    <FaEnvelope className="text-slate-500" />
-                    联系我们
-                  </h4>
-                  <p className="text-sm text-slate-700">
-                    如有任何问题或建议，请联系开发者：
-                    <a
-                      href="mailto:admin@chloemlla.com"
-                      className="ml-1 font-medium underline transition-colors duration-200 hover:text-slate-900"
-                    >
-                      admin@chloemlla.com
-                    </a>
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         {/* 发送消息 */}
         <motion.div
           className={`${librePanelClass} p-5 sm:p-6`}
@@ -1499,74 +1418,29 @@ const LibreChatPage: React.FC = () => {
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <InfoSectionTitle
               title="发送消息"
-              description="支持游客会话、Token 会话和单次实时对话。"
+              description="登录后即可发送消息，支持单次实时对话与历史记录管理。"
               icon={FaPaperPlane}
               tone="sky"
             />
-            {guestMode && (
-              <span
-                className="inline-flex items-center rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs text-slate-600"
-                title="未填写令牌，将以游客模式使用 HttpOnly Cookie 维持会话"
-              >
-                <FaUser className="w-3 h-3 mr-1" />
-                游客模式
-              </span>
-            )}
-            {!guestMode && token && (
-              <span
-                className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600"
-                title={`当前Token: ${token.substring(0, 8)}...`}
-              >
-                <FaUser className="w-3 h-3 mr-1" />
-                用户模式
-              </span>
-            )}
           </div>
 
           <div className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="relative">
-                <input
-                  className={libreInputClass}
-                  aria-label="LibreChat Token"
-                  placeholder="请输入 Token"
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                />
-              </div>
-              <div className="relative sm:col-span-2">
-                <textarea
-                  className={`${libreInputClass} min-h-[96px] resize-y leading-6`}
-                  aria-label="聊天消息"
-                  placeholder="请输入消息"
-                  value={message}
-                  maxLength={MAX_MESSAGE_LEN}
-                  onChange={(e) => onChangeMessage(e.target.value)}
-                  onKeyDown={(e) => {
-                    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                      e.preventDefault();
-                      void handleSend();
-                    }
-                  }}
-                />
-              </div>
-            </div>
+            <textarea
+              className={`${libreInputClass} min-h-[96px] resize-y leading-6`}
+              aria-label="聊天消息"
+              placeholder="请输入消息"
+              value={message}
+              maxLength={MAX_MESSAGE_LEN}
+              onChange={(e) => onChangeMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                  e.preventDefault();
+                  void handleSend();
+                }
+              }}
+            />
 
-            <div className="flex items-center justify-between">
-              <div className="text-xs text-slate-400">{message.length}/{MAX_MESSAGE_LEN}</div>
-              {guestMode && !guestHintDismissed && (
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <span>当前以游客身份使用，会话通过浏览器 Cookie 保存。</span>
-                  <button
-                    className="text-slate-400 transition-colors hover:text-slate-600"
-                    onClick={() => setGuestHintDismissed(true)}
-                    title="不再提示"
-                  >
-                    <FaTimes className="w-3 h-3" />
-                  </button>
-                </div>
-              )}
-            </div>
+            <div className="text-xs text-slate-400">{message.length}/{MAX_MESSAGE_LEN}</div>
 
             {sendError && (
               <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-600">

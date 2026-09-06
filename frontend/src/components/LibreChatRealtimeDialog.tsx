@@ -47,16 +47,9 @@ export function LibreChatRealtimeDialog() {
                         </div>
 
                         <div className="space-y-4">
-                            <div className="grid gap-3 sm:grid-cols-3">
-                                <input
-                                    className="border-2 border-slate-200 rounded-lg px-4 py-3 w-full focus:outline-none focus:ring-2 focus:ring-slate-300 transition-all"
-                                    aria-label="LibreChat Token"
-                                    placeholder="请输入 Token"
-                                    value={state.token}
-                                    onChange={(e) => actions.setToken(e.target.value)}
-                                />
+                            <div>
                                 <textarea
-                                    className="min-h-[96px] resize-y border-2 border-slate-200 rounded-lg px-4 py-3 w-full sm:col-span-2 focus:outline-none focus:ring-2 focus:ring-slate-300 transition-all"
+                                    className="min-h-[96px] resize-y border-2 border-slate-200 rounded-lg px-4 py-3 w-full focus:outline-none focus:ring-2 focus:ring-slate-300 transition-all"
                                     aria-label="实时对话消息"
                                     placeholder="请输入消息（支持上下文）"
                                     value={state.rtMessage}

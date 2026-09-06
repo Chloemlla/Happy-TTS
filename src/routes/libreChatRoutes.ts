@@ -1,16 +1,10 @@
 import { Router, type Request, type Response } from "express";
 import { isAdminRole } from "../middleware/auth";
-import { optionalAuthenticateToken } from "../middleware/optionalAuthenticateToken";
+import { authenticateToken } from "../middleware/authenticateToken";
 import { libreChatLimiter } from "../middleware/routeLimiters";
 import { libreChatService } from "../services/libreChatService";
 import { toChatMessagesView } from "../services/librechat/diagnostics";
-import {
-  ensureLibreChatGuestCookie,
-  isLibreChatGuestEnabled,
-  LIBRECHAT_GUEST_MAX_AGE_MS,
-  type LibreChatIdentity,
-  resolveLibreChatIdentity,
-} from "./libreChatIdentity";
+import { type LibreChatIdentity, resolveLibreChatIdentity } from "./libreChatIdentity";
 import { registerLibreChatAdminRoutes } from "./libreChatRoutes.admin";
 import { normalizePagination } from "./libreChatRoutes.shared";
 
@@ -18,7 +12,8 @@ const router = Router();
 // 与前端保持一致的消息长度上限（以字符近似 tokens 上限）
 const MAX_MESSAGE_LEN = 4096;
 
-router.use(libreChatLimiter, optionalAuthenticateToken);
+// LibreChat 会话只属于登录账号：Router 级强制 JWT/Cookie 登录，拒绝匿名/自选 token。
+router.use(libreChatLimiter, authenticateToken);
 
 function sendLibreChatError(
   res: Response,
@@ -52,10 +47,8 @@ async function requireLibreChatIdentity(req: Request, res: Response): Promise<Li
   }
   if (resolution.reason === "account-suspended") {
     sendLibreChatError(res, 403, "ACCOUNT_SUSPENDED", "账户已被封停");
-  } else if (resolution.reason === "invalid-token") {
-    sendLibreChatError(res, 401, "INVALID_TOKEN", "无效的token");
   } else {
-    sendLibreChatError(res, 401, "AUTH_REQUIRED", "未认证：请登录或启用游客模式后再试");
+    sendLibreChatError(res, 401, "AUTH_REQUIRED", "未认证：请先登录后再使用");
   }
   return null;
 }
@@ -82,25 +75,6 @@ router.get("/lc", (_req, res) => {
 
 /**
  * @openapi
- * /guest:
- *   post:
- *     summary: 申请游客身份（仅通过 HttpOnly Cookie 下发凭据）
- *     responses:
- *       200:
- *         description: 成功建立游客会话，响应体不包含凭据
- *       403:
- *         description: 游客模式未启用
- */
-router.post("/guest", (req, res) => {
-  if (!isLibreChatGuestEnabled()) {
-    return sendLibreChatError(res, 403, "GUEST_DISABLED", "游客模式未启用");
-  }
-  ensureLibreChatGuestCookie(req, res);
-  return res.json({ success: true, expiresIn: Math.floor(LIBRECHAT_GUEST_MAX_AGE_MS / 1000) });
-});
-
-/**
- * @openapi
  * /message:
  *   put:
  *     summary: 修改单条消息内容
@@ -112,8 +86,6 @@ router.post("/guest", (req, res) => {
  *             type: object
  *             required: [messageId, content]
  *             properties:
- *               token:
- *                 type: string
  *               messageId:
  *                 type: string
  *               content:
@@ -183,9 +155,6 @@ router.get("/librechat-image", (_req, res) => {
  *             type: object
  *             required: [message]
  *             properties:
- *               token:
- *                 type: string
- *                 description: 旧版会话凭据；登录身份与 HttpOnly 游客 Cookie 优先
  *               message:
  *                 type: string
  *                 description: 聊天消息
@@ -239,12 +208,6 @@ router.post("/send", async (req, res) => {
  *   get:
  *     summary: 获取聊天历史
  *     parameters:
- *       - in: header
- *         name: x-chat-token
- *         required: false
- *         schema:
- *           type: string
- *         description: 旧版会话凭据；登录身份与 HttpOnly 游客 Cookie 优先
  *       - in: query
  *         name: page
  *         schema:
@@ -304,10 +267,6 @@ router.get("/history", async (req, res) => {
  *         application/json:
  *           schema:
  *             type: object
- *             properties:
- *               token:
- *                 type: string
- *                 description: 旧版会话凭据；登录身份与 HttpOnly 游客 Cookie 优先
  *     responses:
  *       200:
  *         description: 清除成功
@@ -332,12 +291,6 @@ router.delete("/clear", async (req, res) => {
  *   delete:
  *     summary: 删除单条消息
  *     parameters:
- *       - in: header
- *         name: x-chat-token
- *         required: false
- *         schema:
- *           type: string
- *         description: 旧版会话凭据；登录身份与 HttpOnly 游客 Cookie 优先
  *       - in: query
  *         name: messageId
  *         required: true
@@ -382,9 +335,6 @@ router.delete("/message", async (req, res) => {
  *             type: object
  *             required: [messageIds]
  *             properties:
- *               token:
- *                 type: string
- *                 description: 旧版会话凭据；登录身份与 HttpOnly 游客 Cookie 优先
  *               messageIds:
  *                 type: array
  *                 items:
@@ -428,9 +378,6 @@ router.delete("/messages", async (req, res) => {
  *             type: object
  *             required: [messageId]
  *             properties:
- *               token:
- *                 type: string
- *                 description: 旧版会话凭据；登录身份与 HttpOnly 游客 Cookie 优先
  *               messageId:
  *                 type: string
  *                 description: 需要重试的助手消息ID
@@ -473,13 +420,6 @@ router.post("/retry", async (req, res) => {
  * /export:
  *   get:
  *     summary: 导出聊天历史
- *     parameters:
- *       - in: header
- *         name: x-chat-token
- *         required: false
- *         schema:
- *           type: string
- *         description: 旧版会话凭据；登录身份与 HttpOnly 游客 Cookie 优先
  *     responses:
  *       200:
  *         description: 聊天历史
@@ -515,12 +455,6 @@ router.get("/export", async (req, res) => {
  * /sse:
  *   get:
  *     summary: 建立SSE连接接收实时通知
- *     parameters:
- *       - in: header
- *         name: x-chat-token
- *         schema:
- *           type: string
- *         description: 旧版会话凭据；登录身份与 HttpOnly 游客 Cookie 优先
  *     responses:
  *       200:
  *         description: SSE连接建立成功
