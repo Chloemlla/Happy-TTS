@@ -1308,8 +1308,8 @@ export async function recordOAuthTokenUsage(context: OAuthAccessContext, ip: str
   ]);
 }
 
-export function getOAuthUserInfo(context: OAuthAccessContext): Record<string, unknown> {
-  return buildUserProfile(context.user, context.scopes);
+export function getOAuthUserInfo(user: User, scopes: string[]): Record<string, unknown> {
+  return buildUserProfile(user, scopes);
 }
 
 export async function introspectOAuthToken(opts: {

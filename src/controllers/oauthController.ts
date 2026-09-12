@@ -26,6 +26,7 @@ import logger from "../utils/logger";
 import { stripTrailingSlashes } from "../utils/urlString";
 import { getAuthSessionMetadata } from "../services/authSessionService";
 import { getClientIP } from "../utils/ipUtils";
+import { asAuthenticatedRequest } from "../types/authRequest";
 
 function sendNoStoreHeaders(res: Response): void {
   res.set("Cache-Control", "no-store");
@@ -276,11 +277,15 @@ export class OAuthController {
   public static async userinfo(req: Request, res: Response) {
     try {
       sendNoStoreHeaders(res);
-      const context = (req as any).oauthContext;
-      if (!context) {
+      const authReq = asAuthenticatedRequest(req);
+      const oauth = authReq.oauthContext ?? authReq.oauthToken;
+      // The narrow OAuth context on the request carries no user row, so the
+      // profile has to come from the auth context the middleware also set.
+      const user = authReq.auth?.user ?? authReq.user;
+      if (!oauth || !user) {
         return res.status(401).json({ error: "invalid_token", error_description: "缺少 OAuth access token" });
       }
-      return res.json(getOAuthUserInfo(context));
+      return res.json(getOAuthUserInfo(user, oauth.scopes));
     } catch (error) {
       return handleOAuthError(res, error, "userinfo 获取失败");
     }
