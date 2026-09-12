@@ -331,8 +331,8 @@ describe("oauthService", () => {
   });
 
   it("builds userinfo with Synapse admin identity fields", () => {
-    const userinfo = getOAuthUserInfo({
-      user: {
+    const userinfo = getOAuthUserInfo(
+      {
         id: "admin-1",
         username: "root",
         email: "root@example.com",
@@ -341,9 +341,9 @@ describe("oauthService", () => {
         authProvider: "local",
         createdAt: "2026-01-01T00:00:00.000Z",
         accountStatus: "active",
-      },
-      scopes: ["openid", "profile", "email", "admin:identity"],
-    } as any);
+      } as any,
+      ["openid", "profile", "email", "admin:identity"],
+    );
 
     expect(userinfo).toEqual(
       expect.objectContaining({
@@ -366,8 +366,8 @@ describe("oauthService", () => {
   });
 
   it("builds trusted OAuth userinfo without admin privileges", () => {
-    const userinfo = getOAuthUserInfo({
-      user: {
+    const userinfo = getOAuthUserInfo(
+      {
         id: "trusted-1",
         username: "trusted-user",
         email: "trusted@example.com",
@@ -376,9 +376,9 @@ describe("oauthService", () => {
         authProvider: "local",
         createdAt: "2026-01-01T00:00:00.000Z",
         accountStatus: "active",
-      },
-      scopes: ["openid", "profile", "email", "admin:identity"],
-    } as any);
+      } as any,
+      ["openid", "profile", "email", "admin:identity"],
+    );
 
     expect(userinfo).toEqual(
       expect.objectContaining({
@@ -401,8 +401,8 @@ describe("oauthService", () => {
   });
 
   it("returns admin identity aliases when only admin:identity is requested", () => {
-    const userinfo = getOAuthUserInfo({
-      user: {
+    const userinfo = getOAuthUserInfo(
+      {
         id: "admin-2",
         username: "owner",
         email: "owner@example.com",
@@ -410,9 +410,9 @@ describe("oauthService", () => {
         authProvider: "local",
         createdAt: "2026-01-01T00:00:00.000Z",
         accountStatus: "active",
-      },
-      scopes: ["openid", "admin:identity"],
-    } as any);
+      } as any,
+      ["openid", "admin:identity"],
+    );
 
     expect(userinfo).toEqual(
       expect.objectContaining({
