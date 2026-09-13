@@ -31,7 +31,7 @@
     "fix:rollup:smart": "chmod +x fix-rollup-deps.sh && ./fix-rollup-deps.sh"
   },
   "dependencies": {
-    "@base-ui/react": "^1.7.0",
+    "@base-ui/react": "^1.8.0",
     "@fingerprintjs/fingerprintjs": "^5.2.0",
     "@heroicons/react": "^2.2.0",
     "@hugeicons/core-free-icons": "^4.3.0",
