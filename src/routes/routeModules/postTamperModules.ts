@@ -51,6 +51,7 @@ import resourceRoutes from "../resourceRoutes";
 import socialRoutes from "../socialRoutes";
 import webhookEventRoutes from "../webhookEventRoutes";
 import { assetLinksRoutes, faviconRoutes } from "../siteMetadataRoutes";
+import { wellKnownRoutes } from "../wellKnownRoutes";
 
 const antaRequestLogger: RequestHandler = (req: Request, _res: Response, next: NextFunction) => {
   logger.info(`安踏防伪查询请求: ${req.method} ${req.url}`, {
@@ -699,6 +700,14 @@ export const postTamperRouteModules: RouteModule[] = [
     name: "assetlinks-route",
     path: "/.well-known/assetlinks.json",
     router: assetLinksRoutes,
+    requiresAuth: false,
+    rateLimited: false,
+    isPublic: true,
+  },
+  {
+    name: "openid-configuration-route",
+    path: "/.well-known/openid-configuration",
+    router: wellKnownRoutes,
     requiresAuth: false,
     rateLimited: false,
     isPublic: true,

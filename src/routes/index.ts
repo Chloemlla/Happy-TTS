@@ -147,6 +147,7 @@ export const NON_API_ROUTE_EXEMPTION_PATHS = [
   "/health",
   "/status",
   "/.well-known/assetlinks.json",
+  "/.well-known/openid-configuration",
   "/favicon.ico",
 ] as const;
 
