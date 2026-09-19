@@ -20,8 +20,9 @@ import {
 import { auditLogApi, type AuditLogEntry } from '../api/auditLog';
 import { oauthApi, type OAuthClient, type OAuthGrant, type OAuthScopeDefinition } from '../api/oauth';
 import { useNotification } from './Notification';
+import OAuthOidcEndpointPanel from './OAuthOidcEndpointPanel';
 
-const defaultScopes = ['openid', 'profile', 'admin:identity', 'status'];
+const defaultScopes = ['openid', 'profile', 'email', 'admin:identity', 'status'];
 
 const scopeCategoryLabels: Record<string, string> = {
   identity: '身份资料',
@@ -503,6 +504,8 @@ const OAuthClientManager: React.FC = () => {
           </div>
         </div>
       )}
+
+      <OAuthOidcEndpointPanel />
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
         <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-900">
