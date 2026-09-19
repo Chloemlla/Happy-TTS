@@ -357,17 +357,29 @@ const MarkdownArticlePage: React.FC = () => {
                     key={`${heading.anchor}-${index}`}
                     href={`#${heading.anchor}`}
                     onClick={(event) => scrollToHeading(event, heading.anchor)}
-                    className={`block border-l-2 py-0.5 pr-2 text-sm leading-5 transition ${
-                      activeHeading === heading.anchor
-                        ? 'border-slate-900 text-slate-950'
-                        : 'border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-950'
-                    } ${
-                      heading.level === 3 ? 'pl-3' : ''
-                    } ${
-                      heading.level >= 4 ? 'pl-5 text-xs' : ''
-                    }`}
+                    className="group flex items-start gap-3 py-0.5 pr-2 transition"
                   >
-                    {heading.text}
+                    <span
+                      aria-hidden="true"
+                      className={`mt-0.5 h-4 w-0.5 shrink-0 rounded-full transition ${
+                        activeHeading === heading.anchor
+                          ? 'bg-slate-900'
+                          : 'bg-transparent group-hover:bg-slate-300'
+                      }`}
+                    />
+                    <span
+                      className={`text-sm leading-5 transition ${
+                        activeHeading === heading.anchor
+                          ? 'text-slate-950'
+                          : 'text-slate-600 group-hover:text-slate-950'
+                      } ${
+                        heading.level === 3 ? 'pl-3' : ''
+                      } ${
+                        heading.level >= 4 ? 'pl-5 text-xs leading-5' : ''
+                      }`}
+                    >
+                      {heading.text}
+                    </span>
                   </a>
                 ))}
               </nav>
