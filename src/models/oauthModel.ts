@@ -28,6 +28,8 @@ export interface OAuthAuthorizationCodeDoc {
   scopes: string[];
   codeChallenge: string | null;
   codeChallengeMethod: "plain" | "S256" | null;
+  /** OIDC nonce：签发 id_token 时原样回填，未携带时为 null。 */
+  nonce: string | null;
   expiresAt: Date;
   usedAt: Date | null;
   createdAt: Date;
@@ -95,6 +97,7 @@ const OAuthAuthorizationCodeSchema = new mongoose.Schema<OAuthAuthorizationCodeD
     scopes: { type: [String], required: true },
     codeChallenge: { type: String, default: null },
     codeChallengeMethod: { type: String, enum: ["plain", "S256", null], default: null },
+    nonce: { type: String, default: null },
     expiresAt: { type: Date, required: true },
     usedAt: { type: Date, default: null },
     createdAt: { type: Date, default: Date.now },

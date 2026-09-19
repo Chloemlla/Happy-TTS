@@ -24,6 +24,7 @@ import {
 } from "../services/oauthService";
 import logger from "../utils/logger";
 import { stripTrailingSlashes } from "../utils/urlString";
+import { getOidcJwks } from "../services/oidcService";
 import { getAuthSessionMetadata } from "../services/authSessionService";
 import { getClientIP } from "../utils/ipUtils";
 import { asAuthenticatedRequest } from "../types/authRequest";
@@ -33,10 +34,19 @@ function sendNoStoreHeaders(res: Response): void {
   res.set("Pragma", "no-cache");
 }
 
-function getPublicBaseUrl(req: Request): string {
+export function getPublicBaseUrl(req: Request): string {
   const configured = process.env.BASE_URL || process.env.FRONTEND_URL;
   if (configured) return stripTrailingSlashes(configured);
   return stripTrailingSlashes(`${req.protocol}://${req.get("host")}`);
+}
+
+/**
+ * OIDC 发现文档的唯一实现：`/api/oauth/.well-known/openid-configuration` 与
+ * 根路径 `/.well-known/openid-configuration` 都走这里，避免两份 issuer 漂移。
+ */
+export function openidConfiguration(req: Request, res: Response): void {
+  sendNoStoreHeaders(res);
+  res.json(getOAuthServerMetadata(getPublicBaseUrl(req)));
 }
 
 function getAdminUser(req: Request): any | null {
@@ -74,13 +84,13 @@ function buildAuthorizeInput(source: any) {
     code_challenge: typeof source?.code_challenge === "string" ? source.code_challenge : undefined,
     code_challenge_method:
       typeof source?.code_challenge_method === "string" ? source.code_challenge_method : undefined,
+    nonce: typeof source?.nonce === "string" ? source.nonce : undefined,
   };
 }
 
 export class OAuthController {
   public static metadata(req: Request, res: Response) {
-    sendNoStoreHeaders(res);
-    return res.json(getOAuthServerMetadata(getPublicBaseUrl(req)));
+    openidConfiguration(req, res);
   }
 
   public static scopes(_req: Request, res: Response) {
@@ -88,6 +98,15 @@ export class OAuthController {
       success: true,
       scopes: getOAuthScopeDefinitions(),
     });
+  }
+
+  public static async jwks(_req: Request, res: Response) {
+    try {
+      res.set("Cache-Control", "public, max-age=300");
+      return res.json(await getOidcJwks());
+    } catch (error) {
+      return handleOAuthError(res, error, "JWKS 获取失败");
+    }
   }
 
   public static async listClients(_req: Request, res: Response) {
@@ -241,6 +260,7 @@ export class OAuthController {
     try {
       sendNoStoreHeaders(res);
       const grantType = String(req.body?.grant_type || "");
+      const issuer = getPublicBaseUrl(req);
       if (grantType === "authorization_code") {
         const token = await exchangeAuthorizationCode({
           authHeader: req.headers.authorization,
@@ -249,6 +269,7 @@ export class OAuthController {
           code: req.body?.code,
           redirectUri: req.body?.redirect_uri,
           codeVerifier: req.body?.code_verifier,
+          issuer,
           sessionMetadata: getAuthSessionMetadata(req, { ipAddress: getClientIP(req) }),
         });
         return res.json(token);
@@ -260,6 +281,7 @@ export class OAuthController {
           clientId: req.body?.client_id,
           clientSecret: req.body?.client_secret,
           refreshToken: req.body?.refresh_token,
+          issuer,
           sessionMetadata: getAuthSessionMetadata(req, { ipAddress: getClientIP(req) }),
         });
         return res.json(token);

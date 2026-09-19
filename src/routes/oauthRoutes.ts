@@ -58,6 +58,17 @@ router.get("/scopes", oauthReadLimiter, OAuthController.scopes);
 
 /**
  * @openapi
+ * /oauth/jwks:
+ *   get:
+ *     summary: OIDC JWKS（id_token 验签公钥）
+ *     responses:
+ *       200:
+ *         description: JSON Web Key Set
+ */
+router.get("/jwks", oauthReadLimiter, OAuthController.jwks);
+
+/**
+ * @openapi
  * /oauth/token:
  *   post:
  *     summary: OAuth token endpoint

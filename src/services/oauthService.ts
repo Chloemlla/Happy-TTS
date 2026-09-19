@@ -21,6 +21,7 @@ import logger from "../utils/logger";
 import { stripTrailingSlashes } from "../utils/urlString";
 import { type User, UserStorage } from "../utils/userStorage";
 import { createAuthSession, revokeAuthSessionsByOauthTokenIds, type AuthSessionMetadata } from "./authSessionService";
+import { signIdToken } from "./oidcService";
 
 const CLIENT_ID_PREFIX = "syn_client_";
 const CLIENT_SECRET_PREFIX = "syn_secret_";
@@ -103,6 +104,8 @@ export interface OAuthAuthorizeRequest {
   state?: string;
   code_challenge?: string;
   code_challenge_method?: string;
+  /** OIDC nonce：原样写进 id_token，供依赖方与授权请求比对。 */
+  nonce?: string;
 }
 
 export interface OAuthAuthorizePreview {
@@ -122,6 +125,8 @@ export interface OAuthTokenResponse {
   refresh_token?: string;
   refresh_expires_in?: number;
   scope: string;
+  /** 仅在 scope 含 openid 时出现；不含 openid 时该字段完全省略。 */
+  id_token?: string;
   user?: Record<string, unknown>;
   device_tracked?: boolean;
 }
@@ -604,9 +609,14 @@ function buildUserProfile(user: User, scopes: string[]): Record<string, unknown>
   };
 
   if (scopeSet.has("profile") || scopeSet.has("admin:identity")) {
+    const avatarUrl = user.avatarUrl || null;
     profile.username = user.username;
     profile.name = user.username;
-    profile.avatarUrl = user.avatarUrl || null;
+    profile.avatarUrl = avatarUrl;
+    // OIDC 标准的头像字段名与内部字段名不同，同一个取值两个键都给。
+    if (avatarUrl) {
+      profile.picture = avatarUrl;
+    }
     Object.assign(profile, buildOAuthIdentityClaims(user));
     profile.authProvider = user.authProvider || "local";
     profile.createdAt = user.createdAt;
@@ -615,7 +625,9 @@ function buildUserProfile(user: User, scopes: string[]): Record<string, unknown>
 
   if (scopeSet.has("email")) {
     profile.email = user.email;
+    // 依赖方读的是 OIDC 标准的 snake_case 字段，camelCase 仅保留给既有消费方。
     profile.emailVerified = true;
+    profile.email_verified = true;
   }
 
   return profile;
@@ -682,11 +694,27 @@ function getEffectiveTokenScopes(token: OAuthTokenDoc, grant: OAuthGrantDoc, cli
   return (token.scopes || []).filter((scope) => grantScopes.has(scope) && clientScopes.has(scope));
 }
 
+/**
+ * issuer 由控制器按对外可见地址传入（与 getPublicBaseUrl 同源）。服务层直接调用时
+ * 退化为环境配置；两者都拿不到时返回空串，此时签不出合法的 id_token，宁可不签。
+ */
+function resolveOidcIssuer(explicitIssuer?: unknown): string {
+  const configured =
+    normalizeOptionalText(explicitIssuer, 2048) ||
+    normalizeOptionalText(process.env.BASE_URL, 2048) ||
+    normalizeOptionalText(process.env.FRONTEND_URL, 2048) ||
+    "";
+  return stripTrailingSlashes(configured);
+}
+
 async function createTokenPair(opts: {
   client: OAuthClientDoc;
   grant: OAuthGrantDoc;
   user: User;
   scopes: string[];
+  /** OIDC issuer（对外可见的 base URL）。服务层不接触 req，由调用方传入。 */
+  issuer: string;
+  nonce?: string | null;
   sessionMetadata?: AuthSessionMetadata;
 }): Promise<OAuthTokenResponse> {
   const accessToken = randomSecret(ACCESS_TOKEN_PREFIX, 32);
@@ -733,6 +761,17 @@ async function createTokenPair(opts: {
     { $set: { lastUsedAt: new Date(), updatedAt: new Date() } },
   );
 
+  const idToken = opts.issuer
+    ? await signIdToken({
+        user: opts.user,
+        scopes: opts.scopes,
+        clientId: opts.client.clientId,
+        issuer: opts.issuer,
+        accessTokenTtlSeconds: ACCESS_TOKEN_TTL_SECONDS,
+        nonce: opts.nonce ?? null,
+      })
+    : null;
+
   return {
     access_token: accessToken,
     refresh_token: refreshToken,
@@ -740,6 +779,7 @@ async function createTokenPair(opts: {
     expires_in: ACCESS_TOKEN_TTL_SECONDS,
     refresh_expires_in: REFRESH_TOKEN_TTL_SECONDS,
     scope: opts.scopes.join(" "),
+    ...(idToken ? { id_token: idToken } : {}),
     user: buildUserProfile(opts.user, opts.scopes),
     device_tracked: true,
   };
@@ -1024,6 +1064,7 @@ export async function approveAuthorization(
     scopes: preview.scopes,
     codeChallenge: normalizeOptionalText(input.code_challenge, 128),
     codeChallengeMethod: preview.codeChallengeMethod,
+    nonce: normalizeOptionalText(input.nonce, 512),
     expiresAt: new Date(Date.now() + AUTH_CODE_TTL_MS),
     usedAt: null,
   });
@@ -1127,6 +1168,8 @@ export async function exchangeAuthorizationCode(opts: {
   code?: unknown;
   redirectUri?: unknown;
   codeVerifier?: unknown;
+  /** OIDC issuer（对外可见的 base URL），用于签发 id_token 的 iss。 */
+  issuer?: unknown;
   sessionMetadata?: AuthSessionMetadata;
 }): Promise<OAuthTokenResponse> {
   const client = await authenticateClient({
@@ -1174,7 +1217,15 @@ export async function exchangeAuthorizationCode(opts: {
 
   const user = await loadActiveOAuthAuthorizingUser(codeDoc.userId);
   const grant = await upsertGrant(client.clientId, user.id, codeDoc.scopes);
-  return createTokenPair({ client, grant, user, scopes: codeDoc.scopes, sessionMetadata: opts.sessionMetadata });
+  return createTokenPair({
+    client,
+    grant,
+    user,
+    scopes: codeDoc.scopes,
+    issuer: resolveOidcIssuer(opts.issuer),
+    nonce: codeDoc.nonce ?? null,
+    sessionMetadata: opts.sessionMetadata,
+  });
 }
 
 export async function refreshAccessToken(opts: {
@@ -1182,6 +1233,8 @@ export async function refreshAccessToken(opts: {
   clientId?: unknown;
   clientSecret?: unknown;
   refreshToken?: unknown;
+  /** OIDC issuer（对外可见的 base URL），用于签发 id_token 的 iss。 */
+  issuer?: unknown;
   sessionMetadata?: AuthSessionMetadata;
 }): Promise<OAuthTokenResponse> {
   const client = await authenticateClient({
@@ -1235,7 +1288,16 @@ export async function refreshAccessToken(opts: {
 
   await revokeAuthSessionsByOauthTokenIds([tokenDoc.tokenId]);
 
-  return createTokenPair({ client, grant, user, scopes: refreshScopes, sessionMetadata: opts.sessionMetadata });
+  return createTokenPair({
+    client,
+    grant,
+    user,
+    scopes: refreshScopes,
+    issuer: resolveOidcIssuer(opts.issuer),
+    // refresh 流程没有授权请求上下文，nonce 不参与轮换。
+    nonce: null,
+    sessionMetadata: opts.sessionMetadata,
+  });
 }
 
 export async function validateOAuthAccessToken(plainToken: string, requiredScope?: string): Promise<OAuthAccessContext> {
@@ -1408,12 +1470,32 @@ export function getOAuthServerMetadata(baseUrl: string) {
     authorization_endpoint: `${normalizedBase}/oauth/authorize`,
     token_endpoint: `${normalizedBase}/api/oauth/token`,
     userinfo_endpoint: `${normalizedBase}/api/oauth/userinfo`,
+    jwks_uri: `${normalizedBase}/api/oauth/jwks`,
     introspection_endpoint: `${normalizedBase}/api/oauth/introspect`,
     revocation_endpoint: `${normalizedBase}/api/oauth/revoke`,
     response_types_supported: ["code"],
+    response_modes_supported: ["query"],
     grant_types_supported: ["authorization_code", "refresh_token"],
+    subject_types_supported: ["public"],
+    id_token_signing_alg_values_supported: ["RS256"],
     token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post", "none"],
     code_challenge_methods_supported: ["S256"],
+    claims_supported: [
+      "sub",
+      "iss",
+      "aud",
+      "exp",
+      "iat",
+      "auth_time",
+      "nonce",
+      "email",
+      "email_verified",
+      "name",
+      "preferred_username",
+      "picture",
+      "role",
+      "roles",
+    ],
     scopes_supported: OAUTH_SCOPE_DEFINITIONS.map((scope) => scope.key),
   };
 }
