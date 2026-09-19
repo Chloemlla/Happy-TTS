@@ -1,4 +1,5 @@
 const { MongoClient } = require("mongodb");
+const os = require("os");
 
 const mongoUri = process.env.MONGO_REPLICA_URI;
 const describeReplica = mongoUri ? describe : describe.skip;
@@ -8,7 +9,14 @@ describeReplica("Mongo replica-set integration contract", () => {
   let db;
 
   beforeAll(async () => {
-    client = new MongoClient(mongoUri, { serverSelectionTimeoutMS: 10_000 });
+    // mongodb 7.6 的默认 os 适配器改成动态 import('os')，在 jest 里解析不出来；驱动又把
+    // makeClientMetadata 的失败吞成空对象，于是握手发出 client: {}，mongod 回
+    // "Missing required sub-document 'driver' in the client metadata document"。
+    // 显式给 os 适配器即可绕开那次 import()。
+    client = new MongoClient(mongoUri, {
+      serverSelectionTimeoutMS: 10_000,
+      runtimeAdapters: { os },
+    });
     await client.connect();
     db = client.db(`synapse_contract_${Date.now()}`);
   });
