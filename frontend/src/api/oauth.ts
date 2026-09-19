@@ -106,9 +106,49 @@ export interface OAuthScopeListResult {
   scopes: OAuthScopeDefinition[];
 }
 
+export interface OAuthOpenidConfiguration {
+  issuer: string;
+  authorization_endpoint: string;
+  token_endpoint: string;
+  userinfo_endpoint: string;
+  jwks_uri: string;
+  introspection_endpoint: string;
+  revocation_endpoint: string;
+  response_types_supported: string[];
+  response_modes_supported: string[];
+  grant_types_supported: string[];
+  subject_types_supported: string[];
+  id_token_signing_alg_values_supported: string[];
+  token_endpoint_auth_methods_supported: string[];
+  code_challenge_methods_supported: string[];
+  claims_supported: string[];
+  scopes_supported: string[];
+}
+
+export interface OidcPublicJwk {
+  kty: string;
+  use: string;
+  alg: string;
+  kid: string;
+  n: string;
+  e: string;
+}
+
+export interface OAuthJwks {
+  keys: OidcPublicJwk[];
+}
+
 export const oauthApi = {
   getScopes: async () => {
     const response = await api.get<OAuthScopeListResult>('/api/oauth/scopes');
+    return response.data;
+  },
+  getOpenidConfiguration: async () => {
+    const response = await api.get<OAuthOpenidConfiguration>('/api/oauth/.well-known/openid-configuration');
+    return response.data;
+  },
+  getJwks: async () => {
+    const response = await api.get<OAuthJwks>('/api/oauth/jwks');
     return response.data;
   },
   getAuthorizePreview: async (queryString: string) => {
