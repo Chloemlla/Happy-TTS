@@ -83,6 +83,9 @@ const WordCountPageSimple = React.lazy(() => import('./components/WordCountPageS
 // 年龄计算器页面懒加载
 const AgeCalculatorPage = React.lazy(() => import('./components/AgeCalculatorPage'));
 
+// v-t 图六个比例（匀变速直线运动）交互演示
+const VtRatioExplorer = React.lazy(() => import('./components/VtRatioExplorer'));
+
 // 资源商店相关组件懒加载
 const AdminStoreDashboard = React.lazy(() => import('./components/AdminStoreDashboard'));
 const ResourceStoreDetail = React.lazy(() => import('./components/ResourceStoreDetail'));
@@ -708,6 +711,7 @@ const App: React.FC = () => {
         <Route path="/case-converter" element={renderAnimatedRoute(<CaseConverter />)} />
         <Route path="/word-count" element={renderAnimatedRoute(<WordCountPageSimple />)} />
         <Route path="/age-calculator" element={renderAnimatedRoute(<AgeCalculatorPage />)} />
+        <Route path="/vt-ratios" element={renderAnimatedRoute(<VtRatioExplorer />)} />
         <Route path="/email-sender" element={renderAdminRoute(<SuperAdminGuard><EmailSender /></SuperAdminGuard>)} />
         <Route path="/profile" element={renderAnimatedRoute(<UserProfile />)} />
         <Route path="/outemail" element={renderAdminRoute(<OutEmail />)} />
@@ -766,6 +770,7 @@ const App: React.FC = () => {
       '/case-converter': 'Synapse - 大小写转换',
       '/word-count': 'Synapse - 字数统计',
       '/age-calculator': 'Synapse - 年龄计算器',
+      '/vt-ratios': 'Synapse - v-t 图六个比例',
       '/email-sender': 'Synapse - 邮件发送',
       '/profile': 'Synapse - 个人资料',
       '/outemail': 'Synapse - 外部邮件',
@@ -802,6 +807,7 @@ const App: React.FC = () => {
       '/lottery': '参与Synapse抽奖活动，赢取丰厚奖励',
       '/word-count': '精确统计文本字数、字符数、段落数等信息',
       '/age-calculator': '精确计算年龄，支持多种日期格式和时区',
+      '/vt-ratios': '用 v-t 图交互演示初速度为零的匀变速直线运动的六条比例推论',
       '/logshare': '安全分享和查看日志文件，支持加密传输',
       '/artifacts': 'View a shared NexAI Artifact.',
       '/store': '浏览和下载优质资源，提升开发效率',

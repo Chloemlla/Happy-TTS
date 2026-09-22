@@ -1,0 +1,828 @@
+/* v-t 图六个比例 —— 全部选择器都收在 .vt-page 之下，避免污染应用其余部分 */
+
+.vt-page {
+  --vt-bg: #eef1f6;
+  --vt-surface: #ffffff;
+  --vt-surface-2: #f5f7fb;
+  --vt-ink: #0f1724;
+  --vt-ink-2: #48546d;
+  --vt-ink-3: #7b87a0;
+  --vt-rule: #dce2ee;
+  --vt-rule-2: #c4cee0;
+  --vt-grid: rgba(15, 23, 36, 0.055);
+  --vt-vel: #00939b;
+  --vt-disp: #c9700a;
+  --vt-vel-bar: rgba(0, 147, 155, 0.2);
+  --vt-disp-fill: rgba(201, 112, 10, 0.13);
+  --vt-disp-strip: rgba(201, 112, 10, 0.2);
+  --vt-motion: #1e2b45;
+  --vt-shadow: 0 1px 2px rgba(15, 23, 36, 0.05),
+    0 14px 34px -20px rgba(15, 23, 36, 0.34);
+  --vt-focus: #2f4fd4;
+  --vt-sans: "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", system-ui,
+    -apple-system, "Segoe UI", sans-serif;
+  --vt-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", STSong,
+    SimSun, Georgia, serif;
+  --vt-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+    monospace;
+
+  min-height: 100%;
+  background-color: var(--vt-bg);
+  background-image: linear-gradient(var(--vt-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--vt-grid) 1px, transparent 1px);
+  background-size: 26px 26px;
+  color: var(--vt-ink);
+  font-family: var(--vt-sans);
+  font-size: 15.5px;
+  line-height: 1.85;
+}
+
+.vt-page *,
+.vt-page *::before,
+.vt-page *::after {
+  box-sizing: border-box;
+}
+
+.vt-page :focus-visible {
+  outline: 2px solid var(--vt-focus);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.vt-page i,
+.vt-page var {
+  font-family: var(--vt-mono);
+  font-style: italic;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.vt-page b,
+.vt-page strong {
+  font-weight: 700;
+}
+
+.vt-wrap {
+  max-width: 1160px;
+  margin-inline: auto;
+  padding-inline: max(18px, 3.6vw);
+  padding-block: clamp(28px, 4vw, 52px) 72px;
+}
+
+/* ── masthead ───────────────────────────────────────────── */
+.vt-page .vt-eyebrow {
+  margin: 0 0 14px;
+  font-size: 11.5px;
+  letter-spacing: 0.22em;
+  color: var(--vt-ink-3);
+  font-weight: 500;
+}
+
+.vt-page h1 {
+  margin: 0;
+  font-family: var(--vt-serif);
+  font-weight: 700;
+  font-size: clamp(27px, 4.4vw, 44px);
+  line-height: 1.22;
+  letter-spacing: 0.01em;
+  text-wrap: balance;
+}
+
+.vt-page .vt-lede {
+  margin: 18px 0 0;
+  max-width: 60ch;
+  color: var(--vt-ink-2);
+  font-size: 15.5px;
+}
+
+.vt-page .vt-lede b {
+  color: var(--vt-ink);
+}
+
+.vt-page .vt-thesis {
+  margin-top: 22px;
+  font-size: 16px;
+  color: var(--vt-ink);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* ── stage ──────────────────────────────────────────────── */
+.vt-page .vt-stage {
+  margin-top: clamp(24px, 3.4vw, 40px);
+  background: var(--vt-surface);
+  border: 1px solid var(--vt-rule);
+  border-radius: 14px;
+  box-shadow: var(--vt-shadow);
+  overflow: hidden;
+}
+
+@media (min-width: 1040px) and (min-height: 820px) {
+  .vt-page .vt-stage {
+    position: sticky;
+    top: 14px;
+    z-index: 5;
+  }
+}
+
+.vt-page .vt-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--vt-rule);
+  background: var(--vt-surface-2);
+}
+
+.vt-page .vt-tabgroup {
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  color: var(--vt-ink-3);
+  padding-inline: 6px 2px;
+  font-weight: 500;
+}
+
+.vt-page .vt-tabgroup:not(:first-child) {
+  padding-inline-start: 14px;
+  border-left: 1px solid var(--vt-rule);
+  margin-inline-start: 8px;
+}
+
+.vt-page .vt-tab {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--vt-ink-2);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  padding: 8px 11px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.vt-page .vt-tab:hover {
+  background: var(--vt-surface);
+  color: var(--vt-ink);
+  border-color: var(--vt-rule);
+}
+
+.vt-page .vt-tab[aria-pressed="true"] {
+  background: var(--vt-ink);
+  color: var(--vt-surface);
+  border-color: var(--vt-ink);
+  font-weight: 500;
+}
+
+.vt-page .vt-stage-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+@media (min-width: 1000px) {
+  .vt-page .vt-stage-body {
+    grid-template-columns: minmax(0, 1.42fr) minmax(272px, 1fr);
+  }
+}
+
+.vt-page .vt-figwrap {
+  padding: 10px 14px 4px;
+  min-width: 0;
+}
+
+.vt-page .vt-readout {
+  border-top: 1px solid var(--vt-rule);
+}
+
+@media (min-width: 1000px) {
+  .vt-page .vt-readout {
+    border-top: 0;
+    border-left: 1px solid var(--vt-rule);
+  }
+}
+
+.vt-page figure {
+  margin: 0;
+}
+
+.vt-page .vt-svgscroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.vt-page .vt-svg {
+  display: block;
+  width: 100%;
+  min-width: 520px;
+  max-width: 640px;
+  height: auto;
+  margin-inline: auto;
+  color: var(--vt-ink-2);
+}
+
+.vt-page figcaption {
+  margin: 6px auto 12px;
+  max-width: 640px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--vt-ink-2);
+  border-top: 1px dashed var(--vt-rule-2);
+  padding-top: 9px;
+}
+
+.vt-page .vt-livestrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 16px;
+  align-items: baseline;
+  max-width: 640px;
+  margin: 0 auto 10px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  background: var(--vt-surface-2);
+  border: 1px solid var(--vt-rule);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--vt-ink-2);
+}
+
+.vt-page .vt-livestrip span {
+  white-space: nowrap;
+}
+
+.vt-page .vt-livestrip b {
+  font-family: var(--vt-mono);
+  font-weight: 600;
+  color: var(--vt-ink);
+}
+
+/* ── readout ────────────────────────────────────────────── */
+.vt-page .vt-readout {
+  padding: 16px 18px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.vt-page .vt-ro-label {
+  font-size: 10.5px;
+  letter-spacing: 0.18em;
+  color: var(--vt-ink-3);
+  font-weight: 500;
+  display: block;
+  margin-bottom: 5px;
+}
+
+.vt-page .vt-ro-big {
+  font-size: clamp(15px, 1.5vw, 19px);
+  font-weight: 600;
+  color: var(--vt-ink);
+  line-height: 1.4;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.vt-page .vt-ro-formula {
+  margin-top: 4px;
+  font-size: 13.5px;
+  color: var(--vt-vel);
+  font-weight: 500;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.vt-page .vt-ro-note {
+  margin: 0;
+  font-size: 12.8px;
+  line-height: 1.75;
+  color: var(--vt-ink-2);
+}
+
+.vt-page .vt-ro-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.vt-page .vt-ro-table th,
+.vt-page .vt-ro-table td {
+  padding: 4px 6px;
+  text-align: right;
+  border-bottom: 1px solid var(--vt-rule);
+}
+
+.vt-page .vt-ro-table th {
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  color: var(--vt-ink-3);
+  font-weight: 500;
+  padding-bottom: 6px;
+}
+
+.vt-page .vt-ro-table th:first-child,
+.vt-page .vt-ro-table td:first-child {
+  text-align: left;
+  color: var(--vt-ink-2);
+  font-family: var(--vt-mono);
+}
+
+.vt-page .vt-ro-table td:nth-child(2) {
+  font-family: var(--vt-mono);
+  color: var(--vt-ink-2);
+}
+
+.vt-page .vt-ro-table td:last-child {
+  font-family: var(--vt-mono);
+  font-weight: 600;
+  color: var(--vt-ink);
+}
+
+.vt-page .vt-ro-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.vt-page .vt-ro-scroll {
+  max-height: 210px;
+  overflow: auto;
+}
+
+/* ── controls ───────────────────────────────────────────── */
+.vt-page .vt-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  align-items: center;
+  padding: 11px 16px;
+  border-top: 1px solid var(--vt-rule);
+  background: var(--vt-surface-2);
+}
+
+.vt-page .vt-ctl {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12.5px;
+  color: var(--vt-ink-2);
+}
+
+.vt-page .vt-ctl label {
+  white-space: nowrap;
+}
+
+.vt-page .vt-hint {
+  color: var(--vt-ink-3);
+}
+
+.vt-page input[type="range"] {
+  appearance: none;
+  width: 118px;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+  margin: 0;
+}
+
+.vt-page input[type="range"]::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--vt-rule-2);
+}
+
+.vt-page input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--vt-ink);
+  border: 2px solid var(--vt-surface);
+  margin-top: -5.5px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+}
+
+.vt-page input[type="range"]::-moz-range-track {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--vt-rule-2);
+}
+
+.vt-page input[type="range"]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--vt-ink);
+  border: 2px solid var(--vt-surface);
+}
+
+.vt-page .vt-ctl-val {
+  font-family: var(--vt-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--vt-ink);
+  min-width: 2.4em;
+  font-variant-numeric: tabular-nums;
+}
+
+.vt-page .vt-btn {
+  appearance: none;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--vt-rule-2);
+  background: var(--vt-surface);
+  color: var(--vt-ink);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.vt-page .vt-btn:hover {
+  background: var(--vt-surface-2);
+  border-color: var(--vt-ink-3);
+}
+
+.vt-page .vt-btn-primary {
+  background: var(--vt-ink);
+  color: var(--vt-surface);
+  border-color: var(--vt-ink);
+}
+
+.vt-page .vt-btn-primary:hover {
+  background: var(--vt-ink-2);
+  border-color: var(--vt-ink-2);
+}
+
+/* ── svg marks ──────────────────────────────────────────── */
+.vt-page .vt-gridline {
+  stroke: var(--vt-grid);
+  stroke-width: 1;
+  fill: none;
+}
+
+.vt-page .vt-axis {
+  stroke: var(--vt-ink-3);
+  stroke-width: 1.25;
+  fill: none;
+}
+
+.vt-page .vt-axistext {
+  fill: var(--vt-ink-3);
+  font-size: 12px;
+  font-family: var(--vt-mono);
+}
+
+.vt-page .vt-axistitle {
+  fill: var(--vt-ink-2);
+  font-size: 16px;
+  font-style: italic;
+  font-family: var(--vt-mono);
+}
+
+.vt-page .vt-tick {
+  stroke: var(--vt-rule-2);
+  stroke-width: 1;
+}
+
+.vt-page .vt-ticktext {
+  fill: var(--vt-ink-2);
+  font-size: 12.5px;
+  font-family: var(--vt-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.vt-page .vt-curve {
+  stroke: var(--vt-motion);
+  stroke-width: 2.6;
+  fill: none;
+  stroke-linecap: round;
+}
+
+.vt-page .vt-curve-ghost {
+  stroke: var(--vt-vel);
+  stroke-width: 1.6;
+  fill: none;
+  stroke-dasharray: 5 4;
+  opacity: 0.85;
+}
+
+.vt-page .vt-guide {
+  stroke: var(--vt-ink-3);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0.85;
+}
+
+.vt-page .vt-guide-soft {
+  stroke: var(--vt-rule-2);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.vt-page .vt-mark {
+  transition: opacity 0.22s ease;
+}
+
+.vt-page .vt-mark.vt-off {
+  opacity: 0.2;
+}
+
+.vt-page .vt-dot {
+  fill: var(--vt-vel);
+}
+
+.vt-page .vt-dot-ring {
+  fill: none;
+  stroke: var(--vt-surface);
+  stroke-width: 2;
+}
+
+.vt-page .vt-bar {
+  fill: var(--vt-vel-bar);
+}
+
+.vt-page .vt-area {
+  fill: var(--vt-disp-fill);
+  stroke: var(--vt-disp);
+  stroke-width: 0.9;
+  stroke-opacity: 0.45;
+}
+
+.vt-page .vt-strip {
+  fill: var(--vt-disp-strip);
+  stroke: var(--vt-surface);
+  stroke-width: 2;
+}
+
+.vt-page .vt-pmark {
+  fill: var(--vt-ink);
+  font-size: 13px;
+  font-family: var(--vt-mono);
+  font-weight: 600;
+}
+
+.vt-page .vt-pmark-soft {
+  fill: var(--vt-ink-2);
+  font-size: 12.5px;
+  font-family: var(--vt-mono);
+}
+
+.vt-page .vt-arealabel {
+  fill: var(--vt-disp);
+  font-size: 13.5px;
+  font-family: var(--vt-mono);
+  font-weight: 600;
+}
+
+.vt-page .vt-ball {
+  fill: var(--vt-motion);
+}
+
+.vt-page .vt-ball-halo {
+  fill: var(--vt-motion);
+  opacity: 0.16;
+}
+
+.vt-page .vt-sweep {
+  fill: var(--vt-disp);
+  fill-opacity: 0.22;
+  stroke: var(--vt-disp);
+  stroke-width: 1.5;
+  stroke-opacity: 0.55;
+  stroke-linejoin: round;
+}
+
+.vt-page .vt-tracktitle {
+  fill: var(--vt-ink-3);
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+}
+
+.vt-page .vt-trackseg {
+  fill: var(--vt-disp);
+  font-size: 11.5px;
+  font-family: var(--vt-mono);
+  font-weight: 500;
+}
+
+.vt-page .vt-trackcum {
+  fill: var(--vt-ink-2);
+  font-size: 11.5px;
+  font-family: var(--vt-mono);
+}
+
+.vt-page .vt-trackcum.vt-hi {
+  fill: var(--vt-ink);
+  font-weight: 600;
+}
+
+/* ── KaTeX 微调 ─────────────────────────────────────────── */
+.vt-page .katex {
+  color: inherit;
+}
+
+.vt-page .katex-display {
+  margin: 0.4em 0;
+}
+
+.vt-page .vt-thesis .katex-display,
+.vt-page .vt-ro-big .katex-display,
+.vt-page .vt-ro-formula .katex-display {
+  margin: 0.1em 0;
+  text-align: left;
+}
+
+.vt-page .vt-ro-formula .katex-display {
+  font-size: 0.96em;
+}
+
+.vt-page .vt-eq .katex-display:first-child {
+  margin-top: 0;
+}
+
+.vt-page .vt-eq .katex-display:last-child {
+  margin-bottom: 0;
+}
+
+.vt-page .vt-ratio .katex {
+  vertical-align: -0.16em;
+}
+
+/* ── content ────────────────────────────────────────────── */
+.vt-page .vt-content {
+  max-width: 860px;
+  margin: 56px auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: 52px;
+}
+
+.vt-page .vt-sec-head {
+  border-top: 2px solid var(--vt-ink);
+  padding-top: 16px;
+  margin-bottom: 22px;
+}
+
+.vt-page .vt-sec-head h2 {
+  margin: 0;
+  font-family: var(--vt-serif);
+  font-size: clamp(20px, 2.6vw, 26px);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.vt-page .vt-sec-head p {
+  margin: 9px 0 0;
+  color: var(--vt-ink-2);
+  font-size: 14px;
+  max-width: 58ch;
+}
+
+.vt-page .vt-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.vt-page .vt-card {
+  background: var(--vt-surface);
+  border: 1px solid var(--vt-rule);
+  border-radius: 12px;
+  padding: 20px 22px 22px;
+}
+
+.vt-page .vt-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+
+.vt-page .vt-card h3 {
+  margin: 0;
+  font-size: 16.5px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.vt-page .vt-idx {
+  font-family: var(--vt-mono);
+  color: var(--vt-ink-3);
+  font-weight: 500;
+  margin-right: 9px;
+}
+
+.vt-page .vt-ratio {
+  display: inline-block;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  font-size: clamp(11.5px, 2.5vw, 14px);
+  font-weight: 600;
+  color: var(--vt-disp);
+  background: var(--vt-disp-fill);
+  border-radius: 6px;
+  padding: 3px 10px;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.vt-page .vt-card p {
+  margin: 0 0 12px;
+  max-width: 66ch;
+}
+
+.vt-page .vt-card p:last-child {
+  margin-bottom: 0;
+}
+
+.vt-page .vt-eq {
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--vt-ink);
+  background: var(--vt-surface-2);
+  border-left: 2px solid var(--vt-vel);
+  border-radius: 0 8px 8px 0;
+  padding: 11px 15px;
+  margin: 0 0 13px;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.vt-page .vt-why {
+  display: flex;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--vt-ink-2);
+  background: var(--vt-surface-2);
+  border-radius: 8px;
+  padding: 11px 14px;
+  margin: 0 0 14px;
+  line-height: 1.75;
+}
+
+.vt-page .vt-why::before {
+  content: "几何";
+  flex: 0 0 auto;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--vt-disp);
+  border: 1px solid var(--vt-disp);
+  border-radius: 4px;
+  padding: 1px 5px;
+  height: 1.5em;
+  line-height: 1.5em;
+  margin-top: 3px;
+  opacity: 0.85;
+}
+
+.vt-page .vt-goto {
+  appearance: none;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--vt-ink);
+  background: transparent;
+  border: 1px solid var(--vt-rule-2);
+  border-radius: 7px;
+  padding: 6px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.vt-page .vt-goto:hover {
+  background: var(--vt-surface-2);
+  border-color: var(--vt-ink-3);
+}
+
+.vt-page .vt-goto::after {
+  content: " →";
+}
+
+.vt-page .vt-foot {
+  max-width: 860px;
+  margin: 64px auto 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--vt-rule);
+  font-size: 12.5px;
+  color: var(--vt-ink-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vt-page *,
+  .vt-page *::before,
+  .vt-page *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}

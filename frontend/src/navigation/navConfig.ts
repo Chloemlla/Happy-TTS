@@ -5,6 +5,7 @@ import {
   FaBook,
   FaBug,
   FaChartBar,
+  FaChartLine,
   FaComments,
   FaCoins,
   FaDatabase,
@@ -122,6 +123,11 @@ export function getRootNavGroups(ctx: NavVisibilityContext): NavGroup[] {
             title: '年龄计算',
             url: '/age-calculator',
             icon: FaBirthdayCake as IconType,
+          },
+          {
+            title: 'v-t 图比例',
+            url: '/vt-ratios',
+            icon: FaChartLine as IconType,
           },
           {
             title: 'MD 导出',
