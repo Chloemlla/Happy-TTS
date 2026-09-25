@@ -20,7 +20,6 @@ import {
   wrapAdminModule,
 } from './adminModules';
 import { SuperAdminGuard } from './SuperAdminGuard';
-import { cn } from '../../utils/cn';
 import { studioPrimaryButtonClassName } from '../studioTheme';
 
 /**
