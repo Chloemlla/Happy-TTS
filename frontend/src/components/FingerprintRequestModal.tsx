@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaFingerprint, FaExclamationTriangle, FaCheck, FaTimes, FaSync } from 'react-icons/fa';
 import { useNotification } from './Notification';
+import { studioModalCardClassName, studioModalOverlayClassName, studioPrimaryButtonClassName, studioSecondaryButtonClassName } from './studioTheme';
 import { reportFingerprintOnce } from '../utils/fingerprint';
 import getApiBaseUrl from '../api/api';
 
@@ -131,7 +132,7 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
             {isOpen && (
                 <motion.div
                     key="fingerprint-modal-backdrop"
-                    className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+                    className={studioModalOverlayClassName}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
@@ -140,7 +141,7 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
                 >
                     <motion.div
                         key="fingerprint-modal-content"
-                        className="bg-white/90 rounded-2xl shadow-2xl w-full max-w-md p-4 sm:p-6 relative max-h-[90vh] overflow-y-auto overscroll-contain"
+                        className={`${studioModalCardClassName} relative max-w-md max-h-[90vh] overflow-y-auto overscroll-contain`}
                         initial={{ scale: 0.9, y: 20, opacity: 0 }}
                         animate={{ scale: 1, y: 0, opacity: 1 }}
                         exit={{ scale: 0.9, y: 20, opacity: 0 }}
@@ -162,7 +163,7 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
                         <div className="flex items-center justify-center mb-6">
                             <motion.div
                                 className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center ${isSubmitted
-                                        ? 'bg-green-100 text-green-600'
+                                        ? 'bg-emerald-100 text-emerald-600'
                                         : 'bg-slate-100 text-slate-600'
                                     }`}
                                 animate={isSubmitting ? { rotate: 360 } : { rotate: 0 }}
@@ -196,12 +197,12 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
                         {/* 错误信息 */}
                         {error && (
                             <motion.div
-                                className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2"
+                                className="mb-4 p-3 bg-rose-50 border border-rose-200 rounded-lg flex items-center gap-2"
                                 initial={{ opacity: 0, y: -10 }}
                                 animate={{ opacity: 1, y: 0 }}
                             >
-                                <FaExclamationTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                                <span className="text-red-700 text-sm">{error}</span>
+                                <FaExclamationTriangle className="w-4 h-4 text-rose-500 flex-shrink-0" />
+                                <span className="text-rose-700 text-sm">{error}</span>
                             </motion.div>
                         )}
 
@@ -214,7 +215,7 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
                                         <button
                                             onClick={handleDismiss}
                                             disabled={isSubmitting}
-                                            className="flex-1 px-4 py-2 text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                            className={`${studioSecondaryButtonClassName} flex-1`}
                                         >
                                             暂时跳过
                                         </button>
@@ -222,7 +223,7 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
                                     <button
                                         onClick={handleSubmit}
                                         disabled={isSubmitting}
-                                        className={`${hasDismissedOnce ? 'w-full' : 'flex-1'} px-4 py-2 text-white bg-slate-600 rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
+                                        className={`${studioPrimaryButtonClassName} ${hasDismissedOnce ? 'w-full' : 'flex-1'}`}
                                     >
                                         {isSubmitting ? (
                                             <>
@@ -246,7 +247,7 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
                                             onRequestComplete();
                                         }
                                     }}
-                                    className="w-full px-4 py-2 text-green-600 bg-green-100 rounded-lg hover:bg-green-200 transition-colors flex items-center justify-center gap-2"
+                                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-100 px-5 py-3.5 text-sm font-semibold text-emerald-600 transition hover:bg-emerald-200"
                                 >
                                     <FaCheck className="w-4 h-4" />
                                     关闭窗口
@@ -255,7 +256,7 @@ const FingerprintRequestModal: React.FC<FingerprintRequestModalProps> = ({
                         </div>
 
                         {/* 说明信息 */}
-                        <div className="mt-4 pt-4 border-t border-gray-100">
+                        <div className="mt-4 pt-4 border-t border-slate-100">
                             <div className="text-xs text-slate-500 space-y-1">
                                 <p>• 指纹信息包含：浏览器类型、屏幕分辨率、时区等设备特征</p>
                                 <p>• 此信息仅用于安全验证，不会识别您的个人身份</p>

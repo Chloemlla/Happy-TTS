@@ -5,6 +5,13 @@ import { useNotification } from './Notification';
 import { FaVolumeUp, FaCheckCircle, FaTimesCircle, FaUser, FaInfoCircle } from 'react-icons/fa';
 import getApiBaseUrl from '../api';
 import { getFingerprint } from '../utils/fingerprint';
+import {
+    studioMainSurfaceClassName,
+    studioPageClassName,
+    studioPrimaryButtonClassName,
+    studioSecondaryButtonClassName,
+    studioSubPanelClassName,
+} from './studioTheme';
 
 export const EmailVerifyPage: React.FC = () => {
     const { user } = useAuth();
@@ -70,48 +77,48 @@ export const EmailVerifyPage: React.FC = () => {
     }, [searchParams, navigate, setNotification]);
 
     return (
-        <div className="min-h-screen flex items-center justify-center rounded-2xl bg-slate-50 py-8 px-4 sm:py-12 sm:px-6">
+        <div className={`${studioPageClassName} flex min-h-screen items-center justify-center`}>
             <div className="w-full max-w-md min-w-0">
                 {/* Header */}
                 <div className="mb-8 text-center animate-slideInUp">
                     <div className="mb-4 inline-flex items-center gap-3">
-                        <FaVolumeUp className="h-8 w-8 sm:h-10 sm:w-10 text-blue-600" />
-                        <h1 className="text-2xl sm:text-3xl font-bold text-blue-600">Synapse</h1>
+                        <FaVolumeUp className="h-8 w-8 sm:h-10 sm:w-10 text-slate-900" />
+                        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Synapse</h1>
                     </div>
                     <p className="text-slate-600">邮箱验证</p>
                 </div>
 
                 {/* Card */}
-                <div className="bg-white/90 rounded-2xl shadow-xl border border-slate-100 px-4 py-6 sm:px-8 sm:py-12 hover:shadow-2xl transition-all duration-300">
+                <div className={`${studioMainSurfaceClassName} hover:shadow-2xl transition-all duration-300`}>
                     {user && (
-                        <div className="mb-6 p-4 bg-slate-50 border border-slate-100 rounded-xl flex items-start gap-3 text-left animate-fadeIn">
-                            <FaInfoCircle className="text-blue-500 mt-1 flex-shrink-0" />
+                        <div className={`${studioSubPanelClassName} mb-6 flex items-start gap-3 text-left animate-fadeIn`}>
+                            <FaInfoCircle className="mt-1 flex-shrink-0 text-slate-500" />
                             <div>
-                                <p className="text-xs font-bold text-blue-700">您当前登录为 {user.username}</p>
-                                <p className="text-[11px] text-blue-600/80 mt-0.5">您正在验证另一个账号。验证完成后，您可以将其添加至此设备。</p>
+                                <p className="text-xs font-bold text-slate-900">您当前登录为 {user.username}</p>
+                                <p className="text-[11px] text-slate-600 mt-0.5">您正在验证另一个账号。验证完成后，您可以将其添加至此设备。</p>
                             </div>
                         </div>
                     )}
                     {loading ? (
                         <div className="text-center py-8">
-                            <div className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                            <div className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-slate-200 border-t-slate-900 rounded-full animate-spin mx-auto mb-4"></div>
                             <h3 className="text-xl font-semibold text-slate-900 mb-2">验证中...</h3>
                             <p className="text-slate-600">请稍候，正在验证您的邮箱</p>
                         </div>
                     ) : success ? (
                         <div className="text-center py-4">
-                            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-green-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <FaCheckCircle className="text-green-600 text-4xl sm:text-5xl" />
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-emerald-100 to-sky-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <FaCheckCircle className="text-emerald-600 text-4xl sm:text-5xl" />
                             </div>
                             <h3 className="text-2xl font-bold text-slate-900 mb-4">验证成功！</h3>
                             <p className="text-slate-600 mb-6">您的邮箱已成功验证，账户创建完成</p>
 
-                            <div className="bg-green-50 border-l-4 border-green-500 p-4 mb-6 rounded-r-lg text-left">
+                            <div className="bg-emerald-50 border-l-4 border-emerald-500 p-4 mb-6 rounded-r-lg text-left">
                                 <div className="flex items-start">
-                                    <svg className="w-5 h-5 text-green-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <svg className="w-5 h-5 text-emerald-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                                     </svg>
-                                    <div className="text-sm text-green-800">
+                                    <div className="text-sm text-emerald-800">
                                         <p className="font-semibold mb-1">下一步</p>
                                         <p>即将自动跳转到登录页面，请使用您的账号登录</p>
                                     </div>
@@ -120,25 +127,25 @@ export const EmailVerifyPage: React.FC = () => {
 
                             <Link
                                 to="/login"
-                                className="inline-block w-full rounded-2xl border border-transparent bg-slate-900 py-3 px-4 text-center text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:scale-105 hover:bg-slate-800 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+                                className={`${studioPrimaryButtonClassName} w-full hover:scale-105`}
                             >
                                 立即登录
                             </Link>
                         </div>
                     ) : (
                         <div className="text-center py-4">
-                            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-red-100 to-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                                <FaTimesCircle className="text-red-600 text-4xl sm:text-5xl" />
+                            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-rose-100 to-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                                <FaTimesCircle className="text-rose-600 text-4xl sm:text-5xl" />
                             </div>
                             <h3 className="text-2xl font-bold text-slate-900 mb-4">验证失败</h3>
                             <p className="text-slate-600 mb-6">{error}</p>
 
-                            <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-6 rounded-r-lg text-left">
+                            <div className="bg-rose-50 border-l-4 border-rose-500 p-4 mb-6 rounded-r-lg text-left">
                                 <div className="flex items-start">
-                                    <svg className="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <svg className="w-5 h-5 text-rose-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                                     </svg>
-                                    <div className="text-sm text-red-800">
+                                    <div className="text-sm text-rose-800">
                                         <p className="font-semibold mb-2">可能的原因：</p>
                                         <ul className="list-disc list-inside space-y-1">
                                             <li>验证链接已过期（10分钟有效期）</li>
@@ -153,13 +160,13 @@ export const EmailVerifyPage: React.FC = () => {
                             <div className="space-y-3">
                                 <Link
                                     to="/register"
-                                    className="block w-full rounded-2xl border border-transparent bg-slate-900 py-3 px-4 text-center text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:scale-105 hover:bg-slate-800 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2"
+                                    className={`${studioPrimaryButtonClassName} w-full hover:scale-105`}
                                 >
                                     重新注册
                                 </Link>
                                 <Link
                                     to="/login"
-                                    className="block w-full py-3 px-4 text-center border border-slate-300 rounded-lg text-sm font-semibold text-slate-700 bg-white/90 hover:bg-slate-50/80 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+                                    className={`${studioSecondaryButtonClassName} w-full`}
                                 >
                                     返回登录
                                 </Link>

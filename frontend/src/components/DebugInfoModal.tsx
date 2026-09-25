@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { isAdminRole } from '../utils/rbac';
+import {
+    studioBadgeClassName,
+    studioModalOverlayClassName,
+    studioMutedPrimaryButtonClassName,
+    studioSurfaceClassName,
+} from './studioTheme';
 
 interface DebugInfo {
     action: string;
@@ -50,7 +56,7 @@ export const DebugInfoModal: React.FC<DebugInfoModalProps> = ({ isOpen, onClose,
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.3 }}
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+                className={studioModalOverlayClassName}
                 onClick={onClose}
             >
                 <motion.div
@@ -58,11 +64,11 @@ export const DebugInfoModal: React.FC<DebugInfoModalProps> = ({ isOpen, onClose,
                     animate={{ scale: 1, opacity: 1, y: 0 }}
                     exit={{ scale: 0.9, opacity: 0, y: 50 }}
                     transition={{ duration: 0.4, type: "spring", stiffness: 300, damping: 25 }}
-                    className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-4xl mx-auto my-8 max-h-[90vh] overflow-hidden"
+                    className={`${studioSurfaceClassName} w-full max-w-4xl mx-auto my-8 max-h-[90vh]`}
                     onClick={(e) => e.stopPropagation()}
                 >
                     {/* 标题栏 */}
-                    <div className="bg-gradient-to-r from-red-500 to-orange-500 text-white p-6">
+                    <div className="bg-gradient-to-r from-rose-500 to-orange-500 text-white p-6">
                         <div className="flex items-start justify-between gap-3">
                             <div className="flex items-start gap-3 min-w-0">
                                 <motion.div
@@ -99,7 +105,7 @@ export const DebugInfoModal: React.FC<DebugInfoModalProps> = ({ isOpen, onClose,
                                     initial={{ opacity: 0, x: -20 }}
                                     animate={{ opacity: 1, x: 0 }}
                                     transition={{ duration: 0.3, delay: index * 0.1 }}
-                                    className="bg-slate-50/80 rounded-2xl p-4 border-l-4 border-blue-500"
+                                    className="bg-slate-50/80 rounded-2xl p-4 border-l-4 border-slate-500"
                                 >
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
@@ -107,7 +113,7 @@ export const DebugInfoModal: React.FC<DebugInfoModalProps> = ({ isOpen, onClose,
                                                 <span className="text-sm font-medium text-slate-500">
                                                     {new Date(info.timestamp).toLocaleTimeString()}
                                                 </span>
-                                                <span className="px-2 py-1 bg-slate-100 text-slate-800 text-xs font-medium rounded">
+                                                <span className={studioBadgeClassName('slate')}>
                                                     {info.action}
                                                 </span>
                                             </div>
@@ -147,10 +153,10 @@ export const DebugInfoModal: React.FC<DebugInfoModalProps> = ({ isOpen, onClose,
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
                                 onClick={copyToClipboard}
-                                className={`px-4 py-2 rounded-2xl font-medium transition-colors w-full sm:w-auto ${
+                                className={`inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-semibold text-white transition w-full sm:w-auto ${
                                     copied
-                                        ? 'bg-emerald-500 text-white'
-                                        : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                                        ? 'bg-emerald-500'
+                                        : 'bg-emerald-500 hover:bg-emerald-600'
                                 }`}
                             >
                                 {copied ? '已复制!' : '复制调试信息'}
@@ -159,7 +165,7 @@ export const DebugInfoModal: React.FC<DebugInfoModalProps> = ({ isOpen, onClose,
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
                                 onClick={onClose}
-                                className="px-4 py-2 bg-slate-500 text-white rounded-2xl font-medium hover:bg-slate-600 transition-colors w-full sm:w-auto"
+                                className={`${studioMutedPrimaryButtonClassName} w-full sm:w-auto`}
                             >
                                 关闭
                             </motion.button>

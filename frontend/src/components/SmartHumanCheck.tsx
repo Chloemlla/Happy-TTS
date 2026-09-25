@@ -588,7 +588,7 @@ function SliderBase({ onComplete, disabled, hintMode }: SliderBaseProps) {
         style={{ height: `${trackH}px` }}
       >
         <div
-          className="absolute top-0 left-0 h-full bg-green-400 transition-all"
+          className="absolute top-0 left-0 h-full bg-emerald-400 transition-all"
           style={{ width: fillWidthPct }}
         />
         <div

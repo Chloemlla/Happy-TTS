@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { studioPillClassName, studioSurfaceClassName } from './studioTheme';
 
 interface AudioPreviewProps {
     audioUrl: string | null;
@@ -121,7 +122,7 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ audioUrl, onClose })
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="relative z-30 mt-6 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white/90 shadow-lg backdrop-blur-sm"
+                className={`${studioSurfaceClassName} z-30 mt-6 w-full`}
             >
                 <div className="bg-slate-900 p-4">
                     <div className="flex justify-between items-center">
@@ -186,11 +187,7 @@ export const AudioPreview: React.FC<AudioPreviewProps> = ({ audioUrl, onClose })
                                     <button
                                         key={rate}
                                         onClick={() => setPlaybackRate(rate)}
-                                        className={`px-2 py-1 rounded text-sm ${
-                                            playbackRate === rate
-                                                ? 'bg-slate-900 text-white'
-                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                        }`}
+                                        className={studioPillClassName(playbackRate === rate)}
                                     >
                                         {rate}x
                                     </button>

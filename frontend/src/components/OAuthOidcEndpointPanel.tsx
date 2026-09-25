@@ -14,6 +14,12 @@ import {
   type OAuthOpenidConfiguration,
 } from '../api/oauth';
 import { useNotification } from './Notification';
+import {
+  studioBadgeClassName,
+  studioElevatedPanelClassName,
+  studioSecondaryButtonClassName,
+  studioSurfaceClassName,
+} from './studioTheme';
 
 const DISCOVERY_PATH = '/.well-known/openid-configuration';
 const LIBRECHAT_CALLBACK_PATH = '/oauth/openid/callback';
@@ -97,7 +103,7 @@ const OAuthOidcEndpointPanel: React.FC = () => {
   const signingKey = jwks?.keys?.[0] ?? null;
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5">
+    <section className={studioElevatedPanelClassName}>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
           <FaLink /> OIDC 接入信息
@@ -106,14 +112,14 @@ const OAuthOidcEndpointPanel: React.FC = () => {
           type="button"
           onClick={() => void load()}
           disabled={loading}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+          className={studioSecondaryButtonClassName}
         >
           <FaSyncAlt className={loading ? 'animate-spin' : ''} /> 重新探测
         </button>
       </div>
 
       {error && (
-        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800">
+        <div className="flex items-start gap-2 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
           <FaExclamationTriangle className="mt-0.5 shrink-0" />
           <span className="break-all">发现文档获取失败：{error}</span>
         </div>
@@ -126,22 +132,18 @@ const OAuthOidcEndpointPanel: React.FC = () => {
       {config && (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">
+            <span className={studioBadgeClassName('green')}>
               <FaCheck /> 发现文档可用
             </span>
             <span
-              className={
-                signingKey
-                  ? 'inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700'
-                  : 'inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 font-semibold text-amber-700'
-              }
+              className={studioBadgeClassName(signingKey ? 'green' : 'yellow')}
             >
               <FaKey />
               {signingKey
                 ? `id_token 签名就绪 · kid ${signingKey.kid.slice(0, 12)}…`
                 : 'id_token 签名密钥尚未生成'}
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-700">
+            <span className={studioBadgeClassName('slate')}>
               <FaShieldAlt />
               {config.id_token_signing_alg_values_supported.join(' / ') || '未声明签名算法'}
             </span>
@@ -156,7 +158,7 @@ const OAuthOidcEndpointPanel: React.FC = () => {
               <button
                 type="button"
                 onClick={() => copy(discoveryUrl ?? '')}
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                className={studioSecondaryButtonClassName}
               >
                 <FaCopy /> 复制
               </button>
@@ -171,7 +173,7 @@ const OAuthOidcEndpointPanel: React.FC = () => {
             </p>
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-slate-200">
+          <div className={studioSurfaceClassName}>
             {buildEndpointRows(config).map((row, index) => (
               <div
                 key={row.label}
@@ -190,7 +192,7 @@ const OAuthOidcEndpointPanel: React.FC = () => {
                   type="button"
                   onClick={() => copy(row.value)}
                   aria-label={`复制${row.label}`}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  className={studioSecondaryButtonClassName}
                 >
                   <FaCopy />
                 </button>
@@ -219,7 +221,7 @@ const OAuthOidcEndpointPanel: React.FC = () => {
               <button
                 type="button"
                 onClick={() => copy(buildLibreChatSnippet(config.issuer))}
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                className={studioSecondaryButtonClassName}
               >
                 <FaCopy /> 复制片段
               </button>

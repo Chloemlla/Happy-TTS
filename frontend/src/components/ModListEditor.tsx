@@ -8,6 +8,7 @@ import { api } from "../api/api";
 import { useAuth } from "../hooks/useAuth";
 import { isAdminRole, isSuperAdmin } from "../utils/rbac";
 import { useNotification } from "./Notification";
+import { studioModalCardClassName } from "./studioTheme";
 
 
 interface ModItem {
@@ -151,7 +152,7 @@ function Modal({
         onClick={onClose}
       >
         <motion.div
-          className="w-full max-w-2xl rounded-2xl border border-white/20 bg-white p-6 shadow-sm max-h-[90vh] overflow-y-auto overscroll-contain"
+          className={`${studioModalCardClassName} max-w-2xl max-h-[90vh] overflow-y-auto overscroll-contain`}
           initial={{ opacity: 0, y: 18, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 18, scale: 0.98 }}
@@ -743,7 +744,7 @@ const ModListEditor: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleOpenEdit(mod)}
-                              className="inline-flex items-center gap-1 rounded-xl border border-[#FFB703]/40 px-3 py-2 text-xs font-medium text-[#9A6700] transition hover:bg-[#FFB703]/10"
+                              className="inline-flex items-center gap-1 rounded-2xl border border-[#FFB703]/40 px-3 py-2 text-xs font-medium text-[#9A6700] transition hover:bg-[#FFB703]/10"
                             >
                               <FaEdit className="h-3 w-3" />
                               编辑
@@ -751,7 +752,7 @@ const ModListEditor: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleOpenDelete(mod)}
-                              className="inline-flex items-center gap-1 rounded-xl border border-[#FB8500]/40 px-3 py-2 text-xs font-medium text-[#B45309] transition hover:bg-[#FB8500]/10"
+                              className="inline-flex items-center gap-1 rounded-2xl border border-[#FB8500]/40 px-3 py-2 text-xs font-medium text-[#B45309] transition hover:bg-[#FB8500]/10"
                             >
                               <FaTrash className="h-3 w-3" />
                               删除

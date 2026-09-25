@@ -4,6 +4,17 @@ import { api } from "../api/api";
 import { useNotification } from "./Notification";
 import { useAuth } from "../hooks/useAuth";
 import { isSuperAdmin } from "../utils/rbac";
+import {
+  studioBadgeClassName,
+  studioDangerButtonClassName,
+  studioEyebrowClassName,
+  studioFieldClassName,
+  studioMetricToneClassName,
+  studioPanelClassName,
+  studioPrimaryButtonClassName,
+  studioSecondaryButtonClassName,
+  studioTileClassName,
+} from "./studioTheme";
 
 interface RegistrationInvite {
   id: string;
@@ -26,10 +37,7 @@ interface RegistrationInvite {
   }[];
 }
 
-const inputClass =
-  "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200";
-const buttonClass =
-  "inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60";
+const inputClass = studioFieldClassName;
 
 function formatDate(value: string | null): string {
   if (!value) return "不限";
@@ -197,7 +205,7 @@ const RegistrationInviteManager: React.FC = () => {
     <div className="space-y-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+          <div className={`flex items-center gap-2 ${studioEyebrowClassName}`}>
             <FaTicketAlt />
             Registration Invites
           </div>
@@ -209,7 +217,7 @@ const RegistrationInviteManager: React.FC = () => {
         <button
           type="button"
           onClick={() => void loadInvites()}
-          className={`${buttonClass} border border-slate-200 bg-white text-slate-700 hover:border-slate-300`}
+          className={studioSecondaryButtonClassName}
           disabled={loading}
         >
           <FaSyncAlt className={loading ? "animate-spin" : ""} />
@@ -218,15 +226,15 @@ const RegistrationInviteManager: React.FC = () => {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className={`rounded-2xl border p-4 ${studioMetricToneClassName("slate")}`}>
           <div className="text-xs font-semibold text-slate-500">总数</div>
           <div className="mt-2 text-2xl font-semibold text-slate-900">{invites.length}</div>
         </div>
-        <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4">
+        <div className={`rounded-2xl border p-4 ${studioMetricToneClassName("emerald")}`}>
           <div className="text-xs font-semibold text-emerald-700">可用</div>
           <div className="mt-2 text-2xl font-semibold text-emerald-800">{activeCount}</div>
         </div>
-        <div className="rounded-lg border border-slate-200 bg-white p-4">
+        <div className={`rounded-2xl border p-4 ${studioMetricToneClassName("slate")}`}>
           <div className="text-xs font-semibold text-slate-500">已使用</div>
           <div className="mt-2 text-2xl font-semibold text-slate-900">
             {invites.reduce((sum, invite) => sum + invite.usedCount, 0)}
@@ -235,7 +243,7 @@ const RegistrationInviteManager: React.FC = () => {
       </div>
 
       {canWrite && (
-        <form onSubmit={createInvite} className="rounded-lg border border-slate-200 bg-white p-4">
+        <form onSubmit={createInvite} className={studioPanelClassName}>
           <div className="grid gap-3 lg:grid-cols-[1fr_1.4fr_0.7fr_1fr_auto] lg:items-end">
             <label className="block">
               <span className="text-xs font-semibold text-slate-600">邀请码</span>
@@ -280,7 +288,7 @@ const RegistrationInviteManager: React.FC = () => {
             <button
               type="submit"
               disabled={saving}
-              className={`${buttonClass} bg-slate-900 text-white hover:bg-slate-800`}
+              className={studioPrimaryButtonClassName}
             >
               <FaPlus />
               创建
@@ -290,12 +298,12 @@ const RegistrationInviteManager: React.FC = () => {
       )}
 
       <div className="space-y-3">
-        {loading && <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm text-slate-600">正在加载...</div>}
+        {loading && <div className={`${studioPanelClassName} text-sm text-slate-600`}>正在加载...</div>}
         {!loading && invites.length === 0 && (
-          <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm text-slate-600">暂无邀请码。</div>
+          <div className={`${studioPanelClassName} text-sm text-slate-600`}>暂无邀请码。</div>
         )}
         {invites.map((invite) => (
-          <div key={invite.id} className="rounded-lg border border-slate-200 bg-white p-4">
+          <div key={invite.id} className={studioPanelClassName}>
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -305,17 +313,17 @@ const RegistrationInviteManager: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => void copyCode(invite.code)}
-                    className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 hover:text-slate-900"
+                    className={studioSecondaryButtonClassName}
                     aria-label="复制邀请码"
                   >
                     <FaCopy />
                   </button>
                   <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                    className={studioBadgeClassName(
                       invite.active && !invite.expired && invite.remainingUses > 0
-                        ? "bg-emerald-50 text-emerald-700"
-                        : "bg-slate-100 text-slate-600"
-                    }`}
+                        ? "green"
+                        : "slate",
+                    )}
                   >
                     {invite.active ? (invite.expired ? "已过期" : "启用") : "停用"}
                   </span>
@@ -357,7 +365,7 @@ const RegistrationInviteManager: React.FC = () => {
                       type="button"
                       onClick={() => void saveInviteDraft(invite)}
                       disabled={isUpdating || !dirty}
-                      className={`${buttonClass} border border-slate-200 bg-white text-slate-700 hover:border-slate-300`}
+                      className={studioSecondaryButtonClassName}
                     >
                       {isUpdating ? "保存中" : "保存"}
                     </button>
@@ -365,7 +373,7 @@ const RegistrationInviteManager: React.FC = () => {
                       type="button"
                       onClick={() => void updateInvite(invite, { active: !invite.active })}
                       disabled={isUpdating}
-                      className={`${buttonClass} border border-slate-200 bg-white text-slate-700 hover:border-slate-300`}
+                      className={studioSecondaryButtonClassName}
                     >
                       {invite.active ? "停用" : "启用"}
                     </button>
@@ -373,7 +381,7 @@ const RegistrationInviteManager: React.FC = () => {
                       type="button"
                       onClick={() => void deleteInvite(invite)}
                       disabled={isUpdating}
-                      className={`${buttonClass} border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100`}
+                      className={studioDangerButtonClassName}
                     >
                       <FaTrash />
                       删除
@@ -384,7 +392,7 @@ const RegistrationInviteManager: React.FC = () => {
             </div>
 
             {invite.usedBy.length > 0 && (
-              <div className="mt-4 overflow-x-auto rounded-lg border border-slate-100">
+              <div className={`mt-4 overflow-x-auto ${studioTileClassName}`}>
                 <table className="min-w-full divide-y divide-slate-100 text-left text-xs">
                   <thead className="bg-slate-50 text-slate-500">
                     <tr>

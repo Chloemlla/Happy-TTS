@@ -10,6 +10,11 @@ import {
   readConfigurationWorkflow,
   writeConfigurationWorkflow,
 } from './env-manager/configurationNotice';
+import {
+  studioModalOverlayClassName,
+  studioSecondaryButtonClassName,
+  studioSurfaceClassName,
+} from './studioTheme';
 
 // ========== 类型 ==========
 
@@ -80,11 +85,11 @@ interface BroadcastModalViewProps {
 
 const LEVEL_CONFIG = {
   info: {
-    icon: <FaInfoCircle className="w-6 h-6 text-blue-500" />,
-    border: 'border-blue-200',
-    bg: 'bg-blue-50',
-    btn: 'bg-blue-500 hover:bg-blue-600',
-    badge: 'bg-blue-100 text-blue-700',
+    icon: <FaInfoCircle className="w-6 h-6 text-sky-500" />,
+    border: 'border-sky-200',
+    bg: 'bg-sky-50',
+    btn: 'bg-sky-500 hover:bg-sky-600',
+    badge: 'bg-sky-100 text-sky-700',
   },
   warn: {
     icon: <FaExclamationTriangle className="w-6 h-6 text-amber-500" />,
@@ -94,11 +99,11 @@ const LEVEL_CONFIG = {
     badge: 'bg-amber-100 text-amber-700',
   },
   error: {
-    icon: <FaExclamationTriangle className="w-6 h-6 text-red-500" />,
-    border: 'border-red-200',
-    bg: 'bg-red-50',
-    btn: 'bg-red-500 hover:bg-red-600',
-    badge: 'bg-red-100 text-red-700',
+    icon: <FaExclamationTriangle className="w-6 h-6 text-rose-500" />,
+    border: 'border-rose-200',
+    bg: 'bg-rose-50',
+    btn: 'bg-rose-500 hover:bg-rose-600',
+    badge: 'bg-rose-100 text-rose-700',
   },
 };
 
@@ -142,14 +147,14 @@ function BroadcastModalView({ title, content, format = 'text', level = 'info', i
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+        className={studioModalOverlayClassName}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
       >
         <motion.div
-          className={`bg-white rounded-2xl shadow-2xl border ${cfg.border} w-full max-w-lg mx-4 overflow-hidden max-h-[90vh]`}
+          className={`${studioSurfaceClassName} w-full max-w-lg mx-4 max-h-[90vh]`}
           initial={{ opacity: 0, scale: 0.92, y: 30 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.92, y: 30 }}
@@ -159,7 +164,7 @@ function BroadcastModalView({ title, content, format = 'text', level = 'info', i
           {/* 顶部横幅 */}
           <div className={`${cfg.bg} px-5 py-3 flex items-center justify-between border-b ${cfg.border}`}>
             <div className="flex items-center gap-2.5">
-              <FaBullhorn className="w-4 h-4 text-gray-500" />
+              <FaBullhorn className="w-4 h-4 text-slate-500" />
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.badge}`}>
                 {level === 'error' ? '紧急通知' : level === 'warn' ? '重要提醒' : '系统通知'}
               </span>
@@ -169,7 +174,7 @@ function BroadcastModalView({ title, content, format = 'text', level = 'info', i
               className="p-1 rounded-full hover:bg-black/10 transition"
               aria-label="关闭"
             >
-              <FaTimes className="w-4 h-4 text-gray-500" />
+              <FaTimes className="w-4 h-4 text-slate-500" />
             </button>
           </div>
 
@@ -178,14 +183,14 @@ function BroadcastModalView({ title, content, format = 'text', level = 'info', i
             {/* 图标 + 标题 */}
             <div className="flex items-center gap-3 mb-4">
               {cfg.icon}
-              <h2 className="text-lg font-semibold text-gray-800">
+              <h2 className="text-lg font-semibold text-slate-800">
                 {title || '管理员通知'}
               </h2>
             </div>
 
             {isConfigurationNotice ? (
               <div className="space-y-4">
-                <div className="flex items-center justify-between text-sm text-gray-600">
+                <div className="flex items-center justify-between text-sm text-slate-600">
                   <span>待处理配置</span>
                   <span>{activeIssues.length} / {issues.length}</span>
                 </div>
@@ -194,25 +199,25 @@ function BroadcastModalView({ title, content, format = 'text', level = 'info', i
                     <div className="flex items-start gap-3">
                       <FaExclamationTriangle className="mt-0.5 shrink-0 text-amber-500" />
                       <div className="min-w-0 flex-1">
-                        <div className="font-semibold text-gray-800">{activeIssues[0].label}</div>
-                        <div className="mt-1 break-words font-mono text-xs text-gray-600">
+                        <div className="font-semibold text-slate-800">{activeIssues[0].label}</div>
+                        <div className="mt-1 break-words font-mono text-xs text-slate-600">
                           {activeIssues[0].settingNames.join(' / ')}
                         </div>
-                        <p className="mt-2 text-sm leading-relaxed text-gray-700">{activeIssues[0].impact}</p>
+                        <p className="mt-2 text-sm leading-relaxed text-slate-700">{activeIssues[0].impact}</p>
                       </div>
                     </div>
                     <div className="mt-4 flex flex-wrap justify-end gap-2">
                       <button
                         type="button"
                         onClick={() => handleIgnoreIssue(activeIssues[0].id)}
-                        className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600 transition hover:bg-white"
+                        className={studioSecondaryButtonClassName}
                       >
                         忽略此项
                       </button>
                       <button
                         type="button"
                         onClick={() => handleConfigureIssue(activeIssues[0])}
-                        className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-amber-600"
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-500 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-amber-600"
                       >
                         <FaCheckCircle />
                         前往配置
@@ -232,14 +237,14 @@ function BroadcastModalView({ title, content, format = 'text', level = 'info', i
             {!isConfigurationNotice && (
             <div className="max-h-[50vh] overflow-y-auto">
               {format === 'text' && (
-                <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{content}</p>
+                <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{content}</p>
               )}
               {format === 'markdown' && (
                 <MarkdownRenderer content={content} density="compact" />
               )}
               {format === 'html' && (
                 <div
-                  className="prose prose-sm max-w-none text-gray-700"
+                  className="prose prose-sm max-w-none text-slate-700"
                   dangerouslySetInnerHTML={{ __html: renderedHtml }}
                 />
               )}
@@ -251,7 +256,7 @@ function BroadcastModalView({ title, content, format = 'text', level = 'info', i
           <div className="px-6 pb-5 flex justify-center">
             <motion.button
               onClick={onClose}
-              className={`px-8 py-2.5 rounded-lg text-white font-medium transition ${cfg.btn}`}
+              className={`inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3.5 text-sm font-semibold text-white transition ${cfg.btn}`}
               whileTap={{ scale: 0.96 }}
             >
               {isConfigurationNotice && activeIssues.length > 0 ? '稍后处理' : '知道了'}

@@ -8,6 +8,7 @@ import {
 } from '../api/librechatAdmin';
 import { useNotification } from './Notification';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
+import { studioDangerButtonClassName, studioPanelClassName, studioPrimaryButtonClassName, studioTileClassName } from './studioTheme';
 import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
 import {
@@ -21,6 +22,8 @@ import {
 
 const GUEST_KW = 'guest:';
 const MAX_ROWS = 100;
+
+const REFRESH_BUTTON_CLASS = studioPrimaryButtonClassName;
 
 const fmtTs = (ts?: string | null) => (ts ? new Date(ts).toLocaleString() : '');
 
@@ -135,7 +138,7 @@ const LibreChatGuestCleanup: React.FC<{ onChanged?: () => void }> = ({ onChanged
   };
 
   return (
-    <div className="rounded-2xl border border-amber-200 bg-white/80 p-5 shadow-sm backdrop-blur-xl">
+    <div className={`${studioPanelClassName} border-amber-200`}>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-800">
           <FaGhost className="text-amber-500" />
@@ -144,7 +147,7 @@ const LibreChatGuestCleanup: React.FC<{ onChanged?: () => void }> = ({ onChanged
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm text-slate-500">共 {total} 条</span>
           <button
-            className="rounded border bg-slate-100 px-3 py-1 text-sm transition hover:bg-slate-200 disabled:opacity-50"
+            className={REFRESH_BUTTON_CLASS}
             onClick={() => { void load(); setNotification({ type: 'info', message: '已刷新 guest 列表' }); }}
             disabled={loading || busy}
           >
@@ -153,7 +156,7 @@ const LibreChatGuestCleanup: React.FC<{ onChanged?: () => void }> = ({ onChanged
           {canWrite && (
             <>
               <button
-                className="rounded bg-red-600 px-3 py-1 text-sm text-white transition hover:bg-red-700 disabled:opacity-50"
+                className={`${studioPrimaryButtonClassName} bg-rose-600 hover:bg-rose-700`}
                 onClick={() => void onClearAll()}
                 disabled={busy}
                 title="清空所有 guest: 开头的孤儿历史（超级管理员）"
@@ -190,7 +193,7 @@ const LibreChatGuestCleanup: React.FC<{ onChanged?: () => void }> = ({ onChanged
               <span className="text-sm text-slate-500">已选 {selectedIds.length} 条</span>
             )}
             <button
-              className="rounded bg-red-500 px-2 py-1 text-xs text-white transition hover:bg-red-600 disabled:opacity-50"
+              className={studioDangerButtonClassName}
               onClick={() => void onBatchDelete()}
               disabled={selectedIds.length === 0 || busy}
             >
@@ -201,7 +204,7 @@ const LibreChatGuestCleanup: React.FC<{ onChanged?: () => void }> = ({ onChanged
             {rows.map((u) => {
               const checked = selectedIds.includes(u.userId);
               return (
-                <div key={u.userId} className="rounded-xl border border-slate-100 bg-slate-50/70 p-3">
+                <div key={u.userId} className={`${studioTileClassName} p-3`}>
                   <div className="flex flex-wrap items-center gap-3">
                     <input
                       type="checkbox"
@@ -217,7 +220,7 @@ const LibreChatGuestCleanup: React.FC<{ onChanged?: () => void }> = ({ onChanged
                       {u.userId.length > 24 ? `${u.userId.slice(0, 20)}...${u.userId.slice(-4)}` : u.userId}
                     </span>
                     <span className="flex items-center gap-1 text-xs text-slate-500">
-                      <FaComments className="text-green-500" />
+                      <FaComments className="text-emerald-500" />
                       {u.total} 条
                     </span>
                     <span className="flex items-center gap-1 text-xs text-slate-400">
@@ -225,7 +228,7 @@ const LibreChatGuestCleanup: React.FC<{ onChanged?: () => void }> = ({ onChanged
                       {fmtTs(u.updatedAt)}
                     </span>
                     <button
-                      className="rounded px-2 py-1 text-slate-400 transition hover:bg-slate-100 hover:text-blue-600"
+                      className="rounded px-2 py-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
                       onClick={() => {
                         if (!navigator.clipboard) return;
                         void navigator.clipboard
@@ -238,7 +241,7 @@ const LibreChatGuestCleanup: React.FC<{ onChanged?: () => void }> = ({ onChanged
                       <FaCopy className="text-xs" />
                     </button>
                     <button
-                      className="rounded bg-red-50 px-2 py-1 text-xs text-red-600 transition hover:bg-red-100 disabled:opacity-50"
+                      className={studioDangerButtonClassName}
                       onClick={() => void onSingleDelete(u)}
                       disabled={busy}
                       title="删除该 guest 的全部历史"

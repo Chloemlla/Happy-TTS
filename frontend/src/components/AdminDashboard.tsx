@@ -6,6 +6,7 @@ import { api } from '@/api';
 import { ADMIN_TAB_TO_PATH } from '@/navigation/navConfig';
 
 import { AdminHub } from './admin/AdminHub';
+import { studioMetricToneClassName, studioPanelClassName, studioPrimaryButtonClassName } from './studioTheme';
 
 interface ServiceStatus {
   available: boolean;
@@ -77,9 +78,9 @@ const AdminDashboard: React.FC = () => {
       <AdminHub />
 
       {/* 邮件溯源看板 */}
-      <div className="rounded-2xl border border-slate-200/90 bg-white/90 p-4 sm:p-5 shadow-sm">
+      <div className={studioPanelClassName}>
         <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
+          <div className="flex size-9 items-center justify-center rounded-xl bg-slate-50 text-slate-600">
             <FaDatabase className="size-4" />
           </div>
           <div>
@@ -88,7 +89,7 @@ const AdminDashboard: React.FC = () => {
           </div>
           <Link
             to="/admin/email-traceability"
-            className="ml-auto inline-flex items-center gap-1.5 rounded-xl bg-indigo-600 px-3.5 py-2 text-xs font-semibold text-white hover:bg-indigo-700"
+            className={`${studioPrimaryButtonClassName} ml-auto`}
           >
             <FaDatabase className="size-3.5" />
             查看完整溯源
@@ -97,12 +98,12 @@ const AdminDashboard: React.FC = () => {
 
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <div className="size-6 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-500" />
+            <div className="size-6 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900" />
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-3">
             {/* 服务状态 */}
-            <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3.5">
+            <div className={`${studioMetricToneClassName('slate')} rounded-2xl border p-3.5`}>
               <div className="flex items-center gap-2">
                 <FaGlobe className="size-3.5 text-slate-400" />
                 <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">服务状态</span>
@@ -117,7 +118,7 @@ const AdminDashboard: React.FC = () => {
             </div>
 
             {/* 今日配额 */}
-            <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3.5">
+            <div className={`${studioMetricToneClassName('slate')} rounded-2xl border p-3.5`}>
               <div className="flex items-center gap-2">
                 <FaEnvelope className="size-3.5 text-slate-400" />
                 <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">今日配额</span>
@@ -126,13 +127,13 @@ const AdminDashboard: React.FC = () => {
                 {quota.used} / {quota.total}
               </div>
               <div className="mt-1.5 h-1.5 rounded-full bg-slate-100">
-                <div className="h-1.5 rounded-full bg-indigo-500 transition-all" style={{ width: `${quotaPercent}%` }} />
+                <div className="h-1.5 rounded-full bg-slate-900 transition-all" style={{ width: `${quotaPercent}%` }} />
               </div>
               <div className="mt-0.5 text-xs text-slate-400">重置时间：{quota.resetAt ? new Date(quota.resetAt).toLocaleString('zh-CN', { hour12: false }) : '-'}</div>
             </div>
 
             {/* 记录总数 */}
-            <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-3.5">
+            <div className={`${studioMetricToneClassName('slate')} rounded-2xl border p-3.5`}>
               <div className="flex items-center gap-2">
                 <FaShieldAlt className="size-3.5 text-slate-400" />
                 <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">发送记录</span>

@@ -1,5 +1,6 @@
 import React, { createContext, use, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { studioTileClassName } from './studioTheme';
 
 export interface NotificationData {
     message: string;
@@ -375,7 +376,7 @@ const NotificationCard = React.memo(({
                 y: -24,
                 transition: { duration: 0.18, ease: [0.4, 0, 0.2, 1] }
             }}
-            className={`bg-white/90 text-gray-800 px-3 sm:px-4 py-2 sm:py-3 rounded-lg shadow-lg backdrop-blur-sm border flex flex-col items-stretch w-full max-w-sm cursor-pointer select-none ${notification.isPaused ? 'ring-2 ring-blue-200' : ''
+            className={`${studioTileClassName} px-3 sm:px-4 py-2 sm:py-3 text-slate-800 flex flex-col items-stretch w-full max-w-sm cursor-pointer select-none ${notification.isPaused ? 'ring-2 ring-slate-300' : ''
                 } ${notification.isFaded ? 'shadow-md' : 'shadow-lg'
                 }`}
             style={{ gap: 8 }}
@@ -396,7 +397,7 @@ const NotificationCard = React.memo(({
                     {notification.details && notification.details.length > 0 && (
                         <div className="mt-2 space-y-1">
                             {notification.details.map((detail, index) => (
-                                <div key={index} className="text-xs sm:text-sm text-gray-600 break-all pl-2 border-l-2 border-gray-200">
+                                <div key={index} className="text-xs sm:text-sm text-slate-600 break-all pl-2 border-l-2 border-slate-200">
                                     {detail}
                                 </div>
                             ))}
@@ -436,7 +437,7 @@ const NotificationCard = React.memo(({
                 )}
             </div>
             {notification.isPaused && (
-                <div className="text-xs text-gray-500 text-center mt-1 opacity-75">
+                <div className="text-xs text-slate-500 text-center mt-1 opacity-75">
                     悬停暂停 • Hover to pause
                 </div>
             )}

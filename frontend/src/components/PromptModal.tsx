@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaEdit, FaCheck, FaTimes, FaCopy, FaExpand, FaCompress } from 'react-icons/fa';
+import {
+  studioFieldClassName,
+  studioModalOverlayClassName,
+  studioSecondaryButtonClassName,
+  studioSurfaceClassName,
+  studioTextareaClassName,
+} from './studioTheme';
 
 
 interface PromptModalProps {
@@ -155,9 +162,7 @@ const PromptModal: React.FC<PromptModalProps> = ({
       <AnimatePresence>
         {open && (
         <motion.div
-          className={`fixed inset-0 z-[10050] flex items-center justify-center bg-black bg-opacity-40 backdrop-blur-sm ${
-            isMobile ? 'p-2' : 'p-4'
-          }`}
+          className={studioModalOverlayClassName}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -170,12 +175,12 @@ const PromptModal: React.FC<PromptModalProps> = ({
           }}
         >
           <motion.div
-            className={`bg-white/80 backdrop-blur-xl shadow-sm border border-gray-200 relative ${
+            className={`${studioSurfaceClassName} ${
               isMobile
-                ? `w-full h-full rounded-2xl p-3 ${isExpanded ? '' : 'max-h-[95vh] overflow-y-auto'}`
+                ? `w-full h-full p-3 ${isExpanded ? '' : 'max-h-[95vh] overflow-y-auto'}`
                 : isTablet
-                ? `rounded-2xl p-4 mx-3 ${isExpanded ? 'w-[92vw] h-[85vh]' : 'max-w-3xl w-[88vw]'}`
-                : `rounded-2xl p-6 mx-4 ${isExpanded ? 'w-[95vw] h-[90vh]' : 'max-w-2xl w-[90vw]'}`
+                ? `p-4 mx-3 ${isExpanded ? 'w-[92vw] h-[85vh]' : 'max-w-3xl w-[88vw]'}`
+                : `p-6 mx-4 ${isExpanded ? 'w-[95vw] h-[90vh]' : 'max-w-2xl w-[90vw]'}`
             }`}
             initial={{ 
               opacity: 0, 
@@ -200,7 +205,7 @@ const PromptModal: React.FC<PromptModalProps> = ({
           >
             <div className={`flex items-center justify-between ${isMobile ? 'mb-3' : 'mb-4'}`}>
               <div className={`flex items-center ${isMobile ? 'gap-2' : 'gap-3'}`}>
-                <FaEdit className={`text-blue-500 ${isMobile ? 'w-5 h-5' : 'w-6 h-6'}`} />
+                <FaEdit className={`text-slate-500 ${isMobile ? 'w-5 h-5' : 'w-6 h-6'}`} />
                 <h2 className={`font-semibold text-slate-800 ${isMobile ? 'text-base' : 'text-lg'}`}>
                   {title || '输入内容'}
                 </h2>
@@ -253,15 +258,15 @@ const PromptModal: React.FC<PromptModalProps> = ({
                   onKeyDown={handleKeyDown}
                   placeholder={placeholder}
                   maxLength={maxLength}
-                  className={`w-full border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all resize-none font-mono bg-slate-50/80 text-slate-900 ${
-                    isExpanded 
-                      ? isMobile 
-                        ? 'h-[calc(100vh-180px)]' 
-                        : isTablet 
-                        ? 'h-[calc(85vh-180px)]' 
+                  className={`${studioTextareaClassName} font-mono ${
+                    isExpanded
+                      ? isMobile
+                        ? 'h-[calc(100vh-180px)]'
+                        : isTablet
+                        ? 'h-[calc(85vh-180px)]'
                         : 'h-[calc(90vh-200px)]'
-                      : isMobile 
-                      ? 'max-h-80' 
+                      : isMobile
+                      ? 'max-h-80'
                       : 'max-h-96'
                   }`}
                   style={{
@@ -285,7 +290,7 @@ const PromptModal: React.FC<PromptModalProps> = ({
                   onKeyDown={handleKeyDown}
                   placeholder={placeholder}
                   maxLength={maxLength}
-                  className="w-full border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all resize-none font-mono"
+                  className={`${studioTextareaClassName} font-mono`}
                   rows={isMobile ? 3 : 4}
                   autoFocus
                   spellCheck={false}
@@ -306,7 +311,7 @@ const PromptModal: React.FC<PromptModalProps> = ({
                   onKeyDown={handleKeyDown}
                   placeholder={placeholder}
                   maxLength={maxLength}
-                  className="w-full border-2 border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+                  className={`${studioFieldClassName} font-mono`}
                   autoFocus
                   style={{
                     padding: isMobile ? '12px' : '16px',
@@ -329,8 +334,8 @@ const PromptModal: React.FC<PromptModalProps> = ({
             <div className={`flex justify-center ${isMobile ? 'gap-2' : 'gap-3'}`}>
               <motion.button
                 onClick={onClose}
-                className={`border border-gray-300 text-slate-700 rounded-2xl hover:bg-slate-50/80 transition-colors font-medium flex items-center gap-2 touch-manipulation ${
-                  isMobile ? 'px-4 py-2.5 text-sm min-h-[44px]' : 'px-6 py-3'
+                className={`${studioSecondaryButtonClassName} touch-manipulation ${
+                  isMobile ? 'min-h-[44px]' : ''
                 }`}
                 whileTap={{ scale: 0.95 }}
               >
@@ -340,8 +345,8 @@ const PromptModal: React.FC<PromptModalProps> = ({
               <motion.button
                 onClick={handleConfirm}
                 disabled={!value.trim()}
-                className={`bg-emerald-500 text-white rounded-2xl hover:bg-emerald-600 transition-colors font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation ${
-                  isMobile ? 'px-4 py-2.5 text-sm min-h-[44px]' : 'px-6 py-3'
+                className={`inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-500 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 touch-manipulation ${
+                  isMobile ? 'min-h-[44px]' : ''
                 }`}
                 whileTap={{ scale: 0.95 }}
               >
