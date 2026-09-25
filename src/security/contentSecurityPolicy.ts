@@ -12,9 +12,13 @@ declare global {
   }
 }
 
+// 注意：host-source 的通配 `https://*.chloemlla.com` 只匹配子域，**不匹配裸域 apex
+// （chloemlla.com）** —— 与 TLS 通配证书同一条规则。所以每个清单里 apex 与通配成对出现；
+// 少了 apex 这一条，页面跑在子域上时跨源引用 chloemlla.com 的脚本/样式/接口/iframe 会被拦。
 const THIRD_PARTY_SCRIPT_HOSTS = [
   "https://accounts.google.com",
   "https://www.gstatic.com",
+  "https://chloemlla.com",
   "https://*.chloemlla.com",
   "https://challenges.cloudflare.com",
   "https://*.cloudflare.com",
@@ -31,6 +35,7 @@ const THIRD_PARTY_STYLE_HOSTS = [
   "https://fonts.googleapis.com",
   "https://accounts.google.com",
   "https://www.gstatic.com",
+  "https://chloemlla.com",
   "https://*.chloemlla.com",
   "https://challenges.cloudflare.com",
   "https://*.cloudflare.com",
@@ -44,7 +49,9 @@ const PRODUCTION_CONNECT_HOSTS = [
   "https://www.googleapis.com",
   "https://oauth2.googleapis.com",
   "https://api.openai.com",
+  "wss://chloemlla.com",
   "wss://*.chloemlla.com",
+  "https://chloemlla.com",
   "https://*.chloemlla.com",
   "https://api.hcaptcha.com",
   "https://*.hcaptcha.com",
@@ -77,6 +84,7 @@ const DEVELOPMENT_CONNECT_HOSTS = [
 const FRAME_HOSTS = [
   "'self'",
   "https://accounts.google.com",
+  "https://chloemlla.com",
   "https://*.chloemlla.com",
   "https://challenges.cloudflare.com",
   "https://*.cloudflare.com",

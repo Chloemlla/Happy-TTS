@@ -108,6 +108,11 @@ describe("contentSecurityPolicy", () => {
       expect(header).toContain("https://accounts.google.com");
       expect(header).toContain("https://www.googletagmanager.com");
       expect(header).toContain("https://fonts.googleapis.com");
+      // 通配只匹配子域，apex 必须显式列出，否则子域页面跨源引用 chloemlla.com 会被拦。
+      expect(header).toContain("https://chloemlla.com");
+      expect(header).toContain("https://*.chloemlla.com");
+      expect(header).toContain("wss://chloemlla.com");
+      expect(header).toContain("wss://*.chloemlla.com");
       expect(header).toContain("frame-ancestors 'none'");
       expect(header).toContain("object-src 'none'");
     });
