@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import axios from "axios";
 import {
   FaCheckCircle,
   FaClock,
@@ -28,7 +27,7 @@ import {
   studioPrimaryButtonClassName,
 } from "./studioTheme";
 import TOTPSetup from "./TOTPSetup";
-import { getApiBaseUrl } from "../api/api";
+import { api } from "../api/api";
 
 
 interface TOTPManagerProps {
@@ -49,17 +48,6 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
   const [error, setError] = useState("");
   const [disabling, setDisabling] = useState(false);
   const prefersReducedMotion = useReducedMotion();
-
-  const api = useMemo(
-    () =>
-      axios.create({
-        baseURL: getApiBaseUrl(),
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }),
-    [],
-  );
 
   const fetchStatus = useCallback(async (mode: "initial" | "refresh" = "refresh") => {
     const isInitial = mode === "initial";

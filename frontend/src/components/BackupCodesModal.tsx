@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import axios from 'axios';
 import {
   FaDownload,
   FaExclamationTriangle,
@@ -12,7 +11,7 @@ import {
   FaTimes,
 } from 'react-icons/fa';
 import { useNotification } from './Notification';
-import { getApiBaseUrl } from '../api/api';
+import { api } from '../api/api';
 import { ModalPortal } from './ModalPortal';
 import {
   studioGhostButtonClassName,
@@ -41,17 +40,6 @@ const BackupCodesModal: React.FC<BackupCodesModalProps> = ({ isOpen, onClose }) 
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
   const { setNotification } = useNotification();
-
-  const api = useMemo(
-    () =>
-      axios.create({
-        baseURL: getApiBaseUrl(),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }),
-    [],
-  );
 
   useEffect(() => {
     if (!isOpen) return;

@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import axios from 'axios';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { User } from '../types/auth';
 import { useAuthStore } from '../stores/authStore';
 import type { AuthRequestError, LoginResult } from '../stores/authStore';
-import { getApiBaseUrl } from '../api/api';
+import { api } from '../api/api';
 import {
     clearSavedAccounts,
     readSavedAccounts,
@@ -55,16 +54,9 @@ let moduleLastCheckRef = 0;
 let moduleLastErrorRef = 0;
 let moduleCheckingRef = false;
 
-// 创建axios实例（仅用于 auth 相关请求，cookie 自动携带认证）
-const api = axios.create({
-    baseURL: getApiBaseUrl(),
-    withCredentials: true,
-    headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-    },
-    timeout: 5000
-});
+// auth 请求走共享 api 实例：它在请求拦截器里补 IP 验证头，并在收到 IP_VERIFICATION_REQUIRED 时
+// 触发首访验证页。这里若自建裸 axios 实例，/api/auth/me 与 /api/auth/session 会不带验证头，
+// 被首访闸门以 missing_verification_headers 直接 403，而验证页永远不弹。
 
 export const useAuth = () => {
     // Auth identity state is owned by the Zustand authStore (single source of truth).
