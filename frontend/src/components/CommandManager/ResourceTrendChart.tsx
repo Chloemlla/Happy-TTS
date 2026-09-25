@@ -126,7 +126,7 @@ const ResourceTrendChart: React.FC<ResourceTrendChartProps> = ({ resourceHistory
 
   if (resourceHistory.length === 0) {
     return (
-      <div className="h-80 flex items-center justify-center text-gray-500">
+      <div className="h-80 flex items-center justify-center text-slate-500">
         <div className="text-center">
           <span>暂无数据，请开启自动刷新或手动刷新获取数据</span>
         </div>
