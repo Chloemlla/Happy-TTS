@@ -328,7 +328,6 @@ function pickDetectionFields(raw: Record<string, unknown>): Record<string, unkno
 }
 
 export function docToParsed(doc: ProxycheckRiskCacheDoc): ParsedRisk {
-  const detectionsContainer = detectionContainer(doc.detectionsRaw);
   const detections: IpRiskDetections = {
     anonymous: Boolean(doc.anonymous),
     proxy: Boolean(doc.proxy),
@@ -337,7 +336,9 @@ export function docToParsed(doc: ProxycheckRiskCacheDoc): ParsedRisk {
     hosting: Boolean(doc.hosting),
     scraper: Boolean(doc.scraper),
     compromised: Boolean(doc.compromised),
-    confidence: toScore(detectionsContainer?.confidence ?? doc.confidence),
+    // 标志与 confidence 在落库时已经被拆成平铺字段（见 persistRiskCache），这里直读它们；
+    // 只有 risk 需要下面的自愈路径，因为旧解析器把这个数丢掉了。
+    confidence: toScore(doc.confidence),
   };
   // 自愈：修解析器之前写下的行已经把真分弄丢了（存成 0），但 detectionsRaw 里还是上游原字节。
   // 只修解析不读原始对象的话，这批脏行会跟着 24 小时 TTL 继续把高风险地址判成低风险。
