@@ -9,9 +9,9 @@ import CollapsibleSection from './CollapsibleSection';
 import { LUMEN_CONFIG_API, LUMEN_CONFIG_SYNC_API, getAuthHeaders, authFetch } from './api';
 import ConfigFieldRow from './ConfigFieldRow';
 import InfoBox from './InfoBox';
+import { studioPrimaryButtonClassName } from '../studioTheme';
 
-const REFRESH_BUTTON_CLASS =
-  'inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400';
+const REFRESH_BUTTON_CLASS = studioPrimaryButtonClassName;
 
 const SECTION_KEY = 'projectLumen';
 
@@ -377,7 +377,7 @@ export default function ProjectLumenConfigSection({
           type="button"
           onClick={handleSync}
           disabled={isDisabled || syncing}
-          className={`${REFRESH_BUTTON_CLASS} disabled:opacity-40`}
+          className={REFRESH_BUTTON_CLASS}
           whileTap={{ scale: 0.95 }}
         >
           <FaSync className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} /> 同步全部到 GitHub

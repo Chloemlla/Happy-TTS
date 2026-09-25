@@ -1,10 +1,15 @@
 import { m } from 'framer-motion';
 import { FaSync } from 'react-icons/fa';
 import CollapsibleSection from './CollapsibleSection';
+import {
+  studioDangerButtonClassName,
+  studioFieldClassName,
+  studioPrimaryButtonClassName,
+  studioSurfaceClassName,
+} from '../studioTheme';
 import type { OutemailSettingItem } from './types';
 
-const REFRESH_BUTTON_CLASS =
-  'inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60';
+const REFRESH_BUTTON_CLASS = studioPrimaryButtonClassName;
 
 export interface OutemailSettingsSectionProps {
   isOpen: boolean;
@@ -71,33 +76,33 @@ export default function OutemailSettingsSection({
     >
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">域名（可留空表示默认）</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">域名（可留空表示默认）</label>
           <input
             value={domain}
             onChange={(e) => onDomainChange(e.target.value)}
             disabled={disabled}
             placeholder="例如: chloemlla.com 或 留空"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
+            className={`${studioFieldClassName} sm:text-base`}
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">鉴权码</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">鉴权码</label>
           <input
             value={code}
             onChange={(e) => onCodeChange(e.target.value)}
             disabled={disabled}
             placeholder="请输入鉴权码"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
+            className={`${studioFieldClassName} sm:text-base`}
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">API Key（可选）</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1">API Key（可选）</label>
           <input
             value={apiKey}
             onChange={(e) => onApiKeyChange(e.target.value)}
             disabled={disabled}
             placeholder="可选 API Key"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
+            className={`${studioFieldClassName} sm:text-base`}
           />
         </div>
       </div>
@@ -106,45 +111,45 @@ export default function OutemailSettingsSection({
         <m.button
           onClick={onSave}
           disabled={isDisabled}
-          className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
+          className={studioPrimaryButtonClassName}
           whileTap={{ scale: 0.96 }}
         >
           {saving ? '保存中...' : '保存/更新'}
         </m.button>
       </div>
 
-      <div className="rounded-xl border border-gray-200 overflow-hidden">
-        <div className="bg-gray-50 px-4 py-2 text-sm font-medium text-gray-700">已配置域名</div>
+      <div className={studioSurfaceClassName}>
+        <div className="bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700">已配置域名</div>
         {loading ? (
-          <div className="px-4 py-6 text-sm text-gray-500">加载中...</div>
+          <div className="px-4 py-6 text-sm text-slate-500">加载中...</div>
         ) : settings.length === 0 ? (
-          <div className="px-4 py-6 text-sm text-gray-500">暂无配置</div>
+          <div className="px-4 py-6 text-sm text-slate-500">暂无配置</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-full divide-y divide-slate-200">
               <thead className="bg-white">
                 <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">域名</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">API Key</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">鉴权码</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">更新时间</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">域名</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">API Key</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">鉴权码</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">更新时间</th>
                   <th className="px-4 py-2" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
+              <tbody className="divide-y divide-slate-100 bg-white">
                 {settings.map((s) => (
                   <tr key={s.domain || '__default__'}>
-                    <td className="px-4 py-3 text-sm text-gray-800">{s.domain || '默认'}</td>
-                    <td className="px-4 py-3 font-mono text-sm text-gray-700">{s.apiKey || '未配置'}</td>
-                    <td className="px-4 py-3 font-mono text-sm text-gray-700">{s.code || '未配置'}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600">
+                    <td className="px-4 py-3 text-sm text-slate-800">{s.domain || '默认'}</td>
+                    <td className="px-4 py-3 font-mono text-sm text-slate-700">{s.apiKey || '未配置'}</td>
+                    <td className="px-4 py-3 font-mono text-sm text-slate-700">{s.code || '未配置'}</td>
+                    <td className="px-4 py-3 text-sm text-slate-600">
                       {s.updatedAt ? new Date(s.updatedAt).toLocaleString() : '-'}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <m.button
                         onClick={() => onDelete(s.domain || '')}
                         disabled={deletingDomain === (s.domain || '') || disabled}
-                        className="px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm"
+                        className={studioDangerButtonClassName}
                         whileTap={{ scale: 0.95 }}
                       >
                         {deletingDomain === (s.domain || '') ? '删除中...' : '删除'}

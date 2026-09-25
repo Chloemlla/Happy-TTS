@@ -1,6 +1,12 @@
 import { m } from 'framer-motion';
 import { FaSync, FaTrash } from 'react-icons/fa';
 import CollapsibleSection from './CollapsibleSection';
+import {
+  studioDangerButtonClassName,
+  studioFieldClassName,
+  studioPrimaryButtonClassName,
+  studioTextareaClassName,
+} from '../studioTheme';
 
 export interface CDictDonationChannelDraft {
   id: string;
@@ -45,10 +51,8 @@ interface CDictDonationConfigSectionProps {
   onReset: () => void;
 }
 
-const REFRESH_BUTTON_CLASS =
-  'inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60';
-const INPUT_CLASS =
-  'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400';
+const REFRESH_BUTTON_CLASS = studioPrimaryButtonClassName;
+const INPUT_CLASS = studioFieldClassName;
 
 export default function CDictDonationConfigSection({
   isOpen,
@@ -101,7 +105,7 @@ export default function CDictDonationConfigSection({
         </m.button>
       }
     >
-      <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-xs leading-5 text-emerald-900">
+      <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-xs leading-5 text-emerald-900">
         <p>
           填了图片地址，客户端访问
           <code className="mx-1 rounded bg-white/80 px-1">/api/cdict/donate/&lt;渠道 id&gt;</code>
@@ -120,73 +124,73 @@ export default function CDictDonationConfigSection({
         </p>
       </div>
 
-      <label className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700">
+      <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-700">
         <input
           type="checkbox"
           checked={enabled}
           onChange={(event) => onEnabledChange(event.target.checked)}
           disabled={readOnly}
-          className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+          className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-300"
         />
         <span>
           对客户端开放赞赏页
-          <span className="mt-1 block text-xs text-gray-500">
+          <span className="mt-1 block text-xs text-slate-500">
             取消勾选后 /api/cdict/donate 返回 404，客户端赞赏页显示"暂不可用"。
           </span>
         </span>
       </label>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">说明文案（最多 200 字）</label>
+        <label className="mb-1 block text-sm font-medium text-slate-700">说明文案（最多 200 字）</label>
         <textarea
           value={notice}
           onChange={(event) => onNoticeChange(event.target.value)}
           disabled={readOnly}
           rows={2}
           maxLength={200}
-          className={INPUT_CLASS}
+          className={studioTextareaClassName}
         />
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">鸣谢名单（每行一个名字，最多 500 行）</label>
+        <label className="mb-1 block text-sm font-medium text-slate-700">鸣谢名单（每行一个名字，最多 500 行）</label>
         <textarea
           value={supportersText}
           onChange={(event) => onSupportersTextChange(event.target.value)}
           disabled={readOnly}
           rows={5}
           placeholder={'核实转账备注后把名字加到这里\n每行一个，单个名字最多 32 字'}
-          className={`${INPUT_CLASS} font-mono text-xs`}
+          className={`${studioTextareaClassName} font-mono`}
         />
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-slate-500">
           保存后客户端赞赏页的鸣谢名单实时更新，不需要发版；名字会公开展示，请只填赞赏者要求展示的称呼。
         </p>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white px-4 py-3">
+      <div className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3">
         <div className="mb-2 flex items-center justify-between gap-3">
-          <span className="text-sm font-medium text-gray-700">待核实的署名申请（{claims.length}）</span>
-          <span className="text-xs text-gray-500">核对交易号后「加入名单」，再点上方保存</span>
+          <span className="text-sm font-medium text-slate-700">待核实的署名申请（{claims.length}）</span>
+          <span className="text-xs text-slate-500">核对交易号后「加入名单」，再点上方保存</span>
         </div>
         {claims.length === 0 ? (
-          <p className="text-xs text-gray-500">暂无待核实的申请。</p>
+          <p className="text-xs text-slate-500">暂无待核实的申请。</p>
         ) : (
           <ul className="space-y-2">
             {claims.map((claim) => (
-              <li key={claim.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-gray-50 px-3 py-2">
-                <span className="text-xs text-gray-700">
+              <li key={claim.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-slate-50 px-3 py-2">
+                <span className="text-xs text-slate-700">
                   <code className="rounded bg-white px-1 font-mono">{claim.transactionId}</code>
                   <span className="mx-2">→</span>
                   <span className="font-medium">{claim.displayName}</span>
                   {claim.createdAt ? (
-                    <span className="ml-2 text-gray-400">{new Date(claim.createdAt).toLocaleString()}</span>
+                    <span className="ml-2 text-slate-400">{new Date(claim.createdAt).toLocaleString()}</span>
                   ) : null}
                 </span>
                 <span className="flex items-center gap-2">
                   <m.button
                     onClick={() => onClaimAccept(claim)}
                     disabled={isDisabled}
-                    className="rounded-lg border border-emerald-300 px-2 py-1 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    className="rounded-2xl border border-emerald-300 px-2 py-1 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40"
                     whileTap={{ scale: 0.96 }}
                   >
                     加入名单
@@ -194,7 +198,7 @@ export default function CDictDonationConfigSection({
                   <m.button
                     onClick={() => onClaimDelete(claim)}
                     disabled={isDisabled}
-                    className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                    className={studioDangerButtonClassName}
                     whileTap={{ scale: 0.96 }}
                   >
                     <FaTrash className="h-3 w-3" /> 删除
@@ -208,10 +212,10 @@ export default function CDictDonationConfigSection({
 
       <div className="space-y-3">
         {channels.map((channel, index) => (
-          <div key={`${channel.id}-${index}`} className="rounded-xl border border-gray-200 bg-white px-4 py-3">
+          <div key={`${channel.id}-${index}`} className="rounded-2xl border border-slate-200 bg-white/80 px-4 py-3">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">渠道 id</label>
+                <label className="mb-1 block text-xs font-medium text-slate-700">渠道 id</label>
                 <input
                   value={channel.id}
                   onChange={(event) => onChannelChange(index, { id: event.target.value })}
@@ -223,7 +227,7 @@ export default function CDictDonationConfigSection({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">显示名称</label>
+                <label className="mb-1 block text-xs font-medium text-slate-700">显示名称</label>
                 <input
                   value={channel.name}
                   onChange={(event) => onChannelChange(index, { name: event.target.value })}
@@ -233,7 +237,7 @@ export default function CDictDonationConfigSection({
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-gray-700">扫码提示</label>
+                <label className="mb-1 block text-xs font-medium text-slate-700">扫码提示</label>
                 <input
                   value={channel.hint}
                   onChange={(event) => onChannelChange(index, { hint: event.target.value })}
@@ -244,7 +248,7 @@ export default function CDictDonationConfigSection({
               </div>
             </div>
             <div className="mt-3">
-              <label className="mb-1 block text-xs font-medium text-gray-700">图片地址（留空用内置图片）</label>
+              <label className="mb-1 block text-xs font-medium text-slate-700">图片地址（留空用内置图片）</label>
               <input
                 value={channel.imageUrl}
                 onChange={(event) => onChannelChange(index, { imageUrl: event.target.value })}
@@ -252,17 +256,17 @@ export default function CDictDonationConfigSection({
                 placeholder="https://example.com/qr.png"
                 autoComplete="off"
                 spellCheck={false}
-                className={`${INPUT_CLASS} font-mono text-xs`}
+                className={`${INPUT_CLASS} font-mono`}
               />
             </div>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-              <label className="flex items-center gap-2 text-xs text-gray-700">
+              <label className="flex items-center gap-2 text-xs text-slate-700">
                 <input
                   type="checkbox"
                   checked={channel.enabled}
                   onChange={(event) => onChannelChange(index, { enabled: event.target.checked })}
                   disabled={readOnly}
-                  className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                  className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-300"
                 />
                 启用该渠道
               </label>
@@ -280,7 +284,7 @@ export default function CDictDonationConfigSection({
                 <m.button
                   onClick={() => onChannelRemove(index)}
                   disabled={isDisabled || channels.length <= 1}
-                  className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  className={studioDangerButtonClassName}
                   whileTap={{ scale: 0.96 }}
                 >
                   <FaTrash className="h-3 w-3" /> 删除
@@ -295,7 +299,7 @@ export default function CDictDonationConfigSection({
         <m.button
           onClick={onChannelAdd}
           disabled={isDisabled || channels.length >= 8}
-          className="rounded-lg border border-emerald-300 px-3 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-2xl border border-emerald-300 px-3 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40"
           whileTap={{ scale: 0.96 }}
         >
           新增渠道
@@ -304,7 +308,7 @@ export default function CDictDonationConfigSection({
           <m.button
             onClick={onReset}
             disabled={isDisabled}
-            className="rounded-lg bg-red-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-40 sm:px-4"
+            className={studioDangerButtonClassName}
             whileTap={{ scale: 0.96 }}
           >
             {deleting ? '重置中...' : '重置为默认'}
@@ -312,7 +316,7 @@ export default function CDictDonationConfigSection({
           <m.button
             onClick={onSave}
             disabled={isDisabled}
-            className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40 sm:px-4"
+            className={studioPrimaryButtonClassName}
             whileTap={{ scale: 0.96 }}
           >
             {saving ? '保存中...' : '保存/更新'}
@@ -320,7 +324,7 @@ export default function CDictDonationConfigSection({
         </div>
       </div>
 
-      <div className="mt-1 text-xs text-gray-500">
+      <div className="mt-1 text-xs text-slate-500">
         最后更新时间：{updatedAt ? new Date(updatedAt).toLocaleString() : '-'}
       </div>
     </CollapsibleSection>

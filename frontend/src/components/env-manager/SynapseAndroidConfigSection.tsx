@@ -1,6 +1,12 @@
 import { m } from 'framer-motion';
 import { FaSync } from 'react-icons/fa';
 import CollapsibleSection from './CollapsibleSection';
+import {
+  studioDangerButtonClassName,
+  studioFieldClassName,
+  studioPrimaryButtonClassName,
+  studioTextareaClassName,
+} from '../studioTheme';
 
 interface SynapseAndroidConfigSectionProps {
   isOpen: boolean;
@@ -27,8 +33,7 @@ interface SynapseAndroidConfigSectionProps {
   onReset: () => void;
 }
 
-const REFRESH_BUTTON_CLASS =
-  'inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60';
+const REFRESH_BUTTON_CLASS = studioPrimaryButtonClassName;
 
 export default function SynapseAndroidConfigSection({
   isOpen,
@@ -78,7 +83,7 @@ export default function SynapseAndroidConfigSection({
         </m.button>
       }
     >
-      <div className="rounded-xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-xs leading-5 text-emerald-900">
+      <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-xs leading-5 text-emerald-900">
         <p>
           运行时配置仅对指定 package 做 upsert / disable；不会删除 NexAI 默认 assetlinks，也不会覆盖
           <code className="mx-1 rounded bg-white/80 px-1">NEXAI_ANDROID_ASSETLINKS_JSON</code>
@@ -95,7 +100,7 @@ export default function SynapseAndroidConfigSection({
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">ANDROID_PACKAGE_NAME</label>
+          <label className="mb-1 block text-sm font-medium text-slate-700">ANDROID_PACKAGE_NAME</label>
           <input
             value={packageInput}
             onChange={(event) => onPackageInputChange(event.target.value)}
@@ -103,14 +108,14 @@ export default function SynapseAndroidConfigSection({
             placeholder="com.synapse.mobile"
             autoComplete="off"
             spellCheck={false}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 sm:text-base"
+            className={studioFieldClassName}
           />
-          <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+          <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-600">
             当前生效：{loading ? '加载中...' : currentPackage || '未设置'}
           </div>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
+          <label className="mb-1 block text-sm font-medium text-slate-700">
             SYNAPSE_ANDROID_GOOGLE_CLIENT_ID（可选）
           </label>
           <input
@@ -120,9 +125,9 @@ export default function SynapseAndroidConfigSection({
             placeholder="xxxx.apps.googleusercontent.com"
             autoComplete="off"
             spellCheck={false}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 sm:text-base"
+            className={studioFieldClassName}
           />
-          <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+          <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-600">
             当前生效：
             {loading ? '加载中...' : currentGoogleClientId || '未设置（回退 GOOGLE_CLIENT_ID）'}
           </div>
@@ -130,7 +135,7 @@ export default function SynapseAndroidConfigSection({
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">
+        <label className="mb-1 block text-sm font-medium text-slate-700">
           SHA-256 证书指纹（每行一个，也可用逗号分隔）
         </label>
         <textarea
@@ -140,9 +145,9 @@ export default function SynapseAndroidConfigSection({
           placeholder="E9:D8:5A:D2:52:C3:8D:86:C6:E4:B2:A8:C0:49:B8:B5:A9:FA:79:AC:6E:BB:11:8C:94:0A:83:03:B6:96:39:98"
           rows={4}
           spellCheck={false}
-          className="w-full rounded-lg border border-gray-300 px-3 py-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-emerald-400 sm:text-sm"
+          className={`${studioTextareaClassName} font-mono`}
         />
-        <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+        <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-600">
           当前生效：
           {loading
             ? '加载中...'
@@ -152,17 +157,17 @@ export default function SynapseAndroidConfigSection({
         </div>
       </div>
 
-      <label className="flex items-start gap-3 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700">
+      <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-700">
         <input
           type="checkbox"
           checked={disabled}
           onChange={(event) => onDisabledChange(event.target.checked)}
           disabled={readOnly}
-          className="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+          className="mt-1 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
         />
         <span>
           禁用该 package 的 runtime assetlinks 条目
-          <span className="mt-1 block text-xs text-gray-500">
+          <span className="mt-1 block text-xs text-slate-500">
             勾选后仅从 assetlinks 中移除本配置对应 package；不会删除 NexAI 或其他 package。
           </span>
         </span>
@@ -172,7 +177,7 @@ export default function SynapseAndroidConfigSection({
         <m.button
           onClick={onReset}
           disabled={isDisabled}
-          className="rounded-lg bg-red-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-red-600 disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed sm:px-4"
+          className={studioDangerButtonClassName}
           whileTap={{ scale: 0.96 }}
         >
           {deleting ? '重置中...' : '重置'}
@@ -180,14 +185,14 @@ export default function SynapseAndroidConfigSection({
         <m.button
           onClick={onSave}
           disabled={isDisabled}
-          className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed sm:px-4"
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
           whileTap={{ scale: 0.96 }}
         >
           {saving ? '保存中...' : '保存/更新'}
         </m.button>
       </div>
 
-      <div className="mt-1 text-xs text-gray-500">
+      <div className="mt-1 text-xs text-slate-500">
         最后更新时间：{updatedAt ? new Date(updatedAt).toLocaleString() : '-'}
       </div>
     </CollapsibleSection>

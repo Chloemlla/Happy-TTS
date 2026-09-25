@@ -1,6 +1,7 @@
 import { m } from 'framer-motion';
 import { FaSync } from 'react-icons/fa';
 import CollapsibleSection from './CollapsibleSection';
+import { studioDangerButtonClassName, studioFieldClassName, studioPrimaryButtonClassName } from '../studioTheme';
 
 interface LumenServerConfigSectionProps {
   isOpen: boolean;
@@ -22,15 +23,13 @@ interface LumenServerConfigSectionProps {
   onReset: () => void;
 }
 
-const REFRESH_BUTTON_CLASS =
-  'inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60';
+const REFRESH_BUTTON_CLASS = studioPrimaryButtonClassName;
 
-const inputClass =
-  'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 sm:text-base';
-const labelClass = 'mb-1 block text-sm font-medium text-gray-700';
-const hintClass = 'mt-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-600';
-const selectClass =
-  'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400 sm:text-base';
+const inputClass = `${studioFieldClassName} sm:text-base`;
+const labelClass = 'mb-1 block text-sm font-medium text-slate-700';
+const hintClass =
+  'mt-2 rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-600';
+const selectClass = `${studioFieldClassName} sm:text-base`;
 
 interface FieldMeta {
   label: string;
@@ -237,7 +236,7 @@ export default function LumenServerConfigSection({
         </m.button>
       }
     >
-      <div className="rounded-xl border border-amber-100 bg-amber-50/70 px-4 py-3 text-xs leading-5 text-amber-900">
+      <div className="rounded-2xl border border-amber-100 bg-amber-50/70 px-4 py-3 text-xs leading-5 text-amber-900">
         <p>
           部署环境变量 <code className="mx-1 rounded bg-white/80 px-1">LUMEN_ENABLED=true</code> 是启用 Lumen 的最高优先级开关（进程启动时即判定）。
           在下方开启「启用 Lumen 服务」可在不重启的情况下生效；但启用时管理端密码、请求签名密钥与对外邮件密钥必须满足强度要求。
@@ -321,7 +320,7 @@ export default function LumenServerConfigSection({
         <m.button
           onClick={onReset}
           disabled={isDisabled}
-          className="rounded-lg bg-red-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-red-600 disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed sm:px-4"
+          className={studioDangerButtonClassName}
           whileTap={{ scale: 0.96 }}
         >
           {deleting ? '重置中...' : '重置'}
@@ -329,14 +328,14 @@ export default function LumenServerConfigSection({
         <m.button
           onClick={onSave}
           disabled={isDisabled}
-          className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed sm:px-4"
+          className={studioPrimaryButtonClassName}
           whileTap={{ scale: 0.96 }}
         >
           {saving ? '保存中...' : '保存/更新'}
         </m.button>
       </div>
 
-      <div className="mt-1 text-xs text-gray-500">
+      <div className="mt-1 text-xs text-slate-500">
         最后更新时间：{updatedAt ? new Date(updatedAt).toLocaleString() : '-'}
       </div>
     </CollapsibleSection>

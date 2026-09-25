@@ -3,6 +3,13 @@ import { FaSync } from 'react-icons/fa';
 import CollapsibleSection from './CollapsibleSection';
 import type { ChatProviderItem, ChatWireFormat } from './types';
 import { NO_DURATION } from './motion';
+import {
+  studioDangerButtonClassName,
+  studioFieldClassName,
+  studioPrimaryButtonClassName,
+  studioSecondaryButtonClassName,
+  studioTileClassName,
+} from '../studioTheme';
 
 const WIRE_LABELS: Record<ChatWireFormat, string> = {
   'openai-chat': 'OpenAI Chat Completions',
@@ -10,8 +17,7 @@ const WIRE_LABELS: Record<ChatWireFormat, string> = {
   anthropic: 'Anthropic Messages',
 };
 
-const REFRESH_BUTTON_CLASS =
-  'inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60';
+const REFRESH_BUTTON_CLASS = studioPrimaryButtonClassName;
 
 export interface LibreChatProvidersSectionProps {
   isOpen: boolean;
@@ -88,12 +94,12 @@ export default function LibreChatProvidersSection({
                   value={providerFilterGroup}
                   onChange={(e) => onFilterGroupChange(e.target.value)}
                   placeholder="按 group 过滤"
-                  className="w-full sm:w-auto px-2 sm:px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm"
+                  className={`${studioFieldClassName} sm:w-auto`}
                 />
                 <m.button
                   onClick={onRefresh}
                   disabled={loading}
-                  className={`${REFRESH_BUTTON_CLASS} w-full justify-center sm:w-auto`}
+                  className={`${REFRESH_BUTTON_CLASS} w-full sm:w-auto`}
                   whileTap={{ scale: 0.95 }}
                 >
                   <FaSync className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> 刷新
@@ -103,42 +109,42 @@ export default function LibreChatProvidersSection({
               {/* 表单 */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Base URL</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Base URL</label>
                   <input
                     value={providerBaseUrl}
                     onChange={(e) => onBaseUrlChange(e.target.value)}
                     disabled={disabled}
                     placeholder="https://your-openai-compatible.example"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
+                    className={studioFieldClassName}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">API Key</label>
                   <input
                     value={providerApiKey}
                     onChange={(e) => onApiKeyChange(e.target.value)}
                     disabled={disabled}
                     placeholder="re_xxx 或 sk-xxx"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
+                    className={studioFieldClassName}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Model</label>
                   <input
                     value={providerModel}
                     onChange={(e) => onModelChange(e.target.value)}
                     disabled={disabled}
                     placeholder="gpt-4o-mini / gpt-oss-120b 等"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
+                    className={studioFieldClassName}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">协议格式</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">协议格式</label>
                   <select
                     value={providerWire}
                     onChange={(e) => onWireChange(e.target.value as ChatWireFormat)}
                     disabled={disabled}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base bg-white"
+                    className={studioFieldClassName}
                   >
                     {Object.entries(WIRE_LABELS).map(([value, label]) => (
                       <option key={value} value={value}>
@@ -148,17 +154,17 @@ export default function LibreChatProvidersSection({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Group（可选）</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Group（可选）</label>
                   <input
                     value={providerGroup}
                     onChange={(e) => onGroupChange(e.target.value)}
                     disabled={disabled}
                     placeholder="自定义分组名，用于归类"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
+                    className={studioFieldClassName}
                   />
                 </div>
                 <div className="flex items-center gap-3">
-                  <label className="text-sm font-medium text-gray-700">启用</label>
+                  <label className="text-sm font-medium text-slate-700">启用</label>
                   <input
                     type="checkbox"
                     checked={providerEnabled}
@@ -168,7 +174,7 @@ export default function LibreChatProvidersSection({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">权重（1-10）</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">权重（1-10）</label>
                   <input
                     type="number"
                     value={providerWeight}
@@ -176,7 +182,7 @@ export default function LibreChatProvidersSection({
                     disabled={disabled}
                     min={1}
                     max={10}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 text-sm sm:text-base"
+                    className={studioFieldClassName}
                   />
                 </div>
               </div>
@@ -184,7 +190,7 @@ export default function LibreChatProvidersSection({
               <div className="flex items-center justify-end gap-3 mb-4">
                 <m.button
                   onClick={onReset}
-                  className="px-3 sm:px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition text-sm font-medium"
+                  className={studioSecondaryButtonClassName}
                   whileTap={{ scale: 0.96 }}
                 >
                   重置
@@ -192,7 +198,7 @@ export default function LibreChatProvidersSection({
                 <m.button
                   onClick={onSave}
                   disabled={isDisabled}
-                  className="px-3 sm:px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
+                  className={studioPrimaryButtonClassName}
                   whileTap={{ scale: 0.96 }}
                 >
                   {saving ? '保存中...' : (providerId ? '更新' : '新增')}
@@ -201,11 +207,11 @@ export default function LibreChatProvidersSection({
 
               {/* 列表 */}
               {loading ? (
-                <div className="text-gray-500 text-sm">加载中...</div>
+                <div className="text-slate-500 text-sm">加载中...</div>
               ) : providers.length === 0 ? (
-                <div className="text-gray-500 text-sm">暂无提供者</div>
+                <div className="text-slate-500 text-sm">暂无提供者</div>
               ) : (
-                <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                <div className="overflow-x-auto rounded-2xl border border-slate-200">
                   {isMobile ? (
                     <div className="space-y-3 p-2">
                       {providers.map((p, i) => (
@@ -214,22 +220,22 @@ export default function LibreChatProvidersSection({
                           initial={{ opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25, delay: i * 0.04 }}
-                          className="border rounded-lg p-3 bg-white"
+                          className={`${studioTileClassName} p-3`}
                         >
-                          <div className="text-sm text-gray-800 break-all">
+                          <div className="text-sm text-slate-800 break-all">
                             <div className="font-semibold">{p.baseUrl}</div>
                             <div className="mt-1">Model：{p.model}</div>
                             <div className="mt-1">格式：{WIRE_LABELS[p.wire] || p.wire}</div>
                             <div className="mt-1">Group：{p.group || '-'}</div>
                             <div className="mt-1">Enabled：{p.enabled ? '是' : '否'}｜Weight：{p.weight}</div>
-                            <div className="mt-1 font-mono text-xs text-gray-700">{p.apiKey}</div>
-                            <div className="mt-1 text-xs text-gray-500">{p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '-'}</div>
+                            <div className="mt-1 font-mono text-xs text-slate-700">{p.apiKey}</div>
+                            <div className="mt-1 text-xs text-slate-500">{p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '-'}</div>
                           </div>
                           <div className="mt-2 flex items-center justify-end gap-2">
                             <m.button
                               onClick={() => onEdit(p)}
                               disabled={disabled}
-                              className="px-2 sm:px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition disabled:opacity-40 disabled:cursor-not-allowed text-sm"
+                              className={studioSecondaryButtonClassName}
                               whileTap={{ scale: 0.95 }}
                             >
                               编辑
@@ -237,7 +243,7 @@ export default function LibreChatProvidersSection({
                             <m.button
                               onClick={() => onDelete(p.id)}
                               disabled={deletingId === p.id || disabled}
-                              className="px-2 sm:px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm"
+                              className={studioDangerButtonClassName}
                               whileTap={{ scale: 0.95 }}
                             >
                               {deletingId === p.id ? '删除中...' : '删除'}
@@ -249,16 +255,16 @@ export default function LibreChatProvidersSection({
                   ) : (
                     <table className="min-w-full">
                       <thead>
-                        <tr className="bg-gray-50 border-b border-gray-200">
-                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Base URL</th>
-                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Model</th>
-                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">格式</th>
-                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Group</th>
-                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Enabled</th>
-                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Weight</th>
-                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">API Key（脱敏）</th>
-                          <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Updated</th>
-                          <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700">操作</th>
+                        <tr className="bg-slate-50 border-b border-slate-200">
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Base URL</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Model</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">格式</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Group</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Enabled</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Weight</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">API Key（脱敏）</th>
+                          <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Updated</th>
+                          <th className="px-4 py-3 text-right text-sm font-semibold text-slate-700">操作</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -270,20 +276,20 @@ export default function LibreChatProvidersSection({
                             transition={prefersReducedMotion ? NO_DURATION : { duration: 0.25, delay: i * 0.04 }}
                             className="border-b last:border-b-0"
                           >
-                            <td className="px-4 py-3 text-sm text-gray-800 break-all">{p.baseUrl}</td>
-                            <td className="px-4 py-3 text-sm text-gray-800">{p.model}</td>
-                            <td className="px-4 py-3 text-sm text-gray-800">{WIRE_LABELS[p.wire] || p.wire}</td>
-                            <td className="px-4 py-3 text-sm text-gray-800">{p.group || '-'}</td>
-                            <td className="px-4 py-3 text-sm text-gray-800">{p.enabled ? '是' : '否'}</td>
-                            <td className="px-4 py-3 text-sm text-gray-800">{p.weight}</td>
-                            <td className="px-4 py-3 font-mono text-sm text-gray-700">{p.apiKey}</td>
-                            <td className="px-4 py-3 text-sm text-gray-600">{p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '-'}</td>
+                            <td className="px-4 py-3 text-sm text-slate-800 break-all">{p.baseUrl}</td>
+                            <td className="px-4 py-3 text-sm text-slate-800">{p.model}</td>
+                            <td className="px-4 py-3 text-sm text-slate-800">{WIRE_LABELS[p.wire] || p.wire}</td>
+                            <td className="px-4 py-3 text-sm text-slate-800">{p.group || '-'}</td>
+                            <td className="px-4 py-3 text-sm text-slate-800">{p.enabled ? '是' : '否'}</td>
+                            <td className="px-4 py-3 text-sm text-slate-800">{p.weight}</td>
+                            <td className="px-4 py-3 font-mono text-sm text-slate-700">{p.apiKey}</td>
+                            <td className="px-4 py-3 text-sm text-slate-600">{p.updatedAt ? new Date(p.updatedAt).toLocaleString() : '-'}</td>
                             <td className="px-4 py-3 text-right">
                               <div className="flex items-center justify-end gap-2">
                                 <m.button
                                   onClick={() => onEdit(p)}
                                   disabled={disabled}
-                                  className="px-2 sm:px-3 py-1.5 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition disabled:opacity-40 disabled:cursor-not-allowed text-sm"
+                                  className={studioSecondaryButtonClassName}
                                   whileTap={{ scale: 0.95 }}
                                 >
                                   编辑
@@ -291,7 +297,7 @@ export default function LibreChatProvidersSection({
                                 <m.button
                                   onClick={() => onDelete(p.id)}
                                   disabled={deletingId === p.id || disabled}
-                                  className="px-2 sm:px-3 py-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm"
+                                  className={studioDangerButtonClassName}
                                   whileTap={{ scale: 0.95 }}
                                 >
                                   {deletingId === p.id ? '删除中...' : '删除'}
