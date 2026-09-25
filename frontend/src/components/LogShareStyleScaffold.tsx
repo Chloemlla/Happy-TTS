@@ -14,13 +14,13 @@ const toneTextClasses: Record<InfoTone, string> = {
 };
 
 export const logSharePanelClass =
-  'relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl';
+  'relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 shadow-sm backdrop-blur-xl';
 
 export const logShareHeroClass =
-  'relative overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10';
+  'relative overflow-hidden rounded-2xl border border-slate-200 bg-white/88 p-6 shadow-sm backdrop-blur-xl sm:p-10';
 
 export const logShareTileClass =
-  'rounded-[22px] border border-slate-200 bg-white/80 shadow-sm backdrop-blur-xl';
+  'rounded-2xl border border-slate-200 bg-white/80 shadow-sm backdrop-blur-xl';
 
 export const logShareInputClass =
   'w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300';
@@ -109,7 +109,7 @@ export const InfoMetricCard: React.FC<{
         <div className="mt-2 text-2xl font-semibold text-slate-950">{value}</div>
         {detail && <p className="mt-2 text-xs leading-5 text-slate-500">{detail}</p>}
       </div>
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[18px] border border-slate-200 bg-slate-50 text-slate-500">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-500">
         <Icon className="h-4 w-4" />
       </div>
     </div>

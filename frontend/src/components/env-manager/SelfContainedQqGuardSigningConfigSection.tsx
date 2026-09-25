@@ -121,7 +121,7 @@ export default function SelfContainedQqGuardSigningConfigSection({ prefersReduce
         currentLabel="当前密钥（脱敏）" currentValue={currentToken} updatedAt={updatedAt}
         onInputChange={setTokenInput} onRefresh={fetchConfig} onSave={handleSave} onDelete={handleReset}
       />
-      <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-5">
+      <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur-xl sm:p-5">
         <div className="space-y-3">
           <div>
             <h4 className="text-base font-semibold text-slate-800">离线/恢复告警邮箱</h4>

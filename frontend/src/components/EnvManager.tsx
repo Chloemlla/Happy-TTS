@@ -314,7 +314,7 @@ const EnvManager: React.FC = () => {
         <div className="space-y-6">
           <InfoPanel>
             <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[18px] border border-rose-200 bg-rose-50 text-rose-600">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 text-rose-600">
                 <FaLock className="h-5 w-5" />
               </div>
               <div className="min-w-0 flex-1">
@@ -350,7 +350,7 @@ const EnvManager: React.FC = () => {
 
         {/* Configuration Workflow */}
         {configurationWorkflow && configurationProgressItems.length > 0 && (
-          <m.section className="rounded-2xl border border-amber-200 bg-amber-50/80 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl" initial={ENTER_INITIAL} animate={ENTER_ANIMATE} transition={trans06}>
+          <m.section className="rounded-2xl border border-amber-200 bg-amber-50/80 shadow-sm backdrop-blur-xl" initial={ENTER_INITIAL} animate={ENTER_ANIMATE} transition={trans06}>
             <div className="flex flex-col gap-3 border-b border-amber-200 px-4 py-3 sm:px-5 sm:py-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-amber-900">服务配置处理进度</h3>
@@ -539,7 +539,7 @@ const EnvManager: React.FC = () => {
         <AnimatePresence>
           {showSourceModal && (
             <m.div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-[9999]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={modalTrans} onClick={handleSourceModalCloseWrapper} data-source-modal>
-              <m.div className="rounded-[26px] border border-white/70 bg-white/90 backdrop-blur-xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-6 sm:p-8 w-full max-w-md mx-4 relative z-[10000] max-h-[90vh] overflow-y-auto overscroll-contain" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={modalTrans} onClick={(e) => e.stopPropagation()}>
+              <m.div className="rounded-2xl border border-slate-200 bg-white/90 backdrop-blur-xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] p-6 sm:p-8 w-full max-w-md mx-4 relative z-[10000] max-h-[90vh] overflow-y-auto overscroll-contain" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={modalTrans} onClick={(e) => e.stopPropagation()}>
                 <div className="text-center">
                   <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <FaInfoCircle className="w-8 h-8 text-slate-600" />

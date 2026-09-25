@@ -294,7 +294,7 @@ export default function ResourceStoreList() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.04 }}
-      className="overflow-hidden rounded-[24px] border border-slate-200 bg-white/90 shadow-sm transition hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(15,23,42,0.12)]"
+      className="overflow-hidden rounded-2xl border border-slate-200 bg-white/90 shadow-sm transition hover:-translate-y-1 hover:shadow-sm"
     >
       <div className="relative h-36 overflow-hidden bg-slate-100 sm:h-48">
         <img
@@ -344,7 +344,7 @@ export default function ResourceStoreList() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.04 }}
-      className="overflow-hidden rounded-[24px] border border-slate-200 bg-white/90 shadow-sm transition hover:-translate-y-1 hover:shadow-[0_18px_50px_rgba(15,23,42,0.12)]"
+      className="overflow-hidden rounded-2xl border border-slate-200 bg-white/90 shadow-sm transition hover:-translate-y-1 hover:shadow-sm"
     >
       <div className="relative h-36 overflow-hidden bg-slate-100 sm:h-48">
         <img
@@ -369,7 +369,7 @@ export default function ResourceStoreList() {
             {resource.description}
           </p>
         </div>
-        <div className="grid gap-2 rounded-[20px] border border-slate-100 bg-slate-50 px-4 py-4 text-sm text-slate-600">
+        <div className="grid gap-2 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4 text-sm text-slate-600">
           <div className="flex items-center justify-between gap-3">
             <span className="inline-flex items-center gap-2">
               <FaCalendarAlt />
@@ -466,7 +466,7 @@ export default function ResourceStoreList() {
                   <div
                     key={item.label}
                     className={cn(
-                      "min-w-0 rounded-[22px] border px-3 py-2.5 sm:rounded-2xl sm:px-4 sm:py-3",
+                      "min-w-0 rounded-2xl border px-3 py-2.5 sm:rounded-2xl sm:px-4 sm:py-3",
                       studioMetricToneClassName(item.tone),
                     )}
                   >
@@ -490,7 +490,7 @@ export default function ResourceStoreList() {
             transition={{ duration: 0.5, delay: 0.05 }}
             className={studioMainSurfaceClassName}
           >
-            <div className="rounded-[22px] border border-slate-200 bg-white/80 p-3 sm:p-5">
+            <div className="rounded-2xl border border-slate-200 bg-white/80 p-3 sm:p-5">
               <div className="mb-4 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -557,7 +557,7 @@ export default function ResourceStoreList() {
                       {resources.map(renderStoreCard)}
                     </div>
                   ) : (
-                    <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50/80 px-6 py-14 text-center text-slate-400">
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-6 py-14 text-center text-slate-400">
                       {selectedCategory
                         ? `当前分类 ${selectedCategory} 暂无资源。`
                         : "当前没有可展示的资源。"}
@@ -573,7 +573,7 @@ export default function ResourceStoreList() {
                   {redeemedResources.map(renderOwnedCard)}
                 </div>
               ) : (
-                <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50/80 px-6 py-14 text-center text-slate-400">
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-6 py-14 text-center text-slate-400">
                   还没有已兑换资源，先在右侧输入 CDK 试试看。
                 </div>
               )}
@@ -606,7 +606,7 @@ export default function ResourceStoreList() {
                   value={cdkCode}
                   onChange={(event) => setCdkCode(event.target.value)}
                   placeholder="输入 CDK 兑换码"
-                  className={cn(studioFieldClassName, "sm:rounded-[18px]")}
+                  className={cn(studioFieldClassName, "sm:rounded-2xl")}
                 />
                 <button
                   type="button"
@@ -627,7 +627,7 @@ export default function ResourceStoreList() {
               {!isAdmin &&
               !turnstileConfigLoading &&
               turnstileConfig.siteKey ? (
-                <div className="mt-4 rounded-[22px] border border-slate-200 bg-slate-50 p-4">
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <div className="mb-3 flex items-center gap-2 text-sm text-slate-600">
                     {turnstileVerified ? (
                       <FaCheckCircle className="text-emerald-500" />
@@ -658,7 +658,7 @@ export default function ResourceStoreList() {
                     initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
-                    className="mt-4 rounded-[20px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
+                    className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
                   >
                     {error}
                   </motion.div>
@@ -670,7 +670,7 @@ export default function ResourceStoreList() {
                     initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
-                    className="mt-4 rounded-[20px] border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
+                    className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700"
                   >
                     {success}
                   </motion.div>
@@ -682,7 +682,7 @@ export default function ResourceStoreList() {
                     initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
-                    className="mt-4 rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700"
+                    className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700"
                   >
                     {turnstileError}
                   </motion.div>
@@ -710,25 +710,25 @@ export default function ResourceStoreList() {
                 </div>
               </div>
               <div className="space-y-2">
-                <div className="flex items-center justify-between rounded-[20px] border border-slate-100 px-3 py-3 text-sm">
+                <div className="flex items-center justify-between rounded-2xl border border-slate-100 px-3 py-3 text-sm">
                   <span className="text-slate-500">当前视图</span>
                   <span className="font-semibold text-slate-900">
                     {activeTab === "store" ? "商店资源" : "我的资源"}
                   </span>
                 </div>
-                <div className="flex items-center justify-between rounded-[20px] border border-slate-100 px-3 py-3 text-sm">
+                <div className="flex items-center justify-between rounded-2xl border border-slate-100 px-3 py-3 text-sm">
                   <span className="text-slate-500">选中分类</span>
                   <span className="font-semibold text-slate-900">
                     {selectedCategory || "全部"}
                   </span>
                 </div>
-                <div className="flex items-center justify-between rounded-[20px] border border-slate-100 px-3 py-3 text-sm">
+                <div className="flex items-center justify-between rounded-2xl border border-slate-100 px-3 py-3 text-sm">
                   <span className="text-slate-500">分类数量</span>
                   <span className="font-semibold text-slate-900">
                     {categories.length}
                   </span>
                 </div>
-                <div className="flex items-center justify-between rounded-[20px] border border-slate-100 px-3 py-3 text-sm">
+                <div className="flex items-center justify-between rounded-2xl border border-slate-100 px-3 py-3 text-sm">
                   <span className="text-slate-500">验证策略</span>
                   <span className="font-semibold text-slate-900">
                     {isAdmin

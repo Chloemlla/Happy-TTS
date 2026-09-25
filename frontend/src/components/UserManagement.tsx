@@ -164,7 +164,7 @@ const ROW_INITIAL = { opacity: 0, x: -20 } as const;
 const ROW_ANIMATE = { opacity: 1, x: 0 } as const;
 
 const cardClass =
-  'rounded-[26px] border border-white/70 bg-white/82 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl';
+  'rounded-2xl border border-slate-200 bg-white/82 shadow-sm backdrop-blur-xl';
 
 const glassInputClass =
   'w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 transition focus:border-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-300';
@@ -1186,7 +1186,7 @@ const UserManagement: React.FC = () => {
                 exit={{ opacity: 0 }}
               >
                 <motion.div
-                  className="w-full max-w-2xl rounded-[26px] border border-white/70 bg-white/82 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl p-5 sm:p-7 max-h-[90vh] overflow-y-auto overscroll-contain"
+                  className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white/82 shadow-sm backdrop-blur-xl p-5 sm:p-7 max-h-[90vh] overflow-y-auto overscroll-contain"
                   initial={{ scale: 0.95, y: 20, opacity: 0 }}
                   animate={{ scale: 1, y: 0, opacity: 1 }}
                   exit={{ scale: 0.95, y: 20, opacity: 0 }}
@@ -1244,7 +1244,7 @@ const UserManagement: React.FC = () => {
                   ) : fpUser.fingerprints && fpUser.fingerprints.length > 0 ? (
                     <div className="max-h-96 overflow-auto space-y-3">
                       {fpUser.fingerprints.map((fp, i) => (
-                        <div key={i} className="p-4 rounded-[22px] border border-slate-200 bg-white/80 shadow-sm backdrop-blur-xl">
+                        <div key={i} className="p-4 rounded-2xl border border-slate-200 bg-white/80 shadow-sm backdrop-blur-xl">
                           <div className="text-xs text-slate-500 mb-1">{new Date(fp.ts).toLocaleString()} · IP {fp.ip || '-'} </div>
                           <div className="font-mono break-all text-sm">{fp.id}</div>
                           {fp.ua && <div className="text-[11px] text-slate-500 mt-1 break-all">{fp.ua}</div>}

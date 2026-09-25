@@ -360,7 +360,7 @@ const MeditationAppDemo: React.FC = () => {
           <Activity mode={activeScreen === 0 ? 'visible' : 'hidden'}>
             <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-[#2c3e50] mb-4">首页 - 场景选择</h3>
-            <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+            <div className="relative w-[360px] h-[780px] rounded-2xl border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               {/* 刘海 */}
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
@@ -444,7 +444,7 @@ const MeditationAppDemo: React.FC = () => {
           <Activity mode={activeScreen === 1 ? 'visible' : 'hidden'}>
             <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-[#2c3e50] mb-4">计时器页面</h3>
-            <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+            <div className="relative w-[360px] h-[780px] rounded-2xl border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
               <div className="relative h-full bg-gradient-to-br from-[#667eea] to-[#764ba2] overflow-hidden">
@@ -551,7 +551,7 @@ const MeditationAppDemo: React.FC = () => {
           <Activity mode={activeScreen === 2 ? 'visible' : 'hidden'}>
             <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-[#2c3e50] mb-4">完成页面</h3>
-            <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+            <div className="relative w-[360px] h-[780px] rounded-2xl border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
               <div className="relative h-full bg-gradient-to-br from-[#f5f7fa] to-[#e8eaf6] overflow-y-auto no-scrollbar">
@@ -568,7 +568,7 @@ const MeditationAppDemo: React.FC = () => {
                   <div className="text-base text-[#95a5a6]">分钟 · 雨声冥想</div>
 
                   {/* 统计卡片 */}
-                  <div className="w-full mt-8 bg-white/80 backdrop-blur-md rounded-[20px] p-6 shadow-lg">
+                  <div className="w-full mt-8 bg-white/80 backdrop-blur-md rounded-2xl p-6 shadow-lg">
                     <div className="grid grid-cols-3 gap-4 text-center">
                       <div>
                         <div className="text-xs text-[#95a5a6] mb-1">今日总计</div>
@@ -592,16 +592,16 @@ const MeditationAppDemo: React.FC = () => {
                   </div>
 
                   {/* 成就徽章 */}
-                  <div className="w-full mt-6 bg-gradient-to-r from-[#ffd700] to-[#ffed4e] rounded-[25px] p-4 text-center">
+                  <div className="w-full mt-6 bg-gradient-to-r from-[#ffd700] to-[#ffed4e] rounded-2xl p-4 text-center">
                     <span className="text-base font-medium text-[#2c3e50]">🌟 解锁新成就：专注新星</span>
                   </div>
 
                   {/* 操作按钮 */}
                   <div className="w-full mt-8 space-y-3">
-                    <button className="w-full py-4 bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white rounded-[25px] text-base font-medium">
+                    <button className="w-full py-4 bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white rounded-2xl text-base font-medium">
                       再来一次
                     </button>
-                    <button className="w-full py-4 border-2 border-[#667eea] text-[#667eea] rounded-[25px] text-base font-medium bg-transparent">
+                    <button className="w-full py-4 border-2 border-[#667eea] text-[#667eea] rounded-2xl text-base font-medium bg-transparent">
                       查看统计
                     </button>
                     <button className="w-full py-2 text-[#95a5a6] text-sm">
@@ -618,7 +618,7 @@ const MeditationAppDemo: React.FC = () => {
           <Activity mode={activeScreen === 3 ? 'visible' : 'hidden'}>
             <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-[#2c3e50] mb-4">统计总览</h3>
-            <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+            <div className="relative w-[360px] h-[780px] rounded-2xl border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
               <div className="h-full overflow-y-auto no-scrollbar bg-[#f5f7fa]">
@@ -699,7 +699,7 @@ const MeditationAppDemo: React.FC = () => {
           <Activity mode={activeScreen === 4 ? 'visible' : 'hidden'}>
             <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-[#2c3e50] mb-4">成就页面</h3>
-            <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+            <div className="relative w-[360px] h-[780px] rounded-2xl border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
               <div className="h-full overflow-y-auto no-scrollbar bg-[#f5f7fa]">
@@ -758,7 +758,7 @@ const MeditationAppDemo: React.FC = () => {
           <Activity mode={activeScreen === 5 ? 'visible' : 'hidden'}>
             <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-[#2c3e50] mb-4">日历页面</h3>
-            <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+            <div className="relative w-[360px] h-[780px] rounded-2xl border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
               <div className="h-full overflow-y-auto no-scrollbar bg-[#f5f7fa]">
@@ -859,14 +859,14 @@ const MeditationAppDemo: React.FC = () => {
           <Activity mode={activeScreen === 6 ? 'visible' : 'hidden'}>
             <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-[#2c3e50] mb-4">场景库</h3>
-            <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+            <div className="relative w-[360px] h-[780px] rounded-2xl border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
               <div className="h-full overflow-y-auto no-scrollbar bg-[#f5f7fa]">
                 {/* 搜索区 */}
                 <div className="px-5 pt-9 pb-4 bg-white">
                   <div className="flex items-center gap-3">
-                    <div className="flex-1 flex items-center gap-2 bg-[#f5f7fa] border border-[#e0e0e0] rounded-[25px] px-4 py-2.5">
+                    <div className="flex-1 flex items-center gap-2 bg-[#f5f7fa] border border-[#e0e0e0] rounded-2xl px-4 py-2.5">
                       <Search className="w-4 h-4 text-[#95a5a6]" />
                       <input type="text" placeholder="搜索场景..." className="flex-1 bg-transparent border-none outline-none text-sm" />
                     </div>
@@ -881,7 +881,7 @@ const MeditationAppDemo: React.FC = () => {
                       <button
                         key={idx}
                         onClick={() => setSelectedCategory(cat)}
-                        className={`px-4 py-2 rounded-[20px] text-sm whitespace-nowrap border-2 transition-all hover:scale-105
+                        className={`px-4 py-2 rounded-2xl text-sm whitespace-nowrap border-2 transition-all hover:scale-105
                           ${selectedCategory === cat ? 'bg-[#667eea] text-white border-[#667eea]' : 'border-[#e0e0e0] text-[#95a5a6] hover:border-[#667eea]'}
                         `}
                       >
@@ -937,7 +937,7 @@ const MeditationAppDemo: React.FC = () => {
           <Activity mode={activeScreen === 7 ? 'visible' : 'hidden'}>
             <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-[#2c3e50] mb-4">设置页面</h3>
-            <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+            <div className="relative w-[360px] h-[780px] rounded-2xl border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
               <div className="h-full overflow-y-auto no-scrollbar bg-[#f5f7fa]">
@@ -1126,7 +1126,7 @@ const MeditationAppDemo: React.FC = () => {
           <Activity mode={activeScreen === 8 ? 'visible' : 'hidden'}>
             <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-[#2c3e50] mb-4">呼吸引导页面</h3>
-            <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+            <div className="relative w-[360px] h-[780px] rounded-2xl border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
               <div className="relative h-full bg-gradient-to-br from-[#1a237e] to-[#283593] overflow-hidden">

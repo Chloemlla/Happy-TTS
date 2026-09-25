@@ -10,31 +10,31 @@ export const studioPageClassName =
   'mx-auto w-full max-w-none px-0 py-6 sm:py-8';
 
 export const studioHeroCardClassName =
-  'relative overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10';
+  'relative overflow-hidden rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur-xl sm:p-10';
 
 export const studioMainSurfaceClassName =
-  'relative min-w-0 overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-4 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-6';
+  'relative min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur-xl sm:p-6';
 
 export const studioPanelClassName =
-  'rounded-[30px] border border-white/70 bg-white/88 p-5 shadow-[0_24px_90px_rgba(15,23,42,0.09)] backdrop-blur-xl sm:rounded-[34px] sm:p-6';
+  'rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur-xl sm:p-6';
 
 export const studioSubPanelClassName =
-  'min-w-0 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 sm:p-5';
+  'min-w-0 rounded-2xl border-2 border-slate-200 bg-slate-50/80 p-4 sm:p-5';
 
 export const studioElevatedPanelClassName =
-  'min-w-0 rounded-[22px] border border-slate-200 bg-white/90 p-4 sm:p-5';
+  'min-w-0 rounded-2xl border-2 border-slate-200 bg-white/80 p-4 sm:p-5';
 
 export const studioDarkPanelClassName =
-  'rounded-[30px] border border-slate-900 bg-slate-900 p-5 text-white shadow-[0_24px_90px_rgba(15,23,42,0.18)] sm:rounded-[34px] sm:p-6';
+  'rounded-2xl border border-slate-900 bg-slate-900 p-5 text-white shadow-sm sm:p-6';
 
 export const studioFieldClassName =
-  'w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-300';
+  'w-full rounded-2xl border-2 border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-300';
 
 export const studioTextareaClassName =
-  'w-full resize-none rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm leading-7 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-300';
+  'w-full resize-none rounded-2xl border-2 border-slate-200 bg-white/80 px-4 py-3 text-sm leading-7 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white focus:ring-2 focus:ring-slate-300';
 
 export const studioGhostButtonClassName =
-  'inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 backdrop-blur-xl transition hover:border-slate-300 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2';
+  'inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-slate-200 bg-white/80 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500 backdrop-blur-xl transition hover:border-slate-300 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2';
 
 export const studioPrimaryButtonClassName =
   'inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2';
@@ -46,7 +46,7 @@ export const studioMutedPrimaryButtonClassName =
 export const studioModalOverlayClassName =
   'fixed inset-0 z-[10050] flex items-center justify-center bg-slate-950/30 p-4 backdrop-blur-sm';
 export const studioModalCardClassName =
-  'w-full rounded-[34px] border border-white/70 bg-white/92 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.16)] backdrop-blur-xl sm:p-8';
+  'w-full rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm backdrop-blur-xl sm:p-8';
 
 export const studioEyebrowClassName =
   'text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500';
@@ -58,7 +58,7 @@ export const studioEyebrowAccentPillClassName =
   'inline-flex max-w-full items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-500';
 
 export const studioSoftBadgeClassName =
-  'flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-500 sm:h-12 sm:w-12';
+  'flex h-10 w-10 items-center justify-center rounded-2xl border-2 border-slate-200 bg-slate-50 text-slate-500 sm:h-12 sm:w-12';
 
 export const studioStrongBadgeClassName =
   'flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 text-white sm:h-11 sm:w-11';
@@ -69,7 +69,7 @@ export const studioAccentBlobSkyClassName =
   'pointer-events-none absolute h-32 w-32 rounded-full bg-[radial-gradient(circle,_rgba(14,165,233,0.16),_transparent_70%)]';
 
 export const studioInfoRowClassName =
-  'flex flex-col gap-1 rounded-[20px] border border-slate-200 bg-white/80 px-4 py-3 text-[13px] sm:flex-row sm:items-center sm:justify-between sm:text-sm';
+  'flex flex-col gap-1 rounded-2xl border-2 border-slate-200 bg-white/80 px-4 py-3 text-[13px] sm:flex-row sm:items-center sm:justify-between sm:text-sm';
 
 export function studioMetricToneClassName(
   tone: 'sky' | 'violet' | 'emerald' | 'amber' | 'rose' | 'slate' = 'slate',

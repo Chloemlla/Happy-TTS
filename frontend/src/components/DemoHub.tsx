@@ -96,10 +96,10 @@ const DemoHub: React.FC = () => {
             <Link
               key={demo.id}
               to={demo.path}
-              className={`${logShareTileClass} group flex h-full flex-col p-5 transition duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-[0_22px_70px_rgba(15,23,42,0.08)]`}
+              className={`${logShareTileClass} group flex h-full flex-col p-5 transition duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-sm`}
             >
               <div className="flex items-start justify-between gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-[22px] border border-slate-200 bg-slate-50 text-slate-600 transition group-hover:border-slate-300 group-hover:text-slate-900">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-600 transition group-hover:border-slate-300 group-hover:text-slate-900">
                   <demo.icon className="h-6 w-6" />
                 </div>
                 <div className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-slate-900">
@@ -132,7 +132,7 @@ const DemoHub: React.FC = () => {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {techStack.map((item) => (
             <div key={item.title} className={`${logShareTileClass} p-4`}>
-              <div className="flex h-11 w-11 items-center justify-center rounded-[18px] border border-slate-200 bg-slate-50 text-slate-500">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-500">
                 <item.icon className="h-5 w-5" />
               </div>
               <h3 className="mt-4 text-base font-semibold text-slate-900">{item.title}</h3>

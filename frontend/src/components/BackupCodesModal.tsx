@@ -224,7 +224,7 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
                     <div className="mb-1 flex items-center gap-2 font-semibold">
                       <FaExclamationTriangle />
                       请妥善保存
@@ -232,7 +232,7 @@ ${backupCodes.map((code, index) => `${index + 1}. ${code}`).join('\n')}
                     每个恢复码只能使用一次。重新生成后，旧恢复码会立即失效。
                   </div>
 
-                  <div className="min-h-[236px] rounded-[24px] border border-slate-200 bg-white/90 p-4">
+                  <div className="min-h-[236px] rounded-2xl border border-slate-200 bg-white/90 p-4">
                     {!showCodes ? (
                       <div className="flex min-h-[204px] flex-col items-center justify-center py-6 text-center">
                         <div className="mx-auto mb-3 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">

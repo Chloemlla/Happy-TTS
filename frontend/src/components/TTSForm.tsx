@@ -481,7 +481,7 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
         </motion.div>
 
         <motion.div
-          className="min-w-0 space-y-5 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 sm:p-6"
+          className="min-w-0 space-y-5 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:p-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4 }}

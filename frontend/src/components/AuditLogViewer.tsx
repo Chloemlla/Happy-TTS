@@ -507,7 +507,7 @@ const AuditLogViewer: React.FC = () => {
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white/80 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white/80 shadow-sm backdrop-blur-xl">
         {loading && logs.length === 0 ? (
           <div className="p-8 text-center text-slate-400">加载中...</div>
         ) : logs.length === 0 ? (

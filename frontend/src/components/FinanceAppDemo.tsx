@@ -337,14 +337,14 @@ const FinanceAppDemo: React.FC = () => {
           {/* 第1屏: 首页 (Bento网格) */}
           <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-slate-700 mb-4">首页 - Bento网格布局</h3>
-            <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+            <div className="relative w-[360px] h-[780px] rounded-2xl border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
               <div className="h-full overflow-y-auto no-scrollbar bg-[#f8f9fa] px-4 pt-8 pb-20">
                 {/* Bento网格 */}
                 <div className="grid grid-cols-2 gap-3">
                   {/* 资产卡片 - 跨2列 */}
-                  <div className="col-span-2 relative bg-gradient-to-br from-[#667eea] to-[#764ba2] rounded-[20px] p-5 text-white overflow-hidden group hover:-translate-y-1 hover:shadow-xl transition-all duration-300">
+                  <div className="col-span-2 relative bg-gradient-to-br from-[#667eea] to-[#764ba2] rounded-2xl p-5 text-white overflow-hidden group hover:-translate-y-1 hover:shadow-xl transition-all duration-300">
                     <div className="absolute -top-8 -right-8 w-[100px] h-[100px] rounded-full bg-white/10" />
                     <div className="relative z-10">
                       <div className="text-sm opacity-90 mb-2">总资产（元）</div>
@@ -411,7 +411,7 @@ const FinanceAppDemo: React.FC = () => {
                 </div>
 
                 {/* 浮动添加按钮 */}
-                <button className="fixed bottom-[90px] right-5 z-10 w-[60px] h-[60px] rounded-[18px] bg-gradient-to-br from-[#667eea] to-[#764ba2] text-white flex items-center justify-center shadow-lg hover:scale-110 hover:shadow-2xl transition-all duration-300">
+                <button className="fixed bottom-[90px] right-5 z-10 w-[60px] h-[60px] rounded-2xl bg-gradient-to-br from-[#667eea] to-[#764ba2] text-white flex items-center justify-center shadow-lg hover:scale-110 hover:shadow-2xl transition-all duration-300">
                   <Plus className="w-8 h-8" />
                 </button>
 
@@ -438,7 +438,7 @@ const FinanceAppDemo: React.FC = () => {
           {/* 第2屏: 记账页面 */}
           <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-slate-700 mb-4">记账页面</h3>
-            <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+            <div className="relative w-[360px] h-[780px] rounded-2xl border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
               <div className="h-full flex flex-col bg-white">
@@ -501,7 +501,7 @@ const FinanceAppDemo: React.FC = () => {
                   </div>
 
                   {/* 额外信息 */}
-                  <div className="bg-white rounded-[20px] p-4 shadow-sm border border-black/6 mb-2.5">
+                  <div className="bg-white rounded-2xl p-4 shadow-sm border border-black/6 mb-2.5">
                     {[
                       { label: '备注', value: '午餐' },
                       { label: '日期', value: '今天' },
@@ -547,7 +547,7 @@ const FinanceAppDemo: React.FC = () => {
           {/* 第3屏: 账单详情 */}
           <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-slate-700 mb-4">账单详情</h3>
-            <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+            <div className="relative w-[360px] h-[780px] rounded-2xl border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
               <div className="h-full overflow-y-auto no-scrollbar bg-[#f8f9fa] pb-20">
@@ -557,7 +557,7 @@ const FinanceAppDemo: React.FC = () => {
                     <button
                       key={idx}
                       onClick={() => setSelectedDate(date)}
-                      className={`px-4 py-2.5 rounded-[20px] text-[13px] font-medium whitespace-nowrap border-2 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#667eea]
+                      className={`px-4 py-2.5 rounded-2xl text-[13px] font-medium whitespace-nowrap border-2 transition-all duration-300 hover:-translate-y-0.5 hover:border-[#667eea]
                         ${selectedDate === date ? 'bg-gradient-to-r from-[#667eea] to-[#764ba2] text-white border-transparent shadow-md' : 'bg-white text-[#2c3e50] border-black/6'}
                       `}
                     >
@@ -572,7 +572,7 @@ const FinanceAppDemo: React.FC = () => {
                     { label: '支出', value: '1,860.50', color: 'text-[#ff6b6b]' },
                     { label: '收入', value: '2,580.00', color: 'text-[#52c41a]' }
                   ].map((sum, idx) => (
-                    <div key={idx} className="flex-1 bg-white rounded-[20px] p-6 shadow-sm border border-black/6 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
+                    <div key={idx} className="flex-1 bg-white rounded-2xl p-6 shadow-sm border border-black/6 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
                       <div className="text-xs text-[#95a5a6] mb-2">{sum.label}</div>
                       <div className={`text-2xl font-bold ${sum.color}`}>{sum.value}</div>
                     </div>
@@ -629,7 +629,7 @@ const FinanceAppDemo: React.FC = () => {
           {/* 第4屏: 统计分析 */}
           <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-slate-700 mb-4">统计分析</h3>
-            <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+            <div className="relative w-[360px] h-[780px] rounded-2xl border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
               <div className="h-full overflow-y-auto no-scrollbar bg-[#f8f9fa] pb-20">
@@ -651,13 +651,13 @@ const FinanceAppDemo: React.FC = () => {
                 </div>
 
                 {/* 收支趋势图 */}
-                <div className="mx-5 mt-5 bg-white rounded-[20px] p-6 shadow-sm border border-black/6 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
+                <div className="mx-5 mt-5 bg-white rounded-2xl p-6 shadow-sm border border-black/6 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
                   <h3 className="text-[17px] font-bold text-[#2c3e50] mb-4 tracking-tight">收支趋势</h3>
                   <canvas ref={setCanvasRef(0)} width="320" height="200" />
                 </div>
 
                 {/* 支出分类饼图 */}
-                <div className="mx-5 mt-5 bg-white rounded-[20px] p-6 shadow-sm border border-black/6 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
+                <div className="mx-5 mt-5 bg-white rounded-2xl p-6 shadow-sm border border-black/6 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
                   <h3 className="text-[17px] font-bold text-[#2c3e50] mb-4 tracking-tight">支出分类</h3>
                   <div className="flex items-center gap-5">
                     <canvas ref={setCanvasRef(1)} width="150" height="150" />
@@ -685,7 +685,7 @@ const FinanceAppDemo: React.FC = () => {
                     { label: '日均支出', value: '62.02', unit: '元' },
                     { label: '节余', value: '720', unit: '元' }
                   ].map((metric, idx) => (
-                    <div key={idx} className="bg-white rounded-[18px] p-5 text-center shadow-sm border border-black/6 hover:-translate-y-1 hover:shadow-lg hover:border-[#667eea] transition-all duration-300">
+                    <div key={idx} className="bg-white rounded-2xl p-5 text-center shadow-sm border border-black/6 hover:-translate-y-1 hover:shadow-lg hover:border-[#667eea] transition-all duration-300">
                       <div className="text-[32px] font-bold bg-gradient-to-r from-[#667eea] to-[#764ba2] bg-clip-text text-transparent mb-2">
                         {metric.value}<span className="text-sm">{metric.unit}</span>
                       </div>
@@ -700,12 +700,12 @@ const FinanceAppDemo: React.FC = () => {
           {/* 第5屏: 预算管理 */}
           <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-slate-700 mb-4">预算管理</h3>
-            <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+            <div className="relative w-[360px] h-[780px] rounded-2xl border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
               <div className="h-full overflow-y-auto no-scrollbar bg-[#f8f9fa] px-5 pt-5 pb-20">
                 {/* 预算环形卡片 */}
-                <div className="bg-white rounded-[24px] p-8 text-center shadow-sm border border-black/6 mb-5 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
+                <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-black/6 mb-5 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
                   <div className="relative mx-auto mb-5" style={{ width: '200px', height: '200px' }}>
                     <canvas ref={setCanvasRef(2)} width="200" height="200" />
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -728,7 +728,7 @@ const FinanceAppDemo: React.FC = () => {
                 </div>
 
                 {/* 预算列表 */}
-                <div className="bg-white rounded-[24px] p-6 shadow-sm border border-black/6 hover:shadow-lg transition-all duration-300">
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-black/6 hover:shadow-lg transition-all duration-300">
                   {[
                     { name: '餐饮', budget: 1500, used: 1200, status: 'normal' },
                     { name: '购物', budget: 1000, used: 920, status: 'warning' },
@@ -762,7 +762,7 @@ const FinanceAppDemo: React.FC = () => {
           {/* 第6屏: 图表分析页 */}
           <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-slate-700 mb-4">图表分析</h3>
-            <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+            <div className="relative w-[360px] h-[780px] rounded-2xl border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
               <div className="h-full overflow-y-auto no-scrollbar bg-[#f8f9fa] px-5 pt-5 pb-20">
@@ -811,12 +811,12 @@ const FinanceAppDemo: React.FC = () => {
           {/* 第7屏: 账户管理 */}
           <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-slate-700 mb-4">账户管理</h3>
-            <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+            <div className="relative w-[360px] h-[780px] rounded-2xl border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
               <div className="h-full overflow-y-auto no-scrollbar bg-[#f8f9fa] px-5 pt-5 pb-20">
                 {/* 总资产卡片 */}
-                <div className="bg-gradient-to-br from-[#4facfe] to-[#00f2fe] rounded-[24px] p-8 text-white mb-5 shadow-md border border-white/20 hover:-translate-y-1 hover:shadow-xl transition-all duration-300">
+                <div className="bg-gradient-to-br from-[#4facfe] to-[#00f2fe] rounded-2xl p-8 text-white mb-5 shadow-md border border-white/20 hover:-translate-y-1 hover:shadow-xl transition-all duration-300">
                   <div className="text-sm opacity-90 mb-2">总资产</div>
                   <div className="text-4xl font-light mb-4">¥12,586.50</div>
                 </div>
@@ -831,7 +831,7 @@ const FinanceAppDemo: React.FC = () => {
                   ].map((account, idx) => (
                     <div
                       key={idx}
-                      className="bg-white rounded-[20px] p-5 flex items-center gap-4 shadow-sm border border-black/6 hover:-translate-y-1 hover:shadow-lg hover:border-[#667eea] transition-all duration-300"
+                      className="bg-white rounded-2xl p-5 flex items-center gap-4 shadow-sm border border-black/6 hover:-translate-y-1 hover:shadow-lg hover:border-[#667eea] transition-all duration-300"
                     >
                       <div className={`w-14 h-14 rounded-[16px] bg-gradient-to-br ${account.color} flex items-center justify-center text-[26px] shadow-md`}>
                         {account.icon}
@@ -845,7 +845,7 @@ const FinanceAppDemo: React.FC = () => {
                   ))}
                   
                   {/* 添加账户 */}
-                  <div className="bg-[#f8f9fa] border-2 border-dashed border-[#d0d0d0] rounded-[20px] p-8 text-center text-[#95a5a6] hover:bg-white hover:border-[#667eea] hover:text-[#667eea] hover:-translate-y-1 hover:shadow-md transition-all duration-300 cursor-pointer">
+                  <div className="bg-[#f8f9fa] border-2 border-dashed border-[#d0d0d0] rounded-2xl p-8 text-center text-[#95a5a6] hover:bg-white hover:border-[#667eea] hover:text-[#667eea] hover:-translate-y-1 hover:shadow-md transition-all duration-300 cursor-pointer">
                     <Plus className="w-8 h-8 mx-auto mb-2" />
                     <div className="text-sm">添加新账户</div>
                   </div>
@@ -857,7 +857,7 @@ const FinanceAppDemo: React.FC = () => {
           {/* 第8屏: 分类管理 */}
           <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-slate-700 mb-4">分类管理</h3>
-            <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+            <div className="relative w-[360px] h-[780px] rounded-2xl border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
               <div className="h-full overflow-y-auto no-scrollbar bg-[#f8f9fa] px-5 pt-5 pb-20">
@@ -877,7 +877,7 @@ const FinanceAppDemo: React.FC = () => {
                     ].map((cat, idx) => (
                       <div
                         key={idx}
-                        className="bg-white rounded-[18px] p-4 text-center shadow-sm border border-black/6 hover:-translate-y-1 hover:scale-105 hover:shadow-lg hover:border-[#667eea] transition-all duration-300"
+                        className="bg-white rounded-2xl p-4 text-center shadow-sm border border-black/6 hover:-translate-y-1 hover:scale-105 hover:shadow-lg hover:border-[#667eea] transition-all duration-300"
                       >
                         <div className={`w-[52px] h-[52px] rounded-[16px] bg-gradient-to-br ${cat.color} flex items-center justify-center text-2xl shadow-md mx-auto mb-2.5`}>
                           {cat.icon}
@@ -901,7 +901,7 @@ const FinanceAppDemo: React.FC = () => {
                     ].map((cat, idx) => (
                       <div
                         key={idx}
-                        className="bg-white rounded-[18px] p-4 text-center shadow-sm border border-black/6 hover:-translate-y-1 hover:scale-105 hover:shadow-lg hover:border-[#667eea] transition-all duration-300"
+                        className="bg-white rounded-2xl p-4 text-center shadow-sm border border-black/6 hover:-translate-y-1 hover:scale-105 hover:shadow-lg hover:border-[#667eea] transition-all duration-300"
                       >
                         <div className={`w-[52px] h-[52px] rounded-[16px] bg-gradient-to-br ${cat.color} flex items-center justify-center text-2xl shadow-md mx-auto mb-2.5`}>
                           {cat.icon}
@@ -919,12 +919,12 @@ const FinanceAppDemo: React.FC = () => {
           {/* 第9屏: 设置页面 */}
           <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-slate-700 mb-4">设置页面</h3>
-            <div className="relative w-[360px] h-[780px] rounded-[35px] border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+            <div className="relative w-[360px] h-[780px] rounded-2xl border-[10px] border-[#2a2a2a] bg-white overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150px] h-[25px] bg-[#2a2a2a] rounded-b-[12px] z-10" />
               
               <div className="h-full overflow-y-auto no-scrollbar bg-[#f8f9fa] pb-20">
                 {/* 个人信息头部 */}
-                <div className="bg-gradient-to-br from-[#667eea] to-[#764ba2] px-5 pt-8 pb-7 text-white flex items-center gap-5 rounded-b-[28px] shadow-md">
+                <div className="bg-gradient-to-br from-[#667eea] to-[#764ba2] px-5 pt-8 pb-7 text-white flex items-center gap-5 rounded-b-2xl shadow-md">
                   <div className="w-[70px] h-[70px] rounded-full bg-white flex items-center justify-center text-[32px] shadow-lg">
                     💰
                   </div>
@@ -942,7 +942,7 @@ const FinanceAppDemo: React.FC = () => {
                   {/* 通用设置 */}
                   <div>
                     <h3 className="text-sm font-semibold text-[#95a5a6] uppercase tracking-wide mb-3">通用设置</h3>
-                    <div className="bg-white rounded-[20px] overflow-hidden shadow-sm border border-black/6 hover:shadow-lg transition-shadow">
+                    <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-black/6 hover:shadow-lg transition-shadow">
                       {[
                       { label: '货币单位', value: '人民币（¥）', type: 'arrow' },
                       { label: '月度预算', value: '5,000', type: 'arrow' },
@@ -985,7 +985,7 @@ const FinanceAppDemo: React.FC = () => {
                   {/* 数据管理 */}
                   <div>
                     <h3 className="text-sm font-semibold text-[#95a5a6] uppercase tracking-wide mb-3">数据管理</h3>
-                    <div className="bg-white rounded-[20px] overflow-hidden shadow-sm border border-black/6 hover:shadow-lg transition-shadow">
+                    <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-black/6 hover:shadow-lg transition-shadow">
                       {[
                         { label: '数据备份', value: '', type: 'arrow' },
                         { label: '数据恢复', value: '', type: 'arrow' },
@@ -1009,7 +1009,7 @@ const FinanceAppDemo: React.FC = () => {
                   {/* 关于 */}
                   <div>
                     <h3 className="text-sm font-semibold text-[#95a5a6] uppercase tracking-wide mb-3">关于</h3>
-                    <div className="bg-white rounded-[20px] overflow-hidden shadow-sm border border-black/6 hover:shadow-lg transition-shadow">
+                    <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-black/6 hover:shadow-lg transition-shadow">
                       {[
                         { label: '关于我们', value: '', type: 'arrow' },
                         { label: '隐私政策', value: '', type: 'arrow' },

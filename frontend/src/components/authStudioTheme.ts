@@ -32,7 +32,7 @@ export const authBrandTitleClassName = 'mt-4 text-3xl font-semibold leading-tigh
 export const authBrandSubtitleClassName = 'mt-2 text-sm leading-6 text-slate-600';
 
 export const authCardClassName = studioMainSurfaceClassName;
-export const authCardBodyClassName = 'rounded-[22px] border border-slate-200 bg-white/80 p-5 sm:p-7';
+export const authCardBodyClassName = 'rounded-2xl border border-slate-200 bg-white/80 p-5 sm:p-7';
 export const authCardHeaderClassName = 'mb-6 flex items-start gap-3';
 export const authHeaderBadgeClassName = studioStrongBadgeClassName;
 export const authSoftBadgeClassName = studioSoftBadgeClassName;

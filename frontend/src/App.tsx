@@ -353,9 +353,9 @@ const ANNOUNCEMENT_SUPPRESSED_ROUTES = new Set([
 ]);
 
 const LOADING_CARD_CLASS =
-  'w-full rounded-[36px] border border-white/70 bg-white/88 px-6 py-8 text-center shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl';
+  'w-full rounded-2xl border border-slate-200 bg-white/88 px-6 py-8 text-center shadow-sm backdrop-blur-xl';
 const LOADING_BADGE_CLASS =
-  'mx-auto flex h-14 w-14 items-center justify-center rounded-[26px] bg-slate-100 text-slate-500';
+  'mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-500';
 const LOADING_EYEBROW_CLASS =
   'mt-5 text-sm font-semibold uppercase tracking-[0.26em] text-slate-400';
 
@@ -404,7 +404,7 @@ const NavSlotLoadingBadge: React.FC = () => (
   <div
     role="status"
     aria-label="导航加载中"
-    className="flex h-10 w-10 items-center justify-center rounded-[18px] border border-white/70 bg-white/88 text-slate-500 shadow-[0_8px_24px_rgba(15,23,42,0.08)] backdrop-blur-xl"
+    className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white/88 text-slate-500 shadow-sm backdrop-blur-xl"
   >
     <SimpleLoadingSpinner size={0.6} />
   </div>
@@ -416,7 +416,7 @@ const FooterLoadingShell: React.FC = () => (
     aria-label="底栏加载中"
     className="mx-auto mt-10 flex max-w-7xl items-center justify-center px-4 pb-8"
   >
-    <div className="inline-flex items-center gap-3 rounded-full border border-white/70 bg-white/88 px-4 py-1.5 shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+    <div className="inline-flex items-center gap-3 rounded-full border border-slate-200 bg-white/88 px-4 py-1.5 shadow-sm backdrop-blur-xl">
       <SimpleLoadingSpinner size={0.5} />
       <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-400">
         Synapse Edge
@@ -445,7 +445,7 @@ const NotFoundPage: React.FC<{ path: string }> = ({ path }) => {
 
   return (
     <section className="mx-auto max-w-4xl px-4 py-12 sm:py-20">
-      <div className="relative overflow-hidden rounded-[34px] border border-slate-200/80 bg-white/92 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10">
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/92 p-6 shadow-sm backdrop-blur-xl sm:p-10">
         <div className="absolute -right-12 top-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(59,130,246,0.22),_transparent_68%)]" />
         <div className="absolute -left-10 bottom-0 h-32 w-32 rounded-full bg-[radial-gradient(circle,_rgba(14,165,233,0.16),_transparent_70%)]" />
         <div className="relative">
@@ -458,7 +458,7 @@ const NotFoundPage: React.FC<{ path: string }> = ({ path }) => {
           <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
             链接可能已经失效、地址输入有误，或者这个页面还没有被正式挂载。
           </p>
-          <div className="mt-6 rounded-[22px] border border-dashed border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-500">
+          <div className="mt-6 rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-4 py-3 text-sm text-slate-500">
             当前路径：<code className="break-all font-medium text-slate-700">{path}</code>
           </div>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -1609,7 +1609,7 @@ const App: React.FC = () => {
                     aria-modal="true"
                     aria-labelledby="totp-manager-title"
                     aria-describedby="totp-manager-hint"
-                    className="max-h-[90vh] w-full max-w-5xl overflow-y-auto overscroll-contain rounded-[34px] border border-white/70 bg-white/92 shadow-[0_28px_110px_rgba(15,23,42,0.16)] backdrop-blur-xl"
+                    className="max-h-[90vh] w-full max-w-5xl overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white/92 shadow-sm backdrop-blur-xl"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div className="p-6">

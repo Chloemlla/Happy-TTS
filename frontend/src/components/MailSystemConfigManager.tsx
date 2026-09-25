@@ -19,9 +19,9 @@ import {
 const MAIL_SYSTEM_API = `${getApiBaseUrl()}/api/admin/email-system/setting`;
 
 const LOADING_CARD_CLASS =
-  'w-full rounded-[36px] border border-white/70 bg-white/88 px-6 py-8 text-center shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl';
+  'w-full rounded-2xl border border-slate-200 bg-white/88 px-6 py-8 text-center shadow-sm backdrop-blur-xl';
 const LOADING_BADGE_CLASS =
-  'mx-auto flex h-14 w-14 items-center justify-center rounded-[26px] bg-slate-100 text-slate-500';
+  'mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-500';
 const LOADING_EYEBROW_CLASS =
   'mt-5 text-sm font-semibold uppercase tracking-[0.26em] text-slate-400';
 
@@ -105,7 +105,7 @@ function MailLoadingShell() {
 function StatusPill(props: { label: string; status?: ServiceStatus }) {
   const available = Boolean(props.status?.available);
   return (
-    <div className="flex min-w-0 items-center justify-between gap-3 rounded-[22px] border border-white/70 bg-white/88 px-4 py-3 shadow-[0_12px_36px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+    <div className="flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/88 px-4 py-3 shadow-sm backdrop-blur-xl">
       <div className="min-w-0">
         <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">{props.label}</div>
         <div className="mt-1 truncate text-sm text-slate-600">
@@ -136,7 +136,7 @@ function ToggleField(props: {
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className={`flex items-center justify-between gap-4 rounded-[22px] border border-white/70 bg-white/88 px-4 py-3 shadow-[0_12px_36px_rgba(15,23,42,0.06)] backdrop-blur-xl ${props.disabled ? 'opacity-60' : 'cursor-pointer'}`}>
+    <label className={`flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white/88 px-4 py-3 shadow-sm backdrop-blur-xl ${props.disabled ? 'opacity-60' : 'cursor-pointer'}`}>
       <span className="text-sm font-semibold text-slate-700">{props.label}</span>
       <input
         type="checkbox"
@@ -333,7 +333,7 @@ const MailSystemConfigManager: React.FC = () => {
         <div className="mt-5 grid gap-3 md:grid-cols-3">
           <StatusPill label="Mail Service" status={emailStatus} />
           <StatusPill label="OutEmail" status={outemailStatus} />
-          <div className="rounded-[22px] border border-white/70 bg-white/88 px-4 py-3 shadow-[0_12px_36px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+          <div className="rounded-2xl border border-slate-200 bg-white/88 px-4 py-3 shadow-sm backdrop-blur-xl">
             <div className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Domains</div>
             <div className="mt-1 truncate text-sm text-slate-600">{domains.length ? domains.join(', ') : '-'}</div>
           </div>

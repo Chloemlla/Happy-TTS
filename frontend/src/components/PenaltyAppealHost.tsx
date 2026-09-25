@@ -81,7 +81,7 @@ export const PenaltyAppealHost: React.FC = () => {
                   {payload.reason || '当前权限受限，请通过下方方式联系支持。'}
                 </p>
                 {payload.details && (
-                  <div className="mt-3 whitespace-pre-line rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-900">
+                  <div className="mt-3 whitespace-pre-line rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm leading-6 text-rose-900">
                     {payload.details}
                   </div>
                 )}
@@ -98,7 +98,7 @@ export const PenaltyAppealHost: React.FC = () => {
 
             {!ticketEnabled ? (
               <div className="space-y-4">
-                <div className="rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
                   工单权限当前不可用，请通过支持邮箱申诉。
                 </div>
                 <a

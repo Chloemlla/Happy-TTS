@@ -124,7 +124,7 @@ const AccountSwitchCard = memo(function AccountSwitchCard({
 }: AccountSwitchCardProps) {
   return (
     <m.div
-      className="flex min-w-0 items-center gap-2 rounded-[20px] border border-slate-200 bg-white/80 p-2.5 transition hover:border-slate-300 hover:bg-white"
+      className="flex min-w-0 items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 p-2.5 transition hover:border-slate-300 hover:bg-white"
       whileHover={{ y: -2 }}
     >
       <button
@@ -270,7 +270,7 @@ function WelcomePageComponent(): React.ReactElement<any> {
               variants={effectiveHeaderVariants}
               transition={effectiveAuthTransition}
             >
-              <div className="rounded-[22px] border border-slate-200 bg-white/80 p-4 sm:p-6">
+              <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 sm:p-6">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-3">
                     <div className={studioStrongBadgeClassName}>
@@ -350,7 +350,7 @@ function WelcomePageComponent(): React.ReactElement<any> {
               <p className="mt-4 text-sm leading-7 text-slate-600">
                 登录后将回到 Synapse 工作台，使用与文本转语音页面一致的表单、结果与历史记录体验。
               </p>
-              <div className="mt-5 rounded-[20px] border border-slate-200 bg-slate-50/80 p-4">
+              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                 <div className={studioEyebrowClassName}>Daily Flow</div>
                 <div className="mt-3 space-y-2 text-sm text-slate-600">
                   <div className="flex items-center justify-between gap-3">

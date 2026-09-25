@@ -590,7 +590,7 @@ const TicketSystem: React.FC = () => {
                   </p>
                   {penaltyAppeal && (
                     <div className="mt-4 max-w-xl">
-                      <div className="mb-2 rounded-[18px] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
+                      <div className="mb-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
                         <div className="font-semibold">{penaltyAppeal.title}</div>
                         <div className="mt-1 leading-6">{penaltyAppeal.reason}</div>
                         {penaltyAppeal.details && (
@@ -608,7 +608,7 @@ const TicketSystem: React.FC = () => {
                   )}
                 </div>
                 <div className="hidden w-full md:block md:w-auto md:max-w-sm">
-                  <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 sm:rounded-2xl">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:rounded-2xl">
                     <div className={cn(studioEyebrowClassName, "flex items-center gap-2")}>
                       <FiInfo className="text-slate-500" />
                       功能说明
@@ -856,7 +856,7 @@ const TicketSystem: React.FC = () => {
                                     />
                                     <div
                                       className={cn(
-                                        "text-center py-2.5 rounded-[18px] border cursor-pointer transition-all text-xs sm:text-sm font-semibold sm:rounded-2xl",
+                                        "text-center py-2.5 rounded-2xl border cursor-pointer transition-all text-xs sm:text-sm font-semibold sm:rounded-2xl",
                                         isActive ? toneActiveClass : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700",
                                       )}
                                     >
@@ -984,11 +984,11 @@ const TicketSystem: React.FC = () => {
                                 </div>
 
                                 <div className={cn(
-                                  "relative rounded-[22px] p-3.5 sm:p-4 sm:rounded-[24px] transition-shadow",
+                                  "relative rounded-2xl p-3.5 sm:p-4 sm:rounded-2xl transition-shadow",
                                   isMe
-                                    ? "bg-slate-900 text-white rounded-tr-[10px] shadow-[0_10px_30px_rgba(15,23,42,0.18)]"
+                                    ? "bg-slate-900 text-white rounded-tr-[10px] shadow-sm"
                                     : isAi
-                                      ? "bg-white border border-slate-200 text-slate-900 rounded-tl-[10px] shadow-[0_6px_24px_rgba(15,23,42,0.06)]"
+                                      ? "bg-white border border-slate-200 text-slate-900 rounded-tl-[10px] shadow-sm"
                                       : "bg-slate-50 border border-slate-200 text-slate-900 rounded-tl-[10px]",
                                 )}>
                                   {isAdminMsg && (
@@ -1075,7 +1075,7 @@ const TicketSystem: React.FC = () => {
                                 <div className="flex items-center gap-2 mb-1 text-[10px] text-slate-400 justify-start">
                                   <span className="font-semibold text-slate-500">🤖 智能助手 (正在输入...)</span>
                                 </div>
-                                <div className="relative rounded-[22px] p-3.5 sm:p-4 bg-white border border-slate-200 text-slate-900 rounded-tl-[10px] shadow-[0_6px_24px_rgba(15,23,42,0.06)] sm:rounded-[24px]">
+                                <div className="relative rounded-2xl p-3.5 sm:p-4 bg-white border border-slate-200 text-slate-900 rounded-tl-[10px] shadow-sm sm:rounded-2xl">
                                   <MarkdownRenderer content={streamingAiResponse.content} density="compact" />
                                   <span className="inline-block w-1.5 h-4 ml-1 bg-slate-700 animate-pulse align-middle" />
                                 </div>
@@ -1092,7 +1092,7 @@ const TicketSystem: React.FC = () => {
                               exit={{ opacity: 0, scale: 0.96 }}
                               className="flex justify-start mb-4"
                             >
-                              <div className="rounded-[22px] border border-slate-200 bg-slate-50 px-4 py-3 shadow-[0_6px_24px_rgba(15,23,42,0.06)] flex items-center gap-3">
+                              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm flex items-center gap-3">
                                 <div className="flex gap-1">
                                   <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce" />
                                   <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-bounce delay-75" />
@@ -1151,7 +1151,7 @@ const TicketSystem: React.FC = () => {
                           )}
                           <form
                             onSubmit={handleReply}
-                            className="flex items-center gap-2 rounded-[22px] border border-slate-200 bg-white p-1.5 shadow-[0_6px_18px_rgba(15,23,42,0.04)] focus-within:border-slate-300 transition sm:rounded-full"
+                            className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-[0_6px_18px_rgba(15,23,42,0.04)] focus-within:border-slate-300 transition sm:rounded-full"
                           >
                             <input
                               type="text"
@@ -1186,7 +1186,7 @@ const TicketSystem: React.FC = () => {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                     >
-                      <div className="flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-[26px] border border-slate-200 bg-slate-50 text-slate-400 mb-4 shadow-inner sm:rounded-[30px]">
+                      <div className="flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-400 mb-4 shadow-inner sm:rounded-2xl">
                         <FiMessageSquare size={isMobile ? 32 : 40} />
                       </div>
                       <h3 className="text-lg sm:text-xl font-semibold text-slate-700 mb-2 text-center" style={{ fontFamily: studioDisplayFont }}>选择一个工单</h3>
@@ -1212,7 +1212,7 @@ const TicketSystem: React.FC = () => {
             className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[60] w-[90%] max-w-md pointer-events-none"
           >
             <div className={cn(
-              "pointer-events-auto rounded-[24px] border bg-white/95 backdrop-blur-md p-4 shadow-[0_24px_80px_rgba(15,23,42,0.18)] flex items-center gap-4 transition-colors",
+              "pointer-events-auto rounded-2xl border bg-white/95 backdrop-blur-md p-4 shadow-sm flex items-center gap-4 transition-colors",
               processingStep === 'audit_failed' || processingStep === 'error'
                 ? 'border-rose-200'
                 : 'border-slate-200',

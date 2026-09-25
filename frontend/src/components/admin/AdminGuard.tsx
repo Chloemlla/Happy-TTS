@@ -227,7 +227,7 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
         <InfoPanel>
           <div className='flex min-h-[360px] items-center justify-center'>
             <div className='text-center'>
-              <div className='mx-auto flex h-14 w-14 items-center justify-center rounded-[26px] bg-slate-100 text-slate-500'>
+              <div className='mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-500'>
                 <SimpleLoadingSpinner size={0.75} />
               </div>
               <div className='mt-5 text-sm font-semibold uppercase tracking-[0.26em] text-slate-400'>
@@ -249,7 +249,7 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
         <InfoPanel className='border-amber-100'>
           <div className='flex min-h-[360px] items-center justify-center'>
             <div className='max-w-md text-center'>
-              <div className='mx-auto flex h-14 w-14 items-center justify-center rounded-[26px] bg-amber-50 text-amber-700 ring-1 ring-amber-100'>
+              <div className='mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-700 ring-1 ring-amber-100'>
                 <FaExclamationCircle className='h-6 w-6' />
               </div>
               <div className='mt-5 text-sm font-semibold uppercase tracking-[0.26em] text-slate-400'>
@@ -283,7 +283,7 @@ export const AdminGuard: React.FC<AdminGuardProps> = ({ children }) => {
         <InfoPanel className='border-rose-100'>
           <div className='flex min-h-[360px] items-center justify-center'>
             <div className='max-w-md text-center'>
-              <div className='mx-auto flex h-14 w-14 items-center justify-center rounded-[26px] bg-rose-50 text-rose-700 ring-1 ring-rose-100'>
+              <div className='mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-rose-50 text-rose-700 ring-1 ring-rose-100'>
                 <FaShieldAlt className='h-6 w-6' />
               </div>
               <div className='mt-5 text-sm font-semibold uppercase tracking-[0.26em] text-slate-400'>

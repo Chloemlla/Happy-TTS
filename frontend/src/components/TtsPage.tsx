@@ -238,7 +238,7 @@ export const TtsPage: React.FC = () => {
             <div className="w-full lg:w-auto lg:max-w-sm">
               <div
                 ref={noticeRef as React.RefObject<HTMLDivElement | null>}
-                className="min-w-0 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 sm:rounded-2xl"
+                className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:rounded-2xl"
               >
                 <div className={cn(studioEyebrowClassName, "flex items-center gap-2")}>
                   <FaInfoCircle className="text-slate-500" />
@@ -275,7 +275,7 @@ export const TtsPage: React.FC = () => {
             transition={{ duration: 0.5, delay: 0.05 }}
             className={cn(studioMainSurfaceClassName, "w-full max-w-full")}
           >
-            <div className="min-w-0 max-w-full overflow-hidden rounded-[22px] border border-slate-200 bg-white/80 p-4 sm:p-6">
+            <div className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-slate-200 bg-white/80 p-4 sm:p-6">
               <TtsForm
                 loading={loading}
                 error={error}
@@ -307,7 +307,7 @@ export const TtsPage: React.FC = () => {
                 </div>
 
                 <div className="min-w-0 space-y-4">
-                  <div className="min-w-0 rounded-[20px] border border-emerald-100 bg-emerald-50/70 p-4 sm:rounded-2xl">
+                  <div className="min-w-0 rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4 sm:rounded-2xl">
                     <p className="text-sm font-medium leading-6 text-emerald-900">{result.message}</p>
                     {usageSummary && (
                       <p className="mt-2 text-xs leading-5 text-emerald-700">{usageSummary}</p>
@@ -319,7 +319,7 @@ export const TtsPage: React.FC = () => {
                     )}
                   </div>
 
-                  <div className="min-w-0 rounded-[20px] border border-slate-200 bg-white p-4 text-xs leading-5 text-slate-600 sm:rounded-2xl">
+                  <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 text-xs leading-5 text-slate-600 sm:rounded-2xl">
                     <div className={studioEyebrowClassName}>Generated Text</div>
                     <p className="mt-2 break-words text-sm leading-6 text-slate-800">
                       {result.text || "未返回生成文本"}
@@ -342,7 +342,7 @@ export const TtsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="min-w-0 rounded-[20px] border border-slate-200 bg-slate-50 p-3 sm:rounded-2xl">
+                  <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:rounded-2xl">
                     <audio
                       ref={audioRef}
                       controls

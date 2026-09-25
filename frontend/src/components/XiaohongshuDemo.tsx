@@ -502,7 +502,7 @@ const XiaohongshuDemo: React.FC = () => {
       }}
     >
       {/* 顶部导航栏 */}
-      <header className="fixed top-0 left-0 right-0 z-[1000] h-[60px] px-5 border-b shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl"
+      <header className="fixed top-0 left-0 right-0 z-[1000] h-[60px] px-5 border-b shadow-sm backdrop-blur-xl"
         style={{
           backgroundColor: 'rgba(255,255,255,0.88)',
           borderBottomColor: 'var(--border-color)'
@@ -616,7 +616,7 @@ const XiaohongshuDemo: React.FC = () => {
             {displayedCards.map((card, index) => (
               <div
                 key={card.id}
-                className="rounded-[22px] border overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1 animate-[fadeIn_0.5s_ease-out]"
+                className="rounded-2xl border overflow-hidden cursor-pointer transition-all duration-300 hover:-translate-y-1 animate-[fadeIn_0.5s_ease-out]"
                 style={{
                   backgroundColor: 'var(--bg-color)',
                   borderColor: 'var(--border-color)',
@@ -728,7 +728,7 @@ const XiaohongshuDemo: React.FC = () => {
           onClick={closeModal}
         >
           <div
-            className="relative w-full max-w-[900px] lg:max-w-[1200px] max-h-[90vh] rounded-[26px] border overflow-hidden animate-[slideUp_0.3s_ease-out] flex flex-col lg:flex-row"
+            className="relative w-full max-w-[900px] lg:max-w-[1200px] max-h-[90vh] rounded-2xl border overflow-hidden animate-[slideUp_0.3s_ease-out] flex flex-col lg:flex-row"
             style={{ backgroundColor: 'var(--bg-color)', borderColor: 'var(--border-color)' }}
             onClick={(e) => e.stopPropagation()}
           >

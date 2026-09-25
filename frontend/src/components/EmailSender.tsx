@@ -649,7 +649,7 @@ const EmailSender: React.FC = () => {
   return (
     <div className="min-h-0 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.18),_transparent_32%),linear-gradient(180deg,#f8fafc_0%,#eef6ff_48%,#ffffff_100%)]">
       <div className="mx-auto w-full max-w-none px-0 py-0">
-        <div className="mb-6 rounded-[28px] border border-sky-100 bg-white/90 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.08)] backdrop-blur">
+        <div className="mb-6 rounded-2xl border border-sky-100 bg-white/90 p-6 shadow-sm backdrop-blur">
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
               <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold tracking-[0.18em] text-sky-700">
@@ -743,7 +743,7 @@ const EmailSender: React.FC = () => {
             >
               <div className="space-y-6">
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
@@ -766,7 +766,7 @@ const EmailSender: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="text-xs uppercase tracking-[0.16em] text-slate-500">
@@ -790,7 +790,7 @@ const EmailSender: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="mb-4 flex items-center justify-between">
                     <div>
                       <h2 className="text-xl font-black text-slate-900">
@@ -863,7 +863,7 @@ const EmailSender: React.FC = () => {
               </div>
 
               <div className="space-y-6">
-                <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <h2 className="text-xl font-black text-slate-900">
                     管理动作入口
                   </h2>
@@ -917,7 +917,7 @@ const EmailSender: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <h2 className="text-xl font-black text-slate-900">
                     当前治理状态
                   </h2>
@@ -969,7 +969,7 @@ const EmailSender: React.FC = () => {
               exit={{ opacity: 0, y: -18 }}
               className="grid gap-6 xl:grid-cols-[1.6fr_1fr]"
             >
-              <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                   <div>
                     <h2 className="text-xl font-black text-slate-900">
@@ -1193,7 +1193,7 @@ const EmailSender: React.FC = () => {
               </div>
 
               <div className="space-y-6">
-                <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <h3 className="text-lg font-black text-slate-900">
                     实时预览
                   </h3>
@@ -1217,7 +1217,7 @@ const EmailSender: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <h3 className="text-lg font-black text-slate-900">
                     发送侧说明
                   </h3>
@@ -1241,7 +1241,7 @@ const EmailSender: React.FC = () => {
               className="grid gap-6 xl:grid-cols-[1.05fr_1.2fr]"
             >
               <div className="space-y-6">
-                <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <h2 className="text-xl font-black text-slate-900">
                     公开外发运行状态
                   </h2>
@@ -1307,7 +1307,7 @@ const EmailSender: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                   <h2 className="text-xl font-black text-slate-900">
                     公开外发治理原则
                   </h2>
@@ -1320,7 +1320,7 @@ const EmailSender: React.FC = () => {
                 </div>
               </div>
 
-              <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="text-xl font-black text-slate-900">
@@ -1417,7 +1417,7 @@ const EmailSender: React.FC = () => {
               exit={{ opacity: 0, y: -18 }}
               className="grid gap-6 xl:grid-cols-[1fr_1fr]"
             >
-              <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="mb-4 flex items-center gap-2">
                   <FaShieldAlt className="text-sky-500" />
                   <h2 className="text-xl font-black text-slate-900">
@@ -1477,7 +1477,7 @@ const EmailSender: React.FC = () => {
                 </div>
               </div>
 
-              <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="mb-4 flex items-center gap-2">
                   <FaInfoCircle className="text-teal-500" />
                   <h2 className="text-xl font-black text-slate-900">
@@ -1546,7 +1546,7 @@ const EmailSender: React.FC = () => {
               exit={{ opacity: 0, y: -18 }}
               className="space-y-6"
             >
-              <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <h2 className="text-xl font-black text-slate-900">
                   常用邮件模板
                 </h2>
@@ -1557,7 +1557,7 @@ const EmailSender: React.FC = () => {
                   {htmlTemplates.map((template) => (
                     <div
                       key={template.name}
-                      className="rounded-[24px] border border-slate-200 bg-slate-50 p-5"
+                      className="rounded-2xl border border-slate-200 bg-slate-50 p-5"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div>
@@ -1591,7 +1591,7 @@ const EmailSender: React.FC = () => {
                 </div>
               </div>
 
-              <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <h2 className="text-xl font-black text-slate-900">
                   管理台使用说明
                 </h2>

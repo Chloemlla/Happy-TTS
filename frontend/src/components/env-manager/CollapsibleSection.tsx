@@ -21,7 +21,7 @@ const CollapsibleSection = React.memo(function CollapsibleSection({
   return (
     <m.section
       data-env-section={sectionKey}
-      className="rounded-2xl border border-slate-200 bg-white/80 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl"
+      className="rounded-2xl border border-slate-200 bg-white/80 shadow-sm backdrop-blur-xl"
       initial={ENTER_INITIAL}
       animate={ENTER_ANIMATE}
       transition={prefersReducedMotion ? NO_DURATION : DURATION_06}

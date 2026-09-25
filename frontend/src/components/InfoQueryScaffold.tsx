@@ -85,7 +85,7 @@ export const InfoQueryHero: React.FC<{
   const classes = getInfoToneClasses(tone);
 
   return (
-    <section className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10">
+    <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/88 p-6 shadow-sm backdrop-blur-xl sm:p-10">
       <div className={`pointer-events-none absolute inset-x-0 top-0 h-1 ${classes.accent}`} />
       <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-3xl">
@@ -118,7 +118,7 @@ export const InfoPanel: React.FC<{
   className?: string;
   compact?: boolean;
 }> = ({ children, className = '', compact = false }) => (
-  <section className={`relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl ${compact ? 'p-4' : 'p-5 sm:p-7'} ${className}`}>
+  <section className={`relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 shadow-sm backdrop-blur-xl ${compact ? 'p-4' : 'p-5 sm:p-7'} ${className}`}>
     {children}
   </section>
 );
@@ -133,14 +133,14 @@ export const InfoMetricCard: React.FC<{
   const classes = getInfoToneClasses(tone);
 
   return (
-    <div className="rounded-[24px] border border-white/70 bg-white/82 p-4 shadow-[0_10px_32px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+    <div className="rounded-2xl border border-slate-200 bg-white/82 p-4 shadow-sm backdrop-blur-xl">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
           <div className="mt-2 text-xl font-semibold text-slate-950 sm:text-2xl">{value}</div>
           {detail && <p className="mt-2 text-xs leading-5 text-slate-500">{detail}</p>}
         </div>
-        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[18px] ring-1 ${classes.icon}`}>
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ring-1 ${classes.icon}`}>
           <Icon className="h-4 w-4" />
         </div>
       </div>

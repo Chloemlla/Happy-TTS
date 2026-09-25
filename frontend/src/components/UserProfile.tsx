@@ -1281,7 +1281,7 @@ const UserProfile: React.FC = () => {
                 {statusCards.map((item) => (
                   <div
                     key={item.label}
-                    className={`min-w-0 rounded-[22px] border px-3 py-2.5 sm:rounded-2xl sm:px-4 sm:py-3 ${item.tone}`}
+                    className={`min-w-0 rounded-2xl border px-3 py-2.5 sm:rounded-2xl sm:px-4 sm:py-3 ${item.tone}`}
                   >
                     <div className="text-[10px] uppercase tracking-[0.24em] text-slate-400">{item.label}</div>
                     <div className="mt-2 break-words text-sm font-semibold text-slate-800">{item.value}</div>
@@ -1348,7 +1348,7 @@ const UserProfile: React.FC = () => {
             </div>
 
             {/* Email field */}
-            <section className="mb-4 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
+            <section className="mb-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
               <label className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                 <FaEnvelope />
                 邮箱地址
@@ -1364,7 +1364,7 @@ const UserProfile: React.FC = () => {
 
               {/* Email change code */}
               {isSecuritySessionActive && emailChanged && (
-                <div className="mt-4 rounded-[20px] border border-slate-200 bg-white/80 p-3.5 sm:p-4">
+                <div className="mt-4 rounded-2xl border border-slate-200 bg-white/80 p-3.5 sm:p-4">
                   <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                     新邮箱验证
                   </div>
@@ -1397,7 +1397,7 @@ const UserProfile: React.FC = () => {
               )}
             </section>
 
-            <section className="mb-4 rounded-[24px] border border-slate-200 bg-white p-4 sm:rounded-[28px] sm:p-5">
+            <section className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 sm:rounded-2xl sm:p-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
@@ -1421,14 +1421,14 @@ const UserProfile: React.FC = () => {
                   pendingChanges.map((item) => (
                     <div
                       key={item}
-                    className="flex items-start gap-3 rounded-[20px] border border-slate-200 bg-white/80 px-3.5 py-3 text-[13px] text-slate-700 sm:text-sm"
+                    className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white/80 px-3.5 py-3 text-[13px] text-slate-700 sm:text-sm"
                     >
                       <FaCheckCircle className="mt-0.5 shrink-0 text-emerald-500" />
                       <span>{item}</span>
                     </div>
                   ))
                 ) : (
-                  <div className="flex items-start gap-3 rounded-[20px] border border-amber-100 bg-amber-50 px-3.5 py-3 text-[13px] text-amber-700 sm:rounded-2xl sm:text-sm">
+                  <div className="flex items-start gap-3 rounded-2xl border border-amber-100 bg-amber-50 px-3.5 py-3 text-[13px] text-amber-700 sm:rounded-2xl sm:text-sm">
                     <FaExclamationCircle className="mt-0.5 shrink-0" />
                     <span>当前没有未保存的资料变更。邮箱修改、密码草稿和验证有效期会显示在这里。</span>
                   </div>
@@ -1436,7 +1436,7 @@ const UserProfile: React.FC = () => {
               </div>
 
               {isSecuritySessionActive && verificationTimeLeft > 0 && (
-                <div className="mt-4 rounded-[20px] border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-[13px] text-emerald-700 sm:rounded-2xl sm:text-sm">
+                <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-[13px] text-emerald-700 sm:rounded-2xl sm:text-sm">
                   <div className="flex items-center gap-2 font-semibold">
                     <FaClock />
                     身份验证有效期
@@ -1449,7 +1449,7 @@ const UserProfile: React.FC = () => {
             </section>
 
             {/* Identity verification section */}
-            <section className="mb-4 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
+            <section className="mb-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
@@ -1470,7 +1470,7 @@ const UserProfile: React.FC = () => {
                   {isSecuritySessionActive ? '会话有效' : '建立安全会话'}
                 </button>
               </div>
-              <div className={`mt-4 rounded-[20px] border px-3 py-3 text-[13px] font-medium sm:rounded-2xl sm:text-sm ${
+              <div className={`mt-4 rounded-2xl border px-3 py-3 text-[13px] font-medium sm:rounded-2xl sm:text-sm ${
                 isSecuritySessionActive
                   ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                   : 'border-amber-100 bg-amber-50 text-amber-700'
@@ -1508,7 +1508,7 @@ const UserProfile: React.FC = () => {
             />
 
             {/* Password change section */}
-            <section className="mb-4 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
+            <section className="mb-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <label className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
                   <FaKey />
@@ -1530,7 +1530,7 @@ const UserProfile: React.FC = () => {
               </div>
               {changePwdMode && (
                 <div className="mt-4 space-y-3">
-                  <div className="rounded-[20px] border border-slate-200 bg-white/80 px-3.5 py-3 text-[13px] leading-6 text-slate-600 sm:text-sm">
+                  <div className="rounded-2xl border border-slate-200 bg-white/80 px-3.5 py-3 text-[13px] leading-6 text-slate-600 sm:text-sm">
                     密码修改会复用上方安全会话，不需要在这里再次输入旧密码。
                   </div>
                   <div>
@@ -1606,7 +1606,7 @@ const UserProfile: React.FC = () => {
                 ].map((tip) => (
                   <div
                     key={tip}
-                    className="rounded-[20px] border border-white/10 bg-white/5 px-3.5 py-3 text-[13px] text-slate-200 sm:rounded-2xl sm:px-4 sm:text-sm"
+                    className="rounded-2xl border border-white/10 bg-white/5 px-3.5 py-3 text-[13px] text-slate-200 sm:rounded-2xl sm:px-4 sm:text-sm"
                   >
                     {tip}
                   </div>
@@ -1641,7 +1641,7 @@ const UserProfile: React.FC = () => {
 
             <div className="space-y-4">
               {/* Password */}
-              <div className="rounded-[22px] border border-slate-200 p-4 transition hover:border-slate-300">
+              <div className="rounded-2xl border border-slate-200 p-4 transition hover:border-slate-300">
                 <div className="mb-3 flex items-center gap-3">
                   <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-slate-100">
                     <FaLock className="text-sm text-slate-600" />
@@ -1672,7 +1672,7 @@ const UserProfile: React.FC = () => {
 
               {/* TOTP */}
               {totpStatus?.enabled && (
-                <div className="rounded-[22px] border border-slate-200 p-4 transition hover:border-slate-300">
+                <div className="rounded-2xl border border-slate-200 p-4 transition hover:border-slate-300">
                   <div className="mb-3 flex items-center gap-3">
                     <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-sky-100">
                       <FaShieldAlt className="text-sm text-sky-600" />
@@ -1702,7 +1702,7 @@ const UserProfile: React.FC = () => {
 
               {/* Passkey */}
               {totpStatus?.hasPasskey && (
-                <div className="rounded-[22px] border border-slate-200 p-4 transition hover:border-emerald-300/50">
+                <div className="rounded-2xl border border-slate-200 p-4 transition hover:border-emerald-300/50">
                   <div className="mb-3 flex items-center gap-3">
                     <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-emerald-100">
                       <FaLock className="text-sm text-emerald-600" />
@@ -1764,7 +1764,7 @@ const UserProfile: React.FC = () => {
             </div>
 
             <div className="grid min-w-0 gap-3 sm:grid-cols-2">
-              <div className="rounded-[20px] border border-slate-200 bg-slate-50/80 p-3.5">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3.5">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">源账号</div>
                 <div className="mt-2 text-sm font-semibold text-slate-900">{mergePreview.sourceAccount.username}</div>
                 <div className="mt-1 break-all text-[12px] text-slate-500">{mergePreview.sourceAccount.email}</div>
@@ -1772,7 +1772,7 @@ const UserProfile: React.FC = () => {
                   {mergePreview.sourceAccount.role} · {mergePreview.sourceAccount.accountStatus}
                 </div>
               </div>
-              <div className="rounded-[20px] border border-emerald-200 bg-emerald-50 p-3.5">
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3.5">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-600">目标账号</div>
                 <div className="mt-2 text-sm font-semibold text-slate-900">{mergePreview.targetAccount.username}</div>
                 <div className="mt-1 break-all text-[12px] text-slate-600">{mergePreview.targetAccount.email}</div>
@@ -1788,7 +1788,7 @@ const UserProfile: React.FC = () => {
                 {mergePreview.mergeItems.map((item) => (
                   <div
                     key={item.key}
-                    className="flex items-center justify-between gap-3 rounded-[18px] border border-slate-100 bg-white px-3 py-2 text-[12px]"
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-white px-3 py-2 text-[12px]"
                   >
                     <span className="min-w-0">
                       <span className="block truncate font-semibold text-slate-800">{item.label}</span>
@@ -1809,7 +1809,7 @@ const UserProfile: React.FC = () => {
                   {mergePreview.riskItems.map((risk) => (
                     <div
                       key={risk.key}
-                      className={`rounded-[18px] border px-3 py-2 text-[12px] leading-5 ${
+                      className={`rounded-2xl border px-3 py-2 text-[12px] leading-5 ${
                         risk.blocking
                           ? 'border-rose-200 bg-rose-50 text-rose-700'
                           : risk.severity === 'high'
@@ -1825,7 +1825,7 @@ const UserProfile: React.FC = () => {
               </div>
             )}
 
-            <div className="mt-5 space-y-2 rounded-[20px] border border-slate-200 bg-slate-50/80 p-3.5 text-[13px] text-slate-700">
+            <div className="mt-5 space-y-2 rounded-2xl border border-slate-200 bg-slate-50/80 p-3.5 text-[13px] text-slate-700">
               <label className="flex items-start gap-2">
                 <input
                   type="checkbox"

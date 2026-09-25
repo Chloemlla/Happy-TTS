@@ -151,7 +151,7 @@ function Modal({
         onClick={onClose}
       >
         <motion.div
-          className="w-full max-w-2xl rounded-[28px] border border-white/20 bg-white p-6 shadow-[0_25px_80px_rgba(2,48,71,0.22)] max-h-[90vh] overflow-y-auto overscroll-contain"
+          className="w-full max-w-2xl rounded-2xl border border-white/20 bg-white p-6 shadow-sm max-h-[90vh] overflow-y-auto overscroll-contain"
           initial={{ opacity: 0, y: 18, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 18, scale: 0.98 }}
@@ -502,7 +502,7 @@ const ModListEditor: React.FC = () => {
     return (
       <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(142,202,230,0.28),_transparent_38%),linear-gradient(180deg,_#f8fcff_0%,_#eef7fb_100%)] px-4 py-10 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-6xl space-y-6">
-          <section className="overflow-hidden rounded-[32px] border border-[#8ECAE6]/30 bg-white/90 p-8 shadow-[0_24px_70px_rgba(2,48,71,0.10)] backdrop-blur">
+          <section className="overflow-hidden rounded-2xl border border-[#8ECAE6]/30 bg-white/90 p-8 shadow-sm backdrop-blur">
             <div className="flex items-start gap-4">
               <div className="rounded-2xl bg-[#219EBC]/12 p-4 text-[#219EBC]">
                 <FaEye className="h-6 w-6" />
@@ -519,7 +519,7 @@ const ModListEditor: React.FC = () => {
             </div>
           </section>
 
-          <section className="rounded-[32px] border border-[#8ECAE6]/30 bg-white/92 p-6 shadow-[0_20px_60px_rgba(2,48,71,0.08)]">
+          <section className="rounded-2xl border border-[#8ECAE6]/30 bg-white/92 p-6 shadow-sm">
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
                 <div className="rounded-2xl bg-[#FFB703]/18 p-3 text-[#FB8500]">
@@ -547,7 +547,7 @@ const ModListEditor: React.FC = () => {
               </div>
             </div>
 
-            <div className="overflow-x-auto rounded-[28px] border border-[#8ECAE6]/35">
+            <div className="overflow-x-auto rounded-2xl border border-[#8ECAE6]/35">
               <div className="min-w-[500px]">
                 <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,2fr)_minmax(0,2fr)] gap-4 bg-[#EAF6FB] px-5 py-4 text-xs font-semibold uppercase tracking-[0.18em] text-[#023047]/65">
                   <div>名称</div>
@@ -581,7 +581,7 @@ const ModListEditor: React.FC = () => {
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(33,158,188,0.18),_transparent_30%),radial-gradient(circle_at_bottom_right,_rgba(255,183,3,0.16),_transparent_28%),linear-gradient(180deg,_#f8fcff_0%,_#eef6fb_100%)] px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl space-y-6">
-        <section className="overflow-hidden rounded-[36px] border border-white/40 bg-[linear-gradient(135deg,_rgba(255,255,255,0.96),_rgba(234,246,251,0.95))] p-8 shadow-[0_30px_90px_rgba(2,48,71,0.12)] backdrop-blur">
+        <section className="overflow-hidden rounded-2xl border border-white/40 bg-[linear-gradient(135deg,_rgba(255,255,255,0.96),_rgba(234,246,251,0.95))] p-8 shadow-sm backdrop-blur">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl space-y-4">
               <div className="inline-flex items-center gap-2 rounded-full border border-[#219EBC]/20 bg-[#219EBC]/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-[#219EBC]">
@@ -598,15 +598,15 @@ const ModListEditor: React.FC = () => {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-[28px] border border-[#8ECAE6]/35 bg-white/85 px-5 py-4">
+              <div className="rounded-2xl border border-[#8ECAE6]/35 bg-white/85 px-5 py-4">
                 <div className="text-xs uppercase tracking-[0.2em] text-[#023047]/45">Total</div>
                 <div className="mt-2 text-3xl font-semibold text-[#023047]">{mods.length}</div>
               </div>
-              <div className="rounded-[28px] border border-[#8ECAE6]/35 bg-white/85 px-5 py-4">
+              <div className="rounded-2xl border border-[#8ECAE6]/35 bg-white/85 px-5 py-4">
                 <div className="text-xs uppercase tracking-[0.2em] text-[#023047]/45">Selected</div>
                 <div className="mt-2 text-3xl font-semibold text-[#023047]">{selectedCount}</div>
               </div>
-              <div className="rounded-[28px] border border-[#8ECAE6]/35 bg-white/85 px-5 py-4">
+              <div className="rounded-2xl border border-[#8ECAE6]/35 bg-white/85 px-5 py-4">
                 <div className="text-xs uppercase tracking-[0.2em] text-[#023047]/45">View</div>
                 <div className="mt-2 text-lg font-semibold text-[#023047]">{viewMode === "list" ? "List" : "JSON"}</div>
               </div>
@@ -616,7 +616,7 @@ const ModListEditor: React.FC = () => {
 
         <section className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
           <div className="space-y-6">
-            <div className="rounded-[32px] border border-[#8ECAE6]/30 bg-white/92 p-6 shadow-[0_20px_60px_rgba(2,48,71,0.08)]">
+            <div className="rounded-2xl border border-[#8ECAE6]/30 bg-white/92 p-6 shadow-sm">
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex flex-wrap gap-3">
                   <button
@@ -661,7 +661,7 @@ const ModListEditor: React.FC = () => {
             </div>
 
             {viewMode === "list" ? (
-              <section className="overflow-hidden rounded-[32px] border border-[#8ECAE6]/30 bg-white/94 shadow-[0_20px_60px_rgba(2,48,71,0.08)]">
+              <section className="overflow-hidden rounded-2xl border border-[#8ECAE6]/30 bg-white/94 shadow-sm">
                 <div className="flex flex-col gap-3 border-b border-[#8ECAE6]/25 bg-[#F5FBFE] px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <h2 className="text-xl font-semibold text-[#023047]">列表管理</h2>
@@ -766,7 +766,7 @@ const ModListEditor: React.FC = () => {
             </div>
               </section>
             ) : (
-              <section className="rounded-[32px] border border-[#8ECAE6]/30 bg-white/94 p-6 shadow-[0_20px_60px_rgba(2,48,71,0.08)]">
+              <section className="rounded-2xl border border-[#8ECAE6]/30 bg-white/94 p-6 shadow-sm">
                 <div className="flex flex-col gap-3 border-b border-[#8ECAE6]/20 pb-5 lg:flex-row lg:items-center lg:justify-between">
                   <div>
                     <h2 className="text-xl font-semibold text-[#023047]">JSON 工作区</h2>
@@ -813,7 +813,7 @@ const ModListEditor: React.FC = () => {
           </div>
 
           <aside className="space-y-6">
-            <section className="rounded-[32px] border border-[#8ECAE6]/30 bg-white/92 p-6 shadow-[0_20px_60px_rgba(2,48,71,0.08)]">
+            <section className="rounded-2xl border border-[#8ECAE6]/30 bg-white/92 p-6 shadow-sm">
               <h2 className="text-xl font-semibold text-[#023047]">接口对照</h2>
               <div className="mt-5 space-y-3 text-sm text-[#023047]/72">
                 <div className="rounded-2xl bg-[#F5FBFE] px-4 py-3">
@@ -835,7 +835,7 @@ const ModListEditor: React.FC = () => {
               </div>
             </section>
 
-            <section className="rounded-[32px] border border-[#8ECAE6]/30 bg-white/92 p-6 shadow-[0_20px_60px_rgba(2,48,71,0.08)]">
+            <section className="rounded-2xl border border-[#8ECAE6]/30 bg-white/92 p-6 shadow-sm">
               <h2 className="text-xl font-semibold text-[#023047]">行为说明</h2>
               <div className="mt-5 space-y-3 text-sm leading-7 text-[#023047]/72">
                 <p>管理员读取时，后端会把 `mods` 包成 AES-256-CBC 密文；这里按 token 派生密钥解密。</p>

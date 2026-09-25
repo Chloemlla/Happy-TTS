@@ -87,7 +87,7 @@ const MusicPlayerDemo: React.FC = () => {
           {/* 第1屏: 首页 */}
           <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-slate-700 mb-4">首页 - 发现音乐</h3>
-            <div className="relative w-[340px] h-[720px] rounded-[32px] border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+            <div className="relative w-[340px] h-[720px] rounded-2xl border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[130px] h-[20px] bg-[#1a1a1a] rounded-b-[10px] z-10" />
               
               <div className="h-full overflow-y-auto overflow-x-hidden no-scrollbar">
@@ -179,7 +179,7 @@ const MusicPlayerDemo: React.FC = () => {
           {/* 第2屏: 播放器页面 */}
           <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-slate-700 mb-4">播放器页面</h3>
-            <div className="relative w-[340px] h-[720px] rounded-[32px] border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+            <div className="relative w-[340px] h-[720px] rounded-2xl border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[130px] h-[20px] bg-[#1a1a1a] rounded-b-[10px] z-10" />
               
               <div className="relative h-full bg-gradient-to-b from-[#1DB954]/30 to-[#191414]">
@@ -286,7 +286,7 @@ const MusicPlayerDemo: React.FC = () => {
           {/* 第3屏: 歌词页面 */}
           <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-slate-700 mb-4">歌词页面</h3>
-            <div className="relative w-[340px] h-[720px] rounded-[32px] border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+            <div className="relative w-[340px] h-[720px] rounded-2xl border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[130px] h-[20px] bg-[#1a1a1a] rounded-b-[10px] z-10" />
               
               <div className="h-full bg-gradient-to-b from-[#282828] to-black overflow-y-auto no-scrollbar">
@@ -365,7 +365,7 @@ const MusicPlayerDemo: React.FC = () => {
           {/* 第4屏: 播放列表 */}
           <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-slate-700 mb-4">播放列表</h3>
-            <div className="relative w-[340px] h-[720px] rounded-[32px] border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+            <div className="relative w-[340px] h-[720px] rounded-2xl border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[130px] h-[20px] bg-[#1a1a1a] rounded-b-[10px] z-10" />
               
               <div className="h-full overflow-y-auto no-scrollbar">
@@ -436,7 +436,7 @@ const MusicPlayerDemo: React.FC = () => {
           {/* 第5屏: 搜索页面 */}
           <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-slate-700 mb-4">搜索页面</h3>
-            <div className="relative w-[340px] h-[720px] rounded-[32px] border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+            <div className="relative w-[340px] h-[720px] rounded-2xl border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[130px] h-[20px] bg-[#1a1a1a] rounded-b-[10px] z-10" />
               
               <div className="h-full overflow-y-auto no-scrollbar">
@@ -529,7 +529,7 @@ const MusicPlayerDemo: React.FC = () => {
           {/* 第6屏: 个人中心 */}
           <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-slate-700 mb-4">个人中心</h3>
-            <div className="relative w-[340px] h-[720px] rounded-[32px] border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+            <div className="relative w-[340px] h-[720px] rounded-2xl border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[130px] h-[20px] bg-[#1a1a1a] rounded-b-[10px] z-10" />
               
               <div className="h-full overflow-y-auto no-scrollbar">
@@ -604,7 +604,7 @@ const MusicPlayerDemo: React.FC = () => {
           {/* 第7屏: 歌单详情 */}
           <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-slate-700 mb-4">歌单详情</h3>
-            <div className="relative w-[340px] h-[720px] rounded-[32px] border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+            <div className="relative w-[340px] h-[720px] rounded-2xl border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[130px] h-[20px] bg-[#1a1a1a] rounded-b-[10px] z-10" />
               
               <div className="h-full overflow-y-auto no-scrollbar">
@@ -627,14 +627,14 @@ const MusicPlayerDemo: React.FC = () => {
 
                 {/* 操作按钮 */}
                 <div className="flex items-center justify-center gap-3 px-5 mt-5">
-                  <button className="flex-1 py-3 bg-[#1DB954] text-white text-[13px] font-medium rounded-[18px] flex items-center justify-center gap-2">
+                  <button className="flex-1 py-3 bg-[#1DB954] text-white text-[13px] font-medium rounded-2xl flex items-center justify-center gap-2">
                     <Play className="w-4 h-4 fill-white" />
                     <span>播放全部</span>
                   </button>
-                  <button className="px-5 py-3 border border-white text-white text-[13px] font-medium rounded-[18px] flex items-center justify-center">
+                  <button className="px-5 py-3 border border-white text-white text-[13px] font-medium rounded-2xl flex items-center justify-center">
                     <Heart className="w-4 h-4" />
                   </button>
-                  <button className="px-5 py-3 border border-white text-white text-[13px] font-medium rounded-[18px] flex items-center justify-center">
+                  <button className="px-5 py-3 border border-white text-white text-[13px] font-medium rounded-2xl flex items-center justify-center">
                     <Download className="w-4 h-4" />
                   </button>
                 </div>
@@ -680,7 +680,7 @@ const MusicPlayerDemo: React.FC = () => {
           {/* 第8屏: 迷你播放条 */}
           <div className="flex flex-col items-center">
             <h3 className="text-base font-semibold text-slate-700 mb-4">迷你播放条</h3>
-            <div className="relative w-[340px] h-[720px] rounded-[32px] border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
+            <div className="relative w-[340px] h-[720px] rounded-2xl border-[10px] border-[#1a1a1a] bg-[#191414] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[130px] h-[20px] bg-[#1a1a1a] rounded-b-[10px] z-10" />
               
               <div className="h-full overflow-y-auto no-scrollbar">

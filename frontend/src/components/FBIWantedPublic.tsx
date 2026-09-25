@@ -310,7 +310,7 @@ const FBIWantedPublic: React.FC = () => {
             </div>
           ) : wantedList.length === 0 ? (
             <div className="flex min-h-[260px] flex-col items-center justify-center text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-[24px] bg-slate-100 text-slate-500">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
                 <FaSearch />
               </div>
               <h3 className="mt-4 text-lg font-semibold text-slate-900">没有匹配记录</h3>
@@ -321,7 +321,7 @@ const FBIWantedPublic: React.FC = () => {
               {wantedList.map((wanted) => (
                 <motion.article
                   key={wanted._id}
-                  className="group overflow-hidden rounded-[26px] border border-slate-200/80 bg-white shadow-[0_12px_40px_rgba(15,23,42,0.06)] transition hover:-translate-y-1 hover:shadow-[0_18px_60px_rgba(15,23,42,0.1)]"
+                  className="group overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-sm"
                   whileHover={{ scale: 1.01 }}
                 >
                   <button
@@ -423,7 +423,7 @@ const FBIWantedPublic: React.FC = () => {
             onClick={() => setShowDetailModal(false)}
           >
             <motion.div
-              className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-[32px] border border-white/70 bg-white/95 shadow-[0_32px_100px_rgba(15,23,42,0.22)] backdrop-blur-xl"
+              className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 shadow-sm backdrop-blur-xl"
               initial={{ scale: 0.96, opacity: 0, y: 16 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.96, opacity: 0, y: 16 }}
@@ -446,8 +446,8 @@ const FBIWantedPublic: React.FC = () => {
 
               <div className="grid gap-6 p-5 lg:grid-cols-[320px_1fr]">
                 <div>
-                  <CachedImage src={selectedWanted.photoUrl} alt={selectedWanted.name} imageId={selectedWanted._id} className="aspect-[4/5] w-full rounded-[24px] object-cover" />
-                  <div className="mt-4 rounded-[24px] border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                  <CachedImage src={selectedWanted.photoUrl} alt={selectedWanted.name} imageId={selectedWanted._id} className="aspect-[4/5] w-full rounded-2xl object-cover" />
+                  <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
                     <div className="flex items-center gap-2 font-semibold">
                       <FaExclamationTriangle /> 安全提醒
                     </div>
@@ -495,7 +495,7 @@ const FBIWantedPublic: React.FC = () => {
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <div className="rounded-[24px] border border-slate-200 bg-white p-4">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
                       <h3 className="flex items-center gap-2 text-base font-semibold text-slate-950">
                         <FaMapMarkerAlt className="text-sky-600" /> 身份特征
                       </h3>
@@ -503,7 +503,7 @@ const FBIWantedPublic: React.FC = () => {
                         身高 {selectedWanted.height}，体重 {selectedWanted.weight}，眼睛 {selectedWanted.eyes}，头发 {selectedWanted.hair}，种族 {selectedWanted.race}。
                       </p>
                     </div>
-                    <div className="rounded-[24px] border border-slate-200 bg-white p-4">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
                       <h3 className="flex items-center gap-2 text-base font-semibold text-slate-950">
                         <FaCalendarAlt className="text-sky-600" /> 其他信息
                       </h3>
@@ -529,14 +529,14 @@ const FBIWantedPublic: React.FC = () => {
             onClick={() => setShowDisclaimer(false)}
           >
             <motion.div
-              className="w-full max-w-xl rounded-[32px] border border-white/70 bg-white/95 p-6 shadow-[0_28px_90px_rgba(15,23,42,0.2)] backdrop-blur-xl max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-sm backdrop-blur-xl max-h-[90vh] overflow-y-auto"
               initial={{ scale: 0.96, y: 16, opacity: 0 }}
               animate={{ scale: 1, y: 0, opacity: 1 }}
               exit={{ scale: 0.96, y: 16, opacity: 0 }}
               onClick={(event) => event.stopPropagation()}
             >
               <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[22px] bg-rose-50 text-rose-700 ring-1 ring-rose-100">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-rose-700 ring-1 ring-rose-100">
                   <FaBullhorn />
                 </div>
                 <div>

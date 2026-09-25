@@ -78,9 +78,9 @@ type IconComponent = React.ComponentType<{ className?: string }>;
 type Tone = 'slate' | 'emerald' | 'sky' | 'amber' | 'rose' | 'violet';
 
 const panelClass =
-  'rounded-[28px] border border-white/70 bg-white/88 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.07)] backdrop-blur-xl sm:p-6';
+  'rounded-2xl border border-slate-200 bg-white/88 p-5 shadow-sm backdrop-blur-xl sm:p-6';
 const compactPanelClass =
-  'rounded-[24px] border border-white/70 bg-white/90 p-4 shadow-[0_10px_32px_rgba(15,23,42,0.06)] backdrop-blur';
+  'rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm backdrop-blur';
 
 const toneClasses: Record<Tone, { icon: string; button: string; badge: string; text: string }> = {
   slate: {
@@ -142,7 +142,7 @@ const IconBadge: React.FC<{ icon: IconComponent; tone?: Tone; className?: string
   tone = 'slate',
   className = '',
 }) => (
-  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-[18px] ring-1 ${toneClasses[tone].icon} ${className}`}>
+  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ring-1 ${toneClasses[tone].icon} ${className}`}>
     <Icon className="h-4 w-4" />
   </div>
 );
@@ -173,7 +173,7 @@ const ActionButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement> & {
 }> = ({ icon: Icon, tone = 'slate', variant = 'primary', className = '', children, ...props }) => {
   const variantClass =
     variant === 'secondary'
-      ? 'border border-white/70 bg-white/80 text-slate-700 hover:bg-slate-50 focus-visible:ring-slate-500'
+      ? 'border border-slate-200 bg-white/80 text-slate-700 hover:bg-slate-50 focus-visible:ring-slate-500'
       : variant === 'danger'
         ? toneClasses.rose.button
         : toneClasses[tone].button;
@@ -468,8 +468,8 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
     return (
       <div className={`relative min-h-[46vh] overflow-hidden rounded-3xl bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.22),_transparent_34%),linear-gradient(180deg,#f8fbff_0%,#eef2ff_55%,#f8fafc_100%)] ${className ?? ''}`}>
         <div className="relative mx-auto flex min-h-[46vh] max-w-3xl items-center justify-center px-4 py-10">
-          <div className="w-full rounded-[36px] border border-white/70 bg-white/88 px-6 py-8 text-center shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl">
-            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-[26px] bg-slate-100 text-slate-500">
+          <div className="w-full rounded-2xl border border-slate-200 bg-white/88 px-6 py-8 text-center shadow-sm backdrop-blur-xl">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
               <RefreshCw className="h-5 w-5 animate-spin" />
             </div>
             <div className="mt-5 text-sm font-semibold uppercase tracking-[0.26em] text-slate-400">Synapse Security</div>
@@ -486,11 +486,11 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
     >
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.3)_0%,transparent_52%)]" />
       <div className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <section className="relative overflow-hidden rounded-[36px] border border-white/70 bg-white/88 p-5 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-7">
+        <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/88 p-5 shadow-sm backdrop-blur-xl sm:p-7">
           <div className="absolute inset-y-0 left-0 w-1.5 bg-slate-900" />
           <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="flex max-w-3xl gap-4">
-              <IconBadge icon={ShieldAlert} tone="slate" className="h-12 w-12 rounded-[22px]" />
+              <IconBadge icon={ShieldAlert} tone="slate" className="h-12 w-12 rounded-2xl" />
               <div>
                 <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Synapse Integrity</div>
                 <h1 className="mt-2 text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">防篡改检测与处置</h1>

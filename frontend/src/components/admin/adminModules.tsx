@@ -3,9 +3,9 @@ import React, { Suspense } from 'react';
 import { SimpleLoadingSpinner } from '@/components/LoadingSpinner';
 
 const LOADING_CARD_CLASS =
-  'w-full rounded-[36px] border border-white/70 bg-white/88 px-6 py-8 text-center shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur-xl';
+  'w-full rounded-2xl border border-slate-200 bg-white/88 px-6 py-8 text-center shadow-sm backdrop-blur-xl';
 const LOADING_BADGE_CLASS =
-  'mx-auto flex h-14 w-14 items-center justify-center rounded-[26px] bg-slate-100 text-slate-500';
+  'mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-500';
 const LOADING_EYEBROW_CLASS =
   'mt-5 text-sm font-semibold uppercase tracking-[0.26em] text-slate-400';
 

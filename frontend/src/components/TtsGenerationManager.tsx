@@ -273,7 +273,7 @@ const TtsGenerationManager: React.FC = () => {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-[24px] border border-slate-200 bg-white p-4 sm:p-5">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <InfoSectionTitle title="TTS 生成记录" icon={FaVolumeUp} eyebrow="Generation Audit" />
           <button
@@ -356,7 +356,7 @@ const TtsGenerationManager: React.FC = () => {
         </div>
       )}
 
-      <div className="rounded-[24px] border border-slate-200 bg-white p-4 sm:p-5">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm font-semibold text-slate-900">
             共 {total} 条记录，第 {page}/{totalPages} 页
@@ -388,7 +388,7 @@ const TtsGenerationManager: React.FC = () => {
               const isSaving = savingId === record.id;
 
               return (
-                <article key={record.id} className="rounded-[22px] border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
+                <article key={record.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:p-5">
                   <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
                     <div className="min-w-0 space-y-2">
                       <div className="flex flex-wrap items-center gap-2">

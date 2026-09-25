@@ -58,7 +58,7 @@ const DeviceSessionsPanel: React.FC<DeviceSessionsPanelProps> = ({
 
   return (
     <section
-      className="mb-4 rounded-[22px] border border-slate-200 bg-white p-4 sm:p-5"
+      className="mb-4 rounded-2xl border border-slate-200 bg-white p-4 sm:p-5"
       aria-labelledby="device-sessions-title"
       aria-busy={loading || actionLoading}
     >
@@ -122,7 +122,7 @@ const DeviceSessionsPanel: React.FC<DeviceSessionsPanelProps> = ({
               <article
                 key={session.id}
                 className={cn(
-                  'min-w-0 rounded-[20px] border px-3.5 py-3.5 sm:px-4',
+                  'min-w-0 rounded-2xl border px-3.5 py-3.5 sm:px-4',
                   session.isCurrent
                     ? 'border-emerald-200 bg-emerald-50/70'
                     : 'border-slate-200 bg-slate-50/70',

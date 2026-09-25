@@ -81,7 +81,7 @@ const PublicShortLinkCreator: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10"
+        className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/88 p-6 shadow-sm backdrop-blur-xl sm:p-10"
       >
         <div className="pointer-events-none absolute -right-12 top-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(59,130,246,0.22),_transparent_68%)]" />
         <div className="pointer-events-none absolute -left-10 bottom-0 h-32 w-32 rounded-full bg-[radial-gradient(circle,_rgba(14,165,233,0.16),_transparent_70%)]" />
@@ -170,7 +170,7 @@ const PublicShortLinkCreator: React.FC = () => {
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mt-7 rounded-[22px] border border-emerald-200/70 bg-emerald-50/80 px-5 py-4"
+              className="mt-7 rounded-2xl border border-emerald-200/70 bg-emerald-50/80 px-5 py-4"
             >
               <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-emerald-600">
                 创建成功

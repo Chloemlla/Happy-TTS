@@ -355,7 +355,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
-          className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-6 text-center shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10"
+          className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/88 p-6 text-center shadow-sm backdrop-blur-xl sm:p-10"
         >
           <div className="pointer-events-none absolute -right-16 top-0 h-48 w-48 rounded-full bg-[radial-gradient(circle,_rgba(244,63,94,0.18),_transparent_68%)]" />
           <div className="pointer-events-none absolute -left-10 bottom-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(14,165,233,0.12),_transparent_70%)]" />
@@ -381,7 +381,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10"
+        className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/88 p-6 shadow-sm backdrop-blur-xl sm:p-10"
       >
         <div className="pointer-events-none absolute -right-16 top-0 h-48 w-48 rounded-full bg-[radial-gradient(circle,_rgba(59,130,246,0.22),_transparent_68%)]" />
         <div className="pointer-events-none absolute -left-10 bottom-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(14,165,233,0.16),_transparent_70%)]" />
@@ -401,7 +401,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
               {statusCards.map((item) => (
                 <div
                   key={item.label}
-                  className="min-w-0 rounded-[22px] border border-slate-200 bg-white/80 px-4 py-3 shadow-[0_10px_40px_rgba(15,23,42,0.04)]"
+                  className="min-w-0 rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 shadow-sm"
                 >
                   <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">{item.label}</div>
                   <div className="mt-2 break-words text-sm font-semibold text-slate-900">{item.value}</div>
@@ -411,10 +411,10 @@ export const DeepLXTranslatorPage: React.FC = () => {
           </div>
 
           <div className="mt-8 grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)] xl:grid-cols-[minmax(0,1fr)_minmax(0,400px)]">
-            <div className="relative min-w-0 rounded-[26px] border border-white/70 bg-white/82 p-4 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-5">
+            <div className="relative min-w-0 rounded-2xl border border-slate-200 bg-white/82 p-4 shadow-sm backdrop-blur-xl sm:p-5">
               <div className="mb-3 lg:hidden">
-                <div className="grid grid-cols-[minmax(0,1fr)_52px_minmax(0,1fr)] items-center gap-2 rounded-[22px] border border-slate-200 bg-white/80 p-2.5">
-                  <div className="min-w-0 rounded-[18px] bg-slate-50 px-3 py-2.5">
+                <div className="grid grid-cols-[minmax(0,1fr)_52px_minmax(0,1fr)] items-center gap-2 rounded-2xl border border-slate-200 bg-white/80 p-2.5">
+                  <div className="min-w-0 rounded-2xl bg-slate-50 px-3 py-2.5">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">From</div>
                     <div className="mt-1 truncate text-sm font-semibold text-slate-900">{sourceLanguageLabel}</div>
                   </div>
@@ -425,7 +425,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
                   >
                     <FaExchangeAlt />
                   </button>
-                  <div className="min-w-0 rounded-[18px] bg-slate-50 px-3 py-2.5 text-right">
+                  <div className="min-w-0 rounded-2xl bg-slate-50 px-3 py-2.5 text-right">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-500">To</div>
                     <div className="mt-1 truncate text-sm font-semibold text-slate-900">{targetLanguageLabel}</div>
                   </div>
@@ -433,7 +433,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
               </div>
 
               <div className="grid min-w-0 gap-3 lg:grid-cols-2">
-                <section className="min-w-0 rounded-[22px] border border-slate-200 bg-white/80 p-4 sm:p-5">
+                <section className="min-w-0 rounded-2xl border border-slate-200 bg-white/80 p-4 sm:p-5">
                   <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                     <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
                       {SOURCE_HOT_LANGUAGES.map((language) => (
@@ -508,7 +508,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
                   </div>
                 </section>
 
-                <section className="min-w-0 rounded-[22px] border border-slate-200 bg-white/80 p-4 sm:p-5">
+                <section className="min-w-0 rounded-2xl border border-slate-200 bg-white/80 p-4 sm:p-5">
                   <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                     <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0">
                       {TARGET_HOT_LANGUAGES.map((language) => (
@@ -622,7 +622,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handleSwap}
-                className="absolute left-1/2 top-1/2 z-10 hidden h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-[0_10px_30px_rgba(15,23,42,0.08)] transition hover:rotate-180 hover:text-slate-900 lg:flex"
+                className="absolute left-1/2 top-1/2 z-10 hidden h-12 w-12 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-700 shadow-sm transition hover:rotate-180 hover:text-slate-900 lg:flex"
               >
                 <FaExchangeAlt />
               </button>
@@ -633,7 +633,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.08 }}
-                className="relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl"
+                className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-5 shadow-sm backdrop-blur-xl"
               >
                 <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
@@ -662,13 +662,13 @@ export const DeepLXTranslatorPage: React.FC = () => {
                     {config?.endpointPath || '读取中…'}
                   </div>
                   {translationRestricted ? (
-                    <div className="mt-4 rounded-[22px] border border-rose-200/70 bg-rose-50/80 px-5 py-4 text-sm leading-7 text-rose-700">
+                    <div className="mt-4 rounded-2xl border border-rose-200/70 bg-rose-50/80 px-5 py-4 text-sm leading-7 text-rose-700">
                       翻译权限限制截止：
                       {new Date(translationRestrictedUntil).toLocaleString()}
                     </div>
                   ) : null}
                   {!configLoading && !config?.enabled ? (
-                    <div className="mt-4 rounded-[22px] border border-amber-200/70 bg-amber-50/80 px-5 py-4 text-sm leading-7 text-amber-700">
+                    <div className="mt-4 rounded-2xl border border-amber-200/70 bg-amber-50/80 px-5 py-4 text-sm leading-7 text-amber-700">
                       当前 DeepLX 尚未可用。
                       {config?.requiresApiKey
                         ? ' 你需要先在 EnvManager 中配置 API Key。'
@@ -694,7 +694,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.14 }}
-                className="relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl"
+                className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-5 shadow-sm backdrop-blur-xl"
               >
                 <div className="mb-4 flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
@@ -747,7 +747,7 @@ export const DeepLXTranslatorPage: React.FC = () => {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.2 }}
-                className="relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl"
+                className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-5 shadow-sm backdrop-blur-xl"
               >
                 <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
                   <FaBolt className="text-slate-500" /> 快速填充

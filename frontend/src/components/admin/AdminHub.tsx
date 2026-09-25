@@ -142,7 +142,7 @@ export const AdminModulePage: React.FC = () => {
 
   return (
     <InfoQueryShell className='logshare-admin-surface'>
-      <div className='min-h-[400px] rounded-[26px] border border-slate-200/90 bg-white/70 p-3 shadow-[0_18px_50px_-36px_rgba(15,23,42,0.35)] sm:p-5'>
+      <div className='min-h-[400px] rounded-2xl border border-slate-200/90 bg-white/70 p-3 shadow-[0_18px_50px_-36px_rgba(15,23,42,0.35)] sm:p-5'>
         {wrapAdminModule(Component)}
       </div>
     </InfoQueryShell>

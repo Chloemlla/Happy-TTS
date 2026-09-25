@@ -127,7 +127,7 @@ const CampusEmergencyPage: React.FC = () => {
         <InfoPanel compact className="border-rose-100">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[22px] bg-rose-50 text-rose-700 ring-1 ring-rose-100">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-50 text-rose-700 ring-1 ring-rose-100">
                 {isAudioPlaying ? <FaVolumeUp /> : <FaVolumeMute />}
               </div>
               <div>
@@ -192,13 +192,13 @@ const CampusEmergencyPage: React.FC = () => {
                   return (
                     <motion.div
                       key={character.id}
-                      className="rounded-[24px] border border-slate-200 bg-white/82 p-4 shadow-sm"
+                      className="rounded-2xl border border-slate-200 bg-white/82 p-4 shadow-sm"
                       initial={{ opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.06 }}
                     >
                       <div className="flex items-start gap-3">
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[20px] bg-sky-50 text-sky-700 ring-1 ring-sky-100">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-sky-50 text-sky-700 ring-1 ring-sky-100">
                           <Icon />
                         </div>
                         <div>
@@ -226,7 +226,7 @@ const CampusEmergencyPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => simulateDeviceFailure('屏幕')}
-                  className="rounded-[22px] border border-slate-200 bg-white/82 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md"
+                  className="rounded-2xl border border-slate-200 bg-white/82 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md"
                 >
                   <FaDesktop className="text-rose-600" />
                   <div className="mt-3 font-semibold text-slate-950">屏幕异常</div>
@@ -235,7 +235,7 @@ const CampusEmergencyPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => simulateDeviceFailure('键盘')}
-                  className="rounded-[22px] border border-slate-200 bg-white/82 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md"
+                  className="rounded-2xl border border-slate-200 bg-white/82 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md"
                 >
                   <FaKeyboard className="text-amber-600" />
                   <div className="mt-3 font-semibold text-slate-950">键盘异常</div>
@@ -244,7 +244,7 @@ const CampusEmergencyPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setNetworkStatus((status) => status === 'connected' ? 'disconnected' : 'connected')}
-                  className="rounded-[22px] border border-slate-200 bg-white/82 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md"
+                  className="rounded-2xl border border-slate-200 bg-white/82 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md"
                 >
                   <FaWifi className={networkStatus === 'connected' ? 'text-emerald-600' : 'text-rose-600'} />
                   <div className="mt-3 font-semibold text-slate-950">网络切换</div>
@@ -262,9 +262,9 @@ const CampusEmergencyPage: React.FC = () => {
                 icon={FaChalkboardTeacher}
                 tone="emerald"
               />
-              <div className="rounded-[26px] border border-emerald-100 bg-emerald-50/70 p-5">
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-5">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[22px] bg-white text-emerald-700 ring-1 ring-emerald-100">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-700 ring-1 ring-emerald-100">
                     <FaChalkboardTeacher />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -310,10 +310,10 @@ const CampusEmergencyPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => simulateDeviceFailure('U盘启动预案')}
-                className="w-full rounded-[26px] border border-rose-200 bg-rose-50/85 p-5 text-left text-rose-800 transition hover:-translate-y-0.5 hover:shadow-md"
+                className="w-full rounded-2xl border border-rose-200 bg-rose-50/85 p-5 text-left text-rose-800 transition hover:-translate-y-0.5 hover:shadow-md"
               >
                 <div className="flex items-center gap-4">
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[22px] bg-white text-rose-700 ring-1 ring-rose-100">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-rose-700 ring-1 ring-rose-100">
                     <FaUsb />
                   </div>
                   <div>
@@ -323,7 +323,7 @@ const CampusEmergencyPage: React.FC = () => {
                 </div>
               </button>
 
-              <div className="mt-4 rounded-[22px] border border-slate-200 bg-white/75 p-4 text-sm leading-6 text-slate-600">
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-white/75 p-4 text-sm leading-6 text-slate-600">
                 当前建议：先确认网络分段、端口状态与本机连接，再执行重启预案。
               </div>
             </InfoPanel>
@@ -334,7 +334,7 @@ const CampusEmergencyPage: React.FC = () => {
       <AnimatePresence>
         {deviceFailures.length > 0 && (
           <motion.div
-            className="fixed bottom-5 right-5 z-50 w-[min(360px,calc(100vw-2.5rem))] rounded-[26px] border border-rose-200 bg-white/95 p-4 text-rose-800 shadow-[0_24px_80px_rgba(15,23,42,0.18)] backdrop-blur-xl"
+            className="fixed bottom-5 right-5 z-50 w-[min(360px,calc(100vw-2.5rem))] rounded-2xl border border-rose-200 bg-white/95 p-4 text-rose-800 shadow-sm backdrop-blur-xl"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}

@@ -161,7 +161,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-slate-900" />
               </div>
             ) : step === 'success' ? (
-              <div className="rounded-[24px] border border-emerald-200 bg-emerald-50 px-5 py-8 text-center text-emerald-700">
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-8 text-center text-emerald-700">
                 <FaCheck className="mx-auto mb-3 h-8 w-8" />
                 <div className="text-base font-semibold">TOTP 已启用</div>
               </div>
@@ -176,7 +176,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                 {setupData ? (
                   <>
                     <div className="grid min-w-0 gap-4 md:grid-cols-[220px,minmax(0,1fr)]">
-                      <div className="rounded-[24px] border border-slate-200 bg-white p-4 text-center">
+                      <div className="rounded-2xl border border-slate-200 bg-white p-4 text-center">
                         <QRCodeSVG
                           value={setupData.otpauthUrl}
                           size={188}
@@ -192,7 +192,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                       </div>
 
                       <div className="space-y-3">
-                        <div className="rounded-[24px] border border-slate-200 bg-slate-50/80 p-4">
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                           <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-900">
                             <FaKey className="text-slate-400" />
                             手动密钥
@@ -210,7 +210,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                           </button>
                         </div>
 
-                        <div className="rounded-[24px] border border-amber-200 bg-amber-50 p-4">
+                        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                           <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2 text-sm font-semibold text-amber-800">
                               <FaShieldAlt />
@@ -251,7 +251,7 @@ const TOTPSetup: React.FC<TOTPSetupProps> = ({ isOpen, onClose, onSuccess }) => 
                       </div>
                     </div>
 
-                    <div className="rounded-[24px] border border-slate-200 bg-white/90 p-4">
+                    <div className="rounded-2xl border border-slate-200 bg-white/90 p-4">
                       <label className="mb-2 block text-sm font-semibold text-slate-900">
                         验证码
                       </label>

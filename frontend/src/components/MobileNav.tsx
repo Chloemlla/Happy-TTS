@@ -306,7 +306,7 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
           'flex items-center gap-3 rounded-2xl border px-4 text-sm font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2',
           admin ? 'min-h-11 py-2.5' : 'min-h-12 py-3',
           active
-            ? 'border-slate-900 bg-slate-900 text-white shadow-[0_14px_38px_rgba(15,23,42,0.16)]'
+            ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
             : cn(
               'border-slate-200 bg-white/80 text-slate-600 hover:bg-white',
               admin ? 'hover:border-slate-400' : 'hover:border-slate-300',
@@ -393,7 +393,7 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
                 transition={{ duration: 0.18 }}
                 className={cn(
                   // accountOnly sits under desktop h-14 shell header; full mobile nav under h-16.
-                  'absolute z-[9999] flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden rounded-[34px] border border-white/70 bg-white/88 shadow-[0_28px_110px_rgba(15,23,42,0.12)] backdrop-blur-xl',
+                  'absolute z-[9999] flex max-h-[calc(100dvh-5rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white/88 shadow-sm backdrop-blur-xl',
                   accountOnly
                     ? 'top-14 right-4 left-auto w-[min(22rem,calc(100vw-2rem))]'
                     : 'top-16 left-3 right-3 sm:left-auto sm:right-4 sm:w-[26rem]',
@@ -449,7 +449,7 @@ const MobileNav: React.FC<MobileNavProps> = React.memo(({
                     className={cn(
                       'flex w-full items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-xs font-semibold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2',
                       showAccountSwitcher
-                        ? 'border-slate-900 bg-slate-900 text-white shadow-[0_14px_38px_rgba(15,23,42,0.16)]'
+                        ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
                         : 'border-slate-200 bg-white/80 text-slate-600 hover:border-slate-300 hover:bg-white hover:text-slate-800',
                     )}
                     aria-expanded={showAccountSwitcher}

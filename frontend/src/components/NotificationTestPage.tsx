@@ -190,7 +190,7 @@ const NotificationTestPage: React.FC = () => {
                         description="用于核对通知系统的队列策略、倒计时、关闭和详情展示。"
                     />
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                             <h3 className="font-semibold text-slate-800">通知队列功能</h3>
                             <ul className="mt-3 space-y-2 text-sm text-slate-600">
                                 <li>支持多个通知同时显示</li>
@@ -199,7 +199,7 @@ const NotificationTestPage: React.FC = () => {
                                 <li>支持手动关闭通知</li>
                             </ul>
                         </div>
-                        <div className="rounded-[22px] border border-slate-200 bg-slate-50/80 p-4">
+                        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                             <h3 className="font-semibold text-slate-800">交互功能</h3>
                             <ul className="mt-3 space-y-2 text-sm text-slate-600">
                                 <li>鼠标悬停暂停倒计时</li>

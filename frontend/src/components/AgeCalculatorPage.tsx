@@ -130,7 +130,7 @@ const AgeCalculatorPage: React.FC = () => {
     delay: number;
   }> = ({ icon: Icon, title, children, delay }) => (
     <motion.div
-      className="relative overflow-hidden rounded-[24px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl"
+      className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-5 shadow-sm backdrop-blur-xl"
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, delay }}
@@ -146,7 +146,7 @@ const AgeCalculatorPage: React.FC = () => {
   return (
     <section className="mx-auto max-w-5xl px-4 py-10 sm:py-12">
       <motion.div
-        className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10"
+        className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/88 p-6 shadow-sm backdrop-blur-xl sm:p-10"
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -253,7 +253,7 @@ const AgeCalculatorPage: React.FC = () => {
           <AnimatePresence>
             {error && (
               <motion.div
-                className="mt-6 rounded-[22px] border border-rose-200/70 bg-rose-50/80 px-5 py-4 text-sm leading-7 text-rose-700"
+                className="mt-6 rounded-2xl border border-rose-200/70 bg-rose-50/80 px-5 py-4 text-sm leading-7 text-rose-700"
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -8 }}
@@ -314,7 +314,7 @@ const AgeCalculatorPage: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
       >
-        <div className="inline-flex items-center gap-3 rounded-full border border-white/70 bg-white/88 px-5 py-2 shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+        <div className="inline-flex items-center gap-3 rounded-full border border-slate-200 bg-white/88 px-5 py-2 shadow-sm backdrop-blur-xl">
           <div className="flex items-center gap-0.5 text-amber-400">
             {[...Array(4)].map((_, i) => (
               <FaStar key={i} className="text-[12px]" />

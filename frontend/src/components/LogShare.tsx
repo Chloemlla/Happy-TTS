@@ -785,7 +785,7 @@ const LogShare: React.FC = React.memo(() => {
             transition={{ duration: 0.2 }}
           >
             <motion.div
-              className="relative w-full max-w-sm overflow-y-auto max-h-[90vh] overscroll-contain rounded-[28px] border border-white/70 bg-white/95 p-8 shadow-[0_28px_110px_rgba(15,23,42,0.18)] backdrop-blur-xl"
+              className="relative w-full max-w-sm overflow-y-auto max-h-[90vh] overscroll-contain rounded-2xl border border-slate-200 bg-white/95 p-8 shadow-sm backdrop-blur-xl"
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -831,7 +831,7 @@ const LogShare: React.FC = React.memo(() => {
         >
           {/* 标题和说明 */}
           <motion.div
-            className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10"
+            className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/88 p-6 shadow-sm backdrop-blur-xl sm:p-10"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
@@ -869,7 +869,7 @@ const LogShare: React.FC = React.memo(() => {
 
           {/* 上传区块 */}
           <motion.div
-            className="relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-7"
+            className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-5 shadow-sm backdrop-blur-xl sm:p-7"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.05 }}
@@ -921,12 +921,12 @@ const LogShare: React.FC = React.memo(() => {
                   placeholder="可直接粘贴日志内容，或选择文件上传"
                 />
                 {isTextTooLarge && (
-                  <div className="mt-2 rounded-[22px] border border-rose-200/70 bg-rose-50/80 px-4 py-3 text-sm leading-6 text-rose-700">
+                  <div className="mt-2 rounded-2xl border border-rose-200/70 bg-rose-50/80 px-4 py-3 text-sm leading-6 text-rose-700">
                     文本内容超出 10MB 限制，请删减内容或使用文件上传
                   </div>
                 )}
                 {!isTextTooLarge && currentTextSize > maxSize * 0.8 && (
-                  <div className="mt-2 rounded-[22px] border border-amber-200/70 bg-amber-50/80 px-4 py-3 text-sm leading-6 text-amber-700">
+                  <div className="mt-2 rounded-2xl border border-amber-200/70 bg-amber-50/80 px-4 py-3 text-sm leading-6 text-amber-700">
                     文本内容接近 10MB 限制，建议考虑使用文件上传
                   </div>
                 )}
@@ -989,7 +989,7 @@ const LogShare: React.FC = React.memo(() => {
               <AnimatePresence>
                 {uploadResult && uploadResult.link && (
                   <motion.div
-                    className="rounded-[22px] border border-emerald-200/70 bg-emerald-50/80 px-5 py-4 text-sm leading-6 text-emerald-800"
+                    className="rounded-2xl border border-emerald-200/70 bg-emerald-50/80 px-5 py-4 text-sm leading-6 text-emerald-800"
                     initial={{ opacity: 0, y: -4 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -4 }}
@@ -1024,7 +1024,7 @@ const LogShare: React.FC = React.memo(() => {
 
           {/* 查询区块 */}
           <motion.div
-            className="relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-7"
+            className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-5 shadow-sm backdrop-blur-xl sm:p-7"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.1 }}
@@ -1079,7 +1079,7 @@ const LogShare: React.FC = React.memo(() => {
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="overflow-hidden rounded-[26px] border border-slate-200 bg-white/80 backdrop-blur-xl"
+                  className="overflow-hidden rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-xl"
                 >
                   <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/60 px-4 py-3">
                     {canWrite && (
@@ -1304,7 +1304,7 @@ const LogShare: React.FC = React.memo(() => {
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        <div className="rounded-[22px] border border-amber-200/70 bg-amber-50/80 px-5 py-4 text-sm leading-6 text-amber-700">
+                        <div className="rounded-2xl border border-amber-200/70 bg-amber-50/80 px-5 py-4 text-sm leading-6 text-amber-700">
                           二进制 / 非文本文件，点击下载：
                         </div>
                         <motion.button
@@ -1325,7 +1325,7 @@ const LogShare: React.FC = React.memo(() => {
 
           {/* 历史记录 */}
           <motion.div
-            className="relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-7"
+            className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-5 shadow-sm backdrop-blur-xl sm:p-7"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.15 }}
@@ -1371,7 +1371,7 @@ const LogShare: React.FC = React.memo(() => {
                   <AnimatePresence>
                     {showExportMenu && (
                       <motion.div
-                        className="absolute right-0 top-full z-10 mt-2 min-w-[220px] rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-[0_18px_60px_rgba(15,23,42,0.12)] backdrop-blur-xl"
+                        className="absolute right-0 top-full z-10 mt-2 min-w-[220px] rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur-xl"
                         initial={{ opacity: 0, y: -6 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -6 }}
@@ -1502,7 +1502,7 @@ const LogShare: React.FC = React.memo(() => {
 
           {/* 日志归档管理区块 */}
           <motion.div
-            className="relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-7"
+            className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-5 shadow-sm backdrop-blur-xl sm:p-7"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.2 }}
@@ -1699,7 +1699,7 @@ const LogShare: React.FC = React.memo(() => {
                 exit={{ opacity: 0 }}
               >
                 <motion.div
-                  className="relative w-full max-w-lg overflow-y-auto max-h-[90vh] overscroll-contain rounded-[28px] border border-white/70 bg-white/95 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.18)] backdrop-blur-xl sm:p-8"
+                  className="relative w-full max-w-lg overflow-y-auto max-h-[90vh] overscroll-contain rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-sm backdrop-blur-xl sm:p-8"
                   initial={{ scale: 0.95, y: 20, opacity: 0 }}
                   animate={{ scale: 1, y: 0, opacity: 1 }}
                   exit={{ scale: 0.95, y: 20, opacity: 0 }}
@@ -1813,7 +1813,7 @@ const LogShare: React.FC = React.memo(() => {
                 exit={{ opacity: 0 }}
               >
                 <motion.div
-                  className="relative w-full max-w-lg overflow-y-auto max-h-[90vh] overscroll-contain rounded-[28px] border border-white/70 bg-white/95 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.18)] backdrop-blur-xl sm:p-8"
+                  className="relative w-full max-w-lg overflow-y-auto max-h-[90vh] overscroll-contain rounded-2xl border border-slate-200 bg-white/95 p-6 shadow-sm backdrop-blur-xl sm:p-8"
                   initial={{ scale: 0.95, y: 20, opacity: 0 }}
                   animate={{ scale: 1, y: 0, opacity: 1 }}
                   exit={{ scale: 0.95, y: 20, opacity: 0 }}

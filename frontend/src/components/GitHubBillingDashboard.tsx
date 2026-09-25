@@ -420,7 +420,7 @@ const GitHubBillingDashboard: React.FC = () => {
       <div className="space-y-6">
         {/* 主面板：标题与操作 */}
         <m.div
-          className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10"
+          className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/88 p-6 shadow-sm backdrop-blur-xl sm:p-10"
           initial={ENTER_INITIAL}
           animate={ENTER_ANIMATE}
           transition={trans06}
@@ -473,7 +473,7 @@ const GitHubBillingDashboard: React.FC = () => {
         {/* 账单数据显示 */}
         {billingData && (
           <m.div
-            className="relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-6"
+            className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-5 shadow-sm backdrop-blur-xl sm:p-6"
             initial={ENTER_INITIAL}
             animate={ENTER_ANIMATE}
             transition={trans06}
@@ -484,7 +484,7 @@ const GitHubBillingDashboard: React.FC = () => {
 
             <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {/* 可计费金额 */}
-              <div className="relative overflow-hidden rounded-[24px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+              <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-5 shadow-sm backdrop-blur-xl">
                 <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.26em] text-slate-400">
                   <FaDollarSign className="text-[10px]" /> 可计费金额
                 </div>
@@ -505,7 +505,7 @@ const GitHubBillingDashboard: React.FC = () => {
 
               {/* Customer ID */}
               {billingData.customerId && (
-                <div className="relative overflow-hidden rounded-[24px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+                <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-5 shadow-sm backdrop-blur-xl">
                   <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.26em] text-slate-400">
                     <FaUser className="text-[10px]" /> Customer ID
                   </div>
@@ -516,7 +516,7 @@ const GitHubBillingDashboard: React.FC = () => {
               )}
 
               {/* 获取时间 */}
-              <div className="relative overflow-hidden rounded-[24px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+              <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-5 shadow-sm backdrop-blur-xl">
                 <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.26em] text-slate-400">
                   <FaCalendarAlt className="text-[10px]" /> 获取时间
                 </div>
@@ -534,7 +534,7 @@ const GitHubBillingDashboard: React.FC = () => {
                 </div>
                 <div className="mt-3 space-y-3">
                   {billingData.discount_details.map((discount, index) => (
-                    <div key={discount.uuid || index} className="relative overflow-hidden rounded-[22px] border border-slate-200 bg-white/80 p-4 backdrop-blur-xl">
+                    <div key={discount.uuid || index} className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/80 p-4 backdrop-blur-xl">
                       <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2 lg:grid-cols-4">
                         <div>
                           <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">名称</span>
@@ -602,7 +602,7 @@ const GitHubBillingDashboard: React.FC = () => {
                   </div>
                   <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-3">
                     {billingData.repo_breakdown && (
-                      <div className="relative overflow-hidden rounded-[24px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+                      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-5 shadow-sm backdrop-blur-xl">
                         <div className="text-[10px] font-semibold uppercase tracking-[0.26em] text-slate-400">仓库数量</div>
                         <div className="mt-2 text-2xl font-semibold text-slate-900 sm:text-3xl">
                           {Object.keys(billingData.repo_breakdown).length}
@@ -610,7 +610,7 @@ const GitHubBillingDashboard: React.FC = () => {
                       </div>
                     )}
                     {billingData.usage_details && (
-                      <div className="relative overflow-hidden rounded-[24px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+                      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-5 shadow-sm backdrop-blur-xl">
                         <div className="text-[10px] font-semibold uppercase tracking-[0.26em] text-slate-400">使用记录</div>
                         <div className="mt-2 text-2xl font-semibold text-slate-900 sm:text-3xl">
                           {billingData.usage_details.length}
@@ -618,7 +618,7 @@ const GitHubBillingDashboard: React.FC = () => {
                       </div>
                     )}
                     {billingData.total_discount_amount !== undefined && (
-                      <div className="relative overflow-hidden rounded-[24px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+                      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-5 shadow-sm backdrop-blur-xl">
                         <div className="text-[10px] font-semibold uppercase tracking-[0.26em] text-slate-400">总折扣金额</div>
                         <div className="mt-2 text-2xl font-semibold text-slate-900 sm:text-3xl">
                           ${formatAmount(billingData.total_discount_amount)}
@@ -634,7 +634,7 @@ const GitHubBillingDashboard: React.FC = () => {
                     <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
                       仓库使用分布
                     </div>
-                    <div className="mt-3 rounded-[22px] border border-slate-200 bg-white/80 p-4 backdrop-blur-xl">
+                    <div className="mt-3 rounded-2xl border border-slate-200 bg-white/80 p-4 backdrop-blur-xl">
                       <div className="space-y-2">
                         {Object.entries(billingData.repo_breakdown)
                           .sort(([, a], [, b]) => b - a)
@@ -665,7 +665,7 @@ const GitHubBillingDashboard: React.FC = () => {
                     <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
                       组织使用分布
                     </div>
-                    <div className="mt-3 rounded-[22px] border border-slate-200 bg-white/80 p-4 backdrop-blur-xl">
+                    <div className="mt-3 rounded-2xl border border-slate-200 bg-white/80 p-4 backdrop-blur-xl">
                       <div className="space-y-2">
                         {Object.entries(billingData.org_breakdown)
                           .sort(([, a], [, b]) => b - a)
@@ -690,7 +690,7 @@ const GitHubBillingDashboard: React.FC = () => {
                     <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
                       最近使用记录 (前10条)
                     </div>
-                    <div className="mt-3 overflow-hidden rounded-[26px] border border-slate-200 bg-white/80 backdrop-blur-xl">
+                    <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-xl">
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
                           <thead>
@@ -750,25 +750,25 @@ const GitHubBillingDashboard: React.FC = () => {
                   使用详情
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-4 md:grid-cols-4">
-                  <div className="relative overflow-hidden rounded-[20px] border border-white/70 bg-white/82 p-4 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+                  <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-4 shadow-sm backdrop-blur-xl">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">Actions</div>
                     <div className="mt-2 text-base font-semibold text-slate-900 sm:text-lg">{billingData.usage_breakdown.actions}</div>
                   </div>
-                  <div className="relative overflow-hidden rounded-[20px] border border-white/70 bg-white/82 p-4 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+                  <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-4 shadow-sm backdrop-blur-xl">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">Packages</div>
                     <div className="mt-2 text-base font-semibold text-slate-900 sm:text-lg">{billingData.usage_breakdown.packages}</div>
                   </div>
-                  <div className="relative overflow-hidden rounded-[20px] border border-white/70 bg-white/82 p-4 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+                  <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-4 shadow-sm backdrop-blur-xl">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">Codespaces</div>
                     <div className="mt-2 text-base font-semibold text-slate-900 sm:text-lg">{billingData.usage_breakdown.codespaces}</div>
                   </div>
-                  <div className="relative overflow-hidden rounded-[20px] border border-white/70 bg-white/82 p-4 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+                  <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-4 shadow-sm backdrop-blur-xl">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">Copilot</div>
                     <div className="mt-2 text-base font-semibold text-slate-900 sm:text-lg">{billingData.usage_breakdown.copilot}</div>
                   </div>
                 </div>
                 {billingData.billing_cycle && (
-                  <div className="mt-4 rounded-[22px] border border-slate-200 bg-white/80 p-4 backdrop-blur-xl">
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white/80 p-4 backdrop-blur-xl">
                     <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">计费周期</div>
                     <div className="mt-2 text-sm text-slate-700">
                       {billingData.billing_cycle.start_date} 至 {billingData.billing_cycle.end_date}
@@ -784,7 +784,7 @@ const GitHubBillingDashboard: React.FC = () => {
                 <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
                   其他数据
                 </div>
-                <div className="mt-3 rounded-[22px] border border-slate-200 bg-white/80 p-4 backdrop-blur-xl">
+                <div className="mt-3 rounded-2xl border border-slate-200 bg-white/80 p-4 backdrop-blur-xl">
                   <pre className="overflow-x-auto text-xs text-slate-700">
                     {JSON.stringify(
                       Object.fromEntries(
@@ -802,7 +802,7 @@ const GitHubBillingDashboard: React.FC = () => {
 
         {/* 缓存的客户列表 */}
         <m.div
-          className="relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-6"
+          className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-5 shadow-sm backdrop-blur-xl sm:p-6"
           initial={ENTER_INITIAL}
           animate={ENTER_ANIMATE}
           transition={trans06}
@@ -829,7 +829,7 @@ const GitHubBillingDashboard: React.FC = () => {
           {customersLoading && cachedCustomers.length === 0 ? (
             <div className="space-y-3">
               {[...Array(3)].map((_, index) => (
-                <div key={index} className="flex animate-pulse items-center justify-between rounded-[20px] border border-slate-200 bg-slate-50/60 p-4">
+                <div key={index} className="flex animate-pulse items-center justify-between rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
                   <div className="flex-1 space-y-2">
                     <div className="h-4 w-48 rounded bg-slate-200"></div>
                     <div className="h-3 w-32 rounded bg-slate-200"></div>
@@ -842,7 +842,7 @@ const GitHubBillingDashboard: React.FC = () => {
               ))}
             </div>
           ) : (
-            <div className="overflow-hidden rounded-[22px] border border-slate-200 bg-white/80 backdrop-blur-xl">
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-xl">
               {cachedCustomers.length === 0 ? (
                 <div className="py-8 text-center text-sm text-slate-500">暂无缓存数据</div>
               ) : (
@@ -910,7 +910,7 @@ const GitHubBillingDashboard: React.FC = () => {
 
         {/* 使用说明 */}
         <m.div
-          className="relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-6"
+          className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-5 shadow-sm backdrop-blur-xl sm:p-6"
           initial={ENTER_INITIAL}
           animate={ENTER_ANIMATE}
           transition={trans06}

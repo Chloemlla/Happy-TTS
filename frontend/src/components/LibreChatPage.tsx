@@ -1558,7 +1558,7 @@ const LibreChatPage: React.FC = () => {
           </div>
 
           {/* 聊天记录内容区域 */}
-          <div className="border-t border-white/70 pt-4">
+          <div className="border-t border-slate-200 pt-4">
             {loadingHistory ? (
               <UnifiedLoadingSpinner
                 size="md"
@@ -1685,7 +1685,7 @@ const LibreChatPage: React.FC = () => {
             )}
             {/* 分页控制 */}
             {history && history.history.length > 0 && (
-              <div className="mt-6 flex flex-col items-center gap-2 sm:flex-row sm:justify-between border-t border-white/70 pt-4">
+              <div className="mt-6 flex flex-col items-center gap-2 sm:flex-row sm:justify-between border-t border-slate-200 pt-4">
                 <motion.button
                   className={libreGhostButtonClass}
                   disabled={page <= 1}

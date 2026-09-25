@@ -206,7 +206,7 @@ const MarkdownArticlePage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16">
-        <div className="rounded-[28px] border border-slate-200 bg-white/90 p-8 text-center text-sm text-slate-500 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white/90 p-8 text-center text-sm text-slate-500 shadow-sm">
           正在加载文章...
         </div>
       </div>
@@ -225,7 +225,7 @@ const MarkdownArticlePage: React.FC = () => {
           <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600">这里展示已发布的 Markdown 文章。</p>
         </header>
         {articles.length === 0 ? (
-          <div className="rounded-[28px] border border-slate-200 bg-white/90 p-8 text-center text-sm text-slate-500 shadow-sm">
+          <div className="rounded-2xl border border-slate-200 bg-white/90 p-8 text-center text-sm text-slate-500 shadow-sm">
             暂无已发布文章。
           </div>
         ) : (
@@ -234,7 +234,7 @@ const MarkdownArticlePage: React.FC = () => {
               <Link
                 key={item.id}
                 to={`/articles/${item.slug}`}
-                className="rounded-[24px] border border-slate-200 bg-white/90 p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
+                className="rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
               >
                 <div className="text-xs font-semibold text-slate-500">{formatDate(item.publishedAt)}</div>
                 <h2 className="mt-3 line-clamp-2 text-xl font-semibold text-slate-950">{item.title}</h2>
@@ -250,7 +250,7 @@ const MarkdownArticlePage: React.FC = () => {
   if (error || !article) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-16">
-        <div className="rounded-[28px] border border-rose-100 bg-white/90 p-8 text-center shadow-sm">
+        <div className="rounded-2xl border border-rose-100 bg-white/90 p-8 text-center shadow-sm">
           <FileText className="mx-auto h-10 w-10 text-rose-500" />
           <h1 className="mt-4 text-2xl font-semibold text-slate-900">文章不可访问</h1>
           <p className="mt-3 text-sm text-slate-600">{error || '文章不存在或尚未发布'}</p>
@@ -328,7 +328,7 @@ const MarkdownArticlePage: React.FC = () => {
       <div className="grid justify-center gap-6 lg:grid-cols-[210px_minmax(0,720px)_240px]">
         <aside className="hidden lg:block">
           <div className="sticky top-24 space-y-4">
-            <div className="rounded-[24px] border border-slate-200 bg-white/70 p-4 shadow-sm">
+            <div className="rounded-2xl border border-slate-200 bg-white/70 p-4 shadow-sm">
               <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">延伸阅读</div>
               <div className="mt-3 space-y-2">
                 {relatedArticles.length === 0 ? (
@@ -344,12 +344,12 @@ const MarkdownArticlePage: React.FC = () => {
             </div>
           </div>
         </aside>
-        <section className="min-w-0 rounded-[28px] border border-slate-200 bg-white/92 p-5 shadow-sm sm:p-8">
+        <section className="min-w-0 rounded-2xl border border-slate-200 bg-white/92 p-5 shadow-sm sm:p-8">
           <MarkdownRenderer content={article.content} />
         </section>
         {headings.length > 0 && (
           <aside className="hidden lg:block">
-            <div className="sticky top-24 rounded-[24px] border border-slate-200 bg-white/86 p-4 shadow-sm">
+            <div className="sticky top-24 rounded-2xl border border-slate-200 bg-white/86 p-4 shadow-sm">
               <div className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">目录</div>
               <nav className="mt-3 space-y-2">
                 {headings.map((heading, index) => (
@@ -400,7 +400,7 @@ const MarkdownArticlePage: React.FC = () => {
       {isTocOpen && (
         <div className="fixed inset-0 z-[9991] bg-slate-950/40 backdrop-blur-sm lg:hidden" onClick={() => setIsTocOpen(false)}>
           <div
-            className="absolute bottom-0 left-0 right-0 max-h-[72vh] overflow-y-auto rounded-t-[28px] bg-white p-5 shadow-2xl"
+            className="absolute bottom-0 left-0 right-0 max-h-[72vh] overflow-y-auto rounded-t-2xl bg-white p-5 shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
@@ -431,7 +431,7 @@ const MarkdownArticlePage: React.FC = () => {
       )}
       {selectionPopover && (
         <div
-          className="absolute z-[90] flex items-center gap-1 rounded-2xl border border-slate-200 bg-white/96 p-1 shadow-[0_16px_48px_rgba(15,23,42,0.18)] backdrop-blur-xl"
+          className="absolute z-[90] flex items-center gap-1 rounded-2xl border border-slate-200 bg-white/96 p-1 shadow-sm backdrop-blur-xl"
           style={{ top: selectionPopover.top, left: selectionPopover.left }}
         >
           <button type="button" className="rounded-xl px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100" onClick={() => void copySelectedText()}>

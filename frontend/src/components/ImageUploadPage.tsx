@@ -1131,7 +1131,7 @@ const ImageUploadPage: React.FC = () => {
     <section className="mx-auto max-w-6xl px-4 py-10 sm:py-12">
       {/* 主面板：上传图片 */}
       <motion.div
-        className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10"
+        className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/88 p-6 shadow-sm backdrop-blur-xl sm:p-10"
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -1178,7 +1178,7 @@ const ImageUploadPage: React.FC = () => {
           </div>
 
           <motion.div
-            className={`mt-5 rounded-[26px] border-2 border-dashed bg-slate-50/60 px-6 py-10 transition ${
+            className={`mt-5 rounded-2xl border-2 border-dashed bg-slate-50/60 px-6 py-10 transition ${
               dragActive ? 'border-slate-400 bg-slate-100/70 ring-2 ring-slate-300' : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50'
             }`}
             initial={{ opacity: 0, y: 8 }}
@@ -1209,7 +1209,7 @@ const ImageUploadPage: React.FC = () => {
 
             {file && previewUrl && (
               <motion.div
-                className="mt-5 flex flex-col items-center rounded-[22px] border border-slate-200 bg-white/80 p-4"
+                className="mt-5 flex flex-col items-center rounded-2xl border border-slate-200 bg-white/80 p-4"
                 initial={{ opacity: 0, scale: 0.97 }}
                 animate={{ opacity: 1, scale: 1 }}
               >
@@ -1229,7 +1229,7 @@ const ImageUploadPage: React.FC = () => {
             {/* Turnstile 人机验证 */}
             {!turnstileConfigLoading && turnstileConfig.siteKey && typeof turnstileConfig.siteKey === 'string' && (
               <motion.div
-                className="mt-5 rounded-[22px] border border-slate-200 bg-white/70 p-4"
+                className="mt-5 rounded-2xl border border-slate-200 bg-white/70 p-4"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4 }}
@@ -1261,7 +1261,7 @@ const ImageUploadPage: React.FC = () => {
             {/* 批量上传列表 */}
             {showBatchList && batchFiles.length > 0 && (
               <motion.div
-                className="mt-5 rounded-[22px] border border-slate-200 bg-white/70 p-4"
+                className="mt-5 rounded-2xl border border-slate-200 bg-white/70 p-4"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4 }}
@@ -1365,7 +1365,7 @@ const ImageUploadPage: React.FC = () => {
               {uploading ? '上传中…' : '上传图片'}
             </motion.button>
             {error && (
-              <div className="mt-3 rounded-[22px] border border-rose-200/70 bg-rose-50/80 px-5 py-3 text-center text-sm leading-7 text-rose-700">
+              <div className="mt-3 rounded-2xl border border-rose-200/70 bg-rose-50/80 px-5 py-3 text-center text-sm leading-7 text-rose-700">
                 {sanitizeDisplayText(error, '上传失败')}
               </div>
             )}
@@ -1374,7 +1374,7 @@ const ImageUploadPage: React.FC = () => {
           <AnimatePresence>
             {uploadedUrl && safeUploadedUrl && (
               <motion.div
-                className="mt-5 rounded-[22px] border border-emerald-200/70 bg-emerald-50/80 px-5 py-4"
+                className="mt-5 rounded-2xl border border-emerald-200/70 bg-emerald-50/80 px-5 py-4"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
@@ -1408,7 +1408,7 @@ const ImageUploadPage: React.FC = () => {
 
       {/* 本地存储管理分区 */}
       <motion.div
-        className="relative mt-6 overflow-hidden rounded-[28px] border border-white/70 bg-white/88 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-8"
+        className="relative mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white/88 p-6 shadow-sm backdrop-blur-xl sm:p-8"
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
@@ -1451,7 +1451,7 @@ const ImageUploadPage: React.FC = () => {
               <AnimatePresence>
                 {showExportMenu && (
                   <motion.div
-                    className="absolute right-0 top-full z-10 mt-2 min-w-[220px] rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-[0_18px_60px_rgba(15,23,42,0.12)] backdrop-blur-xl sm:right-0"
+                    className="absolute right-0 top-full z-10 mt-2 min-w-[220px] rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur-xl sm:right-0"
                     initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
@@ -1510,7 +1510,7 @@ const ImageUploadPage: React.FC = () => {
         </div>
 
         <motion.div
-          className="mt-5 flex items-center justify-center gap-2 rounded-[22px] border border-slate-200 bg-slate-50/70 px-4 py-4 text-center"
+          className="mt-5 flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-4 text-center"
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
@@ -1538,10 +1538,10 @@ const ImageUploadPage: React.FC = () => {
               return (
                 <motion.div
                   key={img.cid}
-                  className={`relative flex flex-col overflow-hidden rounded-[22px] border bg-white/82 p-3 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl transition ${
+                  className={`relative flex flex-col overflow-hidden rounded-2xl border bg-white/82 p-3 shadow-sm backdrop-blur-xl transition ${
                     flashingImages.has(img.imageId)
                       ? 'border-emerald-300 shadow-[0_18px_60px_rgba(16,185,129,0.25)] animate-pulse'
-                      : 'border-white/70'
+                      : 'border-slate-200'
                   }`}
                   initial={{ opacity: 0, scale: 0.97 }}
                   animate={{

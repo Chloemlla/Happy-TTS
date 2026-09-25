@@ -279,7 +279,7 @@ const ProductQueryForm: React.FC<ProductQueryFormProps> = ({
           </InfoPrimaryButton>
         </div>
 
-        <div className="rounded-[24px] border border-slate-200 bg-slate-50/70 p-4 text-sm leading-6 text-slate-600">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm leading-6 text-slate-600">
           仅条码为必填项。填写货号、EAN 码与尺码可提高查询准确性，导入链接仅接受安踏官方域名。
         </div>
       </form>
@@ -294,7 +294,7 @@ const ProductQueryForm: React.FC<ProductQueryFormProps> = ({
             onClick={() => setShowImportDialog(false)}
           >
             <motion.div
-              className="w-full max-w-lg rounded-[32px] border border-white/70 bg-white/95 p-5 shadow-[0_28px_90px_rgba(15,23,42,0.22)] backdrop-blur-xl sm:p-6 max-h-[90vh] overflow-y-auto overscroll-contain"
+              className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white/95 p-5 shadow-sm backdrop-blur-xl sm:p-6 max-h-[90vh] overflow-y-auto overscroll-contain"
               initial={{ opacity: 0, scale: 0.96, y: 16 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 16 }}

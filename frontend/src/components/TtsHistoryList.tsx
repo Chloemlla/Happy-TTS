@@ -102,7 +102,7 @@ const TtsHistoryListInner: React.FC<TtsHistoryListProps> = ({
       transition={{ duration: 0.5, delay: 0.1 }}
       className={studioMainSurfaceClassName}
     >
-      <div className="rounded-[22px] border border-slate-200 bg-white/82 p-4 sm:p-6">
+      <div className="rounded-2xl border border-slate-200 bg-white/82 p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div className={studioStrongBadgeClassName}>
@@ -150,7 +150,7 @@ const TtsHistoryListInner: React.FC<TtsHistoryListProps> = ({
               return (
                 <div
                   key={record.id}
-                  className="min-w-0 rounded-[20px] border border-slate-200 bg-slate-50/70 p-4 sm:rounded-2xl"
+                  className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 sm:rounded-2xl"
                 >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">

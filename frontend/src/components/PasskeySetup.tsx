@@ -189,7 +189,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose, onChanged }
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.24 }}
-        className="rounded-[24px] border border-slate-200 bg-white/90 p-4 shadow-sm sm:p-5"
+        className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm sm:p-5"
       >
         <div className="mb-4 flex items-start justify-between gap-4">
           <div className="flex min-w-0 gap-3">
@@ -240,7 +240,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose, onChanged }
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -8 }}
-                  className="flex flex-col gap-3 rounded-[22px] border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="min-w-0">
                     <div className="truncate text-sm font-semibold text-slate-900">
@@ -269,7 +269,7 @@ export const PasskeySetup: React.FC<PasskeySetupProps> = ({ onClose, onChanged }
           </AnimatePresence>
 
           {!hasCredential && !isLoading ? (
-            <div className="rounded-[22px] border border-dashed border-slate-200 bg-white/70 px-4 py-8 text-center">
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 px-4 py-8 text-center">
               <div className="mx-auto mb-3 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
                 <FaKey />
               </div>

@@ -33,7 +33,7 @@ import {
 const CARD_CLASS = cn(
   studioElevatedPanelClassName,
   'group flex items-center gap-3 transition duration-150',
-  'hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_10px_30px_-18px_rgba(15,23,42,0.35)]',
+  'hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md',
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2',
 );
 

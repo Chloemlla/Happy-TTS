@@ -10,7 +10,7 @@ import {
 } from './LogShareStyleScaffold';
 
 const tigerGlassButtonClass = 'inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white/90 px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-xl transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-45';
-const tigerScenePanelClass = 'rounded-[28px] border border-white/70 bg-white/90 shadow-[0_18px_60px_rgba(15,23,42,0.12)] backdrop-blur-xl';
+const tigerScenePanelClass = 'rounded-2xl border border-slate-200 bg-white/90 shadow-sm backdrop-blur-xl';
 
 interface Scene {
   id: number;
@@ -1081,14 +1081,14 @@ const TigerAdventure: React.FC = () => {
               {scenes.slice(0, 3).map((scene, index) => (
                 <motion.div
                   key={scene.id}
-                  className="rounded-[24px] border border-white/70 bg-white/90 p-4 shadow-[0_10px_32px_rgba(15,23,42,0.06)] backdrop-blur"
+                  className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm backdrop-blur"
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.1 * index }}
                   whileHover={{ y: -3 }}
                 >
                   <div
-                    className="mb-4 h-24 rounded-[20px] border border-white/60"
+                    className="mb-4 h-24 rounded-2xl border border-white/60"
                     style={{ background: scene.background }}
                   />
                   <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">

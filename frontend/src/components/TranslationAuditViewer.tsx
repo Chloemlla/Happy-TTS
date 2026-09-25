@@ -274,7 +274,7 @@ const TranslationAuditViewer: React.FC = () => {
       </div>
 
       {/* Log list */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-xl shadow-[0_18px_60px_rgba(15,23,42,0.06)]">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-xl shadow-sm">
         {loading && logs.length === 0 ? (
           <div className="p-8 text-center text-slate-400">加载中...</div>
         ) : logs.length === 0 ? (
@@ -345,7 +345,7 @@ const TranslationAuditViewer: React.FC = () => {
             }}
           >
             <motion.div
-              className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-[26px] border border-white/70 bg-white/90 p-6 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] backdrop-blur-xl sm:p-8"
+              className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] backdrop-blur-xl sm:p-8"
               initial={{ opacity: 0, y: 20, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 20, scale: 0.98 }}

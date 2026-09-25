@@ -190,7 +190,7 @@ export const PenaltyAppealActions: React.FC<PenaltyAppealActionsProps> = ({
         className={cn(
           compact
             ? "rounded-xl border border-rose-200/80 bg-rose-50/80 px-3 py-2"
-            : "rounded-[22px] border border-rose-200 bg-rose-50/70 p-4",
+            : "rounded-2xl border border-rose-200 bg-rose-50/70 p-4",
           className,
         )}
       >
@@ -275,7 +275,7 @@ export const PenaltyAppealActions: React.FC<PenaltyAppealActionsProps> = ({
 
               {!user ? (
                 <div className="space-y-4">
-                  <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
                     提交工单需要登录。你可先登录后再申诉，或直接发送邮件。
                   </div>
                   <div className="flex flex-col gap-2 sm:flex-row">
@@ -299,7 +299,7 @@ export const PenaltyAppealActions: React.FC<PenaltyAppealActionsProps> = ({
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
                   {kind === "ticket_permission_ban" && (
-                    <div className="rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
                       当前工单权限可能已被限制。若提交失败，请直接邮件联系 {SUPPORT_EMAIL}。
                     </div>
                   )}

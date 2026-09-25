@@ -46,7 +46,7 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, queryCount, is
       <InfoPanel className={isVerified ? 'border-emerald-100' : 'border-rose-100'}>
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex gap-4">
-            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[24px] ring-1 sm:h-14 sm:w-14 ${isVerified ? 'bg-emerald-50 text-emerald-700 ring-emerald-100' : 'bg-rose-50 text-rose-700 ring-rose-100'}`}>
+            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ring-1 sm:h-14 sm:w-14 ${isVerified ? 'bg-emerald-50 text-emerald-700 ring-emerald-100' : 'bg-rose-50 text-rose-700 ring-rose-100'}`}>
               {isVerified ? <FaCheckCircle className="h-6 w-6" /> : <FaExclamationTriangle className="h-6 w-6" />}
             </div>
             <div>
@@ -81,9 +81,9 @@ const ProductDetails: React.FC<ProductDetailsProps> = ({ product, queryCount, is
           {productFields.map((field) => {
             const Icon = field.icon;
             return (
-              <div key={field.label} className="rounded-[22px] border border-slate-200 bg-white/80 p-3 sm:p-4">
+              <div key={field.label} className="rounded-2xl border border-slate-200 bg-white/80 p-3 sm:p-4">
                 <div className="flex items-start gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[18px] bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100">
                     <Icon className="h-4 w-4" />
                   </div>
                   <div className="min-w-0">

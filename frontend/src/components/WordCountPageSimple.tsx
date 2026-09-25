@@ -12,7 +12,7 @@ interface StatItemProps {
 const StatItem: React.FC<StatItemProps> = React.memo(({ label, value, variants, index }) => (
     <motion.div
         key={label}
-        className="relative overflow-hidden rounded-[22px] border border-white/70 bg-white/82 p-4 shadow-[0_12px_40px_rgba(15,23,42,0.05)] backdrop-blur-xl"
+        className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-4 shadow-sm backdrop-blur-xl"
         variants={variants}
         initial="hidden"
         animate="visible"
@@ -213,7 +213,7 @@ const WordCountPageSimple: React.FC = () => {
         <section className="mx-auto max-w-6xl px-4 py-10 sm:py-12 space-y-6">
             {/* Main tool card */}
             <motion.div
-                className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10"
+                className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/88 p-6 shadow-sm backdrop-blur-xl sm:p-10"
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
@@ -305,7 +305,7 @@ const WordCountPageSimple: React.FC = () => {
                     <AnimatePresence>
                         {error && (
                             <motion.div
-                                className="mt-6 rounded-[22px] border border-rose-200/70 bg-rose-50/80 px-5 py-4 text-sm leading-7 text-rose-700"
+                                className="mt-6 rounded-2xl border border-rose-200/70 bg-rose-50/80 px-5 py-4 text-sm leading-7 text-rose-700"
                                 initial={{ opacity: 0, y: -8 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 exit={{ opacity: 0, y: -8 }}
@@ -343,7 +343,7 @@ const WordCountPageSimple: React.FC = () => {
 
             {/* Rating row */}
             <div className="flex items-center justify-center">
-                <div className="inline-flex items-center gap-3 rounded-full border border-white/70 bg-white/88 px-5 py-2 shadow-[0_8px_24px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+                <div className="inline-flex items-center gap-3 rounded-full border border-slate-200 bg-white/88 px-5 py-2 shadow-sm backdrop-blur-xl">
                     <div className="flex items-center gap-0.5 text-amber-400">
                         {[...Array(5)].map((_, i) => (
                             <FaStar key={i} className="text-[12px]" />
@@ -355,12 +355,12 @@ const WordCountPageSimple: React.FC = () => {
             </div>
 
             {/* Feature details */}
-            <section className="relative overflow-hidden rounded-[28px] border border-white/70 bg-white/88 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-8">
+            <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/88 p-6 shadow-sm backdrop-blur-xl sm:p-8">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
                     工具功能详情
                 </div>
                 <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div className="relative overflow-hidden rounded-[22px] border border-white/70 bg-white/82 p-5 shadow-[0_12px_40px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+                    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-5 shadow-sm backdrop-blur-xl">
                         <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
                             <FaFont className="text-slate-500" />
                             字数统计
@@ -370,7 +370,7 @@ const WordCountPageSimple: React.FC = () => {
                         </p>
                     </div>
 
-                    <div className="relative overflow-hidden rounded-[22px] border border-white/70 bg-white/82 p-5 shadow-[0_12px_40px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+                    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-5 shadow-sm backdrop-blur-xl">
                         <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
                             <FaPenFancy className="text-slate-500" />
                             字符与单词统计
@@ -383,7 +383,7 @@ const WordCountPageSimple: React.FC = () => {
             </section>
 
             {/* Usage steps */}
-            <section className="relative overflow-hidden rounded-[28px] border border-white/70 bg-white/88 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-8">
+            <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/88 p-6 shadow-sm backdrop-blur-xl sm:p-8">
                 <div className="text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
                     如何使用
                 </div>
@@ -391,7 +391,7 @@ const WordCountPageSimple: React.FC = () => {
                     {usageSteps.map((step, index) => (
                         <div
                             key={index}
-                            className="relative overflow-hidden rounded-[22px] border border-white/70 bg-white/82 p-5 shadow-[0_12px_40px_rgba(15,23,42,0.05)] backdrop-blur-xl"
+                            className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-5 shadow-sm backdrop-blur-xl"
                         >
                             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
                                 <step.icon className="text-lg" />

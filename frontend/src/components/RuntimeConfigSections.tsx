@@ -131,7 +131,7 @@ function SectionCard(props: {
   const { sectionKey, title, description, isOpen, loading, onToggle, onRefresh, children } = props;
 
   return (
-    <section data-env-section={sectionKey} className="rounded-2xl border border-slate-200 bg-white/80 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+    <section data-env-section={sectionKey} className="rounded-2xl border border-slate-200 bg-white/80 shadow-sm backdrop-blur-xl">
       <div className="flex flex-col gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-slate-800">{title}</h3>

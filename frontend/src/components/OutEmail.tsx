@@ -253,7 +253,7 @@ const OutEmail: React.FC = () => {
   if (!user || !isAdminRole(user.role)) {
     return (
       <section className="mx-auto max-w-2xl px-4 py-16">
-        <div className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-10 text-center shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl">
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/88 p-10 text-center shadow-sm backdrop-blur-xl">
           <div className="pointer-events-none absolute -right-12 top-0 h-40 w-40 rounded-full bg-[radial-gradient(circle,_rgba(244,63,94,0.22),_transparent_68%)]" />
           <div className="relative">
             <div className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.28em] text-rose-500">
@@ -292,7 +292,7 @@ const OutEmail: React.FC = () => {
 
       {/* Hero card */}
       <motion.div
-        className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10"
+        className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/88 p-6 shadow-sm backdrop-blur-xl sm:p-10"
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -311,7 +311,7 @@ const OutEmail: React.FC = () => {
             支持自定义发件人域名与显示名称，需验证码防止滥用。可单封发送，亦可批量推送至最多 100 个收件人。
           </p>
 
-          <div className="mt-6 flex items-start gap-3 rounded-[22px] border border-slate-200 bg-slate-50/60 px-5 py-4 text-sm leading-7 text-slate-600">
+          <div className="mt-6 flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50/60 px-5 py-4 text-sm leading-7 text-slate-600">
             <FaInfoCircle className="mt-1 flex-shrink-0 text-slate-500" />
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">功能说明</p>
@@ -328,7 +328,7 @@ const OutEmail: React.FC = () => {
 
       {/* Quota card */}
       {quota && (
-        <div className="relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 p-5 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 p-5 shadow-sm backdrop-blur-xl">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="text-[10px] font-semibold uppercase tracking-[0.26em] text-slate-400">Daily Quota</div>
@@ -347,7 +347,7 @@ const OutEmail: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-[28px] border border-white/70 bg-white/88 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl"
+        className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/88 p-6 shadow-sm backdrop-blur-xl"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
@@ -382,20 +382,20 @@ const OutEmail: React.FC = () => {
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
-          <div className="rounded-[22px] border border-slate-200/70 bg-white/60 p-5">
+          <div className="rounded-2xl border border-slate-200/70 bg-white/60 p-5">
             <div className="text-[10px] font-semibold uppercase tracking-[0.26em] text-slate-400">服务可用性</div>
             <div className={`mt-2 text-xl font-semibold ${outemailStatus?.available ? 'text-emerald-600' : 'text-rose-500'}`}>
               {outemailStatus?.available ? '正常' : '异常'}
             </div>
           </div>
-          <div className="rounded-[22px] border border-slate-200/70 bg-white/60 p-5">
+          <div className="rounded-2xl border border-slate-200/70 bg-white/60 p-5">
             <div className="text-[10px] font-semibold uppercase tracking-[0.26em] text-slate-400">可用域名</div>
             <div className="mt-2 text-xl font-semibold text-slate-900">{domains.length}</div>
           </div>
         </div>
 
         {outemailStatus?.error && (
-          <div className="mt-4 flex items-center gap-2 rounded-[22px] border border-rose-200/70 bg-rose-50/80 px-5 py-3 text-sm text-rose-700">
+          <div className="mt-4 flex items-center gap-2 rounded-2xl border border-rose-200/70 bg-rose-50/80 px-5 py-3 text-sm text-rose-700">
             <FaExclamationTriangle className="flex-shrink-0" />
             <span>{outemailStatus.error}</span>
           </div>
@@ -406,7 +406,7 @@ const OutEmail: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-[28px] border border-white/70 bg-white/88 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-8"
+        className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/88 p-6 shadow-sm backdrop-blur-xl sm:p-8"
       >
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
@@ -430,7 +430,7 @@ const OutEmail: React.FC = () => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="mt-4 flex items-center gap-2 rounded-[22px] border border-rose-200/70 bg-rose-50/80 px-5 py-4 text-sm text-rose-700"
+              className="mt-4 flex items-center gap-2 rounded-2xl border border-rose-200/70 bg-rose-50/80 px-5 py-4 text-sm text-rose-700"
             >
               <FaExclamationTriangle className="flex-shrink-0" />
               {error}
@@ -441,7 +441,7 @@ const OutEmail: React.FC = () => {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="mt-4 flex items-center gap-2 rounded-[22px] border border-emerald-200/70 bg-emerald-50/80 px-5 py-4 text-sm text-emerald-700"
+              className="mt-4 flex items-center gap-2 rounded-2xl border border-emerald-200/70 bg-emerald-50/80 px-5 py-4 text-sm text-emerald-700"
             >
               <FaCheckCircle className="flex-shrink-0" />
               {success}
@@ -552,7 +552,7 @@ const OutEmail: React.FC = () => {
               <motion.div
                 initial={{ opacity: 0, y: -8 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`mt-3 rounded-[22px] border px-5 py-3 ${
+                className={`mt-3 rounded-2xl border px-5 py-3 ${
                   domainExemptionStatus.exempted
                     ? 'border-emerald-200/70 bg-emerald-50/80'
                     : 'border-amber-200/70 bg-amber-50/80'
@@ -616,7 +616,7 @@ const OutEmail: React.FC = () => {
               className={`mt-2 block w-full text-sm text-slate-700 file:mr-4 file:rounded-xl file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-800 ${batchMode ? 'cursor-not-allowed opacity-50' : ''}`}
             />
             {selectedFiles.length > 0 && (
-              <div className="mt-2 max-h-32 overflow-auto rounded-[18px] border border-slate-200 bg-white/60 p-3">
+              <div className="mt-2 max-h-32 overflow-auto rounded-2xl border border-slate-200 bg-white/60 p-3">
                 <ul className="space-y-1.5 text-xs text-slate-700">
                   {selectedFiles.map((f, idx) => (
                     <li key={idx} className="flex items-center justify-between gap-2">
@@ -664,7 +664,7 @@ const OutEmail: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden rounded-[28px] border border-white/70 bg-white/88 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-8"
+        className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/88 p-6 shadow-sm backdrop-blur-xl sm:p-8"
       >
         <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
           <FaInfoCircle className="text-slate-500" />
@@ -672,7 +672,7 @@ const OutEmail: React.FC = () => {
         </div>
 
         <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-3">
-          <div className="rounded-[22px] border border-slate-200/70 bg-white/60 p-5">
+          <div className="rounded-2xl border border-slate-200/70 bg-white/60 p-5">
             <h4 className="text-sm font-semibold text-slate-900">功能说明</h4>
             <ul className="mt-3 space-y-2 text-sm text-slate-600">
               <li className="flex items-start gap-2"><span className="mt-2 h-1 w-1 flex-shrink-0 rounded-full bg-slate-400" />支持自定义发件人邮箱</li>
@@ -682,7 +682,7 @@ const OutEmail: React.FC = () => {
             </ul>
           </div>
 
-          <div className="rounded-[22px] border border-slate-200/70 bg-white/60 p-5">
+          <div className="rounded-2xl border border-slate-200/70 bg-white/60 p-5">
             <h4 className="text-sm font-semibold text-slate-900">使用提示</h4>
             <ul className="mt-3 space-y-2 text-sm text-slate-600">
               <li className="flex items-start gap-2"><span className="mt-2 h-1 w-1 flex-shrink-0 rounded-full bg-emerald-400" />确保收件人邮箱格式正确</li>
@@ -692,7 +692,7 @@ const OutEmail: React.FC = () => {
             </ul>
           </div>
 
-          <div className="rounded-[22px] border border-slate-200/70 bg-white/60 p-5">
+          <div className="rounded-2xl border border-slate-200/70 bg-white/60 p-5">
             <h4 className="text-sm font-semibold text-slate-900">安全提醒</h4>
             <ul className="mt-3 space-y-2 text-sm text-slate-600">
               <li className="flex items-start gap-2"><span className="mt-2 h-1 w-1 flex-shrink-0 rounded-full bg-amber-400" />请勿发送垃圾邮件</li>

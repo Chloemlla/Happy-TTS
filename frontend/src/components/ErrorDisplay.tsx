@@ -88,7 +88,7 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ error, onRetry, onReset }) 
     >
       <InfoPanel className={config.toneClass}>
         <div className="flex flex-col gap-5 md:flex-row md:items-start">
-          <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-[24px] ring-1 ${config.iconClass}`}>
+          <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ring-1 ${config.iconClass}`}>
             <FaExclamationTriangle className="h-6 w-6" />
           </div>
 
@@ -97,7 +97,7 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({ error, onRetry, onReset }) 
             <h3 className="mt-2 text-2xl font-semibold">{config.title}</h3>
             <p className="mt-3 text-sm leading-7 opacity-90">{errorMessage}</p>
 
-            <div className="mt-5 rounded-[22px] border border-current/15 bg-white/55 p-4">
+            <div className="mt-5 rounded-2xl border border-current/15 bg-white/55 p-4">
               <h4 className="flex items-center gap-2 text-sm font-semibold">
                 <FaSearch /> 解决建议
               </h4>

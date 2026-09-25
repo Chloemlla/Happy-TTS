@@ -315,7 +315,7 @@ const OAuthAuthorizePage: React.FC = () => {
                   <div
                     key={item.label}
                     className={cn(
-                      "min-w-0 rounded-[22px] border px-3 py-2.5 sm:rounded-2xl sm:px-4 sm:py-3",
+                      "min-w-0 rounded-2xl border px-3 py-2.5 sm:rounded-2xl sm:px-4 sm:py-3",
                       studioMetricToneClassName(item.tone),
                     )}
                   >
@@ -339,7 +339,7 @@ const OAuthAuthorizePage: React.FC = () => {
             transition={{ duration: 0.5, delay: 0.05 }}
             className={studioMainSurfaceClassName}
           >
-            <div className="rounded-[22px] border border-slate-200 bg-white/80 p-3 sm:p-5">
+            <div className="rounded-2xl border border-slate-200 bg-white/80 p-3 sm:p-5">
               <div className="mb-5 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <div>
                   <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">
@@ -363,7 +363,7 @@ const OAuthAuthorizePage: React.FC = () => {
               </div>
 
               <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-                <div className="min-w-0 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
+                <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
                   <div className="mb-3 flex items-center gap-3">
                     <div className={studioStrongBadgeClassName}>
                       <FaUserShield />
@@ -378,7 +378,7 @@ const OAuthAuthorizePage: React.FC = () => {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <div className="flex min-w-0 flex-col gap-1 rounded-[20px] border border-slate-100 bg-white/80 px-3 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 flex-col gap-1 rounded-2xl border border-slate-100 bg-white/80 px-3 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
                       <span className="text-slate-500">用户名</span>
                       <span
                         className="break-all font-semibold text-slate-900"
@@ -387,7 +387,7 @@ const OAuthAuthorizePage: React.FC = () => {
                         {preview.user.username}
                       </span>
                     </div>
-                    <div className="flex min-w-0 flex-col gap-1 rounded-[20px] border border-slate-100 bg-white/80 px-3 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 flex-col gap-1 rounded-2xl border border-slate-100 bg-white/80 px-3 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
                       <span className="text-slate-500">邮箱</span>
                       <span
                         className="break-all font-semibold text-slate-900"
@@ -396,7 +396,7 @@ const OAuthAuthorizePage: React.FC = () => {
                         {preview.user.email}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between rounded-[20px] border border-slate-100 bg-white/80 px-3 py-3 text-sm">
+                    <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white/80 px-3 py-3 text-sm">
                       <span className="text-slate-500">角色</span>
                       <span
                         className={cn(
@@ -407,7 +407,7 @@ const OAuthAuthorizePage: React.FC = () => {
                         {roleLabel}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between rounded-[20px] border border-slate-100 bg-white/80 px-3 py-3 text-sm">
+                    <div className="flex items-center justify-between rounded-2xl border border-slate-100 bg-white/80 px-3 py-3 text-sm">
                       <span className="text-slate-500">管理员权益</span>
                       <span className="font-semibold text-slate-900">
                         {preview.user.isAdmin ? "是" : "否"}
@@ -416,7 +416,7 @@ const OAuthAuthorizePage: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="min-w-0 rounded-[22px] border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
+                <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
                   <div className="mb-3 flex items-center gap-3">
                     <div className={studioStrongBadgeClassName}>
                       <FaKey />
@@ -431,21 +431,21 @@ const OAuthAuthorizePage: React.FC = () => {
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <div className="rounded-[20px] border border-slate-100 bg-white/80 px-3 py-3 text-sm">
+                    <div className="rounded-2xl border border-slate-100 bg-white/80 px-3 py-3 text-sm">
                       <div className="text-slate-500">应用名称</div>
                       <div className="mt-1 break-words font-semibold text-slate-900">
                         {preview.client.name}
                       </div>
                     </div>
                     {preview.client.description ? (
-                      <div className="rounded-[20px] border border-slate-100 bg-white/80 px-3 py-3 text-sm">
+                      <div className="rounded-2xl border border-slate-100 bg-white/80 px-3 py-3 text-sm">
                         <div className="text-slate-500">应用描述</div>
                         <div className="mt-1 break-words leading-7 text-slate-700">
                           {preview.client.description}
                         </div>
                       </div>
                     ) : null}
-                    <div className="rounded-[20px] border border-slate-100 bg-white/80 px-3 py-3 text-sm">
+                    <div className="rounded-2xl border border-slate-100 bg-white/80 px-3 py-3 text-sm">
                       <div className="text-slate-500">回调地址</div>
                       <code className="mt-2 block break-all text-xs text-slate-700">
                         {preview.redirectUri}
@@ -469,7 +469,7 @@ const OAuthAuthorizePage: React.FC = () => {
                     {identityScopes.map((scope) => (
                       <div
                         key={scope.key}
-                        className="min-w-0 rounded-[22px] border border-slate-200 bg-white/90 p-4"
+                        className="min-w-0 rounded-2xl border border-slate-200 bg-white/90 p-4"
                       >
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <span className="font-semibold text-slate-800">
@@ -486,7 +486,7 @@ const OAuthAuthorizePage: React.FC = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className="rounded-[22px] border border-dashed border-slate-200 bg-slate-50/80 px-6 py-10 text-center text-slate-400">
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-6 py-10 text-center text-slate-400">
                     没有身份资料权限。
                   </div>
                 )}
@@ -506,7 +506,7 @@ const OAuthAuthorizePage: React.FC = () => {
                     {apiScopes.map((scope) => (
                       <div
                         key={scope.key}
-                        className="min-w-0 rounded-[22px] border border-slate-200 bg-white/90 p-4"
+                        className="min-w-0 rounded-2xl border border-slate-200 bg-white/90 p-4"
                       >
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex flex-wrap items-center gap-2">
@@ -619,19 +619,19 @@ const OAuthAuthorizePage: React.FC = () => {
                 </div>
               </div>
               <div className="space-y-2">
-                <div className="flex flex-col gap-1 rounded-[20px] border border-slate-100 px-3 py-3 text-sm">
+                <div className="flex flex-col gap-1 rounded-2xl border border-slate-100 px-3 py-3 text-sm">
                   <span className="text-slate-500">授权码模式</span>
                   <code className="break-all text-xs font-semibold text-slate-900">
                     response_type=code
                   </code>
                 </div>
-                <div className="flex flex-col gap-1 rounded-[20px] border border-slate-100 px-3 py-3 text-sm">
+                <div className="flex flex-col gap-1 rounded-2xl border border-slate-100 px-3 py-3 text-sm">
                   <span className="text-slate-500">授权范围</span>
                   <code className="break-all text-xs font-semibold text-slate-900">
                     {preview.scopes.join(" ")}
                   </code>
                 </div>
-                <div className="flex flex-col gap-1 rounded-[20px] border border-slate-100 px-3 py-3 text-sm">
+                <div className="flex flex-col gap-1 rounded-2xl border border-slate-100 px-3 py-3 text-sm">
                   <span className="text-slate-500">管理员识别字段</span>
                   <code className="break-all text-xs font-semibold text-slate-900">
                     role / isAdmin / is_admin / synapseAdmin

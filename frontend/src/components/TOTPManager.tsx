@@ -195,7 +195,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
         initial={motionProps?.initial ?? { opacity: 0, y: 12 }}
         animate={motionProps?.animate ?? { opacity: 1, y: 0 }}
         transition={motionProps?.transition ?? { duration: 0.24 }}
-        className="rounded-[26px] border border-slate-200 bg-slate-50/80 p-4 sm:p-5"
+        className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:p-5"
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 gap-3">
@@ -257,7 +257,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
         transition={motionProps?.transition ?? { duration: 0.24, delay: 0.04 }}
         className="space-y-3"
       >
-        <div className="rounded-[24px] border border-slate-200 bg-white/90 p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
           <div className="flex gap-3">
             <div className="flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-500">
               <FaLock />
@@ -317,7 +317,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
           </div>
         </div>
 
-        <div className="rounded-[24px] border border-slate-200 bg-white/90 p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
           <div className="flex gap-3">
             <div className="flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 text-slate-500">
               <FaKey />
@@ -408,7 +408,7 @@ const TOTPManager: React.FC<TOTPManagerProps> = ({ onStatusChange }) => {
                   maxLength={6}
                   inputMode="numeric"
                   autoComplete="one-time-code"
-                  className={`${studioFieldClassName} text-center font-mono sm:rounded-[18px]`}
+                  className={`${studioFieldClassName} text-center font-mono sm:rounded-2xl`}
                 />
                 {error ? (
                   <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">

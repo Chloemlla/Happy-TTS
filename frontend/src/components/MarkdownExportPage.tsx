@@ -348,7 +348,7 @@ const MarkdownExportPage: React.FC = () => {
   return (
     <section className="mx-auto max-w-6xl px-4 py-10 sm:py-12">
       <motion.div
-        className="relative overflow-hidden rounded-[34px] border border-white/70 bg-white/88 p-6 shadow-[0_28px_110px_rgba(15,23,42,0.1)] backdrop-blur-xl sm:p-10"
+        className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/88 p-6 shadow-sm backdrop-blur-xl sm:p-10"
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -413,7 +413,7 @@ const MarkdownExportPage: React.FC = () => {
           </div>
 
           <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-2">
-            <div className="relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 shadow-sm backdrop-blur-xl">
               <div className="flex items-center justify-between border-b border-slate-100 bg-white/60 px-5 py-3">
                 <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
                   <FaFileAlt className="text-slate-500" />
@@ -430,7 +430,7 @@ const MarkdownExportPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="relative overflow-hidden rounded-[26px] border border-white/70 bg-white/82 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl">
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white/82 shadow-sm backdrop-blur-xl">
               <div className="flex items-center justify-between border-b border-slate-100 bg-white/60 px-5 py-3">
                 <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.26em] text-slate-500">
                   <FaEye className="text-slate-500" />
@@ -455,7 +455,7 @@ const MarkdownExportPage: React.FC = () => {
       </motion.div>
 
       <motion.div
-        className="mt-6 overflow-hidden rounded-[28px] border border-white/70 bg-white/88 p-6 shadow-[0_18px_60px_rgba(15,23,42,0.06)] backdrop-blur-xl sm:p-8"
+        className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white/88 p-6 shadow-sm backdrop-blur-xl sm:p-8"
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.15 }}

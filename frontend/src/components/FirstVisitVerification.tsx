@@ -206,7 +206,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
   if (banState.isBanned) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#f6f8fb] p-4">
-        <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto overscroll-contain rounded-[28px] border border-[#d6dbe5] bg-white px-8 py-10 shadow-[0_40px_90px_rgba(26,32,44,0.08)]">
+        <div className="w-full max-w-xl max-h-[90vh] overflow-y-auto overscroll-contain rounded-2xl border border-[#d6dbe5] bg-white px-8 py-10 shadow-sm">
           <div className="mb-8 flex items-center gap-3">
             <div className="flex h-9 w-9 sm:h-11 sm:w-11 items-center justify-center rounded-full border border-[#ffd6c2] bg-[#fff4ef] text-sm font-semibold text-[#f48120]">
               !
@@ -256,7 +256,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, ease: 'easeOut' }}
-          className="w-full max-w-[820px] max-h-[90vh] overflow-y-auto overscroll-contain rounded-[32px] border border-[#dde3ec] bg-white/95 shadow-[0_45px_120px_rgba(15,23,42,0.08)] backdrop-blur"
+          className="w-full max-w-[820px] max-h-[90vh] overflow-y-auto overscroll-contain rounded-2xl border border-[#dde3ec] bg-white/95 shadow-sm backdrop-blur"
         >
           <div className="grid gap-0 md:grid-cols-[1.18fr_0.82fr]">
             <div className="border-b border-[#edf1f5] px-4 py-6 md:border-b-0 md:border-r md:px-10 md:py-10">
@@ -270,7 +270,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                 </div>
               </div>
 
-              <div className="mb-8 flex items-center gap-4 rounded-[24px] border border-[#eceff4] bg-[#fbfcfe] px-5 py-4">
+              <div className="mb-8 flex items-center gap-4 rounded-2xl border border-[#eceff4] bg-[#fbfcfe] px-5 py-4">
                 <div className="relative h-9 w-9 sm:h-11 sm:w-11">
                   <span className="absolute inset-0 rounded-full border-2 border-[#f4c7aa]/80" />
                   <motion.span
@@ -297,7 +297,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                 </p>
               </div>
 
-              <div className="rounded-[24px] border border-[#eceff4] bg-[#fbfcfe] px-5 py-5">
+              <div className="rounded-2xl border border-[#eceff4] bg-[#fbfcfe] px-5 py-5">
                 <div className="mb-5 flex items-center justify-between">
                   <p className="text-sm font-semibold text-[#253140]">Complete the security challenge</p>
                   <span className="rounded-full border border-[#ffd9c8] bg-[#fff4ef] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#f48120]">
@@ -306,26 +306,26 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                 </div>
 
                 {secureSelectionLoading ? (
-                  <div className="rounded-[20px] border border-[#eceff4] bg-white px-5 py-6 text-sm text-[#637082]">
+                  <div className="rounded-2xl border border-[#eceff4] bg-white px-5 py-6 text-sm text-[#637082]">
                     Loading verification provider...
                   </div>
                 ) : configError ? (
                   <div className="space-y-4">
-                    <div className="rounded-[20px] border border-[#f4d2c7] bg-[#fff5f1] px-4 py-4 text-sm text-[#a34516]">
+                    <div className="rounded-2xl border border-[#f4d2c7] bg-[#fff5f1] px-4 py-4 text-sm text-[#a34516]">
                       {configError}
                     </div>
                     <button
                       type="button"
                       onClick={() => window.location.reload()}
-                      className="rounded-[18px] border border-[#1d2735] px-4 py-3 text-sm font-semibold text-[#1d2735] transition hover:bg-[#1d2735] hover:text-white"
+                      className="rounded-2xl border border-[#1d2735] px-4 py-3 text-sm font-semibold text-[#1d2735] transition hover:bg-[#1d2735] hover:text-white"
                     >
                       Reload page
                     </button>
                   </div>
                 ) : (
                   <>
-                    <div className="flex min-h-[82px] items-center justify-center rounded-[20px] border border-dashed border-[#dfe5ee] bg-white px-4 py-4">
-                      <Suspense fallback={<div className="h-[78px] w-full animate-pulse rounded-[18px] bg-[#f3f6fa]" />}>
+                    <div className="flex min-h-[82px] items-center justify-center rounded-2xl border border-dashed border-[#dfe5ee] bg-white px-4 py-4">
+                      <Suspense fallback={<div className="h-[78px] w-full animate-pulse rounded-2xl bg-[#f3f6fa]" />}>
                         {verificationMode === 'turnstile' ? (
                           <TurnstileWidget
                             key={turnstileKey}
@@ -353,7 +353,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                           initial={{ opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
                           exit={{ opacity: 0, y: -8 }}
-                          className="mt-4 rounded-[18px] border border-[#f4d2c7] bg-[#fff5f1] px-4 py-3 text-sm text-[#a34516]"
+                          className="mt-4 rounded-2xl border border-[#f4d2c7] bg-[#fff5f1] px-4 py-3 text-sm text-[#a34516]"
                         >
                           {error}
                         </motion.div>
@@ -365,7 +365,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                         type="button"
                         onClick={handleVerify}
                         disabled={!isVerified || verifying}
-                        className={`flex-1 rounded-[18px] px-5 py-3.5 text-sm font-semibold transition ${
+                        className={`flex-1 rounded-2xl px-5 py-3.5 text-sm font-semibold transition ${
                           !isVerified || verifying
                             ? 'cursor-not-allowed bg-[#e9edf3] text-[#9aa5b1]'
                             : 'bg-[#f48120] text-white shadow-[0_18px_30px_rgba(244,129,32,0.24)] hover:bg-[#de6f12]'
@@ -381,7 +381,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                           resetChallenge();
                         }}
                         disabled={verifying}
-                        className="rounded-[18px] border border-[#d7dde6] px-5 py-3.5 text-sm font-semibold text-[#253140] transition hover:border-[#bcc6d3] hover:bg-[#f6f8fb] disabled:cursor-not-allowed disabled:opacity-60"
+                        className="rounded-2xl border border-[#d7dde6] px-5 py-3.5 text-sm font-semibold text-[#253140] transition hover:border-[#bcc6d3] hover:bg-[#f6f8fb] disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         Reload challenge
                       </button>
@@ -392,7 +392,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
             </div>
 
             <div className="px-4 py-6 md:px-9 md:py-10">
-              <div className="rounded-[26px] border border-[#eceff4] bg-[#fbfcfe] px-5 py-5">
+              <div className="rounded-2xl border border-[#eceff4] bg-[#fbfcfe] px-5 py-5">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#7f8a98]">Session Context</p>
 
                 <div className="mt-5 space-y-5">
@@ -416,7 +416,7 @@ export const FirstVisitVerification: React.FC<FirstVisitVerificationProps> = ({
                 </div>
               </div>
 
-              <div className="mt-6 rounded-[26px] border border-[#eceff4] bg-white px-5 py-5">
+              <div className="mt-6 rounded-2xl border border-[#eceff4] bg-white px-5 py-5">
                 <p className="text-sm font-semibold text-[#253140]">Why this page appears</p>
                 <ul className="mt-4 space-y-3 text-sm leading-6 text-[#637082]">
                   <li>Backend fraud scoring marked the current network as risky enough to step up verification.</li>

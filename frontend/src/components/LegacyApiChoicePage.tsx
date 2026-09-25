@@ -80,7 +80,7 @@ const LegacyApiChoicePage: React.FC = () => {
 
   return (
     <section className="mx-auto flex min-h-[58vh] max-w-full px-4 py-10 sm:max-w-3xl">
-      <div className="w-full rounded-lg border border-slate-200 bg-white p-6 shadow-[0_20px_70px_rgba(15,23,42,0.08)] sm:p-8">
+      <div className="w-full rounded-lg border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
