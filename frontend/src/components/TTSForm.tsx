@@ -5,6 +5,7 @@ import { getApiBaseUrl } from "../api/api";
 import { useNotification } from "./Notification";
 import { TurnstileWidget } from "./TurnstileWidget";
 import { useTurnstileConfig } from "../hooks/useTurnstileConfig";
+import { useIsAdmin } from "../hooks/useRBAC";
 import {
   FaLock,
   FaMicrophone,
@@ -102,6 +103,7 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
   const [outputFormat, setOutputFormat] = useState("mp3");
   const [speed, setSpeed] = useState(1.0);
   const [generationCode, setGenerationCode] = useState("");
+  const isAdmin = useIsAdmin();
   const [formError, setFormError] = useState("");
   const [cooldown, setCooldown] = useState(false);
   const [cooldownTime, setCooldownTime] = useState(0);
@@ -311,7 +313,7 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
     if (text.length > MAX_TEXT_LENGTH) {
       return `文本长度超出限制（${text.length}/${MAX_TEXT_LENGTH}）`;
     }
-    if (!generationCode.trim()) {
+    if (!isAdmin && !generationCode.trim()) {
       return "请输入生成码";
     }
     if (!model) {
@@ -329,6 +331,7 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
     cooldown,
     cooldownTime,
     generationCode,
+    isAdmin,
     model,
     providerConfigLoading,
     text,
@@ -806,39 +809,56 @@ export const TtsForm: React.FC<TtsFormProps> = React.memo<TtsFormProps>(({
               </motion.div>
             )}
 
-            <motion.div
-              className="min-w-0"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.4, delay: 0.9 }}
-            >
-              <motion.label
-                className={cn(studioEyebrowClassName, "mb-3 block")}
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 1.0 }}
+            {isAdmin ? (
+              <motion.div
+                className="min-w-0"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.9 }}
               >
-                生成码
-                <span className="text-red-500 ml-1">*</span>
-              </motion.label>
-              <motion.input
-                type="password"
-                value={generationCode}
-                onChange={(event) => setGenerationCode(event.target.value)}
-                className={studioFieldClassName}
-                placeholder="请输入生成码..."
-                required
-                whileFocus={{ scale: 1.01 }}
-              />
-              <motion.p
-                className="text-sm text-slate-400 mt-1"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3, delay: 1.1 }}
+                <div className={cn(studioEyebrowClassName, "mb-3 block")}>生成码</div>
+                <div
+                  className="rounded-md border border-border bg-muted/50 p-4 text-sm text-muted-foreground"
+                  role="note"
+                >
+                  管理员账号无需填写生成码。
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                className="min-w-0"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.9 }}
               >
-                生成码用于验证您的身份，请确保输入正确
-              </motion.p>
-            </motion.div>
+                <motion.label
+                  className={cn(studioEyebrowClassName, "mb-3 block")}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: 1.0 }}
+                >
+                  生成码
+                  <span className="text-red-500 ml-1">*</span>
+                </motion.label>
+                <motion.input
+                  type="password"
+                  value={generationCode}
+                  onChange={(event) => setGenerationCode(event.target.value)}
+                  className={studioFieldClassName}
+                  placeholder="请输入生成码..."
+                  required
+                  whileFocus={{ scale: 1.01 }}
+                />
+                <motion.p
+                  className="text-sm text-slate-400 mt-1"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3, delay: 1.1 }}
+                >
+                  生成码用于验证您的身份，请确保输入正确
+                </motion.p>
+              </motion.div>
+            )}
           </div>
         </motion.div>
 

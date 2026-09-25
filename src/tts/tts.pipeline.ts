@@ -333,7 +333,10 @@ export class TtsSubmissionPipeline {
       );
     }
     if (!context.authenticatedByApiKey) {
-      await this.validateGenerationCode(context.input.generationCode);
+      // 管理员豁免与 validatePolicyConsent 一致：能在后台改生成码的人不需要再自证。
+      if (!isAdmin) {
+        await this.validateGenerationCode(context.input.generationCode);
+      }
       await this.validateTurnstile(context.input.cfToken, context.ip);
     }
 
