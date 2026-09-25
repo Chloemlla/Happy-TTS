@@ -297,7 +297,7 @@ const RiskCacheTab: React.FC<Props> = ({ refreshNonce }) => {
                       )}
                     </Td>
                     <Td>
-                      {decision ? (
+                      {decision && action ? (
                         <div className="space-y-1">
                           <Badge style={action} title={action.description} />
                           <div className="text-[11px] text-slate-500">

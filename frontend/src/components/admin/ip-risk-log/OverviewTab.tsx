@@ -263,8 +263,8 @@ const OverviewTab: React.FC<Props> = ({ overview, loading, error, onRefresh }) =
                     </Td>
                     <Td className="whitespace-nowrap text-slate-500">{formatTime(row.exhaustedAt)}</Td>
                     <Td className="whitespace-nowrap text-slate-500">{formatTime(row.lastUsedAt)}</Td>
-                    <Td className="font-mono text-[11px] text-slate-500" title={row.apiKeyHash}>
-                      {shortText(row.apiKeyHash, 14)}
+                    <Td className="font-mono text-[11px] text-slate-500">
+                      <span title={row.apiKeyHash}>{shortText(row.apiKeyHash, 14)}</span>
                     </Td>
                   </tr>
                 ))}
