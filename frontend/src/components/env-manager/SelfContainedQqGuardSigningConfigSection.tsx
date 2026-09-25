@@ -33,13 +33,14 @@ export default function SelfContainedQqGuardSigningConfigSection({ prefersReduce
   const [alertEmailsInput, setAlertEmailsInput] = useState('');
   const [currentAlertEmails, setCurrentAlertEmails] = useState('');
   const [savingAlert, setSavingAlert] = useState(false);
+  const [alertEmailsLoadError, setAlertEmailsLoadError] = useState(false);
 
   const fetchConfig = useCallback(async () => {
     setLoading(true);
     try {
       const res = await authFetch(QQ_GUARD_SIGNING_API, { headers: { ...getAuthHeaders() } });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) { setNotification({ message: data.error || '获取 QQ 群纪律机器人签名配置失败', type: 'error' }); return; }
+      if (!res.ok) { setAlertEmailsLoadError(true); setNotification({ message: data.error || '获取 QQ 群纪律机器人签名配置失败', type: 'error' }); return; }
       const cfg = data?.setting?.config || {};
       setTokenInput('');
       // 后端仅回显脱敏 token；hasToken 表示已配置
@@ -47,14 +48,20 @@ export default function SelfContainedQqGuardSigningConfigSection({ prefersReduce
       setUpdatedAt(data?.setting?.updatedAt);
       setAlertEmailsInput('');
       setCurrentAlertEmails(typeof cfg.alertEmails === 'string' ? cfg.alertEmails : '');
+      setAlertEmailsLoadError(false);
     } catch (e) {
+      setAlertEmailsLoadError(true);
       setNotification({ message: '获取 QQ 群纪律机器人签名配置失败：' + (e instanceof Error ? e.message : '未知错误'), type: 'error' });
     } finally { setLoading(false); }
   }, [setNotification]);
 
+  // 告警邮箱卡片在折叠区之外、页面一打开就可见，所以要在挂载时就读一次；
+  // 只跟着折叠区展开再读的话，每次刷新页面都会先渲染成「未配置」，看起来像没保存上。
   useEffect(() => {
-    if (isOpen && !fetchedRef.current) { fetchedRef.current = true; fetchConfig(); }
-  }, [isOpen, fetchConfig]);
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+    void fetchConfig();
+  }, [fetchConfig]);
 
   const handleSave = useCallback(async () => {
     if (!canWrite) return;
@@ -109,6 +116,14 @@ export default function SelfContainedQqGuardSigningConfigSection({ prefersReduce
     finally { setDeleting(false); }
   }, [canWrite, deleting, fetchConfig, setNotification]);
 
+  const alertEmailsHint = loading
+    ? '正在读取当前收件人…'
+    : alertEmailsLoadError
+      ? '收件人读取失败，已保存的配置不受影响'
+      : currentAlertEmails
+        ? `当前收件人：${currentAlertEmails}`
+        : '当前未配置收件人，不会发送邮件告警';
+
   return (
     <>
       <SecretKeySection
@@ -142,7 +157,7 @@ export default function SelfContainedQqGuardSigningConfigSection({ prefersReduce
             />
           </div>
           <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs text-slate-600 sm:px-4 sm:py-3">
-            {currentAlertEmails ? `当前收件人：${currentAlertEmails}` : '当前未配置收件人，不会发送邮件告警'}
+            {alertEmailsHint}
           </div>
           <div className="flex items-center justify-end gap-3">
             <m.button
