@@ -405,7 +405,7 @@ const NotificationCard = React.memo(({
                 </div>
                 <button
                     onClick={onClose}
-                    className="p-1 sm:p-2 rounded-full hover:bg-gray-100 focus:outline-none transition-all duration-150 flex items-center justify-center flex-shrink-0"
+                    className="p-1 sm:p-2 rounded-full hover:bg-slate-100 focus:outline-none transition-all duration-150 flex items-center justify-center flex-shrink-0"
                     aria-label="关闭通知"
                     style={{ alignSelf: 'flex-start', marginTop: -2 }}
                 >
@@ -415,7 +415,7 @@ const NotificationCard = React.memo(({
                 </button>
             </div>
             {/* 底部进度条 */}
-            <div className="w-full h-1 mt-2 rounded bg-gray-200 overflow-hidden relative">
+            <div className="w-full h-1 mt-2 rounded-full bg-slate-200 overflow-hidden relative">
                 <div
                     ref={progressRef}
                     className={`h-full ${notification.isPaused ? 'animate-pulse' : ''}`}

@@ -63,12 +63,12 @@ const CloudflareChallengePage: React.FC = () => {
 
         <div className="space-y-5 px-4 py-5 sm:px-6 sm:py-7">
           {configLoading ? (
-            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
               正在加载验证组件...
             </div>
           ) : siteKey ? (
             <div className="space-y-4">
-              <div className="flex min-h-[78px] items-center justify-center rounded-lg border border-slate-200 bg-slate-50 px-3 py-4">
+              <div className="flex min-h-[78px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-3 py-4">
                 {verificationState === 'verified' ? (
                   <div className="flex items-center gap-2 text-sm font-medium text-green-700">
                     <FaCheckCircle className="h-5 w-5" />
@@ -92,13 +92,13 @@ const CloudflareChallengePage: React.FC = () => {
                 </p>
               )}
               {verificationState === 'failed' && (
-                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
                   验证失败，请重新验证
                 </div>
               )}
             </div>
           ) : (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
               Cloudflare Turnstile 尚未启用
             </div>
           )}
@@ -106,7 +106,7 @@ const CloudflareChallengePage: React.FC = () => {
           <div className="flex items-center justify-between gap-3">
             <Link
               to="/"
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
             >
               <FaArrowLeft className="h-3.5 w-3.5" />
               返回首页
@@ -115,7 +115,7 @@ const CloudflareChallengePage: React.FC = () => {
               <button
                 type="button"
                 onClick={resetChallenge}
-                className="inline-flex items-center gap-2 rounded-lg bg-[#FFB703] px-3 py-2 text-sm font-semibold text-[#023047] transition hover:bg-[#FB8500]"
+                className="inline-flex items-center gap-2 rounded-2xl bg-[#FFB703] px-3 py-2 text-sm font-semibold text-[#023047] transition hover:bg-[#FB8500]"
               >
                 <FaRedo className="h-3.5 w-3.5" />
                 重试

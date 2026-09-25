@@ -80,7 +80,7 @@ const LegacyApiChoicePage: React.FC = () => {
 
   return (
     <section className="mx-auto flex min-h-[58vh] max-w-full px-4 py-10 sm:max-w-3xl">
-      <div className="w-full rounded-lg border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+      <div className="w-full rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <div className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
@@ -96,14 +96,14 @@ const LegacyApiChoicePage: React.FC = () => {
           </div>
           <Link
             to="/"
-            className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
+            className="inline-flex h-10 items-center justify-center rounded-2xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
           >
             回到首页
           </Link>
         </div>
 
         <div className="mt-7 grid gap-4">
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
               <Monitor className="h-4 w-4 text-slate-500" aria-hidden="true" />
               前端页面
@@ -113,7 +113,7 @@ const LegacyApiChoicePage: React.FC = () => {
             </code>
           </div>
 
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
               <Server className="h-4 w-4 text-teal-600" aria-hidden="true" />
               API endpoint
@@ -139,7 +139,7 @@ const LegacyApiChoicePage: React.FC = () => {
             type="button"
             onClick={() => chooseDestination('frontend')}
             disabled={!canChoose}
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 focus-visible:ring-offset-2"
           >
             <Monitor className="h-4 w-4" aria-hidden="true" />
             打开前端页面
@@ -148,7 +148,7 @@ const LegacyApiChoicePage: React.FC = () => {
             type="button"
             onClick={() => chooseDestination('api')}
             disabled={!canChoose}
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-2xl bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
           >
             打开 API endpoint
             <ArrowRight className="h-4 w-4" aria-hidden="true" />

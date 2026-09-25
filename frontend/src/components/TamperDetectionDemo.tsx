@@ -466,7 +466,7 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
 
   if (!status) {
     return (
-      <div className={`relative min-h-[46vh] overflow-hidden rounded-3xl bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.22),_transparent_34%),linear-gradient(180deg,#f8fbff_0%,#eef2ff_55%,#f8fafc_100%)] ${className ?? ''}`}>
+      <div className={`relative min-h-[46vh] overflow-hidden rounded-2xl bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.22),_transparent_34%),linear-gradient(180deg,#f8fbff_0%,#eef2ff_55%,#f8fafc_100%)] ${className ?? ''}`}>
         <div className="relative mx-auto flex min-h-[46vh] max-w-3xl items-center justify-center px-4 py-10">
           <div className="w-full rounded-2xl border border-slate-200 bg-white/88 px-6 py-8 text-center shadow-sm backdrop-blur-xl">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-500">
@@ -482,7 +482,7 @@ export const TamperDetectionDemo: React.FC<TamperDetectionDemoProps> = ({ classN
 
   return (
     <div
-      className={`relative min-h-screen overflow-hidden rounded-3xl bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.22),_transparent_34%),linear-gradient(180deg,#f8fbff_0%,#eef2ff_55%,#f8fafc_100%)] text-slate-900 ${className ?? ''}`}
+      className={`relative min-h-screen overflow-hidden rounded-2xl bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.22),_transparent_34%),linear-gradient(180deg,#f8fbff_0%,#eef2ff_55%,#f8fafc_100%)] text-slate-900 ${className ?? ''}`}
     >
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.3)_0%,transparent_52%)]" />
       <div className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
