@@ -86,16 +86,45 @@ export function extractIpResult(payload: ProxycheckPayload, ip: string): Record<
 }
 
 /**
- * 单地址查询也走批量那条 `POST /v3/`，不用 `GET /v3/{ip}`：官方唯一的参考实现
- * （proxycheck-php 的 check()）查几个地址都用这条路径，是唯一能确认会回
- * `http_x_signature` 的路径。GET 是否带签名无任何佐证，而"缺签名也放行"会让验签形同虚设
- * （能剥掉响应头的中间人同样能改写响应体），所以不能赌。
+ * 单地址查询走 `GET /v3/{ip}`，不走批量那条 `POST /v3/`。
+ *
+ * POST 批量端点在不带 JSON 体时会 302 到 `/v3/<调用方出口IP>`，而本层用 redirect:"error"
+ * 拒绝跟随重定向（防止被带到含 key 的地址），于是每次单地址查询都变成
+ * `unexpected redirect` 失败。首访闸门的风险判定因此永远拿不到结论，
+ * failOpen 时直接放行，验证流程不会被唤醒。
+ * GET 单地址端点返回 200 且同样携带 `http_x_signature`，验签逻辑不受影响。
  */
 export async function requestSingleLookup(
   ip: string,
   options: ProxycheckRequestOptions,
 ): Promise<Record<string, unknown> | null> {
-  const payload = await requestBatchLookup([ip], options);
+  assertVerificationKeyUsable(options.verificationKey);
+
+  const params = new URLSearchParams();
+  params.set("key", options.apiKey);
+  params.set("vpn", "1");
+  params.set("asn", "1");
+  params.set("risk", "1");
+  params.set("node", "1");
+  params.set("p", "1");
+  params.set("days", String(options.days));
+
+  const response = await fetch(`${PROXYCHECK_BASE_URL}/v3/${encodeURIComponent(ip)}?${params.toString()}`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      "Accept-Encoding": "identity",
+    },
+    redirect: "error",
+    signal: AbortSignal.timeout(options.timeoutMs),
+  });
+
+  if (!response.ok) {
+    throw new Error(`proxycheck_http_${response.status}`);
+  }
+
+  const payload = await readVerifiedPayload(response, options.verificationKey);
+  assertUpstreamOk(payload);
   return extractIpResult(payload, ip);
 }
 
