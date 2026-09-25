@@ -17,6 +17,8 @@ import {
   FaMarkdown,
   FaCode
 } from 'react-icons/fa';
+import { cn } from '../utils/cn';
+import { studioModalCardClassName, studioSubPanelClassName } from './studioTheme';
 
 const API_URL = getApiBaseUrl() + '/api/admin/announcement';
 
@@ -241,7 +243,7 @@ const AnnouncementManager: React.FC = () => {
 
       {/* 公告内容卡片 */}
       <motion.div 
-        className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
+        className={cn(studioModalCardClassName)}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
@@ -361,7 +363,7 @@ const AnnouncementManager: React.FC = () => {
                   <label className="block text-sm font-semibold text-slate-700 mb-2">
                     公告预览
                   </label>
-                  <div className="border-2 border-slate-200 rounded-2xl p-4 min-h-[120px] bg-slate-50/80">
+                  <div className={cn(studioSubPanelClassName, "min-h-[120px]")}>
                     {content ? (
                       format === 'markdown' ? (
                         <MarkdownRenderer content={content} density="compact" />

@@ -10,6 +10,8 @@ import {
   FaCrown, FaPlug, FaLock, FaLockOpen, FaUserCheck,
   FaUserSecret, FaHashtag,
 } from 'react-icons/fa';
+import { cn } from '../utils/cn';
+import { studioFieldClassName, studioSurfaceClassName, studioTextareaClassName, studioTileClassName } from './studioTheme';
 
 // ========== 类型 ==========
 
@@ -364,7 +366,7 @@ const BroadcastManager: React.FC = () => {
             <input value={broadcastChannel} onChange={e => setBroadcastChannel(e.target.value)}
               placeholder="例如 user:用户ID、admin:ops 或自定义频道"
               maxLength={120}
-              className="w-full px-4 py-2 border border-slate-300 bg-white/80 rounded-2xl focus:ring-2 focus:ring-slate-300 focus:border-slate-400 text-sm" />
+              className={cn(studioFieldClassName, "py-2 border border-slate-300")} />
             {availableChannels.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {availableChannels.slice(0, 8).map(item => (
@@ -394,7 +396,7 @@ const BroadcastManager: React.FC = () => {
         </div>
         <textarea value={message} onChange={e => setMessage(e.target.value)}
           placeholder="输入要推送的消息..." rows={4} maxLength={1000}
-          className="w-full px-4 py-3 border border-slate-300 bg-white/80 rounded-2xl focus:ring-2 focus:ring-slate-300 focus:border-slate-400 resize-none text-sm" />
+          className={cn(studioTextareaClassName, "border border-slate-300")} />
         <div className="flex justify-between mt-1 text-xs text-slate-400">
           <span>{broadcastDisplay === 'modal' ? '弹窗可选择 Markdown / HTML' : '通知条按纯文本展示'}</span><span>{message.length}/1000</span>
         </div>
@@ -446,7 +448,7 @@ const BroadcastManager: React.FC = () => {
             <label className="block text-sm font-medium text-slate-700 mb-2">弹窗标题（可选）</label>
             <input value={broadcastTitle} onChange={e => setBroadcastTitle(e.target.value)}
               placeholder="留空则使用默认标题" maxLength={200}
-              className="w-full px-4 py-2 border border-slate-300 bg-white/80 rounded-2xl focus:ring-2 focus:ring-slate-300 focus:border-slate-400 text-sm" />
+              className={cn(studioFieldClassName, "py-2 border border-slate-300")} />
           </div>
         </>
       )}
@@ -488,7 +490,7 @@ const BroadcastManager: React.FC = () => {
         <textarea value={directUserIds} onChange={e => setDirectUserIds(e.target.value)}
           placeholder="支持多个用户 ID，用逗号、空格或换行分隔"
           rows={2} maxLength={2000}
-          className="w-full px-4 py-3 border border-slate-300 bg-white/80 rounded-2xl focus:ring-2 focus:ring-slate-300 focus:border-slate-400 resize-none text-sm" />
+          className={cn(studioTextareaClassName, "border border-slate-300")} />
         <div className="flex justify-between mt-1 text-xs text-slate-400">
           <span>已识别 {directTargetUserIds.length} 个用户</span>
           <span>最多发送 100 个目标用户</span>
@@ -521,7 +523,7 @@ const BroadcastManager: React.FC = () => {
         </div>
         <textarea value={directMessage} onChange={e => setDirectMessage(e.target.value)}
           placeholder="输入要推送给目标用户的消息..." rows={3} maxLength={1000}
-          className="w-full px-4 py-3 border border-slate-300 bg-white/80 rounded-2xl focus:ring-2 focus:ring-slate-300 focus:border-slate-400 resize-none text-sm" />
+          className={cn(studioTextareaClassName, "border border-slate-300")} />
         <div className="flex justify-between mt-1 text-xs text-slate-400">
           <span>{directDisplay === 'modal' ? '弹窗可选择 Markdown / HTML' : '通知条按纯文本展示'}</span>
           <span>{directMessage.length}/1000</span>
@@ -570,7 +572,7 @@ const BroadcastManager: React.FC = () => {
             <label className="block text-sm font-medium text-slate-700 mb-2">弹窗标题（可选）</label>
             <input value={directTitle} onChange={e => setDirectTitle(e.target.value)}
               placeholder="留空则使用默认标题" maxLength={200}
-              className="w-full px-4 py-2 border border-slate-300 bg-white/80 rounded-2xl focus:ring-2 focus:ring-slate-300 focus:border-slate-400 text-sm" />
+              className={cn(studioFieldClassName, "py-2 border border-slate-300")} />
           </div>
         </>
       )}
@@ -646,7 +648,7 @@ const BroadcastManager: React.FC = () => {
       ) : clients.length === 0 ? (
         <div className="text-center py-10 text-slate-400">暂无在线用户</div>
       ) : (
-        <div className="divide-y divide-slate-100 border border-slate-200 bg-white/80 backdrop-blur-xl rounded-2xl overflow-hidden">
+        <div className={cn(studioSurfaceClassName, "divide-y divide-slate-100")}>
           {clients.map((c, i) => (
             <div key={i} className="flex items-center justify-between px-4 py-3 hover:bg-slate-50/80 transition">
               <div className="flex items-center gap-3">
@@ -727,7 +729,7 @@ const BroadcastManager: React.FC = () => {
       ) : history.length === 0 ? (
         <div className="text-center py-10 text-slate-400">暂无广播记录</div>
       ) : (
-        <div className="divide-y divide-slate-100 border border-slate-200 bg-white/80 backdrop-blur-xl rounded-2xl overflow-hidden">
+        <div className={cn(studioSurfaceClassName, "divide-y divide-slate-100")}>
           {history.map(log => {
             const lvl = LEVEL_OPTIONS.find(l => l.value === log.level) || LEVEL_OPTIONS[0];
             return (
@@ -772,7 +774,7 @@ const BroadcastManager: React.FC = () => {
         const lvl = LEVEL_OPTIONS.find(l => l.value === tpl.level) || LEVEL_OPTIONS[0];
         return (
           <motion.button key={i} onClick={() => applyTemplate(tpl)}
-            className="text-left p-4 border border-slate-200 bg-white/80 backdrop-blur-xl rounded-2xl hover:border-slate-300 hover:shadow-md transition group"
+            className={cn(studioTileClassName, "text-left p-4 hover:border-slate-300 hover:shadow-md transition group")}
             whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
             <div className="flex items-center gap-2 mb-2">
               <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs ${lvl.color}`}>

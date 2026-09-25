@@ -19,6 +19,8 @@ import {
   type AuditLogQuery,
   type AuditLogStats,
 } from '../api/auditLog';
+import { cn } from '../utils/cn';
+import { studioFieldClassName, studioInfoRowClassName, studioSurfaceClassName, studioTileClassName } from './studioTheme';
 
 const MODULE_LABELS: Record<string, string> = {
   admin: '管理后台',
@@ -296,7 +298,7 @@ const AuditLogViewer: React.FC = () => {
           <input
             type="text"
             placeholder="搜索请求ID、用户、操作、目标或IP"
-            className="w-full rounded-2xl border border-slate-200 bg-white/80 px-9 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-slate-300"
+            className={cn(studioFieldClassName, "border px-9 py-2")}
             value={filters.keyword}
             onChange={(event) => updateFilter('keyword', event.target.value)}
             onKeyDown={handleKeyDown}
@@ -344,7 +346,7 @@ const AuditLogViewer: React.FC = () => {
           className="grid gap-3 rounded-2xl bg-slate-50/80 p-3 sm:grid-cols-2 xl:grid-cols-4"
         >
           <select
-            className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900"
+            className={cn(studioTileClassName, "px-3 py-2 text-sm text-slate-900")}
             value={filters.module}
             onChange={(event) => updateFilter('module', event.target.value)}
           >
@@ -353,7 +355,7 @@ const AuditLogViewer: React.FC = () => {
             ))}
           </select>
           <select
-            className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900"
+            className={cn(studioTileClassName, "px-3 py-2 text-sm text-slate-900")}
             value={filters.result}
             onChange={(event) => updateFilter('result', event.target.value)}
           >
@@ -362,7 +364,7 @@ const AuditLogViewer: React.FC = () => {
             <option value="failure">失败</option>
           </select>
           <select
-            className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900"
+            className={cn(studioTileClassName, "px-3 py-2 text-sm text-slate-900")}
             value={filters.method}
             onChange={(event) => updateFilter('method', event.target.value)}
           >
@@ -376,70 +378,70 @@ const AuditLogViewer: React.FC = () => {
             onKeyDown={handleKeyDown}
             inputMode="numeric"
             placeholder="状态码"
-            className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900"
+            className={cn(studioTileClassName, "px-3 py-2 text-sm text-slate-900")}
           />
           <input
             value={filters.requestId}
             onChange={(event) => updateFilter('requestId', event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="请求ID"
-            className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900"
+            className={cn(studioTileClassName, "px-3 py-2 text-sm text-slate-900")}
           />
           <input
             value={filters.action}
             onChange={(event) => updateFilter('action', event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="操作"
-            className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900"
+            className={cn(studioTileClassName, "px-3 py-2 text-sm text-slate-900")}
           />
           <input
             value={filters.userId}
             onChange={(event) => updateFilter('userId', event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="用户ID"
-            className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900"
+            className={cn(studioTileClassName, "px-3 py-2 text-sm text-slate-900")}
           />
           <input
             value={filters.username}
             onChange={(event) => updateFilter('username', event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="用户名"
-            className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900"
+            className={cn(studioTileClassName, "px-3 py-2 text-sm text-slate-900")}
           />
           <input
             value={filters.role}
             onChange={(event) => updateFilter('role', event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="角色"
-            className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900"
+            className={cn(studioTileClassName, "px-3 py-2 text-sm text-slate-900")}
           />
           <input
             value={filters.ip}
             onChange={(event) => updateFilter('ip', event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="IP"
-            className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900"
+            className={cn(studioTileClassName, "px-3 py-2 text-sm text-slate-900")}
           />
           <input
             value={filters.path}
             onChange={(event) => updateFilter('path', event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="请求路径"
-            className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900"
+            className={cn(studioTileClassName, "px-3 py-2 text-sm text-slate-900")}
           />
           <input
             value={filters.targetId}
             onChange={(event) => updateFilter('targetId', event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="目标ID"
-            className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900"
+            className={cn(studioTileClassName, "px-3 py-2 text-sm text-slate-900")}
           />
           <input
             value={filters.targetName}
             onChange={(event) => updateFilter('targetName', event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="目标名称"
-            className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900"
+            className={cn(studioTileClassName, "px-3 py-2 text-sm text-slate-900")}
           />
           <input
             value={filters.minDurationMs}
@@ -447,7 +449,7 @@ const AuditLogViewer: React.FC = () => {
             onKeyDown={handleKeyDown}
             inputMode="numeric"
             placeholder="最小耗时 ms"
-            className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900"
+            className={cn(studioTileClassName, "px-3 py-2 text-sm text-slate-900")}
           />
           <input
             value={filters.maxDurationMs}
@@ -455,19 +457,19 @@ const AuditLogViewer: React.FC = () => {
             onKeyDown={handleKeyDown}
             inputMode="numeric"
             placeholder="最大耗时 ms"
-            className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900"
+            className={cn(studioTileClassName, "px-3 py-2 text-sm text-slate-900")}
           />
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 sm:col-span-2">
             <input
               type="date"
-              className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900"
+              className={cn(studioTileClassName, "px-3 py-2 text-sm text-slate-900")}
               value={filters.startDate}
               onChange={(event) => updateFilter('startDate', event.target.value)}
             />
             <span className="text-xs text-slate-400">至</span>
             <input
               type="date"
-              className="rounded-2xl border border-slate-200 bg-white/80 px-3 py-2 text-sm text-slate-900"
+              className={cn(studioTileClassName, "px-3 py-2 text-sm text-slate-900")}
               value={filters.endDate}
               onChange={(event) => updateFilter('endDate', event.target.value)}
             />
@@ -507,7 +509,7 @@ const AuditLogViewer: React.FC = () => {
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white/80 shadow-sm backdrop-blur-xl">
+      <div className={cn(studioSurfaceClassName)}>
         {loading && logs.length === 0 ? (
           <div className="p-8 text-center text-slate-400">加载中...</div>
         ) : logs.length === 0 ? (
@@ -605,7 +607,7 @@ const AuditLogViewer: React.FC = () => {
         )}
       </div>
 
-      <div className="flex flex-col gap-2 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:text-sm">
+      <div className={cn(studioInfoRowClassName, "gap-2 text-xs text-slate-500")}>
         <div className="flex flex-wrap items-center gap-2">
           <span>共 {total.toLocaleString()} 条，{page}/{totalPages} 页</span>
           {meta ? <span>保留 {meta.retentionDays} 天</span> : null}
@@ -615,7 +617,7 @@ const AuditLogViewer: React.FC = () => {
               setPageSize(Number(event.target.value));
               setPage(1);
             }}
-            className="rounded-2xl border border-slate-200 bg-white/80 px-2 py-1 text-xs text-slate-600"
+            className={cn(studioTileClassName, "px-2 py-1 text-xs text-slate-600")}
           >
             {PAGE_SIZE_OPTIONS.map((size) => (
               <option key={size} value={size}>每页 {size}</option>
@@ -708,7 +710,7 @@ const StatCard: React.FC<{ label: string; value: number | string; color?: string
   value,
   color = 'text-slate-800',
 }) => (
-  <div className="rounded-2xl border border-slate-200 bg-white/80 p-3 text-center shadow-sm backdrop-blur-xl">
+  <div className={cn(studioTileClassName, "p-3 text-center")}>
     <div className={`text-xl font-bold ${color}`}>
       {typeof value === 'number' ? value.toLocaleString() : value}
     </div>
@@ -724,7 +726,7 @@ const DistributionPanel: React.FC<{
   const maxCount = items.reduce((max, item) => Math.max(max, item.count), 0);
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white/80 p-3 shadow-sm backdrop-blur-xl">
+    <div className={cn(studioTileClassName, "p-3")}>
       <div className="mb-2 text-sm font-medium text-slate-800">{title}</div>
       {items.length === 0 ? (
         <div className="py-4 text-center text-xs text-slate-400">{emptyText}</div>
@@ -781,7 +783,7 @@ const DetailField: React.FC<{
 const JsonBlock: React.FC<{ label: string; value: unknown }> = ({ label, value }) => (
   <div className="mt-2">
     <span className="text-slate-500">{label}：</span>
-    <pre className="mt-1 max-h-48 overflow-x-auto whitespace-pre-wrap break-all rounded-2xl border border-slate-200 bg-white/80 p-2 text-xs backdrop-blur-xl">
+    <pre className={cn(studioTileClassName, "mt-1 max-h-48 overflow-x-auto whitespace-pre-wrap break-all p-2 text-xs")}>
       {formatJson(value)}
     </pre>
   </div>

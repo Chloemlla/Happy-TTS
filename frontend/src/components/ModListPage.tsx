@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { FaExclamationTriangle, FaArrowLeft } from 'react-icons/fa';
+import { cn } from '../utils/cn';
+import { studioMutedPrimaryButtonClassName } from './studioTheme';
 
 const ModListPage: React.FC = () => {
   return (
@@ -19,7 +21,7 @@ const ModListPage: React.FC = () => {
         <div className="mt-8 flex justify-center">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white"
+            className={cn(studioMutedPrimaryButtonClassName, "rounded-full bg-slate-900 py-3")}
           >
             <FaArrowLeft />
             返回首页

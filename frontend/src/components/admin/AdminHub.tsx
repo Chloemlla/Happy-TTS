@@ -20,6 +20,8 @@ import {
   wrapAdminModule,
 } from './adminModules';
 import { SuperAdminGuard } from './SuperAdminGuard';
+import { cn } from '../../utils/cn';
+import { studioPrimaryButtonClassName } from '../studioTheme';
 
 /**
  * `/admin` index — module hub with grouped cards linking into drill-in routes.
@@ -121,7 +123,7 @@ export const AdminModulePage: React.FC = () => {
             </p>
             <Link
               to='/admin'
-              className='mt-6 inline-flex rounded-2xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800'
+              className={cn(studioPrimaryButtonClassName, "mt-6 py-2.5")}
             >
               返回管理总览
             </Link>

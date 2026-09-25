@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { api } from "@/api";
 import { FaSearch, FaRedo, FaEnvelope, FaDatabase, FaGlobe, FaTimes, FaEye, FaCopy, FaCheck, FaCode, FaFileAlt } from "react-icons/fa";
+import { cn } from '../utils/cn';
+import { studioModalOverlayClassName, studioSurfaceClassName } from './studioTheme';
 
 interface EmailRecord {
   _id: string;
@@ -269,7 +271,7 @@ const EmailTraceability: React.FC = () => {
       </div>
 
       {/* 记录列表 */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white/90 shadow-sm">
+      <div className={cn(studioSurfaceClassName, "border-slate-200/90 bg-white/90")}>
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="size-8 animate-spin rounded-full border-4 border-slate-200 border-t-indigo-500" />
@@ -369,7 +371,7 @@ const EmailTraceability: React.FC = () => {
 
       {/* 详情弹窗 */}
       {detailOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={handleCloseDetail}>
+        <div className={cn(studioModalOverlayClassName, "z-50 bg-black/40")} onClick={handleCloseDetail}>
           <div
             className="relative flex max-h-[85vh] w-full max-w-2xl flex-col rounded-2xl bg-white shadow-xl"
             onClick={(e) => e.stopPropagation()}

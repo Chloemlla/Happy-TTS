@@ -21,6 +21,8 @@ import { auditLogApi, type AuditLogEntry } from '../api/auditLog';
 import { oauthApi, type OAuthClient, type OAuthGrant, type OAuthScopeDefinition } from '../api/oauth';
 import { useNotification } from './Notification';
 import OAuthOidcEndpointPanel from './OAuthOidcEndpointPanel';
+import { cn } from '../utils/cn';
+import { studioInfoRowClassName, studioStrongBadgeClassName } from './studioTheme';
 
 const defaultScopes = ['openid', 'profile', 'email', 'admin:identity', 'status'];
 
@@ -454,7 +456,7 @@ const OAuthClientManager: React.FC = () => {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-900 text-white">
+          <div className={cn(studioStrongBadgeClassName, "h-11 w-11 rounded-xl")}>
             <FaShieldAlt />
           </div>
           <div>
@@ -711,7 +713,7 @@ const OAuthClientManager: React.FC = () => {
                 </div>
                 {editingClientId === client.clientId && (
                   <div className="mt-4 border-t border-slate-100 pt-4">
-                    <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <div className={cn(studioInfoRowClassName, "mb-3")}>
                       <div className="text-sm font-semibold text-slate-900">编辑客户端信息</div>
                       <div className="text-xs text-slate-500">客户端类型和 secret 不在此处修改</div>
                     </div>
@@ -906,7 +908,7 @@ const OAuthClientManager: React.FC = () => {
         ) : (
           <div className="divide-y divide-slate-100">
             {auditLogs.map((log) => (
-              <div key={log._id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div key={log._id} className={cn(studioInfoRowClassName, "gap-2")}>
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`h-2 w-2 rounded-full ${log.result === 'success' ? 'bg-emerald-400' : 'bg-rose-400'}`} />

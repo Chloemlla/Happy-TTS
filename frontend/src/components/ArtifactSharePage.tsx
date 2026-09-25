@@ -21,6 +21,8 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { api } from '../api/api';
 import MarkdownRenderer from './MarkdownRenderer';
 import Mermaid from './Mermaid';
+import { cn } from '../utils/cn';
+import { studioFieldClassName, studioPrimaryButtonClassName, studioSurfaceClassName } from './studioTheme';
 
 interface ArtifactData {
   shortId: string;
@@ -431,7 +433,7 @@ const ArtifactSharePage: React.FC = () => {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             placeholder="Enter password"
-            className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
+            className={cn(studioFieldClassName, "border border-slate-300 bg-white focus:border-slate-500 focus:ring-slate-200")}
             autoFocus
           />
           {error && (
@@ -441,7 +443,7 @@ const ArtifactSharePage: React.FC = () => {
           )}
           <button
             type="submit"
-            className="inline-flex w-full items-center justify-center rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+            className={cn(studioPrimaryButtonClassName, "w-full bg-slate-950 px-4 py-3")}
           >
             Unlock
           </button>
@@ -461,7 +463,7 @@ const ArtifactSharePage: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate('/')}
-          className="mt-6 inline-flex items-center justify-center rounded-2xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+          className={cn(studioPrimaryButtonClassName, "mt-6 bg-slate-950 px-4 py-2.5")}
         >
           Back to Synapse
         </button>
@@ -541,7 +543,7 @@ const ArtifactSharePage: React.FC = () => {
           </div>
         </header>
 
-        <main className="flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <main className={cn(studioSurfaceClassName, "flex-1 bg-white")}>
           {renderContent()}
         </main>
 

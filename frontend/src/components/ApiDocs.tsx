@@ -18,6 +18,8 @@ import {
   InfoQueryShell,
   InfoSectionTitle,
 } from './InfoQueryScaffold';
+import { cn } from '../utils/cn';
+import { studioPrimaryButtonClassName } from './studioTheme';
 
 const SwaggerUI = lazy(() => import('swagger-ui-react'));
 
@@ -63,7 +65,7 @@ const ApiDocsBody: React.FC<{ state: DocsState; onRetry: () => void }> = ({ stat
         />
         <Link
           to="/login"
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+          className={cn(studioPrimaryButtonClassName, "py-3 shadow-sm")}
         >
           去登录
         </Link>
@@ -177,7 +179,7 @@ const ApiDocs: React.FC = () => {
               type="button"
               onClick={downloadSpec}
               disabled={state.status !== 'ready'}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className={cn(studioPrimaryButtonClassName, "py-3 shadow-sm disabled:opacity-50")}
             >
               <FaDownload className="text-xs" />
               下载 openapi.json

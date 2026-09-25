@@ -23,6 +23,8 @@ import {
   FaTimes,
   FaTrash,
 } from 'react-icons/fa';
+import { cn } from '../utils/cn';
+import { studioSubPanelClassName, studioTileClassName } from './studioTheme';
 
 type BillingMode = 'metered' | 'prepaid';
 type ManagerView = 'keys' | 'billing';
@@ -703,7 +705,7 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ initialView = 'keys' }) =
           { label: '计费请求', value: stats.billableRequests },
           { label: '累计费用', value: formatCredits(stats.totalCharged) },
         ].map((item) => (
-          <div key={item.label} className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-xl p-3">
+          <div key={item.label} className={cn(studioTileClassName, "p-3")}>
             <div className="text-xs text-slate-400">{item.label}</div>
             <div className="mt-1 text-lg font-bold text-slate-800">{item.value}</div>
           </div>
@@ -742,7 +744,7 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ initialView = 'keys' }) =
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-4"
+            className={cn(studioSubPanelClassName, "space-y-4 border")}
           >
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
               <div className="lg:col-span-2">
@@ -841,7 +843,7 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ initialView = 'keys' }) =
       {view === 'billing' && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-            <div className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-xl p-4 lg:col-span-2">
+            <div className={cn(studioTileClassName, "p-4 lg:col-span-2")}>
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
                 <FaCoins className="text-amber-600" /> API 计费价格
               </div>
@@ -866,7 +868,7 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ initialView = 'keys' }) =
                 </table>
               </div>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-xl p-4">
+            <div className={cn(studioTileClassName, "p-4")}>
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
                 <FaReceipt className="text-emerald-600" /> 计费摘要
               </div>
@@ -878,7 +880,7 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ initialView = 'keys' }) =
             </div>
 
           {/* LINUX DO Credit 充值 */}
-          <div className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-xl p-4">
+          <div className={cn(studioTileClassName, "p-4")}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
                 <FaCreditCard className="text-indigo-600" /> LINUX DO Credit 充值
@@ -956,7 +958,7 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ initialView = 'keys' }) =
           </div>
 
           {eventsKey && (
-            <div className="rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-xl p-4">
+            <div className={cn(studioTileClassName, "p-4")}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <div className="text-sm font-semibold text-slate-800">{eventsKey.name} 计费流水</div>

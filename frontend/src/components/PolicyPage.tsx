@@ -28,6 +28,8 @@ import {
   InfoQueryShell,
   InfoSectionTitle,
 } from './InfoQueryScaffold';
+import { cn } from '../utils/cn';
+import { studioElevatedPanelClassName } from './studioTheme';
 
 const getErrorMessage = (error: any) => {
   if (!error) return null;
@@ -199,17 +201,17 @@ const PolicyPage: React.FC<{ error?: any }> = ({ error }) => {
             tone="slate"
           />
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+            <div className={cn(studioElevatedPanelClassName, "border")}>
               <FaShieldAlt className="text-sky-600" />
               <h3 className="mt-3 font-semibold text-slate-950">安全与合规</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">平台会进行必要的安全防护、风控、日志记录与违规处理。</p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+            <div className={cn(studioElevatedPanelClassName, "border")}>
               <FaCheckCircle className="text-emerald-600" />
               <h3 className="mt-3 font-semibold text-slate-950">用户权益</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">用户可依法管理个人信息，并在合规范围内使用服务。</p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+            <div className={cn(studioElevatedPanelClassName, "border")}>
               <FaExclamationTriangle className="text-rose-600" />
               <h3 className="mt-3 font-semibold text-slate-950">责任边界</h3>
               <p className="mt-2 text-sm leading-6 text-slate-600">违规内容、账户泄露、第三方服务与不可抗力风险由相应责任方承担。</p>
@@ -285,7 +287,7 @@ const PolicyPage: React.FC<{ error?: any }> = ({ error }) => {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <a
               href="mailto:support@chloemlla.com"
-              className="rounded-2xl border border-slate-200 bg-white/80 p-4 transition hover:-translate-y-0.5 hover:shadow-md"
+              className={cn(studioElevatedPanelClassName, "border transition hover:-translate-y-0.5 hover:shadow-md")}
             >
               <div className="flex items-center gap-3">
                 <FaEnvelope className="text-sky-600" />
@@ -297,7 +299,7 @@ const PolicyPage: React.FC<{ error?: any }> = ({ error }) => {
             </a>
             <a
               href="mailto:admin@chloemlla.com"
-              className="rounded-2xl border border-slate-200 bg-white/80 p-4 transition hover:-translate-y-0.5 hover:shadow-md"
+              className={cn(studioElevatedPanelClassName, "border transition hover:-translate-y-0.5 hover:shadow-md")}
             >
               <div className="flex items-center gap-3">
                 <FaGlobe className="text-slate-600" />

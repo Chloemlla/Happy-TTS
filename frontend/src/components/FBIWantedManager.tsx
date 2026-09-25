@@ -8,6 +8,8 @@ import { openDB } from 'idb';
 import ImageUploadSection from './ImageUploadSection';
 import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
+import { cn } from '../utils/cn';
+import { studioModalOverlayClassName, studioSurfaceClassName } from './studioTheme';
 
 
 // 通缉犯接口定义
@@ -444,7 +446,7 @@ const FBIWantedManager: React.FC = () => {
             <div className="max-w-7xl mx-auto px-4 space-y-8">
                 {/* 标题和统计信息部分 */}
                 <motion.div
-                    className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 overflow-hidden"
+                    className={cn(studioSurfaceClassName, "backdrop-blur-sm shadow-xl border-[#8ECAE6]/30")}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6 }}
@@ -595,7 +597,7 @@ const FBIWantedManager: React.FC = () => {
 
                 {/* 通缉犯列表 */}
                 <motion.div
-                    className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-[#8ECAE6]/30 overflow-hidden"
+                    className={cn(studioSurfaceClassName, "backdrop-blur-sm shadow-xl border-[#8ECAE6]/30")}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.2 }}
@@ -749,7 +751,7 @@ const FBIWantedManager: React.FC = () => {
                 <AnimatePresence>
                     {showCreateModal && (
                         <motion.div
-                            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
+                            className={cn(studioModalOverlayClassName, "bg-black bg-opacity-50 z-[9999]")}
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
@@ -994,7 +996,7 @@ const FBIWantedManager: React.FC = () => {
                 <AnimatePresence>
                     {showEditModal && selectedWanted && (
                         <motion.div
-                            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
+                            className={cn(studioModalOverlayClassName, "bg-black bg-opacity-50 z-[9999]")}
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
@@ -1146,7 +1148,7 @@ const FBIWantedManager: React.FC = () => {
                 <AnimatePresence>
                     {showViewModal && selectedWanted && (
                         <motion.div
-                            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
+                            className={cn(studioModalOverlayClassName, "bg-black bg-opacity-50 z-[9999]")}
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}

@@ -4,6 +4,8 @@ import {
   MapPin, Coffee, Utensils, Shirt, Camera, Home as HomeIcon,
   Video, Plus, MessageSquare, ShoppingBag, Sparkles, TrendingUp
 } from 'lucide-react';
+import { cn } from '../utils/cn';
+import { studioModalOverlayClassName } from './studioTheme';
 
 // 卡片数据类型
 interface CardData {
@@ -724,7 +726,7 @@ const XiaohongshuDemo: React.FC = () => {
       {/* 模态框 */}
       {showModal && selectedCard && (
         <div
-          className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/70 animate-[fadeIn_0.3s_ease-out] p-4"
+          className={cn(studioModalOverlayClassName, "z-[2000] bg-black/70 animate-[fadeIn_0.3s_ease-out]")}
           onClick={closeModal}
         >
           <div

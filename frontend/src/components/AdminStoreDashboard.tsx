@@ -5,6 +5,8 @@ import { FaChartBar, FaBox, FaKey, FaArrowRight, FaInfoCircle, FaStore, FaCog, F
 import { resourcesApi } from '../api/resources';
 import { cdksApi, CDKStats } from '../api/cdks';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
+import { cn } from '../utils/cn';
+import { studioHeroCardClassName, studioPrimaryButtonClassName, studioSubPanelClassName, studioSurfaceClassName } from './studioTheme';
 
 interface Stats {
   resources: {
@@ -65,7 +67,7 @@ export default function AdminStoreDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:p-6"
+        className={cn(studioSubPanelClassName, "border sm:p-6")}
       >
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
           <h2 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
@@ -75,7 +77,7 @@ export default function AdminStoreDashboard() {
           <motion.button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="w-full sm:w-auto px-3 py-2 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition disabled:opacity-50 text-sm font-medium flex items-center gap-2 justify-center"
+            className={cn(studioPrimaryButtonClassName, "w-full sm:w-auto px-3 py-2 disabled:opacity-50 font-medium flex")}
             whileTap={{ scale: 0.95 }}
           >
             <FaCog className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
@@ -106,7 +108,7 @@ export default function AdminStoreDashboard() {
         className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4"
       >
         <motion.div 
-          className="bg-white/80 overflow-hidden shadow rounded-2xl border border-slate-200 backdrop-blur-xl"
+          className={cn(studioSurfaceClassName, "shadow")}
           whileHover={{ scale: 1.02 }}
           transition={{ duration: 0.2 }}
         >
@@ -128,7 +130,7 @@ export default function AdminStoreDashboard() {
         </motion.div>
 
         <motion.div 
-          className="bg-white/80 overflow-hidden shadow rounded-2xl border border-slate-200 backdrop-blur-xl"
+          className={cn(studioSurfaceClassName, "shadow")}
           whileHover={{ scale: 1.02 }}
           transition={{ duration: 0.2 }}
         >
@@ -150,7 +152,7 @@ export default function AdminStoreDashboard() {
         </motion.div>
 
         <motion.div 
-          className="bg-white/80 overflow-hidden shadow rounded-2xl border border-slate-200 backdrop-blur-xl"
+          className={cn(studioSurfaceClassName, "shadow")}
           whileHover={{ scale: 1.02 }}
           transition={{ duration: 0.2 }}
         >
@@ -172,7 +174,7 @@ export default function AdminStoreDashboard() {
         </motion.div>
 
         <motion.div 
-          className="bg-white/80 overflow-hidden shadow rounded-2xl border border-slate-200 backdrop-blur-xl"
+          className={cn(studioSurfaceClassName, "shadow")}
           whileHover={{ scale: 1.02 }}
           transition={{ duration: 0.2 }}
         >
@@ -206,7 +208,7 @@ export default function AdminStoreDashboard() {
         >
           <Link
             to="/admin/store/resources"
-            className="bg-white/80 overflow-hidden shadow rounded-2xl p-6 hover:bg-slate-50/80 transition-all duration-200 border border-slate-200 backdrop-blur-xl block"
+            className={cn(studioHeroCardClassName, "shadow hover:bg-slate-50/80 transition-all duration-200 block")}
           >
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -231,7 +233,7 @@ export default function AdminStoreDashboard() {
         >
           <Link
             to="/admin/store/cdks"
-            className="bg-white/80 overflow-hidden shadow rounded-2xl p-6 hover:bg-slate-50/80 transition-all duration-200 border border-slate-200 backdrop-blur-xl block"
+            className={cn(studioHeroCardClassName, "shadow hover:bg-slate-50/80 transition-all duration-200 block")}
           >
             <div className="flex items-center">
               <div className="flex-shrink-0">
@@ -255,7 +257,7 @@ export default function AdminStoreDashboard() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:p-6"
+        className={cn(studioSubPanelClassName, "border sm:p-6")}
       >
         <h2 className="text-lg font-medium text-slate-900 mb-4 flex items-center gap-2">
           <FaChartBar className="w-5 h-5" />

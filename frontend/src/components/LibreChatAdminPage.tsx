@@ -24,6 +24,8 @@ import {
   FaCopy
 } from 'react-icons/fa';
 import MarkdownRenderer from './MarkdownRenderer';
+import { cn } from '../utils/cn';
+import { studioModalCardClassName, studioSubPanelClassName } from './studioTheme';
 
 const PAGE_SIZES = [10, 20, 50];
 
@@ -234,7 +236,7 @@ const LibreChatAdminPage: React.FC = () => {
     >
       {/* 标题和说明 */}
       <motion.div
-        className="rounded-2xl border border-slate-200 bg-slate-50/80 p-6"
+        className={cn(studioModalCardClassName, "bg-slate-50/80")}
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
@@ -265,7 +267,7 @@ const LibreChatAdminPage: React.FC = () => {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Left: Users list */}
         <motion.div
-          className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
+          className={cn(studioModalCardClassName)}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
@@ -585,7 +587,7 @@ const LibreChatAdminPage: React.FC = () => {
 
         {/* Right: Selected user's history */}
         <motion.div
-          className="bg-white/80 backdrop-blur-xl rounded-2xl p-6 shadow-sm border border-slate-200"
+          className={cn(studioModalCardClassName)}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
@@ -682,7 +684,7 @@ const LibreChatAdminPage: React.FC = () => {
                   history.map((m, idx) => (
                     <motion.div
                       key={m.id}
-                      className="p-4 border border-slate-200 rounded-2xl"
+                      className={cn(studioSubPanelClassName, "border")}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: 0.05 * idx }}

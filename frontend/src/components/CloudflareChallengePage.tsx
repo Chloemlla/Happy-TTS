@@ -4,6 +4,8 @@ import { FaArrowLeft, FaCheckCircle, FaRedo, FaShieldAlt } from 'react-icons/fa'
 import getApiBaseUrl from '../api';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
 import { TurnstileWidget } from './TurnstileWidget';
+import { cn } from '../utils/cn';
+import { studioMutedPrimaryButtonClassName, studioSoftBadgeClassName } from './studioTheme';
 
 type VerificationState = 'idle' | 'verifying' | 'verified' | 'failed';
 
@@ -68,7 +70,7 @@ const CloudflareChallengePage: React.FC = () => {
             </div>
           ) : siteKey ? (
             <div className="space-y-4">
-              <div className="flex min-h-[78px] items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-3 py-4">
+              <div className={cn(studioSoftBadgeClassName, "min-h-[78px] border px-3 py-4")}>
                 {verificationState === 'verified' ? (
                   <div className="flex items-center gap-2 text-sm font-medium text-green-700">
                     <FaCheckCircle className="h-5 w-5" />
@@ -115,7 +117,7 @@ const CloudflareChallengePage: React.FC = () => {
               <button
                 type="button"
                 onClick={resetChallenge}
-                className="inline-flex items-center gap-2 rounded-2xl bg-[#FFB703] px-3 py-2 text-sm font-semibold text-[#023047] transition hover:bg-[#FB8500]"
+                className={cn(studioMutedPrimaryButtonClassName, "bg-[#FFB703] px-3 py-2 text-[#023047] hover:bg-[#FB8500]")}
               >
                 <FaRedo className="h-3.5 w-3.5" />
                 重试

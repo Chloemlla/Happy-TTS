@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { FaMusic } from 'react-icons/fa';
 import { InfoBadge, InfoPanel, InfoQueryHero, InfoQueryShell } from './InfoQueryScaffold';
+import { cn } from '../utils/cn';
+import { studioStrongBadgeClassName } from './studioTheme';
 
 // 音乐播放器UI展示页面 (类似Spotify深色主题)
 const MusicPlayerDemo: React.FC = () => {
@@ -333,7 +335,7 @@ const MusicPlayerDemo: React.FC = () => {
                     </button>
                     <button 
                       onClick={togglePlay}
-                      className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white hover:bg-white/30 transition-all"
+                      className={cn(studioStrongBadgeClassName, "rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-all")}
                     >
                       {isPlaying ? <Pause className="w-5 h-5 fill-white" /> : <Play className="w-5 h-5 fill-white ml-0.5" />}
                     </button>

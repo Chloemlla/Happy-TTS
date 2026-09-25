@@ -25,6 +25,8 @@ import {
   FaFilter,
   FaExclamationCircle
 } from 'react-icons/fa';
+import { cn } from '../utils/cn';
+import { studioModalCardClassName, studioSubPanelClassName, studioSurfaceClassName } from './studioTheme';
 
 ChartJS.register(
   CategoryScale,
@@ -232,7 +234,7 @@ const NexAISecurityDashboard: React.FC = () => {
 
         {/* 统计卡片 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-slate-100 p-6">
+          <div className={cn(studioModalCardClassName, "border-slate-100")}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">总设备数</p>
@@ -242,7 +244,7 @@ const NexAISecurityDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-slate-100 p-6">
+          <div className={cn(studioModalCardClassName, "border-slate-100")}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">高风险设备</p>
@@ -252,7 +254,7 @@ const NexAISecurityDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-slate-100 p-6">
+          <div className={cn(studioModalCardClassName, "border-slate-100")}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">已攻破设备</p>
@@ -262,7 +264,7 @@ const NexAISecurityDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-slate-100 p-6">
+          <div className={cn(studioModalCardClassName, "border-slate-100")}>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-slate-600">安全事件</p>
@@ -274,7 +276,7 @@ const NexAISecurityDashboard: React.FC = () => {
         </div>
 
         {/* 标签页导航 */}
-        <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-sm border border-slate-100 mb-6 overflow-hidden">
+        <div className={cn(studioSurfaceClassName, "border-slate-100 mb-6")}>
           <div className="border-b border-slate-200">
             <nav className="flex -mb-px">
               <button
@@ -367,7 +369,7 @@ const NexAISecurityDashboard: React.FC = () => {
                 <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
                   <FaExclamationTriangle className="text-orange-600" /> 高风险设备 Top 10
                 </h3>
-                <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                <div className={cn(studioSurfaceClassName)}>
                   <table className="min-w-full divide-y divide-slate-200">
                     <thead className="bg-slate-50/80">
                       <tr>
@@ -451,7 +453,7 @@ const NexAISecurityDashboard: React.FC = () => {
               </div>
 
               {/* 设备列表 */}
-              <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+              <div className={cn(studioSurfaceClassName)}>
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-slate-200">
                     <thead className="bg-slate-50/80">
@@ -597,7 +599,7 @@ const NexAISecurityDashboard: React.FC = () => {
                     );
                   })
                 ) : (
-                  <div className="text-center py-20 bg-slate-50/80 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400">
+                  <div className={cn(studioSubPanelClassName, "text-center py-20 border-dashed text-slate-400")}>
                     <FaShieldAlt className="w-12 h-12 mx-auto mb-4 opacity-20" />
                     <p className="text-sm font-medium">当前未记录任何安全事件</p>
                   </div>
