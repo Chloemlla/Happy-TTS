@@ -7,6 +7,7 @@ import { SimpleLoadingSpinner } from './components/LoadingSpinner';
 import { NotificationProvider } from './components/Notification';
 import { BroadcastModalProvider } from './components/BroadcastModal';
 import WsConnector from './components/WsConnector';
+import { ClientOriginProbe } from './components/ClientOriginProbe';
 import { ToastContainer } from 'react-toastify';
 import md5 from 'md5';
 import getApiBaseUrl from './api';
@@ -1428,6 +1429,7 @@ const App: React.FC = () => {
       <PenaltyAppealHost />
       <BroadcastModalProvider>
         <WsConnector />
+        <ClientOriginProbe />
         <ArticleCommandPalette />
         <LazyMotion features={domAnimation}>
           <ToastContainer position={toastPosition} autoClose={4500} hideProgressBar newestOnTop limit={3} />

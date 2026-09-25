@@ -11,6 +11,7 @@ import {
   type LumenRuntimeConfig,
   type NexaiRuntimeConfig,
   type NexaiSigningRuntimeConfig,
+  type ProxycheckRuntimeConfig,
   type QqGuardSigningRuntimeConfig,
   type RuntimeConfigDefaults,
   type SynapseAndroidRuntimeConfig,
@@ -443,6 +444,7 @@ const RUNTIME_CONFIG_KEY_TO_PROP: Partial<Record<RuntimeConfigKey, keyof Runtime
   NEXAI_SIGNING: "nexaiSigning",
   CDICT_SIGNING: "cdictSigning",
   QQ_GUARD_SIGNING: "qqGuardSigning",
+  PROXYCHECK: "proxycheck",
   LUMEN: "lumen",
   NEXAI: "nexai",
 };
@@ -627,6 +629,26 @@ function normalizeStoredQqGuardSigningConfig(
   };
 }
 
+function normalizeStoredProxycheckConfig(
+  value: unknown,
+  defaults = runtimeConfigDefaults.proxycheck,
+): ProxycheckRuntimeConfig {
+  const raw = asObject(value);
+
+  return {
+    enabled: normalizeBoolean(raw.enabled, defaults.enabled),
+    apiKey: normalizeOptionalString(raw.apiKey, defaults.apiKey, 1024),
+    publicApiKey: normalizeOptionalString(raw.publicApiKey, defaults.publicApiKey, 1024),
+    hmacSecret: normalizeOptionalString(raw.hmacSecret, defaults.hmacSecret, 1024),
+    cacheTtlHours: normalizeInteger(raw.cacheTtlHours, defaults.cacheTtlHours, 1, 168),
+    timeoutMs: normalizeInteger(raw.timeoutMs, defaults.timeoutMs, 1000, 15000),
+    dailyQuotaPerKey: normalizeInteger(raw.dailyQuotaPerKey, defaults.dailyQuotaPerKey, 100, 1000000),
+    challengeRiskScore: normalizeInteger(raw.challengeRiskScore, defaults.challengeRiskScore, 0, 100),
+    failOpen: normalizeBoolean(raw.failOpen, defaults.failOpen),
+    usePublicKeyForClient: normalizeBoolean(raw.usePublicKeyForClient, defaults.usePublicKeyForClient),
+  };
+}
+
 /**
  * Merge a stored LUMEN doc over the current (env-seeded) defaults, so fields the
  * admin did not override keep their env/deployment values.
@@ -701,6 +723,9 @@ function applyCacheForKey(target: RuntimeConfigDefaults, key: RuntimeConfigKey, 
     case "QQ_GUARD_SIGNING":
       target.qqGuardSigning = normalizeStoredQqGuardSigningConfig(value);
       return;
+    case "PROXYCHECK":
+      target.proxycheck = normalizeStoredProxycheckConfig(value);
+      return;
     case "LUMEN": {
       const config = normalizeStoredLumenConfig(value, target.lumen);
       target.lumen = config;
@@ -732,6 +757,7 @@ const RUNTIME_CONFIG_KEYS: readonly RuntimeConfigKey[] = [
   "CDICT_SIGNING",
   "QQ_GUARD_SIGNING",
   "LUMEN",
+  "PROXYCHECK",
 ];
 
 // G5-03: 周期刷新定时器——多实例部署下每个实例每 ~10s 重载一次 DB 配置，
@@ -797,6 +823,9 @@ export class RuntimeConfigService {
     }
     if (!loadedKeys.has("QQ_GUARD_SIGNING")) {
       runtimeConfigCache.qqGuardSigning = cloneRuntimeConfigDefaults(defaults).qqGuardSigning;
+    }
+    if (!loadedKeys.has("PROXYCHECK")) {
+      runtimeConfigCache.proxycheck = cloneRuntimeConfigDefaults(defaults).proxycheck;
     }
     if (!loadedKeys.has("LUMEN")) {
       runtimeConfigCache.lumen = cloneRuntimeConfigDefaults(defaults).lumen;
@@ -1322,6 +1351,116 @@ export class RuntimeConfigService {
     runtimeConfigCache.qqGuardSigning = cloneRuntimeConfigDefaults(runtimeConfigDefaults).qqGuardSigning;
     loadedKeys.delete("QQ_GUARD_SIGNING");
     invalidateHotCache("QQ_GUARD_SIGNING");
+  }
+
+  /**
+   * proxycheck.io IP 风险查询配置。apiKey / publicApiKey / hmacSecret 一律脱敏回显，
+   * hmacSecret 是服务端主密钥，绝不下发到浏览器（前端探测走 probeKey 派生密钥）。
+   */
+  static async getProxycheckSetting(): Promise<{
+    setting: {
+      config: {
+        enabled: boolean;
+        apiKey: string;
+        hasApiKey: boolean;
+        publicApiKey: string;
+        hasPublicApiKey: boolean;
+        hmacSecret: string;
+        hasHmacSecret: boolean;
+        cacheTtlHours: number;
+        timeoutMs: number;
+        dailyQuotaPerKey: number;
+        challengeRiskScore: number;
+        failOpen: boolean;
+        usePublicKeyForClient: boolean;
+      };
+      updatedAt?: string;
+    };
+  }> {
+    const doc = await readRuntimeConfigDoc("PROXYCHECK");
+    const config = doc ? normalizeStoredProxycheckConfig(doc.value) : runtimeConfigDefaults.proxycheck;
+    runtimeConfigCache.proxycheck = config;
+
+    return {
+      setting: {
+        config: {
+          enabled: config.enabled,
+          apiKey: maskSecret(config.apiKey),
+          hasApiKey: config.apiKey.length > 0,
+          publicApiKey: maskSecret(config.publicApiKey),
+          hasPublicApiKey: config.publicApiKey.length > 0,
+          hmacSecret: maskSecret(config.hmacSecret),
+          hasHmacSecret: config.hmacSecret.length > 0,
+          cacheTtlHours: config.cacheTtlHours,
+          timeoutMs: config.timeoutMs,
+          dailyQuotaPerKey: config.dailyQuotaPerKey,
+          challengeRiskScore: config.challengeRiskScore,
+          failOpen: config.failOpen,
+          usePublicKeyForClient: config.usePublicKeyForClient,
+        },
+        updatedAt: doc?.updatedAt?.toISOString(),
+      },
+    };
+  }
+
+  static async setProxycheckSetting(
+    input: Partial<ProxycheckRuntimeConfig> | Record<string, unknown>,
+  ): Promise<{ updatedAt: string }> {
+    const currentDoc = await readRuntimeConfigDoc("PROXYCHECK");
+    const current = currentDoc ? normalizeStoredProxycheckConfig(currentDoc.value) : runtimeConfigCache.proxycheck;
+    const obj = asObject(input);
+
+    // 三把 key 均遵循「留空 = 保留已存值」，与 Env Manager 其它密钥段的约定一致。
+    const updateSecret = (key: "apiKey" | "publicApiKey" | "hmacSecret", currentValue: string): string => {
+      if (!hasOwnKey(obj, key)) return currentValue;
+      if (typeof obj[key] !== "string") throw new Error(`${key} 必须是字符串`);
+      const value = obj[key].trim();
+      if (!value) return currentValue;
+      return value.slice(0, 1024);
+    };
+
+    const nextConfig: ProxycheckRuntimeConfig = {
+      enabled: hasOwnKey(obj, "enabled") ? normalizeBoolean(obj.enabled, current.enabled) : current.enabled,
+      apiKey: updateSecret("apiKey", current.apiKey),
+      publicApiKey: updateSecret("publicApiKey", current.publicApiKey),
+      hmacSecret: updateSecret("hmacSecret", current.hmacSecret),
+      cacheTtlHours: hasOwnKey(obj, "cacheTtlHours")
+        ? normalizeInteger(obj.cacheTtlHours, current.cacheTtlHours, 1, 168)
+        : current.cacheTtlHours,
+      timeoutMs: hasOwnKey(obj, "timeoutMs")
+        ? normalizeInteger(obj.timeoutMs, current.timeoutMs, 1000, 15000)
+        : current.timeoutMs,
+      dailyQuotaPerKey: hasOwnKey(obj, "dailyQuotaPerKey")
+        ? normalizeInteger(obj.dailyQuotaPerKey, current.dailyQuotaPerKey, 100, 1000000)
+        : current.dailyQuotaPerKey,
+      challengeRiskScore: hasOwnKey(obj, "challengeRiskScore")
+        ? normalizeInteger(obj.challengeRiskScore, current.challengeRiskScore, 0, 100)
+        : current.challengeRiskScore,
+      failOpen: hasOwnKey(obj, "failOpen") ? normalizeBoolean(obj.failOpen, current.failOpen) : current.failOpen,
+      usePublicKeyForClient: hasOwnKey(obj, "usePublicKeyForClient")
+        ? normalizeBoolean(obj.usePublicKeyForClient, current.usePublicKeyForClient)
+        : current.usePublicKeyForClient,
+    };
+
+    const { updatedAt: persistedAt } = await writeRuntimeConfigDoc(
+      "PROXYCHECK",
+      nextConfig as unknown as Record<string, unknown>,
+      currentDoc?.updatedAt,
+    );
+
+    runtimeConfigCache.proxycheck = nextConfig;
+    loadedKeys.add("PROXYCHECK");
+    invalidateHotCache("PROXYCHECK");
+    initialized = true;
+
+    return { updatedAt: persistedAt.toISOString() };
+  }
+
+  static async deleteProxycheckSetting(): Promise<void> {
+    await RuntimeConfigModel.deleteOne({ key: "PROXYCHECK" }).exec();
+    runtimeConfigCache.proxycheck = cloneRuntimeConfigDefaults(runtimeConfigDefaults).proxycheck;
+    loadedKeys.delete("PROXYCHECK");
+    invalidateHotCache("PROXYCHECK");
   }
 
   static async getCdictSigningSetting(): Promise<{

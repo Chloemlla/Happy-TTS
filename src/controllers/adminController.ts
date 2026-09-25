@@ -1848,6 +1848,48 @@ export const adminController = {
     }
   },
 
+  // proxycheck.io IP 风险查询 + 客户端出口探测配置；apiKey / publicApiKey / hmacSecret 一律脱敏回显，
+  // hmacSecret 是服务端主密钥，保存后立即对新请求生效（无需重启进程）。
+  async getProxycheckSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      const result = await RuntimeConfigService.getProxycheckSetting();
+      res.setHeader("Cache-Control", "no-store");
+      return res.json({ success: true, ...result });
+    } catch (error) {
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "获取 proxycheck.io IP 风险配置失败",
+      });
+    }
+  },
+
+  async setProxycheckSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      const result = await RuntimeConfigService.setProxycheckSetting(req.body || {});
+      return res.json({ success: true, setting: result });
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: error instanceof Error ? error.message : "保存 proxycheck.io IP 风险配置失败",
+      });
+    }
+  },
+
+  async deleteProxycheckSetting(req: Request, res: Response) {
+    try {
+      if (!req.user || !isSuperAdmin(req)) return res.status(403).json({ error: "需要超级管理员权限" });
+      if (mongoose.connection.readyState !== 1) return res.status(500).json({ error: "数据库未连接" });
+      await RuntimeConfigService.deleteProxycheckSetting();
+      return res.json({ success: true });
+    } catch (_error) {
+      return res.status(500).json({ success: false, error: "重置 proxycheck.io IP 风险配置失败" });
+    }
+  },
+
   async getCdictSigningSetting(req: Request, res: Response) {
     try {
       if (!req.user || !isAdminRole(req.user.role)) return res.status(403).json({ error: "无权限" });

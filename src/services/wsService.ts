@@ -1,7 +1,6 @@
 import crypto from "node:crypto";
 import type { Server as HttpServer, IncomingMessage } from "node:http";
 import type { Socket } from "node:net";
-import { URL } from "node:url";
 import { WebSocket, WebSocketServer } from "ws";
 import { isIPBannedFromCache } from "../middleware/ipBanCheck";
 import { onUserAuthorityChanged } from "../utils/userAuthorityEvents";
@@ -9,6 +8,8 @@ import { toTicketView } from "../utils/ticketView";
 import { EcoEnchantsOpsService } from "./ecoEnchantsOpsService";
 import { resolveWebSocketIdentity, type WebSocketIdentity } from "./wsAuthentication";
 import { createSharedRateLimitStore } from "./sharedRateLimitStore";
+import { getUpgradePathname, rejectUpgrade } from "./wsUpgradeUtils";
+import { closeProbeWs, handleProbeUpgrade, IP_PROBE_WS_PATH, initProbeWs } from "./ipProbeWebSocket";
 import {
   claimPendingConfigurationNoticeForAdminConnection,
   completeConfigurationNoticeDelivery,
@@ -130,11 +131,12 @@ class WsService {
       this.handleConnection(ws, context.identity, context.ip);
     });
     EcoEnchantsOpsService.initRpcWebSocket();
+    initProbeWs();
 
     this.upgradeHandler = (req: IncomingMessage, socket: Socket, head: Buffer) => {
       void this.handleUpgrade(req, socket, head).catch((error) => {
         logger.error("[WS] Upgrade 处理失败", { error: error instanceof Error ? error.message : String(error) });
-        this.rejectUpgrade(socket, 500, "Internal Server Error");
+        rejectUpgrade(socket, 500, "Internal Server Error");
       });
     };
     server.on("upgrade", this.upgradeHandler);
@@ -154,25 +156,19 @@ class WsService {
     logger.info("[WS] WebSocket 服务已启动，路径: /ws");
   }
 
-  private getUpgradePathname(req: IncomingMessage): string {
-    try {
-      const url = new URL(req.url || "", `http://${req.headers.host || "localhost"}`);
-      return url.pathname;
-    } catch {
-      return "";
-    }
-  }
-
   private async handleUpgrade(req: IncomingMessage, socket: Socket, head: Buffer): Promise<void> {
-    const pathname = this.getUpgradePathname(req);
+    const pathname = getUpgradePathname(req);
     const clientIp = (req.socket.remoteAddress || "unknown").replace(/^::ffff:/i, "");
 
     // G5-05: 升级路径在 Express 中间件栈之外，先做 IP 封禁（缓存判定）+ 按 IP 频率限制。
-    if (pathname === "/ws" || EcoEnchantsOpsService.shouldHandleRpcUpgrade(pathname)) {
-      if (isIPBannedFromCache(clientIp).banned) return this.rejectUpgrade(socket, 403, "Forbidden");
+    // /ws/ip-probe 与 /ws 同级：公开探测端点同样必须先过封禁与限流，只是不做 JWT 认证。
+    const isGatedUpgradePath =
+      pathname === "/ws" || pathname === IP_PROBE_WS_PATH || EcoEnchantsOpsService.shouldHandleRpcUpgrade(pathname);
+    if (isGatedUpgradePath) {
+      if (isIPBannedFromCache(clientIp).banned) return rejectUpgrade(socket, 403, "Forbidden");
       try {
         const r = await wsUpgradeRateLimiter.increment(clientIp);
-        if (r.totalHits > WS_UPGRADE_MAX_PER_IP) return this.rejectUpgrade(socket, 429, "Too Many Requests");
+        if (r.totalHits > WS_UPGRADE_MAX_PER_IP) return rejectUpgrade(socket, 429, "Too Many Requests");
       } catch (error) {
         logger.warn("[WS] upgrade 限流存储不可用，放行", { error: error instanceof Error ? error.message : String(error) });
       }
@@ -180,12 +176,12 @@ class WsService {
 
     if (pathname === "/ws") {
       const upgradeWss = this.wss;
-      if (!upgradeWss) return this.rejectUpgrade(socket, 503, "Service Unavailable");
+      if (!upgradeWss) return rejectUpgrade(socket, 503, "Service Unavailable");
 
       const identity = await resolveWebSocketIdentity(req);
-      if (!identity) return this.rejectUpgrade(socket, 401, "Unauthorized");
+      if (!identity) return rejectUpgrade(socket, 401, "Unauthorized");
 
-      if (this.wss !== upgradeWss || socket.destroyed) return this.rejectUpgrade(socket, 503, "Service Unavailable");
+      if (this.wss !== upgradeWss || socket.destroyed) return rejectUpgrade(socket, 503, "Service Unavailable");
 
       this.pendingUpgradeAuth.set(req, { identity, ip: clientIp });
       upgradeWss.handleUpgrade(req, socket, head, (ws) => {
@@ -194,18 +190,18 @@ class WsService {
       return;
     }
 
+    // 公开的出口探测：不解析 JWT，连接建立后立即下发观测地址并关闭。
+    if (pathname === IP_PROBE_WS_PATH) {
+      handleProbeUpgrade(req, socket, head);
+      return;
+    }
+
     if (EcoEnchantsOpsService.shouldHandleRpcUpgrade(pathname)) {
       EcoEnchantsOpsService.handleRpcUpgrade(req, socket, head);
       return;
     }
 
-    this.rejectUpgrade(socket, 404, "Not Found");
-  }
-
-  private rejectUpgrade(socket: Socket, statusCode: number, statusText: string): void {
-    if (socket.destroyed) return;
-    socket.write(`HTTP/1.1 ${statusCode} ${statusText}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
-    socket.destroy();
+    rejectUpgrade(socket, 404, "Not Found");
   }
 
   private handleConnection(ws: WebSocket, identity: WebSocketIdentity, ip: string) {
@@ -786,6 +782,7 @@ class WsService {
       this.unsubscribeAuthorityChanges = null;
     }
     EcoEnchantsOpsService.closeRpcWebSocket();
+    closeProbeWs();
     this.clients.clear();
     this.clientsByUserId.clear();
     this.clientsByChannel.clear();

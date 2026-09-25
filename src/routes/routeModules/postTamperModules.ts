@@ -32,6 +32,7 @@ import humanCheckRoutes from "../humanCheckRoutes";
 import imageDataRoutes from "../imageDataRoutes";
 import ipfsRoutes from "../ipfsRoutes";
 import ipInfoRoutes from "../ipInfoRoutes";
+import ipRiskRoutes from "../ipRiskRoutes";
 import lifeRoutes from "../lifeRoutes";
 import linuxDoCreditRoutes from "../linuxDoCreditRoutes";
 import logRoutes from "../logRoutes";
@@ -663,6 +664,19 @@ export const postTamperRouteModules: RouteModule[] = [
       mode: "route",
       limiters: ["ipQueryLimiter", "ipReportLimiter", "ipLocationLimiter"],
       note: "IP query, report, and location endpoints apply dedicated route-level limiters.",
+    },
+  },
+  {
+    name: "ip-risk-routes",
+    path: "/api",
+    router: ipRiskRoutes,
+    requiresAuth: false,
+    rateLimited: true,
+    isPublic: true,
+    rateLimitPolicy: {
+      mode: "route",
+      limiters: ["ipRiskLimiter", "ipProbeLimiter"],
+      note: "IP risk lookup uses ipRiskLimiter; origin/IPv6 probe echo and HMAC report use the stricter ipProbeLimiter.",
     },
   },
   {

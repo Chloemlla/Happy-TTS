@@ -140,6 +140,35 @@ export interface QqGuardSigningRuntimeConfig {
 }
 
 /**
+ * proxycheck.io IP 风险查询 + 客户端出口探测（HMAC 验签）配置。
+ * `apiKey` / `publicApiKey` 是 proxycheck.io 的两把 key；`hmacSecret` 是自建的
+ * payload 验签主密钥，只用于校验客户端上报遥测，不下发也不进 proxycheck 请求。
+ * Mirror of the PROXYCHECK_* env vars; a stored PROXYCHECK doc overrides the
+ * env-seeded defaults at runtime (see src/services/ipRiskService.ts).
+ */
+export interface ProxycheckRuntimeConfig {
+  /** 总开关，默认 false（未配置 key 前不得外呼）。 */
+  enabled: boolean;
+  /** 服务端 key（4 段式），绝不下发到浏览器。 */
+  apiKey: string;
+  /** 浏览器/CORS key（public-######-######-######）。 */
+  publicApiKey: string;
+  /** 自建 API payload 验签主密钥（服务端专用，绝不下发）。 */
+  hmacSecret: string;
+  /** 同 IP 去重 TTL 小时数。 */
+  cacheTtlHours: number;
+  timeoutMs: number;
+  /** 每把 key 的每日查询额度。 */
+  dailyQuotaPerKey: number;
+  /** 风险分达到该值即挑战（0..100）。 */
+  challengeRiskScore: number;
+  /** proxycheck 是辅助信号而非唯一闸门，默认上游失败时放行。 */
+  failOpen: boolean;
+  /** 是否把 publicApiKey 下发给前端做直连查询。 */
+  usePublicKeyForClient: boolean;
+}
+
+/**
  * Runtime-mutable settings consumed by the Project Lumen subsystem
  * (src/config/lumen.ts). Mirror of the LUMEN_* environment variables; a stored
  * LUMEN doc overrides the env-seeded defaults at runtime (see runtimeConfigService).
@@ -187,6 +216,7 @@ export interface RuntimeConfigDefaults {
   nexaiSigning: NexaiSigningRuntimeConfig;
   cdictSigning: CdictSigningRuntimeConfig;
   qqGuardSigning: QqGuardSigningRuntimeConfig;
+  proxycheck: ProxycheckRuntimeConfig;
   lumen: LumenRuntimeConfig;
 }
 
@@ -335,6 +365,18 @@ export function buildRuntimeConfigDefaults(options: {
       token: "",
       alertEmails: "",
     },
+    proxycheck: {
+      enabled: false,
+      apiKey: "api",
+      publicApiKey: "",
+      hmacSecret: "",
+      cacheTtlHours: 24,
+      timeoutMs: 8000,
+      dailyQuotaPerKey: 1000,
+      challengeRiskScore: 66,
+      failOpen: true,
+      usePublicKeyForClient: true,
+    },
     lumen: {
       enabled: false,
       adminUsername: "admin",
@@ -428,6 +470,9 @@ export function cloneRuntimeConfigDefaults(config: RuntimeConfigDefaults): Runti
     },
     qqGuardSigning: {
       ...config.qqGuardSigning,
+    },
+    proxycheck: {
+      ...config.proxycheck,
     },
     lumen: {
       ...config.lumen,

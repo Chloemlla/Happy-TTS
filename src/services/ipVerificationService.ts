@@ -8,6 +8,7 @@ import { IpVerificationTokenModel } from "../models/ipVerificationTokenModel";
 import logger from "../utils/logger";
 import { buildScamalyticsLookupUrl, normalizeScamalyticsUser } from "../utils/scamalytics";
 import { mongoose } from "./mongoService";
+import { evaluateIpRisk } from "./ipRiskService";
 import { TurnstileService } from "./turnstileService";
 interface ScamalyticsResponse {
   scamalytics: {
@@ -489,7 +490,38 @@ export class IpVerificationService {
       };
     }
 
-    if (config.enableFirstVisitVerification === false || !config.ipqs.enabled) {
+    if (config.enableFirstVisitVerification === false) {
+      return {
+        success: true,
+        verified: true,
+        requiresVerification: false,
+        fingerprint,
+        ipAddress,
+        issuedBy: "auto",
+        tokenTtlMinutes: config.ipqs.tokenTtlMinutes,
+      };
+    }
+
+    // proxycheck.io 是独立于 IPQS 的辅助风险信号，只做「加严」：命中即挑战，未命中或上游
+    // 不可用时完全交回下方原有的 IPQS 判定（failOpen 语义见 ipRiskService.evaluateIpRisk）。
+    if (config.proxycheck.enabled) {
+      const proxycheckRisk = await evaluateIpRisk(ipAddress);
+      if (proxycheckRisk.shouldChallenge) {
+        return {
+          success: true,
+          verified: false,
+          requiresVerification: true,
+          fingerprint,
+          ipAddress,
+          reason: proxycheckRisk.reason,
+          fraudScore: proxycheckRisk.risk,
+          riskFlags: proxycheckRisk.flags,
+          tokenTtlMinutes: config.ipqs.tokenTtlMinutes,
+        };
+      }
+    }
+
+    if (!config.ipqs.enabled) {
       return {
         success: true,
         verified: true,

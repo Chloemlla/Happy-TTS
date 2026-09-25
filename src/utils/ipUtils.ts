@@ -1,4 +1,5 @@
 import type { Request } from "express";
+import { isIP } from "node:net";
 
 /**
  * IP地址验证函数
@@ -6,18 +7,16 @@ import type { Request } from "express";
 export function isValidIP(ip: string): boolean {
   if (!ip) return false;
 
-  // 移除IPv6前缀
-  const cleanIP = ip.replace(/^::ffff:/, "");
+  // 移除IPv4-mapped IPv6前缀（::ffff:1.2.3.4）；IPv4/IPv6 两条分支都用剥离后的值判定。
+  const cleanIP = ip.replace(/^::ffff:/i, "");
 
   // IPv4验证
   const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
   if (ipv4Regex.test(cleanIP)) return true;
 
-  // IPv6验证（简化版）
-  const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::1$|^::$/;
-  if (ipv6Regex.test(ip)) return true;
-
-  return false;
+  // IPv6验证：交给 Node 内置 net.isIP。旧正则只认全展开形式与 ::1/::，
+  // 会把压缩形式（2001:db8::1）误判为非法，而出口探测端点必然产出压缩形式。
+  return isIP(cleanIP) === 6;
 }
 
 /**

@@ -561,6 +561,20 @@ const LIMITER_DEFINITIONS = {
     message: "IP上报过于频繁，请稍后再试",
     skip: skipPrivateIpReport,
   },
+  iprisk: {
+    profile: "relaxed",
+    category: "public-api",
+    windowMs: 15 * 60_000,
+    max: 60,
+    message: "IP风险查询过于频繁，请稍后再试",
+  },
+  ipprobe: {
+    profile: "verification",
+    category: "public-api",
+    windowMs: 15 * 60_000,
+    max: 20,
+    message: "出口探测过于频繁，请稍后再试",
+  },
   serverstatus: {
     profile: "sensitive",
     category: "status",
@@ -665,6 +679,8 @@ export const lcCompatLimiter = limiterFromDefinition("lccompat");
 export const ipQueryLimiter = limiterFromDefinition("ipquery");
 export const ipLocationLimiter = limiterFromDefinition("iplocation");
 export const ipReportLimiter = limiterFromDefinition("ipreport");
+export const ipRiskLimiter = limiterFromDefinition("iprisk");
+export const ipProbeLimiter = limiterFromDefinition("ipprobe");
 export const serverStatusLimiter = limiterFromDefinition("serverstatus");
 export const staticFileLimiter = limiterFromDefinition("static");
 export const docsTimeoutLimiter = limiterFromDefinition("docstimeout");

@@ -23,6 +23,7 @@ export const GOOGLE_AUTH_API = `${API_BASE_URL}/api/admin/google-auth/setting`;
 export const NEXAI_SETTING_API = `${API_BASE_URL}/api/admin/nexai/setting`;
 export const NEXAI_SIGNING_API = `${API_BASE_URL}/api/admin/nexai-signing/setting`;
 export const QQ_GUARD_SIGNING_API = `${API_BASE_URL}/api/admin/qq-guard-signing/setting`;
+export const PROXYCHECK_API = `${API_BASE_URL}/api/admin/proxycheck/setting`;
 export const CDICT_SIGNING_API = `${API_BASE_URL}/api/admin/cdict-signing/setting`;
 export const SYNAPSE_ANDROID_API = `${API_BASE_URL}/api/admin/synapse-android/setting`;
 export const CDICT_DONATION_API = `${API_BASE_URL}/api/admin/cdict-donation/setting`;

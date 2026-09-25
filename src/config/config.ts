@@ -15,6 +15,7 @@ import {
   type NexaiRuntimeConfig,
   type NexaiSigningRuntimeConfig,
   type CdictSigningRuntimeConfig,
+  type ProxycheckRuntimeConfig,
   type TtsRuntimeConfig,
 } from "./runtimeConfigDefaults";
 import type { TtsProviderRuntimeConfig } from "./ttsProviderConfig";
@@ -304,7 +305,7 @@ export const compileTimeConfig = Object.freeze({
   audioDir: path.join(process.cwd(), "finish"),
   dataDir: path.join(process.cwd(), "data"),
   logsDir: path.join(process.cwd(), "logs"),
-  runtimeMutableKeys: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "TTS_PROVIDER", "EMAIL", "ADMIN_SECURITY", "SYNAPSE_ANDROID", "NEXAI_SIGNING", "CDICT_SIGNING", "QQ_GUARD_SIGNING", "LUMEN"] as const,
+  runtimeMutableKeys: ["IPQS", "LINUXDO", "GOOGLE_AUTH", "DEEPLX", "NEXAI", "TTS", "TTS_PROVIDER", "EMAIL", "ADMIN_SECURITY", "SYNAPSE_ANDROID", "NEXAI_SIGNING", "CDICT_SIGNING", "QQ_GUARD_SIGNING", "LUMEN", "PROXYCHECK"] as const,
 });
 
 const runtimeDefaults = buildRuntimeConfigDefaults({
@@ -392,6 +393,15 @@ runtimeDefaults.cdictSigning = {
 runtimeDefaults.qqGuardSigning = {
   ...runtimeDefaults.qqGuardSigning,
   token: process.env.QQ_GUARD_BOT_TOKEN || process.env.QQ_GUARD_SHARED_SECRET || "",
+};
+
+// proxycheck.io 的两把 key 与自建 HMAC 主密钥默认来自 env；已存 PROXYCHECK 文档覆盖之。
+// 同 qqGuardSigning：用 process.env（非 parsedEnv schema），这三项尚未进入 env 校验白名单。
+runtimeDefaults.proxycheck = {
+  ...runtimeDefaults.proxycheck,
+  apiKey: process.env.PROXYCHECK_API_KEY || runtimeDefaults.proxycheck.apiKey,
+  publicApiKey: process.env.PROXYCHECK_PUBLIC_API_KEY || "",
+  hmacSecret: process.env.PROXYCHECK_HMAC_SECRET || "",
 };
 
 // Project Lumen server-side config defaults come from env; a stored LUMEN doc
@@ -484,6 +494,9 @@ export const runtimeMutableConfig = {
   get ipqs(): IpqsRuntimeConfig {
     return RuntimeConfigService.getCachedConfig().ipqs;
   },
+  get proxycheck(): ProxycheckRuntimeConfig {
+    return RuntimeConfigService.getCachedConfig().proxycheck;
+  },
   get linuxdo(): LinuxDoRuntimeConfig {
     return RuntimeConfigService.getCachedConfig().linuxdo;
   },
@@ -557,6 +570,9 @@ export const config = {
   },
   get ipqs() {
     return runtimeMutableConfig.ipqs;
+  },
+  get proxycheck() {
+    return runtimeMutableConfig.proxycheck;
   },
   get linuxdo() {
     return runtimeMutableConfig.linuxdo;

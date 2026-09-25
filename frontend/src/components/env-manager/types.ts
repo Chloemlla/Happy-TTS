@@ -124,6 +124,23 @@ export interface NexaiSigningConfigSetting {
 
 export type CDictSigningConfigSetting = NexaiSigningConfigSetting;
 
+/** GET /api/admin/proxycheck/setting 返回体里的 config 对象（updatedAt 在其同级 setting 下，不在本对象内）。 */
+export interface ProxycheckConfigSetting {
+  enabled: boolean;
+  apiKey: string;
+  publicApiKey: string;
+  hmacSecret: string;
+  hasApiKey: boolean;
+  hasPublicApiKey: boolean;
+  hasHmacSecret: boolean;
+  cacheTtlHours: number;
+  timeoutMs: number;
+  dailyQuotaPerKey: number;
+  challengeRiskScore: number;
+  failOpen: boolean;
+  usePublicKeyForClient: boolean;
+}
+
 export interface TtsProviderAdminConfig {
   provider: TtsProviderId;
   defaultModel: string;

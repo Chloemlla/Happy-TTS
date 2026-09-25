@@ -1,10 +1,11 @@
 {
   "version": 1,
-  "updatedAt": "2026-07-19",
+  "updatedAt": "2026-09-25",
   "notes": [
     "This map is the machine-readable contract for fingerprint/IP privacy governance.",
     "Retention is enforced by Mongo TTL indexes, scheduled cleanup jobs, or documented manual admin actions.",
-    "User account deletion currently removes the user_datas document; linked fingerprint/IP telemetry cleanup is tracked as a long-term debt item."
+    "User account deletion currently removes the user_datas document; linked fingerprint/IP telemetry cleanup is tracked as a long-term debt item.",
+    "proxycheck-* datasets were added 2026-09-25 with the proxycheck.io IP-risk integration. The risk cache is TTL-bounded; the lookup-log and probe-report collections are write-only and still await a retention job (declared as an acknowledged gap)."
   ],
   "datasets": [
     {
@@ -298,6 +299,74 @@
         "reason": "Security telemetry, not part of user data export"
       },
       "evidence": ["src/models/tamperEventModel.ts", "src/services/tamperEventStore.ts", "src/services/tamperService.ts"]
+    },
+    {
+      "id": "proxycheck-risk-cache",
+      "collection": "proxycheck_risk_cache",
+      "fields": ["ip", "risk", "proxy", "vpn", "tor", "hosting", "scraper", "compromised", "anonymous", "confidence", "networkType", "provider", "asn", "range", "organisation", "hostname", "continent", "country", "isocode", "region", "city", "latitude", "longitude", "timezone", "detectionsRaw", "lastUpdated", "queriedAt", "expiresAt", "source"],
+      "purpose": "Per-IP proxycheck.io reputation cache that also de-duplicates upstream lookups (one upstream request per IP per TTL window)",
+      "legalBasis": "security_and_abuse_prevention",
+      "retention": {
+        "type": "ttl",
+        "ttlField": "expiresAt",
+        "expireAfterSeconds": 0,
+        "typicalLifetime": "PROXYCHECK.cacheTtlHours, default 24h, admin-configurable 1-168h",
+        "description": "expiresAt is written on every upsert as queriedAt + cacheTtlHours; Mongo TTL reclaims the document, which is also what makes a later request hit the upstream again."
+      },
+      "delete": {
+        "onUserDelete": "not_linked",
+        "automatic": "Mongo TTL on expiresAt",
+        "patched": "An admin disabling PROXYCHECK stops new upstream calls; cached rows age out on their own TTL",
+        "gap": "Not keyed by user id, so account deletion cannot cascade into rows recorded for that user's IP"
+      },
+      "export": {
+        "supported": false,
+        "reason": "Third-party reputation data keyed by IP, not part of user data export"
+      },
+      "evidence": ["src/models/proxycheckRiskCacheModel.ts", "src/services/ipRiskService.ts"]
+    },
+    {
+      "id": "proxycheck-lookup-logs",
+      "collection": "proxycheck_lookup_logs",
+      "fields": ["ip", "apiKeySlot", "apiKeyHash", "status", "ok", "risk", "deduped", "durationMs", "error", "createdAt"],
+      "purpose": "Third-party IP reputation decision audit and daily-quota accounting; never stores the raw proxycheck.io response",
+      "legalBasis": "security_and_abuse_prevention",
+      "retention": {
+        "type": "operational",
+        "description": "No TTL today; write-only collection with no secondary indexes. Should be capped (recommended 30-90d) in a follow-up cleanup job"
+      },
+      "delete": {
+        "onUserDelete": "not_linked",
+        "automatic": "future retention job",
+        "manual": "admin ops"
+      },
+      "export": {
+        "supported": false,
+        "reason": "Security telemetry, not part of user data export"
+      },
+      "evidence": ["src/models/proxycheckLookupLogModel.ts", "src/services/ipRiskService.ts"]
+    },
+    {
+      "id": "proxycheck-probe-reports",
+      "collection": "proxycheck_probe_reports",
+      "fields": ["ip", "httpExitIp", "wsExitIp", "ipv6Exit", "webrtcLeak", "timezone", "timezoneOffsetMin", "languages", "userAgent", "uaPlatform", "hardwareConcurrency", "deviceMemory", "screenRes", "webdriver", "collectedAt", "flags", "mismatch", "createdAt"],
+      "purpose": "Client-reported network-exit / IPv6-exit / WebSocket-leak telemetry used to detect VPN, proxy and split-tunnel exits that contradict the observed HTTP origin",
+      "legalBasis": "security_and_abuse_prevention",
+      "retention": {
+        "type": "operational",
+        "description": "No TTL today; write-only collection. Should be capped in a follow-up cleanup job"
+      },
+      "delete": {
+        "onUserDelete": "not_linked",
+        "automatic": "future retention job",
+        "manual": "admin ops",
+        "gap": "Client-reported browser fingerprint fields (timezone, languages, screen, WebRTC) are stored against the reporting IP; there is no per-user erasure path for pseudonymous reports"
+      },
+      "export": {
+        "supported": false,
+        "reason": "Anti-abuse telemetry, not part of user data export"
+      },
+      "evidence": ["src/models/proxycheckProbeReportModel.ts", "src/controllers/ipRiskController.ts", "frontend/src/components/ClientOriginProbe.tsx"]
     }
   ]
 }

@@ -16,6 +16,7 @@ export const RUNTIME_CONFIG_KEYS = [
   "CDICT_DONATION",
   "QQ_GUARD_SIGNING",
   "LUMEN",
+  "PROXYCHECK",
 ] as const;
 
 export type RuntimeConfigKey = (typeof RUNTIME_CONFIG_KEYS)[number];
