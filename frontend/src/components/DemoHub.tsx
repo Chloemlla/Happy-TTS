@@ -2,14 +2,15 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, Brain, Code2, Layers, Music, ShoppingBag, Wallet, Wand2 } from 'lucide-react';
 import { FaFlask, FaMobileAlt } from 'react-icons/fa';
-import { studioSecondaryButtonClassName, studioTileClassName } from './studioTheme';
 import {
   InfoBadge,
   InfoPanel,
   InfoQueryHero,
   InfoQueryShell,
   InfoSectionTitle,
-} from './InfoQueryScaffold';
+  studioSecondaryButtonClassName,
+  studioTileClassName,
+} from './studioTheme';
 
 // Demo Hub - 所有UI展示页面的导航中心
 const DemoHub: React.FC = () => {

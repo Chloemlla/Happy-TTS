@@ -17,7 +17,6 @@ import api from "../api/api";
 import { useAuth } from "../hooks/useAuth";
 import { isSuperAdmin } from "../utils/rbac";
 import { useNotification } from "./Notification";
-import { studioDangerButtonClassName, studioFieldClassName, studioSecondaryButtonClassName, studioTileClassName } from './studioTheme';
 import {
   InfoBadge,
   InfoMetricCard,
@@ -25,7 +24,11 @@ import {
   InfoPrimaryButton,
   InfoQueryHero,
   InfoSectionTitle,
-} from './InfoQueryScaffold';
+  studioDangerButtonClassName,
+  studioFieldClassName,
+  studioSecondaryButtonClassName,
+  studioTileClassName,
+} from './studioTheme';
 
 type LicenseStatus = "valid" | "trial" | "expired" | "suspended" | "revoked";
 

@@ -21,14 +21,15 @@ import {
 } from 'react-icons/fa';
 import { useAuth } from '@/hooks/useAuth';
 import { isAdminRole } from '@/utils/rbac';
-import { studioFieldClassName, studioSecondaryButtonClassName } from './studioTheme';
 import {
   InfoBadge,
   InfoMetricCard,
   InfoPanel,
   InfoQueryHero,
   InfoSectionTitle,
-} from './InfoQueryScaffold';
+  studioFieldClassName,
+  studioSecondaryButtonClassName,
+} from './studioTheme';
 
 interface BilibiliSyncRecord {
   _id: string;

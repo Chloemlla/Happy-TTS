@@ -26,7 +26,14 @@ import {
   FaLock,
 } from 'react-icons/fa';
 
-import { studioDangerButtonClassName, studioPrimaryButtonClassName, studioSecondaryButtonClassName } from './studioTheme';
+import {
+  InfoMetricCard,
+  InfoPanel,
+  InfoSectionTitle,
+  studioDangerButtonClassName,
+  studioPrimaryButtonClassName,
+  studioSecondaryButtonClassName,
+} from './studioTheme';
 
 import {
   ACCOUNT_STATUS_FILTER_OPTIONS,
@@ -62,7 +69,6 @@ import {
   type UserListTicketFilter,
   type UserListTranslationFilter,
 } from './user-management/UserFormControls';
-import { InfoMetricCard, InfoPanel, InfoSectionTitle } from './InfoQueryScaffold';
 
 const getErrorMessage = (error: unknown, fallback: string): string => {
   if (typeof error === 'object' && error !== null) {

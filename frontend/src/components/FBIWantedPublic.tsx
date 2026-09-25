@@ -29,8 +29,9 @@ import {
   InfoQueryHero,
   InfoQueryShell,
   InfoSectionTitle,
-} from './InfoQueryScaffold';
-import { studioEyebrowClassName, studioModalOverlayClassName } from './studioTheme';
+  studioEyebrowClassName,
+  studioModalOverlayClassName,
+} from './studioTheme';
 import { cn } from '../utils/cn';
 
 const PAGE_SIZE = 12;

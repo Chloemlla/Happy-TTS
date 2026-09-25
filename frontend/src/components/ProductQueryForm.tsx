@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AntiCounterfeitError, ProductQueryParams } from '../types/anta';
 import { FaBarcode, FaFileAlt, FaLink, FaRulerCombined, FaSearch, FaTag, FaTimes, FaTrash } from 'react-icons/fa';
-import { InfoPrimaryButton } from './InfoQueryScaffold';
+import { InfoPrimaryButton } from './studioTheme';
 
 interface ProductQueryFormProps {
   onQuery: (params: ProductQueryParams) => void;

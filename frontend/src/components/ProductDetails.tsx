@@ -11,7 +11,7 @@ import {
   FaTag,
 } from 'react-icons/fa';
 import { ProductInfo } from '../types/anta';
-import { InfoBadge, InfoMetricCard, InfoPanel, InfoSectionTitle } from './InfoQueryScaffold';
+import { InfoBadge, InfoMetricCard, InfoPanel, InfoSectionTitle } from './studioTheme';
 
 interface ProductDetailsProps {
   product: ProductInfo & {

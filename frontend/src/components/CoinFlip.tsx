@@ -25,15 +25,18 @@ import {
   FaPause,
   FaCog
 } from 'react-icons/fa';
-import { studioPrimaryButtonClassName, studioSecondaryButtonClassName, studioSurfaceClassName, studioTileClassName } from './studioTheme';
-import { coinFlipApi } from '../api/coinFlip';
 import {
   InfoBadge,
   InfoMetricCard,
   InfoQueryHero,
   InfoQueryShell,
   InfoSectionTitle,
-} from './InfoQueryScaffold';
+  studioPrimaryButtonClassName,
+  studioSecondaryButtonClassName,
+  studioSurfaceClassName,
+  studioTileClassName,
+} from './studioTheme';
+import { coinFlipApi } from '../api/coinFlip';
 
 const coinPanelClass = studioSurfaceClassName;
 const coinTileClass = studioTileClassName;

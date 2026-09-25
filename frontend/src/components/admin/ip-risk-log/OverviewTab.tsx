@@ -8,7 +8,7 @@ import {
   FaSlidersH,
 } from 'react-icons/fa';
 import type { ProxycheckCollectionInfo, ProxycheckOverviewResponse } from '@/api/ipRiskLogs';
-import { InfoBadge, InfoMetricCard, InfoPanel, InfoSectionTitle } from '@/components/InfoQueryScaffold';
+import { InfoBadge, InfoMetricCard, InfoPanel, InfoSectionTitle } from '@/components/studioTheme';
 import { cn } from '@/lib/utils';
 import { formatCount, formatRelativeTime, formatTime, shortText, switchBadge } from './format';
 import {

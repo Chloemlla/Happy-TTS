@@ -33,19 +33,17 @@ import { LibreChatContext, LibreChatContextValue } from './LibreChatContext';
 import { LibreChatRealtimeDialog } from './LibreChatRealtimeDialog';
 import { getBackendErrorMessage } from '../utils/backendError';
 import {
+  InfoBadge,
+  InfoPanel,
+  InfoQueryHero,
+  InfoQueryShell,
+  InfoSectionTitle,
   studioFieldClassName,
   studioPrimaryButtonClassName,
   studioSecondaryButtonClassName,
   studioSurfaceClassName,
   studioTileClassName,
 } from './studioTheme';
-import {
-  InfoBadge,
-  InfoPanel,
-  InfoQueryHero,
-  InfoQueryShell,
-  InfoSectionTitle,
-} from './InfoQueryScaffold';
 
 const librePanelClass = studioSurfaceClassName;
 const libreTileClass = studioTileClassName;

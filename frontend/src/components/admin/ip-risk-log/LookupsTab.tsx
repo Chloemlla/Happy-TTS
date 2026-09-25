@@ -6,8 +6,7 @@ import {
   type ProxycheckLookupLogRow,
   type TriStateFilter,
 } from '@/api/ipRiskLogs';
-import { InfoPanel, InfoSectionTitle } from '@/components/InfoQueryScaffold';
-import { studioFieldClassName } from '@/components/studioTheme';
+import { InfoPanel, InfoSectionTitle, studioFieldClassName } from '@/components/studioTheme';
 import { getBackendErrorMessage } from '@/utils/backendError';
 import {
   ACTION_CONFIG,

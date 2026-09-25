@@ -3,9 +3,13 @@ import { FaTrashAlt, FaUserPlus, FaUsers } from 'react-icons/fa';
 import { qqGuardApi } from '../../../api/qqGuard';
 import type { QqGuardWhitelistRow } from '../../../api/qqGuard';
 import { SimpleLoadingSpinner } from '../../LoadingSpinner';
-import { studioPrimaryButtonClassName, studioSecondaryButtonClassName, studioSurfaceClassName } from '../../studioTheme';
+import {
+  InfoSectionTitle,
+  studioPrimaryButtonClassName,
+  studioSecondaryButtonClassName,
+  studioSurfaceClassName,
+} from '../../studioTheme';
 import { cx, formatDateTime } from './ui';
-import { InfoSectionTitle } from '../../InfoQueryScaffold';
 
 /**
  * 白名单（免 AI 审查成员）。面板增删即时写库；

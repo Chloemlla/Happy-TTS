@@ -2,14 +2,14 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { FaBell, FaInfoCircle, FaLayerGroup, FaListOl } from 'react-icons/fa';
 import { useNotification } from './Notification';
-import { studioSecondaryButtonClassName } from './studioTheme';
 import {
   InfoBadge,
   InfoPanel,
   InfoQueryHero,
   InfoQueryShell,
   InfoSectionTitle,
-} from './InfoQueryScaffold';
+  studioSecondaryButtonClassName,
+} from './studioTheme';
 
 const notificationMeta = {
     success: {

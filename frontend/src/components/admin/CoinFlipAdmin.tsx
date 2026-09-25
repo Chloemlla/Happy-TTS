@@ -11,8 +11,13 @@ import { coinFlipApi } from "../../api/coinFlip";
 import type { CoinFlipRecord, CoinFlipStatistics } from "../../api/coinFlip";
 import { cn } from "../../utils/cn";
 import { SimpleLoadingSpinner } from "../LoadingSpinner";
-import { studioPrimaryButtonClassName, studioSecondaryButtonClassName, studioSurfaceClassName } from '../studioTheme';
-import { InfoMetricCard, InfoSectionTitle } from '../InfoQueryScaffold';
+import {
+  InfoMetricCard,
+  InfoSectionTitle,
+  studioPrimaryButtonClassName,
+  studioSecondaryButtonClassName,
+  studioSurfaceClassName,
+} from '../studioTheme';
 
 const PAGE_SIZE = 20;
 

@@ -3,9 +3,13 @@ import { FaPaperPlane, FaRedo, FaTerminal } from 'react-icons/fa';
 import { qqGuardApi } from '../../../api/qqGuard';
 import type { QqGuardCommandRow } from '../../../api/qqGuard';
 import { SimpleLoadingSpinner } from '../../LoadingSpinner';
-import { studioPrimaryButtonClassName, studioSecondaryButtonClassName, studioSurfaceClassName } from '../../studioTheme';
+import {
+  InfoSectionTitle,
+  studioPrimaryButtonClassName,
+  studioSecondaryButtonClassName,
+  studioSurfaceClassName,
+} from '../../studioTheme';
 import { cx, formatDateTime, shortText } from './ui';
-import { InfoSectionTitle } from '../../InfoQueryScaffold';
 
 const inputClass =
   'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 outline-none transition focus:border-indigo-300';

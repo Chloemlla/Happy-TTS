@@ -10,6 +10,7 @@ import {
 import 'swagger-ui-react/swagger-ui.css';
 import { api } from '../api/api';
 import { getBackendErrorMessage } from '../utils/backendError';
+import { cn } from '../utils/cn';
 import {
   InfoBadge,
   InfoPanel,
@@ -17,9 +18,8 @@ import {
   InfoQueryHero,
   InfoQueryShell,
   InfoSectionTitle,
-} from './InfoQueryScaffold';
-import { cn } from '../utils/cn';
-import { studioPrimaryButtonClassName } from './studioTheme';
+  studioPrimaryButtonClassName,
+} from './studioTheme';
 
 const SwaggerUI = lazy(() => import('swagger-ui-react'));
 

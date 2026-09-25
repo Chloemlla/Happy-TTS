@@ -2,13 +2,6 @@ import React from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { FaChevronRight, FaShieldAlt } from 'react-icons/fa';
 
-import {
-  InfoBadge,
-  InfoPanel,
-  InfoQueryHero,
-  InfoQueryShell,
-  InfoSectionTitle,
-} from '@/components/InfoQueryScaffold';
 import { getAdminNavGroups, getSuperAdminOnlyPaths } from '@/navigation/navConfig';
 import { useAuth } from '@/hooks/useAuth';
 import { isAdminRole, isSuperAdmin } from '@/utils/rbac';
@@ -20,7 +13,14 @@ import {
   wrapAdminModule,
 } from './adminModules';
 import { SuperAdminGuard } from './SuperAdminGuard';
-import { studioPrimaryButtonClassName } from '../studioTheme';
+import {
+  InfoBadge,
+  InfoPanel,
+  InfoQueryHero,
+  InfoQueryShell,
+  InfoSectionTitle,
+  studioPrimaryButtonClassName,
+} from '../studioTheme';
 
 /**
  * `/admin` index — module hub with grouped cards linking into drill-in routes.

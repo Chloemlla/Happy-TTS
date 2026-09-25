@@ -21,15 +21,15 @@ import {
   FaVolumeUp,
 } from 'react-icons/fa';
 import type { IconType } from 'react-icons';
+import { cn } from '../utils/cn';
 import {
   InfoBadge,
   InfoPanel,
   InfoQueryHero,
   InfoQueryShell,
   InfoSectionTitle,
-} from './InfoQueryScaffold';
-import { cn } from '../utils/cn';
-import { studioElevatedPanelClassName } from './studioTheme';
+  studioElevatedPanelClassName,
+} from './studioTheme';
 
 const getErrorMessage = (error: any) => {
   if (!error) return null;

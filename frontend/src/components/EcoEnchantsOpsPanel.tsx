@@ -23,14 +23,15 @@ import api from "../api/api";
 import { useAuth } from "../hooks/useAuth";
 import { isSuperAdmin } from "../utils/rbac";
 import { useNotification } from "./Notification";
-import { studioFieldClassName, studioTileClassName } from './studioTheme';
 import {
   InfoBadge,
   InfoMetricCard,
   InfoPanel,
   InfoQueryHero,
   InfoSectionTitle,
-} from './InfoQueryScaffold';
+  studioFieldClassName,
+  studioTileClassName,
+} from './studioTheme';
 
 /* ─────────── Types ─────────── */
 

@@ -13,13 +13,12 @@ import {
 import { qqGuardApi } from '../../api/qqGuard';
 import type { QqGuardPendingTask, QqGuardStats, QqGuardHealth } from '../../api/qqGuard';
 import { SimpleLoadingSpinner } from '../LoadingSpinner';
-import { studioSurfaceClassName } from '../studioTheme';
+import { InfoMetricCard, InfoSectionTitle, studioSurfaceClassName } from '../studioTheme';
 import { AuditLogPanel } from './qq-guard/AuditLogPanel';
 import { WhitelistPanel } from './qq-guard/WhitelistPanel';
 import { CommandPanel } from './qq-guard/CommandPanel';
 import { TimelineDrawer } from './qq-guard/TimelineDrawer';
 import { cx, formatDateTime, shortText } from './qq-guard/ui';
-import { InfoMetricCard, InfoSectionTitle } from '../InfoQueryScaffold';
 
 type TabKey = 'overview' | 'audit' | 'whitelist' | 'commands';
 

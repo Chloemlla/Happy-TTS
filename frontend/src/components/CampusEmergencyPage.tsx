@@ -25,8 +25,8 @@ import {
   InfoQueryHero,
   InfoQueryShell,
   InfoSectionTitle,
-} from './InfoQueryScaffold';
-import { studioEyebrowClassName } from './studioTheme';
+  studioEyebrowClassName,
+} from './studioTheme';
 import { cn } from '../utils/cn';
 
 interface Character {

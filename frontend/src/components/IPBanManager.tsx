@@ -12,8 +12,15 @@ import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
 import { UnifiedLoadingSpinner } from './LoadingSpinner';
 import { useNotification } from './Notification';
-import { studioDangerButtonClassName, studioFieldClassName, studioSecondaryButtonClassName, studioSurfaceClassName } from './studioTheme';
-import { InfoMetricCard, InfoPanel, InfoSectionTitle } from './InfoQueryScaffold';
+import {
+  InfoMetricCard,
+  InfoPanel,
+  InfoSectionTitle,
+  studioDangerButtonClassName,
+  studioFieldClassName,
+  studioSecondaryButtonClassName,
+  studioSurfaceClassName,
+} from './studioTheme';
 
 interface BanIPModalProps {
   isOpen: boolean;

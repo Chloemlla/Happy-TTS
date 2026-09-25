@@ -12,8 +12,14 @@ import { getBackendErrorMessage } from '../utils/backendError';
 import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
-import { studioDangerButtonClassName, studioSecondaryButtonClassName } from './studioTheme';
-import { InfoBadge, InfoMetricCard, InfoPanel, InfoSectionTitle } from './InfoQueryScaffold';
+import {
+  InfoBadge,
+  InfoMetricCard,
+  InfoPanel,
+  InfoSectionTitle,
+  studioDangerButtonClassName,
+  studioSecondaryButtonClassName,
+} from './studioTheme';
 
 const formatDateTime = (value?: string | null) => {
   if (!value) return '暂无';

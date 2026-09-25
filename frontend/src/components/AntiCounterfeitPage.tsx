@@ -13,7 +13,7 @@ import {
   InfoQueryHero,
   InfoQueryShell,
   InfoSectionTitle,
-} from './InfoQueryScaffold';
+} from './studioTheme';
 
 interface AntiCounterfeitPageState {
   productId: string;

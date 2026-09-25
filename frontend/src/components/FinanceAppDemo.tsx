@@ -6,7 +6,7 @@ import {
   DollarSign, TrendingUp, Gift, LogOut, Settings
 } from 'lucide-react';
 import { FaWallet } from 'react-icons/fa';
-import { InfoBadge, InfoPanel, InfoQueryHero, InfoQueryShell } from './InfoQueryScaffold';
+import { InfoBadge, InfoPanel, InfoQueryHero, InfoQueryShell } from './studioTheme';
 
 // 记账理财APP UI展示页面 (Bento设计风格)
 const FinanceAppDemo: React.FC = () => {

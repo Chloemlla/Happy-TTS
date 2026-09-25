@@ -7,8 +7,13 @@ import { isFirstVisitVerificationEnabled } from '../utils/firstVisitVerification
 import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
 import { getBackendErrorMessage } from '../utils/backendError';
-import { studioDangerButtonClassName, studioSecondaryButtonClassName } from './studioTheme';
-import { InfoMetricCard, InfoPanel, InfoSectionTitle } from './InfoQueryScaffold';
+import {
+    InfoMetricCard,
+    InfoPanel,
+    InfoSectionTitle,
+    studioDangerButtonClassName,
+    studioSecondaryButtonClassName,
+} from './studioTheme';
 
 interface CachedCustomer {
     customerId: string;

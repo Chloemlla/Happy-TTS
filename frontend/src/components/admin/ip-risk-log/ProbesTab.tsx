@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FaAngleDoubleDown, FaAngleDoubleUp, FaShieldAlt, FaTimes } from 'react-icons/fa';
 import { ipRiskLogsApi, type ProbeReportRow } from '@/api/ipRiskLogs';
-import { InfoBadge, InfoPanel, InfoSectionTitle } from '@/components/InfoQueryScaffold';
-import { studioFieldClassName } from '@/components/studioTheme';
+import { InfoBadge, InfoPanel, InfoSectionTitle, studioFieldClassName } from '@/components/studioTheme';
 import { getBackendErrorMessage } from '@/utils/backendError';
 import {
   DEFAULT_PAGE_SIZE,

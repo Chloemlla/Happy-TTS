@@ -4,7 +4,7 @@ import { FaShieldAlt } from 'react-icons/fa';
 
 import { useAuth } from '@/hooks/useAuth';
 import { useIsSuperAdmin } from '@/hooks/useRBAC';
-import { InfoPanel, InfoPrimaryButton, InfoQueryShell } from '@/components/InfoQueryScaffold';
+import { InfoPanel, InfoPrimaryButton, InfoQueryShell } from '@/components/studioTheme';
 
 /**
  * Superadmin-only route gate, meant to nest inside `AdminGuard` for

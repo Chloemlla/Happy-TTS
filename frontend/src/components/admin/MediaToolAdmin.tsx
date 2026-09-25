@@ -12,14 +12,13 @@ import {
 import type { IconType } from 'react-icons';
 import { emptyTarget, mediaToolApi } from '../../api/mediaTool';
 import type { MediaTarget, MediaToolHealth, MediaToolSettings } from '../../api/mediaTool';
-import { studioSurfaceClassName } from '../studioTheme';
+import { InfoMetricCard, InfoSectionTitle, studioSurfaceClassName } from '../studioTheme';
 import { SimpleLoadingSpinner } from '../LoadingSpinner';
 import { BiliPanel } from './media-tool/BiliPanel';
 import { JobsPanel } from './media-tool/JobsPanel';
 import { SettingsPanel } from './media-tool/SettingsPanel';
 import { TranscribePanel } from './media-tool/TranscribePanel';
 import { btnGhost, cx, ErrLine, inputCls } from './media-tool/ui';
-import { InfoMetricCard, InfoSectionTitle } from '../InfoQueryScaffold';
 
 const LS_KEY = 'media-tool-conn-v1';
 

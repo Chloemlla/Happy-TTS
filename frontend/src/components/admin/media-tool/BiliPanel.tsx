@@ -2,10 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { FaDownload, FaExclamationTriangle, FaPlay, FaYoutube } from 'react-icons/fa';
 import { mediaToolApi } from '../../../api/mediaTool';
 import type { MediaJobRecord, MediaTarget, MediaToolSettings } from '../../../api/mediaTool';
-import { studioSurfaceClassName } from '../../studioTheme';
+import { InfoSectionTitle, studioSurfaceClassName } from '../../studioTheme';
 import { SimpleLoadingSpinner } from '../../LoadingSpinner';
 import { btnIndigo, ErrLine, Field, OkLine, Toggle, inputCls, textareaCls } from './ui';
-import { InfoSectionTitle } from '../../InfoQueryScaffold';
 
 const segBtn = (active: boolean) =>
   `inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition ${

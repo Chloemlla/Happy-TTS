@@ -4,8 +4,7 @@ import type { IpRiskDecision } from '@/api/ipRiskLogs';
 import { useNotification } from '@/components/Notification';
 import { cn } from '@/lib/utils';
 import { CopyIconButton } from '@/components/admin/crash-reports/ui';
-import { InfoBadge, InfoPanel } from '@/components/InfoQueryScaffold';
-import { studioSecondaryButtonClassName } from '@/components/studioTheme';
+import { InfoBadge, InfoPanel, studioSecondaryButtonClassName } from '@/components/studioTheme';
 import {
   ACTION_CONFIG,
   ACTION_ORDER,

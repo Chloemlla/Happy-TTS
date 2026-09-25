@@ -7,8 +7,14 @@ import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
 import { FaListAlt, FaSync, FaSearch, FaEye, FaTimes, FaTrash, FaCopy, FaClipboard } from 'react-icons/fa';
 import { handleSourceClick, handleSourceModalClose } from './EnvManager';
-import { studioDangerButtonClassName, studioFieldClassName, studioSecondaryButtonClassName, studioSurfaceClassName } from './studioTheme';
-import { InfoPanel, InfoSectionTitle } from './InfoQueryScaffold';
+import {
+  InfoPanel,
+  InfoSectionTitle,
+  studioDangerButtonClassName,
+  studioFieldClassName,
+  studioSecondaryButtonClassName,
+  studioSurfaceClassName,
+} from './studioTheme';
 
 type TraceItem = {
   traceId: string;

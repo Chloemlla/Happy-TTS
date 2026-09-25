@@ -9,7 +9,7 @@ import {
   FaSync,
 } from 'react-icons/fa';
 import { ipRiskLogsApi, type ProxycheckOverviewResponse } from '@/api/ipRiskLogs';
-import { InfoBadge, InfoMetricCard, InfoPanel, InfoQueryHero, InfoQueryShell } from '@/components/InfoQueryScaffold';
+import { InfoBadge, InfoMetricCard, InfoPanel, InfoQueryHero, InfoQueryShell } from '@/components/studioTheme';
 import { useNotification } from '@/components/Notification';
 import { cn } from '@/lib/utils';
 import { getBackendErrorMessage } from '@/utils/backendError';

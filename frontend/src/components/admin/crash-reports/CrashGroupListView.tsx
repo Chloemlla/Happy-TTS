@@ -19,7 +19,15 @@ import {
   FaUsers,
 } from 'react-icons/fa';
 import type { CrashGroup } from '@/api/crashReports';
-import { studioFieldClassName } from '@/components/studioTheme';
+import {
+  InfoBadge,
+  InfoMetricCard,
+  InfoPanel,
+  InfoPrimaryButton,
+  InfoQueryHero,
+  InfoQueryShell,
+  studioFieldClassName,
+} from '@/components/studioTheme';
 import {
   AUTO_REFRESH_OPTIONS,
   GROUP_SORTS,
@@ -32,14 +40,6 @@ import {
 import { buildGroupSummaryText, formatRelativeTime, formatTime, shortKey, topFrame } from './format';
 import { buildGroupsCsv, downloadCsvFile, downloadJsonFile, fileStamp } from './exporters';
 import { CopyButton, DownloadButton, FilterChip, ToolbarSelect } from './ui';
-import {
-  InfoBadge,
-  InfoMetricCard,
-  InfoPanel,
-  InfoPrimaryButton,
-  InfoQueryHero,
-  InfoQueryShell,
-} from '../../InfoQueryScaffold';
 
 interface Props {
   groups: CrashGroup[];

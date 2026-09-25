@@ -7,13 +7,15 @@ import { useNotification } from './Notification';
 import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
 import {
+  InfoBadge,
+  InfoPanel,
+  InfoSectionTitle,
   studioDangerButtonClassName,
   studioFieldClassName,
   studioPrimaryButtonClassName,
   studioSecondaryButtonClassName,
   studioTileClassName,
 } from './studioTheme';
-import { InfoBadge, InfoPanel, InfoSectionTitle } from './InfoQueryScaffold';
 
 const starterMarkdown = `# 新文章
 

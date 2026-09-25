@@ -4,8 +4,13 @@ import { FaShieldAlt } from 'react-icons/fa';
 import HCaptchaWidget, { HCaptchaWidgetRef } from './HCaptchaWidget';
 import { SimpleLoadingSpinner } from './LoadingSpinner';
 import { api } from '../api/api';
-import { studioPrimaryButtonClassName, studioSecondaryButtonClassName } from './studioTheme';
-import { InfoBadge, InfoPanel, InfoQueryShell } from './InfoQueryScaffold';
+import {
+  InfoBadge,
+  InfoPanel,
+  InfoQueryShell,
+  studioPrimaryButtonClassName,
+  studioSecondaryButtonClassName,
+} from './studioTheme';
 
 interface VerificationResult {
   success: boolean;

@@ -13,7 +13,15 @@ import {
   FaUsers,
 } from 'react-icons/fa';
 import type { FullCrashReport } from '@/api/crashReports';
-import { studioFieldClassName } from '@/components/studioTheme';
+import {
+  InfoBadge,
+  InfoMetricCard,
+  InfoPanel,
+  InfoPrimaryButton,
+  InfoQueryHero,
+  InfoQueryShell,
+  studioFieldClassName,
+} from '@/components/studioTheme';
 import { REPORT_SORTS, type ReportSortKey } from './constants';
 import {
   buildGroupReportsText,
@@ -30,14 +38,6 @@ import {
 } from './format';
 import { buildReportsCsv, downloadCsvFile, downloadJsonFile, downloadTextFile, fileStamp } from './exporters';
 import { CollapsibleBlock, CopyButton, DetailField, DownloadButton, ToolbarSelect } from './ui';
-import {
-  InfoBadge,
-  InfoMetricCard,
-  InfoPanel,
-  InfoPrimaryButton,
-  InfoQueryHero,
-  InfoQueryShell,
-} from '../../InfoQueryScaffold';
 
 interface Props {
   groupKey: string;

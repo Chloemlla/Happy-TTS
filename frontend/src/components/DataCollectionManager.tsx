@@ -11,8 +11,15 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import jsonLang from 'react-syntax-highlighter/dist/esm/languages/prism/json';
 import jsLang from 'react-syntax-highlighter/dist/esm/languages/prism/javascript';
 import { handleSourceClick, handleSourceModalClose } from './EnvManager';
-import { studioDangerButtonClassName, studioFieldClassName, studioSecondaryButtonClassName, studioSurfaceClassName } from './studioTheme';
-import { InfoMetricCard, InfoPanel, InfoSectionTitle } from './InfoQueryScaffold';
+import {
+    InfoMetricCard,
+    InfoPanel,
+    InfoSectionTitle,
+    studioDangerButtonClassName,
+    studioFieldClassName,
+    studioSecondaryButtonClassName,
+    studioSurfaceClassName,
+} from './studioTheme';
 
 SyntaxHighlighter.registerLanguage('json', jsonLang);
 SyntaxHighlighter.registerLanguage('javascript', jsLang);

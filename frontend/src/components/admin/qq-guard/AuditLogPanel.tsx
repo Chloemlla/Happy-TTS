@@ -3,9 +3,13 @@ import { FaListUl, FaRedo, FaSearch } from 'react-icons/fa';
 import { qqGuardApi } from '../../../api/qqGuard';
 import type { QqGuardAuditRow } from '../../../api/qqGuard';
 import { SimpleLoadingSpinner } from '../../LoadingSpinner';
-import { studioPrimaryButtonClassName, studioSecondaryButtonClassName, studioSurfaceClassName } from '../../studioTheme';
+import {
+  InfoSectionTitle,
+  studioPrimaryButtonClassName,
+  studioSecondaryButtonClassName,
+  studioSurfaceClassName,
+} from '../../studioTheme';
 import { cx, eventBadge, formatDateTime, shortText } from './ui';
-import { InfoSectionTitle } from '../../InfoQueryScaffold';
 
 const PAGE_SIZE = 30;
 

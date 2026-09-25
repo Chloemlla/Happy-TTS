@@ -20,11 +20,10 @@ import type {
 } from "../types/tts";
 import { cn } from "../utils/cn";
 import { SimpleLoadingSpinner } from "./LoadingSpinner";
-import { InfoSectionTitle } from './InfoQueryScaffold';
 import { useNotification } from "./Notification";
 import { useAuth } from "../hooks/useAuth";
 import { isSuperAdmin } from "../utils/rbac";
-import { studioEyebrowPillClassName, studioSubPanelClassName } from './studioTheme';
+import { InfoSectionTitle, studioEyebrowPillClassName, studioSubPanelClassName } from './studioTheme';
 
 type ReviewFilter = TtsHistoryReviewStatus | "all";
 type ScopeFilter = "all" | "user" | "anonymous";

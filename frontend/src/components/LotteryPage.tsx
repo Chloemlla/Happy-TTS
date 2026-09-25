@@ -10,7 +10,18 @@ import { isAdminRole } from '../utils/rbac';
 import getApiBaseUrl, { getApiBaseUrl as namedGetApiBaseUrl } from '../api';
 import { TurnstileWidget } from './TurnstileWidget';
 import { useTurnstileConfig } from '../hooks/useTurnstileConfig';
-import { studioPrimaryButtonClassName, studioSurfaceClassName, studioTileClassName } from './studioTheme';
+import {
+  InfoBadge,
+  InfoMetricCard,
+  InfoPanel,
+  InfoPrimaryButton,
+  InfoQueryHero,
+  InfoQueryShell,
+  InfoSectionTitle,
+  studioPrimaryButtonClassName,
+  studioSurfaceClassName,
+  studioTileClassName,
+} from './studioTheme';
 import {
   FaChartBar,
   FaTrophy,
@@ -23,15 +34,6 @@ import {
   FaCheckCircle,
   FaExclamationTriangle
 } from 'react-icons/fa';
-import {
-  InfoBadge,
-  InfoMetricCard,
-  InfoPanel,
-  InfoPrimaryButton,
-  InfoQueryHero,
-  InfoQueryShell,
-  InfoSectionTitle,
-} from './InfoQueryScaffold';
 
 const lotteryPanelClass = studioSurfaceClassName;
 const lotteryTileClass = studioTileClassName;

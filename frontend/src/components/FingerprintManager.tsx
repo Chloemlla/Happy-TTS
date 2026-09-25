@@ -22,14 +22,16 @@ import { turnstileApi, type FingerprintStats } from '../api/turnstile';
 import { useAuth } from '../hooks/useAuth';
 import { isSuperAdmin } from '../utils/rbac';
 import { useNotification } from './Notification';
-import { studioDangerButtonClassName, studioFieldClassName, studioSecondaryButtonClassName } from './studioTheme';
 import {
   InfoBadge,
   InfoMetricCard,
   InfoPanel,
   InfoPrimaryButton,
   InfoSectionTitle,
-} from './InfoQueryScaffold';
+  studioDangerButtonClassName,
+  studioFieldClassName,
+  studioSecondaryButtonClassName,
+} from './studioTheme';
 
 interface FingerprintRecord {
   id: string;

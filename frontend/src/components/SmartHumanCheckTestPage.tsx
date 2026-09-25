@@ -2,14 +2,17 @@ import React, { Suspense } from 'react';
 import { FaClipboard, FaKey, FaRobot, FaShieldAlt } from 'react-icons/fa';
 import { SimpleLoadingSpinner } from './LoadingSpinner';
 import getApiBaseUrl from '../api';
-import { studioFieldClassName, studioPrimaryButtonClassName, studioSecondaryButtonClassName, studioTileClassName } from './studioTheme';
 import {
   InfoBadge,
   InfoPanel,
   InfoQueryHero,
   InfoQueryShell,
   InfoSectionTitle,
-} from './InfoQueryScaffold';
+  studioFieldClassName,
+  studioPrimaryButtonClassName,
+  studioSecondaryButtonClassName,
+  studioTileClassName,
+} from './studioTheme';
 
 // 懒加载 SmartHumanCheck 组件
 const ManualNonceSmartHumanCheck = React.lazy(() =>

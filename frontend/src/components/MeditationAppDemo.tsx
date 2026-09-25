@@ -6,8 +6,7 @@ import {
   Mountain, Bug, Bell, LogOut, Trophy, Award, Sunrise, Crown, CheckCircle
 } from 'lucide-react';
 import { FaLeaf } from 'react-icons/fa';
-import { studioSecondaryButtonClassName } from './studioTheme';
-import { InfoBadge, InfoPanel, InfoQueryHero, InfoQueryShell } from './InfoQueryScaffold';
+import { InfoBadge, InfoPanel, InfoQueryHero, InfoQueryShell, studioSecondaryButtonClassName } from './studioTheme';
 
 // 冥想APP UI展示页面
 const MeditationAppDemo: React.FC = () => {

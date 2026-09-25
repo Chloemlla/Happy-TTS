@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { FaExclamationTriangle, FaRedo, FaSearch, FaTimesCircle } from 'react-icons/fa';
 import { AntiCounterfeitError, AntiCounterfeitErrorType, getErrorMessage } from '../types/anta';
-import { InfoPanel, InfoPrimaryButton } from './InfoQueryScaffold';
+import { InfoPanel, InfoPrimaryButton } from './studioTheme';
 
 interface ErrorDisplayProps {
   error: AntiCounterfeitError;

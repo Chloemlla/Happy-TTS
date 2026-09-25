@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { FaCalendarAlt, FaKey } from 'react-icons/fa';
 import { ipRiskLogsApi, type ProxycheckQuotaRow } from '@/api/ipRiskLogs';
-import { InfoBadge, InfoMetricCard, InfoPanel, InfoSectionTitle } from '@/components/InfoQueryScaffold';
+import { InfoBadge, InfoMetricCard, InfoPanel, InfoSectionTitle } from '@/components/studioTheme';
 import { cn } from '@/lib/utils';
 import { getBackendErrorMessage } from '@/utils/backendError';
 import { DAYS_OPTIONS, boolLabel, formatCount, formatTime } from './format';

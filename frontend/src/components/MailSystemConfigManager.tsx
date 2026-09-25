@@ -7,8 +7,14 @@ import { isSuperAdmin } from '../utils/rbac';
 import { getBackendErrorMessage } from '../utils/backendError';
 import { SimpleLoadingSpinner } from './LoadingSpinner';
 import { useNotification } from './Notification';
-import { studioDangerButtonClassName, studioFieldClassName, studioPrimaryButtonClassName, studioSecondaryButtonClassName } from './studioTheme';
-import { InfoPanel, InfoSectionTitle } from './InfoQueryScaffold';
+import {
+  InfoPanel,
+  InfoSectionTitle,
+  studioDangerButtonClassName,
+  studioFieldClassName,
+  studioPrimaryButtonClassName,
+  studioSecondaryButtonClassName,
+} from './studioTheme';
 
 const MAIL_SYSTEM_API = `${getApiBaseUrl()}/api/admin/email-system/setting`;
 
