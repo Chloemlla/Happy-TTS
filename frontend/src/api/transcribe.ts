@@ -46,13 +46,6 @@ export interface TranscriptSegment {
   speaker?: string;
 }
 
-export type TranscriptSegment = {
-  bg: number;
-  ed: number;
-  onebest?: string;
-  speaker?: string;
-};
-
 export interface TranscriptItem {
   index: number;
   label: string;

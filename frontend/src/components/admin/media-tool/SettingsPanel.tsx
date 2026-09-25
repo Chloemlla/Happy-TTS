@@ -223,8 +223,8 @@ export const SettingsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => 
               placeholder="********"
             />
           </Field>
-          <Field label="转写并发">
-            <NumInput min={1} max={8} value={form.lasr.concurrency} onChange={(v) => setL({ concurrency: v })} hint="一个任务里同时转写几个文件（脚本默认 3）" />
+          <Field label="转写并发" hint="一个任务里同时转写几个文件（脚本默认 3）">
+            <NumInput min={1} max={8} value={form.lasr.concurrency} onChange={(v) => setL({ concurrency: v })} />
           </Field>
           <Field label="分片上传并发">
             <NumInput min={1} max={8} value={form.lasr.uploadConcurrency ?? 1} onChange={(v) => setL({ uploadConcurrency: v })} />

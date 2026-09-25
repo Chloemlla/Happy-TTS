@@ -62,6 +62,7 @@ const MEDIA_DEFAULT_SETTINGS: MediaToolSettings = {
     language: 'cn',
     scene: '',
     saveSrt: false,
+    outputs: ['plain'],
     brand: '',
     model: '',
     product: '',
@@ -78,6 +79,9 @@ const MEDIA_DEFAULT_SETTINGS: MediaToolSettings = {
     blockSizeBytes: 0,
     maxFileSizeBytes: 0,
     concurrency: 1,
+    uploadConcurrency: 1,
+    uploadRetries: 4,
+    resumeEnabled: true,
   },
   bili: {
     ytDlpPath: '',
@@ -88,12 +92,17 @@ const MEDIA_DEFAULT_SETTINGS: MediaToolSettings = {
     videoMode: false,
     transcribeAfter: false,
   },
+  user: {
+    enabled: true,
+    maxFilesPerJob: 5,
+    maxActiveJobs: 2,
+  },
 };
 
 const TAB: Array<{ id: 'settings' | 'bili' | 'transcribe' | 'jobs'; label: string; icon: IconType }> = [
   { id: 'settings', label: '设置', icon: FaSlidersH },
   { id: 'bili', label: 'B站下载', icon: FaDownload },
-  { id: 'transcribe', label: '音频转写', icon: FaPlay },
+  { id: 'transcribe', label: '语音转文本', icon: FaPlay },
   { id: 'jobs', label: '任务历史', icon: FaHistory },
 ];
 

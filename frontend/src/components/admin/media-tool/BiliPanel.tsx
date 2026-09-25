@@ -1,10 +1,16 @@
 import React, { useMemo, useState } from 'react';
 import { FaDownload, FaExclamationTriangle, FaPlay, FaYoutube } from 'react-icons/fa';
 import { mediaToolApi } from '../../../api/mediaTool';
-import type { MediaJobRecord, MediaTarget, MediaToolSettings } from '../../../api/mediaTool';
+import type { MediaJobRecord, MediaTarget, MediaToolSettings, TranscribeOutput } from '../../../api/mediaTool';
 import { InfoSectionTitle, studioSurfaceClassName } from '../../studioTheme';
 import { SimpleLoadingSpinner } from '../../LoadingSpinner';
 import { btnIndigo, ErrLine, Field, OkLine, Toggle, inputCls, textareaCls } from './ui';
+
+const OUTPUT_CHOICES: Array<{ value: TranscribeOutput; label: string }> = [
+  { value: 'plain', label: '纯文本' },
+  { value: 'timed', label: '带时间线' },
+  { value: 'srt', label: 'SRT' },
+];
 
 const segBtn = (active: boolean) =>
   `inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-semibold transition ${
@@ -19,7 +25,9 @@ export const BiliPanel: React.FC<{ target: MediaTarget; settings: MediaToolSetti
   const [mode, setMode] = useState<'audio' | 'video'>(settings.bili.videoMode ? 'video' : 'audio');
   const [audioFormat, setAudioFormat] = useState('');
   const [transcribeAfter, setTranscribeAfter] = useState(settings.bili.transcribeAfter);
-  const [saveSrt, setSaveSrt] = useState(settings.lasr.saveSrt);
+  const [outputs, setOutputs] = useState<TranscribeOutput[]>(
+    settings.lasr.outputs?.length ? settings.lasr.outputs : settings.lasr.saveSrt ? ['plain', 'srt'] : ['plain'],
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<MediaJobRecord | null>(null);
@@ -44,7 +52,7 @@ export const BiliPanel: React.FC<{ target: MediaTarget; settings: MediaToolSetti
         mode,
         audioFormat: audioFormat.trim() ? audioFormat.trim() : undefined,
         transcribeAfter,
-        saveSrt,
+        outputs,
       });
       setCreated(job);
       setUrls('');
@@ -109,7 +117,23 @@ export const BiliPanel: React.FC<{ target: MediaTarget; settings: MediaToolSetti
         <div className="flex flex-wrap items-center gap-6">
           <Toggle checked={transcribeAfter} onChange={setTranscribeAfter} label="下载完成后自动转写(vivo)" />
           {transcribeAfter ? (
-            <Toggle checked={saveSrt} onChange={setSaveSrt} label="顺带生成 SRT 字幕" />
+            <span className="flex flex-wrap items-center gap-3">
+              <span className="text-[11px] font-semibold text-slate-500">转写产物</span>
+              {OUTPUT_CHOICES.map((choice) => (
+                <Toggle
+                  key={choice.value}
+                  checked={outputs.includes(choice.value)}
+                  onChange={() =>
+                    setOutputs((prev) =>
+                      prev.includes(choice.value)
+                        ? prev.filter((o) => o !== choice.value)
+                        : [...prev, choice.value],
+                    )
+                  }
+                  label={choice.label}
+                />
+              ))}
+            </span>
           ) : null}
           <span className="text-[11px] text-slate-400">下载并发 {settings.bili.concurrency}</span>
         </div>
