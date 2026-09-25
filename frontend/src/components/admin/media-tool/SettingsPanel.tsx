@@ -2,10 +2,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { FaCheck, FaExclamationTriangle, FaMicrophone, FaSave, FaSlidersH } from 'react-icons/fa';
 import { mediaToolApi } from '../../../api/mediaTool';
 import type { MediaTarget, MediaToolSettings, TranscribeOutput } from '../../../api/mediaTool';
-import { studioSurfaceClassName } from '../../studioTheme';
+import { InfoSectionTitle, studioSurfaceClassName } from '../../studioTheme';
 import { SimpleLoadingSpinner } from '../../LoadingSpinner';
 import { btnIndigo, ErrLine, Field, OkLine, Toggle, inputCls, cx } from './ui';
-import { InfoSectionTitle } from '../../InfoQueryScaffold';
 
 const SECRET_MASK = '********';
 

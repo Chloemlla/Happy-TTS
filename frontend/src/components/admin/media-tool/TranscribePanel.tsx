@@ -18,7 +18,7 @@ import type {
   MediaToolSettings,
   TranscribeOutput,
 } from '../../../api/mediaTool';
-import { studioSurfaceClassName } from '../../studioTheme';
+import { InfoSectionTitle, studioSurfaceClassName } from '../../studioTheme';
 import { SimpleLoadingSpinner } from '../../LoadingSpinner';
 import {
   btnIndigo,
@@ -29,7 +29,6 @@ import {
   Toggle,
   fmtBytes,
 } from './ui';
-import { InfoSectionTitle } from '../../InfoQueryScaffold';
 
 const OUTPUT_CHOICES: Array<{ value: TranscribeOutput; label: string; suffix: string }> = [
   { value: 'plain', label: '纯文本', suffix: '.txt' },

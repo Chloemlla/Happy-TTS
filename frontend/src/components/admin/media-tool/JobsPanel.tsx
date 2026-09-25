@@ -14,7 +14,7 @@ import {
 import { mediaToolApi } from '../../../api/mediaTool';
 import type { AdminTranscriptItem, MediaJobRecord, MediaTarget } from '../../../api/mediaTool';
 import TranscriptView from '../../speech-to-text/TranscriptView';
-import { studioSurfaceClassName } from '../../studioTheme';
+import { InfoSectionTitle, studioSurfaceClassName } from '../../studioTheme';
 import { SimpleLoadingSpinner } from '../../LoadingSpinner';
 import {
   EmptyHint,
@@ -28,7 +28,6 @@ import {
   fmtTime,
   stageLabel,
 } from './ui';
-import { InfoSectionTitle } from '../../InfoQueryScaffold';
 
 const TEXT_EXTS = new Set(['.txt', '.srt', '.json', '.vtt']);
 const isTextRel = (rel: string) => TEXT_EXTS.has(rel.slice(rel.lastIndexOf('.')).toLowerCase());
