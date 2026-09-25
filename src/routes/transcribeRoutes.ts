@@ -1,4 +1,4 @@
-// 「语音转文本」用户态路由(/api/transcribe):普通登录用户即可使用 vivo 录音转写。
+// 「语音转文本」用户态路由(/api/transcribe):普通登录用户即可使用。
 // 与 /api/admin/media-tool 共用 serverRuntime 单例(store / settings / runner),
 // 保证同一进程只有一个 job 队列;作用域由 transcribeUserHttp 锁在 users/<uid>/ 内。
 import type { Request } from "express";

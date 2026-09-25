@@ -38,7 +38,7 @@ const OUTPUT_CHOICES: Array<{ value: TranscribeOutput; label: string; suffix: st
 
 /**
  * 语音转文本(音频转写):两类来源 —— 浏览器直接上传(进 workDir/inbox)与浏览服务端已有文件。
- * 汇入「待转写」清单后统一提交给 vivo LASR;产物三选(纯文本 / 带时间线 / SRT)。
+ * 汇入「待转写」清单后统一提交给服务端转写引擎;产物三选(纯文本 / 带时间线 / SRT)。
  */
 export const TranscribePanel: React.FC<{ target: MediaTarget; settings: MediaToolSettings }> = ({ target, settings }) => {
   const [sub, setSub] = useState('');
@@ -139,7 +139,7 @@ export const TranscribePanel: React.FC<{ target: MediaTarget; settings: MediaToo
   return (
     <div className="space-y-4">
       <InfoSectionTitle
-        title="语音转文本(vivo 录音接口)"
+        title="语音转文本"
         description="浏览器直接上传音频,或浏览服务器工作目录挑选已下载的音频;汇入清单后统一识别,产物可选纯文本 / 带时间线文本 / SRT 字幕。"
         icon={FaPlay}
         tone="violet"

@@ -52,7 +52,7 @@ const STAGE_LABEL: Record<string, string> = {
   queued: '排队',
   prepare: '准备',
   create: '创建会话',
-  upload: '上传分片',
+  upload: '上传中',
   run: '启动识别',
   progress: '识别中',
   result: '取结果',
@@ -71,8 +71,7 @@ const STATUS_LABEL: Record<string, string> = {
 /**
  * `/transcribe` — 语音转文本(核心功能)。
  *
- * 引擎是内置的 vivo 录音转写逆向链路(与 media-tool 同一套 job 队列),
- * 这里只暴露普通用户需要的部分:上传自己的音频 → 选产物 → 看分段结果。
+ * 对外只讲能力:上传音频 → 选产物 → 看分段结果。引擎、参数、限额都留在服务端。
  * 文件作用域由后端锁在用户自己的目录内,前端拿到的都是相对自己目录的路径。
  */
 export const SpeechToTextPage: React.FC = () => {
@@ -225,7 +224,7 @@ export const SpeechToTextPage: React.FC = () => {
         <InfoQueryHero
           eyebrow="SPEECH TO TEXT"
           title="语音转文本"
-          description="把录音交给平台转成文字:大文件自动切片上传、中断可续传,结果可按需要输出纯文本、带时间线文本或 SRT 字幕。"
+          description="把录音交给平台转成文字:长录音也不用守在页面上等,结果可按需要输出纯文本、带时间线文本或 SRT 字幕。"
           icon={FaMicrophone}
           tone="violet"
           meta={meta}
@@ -348,7 +347,7 @@ export const SpeechToTextPage: React.FC = () => {
         <InfoPanel className="space-y-3">
           <InfoSectionTitle
             title="我的转写任务"
-            description="大文件走分片续传:中途关页面、服务重启或网络抖动后,已上传的分片不会重传。"
+            description="任务在服务端排队执行;提交后可以关掉页面,进度与结果都会留着,失败了也能原地重试。"
             tone="slate"
             action={
               hasActive ? (
@@ -443,8 +442,7 @@ export const SpeechToTextPage: React.FC = () => {
         </InfoPanel>
 
         <p className="text-[11px] leading-5 text-slate-400">
-          说明：转写引擎为 vivo 录音机云端识别链路（与平台「媒体工具」同源）。接口地址、密钥与目录可在「系统配置 → 语音转文本与媒体工具」改；
-          并发、重试、限额等参数在「媒体工具 → 设置」改。
+          说明：识别链路的接口参数、并发与限额均由管理员在后台维护，本页只负责你自己的文件与任务。
         </p>
       </div>
     </InfoQueryShell>

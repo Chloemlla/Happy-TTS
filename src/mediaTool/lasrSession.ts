@@ -1,11 +1,11 @@
-// vivo LASR 会话续传 + 分片上传池(对齐 transcribe.js 2026-09-13 新增能力)。
+// 转写会话续传 + 分片上传池。
 //
-// 断点续传:<音频同名>.transcribe.json 记 audio_id / userId / x-sessionId / 已传片号,
-// 进程重启、任务重试、网络中断后都从缺口继续,不重新 create、不重传已完成分片。
+// 断点续传:<音频同名>.transcribe.json 记会话标识与已传片号,
+// 进程重启、任务重试、网络中断后都从缺口继续,不重建会话、不重传已完成分片。
 // 文件尺寸/修改时间/分片数任一变化即作废重来,避免把半截旧文件拼进新音频。
 //
-// 上传并发:worker 池按 uploadConcurrency 领片,服务端按 slice_index 组装,乱序上传结果正确;
-// 实测并发×文件并发过高时上游会返 10105(ks3 落盘失败),故配合单片指数退避重试。
+// 上传并发:worker 池按 uploadConcurrency 领片,服务端按片号组装,乱序上传结果正确;
+// 并发拉高时上游容易返回瞬时错误,因此默认逐片串行,并配合单片指数退避重试。
 import crypto from "node:crypto";
 import fs from "node:fs";
 import { audioDurationSec, CancelledError } from "./runtime";

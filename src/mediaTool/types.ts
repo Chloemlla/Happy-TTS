@@ -2,7 +2,7 @@
 // 该模块在 Synapse 内置(server 态)与独立本地入口(standalone 态)两套运行环境复用,
 // 因此不允许 import 任何 mongoose / 主应用路由 / logger,只依赖 Node 内置模块。
 
-/** vivo LASR 录音转写接口参数(与逆向出的 SDK 默认值一致)。 */
+/** 转写服务接口参数(默认值即平台内置配置)。 */
 export interface LasrOptions {
   serverUrl: string;
   appId: string;
@@ -31,7 +31,7 @@ export interface LasrOptions {
   maxFileSizeBytes: number;
   concurrency: number;
 
-  /** 单文件内部并发上传的分片数(1 = 逐片串行,与官方 App 行为一致) */
+  /** 单文件内部并发上传的分片数(1 = 逐片串行) */
   uploadConcurrency: number;
   /** 单个分片的上传重试次数(指数退避),用于吞掉 10105 这类上游瞬时失败 */
   uploadRetries: number;
@@ -199,8 +199,8 @@ export const DEFAULT_LASR_OPTS: LasrOptions = {
   openid: "",
   blockSizeBytes: 5 * 1024 * 1024,
   maxFileSizeBytes: 500 * 1024 * 1024,
-  // 以下四项与 transcribe.js 的 CONFIG 默认值逐一对齐(CONCURRENCY=3 / UPLOAD_CONCURRENCY=1 /
-  // UPLOAD_RETRIES=4 / 续传无条件开启),进 Synapse 后只多一个 resumeEnabled 开关。
+  // 默认值:文件并发 3、分片串行上传、单片重试 4 次、续传默认开启;
+  // 要调这些请走「管理后台 → 媒体工具 → 设置」(存数据库),不走环境变量。
   concurrency: 3,
   uploadConcurrency: 1,
   uploadRetries: 4,

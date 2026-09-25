@@ -41,7 +41,7 @@ const NumInput: React.FC<{
 const secretField = (s: string): boolean => s === SECRET_MASK;
 
 /**
- * 媒体工具设置(engine 参数 / vivo 账号 / 工具路径 / 并发)。密钥字段以占位展示,
+ * 媒体工具设置(引擎参数 / 账号凭据 / 工具路径 / 并发)。密钥字段以占位展示,
  * 不修改直接保存时后端会保留原值;输入新值即为覆盖。
  */
 export const SettingsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => {
@@ -129,7 +129,7 @@ export const SettingsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => 
     <div className="space-y-4">
       <InfoSectionTitle
         title="媒体工具设置"
-        description="vivo 录音转写接口参数、yt-dlp / cookies 路径、并发与输出格式。密钥输入框显示 ******** 表示沿用当前值。"
+        description="转写接口参数、yt-dlp / cookies 路径、并发与输出格式。密钥输入框显示 ******** 表示沿用当前值。"
         icon={FaSlidersH}
         tone="slate"
       />
@@ -171,14 +171,14 @@ export const SettingsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => 
       </div>
 
       <div className={cx(studioSurfaceClassName, 'space-y-4 p-5')}>
-        <div className="text-sm font-semibold text-slate-800">vivo 录音转写（LASR）</div>
+        <div className="text-sm font-semibold text-slate-800">录音转写</div>
         {hasMaskedLasr ? (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
             检测到密钥以占位符展示。若沿用当前密钥，请勿改动该输入框。
           </div>
         ) : null}
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] leading-5 text-slate-500">
-          接口地址、AppId/AppKey、vivo 账号、目录类参数若同时在环境变量（「系统配置 → 语音转文本与媒体工具」）里写了值，
+          接口地址、AppId/AppKey、账号凭据、目录类参数若同时在环境变量（「系统配置 → 语音转文本与媒体工具」）里写了值，
           <strong>以环境变量为准</strong>；本节其余参数只走这里。
         </div>
         <div className="grid gap-4 md:grid-cols-2">
@@ -205,7 +205,7 @@ export const SettingsPanel: React.FC<{ target: MediaTarget }> = ({ target }) => 
               <input className={inputCls} value={form.lasr.scene} onChange={(e) => setL({ scene: e.target.value })} />
             </Field>
           </div>
-          <Field label="token(vivo 账号)" hint="留空走未登录;填入后为登录态">
+          <Field label="token（账号）" hint="留空走未登录;填入后为登录态">
             <input
               className={inputCls}
               type="password"

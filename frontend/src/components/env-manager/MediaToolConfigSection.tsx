@@ -47,18 +47,18 @@ export const MEDIA_TOOL_ENV_GROUPS: MediaToolEnvGroup[] = [
     ],
   },
   {
-    title: '识别引擎（vivo LASR）',
+    title: '识别引擎',
     fields: [
-      { key: 'MEDIA_TOOL_LASR_URL', label: '接口地址', description: 'LASR 服务地址，默认 https://asr-v2.vivo.com.cn。', placeholder: 'https://asr-v2.vivo.com.cn' },
-      { key: 'MEDIA_TOOL_APP_ID', label: 'AppId', description: '网关 appid，默认 8735273056（录音机客户端）。', placeholder: '8735273056' },
-      { key: 'MEDIA_TOOL_APP_KEY', label: 'AppKey（签名密钥）', description: 'X-AI-GATEWAY 签名用的 HMAC 密钥，与 AppId 成对。', placeholder: '请输入 AppKey', secret: true },
+      { key: 'MEDIA_TOOL_LASR_URL', label: '接口地址', description: '转写服务的接口地址；留空使用内置默认值。', placeholder: '留空即用默认值' },
+      { key: 'MEDIA_TOOL_APP_ID', label: 'AppId', description: '转写服务的 AppId；留空使用内置默认值。', placeholder: '留空即用默认值' },
+      { key: 'MEDIA_TOOL_APP_KEY', label: 'AppKey（签名密钥）', description: '请求签名密钥，与 AppId 成对；留空使用内置默认值。', placeholder: '请输入 AppKey', secret: true },
     ],
   },
   {
-    title: 'vivo 账号（可选）',
+    title: '账号凭据（可选）',
     fields: [
-      { key: 'MEDIA_TOOL_VIVO_TOKEN', label: 'token', description: 'vivo 账号 token。留空走未登录路径（默认可用）。', placeholder: '请输入 token', secret: true },
-      { key: 'MEDIA_TOOL_VIVO_OPENID', label: 'openid', description: 'vivo 账号 openid，与 token 配套。', placeholder: '请输入 openid', secret: true },
+      { key: 'MEDIA_TOOL_VIVO_TOKEN', label: 'token', description: '账号 token。留空走未登录路径（默认可用）。', placeholder: '请输入 token', secret: true },
+      { key: 'MEDIA_TOOL_VIVO_OPENID', label: 'openid', description: '账号 openid，与 token 配套。', placeholder: '请输入 openid', secret: true },
     ],
   },
   {
@@ -259,8 +259,8 @@ export default function MediaToolConfigSection({
       <InfoBox icon={<FaSlidersH />}>
         <p>
           这里只放<strong>换机器就得改</strong>的环境变量（开关、接口地址与密钥、目录）。其余参数写死在代码里，
-          要调请去「管理后台 → 媒体工具 → 设置」（存数据库）：语种、场景、默认产物、文件/分片并发、单片重试、
-          断点续传、上传上限、用户页限额。
+          要调请去「管理后台 → 媒体工具 → 设置」（存数据库）：语种、场景、默认产物、并发与重试、续传策略、
+          上传上限、用户页限额。
         </p>
         <p className="mt-1">
           显式写了值的环境变量是最终权威：它会覆盖设置页存在库里的同名项

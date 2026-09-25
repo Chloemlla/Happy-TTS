@@ -18,7 +18,7 @@ const segBtn = (active: boolean) =>
   }`;
 
 /**
- * B 站下载:BV 号/链接/合集(逐行),音频或完整视频。可联动 vivo 转写。
+ * B 站下载:BV 号/链接/合集(逐行),音频或完整视频。可联动服务端转写。
  */
 export const BiliPanel: React.FC<{ target: MediaTarget; settings: MediaToolSettings }> = ({ target, settings }) => {
   const [urls, setUrls] = useState('');
@@ -115,7 +115,7 @@ export const BiliPanel: React.FC<{ target: MediaTarget; settings: MediaToolSetti
         </div>
 
         <div className="flex flex-wrap items-center gap-6">
-          <Toggle checked={transcribeAfter} onChange={setTranscribeAfter} label="下载完成后自动转写(vivo)" />
+          <Toggle checked={transcribeAfter} onChange={setTranscribeAfter} label="下载完成后自动转写" />
           {transcribeAfter ? (
             <span className="flex flex-wrap items-center gap-3">
               <span className="text-[11px] font-semibold text-slate-500">转写产物</span>

@@ -1,4 +1,4 @@
-// vivo LASR 传输层:与官方 SDK 逐字节一致的编码 / 排序 / 签名 / 请求。
+// 转写服务传输层:编码 / 排序 / 签名 / 请求(签名要求原文逐字节一致,勿随意改动)。
 // 从 vivoLasr.ts 拆出,供续传上传池(lasrSession.ts)与主流程共用,避免相互 import 成环。
 import crypto from "node:crypto";
 import http from "node:http";
@@ -6,7 +6,7 @@ import https from "node:https";
 import type { LasrOptions } from "./types";
 
 // ---------------------------------------------------------------------------
-// 与 Java 完全一致的编码 / 排序 / 过滤(照抄 transcribe.js)
+// 编码 / 排序 / 过滤:签名原文按字节比对,任何改动都会导致验签失败
 // ---------------------------------------------------------------------------
 export function javaUrlEncode(s: string | null | undefined): string {
   if (s == null) return "";
@@ -188,7 +188,7 @@ export function parseResp(resp: RawResp): LasrEnvelope {
   return json;
 }
 
-/** 宽松解析:非 JSON 响应也返回 code=NaN,交给重试判定(与脚本一致)。 */
+/** 宽松解析:非 JSON 响应直接抛错,交由单片重试判定。 */
 export function parseSliceResp(resp: RawResp): { code: number; desc?: string } {
   try {
     return JSON.parse(resp.body) as { code: number; desc?: string };

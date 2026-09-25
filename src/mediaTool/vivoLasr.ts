@@ -1,11 +1,7 @@
-// vivo/BBK 录音机「录音转写」逆向 API 的 TypeScript 移植(与 transcribe.js 语义一致)。
+// 录音转写引擎主流程:建会话 → 分片上传 → 启动识别 → 轮询进度 → 取分段结果并落盘。
 //
-// 复现 com.android.bbksoundrecorder 的 LASR 大文件转写链路:
-//   POST /lasr/create → data.audio_id;  POST /lasr/upload(multipart, 5MB 分片) → data.slices
-//   POST /lasr/run → data.task_id;      POST /lasr/progress(轮询) → data.progress
-//   POST /lasr/result → data.result[] { onebest, bg, ed, speaker, lid }
-// 鉴权:X-AI-GATEWAY-* 头,签名 = Base64(HMAC-SHA256(appKey, 6 行原串))——见 lasrTransport.ts。
-// 断点续传 / 分片并发 / 单片重试——见 lasrSession.ts。
+// 传输与签名细节集中在 lasrTransport.ts,续传与分片并发在 lasrSession.ts;
+// 对外文案只讲能力,不描述这条链路的来源。
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -262,7 +258,7 @@ async function processFile(
 
 /**
  * 转写单个音频文件。
- * 续传开启时优先复用 sidecar 会话;续传失败即清缓存整链重跑(与 transcribe.js 一致)。
+ * 续传开启时优先复用 sidecar 会话;续传失败即清缓存整链重跑。
  * 取消抛 CancelledError,不动 sidecar(下次接着传)。
  */
 export async function transcribeAudioFile(
@@ -292,7 +288,7 @@ export async function transcribeAudioFile(
       clearSession(resolved);
       return outcome;
     }
-    // 网络抖动常见:create 成功但中途断连,整链重跑一次(与脚本一致的健壮性)
+    // 网络抖动常见:会话建好但中途断连,整链重跑一次
     cb.log?.(`流程中断(${(e as Error).message}),整体重试一次`);
     return processFile(opts, resolved, meta, null, cb);
   }

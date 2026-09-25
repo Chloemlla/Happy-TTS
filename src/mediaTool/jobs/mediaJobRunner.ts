@@ -14,7 +14,7 @@ import type {
 } from "../types";
 import { resolveJobOutputs } from "../types";
 
-/** 纯音频扩展(video 容器格式不送 vivo 转写)。 */
+/** 纯音频扩展(视频容器不直接送转写)。 */
 const AUDIO_ONLY_RE = /\.(m4a|mp3|wav|aac|amr|flac|ogg|opus|m4b|3gp|wma|mka|ape|caf)$/i;
 
 export interface JobRunnerDeps {
@@ -228,7 +228,7 @@ export class MediaJobRunner {
           }
         }
       } else {
-        // kind = transcribe:件内多文件按 lasr.concurrency 并发跑(与脚本 CONCURRENCY 同义),
+        // kind = transcribe:任务内多文件按 lasr.concurrency 并发跑,
         // 单件失败不拖垮整批(记入 items 继续跑),取消仍整链中断。
         const files = Array.isArray(doc.input.values) ? doc.input.values.map(String).filter((x) => x.trim()) : [];
         if (files.length === 0) throw new Error("没有可转写的文件");

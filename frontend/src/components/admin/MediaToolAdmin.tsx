@@ -190,7 +190,7 @@ export const MediaToolAdmin: React.FC = () => {
         { label: 'yt-dlp', value: health.runtime.ytDlp.ok ? (health.runtime.ytDlp.version ?? '可用') : '缺失' },
         { label: 'ffprobe', value: health.runtime.ffprobe.ok ? '可用' : '缺失' },
         { label: 'cookies', value: health.runtime.cookies.ok ? (health.runtime.cookies.path ?? '已配置') : '无' },
-        { label: 'vivo 账号', value: health.runtime.lasrConfigured ? '已配置' : '未配置' },
+        { label: '账号凭据', value: health.runtime.lasrConfigured ? '已配置' : '未配置' },
         { label: '排队任务', value: String(health.runtime.queuedJobs) },
       ]
     : [];
@@ -204,7 +204,7 @@ export const MediaToolAdmin: React.FC = () => {
       <InfoSectionTitle
         title="媒体工具"
         eyebrow="Media Tool"
-        description="B 站视频下载与 vivo 录音转写完整流程。可连接当前站点的内置接口(服务器内部下载),或仅连一台独立本地后端把本页当方便壳用。"
+        description="B 站视频下载与录音转写完整流程。可连接当前站点的内置接口(服务器内部下载),或仅连一台独立本地后端把本页当方便壳用。"
         icon={FaDownload}
         tone="slate"
         action={
