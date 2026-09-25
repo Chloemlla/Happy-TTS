@@ -5,12 +5,12 @@ import { isAdminRole } from '../utils/rbac';
 import {
   authAlertClassName,
   authBrandTitleClassName,
-  authFieldClassName,
   authFormClassName,
   authFrameClassName,
   authPageShellClassName,
   authPrimaryButtonClassName,
 } from './authStudioTheme';
+import { studioFieldClassName } from './studioTheme';
 
 export default function AdminLogin() {
   const [username, setUsername] = useState('');
@@ -63,7 +63,7 @@ export default function AdminLogin() {
                 name="username"
                 type="text"
                 required
-                className={authFieldClassName}
+                className={studioFieldClassName}
                 placeholder="用户名"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -78,7 +78,7 @@ export default function AdminLogin() {
                 name="password"
                 type="password"
                 required
-                className={authFieldClassName}
+                className={studioFieldClassName}
                 placeholder="密码"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

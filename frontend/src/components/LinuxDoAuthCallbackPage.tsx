@@ -177,7 +177,7 @@ export const LinuxDoAuthCallbackPage: React.FC = () => {
   return (
     <div className={`${authPageShellClassName} bg-gradient-to-br from-[#8ECAE6]/20 via-white to-[#219EBC]/10`}>
       <div className={`${authFrameClassName} ${authCardClassName} text-center`}>
-        <div className="mx-auto mb-5 h-10 w-10 sm:h-12 sm:w-12 animate-spin rounded-full border-4 border-[#8ECAE6]/40 border-t-[#219EBC]" />
+        <div className="mx-auto mb-5 h-10 w-10 sm:h-12 sm:w-12 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900" />
         <h1 className={authTitleClassName}>正在登录 Linux.do</h1>
         <p className={authDescriptionClassName}>{status}</p>
         {deepLinkUrl ? (
