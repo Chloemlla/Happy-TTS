@@ -3,7 +3,6 @@ import type { NextFunction, Request, Response } from "express";
 
 // 允许的域名（白名单，不使用通配符）
 const allowedOrigins = [
-  "https://tts.chloemlla.com",
   "https://chloemlla.com",
   // Vercel 上的前端副本（前端构建把 API base 定到 apex，故为跨源调用）。
   // 与 apex 同 site，SameSite=Lax 的会话 cookie 在 same-site 请求上仍会发送。
@@ -12,7 +11,6 @@ const allowedOrigins = [
     ? [
         "http://192.168.10.7:3001",
         "http://localhost:3000",
-        "https://tts.chloemlla.com",
         "http://localhost:6000",
         "http://localhost:6001",
         "http://localhost:3002",
@@ -77,7 +75,6 @@ function matchesOriginPattern(origin: string, pattern: string): boolean {
 /** 判断 origin 是否在白名单内（仅允许已知安全域名） */
 export function isOriginAllowed(origin: string | undefined): boolean {
   if (!origin) return true; // 无 origin（curl/postman）放行
-  if (/^https:\/\/tts\.chloemlla\.com$/.test(origin)) return true;
   if (/^https:\/\/chloemlla\.com$/.test(origin)) return true;
   if (/^https:\/\/synapse\.chloemlla\.com$/.test(origin)) return true;
   return allowedOrigins.some((allowedOrigin) => matchesOriginPattern(origin, allowedOrigin));

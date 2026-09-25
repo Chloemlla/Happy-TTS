@@ -9,7 +9,7 @@
 const axios = require("axios");
 
 // 配置
-const API_BASE_URL = "https://tts.chloemlla.com";
+const API_BASE_URL = "https://chloemlla.com";
 const TEST_USER_TOKEN = "demo-user-token"; // 在实际使用中，这应该是真实的用户令牌
 
 // 创建API客户端

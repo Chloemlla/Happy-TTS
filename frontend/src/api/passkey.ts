@@ -28,10 +28,10 @@ export interface AuthenticationOptions {
  * 
  * 这确保所有前端创建的 Passkey 都使用同一个 RP_ID
  * 
- * 格式: https://tts.chloemlla.com (不包含路径)
+ * 格式: https://chloemlla.com (不包含路径)
  */
 export const getClientOrigin = (): string => {
-    return getPasskeyOrigin();  // 返回统一的 https://tts.chloemlla.com
+    return getPasskeyOrigin();  // 返回统一的 https://chloemlla.com
 };
 
 export const passkeyApi = {

@@ -58,7 +58,7 @@ describe("ipVerificationMiddleware", () => {
     const req = {
       method: "GET",
       originalUrl: "/api/tts/generate",
-      headers: { origin: "https://tts.chloemlla.com" },
+      headers: { origin: "https://chloemlla.com" },
       ip: "203.0.113.10",
       socket: { remoteAddress: "203.0.113.10" },
     } as unknown as Request;
@@ -92,7 +92,7 @@ describe("ipVerificationMiddleware", () => {
     const req = {
       method: "GET",
       originalUrl: "/api/auth/linuxdo/callback",
-      headers: { origin: "https://tts.chloemlla.com" },
+      headers: { origin: "https://chloemlla.com" },
       ip: "203.0.113.10",
       socket: { remoteAddress: "203.0.113.10" },
     } as unknown as Request;
@@ -130,7 +130,7 @@ describe("ipVerificationMiddleware", () => {
       method: "POST",
       originalUrl: "/api/tts/generate",
       headers: {
-        origin: "https://tts.chloemlla.com",
+        origin: "https://chloemlla.com",
         "x-fingerprint": "fingerprint_123456",
         "x-ip-verification-token": "verification-token",
       },

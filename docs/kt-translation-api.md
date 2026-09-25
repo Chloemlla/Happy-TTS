@@ -7,7 +7,7 @@
 基础地址按部署环境替换：
 
 ```text
-https://tts.chloemlla.com
+https://chloemlla.com
 ```
 
 公共接口：

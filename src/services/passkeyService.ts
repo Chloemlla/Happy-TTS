@@ -71,7 +71,7 @@ const matchesOriginPattern = (origin: string, pattern: string): boolean => {
 };
 
 const isOriginAllowed = (clientOrigin: string): boolean => {
-  const allowedOriginsStr = (env as any).ALLOWED_ORIGINS || (env as any).RP_ORIGIN || "https://tts.chloemlla.com";
+  const allowedOriginsStr = (env as any).ALLOWED_ORIGINS || (env as any).RP_ORIGIN || "https://chloemlla.com";
   const allowedOrigins = allowedOriginsStr
     .split(",")
     .map((o: string) => o.trim())

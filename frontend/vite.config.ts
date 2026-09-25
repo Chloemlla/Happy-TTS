@@ -165,7 +165,7 @@ function generateSitemapXml() {
     const distDir = path.resolve(__dirname, "dist");
     if (!fs.existsSync(distDir)) return;
 
-    const siteUrlRaw = "https://tts.chloemlla.com";
+    const siteUrlRaw = "https://chloemlla.com";
     const siteUrl = String(siteUrlRaw).replace(/\/$/, "");
 
     // 注意：仅列出静态公共路由；排除需要鉴权的管理/用户页与动态参数路由

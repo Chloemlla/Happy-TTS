@@ -27,7 +27,7 @@ const SECRET_FIELDS: LumenSecretField[] = [
     key: 'PROJECT_LUMEN_API_BASE_URL',
     label: '客户端 API 地址',
     description: 'Project-Lumen Android 客户端连接的 API 基础地址。对应 GitHub Actions Secret PROJECT_LUMEN_API_BASE_URL。',
-    placeholder: '例如 https://tts.chloemlla.com/api/lumen',
+    placeholder: '例如 https://chloemlla.com/api/lumen',
   },
   {
     key: 'PROJECT_LUMEN_API_CERTIFICATE_PINNING_ENABLED',
@@ -45,7 +45,7 @@ const SECRET_FIELDS: LumenSecretField[] = [
     key: 'PROJECT_LUMEN_TRANSLATION_API_BASE_URL',
     label: '翻译服务 API 地址',
     description: 'Project-Lumen 翻译服务（TTS 主机）的 API 基础地址。对应 GitHub Actions Secret PROJECT_LUMEN_TRANSLATION_API_BASE_URL。',
-    placeholder: '例如 https://tts.chloemlla.com',
+    placeholder: '例如 https://chloemlla.com',
   },
   {
     key: 'PROJECT_LUMEN_TRANSLATION_CERTIFICATE_PINNING_ENABLED',

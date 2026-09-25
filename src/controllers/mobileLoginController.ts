@@ -17,7 +17,7 @@ import type { User } from "../utils/userStorage";
 function getApiBaseUrl(req: Request): string {
   const forwardedProto = String(req.headers["x-forwarded-proto"] || "").split(",")[0]?.trim();
   const proto = forwardedProto || req.protocol || "https";
-  const host = req.get("host") || "tts.chloemlla.com";
+  const host = req.get("host") || "chloemlla.com";
   return `${proto}://${host}`;
 }
 

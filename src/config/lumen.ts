@@ -65,7 +65,7 @@ export function buildLumenConfigFromEnv(): LumenConfig {
     outemailDisplayName: process.env.LUMEN_OUTEMAIL_DISPLAY_NAME || "Project Lumen",
     outemailDomain: process.env.LUMEN_OUTEMAIL_DOMAIN || "",
     outemailTimeoutSeconds: intFromEnv(process.env.LUMEN_OUTEMAIL_TIMEOUT_SECONDS, 10),
-    outemailBaseUrl: process.env.LUMEN_OUTEMAIL_BASE_URL || "https://tts.chloemlla.com",
+    outemailBaseUrl: process.env.LUMEN_OUTEMAIL_BASE_URL || "https://chloemlla.com",
   };
 }
 

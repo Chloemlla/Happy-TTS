@@ -1323,7 +1323,7 @@ const RuntimeConfigSections: React.FC = () => {
             <div>
               <div className="text-sm font-medium text-slate-800">导入 Google OAuth JSON</div>
               <div className="mt-1 text-xs text-slate-500">
-                请导入 Google Cloud Console 下载的 `web` 类型 OAuth JSON（应用类型：Web application）。系统会提取 `web.client_id`。Desktop/`installed` JSON 不符合 GSI 要求，将被拒绝。配置前请在凭据中加入前端 origin，例如 `https://tts.chloemlla.com` 与本地 `http://localhost:3001`。
+                请导入 Google Cloud Console 下载的 `web` 类型 OAuth JSON（应用类型：Web application）。系统会提取 `web.client_id`。Desktop/`installed` JSON 不符合 GSI 要求，将被拒绝。配置前请在凭据中加入前端 origin，例如 `https://chloemlla.com` 与本地 `http://localhost:3001`。
               </div>
             </div>
             <button

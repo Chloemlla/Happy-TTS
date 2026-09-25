@@ -253,8 +253,8 @@ const envSchema = z
 
 const parsedEnv = envSchema.parse(process.env);
 
-const baseUrl = parsedEnv.VITE_API_URL || parsedEnv.BASE_URL || "https://tts.chloemlla.com";
-const frontendBaseUrl = parsedEnv.FRONTEND_URL || "https://tts.chloemlla.com";
+const baseUrl = parsedEnv.VITE_API_URL || parsedEnv.BASE_URL || "https://chloemlla.com";
+const frontendBaseUrl = parsedEnv.FRONTEND_URL || "https://chloemlla.com";
 const openaiApiKey = parsedEnv.OPENAI_KEY || parsedEnv.OPENAI_API_KEY;
 const jwtSecretConfigured = Boolean(parsedEnv.JWT_SECRET);
 const jwtSecret = parsedEnv.JWT_SECRET || generateEphemeralSecret();

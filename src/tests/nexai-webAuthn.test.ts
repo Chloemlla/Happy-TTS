@@ -82,11 +82,11 @@ describe("NexAI WebAuthn backend fixes", () => {
     });
   });
 
-  it("uses tts.chloemlla.com as the default RP ID instead of localhost", () => {
+  it("uses chloemlla.com as the default RP ID instead of localhost", () => {
     const webAuthnConfig = getNexaiWebAuthnConfig();
 
-    expect(webAuthnConfig.rpID).toBe("tts.chloemlla.com");
-    expect(webAuthnConfig.expectedOrigins).toContain("https://tts.chloemlla.com");
+    expect(webAuthnConfig.rpID).toBe("chloemlla.com");
+    expect(webAuthnConfig.expectedOrigins).toContain("https://chloemlla.com");
     expect(webAuthnConfig.expectedOrigins).toContain(
       "android:apk-key-hash:_9HzfCcFGsx_oYdF4QfmF5ooVyYZtj_G902sPaRO184",
     );
@@ -104,7 +104,7 @@ describe("NexAI WebAuthn backend fixes", () => {
 
     expect(webAuthnConfig.expectedOrigins).toEqual(
       expect.arrayContaining([
-        "https://tts.chloemlla.com",
+        "https://chloemlla.com",
         "android:apk-key-hash:_9HzfCcFGsx_oYdF4QfmF5ooVyYZtj_G902sPaRO184",
         "android:apk-key-hash:/9HzfCcFGsx/oYdF4QfmF5ooVyYZtj/G902sPaRO184",
         "android:apk-key-hash:test-hash-1",
@@ -270,12 +270,12 @@ it("serves /.well-known/assetlinks.json as JSON instead of HTML", async () => {
       success: true,
       data: {
         allAcceptedCredentials: {
-          rpId: "tts.chloemlla.com",
+          rpId: "chloemlla.com",
           userId: expectedUserId,
           allAcceptedCredentialIds: ["credential-id"],
         },
         currentUserDetails: {
-          rpId: "tts.chloemlla.com",
+          rpId: "chloemlla.com",
           userId: expectedUserId,
           name: "alice@example.com",
           displayName: "Alice",
@@ -368,7 +368,7 @@ it("serves /.well-known/assetlinks.json as JSON instead of HTML", async () => {
 
     expect(response.body.success).toBe(true);
     expect(response.body.data).toMatchObject({
-      rpId: "tts.chloemlla.com",
+      rpId: "chloemlla.com",
       userVerification: "preferred",
     });
     expect(typeof response.body.data.challenge).toBe("string");

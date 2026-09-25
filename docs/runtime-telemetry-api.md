@@ -10,10 +10,10 @@ sidebar_position: 11
 当前插件默认 API Base URL：
 
 ```text
-https://tts.chloemlla.com/api/ecoenchants/v1
+https://chloemlla.com/api/ecoenchants/v1
 ```
 
-插件会对误配置的重复前缀做容错，例如 `https://tts.chloemlla.com/https://tts.chloemlla.com/api/ecoenchants/v1` 会被规范化为上面的 Base URL。
+插件会对误配置的重复前缀做容错，例如 `https://chloemlla.com/https://chloemlla.com/api/ecoenchants/v1` 会被规范化为上面的 Base URL。
 
 ## 1. 插件端行为
 
@@ -27,7 +27,7 @@ https://tts.chloemlla.com/api/ecoenchants/v1
 runtime-telemetry:
   remote-reporting:
     enabled: true
-    api-url: "https://tts.chloemlla.com/api/ecoenchants/v1"
+    api-url: "https://chloemlla.com/api/ecoenchants/v1"
     endpoint: "/telemetry/events"
     interval-ticks: 1200
     batch-size: 100
@@ -45,7 +45,7 @@ runtime-telemetry:
 完整 URL：
 
 ```text
-POST https://tts.chloemlla.com/api/ecoenchants/v1/telemetry/events
+POST https://chloemlla.com/api/ecoenchants/v1/telemetry/events
 ```
 
 插件端将任意 `2xx` 响应视为成功。非 `2xx`、连接失败、超时都会将该批事件重新放回队列，等待下一次周期重试。

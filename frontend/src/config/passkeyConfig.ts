@@ -4,13 +4,13 @@ import { getApiBaseUrl } from "../api/api";
  * Passkey 统一配置
  * 确保所有前端都使用同一个 RP_ORIGIN 进行 Passkey 操作
  *
- * 场景：两个前端，一个共享后端
- * - tts.chloemlla.com
- * - chloemlla.com
+ * 场景：多个前端，一个共享后端
+ * - chloemlla.com（apex，主站，与后端同源）
+ * - synapse.chloemlla.com（Vercel 上的前端副本）
  *
- * 所有 Passkey 操作都通过 tts.chloemlla.com 进行，
- * 这样所有创建的 Passkey 都有同一个 RP_ID = tts.chloemlla.com，
- * 因此在各域名中完全通用。
+ * 所有 Passkey 操作都按 apex 这个 RP_ORIGIN 进行，
+ * RP_ID 取可注册域 chloemlla.com —— apex 与子域都在它的作用域内，
+ * 因此各域名下创建的 Passkey 完全通用。
  */
 
 /**
@@ -36,26 +36,29 @@ export const PASSKEY_API_BASE = getPasskeyApiBase();
  * 这些域名上的用户创建的 Passkey 都会使用同一个 RP_ID
  */
 export const ALLOWED_FRONTEND_DOMAINS = [
-  "tts.chloemlla.com",
   "chloemlla.com",
+  "synapse.chloemlla.com",
 ];
 
 /**
  * 获取 Passkey 操作使用的 Origin（clientOrigin）
  *
  * 这是发送给后端的 origin 参数，用于 Passkey 验证
- * - 在所有环境中，都应该返回生产的 RP_ORIGIN（https://tts.chloemlla.com）
+ * - 在所有环境中，都应该返回生产的 RP_ORIGIN（https://chloemlla.com）
  * - 这确保了 Passkey 的一致性，不管从哪个环境访问
  *
  * 区别：
- * - getPasskeyApiBase()：返回 API 请求的目标地址（开发环境用本地，生产环境用 https://tts.chloemlla.com）
- * - getPasskeyOrigin()：返回发送给后端的 clientOrigin（总是 https://tts.chloemlla.com）
+ * - getPasskeyApiBase()：返回 API 请求的目标地址（开发环境用本地，生产环境用 https://chloemlla.com）
+ * - getPasskeyOrigin()：返回发送给后端的 clientOrigin（总是 https://chloemlla.com）
  *
- * @returns {string} 统一返回 https://tts.chloemlla.com
+ * 注意：后端 RP_ORIGIN_MODE 默认 fixed，期望的 origin 就是配置里的 RP_ORIGIN，
+ * 因此这里必须与 src/config/env.ts 的 RP_ORIGIN 默认值保持一致。
+ *
+ * @returns {string} 统一返回 https://chloemlla.com
  */
 export const getPasskeyOrigin = (): string => {
   // 无论在开发还是生产环境，clientOrigin 总是生产的 RP_ORIGIN
-  return "https://tts.chloemlla.com";
+  return "https://chloemlla.com";
 };
 
 /**

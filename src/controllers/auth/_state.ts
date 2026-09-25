@@ -90,7 +90,7 @@ export const MAX_CODE_ATTEMPTS = 5;
 
 // 获取前端基础URL
 export function getFrontendBaseUrl(): string {
-  return process.env.FRONTEND_URL || "https://tts.chloemlla.com";
+  return process.env.FRONTEND_URL || "https://chloemlla.com";
 }
 
 export async function verifyRequiredTurnstile(

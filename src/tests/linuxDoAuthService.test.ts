@@ -92,23 +92,23 @@ describe("linuxDoAuthService", () => {
   });
 
   it("keeps error redirects out of the backend callback when the frontend URL is misconfigured", () => {
-    config.linuxdo.callbackUrl = "https://tts.chloemlla.com/api/auth/linuxdo/callback";
-    config.linuxdo.frontendCallbackUrl = "https://tts.chloemlla.com/api/auth/linuxdo/callback";
+    config.linuxdo.callbackUrl = "https://chloemlla.com/api/auth/linuxdo/callback";
+    config.linuxdo.frontendCallbackUrl = "https://chloemlla.com/api/auth/linuxdo/callback";
 
     const redirectUrl = new URL(getLinuxDoErrorRedirect("缺少 Linux.do 授权码或登录状态"));
 
-    expect(redirectUrl.origin).toBe("https://tts.chloemlla.com");
+    expect(redirectUrl.origin).toBe("https://chloemlla.com");
     expect(redirectUrl.pathname).toBe("/auth/linuxdo/callback");
     expect(redirectUrl.searchParams.get("error")).toBe("缺少 Linux.do 授权码或登录状态");
   });
 
   it("canonicalizes success frontend callback path even when config stores the backend callback", () => {
-    config.linuxdo.callbackUrl = "https://tts.chloemlla.com/api/auth/linuxdo/callback";
-    config.linuxdo.frontendCallbackUrl = "https://tts.chloemlla.com/api/auth/linuxdo/callback";
+    config.linuxdo.callbackUrl = "https://chloemlla.com/api/auth/linuxdo/callback";
+    config.linuxdo.frontendCallbackUrl = "https://chloemlla.com/api/auth/linuxdo/callback";
 
     const frontendUrl = new URL(resolveLinuxDoFrontendCallbackUrl());
 
-    expect(frontendUrl.origin).toBe("https://tts.chloemlla.com");
+    expect(frontendUrl.origin).toBe("https://chloemlla.com");
     expect(frontendUrl.pathname).toBe("/auth/linuxdo/callback");
     expect(frontendUrl.search).toBe("");
   });

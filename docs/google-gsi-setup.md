@@ -27,7 +27,7 @@
 3. Application type: **Web application** (not Desktop / iOS / Android / TV).
 4. Name it e.g. `Synapse GSI`.
 5. **Authorized JavaScript origins** (must match the browser origin exactly, no path):
-   - Production: `https://tts.chloemlla.com` (or your real frontend origin)
+   - Production: `https://chloemlla.com` (or your real frontend origin)
    - Local Vite: `http://localhost:3001`
    - Local alternate: `http://127.0.0.1:3001`
 6. **Authorized redirect URIs** are optional for GSI button/`ux_mode=popup` id_token flow.
@@ -44,7 +44,7 @@
     "token_uri": "https://oauth2.googleapis.com/token",
     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
     "javascript_origins": [
-      "https://tts.chloemlla.com",
+      "https://chloemlla.com",
       "http://localhost:3001"
     ]
   }

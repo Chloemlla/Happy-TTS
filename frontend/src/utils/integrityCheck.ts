@@ -123,9 +123,8 @@ class IntegrityChecker {
     "https://cdn.jsdelivr.net",
     "https://tts-api-docs.hapx.one",
     "https://tts-api-docs.chloemlla.com",
-    "https://tts.chloemlla.com",
-    "https://tts.chloemlla.com",
     "https://chloemlla.com",
+    "https://synapse.chloemlla.com",
   ];
   private readonly COMPONENT_EXEMPT_MARKERS: string[] = [
     "MarkdownExportPage",

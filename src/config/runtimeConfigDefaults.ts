@@ -450,7 +450,7 @@ export function buildRuntimeConfigDefaults(options: {
       outemailDisplayName: "Project Lumen",
       outemailDomain: "",
       outemailTimeoutSeconds: 10,
-      outemailBaseUrl: "https://tts.chloemlla.com",
+      outemailBaseUrl: "https://chloemlla.com",
     },
   };
 }

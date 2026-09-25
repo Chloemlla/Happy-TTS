@@ -87,7 +87,7 @@ const htmlTemplates = [
       <li>创建第一个项目并测试语音参数</li>
       <li>阅读 API 文档并生成首个集成 Token</li>
     </ol>
-    <a href="https://tts.chloemlla.com" style="display:inline-block;margin-top:16px;padding:12px 18px;background:#111827;color:#fff;border-radius:999px;text-decoration:none;font-weight:700;">进入控制台</a>
+    <a href="https://chloemlla.com" style="display:inline-block;margin-top:16px;padding:12px 18px;background:#111827;color:#fff;border-radius:999px;text-decoration:none;font-weight:700;">进入控制台</a>
   </div>
 </div>`,
   },

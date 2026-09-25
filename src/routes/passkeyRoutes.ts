@@ -183,7 +183,7 @@ router.post("/register/finish", passkeyAuthLimiter, authenticateToken, async (re
       });
       return res.status(400).json({ error: SINGLE_PASSKEY_ERROR_MESSAGE });
     }
-    const requestOrigin = clientOrigin || req.headers.origin || req.headers.referer || "https://tts.chloemlla.com";
+    const requestOrigin = clientOrigin || req.headers.origin || req.headers.referer || "https://chloemlla.com";
     const verification = await PasskeyService.verifyRegistration(
       user,
       response,
@@ -538,7 +538,7 @@ router.post("/authenticate/finish", passkeyAuthLimiter, async (req, res) => {
     }
 
     // 优先使用 clientOrigin，其次自动获取请求origin
-    const requestOrigin = clientOrigin || req.headers.origin || req.headers.referer || "https://tts.chloemlla.com";
+    const requestOrigin = clientOrigin || req.headers.origin || req.headers.referer || "https://chloemlla.com";
 
     // 执行Passkey验证
     const verification = await PasskeyService.verifyAuthentication(user, response, clientOrigin, requestOrigin);

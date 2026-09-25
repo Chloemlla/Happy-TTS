@@ -1,5 +1,5 @@
 # Synapse OAuth 第三方接入文档
-全文BASE_URL：https://tts.chloemlla.com/
+全文BASE_URL：https://chloemlla.com/
 本文档面向需要接入 Synapse 的第三方应用，说明 OAuth 客户端注册、管理员或信用者授权、token 交换、管理员身份鉴别、用户资料读取以及 API scope 调用方式。
 
 ## 1. 接入模型

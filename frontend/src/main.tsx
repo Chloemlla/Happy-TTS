@@ -217,8 +217,8 @@ function hasDangerousExtension(): ClientIntegrityCheckResult {
     "https://cdn.jsdelivr.net",
     "https://tts-api-docs.hapx.one",
     "https://tts-api-docs.chloemlla.com",
-    "https://tts.chloemlla.com",
-    "https://tts.chloemlla.com",
+    "https://chloemlla.com",
+    "https://synapse.chloemlla.com",
   ];
   const allImgs = Array.from(document.querySelectorAll("img"));
   if (allImgs.length > 0) {

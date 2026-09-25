@@ -37,8 +37,8 @@ import logger from "../utils/logger";
 import { normalizeScamalyticsUser, validateScamalyticsUser } from "../utils/scamalytics";
 import { mongoose } from "./mongoService";
 
-const FALLBACK_BASE_URL = "https://tts.chloemlla.com";
-const FALLBACK_FRONTEND_URL = "https://tts.chloemlla.com";
+const FALLBACK_BASE_URL = "https://chloemlla.com";
+const FALLBACK_FRONTEND_URL = "https://chloemlla.com";
 const DURATION_PATTERN = /^\d+[smhd]$/i;
 const RESEND_API_KEY_PATTERN = /^re_\w{8,}/;
 const DOMAIN_PATTERN = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i;

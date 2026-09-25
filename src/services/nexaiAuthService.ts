@@ -1381,7 +1381,7 @@ export class NexaiAuthService {
     );
 
     // 真发信（复用原系统邮件通道）
-    const frontendBaseUrl = process.env.FRONTEND_URL || "https://tts.chloemlla.com";
+    const frontendBaseUrl = process.env.FRONTEND_URL || "https://chloemlla.com";
     const resetLink = `${frontendBaseUrl}/nexai/reset-password?token=${resetToken}`;
     try {
       const emailHtml = generatePasswordResetLinkEmailHtml(user.username, resetLink);

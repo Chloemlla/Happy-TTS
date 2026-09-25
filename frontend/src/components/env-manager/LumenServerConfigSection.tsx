@@ -44,7 +44,7 @@ const TEXT_FIELDS: Record<string, FieldMeta> = {
   outemailFrom: { label: 'LUMEN_OUTEMAIL_FROM', hint: '对外邮件发件人（默认 noreply）' },
   outemailDisplayName: { label: 'LUMEN_OUTEMAIL_DISPLAY_NAME', hint: '对外邮件显示名（默认 Project Lumen）' },
   outemailDomain: { label: 'LUMEN_OUTEMAIL_DOMAIN', hint: '对外邮件域名' },
-  outemailBaseUrl: { label: 'LUMEN_OUTEMAIL_BASE_URL', hint: 'Lumen 回调基址（默认 https://tts.chloemlla.com）' },
+  outemailBaseUrl: { label: 'LUMEN_OUTEMAIL_BASE_URL', hint: 'Lumen 回调基址（默认 https://chloemlla.com）' },
 };
 
 const NUM_FIELDS: Record<string, FieldMeta> = {

@@ -38,7 +38,7 @@ export function applyAdminEnvOverlay(): void {
 applyAdminEnvOverlay();
 
 // 设置默认值
-const rpOriginDefault = "https://tts.chloemlla.com";
+const rpOriginDefault = "https://chloemlla.com";
 
 // 一律用 getter 在读取时解析：导入期定格会同时丢掉上面的重放和管理后台运行期的改动，也会与
 // src/utils/nexaiWebAuthn.ts 对同一批键的惰性读取分歧（两套 WebAuthn 拿到不同的 RP_ID）。
@@ -50,7 +50,7 @@ export const env = {
   // 所有四个前端创建的 Passkey 都会使用这个 RP_ID
   // 因此它们可以在任何前端中互相使用
   get RP_ID(): string {
-    return process.env.RP_ID || "tts.chloemlla.com";
+    return process.env.RP_ID || "chloemlla.com";
   },
 
   // RP_ORIGIN 必须与 RP_ID 对应
@@ -69,6 +69,6 @@ export const env = {
   // 允许的 Origin 列表（用于 CORS 和验证）
   // 包含所有四个前端域名和后端域名
   get ALLOWED_ORIGINS(): string {
-    return process.env.ALLOWED_ORIGINS || "https://tts.chloemlla.com,https://chloemlla.com,https://*.chloemlla.com";
+    return process.env.ALLOWED_ORIGINS || "https://chloemlla.com,https://*.chloemlla.com";
   },
 };

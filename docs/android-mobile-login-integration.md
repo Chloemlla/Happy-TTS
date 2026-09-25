@@ -1,7 +1,7 @@
 # Android Mobile Login Integration
 
 本文档用于安卓客户端对接 Synapse 登录系统的扫码登录和客户端登录令牌能力。后端接口均挂载在同一站点 API 下，示例路径以 `/api/auth/mobile-login` 开头。
-API 地址：https://tts.chloemlla.com
+API 地址：https://chloemlla.com
 ## 登录能力
 
 安卓端需要支持两类登录凭证：
@@ -23,7 +23,7 @@ synapse://mobile-login?sessionId=<sessionId>&scanToken=<scanToken>&apiBaseUrl=<a
 
 - `sessionId`：扫码登录会话 ID。
 - `scanToken`：安卓端确认扫码会话时必须提交的一次性证明。
-- `apiBaseUrl`：当前 Web 所在后端 API Origin，例如 `https://tts.chloemlla.com`。
+- `apiBaseUrl`：当前 Web 所在后端 API Origin，例如 `https://chloemlla.com`。
 - `expiresAt`：二维码过期时间。当前有效期为 3 分钟。
 
 安卓端扫描后应校验 scheme 为 `synapse://mobile-login`，再展示账号、设备和目标站点确认页。

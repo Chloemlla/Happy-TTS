@@ -75,7 +75,7 @@ const DEFAULT_CONFIG: CDictDonationConfig = {
 
 /** 本部署自身的域名，用来拒绝"把图片地址填成本站地址"导致的跳转自环。 */
 function ownHostnames(): Set<string> {
-  const hosts = new Set<string>(["tts.chloemlla.com"]);
+  const hosts = new Set<string>(["chloemlla.com"]);
   for (const raw of [process.env.VITE_API_URL, process.env.BASE_URL, process.env.FRONTEND_URL]) {
     if (!raw) continue;
     try {

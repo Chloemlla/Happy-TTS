@@ -267,7 +267,7 @@ router.post("/user/profile/verify", authMiddleware, async (req, res) => {
         clientOrigin ||
         (typeof req.headers.origin === "string" ? req.headers.origin : undefined) ||
         (typeof req.headers.referer === "string" ? req.headers.referer : undefined) ||
-        "https://tts.chloemlla.com";
+        "https://chloemlla.com";
 
       const verification = await PasskeyService.verifyAuthentication(
         dbUser,

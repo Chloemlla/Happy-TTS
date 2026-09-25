@@ -291,7 +291,7 @@ export function resolveLinuxDoFrontendCallbackUrl(): string {
       try {
         return new URL(config.baseUrl).origin;
       } catch {
-        return "https://tts.chloemlla.com";
+        return "https://chloemlla.com";
       }
     }
   })();

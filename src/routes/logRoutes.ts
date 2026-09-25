@@ -110,7 +110,7 @@ router.post("/sharelog", logLimiter, authenticateToken, authenticateSuperAdmin, 
     });
 
     // 构造前端访问链接
-    const baseUrl = "https://tts.chloemlla.com";
+    const baseUrl = "https://chloemlla.com";
     const link = `${baseUrl}/logshare?id=${fileId}`;
     logger.info(`上传 | IP:${ip} | 文件:${fileName} | 结果:成功 | ID:${fileId}`);
     return res.json({ id: fileId, link, ext });
