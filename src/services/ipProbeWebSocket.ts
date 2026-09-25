@@ -15,12 +15,11 @@ let probeWss: WebSocketServer | null = null;
 /**
  * 观测地址的解析复用 clientProbeService.collectObservedAddresses。
  *
- * 注意这里的 primary 不是「客户端出口」：升级请求是裸 IncomingMessage（没有 Express 的
- * req.ip，也就没有 trust proxy 解析），extractRealIP 只能回退到 cf-connecting-ip /
- * socket.remoteAddress。站点经反向代理或容器网关部署时 socket 地址是反代/网关的内网地址
- * （例如 Docker 桥接网关 172.18.0.1），与 HTTP 侧 echo 解析出的客户端地址不在同一观测层，
- * 两者数值不同是必然的、不代表出口不一致 —— 服务端判定侧的 computeProbeVerdict 用
- * comparability 明确排除了这种情况。
+ * primary 与 HTTP 侧 echo 同一口径：wsService.handleUpgrade 在进入本模块之前已用
+ * resolveUpgradeClientIp 按 TRUST_PROXY 解析升级请求、并把结果写回 req.ip，因此站点经
+ * 反向代理/容器网关部署时这里拿到的也是真实客户端地址，不再是反代或 Docker 桥接网关
+ * （172.18.0.1）的内网地址 —— 两侧数值可直接比对。comparability 仍保留：地址缺失或
+ * 某一侧不是公网出口时，该轴依旧判为「不可判定」。
  */
 function buildProbeMessage(req: IncomingMessage): string {
   const observed = collectObservedAddresses(req);

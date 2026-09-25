@@ -144,18 +144,17 @@ const ProbesTab: React.FC<Props> = ({ refreshNonce }) => {
         也就是「给前端的判决」本身。
         <br />
         口径：每一项都分「能不能判」（<code>comparability</code>）与「判成什么」（<code>mismatch</code>）两步。
-        <code>comparability</code> 为 false 时该轴没有判定前提（缺一侧，或该侧不是公网出口 —— 例如经反向代理部署时
-        WS 升级请求在 Express 中间件栈之外拿不到 <code>req.ip</code>，只能看到反代 / Docker 网关的内网地址），
-        显示为<span className="font-semibold">不可判定</span>，不等于「一致」。
+        <code>comparability</code> 为 false 时该轴没有判定前提（缺一侧，或该侧不是公网出口 —— 例如客户端在
+        NAT / 内网环境下只能观测到私网地址），显示为<span className="font-semibold">不可判定</span>，不等于「一致」。
         <br />
         <span className="font-semibold">改版前的历史行</span>（<code>comparability</code> 显示为 -）没有这一步：
         它们的 <code>ipv4_vs_ws_mismatch</code> 是按「两边都有值且不等」直接判的，凡站点经反向代理部署就恒真，
         不能当结论用。所以这类行的三个轴一律显示<span className="font-semibold">不可判定</span>，
         行内原始的 <code>flags</code> 仍然是当时的留痕（标签已注明命中条件），不回填、不改写历史文档。
         <br />
-        另外：<code>httpExitIp</code> 是服务端在 HTTP 请求上按 trust proxy 解析出来的客户端地址，可信；
-        <code>wsExitIp</code> / <code>ipv6Exit</code> 同样是服务端自己观测的，但观测层分别是最原始的 WS 升级请求与
-        双栈出口，不等于客户端地址；<code>webrtc_leak_reported</code> 与 <code>webdriver_reported</code>
+        另外：<code>httpExitIp</code> 与 <code>wsExitIp</code> 都是服务端按 trust proxy 解析出来的客户端地址
+        （两侧同口径，WS 升级路径同样做代理链解析），<code>ipv6Exit</code> 是双栈出口观测值；
+        <code>webrtc_leak_reported</code> 与 <code>webdriver_reported</code>
         只是「客户端自称」的记号，服务端不采信它们做拦截判断。
       </SectionNote>
 

@@ -156,10 +156,10 @@ function isComparableExitAddress(value: string | undefined): boolean {
  * 每一轴先判「能不能判」（comparability）再判「判成什么」（mismatch）：一侧不具备判定
  * 条件时该轴恒为 false，并由 comparability 告诉前端「不可判定」，不要渲染成「一致」。
  *
- * 关键一条：HTTP 侧与 WS 侧的地址不是同一层观测。HTTP 侧走 Express，req.ip 由 trust proxy
- * 解析（反代后即真实客户端）；WS 升级请求是裸 IncomingMessage、在 Express 中间件栈之外，
- * 拿不到 req.ip，只能回退到 socket.remoteAddress —— 反代或 Docker 网关的内网地址。
- * 因此 ipv4vsWs 只在两侧都是公网出口时才成立。
+ * 关键一条：HTTP 侧与 WS 侧的地址取自同一层观测 —— HTTP 侧走 Express，req.ip 由 trust proxy
+ * 解析；WS 升级请求虽然是裸 IncomingMessage、在 Express 中间件栈之外，但升级路径已按同一份
+ * TRUST_PROXY 解析并写回 req.ip（见 utils/trustProxy.resolveUpgradeClientIp）。因此 ipv4vsWs
+ * 只在两侧都是合法公网出口时才成立：缺一侧、或某一侧是私网/NAT 地址时该轴不可判定。
  */
 function computeProbeVerdict(
   report: SanitizedProbePayload,

@@ -43,6 +43,7 @@ import {
 import { registerSecurityPipeline } from "../security/securityPipeline";
 import logger from "../utils/logger";
 import { sanitizeLogValue } from "../utils/requestLogSanitizer";
+import { parseTrustProxySetting } from "../utils/trustProxy";
 import cloudflareChallengeRoutes from "../routes/cloudflareChallengeRoutes";
 
 declare global {
@@ -194,49 +195,6 @@ const getFrontendFallbackHtml = (expected: string, nonce?: string) => {
 </html>`;
   return nonce ? applyCspNonceToHtml(html, nonce) : html;
 };
-
-function parseTrustProxySetting(): boolean | number | string | string[] {
-  const raw = process.env.TRUST_PROXY?.trim();
-  if (!raw) {
-    // 默认不信任任何代理：trust proxy 未显式配置时，req.ip === socket.remoteAddress，
-    // 客户端无法通过伪造 X-Forwarded-For 控制 req.ip（影响 IP 封禁、限流、用量统计）。
-    // 若部署在反向代理之后，请显式设置 TRUST_PROXY（如 TRUST_PROXY=true 或代理跳数）。
-    if (process.env.NODE_ENV === "production") {
-      // 在 assembly 顶层避免重复输出
-      const key = "TRUST_PROXY_UNSET_WARNED";
-      if (!(globalThis as any)[key]) {
-        (globalThis as any)[key] = true;
-        console.warn(
-          "[assembly] WARNING: TRUST_PROXY is not set, defaulting to no trust. " +
-            "If this server runs behind a reverse proxy, set TRUST_PROXY explicitly so req.ip reflects the real client.",
-        );
-      }
-    }
-    return false;
-  }
-
-  const normalized = raw.toLowerCase();
-  if (["false", "0", "no", "off"].includes(normalized)) {
-    return false;
-  }
-  if (["true", "yes", "on"].includes(normalized)) {
-    return true;
-  }
-
-  const numeric = Number(raw);
-  if (Number.isInteger(numeric) && numeric >= 0) {
-    return numeric;
-  }
-
-  if (raw.includes(",")) {
-    return raw
-      .split(",")
-      .map((entry) => entry.trim())
-      .filter(Boolean);
-  }
-
-  return raw;
-}
 
 function resolveStaticDirectory(candidates: string[], requiredFiles: string[]): string | undefined {
   return candidates.find((candidate) => {

@@ -214,8 +214,8 @@ function normalizeCandidate(value: string | null): { ip: string; version: number
  * socket.remoteAddress，刻意不信任客户端可伪造的 x-forwarded-for）。三个代理头另外原样
  * 读出放进 headers，仅作展示，不参与判权。
  *
- * 入参同时接受 Express Request（有 req.ip）与 WS 升级的裸 IncomingMessage（无 req.ip，
- * extractRealIP 会自然回退到 cf-connecting-ip / socket.remoteAddress）。
+ * 入参同时接受 Express Request（有 req.ip）与 WS 升级的裸 IncomingMessage：后者本无 req.ip，
+ * 但升级路径已由 resolveUpgradeClientIp 按同一份 TRUST_PROXY 解析并写回该字段，故两侧同口径。
  */
 export function collectObservedAddresses(req: Request | IncomingMessage): ObservedAddresses {
   const cfConnectingIp = readHeader(req.headers, "cf-connecting-ip");

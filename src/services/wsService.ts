@@ -16,6 +16,7 @@ import {
   releaseConfigurationNoticeDeliveryClaim,
 } from "./configurationNoticeService";
 import logger from "../utils/logger";
+import { resolveUpgradeClientIp } from "../utils/trustProxy";
 
 // G5-05: WS 加固常量
 const WS_MAX_PAYLOAD = 64 * 1024,
@@ -158,10 +159,12 @@ class WsService {
 
   private async handleUpgrade(req: IncomingMessage, socket: Socket, head: Buffer): Promise<void> {
     const pathname = getUpgradePathname(req);
-    const clientIp = (req.socket.remoteAddress || "unknown").replace(/^::ffff:/i, "");
+    const clientIp = resolveUpgradeClientIp(req);
 
     // G5-05: 升级路径在 Express 中间件栈之外，先做 IP 封禁（缓存判定）+ 按 IP 频率限制。
     // /ws/ip-probe 与 /ws 同级：公开探测端点同样必须先过封禁与限流，只是不做 JWT 认证。
+    // clientIp 按与 HTTP 侧同一份 TRUST_PROXY 解析（见 resolveUpgradeClientIp）：反代下封禁、
+    // 限流、同 IP 并发上限按真实客户端计数，而不是全站共用反代/容器网关那一个地址。
     const isGatedUpgradePath =
       pathname === "/ws" || pathname === IP_PROBE_WS_PATH || EcoEnchantsOpsService.shouldHandleRpcUpgrade(pathname);
     if (isGatedUpgradePath) {
