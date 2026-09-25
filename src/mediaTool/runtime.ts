@@ -160,7 +160,7 @@ export function sanitizeFileName(name: string, fallback = "upload"): string {
  */
 export function userScopedDirName(userId: string): string {
   const safe = String(userId || "").replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 48) || "anon";
-  const digest = createHash("sha1").update(String(userId || "")).digest("hex").slice(0, 8);
+  const digest = createHash("sha256").update(String(userId || "")).digest("hex").slice(0, 8);
   return `${safe}-${digest}`;
 }
 
