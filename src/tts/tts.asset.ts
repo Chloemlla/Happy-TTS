@@ -61,6 +61,28 @@ const TtsAudioAssetSchema = new mongoose.Schema<TtsAudioAssetDocument>(
 const TtsAudioAssetModel =
   mongoose.models.TtsAudioAsset || mongoose.model<TtsAudioAssetDocument>("TtsAudioAsset", TtsAudioAssetSchema);
 
+/**
+ * 取回可写盘的音频字节。
+ *
+ * `.lean()` 不做 schema 转换，Buffer 字段取回来是 BSON Binary 而不是 Node Buffer，
+ * 直接喂给 fs.writeFile 会抛 ERR_INVALID_ARG_TYPE——结果是 Mongo 里明明有音频，
+ * 回填磁盘却永远失败，接口只能 404。Binary 的真实字节在 `.buffer`（也可能是
+ * 老式 bson 的 `value()`）里，这里统一收敛成 Node Buffer。
+ */
+export function toAudioBuffer(value: unknown): Buffer | null {
+  if (Buffer.isBuffer(value)) return value;
+  if (value instanceof Uint8Array) return Buffer.from(value);
+
+  const binary = value as { buffer?: unknown; value?: unknown } | null;
+  if (binary && binary.buffer instanceof Uint8Array) return Buffer.from(binary.buffer);
+  if (binary && typeof binary.value === "function") {
+    const legacy = (binary.value as (raw?: boolean) => unknown)(true);
+    if (legacy instanceof Uint8Array) return Buffer.from(legacy);
+    if (typeof legacy === "string") return Buffer.from(legacy, "binary");
+  }
+  return null;
+}
+
 export class TtsAudioAssetStore {
   public resolveMimeType(outputFormat: string) {
     switch (outputFormat) {
@@ -253,13 +275,14 @@ export class TtsAudioAssetStore {
 
     try {
       const asset = await TtsAudioAssetModel.findOne({ fileName }).lean().exec();
-      if (!asset?.audioData) {
+      const audioData = toAudioBuffer(asset?.audioData);
+      if (!audioData) {
         return false;
       }
 
       const filePath = path.join(outputDir, fileName);
       await fs.promises.mkdir(outputDir, { recursive: true });
-      await fs.promises.writeFile(filePath, asset.audioData);
+      await fs.promises.writeFile(filePath, audioData);
       return true;
     } catch (error) {
       logger.warn("TTS 音频从 MongoDB 恢复到磁盘失败", { error, fileName });
